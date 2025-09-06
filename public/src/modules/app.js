@@ -30,6 +30,7 @@ import {
 } from './hud-helpers.js';
 const _animateScore = HUD.animateScore;
 const _bumpCombo    = HUD.bumpCombo;
+const _animateMoves = HUD.animateMoves;
 
 // --- Build / Version label ---
 const GAME_VERSION = 'v15';
@@ -57,6 +58,7 @@ const WILD_INC_BIG   = 0.22;
 // -------------------- global state --------------------
 let app, stage, board, boardBG, hud;
 let _hudInitDone = false;
+let _lastSAT = -1;
 let grid = []; let tiles = [];
 let score = 0; let level = 1; let moves = MOVES_MAX;
 const SCORE_CAP = 999999;
@@ -215,7 +217,12 @@ export async function boot(){
   versionLabel.zIndex = 20000;
   versionLabel.eventMode = 'none';
   stage.addChild(versionLabel);
-  const placeVersion = ()=>{ versionLabel.x = app.renderer.width - versionLabel.width - 12; versionLabel.y = 8; };
+  const placeVersion = ()=>{
+    const css = getComputedStyle(document.documentElement);
+    const SAT = parseFloat(css.getPropertyValue('--sat')) || 0;
+    versionLabel.x = app.renderer.width - versionLabel.width - 12;
+    versionLabel.y = 8 + SAT;
+  };
   placeVersion(); window.addEventListener('resize', placeVersion);
 
   board.addChildAt(boardBG, 0); boardBG.zIndex = -1000; board.sortChildren();
@@ -277,6 +284,7 @@ function layout(){
   const SAL = parseFloat(cssVars.getPropertyValue('--sal')) || 0;
   const SAR = parseFloat(cssVars.getPropertyValue('--sar')) || 0;
   const SAB = parseFloat(cssVars.getPropertyValue('--sab')) || 0;
+  const SAT = parseFloat(cssVars.getPropertyValue('--sat')) || 0;
 
   const MIN_SIDE = isMobilePortrait ? 24 : 14;
   const LEFT_PAD  = Math.max(MIN_SIDE, SAL);
@@ -285,7 +293,8 @@ function layout(){
   const BOT_PAD   = (isMobilePortrait ? 24 : 24) + SAB;
   const GAP_HUD   = 16;
 
-  const s = Math.min((vw - LEFT_PAD - RIGHT_PAD) / w, (vh - TOP_PAD - HUD_H - GAP_HUD - BOT_PAD) / h);
+  const safeTop = TOP_PAD + SAT;
+  const s = Math.min((vw - LEFT_PAD - RIGHT_PAD) / w, (vh - safeTop - HUD_H - GAP_HUD - BOT_PAD) / h);
   board.scale.set(s, s); board.scale.y = board.scale.x;
 
   const sw = w * s, sh = h * s;
@@ -295,11 +304,12 @@ function layout(){
   board.y = Math.round(vh - BOT_PAD - sh);
 
   drawBoardBG('none');
+  if (Math.abs((_lastSAT||0) - SAT) > 0.5) { _hudInitDone = false; _lastSAT = SAT; }
 
   try {
     if (typeof _initHUD === 'function') {
       if (!_hudInitDone) {
-        _initHUD({ stage, app, top: TOP_PAD, gsap });
+        _initHUD({ stage, app, top: safeTop, gsap });
         _hudInitDone = true;
         try { if (hud) hud.visible = false; } catch {}
         // hook za wild meter prema HUD-u
@@ -307,7 +317,7 @@ function layout(){
       }
       _updateHUD?.({ score, moves, combo });
     } else {
-      const refs = HUD.drawHUD?.({ app, hud, top: TOP_PAD, level, score, moves, gsap }) || {};
+      const refs = HUD.drawHUD?.({ app, hud, top: safeTop, level, score, moves, gsap }) || {};
       boardNumText = refs.boardNumText; scoreNumText = refs.scoreNumText; movesNumText = refs.movesNumText;
       hudUpdateProgress = refs.updateProgressBar || hudUpdateProgress;
     }
@@ -352,6 +362,14 @@ function animateScore(toValue, duration=0.45){
     HUD.animateScore({ scoreRef: () => score, setScore: v => { score=v; }, updateHUD, SCORE_CAP, gsap }, toValue, duration);
   }
 }
+function animateMovesHUD(toValue, duration=0.45){
+  if (typeof _animateMoves === 'function') {
+    _animateMoves({ movesRef: () => moves, setMoves: v => { moves=v; }, updateHUD, gsap }, toValue, duration);
+  } else {
+    try { _setMoves?.(toValue); } catch {}
+    moves = toValue|0; updateHUD();
+  }
+}
 function fixHoverAnchor(t){ try { if (t && t.hover) { t.hover.x=TILE/2; t.hover.y=TILE/2; } } catch {} }
 
 // -------------------- board build --------------------
@@ -391,7 +409,7 @@ function rebuildBoard(){
     drawBoardBG();
   });
 }
-function tintLocked(t){ try{ gsap.to(t, { alpha:0.35, duration:0.20, ease:'power1.out' }); }catch{} }
+function tintLocked(t){ try{ gsap.to(t, { alpha:0.35, duration:0.10, ease:'power1.out' }); }catch{} }
 function randVal(){ return [1,1,1,2,2,3,3,4,5][(Math.random()*9)|0]; }
 function startLevel(n){
   level = 1;
@@ -545,7 +563,7 @@ function merge(src, dst, helpers){
 
         // countdown moves
         moves = Math.max(0, moves - 1);
-        updateHUD();
+        animateMovesHUD(moves, 0.40);
         if (moves === 0) { checkMovesDepleted(); return; }
 
         checkLevelEnd();
@@ -613,7 +631,7 @@ function merge(src, dst, helpers){
         const scoreDelta = 6 * bubbleMult * comboMult;
         score = Math.min(SCORE_CAP, score + scoreDelta);
 
-        updateHUD();
+        animateMovesHUD(moves, 0.40);
         animateScore(score, 0.40);
         if (moves === 0) { checkMovesDepleted(); return; }
 

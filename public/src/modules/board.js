@@ -197,6 +197,10 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
     const nx = dx / len;
     const ny = dy / len;
 
+    // Take into account current visual tilt to avoid "baked" look
+    const tilt = (t.rotG?.rotation || 0);
+    const tiltAbs = Math.abs(tilt);
+
     // Strength: tiles further from center cast slightly longer shadows.
     const maxSpan = Math.max(COLS, ROWS) * (TILE + GAP) * 0.5;
     const strength = 0.6 + 0.4 * Math.min(1, len / Math.max(1, maxSpan));
@@ -218,7 +222,9 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
       if (alpha <= 0.003) continue;
 
       // Increase shift with each outer layer for natural parallax
-      const shift = baseShift * (0.35 + p * 1.1);
+      let shift = baseShift * (0.35 + p * 1.1);
+      // extra push from tilt (stronger inner layers)
+      shift += (TILE * 0.02) * (1 - p) * tiltAbs;
       const ox = -width  / 2 + nx * shift + 1;  // +1 tiny pixel nudge for sub-pixel crispness
       const oy = -height / 2 + ny * shift + 4 + biasY;
 
@@ -226,6 +232,14 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
         .drawRoundedRect(ox, oy, width, height, TILE * 0.22)
         .endFill();
     }
+
+    // rotate and subtly distort shadow to follow visual tilt
+    try {
+      sh.rotation = tilt * 0.55;                      // follow about half the tile’s tilt
+      const sx = 1 + tiltAbs * 0.08;                  // slight stretch sideways
+      const sy = 1 - tiltAbs * 0.04;                  // slight flatten
+      sh.scale.set(sx, sy);
+    } catch {}
   };
   drawShadow(); 
   t.refreshShadow = drawShadow;

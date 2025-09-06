@@ -97,7 +97,55 @@ export function createWildLoaderFX({ width = 100, parent = null } = {}) {
 /* ---------------- Minimal HUD the app.js expects ---------------- */
 let HUD_ROOT = null;
 let movesText, scoreText, comboText; 
+let comboWrap; // wrapper for jitter
 let wild;
+let __comboJitterTl = null;
+let __comboBumpTl = null;
+let __shakeTl = null;        // drives shake amplitude during bump/deflate
+let __lastComboVal = 0;
+let __shakeMul = 1.0;        // global multiplier sampled by jitter
+let __scoreTweening = false;
+let __movesTweening = false;
+let __prevScore = 0;
+let __prevMoves = 0;
+
+function bounceText(obj, { peak=1.28, back=1.06, up=0.10, down=0.24 } = {}){
+  if (!obj) return;
+  try { gsap.killTweensOf(obj.scale); } catch {}
+  gsap.timeline()
+    .to(obj.scale, { x: peak, y: peak, duration: up, ease: 'back.out(3)' }, 0)
+    .to(obj.scale, { x: back, y: back, duration: down, ease: 'elastic.out(1,0.78)' }, '>-0.02');
+}
+
+function startComboFX(){
+  if (!comboText) return;
+  // keep a slightly enlarged base while active
+  try { gsap.killTweensOf(comboText); } catch {}
+  if (!__comboJitterTl){
+    __comboJitterTl = gsap.timeline({ repeat: -1, repeatRefresh: true });
+    const rot = () => (Math.random() * 0.144*__shakeMul - 0.072*__shakeMul); // scaled by shakeMul
+    const d   = () => (0.14 + Math.random() * 0.12);
+    const dx  = () => (0.036*__shakeMul + Math.random() * 0.084*__shakeMul);
+    __comboJitterTl
+      .to(comboWrap || comboText, { rotation: rot, duration: d, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0)
+      .to((comboWrap && comboWrap.scale) ? comboWrap.scale : comboText.scale, { x: () => `+=${dx()}`, y: () => `+=${dx()}`, duration: d, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0);
+  }
+}
+function stopComboFX(){
+  if (__comboJitterTl){ try { __comboJitterTl.kill(); } catch {} __comboJitterTl = null; }
+  if (!comboText) return;
+  // elastic bounce back to rest
+  try {
+    gsap.to(comboWrap || comboText, { rotation: 0, duration: 0.25, ease: 'power2.out' });
+    // sporiji, nježniji decay natrag na 1.0
+    gsap.to(comboWrap ? comboWrap.scale : comboText.scale, { x: 1, y: 1, duration: 0.40, ease: 'power2.out' });
+    gsap.to(comboText.scale, { x: 1, y: 1, duration: 1.40, ease: 'elastic.out(1,0.9)' });
+    // reset shake multiplier smoothly
+    try { __shakeTl?.kill?.(); } catch {}
+    const sh = { k: __shakeMul };
+    __shakeTl = gsap.to(sh, { k: 1.0, duration: 0.60, ease: 'power2.out', onUpdate: () => { __shakeMul = sh.k; } });
+  } catch {}
+}
 
 function layout({ app, top }) { 
   if (!HUD_ROOT) return;
@@ -140,8 +188,10 @@ function layout({ app, top }) {
   // center values under their labels (using anchors)
   movesText.x = leftCenter;
   scoreText.x = midCenter;
-  comboText.x = rightCenter;
-  movesText.y = scoreText.y = comboText.y = yValue;
+  if (comboWrap){ comboWrap.x = rightCenter; comboWrap.y = yValue; }
+  // keep text at origin within wrapper
+  comboText.x = 0; comboText.y = 0;
+  movesText.y = yValue; scoreText.y = yValue;
 
   const barW = Math.max(120, vw - SIDE * 2);
   wild.view.x = SIDE;
@@ -157,6 +207,7 @@ export function initHUD({ stage, app, top = 8 }) {
   HUD_ROOT = new Container();
   HUD_ROOT.name = 'HUD_ROOT';
   HUD_ROOT.zIndex = 10_000;
+  HUD_ROOT.sortableChildren = true;
   stage.addChild(HUD_ROOT);
 
   // vrijednosti
@@ -171,11 +222,17 @@ export function initHUD({ stage, app, top = 8 }) {
   scoreText.anchor.set(0.5, 0);
   comboText.anchor.set(0.5, 0);
 
-  HUD_ROOT.addChild(movesText, scoreText, comboText);
+  // add texts; wrap combo for independent jitter
+  comboWrap = new Container();
+  comboWrap.addChild(comboText);
+  HUD_ROOT.addChild(movesText, scoreText, comboWrap);
+  // ensure combo is drawn above wild bar if overlapping
+  try { movesText.zIndex = 10; scoreText.zIndex = 10; comboWrap.zIndex = 100; } catch {}
 
   // wild bar
   wild = makeWildLoader({ width: 200 });
   HUD_ROOT.addChild(wild.view);
+  try { wild.view.zIndex = 0; } catch {}
   wild.start();
 
   // inicijalni layout + resize listener
@@ -187,18 +244,69 @@ export function initHUD({ stage, app, top = 8 }) {
 
 export function updateHUD({ score, moves, combo }) {
   if (!HUD_ROOT) return;
-  if (typeof moves === 'number') movesText.text = String(moves);
-  if (typeof score === 'number') scoreText.text = String(score);
-  if (typeof combo === 'number') comboText.text = `x${combo|0}`;
+  if (typeof moves === 'number') {
+    const mv = moves|0;
+    if (movesText && String(mv) !== movesText.text) {
+      movesText.text = String(mv);
+      if (!__movesTweening) bounceText(movesText, { peak: 1.32, back: 1.10, up: 0.10, down: 0.24 });
+      __prevMoves = mv;
+    }
+  }
+  if (typeof score === 'number') {
+    const sc = score|0;
+    if (scoreText && String(sc) !== scoreText.text) {
+      scoreText.text = String(sc);
+      if (!__scoreTweening) bounceText(scoreText, { peak: 1.20, back: 1.06, up: 0.08, down: 0.20 });
+      __prevScore = sc;
+    }
+  }
+  if (typeof combo === 'number') {
+    const v = combo|0;
+    comboText.text = `x${v}`;
+    if (v > 0) { startComboFX(); } else { stopComboFX(); }
+    __lastComboVal = v;
+  }
 }
 
 export function setScore(v){ if (scoreText) scoreText.text = String(v|0); }
 export function setMoves(v){ if (movesText) movesText.text = String(v|0); }
-export function setCombo(v){ if (comboText) comboText.text = `x${v|0}`; }
-export function resetCombo(){ if (comboText) comboText.text = 'x0'; }
+export function setCombo(v){
+  const val = v|0;
+  if (!comboText) return;
+  comboText.text = `x${val}`;
+  if (val > 0) startComboFX(); else stopComboFX();
+  __lastComboVal = val;
+}
+export function resetCombo(){
+  if (!comboText) return;
+  comboText.text = 'x0';
+  stopComboFX();
+}
 export function bumpCombo(){
   if (!comboText) return;
-  gsap.fromTo(comboText.scale, { x: 1.0, y: 1.0 }, { x: 1.12, y: 1.12, duration: 0.10, ease: 'power2.out', yoyo: true, repeat: 1 });
+  startComboFX();
+  // Stop current deflate but continue from current scale for smoothness
+  try { __comboBumpTl?.kill?.(); } catch {}
+  try { __shakeTl?.kill?.(); } catch {}
+  const sx = comboText.scale?.x || 1;
+  const sy = comboText.scale?.y || 1;
+  const cur = Math.max(sx, sy);
+  const PEAK = 2.76;               // target peak
+  const upDur = Math.max(0.08, 0.14 - (cur - 1) * 0.05); // a bit faster if already large
+  __comboBumpTl = gsap.timeline();
+  __comboBumpTl
+    // inflate quickly to peak
+    .to(comboText.scale, { x: PEAK, y: PEAK, duration: upDur, ease: 'back.out(3)' }, 0)
+    // one continuous deflate back to 1.0 (smooth, no hard steps)
+    .to(comboText.scale, { x: 1.0, y: 1.0, duration: 1.80, ease: 'power2.out' }, '>-0.01');
+
+  // Boost shake while inflating, then gradually relax during deflate
+  const sh = { k: __shakeMul };
+  __shakeTl = gsap.timeline({ onUpdate: () => { __shakeMul = sh.k; } });
+  __shakeTl
+    .to(sh, { k: 2.4, duration: upDur * 0.9, ease: 'power2.out' }, 0)
+    .to(sh, { k: 1.4, duration: 0.90, ease: 'sine.out' }, '>-0.02')
+    .to(sh, { k: 1.1, duration: 0.90, ease: 'sine.out' }, '>');
 }
 
 /* bridge for app.js → update progress bar */
@@ -212,13 +320,31 @@ export function updateProgressBar(ratio, animate = false){
 }
 
 /* --- Score animation helper (compat) --- */
-export function animateScore({ scoreRef, setScore, updateHUD, SCORE_CAP, gsap }, toValue, duration = 0.4) {
+export function animateScore({ scoreRef, setScore, updateHUD, SCORE_CAP, gsap }, toValue, duration = 0.5) {
   const from = Math.min(SCORE_CAP, (+scoreRef() || 0) | 0);
   const to   = Math.min(SCORE_CAP, (+toValue   || 0) | 0);
-  if (to === from) { setScore(to); updateHUD?.(); return; }
+  if (to === from) { setScore(to); updateHUD?.({ score: to }); return; }
   const proxy = { v: from };
+  __scoreTweening = true;
+  // inflate score text slightly at start
+  bounceText(scoreText, { peak: 1.18, back: 1.06, up: 0.10, down: 0.24 });
   gsap.to(proxy, {
-    v: to, duration: duration || 0.4, ease: 'power1.out',
-    onUpdate: () => { const val = Math.round(proxy.v); setScore(val); try { updateHUD?.(); } catch {} }
+    v: to, duration: duration || 0.5, ease: 'power2.out',
+    onUpdate: () => { const val = Math.round(proxy.v); setScore(val); try { updateHUD?.({ score: val }); } catch {} },
+    onComplete: () => { __scoreTweening = false; }
+  });
+}
+
+/* --- Moves animation helper (same feel as score) --- */
+export function animateMoves({ movesRef, setMoves, updateHUD, gsap }, toValue, duration = 0.5) {
+  const from = ((+movesRef() || 0) | 0);
+  const to   = ((+toValue   || 0) | 0);
+  if (to === from) { setMoves(to); updateHUD?.({ moves: to }); return; }
+  const proxy = { v: from };
+  // small pop at start
+  bounceText(movesText, { peak: 1.18, back: 1.06, up: 0.10, down: 0.24 });
+  gsap.to(proxy, {
+    v: to, duration: duration || 0.5, ease: 'power2.out',
+    onUpdate: () => { const val = Math.round(proxy.v); setMoves(val); try { updateHUD?.({ moves: val }); } catch {} },
   });
 }

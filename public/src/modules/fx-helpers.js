@@ -22,8 +22,8 @@ export function landBounce(tile, opts = {}) {
 
   // kraći, elastični puls (uniformno), bez rotacije
   const A       = opts.amp     ?? 0.16;  // squash/stretch
-  const leadIn  = opts.leadIn  ?? 0.06;  // kratki udar
-  const settle  = opts.settle  ?? 0.18;  // kratko smirivanje
+  const leadIn  = opts.leadIn  ?? 0.07;  // mrvicu duži udar
+  const settle  = opts.settle  ?? 0.26;  // nježnije, duže smirivanje
 
   try { gsap.killTweensOf(host); gsap.killTweensOf(host.scale); } catch {}
 
@@ -39,8 +39,8 @@ export function landBounce(tile, opts = {}) {
     { x: sx * (1 - A * 0.20), y: sy * (1 + A * 0.70), duration: leadIn, ease: 'power2.out' }
   );
 
-  // 2) kratko elastic settle natrag na 1:1 (bez dodatnog “ringinga”)
-  tl.to(host.scale, { x: sx, y: sy, duration: settle, ease: 'elastic.out(1, 0.7)' }, '>-0.01');
+  // 2) elastic settle natrag na 1:1 (mekši završetak)
+  tl.to(host.scale, { x: sx, y: sy, duration: settle, ease: 'elastic.out(1, 0.8)' }, '>-0.01');
 }
 
 /* ---------- Wild Loader FX (helper used by HUD) ---------- */

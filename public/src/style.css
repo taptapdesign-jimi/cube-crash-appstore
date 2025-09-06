@@ -1,3 +1,118 @@
 *{box-sizing:border-box}
+/* Ensure hidden attribute actually hides high-specificity blocks */
+[hidden]{ display:none !important; }
 html,body{height:100%;margin:0;background:#f5f5f5;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
 #app{width:100%;height:100%}
+
+/* Home screen overlay */
+#home{
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column; align-items: stretch; justify-content: stretch;
+  padding: calc(env(safe-area-inset-top,0px)) 0 calc(env(safe-area-inset-bottom,0px));
+  background: #f5f5f5;
+  z-index: 999999;
+  overflow: hidden;
+}
+
+/* Home content wrapper */
+#home > .content{
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:16px; min-height:100%; width:100%;
+  padding: calc(env(safe-area-inset-top, 0px) + 1vh) 24px calc(env(safe-area-inset-bottom, 0px) + 1vh);
+  transform: translateY(var(--home-nudge, 4vh));
+  will-change: transform;
+}
+#home-logo{
+  /* SwiftUI: Rectangle 330x170, clipped fill */
+  width: min(360px, 92vw);
+  aspect-ratio: 330 / 170;
+  height: auto;
+  object-fit: cover;
+  display: block;
+}
+.hero{ position:absolute; left:50%; top:50%; transform: translate(-50%, calc(-50% + var(--hero-nudge, 0px))) translateZ(0); width: min(360px, 96vw); max-height: 380px; height: 100%; object-fit: contain; display:block; z-index:1; will-change: transform, opacity; backface-visibility: hidden; pointer-events: none; }
+.ellipse-shadow{ position:absolute; left:50%; transform:translateX(-50%) scaleX(var(--ellipse-scale, 0.85)); bottom: 2px; z-index: 0; pointer-events: none; display:block; transform-origin: 50% 50%; will-change: transform; }
+/* Slider stage */
+#slides-stage{ position: relative; width: min(360px, 96vw); }
+#slides-track{ position: relative; z-index: 10; display: flex; width: calc(100% * var(--slides, 2)); will-change: transform; transform: translate3d(0,0,0); }
+.slide{ width: 100%; display: flex; flex-direction: column; align-items: center; }
+.slide .hero-wrap{ position: relative; width: min(360px, 96vw); height: 380px; display:block; }
+.slide .copy{ position: relative; z-index: 5; width: 249px; margin-top: 36px; margin-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--cta-bottom-pad, 64px)); will-change: transform, opacity; }
+.slide .copy .cta{ display:flex; flex-direction: column; align-items: flex-start; gap: 48px; width: 249px; }
+/* Squishy CTA base */
+.slide .copy .cta button{ width: 249px; }
+.squishy{
+  position: relative; display:inline-flex; align-items:center; justify-content:center;
+  width: 100%; padding: 16px 56px; border-radius: 40px; border: none; cursor: pointer;
+  font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; font-weight: 800; font-size: 22px; letter-spacing: 0.2px; color: #fff;
+  -webkit-tap-highlight-color: transparent; outline: none;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+.squishy-cc{
+  background: #D87A53;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.25),
+    0 2px 0 0 #C86C49,
+    0 6px 0 0 #B35E3F,
+    0 10px 0 0 #9E5237,
+    0 10px 18px rgba(186,97,68,0.35);
+}
+.squishy-cc::before{ content: none; }
+.squishy-cc:hover{ transform: translateY(3px); box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.25),
+    0 1px 0 0 #C86C49,
+    0 4px 0 0 #B35E3F,
+    0 6px 0 0 #9E5237,
+    0 6px 12px rgba(186,97,68,0.35);
+}
+.squishy-cc:active{ transform: translateY(4px) scale(0.99); box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.25),
+    0 1px 0 0 #C86C49,
+    0 3px 0 0 #B35E3F,
+    0 4px 0 0 #9E5237,
+    0 4px 8px rgba(186,97,68,0.35);
+}
+@media (prefers-reduced-motion: reduce){
+  .squishy{ transition:none; }
+  .squishy-cc:hover,.squishy-cc:active{ transform:none; }
+}
+/* CTA styles are now in .copy .cta button */
+
+/* SwiftUI: HStack nav indicators width: 249; padding(.horizontal,8) .top 16 */
+#home-nav{
+  position: fixed;
+  left: 50%; transform: translateX(-50%);
+  top: var(--dots-top, auto);
+  bottom: var(--dots-bottom, auto);
+  z-index: 1000000;
+  width: auto; padding: 0; margin: 0;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+#home-nav .dot{ width: 8px; height: 8px; border-radius: 999px; border: none; padding: 0; background: #AD8775; opacity: 0.3; cursor: pointer; }
+#home-nav .dot.active{ background: #AD8775; opacity: 1; }
+
+/* Tagline */
+.tagline{ font-family: "LTCrow", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; font-size: 20px; line-height: 1.3; text-align: center; color: #C4A896; margin: 0 0 24px 0; }
+
+/* Extra guard for small phones */
+@media (max-width: 420px) {
+  #home-logo{ width: min(300px, 94vw); }
+  .slide .hero-wrap{ width: min(320px, 96vw); height: 350px; }
+  .hero{ width: min(320px, 96vw); max-height: 350px; }
+  .slide .copy{ width: min(240px, 86vw); }
+  .slide .copy .cta button{ width: 100%; }
+  #home-nav{ width: auto; align-self: center; justify-content: center; }
+}
+
+/* Fonts for homepage */
+@font-face{ font-family:"LTCrow"; src:url("/assets/fonts/LTCrow-Regular.ttf") format("truetype"); font-weight:400; font-style:normal; font-display:swap; }
+@font-face{ font-family:"LTCrow"; src:url("/assets/fonts/LTCrow-SemiBold.ttf") format("truetype"); font-weight:600; font-style:normal; font-display:swap; }
+@font-face{ font-family:"LTCrow"; src:url("/assets/fonts/LTCrow-Bold.ttf") format("truetype"); font-weight:700; font-style:normal; font-display:swap; }
+
+/* Stats page placeholder */
+.content.stats{ gap: 24px; }
+.content.stats h2{ font-family: "LTCrow", system-ui; color:#6b5a4b; margin:0; }
+.stats-grid{ display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; width: min(300px, 90vw); }
+.stat{ background: #fff; border-radius: 12px; padding: 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.06); display:flex; flex-direction:column; align-items:center; }
+.stat .k{ font-family:"LTCrow"; color:#A68C7D; font-size: 12px; }
+.stat .v{ font-family:"LTCrow"; color:#6b5a4b; font-size: 20px; font-weight:700; }

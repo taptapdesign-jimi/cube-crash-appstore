@@ -43,7 +43,7 @@ export function sweepForUnanimatedSpawns(tiles, gsap){
 }
 
 export function dealFromRim({ listTiles = [], board, boardSize, gsap } = {}){
-  // brži deal-in – uvijek vraća Promise
+  // Fluid elastic deal‑in with messy row/col wave and jitter — returns Promise
   return new Promise(resolve=>{
     if (!Array.isArray(listTiles) || listTiles.length === 0) { resolve(); return; }
     const size = boardSize || { w: 0, h: 0 };
@@ -51,27 +51,39 @@ export function dealFromRim({ listTiles = [], board, boardSize, gsap } = {}){
     const ring=Math.max(size.w,size.h)*0.65;
 
     const list=[...listTiles]; for(let i=list.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [list[i],list[j]]=[list[j],list[i]]; }
-    let done=0;
 
+    // infer grid size and choose random wave origin
+    const maxRow = Math.max(0, ...list.map(t => t?.gridY|0));
+    const maxCol = Math.max(0, ...list.map(t => t?.gridX|0));
+    const rows = maxRow + 1, cols = maxCol + 1;
+    const originRow = (Math.random()*rows)|0;
+    const originCol = (Math.random()*cols)|0;
+    const waveSpacing = 0.045 + Math.random()*0.020; // seconds per grid distance
+
+    let done=0;
     list.forEach((t)=>{
       const target={x:t.x,y:t.y}; t.visible=true; t.zIndex=100; board.sortChildren?.();
       const dx=target.x-center.x, dy=target.y-center.y; const len=Math.hypot(dx,dy)||1; const ux=dx/len, uy=dy/len; const sx=target.x+ux*ring, sy=target.y+uy*ring;
-      const enterDur=0.62+Math.random()*0.18; const enterDel=0.04+Math.random()*0.12;
-      t.position.set(sx,sy); t.scale.set(0.94+Math.random()*0.04);
-      const tl=gsap.timeline({ delay:enterDel, onComplete:()=>{ t.zIndex=10; t._spawned = true; board.sortChildren?.();
 
-        const r0=t.rotG?.rotation||0; const trg=t.rotG||t; const amp=0.035+Math.random()*0.012;
-        if(!t.locked && t.value>0){
-          gsap.timeline().to(trg,{rotation:r0+amp,duration:0.08,ease:'power2.out'}).to(trg,{rotation:r0-amp*0.7,duration:0.10,ease:'power2.out'}).to(trg,{rotation:r0+amp*0.35,duration:0.10,ease:'power2.out'}).to(trg,{rotation:r0,duration:0.12,ease:'power2.out'});
-          gsap.timeline().to(t.scale,{x:1.02,y:1.02,duration:0.08,ease:'power2.out'}).to(t.scale,{x:0.996,y:0.996,duration:0.10,ease:'power2.inOut'}).to(t.scale,{x:1.00,y:1.00,duration:0.12,ease:'power2.out'});
-        }else{
-          gsap.to(t.scale,{x:1,y:1,duration:0.12,ease:'power1.out'});
-        }
+      const baseDur = 0.63 + Math.random()*0.22;           // gentle and fluid
+      const damping = 0.64 + Math.random()*0.10;            // different per tile
 
+      const gx = (t.gridX|0), gy = (t.gridY|0);
+      const dist = Math.hypot(gx-originCol, gy-originRow);
+      const waveDelay = dist * waveSpacing;
+      const jitter = Math.random()*0.06;
+      const enterDel = 0.02 + Math.random()*0.05 + waveDelay + jitter;
+
+      t.position.set(sx,sy);
+      t.scale.set(0.90 + Math.random()*0.08);
+
+      const tl=gsap.timeline({ delay:enterDel, onComplete:()=>{
+        t.zIndex=10; t._spawned = true; board.sortChildren?.();
         if(++done===list.length) resolve();
       }});
-      tl.to(t,{x:target.x,y:target.y,duration:enterDur,ease:'back.out(1.4)'},0)
-        .to(t.scale,{x:1,y:1,duration:enterDur,ease:'back.out(1.6)'},0);
+
+      tl.to(t,{ x:target.x, y:target.y, duration:baseDur, ease:`elastic.out(1,${damping})`, onUpdate:()=>{ try{ t.refreshShadow?.(); }catch{} } },0)
+        .to(t.scale,{ x:1, y:1, duration:baseDur, ease:`elastic.out(1,${Math.max(0.60, Math.min(0.80, damping+0.02))})` },0);
     });
   });
 }

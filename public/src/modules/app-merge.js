@@ -27,16 +27,14 @@ function wobble(t){ const x0=t.x;
 function landBounce(t){
   const r0 = t.rotG?.rotation || 0;
   gsap.killTweensOf(t.scale); gsap.killTweensOf(t.rotG);
+  // nježniji, elastičniji povrat
   gsap.timeline()
-    .to(t.scale, { x:1.12, y:0.92, duration:0.06, ease:'power3.out' })
-    .to(t.scale, { x:0.98, y:1.06, duration:0.08, ease:'power2.out' })
-    .to(t.scale, { x:1.02, y:0.98, duration:0.07, ease:'power2.out' })
-    .to(t.scale, { x:1.00, y:1.00, duration:0.12, ease:'back.out(2)' });
+    .to(t.scale, { x:1.10, y:0.94, duration:0.07, ease:'power2.out' })
+    .to(t.scale, { x:1.00, y:1.00, duration:0.24, ease:'elastic.out(1,0.8)' });
   if (t.rotG){
     gsap.timeline()
-      .to(t.rotG, { rotation: r0 + 0.06, duration: 0.06, ease:'power2.out' }, 0)
-      .to(t.rotG, { rotation: r0 - 0.04, duration: 0.08, ease:'power2.out' })
-      .to(t.rotG, { rotation: r0,        duration: 0.12, ease:'back.out(2)' });
+      .to(t.rotG, { rotation: r0 + 0.05, duration: 0.06, ease:'power2.out' }, 0)
+      .to(t.rotG, { rotation: r0,        duration: 0.20, ease:'elastic.out(1,0.8)' });
   }
 }
 function landPreBounce(t){

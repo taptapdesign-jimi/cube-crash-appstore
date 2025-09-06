@@ -3,13 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <title>CubeCrash</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <!-- PWA / iOS full-screen support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CubeCrash">
+  <meta name="theme-color" content="#f5f5f5">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/wild.png">
   <link rel="icon" href="./favicon.ico">
+  <link rel="stylesheet" href="/src/style.css">
   <script type="importmap">
   {
     "imports": {
-      "pixi.js": "/node_modules/pixi.js/dist/pixi.mjs",
-      "gsap": "/node_modules/gsap/index.js"
+      "pixi.js": "/vendor/pixi.mjs",
+      "gsap": "/vendor/gsap/index.js"
     }
   }
   </script>
@@ -19,7 +27,64 @@
   </style>
 </head>
 <body>
-  <div id="app"></div>
+  <div id="home">
+    <div class="content">
+      <img id="home-logo" src="/assets/logo-cube-crash.png" alt="CubeCrash" />
+
+      <div id="slides-stage" aria-roledescription="carousel">
+        <div id="slides-track">
+          <!-- Slide 0: Home -->
+          <section class="slide active" data-index="0" aria-label="Home">
+            <div class="hero-wrap">
+              <img class="hero" src="/assets/crash-cubes-homepage.png" alt="Crashed cubes" />
+              <svg class="ellipse-shadow" width="300" height="87" viewBox="0 0 300 87" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                <ellipse cx="150" cy="43.5" rx="150" ry="43.5" fill="#F2EBE8"/>
+              </svg>
+            </div>
+            <div class="copy">
+              <p class="tagline">Stack and crash the cubes<br/>to get the required number</p>
+              <div class="cta"><button id="btn-home" class="squishy squishy-cc" aria-label="Start new game">Play</button></div>
+            </div>
+          </section>
+
+          <!-- Slide 1: Stats -->
+          <section class="slide" data-index="1" aria-label="Stats">
+            <div class="hero-wrap">
+              <img class="hero" src="/assets/stats-trophy.png" alt="Trophy" />
+              <svg class="ellipse-shadow" width="300" height="87" viewBox="0 0 300 87" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                <ellipse cx="150" cy="43.5" rx="150" ry="43.5" fill="#F2EBE8"/>
+              </svg>
+            </div>
+            <div class="copy">
+              <p class="tagline">See your best score<br/>and other stats</p>
+              <div class="cta"><button id="btn-stats" class="squishy squishy-cc" aria-label="Open stats">Stats</button></div>
+            </div>
+          </section>
+
+          <!-- Slide 2: Collectibles -->
+          <section class="slide" data-index="2" aria-label="Collectibles">
+            <div class="hero-wrap">
+              <img class="hero" src="/assets/collectibles-box.png" alt="Collectibles box" />
+              <svg class="ellipse-shadow" width="300" height="87" viewBox="0 0 300 87" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                <ellipse cx="150" cy="43.5" rx="150" ry="43.5" fill="#F2EBE8"/>
+              </svg>
+            </div>
+            <div class="copy">
+              <p class="tagline">#Collect special rewards<br/>and earn bragging rights.</p>
+              <div class="cta"><button id="btn-collectibles" class="squishy squishy-cc" aria-label="Open collectibles">Collectibles</button></div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div id="home-nav" role="tablist" aria-label="Home navigation">
+        <button class="dot active" data-index="0" role="tab" aria-selected="true" tabindex="0" aria-label="Home"></button>
+        <button class="dot" data-index="1" role="tab" aria-selected="false" tabindex="-1" aria-label="Stats"></button>
+        <button class="dot" data-index="2" role="tab" aria-selected="false" tabindex="-1" aria-label="Collectibles"></button>
+      </div>
+    </div>
+  </div>
+  <div id="app" hidden></div>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

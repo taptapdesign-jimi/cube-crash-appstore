@@ -60,7 +60,7 @@ export function rebuildBoard(){
   // “deal-in” (ring) intro animation for all tiles
   dealFromRim(STATE.tiles).then(() => {
     STATE.tiles.filter(t => t.locked).forEach(t=>{
-      gsap.to(t, { alpha: 0.35, duration: 0.28, ease: 'power1.out' });
+      gsap.to(t, { alpha: 0.35, duration: 0.12, ease: 'power1.out' });
     });
     drawBoardBG();
   });
@@ -92,8 +92,13 @@ function dealFromRim(listTiles){
       const ux = dx / len, uy = dy / len;
       const sx = target.x + ux * ring, sy = target.y + uy * ring;
 
-      const enterDur = 1.0 + Math.random() * 0.40;
-      const enterDel = 0.10 + Math.random() * 0.30;
+      const enterDur = 0.72 + Math.random() * 0.21; // 50% slower, gentler
+      const baseDel  = 0.03 + Math.random() * 0.06; // base minimal stagger
+      const originRow = (Math.random() * ROWS) | 0;
+      const originCol = (Math.random() * COLS) | 0;
+      const dist = Math.hypot((t.gridX|0) - originCol, (t.gridY|0) - originRow);
+      const waveSpacing = 0.045 + Math.random()*0.020; // seconds per grid distance
+      const enterDel = baseDel + dist * waveSpacing + Math.random()*0.05;
 
       t.position.set(sx, sy);
       t.scale.set(0.92 + Math.random() * 0.06);
@@ -102,27 +107,11 @@ function dealFromRim(listTiles){
         delay: enterDel,
         onComplete: () => {
           t.zIndex = 10; STATE.board.sortChildren?.();
-          if (!t.locked && (t.value|0) > 0){
-            const host = t.rotG || t;
-            const amp = 0.045 + Math.random() * 0.015;
-            const r0 = t.rotG?.rotation || 0;
-            gsap.timeline()
-              .to(host, { rotation: r0 + amp,      duration: 0.12, ease:'power2.out' })
-              .to(host, { rotation: r0 - amp*0.7,  duration: 0.14, ease:'power2.out' })
-              .to(host, { rotation: r0 + amp*0.35, duration: 0.14, ease:'power2.out' })
-              .to(host, { rotation: r0,            duration: 0.16, ease:'power2.out' });
-            gsap.timeline()
-              .to(t.scale, { x:1.03, y:1.03, duration:0.12, ease:'power2.out' })
-              .to(t.scale, { x:0.995, y:0.995, duration:0.14, ease:'power2.inOut' })
-              .to(t.scale, { x:1.00, y:1.00, duration:0.16, ease:'power2.out' });
-          } else {
-            gsap.to(t.scale, { x:1, y:1, duration:0.14, ease:'power1.out' });
-          }
           if (++done === list.length) resolve();
         }
       })
-      .to(t,       { x: target.x, y: target.y, duration: enterDur, ease: 'elastic.out(1,0.65)' }, 0)
-      .to(t.scale, { x: 1,        y: 1,        duration: enterDur, ease: 'elastic.out(1,0.75)' }, 0);
+      .to(t,       { x: target.x, y: target.y, duration: enterDur, ease: 'elastic.out(1,0.70)', onUpdate:()=>{ try{ t.refreshShadow?.(); }catch{} } }, 0)
+      .to(t.scale, { x: 1,        y: 1,        duration: enterDur, ease: 'elastic.out(1,0.70)' }, 0);
     });
   });
 }
