@@ -340,12 +340,12 @@ export function initHUD({ stage, app, top = 8 }) {
             console.log('✅ Game hidden');
           }
           
-          // 2. Show homepage with pop-in animation (NO PAGE RELOAD)
+          // 2. Show homepage immediately (NO ANIMATIONS)
           const home = document.getElementById('home');
           if (home) {
-            console.log('🎭 Showing homepage with pop-in animation...');
+            console.log('🎭 Showing homepage immediately...');
             
-            // Show homepage with elastic pop-in animation
+            // Show homepage immediately - no animations
             home.removeAttribute('hidden');
             home.style.display = 'block';
             home.style.visibility = 'visible';
@@ -356,32 +356,19 @@ export function initHUD({ stage, app, top = 8 }) {
             home.style.height = '100vh';
             home.style.zIndex = '999999';
             home.style.background = '#f5f5f5';
-            
-            // Set initial state for elastic animation
-            home.style.opacity = '0';
-            home.style.transform = 'scale(0.8)';
+            home.style.opacity = '1';
+            home.style.transform = 'scale(1)';
             home.style.transition = 'none';
             
-            console.log('✅ Homepage prepared for elastic animation');
+            console.log('✅ Homepage shown immediately');
             
-            // Start elastic pop-in animation for homepage
-            setTimeout(() => {
-              home.style.transition = 'all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-              home.style.opacity = '1';
-              home.style.transform = 'scale(1)';
-              console.log('✅ Homepage elastic pop-in animation started');
-              
-              // Start slider pop-in animation after homepage animation
-              setTimeout(() => {
-                console.log('🎭 Starting slider pop-in animation');
-                if (window.slider && window.slider.startPopInAnimation) {
-                  window.slider.startPopInAnimation();
-                } else {
-                  console.log('⚠️ Slider not available for pop-in animation');
-                }
-              }, 400); // Start slider animation 400ms after homepage
-              
-            }, 50);
+            // Re-initialize slider immediately
+            if (window.slider && window.slider.completeReinitialization) {
+              console.log('🔄 Re-initializing slider...');
+              window.slider.completeReinitialization();
+            } else {
+              console.log('⚠️ Slider not available for re-initialization');
+            }
             
           } else {
             console.error('❌ HOME ELEMENT NOT FOUND!');
