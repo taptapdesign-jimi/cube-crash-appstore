@@ -345,7 +345,7 @@ export function initHUD({ stage, app, top = 8 }) {
           if (home) {
             console.log('🔄 Reloading page to reset everything...');
             
-            // Show homepage first
+            // Show homepage with elastic pop-in animation
             home.removeAttribute('hidden');
             home.style.display = 'block';
             home.style.visibility = 'visible';
@@ -356,10 +356,21 @@ export function initHUD({ stage, app, top = 8 }) {
             home.style.height = '100vh';
             home.style.zIndex = '999999';
             home.style.background = '#f5f5f5';
-            home.style.opacity = '1';
-            home.style.transform = 'scale(1)';
             
-            console.log('✅ Homepage shown');
+            // Set initial state for elastic animation
+            home.style.opacity = '0';
+            home.style.transform = 'scale(0.8)';
+            home.style.transition = 'none';
+            
+            console.log('✅ Homepage prepared for elastic animation');
+            
+            // Start elastic pop-in animation
+            setTimeout(() => {
+              home.style.transition = 'all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+              home.style.opacity = '1';
+              home.style.transform = 'scale(1)';
+              console.log('✅ Homepage elastic pop-in animation started');
+            }, 50);
             
             // Reload the page after a short delay to reset everything
             setTimeout(() => {
