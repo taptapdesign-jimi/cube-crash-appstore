@@ -841,17 +841,22 @@ function restartGame(){
   wildMeter = 0;
   resetWildProgress(0, false);
   
-  // Reset wild loader in HUD - try animation first, then reset
+  // Reset wild loader in HUD - try force animation first
   try { 
-    console.log('🔄 Calling HUD.animateWildLoaderToZero...');
-    HUD.animateWildLoaderToZero?.(); 
-    console.log('✅ HUD.animateWildLoaderToZero called successfully');
+    console.log('🔄 Calling HUD.forceWildLoaderToZero...');
+    HUD.forceWildLoaderToZero?.(); 
+    console.log('✅ HUD.forceWildLoaderToZero called successfully');
   } catch (error) {
-    console.error('❌ Error calling HUD.animateWildLoaderToZero, trying resetWildLoader:', error);
+    console.error('❌ Error calling HUD.forceWildLoaderToZero, trying animateWildLoaderToZero:', error);
     try {
-      HUD.resetWildLoader?.();
-    } catch (resetError) {
-      console.error('❌ Error calling HUD.resetWildLoader:', resetError);
+      HUD.animateWildLoaderToZero?.();
+    } catch (animateError) {
+      console.error('❌ Error calling HUD.animateWildLoaderToZero, trying resetWildLoader:', animateError);
+      try {
+        HUD.resetWildLoader?.();
+      } catch (resetError) {
+        console.error('❌ Error calling HUD.resetWildLoader:', resetError);
+      }
     }
   }
   

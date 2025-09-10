@@ -476,27 +476,73 @@ export function animateWildLoaderToZero(){
   }
   
   try {
-    // Direct approach - force progress to 0
-    wild._lastP = 0;
+    // DRASTIC APPROACH: Override the setProgress function to force 0
+    const originalSetProgress = wild.setProgress;
     
-    // Access the internal progress variable directly
-    if (wild.view && wild.view.children) {
-      const fill = wild.view.children.find(child => child.mask);
-      const mask = wild.view.children.find(child => child.mask);
+    // Create a new setProgress that always sets to 0
+    wild.setProgress = (t, animate = false) => {
+      console.log('🔄 Override setProgress called with:', t, 'forcing to 0');
       
-      if (mask && typeof mask.clear === 'function') {
-        mask.clear();
-        mask.roundRect(0, -0.5, 0, 8 + 1, 4).fill(0xffffff);
-        console.log('🔄 Direct mask reset to 0');
+      // Force progress to 0 internally
+      if (wild.view && wild.view.children) {
+        const mask = wild.view.children.find(child => child.mask);
+        if (mask && typeof mask.clear === 'function') {
+          mask.clear();
+          mask.roundRect(0, -0.5, 0, 8 + 1, 4).fill(0xffffff);
+          console.log('🔄 Override: Mask cleared to 0');
+        }
       }
-    }
+      
+      // Call original with 0
+      originalSetProgress(0, false);
+    };
     
-    // Force setProgress to 0
+    // Force call the overridden function
     wild.setProgress(0, false);
     
-    console.log('✅ Wild loader force reset to 0');
+    // Restore original function after a delay
+    setTimeout(() => {
+      wild.setProgress = originalSetProgress;
+      console.log('🔄 Restored original setProgress function');
+    }, 100);
+    
+    console.log('✅ Wild loader override reset to 0');
   } catch (error) {
     console.error('❌ Error animating wild loader to 0:', error);
+  }
+}
+
+/* Force wild loader to 0 using GSAP animation */
+export function forceWildLoaderToZero(){
+  console.log('🎬 Force animating wild loader to 0');
+  if (!wild) {
+    console.log('⚠️ Wild loader not found for force animation');
+    return;
+  }
+  
+  try {
+    // Use GSAP to animate the wild loader view itself
+    if (wild.view && wild.view.children) {
+      const mask = wild.view.children.find(child => child.mask);
+      if (mask) {
+        // Animate the mask width to 0
+        gsap.to(mask, {
+          width: 0,
+          duration: 0.5,
+          ease: "power2.out",
+          onUpdate: () => {
+            // Force redraw with 0 width
+            mask.clear();
+            mask.roundRect(0, -0.5, 0, 8 + 1, 4).fill(0xffffff);
+          },
+          onComplete: () => {
+            console.log('✅ Wild loader force animation to 0 completed');
+          }
+        });
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error force animating wild loader to 0:', error);
   }
 }
 
