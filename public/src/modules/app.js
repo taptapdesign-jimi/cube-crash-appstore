@@ -89,8 +89,11 @@ function setWildProgress(ratio, animate=false){
 }
 let updateProgressBar = (ratio, animate=false) => setWildProgress(ratio, animate);
 function addWildProgress(amount){
+  console.log('🎯 addWildProgress called with amount:', amount, 'current wildMeter:', wildMeter);
   const inc = Number.isFinite(amount) ? amount : 0;
-  setWildProgress(Math.min(1, wildMeter + inc), true);
+  const newValue = Math.min(1, wildMeter + inc);
+  console.log('🎯 Setting wild progress to:', newValue);
+  setWildProgress(newValue, true);
   try { HUD.chargeProgress?.(0.5); } catch {}
   if (wildMeter >= 1){ spawnWildFromMeter(); try { HUD.shimmerProgress?.({}); } catch {} }
 }
@@ -858,6 +861,23 @@ function restartGame(){
         console.error('❌ Error calling HUD.resetWildLoader:', resetError);
       }
     }
+  }
+  
+  // CRITICAL: Re-establish hudUpdateProgress connection after restart
+  try {
+    console.log('🔄 Re-establishing hudUpdateProgress connection...');
+    hudUpdateProgress = (ratio, animate) => {
+      console.log('🎯 hudUpdateProgress called with:', { ratio, animate });
+      try { 
+        HUD.updateProgressBar?.(ratio, animate); 
+        console.log('✅ HUD.updateProgressBar called successfully');
+      } catch(error) {
+        console.error('❌ Error calling HUD.updateProgressBar:', error);
+      }
+    };
+    console.log('✅ hudUpdateProgress connection re-established');
+  } catch (error) {
+    console.error('❌ Error re-establishing hudUpdateProgress:', error);
   }
   
   // Rebuild board WITHOUT calling layout
