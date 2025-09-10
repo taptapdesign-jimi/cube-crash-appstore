@@ -841,18 +841,13 @@ function restartGame(){
   wildMeter = 0;
   resetWildProgress(0, false);
   
-  // Reset wild loader in HUD - try recreate first, then reset
+  // Reset wild loader in HUD - simple reset only
   try { 
-    console.log('🔄 Calling HUD.recreateWildLoader...');
-    HUD.recreateWildLoader?.(); 
-    console.log('✅ HUD.recreateWildLoader called successfully');
+    console.log('🔄 Calling HUD.resetWildLoader...');
+    HUD.resetWildLoader?.(); 
+    console.log('✅ HUD.resetWildLoader called successfully');
   } catch (error) {
-    console.error('❌ Error calling HUD.recreateWildLoader, trying resetWildLoader:', error);
-    try {
-      HUD.resetWildLoader?.();
-    } catch (resetError) {
-      console.error('❌ Error calling HUD.resetWildLoader:', resetError);
-    }
+    console.error('❌ Error calling HUD.resetWildLoader:', error);
   }
   
   // Rebuild board WITHOUT calling layout

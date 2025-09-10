@@ -40,9 +40,15 @@ function makeWildLoader({ width, color = 0xD59477, trackColor = 0xEADFD6 }) {
     const w = Math.max(0, Math.min(barWidth, Math.round(barWidth * progress)));
     headX = w;
     view._headX = headX; // expose for debug/extern if needed
-    mask.clear();
-    // Blagi "nudge" −0.5 px uklanja optičku crticu na gornjoj ivici
-    mask.roundRect(0, -0.5, w, H + 1, R).fill(0xffffff);
+    
+    // Check if mask exists before calling clear
+    if (mask && typeof mask.clear === 'function') {
+      mask.clear();
+      // Blagi "nudge" −0.5 px uklanja optičku crticu na gornjoj ivici
+      mask.roundRect(0, -0.5, w, H + 1, R).fill(0xffffff);
+    } else {
+      console.log('⚠️ Mask not found or clear function not available');
+    }
   };
 
   const tick = (dt) => { 
@@ -439,29 +445,10 @@ export function resetWildLoader(){
     return;
   }
   
-  // DRASTIC APPROACH: Force reset by directly manipulating the mask
   try {
     wild._lastP = 0;
-    
-    // Force progress to 0
-    const api = wild;
-    if (api && api.view) {
-      const mask = api.view.children.find(child => child.mask);
-      if (mask) {
-        mask.clear();
-        console.log('🔄 Force clearing wild loader mask');
-      }
-    }
-    
-    // Call setProgress to ensure proper reset
-    wild.setProgress(0, false);
-    
-    // Force redraw one more time
-    if (wild.setProgress) {
-      wild.setProgress(0, false);
-    }
-    
-    console.log('✅ Wild loader force reset to 0');
+    wild.setProgress(0, false); // Reset immediately without animation
+    console.log('✅ Wild loader reset to 0');
   } catch (error) {
     console.error('❌ Error resetting wild loader:', error);
   }
@@ -483,7 +470,12 @@ export function recreateWildLoader(){
   wild = makeWildLoader({ width: 200 });
   if (HUD_ROOT) {
     HUD_ROOT.addChild(wild.view);
-    try { wild.view.zIndex = 0; } catch {}
+    try { 
+      wild.view.zIndex = 0; 
+      // Position it correctly in HUD
+      wild.view.x = 0;
+      wild.view.y = 0;
+    } catch {}
     wild.start();
   }
   
