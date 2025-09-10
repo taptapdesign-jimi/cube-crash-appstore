@@ -2,7 +2,7 @@
 import { gsap } from 'gsap';
 import { STATE, COLS, ROWS, TILE, GAP } from './app-state.js';
 import * as makeBoard from './board.js';
-import { drawBoardBG, layout } from './app-layout.js';
+// drawBoardBG and layout functions are now in app.js
 
 // reset container while preserving boardBG
 export function resetBoardContainer(){
@@ -67,101 +67,80 @@ function randVal(){ return [1,1,1,2,2,3,3,4,5][(Math.random()*9)|0]; }
 
 // Fun bouncy animation with smart optimization
 export function sweetPopIn(listTiles){
-  return new Promise(resolve=>{
-    const list = [...listTiles];
-    
-    // Shuffle for random order
-    for (let i = list.length - 1; i > 0; i--){ 
-      const j = (Math.random() * (i + 1)) | 0; 
-      [list[i], list[j]] = [list[j], list[i]]; 
-    }
+  const list = [...listTiles];
+  
+  // Shuffle for random order
+  for (let i = list.length - 1; i > 0; i--){ 
+    const j = (Math.random() * (i + 1)) | 0; 
+    [list[i], list[j]] = [list[j], list[i]]; 
+  }
 
-    let done = 0;
-    const BATCH_SIZE = 8; // Process in small batches
+  // Return a promise that resolves when all tiles are done
+  return new Promise(resolve => {
+    let completed = 0;
+    const total = list.length;
     
-    // Process tiles in batches to prevent lag
-    const processBatch = (startIndex) => {
-      const endIndex = Math.min(startIndex + BATCH_SIZE, list.length);
+    // Process each tile individually with random timing
+    list.forEach((t, index) => {
+      // Start invisible and scaled to 0
+      t.visible = true;
+      t.scale.set(0);
+      t.zIndex = 100;
       
-      for (let i = startIndex; i < endIndex; i++) {
-        const t = list[i];
-        const index = i;
-        
-        // Start invisible and scaled to 0
-        t.visible = true;
-        t.scale.set(0);
-        t.zIndex = 100;
-        
-        // Set alpha based on locked status
-        if (t.locked) {
-          if (t.value > 0) {
-            t.alpha = 0; // Hide ghost placeholder for rotated tiles
-          } else {
-            t.alpha = 0.25; // Ghost placeholder - 25% opacity
-          }
+      // Set alpha based on locked status
+      if (t.locked) {
+        if (t.value > 0) {
+          t.alpha = 0; // Hide ghost placeholder for rotated tiles
         } else {
-          t.alpha = 0; // Will animate to 1
+          t.alpha = 0.25; // Ghost placeholder - 25% opacity
         }
-        
-        // Instant stagger for immediate response
-        const staggerDelay = (index - startIndex) * 0.01; // Ultra fast stagger
-        
-        // Super elastic bouncy animation - 1 second longer
-        gsap.timeline({
-          delay: staggerDelay,
-          onComplete: () => {
-            t.zIndex = 10; 
-            if (++done === list.length) {
-              // Delay drawBoardBG to prevent lag
-              gsap.delayedCall(0.1, () => {
-                try { drawBoardBG(); } catch {}
-                resolve();
-              });
-            }
-          }
-        })
-        .to(t, { 
-          alpha: t.locked ? (t.value > 0 ? 0 : 0.25) : 1,
-          duration: 0.12, // Longer alpha fade
-          ease: 'power2.out'
-        }, 0)
-        .to(t.scale, { 
-          x: 1.25, 
-          y: 1.25, 
-          duration: 0.25, // Longer scale up
-          ease: 'back.out(2.5)'
-        }, 0)
-        .to(t.scale, { 
-          x: 0.95, 
-          y: 0.95, 
-          duration: 0.15, // Longer scale down
-          ease: 'power2.out'
-        }, 0.25)
-        .to(t.scale, { 
-          x: 1.05, 
-          y: 1.05, 
-          duration: 0.12, // Longer second bounce
-          ease: 'back.out(1.8)'
-        }, 0.40)
-        .to(t.scale, { 
-          x: 1, 
-          y: 1, 
-          duration: 0.10, // Longer final settle
-          ease: 'power2.out'
-        }, 0.52);
+      } else {
+        t.alpha = 0; // Will animate to 1
       }
       
-      // Schedule next batch immediately for instant animation
-      if (endIndex < list.length) {
-        gsap.delayedCall(0.005, () => { // Ultra minimal delay
-          processBatch(endIndex);
-        });
-      }
-    };
+      // RANDOM stagger for scattered spawn effect
+      const randomDelay = Math.random() * 0.1; // Random delay 0-100ms (ultra fast)
+      
+      // Pop-in effect: 0 → 110% → 88% → 100%
+      gsap.timeline({
+        delay: randomDelay,
+        onComplete: () => {
+          t.zIndex = 10;
+          completed++;
+          if (completed === total) {
+            gsap.delayedCall(0.1, () => {
+              try { drawBoardBG(); } catch {}
+              resolve();
+            });
+          }
+        }
+      })
+      .to(t, { 
+        alpha: t.locked ? (t.value > 0 ? 0 : 0.25) : 1,
+        duration: 0.15,
+        ease: 'power2.out'
+      }, 0)
+      .to(t.scale, { 
+        x: 1.10,
+        y: 1.10, 
+        duration: 0.2,
+        ease: 'back.out(2.0)'
+      }, 0)
+      .to(t.scale, { 
+        x: 0.88,
+        y: 0.88, 
+        duration: 0.15,
+        ease: 'power2.out'
+      }, 0.2)
+      .to(t.scale, { 
+        x: 1.0,
+        y: 1.0, 
+        duration: 0.12,
+        ease: 'back.out(1.5)'
+      }, 0.35);
+    });
     
-    // Start with first batch immediately - no delay
-    console.log('🎯 Starting tile animation immediately');
-    processBatch(0);
+    console.log('🎯 Starting RANDOM scattered tile animation - NO WAITING');
   });
 }
 

@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 
 let overlay = null;
 
+
 function ensureOverlay(){
   if (overlay) {
     overlay.remove();
@@ -36,17 +37,13 @@ function ensureOverlay(){
   
   document.body.appendChild(el);
   overlay = el;
-  console.log('Modal added to DOM, checking visibility...');
-  console.log('Modal element:', el);
-  console.log('Modal computed style:', window.getComputedStyle(el));
-  console.log('Modal parent:', el.parentNode);
   return el;
 }
 
 export function hidePauseModal(){ 
+  console.log('🎭 MODAL CLOSE: hidePauseModal called');
   if (overlay) {
     overlay.classList.remove('show');
-    // Exit animation
     const card = overlay.querySelector('.pause-card');
     if (card) {
       gsap.to(card, {
@@ -56,8 +53,13 @@ export function hidePauseModal(){
         onComplete: () => {
           if (overlay) overlay.remove();
           overlay = null;
+          console.log('🎭 MODAL CLOSE: Overlay removed');
         }
       });
+    } else {
+      overlay.remove();
+      overlay = null;
+      console.log('🎭 MODAL CLOSE: Overlay removed directly');
     }
   }
 }
@@ -89,38 +91,254 @@ export function showPauseModal({ onUnpause, onRestart, onExit } = {}){
   }
 
   const close = () => { 
-    gsap.to(el, {
-      opacity: 0,
-      duration: 0.2,
-      ease: 'power2.in',
-      onComplete: () => {
-        if (el) el.remove();
-        overlay = null;
+    console.log('🎭 MODAL CLOSE: close() called');
+    
+    // Force immediate removal as fallback
+    const forceRemove = () => {
+      if (el) {
+        el.remove();
       }
-    });
+      overlay = null;
+      console.log('🎭 MODAL CLOSE: Modal removed');
+    };
+    
+    // Also call hidePauseModal as backup
+    hidePauseModal();
+    
+    // Check if GSAP is available
+    if (typeof gsap === 'undefined') {
+      forceRemove();
+      return;
+    }
+    
+    // Try GSAP animation first
+    try {
+      gsap.to(el, {
+        opacity: 0,
+        duration: 0.2,
+        ease: 'power2.in',
+        onComplete: () => {
+          forceRemove();
+        }
+      });
+      
+      // Fallback timeout in case GSAP fails
+      setTimeout(() => {
+        forceRemove();
+      }, 500);
+      
+    } catch (error) {
+      forceRemove();
+    }
   };
   
   const onClick = async (e) => {
     const btn = e.target.closest('button');
     if (!btn) return;
     const act = btn.dataset.action || '';
-    if (act === 'unpause') { try { await onUnpause?.(); } catch {} close(); }
-    if (act === 'restart') { try { await onRestart?.(); } catch {} close(); }
+    
+    if (act === 'unpause') { 
+      console.log('🎭 UNPAUSE: Starting animation...');
+      
+      if (overlay) {
+        const card = overlay.querySelector('.pause-card');
+        if (card) {
+          console.log('🎭 UNPAUSE: Card found, starting animation...');
+          
+          // Force initial state
+          card.style.transform = 'scale(1)';
+          card.style.opacity = '1';
+          
+          // Start animation immediately
+          setTimeout(() => {
+            console.log('🎭 UNPAUSE: Animation started - scaling down...');
+            card.style.transition = 'all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            card.style.transform = 'scale(0)';
+            card.style.opacity = '0';
+          }, 10);
+          
+          // After animation, resume game
+          setTimeout(() => {
+            console.log('🎭 UNPAUSE: Animation completed - resuming game...');
+            
+            try { 
+              onUnpause?.(); 
+              console.log('🎭 UNPAUSE: Game resumed successfully');
+            } catch (error) {
+              console.error('🎭 UNPAUSE: Error resuming game:', error);
+            }
+            
+            // Remove overlay
+            if (overlay) {
+              overlay.remove();
+              overlay = null;
+              console.log('🎭 UNPAUSE: Overlay removed - unpause complete');
+            }
+          }, 450);
+          
+        } else {
+          console.log('🎭 UNPAUSE: No card found, using direct unpause...');
+          try { 
+            await onUnpause?.(); 
+            console.log('🎭 UNPAUSE: Game resumed successfully (no card fallback)');
+          } catch (error) {
+            console.error('🎭 UNPAUSE: Error resuming game (no card fallback):', error);
+          }
+          if (overlay) {
+            overlay.remove();
+            overlay = null;
+          }
+        }
+      } else {
+        console.log('🎭 UNPAUSE: No overlay found, using direct unpause...');
+        try { 
+          await onUnpause?.(); 
+          console.log('🎭 UNPAUSE: Game resumed successfully (no overlay fallback)');
+        } catch (error) {
+          console.error('🎭 UNPAUSE: Error resuming game (no overlay fallback):', error);
+        }
+      }
+    }
+    if (act === 'restart') { 
+      console.log('🎭 RESTART: Starting animation...');
+      
+      if (overlay) {
+        const card = overlay.querySelector('.pause-card');
+        if (card) {
+          console.log('🎭 RESTART: Card found, starting animation...');
+          
+          // Force initial state
+          card.style.transform = 'scale(1)';
+          card.style.opacity = '1';
+          
+          // Start animation immediately
+          setTimeout(() => {
+            console.log('🎭 RESTART: Animation started - scaling down...');
+            card.style.transition = 'all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            card.style.transform = 'scale(0)';
+            card.style.opacity = '0';
+          }, 10);
+          
+          // After animation, restart game
+          setTimeout(() => {
+            console.log('🎭 RESTART: Animation completed - restarting game...');
+            
+            try { 
+              onRestart?.(); 
+              console.log('🎭 RESTART: Game restarted successfully');
+            } catch (error) {
+              console.error('🎭 RESTART: Error restarting game:', error);
+            }
+            
+            // Remove overlay
+            if (overlay) {
+              overlay.remove();
+              overlay = null;
+              console.log('🎭 RESTART: Overlay removed - restart complete');
+            }
+          }, 450);
+          
+        } else {
+          console.log('🎭 RESTART: No card found, using direct restart...');
+          try { 
+            await onRestart?.(); 
+            console.log('🎭 RESTART: Game restarted successfully (no card fallback)');
+          } catch (error) {
+            console.error('🎭 RESTART: Error restarting game (no card fallback):', error);
+          }
+          if (overlay) {
+            overlay.remove();
+            overlay = null;
+          }
+        }
+      } else {
+        console.log('🎭 RESTART: No overlay found, using direct restart...');
+        try { 
+          await onRestart?.(); 
+          console.log('🎭 RESTART: Game restarted successfully (no overlay fallback)');
+        } catch (error) {
+          console.error('🎭 RESTART: Error restarting game (no overlay fallback):', error);
+        }
+      }
+    }
     if (act === 'exit') {
-      try {
-        await onExit?.();
-      } catch {}
-      close();
+      console.log('🎭 EXIT: Starting animation...');
+      
+      if (overlay) {
+        const card = overlay.querySelector('.pause-card');
+        if (card) {
+          console.log('🎭 EXIT: Card found, starting animation...');
+          
+          // Force initial state
+          card.style.transform = 'scale(1)';
+          card.style.opacity = '1';
+          
+          // Start animation immediately
+          setTimeout(() => {
+            console.log('🎭 EXIT: Animation started - scaling down...');
+            card.style.transition = 'all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            card.style.transform = 'scale(0)';
+            card.style.opacity = '0';
+          }, 10);
+          
+          // After animation, execute exit logic
+          setTimeout(() => {
+            console.log('🎭 EXIT: Animation completed - executing exit logic...');
+            
+            try {
+              onExit?.();
+              console.log('🎭 EXIT: onExit completed - homepage should be visible');
+            } catch (error) {
+              console.error('🎭 EXIT: onExit error:', error);
+            }
+            
+            // Remove overlay
+            if (overlay) {
+              overlay.remove();
+              overlay = null;
+              console.log('🎭 EXIT: Overlay removed - exit complete');
+            }
+          }, 450);
+          
+        } else {
+          console.log('🎭 EXIT: No card found, using direct exit...');
+          try {
+            onExit?.();
+            console.log('🎭 EXIT: onExit completed (no card fallback)');
+          } catch (error) {
+            console.error('🎭 EXIT: onExit error (no card fallback):', error);
+          }
+          if (overlay) {
+            overlay.remove();
+            overlay = null;
+          }
+        }
+      } else {
+        console.log('🎭 EXIT: No overlay found, using direct exit...');
+        try {
+          onExit?.();
+          console.log('🎭 EXIT: onExit completed (no overlay fallback)');
+        } catch (error) {
+          console.error('🎭 EXIT: onExit error (no overlay fallback):', error);
+        }
+      }
     }
   };
 
   const onBackdrop = (e) => { 
     if (e.target.classList.contains('pause-backdrop')) { 
-      try { onUnpause?.(); } catch {} 
+      console.log('🎭 MODAL CLOSE: Backdrop clicked - resuming game...');
+      try { 
+        onUnpause?.(); 
+        console.log('🎭 MODAL CLOSE: Game resumed via backdrop');
+      } catch (error) {
+        console.error('🎭 MODAL CLOSE: Error resuming game via backdrop:', error);
+      }
       close(); 
     } 
   };
 
   el.addEventListener('click', onClick);
   el.addEventListener('click', onBackdrop);
+  console.log('🎭 Event listeners added to modal element');
 }

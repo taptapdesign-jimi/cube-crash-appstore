@@ -20,18 +20,7 @@ import * as SPAWN from './spawn-helpers.js';
 import * as HUD   from './hud-helpers.js';
 import * as FLOW  from './level-flow.js';
 
-// NEW HUD (optional – fallback na stari API ako ovi exporti ne postoje)
-import {
-  initHUD as _initHUD,
-  updateHUD as _updateHUD,
-  setScore as _setScore,
-  setMoves as _setMoves,
-  setCombo as _setCombo,
-  resetCombo as _resetCombo,
-} from './hud-helpers.js';
-const _animateScore = HUD.animateScore;
-const _bumpCombo    = HUD.bumpCombo;
-const _animateMoves = HUD.animateMoves;
+// HUD functions from hud-helpers.js
 
 
 // --- Endless mode config ---
@@ -82,11 +71,21 @@ function setWildProgress(ratio, animate=false){
   let target = Number.isFinite(ratio) ? ratio : 0;
   target = Math.max(0, Math.min(1, target));
   if (target < wildMeter && !allowWildDecrease){
-    try { hudUpdateProgress?.(wildMeter, !!animate); } catch {}
+    try { 
+      console.log('🎯 Wild progress blocked - calling hudUpdateProgress with current:', wildMeter);
+      hudUpdateProgress?.(wildMeter, !!animate); 
+    } catch (error) {
+      console.error('Error calling hudUpdateProgress (blocked):', error);
+    }
     return;
   }
   wildMeter = target;
-  try { hudUpdateProgress?.(wildMeter, !!animate); } catch {}
+  try { 
+    console.log('🎯 Wild progress updated - calling hudUpdateProgress with:', wildMeter, 'animate:', animate);
+    hudUpdateProgress?.(wildMeter, !!animate); 
+  } catch (error) {
+    console.error('Error calling hudUpdateProgress:', error);
+  }
 }
 let updateProgressBar = (ratio, animate=false) => setWildProgress(ratio, animate);
 function addWildProgress(amount){
@@ -179,6 +178,51 @@ export async function boot(){
   const host = document.getElementById('app') || document.body;
   host.appendChild(app.canvas);
   app.canvas.style.touchAction = 'none';
+  
+  // Basic setup
+  stage   = app.stage; stage.sortableChildren = true;
+  board   = new Container(); board.sortableChildren = true;
+  boardBG = new Graphics();
+  hud     = new Container(); hud.eventMode = 'none';
+
+  board.zIndex = 100; hud.zIndex = 10000;
+  stage.addChild(board, hud);
+  board.addChildAt(boardBG, 0); boardBG.zIndex = -1000; board.sortChildren();
+
+  stage.eventMode = 'static';
+  stage.hitArea   = new Rectangle(0, 0, app.renderer.width, app.renderer.height);
+
+  // Resolve prize assets
+  MYSTERY_PATH = await loadFirstTexture(MYSTERY_CANDIDATES);
+  COIN_PATH    = await loadFirstTexture(COIN_CANDIDATES);
+
+  // Core assets
+  await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_WILD]);
+  await ensureFonts();
+
+  // drag
+  const ret = installDrag({
+    app, board, TILE,
+    getTiles: () => tiles,
+    merge,
+    canDrop: (s, d) => !d.locked,
+    hoverColor: 0x8a6e57,
+    hoverWidth: 10,
+    hoverAlpha: 0.28,
+    threshold: 0.03,
+    hitPad: 0.26,
+    snapRadius: 0.68,
+  });
+  drag = (ret && ret.drag) ? ret.drag : ret;
+
+  // Start game
+  moves = MOVES_MAX;
+  startLevel(1);
+  window.addEventListener('resize', layout);
+  scheduleIdleCheck();
+  
+  // Call layout immediately after boot
+  layout();
 
   // viewport + fonts
   {
@@ -203,50 +247,6 @@ export async function boot(){
     document.head.appendChild(style);
   }
 
-  stage   = app.stage; stage.sortableChildren = true;
-  board   = new Container(); board.sortableChildren = true;
-  boardBG = new Graphics();
-  hud     = new Container(); hud.eventMode = 'none';
-
-  board.zIndex = 100; hud.zIndex = 10000;
-  stage.addChild(board, hud);
-
-
-  board.addChildAt(boardBG, 0); boardBG.zIndex = -1000; board.sortChildren();
-
-  stage.eventMode = 'static';
-  stage.hitArea   = new Rectangle(0, 0, app.renderer.width, app.renderer.height);
-
-  // Resolve prize assets
-  MYSTERY_PATH = await loadFirstTexture(MYSTERY_CANDIDATES);
-  COIN_PATH    = await loadFirstTexture(COIN_CANDIDATES);
-
-  // Core assets
-  await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_WILD]);
-  await ensureFonts();
-
-  // drag
-  const ret = installDrag({
-    app, board, TILE,
-    getTiles: () => tiles,
-    merge,
-    canDrop: (s, d) => !d.locked,
-    hoverColor: 0x8a6e57,
-    hoverWidth: 10,      // širi hover
-    hoverAlpha: 0.28,    // vidljiviji
-    threshold: 0.03,     // brže “hvata” drag
-    hitPad: 0.26,        // veća hit-zona oko mete
-    snapRadius: 0.68,    // fallback na najbližu ako prst “proleti”
-  });
-  drag = (ret && ret.drag) ? ret.drag : ret;
-
-  // Endless init
-  moves = MOVES_MAX;
-
-  startLevel(1);
-  window.addEventListener('resize', layout);
-  scheduleIdleCheck();
-
   // Debug mini-API (ostavljeno)
   window.CC = {
     nextLevel: () => startLevel(level + 1),
@@ -260,7 +260,7 @@ export async function boot(){
 }
 
 // -------------------- layout + HUD --------------------
-function layout(){
+export function layout(){
   const { w, h } = boardSize();
   const vw = app.renderer.width, vh = app.renderer.height;
   stage.hitArea = new Rectangle(0, 0, vw, vh);
@@ -272,51 +272,100 @@ function layout(){
   const SAR = parseFloat(cssVars.getPropertyValue('--sar')) || 0;
   const SAB = parseFloat(cssVars.getPropertyValue('--sab')) || 0;
   const SAT = parseFloat(cssVars.getPropertyValue('--sat')) || 0;
-  console.log('🎯 Safe area top (SAT):', SAT, 'px');
+  
+  // iPhone 13 specific safe area handling
+  const isIPhone13 = /iPhone/.test(navigator.userAgent) && window.screen.width === 390 && window.screen.height === 844;
+  const adjustedSAT = isIPhone13 ? Math.max(SAT, 44) : SAT; // iPhone 13 minimum safe area top
+  
+  console.log('🎯 Safe area top (SAT):', SAT, 'px, adjusted for iPhone 13:', adjustedSAT, 'px');
+  console.log('🎯 Device info:', {
+    userAgent: navigator.userAgent,
+    screenWidth: window.screen.width,
+    screenHeight: window.screen.height,
+    isIPhone13,
+    viewportWidth: vw,
+    viewportHeight: vh
+  });
 
   const MIN_SIDE = isMobilePortrait ? 24 : 14;
   const LEFT_PAD  = Math.max(MIN_SIDE, SAL);
   const RIGHT_PAD = Math.max(MIN_SIDE, SAR);
-  const TOP_PAD   = -20; // Move HUD 20% higher - adjusted down 5%
+  const TOP_PAD   = 20 + Math.round(vh * 0.01); // Move HUD 1% lower (was 8%, now 1%)
   const BOT_PAD   = (isMobilePortrait ? 24 : 24) + SAB;
   const GAP_HUD   = 16;
 
-  const safeTop = TOP_PAD + SAT;
-  console.log('🎯 HUD will be positioned at y:', safeTop, 'px from top');
-  const s = Math.min((vw - LEFT_PAD - RIGHT_PAD) / w, (vh - safeTop - HUD_H - GAP_HUD - BOT_PAD) / h);
+  // For mobile devices, HUD will be positioned below notch, so calculate board positioning accordingly
+  const isMobile = vw < 768 || vh > vw;
+  let safeTop, hudBottom;
+  
+  if (isMobile) {
+    // Mobile: HUD below notch, board starts after HUD - 20px higher (converted to percentage)
+    const baseTop = Math.max(44, adjustedSAT + 8); // Same logic as hud-helpers.js
+    // Add 20px higher, converted to percentage
+    const additionalPixels = 20;
+    const percentageAdjustment = additionalPixels / baseTop; // Convert 20px to percentage
+    safeTop = Math.round(baseTop * (1 - percentageAdjustment)); // Move up by calculated percentage
+    hudBottom = safeTop + HUD_H + GAP_HUD;
+    console.log('📱 Mobile: HUD 20px higher at y:', safeTop, 'px (base:', baseTop, 'px, adjustment:', (percentageAdjustment * 100).toFixed(1) + '%), board starts at y:', hudBottom);
+  } else {
+    // Desktop: Use calculated safe area positioning
+    safeTop = TOP_PAD + adjustedSAT;
+    hudBottom = safeTop + HUD_H + GAP_HUD;
+    console.log('🖥️ Desktop: HUD at y:', safeTop, 'px, board starts at y:', hudBottom);
+  }
+  
+  const s = Math.min((vw - LEFT_PAD - RIGHT_PAD) / w, (vh - hudBottom - BOT_PAD) / h);
   board.scale.set(s, s); board.scale.y = board.scale.x;
 
   const sw = w * s, sh = h * s;
   const idealLeft = Math.round((vw - sw) / 2);
   const maxLeft   = vw - RIGHT_PAD - sw;
   board.x = Math.min(Math.max(idealLeft, LEFT_PAD), maxLeft);
-  board.y = Math.round(vh - BOT_PAD - sh);
+  
+  // Center board between HUD and bottom
+  const availableHeight = vh - hudBottom - BOT_PAD;
+  const centerY = hudBottom + (availableHeight - sh) / 2;
+  board.y = Math.round(centerY);
+  
+  console.log('🎯 Board positioning (HUD below notch on mobile):', {
+    isMobile,
+    safeTop,
+    hudBottom,
+    availableHeight,
+    centerY: board.y,
+    boardHeight: sh,
+    viewportHeight: vh,
+    topPad: TOP_PAD
+  });
 
   drawBoardBG('none');
   if (Math.abs((_lastSAT||0) - SAT) > 0.5) { _hudInitDone = false; _lastSAT = SAT; }
 
   try {
-    if (typeof _initHUD === 'function') {
+    if (typeof HUD.initHUD === 'function') {
       if (!_hudInitDone) {
-        _initHUD({ stage, app, top: safeTop, gsap });
+        HUD.initHUD({ stage, app, top: safeTop, gsap });
         _hudInitDone = true;
-        try { if (hud) hud.visible = false; } catch {}
         // hook za wild meter prema HUD-u
-        hudUpdateProgress = (ratio, animate)=>{ try{ HUD.updateProgressBar?.(ratio, animate); }catch{} };
+        hudUpdateProgress = (ratio, animate)=>{
+          console.log('🎯 hudUpdateProgress called with:', { ratio, animate });
+          try{ 
+            HUD.updateProgressBar?.(ratio, animate); 
+            console.log('✅ HUD.updateProgressBar called successfully');
+          } catch(error) {
+            console.error('❌ Error calling HUD.updateProgressBar:', error);
+          }
+        };
       }
-      _updateHUD?.({ score, moves, combo });
-    } else {
-      const refs = HUD.drawHUD?.({ app, hud, top: safeTop, level, score, moves, gsap }) || {};
-      boardNumText = refs.boardNumText; scoreNumText = refs.scoreNumText; movesNumText = refs.movesNumText;
-      hudUpdateProgress = refs.updateProgressBar || hudUpdateProgress;
+      HUD.updateHUD?.({ score, moves, combo });
     }
-  } catch {}
-
-  // Wild meter crtanje je isključivo u HUD-u:
-  try { updateProgressBar(wildMeter, false); } catch {}
+  } catch (error) {
+    console.error('Error during HUD initialization/update in app.js layout:', error);
+  }
 }
 
 function boardSize(){ return { w: COLS*TILE + (COLS-1)*GAP, h: ROWS*TILE + (ROWS-1)*GAP }; }
+
 function cellXY(c, r){ return { x: c*(TILE+GAP), y: r*(TILE+GAP) }; }
 
 function drawBoardBG(mode = 'active+empty'){
@@ -336,9 +385,34 @@ function drawBoardBG(mode = 'active+empty'){
 }
 
 const updateHUD = () => {
+  console.log('🎯 updateHUD called with:', { score, moves, combo });
+  
   try {
-    if (typeof _updateHUD === 'function') { _updateHUD({ score, moves, combo }); return; }
-  } catch {}
+    // First try to use HUD from hud-helpers.js
+    if (typeof HUD.updateHUD === 'function') { 
+      console.log('🎯 Calling HUD.updateHUD from hud-helpers.js');
+      HUD.updateHUD({ score, moves, combo }); 
+      return; 
+    } else {
+      console.log('⚠️ HUD.updateHUD function not available');
+    }
+  } catch (error) {
+    console.error('❌ Error calling HUD.updateHUD:', error);
+  }
+  
+  try {
+    // Fallback to old method
+    if (typeof _updateHUD === 'function') { 
+      console.log('🎯 Using fallback _updateHUD');
+      _updateHUD({ score, moves, combo }); 
+      return; 
+    }
+  } catch (error) {
+    console.error('❌ Error calling _updateHUD:', error);
+  }
+  
+  // Legacy fallback
+  console.log('🎯 Using legacy fallback for HUD update');
   if (boardNumText) boardNumText.text = `#${level}`;
   if (scoreNumText) scoreNumText.text = String(score);
   if (movesNumText) movesNumText.text = String(moves);
@@ -391,17 +465,11 @@ function rebuildBoard(){
 
   try { tiles.forEach(t => t.visible = false); } catch {}
   
-  // Layout immediately - no delay
-  layout();
-  
-  // Start animation immediately
+  // Start animation immediately - NO WAITING
   console.log('🎯 Starting sweetPopIn from app.js with', tiles.length, 'tiles');
-  const p = sweetPopIn(tiles);
+  sweetPopIn(tiles); // Don't wait for animation to complete
+  console.log('✅ sweetPopIn started immediately - no waiting');
   
-  (p && typeof p.then === 'function' ? p : Promise.resolve()).then(()=>{
-    console.log('✅ sweetPopIn completed from app.js');
-    // drawBoardBG is called inside animation to prevent lag
-  });
 }
 function tintLocked(t){ try{ gsap.to(t, { alpha:0.35, duration:0.10, ease:'power1.out' }); }catch{} }
 function randVal(){ return [1,1,1,2,2,3,3,4,5][(Math.random()*9)|0]; }
@@ -417,6 +485,12 @@ function startLevel(n){
   // Start animation immediately - no delay
   rebuildBoard(); 
   updateHUD();
+  
+  // Call layout only for initial game start, not for restart
+  if (n === 1) {
+    layout();
+    console.log('🎯 Layout called for initial game start');
+  }
   
   // Check level end immediately - no delay
   gsap.delayedCall(0.1, checkLevelEnd);
@@ -737,14 +811,21 @@ async function showFinalScreen(){
 }
 
 function restartGame(){
+  console.log('🔄 Starting clean restart - preserving HUD position');
+  
+  // Reset game state WITHOUT touching HUD positioning
   score = 0;
   moves = MOVES_MAX;
   hudResetCombo();
   try { comboIdleTimer?.kill?.(); } catch {}
   wildMeter = 0;
   resetWildProgress(0, false);
+  
+  // Rebuild board WITHOUT calling layout
   rebuildBoard();
   updateHUD();
+  
+  console.log('✅ Clean restart completed - HUD position preserved');
 }
 // temporary idle checker (no-op so boot doesn't fail)
 function scheduleIdleCheck(){ /* no-op for now */ }

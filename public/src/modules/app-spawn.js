@@ -3,7 +3,7 @@ import { Assets, Texture } from '/node_modules/pixi.js/dist/pixi.mjs';
 import { gsap } from '/node_modules/gsap/index.js';
 import { STATE, TILE, ASSET_WILD } from './app-state.js';
 import * as makeBoard from './board.js';
-import { drawBoardBG } from './app-layout.js';
+// drawBoardBG function is now in app.js
 
 export function fixHoverAnchor(t){ try { if (t && t.hover) { t.hover.x=TILE/2; t.hover.y=TILE/2; } } catch {} }
 

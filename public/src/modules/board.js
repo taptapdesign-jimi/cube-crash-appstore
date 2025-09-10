@@ -29,7 +29,7 @@ export function drawStack(tile) {
   host.sortableChildren = true;
 
   const g = new Container();
-  g.name = 'stackG';
+  g.label = 'stackG';
   g.zIndex = -5;
   host.addChildAt(g, 0);
   tile.stackG = g;
@@ -130,7 +130,7 @@ export function setValue(t, v, addStack = 0) {
     // prazno/locked
     if (t.base) t.base.texture = Assets.get(ASSET_TILE);
     if (t.overlay) t.overlay.visible = false;
-    t.pips?.clear?.(); // odmah ukloni pips da ne “procure”
+    t.pips?.clear?.(); // odmah ukloni pips da ne "procure"
   }
 
   // skini occluder kad se slot aktivira
@@ -138,10 +138,12 @@ export function setValue(t, v, addStack = 0) {
     try { t.occluder.destroy(); } catch {}
     t.occluder = null;
   }
+
   if (addStack) t.stackDepth = Math.min(4, (t.stackDepth || 1) + addStack);
   drawStack(t);
   drawPips(t);
 }
+
 
 // --- Merge score chain bookkeeping (ostavljeno ako ti treba kasnije) ---
 let mergeStackValue = 0;
@@ -260,7 +262,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   t.rotG.addChild(face);
   t.base = face;
 
-  // poluprozirni “numbers” overlay – (PATCH) gasimo ga defaultno; ne koristimo kao ghost
+  // poluprozirni "numbers" overlay – (PATCH) gasimo ga defaultno; ne koristimo kao ghost
   const ov = new Sprite(Assets.get(ASSET_NUMBERS));
   ov.anchor.set(0.5);
   ov.width = TILE; ov.height = TILE;

@@ -3,11 +3,15 @@ import { Container, Graphics, Text, Rectangle } from 'pixi.js';
 import { gsap } from 'gsap';
 import { pauseGame, resumeGame, restart } from './app.js';
 import { showPauseModal } from './pause-modal.js';
+import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
+
+// Local boardSize function (same as in app.js)
+function boardSize(){ return { w: COLS*TILE + (COLS-1)*GAP, h: ROWS*TILE + (ROWS-1)*GAP }; }
 
 /* ---------------- Wild loader core (flicker-free, 8px) ---------------- */
 function makeWildLoader({ width, color = 0xD59477, trackColor = 0xEADFD6 }) {
   const view = new Container();
-  view.name = 'wild-loader';
+  view.label = 'wild-loader';
 
   const H = 8;                         // fiksna visina
   const R = H / 2;
@@ -149,10 +153,27 @@ function stopComboFX(){
   } catch {}
 }
 
-function layout({ app, top }) { 
+export function layout({ app, top }) { 
   if (!HUD_ROOT) return;
   const vw = app.renderer.width;
   const vh = app.renderer.height;
+  
+  // Force HUD to be positioned below notch on mobile devices
+  const isMobile = vw < 768 || vh > vw;
+  if (isMobile) {
+    // On mobile, position HUD below the notch/safe area - 20px higher (converted to percentage)
+    const cssVars = getComputedStyle(document.documentElement);
+    const SAT = parseFloat(cssVars.getPropertyValue('--sat')) || 0;
+    const baseTop = Math.max(44, SAT + 8); // Minimum 44px below notch, or 8px below safe area
+    // Add 20px higher, converted to percentage
+    const additionalPixels = 20;
+    const percentageAdjustment = additionalPixels / baseTop; // Convert 20px to percentage
+    top = Math.round(baseTop * (1 - percentageAdjustment)); // Move up by calculated percentage
+    console.log('📱 Mobile device detected - HUD positioned 20px higher at:', top, 'px (base:', baseTop, 'px, adjustment:', (percentageAdjustment * 100).toFixed(1) + '%, SAT:', SAT, 'px)');
+  } else {
+    // On desktop, use the calculated top position
+    console.log('🖥️ Desktop device - using calculated top position:', top);
+  }
 
   const SIDE = 24;            // bočni odmak
   const yLabel = top + 0;     // red s labelima
@@ -199,6 +220,21 @@ function layout({ app, top }) {
   wild.view.x = SIDE;
   wild.view.y = barY;
   wild.setWidth(barW);
+  
+  // Ensure HUD is properly positioned
+  if (HUD_ROOT) {
+    HUD_ROOT.zIndex = 10_000;
+    HUD_ROOT.sortableChildren = true;
+    HUD_ROOT.y = top; // Update HUD_ROOT position to match elements
+    console.log('🎯 HUD_ROOT.y updated to:', HUD_ROOT.y, 'top:', top);
+    
+    // Verify HUD is above board
+    if (HUD_ROOT.y < 0) {
+      console.warn('⚠️ HUD is positioned above screen!', HUD_ROOT.y);
+    }
+  } else {
+    console.warn('⚠️ HUD_ROOT not found in layout function!');
+  }
 }
 
 export function initHUD({ stage, app, top = 8 }) { 
@@ -207,7 +243,7 @@ export function initHUD({ stage, app, top = 8 }) {
   // očisti stari root ako postoji
   try { if (HUD_ROOT && HUD_ROOT.parent) HUD_ROOT.parent.removeChild(HUD_ROOT); } catch {}
   HUD_ROOT = new Container();
-  HUD_ROOT.name = 'HUD_ROOT';
+  HUD_ROOT.label = 'HUD_ROOT';
   HUD_ROOT.zIndex = 10_000;
   HUD_ROOT.sortableChildren = true;
   stage.addChild(HUD_ROOT);
@@ -244,26 +280,19 @@ export function initHUD({ stage, app, top = 8 }) {
   HUD_ROOT._onResize = onResize;
   window.addEventListener('resize', onResize);
 
-  // Gentle elastic HUD drop-in animation at middle of tile animation (only if not already animated)
+  // Gentle elastic HUD drop-in animation
   if (!HUD_ROOT._animated) {
-    console.log('🎯 Starting HUD animation - starting at y:', top - 80, 'target y:', top);
-    console.log('🎯 HUD final position will be:', top, 'pixels from top');
     HUD_ROOT.alpha = 0;
     HUD_ROOT.y = top - 80; // Start above screen
-    gsap.delayedCall(0.01, () => { // Start immediately
-      console.log('🎯 HUD animation starting now!');
     gsap.to(HUD_ROOT, {
       alpha: 1,
       y: top,
-      duration: 1.5, // Shorter duration to finish around same time as tiles
-      ease: 'elastic.out(1, 0.6)', // Less bouncy, more gentle
+      duration: 0.8,
+      ease: 'elastic.out(1, 0.6)',
       onComplete: () => {
-        console.log('✅ HUD animation completed');
         HUD_ROOT._animated = true;
-        // Ensure final position is correct
         HUD_ROOT.y = top;
       }
-    });
     });
   } else {
     // Already animated, just set final position
@@ -284,20 +313,72 @@ export function initHUD({ stage, app, top = 8 }) {
     pauseGame();
     console.log('Calling showPauseModal...');
     showPauseModal({
-      onUnpause: async () => { try { resumeGame(); } catch {} },
-      onRestart: async () => { try { restart(); resumeGame(); } catch {} },
+      onUnpause: async () => { 
+        console.log('🎭 onUnpause called');
+        try { resumeGame(); } catch {} 
+      },
+      onRestart: async () => { 
+        console.log('🎭 onRestart called');
+        try { 
+          restart(); 
+          // Layout will be called automatically by restartGame() in app.js
+          console.log('🎭 Restart completed - layout will be called by restartGame()');
+          resumeGame(); 
+        } catch (error) {
+          console.error('🎭 Error during restart:', error);
+        }
+      },
       onExit: async () => {
+        console.log('🎭 EXIT TO MENU - SIMPLE RELOAD APPROACH');
+        
         try {
+          // 1. Hide game immediately
           const appHost = document.getElementById('app');
-          const home = document.getElementById('home');
           if (appHost) {
-            appHost.setAttribute('hidden', 'true');
+            appHost.style.display = 'none';
             appHost.innerHTML = '';
+            console.log('✅ Game hidden');
           }
+          
+          // 2. Show homepage and reload the page to reset everything
+          const home = document.getElementById('home');
           if (home) {
+            console.log('🔄 Reloading page to reset everything...');
+            
+            // Show homepage first
             home.removeAttribute('hidden');
+            home.style.display = 'block';
+            home.style.visibility = 'visible';
+            home.style.position = 'fixed';
+            home.style.top = '0';
+            home.style.left = '0';
+            home.style.width = '100vw';
+            home.style.height = '100vh';
+            home.style.zIndex = '999999';
+            home.style.background = '#f5f5f5';
+            home.style.opacity = '1';
+            home.style.transform = 'scale(1)';
+            
+            console.log('✅ Homepage shown');
+            
+            // Reload the page after a short delay to reset everything
+            setTimeout(() => {
+              console.log('🔄 Reloading page to reset slider and game state...');
+              window.location.reload();
+            }, 500);
+            
+          } else {
+            console.error('❌ HOME ELEMENT NOT FOUND!');
+            return false;
           }
-        } catch {}
+          
+          console.log('🎭 EXIT COMPLETE - Page will reload!');
+          return true;
+          
+        } catch (error) {
+          console.error('❌ Error in onExit:', error);
+          return false;
+        }
       }
     });
   });

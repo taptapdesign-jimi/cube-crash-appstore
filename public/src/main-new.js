@@ -2,6 +2,10 @@
 
 import { boot } from './modules/app.js';
 import { gsap } from 'gsap';
+import { OptimizedSlider } from './slider-optimized.js';
+
+console.log('📦 main-new.js loaded');
+console.log('📦 OptimizedSlider imported:', typeof OptimizedSlider);
 
 let slider;
 
@@ -10,10 +14,12 @@ let slider;
   try {
     // Wait for DOM to be ready
     if (document.readyState === 'loading') {
+      console.log('⏳ Waiting for DOM to be ready...');
       await new Promise(res => document.addEventListener('DOMContentLoaded', res, { once: true }));
     }
 
     console.log('🚀 Initializing optimized CubeCrash...');
+    console.log('📄 DOM ready state:', document.readyState);
 
     // Get main elements
     const home = document.getElementById('home');
@@ -24,12 +30,38 @@ let slider;
     }
 
     // Initialize the optimized slider
+    console.log('🎠 Creating OptimizedSlider...');
     slider = new OptimizedSlider();
+    
+    if (!slider) {
+      throw new Error('Failed to create OptimizedSlider');
+    }
+    
+    // Make slider globally available
+    window.slider = slider;
+    
+    console.log('✅ OptimizedSlider created successfully and set as window.slider');
     
     // Set up global functions for slider callbacks
     window.startGame = startGame;
     window.showStats = showStats;
     window.showCollectibles = showCollectibles;
+    
+    // Add global function to re-initialize slider
+    window.reinitializeSlider = () => {
+      if (slider && typeof slider.reinitialize === 'function') {
+        console.log('🔄 Re-initializing slider via global function...');
+        slider.reinitialize();
+      } else {
+        console.log('⚠️ Slider not available for re-initialization');
+      }
+    };
+    
+    console.log('🎮 Global functions set:', {
+      startGame: typeof window.startGame,
+      showStats: typeof window.showStats,
+      showCollectibles: typeof window.showCollectibles
+    });
     
     console.log('✅ Optimized CubeCrash initialized successfully');
     
@@ -40,10 +72,12 @@ let slider;
 
 // Start game function
 async function startGame() {
-  console.log('🎮 Starting game...');
+  console.log('🎮 startGame() called!');
+  console.log('🎮 slider exists:', !!slider);
   
   // Start exit animation
   if (slider) {
+    console.log('🎮 Using slider exit animation');
     slider.startExitAnimation(() => {
       console.log('🎭 Exit animation complete, starting game');
       
@@ -51,19 +85,28 @@ async function startGame() {
       const home = document.getElementById('home');
       const appHost = document.getElementById('app');
       
-      home?.setAttribute('hidden', 'true');
-      appHost?.removeAttribute('hidden');
+      console.log('🎮 Elements found:', { home: !!home, appHost: !!appHost });
       
-      // Start the game
-      boot().catch(console.error);
+      home?.style.setProperty('display', 'none', 'important');
+      appHost?.style.setProperty('display', 'block', 'important');
+      
+      // Start the game IMMEDIATELY - no delay
+      console.log('🚀 Starting game boot immediately');
+      
+      // Call boot and start game immediately
+      boot().then(() => {
+        console.log('✅ Game boot completed - tiles should be visible');
+      }).catch(console.error);
+      console.log('✅ Game boot started immediately - no waiting');
     });
   } else {
+    console.log('🎮 Slider not available, using fallback');
     // Fallback if slider not available
     const home = document.getElementById('home');
     const appHost = document.getElementById('app');
     
-    home?.setAttribute('hidden', 'true');
-    appHost?.removeAttribute('hidden');
+    home?.style.setProperty('display', 'none', 'important');
+    appHost?.style.setProperty('display', 'block', 'important');
     boot().catch(console.error);
   }
 }

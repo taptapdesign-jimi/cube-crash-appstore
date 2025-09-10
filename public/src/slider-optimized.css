@@ -187,11 +187,12 @@
   transform: scale(1.1);
 }
 
-/* EXIT ANIMATION CLASSES */
-.slider-exit {
-  animation: slideExit 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+/* DYNAMIC EXIT ANIMATION CLASSES */
+.slide-text, .slide-button, .hero-shadow, .hero-image, .hero-container, #home-logo {
+  transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
+/* Exit animation keyframes for reference */
 @keyframes slideExit {
   0% {
     transform: scale(1) translateY(0);
@@ -205,10 +206,6 @@
     transform: scale(0.7) translateY(-20px);
     opacity: 0;
   }
-}
-
-.slide-content-exit {
-  animation: contentExit 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
 }
 
 @keyframes contentExit {

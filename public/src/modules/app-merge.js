@@ -3,7 +3,7 @@ import { gsap } from 'gsap';
 import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';
 import * as makeBoard from './board.js';
 import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, screenShake } from './fx.js';
-import { drawBoardBG, updateHUD, animateScore, updateProgressBar } from './app-layout.js';
+// HUD functions are now in hud-helpers.js
 import { openAtCell, openEmpties, spawnBounce, sweepForUnanimatedSpawns } from './app-spawn.js';
 import { showStarsModal } from './stars-modal.js';
 import { rebuildBoard } from './app-board.js';

@@ -9,10 +9,10 @@ import { ASSET_TILE } from './constants.js';
 export const __CC_CELEB_VERSION = 'clean-grid-v5-resp';
 
 function ensureLayer(stage, name){
-  let layer = stage.children?.find?.(c => c && c.name === name);
+  let layer = stage.children?.find?.(c => c && c.label === name);
   if (!layer || layer.destroyed){
     layer = new Container();
-    layer.name = name;
+    layer.label = name;
     layer.zIndex = 14000;
     layer.eventMode = 'none';
     stage.addChild(layer);
@@ -54,7 +54,7 @@ export async function showCleanBoardCelebration({
 
   // Kill any previous celebration layer (defensive)
   try {
-    const old = stage.children?.find?.(c => c && c.name === LAYER_NAME);
+    const old = stage.children?.find?.(c => c && c.label === LAYER_NAME);
     if (old){ try { stage.removeChild(old); old.destroy?.({children:true}); } catch{} }
   } catch {}
 

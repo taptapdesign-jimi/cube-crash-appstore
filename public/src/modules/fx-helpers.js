@@ -61,7 +61,7 @@ export function createWildLoaderFX({
   bubbleRate = 42,    // ↑ denser per second
 } = {}) {
   const view = new Container();
-  view.name = 'wild-loader-fx';
+  view.label = 'wild-loader-fx';
 
   // Track (8px height)
   const H = 8;

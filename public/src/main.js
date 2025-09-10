@@ -25,6 +25,15 @@ let slider;
     let trackX = 0;       // current translateX of track
     let _idlePhase = 0;   // 0..1 fractional phase of idle (preserved across slides)
     let _idleWatch = null;
+    
+    // Get slider elements
+    const slides = document.querySelectorAll('.slider-slide');
+    const navDots = document.querySelectorAll('.slider-dot');
+    const track = document.getElementById('slider-wrapper');
+    const stage = document.getElementById('slider-container');
+    const btnHome = document.getElementById('btn-home');
+    const btnStats = document.getElementById('btn-stats');
+    const btnCollectibles = document.getElementById('btn-collectibles');
 
     function isIdleRunning(){
       try { return _idleTweens.some(t => t && t.isActive && t.isActive()); } catch { return false; }
@@ -42,8 +51,8 @@ let slider;
       try {
         // Ensure continuous idle for ALL slides; don't duplicate tweens
         slides.forEach((s, i) => {
-          const hero = s?.querySelector('.hero');
-          const ell  = s?.querySelector('.ellipse-shadow');
+          const hero = s?.querySelector('.hero-image');
+          const ell  = s?.querySelector('.hero-shadow');
           if (hero && !_idleTweens.some(t => t && t._ccTag === `h${i}`)) {
             try { gsap.set(hero, { transformOrigin: '50% 65%' }); } catch {}
             const ht = gsap.to(hero, {
@@ -94,9 +103,9 @@ let slider;
       
       // Get current active slide for fade out animation
       const activeSlide = slides[currentSlide];
-      const hero = activeSlide?.querySelector('.hero');
-      const ellipse = activeSlide?.querySelector('.ellipse-shadow');
-      const cta = activeSlide?.querySelector('.cta');
+      const hero = activeSlide?.querySelector('.hero-image');
+      const ellipse = activeSlide?.querySelector('.hero-shadow');
+      const cta = activeSlide?.querySelector('.slide-button');
       
       console.log('🎭 Fade out debug:', {
         currentSlide,
@@ -155,10 +164,10 @@ let slider;
         }, 800);
         
         // Also animate individual elements
-        const hero = activeSlide.querySelector('.hero');
-        const heroWrap = activeSlide.querySelector('.hero-wrap');
-        const copy = activeSlide.querySelector('.copy');
-        const cta = activeSlide.querySelector('.cta');
+        const hero = activeSlide.querySelector('.hero-image');
+        const heroWrap = activeSlide.querySelector('.hero-container');
+        const copy = activeSlide.querySelector('.slide-text');
+        const cta = activeSlide.querySelector('.slide-button');
         
         if (hero) {
           hero.style.setProperty('transition', 'all 0.5s ease-out', 'important');
@@ -221,9 +230,9 @@ let slider;
     };
     const placeDots = () => {
       try {
-        const nav = document.getElementById('home-nav');
+        const nav = document.getElementById('slider-dots');
         const activeSlide = slides[currentSlide];
-        const btn = activeSlide?.querySelector('.copy .cta button');
+        const btn = activeSlide?.querySelector('.slide-text .slide-button');
         if (!nav || !btn) return;
         const r = btn.getBoundingClientRect();
         const vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight || document.documentElement.clientHeight || 0;
@@ -261,7 +270,7 @@ let slider;
     };
     // attach events
     navDots.forEach((b)=> b.addEventListener('click', () => {
-      const i = Number(b.dataset.index||0) || 0; goToSlide(i);
+      const i = Number(b.dataset.slide||0) || 0; goToSlide(i);
     }));
     window.addEventListener('resize', () => { placeDots(); });
     setActiveDot(0); placeDots();
@@ -292,7 +301,7 @@ let slider;
       };
       const onStart = (x, y, target) => {
         // ignoriraj klikove na CTA/dots
-        try { if (target && (target.closest('#slides-stage .copy .cta button') || target.closest('#home-nav'))) return; } catch {}
+        try { if (target && (target.closest('.slide-button') || target.closest('#slider-dots'))) return; } catch {}
         dragging = true; dx = 0; startX = x; startY = y; W = stage?.clientWidth || window.innerWidth || 320;
         // Stop any ongoing tween and sync start position with actual transform
         try { gsap.killTweensOf(track); } catch {}

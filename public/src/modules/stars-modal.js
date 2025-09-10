@@ -5,10 +5,10 @@ import { gsap } from 'gsap';
 export async function showStarsModal({ app, stage, board, score }) {
   return new Promise(resolve => {
     const LAYER_NAME = 'cc-stars-modal';
-    let layer = stage.children?.find?.(c => c && c.name === LAYER_NAME);
+    let layer = stage.children?.find?.(c => c && c.label === LAYER_NAME);
     if (!layer || layer.destroyed) {
       layer = new Container();
-      layer.name = LAYER_NAME;
+      layer.label = LAYER_NAME;
       layer.zIndex = 16000;
       stage.addChild(layer); try { stage.sortChildren(); } catch {}
     }
