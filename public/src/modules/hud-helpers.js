@@ -430,9 +430,15 @@ export function updateProgressBar(ratio, animate = false){
 
 /* Reset wild loader to 0 */
 export function resetWildLoader(){
-  if (!wild) return;
+  console.log('🔄 resetWildLoader called, wild exists:', !!wild);
+  if (!wild) {
+    console.log('⚠️ Wild loader not found, cannot reset');
+    return;
+  }
+  console.log('🔄 Resetting wild loader from', wild._lastP, 'to 0');
   wild._lastP = 0;
   wild.setProgress(0, false); // Reset immediately without animation
+  console.log('✅ Wild loader reset to 0');
 }
 
 /* --- Score animation helper (compat) --- */
