@@ -476,30 +476,25 @@ export function animateWildLoaderToZero(){
   }
   
   try {
-    // Use GSAP to animate progress to 0
-    const currentProgress = wild._lastP || 0;
-    const targetProgress = 0;
+    // Direct approach - force progress to 0
+    wild._lastP = 0;
     
-    if (currentProgress > 0) {
-      gsap.to(wild, {
-        _lastP: targetProgress,
-        duration: 0.5,
-        ease: "power2.out",
-        onUpdate: () => {
-          if (wild.setProgress) {
-            wild.setProgress(wild._lastP, false);
-          }
-        },
-        onComplete: () => {
-          console.log('✅ Wild loader animation to 0 completed');
-        }
-      });
-    } else {
-      // Already at 0, just set it
-      wild._lastP = 0;
-      wild.setProgress(0, false);
-      console.log('✅ Wild loader already at 0');
+    // Access the internal progress variable directly
+    if (wild.view && wild.view.children) {
+      const fill = wild.view.children.find(child => child.mask);
+      const mask = wild.view.children.find(child => child.mask);
+      
+      if (mask && typeof mask.clear === 'function') {
+        mask.clear();
+        mask.roundRect(0, -0.5, 0, 8 + 1, 4).fill(0xffffff);
+        console.log('🔄 Direct mask reset to 0');
+      }
     }
+    
+    // Force setProgress to 0
+    wild.setProgress(0, false);
+    
+    console.log('✅ Wild loader force reset to 0');
   } catch (error) {
     console.error('❌ Error animating wild loader to 0:', error);
   }

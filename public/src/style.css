@@ -22,8 +22,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   padding: calc(env(safe-area-inset-top,0px)) 0 calc(env(safe-area-inset-bottom,0px));
   background: #f5f5f5;
   z-index: 999999;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden; /* Prevent scrolling */
   /* GSAP will handle all animations */
 }
 
