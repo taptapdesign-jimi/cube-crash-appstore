@@ -158,8 +158,24 @@ class OptimizedSlider {
     const baseTranslateX = -this.currentSlide * window.innerWidth;
     const totalTranslateX = baseTranslateX + this.dragOffset;
     
-    this.sliderWrapper.style.transform = `translateX(${totalTranslateX}px)`;
-    console.log('🎠 Dragging:', this.dragOffset, 'px');
+    // Apply resistance to make it feel more natural
+    // Allow dragging beyond current slide to show next slide peeking
+    const maxDrag = window.innerWidth * 0.3; // Allow 30% of screen width drag
+    const resistance = Math.min(1, Math.abs(this.dragOffset) / maxDrag);
+    const resistanceFactor = 1 - (resistance * 0.3); // 30% resistance at max drag
+    
+    const finalTranslateX = baseTranslateX + (this.dragOffset * resistanceFactor);
+    
+    this.sliderWrapper.style.transform = `translateX(${finalTranslateX}px)`;
+    
+    // Add visual feedback - fade current slide slightly when dragging
+    const dragProgress = Math.min(1, Math.abs(this.dragOffset) / (window.innerWidth * 0.2));
+    const currentSlide = this.slides[this.currentSlide];
+    if (currentSlide) {
+      currentSlide.style.opacity = 1 - (dragProgress * 0.3); // Fade up to 30%
+    }
+    
+    console.log('🎠 Dragging:', this.dragOffset, 'px, resistance:', resistanceFactor, 'fade:', dragProgress);
   }
   
   endDrag() {
@@ -172,14 +188,14 @@ class OptimizedSlider {
     const dragDuration = this.dragEndTime - this.dragStartTime;
     const dragSpeed = Math.abs(this.dragOffset) / dragDuration; // pixels per ms
     
-    // More sensitive threshold for slide change
-    const minThreshold = 30; // Minimum 30px movement
-    const percentageThreshold = window.innerWidth * 0.12; // 12% of screen width
+    // More sensitive threshold for slide change - reduced since we allow more drag
+    const minThreshold = 20; // Minimum 20px movement
+    const percentageThreshold = window.innerWidth * 0.08; // 8% of screen width (was 12%)
     const threshold = Math.max(minThreshold, percentageThreshold);
     
     // Speed-based threshold - if fast swipe, lower threshold
-    const speedThreshold = 0.5; // pixels per ms
-    const fastSwipeThreshold = Math.max(20, window.innerWidth * 0.08); // 8% for fast swipes
+    const speedThreshold = 0.3; // pixels per ms (was 0.5)
+    const fastSwipeThreshold = Math.max(15, window.innerWidth * 0.05); // 5% for fast swipes (was 8%)
     
     let targetSlide = this.currentSlide;
     
@@ -214,6 +230,11 @@ class OptimizedSlider {
       this.currentSlide = targetSlide;
       this.updateDots();
       console.log('🎠 Slide changed to:', this.currentSlide);
+    }
+    
+    // Reset slide opacity
+    if (this.slides[this.currentSlide]) {
+      this.slides[this.currentSlide].style.opacity = '1';
     }
     
     // Smooth transition to final position
