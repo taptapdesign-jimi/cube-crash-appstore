@@ -427,35 +427,38 @@ export function bumpCombo(){
     .to(sh, { k: 1.1, duration: 0.90, ease: 'sine.out' }, '>');
 }
 
-/* bridge for app.js → update progress bar */
+/* DRAMATIC FIX: Direct wild meter update - no complex logic */
 export function updateProgressBar(ratio, animate = false){
-  console.log('🎯 updateProgressBar called with:', { ratio, animate, wildExists: !!wild });
+  console.log('🎯 DRAMATIC: updateProgressBar called with:', { ratio, animate });
   
+  // FORCE CREATE wild loader if it doesn't exist
   if (!wild) {
-    console.log('⚠️ Wild loader not found, trying to recreate...');
+    console.log('🔥 DRAMATIC: Creating wild loader from scratch...');
     try {
       wild = makeWildLoader({ width: 200 });
       if (HUD_ROOT) {
         HUD_ROOT.addChild(wild.view);
-        try { wild.view.zIndex = 0; wild.view.x = 0; wild.view.y = 0; } catch {}
+        wild.view.zIndex = 0;
+        wild.view.x = 0;
+        wild.view.y = 0;
         wild.start();
-        console.log('✅ Wild loader recreated successfully');
-      } else {
-        console.log('❌ HUD_ROOT not found, cannot recreate wild loader');
-        return;
+        console.log('✅ DRAMATIC: Wild loader created successfully');
       }
     } catch (error) {
-      console.error('❌ Error recreating wild loader:', error);
+      console.error('❌ DRAMATIC: Error creating wild loader:', error);
       return;
     }
   }
   
-  // pri povećanju progressa digni "energiju" pa će kratko prštati
-  const prev = wild._lastP ?? 0;
-  if (ratio > prev) wild.charge(0.8);
-  wild._lastP = ratio;
-  wild.setProgress(ratio, animate);
-  console.log('✅ Wild progress updated:', { ratio, animate, prev, current: wild._lastP });
+  // DIRECT UPDATE - no complex logic, just set it
+  console.log('🔥 DRAMATIC: Direct wild meter update to:', ratio);
+  try {
+    wild._lastP = ratio;
+    wild.setProgress(ratio, animate);
+    console.log('✅ DRAMATIC: Wild meter updated successfully');
+  } catch (error) {
+    console.error('❌ DRAMATIC: Error updating wild meter:', error);
+  }
 }
 
 /* Reset wild loader to 0 */

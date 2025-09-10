@@ -68,34 +68,47 @@ let busyEnding = false;
 let hudUpdateProgress = (ratio, animate) => {};
 let allowWildDecrease = false;
 function setWildProgress(ratio, animate=false){
+  console.log('🔥 DRAMATIC: setWildProgress called with:', { ratio, animate });
+  
+  // DRAMATIC: Simple, direct update
   let target = Number.isFinite(ratio) ? ratio : 0;
   target = Math.max(0, Math.min(1, target));
-  if (target < wildMeter && !allowWildDecrease){
-    try { 
-      console.log('🎯 Wild progress blocked - calling hudUpdateProgress with current:', wildMeter);
-      hudUpdateProgress?.(wildMeter, !!animate); 
-    } catch (error) {
-      console.error('Error calling hudUpdateProgress (blocked):', error);
-    }
-    return;
-  }
   wildMeter = target;
-  try { 
-    console.log('🎯 Wild progress updated - calling hudUpdateProgress with:', wildMeter, 'animate:', animate);
-    hudUpdateProgress?.(wildMeter, !!animate); 
+  
+  console.log('🔥 DRAMATIC: Wild meter set to:', wildMeter);
+  
+  // DIRECT HUD UPDATE - no complex logic
+  try {
+    HUD.updateProgressBar?.(wildMeter, !!animate);
+    console.log('✅ DRAMATIC: HUD.updateProgressBar called successfully');
   } catch (error) {
-    console.error('Error calling hudUpdateProgress:', error);
+    console.error('❌ DRAMATIC: Error calling HUD.updateProgressBar:', error);
   }
 }
 let updateProgressBar = (ratio, animate=false) => setWildProgress(ratio, animate);
 function addWildProgress(amount){
-  console.log('🎯 addWildProgress called with amount:', amount, 'current wildMeter:', wildMeter);
+  console.log('🔥 DRAMATIC: addWildProgress called with amount:', amount, 'current wildMeter:', wildMeter);
+  
+  // DRAMATIC: Direct calculation and update
   const inc = Number.isFinite(amount) ? amount : 0;
   const newValue = Math.min(1, wildMeter + inc);
-  console.log('🎯 Setting wild progress to:', newValue);
-  setWildProgress(newValue, true);
-  try { HUD.chargeProgress?.(0.5); } catch {}
-  if (wildMeter >= 1){ spawnWildFromMeter(); try { HUD.shimmerProgress?.({}); } catch {} }
+  wildMeter = newValue;
+  
+  console.log('🔥 DRAMATIC: Direct wild meter update to:', newValue);
+  
+  // DIRECT HUD UPDATE - bypass all complex logic
+  try {
+    HUD.updateProgressBar?.(newValue, true);
+    console.log('✅ DRAMATIC: HUD.updateProgressBar called successfully');
+  } catch (error) {
+    console.error('❌ DRAMATIC: Error calling HUD.updateProgressBar:', error);
+  }
+  
+  // Wild spawn check
+  if (wildMeter >= 1){ 
+    spawnWildFromMeter(); 
+    try { HUD.shimmerProgress?.({}); } catch {} 
+  }
 }
 function resetWildProgress(value=0, animate=false){
   allowWildDecrease = true;
@@ -844,40 +857,16 @@ function restartGame(){
   wildMeter = 0;
   resetWildProgress(0, false);
   
-  // Reset wild loader in HUD - try force animation first
-  try { 
-    console.log('🔄 Calling HUD.forceWildLoaderToZero...');
-    HUD.forceWildLoaderToZero?.(); 
-    console.log('✅ HUD.forceWildLoaderToZero called successfully');
-  } catch (error) {
-    console.error('❌ Error calling HUD.forceWildLoaderToZero, trying animateWildLoaderToZero:', error);
-    try {
-      HUD.animateWildLoaderToZero?.();
-    } catch (animateError) {
-      console.error('❌ Error calling HUD.animateWildLoaderToZero, trying resetWildLoader:', animateError);
-      try {
-        HUD.resetWildLoader?.();
-      } catch (resetError) {
-        console.error('❌ Error calling HUD.resetWildLoader:', resetError);
-      }
-    }
-  }
+  // DRAMATIC: Simple wild meter reset
+  console.log('🔥 DRAMATIC: Resetting wild meter to 0');
+  wildMeter = 0;
   
-  // CRITICAL: Re-establish hudUpdateProgress connection after restart
+  // DIRECT HUD RESET - no complex logic
   try {
-    console.log('🔄 Re-establishing hudUpdateProgress connection...');
-    hudUpdateProgress = (ratio, animate) => {
-      console.log('🎯 hudUpdateProgress called with:', { ratio, animate });
-      try { 
-        HUD.updateProgressBar?.(ratio, animate); 
-        console.log('✅ HUD.updateProgressBar called successfully');
-      } catch(error) {
-        console.error('❌ Error calling HUD.updateProgressBar:', error);
-      }
-    };
-    console.log('✅ hudUpdateProgress connection re-established');
+    HUD.updateProgressBar?.(0, false);
+    console.log('✅ DRAMATIC: Wild meter reset to 0 successfully');
   } catch (error) {
-    console.error('❌ Error re-establishing hudUpdateProgress:', error);
+    console.error('❌ DRAMATIC: Error resetting wild meter:', error);
   }
   
   // Rebuild board WITHOUT calling layout
