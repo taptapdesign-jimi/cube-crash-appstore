@@ -154,22 +154,12 @@ class OptimizedSlider {
     this.dragCurrentX = x;
     this.dragOffset = x - this.dragStartX;
     
-    // Calculate position using percentage-based system (like CSS)
-    // Each slide is 33.333% of the 300% width, so 100% of viewport
-    const slideWidth = 100; // 100% of viewport per slide
-    const baseTranslateX = -this.currentSlide * slideWidth;
-    const totalTranslateX = baseTranslateX + (this.dragOffset / window.innerWidth * 100);
+    // Simple pixel-based dragging - show next slide peeking through
+    const baseTranslateX = -this.currentSlide * window.innerWidth;
+    const totalTranslateX = baseTranslateX + this.dragOffset;
     
-    // Apply resistance to make it feel more natural
-    const maxDrag = window.innerWidth * 0.3; // Allow 30% of screen width drag
-    const resistance = Math.min(1, Math.abs(this.dragOffset) / maxDrag);
-    const resistanceFactor = 1 - (resistance * 0.2); // 20% resistance at max drag
-    
-    const finalTranslateX = baseTranslateX + ((this.dragOffset * resistanceFactor) / window.innerWidth * 100);
-    
-    this.sliderWrapper.style.transform = `translateX(${finalTranslateX}%)`;
-    
-    console.log('🎠 Dragging:', this.dragOffset, 'px, translateX:', finalTranslateX + '%');
+    this.sliderWrapper.style.transform = `translateX(${totalTranslateX}px)`;
+    console.log('🎠 Dragging:', this.dragOffset, 'px, translateX:', totalTranslateX + 'px');
   }
   
   endDrag() {
@@ -182,31 +172,15 @@ class OptimizedSlider {
     const dragDuration = this.dragEndTime - this.dragStartTime;
     const dragSpeed = Math.abs(this.dragOffset) / dragDuration; // pixels per ms
     
-    // More sensitive threshold for slide change - reduced since we allow more drag
-    const minThreshold = 20; // Minimum 20px movement
-    const percentageThreshold = window.innerWidth * 0.08; // 8% of screen width (was 12%)
-    const threshold = Math.max(minThreshold, percentageThreshold);
-    
-    // Speed-based threshold - if fast swipe, lower threshold
-    const speedThreshold = 0.3; // pixels per ms (was 0.5)
-    const fastSwipeThreshold = Math.max(15, window.innerWidth * 0.05); // 5% for fast swipes (was 8%)
+    // Simple threshold for slide change
+    const threshold = window.innerWidth * 0.15; // 15% of screen width
     
     let targetSlide = this.currentSlide;
     
     console.log('🎠 Drag ended - offset:', this.dragOffset, 'duration:', dragDuration, 'speed:', dragSpeed, 'threshold:', threshold);
     
     // Check if drag is sufficient for slide change
-    let shouldChangeSlide = false;
-    
     if (Math.abs(this.dragOffset) > threshold) {
-      shouldChangeSlide = true;
-      console.log('🎠 Threshold exceeded for slide change');
-    } else if (dragSpeed > speedThreshold && Math.abs(this.dragOffset) > fastSwipeThreshold) {
-      shouldChangeSlide = true;
-      console.log('🎠 Fast swipe detected for slide change');
-    }
-    
-    if (shouldChangeSlide) {
       if (this.dragOffset > 0) {
         // Swipe right - previous slide
         targetSlide = Math.max(0, this.currentSlide - 1);
@@ -273,13 +247,12 @@ class OptimizedSlider {
       return;
     }
     
-    // Use percentage-based positioning (like CSS)
-    const slideWidth = 100; // 100% of viewport per slide
-    const translateX = -this.currentSlide * slideWidth;
-    this.sliderWrapper.style.transform = `translateX(${translateX}%)`;
-    console.log(`🎠 UpdateSlider: slide ${this.currentSlide}, translateX: ${translateX}%`);
+    // Simple pixel-based positioning
+    const translateX = -this.currentSlide * window.innerWidth;
+    this.sliderWrapper.style.transform = `translateX(${translateX}px)`;
+    console.log(`🎠 UpdateSlider: slide ${this.currentSlide}, translateX: ${translateX}px`);
     
-    // Show all slides - they should all be visible in the flex container
+    // Show all slides but only current one is fully visible
     if (this.slides.length > 0) {
       this.slides.forEach((slide, index) => {
         slide.style.display = 'flex';
