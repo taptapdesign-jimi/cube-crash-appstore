@@ -13,6 +13,8 @@ class OptimizedSlider {
     this.dragStartX = 0;
     this.dragCurrentX = 0;
     this.dragOffset = 0;
+    this.dragStartTime = 0;
+    this.dragEndTime = 0;
     
     this.init();
   }
@@ -141,6 +143,7 @@ class OptimizedSlider {
     this.dragStartX = x;
     this.dragCurrentX = x;
     this.dragOffset = 0;
+    this.dragStartTime = Date.now();
     this.sliderWrapper.style.transition = 'none';
     console.log('🎠 Drag started at', x);
   }
@@ -163,19 +166,48 @@ class OptimizedSlider {
     if (!this.isDragging) return;
     
     this.isDragging = false;
+    this.dragEndTime = Date.now();
     
-    // 5% threshold for slide change
-    const threshold = window.innerWidth * 0.05; // 5% threshold
+    // Calculate drag duration and speed
+    const dragDuration = this.dragEndTime - this.dragStartTime;
+    const dragSpeed = Math.abs(this.dragOffset) / dragDuration; // pixels per ms
+    
+    // More sensitive threshold for slide change
+    const minThreshold = 30; // Minimum 30px movement
+    const percentageThreshold = window.innerWidth * 0.12; // 12% of screen width
+    const threshold = Math.max(minThreshold, percentageThreshold);
+    
+    // Speed-based threshold - if fast swipe, lower threshold
+    const speedThreshold = 0.5; // pixels per ms
+    const fastSwipeThreshold = Math.max(20, window.innerWidth * 0.08); // 8% for fast swipes
+    
     let targetSlide = this.currentSlide;
     
+    console.log('🎠 Drag ended - offset:', this.dragOffset, 'duration:', dragDuration, 'speed:', dragSpeed, 'threshold:', threshold);
+    
+    // Check if drag is sufficient for slide change
+    let shouldChangeSlide = false;
+    
     if (Math.abs(this.dragOffset) > threshold) {
+      shouldChangeSlide = true;
+      console.log('🎠 Threshold exceeded for slide change');
+    } else if (dragSpeed > speedThreshold && Math.abs(this.dragOffset) > fastSwipeThreshold) {
+      shouldChangeSlide = true;
+      console.log('🎠 Fast swipe detected for slide change');
+    }
+    
+    if (shouldChangeSlide) {
       if (this.dragOffset > 0) {
         // Swipe right - previous slide
         targetSlide = Math.max(0, this.currentSlide - 1);
+        console.log('🎠 Swipe right detected, going to slide:', targetSlide);
       } else {
         // Swipe left - next slide
         targetSlide = Math.min(this.totalSlides - 1, this.currentSlide + 1);
+        console.log('🎠 Swipe left detected, going to slide:', targetSlide);
       }
+    } else {
+      console.log('🎠 Drag not sufficient for slide change, staying on slide:', this.currentSlide);
     }
     
     if (targetSlide !== this.currentSlide) {
