@@ -429,12 +429,33 @@ export function bumpCombo(){
 
 /* bridge for app.js → update progress bar */
 export function updateProgressBar(ratio, animate = false){
-  if (!wild) return;
+  console.log('🎯 updateProgressBar called with:', { ratio, animate, wildExists: !!wild });
+  
+  if (!wild) {
+    console.log('⚠️ Wild loader not found, trying to recreate...');
+    try {
+      wild = makeWildLoader({ width: 200 });
+      if (HUD_ROOT) {
+        HUD_ROOT.addChild(wild.view);
+        try { wild.view.zIndex = 0; wild.view.x = 0; wild.view.y = 0; } catch {}
+        wild.start();
+        console.log('✅ Wild loader recreated successfully');
+      } else {
+        console.log('❌ HUD_ROOT not found, cannot recreate wild loader');
+        return;
+      }
+    } catch (error) {
+      console.error('❌ Error recreating wild loader:', error);
+      return;
+    }
+  }
+  
   // pri povećanju progressa digni "energiju" pa će kratko prštati
   const prev = wild._lastP ?? 0;
   if (ratio > prev) wild.charge(0.8);
   wild._lastP = ratio;
   wild.setProgress(ratio, animate);
+  console.log('✅ Wild progress updated:', { ratio, animate, prev, current: wild._lastP });
 }
 
 /* Reset wild loader to 0 */
