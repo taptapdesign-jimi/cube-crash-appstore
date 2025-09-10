@@ -461,7 +461,12 @@ export function resetWildLoader(){
       }
     }
     
-    console.log('✅ Wild loader reset to 0 with animation');
+    // Ensure wild loader is ready for normal operation
+    if (wild.start) {
+      wild.start();
+    }
+    
+    console.log('✅ Wild loader reset to 0 with animation and ready for normal operation');
   } catch (error) {
     console.error('❌ Error resetting wild loader:', error);
   }
@@ -503,7 +508,11 @@ export function animateWildLoaderToZero(){
     // Restore original function after a delay
     setTimeout(() => {
       wild.setProgress = originalSetProgress;
-      console.log('🔄 Restored original setProgress function');
+      // Ensure wild loader is ready for normal operation
+      if (wild.start) {
+        wild.start();
+      }
+      console.log('🔄 Restored original setProgress function and started wild loader');
     }, 100);
     
     console.log('✅ Wild loader override reset to 0');
@@ -537,6 +546,10 @@ export function forceWildLoaderToZero(){
           },
           onComplete: () => {
             console.log('✅ Wild loader force animation to 0 completed');
+            // IMPORTANT: Reset the wild loader state so it can work normally again
+            if (wild.setProgress) {
+              wild.setProgress(0, false);
+            }
           }
         });
       }
