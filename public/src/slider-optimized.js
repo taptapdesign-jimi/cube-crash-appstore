@@ -576,20 +576,57 @@ class OptimizedSlider {
       this.isAnimating = false;
       this.sliderWrapper.style.pointerEvents = 'auto';
       
-      // Force re-initialization of slider elements
-      this.init();
-      
-      // Ensure all elements are visible and functional
-      this.updateSlider();
-      this.updateDots();
-      
-      // Reset any lingering styles
-      this.resetAnimations();
+      // Force complete re-initialization
+      this.completeReinitialization();
       
       console.log('🎭 Slider fully re-initialized and functional');
     }, 800); // After all animations complete
     
     console.log('🎭 Pop-in animation started');
+  }
+
+  // Complete re-initialization of slider
+  completeReinitialization() {
+    console.log('🔄 Complete slider re-initialization');
+    
+    // Reset all state
+    this.isAnimating = false;
+    this.currentSlide = 0;
+    this.touchStartX = 0;
+    this.touchEndX = 0;
+    this.isDragging = false;
+    this.dragStartX = 0;
+    this.dragCurrentX = 0;
+    this.dragOffset = 0;
+    this.dragStartTime = 0;
+    this.dragEndTime = 0;
+    
+    // Re-find all elements
+    this.sliderWrapper = document.getElementById('slider-wrapper');
+    this.slides = document.querySelectorAll('.slider-slide');
+    this.dots = document.querySelectorAll('.slider-dot');
+    this.playButton = document.getElementById('btn-home');
+    this.statsButton = document.getElementById('btn-stats');
+    this.collectiblesButton = document.getElementById('btn-collectibles');
+    
+    console.log('🔍 Re-found elements:', {
+      sliderWrapper: !!this.sliderWrapper,
+      slides: this.slides.length,
+      dots: this.dots.length,
+      playButton: !!this.playButton
+    });
+    
+    // Reset all styles
+    this.resetAnimations();
+    
+    // Re-setup event listeners
+    this.setupEventListeners();
+    
+    // Update slider position
+    this.updateSlider();
+    this.updateDots();
+    
+    console.log('✅ Complete re-initialization finished');
   }
 
   // Reset all animations when returning to home

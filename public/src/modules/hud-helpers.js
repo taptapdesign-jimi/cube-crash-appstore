@@ -340,10 +340,10 @@ export function initHUD({ stage, app, top = 8 }) {
             console.log('✅ Game hidden');
           }
           
-          // 2. Show homepage and reload the page to reset everything
+          // 2. Show homepage with pop-in animation (NO PAGE RELOAD)
           const home = document.getElementById('home');
           if (home) {
-            console.log('🔄 Reloading page to reset everything...');
+            console.log('🎭 Showing homepage with pop-in animation...');
             
             // Show homepage with elastic pop-in animation
             home.removeAttribute('hidden');
@@ -388,7 +388,7 @@ export function initHUD({ stage, app, top = 8 }) {
             return false;
           }
           
-          console.log('🎭 EXIT COMPLETE - Page will reload!');
+          console.log('🎭 EXIT COMPLETE - Homepage shown with pop-in animation!');
           return true;
           
         } catch (error) {
