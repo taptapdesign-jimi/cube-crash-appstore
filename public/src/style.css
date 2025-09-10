@@ -160,7 +160,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
 .pause-actions{ 
   display: flex; 
   flex-direction: column; 
-  gap: 40px; 
+  gap: 24px; 
   align-items: center;
 }
 /* Pause Modal Buttons */

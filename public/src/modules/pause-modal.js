@@ -22,7 +22,7 @@ function ensureOverlay(){
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    background: rgba(0,0,0,0.8) !important;
+    background: transparent !important;
     backdrop-filter: blur(12px) !important;
   `;
   
