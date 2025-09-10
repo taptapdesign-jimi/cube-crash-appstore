@@ -439,9 +439,55 @@ export function resetWildLoader(){
     return;
   }
   
-  wild._lastP = 0;
-  wild.setProgress(0, false); // Reset immediately without animation
-  console.log('✅ Wild loader reset to 0');
+  // DRASTIC APPROACH: Force reset by directly manipulating the mask
+  try {
+    wild._lastP = 0;
+    
+    // Force progress to 0
+    const api = wild;
+    if (api && api.view) {
+      const mask = api.view.children.find(child => child.mask);
+      if (mask) {
+        mask.clear();
+        console.log('🔄 Force clearing wild loader mask');
+      }
+    }
+    
+    // Call setProgress to ensure proper reset
+    wild.setProgress(0, false);
+    
+    // Force redraw one more time
+    if (wild.setProgress) {
+      wild.setProgress(0, false);
+    }
+    
+    console.log('✅ Wild loader force reset to 0');
+  } catch (error) {
+    console.error('❌ Error resetting wild loader:', error);
+  }
+}
+
+/* Recreate wild loader completely */
+export function recreateWildLoader(){
+  console.log('🔄 Recreating wild loader completely');
+  
+  if (wild && wild.view) {
+    try {
+      wild.view.destroy({ children: true });
+    } catch (e) {
+      console.log('⚠️ Error destroying old wild loader:', e);
+    }
+  }
+  
+  // Create new wild loader
+  wild = makeWildLoader({ width: 200 });
+  if (HUD_ROOT) {
+    HUD_ROOT.addChild(wild.view);
+    try { wild.view.zIndex = 0; } catch {}
+    wild.start();
+  }
+  
+  console.log('✅ Wild loader recreated');
 }
 
 /* --- Score animation helper (compat) --- */
