@@ -297,10 +297,16 @@ class OptimizedSlider {
     console.log('🎮 Play button clicked - starting exit animation');
     console.log('🎮 window.startGame exists:', typeof window.startGame);
     
-    // Ensure slider is in a good state before starting exit animation
+    // Force reset animation state if stuck
     if (this.isAnimating) {
-      console.log('⚠️ Slider is animating, waiting...');
-      setTimeout(() => this.handlePlayClick(), 100);
+      console.log('⚠️ Slider is animating, forcing reset...');
+      this.isAnimating = false;
+      this.sliderWrapper.style.pointerEvents = 'auto';
+    }
+    
+    // Prevent multiple simultaneous calls
+    if (this.isAnimating) {
+      console.log('⚠️ Still animating, skipping...');
       return;
     }
     
@@ -334,13 +340,18 @@ class OptimizedSlider {
   
   startExitAnimation(onComplete) {
     const activeSlide = this.slides[this.currentSlide];
-    if (!activeSlide) return;
+    if (!activeSlide) {
+      console.error('❌ No active slide for exit animation');
+      return;
+    }
     
     console.log('🎭 Starting gentle pop-out exit animation for slide', this.currentSlide);
     
     // Disable slider interactions immediately
     this.isAnimating = true;
     this.sliderWrapper.style.pointerEvents = 'none';
+    
+    console.log('🎭 Animation state set to true');
     
     // Get elements for gentle layered animation - ONLY from active slide
     const slideText = activeSlide.querySelector('.slide-text');
@@ -418,6 +429,8 @@ class OptimizedSlider {
     // Animation completes at 200ms
     setTimeout(() => {
       console.log('🎭 Gentle pop-out exit animation complete');
+      this.isAnimating = false;
+      console.log('🎭 Animation state reset to false');
     }, 200);
   }
   
