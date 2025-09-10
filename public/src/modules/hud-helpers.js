@@ -447,10 +447,61 @@ export function resetWildLoader(){
   
   try {
     wild._lastP = 0;
-    wild.setProgress(0, false); // Reset immediately without animation
-    console.log('✅ Wild loader reset to 0');
+    
+    // Force immediate reset with animation to 0
+    wild.setProgress(0, true); // Use animation to ensure visual reset
+    
+    // Also try direct mask manipulation as backup
+    if (wild.view && wild.view.children) {
+      const mask = wild.view.children.find(child => child.mask);
+      if (mask && typeof mask.clear === 'function') {
+        mask.clear();
+        mask.roundRect(0, -0.5, 0, 8 + 1, 4).fill(0xffffff);
+        console.log('🔄 Force cleared wild loader mask to 0');
+      }
+    }
+    
+    console.log('✅ Wild loader reset to 0 with animation');
   } catch (error) {
     console.error('❌ Error resetting wild loader:', error);
+  }
+}
+
+/* Animate wild loader to 0 */
+export function animateWildLoaderToZero(){
+  console.log('🎬 Animating wild loader to 0');
+  if (!wild) {
+    console.log('⚠️ Wild loader not found for animation');
+    return;
+  }
+  
+  try {
+    // Use GSAP to animate progress to 0
+    const currentProgress = wild._lastP || 0;
+    const targetProgress = 0;
+    
+    if (currentProgress > 0) {
+      gsap.to(wild, {
+        _lastP: targetProgress,
+        duration: 0.5,
+        ease: "power2.out",
+        onUpdate: () => {
+          if (wild.setProgress) {
+            wild.setProgress(wild._lastP, false);
+          }
+        },
+        onComplete: () => {
+          console.log('✅ Wild loader animation to 0 completed');
+        }
+      });
+    } else {
+      // Already at 0, just set it
+      wild._lastP = 0;
+      wild.setProgress(0, false);
+      console.log('✅ Wild loader already at 0');
+    }
+  } catch (error) {
+    console.error('❌ Error animating wild loader to 0:', error);
   }
 }
 
