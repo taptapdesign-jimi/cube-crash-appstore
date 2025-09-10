@@ -280,9 +280,11 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   t.hover = new Graphics();
   t.addChild(t.hover);
 
-  // pozicija (centar je na x/y)
-  t.x = c * (TILE + GAP) + TILE / 2; 
-  t.y = r * (TILE + GAP) + TILE / 2;
+  // pozicija (centar je na x/y) - postavi se u animaciji
+  t.targetX = c * (TILE + GAP) + TILE / 2; 
+  t.targetY = r * (TILE + GAP) + TILE / 2;
+  t.x = t.targetX; // Start at target position for bloom effect
+  t.y = t.targetY;
 
   // ako je slot zaključan, nacrtaj occluder pločicu iznad (da sakrije pipse/face)
   if (locked) {
@@ -292,8 +294,8 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
     occ.beginFill(BOARD_BG_COLOR, 1)
        .drawRoundedRect(-TILE/2 + PAD, -TILE/2 + PAD, TILE - PAD*2, TILE - PAD*2, RADIUS)
        .endFill();
-    occ.x = t.x;
-    occ.y = t.y;
+    occ.x = t.targetX;
+    occ.y = t.targetY;
     board.addChild(occ);
     t.occluder = occ;
   }

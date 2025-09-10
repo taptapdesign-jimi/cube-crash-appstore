@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>CubeCrash</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <!-- PWA / iOS full-screen support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -62,33 +62,22 @@
               </div>
             </div>
           </div>
-
-          <!-- Slide 2: Collectibles -->
-          <div class="slider-slide" data-slide="2">
-            <div class="slide-content">
-              <div class="hero-container">
-                <img class="hero-image" src="/assets/collectibles-box.png" alt="Collectibles box" />
-                <div class="hero-shadow"></div>
-              </div>
-              <div class="slide-text">
-                <p class="slide-tagline">Collect special rewards<br/>and earn bragging rights</p>
-                <button id="btn-collectibles" class="slide-button squishy squishy-cc">Collectibles</button>
-              </div>
-            </div>
-          </div>
         </div>
         
         <!-- Navigation Dots -->
         <div id="slider-dots">
           <button class="slider-dot active" data-slide="0"></button>
           <button class="slider-dot" data-slide="1"></button>
-          <button class="slider-dot" data-slide="2"></button>
         </div>
       </div>
     </div>
   </div>
-  <div id="app" hidden></div>
+
+  <div id="app" hidden>
+    <canvas id="game-canvas"></canvas>
+  </div>
+
   <script type="module" src="/src/slider-optimized.js"></script>
-  <script type="module" src="/src/main-new.js"></script>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>

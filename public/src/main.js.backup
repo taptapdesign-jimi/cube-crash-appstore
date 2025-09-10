@@ -1,0 +1,766 @@
+// public/src/main.js
+import { boot } from './modules/app.js';
+import { gsap } from 'gsap';
+import { showStatsScreen, hideStatsScreen, initStatsScreen } from './modules/stats-screen.js';
+
+(async () => {
+  try {
+    if (document.readyState === 'loading') {
+      await new Promise(res => document.addEventListener('DOMContentLoaded', res, { once: true }));
+    }
+
+    const home = document.getElementById('home');
+    const btnHome  = document.getElementById('btn-home');
+    const btnStats = document.getElementById('btn-stats');
+    const btnCollectibles = document.getElementById('btn-collectibles');
+    const navDots = Array.from(document.querySelectorAll('#home-nav .dot'));
+    const stage = document.getElementById('slides-stage');
+    const track = document.getElementById('slides-track');
+    const slides = Array.from(document.querySelectorAll('#slides-track .slide'));
+    
+    try { track?.style?.setProperty?.('--slides', String(slides.length)); } catch {}
+    // Safety: ensure track starts exactly at slide 0 without any leftover transforms
+    try { track.style.removeProperty('transform'); } catch {}
+    try { gsap.set(track, { x: 0 }); } catch {}
+    let currentSlide = 0; // 0=home, 1=stats
+    let trackX = 0;       // current translateX of track
+    // Single parallax ellipse (global) — hide per-slide ellipses and add one under stage
+    let parEllipse = null;
+    try {
+      Array.from(document.querySelectorAll('#slides-track .ellipse-shadow')).forEach(el => { try { el.style.display = 'none'; } catch {} });
+      const existing = document.getElementById('parallax-ellipse');
+      if (existing) { parEllipse = existing; }
+      else {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('id','parallax-ellipse');
+        svg.setAttribute('viewBox','0 0 300 87');
+        svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+        svg.setAttribute('width','300'); svg.setAttribute('height','87');
+        const ellipse = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+        ellipse.setAttribute('cx','150'); ellipse.setAttribute('cy','43.5'); ellipse.setAttribute('rx','150'); ellipse.setAttribute('ry','43.5');
+        ellipse.setAttribute('fill','#F2EBE8');
+        svg.appendChild(ellipse);
+        stage?.appendChild(svg);
+        parEllipse = svg;
+      }
+    } catch {}
+    const appHost = document.getElementById('app') || (()=>{ const d=document.createElement('div'); d.id='app'; document.body.appendChild(d); return d; })();
+
+    // If query ?autoplay=1 is present, skip home and boot directly (useful for dev)
+    const params = new URLSearchParams(location.search);
+    const autoplay = params.get('autoplay') === '1';
+
+    let _idleTweens = [];
+    let _idlePhase = 0;   // 0..1 fractional phase of idle (preserved across slides)
+    let _idleWatch = null;
+    let _homeBusy = false; // lock interactions during transition to/from game
+
+    function hasIdleCoverage(){
+      // Only require idle on the ACTIVE slide (CPU-friendly)
+      try {
+        const tags = (_idleTweens || []).map(t => t?._ccTag);
+        const result = tags.includes(`h${currentSlide}`) && tags.includes(`e${currentSlide}`);
+        placeDots(); // Reposition dots during coverage check
+        return result;
+      } catch { return false; }
+    }
+    function isIdleRunning(){
+      try { 
+        const result = hasIdleCoverage() && _idleTweens.some(t => t && t.isActive && t.isActive());
+        placeDots(); // Reposition dots during idle check
+        return result;
+      } catch { return false; }
+    }
+    // Hard reset transforms/tweens for all slides (safety after rapid enter/exit)
+    function sanitizeAllSlides(){
+      try {
+        slides.forEach((s)=>{
+          const hero = s?.querySelector('.hero');
+          const ell  = s?.querySelector('.ellipse-shadow');
+          const copy = s?.querySelector('.copy');
+          if (hero){ try { gsap.killTweensOf(hero); gsap.set(hero, { clearProps: 'transform,opacity' }); } catch {} }
+          if (ell){  try { gsap.killTweensOf(ell);  gsap.set(ell,  { clearProps: 'transform,opacity' }); } catch {} }
+          if (copy){ try { gsap.killTweensOf(copy); gsap.set(copy, { clearProps: 'transform,opacity' }); } catch {} }
+          // Keep CSS variables intact so no visible snap when idle restarts
+        });
+        placeDots(); // Reposition dots after sanitize
+      } catch {}
+    }
+    function startIdleWatch(){
+      try { clearInterval(_idleWatch); } catch {}
+      _idleWatch = setInterval(() => {
+        // Rebuild if any slide lacks idle tweens (or all paused/killed)
+        if (!isIdleRunning()) {
+          try { startIdle(); } catch {}
+        }
+        placeDots(); // Reposition dots during idle watch
+      }, 1500);
+    }
+    function stopIdleWatch(){ try { clearInterval(_idleWatch); } catch {}; _idleWatch = null; placeDots(); }
+    // Position parallax ellipse to bottom of active hero-wrap
+    const layoutParallax = () => {
+      if (!parEllipse || !stage) return;
+      try {
+        const s = slides[currentSlide] || document.querySelector('#slides-track .slide.active');
+        const wrap = s?.querySelector('.hero-wrap');
+        if (!wrap) return;
+        const sr = stage.getBoundingClientRect();
+        const wr = wrap.getBoundingClientRect();
+        const eh = parEllipse.getBoundingClientRect().height || 87;
+        // Raise the shadow slightly more (offsetY < 0 moves it up)
+        const offsetY = -10;
+        const top = Math.round(wr.bottom - sr.top - eh + offsetY);
+        parEllipse.style.top = `${top}px`;
+        placeDots(); // Reposition dots after layout
+      } catch {}
+    };
+    // Parallax ellipse updater (follows track with parallax factor)
+    const updateParallax = () => {
+      if (!parEllipse || !track) return;
+      let x = trackX;
+      try {
+        const currX = Number(gsap.getProperty(track, 'x'));
+        if (!Number.isNaN(currX)) x = currX;
+      } catch {}
+      const PAR = 0.25; // parallax factor
+      const W = stage?.clientWidth || window.innerWidth || 320;
+      const anchor = -currentSlide * W; // center of the active slide
+      const dx = x - anchor;            // displacement relative to active slide center
+      const off = Math.round(-dx * PAR);
+      try { parEllipse.style.transform = `translateX(-50%) translateX(${off}px) scaleX(0.85) scaleY(1)`; } catch {}
+      // ensure Y position is correct for active hero area
+      layoutParallax();
+      placeDots(); // Reposition dots after parallax update
+    };
+    const startIdle = () => {
+      try {
+        // Rebuild idle tweens for ACTIVE slide only (CPU-friendly)
+        const prevPhase = _idlePhase || 0;
+        try { _idleTweens.forEach(t => t?.kill?.()); } catch {}
+        _idleTweens.length = 0;
+        const i = currentSlide;
+        const s = slides[i];
+        if (!s) return;
+        const hero = s.querySelector('.hero');
+        const ell  = s.querySelector('.ellipse-shadow');
+        if (hero) {
+          try { gsap.killTweensOf(hero); gsap.set(hero, { '--hero-nudge': '0px' }); } catch {}
+          let hStart = 1; try { const cs = getComputedStyle(hero); hStart = parseFloat(cs.getPropertyValue('--hero-scale')) || 1; } catch {}
+          try { gsap.set(hero, { '--hero-nudge': '0px' }); } catch {}
+          const ht = gsap.fromTo(hero,
+            { '--hero-scale': hStart },
+            { '--hero-scale': 0.90, '--hero-nudge': '-3px', duration: 2.2, ease: 'sine.inOut', yoyo: true, repeat: -1, overwrite: 'auto', immediateRender: false }
+          );
+          try { ht.progress(0.25); } catch {}
+          try { ht.totalProgress(prevPhase); } catch {}
+          ht._ccTag = `h${i}`;
+          _idleTweens.push(ht);
+        }
+        if (ell) {
+          try { gsap.killTweensOf(ell); } catch {}
+          let eStart = 1; try { const cs = getComputedStyle(ell); eStart = parseFloat(cs.getPropertyValue('--ellipse-scale-y')) || 1; } catch {}
+          const et = gsap.fromTo(ell,
+            { '--ellipse-scale-y': eStart },
+            { '--ellipse-scale-y': 0.90, duration: 2.2, ease: 'sine.inOut', yoyo: true, repeat: -1, overwrite: 'auto', immediateRender: false }
+          );
+          try { et.progress(0.25); } catch {}
+          try { et.totalProgress(prevPhase); } catch {}
+          et._ccTag = `e${i}`;
+          _idleTweens.push(et);
+        }
+        placeDots(); // Reposition dots after idle start
+      } catch {}
+    };
+    const stopIdle = () => {
+      try {
+        const ref = _idleTweens?.find?.(t => t && typeof t.totalProgress === 'function');
+        if (ref) {
+          const tp = ref.totalProgress();
+          if (typeof tp === 'number' && isFinite(tp)) _idlePhase = tp - Math.floor(tp);
+        }
+      } catch {}
+      try { _idleTweens.forEach(t => t?.kill?.()); } catch {}
+      _idleTweens.length = 0;
+      placeDots(); // Reposition dots after idle stop
+      // Ne diramo trenutni transform tijekom draga—izbjegava skokove
+    };
+
+    const startGame = async (whichBtn) => {
+      if (_homeBusy) return; // already transitioning
+      _homeBusy = true;
+      whichBtn?.setAttribute('disabled','true');
+      // Disable nav & drag while animating out
+      try { document.getElementById('home-nav')?.style.setProperty('pointer-events','none'); } catch {}
+      try { home?.style.setProperty('pointer-events','none'); } catch {}
+      // Animate home out for the ACTIVE slide only (focus the effect)
+      // Master timeline to which we add per-group timelines at absolute jittered positions
+      const tl = gsap.timeline({ defaults: { overwrite: true } });
+      try {
+        const activeSlide = slides[currentSlide] || document.querySelector('#slides-track .slide.active') || null;
+        const logo = document.getElementById('home-logo');
+        // Cut per-group outro: disable arrays so group tweens are skipped
+        const copies = [];
+        const heroes = [];
+        const ells   = [];
+        const dots  = document.getElementById('home-nav');
+        const content = home?.querySelector('.content');
+        // Kill idle + stop its watchdog while in game to save CPU
+        try { stopIdle(); } catch {}
+        try { stopIdleWatch(); } catch {}
+        try {
+          // sanitize only elements we animate to keep things snappy
+          [...copies, ...heroes, ...ells, dots, logo].forEach(el => {
+            if (!el) return;
+            try { gsap.killTweensOf(el); } catch {}
+            try {
+              el.style.removeProperty('--hero-nudge');
+              el.style.removeProperty('--hero-scale');
+              el.style.removeProperty('--ellipse-scale');
+              el.style.removeProperty('--ellipse-scale-y');
+            } catch {}
+            try { gsap.set(el, { clearProps: 'transform,opacity' }); } catch {}
+          });
+        } catch {}
+        if (logo) gsap.set(logo, { transformOrigin: '50% 50%' });
+        copies.forEach(n=>{ try { gsap.set(n, { transformOrigin:'50% 50%' }); } catch {} });
+        heroes.forEach(n=>{ try { gsap.set(n, { transformOrigin:'50% 65%' }); } catch {} });
+        ells.forEach(n=>{ try { gsap.set(n, { transformOrigin:'50% 50%' }); } catch {} });
+        // Simple group fade of entire content (dominates visuals)
+        if (content) tl.to(content, { opacity: 0, y: 8, duration: 0.18, ease: 'power1.out' }, 0);
+        // Gentle pop then elastic shrink for a quick-but-soft feel
+        // Organic overlap: all groups start near-simultaneously with 0..200ms jitter.
+        const j = (m=0.20)=> Math.random()*m; // 0..m s jitter
+        const tCopies = j(), tDots = j(), tLogo = j(), tElls = j(), tHero = j();
+        // For each group, schedule absolute times so groups overlap (no chained '>' between groups)
+        // Make it gentler & bouncier (≈ +1s total), still overlapped
+        // CPU-friendly: shorter outro
+        const popDur = 0.10, outDur = 0.28;
+        const addGroup = (build, at) => { const g = gsap.timeline(); build(g); tl.add(g, at); };
+        if (copies.length) {
+          addGroup((g)=>{
+            g.to(copies, { scale: 1.12, duration: popDur, ease: 'back.out(3.2)', stagger: 0.01 }, 0)
+             .to(copies, { y: 8, scale: 0.00, opacity: 0.0, duration: outDur, ease: 'elastic.in(1, 0.58)', stagger: 0.01 }, popDur*0.45);
+          }, tCopies);
+        }
+        if (dots) {
+          addGroup((g)=>{
+            g.to(dots, { scale: 1.10, duration: popDur*0.8, ease: 'back.out(3.0)' }, 0)
+             .to(dots, { scale: 0.00, opacity: 0.0, duration: outDur*0.9, ease: 'elastic.in(1, 0.58)' }, popDur*0.40);
+          }, tDots);
+        }
+        if (logo) {
+          addGroup((g)=>{
+            g.to(logo, { scale: 1.20, duration: popDur, ease: 'back.out(3.4)' }, 0)
+             .to(logo, { scale: 0.00, opacity: 0.0, duration: outDur, ease: 'elastic.in(1, 0.58)' }, popDur*0.45);
+          }, tLogo);
+        }
+        if (ells.length) {
+          addGroup((g)=>{
+            g.to(ells, { scaleX: 1.12, scaleY: 1.12, duration: popDur*0.9, ease: 'back.out(3.0)', stagger: 0.01 }, 0)
+             .to(ells, { scaleX: 0.00, scaleY: 0.00, opacity: 0.0, duration: outDur*0.9, ease: 'elastic.in(1, 0.58)', stagger: 0.01 }, popDur*0.40);
+          }, tElls);
+        }
+        if (heroes.length) {
+          addGroup((g)=>{
+            g.to(heroes, { scale: 1.14, duration: popDur, ease: 'back.out(3.2)', stagger: 0.01 }, 0)
+             .to(heroes, { y: -6, scale: 0.00, opacity: 0.0, duration: outDur, ease: 'elastic.in(1, 0.58)', stagger: 0.01 }, popDur - 0.02);
+          }, tHero);
+        }
+
+        // Kick off game 300ms before home TL ends so tiles/HUD can start showing
+        const kickoff = async () => {
+          try {
+            appHost.removeAttribute('hidden');
+            if (home) { home.style.background = 'transparent'; home.style.pointerEvents = 'none'; }
+            await boot({ autostart: false });
+            const m = await import('./modules/app.js');
+            m.startFirstLevel?.();
+          } catch (e) { console.error(e); }
+        };
+        try { tl.call(() => { try { kickoff(); } catch {} }, [], "+=0"); } catch {}
+      } catch {}
+
+      // Wait for home exit to complete, then hide overlay (boot already kicked off slightly earlier)
+      await new Promise(res => { try { tl.eventCallback('onComplete', res); } catch { res(); } });
+      home?.setAttribute('hidden','true');
+      _homeBusy = false;
+      try { document.getElementById('home-nav')?.style.removeProperty('pointer-events'); } catch {}
+      placeDots(); // Reposition dots after slide change
+      console.log('[CC] boot OK');
+    };
+
+    // Slide helpers
+    const setActiveDot = (idx) => {
+      navDots.forEach((b,i)=>{
+        const active = i === idx;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-selected', active ? 'true' : 'false');
+        b.tabIndex = active ? 0 : -1;
+      });
+      placeDots(); // Reposition dots after setting active dot
+    };
+    const placeDots = () => {
+      try {
+        const nav = document.getElementById('home-nav');
+        if (!nav) return;
+        console.log('placeDots - nav element found:', nav, 'current position:', nav.style.getPropertyValue('--dots-top'), nav.style.getPropertyValue('--dots-bottom'));
+        console.log('placeDots - nav computed style:', getComputedStyle(nav).getPropertyValue('--dots-top'), getComputedStyle(nav).getPropertyValue('--dots-bottom'));
+        console.log('placeDots - nav getBoundingClientRect:', nav.getBoundingClientRect());
+        console.log('placeDots - nav offsetHeight:', nav.offsetHeight);
+        console.log('placeDots - nav clientHeight:', nav.clientHeight);
+        console.log('placeDots - nav scrollHeight:', nav.scrollHeight);
+        console.log('placeDots - nav offsetTop:', nav.offsetTop);
+        console.log('placeDots - nav offsetLeft:', nav.offsetLeft);
+        console.log('placeDots - nav offsetWidth:', nav.offsetWidth);
+        console.log('placeDots - nav offsetParent:', nav.offsetParent);
+        console.log('placeDots - nav parentElement:', nav.parentElement);
+        if (nav.parentElement) {
+          console.log('placeDots - nav parentElement getBoundingClientRect:', nav.parentElement.getBoundingClientRect());
+          console.log('placeDots - nav parentElement offsetHeight:', nav.parentElement.offsetHeight);
+          console.log('placeDots - nav parentElement offsetTop:', nav.parentElement.offsetTop);
+          console.log('placeDots - nav parentElement offsetLeft:', nav.parentElement.offsetLeft);
+          console.log('placeDots - nav parentElement offsetWidth:', nav.parentElement.offsetWidth);
+          console.log('placeDots - nav parentElement offsetParent:', nav.parentElement.offsetParent);
+          console.log('placeDots - nav parentElement parentElement:', nav.parentElement.parentElement);
+          if (nav.parentElement.parentElement) {
+            console.log('placeDots - nav parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.getBoundingClientRect());
+            console.log('placeDots - nav parentElement parentElement offsetHeight:', nav.parentElement.parentElement.offsetHeight);
+            console.log('placeDots - nav parentElement parentElement offsetTop:', nav.parentElement.parentElement.offsetTop);
+            console.log('placeDots - nav parentElement parentElement offsetLeft:', nav.parentElement.parentElement.offsetLeft);
+            console.log('placeDots - nav parentElement parentElement offsetWidth:', nav.parentElement.parentElement.offsetWidth);
+            console.log('placeDots - nav parentElement parentElement offsetParent:', nav.parentElement.parentElement.offsetParent);
+            console.log('placeDots - nav parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement);
+            if (nav.parentElement.parentElement.parentElement) {
+              console.log('placeDots - nav parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.getBoundingClientRect());
+              console.log('placeDots - nav parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.offsetHeight);
+              console.log('placeDots - nav parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.offsetTop);
+              console.log('placeDots - nav parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.offsetLeft);
+              console.log('placeDots - nav parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.offsetWidth);
+              console.log('placeDots - nav parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.offsetParent);
+              console.log('placeDots - nav parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement);
+              if (nav.parentElement.parentElement.parentElement.parentElement) {
+                console.log('placeDots - nav parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                console.log('placeDots - nav parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                console.log('placeDots - nav parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                console.log('placeDots - nav parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                console.log('placeDots - nav parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                console.log('placeDots - nav parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement);
+                if (nav.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                  if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                    if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                      if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                        if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                          if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                            console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                            console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                            console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                            console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                            console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                            console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                            console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                            if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                              console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                              console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                              console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                              console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                              console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                              console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                              console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                              if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                                console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                                console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                                console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                                console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                                console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                                console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                                console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                                if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                                  if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                                    if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.offsetParent);
+                                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement);
+                                      if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement) {
+                                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                                        if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                                          if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                                            console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                                            console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                                            console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                                            console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                                            console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                                            console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                                            console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                                            if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                                              console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                                              console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                                              console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                                              console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                                              console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                                              console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                                              console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                                              if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                                                console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                                                console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                                                console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                                                console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                                                console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                                                console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                                                console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                                                if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                                                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                                                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                                                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                                                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                                                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                                                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                                                  console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                                                  if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                                                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                                                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                                                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                                                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                                                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                                                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                                                    console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                                                    if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                                                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                                                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                                                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                                                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                                                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                                                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                                                      console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                                                      if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                                                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                                                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                                                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                                                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                                                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetWidth:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetWidth);
+                                                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetParent:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetParent);
+                                                        console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement);
+                                                        if (nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement) {
+                                                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement getBoundingClientRect:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.getBoundingClientRect());
+                                                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetHeight:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetHeight);
+                                                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetTop:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetTop);
+                                                          console.log('placeDots - nav parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement parentElement offsetLeft:', nav.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement parentElement.parentElement.parentElement parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.offsetLeft);
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        // Always position dots at bottom on mobile to avoid conflicts
+        const vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight || document.documentElement.clientHeight || 0;
+        const isMobile = window.innerWidth < 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        console.log('placeDots - isMobile:', isMobile, 'width:', window.innerWidth, 'vh:', vh, 'currentSlide:', currentSlide, 'userAgent:', navigator.userAgent);
+        
+        if (isMobile) {
+          // Mobile: always at bottom with safe-area
+          const bottom = 20; // 20px above home indicator
+          console.log('Mobile detected - positioning dots at bottom:', `calc(env(safe-area-inset-bottom, 0px) + ${bottom}px)`);
+          nav.style.setProperty('--dots-bottom', `calc(env(safe-area-inset-bottom, 0px) + ${bottom}px)`);
+          nav.style.setProperty('--dots-top', 'auto');
+          console.log('Mobile - nav style after:', nav.style.getPropertyValue('--dots-bottom'), nav.style.getPropertyValue('--dots-top'));
+        } else {
+          // Desktop: try to position below CTA, fallback to bottom
+          const activeSlide = slides[currentSlide];
+          const btn = activeSlide?.querySelector('.copy .cta button');
+          console.log('Desktop - activeSlide:', activeSlide, 'btn:', btn);
+          if (btn) {
+            const r = btn.getBoundingClientRect();
+            const dotH = Math.max(8, nav.offsetHeight || 8);
+            const gap = 24; // fixed 24px below CTA
+            const desiredTop = Math.round(r.bottom + gap);
+            console.log('Desktop - CTA button rect:', r, 'desiredTop:', desiredTop, 'dotH:', dotH, 'vh:', vh);
+            if (desiredTop + dotH > vh) {
+              // Fallback to bottom
+              const bottom = 20;
+              console.log('Desktop - CTA too low, fallback to bottom:', `${bottom}px`);
+              nav.style.setProperty('--dots-bottom', `${bottom}px`);
+              nav.style.setProperty('--dots-top', 'auto');
+              console.log('Desktop fallback - nav style after:', nav.style.getPropertyValue('--dots-bottom'), nav.style.getPropertyValue('--dots-top'));
+            } else {
+              console.log('Desktop - positioning dots below CTA:', `${desiredTop}px`);
+          nav.style.setProperty('--dots-top', `${desiredTop}px`);
+          nav.style.setProperty('--dots-bottom', 'auto');
+              console.log('Desktop - nav style after:', nav.style.getPropertyValue('--dots-top'), nav.style.getPropertyValue('--dots-bottom'));
+            }
+          } else {
+            // No CTA found, position at bottom
+            const bottom = 20;
+            console.log('Desktop - no CTA found, positioning at bottom:', `${bottom}px`);
+            nav.style.setProperty('--dots-bottom', `${bottom}px`);
+            nav.style.setProperty('--dots-top', 'auto');
+            console.log('Desktop no CTA - nav style after:', nav.style.getPropertyValue('--dots-bottom'), nav.style.getPropertyValue('--dots-top'));
+          }
+        }
+      } catch (error) {
+        console.error('placeDots error:', error);
+      }
+    };
+    const goToSlide = (idx) => {
+      if (idx === currentSlide) return;
+      const W = stage?.clientWidth || window.innerWidth || 320;
+      // keep idle animations running during slide transition
+      // snap current state
+      try { gsap.killTweensOf(track); } catch {}
+      try {
+        const currX = Number(gsap.getProperty(track, 'x'));
+        if (!Number.isNaN(currX)) trackX = currX;
+      } catch {}
+      // update logical state immediately so rapid swipes can chain across slides
+      currentSlide = idx; setActiveDot(idx);
+      const targetX = -idx * W; trackX = targetX;
+      gsap.to(track, { x: targetX, duration: 0.26, ease: 'back.out(1.25)', onUpdate: updateParallax, onComplete: () => {
+        slides.forEach((s,i)=>s.classList.toggle('active', i===idx));
+        startIdle(); placeDots(); layoutParallax(); updateParallax();
+      }});
+    };
+    // attach events
+    navDots.forEach((b)=> b.addEventListener('click', () => {
+      if (_homeBusy) return; // lock during transition
+      const i = Number(b.dataset.index||0) || 0; goToSlide(i);
+    }));
+    window.addEventListener('resize', () => { placeDots(); layoutParallax(); updateParallax(); });
+    
+    // Prevent scroll on mobile globally
+    document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+    document.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+    document.addEventListener('touchend', e => e.preventDefault(), { passive: false });
+    setActiveDot(0); placeDots(); layoutParallax(); updateParallax();
+    // External hooks to restart idle when returning to home
+    window.addEventListener('cc_idle_reset', () => { try { stopIdle(); stopIdleWatch(); sanitizeAllSlides(); } catch {}; try { startIdle(); startIdleWatch(); } catch {} });
+    window.addEventListener('cc_home_active', () => {
+      try {
+        currentSlide = 0;
+        slides.forEach((s,i)=>s.classList.toggle('active', i===0));
+        // Ensure track position resets fully to slide 0
+        trackX = 0; try { gsap.set(track, { x: 0 }); } catch {}
+        stopIdle(); sanitizeAllSlides(); _idlePhase = 0; startIdle(); placeDots(); startIdleWatch(); layoutParallax(); updateParallax();
+        // Restore interactivity on home/nav just in case
+        try { document.getElementById('home-nav')?.style.removeProperty('pointer-events'); } catch {}
+        try { home?.style.removeProperty('pointer-events'); } catch {}
+      } catch {}
+    });
+    
+    // Custom event to go to specific slide
+    window.addEventListener('cc_go_to_slide', (e) => {
+      const slide = e.detail?.slide || 0;
+      if (slide >= 0 && slide < slides.length) {
+        goToSlide(slide);
+      }
+    });
+
+    // drag area = cijeli overlay (ignoriramo gumb i dots)
+    const dragArea = document.getElementById('home');
+    if (dragArea) {
+      let startX = 0, startY = 0, startTrackX = 0, dragging = false, dx = 0, W = 320;
+      const applyDrag = (dx) => { gsap.set(track, { x: startTrackX + dx }); updateParallax(); };
+      const commit = (toIdx, dragDx) => {
+        // keep idle animations running during slide transition
+        // Kill existing tween and sync trackX so next drags start from real position
+        try { gsap.killTweensOf(track); } catch {}
+        try {
+          const currX = Number(gsap.getProperty(track, 'x'));
+          if (!Number.isNaN(currX)) trackX = currX;
+        } catch {}
+        // Update logical slide immediately so rapid swipes can chain (e.g., 3→2→1)
+        currentSlide = toIdx; setActiveDot(toIdx);
+        const targetX = -toIdx * W; trackX = targetX;
+        gsap.to(track, { x: targetX, duration: 0.26, ease: 'back.out(1.25)', onUpdate: updateParallax, onComplete: () => {
+          slides.forEach((s,i)=>s.classList.toggle('active', i===toIdx));
+          startIdle(); placeDots(); layoutParallax(); updateParallax();
+        }});
+      };
+      const cancel = () => {
+        gsap.to(track, { x: -currentSlide * W, duration: 0.22, ease: 'back.out(1.2)', onUpdate: updateParallax, onComplete: () => { startIdle(); layoutParallax(); updateParallax(); } });
+      };
+      const onStart = (x, y, target) => {
+        if (_homeBusy) return; // ignore drags during transition
+        // ignoriraj klikove na CTA/dots
+        try { if (target && (target.closest('#slides-stage .copy .cta button') || target.closest('#home-nav'))) return; } catch {}
+        dragging = true; dx = 0; startX = x; startY = y; W = stage?.clientWidth || window.innerWidth || 320;
+        // Stop any ongoing tween and sync start position with actual transform
+        try { gsap.killTweensOf(track); } catch {}
+        try {
+          const currX = Number(gsap.getProperty(track, 'x'));
+          if (!Number.isNaN(currX)) trackX = currX;
+        } catch {}
+        startTrackX = trackX;
+      };
+      const onMove  = (x, y) => {
+        if (!dragging) return;
+        const ddx = x - startX; const ddy = y - startY;
+        if (Math.abs(ddx) < Math.abs(ddy)) return; // ignore vertical
+        // edge resistance
+        let mx = ddx;
+        const atStart = currentSlide===0 && mx>0;
+        const atEnd   = currentSlide===slides.length-1 && mx<0;
+        if (atStart || atEnd) mx *= 0.35; // resistance at edges
+        dx = mx;
+        applyDrag(dx);
+      };
+      const onEnd   = (x, y) => {
+        if (!dragging) return;
+        dragging = false;
+        const ddx = (x - startX);
+        const threshold = Math.max(36, W * 0.12);
+        if (Math.abs(ddx) >= threshold) {
+          if (ddx < 0 && currentSlide < slides.length-1) commit(currentSlide+1, ddx);
+          else if (ddx > 0 && currentSlide > 0) commit(currentSlide-1, ddx);
+          else cancel();
+        } else cancel();
+      };
+      // touch + pointer na cijelom overlayu
+      dragArea.addEventListener('touchstart', e => { e.preventDefault(); const t=e.touches[0]; onStart(t.clientX, t.clientY, e.target); }, { passive: false });
+      dragArea.addEventListener('touchmove',  e => { e.preventDefault(); const t=e.touches[0]; onMove(t.clientX, t.clientY); }, { passive: false });
+      dragArea.addEventListener('touchend',   e => { e.preventDefault(); const t=(e.changedTouches||[{}])[0]; onEnd(t.clientX||startX, t.clientY||startY); });
+      dragArea.addEventListener('pointerdown', e => { e.preventDefault(); onStart(e.clientX, e.clientY, e.target); });
+      dragArea.addEventListener('pointermove', e => { e.preventDefault(); onMove(e.clientX, e.clientY); });
+      dragArea.addEventListener('pointerup',   e => { e.preventDefault(); onEnd(e.clientX, e.clientY); });
+      dragArea.addEventListener('pointercancel', e => { e.preventDefault(); dragging=false; cancel(); });
+    }
+
+    if (autoplay) {
+      await startGame(btnHome);
+    } else {
+      // CTA listeners
+      btnHome?.addEventListener('click', async (e) => {
+        if (currentSlide !== 0) return; // inactive
+        try { await startGame(e.currentTarget); } catch (err) {
+          console.error('[CC] boot failed:', err);
+          e.currentTarget?.removeAttribute('disabled');
+          appHost?.setAttribute('hidden','true'); home?.removeAttribute('hidden');
+        }
+      });
+      btnStats?.addEventListener('click', async () => { 
+        if (currentSlide === 1) { 
+          try { 
+            await showStatsScreen(); 
+          } catch (error) {
+            console.error('Error showing stats screen:', error);
+          }
+        } 
+      });
+      btnCollectibles?.addEventListener('click', () => { if (currentSlide===2) { try { window.location.hash = '#/collectibles'; } catch {} } });
+    }
+
+    // Populate simple stats if available
+    try {
+      const best = Number(localStorage.getItem('cc_best_score_v1')||0) || 0;
+      const bestEl = document.getElementById('best-score'); if (bestEl) bestEl.textContent = String(best);
+    } catch {}
+
+
+    // Initialize stats screen
+    initStatsScreen();
+
+    // Start idle hover animation on homepage
+    if (!autoplay) { startIdle(); placeDots(); startIdleWatch(); updateParallax(); }
+
+    // Preload core PIXI assets & fonts in the background to reduce Play→spawn latency
+    try {
+      (async () => {
+        const [{ Assets }, CONSTS] = await Promise.all([
+          import('pixi.js'),
+          import('./modules/constants.js')
+        ]);
+        const paths = [
+          CONSTS.ASSET_TILE, CONSTS.ASSET_NUMBERS, CONSTS.ASSET_NUMBERS2, CONSTS.ASSET_NUMBERS3, CONSTS.ASSET_WILD
+        ];
+        try { await Assets.load(paths); } catch {}
+        try { await Promise.all([400,500,600,700,800].map(w => document.fonts.load(`${w} 16px "LTCrow"`))); } catch {}
+      })();
+    } catch {}
+  } catch (e) {
+    console.error('[CC] boot failed:', e);
+  }
+})();

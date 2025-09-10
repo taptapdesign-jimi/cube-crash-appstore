@@ -1,6 +1,8 @@
 // public/src/modules/hud-helpers.js
-import { Container, Graphics, Text } from 'pixi.js';
+import { Container, Graphics, Text, Rectangle } from 'pixi.js';
 import { gsap } from 'gsap';
+import { pauseGame, resumeGame, restart } from './app.js';
+import { showPauseModal } from './pause-modal.js';
 
 /* ---------------- Wild loader core (flicker-free, 8px) ---------------- */
 function makeWildLoader({ width, color = 0xD59477, trackColor = 0xEADFD6 }) {
@@ -211,12 +213,13 @@ export function initHUD({ stage, app, top = 8 }) {
   stage.addChild(HUD_ROOT);
 
   // vrijednosti
-  const valMoves = { fontFamily: 'LTCrow', fontSize: 24, fill: 0xD69478, fontWeight: '700' };
+  const valMoves = { fontFamily: 'LTCrow', fontSize: 24, fill: 0xAD8775, fontWeight: '700' };
   const valMain  = { fontFamily: 'LTCrow', fontSize: 24, fill: 0xAD8775, fontWeight: '700' };
+  const valCombo = { fontFamily: 'LTCrow', fontSize: 24, fill: 0xD69478, fontWeight: '700' };
 
   movesText = new Text({ text: '0', style: valMoves });
   scoreText = new Text({ text: '0', style: valMain  });
-  comboText = new Text({ text: 'x0', style: valMain });
+  comboText = new Text({ text: 'x0', style: valCombo });
 
   movesText.anchor.set(0.5, 0);
   scoreText.anchor.set(0.5, 0);
@@ -240,6 +243,64 @@ export function initHUD({ stage, app, top = 8 }) {
   const onResize = () => layout({ app, top });
   HUD_ROOT._onResize = onResize;
   window.addEventListener('resize', onResize);
+
+  // Gentle elastic HUD drop-in animation at middle of tile animation (only if not already animated)
+  if (!HUD_ROOT._animated) {
+    console.log('🎯 Starting HUD animation - starting at y:', top - 80, 'target y:', top);
+    console.log('🎯 HUD final position will be:', top, 'pixels from top');
+    HUD_ROOT.alpha = 0;
+    HUD_ROOT.y = top - 80; // Start above screen
+    gsap.delayedCall(0.01, () => { // Start immediately
+      console.log('🎯 HUD animation starting now!');
+    gsap.to(HUD_ROOT, {
+      alpha: 1,
+      y: top,
+      duration: 1.5, // Shorter duration to finish around same time as tiles
+      ease: 'elastic.out(1, 0.6)', // Less bouncy, more gentle
+      onComplete: () => {
+        console.log('✅ HUD animation completed');
+        HUD_ROOT._animated = true;
+        // Ensure final position is correct
+        HUD_ROOT.y = top;
+      }
+    });
+    });
+  } else {
+    // Already animated, just set final position
+    HUD_ROOT.alpha = 1;
+    HUD_ROOT.y = top;
+  }
+
+  // Add pause modal on HUD click - only HUD area (moves, score, combo, wild preloader)
+  HUD_ROOT.interactive = true;
+  HUD_ROOT.cursor = 'pointer';
+  // HUD clickable area covers moves, score, combo, and wild preloader (approximately 80px height)
+  HUD_ROOT.hitArea = new Rectangle(0, 0, 1000, 80); // Clickable area covers entire HUD area
+  HUD_ROOT.on('pointerdown', (e) => {
+    console.log('HUD clicked!', e);
+    e.stopPropagation();
+    
+    console.log('Calling pauseGame...');
+    pauseGame();
+    console.log('Calling showPauseModal...');
+    showPauseModal({
+      onUnpause: async () => { try { resumeGame(); } catch {} },
+      onRestart: async () => { try { restart(); resumeGame(); } catch {} },
+      onExit: async () => {
+        try {
+          const appHost = document.getElementById('app');
+          const home = document.getElementById('home');
+          if (appHost) {
+            appHost.setAttribute('hidden', 'true');
+            appHost.innerHTML = '';
+          }
+          if (home) {
+            home.removeAttribute('hidden');
+          }
+        } catch {}
+      }
+    });
+  });
 }
 
 export function updateHUD({ score, moves, combo }) {

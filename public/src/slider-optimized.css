@@ -1,0 +1,275 @@
+/* OPTIMIZED SLIDER FOR IPHONE 13 & XCODE COMPATIBILITY */
+
+#slider-container {
+  position: relative;
+  width: 100vw;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 0;
+  margin-top: -10vh; /* Lift up 20% */
+}
+
+#slider-wrapper {
+  display: flex;
+  width: 300%; /* 3 slides */
+  transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Elastic bounce */
+  will-change: transform;
+}
+
+.slider-slide {
+  width: 33.333%; /* 1/3 of 300% */
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  min-height: 100vh;
+  position: relative;
+  padding-top: 8vh;
+}
+
+.slide-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100vw;
+  height: auto;
+  padding: 0;
+  position: relative;
+  gap: 0;
+}
+
+.hero-container {
+  position: relative;
+  width: 320px;
+  height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 40px;
+  margin-top: 20px;
+}
+
+.hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  position: relative;
+  z-index: 2;
+  transition: all 0.3s ease;
+  /* Individual animations per slide below */
+}
+
+/* Individual animations moved below */
+
+/* Idle animations for all slides */
+.slider-slide[data-slide="0"] .hero-image {
+  animation: cubesFloat 3s ease-in-out infinite;
+}
+
+@keyframes cubesFloat {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) rotate(1deg) scale(1.02);
+  }
+}
+
+.slider-slide[data-slide="1"] .hero-image {
+  animation: trophyGlow 4s ease-in-out infinite;
+}
+
+@keyframes trophyGlow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: translateY(-6px) rotate(-1deg) scale(1.05);
+    filter: brightness(1.1) drop-shadow(0 0 10px rgba(255, 215, 0, 0.3));
+  }
+}
+
+.slider-slide[data-slide="2"] .hero-image {
+  animation: boxShake 2.5s ease-in-out infinite;
+}
+
+@keyframes boxShake {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translateY(-5px) rotate(1deg) scale(1.01);
+  }
+  75% {
+    transform: translateY(-3px) rotate(-1deg) scale(1.01);
+  }
+}
+
+.hero-shadow {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 60px;
+  background: #F2EBE8;
+  border-radius: 50%;
+  z-index: 1;
+  opacity: 0.8;
+}
+
+.slide-text {
+  text-align: center;
+  z-index: 3;
+  position: relative;
+  margin-bottom: 30px;
+}
+
+.slide-tagline {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: #C4A796;
+  line-height: 1.4;
+  margin: 0 0 40px 0;
+  text-align: center;
+}
+
+.slide-button {
+  width: 250px;
+  height: 55px;
+  border: none;
+  border-radius: 28px;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 4;
+}
+
+/* Navigation Dots */
+#slider-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 0 0 20px 0;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+}
+
+.slider-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: none;
+  background: #DDD;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.slider-dot.active {
+  background: #D87A53;
+  transform: scale(1.2);
+}
+
+.slider-dot:hover {
+  background: #C86C49;
+  transform: scale(1.1);
+}
+
+/* EXIT ANIMATION CLASSES */
+.slider-exit {
+  animation: slideExit 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes slideExit {
+  0% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.9) translateY(-10px);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(0.7) translateY(-20px);
+    opacity: 0;
+  }
+}
+
+.slide-content-exit {
+  animation: contentExit 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+@keyframes contentExit {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+}
+
+/* Logo styling */
+#home-logo {
+  width: min(320px, 80vw);
+  height: auto;
+  margin-bottom: 20px;
+  margin-top: -30px;
+  /* No idle animation */
+}
+
+/* iPhone 13 Optimizations */
+@media screen and (max-width: 428px) {
+  .slider-slide {
+    min-height: 380px;
+  }
+  
+  .hero-container {
+    width: 280px;
+    height: 280px;
+  }
+  
+  .slide-tagline {
+    font-size: 18px;
+  }
+  
+  .slide-button {
+    width: 220px;
+    height: 50px;
+    font-size: 24px;
+  }
+  
+  #home-logo {
+    width: min(280px, 75vw);
+  }
+}
+
+/* Ensure CTA and dots are visible */
+.slide-content {
+  min-height: 100vh;
+  padding-bottom: 80px; /* Space for dots */
+}
+
+/* Safe Area Support for iPhone */
+@supports (padding: max(0px)) {
+  #slider-container {
+    padding-bottom: max(40px, env(safe-area-inset-bottom));
+  }
+  
+  #slider-dots {
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+}

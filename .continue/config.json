@@ -1,0 +1,18 @@
+{
+  "models": [
+    {
+      "title": "OpenAI 4o",
+      "provider": "openai",
+      "model": "gpt-4o",
+      "apiKey": "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"
+    },
+    {
+      "title": "OpenAI 4o Mini",
+      "provider": "openai",
+      "model": "gpt-4o-mini",
+      "apiKey": "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"
+    }
+  ],
+  "editMode": "apply",
+  "systemMessage": "You are a senior JavaScript game developer. Project uses Pixi.js v8 + GSAP. Only edit files explicitly named by the user. Always output full-file replacements (plug-and-play). Do not introduce unrelated changes."
+}

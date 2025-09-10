@@ -112,7 +112,7 @@ export function merge(src, dst, helpers){
           innerFlashAtTile(STATE.board, dst, 120);
           woodShardsAtTile(STATE.board, dst, true);
           showMultiplierTile(STATE.board, dst, mult, 120, 1.0);
-          try { screenShake(STATE.app, { strength: Math.min(16, 8 + Math.max(1, mult) * 2), duration: 0.29 }); } catch {}
+          try { screenShake(STATE.app, { strength: Math.min(25, 12 + Math.max(1, mult) * 3), duration: 0.4 }); } catch {}
         }
 
         const gx = dst.gridX, gy = dst.gridY;

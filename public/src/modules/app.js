@@ -8,6 +8,7 @@ import {
   COLS, ROWS, TILE, GAP, HUD_H,
   ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_WILD
 } from './constants.js';
+import { sweetPopIn } from './app-board.js';
 import * as CONSTS from './constants.js';
 
 import * as makeBoard from './board.js';
@@ -32,8 +33,6 @@ const _animateScore = HUD.animateScore;
 const _bumpCombo    = HUD.bumpCombo;
 const _animateMoves = HUD.animateMoves;
 
-// --- Build / Version label ---
-const GAME_VERSION = 'v15';
 
 // --- Endless mode config ---
 const MOVES_MAX = 50;
@@ -212,18 +211,6 @@ export async function boot(){
   board.zIndex = 100; hud.zIndex = 10000;
   stage.addChild(board, hud);
 
-  // version label
-  const versionLabel = new Text({ text: GAME_VERSION, style: { fontFamily: 'LTCrow', fontSize: 14, fill: 0x725B4C, fontWeight: '600' } });
-  versionLabel.zIndex = 20000;
-  versionLabel.eventMode = 'none';
-  stage.addChild(versionLabel);
-  const placeVersion = ()=>{
-    const css = getComputedStyle(document.documentElement);
-    const SAT = parseFloat(css.getPropertyValue('--sat')) || 0;
-    versionLabel.x = app.renderer.width - versionLabel.width - 12;
-    versionLabel.y = 8 + SAT;
-  };
-  placeVersion(); window.addEventListener('resize', placeVersion);
 
   board.addChildAt(boardBG, 0); boardBG.zIndex = -1000; board.sortChildren();
 
@@ -285,15 +272,17 @@ function layout(){
   const SAR = parseFloat(cssVars.getPropertyValue('--sar')) || 0;
   const SAB = parseFloat(cssVars.getPropertyValue('--sab')) || 0;
   const SAT = parseFloat(cssVars.getPropertyValue('--sat')) || 0;
+  console.log('🎯 Safe area top (SAT):', SAT, 'px');
 
   const MIN_SIDE = isMobilePortrait ? 24 : 14;
   const LEFT_PAD  = Math.max(MIN_SIDE, SAL);
   const RIGHT_PAD = Math.max(MIN_SIDE, SAR);
-  const TOP_PAD   = 8;
+  const TOP_PAD   = -20; // Move HUD 20% higher - adjusted down 5%
   const BOT_PAD   = (isMobilePortrait ? 24 : 24) + SAB;
   const GAP_HUD   = 16;
 
   const safeTop = TOP_PAD + SAT;
+  console.log('🎯 HUD will be positioned at y:', safeTop, 'px from top');
   const s = Math.min((vw - LEFT_PAD - RIGHT_PAD) / w, (vh - safeTop - HUD_H - GAP_HUD - BOT_PAD) / h);
   board.scale.set(s, s); board.scale.y = board.scale.x;
 
@@ -401,12 +390,17 @@ function rebuildBoard(){
   });
 
   try { tiles.forEach(t => t.visible = false); } catch {}
+  
+  // Layout immediately - no delay
   layout();
-
-  const p = SPAWN.dealFromRim({ listTiles: tiles, board, boardSize: boardSize(), gsap });
+  
+  // Start animation immediately
+  console.log('🎯 Starting sweetPopIn from app.js with', tiles.length, 'tiles');
+  const p = sweetPopIn(tiles);
+  
   (p && typeof p.then === 'function' ? p : Promise.resolve()).then(()=>{
-    tiles.filter(t=>t.locked).forEach(t=>tintLocked(t));
-    drawBoardBG();
+    console.log('✅ sweetPopIn completed from app.js');
+    // drawBoardBG is called inside animation to prevent lag
   });
 }
 function tintLocked(t){ try{ gsap.to(t, { alpha:0.35, duration:0.10, ease:'power1.out' }); }catch{} }
@@ -419,8 +413,13 @@ function startLevel(n){
   try { comboIdleTimer?.kill?.(); } catch {}
   wildMeter = 0;
   resetWildProgress(0, false);
-  rebuildBoard(); updateHUD();
-  gsap.delayedCall(0.8, checkLevelEnd);
+  
+  // Start animation immediately - no delay
+  rebuildBoard(); 
+  updateHUD();
+  
+  // Check level end immediately - no delay
+  gsap.delayedCall(0.1, checkLevelEnd);
 }
 
 // --- local Wild skin fallback
@@ -603,7 +602,7 @@ function merge(src, dst, helpers){
         // ► badge + pojačani “smoke/bubbles” + screen shake
         showMultiplierTile(board, dst, mult, TILE, 1.0);
         smokeBubblesAtTile(board, dst, TILE, 2); // strength 2 – veći burst
-        try { screenShake(app, { strength: Math.min(16, 8 + Math.max(1, mult) * 2), duration: 0.29 }); } catch {}
+        try { screenShake(app, { strength: Math.min(25, 12 + Math.max(1, mult) * 3), duration: 0.4 }); } catch {}
 
         if (wasWild){ woodShardsAtTile(board, dst, true); woodShardsAtTile(board, dst, true); }
 
@@ -749,4 +748,23 @@ function restartGame(){
 }
 // temporary idle checker (no-op so boot doesn't fail)
 function scheduleIdleCheck(){ /* no-op for now */ }
+// Pause/Resume functions
+export function pauseGame() {
+  try {
+    gsap.globalTimeline.pause();
+    app.ticker.stop();
+  } catch {}
+}
+
+export function resumeGame() {
+  try {
+    gsap.globalTimeline.resume();
+    app.ticker.start();
+  } catch {}
+}
+
+export function restart() {
+  restartGame();
+}
+
 export { app, stage, board, hud, tiles, grid, score, level }; 

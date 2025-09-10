@@ -238,9 +238,9 @@ export function screenShake(app, opts = {}){
     const target = app?.canvas || app?.view || null;
     if (!target) return;
     const {
-      duration = 0.22,
-      strength = 10,   // px amplitude
-      steps    = 10,   // jitter steps
+      duration = 0.35,
+      strength = 18,   // px amplitude (pojačano)
+      steps    = 15,   // jitter steps (više koraka)
       ease     = 'sine.inOut',
     } = opts || {};
 
