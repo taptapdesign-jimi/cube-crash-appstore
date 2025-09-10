@@ -329,54 +329,18 @@ export function initHUD({ stage, app, top = 8 }) {
         }
       },
       onExit: async () => {
-        console.log('🎭 EXIT TO MENU - SIMPLE RELOAD APPROACH');
-        
+        console.log('🎭 EXIT TO MENU - SIMPLE APPROACH');
+
         try {
-          // 1. Hide game immediately
-          const appHost = document.getElementById('app');
-          if (appHost) {
-            appHost.style.display = 'none';
-            appHost.innerHTML = '';
-            console.log('✅ Game hidden');
-          }
-          
-          // 2. Show homepage immediately (NO ANIMATIONS)
-          const home = document.getElementById('home');
-          if (home) {
-            console.log('🎭 Showing homepage immediately...');
-            
-            // Show homepage immediately - no animations
-            home.removeAttribute('hidden');
-            home.style.display = 'block';
-            home.style.visibility = 'visible';
-            home.style.position = 'fixed';
-            home.style.top = '0';
-            home.style.left = '0';
-            home.style.width = '100vw';
-            home.style.height = '100vh';
-            home.style.zIndex = '999999';
-            home.style.background = '#f5f5f5';
-            home.style.opacity = '1';
-            home.style.transform = 'scale(1)';
-            home.style.transition = 'none';
-            
-            console.log('✅ Homepage shown immediately');
-            
-            // Re-initialize slider immediately
-            if (window.slider && window.slider.completeReinitialization) {
-              console.log('🔄 Re-initializing slider...');
-              window.slider.completeReinitialization();
-            } else {
-              console.log('⚠️ Slider not available for re-initialization');
-            }
-            
+          // Use simple global exit function
+          if (window.exitToMenu) {
+            window.exitToMenu();
+            console.log('✅ Exit to menu completed');
+            return true;
           } else {
-            console.error('❌ HOME ELEMENT NOT FOUND!');
+            console.error('❌ window.exitToMenu not found!');
             return false;
           }
-          
-          console.log('🎭 EXIT COMPLETE - Homepage shown with pop-in animation!');
-          return true;
           
         } catch (error) {
           console.error('❌ Error in onExit:', error);
