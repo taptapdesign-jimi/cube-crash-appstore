@@ -167,6 +167,14 @@ async function showMysteryPrize(){
 
 // -------------------- boot --------------------
 export async function boot(){
+  // Check if app is already initialized
+  if (app && app.canvas) {
+    console.log('🎮 App already initialized, just starting game');
+    startLevel(1);
+    return;
+  }
+  
+  console.log('🎮 Initializing PIXI app for first time');
   app = new Application();
   await app.init({
     resizeTo: window,
@@ -849,6 +857,51 @@ export function resumeGame() {
 
 export function restart() {
   restartGame();
+}
+
+// Clean up game when exiting
+export function cleanupGame() {
+  console.log('🧹 Cleaning up game state');
+  
+  // Reset all game state
+  score = 0;
+  moves = MOVES_MAX;
+  level = 1;
+  combo = 0;
+  wildMeter = 0;
+  busyEnding = false;
+  
+  // Clear timers
+  try { comboIdleTimer?.kill?.(); } catch {}
+  comboIdleTimer = null;
+  
+  // Reset wild progress
+  resetWildProgress(0, false);
+  try { HUD.resetWildLoader?.(); } catch {}
+  
+  // Clear tiles and grid
+  if (tiles) {
+    tiles.forEach(t => {
+      try { t.destroy?.({children: true, texture: false, textureSource: false}); } catch {}
+    });
+    tiles.length = 0;
+  }
+  
+  if (grid) {
+    grid = Array.from({length: ROWS}, () => Array(COLS).fill(null));
+  }
+  
+  // Clear board
+  if (board) {
+    board.removeChildren();
+    if (boardBG) {
+      board.addChildAt(boardBG, 0);
+      boardBG.zIndex = -1000;
+      boardBG.eventMode = 'none';
+    }
+  }
+  
+  console.log('✅ Game cleanup completed');
 }
 
 export { app, stage, board, hud, tiles, grid, score, level }; 

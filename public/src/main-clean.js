@@ -1,5 +1,5 @@
 // CLEAN MAIN.JS - SIMPLE AND WORKING
-import { boot } from './modules/app.js';
+import { boot, cleanupGame } from './modules/app.js';
 
 console.log('🚀 Starting CLEAN CubeCrash...');
 
@@ -250,6 +250,9 @@ let isAnimating = false;
     
     window.exitToMenu = () => {
       console.log('🏠 Exiting to menu...');
+      
+      // Clean up game state
+      cleanupGame();
       
       // Animate game out
       animateGameOut();
