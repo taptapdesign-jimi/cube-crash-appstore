@@ -71,6 +71,21 @@ class OptimizedSlider {
       return;
     }
     
+    // Force visibility of all elements
+    this.slides.forEach((slide, index) => {
+      slide.style.display = 'flex';
+      slide.style.visibility = 'visible';
+      slide.style.opacity = '1';
+      slide.style.transform = '';
+    });
+    
+    this.dots.forEach((dot, index) => {
+      dot.style.display = 'block';
+      dot.style.visibility = 'visible';
+      dot.style.opacity = '1';
+      dot.style.transform = '';
+    });
+    
     this.setupEventListeners();
     this.updateSlider();
     console.log('🎠 OptimizedSlider initialized successfully');
@@ -281,6 +296,14 @@ class OptimizedSlider {
   handlePlayClick() {
     console.log('🎮 Play button clicked - starting exit animation');
     console.log('🎮 window.startGame exists:', typeof window.startGame);
+    
+    // Ensure slider is in a good state before starting exit animation
+    if (this.isAnimating) {
+      console.log('⚠️ Slider is animating, waiting...');
+      setTimeout(() => this.handlePlayClick(), 100);
+      return;
+    }
+    
     this.startExitAnimation(() => {
       console.log('🎮 Exit animation complete - starting game');
       // This will be called by main.js
@@ -539,8 +562,18 @@ class OptimizedSlider {
       console.log('🎭 Pop-in animation complete - ensuring slider functionality');
       this.isAnimating = false;
       this.sliderWrapper.style.pointerEvents = 'auto';
+      
+      // Force re-initialization of slider elements
+      this.init();
+      
+      // Ensure all elements are visible and functional
       this.updateSlider();
       this.updateDots();
+      
+      // Reset any lingering styles
+      this.resetAnimations();
+      
+      console.log('🎭 Slider fully re-initialized and functional');
     }, 800); // After all animations complete
     
     console.log('🎭 Pop-in animation started');
