@@ -421,11 +421,18 @@ export function bumpCombo(){
 /* bridge for app.js → update progress bar */
 export function updateProgressBar(ratio, animate = false){
   if (!wild) return;
-  // pri povećanju progressa digni “energiju” pa će kratko prštati
+  // pri povećanju progressa digni "energiju" pa će kratko prštati
   const prev = wild._lastP ?? 0;
   if (ratio > prev) wild.charge(0.8);
   wild._lastP = ratio;
   wild.setProgress(ratio, animate);
+}
+
+/* Reset wild loader to 0 */
+export function resetWildLoader(){
+  if (!wild) return;
+  wild._lastP = 0;
+  wild.setProgress(0, false); // Reset immediately without animation
 }
 
 /* --- Score animation helper (compat) --- */

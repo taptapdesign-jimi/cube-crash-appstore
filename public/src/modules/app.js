@@ -821,6 +821,9 @@ function restartGame(){
   wildMeter = 0;
   resetWildProgress(0, false);
   
+  // Reset wild loader in HUD
+  try { HUD.resetWildLoader?.(); } catch {}
+  
   // Rebuild board WITHOUT calling layout
   rebuildBoard();
   updateHUD();

@@ -84,14 +84,17 @@ let slider;
       const diff = currentX - startX;
       const threshold = window.innerWidth * 0.2;
       
+      // Only change slide if there was significant movement
       if (Math.abs(diff) > threshold) {
-        if (diff > 0) {
+        if (diff > 0 && currentSlide > 0) {
           goToSlide(currentSlide - 1);
-        } else {
+        } else if (diff < 0 && currentSlide < totalSlides - 1) {
           goToSlide(currentSlide + 1);
+        } else {
+          updateSlider(); // Stay on current slide if at boundary
         }
       } else {
-        updateSlider();
+        updateSlider(); // Stay on current slide if not enough movement
       }
       
       if (sliderWrapper) {
@@ -111,12 +114,16 @@ let slider;
     
     // Dot navigation
     dots.forEach((dot, index) => {
-      dot.addEventListener('click', () => goToSlide(index));
+      dot.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent slider from moving
+        goToSlide(index);
+      });
     });
     
     // Button handlers
     if (playButton) {
-      playButton.addEventListener('click', () => {
+      playButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent slider from moving
         console.log('🎮 Play clicked - starting game');
         home.style.display = 'none';
         appHost.style.display = 'block';
@@ -126,14 +133,16 @@ let slider;
     }
     
     if (statsButton) {
-      statsButton.addEventListener('click', () => {
+      statsButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent slider from moving
         console.log('📊 Stats clicked');
         goToSlide(1);
       });
     }
     
     if (collectiblesButton) {
-      collectiblesButton.addEventListener('click', () => {
+      collectiblesButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent slider from moving
         console.log('🎁 Collectibles clicked');
         goToSlide(2);
       });
@@ -164,6 +173,7 @@ let slider;
       // Reset slider to first slide
       currentSlide = 0;
       updateSlider();
+      console.log('✅ Slider reset to slide 0');
     };
     
     console.log('✅ Simple slider initialized successfully');
