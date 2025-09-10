@@ -41,8 +41,9 @@ function makeWildLoader({ width, color = 0xD59477, trackColor = 0xEADFD6 }) {
     headX = w;
     view._headX = headX; // expose for debug/extern if needed
     mask.clear();
-    // Blagi “nudge” −0.5 px uklanja optičku crticu na gornjoj ivici
+    // Blagi "nudge" −0.5 px uklanja optičku crticu na gornjoj ivici
     mask.roundRect(0, -0.5, w, H + 1, R).fill(0xffffff);
+    console.log('🎯 redrawMask called:', { progress, barWidth, w, headX });
   };
 
   const tick = (dt) => { 
@@ -59,6 +60,7 @@ function makeWildLoader({ width, color = 0xD59477, trackColor = 0xEADFD6 }) {
       redrawMask();
     },
     setProgress: (t, animate = false) => { 
+      console.log('🎯 Wild loader setProgress called:', { t, animate, currentProgress: progress });
       const newProgress = Math.max(0, Math.min(1, t || 0)); 
       const was = progress; 
 
@@ -70,7 +72,11 @@ function makeWildLoader({ width, color = 0xD59477, trackColor = 0xEADFD6 }) {
       }
 
       if (!animate) {
-        progress = newProgress; redrawMask(); return;
+        console.log('🎯 Setting progress immediately to:', newProgress);
+        progress = newProgress; 
+        redrawMask(); 
+        console.log('🎯 Progress set, mask redrawn');
+        return;
       }
       const o = { p: progress };
       gsap.to(o, {
@@ -435,10 +441,16 @@ export function resetWildLoader(){
     console.log('⚠️ Wild loader not found, cannot reset');
     return;
   }
-  console.log('🔄 Resetting wild loader from', wild._lastP, 'to 0');
+  console.log('🔄 Wild loader details:', {
+    hasSetProgress: typeof wild.setProgress === 'function',
+    currentProgress: wild._lastP,
+    view: wild.view
+  });
+  
   wild._lastP = 0;
+  console.log('🔄 Calling wild.setProgress(0, false)...');
   wild.setProgress(0, false); // Reset immediately without animation
-  console.log('✅ Wild loader reset to 0');
+  console.log('✅ Wild loader reset to 0, new progress should be 0');
 }
 
 /* --- Score animation helper (compat) --- */
