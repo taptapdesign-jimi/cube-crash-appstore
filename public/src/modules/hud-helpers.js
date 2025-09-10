@@ -364,19 +364,24 @@ export function initHUD({ stage, app, top = 8 }) {
             
             console.log('✅ Homepage prepared for elastic animation');
             
-            // Start elastic pop-in animation
+            // Start elastic pop-in animation for homepage
             setTimeout(() => {
               home.style.transition = 'all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
               home.style.opacity = '1';
               home.style.transform = 'scale(1)';
               console.log('✅ Homepage elastic pop-in animation started');
+              
+              // Start slider pop-in animation after homepage animation
+              setTimeout(() => {
+                console.log('🎭 Starting slider pop-in animation');
+                if (window.slider && window.slider.startPopInAnimation) {
+                  window.slider.startPopInAnimation();
+                } else {
+                  console.log('⚠️ Slider not available for pop-in animation');
+                }
+              }, 400); // Start slider animation 400ms after homepage
+              
             }, 50);
-            
-            // Reload the page after a short delay to reset everything
-            setTimeout(() => {
-              console.log('🔄 Reloading page to reset slider and game state...');
-              window.location.reload();
-            }, 500);
             
           } else {
             console.error('❌ HOME ELEMENT NOT FOUND!');

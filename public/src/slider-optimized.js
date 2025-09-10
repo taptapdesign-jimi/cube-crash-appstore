@@ -398,6 +398,138 @@ class OptimizedSlider {
     }, 200);
   }
   
+  // Pop-in animation when returning from game
+  startPopInAnimation() {
+    console.log('🎭 Starting pop-in animation for slider elements');
+    
+    // Get all elements that need to animate in
+    const activeSlide = this.slides[this.currentSlide];
+    if (!activeSlide) return;
+    
+    const slideText = activeSlide.querySelector('.slide-text');
+    const slideButton = activeSlide.querySelector('.slide-button');
+    const heroShadow = activeSlide.querySelector('.hero-shadow');
+    const heroImage = activeSlide.querySelector('.hero-image');
+    const heroContainer = activeSlide.querySelector('.hero-container');
+    const navigationDots = document.getElementById('slider-dots');
+    const logo = document.getElementById('home-logo');
+    
+    // Set initial state - all elements hidden and scaled down
+    if (navigationDots) {
+      navigationDots.style.transition = 'none';
+      navigationDots.style.transform = 'scale(0.8) translateY(20px)';
+      navigationDots.style.opacity = '0';
+    }
+    
+    if (slideText) {
+      slideText.style.transition = 'none';
+      slideText.style.transform = 'scale(0.9) translateY(30px)';
+      slideText.style.opacity = '0';
+    }
+    
+    if (slideButton) {
+      slideButton.style.transition = 'none';
+      slideButton.style.transform = 'scale(0.9) translateY(30px)';
+      slideButton.style.opacity = '0';
+    }
+    
+    if (logo) {
+      logo.style.transition = 'none';
+      logo.style.transform = 'scale(0.8) translateY(-20px)';
+      logo.style.opacity = '0';
+    }
+    
+    if (heroShadow) {
+      heroShadow.style.transition = 'none';
+      heroShadow.style.transform = 'scale(0.7)';
+      heroShadow.style.opacity = '0';
+    }
+    
+    if (heroImage) {
+      heroImage.style.transition = 'none';
+      heroImage.style.transform = 'scale(0.7) translateY(-30px)';
+      heroImage.style.opacity = '0';
+    }
+    
+    if (heroContainer) {
+      heroContainer.style.transition = 'none';
+      heroContainer.style.transform = 'scale(0.7)';
+      heroContainer.style.opacity = '0';
+    }
+    
+    if (activeSlide) {
+      activeSlide.style.transition = 'none';
+      activeSlide.style.transform = 'scale(0.8)';
+      activeSlide.style.opacity = '0';
+    }
+    
+    // Start pop-in animation in reverse order
+    setTimeout(() => {
+      // Phase 1: Complete slide first (0-100ms)
+      if (activeSlide) {
+        activeSlide.style.transition = 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        activeSlide.style.transform = 'scale(1)';
+        activeSlide.style.opacity = '1';
+      }
+    }, 50);
+    
+    // Phase 2: Central image (25-125ms)
+    setTimeout(() => {
+      if (heroShadow) {
+        heroShadow.style.transition = 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        heroShadow.style.transform = 'scale(1)';
+        heroShadow.style.opacity = '1';
+      }
+      
+      if (heroImage) {
+        heroImage.style.transition = 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        heroImage.style.transform = 'scale(1) translateY(0px)';
+        heroImage.style.opacity = '1';
+      }
+      
+      if (heroContainer) {
+        heroContainer.style.transition = 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        heroContainer.style.transform = 'scale(1)';
+        heroContainer.style.opacity = '1';
+      }
+    }, 75);
+    
+    // Phase 3: Logo (50-150ms)
+    setTimeout(() => {
+      if (logo) {
+        logo.style.transition = 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        logo.style.transform = 'scale(1) translateY(0px)';
+        logo.style.opacity = '1';
+      }
+    }, 100);
+    
+    // Phase 4: Text and CTA (75-175ms)
+    setTimeout(() => {
+      if (slideText) {
+        slideText.style.transition = 'all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        slideText.style.transform = 'scale(1) translateY(0px)';
+        slideText.style.opacity = '1';
+      }
+      
+      if (slideButton) {
+        slideButton.style.transition = 'all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        slideButton.style.transform = 'scale(1) translateY(0px)';
+        slideButton.style.opacity = '1';
+      }
+    }, 125);
+    
+    // Phase 5: Navigation dots last (100-200ms)
+    setTimeout(() => {
+      if (navigationDots) {
+        navigationDots.style.transition = 'all 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        navigationDots.style.transform = 'scale(1) translateY(0px)';
+        navigationDots.style.opacity = '1';
+      }
+    }, 150);
+    
+    console.log('🎭 Pop-in animation started');
+  }
+
   // Reset all animations when returning to home
   resetAnimations() {
     console.log('🎭 Resetting all animations');
