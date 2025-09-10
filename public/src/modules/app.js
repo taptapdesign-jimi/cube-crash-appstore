@@ -904,4 +904,17 @@ export function cleanupGame() {
   console.log('✅ Game cleanup completed');
 }
 
+// Start fresh game (for re-entering)
+export function startFreshGame() {
+  console.log('🎮 Starting fresh game');
+  
+  // Clean up first
+  cleanupGame();
+  
+  // Start new level
+  startLevel(1);
+  
+  console.log('✅ Fresh game started');
+}
+
 export { app, stage, board, hud, tiles, grid, score, level }; 

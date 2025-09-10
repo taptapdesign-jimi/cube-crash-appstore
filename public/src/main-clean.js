@@ -1,5 +1,5 @@
 // CLEAN MAIN.JS - SIMPLE AND WORKING
-import { boot, cleanupGame } from './modules/app.js';
+import { boot, cleanupGame, startFreshGame } from './modules/app.js';
 
 console.log('🚀 Starting CLEAN CubeCrash...');
 
@@ -78,6 +78,14 @@ let isAnimating = false;
           el.style.transform = 'scale(1) translateY(0)';
         }, index * 100);
       });
+      
+      // Force update dots visibility
+      setTimeout(() => {
+        const dots = document.querySelectorAll('.slider-dot');
+        dots.forEach((dot, index) => {
+          dot.classList.toggle('active', index === currentSlide);
+        });
+      }, 500);
       
       setTimeout(() => {
         isAnimating = false;
@@ -245,7 +253,7 @@ let isAnimating = false;
       appHost.style.display = 'block';
       appHost.removeAttribute('hidden');
       animateGameIn();
-      boot();
+      startFreshGame(); // Use startFreshGame instead of boot
     };
     
     window.exitToMenu = () => {
@@ -267,6 +275,25 @@ let isAnimating = false;
         // Reset slider to first slide
         currentSlide = 0;
         updateSlider();
+        
+        // Force recreate navigation dots
+        const dotsContainer = document.getElementById('slider-dots');
+        if (dotsContainer) {
+          dotsContainer.innerHTML = `
+            <button class="slider-dot active" data-slide="0"></button>
+            <button class="slider-dot" data-slide="1"></button>
+            <button class="slider-dot" data-slide="2"></button>
+          `;
+          
+          // Re-add event listeners
+          const dots = dotsContainer.querySelectorAll('.slider-dot');
+          dots.forEach((dot, index) => {
+            dot.addEventListener('click', (e) => {
+              e.stopPropagation();
+              goToSlide(index);
+            });
+          });
+        }
         
         // Animate slider in
         animateSliderIn();
