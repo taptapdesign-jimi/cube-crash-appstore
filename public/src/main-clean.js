@@ -1,7 +1,7 @@
-// DRAMATICALLY SIMPLE MAIN.JS - NO COMPLEXITY
+// ULTRA SIMPLE MAIN.JS - RELOAD APPROACH
 import { boot } from './modules/app.js';
 
-console.log('🚀 Starting DRAMATICALLY SIMPLE CubeCrash...');
+console.log('🚀 Starting ULTRA SIMPLE CubeCrash...');
 
 let currentSlide = 0;
 let isDragging = false;
@@ -92,29 +92,21 @@ window.startGame = () => {
   home.style.display = 'none';
   appHost.style.display = 'block';
   appHost.removeAttribute('hidden');
-  boot(); // Always call boot - it will destroy and recreate
+  boot();
 };
 
 window.exitToMenu = () => {
-  console.log('🏠 Exiting to menu...');
-  appHost.style.display = 'none';
-  appHost.setAttribute('hidden', 'true');
-  home.style.display = 'block';
-  home.removeAttribute('hidden');
-  
-  // Reset slider
-  currentSlide = 0;
-  updateSlider();
-  
-  console.log('✅ Exited to menu');
+  console.log('🏠 Exiting to menu - RELOADING PAGE');
+  // RELOAD THE ENTIRE PAGE - SIMPLEST SOLUTION
+  window.location.reload();
 };
 
 window.showStats = () => goToSlide(1);
 window.showCollectibles = () => goToSlide(2);
 
 // ===== INITIALIZATION =====
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('🎯 DOM loaded, initializing...');
+function initialize() {
+  console.log('🎯 Initializing ULTRA SIMPLE CubeCrash...');
   
   // Add event listeners
   if (sliderWrapper) {
@@ -163,62 +155,12 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Initial setup
   updateSlider();
-  console.log('✅ DRAMATICALLY SIMPLE CubeCrash initialized');
-});
+  console.log('✅ ULTRA SIMPLE CubeCrash initialized');
+}
 
-// If DOM is already loaded
+// Initialize when DOM is ready
 if (document.readyState === 'loading') {
-  // Wait for DOM
+  document.addEventListener('DOMContentLoaded', initialize);
 } else {
-  // DOM already loaded, initialize immediately
-  console.log('🎯 DOM already loaded, initializing immediately...');
-  
-  // Add event listeners
-  if (sliderWrapper) {
-    sliderWrapper.addEventListener('touchstart', handleStart, { passive: false });
-    sliderWrapper.addEventListener('touchmove', handleMove, { passive: false });
-    sliderWrapper.addEventListener('touchend', handleEnd);
-    sliderWrapper.addEventListener('mousedown', handleStart);
-    sliderWrapper.addEventListener('mousemove', handleMove);
-    sliderWrapper.addEventListener('mouseup', handleEnd);
-    sliderWrapper.addEventListener('mouseleave', handleEnd);
-  }
-  
-  // Button handlers
-  const playButton = document.getElementById('btn-home');
-  const statsButton = document.getElementById('btn-stats');
-  const collectiblesButton = document.getElementById('btn-collectibles');
-  
-  if (playButton) {
-    playButton.addEventListener('click', (e) => {
-      e.stopPropagation();
-      window.startGame();
-    });
-  }
-  
-  if (statsButton) {
-    statsButton.addEventListener('click', (e) => {
-      e.stopPropagation();
-      window.showStats();
-    });
-  }
-  
-  if (collectiblesButton) {
-    collectiblesButton.addEventListener('click', (e) => {
-      e.stopPropagation();
-      window.showCollectibles();
-    });
-  }
-  
-  // Dot navigation
-  dots.forEach((dot, index) => {
-    dot.addEventListener('click', (e) => {
-      e.stopPropagation();
-      goToSlide(index);
-    });
-  });
-  
-  // Initial setup
-  updateSlider();
-  console.log('✅ DRAMATICALLY SIMPLE CubeCrash initialized');
+  initialize();
 }

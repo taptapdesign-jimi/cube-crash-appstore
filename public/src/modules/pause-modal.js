@@ -31,7 +31,7 @@ function ensureOverlay(){
       <div class="pause-actions">
         <button class="pause-modal-btn pause-modal-btn-white" data-action="unpause">Unpause</button>
         <button class="pause-modal-btn pause-modal-btn-white" data-action="restart">Restart</button>
-        <button class="pause-modal-btn pause-modal-btn-orange" data-action="exit">Exit to menu</button>
+        <button class="pause-modal-btn pause-modal-btn-orange" data-action="exit" onclick="window.exitToMenu()">Exit to menu</button>
       </div>
     </div>`;
   
