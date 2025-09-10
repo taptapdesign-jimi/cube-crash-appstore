@@ -402,9 +402,16 @@ class OptimizedSlider {
   startPopInAnimation() {
     console.log('🎭 Starting pop-in animation for slider elements');
     
+    // Ensure slider is not animating and enable interactions
+    this.isAnimating = false;
+    this.sliderWrapper.style.pointerEvents = 'auto';
+    
     // Get all elements that need to animate in
     const activeSlide = this.slides[this.currentSlide];
-    if (!activeSlide) return;
+    if (!activeSlide) {
+      console.error('❌ No active slide found for pop-in animation');
+      return;
+    }
     
     const slideText = activeSlide.querySelector('.slide-text');
     const slideButton = activeSlide.querySelector('.slide-button');
@@ -417,115 +424,124 @@ class OptimizedSlider {
     // Set initial state - all elements hidden and scaled down
     if (navigationDots) {
       navigationDots.style.transition = 'none';
-      navigationDots.style.transform = 'scale(0.8) translateY(20px)';
+      navigationDots.style.transform = 'scale(0.5) translateY(30px)';
       navigationDots.style.opacity = '0';
     }
     
     if (slideText) {
       slideText.style.transition = 'none';
-      slideText.style.transform = 'scale(0.9) translateY(30px)';
+      slideText.style.transform = 'scale(0.7) translateY(40px)';
       slideText.style.opacity = '0';
     }
     
     if (slideButton) {
       slideButton.style.transition = 'none';
-      slideButton.style.transform = 'scale(0.9) translateY(30px)';
+      slideButton.style.transform = 'scale(0.7) translateY(40px)';
       slideButton.style.opacity = '0';
     }
     
     if (logo) {
       logo.style.transition = 'none';
-      logo.style.transform = 'scale(0.8) translateY(-20px)';
+      logo.style.transform = 'scale(0.6) translateY(-30px)';
       logo.style.opacity = '0';
     }
     
     if (heroShadow) {
       heroShadow.style.transition = 'none';
-      heroShadow.style.transform = 'scale(0.7)';
+      heroShadow.style.transform = 'scale(0.5)';
       heroShadow.style.opacity = '0';
     }
     
     if (heroImage) {
       heroImage.style.transition = 'none';
-      heroImage.style.transform = 'scale(0.7) translateY(-30px)';
+      heroImage.style.transform = 'scale(0.5) translateY(-40px)';
       heroImage.style.opacity = '0';
     }
     
     if (heroContainer) {
       heroContainer.style.transition = 'none';
-      heroContainer.style.transform = 'scale(0.7)';
+      heroContainer.style.transform = 'scale(0.5)';
       heroContainer.style.opacity = '0';
     }
     
     if (activeSlide) {
       activeSlide.style.transition = 'none';
-      activeSlide.style.transform = 'scale(0.8)';
+      activeSlide.style.transform = 'scale(0.6)';
       activeSlide.style.opacity = '0';
     }
     
-    // Start pop-in animation in reverse order
+    // Start pop-in animation in reverse order with longer, more elastic timing
     setTimeout(() => {
-      // Phase 1: Complete slide first (0-100ms)
+      // Phase 1: Complete slide first (0-200ms)
       if (activeSlide) {
-        activeSlide.style.transition = 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        activeSlide.style.transition = 'all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
         activeSlide.style.transform = 'scale(1)';
         activeSlide.style.opacity = '1';
       }
-    }, 50);
+    }, 100);
     
-    // Phase 2: Central image (25-125ms)
+    // Phase 2: Central image (150-350ms)
     setTimeout(() => {
       if (heroShadow) {
-        heroShadow.style.transition = 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        heroShadow.style.transition = 'all 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
         heroShadow.style.transform = 'scale(1)';
         heroShadow.style.opacity = '1';
       }
       
       if (heroImage) {
-        heroImage.style.transition = 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        heroImage.style.transition = 'all 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
         heroImage.style.transform = 'scale(1) translateY(0px)';
         heroImage.style.opacity = '1';
       }
       
       if (heroContainer) {
-        heroContainer.style.transition = 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        heroContainer.style.transition = 'all 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
         heroContainer.style.transform = 'scale(1)';
         heroContainer.style.opacity = '1';
       }
-    }, 75);
+    }, 150);
     
-    // Phase 3: Logo (50-150ms)
+    // Phase 3: Logo (200-400ms)
     setTimeout(() => {
       if (logo) {
-        logo.style.transition = 'all 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        logo.style.transition = 'all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
         logo.style.transform = 'scale(1) translateY(0px)';
         logo.style.opacity = '1';
       }
-    }, 100);
+    }, 200);
     
-    // Phase 4: Text and CTA (75-175ms)
+    // Phase 4: Text and CTA (250-450ms)
     setTimeout(() => {
       if (slideText) {
-        slideText.style.transition = 'all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        slideText.style.transition = 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
         slideText.style.transform = 'scale(1) translateY(0px)';
         slideText.style.opacity = '1';
       }
       
       if (slideButton) {
-        slideButton.style.transition = 'all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        slideButton.style.transition = 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
         slideButton.style.transform = 'scale(1) translateY(0px)';
         slideButton.style.opacity = '1';
       }
-    }, 125);
+    }, 250);
     
-    // Phase 5: Navigation dots last (100-200ms)
+    // Phase 5: Navigation dots last (300-500ms)
     setTimeout(() => {
       if (navigationDots) {
-        navigationDots.style.transition = 'all 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        navigationDots.style.transition = 'all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
         navigationDots.style.transform = 'scale(1) translateY(0px)';
         navigationDots.style.opacity = '1';
       }
-    }, 150);
+    }, 300);
+    
+    // Ensure slider is fully functional after animation
+    setTimeout(() => {
+      console.log('🎭 Pop-in animation complete - ensuring slider functionality');
+      this.isAnimating = false;
+      this.sliderWrapper.style.pointerEvents = 'auto';
+      this.updateSlider();
+      this.updateDots();
+    }, 800); // After all animations complete
     
     console.log('🎭 Pop-in animation started');
   }
