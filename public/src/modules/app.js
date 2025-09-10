@@ -167,14 +167,27 @@ async function showMysteryPrize(){
 
 // -------------------- boot --------------------
 export async function boot(){
-  // Check if app is already initialized
+  console.log('🎮 Initializing PIXI app');
+  
+  // DESTROY existing app if it exists
   if (app && app.canvas) {
-    console.log('🎮 App already initialized, just starting game');
-    startLevel(1);
-    return;
+    console.log('🧹 Destroying existing PIXI app');
+    try {
+      app.destroy(true, { children: true, texture: true, baseTexture: true });
+    } catch (e) {
+      console.log('⚠️ Error destroying app:', e);
+    }
+    app = null;
   }
   
-  console.log('🎮 Initializing PIXI app for first time');
+  // Clear any existing canvas
+  const host = document.getElementById('app') || document.body;
+  const existingCanvas = host.querySelector('canvas');
+  if (existingCanvas) {
+    existingCanvas.remove();
+  }
+  
+  console.log('🎮 Creating fresh PIXI app');
   app = new Application();
   await app.init({
     resizeTo: window,
@@ -183,7 +196,6 @@ export async function boot(){
     // cap DPR for iOS performance while keeping crisp visuals
     resolution: Math.min((window.devicePixelRatio || 1), 2)
   });
-  const host = document.getElementById('app') || document.body;
   host.appendChild(app.canvas);
   app.canvas.style.touchAction = 'none';
   
@@ -904,17 +916,10 @@ export function cleanupGame() {
   console.log('✅ Game cleanup completed');
 }
 
-// Start fresh game (for re-entering)
+// Start fresh game (for re-entering) - now just calls boot
 export function startFreshGame() {
-  console.log('🎮 Starting fresh game');
-  
-  // Clean up first
-  cleanupGame();
-  
-  // Start new level
-  startLevel(1);
-  
-  console.log('✅ Fresh game started');
+  console.log('🎮 Starting fresh game - calling boot');
+  boot();
 }
 
 export { app, stage, board, hud, tiles, grid, score, level }; 
