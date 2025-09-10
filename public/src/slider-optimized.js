@@ -154,28 +154,22 @@ class OptimizedSlider {
     this.dragCurrentX = x;
     this.dragOffset = x - this.dragStartX;
     
-    // Calculate current position with drag offset - pixel based for smoother control
-    const baseTranslateX = -this.currentSlide * window.innerWidth;
-    const totalTranslateX = baseTranslateX + this.dragOffset;
+    // Calculate position using percentage-based system (like CSS)
+    // Each slide is 33.333% of the 300% width, so 100% of viewport
+    const slideWidth = 100; // 100% of viewport per slide
+    const baseTranslateX = -this.currentSlide * slideWidth;
+    const totalTranslateX = baseTranslateX + (this.dragOffset / window.innerWidth * 100);
     
     // Apply resistance to make it feel more natural
-    // Allow dragging beyond current slide to show next slide peeking
     const maxDrag = window.innerWidth * 0.3; // Allow 30% of screen width drag
     const resistance = Math.min(1, Math.abs(this.dragOffset) / maxDrag);
-    const resistanceFactor = 1 - (resistance * 0.3); // 30% resistance at max drag
+    const resistanceFactor = 1 - (resistance * 0.2); // 20% resistance at max drag
     
-    const finalTranslateX = baseTranslateX + (this.dragOffset * resistanceFactor);
+    const finalTranslateX = baseTranslateX + ((this.dragOffset * resistanceFactor) / window.innerWidth * 100);
     
-    this.sliderWrapper.style.transform = `translateX(${finalTranslateX}px)`;
+    this.sliderWrapper.style.transform = `translateX(${finalTranslateX}%)`;
     
-    // Add visual feedback - fade current slide slightly when dragging
-    const dragProgress = Math.min(1, Math.abs(this.dragOffset) / (window.innerWidth * 0.2));
-    const currentSlide = this.slides[this.currentSlide];
-    if (currentSlide) {
-      currentSlide.style.opacity = 1 - (dragProgress * 0.3); // Fade up to 30%
-    }
-    
-    console.log('🎠 Dragging:', this.dragOffset, 'px, resistance:', resistanceFactor, 'fade:', dragProgress);
+    console.log('🎠 Dragging:', this.dragOffset, 'px, translateX:', finalTranslateX + '%');
   }
   
   endDrag() {
@@ -232,11 +226,6 @@ class OptimizedSlider {
       console.log('🎠 Slide changed to:', this.currentSlide);
     }
     
-    // Reset slide opacity
-    if (this.slides[this.currentSlide]) {
-      this.slides[this.currentSlide].style.opacity = '1';
-    }
-    
     // Smooth transition to final position
     this.sliderWrapper.style.transition = 'transform 0.3s ease-out';
     this.updateSlider();
@@ -284,16 +273,18 @@ class OptimizedSlider {
       return;
     }
     
-    const translateX = -this.currentSlide * window.innerWidth; // Pixel values for smoother control
-    this.sliderWrapper.style.transform = `translateX(${translateX}px)`;
-    console.log(`🎠 UpdateSlider: slide ${this.currentSlide}, translateX: ${translateX}px`);
+    // Use percentage-based positioning (like CSS)
+    const slideWidth = 100; // 100% of viewport per slide
+    const translateX = -this.currentSlide * slideWidth;
+    this.sliderWrapper.style.transform = `translateX(${translateX}%)`;
+    console.log(`🎠 UpdateSlider: slide ${this.currentSlide}, translateX: ${translateX}%`);
     
-    // Force visibility of current slide
+    // Show all slides - they should all be visible in the flex container
     if (this.slides.length > 0) {
       this.slides.forEach((slide, index) => {
-        slide.style.display = 'block';
+        slide.style.display = 'flex';
         slide.style.visibility = 'visible';
-        slide.style.opacity = index === this.currentSlide ? '1' : '0';
+        slide.style.opacity = '1';
       });
     }
     
