@@ -83,6 +83,11 @@ export function sweepForUnanimatedSpawns(){
     STATE.tiles.forEach(t=>{
       if (!t || t.locked) return;
       if (!t._spawned){
+        // Don't animate wild tiles that were just spawned - they already have their animation
+        if (t.special === 'wild' && t.alpha > 0) {
+          t._spawned = true; // Mark as spawned to prevent double animation
+          return;
+        }
         spawnBounce(t, ()=>{}, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 });
       }
     });
