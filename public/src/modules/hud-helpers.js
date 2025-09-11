@@ -380,10 +380,19 @@ export function initHUD({ stage, app, top = 8 }) {
 }
 
 export function updateHUD({ score, moves, combo }) {
-  if (!HUD_ROOT) return;
+  if (!HUD_ROOT) {
+    console.warn('⚠️ HUD_ROOT is null, cannot update HUD');
+    return;
+  }
+  
+  if (!movesText || !scoreText || !comboText) {
+    console.warn('⚠️ HUD text elements are null, cannot update HUD');
+    return;
+  }
+  
   if (typeof moves === 'number') {
     const mv = moves|0;
-    if (movesText && String(mv) !== movesText.text) {
+    if (String(mv) !== movesText.text) {
       movesText.text = String(mv);
       if (!__movesTweening) bounceText(movesText, { peak: 1.32, back: 1.10, up: 0.10, down: 0.24 });
       __prevMoves = mv;
@@ -391,7 +400,7 @@ export function updateHUD({ score, moves, combo }) {
   }
   if (typeof score === 'number') {
     const sc = score|0;
-    if (scoreText && String(sc) !== scoreText.text) {
+    if (String(sc) !== scoreText.text) {
       scoreText.text = String(sc);
       if (!__scoreTweening) bounceText(scoreText, { peak: 1.20, back: 1.06, up: 0.08, down: 0.20 });
       __prevScore = sc;

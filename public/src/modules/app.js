@@ -399,8 +399,11 @@ export function layout(){
   try {
     if (typeof HUD.initHUD === 'function') {
       if (!_hudInitDone) {
+        console.log('🎯 Initializing HUD...');
         HUD.initHUD({ stage, app, top: safeTop, gsap });
         _hudInitDone = true;
+        console.log('✅ HUD initialized successfully');
+        
         // hook za wild meter prema HUD-u
         hudUpdateProgress = (ratio, animate)=>{
           console.log('🎯 hudUpdateProgress called with:', { ratio, animate });
@@ -412,12 +415,25 @@ export function layout(){
           }
         };
       }
-      HUD.updateHUD?.({ score, moves, combo });
+      
+      // Update HUD with current values
+      if (typeof HUD.updateHUD === 'function') {
+        HUD.updateHUD({ score, moves, combo });
+        console.log('✅ HUD updated with:', { score, moves, combo });
+      }
+      
       // CRITICAL: Call HUD.layout to update HUD positioning
-      HUD.layout?.({ app, top: safeTop });
+      if (typeof HUD.layout === 'function') {
+        HUD.layout({ app, top: safeTop });
+        console.log('✅ HUD layout updated');
+      }
+    } else {
+      console.warn('⚠️ HUD.initHUD is not a function');
     }
   } catch (error) {
-    console.error('Error during HUD initialization/update in app.js layout:', error);
+    console.error('❌ Error during HUD initialization/update in app.js layout:', error);
+    // Reset HUD flag on error to retry next time
+    _hudInitDone = false;
   }
 }
 
@@ -930,6 +946,10 @@ export function cleanupGame() {
   } catch (e) {
     console.log('⚠️ GSAP cleanup error:', e);
   }
+  
+  // CRITICAL: Reset HUD initialization flag
+  _hudInitDone = false;
+  console.log('✅ HUD initialization flag reset');
   
   // Reset all game state
   score = 0;
