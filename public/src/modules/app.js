@@ -880,8 +880,14 @@ function restartGame(){
   
   // DIRECT HUD RESET - no complex logic
   try {
+    console.log('🔄 Calling HUD.updateProgressBar with 0...');
     HUD.updateProgressBar?.(0, false);
     console.log('✅ DRAMATIC: Wild meter reset to 0 successfully');
+    
+    // Also try force reset
+    console.log('🔄 Trying HUD.forceWildLoaderToZero...');
+    HUD.forceWildLoaderToZero?.();
+    console.log('✅ HUD.forceWildLoaderToZero called');
   } catch (error) {
     console.error('❌ DRAMATIC: Error resetting wild meter:', error);
   }
