@@ -259,8 +259,8 @@ export function screenShake(app, opts = {}){
       // Use direction for wild explosions, random for normal
       let dx, dy;
       if (direction !== 0) {
-        // Wild explosion: use direction with some randomness
-        const angle = direction + (Math.random() - 0.5) * 0.5; // ±0.25 radians variation
+        // Wild explosion: use direction with more randomness for bigger movements
+        const angle = direction + (Math.random() - 0.5) * 1.0; // ±0.5 radians variation (bigger spread)
         dx = Math.cos(angle) * amp;
         dy = Math.sin(angle) * amp;
       } else {

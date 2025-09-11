@@ -129,8 +129,8 @@ export function merge(src, dst, helpers){
             // Enhanced multiplier tile for wild
             showMultiplierTile(STATE.board, dst, mult, 140, 1.2);
             
-            // MUCH STRONGER wild screen shake - elastic and longer
-            const randomForce = 50 + Math.random() * 30; // 50-80 strength (much stronger)
+            // MUCH STRONGER wild screen shake - elastic and longer with bigger movements
+            const randomForce = 70 + Math.random() * 40; // 70-110 strength (much bigger movements)
             const randomDuration = 1.2 + Math.random() * 0.8; // 1.2-2.0 duration (much longer)
             const randomDirection = Math.random() * Math.PI * 2; // Random direction
             
