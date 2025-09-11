@@ -481,6 +481,18 @@ export function updateProgressBar(ratio, animate = false){
     wild._lastP = ratio;
     console.log('🔄 Calling wild.setProgress with ratio:', ratio, 'animate:', animate);
     wild.setProgress(ratio, animate);
+    
+    // Force immediate visual update if not animating
+    if (!animate && wild.view && wild.view.children) {
+      const mask = wild.view.children.find(child => child.mask);
+      if (mask) {
+        const w = Math.max(0, Math.min(200, Math.round(200 * ratio)));
+        mask.clear();
+        mask.roundRect(0, -0.5, w, 8 + 1, 4).fill(0xffffff);
+        console.log('✅ Wild loader mask force updated to width:', w);
+      }
+    }
+    
     console.log('✅ DRAMATIC: Wild meter updated successfully');
     
     // Also check if wild object is working

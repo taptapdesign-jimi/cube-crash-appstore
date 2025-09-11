@@ -890,6 +890,15 @@ function restartGame(){
     console.log('🔄 Trying direct wild loader reset...');
     if (wild && wild.setProgress) {
       wild.setProgress(0, false);
+      // Force immediate visual update
+      if (wild.view && wild.view.children) {
+        const mask = wild.view.children.find(child => child.mask);
+        if (mask) {
+          mask.clear();
+          mask.roundRect(0, -0.5, 0, 8 + 1, 4).fill(0xffffff);
+          console.log('✅ Wild loader mask force cleared to 0');
+        }
+      }
       console.log('✅ Direct wild loader reset successful');
     }
   } catch (error) {
