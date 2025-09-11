@@ -463,8 +463,17 @@ export function updateProgressBar(ratio, animate = false){
   console.log('🔥 DRAMATIC: Direct wild meter update to:', ratio);
   try {
     wild._lastP = ratio;
+    console.log('🔄 Calling wild.setProgress with ratio:', ratio, 'animate:', animate);
     wild.setProgress(ratio, animate);
     console.log('✅ DRAMATIC: Wild meter updated successfully');
+    
+    // Also check if wild object is working
+    console.log('🔍 Wild object state:', { 
+      exists: !!wild, 
+      hasSetProgress: typeof wild.setProgress === 'function',
+      progress: wild._lastP,
+      view: !!wild.view
+    });
   } catch (error) {
     console.error('❌ DRAMATIC: Error updating wild meter:', error);
   }

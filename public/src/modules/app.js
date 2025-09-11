@@ -98,6 +98,7 @@ function addWildProgress(amount){
   
   // DIRECT HUD UPDATE - bypass all complex logic
   try {
+    console.log('🔄 Calling HUD.updateProgressBar with newValue:', newValue, 'animate: true');
     HUD.updateProgressBar?.(newValue, true);
     console.log('✅ DRAMATIC: HUD.updateProgressBar called successfully');
   } catch (error) {
