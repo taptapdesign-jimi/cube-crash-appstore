@@ -4,6 +4,7 @@ import { boot } from './modules/app.js';
 console.log('🚀 Starting simple CubeCrash...');
 
 let slider;
+let sliderLocked = false; // Guard to prevent slider moves during Play
 
 (async () => {
   try {
@@ -36,11 +37,9 @@ let slider;
     // Simple slider functions
     function updateSlider() {
       if (sliderWrapper) {
-        // Use 100vw instead of window.innerWidth for better mobile support
-        const slideWidth = 100; // 100vw = 100%
-        const translateX = -currentSlide * slideWidth;
-        sliderWrapper.style.transform = `translateX(${translateX}%)`;
-        console.log(`🎯 Slider update: slide ${currentSlide}, translateX: ${translateX}%`);
+        const translateX = -currentSlide * window.innerWidth;
+        sliderWrapper.style.transform = `translateX(${translateX}px)`;
+        console.log(`🎯 Slider update: slide ${currentSlide}, translateX: ${translateX}px`);
       }
       
       // Update dots
@@ -60,43 +59,64 @@ let slider;
     let startX = 0;
     let currentX = 0;
     let isDragging = false;
+    let touchStartTime = 0;
+    let hasMoved = false;
     
     function handleStart(e) {
+      if (sliderLocked) return;
       startX = e.touches ? e.touches[0].clientX : e.clientX;
       isDragging = true;
+      touchStartTime = Date.now();
+      hasMoved = false;
+      
       if (sliderWrapper) {
         sliderWrapper.style.transition = 'none';
       }
+      
+      console.log('🎯 Slider drag start');
     }
     
     function handleMove(e) {
-      if (!isDragging) return;
+      if (sliderLocked || !isDragging) return;
       e.preventDefault();
       currentX = e.touches ? e.touches[0].clientX : e.clientX;
       const diff = currentX - startX;
       const baseTranslateX = -currentSlide * window.innerWidth;
+      
+      // Mark as moved if there's significant movement
+      if (Math.abs(diff) > 10) {
+        hasMoved = true;
+      }
+      
       if (sliderWrapper) {
         sliderWrapper.style.transform = `translateX(${baseTranslateX + diff}px)`;
       }
     }
     
     function handleEnd() {
-      if (!isDragging) return;
+      if (sliderLocked || !isDragging) return;
       isDragging = false;
       
       const diff = currentX - startX;
-      const threshold = window.innerWidth * 0.2;
+      const threshold = window.innerWidth * 0.3; // Increased threshold
+      const touchDuration = Date.now() - touchStartTime;
       
-      // Only change slide if there was significant movement
-      if (Math.abs(diff) > threshold) {
+      console.log(`🎯 Slider drag end: diff=${diff}, threshold=${threshold}, hasMoved=${hasMoved}, duration=${touchDuration}ms`);
+      
+      // Only change slide if there was significant movement AND it was a drag, not a tap
+      if (hasMoved && Math.abs(diff) > threshold) {
         if (diff > 0 && currentSlide > 0) {
+          console.log('🎯 Moving to previous slide');
           goToSlide(currentSlide - 1);
         } else if (diff < 0 && currentSlide < totalSlides - 1) {
+          console.log('🎯 Moving to next slide');
           goToSlide(currentSlide + 1);
         } else {
+          console.log('🎯 At boundary, staying on current slide');
           updateSlider(); // Stay on current slide if at boundary
         }
       } else {
+        console.log('🎯 Not enough movement or was a tap, staying on current slide');
         updateSlider(); // Stay on current slide if not enough movement
       }
       
@@ -105,14 +125,21 @@ let slider;
       }
     }
     
-    // Add event listeners
+    // Add event listeners - ONLY for actual dragging, not tapping
     if (sliderWrapper) {
       sliderWrapper.addEventListener('touchstart', handleStart, { passive: false });
       sliderWrapper.addEventListener('touchmove', handleMove, { passive: false });
-      sliderWrapper.addEventListener('touchend', handleEnd);
+      sliderWrapper.addEventListener('touchend', handleEnd, { passive: false });
       sliderWrapper.addEventListener('mousedown', handleStart);
       sliderWrapper.addEventListener('mousemove', handleMove);
       sliderWrapper.addEventListener('mouseup', handleEnd);
+      
+      // Prevent accidental clicks on slider content
+      sliderWrapper.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('🚫 Slider click prevented');
+      });
     }
     
     // Dot navigation
@@ -125,16 +152,25 @@ let slider;
     
     // Button handlers
     if (playButton) {
-      playButton.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent slider from moving
-        console.log('🎮 Play clicked - starting game');
-        
-        // Simple start - no animations
+      const startGameNow = (e) => {
+        if (sliderLocked) return;
+        if (e) { try { e.stopPropagation(); } catch {} }
+        console.log('🎮 Play - start game');
+        sliderLocked = true;
+        isDragging = false;
         home.style.display = 'none';
         appHost.style.display = 'block';
         appHost.removeAttribute('hidden');
         boot();
-      });
+      };
+
+      // Swallow pointer starts so wrapper doesn't treat it as a drag
+      playButton.addEventListener('mousedown', (e) => { e.stopPropagation(); });
+      playButton.addEventListener('touchstart', (e) => { e.stopPropagation(); }, { passive: true });
+      playButton.addEventListener('mouseup', (e) => { e.stopPropagation(); });
+      // On some mobile browsers, click can be canceled; trigger on touchend as well
+      playButton.addEventListener('touchend', startGameNow, { passive: true });
+      playButton.addEventListener('click', startGameNow);
     }
     
     if (statsButton) {
@@ -164,6 +200,10 @@ let slider;
     window.startGame = () => {
       console.log('🎮 Starting game...');
       
+      // Lock slider and start game (programmatic)
+      sliderLocked = true;
+      isDragging = false;
+
       // Simple start - no slider manipulation
       home.style.display = 'none';
       appHost.style.display = 'block';
@@ -178,6 +218,9 @@ let slider;
     window.exitToMenu = async () => {
       console.log('🏠 Exiting to menu...');
       try {
+        // Unlock slider for homepage interactions
+        sliderLocked = false;
+        isDragging = false;
         // USE CLEANUPGAME FROM APP.JS - BETTER APPROACH
         try {
           const { cleanupGame } = await import('./modules/app.js');

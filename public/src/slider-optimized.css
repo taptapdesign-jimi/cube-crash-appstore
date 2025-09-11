@@ -1,58 +1,42 @@
 /* OPTIMIZED SLIDER FOR IPHONE 13 & XCODE COMPATIBILITY */
 
 #slider-container {
-  position: relative !important;
-  width: 100vw !important;
-  margin: 0 !important;
-  overflow: hidden !important;
+  position: relative;
+  width: 100vw;
+  margin: 0;
+  overflow: hidden;
   border-radius: 0;
-  margin-top: -10vh !important; /* Lift up 20% */
-  left: 0 !important;
-  top: 0 !important;
-  padding: 0 !important;
-  height: 100vh !important;
+  margin-top: -10vh; /* Lift up 20% */
 }
 
 #slider-wrapper {
-  display: flex !important;
-  width: 300vw !important; /* 3 slides = 300vw */
+  display: flex;
+  width: 300%; /* 3 slides */
   transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Elastic bounce */
   will-change: transform;
-  position: relative !important;
-  left: 0 !important;
-  top: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  height: 100vh !important;
 }
 
 .slider-slide {
-  width: 100vw !important; /* Each slide = 100vw */
+  width: 33.333%; /* 1/3 of 300% */
   flex-shrink: 0;
-  display: flex !important;
+  display: flex;
   align-items: flex-start;
   justify-content: center;
-  min-height: 100vh !important;
-  position: relative !important;
+  min-height: 100vh;
+  position: relative;
   padding-top: 8vh;
-  left: 0 !important;
-  top: 0 !important;
-  margin: 0 !important;
 }
 
 .slide-content {
-  display: flex !important;
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  width: 100% !important; /* 100% of slide width */
+  width: 100vw;
   height: auto;
   padding: 0;
-  position: relative !important;
+  position: relative;
   gap: 0;
-  left: 0 !important;
-  top: 0 !important;
-  margin: 0 !important;
 }
 
 .hero-container {
@@ -137,17 +121,15 @@
 }
 
 .slide-text {
-  text-align: center !important;
+  text-align: center;
   z-index: 3;
-  position: relative !important;
+  position: relative;
   margin-bottom: 30px;
-  display: flex !important;
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 100% !important;
-  left: 0 !important;
-  top: 0 !important;
+  width: 100%;
 }
 
 .slide-tagline {
@@ -161,8 +143,8 @@
 }
 
 .slide-button {
-  width: 250px !important;
-  height: 55px !important;
+  width: 250px;
+  height: 55px;
   border: none;
   border-radius: 28px;
   font-family: system-ui, -apple-system, sans-serif;
@@ -170,46 +152,35 @@
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
-  position: relative !important;
+  position: relative;
   z-index: 4;
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  left: 0 !important;
-  top: 0 !important;
-  margin: 0 auto !important;
 }
 
 /* Navigation Dots */
 #slider-dots {
-  display: flex !important;
+  display: flex;
   justify-content: center;
   align-items: center;
   gap: 12px;
   margin-top: 20px;
   padding: 0 0 20px 0;
-  position: fixed !important; /* Fixed instead of absolute */
-  bottom: 20px !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: 100vw !important;
-  z-index: 1000 !important; /* Higher z-index */
-  visibility: visible !important;
-  opacity: 1 !important;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  z-index: 10;
 }
 
 .slider-dot {
-  width: 12px !important;
-  height: 12px !important;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   border: none;
   background: #DDD;
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
 }
 
 .slider-dot.active {
