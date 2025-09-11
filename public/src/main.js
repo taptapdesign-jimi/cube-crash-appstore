@@ -184,6 +184,17 @@ let slider;
           window.app = null;
         }
         
+        // RESET GSAP TIMELINE - CRITICAL!
+        try {
+          if (window.gsap && window.gsap.globalTimeline) {
+            window.gsap.globalTimeline.resume();
+            window.gsap.killTweensOf("*");
+            console.log('✅ GSAP timeline reset');
+          }
+        } catch (e) {
+          console.log('⚠️ GSAP reset error:', e);
+        }
+        
         // CLEAR APP CONTAINER
         appHost.innerHTML = '';
         appHost.style.display = 'none';
@@ -206,6 +217,13 @@ let slider;
         dots.forEach((dot, index) => {
           dot.classList.toggle('active', index === 0);
         });
+        
+        // FORCE SLIDER VISIBILITY
+        if (sliderWrapper) {
+          sliderWrapper.style.display = 'flex';
+          sliderWrapper.style.visibility = 'visible';
+          sliderWrapper.style.opacity = '1';
+        }
         
         console.log('✅ Exit to menu completed - slider reset to slide 0');
       } catch (error) {

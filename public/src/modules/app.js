@@ -921,6 +921,16 @@ export function restart() {
 export function cleanupGame() {
   console.log('🧹 Cleaning up game state');
   
+  // CRITICAL: Reset GSAP timeline first
+  try {
+    gsap.killTweensOf("*");
+    gsap.globalTimeline.clear();
+    gsap.globalTimeline.resume(); // CRITICAL: Resume timeline
+    console.log('✅ GSAP timeline reset and cleared');
+  } catch (e) {
+    console.log('⚠️ GSAP cleanup error:', e);
+  }
+  
   // Reset all game state
   score = 0;
   moves = MOVES_MAX;
