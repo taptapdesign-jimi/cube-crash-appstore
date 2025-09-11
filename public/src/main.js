@@ -36,8 +36,11 @@ let slider;
     // Simple slider functions
     function updateSlider() {
       if (sliderWrapper) {
-        const translateX = -currentSlide * window.innerWidth;
-        sliderWrapper.style.transform = `translateX(${translateX}px)`;
+        // Use 100vw instead of window.innerWidth for better mobile support
+        const slideWidth = 100; // 100vw = 100%
+        const translateX = -currentSlide * slideWidth;
+        sliderWrapper.style.transform = `translateX(${translateX}%)`;
+        console.log(`🎯 Slider update: slide ${currentSlide}, translateX: ${translateX}%`);
       }
       
       // Update dots
@@ -151,34 +154,17 @@ let slider;
     }
     
     // Initialize
+    console.log('🎯 Initializing slider...');
+    console.log('🎯 Total slides:', totalSlides);
+    console.log('🎯 Current slide:', currentSlide);
     updateSlider();
+    console.log('✅ Slider initialized');
     
     // Global functions for game
     window.startGame = () => {
       console.log('🎮 Starting game...');
       
-      // Reset slider to slide 0 before starting - BULLETPROOF
-      currentSlide = 0;
-      
-      // FORCE SLIDER TO SLIDE 0 IMMEDIATELY
-      if (sliderWrapper) {
-        sliderWrapper.style.transition = 'none';
-        sliderWrapper.style.transform = 'translateX(0px)';
-        sliderWrapper.offsetHeight; // Force reflow
-        sliderWrapper.style.transition = 'transform 0.3s ease-out';
-      }
-      
-      // RESET DOTS
-      dots.forEach((dot, index) => {
-        dot.classList.remove('active');
-        if (index === 0) {
-          dot.classList.add('active');
-        }
-      });
-      
-      updateSlider();
-      
-      // Simple start - no animations
+      // Simple start - no slider manipulation
       home.style.display = 'none';
       appHost.style.display = 'block';
       appHost.removeAttribute('hidden');
