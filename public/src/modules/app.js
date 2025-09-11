@@ -341,12 +341,7 @@ export function layout(){
     safeTop = Math.max(safeAreaTop, fivePercentFromTop); // Use larger of the two
     hudBottom = safeTop + HUD_H + GAP_HUD;
     
-    // Center board between HUD and bottom edge
-    const availableHeight = vh - hudBottom - BOT_PAD;
-    const boardHeight = h;
-    const boardY = hudBottom + Math.round((availableHeight - boardHeight) / 2);
-    
-    console.log('📱 Mobile: HUD at 5% from top:', safeTop, 'px, board centered at y:', boardY, 'px (available height:', availableHeight, 'px, board height:', boardHeight, 'px)');
+    console.log('📱 Mobile: HUD at 5% from top:', safeTop, 'px, board will be centered below HUD');
   } else {
     // Desktop: Use calculated safe area positioning
     safeTop = TOP_PAD + adjustedSAT;
@@ -369,15 +364,11 @@ export function layout(){
   board.x = Math.min(Math.max(idealLeft, LEFT_PAD), maxLeft);
   
   // Center board between HUD and bottom
-  if (isMobile) {
-    // Use pre-calculated boardY for mobile
-    board.y = Math.round(boardY);
-  } else {
-    // Desktop: center normally
-    const availableHeight = vh - hudBottom - BOT_PAD;
-    const centerY = hudBottom + (availableHeight - sh) / 2;
-    board.y = Math.round(centerY);
-  }
+  const availableHeight = vh - hudBottom - BOT_PAD;
+  const centerY = hudBottom + (availableHeight - sh) / 2;
+  board.y = Math.round(centerY);
+  
+  console.log('🎯 Board centered at y:', board.y, 'px (available height:', availableHeight, 'px, board height:', sh, 'px)');
   
   console.log('🎯 Board positioning (HUD below notch on mobile):', {
     isMobile,
