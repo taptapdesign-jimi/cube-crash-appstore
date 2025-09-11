@@ -225,13 +225,28 @@ let slider;
         // RESET SLIDER TO SLIDE 0 - BULLETPROOF
         currentSlide = 0;
         
-        // FORCE SLIDER TO SLIDE 0 IMMEDIATELY
+        // RESET DOTS FIRST - BULLETPROOF
+        dots.forEach((dot, index) => {
+          dot.classList.remove('active');
+          if (index === 0) {
+            dot.classList.add('active');
+          }
+        });
+        
+        // FORCE SLIDER TO SLIDE 0 IMMEDIATELY - NO UPDATE SLIDER CALL
         if (sliderWrapper) {
           sliderWrapper.style.transition = 'none'; // Disable transition
           sliderWrapper.style.transform = 'translateX(0px)';
           sliderWrapper.style.display = 'flex';
           sliderWrapper.style.visibility = 'visible';
           sliderWrapper.style.opacity = '1';
+          sliderWrapper.style.position = 'relative';
+          sliderWrapper.style.left = '0px';
+          sliderWrapper.style.top = '0px';
+          sliderWrapper.style.width = '300%'; // CRITICAL: Reset width
+          sliderWrapper.style.height = 'auto';
+          sliderWrapper.style.margin = '0px';
+          sliderWrapper.style.padding = '0px';
           
           // Force reflow
           sliderWrapper.offsetHeight;
@@ -240,20 +255,15 @@ let slider;
           sliderWrapper.style.transition = 'transform 0.3s ease-out';
         }
         
-        // RESET DOTS - BULLETPROOF
-        dots.forEach((dot, index) => {
-          dot.classList.remove('active');
-          if (index === 0) {
-            dot.classList.add('active');
-          }
-        });
-        
         // FORCE HOME VISIBILITY - BULLETPROOF
         if (home) {
           home.style.display = 'block';
           home.style.visibility = 'visible';
           home.style.opacity = '1';
           home.style.pointerEvents = 'auto';
+          home.style.position = 'relative';
+          home.style.left = '0px';
+          home.style.top = '0px';
         }
         
         // FORCE PLAY BUTTON VISIBILITY
@@ -262,10 +272,55 @@ let slider;
           playButton.style.visibility = 'visible';
           playButton.style.opacity = '1';
           playButton.style.pointerEvents = 'auto';
+          playButton.style.position = 'relative';
+          playButton.style.left = '0px';
+          playButton.style.top = '0px';
         }
         
-        // UPDATE SLIDER AFTER ALL FORCES
-        updateSlider();
+        // FORCE SLIDER CONTAINER VISIBILITY
+        const sliderContainer = document.getElementById('slider-container');
+        if (sliderContainer) {
+          sliderContainer.style.display = 'block';
+          sliderContainer.style.visibility = 'visible';
+          sliderContainer.style.opacity = '1';
+          sliderContainer.style.position = 'relative';
+          sliderContainer.style.left = '0px';
+          sliderContainer.style.top = '0px';
+          sliderContainer.style.marginTop = '-10vh'; // CRITICAL: Reset margin-top
+          sliderContainer.style.marginLeft = '0px';
+          sliderContainer.style.marginRight = '0px';
+          sliderContainer.style.marginBottom = '0px';
+        }
+        
+        // FORCE SLIDER DOTS VISIBILITY
+        const sliderDots = document.getElementById('slider-dots');
+        if (sliderDots) {
+          sliderDots.style.display = 'flex';
+          sliderDots.style.visibility = 'visible';
+          sliderDots.style.opacity = '1';
+          sliderDots.style.position = 'absolute';
+          sliderDots.style.bottom = '0px';
+          sliderDots.style.left = '50%';
+          sliderDots.style.transform = 'translateX(-50%)';
+          sliderDots.style.zIndex = '10';
+        }
+        
+        // FORCE SLIDE RESET - CRITICAL FOR POSITIONING
+        slides.forEach((slide, index) => {
+          slide.style.width = '33.333%';
+          slide.style.flexShrink = '0';
+          slide.style.display = 'flex';
+          slide.style.alignItems = 'flex-start';
+          slide.style.justifyContent = 'center';
+          slide.style.minHeight = '100vh';
+          slide.style.position = 'relative';
+          slide.style.paddingTop = '8vh';
+          slide.style.margin = '0px';
+          slide.style.left = '0px';
+          slide.style.top = '0px';
+        });
+        
+        // DO NOT CALL updateSlider() - it can override our positioning
         
         console.log('✅ Exit to menu completed - slider reset to slide 0');
       } catch (error) {
