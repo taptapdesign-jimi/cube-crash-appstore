@@ -355,12 +355,12 @@ export function layout(){
   }
   
   // Limit board size to prevent it from being too large
-  const maxScale = 0.5; // Maximum 50% of available space
-  const s = Math.min(
-    (vw - LEFT_PAD - RIGHT_PAD) / w, 
-    (vh - hudBottom - BOT_PAD) / h,
-    maxScale
-  );
+  const maxScale = 0.3; // Maximum 30% of available space
+  const widthScale = (vw - LEFT_PAD - RIGHT_PAD) / w;
+  const heightScale = (vh - hudBottom - BOT_PAD) / h;
+  const s = Math.min(widthScale, heightScale, maxScale);
+  
+  console.log('🎯 Board scaling:', { widthScale, heightScale, maxScale, finalScale: s });
   board.scale.set(s, s); board.scale.y = board.scale.x;
 
   const sw = w * s, sh = h * s;
