@@ -18,6 +18,7 @@ import { showStarsModal } from './stars-modal.js';
 import FX from './fx-helpers.js';
 import * as SPAWN from './spawn-helpers.js';
 import * as HUD   from './hud-helpers.js';
+import { wild } from './hud-helpers.js';
 import * as FLOW  from './level-flow.js';
 
 // HUD functions from hud-helpers.js
@@ -879,16 +880,18 @@ function restartGame(){
   console.log('🔥 DRAMATIC: Resetting wild meter to 0');
   wildMeter = 0;
   
-  // DIRECT HUD RESET - no complex logic
+  // DIRECT HUD RESET - simple and reliable
   try {
     console.log('🔄 Calling HUD.updateProgressBar with 0...');
     HUD.updateProgressBar?.(0, false);
     console.log('✅ DRAMATIC: Wild meter reset to 0 successfully');
     
-    // Also try force reset
-    console.log('🔄 Trying HUD.forceWildLoaderToZero...');
-    HUD.forceWildLoaderToZero?.();
-    console.log('✅ HUD.forceWildLoaderToZero called');
+    // Also try direct wild loader reset
+    console.log('🔄 Trying direct wild loader reset...');
+    if (wild && wild.setProgress) {
+      wild.setProgress(0, false);
+      console.log('✅ Direct wild loader reset successful');
+    }
   } catch (error) {
     console.error('❌ DRAMATIC: Error resetting wild meter:', error);
   }

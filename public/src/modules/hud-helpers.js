@@ -117,6 +117,7 @@ let HUD_ROOT = null;
 let movesText, scoreText, comboText; 
 let comboWrap; // wrapper for jitter
 let wild;
+export { wild };
 let __comboJitterTl = null;
 let __comboBumpTl = null;
 let __shakeTl = null;        // drives shake amplitude during bump/deflate
@@ -249,12 +250,7 @@ export function layout({ app, top }) {
     HUD_ROOT.y = top; // Update HUD_ROOT position to match elements
     console.log('🎯 HUD_ROOT.y updated to:', HUD_ROOT.y, 'top:', top, 'vh:', vh, '1% of vh:', Math.round(vh * 0.01));
     
-  // Position wild loader
-  if (wild && wild.view) {
-    wild.view.x = 0;
-    wild.view.y = 0;
-    console.log('🎯 Wild loader positioned at:', { x: wild.view.x, y: wild.view.y });
-  }
+  // Wild loader is already positioned above at barY - don't override it
   
   // Verify HUD is above board
   if (HUD_ROOT.y < 0) {
