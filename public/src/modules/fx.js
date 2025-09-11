@@ -271,6 +271,8 @@ export function screenShake(app, opts = {}){
       
       tl.to(target, { x: dx, y: dy, duration: dt, ease }, 0 + i * dt);
     }
-    tl.to(target, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: 'power2.out' }, '>');
+    // Use the same ease for the return animation, or power2.out for normal shake
+    const returnEase = ease === 'elastic.out(1, 0.3)' ? 'elastic.out(1, 0.5)' : 'power2.out';
+    tl.to(target, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
   } catch {}
 }

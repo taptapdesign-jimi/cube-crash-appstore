@@ -129,16 +129,18 @@ export function merge(src, dst, helpers){
             // Enhanced multiplier tile for wild
             showMultiplierTile(STATE.board, dst, mult, 140, 1.2);
             
-            // Random screen shake with wild force
-            const randomForce = 35 + Math.random() * 20; // 35-55 strength
-            const randomDuration = 0.6 + Math.random() * 0.4; // 0.6-1.0 duration
+            // MUCH STRONGER wild screen shake - elastic and longer
+            const randomForce = 50 + Math.random() * 30; // 50-80 strength (much stronger)
+            const randomDuration = 1.2 + Math.random() * 0.8; // 1.2-2.0 duration (much longer)
             const randomDirection = Math.random() * Math.PI * 2; // Random direction
             
             try { 
               screenShake(STATE.app, { 
                 strength: randomForce, 
                 duration: randomDuration,
-                direction: randomDirection
+                direction: randomDirection,
+                steps: 25, // More steps for smoother shake
+                ease: 'elastic.out(1, 0.3)' // Elastic ease for wild shake
               }); 
               console.log('💥 WILD SHAKE: Force:', randomForce, 'Duration:', randomDuration, 'Direction:', randomDirection);
             } catch {}
