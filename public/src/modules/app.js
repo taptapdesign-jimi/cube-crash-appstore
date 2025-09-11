@@ -355,7 +355,7 @@ export function layout(){
   }
   
   // Limit board size to prevent it from being too large
-  const maxScale = 0.8; // Maximum 80% of available space
+  const maxScale = 0.5; // Maximum 50% of available space
   const s = Math.min(
     (vw - LEFT_PAD - RIGHT_PAD) / w, 
     (vh - hudBottom - BOT_PAD) / h,
