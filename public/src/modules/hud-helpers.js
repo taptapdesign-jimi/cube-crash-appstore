@@ -479,10 +479,26 @@ export function updateProgressBar(ratio, animate = false){
   console.log('🔥 NEW LOGIC: Direct mask manipulation to ratio:', ratio);
   try {
     if (wild.view && wild.view.children) {
+      console.log('🔍 NEW LOGIC: Wild view children:', wild.view.children.map(c => c.label || 'unnamed'));
+      
       const mask = wild.view.children.find(child => child.mask);
-      if (mask) {
+      const fill = wild.view.children.find(child => child !== mask && child !== wild.view.children[0]); // fill is usually second child
+      
+      console.log('🔍 NEW LOGIC: Found mask:', !!mask, 'Found fill:', !!fill);
+      
+      if (mask && fill) {
         const barWidth = 200; // Use fixed width
         const w = Math.max(0, Math.min(barWidth, Math.round(barWidth * ratio)));
+        
+        // Debug fill properties
+        console.log('🔍 NEW LOGIC: Fill properties:', {
+          visible: fill.visible,
+          alpha: fill.alpha,
+          x: fill.x,
+          y: fill.y,
+          width: fill.width,
+          height: fill.height
+        });
         
         // Clear and redraw mask directly
         mask.clear();
@@ -493,7 +509,7 @@ export function updateProgressBar(ratio, animate = false){
         
         console.log('✅ NEW LOGIC: Mask directly updated to width:', w, 'ratio:', ratio);
       } else {
-        console.log('⚠️ NEW LOGIC: Mask not found in wild loader');
+        console.log('⚠️ NEW LOGIC: Mask or fill not found in wild loader');
       }
     } else {
       console.log('⚠️ NEW LOGIC: Wild view or children not found');
