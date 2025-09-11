@@ -349,19 +349,29 @@ export function layout(){
     console.log('🖥️ Desktop: HUD at y:', safeTop, 'px, board starts at y:', hudBottom);
   }
   
-  // Limit board size to prevent it from being too large
-  const maxScale = 0.3; // Maximum 30% of available space
-  const widthScale = (vw - LEFT_PAD - RIGHT_PAD) / w;
+  // Scale board to fit screen width with 24px padding (equivalent to ~6% on mobile)
+  const paddingPercent = 0.06; // 6% padding (equivalent to ~24px on iPhone 13)
+  const availableWidth = vw * (1 - paddingPercent * 2); // 88% of screen width
+  const widthScale = availableWidth / w;
   const heightScale = (vh - hudBottom - BOT_PAD) / h;
-  const s = Math.min(widthScale, heightScale, maxScale);
+  const s = Math.min(widthScale, heightScale); // Use smaller of the two, no max limit
   
-  console.log('🎯 Board scaling:', { widthScale, heightScale, maxScale, finalScale: s });
+  console.log('🎯 Board scaling:', { 
+    availableWidth, 
+    widthScale, 
+    heightScale, 
+    finalScale: s,
+    paddingPercent: (paddingPercent * 100) + '%'
+  });
   board.scale.set(s, s); board.scale.y = board.scale.x;
 
   const sw = w * s, sh = h * s;
+  // Center horizontally with 6% padding
+  const paddingPixels = vw * paddingPercent;
   const idealLeft = Math.round((vw - sw) / 2);
-  const maxLeft   = vw - RIGHT_PAD - sw;
-  board.x = Math.min(Math.max(idealLeft, LEFT_PAD), maxLeft);
+  const minLeft = paddingPixels;
+  const maxLeft = vw - paddingPixels - sw;
+  board.x = Math.min(Math.max(idealLeft, minLeft), maxLeft);
   
   // Center board between HUD and bottom
   const availableHeight = vh - hudBottom - BOT_PAD;
