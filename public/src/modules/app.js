@@ -335,14 +335,18 @@ export function layout(){
   let safeTop, hudBottom;
   
   if (isMobile) {
-    // Mobile: HUD below notch, board starts after HUD - 20px higher (converted to percentage)
-    const baseTop = Math.max(44, adjustedSAT + 8); // Same logic as hud-helpers.js
-    // Add 20px higher, converted to percentage
-    const additionalPixels = 20;
-    const percentageAdjustment = additionalPixels / baseTop; // Convert 20px to percentage
-    safeTop = Math.round(baseTop * (1 - percentageAdjustment)); // Move up by calculated percentage
+    // Mobile: HUD at 5% from top, board centered between HUD and bottom
+    const fivePercentFromTop = Math.round(vh * 0.05); // 5% from top
+    const safeAreaTop = Math.max(44, adjustedSAT + 8);
+    safeTop = Math.max(safeAreaTop, fivePercentFromTop); // Use larger of the two
     hudBottom = safeTop + HUD_H + GAP_HUD;
-    console.log('📱 Mobile: HUD 20px higher at y:', safeTop, 'px (base:', baseTop, 'px, adjustment:', (percentageAdjustment * 100).toFixed(1) + '%), board starts at y:', hudBottom);
+    
+    // Center board between HUD and bottom edge
+    const availableHeight = vh - hudBottom - BOT_PAD;
+    const boardHeight = h;
+    const boardY = hudBottom + Math.round((availableHeight - boardHeight) / 2);
+    
+    console.log('📱 Mobile: HUD at 5% from top:', safeTop, 'px, board centered at y:', boardY, 'px (available height:', availableHeight, 'px, board height:', boardHeight, 'px)');
   } else {
     // Desktop: Use calculated safe area positioning
     safeTop = TOP_PAD + adjustedSAT;
@@ -359,9 +363,15 @@ export function layout(){
   board.x = Math.min(Math.max(idealLeft, LEFT_PAD), maxLeft);
   
   // Center board between HUD and bottom
-  const availableHeight = vh - hudBottom - BOT_PAD;
-  const centerY = hudBottom + (availableHeight - sh) / 2;
-  board.y = Math.round(centerY);
+  if (isMobile) {
+    // Use pre-calculated boardY for mobile
+    board.y = Math.round(boardY);
+  } else {
+    // Desktop: center normally
+    const availableHeight = vh - hudBottom - BOT_PAD;
+    const centerY = hudBottom + (availableHeight - sh) / 2;
+    board.y = Math.round(centerY);
+  }
   
   console.log('🎯 Board positioning (HUD below notch on mobile):', {
     isMobile,
