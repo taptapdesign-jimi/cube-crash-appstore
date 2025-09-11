@@ -176,18 +176,15 @@ export function layout({ app, top }) {
     const SAT = parseFloat(cssVars.getPropertyValue('--sat')) || 0;
     
     if (isIPhone13) {
-      // iPhone 13 specific positioning - 1% from top
-      const notchHeight = 44; // iPhone 13 notch height
-      const safeAreaTop = Math.max(notchHeight, SAT);
+      // iPhone 13 specific positioning - 1% from top (force it)
       const onePercentFromTop = Math.round(vh * 0.01); // 1% from top
-      top = Math.max(safeAreaTop, onePercentFromTop); // Use larger
-      console.log('📱 iPhone 13 detected - HUD positioned at:', top, 'px (1% from top:', onePercentFromTop, 'px, safe area:', safeAreaTop, 'px)');
+      top = onePercentFromTop; // Force 1% from top, ignore safe area
+      console.log('📱 iPhone 13 detected - HUD positioned at:', top, 'px (1% from top:', onePercentFromTop, 'px) - FORCED');
     } else {
-      // Other mobile devices - 1% from top
+      // Other mobile devices - 1% from top (force it)
       const onePercentFromTop = Math.round(vh * 0.01); // 1% from top
-      const safeAreaTop = Math.max(44, SAT);
-      top = Math.max(safeAreaTop, onePercentFromTop); // Use larger
-      console.log('📱 Mobile device detected - HUD positioned at:', top, 'px (1% from top:', onePercentFromTop, 'px, safe area:', safeAreaTop, 'px)');
+      top = onePercentFromTop; // Force 1% from top, ignore safe area
+      console.log('📱 Mobile device detected - HUD positioned at:', top, 'px (1% from top:', onePercentFromTop, 'px) - FORCED');
     }
   } else {
     // On desktop, use the calculated top position
