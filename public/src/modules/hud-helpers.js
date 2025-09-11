@@ -8,12 +8,12 @@ import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
 // Local boardSize function (same as in app.js)
 function boardSize(){ return { w: COLS*TILE + (COLS-1)*GAP, h: ROWS*TILE + (ROWS-1)*GAP }; }
 
-/* ---------------- Wild loader core (flicker-free, 8px) ---------------- */
+/* ---------------- COMPLETELY NEW Wild loader - SIMPLE AND CLEAN ---------------- */
 function makeWildLoader({ width, color = 0xE77449, trackColor = 0xEADFD6 }) {
   const view = new Container();
   view.label = 'wild-loader';
 
-  const H = 8;                         // fiksna visina
+  const H = 8;
   const R = H / 2;
 
   // track
@@ -21,46 +21,27 @@ function makeWildLoader({ width, color = 0xE77449, trackColor = 0xEADFD6 }) {
   track.roundRect(0, 0, width, H, R).fill(trackColor);
   view.addChild(track);
 
-  // fill - ensure it's always orange
+  // fill - ALWAYS orange, no exceptions
   const fill = new Graphics();
-  fill.roundRect(0, 0, width, H, R).fill(0xE77449); // Force orange color
+  fill.roundRect(0, 0, width, H, R).fill(0xE77449);
   view.addChild(fill);
   fill.visible = true;
   fill.alpha = 1.0;
-  console.log('🎨 FIXED: Fill created with forced orange color: 0xE77449, width:', width);
 
-  // mask – ravni gornji rub (bez sine vala), poravnan na piksel
+  // mask
   const mask = new Graphics();
   view.addChild(mask);
   fill.mask = mask;
 
   let progress = 0;
-  let running = false;
   let barWidth = width;
-  let headX = 0; // current head position in local coords
 
-  const redrawMask = () => {
-    const w = Math.max(0, Math.min(barWidth, Math.round(barWidth * progress)));
-    headX = w;
-    view._headX = headX; // expose for debug/extern if needed
-    
-    console.log('🎨 redrawMask called:', { progress, barWidth, w, headX, maskExists: !!mask });
-    
-    // Check if mask exists before calling clear
-    if (mask && typeof mask.clear === 'function') {
-      mask.clear();
-      // Blagi "nudge" −0.5 px uklanja optičku crticu na gornjoj ivici
-      mask.roundRect(0, -0.5, w, H + 1, R).fill(0xffffff);
-      console.log('✅ Mask redrawn with width:', w);
-    } else {
-      console.log('⚠️ Mask not found or clear function not available');
-    }
-  };
-
-  const tick = (dt) => { 
-    if (!running) return;
-    // Don't redraw mask continuously - only when progress changes
-    // redrawMask(); 
+  // SIMPLE: Direct mask update
+  const updateMask = (ratio) => {
+    const w = Math.max(0, Math.min(barWidth, Math.round(barWidth * ratio)));
+    mask.clear();
+    mask.roundRect(0, -0.5, w, H + 1, R).fill(0xffffff);
+    progress = ratio;
   };
 
   const api = {
@@ -68,37 +49,31 @@ function makeWildLoader({ width, color = 0xE77449, trackColor = 0xEADFD6 }) {
     setWidth: (w) => {
       barWidth = Math.max(24, Math.round(w));
       track.clear().roundRect(0, 0, barWidth, H, R).fill(trackColor);
-      fill.clear().roundRect(0, 0, barWidth, H, R).fill(0xE77449); // Force orange
-      redrawMask();
+      fill.clear().roundRect(0, 0, barWidth, H, R).fill(0xE77449);
+      updateMask(progress);
     },
     setProgress: (t, animate = false) => { 
       const newProgress = Math.max(0, Math.min(1, t || 0)); 
-      const was = progress; 
-
-      if (newProgress > was) {
-        // shake fill on start of fill
-        try {
-          gsap.fromTo(fill, { x: fill.x - 2 }, { x: fill.x, duration: 0.2, ease: "elastic.out(1, 0.6)" });
-        } catch (e) {}
-      }
-
+      
       if (!animate) {
-        progress = newProgress; 
-        // Don't call redrawMask - let our custom logic handle it
+        updateMask(newProgress);
         return;
       }
+      
+      // Simple smooth animation
       const o = { p: progress };
       gsap.to(o, {
-        p: newProgress, duration: 1.60, ease: 'elastic.out(1, 0.72)', // sporiji, zaigraniji elastic
-        onUpdate: () => { progress = o.p; redrawMask(); }
+        p: newProgress, 
+        duration: 0.4, 
+        ease: 'power2.out',
+        onUpdate: () => { updateMask(o.p); }
       });
     },
-    charge: () => {}, // noop since bubbles removed
-    start: () => { if (running) return; running = true; gsap.ticker.add(tick); },
-    stop:  () => { if (!running) return; running = false; gsap.ticker.remove(tick); },
+    charge: () => {},
+    start: () => {},
+    stop: () => {},
   };
 
-  redrawMask();
   return api;
 }
 
@@ -457,11 +432,11 @@ export function bumpCombo(){
 
 /* DRAMATIC FIX: Direct wild meter update - no complex logic */
 export function updateProgressBar(ratio, animate = false){
-  console.log('🎯 NEW LOGIC: updateProgressBar called with:', { ratio, animate });
+  console.log('🎯 CLEAN: updateProgressBar called with:', { ratio, animate });
   
-  // FORCE CREATE wild loader if it doesn't exist
+  // CREATE wild loader if it doesn't exist
   if (!wild) {
-    console.log('🔥 NEW LOGIC: Creating wild loader from scratch...');
+    console.log('🔥 CLEAN: Creating wild loader...');
     try {
       wild = makeWildLoader({ width: 200 });
       if (HUD_ROOT) {
@@ -470,82 +445,22 @@ export function updateProgressBar(ratio, animate = false){
         wild.view.x = 0;
         wild.view.y = 0;
         wild.start();
-        console.log('✅ NEW LOGIC: Wild loader created successfully');
+        console.log('✅ CLEAN: Wild loader created successfully');
       }
     } catch (error) {
-      console.error('❌ NEW LOGIC: Error creating wild loader:', error);
+      console.error('❌ CLEAN: Error creating wild loader:', error);
       return;
     }
   }
   
-  // NEW LOGIC: Direct mask manipulation - bypass all complex logic
-  console.log('🔥 NEW LOGIC: Direct mask manipulation to ratio:', ratio);
+  // CLEAN: Use the simple setProgress method
   try {
-    if (wild.view && wild.view.children) {
-      console.log('🔍 NEW LOGIC: Wild view children:', wild.view.children.map(c => c.label || 'unnamed'));
-      
-      const mask = wild.view.children.find(child => child.mask);
-      const fill = wild.view.children.find(child => child !== mask && child !== wild.view.children[0]); // fill is usually second child
-      
-      console.log('🔍 NEW LOGIC: Found mask:', !!mask, 'Found fill:', !!fill);
-      
-      if (mask && fill) {
-        const barWidth = 200; // Use fixed width
-        const w = Math.max(0, Math.min(barWidth, Math.round(barWidth * ratio)));
-        
-        // Debug fill properties
-        console.log('🔍 NEW LOGIC: Fill properties:', {
-          visible: fill.visible,
-          alpha: fill.alpha,
-          x: fill.x,
-          y: fill.y,
-          width: fill.width,
-          height: fill.height
-        });
-        
-        // FIXED LOGIC: Ensure fill is always orange and properly masked
-        fill.clear();
-        fill.roundRect(0, 0, barWidth, 8, 4).fill(0xE77449); // Always orange
-        fill.visible = true;
-        fill.alpha = 1.0;
-        
-        // Animation logic
-        if (animate) {
-          console.log('🎬 FIXED: Starting smooth animation to width:', w);
-          // Smooth animation without elastic bounce
-          const o = { p: 0 };
-          gsap.to(o, {
-            p: w,
-            duration: 0.6,
-            ease: 'power2.out',
-            onUpdate: () => {
-              // Always redraw mask to show orange fill
-              mask.clear();
-              mask.roundRect(0, -0.5, o.p, 8 + 1, 4).fill(0xffffff);
-            },
-            onComplete: () => {
-              console.log('✅ FIXED: Smooth animation completed');
-            }
-          });
-        } else {
-          // Direct mask update
-          mask.clear();
-          mask.roundRect(0, -0.5, w, 8 + 1, 4).fill(0xffffff);
-          console.log('🔍 FIXED: Mask set to width:', w);
-        }
-        
-        // Update internal progress
-        wild._lastP = ratio;
-        
-        console.log('✅ NEW LOGIC: Mask directly updated to width:', w, 'ratio:', ratio);
-      } else {
-        console.log('⚠️ NEW LOGIC: Mask or fill not found in wild loader');
-      }
-    } else {
-      console.log('⚠️ NEW LOGIC: Wild view or children not found');
-    }
+    console.log('🔥 CLEAN: Calling wild.setProgress with ratio:', ratio, 'animate:', animate);
+    wild.setProgress(ratio, animate);
+    wild._lastP = ratio;
+    console.log('✅ CLEAN: Wild loader updated successfully');
   } catch (error) {
-    console.error('❌ NEW LOGIC: Error updating wild meter:', error);
+    console.error('❌ CLEAN: Error updating wild meter:', error);
   }
 }
 
