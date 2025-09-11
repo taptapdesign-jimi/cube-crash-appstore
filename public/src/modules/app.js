@@ -354,7 +354,13 @@ export function layout(){
     console.log('🖥️ Desktop: HUD at y:', safeTop, 'px, board starts at y:', hudBottom);
   }
   
-  const s = Math.min((vw - LEFT_PAD - RIGHT_PAD) / w, (vh - hudBottom - BOT_PAD) / h);
+  // Limit board size to prevent it from being too large
+  const maxScale = 0.8; // Maximum 80% of available space
+  const s = Math.min(
+    (vw - LEFT_PAD - RIGHT_PAD) / w, 
+    (vh - hudBottom - BOT_PAD) / h,
+    maxScale
+  );
   board.scale.set(s, s); board.scale.y = board.scale.x;
 
   const sw = w * s, sh = h * s;
