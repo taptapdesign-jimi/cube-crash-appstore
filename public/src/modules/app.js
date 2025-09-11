@@ -410,6 +410,8 @@ export function layout(){
         };
       }
       HUD.updateHUD?.({ score, moves, combo });
+      // CRITICAL: Call HUD.layout to update HUD positioning
+      HUD.layout?.({ app, top: safeTop });
     }
   } catch (error) {
     console.error('Error during HUD initialization/update in app.js layout:', error);
