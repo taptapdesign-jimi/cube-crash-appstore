@@ -40,19 +40,34 @@ export class AppShell {
   async initModules() {
     console.log('📦 Initializing modules...');
     
-    // Home module
-    const { HomeModule } = await import('../features/home/index.js');
-    this.modules.set('home', new HomeModule(this.eventBus));
+    try {
+      // Home module
+      const { HomeModule } = await import('../features/home/index.js');
+      this.modules.set('home', new HomeModule(this.eventBus));
+      console.log('✅ Home module loaded');
+    } catch (error) {
+      console.error('❌ Home module error:', error);
+    }
     
-    // Game module
-    const { GameModule } = await import('../game/index.js');
-    this.modules.set('game', new GameModule(this.eventBus));
+    try {
+      // Game module
+      const { GameModule } = await import('../game/index.js');
+      this.modules.set('game', new GameModule(this.eventBus));
+      console.log('✅ Game module loaded');
+    } catch (error) {
+      console.error('❌ Game module error:', error);
+    }
     
-    // Animations module
-    const { AnimationModule } = await import('../ui/animations.js');
-    this.modules.set('animations', new AnimationModule(this.eventBus));
+    try {
+      // Animations module
+      const { AnimationModule } = await import('../ui/animations.js');
+      this.modules.set('animations', new AnimationModule(this.eventBus));
+      console.log('✅ Animations module loaded');
+    } catch (error) {
+      console.error('❌ Animations module error:', error);
+    }
     
-    console.log('✅ Modules initialized');
+    console.log('✅ Modules initialization complete');
   }
 
   setupEventListeners() {
@@ -126,24 +141,45 @@ export class AppShell {
   async showGame() {
     console.log('🎮 Showing game...');
     
-    // Hide home
-    this.homeEl.style.display = 'none';
-    this.homeEl.setAttribute('hidden', '');
-    
-    // Show game
-    this.gameEl.style.display = 'block';
-    this.gameEl.removeAttribute('hidden');
-    
-    // Start game module
-    const gameModule = this.modules.get('game');
-    if (gameModule) {
-      await gameModule.start(this.gameEl);
-    }
-    
-    // Animate game in
-    const animations = this.modules.get('animations');
-    if (animations) {
-      await animations.gamePopIn();
+    try {
+      // Hide home
+      this.homeEl.style.display = 'none';
+      this.homeEl.setAttribute('hidden', '');
+      
+      // Show game
+      this.gameEl.style.display = 'block';
+      this.gameEl.removeAttribute('hidden');
+      
+      console.log('🎮 Game container shown, starting game module...');
+      
+      // Start game module
+      const gameModule = this.modules.get('game');
+      if (gameModule) {
+        console.log('🎮 Game module found, starting...');
+        await gameModule.start(this.gameEl);
+        console.log('✅ Game module started');
+      } else {
+        console.error('❌ Game module not found!');
+        // Fallback - try to start game directly
+        const { boot } = await import('../modules/app.js');
+        await boot();
+      }
+      
+      // Animate game in
+      const animations = this.modules.get('animations');
+      if (animations) {
+        await animations.gamePopIn();
+      }
+      
+    } catch (error) {
+      console.error('❌ Show game error:', error);
+      // Fallback - try to start game directly
+      try {
+        const { boot } = await import('../modules/app.js');
+        await boot();
+      } catch (fallbackError) {
+        console.error('❌ Fallback game start error:', fallbackError);
+      }
     }
   }
 
@@ -167,14 +203,21 @@ export class AppShell {
   async handlePlay() {
     console.log('🎮 Handling play...');
     
-    // Animate home out
-    const animations = this.modules.get('animations');
-    if (animations) {
-      await animations.homePopOut();
+    try {
+      // Animate home out
+      const animations = this.modules.get('animations');
+      if (animations) {
+        await animations.homePopOut();
+      }
+      
+      // Transition to game
+      this.setState('GAME');
+      
+    } catch (error) {
+      console.error('❌ Handle play error:', error);
+      // Fallback - just show game
+      this.setState('GAME');
     }
-    
-    // Transition to game
-    this.setState('GAME');
   }
 
   async handleStats() {
