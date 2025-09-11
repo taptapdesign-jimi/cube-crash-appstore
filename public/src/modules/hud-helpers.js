@@ -25,6 +25,7 @@ function makeWildLoader({ width, color = 0xD59477, trackColor = 0xEADFD6 }) {
   const fill = new Graphics();
   fill.roundRect(0, 0, width, H, R).fill(color);
   view.addChild(fill);
+  console.log('🎨 NEW LOGIC: Fill created with color:', color.toString(16), 'width:', width);
 
   // mask – ravni gornji rub (bez sine vala), poravnan na piksel
   const mask = new Graphics();
@@ -503,12 +504,31 @@ export function updateProgressBar(ratio, animate = false){
         // CRITICAL: Redraw fill with full width first
         fill.clear();
         fill.roundRect(0, 0, barWidth, 8, 4).fill(0xD59477); // Orange color
-        console.log('🔍 NEW LOGIC: Fill redrawn with full width:', barWidth);
+        console.log('🔍 NEW LOGIC: Fill redrawn with full width:', barWidth, 'color: 0xD59477');
         
-        // Clear and redraw mask directly
-        mask.clear();
-        mask.roundRect(0, -0.5, w, 8 + 1, 4).fill(0xffffff);
-        console.log('🔍 NEW LOGIC: Mask redrawn with width:', w);
+        // Animation logic
+        if (animate) {
+          console.log('🎬 NEW LOGIC: Starting elastic animation to width:', w);
+          // Use GSAP for elastic animation
+          const o = { p: 0 };
+          gsap.to(o, {
+            p: w,
+            duration: 1.2,
+            ease: 'elastic.out(1, 0.6)',
+            onUpdate: () => {
+              mask.clear();
+              mask.roundRect(0, -0.5, o.p, 8 + 1, 4).fill(0xffffff);
+            },
+            onComplete: () => {
+              console.log('✅ NEW LOGIC: Elastic animation completed');
+            }
+          });
+        } else {
+          // Clear and redraw mask directly
+          mask.clear();
+          mask.roundRect(0, -0.5, w, 8 + 1, 4).fill(0xffffff);
+          console.log('🔍 NEW LOGIC: Mask redrawn with width:', w);
+        }
         
         // Update internal progress
         wild._lastP = ratio;

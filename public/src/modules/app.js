@@ -99,8 +99,8 @@ function addWildProgress(amount){
   
   // NEW LOGIC: Direct HUD update with new logic
   try {
-    console.log('🔄 NEW LOGIC: Calling HUD.updateProgressBar with newValue:', newValue, 'animate: false');
-    HUD.updateProgressBar?.(newValue, false); // Use false for immediate update
+    console.log('🔄 NEW LOGIC: Calling HUD.updateProgressBar with newValue:', newValue, 'animate: true');
+    HUD.updateProgressBar?.(newValue, true); // Use true for elastic animation
     console.log('✅ NEW LOGIC: HUD.updateProgressBar called successfully');
   } catch (error) {
     console.error('❌ NEW LOGIC: Error calling HUD.updateProgressBar:', error);
