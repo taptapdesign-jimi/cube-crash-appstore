@@ -157,8 +157,25 @@ let slider;
     window.startGame = () => {
       console.log('🎮 Starting game...');
       
-      // Reset slider to slide 0 before starting
+      // Reset slider to slide 0 before starting - BULLETPROOF
       currentSlide = 0;
+      
+      // FORCE SLIDER TO SLIDE 0 IMMEDIATELY
+      if (sliderWrapper) {
+        sliderWrapper.style.transition = 'none';
+        sliderWrapper.style.transform = 'translateX(0px)';
+        sliderWrapper.offsetHeight; // Force reflow
+        sliderWrapper.style.transition = 'transform 0.3s ease-out';
+      }
+      
+      // RESET DOTS
+      dots.forEach((dot, index) => {
+        dot.classList.remove('active');
+        if (index === 0) {
+          dot.classList.add('active');
+        }
+      });
+      
       updateSlider();
       
       // Simple start - no animations
@@ -201,29 +218,50 @@ let slider;
         home.style.display = 'block';
         home.removeAttribute('hidden');
         
-        // RESET SLIDER TO SLIDE 0
+        // RESET SLIDER TO SLIDE 0 - BULLETPROOF
         currentSlide = 0;
-        updateSlider();
         
-        // FORCE SLIDER TO SLIDE 0
+        // FORCE SLIDER TO SLIDE 0 IMMEDIATELY
         if (sliderWrapper) {
+          sliderWrapper.style.transition = 'none'; // Disable transition
           sliderWrapper.style.transform = 'translateX(0px)';
           sliderWrapper.style.display = 'flex';
           sliderWrapper.style.visibility = 'visible';
           sliderWrapper.style.opacity = '1';
+          
+          // Force reflow
+          sliderWrapper.offsetHeight;
+          
+          // Re-enable transition
+          sliderWrapper.style.transition = 'transform 0.3s ease-out';
         }
         
-        // RESET DOTS
+        // RESET DOTS - BULLETPROOF
         dots.forEach((dot, index) => {
-          dot.classList.toggle('active', index === 0);
+          dot.classList.remove('active');
+          if (index === 0) {
+            dot.classList.add('active');
+          }
         });
         
-        // FORCE HOME VISIBILITY
+        // FORCE HOME VISIBILITY - BULLETPROOF
         if (home) {
           home.style.display = 'block';
           home.style.visibility = 'visible';
           home.style.opacity = '1';
+          home.style.pointerEvents = 'auto';
         }
+        
+        // FORCE PLAY BUTTON VISIBILITY
+        if (playButton) {
+          playButton.style.display = 'block';
+          playButton.style.visibility = 'visible';
+          playButton.style.opacity = '1';
+          playButton.style.pointerEvents = 'auto';
+        }
+        
+        // UPDATE SLIDER AFTER ALL FORCES
+        updateSlider();
         
         console.log('✅ Exit to menu completed - slider reset to slide 0');
       } catch (error) {
