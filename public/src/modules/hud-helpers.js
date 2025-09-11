@@ -178,7 +178,17 @@ export function layout({ app, top }) {
   const yValue = top + 20;    // red s vrijednostima
   
   console.log('🎯 HUD positioning:', { top, yLabel, yValue, vh, onePercent: Math.round(vh * 0.01) });
-  const valueRowH = Math.max(movesText.height, scoreText.height, comboText.height);
+  // Safe height calculation: avoid early Pixi Text.height access
+  let valueRowH = 24;
+  try {
+    const mh = Number.isFinite(movesText?.height) ? movesText.height : (movesText?.style?.fontSize || 24);
+    const sh = Number.isFinite(scoreText?.height) ? scoreText.height : (scoreText?.style?.fontSize || 24);
+    const ch = Number.isFinite(comboText?.height) ? comboText.height : (comboText?.style?.fontSize || 24);
+    valueRowH = Math.max(mh || 24, sh || 24, ch || 24);
+  } catch (e) {
+    console.warn('🎯 HUD layout: safe height fallback due to early init:', e);
+    valueRowH = Math.max(movesText?.style?.fontSize || 24, scoreText?.style?.fontSize || 24, comboText?.style?.fontSize || 24);
+  }
   const barGap    = Math.round(vh * 0.02); // 2% gap below the numbers
   const barY      = yValue + valueRowH + barGap; 
 
@@ -217,9 +227,15 @@ export function layout({ app, top }) {
   movesText.y = yValue; scoreText.y = yValue;
 
   const barW = Math.max(120, vw - SIDE * 2);
-  wild.view.x = SIDE;
-  wild.view.y = barY;
-  wild.setWidth(barW);
+  if (wild && wild.view) {
+    try {
+      wild.view.x = SIDE;
+      wild.view.y = barY;
+      wild.setWidth(barW);
+    } catch (e) {
+      console.warn('🎯 HUD layout: wild loader position failed (will retry later):', e);
+    }
+  }
   
   // Ensure HUD is properly positioned
   if (HUD_ROOT) {

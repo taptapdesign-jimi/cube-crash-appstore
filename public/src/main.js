@@ -124,11 +124,17 @@ let slider;
     if (playButton) {
       playButton.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent slider from moving
-        console.log('🎮 Play clicked - starting game');
-        home.style.display = 'none';
-        appHost.style.display = 'block';
-        appHost.removeAttribute('hidden');
-        boot();
+        console.log('🎮 Play clicked - starting game with transition');
+        const startGame = () => {
+          home.style.display = 'none';
+          appHost.style.display = 'block';
+          appHost.removeAttribute('hidden');
+          boot();
+        };
+        // Try animated pop-out, fallback to instant
+        import('./modules/animations.js')
+          .then(m => { try { m.animateHomepagePopOut(startGame); } catch { startGame(); } })
+          .catch(() => startGame());
       });
     }
     
@@ -154,18 +160,30 @@ let slider;
     // Global functions for game
     window.startGame = () => {
       console.log('🎮 Starting game...');
-      home.style.display = 'none';
-      appHost.style.display = 'block';
-      appHost.removeAttribute('hidden');
-      boot();
+      const startGame = () => {
+        home.style.display = 'none';
+        appHost.style.display = 'block';
+        appHost.removeAttribute('hidden');
+        boot();
+      };
+      import('./modules/animations.js')
+        .then(m => { try { m.animateHomepagePopOut(startGame); } catch { startGame(); } })
+        .catch(() => startGame());
     };
     
     window.showStats = () => goToSlide(1);
     window.showCollectibles = () => goToSlide(2);
     
-    // Simple exit function
+    // Simple exit function with safe cleanup
     window.exitToMenu = () => {
       console.log('🏠 Exiting to menu...');
+      try {
+        // Attempt to pause/cleanup the game if module is available
+        import('./modules/app.js').then(m => {
+          try { m.pauseGame?.(); } catch {}
+          try { m.cleanupGame?.(); } catch {}
+        }).catch(()=>{});
+      } catch {}
       appHost.style.display = 'none';
       appHost.setAttribute('hidden', 'true');
       home.style.display = 'block';
@@ -173,6 +191,12 @@ let slider;
       // Reset slider to first slide
       currentSlide = 0;
       updateSlider();
+      // Animate homepage pop-in (best effort)
+      try {
+        import('./modules/animations.js')
+          .then(m => { try { m.animateHomepagePopIn?.(() => {}); } catch {} })
+          .catch(() => {});
+      } catch {}
       console.log('✅ Slider reset to slide 0');
     };
     
