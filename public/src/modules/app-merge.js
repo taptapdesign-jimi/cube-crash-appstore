@@ -112,7 +112,44 @@ export function merge(src, dst, helpers){
           innerFlashAtTile(STATE.board, dst, 120);
           woodShardsAtTile(STATE.board, dst, true);
           showMultiplierTile(STATE.board, dst, mult, 120, 1.0);
-          try { screenShake(STATE.app, { strength: Math.min(25, 12 + Math.max(1, mult) * 3), duration: 0.4 }); } catch {}
+          
+          // WILD EXPLOSION: Much stronger effects for wild merge
+          if (wildActive) {
+            console.log('💥 WILD EXPLOSION: Triggering enhanced effects');
+            
+            // Enhanced glass crack for wild
+            glassCrackAtTile(STATE.board, dst, 120 * 0.8);
+            
+            // Enhanced inner flash for wild
+            innerFlashAtTile(STATE.board, dst, 180);
+            
+            // Enhanced wood shards for wild
+            woodShardsAtTile(STATE.board, dst, true);
+            
+            // Enhanced multiplier tile for wild
+            showMultiplierTile(STATE.board, dst, mult, 140, 1.2);
+            
+            // Random screen shake with wild force
+            const randomForce = 35 + Math.random() * 20; // 35-55 strength
+            const randomDuration = 0.6 + Math.random() * 0.4; // 0.6-1.0 duration
+            const randomDirection = Math.random() * Math.PI * 2; // Random direction
+            
+            try { 
+              screenShake(STATE.app, { 
+                strength: randomForce, 
+                duration: randomDuration,
+                direction: randomDirection
+              }); 
+              console.log('💥 WILD SHAKE: Force:', randomForce, 'Duration:', randomDuration, 'Direction:', randomDirection);
+            } catch {}
+            
+            // Additional smoke bubbles for wild explosion
+            smokeBubblesAtTile(STATE.board, dst, 120, 1.5);
+            
+          } else {
+            // Normal merge 6 effects
+            try { screenShake(STATE.app, { strength: Math.min(25, 12 + Math.max(1, mult) * 3), duration: 0.4 }); } catch {}
+          }
         }
 
         const gx = dst.gridX, gy = dst.gridY;

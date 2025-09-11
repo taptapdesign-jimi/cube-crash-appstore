@@ -242,6 +242,7 @@ export function screenShake(app, opts = {}){
       strength = 18,   // px amplitude (pojačano)
       steps    = 15,   // jitter steps (više koraka)
       ease     = 'sine.inOut',
+      direction = 0,   // Random direction in radians
     } = opts || {};
 
     // kill any ongoing shake
@@ -254,8 +255,20 @@ export function screenShake(app, opts = {}){
     for (let i = 0; i < steps; i++){
       const p = 1 - (i / steps);
       const amp = strength * p * p; // quadratic decay
-      const dx = (Math.random() * 2 - 1) * amp;
-      const dy = (Math.random() * 2 - 1) * amp;
+      
+      // Use direction for wild explosions, random for normal
+      let dx, dy;
+      if (direction !== 0) {
+        // Wild explosion: use direction with some randomness
+        const angle = direction + (Math.random() - 0.5) * 0.5; // ±0.25 radians variation
+        dx = Math.cos(angle) * amp;
+        dy = Math.sin(angle) * amp;
+      } else {
+        // Normal shake: random direction
+        dx = (Math.random() * 2 - 1) * amp;
+        dy = (Math.random() * 2 - 1) * amp;
+      }
+      
       tl.to(target, { x: dx, y: dy, duration: dt, ease }, 0 + i * dt);
     }
     tl.to(target, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: 'power2.out' }, '>');
