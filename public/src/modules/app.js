@@ -335,13 +335,13 @@ export function layout(){
   let safeTop, hudBottom;
   
   if (isMobile) {
-    // Mobile: HUD at 5% from top, board centered between HUD and bottom
-    const fivePercentFromTop = Math.round(vh * 0.05); // 5% from top
+    // Mobile: HUD at 2% from top, board centered between HUD and bottom
+    const twoPercentFromTop = Math.round(vh * 0.02); // 2% from top
     const safeAreaTop = Math.max(44, adjustedSAT);
-    safeTop = Math.max(safeAreaTop, fivePercentFromTop); // Use larger, but don't add extra 8px
+    safeTop = Math.max(safeAreaTop, twoPercentFromTop); // Use larger, but don't add extra 8px
     hudBottom = safeTop + HUD_H + GAP_HUD;
     
-    console.log('📱 Mobile: HUD at 5% from top:', safeTop, 'px, board will be centered below HUD');
+    console.log('📱 Mobile: HUD at 2% from top:', safeTop, 'px, board will be centered below HUD');
   } else {
     // Desktop: Use calculated safe area positioning
     safeTop = TOP_PAD + adjustedSAT;
