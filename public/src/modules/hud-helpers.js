@@ -170,15 +170,26 @@ export function layout({ app, top }) {
   // Force HUD to be positioned below notch on mobile devices
   const isMobile = vw < 768 || vh > vw;
   if (isMobile) {
-    // On mobile, position HUD below the notch/safe area - 20px higher (converted to percentage)
+    // iPhone 13 specific detection and positioning
+    const isIPhone13 = (vw === 390 && vh === 844) || (vw === 428 && vh === 926); // iPhone 13/13 Pro/13 Pro Max
     const cssVars = getComputedStyle(document.documentElement);
     const SAT = parseFloat(cssVars.getPropertyValue('--sat')) || 0;
-    const baseTop = Math.max(44, SAT + 8); // Minimum 44px below notch, or 8px below safe area
-    // Add 20px higher, converted to percentage
-    const additionalPixels = 20;
-    const percentageAdjustment = additionalPixels / baseTop; // Convert 20px to percentage
-    top = Math.round(baseTop * (1 - percentageAdjustment)); // Move up by calculated percentage
-    console.log('📱 Mobile device detected - HUD positioned 20px higher at:', top, 'px (base:', baseTop, 'px, adjustment:', (percentageAdjustment * 100).toFixed(1) + '%, SAT:', SAT, 'px)');
+    
+    if (isIPhone13) {
+      // iPhone 13 specific positioning - more precise
+      const notchHeight = 44; // iPhone 13 notch height
+      const safeAreaTop = Math.max(notchHeight, SAT);
+      top = Math.round(safeAreaTop + 8); // 8px below notch/safe area
+      console.log('📱 iPhone 13 detected - HUD positioned at:', top, 'px (notch:', notchHeight, 'px, SAT:', SAT, 'px)');
+    } else {
+      // Other mobile devices
+      const baseTop = Math.max(44, SAT + 8); // Minimum 44px below notch, or 8px below safe area
+      // Add 20px higher, converted to percentage
+      const additionalPixels = 20;
+      const percentageAdjustment = additionalPixels / baseTop; // Convert 20px to percentage
+      top = Math.round(baseTop * (1 - percentageAdjustment)); // Move up by calculated percentage
+      console.log('📱 Mobile device detected - HUD positioned 20px higher at:', top, 'px (base:', baseTop, 'px, adjustment:', (percentageAdjustment * 100).toFixed(1) + '%, SAT:', SAT, 'px)');
+    }
   } else {
     // On desktop, use the calculated top position
     console.log('🖥️ Desktop device - using calculated top position:', top);

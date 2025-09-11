@@ -26,6 +26,21 @@ body{height:100dvh;height:100vh;overflow:hidden}
   /* GSAP will handle all animations */
 }
 
+/* iPhone 13 specific fixes */
+@supports (padding: max(0px)) {
+  #home {
+    padding-top: max(env(safe-area-inset-top), 44px); /* iPhone 13 notch height */
+    padding-bottom: max(env(safe-area-inset-bottom), 34px); /* iPhone 13 home indicator */
+  }
+}
+
+/* iPhone 13 specific viewport fixes */
+@supports (height: 100dvh) {
+  #home {
+    height: 100dvh; /* Dynamic viewport height for iPhone 13 */
+  }
+}
+
 /* Remove CSS transitions to allow GSAP control */
 .slide {
   /* GSAP will handle all animations */
