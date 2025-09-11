@@ -189,24 +189,28 @@ let slider;
     window.showCollectibles = () => goToSlide(2);
     
     // SIMPLE EXIT FUNCTION - KILL EVERYTHING AND RESET
-    window.exitToMenu = () => {
+    window.exitToMenu = async () => {
       console.log('🏠 Exiting to menu...');
       try {
-        // KILL PIXI APP
-        if (window.app && window.app.destroy) {
-          window.app.destroy(true);
-          window.app = null;
-        }
-        
-        // RESET GSAP TIMELINE - CRITICAL!
+        // USE CLEANUPGAME FROM APP.JS - BETTER APPROACH
         try {
+          const { cleanupGame } = await import('./modules/app.js');
+          cleanupGame();
+          console.log('✅ Game cleaned up via cleanupGame()');
+        } catch (e) {
+          console.log('⚠️ cleanupGame import error, using fallback:', e);
+          
+          // FALLBACK: KILL PIXI APP
+          if (window.app && window.app.destroy) {
+            window.app.destroy(true);
+            window.app = null;
+          }
+          
+          // FALLBACK: RESET GSAP TIMELINE
           if (window.gsap && window.gsap.globalTimeline) {
             window.gsap.globalTimeline.resume();
             window.gsap.killTweensOf("*");
-            console.log('✅ GSAP timeline reset');
           }
-        } catch (e) {
-          console.log('⚠️ GSAP reset error:', e);
         }
         
         // CLEAR APP CONTAINER
