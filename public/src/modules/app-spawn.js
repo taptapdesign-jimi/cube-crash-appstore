@@ -83,11 +83,6 @@ export function sweepForUnanimatedSpawns(){
     STATE.tiles.forEach(t=>{
       if (!t || t.locked) return;
       if (!t._spawned){
-        // Don't animate wild tiles that were just spawned - they already have their animation
-        if (t.special === 'wild' && t.alpha > 0) {
-          t._spawned = true; // Mark as spawned to prevent double animation
-          return;
-        }
         spawnBounce(t, ()=>{}, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 });
       }
     });
@@ -110,5 +105,5 @@ export function openEmpties(count){
     if (STATE.drag?.bindToTile) STATE.drag.bindToTile(t);
     makeBoard.setValue(t, [1,2,3,4,5][(Math.random()*5)|0], 0);
     spawnBounce(t, () => { try{ fixHoverAnchor(t); }catch{}; res(); }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 });
-  }))).then(()=>{ try{ drawBoardBG(); }catch{}; sweepForUnanimatedSpawns(); });
+  }))).then(()=>{ try{ drawBoardBG(); }catch{}; });
 }
