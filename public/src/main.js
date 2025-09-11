@@ -124,17 +124,13 @@ let slider;
     if (playButton) {
       playButton.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent slider from moving
-        console.log('🎮 Play clicked - starting game with transition');
-        const startGame = () => {
-          home.style.display = 'none';
-          appHost.style.display = 'block';
-          appHost.removeAttribute('hidden');
-          boot();
-        };
-        // Try animated pop-out, fallback to instant
-        import('./modules/animations.js')
-          .then(m => { try { m.animateHomepagePopOut(startGame); } catch { startGame(); } })
-          .catch(() => startGame());
+        console.log('🎮 Play clicked - starting game');
+        
+        // Simple start - no animations
+        home.style.display = 'none';
+        appHost.style.display = 'block';
+        appHost.removeAttribute('hidden');
+        boot();
       });
     }
     
@@ -160,15 +156,16 @@ let slider;
     // Global functions for game
     window.startGame = () => {
       console.log('🎮 Starting game...');
-      const startGame = () => {
-        home.style.display = 'none';
-        appHost.style.display = 'block';
-        appHost.removeAttribute('hidden');
-        boot();
-      };
-      import('./modules/animations.js')
-        .then(m => { try { m.animateHomepagePopOut(startGame); } catch { startGame(); } })
-        .catch(() => startGame());
+      
+      // Reset slider to slide 0 before starting
+      currentSlide = 0;
+      updateSlider();
+      
+      // Simple start - no animations
+      home.style.display = 'none';
+      appHost.style.display = 'block';
+      appHost.removeAttribute('hidden');
+      boot();
     };
     
     window.showStats = () => goToSlide(1);
@@ -211,6 +208,9 @@ let slider;
         // FORCE SLIDER TO SLIDE 0
         if (sliderWrapper) {
           sliderWrapper.style.transform = 'translateX(0px)';
+          sliderWrapper.style.display = 'flex';
+          sliderWrapper.style.visibility = 'visible';
+          sliderWrapper.style.opacity = '1';
         }
         
         // RESET DOTS
@@ -218,11 +218,11 @@ let slider;
           dot.classList.toggle('active', index === 0);
         });
         
-        // FORCE SLIDER VISIBILITY
-        if (sliderWrapper) {
-          sliderWrapper.style.display = 'flex';
-          sliderWrapper.style.visibility = 'visible';
-          sliderWrapper.style.opacity = '1';
+        // FORCE HOME VISIBILITY
+        if (home) {
+          home.style.display = 'block';
+          home.style.visibility = 'visible';
+          home.style.opacity = '1';
         }
         
         console.log('✅ Exit to menu completed - slider reset to slide 0');
