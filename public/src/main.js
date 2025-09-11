@@ -174,30 +174,45 @@ let slider;
     window.showStats = () => goToSlide(1);
     window.showCollectibles = () => goToSlide(2);
     
-    // Simple exit function with safe cleanup
+    // SIMPLE EXIT FUNCTION - KILL EVERYTHING AND RESET
     window.exitToMenu = () => {
       console.log('🏠 Exiting to menu...');
       try {
-        // Attempt to pause/cleanup the game if module is available
-        import('./modules/app.js').then(m => {
-          try { m.pauseGame?.(); } catch {}
-          try { m.cleanupGame?.(); } catch {}
-        }).catch(()=>{});
-      } catch {}
-      appHost.style.display = 'none';
-      appHost.setAttribute('hidden', 'true');
-      home.style.display = 'block';
-      home.removeAttribute('hidden');
-      // Reset slider to first slide
-      currentSlide = 0;
-      updateSlider();
-      // Animate homepage pop-in (best effort)
-      try {
-        import('./modules/animations.js')
-          .then(m => { try { m.animateHomepagePopIn?.(() => {}); } catch {} })
-          .catch(() => {});
-      } catch {}
-      console.log('✅ Slider reset to slide 0');
+        // KILL PIXI APP
+        if (window.app && window.app.destroy) {
+          window.app.destroy(true);
+          window.app = null;
+        }
+        
+        // CLEAR APP CONTAINER
+        appHost.innerHTML = '';
+        appHost.style.display = 'none';
+        appHost.setAttribute('hidden', 'true');
+        
+        // SHOW HOME
+        home.style.display = 'block';
+        home.removeAttribute('hidden');
+        
+        // RESET SLIDER TO SLIDE 0
+        currentSlide = 0;
+        updateSlider();
+        
+        // FORCE SLIDER TO SLIDE 0
+        if (sliderWrapper) {
+          sliderWrapper.style.transform = 'translateX(0px)';
+        }
+        
+        // RESET DOTS
+        dots.forEach((dot, index) => {
+          dot.classList.toggle('active', index === 0);
+        });
+        
+        console.log('✅ Exit to menu completed - slider reset to slide 0');
+      } catch (error) {
+        console.error('❌ Exit to menu error:', error);
+        // Fallback to reload
+        window.location.reload();
+      }
     };
     
     console.log('✅ Simple slider initialized successfully');
