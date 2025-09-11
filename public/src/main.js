@@ -47,6 +47,32 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
         dot.classList.toggle('active', index === currentSlide);
       });
     }
+
+    // Hard guard: make dots visible and detach from any transformed container
+    function ensureDotsVisible(){
+      try{
+        const wrap = document.getElementById('slider-dots');
+        if (!wrap) return;
+        // Move to body to avoid transform/fixed quirks on iOS
+        if (wrap.parentElement !== document.body) {
+          wrap.dataset.originParent = wrap.parentElement?.id || 'slider-container';
+          document.body.appendChild(wrap);
+        }
+        wrap.style.display = 'flex';
+        wrap.style.opacity = '1';
+        wrap.style.visibility = 'visible';
+        wrap.style.position = 'fixed';
+        wrap.style.left = '50%';
+        wrap.style.transform = 'translateX(-50%)';
+        wrap.style.bottom = 'max(16px, env(safe-area-inset-bottom, 0px))';
+        wrap.style.zIndex = '1000000';
+        wrap.style.pointerEvents = 'auto';
+      }catch{}
+    }
+
+    function hideDots(){
+      try{ const wrap = document.getElementById('slider-dots'); if (wrap) wrap.style.display = 'none'; }catch{}
+    }
     
     function goToSlide(slideIndex) {
       if (slideIndex >= 0 && slideIndex < totalSlides) {
@@ -158,6 +184,7 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
         console.log('🎮 Play - start game');
         sliderLocked = true;
         isDragging = false;
+        hideDots();
         home.style.display = 'none';
         appHost.style.display = 'block';
         appHost.removeAttribute('hidden');
@@ -194,6 +221,8 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
     console.log('🎯 Total slides:', totalSlides);
     console.log('🎯 Current slide:', currentSlide);
     updateSlider();
+    // Ensure dots visible on initial load as well
+    requestAnimationFrame(() => { ensureDotsVisible(); });
     console.log('✅ Slider initialized');
     
     // Global functions for game
@@ -203,6 +232,7 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
       // Lock slider and start game (programmatic)
       sliderLocked = true;
       isDragging = false;
+      hideDots();
 
       // Simple start - no slider manipulation
       home.style.display = 'none';
@@ -214,7 +244,7 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
     window.showStats = () => goToSlide(1);
     window.showCollectibles = () => goToSlide(2);
     
-    // SIMPLE EXIT FUNCTION - KILL EVERYTHING AND RESET
+    // SIMPLE EXIT FUNCTION - CLEAN RESET WITHOUT INLINE OVERRIDES
     window.exitToMenu = async () => {
       console.log('🏠 Exiting to menu...');
       try {
@@ -251,107 +281,26 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
         home.style.display = 'block';
         home.removeAttribute('hidden');
         
-        // RESET SLIDER TO SLIDE 0 - BULLETPROOF
+        // Clean any inline styles and let CSS define layout
+        try {
+          ['slider-wrapper','slider-container','slider-dots'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.removeAttribute('style');
+          });
+          document.querySelectorAll('.slider-slide').forEach(s => s.removeAttribute('style'));
+        } catch {}
+
+        // Reset via CSS logic
         currentSlide = 0;
-        
-        // RESET DOTS FIRST - BULLETPROOF
-        dots.forEach((dot, index) => {
-          dot.classList.remove('active');
-          if (index === 0) {
-            dot.classList.add('active');
-          }
+        updateSlider();
+        // Ensure dots visible (post-layout)
+        requestAnimationFrame(() => {
+          ensureDotsVisible();
+          setTimeout(ensureDotsVisible, 50);
+          setTimeout(ensureDotsVisible, 200);
         });
-        
-        // FORCE SLIDER TO SLIDE 0 IMMEDIATELY - NO UPDATE SLIDER CALL
-        if (sliderWrapper) {
-          sliderWrapper.style.transition = 'none'; // Disable transition
-          sliderWrapper.style.transform = 'translateX(0px)';
-          sliderWrapper.style.display = 'flex';
-          sliderWrapper.style.visibility = 'visible';
-          sliderWrapper.style.opacity = '1';
-          sliderWrapper.style.position = 'relative';
-          sliderWrapper.style.left = '0px';
-          sliderWrapper.style.top = '0px';
-          sliderWrapper.style.width = '300%'; // CRITICAL: Reset width
-          sliderWrapper.style.height = 'auto';
-          sliderWrapper.style.margin = '0px';
-          sliderWrapper.style.padding = '0px';
-          
-          // Force reflow
-          sliderWrapper.offsetHeight;
-          
-          // Re-enable transition
-          sliderWrapper.style.transition = 'transform 0.3s ease-out';
-        }
-        
-        // FORCE HOME VISIBILITY - BULLETPROOF
-        if (home) {
-          home.style.display = 'block';
-          home.style.visibility = 'visible';
-          home.style.opacity = '1';
-          home.style.pointerEvents = 'auto';
-          home.style.position = 'relative';
-          home.style.left = '0px';
-          home.style.top = '0px';
-        }
-        
-        // FORCE PLAY BUTTON VISIBILITY
-        if (playButton) {
-          playButton.style.display = 'block';
-          playButton.style.visibility = 'visible';
-          playButton.style.opacity = '1';
-          playButton.style.pointerEvents = 'auto';
-          playButton.style.position = 'relative';
-          playButton.style.left = '0px';
-          playButton.style.top = '0px';
-        }
-        
-        // FORCE SLIDER CONTAINER VISIBILITY
-        const sliderContainer = document.getElementById('slider-container');
-        if (sliderContainer) {
-          sliderContainer.style.display = 'block';
-          sliderContainer.style.visibility = 'visible';
-          sliderContainer.style.opacity = '1';
-          sliderContainer.style.position = 'relative';
-          sliderContainer.style.left = '0px';
-          sliderContainer.style.top = '0px';
-          sliderContainer.style.marginTop = '-10vh'; // CRITICAL: Reset margin-top
-          sliderContainer.style.marginLeft = '0px';
-          sliderContainer.style.marginRight = '0px';
-          sliderContainer.style.marginBottom = '0px';
-        }
-        
-        // FORCE SLIDER DOTS VISIBILITY
-        const sliderDots = document.getElementById('slider-dots');
-        if (sliderDots) {
-          sliderDots.style.display = 'flex';
-          sliderDots.style.visibility = 'visible';
-          sliderDots.style.opacity = '1';
-          sliderDots.style.position = 'absolute';
-          sliderDots.style.bottom = '0px';
-          sliderDots.style.left = '50%';
-          sliderDots.style.transform = 'translateX(-50%)';
-          sliderDots.style.zIndex = '10';
-        }
-        
-        // FORCE SLIDE RESET - CRITICAL FOR POSITIONING
-        slides.forEach((slide, index) => {
-          slide.style.width = '33.333%';
-          slide.style.flexShrink = '0';
-          slide.style.display = 'flex';
-          slide.style.alignItems = 'flex-start';
-          slide.style.justifyContent = 'center';
-          slide.style.minHeight = '100vh';
-          slide.style.position = 'relative';
-          slide.style.paddingTop = '8vh';
-          slide.style.margin = '0px';
-          slide.style.left = '0px';
-          slide.style.top = '0px';
-        });
-        
-        // DO NOT CALL updateSlider() - it can override our positioning
-        
-        console.log('✅ Exit to menu completed - slider reset to slide 0');
+
+        console.log('✅ Exit to menu completed - slider reset cleanly');
       } catch (error) {
         console.error('❌ Exit to menu error:', error);
         // Fallback to reload
