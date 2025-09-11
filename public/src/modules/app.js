@@ -88,26 +88,27 @@ function setWildProgress(ratio, animate=false){
 }
 let updateProgressBar = (ratio, animate=false) => setWildProgress(ratio, animate);
 function addWildProgress(amount){
-  console.log('🔥 DRAMATIC: addWildProgress called with amount:', amount, 'current wildMeter:', wildMeter);
+  console.log('🔥 NEW LOGIC: addWildProgress called with amount:', amount, 'current wildMeter:', wildMeter);
   
-  // DRAMATIC: Direct calculation and update
+  // NEW LOGIC: Direct calculation and update
   const inc = Number.isFinite(amount) ? amount : 0;
   const newValue = Math.min(1, wildMeter + inc);
   wildMeter = newValue;
   
-  console.log('🔥 DRAMATIC: Direct wild meter update to:', newValue);
+  console.log('🔥 NEW LOGIC: Direct wild meter update to:', newValue);
   
-  // DIRECT HUD UPDATE - bypass all complex logic
+  // NEW LOGIC: Direct HUD update with new logic
   try {
-    console.log('🔄 Calling HUD.updateProgressBar with newValue:', newValue, 'animate: true');
-    HUD.updateProgressBar?.(newValue, true);
-    console.log('✅ DRAMATIC: HUD.updateProgressBar called successfully');
+    console.log('🔄 NEW LOGIC: Calling HUD.updateProgressBar with newValue:', newValue, 'animate: false');
+    HUD.updateProgressBar?.(newValue, false); // Use false for immediate update
+    console.log('✅ NEW LOGIC: HUD.updateProgressBar called successfully');
   } catch (error) {
-    console.error('❌ DRAMATIC: Error calling HUD.updateProgressBar:', error);
+    console.error('❌ NEW LOGIC: Error calling HUD.updateProgressBar:', error);
   }
   
   // Wild spawn check
   if (wildMeter >= 1){ 
+    console.log('🎯 NEW LOGIC: Wild meter full! Spawning wild cube...');
     spawnWildFromMeter(); 
     try { HUD.shimmerProgress?.({}); } catch {} 
   }
@@ -880,29 +881,13 @@ function restartGame(){
   console.log('🔥 DRAMATIC: Resetting wild meter to 0');
   wildMeter = 0;
   
-  // DIRECT HUD RESET - simple and reliable
+  // NEW LOGIC: Simple and reliable wild meter reset
   try {
-    console.log('🔄 Calling HUD.updateProgressBar with 0...');
+    console.log('🔄 NEW LOGIC: Calling HUD.updateProgressBar with 0...');
     HUD.updateProgressBar?.(0, false);
-    console.log('✅ DRAMATIC: Wild meter reset to 0 successfully');
-    
-    // Also try direct wild loader reset
-    console.log('🔄 Trying direct wild loader reset...');
-    if (wild && wild.setProgress) {
-      wild.setProgress(0, false);
-      // Force immediate visual update
-      if (wild.view && wild.view.children) {
-        const mask = wild.view.children.find(child => child.mask);
-        if (mask) {
-          mask.clear();
-          mask.roundRect(0, -0.5, 0, 8 + 1, 4).fill(0xffffff);
-          console.log('✅ Wild loader mask force cleared to 0');
-        }
-      }
-      console.log('✅ Direct wild loader reset successful');
-    }
+    console.log('✅ NEW LOGIC: Wild meter reset to 0 successfully');
   } catch (error) {
-    console.error('❌ DRAMATIC: Error resetting wild meter:', error);
+    console.error('❌ NEW LOGIC: Error resetting wild meter:', error);
   }
   
   // Rebuild board WITHOUT calling layout

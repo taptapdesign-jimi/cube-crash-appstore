@@ -454,11 +454,11 @@ export function bumpCombo(){
 
 /* DRAMATIC FIX: Direct wild meter update - no complex logic */
 export function updateProgressBar(ratio, animate = false){
-  console.log('🎯 DRAMATIC: updateProgressBar called with:', { ratio, animate });
+  console.log('🎯 NEW LOGIC: updateProgressBar called with:', { ratio, animate });
   
   // FORCE CREATE wild loader if it doesn't exist
   if (!wild) {
-    console.log('🔥 DRAMATIC: Creating wild loader from scratch...');
+    console.log('🔥 NEW LOGIC: Creating wild loader from scratch...');
     try {
       wild = makeWildLoader({ width: 200 });
       if (HUD_ROOT) {
@@ -467,43 +467,39 @@ export function updateProgressBar(ratio, animate = false){
         wild.view.x = 0;
         wild.view.y = 0;
         wild.start();
-        console.log('✅ DRAMATIC: Wild loader created successfully');
+        console.log('✅ NEW LOGIC: Wild loader created successfully');
       }
     } catch (error) {
-      console.error('❌ DRAMATIC: Error creating wild loader:', error);
+      console.error('❌ NEW LOGIC: Error creating wild loader:', error);
       return;
     }
   }
   
-  // DIRECT UPDATE - no complex logic, just set it
-  console.log('🔥 DRAMATIC: Direct wild meter update to:', ratio);
+  // NEW LOGIC: Direct mask manipulation - bypass all complex logic
+  console.log('🔥 NEW LOGIC: Direct mask manipulation to ratio:', ratio);
   try {
-    wild._lastP = ratio;
-    console.log('🔄 Calling wild.setProgress with ratio:', ratio, 'animate:', animate);
-    wild.setProgress(ratio, animate);
-    
-    // Force immediate visual update if not animating
-    if (!animate && wild.view && wild.view.children) {
+    if (wild.view && wild.view.children) {
       const mask = wild.view.children.find(child => child.mask);
       if (mask) {
-        const w = Math.max(0, Math.min(200, Math.round(200 * ratio)));
+        const barWidth = 200; // Use fixed width
+        const w = Math.max(0, Math.min(barWidth, Math.round(barWidth * ratio)));
+        
+        // Clear and redraw mask directly
         mask.clear();
         mask.roundRect(0, -0.5, w, 8 + 1, 4).fill(0xffffff);
-        console.log('✅ Wild loader mask force updated to width:', w);
+        
+        // Update internal progress
+        wild._lastP = ratio;
+        
+        console.log('✅ NEW LOGIC: Mask directly updated to width:', w, 'ratio:', ratio);
+      } else {
+        console.log('⚠️ NEW LOGIC: Mask not found in wild loader');
       }
+    } else {
+      console.log('⚠️ NEW LOGIC: Wild view or children not found');
     }
-    
-    console.log('✅ DRAMATIC: Wild meter updated successfully');
-    
-    // Also check if wild object is working
-    console.log('🔍 Wild object state:', { 
-      exists: !!wild, 
-      hasSetProgress: typeof wild.setProgress === 'function',
-      progress: wild._lastP,
-      view: !!wild.view
-    });
   } catch (error) {
-    console.error('❌ DRAMATIC: Error updating wild meter:', error);
+    console.error('❌ NEW LOGIC: Error updating wild meter:', error);
   }
 }
 
