@@ -4,7 +4,7 @@ import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';
 import * as makeBoard from './board.js';
 import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, screenShake } from './fx.js';
 // HUD functions are now in hud-helpers.js
-import { openAtCell, openEmpties, spawnBounce, sweepForUnanimatedSpawns } from './app-spawn.js';
+import { openAtCell, openEmpties, spawnBounce } from './app-spawn.js';
 import { showStarsModal } from './stars-modal.js';
 import { rebuildBoard } from './app-board.js';
 
@@ -141,8 +141,6 @@ export function merge(src, dst, helpers){
         } else {
           await openEmpties(toOpen);
         }
-
-        sweepForUnanimatedSpawns();
 
         if (STATE.tiles.every(t => t.locked || t.value <= 0)){
           await showStarsModal({ app: STATE.app, stage: STATE.stage, board: STATE.board, score: STATE.score, thresholds:{one:120,two:240,three:360}, buttonLabel:'Keep Going' });
