@@ -9,7 +9,7 @@ import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
 function boardSize(){ return { w: COLS*TILE + (COLS-1)*GAP, h: ROWS*TILE + (ROWS-1)*GAP }; }
 
 /* ---------------- Wild loader core (flicker-free, 8px) ---------------- */
-function makeWildLoader({ width, color = 0xD59477, trackColor = 0xEADFD6 }) {
+function makeWildLoader({ width, color = 0xE77449, trackColor = 0xEADFD6 }) {
   const view = new Container();
   view.label = 'wild-loader';
 
@@ -503,24 +503,24 @@ export function updateProgressBar(ratio, animate = false){
         
         // CRITICAL: Redraw fill with full width first
         fill.clear();
-        fill.roundRect(0, 0, barWidth, 8, 4).fill(0xD59477); // Orange color
-        console.log('🔍 NEW LOGIC: Fill redrawn with full width:', barWidth, 'color: 0xD59477');
+        fill.roundRect(0, 0, barWidth, 8, 4).fill(0xE77449); // Orange color
+        console.log('🔍 NEW LOGIC: Fill redrawn with full width:', barWidth, 'color: 0xE77449');
         
         // Animation logic
         if (animate) {
           console.log('🎬 NEW LOGIC: Starting elastic animation to width:', w);
-          // Use GSAP for elastic animation
+          // Use GSAP for classy elastic animation
           const o = { p: 0 };
           gsap.to(o, {
             p: w,
-            duration: 1.2,
-            ease: 'elastic.out(1, 0.6)',
+            duration: 0.8,
+            ease: 'elastic.out(1, 0.3)',
             onUpdate: () => {
               mask.clear();
               mask.roundRect(0, -0.5, o.p, 8 + 1, 4).fill(0xffffff);
             },
             onComplete: () => {
-              console.log('✅ NEW LOGIC: Elastic animation completed');
+              console.log('✅ NEW LOGIC: Classy elastic animation completed');
             }
           });
         } else {
