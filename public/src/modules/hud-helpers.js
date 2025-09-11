@@ -41,11 +41,14 @@ function makeWildLoader({ width, color = 0xD59477, trackColor = 0xEADFD6 }) {
     headX = w;
     view._headX = headX; // expose for debug/extern if needed
     
+    console.log('🎨 redrawMask called:', { progress, barWidth, w, headX, maskExists: !!mask });
+    
     // Check if mask exists before calling clear
     if (mask && typeof mask.clear === 'function') {
       mask.clear();
       // Blagi "nudge" −0.5 px uklanja optičku crticu na gornjoj ivici
       mask.roundRect(0, -0.5, w, H + 1, R).fill(0xffffff);
+      console.log('✅ Mask redrawn with width:', w);
     } else {
       console.log('⚠️ Mask not found or clear function not available');
     }
@@ -246,10 +249,17 @@ export function layout({ app, top }) {
     HUD_ROOT.y = top; // Update HUD_ROOT position to match elements
     console.log('🎯 HUD_ROOT.y updated to:', HUD_ROOT.y, 'top:', top, 'vh:', vh, '1% of vh:', Math.round(vh * 0.01));
     
-    // Verify HUD is above board
-    if (HUD_ROOT.y < 0) {
-      console.warn('⚠️ HUD is positioned above screen!', HUD_ROOT.y);
-    }
+  // Position wild loader
+  if (wild && wild.view) {
+    wild.view.x = 0;
+    wild.view.y = 0;
+    console.log('🎯 Wild loader positioned at:', { x: wild.view.x, y: wild.view.y });
+  }
+  
+  // Verify HUD is above board
+  if (HUD_ROOT.y < 0) {
+    console.warn('⚠️ HUD is positioned above screen!', HUD_ROOT.y);
+  }
   } else {
     console.warn('⚠️ HUD_ROOT not found in layout function!');
   }
@@ -291,6 +301,16 @@ export function initHUD({ stage, app, top = 8 }) {
   HUD_ROOT.addChild(wild.view);
   try { wild.view.zIndex = 0; } catch {}
   wild.start();
+  
+  console.log('🎯 Wild loader created and added to HUD_ROOT:', {
+    wildExists: !!wild,
+    viewExists: !!wild.view,
+    parent: wild.view.parent,
+    visible: wild.view.visible,
+    alpha: wild.view.alpha,
+    x: wild.view.x,
+    y: wild.view.y
+  });
 
   // inicijalni layout + resize listener
   layout({ app, top });
