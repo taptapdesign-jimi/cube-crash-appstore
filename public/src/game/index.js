@@ -23,10 +23,10 @@ export class GameModule {
 
     try {
       // Import and start game
-      const { boot } = await import('../modules/app.js');
+      const { boot, cleanupGame } = await import('../modules/app.js');
       await boot();
       
-      this.gameInstance = { boot };
+      this.gameInstance = { boot, cleanupGame };
       
       console.log('✅ GameModule started successfully');
       
@@ -80,15 +80,38 @@ export class GameModule {
 
     console.log('🛑 GameModule stopping...');
     
-    // TODO: Implement proper cleanup
-    // For now, just reload the page
-    window.location.reload();
-    
-    this.isRunning = false;
-    this.isPaused = false;
-    this.gameInstance = null;
-    
-    console.log('✅ GameModule stopped');
+    try {
+      // Try to cleanup existing game
+      if (this.gameInstance && this.gameInstance.cleanupGame) {
+        await this.gameInstance.cleanupGame();
+      }
+      
+      // Clear PIXI app if it exists
+      if (window.app && window.app.destroy) {
+        window.app.destroy(true);
+        window.app = null;
+      }
+      
+      // Clear game container
+      const gameContainer = document.getElementById('app');
+      if (gameContainer) {
+        gameContainer.innerHTML = '';
+        gameContainer.style.display = 'none';
+        gameContainer.setAttribute('hidden', '');
+      }
+      
+      // Reset state
+      this.isRunning = false;
+      this.isPaused = false;
+      this.gameInstance = null;
+      
+      console.log('✅ GameModule stopped properly');
+      
+    } catch (error) {
+      console.error('❌ GameModule stop error:', error);
+      // Fallback to reload if cleanup fails
+      window.location.reload();
+    }
   }
 
   // Public API

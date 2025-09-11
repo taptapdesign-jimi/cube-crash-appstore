@@ -968,4 +968,4 @@ export function startFreshGame() {
   boot();
 }
 
-export { app, stage, board, hud, tiles, grid, score, level }; 
+export { app, stage, board, hud, tiles, grid, score, level, cleanupGame }; 

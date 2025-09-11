@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CubeCrash - Refactored</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <!-- PWA / iOS full-screen support -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CubeCrash">
+  <meta name="theme-color" content="#f5f5f5">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/wild.png">
+  <link rel="icon" href="./favicon.ico">
+  <link rel="stylesheet" href="/src/style.css">
+  <link rel="stylesheet" href="/src/slider-optimized.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "pixi.js": "/vendor/pixi.mjs",
+      "gsap": "/vendor/gsap/index.js"
+    }
+  }
+  </script>
+  <style>
+    html,body{margin:0;padding:0;overflow:hidden;background:#f5f5f5}
+    #app{width:100vw;height:100vh}
+  </style>
+</head>
+<body>
+  <!-- HOMEPAGE -->
+  <div id="home">
+    <div class="content">
+      <img id="home-logo" src="/assets/logo-cube-crash.png" alt="CubeCrash" />
+
+      <!-- OPTIMIZED SLIDER STRUCTURE -->
+      <div id="slider-container">
+        <div id="slider-wrapper">
+          <!-- Slide 0: Home -->
+          <div class="slider-slide active" data-slide="0">
+            <div class="slide-content">
+              <div class="hero-container">
+                <img class="hero-image" src="/assets/crash-cubes-homepage.png" alt="Crashed cubes" />
+                <div class="hero-shadow"></div>
+              </div>
+              <div class="slide-text">
+                <p class="slide-tagline">Stack and crash the cubes<br/>to get the required number</p>
+                <button id="btn-home" class="slide-button squishy squishy-cc">Play</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Slide 1: Stats -->
+          <div class="slider-slide" data-slide="1">
+            <div class="slide-content">
+              <div class="hero-container">
+                <img class="hero-image" src="/assets/stats-trophy.png" alt="Trophy" />
+                <div class="hero-shadow"></div>
+              </div>
+              <div class="slide-text">
+                <p class="slide-tagline">See your best score<br/>and other stats</p>
+                <button id="btn-stats" class="slide-button squishy squishy-cc">Stats</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Slide 2: Collectibles -->
+          <div class="slider-slide" data-slide="2">
+            <div class="slide-content">
+              <div class="hero-container">
+                <img class="hero-image" src="/assets/collectibles-box.png" alt="Collectibles box" />
+                <div class="hero-shadow"></div>
+              </div>
+              <div class="slide-text">
+                <p class="slide-tagline">Collect special rewards<br/>and earn bragging rights</p>
+                <button id="btn-collectibles" class="slide-button squishy squishy-cc">Collectibles</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Navigation Dots -->
+        <div id="slider-dots">
+          <button class="slider-dot active" data-slide="0"></button>
+          <button class="slider-dot" data-slide="1"></button>
+          <button class="slider-dot" data-slide="2"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- GAME CONTAINER -->
+  <div id="app" hidden></div>
+  
+  <!-- REFACTORED MAIN SCRIPT -->
+  <script type="module" src="/src/main-new.js?v=1002"></script>
+</body>
+</html>
