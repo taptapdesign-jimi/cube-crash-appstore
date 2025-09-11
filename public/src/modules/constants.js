@@ -3,7 +3,7 @@
 
 // Grid
 export const COLS = 5;
-export const ROWS = 8;
+export const ROWS = 9;
 export const TILE = 128;
 export const GAP  = 20;
 
