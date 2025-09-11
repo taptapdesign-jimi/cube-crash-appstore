@@ -21,13 +21,13 @@ function makeWildLoader({ width, color = 0xE77449, trackColor = 0xEADFD6 }) {
   track.roundRect(0, 0, width, H, R).fill(trackColor);
   view.addChild(track);
 
-  // fill
+  // fill - ensure it's always orange
   const fill = new Graphics();
-  fill.roundRect(0, 0, width, H, R).fill(color);
+  fill.roundRect(0, 0, width, H, R).fill(0xE77449); // Force orange color
   view.addChild(fill);
   fill.visible = true;
   fill.alpha = 1.0;
-  console.log('🎨 NEW LOGIC: Fill created with color:', color.toString(16), 'width:', width, 'actual color:', color, 'visible:', fill.visible, 'alpha:', fill.alpha);
+  console.log('🎨 FIXED: Fill created with forced orange color: 0xE77449, width:', width);
 
   // mask – ravni gornji rub (bez sine vala), poravnan na piksel
   const mask = new Graphics();
@@ -68,7 +68,7 @@ function makeWildLoader({ width, color = 0xE77449, trackColor = 0xEADFD6 }) {
     setWidth: (w) => {
       barWidth = Math.max(24, Math.round(w));
       track.clear().roundRect(0, 0, barWidth, H, R).fill(trackColor);
-      fill.clear().roundRect(0, 0, barWidth, H, R).fill(color);
+      fill.clear().roundRect(0, 0, barWidth, H, R).fill(0xE77449); // Force orange
       redrawMask();
     },
     setProgress: (t, animate = false) => { 
@@ -84,7 +84,7 @@ function makeWildLoader({ width, color = 0xE77449, trackColor = 0xEADFD6 }) {
 
       if (!animate) {
         progress = newProgress; 
-        redrawMask(); 
+        // Don't call redrawMask - let our custom logic handle it
         return;
       }
       const o = { p: progress };
@@ -503,38 +503,35 @@ export function updateProgressBar(ratio, animate = false){
           height: fill.height
         });
         
-        // CRITICAL: Redraw fill with full width first
+        // FIXED LOGIC: Ensure fill is always orange and properly masked
         fill.clear();
-        fill.roundRect(0, 0, barWidth, 8, 4).fill(0xE77449); // Orange color
-        console.log('🔍 NEW LOGIC: Fill redrawn with full width:', barWidth, 'color: 0xE77449', 'actual color:', 0xE77449);
-        
-        // Force fill to be visible and orange
+        fill.roundRect(0, 0, barWidth, 8, 4).fill(0xE77449); // Always orange
         fill.visible = true;
         fill.alpha = 1.0;
-        console.log('🔍 NEW LOGIC: Fill visibility set to:', fill.visible, 'alpha:', fill.alpha);
         
         // Animation logic
         if (animate) {
-          console.log('🎬 NEW LOGIC: Starting elastic animation to width:', w);
-          // Use GSAP for subtle elastic animation (80% less elastic)
+          console.log('🎬 FIXED: Starting smooth animation to width:', w);
+          // Smooth animation without elastic bounce
           const o = { p: 0 };
           gsap.to(o, {
             p: w,
-            duration: 0.4,
+            duration: 0.6,
             ease: 'power2.out',
             onUpdate: () => {
+              // Always redraw mask to show orange fill
               mask.clear();
               mask.roundRect(0, -0.5, o.p, 8 + 1, 4).fill(0xffffff);
             },
             onComplete: () => {
-              console.log('✅ NEW LOGIC: Subtle animation completed');
+              console.log('✅ FIXED: Smooth animation completed');
             }
           });
         } else {
-          // Clear and redraw mask directly
+          // Direct mask update
           mask.clear();
           mask.roundRect(0, -0.5, w, 8 + 1, 4).fill(0xffffff);
-          console.log('🔍 NEW LOGIC: Mask redrawn with width:', w);
+          console.log('🔍 FIXED: Mask set to width:', w);
         }
         
         // Update internal progress
