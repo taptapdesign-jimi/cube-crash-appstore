@@ -197,6 +197,8 @@ export function layout({ app, top }) {
   const SIDE = 24;            // bočni odmak
   const yLabel = top + 0;     // red s labelima
   const yValue = top + 20;    // red s vrijednostima
+  
+  console.log('🎯 HUD positioning:', { top, yLabel, yValue, vh, onePercent: Math.round(vh * 0.01) });
   const valueRowH = Math.max(movesText.height, scoreText.height, comboText.height);
   const barGap    = Math.round(vh * 0.02); // 2% gap below the numbers
   const barY      = yValue + valueRowH + barGap; 
@@ -245,7 +247,7 @@ export function layout({ app, top }) {
     HUD_ROOT.zIndex = 10_000;
     HUD_ROOT.sortableChildren = true;
     HUD_ROOT.y = top; // Update HUD_ROOT position to match elements
-    console.log('🎯 HUD_ROOT.y updated to:', HUD_ROOT.y, 'top:', top);
+    console.log('🎯 HUD_ROOT.y updated to:', HUD_ROOT.y, 'top:', top, 'vh:', vh, '1% of vh:', Math.round(vh * 0.01));
     
     // Verify HUD is above board
     if (HUD_ROOT.y < 0) {
