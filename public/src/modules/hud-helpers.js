@@ -25,7 +25,9 @@ function makeWildLoader({ width, color = 0xE77449, trackColor = 0xEADFD6 }) {
   const fill = new Graphics();
   fill.roundRect(0, 0, width, H, R).fill(color);
   view.addChild(fill);
-  console.log('🎨 NEW LOGIC: Fill created with color:', color.toString(16), 'width:', width);
+  fill.visible = true;
+  fill.alpha = 1.0;
+  console.log('🎨 NEW LOGIC: Fill created with color:', color.toString(16), 'width:', width, 'actual color:', color, 'visible:', fill.visible, 'alpha:', fill.alpha);
 
   // mask – ravni gornji rub (bez sine vala), poravnan na piksel
   const mask = new Graphics();
@@ -504,23 +506,28 @@ export function updateProgressBar(ratio, animate = false){
         // CRITICAL: Redraw fill with full width first
         fill.clear();
         fill.roundRect(0, 0, barWidth, 8, 4).fill(0xE77449); // Orange color
-        console.log('🔍 NEW LOGIC: Fill redrawn with full width:', barWidth, 'color: 0xE77449');
+        console.log('🔍 NEW LOGIC: Fill redrawn with full width:', barWidth, 'color: 0xE77449', 'actual color:', 0xE77449);
+        
+        // Force fill to be visible and orange
+        fill.visible = true;
+        fill.alpha = 1.0;
+        console.log('🔍 NEW LOGIC: Fill visibility set to:', fill.visible, 'alpha:', fill.alpha);
         
         // Animation logic
         if (animate) {
           console.log('🎬 NEW LOGIC: Starting elastic animation to width:', w);
-          // Use GSAP for classy elastic animation
+          // Use GSAP for subtle elastic animation (80% less elastic)
           const o = { p: 0 };
           gsap.to(o, {
             p: w,
-            duration: 0.8,
-            ease: 'elastic.out(1, 0.3)',
+            duration: 0.4,
+            ease: 'power2.out',
             onUpdate: () => {
               mask.clear();
               mask.roundRect(0, -0.5, o.p, 8 + 1, 4).fill(0xffffff);
             },
             onComplete: () => {
-              console.log('✅ NEW LOGIC: Classy elastic animation completed');
+              console.log('✅ NEW LOGIC: Subtle animation completed');
             }
           });
         } else {
