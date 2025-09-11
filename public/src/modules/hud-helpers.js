@@ -500,9 +500,15 @@ export function updateProgressBar(ratio, animate = false){
           height: fill.height
         });
         
+        // CRITICAL: Redraw fill with full width first
+        fill.clear();
+        fill.roundRect(0, 0, barWidth, 8, 4).fill(0xD59477); // Orange color
+        console.log('🔍 NEW LOGIC: Fill redrawn with full width:', barWidth);
+        
         // Clear and redraw mask directly
         mask.clear();
         mask.roundRect(0, -0.5, w, 8 + 1, 4).fill(0xffffff);
+        console.log('🔍 NEW LOGIC: Mask redrawn with width:', w);
         
         // Update internal progress
         wild._lastP = ratio;
