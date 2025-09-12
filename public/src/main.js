@@ -186,14 +186,64 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
       const startGameNow = (e) => {
         if (sliderLocked) return;
         if (e) { try { e.stopPropagation(); } catch {} }
-        console.log('🎮 Play - start game');
+        console.log('🎮 Play - start game with fade animation');
+        
+        // Lock slider immediately to prevent interference
         sliderLocked = true;
         isDragging = false;
         hideDots();
-        home.style.display = 'none';
-        appHost.style.display = 'block';
-        appHost.removeAttribute('hidden');
-        boot();
+        
+        // Get slide 1 elements and logo for animation
+        const slide1 = document.querySelector('.slider-slide[data-slide="0"]');
+        const slide1Content = slide1?.querySelector('.slide-content');
+        const slide1Text = slide1?.querySelector('.slide-text');
+        const slide1Button = slide1?.querySelector('.slide-button');
+        const slide1Hero = slide1?.querySelector('.hero-container');
+        const homeLogo = document.getElementById('home-logo');
+        
+        if (slide1 && slide1Content && slide1Text && slide1Button && slide1Hero) {
+          // Add elastic pop out animation using CSS transitions
+          slide1Content.style.transition = 'opacity 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+          slide1Text.style.transition = 'opacity 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+          slide1Button.style.transition = 'opacity 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+          slide1Hero.style.transition = 'opacity 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+          
+          // Add logo animation if it exists
+          if (homeLogo) {
+            homeLogo.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+          }
+          
+          // Apply elastic pop out styles - each element shrinks to its center point
+          slide1Content.style.opacity = '0';
+          slide1Content.style.transform = 'scale(0) translateY(-20px)';
+          slide1Text.style.opacity = '0';
+          slide1Text.style.transform = 'scale(0) translateY(-15px)';
+          slide1Button.style.opacity = '0';
+          slide1Button.style.transform = 'scale(0) translateY(-10px)';
+          slide1Hero.style.opacity = '0';
+          slide1Hero.style.transform = 'scale(0) translateY(-25px)';
+          
+          // Apply logo animation
+          if (homeLogo) {
+            homeLogo.style.opacity = '0';
+            homeLogo.style.transform = 'scale(0) translateY(-30px)';
+          }
+          
+          // Start game after animation completes
+          setTimeout(() => {
+            home.style.display = 'none';
+            appHost.style.display = 'block';
+            appHost.removeAttribute('hidden');
+            boot();
+          }, 800); // Wait for elastic animation to complete
+        } else {
+          // Fallback if elements not found - start game immediately
+          console.log('⚠️ Slide elements not found, starting game without animation');
+          home.style.display = 'none';
+          appHost.style.display = 'block';
+          appHost.removeAttribute('hidden');
+          boot();
+        }
       };
 
       // Swallow pointer starts so wrapper doesn't treat it as a drag
@@ -298,6 +348,56 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
         // Reset via CSS logic
         currentSlide = 0;
         updateSlider();
+        
+        // Reset animation styles for slide 1 elements and logo
+        const slide1 = document.querySelector('.slider-slide[data-slide="0"]');
+        const homeLogo = document.getElementById('home-logo');
+        if (slide1) {
+          const slide1Content = slide1.querySelector('.slide-content');
+          const slide1Text = slide1.querySelector('.slide-text');
+          const slide1Button = slide1.querySelector('.slide-button');
+          const slide1Hero = slide1.querySelector('.hero-container');
+          
+          if (slide1Content && slide1Text && slide1Button && slide1Hero) {
+            // Reset all animation styles to normal state
+            slide1Content.style.opacity = '1';
+            slide1Content.style.transform = 'scale(1) translateY(0)';
+            slide1Content.style.transition = 'none'; // Remove transition temporarily
+            
+            slide1Text.style.opacity = '1';
+            slide1Text.style.transform = 'scale(1) translateY(-8px)'; // Keep the 8px offset we added
+            slide1Text.style.transition = 'none';
+            
+            slide1Button.style.opacity = '1';
+            slide1Button.style.transform = 'scale(1) translateY(0)';
+            slide1Button.style.transition = 'none';
+            
+            slide1Hero.style.opacity = '1';
+            slide1Hero.style.transform = 'scale(1) translateY(0)';
+            slide1Hero.style.transition = 'none';
+            
+            // Reset logo if it exists
+            if (homeLogo) {
+              homeLogo.style.opacity = '1';
+              homeLogo.style.transform = 'scale(1) translateY(0)';
+              homeLogo.style.transition = 'none';
+            }
+            
+            // Restore transitions after a brief delay
+            setTimeout(() => {
+              slide1Content.style.transition = 'opacity 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+              slide1Text.style.transition = 'opacity 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+              slide1Button.style.transition = 'opacity 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+              slide1Hero.style.transition = 'opacity 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+              if (homeLogo) {
+                homeLogo.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+              }
+            }, 100);
+            
+            console.log('✅ Slide 1 animation styles reset to normal state');
+          }
+        }
+        
         // Ensure dots visible (post-layout)
         requestAnimationFrame(() => {
           ensureDotsVisible();
