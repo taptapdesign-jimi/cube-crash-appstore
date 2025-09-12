@@ -110,7 +110,7 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
       const baseTranslateX = -currentSlide * window.innerWidth;
       
       // Mark as moved if there's significant movement
-      if (Math.abs(diff) > 10) {
+      if (Math.abs(diff) > 5) { // Reduced from 10px to 5px for more sensitive detection
         hasMoved = true;
       }
       
@@ -124,13 +124,18 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
       isDragging = false;
       
       const diff = currentX - startX;
-      const threshold = window.innerWidth * 0.3; // Increased threshold
+      const threshold = window.innerWidth * 0.15; // Reduced threshold for easier swiping (15% instead of 30%)
       const touchDuration = Date.now() - touchStartTime;
       
-      console.log(`🎯 Slider drag end: diff=${diff}, threshold=${threshold}, hasMoved=${hasMoved}, duration=${touchDuration}ms`);
+      // Calculate swipe speed for more sensitive detection
+      const swipeSpeed = Math.abs(diff) / Math.max(touchDuration, 1); // px/ms
+      const speedThreshold = 0.5; // px/ms - fast swipes need less distance
+      const dynamicThreshold = swipeSpeed > speedThreshold ? threshold * 0.5 : threshold;
+      
+      console.log(`🎯 Slider drag end: diff=${diff}, threshold=${threshold}, dynamicThreshold=${dynamicThreshold}, hasMoved=${hasMoved}, duration=${touchDuration}ms, speed=${swipeSpeed.toFixed(2)}px/ms`);
       
       // Only change slide if there was significant movement AND it was a drag, not a tap
-      if (hasMoved && Math.abs(diff) > threshold) {
+      if (hasMoved && Math.abs(diff) > dynamicThreshold) {
         if (diff > 0 && currentSlide > 0) {
           console.log('🎯 Moving to previous slide');
           goToSlide(currentSlide - 1);
