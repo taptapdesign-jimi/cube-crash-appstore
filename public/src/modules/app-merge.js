@@ -198,6 +198,19 @@ export function merge(src, dst, helpers){
         } else {
           await openEmpties(toOpen);
         }
+        
+        // CRITICAL FIX: For wild merges, always spawn additional tiles to prevent wild cubes from getting stuck
+        if (wildActive) {
+          console.log('🎯 Wild merge (effSum=6) completed, spawning additional tiles to prevent wild cubes from getting stuck');
+          // Spawn 1-2 additional tiles after wild merge to ensure board doesn't get stuck
+          const additionalSpawnCount = Math.min(2, Math.max(1, Math.floor(Math.random() * 2) + 1));
+          try {
+            await openEmpties(additionalSpawnCount);
+            console.log('✅ Spawned', additionalSpawnCount, 'additional tiles after wild merge (effSum=6)');
+          } catch (error) {
+            console.warn('⚠️ Failed to spawn additional tiles after wild merge (effSum=6):', error);
+          }
+        }
 
         if (STATE.tiles.every(t => t.locked || t.value <= 0)){
           await showStarsModal({ app: STATE.app, stage: STATE.stage, board: STATE.board, score: STATE.score, thresholds:{one:120,two:240,three:360}, buttonLabel:'Keep Going' });
@@ -220,6 +233,24 @@ export function checkGameOver(){
   
   // CRITICAL FIX: Check for wild cube merges before game over
   const active = STATE.tiles.filter(t => t && !t.locked && t.value > 0);
+  const wildCubes = active.filter(t => t.special === 'wild');
+  const nonWildTiles = active.filter(t => t.special !== 'wild');
+  
+  // EMERGENCY SAFETY: If we have wild cubes but no non-wild tiles, spawn some!
+  if (wildCubes.length > 0 && nonWildTiles.length === 0) {
+    console.log('🚨 EMERGENCY: Wild cubes exist but no non-wild tiles! Spawning emergency tiles...');
+    // Spawn 2-3 emergency tiles to prevent wild cubes from getting stuck
+    const emergencyCount = Math.min(3, Math.max(2, wildCubes.length));
+    openEmpties(emergencyCount).then(() => {
+      console.log('✅ Emergency tiles spawned, checking again...');
+      checkGameOver(); // Check again after spawning
+    }).catch(error => {
+      console.error('❌ Emergency spawn failed:', error);
+      // If emergency spawn fails, proceed with normal game over
+    });
+    return;
+  }
+  
   const hasWildMerge = () => {
     for (let i = 0; i < active.length; i++) {
       for (let j = i + 1; j < active.length; j++) {
