@@ -769,11 +769,12 @@ function merge(src, dst, helpers){
   const wildActive = (src.special === 'wild' || dst.special === 'wild');
   let effSum = sum;
 
-  // Wild cube logic: spawn random value that's NOT the same as target
+  // Wild cube logic: always merge to 6, but remember target for later spawn
   if (wildActive) {
-    // Always use pickWildValue to avoid spawning same number as target
-    effSum = pickWildValue(dst.value || 1);
-    console.log('🎯 Wild merge: target was', dst.value, 'spawning', effSum);
+    effSum = 6; // Wild always merges to 6
+    // Store the target value for later spawn logic
+    dst._wildMergeTarget = dst.value || 1;
+    console.log('🎯 Wild merge: target was', dst.value, 'will merge to 6, spawn will avoid', dst.value);
   }
 
   grid[src.gridY][src.gridX] = null;
@@ -913,7 +914,20 @@ function merge(src, dst, helpers){
         }
 
         addWildProgress(WILD_INC_BIG);
-        await FLOW.openLockedBounceParallel({ tiles, k: mult, drag, makeBoard, gsap, drawBoardBG, TILE, fixHoverAnchor, spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done) });
+        // Pass wild merge target info for smart spawning
+        const wildMergeTarget = dst._wildMergeTarget || null;
+        await FLOW.openLockedBounceParallel({ 
+          tiles, 
+          k: mult, 
+          drag, 
+          makeBoard, 
+          gsap, 
+          drawBoardBG, 
+          TILE, 
+          fixHoverAnchor, 
+          spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done),
+          wildMergeTarget 
+        });
         checkLevelEnd();
       }
     });

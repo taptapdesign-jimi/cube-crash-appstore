@@ -5,7 +5,7 @@ export function checkLevelEnd({ makeBoard, tiles, onCleanBoard } = {}){
   if (!makeBoard.anyMergePossible(tiles)) onCleanBoard?.();
 }
 
-export async function openLockedBounceParallel({ tiles=[], k=0, drag, makeBoard, gsap, drawBoardBG, TILE, fixHoverAnchor, spawnBounce } = {}){
+export async function openLockedBounceParallel({ tiles=[], k=0, drag, makeBoard, gsap, drawBoardBG, TILE, fixHoverAnchor, spawnBounce, wildMergeTarget=null } = {}){
   const locked = tiles.filter(t => t.locked);
   if (!locked.length || k <= 0) return;
 
@@ -15,7 +15,19 @@ export async function openLockedBounceParallel({ tiles=[], k=0, drag, makeBoard,
   const promises = picks.map(t => new Promise(res=>{
     t.locked=false; t.eventMode='static'; t.cursor='pointer';
     if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
-    makeBoard.setValue(t, [1,2,3,4,5][(Math.random()*5)|0], 0);
+    
+    // Smart spawning: if this is after wild merge, avoid the target number
+    let spawnValue;
+    if (wildMergeTarget) {
+      // Import pickWildValue function (assuming it's available globally or we need to pass it)
+      const candidates = [1,2,3,4,5].filter(v => v !== wildMergeTarget);
+      spawnValue = candidates[(Math.random() * candidates.length) | 0];
+      console.log('🎯 Smart spawn: avoiding', wildMergeTarget, 'spawning', spawnValue);
+    } else {
+      spawnValue = [1,2,3,4,5][(Math.random()*5)|0];
+    }
+    
+    makeBoard.setValue(t, spawnValue, 0);
     try { fixHoverAnchor?.(t); } catch {}
     spawnBounce(t, res, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 });
   }));
