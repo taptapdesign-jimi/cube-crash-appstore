@@ -318,7 +318,16 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       },
       onRestart: async () => { 
         console.log('🎭 onRestart called');
-        try { 
+        try {
+          // Persist live high score before restarting
+          try {
+            const s = (window.CC && typeof window.CC.state === 'function') ? window.CC.state() : null;
+            const liveScore = s && Number.isFinite(s.score) ? s.score : 0;
+            if (typeof window.updateHighScore === 'function') {
+              window.updateHighScore(liveScore);
+            }
+          } catch {}
+
           restart(); 
           // Layout will be called automatically by restartGame() in app.js
           console.log('🎭 Restart completed - layout will be called by restartGame()');

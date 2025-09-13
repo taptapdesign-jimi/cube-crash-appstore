@@ -38,6 +38,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     const settingsButton = document.getElementById('btn-settings');
     const statsScreen = document.getElementById('stats-screen');
     const statsBackButton = document.getElementById('stats-back-btn');
+    const statsResetButton = document.getElementById('stats-reset-btn');
     
     let currentSlide = 0;
     const totalSlides = slides.length;
@@ -326,10 +327,28 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       
       requestAnimationFrame(updateNumber);
     }
-    
+
+    // Sanitize helpers for stats
+    function toIntSafe(v){
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+
+    function sanitizeStats(obj){
+      if (!obj || typeof obj !== 'object') obj = {};
+      return {
+        highScore: toIntSafe(obj.highScore),
+        cubesCracked: toIntSafe(obj.cubesCracked),
+        helpersUsed: toIntSafe(obj.helpersUsed),
+        longestCombo: toIntSafe(obj.longestCombo),
+        collectiblesUnlocked: toIntSafe(obj.collectiblesUnlocked),
+        boardsCleared: toIntSafe(obj.boardsCleared),
+      };
+    }
+
     // Function to update stats data with animation
     function updateStatsData(data) {
-      const { highScore, cubesCracked, helpersUsed, longestCombo, collectiblesUnlocked, boardsCleared } = data;
+      const { highScore, cubesCracked, helpersUsed, longestCombo, collectiblesUnlocked, boardsCleared } = sanitizeStats(data);
       
       const highScoreEl = document.getElementById('high-score');
       const cubesCrackedEl = document.getElementById('cubes-cracked');
@@ -375,9 +394,30 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       try {
         const savedStats = localStorage.getItem('cubeCrash_stats');
         if (savedStats) {
-          const parsed = JSON.parse(savedStats);
+          const parsed = sanitizeStats(JSON.parse(savedStats));
           gameStats = { ...gameStats, ...parsed };
         }
+
+        // Legacy/fallback best score sources
+        try {
+          const legacyBestRaw = localStorage.getItem('cc_best_score_v1');
+          const legacyBest = legacyBestRaw ? parseInt(legacyBestRaw, 10) : 0;
+          if (Number.isFinite(legacyBest) && legacyBest > (gameStats.highScore || 0)) {
+            gameStats.highScore = legacyBest;
+          }
+        } catch {}
+
+        // Also consider current runtime score if available via debug API
+        try {
+          const s = (window.CC && typeof window.CC.state === 'function') ? window.CC.state() : null;
+          const liveScore = s && Number.isFinite(s.score) ? s.score : 0;
+          if (liveScore > (gameStats.highScore || 0)) {
+            gameStats.highScore = liveScore;
+          }
+        } catch {}
+
+        // Persist any upgrades back to our unified storage
+        saveStatsToStorage();
       } catch (error) {
         console.warn('Failed to load stats from storage:', error);
       }
@@ -386,7 +426,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     // Function to save stats to localStorage
     function saveStatsToStorage() {
       try {
-        localStorage.setItem('cubeCrash_stats', JSON.stringify(gameStats));
+        localStorage.setItem('cubeCrash_stats', JSON.stringify(sanitizeStats(gameStats)));
       } catch (error) {
         console.warn('Failed to save stats to storage:', error);
       }
@@ -395,7 +435,9 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     // Function to update a specific stat
     function updateStat(statName, value) {
       if (gameStats.hasOwnProperty(statName)) {
-        gameStats[statName] = value;
+        // Coerce to non-negative integer
+        const v = toIntSafe(value);
+        gameStats[statName] = v;
         saveStatsToStorage();
         
         // Update UI if stats screen is visible
@@ -404,6 +446,29 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
         }
       }
     }
+
+    // Hard reset utility for testing
+    window.hardResetStats = () => {
+      try {
+        localStorage.removeItem('cubeCrash_stats');
+        localStorage.removeItem('cc_best_score_v1');
+      } catch {}
+      gameStats = sanitizeStats({});
+      saveStatsToStorage();
+      // If stats screen open, animate zeros
+      if (statsScreen && !statsScreen.hidden) {
+        try {
+          ['high-score','boards-cleared','cubes-cracked','helpers-used','longest-combo'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = '0';
+          });
+          const cu = document.getElementById('collectibles-unlocked');
+          if (cu) cu.textContent = '0/20';
+          updateStatsData(gameStats);
+        } catch {}
+      }
+      console.log('🧹 Stats hard reset completed');
+    };
     
     function goToSlide(slideIndex) {
       if (slideIndex < 0 || slideIndex >= totalSlides) return;
@@ -755,6 +820,23 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
         hideStatsScreen();
       });
     }
+
+    if (statsResetButton) {
+      // Simple hover affordance
+      statsResetButton.addEventListener('mouseenter', () => {
+        statsResetButton.style.transition = 'all 0.2s ease';
+        statsResetButton.style.transform = 'translateY(1px)';
+      });
+      statsResetButton.addEventListener('mouseleave', () => {
+        statsResetButton.style.transition = 'all 0.2s ease';
+        statsResetButton.style.transform = 'translateY(0)';
+      });
+      // Reset stats on click
+      statsResetButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        try { window.hardResetStats?.(); } catch {}
+      });
+    }
     
     // Initialize
     console.log('🎯 Initializing slider...');
@@ -763,6 +845,15 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     
     // Load stats from storage
     loadStatsFromStorage();
+    
+    // If query param resetStats=1 is present, reset immediately for clean testing
+    try {
+      const qp = new URLSearchParams(window.location.search);
+      const rs = qp.get('resetStats');
+      if (rs && /^(1|true|yes)$/i.test(rs)) {
+        window.hardResetStats();
+      }
+    } catch {}
     
     updateSlider();
     // Ensure dots visible on initial load as well
@@ -875,6 +966,15 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     window.exitToMenu = async () => {
       console.log('🏠 Exiting to menu...');
       try {
+        // Persist live high score before tearing down the game
+        try {
+          const s = (window.CC && typeof window.CC.state === 'function') ? window.CC.state() : null;
+          const liveScore = s && Number.isFinite(s.score) ? s.score : 0;
+          if (typeof window.updateHighScore === 'function') {
+            window.updateHighScore(liveScore);
+          }
+        } catch {}
+
         // Unlock slider for homepage interactions
         sliderLocked = false;
         isDragging = false;

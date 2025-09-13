@@ -521,6 +521,27 @@ body{height:100dvh;height:100vh;overflow:hidden}
   gap: 40px;
 }
 
+/* Reset button for testing */
+.stats-reset-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid #DDDDDD;
+  background: #fff;
+  color: #735A4D;
+  border-radius: 999px;
+  padding: 12px 20px;
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease, color .18s ease;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+.stats-reset-btn:hover { transform: translateY(1px); background: #fafafa; }
+.stats-reset-btn:active { transform: translateY(2px) scale(0.99); }
+
 /* Number animation styles */
 .stat-value.animating {
   animation: numberPulse 0.3s ease-out;
