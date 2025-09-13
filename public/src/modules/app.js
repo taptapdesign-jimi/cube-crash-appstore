@@ -724,17 +724,38 @@ async function spawnWildFromMeter(){
 // -------------------- merge --------------------
 
 function pickWildValue(dstValue) {
+  // Always exclude the target value to avoid spawning same number
   let candidates = [1,2,3,4,5].filter(v => v !== dstValue);
+  
+  console.log('🎯 pickWildValue: target was', dstValue, 'candidates:', candidates);
 
-  // ako je dst 4 ili 5, daj prednost manjim brojevima
+  // Smart logic: if target is high (4-5), prefer lower numbers (1-3)
+  // if target is low (1-2), prefer higher numbers (3-5)
   if (dstValue >= 4) {
-    candidates = candidates.filter(v => v <= 3);
-    if (candidates.length === 0) candidates = [1,2,3];
+    // Target is high, prefer lower numbers
+    const lowCandidates = candidates.filter(v => v <= 3);
+    if (lowCandidates.length > 0) {
+      candidates = lowCandidates;
+      console.log('🎯 Preferring lower numbers:', candidates);
+    }
+  } else if (dstValue <= 2) {
+    // Target is low, prefer higher numbers
+    const highCandidates = candidates.filter(v => v >= 3);
+    if (highCandidates.length > 0) {
+      candidates = highCandidates;
+      console.log('🎯 Preferring higher numbers:', candidates);
+    }
   }
 
-  if (candidates.length === 0) candidates = [1,2,3,4,5].filter(v => v !== dstValue);
+  // Fallback: if no candidates, use all except target
+  if (candidates.length === 0) {
+    candidates = [1,2,3,4,5].filter(v => v !== dstValue);
+    console.log('🎯 Fallback to all except target:', candidates);
+  }
 
-  return candidates[(Math.random() * candidates.length) | 0];
+  const result = candidates[(Math.random() * candidates.length) | 0];
+  console.log('🎯 Final wild spawn value:', result);
+  return result;
 }
 function merge(src, dst, helpers){
   if (busyEnding) { helpers.snapBack?.(src); return; }
@@ -748,17 +769,11 @@ function merge(src, dst, helpers){
   const wildActive = (src.special === 'wild' || dst.special === 'wild');
   let effSum = sum;
 
-  // Normal rule: wild instantly triggers merge to 6
+  // Wild cube logic: spawn random value that's NOT the same as target
   if (wildActive) {
-    effSum = 6;
-
-    // Edge-case: late game, if board is almost full and this would leave only wilds,
-    // then downgrade effSum to a smaller non-equal value so we don't spawn dead wilds.
-    const activeTiles = tiles.filter(t => t && !t.locked);
-    const allOpen = activeTiles.length === COLS * ROWS;
-    if (allOpen) {
-      effSum = pickWildValue(dst.value || 1);
-    }
+    // Always use pickWildValue to avoid spawning same number as target
+    effSum = pickWildValue(dst.value || 1);
+    console.log('🎯 Wild merge: target was', dst.value, 'spawning', effSum);
   }
 
   grid[src.gridY][src.gridX] = null;
