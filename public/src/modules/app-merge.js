@@ -2,8 +2,8 @@
 import { gsap } from 'gsap';
 import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';
 import * as makeBoard from './board.js';
-import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, screenShake } from './fx.js';
-// HUD functions are now in hud-helpers.js
+import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect } from './fx.js';
+import * as HUD from './hud-helpers.js';
 import { openAtCell, openEmpties, spawnBounce } from './app-spawn.js';
 import { showStarsModal } from './stars-modal.js';
 import { rebuildBoard } from './app-board.js';
@@ -82,7 +82,12 @@ export function merge(src, dst, helpers){
       onComplete: () => {
         removeTile(src);
         dst.eventMode = 'static';
-        landBounce(dst);
+        // Use enhanced wild impact effect if wild cube is involved
+        if (wildActive) {
+          wildImpactEffect(dst);
+        } else {
+          landBounce(dst);
+        }
         STATE.moves++; updateHUD();
         // no spawn here
         ENDLESS ? checkGameOver() : checkGameOver();
@@ -99,6 +104,8 @@ export function merge(src, dst, helpers){
     makeBoard.drawStack(dst);
     dst.zIndex = 10000;
     const mult = combined >= 3 ? 3 : combined;
+    // Centralized HUD combo balloon for merge 6
+    try { HUD.bumpCombo?.({ kind: 'merge6' }); } catch {}
 
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.10, ease: 'power2.out',
@@ -113,7 +120,7 @@ export function merge(src, dst, helpers){
           woodShardsAtTile(STATE.board, dst, true);
           showMultiplierTile(STATE.board, dst, mult, 120, 1.0);
           
-          // WILD EXPLOSION: Much stronger effects for wild merge
+          // WILD EXPLOSION: slightly stronger (≈+20%) but gentle, erratic left-right bias
           if (wildActive) {
             console.log('💥 WILD EXPLOSION: Triggering enhanced effects');
             
@@ -129,22 +136,19 @@ export function merge(src, dst, helpers){
             // Enhanced multiplier tile for wild
             showMultiplierTile(STATE.board, dst, mult, 140, 1.2);
             
-            // MUCH STRONGER wild screen shake - elastic and longer with bigger movements
-            const randomForce = 70 + Math.random() * 40; // 70-110 strength (much bigger movements)
-            const randomDuration = 1.2 + Math.random() * 0.8; // 1.2-2.0 duration (much longer)
-            const randomDirection = Math.random() * Math.PI * 2; // Random direction
-            
-            try { 
-              screenShake(STATE.app, { 
-                strength: randomForce, 
-                duration: randomDuration,
-                direction: randomDirection,
-                steps: 25, // More steps for smoother shake
-                ease: 'elastic.out(1, 0.3)' // Elastic ease for wild shake
-              }); 
-              console.log('💥 WILD SHAKE: Force:', randomForce, 'Duration:', randomDuration, 'Direction:', randomDirection);
+            try {
+              const base = Math.min(25, 12 + Math.max(1, mult) * 3);
+              screenShake(STATE.app, {
+                strength: base * 1.2,
+                duration: 0.45,
+                steps: 18,
+                ease: 'power2.out',
+                direction: 0,   // erratic per-step
+                yScale: 0.55,   // more left-right, less vertical
+                scale: 0.03,    // subtle global zoom
+              });
             } catch {}
-            
+          
             // Additional smoke bubbles for wild explosion
             smokeBubblesAtTile(STATE.board, dst, 120, 1.5);
             

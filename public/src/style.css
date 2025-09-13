@@ -13,13 +13,14 @@
   margin-bottom: 22px !important;
 }
 
-/* Play button elastic pop out animation styles */
+/* Play button elastic spring bounce animation styles - 0.65 seconds */
 .slider-slide[data-slide="0"] .slide-content,
 .slider-slide[data-slide="0"] .slide-text,
 .slider-slide[data-slide="0"] .slide-button,
 .slider-slide[data-slide="0"] .hero-container,
-#home-logo {
-  transition: opacity 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+#home-logo,
+.slider-dot {
+  transition: opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8);
   transform-origin: center center; /* Ensure elements scale from their center */
 }
 
@@ -66,6 +67,8 @@ body{height:100dvh;height:100vh;overflow:hidden}
 /* Game app container */
 #app {
   /* GSAP will handle all animations */
+  position: relative;
+  overflow: hidden;
 }
 
 /* Home content wrapper */
@@ -102,7 +105,34 @@ body{height:100dvh;height:100vh;overflow:hidden}
     0 6px 0 0 #B35E3F,
     0 10px 0 0 #9E5237,
     0 10px 18px rgba(186,97,68,0.35);
+  overflow: hidden; /* clip shimmer */
 }
+.squishy-cc::before{ content: none; }
+/* Soft sun‑shimmer sweep every 10s */
+.squishy-cc::after{
+  content: "";
+  position: absolute;
+  inset: -12px; /* slightly bigger for bleed */
+  pointer-events: none;
+  border-radius: inherit;
+  /* White sweep (narrowed core by ~20%) */
+  background: linear-gradient(110deg,
+    rgba(255,255,255,0.00) 0%,
+    rgba(255,255,255,0.25) 22%,
+    rgba(255,255,255,0.95) 44%,
+    rgba(255,255,255,0.95) 56%,
+    rgba(255,255,255,0.25) 78%,
+    rgba(255,255,255,0.00) 100%
+  );
+  transform: translateX(-160%) skewX(-12deg);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: cta-shimmer 3s ease-in-out infinite; /* enable shimmer on Play CTA */
+  filter: blur(0.56px); /* ~30% manje od 0.8px */
+}
+
+/* Second sweep 0.4s later — warm #FFD2C0 */
+/* disable second sweep on CTA */
 .squishy-cc::before{ content: none; }
 .squishy-cc:hover{ transform: translateY(3px); box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.25),
@@ -260,6 +290,58 @@ body{height:100dvh;height:100vh;overflow:hidden}
     0 2px 0 0 #C86C49,
     0 6px 0 0 #B35E3F,
     0 10px 0 0 #9E5237;
+  overflow: hidden; /* clip shimmer */
+}
+
+.pause-modal-btn-orange::after{
+  content: "";
+  position: absolute;
+  inset: -12px;
+  pointer-events: none;
+  border-radius: inherit;
+  /* White sweep */
+  background: linear-gradient(110deg,
+    rgba(255,255,255,0.00) 0%,
+    rgba(255,255,255,0.25) 22%,
+    rgba(255,255,255,0.95) 44%,
+    rgba(255,255,255,0.95) 56%,
+    rgba(255,255,255,0.25) 78%,
+    rgba(255,255,255,0.00) 100%
+  );
+  transform: translateX(-160%) skewX(-12deg);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: cta-shimmer 3s ease-in-out infinite; /* 2x brže */
+  filter: blur(0.56px);
+}
+
+.pause-modal-btn-orange::before{ content: none; }
+
+/* Shimmer keyframes — most of the time idle, brief sweep left→right */
+@keyframes cta-shimmer{
+  0%, 5%{
+    transform: translateX(-160%) skewX(-12deg);
+    opacity: 0;
+  }
+  10%{
+    opacity: 0.78; /* strong highlight */
+  }
+  70%{
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0.0;
+  }
+  100%{
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .squishy-cc::after,
+  .pause-modal-btn-orange::after{
+    animation: none !important;
+    opacity: 0 !important;
+  }
 }
 
 .pause-modal-btn-orange:hover {

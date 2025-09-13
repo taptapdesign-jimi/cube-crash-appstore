@@ -1,7 +1,7 @@
 // src/modules/fx.js
 // Minimal FX surface used by app.js (stable named exports).
 
-import { Container, Graphics, Text } from 'pixi.js';
+import { Container, Graphics, Text, Texture, Sprite } from 'pixi.js';
 import { gsap } from 'gsap';
 
 /* ---------- tiny helpers ---------- */
@@ -242,7 +242,9 @@ export function screenShake(app, opts = {}){
       strength = 18,   // px amplitude (pojačano)
       steps    = 15,   // jitter steps (više koraka)
       ease     = 'sine.inOut',
-      direction = 0,   // Random direction in radians
+      direction = 0,   // Random direction in radians (0 = erratic/random)
+      yScale    = 1.0, // scale vertical movement (e.g., 0.5 = more left-right bias)
+      scale     = 0.0, // max extra zoom (e.g., 0.03 = +3% at peak)
     } = opts || {};
 
     // kill any ongoing shake
@@ -255,6 +257,7 @@ export function screenShake(app, opts = {}){
     for (let i = 0; i < steps; i++){
       const p = 1 - (i / steps);
       const amp = strength * p * p; // quadratic decay
+      const zoom = scale ? (1 + scale * (amp / Math.max(1, strength))) : 1;
       
       // Use direction for wild explosions, random for normal
       let dx, dy;
@@ -262,17 +265,215 @@ export function screenShake(app, opts = {}){
         // Wild explosion: use direction with more randomness for bigger movements
         const angle = direction + (Math.random() - 0.5) * 1.0; // ±0.5 radians variation (bigger spread)
         dx = Math.cos(angle) * amp;
-        dy = Math.sin(angle) * amp;
+        dy = Math.sin(angle) * amp * yScale;
       } else {
         // Normal shake: random direction
         dx = (Math.random() * 2 - 1) * amp;
-        dy = (Math.random() * 2 - 1) * amp;
+        dy = (Math.random() * 2 - 1) * amp * yScale;
       }
       
-      tl.to(target, { x: dx, y: dy, duration: dt, ease }, 0 + i * dt);
+      tl.to(target, { x: dx, y: dy, scaleX: zoom, scaleY: zoom, duration: dt, ease }, 0 + i * dt);
     }
     // Use the same ease for the return animation, or power2.out for normal shake
     const returnEase = ease === 'elastic.out(1, 0.3)' ? 'elastic.out(1, 0.5)' : 'power2.out';
-    tl.to(target, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
+    tl.to(target, { x: 0, y: 0, scaleX: 1, scaleY: 1, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
   } catch {}
+}
+
+/* ---------- Wild idle FX: gentle wiggle + elastic bounce + shimmer ---------- */
+function makeLinearGradientTexture(w, h, stops){
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(2, Math.ceil(w));
+  canvas.height = Math.max(2, Math.ceil(h));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+  // stops: [{o:0..1, c:'rgba(...)'}]
+  (stops||[]).forEach(s=> grad.addColorStop(Math.min(1, Math.max(0, s.o||0)), s.c||'rgba(255,255,255,0)'));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  try { return Texture.from(canvas); } catch { return null; }
+}
+
+// Create shimmer effect for wild cubes
+function createWildShimmer(tile) {
+  if (!tile) return null;
+  
+  const g = tile.rotG || tile;
+  const baseW = Math.max(64, (tile.base?.width || tile.width || 96));
+  const baseH = Math.max(64, (tile.base?.height || tile.height || 96));
+  
+  // Create shimmer container with proper masking
+  const shimmerContainer = new Container();
+  shimmerContainer.alpha = 0;
+  
+  // Create mask for shimmer (exactly tile size)
+  const mask = new Graphics();
+  mask.rect(-baseW/2, -baseH/2, baseW, baseH);
+  mask.fill(0xFFFFFF);
+  shimmerContainer.mask = mask;
+  shimmerContainer.addChild(mask);
+  
+  // Create shimmer sprite with diagonal gradient
+  const shimmerTexture = makeLinearGradientTexture(baseW * 2, baseH * 2, [
+    { o: 0.0, c: 'rgba(255,255,255,0)' },
+    { o: 0.2, c: 'rgba(255,255,255,0)' },
+    { o: 0.4, c: 'rgba(255,255,255,0.6)' },
+    { o: 0.5, c: 'rgba(255,255,255,0.9)' },
+    { o: 0.6, c: 'rgba(255,255,255,0.6)' },
+    { o: 0.8, c: 'rgba(255,255,255,0)' },
+    { o: 1.0, c: 'rgba(255,255,255,0)' }
+  ]);
+  
+  if (shimmerTexture) {
+    const shimmerSprite = new Sprite(shimmerTexture);
+    shimmerSprite.anchor.set(0.5);
+    shimmerSprite.width = baseW * 2;
+    shimmerSprite.height = baseH * 2;
+    
+    // Rotate shimmer to go diagonal (top-left to bottom-right)
+    shimmerSprite.rotation = Math.PI / 4; // 45 degrees
+    
+    // Position shimmer to start off-screen
+    shimmerSprite.x = -baseW * 0.8;
+    shimmerSprite.y = -baseH * 0.8;
+    
+    shimmerContainer.addChild(shimmerSprite);
+    tile._wildShimmerSprite = shimmerSprite;
+  }
+  
+  // Add to tile
+  g.addChild(shimmerContainer);
+  tile._wildShimmer = shimmerContainer;
+  
+  return shimmerContainer;
+}
+
+// Enhanced wild cube impact effect - more organic and cute
+export function wildImpactEffect(tile, opts = {}) {
+  if (!tile) return;
+  
+  const g = tile.rotG || tile;
+  const sx = g.scale?.x || 1;
+  const sy = g.scale?.y || 1;
+  
+  // More organic parameters
+  const squash = opts.squash ?? 0.15;      // More pronounced squash
+  const stretch = opts.stretch ?? 0.12;    // Gentle stretch
+  const tilt = opts.tilt ?? 0.08;          // Cute tilt
+  const bounce = opts.bounce ?? 1.08;      // Cute bounce
+  
+  try { gsap.killTweensOf(g.scale); gsap.killTweensOf(g.rotation); } catch {}
+  
+  // 1) Cute pre-impact anticipation (slight shrink + tilt)
+  gsap.set(g, { rotation: 0 });
+  gsap.fromTo(g.scale, 
+    { x: sx * 0.95, y: sy * 0.95 },
+    { x: sx * (1 + squash), y: sy * (1 - stretch), duration: 0.06, ease: 'power2.out' }
+  );
+  
+  // 2) Organic bounce with cute overshoot
+  gsap.to(g.scale, 
+    { x: sx * bounce, y: sy * bounce, duration: 0.16, ease: 'back.out(2.5)' }, 
+    0.06
+  );
+  
+  // 3) Gentle settle with secondary bounce
+  gsap.to(g.scale, 
+    { x: sx * 0.98, y: sy * 1.02, duration: 0.12, ease: 'power2.out' }, 
+    0.22
+  );
+  gsap.to(g.scale, 
+    { x: sx, y: sy, duration: 0.18, ease: 'elastic.out(1, 0.8)' }, 
+    0.34
+  );
+  
+  // 4) Cute tilt wiggle sequence
+  gsap.to(g, { rotation: tilt, duration: 0.08, ease: 'sine.out' }, 0.08);
+  gsap.to(g, { rotation: -tilt * 0.6, duration: 0.10, ease: 'sine.inOut' }, 0.16);
+  gsap.to(g, { rotation: tilt * 0.3, duration: 0.12, ease: 'sine.inOut' }, 0.26);
+  gsap.to(g, { rotation: 0, duration: 0.14, ease: 'back.out(1.8)' }, 0.38);
+}
+
+export function startWildIdle(tile, opts = {}){
+  if (!tile) return;
+  try { stopWildIdle(tile); } catch {}
+
+  const g = tile.rotG || tile;
+  const baseW = Math.max(64, (tile.base?.width || tile.width || 96));
+  const baseH = Math.max(64, (tile.base?.height || tile.height || 96));
+
+  // Create shimmer effect
+  const shimmer = createWildShimmer(tile);
+
+  const interval = Math.max(1.5, +opts.interval || 4.0);
+  const shiftDur = Math.max(0.35, +opts.shift || 0.70);
+  const wiggle   = Math.max(0.01, +opts.wiggle || 0.040);
+  const peak     = Math.max(1.01, +opts.peak || 1.04);
+
+  const tl = gsap.timeline({ repeat: -1, repeatDelay: Math.max(0, interval - (shiftDur + 0.40)) });
+  tile._wildIdleTl = tl;
+
+  // 1) subtle bounce + elastic wiggle (simultaneous)
+  const sx = g.scale?.x || 1, sy = g.scale?.y || 1;
+  tl.to(g.scale, { x: peak, y: peak, duration: 0.22, ease: 'back.out(2.2)' }, 0)
+    .to(g.scale, { x: sx,   y: sy,   duration: 0.28, ease: 'power2.out' }, '>-0.08')
+    // wiggle runs in parallel with the scale timeline
+    .to(g, { rotation: wiggle, duration: 0.24, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0);
+
+  // Random shimmer effect every 4-8 seconds
+  if (shimmer && tile._wildShimmerSprite) {
+    const scheduleShimmer = () => {
+      const delay = 4 + Math.random() * 4; // 4-8 seconds
+      gsap.delayedCall(delay, () => {
+        if (tile._wildIdleTl && !tile._wildIdleTl.isActive()) return; // Don't shimmer if idle stopped
+        
+        // Reset shimmer position
+        tile._wildShimmerSprite.x = -baseW * 0.8;
+        tile._wildShimmerSprite.y = -baseH * 0.8;
+        
+        // Shimmer animation - diagonal sweep
+        const shimmerTl = gsap.timeline();
+        shimmerTl
+          // Calmer shimmer: lower peak alpha and slower sweep
+          .to(shimmer, { alpha: 0.30, duration: 0.28, ease: 'power2.out' })
+          .to(tile._wildShimmerSprite, { 
+            x: baseW * 0.8, 
+            y: baseH * 0.8,
+            duration: 2.0, 
+            ease: 'power2.inOut' 
+          })
+          .to(shimmer, { alpha: 0, duration: 0.28, ease: 'power2.in' });
+        
+        // Schedule next shimmer
+        scheduleShimmer();
+      });
+    };
+    
+    scheduleShimmer();
+  }
+}
+
+export function stopWildIdle(tile){
+  if (!tile) return;
+  try { tile._wildIdleTl?.kill?.(); } catch {}
+  tile._wildIdleTl = null;
+  try {
+    if (tile._wildShimmer){
+      // Kill any ongoing shimmer animations
+      if (tile._wildShimmerSprite) {
+        gsap.killTweensOf(tile._wildShimmerSprite);
+      }
+      gsap.killTweensOf(tile._wildShimmer);
+      
+      // Clean up shimmer elements
+      if (tile._wildShimmer.mask) tile._wildShimmer.mask = null;
+      tile._wildShimmer.parent?.removeChild(tile._wildShimmer);
+      tile._wildShimmer.destroy?.();
+    }
+    if (tile._wildMask){ tile._wildMask.parent?.removeChild(tile._wildMask); tile._wildMask.destroy?.(); }
+  } catch {}
+  tile._wildShimmer = null;
+  tile._wildShimmerSprite = null;
+  tile._wildMask = null;
 }

@@ -13,7 +13,7 @@ import * as CONSTS from './constants.js';
 
 import * as makeBoard from './board.js';
 import { installDrag } from './install-drag.js';
-import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, startWildIdle, stopWildIdle } from './fx.js';
 import { showStarsModal } from './stars-modal.js';
 import FX from './fx-helpers.js';
 import * as SPAWN from './spawn-helpers.js';
@@ -34,6 +34,28 @@ let comboIdleTimer = null;
 function scheduleComboDecay(){
   try { comboIdleTimer?.kill?.(); } catch {}
   comboIdleTimer = gsap.delayedCall(COMBO_IDLE_RESET_MS/1000, () => {
+    // COMBO DEFLATE ANIMATION: Deflate like balloon when combo is lost
+    if (combo > 0) {
+      console.log('💨 COMBO DEFLATE: Starting deflate animation for combo loss');
+      try {
+        // Animate combo text deflate
+        if (window.comboText) {
+          gsap.to(window.comboText.scale, {
+            x: 0.1, // Deflate to 10%
+            y: 0.1,
+            duration: 0.3,
+            ease: 'power2.in',
+            onComplete: () => {
+              // Reset scale after deflate
+              gsap.set(window.comboText.scale, { x: 1.0, y: 1.0 });
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('💨 COMBO DEFLATE: Animation failed:', e);
+      }
+    }
+    
     combo = 0;
     hudResetCombo();
     updateHUD();
@@ -47,6 +69,7 @@ const WILD_INC_BIG   = 0.22;
 // -------------------- global state --------------------
 let app, stage, board, boardBG, hud;
 let _hudInitDone = false;
+let _hudDropPending = true; // Play-from-slider only; no drop on restarts
 let _lastSAT = -1;
 let grid = []; let tiles = [];
 let score = 0; let level = 1; let moves = MOVES_MAX;
@@ -59,6 +82,9 @@ function hudResetCombo(){ combo = 0; try{ _resetCombo?.(); }catch{} }
 
 // HUD legacy refs (fallback)
 let scoreNumText = null, movesNumText = null, boardNumText = null;
+
+// Export combo text for animations
+window.comboText = null;
 
 // Wild meter (0..1) – crta ga HUD modul
 let wildMeter = 0;
@@ -259,9 +285,6 @@ export async function boot(){
   startLevel(1);
   window.addEventListener('resize', layout);
   scheduleIdleCheck();
-  
-  // Call layout immediately after boot
-  layout();
 
   // viewport + fonts
   {
@@ -296,6 +319,13 @@ export async function boot(){
     testCleanAndPrize: async () => { /* ... tvoja baza ... */ },
   };
   window.testCleanAndPrize = () => window.CC.testCleanAndPrize();
+
+  // Run layout after viewport/meta/styles are in place to get correct safe-area values
+  try {
+    requestAnimationFrame(() => layout());
+  } catch {
+    layout();
+  }
 }
 
 // -------------------- layout + HUD --------------------
@@ -351,6 +381,12 @@ export function layout(){
     console.log('🖥️ Desktop: HUD at y:', safeTop, 'px, board starts at y:', hudBottom);
   }
   
+  // Gentle global nudge: move HUD and board 8px lower
+  const HUD_NUDGE_PX = 8;
+  const BOARD_NUDGE_PX = 8; // additional board-only nudge down (was 4)
+  safeTop += HUD_NUDGE_PX;
+  hudBottom += HUD_NUDGE_PX;
+  
   // Scale board to fit screen width with 24px padding (equivalent to ~6% on mobile)
   const paddingPercent = 0.06; // 6% padding (equivalent to ~24px on iPhone 13)
   const availableWidth = vw * (1 - paddingPercent * 2); // 88% of screen width
@@ -375,10 +411,10 @@ export function layout(){
   const maxLeft = vw - paddingPixels - sw;
   board.x = Math.min(Math.max(idealLeft, minLeft), maxLeft);
   
-  // Center board between HUD and bottom
+  // Center board between HUD and bottom (initial estimate using constant HUD_H)
   const availableHeight = vh - hudBottom - BOT_PAD;
   const centerY = hudBottom + (availableHeight - sh) / 2;
-  board.y = Math.round(centerY);
+  board.y = Math.round(centerY + BOARD_NUDGE_PX);
   
   console.log('🎯 Board centered at y:', board.y, 'px (available height:', availableHeight, 'px, board height:', sh, 'px)');
   
@@ -400,7 +436,7 @@ export function layout(){
     if (typeof HUD.initHUD === 'function') {
       if (!_hudInitDone) {
         console.log('🎯 Initializing HUD...');
-        HUD.initHUD({ stage, app, top: safeTop, gsap });
+        HUD.initHUD({ stage, app, top: safeTop, initialHide: _hudDropPending });
         _hudInitDone = true;
         console.log('✅ HUD initialized successfully');
         
@@ -426,6 +462,38 @@ export function layout(){
       if (typeof HUD.layout === 'function') {
         HUD.layout({ app, top: safeTop });
         console.log('✅ HUD layout updated');
+      }
+
+      // After HUD has laid out the wild preloader, recenter board between
+      // the bottom edge of the (final) HUD position and the bottom of the screen.
+      try {
+        const wildY = (wild?.view?.y ?? 0);
+        const wildH = (wild?.view?.height ?? 0);
+        const hudRoot = wild?.view?.parent || null; // HUD_ROOT
+        // If HUD is mid-drop (hidden above), use its target top for layout so board doesn't jump.
+        const hudYForLayout = hudRoot
+          ? (hudRoot._dropped ? (hudRoot.y ?? safeTop) : (hudRoot._dropTop ?? safeTop))
+          : safeTop;
+        // dynamic bottom = intended HUD top + wild local y + wild height + gap
+        const dynamicHudBottom = hudYForLayout + wildY + wildH + GAP_HUD;
+        // Recompute vertical scale to ensure board fits in space between wild bottom and screen bottom
+        const heightScale2 = (vh - dynamicHudBottom - BOT_PAD) / h;
+        const s2 = Math.min(widthScale, heightScale2);
+        board.scale.set(s2, s2);
+        const sw2 = w * s2, sh2 = h * s2;
+        // recenter horizontally with the same padding
+        const paddingPixels2 = vw * paddingPercent;
+        const idealLeft2 = Math.round((vw - sw2) / 2);
+        const minLeft2 = paddingPixels2;
+        const maxLeft2 = vw - paddingPixels2 - sw2;
+        board.x = Math.min(Math.max(idealLeft2, minLeft2), maxLeft2);
+        // recenter vertically between wild bottom and bottom of screen
+        const avail2 = vh - dynamicHudBottom - BOT_PAD;
+        const center2 = dynamicHudBottom + (avail2 - sh2) / 2;
+        board.y = Math.round(center2 + BOARD_NUDGE_PX);
+        console.log('🎯 Recentered board using wild bottom:', { dynamicHudBottom, center2, wildY, wildH, s2, hudYForLayout });
+      } catch (e) {
+        console.warn('⚠️ Could not recenter using wild bottom, using estimate.', e);
       }
     } else {
       console.warn('⚠️ HUD.initHUD is not a function');
@@ -540,7 +608,7 @@ function rebuildBoard(){
   
   // Start animation immediately - NO WAITING
   console.log('🎯 Starting sweetPopIn from app.js with', tiles.length, 'tiles');
-  sweetPopIn(tiles); // Don't wait for animation to complete
+  sweetPopIn(tiles, { onHalf: () => { if (_hudDropPending){ try { HUD.playHudDrop?.({}); } catch {} _hudDropPending = false; } } }); // Don't wait
   console.log('✅ sweetPopIn started immediately - no waiting');
   
 }
@@ -584,6 +652,7 @@ function applyWildSkinLocal(tile){
     if (tile.num)  tile.num.visible = false;
     if (tile.pips) tile.pips.visible = false;
     tile.isWildFace = true;
+    try { startWildIdle(tile, { interval: 4 }); } catch {}
   }catch{}
 }
 
@@ -694,7 +763,7 @@ function merge(src, dst, helpers){
 
     // Combo++ (bez realnog capa), bump anim
     hudSetCombo(combo + 1);
-    try { _bumpCombo?.(); } catch {}
+    try { HUD.bumpCombo?.({ kind: 'stack', combo }); } catch {}
     scheduleComboDecay();
 
     addWildProgress(WILD_INC_SMALL);
@@ -734,9 +803,10 @@ function merge(src, dst, helpers){
       onComplete: async () => {
         removeTile(src);
 
-        // Combo++ + bump
+        // Combo++ + bump (merge 6 hits maximum balloon)
         hudSetCombo(combo + 1);
-        try { _bumpCombo?.(); } catch {}
+        try { HUD.bumpCombo?.({ kind: 'merge6', combo }); } catch {}
+        
         scheduleComboDecay();
 
         // FX
@@ -748,7 +818,25 @@ function merge(src, dst, helpers){
         // ► badge + pojačani “smoke/bubbles” + screen shake
         showMultiplierTile(board, dst, mult, TILE, 1.0);
         smokeBubblesAtTile(board, dst, TILE, 2); // strength 2 – veći burst
-        try { screenShake(app, { strength: Math.min(25, 12 + Math.max(1, mult) * 3), duration: 0.4 }); } catch {}
+        
+        // Gentle, erratic left-right shake for Wild merges (~20% stronger than normal)
+        try {
+          const base = Math.min(25, 12 + Math.max(1, mult) * 3);
+          if (wasWild) {
+            // 20% stronger, bias left-right (reduced vertical via yScale), not faster
+            screenShake(app, {
+              strength: base * 1.2,
+              duration: 0.45,
+              steps: 18,
+              ease: 'power2.out',
+              direction: 0,   // erratic per-step
+              yScale: 0.55,   // less vertical movement → more left-right feel
+              scale: 0.03,    // subtle global zoom
+            });
+          } else {
+            screenShake(app, { strength: base, duration: 0.4 });
+          }
+        } catch {}
 
         if (wasWild){ woodShardsAtTile(board, dst, true); woodShardsAtTile(board, dst, true); }
 
@@ -870,6 +958,7 @@ function removeTile(t){
   t.eventMode='none'; if (t.removeAllListeners) t.removeAllListeners();
   if (t.hover && typeof t.hover.clear === 'function') t.hover.clear();
   try{ gsap.killTweensOf(t); gsap.killTweensOf(t.scale); gsap.killTweensOf(t.rotG);}catch{}
+  try { stopWildIdle?.(t); } catch {}
   board.removeChild(t);
   tiles = tiles.filter(x=>x!==t);
   t.destroy?.({children:true, texture:false, textureSource:false});
@@ -949,6 +1038,8 @@ export function cleanupGame() {
   
   // CRITICAL: Reset HUD initialization flag
   _hudInitDone = false;
+  // Prepare HUD drop for next entry from menu
+  _hudDropPending = true;
   console.log('✅ HUD initialization flag reset');
   
   // Reset all game state
@@ -963,6 +1054,9 @@ export function cleanupGame() {
   try { comboIdleTimer?.kill?.(); } catch {}
   comboIdleTimer = null;
   
+  // Remove global listeners to avoid duplicated layout calls on re-entry
+  try { window.removeEventListener('resize', layout); } catch {}
+  
   // Reset wild progress
   resetWildProgress(0, false);
   try { HUD.resetWildLoader?.(); } catch {}
@@ -970,6 +1064,7 @@ export function cleanupGame() {
   // Clear tiles and grid
   if (tiles) {
     tiles.forEach(t => {
+      try { stopWildIdle?.(t); } catch {}
       try { t.destroy?.({children: true, texture: false, textureSource: false}); } catch {}
     });
     tiles.length = 0;

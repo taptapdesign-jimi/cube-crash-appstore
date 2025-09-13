@@ -149,46 +149,22 @@ export function layout({ app, top }) {
   const vw = app.renderer.width;
   const vh = app.renderer.height;
   
-  // Force HUD to be positioned below notch on mobile devices
+  // Respect the provided top from app.js (safeTop already accounts for safe areas)
   const isMobile = vw < 768 || vh > vw;
-  if (isMobile) {
-    // iPhone 13 specific detection and positioning
-    const isIPhone13 = (vw === 390 && vh === 844) || (vw === 428 && vh === 926); // iPhone 13/13 Pro/13 Pro Max
-    const cssVars = getComputedStyle(document.documentElement);
-    const SAT = parseFloat(cssVars.getPropertyValue('--sat')) || 0;
-    
-    if (isIPhone13) {
-      // iPhone 13 specific positioning - 1% from top (force it)
-      const onePercentFromTop = Math.round(vh * 0.01); // 1% from top
-      top = onePercentFromTop; // Force 1% from top, ignore safe area
-      console.log('📱 iPhone 13 detected - HUD positioned at:', top, 'px (1% from top:', onePercentFromTop, 'px) - FORCED');
-    } else {
-      // Other mobile devices - 1% from top (force it)
-      const onePercentFromTop = Math.round(vh * 0.01); // 1% from top
-      top = onePercentFromTop; // Force 1% from top, ignore safe area
-      console.log('📱 Mobile device detected - HUD positioned at:', top, 'px (1% from top:', onePercentFromTop, 'px) - FORCED');
-    }
-  } else {
-    // On desktop, use the calculated top position
-    console.log('🖥️ Desktop device - using calculated top position:', top);
-  }
+  console.log(isMobile ? '📱 Mobile HUD top (safeTop):' : '🖥️ Desktop HUD top:', top);
 
   const SIDE = 24;            // bočni odmak
-  const yLabel = top + 0;     // red s labelima
-  const yValue = top + 20;    // red s vrijednostima
+  // NOTE: yLabel/yValue are LOCAL to HUD_ROOT. HUD_ROOT.y is set to 'top'.
+  const yLabel = 0;           // red s labelima (local)
+  const yValue = 20;          // red s vrijednostima (local)
   
   console.log('🎯 HUD positioning:', { top, yLabel, yValue, vh, onePercent: Math.round(vh * 0.01) });
-  // Safe height calculation: avoid early Pixi Text.height access
-  let valueRowH = 24;
-  try {
-    const mh = Number.isFinite(movesText?.height) ? movesText.height : (movesText?.style?.fontSize || 24);
-    const sh = Number.isFinite(scoreText?.height) ? scoreText.height : (scoreText?.style?.fontSize || 24);
-    const ch = Number.isFinite(comboText?.height) ? comboText.height : (comboText?.style?.fontSize || 24);
-    valueRowH = Math.max(mh || 24, sh || 24, ch || 24);
-  } catch (e) {
-    console.warn('🎯 HUD layout: safe height fallback due to early init:', e);
-    valueRowH = Math.max(movesText?.style?.fontSize || 24, scoreText?.style?.fontSize || 24, comboText?.style?.fontSize || 24);
-  }
+  // Use stable fontSize for spacing (avoids tiny drift from Text.height timing)
+  const valueRowH = Math.max(
+    movesText?.style?.fontSize || 24,
+    scoreText?.style?.fontSize || 24,
+    comboText?.style?.fontSize || 24
+  );
   const barGap    = Math.round(vh * 0.02); // 2% gap below the numbers
   const barY      = yValue + valueRowH + barGap; 
 
@@ -241,21 +217,21 @@ export function layout({ app, top }) {
   if (HUD_ROOT) {
     HUD_ROOT.zIndex = 10_000;
     HUD_ROOT.sortableChildren = true;
-    HUD_ROOT.y = top; // Update HUD_ROOT position to match elements
-    console.log('🎯 HUD_ROOT.y updated to:', HUD_ROOT.y, 'top:', top, 'vh:', vh, '1% of vh:', Math.round(vh * 0.01));
-    
-  // Wild loader is already positioned above at barY - don't override it
-  
-  // Verify HUD is above board
-  if (HUD_ROOT.y < 0) {
-    console.warn('⚠️ HUD is positioned above screen!', HUD_ROOT.y);
-  }
+    // If drop not yet played, don't force y to top — only update the stored drop target.
+    if (HUD_ROOT._dropped) {
+      HUD_ROOT.y = top;      // pin to final top when already dropped
+      HUD_ROOT.alpha = 1;
+    } else {
+      HUD_ROOT._dropTop = top; // remember final top for later drop animation
+      // keep current y (likely top-80/-120)
+    }
+    console.log('🎯 HUD layout:', { y: HUD_ROOT.y, dropTop: HUD_ROOT._dropTop, dropped: !!HUD_ROOT._dropped });
   } else {
     console.warn('⚠️ HUD_ROOT not found in layout function!');
   }
 }
 
-export function initHUD({ stage, app, top = 8 }) { 
+export function initHUD({ stage, app, top = 8, initialHide = false }) { 
   // očisti stari root ako postoji i skini stari resize listener
   try { if (HUD_ROOT && HUD_ROOT._onResize) window.removeEventListener('resize', HUD_ROOT._onResize); } catch {}
   // očisti stari root ako postoji
@@ -269,11 +245,14 @@ export function initHUD({ stage, app, top = 8 }) {
   // vrijednosti
   const valMoves = { fontFamily: 'LTCrow', fontSize: 24, fill: 0xAD8775, fontWeight: '700' };
   const valMain  = { fontFamily: 'LTCrow', fontSize: 24, fill: 0xAD8775, fontWeight: '700' };
-  const valCombo = { fontFamily: 'LTCrow', fontSize: 24, fill: 0xD69478, fontWeight: '700' };
+  const valCombo = { fontFamily: 'LTCrow', fontSize: 24, fill: 0xE77449, fontWeight: '700' }; // Same color as preloader
 
   movesText = new Text({ text: '0', style: valMoves });
   scoreText = new Text({ text: '0', style: valMain  });
   comboText = new Text({ text: 'x0', style: valCombo });
+  
+  // Export combo text for animations
+  window.comboText = comboText;
 
   movesText.anchor.set(0.5, 0);
   scoreText.anchor.set(0.5, 0);
@@ -308,24 +287,16 @@ export function initHUD({ stage, app, top = 8 }) {
   HUD_ROOT._onResize = onResize;
   window.addEventListener('resize', onResize);
 
-  // Gentle elastic HUD drop-in animation
-  if (!HUD_ROOT._animated) {
+  // Defer drop animation control to caller
+  HUD_ROOT._dropTop = top;
+  if (initialHide) {
     HUD_ROOT.alpha = 0;
-    HUD_ROOT.y = top - 80; // Start above screen
-    gsap.to(HUD_ROOT, {
-      alpha: 1,
-      y: top,
-      duration: 0.8,
-      ease: 'elastic.out(1, 0.6)',
-      onComplete: () => {
-        HUD_ROOT._animated = true;
-        HUD_ROOT.y = top;
-      }
-    });
+    HUD_ROOT.y = top - 140; // start well above for visible drop-in
+    HUD_ROOT._dropped = false;
   } else {
-    // Already animated, just set final position
     HUD_ROOT.alpha = 1;
     HUD_ROOT.y = top;
+    HUD_ROOT._dropped = true;
   }
 
   // Add pause modal on HUD click - only HUD area (moves, score, combo, wild preloader)
@@ -379,6 +350,21 @@ export function initHUD({ stage, app, top = 8 }) {
   });
 }
 
+// Play the deferred drop once (used on first Play when board is ~50% populated)
+export function playHudDrop({ duration = 0.8 } = {}){
+  if (!HUD_ROOT) return;
+  if (HUD_ROOT._dropped) return;
+  const top = HUD_ROOT._dropTop ?? HUD_ROOT.y ?? 0;
+  try { gsap.killTweensOf(HUD_ROOT); } catch {}
+  gsap.to(HUD_ROOT, {
+    alpha: 1,
+    y: top,
+    duration: duration,
+    ease: 'elastic.out(1, 0.6)',
+    onComplete: () => { HUD_ROOT._dropped = true; HUD_ROOT.y = top; }
+  });
+}
+
 export function updateHUD({ score, moves, combo }) {
   if (!HUD_ROOT) {
     console.warn('⚠️ HUD_ROOT is null, cannot update HUD');
@@ -428,30 +414,54 @@ export function resetCombo(){
   comboText.text = 'x0';
   stopComboFX();
 }
-export function bumpCombo(){
+export function bumpCombo(opts = {}){
   if (!comboText) return;
+  const kind = opts.kind || opts.type || 'stack'; // 'stack' | 'merge6'
+  const cv = Number.isFinite(opts.combo) ? (opts.combo|0) : (__lastComboVal|0);
+
+  // keep jitter running while combo is active
   startComboFX();
-  // Stop current deflate but continue from current scale for smoothness
+
+  // Stop current deflate/inflate but continue from current scale for smoothness
   try { __comboBumpTl?.kill?.(); } catch {}
   try { __shakeTl?.kill?.(); } catch {}
+
   const sx = comboText.scale?.x || 1;
   const sy = comboText.scale?.y || 1;
   const cur = Math.max(sx, sy);
-  const PEAK = 2.76;               // target peak
-  const upDur = Math.max(0.08, 0.14 - (cur - 1) * 0.05); // a bit faster if already large
+
+  // Target peaks: stack (softer) vs merge6 (max balloon)
+  // Increased by request: +25% for merge6, +10% for stack
+  const PEAK_MAX   = 2.50; // was 2.00 → now 250% (24px -> 60px)
+  const PEAK_STACK = 1.76; // was 1.60 → now ~176%
+  const PEAK_CAP   = 3.20; // hard cap so it doesn't get absurd
+  let peak = (kind === 'merge6') ? PEAK_MAX : PEAK_STACK;
+
+  // Extra balloon if combo >= 10: +20% at 10, +2% per each step above 10, capped at +40%
+  if (cv >= 10) {
+    const over = Math.max(0, cv - 9);
+    const bonusFactor = 1 + Math.min(0.40, 0.20 + (over - 1) * 0.02); // 10 -> +20%, 11 -> +22%, ... capped at +40%
+    peak = Math.min(PEAK_CAP, peak * bonusFactor);
+  }
+
+  // Inflate a bit faster if already large so it snaps back to peak quickly
+  const upDur = Math.max(0.08, 0.16 - (cur - 1) * 0.06);
+
   __comboBumpTl = gsap.timeline();
   __comboBumpTl
     // inflate quickly to peak
-    .to(comboText.scale, { x: PEAK, y: PEAK, duration: upDur, ease: 'back.out(3)' }, 0)
-    // one continuous deflate back to 1.0 (smooth, no hard steps)
-    .to(comboText.scale, { x: 1.0, y: 1.0, duration: 1.80, ease: 'power2.out' }, '>-0.01');
+    .to(comboText.scale, { x: peak, y: peak, duration: upDur, ease: 'back.out(3)' }, 0)
+    // slow, single deflate back to 1.0; keep it floating during the 2s combo window
+    .to(comboText.scale, { x: 1.0, y: 1.0, duration: 2.10, ease: 'power2.out' }, '>-0.01');
 
   // Boost shake while inflating, then gradually relax during deflate
   const sh = { k: __shakeMul };
   __shakeTl = gsap.timeline({ onUpdate: () => { __shakeMul = sh.k; } });
+  // If combo >= 10, double the shake strength for stronger impact
+  const shakeExtra = (cv >= 10) ? 2.0 : 1.0;
   __shakeTl
-    .to(sh, { k: 2.4, duration: upDur * 0.9, ease: 'power2.out' }, 0)
-    .to(sh, { k: 1.4, duration: 0.90, ease: 'sine.out' }, '>-0.02')
+    .to(sh, { k: ((kind === 'merge6') ? 2.6 : 2.0) * shakeExtra, duration: upDur * 0.9, ease: 'power2.out' }, 0)
+    .to(sh, { k: 1.4, duration: 1.00, ease: 'sine.out' }, '>-0.02')
     .to(sh, { k: 1.1, duration: 0.90, ease: 'sine.out' }, '>');
 }
 
@@ -667,4 +677,36 @@ export function animateMoves({ movesRef, setMoves, updateHUD, gsap }, toValue, d
     v: to, duration: duration || 0.5, ease: 'power2.out',
     onUpdate: () => { const val = Math.round(proxy.v); setMoves(val); try { updateHUD?.({ moves: val }); } catch {} },
   });
+}
+
+// HUD drop animation - elastic bounce from top of screen
+export function animateHUDDrop() {
+  if (!HUD_ROOT) {
+    console.warn('⚠️ HUD_ROOT not found for drop animation');
+    return;
+  }
+  
+  console.log('🎯 Starting HUD drop animation');
+  
+  // Store original position
+  const originalY = HUD_ROOT.y;
+  
+  // Start HUD above screen
+  HUD_ROOT.y = -200; // Start well above screen
+  HUD_ROOT.alpha = 0;
+  
+  // Elastic drop animation
+  gsap.timeline()
+    .to(HUD_ROOT, { 
+      alpha: 1, 
+      duration: 0.2, 
+      ease: 'power2.out' 
+    })
+    .to(HUD_ROOT, { 
+      y: originalY, 
+      duration: 0.8, 
+      ease: 'elastic.out(1, 0.6)' 
+    }, 0.1);
+  
+  console.log('✅ HUD drop animation started');
 }

@@ -132,7 +132,6 @@ export function setValue(t, v, addStack = 0) {
     if (t.overlay) t.overlay.visible = false;
     t.pips?.clear?.(); // odmah ukloni pips da ne "procure"
   }
-
   // skini occluder kad se slot aktivira
   if (!t.locked && t.occluder) {
     try { t.occluder.destroy(); } catch {}

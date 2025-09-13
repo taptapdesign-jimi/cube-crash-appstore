@@ -160,14 +160,7 @@ export function initDrag(cfg) {
     board.addChild(t);
     t.zIndex = 9999;
 
-    // 🔧 GHOST PATCH: postavi ghost placeholder-e odmah kad se drag-a
-    const allTiles = board.children.filter(child => child.gridX !== undefined && child.gridY !== undefined);
-    allTiles.forEach(tile => {
-      if (tile.locked && tile.value === 0) {
-        // Show ghost placeholder for empty locked tiles
-        tile.alpha = 0.25;
-      }
-    });
+    // (ghost placeholder is now provided by boardBG under all cells)
 
     // 🔧 SHADOW PATCH: prikaži sjenu i pojačaj na dragAlpha, uz očuvanje alpha pri refreshu
     if (t.shadow){
@@ -248,6 +241,7 @@ export function initDrag(cfg) {
 
     const t = drag.t;
     drag.t = null;
+    // nothing to clean up for ghost (boardBG provides placeholders)
 
     // vrati tilt u nulu s istim “delay” feelom
     if (t?.rotG) {

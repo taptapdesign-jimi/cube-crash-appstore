@@ -3,6 +3,7 @@ import { Assets, Texture } from '/node_modules/pixi.js/dist/pixi.mjs';
 import { gsap } from '/node_modules/gsap/index.js';
 import { STATE, TILE, ASSET_WILD } from './app-state.js';
 import * as makeBoard from './board.js';
+import { startWildIdle, wildImpactEffect } from './fx.js';
 // drawBoardBG function is now in app.js
 
 export function fixHoverAnchor(t){ try { if (t && t.hover) { t.hover.x=TILE/2; t.hover.y=TILE/2; } } catch {} }
@@ -39,11 +40,16 @@ export function openAtCell(c, r, { value=null, isWild=false } = {}){
       holder.special = 'wild';
       if (typeof makeBoard.applyWildSkin === 'function') { makeBoard.applyWildSkin(holder); }
       else { applyWildSkinLocal(holder); }
+      try { startWildIdle(holder, { interval: 4 }); } catch {}
     }
 
     holder.alpha = 0;
     spawnBounce(holder, () => {
       holder.alpha = 1;
+      // Use enhanced wild impact effect for wild cubes
+      if (isWild) {
+        wildImpactEffect(holder);
+      }
       sweepForUnanimatedSpawns();
       resolve();
     }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 });
