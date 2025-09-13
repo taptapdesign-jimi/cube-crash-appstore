@@ -79,7 +79,7 @@ export function merge(src, dst, helpers){
 
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.10, ease: 'power2.out',
-      onComplete: () => {
+      onComplete: async () => {
         removeTile(src);
         dst.eventMode = 'static';
         // Use enhanced wild impact effect if wild cube is involved
@@ -89,7 +89,21 @@ export function merge(src, dst, helpers){
           landBounce(dst);
         }
         STATE.moves++; updateHUD();
-        // no spawn here
+        
+        // CRITICAL FIX: Wild merges should spawn new tiles to prevent wild cubes from getting stuck
+        if (wildActive) {
+          console.log('🎯 Wild merge completed, spawning new tiles to prevent wild cubes from getting stuck');
+          // Spawn 1-2 new tiles after wild merge to ensure board doesn't get stuck
+          const spawnCount = Math.min(2, Math.max(1, Math.floor(Math.random() * 2) + 1));
+          try {
+            await openEmpties(spawnCount);
+            console.log('✅ Spawned', spawnCount, 'new tiles after wild merge');
+          } catch (error) {
+            console.warn('⚠️ Failed to spawn tiles after wild merge:', error);
+          }
+        }
+        
+        // Check game over after spawning
         ENDLESS ? checkGameOver() : checkGameOver();
       }
     });

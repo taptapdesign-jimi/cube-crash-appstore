@@ -951,6 +951,15 @@ function isStuck(){
   const act = activeTilesList();
   if (act.length < 2) return true;
   
+  // CRITICAL SAFETY: If we have wild cubes and any non-wild tiles, we're never stuck
+  const wildCubes = act.filter(t => t.special === 'wild');
+  const nonWildTiles = act.filter(t => t.special !== 'wild');
+  
+  if (wildCubes.length > 0 && nonWildTiles.length > 0) {
+    console.log('🎯 isStuck: SAFETY CHECK - Wild cubes exist with non-wild tiles, game not stuck');
+    return false;
+  }
+  
   // Check for possible merges including wild cubes
   for (let i=0;i<act.length;i++){
     for (let j=i+1;j<act.length;j++){
@@ -979,6 +988,30 @@ function isStuck(){
 function checkLevelEnd(){
   gsap.delayedCall(0.01, () => {
     if (busyEnding) return;
+    
+    // EMERGENCY SAFETY: If we have wild cubes but no non-wild tiles, spawn some!
+    const act = activeTilesList();
+    const wildCubes = act.filter(t => t.special === 'wild');
+    const nonWildTiles = act.filter(t => t.special !== 'wild');
+    
+    if (wildCubes.length > 0 && nonWildTiles.length === 0) {
+      console.log('🚨 EMERGENCY: Wild cubes exist but no non-wild tiles! Spawning emergency tiles...');
+      // Spawn 2-3 emergency tiles to prevent wild cubes from getting stuck
+      const emergencyCount = Math.min(3, Math.max(2, wildCubes.length));
+      openEmpties(emergencyCount).then(() => {
+        console.log('✅ Emergency tiles spawned, checking again...');
+        checkLevelEnd(); // Check again after spawning
+      }).catch(error => {
+        console.error('❌ Emergency spawn failed:', error);
+        // If emergency spawn fails, proceed with normal stuck check
+        if (isStuck()) {
+          busyEnding = true;
+          showFinalScreen().finally(()=>{ busyEnding = false; });
+        }
+      });
+      return;
+    }
+    
     if (isStuck()){
       busyEnding = true;
       showFinalScreen().finally(()=>{ busyEnding = false; });
