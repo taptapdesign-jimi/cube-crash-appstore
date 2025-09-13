@@ -88,6 +88,7 @@ window.comboText = null;
 
 // Wild meter (0..1) – crta ga HUD modul
 let wildMeter = 0;
+let wildSpawnInProgress = false; // Prevent multiple simultaneous wild spawns
 let drag;
 let busyEnding = false;
 
@@ -132,10 +133,13 @@ function addWildProgress(amount){
     console.error('❌ NEW LOGIC: Error calling HUD.updateProgressBar:', error);
   }
   
-  // Wild spawn check
-  if (wildMeter >= 1){ 
+  // Wild spawn check - prevent multiple simultaneous spawns
+  if (wildMeter >= 1 && !wildSpawnInProgress){ 
     console.log('🎯 NEW LOGIC: Wild meter full! Spawning wild cube...');
-    spawnWildFromMeter(); 
+    wildSpawnInProgress = true;
+    spawnWildFromMeter().finally(() => {
+      wildSpawnInProgress = false;
+    }); 
     try { HUD.shimmerProgress?.({}); } catch {} 
   }
 }
@@ -708,9 +712,13 @@ function randomEmptyCell(){
 async function spawnWildFromMeter(){
   if (wildMeter < 1) return;
   const cell = randomEmptyCell();
-  if (!cell) { wildMeter = 1; return; }
+  if (!cell) { 
+    console.log('⚠️ No empty cells for wild spawn, keeping meter at 1');
+    return; // Don't reset meter, keep it at 1 for next attempt
+  }
   resetWildProgress(wildMeter - 1, true);
   await openAtCell(cell.c, cell.r, { isWild: true });
+  console.log('✅ Wild cube spawned successfully at', cell.c, cell.r);
 }
 
 // -------------------- merge --------------------
@@ -913,14 +921,28 @@ function activeTilesList(){ try { return tiles.filter(t => t && !t.locked && (t.
 function isStuck(){
   const act = activeTilesList();
   if (act.length < 2) return true;
-  const hasWild = act.some(t => t.special === 'wild');
-  if (hasWild) return false;
+  
+  // Check for possible merges including wild cubes
   for (let i=0;i<act.length;i++){
     for (let j=i+1;j<act.length;j++){
       const a = act[i], b = act[j];
+      
+      // Wild cube can merge with any non-wild tile
+      if (a.special === 'wild' && b.special !== 'wild') {
+        console.log('🎯 isStuck: Wild cube can merge with', b.value, 'game not stuck');
+        return false;
+      }
+      if (b.special === 'wild' && a.special !== 'wild') {
+        console.log('🎯 isStuck: Wild cube can merge with', a.value, 'game not stuck');
+        return false;
+      }
+      
+      // Normal merge check
       if (((a.value|0) + (b.value|0)) <= 6) return false;
     }
   }
+  
+  console.log('🎯 isStuck: No possible merges found, game is stuck');
   return true;
 }
 

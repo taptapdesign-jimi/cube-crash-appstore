@@ -203,8 +203,28 @@ export function merge(src, dst, helpers){
 
 export function checkGameOver(){
   if (makeBoard.anyMergePossible(STATE.tiles)) return;
+  
+  // CRITICAL FIX: Check for wild cube merges before game over
+  const active = STATE.tiles.filter(t => t && !t.locked && t.value > 0);
+  const hasWildMerge = () => {
+    for (let i = 0; i < active.length; i++) {
+      for (let j = i + 1; j < active.length; j++) {
+        const a = active[i], b = active[j];
+        // Wild cube can merge with any non-wild tile
+        if ((a.special === 'wild' && b.special !== 'wild') || 
+            (b.special === 'wild' && a.special !== 'wild')) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+  
+  if (hasWildMerge()) {
+    console.log('🎯 Wild cube merge possible, game continues');
+    return;
+  }
 
-  const active = STATE.tiles.filter(t => !t.locked && t.value > 0);
   if (active.length === 2){
     const add = (active[0].value|0) + (active[1].value|0);
     if (add > 0){ STATE.score += add; updateHUD(); }
