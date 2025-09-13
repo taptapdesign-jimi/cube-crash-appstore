@@ -320,11 +320,23 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
 
 export function anyMergePossible(allTiles) {
   const open = allTiles.filter(t => !t.locked);
+  
+  // Check for wild cubes - they can merge with any other tile
+  const wildCubes = open.filter(t => t.special === 'wild');
+  const nonWildTiles = open.filter(t => t.special !== 'wild');
+  
+  // If we have wild cubes and any non-wild tiles, we can always merge
+  if (wildCubes.length > 0 && nonWildTiles.length > 0) {
+    return true;
+  }
+  
+  // Check regular tile combinations
   for (let i = 0; i < open.length; i++) {
     for (let j = i + 1; j < open.length; j++) {
       const s = open[i].value + open[j].value;
       if (s >= 2 && s <= 6) return true;
     }
   }
+  
   return false;
 }

@@ -1,10 +1,15 @@
 // SIMPLE MAIN.JS - NO COMPLEXITY
 import { boot } from './modules/app.js';
+import { gsap } from 'gsap';
 
 console.log('🚀 Starting simple CubeCrash...');
 
 let slider;
 let sliderLocked = false; // Guard to prevent slider moves during Play
+let currentSlideTransition = null; // per-swipe transition (duration/ease)
+const DRAG_RESISTANCE = 0.8; // how much slider follows finger (0..1)
+const OUT_OF_BOUNDS_RESISTANCE = 0.15; // follow when dragging beyond edges
+const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% width
 
 (async () => {
   try {
@@ -30,34 +35,69 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
     const playButton = document.getElementById('btn-home');
     const statsButton = document.getElementById('btn-stats');
     const collectiblesButton = document.getElementById('btn-collectibles');
+    const settingsButton = document.getElementById('btn-settings');
+    const statsScreen = document.getElementById('stats-screen');
+    const statsBackButton = document.getElementById('stats-back-btn');
     
     let currentSlide = 0;
     const totalSlides = slides.length;
     
-    // Simple slider functions with springy animation
+    // Game statistics tracking
+    let gameStats = {
+      highScore: 0,
+      cubesCracked: 0,
+      helpersUsed: 0,
+      longestCombo: 0,
+      collectiblesUnlocked: 0,
+      boardsCleared: 0
+    };
+    
+    // Simple slider functions with adjustable settle animation
     function updateSlider() {
       if (sliderWrapper) {
         const translateX = -currentSlide * window.innerWidth;
-        // Same feel, just quicker
-        sliderWrapper.style.transition = 'transform 0.45s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        // Use per-swipe transition if provided, else default fast ease-out
+        sliderWrapper.style.transition = currentSlideTransition || 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
         sliderWrapper.style.transform = `translateX(${translateX}px)`;
         console.log(`🎯 Slider update: slide ${currentSlide}, translateX: ${translateX}px`);
+        // Clear custom transition after applying
+        currentSlideTransition = null;
         
-        // Add subtle bounce to dots when changing slides
+        // GSAP-powered elastic, organic transitions for dots
         dots.forEach((dot, index) => {
-          const isActive = index === currentSlide;
-          dot.classList.toggle('active', isActive);
-          
-          if (isActive) {
-            // Springy bounce for active dot
-            dot.style.transition = 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-            dot.style.transform = 'scale(1.2)';
-            setTimeout(() => {
-              dot.style.transform = 'scale(1)';
-            }, 50);
-          } else {
-            dot.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-            dot.style.transform = 'scale(1)';
+          const wantsActive = index === currentSlide;
+          const isActive = dot.classList.contains('active');
+
+          // Kill any running tweens on this dot
+          gsap.killTweensOf(dot);
+
+          // Activate
+          if (wantsActive && !isActive) {
+            dot.classList.add('active'); // trigger width/height/color transition
+            gsap.set(dot, { transformOrigin: '50% 50%', scale: 0.92 });
+            gsap.to(dot, {
+              scale: 1,
+              duration: 0.65,
+              ease: 'elastic.out(1, 0.6)',
+              overwrite: true
+            });
+          }
+
+          // Deactivate
+          if (!wantsActive && isActive) {
+            dot.classList.remove('active'); // trigger width/height/color transition
+            gsap.set(dot, { transformOrigin: '50% 50%', scale: 0.88 });
+            gsap.to(dot, {
+              scale: 1,
+              duration: 0.55,
+              ease: 'elastic.out(1, 0.65)',
+              overwrite: true
+            });
+          }
+
+          // If no state change, gently settle to 1 without a snap
+          if ((wantsActive && isActive) || (!wantsActive && !isActive)) {
+            gsap.to(dot, { scale: 1, duration: 0.2, ease: 'power2.out', overwrite: true });
           }
         });
       }
@@ -87,6 +127,282 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
 
     function hideDots(){
       try{ const wrap = document.getElementById('slider-dots'); if (wrap) wrap.style.display = 'none'; }catch{}
+    }
+    
+    function showStatsScreen() {
+      if (sliderLocked) return;
+      console.log('📊 Showing stats screen');
+      
+      // Lock slider immediately
+      sliderLocked = true;
+      isDragging = false;
+      hideDots();
+      
+      // Get slide 2 elements for animation (stats slide)
+      const slide2 = document.querySelector('.slider-slide[data-slide="1"]');
+      const slide2Content = slide2?.querySelector('.slide-content');
+      const slide2Text = slide2?.querySelector('.slide-text');
+      const slide2Button = slide2?.querySelector('.slide-button');
+      const slide2Hero = slide2?.querySelector('.hero-container');
+      const homeLogo = document.getElementById('home-logo');
+      
+      if (slide2 && slide2Content && slide2Text && slide2Button && slide2Hero) {
+        // Add elastic spring bounce pop out animation - 0.65 seconds
+        slide2Content.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        slide2Text.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        slide2Button.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        slide2Hero.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        
+        // Add logo animation if it exists
+        if (homeLogo) {
+          homeLogo.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        }
+        
+        // Apply gentle elastic pop out with bounce sequence
+        slide2Content.style.opacity = '0';
+        slide2Content.style.transform = 'scale(0) translateY(-20px)';
+        slide2Text.style.opacity = '0';
+        slide2Text.style.transform = 'scale(0) translateY(-15px)';
+        slide2Button.style.opacity = '0';
+        slide2Button.style.transform = 'scale(0) translateY(-10px)';
+        slide2Hero.style.opacity = '0';
+        slide2Hero.style.transform = 'scale(0) translateY(-25px)';
+        
+        // Apply logo animation
+        if (homeLogo) {
+          homeLogo.style.opacity = '0';
+          homeLogo.style.transform = 'scale(0) translateY(-30px)';
+        }
+        
+        // Hide home screen and show stats screen after animation
+        setTimeout(() => {
+          if (home) home.hidden = true;
+          if (statsScreen) {
+            // Load stats, then prime counters to 0 so they animate every entry
+            loadStatsFromStorage();
+
+            try {
+              const ids = ['high-score','boards-cleared','cubes-cracked','helpers-used','longest-combo'];
+              ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                  el.classList.remove('animating');
+                  el.textContent = '0';
+                }
+              });
+            } catch {}
+
+            // Animate numbers up to current values
+            updateStatsData(gameStats);
+            
+            statsScreen.hidden = false;
+            // Animate stats screen in
+            statsScreen.style.opacity = '0';
+            statsScreen.style.transform = 'scale(0.8) translateY(20px)';
+            statsScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            
+            setTimeout(() => {
+              statsScreen.style.opacity = '1';
+              statsScreen.style.transform = 'scale(1) translateY(0)';
+            }, 50);
+          }
+        }, 650);
+      }
+    }
+    
+    function hideStatsScreen() {
+      console.log('📊 Hiding stats screen (no out animation)');
+      
+      if (!statsScreen) return;
+      // Instantly hide overlay
+      statsScreen.style.transition = 'none';
+      statsScreen.style.opacity = '0';
+      statsScreen.style.transform = 'none';
+      statsScreen.hidden = true;
+      if (home) home.hidden = false;
+
+      // Unlock slider and show dots
+      sliderLocked = false;
+      ensureDotsVisible();
+
+      // Navigate to Stats slide (index 1) and pop it in like slide 1
+      try { goToSlide(1); } catch {}
+
+      // Bring back the home logo with the same pop-in spring
+      const homeLogo = document.getElementById('home-logo');
+      if (homeLogo) {
+        homeLogo.style.transition = 'none';
+        homeLogo.style.opacity = '0';
+        homeLogo.style.transform = 'scale(0) translateY(-30px)';
+        setTimeout(() => {
+          const spring = 'cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          const trans = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+          homeLogo.style.transition = trans;
+          homeLogo.style.opacity = '1';
+          homeLogo.style.transform = 'scale(1) translateY(0)';
+          setTimeout(() => {
+            homeLogo.style.transition = 'none';
+          }, 700);
+        }, 20);
+      }
+
+      const slide2 = document.querySelector('.slider-slide[data-slide="1"]');
+      const slide2Content = slide2?.querySelector('.slide-content');
+      const slide2Text = slide2?.querySelector('.slide-text');
+      const slide2Button = slide2?.querySelector('.slide-button');
+      const slide2Hero = slide2?.querySelector('.hero-container');
+
+      if (slide2 && slide2Content && slide2Text && slide2Button && slide2Hero) {
+        // Start hidden
+        slide2Content.style.transition = 'none';
+        slide2Text.style.transition = 'none';
+        slide2Button.style.transition = 'none';
+        slide2Hero.style.transition = 'none';
+        slide2Content.style.opacity = '0';
+        slide2Text.style.opacity = '0';
+        slide2Button.style.opacity = '0';
+        slide2Hero.style.opacity = '0';
+        slide2Content.style.transform = 'scale(0) translateY(-20px)';
+        slide2Text.style.transform = 'scale(0) translateY(-15px)';
+        slide2Button.style.transform = 'scale(0) translateY(-10px)';
+        slide2Hero.style.transform = 'scale(0) translateY(-25px)';
+
+        // Animate in with same elastic spring as slide 1
+        setTimeout(() => {
+          const spring = 'cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          const trans = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+          slide2Content.style.transition = trans;
+          slide2Text.style.transition = trans;
+          slide2Button.style.transition = trans;
+          slide2Hero.style.transition = trans;
+
+          slide2Content.style.opacity = '1';
+          slide2Content.style.transform = 'scale(1) translateY(0)';
+          slide2Text.style.opacity = '1';
+          slide2Text.style.transform = 'scale(1) translateY(-8px)';
+          slide2Button.style.opacity = '1';
+          slide2Button.style.transform = 'scale(1) translateY(0)';
+          slide2Hero.style.opacity = '1';
+          slide2Hero.style.transform = 'scale(1) translateY(0)';
+
+          // Cleanup transitions after finish
+          setTimeout(() => {
+            slide2Content.style.transition = 'none';
+            slide2Text.style.transition = 'none';
+            slide2Button.style.transition = 'none';
+            slide2Hero.style.transition = 'none';
+          }, 700);
+        }, 20);
+      }
+    }
+    
+    // Function to animate number counting
+    function animateNumber(element, targetValue, duration = 1000) {
+      if (!element) return;
+      
+      const startValue = parseInt(element.textContent) || 0;
+      const difference = targetValue - startValue;
+      const startTime = performance.now();
+      
+      function updateNumber(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Easing function for smooth animation
+        const easeOutCubic = 1 - Math.pow(1 - progress, 3);
+        const currentValue = Math.floor(startValue + (difference * easeOutCubic));
+        
+        element.textContent = currentValue;
+        
+        if (progress < 1) {
+          requestAnimationFrame(updateNumber);
+        } else {
+          element.textContent = targetValue;
+          // Add pulse animation
+          element.classList.add('animating');
+          setTimeout(() => element.classList.remove('animating'), 300);
+        }
+      }
+      
+      requestAnimationFrame(updateNumber);
+    }
+    
+    // Function to update stats data with animation
+    function updateStatsData(data) {
+      const { highScore, cubesCracked, helpersUsed, longestCombo, collectiblesUnlocked, boardsCleared } = data;
+      
+      const highScoreEl = document.getElementById('high-score');
+      const cubesCrackedEl = document.getElementById('cubes-cracked');
+      const helpersUsedEl = document.getElementById('helpers-used');
+      const longestComboEl = document.getElementById('longest-combo');
+      const collectiblesUnlockedEl = document.getElementById('collectibles-unlocked');
+      const boardsClearedEl = document.getElementById('boards-cleared');
+      
+      if (highScoreEl && highScore !== undefined) {
+        gameStats.highScore = highScore;
+        animateNumber(highScoreEl, highScore);
+      }
+      if (cubesCrackedEl && cubesCracked !== undefined) {
+        gameStats.cubesCracked = cubesCracked;
+        animateNumber(cubesCrackedEl, cubesCracked);
+      }
+      if (helpersUsedEl && helpersUsed !== undefined) {
+        gameStats.helpersUsed = helpersUsed;
+        animateNumber(helpersUsedEl, helpersUsed);
+      }
+      if (longestComboEl && longestCombo !== undefined) {
+        gameStats.longestCombo = longestCombo;
+        animateNumber(longestComboEl, longestCombo);
+      }
+      if (collectiblesUnlockedEl && collectiblesUnlocked !== undefined) {
+        gameStats.collectiblesUnlocked = collectiblesUnlocked;
+        // For collectibles, we need to handle the "3/20" format
+        const currentValue = collectiblesUnlockedEl.textContent;
+        const [current, total] = currentValue.split('/').map(Number);
+        const newValue = `${collectiblesUnlocked}/${total || 20}`;
+        collectiblesUnlockedEl.textContent = newValue;
+        collectiblesUnlockedEl.classList.add('animating');
+        setTimeout(() => collectiblesUnlockedEl.classList.remove('animating'), 300);
+      }
+      if (boardsClearedEl && boardsCleared !== undefined) {
+        gameStats.boardsCleared = boardsCleared;
+        animateNumber(boardsClearedEl, boardsCleared);
+      }
+    }
+    
+    // Function to load stats from localStorage
+    function loadStatsFromStorage() {
+      try {
+        const savedStats = localStorage.getItem('cubeCrash_stats');
+        if (savedStats) {
+          const parsed = JSON.parse(savedStats);
+          gameStats = { ...gameStats, ...parsed };
+        }
+      } catch (error) {
+        console.warn('Failed to load stats from storage:', error);
+      }
+    }
+    
+    // Function to save stats to localStorage
+    function saveStatsToStorage() {
+      try {
+        localStorage.setItem('cubeCrash_stats', JSON.stringify(gameStats));
+      } catch (error) {
+        console.warn('Failed to save stats to storage:', error);
+      }
+    }
+    
+    // Function to update a specific stat
+    function updateStat(statName, value) {
+      if (gameStats.hasOwnProperty(statName)) {
+        gameStats[statName] = value;
+        saveStatsToStorage();
+        
+        // Update UI if stats screen is visible
+        if (statsScreen && !statsScreen.hidden) {
+          updateStatsData(gameStats);
+        }
+      }
     }
     
     function goToSlide(slideIndex) {
@@ -137,9 +453,15 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
       }
       
       if (sliderWrapper) {
-        // Slightly tighter follow for snappier drag
-        const resistance = 0.45;
-        const dampedDiff = diff * resistance;
+        // Follow finger; limit when dragging toward non-existent neighbor (edges)
+        const isOOB = (currentSlide === 0 && diff > 0) || (currentSlide === totalSlides - 1 && diff < 0);
+        const resistance = isOOB ? OUT_OF_BOUNDS_RESISTANCE : DRAG_RESISTANCE;
+        let dampedDiff = diff * resistance;
+        if (isOOB) {
+          const maxOffset = window.innerWidth * MAX_OOB_OFFSET_RATIO;
+          if (dampedDiff > 0) dampedDiff = Math.min(dampedDiff, maxOffset);
+          else dampedDiff = Math.max(dampedDiff, -maxOffset);
+        }
         sliderWrapper.style.transform = `translateX(${baseTranslateX + dampedDiff}px)`;
       }
     }
@@ -159,26 +481,45 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
       
       console.log(`🎯 Slider drag end: diff=${diff}, threshold=${threshold}, dynamicThreshold=${dynamicThreshold}, hasMoved=${hasMoved}, duration=${touchDuration}ms, speed=${swipeSpeed.toFixed(2)}px/ms`);
       
-      // Only change slide if there was significant movement AND it was a drag, not a tap
+      // Decide target slide first
+      let targetSlide = currentSlide;
       if (hasMoved && Math.abs(diff) > dynamicThreshold) {
-        if (diff > 0 && currentSlide > 0) {
-          console.log('🎯 Moving to previous slide');
-          goToSlide(currentSlide - 1);
-        } else if (diff < 0 && currentSlide < totalSlides - 1) {
-          console.log('🎯 Moving to next slide');
-          goToSlide(currentSlide + 1);
-        } else {
-          console.log('🎯 At boundary, staying on current slide');
-          updateSlider(); // Stay on current slide if at boundary
-        }
-      } else {
-        console.log('🎯 Not enough movement or was a tap, staying on current slide');
-        updateSlider(); // Stay on current slide if not enough movement
+        if (diff > 0 && currentSlide > 0) targetSlide = currentSlide - 1;
+        else if (diff < 0 && currentSlide < totalSlides - 1) targetSlide = currentSlide + 1;
       }
-      
-      if (sliderWrapper) {
-        // Quicker settle, same feel
-        sliderWrapper.style.transition = 'transform 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+
+      // Compute distance left to travel from current dragged position to target
+      const isOOB = (currentSlide === 0 && diff > 0) || (currentSlide === totalSlides - 1 && diff < 0);
+      const resistance = isOOB ? OUT_OF_BOUNDS_RESISTANCE : DRAG_RESISTANCE; // keep in sync with handleMove
+      const baseTranslateX = -currentSlide * window.innerWidth;
+      let draggedTranslateX = baseTranslateX + (diff * resistance);
+      if (isOOB) {
+        const maxOffset = window.innerWidth * MAX_OOB_OFFSET_RATIO;
+        const minX = baseTranslateX - maxOffset;
+        const maxX = baseTranslateX + maxOffset;
+        if (draggedTranslateX > maxX) draggedTranslateX = maxX;
+        if (draggedTranslateX < minX) draggedTranslateX = minX;
+      }
+      const targetTranslateX = -targetSlide * window.innerWidth;
+      const remainingDistPx = Math.abs(draggedTranslateX - targetTranslateX);
+      const distRatio = Math.min(1, remainingDistPx / window.innerWidth);
+
+      // Map speed and distance to a heavier, friction-like ease
+      const normSpeed = Math.min(1, swipeSpeed / 1.2); // 0..~1
+      const baseMs = 220;          // minimum duration
+      const addFromDist = 220 * distRatio; // more distance => longer
+      const addFromSpeed = 140 * normSpeed; // faster swipe => slightly longer to feel weight
+      const durationMs = Math.max(200, Math.min(640, Math.round(baseMs + addFromDist + addFromSpeed)));
+      const ease = 'cubic-bezier(0.23, 1, 0.32, 1)'; // strong ease-out, no bounce
+      currentSlideTransition = `transform ${durationMs}ms ${ease}`;
+
+      // Apply navigation
+      if (targetSlide !== currentSlide) {
+        console.log(`🎯 Moving to slide ${targetSlide} with duration ${durationMs}ms`);
+        goToSlide(targetSlide);
+      } else {
+        console.log(`🎯 Staying on slide ${currentSlide} with duration ${durationMs}ms`);
+        updateSlider();
       }
     }
     
@@ -199,20 +540,22 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
       });
     }
     
-    // Dot navigation with springy hover effects
+    // Dot navigation with springy hover effects (avoid fighting active tweens)
     dots.forEach((dot, index) => {
       // Add hover effects
       dot.addEventListener('mouseenter', () => {
         if (!sliderLocked) {
-          dot.style.transition = 'all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-          dot.style.transform = 'scale(1.1)';
+          if (!gsap.isTweening(dot)) {
+            gsap.to(dot, { scale: 1.1, duration: 0.2, ease: 'power2.out' });
+          }
         }
       });
       
       dot.addEventListener('mouseleave', () => {
         if (!sliderLocked && index !== currentSlide) {
-          dot.style.transition = 'all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-          dot.style.transform = 'scale(1)';
+          if (!gsap.isTweening(dot)) {
+            gsap.to(dot, { scale: 1, duration: 0.2, ease: 'power2.out' });
+          }
         }
       });
       
@@ -344,7 +687,7 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
       statsButton.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent slider from moving
         console.log('📊 Stats clicked');
-        goToSlide(1);
+        showStatsScreen();
       });
     }
     
@@ -371,10 +714,56 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
       });
     }
     
+    if (settingsButton) {
+      // Add hover effects for settings button
+      settingsButton.addEventListener('mouseenter', () => {
+        if (!sliderLocked) {
+          settingsButton.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+          settingsButton.style.transform = 'scale(1.05) translateY(-2px)';
+        }
+      });
+      
+      settingsButton.addEventListener('mouseleave', () => {
+        if (!sliderLocked) {
+          settingsButton.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+          settingsButton.style.transform = 'scale(1) translateY(0)';
+        }
+      });
+      
+      settingsButton.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent slider from moving
+        console.log('⚙️ Settings clicked');
+        goToSlide(3);
+      });
+    }
+    
+    if (statsBackButton) {
+      // Add hover effects for stats back button
+      statsBackButton.addEventListener('mouseenter', () => {
+        statsBackButton.style.transition = 'all 0.2s ease';
+        statsBackButton.style.transform = 'scale(1.05)';
+      });
+      
+      statsBackButton.addEventListener('mouseleave', () => {
+        statsBackButton.style.transition = 'all 0.2s ease';
+        statsBackButton.style.transform = 'scale(1)';
+      });
+      
+      statsBackButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('🔙 Stats back clicked');
+        hideStatsScreen();
+      });
+    }
+    
     // Initialize
     console.log('🎯 Initializing slider...');
     console.log('🎯 Total slides:', totalSlides);
     console.log('🎯 Current slide:', currentSlide);
+    
+    // Load stats from storage
+    loadStatsFromStorage();
+    
     updateSlider();
     // Ensure dots visible on initial load as well
     requestAnimationFrame(() => { ensureDotsVisible(); });
@@ -398,6 +787,89 @@ let sliderLocked = false; // Guard to prevent slider moves during Play
     
     window.showStats = () => goToSlide(1);
     window.showCollectibles = () => goToSlide(2);
+    
+    // Global functions for stats
+    window.updateGameStats = (statName, value) => {
+      updateStat(statName, value);
+    };
+    
+    window.getGameStats = () => {
+      return { ...gameStats };
+    };
+    
+    window.incrementStat = (statName, increment = 1) => {
+      if (gameStats.hasOwnProperty(statName)) {
+        const newValue = gameStats[statName] + increment;
+        updateStat(statName, newValue);
+      }
+    };
+    
+    // Function to update high score if current score is higher
+    window.updateHighScore = (currentScore) => {
+      if (currentScore > gameStats.highScore) {
+        updateStat('highScore', currentScore);
+        console.log('🏆 New high score!', currentScore);
+      }
+    };
+    
+    // Function to track cubes cracked (when tiles are merged)
+    window.trackCubesCracked = (count = 1) => {
+      incrementStat('cubesCracked', count);
+    };
+    
+    // Function to track helpers used (powerups, etc.)
+    window.trackHelpersUsed = (count = 1) => {
+      incrementStat('helpersUsed', count);
+    };
+    
+    // Function to track boards cleared
+    window.trackBoardsCleared = (count = 1) => {
+      incrementStat('boardsCleared', count);
+    };
+    
+    // Function to track longest combo
+    window.trackLongestCombo = (comboLength) => {
+      if (comboLength > gameStats.longestCombo) {
+        updateStat('longestCombo', comboLength);
+        console.log('🔥 New longest combo!', comboLength);
+      }
+    };
+    
+    // Function to track collectibles unlocked
+    window.trackCollectiblesUnlocked = (unlockedCount) => {
+      updateStat('collectiblesUnlocked', unlockedCount);
+    };
+    
+    // Function to simulate collectibles based on score milestones
+    window.checkCollectiblesMilestones = (score) => {
+      const milestones = [100, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+      let unlocked = 0;
+      
+      for (const milestone of milestones) {
+        if (score >= milestone) {
+          unlocked++;
+        }
+      }
+      
+      if (unlocked > gameStats.collectiblesUnlocked) {
+        updateStat('collectiblesUnlocked', unlocked);
+        console.log('🎁 New collectible unlocked! Total:', unlocked);
+      }
+    };
+    
+    // Function to reset all stats
+    window.resetAllStats = () => {
+      gameStats = {
+        highScore: 0,
+        cubesCracked: 0,
+        helpersUsed: 0,
+        longestCombo: 0,
+        collectiblesUnlocked: 0,
+        boardsCleared: 0
+      };
+      saveStatsToStorage();
+      console.log('🔄 All stats reset');
+    };
     
     // SIMPLE EXIT FUNCTION - CLEAN RESET WITHOUT INLINE OVERRIDES
     window.exitToMenu = async () => {

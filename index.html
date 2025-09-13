@@ -77,6 +77,20 @@
               </div>
             </div>
           </div>
+
+          <!-- Slide 3: Settings -->
+          <div class="slider-slide" data-slide="3">
+            <div class="slide-content">
+              <div class="hero-container">
+                <img class="hero-image" src="/assets/settings-slider.png" alt="Settings slider" />
+                <div class="hero-shadow"></div>
+              </div>
+              <div class="slide-text">
+                <p class="slide-tagline">Customize the game<br/>just the way you like.</p>
+                <button id="btn-settings" class="slide-button squishy squishy-cc">Settings</button>
+              </div>
+            </div>
+          </div>
         </div>
         
         <!-- Navigation Dots -->
@@ -84,10 +98,62 @@
           <button class="slider-dot active" data-slide="0"></button>
           <button class="slider-dot" data-slide="1"></button>
           <button class="slider-dot" data-slide="2"></button>
+          <button class="slider-dot" data-slide="3"></button>
         </div>
       </div>
     </div>
   </div>
+  
+  <!-- Stats Screen -->
+  <div id="stats-screen" hidden>
+    <div class="stats-content">
+      <div class="stats-header">
+        <div class="stats-header-top">
+          <button id="stats-back-btn" class="stats-back-button">
+            <img src="/assets/chevron-back.png" alt="Back" />
+          </button>
+          <h1 class="stats-title">Stats</h1>
+          <div></div> <!-- Spacer for centering -->
+        </div>
+        <div class="stats-title-underline"></div>
+      </div>
+      
+      <div class="stats-body">
+        <div class="stat-item main-stat">
+          <div class="stat-value" id="high-score">8975</div>
+          <div class="stat-label">High score</div>
+        </div>
+        
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-value" id="boards-cleared">0</div>
+            <div class="stat-label">Boards cleared</div>
+          </div>
+          
+          <div class="stat-item">
+            <div class="stat-value" id="cubes-cracked">3441</div>
+            <div class="stat-label">Cubes cracked</div>
+          </div>
+          
+          <div class="stat-item">
+            <div class="stat-value" id="helpers-used">1527</div>
+            <div class="stat-label">Helpers used</div>
+          </div>
+          
+          <div class="stat-item">
+            <div class="stat-value" id="longest-combo">12</div>
+            <div class="stat-label">Longest combo</div>
+          </div>
+          
+          <div class="stat-item">
+            <div class="stat-value" id="collectibles-unlocked">3/20</div>
+            <div class="stat-label">Collectibles unlocked</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <div id="app" hidden></div>
   <script type="module" src="/src/main.js?v=1001"></script>
 </body>

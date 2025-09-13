@@ -366,3 +366,198 @@ body{height:100dvh;height:100vh;overflow:hidden}
   .pause-modal-btn { transition: none; }
   .pause-modal-btn:hover, .pause-modal-btn:active { transform: none; }
 }
+
+/* ===== STATS SCREEN STYLES ===== */
+#stats-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: calc(env(safe-area-inset-top, 0px) + 2vh) 0 calc(env(safe-area-inset-bottom, 0px) + 2vh);
+  background: #f5f5f5;
+  z-index: 999999;
+  overflow: hidden;
+}
+
+.stats-content {
+  /* Safe paddings: 40px + device insets */
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --pad: 40px;
+  --pad-left: calc(var(--pad) + var(--safe-left));
+  --pad-right: calc(var(--pad) + var(--safe-right));
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 40px;
+  width: 100%;
+  max-width: 100%;
+  padding-left: var(--pad-left);
+  padding-right: var(--pad-right);
+  margin: 0 auto;
+}
+
+.stats-header {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding-top: 11px;
+}
+
+.stats-header-top {
+  /* Full-viewport header row so title can be truly centered */
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  box-sizing: border-box;
+  padding-left: var(--pad-left);
+  padding-right: var(--pad-right);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.stats-back-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stats-back-button:hover {
+  background: rgba(0, 0, 0, 0.05);
+  transform: scale(1.05);
+}
+
+.stats-back-button:active {
+  transform: scale(0.95);
+}
+
+.stats-back-button img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  filter: brightness(0) saturate(100%) invert(45%) sepia(8%) saturate(1000%) hue-rotate(315deg) brightness(95%) contrast(85%);
+}
+
+.stats-title {
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 40px;
+  font-weight: 800;
+  color: #AD8775;
+  margin: 0;
+  line-height: 1;
+  text-align: center;
+  /* Absolutely center within full-viewport header row */
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.stats-title-underline {
+  height: 2px;
+  background: #9A8B7A;
+  opacity: 0.20;
+  width: 100%;
+  margin: 0; /* Align with content edges (40px + safe insets) */
+}
+
+.stats-body {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  width: 100%;
+  align-items: flex-start; /* left-align content area */
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start; /* left-align each stat block */
+  text-align: left;
+}
+
+.stat-item.main-stat {
+  gap: 4px;
+}
+
+.stat-value {
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 40px;
+  font-weight: 400;
+  color: #E8744A;
+  line-height: 1;
+  margin: 0;
+  transition: all 0.3s ease;
+}
+
+.stat-item:not(.main-stat) .stat-value {
+  font-size: 32px;
+}
+
+.stat-label {
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  color: #735A4D;
+  line-height: 1.8;
+  margin: 0;
+}
+
+.stats-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+/* Number animation styles */
+.stat-value.animating {
+  animation: numberPulse 0.3s ease-out;
+}
+
+@keyframes numberPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* iPhone 13 Optimizations */
+@media screen and (max-width: 428px) {
+  .stats-content {
+    /* Keep 40px base plus safe insets even on small phones */
+    --pad: 40px;
+  }
+  
+  .stats-title {
+    font-size: 36px;
+  }
+  
+  .stat-value {
+    font-size: 36px;
+  }
+  
+  .stat-item:not(.main-stat) .stat-value {
+    font-size: 28px;
+  }
+  
+  .stat-label {
+    font-size: 18px;
+  }
+}

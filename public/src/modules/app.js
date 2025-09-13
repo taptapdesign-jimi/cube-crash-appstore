@@ -784,11 +784,13 @@ function merge(src, dst, helpers){
   if (effSum < 6){
     makeBoard.setValue(dst, effSum, srcDepth);
     score = Math.min(SCORE_CAP, score + effSum); updateHUD();
-
     // Combo++ (bez realnog capa), bump anim
     hudSetCombo(combo + 1);
     try { HUD.bumpCombo?.({ kind: 'stack', combo }); } catch {}
     scheduleComboDecay();
+
+    // Stats: track longest combo progression
+    try { if (typeof window.trackLongestCombo === 'function') window.trackLongestCombo(combo); } catch {}
 
     addWildProgress(WILD_INC_SMALL);
 
@@ -890,11 +892,17 @@ function merge(src, dst, helpers){
 
         animateMovesHUD(moves, 0.40);
         animateScore(score, 0.40);
-        if (moves === 0) { checkMovesDepleted(); return; }
+        if (moves === 0) { checkMovesDepleted(); }
+
+        // Stats: count merge-6 as "cubes cracked"; count wild as helpers used
+        try { if (typeof window.trackCubesCracked === 'function') window.trackCubesCracked(1); } catch {}
+        try { if (wasWild && typeof window.trackHelpersUsed === 'function') window.trackHelpersUsed(1); } catch {}
 
         // ► CLEAN BOARD flow
         if (isBoardClean()){
           busyEnding = true;
+          // Track boards cleared stat
+          try { if (typeof window.trackBoardsCleared === 'function') window.trackBoardsCleared(1); } catch {}
           const prevInteractive  = stage.eventMode;
           const prevBoardBGState = boardBG.visible;
           stage.eventMode = 'none';
@@ -940,6 +948,10 @@ function merge(src, dst, helpers){
 }
 
 function checkMovesDepleted(){
+  // Only end if truly stuck (no valid merges). Allows finishing chains with Wild even at 0 moves.
+  try {
+    if (!isStuck()) return;
+  } catch {}
   if (busyEnding) return;
   busyEnding = true;
   showFinalScreen().finally(()=>{ busyEnding = false; });

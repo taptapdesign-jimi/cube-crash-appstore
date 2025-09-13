@@ -183,6 +183,16 @@ export function merge(src, dst, helpers){
 
         STATE.moves++; updateHUD();
         animateScore(STATE.score + 6 * mult, 0.45);
+        
+        // Track cubes cracked for stats (count merge-6 events)
+        if (typeof window.trackCubesCracked === 'function') {
+          window.trackCubesCracked(1);
+        }
+        
+        // Track wild cube usage as helper (any wild involvement)
+        if (typeof window.trackHelpersUsed === 'function' && wildActive) {
+          window.trackHelpersUsed(1);
+        }
 
         // reset meter with quick blink
         STATE.wildMeter = 0; updateProgressBar({ ratio: 0, animate: true });
@@ -213,6 +223,8 @@ export function merge(src, dst, helpers){
         }
 
         if (STATE.tiles.every(t => t.locked || t.value <= 0)){
+          // Track boards cleared in alt merge flow
+          try { if (typeof window.trackBoardsCleared === 'function') window.trackBoardsCleared(1); } catch {}
           await showStarsModal({ app: STATE.app, stage: STATE.stage, board: STATE.board, score: STATE.score, thresholds:{one:120,two:240,three:360}, buttonLabel:'Keep Going' });
           STATE.score = 0; STATE.moves = 0; updateHUD();
         }
@@ -229,12 +241,19 @@ export function merge(src, dst, helpers){
 }
 
 export function checkGameOver(){
-  if (makeBoard.anyMergePossible(STATE.tiles)) return;
+  console.log('🎯 checkGameOver called');
+  
+  if (makeBoard.anyMergePossible(STATE.tiles)) {
+    console.log('🎯 anyMergePossible returned true, game continues');
+    return;
+  }
   
   // CRITICAL FIX: Check for wild cube merges before game over
   const active = STATE.tiles.filter(t => t && !t.locked && t.value > 0);
   const wildCubes = active.filter(t => t.special === 'wild');
   const nonWildTiles = active.filter(t => t.special !== 'wild');
+  
+  console.log('🎯 Active tiles:', active.length, 'Wild cubes:', wildCubes.length, 'Non-wild tiles:', nonWildTiles.length);
   
   // EMERGENCY SAFETY: If we have wild cubes but no non-wild tiles, spawn some!
   if (wildCubes.length > 0 && nonWildTiles.length === 0) {
@@ -258,6 +277,7 @@ export function checkGameOver(){
         // Wild cube can merge with any non-wild tile
         if ((a.special === 'wild' && b.special !== 'wild') || 
             (b.special === 'wild' && a.special !== 'wild')) {
+          console.log('🎯 Wild merge found:', a.special === 'wild' ? 'wild' : a.value, 'with', b.special === 'wild' ? 'wild' : b.value);
           return true;
         }
       }
@@ -269,6 +289,8 @@ export function checkGameOver(){
     console.log('🎯 Wild cube merge possible, game continues');
     return;
   }
+  
+  console.log('🚨 No merges possible, game over!');
 
   if (active.length === 2){
     const add = (active[0].value|0) + (active[1].value|0);
@@ -279,6 +301,18 @@ export function checkGameOver(){
     STATE.bestScore = STATE.score;
     try { localStorage.setItem('cc_best_score_v1', STATE.bestScore); } catch {}
     updateHUD();
+  }
+
+  // Update stats before showing stars modal
+  if (typeof window.updateHighScore === 'function') {
+    window.updateHighScore(STATE.score);
+  }
+  
+  // Do not estimate cubes cracked by score; only count real merge-6 events in merge()
+  
+  if (typeof window.checkCollectiblesMilestones === 'function') {
+    // Check for collectibles based on score milestones
+    window.checkCollectiblesMilestones(STATE.score);
   }
 
   showStarsModal({ app: STATE.app, stage: STATE.stage, board: STATE.board, score: STATE.score, thresholds:{one:Infinity,two:Infinity,three:Infinity}, buttonLabel:'Retry' })

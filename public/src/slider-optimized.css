@@ -12,13 +12,13 @@
 
 #slider-wrapper {
   display: flex;
-  width: 300%; /* 3 slides */
-  transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Elastic bounce */
+  width: 400%; /* 4 slides */
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1); /* Fast, no bounce */
   will-change: transform;
 }
 
 .slider-slide {
-  width: 33.333%; /* 1/3 of 300% */
+  width: 25%; /* 1/4 of 400% */
   flex-shrink: 0;
   display: flex;
   align-items: flex-start;
@@ -84,11 +84,10 @@
 @keyframes trophyGlow {
   0%, 100% {
     transform: translateY(0px) rotate(0deg) scale(1);
-    filter: brightness(1);
   }
   50% {
     transform: translateY(-6px) rotate(-1deg) scale(1.05);
-    filter: brightness(1.1) drop-shadow(0 0 10px rgba(255, 215, 0, 0.3));
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.3));
   }
 }
 
@@ -105,6 +104,20 @@
   }
   75% {
     transform: translateY(-3px) rotate(-1deg) scale(1.01);
+  }
+}
+
+.slider-slide[data-slide="3"] .hero-image {
+  animation: settingsGlow 3.5s ease-in-out infinite;
+}
+
+@keyframes settingsGlow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translateY(-7px) rotate(2deg) scale(1.03);
+    filter: drop-shadow(0 0 8px rgba(216, 122, 83, 0.4));
   }
 }
 
@@ -186,13 +199,19 @@
   border: none;
   background: #DDD;
   cursor: pointer;
-  transition: all 0.3s ease;
+  /* Slightly longer, smoother size/color change to avoid harsh jump */
+  transition: background-color 200ms cubic-bezier(0.22, 1, 0.36, 1),
+              width 200ms cubic-bezier(0.22, 1, 0.36, 1),
+              height 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center center;
   position: relative;
 }
 
 .slider-dot.active {
   background: #D87A53;
-  transform: scale(1.2);
+  width: 16px; /* 4px veći od 12px */
+  height: 16px; /* 4px veći od 12px */
+  transform: scale(1.0); /* Bez scale jer je već veći */
 }
 
 .slider-dot:hover {
@@ -238,6 +257,8 @@
   height: auto;
   margin-bottom: 20px;
   margin-top: -30px;
+  position: relative; /* ensure stacking context */
+  z-index: 10;        /* draw above slider content lifted with negative margin */
   /* No idle animation */
 }
 
