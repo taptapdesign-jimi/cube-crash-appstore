@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+    <title>Simple Modal Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+            font-family: Arial, sans-serif;
+        }
+        .test-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #console {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🎭 Simple Modal Test</h1>
+        <p>Testira jednostavan modal direktno.</p>
+        
+        <div id="console"></div>
+        
+        <button onclick="createSimpleModal()">Create Simple Modal</button>
+        <button onclick="clearConsole()">Clear Console</button>
+    </div>
+
+    <script>
+        // Console logging
+        function log(message, type = 'info') {
+            const console = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' : type === 'warning' ? 'warning' : 'info';
+            console.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            console.scrollTop = console.scrollHeight;
+        }
+        
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '';
+        }
+        
+        // Create simple modal
+        window.createSimpleModal = function() {
+            log('🎭 Creating simple modal...', 'info');
+            
+            // Remove existing modal
+            const existing = document.getElementById('simple-modal');
+            if (existing) existing.remove();
+            
+            // Create modal
+            const modal = document.createElement('div');
+            modal.id = 'simple-modal';
+            modal.style.cssText = [
+                'position:fixed',
+                'inset:0',
+                'display:flex',
+                'align-items:center',
+                'justify-content:center',
+                'background:rgba(0,0,0,0.7)',
+                'z-index:10000000000000',
+                'opacity:0',
+                'transition:opacity .2s ease'
+            ].join(';');
+            
+            // Create card
+            const card = document.createElement('div');
+            card.style.cssText = [
+                'background:white',
+                'border-radius:20px',
+                'padding:40px',
+                'text-align:center',
+                'font-family:Arial, sans-serif',
+                'transform:scale(0.8)',
+                'transition:transform .3s ease',
+                'opacity:0'
+            ].join(';');
+            
+            // Create title
+            const title = document.createElement('h2');
+            title.textContent = 'Test Modal';
+            title.style.cssText = 'margin:0 0 20px 0; color:#333;';
+            
+            // Create button
+            const button = document.createElement('button');
+            button.textContent = 'Close';
+            button.style.cssText = [
+                'background:#007bff',
+                'color:white',
+                'border:none',
+                'padding:10px 20px',
+                'border-radius:5px',
+                'cursor:pointer'
+            ].join(';');
+            
+            button.onclick = () => {
+                modal.style.opacity = '0';
+                card.style.transform = 'scale(0.8)';
+                setTimeout(() => modal.remove(), 200);
+            };
+            
+            // Assemble
+            card.appendChild(title);
+            card.appendChild(button);
+            modal.appendChild(card);
+            document.body.appendChild(modal);
+            
+            // Animate in
+            requestAnimationFrame(() => {
+                modal.style.opacity = '1';
+                card.style.opacity = '1';
+                card.style.transform = 'scale(1)';
+            });
+            
+            log('✅ Simple modal created and animated', 'success');
+        };
+        
+        // Initialize
+        window.onload = function() {
+            log('🚀 Simple Modal Test loaded', 'success');
+            log('💡 Click "Create Simple Modal" to test', 'info');
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+AddType application/manifest+json .webmanifest
+AddType application/javascript .mjs
+
+# Optional: cache static assets aggressively
+<IfModule mod_headers.c>
+  <FilesMatch "\.(js|mjs|css|png|jpg|jpeg|gif|svg|ico|ttf|mp3)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
+# Ensure public read access to static files (Apache 2.4+)
+<IfModule mod_authz_core.c>
+  <FilesMatch "\.(css|js|mjs|png|jpg|jpeg|gif|svg|ico|ttf|mp3)$">
+    Require all granted
+  </FilesMatch>
+</IfModule>
+
+# Back-compat for Apache 2.2
+<IfModule !mod_authz_core.c>
+  <FilesMatch "\.(css|js|mjs|png|jpg|jpeg|gif|svg|ico|ttf|mp3)$">
+    Order allow,deny
+    Allow from all
+  </FilesMatch>
+</IfModule>

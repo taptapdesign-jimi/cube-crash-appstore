@@ -15,6 +15,7 @@ import * as makeBoard from './board.js';
 import { installDrag } from './install-drag.js';
 import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, startWildIdle, stopWildIdle } from './fx.js';
 import { showStarsModal } from './stars-modal.js';
+import { runEndgameFlow } from './endgame-flow.js';
 import FX from './fx-helpers.js';
 import * as SPAWN from './spawn-helpers.js';
 import * as HUD   from './hud-helpers.js';
@@ -94,6 +95,8 @@ let busyEnding = false;
 
 // ----- progress wrapper (delegira HUD-u) -----
 let hudUpdateProgress = (ratio, animate) => {};
+// HUD metrics (for DOM helpers to position UI under HUD)
+let __hudMetrics = { top: 0, bottom: 80 };
 let allowWildDecrease = false;
 function setWildProgress(ratio, animate=false){
   console.log('🔥 DRAMATIC: setWildProgress called with:', { ratio, animate });
@@ -160,16 +163,16 @@ async function ensureFonts() {
 // --- asset fallbacks & runtime-resolved paths ---
 const MYSTERY_CANDIDATES = [
   CONSTS.ASSET_MYSTERY,
-  '/assets/mystery-box.png',
-  '/assets/mistery-box.png',
-  '/assets/mystery-box.jpeg',
-  '/assets/mistery-box.jpeg'
+  './assets/mystery-box.png',
+  './assets/mistery-box.png',
+  './assets/mystery-box.jpeg',
+  './assets/mistery-box.jpeg'
 ].filter(Boolean);
 
 const COIN_CANDIDATES = [
   CONSTS.ASSET_COIN,
-  '/assets/gold-coin.png',
-  '/assets/gold-coin.jpeg'
+  './assets/gold-coin.png',
+  './assets/gold-coin.jpeg'
 ].filter(Boolean);
 
 // Resolved at boot:
@@ -319,6 +322,13 @@ export async function boot(){
     retry:     () => startLevel(level),
     state:     () => ({ level, score, moves, wildMeter, tiles: tiles.length }),
     app, stage, board,
+    getScore: () => score,
+    setScore: (v) => { score = (v|0); updateHUD(); },
+    animateScoreTo: (v, d=0.45) => animateScore((v|0), d),
+    updateHUD: () => updateHUD(),
+    getHudMetrics: () => ({ ...__hudMetrics }),
+    hideGameUI: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+    showGameUI: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} },
     testCleanBoard: async () => { /* ... tvoja baza ... */ },
     testCleanAndPrize: async () => { /* ... tvoja baza ... */ },
   };
@@ -376,6 +386,8 @@ export function layout(){
     const safeAreaTop = Math.max(44, adjustedSAT);
     safeTop = safeAreaTop; // Let hud-helpers.js handle the exact positioning
     hudBottom = safeTop + HUD_H + GAP_HUD;
+    __hudMetrics.top = Math.round(safeTop);
+    __hudMetrics.bottom = Math.round(hudBottom);
     
     console.log('📱 Mobile: HUD positioning handled by hud-helpers.js, safeTop:', safeTop, 'px');
   } else {
@@ -480,6 +492,7 @@ export function layout(){
           : safeTop;
         // dynamic bottom = intended HUD top + wild local y + wild height + gap
         const dynamicHudBottom = hudYForLayout + wildY + wildH + GAP_HUD;
+        __hudMetrics.bottom = Math.round(dynamicHudBottom);
         // Recompute vertical scale to ensure board fits in space between wild bottom and screen bottom
         const heightScale2 = (vh - dynamicHudBottom - BOT_PAD) / h;
         const s2 = Math.min(widthScale, heightScale2);
@@ -898,24 +911,29 @@ function merge(src, dst, helpers){
         try { if (typeof window.trackCubesCracked === 'function') window.trackCubesCracked(1); } catch {}
         try { if (wasWild && typeof window.trackHelpersUsed === 'function') window.trackHelpersUsed(1); } catch {}
 
-        // ► CLEAN BOARD flow
+        // ► CLEAN BOARD flow (centralized orchestrator)
         if (isBoardClean()){
           busyEnding = true;
           // Track boards cleared stat
           try { if (typeof window.trackBoardsCleared === 'function') window.trackBoardsCleared(1); } catch {}
-          const prevInteractive  = stage.eventMode;
-          const prevBoardBGState = boardBG.visible;
-          stage.eventMode = 'none';
-          drawBoardBG('none');
 
           try {
-            await showCleanBoardCelebrationFresh({ stage, app, board, TILE, GAP, ROWS, COLS });
-            stage.eventMode = 'static';
-            await showMysteryPrize();
+            await runEndgameFlow({
+              app,
+              stage,
+              board,
+              boardBG,
+              level,
+              startLevel,
+              score,
+              getScore: () => score,
+              setScore: (v) => { score = v|0; updateHUD(); },
+              animateScore,
+              updateHUD,
+              hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+              showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+            });
           } finally {
-            stage.eventMode = prevInteractive;
-            boardBG.visible = prevBoardBGState;
-            drawBoardBG();
             busyEnding = false;
           }
           return;

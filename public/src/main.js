@@ -874,6 +874,8 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       appHost.style.display = 'block';
       appHost.removeAttribute('hidden');
       boot();
+
+      // Dev button moved to Pause modal (tap HUD)
     };
     
     window.showStats = () => goToSlide(1);
@@ -961,6 +963,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       saveStatsToStorage();
       console.log('🔄 All stats reset');
     };
+
     
     // SIMPLE EXIT FUNCTION - CLEAN RESET WITHOUT INLINE OVERRIDES
     window.exitToMenu = async () => {
@@ -1003,6 +1006,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
         appHost.innerHTML = '';
         appHost.style.display = 'none';
         appHost.setAttribute('hidden', 'true');
+        // Dev button moved to Pause modal — nothing to remove here
         
         // SHOW HOME
         home.style.display = 'block';

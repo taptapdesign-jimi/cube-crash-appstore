@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+    <title>Game Clean Board Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+            font-family: Arial, sans-serif;
+        }
+        .test-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #console {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🎮 Game Clean Board Test</h1>
+        <p>Testira clean board modal u glavnoj igri.</p>
+        
+        <div id="console"></div>
+        
+        <button onclick="testGameCleanBoard()">Test Game Clean Board</button>
+        <button onclick="openGame()">Open Game</button>
+        <button onclick="clearConsole()">Clear Console</button>
+    </div>
+
+    <script>
+        // Console logging
+        function log(message, type = 'info') {
+            const console = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' : type === 'warning' ? 'warning' : 'info';
+            console.innerHTML += `<span class="${className}">[${timestamp}] ${message}</span>\n`;
+            console.scrollTop = console.scrollHeight;
+        }
+        
+        function clearConsole() {
+            document.getElementById('console').innerHTML = '';
+        }
+        
+        // Test game clean board
+        window.testGameCleanBoard = function() {
+            log('🎮 Testing game clean board...', 'info');
+            
+            if (typeof window.CC === 'undefined') {
+                log('❌ window.CC is undefined', 'error');
+                log('💡 Make sure the game is running', 'info');
+                return;
+            }
+            
+            if (!window.CC.app || !window.CC.stage) {
+                log('❌ CC.app or CC.stage is missing', 'error');
+                log('💡 Make sure the game is fully loaded', 'info');
+                return;
+            }
+            
+            log('✅ CC object found', 'success');
+            log('📊 CC.app:', window.CC.app);
+            log('📊 CC.stage:', window.CC.stage);
+            
+            // Simulate clean board test
+            log('🎉 Simulating clean board test...', 'info');
+            log('💡 Go to the game and click "Board cleared (test)" in pause modal', 'info');
+        };
+        
+        // Open game
+        window.openGame = function() {
+            window.open('/index.html', '_blank');
+        };
+        
+        // Initialize
+        window.onload = function() {
+            log('🚀 Game Clean Board Test loaded', 'success');
+            log('💡 Click "Open Game" to start the game', 'info');
+            log('💡 Then click "Board cleared (test)" in pause modal', 'info');
+        };
+    </script>
+</body>
+</html>
