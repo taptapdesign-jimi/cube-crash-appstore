@@ -50,8 +50,62 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       helpersUsed: 0,
       longestCombo: 0,
       collectiblesUnlocked: 0,
-      boardsCleared: 0
+      boardsCleared: 0,
+      timePlayed: 0
     };
+    
+    // Time tracking variables
+    let gameStartTime = null;
+    let timeTrackingInterval = null;
+    
+    // Function to start time tracking
+    function startTimeTracking() {
+      if (gameStartTime) return; // Already tracking
+      gameStartTime = Date.now();
+      console.log('⏱️ Started time tracking');
+      
+      // Update time display every second
+      timeTrackingInterval = setInterval(updateTimeDisplay, 1000);
+    }
+    
+    // Function to stop time tracking and save to stats
+    function stopTimeTracking() {
+      if (!gameStartTime) return; // Not tracking
+      
+      const sessionTime = Math.floor((Date.now() - gameStartTime) / 1000); // seconds
+      gameStats.timePlayed += sessionTime;
+      saveStatsToStorage();
+      
+      gameStartTime = null;
+      if (timeTrackingInterval) {
+        clearInterval(timeTrackingInterval);
+        timeTrackingInterval = null;
+      }
+      
+      console.log('⏱️ Stopped time tracking, session:', sessionTime, 'total:', gameStats.timePlayed);
+    }
+    
+    // Function to format time in HH:MM:SS format
+    function formatTime(seconds) {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+      
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    // Function to update time display in real-time
+    function updateTimeDisplay() {
+      const timePlayedEl = document.getElementById('time-played');
+      if (!timePlayedEl) return;
+      
+      let totalTime = gameStats.timePlayed;
+      if (gameStartTime) {
+        totalTime += Math.floor((Date.now() - gameStartTime) / 1000);
+      }
+      
+      timePlayedEl.textContent = formatTime(totalTime);
+    }
     
     // Simple slider functions with adjustable settle animation
     function updateSlider() {
@@ -133,6 +187,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     function showStatsScreen() {
       if (sliderLocked) return;
       console.log('📊 Showing stats screen');
+      console.log('📊 Stats screen element:', statsScreen);
       
       // Lock slider immediately
       sliderLocked = true;
@@ -145,6 +200,8 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       const slide2Text = slide2?.querySelector('.slide-text');
       const slide2Button = slide2?.querySelector('.slide-button');
       const slide2Hero = slide2?.querySelector('.hero-container');
+      
+      console.log('📊 Slide 2 elements:', { slide2, slide2Content, slide2Text, slide2Button, slide2Hero });
       
       if (slide2 && slide2Content && slide2Text && slide2Button && slide2Hero) {
         // Add elastic spring bounce pop out animation - 0.65 seconds
@@ -177,13 +234,14 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
         
         // Wait for exit animation to complete, then show stats
         setTimeout(() => {
+          console.log('📊 Showing stats screen after animation');
           if (home) home.hidden = true;
           if (statsScreen) {
             // Load stats, then prime counters to 0 so they animate every entry
             loadStatsFromStorage();
 
             try {
-              const ids = ['high-score','boards-cleared','cubes-cracked','helpers-used','longest-combo'];
+              const ids = ['high-score','boards-cleared','cubes-cracked','helpers-used','longest-combo','time-played'];
               ids.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -191,32 +249,48 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
                   el.textContent = '0';
                 }
               });
+              const tp = document.getElementById('time-played');
+              if (tp) {
+                tp.classList.remove('animating');
+                tp.textContent = '00:00:00';
+              }
             } catch {}
 
             // Animate numbers up to current values
             updateStatsData(gameStats);
             
             statsScreen.hidden = false;
+            statsScreen.removeAttribute('hidden');
+            statsScreen.style.display = 'flex';
             // Animate stats screen in
             statsScreen.style.opacity = '0';
             statsScreen.style.transform = 'scale(0.8) translateY(20px)';
             statsScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
             
+            console.log('📊 Stats screen styles applied:', {
+              hidden: statsScreen.hidden,
+              display: statsScreen.style.display,
+              opacity: statsScreen.style.opacity,
+              transform: statsScreen.style.transform
+            });
+            
             setTimeout(() => {
               statsScreen.style.opacity = '1';
               statsScreen.style.transform = 'scale(1) translateY(0)';
+              console.log('📊 Stats screen animation complete');
             }, 50);
           }
         }, 650); // Wait for elastic spring bounce animation to complete
       } else {
         // Fallback if elements not found
+        console.log('📊 Using fallback - elements not found');
         if (home) home.hidden = true;
         if (statsScreen) {
           // Load stats, then prime counters to 0 so they animate every entry
           loadStatsFromStorage();
 
           try {
-            const ids = ['high-score','boards-cleared','cubes-cracked','helpers-used','longest-combo'];
+            const ids = ['high-score','boards-cleared','cubes-cracked','helpers-used','longest-combo','time-played'];
             ids.forEach(id => {
               const el = document.getElementById(id);
               if (el) {
@@ -224,112 +298,145 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
                 el.textContent = '0';
               }
             });
+            const tp = document.getElementById('time-played');
+            if (tp) {
+              tp.classList.remove('animating');
+              tp.textContent = '00:00:00';
+            }
           } catch {}
 
           // Animate numbers up to current values
           updateStatsData(gameStats);
           
           statsScreen.hidden = false;
+          statsScreen.removeAttribute('hidden');
+          statsScreen.style.display = 'flex';
           // Animate stats screen in
           statsScreen.style.opacity = '0';
           statsScreen.style.transform = 'scale(0.8) translateY(20px)';
           statsScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
           
+          console.log('📊 Stats screen fallback styles applied:', {
+            hidden: statsScreen.hidden,
+            display: statsScreen.style.display,
+            opacity: statsScreen.style.opacity,
+            transform: statsScreen.style.transform
+          });
+          
           setTimeout(() => {
             statsScreen.style.opacity = '1';
             statsScreen.style.transform = 'scale(1) translateY(0)';
+            console.log('📊 Stats screen fallback animation complete');
           }, 50);
         }
       }
     }
     
     function hideStatsScreen() {
-      console.log('📊 Hiding stats screen with enter animation');
+      console.log('📊 Hiding stats screen with exit animation');
       
       if (!statsScreen) return;
-      // Instantly hide overlay
-      statsScreen.style.transition = 'none';
-      statsScreen.style.opacity = '0';
-      statsScreen.style.transform = 'none';
-      statsScreen.hidden = true;
-      if (home) home.hidden = false;
-
-      // Unlock slider and show dots
-      sliderLocked = false;
-      ensureDotsVisible();
-
-      // Navigate to Stats slide (index 1) and pop it in like slide 1
-      try { goToSlide(1); } catch {}
-
-      // Get slide 2 elements for enter animation
-      const slide2 = document.querySelector('.slider-slide[data-slide="1"]');
-      const slide2Content = slide2?.querySelector('.slide-content');
-      const slide2Text = slide2?.querySelector('.slide-text');
-      const slide2Button = slide2?.querySelector('.slide-button');
-      const slide2Hero = slide2?.querySelector('.hero-container');
-      const homeLogo = document.getElementById('home-logo');
       
-      if (homeLogo) {
-        homeLogo.style.transition = 'none';
-        homeLogo.style.opacity = '0';
-        homeLogo.style.transform = 'scale(0) translateY(-30px)';
+      // Add exit animation (reverse of enter animation)
+      statsScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+      statsScreen.style.opacity = '0';
+      statsScreen.style.transform = 'scale(0.8) translateY(20px)';
+      
+      // Wait for exit animation to complete, then hide and show slide 2 with enter animation
+      setTimeout(() => {
+        statsScreen.hidden = true;
+        statsScreen.setAttribute('hidden', 'true');
+        if (home) home.hidden = false;
+        
+        // Unlock slider and show dots
+        sliderLocked = false;
+        ensureDotsVisible();
+
+        // Navigate to Stats slide (index 1) first
+        try { goToSlide(1); } catch {}
+        
+        // Get slide 2 elements for enter animation
+        const slide2 = document.querySelector('.slider-slide[data-slide="1"]');
+        const slide2Content = slide2?.querySelector('.slide-content');
+        const slide2Text = slide2?.querySelector('.slide-text');
+        const slide2Button = slide2?.querySelector('.slide-button');
+        const slide2Hero = slide2?.querySelector('.hero-container');
+        const homeLogo = document.getElementById('home-logo');
+        
+        // Immediately hide all elements to prevent flash
+        if (slide2Content) {
+          slide2Content.style.opacity = '0';
+          slide2Content.style.transform = 'scale(0) translateY(-20px)';
+          slide2Content.style.transition = 'none';
+        }
+        if (slide2Text) {
+          slide2Text.style.opacity = '0';
+          slide2Text.style.transform = 'scale(0) translateY(-15px)';
+          slide2Text.style.transition = 'none';
+        }
+        if (slide2Button) {
+          slide2Button.style.opacity = '0';
+          slide2Button.style.transform = 'scale(0) translateY(-10px)';
+          slide2Button.style.transition = 'none';
+        }
+        if (slide2Hero) {
+          slide2Hero.style.opacity = '0';
+          slide2Hero.style.transform = 'scale(0) translateY(-25px)';
+          slide2Hero.style.transition = 'none';
+        }
+        if (homeLogo) {
+          homeLogo.style.opacity = '0';
+          homeLogo.style.transform = 'scale(0) translateY(-30px)';
+          homeLogo.style.transition = 'none';
+        }
+        
+        // Small delay to let goToSlide complete, then start animation
         setTimeout(() => {
-          const spring = 'cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          const trans = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
-          homeLogo.style.transition = trans;
-          homeLogo.style.opacity = '1';
-          homeLogo.style.transform = 'scale(1) translateY(0)';
-          setTimeout(() => {
-            homeLogo.style.transition = 'none';
-          }, 700);
-        }, 20);
-      }
+          // Start logo animation
+          if (homeLogo) {
+            setTimeout(() => {
+              const spring = 'cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+              const trans = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+              homeLogo.style.transition = trans;
+              homeLogo.style.opacity = '1';
+              homeLogo.style.transform = 'scale(1) translateY(0)';
+              setTimeout(() => {
+                homeLogo.style.transition = 'none';
+              }, 700);
+            }, 20);
+          }
 
-      if (slide2 && slide2Content && slide2Text && slide2Button && slide2Hero) {
-        // Hide all elements initially for pop in effect (identical to slide 1)
-        slide2Content.style.opacity = '0';
-        slide2Content.style.transform = 'scale(0) translateY(-20px)';
-        slide2Content.style.transition = 'none';
-        
-        slide2Text.style.opacity = '0';
-        slide2Text.style.transform = 'scale(0) translateY(-15px)';
-        slide2Text.style.transition = 'none';
-        
-        slide2Button.style.opacity = '0';
-        slide2Button.style.transform = 'scale(0) translateY(-10px)';
-        slide2Button.style.transition = 'none';
-        
-        slide2Hero.style.opacity = '0';
-        slide2Hero.style.transform = 'scale(0) translateY(-25px)';
-        slide2Hero.style.transition = 'none';
+          // Start slide 2 elements animation
+          if (slide2 && slide2Content && slide2Text && slide2Button && slide2Hero) {
+            // Trigger elastic spring pop in animation after a brief delay (identical to slide 1)
+            setTimeout(() => {
+              // Add elastic spring bounce pop in animation - 0.65 seconds
+              slide2Content.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+              slide2Text.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+              slide2Button.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+              slide2Hero.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
 
-        // Trigger elastic spring pop in animation after a brief delay (identical to slide 1)
-        setTimeout(() => {
-          // Add elastic spring bounce pop in animation - 0.65 seconds
-          slide2Content.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          slide2Text.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          slide2Button.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          slide2Hero.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+              // Apply gentle pop in styles with bounce sequence (identical to slide 1)
+              slide2Content.style.opacity = '1';
+              slide2Content.style.transform = 'scale(1) translateY(0)';
+              slide2Text.style.opacity = '1';
+              slide2Text.style.transform = 'scale(1) translateY(-8px)'; // Keep the 8px offset
+              slide2Button.style.opacity = '1';
+              slide2Button.style.transform = 'scale(1) translateY(0)';
+              slide2Hero.style.opacity = '1';
+              slide2Hero.style.transform = 'scale(1) translateY(0)';
 
-          // Apply gentle pop in styles with bounce sequence (identical to slide 1)
-          slide2Content.style.opacity = '1';
-          slide2Content.style.transform = 'scale(1) translateY(0)';
-          slide2Text.style.opacity = '1';
-          slide2Text.style.transform = 'scale(1) translateY(-8px)'; // Keep the 8px offset
-          slide2Button.style.opacity = '1';
-          slide2Button.style.transform = 'scale(1) translateY(0)';
-          slide2Hero.style.opacity = '1';
-          slide2Hero.style.transform = 'scale(1) translateY(0)';
-
-          // Reset animation styles after animation completes
-          setTimeout(() => {
-            slide2Content.style.transition = 'none';
-            slide2Text.style.transition = 'none';
-            slide2Button.style.transition = 'none';
-            slide2Hero.style.transition = 'none';
-          }, 700);
-        }, 20);
-      }
+              // Reset animation styles after animation completes
+              setTimeout(() => {
+                slide2Content.style.transition = 'none';
+                slide2Text.style.transition = 'none';
+                slide2Button.style.transition = 'none';
+                slide2Hero.style.transition = 'none';
+              }, 700);
+            }, 20);
+          }
+        }, 50); // Small delay to let goToSlide complete
+      }, 500);
     }
     
     // Function to animate number counting
@@ -378,12 +485,13 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
         longestCombo: toIntSafe(obj.longestCombo),
         collectiblesUnlocked: toIntSafe(obj.collectiblesUnlocked),
         boardsCleared: toIntSafe(obj.boardsCleared),
+        timePlayed: toIntSafe(obj.timePlayed),
       };
     }
 
     // Function to update stats data with animation
     function updateStatsData(data) {
-      const { highScore, cubesCracked, helpersUsed, longestCombo, collectiblesUnlocked, boardsCleared } = sanitizeStats(data);
+      const { highScore, cubesCracked, helpersUsed, longestCombo, collectiblesUnlocked, boardsCleared, timePlayed } = sanitizeStats(data);
       
       const highScoreEl = document.getElementById('high-score');
       const cubesCrackedEl = document.getElementById('cubes-cracked');
@@ -391,6 +499,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       const longestComboEl = document.getElementById('longest-combo');
       const collectiblesUnlockedEl = document.getElementById('collectibles-unlocked');
       const boardsClearedEl = document.getElementById('boards-cleared');
+      const timePlayedEl = document.getElementById('time-played');
       
       if (highScoreEl && highScore !== undefined) {
         gameStats.highScore = highScore;
@@ -421,6 +530,12 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       if (boardsClearedEl && boardsCleared !== undefined) {
         gameStats.boardsCleared = boardsCleared;
         animateNumber(boardsClearedEl, boardsCleared);
+      }
+      if (timePlayedEl && timePlayed !== undefined) {
+        gameStats.timePlayed = timePlayed;
+        timePlayedEl.textContent = formatTime(timePlayed);
+        timePlayedEl.classList.add('animating');
+        setTimeout(() => timePlayedEl.classList.remove('animating'), 300);
       }
     }
     
@@ -493,12 +608,14 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       // If stats screen open, animate zeros
       if (statsScreen && !statsScreen.hidden) {
         try {
-          ['high-score','boards-cleared','cubes-cracked','helpers-used','longest-combo'].forEach(id => {
+          ['high-score','boards-cleared','cubes-cracked','helpers-used','longest-combo','time-played'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.textContent = '0';
           });
           const cu = document.getElementById('collectibles-unlocked');
           if (cu) cu.textContent = '0/20';
+          const tp = document.getElementById('time-played');
+          if (tp) tp.textContent = '00:00:00';
           updateStatsData(gameStats);
         } catch {}
       }
@@ -759,6 +876,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
             home.style.display = 'none';
             appHost.style.display = 'block';
             appHost.removeAttribute('hidden');
+            startTimeTracking(); // Start tracking play time
             boot();
           }, 650); // Wait for elastic spring bounce animation to complete
         } else {
@@ -767,6 +885,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
           home.style.display = 'none';
           appHost.style.display = 'block';
           appHost.removeAttribute('hidden');
+          startTimeTracking(); // Start tracking play time
           boot();
         }
       };
@@ -1053,7 +1172,8 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
         helpersUsed: 0,
         longestCombo: 0,
         collectiblesUnlocked: 0,
-        boardsCleared: 0
+        boardsCleared: 0,
+        timePlayed: 0
       };
       saveStatsToStorage();
       console.log('🔄 All stats reset');
@@ -1063,6 +1183,10 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     // SIMPLE EXIT FUNCTION - CLEAN RESET WITHOUT INLINE OVERRIDES
     window.exitToMenu = async () => {
       console.log('🏠 Exiting to menu...');
+      
+      // Stop time tracking
+      stopTimeTracking();
+      
       try {
         // Persist live high score before tearing down the game
         try {
