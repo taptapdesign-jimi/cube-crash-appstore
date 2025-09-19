@@ -39,6 +39,11 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     const statsScreen = document.getElementById('stats-screen');
     const statsBackButton = document.getElementById('stats-back-btn');
     const statsResetButton = document.getElementById('stats-reset-btn');
+    const menuScreen = document.getElementById('menu-screen');
+    const menuBackBtn = document.getElementById('menu-back-btn');
+    const menuUnpauseAction = document.getElementById('menu-unpause-action');
+    const menuRestartAction = document.getElementById('menu-restart-action');
+    const menuExitBtn = document.getElementById('menu-exit-btn');
     
     let currentSlide = 0;
     const totalSlides = slides.length;
@@ -437,6 +442,93 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
           }
         }, 50); // Small delay to let goToSlide complete
       }, 500);
+    }
+    
+    // Menu screen functions
+    function showMenuScreen() {
+      console.log('📋 Showing menu screen');
+      
+      if (!menuScreen) return;
+      
+      // Pause the game when showing menu
+      try {
+        if (window.CC && typeof window.CC.pauseGame === 'function') {
+          window.CC.pauseGame();
+        }
+      } catch (error) {
+        console.warn('Failed to pause game:', error);
+      }
+      
+      // Update menu data from current game state
+      updateMenuData();
+      
+      // Show menu screen
+      menuScreen.hidden = false;
+      menuScreen.removeAttribute('hidden');
+      menuScreen.style.display = 'flex';
+      
+      // Add enter animation
+      menuScreen.style.opacity = '0';
+      menuScreen.style.transform = 'scale(0.8) translateY(20px)';
+      menuScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+      
+      setTimeout(() => {
+        menuScreen.style.opacity = '1';
+        menuScreen.style.transform = 'scale(1) translateY(0)';
+      }, 50);
+    }
+    
+    function hideMenuScreen() {
+      console.log('📋 Hiding menu screen');
+      
+      if (!menuScreen) return;
+      
+      // Resume the game when hiding menu
+      try {
+        if (window.CC && typeof window.CC.resumeGame === 'function') {
+          window.CC.resumeGame();
+        }
+      } catch (error) {
+        console.warn('Failed to resume game:', error);
+      }
+      
+      // Add exit animation
+      menuScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+      menuScreen.style.opacity = '0';
+      menuScreen.style.transform = 'scale(0.8) translateY(20px)';
+      
+      // Wait for exit animation to complete, then hide
+      setTimeout(() => {
+        menuScreen.hidden = true;
+        menuScreen.setAttribute('hidden', 'true');
+      }, 500);
+    }
+    
+    function updateMenuData() {
+      // Get current game state
+      let currentScore = 0;
+      let currentBoard = 1;
+      let movesLeft = 0;
+      
+      try {
+        const gameState = (window.CC && typeof window.CC.state === 'function') ? window.CC.state() : null;
+        if (gameState) {
+          currentScore = gameState.score || 0;
+          currentBoard = gameState.board || 1;
+          movesLeft = gameState.movesLeft || 0;
+        }
+      } catch (error) {
+        console.warn('Failed to get game state:', error);
+      }
+      
+      // Update menu elements
+      const scoreEl = document.getElementById('menu-current-score');
+      const boardEl = document.getElementById('menu-current-board');
+      const movesEl = document.getElementById('menu-moves-left');
+      
+      if (scoreEl) scoreEl.textContent = currentScore.toLocaleString();
+      if (boardEl) boardEl.textContent = currentBoard;
+      if (movesEl) movesEl.textContent = movesLeft;
     }
     
     // Function to animate number counting
@@ -1052,6 +1144,73 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       });
     }
     
+    // Menu screen button handlers
+    if (menuBackBtn) {
+      menuBackBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('📋 Menu back clicked');
+        hideMenuScreen();
+      });
+    }
+    
+    if (menuUnpauseAction) {
+      menuUnpauseAction.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('📋 Menu unpause action clicked');
+        hideMenuScreen();
+        // Resume game logic here
+        try {
+          if (window.CC && typeof window.CC.resumeGame === 'function') {
+            window.CC.resumeGame();
+          } else if (window.CC && typeof window.CC.resume === 'function') {
+            window.CC.resume();
+          }
+        } catch (error) {
+          console.warn('Failed to resume game:', error);
+        }
+      });
+    }
+    
+    if (menuRestartAction) {
+      menuRestartAction.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('📋 Menu restart action clicked');
+        hideMenuScreen();
+        // Restart game logic here
+        try {
+          // Persist live high score before restarting
+          try {
+            const s = (window.CC && typeof window.CC.state === 'function') ? window.CC.state() : null;
+            const liveScore = s && Number.isFinite(s.score) ? s.score : 0;
+            if (typeof window.updateHighScore === 'function') {
+              window.updateHighScore(liveScore);
+            }
+          } catch {}
+
+          if (window.CC && typeof window.CC.restart === 'function') {
+            window.CC.restart();
+          }
+        } catch (error) {
+          console.warn('Failed to restart game:', error);
+        }
+      });
+    }
+    
+    
+    if (menuExitBtn) {
+      menuExitBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('📋 Menu exit clicked');
+        hideMenuScreen();
+        // Exit to menu logic here
+        try {
+          window.exitToMenu?.();
+        } catch (error) {
+          console.warn('Failed to exit to menu:', error);
+        }
+      });
+    }
+    
     // Initialize
     console.log('🎯 Initializing slider...');
     console.log('🎯 Total slides:', totalSlides);
@@ -1094,6 +1253,8 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     
     window.showStats = () => goToSlide(1);
     window.showCollectibles = () => goToSlide(2);
+    window.showMenuScreen = showMenuScreen;
+    window.hideMenuScreen = hideMenuScreen;
     
     // Global functions for stats
     window.updateGameStats = (statName, value) => {
@@ -1217,7 +1378,12 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
           // FALLBACK: RESET GSAP TIMELINE
           if (window.gsap && window.gsap.globalTimeline) {
             window.gsap.globalTimeline.resume();
-            window.gsap.killTweensOf("*");
+            // Kill only game-related animations, not slider animations
+            window.gsap.killTweensOf("[data-wild-loader]");
+            window.gsap.killTweensOf(".wild-loader");
+            window.gsap.killTweensOf("p");
+            window.gsap.killTweensOf("progress");
+            window.gsap.killTweensOf("ratio");
           }
         }
         

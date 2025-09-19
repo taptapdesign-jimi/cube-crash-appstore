@@ -75,7 +75,7 @@ export function merge(src, dst, helpers){
     // meter + little bounce on score
     const inc = 0.25; // 4 small merges to full
     STATE.wildMeter = Math.min(1, (STATE.wildMeter || 0) + inc);
-    updateProgressBar({ ratio: STATE.wildMeter, animate: true });
+    updateProgressBar(STATE.wildMeter, true);
 
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.10, ease: 'power2.out',
@@ -195,7 +195,7 @@ export function merge(src, dst, helpers){
         }
 
         // reset meter with quick blink
-        STATE.wildMeter = 0; updateProgressBar({ ratio: 0, animate: true });
+        STATE.wildMeter = 0; updateProgressBar(0, true);
 
         const depth = Math.min(4, combined);
         const toOpen = REFILL_ON_SIX_BY_DEPTH[depth-1] || 2; // default 2

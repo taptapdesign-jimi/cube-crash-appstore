@@ -10,6 +10,7 @@ import {
 } from './constants.js';
 import { sweetPopIn } from './app-board.js';
 import * as CONSTS from './constants.js';
+import { STATE } from './app-state.js';
 
 import * as makeBoard from './board.js';
 import { installDrag } from './install-drag.js';
@@ -331,6 +332,10 @@ export async function boot(){
     showGameUI: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} },
     testCleanBoard: async () => { /* ... tvoja baza ... */ },
     testCleanAndPrize: async () => { /* ... tvoja baza ... */ },
+    pauseGame: () => pauseGame(),
+    resumeGame: () => resumeGame(),
+    resume: () => resumeGame(),
+    restart: () => restart(),
   };
   window.testCleanAndPrize = () => window.CC.testCleanAndPrize();
 
@@ -1096,22 +1101,85 @@ function restartGame(){
   wildMeter = 0;
   resetWildProgress(0, false);
   
-  // DRAMATIC: Simple wild meter reset
-  console.log('🔥 DRAMATIC: Resetting wild meter to 0');
-  wildMeter = 0;
-  
-  // NEW LOGIC: Simple and reliable wild meter reset
+  // HARD RESET: Use new resetWildMeter API for complete reset
+  console.log('🔥 HARD RESET: Resetting wild meter to 0');
   try {
-    console.log('🔄 NEW LOGIC: Calling HUD.updateProgressBar with 0...');
-    HUD.updateProgressBar?.(0, false);
-    console.log('✅ NEW LOGIC: Wild meter reset to 0 successfully');
+    if (typeof HUD.resetWildMeter === 'function') {
+      HUD.resetWildMeter(true); // instant = true for immediate reset
+    } else {
+      console.log('🔄 FALLBACK: Using HUD.updateProgressBar with 0...');
+      HUD.updateProgressBar?.(0, false);
+    }
+    console.log('✅ HARD RESET: Wild meter reset to 0 successfully');
   } catch (error) {
-    console.error('❌ NEW LOGIC: Error resetting wild meter:', error);
+    console.error('❌ HARD RESET: Error resetting wild meter:', error);
+  }
+  
+  // Reset both wild meter variables
+  wildMeter = 0;
+  STATE.wildMeter = 0;
+  
+  // EDGE CASE PROTECTION: Force wild meter reset with multiple methods
+  try {
+    console.log('🛡️ EDGE CASE: Force resetting wild meter with multiple methods...');
+    
+    // Method 1: Direct HUD update
+    if (typeof HUD.updateProgressBar === 'function') {
+      HUD.updateProgressBar(0, false);
+    }
+    
+    // Method 2: Reset via setWildProgress
+    setWildProgress(0, false);
+    
+    // Method 3: Direct wild meter variable reset
+    wildMeter = 0;
+    STATE.wildMeter = 0; // Reset both variables!
+    
+    // Method 4: Force update progress bar
+    if (typeof HUD.updateProgressBar === 'function') {
+      console.log('🔄 EDGE CASE: Calling HUD.updateProgressBar(0, false)...');
+      HUD.updateProgressBar(0, false);
+    }
+    
+    // Method 5: Force reset wild loader
+    if (typeof HUD.resetWildLoader === 'function') {
+      console.log('🔄 EDGE CASE: Calling HUD.resetWildLoader...');
+      HUD.resetWildLoader();
+    }
+    
+    // Method 6: Force update HUD
+    updateHUD();
+    
+    // Method 7: Direct PIXI manipulation - force reset wild loader mask
+    try {
+      // Also try direct access to wild loader if available
+      if (typeof wild !== 'undefined' && wild && wild.setProgress) {
+        console.log('🔄 EDGE CASE: Direct wild.setProgress(0, false)...');
+        wild.setProgress(0, false);
+      }
+    } catch (e) {
+      console.warn('EDGE CASE: Direct PIXI reset failed:', e);
+    }
+    
+    console.log('✅ EDGE CASE: Wild meter force reset completed');
+  } catch (error) {
+    console.error('❌ EDGE CASE: Error in force reset:', error);
   }
   
   // Rebuild board WITHOUT calling layout
+  console.log('🔄 RESTART: About to call rebuildBoard()...');
   rebuildBoard();
+  console.log('✅ RESTART: rebuildBoard() completed');
   updateHUD();
+  
+  // Ensure game is resumed after restart
+  try {
+    gsap.globalTimeline.resume();
+    app.ticker.start();
+    console.log('✅ Game resumed after restart');
+  } catch (error) {
+    console.warn('Failed to resume game after restart:', error);
+  }
   
   console.log('✅ Clean restart completed - HUD position preserved');
 }
@@ -1133,19 +1201,49 @@ export function resumeGame() {
 }
 
 export function restart() {
+  console.log('🔄 RESTART: Starting restart function');
+  
+  // HARD RESET: Use new resetWildMeter API for complete reset
+  try {
+    console.log('🛡️ HARD RESET: Calling resetWildMeter(true) for complete reset...');
+    if (typeof HUD.resetWildMeter === 'function') {
+      HUD.resetWildMeter(true); // instant = true for immediate reset
+    } else {
+      console.warn('HARD RESET: resetWildMeter function not available, falling back to legacy methods');
+      // Fallback to legacy methods if new API not available
+      if (typeof HUD.resetWildLoader === 'function') {
+        HUD.resetWildLoader();
+      }
+    }
+    
+    // Reset both wild meter variables
+    wildMeter = 0;
+    STATE.wildMeter = 0;
+    
+    console.log('✅ HARD RESET: Wild meter completely reset');
+  } catch (error) {
+    console.warn('HARD RESET: Failed to reset wild meter:', error);
+  }
+  
+  console.log('🔄 RESTART: About to call restartGame()...');
   restartGame();
+  console.log('✅ RESTART: restartGame() completed');
 }
 
 // Clean up game when exiting
 export function cleanupGame() {
   console.log('🧹 Cleaning up game state');
   
-  // CRITICAL: Reset GSAP timeline first
+  // CRITICAL: Reset GSAP timeline first - but don't kill slider animations
   try {
-    gsap.killTweensOf("*");
-    gsap.globalTimeline.clear();
+    // Kill only game-related animations, not slider animations
+    gsap.killTweensOf("[data-wild-loader]");
+    gsap.killTweensOf(".wild-loader");
+    gsap.killTweensOf("p");
+    gsap.killTweensOf("progress");
+    gsap.killTweensOf("ratio");
     gsap.globalTimeline.resume(); // CRITICAL: Resume timeline
-    console.log('✅ GSAP timeline reset and cleared');
+    console.log('✅ GSAP timeline reset and cleared (slider animations preserved)');
   } catch (e) {
     console.log('⚠️ GSAP cleanup error:', e);
   }

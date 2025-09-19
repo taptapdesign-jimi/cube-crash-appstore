@@ -65,6 +65,9 @@ export function startLevel(n){
   STATE.level=n; STATE.score=0; STATE.moves=0; STATE.busyEnding=false;
   STATE.wildGuaranteedOnce = false;
   STATE.wildMeter = 0;
+  
+  // NOTE: Wild meter reset is handled by restart functions, not here
+  
   rebuildBoard();       // builds + ring deal-in
   layout();
   setTimeout(()=> checkGameOver(), 1000);

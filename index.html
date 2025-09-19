@@ -206,6 +206,60 @@
       </div>
     </div>
   </div>
+
+  <!-- Menu Screen -->
+  <div id="menu-screen" hidden>
+    <div class="menu-content">
+      <div class="menu-header">
+        <div class="menu-header-top">
+          <button id="menu-back-btn" class="menu-back-button squishy">
+            <img src="./assets/chevron-back.png" alt="Back" />
+          </button>
+          <h1 class="menu-title">Menu</h1>
+          <div></div> <!-- Empty spacer for layout -->
+        </div>
+        <div class="menu-title-underline"></div>
+      </div>
+      
+      <div class="menu-scrollable">
+        <div class="menu-stats-row">
+          <div class="menu-stat-item">
+            <div class="menu-stat-value" id="menu-current-score">12458</div>
+            <div class="menu-stat-label">Score</div>
+          </div>
+          <div class="menu-stat-item">
+            <div class="menu-stat-value" id="menu-current-board">4</div>
+            <div class="menu-stat-label">Board</div>
+          </div>
+        </div>
+        
+        <div class="menu-divider"></div>
+        
+        <div class="menu-actions">
+          <div class="menu-action-item" id="menu-unpause-action">
+            <div class="menu-action-icon">
+              <img src="./assets/unpause-icon.png" alt="Unpause" />
+            </div>
+            <div class="menu-action-label">Unpause</div>
+          </div>
+          <div class="menu-action-item" id="menu-restart-action">
+            <div class="menu-action-icon">
+              <img src="./assets/restart-icon.png" alt="Restart" />
+            </div>
+            <div class="menu-action-label">Restart</div>
+          </div>
+        </div>
+        
+        <div class="menu-divider"></div>
+        
+        <div class="menu-buttons">
+          <button id="menu-exit-btn" class="menu-btn menu-btn-exit">
+            <span>Exit to menu</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
   
   <div id="app" hidden></div>
   <script type="module" src="./src/main.js?v=1001"></script>

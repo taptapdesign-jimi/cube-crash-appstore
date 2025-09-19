@@ -2,7 +2,7 @@
 import { Container, Graphics, Text, Rectangle } from 'pixi.js';
 import { gsap } from 'gsap';
 import { pauseGame, resumeGame, restart } from './app.js';
-import { showPauseModal } from './pause-modal.js';
+// import { showPauseModal } from './pause-modal.js'; // Replaced with menu screen
 import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
 
 // Local boardSize function (same as in app.js)
@@ -38,10 +38,13 @@ function makeWildLoader({ width, color = 0xE77449, trackColor = 0xEADFD6 }) {
 
   // SIMPLE: Direct mask update
   const updateMask = (ratio) => {
+    console.log('🎯 updateMask called with ratio:', ratio, 'barWidth:', barWidth);
     const w = Math.max(0, Math.min(barWidth, Math.round(barWidth * ratio)));
+    console.log('🎯 updateMask calculated width:', w);
     mask.clear();
     mask.roundRect(0, -0.5, w, H + 1, R).fill(0xffffff);
     progress = ratio;
+    console.log('✅ updateMask completed, progress set to:', progress);
   };
 
   const api = {
@@ -53,20 +56,25 @@ function makeWildLoader({ width, color = 0xE77449, trackColor = 0xEADFD6 }) {
       updateMask(progress);
     },
     setProgress: (t, animate = false) => { 
+      console.log('🎯 setProgress called with:', { t, animate, currentProgress: progress });
       const newProgress = Math.max(0, Math.min(1, t || 0)); 
+      console.log('🎯 setProgress calculated newProgress:', newProgress);
       
       if (!animate) {
+        console.log('🎯 setProgress calling updateMask directly (no animation)');
         updateMask(newProgress);
         return;
       }
       
+      console.log('🎯 setProgress starting GSAP animation');
       // Simple smooth animation
       const o = { p: progress };
       gsap.to(o, {
         p: newProgress, 
         duration: 0.4, 
         ease: 'power2.out',
-        onUpdate: () => { updateMask(o.p); }
+        onUpdate: () => { updateMask(o.p); },
+        onComplete: () => { console.log('✅ setProgress GSAP animation completed'); }
       });
     },
     charge: () => {},
@@ -203,15 +211,11 @@ export function layout({ app, top }) {
   movesText.y = yValue; scoreText.y = yValue;
 
   const barW = Math.max(120, vw - SIDE * 2);
-  if (wild && wild.view) {
-    try {
-      wild.view.x = SIDE;
-      wild.view.y = barY;
-      wild.setWidth(barW);
-    } catch (e) {
-      console.warn('🎯 HUD layout: wild loader position failed (will retry later):', e);
-    }
-  }
+  // Old wild loader disabled - using DOM wild meter instead
+  // if (wild && wild.view) { ... }
+  
+  // Update DOM wild meter position
+  updateWildMeterPosition();
   
   // Ensure HUD is properly positioned
   if (HUD_ROOT) {
@@ -265,20 +269,45 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // ensure combo is drawn above wild bar if overlapping
   try { movesText.zIndex = 10; scoreText.zIndex = 10; comboWrap.zIndex = 100; } catch {}
 
-  // wild bar
-  wild = makeWildLoader({ width: 200 });
-  HUD_ROOT.addChild(wild.view);
-  try { wild.view.zIndex = 0; } catch {}
-  wild.start();
+  // Create DOM wild meter immediately
+  wild = null; // Disable old wild loader
+  console.log('🎯 Creating DOM wild meter immediately...');
   
-  console.log('🎯 Wild loader created and added to HUD_ROOT:', {
-    wildExists: !!wild,
-    viewExists: !!wild.view,
-    parent: wild.view.parent,
-    visible: wild.view.visible,
-    alpha: wild.view.alpha,
-    x: wild.view.x,
-    y: wild.view.y
+  // Create DOM progress bar immediately
+  const progressBar = document.createElement('div');
+  progressBar.setAttribute('data-wild-loader', '');
+  progressBar.style.cssText = `
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    width: 200px;
+    height: 8px;
+    background: #EADFD6;
+    border-radius: 4px;
+    overflow: hidden;
+    z-index: 10001;
+    pointer-events: none;
+    display: none;
+  `;
+  
+  const fill = document.createElement('div');
+  fill.style.cssText = `
+    width: 0%;
+    height: 100%;
+    background: #E7744A;
+    transition: width 0.3s ease;
+    border-radius: 4px;
+  `;
+  
+  progressBar.appendChild(fill);
+  document.body.appendChild(progressBar);
+  console.log('✅ DOM wild meter created and added to body');
+  console.log('🎯 DOM wild meter details:', {
+    element: progressBar,
+    exists: !!progressBar,
+    parent: progressBar.parentNode,
+    style: progressBar.style.cssText,
+    display: progressBar.style.display
   });
 
   // inicijalni layout + resize listener
@@ -310,52 +339,13 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     
     console.log('Calling pauseGame...');
     pauseGame();
-    console.log('Calling showPauseModal...');
-    showPauseModal({
-      onUnpause: async () => { 
-        console.log('🎭 onUnpause called');
-        try { resumeGame(); } catch {} 
-      },
-      onRestart: async () => { 
-        console.log('🎭 onRestart called');
-        try {
-          // Persist live high score before restarting
-          try {
-            const s = (window.CC && typeof window.CC.state === 'function') ? window.CC.state() : null;
-            const liveScore = s && Number.isFinite(s.score) ? s.score : 0;
-            if (typeof window.updateHighScore === 'function') {
-              window.updateHighScore(liveScore);
-            }
-          } catch {}
-
-          restart(); 
-          // Layout will be called automatically by restartGame() in app.js
-          console.log('🎭 Restart completed - layout will be called by restartGame()');
-          resumeGame(); 
-        } catch (error) {
-          console.error('🎭 Error during restart:', error);
-        }
-      },
-      onExit: async () => {
-        console.log('🎭 EXIT TO MENU - SIMPLE APPROACH');
-
-        try {
-          // Use simple global exit function
-          if (window.exitToMenu) {
-            window.exitToMenu();
-            console.log('✅ Exit to menu completed');
-            return true;
-          } else {
-            console.error('❌ window.exitToMenu not found!');
-            return false;
-          }
-          
-        } catch (error) {
-          console.error('❌ Error in onExit:', error);
-          return false;
-        }
-      }
-    });
+    console.log('Calling showMenuScreen...');
+    // Show menu screen instead of pause modal
+    if (typeof window.showMenuScreen === 'function') {
+      window.showMenuScreen();
+    } else {
+      console.warn('showMenuScreen function not available');
+    }
   });
 }
 
@@ -474,73 +464,140 @@ export function bumpCombo(opts = {}){
     .to(sh, { k: 1.1, duration: 0.90, ease: 'sine.out' }, '>');
 }
 
-/* DRAMATIC FIX: Direct wild meter update - no complex logic */
+/* COMPLETELY NEW LOGIC: Simple DOM-based wild meter positioned in HUD */
 export function updateProgressBar(ratio, animate = false){
-  console.log('🎯 CLEAN: updateProgressBar called with:', { ratio, animate });
+  console.log('🔥 NEW LOGIC: updateProgressBar called with:', { ratio, animate });
   
-  // CREATE wild loader if it doesn't exist
-  if (!wild) {
-    console.log('🔥 CLEAN: Creating wild loader...');
-    try {
-      wild = makeWildLoader({ width: 200 });
-      if (HUD_ROOT) {
-        HUD_ROOT.addChild(wild.view);
-        wild.view.zIndex = 0;
-        wild.view.x = 0;
-        wild.view.y = 0;
-        wild.start();
-        console.log('✅ CLEAN: Wild loader created successfully');
-      }
-    } catch (error) {
-      console.error('❌ CLEAN: Error creating wild loader:', error);
-      return;
-    }
+  // Find or create simple DOM progress bar
+  let progressBar = document.querySelector('[data-wild-loader]');
+  if (!progressBar) {
+    console.log('🔥 NEW LOGIC: Creating DOM progress bar...');
+    progressBar = document.createElement('div');
+    progressBar.setAttribute('data-wild-loader', '');
+    progressBar.style.cssText = `
+      position: fixed;
+      top: 0px;
+      left: 0px;
+      width: 200px;
+      height: 8px;
+      background: #EADFD6;
+      border-radius: 4px;
+      overflow: hidden;
+      z-index: 10001;
+      pointer-events: none;
+    `;
+    
+    const fill = document.createElement('div');
+    fill.style.cssText = `
+      width: 0%;
+      height: 100%;
+      background: #E7744A;
+      transition: width 0.3s ease;
+      border-radius: 4px;
+    `;
+    
+    progressBar.appendChild(fill);
+    document.body.appendChild(progressBar);
+    console.log('✅ NEW LOGIC: DOM progress bar created');
+    
+    // Position it in the HUD using the same logic as the original wild loader
+    updateWildMeterPosition();
   }
   
-  // CLEAN: Use the simple setProgress method
-  try {
-    console.log('🔥 CLEAN: Calling wild.setProgress with ratio:', ratio, 'animate:', animate);
-    wild.setProgress(ratio, animate);
-    wild._lastP = ratio;
-    console.log('✅ CLEAN: Wild loader updated successfully');
-  } catch (error) {
-    console.error('❌ CLEAN: Error updating wild meter:', error);
+  // Update progress
+  const fill = progressBar.querySelector('div');
+  const percentage = Math.round(ratio * 100);
+  
+  if (animate) {
+    fill.style.transition = 'width 0.4s ease';
+  } else {
+    fill.style.transition = 'none';
   }
+  
+  fill.style.width = percentage + '%';
+  console.log('✅ NEW LOGIC: Progress updated to', percentage + '%');
 }
 
-/* Reset wild loader to 0 */
-export function resetWildLoader(){
-  console.log('🔄 resetWildLoader called, wild exists:', !!wild);
-  if (!wild) {
-    console.log('⚠️ Wild loader not found, cannot reset');
+/* Position DOM wild meter in the same place as the original wild loader */
+function updateWildMeterPosition() {
+  const progressBar = document.querySelector('[data-wild-loader]');
+  if (!progressBar) {
+    console.log('⚠️ DOM wild meter not found, cannot position');
+    return;
+  }
+  if (!HUD_ROOT) {
+    console.log('⚠️ HUD_ROOT not found, cannot position');
     return;
   }
   
-  try {
-    wild._lastP = 0;
-    
-    // Force immediate reset with animation to 0
-    wild.setProgress(0, true); // Use animation to ensure visual reset
-    
-    // Also try direct mask manipulation as backup
-    if (wild.view && wild.view.children) {
-      const mask = wild.view.children.find(child => child.mask);
-      if (mask && typeof mask.clear === 'function') {
-        mask.clear();
-        mask.roundRect(0, -0.5, 0, 8 + 1, 4).fill(0xffffff);
-        console.log('🔄 Force cleared wild loader mask to 0');
+  // Use the same positioning logic as the original wild loader
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const SIDE = 24;
+  const barW = Math.max(120, vw - SIDE * 2);
+  
+  // Calculate position exactly like the original wild loader in layout function
+  const yValue = 20; // Same as in layout function
+  const valueRowH = Math.max(24, 24, 24); // Same as original calculation
+  const barGap = Math.round(vh * 0.02); // 2% gap below the numbers
+  
+  // Use the drop target position instead of current HUD position
+  const hudTargetY = HUD_ROOT._dropTop || HUD_ROOT.y;
+  // Position wild meter exactly like original (local barY + HUD position)
+  const barY = hudTargetY + yValue + valueRowH + barGap;
+  
+  progressBar.style.left = SIDE + 'px';
+  progressBar.style.top = barY + 'px';
+  progressBar.style.width = barW + 'px';
+  progressBar.style.display = 'block'; // Ensure it's visible
+  
+  console.log('🎯 DOM wild meter positioned:', { 
+    left: SIDE, 
+    top: barY, 
+    width: barW, 
+    hudY: HUD_ROOT.y,
+    hudTargetY: hudTargetY,
+    dropTop: HUD_ROOT._dropTop,
+    visible: progressBar.style.display,
+    zIndex: progressBar.style.zIndex
+  });
+}
+
+/* SIMPLE RESET: Reset DOM-based wild meter */
+export function resetWildMeter(instant = true) {
+  console.log('🔄 SIMPLE RESET: resetWildMeter called, instant:', instant);
+  
+  // Reset DOM progress bar
+  const progressBar = document.querySelector('[data-wild-loader]');
+  if (progressBar) {
+    const fill = progressBar.querySelector('div');
+    if (fill) {
+      if (instant) {
+        fill.style.transition = 'none';
+      } else {
+        fill.style.transition = 'width 0.3s ease';
       }
+      fill.style.width = '0%';
+      console.log('✅ SIMPLE RESET: DOM progress bar reset to 0%');
     }
-    
-    // Ensure wild loader is ready for normal operation
-    if (wild.start) {
-      wild.start();
-    }
-    
-    console.log('✅ Wild loader reset to 0 with animation and ready for normal operation');
-  } catch (error) {
-    console.error('❌ Error resetting wild loader:', error);
   }
+  
+  // Kill any remaining GSAP tweens
+  try {
+    gsap.killTweensOf("[data-wild-loader]");
+    gsap.killTweensOf(".wild-loader");
+    console.log('✅ SIMPLE RESET: GSAP tweens killed');
+  } catch (e) {
+    console.warn('SIMPLE RESET: Failed to kill GSAP tweens:', e);
+  }
+  
+  console.log('✅ SIMPLE RESET: Wild meter completely reset');
+}
+
+/* Legacy function - now calls hard reset */
+export function resetWildLoader(){
+  console.log('🔄 resetWildLoader called, redirecting to resetWildMeter(true)');
+  resetWildMeter(true);
 }
 
 /* Animate wild loader to 0 */
