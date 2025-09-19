@@ -139,45 +139,12 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       isDragging = false;
       hideDots();
       
-      // Show stats screen immediately for instant scroll access
-      if (home) home.hidden = true;
-      if (statsScreen) {
-        // Load stats, then prime counters to 0 so they animate every entry
-        loadStatsFromStorage();
-
-        try {
-          const ids = ['high-score','boards-cleared','cubes-cracked','helpers-used','longest-combo'];
-          ids.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-              el.classList.remove('animating');
-              el.textContent = '0';
-            }
-          });
-        } catch {}
-
-        // Animate numbers up to current values
-        updateStatsData(gameStats);
-        
-        statsScreen.hidden = false;
-        // Animate stats screen in
-        statsScreen.style.opacity = '0';
-        statsScreen.style.transform = 'scale(0.8) translateY(20px)';
-        statsScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-        
-        setTimeout(() => {
-          statsScreen.style.opacity = '1';
-          statsScreen.style.transform = 'scale(1) translateY(0)';
-        }, 50);
-      }
-      
-      // Get slide 2 elements for animation (stats slide) - run in background
+      // Get slide 2 elements for exit animation
       const slide2 = document.querySelector('.slider-slide[data-slide="1"]');
       const slide2Content = slide2?.querySelector('.slide-content');
       const slide2Text = slide2?.querySelector('.slide-text');
       const slide2Button = slide2?.querySelector('.slide-button');
       const slide2Hero = slide2?.querySelector('.hero-container');
-      const homeLogo = document.getElementById('home-logo');
       
       if (slide2 && slide2Content && slide2Text && slide2Button && slide2Hero) {
         // Add elastic spring bounce pop out animation - 0.65 seconds
@@ -186,12 +153,13 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
         slide2Button.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
         slide2Hero.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
         
-        // Add logo animation if it exists
+        // Add logo animation if it exists (identical to slide 1)
+        const homeLogo = document.getElementById('home-logo');
         if (homeLogo) {
           homeLogo.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
         }
         
-        // Apply gentle elastic pop out with bounce sequence
+        // Apply gentle elastic pop out with bounce sequence (identical to slide 1)
         slide2Content.style.opacity = '0';
         slide2Content.style.transform = 'scale(0) translateY(-20px)';
         slide2Text.style.opacity = '0';
@@ -201,18 +169,82 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
         slide2Hero.style.opacity = '0';
         slide2Hero.style.transform = 'scale(0) translateY(-25px)';
         
-        // Apply logo animation
+        // Apply logo animation (identical to slide 1)
         if (homeLogo) {
           homeLogo.style.opacity = '0';
           homeLogo.style.transform = 'scale(0) translateY(-30px)';
         }
+        
+        // Wait for exit animation to complete, then show stats
+        setTimeout(() => {
+          if (home) home.hidden = true;
+          if (statsScreen) {
+            // Load stats, then prime counters to 0 so they animate every entry
+            loadStatsFromStorage();
+
+            try {
+              const ids = ['high-score','boards-cleared','cubes-cracked','helpers-used','longest-combo'];
+              ids.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                  el.classList.remove('animating');
+                  el.textContent = '0';
+                }
+              });
+            } catch {}
+
+            // Animate numbers up to current values
+            updateStatsData(gameStats);
+            
+            statsScreen.hidden = false;
+            // Animate stats screen in
+            statsScreen.style.opacity = '0';
+            statsScreen.style.transform = 'scale(0.8) translateY(20px)';
+            statsScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            
+            setTimeout(() => {
+              statsScreen.style.opacity = '1';
+              statsScreen.style.transform = 'scale(1) translateY(0)';
+            }, 50);
+          }
+        }, 650); // Wait for elastic spring bounce animation to complete
+      } else {
+        // Fallback if elements not found
+        if (home) home.hidden = true;
+        if (statsScreen) {
+          // Load stats, then prime counters to 0 so they animate every entry
+          loadStatsFromStorage();
+
+          try {
+            const ids = ['high-score','boards-cleared','cubes-cracked','helpers-used','longest-combo'];
+            ids.forEach(id => {
+              const el = document.getElementById(id);
+              if (el) {
+                el.classList.remove('animating');
+                el.textContent = '0';
+              }
+            });
+          } catch {}
+
+          // Animate numbers up to current values
+          updateStatsData(gameStats);
+          
+          statsScreen.hidden = false;
+          // Animate stats screen in
+          statsScreen.style.opacity = '0';
+          statsScreen.style.transform = 'scale(0.8) translateY(20px)';
+          statsScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+          
+          setTimeout(() => {
+            statsScreen.style.opacity = '1';
+            statsScreen.style.transform = 'scale(1) translateY(0)';
+          }, 50);
+        }
       }
-      
-      console.log('📊 Stats screen ready for immediate interaction');
     }
     
     function hideStatsScreen() {
-      console.log('📊 Hiding stats screen (no out animation)');
+      console.log('📊 Hiding stats screen with enter animation');
       
       if (!statsScreen) return;
       // Instantly hide overlay
@@ -229,8 +261,14 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       // Navigate to Stats slide (index 1) and pop it in like slide 1
       try { goToSlide(1); } catch {}
 
-      // Bring back the home logo with the same pop-in spring
+      // Get slide 2 elements for enter animation
+      const slide2 = document.querySelector('.slider-slide[data-slide="1"]');
+      const slide2Content = slide2?.querySelector('.slide-content');
+      const slide2Text = slide2?.querySelector('.slide-text');
+      const slide2Button = slide2?.querySelector('.slide-button');
+      const slide2Hero = slide2?.querySelector('.hero-container');
       const homeLogo = document.getElementById('home-logo');
+      
       if (homeLogo) {
         homeLogo.style.transition = 'none';
         homeLogo.style.opacity = '0';
@@ -247,46 +285,43 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
         }, 20);
       }
 
-      const slide2 = document.querySelector('.slider-slide[data-slide="1"]');
-      const slide2Content = slide2?.querySelector('.slide-content');
-      const slide2Text = slide2?.querySelector('.slide-text');
-      const slide2Button = slide2?.querySelector('.slide-button');
-      const slide2Hero = slide2?.querySelector('.hero-container');
-
       if (slide2 && slide2Content && slide2Text && slide2Button && slide2Hero) {
-        // Start hidden
-        slide2Content.style.transition = 'none';
-        slide2Text.style.transition = 'none';
-        slide2Button.style.transition = 'none';
-        slide2Hero.style.transition = 'none';
+        // Hide all elements initially for pop in effect (identical to slide 1)
         slide2Content.style.opacity = '0';
-        slide2Text.style.opacity = '0';
-        slide2Button.style.opacity = '0';
-        slide2Hero.style.opacity = '0';
         slide2Content.style.transform = 'scale(0) translateY(-20px)';
+        slide2Content.style.transition = 'none';
+        
+        slide2Text.style.opacity = '0';
         slide2Text.style.transform = 'scale(0) translateY(-15px)';
+        slide2Text.style.transition = 'none';
+        
+        slide2Button.style.opacity = '0';
         slide2Button.style.transform = 'scale(0) translateY(-10px)';
+        slide2Button.style.transition = 'none';
+        
+        slide2Hero.style.opacity = '0';
         slide2Hero.style.transform = 'scale(0) translateY(-25px)';
+        slide2Hero.style.transition = 'none';
 
-        // Animate in with same elastic spring as slide 1
+        // Trigger elastic spring pop in animation after a brief delay (identical to slide 1)
         setTimeout(() => {
-          const spring = 'cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          const trans = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
-          slide2Content.style.transition = trans;
-          slide2Text.style.transition = trans;
-          slide2Button.style.transition = trans;
-          slide2Hero.style.transition = trans;
+          // Add elastic spring bounce pop in animation - 0.65 seconds
+          slide2Content.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          slide2Text.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          slide2Button.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          slide2Hero.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
 
+          // Apply gentle pop in styles with bounce sequence (identical to slide 1)
           slide2Content.style.opacity = '1';
           slide2Content.style.transform = 'scale(1) translateY(0)';
           slide2Text.style.opacity = '1';
-          slide2Text.style.transform = 'scale(1) translateY(-8px)';
+          slide2Text.style.transform = 'scale(1) translateY(-8px)'; // Keep the 8px offset
           slide2Button.style.opacity = '1';
           slide2Button.style.transform = 'scale(1) translateY(0)';
           slide2Hero.style.opacity = '1';
           slide2Hero.style.transform = 'scale(1) translateY(0)';
 
-          // Cleanup transitions after finish
+          // Reset animation styles after animation completes
           setTimeout(() => {
             slide2Content.style.transition = 'none';
             slide2Text.style.transition = 'none';
