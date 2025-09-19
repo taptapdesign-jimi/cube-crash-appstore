@@ -109,43 +109,81 @@
     <div class="stats-content">
       <div class="stats-header">
         <div class="stats-header-top">
-          <button id="stats-back-btn" class="stats-back-button">
+          <button id="stats-back-btn" class="stats-back-button squishy">
             <img src="./assets/chevron-back.png" alt="Back" />
           </button>
           <h1 class="stats-title">Stats</h1>
-          <div></div> <!-- Spacer for centering -->
+          <div></div> <!-- Empty spacer for layout -->
         </div>
         <div class="stats-title-underline"></div>
       </div>
       
-      <div class="stats-body">
-        <div class="stat-item main-stat">
-          <div class="stat-value" id="high-score">8975</div>
-          <div class="stat-label">High score</div>
+      <div class="stats-scrollable">
+        <div class="stat-item">
+          <div class="stat-icon">
+            <img src="./assets/highscore-icon.png" alt="High score" />
+          </div>
+          <div class="stat-content">
+            <div class="stat-value" id="high-score">8975</div>
+            <div class="stat-label">High score</div>
+          </div>
         </div>
         
-        <div class="stats-grid">
-          <div class="stat-item">
-            <div class="stat-value" id="boards-cleared">0</div>
-            <div class="stat-label">Boards cleared</div>
+        <div class="stat-divider"></div>
+        
+        <div class="stat-item">
+          <div class="stat-icon">
+            <img src="./assets/cubes-cracked.png" alt="Cubes cracked" />
           </div>
-          
-          <div class="stat-item">
+          <div class="stat-content">
             <div class="stat-value" id="cubes-cracked">3441</div>
             <div class="stat-label">Cubes cracked</div>
           </div>
-          
-          <div class="stat-item">
-            <div class="stat-value" id="helpers-used">1527</div>
-            <div class="stat-label">Helpers used</div>
+        </div>
+        
+        <div class="stat-divider"></div>
+        
+        <div class="stat-item">
+          <div class="stat-icon">
+            <img src="./assets/clean-board.png" alt="Boards cleared" />
           </div>
-          
-          <div class="stat-item">
+          <div class="stat-content">
+            <div class="stat-value" id="boards-cleared">0</div>
+            <div class="stat-label">Boards cleared</div>
+          </div>
+        </div>
+        
+        <div class="stat-divider"></div>
+        
+        <div class="stat-item">
+          <div class="stat-icon">
+            <img src="./assets/combo-stats.png" alt="Longest combo" />
+          </div>
+          <div class="stat-content">
             <div class="stat-value" id="longest-combo">12</div>
             <div class="stat-label">Longest combo</div>
           </div>
-          
-          <div class="stat-item">
+        </div>
+        
+        <div class="stat-divider"></div>
+        
+        <div class="stat-item">
+          <div class="stat-icon">
+            <img src="./assets/wild-stats.png" alt="Helpers used" />
+          </div>
+          <div class="stat-content">
+            <div class="stat-value" id="helpers-used">1527</div>
+            <div class="stat-label">Helpers used</div>
+          </div>
+        </div>
+        
+        <div class="stat-divider"></div>
+        
+        <div class="stat-item">
+          <div class="stat-icon">
+            <img src="./assets/collectible-stats.png" alt="Collectibles unlocked" />
+          </div>
+          <div class="stat-content">
             <div class="stat-value" id="collectibles-unlocked">3/20</div>
             <div class="stat-label">Collectibles unlocked</div>
           </div>

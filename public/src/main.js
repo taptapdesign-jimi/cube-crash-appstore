@@ -139,7 +139,39 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       isDragging = false;
       hideDots();
       
-      // Get slide 2 elements for animation (stats slide)
+      // Show stats screen immediately for instant scroll access
+      if (home) home.hidden = true;
+      if (statsScreen) {
+        // Load stats, then prime counters to 0 so they animate every entry
+        loadStatsFromStorage();
+
+        try {
+          const ids = ['high-score','boards-cleared','cubes-cracked','helpers-used','longest-combo'];
+          ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.classList.remove('animating');
+              el.textContent = '0';
+            }
+          });
+        } catch {}
+
+        // Animate numbers up to current values
+        updateStatsData(gameStats);
+        
+        statsScreen.hidden = false;
+        // Animate stats screen in
+        statsScreen.style.opacity = '0';
+        statsScreen.style.transform = 'scale(0.8) translateY(20px)';
+        statsScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        
+        setTimeout(() => {
+          statsScreen.style.opacity = '1';
+          statsScreen.style.transform = 'scale(1) translateY(0)';
+        }, 50);
+      }
+      
+      // Get slide 2 elements for animation (stats slide) - run in background
       const slide2 = document.querySelector('.slider-slide[data-slide="1"]');
       const slide2Content = slide2?.querySelector('.slide-content');
       const slide2Text = slide2?.querySelector('.slide-text');
@@ -174,41 +206,9 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
           homeLogo.style.opacity = '0';
           homeLogo.style.transform = 'scale(0) translateY(-30px)';
         }
-        
-        // Hide home screen and show stats screen after animation
-        setTimeout(() => {
-          if (home) home.hidden = true;
-          if (statsScreen) {
-            // Load stats, then prime counters to 0 so they animate every entry
-            loadStatsFromStorage();
-
-            try {
-              const ids = ['high-score','boards-cleared','cubes-cracked','helpers-used','longest-combo'];
-              ids.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) {
-                  el.classList.remove('animating');
-                  el.textContent = '0';
-                }
-              });
-            } catch {}
-
-            // Animate numbers up to current values
-            updateStatsData(gameStats);
-            
-            statsScreen.hidden = false;
-            // Animate stats screen in
-            statsScreen.style.opacity = '0';
-            statsScreen.style.transform = 'scale(0.8) translateY(20px)';
-            statsScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-            
-            setTimeout(() => {
-              statsScreen.style.opacity = '1';
-              statsScreen.style.transform = 'scale(1) translateY(0)';
-            }, 50);
-          }
-        }, 650);
       }
+      
+      console.log('📊 Stats screen ready for immediate interaction');
     }
     
     function hideStatsScreen() {
@@ -493,6 +493,10 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     
     function handleStart(e) {
       if (sliderLocked) return;
+      
+      // Don't interfere with stats screen scrolling
+      if (statsScreen && !statsScreen.hidden) return;
+      
       startX = e.touches ? e.touches[0].clientX : e.clientX;
       isDragging = true;
       touchStartTime = Date.now();
@@ -507,6 +511,10 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     
     function handleMove(e) {
       if (sliderLocked || !isDragging) return;
+      
+      // Don't interfere with stats screen scrolling
+      if (statsScreen && !statsScreen.hidden) return;
+      
       e.preventDefault();
       currentX = e.touches ? e.touches[0].clientX : e.clientX;
       const diff = currentX - startX;
@@ -533,6 +541,10 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     
     function handleEnd() {
       if (sliderLocked || !isDragging) return;
+      
+      // Don't interfere with stats screen scrolling
+      if (statsScreen && !statsScreen.hidden) return;
+      
       isDragging = false;
       
       const diff = currentX - startX;

@@ -428,6 +428,9 @@ export function startWildIdle(tile, opts = {}){
       gsap.delayedCall(delay, () => {
         if (tile._wildIdleTl && !tile._wildIdleTl.isActive()) return; // Don't shimmer if idle stopped
         
+        // Check if shimmer sprite still exists before accessing properties
+        if (!tile._wildShimmerSprite) return;
+        
         // Reset shimmer position
         tile._wildShimmerSprite.x = -baseW * 0.8;
         tile._wildShimmerSprite.y = -baseH * 0.8;
@@ -441,7 +444,14 @@ export function startWildIdle(tile, opts = {}){
             x: baseW * 0.8, 
             y: baseH * 0.8,
             duration: 2.0, 
-            ease: 'power2.inOut' 
+            ease: 'power2.inOut',
+            onUpdate: () => {
+              // Additional safety check during animation
+              if (!tile._wildShimmerSprite) {
+                shimmerTl.kill();
+                return;
+              }
+            }
           })
           .to(shimmer, { alpha: 0, duration: 0.28, ease: 'power2.in' });
         
@@ -473,6 +483,12 @@ export function stopWildIdle(tile){
     }
     if (tile._wildMask){ tile._wildMask.parent?.removeChild(tile._wildMask); tile._wildMask.destroy?.(); }
   } catch {}
+  
+  // Clear all delayed calls for this tile to prevent shimmer scheduling
+  try {
+    gsap.killTweensOf(tile);
+  } catch {}
+  
   tile._wildShimmer = null;
   tile._wildShimmerSprite = null;
   tile._wildMask = null;
