@@ -478,7 +478,6 @@ body{height:100dvh;height:100vh;overflow:hidden}
   width: 24px;
   height: 24px;
   object-fit: contain;
-  filter: brightness(0) saturate(100%) invert(45%) sepia(8%) saturate(1000%) hue-rotate(315deg) brightness(95%) contrast(85%);
 }
 
 .stats-title {

@@ -736,13 +736,61 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
         }
       };
 
-      // Swallow pointer starts so wrapper doesn't treat it as a drag
-      playButton.addEventListener('mousedown', (e) => { e.stopPropagation(); });
-      playButton.addEventListener('touchstart', (e) => { e.stopPropagation(); }, { passive: true });
-      playButton.addEventListener('mouseup', (e) => { e.stopPropagation(); });
-      // On some mobile browsers, click can be canceled; trigger on touchend as well
-      playButton.addEventListener('touchend', startGameNow, { passive: true });
-      playButton.addEventListener('click', startGameNow);
+      // Track button press and drag behavior
+      let isButtonPressed = false;
+      let hasMovedOutside = false;
+      let buttonRect = null;
+
+      const handleButtonStart = (e) => {
+        isButtonPressed = true;
+        hasMovedOutside = false;
+        buttonRect = playButton.getBoundingClientRect();
+        e.stopPropagation();
+      };
+
+      const handleButtonMove = (e) => {
+        if (!isButtonPressed) return;
+        
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        
+        // Check if pointer moved outside button area
+        if (buttonRect && (clientX < buttonRect.left || clientX > buttonRect.right || 
+            clientY < buttonRect.top || clientY > buttonRect.bottom)) {
+          hasMovedOutside = true;
+          // Reset button to original state
+          playButton.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+          playButton.style.transform = 'scale(1) translateY(0)';
+        }
+      };
+
+      const handleButtonEnd = (e) => {
+        if (isButtonPressed && !hasMovedOutside) {
+          startGameNow(e);
+        }
+        isButtonPressed = false;
+        hasMovedOutside = false;
+        buttonRect = null;
+        e.stopPropagation();
+      };
+
+      // Mouse events
+      playButton.addEventListener('mousedown', handleButtonStart);
+      playButton.addEventListener('mousemove', handleButtonMove);
+      playButton.addEventListener('mouseup', handleButtonEnd);
+      playButton.addEventListener('mouseleave', handleButtonEnd);
+      
+      // Touch events
+      playButton.addEventListener('touchstart', handleButtonStart, { passive: true });
+      playButton.addEventListener('touchmove', handleButtonMove, { passive: true });
+      playButton.addEventListener('touchend', handleButtonEnd, { passive: true });
+      
+      // Fallback click event (for accessibility)
+      playButton.addEventListener('click', (e) => {
+        if (!hasMovedOutside) {
+          startGameNow(e);
+        }
+      });
     }
     
     if (statsButton) {
