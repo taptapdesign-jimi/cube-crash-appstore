@@ -1064,7 +1064,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   position: relative;
   transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
   border-radius: 28px;
-  padding: 28px 0;
+  padding: 12px 0; /* Reduced padding to match slider buttons */
   display: inline-flex;
   align-items: center;
   justify-content: center;
