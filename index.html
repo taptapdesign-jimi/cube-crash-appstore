@@ -45,7 +45,7 @@
               </div>
               <div class="slide-text">
                 <p class="slide-tagline">Stack and crash the cubes<br/>to get the required number</p>
-                <button id="btn-home" class="slide-button squishy squishy-cc">Play</button>
+                <button id="btn-home" class="slide-button squishy squishy-cc menu-btn-primary">Play</button>
               </div>
             </div>
           </div>
@@ -59,7 +59,7 @@
               </div>
               <div class="slide-text">
                 <p class="slide-tagline">See your best score<br/>and other stats</p>
-                <button id="btn-stats" class="slide-button squishy squishy-cc">Stats</button>
+                <button id="btn-stats" class="slide-button squishy squishy-cc menu-btn-primary">Stats</button>
               </div>
             </div>
           </div>
@@ -73,7 +73,7 @@
               </div>
               <div class="slide-text">
                 <p class="slide-tagline">Collect special rewards<br/>and earn bragging rights</p>
-                <button id="btn-collectibles" class="slide-button squishy squishy-cc">Collectibles</button>
+                <button id="btn-collectibles" class="slide-button squishy squishy-cc menu-btn-primary">Collectibles</button>
               </div>
             </div>
           </div>
@@ -87,7 +87,7 @@
               </div>
               <div class="slide-text">
                 <p class="slide-tagline">Customize the game<br/>just the way you like.</p>
-                <button id="btn-settings" class="slide-button squishy squishy-cc">Settings</button>
+                <button id="btn-settings" class="slide-button squishy squishy-cc menu-btn-primary">Settings</button>
               </div>
             </div>
           </div>
@@ -222,40 +222,47 @@
       </div>
       
       <div class="menu-scrollable">
-        <div class="menu-stats-row">
+        <div class="menu-stat-block">
           <div class="menu-stat-item">
-            <div class="menu-stat-value" id="menu-current-score">12458</div>
-            <div class="menu-stat-label">Score</div>
+            <div class="menu-stat-value highlight" id="menu-current-score">12458</div>
+            <div class="menu-stat-label">Current score</div>
           </div>
           <div class="menu-stat-item">
             <div class="menu-stat-value" id="menu-current-board">4</div>
             <div class="menu-stat-label">Board</div>
           </div>
         </div>
-        
+
         <div class="menu-divider"></div>
-        
-        <div class="menu-actions">
-          <div class="menu-action-item" id="menu-unpause-action">
-            <div class="menu-action-icon">
+
+        <div class="menu-actions menu-actions-grid">
+          <button type="button" class="menu-action-item" id="menu-settings-action">
+            <span class="menu-action-icon">
+              <img src="./assets/settings-icon.png" alt="Settings" />
+            </span>
+            <span class="menu-action-label">Settings</span>
+          </button>
+          <button type="button" class="menu-action-item" id="menu-unpause-action">
+            <span class="menu-action-icon">
               <img src="./assets/unpause-icon.png" alt="Unpause" />
-            </div>
-            <div class="menu-action-label">Unpause</div>
-          </div>
-          <div class="menu-action-item" id="menu-restart-action">
-            <div class="menu-action-icon">
+            </span>
+            <span class="menu-action-label">Unpause</span>
+          </button>
+          <button type="button" class="menu-action-item" id="menu-restart-action">
+            <span class="menu-action-icon">
               <img src="./assets/restart-icon.png" alt="Restart" />
-            </div>
-            <div class="menu-action-label">Restart</div>
-          </div>
+            </span>
+            <span class="menu-action-label">Restart</span>
+          </button>
         </div>
-        
+
         <div class="menu-divider"></div>
-        
-        <div class="menu-buttons">
-          <button id="menu-exit-btn" class="menu-btn menu-btn-exit">
+
+        <div class="menu-cta-stack">
+          <button id="menu-exit-btn" class="menu-btn menu-btn-exit menu-btn-primary">
             <span>Exit to menu</span>
           </button>
+          <button id="menu-test-board-cleared-btn" class="menu-btn menu-btn-cleared"><span>Test 500</span></button>
         </div>
       </div>
     </div>
