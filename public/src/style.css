@@ -1103,6 +1103,93 @@ body{height:100dvh;height:100vh;overflow:hidden}
   }
 }
 
+/* Menu Button Primary - Thick CTA buttons */
+.menu-btn-primary {
+  width: 250px;
+  height: auto;
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  letter-spacing: 0.3px;
+  font-size: 24px;
+  font-weight: 700;
+  align-self: center;
+  background: linear-gradient(180deg, #F89058 0%, #E36D37 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.6),
+    0 4px 0 0 #C65B2E,
+    0 12px 0 0 #9F4621,
+    0 12px 22px rgba(188,86,44,0.45);
+  overflow: hidden;
+  position: relative;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+  border-radius: 28px;
+  padding: 28px 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  cursor: pointer;
+  border: none;
+  z-index: 4;
+}
+
+.menu-btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(110deg,
+    rgba(255,255,255,0.00) 0%,
+    rgba(255,255,255,0.25) 22%,
+    rgba(255,255,255,0.95) 44%,
+    rgba(255,255,255,0.95) 56%,
+    rgba(255,255,255,0.25) 78%,
+    rgba(255,255,255,0.00) 100%
+  );
+  transform: translateX(-160%) skewX(-12deg);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: cta-shimmer 3s ease-in-out infinite;
+  filter: blur(0.56px);
+}
+
+.menu-btn-primary:hover {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.55),
+    0 3px 0 0 #C65B2E,
+    0 8px 0 0 #9F4621,
+    0 8px 16px rgba(188,86,44,0.45);
+}
+
+.menu-btn-primary:active {
+  transform: translateY(4px) scale(0.99);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.4),
+    0 2px 0 0 #C65B2E,
+    0 6px 0 0 #9F4621,
+    0 6px 12px rgba(188,86,44,0.4);
+}
+
+/* Shimmer animation for menu-btn-primary - same as wild cubes */
+@keyframes cta-shimmer {
+  0%, 5%{
+    transform: translateX(-160%) skewX(-12deg);
+    opacity: 0;
+  }
+  10%{
+    opacity: 0.78;
+  }
+  70%{
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0.0;
+  }
+  100%{
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0;
+  }
+}
+
 /* iPhone 13 Optimizations */
 @media screen and (max-width: 428px) {
   .stats-content {
