@@ -45,7 +45,7 @@
               </div>
               <div class="slide-text">
                 <p class="slide-tagline">Stack and crash the cubes<br/>to get the required number</p>
-                <button id="btn-home" class="slide-button squishy squishy-cc menu-btn-primary">Play</button>
+                <button id="btn-home" class="slide-button squishy squishy-cc">Play</button>
               </div>
             </div>
           </div>
@@ -59,7 +59,7 @@
               </div>
               <div class="slide-text">
                 <p class="slide-tagline">See your best score<br/>and other stats</p>
-                <button id="btn-stats" class="slide-button squishy squishy-cc menu-btn-primary">Stats</button>
+                <button id="btn-stats" class="slide-button squishy squishy-cc">Stats</button>
               </div>
             </div>
           </div>
@@ -73,7 +73,7 @@
               </div>
               <div class="slide-text">
                 <p class="slide-tagline">Collect special rewards<br/>and earn bragging rights</p>
-                <button id="btn-collectibles" class="slide-button squishy squishy-cc menu-btn-primary">Collectibles</button>
+                <button id="btn-collectibles" class="slide-button squishy squishy-cc">Collectibles</button>
               </div>
             </div>
           </div>
@@ -92,258 +92,7 @@
   <!-- GAME CONTAINER -->
   <div id="app" hidden></div>
   
-  <!-- MENU SCREEN -->
-  <div id="menu-screen" hidden>
-    <div class="menu-content">
-      <div class="menu-header">
-        <div class="menu-header-top">
-          <button class="menu-back-button squishy" id="menu-back-btn">
-            <img src="/assets/chevron-back.png" alt="Back" />
-          </button>
-          <h1 class="menu-title">Menu</h1>
-        </div>
-        <div class="menu-title-underline"></div>
-      </div>
-      
-      <div class="menu-scrollable">
-        <div class="menu-stat-block">
-          <div class="menu-stat-item">
-            <div class="menu-stat-value highlight" id="menu-current-score">0</div>
-            <div class="menu-stat-label">Current score</div>
-          </div>
-          <div class="menu-stat-item">
-            <div class="menu-stat-value" id="menu-current-board">1</div>
-            <div class="menu-stat-label">Board</div>
-          </div>
-        </div>
-
-        <div class="menu-divider"></div>
-
-        <div class="menu-actions menu-actions-grid">
-          <button type="button" class="menu-action-item" id="menu-settings-action">
-            <span class="menu-action-icon">
-              <img src="/assets/settings-icon.png" alt="Settings" />
-            </span>
-            <span class="menu-action-label">Settings</span>
-          </button>
-          <button type="button" class="menu-action-item" id="menu-unpause-action">
-            <span class="menu-action-icon">
-              <img src="/assets/unpause-icon.png" alt="Unpause" />
-            </span>
-            <span class="menu-action-label">Unpause</span>
-          </button>
-          <button type="button" class="menu-action-item" id="menu-restart-action">
-            <span class="menu-action-icon">
-              <img src="/assets/restart-icon.png" alt="Restart" />
-            </span>
-            <span class="menu-action-label">Restart</span>
-          </button>
-        </div>
-
-        <div class="menu-divider"></div>
-
-        <div class="menu-cta-stack">
-          <button class="menu-btn menu-btn-exit menu-btn-primary" id="menu-exit-btn">Exit to Menu</button>
-          <button class="menu-btn menu-btn-cleared" id="menu-test-board-cleared-btn">Test 500</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <!-- STATS SCREEN -->
-  <div id="stats-screen" hidden>
-    <div class="stats-content">
-      <div class="stats-header">
-        <div class="stats-header-top">
-          <button class="stats-back-button squishy" id="stats-back-btn">
-            <img src="/assets/chevron-back.png" alt="Back" />
-          </button>
-          <h1 class="stats-title">Stats</h1>
-        </div>
-        <div class="stats-title-underline"></div>
-      </div>
-      
-      <div class="stats-scrollable">
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="/assets/stats-trophy.png" alt="High Score" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value" id="high-score">0</div>
-            <div class="stat-label">High Score</div>
-          </div>
-        </div>
-        
-        <div class="stat-divider"></div>
-        
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="/assets/cubes-cracked.png" alt="Cubes Cracked" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value" id="cubes-cracked">0</div>
-            <div class="stat-label">Cubes Cracked</div>
-          </div>
-        </div>
-        
-        <div class="stat-divider"></div>
-        
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="/assets/collectible-stats.png" alt="Collectibles" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value" id="collectibles-unlocked">0/20</div>
-            <div class="stat-label">Collectibles Unlocked</div>
-          </div>
-        </div>
-        
-        <div class="stat-divider"></div>
-        
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="/assets/clean-board.png" alt="Boards Cleared" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value" id="boards-cleared">0</div>
-            <div class="stat-label">Boards Cleared</div>
-          </div>
-        </div>
-        
-        <div class="stat-divider"></div>
-        
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="/assets/combo-stats.png" alt="Longest Combo" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value" id="longest-combo">0</div>
-            <div class="stat-label">Longest Combo</div>
-          </div>
-        </div>
-        
-        <div class="stat-divider"></div>
-        
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="/assets/time-icon.png" alt="Time Played" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value" id="time-played">00:00:00</div>
-            <div class="stat-label">Time Played</div>
-          </div>
-        </div>
-        
-        <div class="stat-divider"></div>
-        
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="/assets/wild-stats.png" alt="Helpers Used" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value" id="helpers-used">0</div>
-            <div class="stat-label">Helpers Used</div>
-          </div>
-        </div>
-        
-        <button class="stats-reset-btn" id="stats-reset-btn">Reset Stats</button>
-      </div>
-    </div>
-  </div>
-  
   <!-- FINAL SCRIPT -->
   <script type="module" src="/src/main.js"></script>
-  
-  <!-- Inline script for menu screen functionality -->
-  <script>
-    // Wait for DOM to load
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('🎯 DOM loaded, setting up menu screen functionality');
-      
-      // Test Board Cleared button functionality
-      const testBoardClearedBtn = document.getElementById('menu-test-board-cleared-btn');
-      if (testBoardClearedBtn) {
-        console.log('✅ Test Board Cleared button found');
-        testBoardClearedBtn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          console.log('🧪 Test Board Cleared button clicked');
-          
-          // Hide menu screen
-          const menuScreen = document.getElementById('menu-screen');
-          if (menuScreen) {
-            menuScreen.hidden = true;
-            menuScreen.setAttribute('hidden', 'true');
-            menuScreen.style.display = 'none';
-          }
-          
-          // Call clean board overlay function
-          try {
-            if (window.CC && typeof window.CC.showCleanBoardOverlay === 'function') {
-              console.log('✅ Calling window.CC.showCleanBoardOverlay');
-              window.CC.showCleanBoardOverlay();
-            } else {
-              console.warn('⚠️ window.CC.showCleanBoardOverlay not available');
-            }
-          } catch (error) {
-            console.error('❌ Error calling showCleanBoardOverlay:', error);
-          }
-        });
-      } else {
-        console.warn('⚠️ Test Board Cleared button not found');
-      }
-      
-      // Menu back button functionality
-      const menuBackBtn = document.getElementById('menu-back-btn');
-      if (menuBackBtn) {
-        menuBackBtn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          console.log('📋 Menu back clicked');
-          
-          // Hide menu screen
-          const menuScreen = document.getElementById('menu-screen');
-          if (menuScreen) {
-            menuScreen.hidden = true;
-            menuScreen.setAttribute('hidden', 'true');
-            menuScreen.style.display = 'none';
-          }
-          
-          // Resume game
-          try {
-            if (window.CC && typeof window.CC.resumeGame === 'function') {
-              window.CC.resumeGame();
-            }
-          } catch (error) {
-            console.warn('Failed to resume game:', error);
-          }
-        });
-      }
-      
-      // Menu exit button functionality
-      const menuExitBtn = document.getElementById('menu-exit-btn');
-      if (menuExitBtn) {
-        menuExitBtn.addEventListener('click', function(e) {
-          e.stopPropagation();
-          console.log('📋 Menu exit clicked');
-          
-          // Hide menu screen
-          const menuScreen = document.getElementById('menu-screen');
-          if (menuScreen) {
-            menuScreen.hidden = true;
-            menuScreen.setAttribute('hidden', 'true');
-            menuScreen.style.display = 'none';
-          }
-          
-          // Exit to menu
-          try {
-            if (typeof window.exitToMenu === 'function') {
-              window.exitToMenu();
-            }
-          } catch (error) {
-            console.warn('Failed to exit to menu:', error);
-          }
-        });
-      }
-    });
-  </script>
 </body>
 </html>

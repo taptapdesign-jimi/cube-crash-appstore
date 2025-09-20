@@ -352,13 +352,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   comboWrap = new Container();
   comboWrap.addChild(comboText);
   HUD_ROOT.addChild(movesText, scoreText, comboWrap);
-  // ensure combo renders above wild loader animations
-  try {
-    movesText.zIndex = 10;
-    scoreText.zIndex = 10;
-    comboWrap.zIndex = 2000;
-    comboText.zIndex = 2000;
-  } catch {}
+  // ensure combo is drawn above wild bar if overlapping
+  try { movesText.zIndex = 10; scoreText.zIndex = 10; comboWrap.zIndex = 100; } catch {}
 
   // Create PIXI wild meter
   console.log('🎯 Creating PIXI wild meter...');

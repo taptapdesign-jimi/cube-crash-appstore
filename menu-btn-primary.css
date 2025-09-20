@@ -1,0 +1,66 @@
+/* Menu Button Primary Styles - Saved for later use */
+.menu-btn-primary {
+  width: min(276px, 100%);
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  letter-spacing: 0.3px;
+  font-size: 24px;
+  font-weight: 800;
+  align-self: center;
+  background: linear-gradient(180deg, #F89058 0%, #E36D37 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.6),
+    0 4px 0 0 #C65B2E,
+    0 12px 0 0 #9F4621,
+    0 12px 22px rgba(188,86,44,0.45);
+  overflow: hidden;
+  position: relative;
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+  border-radius: 48px;
+  padding: 28px 64px; /* Increased padding: 4px extra top and bottom */
+}
+
+.menu-btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(110deg,
+    rgba(255,255,255,0.00) 0%,
+    rgba(255,255,255,0.3) 22%,
+    rgba(255,255,255,0.95) 44%,
+    rgba(255,255,255,0.95) 56%,
+    rgba(255,255,255,0.3) 78%,
+    rgba(255,255,255,0.00) 100%
+  );
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: cta-shimmer 3.6s ease-in-out infinite;
+  filter: blur(0.7px);
+}
+
+.menu-btn-primary:hover {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.55),
+    0 3px 0 0 #C65B2E,
+    0 8px 0 0 #9F4621,
+    0 8px 16px rgba(188,86,44,0.45);
+}
+
+.menu-btn-primary:active {
+  transform: translateY(4px) scale(0.99);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.4),
+    0 2px 0 0 #C65B2E,
+    0 6px 0 0 #9F4621,
+    0 6px 12px rgba(188,86,44,0.4);
+}
+
+/* Shimmer animation for menu-btn-primary */
+@keyframes cta-shimmer {
+  0% { transform: translateX(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateX(100%); opacity: 0; }
+}

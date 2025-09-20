@@ -387,85 +387,6 @@ export async function boot(){
     }
   }
 
-  // Function to show menu screen
-  function showMenuScreen() {
-    console.log('📋 Showing menu screen from app.js');
-    
-    // Pause the game when showing menu
-    try {
-      pauseGame();
-    } catch (error) {
-      console.warn('Failed to pause game:', error);
-    }
-    
-    // Update menu data from current game state
-    updateMenuData();
-    
-    // Show menu screen
-    const menuScreen = document.getElementById('menu-screen');
-    if (menuScreen) {
-      menuScreen.hidden = false;
-      menuScreen.removeAttribute('hidden');
-      menuScreen.style.display = 'flex';
-      
-      // Add enter animation
-      menuScreen.style.opacity = '0';
-      menuScreen.style.transform = 'scale(0.8) translateY(20px)';
-      menuScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-      
-      setTimeout(() => {
-        menuScreen.style.opacity = '1';
-        menuScreen.style.transform = 'scale(1) translateY(0)';
-      }, 50);
-    } else {
-      console.error('❌ Menu screen element not found');
-    }
-  }
-
-  // Function to update menu data
-  function updateMenuData() {
-    // Get current game state
-    let currentScore = score || 0;
-    let currentBoard = level || 1;
-    let movesLeft = moves || 0;
-    
-    // Update menu elements
-    const scoreEl = document.getElementById('menu-current-score');
-    const boardEl = document.getElementById('menu-current-board');
-    const movesEl = document.getElementById('menu-moves-left');
-    
-    if (scoreEl) scoreEl.textContent = currentScore.toLocaleString();
-    if (boardEl) boardEl.textContent = currentBoard;
-    if (movesEl) movesEl.textContent = movesLeft;
-  }
-
-  // Function to hide menu screen
-  function hideMenuScreen() {
-    console.log('📋 Hiding menu screen from app.js');
-    
-    const menuScreen = document.getElementById('menu-screen');
-    if (menuScreen) {
-      // Add exit animation
-      menuScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-      menuScreen.style.opacity = '0';
-      menuScreen.style.transform = 'scale(0.8) translateY(20px)';
-      
-      // Wait for exit animation to complete, then hide
-      setTimeout(() => {
-        menuScreen.hidden = true;
-        menuScreen.setAttribute('hidden', 'true');
-        menuScreen.style.display = 'none';
-      }, 500);
-    }
-    
-    // Resume the game when hiding menu
-    try {
-      resumeGame();
-    } catch (error) {
-      console.warn('Failed to resume game:', error);
-    }
-  }
-
   // Debug mini-API (ostavljeno)
   window.CC = {
     nextLevel: () => startLevel(level + 1),
@@ -487,14 +408,8 @@ export async function boot(){
     resume: () => resumeGame(),
     restart: () => restart(),
     showCleanBoardOverlay: () => showCleanBoardOverlay(),
-    showMenuScreen: () => showMenuScreen(),
-    hideMenuScreen: () => hideMenuScreen(),
   };
   window.testCleanAndPrize = () => window.CC.testCleanAndPrize();
-  
-  // Global functions for menu screen
-  window.showMenuScreen = showMenuScreen;
-  window.hideMenuScreen = hideMenuScreen;
 
   // Run layout after viewport/meta/styles are in place to get correct safe-area values
   try {

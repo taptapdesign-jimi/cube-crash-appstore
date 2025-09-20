@@ -32,9 +32,7 @@ function ensureOverlay(){
         <button class="pause-modal-btn pause-modal-btn-white" data-action="unpause">Unpause</button>
         <button class="pause-modal-btn pause-modal-btn-white" data-action="restart">Restart</button>
         <button class="pause-modal-btn pause-modal-btn-orange" data-action="exit">Exit to menu</button>
-        <button class="pause-modal-btn pause-modal-btn-white" data-action="show-menu">Show Menu Screen</button>
         <button class="pause-modal-btn pause-modal-btn-white" data-action="dev-clean-board">Board cleared (test)</button>
-        <button class="pause-modal-btn pause-modal-btn-white" data-action="test-board-cleared">Test Board Cleared +500</button>
       </div>
     </div>`;
   
@@ -232,60 +230,6 @@ export function showPauseModal({ onUnpause, onRestart, onExit } = {}){
           if (typeof CC.nextLevel === 'function') CC.nextLevel();
         } catch (err) {
           console.error('❌ Board cleared error:', err);
-        }
-      }, 10);
-      return;
-    }
-    if (act === 'test-board-cleared') {
-      // Close modal first
-      close();
-      setTimeout(async () => {
-        try {
-          const CC = window.CC || {};
-          
-          if (!CC.app || !CC.stage) {
-            console.error('❌ Missing CC.app or CC.stage');
-            return;
-          }
-          
-          // Ensure PIXI is running so overlay renders
-          try { resumeGame(); } catch {}
-          try { CC.hideGameUI?.(); } catch {}
-          
-          const { showCleanBoardModal } = await import('./clean-board-modal.js');
-          
-          await showCleanBoardModal({
-            app: CC.app,
-            stage: CC.stage,
-            getScore: () => (CC.getScore ? CC.getScore() : 0),
-            setScore: (v) => { if (CC.setScore) CC.setScore(v); },
-            animateScore: (v,d)=> CC.animateScoreTo ? CC.animateScoreTo(v,d) : null,
-            updateHUD: () => CC.updateHUD ? CC.updateHUD() : null,
-            bonus: 500
-          });
-          
-          if (typeof CC.nextLevel === 'function') CC.nextLevel();
-        } catch (err) {
-          console.error('❌ Test board cleared error:', err);
-        }
-      }, 10);
-      return;
-    }
-    if (act === 'show-menu') {
-      // Close modal first
-      close();
-      setTimeout(() => {
-        try {
-          // Show menu screen
-          if (typeof window.showMenuScreen === 'function') {
-            window.showMenuScreen();
-          } else if (typeof window.CC?.showMenuScreen === 'function') {
-            window.CC.showMenuScreen();
-          } else {
-            console.error('❌ showMenuScreen function not available');
-          }
-        } catch (err) {
-          console.error('❌ Show menu error:', err);
         }
       }, 10);
       return;
