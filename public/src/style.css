@@ -1046,7 +1046,8 @@ body{height:100dvh;height:100vh;overflow:hidden}
 }
 
 /* Menu Button Primary - Thick CTA buttons */
-.menu-btn-primary {
+.menu-btn-primary,
+.squishy.menu-btn-primary {
   width: 250px;
   height: auto;
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
