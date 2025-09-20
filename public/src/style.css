@@ -1064,7 +1064,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   position: relative;
   transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
   border-radius: 28px;
-  padding: 16px 0; /* Added 4px padding top/bottom (12px + 4px = 16px) */
+  padding: 16px 0 !important; /* Added 4px padding top/bottom (12px + 4px = 16px) - Override .squishy padding */
   display: inline-flex;
   align-items: center;
   justify-content: center;
