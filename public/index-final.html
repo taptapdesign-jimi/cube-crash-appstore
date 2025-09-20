@@ -92,6 +92,159 @@
   <!-- GAME CONTAINER -->
   <div id="app" hidden></div>
   
+  <!-- MENU SCREEN -->
+  <div id="menu-screen" hidden>
+    <div class="menu-content">
+      <div class="menu-header">
+        <div class="menu-header-top">
+          <button class="menu-back-button squishy" id="menu-back-btn">
+            <img src="/assets/chevron-back.png" alt="Back" />
+          </button>
+          <h1 class="menu-title">Menu</h1>
+        </div>
+        <div class="menu-title-underline"></div>
+      </div>
+      
+      <div class="menu-scrollable">
+        <div class="menu-body">
+          <div class="menu-stats-row">
+            <div class="menu-stat-item">
+              <div class="menu-stat-value" id="menu-current-score">0</div>
+              <div class="menu-stat-label">Score</div>
+            </div>
+            <div class="menu-stat-item">
+              <div class="menu-stat-value" id="menu-current-board">1</div>
+              <div class="menu-stat-label">Board</div>
+            </div>
+          </div>
+          
+          <div class="menu-divider"></div>
+          
+          <div class="menu-actions">
+            <div class="menu-action-item" id="menu-unpause-action">
+              <div class="menu-action-icon">
+                <img src="/assets/unpause-icon.png" alt="Unpause" />
+              </div>
+              <div class="menu-action-label">Unpause</div>
+            </div>
+            <div class="menu-action-item" id="menu-restart-action">
+              <div class="menu-action-icon">
+                <img src="/assets/restart-icon.png" alt="Restart" />
+              </div>
+              <div class="menu-action-label">Restart</div>
+            </div>
+          </div>
+          
+          <div class="menu-buttons">
+            <button class="menu-btn menu-btn-unpause" id="menu-exit-btn">Exit to Menu</button>
+            <button class="menu-btn menu-btn-unpause2" id="menu-done-btn">Test Board Cleared +500</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- STATS SCREEN -->
+  <div id="stats-screen" hidden>
+    <div class="stats-content">
+      <div class="stats-header">
+        <div class="stats-header-top">
+          <button class="stats-back-button squishy" id="stats-back-btn">
+            <img src="/assets/chevron-back.png" alt="Back" />
+          </button>
+          <h1 class="stats-title">Stats</h1>
+        </div>
+        <div class="stats-title-underline"></div>
+      </div>
+      
+      <div class="stats-scrollable">
+        <div class="stat-item">
+          <div class="stat-icon">
+            <img src="/assets/stats-trophy.png" alt="High Score" />
+          </div>
+          <div class="stat-content">
+            <div class="stat-value" id="high-score">0</div>
+            <div class="stat-label">High Score</div>
+          </div>
+        </div>
+        
+        <div class="stat-divider"></div>
+        
+        <div class="stat-item">
+          <div class="stat-icon">
+            <img src="/assets/cubes-cracked.png" alt="Cubes Cracked" />
+          </div>
+          <div class="stat-content">
+            <div class="stat-value" id="cubes-cracked">0</div>
+            <div class="stat-label">Cubes Cracked</div>
+          </div>
+        </div>
+        
+        <div class="stat-divider"></div>
+        
+        <div class="stat-item">
+          <div class="stat-icon">
+            <img src="/assets/collectible-stats.png" alt="Collectibles" />
+          </div>
+          <div class="stat-content">
+            <div class="stat-value" id="collectibles-unlocked">0/20</div>
+            <div class="stat-label">Collectibles Unlocked</div>
+          </div>
+        </div>
+        
+        <div class="stat-divider"></div>
+        
+        <div class="stat-item">
+          <div class="stat-icon">
+            <img src="/assets/clean-board.png" alt="Boards Cleared" />
+          </div>
+          <div class="stat-content">
+            <div class="stat-value" id="boards-cleared">0</div>
+            <div class="stat-label">Boards Cleared</div>
+          </div>
+        </div>
+        
+        <div class="stat-divider"></div>
+        
+        <div class="stat-item">
+          <div class="stat-icon">
+            <img src="/assets/combo-stats.png" alt="Longest Combo" />
+          </div>
+          <div class="stat-content">
+            <div class="stat-value" id="longest-combo">0</div>
+            <div class="stat-label">Longest Combo</div>
+          </div>
+        </div>
+        
+        <div class="stat-divider"></div>
+        
+        <div class="stat-item">
+          <div class="stat-icon">
+            <img src="/assets/time-icon.png" alt="Time Played" />
+          </div>
+          <div class="stat-content">
+            <div class="stat-value" id="time-played">00:00:00</div>
+            <div class="stat-label">Time Played</div>
+          </div>
+        </div>
+        
+        <div class="stat-divider"></div>
+        
+        <div class="stat-item">
+          <div class="stat-icon">
+            <img src="/assets/wild-stats.png" alt="Helpers Used" />
+          </div>
+          <div class="stat-content">
+            <div class="stat-value" id="helpers-used">0</div>
+            <div class="stat-label">Helpers Used</div>
+          </div>
+        </div>
+        
+        <button class="stats-reset-btn" id="stats-reset-btn">Reset Stats</button>
+      </div>
+    </div>
+  </div>
+  
   <!-- FINAL SCRIPT -->
   <script type="module" src="/src/main.js"></script>
 </body>

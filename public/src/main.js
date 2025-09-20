@@ -44,6 +44,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     const menuUnpauseAction = document.getElementById('menu-unpause-action');
     const menuRestartAction = document.getElementById('menu-restart-action');
     const menuExitBtn = document.getElementById('menu-exit-btn');
+    const menuDoneBtn = document.getElementById('menu-done-btn');
     
     let currentSlide = 0;
     const totalSlides = slides.length;
@@ -1207,6 +1208,27 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
           window.exitToMenu?.();
         } catch (error) {
           console.warn('Failed to exit to menu:', error);
+        }
+      });
+    }
+    
+    // Done button for testing clean board overlay
+    if (menuDoneBtn) {
+      menuDoneBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('🧪 Menu done clicked - showing clean board overlay');
+        hideMenuScreen();
+        try {
+          if (window.CC && typeof window.CC.showCleanBoardOverlay === 'function') {
+            window.CC.showCleanBoardOverlay();
+          } else {
+            console.warn('Clean board overlay function not available, calling boardCleared instead');
+            if (window.CC && typeof window.CC.boardCleared === 'function') {
+              window.CC.boardCleared();
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error showing clean board overlay:', error);
         }
       });
     }
