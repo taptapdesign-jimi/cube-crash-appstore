@@ -527,10 +527,11 @@ export function bumpCombo(opts = {}){
 /* COMPLETELY NEW LOGIC: Simple DOM-based wild meter positioned in HUD */
 export function updateProgressBar(ratio, animate = false){
   console.log('🔥 PIXI LOGIC: updateProgressBar called with:', { ratio, animate });
+  const clamped = Math.max(0, Math.min(1, Number.isFinite(ratio) ? ratio : 0));
   
   if (wild && wild.setProgress) {
-    wild.setProgress(ratio, animate);
-    console.log('✅ PIXI LOGIC: Wild meter progress updated to', Math.round(ratio * 100) + '%');
+    wild.setProgress(clamped, animate);
+    console.log('✅ PIXI LOGIC: Wild meter progress updated to', Math.round(clamped * 100) + '%');
   } else {
     console.warn('⚠️ PIXI LOGIC: Wild meter not available for progress update');
   }
@@ -737,4 +738,3 @@ export function animateHUDDrop() {
   
   console.log('✅ Unified HUD drop animation started');
 }
-

@@ -88,9 +88,10 @@ let scoreNumText = null, movesNumText = null, boardNumText = null;
 // Export combo text for animations
 window.comboText = null;
 
-// Wild meter (0..1) – crta ga HUD modul
+// Wild meter stores raw charge (can exceed 1); HUD clamps to 0..1
 let wildMeter = 0;
-let wildSpawnInProgress = false; // Prevent multiple simultaneous wild spawns
+let wildSpawnInProgress = false; // Prevent overlapping wild spawns
+let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let drag;
 let busyEnding = false;
 
@@ -99,22 +100,54 @@ let hudUpdateProgress = (ratio, animate) => {};
 // HUD metrics (for DOM helpers to position UI under HUD)
 let __hudMetrics = { top: 0, bottom: 80 };
 let allowWildDecrease = false;
+function queueWildSpawnIfNeeded(){
+  if (wildSpawnInProgress) return;
+  if (wildMeter < 1) return;
+
+  console.log('🎯 Wild meter ready – queueing wild spawn');
+  wildSpawnInProgress = true;
+
+  try { HUD.shimmerProgress?.({}); } catch {}
+
+  spawnWildFromMeter()
+    .then((spawned) => {
+      if (!spawned && !wildSpawnRetryTimer) {
+        wildSpawnRetryTimer = setTimeout(() => {
+          wildSpawnRetryTimer = null;
+          queueWildSpawnIfNeeded();
+        }, 600);
+      }
+    })
+    .catch((error) => {
+      console.error('❌ Wild spawn error:', error);
+    })
+    .finally(() => {
+      wildSpawnInProgress = false;
+      if (wildMeter >= 1 && !wildSpawnRetryTimer) {
+        Promise.resolve().then(() => queueWildSpawnIfNeeded());
+      }
+    });
+}
+
 function setWildProgress(ratio, animate=false){
   console.log('🔥 DRAMATIC: setWildProgress called with:', { ratio, animate });
-  
-  // DRAMATIC: Simple, direct update
-  let target = Number.isFinite(ratio) ? ratio : 0;
-  target = Math.max(0, Math.min(1, target));
+
+  const target = Math.max(0, Number.isFinite(ratio) ? ratio : 0);
   wildMeter = target;
-  
-  console.log('🔥 DRAMATIC: Wild meter set to:', wildMeter);
-  
-  // DIRECT HUD UPDATE - no complex logic
+  STATE.wildMeter = target; // raw value (may exceed 1)
+
+  const displayRatio = Math.min(1, wildMeter);
+  console.log('🔥 DRAMATIC: Wild meter raw:', wildMeter, 'display:', displayRatio);
+
   try {
-    HUD.updateProgressBar?.(wildMeter, !!animate);
+    HUD.updateProgressBar?.(displayRatio, !!animate);
     console.log('✅ DRAMATIC: HUD.updateProgressBar called successfully');
   } catch (error) {
     console.error('❌ DRAMATIC: Error calling HUD.updateProgressBar:', error);
+  }
+
+  if (wildMeter >= 1) {
+    queueWildSpawnIfNeeded();
   }
 }
 let updateProgressBar = (ratio, animate=false) => setWildProgress(ratio, animate);
@@ -134,39 +167,24 @@ function addWildProgress(amount){
     console.warn('⚠️ addWildProgress: Error killing animations:', e);
   }
   
-  // NEW LOGIC: Direct calculation and update
   const inc = Number.isFinite(amount) ? amount : 0;
-  const newValue = Math.min(1, wildMeter + inc);
-  wildMeter = newValue;
-  
-  console.log('🔥 NEW LOGIC: Direct wild meter update to:', newValue);
-  
-  // NEW LOGIC: Direct HUD update with new logic
-  try {
-    console.log('🔄 NEW LOGIC: Calling HUD.updateProgressBar with newValue:', newValue, 'animate: true');
-    HUD.updateProgressBar?.(newValue, true); // Use true for elastic animation
-    console.log('✅ NEW LOGIC: HUD.updateProgressBar called successfully');
-  } catch (error) {
-    console.error('❌ NEW LOGIC: Error calling HUD.updateProgressBar:', error);
+  if (inc <= 0) {
+    console.log('⚠️ addWildProgress: Ignoring non-positive increment:', inc);
+    return;
   }
-  
-  // Wild spawn check - prevent multiple simultaneous spawns
-  if (wildMeter >= 1 && !wildSpawnInProgress){ 
-    console.log('🎯 NEW LOGIC: Wild meter full! Spawning wild cube...');
-    wildSpawnInProgress = true;
-    spawnWildFromMeter().finally(() => {
-      wildSpawnInProgress = false;
-    }); 
-    try { HUD.shimmerProgress?.({}); } catch {} 
-  }
-  
-  // DEBUG: Force test wild meter
+
+  const target = wildMeter + inc;
+  console.log('🔥 NEW LOGIC: Direct wild meter update to raw value:', target);
+  setWildProgress(target, true);
+
+  // DEBUG: Force test wild meter with clamped ratio
+  const displayRatio = Math.min(1, wildMeter);
   console.log('🧪 DEBUG: Testing wild meter directly...');
   console.log('🧪 DEBUG: wild available:', !!wild);
   console.log('🧪 DEBUG: wild.setProgress available:', !!(wild && wild.setProgress));
   if (wild && wild.setProgress) {
-    wild.setProgress(newValue, true);
-    console.log('✅ DEBUG: Direct wild.setProgress called');
+    wild.setProgress(displayRatio, true);
+    console.log('✅ DEBUG: Direct wild.setProgress called with display ratio:', displayRatio);
   } else {
     console.warn('⚠️ DEBUG: wild or wild.setProgress not available');
   }
@@ -341,6 +359,34 @@ export async function boot(){
     document.head.appendChild(style);
   }
 
+  // Function to trigger clean board screen for testing
+  async function showCleanBoardOverlay() {
+    console.log('🧪 Testing: Triggering clean board screen from menu Done button');
+    
+    // Set busyEnding to prevent other interactions
+    busyEnding = true;
+    
+    try {
+      await runEndgameFlow({
+        app,
+        stage,
+        board,
+        boardBG,
+        level,
+        startLevel,
+        score,
+        getScore: () => score,
+        setScore: (v) => { score = v|0; updateHUD(); },
+        animateScore,
+        updateHUD,
+        hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+        showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+      });
+    } finally {
+      busyEnding = false;
+    }
+  }
+
   // Debug mini-API (ostavljeno)
   window.CC = {
     nextLevel: () => startLevel(level + 1),
@@ -361,6 +407,7 @@ export async function boot(){
     resumeGame: () => resumeGame(),
     resume: () => resumeGame(),
     restart: () => restart(),
+    showCleanBoardOverlay: () => showCleanBoardOverlay(),
   };
   window.testCleanAndPrize = () => window.CC.testCleanAndPrize();
 
@@ -753,15 +800,40 @@ function randomEmptyCell(){
 }
 
 async function spawnWildFromMeter(){
-  if (wildMeter < 1) return;
-  const cell = randomEmptyCell();
-  if (!cell) { 
-    console.log('⚠️ No empty cells for wild spawn, keeping meter at 1');
-    return; // Don't reset meter, keep it at 1 for next attempt
+  if (wildMeter < 1) {
+    console.log('⚠️ spawnWildFromMeter called without enough charge. Raw meter:', wildMeter);
+    return false;
   }
-  resetWildProgress(wildMeter - 1, true);
-  await openAtCell(cell.c, cell.r, { isWild: true });
-  console.log('✅ Wild cube spawned successfully at', cell.c, cell.r);
+
+  const cell = randomEmptyCell();
+  if (!cell) {
+    console.log('⚠️ No empty cells for wild spawn, keeping meter at', wildMeter);
+    return false;
+  }
+
+  const leftover = Math.max(0, wildMeter - 1);
+  wildMeter = leftover;
+  STATE.wildMeter = leftover;
+
+  // Update HUD immediately so player sees rollover progress
+  resetWildProgress(leftover, true);
+
+  try {
+    await openAtCell(cell.c, cell.r, { isWild: true });
+    if (wildSpawnRetryTimer) {
+      clearTimeout(wildSpawnRetryTimer);
+      wildSpawnRetryTimer = null;
+    }
+    console.log('✅ Wild cube spawned successfully at', cell.c, cell.r, 'Leftover meter:', leftover);
+    return true;
+  } catch (error) {
+    console.warn('⚠️ Wild spawn failed, restoring charge. Error:', error);
+    const restored = leftover + 1;
+    wildMeter = restored;
+    STATE.wildMeter = restored;
+    resetWildProgress(restored, true);
+    throw error;
+  }
 }
 
 // -------------------- merge --------------------

@@ -77,10 +77,12 @@ export function merge(src, dst, helpers){
 
     // meter + little bounce on score
     const inc = 0.25; // 4 small merges to full
-    STATE.wildMeter = Math.min(1, (STATE.wildMeter || 0) + inc);
-    console.log('🔥 MERGE: Updating wild meter to:', STATE.wildMeter);
+    const previous = STATE.wildMeter || 0;
+    STATE.wildMeter = Math.max(0, previous + inc);
+    const displayRatio = Math.min(1, STATE.wildMeter);
+    console.log('🔥 MERGE: Updating wild meter raw to:', STATE.wildMeter, 'display:', displayRatio);
     if (updateProgressBar) {
-      updateProgressBar(STATE.wildMeter, true);
+      updateProgressBar(displayRatio, true);
       console.log('✅ MERGE: updateProgressBar called successfully');
     } else {
       console.error('❌ MERGE: updateProgressBar is not defined!');
@@ -203,11 +205,13 @@ export function merge(src, dst, helpers){
           window.trackHelpersUsed(1);
         }
 
-        // reset meter with quick blink
-        STATE.wildMeter = 0; 
-        console.log('🔥 RESET: Resetting wild meter to 0');
+        // reset meter by consuming one full charge and keep any overflow
+        const leftover = Math.max(0, (STATE.wildMeter || 0) - 1);
+        STATE.wildMeter = leftover;
+        const displayRatio = Math.min(1, leftover);
+        console.log('🔥 RESET: Consumed one wild charge, leftover meter:', leftover, 'display:', displayRatio);
         if (updateProgressBar) {
-          updateProgressBar(0, true);
+          updateProgressBar(displayRatio, true);
           console.log('✅ RESET: updateProgressBar called successfully');
         } else {
           console.error('❌ RESET: updateProgressBar is not defined!');
