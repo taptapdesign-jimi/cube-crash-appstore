@@ -32,6 +32,7 @@ function ensureOverlay(){
         <button class="pause-modal-btn pause-modal-btn-white" data-action="unpause">Unpause</button>
         <button class="pause-modal-btn pause-modal-btn-white" data-action="restart">Restart</button>
         <button class="pause-modal-btn pause-modal-btn-orange" data-action="exit">Exit to menu</button>
+        <button class="pause-modal-btn pause-modal-btn-white" data-action="show-menu">Show Menu Screen</button>
         <button class="pause-modal-btn pause-modal-btn-white" data-action="dev-clean-board">Board cleared (test)</button>
         <button class="pause-modal-btn pause-modal-btn-white" data-action="test-board-cleared">Test Board Cleared +500</button>
       </div>
@@ -266,6 +267,25 @@ export function showPauseModal({ onUnpause, onRestart, onExit } = {}){
           if (typeof CC.nextLevel === 'function') CC.nextLevel();
         } catch (err) {
           console.error('❌ Test board cleared error:', err);
+        }
+      }, 10);
+      return;
+    }
+    if (act === 'show-menu') {
+      // Close modal first
+      close();
+      setTimeout(() => {
+        try {
+          // Show menu screen
+          if (typeof window.showMenuScreen === 'function') {
+            window.showMenuScreen();
+          } else if (typeof window.CC?.showMenuScreen === 'function') {
+            window.CC.showMenuScreen();
+          } else {
+            console.error('❌ showMenuScreen function not available');
+          }
+        } catch (err) {
+          console.error('❌ Show menu error:', err);
         }
       }, 10);
       return;
