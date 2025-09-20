@@ -655,8 +655,8 @@ body{height:100dvh;height:100vh;overflow:hidden}
 }
 
 .menu-action-icon {
-  width: 80px;
-  height: 80px;
+  width: 112px;
+  height: 112px;
   background: none;
   border-radius: 8px;
   display: flex;
@@ -670,7 +670,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
 .menu-action-icon::after {
   content: "";
   position: absolute;
-  inset: -12px;
+  inset: -16px;
   pointer-events: none;
   border-radius: inherit;
   background: linear-gradient(110deg,
@@ -757,8 +757,8 @@ body{height:100dvh;height:100vh;overflow:hidden}
 }
 
 .menu-action-icon img {
-  width: 80px;
-  height: 80px;
+  width: 112px;
+  height: 112px;
   object-fit: contain;
   transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }

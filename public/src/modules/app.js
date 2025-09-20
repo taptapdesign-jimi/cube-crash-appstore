@@ -119,7 +119,20 @@ function setWildProgress(ratio, animate=false){
 }
 let updateProgressBar = (ratio, animate=false) => setWildProgress(ratio, animate);
 function addWildProgress(amount){
-  console.log('🔥 NEW LOGIC: addWildProgress called with amount:', amount, 'current wildMeter:', wildMeter);
+  console.log('🔥🔥🔥 addWildProgress CALLED! Amount:', amount, 'Current wildMeter:', wildMeter);
+  
+  // Kill any existing animations first
+  try {
+    gsap.killTweensOf(wild?.view?._fill);
+    gsap.killTweensOf({ width: 0 });
+    if (wild?.view?._currentAnimation) {
+      wild.view._currentAnimation.kill();
+      wild.view._currentAnimation = null;
+    }
+    console.log('🔥 addWildProgress: Previous animations killed');
+  } catch (e) {
+    console.warn('⚠️ addWildProgress: Error killing animations:', e);
+  }
   
   // NEW LOGIC: Direct calculation and update
   const inc = Number.isFinite(amount) ? amount : 0;
@@ -145,6 +158,17 @@ function addWildProgress(amount){
       wildSpawnInProgress = false;
     }); 
     try { HUD.shimmerProgress?.({}); } catch {} 
+  }
+  
+  // DEBUG: Force test wild meter
+  console.log('🧪 DEBUG: Testing wild meter directly...');
+  console.log('🧪 DEBUG: wild available:', !!wild);
+  console.log('🧪 DEBUG: wild.setProgress available:', !!(wild && wild.setProgress));
+  if (wild && wild.setProgress) {
+    wild.setProgress(newValue, true);
+    console.log('✅ DEBUG: Direct wild.setProgress called');
+  } else {
+    console.warn('⚠️ DEBUG: wild or wild.setProgress not available');
   }
 }
 function resetWildProgress(value=0, animate=false){
@@ -328,6 +352,7 @@ export async function boot(){
     animateScoreTo: (v, d=0.45) => animateScore((v|0), d),
     updateHUD: () => updateHUD(),
     getHudMetrics: () => ({ ...__hudMetrics }),
+    getUnifiedHudInfo: () => HUD.getUnifiedHudInfo ? HUD.getUnifiedHudInfo() : { y: 0, height: 0, parent: null, dropped: false },
     hideGameUI: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
     showGameUI: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} },
     testCleanBoard: async () => { /* ... tvoja baza ... */ },
@@ -485,38 +510,38 @@ export function layout(){
         console.log('✅ HUD layout updated');
       }
 
-      // After HUD has laid out the wild preloader, recenter board between
-      // the bottom edge of the (final) HUD position and the bottom of the screen.
-      try {
-        const wildY = (wild?.view?.y ?? 0);
-        const wildH = (wild?.view?.height ?? 0);
-        const hudRoot = wild?.view?.parent || null; // HUD_ROOT
-        // If HUD is mid-drop (hidden above), use its target top for layout so board doesn't jump.
-        const hudYForLayout = hudRoot
-          ? (hudRoot._dropped ? (hudRoot.y ?? safeTop) : (hudRoot._dropTop ?? safeTop))
-          : safeTop;
-        // dynamic bottom = intended HUD top + wild local y + wild height + gap
-        const dynamicHudBottom = hudYForLayout + wildY + wildH + GAP_HUD;
-        __hudMetrics.bottom = Math.round(dynamicHudBottom);
-        // Recompute vertical scale to ensure board fits in space between wild bottom and screen bottom
-        const heightScale2 = (vh - dynamicHudBottom - BOT_PAD) / h;
-        const s2 = Math.min(widthScale, heightScale2);
-        board.scale.set(s2, s2);
-        const sw2 = w * s2, sh2 = h * s2;
-        // recenter horizontally with the same padding
-        const paddingPixels2 = vw * paddingPercent;
-        const idealLeft2 = Math.round((vw - sw2) / 2);
-        const minLeft2 = paddingPixels2;
-        const maxLeft2 = vw - paddingPixels2 - sw2;
-        board.x = Math.min(Math.max(idealLeft2, minLeft2), maxLeft2);
-        // recenter vertically between wild bottom and bottom of screen
-        const avail2 = vh - dynamicHudBottom - BOT_PAD;
-        const center2 = dynamicHudBottom + (avail2 - sh2) / 2;
-        board.y = Math.round(center2 + BOARD_NUDGE_PX);
-        console.log('🎯 Recentered board using wild bottom:', { dynamicHudBottom, center2, wildY, wildH, s2, hudYForLayout });
-      } catch (e) {
-        console.warn('⚠️ Could not recenter using wild bottom, using estimate.', e);
-      }
+  // After HUD has laid out the wild preloader, recenter board between
+  // the bottom edge of the PIXI wild meter and the bottom of the screen.
+  try {
+    const wildY = (wild?.view?.y ?? 0);
+    const wildH = (wild?.view?.height ?? 8);
+    const hudRoot = wild?.view?.parent || null; // HUD_ROOT
+    // If HUD is mid-drop (hidden above), use its target top for layout so board doesn't jump.
+    const hudYForLayout = hudRoot
+      ? (hudRoot._dropped ? (hudRoot.y ?? safeTop) : (hudRoot._dropTop ?? safeTop))
+      : safeTop;
+    // dynamic bottom = intended HUD top + wild local y + wild height + gap
+    const dynamicHudBottom = hudYForLayout + wildY + wildH + GAP_HUD;
+    __hudMetrics.bottom = Math.round(dynamicHudBottom);
+    // Recompute vertical scale to ensure board fits in space between wild bottom and screen bottom
+    const heightScale2 = (vh - dynamicHudBottom - BOT_PAD) / h;
+    const s2 = Math.min(widthScale, heightScale2);
+    board.scale.set(s2, s2);
+    const sw2 = w * s2, sh2 = h * s2;
+    // recenter horizontally with the same padding
+    const paddingPixels2 = vw * paddingPercent;
+    const idealLeft2 = Math.round((vw - sw2) / 2);
+    const minLeft2 = paddingPixels2;
+    const maxLeft2 = vw - paddingPixels2 - sw2;
+    board.x = Math.min(Math.max(idealLeft2, minLeft2), maxLeft2);
+    // recenter vertically between wild bottom and bottom of screen
+    const avail2 = vh - dynamicHudBottom - BOT_PAD;
+    const center2 = dynamicHudBottom + (avail2 - sh2) / 2;
+    board.y = Math.round(center2 + BOARD_NUDGE_PX);
+    console.log('🎯 Recentered board using PIXI wild meter:', { dynamicHudBottom, center2, wildY, wildH, s2, hudYForLayout });
+  } catch (e) {
+    console.warn('⚠️ Could not recenter using PIXI wild meter, using estimate.', e);
+  }
     } else {
       console.warn('⚠️ HUD.initHUD is not a function');
     }
@@ -776,6 +801,7 @@ function pickWildValue(dstValue) {
   return result;
 }
 function merge(src, dst, helpers){
+  console.log('🔥🔥🔥 MERGE FUNCTION CALLED! src:', src?.value, 'dst:', dst?.value);
   if (busyEnding) { helpers.snapBack?.(src); return; }
   if (src === dst) { helpers.snapBack(src); return; }
   if (src?.special === 'wild' && dst?.special === 'wild'){ helpers.snapBack?.(src); return; }
@@ -1093,6 +1119,20 @@ async function showFinalScreen(){
 function restartGame(){
   console.log('🔄 Starting clean restart - preserving HUD position');
   
+  // Kill all GSAP animations first
+  try {
+    console.log('🔄 RESTART GAME: Killing all GSAP animations...');
+    gsap.killTweensOf(wild?.view?._fill);
+    gsap.killTweensOf({ width: 0 });
+    if (wild?.view?._currentAnimation) {
+      wild.view._currentAnimation.kill();
+      wild.view._currentAnimation = null;
+    }
+    console.log('✅ RESTART GAME: All GSAP animations killed');
+  } catch (e) {
+    console.warn('⚠️ RESTART GAME: Error killing GSAP animations:', e);
+  }
+  
   // Reset game state WITHOUT touching HUD positioning
   score = 0;
   moves = MOVES_MAX;
@@ -1202,6 +1242,20 @@ export function resumeGame() {
 
 export function restart() {
   console.log('🔄 RESTART: Starting restart function');
+  
+  // Kill all GSAP animations first
+  try {
+    console.log('🔄 RESTART: Killing all GSAP animations...');
+    gsap.killTweensOf(wild?.view?._fill);
+    gsap.killTweensOf({ width: 0 });
+    if (wild?.view?._currentAnimation) {
+      wild.view._currentAnimation.kill();
+      wild.view._currentAnimation = null;
+    }
+    console.log('✅ RESTART: All GSAP animations killed');
+  } catch (e) {
+    console.warn('⚠️ RESTART: Error killing GSAP animations:', e);
+  }
   
   // HARD RESET: Use new resetWildMeter API for complete reset
   try {

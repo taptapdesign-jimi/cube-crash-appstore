@@ -8,6 +8,9 @@ import { openAtCell, openEmpties, spawnBounce } from './app-spawn.js';
 import { showStarsModal } from './stars-modal.js';
 import { rebuildBoard } from './app-board.js';
 
+// Import updateProgressBar function
+const updateProgressBar = HUD.updateProgressBar;
+
 function play(name, vol=null){ /* muted */ }
 function removeTile(t){
   if(!t) return;
@@ -75,7 +78,13 @@ export function merge(src, dst, helpers){
     // meter + little bounce on score
     const inc = 0.25; // 4 small merges to full
     STATE.wildMeter = Math.min(1, (STATE.wildMeter || 0) + inc);
-    updateProgressBar(STATE.wildMeter, true);
+    console.log('🔥 MERGE: Updating wild meter to:', STATE.wildMeter);
+    if (updateProgressBar) {
+      updateProgressBar(STATE.wildMeter, true);
+      console.log('✅ MERGE: updateProgressBar called successfully');
+    } else {
+      console.error('❌ MERGE: updateProgressBar is not defined!');
+    }
 
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.10, ease: 'power2.out',
@@ -195,7 +204,14 @@ export function merge(src, dst, helpers){
         }
 
         // reset meter with quick blink
-        STATE.wildMeter = 0; updateProgressBar(0, true);
+        STATE.wildMeter = 0; 
+        console.log('🔥 RESET: Resetting wild meter to 0');
+        if (updateProgressBar) {
+          updateProgressBar(0, true);
+          console.log('✅ RESET: updateProgressBar called successfully');
+        } else {
+          console.error('❌ RESET: updateProgressBar is not defined!');
+        }
 
         const depth = Math.min(4, combined);
         const toOpen = REFILL_ON_SIX_BY_DEPTH[depth-1] || 2; // default 2

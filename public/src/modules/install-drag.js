@@ -53,6 +53,7 @@ export function installDrag({
   tileSize: TILE,
   onMerge: merge,
   canDrop: canDrop ?? ((src, dst) => {
+    console.log('🔥 canDrop check:', { src: src?.value, dst: dst?.value, locked: dst?.locked });
     if (!dst || dst.locked) return false;
     const sv = (src && (src.value|0)) || 0;
     const dv = (dst && (dst.value|0)) || 0;
@@ -60,7 +61,9 @@ export function installDrag({
     if (wild) return true;              // wild merges with anything
     if (!Number.isFinite(sv) || !Number.isFinite(dv)) return false;
     if (sv === dv) return true;         // allow stacking equal values (e.g., 3+3)
-    return (sv + dv) <= 6;              // allow different values that sum to 6 (e.g., 4+2, 2+4)
+    const canMerge = (sv + dv) <= 6;    // allow different values that sum to 6 (e.g., 4+2, 2+4)
+    console.log('🔥 canDrop result:', canMerge);
+    return canMerge;
   }),
 
   // ⬇️ STIL HOVER OKVIRA (vrati parametre umjesto hard‑codeda)

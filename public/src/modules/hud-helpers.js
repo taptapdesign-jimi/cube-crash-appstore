@@ -8,101 +8,173 @@ import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
 // Local boardSize function (same as in app.js)
 function boardSize(){ return { w: COLS*TILE + (COLS-1)*GAP, h: ROWS*TILE + (ROWS-1)*GAP }; }
 
-/* ---------------- COMPLETELY NEW Wild loader - SIMPLE AND CLEAN ---------------- */
-function makeWildLoader({ width, color = 0xE77449, trackColor = 0xEADFD6 }) {
-  const view = new Container();
-  view.label = 'wild-loader';
-
-  const H = 8;
-  const R = H / 2;
-
-  // track
-  const track = new Graphics();
-  track.roundRect(0, 0, width, H, R).fill(trackColor);
-  view.addChild(track);
-
-  // fill - ALWAYS orange, no exceptions
-  const fill = new Graphics();
-  fill.roundRect(0, 0, width, H, R).fill(0xE77449);
-  view.addChild(fill);
-  fill.visible = true;
-  fill.alpha = 1.0;
-
-  // mask
-  const mask = new Graphics();
-  view.addChild(mask);
-  fill.mask = mask;
-
-  let progress = 0;
-  let barWidth = width;
-
-  // SIMPLE: Direct mask update
-  const updateMask = (ratio) => {
-    console.log('🎯 updateMask called with ratio:', ratio, 'barWidth:', barWidth);
-    const w = Math.max(0, Math.min(barWidth, Math.round(barWidth * ratio)));
-    console.log('🎯 updateMask calculated width:', w);
-    mask.clear();
-    mask.roundRect(0, -0.5, w, H + 1, R).fill(0xffffff);
-    progress = ratio;
-    console.log('✅ updateMask completed, progress set to:', progress);
-  };
-
-  const api = {
-    view,
-    setWidth: (w) => {
-      barWidth = Math.max(24, Math.round(w));
-      track.clear().roundRect(0, 0, barWidth, H, R).fill(trackColor);
-      fill.clear().roundRect(0, 0, barWidth, H, R).fill(0xE77449);
-      updateMask(progress);
-    },
-    setProgress: (t, animate = false) => { 
-      console.log('🎯 setProgress called with:', { t, animate, currentProgress: progress });
-      const newProgress = Math.max(0, Math.min(1, t || 0)); 
-      console.log('🎯 setProgress calculated newProgress:', newProgress);
-      
-      if (!animate) {
-        console.log('🎯 setProgress calling updateMask directly (no animation)');
-        updateMask(newProgress);
-        return;
-      }
-      
-      console.log('🎯 setProgress starting GSAP animation');
-      // Simple smooth animation
-      const o = { p: progress };
-      gsap.to(o, {
-        p: newProgress, 
-        duration: 0.4, 
-        ease: 'power2.out',
-        onUpdate: () => { updateMask(o.p); },
-        onComplete: () => { console.log('✅ setProgress GSAP animation completed'); }
-      });
-    },
-    charge: () => {},
-    start: () => {},
-    stop: () => {},
-  };
-
-  return api;
-}
-
-/* ---------------- Public helper for old callers ---------------- */
-export function createWildLoaderFX({ width = 100, parent = null } = {}) {
-  const fx = makeWildLoader({ width });
-  if (parent) parent.addChild(fx.view);
-  // kompaktna kompatibilnost s prijašnjim API-jem
-  return {
-    container: fx.view,  
-    spawnBubble: () => {},
-    redrawMask: () => fx.setProgress, // noop kompat
-    ...fx,
-  };
-}
+// Old makeWildLoader function removed - using new PIXI implementation below
 
 /* ---------------- Minimal HUD the app.js expects ---------------- */
 let HUD_ROOT = null;
 let movesText, scoreText, comboText; 
 let comboWrap; // wrapper for jitter
 let wild;
+
+// Unified container for PIXI HUD + DOM wild preloader
+let unifiedHudContainer = null;
+
+export function createUnifiedHudContainer() {
+  console.log('🎯 Creating unified HUD container...');
+  
+  // Create the unified container
+  unifiedHudContainer = document.createElement('div');
+  unifiedHudContainer.setAttribute('data-unified-hud', '');
+  unifiedHudContainer.style.cssText = `
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    height: 140px;
+    z-index: 2000;
+    pointer-events: none;
+    transform: translateY(-100%);
+    transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  `;
+  
+  // Add to app container
+  const appContainer = document.getElementById('app');
+  if (appContainer) {
+    appContainer.appendChild(unifiedHudContainer);
+    console.log('✅ Unified HUD container created and added to app');
+  } else {
+    document.body.appendChild(unifiedHudContainer);
+    console.log('✅ Unified HUD container created and added to body (fallback)');
+  }
+  
+  return unifiedHudContainer;
+}
+
+export function animateUnifiedHudDrop() {
+  if (!unifiedHudContainer) return;
+  
+  console.log('🎯 Animating unified HUD drop...');
+  unifiedHudContainer.style.transform = 'translateY(0%)';
+  
+  // Mark as dropped after animation
+  setTimeout(() => {
+    unifiedHudContainer.setAttribute('data-dropped', 'true');
+    console.log('✅ Unified HUD dropped and marked as dropped');
+  }, 800);
+}
+
+export function getUnifiedHudInfo() {
+  if (!unifiedHudContainer) {
+    return { y: 0, height: 0, parent: null, dropped: false };
+  }
+  
+  const rect = unifiedHudContainer.getBoundingClientRect();
+  const dropped = unifiedHudContainer.getAttribute('data-dropped') === 'true';
+  
+  return {
+    y: rect.top,
+    height: rect.height,
+    parent: unifiedHudContainer.parentNode,
+    dropped: dropped
+  };
+}
+
+// Create PIXI wild meter
+function makeWildLoader() {
+  console.log('🎯 Creating PIXI wild meter...');
+  
+  const container = new Container();
+  container.name = 'wildLoader';
+  
+  // Background bar
+  const bg = new Graphics();
+  bg.beginFill(0xEADFD6); // Light beige
+  bg.drawRoundedRect(0, 0, 200, 8, 4);
+  bg.endFill();
+  
+  // Progress fill - start with 0 width
+  const fill = new Graphics();
+  fill.beginFill(0xE7744A); // Orange
+  fill.drawRoundedRect(0, 0, 0, 8, 4);
+  fill.endFill();
+  
+  container.addChild(bg, fill);
+  
+  // Position relative to HUD
+  container.x = 24;
+  container.y = 60; // Below HUD values
+  container.zIndex = 1000; // Below PIXI HUD
+  
+  // Store references
+  container._bg = bg;
+  container._fill = fill;
+  container._maxWidth = 200;
+  
+  // Methods
+  container.setProgress = (ratio, animate = false) => {
+    const progress = Math.max(0, Math.min(1, ratio));
+    const width = progress * container._maxWidth;
+    
+    console.log('🎯 PIXI Wild meter progress:', Math.round(progress * 100) + '%', 'width:', width);
+    
+    // Kill previous animation first
+    if (container._currentAnimation) {
+      container._currentAnimation.kill();
+      container._currentAnimation = null;
+      console.log('🎯 PIXI Wild meter: Previous animation killed');
+    }
+    
+    if (animate) {
+      // Use GSAP to animate the width by redrawing the fill
+      const startWidth = container._fill.width || 0;
+      container._currentAnimation = gsap.to({ width: startWidth }, {
+        width: width,
+        duration: 0.4,
+        ease: 'power2.out',
+        onUpdate: function() {
+          // Redraw fill with current width
+          container._fill.clear();
+          container._fill.beginFill(0xE7744A);
+          container._fill.drawRoundedRect(0, 0, this.targets()[0].width, 8, 4);
+          container._fill.endFill();
+        },
+        onComplete: () => {
+          container._currentAnimation = null;
+          console.log('🎯 PIXI Animation complete - final width:', width);
+        }
+      });
+      console.log('🎯 PIXI Wild meter: Animation started');
+    } else {
+      // Set width directly
+      container._fill.clear();
+      container._fill.beginFill(0xE7744A);
+      container._fill.drawRoundedRect(0, 0, width, 8, 4);
+      container._fill.endFill();
+      console.log('🎯 PIXI Wild meter set directly to width:', width);
+    }
+  };
+  
+  container.setWidth = (width) => {
+    container._maxWidth = width;
+    // Redraw background with new width
+    container._bg.clear();
+    container._bg.beginFill(0xEADFD6);
+    container._bg.drawRoundedRect(0, 0, width, 8, 4);
+    container._bg.endFill();
+    // Reset fill to 0 width
+    container._fill.clear();
+    container._fill.beginFill(0xE7744A);
+    container._fill.drawRoundedRect(0, 0, 0, 8, 4);
+    container._fill.endFill();
+  };
+  
+  return {
+    view: container,
+    setProgress: container.setProgress,
+    setWidth: container.setWidth
+  };
+}
+
 export { wild };
 let __comboJitterTl = null;
 let __comboBumpTl = null;
@@ -214,8 +286,22 @@ export function layout({ app, top }) {
   // Old wild loader disabled - using DOM wild meter instead
   // if (wild && wild.view) { ... }
   
-  // Update DOM wild meter position
-  updateWildMeterPosition();
+  // Update PIXI wild meter position
+  if (wild && wild.view) {
+    const vw = app.renderer.width;
+    const vh = app.renderer.height;
+    const SIDE = 24;
+    const barW = Math.max(120, vw - SIDE * 2);
+    const yValue = 20;
+    const valueRowH = Math.max(24, 24, 24);
+    const barGap = Math.round(vh * 0.02);
+    
+    wild.view.x = SIDE;
+    wild.view.y = yValue + valueRowH + barGap;
+    wild.setWidth(barW);
+    
+    console.log('🎯 PIXI Wild meter positioned:', { x: SIDE, y: wild.view.y, width: barW });
+  }
   
   // Ensure HUD is properly positioned
   if (HUD_ROOT) {
@@ -269,46 +355,16 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // ensure combo is drawn above wild bar if overlapping
   try { movesText.zIndex = 10; scoreText.zIndex = 10; comboWrap.zIndex = 100; } catch {}
 
-  // Create DOM wild meter immediately
-  wild = null; // Disable old wild loader
-  console.log('🎯 Creating DOM wild meter immediately...');
-  
-  // Create DOM progress bar immediately
-  const progressBar = document.createElement('div');
-  progressBar.setAttribute('data-wild-loader', '');
-  progressBar.style.cssText = `
-    position: fixed;
-    top: 0px;
-    left: 0px;
-    width: 200px;
-    height: 8px;
-    background: #EADFD6;
-    border-radius: 4px;
-    overflow: hidden;
-    z-index: 10001;
-    pointer-events: none;
-    display: none;
-  `;
-  
-  const fill = document.createElement('div');
-  fill.style.cssText = `
-    width: 0%;
-    height: 100%;
-    background: #E7744A;
-    transition: width 0.3s ease;
-    border-radius: 4px;
-  `;
-  
-  progressBar.appendChild(fill);
-  document.body.appendChild(progressBar);
-  console.log('✅ DOM wild meter created and added to body');
-  console.log('🎯 DOM wild meter details:', {
-    element: progressBar,
-    exists: !!progressBar,
-    parent: progressBar.parentNode,
-    style: progressBar.style.cssText,
-    display: progressBar.style.display
-  });
+  // Create PIXI wild meter
+  console.log('🎯 Creating PIXI wild meter...');
+  wild = makeWildLoader();
+  if (wild && wild.view) {
+    HUD_ROOT.addChild(wild.view);
+    wild.setProgress(0, false); // Start at 0%
+    console.log('✅ PIXI wild meter created and added to HUD');
+  } else {
+    console.warn('⚠️ Failed to create PIXI wild meter');
+  }
 
   // inicijalni layout + resize listener
   layout({ app, top });
@@ -355,6 +411,8 @@ export function playHudDrop({ duration = 0.8 } = {}){
   if (HUD_ROOT._dropped) return;
   const top = HUD_ROOT._dropTop ?? HUD_ROOT.y ?? 0;
   try { gsap.killTweensOf(HUD_ROOT); } catch {}
+  
+  // Animate PIXI HUD drop
   gsap.to(HUD_ROOT, {
     alpha: 1,
     y: top,
@@ -362,6 +420,8 @@ export function playHudDrop({ duration = 0.8 } = {}){
     ease: 'elastic.out(1, 0.6)',
     onComplete: () => { HUD_ROOT._dropped = true; HUD_ROOT.y = top; }
   });
+  
+  console.log('✅ PIXI HUD drop animation started');
 }
 
 export function updateHUD({ score, moves, combo }) {
@@ -466,132 +526,43 @@ export function bumpCombo(opts = {}){
 
 /* COMPLETELY NEW LOGIC: Simple DOM-based wild meter positioned in HUD */
 export function updateProgressBar(ratio, animate = false){
-  console.log('🔥 NEW LOGIC: updateProgressBar called with:', { ratio, animate });
+  console.log('🔥 PIXI LOGIC: updateProgressBar called with:', { ratio, animate });
   
-  // Find or create simple DOM progress bar
-  let progressBar = document.querySelector('[data-wild-loader]');
-  if (!progressBar) {
-    console.log('🔥 NEW LOGIC: Creating DOM progress bar...');
-    progressBar = document.createElement('div');
-    progressBar.setAttribute('data-wild-loader', '');
-    progressBar.style.cssText = `
-      position: fixed;
-      top: 0px;
-      left: 0px;
-      width: 200px;
-      height: 8px;
-      background: #EADFD6;
-      border-radius: 4px;
-      overflow: hidden;
-      z-index: 10001;
-      pointer-events: none;
-    `;
-    
-    const fill = document.createElement('div');
-    fill.style.cssText = `
-      width: 0%;
-      height: 100%;
-      background: #E7744A;
-      transition: width 0.3s ease;
-      border-radius: 4px;
-    `;
-    
-    progressBar.appendChild(fill);
-    document.body.appendChild(progressBar);
-    console.log('✅ NEW LOGIC: DOM progress bar created');
-    
-    // Position it in the HUD using the same logic as the original wild loader
-    updateWildMeterPosition();
-  }
-  
-  // Update progress
-  const fill = progressBar.querySelector('div');
-  const percentage = Math.round(ratio * 100);
-  
-  if (animate) {
-    fill.style.transition = 'width 0.4s ease';
+  if (wild && wild.setProgress) {
+    wild.setProgress(ratio, animate);
+    console.log('✅ PIXI LOGIC: Wild meter progress updated to', Math.round(ratio * 100) + '%');
   } else {
-    fill.style.transition = 'none';
+    console.warn('⚠️ PIXI LOGIC: Wild meter not available for progress update');
   }
-  
-  fill.style.width = percentage + '%';
-  console.log('✅ NEW LOGIC: Progress updated to', percentage + '%');
 }
 
-/* Position DOM wild meter in the same place as the original wild loader */
-function updateWildMeterPosition() {
-  const progressBar = document.querySelector('[data-wild-loader]');
-  if (!progressBar) {
-    console.log('⚠️ DOM wild meter not found, cannot position');
-    return;
-  }
-  if (!HUD_ROOT) {
-    console.log('⚠️ HUD_ROOT not found, cannot position');
-    return;
-  }
-  
-  // Use the same positioning logic as the original wild loader
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const SIDE = 24;
-  const barW = Math.max(120, vw - SIDE * 2);
-  
-  // Calculate position exactly like the original wild loader in layout function
-  const yValue = 20; // Same as in layout function
-  const valueRowH = Math.max(24, 24, 24); // Same as original calculation
-  const barGap = Math.round(vh * 0.02); // 2% gap below the numbers
-  
-  // Use the drop target position instead of current HUD position
-  const hudTargetY = HUD_ROOT._dropTop || HUD_ROOT.y;
-  // Position wild meter exactly like original (local barY + HUD position)
-  const barY = hudTargetY + yValue + valueRowH + barGap;
-  
-  progressBar.style.left = SIDE + 'px';
-  progressBar.style.top = barY + 'px';
-  progressBar.style.width = barW + 'px';
-  progressBar.style.display = 'block'; // Ensure it's visible
-  
-  console.log('🎯 DOM wild meter positioned:', { 
-    left: SIDE, 
-    top: barY, 
-    width: barW, 
-    hudY: HUD_ROOT.y,
-    hudTargetY: hudTargetY,
-    dropTop: HUD_ROOT._dropTop,
-    visible: progressBar.style.display,
-    zIndex: progressBar.style.zIndex
-  });
-}
+// PIXI wild meter positioning is handled by HUD layout
 
-/* SIMPLE RESET: Reset DOM-based wild meter */
+/* PIXI RESET: Reset PIXI-based wild meter */
 export function resetWildMeter(instant = true) {
-  console.log('🔄 SIMPLE RESET: resetWildMeter called, instant:', instant);
+  console.log('🔄 PIXI RESET: resetWildMeter called, instant:', instant);
   
-  // Reset DOM progress bar
-  const progressBar = document.querySelector('[data-wild-loader]');
-  if (progressBar) {
-    const fill = progressBar.querySelector('div');
-    if (fill) {
-      if (instant) {
-        fill.style.transition = 'none';
-      } else {
-        fill.style.transition = 'width 0.3s ease';
-      }
-      fill.style.width = '0%';
-      console.log('✅ SIMPLE RESET: DOM progress bar reset to 0%');
-    }
-  }
-  
-  // Kill any remaining GSAP tweens
+  // Kill all GSAP animations for wild meter
   try {
-    gsap.killTweensOf("[data-wild-loader]");
-    gsap.killTweensOf(".wild-loader");
-    console.log('✅ SIMPLE RESET: GSAP tweens killed');
+    gsap.killTweensOf(wild?.view?._fill);
+    gsap.killTweensOf({ width: 0 }); // Kill custom animation object
+    if (wild?.view?._currentAnimation) {
+      wild.view._currentAnimation.kill();
+      wild.view._currentAnimation = null;
+    }
+    console.log('✅ PIXI RESET: All GSAP animations killed');
   } catch (e) {
-    console.warn('SIMPLE RESET: Failed to kill GSAP tweens:', e);
+    console.warn('⚠️ PIXI RESET: Error killing GSAP animations:', e);
   }
   
-  console.log('✅ SIMPLE RESET: Wild meter completely reset');
+  if (wild && wild.setProgress) {
+    wild.setProgress(0, !instant);
+    console.log('✅ PIXI RESET: Wild meter reset to 0%');
+  } else {
+    console.warn('⚠️ PIXI RESET: Wild meter not available for reset');
+  }
+  
+  console.log('✅ PIXI RESET: Wild meter completely reset');
 }
 
 /* Legacy function - now calls hard reset */
@@ -699,20 +670,8 @@ export function recreateWildLoader(){
     }
   }
   
-  // Create new wild loader
-  wild = makeWildLoader({ width: 200 });
-  if (HUD_ROOT) {
-    HUD_ROOT.addChild(wild.view);
-    try { 
-      wild.view.zIndex = 0; 
-      // Position it correctly in HUD
-      wild.view.x = 0;
-      wild.view.y = 0;
-    } catch {}
-    wild.start();
-  }
-  
-  console.log('✅ Wild loader recreated');
+  // Wild loader is now created in initHUD
+  console.log('✅ Wild loader reset completed');
 }
 
 /* --- Score animation helper (compat) --- */
@@ -747,32 +706,35 @@ export function animateMoves({ movesRef, setMoves, updateHUD, gsap }, toValue, d
 
 // HUD drop animation - elastic bounce from top of screen
 export function animateHUDDrop() {
-  if (!HUD_ROOT) {
-    console.warn('⚠️ HUD_ROOT not found for drop animation');
+  if (!unifiedHudContainer) {
+    console.warn('⚠️ Unified HUD container not found for drop animation');
     return;
   }
   
-  console.log('🎯 Starting HUD drop animation');
+  console.log('🎯 Starting unified HUD drop animation');
   
-  // Store original position
-  const originalY = HUD_ROOT.y;
+  // Animate the unified container drop
+  animateUnifiedHudDrop();
   
-  // Start HUD above screen
-  HUD_ROOT.y = -200; // Start well above screen
-  HUD_ROOT.alpha = 0;
+  // Also animate PIXI HUD for compatibility
+  if (HUD_ROOT) {
+    const originalY = HUD_ROOT.y;
+    HUD_ROOT.y = -200;
+    HUD_ROOT.alpha = 0;
+    
+    gsap.timeline()
+      .to(HUD_ROOT, { 
+        alpha: 1, 
+        duration: 0.2, 
+        ease: 'power2.out' 
+      })
+      .to(HUD_ROOT, { 
+        y: originalY, 
+        duration: 0.8, 
+        ease: 'elastic.out(1, 0.6)' 
+      }, 0.1);
+  }
   
-  // Elastic drop animation
-  gsap.timeline()
-    .to(HUD_ROOT, { 
-      alpha: 1, 
-      duration: 0.2, 
-      ease: 'power2.out' 
-    })
-    .to(HUD_ROOT, { 
-      y: originalY, 
-      duration: 0.8, 
-      ease: 'elastic.out(1, 0.6)' 
-    }, 0.1);
-  
-  console.log('✅ HUD drop animation started');
+  console.log('✅ Unified HUD drop animation started');
 }
+
