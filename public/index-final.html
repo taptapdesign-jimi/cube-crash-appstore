@@ -137,7 +137,7 @@
           
           <div class="menu-buttons">
             <button class="menu-btn menu-btn-unpause" id="menu-exit-btn">Exit to Menu</button>
-            <button class="menu-btn menu-btn-unpause2" id="menu-test-board-cleared-btn">Test Board Cleared +500</button>
+            <button class="menu-btn menu-btn-unpause" id="menu-test-board-cleared-btn">Test Clear Board</button>
           </div>
         </div>
       </div>
@@ -247,5 +247,97 @@
   
   <!-- FINAL SCRIPT -->
   <script type="module" src="/src/main.js"></script>
+  
+  <!-- Inline script for menu screen functionality -->
+  <script>
+    // Wait for DOM to load
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('🎯 DOM loaded, setting up menu screen functionality');
+      
+      // Test Board Cleared button functionality
+      const testBoardClearedBtn = document.getElementById('menu-test-board-cleared-btn');
+      if (testBoardClearedBtn) {
+        console.log('✅ Test Board Cleared button found');
+        testBoardClearedBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          console.log('🧪 Test Board Cleared button clicked');
+          
+          // Hide menu screen
+          const menuScreen = document.getElementById('menu-screen');
+          if (menuScreen) {
+            menuScreen.hidden = true;
+            menuScreen.setAttribute('hidden', 'true');
+            menuScreen.style.display = 'none';
+          }
+          
+          // Call clean board overlay function
+          try {
+            if (window.CC && typeof window.CC.showCleanBoardOverlay === 'function') {
+              console.log('✅ Calling window.CC.showCleanBoardOverlay');
+              window.CC.showCleanBoardOverlay();
+            } else {
+              console.warn('⚠️ window.CC.showCleanBoardOverlay not available');
+            }
+          } catch (error) {
+            console.error('❌ Error calling showCleanBoardOverlay:', error);
+          }
+        });
+      } else {
+        console.warn('⚠️ Test Board Cleared button not found');
+      }
+      
+      // Menu back button functionality
+      const menuBackBtn = document.getElementById('menu-back-btn');
+      if (menuBackBtn) {
+        menuBackBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          console.log('📋 Menu back clicked');
+          
+          // Hide menu screen
+          const menuScreen = document.getElementById('menu-screen');
+          if (menuScreen) {
+            menuScreen.hidden = true;
+            menuScreen.setAttribute('hidden', 'true');
+            menuScreen.style.display = 'none';
+          }
+          
+          // Resume game
+          try {
+            if (window.CC && typeof window.CC.resumeGame === 'function') {
+              window.CC.resumeGame();
+            }
+          } catch (error) {
+            console.warn('Failed to resume game:', error);
+          }
+        });
+      }
+      
+      // Menu exit button functionality
+      const menuExitBtn = document.getElementById('menu-exit-btn');
+      if (menuExitBtn) {
+        menuExitBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          console.log('📋 Menu exit clicked');
+          
+          // Hide menu screen
+          const menuScreen = document.getElementById('menu-screen');
+          if (menuScreen) {
+            menuScreen.hidden = true;
+            menuScreen.setAttribute('hidden', 'true');
+            menuScreen.style.display = 'none';
+          }
+          
+          // Exit to menu
+          try {
+            if (typeof window.exitToMenu === 'function') {
+              window.exitToMenu();
+            }
+          } catch (error) {
+            console.warn('Failed to exit to menu:', error);
+          }
+        });
+      }
+    });
+  </script>
 </body>
 </html>
