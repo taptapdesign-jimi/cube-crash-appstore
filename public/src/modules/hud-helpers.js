@@ -182,9 +182,9 @@ let __shakeTl = null;        // drives shake amplitude during bump/deflate
 let __lastComboVal = 0;
 let __shakeMul = 1.0;        // global multiplier sampled by jitter
 let __scoreTweening = false;
-let __movesTweening = false;
+let __boardTweening = false;
 let __prevScore = 0;
-let __prevMoves = 0;
+let __prevBoard = 0;
 
 function bounceText(obj, { peak=1.28, back=1.06, up=0.10, down=0.24 } = {}){
   if (!obj) return;
@@ -252,7 +252,7 @@ export function layout({ app, top }) {
   // (renderamo ih jednom; pozicioniranje brojeva ispod)
   if (!HUD_ROOT._labels) {
     const lblStyle = { fontFamily: 'LTCrow', fontSize: 16, fill: 0x735C4C, fontWeight: '700' };
-    const m = new Text({ text: 'Moves', style: lblStyle });
+    const m = new Text({ text: 'Board', style: lblStyle });
     const s = new Text({ text: 'Score', style: lblStyle });
     const c = new Text({ text: 'Combo', style: lblStyle });
     m.anchor.set(0.5, 0);
@@ -445,8 +445,8 @@ export function updateHUD({ score, board, moves, combo }) {
     const bd = board|0;
     if (String(bd) !== boardText.text) {
       boardText.text = String(bd);
-      if (!__movesTweening) bounceText(boardText, { peak: 1.32, back: 1.10, up: 0.10, down: 0.24 });
-      __prevMoves = bd;
+      if (!__boardTweening) bounceText(boardText, { peak: 1.32, back: 1.10, up: 0.10, down: 0.24 });
+      __prevBoard = bd;
     }
   }
   if (typeof score === 'number') {

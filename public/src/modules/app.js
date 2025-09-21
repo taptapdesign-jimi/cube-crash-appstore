@@ -334,6 +334,9 @@ export async function boot(){
   boardNumber = 1;
   moves = MOVES_MAX;
   startLevel(1);
+  
+  // Force HUD reinit after board numbering changes
+  _hudInitDone = false;
   window.addEventListener('resize', layout);
   scheduleIdleCheck();
 
