@@ -1187,10 +1187,25 @@ function removeTile(t){
 }
 
 async function showFinalScreen(){
-  try{
-    await showStarsModal({ app, stage, board, score, title: 'Game Over', subtitle: `Score ${score}` });
-  }catch{}
+  let result = null;
+  try {
+    const { showBoardFailModal } = await import('./board-fail-modal.js');
+    result = await showBoardFailModal();
+  } catch (error) {
+    console.error('⚠️ Board fail modal failed, falling back to stars modal:', error);
+    try {
+      await showStarsModal({ app, stage, board, score, title: 'Game Over', subtitle: `Score ${score}` });
+    } catch {}
+  }
+
   restartGame();
+
+  if (result?.action === 'menu') {
+    try {
+      await window.exitToMenu?.();
+      window.goToSlide?.(0, { animate: true });
+    } catch {}
+  }
 }
 
 function restartGame(){
