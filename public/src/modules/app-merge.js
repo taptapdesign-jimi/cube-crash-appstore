@@ -261,7 +261,25 @@ export function merge(src, dst, helpers){
 }
 
 export function checkGameOver(){
-  console.log('🎯 checkGameOver called');
+  console.log('🔥 checkGameOver called');
+  
+  const activeTiles = STATE.tiles.filter(t => !t.locked && t.value > 0);
+  const wildCubes = activeTiles.filter(t => t.special === 'wild');
+  const nonWildTiles = activeTiles.filter(t => t.special !== 'wild');
+  
+  console.log('🔥 checkGameOver state:', {
+    totalTiles: STATE.tiles.length,
+    activeTiles: activeTiles.length,
+    wildCubes: wildCubes.length,
+    nonWildTiles: nonWildTiles.length,
+    activeTileDetails: activeTiles.map(t => ({ 
+      value: t.value, 
+      special: t.special, 
+      locked: t.locked,
+      gridX: t.gridX,
+      gridY: t.gridY 
+    }))
+  });
   
   if (makeBoard.anyMergePossible(STATE.tiles)) {
     console.log('🎯 anyMergePossible returned true, game continues');

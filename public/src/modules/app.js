@@ -1020,7 +1020,9 @@ function merge(src, dst, helpers){
         try { if (wasWild && typeof window.trackHelpersUsed === 'function') window.trackHelpersUsed(1); } catch {}
 
         // ► CLEAN BOARD flow (centralized orchestrator)
+        console.log('🔥 Checking if board is clean after merge...');
         if (isBoardClean()){
+          console.log('🚨🚨🚨 BOARD IS CLEAN - STARTING ENDGAME FLOW! 🚨🚨🚨');
           busyEnding = true;
           // Track boards cleared stat
           try { if (typeof window.trackBoardsCleared === 'function') window.trackBoardsCleared(1); } catch {}
@@ -1170,8 +1172,42 @@ async function openLockedBounceParallel(k){
 }
 
 function isBoardClean(){ 
-  return tiles.every(t => t.locked || t.value <= 0) && 
-         !tiles.some(t => t.special === 'wild' && !t.locked); 
+  const allLockedOrEmpty = tiles.every(t => t.locked || t.value <= 0);
+  const wildCubes = tiles.filter(t => t.special === 'wild' && !t.locked);
+  const hasWildCubes = wildCubes.length > 0;
+  const activeTiles = tiles.filter(t => !t.locked && t.value > 0);
+  const isClean = allLockedOrEmpty && !hasWildCubes;
+  
+  console.log('🔥 isBoardClean DETAILED CHECK:', {
+    totalTiles: tiles.length,
+    allLockedOrEmpty,
+    hasWildCubes,
+    wildCubesCount: wildCubes.length,
+    activeTilesCount: activeTiles.length,
+    isClean,
+    activeTiles: activeTiles.map(t => ({ 
+      value: t.value, 
+      special: t.special, 
+      locked: t.locked,
+      gridX: t.gridX,
+      gridY: t.gridY 
+    })),
+    wildCubes: wildCubes.map(t => ({ 
+      value: t.value, 
+      special: t.special, 
+      locked: t.locked,
+      gridX: t.gridX,
+      gridY: t.gridY 
+    }))
+  });
+  
+  if (isClean) {
+    console.log('🎯 BOARD IS CLEAN - TRIGGERING ENDGAME FLOW!');
+  } else {
+    console.log('❌ BOARD NOT CLEAN - Game continues');
+  }
+  
+  return isClean;
 }
 
 // -------------------- helpers --------------------

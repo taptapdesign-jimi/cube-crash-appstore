@@ -90,7 +90,7 @@ export function showBoardFailModal() {
     subtitle.style.cssText = 'font-weight:500;font-size:20px;line-height:1.3;margin:0 0 32px 0;color:#A47C67;';
 
     const buttons = document.createElement('div');
-    buttons.style.cssText = 'width:min(249px, 70vw);display:flex;flex-direction:column;gap:24px;';
+    buttons.style.cssText = 'width:249px;max-width:80vw;display:flex;flex-direction:column;gap:24px;';
 
     const playAgain = document.createElement('button');
     playAgain.type = 'button';
@@ -98,6 +98,7 @@ export function showBoardFailModal() {
     playAgain.className = 'squishy squishy-cc';
     playAgain.style.width = '100%';
     playAgain.style.maxWidth = '100%';
+    playAgain.style.whiteSpace = 'nowrap';
 
     const exitBtn = document.createElement('button');
     exitBtn.type = 'button';
@@ -105,6 +106,7 @@ export function showBoardFailModal() {
     exitBtn.className = 'squishy squishy-white';
     exitBtn.style.width = '100%';
     exitBtn.style.maxWidth = '100%';
+    exitBtn.style.whiteSpace = 'nowrap';
 
     buttons.appendChild(playAgain);
     buttons.appendChild(exitBtn);
