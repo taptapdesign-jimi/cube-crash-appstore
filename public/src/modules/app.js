@@ -1169,7 +1169,10 @@ async function openLockedBounceParallel(k){
   await FLOW.openLockedBounceParallel({ tiles, k, drag, makeBoard, gsap, drawBoardBG, TILE, fixHoverAnchor, spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done) });
 }
 
-function isBoardClean(){ return tiles.every(t => t.locked || t.value <= 0); }
+function isBoardClean(){ 
+  return tiles.every(t => t.locked || t.value <= 0) && 
+         !tiles.some(t => t.special === 'wild' && !t.locked); 
+}
 
 // -------------------- helpers --------------------
 function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }

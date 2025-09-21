@@ -61,7 +61,21 @@ export function rebuildBoard(){
   // sweetPopIn is called from there
 }
 
-export function isBoardClean(){ return STATE.tiles.every(t => t.locked || t.value <= 0); }
+export function isBoardClean(){ 
+  const allLockedOrEmpty = STATE.tiles.every(t => t.locked || t.value <= 0);
+  const hasWildCubes = STATE.tiles.some(t => t.special === 'wild' && !t.locked);
+  const isClean = allLockedOrEmpty && !hasWildCubes;
+  
+  console.log('🎯 isBoardClean check:', {
+    totalTiles: STATE.tiles.length,
+    allLockedOrEmpty,
+    hasWildCubes,
+    isClean,
+    wildCubes: STATE.tiles.filter(t => t.special === 'wild' && !t.locked).length
+  });
+  
+  return isClean;
+}
 
 function randVal(){ return [1,1,1,2,2,3,3,4,5][(Math.random()*9)|0]; }
 
