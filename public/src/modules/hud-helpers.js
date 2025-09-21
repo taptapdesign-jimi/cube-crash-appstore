@@ -12,7 +12,7 @@ function boardSize(){ return { w: COLS*TILE + (COLS-1)*GAP, h: ROWS*TILE + (ROWS
 
 /* ---------------- Minimal HUD the app.js expects ---------------- */
 let HUD_ROOT = null;
-let movesText, scoreText, comboText; 
+let boardText, scoreText, comboText; 
 let comboWrap; // wrapper for jitter
 let wild;
 
@@ -273,14 +273,14 @@ export function layout({ app, top }) {
   c.x = rightCenter;
   m.y = s.y = c.y = yLabel;
 
-  // poravnanja — Moves lijevo (broj), Score sredina, Combo desno
+  // poravnanja — Board lijevo (broj), Score sredina, Combo desno
   // center values under their labels (using anchors)
-  movesText.x = leftCenter;
+  boardText.x = leftCenter;
   scoreText.x = midCenter;
   if (comboWrap){ comboWrap.x = rightCenter; comboWrap.y = yValue; }
   // keep text at origin within wrapper
   comboText.x = 0; comboText.y = 0;
-  movesText.y = yValue; scoreText.y = yValue;
+  boardText.y = yValue; scoreText.y = yValue;
 
   const barW = Math.max(120, vw - SIDE * 2);
   // Old wild loader disabled - using DOM wild meter instead
@@ -333,28 +333,28 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   stage.addChild(HUD_ROOT);
 
   // vrijednosti
-  const valMoves = { fontFamily: 'LTCrow', fontSize: 24, fill: 0xAD8775, fontWeight: '700' };
+  const valBoard = { fontFamily: 'LTCrow', fontSize: 24, fill: 0xAD8775, fontWeight: '700' };
   const valMain  = { fontFamily: 'LTCrow', fontSize: 24, fill: 0xAD8775, fontWeight: '700' };
   const valCombo = { fontFamily: 'LTCrow', fontSize: 24, fill: 0xE77449, fontWeight: '700' }; // Same color as preloader
 
-  movesText = new Text({ text: '0', style: valMoves });
+  boardText = new Text({ text: '1', style: valBoard });
   scoreText = new Text({ text: '0', style: valMain  });
   comboText = new Text({ text: 'x0', style: valCombo });
   
   // Export combo text for animations
   window.comboText = comboText;
 
-  movesText.anchor.set(0.5, 0);
+  boardText.anchor.set(0.5, 0);
   scoreText.anchor.set(0.5, 0);
   comboText.anchor.set(0.5, 0);
 
   // add texts; wrap combo for independent jitter
   comboWrap = new Container();
   comboWrap.addChild(comboText);
-  HUD_ROOT.addChild(movesText, scoreText, comboWrap);
+  HUD_ROOT.addChild(boardText, scoreText, comboWrap);
   // ensure combo is drawn above wild bar if overlapping
   try {
-    movesText.zIndex = 10;
+    boardText.zIndex = 10;
     scoreText.zIndex = 10;
     comboWrap.zIndex = 2000;
     comboText.zIndex = 2000;
@@ -430,23 +430,23 @@ export function playHudDrop({ duration = 0.8 } = {}){
   console.log('✅ PIXI HUD drop animation started');
 }
 
-export function updateHUD({ score, moves, combo }) {
+export function updateHUD({ score, board, moves, combo }) {
   if (!HUD_ROOT) {
     console.warn('⚠️ HUD_ROOT is null, cannot update HUD');
     return;
   }
   
-  if (!movesText || !scoreText || !comboText) {
+  if (!boardText || !scoreText || !comboText) {
     console.warn('⚠️ HUD text elements are null, cannot update HUD');
     return;
   }
   
-  if (typeof moves === 'number') {
-    const mv = moves|0;
-    if (String(mv) !== movesText.text) {
-      movesText.text = String(mv);
-      if (!__movesTweening) bounceText(movesText, { peak: 1.32, back: 1.10, up: 0.10, down: 0.24 });
-      __prevMoves = mv;
+  if (typeof board === 'number') {
+    const bd = board|0;
+    if (String(bd) !== boardText.text) {
+      boardText.text = String(bd);
+      if (!__movesTweening) bounceText(boardText, { peak: 1.32, back: 1.10, up: 0.10, down: 0.24 });
+      __prevMoves = bd;
     }
   }
   if (typeof score === 'number') {
@@ -466,7 +466,7 @@ export function updateHUD({ score, moves, combo }) {
 }
 
 export function setScore(v){ if (scoreText) scoreText.text = String(v|0); }
-export function setMoves(v){ if (movesText) movesText.text = String(v|0); }
+export function setBoard(v){ if (boardText) boardText.text = String(v|0); }
 export function setCombo(v){
   const val = v|0;
   if (!comboText) return;
@@ -697,17 +697,17 @@ export function animateScore({ scoreRef, setScore, updateHUD, SCORE_CAP, gsap },
   });
 }
 
-/* --- Moves animation helper (same feel as score) --- */
-export function animateMoves({ movesRef, setMoves, updateHUD, gsap }, toValue, duration = 0.5) {
-  const from = ((+movesRef() || 0) | 0);
+/* --- Board animation helper (same feel as score) --- */
+export function animateBoard({ boardRef, setBoard, updateHUD, gsap }, toValue, duration = 0.5) {
+  const from = ((+boardRef() || 0) | 0);
   const to   = ((+toValue   || 0) | 0);
-  if (to === from) { setMoves(to); updateHUD?.({ moves: to }); return; }
+  if (to === from) { setBoard(to); updateHUD?.({ board: to }); return; }
   const proxy = { v: from };
   // small pop at start
-  bounceText(movesText, { peak: 1.18, back: 1.06, up: 0.10, down: 0.24 });
+  bounceText(boardText, { peak: 1.18, back: 1.06, up: 0.10, down: 0.24 });
   gsap.to(proxy, {
     v: to, duration: duration || 0.5, ease: 'power2.out',
-    onUpdate: () => { const val = Math.round(proxy.v); setMoves(val); try { updateHUD?.({ moves: val }); } catch {} },
+    onUpdate: () => { const val = Math.round(proxy.v); setBoard(val); try { updateHUD?.({ board: val }); } catch {} },
   });
 }
 

@@ -74,7 +74,7 @@ let _hudInitDone = false;
 let _hudDropPending = true; // Play-from-slider only; no drop on restarts
 let _lastSAT = -1;
 let grid = []; let tiles = [];
-let score = 0; let level = 1; let moves = MOVES_MAX;
+let score = 0; let level = 1; let board = 1; let moves = MOVES_MAX;
 const SCORE_CAP = 999999;
 
 // Combo (UI driven)
@@ -83,7 +83,7 @@ function hudSetCombo(v){ combo = Math.max(0, Math.min(COMBO_CAP, v)); try{ _setC
 function hudResetCombo(){ combo = 0; try{ _resetCombo?.(); }catch{} }
 
 // HUD legacy refs (fallback)
-let scoreNumText = null, movesNumText = null, boardNumText = null;
+let scoreNumText = null, boardNumText = null, comboNumText = null;
 
 // Export combo text for animations
 window.comboText = null;
@@ -331,6 +331,7 @@ export async function boot(){
   drag = (ret && ret.drag) ? ret.drag : ret;
 
   // Start game
+  board = 1;
   moves = MOVES_MAX;
   startLevel(1);
   window.addEventListener('resize', layout);
@@ -391,7 +392,7 @@ export async function boot(){
   window.CC = {
     nextLevel: () => startLevel(level + 1),
     retry:     () => startLevel(level),
-    state:     () => ({ level, score, moves, wildMeter, tiles: tiles.length }),
+    state:     () => ({ level, score, board, moves, wildMeter, tiles: tiles.length }),
     app, stage, board,
     getScore: () => score,
     setScore: (v) => { score = (v|0); updateHUD(); },
@@ -547,8 +548,8 @@ export function layout(){
       
       // Update HUD with current values
       if (typeof HUD.updateHUD === 'function') {
-        HUD.updateHUD({ score, moves, combo });
-        console.log('✅ HUD updated with:', { score, moves, combo });
+        HUD.updateHUD({ score, board, moves, combo });
+        console.log('✅ HUD updated with:', { score, board, moves, combo });
       }
       
       // CRITICAL: Call HUD.layout to update HUD positioning
@@ -620,13 +621,13 @@ function drawBoardBG(mode = 'active+empty'){
 }
 
 const updateHUD = () => {
-  console.log('🎯 updateHUD called with:', { score, moves, combo });
+  console.log('🎯 updateHUD called with:', { score, board, moves, combo });
   
   try {
     // First try to use HUD from hud-helpers.js
     if (typeof HUD.updateHUD === 'function') { 
       console.log('🎯 Calling HUD.updateHUD from hud-helpers.js');
-      HUD.updateHUD({ score, moves, combo }); 
+      HUD.updateHUD({ score, board, moves, combo }); 
       return; 
     } else {
       console.log('⚠️ HUD.updateHUD function not available');
@@ -639,7 +640,7 @@ const updateHUD = () => {
     // Fallback to old method
     if (typeof _updateHUD === 'function') { 
       console.log('🎯 Using fallback _updateHUD');
-      _updateHUD({ score, moves, combo }); 
+      _updateHUD({ score, board, moves, combo }); 
       return; 
     }
   } catch (error) {
@@ -648,9 +649,9 @@ const updateHUD = () => {
   
   // Legacy fallback
   console.log('🎯 Using legacy fallback for HUD update');
-  if (boardNumText) boardNumText.text = `#${level}`;
+  if (boardNumText) boardNumText.text = `#${board}`;
   if (scoreNumText) scoreNumText.text = String(score);
-  if (movesNumText) movesNumText.text = String(moves);
+  if (comboNumText) comboNumText.text = `x${combo}`;
 };
 
 function animateScore(toValue, duration=0.45){
@@ -660,12 +661,12 @@ function animateScore(toValue, duration=0.45){
     HUD.animateScore({ scoreRef: () => score, setScore: v => { score=v; }, updateHUD, SCORE_CAP, gsap }, toValue, duration);
   }
 }
-function animateMovesHUD(toValue, duration=0.45){
-  if (typeof _animateMoves === 'function') {
-    _animateMoves({ movesRef: () => moves, setMoves: v => { moves=v; }, updateHUD, gsap }, toValue, duration);
+function animateBoardHUD(toValue, duration=0.45){
+  if (typeof _animateBoard === 'function') {
+    _animateBoard({ boardRef: () => board, setBoard: v => { board=v; }, updateHUD, gsap }, toValue, duration);
   } else {
-    try { _setMoves?.(toValue); } catch {}
-    moves = toValue|0; updateHUD();
+    try { _setBoard?.(toValue); } catch {}
+    board = toValue|0; updateHUD();
   }
 }
 function fixHoverAnchor(t){ try { if (t && t.hover) { t.hover.x=TILE/2; t.hover.y=TILE/2; } } catch {} }
@@ -710,6 +711,7 @@ function tintLocked(t){ try{ gsap.to(t, { alpha:0.35, duration:0.10, ease:'power
 function randVal(){ return [1,1,1,2,2,3,3,4,5][(Math.random()*9)|0]; }
 function startLevel(n){
   level = 1;
+  board = n; // Set board number to the level number
   moves = MOVES_MAX;
   busyEnding = false;
   hudResetCombo();
@@ -919,7 +921,7 @@ function merge(src, dst, helpers){
 
         // countdown moves
         moves = Math.max(0, moves - 1);
-        animateMovesHUD(moves, 0.40);
+        animateBoardHUD(board, 0.40);
         if (moves === 0) { checkMovesDepleted(); return; }
 
         checkLevelEnd();
@@ -1006,7 +1008,7 @@ function merge(src, dst, helpers){
         const scoreDelta = 6 * bubbleMult * comboMult;
         score = Math.min(SCORE_CAP, score + scoreDelta);
 
-        animateMovesHUD(moves, 0.40);
+        animateBoardHUD(board, 0.40);
         animateScore(score, 0.40);
         if (moves === 0) { checkMovesDepleted(); }
 
@@ -1207,6 +1209,7 @@ function restartGame(){
   
   // Reset game state WITHOUT touching HUD positioning
   score = 0;
+  board = 1;
   moves = MOVES_MAX;
   hudResetCombo();
   try { comboIdleTimer?.kill?.(); } catch {}
@@ -1382,6 +1385,7 @@ export function cleanupGame() {
   
   // Reset all game state
   score = 0;
+  board = 1;
   moves = MOVES_MAX;
   level = 1;
   combo = 0;
