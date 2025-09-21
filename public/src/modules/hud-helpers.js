@@ -241,7 +241,7 @@ export function layout({ app, top }) {
   console.log('🎯 HUD positioning:', { top, yLabel, yValue, vh, onePercent: Math.round(vh * 0.01) });
   // Use stable fontSize for spacing (avoids tiny drift from Text.height timing)
   const valueRowH = Math.max(
-    movesText?.style?.fontSize || 24,
+    boardText?.style?.fontSize || 24,
     scoreText?.style?.fontSize || 24,
     comboText?.style?.fontSize || 24
   );
@@ -337,7 +337,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   const valMain  = { fontFamily: 'LTCrow', fontSize: 24, fill: 0xAD8775, fontWeight: '700' };
   const valCombo = { fontFamily: 'LTCrow', fontSize: 24, fill: 0xE77449, fontWeight: '700' }; // Same color as preloader
 
-  boardText = new Text({ text: '1', style: valBoard });
+  boardText = new Text({ text: '#1', style: valBoard });
   scoreText = new Text({ text: '0', style: valMain  });
   comboText = new Text({ text: 'x0', style: valCombo });
   
@@ -443,8 +443,9 @@ export function updateHUD({ score, board, moves, combo }) {
   
   if (typeof board === 'number') {
     const bd = board|0;
-    if (String(bd) !== boardText.text) {
-      boardText.text = String(bd);
+    const formatted = `#${bd}`;
+    if (formatted !== boardText.text) {
+      boardText.text = formatted;
       if (!__boardTweening) bounceText(boardText, { peak: 1.32, back: 1.10, up: 0.10, down: 0.24 });
       __prevBoard = bd;
     }
@@ -466,7 +467,7 @@ export function updateHUD({ score, board, moves, combo }) {
 }
 
 export function setScore(v){ if (scoreText) scoreText.text = String(v|0); }
-export function setBoard(v){ if (boardText) boardText.text = String(v|0); }
+export function setBoard(v){ if (boardText) boardText.text = `#${v|0}`; }
 export function setCombo(v){
   const val = v|0;
   if (!comboText) return;
