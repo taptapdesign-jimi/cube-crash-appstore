@@ -1195,8 +1195,8 @@ function isBoardClean(){
   const wildCubes = tiles.filter(t => t && t.special === 'wild' && !t.locked);
   const nonWildActiveTiles = activeTiles.filter(t => t.special !== 'wild');
   
-  // Board is clean ONLY if there are NO wild cubes AND at most 1 non-wild tile
-  const isClean = wildCubes.length === 0 && nonWildActiveTiles.length <= 1;
+  // Board is clean ONLY if there are NO active tiles at all (all locked or empty)
+  const isClean = activeTiles.length === 0;
   
   console.log('🔥🔥🔥 CRITICAL isBoardClean CHECK:', {
     totalTiles: tiles.length,
@@ -1228,9 +1228,9 @@ function isBoardClean(){
   });
   
   if (isClean) {
-    console.log('🚨🚨🚨 BOARD IS CLEAN - NO WILD CUBES DETECTED - TRIGGERING ENDGAME FLOW! 🚨🚨🚨');
+    console.log('🚨🚨🚨 BOARD IS CLEAN - NO ACTIVE TILES - TRIGGERING ENDGAME FLOW! 🚨🚨🚨');
   } else {
-    console.log('✅ BOARD NOT CLEAN - WILD CUBES DETECTED OR TOO MANY TILES - Game continues');
+    console.log('✅ BOARD NOT CLEAN - ACTIVE TILES EXIST - Game continues');
   }
   
   return isClean;
