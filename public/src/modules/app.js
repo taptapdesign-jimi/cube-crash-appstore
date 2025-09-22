@@ -1174,27 +1174,37 @@ async function openLockedBounceParallel(k){
 }
 
 function isBoardClean(){ 
-  const allLockedOrEmpty = tiles.every(t => t.locked || t.value <= 0);
-  const wildCubes = tiles.filter(t => t.special === 'wild' && !t.locked);
-  const hasWildCubes = wildCubes.length > 0;
-  const activeTiles = tiles.filter(t => !t.locked && t.value > 0);
-  const isClean = allLockedOrEmpty && !hasWildCubes;
+  console.log('🚨🚨🚨 CRITICAL: isBoardClean called - checking for wild cubes...');
   
-  console.log('🔥 isBoardClean DETAILED CHECK:', {
+  // Get all tiles that are not locked
+  const activeTiles = tiles.filter(t => t && !t.locked);
+  const wildCubes = tiles.filter(t => t && t.special === 'wild' && !t.locked);
+  const nonWildActiveTiles = activeTiles.filter(t => t.special !== 'wild');
+  
+  // Board is clean ONLY if there are NO wild cubes AND at most 1 non-wild tile
+  const isClean = wildCubes.length === 0 && nonWildActiveTiles.length <= 1;
+  
+  console.log('🔥🔥🔥 CRITICAL isBoardClean CHECK:', {
     totalTiles: tiles.length,
-    allLockedOrEmpty,
-    hasWildCubes,
+    activeTiles: activeTiles.length,
     wildCubesCount: wildCubes.length,
-    activeTilesCount: activeTiles.length,
+    nonWildActiveTiles: nonWildActiveTiles.length,
     isClean,
-    activeTiles: activeTiles.map(t => ({ 
+    'ALL_TILES': tiles.map(t => ({ 
       value: t.value, 
       special: t.special, 
       locked: t.locked,
       gridX: t.gridX,
       gridY: t.gridY 
     })),
-    wildCubes: wildCubes.map(t => ({ 
+    'WILD_CUBES': wildCubes.map(t => ({ 
+      value: t.value, 
+      special: t.special, 
+      locked: t.locked,
+      gridX: t.gridX,
+      gridY: t.gridY 
+    })),
+    'NON_WILD_ACTIVE': nonWildActiveTiles.map(t => ({ 
       value: t.value, 
       special: t.special, 
       locked: t.locked,
@@ -1204,9 +1214,9 @@ function isBoardClean(){
   });
   
   if (isClean) {
-    console.log('🎯 BOARD IS CLEAN - TRIGGERING ENDGAME FLOW!');
+    console.log('🚨🚨🚨 BOARD IS CLEAN - NO WILD CUBES DETECTED - TRIGGERING ENDGAME FLOW! 🚨🚨🚨');
   } else {
-    console.log('❌ BOARD NOT CLEAN - Game continues');
+    console.log('✅ BOARD NOT CLEAN - WILD CUBES DETECTED OR TOO MANY TILES - Game continues');
   }
   
   return isClean;
