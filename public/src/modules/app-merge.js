@@ -136,7 +136,22 @@ export function merge(src, dst, helpers){
       x: dst.x, y: dst.y, duration: 0.10, ease: 'power2.out',
       onComplete: async () => {
         removeTile(src);
-        const willClean = STATE.tiles.every(t => (t === dst) || t.locked || t.value <= 0);
+        const allLockedOrEmpty = STATE.tiles.every(t => (t === dst) || t.locked || t.value <= 0);
+        const hasWildCubes = STATE.tiles.some(t => t.special === 'wild' && !t.locked && t !== dst);
+        const willClean = allLockedOrEmpty && !hasWildCubes;
+        
+        console.log('🔥 MERGE-6 willClean check:', {
+          allLockedOrEmpty,
+          hasWildCubes,
+          willClean,
+          wildCubes: STATE.tiles.filter(t => t.special === 'wild' && !t.locked && t !== dst).map(t => ({
+            value: t.value,
+            special: t.special,
+            locked: t.locked,
+            gridX: t.gridX,
+            gridY: t.gridY
+          }))
+        });
 
         if (!willClean) {
           await landPreBounce(dst);
