@@ -713,13 +713,13 @@ function rebuildBoard(){
 function tintLocked(t){ try{ gsap.to(t, { alpha:0.35, duration:0.10, ease:'power1.out' }); }catch{} }
 function randVal(){ return [1,1,1,2,2,3,3,4,5][(Math.random()*9)|0]; }
 function startLevel(n){
-  console.log('🎯 startLevel called with:', n, 'current level:', level, 'current boardNumber:', boardNumber);
+  console.log('🎯 startLevel called with:', n, 'current level:', level, 'current boardNumber:', boardNumber, 'current score:', score);
   level = n; // Set level to the board number
   boardNumber = n; // Set board number to the level number
   moves = MOVES_MAX;
   busyEnding = false;
   hudResetCombo();
-  console.log('🎯 startLevel updated - level:', level, 'boardNumber:', boardNumber);
+  console.log('🎯 startLevel updated - level:', level, 'boardNumber:', boardNumber, 'score preserved:', score);
   try { comboIdleTimer?.kill?.(); } catch {}
   wildMeter = 0;
   resetWildProgress(0, false);

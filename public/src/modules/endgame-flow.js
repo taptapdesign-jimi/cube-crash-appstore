@@ -33,8 +33,11 @@ export async function runEndgameFlow(ctx) {
       scoreCap: 999999
     });
     const next = (level | 0) + 1;
-    console.log('🎯 endgame-flow: current level:', level, 'next level:', next);
+    const currentScore = ctx.getScore ? ctx.getScore() : 'unknown';
+    console.log('🎯 endgame-flow: current level:', level, 'next level:', next, 'current score:', currentScore);
+    console.log('🎯 endgame-flow: About to call startLevel with preserved score...');
     startLevel(next);
+    console.log('🎯 endgame-flow: startLevel completed, should now be on Board', next);
   } finally {
     // vrati stanje
     try { if (boardBG) boardBG.visible = prevBG; } catch {}
