@@ -136,15 +136,25 @@ export function merge(src, dst, helpers){
       x: dst.x, y: dst.y, duration: 0.10, ease: 'power2.out',
       onComplete: async () => {
         removeTile(src);
-        const allLockedOrEmpty = STATE.tiles.every(t => (t === dst) || t.locked || t.value <= 0);
-        const hasWildCubes = STATE.tiles.some(t => t.special === 'wild' && !t.locked && t !== dst);
-        const willClean = allLockedOrEmpty && !hasWildCubes;
+        // CRITICAL FIX: Check for wild cubes properly
+        const allTiles = STATE.tiles.filter(t => t && !t.locked);
+        const wildCubes = allTiles.filter(t => t.special === 'wild');
+        const nonWildTiles = allTiles.filter(t => t.special !== 'wild');
+        const willClean = wildCubes.length === 0 && nonWildTiles.length <= 1;
         
         console.log('🔥 MERGE-6 willClean check:', {
-          allLockedOrEmpty,
-          hasWildCubes,
+          totalActiveTiles: allTiles.length,
+          wildCubesCount: wildCubes.length,
+          nonWildTilesCount: nonWildTiles.length,
           willClean,
-          wildCubes: STATE.tiles.filter(t => t.special === 'wild' && !t.locked && t !== dst).map(t => ({
+          wildCubes: wildCubes.map(t => ({
+            value: t.value,
+            special: t.special,
+            locked: t.locked,
+            gridX: t.gridX,
+            gridY: t.gridY
+          })),
+          nonWildTiles: nonWildTiles.map(t => ({
             value: t.value,
             special: t.special,
             locked: t.locked,
