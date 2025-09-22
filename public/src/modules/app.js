@@ -734,8 +734,8 @@ function startLevel(n){
     console.log('🎯 Layout called for initial game start');
   }
   
-  // Check level end immediately - no delay
-  gsap.delayedCall(0.1, checkLevelEnd);
+  // Don't check level end immediately - let the game play first
+  // gsap.delayedCall(0.1, checkLevelEnd); // REMOVED - causes immediate fail screen
 }
 
 // --- local Wild skin fallback
