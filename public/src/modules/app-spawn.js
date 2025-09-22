@@ -95,7 +95,19 @@ export function sweepForUnanimatedSpawns(){
   }catch{}
 }
 
-export function openEmpties(count){
+export function openEmpties(count, opts = {}){
+  const exclude = opts?.exclude;
+  const getSpawnValue = () => {
+    let pool = [1,2,3,4,5];
+    if (Array.isArray(exclude)) {
+      const excludeSet = new Set(exclude.map(v => v|0));
+      pool = pool.filter(v => !excludeSet.has(v));
+    } else if (Number.isFinite(exclude)) {
+      pool = pool.filter(v => v !== (exclude|0));
+    }
+    if (pool.length === 0) pool = [1,2,3,4,5];
+    return pool[(Math.random()*pool.length)|0];
+  };
   if (count <= 0) return Promise.resolve();
   const locked = STATE.tiles.filter(t => t.locked);
   if (!locked.length) return Promise.resolve();
@@ -109,7 +121,7 @@ export function openEmpties(count){
   return Promise.all(picks.map(t => new Promise(res=>{
     t.locked=false; t.eventMode='static'; t.cursor='pointer';
     if (STATE.drag?.bindToTile) STATE.drag.bindToTile(t);
-    makeBoard.setValue(t, [1,2,3,4,5][(Math.random()*5)|0], 0);
+    makeBoard.setValue(t, getSpawnValue(), 0);
     spawnBounce(t, () => { try{ fixHoverAnchor(t); }catch{}; res(); }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 });
   }))).then(()=>{ try{ drawBoardBG(); }catch{}; });
 }

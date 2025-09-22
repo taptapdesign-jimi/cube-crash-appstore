@@ -38,6 +38,7 @@
   padding: 0;
   position: relative;
   gap: 0;
+  margin-top: -16px;
 }
 
 .hero-container {
@@ -169,15 +170,10 @@
 }
 
 .slide-button {
-  width: 250px;
-  height: 55px;
+  width: 100%;
+  max-width: 80vw;
   border: none;
-  border-radius: 28px;
-  font-family: system-ui, -apple-system, sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  background: transparent;
   position: relative;
   z-index: 4;
   display: inline-flex;

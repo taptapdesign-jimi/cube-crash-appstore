@@ -1,5 +1,5 @@
 // src/modules/board.js
-import { Container, Sprite, Assets, Graphics } from 'pixi.js';
+import { Container, Sprite, Assets, Graphics, SCALE_MODES } from 'pixi.js';
 import {
   TILE, COLS, ROWS, GAP,
   PIPS_INNER_FACTOR, PIP_COLOR, PIP_ALPHA, PIP_RADIUS, PIP_SQUARE,
@@ -124,11 +124,23 @@ export function setValue(t, v, addStack = 0) {
 
   if ((v | 0) > 0) {
     // aktivna pločica
-    if (t.base) t.base.texture = pickNumbersSkin();
+    if (t.base) {
+      t.base.texture = pickNumbersSkin();
+      // Optimize texture for pixel-perfect rendering
+      if (t.base.texture && t.base.texture.baseTexture) {
+        t.base.texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
+      }
+    }
     if (t.overlay) t.overlay.visible = false;
   } else {
     // prazno/locked
-    if (t.base) t.base.texture = Assets.get(ASSET_TILE);
+    if (t.base) {
+      t.base.texture = Assets.get(ASSET_TILE);
+      // Optimize texture for pixel-perfect rendering
+      if (t.base.texture && t.base.texture.baseTexture) {
+        t.base.texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
+      }
+    }
     if (t.overlay) t.overlay.visible = false;
     t.pips?.clear?.(); // odmah ukloni pips da ne "procure"
   }
@@ -258,6 +270,10 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   const face = new Sprite(Assets.get(ASSET_TILE));
   face.anchor.set(0.5);
   face.width = TILE; face.height = TILE;
+  // Optimize texture for pixel-perfect rendering
+  if (face.texture && face.texture.baseTexture) {
+    face.texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
+  }
   t.rotG.addChild(face);
   t.base = face;
 
@@ -266,6 +282,10 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   ov.anchor.set(0.5);
   ov.width = TILE; ov.height = TILE;
   ov.alpha = 0.55;
+  // Optimize texture for pixel-perfect rendering
+  if (ov.texture && ov.texture.baseTexture) {
+    ov.texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
+  }
   ov.visible = false;
   t.rotG.addChild(ov);
   t.overlay = ov;

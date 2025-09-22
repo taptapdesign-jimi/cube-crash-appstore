@@ -3,7 +3,17 @@
 
 // Keep CSS-based pop-in like homepage slide 1
 
-export async function showCleanBoardModal({ app, stage, getScore, setScore, animateScore, updateHUD, bonus = 500, scoreCap = 999999 } = {}) {
+const HEADLINES = [
+  'Clean Board!','Full Sweep!','Mega Boom!','Max Bonus!','Big Bang!','Blast Off!','Ultra Win!','Score Blast!','Boom Bonus!','Grand Slam!','Bye Blocks!','All Gone!','Dust Off!','Kaboom!','Whoosh!','Big Poof!','Zap Zap!','Wiped Out!','Squeaky Clean!','Hero Clear!','Star Power!','Epic Sweep!','Total Win!','Full Strike!','Pure Magic!','Max Combo!','Level Wipe!','Super Glory!','Victory!','Big Boom!','Next Level!','Star Clear!','Super Wipe!','Clean Shot!','Wild Win!','Top Play!','Epic Win!','You Rock!','Mega Clear!','New Best!','Max Smash!','Big Score!','High Five!','Good Game!','Cool Shot!','You Rule!','Pro Hero!','Sharp Mind!','Jackpot!','Outstanding!','Incredible!','Fantastic!','Brilliant!','Excellent!','Amazing!','Terrific!','Wonderful!','Superb!','Marvelous!'
+];
+
+function pickHeadline(){
+  if (!HEADLINES.length) return 'Clean Board';
+  const idx = Math.floor(Math.random() * HEADLINES.length);
+  return HEADLINES[idx] || 'Clean Board';
+}
+
+export async function showCleanBoardModal({ app, stage, getScore, setScore, animateScore, updateHUD, bonus = 500, scoreCap = 999999, boardNumber = 1 } = {}) {
   return new Promise(async resolve => {
     const overlayId = 'cc-clean-board-overlay';
     const old = document.getElementById(overlayId);
@@ -26,21 +36,26 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
     // Card
     const card = document.createElement('div');
     card.style.cssText = [
-      'background:#fff0', // keep pure background look
+      'background:transparent',
       'border-radius:40px',
-      'padding:0',
+      'padding:40px 32px 36px 32px',
       'text-align:center',
       'font-family:"LTCrow", system-ui, -apple-system, sans-serif',
-      'transform:scale(0.86)',
-      'transition:transform .34s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity .14s ease',
-      'opacity:0'
+      'transform:scale(0.9)',
+      'transition:transform .34s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity .2s ease',
+      'opacity:0',
+      'max-width: min(340px, 88vw)',
+      'display:flex',
+      'flex-direction:column',
+      'align-items:center',
+      'gap:28px'
     ].join(';');
 
     // Hero
     const hero = document.createElement('img');
     hero.alt = 'Board cleared';
     hero.src = './assets/clean-board.png';
-    hero.style.cssText = 'width:min(260px,46vw);height:auto;display:block;margin:0 auto 24px auto;transform:scale(0.92);';
+    hero.style.cssText = 'width:min(240px,70vw);height:auto;display:block;margin:0 auto 0 auto;transform:scale(1);';
     
     // Add error handling for image
     hero.onerror = () => {
@@ -50,44 +65,36 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
 
     // Title
     const title = document.createElement('div');
-    title.textContent = 'Board cleared';
-    title.style.cssText = 'color:#A68C7D;font-weight:800;font-size:40px;line-height:1;margin:0 auto 24px auto;';
+    title.textContent = pickHeadline();
+    title.style.cssText = 'color:#B07F69;font-weight:800;font-size:40px;line-height:1;margin:0 0 32px 0;';
+
+    const subtitle = document.createElement('div');
+    subtitle.textContent = `Board ${boardNumber} bonus points`;
+    subtitle.style.cssText = 'color:#A47C67;font-weight:600;font-size:20px;line-height:1.2;margin:-32px 0 8px 0;';
 
     // +500 (rolling number like stats)
     const val = document.createElement('div');
     val.className = 'stat-value';
     val.textContent = '+0';
-    val.style.cssText = 'color:#E77449;font-weight:800;font-size:60px;line-height:1;margin:0 auto 15px auto;';
-
-    // Bonus points
-    const sub = document.createElement('div');
-    sub.textContent = 'Bonus points';
-    sub.style.cssText = 'color:#725B4C;font-weight:600;font-size:20px;margin:0 auto 28px auto;';
+    val.style.cssText = 'color:#E77449;font-weight:800;font-size:60px;line-height:1;margin:0 0 8px 0;';
 
     // CTA
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.textContent = 'Continue';
-    btn.style.cssText = [
-      'appearance:none','-webkit-appearance:none',
-      'background:#D87A53','color:#fff','border:none',
-      'border-radius:40px','padding:16px 64px','font-weight:800','font-size:24px',
-      'box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 2px 0 0 #C86C49, 0 6px 0 0 #B35E3F, 0 10px 0 0 #9E5237',
-      'cursor:pointer'
-    ].join(';');
-    btn.onpointerover = () => { btn.style.transform = 'translateY(3px)'; };
-    btn.onpointerout  = () => { btn.style.transform = 'translateY(0)'; };
+    btn.className = 'squishy squishy-cc menu-btn-primary';
+    btn.style.width = '100%';
+    btn.style.maxWidth = '248px';
 
     card.appendChild(hero);
     card.appendChild(title);
+    card.appendChild(subtitle);
     card.appendChild(val);
-    card.appendChild(sub);
     card.appendChild(btn);
     el.appendChild(card);
     document.body.appendChild(el);
 
     // Prepare initial pop-in states like homepage slide 1 (CSS transitions)
-    const items = [title, val, sub, btn];
     const setInit = (el, dy) => {
       el.style.opacity = '0';
       el.style.transform = `scale(0) translateY(${dy}px)`;
@@ -95,8 +102,8 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
     };
     setInit(hero, -25);
     setInit(title, -20);
-    setInit(val, -15);
-    setInit(sub, -10);
+    setInit(subtitle, -15);
+    setInit(val, -10);
     setInit(btn, -5);
 
     // Show modal and card immediately
@@ -110,8 +117,8 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
       const trans = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
       hero.style.transition = trans;
       title.style.transition = trans;
+      subtitle.style.transition = trans;
       val.style.transition = trans;
-      sub.style.transition = trans;
       btn.style.transition = trans;
 
       // Staggered reveal with proper timing
@@ -124,17 +131,17 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
         title.style.transform = 'scale(1) translateY(0)'; 
       }, 200);
       setTimeout(() => { 
-        val.style.opacity = '1';   
-        val.style.transform   = 'scale(1) translateY(0)'; 
+        subtitle.style.opacity = '1';   
+        subtitle.style.transform   = 'scale(1) translateY(0)'; 
       }, 300);
       setTimeout(() => { 
-        sub.style.opacity = '1';   
-        sub.style.transform   = 'scale(1) translateY(0)'; 
-      }, 400);
+        val.style.opacity = '1';   
+        val.style.transform   = 'scale(1) translateY(0)'; 
+      }, 380);
       setTimeout(() => { 
         btn.style.opacity = '1';   
         btn.style.transform   = 'scale(1) translateY(0)'; 
-      }, 500);
+      }, 460);
 
       // Rolling number animation (same logic as stats animateNumber)
       const animateNumber = (element, targetValue, duration = 1000) => {
@@ -158,11 +165,45 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
       // Start roll to bonus after it pops in
       setTimeout(() => {
         animateNumber(val, bonus, 900);
-      }, 400);
+      }, 380);
     });
 
     // Continue
     btn.addEventListener('click', () => {
+      btn.disabled = true;
+      const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+      const exitOffsets = [-22, -18, -14, -10, -6];
+      const exitScale = [0, 0.08, -0.04, 0.05, -0.02];
+      const nodes = [hero, title, subtitle, val, btn];
+      nodes.forEach((node) => { node.style.transition = exitTrans; });
+
+      requestAnimationFrame(() => {
+        nodes.forEach((node, idx) => {
+          const delay = idx * 60;
+          setTimeout(() => {
+            const extra = exitScale[idx] || 0;
+            node.style.opacity = '0';
+            node.style.transform = `scale(${0.0 + extra}) translateY(${exitOffsets[idx]}px)`;
+          }, delay);
+        });
+      });
+
+      // bounce CTA collapse end for extra pop
+      setTimeout(() => {
+        btn.style.transition = 'transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        btn.style.transform = 'scale(0.0)';
+      }, nodes.length * 60 + 80);
+      card.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+      requestAnimationFrame(() => {
+        card.style.transform = 'scale(0.86)';
+      });
+      const collapseDuration = nodes.length * 60 + 300;
+      setTimeout(() => {
+        card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
+        card.style.opacity = '0';
+        el.style.transition = 'opacity 0.30s ease';
+        el.style.opacity = '0';
+      }, collapseDuration);
       try {
         const cur = typeof getScore === 'function' ? (getScore()|0) : 0;
         const next = Math.min(scoreCap, cur + (bonus|0));
@@ -173,10 +214,7 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
         }
         try { window.updateHighScore?.(next); } catch {}
       } catch {}
-
-      el.style.opacity = '0';
-      card.style.transform = 'scale(0.96)';
-      setTimeout(() => { try { el.remove(); } catch {}; resolve({ action: 'continue' }); }, 220);
+      setTimeout(() => { try { el.remove(); } catch {}; resolve({ action: 'continue' }); }, collapseDuration + 220);
     });
   });
 }

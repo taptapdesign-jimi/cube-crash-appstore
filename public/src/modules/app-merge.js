@@ -65,6 +65,7 @@ export function merge(src, dst, helpers){
 
   const srcGX = src.gridX, srcGY = src.gridY;
   const wildActive = (src.special === 'wild' || dst.special === 'wild');
+  const wildTargetValue = wildActive ? ((src.special === 'wild') ? (dst.value|0) : (src.value|0)) : null;
   const effSum = wildActive ? 6 : sum;
 
   STATE.grid[src.gridY][src.gridX] = null;
@@ -124,6 +125,8 @@ export function merge(src, dst, helpers){
   // ---- 6: FX, then refill 2 (by depth), first 6 = Wild at explosion cell
   if (effSum === 6){
     const combined = Math.min(4, srcDepth + dstDepth);
+    const avoidValue = Number.isFinite(wildTargetValue) ? wildTargetValue : null;
+    dst._wildMergeTarget = avoidValue;
     makeBoard.setValue(dst, 6, 0);
     dst.stackDepth = combined;
     makeBoard.drawStack(dst);
@@ -249,9 +252,9 @@ export function merge(src, dst, helpers){
           await openAtCell(gx, gy, { isWild:true });
           STATE.wildGuaranteedOnce = true;
           const rest = Math.max(0, toOpen - 1);
-          if (rest > 0) await openEmpties(rest);
+          if (rest > 0) await openEmpties(rest, { exclude: avoidValue });
         } else {
-          await openEmpties(toOpen);
+          await openEmpties(toOpen, { exclude: avoidValue });
         }
         
         // CRITICAL FIX: For wild merges, always spawn additional tiles to prevent wild cubes from getting stuck
@@ -260,7 +263,7 @@ export function merge(src, dst, helpers){
           // Spawn 1-2 additional tiles after wild merge to ensure board doesn't get stuck
           const additionalSpawnCount = Math.min(2, Math.max(1, Math.floor(Math.random() * 2) + 1));
           try {
-            await openEmpties(additionalSpawnCount);
+            await openEmpties(additionalSpawnCount, { exclude: avoidValue });
             console.log('✅ Spawned', additionalSpawnCount, 'additional tiles after wild merge (effSum=6)');
           } catch (error) {
             console.warn('⚠️ Failed to spawn additional tiles after wild merge (effSum=6):', error);

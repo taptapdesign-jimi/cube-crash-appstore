@@ -1,8 +1,53 @@
 // SIMPLE MAIN.JS - NO COMPLEXITY
-import { boot } from './modules/app.js';
+import { boot, layout as appLayout } from './modules/app.js';
 import { gsap } from 'gsap';
 
 console.log('🚀 Starting simple CubeCrash...');
+
+const UI_STATE_KEY = 'cubeCrash_ui_state_v1';
+let uiState = {
+  currentSlide: 0,
+  gameActive: false,
+  lastActiveAt: 0
+};
+
+function loadUIState(){
+  try {
+    const raw = localStorage.getItem(UI_STATE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      uiState = {
+        currentSlide: Number.isFinite(parsed.currentSlide) ? parsed.currentSlide : 0,
+        gameActive: !!parsed.gameActive,
+        lastActiveAt: Number.isFinite(parsed.lastActiveAt) ? parsed.lastActiveAt : 0
+      };
+      return true;
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to load UI state:', error);
+  }
+  return false;
+}
+
+function saveUIState(){
+  try {
+    localStorage.setItem(UI_STATE_KEY, JSON.stringify(uiState));
+  } catch (error) {
+    console.warn('⚠️ Failed to save UI state:', error);
+  }
+}
+
+function markGameActive(active){
+  uiState.gameActive = !!active;
+  uiState.lastActiveAt = Date.now();
+  saveUIState();
+}
+
+function recordCurrentSlide(index){
+  uiState.currentSlide = index;
+  saveUIState();
+}
 
 let slider;
 let sliderLocked = false; // Guard to prevent slider moves during Play
@@ -44,9 +89,16 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     const menuUnpauseAction = document.getElementById('menu-unpause-action');
     const menuRestartAction = document.getElementById('menu-restart-action');
     const menuExitBtn = document.getElementById('menu-exit-btn');
+    const menuTestFailBtn = document.getElementById('menu-test-fail-btn');
     
     let currentSlide = 0;
     const totalSlides = slides.length;
+    const stateLoaded = loadUIState();
+    let autoBootedFromState = false;
+    if (stateLoaded) {
+      const savedSlide = Number.isFinite(uiState.currentSlide) ? Math.floor(uiState.currentSlide) : 0;
+      currentSlide = Math.max(0, Math.min(totalSlides - 1, savedSlide));
+    }
     
     // Game statistics tracking
     let gameStats = {
@@ -155,12 +207,14 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
             });
           }
 
-          // If no state change, gently settle to 1 without a snap
-          if ((wantsActive && isActive) || (!wantsActive && !isActive)) {
-            gsap.to(dot, { scale: 1, duration: 0.2, ease: 'power2.out', overwrite: true });
-          }
-        });
-      }
+        // If no state change, gently settle to 1 without a snap
+        if ((wantsActive && isActive) || (!wantsActive && !isActive)) {
+          gsap.to(dot, { scale: 1, duration: 0.2, ease: 'power2.out', overwrite: true });
+        }
+      });
+
+      recordCurrentSlide(currentSlide);
+    }
     }
 
     // Hard guard: make dots visible and detach from any transformed container
@@ -715,7 +769,13 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     };
     
     function goToSlide(slideIndex) {
-      if (slideIndex < 0 || slideIndex >= totalSlides) return;
+      let clamped = Math.floor(slideIndex);
+      if (!Number.isFinite(clamped)) clamped = currentSlide;
+      clamped = Math.max(0, Math.min(totalSlides - 1, clamped));
+      if (clamped === currentSlide) {
+        updateSlider();
+        return;
+      }
       // Clean any inline transforms/opacities to keep CTA level identical on all slides
       try {
         document.querySelectorAll('.slider-slide .slide-content, .slider-slide .slide-text, .slider-slide .slide-button').forEach(el => {
@@ -724,7 +784,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
           el.style.opacity = '';
         });
       } catch {}
-      currentSlide = slideIndex;
+      currentSlide = clamped;
       updateSlider();
     }
     
@@ -1210,6 +1270,25 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
         }
       });
     }
+
+    if (menuTestFailBtn) {
+      menuTestFailBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('🧪 Menu test clean board clicked');
+        hideMenuScreen();
+        try {
+          if (window.CC && typeof window.CC.showCleanBoardOverlay === 'function') {
+            window.CC.showCleanBoardOverlay();
+          } else if (window.CC && typeof window.CC.testCleanBoard === 'function') {
+            window.CC.testCleanBoard();
+          } else {
+            console.warn('Clean board test helper not available');
+          }
+        } catch (error) {
+          console.warn('Failed to trigger clean board test:', error);
+        }
+      });
+    }
     
     // Initialize
     console.log('🎯 Initializing slider...');
@@ -1229,12 +1308,31 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     } catch {}
     
     updateSlider();
-    // Ensure dots visible on initial load as well
-    requestAnimationFrame(() => { ensureDotsVisible(); });
+    recordCurrentSlide(currentSlide);
+
+    if (stateLoaded && uiState.gameActive) {
+      console.log('🔄 Resuming game from saved state...');
+      sliderLocked = true;
+      hideDots();
+      home.style.display = 'none';
+      home.setAttribute('hidden', 'true');
+      appHost.style.display = 'block';
+      appHost.removeAttribute('hidden');
+      markGameActive(true);
+      autoBootedFromState = true;
+      boot();
+    } else {
+      // Ensure dots visible on initial load as well
+      requestAnimationFrame(() => { ensureDotsVisible(); });
+    }
     console.log('✅ Slider initialized');
     
     // Global functions for game
     window.startGame = () => {
+      if (uiState.gameActive && autoBootedFromState) {
+        console.log('🎮 Game already active from saved state, ignoring manual start.');
+        return;
+      }
       console.log('🎮 Starting game...');
       
       // Lock slider and start game (programmatic)
@@ -1246,7 +1344,9 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       home.style.display = 'none';
       appHost.style.display = 'block';
       appHost.removeAttribute('hidden');
+      markGameActive(true);
       boot();
+      autoBootedFromState = false;
 
       // Dev button moved to Pause modal (tap HUD)
     };
@@ -1345,6 +1445,10 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     window.exitToMenu = async () => {
       console.log('🏠 Exiting to menu...');
       
+      markGameActive(false);
+      recordCurrentSlide(0);
+      autoBootedFromState = false;
+
       // Stop time tracking
       stopTimeTracking();
       
@@ -1549,6 +1653,82 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       }
     };
     
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        uiState.lastActiveAt = Date.now();
+        saveUIState();
+        return;
+      }
+
+      if (uiState.gameActive) {
+        markGameActive(true);
+        requestAnimationFrame(() => {
+          try { if (window.CC && typeof window.CC.resumeGame === 'function') window.CC.resumeGame(); } catch (error) {
+            console.warn('⚠️ resumeGame failed after visibility change:', error);
+          }
+          try { appLayout(); } catch (error) {
+            console.warn('⚠️ appLayout failed after visibility change:', error);
+          }
+        });
+      } else {
+        requestAnimationFrame(() => {
+          updateSlider();
+          ensureDotsVisible();
+        });
+      }
+    });
+
+    window.addEventListener('orientationchange', () => {
+      console.log('🔄 Orientation changed - fixing layout...');
+
+      const applyHomeLayout = () => {
+        requestAnimationFrame(() => {
+          updateSlider();
+          ensureDotsVisible();
+          setTimeout(() => {
+            updateSlider();
+            ensureDotsVisible();
+          }, 150);
+        });
+      };
+
+      const applyGameLayout = () => {
+        requestAnimationFrame(() => {
+          try { if (window.CC && typeof window.CC.resumeGame === 'function') window.CC.resumeGame(); } catch (error) {
+            console.warn('⚠️ resumeGame failed after orientation change:', error);
+          }
+          try { appLayout(); } catch (error) {
+            console.warn('⚠️ appLayout failed after orientation change:', error);
+          }
+          setTimeout(() => {
+            try { appLayout(); } catch (error) {
+              console.warn('⚠️ appLayout retry failed:', error);
+            }
+          }, 220);
+        });
+      };
+
+      const waitForPortrait = (attempt = 0) => {
+        const isPortrait = window.matchMedia('(orientation: portrait)').matches;
+        const tallEnough = window.innerHeight >= window.innerWidth;
+        if ((!isPortrait || !tallEnough) && attempt < 15) {
+          setTimeout(() => waitForPortrait(attempt + 1), 80);
+          return;
+        }
+
+        window.dispatchEvent(new Event('resize'));
+
+        if (home && !home.hidden) {
+          applyHomeLayout();
+        } else {
+          applyGameLayout();
+        }
+        console.log('✅ Layout reset completed');
+      };
+
+      setTimeout(() => waitForPortrait(), 80);
+    });
+
     console.log('✅ Simple slider initialized successfully');
     
   } catch (error) {
