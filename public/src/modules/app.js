@@ -22,6 +22,7 @@ import * as SPAWN from './spawn-helpers.js';
 import * as HUD   from './hud-helpers.js';
 import { wild } from './hud-helpers.js';
 import * as FLOW  from './level-flow.js';
+import { openEmpties } from './app-spawn.js';
 
 // HUD functions from hud-helpers.js
 
@@ -92,6 +93,7 @@ window.comboText = null;
 let wildMeter = 0;
 let wildSpawnInProgress = false; // Prevent overlapping wild spawns
 let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
+let wildRescueScheduled = false; // Prevent duplicate emergency spawns
 let drag;
 let busyEnding = false;
 
@@ -113,11 +115,11 @@ function queueWildSpawnIfNeeded(){
     .then((spawned) => {
       if (!spawned && !wildSpawnRetryTimer) {
         wildSpawnRetryTimer = setTimeout(() => {
-          wildSpawnRetryTimer = null;
-          queueWildSpawnIfNeeded();
-        }, 600);
-      }
-    })
+      wildSpawnRetryTimer = null;
+      queueWildSpawnIfNeeded();
+    }, 600);
+  }
+})
     .catch((error) => {
       console.error('❌ Wild spawn error:', error);
     })
@@ -126,6 +128,32 @@ function queueWildSpawnIfNeeded(){
       if (wildMeter >= 1 && !wildSpawnRetryTimer) {
         Promise.resolve().then(() => queueWildSpawnIfNeeded());
       }
+    });
+}
+
+function scheduleWildRescue(reason = 'unknown', requested = 2) {
+  if (wildRescueScheduled) {
+    console.log('🛟 Wild rescue already scheduled, skipping duplicate request:', reason);
+    return;
+  }
+  if (typeof openEmpties !== 'function') {
+    console.warn('🛟 Wild rescue requested but openEmpties is unavailable:', reason);
+    return;
+  }
+
+  wildRescueScheduled = true;
+  const count = Math.max(1, Math.min(3, requested | 0));
+  console.log('🛟 Scheduling wild rescue spawn:', { reason, count });
+
+  openEmpties(count)
+    .catch(error => {
+      console.warn('🛟 Wild rescue spawn failed:', error);
+    })
+    .finally(() => {
+      wildRescueScheduled = false;
+      gsap.delayedCall(0.05, () => {
+        try { checkLevelEnd(); } catch (err) { console.warn('🛟 Post-rescue checkLevelEnd failed:', err); }
+      });
     });
 }
 
@@ -1015,7 +1043,6 @@ function merge(src, dst, helpers){
 
         animateBoardHUD(boardNumber, 0.40);
         animateScore(score, 0.40);
-        if (moves === 0) { checkMovesDepleted(); }
 
         // Stats: count merge-6 as "cubes cracked"; count wild as helpers used
         try { if (typeof window.trackCubesCracked === 'function') window.trackCubesCracked(1); } catch {}
@@ -1049,6 +1076,10 @@ function merge(src, dst, helpers){
             busyEnding = false;
           }
           return;
+        }
+
+        if (moves === 0) {
+          checkMovesDepleted();
         }
 
         addWildProgress(WILD_INC_BIG);
@@ -1095,11 +1126,6 @@ function isStuck(){
   const act = activeTilesList();
   console.log('🚨 isStuck: Active tiles count:', act.length);
   
-  if (act.length < 2) {
-    console.log('🚨 isStuck: Less than 2 active tiles, game is stuck');
-    return true;
-  }
-  
   // CRITICAL SAFETY: If we have wild cubes and any non-wild tiles, we're never stuck
   const wildCubes = act.filter(t => t.special === 'wild');
   const nonWildTiles = act.filter(t => t.special !== 'wild');
@@ -1108,24 +1134,33 @@ function isStuck(){
   console.log('🚨 isStuck: Wild cubes details:', wildCubes.map(t => ({ value: t.value, special: t.special, locked: t.locked })));
   console.log('🚨 isStuck: Non-wild tiles details:', nonWildTiles.map(t => ({ value: t.value, special: t.special, locked: t.locked })));
   
+  // CRITICAL FIX: If we have wild cubes and any non-wild tiles, we're never stuck
   if (wildCubes.length > 0 && nonWildTiles.length > 0) {
     console.log('✅ isStuck: SAFETY CHECK - Wild cubes exist with non-wild tiles, game NOT stuck');
     return false;
   }
   
-  // Check for possible merges including wild cubes
+  // If we have only wild cubes (no non-wild tiles), schedule emergency spawn and treat as not stuck
+  if (wildCubes.length > 0 && nonWildTiles.length === 0) {
+    console.log('🛟 isStuck: Only wild cubes remain — scheduling rescue and deferring fail');
+    scheduleWildRescue('isStuck', Math.max(2, wildCubes.length));
+    return false;
+  }
+  
+  // If we have less than 2 tiles total, we're stuck
+  if (act.length < 2) {
+    console.log('🚨 isStuck: Less than 2 active tiles, game is stuck');
+    return true;
+  }
+  
+  // Check for possible merges between non-wild tiles
   for (let i=0;i<act.length;i++){
     for (let j=i+1;j<act.length;j++){
       const a = act[i], b = act[j];
       
-      // Wild cube can merge with any non-wild tile
-      if (a.special === 'wild' && b.special !== 'wild') {
-        console.log('✅ isStuck: Wild cube can merge with', b.value, 'game NOT stuck');
-        return false;
-      }
-      if (b.special === 'wild' && a.special !== 'wild') {
-        console.log('✅ isStuck: Wild cube can merge with', a.value, 'game NOT stuck');
-        return false;
+      // Skip wild cubes in this check (they can't merge with each other)
+      if (a.special === 'wild' || b.special === 'wild') {
+        continue;
       }
       
       // Normal merge check
@@ -1151,20 +1186,9 @@ function checkLevelEnd(){
     const nonWildTiles = act.filter(t => t.special !== 'wild');
     
     if (wildCubes.length > 0 && nonWildTiles.length === 0) {
-      console.log('🚨 EMERGENCY: Wild cubes exist but no non-wild tiles! Spawning emergency tiles...');
-      // Spawn 2-3 emergency tiles to prevent wild cubes from getting stuck
+      console.log('🚨 EMERGENCY: Wild cubes exist but no non-wild tiles! Scheduling emergency rescue...');
       const emergencyCount = Math.min(3, Math.max(2, wildCubes.length));
-      openEmpties(emergencyCount).then(() => {
-        console.log('✅ Emergency tiles spawned, checking again...');
-        checkLevelEnd(); // Check again after spawning
-      }).catch(error => {
-        console.error('❌ Emergency spawn failed:', error);
-        // If emergency spawn fails, proceed with normal stuck check
-        if (isStuck()) {
-          busyEnding = true;
-          showFinalScreen().finally(()=>{ busyEnding = false; });
-        }
-      });
+      scheduleWildRescue('checkLevelEnd', emergencyCount);
       return;
     }
     
