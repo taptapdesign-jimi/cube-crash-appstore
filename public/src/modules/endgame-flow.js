@@ -10,6 +10,7 @@ export async function runEndgameFlow(ctx) {
     app, stage, board, boardBG,
     level, startLevel,
     hideGrid, showGrid,
+    boardNumber = 1,
   } = ctx;
 
   // lock interakcije tijekom kraja levela
@@ -22,6 +23,9 @@ export async function runEndgameFlow(ctx) {
 
   try {
     // Clean Board modal (bonus +500) → immediately start next level on Continue
+    const effectiveBoard = Math.max(1, boardNumber | 0);
+    const bonus = Math.max(500, effectiveBoard * 500);
+
     const { showCleanBoardModal } = await importFresh('./clean-board-modal.js');
     await showCleanBoardModal({ 
       app, stage,
@@ -29,8 +33,9 @@ export async function runEndgameFlow(ctx) {
       setScore: ctx.setScore,
       animateScore: ctx.animateScore,
       updateHUD: ctx.updateHUD,
-      bonus: 500,
-      scoreCap: 999999
+      bonus,
+      scoreCap: 999999,
+      boardNumber,
     });
     const next = (level | 0) + 1;
     const currentScore = ctx.getScore ? ctx.getScore() : 'unknown';

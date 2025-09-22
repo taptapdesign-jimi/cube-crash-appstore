@@ -1,7 +1,7 @@
 // public/src/modules/app.js
 // ✅ mobile-first, cache-busted celebration & prize flow
 
-import { Application, Container, Assets, Graphics, Text, Rectangle, Texture, Sprite } from 'pixi.js';
+import { Application, Container, Assets, Graphics, Text, Rectangle, Texture, Sprite, SCALE_MODES } from 'pixi.js';
 import { gsap } from 'gsap';
 
 import {
@@ -315,12 +315,17 @@ export async function boot(){
   await app.init({
     resizeTo: window,
     background: 0xf5f5f5,
-    antialias: true,
-    // cap DPR for iOS performance while keeping crisp visuals
-    resolution: Math.min((window.devicePixelRatio || 1), 2)
+    antialias: false, // Disable antialiasing for pixel-perfect rendering
+    // Use full device pixel ratio for maximum crispness
+    resolution: window.devicePixelRatio || 1,
+    powerPreference: "high-performance" // Optimize for performance
   });
   host.appendChild(app.canvas);
   app.canvas.style.touchAction = 'none';
+  
+  // Optimize canvas for pixel-perfect rendering
+  app.canvas.style.imageRendering = 'pixelated';
+  app.canvas.style.imageRendering = '-webkit-optimize-contrast';
   
   // Basic setup
   stage   = app.stage; stage.sortableChildren = true;
@@ -341,6 +346,21 @@ export async function boot(){
 
   // Core assets
   await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_WILD]);
+  
+  // Optimize all loaded textures for pixel-perfect rendering
+  const loadedTextures = [ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_WILD];
+  for (const assetPath of loadedTextures) {
+    try {
+      const texture = Assets.get(assetPath);
+      if (texture && texture.baseTexture) {
+        texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
+        console.log('🎨 Optimized texture for pixel-perfect rendering:', assetPath);
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not optimize texture:', assetPath, error);
+    }
+  }
+  
   await ensureFonts();
 
   // drag
@@ -411,6 +431,7 @@ export async function boot(){
         setScore: (v) => { score = v|0; updateHUD(); },
         animateScore,
         updateHUD,
+        boardNumber,
         hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
         showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
       });
@@ -1069,6 +1090,7 @@ function merge(src, dst, helpers){
               setScore: (v) => { score = v|0; updateHUD(); },
               animateScore,
               updateHUD,
+              boardNumber,
               hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
               showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
             });
