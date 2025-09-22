@@ -1090,15 +1090,26 @@ function checkMovesDepleted(){
 // -------------------- stuck detection --------------------
 function activeTilesList(){ try { return tiles.filter(t => t && !t.locked && (t.value|0) > 0); } catch { return []; } }
 function isStuck(){
+  console.log('🚨🚨🚨 CRITICAL: isStuck called - checking if game is stuck...');
+  
   const act = activeTilesList();
-  if (act.length < 2) return true;
+  console.log('🚨 isStuck: Active tiles count:', act.length);
+  
+  if (act.length < 2) {
+    console.log('🚨 isStuck: Less than 2 active tiles, game is stuck');
+    return true;
+  }
   
   // CRITICAL SAFETY: If we have wild cubes and any non-wild tiles, we're never stuck
   const wildCubes = act.filter(t => t.special === 'wild');
   const nonWildTiles = act.filter(t => t.special !== 'wild');
   
+  console.log('🚨 isStuck: Wild cubes:', wildCubes.length, 'Non-wild tiles:', nonWildTiles.length);
+  console.log('🚨 isStuck: Wild cubes details:', wildCubes.map(t => ({ value: t.value, special: t.special, locked: t.locked })));
+  console.log('🚨 isStuck: Non-wild tiles details:', nonWildTiles.map(t => ({ value: t.value, special: t.special, locked: t.locked })));
+  
   if (wildCubes.length > 0 && nonWildTiles.length > 0) {
-    console.log('🎯 isStuck: SAFETY CHECK - Wild cubes exist with non-wild tiles, game not stuck');
+    console.log('✅ isStuck: SAFETY CHECK - Wild cubes exist with non-wild tiles, game NOT stuck');
     return false;
   }
   
@@ -1109,20 +1120,23 @@ function isStuck(){
       
       // Wild cube can merge with any non-wild tile
       if (a.special === 'wild' && b.special !== 'wild') {
-        console.log('🎯 isStuck: Wild cube can merge with', b.value, 'game not stuck');
+        console.log('✅ isStuck: Wild cube can merge with', b.value, 'game NOT stuck');
         return false;
       }
       if (b.special === 'wild' && a.special !== 'wild') {
-        console.log('🎯 isStuck: Wild cube can merge with', a.value, 'game not stuck');
+        console.log('✅ isStuck: Wild cube can merge with', a.value, 'game NOT stuck');
         return false;
       }
       
       // Normal merge check
-      if (((a.value|0) + (b.value|0)) <= 6) return false;
+      if (((a.value|0) + (b.value|0)) <= 6) {
+        console.log('✅ isStuck: Normal merge possible', a.value, '+', b.value, 'game NOT stuck');
+        return false;
+      }
     }
   }
   
-  console.log('🎯 isStuck: No possible merges found, game is stuck');
+  console.log('🚨🚨🚨 isStuck: No possible merges found, game IS stuck');
   return true;
 }
 
