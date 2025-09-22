@@ -33,6 +33,7 @@ export async function runEndgameFlow(ctx) {
       scoreCap: 999999
     });
     const next = (level | 0) + 1;
+    console.log('🎯 endgame-flow: current level:', level, 'next level:', next);
     startLevel(next);
   } finally {
     // vrati stanje
