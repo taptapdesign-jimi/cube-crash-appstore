@@ -8,6 +8,8 @@ const UI_STATE_KEY = 'cubeCrash_ui_state_v1';
 let uiState = {
   currentSlide: 0,
   gameActive: false,
+  menuVisible: false,
+  pausedFromBackground: false,
   lastActiveAt: 0
 };
 
@@ -20,6 +22,8 @@ function loadUIState(){
       uiState = {
         currentSlide: Number.isFinite(parsed.currentSlide) ? parsed.currentSlide : 0,
         gameActive: !!parsed.gameActive,
+        menuVisible: !!parsed.menuVisible,
+        pausedFromBackground: !!parsed.pausedFromBackground,
         lastActiveAt: Number.isFinite(parsed.lastActiveAt) ? parsed.lastActiveAt : 0
       };
       return true;
@@ -41,6 +45,17 @@ function saveUIState(){
 function markGameActive(active){
   uiState.gameActive = !!active;
   uiState.lastActiveAt = Date.now();
+  saveUIState();
+}
+
+function setMenuVisible(visible, { fromBackground = false } = {}){
+  uiState.menuVisible = !!visible;
+  if (visible && fromBackground) {
+    uiState.pausedFromBackground = true;
+  }
+  if (!visible) {
+    uiState.pausedFromBackground = false;
+  }
   saveUIState();
 }
 
@@ -505,12 +520,14 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       if (!menuScreen) return;
       
       // Pause the game when showing menu
-      try {
-        if (window.CC && typeof window.CC.pauseGame === 'function') {
-          window.CC.pauseGame();
+      if (uiState.gameActive) {
+        try {
+          if (window.CC && typeof window.CC.pauseGame === 'function') {
+            window.CC.pauseGame();
+          }
+        } catch (error) {
+          console.warn('Failed to pause game:', error);
         }
-      } catch (error) {
-        console.warn('Failed to pause game:', error);
       }
       
       // Update menu data from current game state
@@ -520,6 +537,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       menuScreen.hidden = false;
       menuScreen.removeAttribute('hidden');
       menuScreen.style.display = 'flex';
+      setMenuVisible(true);
       
       // Add enter animation
       menuScreen.style.opacity = '0';
@@ -537,20 +555,13 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       
       if (!menuScreen) return;
       
-      // Resume the game when hiding menu
-      try {
-        if (window.CC && typeof window.CC.resumeGame === 'function') {
-          window.CC.resumeGame();
-        }
-      } catch (error) {
-        console.warn('Failed to resume game:', error);
-      }
+      setMenuVisible(false);
       
       // Add exit animation
       menuScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
       menuScreen.style.opacity = '0';
       menuScreen.style.transform = 'scale(0.8) translateY(20px)';
-      
+
       // Wait for exit animation to complete, then hide
       setTimeout(() => {
         menuScreen.hidden = true;
@@ -1210,6 +1221,15 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
         e.stopPropagation();
         console.log('📋 Menu back clicked');
         hideMenuScreen();
+        if (uiState.gameActive) {
+          try {
+            if (window.CC && typeof window.CC.resumeGame === 'function') {
+              window.CC.resumeGame();
+            }
+          } catch (error) {
+            console.warn('Failed to resume game:', error);
+          }
+        }
       });
     }
     
@@ -1228,6 +1248,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
         } catch (error) {
           console.warn('Failed to resume game:', error);
         }
+        markGameActive(true);
       });
     }
     
@@ -1319,8 +1340,18 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       appHost.style.display = 'block';
       appHost.removeAttribute('hidden');
       markGameActive(true);
+      if (!uiState.menuVisible) {
+        setMenuVisible(false);
+      }
       autoBootedFromState = true;
       boot();
+      if (uiState.menuVisible) {
+        setTimeout(() => {
+          try { showMenuScreen(); } catch (error) {
+            console.warn('⚠️ Failed to show menu after auto resume:', error);
+          }
+        }, 400);
+      }
     } else {
       // Ensure dots visible on initial load as well
       requestAnimationFrame(() => { ensureDotsVisible(); });
@@ -1345,6 +1376,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       appHost.style.display = 'block';
       appHost.removeAttribute('hidden');
       markGameActive(true);
+      setMenuVisible(false);
       boot();
       autoBootedFromState = false;
 
@@ -1656,20 +1688,30 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         uiState.lastActiveAt = Date.now();
+        if (uiState.gameActive) {
+          setMenuVisible(true, { fromBackground: true });
+          try { showMenuScreen(); } catch (error) { console.warn('⚠️ Failed to show menu during background pause:', error); }
+        }
         saveUIState();
         return;
       }
 
       if (uiState.gameActive) {
-        markGameActive(true);
-        requestAnimationFrame(() => {
-          try { if (window.CC && typeof window.CC.resumeGame === 'function') window.CC.resumeGame(); } catch (error) {
-            console.warn('⚠️ resumeGame failed after visibility change:', error);
-          }
-          try { appLayout(); } catch (error) {
-            console.warn('⚠️ appLayout failed after visibility change:', error);
-          }
-        });
+        if (uiState.menuVisible) {
+          requestAnimationFrame(() => {
+            try { showMenuScreen(); } catch (error) { console.warn('⚠️ Failed to re-open menu after visibility change:', error); }
+          });
+        } else {
+          markGameActive(true);
+          requestAnimationFrame(() => {
+            try { if (window.CC && typeof window.CC.resumeGame === 'function') window.CC.resumeGame(); } catch (error) {
+              console.warn('⚠️ resumeGame failed after visibility change:', error);
+            }
+            try { appLayout(); } catch (error) {
+              console.warn('⚠️ appLayout failed after visibility change:', error);
+            }
+          });
+        }
       } else {
         requestAnimationFrame(() => {
           updateSlider();
@@ -1694,17 +1736,23 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
 
       const applyGameLayout = () => {
         requestAnimationFrame(() => {
-          try { if (window.CC && typeof window.CC.resumeGame === 'function') window.CC.resumeGame(); } catch (error) {
-            console.warn('⚠️ resumeGame failed after orientation change:', error);
-          }
-          try { appLayout(); } catch (error) {
-            console.warn('⚠️ appLayout failed after orientation change:', error);
-          }
-          setTimeout(() => {
-            try { appLayout(); } catch (error) {
-              console.warn('⚠️ appLayout retry failed:', error);
+          if (uiState.menuVisible) {
+            try { showMenuScreen(); } catch (error) {
+              console.warn('⚠️ Failed to re-open menu after orientation change:', error);
             }
-          }, 220);
+          } else {
+            try { if (window.CC && typeof window.CC.resumeGame === 'function') window.CC.resumeGame(); } catch (error) {
+              console.warn('⚠️ resumeGame failed after orientation change:', error);
+            }
+            try { appLayout(); } catch (error) {
+              console.warn('⚠️ appLayout failed after orientation change:', error);
+            }
+            setTimeout(() => {
+              try { appLayout(); } catch (error) {
+                console.warn('⚠️ appLayout retry failed:', error);
+              }
+            }, 220);
+          }
         });
       };
 

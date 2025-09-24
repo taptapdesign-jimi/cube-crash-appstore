@@ -53,12 +53,32 @@ export function installDrag({
   tileSize: TILE,
   onMerge: merge,
   canDrop: canDrop ?? ((src, dst) => {
-    console.log('🔥 canDrop check:', { src: src?.value, dst: dst?.value, locked: dst?.locked });
+    console.log('🔥 canDrop check:', { src: src?.value, dst: dst?.value, locked: dst?.locked, srcSpecial: src?.special, dstSpecial: dst?.special });
     if (!dst || dst.locked) return false;
     const sv = (src && (src.value|0)) || 0;
     const dv = (dst && (dst.value|0)) || 0;
     const wild = (src?.special === 'wild' || dst?.special === 'wild');
-    if (wild) return true;              // wild merges with anything
+    
+    // WILD LOGIC: Wild cube cannot merge into same value
+    if (wild) {
+      if (src?.special === 'wild' && dst?.special !== 'wild') {
+        // Wild merging into normal tile - check if target value is different
+        const canMerge = sv !== dv; // Wild cannot merge into same value as itself
+        console.log('🔥 Wild merge check (wild->normal):', { wildValue: sv, targetValue: dv, canMerge });
+        return canMerge;
+      } else if (dst?.special === 'wild' && src?.special !== 'wild') {
+        // Normal tile merging into wild - check if source value is different
+        const canMerge = sv !== dv; // Normal cannot merge into wild of same value
+        console.log('🔥 Wild merge check (normal->wild):', { sourceValue: sv, wildValue: dv, canMerge });
+        return canMerge;
+      } else if (src?.special === 'wild' && dst?.special === 'wild') {
+        // Wild merging into wild - not allowed
+        console.log('🔥 Wild merge check (wild->wild): not allowed');
+        return false;
+      }
+    }
+    
+    // NORMAL LOGIC: Regular merge rules
     if (!Number.isFinite(sv) || !Number.isFinite(dv)) return false;
     if (sv === dv) return true;         // allow stacking equal values (e.g., 3+3)
     const canMerge = (sv + dv) <= 6;    // allow different values that sum to 6 (e.g., 4+2, 2+4)
