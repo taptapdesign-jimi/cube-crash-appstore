@@ -68,33 +68,54 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
     title.textContent = pickHeadline();
     title.style.cssText = 'color:#B07F69;font-weight:800;font-size:40px;line-height:1;margin:0 0 32px 0;';
 
-    const subtitle = document.createElement('div');
-    subtitle.textContent = `Board ${boardNumber} bonus points`;
-    subtitle.style.cssText = 'color:#A47C67;font-weight:600;font-size:20px;line-height:1.2;margin:-32px 0 8px 0;';
+    // "Your score" label
+    const scoreLabel = document.createElement('div');
+    scoreLabel.textContent = 'Your score';
+    scoreLabel.style.cssText = 'color:#A47C67;font-weight:600;font-size:20px;line-height:1.2;margin:-32px 0 8px 0;';
 
-    // +500 (rolling number like stats)
-    const val = document.createElement('div');
-    val.className = 'stat-value';
-    val.textContent = '+0';
-    val.style.cssText = 'color:#E77449;font-weight:800;font-size:60px;line-height:1;margin:0 0 8px 0;';
+    // Main score display (casino-style spinning)
+    const mainScore = document.createElement('div');
+    mainScore.textContent = '0';
+    mainScore.style.cssText = 'color:#E77449;font-weight:800;font-size:60px;line-height:1;margin:0 0 8px 0;';
 
-    // CTA
+    // Bonus score display (initially hidden)
+    const bonusScore = document.createElement('div');
+    bonusScore.textContent = '+500 Bonus score';
+    bonusScore.style.cssText = 'color:#E77449;font-weight:600;font-size:24px;line-height:1;margin:0 0 8px 0;opacity:0;transform:scale(0.8);';
+
+    // Board cleared text (initially hidden)
+    const boardCleared = document.createElement('div');
+    boardCleared.textContent = `Board #${boardNumber} cleared`;
+    boardCleared.style.cssText = 'color:#A47C67;font-weight:600;font-size:20px;line-height:1.2;margin:0 0 8px 0;opacity:0;transform:scale(0.8);';
+
+    // CTA (initially hidden)
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.textContent = 'Continue';
     btn.className = 'squishy squishy-cc menu-btn-primary';
     btn.style.width = '100%';
     btn.style.maxWidth = '248px';
+    btn.style.opacity = '0';
+    btn.style.transform = 'scale(0.8)';
 
     card.appendChild(hero);
     card.appendChild(title);
-    card.appendChild(subtitle);
-    card.appendChild(val);
+    card.appendChild(scoreLabel);
+    card.appendChild(mainScore);
+    card.appendChild(bonusScore);
+    card.appendChild(boardCleared);
     card.appendChild(btn);
     el.appendChild(card);
     document.body.appendChild(el);
 
-    // Prepare initial pop-in states like homepage slide 1 (CSS transitions)
+    // Get current score for casino animation
+    const currentScore = typeof getScore === 'function' ? (getScore()|0) : 0;
+    const finalScore = Math.min(scoreCap, currentScore + (bonus|0));
+    
+    // Set initial score
+    mainScore.textContent = currentScore.toString();
+
+    // Prepare initial pop-in states
     const setInit = (el, dy) => {
       el.style.opacity = '0';
       el.style.transform = `scale(0) translateY(${dy}px)`;
@@ -102,9 +123,8 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
     };
     setInit(hero, -25);
     setInit(title, -20);
-    setInit(subtitle, -15);
-    setInit(val, -10);
-    setInit(btn, -5);
+    setInit(scoreLabel, -15);
+    setInit(mainScore, -10);
 
     // Show modal and card immediately
     el.style.opacity = '1';
@@ -113,15 +133,13 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
     
     // Wait for next frame to ensure elements are rendered
     requestAnimationFrame(() => {
-      // identical easing and duration as slide 1
       const trans = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
       hero.style.transition = trans;
       title.style.transition = trans;
-      subtitle.style.transition = trans;
-      val.style.transition = trans;
-      btn.style.transition = trans;
+      scoreLabel.style.transition = trans;
+      mainScore.style.transition = trans;
 
-      // Staggered reveal with proper timing
+      // SEQUENCE 1: Initial elements pop-in
       setTimeout(() => { 
         hero.style.opacity = '1'; 
         hero.style.transform = 'scale(1) translateY(0)'; 
@@ -131,50 +149,116 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
         title.style.transform = 'scale(1) translateY(0)'; 
       }, 200);
       setTimeout(() => { 
-        subtitle.style.opacity = '1';   
-        subtitle.style.transform   = 'scale(1) translateY(0)'; 
+        scoreLabel.style.opacity = '1';   
+        scoreLabel.style.transform = 'scale(1) translateY(0)'; 
       }, 300);
       setTimeout(() => { 
-        val.style.opacity = '1';   
-        val.style.transform   = 'scale(1) translateY(0)'; 
-      }, 380);
-      setTimeout(() => { 
-        btn.style.opacity = '1';   
-        btn.style.transform   = 'scale(1) translateY(0)'; 
-      }, 460);
+        mainScore.style.opacity = '1';   
+        mainScore.style.transform = 'scale(1) translateY(0)'; 
+      }, 400);
 
-      // Rolling number animation (same logic as stats animateNumber)
-      const animateNumber = (element, targetValue, duration = 1000) => {
-        const parse = (t) => parseInt(String(t).replace(/[^0-9]/g,'')) || 0;
-        const startValue = parse(element.textContent);
-        const diff = targetValue - startValue;
-        const t0 = performance.now();
-        const tick = (now) => {
-          const p = Math.min((now - t0) / duration, 1);
-          const easeOutCubic = 1 - Math.pow(1 - p, 3);
-          const cur = Math.floor(startValue + diff * easeOutCubic);
-          element.textContent = `+${cur}`;
-          if (p < 1) requestAnimationFrame(tick); else {
-            element.textContent = `+${targetValue}`;
-            element.classList.add('animating');
-            setTimeout(() => element.classList.remove('animating'), 300);
-          }
-        };
-        requestAnimationFrame(tick);
-      };
-      // Start roll to bonus after it pops in
+      // SEQUENCE 2: Casino-style score spinning animation
       setTimeout(() => {
-        animateNumber(val, bonus, 900);
-      }, 380);
+        const casinoSpin = (element, startValue, endValue, duration = 2000) => {
+          const t0 = performance.now();
+          const diff = endValue - startValue;
+          
+          const tick = (now) => {
+            const p = Math.min((now - t0) / duration, 1);
+            
+            // Casino-style easing with multiple speed changes
+            let ease;
+            if (p < 0.3) {
+              // Fast initial spin
+              ease = p / 0.3 * 0.7;
+            } else if (p < 0.7) {
+              // Slow down in middle
+              ease = 0.7 + (p - 0.3) / 0.4 * 0.2;
+            } else {
+              // Final slow approach
+              ease = 0.9 + (p - 0.7) / 0.3 * 0.1;
+            }
+            
+            const cur = Math.floor(startValue + diff * ease);
+            element.textContent = cur.toString();
+            
+            if (p < 1) {
+              requestAnimationFrame(tick);
+            } else {
+              element.textContent = endValue.toString();
+            }
+          };
+          requestAnimationFrame(tick);
+        };
+        
+        casinoSpin(mainScore, currentScore, finalScore, 2500);
+      }, 800);
+
+      // SEQUENCE 3: +500 Bonus score pop-in
+      setTimeout(() => {
+        bonusScore.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.5s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        bonusScore.style.opacity = '1';
+        bonusScore.style.transform = 'scale(1) translateY(0)';
+      }, 1200);
+
+      // SEQUENCE 4: Simultaneous score counting + bonus counting down
+      setTimeout(() => {
+        // Score counting up (already done by casino spin, but ensure it's at final value)
+        mainScore.textContent = finalScore.toString();
+        
+        // Bonus counting down to 0
+        const bonusCountdown = (element, startValue, endValue, duration = 1500) => {
+          const t0 = performance.now();
+          const diff = endValue - startValue;
+          
+          const tick = (now) => {
+            const p = Math.min((now - t0) / duration, 1);
+            const easeOutCubic = 1 - Math.pow(1 - p, 3);
+            const cur = Math.floor(startValue + diff * easeOutCubic);
+            element.textContent = `+${cur} Bonus score`;
+            
+            if (p < 1) {
+              requestAnimationFrame(tick);
+            } else {
+              element.textContent = `+${endValue} Bonus score`;
+            }
+          };
+          requestAnimationFrame(tick);
+        };
+        
+        bonusCountdown(bonusScore, bonus, 0, 1500);
+      }, 2000);
+
+      // SEQUENCE 5: Replace bonus with "Board #X cleared" text
+      setTimeout(() => {
+        // Hide bonus score
+        bonusScore.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+        bonusScore.style.opacity = '0';
+        bonusScore.style.transform = 'scale(0.8) translateY(-10px)';
+        
+        // Show board cleared text
+        setTimeout(() => {
+          boardCleared.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.5s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          boardCleared.style.opacity = '1';
+          boardCleared.style.transform = 'scale(1) translateY(0)';
+        }, 300);
+      }, 3500);
+
+      // SEQUENCE 6: Continue button pop-in
+      setTimeout(() => {
+        btn.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.5s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        btn.style.opacity = '1';
+        btn.style.transform = 'scale(1) translateY(0)';
+      }, 4200);
     });
 
     // Continue
     btn.addEventListener('click', () => {
       btn.disabled = true;
       const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-      const exitOffsets = [-22, -18, -14, -10, -6];
-      const exitScale = [0, 0.08, -0.04, 0.05, -0.02];
-      const nodes = [hero, title, subtitle, val, btn];
+      const exitOffsets = [-22, -18, -14, -10, -6, -4, -2];
+      const exitScale = [0, 0.08, -0.04, 0.05, -0.02, 0.03, -0.01];
+      const nodes = [hero, title, scoreLabel, mainScore, bonusScore, boardCleared, btn];
       nodes.forEach((node) => { node.style.transition = exitTrans; });
 
       requestAnimationFrame(() => {
