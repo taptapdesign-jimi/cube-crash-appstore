@@ -21,12 +21,12 @@
 
 #slider-parallax-image {
   position: absolute;
-  bottom: -12vh;
-  left: -22vw;
+  bottom: -8vh;
+  left: 0;
   transform: translate3d(0, 0, 0);
-  height: 140vh;
+  height: 105vh;
   width: auto;
-  min-width: 200vw;
+  min-width: 140vw;
   max-width: none;
   object-fit: cover;
   will-change: transform;

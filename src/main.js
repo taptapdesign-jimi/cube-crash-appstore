@@ -48,11 +48,11 @@ const OUT_OF_BOUNDS_RESISTANCE = 0.15; // follow when dragging beyond edges
 const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% width
 let pendingStatsPopNodes = [];
 const SLIDER_SNAP_TRANSITION = 'transform 0.36s cubic-bezier(0.45, 0.05, 0.2, 0.95)';
-const PARALLAX_FACTOR = 0.5;
-const PARALLAX_DRAG_FACTOR = 0.4;
-const PARALLAX_SNAP_DURATION = 0.5;
+const PARALLAX_FACTOR = 0.7;
+const PARALLAX_DRAG_FACTOR = 0.6;
+const PARALLAX_SNAP_DURATION = 0.3;
 const PARALLAX_EASE = 'power2.out';
-const PARALLAX_OVERFLOW = 500; // Allow parallax to extend beyond screen edges for smooth movement
+const PARALLAX_OVERFLOW = 800; // Allow parallax to extend beyond screen edges for smooth movement
 
 (async () => {
   try {
@@ -75,20 +75,7 @@ const PARALLAX_OVERFLOW = 500; // Allow parallax to extend beyond screen edges f
     const sliderWrapper = document.getElementById('slider-wrapper');
     const sliderParallaxImage = document.getElementById('slider-parallax-image');
 
-    const setParallax = (targetX, { animated = true } = {}) => {
-      if (!sliderParallaxImage) return;
-      const clampedX = Math.max(-PARALLAX_OVERFLOW, Math.min(PARALLAX_OVERFLOW, targetX));
-      if (!animated) {
-        gsap.set(sliderParallaxImage, { x: clampedX });
-        return;
-      }
-      gsap.to(sliderParallaxImage, {
-        x: clampedX,
-        duration: PARALLAX_SNAP_DURATION,
-        ease: PARALLAX_EASE,
-        overwrite: true
-      });
-    };
+    // Direct parallax control - no function wrapper for maximum performance
     const slides = document.querySelectorAll('.slider-slide');
     const dots = document.querySelectorAll('.slider-dot');
     const playButton = document.getElementById('btn-home');
@@ -186,7 +173,7 @@ const PARALLAX_OVERFLOW = 500; // Allow parallax to extend beyond screen edges f
         // Use per-swipe transition if provided, else default fast ease-out
         sliderWrapper.style.transition = transition;
         sliderWrapper.style.transform = `translateX(${translateX}px)`;
-        // Smooth parallax movement with proper easing
+        // Direct parallax movement - no delay, immediate response
         const parallaxX = translateX * PARALLAX_FACTOR;
         if (sliderParallaxImage) {
           gsap.to(sliderParallaxImage, {
@@ -194,7 +181,8 @@ const PARALLAX_OVERFLOW = 500; // Allow parallax to extend beyond screen edges f
             duration: PARALLAX_SNAP_DURATION,
             ease: PARALLAX_EASE,
             overwrite: true,
-            force3D: true // Hardware acceleration for smooth movement
+            force3D: true,
+            immediateRender: false
           });
         }
         console.log(`🎯 Slider update: slide ${currentSlide}, translateX: ${translateX}px`);
@@ -921,11 +909,9 @@ const PARALLAX_OVERFLOW = 500; // Allow parallax to extend beyond screen edges f
         // Real-time parallax during drag - immediate response, no delay
         const parallaxX = (baseTranslateX + dampedDiff) * PARALLAX_DRAG_FACTOR;
         if (sliderParallaxImage) {
-          // Use gsap.set for immediate response during drag
-          gsap.set(sliderParallaxImage, { 
-            x: Math.max(-PARALLAX_OVERFLOW, Math.min(PARALLAX_OVERFLOW, parallaxX)),
-            force3D: true // Hardware acceleration for smooth movement
-          });
+          // Direct CSS transform for immediate response during drag
+          const clampedX = Math.max(-PARALLAX_OVERFLOW, Math.min(PARALLAX_OVERFLOW, parallaxX));
+          sliderParallaxImage.style.transform = `translate3d(${clampedX}px, 0, 0)`;
         }
       }
     }

@@ -48,10 +48,50 @@ const OUT_OF_BOUNDS_RESISTANCE = 0.15; // follow when dragging beyond edges
 const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% width
 let pendingStatsPopNodes = [];
 const SLIDER_SNAP_TRANSITION = 'transform 0.36s cubic-bezier(0.45, 0.05, 0.2, 0.95)';
-const PARALLAX_FACTOR = 0.48;
-const PARALLAX_DRAG_FACTOR = 0.38;
-const PARALLAX_DELAY_MS = 300;
-const PARALLAX_SNAP_DURATION = 0.65;
+const PARALLAX_FACTOR = 0.35;
+const PARALLAX_DRAG_FACTOR = 0.45;
+const PARALLAX_OVERFLOW = 600;
+const PARALLAX_SCALE = 0.7;
+let currentParallaxX = 0; // track current parallax position
+let parallaxDragStartX = 0; // starting parallax position at touchstart
+const PARALLAX_SMOOTH = 0.15; // smoothing factor for parallax follow (0..1)
+let parallaxTargetX = 0;
+let parallaxCurrentX = 0;
+let parallaxRafId = 0;
+
+function __clampParallax(x){
+  return Math.max(-PARALLAX_OVERFLOW, Math.min(PARALLAX_OVERFLOW, x));
+}
+
+function applyParallaxTransform(image, value){
+  if (!image) return 0;
+  const clamped = __clampParallax(value);
+  const transform = `translate3d(${clamped}px, 0, 0) scale(${PARALLAX_SCALE})`;
+  if (image.style.transform !== transform) {
+    image.style.transform = transform;
+  }
+  return clamped;
+}
+
+function ensureParallaxLoop(sliderParallaxImage){
+  if (parallaxRafId) return;
+  const step = () => {
+    const dx = parallaxTargetX - parallaxCurrentX;
+    if (Math.abs(dx) > 0.05) {
+      parallaxCurrentX += dx * PARALLAX_SMOOTH;
+    } else {
+      parallaxCurrentX = parallaxTargetX;
+    }
+    const clamped = applyParallaxTransform(sliderParallaxImage, parallaxCurrentX);
+    currentParallaxX = clamped;
+    if (!isDragging && Math.abs(parallaxTargetX - parallaxCurrentX) <= 0.05) {
+      parallaxRafId = 0;
+      return;
+    }
+    parallaxRafId = requestAnimationFrame(step);
+  };
+  parallaxRafId = requestAnimationFrame(step);
+}
 
 (async () => {
   try {
@@ -73,21 +113,25 @@ const PARALLAX_SNAP_DURATION = 0.65;
     // Get slider elements
     const sliderWrapper = document.getElementById('slider-wrapper');
     const sliderParallaxImage = document.getElementById('slider-parallax-image');
+    // Reduce parallax image zoom by 50% and keep transform origin centered
+    try {
+      if (sliderParallaxImage) {
+        sliderParallaxImage.style.transformOrigin = '0 50%';
+        sliderParallaxImage.style.left = '0';
+        applyParallaxTransform(sliderParallaxImage, 0);
+        currentParallaxX = 0;
+        parallaxCurrentX = 0;
+        parallaxTargetX = 0;
+      }
+    } catch {}
 
     const setParallax = (targetX, { animated = true } = {}) => {
       if (!sliderParallaxImage) return;
-      const clampedX = targetX;
-      if (!animated) {
-        gsap.set(sliderParallaxImage, { x: clampedX });
-        return;
-      }
-      gsap.to(sliderParallaxImage, {
-        x: clampedX,
-        duration: PARALLAX_SNAP_DURATION,
-        ease: 'power2.inOut',
-        delay: PARALLAX_DELAY_MS / 1000,
-        overwrite: true
-      });
+      const clampedX = Math.max(-PARALLAX_OVERFLOW, Math.min(PARALLAX_OVERFLOW, targetX));
+      currentParallaxX = clampedX;
+      parallaxTargetX = clampedX;
+      parallaxCurrentX = clampedX;
+      applyParallaxTransform(sliderParallaxImage, clampedX);
     };
     const slides = document.querySelectorAll('.slider-slide');
     const dots = document.querySelectorAll('.slider-dot');
@@ -179,14 +223,17 @@ const PARALLAX_SNAP_DURATION = 0.65;
     }
     
     // Simple slider functions with adjustable settle animation
-    function updateSlider() {
+    function updateSlider({ touchParallax = false, animateParallax = true } = {}) {
       if (sliderWrapper) {
         const translateX = -currentSlide * window.innerWidth;
         const transition = currentSlideTransition || SLIDER_SNAP_TRANSITION;
         // Use per-swipe transition if provided, else default fast ease-out
         sliderWrapper.style.transition = transition;
         sliderWrapper.style.transform = `translateX(${translateX}px)`;
-        setParallax(translateX * PARALLAX_FACTOR, { animated: true });
+        if (touchParallax && sliderParallaxImage) {
+          parallaxTargetX = translateX * PARALLAX_FACTOR;
+          ensureParallaxLoop(sliderParallaxImage);
+        }
         console.log(`🎯 Slider update: slide ${currentSlide}, translateX: ${translateX}px`);
         // Clear custom transition after applying
         currentSlideTransition = null;
@@ -872,6 +919,11 @@ const PARALLAX_SNAP_DURATION = 0.65;
       isDragging = true;
       touchStartTime = Date.now();
       hasMoved = false;
+      // capture current parallax offset as base for independent movement
+      parallaxDragStartX = currentParallaxX || 0;
+      parallaxCurrentX = currentParallaxX || 0;
+      parallaxTargetX = parallaxDragStartX;
+      ensureParallaxLoop(sliderParallaxImage);
       
       if (sliderWrapper) {
         sliderWrapper.style.transition = 'none';
@@ -907,8 +959,11 @@ const PARALLAX_SNAP_DURATION = 0.65;
           if (dampedDiff > 0) dampedDiff = Math.min(dampedDiff, maxOffset);
           else dampedDiff = Math.max(dampedDiff, -maxOffset);
         }
+        // Slider follows finger
         sliderWrapper.style.transform = `translateX(${baseTranslateX + dampedDiff}px)`;
-        setParallax((baseTranslateX + dampedDiff) * PARALLAX_DRAG_FACTOR, { animated: false });
+        // Parallax tied to slider but centered: start from -baseTranslateX to keep centered
+        parallaxTargetX = (baseTranslateX + dampedDiff) * PARALLAX_DRAG_FACTOR;
+        ensureParallaxLoop(sliderParallaxImage);
       }
     }
     
@@ -966,10 +1021,11 @@ const PARALLAX_SNAP_DURATION = 0.65;
       // Apply navigation
       if (targetSlide !== currentSlide) {
         console.log(`🎯 Moving to slide ${targetSlide} with duration ${durationMs}ms`);
+        // Do NOT adjust parallax; keep exactly where drag left it
         goToSlide(targetSlide);
       } else {
         console.log(`🎯 Staying on slide ${currentSlide} with duration ${durationMs}ms`);
-        updateSlider();
+        updateSlider({ touchParallax: false });
       }
     }
     
