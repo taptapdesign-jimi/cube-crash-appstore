@@ -3,7 +3,7 @@ import { Assets, Texture } from '/node_modules/pixi.js/dist/pixi.mjs';
 import { gsap } from '/node_modules/gsap/index.js';
 import { STATE, TILE, ASSET_WILD } from './app-state.js';
 import * as makeBoard from './board.js';
-import { startWildIdle, wildImpactEffect } from './fx.js';
+import { startWildIdle, wildImpactEffect, wildExplosionParticles } from './fx.js';
 // drawBoardBG function is now in app.js
 
 export function fixHoverAnchor(t){ try { if (t && t.hover) { t.hover.x=TILE/2; t.hover.y=TILE/2; } } catch {} }
@@ -49,6 +49,7 @@ export function openAtCell(c, r, { value=null, isWild=false } = {}){
       // Use enhanced wild impact effect for wild cubes
       if (isWild) {
         wildImpactEffect(holder);
+        wildExplosionParticles(board, holder, TILE, { strength: 1.0, smokeStrength: 1.4 });
       }
       sweepForUnanimatedSpawns();
       resolve();

@@ -2,7 +2,7 @@
 import { gsap } from 'gsap';
 import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';
 import * as makeBoard from './board.js';
-import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, wildExplosionParticles } from './fx.js';
 import * as HUD from './hud-helpers.js';
 import { openAtCell, openEmpties, spawnBounce } from './app-spawn.js';
 import { showStarsModal } from './stars-modal.js';
@@ -203,7 +203,7 @@ export function merge(src, dst, helpers){
             } catch {}
           
             // Additional smoke bubbles for wild explosion
-            smokeBubblesAtTile(STATE.board, dst, 120, 1.5);
+            wildExplosionParticles(STATE.board, dst, 120, { strength: 1.3 + mult * 0.12, smokeStrength: 2.0 });
             
           } else {
             // Normal merge 6 effects

@@ -139,15 +139,15 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1){
   layer.zIndex = 9990; // under multiplier badge
   autoAdd(board, layer, 1.0); 
 
-  // fast clusters at edges → explode outward (kept short & punchy)
-  const COUNT      = Math.round((44 + Math.random()*14) * Math.max(1, strength)); // 44–58
-  const BASE_R     = Math.max(4, Math.round(tileSize * 0.034));
-  const MAX_R      = Math.max(12, Math.round(tileSize * 0.16));
+  const scale      = Math.max(1, strength);
+  const COUNT      = Math.round((44 + Math.random()*18) * scale * (0.88 + Math.random()*0.28));
+  const BASE_R     = Math.max(4, Math.round(tileSize * 0.034 * (0.9 + (scale-1)*0.4)));
+  const MAX_R      = Math.max(14, Math.round(tileSize * 0.16 * (0.95 + (scale-1)*0.45)));
   const INSET      = tileSize * 0.02;             // spawn just inside the edge
-  const OUT_MIN    = tileSize * 0.15;             // closer outside the tile
-  const OUT_MAX    = tileSize * 0.34;             // reduced distance for closer burst
+  const OUT_MIN    = tileSize * 0.15 * (0.9 + (scale-1)*0.35);
+  const OUT_MAX    = tileSize * 0.34 * (1.0 + (scale-1)*0.45);
   const BURSTS     = 5;                            // clustered emission
-  const BURST_GAP  = 0.035;                        // rapid-fire rhythm
+  const BURST_GAP  = 0.032;                        // rapid-fire rhythm
 
   const spawnOnSide = (side)=>{
     const half = tileSize * 0.5;
@@ -190,7 +190,7 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1){
       ];
       const { nx, ny } = normals[side]; 
       const baseAngle = Math.atan2(ny, nx);
-      const SPREAD = 0.9; // ~50° cone
+      const SPREAD = 0.9 + (scale-1)*0.25; // wider cone for stronger bursts
       const theta = baseAngle + (Math.random() - 0.5) * SPREAD;
 
       const distance = OUT_MIN + Math.random() * (OUT_MAX - OUT_MIN);
@@ -198,8 +198,9 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1){
       const dy = sy + Math.sin(theta) * distance;
 
       // small drift so it’s not perfectly radial
-      const driftX = (Math.random()-0.5) * (tileSize * 0.06);
-      const driftY = (Math.random()-0.5) * (tileSize * 0.06);
+      const driftFactor = tileSize * 0.06 * (1 + (scale-1)*0.35);
+      const driftX = (Math.random()-0.5) * driftFactor;
+      const driftY = (Math.random()-0.5) * driftFactor;
 
       // timings: snappy spawn, short outward rush, tiny hold, quick vanish
       const tIn   = 0.018 + Math.random()*0.022; // very quick in
@@ -207,7 +208,7 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1){
       const tHold = 0.02  + Math.random()*0.03;  // barely a breath
       const tOut  = 0.08  + Math.random()*0.06;  // quick pop-out
 
-      const stg = burstDelay + Math.random()*0.018;
+      const stg = burstDelay + Math.random()*0.02;
       const tl = gsap.timeline({
         defaults: { overwrite: false },
         onComplete: ()=>{ try{ if(g && g.parent){ g.parent.removeChild(g); g.destroy(); } }catch{} }
@@ -222,7 +223,7 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1){
 
   // subtle global halo under everything
   const halo = new Graphics();
-  const rr = tileSize * (0.22 + 0.05*strength); 
+  const rr = tileSize * (0.22 + 0.05*scale); 
   halo.circle(0, 0, rr).fill({ color: 0xFFFFFF, alpha: 0.10 });
   halo.alpha = 0;
   layer.addChildAt(halo, 0);
@@ -393,6 +394,66 @@ export function wildImpactEffect(tile, opts = {}) {
   gsap.to(g, { rotation: -tilt * 0.6, duration: 0.10, ease: 'sine.inOut' }, 0.16);
   gsap.to(g, { rotation: tilt * 0.3, duration: 0.12, ease: 'sine.inOut' }, 0.26);
   gsap.to(g, { rotation: 0, duration: 0.14, ease: 'back.out(1.8)' }, 0.38);
+}
+
+export function wildExplosionParticles(board, tile, tileSize = 96, opts = {}) {
+  if (!board || !tile) return;
+  const { x, y } = centerInBoard(board, tile, tileSize);
+  const layer = new Container();
+  layer.x = x;
+  layer.y = y;
+  layer.zIndex = 9995;
+  autoAdd(board, layer, 1.1);
+
+  const baseCount = 40 + Math.random() * 30;
+  const count = Math.round(baseCount * (opts.strength ?? 1.0));
+  const baseRadius = tileSize * 0.05;
+  const maxRadius = tileSize * 0.12;
+  const drift = tileSize * 0.18;
+  const angleJitter = 0.65;
+  const speedMin = tileSize * 0.28;
+  const speedMax = tileSize * 0.55;
+
+  for (let i = 0; i < count; i++) {
+    const g = new Graphics();
+    const radius = baseRadius + Math.random() * (maxRadius - baseRadius);
+    g.circle(0, 0, radius).fill({ color: Math.random() < 0.5 ? 0xFFE5A0 : 0xFFFFFF, alpha: 0.95 });
+    g.alpha = 0;
+    layer.addChild(g);
+
+    const angle = (Math.PI * 2 * (i / count)) + (Math.random() - 0.5) * angleJitter;
+    const distance = speedMin + Math.random() * (speedMax - speedMin);
+    const jitterX = (Math.random() - 0.5) * drift;
+    const jitterY = (Math.random() - 0.5) * drift;
+
+    const duration = 0.45 + Math.random() * 0.2;
+    const delay = Math.random() * 0.05;
+
+    gsap.timeline({ defaults: { overwrite: false } })
+      .to(g, { alpha: 1, duration: 0.08, ease: 'power2.out' }, delay)
+      .to(g, {
+        x: Math.cos(angle) * distance + jitterX,
+        y: Math.sin(angle) * distance + jitterY,
+        duration,
+        ease: 'power3.out'
+      }, delay)
+      .to(g, {
+        alpha: 0,
+        scaleX: 0,
+        scaleY: 0,
+        duration: 0.18 + Math.random() * 0.12,
+        ease: 'power1.in',
+        onComplete: () => { try { g.destroy(); } catch {} }
+      }, delay + duration - 0.14);
+
+    gsap.to(g, {
+      rotation: (Math.random() - 0.5) * 0.8,
+      duration: duration + 0.2,
+      ease: 'sine.inOut'
+    });
+  }
+
+  smokeBubblesAtTile(board, tile, tileSize, (opts.smokeStrength ?? 1.7));
 }
 
 export function startWildIdle(tile, opts = {}){
