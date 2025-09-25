@@ -49,6 +49,7 @@ export function openAtCell(c, r, { value=null, isWild=false } = {}){
       // Use enhanced wild impact effect for wild cubes
       if (isWild) {
         wildImpactEffect(holder);
+        smokeBubblesAtTile(STATE.board, holder, TILE, 2.5);
       }
       sweepForUnanimatedSpawns();
       resolve();

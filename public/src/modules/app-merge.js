@@ -97,6 +97,7 @@ export function merge(src, dst, helpers){
         // Use enhanced wild impact effect if wild cube is involved
         if (wildActive) {
           wildImpactEffect(dst);
+          smokeBubblesAtTile(STATE.board, dst, 120, 2.8);
         } else {
           landBounce(dst);
         }
@@ -192,21 +193,22 @@ export function merge(src, dst, helpers){
             try {
               const base = Math.min(25, 12 + Math.max(1, mult) * 3);
               screenShake(STATE.app, {
-                strength: base * 1.2,
-                duration: 0.45,
-                steps: 18,
+                strength: base * 2.0,
+                duration: 0.75,
+                steps: 28,
                 ease: 'power2.out',
-                direction: 0,   // erratic per-step
-                yScale: 0.55,   // more left-right, less vertical
-                scale: 0.03,    // subtle global zoom
+                direction: (Math.random() - 0.5) * Math.PI,
+                yScale: 0.7,
+                scale: 0.065,
               });
             } catch {}
           
             // Additional smoke bubbles for wild explosion
-            smokeBubblesAtTile(STATE.board, dst, 120, 1.5);
+            smokeBubblesAtTile(STATE.board, dst, 120, 3.5);
             
           } else {
             // Normal merge 6 effects
+            smokeBubblesAtTile(STATE.board, dst, 120, 1.0);
             try { screenShake(STATE.app, { strength: Math.min(25, 12 + Math.max(1, mult) * 3), duration: 0.4 }); } catch {}
           }
         }
