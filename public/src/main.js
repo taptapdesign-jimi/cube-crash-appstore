@@ -48,10 +48,11 @@ const OUT_OF_BOUNDS_RESISTANCE = 0.15; // follow when dragging beyond edges
 const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% width
 let pendingStatsPopNodes = [];
 const SLIDER_SNAP_TRANSITION = 'transform 0.36s cubic-bezier(0.45, 0.05, 0.2, 0.95)';
-const PARALLAX_FACTOR = 0.35;
-const PARALLAX_DRAG_FACTOR = 0.45;
-const PARALLAX_OVERFLOW = 600;
-const PARALLAX_SCALE = 0.7;
+const PARALLAX_FACTOR = 0.7;
+const PARALLAX_DRAG_FACTOR = 0.6;
+const PARALLAX_SNAP_DURATION = 0.3;
+const PARALLAX_EASE = 'power2.out';
+const PARALLAX_OVERFLOW = 800; // Allow parallax to extend beyond screen edges for smooth movement
 let currentParallaxX = 0; // track current parallax position
 let parallaxDragStartX = 0; // starting parallax position at touchstart
 const PARALLAX_SMOOTH = 0.15; // smoothing factor for parallax follow (0..1)
@@ -227,12 +228,18 @@ function ensureParallaxLoop(sliderParallaxImage){
       if (sliderWrapper) {
         const translateX = -currentSlide * window.innerWidth;
         const transition = currentSlideTransition || SLIDER_SNAP_TRANSITION;
-        // Use per-swipe transition if provided, else default fast ease-out
         sliderWrapper.style.transition = transition;
         sliderWrapper.style.transform = `translateX(${translateX}px)`;
-        if (touchParallax && sliderParallaxImage) {
-          parallaxTargetX = translateX * PARALLAX_FACTOR;
-          ensureParallaxLoop(sliderParallaxImage);
+        const parallaxX = translateX * PARALLAX_FACTOR;
+        if (sliderParallaxImage) {
+          gsap.to(sliderParallaxImage, {
+            x: Math.max(-PARALLAX_OVERFLOW, Math.min(PARALLAX_OVERFLOW, parallaxX)),
+            duration: PARALLAX_SNAP_DURATION,
+            ease: PARALLAX_EASE,
+            overwrite: true,
+            force3D: true,
+            immediateRender: false,
+          });
         }
         console.log(`🎯 Slider update: slide ${currentSlide}, translateX: ${translateX}px`);
         // Clear custom transition after applying
@@ -959,11 +966,12 @@ function ensureParallaxLoop(sliderParallaxImage){
           if (dampedDiff > 0) dampedDiff = Math.min(dampedDiff, maxOffset);
           else dampedDiff = Math.max(dampedDiff, -maxOffset);
         }
-        // Slider follows finger
         sliderWrapper.style.transform = `translateX(${baseTranslateX + dampedDiff}px)`;
-        // Parallax tied to slider but centered: start from -baseTranslateX to keep centered
-        parallaxTargetX = (baseTranslateX + dampedDiff) * PARALLAX_DRAG_FACTOR;
-        ensureParallaxLoop(sliderParallaxImage);
+        const parallaxX = (baseTranslateX + dampedDiff) * PARALLAX_DRAG_FACTOR;
+        if (sliderParallaxImage) {
+          const clampedX = Math.max(-PARALLAX_OVERFLOW, Math.min(PARALLAX_OVERFLOW, parallaxX));
+          sliderParallaxImage.style.transform = `translate3d(${clampedX}px, 0, 0)`;
+        }
       }
     }
     
