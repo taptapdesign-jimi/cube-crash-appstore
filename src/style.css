@@ -1024,8 +1024,8 @@ body{height:100dvh;height:100vh;overflow:hidden}
 
 .stat-divider {
   height: 2px;
-  background: #9A8B7A;
-  opacity: 0.20;
+  background: #F0ECEB;
+  opacity: 1;
   width: 100%;
   margin: 0;
 }

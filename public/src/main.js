@@ -14,38 +14,16 @@ let uiState = {
 };
 
 function loadUIState(){
-  try {
-    const raw = localStorage.getItem(UI_STATE_KEY);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object') {
-      uiState = {
-        currentSlide: Number.isFinite(parsed.currentSlide) ? parsed.currentSlide : 0,
-        gameActive: !!parsed.gameActive,
-        menuVisible: !!parsed.menuVisible,
-        pausedFromBackground: !!parsed.pausedFromBackground,
-        lastActiveAt: Number.isFinite(parsed.lastActiveAt) ? parsed.lastActiveAt : 0
-      };
-      return true;
-    }
-  } catch (error) {
-    console.warn('⚠️ Failed to load UI state:', error);
-  }
   return false;
 }
 
 function saveUIState(){
-  try {
-    localStorage.setItem(UI_STATE_KEY, JSON.stringify(uiState));
-  } catch (error) {
-    console.warn('⚠️ Failed to save UI state:', error);
-  }
+  // Persistence disabled per request
 }
 
 function markGameActive(active){
   uiState.gameActive = !!active;
   uiState.lastActiveAt = Date.now();
-  saveUIState();
 }
 
 function setMenuVisible(visible, { fromBackground = false } = {}){
@@ -56,12 +34,10 @@ function setMenuVisible(visible, { fromBackground = false } = {}){
   if (!visible) {
     uiState.pausedFromBackground = false;
   }
-  saveUIState();
 }
 
 function recordCurrentSlide(index){
   uiState.currentSlide = index;
-  saveUIState();
 }
 
 let slider;
@@ -70,6 +46,12 @@ let currentSlideTransition = null; // per-swipe transition (duration/ease)
 const DRAG_RESISTANCE = 0.8; // how much slider follows finger (0..1)
 const OUT_OF_BOUNDS_RESISTANCE = 0.15; // follow when dragging beyond edges
 const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% width
+let pendingStatsPopNodes = [];
+const SLIDER_SNAP_TRANSITION = 'transform 0.36s cubic-bezier(0.45, 0.05, 0.2, 0.95)';
+const PARALLAX_FACTOR = 0.48;
+const PARALLAX_DRAG_FACTOR = 0.38;
+const PARALLAX_DELAY_MS = 300;
+const PARALLAX_SNAP_DURATION = 0.65;
 
 (async () => {
   try {
@@ -90,6 +72,23 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     
     // Get slider elements
     const sliderWrapper = document.getElementById('slider-wrapper');
+    const sliderParallaxImage = document.getElementById('slider-parallax-image');
+
+    const setParallax = (targetX, { animated = true } = {}) => {
+      if (!sliderParallaxImage) return;
+      const clampedX = targetX;
+      if (!animated) {
+        gsap.set(sliderParallaxImage, { x: clampedX });
+        return;
+      }
+      gsap.to(sliderParallaxImage, {
+        x: clampedX,
+        duration: PARALLAX_SNAP_DURATION,
+        ease: 'power2.inOut',
+        delay: PARALLAX_DELAY_MS / 1000,
+        overwrite: true
+      });
+    };
     const slides = document.querySelectorAll('.slider-slide');
     const dots = document.querySelectorAll('.slider-dot');
     const playButton = document.getElementById('btn-home');
@@ -183,9 +182,11 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
     function updateSlider() {
       if (sliderWrapper) {
         const translateX = -currentSlide * window.innerWidth;
+        const transition = currentSlideTransition || SLIDER_SNAP_TRANSITION;
         // Use per-swipe transition if provided, else default fast ease-out
-        sliderWrapper.style.transition = currentSlideTransition || 'transform 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
+        sliderWrapper.style.transition = transition;
         sliderWrapper.style.transform = `translateX(${translateX}px)`;
+        setParallax(translateX * PARALLAX_FACTOR, { animated: true });
         console.log(`🎯 Slider update: slide ${currentSlide}, translateX: ${translateX}px`);
         // Clear custom transition after applying
         currentSlideTransition = null;
@@ -258,6 +259,59 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       try{ const wrap = document.getElementById('slider-dots'); if (wrap) wrap.style.display = 'none'; }catch{}
     }
     
+    const prepareStatsPopIn = () => {
+      if (!statsScreen) return [];
+      const nodes = [];
+      const register = (el, baseDelay = 0, scale = 0.9, translate = 10) => {
+        if (!el) return;
+        if (el.classList?.contains('stat-divider') || el.classList?.contains('stats-header') || el.classList?.contains('stats-header-top')) {
+          return;
+        }
+        try {
+          el.style.transition = 'none';
+          el.style.opacity = '0';
+          el.style.transform = `scale(${scale}) translateY(${translate}px)`;
+          el.style.transformOrigin = '50% 50%';
+        } catch {}
+        nodes.push({ el, baseDelay, scale, translate });
+      };
+
+      const scrollable = statsScreen.querySelector('.stats-scrollable');
+      if (scrollable) {
+        const items = Array.from(scrollable.querySelectorAll('.stat-item'));
+        const randomized = items.slice().sort(() => Math.random() - 0.5);
+        randomized.forEach((child, idx) => {
+          register(child, 120 + idx * 18, 0.86, 14);
+        });
+      }
+
+      return nodes;
+    };
+
+    const runStatsPopIn = (nodes) => {
+      if (!nodes || !nodes.length) return;
+      requestAnimationFrame(() => {
+        nodes.forEach((entry, idx) => {
+          const { el, baseDelay = 0 } = entry;
+          const delay = baseDelay + idx * 22 + Math.random() * 45;
+          setTimeout(() => {
+            try {
+              el.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+              el.style.opacity = '1';
+              el.style.transform = 'scale(1) translateY(0)';
+            } catch {}
+            setTimeout(() => {
+              try {
+                el.style.removeProperty('transition');
+                el.style.removeProperty('transform');
+                el.style.removeProperty('opacity');
+              } catch {}
+            }, 620);
+          }, delay);
+        });
+      });
+    };
+
     function showStatsScreen() {
       if (sliderLocked) return;
       console.log('📊 Showing stats screen');
@@ -336,6 +390,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
             statsScreen.hidden = false;
             statsScreen.removeAttribute('hidden');
             statsScreen.style.display = 'flex';
+            pendingStatsPopNodes = prepareStatsPopIn();
             // Animate stats screen in
             statsScreen.style.opacity = '0';
             statsScreen.style.transform = 'scale(0.8) translateY(20px)';
@@ -352,6 +407,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
               statsScreen.style.opacity = '1';
               statsScreen.style.transform = 'scale(1) translateY(0)';
               console.log('📊 Stats screen animation complete');
+              runStatsPopIn(pendingStatsPopNodes);
             }, 50);
           }
         }, 650); // Wait for elastic spring bounce animation to complete
@@ -385,6 +441,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
           statsScreen.hidden = false;
           statsScreen.removeAttribute('hidden');
           statsScreen.style.display = 'flex';
+          pendingStatsPopNodes = prepareStatsPopIn();
           // Animate stats screen in
           statsScreen.style.opacity = '0';
           statsScreen.style.transform = 'scale(0.8) translateY(20px)';
@@ -401,6 +458,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
             statsScreen.style.opacity = '1';
             statsScreen.style.transform = 'scale(1) translateY(0)';
             console.log('📊 Stats screen fallback animation complete');
+            runStatsPopIn(pendingStatsPopNodes);
           }, 50);
         }
       }
@@ -410,6 +468,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       console.log('📊 Hiding stats screen with exit animation');
       
       if (!statsScreen) return;
+      pendingStatsPopNodes = [];
       
       // Add exit animation (reverse of enter animation)
       statsScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
@@ -618,12 +677,9 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
           requestAnimationFrame(updateNumber);
         } else {
           element.textContent = targetValue;
-          // Add pulse animation
-          element.classList.add('animating');
-          setTimeout(() => element.classList.remove('animating'), 300);
         }
       }
-      
+
       requestAnimationFrame(updateNumber);
     }
 
@@ -819,6 +875,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
       
       if (sliderWrapper) {
         sliderWrapper.style.transition = 'none';
+        if (sliderParallaxImage) sliderParallaxImage.style.transition = 'none';
       }
       
       console.log('🎯 Slider drag start');
@@ -851,6 +908,7 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
           else dampedDiff = Math.max(dampedDiff, -maxOffset);
         }
         sliderWrapper.style.transform = `translateX(${baseTranslateX + dampedDiff}px)`;
+        setParallax((baseTranslateX + dampedDiff) * PARALLAX_DRAG_FACTOR, { animated: false });
       }
     }
     
@@ -898,11 +956,11 @@ const MAX_OOB_OFFSET_RATIO = 0.15; // clamp max visual offset at edges to 15% wi
 
       // Map speed and distance to a heavier, friction-like ease
       const normSpeed = Math.min(1, swipeSpeed / 1.2); // 0..~1
-      const baseMs = 220;          // minimum duration
-      const addFromDist = 220 * distRatio; // more distance => longer
-      const addFromSpeed = 140 * normSpeed; // faster swipe => slightly longer to feel weight
-      const durationMs = Math.max(200, Math.min(640, Math.round(baseMs + addFromDist + addFromSpeed)));
-      const ease = 'cubic-bezier(0.23, 1, 0.32, 1)'; // strong ease-out, no bounce
+      const baseMs = 260;          // minimum duration
+      const addFromDist = 320 * distRatio; // more distance => longer, emphasise glide
+      const addFromSpeed = 120 * normSpeed; // faster swipe => a bit longer to feel weight
+      const durationMs = Math.max(260, Math.min(720, Math.round(baseMs + addFromDist + addFromSpeed)));
+      const ease = 'cubic-bezier(0.45, 0.05, 0.2, 0.95)'; // gentle ease-in-out
       currentSlideTransition = `transform ${durationMs}ms ${ease}`;
 
       // Apply navigation
