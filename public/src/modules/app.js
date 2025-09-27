@@ -1087,7 +1087,7 @@ function merge(src, dst, helpers){
             tileSize: TILE,
             strength: softSmokeStrength,
             behind: true,
-            sizeScale: 1.35,
+            sizeScale: 1.12,
             distanceScale: 0.7,
             countScale: 0.75,
             haloScale: 1.1,
@@ -1131,7 +1131,7 @@ function merge(src, dst, helpers){
         scheduleComboDecay();
 
         // FX
-        const wasWild = (src.special === 'wild' || dst.special === 'wild');
+        const wasWild = wildActive;
         if (wasWild) {
           const baseShake = Math.min(28, 12 + Math.max(1, mult) * 4);
           const zoomTl = pulseBoardZoom(0.942, {
@@ -1161,7 +1161,7 @@ function merge(src, dst, helpers){
             tileSize: TILE,
             strength: gentleSmokeStrength,
             behind: true,
-            sizeScale: 1.4,
+            sizeScale: 1.16,
             distanceScale: 0.75,
             countScale: 0.8,
             haloScale: 1.15,
