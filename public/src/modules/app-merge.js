@@ -450,6 +450,7 @@ export function merge(src, dst, helpers){
         if (STATE.tiles.every(t => t.locked || t.value <= 0)){
           // Track boards cleared in alt merge flow
           try { if (typeof window.trackBoardsCleared === 'function') window.trackBoardsCleared(1); } catch {}
+          try { await new Promise(res => setTimeout(res, 1000)); } catch {}
           await showStarsModal({ app: STATE.app, stage: STATE.stage, board: STATE.board, score: STATE.score, thresholds:{one:120,two:240,three:360}, buttonLabel:'Keep Going' });
           STATE.score = 0; STATE.moves = 0; updateHUD();
         }

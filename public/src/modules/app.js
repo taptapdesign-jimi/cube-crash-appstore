@@ -1225,6 +1225,7 @@ function merge(src, dst, helpers){
           try { if (typeof window.trackBoardsCleared === 'function') window.trackBoardsCleared(1); } catch {}
 
           try {
+            try { await new Promise(res => setTimeout(res, 1000)); } catch {}
             await runEndgameFlow({
               app,
               stage,
