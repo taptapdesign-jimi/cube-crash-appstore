@@ -16,6 +16,12 @@ const ROT_SMOOTH   = 0.08;   // sporije naginje prema cilju (teži osjećaj)
 const POS_LAG_PX   = 6;      // maksimalni parallax pomak (px)
 const TILT_DUR     = 0.5;    // zadržano za release tween na onUp
 
+const MAGNET_OFFSET_RATIO = 14 / 128; // 14px od 128px pločice ≈ 10.9375%
+const MAGNET_SCALE_MULT  = 1.03;    // 3% napuhavanje ciljane pločice
+const MAGNET_IN_DUR      = 0.12;    // trajanje scale-in easing
+const MAGNET_MOVE_DUR    = 0.085;   // koliko brzo se target približava
+const MAGNET_RETURN_DUR  = 0.14;    // trajanje povratka u baznu poziciju
+
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
 const __dg_orig_to = gsap.to.bind(gsap);
 const __dg_orig_fromTo = gsap.fromTo.bind(gsap);
@@ -116,6 +122,16 @@ export function initDrag(cfg) {
     // inertial tilt state
     vx: 0, vy: 0, lastTime: 0,
     lagX: 0, lagY: 0,
+    magnet: {
+      target: null,
+      container: null,
+      originX: 0,
+      originY: 0,
+      originScaleX: 1,
+      originScaleY: 1,
+      moveTween: null,
+      scaleTween: null,
+    },
   };
 
   const helpers = { snapBack, clearHover };
@@ -139,6 +155,7 @@ export function initDrag(cfg) {
   function onDown(e, t) {
     const p = board.toLocal(e.global);
 
+    releaseMagnet({ immediate: true });
     drag.t = t;
     drag.startGX = t.gridX;
     drag.startGY = t.gridY;
@@ -239,6 +256,7 @@ export function initDrag(cfg) {
 
     const target = pickDropTarget(t); 
     showHover(target);
+    updateMagnet(target);
   }
 
   function onUp() {
@@ -283,7 +301,8 @@ export function initDrag(cfg) {
       return;
     }
 
-    clearHover();
+    clearHover({ immediateMagnet: true });
+    autoCenter(t, target);
 
     // ✅ Z-INDEX SAFETY PATCH:
     // prije merge animacije vrati pločicu na originalni sloj,
@@ -322,6 +341,163 @@ export function initDrag(cfg) {
     return (best && bestRatio >= th) ? best : null;
   }
 
+  function releaseMagnet(opts = {}) {
+    const state = drag.magnet;
+    const target = state.target;
+    if (!target) return;
+
+    const container = state.container;
+    const immediate = !!opts.immediate;
+
+    const homeX = target?._magnetHomeX ?? target?.targetX ?? state.originX ?? target?.x ?? 0;
+    const homeY = target?._magnetHomeY ?? target?.targetY ?? state.originY ?? target?.y ?? 0;
+
+    try { state.moveTween?.kill?.(); } catch {}
+    try { state.scaleTween?.kill?.(); } catch {}
+
+    if (!target.destroyed) {
+      if (immediate) {
+        target.x = homeX;
+        target.y = homeY;
+      } else {
+        state.moveTween = gsap.to(target, {
+          x: homeX,
+          y: homeY,
+          duration: MAGNET_RETURN_DUR,
+          ease: 'sine.inOut',
+          overwrite: 'auto'
+        });
+      }
+    }
+
+    if (container && !container.destroyed && container.scale) {
+      const baseScaleX = container._magnetBaseScaleX ?? state.originScaleX ?? container.scale.x ?? 1;
+      const baseScaleY = container._magnetBaseScaleY ?? state.originScaleY ?? container.scale.y ?? 1;
+      if (immediate) {
+        container.scale.set(baseScaleX, baseScaleY);
+      } else {
+        state.scaleTween = gsap.to(container.scale, {
+          x: baseScaleX,
+          y: baseScaleY,
+          duration: MAGNET_RETURN_DUR,
+          ease: 'sine.inOut',
+          overwrite: 'auto'
+        });
+      }
+    }
+
+    state.target = null;
+    state.container = null;
+    state.moveTween = null;
+    state.scaleTween = null;
+    state.originX = 0;
+    state.originY = 0;
+    state.originScaleX = 1;
+    state.originScaleY = 1;
+  }
+
+  function updateMagnet(target) {
+    const src = drag.t;
+    if (!src || src.destroyed) {
+      releaseMagnet({ immediate: true });
+      return;
+    }
+
+    if (!target || target.destroyed) {
+      releaseMagnet();
+      return;
+    }
+
+    const state = drag.magnet;
+
+    if (state.target !== target) {
+      releaseMagnet();
+
+      const container = target.rotG || target;
+      state.target = target;
+      state.container = container;
+      const homeX = Number.isFinite(target.targetX) ? target.targetX : target.x;
+      const homeY = Number.isFinite(target.targetY) ? target.targetY : target.y;
+      target._magnetHomeX = homeX;
+      target._magnetHomeY = homeY;
+      state.originX = homeX;
+      state.originY = homeY;
+      const baseScaleX = container?._magnetBaseScaleX ?? container?.scale?.x ?? 1;
+      const baseScaleY = container?._magnetBaseScaleY ?? container?.scale?.y ?? 1;
+      container._magnetBaseScaleX = baseScaleX;
+      container._magnetBaseScaleY = baseScaleY;
+      state.originScaleX = baseScaleX;
+      state.originScaleY = baseScaleY;
+
+      if (container && container.scale) {
+        try { state.scaleTween?.kill?.(); } catch {}
+        state.scaleTween = gsap.to(container.scale, {
+          x: baseScaleX * MAGNET_SCALE_MULT,
+          y: baseScaleY * MAGNET_SCALE_MULT,
+          duration: MAGNET_IN_DUR,
+          ease: 'back.out(2)',
+          overwrite: 'auto'
+        });
+      }
+    }
+
+    if (state.target !== target) return;
+
+    const originX = state.originX;
+    const originY = state.originY;
+    const maxOffset = Math.max(0, tileSize * MAGNET_OFFSET_RATIO);
+    const dx = src.x - originX;
+    const dy = src.y - originY;
+
+    let offsetX = 0;
+    let offsetY = 0;
+    const dist = Math.hypot(dx, dy);
+    if (dist > 0.0001) {
+      const ratio = Math.min(maxOffset, dist) / dist;
+      offsetX = dx * ratio;
+      offsetY = dy * ratio;
+    }
+
+    const destX = originX + Math.max(-maxOffset, Math.min(maxOffset, offsetX));
+    const destY = originY + Math.max(-maxOffset, Math.min(maxOffset, offsetY));
+
+    try { state.moveTween?.kill?.(); } catch {}
+    if (!target.destroyed) {
+      state.moveTween = gsap.to(target, {
+        x: destX,
+        y: destY,
+        duration: MAGNET_MOVE_DUR,
+        ease: 'sine.out',
+        overwrite: 'auto'
+      });
+    }
+  }
+
+  function autoCenter(src, dst) {
+    if (!src || src.destroyed || !dst || dst.destroyed) return;
+
+    const destX = dst.x;
+    const destY = dst.y;
+
+    gsap.to(src, {
+      x: destX,
+      y: destY,
+      duration: 0.08,
+      ease: 'sine.out',
+      overwrite: 'auto'
+    });
+
+    if (src.scale) {
+      gsap.to(src.scale, {
+        x: 1,
+        y: 1,
+        duration: 0.08,
+        ease: 'sine.out',
+        overwrite: 'auto'
+      });
+    }
+  }
+
   function getRect(d) {
     const b = d.getBounds?.(true) || { x: d.x, y: d.y, width: d.width, height: d.height };
     return { x: b.x, y: b.y, w: b.width, h: b.height };
@@ -339,6 +515,12 @@ export function initDrag(cfg) {
 
   function showHover(target) {
     if (!target) {
+      clearHover();
+      return;
+    }
+
+    const src = drag.t;
+    if (!isHoverValid(src, target)) {
       clearHover();
       return;
     }
@@ -367,7 +549,19 @@ export function initDrag(cfg) {
     drag.hoverFrame = frame;
   }
 
-  function clearHover() {
+  function isHoverValid(src, target) {
+    if (!src || !target) return false;
+    const srcSpecial = src.special;
+    const targetSpecial = target.special;
+    if (srcSpecial === 'wild' || targetSpecial === 'wild') return true;
+
+    const srcVal = Number(src.value) || 0;
+    const targetVal = Number(target.value) || 0;
+    return srcVal + targetVal <= 6;
+  }
+
+  function clearHover(opts = {}) {
+    releaseMagnet({ immediate: !!opts.immediateMagnet });
     if (drag.hoverFrame) {
       try {
         if (drag.hoverFrame.parent) drag.hoverFrame.parent.removeChild(drag.hoverFrame);
@@ -379,6 +573,7 @@ export function initDrag(cfg) {
   }
 
   function snapBack(t) {
+    releaseMagnet({ immediate: true });
     gsap.timeline({
       onComplete: () => { restoreZ(t); }   // ✅ vrati sloj nakon bounce-a
     })
