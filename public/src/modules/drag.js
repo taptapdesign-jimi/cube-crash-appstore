@@ -182,6 +182,11 @@ export function initDrag(cfg) {
   function onMove(e) {
     if (!drag.t) return;
     const t = drag.t;
+    if (!t || t.destroyed || !t.position) {
+      drag.t = null;
+      clearHover();
+      return;
+    }
 
     // stari global point (za brzinu)
     const prevGP = drag._lastGlobal || { x: e.global.x, y: e.global.y };
@@ -218,7 +223,9 @@ export function initDrag(cfg) {
       px += drag.lagX; py += drag.lagY;
     }
 
-    t.position.set(px, py);
+    if (t.position?.set) {
+      t.position.set(px, py);
+    }
 
     // 🔧 SHADOW PATCH: refresh bez gubitka alpha
     if (t.refreshShadow && t.shadow) {
@@ -249,19 +256,24 @@ export function initDrag(cfg) {
     }
 
     // 🔧 SHADOW PATCH: vrati na _baseAlpha i sakrij ako je 0
-    if (t?.shadow) {
+    if (t && !t.destroyed && t.shadow) {
       const base = t.shadow._baseAlpha ?? 0;
       const prev = t.shadow.alpha;
-      if (t.refreshShadow) { t.refreshShadow(); if (t.shadow) t.shadow.alpha = prev; }
-      gsap.to(t.shadow, {
-        alpha: base,
-        duration: 0.12,
-        ease: 'power2.out',
-        onComplete: () => { if (t.shadow) t.shadow.visible = (base > 0); }
-      });
+      if (t.refreshShadow) {
+        t.refreshShadow();
+        if (t.shadow) t.shadow.alpha = prev;
+      }
+      if (t.shadow?.alpha != null) {
+        gsap.to(t.shadow, {
+          alpha: base,
+          duration: 0.12,
+          ease: 'power2.out',
+          onComplete: () => { if (t.shadow) t.shadow.visible = (base > 0); }
+        });
+      }
     }
 
-    if (!t) { clearHover(); return; }
+    if (!t || t.destroyed) { clearHover(); return; }
     if (!drag.moved) { snapBack(t); clearHover(); return; }
 
     const target = pickDropTarget(t);

@@ -144,10 +144,12 @@ export function setValue(t, v, addStack = 0) {
     if (t.overlay) t.overlay.visible = false;
     t.pips?.clear?.(); // odmah ukloni pips da ne "procure"
   }
-  // skini occluder kad se slot aktivira
-  if (!t.locked && t.occluder) {
-    try { t.occluder.destroy(); } catch {}
-    t.occluder = null;
+  if (t.ghostFrame) {
+    try {
+      const suspended = !!t.ghostFrame._suspended;
+      t.ghostFrame.alpha = t.ghostFrame._ghostAlpha ?? 0.28;
+      t.ghostFrame.visible = !t.locked && !suspended;
+    } catch {}
   }
 
   if (addStack) t.stackDepth = Math.min(4, (t.stackDepth || 1) + addStack);
@@ -308,18 +310,37 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   t.y = t.targetY;
 
   // ako je slot zaključan, nacrtaj occluder pločicu iznad (da sakrije pipse/face)
+  const PAD = 5;
+  const RADIUS = Math.round(TILE * 0.26);
+
   if (locked) {
-    const PAD = 5;
-    const RADIUS = Math.round(TILE * 0.26);
     const occ = new Graphics();
     occ.beginFill(BOARD_BG_COLOR, 1)
        .drawRoundedRect(-TILE/2 + PAD, -TILE/2 + PAD, TILE - PAD*2, TILE - PAD*2, RADIUS)
        .endFill();
     occ.x = t.targetX;
     occ.y = t.targetY;
+    occ.zIndex = -500;
+    occ.alpha = 1;
+    occ.eventMode = 'none';
+    occ._ghostAlpha = 0.28;
+    occ._lockedAlpha = 1;
     board.addChild(occ);
     t.occluder = occ;
   }
+
+  const ghost = new Graphics();
+  ghost.roundRect(-TILE/2 + PAD, -TILE/2 + PAD, TILE - PAD*2, TILE - PAD*2, RADIUS)
+       .stroke({ color: 0xD6BAA3, width: 6, alpha: 0.38 });
+  ghost.x = t.targetX;
+  ghost.y = t.targetY;
+  ghost.zIndex = -450;
+  ghost.visible = false;
+  ghost.eventMode = 'none';
+  ghost._ghostAlpha = 0.28;
+  ghost._suspended = true;
+  board.addChild(ghost);
+  t.ghostFrame = ghost;
 
   board.addChild(t);
   tiles.push(t);
@@ -333,6 +354,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   const __origDestroy = t.destroy.bind(t);
   t.destroy = (opts) => {
     try { if (t.occluder) { t.occluder.destroy(); t.occluder = null; } } catch {}
+    try { if (t.ghostFrame) { t.ghostFrame.destroy(); t.ghostFrame = null; } } catch {}
     __origDestroy(opts);
   };
   return t;

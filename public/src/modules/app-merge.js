@@ -2,7 +2,8 @@
 import { gsap } from 'gsap';
 import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';
 import * as makeBoard from './board.js';
-import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle } from './fx.js';
+import { COLS, ROWS, TILE, GAP } from './constants.js';
 import * as HUD from './hud-helpers.js';
 import { openAtCell, openEmpties, spawnBounce } from './app-spawn.js';
 import { showStarsModal } from './stars-modal.js';
@@ -10,6 +11,38 @@ import { rebuildBoard } from './app-board.js';
 
 // Import updateProgressBar function
 const updateProgressBar = HUD.updateProgressBar;
+const updateHUD = () => {
+  try {
+    if (typeof HUD.updateHUD === 'function') { 
+      HUD.updateHUD({ score: STATE.score, board: 1, moves: STATE.moves, combo: 0 }); 
+    }
+  } catch (error) {
+    console.error('❌ Error calling HUD.updateHUD:', error);
+  }
+};
+const animateScore = (toValue, duration = 0.45) => {
+  try {
+    if (typeof HUD.animateScore === 'function') {
+      HUD.animateScore({ 
+        scoreRef: () => STATE.score, 
+        setScore: v => { STATE.score = v; updateHUD(); }, 
+        updateHUD, 
+        SCORE_CAP: 999999, 
+        gsap 
+      }, toValue, duration);
+    }
+  } catch (error) {
+    console.error('❌ Error calling HUD.animateScore:', error);
+  }
+};
+const drawBoardBG = () => {
+  try {
+    // This is a placeholder - the actual drawBoardBG is in app.js
+    console.log('🎯 drawBoardBG called from app-merge.js');
+  } catch (error) {
+    console.error('❌ Error in drawBoardBG:', error);
+  }
+};
 
 function play(name, vol=null){ /* muted */ }
 function removeTile(t){
@@ -20,6 +53,79 @@ function removeTile(t){
   STATE.board.removeChild(t);
   STATE.tiles = STATE.tiles.filter(x=>x!==t);
   t.destroy?.({children:true, texture:false, textureSource:false});
+}
+
+export function clearWildState(tile){
+  if (!tile) return;
+  try { stopWildIdle(tile); } catch {}
+  tile.special = null;
+  tile.isWild = false;
+  tile.isWildFace = false;
+  if (tile.num) tile.num.visible = true;
+  if (tile.pips) tile.pips.visible = true;
+  if (tile.base) {
+    try { tile.base.tint = 0xFFFFFF; tile.base.alpha = 1; } catch {}
+  }
+}
+
+function pulseBoardZoom(factor = 0.92, opts = {}) {
+  const board = STATE.board;
+  if (!board) return;
+  try { board._wildZoomTl?.kill?.(); } catch {}
+
+  const baseW = COLS * TILE + (COLS - 1) * GAP;
+  const baseH = ROWS * TILE + (ROWS - 1) * GAP;
+  const sx0 = board.scale?.x ?? 1;
+  const sy0 = board.scale?.y ?? 1;
+  const x0 = board.x ?? 0;
+  const y0 = board.y ?? 0;
+
+  const displayW = baseW * sx0;
+  const displayH = baseH * sy0;
+
+  const scaleFactor = Math.max(0.75, Math.min(0.99, factor));
+  const translateFactor = Math.max(0, Math.min(1, opts.translateFactor ?? 0.4));
+  const userOnComplete = typeof opts.onComplete === 'function' ? opts.onComplete : null;
+  const dx = ((displayW - displayW * scaleFactor) / 2) * translateFactor;
+  const dy = ((displayH - displayH * scaleFactor) / 2) * translateFactor;
+
+  const outDur = opts.outDur ?? 0.12;
+  const inDur  = opts.inDur  ?? 0.22;
+
+  const tl = gsap.timeline({ onComplete: () => { board._wildZoomTl = null; try { userOnComplete?.(); } catch {} } });
+
+  tl.to(board.scale, {
+    x: sx0 * scaleFactor,
+    y: sy0 * scaleFactor,
+    duration: outDur,
+    ease: opts.outEase ?? 'power3.out'
+  }, 0);
+
+  tl.to(board, {
+    x: x0 + dx,
+    y: y0 + dy,
+    duration: outDur,
+    ease: opts.outEase ?? 'power3.out'
+  }, 0);
+
+  const hold = opts.hold ?? 0.05;
+
+  tl.to(board.scale, {
+    x: sx0,
+    y: sy0,
+    duration: inDur,
+    ease: opts.inEase ?? 'elastic.out(1, 0.6)'
+  }, `>${hold}`);
+
+  tl.to(board, {
+    x: x0,
+    y: y0,
+    duration: inDur,
+    ease: opts.inEase ?? 'elastic.out(1, 0.6)'
+  }, `>${hold}`);
+
+  board._wildZoomTl = tl;
+  return tl;
 }
 
 function wobble(t){ const x0=t.x;
@@ -67,6 +173,21 @@ export function merge(src, dst, helpers){
   const wildActive = (src.special === 'wild' || dst.special === 'wild');
   const wildTargetValue = wildActive ? ((src.special === 'wild') ? (dst.value|0) : (src.value|0)) : null;
   const effSum = wildActive ? 6 : sum;
+  
+  console.log('🔥 MERGE DEBUG:', { 
+    wildActive, 
+    srcSpecial: src.special, 
+    dstSpecial: dst.special,
+    srcValue: src.value,
+    dstValue: dst.value,
+    effSum 
+  });
+  
+  if (wildActive) {
+    console.log('🎯 WILD MERGE DETECTED! Should trigger enhanced effects...');
+  } else {
+    console.log('❌ NOT a wild merge - src.special:', src.special, 'dst.special:', dst.special);
+  }
 
   STATE.grid[src.gridY][src.gridX] = null;
   dst.eventMode = 'none';
@@ -74,6 +195,7 @@ export function merge(src, dst, helpers){
   // ---- 2..5: commit, score immediately, NO REFILL; fill wild meter
   if (effSum < 6){
     makeBoard.setValue(dst, effSum, srcDepth);
+    if (wildActive) clearWildState(dst);
     STATE.score += effSum; updateHUD();
 
     // meter + little bounce on score
@@ -81,7 +203,7 @@ export function merge(src, dst, helpers){
     const previous = STATE.wildMeter || 0;
     STATE.wildMeter = Math.max(0, previous + inc);
     const displayRatio = Math.min(1, STATE.wildMeter);
-    console.log('🔥 MERGE: Updating wild meter raw to:', STATE.wildMeter, 'display:', displayRatio);
+    console.log('🔥 MERGE: Updating wild meter raw to:', STATE.wildMeter, 'display:', displayRatio, 'inc:', inc);
     if (updateProgressBar) {
       updateProgressBar(displayRatio, true);
       console.log('✅ MERGE: updateProgressBar called successfully');
@@ -96,10 +218,51 @@ export function merge(src, dst, helpers){
         dst.eventMode = 'static';
         // Use enhanced wild impact effect if wild cube is involved
         if (wildActive) {
-          wildImpactEffect(dst);
-          smokeBubblesAtTile(STATE.board, dst, 120, 2.8);
+          console.log('💥 WILD MERGE (< 6): Applying enhanced effects');
+          const zoomTl = pulseBoardZoom(0.94, {
+            outDur: 0.08,
+            inDur: 0.20,
+            hold: 0.045,
+            outEase: 'sine.out',
+            inEase: 'elastic.out(1, 0.6)',
+            translateFactor: 0
+          });
+          try {
+            zoomTl?.call(() => {
+              screenShake(STATE.app, {
+                strength: 26,
+                duration: 0.34,
+                steps: 20,
+                ease: 'power2.out'
+              });
+            }, null, 0.02);
+          } catch {}
+
+          // Special visual effects ONLY for wild merges
+          glassCrackAtTile(STATE.board, dst, 160, 2.0);
+          innerFlashAtTile(STATE.board, dst, 160, 1.6);
+          woodShardsAtTile(STATE.board, dst, { enhanced: true, wild: true, intensity: 1.55, vanishDelay: 0.0, vanishJitter: 0.015 });
+          
+          // Enhanced impact and smoke
+          wildImpactEffect(dst, { squash: 0.34, stretch: 0.30, tilt: 0.22, bounce: 1.34 });
+          smokeBubblesAtTile(STATE.board, dst, 140, 5.0);
+          
+          console.log('✅ WILD MERGE (< 6): Enhanced effects applied successfully');
         } else {
+          console.log('📍 NORMAL MERGE (< 6): Applying basic effects');
           landBounce(dst);
+          // Only basic smoke for normal merges (no special effects)
+          const softSmokeStrength = 0.55 + Math.random() * 0.25;
+          smokeBubblesAtTile(STATE.board, dst, {
+            tileSize: TILE,
+            strength: softSmokeStrength,
+            behind: true,
+            sizeScale: 1.35,
+            distanceScale: 0.7,
+            countScale: 0.75,
+            haloScale: 1.1,
+            ttl: 0.9
+          });
         }
         STATE.moves++; updateHUD();
         
@@ -129,6 +292,7 @@ export function merge(src, dst, helpers){
     const avoidValue = Number.isFinite(wildTargetValue) ? wildTargetValue : null;
     dst._wildMergeTarget = avoidValue;
     makeBoard.setValue(dst, 6, 0);
+    if (wildActive) clearWildState(dst);
     dst.stackDepth = combined;
     makeBoard.drawStack(dst);
     dst.zIndex = 10000;
@@ -169,47 +333,58 @@ export function merge(src, dst, helpers){
 
         if (!willClean) {
           await landPreBounce(dst);
-          glassCrackAtTile(STATE.board, dst, 120 * 0.46);
-          innerFlashAtTile(STATE.board, dst, 120);
-          woodShardsAtTile(STATE.board, dst, true);
           showMultiplierTile(STATE.board, dst, mult, 120, 1.0);
           
-          // WILD EXPLOSION: slightly stronger (≈+20%) but gentle, erratic left-right bias
           if (wildActive) {
-            console.log('💥 WILD EXPLOSION: Triggering enhanced effects');
-            
-            // Enhanced glass crack for wild
-            glassCrackAtTile(STATE.board, dst, 120 * 0.8);
-            
-            // Enhanced inner flash for wild
-            innerFlashAtTile(STATE.board, dst, 180);
-            
-            // Enhanced wood shards for wild
-            woodShardsAtTile(STATE.board, dst, true);
-            
-            // Enhanced multiplier tile for wild
-            showMultiplierTile(STATE.board, dst, mult, 140, 1.2);
-            
+            console.log('WILD EXPLOSION (= 6): Triggering dramatic effects');
+            const zoomTl = pulseBoardZoom(0.942, {
+              outDur: 0.11,
+              inDur: 0.26,
+              hold: 0.07,
+              outEase: 'sine.out',
+              inEase: 'elastic.out(1, 0.55)',
+              translateFactor: 0
+            });
             try {
-              const base = Math.min(25, 12 + Math.max(1, mult) * 3);
-              screenShake(STATE.app, {
-                strength: base * 2.0,
-                duration: 0.75,
-                steps: 28,
-                ease: 'power2.out',
-                direction: (Math.random() - 0.5) * Math.PI,
-                yScale: 0.7,
-                scale: 0.065,
-              });
+              zoomTl?.call(() => {
+                const base = Math.min(28, 12 + Math.max(1, mult) * 4);
+                screenShake(STATE.app, {
+                  strength: base,
+                  duration: 0.34,
+                  steps: 22,
+                  ease: 'power2.out'
+                });
+              }, null, 0.02);
             } catch {}
-          
+
+            // WILD-ONLY special effects - glass, flash, shards
+            glassCrackAtTile(STATE.board, dst, 200, 2.6);        // stronger intensity
+            innerFlashAtTile(STATE.board, dst, 220, 2.2);        // brighter flash
+            
+            woodShardsAtTile(STATE.board, dst, { enhanced: true, wild: true, intensity: 1.8, vanishDelay: 0.0, vanishJitter: 0.02 });
+            woodShardsAtTile(STATE.board, dst, { enhanced: true, wild: true, intensity: 1.45, speed: 0.9, sizeBoost: 1.3, vanishDelay: 0.0, vanishJitter: 0.02 });
+
+            // Enhanced multiplier for wild
+            showMultiplierTile(STATE.board, dst, mult, 150, 1.6);
+
             // Additional smoke bubbles for wild explosion
-            smokeBubblesAtTile(STATE.board, dst, 120, 3.5);
+            smokeBubblesAtTile(STATE.board, dst, 140, 9.0);
             
           } else {
             // Normal merge 6 effects
-            smokeBubblesAtTile(STATE.board, dst, 120, 1.0);
-            try { screenShake(STATE.app, { strength: Math.min(25, 12 + Math.max(1, mult) * 3), duration: 0.4 }); } catch {}
+            const softSmokeStrength = 0.6 + Math.random() * 0.3;
+            smokeBubblesAtTile(STATE.board, dst, {
+              tileSize: TILE,
+              strength: softSmokeStrength,
+              behind: true,
+              sizeScale: 1.4,
+              distanceScale: 0.75,
+              countScale: 0.8,
+              haloScale: 1.15,
+              ttl: 1.0
+            });
+            try { screenShake(STATE.app, { strength: Math.min(24, 10 + Math.max(1, mult) * 3), duration: 0.34, steps: 18, ease: 'power2.out' }); } catch {}
+            woodShardsAtTile(STATE.board, dst, { intensity: 0.7, count: 12, spread: 1.1, size: 0.85, vanishDelay: 0.03, behind: true });
           }
         }
 
@@ -318,16 +493,16 @@ export function checkGameOver(){
   
   // CRITICAL FIX: Check for wild cube merges before game over
   const active = STATE.tiles.filter(t => t && !t.locked && t.value > 0);
-  const wildCubes = active.filter(t => t.special === 'wild');
-  const nonWildTiles = active.filter(t => t.special !== 'wild');
-  
-  console.log('🎯 Active tiles:', active.length, 'Wild cubes:', wildCubes.length, 'Non-wild tiles:', nonWildTiles.length);
-  
+  const activeWildCubes = active.filter(t => t.special === 'wild');
+  const activeNonWildTiles = active.filter(t => t.special !== 'wild');
+
+  console.log('🎯 Active tiles:', active.length, 'Wild cubes:', activeWildCubes.length, 'Non-wild tiles:', activeNonWildTiles.length);
+
   // EMERGENCY SAFETY: If we have wild cubes but no non-wild tiles, spawn some!
-  if (wildCubes.length > 0 && nonWildTiles.length === 0) {
+  if (activeWildCubes.length > 0 && activeNonWildTiles.length === 0) {
     console.log('🚨 EMERGENCY: Wild cubes exist but no non-wild tiles! Spawning emergency tiles...');
     // Spawn 2-3 emergency tiles to prevent wild cubes from getting stuck
-    const emergencyCount = Math.min(3, Math.max(2, wildCubes.length));
+    const emergencyCount = Math.min(3, Math.max(2, activeWildCubes.length));
     openEmpties(emergencyCount).then(() => {
       console.log('✅ Emergency tiles spawned, checking again...');
       checkGameOver(); // Check again after spawning

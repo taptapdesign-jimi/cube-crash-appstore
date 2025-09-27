@@ -3,6 +3,7 @@
 
 import { Rectangle } from 'pixi.js';
 import { initDrag } from './drag.js';
+import { GAP } from './constants.js';
 
 /**
  * Instalira drag na stage i vrati { drag, cleanup }.
@@ -51,6 +52,7 @@ export function installDrag({
   board,
   getTiles,
   tileSize: TILE,
+  tileGap: GAP,
   onMerge: merge,
   canDrop: canDrop ?? ((src, dst) => {
     console.log('🔥 canDrop check:', { src: src?.value, dst: dst?.value, locked: dst?.locked, srcSpecial: src?.special, dstSpecial: dst?.special });

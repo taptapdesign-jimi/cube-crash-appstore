@@ -14,7 +14,7 @@ import { STATE } from './app-state.js';
 
 import * as makeBoard from './board.js';
 import { installDrag } from './install-drag.js';
-import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, startWildIdle, stopWildIdle } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle } from './fx.js';
 import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
 import FX from './fx-helpers.js';
@@ -23,6 +23,7 @@ import * as HUD   from './hud-helpers.js';
 import { wild } from './hud-helpers.js';
 import * as FLOW  from './level-flow.js';
 import { openEmpties } from './app-spawn.js';
+import { clearWildState } from './app-merge.js';
 
 // HUD functions from hud-helpers.js
 
@@ -528,7 +529,8 @@ export function layout(){
   }
   
   // Gentle global nudge: move HUD and board 8px lower
-  const HUD_NUDGE_PX = 8;
+  const HUD_NUDGE_RATIO = -0.048; // raise HUD ≈ 24px more (scales with viewport height)
+  const HUD_NUDGE_PX = Math.round(vh * HUD_NUDGE_RATIO);
   const BOARD_NUDGE_PX = 8; // additional board-only nudge down (was 4)
   safeTop += HUD_NUDGE_PX;
   hudBottom += HUD_NUDGE_PX;
@@ -672,6 +674,65 @@ function drawBoardBG(mode = 'active+empty'){
   }
 }
 
+function pulseBoardZoom(factor = 0.92, opts = {}) {
+  if (!board) return;
+  try { board._wildZoomTl?.kill?.(); } catch {}
+
+  const { w: baseW, h: baseH } = boardSize();
+  const sx0 = board.scale?.x ?? 1;
+  const sy0 = board.scale?.y ?? 1;
+  const x0 = board.x ?? 0;
+  const y0 = board.y ?? 0;
+
+  const displayW = baseW * sx0;
+  const displayH = baseH * sy0;
+
+  const scaleFactor = Math.max(0.75, Math.min(0.99, factor));
+  const translateFactor = Math.max(0, Math.min(1, opts.translateFactor ?? 0.4));
+  const userOnComplete = typeof opts.onComplete === 'function' ? opts.onComplete : null;
+  const dx = ((displayW - displayW * scaleFactor) / 2) * translateFactor;
+  const dy = ((displayH - displayH * scaleFactor) / 2) * translateFactor;
+
+  const outDur = opts.outDur ?? 0.12;
+  const inDur  = opts.inDur  ?? 0.22;
+  const hold   = Math.max(0, opts.hold ?? 0.05);
+  const outEase = opts.outEase ?? 'power3.out';
+  const inEase  = opts.inEase  ?? 'elastic.out(1, 0.6)';
+
+  const tl = gsap.timeline({ onComplete: () => { board._wildZoomTl = null; try { userOnComplete?.(); } catch {} } });
+
+  tl.to(board.scale, {
+    x: sx0 * scaleFactor,
+    y: sy0 * scaleFactor,
+    duration: outDur,
+    ease: outEase
+  }, 0);
+
+  tl.to(board, {
+    x: x0 + dx,
+    y: y0 + dy,
+    duration: outDur,
+    ease: outEase
+  }, 0);
+
+  tl.to(board.scale, {
+    x: sx0,
+    y: sy0,
+    duration: inDur,
+    ease: inEase
+  }, `>${hold}`);
+
+  tl.to(board, {
+    x: x0,
+    y: y0,
+    duration: inDur,
+    ease: inEase
+  }, `>${hold}`);
+
+  board._wildZoomTl = tl;
+  return tl;
+}
+
 const updateHUD = () => {
   console.log('🎯 updateHUD called with:', { score, board: boardNumber, moves, combo });
   
@@ -752,10 +813,32 @@ function rebuildBoard(){
   });
 
   try { tiles.forEach(t => t.visible = false); } catch {}
+  drawBoardBG('active+empty');
   
   // Start animation immediately - NO WAITING
   console.log('🎯 Starting sweetPopIn from app.js with', tiles.length, 'tiles');
-  sweetPopIn(tiles, { onHalf: () => { if (_hudDropPending){ try { HUD.playHudDrop?.({}); } catch {} _hudDropPending = false; } } }); // Don't wait
+  sweetPopIn(tiles, {
+    onHalf: () => {
+      if (_hudDropPending){
+        try { HUD.playHudDrop?.({}); } catch {}
+        _hudDropPending = false;
+      }
+    }
+  }).then(() => {
+    try {
+      tiles.forEach(t => {
+        if (t?.ghostFrame) {
+          t.ghostFrame._suspended = false;
+          t.ghostFrame.visible = !t.locked;
+          if (t.locked) {
+            t.ghostFrame.visible = false;
+          }
+        }
+      });
+    } catch (err) {
+      console.warn('⚠️ Unable to finalize ghost placeholders after pop-in:', err);
+    }
+  });
   console.log('✅ sweetPopIn started immediately - no waiting');
   
 }
@@ -956,6 +1039,7 @@ function merge(src, dst, helpers){
   // ---- 2..5 (računaj combo i ovdje)
   if (effSum < 6){
     makeBoard.setValue(dst, effSum, srcDepth);
+    if (wildActive) clearWildState(dst);
     score = Math.min(SCORE_CAP, score + effSum); updateHUD();
     // Combo++ (bez realnog capa), bump anim
     hudSetCombo(combo + 1);
@@ -972,7 +1056,44 @@ function merge(src, dst, helpers){
       onComplete: async () => {
         removeTile(src);
         dst.eventMode = 'static';
-        FX.landBounce?.(dst);
+        if (wildActive) {
+          const zoomTl = pulseBoardZoom(0.94, {
+            outDur: 0.08,
+            inDur: 0.20,
+            hold: 0.045,
+            outEase: 'sine.out',
+            inEase: 'elastic.out(1, 0.6)',
+            translateFactor: 0
+          });
+          try {
+            zoomTl?.call(() => {
+              screenShake(app, {
+                strength: 26,
+                duration: 0.34,
+                steps: 20,
+                ease: 'power2.out'
+              });
+            }, null, 0.02);
+          } catch {}
+
+          glassCrackAtTile(board, dst, TILE * 1.3, 1.6);
+          woodShardsAtTile(board, dst, { enhanced: true, count: 26, intensity: 1.6, spread: 1.6, size: 1.4, speed: 0.9, vanishDelay: 0.0, vanishJitter: 0.015 });
+          wildImpactEffect(dst, { squash: 0.24, stretch: 0.20, tilt: 0.14, bounce: 1.18 });
+          smokeBubblesAtTile(board, dst, TILE * 1.2, 2.6);
+        } else {
+          FX.landBounce?.(dst);
+          const softSmokeStrength = 0.5 + Math.random() * 0.3;
+          smokeBubblesAtTile(board, dst, {
+            tileSize: TILE,
+            strength: softSmokeStrength,
+            behind: true,
+            sizeScale: 1.35,
+            distanceScale: 0.7,
+            countScale: 0.75,
+            haloScale: 1.1,
+            ttl: 0.9
+          });
+        }
 
         // countdown moves
         moves = Math.max(0, moves - 1);
@@ -991,6 +1112,7 @@ function merge(src, dst, helpers){
     const visualDepth   = Math.min(4, combinedCount);
 
     makeBoard.setValue(dst, 6, 0);
+    if (wildActive) clearWildState(dst);
     dst.stackDepth = visualDepth;
     makeBoard.drawStack(dst);
     dst.zIndex = 10000;
@@ -1010,34 +1132,58 @@ function merge(src, dst, helpers){
 
         // FX
         const wasWild = (src.special === 'wild' || dst.special === 'wild');
-        glassCrackAtTile(board, dst, TILE * (wasWild ? 0.60 : 0.50));
-        innerFlashAtTile(board, dst, TILE);
-        woodShardsAtTile(board, dst, true);
+        if (wasWild) {
+          const baseShake = Math.min(28, 12 + Math.max(1, mult) * 4);
+          const zoomTl = pulseBoardZoom(0.942, {
+            outDur: 0.11,
+            inDur: 0.26,
+            hold: 0.07,
+            outEase: 'sine.out',
+            inEase: 'elastic.out(1.0, 0.58)',
+            translateFactor: 0
+          });
+          try {
+            zoomTl?.call(() => {
+              screenShake(app, {
+                strength: baseShake,
+                duration: 0.34,
+                steps: 22,
+                ease: 'power2.out'
+              });
+            }, null, 0.02);
+          } catch {}
+          glassCrackAtTile(board, dst, TILE * 1.5, 2.0);
+          woodShardsAtTile(board, dst, { enhanced: true, count: 30, intensity: 1.9, spread: 1.8, size: 1.5, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });
+          wildImpactEffect(dst, { squash: 0.30, stretch: 0.26, tilt: 0.18, bounce: 1.24 });
+        } else {
+          const gentleSmokeStrength = 0.6 + Math.random() * 0.28;
+          smokeBubblesAtTile(board, dst, {
+            tileSize: TILE,
+            strength: gentleSmokeStrength,
+            behind: true,
+            sizeScale: 1.4,
+            distanceScale: 0.75,
+            countScale: 0.8,
+            haloScale: 1.15,
+            ttl: 1.0
+          });
+          woodShardsAtTile(board, dst, { intensity: 0.7, count: 12, spread: 1.1, size: 0.85, vanishDelay: 0.03, behind: true });
+        }
 
         // ► badge + pojačani “smoke/bubbles” + screen shake
-        showMultiplierTile(board, dst, mult, TILE, 1.0);
-        smokeBubblesAtTile(board, dst, TILE, 2); // strength 2 – veći burst
-        
-        // Gentle, erratic left-right shake for Wild merges (~20% stronger than normal)
-        try {
-          const base = Math.min(25, 12 + Math.max(1, mult) * 3);
-          if (wasWild) {
-            // 20% stronger, bias left-right (reduced vertical via yScale), not faster
-            screenShake(app, {
-              strength: base * 1.2,
-              duration: 0.45,
-              steps: 18,
-              ease: 'power2.out',
-              direction: 0,   // erratic per-step
-              yScale: 0.55,   // less vertical movement → more left-right feel
-              scale: 0.03,    // subtle global zoom
-            });
-          } else {
-            screenShake(app, { strength: base, duration: 0.4 });
-          }
-        } catch {}
+        if (wasWild) {
+          showMultiplierTile(board, dst, mult, TILE * 1.3, 1.2);
+          smokeBubblesAtTile(board, dst, TILE * 1.3, 3.0);
+        } else {
+          showMultiplierTile(board, dst, mult, TILE, 1.0);
+        }
 
-        if (wasWild){ woodShardsAtTile(board, dst, true); woodShardsAtTile(board, dst, true); }
+        if (!wasWild) {
+          try {
+            const base = Math.min(24, 10 + Math.max(1, mult) * 3);
+            screenShake(app, { strength: base, duration: 0.32, steps: 18, ease: 'power2.out' });
+          } catch {}
+        }
 
         // clean up dst slot
         const gx = dst.gridX, gy = dst.gridY;

@@ -5,8 +5,18 @@ import { Container, Graphics, Text, Texture, Sprite } from 'pixi.js';
 import { gsap } from 'gsap';
 
 /* ---------- tiny helpers ---------- */
-function autoAdd(parent, child, ttlSec = 0.8){
-  try { parent.addChild(child); } catch {}
+function autoAdd(parent, child, ttlSec = 0.8, options = {}){
+  const before = options?.before ?? null;
+  try {
+    if (before && before.parent === parent){
+      const idx = parent.getChildIndex(before);
+      parent.addChildAt(child, Math.max(0, idx));
+    } else {
+      parent.addChild(child);
+    }
+  } catch {
+    try { parent.addChild(child); } catch {}
+  }
   if (ttlSec > 0){
     gsap.delayedCall(ttlSec, () => {
       try { parent.removeChild(child); child.destroy?.({ children:true }); } catch {}
@@ -32,10 +42,122 @@ function centerInBoard(board, tile, tileSize = 96){
   };
 }
 
-/* ---------- guaranteed stubs so app.js named imports always resolve ---------- */
-export function glassCrackAtTile(){ /* noop (disabled effect) */ }
-export function woodShardsAtTile(){ /* noop (disabled effect) */ }
-export function innerFlashAtTile(){ /* noop (disabled effect) */ }
+/* ---------- Dramatic explosion effects for wild merges ---------- */
+export function glassCrackAtTile(board, tile, tileSize = 96, strength = 1){
+  if (!board || !tile) return;
+  const { x, y } = centerInBoard(board, tile, tileSize);
+  const layer = new Container();
+  layer.x = x; layer.y = y;
+  layer.zIndex = 9995;
+  autoAdd(board, layer, 1.2);
+  
+  // Create multiple crack lines radiating out
+  const crackCount = Math.round(8 + strength * 4);
+  const maxLength = tileSize * (0.8 + strength * 0.4);
+  
+  for (let i = 0; i < crackCount; i++) {
+    const angle = (i / crackCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+    const length = maxLength * (0.6 + Math.random() * 0.4);
+    
+    const crack = new Graphics();
+    crack.moveTo(0, 0)
+         .lineTo(Math.cos(angle) * length, Math.sin(angle) * length)
+         .stroke({ color: 0xFFFFFF, width: 2 + strength, alpha: 0.9 });
+    
+    crack.alpha = 0;
+    layer.addChild(crack);
+    
+    // Animate crack appearance
+    gsap.to(crack, { alpha: 0.9, duration: 0.1, delay: i * 0.01 });
+    gsap.to(crack, { alpha: 0, duration: 0.3, delay: 0.2 + i * 0.01 });
+  }
+}
+
+export function woodShardsAtTile(board, tile, opts = {}){
+  if (!board || !tile) return;
+
+  if (typeof opts === 'boolean') {
+    opts = opts ? { enhanced: true } : {};
+  }
+
+  const { x, y } = centerInBoard(board, tile, 96);
+  const layer = new Container();
+  layer.x = x; layer.y = y;
+  const tileZ = tile?.zIndex ?? 0;
+  const behind = opts.behind ?? false;
+  layer.zIndex = behind ? tileZ - 0.001 : 9993;
+  const ttl = opts.ttl ?? 1.6;
+  autoAdd(board, layer, ttl, behind ? { before: tile } : undefined);
+
+  const enhanced = opts.enhanced ?? !!opts.wild ?? false;
+  const intensity = opts.intensity ?? (enhanced ? 1.35 : 1.0);
+  const countBase = opts.count ?? (enhanced ? 18 : 12);
+  const shardCount = Math.max(6, Math.round(countBase * intensity));
+  const spread = opts.spread ?? (enhanced ? 1.4 : 1.0);
+  const minDistance = (opts.minDistance ?? 36) * spread;
+  const maxDistance = (opts.maxDistance ?? (enhanced ? 140 : 90)) * spread;
+  const sizeMul = (opts.size ?? opts.sizeBoost ?? (enhanced ? 1.3 : 1.0));
+  const speed = Math.max(0.2, opts.speed ?? 1.0);
+  const vanishDelay = opts.vanishDelay ?? 0;
+  const vanishJitter = opts.vanishJitter ?? 0.06;
+
+  for (let i = 0; i < shardCount; i++) {
+    const shard = new Graphics();
+    const base = 3 + Math.random() * 3;
+    const width = base * sizeMul;
+    const height = width * (1.6 + Math.random() * 0.8);
+    shard.rect(-width/2, -height/2, width, height)
+         .fill({ color: 0xD4A584, alpha: 0.92 });
+
+    const angle = Math.random() * Math.PI * 2;
+    const distance = minDistance + Math.random() * (maxDistance - minDistance);
+    const endX = Math.cos(angle) * distance;
+    const endY = Math.sin(angle) * distance;
+
+    shard.rotation = Math.random() * Math.PI;
+    layer.addChild(shard);
+
+    const travelDur = (0.42 + Math.random() * 0.18) * (1 / speed);
+    const spin = (Math.random() - 0.5) * Math.PI * 2 * intensity;
+
+    gsap.to(shard, {
+      x: endX,
+      y: endY,
+      rotation: shard.rotation + spin,
+      duration: travelDur,
+      ease: 'power3.out',
+      onComplete: () => {
+        gsap.delayedCall(vanishDelay + Math.random() * Math.max(0, vanishJitter), () => {
+          try {
+            layer.removeChild(shard);
+            shard.destroy();
+          } catch {}
+        });
+      }
+    });
+  }
+}
+
+export function innerFlashAtTile(board, tile, tileSize = 96, intensity = 1){
+  if (!board || !tile) return;
+  const { x, y } = centerInBoard(board, tile, tileSize);
+  const flash = new Graphics();
+  flash.x = x; flash.y = y;
+  flash.zIndex = 10001;
+  
+  const radius = tileSize * (0.6 + intensity * 0.2);
+  flash.circle(0, 0, radius)
+       .fill({ color: 0xFFFFFF, alpha: 0.9 });
+  
+  flash.alpha = 0;
+  flash.scale.set(0.2);
+  autoAdd(board, flash, 0.8);
+  
+  // Dramatic flash animation
+  gsap.to(flash, { alpha: 0.95, duration: 0.08, ease: 'power2.out' });
+  gsap.to(flash.scale, { x: 1.0, y: 1.0, duration: 0.12, ease: 'back.out(2)' });
+  gsap.to(flash, { alpha: 0, duration: 0.2, delay: 0.1, ease: 'power2.in' });
+}
 
 /* ---------- elastic settle when a tile lands/stack-places ---------- */
 // Bigger, juicier "boing" for stack placements.
@@ -132,30 +254,59 @@ export function showMultiplierTile(board, tile, mult = 2, tileSize = 96, life = 
 }
 
 /* ---------- “book‑thud” cartoony dust burst for merge‑6 ---------- */
-export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1){
-  const { x, y } = centerInBoard(board, tile, tileSize);
+export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, maybeOpts = null){
+  let options = {};
+  let size = tileSize ?? 96;
+  let power = strength ?? 1;
+
+  if (tileSize && typeof tileSize === 'object') {
+    options = { ...(tileSize ?? {}) };
+    size = options.tileSize ?? 96;
+    power = options.strength ?? options.power ?? 1;
+  } else if (strength && typeof strength === 'object') {
+    options = { ...(strength ?? {}) };
+    power = options.strength ?? options.power ?? 1;
+  } else if (maybeOpts && typeof maybeOpts === 'object') {
+    options = { ...(maybeOpts ?? {}) };
+  }
+
+  if (options.tileSize != null) size = options.tileSize;
+  if (options.strength != null) power = options.strength;
+
+  const behind         = options.behind ?? false;
+  const sizeScale      = options.sizeScale ?? 1;
+  const distanceScale  = options.distanceScale ?? 1;
+  const countScale     = options.countScale ?? 1;
+  const insetScale     = options.insetScale ?? 1;
+  const ttl            = options.ttl ?? 1.0;
+  const blendMode      = options.blendMode ?? 'add';
+  const bubbleAlpha    = options.baseAlpha ?? 1.0;
+  const startScaleHint = options.startScale ?? null;
+
+  const { x, y } = centerInBoard(board, tile, size);
   const layer = new Container();
   layer.x = x; layer.y = y;
-  layer.zIndex = 9990; // under multiplier badge
-  autoAdd(board, layer, 1.0); 
+  const tileZ = tile?.zIndex ?? 0;
+  layer.zIndex = behind ? tileZ - 0.001 : (options.zIndex ?? 9990);
+  autoAdd(board, layer, ttl, behind ? { before: tile } : undefined);
 
-  // fast clusters at edges → explode outward (kept short & punchy)
-  const COUNT      = Math.round((44 + Math.random()*14) * Math.max(1, strength)); // 44–58
-  const BASE_R     = Math.max(4, Math.round(tileSize * 0.034));
-  const MAX_R      = Math.max(12, Math.round(tileSize * 0.16));
-  const INSET      = tileSize * 0.02;             // spawn just inside the edge
-  const OUT_MIN    = tileSize * 0.15;             // closer outside the tile
-  const OUT_MAX    = tileSize * 0.34;             // reduced distance for closer burst
-  const BURSTS     = 5;                            // clustered emission
-  const BURST_GAP  = 0.035;                        // rapid-fire rhythm
+  const baseStrength = Math.max(0.4, power);
+  const COUNT     = Math.max(6, Math.round((44 + Math.random()*14) * baseStrength * countScale));
+  const BASE_R    = Math.max(4, Math.round(size * 0.034 * sizeScale));
+  const MAX_R     = Math.max(12, Math.round(size * 0.16 * sizeScale));
+  const INSET     = size * 0.02 * insetScale;
+  const OUT_MIN   = size * 0.15 * distanceScale;
+  const OUT_MAX   = size * 0.34 * distanceScale;
+  const BURSTS    = options.bursts ?? 5;
+  const BURST_GAP = options.burstGap ?? 0.035;
 
   const spawnOnSide = (side)=>{
-    const half = tileSize * 0.5;
-    const along = (Math.random()*(tileSize - INSET*2)) - (tileSize/2 - INSET);
-    if (side===0) return { sx: along,          sy: -half + INSET }; // top
-    if (side===1) return { sx: +half - INSET,  sy: along        }; // right 
-    if (side===2) return { sx: along,          sy: +half - INSET }; // bottom
-    return              { sx: -half + INSET,   sy: along        }; // left
+    const half = size * 0.5;
+    const along = (Math.random()*(size - INSET*2)) - (size/2 - INSET);
+    if (side===0) return { sx: along,        sy: -half + INSET }; // top
+    if (side===1) return { sx: +half - INSET, sy: along        }; // right
+    if (side===2) return { sx: along,        sy: +half - INSET }; // bottom
+    return              { sx: -half + INSET, sy: along        };   // left
   };
 
   for (let b=0; b<BURSTS; b++){
@@ -163,67 +314,61 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1){
     const perBurst   = Math.ceil(COUNT / BURSTS);
 
     for (let i=0; i<perBurst; i++){
-      const g = new Graphics();
+      const puff = new Graphics();
       let r0 = BASE_R + Math.random() * (MAX_R - BASE_R);
-      if (Math.random() < 0.22) r0 *= (1.35 + Math.random()*0.9); // a few oversized puffs
-      g.circle(0, 0, r0).fill({ color: 0xFFFFFF, alpha: 1.0 });
-      g.alpha = 0.0;
-      g.blendMode = 'add';
-      layer.addChild(g);
+      if (Math.random() < 0.22) r0 *= (1.35 + Math.random()*0.9);
+      puff.circle(0, 0, r0).fill({ color: 0xFFFFFF, alpha: bubbleAlpha });
+      puff.alpha = 0.0;
+      puff.blendMode = blendMode;
+      layer.addChild(puff);
 
       const side = (i + b) % 4;
       const { sx, sy } = spawnOnSide(side);
+      puff.x = sx; puff.y = sy;
 
-      g.x = sx; g.y = sy;
-
-      // spawn already fairly big (no wiggle), then move and vanish
-      const startScale = 0.65 + Math.random()*0.25;
-      g.scale.set(startScale);
-
-      // contained scatter: bias direction along the outward normal of the chosen edge,
-      // with a limited cone so it doesn’t look like fireworks
       const normals = [
-        { nx: 0,  ny: -1 }, // top    → up
-        { nx: 1,  ny:  0 }, // right  → right
-        { nx: 0,  ny:  1 }, // bottom → down
-        { nx: -1, ny:  0 }, // left   → left
+        { nx: 0,  ny: -1 },
+        { nx: 1,  ny:  0 },
+        { nx: 0,  ny:  1 },
+        { nx: -1, ny:  0 },
       ];
-      const { nx, ny } = normals[side]; 
+      const { nx, ny } = normals[side];
       const baseAngle = Math.atan2(ny, nx);
-      const SPREAD = 0.9; // ~50° cone
-      const theta = baseAngle + (Math.random() - 0.5) * SPREAD;
+      const spread = options.spread ?? 0.9;
+      const theta = baseAngle + (Math.random() - 0.5) * spread;
 
-      const distance = OUT_MIN + Math.random() * (OUT_MAX - OUT_MIN);
+      const distance = OUT_MIN + Math.random() * Math.max(0, OUT_MAX - OUT_MIN);
       const dx = sx + Math.cos(theta) * distance;
       const dy = sy + Math.sin(theta) * distance;
 
-      // small drift so it’s not perfectly radial
-      const driftX = (Math.random()-0.5) * (tileSize * 0.06);
-      const driftY = (Math.random()-0.5) * (tileSize * 0.06);
+      const driftX = (Math.random()-0.5) * (size * 0.06 * distanceScale);
+      const driftY = (Math.random()-0.5) * (size * 0.06 * distanceScale);
 
-      // timings: snappy spawn, short outward rush, tiny hold, quick vanish
-      const tIn   = 0.018 + Math.random()*0.022; // very quick in
-      const tRun  = 0.16  + Math.random()*0.12;  // quick outward push
-      const tHold = 0.02  + Math.random()*0.03;  // barely a breath
-      const tOut  = 0.08  + Math.random()*0.06;  // quick pop-out
+      const tIn   = 0.018 + Math.random()*0.022;
+      const tRun  = 0.16  + Math.random()*0.12;
+      const tHold = 0.02  + Math.random()*0.03;
+      const tOut  = 0.08  + Math.random()*0.06;
+
+      const startScale = startScaleHint != null ? startScaleHint : (0.65 + Math.random()*0.25) * Math.max(0.7, sizeScale);
+      puff.scale.set(startScale);
 
       const stg = burstDelay + Math.random()*0.018;
       const tl = gsap.timeline({
         defaults: { overwrite: false },
-        onComplete: ()=>{ try{ if(g && g.parent){ g.parent.removeChild(g); g.destroy(); } }catch{} }
+        onComplete: ()=>{ try{ if(puff && puff.parent){ puff.parent.removeChild(puff); puff.destroy(); } }catch{} }
       });
 
-      tl.to(g, { alpha: 0.95, duration: tIn, ease: 'power2.out' }, stg)
-        .to(g, { x: dx + driftX, y: dy + driftY, duration: tRun, ease: 'sine.out' }, `>${0}`)
-        .to(g, { alpha: 0.95, duration: tHold, ease: 'none' }, `>${0}`)
-        .to(g, { alpha: 0, duration: tOut, ease: 'power1.in' }, `>${0}`);
+      tl.to(puff, { alpha: 0.95, duration: tIn, ease: 'power2.out' }, stg)
+        .to(puff, { x: dx + driftX, y: dy + driftY, duration: tRun, ease: 'sine.out' }, `>${0}`)
+        .to(puff, { alpha: 0.95, duration: tHold, ease: 'none' }, `>${0}`)
+        .to(puff, { alpha: 0, duration: tOut, ease: 'power1.in' }, `>${0}`);
     }
   }
 
-  // subtle global halo under everything
   const halo = new Graphics();
-  const rr = tileSize * (0.22 + 0.05*strength); 
-  halo.circle(0, 0, rr).fill({ color: 0xFFFFFF, alpha: 0.10 });
+  const haloScale = options.haloScale ?? 1;
+  const rr = size * (0.22 + 0.05*baseStrength) * haloScale;
+  halo.circle(0, 0, rr).fill({ color: 0xFFFFFF, alpha: 0.10 * (options.haloAlpha ?? 1) });
   halo.alpha = 0;
   layer.addChildAt(halo, 0);
   gsap.to(halo, { alpha: 0.22, duration: 0.08, ease: 'power2.out' });
@@ -232,11 +377,13 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1){
   });
 }
 
-// Subtle screen shake for impactful events (e.g., merge-6)
+// Dramatic screen shake for impactful events (e.g., wild merge-6)
 export function screenShake(app, opts = {}){
   try {
     const target = app?.canvas || app?.view || null;
     if (!target) return;
+    console.log('💥 SCREEN SHAKE: Starting with strength:', opts.strength || 18);
+    
     const {
       duration = 0.35,
       strength = 18,   // px amplitude (pojačano)
@@ -246,6 +393,13 @@ export function screenShake(app, opts = {}){
       yScale    = 1.0, // scale vertical movement (e.g., 0.5 = more left-right bias)
       scale     = 0.0, // max extra zoom (e.g., 0.03 = +3% at peak)
     } = opts || {};
+    
+    // Log enhanced parameters for wild merges
+    if (strength > 30) {
+      console.log('🎆 ENHANCED SHAKE: Wild merge detected with enhanced parameters:', {
+        strength, duration, steps, yScale, scale
+      });
+    }
 
     // kill any ongoing shake
     try { gsap.killTweensOf(target); } catch {}
@@ -352,47 +506,50 @@ function createWildShimmer(tile) {
 // Enhanced wild cube impact effect - more organic and cute
 export function wildImpactEffect(tile, opts = {}) {
   if (!tile) return;
+  console.log('💥 WILD IMPACT: Starting enhanced wild impact effect');
   
   const g = tile.rotG || tile;
   const sx = g.scale?.x || 1;
   const sy = g.scale?.y || 1;
   
-  // More organic parameters
-  const squash = opts.squash ?? 0.15;      // More pronounced squash
-  const stretch = opts.stretch ?? 0.12;    // Gentle stretch
-  const tilt = opts.tilt ?? 0.08;          // Cute tilt
-  const bounce = opts.bounce ?? 1.08;      // Cute bounce
+  // Enhanced parameters for wild cubes
+  const squash = opts.squash ?? 0.22;      // More dramatic squash
+  const stretch = opts.stretch ?? 0.18;    // More dramatic stretch
+  const tilt = opts.tilt ?? 0.12;          // More dramatic tilt
+  const bounce = opts.bounce ?? 1.15;      // More dramatic bounce
   
   try { gsap.killTweensOf(g.scale); gsap.killTweensOf(g.rotation); } catch {}
   
-  // 1) Cute pre-impact anticipation (slight shrink + tilt)
+  // 1) Dramatic pre-impact anticipation (bigger shrink + tilt)
   gsap.set(g, { rotation: 0 });
   gsap.fromTo(g.scale, 
-    { x: sx * 0.95, y: sy * 0.95 },
-    { x: sx * (1 + squash), y: sy * (1 - stretch), duration: 0.06, ease: 'power2.out' }
+    { x: sx * 0.88, y: sy * 0.88 },
+    { x: sx * (1 + squash), y: sy * (1 - stretch), duration: 0.08, ease: 'power2.out' }
   );
   
-  // 2) Organic bounce with cute overshoot
+  // 2) Dramatic bounce with bigger overshoot
   gsap.to(g.scale, 
-    { x: sx * bounce, y: sy * bounce, duration: 0.16, ease: 'back.out(2.5)' }, 
-    0.06
+    { x: sx * bounce, y: sy * bounce, duration: 0.20, ease: 'back.out(3.0)' }, 
+    0.08
   );
   
-  // 3) Gentle settle with secondary bounce
+  // 3) More dramatic settle with bigger secondary bounce
   gsap.to(g.scale, 
-    { x: sx * 0.98, y: sy * 1.02, duration: 0.12, ease: 'power2.out' }, 
-    0.22
+    { x: sx * 0.96, y: sy * 1.04, duration: 0.15, ease: 'power2.out' }, 
+    0.28
   );
   gsap.to(g.scale, 
-    { x: sx, y: sy, duration: 0.18, ease: 'elastic.out(1, 0.8)' }, 
-    0.34
+    { x: sx, y: sy, duration: 0.22, ease: 'elastic.out(1, 0.7)' }, 
+    0.43
   );
   
-  // 4) Cute tilt wiggle sequence
-  gsap.to(g, { rotation: tilt, duration: 0.08, ease: 'sine.out' }, 0.08);
-  gsap.to(g, { rotation: -tilt * 0.6, duration: 0.10, ease: 'sine.inOut' }, 0.16);
-  gsap.to(g, { rotation: tilt * 0.3, duration: 0.12, ease: 'sine.inOut' }, 0.26);
-  gsap.to(g, { rotation: 0, duration: 0.14, ease: 'back.out(1.8)' }, 0.38);
+  // 4) More dramatic tilt wiggle sequence
+  gsap.to(g, { rotation: tilt, duration: 0.10, ease: 'sine.out' }, 0.10);
+  gsap.to(g, { rotation: -tilt * 0.8, duration: 0.12, ease: 'sine.inOut' }, 0.20);
+  gsap.to(g, { rotation: tilt * 0.5, duration: 0.14, ease: 'sine.inOut' }, 0.32);
+  gsap.to(g, { rotation: 0, duration: 0.18, ease: 'back.out(2.2)' }, 0.46);
+  
+  console.log('✅ WILD IMPACT: Enhanced effect applied successfully');
 }
 
 export function startWildIdle(tile, opts = {}){

@@ -50,9 +50,20 @@ let pendingStatsPopNodes = [];
 const SLIDER_SNAP_TRANSITION = 'transform 0.36s cubic-bezier(0.45, 0.05, 0.2, 0.95)';
 const PARALLAX_FACTOR = 0.7;
 const PARALLAX_DRAG_FACTOR = 0.6;
+const PARALLAX_SCALE = 0.85; // reduce background zoom a touch so it feels farther away
 const PARALLAX_SNAP_DURATION = 0.3;
 const PARALLAX_EASE = 'power2.out';
 const PARALLAX_OVERFLOW = 800; // Allow parallax to extend beyond screen edges for smooth movement
+const PARALLAX_IDLE_AMPLITUDE = 28; // how far the idle sway can travel left/right
+const PARALLAX_IDLE_SPEED = 0.00035; // speed multiplier for idle sway (ms based)
+const PARALLAX_ENABLED = false; // disable interactive parallax (use simple drifting background)
+
+const BG_DRIFT_DISTANCE = -120; // px
+const BG_DRIFT_DURATION = 5;    // seconds
+const BG_DRIFT_EASE_OUT = 'sine.in';
+const BG_RETURN_EASE = 'sine.out';
+
+let bgTween = null;
 let currentParallaxX = 0; // track current parallax position
 let parallaxDragStartX = 0; // starting parallax position at touchstart
 const PARALLAX_SMOOTH = 0.15; // smoothing factor for parallax follow (0..1)
@@ -65,9 +76,9 @@ function __clampParallax(x){
 }
 
 function applyParallaxTransform(image, value){
-  if (!image) return 0;
+  if (!PARALLAX_ENABLED || !image) return 0;
   const clamped = __clampParallax(value);
-  const transform = `translate3d(${clamped}px, 0, 0) scale(${PARALLAX_SCALE})`;
+  const transform = `translate(-50%, -50%) translate3d(${clamped}px, 0, 0) scale(${PARALLAX_SCALE})`;
   if (image.style.transform !== transform) {
     image.style.transform = transform;
   }
@@ -75,20 +86,19 @@ function applyParallaxTransform(image, value){
 }
 
 function ensureParallaxLoop(sliderParallaxImage){
+  if (!PARALLAX_ENABLED || !sliderParallaxImage) return;
   if (parallaxRafId) return;
   const step = () => {
-    const dx = parallaxTargetX - parallaxCurrentX;
+    const now = performance.now ? performance.now() : Date.now();
+    const idleOffset = isDragging ? 0 : Math.sin(now * PARALLAX_IDLE_SPEED) * PARALLAX_IDLE_AMPLITUDE;
+    const desired = __clampParallax(parallaxTargetX + idleOffset);
+    const dx = desired - parallaxCurrentX;
     if (Math.abs(dx) > 0.05) {
       parallaxCurrentX += dx * PARALLAX_SMOOTH;
     } else {
-      parallaxCurrentX = parallaxTargetX;
+      parallaxCurrentX = desired;
     }
-    const clamped = applyParallaxTransform(sliderParallaxImage, parallaxCurrentX);
-    currentParallaxX = clamped;
-    if (!isDragging && Math.abs(parallaxTargetX - parallaxCurrentX) <= 0.05) {
-      parallaxRafId = 0;
-      return;
-    }
+    currentParallaxX = applyParallaxTransform(sliderParallaxImage, parallaxCurrentX);
     parallaxRafId = requestAnimationFrame(step);
   };
   parallaxRafId = requestAnimationFrame(step);
@@ -117,22 +127,45 @@ function ensureParallaxLoop(sliderParallaxImage){
     // Reduce parallax image zoom by 50% and keep transform origin centered
     try {
       if (sliderParallaxImage) {
-        sliderParallaxImage.style.transformOrigin = '0 50%';
-        sliderParallaxImage.style.left = '0';
-        applyParallaxTransform(sliderParallaxImage, 0);
-        currentParallaxX = 0;
-        parallaxCurrentX = 0;
-        parallaxTargetX = 0;
+        if (PARALLAX_ENABLED) {
+          sliderParallaxImage.style.transformOrigin = '50% 50%';
+          sliderParallaxImage.style.left = '50%';
+          sliderParallaxImage.style.top = '50%';
+          applyParallaxTransform(sliderParallaxImage, 0);
+          currentParallaxX = 0;
+          parallaxCurrentX = 0;
+          parallaxTargetX = 0;
+          ensureParallaxLoop(sliderParallaxImage);
+        } else {
+          sliderParallaxImage.style.transform = '';
+          sliderParallaxImage.style.left = '0';
+          sliderParallaxImage.style.top = '-60vh';
+          sliderParallaxImage.style.transform = 'translateX(0px)';
+        }
       }
     } catch {}
 
     const setParallax = (targetX, { animated = true } = {}) => {
-      if (!sliderParallaxImage) return;
-      const clampedX = Math.max(-PARALLAX_OVERFLOW, Math.min(PARALLAX_OVERFLOW, targetX));
-      currentParallaxX = clampedX;
+      if (!PARALLAX_ENABLED || !sliderParallaxImage) return;
+      const clampedX = __clampParallax(targetX);
       parallaxTargetX = clampedX;
-      parallaxCurrentX = clampedX;
+      if (!isDragging) {
+        parallaxCurrentX = clampedX;
+      }
       applyParallaxTransform(sliderParallaxImage, clampedX);
+      ensureParallaxLoop(sliderParallaxImage);
+    };
+
+    const driftBackground = (towardsLeft = true) => {
+      if (!sliderParallaxImage) return;
+      try { bgTween?.kill?.(); } catch {}
+      const targetX = towardsLeft ? BG_DRIFT_DISTANCE : 0;
+      bgTween = gsap.to(sliderParallaxImage, {
+        x: targetX,
+        duration: BG_DRIFT_DURATION,
+        ease: towardsLeft ? BG_DRIFT_EASE_OUT : BG_RETURN_EASE,
+        overwrite: true
+      });
     };
     const slides = document.querySelectorAll('.slider-slide');
     const dots = document.querySelectorAll('.slider-dot');
@@ -230,16 +263,13 @@ function ensureParallaxLoop(sliderParallaxImage){
         const transition = currentSlideTransition || SLIDER_SNAP_TRANSITION;
         sliderWrapper.style.transition = transition;
         sliderWrapper.style.transform = `translateX(${translateX}px)`;
-        const parallaxX = translateX * PARALLAX_FACTOR;
-        if (sliderParallaxImage) {
-          gsap.to(sliderParallaxImage, {
-            x: Math.max(-PARALLAX_OVERFLOW, Math.min(PARALLAX_OVERFLOW, parallaxX)),
-            duration: PARALLAX_SNAP_DURATION,
-            ease: PARALLAX_EASE,
-            overwrite: true,
-            force3D: true,
-            immediateRender: false,
-          });
+        if (PARALLAX_ENABLED && sliderParallaxImage) {
+          const parallaxX = __clampParallax(translateX * PARALLAX_FACTOR);
+          parallaxTargetX = parallaxX;
+          if (!isDragging) {
+            parallaxCurrentX = parallaxX;
+          }
+          ensureParallaxLoop(sliderParallaxImage);
         }
         console.log(`🎯 Slider update: slide ${currentSlide}, translateX: ${translateX}px`);
         // Clear custom transition after applying
@@ -927,15 +957,18 @@ function ensureParallaxLoop(sliderParallaxImage){
       touchStartTime = Date.now();
       hasMoved = false;
       // capture current parallax offset as base for independent movement
-      parallaxDragStartX = currentParallaxX || 0;
-      parallaxCurrentX = currentParallaxX || 0;
-      parallaxTargetX = parallaxDragStartX;
-      ensureParallaxLoop(sliderParallaxImage);
+      if (PARALLAX_ENABLED) {
+        parallaxDragStartX = currentParallaxX || 0;
+        parallaxCurrentX = currentParallaxX || 0;
+        parallaxTargetX = parallaxDragStartX;
+        ensureParallaxLoop(sliderParallaxImage);
+      }
       
       if (sliderWrapper) {
         sliderWrapper.style.transition = 'none';
         if (sliderParallaxImage) sliderParallaxImage.style.transition = 'none';
       }
+      driftBackground(true);
       
       console.log('🎯 Slider drag start');
     }
@@ -967,10 +1000,11 @@ function ensureParallaxLoop(sliderParallaxImage){
           else dampedDiff = Math.max(dampedDiff, -maxOffset);
         }
         sliderWrapper.style.transform = `translateX(${baseTranslateX + dampedDiff}px)`;
-        const parallaxX = (baseTranslateX + dampedDiff) * PARALLAX_DRAG_FACTOR;
-        if (sliderParallaxImage) {
-          const clampedX = Math.max(-PARALLAX_OVERFLOW, Math.min(PARALLAX_OVERFLOW, parallaxX));
-          sliderParallaxImage.style.transform = `translate3d(${clampedX}px, 0, 0)`;
+        if (PARALLAX_ENABLED && sliderParallaxImage) {
+          const parallaxX = __clampParallax((baseTranslateX + dampedDiff) * PARALLAX_DRAG_FACTOR);
+          parallaxTargetX = parallaxX;
+          parallaxCurrentX = parallaxX;
+          applyParallaxTransform(sliderParallaxImage, parallaxX);
         }
       }
     }
@@ -982,6 +1016,7 @@ function ensureParallaxLoop(sliderParallaxImage){
       if (statsScreen && !statsScreen.hidden) return;
       
       isDragging = false;
+      driftBackground(false);
       
       const diff = currentX - startX;
       const threshold = window.innerWidth * 0.13; // a bit easier to advance
