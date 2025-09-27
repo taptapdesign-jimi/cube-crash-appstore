@@ -1057,23 +1057,13 @@ function merge(src, dst, helpers){
         removeTile(src);
         dst.eventMode = 'static';
         if (wildActive) {
-          const zoomTl = pulseBoardZoom(0.94, {
-            outDur: 0.08,
-            inDur: 0.20,
-            hold: 0.045,
-            outEase: 'sine.out',
-            inEase: 'elastic.out(1, 0.6)',
-            translateFactor: 0
-          });
           try {
-            zoomTl?.call(() => {
-              screenShake(app, {
-                strength: 26,
-                duration: 0.34,
-                steps: 20,
-                ease: 'power2.out'
-              });
-            }, null, 0.02);
+            screenShake(app, {
+              strength: 26,
+              duration: 0.36,
+              steps: 26,
+              ease: 'sine.inOut'
+            });
           } catch {}
 
           glassCrackAtTile(board, dst, TILE * 1.3, 1.6);
@@ -1134,23 +1124,13 @@ function merge(src, dst, helpers){
         const wasWild = wildActive;
         if (wasWild) {
           const baseShake = Math.min(28, 12 + Math.max(1, mult) * 4);
-          const zoomTl = pulseBoardZoom(0.942, {
-            outDur: 0.11,
-            inDur: 0.26,
-            hold: 0.07,
-            outEase: 'sine.out',
-            inEase: 'elastic.out(1.0, 0.58)',
-            translateFactor: 0
-          });
           try {
-            zoomTl?.call(() => {
-              screenShake(app, {
-                strength: baseShake,
-                duration: 0.34,
-                steps: 22,
-                ease: 'power2.out'
-              });
-            }, null, 0.02);
+            screenShake(app, {
+              strength: baseShake,
+              duration: 0.36,
+              steps: 28,
+              ease: 'sine.inOut'
+            });
           } catch {}
           glassCrackAtTile(board, dst, TILE * 1.5, 2.0);
           woodShardsAtTile(board, dst, { enhanced: true, count: 30, intensity: 1.9, spread: 1.8, size: 1.5, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });

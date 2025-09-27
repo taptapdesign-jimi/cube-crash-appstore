@@ -219,23 +219,13 @@ export function merge(src, dst, helpers){
         // Use enhanced wild impact effect if wild cube is involved
         if (wildActive) {
           console.log('💥 WILD MERGE (< 6): Applying enhanced effects');
-          const zoomTl = pulseBoardZoom(0.94, {
-            outDur: 0.08,
-            inDur: 0.20,
-            hold: 0.045,
-            outEase: 'sine.out',
-            inEase: 'elastic.out(1, 0.6)',
-            translateFactor: 0
-          });
           try {
-            zoomTl?.call(() => {
-              screenShake(STATE.app, {
-                strength: 26,
-                duration: 0.34,
-                steps: 20,
-                ease: 'power2.out'
-              });
-            }, null, 0.02);
+            screenShake(STATE.app, {
+              strength: 26,
+              duration: 0.36,
+              steps: 26,
+              ease: 'sine.inOut'
+            });
           } catch {}
 
           // Special visual effects ONLY for wild merges
@@ -337,24 +327,14 @@ export function merge(src, dst, helpers){
           
           if (wildActive) {
             console.log('WILD EXPLOSION (= 6): Triggering dramatic effects');
-            const zoomTl = pulseBoardZoom(0.942, {
-              outDur: 0.11,
-              inDur: 0.26,
-              hold: 0.07,
-              outEase: 'sine.out',
-              inEase: 'elastic.out(1, 0.55)',
-              translateFactor: 0
-            });
+            const base = Math.min(28, 12 + Math.max(1, mult) * 4);
             try {
-              zoomTl?.call(() => {
-                const base = Math.min(28, 12 + Math.max(1, mult) * 4);
-                screenShake(STATE.app, {
-                  strength: base,
-                  duration: 0.34,
-                  steps: 22,
-                  ease: 'power2.out'
-                });
-              }, null, 0.02);
+              screenShake(STATE.app, {
+                strength: base,
+                duration: 0.36,
+                steps: 28,
+                ease: 'sine.inOut'
+              });
             } catch {}
 
             // WILD-ONLY special effects - glass, flash, shards
