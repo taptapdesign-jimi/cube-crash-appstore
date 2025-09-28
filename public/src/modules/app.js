@@ -1430,7 +1430,10 @@ async function showFinalScreen(){
   let result = null;
   try {
     const { showBoardFailModal } = await import('./board-fail-modal.js');
-    result = await showBoardFailModal();
+    result = await showBoardFailModal({
+      score: Math.max(0, score | 0),
+      boardNumber: Math.max(1, boardNumber | 0)
+    });
   } catch (error) {
     console.error('⚠️ Board fail modal failed, falling back to stars modal:', error);
     try {
