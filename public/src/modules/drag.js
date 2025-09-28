@@ -7,6 +7,7 @@
 
 import { Graphics, Container, Sprite, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
+import { magicSparklesAtTile } from './fx.js';
 
 // --- Inercijski tilt parametri (nagib SUPROTNO od smjera + lag) ---------------
 const TILT_MAX_RAD = 0.22;   // maksimalna rotacija (~12.6°)
@@ -191,6 +192,33 @@ export function initDrag(cfg) {
 
     gsap.to(t.scale, { x: 1.12, y: 1.12, duration: 0.08 });
 
+    // Start sparkles immediately when wild cube is picked up
+    if (t.special === 'wild') {
+      try {
+        magicSparklesAtTile(board, t, { intensity: 1.0 });
+        drag._lastSparkleTime = drag.lastTime;
+        
+        // Start continuous sparkles interval
+        drag._sparkleInterval = setInterval(() => {
+          if (drag.t && drag.t.special === 'wild' && !drag.t.destroyed) {
+            try {
+              magicSparklesAtTile(board, drag.t, { intensity: 1.0 });
+            } catch (err) {
+              console.warn('Wild interval sparkles error:', err);
+            }
+          } else {
+            // Clear interval if tile is no longer being dragged
+            if (drag._sparkleInterval) {
+              clearInterval(drag._sparkleInterval);
+              drag._sparkleInterval = null;
+            }
+          }
+        }, 150); // Every 150ms
+      } catch (err) {
+        console.warn('Wild pickup sparkles error:', err);
+      }
+    }
+
     app.stage.on('pointermove', onMove);
     app.stage.on('pointerup', onUp);
     app.stage.on('pointerupoutside', onUp);
@@ -244,6 +272,23 @@ export function initDrag(cfg) {
       t.position.set(px, py);
     }
 
+    // Wild cube sparkles effect - continuous when selected (picked up)
+    if (t.special === 'wild') {
+      // Store velocity for sparkles direction
+      t._lastVelX = drag.vx;
+      t._lastVelY = drag.vy;
+      
+      // Continuous sparkles when wild cube is picked up (whether moving or not)
+      if (!drag._lastSparkleTime || (now - drag._lastSparkleTime) > 150) { // Every 150ms for continuous effect
+        try {
+          magicSparklesAtTile(board, t, { intensity: 1.0 });
+          drag._lastSparkleTime = now;
+        } catch (err) {
+          console.warn('Wild sparkles error:', err);
+        }
+      }
+    }
+
     // 🔧 SHADOW PATCH: refresh bez gubitka alpha
     if (t.refreshShadow && t.shadow) {
       const __a = t.shadow.alpha;
@@ -266,6 +311,15 @@ export function initDrag(cfg) {
 
     const t = drag.t;
     drag.t = null;
+    
+    // Clear sparkle timer and interval when drag ends
+    if (drag._lastSparkleTime) {
+      drag._lastSparkleTime = null;
+    }
+    if (drag._sparkleInterval) {
+      clearInterval(drag._sparkleInterval);
+      drag._sparkleInterval = null;
+    }
     // nothing to clean up for ghost (boardBG provides placeholders)
 
     // vrati tilt u nulu s istim “delay” feelom

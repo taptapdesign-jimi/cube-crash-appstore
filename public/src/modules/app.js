@@ -1067,7 +1067,7 @@ function merge(src, dst, helpers){
           } catch {}
 
           glassCrackAtTile(board, dst, TILE * 1.3, 1.6);
-          woodShardsAtTile(board, dst, { enhanced: true, count: 26, intensity: 1.6, spread: 1.6, size: 1.4, speed: 0.9, vanishDelay: 0.0, vanishJitter: 0.015 });
+          woodShardsAtTile(board, dst, { enhanced: true, wild: true, count: 26, intensity: 1.6, spread: 1.6, size: 1.4, speed: 0.9, vanishDelay: 0.0, vanishJitter: 0.015 });
           wildImpactEffect(dst, { squash: 0.24, stretch: 0.20, tilt: 0.14, bounce: 1.18 });
           smokeBubblesAtTile(board, dst, TILE * 1.2, 2.6);
         } else {
@@ -1133,7 +1133,7 @@ function merge(src, dst, helpers){
             });
           } catch {}
           glassCrackAtTile(board, dst, TILE * 1.5, 2.0);
-          woodShardsAtTile(board, dst, { enhanced: true, count: 30, intensity: 1.9, spread: 1.8, size: 1.5, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });
+          woodShardsAtTile(board, dst, { enhanced: true, wild: true, count: 30, intensity: 1.9, spread: 1.8, size: 1.5, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });
           wildImpactEffect(dst, { squash: 0.30, stretch: 0.26, tilt: 0.18, bounce: 1.24 });
         } else {
           const gentleSmokeStrength = 0.6 + Math.random() * 0.28;
@@ -1147,10 +1147,11 @@ function merge(src, dst, helpers){
             haloScale: 1.15,
             ttl: 1.0
           });
-          woodShardsAtTile(board, dst, { intensity: 0.7, count: 12, spread: 1.1, size: 0.85, vanishDelay: 0.03, behind: true });
+          // Wooden shards for merge 6 (40% reduced)
+          woodShardsAtTile(board, dst, { enhanced: true, wild: true, count: 18, intensity: 1.9, spread: 1.08, size: 0.9, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });
         }
 
-        // ► badge + pojačani “smoke/bubbles” + screen shake
+        // ► badge + pojačani "smoke/bubbles" + screen shake
         if (wasWild) {
           showMultiplierTile(board, dst, mult, TILE * 1.3, 1.2);
           smokeBubblesAtTile(board, dst, TILE * 1.3, 3.0);

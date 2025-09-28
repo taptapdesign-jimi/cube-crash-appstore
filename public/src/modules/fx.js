@@ -50,26 +50,182 @@ export function glassCrackAtTile(board, tile, tileSize = 96, strength = 1){
   layer.x = x; layer.y = y;
   layer.zIndex = 9995;
   autoAdd(board, layer, 1.2);
-  
-  // Create multiple crack lines radiating out
-  const crackCount = Math.round(8 + strength * 4);
-  const maxLength = tileSize * (0.8 + strength * 0.4);
-  
+
+  // Create multiple crack lines radiating out - reduced by 50%
+  const crackCount = Math.round((8 + strength * 4) * 0.5); // 50% reduction
+  const maxLength = tileSize * (0.8 + strength * 0.4) * 0.5; // 50% reduction
+
   for (let i = 0; i < crackCount; i++) {
     const angle = (i / crackCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
     const length = maxLength * (0.6 + Math.random() * 0.4);
-    
+
     const crack = new Graphics();
     crack.moveTo(0, 0)
          .lineTo(Math.cos(angle) * length, Math.sin(angle) * length)
-         .stroke({ color: 0xFFFFFF, width: 2 + strength, alpha: 0.9 });
-    
+         .stroke({ color: 0xFFFFFF, width: (2 + strength) * 0.5, alpha: 0.9 }); // 50% thinner
+
     crack.alpha = 0;
     layer.addChild(crack);
-    
+
     // Animate crack appearance
     gsap.to(crack, { alpha: 0.9, duration: 0.1, delay: i * 0.01 });
     gsap.to(crack, { alpha: 0, duration: 0.3, delay: 0.2 + i * 0.01 });
+  }
+}
+
+export function magicSparklesAtTile(board, tile, opts = {}){
+  if (!board || !tile) return;
+
+  const { x, y } = centerInBoard(board, tile, 96);
+  const layer = new Container();
+  layer.x = x; layer.y = y;
+  const tileZ = tile?.zIndex ?? 0;
+  layer.zIndex = tileZ - 0.001; // Behind the wild cube
+
+  const ttl = opts.ttl ?? 1.0;
+  autoAdd(board, layer, ttl);
+  try { board.sortChildren?.(); } catch {}
+  
+  const intensity = opts.intensity ?? 1.0;
+  const sparkleCount = Math.max(3, Math.round(4 * intensity)); // 70% reduction (was 8-14, now 3-4)
+  const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
+  
+  // Get movement direction from tile if available
+  const velocityX = tile._lastVelX || 0;
+  const velocityY = tile._lastVelY || 0;
+  const movementAngle = Math.atan2(velocityY, velocityX);
+
+  for (let i = 0; i < sparkleCount; i++) {
+    const sparkle = new Graphics();
+    const size = 2 + Math.random() * 3; // Slightly larger sparkles
+    
+    // Yellow sparkle colors: FEE524, FDF035, FDD915
+    const colors = [0xFEE524, 0xFDF035, 0xFDD915]; // Bright yellow, Golden yellow, Orange yellow
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    
+    // Create different shapes instead of just circles
+    const shapeType = Math.floor(Math.random() * 4);
+    const alpha = 1.0; // Full opacity (100%)
+    
+    switch (shapeType) {
+      case 0: // Star shape
+        const starPoints = [];
+        for (let j = 0; j < 5; j++) {
+          const angle = (j / 5) * Math.PI * 2;
+          const outerRadius = size;
+          const innerRadius = size * 0.4;
+          starPoints.push(Math.cos(angle) * outerRadius, Math.sin(angle) * outerRadius);
+          starPoints.push(Math.cos(angle + Math.PI / 5) * innerRadius, Math.sin(angle + Math.PI / 5) * innerRadius);
+        }
+        sparkle.drawPolygon(starPoints).fill({ color: color, alpha: alpha });
+        break;
+        
+      case 1: // Diamond shape
+        sparkle.drawPolygon([
+          -size, 0,
+          0, -size,
+          size, 0,
+          0, size
+        ]).fill({ color: color, alpha: alpha });
+        break;
+        
+      case 2: // Triangle shape
+        sparkle.drawPolygon([
+          0, -size,
+          -size * 0.866, size * 0.5,
+          size * 0.866, size * 0.5
+        ]).fill({ color: color, alpha: alpha });
+        break;
+        
+      case 3: // Square shape
+        sparkle.rect(-size/2, -size/2, size, size).fill({ color: color, alpha: alpha });
+        break;
+    }
+    
+        // Add smaller glow with full opacity
+        sparkle.circle(0, 0, size * 2.5)
+               .fill({ color: color, alpha: 0.5 }); // Glow opacity restored
+    
+    // Position scattered around the cube - 40% further from previous distance
+    let angle;
+    if (Math.abs(velocityX) > 0.1 || Math.abs(velocityY) > 0.1) {
+      // Follow movement direction with some spread
+      angle = movementAngle + (Math.random() - 0.5) * Math.PI * 0.8; // ±72 degrees from movement
+    } else {
+      // Random around the cube if no movement
+      angle = Math.random() * Math.PI * 2;
+    }
+    
+    // Position around the cube perimeter - 40% further from previous distance
+    const radius = baseTile * (0.63 + Math.random() * 0.84); // 40% further (63-147% of tile size)
+    const startX = Math.cos(angle) * radius; // Start around the cube
+    const startY = Math.sin(angle) * radius;
+    const endX = Math.cos(angle) * radius * (0.9 + Math.random() * 0.2); // Move slightly outward
+    const endY = Math.sin(angle) * radius * (0.9 + Math.random() * 0.2);
+    
+    sparkle.x = startX;
+    sparkle.y = startY;
+    layer.addChild(sparkle);
+
+    // Slower movement with trail effect - less nervous animation
+    const moveDuration = 0.7 + Math.random() * 0.5; // Slower movement
+    const delay = Math.random() * 0.2; // Slower spawn
+    
+    setTimeout(() => {
+      if (sparkle && sparkle.parent) {
+        try {
+          // Move to end position
+          sparkle.x = endX;
+          sparkle.y = endY;
+          
+          // Trail effect - slower fade gradually
+          setTimeout(() => {
+            if (sparkle && sparkle.parent) {
+              sparkle.alpha = 0.5;
+            }
+          }, moveDuration * 300);
+          
+          setTimeout(() => {
+            if (sparkle && sparkle.parent) {
+              sparkle.alpha = 0.4;
+            }
+          }, moveDuration * 500);
+          
+          setTimeout(() => {
+            if (sparkle && sparkle.parent) {
+              sparkle.alpha = 0.3;
+            }
+          }, moveDuration * 700);
+          
+          setTimeout(() => {
+            if (sparkle && sparkle.parent) {
+              sparkle.alpha = 0.2;
+            }
+          }, moveDuration * 900);
+          
+          // Final fade out
+          setTimeout(() => {
+            if (sparkle && sparkle.parent) {
+              sparkle.alpha = 0;
+            }
+          }, moveDuration * 1100);
+          
+          // Remove from parent - longer duration
+          setTimeout(() => {
+            try {
+              if (sparkle && sparkle.parent) {
+                sparkle.parent.removeChild(sparkle);
+                sparkle.destroy();
+              }
+            } catch (err) {
+              // Ignore cleanup errors
+            }
+          }, moveDuration * 1400);
+        } catch (err) {
+          // Ignore animation errors
+        }
+      }
+    }, delay * 1000);
   }
 }
 
@@ -81,43 +237,68 @@ export function woodShardsAtTile(board, tile, opts = {}){
   }
 
   const { x, y } = centerInBoard(board, tile, 96);
+  const wildMode = opts.wild === true;
+  const enhanced = opts.enhanced ?? (wildMode || false);
+
   const layer = new Container();
   layer.x = x; layer.y = y;
   const tileZ = tile?.zIndex ?? 0;
   const behind = opts.behind ?? false;
-  layer.zIndex = behind ? tileZ - 0.001 : 9993;
-  const ttl = opts.ttl ?? 1.6;
-  autoAdd(board, layer, ttl, behind ? { before: tile } : undefined);
+  if (wildMode || enhanced) {
+    layer.zIndex = tileZ - 0.002; // sit behind smoke/flash for wild mode
+  } else {
+    layer.zIndex = behind ? tileZ - 0.001 : 9993;
+  }
 
-  const enhanced = opts.enhanced ?? !!opts.wild ?? false;
+  const ttl = opts.ttl ?? (wildMode ? 0.9 : 1.6);
+  autoAdd(board, layer, ttl, behind ? { before: tile } : undefined);
+  try { board.sortChildren?.(); } catch {}
   const intensity = opts.intensity ?? (enhanced ? 1.35 : 1.0);
   const countBase = opts.count ?? (enhanced ? 18 : 12);
-  const shardCount = Math.max(6, Math.round(countBase * intensity));
+  const shardCountRaw = Math.max(6, Math.round(countBase * intensity));
+  const shardCount = wildMode ? Math.max(14, Math.round(shardCountRaw * 0.8)) : shardCountRaw; // Reduced count by 50%
   const spread = opts.spread ?? (enhanced ? 1.4 : 1.0);
-  const minDistance = (opts.minDistance ?? 36) * spread;
-  const maxDistance = (opts.maxDistance ?? (enhanced ? 140 : 90)) * spread;
+  const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
+  const radiusBoost = wildMode ? 1.25 : 0.5; // Reduced by 50% for wild mode
+  const minDistance = (opts.minDistance ?? (wildMode ? baseTile * 0.2 : baseTile * 0.08)) * spread * radiusBoost;
+  const maxDistanceBase = opts.maxDistance ?? (wildMode ? baseTile * 1.1 : (enhanced ? baseTile * 0.24 : baseTile * 0.2)); // Reduced by 50% for wild
+  const maxDistance = maxDistanceBase * spread * radiusBoost;
   const sizeMul = (opts.size ?? opts.sizeBoost ?? (enhanced ? 1.3 : 1.0));
   const speed = Math.max(0.2, opts.speed ?? 1.0);
-  const vanishDelay = opts.vanishDelay ?? 0;
-  const vanishJitter = opts.vanishJitter ?? 0.06;
+  const vanishDelay = opts.vanishDelay ?? (wildMode ? 0 : 0);
+  const vanishJitter = opts.vanishJitter ?? (wildMode ? 0.02 : 0.06);
 
-  for (let i = 0; i < shardCount; i++) {
+  const emitShard = (distance, angle, scaleFactor = 1, alpha = 0.92, speedMul = 1) => {
     const shard = new Graphics();
-    const base = 3 + Math.random() * 3;
-    const width = base * sizeMul;
-    const height = width * (1.6 + Math.random() * 0.8);
-    shard.rect(-width/2, -height/2, width, height)
-         .fill({ color: 0xD4A584, alpha: 0.92 });
+    const base = 6 + Math.random() * 8; // Much larger base size (2-3x bigger)
+    const width = base * sizeMul * scaleFactor;
+    const height = width * (0.8 + Math.random() * 1.4); // More variation in height
 
-    const angle = Math.random() * Math.PI * 2;
-    const distance = minDistance + Math.random() * (maxDistance - minDistance);
-    const endX = Math.cos(angle) * distance;
-    const endY = Math.sin(angle) * distance;
+    // Create irregular vector-like shape instead of rectangle
+    const points = [];
+    const numPoints = 4 + Math.floor(Math.random() * 4); // 4-7 points for irregular shape
+
+    for (let i = 0; i < numPoints; i++) {
+      const angle = (i / numPoints) * Math.PI * 2 + (Math.random() - 0.5) * 0.8;
+      const radius = (0.3 + Math.random() * 0.7) * Math.min(width, height) / 2;
+      const x = Math.cos(angle) * radius;
+      const y = Math.sin(angle) * radius;
+      points.push(x, y);
+    }
+
+    shard.drawPolygon(points) // Fixed: Changed .polygon to .drawPolygon
+         .fill({ color: 0xD4A584, alpha });
 
     shard.rotation = Math.random() * Math.PI;
     layer.addChild(shard);
 
-    const travelDur = (0.42 + Math.random() * 0.18) * (1 / speed);
+    const dist = Math.max(minDistance, Math.min(maxDistance, distance)) * (1 + (Math.random() - 0.5) * 0.15);
+    const endX = Math.cos(angle) * dist;
+    const endY = Math.sin(angle) * dist;
+
+    const travelBase = wildMode ? 0.28 : 0.42;
+    const travelVar  = wildMode ? 0.18 : 0.18;
+    const travelDur = (travelBase + Math.random() * travelVar) * (1 / (speed * speedMul));
     const spin = (Math.random() - 0.5) * Math.PI * 2 * intensity;
 
     gsap.to(shard, {
@@ -135,6 +316,33 @@ export function woodShardsAtTile(board, tile, opts = {}){
         });
       }
     });
+  };
+
+  for (let i = 0; i < shardCount; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    let distance;
+    let scale = 1;
+    let alpha = 0.92;
+    let speedMul = 1;
+
+    if (wildMode) {
+      // Uniform distribution like confetti - no clustering, reduced spread
+      distance = minDistance + Math.random() * (maxDistance - minDistance);
+      scale = 1.2 + Math.random() * 2.4; // Much larger scale variation (2-4x bigger)
+      alpha = 0.85 + Math.random() * 0.12;
+      speedMul = 0.8 + Math.random() * 0.7;
+
+      // Add extra shards for more confetti effect (reduced probability)
+      if (Math.random() < 0.25) { // Reduced from 0.45 to 0.25
+        const extraDistance = minDistance + Math.random() * (maxDistance - minDistance);
+        const extraAngle = angle + (Math.random() - 0.5) * 0.8; // More angle variation
+        emitShard(extraDistance, extraAngle, scale * 0.6, alpha * 0.9, speedMul * 1.25);
+      }
+    } else {
+      distance = minDistance + Math.random() * (maxDistance - minDistance);
+    }
+
+    emitShard(distance, angle, scale, alpha, speedMul);
   }
 }
 
