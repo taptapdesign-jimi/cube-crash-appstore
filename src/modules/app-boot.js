@@ -61,12 +61,36 @@ export async function boot(){
   window.addEventListener('resize', layout);
 }
 
-export function startLevel(n){
+export async function startLevel(n){
   STATE.level=n; STATE.score=0; STATE.moves=0; STATE.busyEnding=false;
   STATE.wildGuaranteedOnce = false;
   STATE.wildMeter = 0;
   
   // NOTE: Wild meter reset is handled by restart functions, not here
+  
+  // Check for saved game on first level start
+  if (n === 1) {
+    const hasSavedGame = localStorage.getItem('cc_saved_game');
+    if (hasSavedGame) {
+      try {
+        const gameState = JSON.parse(hasSavedGame);
+        const saveAge = Date.now() - gameState.timestamp;
+        if (saveAge < 24 * 60 * 60 * 1000) { // Less than 24 hours old
+          console.log('🎮 Found saved game, showing resume modal...');
+          if (typeof window.showResumeGameModal === 'function') {
+            await window.showResumeGameModal();
+            return; // Modal will handle loading or starting new game
+          }
+        } else {
+          console.log('⚠️ Saved game is too old, removing...');
+          localStorage.removeItem('cc_saved_game');
+        }
+      } catch (error) {
+        console.warn('⚠️ Corrupted save file, removing...', error);
+        localStorage.removeItem('cc_saved_game');
+      }
+    }
+  }
   
   rebuildBoard();       // builds + ring deal-in
   layout();

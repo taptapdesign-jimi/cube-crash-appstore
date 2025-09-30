@@ -1050,6 +1050,9 @@ function merge(src, dst, helpers){
     try { if (typeof window.trackLongestCombo === 'function') window.trackLongestCombo(combo); } catch {}
 
     addWildProgress(WILD_INC_SMALL);
+    
+    // SMART SAVE: Save after every merge
+    saveGameState();
 
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
@@ -1734,5 +1737,287 @@ export function startFreshGame() {
   console.log('🎮 Starting fresh game - calling boot');
   boot();
 }
+
+// --- Game State Saving/Loading ---
+let lastSavedState = null;
+
+function saveGameState() {
+  try {
+    // Check if grid exists and has content
+    if (!STATE.grid || STATE.grid.length === 0) {
+      console.log('💾 Grid not ready, skipping save');
+      return;
+    }
+    
+    const currentState = {
+      grid: STATE.grid.map(row => row.map(tile => ({
+        value: tile.value,
+        special: tile.special,
+        locked: tile.locked,
+        isWild: tile.isWild,
+        isWildFace: tile.isWildFace,
+        gridX: tile.gridX,
+        gridY: tile.gridY,
+      }))),
+      score: STATE.score,
+      level: STATE.level,
+      moves: STATE.moves,
+      wildMeter: STATE.wildMeter,
+      bestScore: STATE.bestScore,
+      boardStreak: STATE.boardStreak,
+      timestamp: Date.now(),
+    };
+    
+    console.log('💾 Saving game state:', { 
+      gridRows: currentState.grid.length, 
+      gridCols: currentState.grid[0]?.length || 0,
+      score: currentState.score,
+      level: currentState.level 
+    });
+    
+    // SMART SAVE: Only save if state has changed
+    if (JSON.stringify(currentState) !== JSON.stringify(lastSavedState)) {
+      localStorage.setItem('cc_saved_game', JSON.stringify(currentState));
+      lastSavedState = currentState;
+      console.log('💾 Game state saved successfully (state changed).');
+    } else {
+      console.log('💾 Game state unchanged, skipping save.');
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to save game state:', error);
+  }
+}
+
+async function loadGameState() {
+  console.log('🔄 loadGameState called...');
+  try {
+    const savedGame = localStorage.getItem('cc_saved_game');
+    console.log('💾 Saved game found:', !!savedGame);
+    if (savedGame) {
+      const gameState = JSON.parse(savedGame);
+      console.log('📊 Game state:', { score: gameState.score, level: gameState.level, moves: gameState.moves });
+      
+      // Check if save is not too old (24 hours)
+      const saveAge = Date.now() - gameState.timestamp;
+      console.log('⏰ Save age:', Math.round(saveAge / 1000), 'seconds');
+      if (saveAge > 24 * 60 * 60 * 1000) {
+        console.log('⚠️ Saved game is too old, starting fresh');
+        localStorage.removeItem('cc_saved_game');
+        return false;
+      }
+
+      // Clear current board
+      STATE.tiles.forEach(t => t.destroy());
+      STATE.tiles.length = 0;
+      STATE.grid = [];
+
+      // Apply loaded state
+      STATE.score = gameState.score;
+      STATE.level = gameState.level;
+      STATE.moves = gameState.moves;
+      STATE.wildMeter = gameState.wildMeter;
+      STATE.bestScore = gameState.bestScore;
+      STATE.boardStreak = gameState.boardStreak;
+
+      // Rebuild the board from saved grid
+      console.log('🔧 Rebuilding board from saved grid...');
+      console.log('📐 Grid dimensions:', { ROWS, COLS });
+      console.log('📊 Saved grid structure:', gameState.grid);
+      
+      try {
+        for (let r = 0; r < ROWS; r++) {
+          STATE.grid[r] = [];
+          for (let c = 0; c < COLS; c++) {
+            const savedTile = gameState.grid[r]?.[c];
+            console.log(`🔍 Checking cell [${r}][${c}]:`, savedTile);
+            if (savedTile && savedTile.value > 0) {
+              const tile = makeBoard.createTile({
+                board: STATE.board,
+                grid: STATE.grid,
+                tiles: STATE.tiles,
+                c: savedTile.gridX,
+                r: savedTile.gridY,
+                val: savedTile.value,
+                locked: savedTile.locked,
+              });
+              if (savedTile.special === 'wild') {
+                tile.special = 'wild';
+                tile.isWild = true;
+                tile.isWildFace = true;
+                if (typeof makeBoard.applyWildSkin === 'function') {
+                  makeBoard.applyWildSkin(tile);
+                }
+                try { startWildIdle(tile, { interval: 4 }); } catch {}
+              }
+              makeBoard.setValue(tile, savedTile.value, 0);
+              tile.alpha = 1;
+              STATE.grid[r][c] = tile;
+              STATE.tiles.push(tile);
+            } else {
+              // Create empty placeholder
+              const placeholder = makeBoard.createTile({
+                board: STATE.board,
+                grid: STATE.grid,
+                tiles: STATE.tiles,
+                c, r, val: 0, locked: true
+              });
+              STATE.grid[r][c] = placeholder;
+              STATE.tiles.push(placeholder);
+            }
+          }
+        }
+        console.log('✅ Board rebuild completed successfully');
+      } catch (rebuildError) {
+        console.error('❌ Error during board rebuild:', rebuildError);
+        throw rebuildError; // Re-throw to be caught by outer try-catch
+      }
+
+      updateHUD();
+      resetWildProgress(STATE.wildMeter, true);
+      console.log('✅ Game state loaded successfully.');
+      return true;
+    } else {
+      console.log('⚠️ No saved game found in localStorage');
+    }
+  } catch (error) {
+    console.error('❌ Failed to load game state:', error);
+    localStorage.removeItem('cc_saved_game');
+  }
+  console.log('❌ loadGameState returning false');
+  return false;
+}
+
+// Resume Game Modal
+async function showResumeGameModal() {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = [
+      'position: fixed',
+      'top: 0',
+      'left: 0',
+      'width: 100%',
+      'height: 100%',
+      'background: rgba(0, 0, 0, 0.8)',
+      'display: flex',
+      'align-items: center',
+      'justify-content: center',
+      'z-index: 1000000',
+      'font-family: Arial, sans-serif'
+    ].join(';');
+
+    const modal = document.createElement('div');
+    modal.style.cssText = [
+      'background: white',
+      'border-radius: 20px',
+      'padding: 40px',
+      'text-align: center',
+      'max-width: 400px',
+      'width: 90%',
+      'box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3)'
+    ].join(';');
+
+    // Time icon (240px converted to percentage)
+    const icon = document.createElement('img');
+    icon.src = 'assets/time-icon.png';
+    icon.style.cssText = [
+      'width: 15%', // 240px at 1600px width = 15%
+      'height: auto',
+      'margin-bottom: 20px'
+    ].join(';');
+
+    // Title
+    const title = document.createElement('h2');
+    title.textContent = 'Resume game?';
+    title.style.cssText = [
+      'margin: 0 0 10px 0',
+      'font-size: 28px',
+      'font-weight: bold',
+      'color: #8B4513'
+    ].join(';');
+
+    // Subtitle
+    const subtitle = document.createElement('p');
+    subtitle.textContent = 'Resume your last board.';
+    subtitle.style.cssText = [
+      'margin: 0 0 30px 0',
+      'font-size: 16px',
+      'color: #666'
+    ].join(';');
+
+    // Buttons container
+    const buttonsContainer = document.createElement('div');
+    buttonsContainer.style.cssText = [
+      'display: flex',
+      'flex-direction: column',
+      'gap: 15px'
+    ].join(';');
+
+    // Continue button
+    const continueBtn = document.createElement('button');
+    continueBtn.textContent = 'Continue';
+    continueBtn.style.cssText = [
+      'background: #FF8C00',
+      'color: white',
+      'border: none',
+      'padding: 15px 30px',
+      'border-radius: 10px',
+      'font-size: 18px',
+      'font-weight: bold',
+      'cursor: pointer',
+      'box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2)'
+    ].join(';');
+
+    // Exit to menu button
+    const exitBtn = document.createElement('button');
+    exitBtn.textContent = 'Exit to menu';
+    exitBtn.style.cssText = [
+      'background: white',
+      'color: #333',
+      'border: 2px solid #ddd',
+      'padding: 15px 30px',
+      'border-radius: 10px',
+      'font-size: 18px',
+      'font-weight: bold',
+      'cursor: pointer',
+      'box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1)'
+    ].join(';');
+
+    // Event handlers
+    continueBtn.onclick = async () => {
+      document.body.removeChild(overlay);
+      const loaded = await loadGameState();
+      if (!loaded) {
+        alert('Failed to load game, starting new game.');
+        await restartGame();
+      }
+      resolve();
+    };
+
+    exitBtn.onclick = () => {
+      document.body.removeChild(overlay);
+      localStorage.removeItem('cc_saved_game');
+      restartGame();
+      resolve();
+    };
+
+    // Assemble modal
+    buttonsContainer.appendChild(continueBtn);
+    buttonsContainer.appendChild(exitBtn);
+    modal.appendChild(icon);
+    modal.appendChild(title);
+    modal.appendChild(subtitle);
+    modal.appendChild(buttonsContainer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+  });
+}
+
+// Expose functions globally
+window.saveGameState = saveGameState;
+window.loadGameState = loadGameState;
+window.showResumeGameModal = showResumeGameModal;
+
+// Save game state before page unload
+window.addEventListener('beforeunload', saveGameState);
 
 export { app, stage, board, hud, tiles, grid, score, level }; 

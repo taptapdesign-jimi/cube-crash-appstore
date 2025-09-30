@@ -28,31 +28,41 @@ function applyWildSkinLocal(tile){
 export function openAtCell(c, r, { value=null, isWild=false } = {}){
   return new Promise((resolve)=>{
     let holder = STATE.grid?.[r]?.[c] || null;
+
+    if (holder && !holder.locked) {
+      const isWildTile = holder.special === 'wild' || holder.isWild === true || holder.isWildFace === true;
+      if (isWildTile || (holder.value|0) > 0) {
+        resolve(false);
+        return;
+      }
+    }
+
     if (!holder) holder = makeBoard.createTile({ board: STATE.board, grid: STATE.grid, tiles: STATE.tiles, c, r, val:0, locked:true });
 
     holder.locked=false; holder.eventMode='static'; holder.cursor='pointer';
     if (STATE.drag?.bindToTile) STATE.drag.bindToTile(holder);
-
-    const v = (value == null) ? [1,2,3,4,5][(Math.random()*5)|0] : value;
-    makeBoard.setValue(holder, v, 0);
+    if (holder.occluder) holder.occluder.visible = false;
 
     if (isWild){
+      makeBoard.setValue(holder, 6, 0);
+      holder.value = 6;
       holder.special = 'wild';
+      holder.isWild = true;
+      holder.isWildFace = true;
       if (typeof makeBoard.applyWildSkin === 'function') { makeBoard.applyWildSkin(holder); }
       else { applyWildSkinLocal(holder); }
       try { startWildIdle(holder, { interval: 4 }); } catch {}
+    } else {
+      const v = (value == null) ? [1,2,3,4,5][(Math.random()*5)|0] : value;
+      makeBoard.setValue(holder, v, 0);
     }
 
+    holder.visible = true;
     holder.alpha = 0;
     spawnBounce(holder, () => {
       holder.alpha = 1;
-      // Use enhanced wild impact effect for wild cubes
-      if (isWild) {
-        wildImpactEffect(holder);
-        smokeBubblesAtTile(STATE.board, holder, TILE, 2.5);
-      }
       sweepForUnanimatedSpawns();
-      resolve();
+      resolve(true);
     }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 });
   });
 }

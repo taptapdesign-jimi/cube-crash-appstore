@@ -75,7 +75,8 @@ let app, stage, board, boardBG, hud;
 let _hudInitDone = false;
 let _hudDropPending = true; // Play-from-slider only; no drop on restarts
 let _lastSAT = -1;
-let grid = []; let tiles = [];
+let grid = Array.isArray(STATE.grid) ? STATE.grid : [];
+const tiles = STATE.tiles;
 let score = 0; let level = 1; let boardNumber = 1; let moves = MOVES_MAX;
 const SCORE_CAP = 999999;
 
@@ -97,6 +98,31 @@ let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildRescueScheduled = false; // Prevent duplicate emergency spawns
 let drag;
 let busyEnding = false;
+
+function createEmptyGrid() {
+  const fresh = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  grid = fresh;
+  STATE.grid = fresh;
+  return fresh;
+}
+
+function syncSharedState() {
+  STATE.app = app;
+  STATE.stage = stage;
+  STATE.board = board;
+  STATE.boardBG = boardBG;
+  STATE.hud = hud;
+  STATE.grid = grid;
+  STATE.tiles = tiles;
+  STATE.score = score;
+  STATE.level = level;
+  STATE.moves = moves;
+  STATE.boardNumber = boardNumber;
+  STATE.wildMeter = wildMeter;
+  return STATE;
+}
+
+syncSharedState();
 
 // ----- progress wrapper (delegira HUD-u) -----
 let hudUpdateProgress = (ratio, animate) => {};
@@ -338,6 +364,8 @@ export async function boot(){
   stage.addChild(board, hud);
   board.addChildAt(boardBG, 0); boardBG.zIndex = -1000; board.sortChildren();
 
+  syncSharedState();
+
   stage.eventMode = 'static';
   stage.hitArea   = new Rectangle(0, 0, app.renderer.width, app.renderer.height);
 
@@ -471,6 +499,8 @@ export async function boot(){
   } catch {
     layout();
   }
+
+  syncSharedState();
 }
 
 // -------------------- layout + HUD --------------------
@@ -664,9 +694,14 @@ function drawBoardBG(mode = 'active+empty'){
   for (let r=0;r<ROWS;r++){
     for (let c=0;c<COLS;c++){
       const t = grid?.[r]?.[c];
-      const hasTile=!!t, isActive=!!(t && !t.locked), isEmpty=!hasTile;
+      const hasTile = !!t;
+      const isActive = !!(t && !t.locked);
+      const isLockedEmpty = !!(t && t.locked && ((t.value|0) <= 0));
+      const isEmpty = !hasTile || isLockedEmpty;
       let draw=false;
-      if (mode==='all') draw=true; else if (mode==='emptyOnly') draw=isEmpty; else draw = isActive || isEmpty;
+      if (mode==='all') draw=true;
+      else if (mode==='emptyOnly') draw=isEmpty;
+      else draw = isActive || isEmpty;
       if (!draw) continue;
       const pos = cellXY(c, r);
       boardBG.roundRect(pos.x+PAD,pos.y+PAD,TILE-PAD*2,TILE-PAD*2,RADIUS).stroke({ color:COLOR, width:WIDTH, alpha:ALPHA });
@@ -735,6 +770,7 @@ function pulseBoardZoom(factor = 0.92, opts = {}) {
 
 const updateHUD = () => {
   console.log('🎯 updateHUD called with:', { score, board: boardNumber, moves, combo });
+  syncSharedState();
   
   try {
     // First try to use HUD from hud-helpers.js
@@ -793,7 +829,7 @@ function rebuildBoard(){
   resetBoardContainer();
   tiles.forEach(t=>t.destroy({children:true, texture:false, textureSource:false}));
   tiles.length=0;
-  grid = Array.from({length:ROWS},()=>Array(COLS).fill(null));
+  createEmptyGrid();
   drawBoardBG('none');
 
   for(let r=0;r<ROWS;r++){
@@ -828,11 +864,10 @@ function rebuildBoard(){
     try {
       tiles.forEach(t => {
         if (t?.ghostFrame) {
+          const lockedEmpty = t.locked && ((t.value|0) <= 0);
           t.ghostFrame._suspended = false;
-          t.ghostFrame.visible = !t.locked;
-          if (t.locked) {
-            t.ghostFrame.visible = false;
-          }
+          t.ghostFrame.alpha = t.ghostFrame._ghostAlpha ?? 0.28;
+          t.ghostFrame.visible = lockedEmpty || !t.locked;
         }
       });
     } catch (err) {
@@ -840,7 +875,9 @@ function rebuildBoard(){
     }
   });
   console.log('✅ sweetPopIn started immediately - no waiting');
-  
+
+  syncSharedState();
+
 }
 function tintLocked(t){ try{ gsap.to(t, { alpha:0.35, duration:0.10, ease:'power1.out' }); }catch{} }
 function randVal(){ return [1,1,1,2,2,3,3,4,5][(Math.random()*9)|0]; }
@@ -858,6 +895,8 @@ function startLevel(n){
   
   // Start animation immediately - no delay
   rebuildBoard(); 
+
+  syncSharedState();
   updateHUD();
   
   // Call layout only for initial game start, not for restart
@@ -894,31 +933,42 @@ function openAtCell(c, r, { value=null, isWild=false } = {}){
   return new Promise((resolve)=>{
     let holder = grid?.[r]?.[c] || null;
 
-    // Ako je ovdje već AKTIVNA pločica (otključana i >0), ne diramo ju.
-    if (holder && !holder.locked && (holder.value|0) > 0) {
-      resolve();
-      return;
+    if (holder && !holder.locked) {
+      const isWildTile = holder.special === 'wild' || holder.isWild === true || holder.isWildFace === true;
+      if (isWildTile || (holder.value|0) > 0) {
+        resolve(false);
+        return;
+      }
     }
 
     if (!holder) holder = makeBoard.createTile({ board, grid, tiles, c, r, val:0, locked:true });
 
-    holder.locked=false; holder.eventMode='static'; holder.cursor='pointer';
+    holder.locked = false;
+    holder.eventMode = 'static';
+    holder.cursor = 'pointer';
     if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(holder);
-
-    const v = (value == null) ? [1,2,3,4,5][(Math.random()*5)|0] : value;
-    makeBoard.setValue(holder, v, 0);
+    if (holder.occluder) holder.occluder.visible = false;
 
     if (isWild){
+      makeBoard.setValue(holder, 6, 0);
+      holder.value = 6;
       holder.special = 'wild';
+      holder.isWild = true;
+      holder.isWildFace = true;
       if (typeof makeBoard.applyWildSkin === 'function') { makeBoard.applyWildSkin(holder); }
       else { applyWildSkinLocal(holder); }
+      try { startWildIdle(holder, { interval: 4 }); } catch {}
+    } else {
+      const v = (value == null) ? [1,2,3,4,5][(Math.random()*5)|0] : value;
+      makeBoard.setValue(holder, v, 0);
     }
 
+    holder.visible = true;
     holder.alpha = 0;
-    SPAWN.spawnBounce(holder, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, fadeIn:0.10 }, () => {
+    SPAWN.spawnBounce(holder, () => {
       holder.alpha = 1;
-      resolve();
-    });
+      resolve(true);
+    }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, fadeIn:0.10 });
   });
 }
 
@@ -927,11 +977,12 @@ function randomEmptyCell(){
   for (let r=0;r<ROWS;r++){
     for(let c=0;c<COLS;c++){
       const t = grid[r][c];
-      const isGhost = !!(t && t.locked === true);     // zaključan holder (placeholder)
-      const isMissing = !t;                            // uopće nema holdera
-      const isZero = !!(t && (t.value|0) <= 0);        // postoji ali nema vrijednost
-      // DOZVOlJENO: ghost, missing, ili zero
-      if (isGhost || isMissing || isZero) empties.push({ c, r });
+      const isGhost = !!(t && t.locked === true);
+      const isMissing = !t;
+      const isZero = !!(t && (t.value|0) <= 0);
+      const isWildTile = !!(t && !t.locked && (t.special === 'wild' || t.isWild === true || t.isWildFace === true));
+      const isActive = !!(t && !t.locked && (t.value|0) > 0);
+      if (!isActive && !isWildTile && (isGhost || isMissing || isZero)) empties.push({ c, r });
     }
   }
   if (!empties.length) return null;
@@ -944,35 +995,61 @@ async function spawnWildFromMeter(){
     return false;
   }
 
-  const cell = randomEmptyCell();
-  if (!cell) {
-    console.log('⚠️ No empty cells for wild spawn, keeping meter at', wildMeter);
+  const consumeCharge = () => {
+    const leftover = Math.max(0, wildMeter - 1);
+    wildMeter = leftover;
+    STATE.wildMeter = leftover;
+    resetWildProgress(leftover, true);
+  };
+
+  const attempted = new Set();
+  const maxAttempts = 12;
+  let tries = 0;
+  let spawned = false;
+  let lastCell = null;
+
+  while (tries < maxAttempts && !spawned) {
+    const cell = randomEmptyCell();
+    if (!cell) {
+      tries++;
+      await new Promise(r => setTimeout(r, 40));
+      continue;
+    }
+    const key = `${cell.c},${cell.r}`;
+    if (attempted.has(key)) {
+      tries++;
+      continue;
+    }
+    attempted.add(key);
+    lastCell = cell;
+
+    try {
+      const ok = await openAtCell(cell.c, cell.r, { isWild: true });
+      if (ok) {
+        consumeCharge();
+        spawned = true;
+      } else {
+        console.warn('⚠️ Wild spawn skipped (cell no longer empty):', cell);
+        tries++;
+      }
+    } catch (error) {
+      console.warn('⚠️ Wild spawn attempt failed at', cell, error);
+      tries++;
+    }
+  }
+
+  if (!spawned) {
+    console.warn('🚨 CRITICAL: Unable to spawn wild cube after', tries, 'attempts. Meter remains at', wildMeter);
     return false;
   }
 
-  const leftover = Math.max(0, wildMeter - 1);
-  wildMeter = leftover;
-  STATE.wildMeter = leftover;
-
-  // Update HUD immediately so player sees rollover progress
-  resetWildProgress(leftover, true);
-
-  try {
-    await openAtCell(cell.c, cell.r, { isWild: true });
-    if (wildSpawnRetryTimer) {
-      clearTimeout(wildSpawnRetryTimer);
-      wildSpawnRetryTimer = null;
-    }
-    console.log('✅ Wild cube spawned successfully at', cell.c, cell.r, 'Leftover meter:', leftover);
-    return true;
-  } catch (error) {
-    console.warn('⚠️ Wild spawn failed, restoring charge. Error:', error);
-    const restored = leftover + 1;
-    wildMeter = restored;
-    STATE.wildMeter = restored;
-    resetWildProgress(restored, true);
-    throw error;
+  if (wildSpawnRetryTimer) {
+    clearTimeout(wildSpawnRetryTimer);
+    wildSpawnRetryTimer = null;
   }
+
+  console.log('✅ Wild cube spawned successfully at', lastCell?.c, lastCell?.r, 'Leftover meter:', wildMeter);
+  return true;
 }
 
 // -------------------- merge --------------------
@@ -1050,6 +1127,9 @@ function merge(src, dst, helpers){
     try { if (typeof window.trackLongestCombo === 'function') window.trackLongestCombo(combo); } catch {}
 
     addWildProgress(WILD_INC_SMALL);
+    
+    // SMART SAVE: Save after every merge
+    saveGameState();
 
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
@@ -1428,7 +1508,10 @@ function removeTile(t){
   try{ gsap.killTweensOf(t); gsap.killTweensOf(t.scale); gsap.killTweensOf(t.rotG);}catch{}
   try { stopWildIdle?.(t); } catch {}
   board.removeChild(t);
-  tiles = tiles.filter(x=>x!==t);
+  const idx = tiles.indexOf(t);
+  if (idx !== -1) {
+    tiles.splice(idx, 1);
+  }
   t.destroy?.({children:true, texture:false, textureSource:false});
 }
 
@@ -1713,7 +1796,7 @@ export function cleanupGame() {
   }
   
   if (grid) {
-    grid = Array.from({length: ROWS}, () => Array(COLS).fill(null));
+    createEmptyGrid();
   }
   
   // Clear board
@@ -1727,6 +1810,7 @@ export function cleanupGame() {
   }
   
   console.log('✅ Game cleanup completed');
+  syncSharedState();
 }
 
 // Start fresh game (for re-entering) - now just calls boot
@@ -1734,5 +1818,359 @@ export function startFreshGame() {
   console.log('🎮 Starting fresh game - calling boot');
   boot();
 }
+
+// --- Game State Saving/Loading ---
+let lastSavedState = null;
+
+function saveGameState() {
+  try {
+    syncSharedState();
+
+    if (!Array.isArray(grid) || grid.length === 0) {
+      console.log('💾 Grid not ready, skipping save');
+      return;
+    }
+    const gridSnapshot = grid.map((row, r) =>
+      Array.isArray(row)
+        ? row.map((tile, c) => {
+            if (!tile) return null;
+            return {
+              value: Number.isFinite(tile.value) ? tile.value : 0,
+              special: tile.special || null,
+              locked: !!tile.locked,
+              isWild: !!tile.isWild,
+              isWildFace: !!tile.isWildFace,
+              gridX: Number.isFinite(tile.gridX) ? tile.gridX : c,
+              gridY: Number.isFinite(tile.gridY) ? tile.gridY : r,
+            };
+          })
+        : []
+    );
+
+    const currentState = {
+      grid: gridSnapshot,
+      score: Number.isFinite(score) ? score : 0,
+      level: Number.isFinite(level) ? level : 1,
+      boardNumber: Number.isFinite(boardNumber) ? boardNumber : Number.isFinite(level) ? level : 1,
+      moves: Number.isFinite(moves) ? moves : MOVES_MAX,
+      wildMeter: Number.isFinite(wildMeter) ? wildMeter : 0,
+      bestScore: Number.isFinite(STATE.bestScore) ? STATE.bestScore : 0,
+      timestamp: Date.now(),
+    };
+
+    console.log('💾 Saving game state:', {
+      gridRows: currentState.grid.length,
+      gridCols: currentState.grid[0]?.length || 0,
+      score: currentState.score,
+      level: currentState.level,
+      moves: currentState.moves,
+      wildMeter: currentState.wildMeter,
+    });
+
+    const serialized = JSON.stringify(currentState);
+    if (serialized !== lastSavedState) {
+      localStorage.setItem('cc_saved_game', serialized);
+      lastSavedState = serialized;
+      console.log('💾 Game state saved successfully (state changed).');
+    } else {
+      console.log('💾 Game state unchanged, skipping save.');
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to save game state:', error);
+  }
+}
+
+async function loadGameState() {
+  console.log('🔄 loadGameState called...');
+  try {
+    const savedGame = localStorage.getItem('cc_saved_game');
+    if (!savedGame) {
+      console.log('⚠️ No saved game found in localStorage');
+      return false;
+    }
+
+    let gameState;
+    try {
+      gameState = JSON.parse(savedGame);
+    } catch (error) {
+      console.warn('⚠️ Corrupted save file, removing...', error);
+      localStorage.removeItem('cc_saved_game');
+      return false;
+    }
+
+    console.log('📊 Game state:', { score: gameState.score, level: gameState.level, moves: gameState.moves });
+
+    const timestamp = Number(gameState.timestamp) || 0;
+    const saveAge = Date.now() - timestamp;
+    console.log('⏰ Save age:', Math.round(saveAge / 1000), 'seconds');
+    if (!Number.isFinite(timestamp) || saveAge > 24 * 60 * 60 * 1000) {
+      console.log('⚠️ Saved game is too old, starting fresh');
+      localStorage.removeItem('cc_saved_game');
+      return false;
+    }
+
+    if (!app || !board) {
+      console.log('⚠️ Game not booted, booting before applying saved state');
+      await boot();
+    }
+
+    tiles.forEach(t => {
+      try { stopWildIdle?.(t); } catch {}
+      try { t.destroy?.({ children: true, texture: false, textureSource: false }); } catch {}
+    });
+    tiles.length = 0;
+
+    const savedGrid = Array.isArray(gameState.grid) ? gameState.grid : [];
+    createEmptyGrid();
+
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const savedTile = savedGrid[r]?.[c] || null;
+        const tile = makeBoard.createTile({
+          board,
+          grid,
+          tiles,
+          c,
+          r,
+          val: 0,
+          locked: true,
+        });
+
+        tile.visible = true;
+        tile._spawned = true;
+        tile.scale.set(1);
+
+        if (tile.ghostFrame) {
+          tile.ghostFrame.visible = false;
+        }
+
+        if (savedTile && Number.isFinite(savedTile.value) && savedTile.value > 0) {
+          const value = savedTile.value | 0;
+          const isWild = savedTile.special === 'wild' || savedTile.isWild || savedTile.isWildFace;
+
+          tile.locked = !!savedTile.locked;
+          makeBoard.setValue(tile, value, 0);
+          tile.value = value;
+          tile.special = isWild ? 'wild' : (savedTile.special || null);
+          tile.isWild = !!isWild;
+          tile.isWildFace = !!(savedTile.isWildFace || isWild);
+          tile.alpha = 1;
+          tile.visible = true;
+
+          if (tile.locked) {
+            tile.eventMode = 'none';
+            if (tile.occluder) tile.occluder.visible = true;
+            if (tile.ghostFrame) tile.ghostFrame.visible = false;
+          } else {
+            tile.eventMode = 'static';
+            tile.cursor = 'pointer';
+            if (drag?.bindToTile) drag.bindToTile(tile);
+            if (tile.occluder) tile.occluder.visible = false;
+            if (tile.ghostFrame) tile.ghostFrame.visible = true;
+          }
+
+          if (isWild) {
+            if (typeof makeBoard.applyWildSkin === 'function') {
+              makeBoard.applyWildSkin(tile);
+            } else {
+              applyWildSkinLocal(tile);
+            }
+            try { startWildIdle(tile, { interval: 4 }); } catch {}
+          } else {
+            try { stopWildIdle(tile); } catch {}
+          }
+        } else {
+          tile.locked = true;
+          tile.value = 0;
+          tile.eventMode = 'none';
+          tile.cursor = 'default';
+          makeBoard.setValue(tile, 0, 0);
+          tile.alpha = 0;
+          tile.visible = true;
+          try { stopWildIdle(tile); } catch {}
+    }
+
+    tile._spawned = true;
+  }
+}
+
+    try {
+      tiles.forEach(t => {
+        if (!t) return;
+        if (t.occluder) {
+          t.occluder.visible = !!t.locked;
+          if (t.locked && typeof t.occluder._lockedAlpha === 'number') {
+            t.occluder.alpha = t.occluder._lockedAlpha;
+          }
+        }
+        if (t.ghostFrame) {
+          const lockedEmpty = t.locked && ((t.value|0) <= 0);
+          t.ghostFrame._suspended = false;
+          t.ghostFrame.alpha = t.ghostFrame._ghostAlpha ?? 0.28;
+          t.ghostFrame.visible = lockedEmpty || !t.locked;
+        }
+      });
+    } catch {}
+
+    board?.sortChildren?.();
+
+    score = Number.isFinite(gameState.score) ? gameState.score : 0;
+    level = Number.isFinite(gameState.level) ? gameState.level : 1;
+    boardNumber = Number.isFinite(gameState.boardNumber) ? gameState.boardNumber : level;
+    moves = Number.isFinite(gameState.moves) ? gameState.moves : MOVES_MAX;
+    wildMeter = Number.isFinite(gameState.wildMeter) ? gameState.wildMeter : 0;
+
+    if (Number.isFinite(gameState.bestScore)) {
+      STATE.bestScore = gameState.bestScore;
+    }
+
+    syncSharedState();
+    drawBoardBG();
+    updateHUD();
+    resetWildProgress(wildMeter, true);
+
+    lastSavedState = localStorage.getItem('cc_saved_game');
+    console.log('✅ Game state loaded successfully.');
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to load game state:', error);
+    localStorage.removeItem('cc_saved_game');
+  }
+  console.log('❌ loadGameState returning false');
+  return false;
+}
+
+// Resume Game Modal
+async function showResumeGameModal() {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = [
+      'position: fixed',
+      'top: 0',
+      'left: 0',
+      'width: 100%',
+      'height: 100%',
+      'background: rgba(0, 0, 0, 0.8)',
+      'display: flex',
+      'align-items: center',
+      'justify-content: center',
+      'z-index: 1000000',
+      'font-family: Arial, sans-serif'
+    ].join(';');
+
+    const modal = document.createElement('div');
+    modal.style.cssText = [
+      'background: white',
+      'border-radius: 20px',
+      'padding: 40px',
+      'text-align: center',
+      'max-width: 400px',
+      'width: 90%',
+      'box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3)'
+    ].join(';');
+
+    // Time icon (240px converted to percentage)
+    const icon = document.createElement('img');
+    icon.src = 'assets/time-icon.png';
+    icon.style.cssText = [
+      'width: 15%', // 240px at 1600px width = 15%
+      'height: auto',
+      'margin-bottom: 20px'
+    ].join(';');
+
+    // Title
+    const title = document.createElement('h2');
+    title.textContent = 'Resume game?';
+    title.style.cssText = [
+      'margin: 0 0 10px 0',
+      'font-size: 28px',
+      'font-weight: bold',
+      'color: #8B4513'
+    ].join(';');
+
+    // Subtitle
+    const subtitle = document.createElement('p');
+    subtitle.textContent = 'Resume your last board.';
+    subtitle.style.cssText = [
+      'margin: 0 0 30px 0',
+      'font-size: 16px',
+      'color: #666'
+    ].join(';');
+
+    // Buttons container
+    const buttonsContainer = document.createElement('div');
+    buttonsContainer.style.cssText = [
+      'display: flex',
+      'flex-direction: column',
+      'gap: 15px'
+    ].join(';');
+
+    // Continue button
+    const continueBtn = document.createElement('button');
+    continueBtn.textContent = 'Continue';
+    continueBtn.style.cssText = [
+      'background: #FF8C00',
+      'color: white',
+      'border: none',
+      'padding: 15px 30px',
+      'border-radius: 10px',
+      'font-size: 18px',
+      'font-weight: bold',
+      'cursor: pointer',
+      'box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2)'
+    ].join(';');
+
+    // Exit to menu button
+    const exitBtn = document.createElement('button');
+    exitBtn.textContent = 'Exit to menu';
+    exitBtn.style.cssText = [
+      'background: white',
+      'color: #333',
+      'border: 2px solid #ddd',
+      'padding: 15px 30px',
+      'border-radius: 10px',
+      'font-size: 18px',
+      'font-weight: bold',
+      'cursor: pointer',
+      'box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1)'
+    ].join(';');
+
+    // Event handlers
+    continueBtn.onclick = async () => {
+      document.body.removeChild(overlay);
+      const loaded = await loadGameState();
+      if (!loaded) {
+        alert('Failed to load game, starting new game.');
+        await restartGame();
+      }
+      resolve();
+    };
+
+    exitBtn.onclick = () => {
+      document.body.removeChild(overlay);
+      localStorage.removeItem('cc_saved_game');
+      restartGame();
+      resolve();
+    };
+
+    // Assemble modal
+    buttonsContainer.appendChild(continueBtn);
+    buttonsContainer.appendChild(exitBtn);
+    modal.appendChild(icon);
+    modal.appendChild(title);
+    modal.appendChild(subtitle);
+    modal.appendChild(buttonsContainer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+  });
+}
+
+// Expose functions globally
+window.saveGameState = saveGameState;
+window.loadGameState = loadGameState;
+window.showResumeGameModal = showResumeGameModal;
+
+// Save game state before page unload
+window.addEventListener('beforeunload', saveGameState);
 
 export { app, stage, board, hud, tiles, grid, score, level }; 

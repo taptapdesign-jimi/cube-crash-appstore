@@ -320,6 +320,15 @@ export function initDrag(cfg) {
       clearInterval(drag._sparkleInterval);
       drag._sparkleInterval = null;
     }
+    
+    // SMART SAVE: Save after every move
+    if (typeof window.saveGameState === 'function') {
+      try {
+        window.saveGameState();
+      } catch (err) {
+        console.warn('Failed to save game state after move:', err);
+      }
+    }
     // nothing to clean up for ghost (boardBG provides placeholders)
 
     // vrati tilt u nulu s istim “delay” feelom

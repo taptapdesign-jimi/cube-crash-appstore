@@ -4,6 +4,180 @@ import { gsap } from 'gsap';
 
 console.log('🚀 Starting simple CubeCrash...');
 
+// Resume Game Modal
+async function showResumeGameModal() {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = [
+      'position: fixed',
+      'top: 0',
+      'left: 0',
+      'width: 100%',
+      'height: 100%',
+      'background: rgba(0, 0, 0, 0.8)',
+      'display: flex',
+      'align-items: center',
+      'justify-content: center',
+      'z-index: 1000000',
+      'font-family: Arial, sans-serif'
+    ].join(';');
+
+    const modal = document.createElement('div');
+    modal.style.cssText = [
+      'background: white',
+      'border-radius: 20px',
+      'padding: 40px',
+      'text-align: center',
+      'max-width: 400px',
+      'width: 90%',
+      'box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3)'
+    ].join(';');
+
+    // Time icon (240px converted to percentage)
+    const icon = document.createElement('img');
+    icon.src = 'assets/time-icon.png';
+    icon.style.cssText = [
+      'width: 15%', // 240px at 1600px width = 15%
+      'height: auto',
+      'margin-bottom: 20px'
+    ].join(';');
+
+    // Title
+    const title = document.createElement('h2');
+    title.textContent = 'Resume game?';
+    title.style.cssText = [
+      'margin: 0 0 10px 0',
+      'font-size: 28px',
+      'font-weight: bold',
+      'color: #8B4513'
+    ].join(';');
+
+    // Subtitle
+    const subtitle = document.createElement('p');
+    subtitle.textContent = 'Resume your last board.';
+    subtitle.style.cssText = [
+      'margin: 0 0 30px 0',
+      'font-size: 16px',
+      'color: #666'
+    ].join(';');
+
+    // Buttons container
+    const buttonsContainer = document.createElement('div');
+    buttonsContainer.style.cssText = [
+      'display: flex',
+      'flex-direction: column',
+      'gap: 15px'
+    ].join(';');
+
+    // Continue button
+    const continueBtn = document.createElement('button');
+    continueBtn.textContent = 'Continue';
+    continueBtn.style.cssText = [
+      'background: #FF8C00',
+      'color: white',
+      'border: none',
+      'padding: 15px 30px',
+      'border-radius: 10px',
+      'font-size: 18px',
+      'font-weight: bold',
+      'cursor: pointer',
+      'box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2)'
+    ].join(';');
+
+    // Exit to menu button
+    const exitBtn = document.createElement('button');
+    exitBtn.textContent = 'Exit to menu';
+    exitBtn.style.cssText = [
+      'background: white',
+      'color: #333',
+      'border: 2px solid #ddd',
+      'padding: 15px 30px',
+      'border-radius: 10px',
+      'font-size: 18px',
+      'font-weight: bold',
+      'cursor: pointer',
+      'box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1)'
+    ].join(';');
+
+    // Event handlers
+    continueBtn.onclick = async () => {
+      continueBtn.disabled = true;
+      exitBtn.disabled = true;
+
+      const removeOverlay = () => {
+        if (overlay.parentElement) {
+          document.body.removeChild(overlay);
+        }
+      };
+
+      try {
+        await boot();
+
+        if (typeof window.loadGameState !== 'function') {
+          throw new Error('loadGameState is not available');
+        }
+
+        const loaded = await window.loadGameState();
+        if (!loaded) {
+          throw new Error('loadGameState returned false');
+        }
+
+        console.log('✅ Game loaded successfully!');
+        removeOverlay();
+        resolve();
+      } catch (error) {
+        console.error('❌ Error loading saved game:', error);
+        alert('Failed to load game, starting new game.');
+        await boot();
+        removeOverlay();
+        resolve();
+      }
+    };
+
+    exitBtn.onclick = () => {
+      document.body.removeChild(overlay);
+      localStorage.removeItem('cc_saved_game');
+      checkForSavedGame();
+      resolve();
+    };
+
+    // Assemble modal
+    buttonsContainer.appendChild(continueBtn);
+    buttonsContainer.appendChild(exitBtn);
+    modal.appendChild(icon);
+    modal.appendChild(title);
+    modal.appendChild(subtitle);
+    modal.appendChild(buttonsContainer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+  });
+}
+
+// Check for saved game on startup
+async function checkForSavedGame() {
+  const hasSavedGame = localStorage.getItem('cc_saved_game');
+  if (hasSavedGame) {
+    try {
+      const gameState = JSON.parse(hasSavedGame);
+      const saveAge = Date.now() - gameState.timestamp;
+      if (saveAge < 24 * 60 * 60 * 1000) { // Less than 24 hours old
+        console.log('🎮 Found saved game, showing resume modal...');
+        await showResumeGameModal();
+        return;
+      } else {
+        console.log('⚠️ Saved game is too old, removing...');
+        localStorage.removeItem('cc_saved_game');
+      }
+    } catch (error) {
+      console.warn('⚠️ Corrupted save file, removing...', error);
+      localStorage.removeItem('cc_saved_game');
+    }
+  }
+  
+  // No saved game, start normally
+  boot();
+}
+
 const UI_STATE_KEY = 'cubeCrash_ui_state_v1';
 let uiState = {
   currentSlide: 0,
@@ -1197,7 +1371,7 @@ function ensureParallaxLoop(sliderParallaxImage){
             appHost.style.display = 'block';
             appHost.removeAttribute('hidden');
             startTimeTracking(); // Start tracking play time
-            boot();
+            checkForSavedGame();
           }, 650); // Wait for elastic spring bounce animation to complete
         } else {
           // Fallback if elements not found - start game immediately
@@ -1206,7 +1380,7 @@ function ensureParallaxLoop(sliderParallaxImage){
           appHost.style.display = 'block';
           appHost.removeAttribute('hidden');
           startTimeTracking(); // Start tracking play time
-          boot();
+          checkForSavedGame();
         }
       };
 
@@ -1501,7 +1675,7 @@ function ensureParallaxLoop(sliderParallaxImage){
         setMenuVisible(false);
       }
       autoBootedFromState = true;
-      boot();
+      checkForSavedGame();
       if (uiState.menuVisible) {
         setTimeout(() => {
           try { showMenuScreen(); } catch (error) {
@@ -1534,7 +1708,7 @@ function ensureParallaxLoop(sliderParallaxImage){
       appHost.removeAttribute('hidden');
       markGameActive(true);
       setMenuVisible(false);
-      boot();
+      checkForSavedGame();
       autoBootedFromState = false;
 
       // Dev button moved to Pause modal (tap HUD)

@@ -1,7 +1,36 @@
 // public/src/modules/spawn-helpers.js
-// Spawn/deal animacije – iOS friendly, Promise-based, bez side‑effecta izvan proslijeđenih argumenata.
+// Spawn/deal animacije – iOS friendly, Promise-based, bez side-effecta izvan proslijeđenih argumenata.
 
-export function spawnBounce(t, gsap, opts = {}, done){
+import { gsap as globalGsap } from 'gsap';
+
+export function spawnBounce(t, arg2, arg3 = {}, arg4){
+  let gsapInstance = globalGsap;
+  let opts;
+  let done;
+
+  // Support legacy signatures: (tile, done, opts), (tile, opts, done), (tile, gsap, opts, done)
+  if (arg2 && typeof arg2.timeline === 'function') {
+    gsapInstance = arg2;
+    opts = arg3 || {};
+    done = arg4;
+  } else if (typeof arg2 === 'function' && typeof arg2.timeline !== 'function') {
+    done = arg2;
+    opts = arg3 || {};
+  } else if (arg2 && typeof arg2 === 'object') {
+    opts = arg2;
+    done = arg3;
+  } else {
+    opts = arg3 || {};
+    done = arg4;
+  }
+
+  gsapInstance = gsapInstance && typeof gsapInstance.timeline === 'function' ? gsapInstance : globalGsap;
+  if (!gsapInstance || typeof gsapInstance.timeline !== 'function') {
+    console.warn('spawnBounce: GSAP timeline unavailable, skipping animation');
+    if (typeof done === 'function') done();
+    return;
+  }
+
   const {
     startScale = 0.30,
     max       = 1.08,
@@ -17,7 +46,7 @@ export function spawnBounce(t, gsap, opts = {}, done){
 
   const dir = Math.random() < 0.5 ? 1 : -1;
   const finish = () => { t._spawned = true; if (typeof done === 'function') done(); };
-  const tl = gsap.timeline({ onComplete: finish });
+  const tl = gsapInstance.timeline({ onComplete: finish });
 
   tl.to(t,       { alpha: 1,            duration: fadeIn,  ease: 'power1.out' }, 0)
     .to(t.scale, { x: max,  y: max,     duration: 0.12,    ease: 'back.out(2.1)' }, 0)
@@ -25,7 +54,7 @@ export function spawnBounce(t, gsap, opts = {}, done){
     .to(t.scale, { x: rebound,  y: rebound,  duration: 0.08, ease: 'power2.out' })
     .to(t.scale, { x: 1.00,     y: 1.00,     duration: 0.10, ease: 'back.out(2)' });
 
-  gsap.timeline()
+  gsapInstance.timeline()
     .to(trg, { rotation:  wiggle*dir,        duration: 0.08, ease: 'power2.out' })
     .to(trg, { rotation: -wiggle*0.6*dir,    duration: 0.10, ease: 'power2.out' })
     .to(trg, { rotation:  0,                 duration: 0.12, ease: 'power2.out' });
