@@ -42,9 +42,11 @@ export function rebuildBoard(){
   // shuffle
   for (let i = ids.length - 1; i > 0; i--){ const j = (Math.random() * (i + 1)) | 0; [ids[i], ids[j]] = [ids[j], ids[i]]; }
 
+  console.log('🔍 Opening', openN, 'tiles as active...');
   ids.slice(0, openN).forEach(idx => {
     const r = (idx / COLS) | 0, c = idx % COLS;
     const t = STATE.grid[r][c];
+    console.log('🔍 Opening tile at', c, r, 'was locked:', t.locked);
     t.locked = false;
     t.eventMode = 'static';
     t.cursor = 'pointer';
@@ -52,6 +54,7 @@ export function rebuildBoard(){
     makeBoard.setValue(t, randVal(), 0);
     t.visible = false;    // will appear via deal-in animation
     t.comboCount = 1;
+    console.log('🔍 Tile opened at', c, r, 'now locked:', t.locked, 'value:', t.value, 'ghostFrame visible:', t.ghostFrame?.visible);
   });
 
   // layout before anim
@@ -59,6 +62,8 @@ export function rebuildBoard(){
 
   // Animation is now handled in app.js
   // sweetPopIn is called from there
+  
+  // Ghost placeholders are now fixed and always visible
 }
 
 export function isBoardClean(){ 

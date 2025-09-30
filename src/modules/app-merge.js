@@ -8,6 +8,7 @@ import * as HUD from './hud-helpers.js';
 import { openAtCell, openEmpties, spawnBounce } from './app-spawn.js';
 import { showStarsModal } from './stars-modal.js';
 import { rebuildBoard } from './app-board.js';
+import { drawBoardBG } from './app.js';
 
 // Import updateProgressBar function
 const updateProgressBar = HUD.updateProgressBar;
@@ -35,14 +36,7 @@ const animateScore = (toValue, duration = 0.45) => {
     console.error('❌ Error calling HUD.animateScore:', error);
   }
 };
-const drawBoardBG = () => {
-  try {
-    // This is a placeholder - the actual drawBoardBG is in app.js
-    console.log('🎯 drawBoardBG called from app-merge.js');
-  } catch (error) {
-    console.error('❌ Error in drawBoardBG:', error);
-  }
-};
+// drawBoardBG is imported from app.js
 
 function play(name, vol=null){ /* muted */ }
 function removeTile(t){
@@ -375,7 +369,7 @@ export function merge(src, dst, helpers){
 
         const holder = makeBoard.createTile({ board: STATE.board, grid: STATE.grid, tiles: STATE.tiles, c: gx, r: gy, val: 0, locked: true });
         holder.alpha = 0.35; holder.eventMode = 'none';
-        drawBoardBG();
+        drawBoardBG(); // Re-enabled for dynamic ghost placeholders
 
         STATE.moves++; updateHUD();
         animateScore(STATE.score + 6 * mult, 0.45);

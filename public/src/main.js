@@ -24,41 +24,48 @@ async function showResumeGameModal() {
 
     const modal = document.createElement('div');
     modal.style.cssText = [
-      'background: white',
-      'border-radius: 20px',
-      'padding: 40px',
+      'background: #FFFFFF',
+      'border-radius: 32px',
+      'padding: 48px 42px 44px',
       'text-align: center',
-      'max-width: 400px',
-      'width: 90%',
-      'box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3)'
+      'max-width: 420px',
+      'width: min(92%, 420px)',
+      'box-shadow: 0 26px 68px rgba(0, 0, 0, 0.18)',
+      'display: flex',
+      'flex-direction: column',
+      'align-items: center',
+      'gap: 28px'
     ].join(';');
 
     // Time icon (240px converted to percentage)
     const icon = document.createElement('img');
     icon.src = 'assets/time-icon.png';
     icon.style.cssText = [
-      'width: 15%', // 240px at 1600px width = 15%
+      'width: 240px',
+      'max-width: 64%',
       'height: auto',
-      'margin-bottom: 20px'
+      'margin: 0 auto 12px'
     ].join(';');
 
     // Title
     const title = document.createElement('h2');
     title.textContent = 'Resume game?';
     title.style.cssText = [
-      'margin: 0 0 10px 0',
-      'font-size: 28px',
-      'font-weight: bold',
-      'color: #8B4513'
+      'margin: 0',
+      'font-size: 30px',
+      'font-weight: 700',
+      'color: #B36A3C',
+      'letter-spacing: 0.4px'
     ].join(';');
 
     // Subtitle
     const subtitle = document.createElement('p');
     subtitle.textContent = 'Resume your last board.';
     subtitle.style.cssText = [
-      'margin: 0 0 30px 0',
-      'font-size: 16px',
-      'color: #666'
+      'margin: 0',
+      'font-size: 18px',
+      'color: #8E7A6A',
+      'letter-spacing: 0.2px'
     ].join(';');
 
     // Buttons container
@@ -66,38 +73,58 @@ async function showResumeGameModal() {
     buttonsContainer.style.cssText = [
       'display: flex',
       'flex-direction: column',
-      'gap: 15px'
+      'gap: 18px',
+      'width: 100%'
     ].join(';');
 
     // Continue button
     const continueBtn = document.createElement('button');
     continueBtn.textContent = 'Continue';
     continueBtn.style.cssText = [
-      'background: #FF8C00',
-      'color: white',
+      'background: linear-gradient(180deg, #FFB278 0%, #E17337 100%)',
+      'color: #4A2C10',
       'border: none',
-      'padding: 15px 30px',
-      'border-radius: 10px',
-      'font-size: 18px',
-      'font-weight: bold',
+      'padding: 18px 32px',
+      'border-radius: 999px',
+      'font-size: 20px',
+      'font-weight: 700',
       'cursor: pointer',
-      'box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2)'
+      'box-shadow: 0 18px 36px rgba(226, 123, 52, 0.3)',
+      'text-shadow: 0 2px 0 rgba(255, 255, 255, 0.45)',
+      'transition: transform 0.18s ease, box-shadow 0.18s ease'
     ].join(';');
+    continueBtn.onmouseenter = () => {
+      continueBtn.style.transform = 'translateY(-3px)';
+      continueBtn.style.boxShadow = '0 22px 40px rgba(226, 123, 52, 0.36)';
+    };
+    continueBtn.onmouseleave = () => {
+      continueBtn.style.transform = 'none';
+      continueBtn.style.boxShadow = '0 18px 36px rgba(226, 123, 52, 0.3)';
+    };
 
     // Exit to menu button
     const exitBtn = document.createElement('button');
-    exitBtn.textContent = 'Exit to menu';
+    exitBtn.textContent = 'Start new game';
     exitBtn.style.cssText = [
-      'background: white',
-      'color: #333',
-      'border: 2px solid #ddd',
-      'padding: 15px 30px',
-      'border-radius: 10px',
+      'background: linear-gradient(180deg, #FFFFFF 0%, #ECE8E4 100%)',
+      'color: #6F6A63',
+      'border: 0',
+      'padding: 18px 32px',
+      'border-radius: 999px',
       'font-size: 18px',
-      'font-weight: bold',
+      'font-weight: 600',
       'cursor: pointer',
-      'box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1)'
+      'box-shadow: 0 14px 30px rgba(0, 0, 0, 0.12)',
+      'transition: transform 0.18s ease, box-shadow 0.18s ease'
     ].join(';');
+    exitBtn.onmouseenter = () => {
+      exitBtn.style.transform = 'translateY(-3px)';
+      exitBtn.style.boxShadow = '0 18px 34px rgba(0, 0, 0, 0.15)';
+    };
+    exitBtn.onmouseleave = () => {
+      exitBtn.style.transform = 'none';
+      exitBtn.style.boxShadow = '0 14px 30px rgba(0, 0, 0, 0.12)';
+    };
 
     // Event handlers
     continueBtn.onclick = async () => {

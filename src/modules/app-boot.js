@@ -48,6 +48,7 @@ export async function boot(){
   const ret = installDrag({
     app: STATE.app, board: STATE.board, TILE,
     getTiles: () => STATE.tiles,
+    cellXY, // Add cellXY function
     merge,
     canDrop: (s, d) => !d.locked,
     hoverColor: 0x8a6e57,

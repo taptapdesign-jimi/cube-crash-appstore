@@ -29,6 +29,7 @@ export function installDrag({
   TILE,
   merge,
   canDrop,
+  cellXY, // Add cellXY function
 
   // stil i logika dropa (možeš mijenjati po želji)
   hoverColor  = 0xFA6807,
@@ -53,6 +54,7 @@ export function installDrag({
   getTiles,
   tileSize: TILE,
   tileGap: GAP,
+  cellXY, // Pass cellXY to drag manager
   onMerge: merge,
   canDrop: canDrop ?? ((src, dst) => {
     console.log('🔥 canDrop check:', { src: src?.value, dst: dst?.value, locked: dst?.locked, srcSpecial: src?.special, dstSpecial: dst?.special });

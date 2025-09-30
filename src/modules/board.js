@@ -119,8 +119,10 @@ function drawPips(t) {
 export function setValue(t, v, addStack = 0) {
   t.value = v;
 
-  // Pločica NIKAD nije poluprozirna.
-  t.alpha = 1;
+  // Pločica NIKAD nije poluprozirna - osim ako nije locked
+  if (!t.locked) {
+    t.alpha = 1;
+  }
 
   if ((v | 0) > 0) {
     // aktivna pločica
@@ -144,13 +146,7 @@ export function setValue(t, v, addStack = 0) {
     if (t.overlay) t.overlay.visible = false;
     t.pips?.clear?.(); // odmah ukloni pips da ne "procure"
   }
-  if (t.ghostFrame) {
-    try {
-      const suspended = !!t.ghostFrame._suspended;
-      t.ghostFrame.alpha = t.ghostFrame._ghostAlpha ?? 0.28;
-      t.ghostFrame.visible = !t.locked && !suspended;
-    } catch {}
-  }
+  // Ghost placeholders are now handled by drawBoardBG
 
   if (addStack) t.stackDepth = Math.min(4, (t.stackDepth || 1) + addStack);
   drawStack(t);
@@ -329,18 +325,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
     t.occluder = occ;
   }
 
-  const ghost = new Graphics();
-  ghost.roundRect(-TILE/2 + PAD, -TILE/2 + PAD, TILE - PAD*2, TILE - PAD*2, RADIUS)
-       .stroke({ color: 0xD6BAA3, width: 6, alpha: 0.38 });
-  ghost.x = t.targetX;
-  ghost.y = t.targetY;
-  ghost.zIndex = -450;
-  ghost.visible = false;
-  ghost.eventMode = 'none';
-  ghost._ghostAlpha = 0.28;
-  ghost._suspended = true;
-  board.addChild(ghost);
-  t.ghostFrame = ghost;
+  // Ghost placeholders are now handled by drawBoardBG - no individual ghostFrame objects
 
   board.addChild(t);
   tiles.push(t);
@@ -354,7 +339,6 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   const __origDestroy = t.destroy.bind(t);
   t.destroy = (opts) => {
     try { if (t.occluder) { t.occluder.destroy(); t.occluder = null; } } catch {}
-    try { if (t.ghostFrame) { t.ghostFrame.destroy(); t.ghostFrame = null; } } catch {}
     __origDestroy(opts);
   };
   return t;

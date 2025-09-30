@@ -363,6 +363,25 @@ export async function boot(){
   board.zIndex = 100; hud.zIndex = 10000;
   stage.addChild(board, hud);
   board.addChildAt(boardBG, 0); boardBG.zIndex = -1000; board.sortChildren();
+  
+  // Debug: Monitor boardBG changes
+  const originalClear = boardBG.clear.bind(boardBG);
+  boardBG.clear = function() {
+    console.log('🎯 boardBG.clear() called at', new Date().toISOString().substr(11, 12), 'call stack:', new Error().stack?.split('\n').slice(1, 3));
+    return originalClear();
+  };
+  
+  const originalRoundRect = boardBG.roundRect.bind(boardBG);
+  boardBG.roundRect = function(...args) {
+    console.log('🎯 boardBG.roundRect() called at', new Date().toISOString().substr(11, 12), 'args:', args);
+    return originalRoundRect(...args);
+  };
+  
+  const originalStroke = boardBG.stroke.bind(boardBG);
+  boardBG.stroke = function(...args) {
+    console.log('🎯 boardBG.stroke() called at', new Date().toISOString().substr(11, 12), 'args:', args);
+    return originalStroke(...args);
+  };
 
   syncSharedState();
 
@@ -396,6 +415,7 @@ export async function boot(){
   const ret = installDrag({
     app, board, TILE,
     getTiles: () => tiles,
+    cellXY, // Add cellXY function
     merge,
     canDrop: (s, d) => !d.locked,
     hoverColor: 0x8a6e57,
@@ -505,7 +525,7 @@ export async function boot(){
 
 // -------------------- layout + HUD --------------------
 export function layout(){
-  const { w, h } = boardSize();
+  const { w, h} = boardSize();
   const vw = app.renderer.width, vh = app.renderer.height;
   stage.hitArea = new Rectangle(0, 0, vw, vh);
 
@@ -607,7 +627,8 @@ export function layout(){
     topPad: TOP_PAD
   });
 
-  drawBoardBG('none');
+  // Don't clear ghost placeholders - they should stay visible
+  // drawBoardBG('none');
   if (Math.abs((_lastSAT||0) - SAT) > 0.5) { _hudInitDone = false; _lastSAT = SAT; }
 
   try {
@@ -688,25 +709,45 @@ function boardSize(){ return { w: COLS*TILE + (COLS-1)*GAP, h: ROWS*TILE + (ROWS
 
 function cellXY(c, r){ return { x: c*(TILE+GAP), y: r*(TILE+GAP) }; }
 
+// DYNAMIC GHOST PLACEHOLDERS - only show on empty cells
+let ghostPlaceholders = [];
+
 function drawBoardBG(mode = 'active+empty'){
-  const PAD=5, RADIUS=Math.round(TILE*0.26), WIDTH=8, COLOR=0x8a6e57, ALPHA=0.05;
-  boardBG.clear(); if (mode === 'none') return;
+  const PAD=5, RADIUS=Math.round(TILE*0.26), WIDTH=3, COLOR=0xEBE6E2, ALPHA=1.0;
+  
+  // Remove old ghost placeholders
+  ghostPlaceholders.forEach(g => { try { g.destroy(); } catch {} });
+  ghostPlaceholders = [];
+  
+  console.log('🎯 Creating DYNAMIC ghost placeholders - only on empty cells');
+  
+  // Only create ghost placeholders on empty cells (no tile)
   for (let r=0;r<ROWS;r++){
     for (let c=0;c<COLS;c++){
-      const t = grid?.[r]?.[c];
-      const hasTile = !!t;
-      const isActive = !!(t && !t.locked);
-      const isLockedEmpty = !!(t && t.locked && ((t.value|0) <= 0));
-      const isEmpty = !hasTile || isLockedEmpty;
-      let draw=false;
-      if (mode==='all') draw=true;
-      else if (mode==='emptyOnly') draw=isEmpty;
-      else draw = isActive || isEmpty;
-      if (!draw) continue;
-      const pos = cellXY(c, r);
-      boardBG.roundRect(pos.x+PAD,pos.y+PAD,TILE-PAD*2,TILE-PAD*2,RADIUS).stroke({ color:COLOR, width:WIDTH, alpha:ALPHA });
+      const cell = grid[r]?.[c];
+      
+      // Only show ghost placeholder if cell is empty (null)
+      if (cell === null) {
+        const pos = cellXY(c, r);
+        const ghost = new Graphics();
+        ghost.roundRect(pos.x+PAD,pos.y+PAD,TILE-PAD*2,TILE-PAD*2,RADIUS);
+        ghost.stroke({ color:COLOR, width:WIDTH, alpha:ALPHA });
+        ghost.alpha = 0.8; // Boost overall visibility
+        ghost.zIndex = -2000; // Ultra low zIndex
+        ghost.eventMode = 'none';
+        board.addChild(ghost);
+        ghostPlaceholders.push(ghost);
+      }
     }
   }
+  board.sortChildren();
+  console.log('🎯 DYNAMIC ghost placeholders created:', ghostPlaceholders.length, 'visible');
+}
+
+// NEVER call drawBoardBG during drag - this is the key fix!
+function drawBoardBG_DURING_DRAG(mode = 'active+empty'){
+  // Do nothing during drag - ghost placeholders are already created and fixed
+  console.log('🎯 drawBoardBG_DURING_DRAG called - doing nothing to preserve ghost placeholders');
 }
 
 function pulseBoardZoom(factor = 0.92, opts = {}) {
@@ -861,18 +902,8 @@ function rebuildBoard(){
       }
     }
   }).then(() => {
-    try {
-      tiles.forEach(t => {
-        if (t?.ghostFrame) {
-          const lockedEmpty = t.locked && ((t.value|0) <= 0);
-          t.ghostFrame._suspended = false;
-          t.ghostFrame.alpha = t.ghostFrame._ghostAlpha ?? 0.28;
-          t.ghostFrame.visible = lockedEmpty || !t.locked;
-        }
-      });
-    } catch (err) {
-      console.warn('⚠️ Unable to finalize ghost placeholders after pop-in:', err);
-    }
+    // Ghost placeholders are already drawn and don't need updates
+    console.log('✅ sweetPopIn completed - ghost placeholders already visible');
   });
   console.log('✅ sweetPopIn started immediately - no waiting');
 
@@ -1130,6 +1161,8 @@ function merge(src, dst, helpers){
     
     // SMART SAVE: Save after every merge
     saveGameState();
+    
+    // Ghost placeholders are now fixed and always visible
 
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
@@ -1256,9 +1289,6 @@ function merge(src, dst, helpers){
         if (!willBeClean){
           const holder = makeBoard.createTile({ board, grid, tiles, c: gx, r: gy, val: 0, locked: true });
           holder.alpha = 0.35; holder.eventMode = 'none';
-          drawBoardBG();
-        } else {
-          drawBoardBG('none');
         }
 
         // countdown moves
@@ -1276,6 +1306,8 @@ function merge(src, dst, helpers){
         // Stats: count merge-6 as "cubes cracked"; count wild as helpers used
         try { if (typeof window.trackCubesCracked === 'function') window.trackCubesCracked(1); } catch {}
         try { if (wasWild && typeof window.trackHelpersUsed === 'function') window.trackHelpersUsed(1); } catch {}
+        
+        // Ghost placeholders are now fixed and always visible
 
         // ► CLEAN BOARD flow (centralized orchestrator)
         console.log('🔥 Checking if board is clean after merge...');
@@ -1822,6 +1854,12 @@ export function startFreshGame() {
 // --- Game State Saving/Loading ---
 let lastSavedState = null;
 
+// --- GHOST PLACEHOLDER MANAGEMENT ---
+function updateAllGhostPlaceholders() {
+  // Ghost placeholders su sada fiksni i uvijek vidljivi
+  // Ne mijenjaju se, samo se crtaju u drawBoardBG
+}
+
 function saveGameState() {
   try {
     syncSharedState();
@@ -1838,6 +1876,7 @@ function saveGameState() {
               value: Number.isFinite(tile.value) ? tile.value : 0,
               special: tile.special || null,
               locked: !!tile.locked,
+              open: !tile.locked,
               isWild: !!tile.isWild,
               isWildFace: !!tile.isWildFace,
               gridX: Number.isFinite(tile.gridX) ? tile.gridX : c,
@@ -1925,92 +1964,90 @@ async function loadGameState() {
 
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
-        const savedTile = savedGrid[r]?.[c] || null;
-        const tile = makeBoard.createTile({
-          board,
-          grid,
-          tiles,
-          c,
-          r,
-          val: 0,
-          locked: true,
-        });
+        const snapshot = savedGrid[r]?.[c];
+        if (!snapshot) {
+          grid[r][c] = null;
+          continue;
+        }
+        const value = Number.isFinite(snapshot.value) ? (snapshot.value | 0) : 0;
+        const openFlag = typeof snapshot.open === 'boolean' ? snapshot.open : !snapshot.locked;
+        const shouldLock = !openFlag;
+        const tile = makeBoard.createTile({ board, grid, tiles, c, r, val: value, locked: shouldLock });
 
-        tile.visible = true;
         tile._spawned = true;
         tile.scale.set(1);
 
-        if (tile.ghostFrame) {
-          tile.ghostFrame.visible = false;
-        }
+        // Postavi osnovne svojstva prije setValue
+        tile.value = value;
+        const isWildSnapshot = snapshot && (snapshot.special === 'wild' || snapshot.isWild || snapshot.isWildFace);
+        tile.special = isWildSnapshot ? 'wild' : (snapshot?.special || null);
+        tile.isWild = !!isWildSnapshot;
+        tile.isWildFace = !!(snapshot?.isWildFace || isWildSnapshot);
+        tile.visible = typeof snapshot.visible === 'boolean' ? snapshot.visible : true;
 
-        if (savedTile && Number.isFinite(savedTile.value) && savedTile.value > 0) {
-          const value = savedTile.value | 0;
-          const isWild = savedTile.special === 'wild' || savedTile.isWild || savedTile.isWildFace;
+        // Postavi locked status prije setValue
+        tile.locked = shouldLock;
 
-          tile.locked = !!savedTile.locked;
-          makeBoard.setValue(tile, value, 0);
-          tile.value = value;
-          tile.special = isWild ? 'wild' : (savedTile.special || null);
-          tile.isWild = !!isWild;
-          tile.isWildFace = !!(savedTile.isWildFace || isWild);
-          tile.alpha = 1;
-          tile.visible = true;
+        // Pozovi setValue
+        makeBoard.setValue(tile, value, 0);
 
-          if (tile.locked) {
-            tile.eventMode = 'none';
-            if (tile.occluder) tile.occluder.visible = true;
-            if (tile.ghostFrame) tile.ghostFrame.visible = false;
-          } else {
-            tile.eventMode = 'static';
-            tile.cursor = 'pointer';
-            if (drag?.bindToTile) drag.bindToTile(tile);
-            if (tile.occluder) tile.occluder.visible = false;
-            if (tile.ghostFrame) tile.ghostFrame.visible = true;
-          }
-
-          if (isWild) {
-            if (typeof makeBoard.applyWildSkin === 'function') {
-              makeBoard.applyWildSkin(tile);
-            } else {
-              applyWildSkinLocal(tile);
-            }
-            try { startWildIdle(tile, { interval: 4 }); } catch {}
-          } else {
-            try { stopWildIdle(tile); } catch {}
-          }
-        } else {
-          tile.locked = true;
-          tile.value = 0;
+        // Sada postavi ghost frame vidljivost NAKON setValue
+        if (shouldLock) {
           tile.eventMode = 'none';
           tile.cursor = 'default';
-          makeBoard.setValue(tile, 0, 0);
-          tile.alpha = 0;
-          tile.visible = true;
-          try { stopWildIdle(tile); } catch {}
-    }
+          tile.alpha = snapshot && Number.isFinite(snapshot.alpha) ? snapshot.alpha : (value > 0 ? 1 : 0.25);
+          if (tile.occluder) tile.occluder.visible = snapshot && typeof snapshot.occluderVisible === 'boolean' ? snapshot.occluderVisible : true;
+          if (tile.ghostFrame) {
+            // BAKED IN: Ghost placeholders su uvijek vidljivi za unlocked tile-ove
+            // Ne mijenjamo visible - ostaje kako je postavljeno u createTile
+          }
+        } else {
+          tile.eventMode = 'static';
+          tile.cursor = 'pointer';
+          if (drag?.bindToTile) drag.bindToTile(tile);
+          tile.alpha = snapshot && Number.isFinite(snapshot.alpha) ? snapshot.alpha : (value > 0 ? 1 : 0);
+          if (tile.occluder) tile.occluder.visible = snapshot && typeof snapshot.occluderVisible === 'boolean' ? snapshot.occluderVisible : false;
+          if (tile.ghostFrame) {
+            // BAKED IN: Ghost placeholders su uvijek vidljivi za unlocked tile-ove
+            // Ne mijenjamo visible - ostaje kako je postavljeno u createTile
+            tile.ghostFrame._suspended = false;
+          }
+        }
 
-    tile._spawned = true;
-  }
-}
+        if (snapshot && Number.isFinite(snapshot.alpha)) {
+          tile.alpha = snapshot.alpha;
+        }
+
+        if (tile.ghostFrame) {
+          tile.ghostFrame.alpha = tile.ghostFrame._ghostAlpha ?? 0.28;
+        }
+
+        if (isWildSnapshot) {
+          if (typeof makeBoard.applyWildSkin === 'function') {
+            makeBoard.applyWildSkin(tile);
+          } else {
+            applyWildSkinLocal(tile);
+          }
+          try { startWildIdle(tile, { interval: 4 }); } catch {}
+        } else {
+          try { stopWildIdle(tile); } catch {}
+        }
+      }
+    }
 
     try {
       tiles.forEach(t => {
         if (!t) return;
-        if (t.occluder) {
-          t.occluder.visible = !!t.locked;
-          if (t.locked && typeof t.occluder._lockedAlpha === 'number') {
-            t.occluder.alpha = t.occluder._lockedAlpha;
-          }
+        if (t.occluder && typeof t.occluder._lockedAlpha === 'number' && t.locked) {
+          t.occluder.alpha = t.occluder._lockedAlpha;
         }
         if (t.ghostFrame) {
-          const lockedEmpty = t.locked && ((t.value|0) <= 0);
-          t.ghostFrame._suspended = false;
           t.ghostFrame.alpha = t.ghostFrame._ghostAlpha ?? 0.28;
-          t.ghostFrame.visible = lockedEmpty || !t.locked;
         }
       });
     } catch {}
+
+    // Ghost placeholders are now fixed and always visible
 
     board?.sortChildren?.();
 
@@ -2025,7 +2062,8 @@ async function loadGameState() {
     }
 
     syncSharedState();
-    drawBoardBG();
+    // CRITICAL: Draw ghost placeholders BEFORE HUD update
+    drawBoardBG('active+empty');
     updateHUD();
     resetWildProgress(wildMeter, true);
 
@@ -2060,41 +2098,48 @@ async function showResumeGameModal() {
 
     const modal = document.createElement('div');
     modal.style.cssText = [
-      'background: white',
-      'border-radius: 20px',
-      'padding: 40px',
+      'background: #FFFFFF',
+      'border-radius: 32px',
+      'padding: 48px 42px 44px',
       'text-align: center',
-      'max-width: 400px',
-      'width: 90%',
-      'box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3)'
+      'max-width: 420px',
+      'width: min(92%, 420px)',
+      'box-shadow: 0 26px 68px rgba(0, 0, 0, 0.18)',
+      'display: flex',
+      'flex-direction: column',
+      'align-items: center',
+      'gap: 28px'
     ].join(';');
 
     // Time icon (240px converted to percentage)
     const icon = document.createElement('img');
     icon.src = 'assets/time-icon.png';
     icon.style.cssText = [
-      'width: 15%', // 240px at 1600px width = 15%
+      'width: 240px',
+      'max-width: 64%',
       'height: auto',
-      'margin-bottom: 20px'
+      'margin: 0 auto 12px'
     ].join(';');
 
     // Title
     const title = document.createElement('h2');
     title.textContent = 'Resume game?';
     title.style.cssText = [
-      'margin: 0 0 10px 0',
-      'font-size: 28px',
-      'font-weight: bold',
-      'color: #8B4513'
+      'margin: 0',
+      'font-size: 30px',
+      'font-weight: 700',
+      'color: #B36A3C',
+      'letter-spacing: 0.4px'
     ].join(';');
 
     // Subtitle
     const subtitle = document.createElement('p');
     subtitle.textContent = 'Resume your last board.';
     subtitle.style.cssText = [
-      'margin: 0 0 30px 0',
-      'font-size: 16px',
-      'color: #666'
+      'margin: 0',
+      'font-size: 18px',
+      'color: #8E7A6A',
+      'letter-spacing: 0.2px'
     ].join(';');
 
     // Buttons container
@@ -2102,38 +2147,58 @@ async function showResumeGameModal() {
     buttonsContainer.style.cssText = [
       'display: flex',
       'flex-direction: column',
-      'gap: 15px'
+      'gap: 18px',
+      'width: 100%'
     ].join(';');
 
     // Continue button
     const continueBtn = document.createElement('button');
     continueBtn.textContent = 'Continue';
     continueBtn.style.cssText = [
-      'background: #FF8C00',
-      'color: white',
+      'background: linear-gradient(180deg, #FFB278 0%, #E17337 100%)',
+      'color: #4A2C10',
       'border: none',
-      'padding: 15px 30px',
-      'border-radius: 10px',
-      'font-size: 18px',
-      'font-weight: bold',
+      'padding: 18px 32px',
+      'border-radius: 999px',
+      'font-size: 20px',
+      'font-weight: 700',
       'cursor: pointer',
-      'box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2)'
+      'box-shadow: 0 18px 36px rgba(226, 123, 52, 0.3)',
+      'text-shadow: 0 2px 0 rgba(255, 255, 255, 0.45)',
+      'transition: transform 0.18s ease, box-shadow 0.18s ease'
     ].join(';');
+    continueBtn.onmouseenter = () => {
+      continueBtn.style.transform = 'translateY(-3px)';
+      continueBtn.style.boxShadow = '0 22px 40px rgba(226, 123, 52, 0.36)';
+    };
+    continueBtn.onmouseleave = () => {
+      continueBtn.style.transform = 'none';
+      continueBtn.style.boxShadow = '0 18px 36px rgba(226, 123, 52, 0.3)';
+    };
 
     // Exit to menu button
     const exitBtn = document.createElement('button');
-    exitBtn.textContent = 'Exit to menu';
+    exitBtn.textContent = 'Start new game';
     exitBtn.style.cssText = [
-      'background: white',
-      'color: #333',
-      'border: 2px solid #ddd',
-      'padding: 15px 30px',
-      'border-radius: 10px',
+      'background: linear-gradient(180deg, #FFFFFF 0%, #ECE8E4 100%)',
+      'color: #6F6A63',
+      'border: 0',
+      'padding: 18px 32px',
+      'border-radius: 999px',
       'font-size: 18px',
-      'font-weight: bold',
+      'font-weight: 600',
       'cursor: pointer',
-      'box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1)'
+      'box-shadow: 0 14px 30px rgba(0, 0, 0, 0.12)',
+      'transition: transform 0.18s ease, box-shadow 0.18s ease'
     ].join(';');
+    exitBtn.onmouseenter = () => {
+      exitBtn.style.transform = 'translateY(-3px)';
+      exitBtn.style.boxShadow = '0 18px 34px rgba(0, 0, 0, 0.15)';
+    };
+    exitBtn.onmouseleave = () => {
+      exitBtn.style.transform = 'none';
+      exitBtn.style.boxShadow = '0 14px 30px rgba(0, 0, 0, 0.12)';
+    };
 
     // Event handlers
     continueBtn.onclick = async () => {
@@ -2169,8 +2234,14 @@ async function showResumeGameModal() {
 window.saveGameState = saveGameState;
 window.loadGameState = loadGameState;
 window.showResumeGameModal = showResumeGameModal;
+window.drawBoardBG = drawBoardBG;
+
+// Export drawBoardBG for other modules
+export { drawBoardBG };
+
 
 // Save game state before page unload
 window.addEventListener('beforeunload', saveGameState);
 
 export { app, stage, board, hud, tiles, grid, score, level }; 
+

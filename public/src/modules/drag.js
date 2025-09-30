@@ -156,6 +156,8 @@ export function initDrag(cfg) {
   function onDown(e, t) {
     const p = board.toLocal(e.global);
 
+    console.log('🔍 DRAG START: Tile at', t.gridX, t.gridY, 'value:', t.value, 'locked:', t.locked);
+    
     releaseMagnet({ immediate: true });
     drag.t = t;
     drag.startGX = t.gridX;
@@ -177,6 +179,21 @@ export function initDrag(cfg) {
     rememberZ(t);
     board.addChild(t);
     t.zIndex = 9999;
+
+    // 🎯 CREATE TEMPORARY GHOST PLACEHOLDER at drag origin
+    if (cfg.cellXY && cfg.tileSize) {
+      const PAD = 5, RADIUS = Math.round(cfg.tileSize * 0.26), WIDTH = 3, COLOR = 0xEBE6E2;
+      const pos = cfg.cellXY(t.gridX, t.gridY);
+      drag.tempGhost = new Graphics();
+      drag.tempGhost.roundRect(pos.x + PAD, pos.y + PAD, cfg.tileSize - PAD * 2, cfg.tileSize - PAD * 2, RADIUS);
+      drag.tempGhost.stroke({ color: COLOR, width: WIDTH, alpha: 1.0 });
+      drag.tempGhost.alpha = 0.8;
+      drag.tempGhost.zIndex = -2000;
+      drag.tempGhost.eventMode = 'none';
+      board.addChild(drag.tempGhost);
+      board.sortChildren();
+      console.log('🎯 TEMP GHOST created at drag origin:', t.gridX, t.gridY);
+    }
 
     // (ghost placeholder is now provided by boardBG under all cells)
 
@@ -302,6 +319,8 @@ export function initDrag(cfg) {
     const target = pickDropTarget(t); 
     showHover(target);
     updateMagnet(target);
+    
+    // Ghost placeholders are now fixed and don't need redrawing
   }
 
   function onUp() {
@@ -310,6 +329,7 @@ export function initDrag(cfg) {
     app.stage.off('pointerupoutside', onUp);
 
     const t = drag.t;
+    console.log('🔍 DRAG END: Tile at', t?.gridX, t?.gridY, 'value:', t?.value, 'locked:', t?.locked);
     drag.t = null;
     
     // Clear sparkle timer and interval when drag ends
@@ -329,6 +349,21 @@ export function initDrag(cfg) {
         console.warn('Failed to save game state after move:', err);
       }
     }
+    
+    // 🎯 REMOVE TEMPORARY GHOST PLACEHOLDER after a delay (let animations finish)
+    if (drag.tempGhost) {
+      gsap.delayedCall(0.5, () => {
+        try {
+          if (drag.tempGhost) {
+            drag.tempGhost.destroy();
+            console.log('🎯 TEMP GHOST removed (delayed)');
+            drag.tempGhost = null;
+          }
+        } catch {}
+      });
+    }
+    
+    // Ghost placeholders are now fixed and always visible
     // nothing to clean up for ghost (boardBG provides placeholders)
 
     // vrati tilt u nulu s istim “delay” feelom
@@ -605,6 +640,9 @@ export function initDrag(cfg) {
 
     const ring = new Graphics();
     ring.roundRect(xTL, yTL, w, w, r).stroke({ color: hoverColor, width: strokeW, alpha: hoverAlpha });
+    
+    // CRITICAL: Set higher zIndex so hover doesn't interfere with ghost placeholders
+    frame.zIndex = 1000;
 
     frame.addChild(ring);
 
@@ -614,6 +652,11 @@ export function initDrag(cfg) {
 
   function isHoverValid(src, target) {
     if (!src || !target) return false;
+    
+    // CRITICAL: Don't show hover on empty slots (ghost placeholders)
+    // Only show hover on tiles with actual values
+    if ((target.value|0) <= 0) return false;
+    
     const srcSpecial = src.special;
     const targetSpecial = target.special;
     if (srcSpecial === 'wild' || targetSpecial === 'wild') return true;
@@ -636,7 +679,11 @@ export function initDrag(cfg) {
   }
 
   function snapBack(t) {
+    console.log('🔍 SNAPBACK: Tile at', t?.gridX, t?.gridY, 'value:', t?.value, 'locked:', t?.locked);
     releaseMagnet({ immediate: true });
+    
+    // Ghost placeholders are now fixed and always visible
+    
     gsap.timeline({
       onComplete: () => { restoreZ(t); }   // ✅ vrati sloj nakon bounce-a
     })
