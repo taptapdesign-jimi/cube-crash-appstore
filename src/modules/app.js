@@ -2207,6 +2207,11 @@ async function loadGameState() {
     syncSharedState();
     // CRITICAL: Draw ghost placeholders BEFORE HUD update
     drawBoardBG('active+empty');
+    
+    // CRITICAL: Call layout to position HUD correctly
+    layout();
+    console.log('✅ Layout called for saved game - HUD should be positioned');
+    
     updateHUD();
     resetWildProgress(wildMeter, true);
     
