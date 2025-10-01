@@ -2073,7 +2073,16 @@ async function loadGameState() {
       initializeBackgroundLayer();
       console.log('✅ Background layer initialized for saved game');
     } else {
-      console.log('✅ App already booted, checking backgroundLayer...');
+      console.log('✅ App already booted, checking canvas in DOM...');
+      
+      // CRITICAL FIX: Ensure canvas is in DOM
+      const host = document.getElementById('app');
+      if (app.canvas && !app.canvas.parentElement) {
+        console.log('⚠️ Canvas not in DOM, adding it back...');
+        host.appendChild(app.canvas);
+        console.log('✅ Canvas added back to DOM');
+      }
+      
       if (!backgroundLayer) {
         console.log('⚠️ backgroundLayer missing, reinitializing...');
         layout();
