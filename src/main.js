@@ -1368,19 +1368,25 @@ function ensureParallaxLoop(sliderParallaxImage){
           // Start game after animation completes
           setTimeout(() => {
             home.style.display = 'none';
-            appHost.style.display = 'block';
-            appHost.removeAttribute('hidden');
             startTimeTracking(); // Start tracking play time
-            checkForSavedGame();
+            checkForSavedGame().then(() => {
+              // Show appHost AFTER game is loaded
+              appHost.style.display = 'block';
+              appHost.removeAttribute('hidden');
+              console.log('✅ Game loaded, appHost shown');
+            });
           }, 650); // Wait for elastic spring bounce animation to complete
         } else {
           // Fallback if elements not found - start game immediately
           console.log('⚠️ Slide elements not found, starting game without animation');
           home.style.display = 'none';
-          appHost.style.display = 'block';
-          appHost.removeAttribute('hidden');
           startTimeTracking(); // Start tracking play time
-          checkForSavedGame();
+          checkForSavedGame().then(() => {
+            // Show appHost AFTER game is loaded
+            appHost.style.display = 'block';
+            appHost.removeAttribute('hidden');
+            console.log('✅ Game loaded, appHost shown (fallback)');
+          });
         }
       };
 
