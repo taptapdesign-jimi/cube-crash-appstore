@@ -2454,8 +2454,25 @@ window.drawBoardBG = drawBoardBG;
 export { drawBoardBG };
 
 
-// Save game state before page unload
+// Mobile-specific save events
+window.addEventListener('pagehide', saveGameState);
+window.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    saveGameState();
+  }
+});
+
+// iOS/Android specific events
 window.addEventListener('beforeunload', saveGameState);
+document.addEventListener('pause', saveGameState, false); // Android
+document.addEventListener('resume', () => {
+  // Reload game state when app resumes
+  if (typeof window.loadGameState === 'function') {
+    setTimeout(() => {
+      window.loadGameState();
+    }, 100);
+  }
+}, false); // Android
 
 export { app, stage, board, hud, tiles, grid, score, level }; 
 

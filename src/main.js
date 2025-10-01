@@ -4,6 +4,90 @@ import { gsap } from 'gsap';
 
 console.log('🚀 Starting simple CubeCrash...');
 
+// Global DOM elements
+let home = null;
+let appHost = null;
+
+// Time tracking variables
+let gameStartTime = null;
+let timeTrackingInterval = null;
+
+// Game stats
+let gameStats = {
+  highScore: 0,
+  totalMoves: 0,
+  totalMerges: 0,
+  collectiblesUnlocked: 0,
+  boardsCleared: 0,
+  timePlayed: 0
+};
+
+// Function to save stats to localStorage
+function saveStatsToStorage() {
+  try {
+    localStorage.setItem('cubeCrash_stats', JSON.stringify(gameStats));
+  } catch (error) {
+    console.warn('Failed to save stats:', error);
+  }
+}
+
+// Mobile-specific save function
+function mobileSave() {
+  console.log('📱 Mobile save triggered');
+  if (typeof window.saveGameState === 'function') {
+    try {
+      window.saveGameState();
+    } catch (err) {
+      console.warn('Mobile save failed:', err);
+    }
+  }
+}
+
+// Mobile-specific load function
+function mobileLoad() {
+  console.log('📱 Mobile load triggered');
+  if (typeof window.loadGameState === 'function') {
+    try {
+      window.loadGameState();
+    } catch (err) {
+      console.warn('Mobile load failed:', err);
+    }
+  }
+}
+
+// Function to start time tracking
+function startTimeTracking() {
+  if (gameStartTime) return; // Already tracking
+  gameStartTime = Date.now();
+  console.log('⏱️ Started time tracking');
+  
+  // Update time display every second
+  timeTrackingInterval = setInterval(updateTimeDisplay, 1000);
+}
+
+// Function to stop time tracking and save to stats
+function stopTimeTracking() {
+  if (!gameStartTime) return; // Not tracking
+  
+  const sessionTime = Math.floor((Date.now() - gameStartTime) / 1000); // seconds
+  gameStats.timePlayed += sessionTime;
+  saveStatsToStorage();
+  
+  gameStartTime = null;
+  if (timeTrackingInterval) {
+    clearInterval(timeTrackingInterval);
+    timeTrackingInterval = null;
+  }
+  console.log('⏱️ Stopped time tracking, session:', sessionTime, 'seconds');
+}
+
+// Function to update time display
+function updateTimeDisplay() {
+  if (!gameStartTime) return;
+  const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+  // Update time display if needed
+}
+
 // Resume Game Modal
 async function showResumeGameModal() {
   return new Promise(resolve => {
@@ -14,142 +98,387 @@ async function showResumeGameModal() {
       'left: 0',
       'width: 100%',
       'height: 100%',
-      'background: transparent',
+      'background: rgba(245, 245, 245, 0.8)',
+      'backdrop-filter: blur(14px)',
       'display: flex',
       'align-items: center',
       'justify-content: center',
       'z-index: 1000000',
-      'font-family: "LTCrow", Arial, sans-serif'
+      'font-family: "LTCrow", Arial, sans-serif',
+      'transition: opacity 0.5s ease-out, backdrop-filter 0.5s ease-out'
     ].join(';');
 
     const modal = document.createElement('div');
     modal.style.cssText = [
       'background: white',
-      'border-radius: 20px',
+      'border-radius: 40px',
+      'max-width: 342px',
+      'width: min(90%, 342px)',
       'padding: 40px',
+      'display: flex',
+      'flex-direction: column',
+      'align-items: center',
+      'gap: 24px',
       'text-align: center',
-      'max-width: 400px',
-      'width: 90%',
-      'box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3)'
+      'position: relative'
     ].join(';');
 
-    // Resume game icon (240px width)
-    const icon = document.createElement('img');
-    icon.src = 'assets/resume-game.png';
-    icon.style.cssText = [
-      'width: 240px',
-      'height: auto',
-      'margin-bottom: 20px'
-    ].join(';');
-
-    // Title
     const title = document.createElement('h2');
-    title.textContent = 'Resume game?';
+    title.textContent = 'Resume Game?';
     title.style.cssText = [
-      'margin: 0 0 10px 0',
-      'font-size: 28px',
-      'font-weight: bold',
-      'color: #8B4513',
-      'font-family: "LTCrow", Arial, sans-serif'
+      'font-size: 40px',
+      'font-weight: 900',
+      'color: #AD8675',
+      'line-height: 1.1',
+      'font-family: "LTCrow"',
+      'margin: 0'
     ].join(';');
 
-    // Subtitle
     const subtitle = document.createElement('p');
-    subtitle.textContent = 'Resume your last board.';
+    subtitle.textContent = 'Would you like to continue\nyour last game?';
     subtitle.style.cssText = [
-      'margin: 0 0 30px 0',
-      'font-size: 16px',
-      'color: #666',
-      'font-family: "LTCrow", Arial, sans-serif'
+      'font-size: 20px',
+      'font-weight: 400',
+      'color: #AD8675',
+      'line-height: 1.4',
+      'white-space: pre-line',
+      'font-family: "LTCrow"',
+      'margin: -8px 0 0 0'
     ].join(';');
 
-    // Buttons container
     const buttonsContainer = document.createElement('div');
     buttonsContainer.style.cssText = [
       'display: flex',
       'flex-direction: column',
-      'gap: 15px'
+      'gap: 24px',
+      'align-items: center',
+      'width: 100%'
     ].join(';');
 
-    // Continue button (same class as PLAY CTA from slider)
     const continueBtn = document.createElement('button');
     continueBtn.textContent = 'Continue';
     continueBtn.className = 'menu-btn-primary';
-    continueBtn.style.color = 'white';
-
-    // Start New Game button (white with subtle shadow like ref image)
-    const exitBtn = document.createElement('button');
-    exitBtn.textContent = 'Start New Game';
-    exitBtn.style.cssText = [
-      'background: white',
-      'color: #7A7A7A',
-      'border: none',
-      'padding: 18px 50px',
-      'border-radius: 50px',
-      'font-size: 20px',
-      'font-weight: 600',
-      'cursor: pointer',
-      'box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12), inset 0 -4px 8px rgba(0, 0, 0, 0.08)',
-      'text-transform: capitalize',
+    continueBtn.style.cssText = [
+      'width: 250px',
+      'height: auto',
+      'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
       'letter-spacing: 0.3px',
-      'font-family: "LTCrow", Arial, sans-serif'
+      'font-size: 26px',
+      'font-weight: 700',
+      'color: white',
+      'border: none',
+      'cursor: pointer',
+      'align-self: center'
     ].join(';');
 
-    // Event handlers
+    const newGameBtn = document.createElement('button');
+    newGameBtn.textContent = 'New Game';
+    newGameBtn.className = 'squishy squishy-white';
+    newGameBtn.style.cssText = [
+      'width: 250px',
+      'height: auto',
+      'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
+      'letter-spacing: 0.3px',
+      'font-size: 26px',
+      'font-weight: 700',
+      'color: #878585',
+      'text-transform: none',
+      'border: 1px solid #E0E0E0',
+      'cursor: pointer',
+      'align-self: center'
+    ].join(';');
+
+    // Event listeners
     continueBtn.onclick = async () => {
-      document.body.removeChild(overlay);
-      
-      // Wait for app.js to load and expose loadGameState
-      let attempts = 0;
-      const maxAttempts = 50; // 5 seconds max wait
-      
-      while (attempts < maxAttempts) {
-        if (typeof window.loadGameState === 'function') {
-          console.log('✅ loadGameState function found, attempting to load...');
-          try {
+      try {
+        await animateModalExit();
+        overlay.remove();
+        await animateSlideExit();
+        startTimeTracking(); // Start tracking play time
+        appHost.style.display = 'block';
+        appHost.removeAttribute('hidden');
+        
+        console.log('🎮 main.js: About to call boot() for continue...');
+        await boot();
+        console.log('🎮 main.js: boot() called for continue');
+        
+        // Wait a bit for boot to complete, then load saved game state
+        setTimeout(async () => {
+          console.log('🎮 main.js: About to load saved game state...');
+          if (typeof window.loadGameState === 'function') {
             const loaded = await window.loadGameState();
             if (loaded) {
-              console.log('✅ Game loaded successfully!');
-              resolve();
-              return;
+              console.log('✅ Game state loaded successfully');
             } else {
-              console.log('⚠️ loadGameState returned false');
-              break;
+              console.log('⚠️ Failed to load game state, starting fresh');
             }
-          } catch (error) {
-            console.error('❌ Error loading game state:', error);
-            break;
+          } else {
+            console.log('⚠️ loadGameState function not available');
           }
-        }
+        }, 100);
         
-        // Wait 100ms before trying again
-        await new Promise(resolve => setTimeout(resolve, 100));
-        attempts++;
+        resolve();
+      } catch (error) {
+        console.error('❌ Error in continue flow:', error);
+        // Fallback: try to start game anyway
+        try {
+          await boot();
+        } catch (fallbackError) {
+          console.error('❌ Fallback boot also failed:', fallbackError);
+        }
+        resolve();
       }
-      
-      // If we get here, loading failed
-      console.log('⚠️ Failed to load game after', attempts, 'attempts, starting new game');
-      alert('Failed to load game, starting new game.');
-      boot();
-      resolve();
     };
 
-    exitBtn.onclick = () => {
-      document.body.removeChild(overlay);
-      localStorage.removeItem('cc_saved_game');
-      checkForSavedGame();
-      resolve();
+    newGameBtn.onclick = async () => {
+      try {
+        await animateModalExit();
+        overlay.remove();
+        await animateSlideExit();
+        
+        // Clear any existing saved game
+        localStorage.removeItem('cc_saved_game');
+        
+        startTimeTracking(); // Start tracking play time
+        appHost.style.display = 'block';
+        appHost.removeAttribute('hidden');
+        
+        console.log('🎮 main.js: About to call boot() for new game...');
+        await boot();
+        console.log('🎮 main.js: boot() called for new game');
+        resolve();
+      } catch (error) {
+        console.error('❌ Error in new game flow:', error);
+        // Fallback: try to start game anyway
+        try {
+          await boot();
+        } catch (fallbackError) {
+          console.error('❌ Fallback boot also failed:', fallbackError);
+        }
+        resolve();
+      }
     };
+
+    // Tap outside to close
+    const handleOverlayClick = (e) => {
+      // Only close if clicking directly on overlay, not on modal or its children
+      if (e.target === overlay && e.target !== modal) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('🎮 Modal closed by clicking outside');
+        animateModalExit().then(() => {
+          overlay.remove();
+          sliderLocked = false;
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              window.ensureDotsVisible?.();
+            }, 100);
+          });
+          home.style.display = 'block';
+          home.removeAttribute('hidden');
+          home.hidden = false;
+          resolve();
+        });
+      }
+    };
+
+    // Add event listeners with delay to prevent immediate closing
+    setTimeout(() => {
+      overlay.addEventListener('click', handleOverlayClick);
+      // Remove touchstart to prevent double firing on mobile
+      // overlay.addEventListener('touchstart', handleOverlayClick);
+    }, 800); // 800ms delay before enabling tap outside to close
 
     // Assemble modal
     buttonsContainer.appendChild(continueBtn);
-    buttonsContainer.appendChild(exitBtn);
-    modal.appendChild(icon);
+    buttonsContainer.appendChild(newGameBtn);
     modal.appendChild(title);
     modal.appendChild(subtitle);
     modal.appendChild(buttonsContainer);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+
+    // Entry animation
+    overlay.style.opacity = '0';
+    overlay.style.backdropFilter = 'blur(0px)';
+    overlay.style.background = 'rgba(245, 245, 245, 0)';
+    modal.style.pointerEvents = 'none'; // Disable pointer events during animation
+    
+    requestAnimationFrame(() => {
+      overlay.style.opacity = '1';
+      overlay.style.backdropFilter = 'blur(14px)';
+      overlay.style.background = 'rgba(245, 245, 245, 0.8)';
+    });
+
+    // Animate modal elements
+    modal.style.transform = 'scale(0.8) translateY(20px)';
+    modal.style.opacity = '0';
+    
+    setTimeout(() => {
+      modal.style.transition = 'transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 0.5s ease-out';
+      modal.style.transform = 'scale(1) translateY(0)';
+      modal.style.opacity = '1';
+      
+      // Re-enable pointer events after animation
+      setTimeout(() => {
+        modal.style.pointerEvents = 'auto';
+      }, 500);
+    }, 50);
+
+    // Animate individual elements
+    setTimeout(() => {
+      title.style.transition = 'transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 0.4s ease-out';
+      title.style.transform = 'translateY(10px)';
+      title.style.opacity = '0';
+      setTimeout(() => {
+        title.style.transform = 'translateY(0)';
+        title.style.opacity = '1';
+      }, 50);
+    }, 200);
+
+    setTimeout(() => {
+      subtitle.style.transition = 'transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 0.4s ease-out';
+      subtitle.style.transform = 'translateY(10px)';
+      subtitle.style.opacity = '0';
+      setTimeout(() => {
+        subtitle.style.transform = 'translateY(0)';
+        subtitle.style.opacity = '1';
+      }, 50);
+    }, 280);
+
+    setTimeout(() => {
+      continueBtn.style.transition = 'transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 0.4s ease-out';
+      continueBtn.style.transform = 'translateY(10px)';
+      continueBtn.style.opacity = '0';
+      setTimeout(() => {
+        continueBtn.style.transform = 'translateY(0)';
+        continueBtn.style.opacity = '1';
+      }, 50);
+    }, 360);
+
+    setTimeout(() => {
+      newGameBtn.style.transition = 'transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 0.4s ease-out';
+      newGameBtn.style.transform = 'translateY(10px)';
+      newGameBtn.style.opacity = '0';
+      setTimeout(() => {
+        newGameBtn.style.transform = 'translateY(0)';
+        newGameBtn.style.opacity = '1';
+      }, 50);
+    }, 440);
+  });
+}
+
+// Modal exit animation
+async function animateModalExit() {
+  return new Promise(resolve => {
+    const modal = document.querySelector('div[style*="border-radius: 40px"]');
+    if (!modal) {
+      resolve();
+      return;
+    }
+
+    const title = modal.querySelector('h2');
+    const subtitle = modal.querySelector('p');
+    const buttons = modal.querySelectorAll('button');
+
+    // Animate elements out
+    if (title) {
+      title.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 0.3s ease-out';
+      title.style.transform = 'translateY(-10px) scale(0.9)';
+      title.style.opacity = '0';
+    }
+
+    if (subtitle) {
+      subtitle.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 0.3s ease-out';
+      subtitle.style.transform = 'translateY(-10px) scale(0.9)';
+      subtitle.style.opacity = '0';
+    }
+
+    buttons.forEach((btn, index) => {
+      setTimeout(() => {
+        btn.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 0.3s ease-out';
+        btn.style.transform = 'translateY(-10px) scale(0.9)';
+        btn.style.opacity = '0';
+      }, index * 80);
+    });
+
+    // Animate modal container
+    setTimeout(() => {
+      modal.style.transition = 'transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 0.4s ease-out';
+      modal.style.transform = 'scale(0.8) translateY(20px)';
+      modal.style.opacity = '0';
+      resolve();
+    }, 300);
+  });
+}
+
+// Slide exit animation
+async function animateSlideExit() {
+  return new Promise(resolve => {
+    console.log('🎬 Starting slide exit animation...');
+    
+    // Get dots for animation
+    const dots = document.querySelectorAll('.slider-dot');
+    
+    // Get slide 1 elements and logo for animation
+    const slide1 = document.querySelector('.slider-slide[data-slide="0"]');
+    const slide1Content = slide1?.querySelector('.slide-content');
+    const slide1Text = slide1?.querySelector('.slide-text');
+    const slide1Button = slide1?.querySelector('.slide-button');
+    const slide1Hero = slide1?.querySelector('.hero-container');
+    const homeLogo = document.getElementById('home-logo');
+    
+    if (slide1 && slide1Content && slide1Text && slide1Button && slide1Hero) {
+      // Add elastic spring bounce pop out animation - 0.65 seconds
+      slide1Content.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+      slide1Text.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+      slide1Button.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+      slide1Hero.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+      
+      // Add logo animation if it exists
+      if (homeLogo) {
+        homeLogo.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+      }
+      
+      // Add dots animation
+      dots.forEach((dot, index) => {
+        dot.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+      });
+      
+      // Apply gentle elastic pop out with bounce sequence
+      slide1Content.style.opacity = '0';
+      slide1Content.style.transform = 'scale(0) translateY(-20px)';
+      slide1Text.style.opacity = '0';
+      slide1Text.style.transform = 'scale(0) translateY(-15px)';
+      slide1Button.style.opacity = '0';
+      slide1Button.style.transform = 'scale(0) translateY(-10px)';
+      slide1Hero.style.opacity = '0';
+      slide1Hero.style.transform = 'scale(0) translateY(-25px)';
+      
+      // Apply logo animation
+      if (homeLogo) {
+        homeLogo.style.opacity = '0';
+        homeLogo.style.transform = 'scale(0) translateY(-30px)';
+      }
+      
+      // Apply dots animation
+      dots.forEach((dot, index) => {
+        dot.style.opacity = '0';
+        dot.style.transform = 'scale(0) translateY(-5px)';
+      });
+      
+      // Hide home after animation completes
+      setTimeout(() => {
+        home.style.display = 'none';
+        console.log('✅ Slide exit animation completed');
+        resolve();
+      }, 650); // Wait for elastic spring bounce animation to complete
+    } else {
+      // Fallback if elements not found
+      console.log('⚠️ Slide elements not found, hiding home immediately');
+      home.style.display = 'none';
+      resolve();
+    }
   });
 }
 
@@ -161,9 +490,21 @@ async function checkForSavedGame() {
       const gameState = JSON.parse(hasSavedGame);
       const saveAge = Date.now() - gameState.timestamp;
       if (saveAge < 24 * 60 * 60 * 1000) { // Less than 24 hours old
-        console.log('🎮 Found saved game, showing resume modal...');
-        await showResumeGameModal();
-        return;
+        // Check if player has actually played (moved tiles, made merges, etc.)
+        const hasPlayed = gameState.hasPlayed || false;
+        const hasMoves = gameState.moveCount > 0 || false;
+        const hasScore = gameState.score > 0 || false;
+        const hasTiles = gameState.grid && gameState.grid.some(row => row.some(cell => cell !== null)) || false;
+        
+        if (hasPlayed || hasMoves || hasScore || hasTiles) {
+          console.log('🎮 Found played game, showing resume modal...');
+          await showResumeGameModal();
+          return;
+        } else {
+          console.log('🎮 Found fresh game (no moves made), starting directly...');
+          // Remove the fresh game save and start new
+          localStorage.removeItem('cc_saved_game');
+        }
       } else {
         console.log('⚠️ Saved game is too old, removing...');
         localStorage.removeItem('cc_saved_game');
@@ -174,8 +515,21 @@ async function checkForSavedGame() {
     }
   }
   
-  // No saved game, start normally
-  boot();
+  // No saved game or fresh game, start directly
+  console.log('🎮 Starting new game directly...');
+  await startGameDirectly();
+}
+
+// Start game directly without modal
+async function startGameDirectly() {
+  await animateSlideExit();
+  startTimeTracking();
+  appHost.style.display = 'block';
+  appHost.removeAttribute('hidden');
+  
+  console.log('🎮 main.js: About to call boot() for direct start...');
+  await boot();
+  console.log('🎮 main.js: boot() called for direct start');
 }
 
 const UI_STATE_KEY = 'cubeCrash_ui_state_v1';
@@ -285,8 +639,8 @@ function ensureParallaxLoop(sliderParallaxImage){
       await new Promise(res => document.addEventListener('DOMContentLoaded', res, { once: true }));
     }
 
-    const home = document.getElementById('home');
-    const appHost = document.getElementById('app');
+    home = document.getElementById('home');
+    appHost = document.getElementById('app');
     
     if (!home || !appHost) {
       throw new Error('Required elements not found');
@@ -380,33 +734,6 @@ function ensureParallaxLoop(sliderParallaxImage){
     // Time tracking variables
     let gameStartTime = null;
     let timeTrackingInterval = null;
-    
-    // Function to start time tracking
-    function startTimeTracking() {
-      if (gameStartTime) return; // Already tracking
-      gameStartTime = Date.now();
-      console.log('⏱️ Started time tracking');
-      
-      // Update time display every second
-      timeTrackingInterval = setInterval(updateTimeDisplay, 1000);
-    }
-    
-    // Function to stop time tracking and save to stats
-    function stopTimeTracking() {
-      if (!gameStartTime) return; // Not tracking
-      
-      const sessionTime = Math.floor((Date.now() - gameStartTime) / 1000); // seconds
-      gameStats.timePlayed += sessionTime;
-      saveStatsToStorage();
-      
-      gameStartTime = null;
-      if (timeTrackingInterval) {
-        clearInterval(timeTrackingInterval);
-        timeTrackingInterval = null;
-      }
-      
-      console.log('⏱️ Stopped time tracking, session:', sessionTime, 'total:', gameStats.timePlayed);
-    }
     
     // Function to format time in HH:MM:SS format
     function formatTime(seconds) {
@@ -1308,86 +1635,14 @@ function ensureParallaxLoop(sliderParallaxImage){
       const startGameNow = (e) => {
         if (sliderLocked) return;
         if (e) { try { e.stopPropagation(); } catch {} }
-        console.log('🎮 Play - start game with fade animation');
+        console.log('🎮 Play - showing resume modal');
         
         // Lock slider immediately to prevent interference
         sliderLocked = true;
         isDragging = false;
-        hideDots();
         
-        // Get dots for animation
-        const dots = document.querySelectorAll('.slider-dot');
-        
-        // Get slide 1 elements and logo for animation
-        const slide1 = document.querySelector('.slider-slide[data-slide="0"]');
-        const slide1Content = slide1?.querySelector('.slide-content');
-        const slide1Text = slide1?.querySelector('.slide-text');
-        const slide1Button = slide1?.querySelector('.slide-button');
-        const slide1Hero = slide1?.querySelector('.hero-container');
-        const homeLogo = document.getElementById('home-logo');
-        
-        if (slide1 && slide1Content && slide1Text && slide1Button && slide1Hero) {
-          // Add elastic spring bounce pop out animation - 0.65 seconds
-          slide1Content.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          slide1Text.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          slide1Button.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          slide1Hero.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          
-          // Add logo animation if it exists
-          if (homeLogo) {
-            homeLogo.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          }
-          
-          // Add dots animation
-          dots.forEach((dot, index) => {
-            dot.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          });
-          
-          // Apply gentle elastic pop out with bounce sequence
-          slide1Content.style.opacity = '0';
-          slide1Content.style.transform = 'scale(0) translateY(-20px)';
-          slide1Text.style.opacity = '0';
-          slide1Text.style.transform = 'scale(0) translateY(-15px)';
-          slide1Button.style.opacity = '0';
-          slide1Button.style.transform = 'scale(0) translateY(-10px)';
-          slide1Hero.style.opacity = '0';
-          slide1Hero.style.transform = 'scale(0) translateY(-25px)';
-          
-          // Apply logo animation
-          if (homeLogo) {
-            homeLogo.style.opacity = '0';
-            homeLogo.style.transform = 'scale(0) translateY(-30px)';
-          }
-          
-          // Apply dots animation
-          dots.forEach((dot, index) => {
-            dot.style.opacity = '0';
-            dot.style.transform = 'scale(0) translateY(-5px)';
-          });
-          
-          // Start game after animation completes
-          setTimeout(() => {
-            home.style.display = 'none';
-            startTimeTracking(); // Start tracking play time
-            checkForSavedGame().then(() => {
-              // Show appHost AFTER game is loaded
-              appHost.style.display = 'block';
-              appHost.removeAttribute('hidden');
-              console.log('✅ Game loaded, appHost shown');
-            });
-          }, 650); // Wait for elastic spring bounce animation to complete
-        } else {
-          // Fallback if elements not found - start game immediately
-          console.log('⚠️ Slide elements not found, starting game without animation');
-          home.style.display = 'none';
-          startTimeTracking(); // Start tracking play time
-          checkForSavedGame().then(() => {
-            // Show appHost AFTER game is loaded
-            appHost.style.display = 'block';
-            appHost.removeAttribute('hidden');
-            console.log('✅ Game loaded, appHost shown (fallback)');
-          });
-        }
+        // Check for saved game and show modal
+        checkForSavedGame();
       };
 
       // Track button press and drag behavior
@@ -1821,6 +2076,14 @@ function ensureParallaxLoop(sliderParallaxImage){
       // Stop time tracking
       stopTimeTracking();
       
+      // Clear saved game so next play starts fresh
+      try {
+        localStorage.removeItem('cc_saved_game');
+        console.log('🗑️ Cleared saved game - next play will start fresh');
+      } catch (error) {
+        console.warn('Failed to clear saved game:', error);
+      }
+      
       try {
         // Persist live high score before tearing down the game
         try {
@@ -2115,6 +2378,29 @@ function ensureParallaxLoop(sliderParallaxImage){
     });
 
     console.log('✅ Simple slider initialized successfully');
+    
+    // Mobile-specific event listeners
+    window.addEventListener('pagehide', mobileSave);
+    window.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        mobileSave();
+      } else {
+        // App became visible, try to load
+        setTimeout(mobileLoad, 100);
+      }
+    });
+    
+    // iOS/Android specific events
+    document.addEventListener('pause', mobileSave, false); // Android
+    document.addEventListener('resume', () => {
+      setTimeout(mobileLoad, 100);
+    }, false); // Android
+    
+    // Touch events for mobile save
+    document.addEventListener('touchstart', () => {
+      // Save on touch start (user interaction)
+      mobileSave();
+    }, { passive: true });
     
   } catch (error) {
     console.error('❌ Error:', error);
