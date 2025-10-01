@@ -2201,6 +2201,21 @@ async function loadGameState() {
       window.updateGhostVisibility();
       console.log('✅ Ghost visibility updated after loading game state');
     }
+    
+    // DEBUG: Add red triangle to test visibility
+    console.log('🔴 DEBUG: Adding red triangle to stage...');
+    const debugTriangle = new Graphics();
+    debugTriangle.beginFill(0xFF0000, 1);
+    debugTriangle.drawPolygon([0, 0, 100, 0, 50, 100]);
+    debugTriangle.endFill();
+    debugTriangle.x = app.renderer.width / 2;
+    debugTriangle.y = app.renderer.height / 2;
+    debugTriangle.zIndex = 999999;
+    stage.addChild(debugTriangle);
+    stage.sortChildren();
+    console.log('🔴 DEBUG: Red triangle added at', debugTriangle.x, debugTriangle.y);
+    console.log('🔴 DEBUG: Canvas visible?', app.canvas.style.display, 'Canvas parent:', app.canvas.parentElement?.id);
+    console.log('🔴 DEBUG: Board visible?', board.visible, 'Board children:', board.children.length);
 
     lastSavedState = localStorage.getItem('cc_saved_game');
     console.log('✅ Game state loaded successfully.');
