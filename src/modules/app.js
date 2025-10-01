@@ -2227,6 +2227,12 @@ async function loadGameState() {
       try {
         HUD.createUnifiedHudContainer();
         console.log('✅ DOM HUD recreated');
+        
+        // Play HUD drop animation after recreation
+        if (typeof HUD.playHudDrop === 'function') {
+          HUD.playHudDrop({});
+          console.log('✅ HUD drop animation triggered');
+        }
       } catch (error) {
         console.error('❌ Failed to recreate DOM HUD:', error);
       }
