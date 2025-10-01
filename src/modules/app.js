@@ -735,27 +735,45 @@ function initializeBackgroundLayer(){
   
   console.log('🎯 Creating FIXED background layer with all ghost placeholders');
   
-  // Create ghost placeholder for EVERY cell (not just empty ones)
-  // They will always be visible regardless of tile state
+  // Create ghost placeholder for EVERY cell
+  // Store reference in 2D array for easy access
+  window._ghostPlaceholders = [];
+  
   for (let r=0;r<ROWS;r++){
+    window._ghostPlaceholders[r] = [];
     for (let c=0;c<COLS;c++){
       const pos = cellXY(c, r);
       const ghost = new Graphics();
       ghost.roundRect(pos.x+PAD, pos.y+PAD, TILE-PAD*2, TILE-PAD*2, RADIUS);
       ghost.stroke({ color:COLOR, width:WIDTH, alpha:ALPHA });
       ghost.eventMode = 'none';
-      ghost.label = `Ghost_${c}_${r}`; // For debugging
-      ghost.zIndex = -10000; // Explicit zIndex for each ghost
+      ghost.label = `Ghost_${c}_${r}`;
+      ghost.zIndex = -10000;
+      ghost.visible = true; // Start visible
       backgroundLayer.addChild(ghost);
+      window._ghostPlaceholders[r][c] = ghost; // Store reference
     }
   }
   
-  board.sortChildren(); // Sort once after creation
+  board.sortChildren();
   
   console.log('✅ FIXED background layer created with', ROWS * COLS, 'ghost placeholders');
   console.log('✅ This layer will NEVER be modified or destroyed');
   console.log('🔍 Background layer zIndex:', backgroundLayer.zIndex);
 }
+
+// Helper function to hide/show ghost at specific position
+function setGhostVisibility(c, r, visible) {
+  try {
+    if (window._ghostPlaceholders && window._ghostPlaceholders[r] && window._ghostPlaceholders[r][c]) {
+      window._ghostPlaceholders[r][c].visible = visible;
+      console.log('🎯 setGhostVisibility:', c, r, visible ? 'visible' : 'hidden');
+    }
+  } catch {}
+}
+
+// Export to window for use in board.js
+window.setGhostVisibility = setGhostVisibility;
 
 // Compatibility function - does nothing (background is always there)
 function drawBoardBG(mode = 'active+empty'){

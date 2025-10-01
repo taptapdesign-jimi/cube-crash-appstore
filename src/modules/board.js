@@ -307,25 +307,22 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
 
   board.addChild(t);
   
-  // For locked tiles, add occluder to board (not tile) to hide ghost placeholder
+  // For locked tiles, hide ghost placeholder at this position
   // This prevents ghost from showing through semi-transparent locked tiles
-  if (locked) {
-    const PAD = 5;
-    const RADIUS = Math.round(TILE * 0.26);
-    const occ = new Graphics();
-    // Solid fill to completely hide ghost placeholder
-    occ.beginFill(0xF5F5F5, 1); // Match board background color
-    occ.drawRoundedRect(t.targetX - TILE/2 + PAD, t.targetY - TILE/2 + PAD, TILE - PAD*2, TILE - PAD*2, RADIUS);
-    occ.endFill();
-    occ.zIndex = -900; // Below tile (0+), above ghost placeholders (-10000)
-    occ.eventMode = 'none';
-    board.addChild(occ); // Add to board, not tile
-    t.occluder = occ;
+  if (locked && typeof window.setGhostVisibility === 'function') {
+    window.setGhostVisibility(c, r, false);
+    console.log('🎯 Hidden ghost placeholder for locked tile at', c, r);
     
-    console.log('🎯 Created occluder for locked tile at', c, r, 'zIndex:', occ.zIndex);
+    // Store cleanup function to restore ghost when tile is unlocked/destroyed
+    t._restoreGhost = () => {
+      if (typeof window.setGhostVisibility === 'function') {
+        window.setGhostVisibility(c, r, true);
+        console.log('🎯 Restored ghost placeholder at', c, r);
+      }
+    };
   }
 
-  board.sortChildren(); // Sort after adding occluder
+  board.sortChildren(); // Sort after adding tile
   tiles.push(t);
   grid[r] ||= [];
   grid[r][c] = t;
@@ -333,15 +330,15 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   drawStack(t);
   drawPips(t);
 
-  // Cleanup occluder when tile is destroyed
+  // Cleanup and restore ghost when tile is destroyed
   const __origDestroy = t.destroy.bind(t);
   t.destroy = (opts) => {
     try { 
-      if (t.occluder) { 
-        t.occluder.destroy(); 
-        t.occluder = null;
-        console.log('🎯 Destroyed occluder for tile at', t.gridX, t.gridY);
-      } 
+      // Restore ghost placeholder if this was a locked tile
+      if (t._restoreGhost) {
+        t._restoreGhost();
+        t._restoreGhost = null;
+      }
     } catch {}
     __origDestroy(opts);
   };
