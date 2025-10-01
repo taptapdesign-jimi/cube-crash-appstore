@@ -974,6 +974,12 @@ function rebuildBoard(){
   try { tiles.forEach(t => t.visible = false); } catch {}
   drawBoardBG('active+empty');
   
+  // Hide all ghost placeholders during board setup animation
+  if (backgroundLayer) {
+    backgroundLayer.visible = false;
+    console.log('🎯 Hiding ghost placeholders during sweetPopIn animation');
+  }
+  
   // Start animation immediately - NO WAITING
   console.log('🎯 Starting sweetPopIn from app.js with', tiles.length, 'tiles');
   sweetPopIn(tiles, {
@@ -984,6 +990,12 @@ function rebuildBoard(){
       }
     }
   }).then(() => {
+    // Show ghost placeholders after animation completes
+    if (backgroundLayer) {
+      backgroundLayer.visible = true;
+      console.log('✅ Showing ghost placeholders after sweetPopIn');
+    }
+    
     // Update ghost visibility after tiles are set up
     // Hide ghosts only under locked tiles that REMAIN locked
     if (typeof window.updateGhostVisibility === 'function') {
