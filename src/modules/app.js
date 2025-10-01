@@ -418,6 +418,7 @@ export async function boot(){
   const ret = installDrag({
     app, board, TILE,
     getTiles: () => tiles,
+    getGrid: () => grid, // Add getGrid function for drag system
     cellXY, // Add cellXY function
     merge,
     canDrop: (s, d) => !d.locked,

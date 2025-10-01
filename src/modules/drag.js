@@ -180,6 +180,20 @@ export function initDrag(cfg) {
     board.addChild(t);
     t.zIndex = 9999;
 
+    // Temporarily set grid cell to null so ghost placeholder becomes visible
+    if (cfg.getGrid) {
+      const grid = cfg.getGrid();
+      if (grid && grid[drag.startGY] && grid[drag.startGY][drag.startGX] === t) {
+        grid[drag.startGY][drag.startGX] = null;
+        console.log('🎯 DRAG: Temporarily cleared grid at', drag.startGX, drag.startGY);
+        
+        // Update ghost visibility to show placeholder at drag origin
+        if (typeof window.updateGhostVisibility === 'function') {
+          window.updateGhostVisibility();
+        }
+      }
+    }
+
     // Ghost placeholders are now in fixed background layer - always visible
 
     // 🔧 SHADOW PATCH: prikaži sjenu i pojačaj na dragAlpha, uz očuvanje alpha pri refreshu
@@ -649,9 +663,26 @@ export function initDrag(cfg) {
     drag.hoverTarget = null;
   }
 
+  function restoreGridCell(t) {
+    // Restore tile to grid when drag ends
+    if (cfg.getGrid && t) {
+      const grid = cfg.getGrid();
+      if (grid && grid[drag.startGY]) {
+        grid[drag.startGY][drag.startGX] = t;
+        console.log('🎯 DRAG END: Restored tile to grid at', drag.startGX, drag.startGY);
+        
+        // Update ghost visibility to hide placeholder at tile position
+        if (typeof window.updateGhostVisibility === 'function') {
+          window.updateGhostVisibility();
+        }
+      }
+    }
+  }
+
   function snapBack(t) {
     console.log('🔍 SNAPBACK: Tile at', t?.gridX, t?.gridY, 'value:', t?.value, 'locked:', t?.locked);
     releaseMagnet({ immediate: true });
+    restoreGridCell(t); // Restore to grid before snapping back
     
     // Ghost placeholders are now fixed and always visible
     

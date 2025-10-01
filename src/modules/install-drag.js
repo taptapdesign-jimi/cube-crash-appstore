@@ -26,6 +26,7 @@ export function installDrag({
   app,
   board,
   getTiles,
+  getGrid, // Add getGrid function
   TILE,
   merge,
   canDrop,
@@ -52,6 +53,7 @@ export function installDrag({
   app,
   board,
   getTiles,
+  getGrid, // Pass getGrid to drag manager
   tileSize: TILE,
   tileGap: GAP,
   cellXY, // Pass cellXY to drag manager
