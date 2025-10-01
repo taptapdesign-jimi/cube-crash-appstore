@@ -14,58 +14,53 @@ async function showResumeGameModal() {
       'left: 0',
       'width: 100%',
       'height: 100%',
-      'background: rgba(0, 0, 0, 0.8)',
+      'background: transparent',
       'display: flex',
       'align-items: center',
       'justify-content: center',
       'z-index: 1000000',
-      'font-family: Arial, sans-serif'
+      'font-family: "LTCrow", Arial, sans-serif'
     ].join(';');
 
     const modal = document.createElement('div');
     modal.style.cssText = [
-      'background: #FFFFFF',
-      'border-radius: 32px',
-      'padding: 48px 42px 44px',
+      'background: white',
+      'border-radius: 20px',
+      'padding: 40px',
       'text-align: center',
-      'max-width: 420px',
-      'width: min(92%, 420px)',
-      'box-shadow: 0 26px 68px rgba(0, 0, 0, 0.18)',
-      'display: flex',
-      'flex-direction: column',
-      'align-items: center',
-      'gap: 28px'
+      'max-width: 400px',
+      'width: 90%',
+      'box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3)'
     ].join(';');
 
-    // Time icon (240px converted to percentage)
+    // Resume game icon (240px width)
     const icon = document.createElement('img');
-    icon.src = 'assets/time-icon.png';
+    icon.src = 'assets/resume-game.png';
     icon.style.cssText = [
       'width: 240px',
-      'max-width: 64%',
       'height: auto',
-      'margin: 0 auto 12px'
+      'margin-bottom: 20px'
     ].join(';');
 
     // Title
     const title = document.createElement('h2');
     title.textContent = 'Resume game?';
     title.style.cssText = [
-      'margin: 0',
-      'font-size: 30px',
-      'font-weight: 700',
-      'color: #B36A3C',
-      'letter-spacing: 0.4px'
+      'margin: 0 0 10px 0',
+      'font-size: 28px',
+      'font-weight: bold',
+      'color: #8B4513',
+      'font-family: "LTCrow", Arial, sans-serif'
     ].join(';');
 
     // Subtitle
     const subtitle = document.createElement('p');
     subtitle.textContent = 'Resume your last board.';
     subtitle.style.cssText = [
-      'margin: 0',
-      'font-size: 18px',
-      'color: #8E7A6A',
-      'letter-spacing: 0.2px'
+      'margin: 0 0 30px 0',
+      'font-size: 16px',
+      'color: #666',
+      'font-family: "LTCrow", Arial, sans-serif'
     ].join(';');
 
     // Buttons container
@@ -73,92 +68,70 @@ async function showResumeGameModal() {
     buttonsContainer.style.cssText = [
       'display: flex',
       'flex-direction: column',
-      'gap: 18px',
-      'width: 100%'
+      'gap: 15px'
     ].join(';');
 
-    // Continue button
+    // Continue button (same class as PLAY CTA from slider)
     const continueBtn = document.createElement('button');
     continueBtn.textContent = 'Continue';
-    continueBtn.style.cssText = [
-      'background: linear-gradient(180deg, #FFB278 0%, #E17337 100%)',
-      'color: #4A2C10',
-      'border: none',
-      'padding: 18px 32px',
-      'border-radius: 999px',
-      'font-size: 20px',
-      'font-weight: 700',
-      'cursor: pointer',
-      'box-shadow: 0 18px 36px rgba(226, 123, 52, 0.3)',
-      'text-shadow: 0 2px 0 rgba(255, 255, 255, 0.45)',
-      'transition: transform 0.18s ease, box-shadow 0.18s ease'
-    ].join(';');
-    continueBtn.onmouseenter = () => {
-      continueBtn.style.transform = 'translateY(-3px)';
-      continueBtn.style.boxShadow = '0 22px 40px rgba(226, 123, 52, 0.36)';
-    };
-    continueBtn.onmouseleave = () => {
-      continueBtn.style.transform = 'none';
-      continueBtn.style.boxShadow = '0 18px 36px rgba(226, 123, 52, 0.3)';
-    };
+    continueBtn.className = 'menu-btn-primary';
+    continueBtn.style.color = 'white';
 
-    // Exit to menu button
+    // Start New Game button (white with subtle shadow like ref image)
     const exitBtn = document.createElement('button');
-    exitBtn.textContent = 'Start new game';
+    exitBtn.textContent = 'Start New Game';
     exitBtn.style.cssText = [
-      'background: linear-gradient(180deg, #FFFFFF 0%, #ECE8E4 100%)',
-      'color: #6F6A63',
-      'border: 0',
-      'padding: 18px 32px',
-      'border-radius: 999px',
-      'font-size: 18px',
+      'background: white',
+      'color: #7A7A7A',
+      'border: none',
+      'padding: 18px 50px',
+      'border-radius: 50px',
+      'font-size: 20px',
       'font-weight: 600',
       'cursor: pointer',
-      'box-shadow: 0 14px 30px rgba(0, 0, 0, 0.12)',
-      'transition: transform 0.18s ease, box-shadow 0.18s ease'
+      'box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12), inset 0 -4px 8px rgba(0, 0, 0, 0.08)',
+      'text-transform: capitalize',
+      'letter-spacing: 0.3px',
+      'font-family: "LTCrow", Arial, sans-serif'
     ].join(';');
-    exitBtn.onmouseenter = () => {
-      exitBtn.style.transform = 'translateY(-3px)';
-      exitBtn.style.boxShadow = '0 18px 34px rgba(0, 0, 0, 0.15)';
-    };
-    exitBtn.onmouseleave = () => {
-      exitBtn.style.transform = 'none';
-      exitBtn.style.boxShadow = '0 14px 30px rgba(0, 0, 0, 0.12)';
-    };
 
     // Event handlers
     continueBtn.onclick = async () => {
-      continueBtn.disabled = true;
-      exitBtn.disabled = true;
-
-      const removeOverlay = () => {
-        if (overlay.parentElement) {
-          document.body.removeChild(overlay);
+      document.body.removeChild(overlay);
+      
+      // Wait for app.js to load and expose loadGameState
+      let attempts = 0;
+      const maxAttempts = 50; // 5 seconds max wait
+      
+      while (attempts < maxAttempts) {
+        if (typeof window.loadGameState === 'function') {
+          console.log('✅ loadGameState function found, attempting to load...');
+          try {
+            const loaded = await window.loadGameState();
+            if (loaded) {
+              console.log('✅ Game loaded successfully!');
+              resolve();
+              return;
+            } else {
+              console.log('⚠️ loadGameState returned false');
+              break;
+            }
+          } catch (error) {
+            console.error('❌ Error loading game state:', error);
+            break;
+          }
         }
-      };
-
-      try {
-        await boot();
-
-        if (typeof window.loadGameState !== 'function') {
-          throw new Error('loadGameState is not available');
-        }
-
-        const loaded = await window.loadGameState();
-        if (!loaded) {
-          throw new Error('loadGameState returned false');
-        }
-
-        console.log('✅ Game loaded successfully!');
-        removeOverlay();
-        resolve();
-      } catch (error) {
-        console.error('❌ Error loading saved game:', error);
-        alert('Failed to load game, starting new game.');
-        await boot();
-        removeOverlay();
-        resolve();
+        
+        // Wait 100ms before trying again
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
       }
+      
+      // If we get here, loading failed
+      console.log('⚠️ Failed to load game after', attempts, 'attempts, starting new game');
+      alert('Failed to load game, starting new game.');
+      boot();
+      resolve();
     };
 
     exitBtn.onclick = () => {

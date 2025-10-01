@@ -14,12 +14,12 @@ async function showResumeGameModal() {
       'left: 0',
       'width: 100%',
       'height: 100%',
-      'background: rgba(0, 0, 0, 0.8)',
+      'background: transparent',
       'display: flex',
       'align-items: center',
       'justify-content: center',
       'z-index: 1000000',
-      'font-family: Arial, sans-serif'
+      'font-family: "LTCrow", Arial, sans-serif'
     ].join(';');
 
     const modal = document.createElement('div');
@@ -33,11 +33,11 @@ async function showResumeGameModal() {
       'box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3)'
     ].join(';');
 
-    // Time icon (240px converted to percentage)
+    // Resume game icon (240px width)
     const icon = document.createElement('img');
-    icon.src = 'assets/time-icon.png';
+    icon.src = 'assets/resume-game.png';
     icon.style.cssText = [
-      'width: 15%', // 240px at 1600px width = 15%
+      'width: 240px',
       'height: auto',
       'margin-bottom: 20px'
     ].join(';');
@@ -49,7 +49,8 @@ async function showResumeGameModal() {
       'margin: 0 0 10px 0',
       'font-size: 28px',
       'font-weight: bold',
-      'color: #8B4513'
+      'color: #8B4513',
+      'font-family: "LTCrow", Arial, sans-serif'
     ].join(';');
 
     // Subtitle
@@ -58,7 +59,8 @@ async function showResumeGameModal() {
     subtitle.style.cssText = [
       'margin: 0 0 30px 0',
       'font-size: 16px',
-      'color: #666'
+      'color: #666',
+      'font-family: "LTCrow", Arial, sans-serif'
     ].join(';');
 
     // Buttons container
@@ -69,34 +71,28 @@ async function showResumeGameModal() {
       'gap: 15px'
     ].join(';');
 
-    // Continue button
+    // Continue button (same class as PLAY CTA from slider)
     const continueBtn = document.createElement('button');
     continueBtn.textContent = 'Continue';
-    continueBtn.style.cssText = [
-      'background: #FF8C00',
-      'color: white',
-      'border: none',
-      'padding: 15px 30px',
-      'border-radius: 10px',
-      'font-size: 18px',
-      'font-weight: bold',
-      'cursor: pointer',
-      'box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2)'
-    ].join(';');
+    continueBtn.className = 'menu-btn-primary';
+    continueBtn.style.color = 'white';
 
-    // Exit to menu button
+    // Start New Game button (white with subtle shadow like ref image)
     const exitBtn = document.createElement('button');
-    exitBtn.textContent = 'Exit to menu';
+    exitBtn.textContent = 'Start New Game';
     exitBtn.style.cssText = [
       'background: white',
-      'color: #333',
-      'border: 2px solid #ddd',
-      'padding: 15px 30px',
-      'border-radius: 10px',
-      'font-size: 18px',
-      'font-weight: bold',
+      'color: #7A7A7A',
+      'border: none',
+      'padding: 18px 50px',
+      'border-radius: 50px',
+      'font-size: 20px',
+      'font-weight: 600',
       'cursor: pointer',
-      'box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1)'
+      'box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12), inset 0 -4px 8px rgba(0, 0, 0, 0.08)',
+      'text-transform: capitalize',
+      'letter-spacing: 0.3px',
+      'font-family: "LTCrow", Arial, sans-serif'
     ].join(';');
 
     // Event handlers

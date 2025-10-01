@@ -180,22 +180,7 @@ export function initDrag(cfg) {
     board.addChild(t);
     t.zIndex = 9999;
 
-    // 🎯 CREATE TEMPORARY GHOST PLACEHOLDER at drag origin
-    if (cfg.cellXY && cfg.tileSize) {
-      const PAD = 5, RADIUS = Math.round(cfg.tileSize * 0.26), WIDTH = 3, COLOR = 0xEBE6E2;
-      const pos = cfg.cellXY(t.gridX, t.gridY);
-      drag.tempGhost = new Graphics();
-      drag.tempGhost.roundRect(pos.x + PAD, pos.y + PAD, cfg.tileSize - PAD * 2, cfg.tileSize - PAD * 2, RADIUS);
-      drag.tempGhost.stroke({ color: COLOR, width: WIDTH, alpha: 1.0 });
-      drag.tempGhost.alpha = 0.8;
-      drag.tempGhost.zIndex = -2000;
-      drag.tempGhost.eventMode = 'none';
-      board.addChild(drag.tempGhost);
-      board.sortChildren();
-      console.log('🎯 TEMP GHOST created at drag origin:', t.gridX, t.gridY);
-    }
-
-    // (ghost placeholder is now provided by boardBG under all cells)
+    // Ghost placeholders are now in fixed background layer - always visible
 
     // 🔧 SHADOW PATCH: prikaži sjenu i pojačaj na dragAlpha, uz očuvanje alpha pri refreshu
     if (t.shadow){
@@ -350,21 +335,7 @@ export function initDrag(cfg) {
       }
     }
     
-    // 🎯 REMOVE TEMPORARY GHOST PLACEHOLDER after a delay (let animations finish)
-    if (drag.tempGhost) {
-      gsap.delayedCall(0.5, () => {
-        try {
-          if (drag.tempGhost) {
-            drag.tempGhost.destroy();
-            console.log('🎯 TEMP GHOST removed (delayed)');
-            drag.tempGhost = null;
-          }
-        } catch {}
-      });
-    }
-    
-    // Ghost placeholders are now fixed and always visible
-    // nothing to clean up for ghost (boardBG provides placeholders)
+    // Ghost placeholders are in fixed background layer - always visible, no cleanup needed
 
     // vrati tilt u nulu s istim “delay” feelom
     if (t?.rotG) {

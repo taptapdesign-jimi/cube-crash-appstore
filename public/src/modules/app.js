@@ -364,6 +364,9 @@ export async function boot(){
   stage.addChild(board, hud);
   board.addChildAt(boardBG, 0); boardBG.zIndex = -1000; board.sortChildren();
   
+  // Initialize fixed background layer AFTER layout is set
+  // (will be called from startGame after layout())
+  
   // Debug: Monitor boardBG changes
   const originalClear = boardBG.clear.bind(boardBG);
   boardBG.clear = function() {
@@ -709,45 +712,57 @@ function boardSize(){ return { w: COLS*TILE + (COLS-1)*GAP, h: ROWS*TILE + (ROWS
 
 function cellXY(c, r){ return { x: c*(TILE+GAP), y: r*(TILE+GAP) }; }
 
-// DYNAMIC GHOST PLACEHOLDERS - only show on empty cells
-let ghostPlaceholders = [];
+// PROFESSIONAL SOLUTION: Fixed background layer with all ghost placeholders
+// Created once, never destroyed, always visible
+let backgroundLayer = null;
 
-function drawBoardBG(mode = 'active+empty'){
-  const PAD=5, RADIUS=Math.round(TILE*0.26), WIDTH=3, COLOR=0xEBE6E2, ALPHA=1.0;
+function initializeBackgroundLayer(){
+  if (backgroundLayer) {
+    console.log('⚠️ Background layer already exists, skipping initialization');
+    return;
+  }
   
-  // Remove old ghost placeholders
-  ghostPlaceholders.forEach(g => { try { g.destroy(); } catch {} });
-  ghostPlaceholders = [];
+  const PAD=5, RADIUS=Math.round(TILE*0.26), WIDTH=8, COLOR=0xEBE6E2, ALPHA=0.8;
   
-  console.log('🎯 Creating DYNAMIC ghost placeholders - only on empty cells');
+  // Create a dedicated container for background elements
+  backgroundLayer = new Container();
+  backgroundLayer.zIndex = -10000; // Always at the very bottom
+  backgroundLayer.eventMode = 'none'; // Non-interactive
+  backgroundLayer.label = 'BackgroundLayer'; // For debugging
   
-  // Only create ghost placeholders on empty cells (no tile)
+  // Add to board ONCE
+  board.addChildAt(backgroundLayer, 0);
+  
+  console.log('🎯 Creating FIXED background layer with all ghost placeholders');
+  
+  // Create ghost placeholder for EVERY cell (not just empty ones)
+  // They will always be visible regardless of tile state
   for (let r=0;r<ROWS;r++){
     for (let c=0;c<COLS;c++){
-      const cell = grid[r]?.[c];
-      
-      // Only show ghost placeholder if cell is empty (null)
-      if (cell === null) {
-        const pos = cellXY(c, r);
-        const ghost = new Graphics();
-        ghost.roundRect(pos.x+PAD,pos.y+PAD,TILE-PAD*2,TILE-PAD*2,RADIUS);
-        ghost.stroke({ color:COLOR, width:WIDTH, alpha:ALPHA });
-        ghost.alpha = 0.8; // Boost overall visibility
-        ghost.zIndex = -2000; // Ultra low zIndex
-        ghost.eventMode = 'none';
-        board.addChild(ghost);
-        ghostPlaceholders.push(ghost);
-      }
+      const pos = cellXY(c, r);
+      const ghost = new Graphics();
+      ghost.roundRect(pos.x+PAD, pos.y+PAD, TILE-PAD*2, TILE-PAD*2, RADIUS);
+      ghost.stroke({ color:COLOR, width:WIDTH, alpha:ALPHA });
+      ghost.eventMode = 'none';
+      ghost.label = `Ghost_${c}_${r}`; // For debugging
+      backgroundLayer.addChild(ghost);
     }
   }
-  board.sortChildren();
-  console.log('🎯 DYNAMIC ghost placeholders created:', ghostPlaceholders.length, 'visible');
+  
+  board.sortChildren(); // Sort once after creation
+  
+  console.log('✅ FIXED background layer created with', ROWS * COLS, 'ghost placeholders');
+  console.log('✅ This layer will NEVER be modified or destroyed');
 }
 
-// NEVER call drawBoardBG during drag - this is the key fix!
-function drawBoardBG_DURING_DRAG(mode = 'active+empty'){
-  // Do nothing during drag - ghost placeholders are already created and fixed
-  console.log('🎯 drawBoardBG_DURING_DRAG called - doing nothing to preserve ghost placeholders');
+// Compatibility function - does nothing (background is always there)
+function drawBoardBG(mode = 'active+empty'){
+  // Background layer is fixed and always visible
+  // This function is kept for compatibility but does nothing
+  if (!backgroundLayer) {
+    console.warn('⚠️ drawBoardBG called but background layer not initialized');
+    initializeBackgroundLayer();
+  }
 }
 
 function pulseBoardZoom(factor = 0.92, opts = {}) {
@@ -863,8 +878,30 @@ function fixHoverAnchor(t){ try { if (t && t.hover) { t.hover.x=TILE/2; t.hover.
 
 // -------------------- board build --------------------
 function resetBoardContainer(){
-  board.removeChildren(); board.addChildAt(boardBG,0); boardBG.zIndex=-1000; boardBG.eventMode='none';
-  board.sortableChildren = true; board.sortChildren();
+  console.log('🔄 resetBoardContainer (app.js): Board children count:', board.children.length);
+  console.log('🔄 resetBoardContainer (app.js): Board children labels:', board.children.map(c => c.label || c.constructor.name));
+  
+  // Get backgroundLayer before removing children
+  const bgLayer = board.children.find(c => c.label === 'BackgroundLayer');
+  console.log('🔄 resetBoardContainer (app.js): Found backgroundLayer:', !!bgLayer);
+  
+  board.removeChildren();
+  
+  // Re-add persistent layers
+  board.addChildAt(boardBG, 0);
+  if (bgLayer) {
+    board.addChildAt(bgLayer, 0); // Always at index 0 (bottom)
+    console.log('✅ resetBoardContainer (app.js): Background layer preserved');
+  } else {
+    console.warn('⚠️ resetBoardContainer (app.js): Background layer NOT found - will need reinit');
+  }
+  
+  boardBG.zIndex = -1000;
+  boardBG.eventMode = 'none';
+  board.sortableChildren = true;
+  board.sortChildren();
+  
+  console.log('🔄 resetBoardContainer (app.js): Final children count:', board.children.length);
 }
 function rebuildBoard(){
   resetBoardContainer();
@@ -929,6 +966,10 @@ function startLevel(n){
 
   syncSharedState();
   updateHUD();
+  
+  // Initialize background layer after first layout
+  layout();
+  initializeBackgroundLayer();
   
   // Call layout only for initial game start, not for restart
   if (n === 1) {
@@ -1700,6 +1741,15 @@ function restartGame(){
   console.log('🔄 RESTART: About to call rebuildBoard()...');
   rebuildBoard();
   console.log('✅ RESTART: rebuildBoard() completed');
+  
+  // Reinitialize background layer if it was lost
+  if (!backgroundLayer) {
+    console.log('🔄 RESTART: Reinitializing background layer...');
+    layout();
+    initializeBackgroundLayer();
+    console.log('✅ RESTART: Background layer reinitialized');
+  }
+  
   updateHUD();
   
   // Ensure game is resumed after restart

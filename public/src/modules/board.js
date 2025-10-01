@@ -305,25 +305,9 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   t.x = t.targetX; // Start at target position for bloom effect
   t.y = t.targetY;
 
-  // ako je slot zaključan, nacrtaj occluder pločicu iznad (da sakrije pipse/face)
-  const PAD = 5;
-  const RADIUS = Math.round(TILE * 0.26);
-
-  if (locked) {
-    const occ = new Graphics();
-    occ.beginFill(BOARD_BG_COLOR, 1)
-       .drawRoundedRect(-TILE/2 + PAD, -TILE/2 + PAD, TILE - PAD*2, TILE - PAD*2, RADIUS)
-       .endFill();
-    occ.x = t.targetX;
-    occ.y = t.targetY;
-    occ.zIndex = -500;
-    occ.alpha = 1;
-    occ.eventMode = 'none';
-    occ._ghostAlpha = 0.28;
-    occ._lockedAlpha = 1;
-    board.addChild(occ);
-    t.occluder = occ;
-  }
+  // Ghost placeholders are now handled by backgroundLayer in app.js
+  // No need for individual occluder objects - backgroundLayer provides all placeholders
+  // This simplifies the code and improves performance
 
   // Ghost placeholders are now handled by drawBoardBG - no individual ghostFrame objects
 
@@ -335,12 +319,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   drawStack(t);
   drawPips(t);
 
-  // cleanup da makne occluder kad se uništava
-  const __origDestroy = t.destroy.bind(t);
-  t.destroy = (opts) => {
-    try { if (t.occluder) { t.occluder.destroy(); t.occluder = null; } } catch {}
-    __origDestroy(opts);
-  };
+  // No occluder cleanup needed - backgroundLayer handles all ghost placeholders
   return t;
 }
 

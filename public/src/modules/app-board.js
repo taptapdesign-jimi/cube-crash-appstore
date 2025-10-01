@@ -4,15 +4,36 @@ import { STATE, COLS, ROWS, TILE, GAP } from './app-state.js';
 import * as makeBoard from './board.js';
 // drawBoardBG and layout functions are now in app.js
 
-// reset container while preserving boardBG
+// reset container while preserving boardBG and backgroundLayer
 export function resetBoardContainer(){
   const { board, boardBG } = STATE;
+  
+  console.log('🔄 resetBoardContainer: Board children count:', board.children.length);
+  console.log('🔄 resetBoardContainer: Board children labels:', board.children.map(c => c.label || c.constructor.name));
+  
+  // Get backgroundLayer before removing children
+  const backgroundLayer = board.children.find(c => c.label === 'BackgroundLayer');
+  console.log('🔄 resetBoardContainer: Found backgroundLayer:', !!backgroundLayer);
+  
   board.removeChildren();
+  console.log('🔄 resetBoardContainer: After removeChildren, count:', board.children.length);
+  
+  // Re-add persistent layers
   board.addChildAt(boardBG, 0);
+  if (backgroundLayer) {
+    board.addChildAt(backgroundLayer, 0); // Always at index 0 (bottom)
+    console.log('✅ resetBoardContainer: Background layer preserved');
+  } else {
+    console.warn('⚠️ resetBoardContainer: Background layer NOT found - will need reinit');
+  }
+  
   boardBG.zIndex = -1000;
   boardBG.eventMode = 'none';
+  
   board.sortableChildren = true;
   board.sortChildren();
+  
+  console.log('🔄 resetBoardContainer: Final children count:', board.children.length);
 }
 
 export function rebuildBoard(){
