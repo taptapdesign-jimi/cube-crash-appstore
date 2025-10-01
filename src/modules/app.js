@@ -773,26 +773,26 @@ function setGhostVisibility(c, r, visible) {
 }
 
 // Update ghost visibility based on current grid state
-// Hide ghosts only where locked tiles exist, show everywhere else
+// SIMPLE RULE: Show ghost ONLY where grid cell is null (no tile at all)
 function updateGhostVisibility() {
   if (!window._ghostPlaceholders) return;
   
-  console.log('🎯 Updating ghost visibility based on grid state...');
-  let hiddenCount = 0;
+  console.log('🎯 Updating ghost visibility - SIMPLE RULE: show only on empty cells');
+  let visibleCount = 0;
   
   for (let r=0; r<ROWS; r++) {
     for (let c=0; c<COLS; c++) {
       const cell = grid[r]?.[c];
-      const shouldHide = cell && cell.locked; // Hide only if tile exists AND is locked
+      const shouldShow = (cell === null); // Show ONLY if no tile exists
       
       if (window._ghostPlaceholders[r] && window._ghostPlaceholders[r][c]) {
-        window._ghostPlaceholders[r][c].visible = !shouldHide;
-        if (shouldHide) hiddenCount++;
+        window._ghostPlaceholders[r][c].visible = shouldShow;
+        if (shouldShow) visibleCount++;
       }
     }
   }
   
-  console.log('✅ Ghost visibility updated:', hiddenCount, 'hidden,', (ROWS * COLS - hiddenCount), 'visible');
+  console.log('✅ Ghost visibility updated:', visibleCount, 'visible (empty cells only)');
 }
 
 // Export to window for use in board.js
@@ -1067,12 +1067,6 @@ function openAtCell(c, r, { value=null, isWild=false } = {}){
     holder.eventMode = 'static';
     holder.cursor = 'pointer';
     if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(holder);
-    
-    // Show ghost placeholder when tile is unlocked
-    if (typeof window.setGhostVisibility === 'function') {
-      window.setGhostVisibility(c, r, true);
-    }
-    if (holder.occluder) holder.occluder.visible = false;
 
     if (isWild){
       makeBoard.setValue(holder, 6, 0);

@@ -319,17 +319,17 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   drawStack(t);
   drawPips(t);
 
-  // Cleanup and restore ghost when tile is destroyed
+  // When tile is destroyed, update ghost visibility for the entire board
   const __origDestroy = t.destroy.bind(t);
   t.destroy = (opts) => {
-    try { 
-      // Restore ghost placeholder if this was a locked tile
-      if (t._restoreGhost) {
-        t._restoreGhost();
-        t._restoreGhost = null;
-      }
-    } catch {}
     __origDestroy(opts);
+    
+    // Update all ghost placeholders after tile is destroyed
+    setTimeout(() => {
+      if (typeof window.updateGhostVisibility === 'function') {
+        window.updateGhostVisibility();
+      }
+    }, 50);
   };
   
   return t;
