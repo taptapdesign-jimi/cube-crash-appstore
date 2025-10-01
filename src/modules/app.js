@@ -723,7 +723,7 @@ function initializeBackgroundLayer(){
     return;
   }
   
-  const PAD=5, RADIUS=Math.round(TILE*0.26), WIDTH=8, COLOR=0xEBE6E2, ALPHA=0.8;
+  const PAD=5, RADIUS=Math.round(TILE*0.26), WIDTH=12, COLOR=0xEBE6E2, ALPHA=0.8;
   
   // Create a dedicated container for background elements
   backgroundLayer = new Container();
