@@ -2061,6 +2061,11 @@ async function loadGameState() {
     if (!app || !board) {
       console.log('⚠️ Game not booted, booting before applying saved state');
       await boot();
+      
+      // Initialize background layer after boot
+      layout();
+      initializeBackgroundLayer();
+      console.log('✅ Background layer initialized for saved game');
     }
 
     tiles.forEach(t => {
@@ -2176,6 +2181,12 @@ async function loadGameState() {
     drawBoardBG('active+empty');
     updateHUD();
     resetWildProgress(wildMeter, true);
+    
+    // Update ghost visibility after loading game state
+    if (typeof window.updateGhostVisibility === 'function') {
+      window.updateGhostVisibility();
+      console.log('✅ Ghost visibility updated after loading game state');
+    }
 
     lastSavedState = localStorage.getItem('cc_saved_game');
     console.log('✅ Game state loaded successfully.');
