@@ -2083,8 +2083,13 @@ async function loadGameState() {
         console.log('✅ Canvas added back to DOM');
       }
       
-      if (!backgroundLayer) {
-        console.log('⚠️ backgroundLayer missing, reinitializing...');
+      // CRITICAL FIX: Check if backgroundLayer is in board's children
+      const bgInBoard = board.children.find(c => c.label === 'BackgroundLayer');
+      console.log('🔍 backgroundLayer in board.children?', !!bgInBoard);
+      
+      if (!backgroundLayer || !bgInBoard) {
+        console.log('⚠️ backgroundLayer missing or not in board, reinitializing...');
+        backgroundLayer = null; // Force recreation
         layout();
         initializeBackgroundLayer();
         console.log('✅ Background layer reinitialized');
