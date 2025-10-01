@@ -2212,6 +2212,13 @@ async function loadGameState() {
     layout();
     console.log('✅ Layout called for saved game - HUD should be positioned');
     
+    // CRITICAL: Ensure HUD is visible
+    if (hud) {
+      hud.visible = true;
+      hud.alpha = 1;
+      console.log('🔍 HUD check: visible?', hud.visible, 'alpha:', hud.alpha, 'children:', hud.children.length, 'parent:', hud.parent?.constructor.name);
+    }
+    
     updateHUD();
     resetWildProgress(wildMeter, true);
     
