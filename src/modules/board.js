@@ -305,11 +305,21 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   t.x = t.targetX; // Start at target position for bloom effect
   t.y = t.targetY;
 
-  // Ghost placeholders are now handled by backgroundLayer in app.js
-  // No need for individual occluder objects - backgroundLayer provides all placeholders
-  // This simplifies the code and improves performance
-
-  // Ghost placeholders are now handled by drawBoardBG - no individual ghostFrame objects
+  // For locked tiles, add occluder to hide ghost placeholder underneath
+  // This prevents ghost from showing through semi-transparent locked tiles
+  if (locked) {
+    const PAD = 5;
+    const RADIUS = Math.round(TILE * 0.26);
+    const occ = new Graphics();
+    // Solid fill to completely hide ghost placeholder
+    occ.beginFill(0xF5F5F5, 1); // Match board background color
+    occ.drawRoundedRect(-TILE/2 + PAD, -TILE/2 + PAD, TILE - PAD*2, TILE - PAD*2, RADIUS);
+    occ.endFill();
+    occ.zIndex = -900; // Below tile, above ghost placeholders (-10000)
+    occ.eventMode = 'none';
+    t.addChild(occ);
+    t.occluder = occ;
+  }
 
   board.addChild(t);
   tiles.push(t);
