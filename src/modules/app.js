@@ -2256,42 +2256,34 @@ async function loadGameState() {
       console.warn('⚠️ Failed to resume GSAP/PIXI:', error);
     }
     
-    // ANIMATION: Play board scale-in animation (like on new game)
-    if (board) {
-      board.alpha = 0;
-      board.scale.set(0.7);
-      
-      gsap.timeline()
-        .to(board, { 
-          alpha: 1, 
-          duration: 0.4, 
-          ease: 'power2.out' 
-        }, 0)
-        .to(board.scale, { 
-          x: 1, 
-          y: 1, 
-          duration: 0.6, 
-          ease: 'back.out(1.7)' 
-        }, 0);
-      
-      console.log('✅ Board scale-in animation triggered');
+    // ANIMATION: Use same sweetPopIn animation as new game
+    // Hide background layer during animation
+    if (backgroundLayer) {
+      backgroundLayer.visible = false;
+      console.log('🎯 Hiding ghost placeholders for Continue animation');
     }
     
-    // ANIMATION: Play tile pop-in animations
-    tiles.forEach((t, i) => {
-      if (t && !t.destroyed && t.visible) {
-        t.alpha = 0;
-        t.scale.set(0.3);
-        
-        gsap.timeline({ delay: i * 0.015 })
-          .to(t, { alpha: 1, duration: 0.1, ease: 'power1.out' }, 0)
-          .to(t.scale, { x: 1.08, y: 1.08, duration: 0.12, ease: 'back.out(2.1)' }, 0)
-          .to(t.scale, { x: 0.96, y: 0.96, duration: 0.08, ease: 'power2.inOut' })
-          .to(t.scale, { x: 1.02, y: 1.02, duration: 0.08, ease: 'power2.out' })
-          .to(t.scale, { x: 1.00, y: 1.00, duration: 0.10, ease: 'back.out(2)' });
+    // Hide all tiles before animation
+    tiles.forEach(t => { if (t) t.visible = false; });
+    
+    // Play same sweetPopIn animation as new game
+    sweetPopIn(tiles, {
+      onHalf: () => {
+        // No HUD drop needed here - already triggered above
       }
+    }).then(() => {
+      // Show ghost placeholders after animation completes
+      if (backgroundLayer) {
+        backgroundLayer.visible = true;
+        console.log('✅ Showing ghost placeholders after Continue animation');
+      }
+      
+      // Update ghost visibility
+      if (typeof window.updateGhostVisibility === 'function') {
+        window.updateGhostVisibility();
+      }
+      console.log('✅ Continue animation completed');
     });
-    console.log('✅ Tile pop-in animations triggered for', tiles.length, 'tiles');
     
     lastSavedState = localStorage.getItem('cc_saved_game');
     console.log('✅ Game state loaded successfully.');
