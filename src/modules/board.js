@@ -305,7 +305,9 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   t.x = t.targetX; // Start at target position for bloom effect
   t.y = t.targetY;
 
-  // For locked tiles, add occluder to hide ghost placeholder underneath
+  board.addChild(t);
+  
+  // For locked tiles, add occluder to board (not tile) to hide ghost placeholder
   // This prevents ghost from showing through semi-transparent locked tiles
   if (locked) {
     const PAD = 5;
@@ -313,15 +315,17 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
     const occ = new Graphics();
     // Solid fill to completely hide ghost placeholder
     occ.beginFill(0xF5F5F5, 1); // Match board background color
-    occ.drawRoundedRect(-TILE/2 + PAD, -TILE/2 + PAD, TILE - PAD*2, TILE - PAD*2, RADIUS);
+    occ.drawRoundedRect(t.targetX - TILE/2 + PAD, t.targetY - TILE/2 + PAD, TILE - PAD*2, TILE - PAD*2, RADIUS);
     occ.endFill();
-    occ.zIndex = -900; // Below tile, above ghost placeholders (-10000)
+    occ.zIndex = -900; // Below tile (0+), above ghost placeholders (-10000)
     occ.eventMode = 'none';
-    t.addChild(occ);
+    board.addChild(occ); // Add to board, not tile
     t.occluder = occ;
+    
+    console.log('🎯 Created occluder for locked tile at', c, r, 'zIndex:', occ.zIndex);
   }
 
-  board.addChild(t);
+  board.sortChildren(); // Sort after adding occluder
   tiles.push(t);
   grid[r] ||= [];
   grid[r][c] = t;
@@ -329,7 +333,19 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   drawStack(t);
   drawPips(t);
 
-  // No occluder cleanup needed - backgroundLayer handles all ghost placeholders
+  // Cleanup occluder when tile is destroyed
+  const __origDestroy = t.destroy.bind(t);
+  t.destroy = (opts) => {
+    try { 
+      if (t.occluder) { 
+        t.occluder.destroy(); 
+        t.occluder = null;
+        console.log('🎯 Destroyed occluder for tile at', t.gridX, t.gridY);
+      } 
+    } catch {}
+    __origDestroy(opts);
+  };
+  
   return t;
 }
 
