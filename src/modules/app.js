@@ -2058,14 +2058,28 @@ async function loadGameState() {
       return false;
     }
 
+    console.log('🔍 LOAD CHECK: app exists?', !!app, 'board exists?', !!board);
+    console.log('🔍 LOAD CHECK: backgroundLayer exists?', !!backgroundLayer);
+    
     if (!app || !board) {
       console.log('⚠️ Game not booted, booting before applying saved state');
       await boot();
+      console.log('✅ Boot completed, app:', !!app, 'board:', !!board);
       
       // Initialize background layer after boot
       layout();
+      console.log('✅ Layout completed');
+      
       initializeBackgroundLayer();
       console.log('✅ Background layer initialized for saved game');
+    } else {
+      console.log('✅ App already booted, checking backgroundLayer...');
+      if (!backgroundLayer) {
+        console.log('⚠️ backgroundLayer missing, reinitializing...');
+        layout();
+        initializeBackgroundLayer();
+        console.log('✅ Background layer reinitialized');
+      }
     }
 
     tiles.forEach(t => {
