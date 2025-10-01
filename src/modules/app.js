@@ -2219,6 +2219,19 @@ async function loadGameState() {
       console.log('🔍 HUD check: visible?', hud.visible, 'alpha:', hud.alpha, 'children:', hud.children.length, 'parent:', hud.parent?.constructor.name);
     }
     
+    // CRITICAL: Recreate DOM-based HUD if it was destroyed
+    const existingHUD = document.querySelector('[data-unified-hud]');
+    console.log('🔍 DOM HUD exists?', !!existingHUD);
+    if (!existingHUD && typeof HUD.createUnifiedHudContainer === 'function') {
+      console.log('⚠️ DOM HUD missing, recreating...');
+      try {
+        HUD.createUnifiedHudContainer();
+        console.log('✅ DOM HUD recreated');
+      } catch (error) {
+        console.error('❌ Failed to recreate DOM HUD:', error);
+      }
+    }
+    
     updateHUD();
     resetWildProgress(wildMeter, true);
     
