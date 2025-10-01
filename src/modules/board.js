@@ -307,20 +307,9 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
 
   board.addChild(t);
   
-  // For locked tiles, hide ghost placeholder at this position
-  // This prevents ghost from showing through semi-transparent locked tiles
-  if (locked && typeof window.setGhostVisibility === 'function') {
-    window.setGhostVisibility(c, r, false);
-    console.log('🎯 Hidden ghost placeholder for locked tile at', c, r);
-    
-    // Store cleanup function to restore ghost when tile is unlocked/destroyed
-    t._restoreGhost = () => {
-      if (typeof window.setGhostVisibility === 'function') {
-        window.setGhostVisibility(c, r, true);
-        console.log('🎯 Restored ghost placeholder at', c, r);
-      }
-    };
-  }
+  // DON'T hide ghost on creation - wait to see if tile will be unlocked
+  // Ghost will be hidden only for tiles that REMAIN locked after board setup
+  // This is handled by updateGhostVisibility() called after board setup
 
   board.sortChildren(); // Sort after adding tile
   tiles.push(t);

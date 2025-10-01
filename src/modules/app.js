@@ -772,8 +772,32 @@ function setGhostVisibility(c, r, visible) {
   } catch {}
 }
 
+// Update ghost visibility based on current grid state
+// Hide ghosts only where locked tiles exist, show everywhere else
+function updateGhostVisibility() {
+  if (!window._ghostPlaceholders) return;
+  
+  console.log('🎯 Updating ghost visibility based on grid state...');
+  let hiddenCount = 0;
+  
+  for (let r=0; r<ROWS; r++) {
+    for (let c=0; c<COLS; c++) {
+      const cell = grid[r]?.[c];
+      const shouldHide = cell && cell.locked; // Hide only if tile exists AND is locked
+      
+      if (window._ghostPlaceholders[r] && window._ghostPlaceholders[r][c]) {
+        window._ghostPlaceholders[r][c].visible = !shouldHide;
+        if (shouldHide) hiddenCount++;
+      }
+    }
+  }
+  
+  console.log('✅ Ghost visibility updated:', hiddenCount, 'hidden,', (ROWS * COLS - hiddenCount), 'visible');
+}
+
 // Export to window for use in board.js
 window.setGhostVisibility = setGhostVisibility;
+window.updateGhostVisibility = updateGhostVisibility;
 
 // Compatibility function - does nothing (background is always there)
 function drawBoardBG(mode = 'active+empty'){
@@ -959,8 +983,12 @@ function rebuildBoard(){
       }
     }
   }).then(() => {
-    // Ghost placeholders are already drawn and don't need updates
-    console.log('✅ sweetPopIn completed - ghost placeholders already visible');
+    // Update ghost visibility after tiles are set up
+    // Hide ghosts only under locked tiles that REMAIN locked
+    if (typeof window.updateGhostVisibility === 'function') {
+      window.updateGhostVisibility();
+    }
+    console.log('✅ sweetPopIn completed - ghost visibility updated');
   });
   console.log('✅ sweetPopIn started immediately - no waiting');
 
@@ -1039,6 +1067,11 @@ function openAtCell(c, r, { value=null, isWild=false } = {}){
     holder.eventMode = 'static';
     holder.cursor = 'pointer';
     if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(holder);
+    
+    // Show ghost placeholder when tile is unlocked
+    if (typeof window.setGhostVisibility === 'function') {
+      window.setGhostVisibility(c, r, true);
+    }
     if (holder.occluder) holder.occluder.visible = false;
 
     if (isWild){
