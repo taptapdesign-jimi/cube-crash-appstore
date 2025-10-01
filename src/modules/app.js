@@ -1037,10 +1037,10 @@ function openAtCell(c, r, { value=null, isWild=false } = {}){
 
     holder.visible = true;
     holder.alpha = 0;
-    SPAWN.spawnBounce(holder, () => {
+    SPAWN.spawnBounce(holder, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, fadeIn:0.10 }, () => {
       holder.alpha = 1;
       resolve(true);
-    }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, fadeIn:0.10 });
+    });
   });
 }
 
