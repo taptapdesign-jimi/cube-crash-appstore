@@ -745,6 +745,7 @@ function initializeBackgroundLayer(){
       ghost.stroke({ color:COLOR, width:WIDTH, alpha:ALPHA });
       ghost.eventMode = 'none';
       ghost.label = `Ghost_${c}_${r}`; // For debugging
+      ghost.zIndex = -10000; // Explicit zIndex for each ghost
       backgroundLayer.addChild(ghost);
     }
   }
@@ -753,6 +754,7 @@ function initializeBackgroundLayer(){
   
   console.log('✅ FIXED background layer created with', ROWS * COLS, 'ghost placeholders');
   console.log('✅ This layer will NEVER be modified or destroyed');
+  console.log('🔍 Background layer zIndex:', backgroundLayer.zIndex);
 }
 
 // Compatibility function - does nothing (background is always there)
