@@ -2256,14 +2256,20 @@ async function loadGameState() {
       console.warn('⚠️ Failed to resume GSAP/PIXI:', error);
     }
     
-    // ANIMATION: Use same sweetPopIn animation as new game
-    // Hide background layer during animation
-    if (backgroundLayer) {
-      backgroundLayer.visible = false;
-      console.log('🎯 Hiding ghost placeholders for Continue animation');
+    // ANIMATION: Show ghost placeholders FIRST, then animate tiles
+    // Update ghost visibility BEFORE animation
+    if (typeof window.updateGhostVisibility === 'function') {
+      window.updateGhostVisibility();
+      console.log('✅ Ghost visibility updated BEFORE Continue animation');
     }
     
-    // Hide all tiles before animation
+    // Ensure background layer is visible from the start
+    if (backgroundLayer) {
+      backgroundLayer.visible = true;
+      console.log('✅ Ghost placeholders visible from start of Continue');
+    }
+    
+    // Hide all tiles before animation (ghosts stay visible)
     tiles.forEach(t => { if (t) t.visible = false; });
     
     // Play same sweetPopIn animation as new game
@@ -2272,16 +2278,6 @@ async function loadGameState() {
         // No HUD drop needed here - already triggered above
       }
     }).then(() => {
-      // Show ghost placeholders after animation completes
-      if (backgroundLayer) {
-        backgroundLayer.visible = true;
-        console.log('✅ Showing ghost placeholders after Continue animation');
-      }
-      
-      // Update ghost visibility
-      if (typeof window.updateGhostVisibility === 'function') {
-        window.updateGhostVisibility();
-      }
       console.log('✅ Continue animation completed');
     });
     
