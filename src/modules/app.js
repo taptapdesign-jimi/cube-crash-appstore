@@ -2226,6 +2226,15 @@ async function loadGameState() {
     console.log('🔴 DEBUG: Canvas visible?', app.canvas.style.display, 'Canvas parent:', app.canvas.parentElement?.id);
     console.log('🔴 DEBUG: Board visible?', board.visible, 'Board children:', board.children.length);
 
+    // CRITICAL: Resume GSAP and PIXI after loading
+    try {
+      gsap.globalTimeline.resume();
+      app.ticker.start();
+      console.log('✅ GSAP and PIXI ticker resumed after loading');
+    } catch (error) {
+      console.warn('⚠️ Failed to resume GSAP/PIXI:', error);
+    }
+    
     lastSavedState = localStorage.getItem('cc_saved_game');
     console.log('✅ Game state loaded successfully.');
     return true;
