@@ -507,12 +507,6 @@ async function checkForSavedGame() {
         if (hasPlayed || hasMoves || hasScore || hasTiles) {
           console.log('🎮 Found played game, showing resume bottom sheet...');
           
-          // Reset Play button state before showing modal
-          if (typeof window.resetPlayButtonState === 'function') {
-            console.log('🎮 Calling resetPlayButtonState before showing modal...');
-            window.resetPlayButtonState();
-          }
-          
           // Import and call the bottom sheet function
           try {
             const { showResumeGameBottomSheet } = await import('./modules/resume-game-bottom-sheet.js');
@@ -1787,13 +1781,13 @@ function ensureParallaxLoop(sliderParallaxImage){
           }
         });
         
-        // Hover effects - ONLY when slider is not locked AND button is not in reset state
+        // Springy hover effects for Play button
         button.addEventListener('mouseenter', () => {
           if (!sliderLocked && 
               !button.classList.contains('play-button-reset') && 
               button.style.pointerEvents !== 'none') {
-            button.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-            button.style.transform = 'scale(1.05) translateY(-2px)';
+            button.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            button.style.transform = 'scale(1.1)';
           }
         });
         
@@ -1801,8 +1795,8 @@ function ensureParallaxLoop(sliderParallaxImage){
           if (!sliderLocked && 
               !button.classList.contains('play-button-reset') && 
               button.style.pointerEvents !== 'none') {
-            button.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-            button.style.transform = 'scale(1) translateY(0)';
+            button.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            button.style.transform = 'scale(1)';
           }
         });
       };
@@ -1815,14 +1809,13 @@ function ensureParallaxLoop(sliderParallaxImage){
         buttonRect = null;
 
         if (playButton) {
-          // Force reset all inline styles and hover state
-          playButton.style.transform = 'scale(1) translateY(0) !important';
-          playButton.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important';
+          // Quick reset - minimal delay
+          playButton.style.transform = 'scale(1) translateY(0)';
+          playButton.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
           
-          // Temporarily disable hover effects
+          // Temporarily disable pointer events for very short time
           playButton.style.pointerEvents = 'none';
           playButton.classList.add('play-button-reset');
-          playButton.classList.add('force-front');
 
           try { playButton.blur(); } catch {}
 
@@ -1831,15 +1824,10 @@ function ensureParallaxLoop(sliderParallaxImage){
           setTimeout(() => {
             if (!playButton) return;
             playButton.classList.remove('play-button-reset');
-            playButton.classList.remove('force-front');
             playButton.style.pointerEvents = '';
             
-            // Force reset transform with !important to override CSS hover
-            playButton.style.transform = 'scale(1) translateY(0) !important';
-            playButton.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important';
-            
-            console.log('🔧 Play button reset state restored');
-          }, 220);
+            console.log('🔧 Play button reset complete');
+          }, 50); // Much shorter delay
         }
       };
 
@@ -2188,24 +2176,18 @@ function ensureParallaxLoop(sliderParallaxImage){
     window.unlockSlider = () => {
       console.log('🔓 Unlocking slider...');
       
-      // Reset Play button state FIRST before unlocking slider
+      // Immediately unlock slider - no delay
+      sliderLocked = false;
+      console.log('🔓 Slider unlocked immediately');
+      
+      // Reset Play button state but don't wait for it
       if (typeof window.resetPlayButtonState === 'function') {
-        console.log('🔧 Resetting Play button state before unlocking slider...');
+        console.log('🔧 Resetting Play button state...');
         window.resetPlayButtonState();
       }
       
-      // Unlock slider after button is reset
-      setTimeout(() => {
-        sliderLocked = false;
-        console.log('🔓 Slider unlocked');
-      }, 300); // Wait for button reset to complete
-      
-      // Ensure dots are visible
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          window.ensureDotsVisible?.();
-        }, 100);
-      });
+      // Ensure dots are visible immediately
+      window.ensureDotsVisible?.();
     };
     
 

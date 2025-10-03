@@ -455,12 +455,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   box-shadow: none !important;
 }
 
-/* Springy bounce hover effect */
-.slide-button.squishy.squishy-cc.menu-btn-primary:hover,
-.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:hover {
-  transform: scale(1.1) !important; /* 10% scale up */
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
-}
+/* DISABLED: Springy bounce hover effect removed */
 
 .slide-button.squishy.squishy-cc.menu-btn-primary::after,
 .slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary::after {
@@ -490,7 +485,12 @@ body{height:100dvh;height:100vh;overflow:hidden}
   justify-content: center !important;
 }
 
-/* Remove duplicate hover - using springy bounce above */
+/* Springy bounce hover effect */
+.slide-button.squishy.squishy-cc.menu-btn-primary:hover,
+.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:hover {
+  transform: scale(1.1) !important; /* 10% scale up */
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
+}
 
 /* Active state with springy bounce */
 .slide-button.squishy.squishy-cc.menu-btn-primary:active,
@@ -498,6 +498,10 @@ body{height:100dvh;height:100vh;overflow:hidden}
   transform: scale(0.9) !important; /* Press down 10% */
   transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
 }
+
+/* Remove duplicate hover - using springy bounce above */
+
+/* DISABLED: Active state springy bounce removed */
 
 .pause-modal-btn-orange:active {
   transform: translateY(4px) scale(0.99);
@@ -1428,7 +1432,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   right: 0;
   background: white;
   border-radius: 40px 40px 0 0; /* .cornerRadius(40) from Figma */
-  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 -12px 48px rgba(233, 210, 200, 0.5); /* Updated with 50% opacity */
   max-height: 60vh;
   z-index: 999999999;
   transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Fluid animation like slider */
@@ -1625,7 +1629,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   right: 0;
   background: white;
   border-radius: 40px 40px 0 0; /* .cornerRadius(40) from Figma */
-  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 -12px 48px rgba(233, 210, 200, 0.5); /* Updated with 50% opacity */
   max-height: 60vh;
   z-index: 999999999;
   transition: transform 0.3s ease-out;

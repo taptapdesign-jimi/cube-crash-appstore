@@ -232,6 +232,16 @@ function addOutsideClickFunctionality(modalEl) {
 export function hideModal() {
   if (modal) {
     modal.classList.remove('visible');
+    
+    // Unlock slider immediately so CTA becomes responsive right after the sheet starts closing
+    try {
+      if (typeof window.unlockSlider === 'function') {
+        window.unlockSlider();
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to unlock slider while hiding end run modal:', error);
+    }
+    
     setTimeout(() => {
       if (modal) {
         modal.remove();
