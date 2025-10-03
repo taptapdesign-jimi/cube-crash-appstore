@@ -1809,21 +1809,23 @@ function ensureParallaxLoop(sliderParallaxImage){
         isButtonPressed = false;
         hasMovedOutside = false;
         buttonRect = null;
-        
+
         if (playButton) {
-          // Add reset class to force override all states
           playButton.classList.add('play-button-reset');
-          
-          // Force remove any :active state by triggering a reflow
+          playButton.classList.add('force-front');
+          playButton.style.pointerEvents = 'none';
+
+          try { playButton.blur(); } catch {}
+
           playButton.offsetHeight;
-          
-          // Remove reset class after animation completes
+
           setTimeout(() => {
-            if (playButton) {
-              playButton.classList.remove('play-button-reset');
-              console.log('🔧 Play button reset class removed');
-            }
-          }, 300); // Match transition duration
+            if (!playButton) return;
+            playButton.classList.remove('play-button-reset');
+            playButton.classList.remove('force-front');
+            playButton.style.pointerEvents = '';
+            console.log('🔧 Play button reset state restored');
+          }, 220);
         }
       };
 

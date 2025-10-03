@@ -98,90 +98,96 @@ body{height:100dvh;height:100vh;overflow:hidden}
 /* Squishy CTA base */
 .slide .copy .cta button{ width: 249px; }
 .squishy{
-  position: relative; display:inline-flex; align-items:center; justify-content:center;
-  width: 100%; padding: 16px 56px; border-radius: 40px; border: none; cursor: pointer;
-  font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; font-weight: 800; font-size: 24px; letter-spacing: 0.2px; color: #fff;
-  -webkit-tap-highlight-color: transparent; outline: none;
-  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 16px 56px;
+  border-radius: 40px;
+  border: none;
+  cursor: pointer;
+  font-family: system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+  font-weight: 800;
+  font-size: 24px;
+  letter-spacing: 0.2px;
+  color: transparent;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  background: transparent;
+  transition: none;
+  perspective: 800px;
 }
 .squishy-cc{
-  background: #D87A53;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.25),
-    0 2px 0 0 #C86C49,
-    0 6px 0 0 #B35E3F,
-    0 10px 0 0 #9E5237,
-    0 10px 18px rgba(186,97,68,0.35);
-  overflow: hidden; /* clip shimmer */
+  position: relative;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  transform-style: preserve-3d;
 }
-.squishy-cc::before{ content: none; }
-/* Soft sun‑shimmer sweep every 10s */
+.play-button-reset {
+  transform: none !important;
+  box-shadow: none !important;
+  transition: none !important;
+}
+.squishy-cc::before,
 .squishy-cc::after{
-  content: "";
   position: absolute;
-  inset: -12px; /* slightly bigger for bleed */
-  pointer-events: none;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: inherit;
-  /* White sweep (narrowed core by ~20%) */
-  background: linear-gradient(110deg,
-    rgba(255,255,255,0.00) 0%,
-    rgba(255,255,255,0.25) 22%,
-    rgba(255,255,255,0.95) 44%,
-    rgba(255,255,255,0.95) 56%,
-    rgba(255,255,255,0.25) 78%,
-    rgba(255,255,255,0.00) 100%
-  );
-  transform: translateX(-160%) skewX(-12deg);
+  padding: 16px 56px;
+  font-family: inherit;
+  font-weight: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  transition: transform 0.45s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.45s ease;
+}
+.squishy-cc::before{
+  content: attr(data-front);
+  color: #ffffff !important;
+  background: #E97A55 !important; /* Simple orange like bottom sheet buttons */
+  background-size: 100% 100% !important;
+  animation: none !important; /* Remove shimmer animation */
+  transform: rotateX(0deg) translateZ(1px) !important;
+  opacity: 1 !important;
+}
+.squishy-cc::after{
+  content: attr(data-back);
+  color: #c05f3b;
+  background: linear-gradient(135deg, #f3f3f3 0%, #dedede 100%);
+  transform: rotateX(-90deg) translateZ(1px);
   opacity: 0;
-  will-change: transform, opacity;
-  animation: cta-shimmer 3s ease-in-out infinite; /* enable shimmer on Play CTA */
-  filter: blur(0.56px); /* ~30% manje od 0.8px */
 }
-
-/* Second sweep 0.4s later — warm #FFD2C0 */
-/* disable second sweep on CTA */
-.squishy-cc::before{ content: none; }
-.squishy-cc:hover{ transform: translateY(3px); box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.25),
-    0 1px 0 0 #C86C49,
-    0 4px 0 0 #B35E3F,
-    0 6px 0 0 #9E5237,
-    0 6px 12px rgba(186,97,68,0.35);
+/* Remove flip animation - keep simple orange button */
+.squishy-cc:hover::before,
+.squishy-cc:focus-visible::before{
+  transform: rotateX(0deg) translateZ(1px) !important; /* Stay in place */
+  opacity: 1 !important; /* Stay visible */
+  background: #E97A55 !important; /* Keep simple orange */
+  animation: none !important; /* No shimmer */
 }
-.squishy-cc:active{ transform: translateY(4px) scale(0.99); box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.25),
-    0 1px 0 0 #C86C49,
-    0 3px 0 0 #B35E3F,
-    0 4px 0 0 #9E5237,
-    0 4px 8px rgba(186,97,68,0.35);
+.squishy-cc:hover::after,
+.squishy-cc:focus-visible::after{
+  transform: rotateX(-90deg) translateZ(1px) !important; /* Stay hidden */
+  opacity: 0 !important; /* Stay hidden */
+}
+.squishy-cc.force-front::before{
+  transform: rotateX(0deg) translateZ(1px) !important;
+  opacity: 1 !important;
+}
+.squishy-cc.force-front::after{
+  transform: rotateX(-90deg) translateZ(1px) !important;
+  opacity: 0 !important;
 }
 @media (prefers-reduced-motion: reduce){
   .squishy{ transition:none; }
-  .squishy-cc:hover,.squishy-cc:active{ transform:none; }
-}
-/* Calm 3D white squishy button */
-.squishy-white{
-  background:#FFFFFF;
-  color:#8A8A8A;
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.9),
-    0 3px 0 0 rgba(210,210,210,1),
-    0 7px 0 0 rgba(192,192,192,1),
-    0 12px 0 0 rgba(176,176,176,1),
-    0 16px 20px rgba(0,0,0,0.08);
-}
-
-/* Force reset class for Play button */
-.play-button-reset {
-  transform: scale(1) translateY(0) !important;
-  box-shadow: 
-    inset 0 1px 0 rgba(255,255,255,0.25),
-    0 2px 0 0 #C86C49,
-    0 6px 0 0 #B35E3F,
-    0 10px 0 0 #9E5237,
-    0 10px 18px rgba(186,97,68,0.35) !important;
-  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) !important;
-  opacity: 1 !important;
+  .squishy-cc::before{ animation: none; background-position: 50% 50%; }
 }
 .squishy-white::before,
 .squishy-white::after{ content:none; }
@@ -396,7 +402,6 @@ body{height:100dvh;height:100vh;overflow:hidden}
 }
 
 @media (prefers-reduced-motion: reduce){
-  .squishy-cc::after,
   .pause-modal-btn-orange::after{
     animation: none !important;
     opacity: 0 !important;
@@ -410,6 +415,72 @@ body{height:100dvh;height:100vh;overflow:hidden}
     0 1px 0 0 #C86C49,
     0 4px 0 0 #B35E3F,
     0 6px 0 0 #9E5237;
+}
+
+/* Removed flip-shimmer animation - using simple orange button now */
+
+/* Override slide buttons to be simple orange like bottom sheet - ULTRA SPECIFIC */
+.slide-button.squishy.squishy-cc.menu-btn-primary::before,
+.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary::before {
+  content: attr(data-front) !important;
+  color: #ffffff !important;
+  background: transparent !important; /* Make background transparent so main button shows */
+  background-size: 100% 100% !important;
+  animation: none !important; /* Remove shimmer animation */
+  transform: rotateX(0deg) translateZ(1px) !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
+  border-radius: 40px !important;
+  padding: 0 !important; /* Remove padding so main button shows */
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.slide-button.squishy.squishy-cc.menu-btn-primary:hover::before,
+.slide-button.squishy.squishy-cc.menu-btn-primary:focus-visible::before,
+.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:hover::before,
+.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:focus-visible::before {
+  transform: rotateX(0deg) translateZ(1px) !important; /* Stay in place */
+  opacity: 1 !important; /* Stay visible */
+  background: transparent !important; /* Keep transparent */
+  animation: none !important; /* No shimmer */
+  box-shadow: none !important;
+}
+
+.slide-button.squishy.squishy-cc.menu-btn-primary::after,
+.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary::after {
+  display: none !important; /* Hide back layer completely */
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+/* Force simple button - remove all 3D effects */
+.slide-button.squishy.squishy-cc.menu-btn-primary,
+.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary {
+  transform-style: flat !important;
+  perspective: none !important;
+  background: #E97A55 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 40px !important;
+  height: 64px !important; /* Same height as bottom sheet buttons */
+  padding: 0 56px !important; /* Remove top/bottom padding since we have fixed height */
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+  font-size: 24px !important;
+  font-weight: bold !important;
+  box-shadow: none !important;
+  transition: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.slide-button.squishy.squishy-cc.menu-btn-primary:hover,
+.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:hover {
+  background: #E97A55 !important;
+  transform: none !important;
+  box-shadow: none !important;
+  height: 64px !important; /* Maintain height on hover */
 }
 
 .pause-modal-btn-orange:active {
@@ -954,7 +1025,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   font-size: 24px;
   font-weight: bold;
   color: white;
-  padding: 16px 64px;
+  padding: 20px 64px;
   border: none;
   border-radius: 40px;
   cursor: pointer;
@@ -1364,44 +1435,80 @@ body{height:100dvh;height:100vh;overflow:hidden}
   transform: translateY(0);
 }
 
-/* Resume modal buttons */
+/* Resume modal buttons - FLAT STYLE */
 .continue-btn {
-  background: #E8734A; /* Orange button like restart */
+  background: #E97A55; /* Updated orange color */
   color: white;
   border: none;
   border-radius: 40px;
-  padding: 16px 64px;
+  padding: 20px 64px;
   font-size: 24px;
   font-weight: bold;
   font-family: "Inter", system-ui, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
-  max-width: 310px; /* Max width from Figma */
+  max-width: 240px; /* Updated max width */
+  height: 64px; /* Fixed height */
   text-align: center;
   /* Ensure buttons are clickable */
   pointer-events: auto;
   position: relative;
   z-index: 10;
+  /* FLAT - no 3D effects */
+  box-shadow: none;
+  transition: none;
+}
+
+.continue-btn:hover {
+  background: #E97A55; /* Same color on hover - flat */
+  transform: none;
+  box-shadow: none;
+}
+
+.continue-btn:active {
+  background: #E97A55; /* Same color on active - flat */
+  transform: none;
+  box-shadow: none;
 }
 
 .new-game-btn {
-  background: white; /* White button like exit */
-  color: #878787;
-  border: 0.5px solid #E0E0E0;
+  background: white; /* .white from SwiftUI */
+  color: #828282; /* Color(red: 0.51, green: 0.51, blue: 0.51) from SwiftUI */
+  border: 2px solid #DEDEDE; /* Color(red: 0.87, green: 0.87, blue: 0.87) lineWidth: 2 inset: 1 */
   border-radius: 40px;
-  padding: 16px 64px;
+  padding: 20px 64px;
   font-size: 24px;
   font-weight: bold;
   font-family: "Inter", system-ui, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
-  max-width: 310px; /* Max width from Figma */
+  max-width: 240px; /* Updated max width */
+  height: 64px; /* Fixed height */
   text-align: center;
   /* Ensure buttons are clickable */
   pointer-events: auto;
   position: relative;
   z-index: 10;
+  /* FLAT - no 3D effects */
+  box-shadow: none;
+  transition: none;
 }
+
+.new-game-btn:hover {
+  background: white; /* Same color on hover - flat */
+  color: #828282;
+  transform: none;
+  box-shadow: none;
+}
+
+.new-game-btn:active {
+  background: white; /* Same color on active - flat */
+  color: #828282;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Button spacing - removed duplicate, using the one below */
 
 /* Tablet and iPad responsive */
 @media screen and (min-width: 768px) and (max-width: 1024px) {
@@ -1416,6 +1523,19 @@ body{height:100dvh;height:100vh;overflow:hidden}
   
   .continue-btn, .new-game-btn {
     max-width: 100%; /* Full width buttons on iPad */
+    /* Keep flat style on iPad */
+    box-shadow: none;
+    transition: none;
+  }
+  
+  .continue-btn:hover, .continue-btn:active {
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .new-game-btn:hover, .new-game-btn:active {
+    transform: none;
+    box-shadow: none;
   }
 }
 
@@ -1430,6 +1550,19 @@ body{height:100dvh;height:100vh;overflow:hidden}
     font-size: 22px;
     padding: 14px 48px;
     max-width: 100%;
+    /* Keep flat style on mobile */
+    box-shadow: none;
+    transition: none;
+  }
+  
+  .continue-btn:hover, .continue-btn:active {
+    transform: none;
+    box-shadow: none;
+  }
+  
+  .new-game-btn:hover, .new-game-btn:active {
+    transform: none;
+    box-shadow: none;
   }
 }
 
@@ -1548,7 +1681,9 @@ body{height:100dvh;height:100vh;overflow:hidden}
 .simple-button-row {
   display: flex;
   flex-direction: column;
-  gap: 24px; /* VStack(spacing: 24) from Figma */
+  gap: 16px; /* 16px spacing between buttons - updated from 24px */
+  align-items: center;
+  width: 100%;
 }
 
 .restart-btn {
@@ -1556,7 +1691,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   color: white;
   border: none;
   border-radius: 40px; /* .cornerRadius(40) from Figma */
-  padding: 16px 64px; /* EdgeInsets(top: 16, leading: 64, bottom: 16, trailing: 64) from Figma */
+  padding: 20px 64px; /* EdgeInsets(top: 16, leading: 64, bottom: 16, trailing: 64) from Figma */
   font-size: 24px; /* Font.custom("Inter", size: 24) from Figma */
   font-weight: bold; /* .weight(.bold) from Figma */
   font-family: "Inter", system-ui, sans-serif;
@@ -1575,7 +1710,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   color: #878787; /* Color(red: 0.53, green: 0.52, blue: 0.52) from Figma */
   border: 0.5px solid #E0E0E0; /* .stroke(Color(red: 0.88, green: 0.88, blue: 0.88), lineWidth: 0.50) from Figma */
   border-radius: 40px; /* .cornerRadius(40) from Figma */
-  padding: 16px 64px; /* EdgeInsets(top: 16, leading: 64, bottom: 16, trailing: 64) from Figma */
+  padding: 20px 64px; /* EdgeInsets(top: 16, leading: 64, bottom: 16, trailing: 64) from Figma */
   font-size: 24px; /* Font.custom("Inter", size: 24) from Figma */
   font-weight: bold; /* .weight(.bold) from Figma */
   font-family: "Inter", system-ui, sans-serif;
@@ -1743,4 +1878,3 @@ body{height:100dvh;height:100vh;overflow:hidden}
     width: 240px; /* Slightly smaller on mobile */
   }
 }
-

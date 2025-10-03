@@ -87,19 +87,7 @@ function addDragFunctionality(modalEl, registerCleanup) {
   let currentY = 0;
   let isDragging = false;
 
-  // Function to ensure modal is ALWAYS horizontally centered
-  function forceCenterModal() {
-    const currentTransform = modalEl.style.transform;
-    console.log('🎯 FORCE CENTERING - Current:', currentTransform);
-    
-    // Extract only translateY value, NO translateX needed (CSS handles centering)
-    const translateYMatch = currentTransform.match(/translateY\(([^)]+)\)/);
-    const translateY = translateYMatch ? translateYMatch[1] : '0';
-    
-    const centeredTransform = `translateY(${translateY})`;
-    modalEl.style.transform = centeredTransform;
-    console.log('🎯 FORCE CENTERING - New:', centeredTransform);
-  }
+  // CSS handles centering automatically, no need for forceCenterModal
 
   // Touch events on entire modal
   modalEl.ontouchstart = (e) => {
@@ -115,11 +103,6 @@ function addDragFunctionality(modalEl, registerCleanup) {
     currentY = startY;
     isDragging = true;
     modalEl.style.transition = 'none';
-    
-    // Force center before starting drag (only if modal is visible)
-    if (modalEl.classList.contains('visible')) {
-      forceCenterModal();
-    }
   };
 
   modalEl.ontouchmove = (e) => {
@@ -145,7 +128,8 @@ function addDragFunctionality(modalEl, registerCleanup) {
     e.preventDefault();
     isDragging = false;
     
-    modalEl.style.transition = 'transform 0.3s ease';
+    // Use CSS transition instead of inline style to avoid conflicts
+    modalEl.style.transition = '';
     
     const deltaY = currentY - startY;
     console.log('🎯 DRAG END ON RESUME MODAL:', { deltaY, threshold: 80 });
@@ -153,14 +137,13 @@ function addDragFunctionality(modalEl, registerCleanup) {
     if (deltaY > 80) {
       console.log('🎯 CLOSING RESUME MODAL');
       modalEl.style.transform = 'translateY(100vh)';
-      setTimeout(() => hideResumeModal(), 300);
+      setTimeout(() => hideResumeModal(), 400); // Match CSS animation duration
     } else {
       console.log('🎯 SNAPPING BACK');
       modalEl.style.transform = 'translateY(0)';
     }
     
-    // Force center after drag ends
-    setTimeout(() => forceCenterModal(), 50);
+    // Remove forceCenterModal call - it causes double animation
   };
   
   // Mouse events on entire modal
@@ -177,11 +160,6 @@ function addDragFunctionality(modalEl, registerCleanup) {
     currentY = startY;
     isDragging = true;
     modalEl.style.transition = 'none';
-    
-    // Force center before starting drag (only if modal is visible)
-    if (modalEl.classList.contains('visible')) {
-      forceCenterModal();
-    }
   };
   
   const handleMouseMove = (e) => {
@@ -205,7 +183,8 @@ function addDragFunctionality(modalEl, registerCleanup) {
     if (!isDragging) return;
     isDragging = false;
 
-    modalEl.style.transition = 'transform 0.3s ease';
+    // Use CSS transition instead of inline style to avoid conflicts
+    modalEl.style.transition = '';
 
     const deltaY = currentY - startY;
     console.log('🎯 MOUSE UP:', { deltaY, threshold: 80 });
@@ -213,14 +192,13 @@ function addDragFunctionality(modalEl, registerCleanup) {
     if (deltaY > 80) {
       console.log('🎯 CLOSING RESUME MODAL (mouse)');
       modalEl.style.transform = 'translateY(100vh)';
-      setTimeout(() => hideResumeModal(), 300);
+      setTimeout(() => hideResumeModal(), 400); // Match CSS animation duration
     } else {
       console.log('🎯 SNAPPING BACK (mouse)');
       modalEl.style.transform = 'translateY(0)';
     }
 
-    // Force center after mouse drag ends
-    setTimeout(() => forceCenterModal(), 50);
+    // Remove forceCenterModal call - it causes double animation
   };
 
   document.addEventListener('mousemove', handleMouseMove);
