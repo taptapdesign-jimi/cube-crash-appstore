@@ -138,7 +138,7 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.textContent = 'Continue';
-    btn.className = 'squishy squishy-cc menu-btn-primary';
+    btn.className = 'continue-btn bottom-sheet-cta';
     btn.style.width = '100%';
     btn.style.maxWidth = '248px';
     btn.style.opacity = '0';

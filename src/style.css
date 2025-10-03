@@ -248,7 +248,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
 @font-face{ font-family:"LTCrow"; src:url("../assets/fonts/LTCrow-SemiBold.ttf") format("truetype"); font-weight:600; font-style:normal; font-display:swap; }
 @font-face{ font-family:"LTCrow"; src:url("../assets/fonts/LTCrow-Bold.ttf") format("truetype"); font-weight:700; font-style:normal; font-display:swap; }
 
-/* Inter font for buttons - using system-ui as fallback */
+/* LTCrow font for buttons - using system-ui as fallback */
 
 /* Stats page placeholder */
 .content.stats{ gap: 24px; }
@@ -1460,7 +1460,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   padding: 20px 64px;
   font-size: 24px;
   font-weight: bold;
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
   max-width: 240px; /* Updated max width */
@@ -1472,7 +1472,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   z-index: 10;
   /* FLAT - no 3D effects */
   box-shadow: none;
-  transition: transform 0.1s ease; /* Only transform transition */
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce transition */
   overflow: hidden; /* For liquid fill effect */
 }
 
@@ -1480,15 +1480,15 @@ body{height:100dvh;height:100vh;overflow:hidden}
 
 .continue-btn:hover {
   background: #E97A55; /* Same color on hover - flat */
-  transform: scale(1.1); /* 10% scale up */
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
+  transform: scale(1.1) !important; /* 10% scale up */
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
   box-shadow: none;
 }
 
 .continue-btn:active {
   background: #E97A55; /* Same color on active - flat */
-  transform: scale(0.9); /* Press down 10% */
-  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
+  transform: scale(0.9) !important; /* Press down 10% */
+  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
   box-shadow: none;
 }
 
@@ -1500,7 +1500,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   padding: 20px 64px;
   font-size: 24px;
   font-weight: bold;
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
   max-width: 240px; /* Updated max width */
@@ -1512,22 +1512,22 @@ body{height:100dvh;height:100vh;overflow:hidden}
   z-index: 10;
   /* FLAT - no 3D effects */
   box-shadow: none;
-  transition: transform 0.1s ease; /* Only transform transition */
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce transition */
 }
 
 .new-game-btn:hover {
   background: white; /* Same color on hover - flat */
   color: #828282;
-  transform: scale(1.1); /* 10% scale up */
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
+  transform: scale(1.1) !important; /* 10% scale up */
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
   box-shadow: none;
 }
 
 .new-game-btn:active {
   background: white; /* Same color on active - flat */
   color: #828282;
-  transform: scale(0.9); /* Press down 10% */
-  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
+  transform: scale(0.9) !important; /* Press down 10% */
+  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
   box-shadow: none;
 }
 
@@ -1548,16 +1548,30 @@ body{height:100dvh;height:100vh;overflow:hidden}
     max-width: 100%; /* Full width buttons on iPad */
     /* Keep flat style on iPad */
     box-shadow: none;
-    transition: none;
+    /* transition removed - using springy bounce */
   }
   
-  .continue-btn:hover, .continue-btn:active {
-    transform: none;
+  .continue-btn:hover {
+    transform: scale(1.1) !important; /* Keep springy bounce on tablet */
+    transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
     box-shadow: none;
   }
   
-  .new-game-btn:hover, .new-game-btn:active {
-    transform: none;
+  .continue-btn:active {
+    transform: scale(0.9) !important; /* Keep press effect on tablet */
+    transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+    box-shadow: none;
+  }
+  
+  .new-game-btn:hover {
+    transform: scale(1.1) !important; /* Keep springy bounce on tablet */
+    transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+    box-shadow: none;
+  }
+  
+  .new-game-btn:active {
+    transform: scale(0.9) !important; /* Keep press effect on tablet */
+    transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
     box-shadow: none;
   }
 }
@@ -1575,16 +1589,30 @@ body{height:100dvh;height:100vh;overflow:hidden}
     max-width: 100%;
     /* Keep flat style on mobile */
     box-shadow: none;
-    transition: none;
+    /* transition removed - using springy bounce */
   }
   
-  .continue-btn:hover, .continue-btn:active {
-    transform: none;
+  .continue-btn:hover {
+    transform: scale(1.1) !important; /* Keep springy bounce on tablet */
+    transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
     box-shadow: none;
   }
   
-  .new-game-btn:hover, .new-game-btn:active {
-    transform: none;
+  .continue-btn:active {
+    transform: scale(0.9) !important; /* Keep press effect on tablet */
+    transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+    box-shadow: none;
+  }
+  
+  .new-game-btn:hover {
+    transform: scale(1.1) !important; /* Keep springy bounce on tablet */
+    transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+    box-shadow: none;
+  }
+  
+  .new-game-btn:active {
+    transform: scale(0.9) !important; /* Keep press effect on tablet */
+    transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
     box-shadow: none;
   }
 }
@@ -1716,9 +1744,9 @@ body{height:100dvh;height:100vh;overflow:hidden}
   border: none;
   border-radius: 40px; /* .cornerRadius(40) from Figma */
   padding: 0 64px; /* Remove top/bottom padding since we have fixed height */
-  font-size: 24px; /* Font.custom("Inter", size: 24) from Figma */
+  font-size: 24px; /* Font.custom("LTCrow", size: 24) from Figma */
   font-weight: bold; /* .weight(.bold) from Figma */
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
   max-width: 310px; /* Max width from Figma */
@@ -1732,18 +1760,18 @@ body{height:100dvh;height:100vh;overflow:hidden}
   position: relative;
   z-index: 10;
   /* Springy bounce transition */
-  transition: transform 0.1s ease;
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
 }
 
 /* Springy bounce hover effect for restart button */
 .restart-btn:hover {
-  transform: scale(1.1); /* 10% scale up */
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
+  transform: scale(1.1) !important; /* 10% scale up */
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
 }
 
 .restart-btn:active {
-  transform: scale(0.9); /* Press down 10% */
-  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
+  transform: scale(0.9) !important; /* Press down 10% */
+  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
 }
 
 .exit-btn {
@@ -1752,9 +1780,9 @@ body{height:100dvh;height:100vh;overflow:hidden}
   border: 2px solid #DDDDDD; /* Updated to 2px stroke */
   border-radius: 40px; /* .cornerRadius(40) from Figma */
   padding: 0 64px; /* Remove top/bottom padding since we have fixed height */
-  font-size: 24px; /* Font.custom("Inter", size: 24) from Figma */
+  font-size: 24px; /* Font.custom("LTCrow", size: 24) from Figma */
   font-weight: bold; /* .weight(.bold) from Figma */
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
   max-width: 310px; /* Max width from Figma */
@@ -1768,18 +1796,18 @@ body{height:100dvh;height:100vh;overflow:hidden}
   position: relative;
   z-index: 10;
   /* Springy bounce transition */
-  transition: transform 0.1s ease;
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
 }
 
 /* Springy bounce hover effect for exit button */
 .exit-btn:hover {
-  transform: scale(1.1); /* 10% scale up */
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
+  transform: scale(1.1) !important; /* 10% scale up */
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
 }
 
 .exit-btn:active {
-  transform: scale(0.9); /* Press down 10% */
-  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
+  transform: scale(0.9) !important; /* Press down 10% */
+  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
 }
 
 /* Tablet and iPad responsive */

@@ -1787,16 +1787,20 @@ function ensureParallaxLoop(sliderParallaxImage){
           }
         });
         
-        // Hover effects - ONLY when slider is not locked
+        // Hover effects - ONLY when slider is not locked AND button is not in reset state
         button.addEventListener('mouseenter', () => {
-          if (!sliderLocked) {
+          if (!sliderLocked && 
+              !button.classList.contains('play-button-reset') && 
+              button.style.pointerEvents !== 'none') {
             button.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
             button.style.transform = 'scale(1.05) translateY(-2px)';
           }
         });
         
         button.addEventListener('mouseleave', () => {
-          if (!sliderLocked) {
+          if (!sliderLocked && 
+              !button.classList.contains('play-button-reset') && 
+              button.style.pointerEvents !== 'none') {
             button.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
             button.style.transform = 'scale(1) translateY(0)';
           }
@@ -1813,7 +1817,7 @@ function ensureParallaxLoop(sliderParallaxImage){
         if (playButton) {
           // Force reset all inline styles and hover state
           playButton.style.transform = 'scale(1) translateY(0) !important';
-          playButton.style.transition = 'none !important';
+          playButton.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important';
           
           // Temporarily disable hover effects
           playButton.style.pointerEvents = 'none';
@@ -1832,7 +1836,7 @@ function ensureParallaxLoop(sliderParallaxImage){
             
             // Force reset transform with !important to override CSS hover
             playButton.style.transform = 'scale(1) translateY(0) !important';
-            playButton.style.transition = '';
+            playButton.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important';
             
             console.log('🔧 Play button reset state restored');
           }, 220);
@@ -1869,8 +1873,8 @@ function ensureParallaxLoop(sliderParallaxImage){
         
         // Always reset button transform when ending interaction
         if (playButton) {
-          playButton.style.transform = 'scale(1) translateY(0)';
-          playButton.style.transition = '';
+          playButton.style.transform = 'scale(1) translateY(0) !important';
+          playButton.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important';
         }
         
         isButtonPressed = false;
@@ -2183,17 +2187,18 @@ function ensureParallaxLoop(sliderParallaxImage){
     // Unlock slider function
     window.unlockSlider = () => {
       console.log('🔓 Unlocking slider...');
-      sliderLocked = false;
       
-      // Reset Play button state completely after modal is closed
+      // Reset Play button state FIRST before unlocking slider
+      if (typeof window.resetPlayButtonState === 'function') {
+        console.log('🔧 Resetting Play button state before unlocking slider...');
+        window.resetPlayButtonState();
+      }
+      
+      // Unlock slider after button is reset
       setTimeout(() => {
-        if (typeof window.resetPlayButtonState === 'function') {
-          console.log('🔧 Resetting Play button state after modal close...');
-          window.resetPlayButtonState();
-        } else {
-          console.warn('⚠️ resetPlayButtonState function not available');
-        }
-      }, 100); // Small delay to ensure modal is fully closed
+        sliderLocked = false;
+        console.log('🔓 Slider unlocked');
+      }, 300); // Wait for button reset to complete
       
       // Ensure dots are visible
       requestAnimationFrame(() => {

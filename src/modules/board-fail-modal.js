@@ -98,12 +98,12 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 } = {}) {
     infoStack.appendChild(textCluster);
 
     const buttons = document.createElement('div');
-    buttons.style.cssText = 'width:248px;max-width:80vw;display:flex;flex-direction:column;gap:24px;';
+    buttons.style.cssText = 'width:248px;max-width:80vw;display:flex;flex-direction:column;gap:16px;';
 
     const continueBtn = document.createElement('button');
     continueBtn.type = 'button';
     continueBtn.textContent = 'Play Again';
-    continueBtn.className = 'squishy squishy-cc menu-btn-primary';
+    continueBtn.className = 'restart-btn bottom-sheet-cta';
     continueBtn.style.width = '100%';
     continueBtn.style.maxWidth = '100%';
     continueBtn.style.whiteSpace = 'nowrap';
@@ -111,7 +111,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 } = {}) {
     const exitBtn = document.createElement('button');
     exitBtn.type = 'button';
     exitBtn.textContent = 'Exit';
-    exitBtn.className = 'squishy squishy-white';
+    exitBtn.className = 'exit-btn bottom-sheet-cta';
     exitBtn.style.width = '100%';
     exitBtn.style.maxWidth = '100%';
     exitBtn.style.whiteSpace = 'nowrap';
