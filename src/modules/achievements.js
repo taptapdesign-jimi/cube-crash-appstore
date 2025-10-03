@@ -28,6 +28,7 @@ export function onRunStats({ score, moves }) {
   if (moves >= 50)    unlock('iron_focus');
 }
 
+
 function unlock(id) {
   if (isUnlocked(id)) return false;
   const exists = ACHIEVEMENTS.some(a => a.id === id);

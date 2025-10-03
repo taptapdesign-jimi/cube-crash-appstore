@@ -102,7 +102,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 } = {}) {
 
     const continueBtn = document.createElement('button');
     continueBtn.type = 'button';
-    continueBtn.textContent = 'Continue';
+    continueBtn.textContent = 'Play Again';
     continueBtn.className = 'squishy squishy-cc menu-btn-primary';
     continueBtn.style.width = '100%';
     continueBtn.style.maxWidth = '100%';
@@ -110,7 +110,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 } = {}) {
 
     const exitBtn = document.createElement('button');
     exitBtn.type = 'button';
-    exitBtn.textContent = 'Exit to menu';
+    exitBtn.textContent = 'Exit';
     exitBtn.className = 'squishy squishy-white';
     exitBtn.style.width = '100%';
     exitBtn.style.maxWidth = '100%';
@@ -135,6 +135,29 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 } = {}) {
           console.log('✅ board-fail-modal: window.updateHighScore called with score:', score);
         } catch (error) {
           console.warn('⚠️ board-fail-modal: Failed to call window.updateHighScore:', error);
+        }
+      }
+      
+      // DIRECT FUNCTION CALLS like bottom sheet
+      if (action === 'retry') {
+        console.log('🎮 Play Again clicked - calling window.CC.restart directly');
+        if (window.CC && window.CC.restart) {
+          try {
+            window.CC.restart();
+            console.log('✅ window.CC.restart called from board-fail-modal');
+          } catch (error) {
+            console.warn('⚠️ window.CC.restart failed:', error);
+          }
+        }
+      } else if (action === 'menu') {
+        console.log('🚪 Exit clicked - calling window.exitToMenu directly');
+        if (window.exitToMenu) {
+          try {
+            window.exitToMenu();
+            console.log('✅ window.exitToMenu called from board-fail-modal');
+          } catch (error) {
+            console.warn('⚠️ window.exitToMenu failed:', error);
+          }
         }
       }
       

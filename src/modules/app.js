@@ -582,12 +582,19 @@ export function layout(){
     console.log('🖥️ Desktop: HUD at y:', safeTop, 'px, board starts at y:', hudBottom);
   }
   
-  // Gentle global nudge: move HUD and board 8px lower
+  // Gentle global nudge: move HUD and board down (iPad only)
   const HUD_NUDGE_RATIO = -0.048; // raise HUD ≈ 24px more (scales with viewport height)
   const HUD_NUDGE_PX = Math.round(vh * HUD_NUDGE_RATIO);
-  const BOARD_NUDGE_PX = 8; // additional board-only nudge down (was 4)
-  safeTop += HUD_NUDGE_PX;
-  hudBottom += HUD_NUDGE_PX;
+  
+  // Only apply responsive offset on iPad (768px - 1024px)
+  const isIPad = vw >= 768 && vw <= 1024;
+  // Responsive offset: 44px on iPad (40px + 8px + 4px - 8px), scaled by viewport height
+  const IPAD_OFFSET_PERCENT = isIPad ? 0.055 : 0; // 5.5% of viewport height on iPad (reduced by 8px)
+  const IPAD_OFFSET = Math.round(vh * IPAD_OFFSET_PERCENT);
+  
+  const BOARD_NUDGE_PX = 8; // original board nudge (was 4)
+  safeTop += HUD_NUDGE_PX + IPAD_OFFSET; // iPad gets responsive offset down, mobile stays original
+  hudBottom += HUD_NUDGE_PX + IPAD_OFFSET; // iPad gets responsive offset down, mobile stays original
   
   // Scale board to fit screen width with 24px padding (equivalent to ~6% on mobile)
   const paddingPercent = 0.06; // 6% padding (equivalent to ~24px on iPhone 13)
@@ -619,6 +626,7 @@ export function layout(){
   board.y = Math.round(centerY + BOARD_NUDGE_PX);
   
   console.log('🎯 Board centered at y:', board.y, 'px (available height:', availableHeight, 'px, board height:', sh, 'px)');
+  console.log(`🎯 VIEWPORT OFFSET: ${IPAD_OFFSET}px (${IPAD_OFFSET_PERCENT*100}% of ${vh}px) applied to HUD and board (${isIPad ? 'iPad' : 'mobile/desktop'})`);
   
   console.log('🎯 Board positioning (HUD below notch on mobile):', {
     isMobile,
@@ -1696,13 +1704,14 @@ async function showFinalScreen(){
     }
   }
 
-  restartGame();
-
   if (result?.action === 'menu') {
     try {
       await window.exitToMenu?.();
       window.goToSlide?.(0, { animate: true });
     } catch {}
+  } else {
+    // 'retry' action - functions are called directly from board-fail-modal now
+    console.log('🎮 Play Again action received - functions called directly from modal');
   }
 }
 
@@ -2367,7 +2376,7 @@ async function showResumeGameModal() {
 
     // Continue button
     const continueBtn = document.createElement('button');
-    continueBtn.textContent = 'Continue';
+    continueBtn.textContent = 'Play Again';
     continueBtn.style.cssText = [
       'background: linear-gradient(180deg, #FFB278 0%, #E17337 100%)',
       'color: #4A2C10',
@@ -2392,7 +2401,7 @@ async function showResumeGameModal() {
 
     // Exit to menu button
     const exitBtn = document.createElement('button');
-    exitBtn.textContent = 'Start new game';
+    exitBtn.textContent = 'Exit';
     exitBtn.style.cssText = [
       'background: linear-gradient(180deg, #FFFFFF 0%, #ECE8E4 100%)',
       'color: #6F6A63',
@@ -2475,4 +2484,3 @@ document.addEventListener('resume', () => {
 }, false); // Android
 
 export { app, stage, board, hud, tiles, grid, score, level }; 
-

@@ -210,56 +210,16 @@
   <!-- Menu Screen -->
   <div id="menu-screen" hidden>
     <div class="menu-content">
-      <div class="menu-header">
-        <div class="menu-header-top">
-          <button id="menu-back-btn" class="menu-back-button squishy">
-            <img src="./assets/chevron-back.png" alt="Back" />
-          </button>
-          <h1 class="menu-title">Menu</h1>
-          <div></div> <!-- Empty spacer for layout -->
-        </div>
-        <div class="menu-title-underline"></div>
-      </div>
+      <h2>End This Run?</h2>
+      <div class="warning-message">Think twice, your progress disappears once you leave.</div>
       
-      <div class="menu-scrollable">
-        <div class="menu-stats-row">
-          <div class="menu-stat-item">
-            <div class="menu-stat-value" id="menu-current-score">12458</div>
-            <div class="menu-stat-label">Score</div>
-          </div>
-          <div class="menu-stat-item">
-            <div class="menu-stat-value" id="menu-current-board">4</div>
-            <div class="menu-stat-label">Board</div>
-          </div>
-        </div>
-        
-        <div class="menu-divider"></div>
-        
-        <div class="menu-actions">
-          <div class="menu-action-item" id="menu-unpause-action">
-            <div class="menu-action-icon">
-              <img src="./assets/unpause-icon.png" alt="Unpause" />
-            </div>
-            <div class="menu-action-label">Unpause</div>
-          </div>
-          <div class="menu-action-item" id="menu-restart-action">
-            <div class="menu-action-icon">
-              <img src="./assets/restart-icon.png" alt="Restart" />
-            </div>
-            <div class="menu-action-label">Restart</div>
-          </div>
-        </div>
-        
-        <div class="menu-divider"></div>
-        
-        <div class="menu-buttons">
-          <button id="menu-exit-btn" class="menu-btn-primary squishy squishy-cc menu-exit-btn">
-            <span>Exit to menu</span>
-          </button>
-          <button id="menu-test-fail-btn" class="menu-btn-primary squishy squishy-cc menu-test-btn">
-            <span>Trigger Clean Board Test</span>
-          </button>
-        </div>
+      <div class="buttons-container">
+        <button id="menu-restart-action" class="modal-button restart-button">
+          Restart
+        </button>
+        <button id="menu-exit-btn" class="modal-button exit-button">
+          Exit
+        </button>
       </div>
     </div>
   </div>

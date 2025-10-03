@@ -1,11 +1,37 @@
 // src/modules/constants.js
 // PIXI/GSAP putanje ostaju kao i do sada u ostalim fajlovima
 
-// Grid
-export const COLS = 5;
-export const ROWS = 9;
+// Grid - responsive based on screen size
+function getGridDimensions() {
+  if (typeof window !== 'undefined') {
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    
+    // iPad and tablet (768px - 1024px)
+    if (width >= 768 && width <= 1024) {
+      return { COLS: 6, ROWS: 8 };
+    }
+    // Desktop and larger
+    else if (width > 1024) {
+      return { COLS: 5, ROWS: 9 };
+    }
+    // Mobile (default)
+    else {
+      return { COLS: 5, ROWS: 9 };
+    }
+  }
+  // Fallback for server-side rendering
+  return { COLS: 5, ROWS: 9 };
+}
+
+const gridDims = getGridDimensions();
+export const COLS = gridDims.COLS;
+export const ROWS = gridDims.ROWS;
 export const TILE = 128;
 export const GAP  = 20;
+
+// Debug log for grid dimensions
+console.log(`🎮 Grid dimensions: ${COLS}x${ROWS} (screen: ${typeof window !== 'undefined' ? window.innerWidth : 'unknown'}px)`);
 
 // HUD
 export const HUD_H     = 60;

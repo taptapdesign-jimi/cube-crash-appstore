@@ -485,6 +485,7 @@ async function animateSlideExit() {
 // Check for saved game on startup
 async function checkForSavedGame() {
   const hasSavedGame = localStorage.getItem('cc_saved_game');
+  console.log('🎮 Checking for saved game...', { hasSavedGame: !!hasSavedGame });
   if (hasSavedGame) {
     try {
       const gameState = JSON.parse(hasSavedGame);
@@ -496,10 +497,33 @@ async function checkForSavedGame() {
         const hasScore = gameState.score > 0 || false;
         const hasTiles = gameState.grid && gameState.grid.some(row => row.some(cell => cell !== null)) || false;
         
+        console.log('🎮 Game state analysis:', { hasPlayed, hasMoves, hasScore, hasTiles });
+        console.log('🎮 Game state details:', { 
+          moveCount: gameState.moveCount, 
+          score: gameState.score,
+          grid: gameState.grid ? 'exists' : 'missing'
+        });
+        
         if (hasPlayed || hasMoves || hasScore || hasTiles) {
-          console.log('🎮 Found played game, showing resume modal...');
-          await showResumeGameModal();
-          return;
+          console.log('🎮 Found played game, showing resume bottom sheet...');
+          
+          // Reset Play button state before showing modal
+          if (typeof window.resetPlayButtonState === 'function') {
+            console.log('🎮 Calling resetPlayButtonState before showing modal...');
+            window.resetPlayButtonState();
+          }
+          
+          // Import and call the bottom sheet function
+          try {
+            const { showResumeGameBottomSheet } = await import('./modules/resume-game-bottom-sheet.js');
+            await showResumeGameBottomSheet();
+            return;
+          } catch (error) {
+            console.error('❌ Failed to show resume bottom sheet:', error);
+            // Fallback to old modal
+            await showResumeGameModal();
+            return;
+          }
         } else {
           console.log('🎮 Found fresh game (no moves made), starting directly...');
           // Remove the fresh game save and start new
@@ -1157,6 +1181,14 @@ function ensureParallaxLoop(sliderParallaxImage){
       }, 500);
     }
     
+    // Global event handlers for menu
+    let menuEventHandlers = {
+      handleOutsideClick: null,
+      handleTouchStart: null,
+      handleTouchMove: null,
+      handleTouchEnd: null
+    };
+    
     // Menu screen functions
     function showMenuScreen() {
       console.log('📋 Showing menu screen');
@@ -1183,15 +1215,92 @@ function ensureParallaxLoop(sliderParallaxImage){
       menuScreen.style.display = 'flex';
       setMenuVisible(true);
       
-      // Add enter animation
-      menuScreen.style.opacity = '0';
-      menuScreen.style.transform = 'scale(0.8) translateY(20px)';
-      menuScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+      // Add enter animation - bottom sheet style
+      const menuContent = menuScreen.querySelector('.menu-content');
+      if (menuContent) {
+        menuContent.style.transform = 'translateY(100%)';
+        menuContent.style.transition = 'transform 0.3s ease-out';
+        
+        setTimeout(() => {
+          menuContent.style.transform = 'translateY(0)';
+        }, 50);
+      }
       
-      setTimeout(() => {
-        menuScreen.style.opacity = '1';
-        menuScreen.style.transform = 'scale(1) translateY(0)';
-      }, 50);
+      // Add click outside to close and trigger unpause
+      menuEventHandlers.handleOutsideClick = (e) => {
+        if (e.target === menuScreen) {
+          hideMenuScreen();
+          // Trigger unpause when clicking outside
+          if (window.CC && typeof window.CC.resumeGame === 'function') {
+            window.CC.resumeGame();
+          }
+        }
+      };
+      
+      // Add drag to close functionality
+      let startY = 0;
+      let currentY = 0;
+      let isDragging = false;
+      let dragThreshold = 50; // Minimum drag distance to close
+      
+      menuEventHandlers.handleTouchStart = (e) => {
+        if (e.target === menuContent) {
+          // Handle both touch and pointer events
+          const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+          startY = clientY;
+          isDragging = true;
+          menuContent.style.transition = 'none'; // Disable transition during drag
+        }
+      };
+      
+      menuEventHandlers.handleTouchMove = (e) => {
+        if (!isDragging) return;
+        
+        // Handle both touch and pointer events
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        currentY = clientY;
+        const deltaY = currentY - startY;
+        
+        // Only allow downward drag
+        if (deltaY > 0) {
+          menuContent.style.transform = `translateY(${deltaY}px)`;
+        }
+      };
+      
+      menuEventHandlers.handleTouchEnd = (e) => {
+        if (!isDragging) return;
+        
+        isDragging = false;
+        const deltaY = currentY - startY;
+        
+        // If dragged far enough down, close the modal and trigger unpause
+        if (deltaY > dragThreshold) {
+          hideMenuScreen();
+          // Trigger unpause when dragging down
+          if (window.CC && typeof window.CC.resumeGame === 'function') {
+            window.CC.resumeGame();
+          }
+        } else {
+          // Snap back to original position
+          menuContent.style.transition = 'transform 0.3s ease-out';
+          menuContent.style.transform = 'translateY(0)';
+        }
+      };
+      
+      // Add both click and pointer events for better Android support
+      menuScreen.addEventListener('click', menuEventHandlers.handleOutsideClick);
+      menuScreen.addEventListener('pointerdown', menuEventHandlers.handleOutsideClick);
+      
+      if (menuContent) {
+        menuContent.addEventListener('touchstart', menuEventHandlers.handleTouchStart, { passive: true });
+        menuContent.addEventListener('touchmove', menuEventHandlers.handleTouchMove, { passive: true });
+        menuContent.addEventListener('touchend', menuEventHandlers.handleTouchEnd, { passive: true });
+        
+        // Add pointer events for better Android support
+        menuContent.addEventListener('pointerdown', menuEventHandlers.handleTouchStart, { passive: true });
+        menuContent.addEventListener('pointermove', menuEventHandlers.handleTouchMove, { passive: true });
+        menuContent.addEventListener('pointerup', menuEventHandlers.handleTouchEnd, { passive: true });
+      }
     }
     
     function hideMenuScreen() {
@@ -1201,16 +1310,38 @@ function ensureParallaxLoop(sliderParallaxImage){
       
       setMenuVisible(false);
       
-      // Add exit animation
-      menuScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-      menuScreen.style.opacity = '0';
-      menuScreen.style.transform = 'scale(0.8) translateY(20px)';
+      // Add exit animation - bottom sheet style
+      const menuContent = menuScreen.querySelector('.menu-content');
+      if (menuContent) {
+        menuContent.style.transition = 'transform 0.3s ease-out';
+        menuContent.style.transform = 'translateY(100%)';
+      }
 
       // Wait for exit animation to complete, then hide
       setTimeout(() => {
         menuScreen.hidden = true;
         menuScreen.setAttribute('hidden', 'true');
-      }, 500);
+        
+        // Clean up event listeners
+        if (menuEventHandlers.handleOutsideClick) {
+          menuScreen.removeEventListener('click', menuEventHandlers.handleOutsideClick);
+          menuScreen.removeEventListener('pointerdown', menuEventHandlers.handleOutsideClick);
+        }
+        if (menuContent && menuEventHandlers.handleTouchStart) {
+          menuContent.removeEventListener('touchstart', menuEventHandlers.handleTouchStart);
+          menuContent.removeEventListener('touchmove', menuEventHandlers.handleTouchMove);
+          menuContent.removeEventListener('touchend', menuEventHandlers.handleTouchEnd);
+          menuContent.removeEventListener('pointerdown', menuEventHandlers.handleTouchStart);
+          menuContent.removeEventListener('pointermove', menuEventHandlers.handleTouchMove);
+          menuContent.removeEventListener('pointerup', menuEventHandlers.handleTouchEnd);
+        }
+        
+        // Reset event handlers
+        menuEventHandlers.handleOutsideClick = null;
+        menuEventHandlers.handleTouchStart = null;
+        menuEventHandlers.handleTouchMove = null;
+        menuEventHandlers.handleTouchEnd = null;
+      }, 300);
     }
     
     function updateMenuData() {
@@ -1617,20 +1748,6 @@ function ensureParallaxLoop(sliderParallaxImage){
     
     // Button handlers with springy hover effects
     if (playButton) {
-      // Add hover effects for play button
-      playButton.addEventListener('mouseenter', () => {
-        if (!sliderLocked) {
-          playButton.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-          playButton.style.transform = 'scale(1.05) translateY(-2px)';
-        }
-      });
-      
-      playButton.addEventListener('mouseleave', () => {
-        if (!sliderLocked) {
-          playButton.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-          playButton.style.transform = 'scale(1) translateY(0)';
-        }
-      });
       
       const startGameNow = (e) => {
         if (sliderLocked) return;
@@ -1649,6 +1766,66 @@ function ensureParallaxLoop(sliderParallaxImage){
       let isButtonPressed = false;
       let hasMovedOutside = false;
       let buttonRect = null;
+      
+      // Function to setup play button events
+      const setupPlayButtonEvents = (button) => {
+        // Mouse events
+        button.addEventListener('mousedown', handleButtonStart);
+        button.addEventListener('mousemove', handleButtonMove);
+        button.addEventListener('mouseup', handleButtonEnd);
+        button.addEventListener('mouseleave', handleButtonEnd);
+        
+        // Touch events
+        button.addEventListener('touchstart', handleButtonStart, { passive: true });
+        button.addEventListener('touchmove', handleButtonMove, { passive: true });
+        button.addEventListener('touchend', handleButtonEnd, { passive: true });
+        
+        // Fallback click event (for accessibility)
+        button.addEventListener('click', (e) => {
+          if (!hasMovedOutside) {
+            startGameNow(e);
+          }
+        });
+        
+        // Hover effects - ONLY when slider is not locked
+        button.addEventListener('mouseenter', () => {
+          if (!sliderLocked) {
+            button.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+            button.style.transform = 'scale(1.05) translateY(-2px)';
+          }
+        });
+        
+        button.addEventListener('mouseleave', () => {
+          if (!sliderLocked) {
+            button.style.transition = 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+            button.style.transform = 'scale(1) translateY(0)';
+          }
+        });
+      };
+
+      // Make button state variables globally accessible for reset
+      window.resetPlayButtonState = () => {
+        console.log('🔧 Resetting Play button state...');
+        isButtonPressed = false;
+        hasMovedOutside = false;
+        buttonRect = null;
+        
+        if (playButton) {
+          // Add reset class to force override all states
+          playButton.classList.add('play-button-reset');
+          
+          // Force remove any :active state by triggering a reflow
+          playButton.offsetHeight;
+          
+          // Remove reset class after animation completes
+          setTimeout(() => {
+            if (playButton) {
+              playButton.classList.remove('play-button-reset');
+              console.log('🔧 Play button reset class removed');
+            }
+          }, 300); // Match transition duration
+        }
+      };
 
       const handleButtonStart = (e) => {
         isButtonPressed = true;
@@ -1683,23 +1860,8 @@ function ensureParallaxLoop(sliderParallaxImage){
         e.stopPropagation();
       };
 
-      // Mouse events
-      playButton.addEventListener('mousedown', handleButtonStart);
-      playButton.addEventListener('mousemove', handleButtonMove);
-      playButton.addEventListener('mouseup', handleButtonEnd);
-      playButton.addEventListener('mouseleave', handleButtonEnd);
-      
-      // Touch events
-      playButton.addEventListener('touchstart', handleButtonStart, { passive: true });
-      playButton.addEventListener('touchmove', handleButtonMove, { passive: true });
-      playButton.addEventListener('touchend', handleButtonEnd, { passive: true });
-      
-      // Fallback click event (for accessibility)
-      playButton.addEventListener('click', (e) => {
-        if (!hasMovedOutside) {
-          startGameNow(e);
-        }
-      });
+      // Setup all play button events
+      setupPlayButtonEvents(playButton);
     }
     
     if (statsButton) {
@@ -1980,6 +2142,124 @@ function ensureParallaxLoop(sliderParallaxImage){
     window.showMenuScreen = showMenuScreen;
     window.hideMenuScreen = hideMenuScreen;
     
+    // Test function to create saved game
+    window.createTestSavedGame = () => {
+      const testGameState = {
+        timestamp: Date.now(),
+        hasPlayed: true,
+        moveCount: 5,
+        score: 100,
+        grid: [
+          [1, null, null, 2, null],
+          [null, 1, null, null, null],
+          [1, null, 2, null, null],
+          [null, null, 1, null, null],
+          [1, null, null, null, null]
+        ]
+      };
+      localStorage.setItem('cc_saved_game', JSON.stringify(testGameState));
+      console.log('✅ Test saved game created');
+    };
+    
+    // Unlock slider function
+    window.unlockSlider = () => {
+      console.log('🔓 Unlocking slider...');
+      sliderLocked = false;
+      
+      // Reset Play button state completely after modal is closed
+      setTimeout(() => {
+        if (typeof window.resetPlayButtonState === 'function') {
+          console.log('🔧 Resetting Play button state after modal close...');
+          window.resetPlayButtonState();
+        } else {
+          console.warn('⚠️ resetPlayButtonState function not available');
+        }
+      }, 100); // Small delay to ensure modal is fully closed
+      
+      // Ensure dots are visible
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          window.ensureDotsVisible?.();
+        }, 100);
+      });
+    };
+    
+
+// Make end run modal function available globally
+window.showEndRunModalFromGame = async () => {
+  try {
+    const { showEndRunModal } = await import('./modules/end-run-modal.js');
+    showEndRunModal();
+  } catch (error) {
+    console.error('❌ Failed to show end run modal:', error);
+  }
+};
+
+
+// Global functions for resume bottom sheet
+window.continueGame = async () => {
+  console.log('🎮 Continue game clicked');
+  try {
+    await animateSlideExit();
+    startTimeTracking(); // Start tracking play time
+    appHost.style.display = 'block';
+    appHost.removeAttribute('hidden');
+    
+    console.log('🎮 main.js: About to call boot() for continue...');
+    await boot();
+    console.log('🎮 main.js: boot() called for continue');
+    
+    // Wait a bit for boot to complete, then load saved game state
+    setTimeout(async () => {
+      console.log('🎮 main.js: About to load saved game state...');
+      if (typeof window.loadGameState === 'function') {
+        const loaded = await window.loadGameState();
+        if (loaded) {
+          console.log('✅ Game state loaded successfully');
+        } else {
+          console.log('⚠️ Failed to load game state, starting fresh');
+        }
+      } else {
+        console.log('⚠️ loadGameState function not available');
+      }
+    }, 100);
+  } catch (error) {
+    console.error('❌ Error in continue flow:', error);
+    // Fallback: try to start game anyway
+    try {
+      await boot();
+    } catch (fallbackError) {
+      console.error('❌ Fallback boot also failed:', fallbackError);
+    }
+  }
+};
+
+window.startNewGame = async () => {
+  console.log('🎮 New game clicked');
+  try {
+    await animateSlideExit();
+    
+    // Clear any existing saved game
+    localStorage.removeItem('cc_saved_game');
+    
+    startTimeTracking(); // Start tracking play time
+    appHost.style.display = 'block';
+    appHost.removeAttribute('hidden');
+    
+    console.log('🎮 main.js: About to call boot() for new game...');
+    await boot();
+    console.log('🎮 main.js: boot() called for new game');
+  } catch (error) {
+    console.error('❌ Error in new game flow:', error);
+    // Fallback: try to start game anyway
+    try {
+      await boot();
+    } catch (fallbackError) {
+      console.error('❌ Fallback boot also failed:', fallbackError);
+    }
+  }
+};
+    
     // Global functions for stats
     window.updateGameStats = (statName, value) => {
       updateStat(statName, value);
@@ -2062,6 +2342,17 @@ function ensureParallaxLoop(sliderParallaxImage){
       };
       saveStatsToStorage();
       console.log('🔄 All stats reset');
+    };
+
+    // Function to test the end run modal
+    window.testEndRunModal = async () => {
+      try {
+        const { showEndRunModalFromGame } = await import('./modules/achievements.js');
+        showEndRunModalFromGame();
+        console.log('🎮 End run modal test triggered');
+      } catch (error) {
+        console.error('❌ Failed to show end run modal:', error);
+      }
     };
 
     

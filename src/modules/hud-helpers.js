@@ -395,20 +395,27 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   HUD_ROOT.cursor = 'pointer';
   // HUD clickable area covers moves, score, combo, and wild preloader (approximately 80px height)
   HUD_ROOT.hitArea = new Rectangle(0, 0, 1000, 80); // Clickable area covers entire HUD area
-  HUD_ROOT.on('pointerdown', (e) => {
-    console.log('HUD clicked!', e);
-    e.stopPropagation();
-    
-    console.log('Calling pauseGame...');
-    pauseGame();
-    console.log('Calling showMenuScreen...');
-    // Show menu screen instead of pause modal
-    if (typeof window.showMenuScreen === 'function') {
-      window.showMenuScreen();
-    } else {
-      console.warn('showMenuScreen function not available');
-    }
-  });
+        HUD_ROOT.on('pointerdown', (e) => {
+          e.stopPropagation();
+          console.log('🎯 HUD CLICKED!');
+
+          // Show End This Run modal instead of pause menu
+          if (typeof window.showEndRunModalFromGame === 'function') {
+            console.log('🎯 Calling showEndRunModalFromGame...');
+            window.showEndRunModalFromGame();
+          } else {
+            console.log('🎯 showEndRunModalFromGame not available, using fallback');
+            // Fallback to old behavior
+            console.log('Calling pauseGame...');
+            pauseGame();
+            console.log('Calling showMenuScreen...');
+            if (typeof window.showMenuScreen === 'function') {
+              window.showMenuScreen();
+            } else {
+              console.warn('showMenuScreen function not available');
+            }
+          }
+        });
 }
 
 // Play the deferred drop once (used on first Play when board is ~50% populated)

@@ -7,6 +7,7 @@ import { COLS, ROWS, TILE, GAP } from './constants.js';
 import * as HUD from './hud-helpers.js';
 import { openAtCell, openEmpties, spawnBounce } from './app-spawn.js';
 import { showStarsModal } from './stars-modal.js';
+import { showBoardFailModal } from './board-fail-modal.js';
 import { rebuildBoard } from './app-board.js';
 import { drawBoardBG } from './app.js';
 
@@ -440,7 +441,11 @@ export function merge(src, dst, helpers){
   dst.eventMode = 'static';
 }
 
-export function checkGameOver(){
+export async function checkGameOver(){
+  if (STATE.busyEnding) {
+    console.log('⏳ checkGameOver skipped - end sequence already running');
+    return;
+  }
   console.log('🔥 checkGameOver called');
   
   const activeTiles = STATE.tiles.filter(t => !t.locked && t.value > 0);
@@ -533,10 +538,88 @@ export function checkGameOver(){
     window.checkCollectiblesMilestones(STATE.score);
   }
 
-  showStarsModal({ app: STATE.app, stage: STATE.stage, board: STATE.board, score: STATE.score, thresholds:{one:Infinity,two:Infinity,three:Infinity}, buttonLabel:'Retry' })
-    .then(async ()=>{
-      STATE.score=0; STATE.moves=0; updateHUD();
+  STATE.busyEnding = true;
+
+  const levelNumber = Math.max(1, STATE.level | 0);
+  const scoreValue = Math.max(0, STATE.score | 0);
+
+  let action = 'retry';
+
+  try {
+    try {
+      const result = await showBoardFailModal({
+        score: scoreValue,
+        boardNumber: levelNumber
+      });
+      action = result?.action || 'retry';
+    } catch (error) {
+      console.error('❌ showBoardFailModal failed, falling back to stars modal:', error);
+      try {
+        await showStarsModal({
+          app: STATE.app,
+          stage: STATE.stage,
+          board: STATE.board,
+          score: scoreValue,
+          thresholds:{ one:Infinity, two:Infinity, three:Infinity },
+          buttonLabel:'Retry'
+        });
+      } catch (fallbackError) {
+        console.error('❌ Fallback stars modal failed:', fallbackError);
+      }
+      action = 'retry';
+    }
+
+    if (action === 'menu') {
+      try {
+        await window.exitToMenu?.();
+        window.goToSlide?.(0, { animate: true });
+      } catch (error) {
+        console.warn('⚠️ exitToMenu failed, reloading as fallback:', error);
+        try { window.location.reload(); } catch {}
+      }
+      return;
+    }
+
+    let usedCCRelaunch = false;
+
+    if (window.CC?.restart) {
+      try {
+        window.CC.restart();
+        usedCCRelaunch = true;
+      } catch (error) {
+        console.warn('⚠️ window.CC.restart failed, falling back to manual restart:', error);
+      }
+    }
+
+    if (!usedCCRelaunch) {
+      STATE.score = 0;
+      STATE.moves = 0;
+      STATE.wildMeter = 0;
+
+      try {
+        if (typeof HUD.resetWildMeter === 'function') {
+          HUD.resetWildMeter(true);
+        } else if (typeof HUD.updateProgressBar === 'function') {
+          HUD.updateProgressBar(0, false);
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to reset wild meter during retry:', error);
+      }
+
+      updateHUD();
+
       rebuildBoard();                  // ✅ no more fake dynamic imports
-      setTimeout(checkGameOver, 1000);
-    });
+    } else {
+      // ensure HUD reflects reset when restart handled elsewhere
+      try { updateHUD(); } catch {}
+    }
+
+    setTimeout(() => {
+      try { checkGameOver(); } catch (error) {
+        console.warn('⚠️ checkGameOver retry call failed:', error);
+      }
+    }, 1000);
+  } finally {
+    STATE.busyEnding = false;
+  }
 }
