@@ -419,7 +419,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
 
 /* Removed flip-shimmer animation - using simple orange button now */
 
-/* Override slide buttons to be simple orange like bottom sheet - ULTRA SPECIFIC */
+/* Override slide buttons with liquid fill effect - ULTRA SPECIFIC */
 .slide-button.squishy.squishy-cc.menu-btn-primary::before,
 .slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary::before {
   content: attr(data-front) !important;
@@ -436,6 +436,14 @@ body{height:100dvh;height:100vh;overflow:hidden}
   z-index: 1 !important;
 }
 
+/* Remove liquid fill - using bounce effect instead */
+.slide-button.squishy.squishy-cc.menu-btn-primary::after,
+.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary::after {
+  display: none !important; /* Hide back layer completely */
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
 .slide-button.squishy.squishy-cc.menu-btn-primary:hover::before,
 .slide-button.squishy.squishy-cc.menu-btn-primary:focus-visible::before,
 .slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:hover::before,
@@ -445,6 +453,13 @@ body{height:100dvh;height:100vh;overflow:hidden}
   background: transparent !important; /* Keep transparent */
   animation: none !important; /* No shimmer */
   box-shadow: none !important;
+}
+
+/* Springy bounce hover effect */
+.slide-button.squishy.squishy-cc.menu-btn-primary:hover,
+.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:hover {
+  transform: scale(1.1) !important; /* 10% scale up */
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
 }
 
 .slide-button.squishy.squishy-cc.menu-btn-primary::after,
@@ -475,12 +490,13 @@ body{height:100dvh;height:100vh;overflow:hidden}
   justify-content: center !important;
 }
 
-.slide-button.squishy.squishy-cc.menu-btn-primary:hover,
-.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:hover {
-  background: #E97A55 !important;
-  transform: none !important;
-  box-shadow: none !important;
-  height: 64px !important; /* Maintain height on hover */
+/* Remove duplicate hover - using springy bounce above */
+
+/* Active state with springy bounce */
+.slide-button.squishy.squishy-cc.menu-btn-primary:active,
+.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:active {
+  transform: scale(0.9) !important; /* Press down 10% */
+  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
 }
 
 .pause-modal-btn-orange:active {
@@ -1416,7 +1432,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   max-height: 60vh;
   z-index: 999999999;
   transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Fluid animation like slider */
-  padding: 40px 10%; /* 40px top/bottom, 10% left/right for responsive */
+  padding: 28px 10% 40px 10%; /* 28px top padding (20px + 8px), 40px bottom, 10% left/right for responsive */
   
   /* RESPONSIVE WIDTH */
   width: 100%;
@@ -1456,18 +1472,23 @@ body{height:100dvh;height:100vh;overflow:hidden}
   z-index: 10;
   /* FLAT - no 3D effects */
   box-shadow: none;
-  transition: none;
+  transition: transform 0.1s ease; /* Only transform transition */
+  overflow: hidden; /* For liquid fill effect */
 }
+
+/* Remove liquid fill - using springy bounce instead */
 
 .continue-btn:hover {
   background: #E97A55; /* Same color on hover - flat */
-  transform: none;
+  transform: scale(1.1); /* 10% scale up */
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
   box-shadow: none;
 }
 
 .continue-btn:active {
   background: #E97A55; /* Same color on active - flat */
-  transform: none;
+  transform: scale(0.9); /* Press down 10% */
+  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
   box-shadow: none;
 }
 
@@ -1491,20 +1512,22 @@ body{height:100dvh;height:100vh;overflow:hidden}
   z-index: 10;
   /* FLAT - no 3D effects */
   box-shadow: none;
-  transition: none;
+  transition: transform 0.1s ease; /* Only transform transition */
 }
 
 .new-game-btn:hover {
   background: white; /* Same color on hover - flat */
   color: #828282;
-  transform: none;
+  transform: scale(1.1); /* 10% scale up */
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
   box-shadow: none;
 }
 
 .new-game-btn:active {
   background: white; /* Same color on active - flat */
   color: #828282;
-  transform: none;
+  transform: scale(0.9); /* Press down 10% */
+  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
   box-shadow: none;
 }
 
@@ -1515,7 +1538,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   .resume-bottom-sheet {
     max-width: none; /* Full width edge to edge on iPad */
     width: 100%;
-    padding: 40px 8%; /* Padding from edges */
+    padding: 28px 8% 40px 8%; /* 28px top padding (20px + 8px), 40px bottom, 8% left/right */
     left: 0;
     right: 0;
     margin: 0;
@@ -1542,7 +1565,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
 /* Mobile responsive */
 @media screen and (max-width: 428px) {
   .resume-bottom-sheet {
-    padding: 40px 8%; /* Keep top/bottom 40px, reduce left/right to 8% on mobile */
+    padding: 28px 8% 40px 8%; /* 28px top padding (20px + 8px), 40px bottom, 8% left/right on mobile */
     max-width: 100%;
   }
   
@@ -1578,7 +1601,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   max-height: 60vh;
   z-index: 999999999;
   transition: transform 0.3s ease-out;
-  padding: 40px 10%; /* 40px top/bottom, 10% left/right for responsive */
+  padding: 28px 10% 40px 10%; /* 28px top padding (20px + 8px), 40px bottom, 10% left/right for responsive */
   
   /* RESPONSIVE WIDTH */
   width: 100%;
@@ -1598,11 +1621,11 @@ body{height:100dvh;height:100vh;overflow:hidden}
 }
 
 .modal-handle {
-  width: 16px;
+  width: 24px; /* Updated to 24px */
   height: 4px;
-  background: linear-gradient(to bottom, transparent 0%, #E0E0E0 20%, #E0E0E0 80%, transparent 100%);
-  border-radius: 2px;
-  margin: 8px auto 0;
+  background: #EFE7E3; /* Updated color as requested */
+  border-radius: 40px; /* Rounded corners */
+  margin: 8px auto 0; /* 8px from top of bottom sheet (reduced by 8px) */
   cursor: grab;
   transition: background-color 0.2s ease;
   
@@ -1620,17 +1643,17 @@ body{height:100dvh;height:100vh;overflow:hidden}
 
 .modal-handle:active {
   cursor: grabbing;
-  background: #D0D0D0;
+  background: #E0D5D0; /* Slightly darker shade of #EFE7E3 */
 }
 
 /* Mobile handle adjustments */
 @media screen and (max-width: 768px) {
   .modal-handle {
-    width: 20px;
+    width: 24px; /* Keep 24px on mobile too */
     height: 4px;
-    margin: 8px auto 0;
-    background: linear-gradient(to bottom, transparent 0%, #C0C0C0 20%, #C0C0C0 80%, transparent 100%);
-    border-radius: 2px;
+    margin: 8px auto 0; /* 8px from top of bottom sheet (reduced by 8px) */
+    background: #EFE7E3; /* Same color as desktop */
+    border-radius: 40px; /* Same rounded corners */
   }
 }
 
@@ -1638,6 +1661,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   display: flex;
   flex-direction: column;
   gap: 10px; /* VStack(spacing: 10) from Figma */
+  margin-top: 20px; /* 20px gap beneath handle */
 }
 
 .simple-header {
@@ -1691,37 +1715,71 @@ body{height:100dvh;height:100vh;overflow:hidden}
   color: white;
   border: none;
   border-radius: 40px; /* .cornerRadius(40) from Figma */
-  padding: 20px 64px; /* EdgeInsets(top: 16, leading: 64, bottom: 16, trailing: 64) from Figma */
+  padding: 0 64px; /* Remove top/bottom padding since we have fixed height */
   font-size: 24px; /* Font.custom("Inter", size: 24) from Figma */
   font-weight: bold; /* .weight(.bold) from Figma */
   font-family: "Inter", system-ui, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
   max-width: 310px; /* Max width from Figma */
+  height: 64px; /* Fixed height like other buttons */
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   /* Ensure buttons are clickable */
   pointer-events: auto;
   position: relative;
   z-index: 10;
+  /* Springy bounce transition */
+  transition: transform 0.1s ease;
+}
+
+/* Springy bounce hover effect for restart button */
+.restart-btn:hover {
+  transform: scale(1.1); /* 10% scale up */
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
+}
+
+.restart-btn:active {
+  transform: scale(0.9); /* Press down 10% */
+  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
 }
 
 .exit-btn {
   background: white; /* .white from Figma */
   color: #878787; /* Color(red: 0.53, green: 0.52, blue: 0.52) from Figma */
-  border: 0.5px solid #E0E0E0; /* .stroke(Color(red: 0.88, green: 0.88, blue: 0.88), lineWidth: 0.50) from Figma */
+  border: 2px solid #DDDDDD; /* Updated to 2px stroke */
   border-radius: 40px; /* .cornerRadius(40) from Figma */
-  padding: 20px 64px; /* EdgeInsets(top: 16, leading: 64, bottom: 16, trailing: 64) from Figma */
+  padding: 0 64px; /* Remove top/bottom padding since we have fixed height */
   font-size: 24px; /* Font.custom("Inter", size: 24) from Figma */
   font-weight: bold; /* .weight(.bold) from Figma */
   font-family: "Inter", system-ui, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
   max-width: 310px; /* Max width from Figma */
+  height: 64px; /* Fixed height like other buttons */
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   /* Ensure buttons are clickable */
   pointer-events: auto;
   position: relative;
   z-index: 10;
+  /* Springy bounce transition */
+  transition: transform 0.1s ease;
+}
+
+/* Springy bounce hover effect for exit button */
+.exit-btn:hover {
+  transform: scale(1.1); /* 10% scale up */
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
+}
+
+.exit-btn:active {
+  transform: scale(0.9); /* Press down 10% */
+  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55); /* Springy bounce */
 }
 
 /* Tablet and iPad responsive */
@@ -1729,7 +1787,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   .simple-bottom-sheet {
     max-width: none; /* Full width edge to edge on iPad */
     width: 100%;
-    padding: 40px 8%; /* Padding from edges */
+    padding: 28px 8% 40px 8%; /* 28px top padding (20px + 8px), 40px bottom, 8% left/right */
     left: 0;
     right: 0;
     margin: 0;
@@ -1743,7 +1801,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
 /* Mobile responsive */
 @media screen and (max-width: 428px) {
   .simple-bottom-sheet {
-    padding: 40px 8%; /* Keep top/bottom 40px, reduce left/right to 8% on mobile */
+    padding: 28px 8% 40px 8%; /* 28px top padding (20px + 8px), 40px bottom, 8% left/right on mobile */
     max-width: 100%;
   }
   
@@ -1770,18 +1828,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   }
 }
 
-.end-run-handle {
-  width: 40px;
-  height: 4px;
-  background: #E0E0E0;
-  border-radius: 2px;
-  margin: 12px auto 0;
-  cursor: grab;
-}
-
-.end-run-handle:active {
-  cursor: grabbing;
-}
+/* Removed unused .end-run-handle styles - using .modal-handle instead */
 
 .end-run-content {
   display: flex;

@@ -1811,9 +1811,14 @@ function ensureParallaxLoop(sliderParallaxImage){
         buttonRect = null;
 
         if (playButton) {
+          // Force reset all inline styles and hover state
+          playButton.style.transform = 'scale(1) translateY(0) !important';
+          playButton.style.transition = 'none !important';
+          
+          // Temporarily disable hover effects
+          playButton.style.pointerEvents = 'none';
           playButton.classList.add('play-button-reset');
           playButton.classList.add('force-front');
-          playButton.style.pointerEvents = 'none';
 
           try { playButton.blur(); } catch {}
 
@@ -1824,6 +1829,11 @@ function ensureParallaxLoop(sliderParallaxImage){
             playButton.classList.remove('play-button-reset');
             playButton.classList.remove('force-front');
             playButton.style.pointerEvents = '';
+            
+            // Force reset transform with !important to override CSS hover
+            playButton.style.transform = 'scale(1) translateY(0) !important';
+            playButton.style.transition = '';
+            
             console.log('🔧 Play button reset state restored');
           }, 220);
         }
@@ -1856,6 +1866,13 @@ function ensureParallaxLoop(sliderParallaxImage){
         if (isButtonPressed && !hasMovedOutside) {
           startGameNow(e);
         }
+        
+        // Always reset button transform when ending interaction
+        if (playButton) {
+          playButton.style.transform = 'scale(1) translateY(0)';
+          playButton.style.transition = '';
+        }
+        
         isButtonPressed = false;
         hasMovedOutside = false;
         buttonRect = null;
