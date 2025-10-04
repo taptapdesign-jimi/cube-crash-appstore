@@ -1423,6 +1423,25 @@ function merge(src, dst, helpers){
         if (isBoardClean()){
           console.log('🚨🚨🚨 BOARD IS CLEAN - STARTING ENDGAME FLOW! 🚨🚨🚨');
           busyEnding = true;
+          
+          // CRITICAL: Reset wild meter immediately to prevent visual residue
+          console.log('🔥 CLEAN BOARD: Resetting wild meter immediately...');
+          wildMeter = 0;
+          STATE.wildMeter = 0;
+          resetWildProgress(0, false);
+          
+          // Force immediate HUD update to clear wild meter visually
+          try {
+            if (typeof HUD.resetWildMeter === 'function') {
+              HUD.resetWildMeter(true); // instant = true for immediate reset
+            } else {
+              HUD.updateProgressBar?.(0, false);
+            }
+            console.log('✅ CLEAN BOARD: Wild meter reset completed');
+          } catch (error) {
+            console.warn('⚠️ CLEAN BOARD: Failed to reset wild meter:', error);
+          }
+          
           // Track boards cleared stat
           try { if (typeof window.trackBoardsCleared === 'function') window.trackBoardsCleared(1); } catch {}
 
