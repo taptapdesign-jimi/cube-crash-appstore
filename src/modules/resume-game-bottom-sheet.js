@@ -263,17 +263,28 @@ function addDragFunctionality(modalEl, registerCleanup) {
 function addOutsideClickFunctionality(modalEl, registerCleanup) {
   // Simple outside click with delay to prevent immediate closing
   setTimeout(() => {
-    const handleOutsideClick = (e) => {
+    document.onclick = (e) => {
       if (modalEl && !modalEl.contains(e.target)) {
         console.log('🎯 Outside click detected - closing resume modal');
         hideResumeModal();
       }
     };
-    document.addEventListener('click', handleOutsideClick);
+    
+    // Add touch support for mobile
+    document.ontouchend = (e) => {
+      if (modalEl && !modalEl.contains(e.target)) {
+        console.log('🎯 Outside touch detected - closing resume modal');
+        hideResumeModal();
+      }
+    };
+    
     if (registerCleanup) {
-      registerCleanup(() => document.removeEventListener('click', handleOutsideClick));
+      registerCleanup(() => {
+        document.onclick = null; // Clear the onclick handler
+        document.ontouchend = null; // Clear the ontouchend handler
+      });
     }
-  }, 500); // Increased delay to 500ms
+  }, 200); // Reduced delay to match end-run-modal
 }
 
 export function hideResumeModal() {

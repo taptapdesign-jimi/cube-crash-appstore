@@ -1,4 +1,6 @@
 // Simple End Run Modal
+import { showCleanBoardModal } from './clean-board-modal.js';
+
 let modal = null;
 
 function createModal() {
@@ -23,6 +25,9 @@ function createModal() {
             <button class="restart-btn">Restart</button>
             <button class="exit-btn">Exit</button>
           </div>
+          <div class="debug-button-row">
+            <button class="debug-btn">🧪 Test Clean Board</button>
+          </div>
         </div>
       </div>
     </div>
@@ -31,6 +36,7 @@ function createModal() {
   // Add event listeners
   const restartBtn = modal.querySelector('.restart-btn');
   const exitBtn = modal.querySelector('.exit-btn');
+  const debugBtn = modal.querySelector('.debug-btn');
   
   // Add button press handling for proper UX
   const addButtonPressHandling = (btn, action) => {
@@ -81,6 +87,31 @@ function createModal() {
     hideModal();
     if (window.exitToMenu) {
       window.exitToMenu();
+    }
+  });
+  
+  addButtonPressHandling(debugBtn, async () => {
+    hideModal();
+    // Trigger clean board flow for testing
+    console.log('🧪 DEBUG: Triggering clean board modal...');
+    try {
+      // Create mock context for clean board modal
+      const mockContext = {
+        app: window.CC?.app || {},
+        stage: window.CC?.stage || {},
+        getScore: () => window.CC?.getScore?.() || 1000,
+        setScore: (score) => window.CC?.setScore?.(score),
+        animateScore: (score) => window.CC?.animateScore?.(score),
+        updateHUD: () => window.CC?.updateHUD?.(),
+        bonus: 500,
+        scoreCap: 999999,
+        boardNumber: 1
+      };
+      
+      await showCleanBoardModal(mockContext);
+      console.log('🧪 DEBUG: Clean board modal triggered successfully');
+    } catch (error) {
+      console.warn('🧪 DEBUG: Failed to trigger clean board modal:', error);
     }
   });
   
@@ -138,7 +169,7 @@ function addDragFunctionality(modalEl) {
   // Touch events on entire modal
   modalEl.ontouchstart = (e) => {
     // Don't start drag if clicking on buttons
-    if (e.target.closest('.restart-btn') || e.target.closest('.exit-btn')) {
+    if (e.target.closest('.restart-btn') || e.target.closest('.exit-btn') || e.target.closest('.debug-btn')) {
       console.log('🎯 CLICK ON BUTTON - NO DRAG');
       return;
     }
@@ -200,7 +231,7 @@ function addDragFunctionality(modalEl) {
   // Mouse events on entire modal
   modalEl.onmousedown = (e) => {
     // Don't start drag if clicking on buttons
-    if (e.target.closest('.restart-btn') || e.target.closest('.exit-btn')) {
+    if (e.target.closest('.restart-btn') || e.target.closest('.exit-btn') || e.target.closest('.debug-btn')) {
       console.log('🎯 MOUSE CLICK ON BUTTON - NO DRAG');
       return;
     }

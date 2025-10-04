@@ -1802,6 +1802,73 @@ body{height:100dvh;height:100vh;overflow:hidden}
   box-shadow: none;
 }
 
+/* Debug button styling */
+.debug-btn {
+  background: #F5F5F5; /* Light gray background */
+  color: #666666; /* Dark gray text */
+  border: 1px solid #CCCCCC; /* Light gray border */
+  border-radius: 20px; /* Smaller radius for debug button */
+  padding: 8px 16px; /* Smaller padding */
+  font-size: 14px; /* Smaller font */
+  font-weight: normal; /* Normal weight */
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+  width: auto; /* Auto width */
+  height: auto; /* Auto height */
+  max-width: none; /* No max width */
+  margin: 8px auto 0; /* Center with small margin */
+  transition: transform 0.15s ease !important;
+  position: relative !important;
+  overflow: hidden !important; /* Clip shimmer effect */
+}
+
+.debug-btn:hover {
+  background: #F0F0F0; /* Slightly darker on hover */
+  color: #666666;
+  transform: scale(1) !important; /* No hover scaling */
+  transition: transform 0.15s ease !important;
+  box-shadow: none;
+}
+
+.debug-btn:active {
+  background: #EBEBEB; /* Even darker on active */
+  color: #666666;
+  transform: scale(0.95) !important; /* Slight press down */
+  transition: transform 0.15s ease !important;
+  box-shadow: none;
+}
+
+/* Debug button shimmer */
+.debug-btn::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.00) 0%,
+    rgba(255,255,255,0.28) 50%,
+    rgba(255,255,255,0.00) 100%
+  ) !important;
+  transform: translateX(-160%) skewX(-12deg);
+  opacity: 0; /* Allow animation to change opacity */
+  will-change: transform, opacity !important;
+  filter: blur(0.56px) !important;
+  backface-visibility: hidden !important;
+  pointer-events: none !important;
+  z-index: 10 !important; /* Above button content */
+  animation: working-shimmer 5s linear infinite !important;
+  animation-delay: 4s; /* Debug button shimmer delay */
+}
+
+.debug-button-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
 /* Button spacing - removed duplicate, using the one below */
 
 /* Tablet and iPad responsive */
