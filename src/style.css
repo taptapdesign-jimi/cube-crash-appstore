@@ -239,7 +239,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   .slide .hero-wrap{ width: min(320px, 96vw); height: 350px; }
   .hero{ width: min(320px, 96vw); max-height: 350px; }
   .slide .copy{ width: min(240px, 86vw); }
-  .slide .copy .cta button{ width: 100%; }
+  .slide .copy .cta button{ width: 100%; max-width: 249px; }
   #home-nav{ width: auto; align-self: center; justify-content: center; }
 }
 
@@ -464,7 +464,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   visibility: hidden !important;
 }
 
-/* Force simple button - remove all 3D effects */
+/* Force simple button - remove all 3D effects and ensure default scale(1) */
 .slide-button.squishy.squishy-cc.menu-btn-primary,
 .slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary {
   transform-style: flat !important;
@@ -483,20 +483,53 @@ body{height:100dvh;height:100vh;overflow:hidden}
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  transform: scale(1) !important; /* Always stay at default scale */
 }
 
-/* Springy bounce hover effect */
-.slide-button.squishy.squishy-cc.menu-btn-primary:hover,
-.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:hover {
-  transform: scale(1.1) !important; /* 10% scale up */
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
-}
+/* DISABLED: No hover scaling - only click scaling */
 
-/* Active state with springy bounce */
+/* Simple active state - scale down dramatically */
 .slide-button.squishy.squishy-cc.menu-btn-primary:active,
 .slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:active {
-  transform: scale(0.9) !important; /* Press down 10% */
-  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
+  transform: scale(0.85) !important; /* Press down 15% */
+  transition: transform 0.15s ease !important; /* Simple transition */
+}
+
+/* Force Play button to stay at scale(1) when not actively being clicked */
+.slide-button.squishy.squishy-cc.menu-btn-primary.play-button-reset,
+.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary.play-button-reset,
+.slide-button.squishy.squishy-cc.menu-btn-primary:not(:active),
+.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:not(:active) {
+  transform: scale(1) !important; /* Always default scale when not being clicked */
+  transition: none !important; /* No automatic transitions */
+}
+
+/* Prevent any automatic scaling from bottom sheet animations */
+.slide-button.squishy.squishy-cc.menu-btn-primary,
+.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary {
+  will-change: auto !important; /* Prevent GPU acceleration that might cause scaling */
+}
+
+/* Dramatic click effect for all bottom sheet CTA buttons */
+.continue-btn,
+.new-game-btn,
+.restart-btn,
+.exit-btn {
+  transition: transform 0.15s ease !important;
+}
+
+.continue-btn:hover,
+.new-game-btn:hover,
+.restart-btn:hover,
+.exit-btn:hover {
+  transform: scale(1) !important; /* No hover scaling */
+}
+
+.continue-btn:active,
+.new-game-btn:active,
+.restart-btn:active,
+.exit-btn:active {
+  transform: scale(0.85) !important; /* Press down 15% */
 }
 
 /* Remove duplicate hover - using springy bounce above */
@@ -1461,13 +1494,13 @@ body{height:100dvh;height:100vh;overflow:hidden}
   color: white;
   border: none;
   border-radius: 40px;
-  padding: 20px 64px;
+  padding: 0 56px; /* Same as slider CTA */
   font-size: 24px;
   font-weight: bold;
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
-  max-width: 240px; /* Updated max width */
+  max-width: 310px; /* Same max width as slider CTA */
   height: 64px; /* Fixed height */
   text-align: center;
   /* Ensure buttons are clickable */
@@ -1484,15 +1517,15 @@ body{height:100dvh;height:100vh;overflow:hidden}
 
 .continue-btn:hover {
   background: #E97A55; /* Same color on hover - flat */
-  transform: scale(1.1) !important; /* 10% scale up */
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
+  transform: scale(1) !important; /* No hover scaling */
+  transition: transform 0.15s ease !important;
   box-shadow: none;
 }
 
 .continue-btn:active {
   background: #E97A55; /* Same color on active - flat */
-  transform: scale(0.9) !important; /* Press down 10% */
-  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
+  transform: scale(0.85) !important; /* Press down 15% */
+  transition: transform 0.15s ease !important;
   box-shadow: none;
 }
 
@@ -1501,13 +1534,13 @@ body{height:100dvh;height:100vh;overflow:hidden}
   color: #828282; /* Color(red: 0.51, green: 0.51, blue: 0.51) from SwiftUI */
   border: 2px solid #DEDEDE; /* Color(red: 0.87, green: 0.87, blue: 0.87) lineWidth: 2 inset: 1 */
   border-radius: 40px;
-  padding: 20px 64px;
+  padding: 0 56px; /* Same as slider CTA */
   font-size: 24px;
   font-weight: bold;
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
-  max-width: 240px; /* Updated max width */
+  max-width: 310px; /* Same max width as slider CTA */
   height: 64px; /* Fixed height */
   text-align: center;
   /* Ensure buttons are clickable */
@@ -1522,16 +1555,16 @@ body{height:100dvh;height:100vh;overflow:hidden}
 .new-game-btn:hover {
   background: white; /* Same color on hover - flat */
   color: #828282;
-  transform: scale(1.1) !important; /* 10% scale up */
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
+  transform: scale(1) !important; /* No hover scaling */
+  transition: transform 0.15s ease !important;
   box-shadow: none;
 }
 
 .new-game-btn:active {
   background: white; /* Same color on active - flat */
   color: #828282;
-  transform: scale(0.9) !important; /* Press down 10% */
-  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
+  transform: scale(0.85) !important; /* Press down 15% */
+  transition: transform 0.15s ease !important;
   box-shadow: none;
 }
 
@@ -1539,6 +1572,11 @@ body{height:100dvh;height:100vh;overflow:hidden}
 
 /* Tablet and iPad responsive */
 @media screen and (min-width: 768px) and (max-width: 1024px) {
+  /* Ensure slider CTA is same width as bottom sheet buttons on iPad */
+  .slide-button.squishy.squishy-cc.menu-btn-primary {
+    max-width: 249px !important;
+  }
+  
   .resume-bottom-sheet {
     max-width: none; /* Full width edge to edge on iPad */
     width: 100%;
@@ -1549,33 +1587,33 @@ body{height:100dvh;height:100vh;overflow:hidden}
   }
   
   .continue-btn, .new-game-btn {
-    max-width: 100%; /* Full width buttons on iPad */
+    max-width: 249px; /* Same as slider CTA on iPad */
     /* Keep flat style on iPad */
     box-shadow: none;
     /* transition removed - using springy bounce */
   }
   
   .continue-btn:hover {
-    transform: scale(1.1) !important; /* Keep springy bounce on tablet */
-    transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+    transform: scale(1) !important; /* No hover scaling */
+    transition: transform 0.15s ease !important;
     box-shadow: none;
   }
   
   .continue-btn:active {
-    transform: scale(0.9) !important; /* Keep press effect on tablet */
-    transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+    transform: scale(0.85) !important; /* Press down 15% */
+    transition: transform 0.15s ease !important;
     box-shadow: none;
   }
   
   .new-game-btn:hover {
-    transform: scale(1.1) !important; /* Keep springy bounce on tablet */
-    transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+    transform: scale(1) !important; /* No hover scaling */
+    transition: transform 0.15s ease !important;
     box-shadow: none;
   }
   
   .new-game-btn:active {
-    transform: scale(0.9) !important; /* Keep press effect on tablet */
-    transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+    transform: scale(0.85) !important; /* Press down 15% */
+    transition: transform 0.15s ease !important;
     box-shadow: none;
   }
 }
@@ -1589,34 +1627,34 @@ body{height:100dvh;height:100vh;overflow:hidden}
   
   .continue-btn, .new-game-btn {
     font-size: 22px;
-    padding: 14px 48px;
-    max-width: 100%;
+    padding: 0 56px; /* Same as slider CTA */
+    max-width: 249px; /* Same as slider CTA on mobile */
     /* Keep flat style on mobile */
     box-shadow: none;
     /* transition removed - using springy bounce */
   }
   
   .continue-btn:hover {
-    transform: scale(1.1) !important; /* Keep springy bounce on tablet */
-    transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+    transform: scale(1) !important; /* No hover scaling */
+    transition: transform 0.15s ease !important;
     box-shadow: none;
   }
   
   .continue-btn:active {
-    transform: scale(0.9) !important; /* Keep press effect on tablet */
-    transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+    transform: scale(0.85) !important; /* Press down 15% */
+    transition: transform 0.15s ease !important;
     box-shadow: none;
   }
   
   .new-game-btn:hover {
-    transform: scale(1.1) !important; /* Keep springy bounce on tablet */
-    transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+    transform: scale(1) !important; /* No hover scaling */
+    transition: transform 0.15s ease !important;
     box-shadow: none;
   }
   
   .new-game-btn:active {
-    transform: scale(0.9) !important; /* Keep press effect on tablet */
-    transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+    transform: scale(0.85) !important; /* Press down 15% */
+    transition: transform 0.15s ease !important;
     box-shadow: none;
   }
 }
@@ -1657,7 +1695,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   height: 4px;
   background: #EFE7E3; /* Updated color as requested */
   border-radius: 40px; /* Rounded corners */
-  margin: 8px auto 0; /* 8px from top of bottom sheet (reduced by 8px) */
+  margin: 4px auto 0; /* 4px from top of bottom sheet (closer to top) */
   cursor: grab;
   transition: background-color 0.2s ease;
   
@@ -1683,7 +1721,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   .modal-handle {
     width: 24px; /* Keep 24px on mobile too */
     height: 4px;
-    margin: 8px auto 0; /* 8px from top of bottom sheet (reduced by 8px) */
+    margin: 4px auto 0; /* 4px from top of bottom sheet (closer to top) */
     background: #EFE7E3; /* Same color as desktop */
     border-radius: 40px; /* Same rounded corners */
   }
@@ -1692,7 +1730,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
 .simple-content {
   display: flex;
   flex-direction: column;
-  gap: 10px; /* VStack(spacing: 10) from Figma */
+  gap: 32px; /* 32px gap between subtitle and buttons */
   margin-top: 20px; /* 20px gap beneath handle */
 }
 
@@ -1747,13 +1785,13 @@ body{height:100dvh;height:100vh;overflow:hidden}
   color: white;
   border: none;
   border-radius: 40px; /* .cornerRadius(40) from Figma */
-  padding: 0 64px; /* Remove top/bottom padding since we have fixed height */
+  padding: 0 56px; /* Same as slider CTA */
   font-size: 24px; /* Font.custom("LTCrow", size: 24) from Figma */
   font-weight: bold; /* .weight(.bold) from Figma */
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
-  max-width: 310px; /* Max width from Figma */
+  max-width: 310px; /* Same max width as slider CTA */
   height: 64px; /* Fixed height like other buttons */
   text-align: center;
   display: flex;
@@ -1767,15 +1805,15 @@ body{height:100dvh;height:100vh;overflow:hidden}
   transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
 }
 
-/* Springy bounce hover effect for restart button */
+/* Dramatic click effect for restart button */
 .restart-btn:hover {
-  transform: scale(1.1) !important; /* 10% scale up */
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
+  transform: scale(1) !important; /* No hover scaling */
+  transition: transform 0.15s ease !important;
 }
 
 .restart-btn:active {
-  transform: scale(0.9) !important; /* Press down 10% */
-  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
+  transform: scale(0.85) !important; /* Press down 15% */
+  transition: transform 0.15s ease !important;
 }
 
 .exit-btn {
@@ -1783,13 +1821,13 @@ body{height:100dvh;height:100vh;overflow:hidden}
   color: #878787; /* Color(red: 0.53, green: 0.52, blue: 0.52) from Figma */
   border: 2px solid #DDDDDD; /* Updated to 2px stroke */
   border-radius: 40px; /* .cornerRadius(40) from Figma */
-  padding: 0 64px; /* Remove top/bottom padding since we have fixed height */
+  padding: 0 56px; /* Same as slider CTA */
   font-size: 24px; /* Font.custom("LTCrow", size: 24) from Figma */
   font-weight: bold; /* .weight(.bold) from Figma */
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
-  max-width: 310px; /* Max width from Figma */
+  max-width: 310px; /* Same max width as slider CTA */
   height: 64px; /* Fixed height like other buttons */
   text-align: center;
   display: flex;
@@ -1803,15 +1841,15 @@ body{height:100dvh;height:100vh;overflow:hidden}
   transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
 }
 
-/* Springy bounce hover effect for exit button */
+/* Dramatic click effect for exit button */
 .exit-btn:hover {
-  transform: scale(1.1) !important; /* 10% scale up */
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
+  transform: scale(1) !important; /* No hover scaling */
+  transition: transform 0.15s ease !important;
 }
 
 .exit-btn:active {
-  transform: scale(0.9) !important; /* Press down 10% */
-  transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce */
+  transform: scale(0.85) !important; /* Press down 15% */
+  transition: transform 0.15s ease !important;
 }
 
 /* Tablet and iPad responsive */
@@ -1826,7 +1864,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   }
   
   .restart-btn, .exit-btn {
-    max-width: 100%; /* Full width buttons on iPad */
+    max-width: 249px; /* Same as slider CTA on iPad */
   }
 }
 
@@ -1847,8 +1885,8 @@ body{height:100dvh;height:100vh;overflow:hidden}
   
   .restart-btn, .exit-btn {
     font-size: 22px;
-    padding: 14px 48px;
-    max-width: 100%;
+    padding: 0 56px; /* Same as slider CTA */
+    max-width: 249px; /* Same as slider CTA on mobile */
   }
 }
 

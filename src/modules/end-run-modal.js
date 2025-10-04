@@ -29,19 +29,60 @@ function createModal() {
   `;
   
   // Add event listeners
-  modal.querySelector('.restart-btn').onclick = () => {
+  const restartBtn = modal.querySelector('.restart-btn');
+  const exitBtn = modal.querySelector('.exit-btn');
+  
+  // Add button press handling for proper UX
+  const addButtonPressHandling = (btn, action) => {
+    let buttonPressStartedOnButton = false;
+    
+    const handleButtonDown = () => {
+      buttonPressStartedOnButton = true;
+      btn.style.transform = 'scale(0.85)';
+      btn.style.transition = 'transform 0.15s ease';
+    };
+    
+    const handleButtonUp = (e) => {
+      // Only trigger action if press started on button AND ends on button
+      if (buttonPressStartedOnButton && btn.contains(e.target)) {
+        action();
+      }
+      
+      buttonPressStartedOnButton = false;
+      btn.style.transform = 'scale(1)';
+      btn.style.transition = 'transform 0.15s ease';
+    };
+    
+    const handleButtonLeave = () => {
+      btn.style.transform = 'scale(1)';
+      btn.style.transition = 'transform 0.15s ease';
+    };
+    
+    btn.addEventListener('mousedown', handleButtonDown);
+    btn.addEventListener('touchstart', handleButtonDown, { passive: true });
+    
+    btn.addEventListener('mouseup', handleButtonUp);
+    btn.addEventListener('mouseleave', handleButtonLeave);
+    btn.addEventListener('touchend', handleButtonUp, { passive: true });
+    
+    // Global release handlers
+    document.addEventListener('mouseup', handleButtonUp);
+    document.addEventListener('touchend', handleButtonUp);
+  };
+  
+  addButtonPressHandling(restartBtn, () => {
     hideModal();
     if (window.CC && window.CC.restart) {
       window.CC.restart();
     }
-  };
+  });
   
-  modal.querySelector('.exit-btn').onclick = () => {
+  addButtonPressHandling(exitBtn, () => {
     hideModal();
     if (window.exitToMenu) {
       window.exitToMenu();
     }
-  };
+  });
   
   // Add drag functionality
   addDragFunctionality(modal);

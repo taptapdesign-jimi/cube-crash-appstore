@@ -97,15 +97,21 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 } = {}) {
     infoStack.appendChild(hero);
     infoStack.appendChild(textCluster);
 
+    // Responsive width logic
+    const isMobile = window.innerWidth <= 428;
+    const isIPad = window.innerWidth >= 768 && window.innerWidth <= 1024;
+    const buttonWidth = (isMobile || isIPad) ? '249px' : '310px';
+    const containerWidth = (isMobile || isIPad) ? '249px' : '310px';
+
     const buttons = document.createElement('div');
-    buttons.style.cssText = 'width:248px;max-width:80vw;display:flex;flex-direction:column;gap:16px;';
+    buttons.style.cssText = `width:${containerWidth};max-width:80vw;display:flex;flex-direction:column;gap:16px;`;
 
     const continueBtn = document.createElement('button');
     continueBtn.type = 'button';
     continueBtn.textContent = 'Play Again';
     continueBtn.className = 'restart-btn bottom-sheet-cta';
     continueBtn.style.width = '100%';
-    continueBtn.style.maxWidth = '100%';
+    continueBtn.style.maxWidth = buttonWidth;
     continueBtn.style.whiteSpace = 'nowrap';
 
     const exitBtn = document.createElement('button');
@@ -113,7 +119,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 } = {}) {
     exitBtn.textContent = 'Exit';
     exitBtn.className = 'exit-btn bottom-sheet-cta';
     exitBtn.style.width = '100%';
-    exitBtn.style.maxWidth = '100%';
+    exitBtn.style.maxWidth = buttonWidth;
     exitBtn.style.whiteSpace = 'nowrap';
 
     buttons.appendChild(continueBtn);
@@ -175,8 +181,46 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 } = {}) {
     };
     window.addEventListener('keydown', onKey);
 
-    continueBtn.addEventListener('click', () => resolveAndCleanup('retry'));
-    exitBtn.addEventListener('click', () => resolveAndCleanup('menu'));
+    // Add button press handling for proper UX
+    const addButtonPressHandling = (btn, action) => {
+      let buttonPressStartedOnButton = false;
+      
+      const handleButtonDown = () => {
+        buttonPressStartedOnButton = true;
+        btn.style.transform = 'scale(0.85)';
+        btn.style.transition = 'transform 0.15s ease';
+      };
+      
+      const handleButtonUp = (e) => {
+        // Only trigger action if press started on button AND ends on button
+        if (buttonPressStartedOnButton && btn.contains(e.target)) {
+          action();
+        }
+        
+        buttonPressStartedOnButton = false;
+        btn.style.transform = 'scale(1)';
+        btn.style.transition = 'transform 0.15s ease';
+      };
+      
+      const handleButtonLeave = () => {
+        btn.style.transform = 'scale(1)';
+        btn.style.transition = 'transform 0.15s ease';
+      };
+      
+      btn.addEventListener('mousedown', handleButtonDown);
+      btn.addEventListener('touchstart', handleButtonDown, { passive: true });
+      
+      btn.addEventListener('mouseup', handleButtonUp);
+      btn.addEventListener('mouseleave', handleButtonLeave);
+      btn.addEventListener('touchend', handleButtonUp, { passive: true });
+      
+      // Global release handlers
+      document.addEventListener('mouseup', handleButtonUp);
+      document.addEventListener('touchend', handleButtonUp);
+    };
+
+    addButtonPressHandling(continueBtn, () => resolveAndCleanup('retry'));
+    addButtonPressHandling(exitBtn, () => resolveAndCleanup('menu'));
 
     const animatedNodes = [];
     const prep = (el, dy = 0, scale = 0.72) => {

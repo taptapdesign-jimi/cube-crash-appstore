@@ -139,8 +139,13 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
     btn.type = 'button';
     btn.textContent = 'Continue';
     btn.className = 'continue-btn bottom-sheet-cta';
+    // Responsive width logic
+    const isMobile = window.innerWidth <= 428;
+    const isIPad = window.innerWidth >= 768 && window.innerWidth <= 1024;
+    const buttonWidth = (isMobile || isIPad) ? '249px' : '310px';
+    
     btn.style.width = '100%';
-    btn.style.maxWidth = '248px';
+    btn.style.maxWidth = buttonWidth;
     btn.style.opacity = '0';
     btn.style.transform = 'scale(0.8)';
     btn.style.marginTop = '0';
@@ -314,8 +319,46 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
       }, 3840);
     });
 
+    // Add button press handling for proper UX
+    const addButtonPressHandling = (btn, action) => {
+      let buttonPressStartedOnButton = false;
+      
+      const handleButtonDown = () => {
+        buttonPressStartedOnButton = true;
+        btn.style.transform = 'scale(0.85)';
+        btn.style.transition = 'transform 0.15s ease';
+      };
+      
+      const handleButtonUp = (e) => {
+        // Only trigger action if press started on button AND ends on button
+        if (buttonPressStartedOnButton && btn.contains(e.target)) {
+          action();
+        }
+        
+        buttonPressStartedOnButton = false;
+        btn.style.transform = 'scale(1)';
+        btn.style.transition = 'transform 0.15s ease';
+      };
+      
+      const handleButtonLeave = () => {
+        btn.style.transform = 'scale(1)';
+        btn.style.transition = 'transform 0.15s ease';
+      };
+      
+      btn.addEventListener('mousedown', handleButtonDown);
+      btn.addEventListener('touchstart', handleButtonDown, { passive: true });
+      
+      btn.addEventListener('mouseup', handleButtonUp);
+      btn.addEventListener('mouseleave', handleButtonLeave);
+      btn.addEventListener('touchend', handleButtonUp, { passive: true });
+      
+      // Global release handlers
+      document.addEventListener('mouseup', handleButtonUp);
+      document.addEventListener('touchend', handleButtonUp);
+    };
+
     // Continue
-    btn.addEventListener('click', () => {
+    addButtonPressHandling(btn, () => {
       btn.disabled = true;
       const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
       const exitOffsets = [-22, -18, -14, -10, -6, -4, -2];

@@ -40,21 +40,68 @@ function createResumeModal() {
   `;
   
   // Add event listeners
-  resumeModal.querySelector('.continue-btn').onclick = () => {
+  // Add button press handling for proper UX
+  const addButtonPressHandling = (btn, action) => {
+    let buttonPressStartedOnButton = false;
+    
+    const handleButtonDown = () => {
+      buttonPressStartedOnButton = true;
+      btn.style.transform = 'scale(0.85)';
+      btn.style.transition = 'transform 0.15s ease';
+    };
+    
+    const handleButtonUp = (e) => {
+      // Only trigger action if press started on button AND ends on button
+      if (buttonPressStartedOnButton && btn.contains(e.target)) {
+        action();
+      }
+      
+      buttonPressStartedOnButton = false;
+      btn.style.transform = 'scale(1)';
+      btn.style.transition = 'transform 0.15s ease';
+    };
+    
+    const handleButtonLeave = () => {
+      btn.style.transform = 'scale(1)';
+      btn.style.transition = 'transform 0.15s ease';
+    };
+    
+    btn.addEventListener('mousedown', handleButtonDown);
+    btn.addEventListener('touchstart', handleButtonDown, { passive: true });
+    
+    btn.addEventListener('mouseup', handleButtonUp);
+    btn.addEventListener('mouseleave', handleButtonLeave);
+    btn.addEventListener('touchend', handleButtonUp, { passive: true });
+    
+    // Global release handlers
+    document.addEventListener('mouseup', handleButtonUp);
+    document.addEventListener('touchend', handleButtonUp);
+    
+    // Cleanup
+    registerCleanup(() => {
+      btn.removeEventListener('mousedown', handleButtonDown);
+      btn.removeEventListener('touchstart', handleButtonDown);
+      btn.removeEventListener('mouseup', handleButtonUp);
+      btn.removeEventListener('mouseleave', handleButtonLeave);
+      btn.removeEventListener('touchend', handleButtonUp);
+      document.removeEventListener('mouseup', handleButtonUp);
+      document.removeEventListener('touchend', handleButtonUp);
+    });
+  };
+
+  addButtonPressHandling(resumeModal.querySelector('.continue-btn'), () => {
     hideResumeModal();
-    // Continue game logic
     if (typeof window.continueGame === 'function') {
       window.continueGame();
     }
-  };
+  });
   
-  resumeModal.querySelector('.new-game-btn').onclick = () => {
+  addButtonPressHandling(resumeModal.querySelector('.new-game-btn'), () => {
     hideResumeModal();
-    // New game logic
     if (typeof window.startNewGame === 'function') {
       window.startNewGame();
     }
-  };
+  });
   
   // Add drag functionality
   addDragFunctionality(resumeModal, registerCleanup);

@@ -507,6 +507,15 @@ async function checkForSavedGame() {
         if (hasPlayed || hasMoves || hasScore || hasTiles) {
           console.log('🎮 Found played game, showing resume bottom sheet...');
           
+          // CRITICAL: Reset Play button immediately before showing modal
+          const playButton = document.querySelector('.slide-button.squishy.squishy-cc.menu-btn-primary');
+          if (playButton) {
+            playButton.style.transform = 'scale(1) !important';
+            playButton.style.transition = 'none !important';
+            playButton.classList.add('play-button-reset');
+            console.log('🔧 Play button reset before showing resume modal');
+          }
+          
           // Import and call the bottom sheet function
           try {
             const { showResumeGameBottomSheet } = await import('./modules/resume-game-bottom-sheet.js');
@@ -791,6 +800,14 @@ function ensureParallaxLoop(sliderParallaxImage){
           ensureParallaxLoop(sliderParallaxImage);
         }
         console.log(`🎯 Slider update: slide ${currentSlide}, translateX: ${translateX}px`);
+        
+        // CRITICAL: Ensure Play button stays at scale(1) after slider updates
+        const playButton = document.querySelector('.slide-button.squishy.squishy-cc.menu-btn-primary');
+        if (playButton) {
+          playButton.style.transform = 'scale(1) !important';
+          playButton.style.transition = 'none !important';
+        }
+        
         // Clear custom transition after applying
         currentSlideTransition = null;
         
@@ -1554,11 +1571,19 @@ function ensureParallaxLoop(sliderParallaxImage){
         return;
       }
       // Clean any inline transforms/opacities to keep CTA level identical on all slides
+      // BUT preserve Play button scale(1) to prevent auto-scaling bug
       try {
         document.querySelectorAll('.slider-slide .slide-content, .slider-slide .slide-text, .slider-slide .slide-button').forEach(el => {
-          el.style.transition = '';
-          el.style.transform = '';
-          el.style.opacity = '';
+          // Don't reset Play button transform - it must stay at scale(1)
+          if (el.classList.contains('menu-btn-primary')) {
+            el.style.transition = '';
+            el.style.opacity = '';
+            // Keep transform: scale(1) !important to prevent auto-scaling
+          } else {
+            el.style.transition = '';
+            el.style.transform = '';
+            el.style.opacity = '';
+          }
         });
       } catch {}
       currentSlide = clamped;
@@ -1748,9 +1773,44 @@ function ensureParallaxLoop(sliderParallaxImage){
         if (e) { try { e.stopPropagation(); } catch {} }
         console.log('🎮 Play - showing resume modal');
         
+        // CRITICAL: Immediately reset Play button to prevent animation continuation
+        if (playButton) {
+          playButton.style.transform = 'scale(1) !important';
+          playButton.style.transition = 'none !important';
+          playButton.classList.add('play-button-reset');
+          console.log('🔧 Play button immediately reset to scale(1) before modal');
+        }
+        
         // Lock slider immediately to prevent interference
         sliderLocked = true;
         isDragging = false;
+        
+        // Start background monitoring to ensure button stays reset
+        const backgroundInterval = setInterval(() => {
+          if (sliderLocked) {
+            window.ensurePlayButtonReset();
+          } else {
+            clearInterval(backgroundInterval);
+          }
+        }, 50); // Check every 50ms
+        
+        // Global click handler to reset button if clicked elsewhere
+        const globalClickHandler = (e) => {
+          if (playButton && !playButton.contains(e.target)) {
+            playButton.style.transform = 'scale(1)';
+            playButton.style.transition = 'transform 0.15s ease';
+            console.log('🔧 Global click - button reset to scale(1)');
+          }
+        };
+        
+        document.addEventListener('click', globalClickHandler);
+        
+        // Clean up global handler when slider unlocks
+        const originalUnlockSlider = window.unlockSlider;
+        window.unlockSlider = () => {
+          document.removeEventListener('click', globalClickHandler);
+          originalUnlockSlider();
+        };
         
         // Check for saved game and show modal
         checkForSavedGame();
@@ -1781,13 +1841,33 @@ function ensureParallaxLoop(sliderParallaxImage){
           }
         });
         
-        // Springy hover effects for Play button
-        button.addEventListener('mouseenter', () => {
+        // Standard UX behavior: track if button press started on button
+        let buttonPressStartedOnButton = false;
+        
+        // Simple hover effects for Play button - only scale down on click, no hover scaling
+        button.addEventListener('mousedown', (e) => {
           if (!sliderLocked && 
               !button.classList.contains('play-button-reset') && 
               button.style.pointerEvents !== 'none') {
-            button.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-            button.style.transform = 'scale(1.1)';
+            buttonPressStartedOnButton = true;
+            button.style.transition = 'transform 0.15s ease';
+            button.style.transform = 'scale(0.85)'; // Scale down dramatically
+          }
+        });
+        
+        button.addEventListener('mouseup', (e) => {
+          if (!sliderLocked && 
+              !button.classList.contains('play-button-reset') && 
+              button.style.pointerEvents !== 'none') {
+            
+            // Only trigger action if press started on button AND ends on button
+            if (buttonPressStartedOnButton && button.contains(e.target)) {
+              startGameNow(e);
+            }
+            
+            buttonPressStartedOnButton = false;
+            button.style.transition = 'transform 0.15s ease';
+            button.style.transform = 'scale(1)'; // Return to original size
           }
         });
         
@@ -1795,10 +1875,37 @@ function ensureParallaxLoop(sliderParallaxImage){
           if (!sliderLocked && 
               !button.classList.contains('play-button-reset') && 
               button.style.pointerEvents !== 'none') {
-            button.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-            button.style.transform = 'scale(1)';
+            button.style.transition = 'transform 0.15s ease';
+            button.style.transform = 'scale(1)'; // Always return to original size
           }
         });
+        
+        // Touch events for mobile
+        button.addEventListener('touchstart', (e) => {
+          if (!sliderLocked && 
+              !button.classList.contains('play-button-reset') && 
+              button.style.pointerEvents !== 'none') {
+            buttonPressStartedOnButton = true;
+            button.style.transition = 'transform 0.15s ease';
+            button.style.transform = 'scale(0.85)'; // Scale down dramatically
+          }
+        }, { passive: true });
+        
+        button.addEventListener('touchend', (e) => {
+          if (!sliderLocked && 
+              !button.classList.contains('play-button-reset') && 
+              button.style.pointerEvents !== 'none') {
+            
+            // Only trigger action if press started on button AND ends on button
+            if (buttonPressStartedOnButton && button.contains(e.target)) {
+              startGameNow(e);
+            }
+            
+            buttonPressStartedOnButton = false;
+            button.style.transition = 'transform 0.15s ease';
+            button.style.transform = 'scale(1)'; // Return to original size
+          }
+        }, { passive: true });
       };
 
       // Make button state variables globally accessible for reset
@@ -1809,9 +1916,9 @@ function ensureParallaxLoop(sliderParallaxImage){
         buttonRect = null;
 
         if (playButton) {
-          // Quick reset - minimal delay
-          playButton.style.transform = 'scale(1) translateY(0)';
-          playButton.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+          // Force button to stay at default scale(1) - no animations
+          playButton.style.transform = 'scale(1) !important';
+          playButton.style.transition = 'none !important';
           
           // Temporarily disable pointer events for very short time
           playButton.style.pointerEvents = 'none';
@@ -1826,8 +1933,12 @@ function ensureParallaxLoop(sliderParallaxImage){
             playButton.classList.remove('play-button-reset');
             playButton.style.pointerEvents = '';
             
-            console.log('🔧 Play button reset complete');
-          }, 50); // Much shorter delay
+            // Ensure button stays at scale(1) - no automatic scaling
+            playButton.style.transform = 'scale(1) !important';
+            playButton.style.transition = 'none !important';
+            
+            console.log('🔧 Play button reset to scale(1) - no auto-scaling');
+          }, 50);
         }
       };
 
@@ -1859,10 +1970,11 @@ function ensureParallaxLoop(sliderParallaxImage){
           startGameNow(e);
         }
         
-        // Always reset button transform when ending interaction
+        // Always reset button to scale(1) immediately
         if (playButton) {
-          playButton.style.transform = 'scale(1) translateY(0) !important';
-          playButton.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important';
+          playButton.style.transform = 'scale(1)';
+          playButton.style.transition = 'transform 0.15s ease';
+          console.log('🔧 Button end - reset to scale(1)');
         }
         
         isButtonPressed = false;
@@ -2180,6 +2292,19 @@ function ensureParallaxLoop(sliderParallaxImage){
       sliderLocked = false;
       console.log('🔓 Slider unlocked immediately');
       
+      // CRITICAL: Force Play button to scale(1) immediately and stop all animations
+      const playButton = document.querySelector('.slide-button.squishy.squishy-cc.menu-btn-primary');
+      if (playButton) {
+        playButton.style.transform = 'scale(1) !important';
+        playButton.style.transition = 'none !important';
+        playButton.classList.add('play-button-reset');
+        
+        // Force reflow to stop any running animations
+        playButton.offsetHeight;
+        
+        console.log('🔧 Play button forced to scale(1) immediately - all animations stopped');
+      }
+      
       // Reset Play button state but don't wait for it
       if (typeof window.resetPlayButtonState === 'function') {
         console.log('🔧 Resetting Play button state...');
@@ -2190,10 +2315,30 @@ function ensureParallaxLoop(sliderParallaxImage){
       window.ensureDotsVisible?.();
     };
     
+    // Background function to ensure Play button is always at scale(1)
+    window.ensurePlayButtonReset = () => {
+      const playButton = document.querySelector('.slide-button.squishy.squishy-cc.menu-btn-primary');
+      if (playButton) {
+        playButton.style.transform = 'scale(1) !important';
+        playButton.style.transition = 'none !important';
+        playButton.classList.add('play-button-reset');
+        console.log('🔧 Background: Play button ensured at scale(1)');
+      }
+    };
+    
 
 // Make end run modal function available globally
 window.showEndRunModalFromGame = async () => {
   try {
+    // CRITICAL: Reset Play button immediately before showing end run modal
+    const playButton = document.querySelector('.slide-button.squishy.squishy-cc.menu-btn-primary');
+    if (playButton) {
+      playButton.style.transform = 'scale(1) !important';
+      playButton.style.transition = 'none !important';
+      playButton.classList.add('play-button-reset');
+      console.log('🔧 Play button reset before showing end run modal');
+    }
+    
     const { showEndRunModal } = await import('./modules/end-run-modal.js');
     showEndRunModal();
   } catch (error) {
@@ -2365,6 +2510,15 @@ window.startNewGame = async () => {
     // SIMPLE EXIT FUNCTION - CLEAN RESET WITHOUT INLINE OVERRIDES
     window.exitToMenu = async () => {
       console.log('🏠 Exiting to menu...');
+      
+      // CRITICAL: Reset Play button immediately before exit
+      const playButton = document.querySelector('.slide-button.squishy.squishy-cc.menu-btn-primary');
+      if (playButton) {
+        playButton.style.transform = 'scale(1) !important';
+        playButton.style.transition = 'none !important';
+        playButton.classList.add('play-button-reset');
+        console.log('🔧 Play button reset before exit to menu');
+      }
       
       markGameActive(false);
       recordCurrentSlide(0);
