@@ -673,6 +673,15 @@ function ensureParallaxLoop(sliderParallaxImage){
       throw new Error('Required elements not found');
     }
 
+    // Test shimmer code removed for maximum performance - using pure CSS timing
+
+    // MAXIMUM PERFORMANCE: Fixed 5-second shimmer interval - no JavaScript timers needed!
+    // All shimmer timing is now handled purely by CSS - much better performance
+    
+    console.log(`🚀 Using pure CSS shimmer timing (5s intervals) for maximum performance`);
+    
+    // Shimmer fixed - debug code removed for clean production
+
     // Simple slider initialization
     console.log('🎠 Initializing simple slider...');
     

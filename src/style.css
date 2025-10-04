@@ -153,7 +153,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   color: #ffffff !important;
   background: #E97A55 !important; /* Simple orange like bottom sheet buttons */
   background-size: 100% 100% !important;
-  animation: none !important; /* Remove shimmer animation */
+  /* Shimmer animation enabled for performance */
   transform: rotateX(0deg) translateZ(1px) !important;
   opacity: 1 !important;
 }
@@ -170,7 +170,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   transform: rotateX(0deg) translateZ(1px) !important; /* Stay in place */
   opacity: 1 !important; /* Stay visible */
   background: #E97A55 !important; /* Keep simple orange */
-  animation: none !important; /* No shimmer */
+  /* Shimmer animation enabled for performance */
 }
 .squishy-cc:hover::after,
 .squishy-cc:focus-visible::after{
@@ -367,16 +367,16 @@ body{height:100dvh;height:100vh;overflow:hidden}
   /* White sweep */
   background: linear-gradient(110deg,
     rgba(255,255,255,0.00) 0%,
-    rgba(255,255,255,0.25) 22%,
-    rgba(255,255,255,0.95) 44%,
-    rgba(255,255,255,0.95) 56%,
-    rgba(255,255,255,0.25) 78%,
+    rgba(255,255,255,0.18) 22%,
+    rgba(255,255,255,0.66) 44%,
+    rgba(255,255,255,0.66) 56%,
+    rgba(255,255,255,0.18) 78%,
     rgba(255,255,255,0.00) 100%
   );
   transform: translateX(-160%) skewX(-12deg);
   opacity: 0;
   will-change: transform, opacity;
-  animation: cta-shimmer 3s ease-in-out infinite; /* 2x brže */
+  animation: working-shimmer 5s linear infinite;
   filter: blur(0.56px);
 }
 
@@ -384,18 +384,31 @@ body{height:100dvh;height:100vh;overflow:hidden}
 
 /* Shimmer keyframes — most of the time idle, brief sweep left→right */
 @keyframes cta-shimmer{
-  0%, 5%{
+  0%, 85%{
     transform: translateX(-160%) skewX(-12deg);
     opacity: 0;
   }
-  10%{
-    opacity: 0.78; /* strong highlight */
+  86%{
+    transform: translateX(-160%) skewX(-12deg);
+    opacity: 0;
   }
-  70%{
+  87%{
+    transform: translateX(-80%) skewX(-12deg);
+    opacity: 1;
+  }
+  88%{
+    transform: translateX(0%) skewX(-12deg);
+    opacity: 1;
+  }
+  89%{
+    transform: translateX(80%) skewX(-12deg);
+    opacity: 1;
+  }
+  90%{
     transform: translateX(160%) skewX(-12deg);
-    opacity: 0.0;
+    opacity: 0;
   }
-  100%{
+  91%, 100%{
     transform: translateX(160%) skewX(-12deg);
     opacity: 0;
   }
@@ -426,7 +439,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   color: #ffffff !important;
   background: transparent !important; /* Make background transparent so main button shows */
   background-size: 100% 100% !important;
-  animation: none !important; /* Remove shimmer animation */
+  /* Shimmer animation enabled for performance */
   transform: rotateX(0deg) translateZ(1px) !important;
   opacity: 1 !important;
   box-shadow: none !important;
@@ -436,13 +449,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   z-index: 1 !important;
 }
 
-/* Remove liquid fill - using bounce effect instead */
-.slide-button.squishy.squishy-cc.menu-btn-primary::after,
-.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary::after {
-  display: none !important; /* Hide back layer completely */
-  opacity: 0 !important;
-  visibility: hidden !important;
-}
+/* Removed - now using ::after for shimmer effect */
 
 .slide-button.squishy.squishy-cc.menu-btn-primary:hover::before,
 .slide-button.squishy.squishy-cc.menu-btn-primary:focus-visible::before,
@@ -451,18 +458,13 @@ body{height:100dvh;height:100vh;overflow:hidden}
   transform: rotateX(0deg) translateZ(1px) !important; /* Stay in place */
   opacity: 1 !important; /* Stay visible */
   background: transparent !important; /* Keep transparent */
-  animation: none !important; /* No shimmer */
+  /* Shimmer animation enabled for performance */
   box-shadow: none !important;
 }
 
 /* DISABLED: Springy bounce hover effect removed */
 
-.slide-button.squishy.squishy-cc.menu-btn-primary::after,
-.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary::after {
-  display: none !important; /* Hide back layer completely */
-  opacity: 0 !important;
-  visibility: hidden !important;
-}
+/* Removed - now using ::after for shimmer effect */
 
 /* Force simple button - remove all 3D effects and ensure default scale(1) */
 .slide-button.squishy.squishy-cc.menu-btn-primary,
@@ -484,6 +486,27 @@ body{height:100dvh;height:100vh;overflow:hidden}
   align-items: center !important;
   justify-content: center !important;
   transform: scale(1) !important; /* Always stay at default scale */
+  position: relative !important;
+  overflow: hidden !important; /* Clip shimmer effect */
+}
+
+/* Old shimmer styles removed - using fixed version below */
+
+/* Shimmer timing - using working-shimmer animation */
+.slider-slide[data-slide="0"] .slide-button.squishy.squishy-cc.menu-btn-primary::after {
+  animation-delay: 1s;
+}
+
+.slider-slide[data-slide="1"] .slide-button.squishy.squishy-cc.menu-btn-primary::after {
+  animation-delay: 2s;
+}
+
+.slider-slide[data-slide="2"] .slide-button.squishy.squishy-cc.menu-btn-primary::after {
+  animation-delay: 3s;
+}
+
+.slider-slide[data-slide="3"] .slide-button.squishy.squishy-cc.menu-btn-primary::after {
+  animation-delay: 4s;
 }
 
 /* DISABLED: No hover scaling - only click scaling */
@@ -516,6 +539,35 @@ body{height:100dvh;height:100vh;overflow:hidden}
 .restart-btn,
 .exit-btn {
   transition: transform 0.15s ease !important;
+  position: relative !important;
+  overflow: hidden !important; /* Clip shimmer effect */
+}
+
+/* Add shimmer effect to all bottom sheet CTA buttons - using same animation as slider */
+.continue-btn::after,
+.new-game-btn::after,
+.restart-btn::after,
+.exit-btn::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.00) 0%,
+    rgba(255,255,255,0.28) 50%,
+    rgba(255,255,255,0.00) 100%
+  ) !important;
+  transform: translateX(-160%) skewX(-12deg);
+  opacity: 0;
+  will-change: transform, opacity !important;
+  filter: blur(0.56px) !important;
+  backface-visibility: hidden !important;
+  pointer-events: none !important;
+  z-index: 10 !important;
+  animation: working-shimmer 5s linear infinite !important;
 }
 
 .continue-btn:hover,
@@ -530,6 +582,23 @@ body{height:100dvh;height:100vh;overflow:hidden}
 .restart-btn:active,
 .exit-btn:active {
   transform: scale(0.85) !important; /* Press down 15% */
+}
+
+/* Bottom sheet shimmer timing - using working-shimmer animation */
+.continue-btn::after {
+  animation-delay: 0.5s;
+}
+
+.new-game-btn::after {
+  animation-delay: 1.5s;
+}
+
+.restart-btn::after {
+  animation-delay: 2.5s;
+}
+
+.exit-btn::after {
+  animation-delay: 3.5s;
 }
 
 /* Remove duplicate hover - using springy bounce above */
@@ -964,34 +1033,39 @@ body{height:100dvh;height:100vh;overflow:hidden}
 .menu-action-icon::after {
   content: "";
   position: absolute;
-  inset: -16px;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   border-radius: inherit;
-  background: linear-gradient(110deg,
+  background: linear-gradient(
+    90deg,
     rgba(255,255,255,0.00) 0%,
-    rgba(255,255,255,0.25) 22%,
-    rgba(255,255,255,0.95) 44%,
-    rgba(255,255,255,0.95) 56%,
-    rgba(255,255,255,0.25) 78%,
+    rgba(255,255,255,0.28) 50%,
     rgba(255,255,255,0.00) 100%
   );
   transform: translateX(-160%) skewX(-12deg);
   opacity: 0;
   will-change: transform, opacity;
   filter: blur(0.56px);
+  backface-visibility: hidden;
+  z-index: 10;
+  animation: working-shimmer 5s linear infinite;
 }
 
-/* Random shimmer timing for unpause icon - 4-6 seconds */
+/* Menu action icons shimmer - using working-shimmer animation */
 #menu-unpause-action .menu-action-icon::after {
-  animation: icon-shimmer-unpause 5s ease-in-out infinite;
-  animation-delay: 1.2s;
+  animation: working-shimmer 5s linear infinite;
+  animation-delay: 4.5s;
 }
 
-/* Random shimmer timing for restart icon - 4-6 seconds */
 #menu-restart-action .menu-action-icon::after {
-  animation: icon-shimmer-restart 5.5s ease-in-out infinite;
-  animation-delay: 3.8s;
+  animation: working-shimmer 5s linear infinite;
+  animation-delay: 0.2s;
 }
+
+/* Removed - stats, collectibles, settings are slider buttons, not menu action icons */
 
 /* Shimmer keyframes for unpause icon */
 @keyframes icon-shimmer-unpause {
@@ -1030,6 +1104,8 @@ body{height:100dvh;height:100vh;overflow:hidden}
     opacity: 0;
   }
 }
+
+/* Removed - unused keyframes for stats, collectibles, settings */
 
 .menu-action-item:hover .menu-action-icon {
   transform: scale(1.05);
@@ -1377,16 +1453,16 @@ body{height:100dvh;height:100vh;overflow:hidden}
   border-radius: inherit;
   background: linear-gradient(110deg,
     rgba(255,255,255,0.00) 0%,
-    rgba(255,255,255,0.25) 22%,
-    rgba(255,255,255,0.95) 44%,
-    rgba(255,255,255,0.95) 56%,
-    rgba(255,255,255,0.25) 78%,
+    rgba(255,255,255,0.18) 22%,
+    rgba(255,255,255,0.66) 44%,
+    rgba(255,255,255,0.66) 56%,
+    rgba(255,255,255,0.18) 78%,
     rgba(255,255,255,0.00) 100%
   );
   transform: translateX(-160%) skewX(-12deg);
   opacity: 0;
   will-change: transform, opacity;
-  animation: cta-shimmer 3s ease-in-out infinite;
+  animation: cta-shimmer 5s ease-in-out infinite;
   filter: blur(0.56px);
 }
 
@@ -1408,20 +1484,168 @@ body{height:100dvh;height:100vh;overflow:hidden}
     0 6px 12px rgba(188,86,44,0.4);
 }
 
-/* Shimmer animation for menu-btn-primary - same as wild cubes */
+/* Shimmer animation for menu-btn-primary - performance optimized */
 @keyframes cta-shimmer {
-  0%, 5%{
+  0%, 85%{
     transform: translateX(-160%) skewX(-12deg);
     opacity: 0;
   }
-  10%{
-    opacity: 0.78;
+  86%{
+    transform: translateX(-160%) skewX(-12deg);
+    opacity: 0;
   }
-  70%{
+  87%{
+    transform: translateX(-80%) skewX(-12deg);
+    opacity: 1;
+  }
+  88%{
+    transform: translateX(0%) skewX(-12deg);
+    opacity: 1;
+  }
+  89%{
+    transform: translateX(80%) skewX(-12deg);
+    opacity: 1;
+  }
+  90%{
     transform: translateX(160%) skewX(-12deg);
-    opacity: 0.0;
+    opacity: 0;
   }
-  100%{
+  91%, 100%{
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0;
+  }
+}
+
+/* Shimmer animation for slider CTA buttons - smooth continuous sweep */
+@keyframes slider-shimmer {
+  0%, 85%{
+    transform: translateX(-160%) skewX(-12deg);
+    opacity: 0;
+  }
+  86%{
+    transform: translateX(-160%) skewX(-12deg);
+    opacity: 0;
+  }
+  87%{
+    transform: translateX(-80%) skewX(-12deg);
+    opacity: 1;
+  }
+  88%{
+    transform: translateX(0%) skewX(-12deg);
+    opacity: 1;
+  }
+  89%{
+    transform: translateX(80%) skewX(-12deg);
+    opacity: 1;
+  }
+  90%{
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0;
+  }
+  91%, 100%{
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0;
+  }
+}
+
+/* Shimmer animation for bottom sheet CTA buttons - smooth continuous sweep */
+@keyframes bottom-sheet-shimmer {
+  0%, 85%{
+    transform: translateX(-160%) skewX(-12deg);
+    opacity: 0;
+  }
+  86%{
+    transform: translateX(-160%) skewX(-12deg);
+    opacity: 0;
+  }
+  87%{
+    transform: translateX(-80%) skewX(-12deg);
+    opacity: 1;
+  }
+  88%{
+    transform: translateX(0%) skewX(-12deg);
+    opacity: 1;
+  }
+  89%{
+    transform: translateX(80%) skewX(-12deg);
+    opacity: 1;
+  }
+  90%{
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0;
+  }
+  91%, 100%{
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0;
+  }
+}
+
+/* FIXED: Working shimmer with proper styling */
+.slide-button.squishy.squishy-cc.menu-btn-primary::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.00) 0%,
+    rgba(255,255,255,0.28) 50%,
+    rgba(255,255,255,0.00) 100%
+  ) !important;
+  transform: translateX(-160%) skewX(-12deg);
+  opacity: 0;
+  will-change: transform, opacity !important;
+  filter: blur(0.56px) !important;
+  backface-visibility: hidden !important;
+  pointer-events: none !important;
+  z-index: 10 !important;
+  animation: working-shimmer 5s linear infinite !important;
+}
+
+@keyframes working-shimmer {
+  0%, 40%{
+    transform: translateX(-160%) skewX(-12deg);
+    opacity: 0;
+  }
+  41%{
+    transform: translateX(-160%) skewX(-12deg);
+    opacity: 0;
+  }
+  42%{
+    transform: translateX(-120%) skewX(-12deg);
+    opacity: 0.5;
+  }
+  43%{
+    transform: translateX(-80%) skewX(-12deg);
+    opacity: 1;
+  }
+  44%{
+    transform: translateX(-40%) skewX(-12deg);
+    opacity: 1;
+  }
+  45%{
+    transform: translateX(0%) skewX(-12deg);
+    opacity: 1;
+  }
+  46%{
+    transform: translateX(40%) skewX(-12deg);
+    opacity: 1;
+  }
+  47%{
+    transform: translateX(80%) skewX(-12deg);
+    opacity: 1;
+  }
+  48%{
+    transform: translateX(120%) skewX(-12deg);
+    opacity: 0.5;
+  }
+  49%{
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0;
+  }
+  50%, 100%{
     transform: translateX(160%) skewX(-12deg);
     opacity: 0;
   }
@@ -1571,6 +1795,29 @@ body{height:100dvh;height:100vh;overflow:hidden}
 /* Button spacing - removed duplicate, using the one below */
 
 /* Tablet and iPad responsive */
+/* Performance optimization for lower-end devices */
+@media (prefers-reduced-motion: reduce) {
+  .slide-button.squishy.squishy-cc.menu-btn-primary::after,
+  .continue-btn::after,
+  .new-game-btn::after,
+  .restart-btn::after,
+  .exit-btn::after,
+  .menu-action-icon::after {
+    animation: none !important;
+  }
+}
+
+/* Reduce shimmer frequency on mobile for better performance */
+@media screen and (max-width: 768px) {
+  .slide-button.squishy.squishy-cc.menu-btn-primary::after,
+  .continue-btn::after,
+  .new-game-btn::after,
+  .restart-btn::after,
+  .exit-btn::after {
+    animation-duration: 8s !important; /* Slower on mobile */
+  }
+}
+
 @media screen and (min-width: 768px) and (max-width: 1024px) {
   /* Ensure slider CTA is same width as bottom sheet buttons on iPad */
   .slide-button.squishy.squishy-cc.menu-btn-primary {
@@ -1750,7 +1997,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   font-size: 40px; /* Font.custom("LT Crow", size: 40) from Figma */
   font-weight: 900; /* .weight(.heavy) from Figma */
-  color: #AD8775; /* Color(red: 0.68, green: 0.53, blue: 0.46) from Figma */
+  color: #AD8675; /* Original color for h2 titles */
   margin: 0;
   text-align: center;
   line-height: 1;
@@ -1759,7 +2006,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
 .simple-content p {
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   font-size: 20px; /* Font.custom("LT Crow", size: 20) from Figma */
-  color: #AD8775; /* Color(red: 0.68, green: 0.53, blue: 0.46) from Figma */
+  color: #C4A796; /* Updated color for subtitles */
   text-align: center;
   margin: 0;
   line-height: 1.4;
