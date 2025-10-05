@@ -176,19 +176,40 @@ async function showResumeGameModal() {
     newGameBtn.className = 'squishy squishy-white';
     newGameBtn.style.cssText = [
       'width: 250px',
-      'height: auto',
+      'height: 64px',
       'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
       'letter-spacing: 0.3px',
-      'font-size: 26px',
+      'font-size: 24px',
       'font-weight: 700',
-      'color: #878585',
+      'color: #AD8675',
       'text-transform: none',
-      'border: 1px solid #E0E0E0',
+      'border: 1px solid #E9DCD6',
+      'border-radius: 40px',
+      'background: white',
       'cursor: pointer',
-      'align-self: center'
+      'align-self: center',
+      'box-shadow: 0 8px 0 0 #E9DCD6',
+      'transition: transform 0.15s ease'
     ].join(';');
 
     // Event listeners
+    newGameBtn.onmouseenter = () => {
+      newGameBtn.style.transform = 'translateY(3px)';
+      newGameBtn.style.boxShadow = '0 4px 0 0 #E9DCD6';
+    };
+    newGameBtn.onmouseleave = () => {
+      newGameBtn.style.transform = 'none';
+      newGameBtn.style.boxShadow = '0 8px 0 0 #E9DCD6';
+    };
+    newGameBtn.onmousedown = () => {
+      newGameBtn.style.transform = 'translateY(4px)';
+      newGameBtn.style.boxShadow = '0 3px 0 0 #E9DCD6';
+    };
+    newGameBtn.onmouseup = () => {
+      newGameBtn.style.transform = 'translateY(3px)';
+      newGameBtn.style.boxShadow = '0 4px 0 0 #E9DCD6';
+    };
+    
     continueBtn.onclick = async () => {
       try {
         await animateModalExit();
@@ -2439,10 +2460,157 @@ window.startNewGame = async () => {
     // Function to update high score if current score is higher
     window.updateHighScore = (currentScore) => {
       if (currentScore > gameStats.highScore) {
+        // Update gameStats directly
+        gameStats.highScore = currentScore;
+        
+        // Update stats display
         updateStat('highScore', currentScore);
         console.log('🏆 New high score!', currentScore);
+        
+        // Save to multiple storage locations for iOS compatibility
+        try {
+          localStorage.setItem('cc_best_score_v1', currentScore);
+          localStorage.setItem('cubeCrash_stats', JSON.stringify(gameStats));
+          console.log('✅ High score saved to localStorage:', currentScore);
+        } catch (error) {
+          console.warn('⚠️ Failed to save to localStorage:', error);
+        }
+        
+        // iOS specific: Try to save to sessionStorage as backup
+        try {
+          sessionStorage.setItem('cc_high_score_backup', currentScore);
+          console.log('✅ High score saved to sessionStorage backup:', currentScore);
+        } catch (error) {
+          console.warn('⚠️ Failed to save to sessionStorage:', error);
+        }
+      } else {
+        console.log('📊 Current score:', currentScore, 'High score:', gameStats.highScore);
       }
     };
+    
+    // Function to force update high score (for hard close scenarios)
+    window.forceUpdateHighScore = (currentScore) => {
+      console.log('🔄 Force updating high score:', currentScore);
+      
+      // Update gameStats directly
+      gameStats.highScore = currentScore;
+      
+      // Update stats display
+      updateStat('highScore', currentScore);
+      
+      // Save to multiple storage locations for iOS compatibility
+      try {
+        localStorage.setItem('cc_best_score_v1', currentScore);
+        localStorage.setItem('cubeCrash_stats', JSON.stringify(gameStats));
+        console.log('✅ High score force saved to localStorage:', currentScore);
+      } catch (error) {
+        console.warn('⚠️ Failed to force save high score:', error);
+      }
+      
+      // iOS specific: Try to save to sessionStorage as backup
+      try {
+        sessionStorage.setItem('cc_high_score_backup', currentScore);
+        console.log('✅ High score saved to sessionStorage backup:', currentScore);
+      } catch (error) {
+        console.warn('⚠️ Failed to save to sessionStorage:', error);
+      }
+    };
+    
+    // CRITICAL: Check for unsaved high score on page load (hard exit recovery)
+    function checkForUnsavedHighScore() {
+      try {
+        // Check multiple sources for current score
+        let currentScore = 0;
+        
+        // Try window.CC.state() first
+        if (window.CC && typeof window.CC.state === 'function') {
+          const state = window.CC.state();
+          if (state && typeof state.score === 'number') {
+            currentScore = state.score;
+          }
+        }
+        
+        // Try STATE object from app-state.js
+        if (currentScore === 0 && window.STATE && typeof window.STATE.score === 'number') {
+          currentScore = window.STATE.score;
+        }
+        
+        // Try global score variable
+        if (currentScore === 0 && typeof window.score === 'number') {
+          currentScore = window.score;
+        }
+        
+        // iOS specific: Check sessionStorage backup
+        if (currentScore === 0) {
+          try {
+            const sessionScore = parseInt(sessionStorage.getItem('cc_high_score_backup') || '0', 10);
+            if (sessionScore > 0) {
+              currentScore = sessionScore;
+              console.log('📱 Found score in sessionStorage backup:', currentScore);
+            }
+          } catch (error) {
+            console.warn('⚠️ Failed to check sessionStorage:', error);
+          }
+        }
+        
+        const savedHighScore = parseInt(localStorage.getItem('cc_best_score_v1') || '0', 10);
+        
+        console.log('🔍 Checking for unsaved high score:', {
+          currentScore,
+          savedHighScore,
+          gameStatsHighScore: gameStats.highScore,
+          windowCC: !!(window.CC && typeof window.CC.state === 'function'),
+          windowSTATE: !!(window.STATE && typeof window.STATE.score === 'number'),
+          windowScore: typeof window.score === 'number'
+        });
+        
+        // If current score is higher than saved, update it
+        if (currentScore > savedHighScore && currentScore > gameStats.highScore) {
+          console.log('🏆 Found unsaved high score! Updating...', currentScore);
+          window.forceUpdateHighScore(currentScore);
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to check for unsaved high score:', error);
+      }
+    }
+    
+    // Export function globally
+    window.checkForUnsavedHighScore = checkForUnsavedHighScore;
+    
+    // CRITICAL: Check for unsaved high score on page load
+    setTimeout(() => {
+      checkForUnsavedHighScore();
+    }, 3000);
+    
+    // iOS specific: Save high score before page unload
+    window.addEventListener('beforeunload', () => {
+      try {
+        const currentScore = (window.CC && typeof window.CC.state === 'function') ? window.CC.state()?.score : 0;
+        if (currentScore > 0) {
+          console.log('📱 iOS beforeunload: Saving high score:', currentScore);
+          sessionStorage.setItem('cc_high_score_backup', currentScore);
+          localStorage.setItem('cc_best_score_v1', currentScore);
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to save on beforeunload:', error);
+      }
+    });
+    
+    // iOS specific: Save high score on page hide (when app goes to background)
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        try {
+          const currentScore = (window.CC && typeof window.CC.state === 'function') ? window.CC.state()?.score : 0;
+          if (currentScore > 0) {
+            console.log('📱 iOS visibilitychange: Saving high score:', currentScore);
+            sessionStorage.setItem('cc_high_score_backup', currentScore);
+            localStorage.setItem('cc_best_score_v1', currentScore);
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to save on visibilitychange:', error);
+        }
+      }
+    });
     
     // Function to track cubes cracked (when tiles are merged)
     window.trackCubesCracked = (count = 1) => {
@@ -2520,6 +2688,23 @@ window.startNewGame = async () => {
     window.exitToMenu = async () => {
       console.log('🏠 Exiting to menu...');
       
+      // CRITICAL: Update high score before exit
+      try {
+        const currentScore = (window.CC && typeof window.CC.state === 'function') ? window.CC.state()?.score : 0;
+        if (currentScore > 0) {
+          console.log('🏆 Updating high score before exit:', currentScore);
+          if (typeof window.updateHighScore === 'function') {
+            window.updateHighScore(currentScore);
+          }
+          // Also try force update as backup
+          if (typeof window.forceUpdateHighScore === 'function') {
+            window.forceUpdateHighScore(currentScore);
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to update high score before exit:', error);
+      }
+      
       // CRITICAL: Reset Play button immediately before exit
       const playButton = document.querySelector('.slide-button.squishy.squishy-cc.menu-btn-primary');
       if (playButton) {
@@ -2557,6 +2742,12 @@ window.startNewGame = async () => {
         // Unlock slider for homepage interactions
         sliderLocked = false;
         isDragging = false;
+        
+        // CRITICAL: Check for unsaved high score after game loads
+        setTimeout(() => {
+          checkForUnsavedHighScore();
+        }, 1000);
+        
         // USE CLEANUPGAME FROM APP.JS - BETTER APPROACH
         try {
           const { cleanupGame } = await import('./modules/app.js');

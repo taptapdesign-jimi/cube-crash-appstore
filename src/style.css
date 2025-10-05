@@ -360,11 +360,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   background: #D87A53;
   color: white;
   border: none;
-  box-shadow: 
-    inset 0 1px 0 rgba(255,255,255,0.25),
-    0 2px 0 0 #C86C49,
-    0 6px 0 0 #B35E3F,
-    0 10px 0 0 #9E5237;
+  box-shadow: 0 8px 0 0 #C24921;
   overflow: hidden; /* clip shimmer */
 }
 
@@ -433,11 +429,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
 
 .pause-modal-btn-orange:hover {
   transform: translateY(3px);
-  box-shadow: 
-    inset 0 1px 0 rgba(255,255,255,0.25),
-    0 1px 0 0 #C86C49,
-    0 4px 0 0 #B35E3F,
-    0 6px 0 0 #9E5237;
+  box-shadow: 0 4px 0 0 #C24921;
 }
 
 /* Removed flip-shimmer animation - using simple orange button now */
@@ -490,7 +482,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
   font-size: 24px !important;
   font-weight: bold !important;
-  box-shadow: none !important;
+  box-shadow: 0 8px 0 0 #C24921 !important;
   transition: none !important;
   display: flex !important;
   align-items: center !important;
@@ -519,12 +511,18 @@ body{height:100dvh;height:100vh;overflow:hidden}
   animation-delay: 4s;
 }
 
-/* DISABLED: No hover scaling - only click scaling */
+/* Hover state for slide buttons */
+.slide-button.squishy.squishy-cc.menu-btn-primary:hover,
+.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:hover {
+  transform: translateY(3px) !important;
+  box-shadow: 0 4px 0 0 #C24921 !important;
+}
 
 /* Simple active state - scale down dramatically */
 .slide-button.squishy.squishy-cc.menu-btn-primary:active,
 .slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:active {
-  transform: scale(0.85) !important; /* Press down 15% */
+  transform: translateY(4px) !important;
+  box-shadow: 0 3px 0 0 #C24921 !important;
   transition: transform 0.15s ease !important; /* Simple transition */
 }
 
@@ -617,11 +615,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
 
 .pause-modal-btn-orange:active {
   transform: translateY(4px) scale(0.99);
-  box-shadow: 
-    inset 0 1px 0 rgba(255,255,255,0.25),
-    0 1px 0 0 #C86C49,
-    0 3px 0 0 #B35E3F,
-    0 4px 0 0 #9E5237;
+  box-shadow: 0 3px 0 0 #C24921;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -738,37 +732,37 @@ body{height:100dvh;height:100vh;overflow:hidden}
 .menu-content .restart-button {
   background: #F27B4E;
   color: white;
-  box-shadow: 0 4px 12px rgba(242, 123, 78, 0.3);
+  box-shadow: 0 8px 0 0 #C24921;
 }
 
 .menu-content .restart-button:hover {
   background: #E66A3D;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(242, 123, 78, 0.4);
+  transform: translateY(3px);
+  box-shadow: 0 4px 0 0 #C24921;
 }
 
 .menu-content .restart-button:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(242, 123, 78, 0.3);
+  transform: translateY(4px);
+  box-shadow: 0 3px 0 0 #C24921;
 }
 
 /* Exit Button (White with Gray Text) */
 .menu-content .exit-button {
   background: white;
-  color: #666666;
-  border: 2px solid #E5E5E5;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  color: #AD8675;
+  border: 1px solid #E9DCD6;
+  box-shadow: 0 8px 0 0 #E9DCD6;
 }
 
 .menu-content .exit-button:hover {
-  background: #F8F8F8;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  background: white;
+  transform: translateY(3px);
+  box-shadow: 0 4px 0 0 #E9DCD6;
 }
 
 .menu-content .exit-button:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: translateY(4px);
+  box-shadow: 0 3px 0 0 #E9DCD6;
 }
 
 .menu-content::before {
@@ -1436,11 +1430,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   font-weight: 700;
   align-self: center;
   background: linear-gradient(180deg, #F89058 0%, #E36D37 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.6),
-    0 4px 0 0 #C65B2E,
-    0 12px 0 0 #9F4621,
-    0 12px 22px rgba(188,86,44,0.45);
+  box-shadow: 0 8px 0 0 #C24921;
   overflow: hidden;
   position: relative;
   transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
@@ -1478,20 +1468,12 @@ body{height:100dvh;height:100vh;overflow:hidden}
 
 .menu-btn-primary:hover {
   transform: translateY(3px);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.55),
-    0 3px 0 0 #C65B2E,
-    0 8px 0 0 #9F4621,
-    0 8px 16px rgba(188,86,44,0.45);
+  box-shadow: 0 4px 0 0 #C24921;
 }
 
 .menu-btn-primary:active {
   transform: translateY(4px);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.4),
-    0 2px 0 0 #C65B2E,
-    0 6px 0 0 #9F4621,
-    0 6px 12px rgba(188,86,44,0.4);
+  box-shadow: 0 3px 0 0 #C24921;
 }
 
 /* Shimmer animation for menu-btn-primary - performance optimized */
@@ -1742,7 +1724,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   position: relative;
   z-index: 10;
   /* FLAT - no 3D effects */
-  box-shadow: none;
+  box-shadow: 0 8px 0 0 #C24921;
   transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce transition */
   overflow: hidden; /* For liquid fill effect */
 }
@@ -1751,22 +1733,22 @@ body{height:100dvh;height:100vh;overflow:hidden}
 
 .continue-btn:hover {
   background: #E97A55; /* Same color on hover - flat */
-  transform: scale(1) !important; /* No hover scaling */
+  transform: translateY(3px) !important;
   transition: transform 0.15s ease !important;
-  box-shadow: none;
+  box-shadow: 0 4px 0 0 #C24921;
 }
 
 .continue-btn:active {
   background: #E97A55; /* Same color on active - flat */
-  transform: scale(0.85) !important; /* Press down 15% */
+  transform: translateY(4px) !important;
   transition: transform 0.15s ease !important;
-  box-shadow: none;
+  box-shadow: 0 3px 0 0 #C24921;
 }
 
 .new-game-btn {
   background: white; /* .white from SwiftUI */
   color: #AD8675; /* Updated font color */
-  border: 2px solid #E9DCD6; /* Updated stroke color */
+  border: 1px solid #E9DCD6; /* Updated stroke color */
   border-radius: 40px;
   padding: 0 56px; /* Same as slider CTA */
   font-size: 24px;
@@ -1782,24 +1764,24 @@ body{height:100dvh;height:100vh;overflow:hidden}
   position: relative;
   z-index: 10;
   /* FLAT - no 3D effects */
-  box-shadow: none;
+  box-shadow: 0 8px 0 0 #E9DCD6;
   transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce transition */
 }
 
 .new-game-btn:hover {
   background: white; /* Same color on hover - flat */
   color: #AD8675; /* Updated font color */
-  transform: scale(1) !important; /* No hover scaling */
+  transform: translateY(3px) !important;
   transition: transform 0.15s ease !important;
-  box-shadow: none;
+  box-shadow: 0 4px 0 0 #E9DCD6;
 }
 
 .new-game-btn:active {
   background: white; /* Same color on active - flat */
   color: #AD8675; /* Updated font color */
-  transform: scale(0.85) !important; /* Press down 15% */
+  transform: translateY(4px) !important;
   transition: transform 0.15s ease !important;
-  box-shadow: none;
+  box-shadow: 0 3px 0 0 #E9DCD6;
 }
 
 /* Debug button styling */
@@ -1913,32 +1895,31 @@ body{height:100dvh;height:100vh;overflow:hidden}
   .continue-btn, .new-game-btn {
     max-width: 249px; /* Same as slider CTA on iPad */
     /* Keep flat style on iPad */
-    box-shadow: none;
     /* transition removed - using springy bounce */
   }
   
   .continue-btn:hover {
-    transform: scale(1) !important; /* No hover scaling */
+    transform: translateY(3px) !important;
     transition: transform 0.15s ease !important;
-    box-shadow: none;
+    box-shadow: 0 4px 0 0 #C24921;
   }
   
   .continue-btn:active {
-    transform: scale(0.85) !important; /* Press down 15% */
+    transform: translateY(4px) !important;
     transition: transform 0.15s ease !important;
-    box-shadow: none;
+    box-shadow: 0 3px 0 0 #C24921;
   }
   
   .new-game-btn:hover {
-    transform: scale(1) !important; /* No hover scaling */
+    transform: translateY(3px) !important;
     transition: transform 0.15s ease !important;
-    box-shadow: none;
+    box-shadow: 0 4px 0 0 #E9DCD6;
   }
   
   .new-game-btn:active {
-    transform: scale(0.85) !important; /* Press down 15% */
+    transform: translateY(4px) !important;
     transition: transform 0.15s ease !important;
-    box-shadow: none;
+    box-shadow: 0 3px 0 0 #E9DCD6;
   }
 }
 
@@ -1954,32 +1935,31 @@ body{height:100dvh;height:100vh;overflow:hidden}
     padding: 0 56px; /* Same as slider CTA */
     max-width: 249px; /* Same as slider CTA on mobile */
     /* Keep flat style on mobile */
-    box-shadow: none;
     /* transition removed - using springy bounce */
   }
   
   .continue-btn:hover {
-    transform: scale(1) !important; /* No hover scaling */
+    transform: translateY(3px) !important;
     transition: transform 0.15s ease !important;
-    box-shadow: none;
+    box-shadow: 0 4px 0 0 #C24921;
   }
   
   .continue-btn:active {
-    transform: scale(0.85) !important; /* Press down 15% */
+    transform: translateY(4px) !important;
     transition: transform 0.15s ease !important;
-    box-shadow: none;
+    box-shadow: 0 3px 0 0 #C24921;
   }
   
   .new-game-btn:hover {
-    transform: scale(1) !important; /* No hover scaling */
+    transform: translateY(3px) !important;
     transition: transform 0.15s ease !important;
-    box-shadow: none;
+    box-shadow: 0 4px 0 0 #E9DCD6;
   }
   
   .new-game-btn:active {
-    transform: scale(0.85) !important; /* Press down 15% */
+    transform: translateY(4px) !important;
     transition: transform 0.15s ease !important;
-    box-shadow: none;
+    box-shadow: 0 3px 0 0 #E9DCD6;
   }
 }
 
@@ -2127,23 +2107,26 @@ body{height:100dvh;height:100vh;overflow:hidden}
   z-index: 10;
   /* Springy bounce transition */
   transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+  box-shadow: 0 8px 0 0 #C24921;
 }
 
 /* Dramatic click effect for restart button */
 .restart-btn:hover {
-  transform: scale(1) !important; /* No hover scaling */
+  transform: translateY(3px) !important;
   transition: transform 0.15s ease !important;
+  box-shadow: 0 4px 0 0 #C24921;
 }
 
 .restart-btn:active {
-  transform: scale(0.85) !important; /* Press down 15% */
+  transform: translateY(4px) !important;
   transition: transform 0.15s ease !important;
+  box-shadow: 0 3px 0 0 #C24921;
 }
 
 .exit-btn {
   background: white; /* .white from Figma */
   color: #AD8675; /* Updated font color */
-  border: 2px solid #E9DCD6; /* Updated stroke color */
+  border: 1px solid #E9DCD6; /* Updated stroke color */
   border-radius: 40px; /* .cornerRadius(40) from Figma */
   padding: 0 56px; /* Same as slider CTA */
   font-size: 24px; /* Font.custom("LTCrow", size: 24) from Figma */
@@ -2163,17 +2146,20 @@ body{height:100dvh;height:100vh;overflow:hidden}
   z-index: 10;
   /* Springy bounce transition */
   transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+  box-shadow: 0 8px 0 0 #E9DCD6;
 }
 
 /* Dramatic click effect for exit button */
 .exit-btn:hover {
-  transform: scale(1) !important; /* No hover scaling */
+  transform: translateY(3px) !important;
   transition: transform 0.15s ease !important;
+  box-shadow: 0 4px 0 0 #E9DCD6;
 }
 
 .exit-btn:active {
-  transform: scale(0.85) !important; /* Press down 15% */
+  transform: translateY(4px) !important;
   transition: transform 0.15s ease !important;
+  box-shadow: 0 3px 0 0 #E9DCD6;
 }
 
 /* Tablet and iPad responsive */

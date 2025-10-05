@@ -319,6 +319,13 @@ async function showMysteryPrize(){
 export async function boot(){
   console.log('🎮 Initializing PIXI app');
   
+  // CRITICAL: Check for unsaved high score on boot
+  setTimeout(() => {
+    if (typeof window.checkForUnsavedHighScore === 'function') {
+      window.checkForUnsavedHighScore();
+    }
+  }, 2000);
+  
   // DESTROY existing app if it exists
   if (app && app.canvas) {
     console.log('🧹 Destroying existing PIXI app');
@@ -1737,6 +1744,31 @@ async function showFinalScreen(){
 function restartGame(){
   console.log('🔄 Starting clean restart - preserving HUD position');
   
+  // CRITICAL: Update high score before restart
+  try {
+    if (typeof score !== 'undefined' && score > 0) {
+      console.log('🏆 Updating high score before restart:', score);
+      if (typeof window.updateHighScore === 'function') {
+        window.updateHighScore(score);
+      }
+      // Also update local storage directly
+      if (score > bestScore) {
+        bestScore = score;
+        localStorage.setItem('cc_best_score_v1', bestScore);
+        console.log('✅ High score saved to localStorage before restart:', bestScore);
+      }
+      // iOS specific: Save to sessionStorage as backup
+      try {
+        sessionStorage.setItem('cc_high_score_backup', score);
+        console.log('📱 High score saved to sessionStorage backup before restart:', score);
+      } catch (error) {
+        console.warn('⚠️ Failed to save to sessionStorage:', error);
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to update high score during restart:', error);
+  }
+  
   // Kill all GSAP animations first
   try {
     console.log('🔄 RESTART GAME: Killing all GSAP animations...');
@@ -1915,6 +1947,31 @@ export function restart() {
 // Clean up game when exiting
 export function cleanupGame() {
   console.log('🧹 Cleaning up game state');
+  
+  // CRITICAL: Update high score before cleanup
+  try {
+    if (typeof score !== 'undefined' && score > 0) {
+      console.log('🏆 Updating high score before cleanup:', score);
+      if (typeof window.updateHighScore === 'function') {
+        window.updateHighScore(score);
+      }
+      // Also update local storage directly
+      if (score > bestScore) {
+        bestScore = score;
+        localStorage.setItem('cc_best_score_v1', bestScore);
+        console.log('✅ High score saved to localStorage:', bestScore);
+      }
+      // iOS specific: Save to sessionStorage as backup
+      try {
+        sessionStorage.setItem('cc_high_score_backup', score);
+        console.log('📱 High score saved to sessionStorage backup:', score);
+      } catch (error) {
+        console.warn('⚠️ Failed to save to sessionStorage:', error);
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to update high score during cleanup:', error);
+  }
   
   // CRITICAL: Reset GSAP timeline first - but don't kill slider animations
   try {
@@ -2397,49 +2454,64 @@ async function showResumeGameModal() {
     const continueBtn = document.createElement('button');
     continueBtn.textContent = 'Play Again';
     continueBtn.style.cssText = [
-      'background: linear-gradient(180deg, #FFB278 0%, #E17337 100%)',
-      'color: #4A2C10',
+      'background: #E97A55',
+      'color: white',
       'border: none',
       'padding: 18px 32px',
-      'border-radius: 999px',
+      'border-radius: 40px',
       'font-size: 20px',
       'font-weight: 700',
       'cursor: pointer',
-      'box-shadow: 0 18px 36px rgba(226, 123, 52, 0.3)',
-      'text-shadow: 0 2px 0 rgba(255, 255, 255, 0.45)',
-      'transition: transform 0.18s ease, box-shadow 0.18s ease'
+      'box-shadow: 0 8px 0 0 #C24921',
+      'transition: transform 0.15s ease'
     ].join(';');
     continueBtn.onmouseenter = () => {
-      continueBtn.style.transform = 'translateY(-3px)';
-      continueBtn.style.boxShadow = '0 22px 40px rgba(226, 123, 52, 0.36)';
+      continueBtn.style.transform = 'translateY(3px)';
+      continueBtn.style.boxShadow = '0 4px 0 0 #C24921';
     };
     continueBtn.onmouseleave = () => {
       continueBtn.style.transform = 'none';
-      continueBtn.style.boxShadow = '0 18px 36px rgba(226, 123, 52, 0.3)';
+      continueBtn.style.boxShadow = '0 8px 0 0 #C24921';
+    };
+    continueBtn.onmousedown = () => {
+      continueBtn.style.transform = 'translateY(4px)';
+      continueBtn.style.boxShadow = '0 3px 0 0 #C24921';
+    };
+    continueBtn.onmouseup = () => {
+      continueBtn.style.transform = 'translateY(3px)';
+      continueBtn.style.boxShadow = '0 4px 0 0 #C24921';
     };
 
     // Exit to menu button
     const exitBtn = document.createElement('button');
     exitBtn.textContent = 'Exit';
     exitBtn.style.cssText = [
-      'background: linear-gradient(180deg, #FFFFFF 0%, #ECE8E4 100%)',
-      'color: #6F6A63',
-      'border: 0',
+      'background: white',
+      'color: #AD8675',
+      'border: 1px solid #E9DCD6',
       'padding: 18px 32px',
-      'border-radius: 999px',
-      'font-size: 18px',
-      'font-weight: 600',
+      'border-radius: 40px',
+      'font-size: 20px',
+      'font-weight: 700',
       'cursor: pointer',
-      'box-shadow: 0 14px 30px rgba(0, 0, 0, 0.12)',
-      'transition: transform 0.18s ease, box-shadow 0.18s ease'
+      'box-shadow: 0 8px 0 0 #E9DCD6',
+      'transition: transform 0.15s ease'
     ].join(';');
     exitBtn.onmouseenter = () => {
-      exitBtn.style.transform = 'translateY(-3px)';
-      exitBtn.style.boxShadow = '0 18px 34px rgba(0, 0, 0, 0.15)';
+      exitBtn.style.transform = 'translateY(3px)';
+      exitBtn.style.boxShadow = '0 4px 0 0 #E9DCD6';
     };
     exitBtn.onmouseleave = () => {
       exitBtn.style.transform = 'none';
-      exitBtn.style.boxShadow = '0 14px 30px rgba(0, 0, 0, 0.12)';
+      exitBtn.style.boxShadow = '0 8px 0 0 #E9DCD6';
+    };
+    exitBtn.onmousedown = () => {
+      exitBtn.style.transform = 'translateY(4px)';
+      exitBtn.style.boxShadow = '0 3px 0 0 #E9DCD6';
+    };
+    exitBtn.onmouseup = () => {
+      exitBtn.style.transform = 'translateY(3px)';
+      exitBtn.style.boxShadow = '0 4px 0 0 #E9DCD6';
     };
 
     // Event handlers
