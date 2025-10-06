@@ -1,12 +1,38 @@
 // SIMPLE MAIN.JS - NO COMPLEXITY
 import { boot, layout as appLayout } from './modules/app.js';
 import { gsap } from 'gsap';
+import { assetPreloader } from './modules/asset-preloader.js';
 
 console.log('🚀 Starting simple CubeCrash...');
+
+// Loading screen elements
+let loadingScreen = null;
+let loadingFill = null;
+let loadingPercentage = null;
 
 // Global DOM elements
 let home = null;
 let appHost = null;
+
+// Homepage image variants
+const HOMEPAGE_IMAGES = [
+  './assets/crash-cubes-homepage.png',
+  './assets/crash-cubes-homepage1.png', 
+  './assets/crash-cubes-homepage2.png'
+];
+
+// Function to randomize homepage image
+function randomizeHomepageImage() {
+  const heroImage = document.querySelector('.slider-slide[data-slide="0"] .hero-image');
+  if (heroImage) {
+    const randomImage = HOMEPAGE_IMAGES[Math.floor(Math.random() * HOMEPAGE_IMAGES.length)];
+    heroImage.src = randomImage;
+    console.log('🎲 Randomized homepage image:', randomImage);
+  }
+}
+
+// Make it globally accessible so it can be called from anywhere
+window.randomizeHomepageImage = randomizeHomepageImage;
 
 // Time tracking variables
 let gameStartTime = null;
@@ -687,13 +713,89 @@ function ensureParallaxLoop(sliderParallaxImage){
       await new Promise(res => document.addEventListener('DOMContentLoaded', res, { once: true }));
     }
 
+    // Initialize loading screen elements
+    loadingScreen = document.getElementById('loading-screen');
+    loadingFill = document.getElementById('loading-fill');
+    loadingPercentage = document.getElementById('loading-percentage');
     home = document.getElementById('home');
     appHost = document.getElementById('app');
+    
+    // Show loading screen initially
+    if (loadingScreen) {
+      loadingScreen.style.display = 'flex';
+    }
+    if (home) {
+      home.style.display = 'none';
+    }
     
     if (!home || !appHost) {
       throw new Error('Required elements not found');
     }
 
+    // Start asset preloading
+    console.log('🔄 Starting asset preloading...');
+    
+    // Set up progress callbacks
+    assetPreloader.setProgressCallback((percentage, loaded, total) => {
+      if (loadingFill) {
+        loadingFill.style.width = `${percentage}%`;
+      }
+      if (loadingPercentage) {
+        loadingPercentage.textContent = `${percentage}%`;
+      }
+      console.log(`📦 Loading progress: ${percentage}% (${loaded}/${total})`);
+    });
+
+    assetPreloader.setCompleteCallback(() => {
+      console.log('✅ All assets loaded successfully');
+      
+      // Hide loading screen and show main content
+      if (loadingScreen) {
+        loadingScreen.classList.add('hidden');
+        setTimeout(() => {
+          loadingScreen.style.display = 'none';
+        }, 500);
+      }
+      if (home) {
+        home.style.display = 'block';
+      }
+      
+      // Initialize the rest of the app
+      initializeApp();
+    });
+
+    assetPreloader.setErrorCallback((error) => {
+      console.error('❌ Asset loading failed:', error);
+      
+      // Still show the app even if some assets failed to load
+      if (loadingScreen) {
+        loadingScreen.classList.add('hidden');
+        setTimeout(() => {
+          loadingScreen.style.display = 'none';
+        }, 500);
+      }
+      if (home) {
+        home.style.display = 'block';
+      }
+      
+      // Initialize the rest of the app
+      initializeApp();
+    });
+
+    // Start preloading
+    await assetPreloader.preloadWithIndividualLoading();
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+  }
+})();
+
+// Initialize app after assets are loaded
+async function initializeApp() {
+  try {
+    // Randomize homepage image on app start
+    randomizeHomepageImage();
+    
     // Test shimmer code removed for maximum performance - using pure CSS timing
 
     // MAXIMUM PERFORMANCE: Fixed 5-second shimmer interval - no JavaScript timers needed!
@@ -3288,4 +3390,4 @@ window.startNewGame = async () => {
   } catch (error) {
     console.error('❌ Error:', error);
   }
-})();
+}

@@ -411,6 +411,10 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
             console.log('Calling showMenuScreen...');
             if (typeof window.showMenuScreen === 'function') {
               window.showMenuScreen();
+              // Randomize homepage image when exiting from HUD
+              if (typeof window.randomizeHomepageImage === 'function') {
+                window.randomizeHomepageImage();
+              }
             } else {
               console.warn('showMenuScreen function not available');
             }

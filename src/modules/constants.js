@@ -51,7 +51,7 @@ export const ASSET_COIN        = './assets/gold-coin.png';
 export const SFX_EXPLODE       = './assets/explode.mp3';
 
 // Pips (kvadrati s 4px radiusom, bliže centru)
-export const PIP_COLOR         = 0x6B5A4B;
+export const PIP_COLOR         = 0x815A42;
 export const PIP_ALPHA         = 0.90;
 export const PIP_RADIUS        = 6;
 export const PIP_SQUARE        = true;
