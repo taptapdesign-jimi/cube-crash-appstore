@@ -25,7 +25,10 @@ const HOMEPAGE_IMAGES = [
 function randomizeHomepageImage() {
   console.log('🎲 randomizeHomepageImage called');
   const heroImage = document.querySelector('.slider-slide[data-slide="0"] .hero-image');
+  const parallaxImage = document.getElementById('slider-parallax-image');
   console.log('🎲 heroImage found:', heroImage);
+  console.log('🎲 parallaxImage found:', parallaxImage);
+  
   if (heroImage) {
     const randomImage = HOMEPAGE_IMAGES[Math.floor(Math.random() * HOMEPAGE_IMAGES.length)];
     console.log('🎲 Setting image to:', randomImage);
@@ -34,8 +37,11 @@ function randomizeHomepageImage() {
     heroImage.style.animation = 'none';
     heroImage.offsetHeight; // Trigger reflow
     
-    // Set the new image
+    // Set the new image for both hero and parallax
     heroImage.src = randomImage;
+    if (parallaxImage) {
+      parallaxImage.src = randomImage;
+    }
     
     // Apply smooth entrance animation after image loads
     heroImage.onload = () => {
@@ -681,7 +687,7 @@ const PARALLAX_EASE = 'power2.out';
 const PARALLAX_OVERFLOW = 800; // Allow parallax to extend beyond screen edges for smooth movement
 const PARALLAX_IDLE_AMPLITUDE = 28; // how far the idle sway can travel left/right
 const PARALLAX_IDLE_SPEED = 0.00035; // speed multiplier for idle sway (ms based)
-const PARALLAX_ENABLED = true; // enable parallax for idle animations
+const PARALLAX_ENABLED = false; // disable parallax for idle animations
 
 const BG_DRIFT_DISTANCE = -120; // px
 const BG_DRIFT_DURATION = 5;    // seconds
@@ -713,19 +719,26 @@ function applyParallaxTransform(image, value){
 function ensureParallaxLoop(sliderParallaxImage){
   if (!PARALLAX_ENABLED || !sliderParallaxImage) return;
   if (parallaxRafId) return;
-  const step = () => {
-    const now = performance.now ? performance.now() : Date.now();
-    const idleOffset = isDragging ? 0 : Math.sin(now * PARALLAX_IDLE_SPEED) * PARALLAX_IDLE_AMPLITUDE;
-    const desired = __clampParallax(parallaxTargetX + idleOffset);
-    const dx = desired - parallaxCurrentX;
-    if (Math.abs(dx) > 0.05) {
-      parallaxCurrentX += dx * PARALLAX_SMOOTH;
-    } else {
-      parallaxCurrentX = desired;
-    }
-    currentParallaxX = applyParallaxTransform(sliderParallaxImage, parallaxCurrentX);
-    parallaxRafId = requestAnimationFrame(step);
-  };
+  console.log('🎭 Starting parallax loop for idle animation');
+    const step = () => {
+      const now = performance.now ? performance.now() : Date.now();
+      const idleOffset = isDragging ? 0 : Math.sin(now * PARALLAX_IDLE_SPEED) * PARALLAX_IDLE_AMPLITUDE;
+      const desired = __clampParallax(parallaxTargetX + idleOffset);
+      const dx = desired - parallaxCurrentX;
+      if (Math.abs(dx) > 0.05) {
+        parallaxCurrentX += dx * PARALLAX_SMOOTH;
+      } else {
+        parallaxCurrentX = desired;
+      }
+      currentParallaxX = applyParallaxTransform(sliderParallaxImage, parallaxCurrentX);
+      
+      // Debug log every 60 frames (1 second)
+      if (Math.floor(now / 1000) !== Math.floor((now - 16) / 1000)) {
+        console.log('🎭 Parallax debug:', { isDragging, idleOffset, parallaxTargetX, parallaxCurrentX });
+      }
+      
+      parallaxRafId = requestAnimationFrame(step);
+    };
   parallaxRafId = requestAnimationFrame(step);
 }
 
@@ -1099,11 +1112,7 @@ async function initializeApp() {
         sliderWrapper.style.transform = `translateX(${translateX}px)`;
         if (PARALLAX_ENABLED && sliderParallaxImage) {
           const parallaxX = __clampParallax(translateX * PARALLAX_FACTOR);
-          parallaxTargetX = parallaxX;
-          if (!isDragging) {
-            parallaxCurrentX = parallaxX;
-          }
-          ensureParallaxLoop(sliderParallaxImage);
+          setParallax(parallaxX, { animated: false });
         }
         console.log(`🎯 Slider update: slide ${currentSlide}, translateX: ${translateX}px`);
         
