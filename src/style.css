@@ -17,6 +17,34 @@
   transition: opacity 0.5s ease, visibility 0.5s ease;
 }
 
+/* ===== HOMEPAGE IMAGE FADE-IN ===== */
+.hero-image {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
+}
+
+.hero-image.loaded {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Smooth entrance animation for homepage */
+.slider-slide[data-slide="0"] .hero-image {
+  animation: homepageImageEntrance 1s ease-out forwards;
+}
+
+@keyframes homepageImageEntrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 .loading-screen.hidden {
   opacity: 0;
   visibility: hidden;

@@ -21,7 +21,7 @@ const HOMEPAGE_IMAGES = [
   './assets/crash-cubes-homepage2.png'
 ];
 
-// Function to randomize homepage image
+// Function to randomize homepage image with smooth animation
 function randomizeHomepageImage() {
   console.log('🎲 randomizeHomepageImage called');
   const heroImage = document.querySelector('.slider-slide[data-slide="0"] .hero-image');
@@ -29,7 +29,25 @@ function randomizeHomepageImage() {
   if (heroImage) {
     const randomImage = HOMEPAGE_IMAGES[Math.floor(Math.random() * HOMEPAGE_IMAGES.length)];
     console.log('🎲 Setting image to:', randomImage);
+    
+    // Reset animation state
+    heroImage.style.animation = 'none';
+    heroImage.offsetHeight; // Trigger reflow
+    
+    // Set the new image
     heroImage.src = randomImage;
+    
+    // Apply smooth entrance animation after image loads
+    heroImage.onload = () => {
+      heroImage.style.animation = 'homepageImageEntrance 1s ease-out forwards';
+      console.log('🎲 Randomized homepage image animated in:', randomImage);
+    };
+    
+    // Fallback animation in case onload doesn't fire
+    setTimeout(() => {
+      heroImage.style.animation = 'homepageImageEntrance 1s ease-out forwards';
+    }, 100);
+    
     console.log('🎲 Randomized homepage image:', randomImage);
   } else {
     console.warn('🎲 No hero image found for randomization');
@@ -795,9 +813,38 @@ function ensureParallaxLoop(sliderParallaxImage){
   }
 })();
 
+// Preload homepage images immediately for smooth display
+async function preloadHomepageImages() {
+  try {
+    console.log('🎨 Preloading homepage images...');
+    const homepageImages = [
+      './assets/crash-cubes-homepage.png',
+      './assets/crash-cubes-homepage1.png',
+      './assets/crash-cubes-homepage2.png'
+    ];
+    
+    // Load homepage images with high priority
+    await Promise.all(homepageImages.map(async (imagePath) => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve();
+        img.onerror = () => resolve(); // Continue even if one fails
+        img.src = imagePath;
+      });
+    }));
+    
+    console.log('✅ Homepage images preloaded');
+  } catch (error) {
+    console.warn('⚠️ Homepage images preload failed:', error);
+  }
+}
+
 // Initialize app after assets are loaded
 async function initializeApp() {
   try {
+    // Preload homepage images first
+    await preloadHomepageImages();
+    
     // Randomize homepage image on app start
     randomizeHomepageImage();
     

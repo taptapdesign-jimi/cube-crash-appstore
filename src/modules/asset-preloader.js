@@ -5,6 +5,13 @@ import { Assets } from 'pixi.js';
 
 // All game assets that need to be preloaded
 const ALL_ASSETS = [
+  // Homepage images (priority - load first for immediate display)
+  './assets/crash-cubes-homepage.png',
+  './assets/crash-cubes-homepage1.png',
+  './assets/crash-cubes-homepage2.png',
+  './assets/logo-cube-crash.png',
+  './assets/logo.png',
+  
   // Core game assets
   './assets/tile.png',
   './assets/tile_numbers.png',
@@ -13,12 +20,7 @@ const ALL_ASSETS = [
   './assets/tile_numbers4.png',
   './assets/wild.png',
   
-  // UI assets
-  './assets/logo-cube-crash.png',
-  './assets/logo.png',
-  './assets/crash-cubes-homepage.png',
-  './assets/crash-cubes-homepage1.png',
-  './assets/crash-cubes-homepage2.png',
+  // Other UI assets
   './assets/stats-trophy.png',
   './assets/collectibles-box.png',
   './assets/settings-slider.png',
