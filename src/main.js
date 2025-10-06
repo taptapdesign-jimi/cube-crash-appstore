@@ -681,7 +681,7 @@ const PARALLAX_EASE = 'power2.out';
 const PARALLAX_OVERFLOW = 800; // Allow parallax to extend beyond screen edges for smooth movement
 const PARALLAX_IDLE_AMPLITUDE = 28; // how far the idle sway can travel left/right
 const PARALLAX_IDLE_SPEED = 0.00035; // speed multiplier for idle sway (ms based)
-const PARALLAX_ENABLED = false; // disable interactive parallax (use simple drifting background)
+const PARALLAX_ENABLED = true; // enable parallax for idle animations
 
 const BG_DRIFT_DISTANCE = -120; // px
 const BG_DRIFT_DURATION = 5;    // seconds

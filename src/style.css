@@ -18,20 +18,29 @@
 }
 
 /* ===== HOMEPAGE IMAGE FADE-IN ===== */
-.hero-image {
+/* Only apply initial hidden state to homepage slide */
+.slider-slide[data-slide="0"] .hero-image {
   opacity: 0;
   transform: scale(0.95);
   transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
 }
 
-.hero-image.loaded {
+.slider-slide[data-slide="0"] .hero-image.loaded {
   opacity: 1;
   transform: scale(1);
 }
 
-/* Smooth entrance animation for homepage */
+/* Smooth entrance animation for homepage only */
 .slider-slide[data-slide="0"] .hero-image {
   animation: homepageImageEntrance 1s ease-out forwards;
+}
+
+/* Ensure other slides are visible */
+.slider-slide[data-slide="1"] .hero-image,
+.slider-slide[data-slide="2"] .hero-image,
+.slider-slide[data-slide="3"] .hero-image {
+  opacity: 1;
+  transform: scale(1);
 }
 
 @keyframes homepageImageEntrance {
