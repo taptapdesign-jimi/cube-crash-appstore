@@ -33,9 +33,7 @@ function randomizeHomepageImage() {
     const randomImage = HOMEPAGE_IMAGES[Math.floor(Math.random() * HOMEPAGE_IMAGES.length)];
     console.log('🎲 Setting image to:', randomImage);
     
-    // Reset animation state
-    heroImage.style.animation = 'none';
-    heroImage.offsetHeight; // Trigger reflow
+    // No animation reset needed
     
     // Set the new image for both hero and parallax
     heroImage.src = randomImage;
@@ -43,16 +41,10 @@ function randomizeHomepageImage() {
       parallaxImage.src = randomImage;
     }
     
-    // Apply smooth entrance animation after image loads
+    // Image loads instantly without animation
     heroImage.onload = () => {
-      heroImage.style.animation = 'homepageImageEntrance 1s ease-out forwards';
-      console.log('🎲 Randomized homepage image animated in:', randomImage);
+      console.log('🎲 Randomized homepage image loaded:', randomImage);
     };
-    
-    // Fallback animation in case onload doesn't fire
-    setTimeout(() => {
-      heroImage.style.animation = 'homepageImageEntrance 1s ease-out forwards';
-    }, 100);
     
     console.log('🎲 Randomized homepage image:', randomImage);
   } else {

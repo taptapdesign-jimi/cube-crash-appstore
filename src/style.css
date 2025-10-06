@@ -17,22 +17,25 @@
   transition: opacity 0.5s ease, visibility 0.5s ease;
 }
 
-/* ===== HOMEPAGE IMAGE FADE-IN ===== */
-/* Only apply initial hidden state to homepage slide */
+/* ===== HOMEPAGE IMAGE - NO FADE-IN ===== */
+/* Homepage image is always visible without fade-in animation */
 .slider-slide[data-slide="0"] .hero-image {
-  opacity: 0;
-  transform: scale(0.95);
-  transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
-}
-
-.slider-slide[data-slide="0"] .hero-image.loaded {
   opacity: 1;
   transform: scale(1);
 }
 
-/* Smooth entrance animation for homepage only */
-.slider-slide[data-slide="0"] .hero-image {
-  animation: homepageImageEntrance 1s ease-out forwards;
+/* Parallax image for idle animation on homepage */
+.slider-parallax-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+  opacity: 1;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }
 
 /* Ensure other slides are visible */
@@ -43,16 +46,6 @@
   transform: scale(1);
 }
 
-@keyframes homepageImageEntrance {
-  0% {
-    opacity: 0;
-    transform: scale(0.9) translateY(20px);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
 
 .loading-screen.hidden {
   opacity: 0;
