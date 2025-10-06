@@ -49,10 +49,59 @@ export async function showStarsModal({ app, stage, board, score }) {
         }
         resolve({ action:'continue' }); cleanup(); 
       };
+      let touchStarted = false;
+      let touchStartedOnButton = false;
+      
       b.on('pointerover', ()=> gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" }));
       b.on('pointerout',  ()=> gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" }));
-      b.on('pointerdown', ()=> gsap.to(b.scale, { x:0.80, y:0.80, duration:0.35, ease: "power2.out" }));
-      b.on('pointerup',   ()=> gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" }));
+      
+      b.on('pointerdown', (e) => {
+        touchStarted = true;
+        touchStartedOnButton = true;
+        gsap.to(b.scale, { x:0.80, y:0.80, duration:0.35, ease: "power2.out" });
+      });
+      
+      b.on('globalpointermove', (e) => {
+        if (touchStarted && touchStartedOnButton) {
+          // Check if touch moved outside button
+          const bounds = b.getBounds();
+          const isOutside = e.global.x < bounds.x || e.global.x > bounds.x + bounds.width || 
+                           e.global.y < bounds.y || e.global.y > bounds.y + bounds.height;
+          
+          if (isOutside) {
+            // Cancel the touch - reset button
+            gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" });
+            touchStartedOnButton = false;
+          }
+        }
+      });
+      
+      b.on('pointerup', (e) => {
+        if (touchStarted && touchStartedOnButton) {
+          // Only trigger if touch ended on button
+          const bounds = b.getBounds();
+          const isOnButton = e.global.x >= bounds.x && e.global.x <= bounds.x + bounds.width && 
+                            e.global.y >= bounds.y && e.global.y <= bounds.y + bounds.height;
+          
+          if (isOnButton) {
+            // Trigger the original action
+            if (typeof window.updateHighScore === 'function') {
+              try {
+                window.updateHighScore(score);
+                console.log('✅ stars-modal: window.updateHighScore called with score:', score);
+              } catch (error) {
+                console.warn('⚠️ stars-modal: Failed to call window.updateHighScore:', error);
+              }
+            }
+            resolve({ action:'continue' }); cleanup();
+          }
+        }
+        
+        // Reset button
+        gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" });
+        touchStarted = false;
+        touchStartedOnButton = false;
+      });
       return b;
     })();
 

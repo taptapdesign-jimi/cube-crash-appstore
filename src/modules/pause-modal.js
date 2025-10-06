@@ -133,10 +133,93 @@ export function showPauseModal({ onUnpause, onRestart, onExit } = {}){
     }
   };
   
-  const onClick = async (e) => {
-    const btn = e.target.closest('button');
-    if (!btn) return;
-    const act = btn.dataset.action || '';
+  // Add proper touch handling for buttons with "cancel on drag off" logic
+  const addButtonTouchHandling = () => {
+    const buttons = el.querySelectorAll('.pause-modal-btn');
+    
+    buttons.forEach(btn => {
+      let touchStarted = false;
+      let touchStartedOnButton = false;
+      
+      const handleTouchStart = (e) => {
+        touchStarted = true;
+        touchStartedOnButton = btn.contains(e.target);
+        if (touchStartedOnButton) {
+          btn.style.transform = 'scale(0.80)';
+          btn.style.transition = 'transform 0.35s ease';
+        }
+      };
+      
+      const handleTouchMove = (e) => {
+        if (touchStarted && touchStartedOnButton) {
+          // Check if touch moved outside button
+          const touch = e.touches[0];
+          const rect = btn.getBoundingClientRect();
+          const isOutside = touch.clientX < rect.left || touch.clientX > rect.right || 
+                           touch.clientY < rect.top || touch.clientY > rect.bottom;
+          
+          if (isOutside) {
+            // Cancel the touch - reset button
+            btn.style.transform = 'scale(1)';
+            btn.style.transition = 'transform 0.35s ease';
+            touchStartedOnButton = false;
+          }
+        }
+      };
+      
+      const handleTouchEnd = (e) => {
+        if (touchStarted && touchStartedOnButton) {
+          // Only trigger if touch ended on button
+          const touch = e.changedTouches[0];
+          const rect = btn.getBoundingClientRect();
+          const isOnButton = touch.clientX >= rect.left && touch.clientX <= rect.right && 
+                            touch.clientY >= rect.top && touch.clientY <= rect.bottom;
+          
+          if (isOnButton) {
+            // Trigger the original click action
+            const act = btn.dataset.action || '';
+            handleButtonAction(act);
+          }
+        }
+        
+        // Reset button
+        btn.style.transform = 'scale(1)';
+        btn.style.transition = 'transform 0.35s ease';
+        touchStarted = false;
+        touchStartedOnButton = false;
+      };
+      
+      const handleMouseDown = (e) => {
+        if (btn.contains(e.target)) {
+          btn.style.transform = 'scale(0.80)';
+          btn.style.transition = 'transform 0.35s ease';
+        }
+      };
+      
+      const handleMouseUp = (e) => {
+        if (btn.contains(e.target)) {
+          btn.style.transform = 'scale(1)';
+          btn.style.transition = 'transform 0.35s ease';
+        }
+      };
+      
+      const handleMouseLeave = () => {
+        btn.style.transform = 'scale(1)';
+        btn.style.transition = 'transform 0.35s ease';
+      };
+      
+      // Add event listeners
+      btn.addEventListener('touchstart', handleTouchStart, { passive: true });
+      btn.addEventListener('touchmove', handleTouchMove, { passive: true });
+      btn.addEventListener('touchend', handleTouchEnd, { passive: true });
+      btn.addEventListener('mousedown', handleMouseDown);
+      btn.addEventListener('mouseup', handleMouseUp);
+      btn.addEventListener('mouseleave', handleMouseLeave);
+    });
+  };
+  
+  // Extract button action logic into separate function
+  const handleButtonAction = async (act) => {
     
     if (act === 'unpause') { 
       console.log('🎭 UNPAUSE: Starting animation...');
@@ -373,7 +456,28 @@ export function showPauseModal({ onUnpause, onRestart, onExit } = {}){
     } 
   };
 
+  const onClick = async (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const act = btn.dataset.action || '';
+    
+    // Use the extracted function
+    handleButtonAction(act);
+  };
+  
   el.addEventListener('click', onClick);
   el.addEventListener('click', onBackdrop);
+  
+  // Add touch move handling for button cancel on drag off
+  el.addEventListener('touchmove', (e) => {
+    if (e.target.closest('.pause-modal-btn')) {
+      // Let button handle its own touch move
+      return;
+    }
+  }, { passive: true });
+  
+  // Initialize button touch handling
+  addButtonTouchHandling();
+  
   console.log('🎭 Event listeners added to modal element');
 }

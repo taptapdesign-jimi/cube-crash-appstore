@@ -326,40 +326,84 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
 
     // Add button press handling for proper UX
     const addButtonPressHandling = (btn, action) => {
-      let buttonPressStartedOnButton = false;
+      let touchStarted = false;
+      let touchStartedOnButton = false;
       
-      const handleButtonDown = () => {
-        buttonPressStartedOnButton = true;
-        btn.style.transform = 'scale(0.80)'; // Same scale as other buttons
-        btn.style.transition = 'transform 0.35s ease'; // Same timing as other buttons
+      const handleTouchStart = (e) => {
+        touchStarted = true;
+        touchStartedOnButton = btn.contains(e.target);
+        if (touchStartedOnButton) {
+          btn.style.transform = 'scale(0.80)';
+          btn.style.transition = 'transform 0.35s ease';
+        }
       };
       
-      const handleButtonUp = (e) => {
-        // Only trigger action if press started on button AND ends on button
-        if (buttonPressStartedOnButton && btn.contains(e.target)) {
+      const handleTouchMove = (e) => {
+        if (touchStarted && touchStartedOnButton) {
+          // Check if touch moved outside button
+          const touch = e.touches[0];
+          const rect = btn.getBoundingClientRect();
+          const isOutside = touch.clientX < rect.left || touch.clientX > rect.right || 
+                           touch.clientY < rect.top || touch.clientY > rect.bottom;
+          
+          if (isOutside) {
+            // Cancel the touch - reset button
+            btn.style.transform = 'scale(1)';
+            btn.style.transition = 'transform 0.35s ease';
+            touchStartedOnButton = false;
+          }
+        }
+      };
+      
+      const handleTouchEnd = (e) => {
+        if (touchStarted && touchStartedOnButton) {
+          // Only trigger if touch ended on button
+          const touch = e.changedTouches[0];
+          const rect = btn.getBoundingClientRect();
+          const isOnButton = touch.clientX >= rect.left && touch.clientX <= rect.right && 
+                            touch.clientY >= rect.top && touch.clientY <= rect.bottom;
+          
+          if (isOnButton) {
+            action();
+          }
+        }
+        
+        // Reset button
+        btn.style.transform = 'scale(1)';
+        btn.style.transition = 'transform 0.35s ease';
+        touchStarted = false;
+        touchStartedOnButton = false;
+      };
+      
+      const handleMouseDown = () => {
+        touchStartedOnButton = true;
+        btn.style.transform = 'scale(0.80)';
+        btn.style.transition = 'transform 0.35s ease';
+      };
+      
+      const handleMouseUp = (e) => {
+        if (touchStartedOnButton && btn.contains(e.target)) {
           action();
         }
         
-        buttonPressStartedOnButton = false;
         btn.style.transform = 'scale(1)';
-        btn.style.transition = 'transform 0.35s ease'; // Same timing as other buttons
+        btn.style.transition = 'transform 0.35s ease';
+        touchStartedOnButton = false;
       };
       
-      const handleButtonLeave = () => {
+      const handleMouseLeave = () => {
         btn.style.transform = 'scale(1)';
-        btn.style.transition = 'transform 0.35s ease'; // Same timing as other buttons
+        btn.style.transition = 'transform 0.35s ease';
+        touchStartedOnButton = false;
       };
       
-      btn.addEventListener('mousedown', handleButtonDown);
-      btn.addEventListener('touchstart', handleButtonDown, { passive: true });
-      
-      btn.addEventListener('mouseup', handleButtonUp);
-      btn.addEventListener('mouseleave', handleButtonLeave);
-      btn.addEventListener('touchend', handleButtonUp, { passive: true });
-      
-      // Global release handlers
-      document.addEventListener('mouseup', handleButtonUp);
-      document.addEventListener('touchend', handleButtonUp);
+      // Add event listeners
+      btn.addEventListener('touchstart', handleTouchStart, { passive: true });
+      btn.addEventListener('touchmove', handleTouchMove, { passive: true });
+      btn.addEventListener('touchend', handleTouchEnd, { passive: true });
+      btn.addEventListener('mousedown', handleMouseDown);
+      btn.addEventListener('mouseup', handleMouseUp);
+      btn.addEventListener('mouseleave', handleMouseLeave);
     };
 
     // Continue

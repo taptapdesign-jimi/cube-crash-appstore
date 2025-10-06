@@ -549,6 +549,12 @@ body{height:100dvh;height:100vh;overflow:hidden}
   -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
 }
 
+/* Add proper touch handling for slider buttons */
+.slide-button.tap-scale.menu-btn-primary,
+.slider-slide .slide-button.tap-scale.menu-btn-primary {
+  touch-action: manipulation;
+}
+
 /* Force Play button to stay at scale(1) when not actively being clicked */
 .slide-button.tap-scale.menu-btn-primary.play-button-reset,
 .slider-slide .slide-button.tap-scale.menu-btn-primary.play-button-reset,

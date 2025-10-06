@@ -40,52 +40,92 @@ function createResumeModal() {
   `;
   
   // Add event listeners
-  // Add button press handling for proper UX
+  // Add button press handling for proper UX with "cancel on drag off" logic
   const addButtonPressHandling = (btn, action) => {
-    let buttonPressStartedOnButton = false;
+    let touchStarted = false;
+    let touchStartedOnButton = false;
     
-    const handleButtonDown = () => {
-      buttonPressStartedOnButton = true;
-      btn.style.transform = 'scale(0.85)';
-      btn.style.transition = 'transform 0.15s ease';
+    const handleTouchStart = (e) => {
+      touchStarted = true;
+      touchStartedOnButton = btn.contains(e.target);
+      if (touchStartedOnButton) {
+        btn.style.transform = 'scale(0.80)';
+        btn.style.transition = 'transform 0.35s ease';
+      }
     };
     
-    const handleButtonUp = (e) => {
-      // Only trigger action if press started on button AND ends on button
-      if (buttonPressStartedOnButton && btn.contains(e.target)) {
-        action();
+    const handleTouchMove = (e) => {
+      if (touchStarted && touchStartedOnButton) {
+        // Check if touch moved outside button
+        const touch = e.touches[0];
+        const rect = btn.getBoundingClientRect();
+        const isOutside = touch.clientX < rect.left || touch.clientX > rect.right || 
+                         touch.clientY < rect.top || touch.clientY > rect.bottom;
+        
+        if (isOutside) {
+          // Cancel the touch - reset button
+          btn.style.transform = 'scale(1)';
+          btn.style.transition = 'transform 0.35s ease';
+          touchStartedOnButton = false;
+        }
+      }
+    };
+    
+    const handleTouchEnd = (e) => {
+      if (touchStarted && touchStartedOnButton) {
+        // Only trigger if touch ended on button
+        const touch = e.changedTouches[0];
+        const rect = btn.getBoundingClientRect();
+        const isOnButton = touch.clientX >= rect.left && touch.clientX <= rect.right && 
+                          touch.clientY >= rect.top && touch.clientY <= rect.bottom;
+        
+        if (isOnButton) {
+          action();
+        }
       }
       
-      buttonPressStartedOnButton = false;
+      // Reset button
       btn.style.transform = 'scale(1)';
-      btn.style.transition = 'transform 0.15s ease';
+      btn.style.transition = 'transform 0.35s ease';
+      touchStarted = false;
+      touchStartedOnButton = false;
     };
     
-    const handleButtonLeave = () => {
-      btn.style.transform = 'scale(1)';
-      btn.style.transition = 'transform 0.15s ease';
+    const handleMouseDown = (e) => {
+      if (btn.contains(e.target)) {
+        btn.style.transform = 'scale(0.80)';
+        btn.style.transition = 'transform 0.35s ease';
+      }
     };
     
-    btn.addEventListener('mousedown', handleButtonDown);
-    btn.addEventListener('touchstart', handleButtonDown, { passive: true });
+    const handleMouseUp = (e) => {
+      if (btn.contains(e.target)) {
+        btn.style.transform = 'scale(1)';
+        btn.style.transition = 'transform 0.35s ease';
+      }
+    };
     
-    btn.addEventListener('mouseup', handleButtonUp);
-    btn.addEventListener('mouseleave', handleButtonLeave);
-    btn.addEventListener('touchend', handleButtonUp, { passive: true });
+    const handleMouseLeave = () => {
+      btn.style.transform = 'scale(1)';
+      btn.style.transition = 'transform 0.35s ease';
+    };
     
-    // Global release handlers
-    document.addEventListener('mouseup', handleButtonUp);
-    document.addEventListener('touchend', handleButtonUp);
+    // Add event listeners
+    btn.addEventListener('touchstart', handleTouchStart, { passive: true });
+    btn.addEventListener('touchmove', handleTouchMove, { passive: true });
+    btn.addEventListener('touchend', handleTouchEnd, { passive: true });
+    btn.addEventListener('mousedown', handleMouseDown);
+    btn.addEventListener('mouseup', handleMouseUp);
+    btn.addEventListener('mouseleave', handleMouseLeave);
     
     // Cleanup
     registerCleanup(() => {
-      btn.removeEventListener('mousedown', handleButtonDown);
-      btn.removeEventListener('touchstart', handleButtonDown);
-      btn.removeEventListener('mouseup', handleButtonUp);
-      btn.removeEventListener('mouseleave', handleButtonLeave);
-      btn.removeEventListener('touchend', handleButtonUp);
-      document.removeEventListener('mouseup', handleButtonUp);
-      document.removeEventListener('touchend', handleButtonUp);
+      btn.removeEventListener('touchstart', handleTouchStart);
+      btn.removeEventListener('touchmove', handleTouchMove);
+      btn.removeEventListener('touchend', handleTouchEnd);
+      btn.removeEventListener('mousedown', handleMouseDown);
+      btn.removeEventListener('mouseup', handleMouseUp);
+      btn.removeEventListener('mouseleave', handleMouseLeave);
     });
   };
 
@@ -153,6 +193,12 @@ function addDragFunctionality(modalEl, registerCleanup) {
   };
 
   modalEl.ontouchmove = (e) => {
+    // Handle button touch move for cancel on drag off
+    if (e.target.closest('.continue-btn') || e.target.closest('.new-game-btn')) {
+      // Let button handle its own touch move
+      return;
+    }
+    
     if (!isDragging) return;
     e.preventDefault();
     

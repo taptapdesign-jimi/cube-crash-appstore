@@ -768,6 +768,128 @@ function ensureParallaxLoop(sliderParallaxImage){
     const menuExitBtn = document.getElementById('menu-exit-btn');
     const menuTestFailBtn = document.getElementById('menu-test-fail-btn');
     
+    // Add "cancel on drag off" logic for slider CTA buttons
+    const addSliderButtonTouchHandling = (btn, action) => {
+      if (!btn) return;
+      
+      let touchStarted = false;
+      let touchStartedOnButton = false;
+      
+      const handleTouchStart = (e) => {
+        touchStarted = true;
+        touchStartedOnButton = btn.contains(e.target);
+        if (touchStartedOnButton) {
+          btn.style.transform = 'scale(0.80)';
+          btn.style.transition = 'transform 0.35s ease';
+        }
+      };
+      
+      const handleTouchMove = (e) => {
+        if (touchStarted && touchStartedOnButton) {
+          // Check if touch moved outside button
+          const touch = e.touches[0];
+          const rect = btn.getBoundingClientRect();
+          const isOutside = touch.clientX < rect.left || touch.clientX > rect.right || 
+                           touch.clientY < rect.top || touch.clientY > rect.bottom;
+          
+          if (isOutside) {
+            // Cancel the touch - reset button
+            btn.style.transform = 'scale(1)';
+            btn.style.transition = 'transform 0.35s ease';
+            touchStartedOnButton = false;
+          }
+        }
+      };
+      
+      const handleTouchEnd = (e) => {
+        if (touchStarted && touchStartedOnButton) {
+          // Only trigger if touch ended on button
+          const touch = e.changedTouches[0];
+          const rect = btn.getBoundingClientRect();
+          const isOnButton = touch.clientX >= rect.left && touch.clientX <= rect.right && 
+                            touch.clientY >= rect.top && touch.clientY <= rect.bottom;
+          
+          if (isOnButton && action) {
+            action(e);
+          }
+        }
+        
+        // Reset button
+        btn.style.transform = 'scale(1)';
+        btn.style.transition = 'transform 0.35s ease';
+        touchStarted = false;
+        touchStartedOnButton = false;
+      };
+      
+      const handleMouseDown = (e) => {
+        if (btn.contains(e.target)) {
+          btn.style.transform = 'scale(0.80)';
+          btn.style.transition = 'transform 0.35s ease';
+        }
+      };
+      
+      const handleMouseUp = (e) => {
+        if (btn.contains(e.target)) {
+          btn.style.transform = 'scale(1)';
+          btn.style.transition = 'transform 0.35s ease';
+        }
+      };
+      
+      const handleMouseLeave = () => {
+        btn.style.transform = 'scale(1)';
+        btn.style.transition = 'transform 0.35s ease';
+      };
+      
+      // Add event listeners
+      btn.addEventListener('touchstart', handleTouchStart, { passive: true });
+      btn.addEventListener('touchmove', handleTouchMove, { passive: true });
+      btn.addEventListener('touchend', handleTouchEnd, { passive: true });
+      btn.addEventListener('mousedown', handleMouseDown);
+      btn.addEventListener('mouseup', handleMouseUp);
+      btn.addEventListener('mouseleave', handleMouseLeave);
+    };
+    
+    // Add "cancel on drag off" touch handling for play button
+    if (playButton) {
+      addSliderButtonTouchHandling(playButton, async (e) => {
+        e.stopPropagation();
+        console.log('🎮 Play touched');
+        // Handle play button action - same as click
+        // Check if there's a saved game state to resume
+        try {
+          const savedState = localStorage.getItem('cubeCrash_gameState');
+          if (savedState) {
+            console.log('📦 Found saved game state - showing resume modal');
+            
+            // CRITICAL: Reset Play button immediately before showing modal
+            const playButton = document.querySelector('.slide-button.tap-scale.menu-btn-primary');
+            if (playButton) {
+              playButton.style.transform = 'scale(1) !important';
+              playButton.style.transition = 'none !important';
+              playButton.classList.add('play-button-reset');
+              console.log('🔧 Play button reset before showing resume modal');
+            }
+            
+            // Import and call the bottom sheet function
+            try {
+              const { showResumeGameBottomSheet } = await import('./modules/resume-game-bottom-sheet.js');
+              await showResumeGameBottomSheet();
+              return;
+            } catch (error) {
+              console.error('❌ Failed to show resume bottom sheet:', error);
+              // Fallback to starting new game
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error checking saved game state:', error);
+        }
+        
+        // No saved state or error - start new game
+        console.log('🎮 Starting new game');
+        // This would be handled by the existing click handler
+      });
+    }
+    
     let currentSlide = 0;
     const totalSlides = slides.length;
     const stateLoaded = loadUIState();
@@ -2038,6 +2160,13 @@ function ensureParallaxLoop(sliderParallaxImage){
         console.log('📊 Stats clicked');
         showStatsScreen();
       });
+      
+      // Add "cancel on drag off" touch handling for stats button
+      addSliderButtonTouchHandling(statsButton, (e) => {
+        e.stopPropagation();
+        console.log('📊 Stats touched');
+        showStatsScreen();
+      });
     }
     
     if (collectiblesButton) {
@@ -2061,6 +2190,13 @@ function ensureParallaxLoop(sliderParallaxImage){
         console.log('🎁 Collectibles clicked');
         goToSlide(2);
       });
+      
+      // Add "cancel on drag off" touch handling for collectibles button
+      addSliderButtonTouchHandling(collectiblesButton, (e) => {
+        e.stopPropagation();
+        console.log('🎁 Collectibles touched');
+        goToSlide(2);
+      });
     }
     
     if (settingsButton) {
@@ -2082,6 +2218,13 @@ function ensureParallaxLoop(sliderParallaxImage){
       settingsButton.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent slider from moving
         console.log('⚙️ Settings clicked');
+        goToSlide(3);
+      });
+      
+      // Add "cancel on drag off" touch handling for settings button
+      addSliderButtonTouchHandling(settingsButton, (e) => {
+        e.stopPropagation();
+        console.log('⚙️ Settings touched');
         goToSlide(3);
       });
     }
@@ -3052,6 +3195,95 @@ window.startNewGame = async () => {
       // Save on touch start (user interaction)
       mobileSave();
     }, { passive: true });
+
+    // Add proper touch handling for all buttons
+    function addProperTouchHandling() {
+      // Exclude slider buttons as they have their own touch handling
+      const buttons = document.querySelectorAll('.tap-scale:not(.slide-button), .continue-btn, .new-game-btn, .restart-btn, .exit-btn, .pause-modal-btn');
+      
+      buttons.forEach(btn => {
+        let touchStarted = false;
+        let touchStartedOnButton = false;
+        
+        const handleTouchStart = (e) => {
+          touchStarted = true;
+          touchStartedOnButton = btn.contains(e.target);
+          if (touchStartedOnButton) {
+            btn.style.transform = 'scale(0.80)';
+            btn.style.transition = 'transform 0.35s ease';
+          }
+        };
+        
+        const handleTouchMove = (e) => {
+          if (touchStarted && touchStartedOnButton) {
+            // Check if touch moved outside button
+            const touch = e.touches[0];
+            const rect = btn.getBoundingClientRect();
+            const isOutside = touch.clientX < rect.left || touch.clientX > rect.right || 
+                             touch.clientY < rect.top || touch.clientY > rect.bottom;
+            
+            if (isOutside) {
+              // Cancel the touch - reset button
+              btn.style.transform = 'scale(1)';
+              btn.style.transition = 'transform 0.35s ease';
+              touchStartedOnButton = false;
+            }
+          }
+        };
+        
+        const handleTouchEnd = (e) => {
+          if (touchStarted && touchStartedOnButton) {
+            // Only trigger if touch ended on button
+            const touch = e.changedTouches[0];
+            const rect = btn.getBoundingClientRect();
+            const isOnButton = touch.clientX >= rect.left && touch.clientX <= rect.right && 
+                              touch.clientY >= rect.top && touch.clientY <= rect.bottom;
+            
+            if (isOnButton && btn.onclick) {
+              btn.onclick();
+            }
+          }
+          
+          // Reset button
+          btn.style.transform = 'scale(1)';
+          btn.style.transition = 'transform 0.35s ease';
+          touchStarted = false;
+          touchStartedOnButton = false;
+        };
+        
+        const handleMouseDown = (e) => {
+          if (btn.contains(e.target)) {
+            btn.style.transform = 'scale(0.80)';
+            btn.style.transition = 'transform 0.35s ease';
+          }
+        };
+        
+        const handleMouseUp = (e) => {
+          if (btn.contains(e.target)) {
+            btn.style.transform = 'scale(1)';
+            btn.style.transition = 'transform 0.35s ease';
+          }
+        };
+        
+        const handleMouseLeave = () => {
+          btn.style.transform = 'scale(1)';
+          btn.style.transition = 'transform 0.35s ease';
+        };
+        
+        // Add event listeners
+        btn.addEventListener('touchstart', handleTouchStart, { passive: true });
+        btn.addEventListener('touchmove', handleTouchMove, { passive: true });
+        btn.addEventListener('touchend', handleTouchEnd, { passive: true });
+        btn.addEventListener('mousedown', handleMouseDown);
+        btn.addEventListener('mouseup', handleMouseUp);
+        btn.addEventListener('mouseleave', handleMouseLeave);
+      });
+    }
+
+  // Initialize touch handling after a delay to ensure all elements are created
+  setTimeout(() => {
+    addProperTouchHandling();
+  }, 1000);
     
   } catch (error) {
     console.error('❌ Error:', error);
