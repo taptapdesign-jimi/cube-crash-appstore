@@ -49,8 +49,10 @@ export async function showStarsModal({ app, stage, board, score }) {
         }
         resolve({ action:'continue' }); cleanup(); 
       };
-      b.on('pointerover', ()=> gsap.to(b.scale, { x:1.04, y:1.04, duration:0.08 }));
-      b.on('pointerout',  ()=> gsap.to(b.scale, { x:1.00, y:1.00, duration:0.08 }));
+      b.on('pointerover', ()=> gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" }));
+      b.on('pointerout',  ()=> gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" }));
+      b.on('pointerdown', ()=> gsap.to(b.scale, { x:0.80, y:0.80, duration:0.35, ease: "power2.out" }));
+      b.on('pointerup',   ()=> gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" }));
       return b;
     })();
 

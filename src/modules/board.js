@@ -4,18 +4,19 @@ import {
   TILE, COLS, ROWS, GAP,
   PIPS_INNER_FACTOR, PIP_COLOR, PIP_ALPHA, PIP_RADIUS, PIP_SQUARE,
   ASSET_TILE,
-  ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3,
+  ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4,
 } from './constants.js';
 
 const BOARD_BG_COLOR = 0xF5F5F5;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-// random skin: 60% base, 25% alt2, 15% alt3
+// random skin: 40% base, 30% alt2, 20% alt3, 10% alt4
 function pickNumbersSkin() {
   const p = Math.random();
-  if (p < 0.60) return Assets.get(ASSET_NUMBERS);
-  if (p < 0.85) return Assets.get(ASSET_NUMBERS2);
-  return Assets.get(ASSET_NUMBERS3);
+  if (p < 0.40) return Assets.get(ASSET_NUMBERS);
+  if (p < 0.70) return Assets.get(ASSET_NUMBERS2);
+  if (p < 0.90) return Assets.get(ASSET_NUMBERS3);
+  return Assets.get(ASSET_NUMBERS4);
 }
 
 export function drawStack(tile) {

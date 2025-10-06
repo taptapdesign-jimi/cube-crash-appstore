@@ -44,6 +44,7 @@ export const ASSET_TILE        = './assets/tile.png';
 export const ASSET_NUMBERS     = './assets/tile_numbers.png';
 export const ASSET_NUMBERS2    = './assets/tile_numbers2.png';
 export const ASSET_NUMBERS3    = './assets/tile_numbers3.png';
+export const ASSET_NUMBERS4    = './assets/tile_numbers4.png';
 export const ASSET_WILD        = './assets/wild.png';
 export const ASSET_MYSTERY     = './assets/mystery-box.png';
 export const ASSET_COIN        = './assets/gold-coin.png';

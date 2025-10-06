@@ -6,7 +6,7 @@ import { gsap } from 'gsap';
 
 import {
   COLS, ROWS, TILE, GAP, HUD_H,
-  ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_WILD
+  ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD
 } from './constants.js';
 import { sweetPopIn } from './app-board.js';
 import * as CONSTS from './constants.js';
@@ -403,10 +403,10 @@ export async function boot(){
   COIN_PATH    = await loadFirstTexture(COIN_CANDIDATES);
 
   // Core assets
-  await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_WILD]);
+  await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD]);
   
   // Optimize all loaded textures for pixel-perfect rendering
-  const loadedTextures = [ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_WILD];
+  const loadedTextures = [ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD];
   for (const assetPath of loadedTextures) {
     try {
       const texture = Assets.get(assetPath);

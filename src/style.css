@@ -95,6 +95,15 @@ body{height:100dvh;height:100vh;overflow:hidden}
 .slide .hero-wrap{ position: relative; width: min(360px, 96vw); height: 380px; display:block; }
 .slide .copy{ position: relative; z-index: 5; width: 249px; margin-top: 36px; margin-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--cta-bottom-pad, 64px)); }
 .slide .copy .cta{ display:flex; flex-direction: column; align-items: flex-start; gap: 48px; width: 249px; } */
+/* Simple scale animation on tap */
+.tap-scale{
+  transition: transform 0.15s ease-in-out;
+}
+
+.tap-scale:active{
+  transform: scale(0.95);
+}
+
 /* Squishy CTA base */
 .slide .copy .cta button{ width: 249px; }
 .squishy{
@@ -435,8 +444,8 @@ body{height:100dvh;height:100vh;overflow:hidden}
 /* Removed flip-shimmer animation - using simple orange button now */
 
 /* Override slide buttons with liquid fill effect - ULTRA SPECIFIC */
-.slide-button.squishy.squishy-cc.menu-btn-primary::before,
-.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary::before {
+.slide-button.tap-scale.menu-btn-primary::before,
+.slider-slide .slide-button.tap-scale.menu-btn-primary::before {
   content: attr(data-front) !important;
   color: #ffffff !important;
   background: transparent !important; /* Make background transparent so main button shows */
@@ -453,10 +462,10 @@ body{height:100dvh;height:100vh;overflow:hidden}
 
 /* Removed - now using ::after for shimmer effect */
 
-.slide-button.squishy.squishy-cc.menu-btn-primary:hover::before,
-.slide-button.squishy.squishy-cc.menu-btn-primary:focus-visible::before,
-.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:hover::before,
-.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:focus-visible::before {
+.slide-button.tap-scale.menu-btn-primary:hover::before,
+.slide-button.tap-scale.menu-btn-primary:focus-visible::before,
+.slider-slide .slide-button.tap-scale.menu-btn-primary:hover::before,
+.slider-slide .slide-button.tap-scale.menu-btn-primary:focus-visible::before {
   transform: rotateX(0deg) translateZ(1px) !important; /* Stay in place */
   opacity: 1 !important; /* Stay visible */
   background: transparent !important; /* Keep transparent */
@@ -469,8 +478,8 @@ body{height:100dvh;height:100vh;overflow:hidden}
 /* Removed - now using ::after for shimmer effect */
 
 /* Force simple button - remove all 3D effects and ensure default scale(1) */
-.slide-button.squishy.squishy-cc.menu-btn-primary,
-.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary {
+.slide-button.tap-scale.menu-btn-primary,
+.slider-slide .slide-button.tap-scale.menu-btn-primary {
   transform-style: flat !important;
   perspective: none !important;
   background: #E97A55 !important;
@@ -490,54 +499,68 @@ body{height:100dvh;height:100vh;overflow:hidden}
   transform: scale(1) !important; /* Always stay at default scale */
   position: relative !important;
   overflow: hidden !important; /* Clip shimmer effect */
+  -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
+  -webkit-touch-callout: none !important; /* Remove mobile callout */
+  -webkit-user-select: none !important; /* Prevent text selection */
+  user-select: none !important; /* Prevent text selection */
 }
 
 /* Old shimmer styles removed - using fixed version below */
 
 /* Shimmer timing - using working-shimmer animation */
-.slider-slide[data-slide="0"] .slide-button.squishy.squishy-cc.menu-btn-primary::after {
+.slider-slide[data-slide="0"] .slide-button.tap-scale.menu-btn-primary::after {
   animation-delay: 1s;
 }
 
-.slider-slide[data-slide="1"] .slide-button.squishy.squishy-cc.menu-btn-primary::after {
+.slider-slide[data-slide="1"] .slide-button.tap-scale.menu-btn-primary::after {
   animation-delay: 2s;
 }
 
-.slider-slide[data-slide="2"] .slide-button.squishy.squishy-cc.menu-btn-primary::after {
+.slider-slide[data-slide="2"] .slide-button.tap-scale.menu-btn-primary::after {
   animation-delay: 3s;
 }
 
-.slider-slide[data-slide="3"] .slide-button.squishy.squishy-cc.menu-btn-primary::after {
+.slider-slide[data-slide="3"] .slide-button.tap-scale.menu-btn-primary::after {
   animation-delay: 4s;
 }
 
 /* Hover state for slide buttons */
-.slide-button.squishy.squishy-cc.menu-btn-primary:hover,
-.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:hover {
-  transform: translateY(3px) !important;
-  box-shadow: 0 4px 0 0 #C24921 !important;
+.slide-button.tap-scale.menu-btn-primary:hover,
+.slider-slide .slide-button.tap-scale.menu-btn-primary:hover {
+  transform: scale(1) !important; /* No hover scaling */
+  box-shadow: 0 8px 0 0 #C24921 !important; /* Keep original shadow */
+  background: #E97A55 !important; /* Keep original color */
+  color: white !important; /* Keep original text color */
+  -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
 }
 
-/* Simple active state - scale down dramatically */
-.slide-button.squishy.squishy-cc.menu-btn-primary:active,
-.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:active {
-  transform: translateY(4px) !important;
-  box-shadow: 0 3px 0 0 #C24921 !important;
-  transition: transform 0.15s ease !important; /* Simple transition */
+/* Simple active state - only scale, no shadow movement */
+.slide-button.tap-scale.menu-btn-primary:active,
+.slide-button.tap-scale.menu-btn-primary:focus,
+.slide-button.tap-scale.menu-btn-primary:focus-visible,
+.slider-slide .slide-button.tap-scale.menu-btn-primary:active,
+.slider-slide .slide-button.tap-scale.menu-btn-primary:focus,
+.slider-slide .slide-button.tap-scale.menu-btn-primary:focus-visible {
+  transform: scale(0.80) !important; /* Scale down much more */
+  box-shadow: 0 8px 0 0 #C24921 !important; /* Keep original shadow */
+  background: #E97A55 !important; /* Keep original color */
+  color: white !important; /* Keep original text color */
+  transition: transform 0.35s ease !important; /* Longer transition - 200ms more */
+  -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
 }
 
 /* Force Play button to stay at scale(1) when not actively being clicked */
-.slide-button.squishy.squishy-cc.menu-btn-primary.play-button-reset,
-.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary.play-button-reset,
-.slide-button.squishy.squishy-cc.menu-btn-primary:not(:active),
-.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary:not(:active) {
+.slide-button.tap-scale.menu-btn-primary.play-button-reset,
+.slider-slide .slide-button.tap-scale.menu-btn-primary.play-button-reset,
+.slide-button.tap-scale.menu-btn-primary:not(:active),
+.slider-slide .slide-button.tap-scale.menu-btn-primary:not(:active) {
   transform: scale(1) !important; /* Always default scale when not being clicked */
   transition: none !important; /* No automatic transitions */
 }
 
 /* Prevent any automatic scaling from bottom sheet animations */
-.slide-button.squishy.squishy-cc.menu-btn-primary,
-.slider-slide .slide-button.squishy.squishy-cc.menu-btn-primary {
+.slide-button.tap-scale.menu-btn-primary,
+.slider-slide .slide-button.tap-scale.menu-btn-primary {
   will-change: auto !important; /* Prevent GPU acceleration that might cause scaling */
 }
 
@@ -546,9 +569,13 @@ body{height:100dvh;height:100vh;overflow:hidden}
 .new-game-btn,
 .restart-btn,
 .exit-btn {
-  transition: transform 0.15s ease !important;
+  transition: transform 0.35s ease !important;
   position: relative !important;
   overflow: hidden !important; /* Clip shimmer effect */
+  -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
+  -webkit-touch-callout: none !important; /* Remove mobile callout */
+  -webkit-user-select: none !important; /* Prevent text selection */
+  user-select: none !important; /* Prevent text selection */
 }
 
 /* Add shimmer effect to all bottom sheet CTA buttons - using same animation as slider */
@@ -583,13 +610,24 @@ body{height:100dvh;height:100vh;overflow:hidden}
 .restart-btn:hover,
 .exit-btn:hover {
   transform: scale(1) !important; /* No hover scaling */
+  -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
 }
 
 .continue-btn:active,
+.continue-btn:focus,
+.continue-btn:focus-visible,
 .new-game-btn:active,
+.new-game-btn:focus,
+.new-game-btn:focus-visible,
 .restart-btn:active,
-.exit-btn:active {
-  transform: scale(0.85) !important; /* Press down 15% */
+.restart-btn:focus,
+.restart-btn:focus-visible,
+.exit-btn:active,
+.exit-btn:focus,
+.exit-btn:focus-visible {
+  transform: scale(0.80) !important; /* Scale down much more */
+  transition: transform 0.35s ease !important; /* Longer transition */
+  -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
 }
 
 /* Bottom sheet shimmer timing - using working-shimmer animation */
@@ -834,7 +872,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
-.menu-back-button.squishy {
+.menu-back-button.tap-scale {
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
   -webkit-tap-highlight-color: transparent;
   outline: none;
@@ -845,11 +883,11 @@ body{height:100dvh;height:100vh;overflow:hidden}
   align-self: flex-start;
 }
 
-.menu-back-button.squishy:hover {
+.menu-back-button.tap-scale:hover {
   transform: translateY(1px) scale(1.05);
 }
 
-.menu-back-button.squishy:active {
+.menu-back-button.tap-scale:active {
   transform: translateY(2px) scale(0.98);
 }
 
@@ -1251,12 +1289,12 @@ body{height:100dvh;height:100vh;overflow:hidden}
   transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
-/* Squishy animation for back button */
-.stats-back-button.squishy {
+/* Tap scale animation for back button */
+.stats-back-button.tap-scale {
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
   -webkit-tap-highlight-color: transparent;
   outline: none;
-  /* Override base .squishy sizing so the back button hugs the icon */
+  /* Override base sizing so the back button hugs the icon */
   width: auto;
   min-width: 0;
   padding: 10px;
@@ -1264,11 +1302,11 @@ body{height:100dvh;height:100vh;overflow:hidden}
   align-self: flex-start;
 }
 
-.stats-back-button.squishy:hover {
+.stats-back-button.tap-scale:hover {
   transform: translateY(1px) scale(1.05);
 }
 
-.stats-back-button.squishy:active {
+.stats-back-button.tap-scale:active {
   transform: translateY(2px) scale(0.98);
 }
 
@@ -1421,7 +1459,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
 
 /* Menu Button Primary - Thick CTA buttons */
 .menu-btn-primary,
-.squishy.menu-btn-primary {
+.tap-scale.menu-btn-primary {
   width: 250px;
   height: auto;
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
@@ -1573,7 +1611,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
 }
 
 /* FIXED: Working shimmer with proper styling */
-.slide-button.squishy.squishy-cc.menu-btn-primary::after {
+.slide-button.tap-scale.menu-btn-primary::after {
   content: "" !important;
   position: absolute !important;
   top: 0 !important;
@@ -1725,24 +1763,30 @@ body{height:100dvh;height:100vh;overflow:hidden}
   z-index: 10;
   /* FLAT - no 3D effects */
   box-shadow: 0 8px 0 0 #C24921;
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce transition */
+  transition: transform 0.35s ease !important; /* Simple scale transition */
   overflow: hidden; /* For liquid fill effect */
+  -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
+  -webkit-touch-callout: none !important; /* Remove mobile callout */
+  -webkit-user-select: none !important; /* Prevent text selection */
+  user-select: none !important; /* Prevent text selection */
 }
 
 /* Remove liquid fill - using springy bounce instead */
 
 .continue-btn:hover {
   background: #E97A55; /* Same color on hover - flat */
-  transform: translateY(3px) !important;
-  transition: transform 0.15s ease !important;
-  box-shadow: 0 4px 0 0 #C24921;
+  transform: scale(1) !important;
+  transition: transform 0.35s ease !important;
+  box-shadow: 0 8px 0 0 #C24921;
 }
 
-.continue-btn:active {
+.continue-btn:active,
+.continue-btn:focus,
+.continue-btn:focus-visible {
   background: #E97A55; /* Same color on active - flat */
-  transform: translateY(4px) !important;
-  transition: transform 0.15s ease !important;
-  box-shadow: 0 3px 0 0 #C24921;
+  transform: scale(0.80) !important;
+  transition: transform 0.35s ease !important;
+  box-shadow: 0 8px 0 0 #C24921;
 }
 
 .new-game-btn {
@@ -1765,23 +1809,29 @@ body{height:100dvh;height:100vh;overflow:hidden}
   z-index: 10;
   /* FLAT - no 3D effects */
   box-shadow: 0 8px 0 0 #E9DCD6;
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important; /* Springy bounce transition */
+  transition: transform 0.35s ease !important; /* Simple scale transition */
+  -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
+  -webkit-touch-callout: none !important; /* Remove mobile callout */
+  -webkit-user-select: none !important; /* Prevent text selection */
+  user-select: none !important; /* Prevent text selection */
 }
 
 .new-game-btn:hover {
   background: white; /* Same color on hover - flat */
   color: #AD8675; /* Updated font color */
-  transform: translateY(3px) !important;
-  transition: transform 0.15s ease !important;
-  box-shadow: 0 4px 0 0 #E9DCD6;
+  transform: scale(1) !important;
+  transition: transform 0.35s ease !important;
+  box-shadow: 0 8px 0 0 #E9DCD6;
 }
 
-.new-game-btn:active {
+.new-game-btn:active,
+.new-game-btn:focus,
+.new-game-btn:focus-visible {
   background: white; /* Same color on active - flat */
   color: #AD8675; /* Updated font color */
-  transform: translateY(4px) !important;
-  transition: transform 0.15s ease !important;
-  box-shadow: 0 3px 0 0 #E9DCD6;
+  transform: scale(0.80) !important;
+  transition: transform 0.35s ease !important;
+  box-shadow: 0 8px 0 0 #E9DCD6;
 }
 
 /* Debug button styling */
@@ -1856,7 +1906,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
 /* Tablet and iPad responsive */
 /* Performance optimization for lower-end devices */
 @media (prefers-reduced-motion: reduce) {
-  .slide-button.squishy.squishy-cc.menu-btn-primary::after,
+  .slide-button.tap-scale.menu-btn-primary::after,
   .continue-btn::after,
   .new-game-btn::after,
   .restart-btn::after,
@@ -1868,7 +1918,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
 
 /* Reduce shimmer frequency on mobile for better performance */
 @media screen and (max-width: 768px) {
-  .slide-button.squishy.squishy-cc.menu-btn-primary::after,
+  .slide-button.tap-scale.menu-btn-primary::after,
   .continue-btn::after,
   .new-game-btn::after,
   .restart-btn::after,
@@ -1879,7 +1929,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
 
 @media screen and (min-width: 768px) and (max-width: 1024px) {
   /* Ensure slider CTA is same width as bottom sheet buttons on iPad */
-  .slide-button.squishy.squishy-cc.menu-btn-primary {
+  .slide-button.tap-scale.menu-btn-primary {
     max-width: 249px !important;
   }
   
@@ -1895,31 +1945,35 @@ body{height:100dvh;height:100vh;overflow:hidden}
   .continue-btn, .new-game-btn {
     max-width: 249px; /* Same as slider CTA on iPad */
     /* Keep flat style on iPad */
-    /* transition removed - using springy bounce */
+    transition: transform 0.35s ease !important; /* Simple scale transition */
   }
   
   .continue-btn:hover {
-    transform: translateY(3px) !important;
-    transition: transform 0.15s ease !important;
-    box-shadow: 0 4px 0 0 #C24921;
+    transform: scale(1) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #C24921;
   }
   
-  .continue-btn:active {
-    transform: translateY(4px) !important;
-    transition: transform 0.15s ease !important;
-    box-shadow: 0 3px 0 0 #C24921;
+  .continue-btn:active,
+  .continue-btn:focus,
+  .continue-btn:focus-visible {
+    transform: scale(0.80) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #C24921;
   }
   
   .new-game-btn:hover {
-    transform: translateY(3px) !important;
-    transition: transform 0.15s ease !important;
-    box-shadow: 0 4px 0 0 #E9DCD6;
+    transform: scale(1) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #E9DCD6;
   }
   
-  .new-game-btn:active {
-    transform: translateY(4px) !important;
-    transition: transform 0.15s ease !important;
-    box-shadow: 0 3px 0 0 #E9DCD6;
+  .new-game-btn:active,
+  .new-game-btn:focus,
+  .new-game-btn:focus-visible {
+    transform: scale(0.80) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #E9DCD6;
   }
 }
 
@@ -1935,31 +1989,35 @@ body{height:100dvh;height:100vh;overflow:hidden}
     padding: 0 56px; /* Same as slider CTA */
     max-width: 249px; /* Same as slider CTA on mobile */
     /* Keep flat style on mobile */
-    /* transition removed - using springy bounce */
+    transition: transform 0.35s ease !important; /* Simple scale transition */
   }
   
   .continue-btn:hover {
-    transform: translateY(3px) !important;
-    transition: transform 0.15s ease !important;
-    box-shadow: 0 4px 0 0 #C24921;
+    transform: scale(1) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #C24921;
   }
   
-  .continue-btn:active {
-    transform: translateY(4px) !important;
-    transition: transform 0.15s ease !important;
-    box-shadow: 0 3px 0 0 #C24921;
+  .continue-btn:active,
+  .continue-btn:focus,
+  .continue-btn:focus-visible {
+    transform: scale(0.80) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #C24921;
   }
   
   .new-game-btn:hover {
-    transform: translateY(3px) !important;
-    transition: transform 0.15s ease !important;
-    box-shadow: 0 4px 0 0 #E9DCD6;
+    transform: scale(1) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #E9DCD6;
   }
   
-  .new-game-btn:active {
-    transform: translateY(4px) !important;
-    transition: transform 0.15s ease !important;
-    box-shadow: 0 3px 0 0 #E9DCD6;
+  .new-game-btn:active,
+  .new-game-btn:focus,
+  .new-game-btn:focus-visible {
+    transform: scale(0.80) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #E9DCD6;
   }
 }
 
@@ -2105,22 +2163,32 @@ body{height:100dvh;height:100vh;overflow:hidden}
   pointer-events: auto;
   position: relative;
   z-index: 10;
-  /* Springy bounce transition */
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+  /* Simple scale transition */
+  transition: transform 0.35s ease !important;
   box-shadow: 0 8px 0 0 #C24921;
+  -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
+  -webkit-touch-callout: none !important; /* Remove mobile callout */
+  -webkit-user-select: none !important; /* Prevent text selection */
+  user-select: none !important; /* Prevent text selection */
 }
 
-/* Dramatic click effect for restart button */
+/* Scale effect for restart button */
 .restart-btn:hover {
-  transform: translateY(3px) !important;
-  transition: transform 0.15s ease !important;
-  box-shadow: 0 4px 0 0 #C24921;
+  transform: scale(1) !important;
+  transition: transform 0.35s ease !important;
+  box-shadow: 0 8px 0 0 #C24921;
+  background: #E8734A !important; /* Keep original color */
+  color: white !important; /* Keep original text color */
 }
 
-.restart-btn:active {
-  transform: translateY(4px) !important;
-  transition: transform 0.15s ease !important;
-  box-shadow: 0 3px 0 0 #C24921;
+.restart-btn:active,
+.restart-btn:focus,
+.restart-btn:focus-visible {
+  transform: scale(0.80) !important;
+  transition: transform 0.35s ease !important;
+  box-shadow: 0 8px 0 0 #C24921;
+  background: #E8734A !important; /* Keep original color */
+  color: white !important; /* Keep original text color */
 }
 
 .exit-btn {
@@ -2144,22 +2212,32 @@ body{height:100dvh;height:100vh;overflow:hidden}
   pointer-events: auto;
   position: relative;
   z-index: 10;
-  /* Springy bounce transition */
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+  /* Simple scale transition */
+  transition: transform 0.35s ease !important;
   box-shadow: 0 8px 0 0 #E9DCD6;
+  -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
+  -webkit-touch-callout: none !important; /* Remove mobile callout */
+  -webkit-user-select: none !important; /* Prevent text selection */
+  user-select: none !important; /* Prevent text selection */
 }
 
-/* Dramatic click effect for exit button */
+/* Scale effect for exit button */
 .exit-btn:hover {
-  transform: translateY(3px) !important;
-  transition: transform 0.15s ease !important;
-  box-shadow: 0 4px 0 0 #E9DCD6;
+  transform: scale(1) !important;
+  transition: transform 0.35s ease !important;
+  box-shadow: 0 8px 0 0 #E9DCD6;
+  background: white !important; /* Keep original color */
+  color: #AD8675 !important; /* Keep original text color */
 }
 
-.exit-btn:active {
-  transform: translateY(4px) !important;
-  transition: transform 0.15s ease !important;
-  box-shadow: 0 3px 0 0 #E9DCD6;
+.exit-btn:active,
+.exit-btn:focus,
+.exit-btn:focus-visible {
+  transform: scale(0.80) !important;
+  transition: transform 0.35s ease !important;
+  box-shadow: 0 8px 0 0 #E9DCD6;
+  background: white !important; /* Keep original color */
+  color: #AD8675 !important; /* Keep original text color */
 }
 
 /* Tablet and iPad responsive */
@@ -2175,6 +2253,35 @@ body{height:100dvh;height:100vh;overflow:hidden}
   
   .restart-btn, .exit-btn {
     max-width: 249px; /* Same as slider CTA on iPad */
+    transition: transform 0.35s ease !important; /* Simple scale transition */
+  }
+  
+  .restart-btn:hover {
+    transform: scale(1) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #C24921;
+  }
+  
+  .restart-btn:active,
+  .restart-btn:focus,
+  .restart-btn:focus-visible {
+    transform: scale(0.80) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #C24921;
+  }
+  
+  .exit-btn:hover {
+    transform: scale(1) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #E9DCD6;
+  }
+  
+  .exit-btn:active,
+  .exit-btn:focus,
+  .exit-btn:focus-visible {
+    transform: scale(0.80) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #E9DCD6;
   }
 }
 
@@ -2199,6 +2306,35 @@ body{height:100dvh;height:100vh;overflow:hidden}
     font-size: 22px;
     padding: 0 56px; /* Same as slider CTA */
     max-width: 249px; /* Same as slider CTA on mobile */
+    transition: transform 0.35s ease !important; /* Simple scale transition */
+  }
+  
+  .restart-btn:hover {
+    transform: scale(1) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #C24921;
+  }
+  
+  .restart-btn:active,
+  .restart-btn:focus,
+  .restart-btn:focus-visible {
+    transform: scale(0.80) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #C24921;
+  }
+  
+  .exit-btn:hover {
+    transform: scale(1) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #E9DCD6;
+  }
+  
+  .exit-btn:active,
+  .exit-btn:focus,
+  .exit-btn:focus-visible {
+    transform: scale(0.80) !important;
+    transition: transform 0.35s ease !important;
+    box-shadow: 0 8px 0 0 #E9DCD6;
   }
 }
 

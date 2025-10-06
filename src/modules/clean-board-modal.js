@@ -149,6 +149,11 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
     btn.style.opacity = '0';
     btn.style.transform = 'scale(0.8)';
     btn.style.marginTop = '0';
+    // Mobile optimizations
+    btn.style.webkitTapHighlightColor = 'transparent';
+    btn.style.webkitTouchCallout = 'none';
+    btn.style.webkitUserSelect = 'none';
+    btn.style.userSelect = 'none';
 
     infoStack.appendChild(hero);
     textCluster.appendChild(title);
@@ -325,8 +330,8 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
       
       const handleButtonDown = () => {
         buttonPressStartedOnButton = true;
-        btn.style.transform = 'scale(0.85)';
-        btn.style.transition = 'transform 0.15s ease';
+        btn.style.transform = 'scale(0.80)'; // Same scale as other buttons
+        btn.style.transition = 'transform 0.35s ease'; // Same timing as other buttons
       };
       
       const handleButtonUp = (e) => {
@@ -337,12 +342,12 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
         
         buttonPressStartedOnButton = false;
         btn.style.transform = 'scale(1)';
-        btn.style.transition = 'transform 0.15s ease';
+        btn.style.transition = 'transform 0.35s ease'; // Same timing as other buttons
       };
       
       const handleButtonLeave = () => {
         btn.style.transform = 'scale(1)';
-        btn.style.transition = 'transform 0.15s ease';
+        btn.style.transition = 'transform 0.35s ease'; // Same timing as other buttons
       };
       
       btn.addEventListener('mousedown', handleButtonDown);

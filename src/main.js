@@ -173,7 +173,7 @@ async function showResumeGameModal() {
 
     const newGameBtn = document.createElement('button');
     newGameBtn.textContent = 'New Game';
-    newGameBtn.className = 'squishy squishy-white';
+    newGameBtn.className = 'tap-scale';
     newGameBtn.style.cssText = [
       'width: 250px',
       'height: 64px',
@@ -529,7 +529,7 @@ async function checkForSavedGame() {
           console.log('🎮 Found played game, showing resume bottom sheet...');
           
           // CRITICAL: Reset Play button immediately before showing modal
-          const playButton = document.querySelector('.slide-button.squishy.squishy-cc.menu-btn-primary');
+          const playButton = document.querySelector('.slide-button.tap-scale.menu-btn-primary');
           if (playButton) {
             playButton.style.transform = 'scale(1) !important';
             playButton.style.transition = 'none !important';
@@ -832,7 +832,7 @@ function ensureParallaxLoop(sliderParallaxImage){
         console.log(`🎯 Slider update: slide ${currentSlide}, translateX: ${translateX}px`);
         
         // CRITICAL: Ensure Play button stays at scale(1) after slider updates
-        const playButton = document.querySelector('.slide-button.squishy.squishy-cc.menu-btn-primary');
+        const playButton = document.querySelector('.slide-button.tap-scale.menu-btn-primary');
         if (playButton) {
           playButton.style.transform = 'scale(1) !important';
           playButton.style.transition = 'none !important';
@@ -2323,7 +2323,7 @@ function ensureParallaxLoop(sliderParallaxImage){
       console.log('🔓 Slider unlocked immediately');
       
       // CRITICAL: Force Play button to scale(1) immediately and stop all animations
-      const playButton = document.querySelector('.slide-button.squishy.squishy-cc.menu-btn-primary');
+      const playButton = document.querySelector('.slide-button.tap-scale.menu-btn-primary');
       if (playButton) {
         playButton.style.transform = 'scale(1) !important';
         playButton.style.transition = 'none !important';
@@ -2347,7 +2347,7 @@ function ensureParallaxLoop(sliderParallaxImage){
     
     // Background function to ensure Play button is always at scale(1)
     window.ensurePlayButtonReset = () => {
-      const playButton = document.querySelector('.slide-button.squishy.squishy-cc.menu-btn-primary');
+      const playButton = document.querySelector('.slide-button.tap-scale.menu-btn-primary');
       if (playButton) {
         playButton.style.transform = 'scale(1) !important';
         playButton.style.transition = 'none !important';
@@ -2361,7 +2361,7 @@ function ensureParallaxLoop(sliderParallaxImage){
 window.showEndRunModalFromGame = async () => {
   try {
     // CRITICAL: Reset Play button immediately before showing end run modal
-    const playButton = document.querySelector('.slide-button.squishy.squishy-cc.menu-btn-primary');
+    const playButton = document.querySelector('.slide-button.tap-scale.menu-btn-primary');
     if (playButton) {
       playButton.style.transform = 'scale(1) !important';
       playButton.style.transition = 'none !important';
@@ -2706,7 +2706,7 @@ window.startNewGame = async () => {
       }
       
       // CRITICAL: Reset Play button immediately before exit
-      const playButton = document.querySelector('.slide-button.squishy.squishy-cc.menu-btn-primary');
+      const playButton = document.querySelector('.slide-button.tap-scale.menu-btn-primary');
       if (playButton) {
         playButton.style.transform = 'scale(1) !important';
         playButton.style.transition = 'none !important';

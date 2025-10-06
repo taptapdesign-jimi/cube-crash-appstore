@@ -1,7 +1,7 @@
 // src/modules/app-boot.js
 import { Application, Container, Graphics, Rectangle, Assets } from 'pixi.js';
 import { gsap } from 'gsap';
-import { STATE, ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_WILD, TILE } from './app-state.js';
+import { STATE, ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, TILE } from './app-state.js';
 // layout function is now in app.js
 import { installDrag } from './install-drag.js';
 import { rebuildBoard } from './app-board.js';
@@ -42,7 +42,7 @@ export async function boot(){
   STATE.stage.eventMode = 'static';
   STATE.stage.hitArea   = new Rectangle(0, 0, STATE.app.renderer.width, STATE.app.renderer.height);
 
-  await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_WILD]);
+  await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD]);
   await ensureFonts();
 
   const ret = installDrag({
