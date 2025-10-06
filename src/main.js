@@ -23,11 +23,16 @@ const HOMEPAGE_IMAGES = [
 
 // Function to randomize homepage image
 function randomizeHomepageImage() {
+  console.log('🎲 randomizeHomepageImage called');
   const heroImage = document.querySelector('.slider-slide[data-slide="0"] .hero-image');
+  console.log('🎲 heroImage found:', heroImage);
   if (heroImage) {
     const randomImage = HOMEPAGE_IMAGES[Math.floor(Math.random() * HOMEPAGE_IMAGES.length)];
+    console.log('🎲 Setting image to:', randomImage);
     heroImage.src = randomImage;
     console.log('🎲 Randomized homepage image:', randomImage);
+  } else {
+    console.warn('🎲 No hero image found for randomization');
   }
 }
 
@@ -3028,6 +3033,15 @@ window.startNewGame = async () => {
         // SHOW HOME
         home.style.display = 'block';
         home.removeAttribute('hidden');
+        
+        // Randomize homepage image when exiting from HUD
+        console.log('🎲 exitToMenu: About to call randomizeHomepageImage');
+        if (typeof window.randomizeHomepageImage === 'function') {
+          window.randomizeHomepageImage();
+          console.log('🎲 exitToMenu: randomizeHomepageImage called');
+        } else {
+          console.warn('🎲 exitToMenu: randomizeHomepageImage function not available');
+        }
         
         // Clean any inline styles and let CSS define layout
         try {
