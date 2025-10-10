@@ -27,7 +27,7 @@ let gameStats = {
   helpersUsed: 0,
   longestCombo: 0,
   collectiblesUnlocked: 0,
-  boardsCleared: 0,
+  highestBoard: 0,
   timePlayed: 0
 };
 
@@ -1000,7 +1000,7 @@ async function initializeApp() {
       helpersUsed: 0,
       longestCombo: 0,
       collectiblesUnlocked: 0,
-      boardsCleared: 0,
+      highestBoard: 0,
       timePlayed: 0
     };
     
@@ -1666,21 +1666,21 @@ async function initializeApp() {
         helpersUsed: toIntSafe(obj.helpersUsed),
         longestCombo: toIntSafe(obj.longestCombo),
         collectiblesUnlocked: toIntSafe(obj.collectiblesUnlocked),
-        boardsCleared: toIntSafe(obj.boardsCleared),
+        highestBoard: toIntSafe(obj.highestBoard || obj.boardsCleared || 0),
         timePlayed: toIntSafe(obj.timePlayed),
       };
     }
 
     // Function to update stats data with animation
     function updateStatsData(data) {
-      const { highScore, cubesCracked, helpersUsed, longestCombo, collectiblesUnlocked, boardsCleared, timePlayed } = sanitizeStats(data);
+      const { highScore, cubesCracked, helpersUsed, longestCombo, collectiblesUnlocked, highestBoard, timePlayed } = sanitizeStats(data);
       
       const highScoreEl = document.getElementById('high-score');
       const cubesCrackedEl = document.getElementById('cubes-cracked');
       const helpersUsedEl = document.getElementById('helpers-used');
       const longestComboEl = document.getElementById('longest-combo');
       const collectiblesUnlockedEl = document.getElementById('collectibles-unlocked');
-      const boardsClearedEl = document.getElementById('boards-cleared');
+      const highestBoardEl = document.getElementById('highest-board');
       const timePlayedEl = document.getElementById('time-played');
       
       if (highScoreEl && highScore !== undefined) {
@@ -1709,9 +1709,9 @@ async function initializeApp() {
         collectiblesUnlockedEl.classList.add('animating');
         setTimeout(() => collectiblesUnlockedEl.classList.remove('animating'), 300);
       }
-      if (boardsClearedEl && boardsCleared !== undefined) {
-        gameStats.boardsCleared = boardsCleared;
-        animateNumber(boardsClearedEl, boardsCleared);
+      if (highestBoardEl && highestBoard !== undefined) {
+        gameStats.highestBoard = highestBoard;
+        animateNumber(highestBoardEl, highestBoard);
       }
       if (timePlayedEl && timePlayed !== undefined) {
         gameStats.timePlayed = timePlayed;
@@ -1790,7 +1790,7 @@ async function initializeApp() {
       // If stats screen open, animate zeros
       if (statsScreen && !statsScreen.hidden) {
         try {
-          ['high-score','boards-cleared','cubes-cracked','helpers-used','longest-combo','time-played'].forEach(id => {
+          ['high-score','highest-board','cubes-cracked','helpers-used','longest-combo','time-played'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.textContent = '0';
           });
@@ -2855,9 +2855,12 @@ window.startNewGame = async () => {
       incrementStat('helpersUsed', count);
     };
     
-    // Function to track boards cleared
-    window.trackBoardsCleared = (count = 1) => {
-      incrementStat('boardsCleared', count);
+    // Function to track highest board reached
+    window.trackHighestBoard = (currentBoard) => {
+      if (currentBoard > gameStats.highestBoard) {
+        updateStat('highestBoard', currentBoard);
+        console.log('🎯 New highest board reached:', currentBoard);
+      }
     };
     
     // Function to track longest combo
@@ -2898,7 +2901,7 @@ window.startNewGame = async () => {
         helpersUsed: 0,
         longestCombo: 0,
         collectiblesUnlocked: 0,
-        boardsCleared: 0,
+        highestBoard: 0,
         timePlayed: 0
       };
       saveStatsToStorage();
