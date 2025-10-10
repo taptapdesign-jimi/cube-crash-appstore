@@ -23,8 +23,9 @@ let timeTrackingInterval = null;
 // Game stats
 let gameStats = {
   highScore: 0,
-  totalMoves: 0,
-  totalMerges: 0,
+  cubesCracked: 0,
+  helpersUsed: 0,
+  longestCombo: 0,
   collectiblesUnlocked: 0,
   boardsCleared: 0,
   timePlayed: 0
