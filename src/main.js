@@ -14,46 +14,7 @@ let loadingPercentage = null;
 let home = null;
 let appHost = null;
 
-// Homepage image variants
-const HOMEPAGE_IMAGES = [
-  './assets/crash-cubes-homepage.png',
-  './assets/crash-cubes-homepage1.png', 
-  './assets/crash-cubes-homepage2.png'
-];
-
-// Function to randomize homepage image with smooth animation
-function randomizeHomepageImage() {
-  console.log('🎲 randomizeHomepageImage called');
-  const heroImage = document.querySelector('.slider-slide[data-slide="0"] .hero-image');
-  const parallaxImage = document.getElementById('slider-parallax-image');
-  console.log('🎲 heroImage found:', heroImage);
-  console.log('🎲 parallaxImage found:', parallaxImage);
-  
-  if (heroImage) {
-    const randomImage = HOMEPAGE_IMAGES[Math.floor(Math.random() * HOMEPAGE_IMAGES.length)];
-    console.log('🎲 Setting image to:', randomImage);
-    
-    // No animation reset needed
-    
-    // Set the new image for both hero and parallax
-    heroImage.src = randomImage;
-    if (parallaxImage) {
-      parallaxImage.src = randomImage;
-    }
-    
-    // Image loads instantly without animation
-    heroImage.onload = () => {
-      console.log('🎲 Randomized homepage image loaded:', randomImage);
-    };
-    
-    console.log('🎲 Randomized homepage image:', randomImage);
-  } else {
-    console.warn('🎲 No hero image found for randomization');
-  }
-}
-
-// Make it globally accessible so it can be called from anywhere
-window.randomizeHomepageImage = randomizeHomepageImage;
+// No randomization - homepage always uses crash-cubes-homepage.png
 
 // Time tracking variables
 let gameStartTime = null;
@@ -819,39 +780,12 @@ function ensureParallaxLoop(sliderParallaxImage){
 })();
 
 // Preload homepage images immediately for smooth display
-async function preloadHomepageImages() {
-  try {
-    console.log('🎨 Preloading homepage images...');
-    const homepageImages = [
-      './assets/crash-cubes-homepage.png',
-      './assets/crash-cubes-homepage1.png',
-      './assets/crash-cubes-homepage2.png'
-    ];
-    
-    // Load homepage images with high priority
-    await Promise.all(homepageImages.map(async (imagePath) => {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => resolve();
-        img.onerror = () => resolve(); // Continue even if one fails
-        img.src = imagePath;
-      });
-    }));
-    
-    console.log('✅ Homepage images preloaded');
-  } catch (error) {
-    console.warn('⚠️ Homepage images preload failed:', error);
-  }
-}
+// Homepage image preloading removed - using static crash-cubes-homepage.png only
 
 // Initialize app after assets are loaded
 async function initializeApp() {
   try {
-    // Preload homepage images first
-    await preloadHomepageImages();
-    
-    // Randomize homepage image on app start
-    randomizeHomepageImage();
+    // Homepage image is static - no preloading or randomization needed
     
     // Test shimmer code removed for maximum performance - using pure CSS timing
 
@@ -3082,14 +3016,7 @@ window.startNewGame = async () => {
         home.style.display = 'block';
         home.removeAttribute('hidden');
         
-        // Randomize homepage image when exiting from HUD
-        console.log('🎲 exitToMenu: About to call randomizeHomepageImage');
-        if (typeof window.randomizeHomepageImage === 'function') {
-          window.randomizeHomepageImage();
-          console.log('🎲 exitToMenu: randomizeHomepageImage called');
-        } else {
-          console.warn('🎲 exitToMenu: randomizeHomepageImage function not available');
-        }
+        // Homepage image is static - no randomization needed
         
         // Clean any inline styles and let CSS define layout
         try {

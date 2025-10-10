@@ -2529,14 +2529,7 @@ async function showResumeGameModal() {
       document.body.removeChild(overlay);
       localStorage.removeItem('cc_saved_game');
       restartGame();
-      // Randomize homepage image when exiting from HUD
-      console.log('🎲 app.js exitBtn: About to call randomizeHomepageImage');
-      if (typeof window.randomizeHomepageImage === 'function') {
-        window.randomizeHomepageImage();
-        console.log('🎲 app.js exitBtn: randomizeHomepageImage called');
-      } else {
-        console.warn('🎲 app.js exitBtn: randomizeHomepageImage function not available');
-      }
+      // Homepage image is static - no randomization needed
       resolve();
     };
 

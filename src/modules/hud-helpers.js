@@ -411,14 +411,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
             console.log('Calling showMenuScreen...');
             if (typeof window.showMenuScreen === 'function') {
               window.showMenuScreen();
-              // Randomize homepage image when exiting from HUD
-              console.log('🎲 hud-helpers: About to call randomizeHomepageImage');
-              if (typeof window.randomizeHomepageImage === 'function') {
-                window.randomizeHomepageImage();
-                console.log('🎲 hud-helpers: randomizeHomepageImage called');
-              } else {
-                console.warn('🎲 hud-helpers: randomizeHomepageImage function not available');
-              }
+              // Homepage image is static - no randomization needed
             } else {
               console.warn('showMenuScreen function not available');
             }
