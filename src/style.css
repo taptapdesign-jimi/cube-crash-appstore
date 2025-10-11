@@ -88,16 +88,8 @@
 }
 
 .loading-percentage {
-  font-size: 80px;
-  font-weight: bold;
-  color: #DB9C77;
-  font-family: "LT Crow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
-}
-
-.loading-percentage::after {
-  content: "%";
-  font-size: 42px;
-  font-weight: bold;
+  font-size: 18px;
+  font-weight: 600;
   color: #DB9C77;
   font-family: "LT Crow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
 }
