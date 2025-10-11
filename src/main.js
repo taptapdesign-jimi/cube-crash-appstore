@@ -731,7 +731,7 @@ function ensureParallaxLoop(sliderParallaxImage){
         loadingFill.style.width = `${percentage}%`;
       }
       if (loadingPercentage) {
-        loadingPercentage.textContent = `${percentage}%`;
+        loadingPercentage.textContent = `${percentage}`;
       }
       console.log(`📦 Loading progress: ${percentage}% (${loaded}/${total})`);
     });
