@@ -9,12 +9,21 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
   transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.loading-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -1;
 }
 
 /* ===== HOMEPAGE IMAGE - NO FADE-IN ===== */
@@ -60,46 +69,37 @@
 }
 
 .loading-logo img {
-  width: 200px;
+  width: 320px;
   height: auto;
   margin-bottom: 30px;
   animation: pulse 2s ease-in-out infinite;
 }
 
 .loading-text {
-  font-size: 24px;
-  font-weight: 600;
-  color: #333;
+  font-size: 20px;
+  font-weight: bold;
+  color: #DB9C77;
   margin-bottom: 30px;
-  font-family: ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
+  font-family: "LT Crow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
 }
 
 .loading-progress {
   width: 100%;
 }
 
-.loading-bar {
-  width: 100%;
-  height: 8px;
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 15px;
-}
-
-.loading-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #F89058 0%, #E36D37 100%);
-  border-radius: 4px;
-  width: 0%;
-  transition: width 0.3s ease;
-}
-
 .loading-percentage {
-  font-size: 18px;
-  font-weight: 600;
-  color: #666;
-  font-family: ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
+  font-size: 80px;
+  font-weight: bold;
+  color: #DB9C77;
+  font-family: "LT Crow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
+}
+
+.loading-percentage::after {
+  content: "%";
+  font-size: 42px;
+  font-weight: bold;
+  color: #DB9C77;
+  font-family: "LT Crow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
 }
 
 @keyframes pulse {
