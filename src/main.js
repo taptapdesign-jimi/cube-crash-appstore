@@ -816,10 +816,11 @@ async function initializeApp() {
           parallaxTargetX = 0;
           ensureParallaxLoop(sliderParallaxImage);
         } else {
-          sliderParallaxImage.style.transform = '';
-          sliderParallaxImage.style.left = '0';
-          sliderParallaxImage.style.top = '-60vh';
-          sliderParallaxImage.style.transform = 'translateX(0px)';
+          // Disable the fallback parallax graphic so it doesn't ghost during exit animations
+          sliderParallaxImage.style.display = 'none';
+          sliderParallaxImage.style.removeProperty('left');
+          sliderParallaxImage.style.removeProperty('top');
+          sliderParallaxImage.style.removeProperty('transform');
         }
       }
     } catch {}
@@ -836,7 +837,7 @@ async function initializeApp() {
     };
 
     const driftBackground = (towardsLeft = true) => {
-      if (!sliderParallaxImage) return;
+      if (!PARALLAX_ENABLED || !sliderParallaxImage) return;
       try { bgTween?.kill?.(); } catch {}
       const targetX = towardsLeft ? BG_DRIFT_DISTANCE : 0;
       bgTween = gsap.to(sliderParallaxImage, {
