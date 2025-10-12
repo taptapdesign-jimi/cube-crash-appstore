@@ -124,10 +124,10 @@ body{
 /* Hero shadow ellipse under loading percentage */
 .loading-shadow {
   position: absolute;
-  bottom: -20px;
+  bottom: -4px; /* Podignuto 16px gore (-20px + 16px = -4px) */
   left: 50%;
   transform: translateX(-50%);
-  width: 168px; /* 140px + 20% = 168px */
+  width: 235px; /* 168px + 40% = 235px (širina povećana za 40%) */
   height: 40px;
   background: #F3E5D3;
   border-radius: 50%;
