@@ -127,7 +127,7 @@ body{
   bottom: -20px;
   left: 50%;
   transform: translateX(-50%);
-  width: 140px;
+  width: 168px; /* 140px + 20% = 168px */
   height: 40px;
   background: #F3E5D3;
   border-radius: 50%;
