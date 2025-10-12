@@ -8,27 +8,7 @@
   overflow: visible;
   border-radius: 0;
   margin-top: -10vh; /* Lift up 20% */
-  background-color: transparent;
-}
-
-.slider-bg-image{
-  position: absolute;
-  left: -12vw;
-  bottom: calc(-22vh - env(safe-area-inset-bottom, 0px));
-  width: 180vw;
-  height: auto;
-  min-height: 200vh;
-  object-fit: cover;
-  object-position: left bottom;
-  pointer-events: none;
-  user-select: none;
-  z-index: 0;
-  /* CRITICAL iOS FIX: Force immediate rendering */
-  will-change: auto;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  background: var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%));
 }
 
 .slider-viewport{

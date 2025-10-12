@@ -731,10 +731,8 @@ function ensureParallaxLoop(sliderParallaxImage){
   }
 
   async function ensureCriticalImagesReady() {
-    const sliderBgImage = document.querySelector('#home .slider-bg-image');
-    const loadingBgImage = loadingScreen?.querySelector('.loading-bg') || null;
     const heroImage = document.querySelector('.slider-slide[data-slide="0"] .hero-image');
-    const targets = [sliderBgImage, loadingBgImage, heroImage].filter(
+    const targets = [heroImage].filter(
       (img) => img instanceof HTMLImageElement
     );
 
@@ -837,7 +835,11 @@ function ensureParallaxLoop(sliderParallaxImage){
     
     // Show loading screen initially
     if (loadingScreen) {
+      loadingScreen.classList.remove('hidden');
       loadingScreen.style.display = 'flex';
+    }
+    if (loadingPercentage) {
+      loadingPercentage.textContent = '0';
     }
     if (home) {
       home.style.display = 'none';
@@ -867,18 +869,6 @@ async function initializeApp() {
     if (globalBg) {
       globalBg.dataset.ready = '1';
     }
-    const sliderBgImg = document.querySelector('#home .slider-bg-image');
-    if (sliderBgImg) {
-      sliderBgImg.dataset.ready = '1';
-      
-      // CRITICAL iOS FIX: Force immediate rendering by triggering reflow
-      if (sliderBgImg.complete) {
-        sliderBgImg.style.opacity = '0.9999'; // Triggers repaint
-        setTimeout(() => {
-          sliderBgImg.style.opacity = '1';
-        }, 0);
-      }
-    }
     
     // iOS FIX: Force immediate rendering of homepage image
     const heroImage = document.querySelector('.slider-slide[data-slide="0"] .hero-image');
@@ -889,7 +879,7 @@ async function initializeApp() {
       }, 0);
     }
     
-    console.log('✅ Parallax background marked as ready (already loaded in preloader)');
+    console.log('✅ Background gradient ready');
 
     // Homepage image is static - no preloading or randomization needed
     

@@ -45,7 +45,6 @@ const ALL_ASSETS = [
   './assets/resume-game.png',
   './assets/settings-icon.png',
   './assets/settings-slider.png',
-  './assets/slider-parallax-bg.png', // ← CRITICAL: Parallax background moved to priority position
   './assets/stats-trophy.png',
   './assets/stop.png',
   './assets/time-icon.png',

@@ -14,8 +14,6 @@
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/wild.png">
   <link rel="icon" href="./favicon.ico">
   
-  <!-- CRITICAL iOS FIX: Eager preload with highest priority -->
-  <link rel="preload" href="./assets/slider-parallax-bg.png" as="image" fetchpriority="high">
   <link rel="preload" href="./assets/crash-cubes-homepage.png" as="image" fetchpriority="high">
   <link rel="preconnect" href="./assets">
   
@@ -30,14 +28,13 @@
   <div id="global-bg" aria-hidden="true"></div>
   <!-- Loading Screen -->
   <div id="loading-screen" class="loading-screen">
-    <img class="loading-bg" src="./assets/slider-parallax-bg.png" alt="Background" loading="eager" fetchpriority="high" />
     <div class="loading-content">
       <div class="loading-logo">
         <img src="./assets/logo-cube-crash.png" alt="CubeCrash" loading="eager" fetchpriority="high" />
       </div>
       <div class="loading-text">Loading...</div>
       <div class="loading-progress">
-        <div class="loading-percentage" id="loading-percentage">0%</div>
+        <div class="loading-percentage" id="loading-percentage">0</div>
       </div>
     </div>
   </div>
@@ -48,7 +45,6 @@
 
       <!-- OPTIMIZED SLIDER STRUCTURE -->
       <div id="slider-container">
-        <img class="slider-bg-image" src="./assets/slider-parallax-bg.png" alt="" aria-hidden="true" loading="eager" fetchpriority="high" />
         <div class="slider-viewport">
           <div id="slider-wrapper">
             <!-- Slide 0: Home -->
