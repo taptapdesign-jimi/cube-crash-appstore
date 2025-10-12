@@ -217,8 +217,8 @@
 }
 
 .slider-dot {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   border: none;
   background: #E8D6BF;
@@ -233,8 +233,8 @@
 
 .slider-dot.active {
   background: #D87A53;
-  width: 16px; /* 4px veći od 12px */
-  height: 16px; /* 4px veći od 12px */
+  width: 18px; /* 8px veći od 10px */
+  height: 18px; /* 8px veći od 10px */
   transform: scale(1.0); /* Bez scale jer je već veći */
 }
 
