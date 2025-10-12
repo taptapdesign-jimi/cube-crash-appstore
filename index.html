@@ -13,6 +13,12 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/wild.png">
   <link rel="icon" href="./favicon.ico">
+  
+  <!-- CRITICAL iOS FIX: Eager preload with highest priority -->
+  <link rel="preload" href="./assets/slider-parallax-bg.png" as="image" fetchpriority="high">
+  <link rel="preload" href="./assets/crash-cubes-homepage.png" as="image" fetchpriority="high">
+  <link rel="preconnect" href="./assets">
+  
   <link rel="stylesheet" href="./src/style.css">
   <link rel="stylesheet" href="./src/slider-optimized.css">
   <style>
@@ -21,12 +27,13 @@
   </style>
 </head>
 <body>
+  <div id="global-bg" aria-hidden="true"></div>
   <!-- Loading Screen -->
   <div id="loading-screen" class="loading-screen">
-    <img class="loading-bg" src="./assets/slider-parallax-bg.png" alt="Background" />
+    <img class="loading-bg" src="./assets/slider-parallax-bg.png" alt="Background" loading="eager" fetchpriority="high" />
     <div class="loading-content">
       <div class="loading-logo">
-        <img src="./assets/logo-cube-crash.png" alt="CubeCrash" />
+        <img src="./assets/logo-cube-crash.png" alt="CubeCrash" loading="eager" fetchpriority="high" />
       </div>
       <div class="loading-text">Loading...</div>
       <div class="loading-progress">
@@ -37,16 +44,18 @@
 
   <div id="home" style="display: none;">
     <div class="content">
-      <img id="home-logo" src="./assets/logo-cube-crash.png" alt="CubeCrash" />
+      <img id="home-logo" src="./assets/logo-cube-crash.png" alt="CubeCrash" loading="eager" fetchpriority="high" />
 
       <!-- OPTIMIZED SLIDER STRUCTURE -->
       <div id="slider-container">
-        <div id="slider-wrapper">
-          <!-- Slide 0: Home -->
+        <img class="slider-bg-image" src="./assets/slider-parallax-bg.png" alt="" aria-hidden="true" loading="eager" fetchpriority="high" />
+        <div class="slider-viewport">
+          <div id="slider-wrapper">
+            <!-- Slide 0: Home -->
           <div class="slider-slide active" data-slide="0">
             <div class="slide-content">
               <div class="hero-container">
-                <img class="hero-image" src="./assets/crash-cubes-homepage.png" alt="Crashed cubes" />
+                <img class="hero-image" src="./assets/crash-cubes-homepage.png" alt="Crashed cubes" loading="eager" fetchpriority="high" />
                 <img id="slider-parallax-image" class="slider-parallax-image" src="./assets/crash-cubes-homepage.png" alt="Parallax" />
                 <div class="hero-shadow"></div>
               </div>
@@ -98,6 +107,7 @@
               </div>
             </div>
           </div>
+        </div>
         </div>
         
         <!-- Navigation Dots -->

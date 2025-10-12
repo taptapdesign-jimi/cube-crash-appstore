@@ -25,9 +25,10 @@ gsap.set = (target, vars)=>{ if(!__alive(target)) return; if(Array.isArray(targe
 
 export async function boot(){
   STATE.app = new Application();
-  await STATE.app.init({ resizeTo: window, background: 0xF5F5F5, antialias: true });
+  await STATE.app.init({ resizeTo: window, backgroundAlpha: 0, antialias: true });
   document.getElementById('app').appendChild(STATE.app.canvas);
   STATE.app.canvas.style.touchAction = 'none';
+  STATE.app.canvas.style.background = 'transparent';
 
   STATE.stage   = STATE.app.stage; STATE.stage.sortableChildren = true;
   STATE.board   = new Container(); STATE.board.sortableChildren = true;

@@ -698,35 +698,17 @@ function ensureParallaxLoop(sliderParallaxImage){
 
 (async () => {
   try {
-    // Wait for DOM
-    if (document.readyState === 'loading') {
-      await new Promise(res => document.addEventListener('DOMContentLoaded', res, { once: true }));
-    }
-
-    // Initialize loading screen elements
-    loadingScreen = document.getElementById('loading-screen');
-    loadingFill = document.getElementById('loading-fill');
-    loadingPercentage = document.getElementById('loading-percentage');
-    home = document.getElementById('home');
-    appHost = document.getElementById('app');
+    // CRITICAL FIX: Start preloader IMMEDIATELY, don't wait for DOM
+    console.log('🔄 Starting asset preloading IMMEDIATELY...');
     
-    // Show loading screen initially
-    if (loadingScreen) {
-      loadingScreen.style.display = 'flex';
-    }
-    if (home) {
-      home.style.display = 'none';
-    }
+    // Wait for DOM in parallel with preloading
+    const domReady = document.readyState === 'loading' 
+      ? new Promise(res => document.addEventListener('DOMContentLoaded', res, { once: true }))
+      : Promise.resolve();
     
-    if (!home || !appHost) {
-      throw new Error('Required elements not found');
-    }
-
-    // Start asset preloading
-    console.log('🔄 Starting asset preloading...');
-    
-    // Set up progress callbacks
+    // Set up progress callbacks BEFORE starting preloader
     assetPreloader.setProgressCallback((percentage, loaded, total) => {
+      // These elements might not be available yet, so check safely
       if (loadingFill) {
         loadingFill.style.width = `${percentage}%`;
       }
@@ -772,8 +754,33 @@ function ensureParallaxLoop(sliderParallaxImage){
       initializeApp();
     });
 
-    // Start preloading
-    await assetPreloader.preloadWithIndividualLoading();
+    // Start preloading immediately (don't wait for DOM)
+    const preloadPromise = assetPreloader.preloadWithIndividualLoading();
+    
+    // Wait for DOM in parallel with preloading
+    await domReady;
+    
+    // Initialize loading screen elements AFTER DOM is ready
+    loadingScreen = document.getElementById('loading-screen');
+    loadingFill = document.getElementById('loading-fill');
+    loadingPercentage = document.getElementById('loading-percentage');
+    home = document.getElementById('home');
+    appHost = document.getElementById('app');
+    
+    // Show loading screen initially
+    if (loadingScreen) {
+      loadingScreen.style.display = 'flex';
+    }
+    if (home) {
+      home.style.display = 'none';
+    }
+    
+    if (!home || !appHost) {
+      throw new Error('Required elements not found');
+    }
+    
+    // Wait for preloading to complete
+    await preloadPromise;
 
   } catch (error) {
     console.error('❌ Error:', error);
@@ -786,6 +793,36 @@ function ensureParallaxLoop(sliderParallaxImage){
 // Initialize app after assets are loaded
 async function initializeApp() {
   try {
+    // CRITICAL FIX: Parallax background is now loaded in main preloader
+    // Just mark it as ready since it's already loaded
+    const globalBg = document.getElementById('global-bg');
+    if (globalBg) {
+      globalBg.dataset.ready = '1';
+    }
+    const sliderBgImg = document.querySelector('#home .slider-bg-image');
+    if (sliderBgImg) {
+      sliderBgImg.dataset.ready = '1';
+      
+      // CRITICAL iOS FIX: Force immediate rendering by triggering reflow
+      if (sliderBgImg.complete) {
+        sliderBgImg.style.opacity = '0.9999'; // Triggers repaint
+        setTimeout(() => {
+          sliderBgImg.style.opacity = '1';
+        }, 0);
+      }
+    }
+    
+    // iOS FIX: Force immediate rendering of homepage image
+    const heroImage = document.querySelector('.slider-slide[data-slide="0"] .hero-image');
+    if (heroImage && heroImage.complete) {
+      heroImage.style.opacity = '0.9999';
+      setTimeout(() => {
+        heroImage.style.opacity = '1';
+      }, 0);
+    }
+    
+    console.log('✅ Parallax background marked as ready (already loaded in preloader)');
+
     // Homepage image is static - no preloading or randomization needed
     
     // Test shimmer code removed for maximum performance - using pure CSS timing
