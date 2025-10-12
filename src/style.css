@@ -41,7 +41,7 @@ body{
 /* Homepage image is always visible without fade-in animation */
 .slider-slide[data-slide="0"] .hero-image {
   opacity: 1;
-  transform: scale(1);
+  transform: scale(1) translateZ(0);  /* Combine scale + iOS GPU acceleration */
 }
 
 /* Parallax image for idle animation on homepage */
@@ -63,7 +63,7 @@ body{
 .slider-slide[data-slide="2"] .hero-image,
 .slider-slide[data-slide="3"] .hero-image {
   opacity: 1;
-  transform: scale(1);
+  transform: scale(1) translateZ(0);  /* Combine scale + iOS GPU acceleration */
 }
 
 

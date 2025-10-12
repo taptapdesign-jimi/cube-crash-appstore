@@ -7,8 +7,6 @@ import { Assets } from 'pixi.js';
 const ALL_ASSETS = [
   // Homepage images (priority - load first for immediate display)
   './assets/crash-cubes-homepage.png',
-  './assets/crash-cubes-homepage1.png',
-  './assets/crash-cubes-homepage2.png',
   './assets/logo-cube-crash.png',
   './assets/logo.png',
   
