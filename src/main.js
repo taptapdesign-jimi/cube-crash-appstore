@@ -697,6 +697,62 @@ function ensureParallaxLoop(sliderParallaxImage){
 }
 
 (async () => {
+  async function waitForImageElement(img) {
+    if (!img) return;
+
+    if (!img.complete || img.naturalWidth === 0) {
+      await new Promise((resolve, reject) => {
+        const handleLoad = () => {
+          img.removeEventListener('load', handleLoad);
+          img.removeEventListener('error', handleError);
+          resolve();
+        };
+        const handleError = (event) => {
+          img.removeEventListener('load', handleLoad);
+          img.removeEventListener('error', handleError);
+          reject(event?.error || new Error(`Failed to load ${img.src}`));
+        };
+
+        img.addEventListener('load', handleLoad, { once: true });
+        img.addEventListener('error', handleError, { once: true });
+      });
+    }
+
+    if (typeof img.decode === 'function') {
+      try {
+        await img.decode();
+      } catch (error) {
+        // Safari may throw EncodingError even when the image is ready.
+        if (error?.name !== 'EncodingError') {
+          throw error;
+        }
+      }
+    }
+  }
+
+  async function ensureCriticalImagesReady() {
+    const sliderBgImage = document.querySelector('#home .slider-bg-image');
+    const loadingBgImage = loadingScreen?.querySelector('.loading-bg') || null;
+    const heroImage = document.querySelector('.slider-slide[data-slide="0"] .hero-image');
+    const targets = [sliderBgImage, loadingBgImage, heroImage].filter(
+      (img) => img instanceof HTMLImageElement
+    );
+
+    if (!targets.length) {
+      return;
+    }
+
+    await Promise.all(
+      targets.map(async (img) => {
+        try {
+          await waitForImageElement(img);
+        } catch (error) {
+          console.warn('⚠️ Critical image failed to preload:', img.src, error);
+        }
+      })
+    );
+  }
+
   try {
     // CRITICAL FIX: Start preloader IMMEDIATELY, don't wait for DOM
     console.log('🔄 Starting asset preloading IMMEDIATELY...');
@@ -718,8 +774,14 @@ function ensureParallaxLoop(sliderParallaxImage){
       console.log(`📦 Loading progress: ${percentage}% (${loaded}/${total})`);
     });
 
-    assetPreloader.setCompleteCallback(() => {
+    assetPreloader.setCompleteCallback(async () => {
       console.log('✅ All assets loaded successfully');
+
+      if (loadingPercentage) {
+        loadingPercentage.textContent = '100';
+      }
+
+      await ensureCriticalImagesReady();
       
       // Hide loading screen and show main content
       if (loadingScreen) {
@@ -733,11 +795,17 @@ function ensureParallaxLoop(sliderParallaxImage){
       }
       
       // Initialize the rest of the app
-      initializeApp();
+      await initializeApp();
     });
 
-    assetPreloader.setErrorCallback((error) => {
+    assetPreloader.setErrorCallback(async (error) => {
       console.error('❌ Asset loading failed:', error);
+
+      try {
+        await ensureCriticalImagesReady();
+      } catch (preloadError) {
+        console.warn('⚠️ Proceeding without fully preloaded images:', preloadError);
+      }
       
       // Still show the app even if some assets failed to load
       if (loadingScreen) {
@@ -751,7 +819,7 @@ function ensureParallaxLoop(sliderParallaxImage){
       }
       
       // Initialize the rest of the app
-      initializeApp();
+      await initializeApp();
     });
 
     // Start preloading immediately (don't wait for DOM)
