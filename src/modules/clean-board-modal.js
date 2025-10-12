@@ -3,7 +3,16 @@
 
 // Keep CSS-based pop-in like homepage slide 1
 
-const HEADLINE_TEXT = 'Outstanding!';
+const HEADLINES = [
+  'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
+  'Perfect!', 'Brilliant!', 'Superb!', 'Awesome!', 'Spectacular!',
+  'Magnificent!', 'Phenomenal!', 'Marvelous!', 'Exceptional!', 'Stellar!',
+  'Remarkable!', 'Impressive!', 'Unbelievable!', 'Wonderful!', 'Fabulous!',
+  'Sensational!', 'Terrific!', 'Splendid!', 'Exquisite!', 'Divine!',
+  'Glorious!', 'Masterful!', 'Flawless!', 'Supreme!', 'Epic!'
+];
+
+const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 export async function showCleanBoardModal({ app, stage, getScore, setScore, animateScore, updateHUD, bonus = 500, scoreCap = 999999, boardNumber = 1 } = {}) {
   return new Promise(async resolve => {
@@ -83,9 +92,9 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
       'width:100%'
     ].join(';');
 
-    // Title
+    // Title (random headline)
     const title = document.createElement('div');
-    title.textContent = HEADLINE_TEXT;
+    title.textContent = pickRandom(HEADLINES);
     title.style.cssText = 'color:#B07F69;font-weight:800;font-size:40px;line-height:1;margin:0;';
 
     // "Your score" label
