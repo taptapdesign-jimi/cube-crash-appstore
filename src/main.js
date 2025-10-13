@@ -14,6 +14,467 @@ let loadingPercentage = null;
 let home = null;
 let appHost = null;
 
+const SPRING_EASE = 'cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+const SPRING_DURATION_MS = 650;
+const SPRING_EXIT_DURATION_MS = 450;
+const MINIMUM_PRELOADER_TIME_MS = 3000;
+
+let preloadStartTime = 0;
+let loaderStartTime = 0;
+let loaderDisplayProgress = 0;
+let loaderActualProgress = 0;
+let loaderAssetsComplete = false;
+let loaderTickerActive = false;
+let loaderTickerId = null;
+let loaderVisualReadyResolve = null;
+let loaderLastTimeProgress = 0;
+let loaderMinimumTimeReached = false;
+let loaderPendingRealProgress = 0;
+const loaderVisualReadyPromise = new Promise((resolve) => {
+  loaderVisualReadyResolve = resolve;
+});
+let loaderFakeTimeline = null;
+
+function setLoaderPercentageValue(value) {
+  if (!loadingPercentage) return;
+  const formatted = Math.max(0, Math.min(100, Math.round(value)));
+  loadingPercentage.textContent = `${formatted}`;
+}
+
+function updateLoaderTextFromProgress(progress) {
+  const clamped = Math.max(0, Math.min(progress, 0.999));
+  const displayValue = Math.min(99, Math.floor(clamped * 100));
+  setLoaderPercentageValue(displayValue);
+}
+
+function loaderTick() {
+  if (!loaderTickerActive) return;
+  const now = performance.now();
+  const elapsed = now - loaderStartTime;
+  loaderMinimumTimeReached = elapsed >= Math.max(500, MINIMUM_PRELOADER_TIME_MS - 320);
+  let timeProgress = 0;
+
+  if (loaderFakeTimeline && loaderFakeTimeline.length > 1) {
+    const finalEntry = loaderFakeTimeline[loaderFakeTimeline.length - 1];
+    const totalTime = finalEntry.time;
+    const clampedTime = Math.min(elapsed, totalTime);
+
+    let targetValue = finalEntry.value;
+    for (let i = 1; i < loaderFakeTimeline.length; i++) {
+      const prev = loaderFakeTimeline[i - 1];
+      const current = loaderFakeTimeline[i];
+      if (clampedTime <= current.time) {
+        const span = Math.max(16, current.time - prev.time);
+        const localT = Math.max(0, Math.min(1, (clampedTime - prev.time) / span));
+        targetValue = prev.value + (current.value - prev.value) * localT;
+        break;
+      }
+    }
+    timeProgress = Math.min(0.99, targetValue / 100);
+  } else if (MINIMUM_PRELOADER_TIME_MS > 0) {
+    timeProgress = Math.min(0.99, elapsed / MINIMUM_PRELOADER_TIME_MS);
+  } else {
+    timeProgress = 0.99;
+  }
+
+  loaderLastTimeProgress = timeProgress;
+
+  if (loaderMinimumTimeReached && loaderPendingRealProgress > loaderActualProgress) {
+    const easedReal = Math.min(0.95, loaderPendingRealProgress * 0.9);
+    loaderActualProgress = Math.max(loaderActualProgress, easedReal);
+  }
+
+  const target = Math.min(0.99, Math.max(loaderActualProgress, timeProgress));
+
+  if (target > loaderDisplayProgress) {
+    const delta = target - loaderDisplayProgress;
+    const step = Math.min(0.028, Math.max(delta * 0.085, 0.0015));
+    loaderDisplayProgress = Math.min(target, loaderDisplayProgress + step);
+    updateLoaderTextFromProgress(loaderDisplayProgress);
+  }
+
+  loaderTickerId = requestAnimationFrame(loaderTick);
+}
+
+function startLoaderTicker() {
+  if (loaderTickerActive) return;
+  loaderTickerActive = true;
+  loaderTickerId = requestAnimationFrame(loaderTick);
+}
+
+function stopLoaderTicker() {
+  loaderTickerActive = false;
+  if (loaderTickerId !== null) {
+    cancelAnimationFrame(loaderTickerId);
+    loaderTickerId = null;
+  }
+}
+
+function initializeLoaderProgressTracking() {
+  loaderStartTime = performance.now();
+  preloadStartTime = loaderStartTime;
+  loaderDisplayProgress = 0;
+  loaderActualProgress = 0;
+  loaderAssetsComplete = false;
+  loaderFakeTimeline = buildFakeTimeline();
+  loaderLastTimeProgress = 0;
+  loaderMinimumTimeReached = false;
+  loaderPendingRealProgress = 0;
+  stopLoaderTicker();
+  setLoaderPercentageValue(0);
+  startLoaderTicker();
+  if (loaderVisualReadyResolve) {
+    loaderVisualReadyResolve();
+    loaderVisualReadyResolve = null;
+  }
+}
+
+function completeLoaderProgressInstant() {
+  loaderAssetsComplete = true;
+  loaderActualProgress = 1;
+  loaderDisplayProgress = 1;
+  stopLoaderTicker();
+  setLoaderPercentageValue(100);
+}
+
+function buildFakeTimeline() {
+  const total = Math.max(1000, MINIMUM_PRELOADER_TIME_MS);
+  const anchorConfigs = [
+    { ratio: 0.0, min: 0, max: 0 },
+    { ratio: 0.25, min: 10, max: 22 },
+    { ratio: 0.50, min: 38, max: 55 },
+    { ratio: 0.75, min: 68, max: 84 },
+    { ratio: 1.0, min: 98, max: 99 }
+  ];
+
+  const anchors = anchorConfigs.map((cfg, index) => {
+    const jitterRatio = index === 0 || index === anchorConfigs.length - 1
+      ? 0
+      : (Math.random() * 0.18 - 0.09);
+    const time = Math.round(
+      Math.max(0, Math.min(total, total * (cfg.ratio + jitterRatio)))
+    );
+    const range = cfg.max - cfg.min;
+    const value = index === 0
+      ? 0
+      : cfg.min + Math.floor(Math.random() * (range + 1));
+    return { time, value };
+  });
+
+  anchors.sort((a, b) => a.time - b.time);
+  anchors[0].time = 0;
+  anchors[0].value = 0;
+  anchors[anchors.length - 1].time = total;
+  anchors[anchors.length - 1].value = 99;
+
+  for (let i = 1; i < anchors.length; i++) {
+    const prev = anchors[i - 1];
+    const current = anchors[i];
+    if (current.time - prev.time < 200) {
+      current.time = prev.time + 200;
+    }
+    if (current.time > total) {
+      current.time = total;
+    }
+    if (current.value <= prev.value) {
+      current.value = Math.min(99, prev.value + 4 + Math.floor(Math.random() * 5));
+    }
+  }
+
+  const timeline = [];
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const start = anchors[i];
+    const end = anchors[i + 1];
+    timeline.push(start);
+
+    const span = end.time - start.time;
+    if (span > 350) {
+      const midTime = Math.round(start.time + span / 2 + (Math.random() * 120 - 60));
+      const midValue = Math.min(
+        99,
+        start.value + Math.max(3, Math.floor((end.value - start.value) * (0.45 + Math.random() * 0.25)))
+      );
+      if (midTime > start.time + 160 && midTime < end.time - 160 && midValue > start.value && midValue < end.value) {
+        timeline.push({ time: midTime, value: midValue });
+      }
+    }
+  }
+  timeline.push(anchors[anchors.length - 1]);
+  timeline.sort((a, b) => a.time - b.time);
+  return timeline;
+}
+
+let loaderEnterPlayed = false;
+let loaderExitPlayed = false;
+let initialSlideEnterPlayed = false;
+
+function applySpringInitial(el, { scale = 0, translateY = '-20px', opacity = '0', transform: transformOverride } = {}) {
+  if (!el) return;
+  try {
+    el.style.transition = 'none';
+    el.style.opacity = opacity;
+    el.style.transformOrigin = '50% 50%';
+    const transformValue = typeof transformOverride === 'string'
+      ? transformOverride
+      : `scale(${scale}) translateY(${translateY})`;
+    el.style.transform = transformValue;
+  } catch {}
+}
+
+function animateSpring(el, {
+  transform = 'scale(1) translateY(0)',
+  opacity = '1',
+  duration = SPRING_DURATION_MS,
+  delay = 0,
+  ease = SPRING_EASE,
+  preserveTransform = true,
+  preserveOpacity = true
+} = {}) {
+  if (!el) return;
+  setTimeout(() => {
+    try {
+      el.style.transition = `opacity ${duration}ms ${ease}, transform ${duration}ms ${ease}`;
+      el.style.opacity = opacity;
+      el.style.transform = transform;
+      setTimeout(() => {
+        try {
+          el.style.transition = 'none';
+          if (!preserveTransform) {
+            el.style.removeProperty('transform');
+          }
+          if (!preserveOpacity) {
+            el.style.removeProperty('opacity');
+          }
+        } catch {}
+      }, duration + 80);
+    } catch {}
+  }, delay);
+}
+
+function runSpringEnter(entries = []) {
+  const valid = entries.filter((entry) => entry?.el);
+  if (!valid.length) return Promise.resolve();
+
+  valid.forEach((entry) => {
+    applySpringInitial(entry.el, entry.initial);
+  });
+
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      let longest = 0;
+      valid.forEach((entry) => {
+        const duration = entry.duration ?? SPRING_DURATION_MS;
+        const delay = entry.delay ?? 0;
+        longest = Math.max(longest, delay + duration);
+        animateSpring(entry.el, {
+          transform: entry.finalTransform ?? 'scale(1) translateY(0)',
+          opacity: entry.finalOpacity ?? '1',
+          duration,
+          delay,
+          ease: entry.ease ?? SPRING_EASE,
+          preserveTransform: entry.preserveTransform ?? true,
+          preserveOpacity: entry.preserveOpacity ?? true
+        });
+      });
+      setTimeout(resolve, longest + 100);
+    });
+  });
+}
+
+function runSpringExit(entries = []) {
+  const valid = entries.filter((entry) => entry?.el);
+  if (!valid.length) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    let longest = 0;
+    valid.forEach((entry) => {
+      const duration = entry.duration ?? SPRING_EXIT_DURATION_MS;
+      const delay = entry.delay ?? 0;
+      longest = Math.max(longest, delay + duration);
+      setTimeout(() => {
+        try {
+          entry.el.style.transition = `opacity ${duration}ms ${entry.ease ?? SPRING_EASE}, transform ${duration}ms ${entry.ease ?? SPRING_EASE}`;
+          entry.el.style.opacity = entry.exitOpacity ?? '0';
+          entry.el.style.transform = entry.exitTransform ?? 'scale(0.75) translateY(-20px)';
+          setTimeout(() => {
+            try {
+              entry.el.style.transition = 'none';
+            } catch {}
+          }, duration + 80);
+        } catch {}
+      }, delay);
+    });
+
+    setTimeout(resolve, longest + 120);
+  });
+}
+
+async function runLoaderEnterAnimation() {
+  if (loaderEnterPlayed) return;
+  if (!loadingScreen) return;
+  loaderEnterPlayed = true;
+  const logo = loadingScreen.querySelector('.loading-logo img');
+  const text = loadingScreen.querySelector('.loading-text');
+  const percentage = loadingScreen.querySelector('.loading-percentage');
+  const shadow = loadingScreen.querySelector('.loading-shadow');
+
+  const entries = [
+    {
+      el: shadow,
+      initial: { transform: 'translateX(-50%) translateY(12px) scale(0.4)', opacity: '0' },
+      finalTransform: 'translateX(-50%) translateY(0) scale(1)',
+      delay: 10,
+      duration: 520
+    },
+    {
+      el: logo,
+      initial: { scale: 0, translateY: '-26px', opacity: '0' },
+      delay: 40
+    },
+    {
+      el: text,
+      initial: { scale: 0, translateY: '-12px', opacity: '0' },
+      delay: 120
+    },
+    {
+      el: percentage,
+      initial: { scale: 0, translateY: '-8px', opacity: '0' },
+      delay: 180
+    }
+  ];
+
+  await runSpringEnter(entries);
+}
+
+async function runLoaderExitAnimation() {
+  if (loaderExitPlayed) return;
+  if (!loadingScreen) return;
+  loaderExitPlayed = true;
+  const logo = loadingScreen.querySelector('.loading-logo img');
+  const text = loadingScreen.querySelector('.loading-text');
+  const percentage = loadingScreen.querySelector('.loading-percentage');
+  const shadow = loadingScreen.querySelector('.loading-shadow');
+
+  const entries = [
+    {
+      el: percentage,
+      exitTransform: 'scale(0.75) translateY(-16px)',
+      exitOpacity: '0',
+      duration: 420
+    },
+    {
+      el: text,
+      delay: 50,
+      exitTransform: 'scale(0.72) translateY(-18px)',
+      exitOpacity: '0',
+      duration: 430
+    },
+    {
+      el: logo,
+      delay: 100,
+      exitTransform: 'scale(0.68) translateY(-24px)',
+      exitOpacity: '0',
+      duration: 430
+    },
+    {
+      el: shadow,
+      delay: 40,
+      exitTransform: 'translateX(-50%) translateY(18px) scale(0.4)',
+      exitOpacity: '0',
+      duration: 380
+    }
+  ];
+
+  await runSpringExit(entries);
+}
+
+async function animateInitialSlideEnter() {
+  if (initialSlideEnterPlayed) return;
+  const slide = document.querySelector('.slider-slide[data-slide="0"]');
+  if (!slide) return;
+  initialSlideEnterPlayed = true;
+
+  const slideContent = slide.querySelector('.slide-content');
+  const heroContainer = slide.querySelector('.hero-container');
+  const heroImage = slide.querySelector('.hero-image');
+  const heroShadow = slide.querySelector('.hero-shadow');
+  const slideText = slide.querySelector('.slide-text');
+  const slideButton = slide.querySelector('.slide-button');
+  const homeLogo = document.getElementById('home-logo');
+
+  const entries = [
+    {
+      el: homeLogo,
+      initial: { scale: 0, translateY: '-32px', opacity: '0' },
+      delay: 20
+    },
+    {
+      el: slideContent,
+      initial: { scale: 0, translateY: '-28px', opacity: '0' },
+      delay: 60
+    },
+    {
+      el: heroContainer,
+      initial: { transform: 'scale(0) translateY(-30px) translateZ(0)', opacity: '0' },
+      finalTransform: 'scale(1) translateY(0) translateZ(0)',
+      delay: 90
+    },
+    {
+      el: heroImage,
+      initial: { transform: 'scale(0) translateY(-30px) translateZ(0)', opacity: '0' },
+      finalTransform: 'scale(1) translateY(0) translateZ(0)',
+      delay: 90
+    },
+    {
+      el: heroShadow,
+      initial: { transform: 'translateX(-50%) translateY(12px) scale(0.45)', opacity: '0' },
+      finalTransform: 'translateX(-50%) translateY(0) scale(1)',
+      delay: 110,
+      preserveTransform: false,
+      preserveOpacity: false
+    },
+    {
+      el: slideText,
+      initial: { scale: 0, translateY: '-20px', opacity: '0' },
+      finalTransform: 'scale(1) translateY(-8px)',
+      delay: 140
+    },
+    {
+      el: slideButton,
+      initial: { scale: 0, translateY: '12px', opacity: '0' },
+      delay: 180
+    }
+  ];
+
+  await runSpringEnter(entries);
+}
+
+async function fadeOutLoadingOverlay() {
+  if (!loadingScreen) return;
+  loadingScreen.classList.add('hidden');
+  await new Promise((resolve) => setTimeout(resolve, 520));
+  loadingScreen.style.display = 'none';
+}
+
+function waitForLoaderElements() {
+  return new Promise((resolve) => {
+    let attempts = 0;
+    const maxAttempts = 180;
+    const check = () => {
+      if (loadingScreen && loadingPercentage) {
+        resolve();
+        return;
+      }
+      if (attempts++ > maxAttempts) {
+        resolve();
+        return;
+      }
+      requestAnimationFrame(check);
+    };
+    check();
+  });
+}
+
 // No randomization - homepage always uses crash-cubes-homepage.png
 
 // Time tracking variables
@@ -762,38 +1223,60 @@ function ensureParallaxLoop(sliderParallaxImage){
     
     // Set up progress callbacks BEFORE starting preloader
     assetPreloader.setProgressCallback((percentage, loaded, total) => {
-      // These elements might not be available yet, so check safely
       if (loadingFill) {
         loadingFill.style.width = `${percentage}%`;
       }
-      if (loadingPercentage) {
-        loadingPercentage.textContent = `${percentage}`;
+
+      const normalized = total > 0 ? loaded / total : percentage / 100;
+      const clamped = Math.max(0, Math.min(normalized, 1));
+      loaderPendingRealProgress = Math.max(loaderPendingRealProgress, clamped);
+
+      if (clamped >= 1 || percentage >= 100) {
+        loaderAssetsComplete = true;
+        loaderActualProgress = 0.99;
+      } else {
+        if (loaderMinimumTimeReached) {
+          const maxAllowed = Math.min(0.95, loaderLastTimeProgress + 0.12);
+          const eased = Math.min(clamped * 0.85, maxAllowed);
+          loaderActualProgress = Math.max(loaderActualProgress, eased);
+        } else {
+          loaderActualProgress = Math.max(loaderActualProgress, Math.min(0.85, loaderLastTimeProgress));
+        }
       }
+
       console.log(`📦 Loading progress: ${percentage}% (${loaded}/${total})`);
     });
 
     assetPreloader.setCompleteCallback(async () => {
       console.log('✅ All assets loaded successfully');
 
-      if (loadingPercentage) {
-        loadingPercentage.textContent = '100';
+      loaderAssetsComplete = true;
+      loaderActualProgress = 0.99;
+
+      await loaderVisualReadyPromise;
+      const now = performance.now();
+      const referenceStart = preloadStartTime || loaderStartTime || now;
+      const elapsed = now - referenceStart;
+      const remaining = Math.max(0, MINIMUM_PRELOADER_TIME_MS - elapsed);
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
       }
 
       await ensureCriticalImagesReady();
-      
-      // Hide loading screen and show main content
-      if (loadingScreen) {
-        loadingScreen.classList.add('hidden');
-        setTimeout(() => {
-          loadingScreen.style.display = 'none';
-        }, 500);
-      }
+      await waitForLoaderElements();
+
+      completeLoaderProgressInstant();
+      await runLoaderExitAnimation();
+      await fadeOutLoadingOverlay();
+
+      await initializeApp();
+
       if (home) {
         home.style.display = 'block';
+        home.removeAttribute('hidden');
       }
-      
-      // Initialize the rest of the app
-      await initializeApp();
+
+      await animateInitialSlideEnter();
     });
 
     assetPreloader.setErrorCallback(async (error) => {
@@ -804,20 +1287,33 @@ function ensureParallaxLoop(sliderParallaxImage){
       } catch (preloadError) {
         console.warn('⚠️ Proceeding without fully preloaded images:', preloadError);
       }
-      
-      // Still show the app even if some assets failed to load
-      if (loadingScreen) {
-        loadingScreen.classList.add('hidden');
-        setTimeout(() => {
-          loadingScreen.style.display = 'none';
-        }, 500);
+
+      loaderAssetsComplete = true;
+      loaderActualProgress = 0.99;
+
+      await loaderVisualReadyPromise;
+      const now = performance.now();
+      const referenceStart = preloadStartTime || loaderStartTime || now;
+      const elapsed = now - referenceStart;
+      const remaining = Math.max(0, MINIMUM_PRELOADER_TIME_MS - elapsed);
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
       }
+
+      await waitForLoaderElements();
+
+      completeLoaderProgressInstant();
+      await runLoaderExitAnimation();
+      await fadeOutLoadingOverlay();
+
+      await initializeApp();
+
       if (home) {
         home.style.display = 'block';
+        home.removeAttribute('hidden');
       }
-      
-      // Initialize the rest of the app
-      await initializeApp();
+
+      await animateInitialSlideEnter();
     });
 
     // Start preloading immediately (don't wait for DOM)
@@ -838,13 +1334,15 @@ function ensureParallaxLoop(sliderParallaxImage){
       loadingScreen.classList.remove('hidden');
       loadingScreen.style.display = 'flex';
     }
-    if (loadingPercentage) {
-      loadingPercentage.textContent = '0';
-    }
     if (home) {
       home.style.display = 'none';
+      home.setAttribute('hidden', 'true');
     }
-    
+    initializeLoaderProgressTracking();
+    runLoaderEnterAnimation().catch((error) => {
+      console.warn('⚠️ Loader enter animation failed:', error);
+    });
+
     if (!home || !appHost) {
       throw new Error('Required elements not found');
     }

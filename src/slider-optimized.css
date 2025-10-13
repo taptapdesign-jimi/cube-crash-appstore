@@ -8,7 +8,7 @@
   overflow: visible;
   border-radius: 0;
   margin-top: -10vh; /* Lift up 20% */
-  background: var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #F7EBDC 100%));
+  background: var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%));
 }
 
 .slider-viewport{
