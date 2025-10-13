@@ -9,6 +9,11 @@
 body{
   position: relative;
   background: var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%));
+  transition: background 0.6s ease;
+}
+
+body.gradient-fade-out{
+  background: #f5f5f5;
 }
 
 #global-bg{
@@ -20,6 +25,11 @@ body{
   background: var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%));
   pointer-events: none;
   z-index: -1;
+  transition: opacity 0.6s ease;
+}
+
+body.gradient-fade-out #global-bg{
+  opacity: 0;
 }
 
 /* ===== LOADING SCREEN STYLES ===== */
@@ -35,6 +45,10 @@ body{
   z-index: 10000;
   transition: opacity 0.5s ease, visibility 0.5s ease;
   background: var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%));
+}
+
+body.gradient-fade-out .loading-screen {
+  background: #f5f5f5;
 }
 
 /* ===== HOMEPAGE IMAGE - NO FADE-IN ===== */
@@ -286,6 +300,11 @@ body{height:100dvh;height:100vh;overflow:hidden}
   z-index: 999999;
   overflow: hidden; /* Prevent scrolling */
   /* GSAP will handle all animations */
+  transition: opacity 0.6s ease;
+}
+
+body.gradient-fade-out #home{
+  opacity: 0;
 }
 
 /* iPhone 13 specific fixes */

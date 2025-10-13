@@ -35,6 +35,18 @@ const loaderVisualReadyPromise = new Promise((resolve) => {
 });
 let loaderFakeTimeline = null;
 
+function fadeOutGradientBackground() {
+  try {
+    document.body.classList.add('gradient-fade-out');
+  } catch {}
+}
+
+function restoreGradientBackground() {
+  try {
+    document.body.classList.remove('gradient-fade-out');
+  } catch {}
+}
+
 function setLoaderPercentageValue(value) {
   if (!loadingPercentage) return;
   const formatted = Math.max(0, Math.min(100, Math.round(value)));
@@ -123,6 +135,7 @@ function initializeLoaderProgressTracking() {
   stopLoaderTicker();
   setLoaderPercentageValue(0);
   startLoaderTicker();
+  restoreGradientBackground();
   if (loaderVisualReadyResolve) {
     loaderVisualReadyResolve();
     loaderVisualReadyResolve = null;
@@ -393,6 +406,7 @@ async function animateInitialSlideEnter() {
   const slide = document.querySelector('.slider-slide[data-slide="0"]');
   if (!slide) return;
   initialSlideEnterPlayed = true;
+  restoreGradientBackground();
 
   const slideContent = slide.querySelector('.slide-content');
   const heroContainer = slide.querySelector('.hero-container');
@@ -758,19 +772,20 @@ async function showResumeGameModal() {
         e.stopPropagation();
         console.log('🎮 Modal closed by clicking outside');
         animateModalExit().then(() => {
-          overlay.remove();
-          sliderLocked = false;
-          requestAnimationFrame(() => {
-            setTimeout(() => {
-              window.ensureDotsVisible?.();
-            }, 100);
-          });
-          home.style.display = 'block';
-          home.removeAttribute('hidden');
-          home.hidden = false;
-          resolve();
-        });
-      }
+      overlay.remove();
+      sliderLocked = false;
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          window.ensureDotsVisible?.();
+        }, 100);
+      });
+      home.style.display = 'block';
+      home.removeAttribute('hidden');
+      home.hidden = false;
+      restoreGradientBackground();
+      resolve();
+    });
+  }
     };
 
     // Add event listeners with delay to prevent immediate closing
@@ -907,6 +922,7 @@ async function animateModalExit() {
 async function animateSlideExit() {
   return new Promise(resolve => {
     console.log('🎬 Starting slide exit animation...');
+    fadeOutGradientBackground();
     
     // Get dots for animation
     const dots = document.querySelectorAll('.slider-dot');
@@ -1274,6 +1290,7 @@ function ensureParallaxLoop(sliderParallaxImage){
       if (home) {
         home.style.display = 'block';
         home.removeAttribute('hidden');
+        restoreGradientBackground();
       }
 
       await animateInitialSlideEnter();
@@ -1311,6 +1328,7 @@ function ensureParallaxLoop(sliderParallaxImage){
       if (home) {
         home.style.display = 'block';
         home.removeAttribute('hidden');
+        restoreGradientBackground();
       }
 
       await animateInitialSlideEnter();
@@ -1772,6 +1790,7 @@ async function initializeApp() {
       if (sliderLocked) return;
       console.log('📊 Showing stats screen');
       console.log('📊 Stats screen element:', statsScreen);
+      fadeOutGradientBackground();
       
       // Lock slider immediately
       sliderLocked = true;
@@ -1981,6 +2000,7 @@ async function initializeApp() {
         
         // Small delay to let goToSlide complete, then start animation
         setTimeout(() => {
+          restoreGradientBackground();
           // Start logo animation
           if (homeLogo) {
             setTimeout(() => {
@@ -3613,6 +3633,7 @@ window.startNewGame = async () => {
         // SHOW HOME
         home.style.display = 'block';
         home.removeAttribute('hidden');
+        restoreGradientBackground();
         
         // Homepage image is static - no randomization needed
         
