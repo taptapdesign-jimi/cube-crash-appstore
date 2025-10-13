@@ -129,21 +129,6 @@ body{
   font-family: "LT Crow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
 }
 
-/* Hero shadow ellipse under loading percentage */
-.loading-shadow {
-  position: absolute;
-  bottom: -4px; /* Podignuto 16px gore (-20px + 16px = -4px) */
-  left: 50%;
-  transform: translateX(-50%);
-  width: 235px; /* 168px + 40% = 235px (širina povećana za 40%) */
-  height: 40px;
-  background: #F3E5D3;
-  border-radius: 50%;
-  z-index: 0;
-  opacity: 0.25;
-  transform: translateX(-50%);
-}
-
 @keyframes pulse {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.05); }
