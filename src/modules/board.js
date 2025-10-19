@@ -23,6 +23,11 @@ export function drawStack(tile) {
   try { tile.stackG?.destroy({ children: true }); } catch {}
   tile.stackG = null;
 
+  // Add 3D effects to tile
+  if (window.threeDEffects && window.threeDEffects.is3DEnabled) {
+    window.threeDEffects.add3DToTile(tile);
+  }
+
   const depth = Math.max(1, tile.stackDepth | 0);
   if (depth <= 1) return;
 

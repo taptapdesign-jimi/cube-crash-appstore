@@ -4,6 +4,9 @@
 
 :root{
   --app-gradient: linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%);
+  --board-perspective: 1200px;
+  --tile-3d-depth: 20px;
+  --board-tilt: 20deg;
 }
 
 body{
@@ -2704,5 +2707,209 @@ body.gradient-fade-out #home{
     font-size: 22px;
     padding: 14px 48px;
     width: 240px; /* Slightly smaller on mobile */
+  }
+}
+
+/* ===== 3D BOARD EFFECTS ===== */
+#app {
+  perspective: var(--board-perspective);
+  perspective-origin: center center;
+  transform-style: preserve-3d;
+}
+
+/* 3D Board Container */
+.board-container {
+  transform-style: preserve-3d;
+  transform: rotateX(var(--board-tilt)) rotateY(0deg);
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 3D Tiles */
+.tile {
+  transform-style: preserve-3d;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.3s ease;
+  will-change: transform;
+}
+
+/* Tile hover effect with 3D depth */
+.tile:hover {
+  transform: translateZ(var(--tile-3d-depth)) rotateX(5deg) rotateY(5deg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+/* 3D Merge Animation */
+@keyframes merge3D {
+  0% { 
+    transform: translateZ(0px) scale(1) rotateX(0deg) rotateY(0deg);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  25% { 
+    transform: translateZ(30px) scale(1.1) rotateX(90deg) rotateY(45deg);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+  }
+  50% { 
+    transform: translateZ(50px) scale(1.2) rotateX(180deg) rotateY(90deg);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  }
+  75% { 
+    transform: translateZ(30px) scale(1.1) rotateX(270deg) rotateY(135deg);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+  }
+  100% { 
+    transform: translateZ(0px) scale(1) rotateX(360deg) rotateY(180deg);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* 3D Explosion Effect */
+@keyframes explosion3D {
+  0% { 
+    transform: translateZ(0px) scale(1);
+    opacity: 1;
+  }
+  25% { 
+    transform: translateZ(100px) scale(1.5) rotateX(45deg) rotateY(45deg);
+    opacity: 0.8;
+  }
+  50% { 
+    transform: translateZ(200px) scale(2) rotateX(90deg) rotateY(90deg);
+    opacity: 0.6;
+  }
+  75% { 
+    transform: translateZ(300px) scale(2.5) rotateX(135deg) rotateY(135deg);
+    opacity: 0.3;
+  }
+  100% { 
+    transform: translateZ(400px) scale(3) rotateX(180deg) rotateY(180deg);
+    opacity: 0;
+  }
+}
+
+/* 3D Jump Effect */
+@keyframes jump3D {
+  0% { 
+    transform: translateZ(0px) scale(1);
+  }
+  25% { 
+    transform: translateZ(40px) scale(1.1) rotateX(10deg);
+  }
+  50% { 
+    transform: translateZ(60px) scale(1.2) rotateX(20deg);
+  }
+  75% { 
+    transform: translateZ(40px) scale(1.1) rotateX(10deg);
+  }
+  100% { 
+    transform: translateZ(0px) scale(1);
+  }
+}
+
+/* Apply 3D effects to specific elements */
+.tile.merging {
+  animation: merge3D 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.tile.exploding {
+  animation: explosion3D 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.tile.jumping {
+  animation: jump3D 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* 3D Wild Cube Effect */
+.tile.wild {
+  animation: wild3DPulse 2s ease-in-out infinite;
+}
+
+@keyframes wild3DPulse {
+  0% { 
+    transform: translateZ(0px) scale(1) rotateX(0deg);
+  }
+  50% { 
+    transform: translateZ(15px) scale(1.05) rotateX(10deg);
+  }
+  100% { 
+    transform: translateZ(0px) scale(1) rotateX(0deg);
+  }
+}
+
+/* 3D Board Tilt on Mobile */
+@media (max-width: 768px) {
+  .board-container {
+    transform: rotateX(15deg) rotateY(0deg);
+  }
+  
+  :root {
+    --board-tilt: 15deg;
+    --tile-3d-depth: 15px;
+  }
+}
+
+/* Performance optimizations for 3D */
+.tile {
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+/* 3D Depth layers for different tile types */
+.tile[data-value="1"] { transform: translateZ(2px); }
+.tile[data-value="2"] { transform: translateZ(4px); }
+.tile[data-value="3"] { transform: translateZ(6px); }
+.tile[data-value="4"] { transform: translateZ(8px); }
+.tile[data-value="5"] { transform: translateZ(10px); }
+.tile[data-value="6"] { transform: translateZ(12px); }
+.tile.wild { transform: translateZ(15px); }
+
+/* 3D Shadow effects */
+.tile {
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.tile:hover {
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.2),
+    0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* 3D JavaScript Classes */
+.tile-3d {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+.tile.hover-3d {
+  transform: translateZ(var(--tile-3d-depth)) rotateX(5deg) rotateY(5deg);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+}
+
+.tile.wild-3d {
+  animation: wild3DPulse 2s ease-in-out infinite;
+}
+
+.tile.wild-3d-pulse {
+  animation: wild3DPulse 1s ease-in-out infinite;
+}
+
+/* 3D Board Container */
+.board-container {
+  transform-style: preserve-3d;
+  perspective: var(--board-perspective);
+}
+
+/* 3D Performance Optimizations */
+.tile-3d {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* 3D Touch Effects for Mobile */
+@media (max-width: 768px) {
+  .tile-3d:active {
+    transform: translateZ(10px) scale(0.95);
+    transition: transform 0.1s ease;
   }
 }

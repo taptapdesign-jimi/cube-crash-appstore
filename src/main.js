@@ -3,6 +3,7 @@ import { boot, layout as appLayout } from './modules/app.js';
 import { gsap } from 'gsap';
 import { assetPreloader } from './modules/asset-preloader.js';
 import './ios-image-helper.js';
+import './3d-effects.js';
 
 console.log('🚀 Starting simple CubeCrash...');
 

@@ -160,6 +160,11 @@ export function merge(src, dst, helpers){
   if (STATE.busyEnding) { helpers.snapBack?.(src); return; }
   if (src === dst) { helpers.snapBack(src); return; }
 
+  // 3D Effects - Add merging animation
+  if (window.threeDEffects && window.threeDEffects.is3DEnabled) {
+    window.threeDEffects.animateMerge(src, dst);
+  }
+
   const sum      = src.value + dst.value;
   const srcDepth = src.stackDepth || 1;
   const dstDepth = dst.stackDepth || 1;
