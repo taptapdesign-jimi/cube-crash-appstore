@@ -1,0 +1,135 @@
+/* iOS Image Optimization - Automatic @2x and @3x support */
+
+/* Base styles for all images */
+img[src*=".png"] {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* High DPI display support */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  /* @2x images for Retina displays */
+  img[src$=".png"]:not([src*="@2x"]):not([src*="@3x"]) {
+    content: attr(data-src-2x);
+  }
+  
+  /* Specific image optimizations */
+  .logo-cube-crash {
+    background-image: url('../assets/logo-cube-crash@2x.png');
+  }
+  
+  .main-screen {
+    background-image: url('../assets/main-screen@2x.png');
+  }
+  
+  .tile {
+    background-image: url('../assets/tile@2x.png');
+  }
+  
+  .tile3 {
+    background-image: url('../assets/tile3@2x.png');
+  }
+  
+  .tile33 {
+    background-image: url('../assets/tile33@2x.png');
+  }
+  
+  .wild {
+    background-image: url('../assets/wild@2x.png');
+  }
+  
+  .gold-coin {
+    background-image: url('../assets/gold-coin@2x.png');
+  }
+  
+  .melted-dice {
+    background-image: url('../assets/melted-dice@2x.png');
+  }
+  
+  .boom-effect {
+    background-image: url('../assets/fx/boom/boom_0001@2x.png');
+  }
+}
+
+@media (-webkit-min-device-pixel-ratio: 3), (min-resolution: 288dpi) {
+  /* @3x images for high-resolution displays (iPhone 6 Plus, X, 11, 12, 13, 14, 15) */
+  .logo-cube-crash {
+    background-image: url('../assets/logo-cube-crash@3x.png');
+  }
+  
+  .main-screen {
+    background-image: url('../assets/main-screen@3x.png');
+  }
+  
+  .tile {
+    background-image: url('../assets/tile@3x.png');
+  }
+  
+  .tile3 {
+    background-image: url('../assets/tile3@3x.png');
+  }
+  
+  .tile33 {
+    background-image: url('../assets/tile33@3x.png');
+  }
+  
+  .wild {
+    background-image: url('../assets/wild@3x.png');
+  }
+  
+  .gold-coin {
+    background-image: url('../assets/gold-coin@3x.png');
+  }
+  
+  .melted-dice {
+    background-image: url('../assets/melted-dice@3x.png');
+  }
+  
+  .boom-effect {
+    background-image: url('../assets/fx/boom/boom_0001@3x.png');
+  }
+}
+
+/* JavaScript helper for dynamic image loading */
+.ios-optimized-image {
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* Fallback for older browsers */
+.ios-optimized-image::before {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-image: var(--fallback-image);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+/* Performance optimizations */
+.ios-optimized-image {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Preload critical images */
+.preload-critical {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.preload-critical::before {
+  content: '';
+  background-image: 
+    url('../assets/logo-cube-crash@2x.png'),
+    url('../assets/logo-cube-crash@3x.png'),
+    url('../assets/main-screen@2x.png'),
+    url('../assets/main-screen@3x.png');
+}
