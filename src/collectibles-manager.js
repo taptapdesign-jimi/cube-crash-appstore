@@ -34,10 +34,12 @@ class CollectiblesManager {
         { id: 'legendary05', name: 'Ultimate Master', description: 'Complete 500 merges', rarity: 'Legendary', event: 'merge_500', unlocked: false }
       ]
     };
-    this.defaultUnlockedIds = new Set(['common01', 'common02', 'common04', 'common05']);
+    this.defaultUnlockedIds = new Set(['common02', 'common03', 'common04', 'common05']);
+    this.preloadPromise = null;
 
     this.loadCollectiblesState();
     this.ensureDefaultUnlocked();
+    this.preloadImages();
     this.initEventListeners();
   }
 
@@ -115,14 +117,18 @@ class CollectiblesManager {
     });
   }
 
-  showCollectibles() {
+  async showCollectibles() {
     console.log('🎁 showCollectibles method called');
     const screen = document.getElementById('collectibles-screen');
-    console.log('🎁 collectibles-screen element:', screen);
-    
     if (!screen) {
       console.error('❌ collectibles-screen element not found');
       return;
+    }
+
+    try {
+      await this.preloadImages();
+    } catch (error) {
+      console.warn('⚠️ Collectibles assets preload encountered an issue:', error);
     }
     
     screen.classList.remove('hidden');
@@ -163,6 +169,7 @@ class CollectiblesManager {
 
     this.collectiblesData[category].forEach((card, index) => {
       const cardElement = this.createCardElement(card, category, index + 1);
+      cardElement.classList.add('collectibles-card-slot');
       container.appendChild(cardElement);
     });
   }
@@ -211,17 +218,17 @@ class CollectiblesManager {
 
   getPlaceholderPath(category) {
     return category === 'legendary'
-      ? 'assets/colelctibles/legendary back.png'
-      : 'assets/colelctibles/common back.png';
+      ? './assets/colelctibles/legendary back.png'
+      : './assets/colelctibles/common back.png';
   }
 
   getCardImagePath(category, number) {
     if (category === 'legendary') {
       const assetNumber = (number + 20).toString().padStart(2, '0');
-      return `assets/colelctibles/legendary/${assetNumber}.png`;
+      return `./assets/colelctibles/legendary/${assetNumber}.png`;
     }
     const assetNumber = number.toString().padStart(2, '0');
-    return `assets/colelctibles/common/${assetNumber}.png`;
+    return `./assets/colelctibles/common/${assetNumber}.png`;
   }
 
   updateCounters() {
@@ -230,6 +237,42 @@ class CollectiblesManager {
 
     document.getElementById('common-counter').textContent = `${commonUnlocked}/20`;
     document.getElementById('legendary-counter').textContent = `${legendaryUnlocked}/5`;
+  }
+
+  preloadImages() {
+    if (this.preloadPromise) return this.preloadPromise;
+
+    const sources = new Set([
+      this.getPlaceholderPath('common'),
+      this.getPlaceholderPath('legendary')
+    ]);
+
+    this.collectiblesData.common.forEach((card, index) => {
+      sources.add(this.getCardImagePath('common', index + 1));
+    });
+    this.collectiblesData.legendary.forEach((card, index) => {
+      sources.add(this.getCardImagePath('legendary', index + 1));
+    });
+
+    const loadImage = (src) => new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => resolve({ src, status: 'loaded' });
+      img.onerror = () => resolve({ src, status: 'error' });
+      img.src = src;
+    });
+
+    this.preloadPromise = Promise.all([...sources].map(loadImage))
+      .then(results => {
+        const loaded = results.filter(r => r.status === 'loaded').length;
+        console.log(`🎁 Preloaded collectibles assets: ${loaded}/${results.length}`);
+        return results;
+      })
+      .catch(error => {
+        console.warn('⚠️ Collectibles preload failed:', error);
+        throw error;
+      });
+
+    return this.preloadPromise;
   }
 
   showCardDetail(cardId, category) {

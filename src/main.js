@@ -101,11 +101,13 @@ function loaderTick() {
     loaderActualProgress = Math.max(loaderActualProgress, easedReal);
   }
 
-  const target = Math.min(0.99, Math.max(loaderActualProgress, timeProgress));
+  const target = Math.min(0.995, Math.max(loaderActualProgress, timeProgress));
 
   if (target > loaderDisplayProgress) {
     const delta = target - loaderDisplayProgress;
-    const step = Math.min(0.028, Math.max(delta * 0.085, 0.0015));
+    const baseStep = delta * 0.12;
+    const easedStep = baseStep * (1 - target);
+    const step = Math.min(0.05, Math.max(easedStep, 0.002));
     loaderDisplayProgress = Math.min(target, loaderDisplayProgress + step);
     updateLoaderTextFromProgress(loaderDisplayProgress);
   }

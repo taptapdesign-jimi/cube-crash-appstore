@@ -80,7 +80,19 @@ const ALL_ASSETS = [
   './assets/fx/boom/boom_0014.png',
   './assets/fx/boom/boom_0015.png',
   './assets/fx/boom/boom_0016.png',
+  './assets/colelctibles/common back.png',
+  './assets/colelctibles/legendary back.png',
 ];
+
+for (let i = 1; i <= 20; i++) {
+  const id = String(i).padStart(2, '0');
+  ALL_ASSETS.push(`./assets/colelctibles/common/${id}.png`);
+}
+
+for (let i = 21; i <= 25; i++) {
+  const id = String(i).padStart(2, '0');
+  ALL_ASSETS.push(`./assets/colelctibles/legendary/${id}.png`);
+}
 
 export class AssetPreloader {
   constructor() {
@@ -89,6 +101,7 @@ export class AssetPreloader {
     this.onProgress = null;
     this.onComplete = null;
     this.onError = null;
+    this.preloadPromise = null;
   }
 
   setProgressCallback(callback) {
@@ -111,62 +124,74 @@ export class AssetPreloader {
   }
 
   async preloadAll() {
-    console.log('🔄 Starting asset preloading...');
-    
-    try {
-      // Load all assets using PIXI Assets
-      await Assets.load(ALL_ASSETS, (progress) => {
-        this.loadedCount = Math.round(progress * this.totalCount);
-        this.updateProgress();
-      });
-      
-      console.log('✅ All assets preloaded successfully');
-      
-      if (this.onComplete) {
-        this.onComplete();
-      }
-      
-    } catch (error) {
-      console.error('❌ Asset preloading failed:', error);
-      
-      if (this.onError) {
-        this.onError(error);
-      }
+    if (this.preloadPromise) {
+      return this.preloadPromise;
     }
+    this.preloadPromise = (async () => {
+      console.log('🔄 Starting asset preloading...');
+      
+      try {
+        // Load all assets using PIXI Assets
+        await Assets.load(ALL_ASSETS, (progress) => {
+          this.loadedCount = Math.round(progress * this.totalCount);
+          this.updateProgress();
+        });
+        
+        console.log('✅ All assets preloaded successfully');
+        
+        if (this.onComplete) {
+          this.onComplete();
+        }
+        
+      } catch (error) {
+        console.error('❌ Asset preloading failed:', error);
+        
+        if (this.onError) {
+          this.onError(error);
+        }
+      }
+    })();
+    return this.preloadPromise;
   }
 
   // Alternative method for loading assets individually with better error handling
   async preloadWithIndividualLoading() {
-    console.log('🔄 Starting individual asset preloading...');
-    
-    const loadPromises = ALL_ASSETS.map(async (assetPath, index) => {
-      try {
-        await Assets.load(assetPath);
-        this.loadedCount++;
-        this.updateProgress();
-        console.log(`✅ Loaded ${assetPath} (${this.loadedCount}/${this.totalCount})`);
-      } catch (error) {
-        console.warn(`⚠️ Failed to load ${assetPath}:`, error);
-        // Continue loading other assets even if one fails
-        this.loadedCount++;
-        this.updateProgress();
-      }
-    });
-
-    try {
-      await Promise.allSettled(loadPromises);
-      console.log('✅ Asset preloading completed');
-      
-      if (this.onComplete) {
-        this.onComplete();
-      }
-    } catch (error) {
-      console.error('❌ Asset preloading failed:', error);
-      
-      if (this.onError) {
-        this.onError(error);
-      }
+    if (this.preloadPromise) {
+      return this.preloadPromise;
     }
+    this.preloadPromise = (async () => {
+      console.log('🔄 Starting individual asset preloading...');
+      
+      const loadPromises = ALL_ASSETS.map(async (assetPath, index) => {
+        try {
+          await Assets.load(assetPath);
+          this.loadedCount++;
+          this.updateProgress();
+          console.log(`✅ Loaded ${assetPath} (${this.loadedCount}/${this.totalCount})`);
+        } catch (error) {
+          console.warn(`⚠️ Failed to load ${assetPath}:`, error);
+          // Continue loading other assets even if one fails
+          this.loadedCount++;
+          this.updateProgress();
+        }
+      });
+
+      try {
+        await Promise.allSettled(loadPromises);
+        console.log('✅ Asset preloading completed');
+        
+        if (this.onComplete) {
+          this.onComplete();
+        }
+      } catch (error) {
+        console.error('❌ Asset preloading failed:', error);
+        
+        if (this.onError) {
+          this.onError(error);
+        }
+      }
+    })();
+    return this.preloadPromise;
   }
 }
 
