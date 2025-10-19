@@ -461,6 +461,17 @@ export async function showCleanBoardModal({ app, stage, getScore, setScore, anim
         }
         try { window.updateHighScore?.(next); } catch {}
       } catch {}
+      
+      // CRITICAL FIX: Clear saved game state when board is cleared
+      // This prevents the user from being able to "continue" after board completion
+      try {
+        localStorage.removeItem('cc_saved_game');
+        localStorage.removeItem('cubeCrash_gameState');
+        console.log('✅ clean-board-modal: Cleared both saved game states after board completion');
+      } catch (error) {
+        console.warn('⚠️ clean-board-modal: Failed to clear saved game state:', error);
+      }
+      
       setTimeout(() => { try { el.remove(); } catch {}; resolve({ action: 'continue' }); }, collapseDuration + 220);
     });
   });

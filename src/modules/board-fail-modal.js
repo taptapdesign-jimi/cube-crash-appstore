@@ -24,6 +24,19 @@ function removeExisting() {
 
 export function showBoardFailModal({ score = 0, boardNumber = 1 } = {}) {
   return new Promise(resolve => {
+    // CRITICAL FIX: Clear saved game state immediately when fail screen is shown
+    // This prevents the user from being able to "continue" a failed game
+    try {
+      // Set flag to prevent future saves
+      window._gameHasEnded = true;
+      
+      localStorage.removeItem('cc_saved_game');
+      localStorage.removeItem('cubeCrash_gameState');
+      console.log('✅ board-fail-modal: Cleared both saved game states and set gameHasEnded flag');
+    } catch (error) {
+      console.warn('⚠️ board-fail-modal: Failed to clear saved game state:', error);
+    }
+    
     removeExisting();
 
     const overlay = document.createElement('div');

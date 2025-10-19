@@ -342,6 +342,15 @@ export function showPauseModal({ onUnpause, onRestart, onExit } = {}){
             console.log('🎭 RESTART: Animation completed - restarting game...');
             
             try { 
+              // Clear saved game state when restarting from pause
+              try {
+                localStorage.removeItem('cc_saved_game');
+                localStorage.removeItem('cubeCrash_gameState');
+                console.log('✅ pause-modal: Cleared both saved game states on restart');
+              } catch (error) {
+                console.warn('⚠️ pause-modal: Failed to clear saved game state on restart:', error);
+              }
+              
               onRestart?.(); 
               console.log('🎭 RESTART: Game restarted successfully');
             } catch (error) {
@@ -359,6 +368,15 @@ export function showPauseModal({ onUnpause, onRestart, onExit } = {}){
         } else {
           console.log('🎭 RESTART: No card found, using direct restart...');
           try { 
+            // Clear saved game state when restarting from pause
+            try {
+              localStorage.removeItem('cc_saved_game');
+              localStorage.removeItem('cubeCrash_gameState');
+              console.log('✅ pause-modal: Cleared both saved game states on restart (no card fallback)');
+            } catch (error) {
+              console.warn('⚠️ pause-modal: Failed to clear saved game state on restart (no card fallback):', error);
+            }
+            
             await onRestart?.(); 
             console.log('🎭 RESTART: Game restarted successfully (no card fallback)');
           } catch (error) {
@@ -372,6 +390,15 @@ export function showPauseModal({ onUnpause, onRestart, onExit } = {}){
       } else {
         console.log('🎭 RESTART: No overlay found, using direct restart...');
         try { 
+          // Clear saved game state when restarting from pause
+          try {
+            localStorage.removeItem('cc_saved_game');
+            localStorage.removeItem('cubeCrash_gameState');
+            console.log('✅ pause-modal: Cleared both saved game states on restart (no overlay fallback)');
+          } catch (error) {
+            console.warn('⚠️ pause-modal: Failed to clear saved game state on restart (no overlay fallback):', error);
+          }
+          
           await onRestart?.(); 
           console.log('🎭 RESTART: Game restarted successfully (no overlay fallback)');
         } catch (error) {
@@ -404,6 +431,15 @@ export function showPauseModal({ onUnpause, onRestart, onExit } = {}){
             console.log('🎭 EXIT: Animation completed - executing exit logic...');
             
             try {
+              // Clear saved game state when exiting from pause
+              try {
+                localStorage.removeItem('cc_saved_game');
+                localStorage.removeItem('cubeCrash_gameState');
+                console.log('✅ pause-modal: Cleared both saved game states on exit');
+              } catch (error) {
+                console.warn('⚠️ pause-modal: Failed to clear saved game state on exit:', error);
+              }
+              
               onExit?.();
               console.log('🎭 EXIT: onExit completed - homepage should be visible');
             } catch (error) {
@@ -421,6 +457,15 @@ export function showPauseModal({ onUnpause, onRestart, onExit } = {}){
         } else {
           console.log('🎭 EXIT: No card found, using direct exit...');
           try {
+            // Clear saved game state when exiting from pause
+            try {
+              localStorage.removeItem('cc_saved_game');
+              localStorage.removeItem('cubeCrash_gameState');
+              console.log('✅ pause-modal: Cleared both saved game states on exit (no card fallback)');
+            } catch (error) {
+              console.warn('⚠️ pause-modal: Failed to clear saved game state on exit (no card fallback):', error);
+            }
+            
             onExit?.();
             console.log('🎭 EXIT: onExit completed (no card fallback)');
           } catch (error) {

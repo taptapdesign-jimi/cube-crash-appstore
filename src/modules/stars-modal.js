@@ -47,6 +47,16 @@ export async function showStarsModal({ app, stage, board, score }) {
             console.warn('⚠️ stars-modal: Failed to call window.updateHighScore:', error);
           }
         }
+        
+        // CRITICAL FIX: Clear saved game state when level is completed
+        // This prevents the user from being able to "continue" after level completion
+        try {
+          localStorage.removeItem('cc_saved_game');
+          localStorage.removeItem('cubeCrash_gameState');
+          console.log('✅ stars-modal: Cleared both saved game states after level completion');
+        } catch (error) {
+          console.warn('⚠️ stars-modal: Failed to clear saved game state:', error);
+        }
         resolve({ action:'continue' }); cleanup(); 
       };
       let touchStarted = false;

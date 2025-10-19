@@ -1207,31 +1207,6 @@ function ensureParallaxLoop(sliderParallaxImage){
     }
   }
 
-  // Animated counter function (like ReactBits.dev counter)
-  function animateCounter(element, targetValue, duration = 800) {
-    if (!element) return;
-    
-    const startValue = parseInt(element.textContent) || 0;
-    const startTime = performance.now();
-    
-    function updateCounter(currentTime) {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      
-      // Easing function for smooth animation
-      const easeOut = 1 - Math.pow(1 - progress, 3);
-      const currentValue = Math.round(startValue + (targetValue - startValue) * easeOut);
-      
-      element.textContent = currentValue;
-      
-      if (progress < 1) {
-        requestAnimationFrame(updateCounter);
-      }
-    }
-    
-    requestAnimationFrame(updateCounter);
-  }
-
   async function ensureCriticalImagesReady() {
     const heroImage = document.querySelector('.slider-slide[data-slide="0"] .hero-image');
     const targets = [heroImage].filter(
@@ -1266,11 +1241,6 @@ function ensureParallaxLoop(sliderParallaxImage){
     assetPreloader.setProgressCallback((percentage, loaded, total) => {
       if (loadingFill) {
         loadingFill.style.width = `${percentage}%`;
-      }
-
-      // Animated counter instead of direct text update
-      if (loadingPercentage) {
-        animateCounter(loadingPercentage, percentage, 600);
       }
 
       const normalized = total > 0 ? loaded / total : percentage / 100;
@@ -3259,6 +3229,10 @@ window.continueGame = async () => {
   console.log('🎮 Continue game clicked');
   try {
     await animateSlideExit();
+    
+    // CRITICAL FIX: Reset game ended flag when continuing game
+    window._gameHasEnded = false;
+    
     startTimeTracking(); // Start tracking play time
     appHost.style.display = 'block';
     appHost.removeAttribute('hidden');
@@ -3296,6 +3270,9 @@ window.startNewGame = async () => {
   console.log('🎮 New game clicked');
   try {
     await animateSlideExit();
+    
+    // CRITICAL FIX: Reset game ended flag when starting new game
+    window._gameHasEnded = false;
     
     // Clear any existing saved game
     localStorage.removeItem('cc_saved_game');

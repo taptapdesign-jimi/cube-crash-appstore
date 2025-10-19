@@ -1744,6 +1744,9 @@ async function showFinalScreen(){
 function restartGame(){
   console.log('🔄 Starting clean restart - preserving HUD position');
   
+  // CRITICAL FIX: Reset game ended flag when restarting
+  window._gameHasEnded = false;
+  
   // CRITICAL: Update high score before restart
   try {
     if (typeof score !== 'undefined' && score > 0) {
@@ -2058,6 +2061,12 @@ function updateAllGhostPlaceholders() {
 function saveGameState() {
   try {
     syncSharedState();
+    
+    // CRITICAL FIX: Don't save game state if game has ended
+    if (window._gameHasEnded) {
+      console.log('💾 Game has ended, skipping save');
+      return;
+    }
 
     if (!Array.isArray(grid) || grid.length === 0) {
       console.log('💾 Grid not ready, skipping save');

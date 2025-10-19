@@ -119,6 +119,14 @@ function createModal() {
   
   addButtonPressHandling(restartBtn, () => {
     hideModal();
+    // Clear saved game state when restarting
+    try {
+      localStorage.removeItem('cc_saved_game');
+      localStorage.removeItem('cubeCrash_gameState');
+      console.log('✅ end-run-modal: Cleared both saved game states on restart');
+    } catch (error) {
+      console.warn('⚠️ end-run-modal: Failed to clear saved game state on restart:', error);
+    }
     if (window.CC && window.CC.restart) {
       window.CC.restart();
     }
@@ -126,6 +134,14 @@ function createModal() {
   
   addButtonPressHandling(exitBtn, () => {
     hideModal();
+    // Clear saved game state when exiting
+    try {
+      localStorage.removeItem('cc_saved_game');
+      localStorage.removeItem('cubeCrash_gameState');
+      console.log('✅ end-run-modal: Cleared both saved game states on exit');
+    } catch (error) {
+      console.warn('⚠️ end-run-modal: Failed to clear saved game state on exit:', error);
+    }
     if (window.exitToMenu) {
       window.exitToMenu();
     }
