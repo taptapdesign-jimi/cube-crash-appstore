@@ -73,7 +73,11 @@ class CollectiblesManager {
   initEventListeners() {
     // Back button
     document.getElementById('collectibles-back').addEventListener('click', () => {
-      this.hideCollectibles();
+      if (typeof window.hideCollectiblesScreen === 'function') {
+        window.hideCollectiblesScreen();
+      } else {
+        this.hideCollectibles();
+      }
     });
 
     // Card clicks

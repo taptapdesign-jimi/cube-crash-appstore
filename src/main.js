@@ -1790,6 +1790,73 @@ async function initializeApp() {
       });
     };
 
+    function showCollectiblesScreen() {
+      if (sliderLocked) return;
+      console.log('🎁 Showing collectibles screen');
+      const collectiblesScreen = document.getElementById('collectibles-screen');
+      console.log('🎁 Collectibles screen element:', collectiblesScreen);
+      fadeOutGradientBackground();
+      
+      // Lock slider immediately
+      sliderLocked = true;
+      isDragging = false;
+      hideDots();
+      
+      // Get slide 2 elements for exit animation
+      const slide2 = document.querySelector('.slider-slide[data-slide="1"]');
+      const slide2Content = slide2?.querySelector('.slide-content');
+      const slide2Text = slide2?.querySelector('.slide-text');
+      const slide2Button = slide2?.querySelector('.slide-button');
+      const slide2Hero = slide2?.querySelector('.hero-container');
+      
+      console.log('🎁 Slide 2 elements:', { slide2, slide2Content, slide2Text, slide2Button, slide2Hero });
+      
+      if (slide2 && slide2Content && slide2Text && slide2Button && slide2Hero) {
+        // Add elastic spring bounce pop out animation - 0.65 seconds
+        slide2Content.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        slide2Text.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        slide2Button.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        slide2Hero.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        
+        // Apply exit animation
+        slide2Content.style.opacity = '0';
+        slide2Content.style.transform = 'scale(0.8) translateY(20px)';
+        slide2Text.style.opacity = '0';
+        slide2Text.style.transform = 'scale(0.8) translateY(20px)';
+        slide2Button.style.opacity = '0';
+        slide2Button.style.transform = 'scale(0.8) translateY(20px)';
+        slide2Hero.style.opacity = '0';
+        slide2Hero.style.transform = 'scale(0.8) translateY(20px)';
+        
+        // Show collectibles screen after animation
+        setTimeout(() => {
+          console.log('🎁 Showing collectibles screen after animation');
+          if (collectiblesScreen) {
+            collectiblesScreen.classList.remove('hidden');
+            collectiblesScreen.classList.add('show');
+            
+            // Initialize collectibles if manager exists
+            if (window.collectiblesManager) {
+              window.collectiblesManager.renderCards();
+              window.collectiblesManager.updateCounters();
+            }
+          }
+        }, 650);
+      } else {
+        console.warn('🎁 Slide 2 elements not found, showing collectibles screen immediately');
+        if (collectiblesScreen) {
+          collectiblesScreen.classList.remove('hidden');
+          collectiblesScreen.classList.add('show');
+          
+          // Initialize collectibles if manager exists
+          if (window.collectiblesManager) {
+            window.collectiblesManager.renderCards();
+            window.collectiblesManager.updateCounters();
+          }
+        }
+      }
+    }
+
     function showStatsScreen() {
       if (sliderLocked) return;
       console.log('📊 Showing stats screen');
@@ -1943,6 +2010,72 @@ async function initializeApp() {
       }
     }
     
+    function hideCollectiblesScreen() {
+      console.log('🎁 Hiding collectibles screen with exit animation');
+      
+      const collectiblesScreen = document.getElementById('collectibles-screen');
+      if (!collectiblesScreen) return;
+      
+      // Add exit animation (reverse of enter animation)
+      collectiblesScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+      collectiblesScreen.style.opacity = '0';
+      collectiblesScreen.style.transform = 'scale(0.8) translateY(20px)';
+      
+      // Wait for exit animation to complete, then hide and show slide 2 with enter animation
+      setTimeout(() => {
+        collectiblesScreen.classList.add('hidden');
+        collectiblesScreen.classList.remove('show');
+        if (home) home.hidden = false;
+        
+        // Unlock slider and show dots
+        sliderLocked = false;
+        ensureDotsVisible();
+
+        // Navigate to Collectibles slide (index 1) first
+        try { goToSlide(1); } catch {}
+        
+        // Get slide 2 elements for enter animation
+        const slide2 = document.querySelector('.slider-slide[data-slide="1"]');
+        const slide2Content = slide2?.querySelector('.slide-content');
+        const slide2Text = slide2?.querySelector('.slide-text');
+        const slide2Button = slide2?.querySelector('.slide-button');
+        const slide2Hero = slide2?.querySelector('.hero-container');
+        
+        if (slide2 && slide2Content && slide2Text && slide2Button && slide2Hero) {
+          // Reset styles for enter animation
+          slide2Content.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          slide2Text.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          slide2Button.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          slide2Hero.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          
+          // Set initial state for enter animation
+          slide2Content.style.opacity = '0';
+          slide2Content.style.transform = 'scale(0.8) translateY(20px)';
+          slide2Text.style.opacity = '0';
+          slide2Text.style.transform = 'scale(0.8) translateY(20px)';
+          slide2Button.style.opacity = '0';
+          slide2Button.style.transform = 'scale(0.8) translateY(20px)';
+          slide2Hero.style.opacity = '0';
+          slide2Hero.style.transform = 'scale(0.8) translateY(20px)';
+          
+          // Trigger enter animation
+          requestAnimationFrame(() => {
+            slide2Content.style.opacity = '1';
+            slide2Content.style.transform = 'scale(1) translateY(0)';
+            slide2Text.style.opacity = '1';
+            slide2Text.style.transform = 'scale(1) translateY(0)';
+            slide2Button.style.opacity = '1';
+            slide2Button.style.transform = 'scale(1) translateY(0)';
+            slide2Hero.style.opacity = '1';
+            slide2Hero.style.transform = 'scale(1) translateY(0)';
+          });
+        }
+        
+        // Restore gradient background
+        fadeInGradientBackground();
+      }, 500);
+    }
+
     function hideStatsScreen() {
       console.log('📊 Hiding stats screen with exit animation');
       
@@ -2896,26 +3029,14 @@ async function initializeApp() {
       collectiblesButton.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent slider from moving
         console.log('🎁 Collectibles clicked');
-        console.log('🎁 window.showCollectibles type:', typeof window.showCollectibles);
-        console.log('🎁 window.showCollectibles function:', window.showCollectibles);
-        if (typeof window.showCollectibles === 'function') {
-          console.log('🎁 Calling showCollectibles...');
-          window.showCollectibles();
-          console.log('🎁 showCollectibles called');
-        } else {
-          console.warn('❌ showCollectibles function not available');
-        }
+        showCollectiblesScreen();
       });
       
       // Add "cancel on drag off" touch handling for collectibles button
       addSliderButtonTouchHandling(collectiblesButton, (e) => {
         e.stopPropagation();
         console.log('🎁 Collectibles touched');
-        if (typeof window.showCollectibles === 'function') {
-          window.showCollectibles();
-        } else {
-          console.warn('showCollectibles function not available');
-        }
+        showCollectiblesScreen();
       });
     }
     
@@ -4022,3 +4143,9 @@ window.startNewGame = async () => {
     console.error('❌ Error:', error);
   }
 }
+
+// Export functions for external use
+window.showStatsScreen = showStatsScreen;
+window.hideStatsScreen = hideStatsScreen;
+window.showCollectiblesScreen = showCollectiblesScreen;
+window.hideCollectiblesScreen = hideCollectiblesScreen;
