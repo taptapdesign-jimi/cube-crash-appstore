@@ -210,7 +210,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 24px;
-  row-gap: 40px;
+  row-gap: 24px;
   width: 100%;
   margin-top: clamp(16px, 2vh, 24px);
 }
@@ -441,7 +441,7 @@
 
   .collectibles-grid {
     column-gap: 18px;
-    row-gap: 40px;
+    row-gap: 24px;
   }
 
   .collectible-card {
