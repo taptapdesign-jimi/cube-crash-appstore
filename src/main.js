@@ -1801,6 +1801,12 @@ async function initializeApp() {
         return;
       }
       fadeOutGradientBackground();
+      try {
+        goToSlide(2);
+        updateSlider();
+      } catch (error) {
+        console.warn('⚠️ Failed to snap slider before collectibles animation:', error);
+      }
       
       // Lock slider immediately
       sliderLocked = true;
@@ -1866,7 +1872,7 @@ async function initializeApp() {
             collectiblesScreen.classList.add('show');
             collectiblesScreen.removeAttribute('hidden');
             collectiblesScreen.hidden = false;
-            collectiblesScreen.style.display = 'block';
+            collectiblesScreen.style.display = 'flex';
             collectiblesScreen.style.opacity = '0';
             collectiblesScreen.style.transform = 'scale(0.8) translateY(20px)';
             collectiblesScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
@@ -1902,7 +1908,7 @@ async function initializeApp() {
           collectiblesScreen.classList.add('show');
           collectiblesScreen.removeAttribute('hidden');
           collectiblesScreen.hidden = false;
-          collectiblesScreen.style.display = 'block';
+          collectiblesScreen.style.display = 'flex';
           collectiblesScreen.style.opacity = '0';
           collectiblesScreen.style.transform = 'scale(0.8) translateY(20px)';
           collectiblesScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
@@ -2106,6 +2112,8 @@ async function initializeApp() {
             display: home.style.display,
             hasAttribute: home.hasAttribute('hidden')
           });
+        } else {
+          console.error('❌ Home element not found during hideCollectiblesScreen!');
         }
         
         // Unlock slider and show dots
@@ -2197,9 +2205,24 @@ async function initializeApp() {
 
         requestAnimationFrame(() => {
           console.log('🎁 Final requestAnimationFrame - calling goToSlide(2) and updateSlider()');
-          goToSlide(2);
-          updateSlider();
-          console.log('🎁 Final navigation complete');
+          try {
+            goToSlide(2);
+            updateSlider();
+            console.log('🎁 Final navigation complete');
+            
+            // Additional check to ensure slider is visible
+            const slider = document.querySelector('.slider-container');
+            if (slider) {
+              console.log('🎁 Slider container state:', {
+                hidden: slider.hidden,
+                display: slider.style.display,
+                visibility: slider.style.visibility,
+                opacity: slider.style.opacity
+              });
+            }
+          } catch (error) {
+            console.error('🎁 Error in final navigation:', error);
+          }
         });
       }, 500);
     }
