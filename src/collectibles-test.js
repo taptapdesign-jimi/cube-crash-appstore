@@ -59,12 +59,24 @@ function testGameEvent(eventName) {
   }
 }
 
+// Test function to show collectibles screen
+function testShowCollectibles() {
+  console.log('🧪 Testing showCollectibles...');
+  if (typeof window.showCollectibles === 'function') {
+    window.showCollectibles();
+    console.log('✅ showCollectibles called');
+  } else {
+    console.error('❌ showCollectibles function not available');
+  }
+}
+
 // Make test functions available globally
 window.testUnlockCollectible = testUnlockCollectible;
 window.testUnlockAllCommon = testUnlockAllCommon;
 window.testUnlockAllLegendary = testUnlockAllLegendary;
 window.testResetAllCollectibles = testResetAllCollectibles;
 window.testGameEvent = testGameEvent;
+window.testShowCollectibles = testShowCollectibles;
 
 console.log('🧪 Collectibles test functions loaded!');
 console.log('Available functions:');
@@ -73,6 +85,7 @@ console.log('- testUnlockAllCommon()');
 console.log('- testUnlockAllLegendary()');
 console.log('- testResetAllCollectibles()');
 console.log('- testGameEvent(eventName)');
+console.log('- testShowCollectibles()');
 console.log('');
 console.log('Example usage:');
 console.log('testUnlockCollectible("common05", "common")');

@@ -1,4 +1,6 @@
 // Collectibles Manager - Handles all collectibles functionality
+console.log('🎁 Collectibles Manager script loaded');
+
 class CollectiblesManager {
   constructor() {
     this.collectiblesData = {
@@ -283,9 +285,14 @@ let collectiblesManager;
 
 function initializeCollectiblesManager() {
   console.log('🎁 Initializing Collectibles Manager...');
-  collectiblesManager = new CollectiblesManager();
-  window.collectiblesManager = collectiblesManager;
-  console.log('✅ Collectibles Manager initialized');
+  try {
+    collectiblesManager = new CollectiblesManager();
+    window.collectiblesManager = collectiblesManager;
+    console.log('✅ Collectibles Manager initialized');
+    console.log('🎁 collectiblesManager object:', collectiblesManager);
+  } catch (error) {
+    console.error('❌ Error initializing Collectibles Manager:', error);
+  }
 }
 
 if (document.readyState === 'loading') {
@@ -295,15 +302,19 @@ if (document.readyState === 'loading') {
 }
 
 // Export functions for use in other modules
+console.log('🎁 Setting up window.showCollectibles function');
 window.showCollectibles = () => {
   console.log('🎁 showCollectibles called');
   console.log('🎁 collectiblesManager exists:', !!collectiblesManager);
+  console.log('🎁 collectiblesManager value:', collectiblesManager);
   if (collectiblesManager) {
+    console.log('🎁 Calling collectiblesManager.showCollectibles()');
     collectiblesManager.showCollectibles();
   } else {
     console.error('❌ collectiblesManager not initialized');
   }
 };
+console.log('🎁 window.showCollectibles function set:', typeof window.showCollectibles);
 
 window.hideCollectibles = () => {
   if (collectiblesManager) {

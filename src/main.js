@@ -2896,10 +2896,14 @@ async function initializeApp() {
       collectiblesButton.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent slider from moving
         console.log('🎁 Collectibles clicked');
+        console.log('🎁 window.showCollectibles type:', typeof window.showCollectibles);
+        console.log('🎁 window.showCollectibles function:', window.showCollectibles);
         if (typeof window.showCollectibles === 'function') {
+          console.log('🎁 Calling showCollectibles...');
           window.showCollectibles();
+          console.log('🎁 showCollectibles called');
         } else {
-          console.warn('showCollectibles function not available');
+          console.warn('❌ showCollectibles function not available');
         }
       });
       
