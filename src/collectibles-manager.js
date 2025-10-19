@@ -103,16 +103,27 @@ class CollectiblesManager {
   }
 
   showCollectibles() {
+    console.log('🎁 showCollectibles method called');
     const screen = document.getElementById('collectibles-screen');
+    console.log('🎁 collectibles-screen element:', screen);
+    
+    if (!screen) {
+      console.error('❌ collectibles-screen element not found');
+      return;
+    }
+    
     screen.classList.remove('hidden');
+    console.log('🎁 Removed hidden class');
     
     // Trigger animation
     requestAnimationFrame(() => {
       screen.classList.add('show');
+      console.log('🎁 Added show class');
     });
     
     this.renderCards();
     this.updateCounters();
+    console.log('🎁 Cards rendered and counters updated');
   }
 
   hideCollectibles() {
@@ -270,20 +281,27 @@ class CollectiblesManager {
 // Initialize Collectibles Manager
 let collectiblesManager;
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    collectiblesManager = new CollectiblesManager();
-    window.collectiblesManager = collectiblesManager;
-  });
-} else {
+function initializeCollectiblesManager() {
+  console.log('🎁 Initializing Collectibles Manager...');
   collectiblesManager = new CollectiblesManager();
   window.collectiblesManager = collectiblesManager;
+  console.log('✅ Collectibles Manager initialized');
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeCollectiblesManager);
+} else {
+  initializeCollectiblesManager();
 }
 
 // Export functions for use in other modules
 window.showCollectibles = () => {
+  console.log('🎁 showCollectibles called');
+  console.log('🎁 collectiblesManager exists:', !!collectiblesManager);
   if (collectiblesManager) {
     collectiblesManager.showCollectibles();
+  } else {
+    console.error('❌ collectiblesManager not initialized');
   }
 };
 
