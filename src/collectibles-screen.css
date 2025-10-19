@@ -440,7 +440,8 @@
   }
 
   .collectibles-grid {
-    gap: 18px;
+    column-gap: 18px;
+    row-gap: 40px;
   }
 
   .collectible-card {
