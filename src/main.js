@@ -4,10 +4,11 @@ import { gsap } from 'gsap';
 import { assetPreloader } from './modules/asset-preloader.js';
 import './ios-image-helper.js';
 import './3d-effects.js';
-import './collectibles-manager.js';
-import './collectibles-test.js';
 
 console.log('🚀 Starting simple CubeCrash...');
+
+// Export functions early for collectibles-manager
+let showCollectiblesScreen, hideCollectiblesScreen, showStatsScreen, hideStatsScreen;
 
 // Loading screen elements
 let loadingScreen = null;
@@ -2167,6 +2168,27 @@ async function initializeApp() {
       }, 500);
     }
 
+    // Export functions immediately after definition
+    window.showCollectiblesScreen = showCollectiblesScreen;
+    window.hideCollectiblesScreen = hideCollectiblesScreen;
+    window.showStatsScreen = showStatsScreen;
+    window.hideStatsScreen = hideStatsScreen;
+    console.log('🎁 Collectibles functions exported to window');
+
+    // Import collectibles-manager after functions are exported
+    import('./collectibles-manager.js').then(() => {
+      console.log('🎁 Collectibles manager loaded after function export');
+    }).catch(error => {
+      console.error('❌ Failed to load collectibles manager:', error);
+    });
+    
+    // Import collectibles-test.js
+    import('./collectibles-test.js').then(() => {
+      console.log('🎁 Collectibles test functions loaded');
+    }).catch(error => {
+      console.error('❌ Failed to load collectibles test:', error);
+    });
+
     function hideStatsScreen() {
       console.log('📊 Hiding stats screen with exit animation');
       
@@ -4234,9 +4256,3 @@ window.startNewGame = async () => {
     console.error('❌ Error:', error);
   }
 }
-
-// Export functions for external use
-window.showStatsScreen = showStatsScreen;
-window.hideStatsScreen = hideStatsScreen;
-window.showCollectiblesScreen = showCollectiblesScreen;
-window.hideCollectiblesScreen = hideCollectiblesScreen;
