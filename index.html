@@ -242,40 +242,37 @@
   <div id="app" hidden></div>
   
   <!-- Collectibles Screen -->
-  <div id="collectibles-screen" class="screen hidden">
-    <!-- Top Bar Navigation -->
-    <div class="top-bar">
-      <button class="back-btn" id="collectibles-back">
-        <img src="assets/chevron-back.png" alt="Back">
-      </button>
-      <h1 class="screen-title">Collectibles</h1>
-      <div class="spacer"></div>
-    </div>
-
-    <!-- Scrollable Content -->
-    <div class="collectibles-content">
-      <!-- Common Section -->
-      <div class="collectibles-section">
-        <div class="section-header">
-          <h2>COMMON</h2>
-          <span class="counter" id="common-counter">0/20</span>
+  <div id="collectibles-screen" class="hidden">
+    <div class="collectibles-shell">
+      <div class="collectibles-header">
+        <div class="collectibles-header-top">
+          <button id="collectibles-back" class="collectibles-back-button tap-scale" type="button" aria-label="Back to slider">
+            <img src="./assets/chevron-back.png" alt="Back" />
+          </button>
+          <h1 class="collectibles-title">Collectibles</h1>
+          <div class="collectibles-header-spacer"></div>
         </div>
-        <div class="divider"></div>
-        <div class="cards-grid" id="common-cards">
-          <!-- 20 common cards will be generated here -->
-        </div>
+        <div class="collectibles-title-underline"></div>
       </div>
 
-      <!-- Legendary Section -->
-      <div class="collectibles-section">
-        <div class="section-header">
-          <h2>LEGENDARY</h2>
-          <span class="counter" id="legendary-counter">0/5</span>
-        </div>
-        <div class="divider"></div>
-        <div class="cards-grid" id="legendary-cards">
-          <!-- 5 legendary cards will be generated here -->
-        </div>
+      <div class="collectibles-scrollable">
+        <section class="collectibles-section">
+          <div class="collectibles-section-header">
+            <h2 class="collectibles-section-title">COMMON</h2>
+            <span class="collectibles-counter" id="common-counter">0/20</span>
+          </div>
+          <div class="collectibles-divider"></div>
+          <div class="collectibles-grid" id="common-cards"></div>
+        </section>
+
+        <section class="collectibles-section">
+          <div class="collectibles-section-header">
+            <h2 class="collectibles-section-title">LEGENDARY</h2>
+            <span class="collectibles-counter" id="legendary-counter">0/5</span>
+          </div>
+          <div class="collectibles-divider"></div>
+          <div class="collectibles-grid" id="legendary-cards"></div>
+        </section>
       </div>
     </div>
   </div>

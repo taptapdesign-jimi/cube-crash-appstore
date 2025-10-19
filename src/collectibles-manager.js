@@ -129,6 +129,10 @@ class CollectiblesManager {
     
     this.renderCards();
     this.updateCounters();
+    const scrollable = document.querySelector('#collectibles-screen .collectibles-scrollable');
+    if (scrollable) {
+      scrollable.scrollTop = 0;
+    }
     console.log('🎁 Cards rendered and counters updated');
   }
 
@@ -157,29 +161,60 @@ class CollectiblesManager {
   }
 
   createCardElement(card, category, number) {
+    const wrapper = document.createElement('div');
+    wrapper.className = `collectible-card-wrapper ${category}`;
+
+    const numberStr = number.toString().padStart(2, '0');
+    const label = document.createElement('div');
+    label.className = 'collectible-card-label';
+    label.textContent = numberStr;
+
     const cardDiv = document.createElement('div');
     cardDiv.className = `collectible-card ${category}`;
     cardDiv.dataset.cardId = card.id;
     cardDiv.dataset.category = category;
+    cardDiv.dataset.cardNumber = number;
+    cardDiv.setAttribute('role', 'button');
+    cardDiv.setAttribute('tabindex', '0');
+
+    const imagePath = this.getCardImagePath(category, number);
+    const placeholderPath = this.getPlaceholderPath(category);
 
     if (card.unlocked) {
-      cardDiv.classList.add('unlocked', 'flipped');
+      cardDiv.classList.add('unlocked');
+      cardDiv.style.backgroundImage = `url('${imagePath}')`;
+      cardDiv.setAttribute('aria-label', `Collectible ${numberStr}: ${card.name} unlocked`);
+    } else {
+      cardDiv.classList.add('locked');
+      cardDiv.style.backgroundImage = `url('${placeholderPath}')`;
+      cardDiv.setAttribute('aria-label', `Collectible ${numberStr} locked`);
     }
 
-    const numberStr = number.toString().padStart(2, '0');
-    
-    cardDiv.innerHTML = `
-      <div class="card-front">
-        <div class="card-number">${numberStr}</div>
-      </div>
-      <div class="card-back">
-        <div class="card-image" style="background-image: url('assets/collectibles/${card.id}.png')"></div>
-        <h3 class="card-name">${card.name}</h3>
-        <span class="card-rarity">${card.rarity}</span>
-      </div>
-    `;
+    cardDiv.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        cardDiv.click();
+      }
+    });
 
-    return cardDiv;
+    wrapper.appendChild(label);
+    wrapper.appendChild(cardDiv);
+    return wrapper;
+  }
+
+  getPlaceholderPath(category) {
+    return category === 'legendary'
+      ? 'assets/colelctibles/legendary back.png'
+      : 'assets/colelctibles/common back.png';
+  }
+
+  getCardImagePath(category, number) {
+    if (category === 'legendary') {
+      const assetNumber = (number + 20).toString().padStart(2, '0');
+      return `assets/colelctibles/legendary/${assetNumber}.png`;
+    }
+    const assetNumber = number.toString().padStart(2, '0');
+    return `assets/colelctibles/common/${assetNumber}.png`;
   }
 
   updateCounters() {
@@ -191,14 +226,18 @@ class CollectiblesManager {
   }
 
   showCardDetail(cardId, category) {
-    const card = this.collectiblesData[category].find(c => c.id === cardId);
-    if (!card) return;
+    const cards = this.collectiblesData[category];
+    const index = cards.findIndex(c => c.id === cardId);
+    if (index === -1) return;
+
+    const card = cards[index];
 
     const modal = document.getElementById('collectibles-detail-modal');
-    const numberStr = cardId.replace(category, '').padStart(2, '0');
-    
+    const numberStr = (index + 1).toString().padStart(2, '0');
+    const imagePath = this.getCardImagePath(category, index + 1);
+
     document.getElementById('detail-card-number').textContent = numberStr;
-    document.getElementById('detail-card-image').style.backgroundImage = `url('assets/collectibles/${card.id}.png')`;
+    document.getElementById('detail-card-image').style.backgroundImage = `url('${imagePath}')`;
     document.getElementById('detail-card-description').textContent = card.description;
 
     modal.classList.remove('hidden');
@@ -244,20 +283,24 @@ class CollectiblesManager {
   }
 
   animateCardUnlock(cardId, category) {
-    const card = document.querySelector(`[data-card-id="${cardId}"]`);
-    if (card) {
-      // Add unlock animation
-      card.classList.add('unlocked');
-      setTimeout(() => {
-        card.classList.add('flipped');
-      }, 100);
-      
-      // Add a subtle glow effect
-      card.style.boxShadow = '0 0 20px rgba(255, 107, 53, 0.5)';
-      setTimeout(() => {
-        card.style.boxShadow = '';
-      }, 2000);
-    }
+    const cardEl = document.querySelector(`.collectible-card[data-card-id="${cardId}"]`);
+    const cards = this.collectiblesData[category] || [];
+    const index = cards.findIndex(c => c.id === cardId);
+    if (!cardEl || index === -1) return;
+
+    const number = index + 1;
+    const cardData = cards[index];
+    const imagePath = this.getCardImagePath(category, number);
+
+    cardEl.classList.remove('locked');
+    cardEl.classList.add('unlocked', 'just-unlocked');
+    cardEl.style.backgroundImage = `url('${imagePath}')`;
+    const numberStr = number.toString().padStart(2, '0');
+    cardEl.setAttribute('aria-label', `Collectible ${numberStr}: ${cardData?.name || 'Unlocked'}`);
+
+    setTimeout(() => {
+      cardEl.classList.remove('just-unlocked');
+    }, 650);
   }
 
   // Get collectibles data for external use
