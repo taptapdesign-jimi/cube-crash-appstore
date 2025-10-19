@@ -1795,6 +1795,11 @@ async function initializeApp() {
       console.log('🎁 Showing collectibles screen');
       const collectiblesScreen = document.getElementById('collectibles-screen');
       console.log('🎁 Collectibles screen element:', collectiblesScreen);
+      
+      if (!collectiblesScreen) {
+        console.error('❌ Collectibles screen element not found!');
+        return;
+      }
       fadeOutGradientBackground();
       
       // Lock slider immediately
@@ -1812,6 +1817,8 @@ async function initializeApp() {
           display: home.style.display,
           hasAttribute: home.hasAttribute('hidden')
         });
+      } else {
+        console.warn('⚠️ Home element not found!');
       }
       
       // Get slide 3 (collectibles) elements for exit animation
@@ -1858,10 +1865,18 @@ async function initializeApp() {
             collectiblesScreen.classList.remove('hidden');
             collectiblesScreen.classList.add('show');
             collectiblesScreen.removeAttribute('hidden');
-            collectiblesScreen.style.display = 'flex';
+            collectiblesScreen.hidden = false;
+            collectiblesScreen.style.display = 'block';
             collectiblesScreen.style.opacity = '0';
             collectiblesScreen.style.transform = 'scale(0.8) translateY(20px)';
             collectiblesScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            
+            console.log('🎁 Collectibles screen shown:', {
+              hidden: collectiblesScreen.hidden,
+              display: collectiblesScreen.style.display,
+              hasHiddenClass: collectiblesScreen.classList.contains('hidden'),
+              hasShowClass: collectiblesScreen.classList.contains('show')
+            });
             
             // Initialize collectibles if manager exists
             if (window.collectiblesManager) {
@@ -1886,10 +1901,18 @@ async function initializeApp() {
           collectiblesScreen.classList.remove('hidden');
           collectiblesScreen.classList.add('show');
           collectiblesScreen.removeAttribute('hidden');
-          collectiblesScreen.style.display = 'flex';
+          collectiblesScreen.hidden = false;
+          collectiblesScreen.style.display = 'block';
           collectiblesScreen.style.opacity = '0';
           collectiblesScreen.style.transform = 'scale(0.8) translateY(20px)';
           collectiblesScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+          
+          console.log('🎁 Collectibles screen shown (fallback):', {
+            hidden: collectiblesScreen.hidden,
+            display: collectiblesScreen.style.display,
+            hasHiddenClass: collectiblesScreen.classList.contains('hidden'),
+            hasShowClass: collectiblesScreen.classList.contains('show')
+          });
           
           // Initialize collectibles if manager exists
           if (window.collectiblesManager) {
