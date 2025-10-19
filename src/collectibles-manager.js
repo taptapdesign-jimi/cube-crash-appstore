@@ -5,11 +5,11 @@ class CollectiblesManager {
   constructor() {
     this.collectiblesData = {
       common: [
-        { id: 'common01', name: 'First Merge', description: 'Complete your first merge', rarity: 'Common', event: 'first_merge', unlocked: false },
-        { id: 'common02', name: 'Quick Start', description: 'Start your first game', rarity: 'Common', event: 'game_start', unlocked: false },
+        { id: 'common01', name: 'First Merge', description: 'Complete your first merge', rarity: 'Common', event: 'first_merge', unlocked: true },
+        { id: 'common02', name: 'Quick Start', description: 'Start your first game', rarity: 'Common', event: 'game_start', unlocked: true },
         { id: 'common03', name: 'Score Hunter', description: 'Reach 100 points', rarity: 'Common', event: 'score_100', unlocked: false },
-        { id: 'common04', name: 'Merge Master', description: 'Complete 10 merges', rarity: 'Common', event: 'merge_10', unlocked: false },
-        { id: 'common05', name: 'Peaceful', description: 'Clean a board in less than 2 minutes', rarity: 'Rare', event: 'quick_clean', unlocked: false },
+        { id: 'common04', name: 'Merge Master', description: 'Complete 10 merges', rarity: 'Common', event: 'merge_10', unlocked: true },
+        { id: 'common05', name: 'Peaceful', description: 'Clean a board in less than 2 minutes', rarity: 'Rare', event: 'quick_clean', unlocked: true },
         { id: 'common06', name: 'Wild User', description: 'Use a wild cube', rarity: 'Common', event: 'use_wild', unlocked: false },
         { id: 'common07', name: 'Combo King', description: 'Get a 3x combo', rarity: 'Common', event: 'combo_3', unlocked: false },
         { id: 'common08', name: 'Board Cleaner', description: 'Clean 5 boards', rarity: 'Common', event: 'clean_5', unlocked: false },
@@ -34,8 +34,10 @@ class CollectiblesManager {
         { id: 'legendary05', name: 'Ultimate Master', description: 'Complete 500 merges', rarity: 'Legendary', event: 'merge_500', unlocked: false }
       ]
     };
-    
+    this.defaultUnlockedIds = new Set(['common01', 'common02', 'common04', 'common05']);
+
     this.loadCollectiblesState();
+    this.ensureDefaultUnlocked();
     this.initEventListeners();
   }
 
@@ -45,6 +47,7 @@ class CollectiblesManager {
       if (saved) {
         const state = JSON.parse(saved);
         this.mergeState(state);
+        this.ensureDefaultUnlocked();
       }
     } catch (error) {
       console.warn('Failed to load collectibles state:', error);
@@ -321,9 +324,24 @@ class CollectiblesManager {
         card.unlocked = false;
       });
     });
+    this.ensureDefaultUnlocked();
     this.saveCollectiblesState();
     this.renderCards();
     this.updateCounters();
+  }
+
+  ensureDefaultUnlocked() {
+    let changed = false;
+    this.defaultUnlockedIds.forEach(id => {
+      const card = this.collectiblesData.common.find(c => c.id === id);
+      if (card && !card.unlocked) {
+        card.unlocked = true;
+        changed = true;
+      }
+    });
+    if (changed) {
+      this.saveCollectiblesState();
+    }
   }
 }
 

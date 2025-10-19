@@ -1802,57 +1802,105 @@ async function initializeApp() {
       isDragging = false;
       hideDots();
       
-      // Get slide 2 elements for exit animation
-      const slide2 = document.querySelector('.slider-slide[data-slide="1"]');
-      const slide2Content = slide2?.querySelector('.slide-content');
-      const slide2Text = slide2?.querySelector('.slide-text');
-      const slide2Button = slide2?.querySelector('.slide-button');
-      const slide2Hero = slide2?.querySelector('.hero-container');
+      // Hide home element
+      if (home) {
+        home.hidden = true;
+        home.setAttribute('hidden', 'true');
+        home.style.display = 'none';
+        console.log('🎁 Home element hidden:', {
+          hidden: home.hidden,
+          display: home.style.display,
+          hasAttribute: home.hasAttribute('hidden')
+        });
+      }
       
-      console.log('🎁 Slide 2 elements:', { slide2, slide2Content, slide2Text, slide2Button, slide2Hero });
+      // Get slide 3 (collectibles) elements for exit animation
+      const slideCollectibles = document.querySelector('.slider-slide[data-slide="2"]');
+      const slideCollectiblesContent = slideCollectibles?.querySelector('.slide-content');
+      const slideCollectiblesText = slideCollectibles?.querySelector('.slide-text');
+      const slideCollectiblesButton = slideCollectibles?.querySelector('.slide-button');
+      const slideCollectiblesHero = slideCollectibles?.querySelector('.hero-container');
+      const homeLogo = document.getElementById('home-logo');
       
-      if (slide2 && slide2Content && slide2Text && slide2Button && slide2Hero) {
+      console.log('🎁 Slide 3 elements:', { slideCollectibles, slideCollectiblesContent, slideCollectiblesText, slideCollectiblesButton, slideCollectiblesHero });
+      
+      if (slideCollectibles && slideCollectiblesContent && slideCollectiblesText && slideCollectiblesButton && slideCollectiblesHero) {
         // Add elastic spring bounce pop out animation - 0.65 seconds
-        slide2Content.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-        slide2Text.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-        slide2Button.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-        slide2Hero.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        slideCollectiblesContent.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        slideCollectiblesText.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        slideCollectiblesButton.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        slideCollectiblesHero.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
         
         // Apply exit animation
-        slide2Content.style.opacity = '0';
-        slide2Content.style.transform = 'scale(0.8) translateY(20px)';
-        slide2Text.style.opacity = '0';
-        slide2Text.style.transform = 'scale(0.8) translateY(20px)';
-        slide2Button.style.opacity = '0';
-        slide2Button.style.transform = 'scale(0.8) translateY(20px)';
-        slide2Hero.style.opacity = '0';
-        slide2Hero.style.transform = 'scale(0.8) translateY(20px)';
+        slideCollectiblesContent.style.opacity = '0';
+        slideCollectiblesContent.style.transform = 'scale(0) translateY(-20px)';
+        slideCollectiblesText.style.opacity = '0';
+        slideCollectiblesText.style.transform = 'scale(0) translateY(-15px)';
+        slideCollectiblesButton.style.opacity = '0';
+        slideCollectiblesButton.style.transform = 'scale(0) translateY(-10px)';
+        slideCollectiblesHero.style.opacity = '0';
+        slideCollectiblesHero.style.transform = 'scale(0) translateY(-25px)';
+        if (homeLogo) {
+          homeLogo.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          homeLogo.style.opacity = '0';
+          homeLogo.style.transform = 'scale(0) translateY(-30px)';
+        }
         
         // Show collectibles screen after animation
         setTimeout(() => {
           console.log('🎁 Showing collectibles screen after animation');
+          if (home) {
+            home.hidden = true;
+            home.setAttribute('hidden', 'true');
+            home.style.display = 'none';
+          }
           if (collectiblesScreen) {
             collectiblesScreen.classList.remove('hidden');
             collectiblesScreen.classList.add('show');
+            collectiblesScreen.removeAttribute('hidden');
+            collectiblesScreen.style.display = 'flex';
+            collectiblesScreen.style.opacity = '0';
+            collectiblesScreen.style.transform = 'scale(0.8) translateY(20px)';
+            collectiblesScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
             
             // Initialize collectibles if manager exists
             if (window.collectiblesManager) {
               window.collectiblesManager.renderCards();
               window.collectiblesManager.updateCounters();
             }
+            
+            requestAnimationFrame(() => {
+              collectiblesScreen.style.opacity = '1';
+              collectiblesScreen.style.transform = 'scale(1) translateY(0)';
+            });
           }
         }, 650);
       } else {
-        console.warn('🎁 Slide 2 elements not found, showing collectibles screen immediately');
+        console.warn('🎁 Slide 3 elements not found, showing collectibles screen immediately');
         if (collectiblesScreen) {
+          if (home) {
+            home.hidden = true;
+            home.setAttribute('hidden', 'true');
+            home.style.display = 'none';
+          }
           collectiblesScreen.classList.remove('hidden');
           collectiblesScreen.classList.add('show');
+          collectiblesScreen.removeAttribute('hidden');
+          collectiblesScreen.style.display = 'flex';
+          collectiblesScreen.style.opacity = '0';
+          collectiblesScreen.style.transform = 'scale(0.8) translateY(20px)';
+          collectiblesScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
           
           // Initialize collectibles if manager exists
           if (window.collectiblesManager) {
             window.collectiblesManager.renderCards();
             window.collectiblesManager.updateCounters();
           }
+          
+          requestAnimationFrame(() => {
+            collectiblesScreen.style.opacity = '1';
+            collectiblesScreen.style.transform = 'scale(1) translateY(0)';
+          });
         }
       }
     }
@@ -2023,56 +2071,113 @@ async function initializeApp() {
       
       // Wait for exit animation to complete, then hide and show slide 2 with enter animation
       setTimeout(() => {
-        collectiblesScreen.classList.add('hidden');
-        collectiblesScreen.classList.remove('show');
-        if (home) home.hidden = false;
+        collectiblesScreen.hidden = true;
+        collectiblesScreen.setAttribute('hidden', 'true');
+        collectiblesScreen.style.display = 'none';
+        if (home) {
+          home.hidden = false;
+          home.removeAttribute('hidden');
+          home.style.display = 'block';
+          console.log('🎁 Home element restored:', {
+            hidden: home.hidden,
+            display: home.style.display,
+            hasAttribute: home.hasAttribute('hidden')
+          });
+        }
         
         // Unlock slider and show dots
         sliderLocked = false;
         ensureDotsVisible();
+        
+        console.log('🎁 Slider unlocked, navigating to slide 2');
 
-        // Navigate to Collectibles slide (index 1) first
-        try { goToSlide(1); } catch {}
+        // Navigate to Collectibles slide (index 2) first
+        try { 
+          goToSlide(2);
+          console.log('🎁 goToSlide(2) called successfully');
+        } catch (error) {
+          console.error('🎁 Error calling goToSlide(2):', error);
+        }
         
-        // Get slide 2 elements for enter animation
-        const slide2 = document.querySelector('.slider-slide[data-slide="1"]');
-        const slide2Content = slide2?.querySelector('.slide-content');
-        const slide2Text = slide2?.querySelector('.slide-text');
-        const slide2Button = slide2?.querySelector('.slide-button');
-        const slide2Hero = slide2?.querySelector('.hero-container');
+        // Get slide 3 elements for enter animation
+        const slideCollectibles = document.querySelector('.slider-slide[data-slide="2"]');
+        const slideCollectiblesContent = slideCollectibles?.querySelector('.slide-content');
+        const slideCollectiblesText = slideCollectibles?.querySelector('.slide-text');
+        const slideCollectiblesButton = slideCollectibles?.querySelector('.slide-button');
+        const slideCollectiblesHero = slideCollectibles?.querySelector('.hero-container');
+        const homeLogo = document.getElementById('home-logo');
         
-        if (slide2 && slide2Content && slide2Text && slide2Button && slide2Hero) {
+        if (slideCollectibles && slideCollectiblesContent && slideCollectiblesText && slideCollectiblesButton && slideCollectiblesHero) {
           // Reset styles for enter animation
-          slide2Content.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          slide2Text.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          slide2Button.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          slide2Hero.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          
-          // Set initial state for enter animation
-          slide2Content.style.opacity = '0';
-          slide2Content.style.transform = 'scale(0.8) translateY(20px)';
-          slide2Text.style.opacity = '0';
-          slide2Text.style.transform = 'scale(0.8) translateY(20px)';
-          slide2Button.style.opacity = '0';
-          slide2Button.style.transform = 'scale(0.8) translateY(20px)';
-          slide2Hero.style.opacity = '0';
-          slide2Hero.style.transform = 'scale(0.8) translateY(20px)';
+          slideCollectiblesContent.style.opacity = '0';
+          slideCollectiblesContent.style.transform = 'scale(0) translateY(-20px)';
+          slideCollectiblesContent.style.transition = 'none';
+          slideCollectiblesText.style.opacity = '0';
+          slideCollectiblesText.style.transform = 'scale(0) translateY(-15px)';
+          slideCollectiblesText.style.transition = 'none';
+          slideCollectiblesButton.style.opacity = '0';
+          slideCollectiblesButton.style.transform = 'scale(0) translateY(-10px)';
+          slideCollectiblesButton.style.transition = 'none';
+          slideCollectiblesHero.style.opacity = '0';
+          slideCollectiblesHero.style.transform = 'scale(0) translateY(-25px)';
+          slideCollectiblesHero.style.transition = 'none';
+          if (homeLogo) {
+            homeLogo.style.opacity = '0';
+            homeLogo.style.transform = 'scale(0) translateY(-30px)';
+            homeLogo.style.transition = 'none';
+          }
           
           // Trigger enter animation
           requestAnimationFrame(() => {
-            slide2Content.style.opacity = '1';
-            slide2Content.style.transform = 'scale(1) translateY(0)';
-            slide2Text.style.opacity = '1';
-            slide2Text.style.transform = 'scale(1) translateY(0)';
-            slide2Button.style.opacity = '1';
-            slide2Button.style.transform = 'scale(1) translateY(0)';
-            slide2Hero.style.opacity = '1';
-            slide2Hero.style.transform = 'scale(1) translateY(0)';
+            restoreGradientBackground();
+            
+            const spring = 'cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+            setTimeout(() => {
+              slideCollectiblesContent.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+              slideCollectiblesText.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+              slideCollectiblesButton.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+              slideCollectiblesHero.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+              if (homeLogo) {
+                homeLogo.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+              }
+              
+              slideCollectiblesContent.style.opacity = '1';
+              slideCollectiblesContent.style.transform = 'scale(1) translateY(0)';
+              slideCollectiblesText.style.opacity = '1';
+              slideCollectiblesText.style.transform = 'scale(1) translateY(-8px)';
+              slideCollectiblesButton.style.opacity = '1';
+              slideCollectiblesButton.style.transform = 'scale(1) translateY(0)';
+              slideCollectiblesHero.style.opacity = '1';
+              slideCollectiblesHero.style.transform = 'scale(1) translateY(0)';
+              if (homeLogo) {
+                homeLogo.style.opacity = '1';
+                homeLogo.style.transform = 'scale(1) translateY(0)';
+              }
+              
+              setTimeout(() => {
+                slideCollectiblesContent.style.transition = 'none';
+                slideCollectiblesText.style.transition = 'none';
+                slideCollectiblesButton.style.transition = 'none';
+                slideCollectiblesHero.style.transition = 'none';
+                if (homeLogo) {
+                  homeLogo.style.transition = 'none';
+                }
+              }, 700);
+            }, 20);
           });
         }
         
         // Restore gradient background
-        fadeInGradientBackground();
+        if (!slideCollectibles || !slideCollectiblesContent || !slideCollectiblesText || !slideCollectiblesButton || !slideCollectiblesHero) {
+          restoreGradientBackground();
+        }
+
+        requestAnimationFrame(() => {
+          console.log('🎁 Final requestAnimationFrame - calling goToSlide(2) and updateSlider()');
+          goToSlide(2);
+          updateSlider();
+          console.log('🎁 Final navigation complete');
+        });
       }, 500);
     }
 
