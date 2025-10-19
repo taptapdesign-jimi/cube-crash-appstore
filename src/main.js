@@ -4,6 +4,8 @@ import { gsap } from 'gsap';
 import { assetPreloader } from './modules/asset-preloader.js';
 import './ios-image-helper.js';
 import './3d-effects.js';
+import './collectibles-manager.js';
+import './collectibles-test.js';
 
 console.log('🚀 Starting simple CubeCrash...');
 
@@ -2894,14 +2896,22 @@ async function initializeApp() {
       collectiblesButton.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent slider from moving
         console.log('🎁 Collectibles clicked');
-        goToSlide(2);
+        if (typeof window.showCollectibles === 'function') {
+          window.showCollectibles();
+        } else {
+          console.warn('showCollectibles function not available');
+        }
       });
       
       // Add "cancel on drag off" touch handling for collectibles button
       addSliderButtonTouchHandling(collectiblesButton, (e) => {
         e.stopPropagation();
         console.log('🎁 Collectibles touched');
-        goToSlide(2);
+        if (typeof window.showCollectibles === 'function') {
+          window.showCollectibles();
+        } else {
+          console.warn('showCollectibles function not available');
+        }
       });
     }
     

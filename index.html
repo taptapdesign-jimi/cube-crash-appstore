@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="./src/style.css">
   <link rel="stylesheet" href="./src/slider-optimized.css">
   <link rel="stylesheet" href="./src/ios-image-optimization.css">
+  <link rel="stylesheet" href="./src/collectibles-screen.css">
   <style>
     html,body{margin:0;padding:0;overflow:hidden;background:#f5f5f5}
     #app{width:100vw;height:100vh}
@@ -239,6 +240,75 @@
   </div>
   
   <div id="app" hidden></div>
+  
+  <!-- Collectibles Screen -->
+  <div id="collectibles-screen" class="screen hidden">
+    <!-- Top Bar Navigation -->
+    <div class="top-bar">
+      <button class="back-btn" id="collectibles-back">
+        <img src="assets/chevron-back.png" alt="Back">
+      </button>
+      <h1 class="screen-title">Collectibles</h1>
+      <div class="spacer"></div>
+    </div>
+
+    <!-- Scrollable Content -->
+    <div class="collectibles-content">
+      <!-- Common Section -->
+      <div class="collectibles-section">
+        <div class="section-header">
+          <h2>COMMON</h2>
+          <span class="counter" id="common-counter">0/20</span>
+        </div>
+        <div class="divider"></div>
+        <div class="cards-grid" id="common-cards">
+          <!-- 20 common cards will be generated here -->
+        </div>
+      </div>
+
+      <!-- Legendary Section -->
+      <div class="collectibles-section">
+        <div class="section-header">
+          <h2>LEGENDARY</h2>
+          <span class="counter" id="legendary-counter">0/5</span>
+        </div>
+        <div class="divider"></div>
+        <div class="cards-grid" id="legendary-cards">
+          <!-- 5 legendary cards will be generated here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collectibles Detail Modal -->
+  <div id="collectibles-detail-modal" class="modal hidden">
+    <div class="modal-content">
+      <!-- Top Bar for Detail Modal -->
+      <div class="detail-top-bar">
+        <div class="card-number-display" id="detail-card-number">05</div>
+        <button class="close-btn" id="detail-close-btn">
+          <img src="assets/close-button.png" alt="Close">
+        </button>
+      </div>
+      
+      <div class="detail-divider"></div>
+      
+      <!-- Card Detail Content -->
+      <div class="card-detail-content">
+        <div class="card-image-container">
+          <div class="card-image" id="detail-card-image"></div>
+        </div>
+        
+        <div class="card-description-container">
+          <div class="description-divider"></div>
+          <p class="card-description" id="detail-card-description">
+            Clean a board in less than 2 minutes
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>
