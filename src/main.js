@@ -1794,116 +1794,48 @@ async function initializeApp() {
       if (sliderLocked) return;
       console.log('🎁 Showing collectibles screen');
       const collectiblesScreen = document.getElementById('collectibles-screen');
-      console.log('🎁 Collectibles screen element:', collectiblesScreen);
-      
       if (!collectiblesScreen) {
         console.error('❌ Collectibles screen element not found!');
         return;
       }
       fadeOutGradientBackground();
-      try {
-        goToSlide(2);
-        updateSlider();
-      } catch (error) {
-        console.warn('⚠️ Failed to snap slider before collectibles animation:', error);
-      }
-      
-      // Lock slider immediately
       sliderLocked = true;
       isDragging = false;
       hideDots();
       
-      // Hide home element
-      if (home) {
-        home.hidden = true;
-        home.setAttribute('hidden', 'true');
-        home.style.display = 'none';
-        console.log('🎁 Home element hidden:', {
-          hidden: home.hidden,
-          display: home.style.display,
-          hasAttribute: home.hasAttribute('hidden')
-        });
-      } else {
-        console.warn('⚠️ Home element not found!');
-      }
-      
-      // Get slide 3 (collectibles) elements for exit animation
-      const slideCollectibles = document.querySelector('.slider-slide[data-slide="2"]');
-      const slideCollectiblesContent = slideCollectibles?.querySelector('.slide-content');
-      const slideCollectiblesText = slideCollectibles?.querySelector('.slide-text');
-      const slideCollectiblesButton = slideCollectibles?.querySelector('.slide-button');
-      const slideCollectiblesHero = slideCollectibles?.querySelector('.hero-container');
+      const slide3 = document.querySelector('.slider-slide[data-slide="2"]');
+      const slide3Content = slide3?.querySelector('.slide-content');
+      const slide3Text = slide3?.querySelector('.slide-text');
+      const slide3Button = slide3?.querySelector('.slide-button');
+      const slide3Hero = slide3?.querySelector('.hero-container');
+      const spring = 'cubic-bezier(0.68, -0.8, 0.265, 1.8)';
       const homeLogo = document.getElementById('home-logo');
-      
-      console.log('🎁 Slide 3 elements:', { slideCollectibles, slideCollectiblesContent, slideCollectiblesText, slideCollectiblesButton, slideCollectiblesHero });
-      
-      if (slideCollectibles && slideCollectiblesContent && slideCollectiblesText && slideCollectiblesButton && slideCollectiblesHero) {
-        // Add elastic spring bounce pop out animation - 0.65 seconds
-        slideCollectiblesContent.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-        slideCollectiblesText.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-        slideCollectiblesButton.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-        slideCollectiblesHero.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-        
-        // Apply exit animation
-        slideCollectiblesContent.style.opacity = '0';
-        slideCollectiblesContent.style.transform = 'scale(0) translateY(-20px)';
-        slideCollectiblesText.style.opacity = '0';
-        slideCollectiblesText.style.transform = 'scale(0) translateY(-15px)';
-        slideCollectiblesButton.style.opacity = '0';
-        slideCollectiblesButton.style.transform = 'scale(0) translateY(-10px)';
-        slideCollectiblesHero.style.opacity = '0';
-        slideCollectiblesHero.style.transform = 'scale(0) translateY(-25px)';
+
+      if (slide3 && slide3Content && slide3Text && slide3Button && slide3Hero) {
+        slide3Content.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+        slide3Text.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+        slide3Button.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+        slide3Hero.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+
+        slide3Content.style.opacity = '0';
+        slide3Content.style.transform = 'scale(0) translateY(-20px)';
+        slide3Text.style.opacity = '0';
+        slide3Text.style.transform = 'scale(0) translateY(-15px)';
+        slide3Button.style.opacity = '0';
+        slide3Button.style.transform = 'scale(0) translateY(-10px)';
+        slide3Hero.style.opacity = '0';
+        slide3Hero.style.transform = 'scale(0) translateY(-25px)';
+
         if (homeLogo) {
-          homeLogo.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          homeLogo.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
           homeLogo.style.opacity = '0';
           homeLogo.style.transform = 'scale(0) translateY(-30px)';
         }
-        
-        // Show collectibles screen after animation
+
         setTimeout(() => {
-          console.log('🎁 Showing collectibles screen after animation');
-          if (home) {
-            home.hidden = true;
-            home.setAttribute('hidden', 'true');
-            home.style.display = 'none';
-          }
-          if (collectiblesScreen) {
-            collectiblesScreen.classList.remove('hidden');
-            collectiblesScreen.classList.add('show');
-            collectiblesScreen.removeAttribute('hidden');
-            collectiblesScreen.hidden = false;
-            collectiblesScreen.style.display = 'flex';
-            collectiblesScreen.style.opacity = '0';
-            collectiblesScreen.style.transform = 'scale(0.8) translateY(20px)';
-            collectiblesScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-            
-            console.log('🎁 Collectibles screen shown:', {
-              hidden: collectiblesScreen.hidden,
-              display: collectiblesScreen.style.display,
-              hasHiddenClass: collectiblesScreen.classList.contains('hidden'),
-              hasShowClass: collectiblesScreen.classList.contains('show')
-            });
-            
-            // Initialize collectibles if manager exists
-            if (window.collectiblesManager) {
-              window.collectiblesManager.renderCards();
-              window.collectiblesManager.updateCounters();
-            }
-            
-            requestAnimationFrame(() => {
-              collectiblesScreen.style.opacity = '1';
-              collectiblesScreen.style.transform = 'scale(1) translateY(0)';
-            });
-          }
-        }, 650);
-      } else {
-        console.warn('🎁 Slide 3 elements not found, showing collectibles screen immediately');
-        if (collectiblesScreen) {
-          if (home) {
-            home.hidden = true;
-            home.setAttribute('hidden', 'true');
-            home.style.display = 'none';
-          }
+          console.log('🎁 Showing collectibles overlay after animation');
+          if (home) home.hidden = true;
+
           collectiblesScreen.classList.remove('hidden');
           collectiblesScreen.classList.add('show');
           collectiblesScreen.removeAttribute('hidden');
@@ -1912,25 +1844,37 @@ async function initializeApp() {
           collectiblesScreen.style.opacity = '0';
           collectiblesScreen.style.transform = 'scale(0.8) translateY(20px)';
           collectiblesScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-          
-          console.log('🎁 Collectibles screen shown (fallback):', {
-            hidden: collectiblesScreen.hidden,
-            display: collectiblesScreen.style.display,
-            hasHiddenClass: collectiblesScreen.classList.contains('hidden'),
-            hasShowClass: collectiblesScreen.classList.contains('show')
-          });
-          
-          // Initialize collectibles if manager exists
+
           if (window.collectiblesManager) {
             window.collectiblesManager.renderCards();
             window.collectiblesManager.updateCounters();
           }
-          
+
           requestAnimationFrame(() => {
             collectiblesScreen.style.opacity = '1';
             collectiblesScreen.style.transform = 'scale(1) translateY(0)';
           });
+        }, 650);
+      } else {
+        console.warn('🎁 Slide 3 elements not found, showing collectibles screen immediately');
+        collectiblesScreen.classList.remove('hidden');
+        collectiblesScreen.classList.add('show');
+        collectiblesScreen.removeAttribute('hidden');
+        collectiblesScreen.hidden = false;
+        collectiblesScreen.style.display = 'flex';
+        collectiblesScreen.style.opacity = '0';
+        collectiblesScreen.style.transform = 'scale(0.8) translateY(20px)';
+        collectiblesScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+
+        if (window.collectiblesManager) {
+          window.collectiblesManager.renderCards();
+          window.collectiblesManager.updateCounters();
         }
+
+        requestAnimationFrame(() => {
+          collectiblesScreen.style.opacity = '1';
+          collectiblesScreen.style.transform = 'scale(1) translateY(0)';
+        });
       }
     }
 
@@ -2088,141 +2032,137 @@ async function initializeApp() {
     }
     
     function hideCollectiblesScreen() {
+      console.log('🎁 hideCollectiblesScreen function called');
       console.log('🎁 Hiding collectibles screen with exit animation');
       
       const collectiblesScreen = document.getElementById('collectibles-screen');
-      if (!collectiblesScreen) return;
+      console.log('🎁 collectiblesScreen element:', collectiblesScreen);
+      if (!collectiblesScreen) {
+        console.error('❌ collectiblesScreen element not found in hideCollectiblesScreen!');
+        return;
+      }
       
-      // Add exit animation (reverse of enter animation)
       collectiblesScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
       collectiblesScreen.style.opacity = '0';
       collectiblesScreen.style.transform = 'scale(0.8) translateY(20px)';
       
-      // Wait for exit animation to complete, then hide and show slide 2 with enter animation
       setTimeout(() => {
+        console.log('🎁 Exit animation timeout completed, hiding collectibles screen');
         collectiblesScreen.hidden = true;
         collectiblesScreen.setAttribute('hidden', 'true');
+        collectiblesScreen.classList.remove('show');
+        collectiblesScreen.classList.add('hidden');
         collectiblesScreen.style.display = 'none';
-        if (home) {
-          home.hidden = false;
-          home.removeAttribute('hidden');
-          home.style.display = 'block';
-          console.log('🎁 Home element restored:', {
-            hidden: home.hidden,
-            display: home.style.display,
-            hasAttribute: home.hasAttribute('hidden')
-          });
-        } else {
-          console.error('❌ Home element not found during hideCollectiblesScreen!');
-        }
+        if (home) home.hidden = false;
         
-        // Unlock slider and show dots
+        console.log('🎁 Collectibles screen hidden, restoring home element');
+        
         sliderLocked = false;
         ensureDotsVisible();
         
         console.log('🎁 Slider unlocked, navigating to slide 2');
-
-        // Navigate to Collectibles slide (index 2) first
-        try { 
+        
+        try {
           goToSlide(2);
-          console.log('🎁 goToSlide(2) called successfully');
+          updateSlider();
+          console.log('🎁 goToSlide(2) and updateSlider() completed successfully');
         } catch (error) {
-          console.error('🎁 Error calling goToSlide(2):', error);
+          console.error('🎁 Error snapping slider on collectibles exit:', error);
         }
         
-        // Get slide 3 elements for enter animation
-        const slideCollectibles = document.querySelector('.slider-slide[data-slide="2"]');
-        const slideCollectiblesContent = slideCollectibles?.querySelector('.slide-content');
-        const slideCollectiblesText = slideCollectibles?.querySelector('.slide-text');
-        const slideCollectiblesButton = slideCollectibles?.querySelector('.slide-button');
-        const slideCollectiblesHero = slideCollectibles?.querySelector('.hero-container');
+        const slide3 = document.querySelector('.slider-slide[data-slide="2"]');
+        const slide3Content = slide3?.querySelector('.slide-content');
+        const slide3Text = slide3?.querySelector('.slide-text');
+        const slide3Button = slide3?.querySelector('.slide-button');
+        const slide3Hero = slide3?.querySelector('.hero-container');
         const homeLogo = document.getElementById('home-logo');
         
-        if (slideCollectibles && slideCollectiblesContent && slideCollectiblesText && slideCollectiblesButton && slideCollectiblesHero) {
-          // Reset styles for enter animation
-          slideCollectiblesContent.style.opacity = '0';
-          slideCollectiblesContent.style.transform = 'scale(0) translateY(-20px)';
-          slideCollectiblesContent.style.transition = 'none';
-          slideCollectiblesText.style.opacity = '0';
-          slideCollectiblesText.style.transform = 'scale(0) translateY(-15px)';
-          slideCollectiblesText.style.transition = 'none';
-          slideCollectiblesButton.style.opacity = '0';
-          slideCollectiblesButton.style.transform = 'scale(0) translateY(-10px)';
-          slideCollectiblesButton.style.transition = 'none';
-          slideCollectiblesHero.style.opacity = '0';
-          slideCollectiblesHero.style.transform = 'scale(0) translateY(-25px)';
-          slideCollectiblesHero.style.transition = 'none';
-          if (homeLogo) {
-            homeLogo.style.opacity = '0';
-            homeLogo.style.transform = 'scale(0) translateY(-30px)';
-            homeLogo.style.transition = 'none';
-          }
-          
-          // Trigger enter animation
-          requestAnimationFrame(() => {
-            restoreGradientBackground();
-            
-            const spring = 'cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-            setTimeout(() => {
-              slideCollectiblesContent.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
-              slideCollectiblesText.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
-              slideCollectiblesButton.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
-              slideCollectiblesHero.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
-              if (homeLogo) {
-                homeLogo.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
-              }
-              
-              slideCollectiblesContent.style.opacity = '1';
-              slideCollectiblesContent.style.transform = 'scale(1) translateY(0)';
-              slideCollectiblesText.style.opacity = '1';
-              slideCollectiblesText.style.transform = 'scale(1) translateY(-8px)';
-              slideCollectiblesButton.style.opacity = '1';
-              slideCollectiblesButton.style.transform = 'scale(1) translateY(0)';
-              slideCollectiblesHero.style.opacity = '1';
-              slideCollectiblesHero.style.transform = 'scale(1) translateY(0)';
-              if (homeLogo) {
-                homeLogo.style.opacity = '1';
-                homeLogo.style.transform = 'scale(1) translateY(0)';
-              }
-              
-              setTimeout(() => {
-                slideCollectiblesContent.style.transition = 'none';
-                slideCollectiblesText.style.transition = 'none';
-                slideCollectiblesButton.style.transition = 'none';
-                slideCollectiblesHero.style.transition = 'none';
-                if (homeLogo) {
-                  homeLogo.style.transition = 'none';
-                }
-              }, 700);
-            }, 20);
-          });
+        console.log('🎁 Slide 3 elements found:', {
+          slide3: !!slide3,
+          slide3Content: !!slide3Content,
+          slide3Text: !!slide3Text,
+          slide3Button: !!slide3Button,
+          slide3Hero: !!slide3Hero,
+          homeLogo: !!homeLogo
+        });
+        const spring = 'cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+
+        if (slide3Content) {
+          slide3Content.style.opacity = '0';
+          slide3Content.style.transform = 'scale(0) translateY(-20px)';
+          slide3Content.style.transition = 'none';
         }
-        
-        // Restore gradient background
-        if (!slideCollectibles || !slideCollectiblesContent || !slideCollectiblesText || !slideCollectiblesButton || !slideCollectiblesHero) {
-          restoreGradientBackground();
+        if (slide3Text) {
+          slide3Text.style.opacity = '0';
+          slide3Text.style.transform = 'scale(0) translateY(-15px)';
+          slide3Text.style.transition = 'none';
+        }
+        if (slide3Button) {
+          slide3Button.style.opacity = '0';
+          slide3Button.style.transform = 'scale(0) translateY(-10px)';
+          slide3Button.style.transition = 'none';
+        }
+        if (slide3Hero) {
+          slide3Hero.style.opacity = '0';
+          slide3Hero.style.transform = 'scale(0) translateY(-25px)';
+          slide3Hero.style.transition = 'none';
+        }
+        if (homeLogo) {
+          homeLogo.style.transition = 'none';
+          homeLogo.style.opacity = '0';
+          homeLogo.style.transform = 'scale(0) translateY(-30px)';
         }
 
         requestAnimationFrame(() => {
-          console.log('🎁 Final requestAnimationFrame - calling goToSlide(2) and updateSlider()');
-          try {
-            goToSlide(2);
-            updateSlider();
-            console.log('🎁 Final navigation complete');
-            
-            // Additional check to ensure slider is visible
-            const slider = document.querySelector('.slider-container');
-            if (slider) {
-              console.log('🎁 Slider container state:', {
-                hidden: slider.hidden,
-                display: slider.style.display,
-                visibility: slider.style.visibility,
-                opacity: slider.style.opacity
-              });
+          console.log('🎁 Starting slide 3 enter animation');
+          restoreGradientBackground();
+          
+          setTimeout(() => {
+            console.log('🎁 Applying slide 3 enter animation styles');
+            if (slide3Content) {
+              slide3Content.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+              slide3Content.style.opacity = '1';
+              slide3Content.style.transform = 'scale(1) translateY(0)';
             }
-          } catch (error) {
-            console.error('🎁 Error in final navigation:', error);
-          }
+            if (slide3Text) {
+              slide3Text.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+              slide3Text.style.opacity = '1';
+              slide3Text.style.transform = 'scale(1) translateY(-8px)';
+            }
+            if (slide3Button) {
+              slide3Button.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+              slide3Button.style.opacity = '1';
+              slide3Button.style.transform = 'scale(1) translateY(0)';
+            }
+            if (slide3Hero) {
+              slide3Hero.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+              slide3Hero.style.opacity = '1';
+              slide3Hero.style.transform = 'scale(1) translateY(0)';
+            }
+            if (homeLogo) {
+              homeLogo.style.transition = `opacity 0.65s ${spring}, transform 0.65s ${spring}`;
+              homeLogo.style.opacity = '1';
+              homeLogo.style.transform = 'scale(1) translateY(0)';
+            }
+            
+            console.log('🎁 Slide 3 enter animation applied');
+
+            setTimeout(() => {
+              console.log('🎁 Cleaning up slide 3 animation styles');
+              [slide3Content, slide3Text, slide3Button, slide3Hero].forEach(el => {
+                if (!el) return;
+                el.style.removeProperty('transition');
+                el.style.removeProperty('transform');
+                el.style.removeProperty('opacity');
+              });
+              if (homeLogo) {
+                homeLogo.style.removeProperty('transition');
+                homeLogo.style.removeProperty('transform');
+                homeLogo.style.removeProperty('opacity');
+              }
+              console.log('🎁 Slide 3 animation cleanup complete');
+            }, 700);
+          }, 20);
         });
       }, 500);
     }

@@ -76,9 +76,13 @@ class CollectiblesManager {
   initEventListeners() {
     // Back button
     document.getElementById('collectibles-back').addEventListener('click', () => {
+      console.log('🎁 Collectibles back button clicked');
+      console.log('🎁 window.hideCollectiblesScreen type:', typeof window.hideCollectiblesScreen);
       if (typeof window.hideCollectiblesScreen === 'function') {
+        console.log('🎁 Calling window.hideCollectiblesScreen()');
         window.hideCollectiblesScreen();
       } else {
+        console.warn('⚠️ window.hideCollectiblesScreen not available, using fallback');
         this.hideCollectibles();
       }
     });
