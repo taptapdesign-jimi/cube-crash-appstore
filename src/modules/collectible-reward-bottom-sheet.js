@@ -386,7 +386,7 @@ function revealCollectibleCard(sheet, detail) {
 
   const TEXT_FADE_OUT_MS = 500;
   const TEXT_FADE_IN_MS = 500;
-  const TEXT_DELAY_MS = 800; // Delay before text changes
+  const TEXT_DELAY_MS = 600; // Reduced delay to prevent double animation
 
   // Start card rotation immediately
   requestAnimationFrame(() => {
@@ -415,7 +415,7 @@ function revealCollectibleCard(sheet, detail) {
     setTimeout(() => node.classList.remove('collectible-reward-text-fade-out'), TEXT_FADE_OUT_MS);
   });
 
-  // Change text after delay with fade in
+  // Change text after fade out completes
   setTimeout(() => {
     if (title) {
       title.innerHTML = `<span class="collectible-reward-title-label">${rarityLabel}</span>`;
@@ -433,7 +433,7 @@ function revealCollectibleCard(sheet, detail) {
       subtitle.classList.add('collectible-reward-text-fade-in');
       setTimeout(() => subtitle.classList.remove('collectible-reward-text-fade-in'), TEXT_FADE_IN_MS);
     }
-  }, TEXT_DELAY_MS);
+  }, TEXT_FADE_OUT_MS + 50); // Wait for fade out to complete
 
   setTimeout(() => {
     sheet.dataset.revealing = '0';

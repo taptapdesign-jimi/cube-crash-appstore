@@ -2432,12 +2432,12 @@ body.gradient-fade-out #home{
   text-transform: none;
 }
 
-.collectible-reward-text-fade-out {
-  animation: rewardTextFadeOut 0.5s ease-out forwards;
+.collectible-reward-bottom-sheet .collectible-reward-text-fade-out {
+  animation: rewardTextFadeOut 0.5s ease-out forwards !important;
 }
 
-.collectible-reward-text-fade-in {
-  animation: rewardTextFadeIn 0.5s ease-out forwards;
+.collectible-reward-bottom-sheet .collectible-reward-text-fade-in {
+  animation: rewardTextFadeIn 0.5s ease-out forwards !important;
 }
 
 .collectible-reward-title-new {
@@ -2472,6 +2472,16 @@ body.gradient-fade-out #home{
 
 .collectible-reward-bottom-sheet.visible .collectible-reward-cta {
   animation: rewardFadeUp 0.45s cubic-bezier(0.25, 0.9, 0.3, 1.2) forwards 0.34s;
+}
+
+/* Disable initial animations when text fade animations are active */
+.collectible-reward-bottom-sheet .collectible-reward-text-fade-out .collectible-reward-title,
+.collectible-reward-bottom-sheet .collectible-reward-text-fade-out .collectible-reward-subtitle,
+.collectible-reward-bottom-sheet .collectible-reward-text-fade-in .collectible-reward-title,
+.collectible-reward-bottom-sheet .collectible-reward-text-fade-in .collectible-reward-subtitle {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: translateY(0) !important;
 }
 
 .collectible-reward-subtitle {
