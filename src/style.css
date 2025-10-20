@@ -2456,6 +2456,7 @@ body.gradient-fade-out #home{
   margin-top: 12px;
 }
 
+
 .collectible-reward-card {
   width: min(260px, 72vw);
   aspect-ratio: 280 / 414;
@@ -2465,6 +2466,46 @@ body.gradient-fade-out #home{
   border-radius: 34px;
   box-shadow: 0 16px 48px rgba(233, 167, 153, 0.32);
   background-color: rgba(128, 64, 69, 0.5);
+  
+  /* Idle bouncing springy animation - realistic ball bounce with decreasing height */
+  animation: collectibleIdleBounce 3s ease-in-out infinite;
+}
+
+/* Idle bouncing springy animation - realistic ball bounce with decreasing height */
+@keyframes collectibleIdleBounce {
+  0% {
+    transform: translateY(0px);
+  }
+  10% {
+    transform: translateY(-16px);
+  }
+  20% {
+    transform: translateY(0px);
+  }
+  30% {
+    transform: translateY(-12px);
+  }
+  40% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+  60% {
+    transform: translateY(0px);
+  }
+  70% {
+    transform: translateY(-6px);
+  }
+  80% {
+    transform: translateY(0px);
+  }
+  90% {
+    transform: translateY(-3px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
 }
 
 .collectible-reward-cta {

@@ -56,8 +56,8 @@ function attachDragHandlers(sheet) {
   let pointerId = null;
   let dragging = false;
 
-  const threshold = 90;
-  const maxDelta = 160;
+  const threshold = 50;
+  const maxDelta = 1000; // Allow dragging much further down
 
   const onPointerDown = (event) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -77,7 +77,7 @@ function attachDragHandlers(sheet) {
   const onPointerMove = (event) => {
     if (!dragging || event.pointerId !== pointerId) return;
     const clientY = event.clientY ?? event.touches?.[0]?.clientY ?? startY;
-    const delta = Math.min(Math.max(0, clientY - startY), maxDelta);
+    const delta = Math.max(0, clientY - startY); // Remove maxDelta limit for free dragging
     sheet.style.transform = `translateY(${delta}px)`;
   };
 
