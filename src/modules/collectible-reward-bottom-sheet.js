@@ -303,9 +303,17 @@ export function showCollectibleRewardBottomSheet(detail = {}) {
       hideCollectibleRewardBottomSheet('collect', {
         duration: 0,
         onAfterClose: () => {
-          // Navigate to collectibles screen
+          // Get the collectible ID from the sheet
+          const collectibleId = sheet.dataset.collectibleId;
+          const rarity = sheet.dataset.rarity || 'common';
+          
+          // Navigate to collectibles screen with scroll to specific card
           if (typeof window.showCollectiblesScreen === 'function') {
-            window.showCollectiblesScreen();
+            window.showCollectiblesScreen({ 
+              scrollToCard: collectibleId,
+              rarity: rarity,
+              animateCard: true 
+            });
           }
         }
       });

@@ -193,6 +193,7 @@ class CollectiblesManager {
     cardDiv.dataset.cardId = card.id;
     cardDiv.dataset.category = category;
     cardDiv.dataset.cardNumber = number;
+    cardDiv.setAttribute('data-collectible-id', card.id);
     cardDiv.setAttribute('role', 'button');
     cardDiv.setAttribute('tabindex', '0');
 

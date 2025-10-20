@@ -1886,7 +1886,7 @@ async function initializeApp() {
       });
     };
 
-    function showCollectiblesScreen() {
+    function showCollectiblesScreen(options = {}) {
       if (sliderLocked) return;
       console.log('🎁 Showing collectibles screen');
       const collectiblesScreen = document.getElementById('collectibles-screen');
@@ -1949,6 +1949,13 @@ async function initializeApp() {
           requestAnimationFrame(() => {
             collectiblesScreen.style.opacity = '1';
             collectiblesScreen.style.transform = 'scale(1) translateY(0)';
+            
+            // Handle scroll to specific card and animation
+            if (options.scrollToCard && options.animateCard) {
+              setTimeout(() => {
+                scrollToAndAnimateCard(options.scrollToCard, options.rarity);
+              }, 500); // Wait for screen animation to complete
+            }
           });
         }, 650);
       } else {
@@ -1970,8 +1977,76 @@ async function initializeApp() {
         requestAnimationFrame(() => {
           collectiblesScreen.style.opacity = '1';
           collectiblesScreen.style.transform = 'scale(1) translateY(0)';
+          
+          // Handle scroll to specific card and animation
+          if (options.scrollToCard && options.animateCard) {
+            setTimeout(() => {
+              scrollToAndAnimateCard(options.scrollToCard, options.rarity);
+            }, 500); // Wait for screen animation to complete
+          }
         });
       }
+    }
+
+    function scrollToAndAnimateCard(collectibleId, rarity) {
+      console.log('🎯 Scrolling to and animating card:', collectibleId, rarity);
+      
+      // Find the card element
+      const cardElement = document.querySelector(`[data-collectible-id="${collectibleId}"]`);
+      if (!cardElement) {
+        console.warn('❌ Card element not found:', collectibleId);
+        return;
+      }
+
+      // Find the scrollable container
+      const scrollableContainer = document.querySelector('.collectibles-scrollable');
+      if (!scrollableContainer) {
+        console.warn('❌ Scrollable container not found');
+        return;
+      }
+
+      // Calculate scroll position to center the card
+      const containerRect = scrollableContainer.getBoundingClientRect();
+      const cardRect = cardElement.getBoundingClientRect();
+      const cardCenter = cardRect.top + cardRect.height / 2;
+      const containerCenter = containerRect.top + containerRect.height / 2;
+      const scrollOffset = cardCenter - containerCenter;
+
+      // Smooth scroll to the card
+      scrollableContainer.scrollBy({
+        top: scrollOffset,
+        behavior: 'smooth'
+      });
+
+      // Wait for scroll to complete, then animate the card
+      setTimeout(() => {
+        animateCardUnlock(cardElement);
+      }, 800);
+    }
+
+    function animateCardUnlock(cardElement) {
+      console.log('🎉 Animating card unlock');
+      
+      // Add glow class for continuous glow effect
+      cardElement.classList.add('card-glow');
+      
+      // Add spin and scale animation
+      cardElement.style.transition = 'transform 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+      cardElement.style.transform = 'rotateY(360deg) scale(1.1)';
+      
+      // Reset after animation
+      setTimeout(() => {
+        cardElement.style.transform = 'rotateY(0deg) scale(1)';
+        
+        // Remove transition after animation
+        setTimeout(() => {
+          cardElement.style.transition = '';
+          // Remove glow after 3 seconds
+          setTimeout(() => {
+            cardElement.classList.remove('card-glow');
+          }, 3000);
+        }, 800);
+      }, 800);
     }
 
     function showStatsScreen() {
