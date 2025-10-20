@@ -254,15 +254,62 @@ export function showCollectibleRewardBottomSheet(detail = {}) {
 
   const cta = sheet.querySelector('.collectible-reward-cta');
   const performCollect = () => {
-    hideCollectibleRewardBottomSheet('collect', {
-      duration: 3750,
-      easing: 'ease-out'
-    });
-    requestAnimationFrame(() => {
-      if (typeof window.ensureDotsVisible === 'function') {
-        try { window.ensureDotsVisible(); } catch {}
+    // Start exit animation - each element disappears individually like homepage slider
+    const title = sheet.querySelector('.collectible-reward-title');
+    const subtitle = sheet.querySelector('.collectible-reward-subtitle');
+    const cardWrapper = sheet.querySelector('.collectible-reward-card-wrapper');
+    const cta = sheet.querySelector('.collectible-reward-cta');
+
+    // Apply exit animations with staggered timing
+    const springEasing = 'cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+    const duration = '0.65s';
+
+    // Title exits first
+    if (title) {
+      title.style.transition = `opacity ${duration} ${springEasing}, transform ${duration} ${springEasing}`;
+      title.style.opacity = '0';
+      title.style.transform = 'scale(0) translateY(-20px)';
+    }
+
+    // Subtitle exits with slight delay
+    setTimeout(() => {
+      if (subtitle) {
+        subtitle.style.transition = `opacity ${duration} ${springEasing}, transform ${duration} ${springEasing}`;
+        subtitle.style.opacity = '0';
+        subtitle.style.transform = 'scale(0) translateY(-15px)';
       }
-    });
+    }, 50);
+
+    // Card wrapper exits with more delay
+    setTimeout(() => {
+      if (cardWrapper) {
+        cardWrapper.style.transition = `opacity ${duration} ${springEasing}, transform ${duration} ${springEasing}`;
+        cardWrapper.style.opacity = '0';
+        cardWrapper.style.transform = 'scale(0) translateY(-25px)';
+      }
+    }, 100);
+
+    // CTA exits last
+    setTimeout(() => {
+      if (cta) {
+        cta.style.transition = `opacity ${duration} ${springEasing}, transform ${duration} ${springEasing}`;
+        cta.style.opacity = '0';
+        cta.style.transform = 'scale(0) translateY(-10px)';
+      }
+    }, 150);
+
+    // Hide bottom sheet after all animations complete
+    setTimeout(() => {
+      hideCollectibleRewardBottomSheet('collect', {
+        duration: 0,
+        onAfterClose: () => {
+          // Navigate to collectibles screen
+          if (typeof window.showCollectiblesScreen === 'function') {
+            window.showCollectiblesScreen();
+          }
+        }
+      });
+    }, 800);
   };
 
   if (cta) {
