@@ -2018,9 +2018,14 @@ async function initializeApp() {
         behavior: 'smooth'
       });
 
-      // Wait for scroll to complete, then animate the card
+      // Temporarily show card as locked, then unlock after delay
       setTimeout(() => {
-        animateCardUnlock(cardElement);
+        showCardAsLocked(cardElement);
+        
+        // Wait 2 seconds, then unlock with animation
+        setTimeout(() => {
+          unlockCardWithAnimation(cardElement);
+        }, 2000);
       }, 800);
     }
 
@@ -2033,6 +2038,70 @@ async function initializeApp() {
       // Add spin and scale animation
       cardElement.style.transition = 'transform 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
       cardElement.style.transform = 'rotateY(360deg) scale(1.1)';
+      
+      // Reset after animation
+      setTimeout(() => {
+        cardElement.style.transform = 'rotateY(0deg) scale(1)';
+        
+        // Remove transition after animation
+        setTimeout(() => {
+          cardElement.style.transition = '';
+          // Remove glow after 3 seconds
+          setTimeout(() => {
+            cardElement.classList.remove('card-glow');
+          }, 3000);
+        }, 800);
+      }, 800);
+    }
+
+    function showCardAsLocked(cardElement) {
+      console.log('🔒 Showing card as locked temporarily');
+      
+      // Remove unlocked class and add locked class
+      cardElement.classList.remove('unlocked');
+      cardElement.classList.add('locked');
+      
+      // Set background to placeholder image
+      const category = cardElement.dataset.category;
+      const placeholderPath = category === 'legendary' 
+        ? './assets/colelctibles/legendary back.png'
+        : './assets/colelctibles/common back.png';
+      
+      cardElement.style.backgroundImage = `url('${placeholderPath}')`;
+      cardElement.style.backgroundSize = 'cover';
+      cardElement.style.backgroundPosition = 'center';
+      cardElement.style.backgroundRepeat = 'no-repeat';
+      
+      // Add subtle pulse animation to indicate it's about to unlock
+      cardElement.classList.add('card-locked-pulse');
+    }
+
+    function unlockCardWithAnimation(cardElement) {
+      console.log('🎉 Unlocking card with animation');
+      
+      // Remove locked class and add unlocked class
+      cardElement.classList.remove('locked');
+      cardElement.classList.add('unlocked');
+      
+      // Remove pulse animation
+      cardElement.classList.remove('card-locked-pulse');
+      
+      // Get the actual card image
+      const category = cardElement.dataset.category;
+      const cardNumber = cardElement.dataset.cardNumber;
+      const actualImagePath = `./assets/colelctibles/${category}/${cardNumber.toString().padStart(2, '0')}.png`;
+      
+      // Add spin and scale animation while changing image
+      cardElement.style.transition = 'transform 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55), background-image 0.8s ease';
+      cardElement.style.transform = 'rotateY(360deg) scale(1.1)';
+      
+      // Change background image during spin
+      setTimeout(() => {
+        cardElement.style.backgroundImage = `url('${actualImagePath}')`;
+      }, 400); // Halfway through spin
+      
+      // Add glow effect
+      cardElement.classList.add('card-glow');
       
       // Reset after animation
       setTimeout(() => {

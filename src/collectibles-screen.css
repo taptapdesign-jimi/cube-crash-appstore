@@ -300,6 +300,10 @@
   animation: cardGlowPulse 2s ease-in-out infinite alternate;
 }
 
+.collectible-card.card-locked-pulse {
+  animation: cardLockedPulse 1s ease-in-out infinite alternate;
+}
+
 @keyframes collectibleUnlock {
   0% {
     transform: scale(0.9);
@@ -324,6 +328,17 @@
   }
   100% {
     box-shadow: 0 0 40px rgba(233, 116, 74, 0.8), 0 12px 26px var(--collectibles-card-shadow);
+  }
+}
+
+@keyframes cardLockedPulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.02);
+    opacity: 1;
   }
 }
 
