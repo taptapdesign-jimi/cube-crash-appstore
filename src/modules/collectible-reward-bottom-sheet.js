@@ -359,8 +359,11 @@ export function showCollectibleRewardBottomSheet(detail = {}) {
 }
 
 function revealCollectibleCard(sheet, detail) {
-  if (sheet.dataset.revealing === '1') return;
-  sheet.dataset.revealing = '1';
+  // Prevent multiple simultaneous reveals
+  if (sheet.dataset.revealing === '1') {
+    console.log('⚠️ Card reveal already in progress, ignoring duplicate call');
+    return;
+  }
 
   const cardContainer = sheet.querySelector('.collectible-reward-card-container');
   const cardFront = sheet.querySelector('.collectible-reward-card-front');
@@ -371,6 +374,9 @@ function revealCollectibleCard(sheet, detail) {
   const subtitle = sheet.querySelector('.collectible-reward-subtitle');
   const rarity = (sheet.querySelector('.collectible-reward-body')?.dataset.rarity || 'common');
   const rarityLabel = rarity.charAt(0).toUpperCase() + rarity.slice(1);
+
+  // Set revealing flag immediately
+  sheet.dataset.revealing = '1';
 
   if (cta) {
     cta.disabled = true;
@@ -384,108 +390,81 @@ function revealCollectibleCard(sheet, detail) {
     cardContainer.dataset.state = 'revealing';
   }
 
-  const TEXT_FADE_OUT_MS = 400; // iOS optimized - slightly faster
-  const TEXT_FADE_IN_MS = 400;  // iOS optimized - slightly faster
-  const TEXT_DELAY_MS = 450;    // iOS optimized - tighter timing
-
-  // iOS optimization: Enable hardware acceleration
-  const enableHardwareAcceleration = (element) => {
-    if (element) {
-      element.style.willChange = 'transform, opacity';
-      element.style.transform = 'translate3d(0,0,0)'; // Force GPU layer
+  // Clean up any existing animation classes to prevent conflicts
+  [title, subtitle].forEach((node) => {
+    if (node) {
+      node.classList.remove('collectible-reward-text-fade-out', 'collectible-reward-text-fade-in');
     }
-  };
+  });
 
-  // Start card rotation immediately with iOS optimizations
+  // Start card flip animation using CSS classes only
   requestAnimationFrame(() => {
     if (cardBack) {
-      enableHardwareAcceleration(cardBack);
-      cardBack.style.transition = 'transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease';
-      cardBack.style.transform = 'translate3d(0,0,0) rotateY(-180deg)';
-      cardBack.style.opacity = '0';
+      cardBack.classList.add('card-flipping');
     }
     if (cardFront) {
-      enableHardwareAcceleration(cardFront);
-      cardFront.style.transition = 'transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease';
-      cardFront.style.transform = 'translate3d(0,0,0) rotateY(0deg)';
-      cardFront.style.opacity = '1';
+      cardFront.classList.add('card-flipping');
     }
   });
 
-  if (puff) {
-    puff.style.opacity = '0';
-  }
-
-  // Start text fade out immediately with iOS optimizations
-  [title, subtitle].forEach((node) => {
-    if (!node) return;
-    enableHardwareAcceleration(node);
-    node.classList.remove('collectible-reward-text-fade-out', 'collectible-reward-text-fade-in');
-    node.offsetHeight; // Force reflow
-    node.classList.add('collectible-reward-text-fade-out');
-    setTimeout(() => {
-      node.classList.remove('collectible-reward-text-fade-out');
-      // Clean up hardware acceleration after animation
-      node.style.willChange = 'auto';
-    }, TEXT_FADE_OUT_MS);
+  // Start text fade out
+  requestAnimationFrame(() => {
+    [title, subtitle].forEach((node) => {
+      if (node) {
+        node.classList.add('collectible-reward-text-fade-out');
+      }
+    });
   });
 
-  // Change text after fade out completes with iOS optimizations
+  // Change text content after fade out completes
   setTimeout(() => {
     if (title) {
-      enableHardwareAcceleration(title);
       title.innerHTML = `<span class="collectible-reward-title-label">${rarityLabel}</span>`;
-      title.offsetHeight; // Force reflow
       title.classList.add('collectible-reward-text-fade-in');
-      setTimeout(() => {
-        title.classList.remove('collectible-reward-text-fade-in');
-        title.style.willChange = 'auto'; // Clean up hardware acceleration
-      }, TEXT_FADE_IN_MS);
     }
     if (subtitle) {
-      enableHardwareAcceleration(subtitle);
       subtitle.dataset.state = 'revealed';
       subtitle.innerHTML = `
         <span>You unlocked the</span>
         <span>${rarity} collectible card.</span>
       `;
-      subtitle.offsetHeight; // Force reflow
       subtitle.classList.add('collectible-reward-text-fade-in');
-      setTimeout(() => {
-        subtitle.classList.remove('collectible-reward-text-fade-in');
-        subtitle.style.willChange = 'auto'; // Clean up hardware acceleration
-      }, TEXT_FADE_IN_MS);
     }
-  }, TEXT_FADE_OUT_MS + 30); // iOS optimized - tighter timing
+  }, 400); // Wait for fade out to complete
 
+  // Complete the reveal and clean up
   setTimeout(() => {
     sheet.dataset.revealing = '0';
     sheet.dataset.revealed = '1';
+    
     if (cta) {
       cta.disabled = false;
       cta.classList.remove('revealing');
       cta.textContent = 'Collect';
     }
+    
     if (cardContainer) {
       cardContainer.dataset.state = 'revealed';
       cardContainer.classList.remove('revealing');
       cardContainer.classList.add('revealed');
       cardContainer.setAttribute('aria-label', 'Collectible card revealed');
     }
-    if (cardFront) {
-      cardFront.style.transition = '';
-      cardFront.style.transform = 'translate3d(0,0,0) rotateY(0deg)';
-      cardFront.style.opacity = '1';
-      cardFront.style.willChange = 'auto'; // Clean up hardware acceleration
-    }
-    if (cardBack) {
-      cardBack.style.transition = '';
-      cardBack.style.transform = 'translate3d(0,0,0) rotateY(-180deg)';
-      cardBack.style.opacity = '0';
-      cardBack.style.willChange = 'auto'; // Clean up hardware acceleration
-    }
+    
+    // Clean up animation classes
+    [cardBack, cardFront].forEach((card) => {
+      if (card) {
+        card.classList.remove('card-flipping');
+      }
+    });
+    
+    [title, subtitle].forEach((node) => {
+      if (node) {
+        node.classList.remove('collectible-reward-text-fade-out', 'collectible-reward-text-fade-in');
+      }
+    });
+    
     if (puff) {
       puff.style.opacity = '0';
     }
-  }, 700);
+  }, 800);
 }

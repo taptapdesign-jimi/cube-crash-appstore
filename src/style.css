@@ -2693,10 +2693,32 @@ body.gradient-fade-out #home{
     radial-gradient(ellipse 100px 120px at 50% 50%, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.05) 80%, transparent 100%);
 }
 
-/* Card rotation is now handled by JavaScript inline styles */
+/* Card flip animation - CSS only approach */
+.collectible-reward-card-back.card-flipping {
+  transform: translate3d(0,0,0) rotateY(-180deg) !important;
+  opacity: 0 !important;
+  transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease !important;
+  will-change: transform, opacity;
+}
+
+.collectible-reward-card-front.card-flipping {
+  transform: translate3d(0,0,0) rotateY(0deg) !important;
+  opacity: 1 !important;
+  transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease !important;
+  will-change: transform, opacity;
+}
 
 .collectible-reward-card-container.revealing {
   animation: none;
+}
+
+/* Clean up card flip classes after animation */
+.collectible-reward-card-back:not(.card-flipping) {
+  will-change: auto;
+}
+
+.collectible-reward-card-front:not(.card-flipping) {
+  will-change: auto;
 }
 
 .collectible-reward-card-container.revealed {
