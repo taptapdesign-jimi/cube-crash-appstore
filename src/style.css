@@ -2712,12 +2712,16 @@ body.gradient-fade-out #home{
   animation: none;
 }
 
-/* Clean up card flip classes after animation */
-.collectible-reward-card-back:not(.card-flipping) {
+/* Keep card in revealed state after animation */
+.collectible-reward-card-container.revealed .collectible-reward-card-back {
+  transform: translate3d(0,0,0) rotateY(-180deg) !important;
+  opacity: 0 !important;
   will-change: auto;
 }
 
-.collectible-reward-card-front:not(.card-flipping) {
+.collectible-reward-card-container.revealed .collectible-reward-card-front {
+  transform: translate3d(0,0,0) rotateY(0deg) !important;
+  opacity: 1 !important;
   will-change: auto;
 }
 
