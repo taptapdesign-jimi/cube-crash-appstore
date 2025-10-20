@@ -384,20 +384,30 @@ function revealCollectibleCard(sheet, detail) {
     cardContainer.dataset.state = 'revealing';
   }
 
-  const TEXT_FADE_OUT_MS = 500;
-  const TEXT_FADE_IN_MS = 500;
-  const TEXT_DELAY_MS = 600; // Reduced delay to prevent double animation
+  const TEXT_FADE_OUT_MS = 400; // iOS optimized - slightly faster
+  const TEXT_FADE_IN_MS = 400;  // iOS optimized - slightly faster
+  const TEXT_DELAY_MS = 450;    // iOS optimized - tighter timing
 
-  // Start card rotation immediately
+  // iOS optimization: Enable hardware acceleration
+  const enableHardwareAcceleration = (element) => {
+    if (element) {
+      element.style.willChange = 'transform, opacity';
+      element.style.transform = 'translate3d(0,0,0)'; // Force GPU layer
+    }
+  };
+
+  // Start card rotation immediately with iOS optimizations
   requestAnimationFrame(() => {
     if (cardBack) {
-      cardBack.style.transition = 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.6s ease';
-      cardBack.style.transform = 'rotateY(-180deg)';
+      enableHardwareAcceleration(cardBack);
+      cardBack.style.transition = 'transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease';
+      cardBack.style.transform = 'translate3d(0,0,0) rotateY(-180deg)';
       cardBack.style.opacity = '0';
     }
     if (cardFront) {
-      cardFront.style.transition = 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.6s ease';
-      cardFront.style.transform = 'rotateY(0deg)';
+      enableHardwareAcceleration(cardFront);
+      cardFront.style.transition = 'transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.5s ease';
+      cardFront.style.transform = 'translate3d(0,0,0) rotateY(0deg)';
       cardFront.style.opacity = '1';
     }
   });
@@ -406,34 +416,47 @@ function revealCollectibleCard(sheet, detail) {
     puff.style.opacity = '0';
   }
 
-  // Start text fade out immediately
+  // Start text fade out immediately with iOS optimizations
   [title, subtitle].forEach((node) => {
     if (!node) return;
+    enableHardwareAcceleration(node);
     node.classList.remove('collectible-reward-text-fade-out', 'collectible-reward-text-fade-in');
-    node.offsetHeight;
+    node.offsetHeight; // Force reflow
     node.classList.add('collectible-reward-text-fade-out');
-    setTimeout(() => node.classList.remove('collectible-reward-text-fade-out'), TEXT_FADE_OUT_MS);
+    setTimeout(() => {
+      node.classList.remove('collectible-reward-text-fade-out');
+      // Clean up hardware acceleration after animation
+      node.style.willChange = 'auto';
+    }, TEXT_FADE_OUT_MS);
   });
 
-  // Change text after fade out completes
+  // Change text after fade out completes with iOS optimizations
   setTimeout(() => {
     if (title) {
+      enableHardwareAcceleration(title);
       title.innerHTML = `<span class="collectible-reward-title-label">${rarityLabel}</span>`;
-      title.offsetHeight;
+      title.offsetHeight; // Force reflow
       title.classList.add('collectible-reward-text-fade-in');
-      setTimeout(() => title.classList.remove('collectible-reward-text-fade-in'), TEXT_FADE_IN_MS);
+      setTimeout(() => {
+        title.classList.remove('collectible-reward-text-fade-in');
+        title.style.willChange = 'auto'; // Clean up hardware acceleration
+      }, TEXT_FADE_IN_MS);
     }
     if (subtitle) {
+      enableHardwareAcceleration(subtitle);
       subtitle.dataset.state = 'revealed';
       subtitle.innerHTML = `
         <span>You unlocked the</span>
         <span>${rarity} collectible card.</span>
       `;
-      subtitle.offsetHeight;
+      subtitle.offsetHeight; // Force reflow
       subtitle.classList.add('collectible-reward-text-fade-in');
-      setTimeout(() => subtitle.classList.remove('collectible-reward-text-fade-in'), TEXT_FADE_IN_MS);
+      setTimeout(() => {
+        subtitle.classList.remove('collectible-reward-text-fade-in');
+        subtitle.style.willChange = 'auto'; // Clean up hardware acceleration
+      }, TEXT_FADE_IN_MS);
     }
-  }, TEXT_FADE_OUT_MS + 50); // Wait for fade out to complete
+  }, TEXT_FADE_OUT_MS + 30); // iOS optimized - tighter timing
 
   setTimeout(() => {
     sheet.dataset.revealing = '0';
@@ -451,13 +474,15 @@ function revealCollectibleCard(sheet, detail) {
     }
     if (cardFront) {
       cardFront.style.transition = '';
-      cardFront.style.transform = 'rotateY(0deg)';
+      cardFront.style.transform = 'translate3d(0,0,0) rotateY(0deg)';
       cardFront.style.opacity = '1';
+      cardFront.style.willChange = 'auto'; // Clean up hardware acceleration
     }
     if (cardBack) {
       cardBack.style.transition = '';
-      cardBack.style.transform = 'rotateY(-180deg)';
+      cardBack.style.transform = 'translate3d(0,0,0) rotateY(-180deg)';
       cardBack.style.opacity = '0';
+      cardBack.style.willChange = 'auto'; // Clean up hardware acceleration
     }
     if (puff) {
       puff.style.opacity = '0';
