@@ -2355,6 +2355,131 @@ body.gradient-fade-out #home{
   }
 }
 
+/* ===== COLLECTIBLE REWARD BOTTOM SHEET ===== */
+.collectible-reward-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(38, 23, 18, 0.25);
+  z-index: 999999998;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.collectible-reward-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.collectible-reward-overlay.closing {
+  pointer-events: none;
+}
+
+.collectible-reward-bottom-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 390px;
+  background: #FFFFFF;
+  border-radius: 40px 40px 0 0;
+  box-shadow: 0 -12px 48px rgba(233, 210, 200, 0.5);
+  padding: 32px 32px 40px;
+  transform: translateY(100%);
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.collectible-reward-bottom-sheet.visible {
+  transform: translateY(0);
+}
+
+.collectible-reward-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  text-align: center;
+  width: 100%;
+  flex: 1;
+}
+
+.collectible-reward-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  width: 100%;
+}
+
+.collectible-reward-title {
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin: 0;
+  color: #B28770;
+  display: flex;
+  gap: 8px;
+}
+
+.collectible-reward-title span {
+  display: inline-block;
+}
+
+.collectible-reward-title-emphasis {
+  color: #E8734A;
+  font-weight: 800;
+}
+
+.collectible-reward-subtitle {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-size: 18px;
+  line-height: 1.4;
+  color: #9B7E73;
+  margin: 0;
+}
+
+.collectible-reward-card-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex: 1 1 auto;
+  margin-top: 12px;
+}
+
+.collectible-reward-card {
+  width: min(260px, 72vw);
+  aspect-ratio: 280 / 414;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 34px;
+  box-shadow: 0 16px 48px rgba(233, 167, 153, 0.32);
+  background-color: rgba(128, 64, 69, 0.5);
+}
+
+.collectible-reward-cta {
+  width: 100%;
+  max-width: 262px;
+  margin-top: auto;
+  align-self: center;
+}
+
+html.collectible-reward-open,
+html.collectible-reward-open body {
+  overflow: hidden;
+  touch-action: none;
+}
+
 .simple-content {
   display: flex;
   flex-direction: column;

@@ -40,6 +40,94 @@ const loaderVisualReadyPromise = new Promise((resolve) => {
 });
 let loaderFakeTimeline = null;
 
+// Collectible reward tracking
+const shownCollectibleRewards = new Set();
+let pendingCollectibleRewards = [];
+let homepageReady = false;
+let rewardSheetVisible = false;
+let collectibleRewardModulePromise = null;
+
+function enqueueCollectibleReward(detail) {
+  if (!detail) return;
+  pendingCollectibleRewards.push(detail);
+  processPendingCollectibleRewards();
+}
+
+function markHomepageVisible({ delay = 0 } = {}) {
+  const mark = () => {
+    homepageReady = true;
+    processPendingCollectibleRewards();
+  };
+  if (delay > 0) {
+    setTimeout(mark, delay);
+  } else {
+    mark();
+  }
+}
+
+function markHomepageHidden() {
+  homepageReady = false;
+}
+
+async function processPendingCollectibleRewards() {
+  if (!homepageReady) return;
+  if (rewardSheetVisible) return;
+  if (pendingCollectibleRewards.length === 0) return;
+
+  const nextReward = pendingCollectibleRewards.shift();
+  rewardSheetVisible = true;
+
+  try {
+    collectibleRewardModulePromise ||= import('./modules/collectible-reward-bottom-sheet.js');
+    const module = await collectibleRewardModulePromise;
+    if (module && typeof module.showCollectibleRewardBottomSheet === 'function') {
+      await module.showCollectibleRewardBottomSheet(nextReward);
+    } else {
+      console.warn('⚠️ Reward bottom sheet module missing show function.');
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to show collectible reward bottom sheet:', error);
+  } finally {
+    rewardSheetVisible = false;
+    // Process any additional queued rewards
+    processPendingCollectibleRewards();
+  }
+}
+
+function handleCollectibleUnlocked(event) {
+  const detail = event?.detail;
+  if (!detail) return;
+
+  const category = detail.category;
+  const number = Number(detail.number ?? detail.cardNumber ?? 0);
+
+  // Focus on the first common card for now
+  if (category !== 'common' || number !== 1) {
+    return;
+  }
+
+  const rewardKey = `${category}:${number}`;
+  if (shownCollectibleRewards.has(rewardKey)) {
+    return;
+  }
+  shownCollectibleRewards.add(rewardKey);
+
+  // Ensure we have the fields the UI expects
+  const normalizedDetail = {
+    category,
+    number,
+    cardId: detail.cardId,
+    cardName: detail.cardName,
+    cardDescription: detail.cardDescription,
+    rarity: detail.rarity,
+    imagePath: detail.imagePath
+  };
+
+  enqueueCollectibleReward(normalizedDetail);
+}
+
+window.addEventListener('collectible:unlocked', handleCollectibleUnlocked);
+
 function fadeOutGradientBackground() {
   try {
     document.body.classList.add('gradient-fade-out');
@@ -409,7 +497,10 @@ async function runLoaderExitAnimation() {
 }
 
 async function animateInitialSlideEnter() {
-  if (initialSlideEnterPlayed) return;
+  if (initialSlideEnterPlayed) {
+    markHomepageVisible();
+    return;
+  }
   const slide = document.querySelector('.slider-slide[data-slide="0"]');
   if (!slide) return;
   initialSlideEnterPlayed = true;
@@ -468,6 +559,7 @@ async function animateInitialSlideEnter() {
   ];
 
   await runSpringEnter(entries);
+  markHomepageVisible();
 }
 
 async function fadeOutLoadingOverlay() {
@@ -927,6 +1019,7 @@ async function animateModalExit() {
 
 // Slide exit animation
 async function animateSlideExit() {
+  markHomepageHidden();
   return new Promise(resolve => {
     console.log('🎬 Starting slide exit animation...');
     fadeOutGradientBackground();
@@ -4039,6 +4132,9 @@ window.startNewGame = async () => {
           setTimeout(ensureDotsVisible, 50);
           setTimeout(ensureDotsVisible, 200);
         });
+
+        const hasSlideAnimation = !!(slide1 && slide1.querySelector('.slide-content'));
+        markHomepageVisible({ delay: hasSlideAnimation ? 700 : 0 });
 
         console.log('✅ Exit to menu completed - slider reset cleanly');
       } catch (error) {

@@ -43,6 +43,7 @@ class CollectiblesManager {
     this.saveCollectiblesState();
     this.preloadImages();
     this.initEventListeners();
+    this.handleDailyVisit();
   }
 
   loadCollectiblesState() {
@@ -117,6 +118,8 @@ class CollectiblesManager {
         this.hideCardDetail();
       }
     });
+
+    this.initDevButtons();
   }
 
   async showCollectibles() {
@@ -315,22 +318,25 @@ class CollectiblesManager {
 
   // Event handler for unlocking cards
   unlockCard(eventName) {
-    let unlocked = false;
+    const unlockedCards = [];
 
     Object.keys(this.collectiblesData).forEach(category => {
-      this.collectiblesData[category].forEach(card => {
+      this.collectiblesData[category].forEach((card, index) => {
         if (card.event === eventName && !card.unlocked) {
           card.unlocked = true;
-          unlocked = true;
+          unlockedCards.push({ category, card, number: index + 1 });
           this.animateCardUnlock(card.id, category);
         }
       });
     });
 
-    if (unlocked) {
+    if (unlockedCards.length) {
       this.saveCollectiblesState();
       this.updateCounters();
       console.log(`🎉 Unlocked collectible for event: ${eventName}`);
+      unlockedCards.forEach(({ category, card, number }) => {
+        this.notifyCardUnlocked(category, number, card, { source: 'event', eventName });
+      });
     }
   }
 
@@ -394,6 +400,13 @@ class CollectiblesManager {
   }
 
   lockInitialCommons() {
+    try {
+      const flag = localStorage.getItem('collectibles_initial_lock_done');
+      if (flag === '1') {
+        return;
+      }
+    } catch {}
+
     let changed = false;
     this.collectiblesData.common.slice(0, 5).forEach(card => {
       if (card.unlocked) {
@@ -408,6 +421,164 @@ class CollectiblesManager {
         console.warn('Failed to lock initial common collectibles:', error);
       }
     }
+
+    try {
+      localStorage.setItem('collectibles_initial_lock_done', '1');
+    } catch {}
+  }
+
+  handleDailyVisit() {
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const raw = localStorage.getItem('collectibles_daily_visit');
+      let data = { date: today, count: 0 };
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            data = {
+              date: typeof parsed.date === 'string' ? parsed.date : today,
+              count: Number.isFinite(parsed.count) ? parsed.count : 0
+            };
+          }
+        } catch {}
+      }
+
+      if (data.date === today) {
+        data.count += 1;
+      } else {
+        data = { date: today, count: 1 };
+      }
+
+      localStorage.setItem('collectibles_daily_visit', JSON.stringify(data));
+
+      if (data.count >= 2) {
+        if (this.unlockCardByNumber(1, { render: true, silent: true })) {
+          console.log('🎁 Daily visit bonus unlocked collectible 01');
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to process daily visit unlock:', error);
+    }
+  }
+
+  unlockCardByNumber(number, { render = true, silent = false } = {}) {
+    let card = null;
+    let categoryKey = null;
+    if (number >= 1 && number <= 20) {
+      categoryKey = 'common';
+      card = this.collectiblesData.common[number - 1];
+    } else if (number >= 21 && number <= 25) {
+      categoryKey = 'legendary';
+      card = this.collectiblesData.legendary[number - 21];
+    }
+
+    if (!card) return false;
+    if (!card.unlocked) {
+      card.unlocked = true;
+      this.saveCollectiblesState();
+      if (render) {
+        this.renderCards();
+        this.updateCounters();
+      } else {
+        this.updateCounters();
+      }
+      this.notifyCardUnlocked(categoryKey, number, card, { source: 'number' });
+      if (!silent) {
+        console.log(`🎁 Collectible ${number.toString().padStart(2, '0')} unlocked via dev tool.`);
+      }
+    } else if (render) {
+      this.renderCards();
+    }
+    return true;
+  }
+
+  notifyCardUnlocked(category, number, card, meta = {}) {
+    if (!category || !card) return;
+    try {
+      const detail = {
+        cardId: card.id,
+        cardName: card.name,
+        cardDescription: card.description,
+        category,
+        number,
+        rarity: card.rarity,
+        imagePath: this.getCardImagePath(category, number),
+        unlockedAt: Date.now(),
+        ...meta
+      };
+      window.dispatchEvent(new CustomEvent('collectible:unlocked', { detail }));
+    } catch (error) {
+      console.warn('Failed to dispatch collectible unlocked event:', error);
+    }
+  }
+
+  lockCardByNumber(number, { render = true } = {}) {
+    let card = null;
+    if (number >= 1 && number <= 20) {
+      card = this.collectiblesData.common[number - 1];
+    } else if (number >= 21 && number <= 25) {
+      card = this.collectiblesData.legendary[number - 21];
+    }
+
+    if (!card) return false;
+    if (card.unlocked) {
+      card.unlocked = false;
+      this.saveCollectiblesState();
+      if (render) {
+        this.renderCards();
+        this.updateCounters();
+      }
+    }
+
+    if (number === 1) {
+      try { localStorage.removeItem('collectibles_daily_visit'); } catch {}
+    }
+    return true;
+  }
+
+  initDevButtons() {
+    const unlockBtn = document.getElementById('collectibles-unlock-btn');
+    if (unlockBtn) {
+      unlockBtn.addEventListener('click', () => {
+        const num = this.promptForCardNumber('🧪 Unlock collectible (01-25):');
+        if (num === null) return;
+        if (this.unlockCardByNumber(num)) {
+          alert(`Collectible ${num.toString().padStart(2, '0')} unlocked.`);
+        } else {
+          alert(`Collectible ${num.toString().padStart(2, '0')} not found.`);
+        }
+      });
+    }
+
+    const hideBtn = document.getElementById('collectibles-hide-btn');
+    if (hideBtn) {
+      hideBtn.addEventListener('click', () => {
+        const num = this.promptForCardNumber('🧪 Hide collectible (01-25):');
+        if (num === null) return;
+        if (this.lockCardByNumber(num)) {
+          alert(`Collectible ${num.toString().padStart(2, '0')} hidden.`);
+        } else {
+          alert(`Collectible ${num.toString().padStart(2, '0')} not found.`);
+        }
+      });
+    }
+  }
+
+  promptForCardNumber(message) {
+    const input = prompt(message, '01');
+    if (!input) return null;
+    const trimmed = input.trim();
+    if (!/^\d{1,2}$/.test(trimmed)) {
+      alert('Please enter a number between 1 and 25.');
+      return null;
+    }
+    const number = parseInt(trimmed, 10);
+    if (Number.isNaN(number) || number < 1 || number > 25) {
+      alert('Please enter a number between 1 and 25.');
+      return null;
+    }
+    return number;
   }
 }
 
@@ -456,6 +627,18 @@ window.hideCollectibles = () => {
 window.unlockCollectible = (eventName) => {
   if (collectiblesManager) {
     collectiblesManager.unlockCard(eventName);
+  }
+};
+
+window.unlockCollectibleByNumber = (number) => {
+  if (collectiblesManager) {
+    collectiblesManager.unlockCardByNumber(Number(number) || 0);
+  }
+};
+
+window.hideCollectibleByNumber = (number) => {
+  if (collectiblesManager) {
+    collectiblesManager.lockCardByNumber(Number(number) || 0);
   }
 };
 

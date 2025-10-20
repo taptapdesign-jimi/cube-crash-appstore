@@ -222,10 +222,24 @@
   gap: 4px;
 }
 
+.collectibles-debug-controls {
+  margin: 24px auto calc(32px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(260px, 100%);
+}
+
+.collectibles-debug-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .collectible-card-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0;
   align-items: flex-start;
 }
 
