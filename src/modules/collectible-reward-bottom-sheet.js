@@ -24,29 +24,35 @@ function cleanupOverlay() {
 }
 
 function buildMarkup(detail) {
-  const { cardName, imagePath } = detail;
+  const { cardName, imagePath, rarity } = detail;
+  const rarityLabel = (rarity || 'Common').toUpperCase();
+  const rarityLower = (rarity || 'Common').toLowerCase();
+  const backImage = './assets/colelctibles/common back.png';
 
   return `
     <div class="modal-handle" aria-hidden="true"></div>
-    <div class="collectible-reward-body">
-      <div class="collectible-reward-header">
-        <h2 class="collectible-reward-title">
-          <span class="collectible-reward-title-emphasis">NEW</span>
-          <span>Reward</span>
-        </h2>
-        <p class="collectible-reward-subtitle">Congrats! You unlocked a new collectible card.</p>
-      </div>
+    <div class="collectible-reward-body" data-rarity="${rarityLower}">
+      <h2 class="collectible-reward-title">
+        <span class="collectible-reward-title-new">NEW</span>
+        <span class="collectible-reward-title-label">Reward</span>
+      </h2>
+      <p class="collectible-reward-subtitle" data-state="hidden" aria-live="polite">
+        <span>Congrats! Tap to reveal the</span>
+        <span>collectible reward</span>
+      </p>
       <div class="collectible-reward-card-wrapper" role="presentation">
-        <div
-          class="collectible-reward-card"
-          style="background-image: url('${imagePath || ''}');"
-          role="img"
-          aria-label="${cardName || 'Unlocked collectible card'}"
-        ></div>
+        <div class="collectible-reward-card-container" data-state="hidden" role="button" tabindex="0" aria-label="Reveal collectible card">
+          <div class="collectible-reward-card-face collectible-reward-card-back" style="background-image: url('${backImage}');"></div>
+          <div class="collectible-reward-card-face collectible-reward-card-front" style="background-image: url('${imagePath || ''}');" aria-label="${cardName || 'Unlocked collectible card'}"></div>
+          <div class="collectible-reward-card-smoke"></div>
+          <div class="collectible-reward-card-sparkles"></div>
+          <div class="collectible-reward-card-shimmer"></div>
+          <div class="collectible-reward-card-puff"></div>
+        </div>
       </div>
     </div>
-    <button class="collectible-reward-cta continue-btn" type="button">
-      Collect Reward
+    <button class="collectible-reward-cta continue-btn reveal-btn" type="button" aria-live="polite">
+      Reveal
     </button>
   `;
 }
@@ -144,25 +150,44 @@ export function hideCollectibleRewardBottomSheet(reason = 'dismiss', options = {
 
   const overlay = activeOverlay;
   const sheet = overlay.querySelector('.collectible-reward-bottom-sheet');
-  const { preserveCurrentTransform = false, onAfterClose } = options;
+  const {
+    preserveCurrentTransform = false,
+    onAfterClose,
+    duration = 360,
+    easing = preserveCurrentTransform ? 'cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'cubic-bezier(0.23, 0.82, 0.28, 1)'
+  } = options;
 
   isClosing = true;
   overlay.classList.remove('visible');
   overlay.classList.add('closing');
 
-  if (!preserveCurrentTransform) {
-    sheet.style.transform = '';
-  }
+  const cleanupInlineTransitions = () => {
+    try {
+      sheet.style.transition = '';
+    } catch {}
+    try {
+      overlay.style.transition = '';
+    } catch {}
+  };
+
+  overlay.style.transition = `opacity ${Math.min(duration, 1200)}ms ease-in-out`;
+
   sheet.classList.remove('visible');
   if (preserveCurrentTransform) {
-    sheet.style.transition = 'transform 0.32s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+    sheet.style.transition = `transform ${duration}ms ${easing}`;
     requestAnimationFrame(() => {
+      sheet.style.transform = 'translateY(100%)';
+    });
+  } else {
+    requestAnimationFrame(() => {
+      sheet.style.transition = `transform ${duration}ms ${easing}`;
       sheet.style.transform = 'translateY(100%)';
     });
   }
 
   setTimeout(() => {
     cleanupOverlay();
+    cleanupInlineTransitions();
 
     try {
       overlay.remove();
@@ -194,7 +219,7 @@ export function hideCollectibleRewardBottomSheet(reason = 'dismiss', options = {
       activeResolve = null;
       resolveFn(reason);
     }
-  }, 360);
+  }, duration);
 }
 
 export function showCollectibleRewardBottomSheet(detail = {}) {
@@ -228,17 +253,25 @@ export function showCollectibleRewardBottomSheet(detail = {}) {
   lockInteractions();
 
   const cta = sheet.querySelector('.collectible-reward-cta');
+  const performCollect = () => {
+    hideCollectibleRewardBottomSheet('collect', {
+      duration: 3750,
+      easing: 'ease-out'
+    });
+    requestAnimationFrame(() => {
+      if (typeof window.ensureDotsVisible === 'function') {
+        try { window.ensureDotsVisible(); } catch {}
+      }
+    });
+  };
+
   if (cta) {
     const handleCtaClick = () => {
-      hideCollectibleRewardBottomSheet('cta', {
-        onAfterClose: () => {
-          if (window.collectiblesManager && typeof window.collectiblesManager.showCollectibles === 'function') {
-            window.collectiblesManager.showCollectibles();
-          } else if (typeof window.showCollectibles === 'function') {
-            window.showCollectibles();
-          }
-        }
-      });
+      if (sheet.dataset.revealed === '1') {
+        performCollect();
+      } else {
+        revealCollectibleCard(sheet, detail);
+      }
     };
 
     cta.addEventListener('click', handleCtaClick);
@@ -248,16 +281,70 @@ export function showCollectibleRewardBottomSheet(detail = {}) {
     });
   }
 
+  const cardContainer = sheet.querySelector('.collectible-reward-card-container');
+  if (cardContainer) {
+    const handleCardClick = () => {
+      if (sheet.dataset.revealed === '1') {
+        performCollect();
+        return;
+      }
+      revealCollectibleCard(sheet, detail);
+    };
+    const handleCardKeyDown = (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        if (sheet.dataset.revealed === '1') {
+          performCollect();
+          return;
+        }
+        revealCollectibleCard(sheet, detail);
+      }
+    };
+    cardContainer.addEventListener('click', handleCardClick);
+    cardContainer.addEventListener('keydown', handleCardKeyDown);
+    registerCleanup(() => {
+      cardContainer.removeEventListener('click', handleCardClick);
+      cardContainer.removeEventListener('keydown', handleCardKeyDown);
+    });
+  }
+
   const handleOverlayClick = (event) => {
     if (event.target === overlay) {
-      hideCollectibleRewardBottomSheet('backdrop');
+      hideCollectibleRewardBottomSheet('backdrop', {
+        duration: 1500,
+        easing: 'ease-out'
+      });
     }
   };
 
-  overlay.addEventListener('click', handleOverlayClick);
-  registerCleanup(() => {
-    overlay.removeEventListener('click', handleOverlayClick);
-  });
+  // Add outside click functionality with delay like resume game
+  setTimeout(() => {
+    const handleOutsideClick = (e) => {
+      if (overlay && !overlay.contains(e.target)) {
+        hideCollectibleRewardBottomSheet('backdrop', {
+          duration: 1500,
+          easing: 'ease-out'
+        });
+      }
+    };
+    
+    const handleOutsideTouch = (e) => {
+      if (overlay && !overlay.contains(e.target)) {
+        hideCollectibleRewardBottomSheet('backdrop', {
+          duration: 1500,
+          easing: 'ease-out'
+        });
+      }
+    };
+    
+    document.addEventListener('click', handleOutsideClick);
+    document.addEventListener('touchend', handleOutsideTouch);
+    
+    registerCleanup(() => {
+      document.removeEventListener('click', handleOutsideClick);
+      document.removeEventListener('touchend', handleOutsideTouch);
+    });
+  }, 200); // Same delay as resume game
 
   attachDragHandlers(sheet);
 
@@ -269,4 +356,111 @@ export function showCollectibleRewardBottomSheet(detail = {}) {
   return new Promise((resolve) => {
     activeResolve = resolve;
   });
+}
+
+function revealCollectibleCard(sheet, detail) {
+  if (sheet.dataset.revealing === '1') return;
+  sheet.dataset.revealing = '1';
+
+  const cardContainer = sheet.querySelector('.collectible-reward-card-container');
+  const cardFront = sheet.querySelector('.collectible-reward-card-front');
+  const cardBack = sheet.querySelector('.collectible-reward-card-back');
+  const puff = sheet.querySelector('.collectible-reward-card-puff');
+  const cta = sheet.querySelector('.collectible-reward-cta');
+  const title = sheet.querySelector('.collectible-reward-title');
+  const subtitle = sheet.querySelector('.collectible-reward-subtitle');
+  const rarity = (sheet.querySelector('.collectible-reward-body')?.dataset.rarity || 'common');
+  const rarityLabel = rarity.charAt(0).toUpperCase() + rarity.slice(1);
+
+  if (cta) {
+    cta.disabled = true;
+    cta.classList.add('revealing');
+    cta.textContent = 'Revealing...';
+    cta.setAttribute('aria-live', 'assertive');
+  }
+
+  if (cardContainer) {
+    cardContainer.classList.add('revealing');
+    cardContainer.dataset.state = 'revealing';
+  }
+
+  const TEXT_FADE_OUT_MS = 500;
+  const TEXT_FADE_IN_MS = 500;
+  const TEXT_DELAY_MS = 800; // Delay before text changes
+
+  // Start card rotation immediately
+  requestAnimationFrame(() => {
+    if (cardBack) {
+      cardBack.style.transition = 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.6s ease';
+      cardBack.style.transform = 'rotateY(-180deg)';
+      cardBack.style.opacity = '0';
+    }
+    if (cardFront) {
+      cardFront.style.transition = 'transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.6s ease';
+      cardFront.style.transform = 'rotateY(0deg)';
+      cardFront.style.opacity = '1';
+    }
+  });
+
+  if (puff) {
+    puff.style.opacity = '0';
+  }
+
+  // Start text fade out immediately
+  [title, subtitle].forEach((node) => {
+    if (!node) return;
+    node.classList.remove('collectible-reward-text-fade-out', 'collectible-reward-text-fade-in');
+    node.offsetHeight;
+    node.classList.add('collectible-reward-text-fade-out');
+    setTimeout(() => node.classList.remove('collectible-reward-text-fade-out'), TEXT_FADE_OUT_MS);
+  });
+
+  // Change text after delay with fade in
+  setTimeout(() => {
+    if (title) {
+      title.innerHTML = `<span class="collectible-reward-title-label">${rarityLabel}</span>`;
+      title.offsetHeight;
+      title.classList.add('collectible-reward-text-fade-in');
+      setTimeout(() => title.classList.remove('collectible-reward-text-fade-in'), TEXT_FADE_IN_MS);
+    }
+    if (subtitle) {
+      subtitle.dataset.state = 'revealed';
+      subtitle.innerHTML = `
+        <span>You unlocked the</span>
+        <span>${rarity} collectible card.</span>
+      `;
+      subtitle.offsetHeight;
+      subtitle.classList.add('collectible-reward-text-fade-in');
+      setTimeout(() => subtitle.classList.remove('collectible-reward-text-fade-in'), TEXT_FADE_IN_MS);
+    }
+  }, TEXT_DELAY_MS);
+
+  setTimeout(() => {
+    sheet.dataset.revealing = '0';
+    sheet.dataset.revealed = '1';
+    if (cta) {
+      cta.disabled = false;
+      cta.classList.remove('revealing');
+      cta.textContent = 'Collect';
+    }
+    if (cardContainer) {
+      cardContainer.dataset.state = 'revealed';
+      cardContainer.classList.remove('revealing');
+      cardContainer.classList.add('revealed');
+      cardContainer.setAttribute('aria-label', 'Collectible card revealed');
+    }
+    if (cardFront) {
+      cardFront.style.transition = '';
+      cardFront.style.transform = 'rotateY(0deg)';
+      cardFront.style.opacity = '1';
+    }
+    if (cardBack) {
+      cardBack.style.transition = '';
+      cardBack.style.transform = 'rotateY(-180deg)';
+      cardBack.style.opacity = '0';
+    }
+    if (puff) {
+      puff.style.opacity = '0';
+    }
+  }, 700);
 }
