@@ -427,7 +427,34 @@ class CollectiblesManager {
     } catch {}
   }
 
+  handleSettingsClick() {
+    try {
+      console.log('⚙️ Settings clicked - checking for collectible 01 unlock');
+      
+      // Check if collectible 01 is already unlocked
+      const card01 = this.collectiblesData.common[0]; // 01 - DAILY LOG
+      if (card01 && !card01.unlocked) {
+        if (this.unlockCardByNumber(1, { render: true, silent: false })) {
+          console.log('🎁 Settings click unlocked collectible 01 - DAILY LOG');
+          
+          // Show reward bottom sheet
+          if (typeof window.showCollectibleRewardBottomSheet === 'function') {
+            window.showCollectibleRewardBottomSheet({
+              cardName: card01.name,
+              imagePath: card01.imagePath
+            });
+          }
+        }
+      } else {
+        console.log('🎁 Collectible 01 already unlocked or not found');
+      }
+    } catch (error) {
+      console.warn('Failed to process settings click unlock:', error);
+    }
+  }
+
   handleDailyVisit() {
+    // Keep this method for future use but disable the unlock logic
     try {
       const today = new Date().toISOString().slice(0, 10);
       const raw = localStorage.getItem('collectibles_daily_visit');
@@ -452,13 +479,16 @@ class CollectiblesManager {
 
       localStorage.setItem('collectibles_daily_visit', JSON.stringify(data));
 
-      if (data.count >= 2) {
-        if (this.unlockCardByNumber(1, { render: true, silent: true })) {
-          console.log('🎁 Daily visit bonus unlocked collectible 01');
-        }
-      }
+      // Disabled: Daily visit unlock logic
+      // if (data.count >= 2) {
+      //   if (this.unlockCardByNumber(1, { render: true, silent: true })) {
+      //     console.log('🎁 Daily visit bonus unlocked collectible 01');
+      //   }
+      // }
+      
+      console.log('📊 Daily visit count:', data.count, 'for date:', data.date);
     } catch (error) {
-      console.warn('Failed to process daily visit unlock:', error);
+      console.warn('Failed to process daily visit tracking:', error);
     }
   }
 

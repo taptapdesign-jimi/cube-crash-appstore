@@ -3267,6 +3267,12 @@ async function initializeApp() {
       settingsButton.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent slider from moving
         console.log('⚙️ Settings clicked');
+        
+        // Trigger collectible 01 unlock event
+        if (window.collectiblesManager && typeof window.collectiblesManager.handleSettingsClick === 'function') {
+          window.collectiblesManager.handleSettingsClick();
+        }
+        
         goToSlide(3);
       });
       
@@ -3274,6 +3280,12 @@ async function initializeApp() {
       addSliderButtonTouchHandling(settingsButton, (e) => {
         e.stopPropagation();
         console.log('⚙️ Settings touched');
+        
+        // Trigger collectible 01 unlock event
+        if (window.collectiblesManager && typeof window.collectiblesManager.handleSettingsClick === 'function') {
+          window.collectiblesManager.handleSettingsClick();
+        }
+        
         goToSlide(3);
       });
     }

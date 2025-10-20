@@ -2362,7 +2362,7 @@ body.gradient-fade-out #home{
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: rgba(38, 23, 18, 0.25);
+  background: transparent;
   z-index: 999999998;
   opacity: 0;
   transition: opacity 0.25s ease;
