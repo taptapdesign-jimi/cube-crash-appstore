@@ -448,6 +448,40 @@
   }
 }
 
+/* iPad specific styles for 4 cards per row */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .collectibles-shell {
+    --pad: 40px;
+    max-width: none;
+    width: 100%;
+  }
+  
+  .collectibles-scrollable {
+    align-items: stretch;
+  }
+  
+  .collectibles-section {
+    max-width: none;
+    width: 100%;
+  }
+  
+  .collectibles-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    column-gap: 20px;
+    row-gap: 24px;
+    width: 100%;
+    max-width: none;
+  }
+  
+  .collectible-card {
+    border-radius: 20px;
+  }
+  
+  .collectible-card-label {
+    font-size: 16px;
+  }
+}
+
 @media (max-width: 480px) {
   .collectibles-shell {
     --pad: 24px;
