@@ -2486,6 +2486,16 @@ body.gradient-fade-out #home{
   transform: translateY(0) !important;
 }
 
+/* Disable rewardFadeUp animation after reveal to prevent re-triggering */
+.collectible-reward-bottom-sheet[data-revealed="1"] .collectible-reward-title,
+.collectible-reward-bottom-sheet[data-revealed="1"] .collectible-reward-subtitle,
+.collectible-reward-bottom-sheet[data-revealed="1"] .collectible-reward-card-wrapper,
+.collectible-reward-bottom-sheet[data-revealed="1"] .collectible-reward-cta {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+
 .collectible-reward-subtitle {
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   font-size: 20px;
@@ -2708,8 +2718,15 @@ body.gradient-fade-out #home{
   will-change: transform, opacity;
 }
 
+/* Prevent any snapping or bouncing during reveal process */
 .collectible-reward-card-container.revealing {
-  animation: none;
+  animation: none !important;
+  transform: translate3d(0,0,0) !important;
+}
+
+.collectible-reward-card-container.revealing .collectible-reward-card-back,
+.collectible-reward-card-container.revealing .collectible-reward-card-front {
+  animation: none !important;
 }
 
 /* Keep card in revealed state after animation */
@@ -2726,8 +2743,8 @@ body.gradient-fade-out #home{
 }
 
 .collectible-reward-card-container.revealed {
-  animation: rewardCardIdleFloat 5.6s cubic-bezier(0.33, 0, 0.2, 1) infinite alternate;
-  animation-delay: -0.9s;
+  /* Disable idle float animation to prevent snapping */
+  animation: none;
 }
 
 .collectible-reward-card-container.revealed .collectible-reward-card-puff {
