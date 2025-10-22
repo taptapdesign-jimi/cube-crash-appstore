@@ -222,7 +222,7 @@ body.gradient-fade-out #slider-container {
 
 .slider-nav-divider {
   position: absolute;
-  bottom: 1.9vh;
+  bottom: 6.64vh;
   left: 50%;
   transform: translateX(-50%);
   width: min(342px, 88vw);
@@ -267,8 +267,8 @@ body.gradient-fade-out #slider-container {
 
 .slider-dot {
   all: unset;
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   margin-top: 16px;
   border-radius: 18px;
   background: none;
@@ -311,8 +311,8 @@ body.gradient-fade-out #slider-container {
 }
 
 .slider-dot.active {
-  width: 80px;
-  height: 80px;
+  width: 88px;
+  height: 88px;
   margin-top: 0;
   background: none;
   box-shadow: none;
