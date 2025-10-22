@@ -202,6 +202,7 @@ body.gradient-fade-out #slider-container {
   align-items: center;
   justify-content: center;
   line-height: 1; /* avoid baseline shifts */
+  transform: translateY(-1.9vh); /* Move CTA buttons up by 16px */
 }
 
 /* Navigation Icons */
