@@ -1789,7 +1789,7 @@ async function initializeApp() {
         wrap.style.position = 'fixed';
         wrap.style.left = '50%';
         wrap.style.transform = 'translateX(-50%)';
-        wrap.style.bottom = 'max(16px, env(safe-area-inset-bottom, 0px))';
+        wrap.style.bottom = 'max(-44px, env(safe-area-inset-bottom, 0px) - 60px)';
         wrap.style.zIndex = '1000000';
         wrap.style.pointerEvents = 'auto';
       }catch{}
