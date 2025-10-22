@@ -29,10 +29,10 @@
 
 .independent-nav-divider {
   position: absolute;
-  top: 20px; /* Moved down 8px from 12px */
-  left: 50%;
-  transform: translateX(-50%);
-  width: 342px; /* Fixed width like original */
+  top: 16px; /* Moved up 4px from 20px */
+  left: 24px; /* 24px from left edge */
+  right: 24px; /* 24px from right edge */
+  width: auto; /* Auto width between left and right */
   height: 2px; /* Fixed height like original */
   pointer-events: none;
   z-index: 1;
@@ -56,9 +56,10 @@
   left: 0;
   width: 100%;
   height: 1px;
-  background: rgba(255, 247, 242, 1); /* Color(red: 1, green: 0.97, blue: 0.95) */
+  background: rgba(255, 255, 255, 1); /* Pure white #FFFFFF */
   filter: blur(2px);
-  box-shadow: 0 4px 4px rgba(245, 219, 189, 1); /* Color(red: 0.96, green: 0.86, blue: 0.74) */
+  /* Drop shadow from Figma: X: 0, Y: 4, Blur: 4, Spread: 0, Color: F5DBBD 100% */
+  box-shadow: 0 4px 4px 0 rgba(245, 219, 189, 1); /* F5DBBD with 100% opacity - precise Figma specs */
 }
 
 /* Shadow removed */
@@ -80,7 +81,7 @@
   all: unset;
   width: 80px; /* Use original 80px size */
   height: 80px; /* Use original 80px size */
-  margin-top: 28px; /* Moved up 4px from 32px */
+  margin-top: 24px; /* Moved up 4px from 28px */
   border-radius: 18px;
   background: none;
   display: flex;
@@ -160,7 +161,49 @@
 }
 
 .independent-nav-button.active img {
-  transform: translateY(-8px); /* Move up 8px when active */
+  transform: translateY(-12px); /* Move up 12px when active (4px more) */
+  animation: idleFloat 3s ease-in-out infinite; /* Gentle up-down idle animation */
+}
+
+/* Stylized shadow below active icon */
+.independent-nav-button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px; /* 2px below the icon */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 68px; /* Width increased by 8px (4px on each side) */
+  height: 11px; /* Height from SwiftUI */
+  background: rgba(222, 192, 156, 1); /* Color #DEC09C */
+  border-radius: 50%; /* Ellipse shape */
+  filter: blur(5.3px); /* Blur radius 5.30 from SwiftUI */
+  z-index: -1; /* Behind the icon */
+}
+
+/* Idle floating animation for active icons */
+@keyframes idleFloat {
+  0%, 100% {
+    transform: translateY(-12px); /* Base position */
+  }
+  50% {
+    transform: translateY(-16px); /* Move up 4px more */
+  }
+}
+
+/* Shadow animation - pulses width instead of moving up/down */
+.independent-nav-button.active::after {
+  animation: shadowPulse 3s ease-in-out infinite;
+}
+
+@keyframes shadowPulse {
+  0%, 100% {
+    width: 68px; /* Full width */
+    transform: translateX(-50%); /* Centered */
+  }
+  50% {
+    width: 52px; /* Narrower width - pulses smaller */
+    transform: translateX(-50%); /* Stay centered */
+  }
 }
 
 .independent-nav-button:hover:not(.active) {
