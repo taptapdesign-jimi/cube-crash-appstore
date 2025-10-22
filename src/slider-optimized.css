@@ -204,48 +204,123 @@ body.gradient-fade-out #slider-container {
   line-height: 1; /* avoid baseline shifts */
 }
 
-/* Navigation Dots */
-#slider-dots {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  margin-top: 20px;
-  padding: 0 0 20px 0;
+/* Navigation Icons */
+#slider-dots.slider-nav-area {
   position: absolute;
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
   width: 100vw;
-  z-index: 1000; /* ensure above slide content */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 24px 24px calc(env(safe-area-inset-bottom, 0px) + 16px);
   pointer-events: auto;
+  z-index: 1000;
+}
+
+.slider-nav-divider {
+  position: relative;
+  width: min(342px, 88vw);
+  height: 1px;
+  background: rgba(236, 210, 189, 0.9);
+}
+
+.slider-nav-divider::before {
+  content: "";
+  position: absolute;
+  inset: -3px 0 0;
+  height: 1px;
+  background: rgba(255, 248, 243, 0.8);
+  filter: blur(1.5px);
+}
+
+.slider-nav-shadow {
+  width: min(310px, 86vw);
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(209, 170, 140, 0.35);
+  filter: blur(14px);
+  margin-top: -6px;
+}
+
+.slider-nav {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 32px;
 }
 
 .slider-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: none;
-  background: #E8D6BF;
-  cursor: pointer;
-  /* Slightly longer, smoother size/color change to avoid harsh jump */
-  transition: background-color 200ms cubic-bezier(0.22, 1, 0.36, 1),
-              width 200ms cubic-bezier(0.22, 1, 0.36, 1),
-              height 200ms cubic-bezier(0.22, 1, 0.36, 1);
-  transform-origin: center center;
+  all: unset;
+  width: 56px;
+  height: 56px;
+  margin-top: 16px;
+  border-radius: 18px;
+  background: rgba(128, 64, 69, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
+  transition: width 420ms cubic-bezier(0.23, 1, 0.32, 1),
+              height 420ms cubic-bezier(0.23, 1, 0.32, 1),
+              margin-top 420ms cubic-bezier(0.23, 1, 0.32, 1),
+              background 320ms ease,
+              box-shadow 320ms ease,
+              transform 320ms ease;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.slider-dot::after {
+  content: "";
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 64px;
+  height: 16px;
+  background: rgba(200, 152, 120, 0.18);
+  filter: blur(12px);
+  transition: opacity 320ms ease, width 320ms ease;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.slider-dot img {
+  width: 68%;
+  height: 68%;
+  object-fit: contain;
+  transition: transform 420ms cubic-bezier(0.23, 1, 0.32, 1);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.15));
 }
 
 .slider-dot.active {
-  background: #D87A53;
-  width: 18px; /* 8px veći od 10px */
-  height: 18px; /* 8px veći od 10px */
-  transform: scale(1.0); /* Bez scale jer je već veći */
+  width: 80px;
+  height: 80px;
+  margin-top: 0;
+  background: rgba(232, 122, 83, 0.28);
+  box-shadow: 0 16px 32px rgba(215, 122, 83, 0.25);
 }
 
-.slider-dot:hover {
-  background: #C86C49;
-  transform: scale(1.1);
+.slider-dot.active::after {
+  width: 88px;
+  opacity: 0.45;
+}
+
+.slider-dot.active img {
+  transform: scale(1.08) translateY(-4px);
+  filter: drop-shadow(0 6px 8px rgba(215, 122, 83, 0.35));
+}
+
+.slider-dot:hover:not(.active) {
+  background: rgba(232, 122, 83, 0.18);
+}
+
+.slider-dot:focus-visible {
+  outline: 3px solid rgba(232, 122, 83, 0.45);
+  outline-offset: 4px;
 }
 
 /* DYNAMIC EXIT ANIMATION CLASSES */
@@ -329,8 +404,8 @@ body.gradient-fade-out #slider-container {
     padding-bottom: max(40px, env(safe-area-inset-bottom));
   }
   
-  #slider-dots {
-    padding-bottom: max(12px, env(safe-area-inset-bottom) - 8px);
+  #slider-dots.slider-nav-area {
+    padding-bottom: calc(max(16px, env(safe-area-inset-bottom)) + 8px);
   }
 }
 
@@ -343,7 +418,7 @@ body.gradient-fade-out #slider-container {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: max(8px, env(safe-area-inset-bottom) - 8px);
-  width: auto;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  width: 100vw;
   z-index: 1000000;
 }

@@ -241,6 +241,7 @@
   flex-direction: column;
   gap: 0;
   align-items: flex-start;
+  perspective: 1200px;
 }
 
 .collectible-card-label {
@@ -266,6 +267,8 @@
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transform-style: preserve-3d;
+  will-change: transform;
 }
 
 .collectible-card.locked {
@@ -302,6 +305,18 @@
 
 .collectible-card.card-locked-pulse {
   animation: cardLockedPulse 1s ease-in-out infinite alternate;
+}
+
+.collectible-card.flip-reveal-prep {
+  transform: rotateY(90deg);
+  transition: transform 0.85s cubic-bezier(0.19, 1, 0.22, 1), box-shadow 0.85s ease;
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  pointer-events: none;
+}
+
+.collectible-card.flip-reveal-prep.flip-reveal-play {
+  transform: rotateY(0deg);
+  box-shadow: 0 12px 26px var(--collectibles-card-shadow);
 }
 
 @keyframes collectibleUnlock {

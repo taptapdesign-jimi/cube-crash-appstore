@@ -152,6 +152,7 @@ class CollectiblesManager {
       scrollable.scrollTop = 0;
     }
     console.log('🎁 Cards rendered and counters updated');
+    this.triggerPendingFlipAnimations();
   }
 
   hideCollectibles() {
@@ -166,6 +167,74 @@ class CollectiblesManager {
   renderCards() {
     this.renderCategory('common');
     this.renderCategory('legendary');
+  }
+
+  triggerPendingFlipAnimations() {
+    const storageKey = 'pending_collectible_flips_v1';
+    let pending = [];
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          pending = parsed;
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to read pending flip list:', error);
+    }
+
+    if (!pending.length && Array.isArray(window.__pendingCollectibleFlips)) {
+      pending = window.__pendingCollectibleFlips;
+    }
+
+    if (!pending.length) {
+      return;
+    }
+
+    try { localStorage.removeItem(storageKey); } catch {}
+    window.__pendingCollectibleFlips = [];
+
+    const startDelay = 2000;
+    setTimeout(() => {
+      pending.forEach((item, index) => {
+        const cardEl = document.querySelector(`.collectible-card[data-card-id="${item.cardId}"]`);
+        if (!cardEl) return;
+
+        const frontImage = cardEl.dataset.frontImage || item.frontImage;
+        const backImage = cardEl.dataset.backImage || item.backImage || this.getPlaceholderPath(item.category || cardEl.dataset.category);
+
+        const playAnimation = () => {
+          const originalBg = cardEl.style.backgroundImage;
+          if (backImage) {
+            cardEl.style.backgroundImage = `url('${backImage}')`;
+          }
+
+          cardEl.classList.add('flip-reveal-prep');
+          requestAnimationFrame(() => {
+            cardEl.classList.add('flip-reveal-play');
+            setTimeout(() => {
+              if (frontImage) {
+                cardEl.style.backgroundImage = `url('${frontImage}')`;
+              } else if (originalBg) {
+                cardEl.style.backgroundImage = originalBg;
+              }
+            }, 180);
+          });
+
+          setTimeout(() => {
+            cardEl.classList.remove('flip-reveal-prep', 'flip-reveal-play');
+            if (frontImage) {
+              cardEl.style.backgroundImage = `url('${frontImage}')`;
+            } else if (originalBg) {
+              cardEl.style.backgroundImage = originalBg;
+            }
+          }, 1100);
+        };
+
+        setTimeout(playAnimation, index * 220);
+      });
+    }, startDelay);
   }
 
   renderCategory(category) {
@@ -199,6 +268,9 @@ class CollectiblesManager {
 
     const imagePath = this.getCardImagePath(category, number);
     const placeholderPath = this.getPlaceholderPath(category);
+
+    cardDiv.dataset.frontImage = imagePath;
+    cardDiv.dataset.backImage = placeholderPath;
 
     if (card.unlocked) {
       cardDiv.classList.add('unlocked');
@@ -539,8 +611,41 @@ class CollectiblesManager {
         ...meta
       };
       window.dispatchEvent(new CustomEvent('collectible:unlocked', { detail }));
+      this.queuePendingFlip(detail);
     } catch (error) {
       console.warn('Failed to dispatch collectible unlocked event:', error);
+    }
+  }
+
+  queuePendingFlip(detail) {
+    if (!detail?.cardId) return;
+    const storageKey = 'pending_collectible_flips_v1';
+    try {
+      let list = [];
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          list = parsed;
+        }
+      }
+      const exists = list.some(item => item && item.cardId === detail.cardId);
+      if (!exists) {
+        list.push({
+          cardId: detail.cardId,
+          category: detail.category,
+          number: detail.number,
+          frontImage: detail.imagePath,
+          backImage: this.getPlaceholderPath(detail.category || 'common')
+        });
+        if (list.length > 20) {
+          list = list.slice(list.length - 20);
+        }
+        localStorage.setItem(storageKey, JSON.stringify(list));
+        window.__pendingCollectibleFlips = list;
+      }
+    } catch (error) {
+      console.warn('Failed to queue collectible flip animation:', error);
     }
   }
 

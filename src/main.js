@@ -1048,8 +1048,9 @@ async function animateSlideExit() {
       }
       
       // Add dots animation
-      dots.forEach((dot, index) => {
-        dot.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+      dots.forEach((dot) => {
+        dot.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        dot.style.opacity = '0';
       });
       
       // Apply gentle elastic pop out with bounce sequence
@@ -1071,7 +1072,6 @@ async function animateSlideExit() {
       // Apply dots animation
       dots.forEach((dot, index) => {
         dot.style.opacity = '0';
-        dot.style.transform = 'scale(0) translateY(-5px)';
       });
       
       // Hide home after animation completes
@@ -1765,46 +1765,12 @@ async function initializeApp() {
         // Clear custom transition after applying
         currentSlideTransition = null;
         
-        // GSAP-powered elastic, organic transitions for dots
         dots.forEach((dot, index) => {
-          const wantsActive = index === currentSlide;
-          const isActive = dot.classList.contains('active');
+          dot.classList.toggle('active', index === currentSlide);
+        });
 
-          // Kill any running tweens on this dot
-          gsap.killTweensOf(dot);
-
-          // Activate
-          if (wantsActive && !isActive) {
-            dot.classList.add('active'); // trigger width/height/color transition
-            gsap.set(dot, { transformOrigin: '50% 50%', scale: 0.92 });
-            gsap.to(dot, {
-              scale: 1,
-              duration: 0.65,
-              ease: 'elastic.out(1, 0.6)',
-              overwrite: true
-            });
-          }
-
-          // Deactivate
-          if (!wantsActive && isActive) {
-            dot.classList.remove('active'); // trigger width/height/color transition
-            gsap.set(dot, { transformOrigin: '50% 50%', scale: 0.88 });
-            gsap.to(dot, {
-              scale: 1,
-              duration: 0.55,
-              ease: 'elastic.out(1, 0.65)',
-              overwrite: true
-            });
-          }
-
-        // If no state change, gently settle to 1 without a snap
-        if ((wantsActive && isActive) || (!wantsActive && !isActive)) {
-          gsap.to(dot, { scale: 1, duration: 0.2, ease: 'power2.out', overwrite: true });
-        }
-      });
-
-      recordCurrentSlide(currentSlide);
-    }
+        recordCurrentSlide(currentSlide);
+      }
     }
 
     // Hard guard: make dots visible and detach from any transformed container
@@ -3085,27 +3051,10 @@ async function initializeApp() {
       });
     }
     
-    // Dot navigation with springy hover effects (avoid fighting active tweens)
+    // Navigation icons
     dots.forEach((dot, index) => {
-      // Add hover effects
-      dot.addEventListener('mouseenter', () => {
-        if (!sliderLocked) {
-          if (!gsap.isTweening(dot)) {
-            gsap.to(dot, { scale: 1.1, duration: 0.2, ease: 'power2.out' });
-          }
-        }
-      });
-      
-      dot.addEventListener('mouseleave', () => {
-        if (!sliderLocked && index !== currentSlide) {
-          if (!gsap.isTweening(dot)) {
-            gsap.to(dot, { scale: 1, duration: 0.2, ease: 'power2.out' });
-          }
-        }
-      });
-      
       dot.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent slider from moving
+        e.stopPropagation();
         goToSlide(index);
       });
     });
@@ -4194,11 +4143,10 @@ window.startNewGame = async () => {
             }
             
             // Hide dots initially
-            dots.forEach((dot, index) => {
-              dot.style.opacity = '0';
-              dot.style.transform = 'scale(0) translateY(-5px)';
-              dot.style.transition = 'none';
-            });
+      dots.forEach((dot) => {
+        dot.style.opacity = '0';
+        dot.style.transition = 'none';
+      });
             
             // Trigger elastic spring pop in animation after a brief delay
             setTimeout(() => {
@@ -4213,8 +4161,8 @@ window.startNewGame = async () => {
               }
               
               // Add dots animation
-              dots.forEach((dot, index) => {
-                dot.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+              dots.forEach((dot) => {
+                dot.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
               });
               
               // Apply gentle pop in styles with bounce sequence
@@ -4233,9 +4181,8 @@ window.startNewGame = async () => {
               }
               
               // Apply dots animation
-              dots.forEach((dot, index) => {
+              dots.forEach((dot) => {
                 dot.style.opacity = '1';
-                dot.style.transform = 'scale(1) translateY(0)';
               });
               
               // Reset animation styles after animation completes
@@ -4249,7 +4196,7 @@ window.startNewGame = async () => {
                   homeLogo.style.transition = 'none';
                 }
                 
-                dots.forEach((dot, index) => {
+                dots.forEach((dot) => {
                   dot.style.transition = 'none';
                 });
                 
@@ -4268,9 +4215,8 @@ window.startNewGame = async () => {
                   homeLogo.style.transform = 'scale(1) translateY(0)';
                 }
                 
-                dots.forEach((dot, index) => {
+                dots.forEach((dot) => {
                   dot.style.opacity = '1';
-                  dot.style.transform = 'scale(1) translateY(0)';
                 });
                 
                 // Unlock slider after animation completes
