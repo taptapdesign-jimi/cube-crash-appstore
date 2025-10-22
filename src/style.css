@@ -787,7 +787,7 @@ body.gradient-fade-out #home{
 /* Hover state for slide buttons */
 .slide-button.tap-scale.menu-btn-primary:hover,
 .slider-slide .slide-button.tap-scale.menu-btn-primary:hover {
-  transform: scale(1) !important; /* No hover scaling */
+  transform: scale(1) translateY(-1.9vh) !important; /* No hover scaling + move up 16px */
   box-shadow: 0 8px 0 0 #C24921 !important; /* Keep original shadow */
   background: #E97A55 !important; /* Keep original color */
   color: white !important; /* Keep original text color */
@@ -801,7 +801,7 @@ body.gradient-fade-out #home{
 .slider-slide .slide-button.tap-scale.menu-btn-primary:active,
 .slider-slide .slide-button.tap-scale.menu-btn-primary:focus,
 .slider-slide .slide-button.tap-scale.menu-btn-primary:focus-visible {
-  transform: scale(0.80) !important; /* Scale down much more */
+  transform: scale(0.80) translateY(-1.9vh) !important; /* Scale down much more + move up 16px */
   box-shadow: 0 8px 0 0 #C24921 !important; /* Keep original shadow */
   background: #E97A55 !important; /* Keep original color */
   color: white !important; /* Keep original text color */
@@ -820,7 +820,7 @@ body.gradient-fade-out #home{
 .slider-slide .slide-button.tap-scale.menu-btn-primary.play-button-reset,
 .slide-button.tap-scale.menu-btn-primary:not(:active),
 .slider-slide .slide-button.tap-scale.menu-btn-primary:not(:active) {
-  transform: scale(1) !important; /* Always default scale when not being clicked */
+  transform: scale(1) translateY(-1.9vh) !important; /* Always default scale when not being clicked + move up 16px */
   transition: none !important; /* No automatic transitions */
 }
 
