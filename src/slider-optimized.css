@@ -207,7 +207,7 @@ body.gradient-fade-out #slider-container {
 /* Navigation Icons */
 #slider-dots.slider-nav-area {
   position: absolute;
-  bottom: -3.8vh;
+  bottom: -2.85vh;
   left: 50%;
   transform: translateX(-50%);
   width: min(100vw, 430px);
@@ -419,7 +419,7 @@ body.gradient-fade-out #slider-container {
   }
   
   #slider-dots.slider-nav-area {
-    padding-bottom: calc(max(-3.8vh, env(safe-area-inset-bottom) - 3.8vh) + 8px);
+    padding-bottom: calc(max(-2.85vh, env(safe-area-inset-bottom) - 2.85vh) + 8px);
   }
 }
 
@@ -432,7 +432,7 @@ body.gradient-fade-out #slider-container {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: max(-3.8vh, env(safe-area-inset-bottom) - 3.8vh);
+  bottom: max(-2.85vh, env(safe-area-inset-bottom) - 2.85vh);
   width: 100vw;
   z-index: 1000000;
 }
