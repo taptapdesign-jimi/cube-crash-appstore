@@ -222,7 +222,7 @@ body.gradient-fade-out #slider-container {
 
 .slider-nav-divider {
   position: absolute;
-  bottom: 6.64vh;
+  bottom: 11.38vh;
   left: 50%;
   transform: translateX(-50%);
   width: min(342px, 88vw);
