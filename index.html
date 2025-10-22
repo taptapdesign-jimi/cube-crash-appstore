@@ -21,6 +21,7 @@
   <link rel="stylesheet" href="./src/slider-optimized.css">
   <link rel="stylesheet" href="./src/ios-image-optimization.css">
   <link rel="stylesheet" href="./src/collectibles-screen.css">
+  <link rel="stylesheet" href="./src/independent-navigation.css">
   <style>
     html,body{margin:0;padding:0;overflow:hidden;background:#f5f5f5}
     #app{width:100vw;height:100vh}
@@ -108,25 +109,7 @@
         </div>
         </div>
         
-        <!-- Navigation Icons -->
-        <div id="slider-dots" class="slider-nav-area">
-          <div class="slider-nav-divider"></div>
-          <div class="slider-nav-shadow"></div>
-          <div class="slider-nav">
-            <button type="button" class="slider-dot slider-nav-btn active" data-slide="0" aria-label="Home">
-              <img src="./assets/nav/cube-nav.png" alt="Home" loading="lazy" draggable="false" />
-            </button>
-            <button type="button" class="slider-dot slider-nav-btn" data-slide="1" aria-label="Stats">
-              <img src="./assets/nav/stats-nav.png" alt="Stats" loading="lazy" draggable="false" />
-            </button>
-            <button type="button" class="slider-dot slider-nav-btn" data-slide="2" aria-label="Collectibles">
-              <img src="./assets/nav/collectibles-nav.png" alt="Collectibles" loading="lazy" draggable="false" />
-            </button>
-            <button type="button" class="slider-dot slider-nav-btn" data-slide="3" aria-label="Settings">
-              <img src="./assets/nav/settings-nav.png" alt="Settings" loading="lazy" draggable="false" />
-            </button>
-          </div>
-        </div>
+        
       </div>
     </div>
   </div>
@@ -323,6 +306,25 @@
           </p>
         </div>
       </div>
+    </div>
+  </div>
+  
+  <!-- INDEPENDENT NAVIGATION - OUTSIDE ALL CONTAINERS -->
+  <div id="independent-nav" class="independent-nav">
+    <div class="independent-nav-divider"></div>
+    <div class="independent-nav-buttons">
+      <button type="button" class="independent-nav-button active" data-slide="0" aria-label="Home">
+        <img src="./assets/nav/cube-nav.png" alt="Home" loading="lazy" draggable="false" />
+      </button>
+      <button type="button" class="independent-nav-button" data-slide="1" aria-label="Stats">
+        <img src="./assets/nav/stats-nav.png" alt="Stats" loading="lazy" draggable="false" />
+      </button>
+      <button type="button" class="independent-nav-button" data-slide="2" aria-label="Collectibles">
+        <img src="./assets/nav/collectibles-nav.png" alt="Collectibles" loading="lazy" draggable="false" />
+      </button>
+      <button type="button" class="independent-nav-button" data-slide="3" aria-label="Settings">
+        <img src="./assets/nav/settings-nav.png" alt="Settings" loading="lazy" draggable="false" />
+      </button>
     </div>
   </div>
   

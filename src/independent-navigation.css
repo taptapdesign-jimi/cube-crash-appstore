@@ -1,0 +1,210 @@
+/* INDEPENDENT NAVIGATION - COMPLETELY SEPARATE FROM EVERYTHING */
+/* This navigation is outside all containers and has its own lifecycle */
+
+.independent-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw; /* Full width to center buttons properly */
+  max-width: 500px; /* Maximum width */
+  height: 120px;
+  z-index: 999999; /* Very high z-index - always on top */
+  pointer-events: none; /* Don't block game interactions by default */
+  display: block; /* Always visible */
+  opacity: 1;
+  visibility: visible;
+}
+
+.independent-nav-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 12px 24px calc(env(safe-area-inset-bottom, 0px) + 24px);
+}
+
+.independent-nav-divider {
+  position: absolute;
+  top: 20px; /* Moved down 8px from 12px */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 342px; /* Fixed width like original */
+  height: 2px; /* Fixed height like original */
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Original divider based on SwiftUI code */
+.independent-nav-divider::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 100%;
+  height: 0.5px;
+  background: rgba(235, 199, 153, 1); /* Color(red: 0.92, green: 0.78, blue: 0.60) */
+}
+
+.independent-nav-divider::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 247, 242, 1); /* Color(red: 1, green: 0.97, blue: 0.95) */
+  filter: blur(2px);
+  box-shadow: 0 4px 4px rgba(245, 219, 189, 1); /* Color(red: 0.96, green: 0.86, blue: 0.74) */
+}
+
+/* Shadow removed */
+
+.independent-nav-buttons {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between; /* Spread across full width */
+  gap: 0; /* No gap - use space-between instead */
+  width: 100%;
+  max-width: 100%; /* Use full width */
+  padding: 0 24px; /* Add padding from edges */
+  position: relative;
+  z-index: 10;
+  pointer-events: auto; /* Allow button interactions */
+}
+
+.independent-nav-button {
+  all: unset;
+  width: 80px; /* Use original 80px size */
+  height: 80px; /* Use original 80px size */
+  margin-top: 28px; /* Moved up 4px from 32px */
+  border-radius: 18px;
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: width 420ms cubic-bezier(0.23, 1, 0.32, 1),
+              height 420ms cubic-bezier(0.23, 1, 0.32, 1),
+              margin-top 420ms cubic-bezier(0.23, 1, 0.32, 1),
+              background 320ms ease,
+              transform 320ms ease;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+  -webkit-user-select: none; /* Prevent text selection */
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  /* Scale down to 56px for inactive state */
+  transform: scale(0.7); /* 80px * 0.7 = 56px */
+  /* Maximum image quality improvements */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-transform: translateZ(0) scale(0.7);
+  transform: translateZ(0) scale(0.7);
+  will-change: transform; /* Optimize for animations */
+  /* Force pixel-perfect rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Prevent any quality degradation */
+  filter: none;
+  -webkit-filter: none;
+  /* Ensure crisp rendering */
+  -webkit-perspective: 1000px;
+  perspective: 1000px;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+}
+
+.independent-nav-button img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* Maximum image quality settings */
+  image-rendering: -webkit-optimize-contrast; /* WebKit optimization */
+  image-rendering: -moz-crisp-edges; /* Firefox crisp edges */
+  image-rendering: high-quality; /* Best quality scaling */
+  image-rendering: auto; /* Natural image rendering for other browsers */
+  /* Prevent any quality degradation */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  /* Force pixel-perfect rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Prevent any filtering or effects */
+  filter: none;
+  -webkit-filter: none;
+  /* Smooth transitions */
+  transition: transform 420ms cubic-bezier(0.23, 1, 0.32, 1);
+  pointer-events: none;
+  /* Ensure crisp rendering */
+  -webkit-perspective: 1000px;
+  perspective: 1000px;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+}
+
+.independent-nav-button.active {
+  width: 80px; /* Keep original size */
+  height: 80px; /* Keep original size */
+  margin-top: 0;
+  background: none;
+  transform: scale(1.0); /* Full size - 80px */
+  -webkit-transform: translateZ(0) scale(1.0);
+}
+
+.independent-nav-button.active img {
+  transform: translateY(-8px); /* Move up 8px when active */
+}
+
+.independent-nav-button:hover:not(.active) {
+  background: none;
+}
+
+.independent-nav-button:focus-visible {
+  outline: 3px solid rgba(232, 122, 83, 0.45);
+  outline-offset: 4px;
+}
+
+/* FORCE NAVIGATION TO BE VISIBLE - OVERRIDE ALL OTHER RULES */
+.independent-nav {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Hide navigation ONLY when game is active */
+#app:not([hidden]) ~ .independent-nav {
+  display: none !important;
+}
+
+/* Hide navigation during loading */
+#loading-screen ~ .independent-nav {
+  display: none !important;
+}
+
+/* Ensure navigation is visible on homepage */
+#home:not([hidden]) ~ .independent-nav {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Exit animation for navigation */
+.independent-nav.exit-animation {
+  transition: opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), 
+              transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8);
+  opacity: 0 !important;
+  transform: translateX(-50%) scale(0) translateY(-10px) !important;
+}
+
+/* Hide navigation during exit animations */
+body.gradient-fade-out .independent-nav {
+  display: none !important;
+}

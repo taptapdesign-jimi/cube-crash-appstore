@@ -57,6 +57,16 @@ function markHomepageVisible({ delay = 0 } = {}) {
   const mark = () => {
     homepageReady = true;
     processPendingCollectibleRewards();
+    
+    // Reset independent navigation when homepage becomes visible
+    const independentNav = document.getElementById('independent-nav');
+    if (independentNav) {
+      independentNav.classList.remove('exit-animation');
+      independentNav.style.display = 'block';
+      independentNav.style.opacity = '1';
+      independentNav.style.visibility = 'visible';
+      independentNav.style.transform = 'translateX(-50%)';
+    }
   };
   if (delay > 0) {
     setTimeout(mark, delay);
@@ -67,6 +77,7 @@ function markHomepageVisible({ delay = 0 } = {}) {
 
 function markHomepageHidden() {
   homepageReady = false;
+  
 }
 
 async function processPendingCollectibleRewards() {
@@ -882,6 +893,7 @@ async function showResumeGameModal() {
       home.removeAttribute('hidden');
       home.hidden = false;
       restoreGradientBackground();
+      showHomepageNavigation();
       resolve();
     });
   }
@@ -1027,6 +1039,9 @@ async function animateSlideExit() {
     // Get dots for animation
     const dots = document.querySelectorAll('.slider-dot');
     
+    // Get divider for animation
+    const divider = document.querySelector('.slider-nav-divider');
+    
     // Get slide 1 elements and logo for animation
     const slide1 = document.querySelector('.slider-slide[data-slide="0"]');
     const slide1Content = slide1?.querySelector('.slide-content');
@@ -1052,6 +1067,20 @@ async function animateSlideExit() {
         dot.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
         dot.style.opacity = '0';
       });
+      
+      // Add divider animation
+      if (divider) {
+        divider.style.transition = 'opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        divider.style.opacity = '0';
+        divider.style.transform = 'translateX(-50%) scale(0) translateY(-10px)';
+      }
+      
+      // Add independent navigation exit animation
+      const independentNav = document.getElementById('independent-nav');
+      if (independentNav) {
+        independentNav.classList.add('exit-animation');
+      }
+      
       
       // Apply gentle elastic pop out with bounce sequence
       slide1Content.style.opacity = '0';
@@ -1158,6 +1187,9 @@ async function checkForSavedGame() {
 async function startGameDirectly() {
   await animateSlideExit();
   startTimeTracking();
+  
+  // Navigation will be completely removed by hideDots() - no need to hide individual elements
+  
   appHost.style.display = 'block';
   appHost.removeAttribute('hidden');
   
@@ -1773,30 +1805,30 @@ async function initializeApp() {
       }
     }
 
+
+    // Homepage navigation is now controlled by CSS - no JavaScript needed
+
     // Hard guard: make dots visible and detach from any transformed container
     function ensureDotsVisible(){
       try{
-        const wrap = document.getElementById('slider-dots');
-        if (!wrap) return;
-        // Move to body to avoid transform/fixed quirks on iOS
-        if (wrap.parentElement !== document.body) {
-          wrap.dataset.originParent = wrap.parentElement?.id || 'slider-container';
-          document.body.appendChild(wrap);
+        // Show old navigation
+        const wrap = document.getElementById('slider-dots'); 
+        if (wrap) {
+          wrap.style.display = 'flex';
         }
-        wrap.style.display = 'flex';
-        wrap.style.opacity = '1';
-        wrap.style.visibility = 'visible';
-        wrap.style.position = 'fixed';
-        wrap.style.left = '50%';
-        wrap.style.transform = 'translateX(-50%)';
-        wrap.style.bottom = 'max(-2.85vh, env(safe-area-inset-bottom, 0px) - 2.85vh)';
-        wrap.style.zIndex = '1000000';
-        wrap.style.pointerEvents = 'auto';
+        
       }catch{}
     }
 
     function hideDots(){
-      try{ const wrap = document.getElementById('slider-dots'); if (wrap) wrap.style.display = 'none'; }catch{}
+      try{ 
+        // Hide old navigation
+        const wrap = document.getElementById('slider-dots'); 
+        if (wrap) {
+          wrap.style.display = 'none';
+        }
+        
+      }catch{}
     }
     
     const prepareStatsPopIn = () => {
@@ -2877,6 +2909,17 @@ async function initializeApp() {
       let clamped = Math.floor(slideIndex);
       if (!Number.isFinite(clamped)) clamped = currentSlide;
       clamped = Math.max(0, Math.min(totalSlides - 1, clamped));
+      
+      // Update active state for independent navigation
+      const independentNavButtons = document.querySelectorAll('.independent-nav-button');
+      independentNavButtons.forEach((button, index) => {
+        if (index === clamped) {
+          button.classList.add('active');
+        } else {
+          button.classList.remove('active');
+        }
+      });
+      
       if (clamped === currentSlide) {
         updateSlider();
         return;
@@ -3059,6 +3102,20 @@ async function initializeApp() {
       });
     });
     
+    // Independent navigation buttons
+    const independentNavButtons = document.querySelectorAll('.independent-nav-button');
+    independentNavButtons.forEach((button, index) => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        goToSlide(index);
+        
+        // Update active state
+        independentNavButtons.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+      });
+    });
+    
+    
     // Button handlers with springy hover effects
     if (playButton) {
       
@@ -3078,6 +3135,8 @@ async function initializeApp() {
         // Lock slider immediately to prevent interference
         sliderLocked = true;
         isDragging = false;
+        
+        // Navigation will be completely removed by hideDots() - no need to hide individual elements
         
         // Start background monitoring to ensure button stays reset
         const backgroundInterval = setInterval(() => {
@@ -3557,8 +3616,12 @@ async function initializeApp() {
         }, 400);
       }
     } else {
-      // Ensure dots visible on initial load as well
-      requestAnimationFrame(() => { ensureDotsVisible(); });
+    // Ensure dots visible on initial load as well
+    requestAnimationFrame(() => { 
+      ensureDotsVisible(); 
+      
+      // Homepage navigation is controlled by CSS
+    });
     }
     console.log('✅ Slider initialized');
     
