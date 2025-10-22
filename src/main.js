@@ -521,6 +521,12 @@ async function animateInitialSlideEnter() {
   const heroContainer = slide.querySelector('.hero-container');
   const heroImage = slide.querySelector('.hero-image');
   const heroShadow = slide.querySelector('.hero-shadow');
+  
+  // Force new shadow class
+  if (heroShadow) {
+    heroShadow.classList.remove('hero-shadow');
+    heroShadow.classList.add('hero-shadow-new');
+  }
   const slideText = slide.querySelector('.slide-text');
   const slideButton = slide.querySelector('.slide-button');
   const homeLogo = document.getElementById('home-logo');
@@ -1511,6 +1517,13 @@ function ensureParallaxLoop(sliderParallaxImage){
 // Initialize app after assets are loaded
 async function initializeApp() {
   try {
+    // Force new shadow classes on all slides
+    const allShadows = document.querySelectorAll('.hero-shadow');
+    allShadows.forEach(shadow => {
+      shadow.classList.remove('hero-shadow');
+      shadow.classList.add('hero-shadow-new');
+    });
+    
     // CRITICAL FIX: Parallax background is now loaded in main preloader
     // Just mark it as ready since it's already loaded
     const globalBg = document.getElementById('global-bg');

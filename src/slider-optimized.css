@@ -142,19 +142,32 @@ body.gradient-fade-out #slider-container {
   }
 }
 
-/* Hero shadow ellipse under main images */
-.hero-shadow {
+/* Hero shadow ellipse under main images - based on Figma SwiftUI */
+.slider-slide .hero-container .hero-shadow {
   position: absolute;
   bottom: 10px;
   left: 50%;
   transform: translateX(-50%);
-  width: 200px;
-  height: 60px;
-  background: #F3E5D3;
-  border-radius: 50%;
+  width: 300px; /* Figma: width: 300 */
+  height: 90px; /* Figma: height: 90 */
+  background: rgba(242, 230, 212, 0.50); /* Figma: Color(red: 0.95, green: 0.90, blue: 0.83).opacity(0.50) */
+  border-radius: 50%; /* Ellipse shape */
   z-index: 1;
-  opacity: 0.8;
   animation: shadowPulse 3s ease-in-out infinite;
+}
+
+/* NEW SHADOW CLASS - FORCE OVERRIDE */
+.hero-shadow-new {
+  position: absolute !important;
+  bottom: 2px !important; /* Moved up 8px from -6px */
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 65vw !important; /* iOS friendly - responsive width */
+  height: 9.6vh !important; /* Reduced by 20% (12vh * 0.8 = 9.6vh) */
+  background: #F4E5D6 !important;
+  border-radius: 50% !important;
+  z-index: 1 !important;
+  animation: shadowPulse 3s ease-in-out infinite !important;
 }
 
 @keyframes shadowPulse {
