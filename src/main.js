@@ -12,11 +12,12 @@ import gameState from './modules/game-state.js';
 import uiManager from './modules/ui-manager.js';
 import animationManager from './modules/animation-manager.js';
 import sliderManager from './modules/slider-manager.js';
+import iosOptimizer from './modules/ios-optimizer.js';
 
 // Import utilities
 import errorHandler from './utils/error-handler.js';
 import performanceMonitor from './utils/performance-monitor.js';
-import memoryManager from './utils/memory-manager.js';
+import memoryManager from './modules/memory-manager.js';
 
 console.log('🚀 Starting CubeCrash v42.1...');
 
@@ -39,8 +40,8 @@ async function initializeApp() {
     // Initialize slider manager
     sliderManager.init();
     
-    // Setup iOS optimizations
-    setupIOSOptimizations();
+    // Initialize iOS optimizer
+    iosOptimizer.init();
     
     // Start asset preloading
     await startAssetPreloading();
@@ -135,3 +136,4 @@ window.gameState = gameState;
 window.uiManager = uiManager;
 window.animationManager = animationManager;
 window.sliderManager = sliderManager;
+window.iosOptimizer = iosOptimizer;
