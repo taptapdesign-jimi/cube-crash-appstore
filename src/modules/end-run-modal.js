@@ -1,6 +1,6 @@
 // Simple End Run Modal
 import { showCleanBoardModal } from './clean-board-modal.js';
-import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animations.js';
+import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animations.ts';
 
 let modal = null;
 

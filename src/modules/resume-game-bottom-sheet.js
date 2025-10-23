@@ -1,7 +1,7 @@
 // public/src/modules/resume-game-bottom-sheet.js
 // Resume Game Bottom Sheet - same style as End This Run modal
 
-import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animations.js';
+import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animations.ts';
 
 let resumeModal = null;
 
