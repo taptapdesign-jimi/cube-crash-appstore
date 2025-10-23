@@ -163,7 +163,7 @@ body.gradient-fade-out #slider-container {
   left: 50% !important;
   transform: translateX(-50%) !important;
   width: 65vw !important; /* iOS friendly - responsive width */
-  height: 9.6vh !important; /* Reduced by 20% (12vh * 0.8 = 9.6vh) */
+  height: 7.68vh !important; /* Reduced by 20% (9.6vh * 0.8 = 7.68vh) */
   background: #F4E5D6 !important;
   border-radius: 50% !important;
   z-index: 1 !important;
@@ -191,15 +191,16 @@ body.gradient-fade-out #slider-container {
   align-items: center;
   justify-content: center;
   width: 100%;
-  transform: translateY(-20px) !important; /* Moved up 4px from -16px */
+  transform: translateY(-28px) !important; /* Moved up 8px from -20px */
 }
 
 /* Slide tagline text styling based on SwiftUI */
 .slide-tagline {
   font-family: "LT Crow", system-ui, -apple-system, sans-serif;
   font-size: 20px;
+  font-weight: 600; /* Semi-bold text */
   line-height: 28px; /* lineSpacing(28) from SwiftUI */
-  color: #CD9E7D; /* Color(red: 0.80, green: 0.62, blue: 0.49) */
+  color: #CB9873; /* Updated text color */
   margin: 0;
   padding: 0;
 }

@@ -1732,6 +1732,8 @@ async function showFinalScreen(){
 
   if (result?.action === 'menu') {
     try {
+      // Navigation will be shown by markHomepageVisible() after slide animation
+      
       await window.exitToMenu?.();
       window.goToSlide?.(0, { animate: true });
     } catch {}

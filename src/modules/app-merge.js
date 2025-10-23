@@ -576,6 +576,8 @@ export async function checkGameOver(){
 
     if (action === 'menu') {
       try {
+        // Navigation will be shown by markHomepageVisible() after slide animation
+        
         await window.exitToMenu?.();
         window.goToSlide?.(0, { animate: true });
       } catch (error) {

@@ -44,6 +44,7 @@ let loaderFakeTimeline = null;
 const shownCollectibleRewards = new Set();
 let pendingCollectibleRewards = [];
 let homepageReady = false;
+let navigationReset = false;
 let rewardSheetVisible = false;
 let collectibleRewardModulePromise = null;
 
@@ -58,15 +59,7 @@ function markHomepageVisible({ delay = 0 } = {}) {
     homepageReady = true;
     processPendingCollectibleRewards();
     
-    // Reset independent navigation when homepage becomes visible
-    const independentNav = document.getElementById('independent-nav');
-    if (independentNav) {
-      independentNav.classList.remove('exit-animation');
-      independentNav.style.display = 'block';
-      independentNav.style.opacity = '1';
-      independentNav.style.visibility = 'visible';
-      independentNav.style.transform = 'translateX(-50%)';
-    }
+    // Navigation is now handled directly in exitToMenu() function
   };
   if (delay > 0) {
     setTimeout(mark, delay);
@@ -814,7 +807,7 @@ async function showResumeGameModal() {
       try {
         await animateModalExit();
         overlay.remove();
-        await animateSlideExit();
+        await animateSlideExit(); // This will handle navigation exit animation
         startTimeTracking(); // Start tracking play time
         appHost.style.display = 'block';
         appHost.removeAttribute('hidden');
@@ -855,7 +848,7 @@ async function showResumeGameModal() {
       try {
         await animateModalExit();
         overlay.remove();
-        await animateSlideExit();
+        await animateSlideExit(); // This will handle navigation exit animation
         
         // Clear any existing saved game
         localStorage.removeItem('cc_saved_game');
@@ -1085,6 +1078,11 @@ async function animateSlideExit() {
       const independentNav = document.getElementById('independent-nav');
       if (independentNav) {
         independentNav.classList.add('exit-animation');
+        
+        // Add animation-complete class after animation duration
+        setTimeout(() => {
+          independentNav.classList.add('animation-complete');
+        }, 400); // Match CSS transition duration (0.4s)
       }
       
       
@@ -1191,10 +1189,9 @@ async function checkForSavedGame() {
 
 // Start game directly without modal
 async function startGameDirectly() {
-  await animateSlideExit();
+  navigationReset = false; // Reset navigation flag when starting game
+  await animateSlideExit(); // This will handle navigation exit animation
   startTimeTracking();
-  
-  // Navigation will be completely removed by hideDots() - no need to hide individual elements
   
   appHost.style.display = 'block';
   appHost.removeAttribute('hidden');
@@ -2293,6 +2290,8 @@ async function initializeApp() {
         return;
       }
       
+      // Navigation will be shown with slide enter animation
+      
       collectiblesScreen.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
       collectiblesScreen.style.opacity = '0';
       collectiblesScreen.style.transform = 'scale(0.8) translateY(20px)';
@@ -2319,6 +2318,16 @@ async function initializeApp() {
           console.log('🎁 goToSlide(2) and updateSlider() completed successfully');
         } catch (error) {
           console.error('🎁 Error snapping slider on collectibles exit:', error);
+        }
+        
+        // Show navigation with enter animation together with slide enter animation
+        const independentNav = document.getElementById('independent-nav');
+        if (independentNav) {
+          independentNav.classList.remove('exit-animation', 'enter-animation', 'animation-complete');
+          independentNav.style.display = 'block';
+          independentNav.style.opacity = '0';
+          independentNav.style.visibility = 'visible';
+          independentNav.style.transform = 'translateX(-50%) scale(0)';
         }
         
         const slide3 = document.querySelector('.slider-slide[data-slide="2"]');
@@ -2367,6 +2376,15 @@ async function initializeApp() {
         requestAnimationFrame(() => {
           console.log('🎁 Starting slide 3 enter animation');
           restoreGradientBackground();
+          
+          // Start navigation animation together with slide enter animation
+          if (independentNav) {
+            setTimeout(() => {
+              independentNav.style.transition = 'opacity 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+              independentNav.style.opacity = '1';
+              independentNav.style.transform = 'translateX(-50%) scale(1)';
+            }, 0); // Start together with slide animation
+          }
           
           setTimeout(() => {
             console.log('🎁 Applying slide 3 enter animation styles');
@@ -2498,6 +2516,16 @@ async function initializeApp() {
           homeLogo.style.transition = 'none';
         }
         
+        // Show navigation with enter animation together with slide enter animation
+        const independentNav = document.getElementById('independent-nav');
+        if (independentNav) {
+          independentNav.classList.remove('exit-animation', 'enter-animation', 'animation-complete');
+          independentNav.style.display = 'block';
+          independentNav.style.opacity = '0';
+          independentNav.style.visibility = 'visible';
+          independentNav.style.transform = 'translateX(-50%) scale(0)';
+        }
+        
         // Small delay to let goToSlide complete, then start animation
         setTimeout(() => {
           restoreGradientBackground();
@@ -2515,6 +2543,15 @@ async function initializeApp() {
             }, 20);
           }
 
+          // Start navigation animation together with slide enter animation
+          if (independentNav) {
+            setTimeout(() => {
+              independentNav.style.transition = 'opacity 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+              independentNav.style.opacity = '1';
+              independentNav.style.transform = 'translateX(-50%) scale(1)';
+            }, 0); // Start together with slide animation
+          }
+          
           // Start slide 2 elements animation
           if (slide2 && slide2Content && slide2Text && slide2Button && slide2Hero) {
             // Trigger elastic spring pop in animation after a brief delay (identical to slide 1)
@@ -2937,6 +2974,8 @@ async function initializeApp() {
         updateSlider();
         return;
       }
+      
+      // Navigation will be handled in hideStatsScreen and hideCollectiblesScreen functions
       // Clean any inline transforms/opacities to keep CTA level identical on all slides
       // BUT preserve Play button scale(1) to prevent auto-scaling bug
       try {
@@ -3372,6 +3411,18 @@ async function initializeApp() {
       statsButton.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent slider from moving
         console.log('📊 Stats clicked');
+        
+        // Add navigation exit animation when going to stats
+        const independentNav = document.getElementById('independent-nav');
+        if (independentNav) {
+          independentNav.classList.add('exit-animation');
+          
+          // Add animation-complete class after animation duration
+          setTimeout(() => {
+            independentNav.classList.add('animation-complete');
+          }, 400); // Match CSS transition duration (0.4s)
+        }
+        
         showStatsScreen();
       });
       
@@ -3402,6 +3453,18 @@ async function initializeApp() {
       collectiblesButton.addEventListener('click', (e) => {
         e.stopPropagation(); // Prevent slider from moving
         console.log('🎁 Collectibles clicked');
+        
+        // Add navigation exit animation when going to collectibles
+        const independentNav = document.getElementById('independent-nav');
+        if (independentNav) {
+          independentNav.classList.add('exit-animation');
+          
+          // Add animation-complete class after animation duration
+          setTimeout(() => {
+            independentNav.classList.add('animation-complete');
+          }, 400); // Match CSS transition duration (0.4s)
+        }
+        
         showCollectiblesScreen();
       });
       
@@ -3559,6 +3622,9 @@ async function initializeApp() {
         e.stopPropagation();
         console.log('📋 Menu exit clicked');
         hideMenuScreen();
+        
+        // Navigation will be shown by markHomepageVisible() after slide animation
+        
         // Exit to menu logic here
         try {
           window.exitToMenu?.();
@@ -4302,6 +4368,26 @@ window.startNewGame = async () => {
               console.log('✅ Slide 1 fast pop in animation triggered');
             }, 100); // Small delay to ensure smooth transition
           }
+        }
+        
+        // Reset navigation flag when exiting to menu
+        navigationReset = false;
+        
+        // Show navigation immediately when exiting to menu
+        const independentNav = document.getElementById('independent-nav');
+        if (independentNav) {
+          independentNav.classList.remove('exit-animation', 'enter-animation', 'animation-complete');
+          independentNav.style.display = 'block';
+          independentNav.style.opacity = '0';
+          independentNav.style.visibility = 'visible';
+          independentNav.style.transform = 'translateX(-50%) scale(0)';
+          
+          // Start navigation animation together with slide enter animation
+          setTimeout(() => {
+            independentNav.style.transition = 'opacity 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            independentNav.style.opacity = '1';
+            independentNav.style.transform = 'translateX(-50%) scale(1)';
+          }, 0); // Start together with slide animation
         }
         
         // Ensure dots visible (post-layout)

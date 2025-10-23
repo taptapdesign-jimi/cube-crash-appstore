@@ -29,7 +29,7 @@
 
 .independent-nav-divider {
   position: absolute;
-  top: 16px; /* Moved up 4px from 20px */
+  top: 0px; /* Moved up 16px from 16px */
   left: 24px; /* 24px from left edge */
   right: 24px; /* 24px from right edge */
   width: auto; /* Auto width between left and right */
@@ -165,18 +165,17 @@
   animation: idleFloat 3s ease-in-out infinite; /* Gentle up-down idle animation */
 }
 
-/* Stylized shadow below active icon */
+/* Small shadow below active icon - based on SwiftUI code */
 .independent-nav-button.active::after {
   content: '';
   position: absolute;
-  bottom: -2px; /* 2px below the icon */
+  bottom: 2px; /* Moved up 4px from -2px */
   left: 50%;
   transform: translateX(-50%);
-  width: 68px; /* Width increased by 8px (4px on each side) */
-  height: 11px; /* Height from SwiftUI */
-  background: rgba(222, 192, 156, 1); /* Color #DEC09C */
+  width: 65px; /* Reduced by 10% (72 * 0.9 = 65px) */
+  height: 13px; /* Increased by 10% (12 * 1.1 = 13px) */
+  background: rgba(245, 222, 194, 1); /* SwiftUI: Color(red: 0.96, green: 0.87, blue: 0.76) */
   border-radius: 50%; /* Ellipse shape */
-  filter: blur(5.3px); /* Blur radius 5.30 from SwiftUI */
   z-index: -1; /* Behind the icon */
 }
 
@@ -190,18 +189,18 @@
   }
 }
 
-/* Shadow animation - pulses width instead of moving up/down */
+/* Shadow animation - pulses width instead of moving up/down - consistent with slider */
 .independent-nav-button.active::after {
-  animation: shadowPulse 3s ease-in-out infinite;
+  animation: navShadowPulse 3s ease-in-out infinite;
 }
 
-@keyframes shadowPulse {
+@keyframes navShadowPulse {
   0%, 100% {
-    width: 68px; /* Full width */
+    width: 65px; /* Full width - reduced by 10% */
     transform: translateX(-50%); /* Centered */
   }
   50% {
-    width: 52px; /* Narrower width - pulses smaller */
+    width: 52px; /* Narrower width - pulses smaller (65 * 0.8 = 52px) */
     transform: translateX(-50%); /* Stay centered */
   }
 }
@@ -222,6 +221,14 @@
   visibility: visible !important;
 }
 
+/* Enter animation for navigation - bounce scale in with fade in */
+.independent-nav.enter-animation {
+  transition: opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), 
+              transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  opacity: 1 !important;
+  transform: translateX(-50%) scale(1) !important;
+}
+
 /* Hide navigation ONLY when game is active */
 #app:not([hidden]) ~ .independent-nav {
   display: none !important;
@@ -239,12 +246,17 @@
   visibility: visible !important;
 }
 
-/* Exit animation for navigation */
+/* Exit animation for navigation - bounce scale down to 0 with fade out */
 .independent-nav.exit-animation {
-  transition: opacity 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8), 
-              transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8);
+  transition: opacity 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55),
+              transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   opacity: 0 !important;
-  transform: translateX(-50%) scale(0) translateY(-10px) !important;
+  transform: translateX(-50%) scale(0) !important;
+}
+
+/* Hide navigation completely after exit animation */
+.independent-nav.exit-animation.animation-complete {
+  display: none !important;
 }
 
 /* Hide navigation during exit animations */
