@@ -406,11 +406,35 @@ export async function boot(){
   
   // Initialize fixed background layer AFTER layout is set
   layout();
+  
+  // Initialize grid if not already initialized
+  if (!grid || grid.length === 0) {
+    grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    console.log('✅ Grid initialized in boot():', ROWS, 'x', COLS);
+  }
+  
   initializeBackgroundLayer();
   console.log('✅ Background layer initialized in boot()');
   
   // Update ghost visibility after initialization
   updateGhostVisibility();
+  
+  // Debug: Check if ghost placeholders are visible
+  setTimeout(() => {
+    if (window._ghostPlaceholders) {
+      let visibleCount = 0;
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (window._ghostPlaceholders[r] && window._ghostPlaceholders[r][c] && window._ghostPlaceholders[r][c].visible) {
+            visibleCount++;
+          }
+        }
+      }
+      console.log('🔍 Ghost placeholders check:', visibleCount, 'visible out of', ROWS * COLS, 'total');
+    } else {
+      console.log('❌ Ghost placeholders not found!');
+    }
+  }, 100);
   
   // Debug: Monitor boardBG changes
   const originalClear = boardBG.clear.bind(boardBG);
