@@ -1,7 +1,22 @@
-import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS } from '../constants/animations.js';
+import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS, type ElementId } from '../constants/animations.js';
+
+// Type definitions
+interface GameControls {
+  pauseGame?: () => void;
+  resumeGame?: () => void;
+}
+
+declare global {
+  interface Window {
+    CC?: GameControls;
+    pauseGame?: () => void;
+    resumeGame?: () => void;
+    unlockSlider?: () => void;
+  }
+}
 
 // Safe element getter
-export const getElement = (id) => {
+export const getElement = (id: ElementId): HTMLElement | null => {
   try {
     return document.getElementById(id);
   } catch (error) {
@@ -11,7 +26,7 @@ export const getElement = (id) => {
 };
 
 // Fade out home element
-export const fadeOutHome = () => {
+export const fadeOutHome = (): void => {
   const home = getElement(ELEMENT_IDS.HOME);
   if (home) {
     home.style.transition = `opacity ${ANIMATION_DURATIONS.NORMAL} ${ANIMATION_EASING.EASE}`;
@@ -21,7 +36,7 @@ export const fadeOutHome = () => {
 };
 
 // Fade in home element
-export const fadeInHome = () => {
+export const fadeInHome = (): void => {
   const home = getElement(ELEMENT_IDS.HOME);
   if (home) {
     home.style.transition = `opacity ${ANIMATION_DURATIONS.NORMAL} ${ANIMATION_EASING.EASE}`;
@@ -31,7 +46,7 @@ export const fadeInHome = () => {
 };
 
 // Safe pause game
-export const safePauseGame = () => {
+export const safePauseGame = (): void => {
   try {
     if (window.CC?.pauseGame) {
       window.CC.pauseGame();
@@ -45,7 +60,7 @@ export const safePauseGame = () => {
 };
 
 // Safe resume game
-export const safeResumeGame = () => {
+export const safeResumeGame = (): void => {
   try {
     if (window.CC?.resumeGame) {
       window.CC.resumeGame();
@@ -59,7 +74,7 @@ export const safeResumeGame = () => {
 };
 
 // Safe unlock slider
-export const safeUnlockSlider = () => {
+export const safeUnlockSlider = (): void => {
   try {
     if (typeof window.unlockSlider === 'function') {
       window.unlockSlider();
@@ -73,22 +88,28 @@ export const safeUnlockSlider = () => {
 };
 
 // Debounce function
-export const debounce = (func, wait) => {
-  let timeout;
-  return function executedFunction(...args) {
+export const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): ((...args: Parameters<T>) => void) => {
+  let timeout: NodeJS.Timeout | null = null;
+  return function executedFunction(...args: Parameters<T>) {
     const later = () => {
-      clearTimeout(timeout);
+      clearTimeout(timeout!);
       func(...args);
     };
-    clearTimeout(timeout);
+    clearTimeout(timeout!);
     timeout = setTimeout(later, wait);
   };
 };
 
 // Throttle function
-export const throttle = (func, limit) => {
-  let inThrottle;
-  return function(...args) {
+export const throttle = <T extends (...args: any[]) => any>(
+  func: T,
+  limit: number
+): ((...args: Parameters<T>) => void) => {
+  let inThrottle: boolean = false;
+  return function(this: any, ...args: Parameters<T>) {
     if (!inThrottle) {
       func.apply(this, args);
       inThrottle = true;

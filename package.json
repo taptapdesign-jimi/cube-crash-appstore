@@ -11,6 +11,10 @@
     "dev:restart:win": "powershell -Command \"$p=(Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue).OwningProcess; if($p){ Stop-Process -Id $p -Force }; vite --host\""
   },
   "devDependencies": {
+    "@types/gsap": "^1.20.2",
+    "@types/node": "^24.9.1",
+    "@types/pixi.js": "^4.8.9",
+    "typescript": "^5.9.3",
     "vite": "^5.4.19"
   },
   "dependencies": {

@@ -1,5 +1,18 @@
+// Type definitions
+interface CSSStyleProperties {
+  [key: string]: string | number;
+}
+
+interface ModalStyles {
+  OVERLAY: CSSStyleProperties;
+  MODAL: CSSStyleProperties;
+  BUTTON: CSSStyleProperties;
+  PRIMARY_BUTTON: CSSStyleProperties;
+  SECONDARY_BUTTON: CSSStyleProperties;
+}
+
 // CSS styles for modals and elements
-export const MODAL_STYLES = {
+export const MODAL_STYLES: ModalStyles = {
   OVERLAY: {
     position: 'fixed',
     top: '0',
@@ -48,7 +61,7 @@ export const MODAL_STYLES = {
 };
 
 // Apply styles to element
-export const applyStyles = (element, styles) => {
+export const applyStyles = (element: HTMLElement | null, styles: CSSStyleProperties): void => {
   if (!element) return;
   
   try {
@@ -59,7 +72,7 @@ export const applyStyles = (element, styles) => {
 };
 
 // Create modal element with styles
-export const createModalElement = (className, styles = {}) => {
+export const createModalElement = (className: string, styles: CSSStyleProperties = {}): HTMLDivElement => {
   const element = document.createElement('div');
   element.className = className;
   applyStyles(element, styles);
