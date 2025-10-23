@@ -69,8 +69,8 @@ function addEndRunModalStyles() {
       -webkit-user-select: none !important;
       user-select: none !important;
       cursor: pointer !important;
-      width: 310px !important;
-      max-width: 310px !important;
+      width: 100% !important;
+      max-width: 280px !important;
     }
     
     .exit-btn:hover {
