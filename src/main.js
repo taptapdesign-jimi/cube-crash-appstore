@@ -6,8 +6,8 @@ import './ios-image-helper.js';
 import './3d-effects.js';
 
 // Import utilities
-import { fadeOutHome, fadeInHome, safePauseGame, safeResumeGame, safeUnlockSlider, debounce } from './utils/animations.ts';
-import { ANIMATION_DELAYS, CSS_CLASSES, ELEMENT_IDS } from './constants/animations.ts';
+import { fadeOutHome, fadeInHome, safePauseGame, safeResumeGame, safeUnlockSlider, debounce } from './utils/animations.js';
+import { ANIMATION_DELAYS, CSS_CLASSES, ELEMENT_IDS } from './constants/animations.js';
 
 // Import iOS optimization utilities
 import errorHandler from './utils/error-handler.js';
