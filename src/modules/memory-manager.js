@@ -20,7 +20,7 @@ class MemoryManager {
     // Start periodic cleanup
     this.cleanupInterval = setInterval(() => {
       this.performCleanup();
-    }, 30000); // Every 30 seconds
+    }, 10000); // Every 10 seconds (more frequent)
     
     // Setup state subscriptions
     this.setupStateSubscriptions();
@@ -73,6 +73,9 @@ class MemoryManager {
       
       // Clean up PIXI textures
       this.cleanupPIXITextures();
+      
+      // Clean up unused images
+      this.cleanupUnusedImages();
       
       // Force garbage collection if available
       this.forceGarbageCollection();
@@ -144,6 +147,31 @@ class MemoryManager {
       
     } catch (error) {
       console.warn('⚠️ PIXI texture cleanup failed:', error);
+    }
+  }
+  
+  // Clean up unused images
+  cleanupUnusedImages() {
+    try {
+      // Remove unused images from DOM
+      const images = document.querySelectorAll('img');
+      images.forEach(img => {
+        if (!img.complete || img.naturalWidth === 0) {
+          img.remove();
+        }
+      });
+      
+      // Clear image cache
+      if (window.Image && window.Image.prototype) {
+        // Reset image loading
+        const originalSrc = Image.prototype.src;
+        Image.prototype.src = '';
+      }
+      
+      console.log('🧠 Cleaned up unused images');
+      
+    } catch (error) {
+      console.warn('⚠️ Image cleanup failed:', error);
     }
   }
   

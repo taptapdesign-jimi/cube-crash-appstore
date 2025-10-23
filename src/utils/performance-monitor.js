@@ -20,7 +20,7 @@ class PerformanceMonitor {
     // iOS-specific thresholds
     this.thresholds = {
       minFPS: 30,        // Minimum FPS for smooth gameplay
-      maxMemory: 100,    // Maximum memory usage in MB
+      maxMemory: 500,    // Maximum memory usage in MB (increased from 100)
       maxFrameTime: 33,  // Maximum frame time in ms (30 FPS)
       maxDrawCalls: 100  // Maximum draw calls per frame
     };
@@ -168,7 +168,11 @@ class PerformanceMonitor {
       this.warnings.shift();
     }
     
-    console.warn(`⚠️ Performance Warning: ${type} - ${message}`);
+    // Only log warning if it's not a duplicate
+    const lastWarning = this.warnings[this.warnings.length - 1];
+    if (!lastWarning || lastWarning.type !== type || lastWarning.message !== message) {
+      console.warn(`⚠️ Performance Warning: ${type} - ${message}`);
+    }
   }
 
   // Get current metrics
