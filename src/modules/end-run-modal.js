@@ -2,6 +2,135 @@
 import { showCleanBoardModal } from './clean-board-modal.js';
 import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animations.ts';
 
+// Add CSS styles for end run modal buttons
+function addEndRunModalStyles() {
+  if (document.getElementById('end-run-modal-styles')) return;
+  
+  const style = document.createElement('style');
+  style.id = 'end-run-modal-styles';
+  style.textContent = `
+    /* End Run Modal Button Styles - matching original CTA buttons */
+    .restart-btn {
+      background: #E97A55 !important;
+      color: white !important;
+      border: none !important;
+      border-radius: 40px !important;
+      height: 64px !important;
+      padding: 0 56px !important;
+      font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+      font-size: 24px !important;
+      font-weight: bold !important;
+      box-shadow: 0 8px 0 0 #C24921 !important;
+      transition: transform 0.15s ease !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transform: scale(1) !important;
+      position: relative !important;
+      overflow: hidden !important;
+      -webkit-tap-highlight-color: transparent !important;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      user-select: none !important;
+      cursor: pointer !important;
+      width: 100% !important;
+      max-width: 280px !important;
+    }
+    
+    .restart-btn:hover {
+      transform: scale(1.05) !important;
+    }
+    
+    .restart-btn:active {
+      transform: scale(0.95) !important;
+      box-shadow: 0 4px 0 0 #C24921 !important;
+    }
+    
+    .exit-btn {
+      background: #F5F3F1 !important;
+      color: #8B4513 !important;
+      border: 2px solid #8B4513 !important;
+      border-radius: 40px !important;
+      height: 64px !important;
+      padding: 0 56px !important;
+      font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+      font-size: 24px !important;
+      font-weight: bold !important;
+      box-shadow: 0 8px 0 0 #6B3410 !important;
+      transition: transform 0.15s ease !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transform: scale(1) !important;
+      position: relative !important;
+      overflow: hidden !important;
+      -webkit-tap-highlight-color: transparent !important;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      user-select: none !important;
+      cursor: pointer !important;
+      width: 100% !important;
+      max-width: 280px !important;
+    }
+    
+    .exit-btn:hover {
+      transform: scale(1.05) !important;
+    }
+    
+    .exit-btn:active {
+      transform: scale(0.95) !important;
+      box-shadow: 0 4px 0 0 #6B3410 !important;
+    }
+    
+    .debug-btn {
+      background: #FF6B35 !important;
+      color: white !important;
+      border: none !important;
+      border-radius: 40px !important;
+      height: 48px !important;
+      padding: 0 32px !important;
+      font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+      font-size: 18px !important;
+      font-weight: bold !important;
+      box-shadow: 0 6px 0 0 #E55A2B !important;
+      transition: transform 0.15s ease !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transform: scale(1) !important;
+      position: relative !important;
+      overflow: hidden !important;
+      -webkit-tap-highlight-color: transparent !important;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      user-select: none !important;
+      cursor: pointer !important;
+      width: 100% !important;
+      max-width: 200px !important;
+    }
+    
+    .debug-btn:hover {
+      transform: scale(1.05) !important;
+    }
+    
+    .debug-btn:active {
+      transform: scale(0.95) !important;
+      box-shadow: 0 3px 0 0 #E55A2B !important;
+    }
+    
+    /* Button row layout */
+    .modal-buttons {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 16px !important;
+      width: 100% !important;
+      align-items: center !important;
+    }
+  `;
+  
+  document.head.appendChild(style);
+}
+
 let modal = null;
 
 function createModal() {
@@ -185,6 +314,9 @@ function createModal() {
 
 export function showEndRunModal() {
   console.log('🎯 showEndRunModal CALLED!');
+  
+  // Add CSS styles first
+  addEndRunModalStyles();
   
   // CRITICAL: Pause the game completely when modal appears
   console.log('🎯 Pausing game for End This Run modal');

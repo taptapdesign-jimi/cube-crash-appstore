@@ -3,6 +3,99 @@
 
 import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animations.ts';
 
+// Add CSS styles for bottom sheet buttons
+function addBottomSheetStyles() {
+  if (document.getElementById('bottom-sheet-styles')) return;
+  
+  const style = document.createElement('style');
+  style.id = 'bottom-sheet-styles';
+  style.textContent = `
+    /* Bottom Sheet Button Styles - matching original CTA buttons */
+    .continue-btn {
+      background: #E97A55 !important;
+      color: white !important;
+      border: none !important;
+      border-radius: 40px !important;
+      height: 64px !important;
+      padding: 0 56px !important;
+      font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+      font-size: 24px !important;
+      font-weight: bold !important;
+      box-shadow: 0 8px 0 0 #C24921 !important;
+      transition: transform 0.15s ease !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transform: scale(1) !important;
+      position: relative !important;
+      overflow: hidden !important;
+      -webkit-tap-highlight-color: transparent !important;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      user-select: none !important;
+      cursor: pointer !important;
+      width: 100% !important;
+      max-width: 280px !important;
+    }
+    
+    .continue-btn:hover {
+      transform: scale(1.05) !important;
+    }
+    
+    .continue-btn:active {
+      transform: scale(0.95) !important;
+      box-shadow: 0 4px 0 0 #C24921 !important;
+    }
+    
+    .new-game-btn {
+      background: #F5F3F1 !important;
+      color: #8B4513 !important;
+      border: 2px solid #8B4513 !important;
+      border-radius: 40px !important;
+      height: 64px !important;
+      padding: 0 56px !important;
+      font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+      font-size: 24px !important;
+      font-weight: bold !important;
+      box-shadow: 0 8px 0 0 #6B3410 !important;
+      transition: transform 0.15s ease !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transform: scale(1) !important;
+      position: relative !important;
+      overflow: hidden !important;
+      -webkit-tap-highlight-color: transparent !important;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      user-select: none !important;
+      cursor: pointer !important;
+      width: 100% !important;
+      max-width: 280px !important;
+    }
+    
+    .new-game-btn:hover {
+      transform: scale(1.05) !important;
+    }
+    
+    .new-game-btn:active {
+      transform: scale(0.95) !important;
+      box-shadow: 0 4px 0 0 #6B3410 !important;
+    }
+    
+    /* Button row layout */
+    .simple-button-row {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 16px !important;
+      width: 100% !important;
+      align-items: center !important;
+    }
+  `;
+  
+  document.head.appendChild(style);
+}
+
 let resumeModal = null;
 
 function createCleanupRegistry(modalEl) {
@@ -156,6 +249,9 @@ function createResumeModal() {
 }
 
 export function showResumeGameBottomSheet() {
+  // Add CSS styles first
+  addBottomSheetStyles();
+  
   const el = createResumeModal();
   
   // Pause the game when bottom sheet appears
