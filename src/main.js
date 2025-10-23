@@ -1606,6 +1606,13 @@ async function initializeApp() {
     
     // Shimmer fixed - debug code removed for clean production
 
+    // CRITICAL: Show home element
+    if (home) {
+      home.style.display = 'block';
+      home.removeAttribute('hidden');
+      console.log('✅ Home element displayed');
+    }
+    
     // Simple slider initialization
     console.log('🎠 Initializing simple slider...');
     
