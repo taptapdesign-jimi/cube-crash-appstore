@@ -194,6 +194,19 @@ class UIManager {
     }
   }
   
+  // Show homepage with animation
+  showHomepageWithAnimation() {
+    if (this.elements.home) {
+      this.elements.home.style.display = 'block';
+      this.elements.home.removeAttribute('hidden');
+      this.elements.home.style.opacity = '0';
+      this.elements.home.style.transition = 'opacity 0.6s ease';
+      setTimeout(() => {
+        fadeInHome();
+      }, 50);
+    }
+  }
+  
   // Show stats screen
   showStatsScreen() {
     console.log('📊 Showing stats screen');
