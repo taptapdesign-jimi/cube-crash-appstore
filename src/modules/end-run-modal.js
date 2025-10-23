@@ -47,16 +47,16 @@ function addEndRunModalStyles() {
     }
     
     .exit-btn {
-      background: #F5F3F1 !important;
-      color: #8B4513 !important;
-      border: 2px solid #8B4513 !important;
+      background: white !important;
+      color: #AD8775 !important;
+      border: 1px solid #E8DBD6 !important;
       border-radius: 40px !important;
       height: 64px !important;
-      padding: 0 56px !important;
-      font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
-      font-size: 24px !important;
+      padding: 16px 64px !important;
+      font-family: "Inter", system-ui, -apple-system, sans-serif !important;
+      font-size: 20px !important;
       font-weight: bold !important;
-      box-shadow: 0 8px 0 0 #6B3410 !important;
+      box-shadow: 0 6px 0 0 #E8DBD6 !important;
       transition: transform 0.15s ease !important;
       display: flex !important;
       align-items: center !important;
@@ -69,8 +69,8 @@ function addEndRunModalStyles() {
       -webkit-user-select: none !important;
       user-select: none !important;
       cursor: pointer !important;
-      width: 100% !important;
-      max-width: 280px !important;
+      width: 310px !important;
+      max-width: 310px !important;
     }
     
     .exit-btn:hover {
@@ -79,7 +79,7 @@ function addEndRunModalStyles() {
     
     .exit-btn:active {
       transform: scale(0.95) !important;
-      box-shadow: 0 4px 0 0 #6B3410 !important;
+      box-shadow: 0 3px 0 0 #E8DBD6 !important;
     }
     
     .debug-btn {
