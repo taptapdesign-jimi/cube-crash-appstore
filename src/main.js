@@ -29,7 +29,7 @@ async function initializeApp() {
     // Initialize error handling
     errorHandler.handleError = errorHandler.handleError.bind(errorHandler);
     performanceMonitor.start();
-    memoryManager.start();
+    memoryManager.init();
     
     // Initialize animation manager
     animationManager.init();
