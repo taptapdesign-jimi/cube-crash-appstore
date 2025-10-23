@@ -15,16 +15,19 @@ import { ANIMATION_DELAYS, CSS_CLASSES, ELEMENT_IDS } from './constants/animatio
 console.log('🚀 Starting simple CubeCrash...');
 
 // Export functions early for collectibles-manager
-let showCollectiblesScreen, hideCollectiblesScreen, showStatsScreen, hideStatsScreen;
+let showCollectiblesScreen;
+let hideCollectiblesScreen;
+let showStatsScreen;
+let hideStatsScreen;
 
 // Loading screen elements
-let loadingScreen = null;
-let loadingFill = null;
-let loadingPercentage = null;
+let loadingScreen= null;
+let loadingFill= null;
+let loadingPercentage= null;
 
 // Global DOM elements
-let home = null;
-let appHost = null;
+let home= null;
+let appHost= null;
 
 const SPRING_EASE = 'cubic-bezier(0.68, -0.8, 0.265, 1.8)';
 const SPRING_DURATION_MS = 650;
@@ -37,8 +40,8 @@ let loaderDisplayProgress = 0;
 let loaderActualProgress = 0;
 let loaderAssetsComplete = false;
 let loaderTickerActive = false;
-let loaderTickerId = null;
-let loaderVisualReadyResolve = null;
+let loaderTickerId= null;
+let loaderVisualReadyResolve= null;
 let loaderLastTimeProgress = 0;
 let loaderMinimumTimeReached = false;
 let loaderPendingRealProgress = 0;
@@ -61,7 +64,7 @@ function enqueueCollectibleReward(detail) {
   processPendingCollectibleRewards();
 }
 
-function markHomepageVisible({ delay = 0 } = {}) {
+function markHomepageVisible({ delay = 0 }) {
   const mark = () => {
     homepageReady = true;
     processPendingCollectibleRewards();

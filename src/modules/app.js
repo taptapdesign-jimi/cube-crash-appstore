@@ -4,6 +4,9 @@
 import { Application, Container, Assets, Graphics, Text, Rectangle, Texture, Sprite, SCALE_MODES } from 'pixi.js';
 import { gsap } from 'gsap';
 
+// TypeScript types available for future use
+// import type { GameState, PIXIApp, GameConstants, AnimationConfig, EffectConfig, HUDConfig, SpawnConfig, MergeConfig } from '../types/app.js';
+
 import {
   COLS, ROWS, TILE, GAP, HUD_H,
   ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD
@@ -35,7 +38,7 @@ const COMBO_CAP = 99;   // praktični safety cap
 // Combo idle decay: reset na x0 poslije 2s
 const COMBO_IDLE_RESET_MS = 2000;
 let comboIdleTimer = null;
-function scheduleComboDecay(){
+function scheduleComboDecay() {
   try { comboIdleTimer?.kill?.(); } catch {}
   comboIdleTimer = gsap.delayedCall(COMBO_IDLE_RESET_MS/1000, () => {
     // COMBO DEFLATE ANIMATION: Deflate like balloon when combo is lost

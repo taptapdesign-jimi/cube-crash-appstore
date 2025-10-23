@@ -11,17 +11,17 @@ import { magicSparklesAtTile } from './fx.js';
 
 // --- Inercijski tilt parametri (nagib SUPROTNO od smjera + lag) ---------------
 const TILT_MAX_RAD = 0.22;   // maksimalna rotacija (~12.6°)
-const TILT_SCALE   = 18;     // skala pretvorbe brzine → rotacija
-const VEL_SMOOTH   = 0.10;   // sporije prihvaća promjenu brzine (teži osjećaj)
-const ROT_SMOOTH   = 0.08;   // sporije naginje prema cilju (teži osjećaj)
-const POS_LAG_PX   = 6;      // maksimalni parallax pomak (px)
-const TILT_DUR     = 0.5;    // zadržano za release tween na onUp
+const TILT_SCALE = 18;     // skala pretvorbe brzine → rotacija
+const VEL_SMOOTH = 0.10;   // sporije prihvaća promjenu brzine (teži osjećaj)
+const ROT_SMOOTH = 0.08;   // sporije naginje prema cilju (teži osjećaj)
+const POS_LAG_PX = 6;      // maksimalni parallax pomak (px)
+const TILT_DUR = 0.5;    // zadržano za release tween na onUp
 
 const MAGNET_OFFSET_RATIO = 14 / 128; // 14px od 128px pločice ≈ 10.9375%
-const MAGNET_SCALE_MULT  = 1.03;    // 3% napuhavanje ciljane pločice
-const MAGNET_IN_DUR      = 0.12;    // trajanje scale-in easing
-const MAGNET_MOVE_DUR    = 0.085;   // koliko brzo se target približava
-const MAGNET_RETURN_DUR  = 0.14;    // trajanje povratka u baznu poziciju
+const MAGNET_SCALE_MULT = 1.03;    // 3% napuhavanje ciljane pločice
+const MAGNET_IN_DUR = 0.12;    // trajanje scale-in easing
+const MAGNET_MOVE_DUR = 0.085;   // koliko brzo se target približava
+const MAGNET_RETURN_DUR = 0.14;    // trajanje povratka u baznu poziciju
 
 // --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
 const __dg_orig_to = gsap.to.bind(gsap);
