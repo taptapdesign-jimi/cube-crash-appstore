@@ -116,26 +116,35 @@ class PerformanceMonitor {
   startPIXIMonitoring() {
     // Monitor PIXI app if available
     const monitorPIXI = () => {
-      if (!this.isMonitoring || !window.app) return;
+      if (!this.isMonitoring) return;
       
       try {
-        // Get PIXI stats
-        const stats = window.app.stage.children.length;
-        this.metrics.drawCalls = stats;
-        
-        // Check draw calls threshold
-        if (stats > this.thresholds.maxDrawCalls) {
-          this.addWarning('High Draw Calls', `Draw calls: ${stats} (max: ${this.thresholds.maxDrawCalls})`);
-        }
-        
-        // Get texture memory if available
-        if (window.PIXI && window.PIXI.utils && window.PIXI.utils.destroyTextureCache) {
-          // This is a rough estimate
-          this.metrics.textureMemory = Math.round(stats * 0.1); // Estimate 0.1MB per draw call
+        // Check if PIXI app exists and has stage
+        if (window.app && window.app.stage && window.app.stage.children) {
+          // Get PIXI stats
+          const stats = window.app.stage.children.length;
+          this.metrics.drawCalls = stats;
+          
+          // Check draw calls threshold
+          if (stats > this.thresholds.maxDrawCalls) {
+            this.addWarning('High Draw Calls', `Draw calls: ${stats} (max: ${this.thresholds.maxDrawCalls})`);
+          }
+          
+          // Get texture memory if available
+          if (window.PIXI && window.PIXI.utils && window.PIXI.utils.destroyTextureCache) {
+            // This is a rough estimate
+            this.metrics.textureMemory = Math.round(stats * 0.1); // Estimate 0.1MB per draw call
+          }
+        } else {
+          // PIXI app not ready yet, reset metrics
+          this.metrics.drawCalls = 0;
+          this.metrics.textureMemory = 0;
         }
         
       } catch (error) {
-        console.warn('⚠️ Failed to monitor PIXI:', error);
+        // Silently handle PIXI monitoring errors to avoid spam
+        this.metrics.drawCalls = 0;
+        this.metrics.textureMemory = 0;
       }
       
       setTimeout(monitorPIXI, 1000);

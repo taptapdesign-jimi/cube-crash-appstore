@@ -3,7 +3,7 @@
 // Privremeno maknuto: Clean Board i Mystery Prize.
 
 export const importFresh = (p) =>
-  import(`${p}?bust=${Date.now()}&r=${Math.random()}`);
+  import(/* @vite-ignore */ `${p}?bust=${Date.now()}&r=${Math.random()}`);
 
 export async function runEndgameFlow(ctx) {
   const {

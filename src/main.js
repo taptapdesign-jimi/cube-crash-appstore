@@ -6,8 +6,8 @@ import './ios-image-helper.js';
 import './3d-effects.js';
 
 // Import utilities
-import { fadeOutHome, fadeInHome, safePauseGame, safeResumeGame, safeUnlockSlider, debounce } from './utils/animations.js';
-import { ANIMATION_DELAYS, CSS_CLASSES, ELEMENT_IDS } from './constants/animations.js';
+import { fadeOutHome, fadeInHome, safePauseGame, safeResumeGame, safeUnlockSlider, debounce } from './utils/animations.ts';
+import { ANIMATION_DELAYS, CSS_CLASSES, ELEMENT_IDS } from './constants/animations.ts';
 
 // Import iOS optimization utilities
 import errorHandler from './utils/error-handler.js';
@@ -86,7 +86,7 @@ function enqueueCollectibleReward(detail) {
   processPendingCollectibleRewards();
 }
 
-function markHomepageVisible({ delay = 0 }) {
+function markHomepageVisible({ delay = 0 } = {}) {
   const mark = () => {
     homepageReady = true;
     processPendingCollectibleRewards();
