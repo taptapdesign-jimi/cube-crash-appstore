@@ -5,6 +5,10 @@ import { assetPreloader } from './modules/asset-preloader.js';
 import './ios-image-helper.js';
 import './3d-effects.js';
 
+// Import utilities
+import { fadeOutHome, fadeInHome, safePauseGame, safeResumeGame, safeUnlockSlider, debounce } from './utils/animations.js';
+import { ANIMATION_DELAYS, CSS_CLASSES, ELEMENT_IDS } from './constants/animations.js';
+
 console.log('🚀 Starting simple CubeCrash...');
 
 // Export functions early for collectibles-manager
@@ -1164,13 +1168,9 @@ async function checkForSavedGame() {
           // Remove the fresh game save and start new
           localStorage.removeItem('cc_saved_game');
           
-          // Add fade out animation for #home element since no bottom sheet will appear
-          // This animation only runs when user actually decides to start game
-          if (home) {
-            home.style.transition = 'opacity 0.6s ease';
-            home.style.opacity = '0';
-            console.log('🎮 Animating #home element fade out for fresh game');
-          }
+        // Add fade out animation for #home element since no bottom sheet will appear
+        // This animation only runs when user actually decides to start game
+        fadeOutHome();
         }
       } else {
         console.log('⚠️ Saved game is too old, removing...');
@@ -1178,11 +1178,7 @@ async function checkForSavedGame() {
         
         // Add fade out animation for #home element since no bottom sheet will appear
         // This animation only runs when user actually decides to start game
-        if (home) {
-          home.style.transition = 'opacity 0.6s ease';
-          home.style.opacity = '0';
-          console.log('🎮 Animating #home element fade out for old game');
-        }
+        fadeOutHome();
       }
     } catch (error) {
       console.warn('⚠️ Corrupted save file, removing...', error);
@@ -1190,11 +1186,7 @@ async function checkForSavedGame() {
       
       // Add fade out animation for #home element since no bottom sheet will appear
       // This animation only runs when user actually decides to start game
-      if (home) {
-        home.style.transition = 'opacity 0.6s ease';
-        home.style.opacity = '0';
-        console.log('🎮 Animating #home element fade out for corrupted save');
-      }
+      fadeOutHome();
     }
   }
   
@@ -1203,11 +1195,7 @@ async function checkForSavedGame() {
   
   // Add fade out animation for #home element since no bottom sheet will appear
   // This animation only runs when user actually decides to start game
-  if (home) {
-    home.style.transition = 'opacity 0.6s ease';
-    home.style.opacity = '0';
-    console.log('🎮 Animating #home element fade out for no saved game');
-  }
+  fadeOutHome();
   
   await startGameDirectly();
 }
@@ -1217,11 +1205,7 @@ async function startGameDirectly() {
   navigationReset = false; // Reset navigation flag when starting game
   
   // Add fade out animation for #home element (similar to Stats CTA)
-  if (home) {
-    home.style.transition = 'opacity 0.6s ease';
-    home.style.opacity = '0';
-    console.log('🎮 Animating #home element fade out for direct start');
-  }
+  fadeOutHome();
   
   await animateSlideExit(); // This will handle navigation exit animation
   startTimeTracking();
@@ -2341,8 +2325,8 @@ async function initializeApp() {
           home.style.opacity = '0';
           home.style.transition = 'opacity 0.6s ease';
           setTimeout(() => {
-            home.style.opacity = '1';
-          }, 50);
+            fadeInHome();
+          }, ANIMATION_DELAYS.SHORT);
         }
         
         console.log('🎁 Collectibles screen hidden, restoring home element');
@@ -2517,8 +2501,8 @@ async function initializeApp() {
           home.style.opacity = '0';
           home.style.transition = 'opacity 0.6s ease';
           setTimeout(() => {
-            home.style.opacity = '1';
-          }, 50);
+            fadeInHome();
+          }, ANIMATION_DELAYS.SHORT);
         }
         
         // Unlock slider and show dots
@@ -3240,14 +3224,20 @@ async function initializeApp() {
         
         // Navigation will be completely removed by hideDots() - no need to hide individual elements
         
-        // Start background monitoring to ensure button stays reset
-        const backgroundInterval = setInterval(() => {
+        // Start background monitoring to ensure button stays reset (debounced)
+        const debouncedReset = debounce(() => {
           if (sliderLocked) {
             window.ensurePlayButtonReset();
+          }
+        }, 100);
+        
+        const backgroundInterval = setInterval(() => {
+          if (sliderLocked) {
+            debouncedReset();
           } else {
             clearInterval(backgroundInterval);
           }
-        }, 50); // Check every 50ms
+        }, ANIMATION_DELAYS.SHORT); // Check every 50ms
         
         // Global click handler to reset button if clicked elsewhere
         const globalClickHandler = (e) => {
@@ -3881,17 +3871,11 @@ window.continueGame = async () => {
   try {
     // Resume the game when user decides to continue
     console.log('🎯 Resuming game for continue');
-    if (typeof window.resumeGame === 'function') {
-      window.resumeGame();
-    }
+    safeResumeGame();
     
     // Add fade out animation for #home element (similar to Stats CTA)
     // This animation only runs when user actually decides to continue game
-    if (home) {
-      home.style.transition = 'opacity 0.6s ease';
-      home.style.opacity = '0';
-      console.log('🎮 Animating #home element fade out for continue');
-    }
+    fadeOutHome();
     
     await animateSlideExit();
     
@@ -3936,17 +3920,11 @@ window.startNewGame = async () => {
   try {
     // Resume the game when user decides to start new game
     console.log('🎯 Resuming game for new game');
-    if (typeof window.resumeGame === 'function') {
-      window.resumeGame();
-    }
+    safeResumeGame();
     
     // Add fade out animation for #home element (similar to Stats CTA)
     // This animation only runs when user actually decides to start new game
-    if (home) {
-      home.style.transition = 'opacity 0.6s ease';
-      home.style.opacity = '0';
-      console.log('🎮 Animating #home element fade out for new game');
-    }
+    fadeOutHome();
     
     await animateSlideExit();
     
@@ -4322,8 +4300,8 @@ window.startNewGame = async () => {
         home.style.opacity = '0';
         home.style.transition = 'opacity 0.6s ease';
         setTimeout(() => {
-          home.style.opacity = '1';
-        }, 50);
+          fadeInHome();
+        }, ANIMATION_DELAYS.SHORT);
         // restoreGradientBackground(); // Removed - gradient stays visible
         
         // Homepage image is static - no randomization needed

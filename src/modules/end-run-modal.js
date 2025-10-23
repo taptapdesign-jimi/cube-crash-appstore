@@ -1,5 +1,6 @@
 // Simple End Run Modal
 import { showCleanBoardModal } from './clean-board-modal.js';
+import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animations.js';
 
 let modal = null;
 
@@ -187,9 +188,7 @@ export function showEndRunModal() {
   
   // CRITICAL: Pause the game completely when modal appears
   console.log('🎯 Pausing game for End This Run modal');
-  if (window.CC && typeof window.CC.pauseGame === 'function') {
-    window.CC.pauseGame();
-  }
+  safePauseGame();
   
   const el = createModal();
   console.log('🎯 MODAL ELEMENT CREATED:', el);
@@ -376,18 +375,10 @@ export function hideModal() {
     
     // Resume the game when modal is closed
     console.log('🎯 Resuming game after End This Run modal closed');
-    if (window.CC && typeof window.CC.resumeGame === 'function') {
-      window.CC.resumeGame();
-    }
+    safeResumeGame();
     
     // Unlock slider immediately so CTA becomes responsive right after the sheet starts closing
-    try {
-      if (typeof window.unlockSlider === 'function') {
-        window.unlockSlider();
-      }
-    } catch (error) {
-      console.warn('⚠️ Failed to unlock slider while hiding end run modal:', error);
-    }
+    safeUnlockSlider();
     
     setTimeout(() => {
       if (modal) {

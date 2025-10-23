@@ -1,6 +1,8 @@
 // public/src/modules/resume-game-bottom-sheet.js
 // Resume Game Bottom Sheet - same style as End This Run modal
 
+import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animations.js';
+
 let resumeModal = null;
 
 function createCleanupRegistry(modalEl) {
@@ -158,9 +160,7 @@ export function showResumeGameBottomSheet() {
   
   // Pause the game when bottom sheet appears
   console.log('🎯 Pausing game for bottom sheet');
-  if (typeof window.pauseGame === 'function') {
-    window.pauseGame();
-  }
+  safePauseGame();
   
   // Modal starts hidden (CSS default)
   console.log('🎯 RESUME MODAL CREATED - Initial transform:', el.style.transform);
@@ -347,19 +347,11 @@ export function hideResumeModal() {
   modalEl.classList.remove('visible');
 
   // Unlock slider immediately so CTA becomes responsive right after the sheet starts closing
-  try {
-    if (typeof window.unlockSlider === 'function') {
-      window.unlockSlider();
-    }
-  } catch (error) {
-    console.warn('⚠️ Failed to unlock slider while hiding resume modal:', error);
-  }
+  safeUnlockSlider();
   
   // Resume the game when bottom sheet is closed (without action)
   console.log('🎯 Resuming game after bottom sheet closed without action');
-  if (typeof window.resumeGame === 'function') {
-    window.resumeGame();
-  }
+  safeResumeGame();
   
   // DON'T animate #home element when bottom sheet is closed without action
   // Animation will be triggered only when user actually decides to continue/start game
