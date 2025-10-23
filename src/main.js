@@ -9,10 +9,32 @@ import './3d-effects.js';
 import { fadeOutHome, fadeInHome, safePauseGame, safeResumeGame, safeUnlockSlider, debounce } from './utils/animations.js';
 import { ANIMATION_DELAYS, CSS_CLASSES, ELEMENT_IDS } from './constants/animations.js';
 
+// Import iOS optimization utilities
+import errorHandler from './utils/error-handler.js';
+import performanceMonitor from './utils/performance-monitor.js';
+import memoryManager from './utils/memory-manager.js';
+
 // TypeScript pragma - use any for complex DOM manipulation
 // @ts-nocheck
 
 console.log('🚀 Starting simple CubeCrash...');
+
+// Initialize iOS optimization utilities
+errorHandler.handleError = errorHandler.handleError.bind(errorHandler);
+performanceMonitor.start();
+memoryManager.start();
+
+// iOS-specific optimizations
+if (navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad')) {
+  console.log('📱 iOS device detected, applying optimizations...');
+  
+  // Disable hover effects on iOS
+  document.body.classList.add('ios-device');
+  
+  // Optimize touch handling
+  document.addEventListener('touchstart', function() {}, { passive: true });
+  document.addEventListener('touchmove', function() {}, { passive: true });
+}
 
 // Export functions early for collectibles-manager
 let showCollectiblesScreen;
@@ -815,8 +837,19 @@ async function showResumeGameModal() {
         appHost.removeAttribute('hidden');
         
         console.log('🎮 main.js: About to call boot() for continue...');
-        await boot();
-        console.log('🎮 main.js: boot() called for continue');
+        try {
+          await boot();
+          console.log('🎮 main.js: boot() called for continue');
+          
+          // Register app for memory management
+          if (window.app) {
+            memoryManager.registerObject('mainApp', window.app);
+          }
+        } catch (error) {
+          console.error('❌ Failed to boot app for continue:', error);
+          errorHandler.handleError(error, 'App Boot - Continue');
+          throw error;
+        }
         
         // Wait a bit for boot to complete, then load saved game state
         setTimeout(async () => {

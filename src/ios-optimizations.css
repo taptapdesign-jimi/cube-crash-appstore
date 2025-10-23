@@ -1,0 +1,214 @@
+/* iOS-specific optimizations for App Store submission */
+
+/* iOS device detection */
+.ios-device * {
+  /* Disable hover effects on iOS */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* iOS safe area support */
+@supports (padding: max(0px)) {
+  .ios-device {
+    padding-left: max(env(safe-area-inset-left), 0px);
+    padding-right: max(env(safe-area-inset-right), 0px);
+    padding-top: max(env(safe-area-inset-top), 0px);
+    padding-bottom: max(env(safe-area-inset-bottom), 0px);
+  }
+}
+
+/* iOS performance optimizations */
+.ios-device * {
+  /* Enable hardware acceleration */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-perspective: 1000;
+  perspective: 1000;
+}
+
+/* iOS touch optimizations */
+.ios-device button,
+.ios-device .button,
+.ios-device .cta-button {
+  /* Improve touch targets */
+  min-height: 44px;
+  min-width: 44px;
+  
+  /* Remove default iOS button styles */
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  background: none;
+  
+  /* Improve touch feedback */
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  transition: opacity 0.1s ease;
+}
+
+.ios-device button:active,
+.ios-device .button:active,
+.ios-device .cta-button:active {
+  opacity: 0.7;
+}
+
+/* iOS scroll optimizations */
+.ios-device .slider-container,
+.ios-device .slider-viewport {
+  /* Enable momentum scrolling */
+  -webkit-overflow-scrolling: touch;
+  overflow-scrolling: touch;
+  
+  /* Prevent scroll bounce */
+  overscroll-behavior: none;
+}
+
+/* iOS animation optimizations */
+.ios-device .slider-slide {
+  /* Use transform instead of position for better performance */
+  will-change: transform;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* iOS PIXI.js optimizations */
+.ios-device canvas {
+  /* Enable hardware acceleration */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  
+  /* Prevent iOS from scaling canvas */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  
+  /* Optimize rendering */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* iOS modal optimizations */
+.ios-device .modal,
+.ios-device .bottom-sheet {
+  /* Prevent iOS from zooming on input focus */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  
+  /* Improve modal performance */
+  will-change: transform, opacity;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* iOS text optimizations */
+.ios-device {
+  /* Prevent iOS from adjusting text size */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  
+  /* Improve text rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* iOS loading optimizations */
+.ios-device .loading-screen {
+  /* Prevent iOS from showing loading indicators */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  
+  /* Optimize loading animations */
+  will-change: opacity;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* iOS navigation optimizations */
+.ios-device .navigation {
+  /* Prevent iOS from interfering with navigation */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  
+  /* Improve navigation performance */
+  will-change: transform, opacity;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* iOS specific fixes */
+.ios-device .hero-image {
+  /* Fix iOS image rendering issues */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* iOS memory optimizations */
+.ios-device .slider-slide:not(.active) {
+  /* Hide inactive slides to save memory */
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.ios-device .slider-slide.active {
+  /* Show active slide */
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* iOS debug mode (development only) */
+.ios-device.debug-mode {
+  /* Show performance metrics */
+  position: relative;
+}
+
+.ios-device.debug-mode::before {
+  content: "iOS Debug Mode";
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+/* iOS specific media queries */
+@media only screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) {
+  /* iPhone X, XS, 11 Pro */
+  .ios-device {
+    padding-top: max(env(safe-area-inset-top), 44px);
+  }
+}
+
+@media only screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) {
+  /* iPhone XR, 11 */
+  .ios-device {
+    padding-top: max(env(safe-area-inset-top), 44px);
+  }
+}
+
+@media only screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) {
+  /* iPhone XS Max, 11 Pro Max */
+  .ios-device {
+    padding-top: max(env(safe-area-inset-top), 44px);
+  }
+}
+
+/* iOS landscape optimizations */
+@media only screen and (orientation: landscape) {
+  .ios-device {
+    /* Optimize for landscape mode */
+    padding-left: max(env(safe-area-inset-left), 0px);
+    padding-right: max(env(safe-area-inset-right), 0px);
+  }
+}
