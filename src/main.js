@@ -81,7 +81,7 @@ async function startAssetPreloading() {
     uiManager.showLoadingScreen();
     
     // Start preloading
-    await assetPreloader.preload();
+    await assetPreloader.preloadAll();
     
     // Hide loading screen
     uiManager.hideLoadingScreen();
