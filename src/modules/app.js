@@ -402,7 +402,12 @@ export async function boot(){
   board.addChildAt(boardBG, 0); boardBG.zIndex = -1000; board.sortChildren();
   
   // Initialize fixed background layer AFTER layout is set
-  // (will be called from startGame after layout())
+  layout();
+  initializeBackgroundLayer();
+  console.log('✅ Background layer initialized in boot()');
+  
+  // Update ghost visibility after initialization
+  updateGhostVisibility();
   
   // Debug: Monitor boardBG changes
   const originalClear = boardBG.clear.bind(boardBG);
@@ -772,7 +777,7 @@ function initializeBackgroundLayer(){
   
   // Create a dedicated container for background elements
   backgroundLayer = new Container();
-  backgroundLayer.zIndex = -10000; // Always at the very bottom
+  backgroundLayer.zIndex = -100; // Above boardBG but below tiles
   backgroundLayer.eventMode = 'none'; // Non-interactive
   backgroundLayer.label = 'BackgroundLayer'; // For debugging
   
@@ -806,6 +811,9 @@ function initializeBackgroundLayer(){
   console.log('✅ FIXED background layer created with', ROWS * COLS, 'ghost placeholders');
   console.log('✅ This layer will NEVER be modified or destroyed');
   console.log('🔍 Background layer zIndex:', backgroundLayer.zIndex);
+  
+  // Update ghost visibility after creating background layer
+  updateGhostVisibility();
 }
 
 // Helper function to hide/show ghost at specific position
