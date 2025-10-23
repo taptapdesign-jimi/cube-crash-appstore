@@ -29,7 +29,9 @@ if (navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad
   console.log('📱 iOS device detected, applying optimizations...');
   
   // Disable hover effects on iOS
-  document.body.classList.add('ios-device');
+  if (navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad')) {
+    document.body.classList.add('ios-device');
+  }
   
   // Optimize touch handling
   document.addEventListener('touchstart', function() {}, { passive: true });

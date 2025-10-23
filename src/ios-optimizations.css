@@ -149,18 +149,18 @@
   image-rendering: crisp-edges;
 }
 
-/* iOS memory optimizations */
-.ios-device .slider-slide:not(.active) {
+/* iOS memory optimizations - DISABLED for now */
+/* .ios-device .slider-slide:not(.active) {
   /* Hide inactive slides to save memory */
-  visibility: hidden;
+  /* visibility: hidden;
   pointer-events: none;
 }
 
 .ios-device .slider-slide.active {
   /* Show active slide */
-  visibility: visible;
+  /* visibility: visible;
   pointer-events: auto;
-}
+} */
 
 /* iOS debug mode (development only) */
 .ios-device.debug-mode {
