@@ -156,6 +156,12 @@ function createResumeModal() {
 export function showResumeGameBottomSheet() {
   const el = createResumeModal();
   
+  // Pause the game when bottom sheet appears
+  console.log('🎯 Pausing game for bottom sheet');
+  if (typeof window.pauseGame === 'function') {
+    window.pauseGame();
+  }
+  
   // Modal starts hidden (CSS default)
   console.log('🎯 RESUME MODAL CREATED - Initial transform:', el.style.transform);
   
@@ -348,6 +354,16 @@ export function hideResumeModal() {
   } catch (error) {
     console.warn('⚠️ Failed to unlock slider while hiding resume modal:', error);
   }
+  
+  // Resume the game when bottom sheet is closed (without action)
+  console.log('🎯 Resuming game after bottom sheet closed without action');
+  if (typeof window.resumeGame === 'function') {
+    window.resumeGame();
+  }
+  
+  // DON'T animate #home element when bottom sheet is closed without action
+  // Animation will be triggered only when user actually decides to continue/start game
+  console.log('🎮 Bottom sheet closed without action - no #home animation');
 
   // Clean up event listeners
   try {

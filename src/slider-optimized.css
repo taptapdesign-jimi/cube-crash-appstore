@@ -7,21 +7,20 @@
   margin: 0;
   overflow: visible;
   border-radius: 0;
-  margin-top: -10vh; /* Lift up 20% */
-  background: var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%));
+  margin-top: -10vh; /* Lift up slider to original position */
+  background: transparent; /* Transparent - sit on global background */
+  z-index: 2; /* Above background, below other elements */
   transition: opacity 0.6s ease;
 }
 
-body.gradient-fade-out #slider-container {
-  opacity: 0;
-}
+/* Removed gradient-fade-out rules - gradient stays visible */
 
 .slider-viewport{
   position: relative;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  z-index: 2;
+  z-index: 3; /* Above slider-container */
 }
 
 #slider-wrapper {
@@ -226,6 +225,7 @@ body.gradient-fade-out #slider-container {
   left: 50%;
   transform: translateX(-50%);
   width: min(100vw, 430px);
+  z-index: 4; /* Above everything */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -444,5 +444,5 @@ body.gradient-fade-out #slider-container {
   transform: translateX(-50%);
   bottom: max(-2.85vh, env(safe-area-inset-bottom) - 2.85vh);
   width: 100vw;
-  z-index: 10001;
+  z-index: 10001; /* Above everything */
 }

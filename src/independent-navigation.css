@@ -260,6 +260,4 @@
 }
 
 /* Hide navigation during exit animations */
-body.gradient-fade-out .independent-nav {
-  display: none !important;
-}
+/* Removed gradient-fade-out rules - gradient stays visible */

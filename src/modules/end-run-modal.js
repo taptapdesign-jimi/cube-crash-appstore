@@ -185,6 +185,12 @@ function createModal() {
 export function showEndRunModal() {
   console.log('🎯 showEndRunModal CALLED!');
   
+  // CRITICAL: Pause the game completely when modal appears
+  console.log('🎯 Pausing game for End This Run modal');
+  if (window.CC && typeof window.CC.pauseGame === 'function') {
+    window.CC.pauseGame();
+  }
+  
   const el = createModal();
   console.log('🎯 MODAL ELEMENT CREATED:', el);
   console.log('🎯 MODAL IN DOM:', document.body.contains(el));
@@ -367,6 +373,12 @@ function addOutsideClickFunctionality(modalEl) {
 export function hideModal() {
   if (modal) {
     modal.classList.remove('visible');
+    
+    // Resume the game when modal is closed
+    console.log('🎯 Resuming game after End This Run modal closed');
+    if (window.CC && typeof window.CC.resumeGame === 'function') {
+      window.CC.resumeGame();
+    }
     
     // Unlock slider immediately so CTA becomes responsive right after the sheet starts closing
     try {

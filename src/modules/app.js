@@ -348,14 +348,44 @@ export async function boot(){
   app = new Application();
   await app.init({
     resizeTo: window,
-    background: 0xf5f5f5,
+    background: 0xf5f5f5, // Game background color
     antialias: false, // Disable antialiasing for pixel-perfect rendering
     // Use full device pixel ratio for maximum crispness
     resolution: window.devicePixelRatio || 1,
     powerPreference: "high-performance" // Optimize for performance
   });
+  
+  // Add fade in animation for background transition
+  app.canvas.style.opacity = '0';
+  app.canvas.style.transition = 'opacity 0.6s ease';
+  setTimeout(() => {
+    app.canvas.style.opacity = '1';
+  }, 50);
+  
+  // Add background transition animation
+  app.renderer.backgroundColor = 0xf5f5f5; // Start with gradient color
+  setTimeout(() => {
+    app.renderer.backgroundColor = 0xf5f5f5; // Transition to game background
+  }, 50);
+  
+  // Add CSS background transition animation
+  const appElement = document.getElementById('app');
+  const canvasElement = app.canvas;
+  if (appElement) {
+    appElement.style.background = 'var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%))';
+    setTimeout(() => {
+      appElement.style.background = '#f5f5f5';
+    }, 50);
+  }
+  if (canvasElement) {
+    canvasElement.style.background = 'var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%))';
+    setTimeout(() => {
+      canvasElement.style.background = '#f5f5f5';
+    }, 50);
+  }
   host.appendChild(app.canvas);
   app.canvas.style.touchAction = 'none';
+  app.canvas.style.zIndex = '10'; /* Above background, below sliders */
   
   // Optimize canvas for pixel-perfect rendering
   app.canvas.style.imageRendering = 'pixelated';
@@ -458,10 +488,10 @@ export async function boot(){
     const style = document.createElement('style');
     style.textContent = `
       :root{ --sat:env(safe-area-inset-top,0px); --sal:env(safe-area-inset-left,0px); --sar:env(safe-area-inset-right,0px); --sab:env(safe-area-inset-bottom,0px); }
-      html,body{ margin:0; padding:0; background:#f5f5f5; height:auto; }
+      html,body{ margin:0; padding:0; background:var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)); height:auto; }
       body{ min-height:100dvh; overflow:hidden; }
-      #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:#f5f5f5; }
-      canvas{ position:absolute; inset:0; width:100vw; height:100dvh; display:block; background:#f5f5f5; }
+      #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)); z-index:10; transition: background 0.6s ease; }
+      canvas{ position:absolute; inset:0; width:100vw; height:100dvh; display:block; background:var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)); z-index:10; transition: background 0.6s ease; }
       @font-face{ font-family:"LTCrow"; src:url("./assets/fonts/LTCrow-Regular.ttf") format("truetype"); font-weight:400; font-style:normal; font-display:swap; }
       @font-face{ font-family:"LTCrow"; src:url("./assets/fonts/LTCrow-Medium.ttf") format("truetype"); font-weight:500; font-style:normal; font-display:swap; }
       @font-face{ font-family:"LTCrow"; src:url("./assets/fonts/LTCrow-SemiBold.ttf") format("truetype"); font-weight:600; font-style:normal; font-display:swap; }

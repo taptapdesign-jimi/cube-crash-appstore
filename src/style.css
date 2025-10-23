@@ -15,9 +15,7 @@ body{
   transition: background 0.6s ease;
 }
 
-body.gradient-fade-out{
-  background: #f5f5f5;
-}
+/* Removed gradient-fade-out rules - gradient stays visible */
 
 #global-bg{
   position: fixed;
@@ -27,13 +25,11 @@ body.gradient-fade-out{
   right: -12vw;
   background: var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%));
   pointer-events: none;
-  z-index: -1;
+  z-index: 1; /* Above body, below sliders */
   transition: opacity 0.6s ease;
 }
 
-body.gradient-fade-out #global-bg{
-  opacity: 0;
-}
+/* Removed gradient-fade-out rules - gradient stays visible */
 
 /* ===== LOADING SCREEN STYLES ===== */
 .loading-screen {
@@ -47,12 +43,10 @@ body.gradient-fade-out #global-bg{
   justify-content: center;
   z-index: 10000;
   transition: opacity 0.5s ease, visibility 0.5s ease;
-  background: var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%));
+  background: var(--app-gradient); /* Gradient background */
 }
 
-body.gradient-fade-out .loading-screen {
-  background: #f5f5f5;
-}
+/* Removed gradient-fade-out rules - gradient stays visible */
 
 /* ===== HOMEPAGE IMAGE - NO FADE-IN ===== */
 /* Homepage image is always visible without fade-in animation */
@@ -281,6 +275,8 @@ body.gradient-fade-out .loading-screen {
 
 #app {
   transition: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  z-index: 10; /* Above background, below sliders */
+  background: #f5f5f5; /* Game background color */
 }
 html,body{height:100%;margin:0;background:var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%));font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
 
@@ -289,6 +285,8 @@ canvas {
   image-rendering: pixelated;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
+  z-index: 10; /* Above background, below sliders */
+  background: #f5f5f5; /* Game background color */
 }
 html{height:100dvh;height:100vh}
 body{height:100dvh;height:100vh;overflow:hidden}
@@ -299,16 +297,14 @@ body{height:100dvh;height:100vh;overflow:hidden}
   position: fixed; inset: 0;
   display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
   padding: calc(env(safe-area-inset-top,0px)) 0 calc(env(safe-area-inset-bottom,0px));
-  background: var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%));
-  z-index: 999999;
+  background: transparent; /* Transparent - sit on global background */
+  z-index: 10; /* Above background, below other elements */
   overflow: hidden; /* Prevent scrolling */
   /* GSAP will handle all animations */
   transition: opacity 0.6s ease;
 }
 
-body.gradient-fade-out #home{
-  opacity: 0;
-}
+/* Removed gradient-fade-out rules - gradient stays visible */
 
 /* iPhone 13 specific fixes */
 @supports (padding: max(0px)) {
