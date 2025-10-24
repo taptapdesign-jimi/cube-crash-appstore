@@ -34,6 +34,12 @@ class UIManager {
         settingsButton: document.getElementById('btn-settings')
       };
       
+      console.log('🔍 Cached elements:', {
+        home: !!this.elements.home,
+        app: !!this.elements.app,
+        playButton: !!this.elements.playButton
+      });
+      
       // Setup event listeners
       this.setupEventListeners();
       
@@ -176,7 +182,12 @@ class UIManager {
       // Hide homepage
       this.hideHomepage();
       
-      console.log('✅ Homepage hidden, importing app.js...');
+      console.log('✅ Homepage hidden, showing app element...');
+      
+      // Show app element (CRITICAL!)
+      this.showApp();
+      
+      console.log('✅ App element shown, importing app.js...');
       
       // Start game
       const { boot } = await import('./app.js');
@@ -206,6 +217,29 @@ class UIManager {
   hideHomepage() {
     if (this.elements.home) {
       fadeOutHome();
+    }
+  }
+  
+  // Show app element
+  showApp() {
+    const appElement = document.getElementById('app');
+    if (appElement) {
+      appElement.removeAttribute('hidden');
+      appElement.style.display = 'block';
+      appElement.style.opacity = '1';
+      console.log('✅ App element shown');
+    } else {
+      console.error('❌ App element not found!');
+    }
+  }
+  
+  // Hide app element
+  hideApp() {
+    const appElement = document.getElementById('app');
+    if (appElement) {
+      appElement.setAttribute('hidden', 'true');
+      appElement.style.display = 'none';
+      console.log('✅ App element hidden');
     }
   }
   
