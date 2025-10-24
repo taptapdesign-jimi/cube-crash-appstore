@@ -3,7 +3,7 @@
 
 .independent-nav {
   position: fixed;
-  bottom: 0;
+  bottom: 2.13%; /* 8px down from bottom (8px/375px = 2.13%) */
   left: 0;
   right: 0;
   width: 100%;
@@ -15,6 +15,19 @@
   visibility: visible;
   box-sizing: border-box;
   padding: 0 16px;
+}
+
+/* Responsive bottom positioning for different screen sizes */
+@media screen and (min-width: 431px) and (max-width: 768px) {
+  .independent-nav {
+    bottom: 1.5%; /* Slightly less on tablets */
+  }
+}
+
+@media screen and (min-width: 769px) {
+  .independent-nav {
+    bottom: 1%; /* Even less on desktop */
+  }
 }
 
 .independent-nav-content {
@@ -83,8 +96,10 @@
 /* iPhone specific adjustments */
 @media screen and (max-width: 430px) {
   .independent-nav {
+    bottom: 2.13%; /* 8px down on iPhone (8px/375px = 2.13%) */
     padding: 0 12px;
   }
+}
   
   .independent-nav-buttons {
     gap: 0;
