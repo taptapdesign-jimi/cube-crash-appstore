@@ -70,6 +70,16 @@ class SliderManager {
     this.elements.dots.forEach((dot, index) => {
       dot.addEventListener('click', () => this.goToSlide(index));
     });
+    
+    // Independent navigation buttons
+    const navButtons = document.querySelectorAll('.independent-nav-button');
+    console.log('🔘 Found navigation buttons:', navButtons.length);
+    navButtons.forEach((button, index) => {
+      button.addEventListener('click', () => {
+        console.log('🔘 Navigation button clicked:', index);
+        this.goToSlide(index);
+      });
+    });
   }
   
   // Setup state subscriptions
