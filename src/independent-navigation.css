@@ -69,10 +69,10 @@
 .independent-nav-buttons {
   display: flex;
   align-items: flex-end;
-  justify-content: flex-start;
-  gap: 24px;
+  justify-content: space-between;
+  gap: 0;
   width: 100%;
-  padding: 0 8px;
+  padding: 0 24px;
   position: relative;
   z-index: 999999999;
   pointer-events: auto;
@@ -87,8 +87,9 @@
   }
   
   .independent-nav-buttons {
-    gap: 16px;
-    padding: 0 4px;
+    gap: 0;
+    padding: 0 16px;
+    justify-content: space-between;
   }
   
   .independent-nav-button {
