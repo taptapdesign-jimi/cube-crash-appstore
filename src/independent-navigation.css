@@ -1,10 +1,11 @@
 /* INDEPENDENT NAVIGATION - COMPLETELY SEPARATE FROM EVERYTHING */
 /* This navigation is outside all containers and has its own lifecycle */
 
-/* Global reset for all navigation elements - remove ALL artifacts */
-.independent-nav *,
-.independent-nav *::before,
-.independent-nav *::after {
+/* Global reset for navigation buttons only - exclude divider */
+.independent-nav-button,
+.independent-nav-button *,
+.independent-nav-button *::before,
+.independent-nav-button *::after {
   background: none !important;
   background-color: transparent !important;
   border: none !important;
@@ -60,44 +61,44 @@
 }
 
 .independent-nav-divider {
-  position: absolute;
-  top: 16px; /* Back to original position */
-  left: 24px; /* 24px from left edge */
-  right: 24px; /* 24px from right edge */
-  width: auto; /* Auto width between left and right */
-  height: 2px; /* SwiftUI frame height: 2 */
-  pointer-events: none;
-  z-index: 999999999; /* Match parent z-index */
+  position: absolute !important;
+  top: 16px !important; /* Back to original position */
+  left: 24px !important; /* 24px from left edge */
+  right: 24px !important; /* 24px from right edge */
+  width: auto !important; /* Auto width between left and right */
+  height: 2px !important; /* SwiftUI frame height: 2 */
+  pointer-events: none !important;
+  z-index: 999999999 !important; /* Match parent z-index */
   /* Clean divider - no background */
-  background: transparent;
+  background: transparent !important;
   /* DEBUG: Temporary border to see if divider is there */
-  border: 1px solid red;
+  border: 1px solid red !important;
 }
 
-/* Divider based on SwiftUI code - exact match */
+/* Divider based on SwiftUI code - exact match with !important */
 .independent-nav-divider::before {
-  content: '';
-  position: absolute;
-  top: -1px; /* offset(x: 0, y: -1) */
-  left: 0;
-  width: 100%;
-  height: 0.5px; /* lineWidth: 0.50 */
-  background: rgba(235, 199, 153, 1); /* Color(red: 0.92, green: 0.78, blue: 0.60) */
-  z-index: 1;
+  content: '' !important;
+  position: absolute !important;
+  top: -1px !important; /* offset(x: 0, y: -1) */
+  left: 0 !important;
+  width: 100% !important;
+  height: 0.5px !important; /* lineWidth: 0.50 */
+  background: rgba(235, 199, 153, 1) !important; /* Color(red: 0.92, green: 0.78, blue: 0.60) */
+  z-index: 1 !important;
 }
 
 .independent-nav-divider::after {
-  content: '';
-  position: absolute;
-  top: 1px; /* offset(x: 0, y: 1) */
-  left: 0;
-  width: 100%;
-  height: 1px; /* lineWidth: 1 */
-  background: rgba(255, 247, 242, 1); /* Color(red: 1, green: 0.97, blue: 0.95) */
-  filter: blur(2px); /* blur(radius: 2) */
+  content: '' !important;
+  position: absolute !important;
+  top: 1px !important; /* offset(x: 0, y: 1) */
+  left: 0 !important;
+  width: 100% !important;
+  height: 1px !important; /* lineWidth: 1 */
+  background: rgba(255, 247, 242, 1) !important; /* Color(red: 1, green: 0.97, blue: 0.95) */
+  filter: blur(2px) !important; /* blur(radius: 2) */
   /* Shadow: color: Color(red: 0.96, green: 0.86, blue: 0.74, opacity: 1), radius: 4, y: 4 */
-  box-shadow: 0 4px 4px 0 rgba(245, 219, 189, 1);
-  z-index: 2;
+  box-shadow: 0 4px 4px 0 rgba(245, 219, 189, 1) !important;
+  z-index: 2 !important;
 }
 
 /* Shadow removed */
