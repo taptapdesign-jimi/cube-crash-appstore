@@ -520,3 +520,12 @@ export function hideModal() {
     }, 300);
   }
 }
+
+// Export function for HUD click
+export function showEndRunModalFromGame() {
+  console.log('🎯 showEndRunModalFromGame CALLED from HUD!');
+  showEndRunModal();
+}
+
+// Make function available globally for HUD
+window.showEndRunModalFromGame = showEndRunModalFromGame;

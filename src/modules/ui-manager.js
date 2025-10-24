@@ -145,16 +145,22 @@ class UIManager {
       const savedGame = localStorage.getItem('cc_saved_game');
       console.log('🔍 Saved game found:', !!savedGame, savedGame ? 'YES' : 'NO');
       
-      // TEMPORARY: Clear saved game to force new game
-      if (savedGame) {
-        console.log('🧹 Clearing saved game to force new game...');
-        localStorage.removeItem('cc_saved_game');
+      // TEMPORARY: Add saved game for testing bottom sheet
+      if (!savedGame) {
+        console.log('🧪 Adding test saved game for bottom sheet testing...');
+        localStorage.setItem('cc_saved_game', JSON.stringify({ test: true, score: 100 }));
       }
       
-      console.log('🎮 Starting new game...');
-      // Always start new game for now
-      this.startNewGame();
-      
+      if (savedGame || localStorage.getItem('cc_saved_game')) {
+        console.log('📱 Showing resume game bottom sheet...');
+        // Show resume game modal
+        const { showResumeGameBottomSheet } = await import('./resume-game-bottom-sheet.js');
+        showResumeGameBottomSheet();
+      } else {
+        console.log('🎮 No saved game, starting new game...');
+        // Start new game
+        this.startNewGame();
+      }
     } catch (error) {
       console.error('❌ Failed to check for saved game:', error);
       // Fallback to new game
