@@ -224,17 +224,51 @@ function createResumeModal() {
     });
   };
 
-  addButtonPressHandling(resumeModal.querySelector('.continue-btn'), () => {
+  addButtonPressHandling(resumeModal.querySelector('.continue-btn'), async () => {
+    console.log('🎯 Continue button clicked!');
     hideResumeModal();
-    if (typeof window.continueGame === 'function') {
-      window.continueGame();
+    
+    // Show app element first
+    const appElement = document.getElementById('app');
+    if (appElement) {
+      appElement.removeAttribute('hidden');
+      appElement.style.display = 'block';
+      appElement.style.opacity = '1';
+      console.log('✅ App element shown for continue');
+    }
+    
+    // Resume game by starting the game
+    try {
+      console.log('🎯 Starting game from continue...');
+      const { boot } = await import('./app.js');
+      await boot();
+      console.log('✅ Game resumed successfully!');
+    } catch (error) {
+      console.error('❌ Failed to resume game:', error);
     }
   });
   
-  addButtonPressHandling(resumeModal.querySelector('.new-game-btn'), () => {
+  addButtonPressHandling(resumeModal.querySelector('.new-game-btn'), async () => {
+    console.log('🎯 New Game button clicked!');
     hideResumeModal();
-    if (typeof window.startNewGame === 'function') {
-      window.startNewGame();
+    
+    // Show app element first
+    const appElement = document.getElementById('app');
+    if (appElement) {
+      appElement.removeAttribute('hidden');
+      appElement.style.display = 'block';
+      appElement.style.opacity = '1';
+      console.log('✅ App element shown for new game');
+    }
+    
+    // Start new game
+    try {
+      console.log('🎯 Starting new game from bottom sheet...');
+      const { boot } = await import('./app.js');
+      await boot();
+      console.log('✅ New game started successfully!');
+    } catch (error) {
+      console.error('❌ Failed to start new game:', error);
     }
   });
   

@@ -145,9 +145,9 @@ class UIManager {
       const savedGame = localStorage.getItem('cc_saved_game');
       console.log('🔍 Saved game found:', !!savedGame, savedGame ? 'YES' : 'NO');
       
-      // TEMPORARY: Add saved game for testing bottom sheet
+      // TEMPORARY: Add test saved game for testing
       if (!savedGame) {
-        console.log('🧪 Adding test saved game for bottom sheet testing...');
+        console.log('🧪 Adding test saved game for testing...');
         localStorage.setItem('cc_saved_game', JSON.stringify({ test: true, score: 100 }));
       }
       
