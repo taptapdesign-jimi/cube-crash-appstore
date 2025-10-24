@@ -65,36 +65,39 @@
   left: 24px; /* 24px from left edge */
   right: 24px; /* 24px from right edge */
   width: auto; /* Auto width between left and right */
-  height: 3px; /* Increased height for better visibility */
+  height: 2px; /* SwiftUI frame height: 2 */
   pointer-events: none;
-  z-index: 1;
-  /* Enhanced divider styling */
-  background: rgba(180, 140, 100, 0.3); /* Subtle background for extra visibility */
-  border-radius: 1px; /* Slight rounding */
+  z-index: 999999999; /* Match parent z-index */
+  /* Clean divider - no background */
+  background: transparent;
+  /* DEBUG: Temporary border to see if divider is there */
+  border: 1px solid red;
 }
 
-/* Enhanced divider - more visible */
+/* Divider based on SwiftUI code - exact match */
 .independent-nav-divider::before {
   content: '';
   position: absolute;
-  top: -1px;
+  top: -1px; /* offset(x: 0, y: -1) */
   left: 0;
   width: 100%;
-  height: 1px; /* Increased from 0.5px to 1px */
-  background: rgba(200, 160, 120, 1); /* Darker, more visible brown */
+  height: 0.5px; /* lineWidth: 0.50 */
+  background: rgba(235, 199, 153, 1); /* Color(red: 0.92, green: 0.78, blue: 0.60) */
+  z-index: 1;
 }
 
 .independent-nav-divider::after {
   content: '';
   position: absolute;
-  top: 0px; /* Moved up to align with before */
+  top: 1px; /* offset(x: 0, y: 1) */
   left: 0;
   width: 100%;
-  height: 2px; /* Increased from 1px to 2px */
-  background: rgba(255, 255, 255, 1); /* Pure white #FFFFFF */
-  filter: blur(1px); /* Reduced blur for sharper appearance */
-  /* Enhanced drop shadow for better visibility */
-  box-shadow: 0 2px 8px 0 rgba(200, 160, 120, 0.8); /* More visible shadow */
+  height: 1px; /* lineWidth: 1 */
+  background: rgba(255, 247, 242, 1); /* Color(red: 1, green: 0.97, blue: 0.95) */
+  filter: blur(2px); /* blur(radius: 2) */
+  /* Shadow: color: Color(red: 0.96, green: 0.86, blue: 0.74, opacity: 1), radius: 4, y: 4 */
+  box-shadow: 0 4px 4px 0 rgba(245, 219, 189, 1);
+  z-index: 2;
 }
 
 /* Shadow removed */
