@@ -78,7 +78,6 @@ async function startAssetPreloading() {
     console.log('📦 Starting asset preloading...');
     
     // Show loading screen
-    console.log('🔄 Showing loading screen...');
     uiManager.showLoadingScreen();
     
     // Start preloading

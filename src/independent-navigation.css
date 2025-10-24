@@ -4,19 +4,17 @@
 .independent-nav {
   position: fixed;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100vw; /* Full width to center buttons properly */
-  max-width: 500px; /* Maximum width */
+  left: 0;
+  right: 0;
+  width: 100%;
   height: 120px;
-  z-index: 999999999; /* Very high z-index - always on top */
-  pointer-events: none; /* Don't block game interactions by default */
-  display: block !important; /* Always visible */
-  opacity: 1 !important;
-  visibility: visible !important;
-  /* Ensure it doesn't overflow on mobile */
+  z-index: 999999999;
+  pointer-events: none;
+  display: block;
+  opacity: 1;
+  visibility: visible;
   box-sizing: border-box;
-  padding: 0 16px; /* Add padding to prevent edge bleeding */
+  padding: 0 16px;
 }
 
 .independent-nav-content {
@@ -39,8 +37,7 @@
   height: 2px; /* Fixed height like original */
   pointer-events: none;
   z-index: 1;
-  /* Debug: Add border to see divider position */
-  border: 2px solid blue;
+  /* Clean divider styling */
 }
 
 /* Original divider based on SwiftUI code */
@@ -72,39 +69,38 @@
 .independent-nav-buttons {
   display: flex;
   align-items: flex-end;
-  justify-content: flex-start; /* Start from left edge of divider */
-  gap: 32px; /* Add gap between buttons */
-  width: 100%; /* Full width to align with divider */
-  max-width: 100%; /* Use full width */
-  padding: 0 24px; /* Match divider padding */
+  justify-content: flex-start;
+  gap: 24px;
+  width: 100%;
+  padding: 0 8px;
   position: relative;
   z-index: 999999999;
-  pointer-events: auto; /* Allow button interactions */
-  margin: 0; /* No centering - align with divider */
-  /* Debug: Add border to see alignment */
-  border: 2px solid red;
+  pointer-events: auto;
+  margin: 0;
+  box-sizing: border-box;
 }
 
 /* iPhone specific adjustments */
 @media screen and (max-width: 430px) {
+  .independent-nav {
+    padding: 0 12px;
+  }
+  
   .independent-nav-buttons {
-    gap: 24px; /* Smaller gap on iPhone */
-    width: 100%; /* Full width on iPhone */
-    max-width: 100%; /* Use full width */
-    padding: 0 16px; /* Less padding */
-    justify-content: flex-start; /* Start from left edge */
+    gap: 16px;
+    padding: 0 4px;
   }
   
   .independent-nav-button {
-    width: 70px; /* Slightly smaller on iPhone */
-    height: 70px;
-    transform: scale(0.7); /* Keep scale consistent */
+    width: 60px;
+    height: 60px;
+    transform: scale(0.8);
   }
   
   .independent-nav-button.active {
-    width: 70px; /* Keep size consistent */
-    height: 70px;
-    transform: scale(1.0); /* Full size */
+    width: 60px;
+    height: 60px;
+    transform: scale(1.0);
   }
 }
 
@@ -247,47 +243,47 @@
 
 /* FORCE NAVIGATION TO BE VISIBLE - OVERRIDE ALL OTHER RULES */
 .independent-nav {
-  display: block !important;
-  opacity: 1 !important;
-  visibility: visible !important;
+  display: block ;
+  opacity: 1 ;
+  visibility: visible ;
 }
 
 /* Enter animation for navigation - bounce scale in with fade in */
 .independent-nav.enter-animation {
   transition: opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), 
               transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  opacity: 1 !important;
-  transform: translateX(-50%) scale(1) !important;
+  opacity: 1 ;
+  transform: translateX(-50%) scale(1) ;
 }
 
 /* Hide navigation ONLY when game is active */
 #app:not([hidden]) ~ .independent-nav {
-  display: none !important;
+  display: none ;
 }
 
 /* Hide navigation during loading */
 #loading-screen ~ .independent-nav {
-  display: none !important;
+  display: none ;
 }
 
 /* Ensure navigation is visible on homepage */
 #home:not([hidden]) ~ .independent-nav {
-  display: block !important;
-  opacity: 1 !important;
-  visibility: visible !important;
+  display: block ;
+  opacity: 1 ;
+  visibility: visible ;
 }
 
 /* Exit animation for navigation - bounce scale down to 0 with fade out */
 .independent-nav.exit-animation {
   transition: opacity 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55),
               transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  opacity: 0 !important;
-  transform: translateX(-50%) scale(0) !important;
+  opacity: 0 ;
+  transform: translateX(-50%) scale(0) ;
 }
 
 /* Hide navigation completely after exit animation */
 .independent-nav.exit-animation.animation-complete {
-  display: none !important;
+  display: none ;
 }
 
 /* Hide navigation during exit animations */
