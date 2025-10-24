@@ -71,11 +71,10 @@
   z-index: 999999999 !important; /* Match parent z-index */
   /* Clean divider - no background */
   background: transparent !important;
-  /* DEBUG: Temporary border to see if divider is there */
-  border: 1px solid red !important;
+  /* Debug border removed - divider is working */
 }
 
-/* Divider based on SwiftUI code - exact match with !important */
+/* Divider with correct color #E9C698 */
 .independent-nav-divider::before {
   content: '' !important;
   position: absolute !important;
@@ -83,7 +82,7 @@
   left: 0 !important;
   width: 100% !important;
   height: 0.5px !important; /* lineWidth: 0.50 */
-  background: rgba(235, 199, 153, 1) !important; /* Color(red: 0.92, green: 0.78, blue: 0.60) */
+  background: #E9C698 !important; /* Correct color as requested */
   z-index: 1 !important;
 }
 
