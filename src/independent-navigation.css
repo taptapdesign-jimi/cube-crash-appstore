@@ -223,10 +223,11 @@
   background: none !important; /* Force no background */
   background-color: transparent !important; /* Force transparent */
   border: none !important; /* Force no borders */
-  box-shadow: none !important; /* Force no shadows */
   outline: none !important; /* Force no outline */
   transform: scale(1.0); /* Full size - 80px */
   -webkit-transform: translateZ(0) scale(1.0);
+  /* Add shadow for active icon */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* Remove ALL hover, focus, and active states */
@@ -246,7 +247,7 @@
   appearance: none !important;
 }
 
-/* Remove hover effects on active buttons too */
+/* Remove hover effects on active buttons but keep shadow */
 .independent-nav-button.active:hover,
 .independent-nav-button.active:focus,
 .independent-nav-button.active:active,
@@ -255,17 +256,20 @@
   background: none !important;
   background-color: transparent !important;
   border: none !important;
-  box-shadow: none !important;
   outline: none !important;
   -webkit-tap-highlight-color: transparent !important;
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
   appearance: none !important;
+  /* Keep shadow on active button hover */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
 }
 
 .independent-nav-button.active img {
   transform: translateY(-12px); /* Move up 12px when active (4px more) */
   animation: idleFloat 3s ease-in-out infinite; /* Gentle up-down idle animation */
+  /* Add shadow for active icon image */
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
 }
 
 /* Small shadow below active icon - based on SwiftUI code */
