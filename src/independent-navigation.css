@@ -1,6 +1,21 @@
 /* INDEPENDENT NAVIGATION - COMPLETELY SEPARATE FROM EVERYTHING */
 /* This navigation is outside all containers and has its own lifecycle */
 
+/* Global reset for all navigation elements - remove ALL artifacts */
+.independent-nav *,
+.independent-nav *::before,
+.independent-nav *::after {
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+}
+
 .independent-nav {
   position: fixed;
   bottom: 0; /* Back to original position */
@@ -15,10 +30,17 @@
   visibility: visible;
   box-sizing: border-box;
   padding: 0 16px;
-  background: none; /* No background */
-  background-color: transparent; /* Ensure transparent */
-  border: none; /* No borders */
-  box-shadow: none; /* No shadows */
+  background: none !important; /* Force no background */
+  background-color: transparent !important; /* Force transparent */
+  border: none !important; /* Force no borders */
+  box-shadow: none !important; /* Force no shadows */
+  /* Remove any potential grey backgrounds */
+  background-image: none !important;
+  background-clip: unset !important;
+  background-origin: unset !important;
+  background-size: unset !important;
+  background-position: unset !important;
+  background-repeat: unset !important;
 }
 
 
@@ -87,10 +109,17 @@
   pointer-events: auto;
   margin: 0;
   box-sizing: border-box;
-  background: none; /* No background */
-  background-color: transparent; /* Ensure transparent */
-  border: none; /* No borders */
-  box-shadow: none; /* No shadows */
+  background: none !important; /* Force no background */
+  background-color: transparent !important; /* Force transparent */
+  border: none !important; /* Force no borders */
+  box-shadow: none !important; /* Force no shadows */
+  /* Remove any potential grey backgrounds */
+  background-image: none !important;
+  background-clip: unset !important;
+  background-origin: unset !important;
+  background-size: unset !important;
+  background-position: unset !important;
+  background-repeat: unset !important;
 }
 
 /* iPhone specific adjustments */
@@ -124,10 +153,10 @@
   width: 56px; /* Inactive size */
   height: 56px; /* Inactive size */
   margin-top: 24px; /* Moved up 4px from 28px */
-  border: none; /* Remove any borders */
-  border-radius: 0; /* Remove border radius */
-  background: none; /* No background */
-  background-color: transparent; /* Ensure transparent background */
+  border: none !important; /* Force remove any borders */
+  border-radius: 0 !important; /* Force remove border radius */
+  background: none !important; /* Force no background */
+  background-color: transparent !important; /* Force transparent background */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -138,14 +167,18 @@
               transform 320ms ease;
   cursor: pointer;
   touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+  -webkit-tap-highlight-color: transparent !important; /* Force remove tap highlight */
   -webkit-user-select: none; /* Prevent text selection */
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  /* Remove all visual artifacts */
-  outline: none; /* Remove focus outline */
-  box-shadow: none; /* Remove any shadows */
+  /* Remove ALL visual artifacts */
+  outline: none !important; /* Force remove focus outline */
+  box-shadow: none !important; /* Force remove any shadows */
+  /* Remove hover effects */
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
   /* Clean rendering */
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
@@ -155,8 +188,8 @@
   /* Clean image rendering */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  filter: none;
-  -webkit-filter: none;
+  filter: none !important;
+  -webkit-filter: none !important;
 }
 
 .independent-nav-button img {
@@ -187,13 +220,47 @@
   width: 80px; /* Active size */
   height: 80px; /* Active size */
   margin-top: 0;
-  background: none; /* No background */
-  background-color: transparent; /* Ensure transparent */
-  border: none; /* No borders */
-  box-shadow: none; /* No shadows */
-  outline: none; /* No outline */
+  background: none !important; /* Force no background */
+  background-color: transparent !important; /* Force transparent */
+  border: none !important; /* Force no borders */
+  box-shadow: none !important; /* Force no shadows */
+  outline: none !important; /* Force no outline */
   transform: scale(1.0); /* Full size - 80px */
   -webkit-transform: translateZ(0) scale(1.0);
+}
+
+/* Remove ALL hover, focus, and active states */
+.independent-nav-button:hover,
+.independent-nav-button:focus,
+.independent-nav-button:active,
+.independent-nav-button:focus-visible,
+.independent-nav-button:focus-within {
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+}
+
+/* Remove hover effects on active buttons too */
+.independent-nav-button.active:hover,
+.independent-nav-button.active:focus,
+.independent-nav-button.active:active,
+.independent-nav-button.active:focus-visible,
+.independent-nav-button.active:focus-within {
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
 }
 
 .independent-nav-button.active img {
