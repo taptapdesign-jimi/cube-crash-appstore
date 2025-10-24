@@ -62,7 +62,7 @@
 
 .independent-nav-divider {
   position: absolute !important;
-  top: 16px !important; /* Back to original position */
+  top: 0px !important; /* Moved up 16px from 16px to 0px */
   left: 24px !important; /* 24px from left edge */
   right: 24px !important; /* 24px from right edge */
   width: auto !important; /* Auto width between left and right */
@@ -71,7 +71,7 @@
   z-index: 999999999 !important; /* Match parent z-index */
   /* Clean divider - no background */
   background: transparent !important;
-  /* Debug border removed - divider is working */
+  /* Moved up 16px towards top of mobile */
 }
 
 /* Divider with correct color #E9C698 */
