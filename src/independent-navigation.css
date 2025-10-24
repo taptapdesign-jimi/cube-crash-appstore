@@ -226,8 +226,8 @@
   outline: none !important; /* Force no outline */
   transform: scale(1.0); /* Full size - 80px */
   -webkit-transform: translateZ(0) scale(1.0);
-  /* Add shadow for active icon */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  /* Remove box shadow - we'll use elliptical shadow instead */
+  box-shadow: none !important;
 }
 
 /* Remove ALL hover, focus, and active states */
@@ -247,7 +247,7 @@
   appearance: none !important;
 }
 
-/* Remove hover effects on active buttons but keep shadow */
+/* Remove hover effects on active buttons */
 .independent-nav-button.active:hover,
 .independent-nav-button.active:focus,
 .independent-nav-button.active:active,
@@ -261,29 +261,31 @@
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
   appearance: none !important;
-  /* Keep shadow on active button hover */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+  /* Remove box shadow - we use elliptical shadow instead */
+  box-shadow: none !important;
 }
 
 .independent-nav-button.active img {
   transform: translateY(-12px); /* Move up 12px when active (4px more) */
   animation: idleFloat 3s ease-in-out infinite; /* Gentle up-down idle animation */
-  /* Add shadow for active icon image */
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
+  /* Remove drop shadow - we'll use elliptical shadow instead */
+  filter: none;
 }
 
-/* Small shadow below active icon - based on SwiftUI code */
+/* Elliptical shadow below active icon - based on SwiftUI code */
 .independent-nav-button.active::after {
   content: '';
   position: absolute;
-  bottom: 2px; /* Moved up 4px from -2px */
+  bottom: 4px; /* Position below icon */
   left: 50%;
   transform: translateX(-50%);
-  width: 65px; /* Reduced by 10% (72 * 0.9 = 65px) */
-  height: 13px; /* Increased by 10% (12 * 1.1 = 13px) */
+  width: 60px; /* Elliptical width */
+  height: 15px; /* Elliptical height */
   background: rgba(245, 222, 194, 1); /* SwiftUI: Color(red: 0.96, green: 0.87, blue: 0.76) */
-  border-radius: 50%; /* Ellipse shape */
+  border-radius: 50%; /* Perfect ellipse */
   z-index: -1; /* Behind the icon */
+  /* Add idle animation */
+  animation: navShadowPulse 3s ease-in-out infinite;
 }
 
 /* Idle floating animation for active icons */
@@ -296,18 +298,14 @@
   }
 }
 
-/* Shadow animation - pulses width instead of moving up/down - consistent with slider */
-.independent-nav-button.active::after {
-  animation: navShadowPulse 3s ease-in-out infinite;
-}
-
+/* Shadow pulse animation - width pulses for breathing effect */
 @keyframes navShadowPulse {
   0%, 100% {
-    width: 65px; /* Full width - reduced by 10% */
+    width: 60px; /* Full width */
     transform: translateX(-50%); /* Centered */
   }
   50% {
-    width: 52px; /* Narrower width - pulses smaller (65 * 0.8 = 52px) */
+    width: 48px; /* Narrower width - pulses smaller (60 * 0.8 = 48px) */
     transform: translateX(-50%); /* Stay centered */
   }
 }
