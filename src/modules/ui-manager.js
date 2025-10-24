@@ -135,15 +135,20 @@ class UIManager {
   // Check for saved game
   async checkForSavedGame() {
     try {
+      console.log('🔍 Checking for saved game...');
       const savedGame = localStorage.getItem('cc_saved_game');
+      console.log('🔍 Saved game found:', !!savedGame, savedGame ? 'YES' : 'NO');
+      
+      // TEMPORARY: Clear saved game to force new game
       if (savedGame) {
-        // Show resume game modal
-        const { showResumeGameBottomSheet } = await import('./resume-game-bottom-sheet.js');
-        showResumeGameBottomSheet();
-      } else {
-        // Start new game
-        this.startNewGame();
+        console.log('🧹 Clearing saved game to force new game...');
+        localStorage.removeItem('cc_saved_game');
       }
+      
+      console.log('🎮 Starting new game...');
+      // Always start new game for now
+      this.startNewGame();
+      
     } catch (error) {
       console.error('❌ Failed to check for saved game:', error);
       // Fallback to new game
