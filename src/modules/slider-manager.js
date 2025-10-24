@@ -247,6 +247,15 @@ class SliderManager {
       dot.classList.toggle('active', index === this.currentSlide);
     });
     
+    // Update independent navigation buttons
+    const navButtons = document.querySelectorAll('.independent-nav-button');
+    console.log('🔘 Updating nav buttons, current slide:', this.currentSlide);
+    navButtons.forEach((button, index) => {
+      const isActive = index === this.currentSlide;
+      button.classList.toggle('active', isActive);
+      console.log(`🔘 Button ${index}: ${isActive ? 'ACTIVE' : 'inactive'}`);
+    });
+    
     // Update slides
     this.elements.slides.forEach((slide, index) => {
       slide.classList.toggle('active', index === this.currentSlide);

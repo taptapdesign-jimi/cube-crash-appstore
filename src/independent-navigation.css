@@ -14,6 +14,9 @@
   display: block; /* Always visible */
   opacity: 1;
   visibility: visible;
+  /* Ensure it doesn't overflow on mobile */
+  box-sizing: border-box;
+  padding: 0 16px; /* Add padding to prevent edge bleeding */
 }
 
 .independent-nav-content {
@@ -67,14 +70,36 @@
 .independent-nav-buttons {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between; /* Spread across full width */
-  gap: 0; /* No gap - use space-between instead */
-  width: 100%;
-  max-width: 100%; /* Use full width */
+  justify-content: center; /* Center the buttons */
+  gap: 32px; /* Add gap between buttons */
+  width: auto; /* Auto width based on content */
+  max-width: 400px; /* Maximum width */
   padding: 0 24px; /* Add padding from edges */
   position: relative;
   z-index: 10;
   pointer-events: auto; /* Allow button interactions */
+  margin: 0 auto; /* Center the container */
+}
+
+/* iPhone specific adjustments */
+@media screen and (max-width: 430px) {
+  .independent-nav-buttons {
+    gap: 24px; /* Smaller gap on iPhone */
+    max-width: 350px; /* Smaller max width */
+    padding: 0 16px; /* Less padding */
+  }
+  
+  .independent-nav-button {
+    width: 70px; /* Slightly smaller on iPhone */
+    height: 70px;
+    transform: scale(0.7); /* Keep scale consistent */
+  }
+  
+  .independent-nav-button.active {
+    width: 70px; /* Keep size consistent */
+    height: 70px;
+    transform: scale(1.0); /* Full size */
+  }
 }
 
 .independent-nav-button {
