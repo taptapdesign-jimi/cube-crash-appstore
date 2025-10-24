@@ -70,23 +70,27 @@
 .independent-nav-buttons {
   display: flex;
   align-items: flex-end;
-  justify-content: center; /* Center the buttons */
+  justify-content: flex-start; /* Start from left edge of divider */
   gap: 32px; /* Add gap between buttons */
-  width: auto; /* Auto width based on content */
-  max-width: 400px; /* Maximum width */
-  padding: 0 24px; /* Add padding from edges */
+  width: 100%; /* Full width to align with divider */
+  max-width: 100%; /* Use full width */
+  padding: 0 24px; /* Match divider padding */
   position: relative;
   z-index: 10;
   pointer-events: auto; /* Allow button interactions */
-  margin: 0 auto; /* Center the container */
+  margin: 0; /* No centering - align with divider */
+  /* Debug: Add border to see alignment */
+  /* border: 2px solid red; */
 }
 
 /* iPhone specific adjustments */
 @media screen and (max-width: 430px) {
   .independent-nav-buttons {
     gap: 24px; /* Smaller gap on iPhone */
-    max-width: 350px; /* Smaller max width */
+    width: 100%; /* Full width on iPhone */
+    max-width: 100%; /* Use full width */
     padding: 0 16px; /* Less padding */
+    justify-content: flex-start; /* Start from left edge */
   }
   
   .independent-nav-button {
