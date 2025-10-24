@@ -19,7 +19,7 @@
 
 .independent-nav {
   position: fixed;
-  bottom: 0; /* Back to original position */
+  bottom: -8px; /* Moved down 8px from bottom */
   left: 0;
   right: 0;
   width: 100%;
