@@ -15,6 +15,10 @@
   visibility: visible;
   box-sizing: border-box;
   padding: 0 16px;
+  background: none; /* No background */
+  background-color: transparent; /* Ensure transparent */
+  border: none; /* No borders */
+  box-shadow: none; /* No shadows */
 }
 
 
@@ -27,6 +31,10 @@
   align-items: center;
   justify-content: flex-end;
   padding: 12px 24px calc(env(safe-area-inset-bottom, 0px) + 24px);
+  background: none; /* No background */
+  background-color: transparent; /* Ensure transparent */
+  border: none; /* No borders */
+  box-shadow: none; /* No shadows */
 }
 
 .independent-nav-divider {
@@ -79,6 +87,10 @@
   pointer-events: auto;
   margin: 0;
   box-sizing: border-box;
+  background: none; /* No background */
+  background-color: transparent; /* Ensure transparent */
+  border: none; /* No borders */
+  box-shadow: none; /* No shadows */
 }
 
 /* iPhone specific adjustments */
@@ -112,8 +124,10 @@
   width: 56px; /* Inactive size */
   height: 56px; /* Inactive size */
   margin-top: 24px; /* Moved up 4px from 28px */
-  border-radius: 18px;
-  background: none;
+  border: none; /* Remove any borders */
+  border-radius: 0; /* Remove border radius */
+  background: none; /* No background */
+  background-color: transparent; /* Ensure transparent background */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -121,7 +135,6 @@
   transition: width 420ms cubic-bezier(0.23, 1, 0.32, 1),
               height 420ms cubic-bezier(0.23, 1, 0.32, 1),
               margin-top 420ms cubic-bezier(0.23, 1, 0.32, 1),
-              background 320ms ease,
               transform 320ms ease;
   cursor: pointer;
   touch-action: manipulation;
@@ -130,60 +143,55 @@
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  /* Maximum image quality improvements */
+  /* Remove all visual artifacts */
+  outline: none; /* Remove focus outline */
+  box-shadow: none; /* Remove any shadows */
+  /* Clean rendering */
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
-  will-change: transform; /* Optimize for animations */
-  /* Force pixel-perfect rendering */
+  will-change: transform;
+  /* Clean image rendering */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Prevent any quality degradation */
   filter: none;
   -webkit-filter: none;
-  /* Ensure crisp rendering */
-  -webkit-perspective: 1000px;
-  perspective: 1000px;
-  -webkit-transform-style: preserve-3d;
-  transform-style: preserve-3d;
 }
 
 .independent-nav-button img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  /* Maximum image quality settings */
-  image-rendering: -webkit-optimize-contrast; /* WebKit optimization */
-  image-rendering: -moz-crisp-edges; /* Firefox crisp edges */
-  image-rendering: high-quality; /* Best quality scaling */
-  image-rendering: auto; /* Natural image rendering for other browsers */
-  /* Prevent any quality degradation */
+  /* Clean image rendering - no artifacts */
+  image-rendering: auto; /* Natural rendering */
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
-  /* Force pixel-perfect rendering */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  /* Prevent any filtering or effects */
+  /* Remove all visual effects */
   filter: none;
   -webkit-filter: none;
+  box-shadow: none; /* No shadows */
+  border: none; /* No borders */
+  outline: none; /* No outline */
   /* Smooth transitions */
   transition: transform 420ms cubic-bezier(0.23, 1, 0.32, 1);
   pointer-events: none;
-  /* Ensure crisp rendering */
-  -webkit-perspective: 1000px;
-  perspective: 1000px;
-  -webkit-transform-style: preserve-3d;
-  transform-style: preserve-3d;
+  /* Clean rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .independent-nav-button.active {
   width: 80px; /* Active size */
   height: 80px; /* Active size */
   margin-top: 0;
-  background: none;
+  background: none; /* No background */
+  background-color: transparent; /* Ensure transparent */
+  border: none; /* No borders */
+  box-shadow: none; /* No shadows */
+  outline: none; /* No outline */
   transform: scale(1.0); /* Full size - 80px */
   -webkit-transform: translateZ(0) scale(1.0);
 }
