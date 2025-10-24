@@ -161,11 +161,18 @@ class MemoryManager {
         }
       });
       
-      // Clear image cache
-      if (window.Image && window.Image.prototype) {
-        // Reset image loading
-        const originalSrc = Image.prototype.src;
-        Image.prototype.src = '';
+      // Clear image cache safely
+      try {
+        if (window.Image && window.Image.prototype) {
+          // Reset image loading safely
+          const imgProto = Image.prototype;
+          if (imgProto && typeof imgProto.src !== 'undefined') {
+            imgProto.src = '';
+          }
+        }
+      } catch (protoError) {
+        // Ignore prototype errors
+        console.log('🔧 Image prototype cleanup skipped');
       }
       
       console.log('🧠 Cleaned up unused images');

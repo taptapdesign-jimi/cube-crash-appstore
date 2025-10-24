@@ -3,6 +3,30 @@
 
 import { Assets } from 'pixi.js';
 
+// Add audio parser for PixiJS
+Assets.addParser('audio', {
+  test: (url) => /\.(mp3|wav|ogg|m4a)$/i.test(url),
+  load: async (url) => {
+    return new Promise((resolve, reject) => {
+      const audio = new Audio();
+      audio.oncanplaythrough = () => resolve(audio);
+      audio.onerror = (error) => {
+        console.warn('🔊 Audio loading failed:', url, error);
+        // Return a dummy audio object to prevent crashes
+        resolve(audio);
+      };
+      audio.src = url;
+      // Timeout after 5 seconds
+      setTimeout(() => {
+        if (audio.readyState === 0) {
+          console.warn('🔊 Audio loading timeout:', url);
+          resolve(audio);
+        }
+      }, 5000);
+    });
+  }
+});
+
 // All game assets that need to be preloaded
 const ALL_ASSETS = [
   // Homepage images (priority - load first for immediate display)
