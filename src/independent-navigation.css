@@ -61,7 +61,7 @@
 
 .independent-nav-divider {
   position: absolute;
-  top: 0px; /* Moved up 16px from 16px */
+  top: 16px; /* Back to original position */
   left: 24px; /* 24px from left edge */
   right: 24px; /* 24px from right edge */
   width: auto; /* Auto width between left and right */
