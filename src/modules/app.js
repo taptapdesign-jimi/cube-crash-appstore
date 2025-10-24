@@ -329,6 +329,8 @@ export async function boot(){
     }
   }, 2000);
   
+  console.log('🎮 Boot function started successfully');
+  
   // DESTROY existing app if it exists
   if (app && app.canvas) {
     console.log('🧹 Destroying existing PIXI app');
@@ -594,6 +596,8 @@ export async function boot(){
   }
 
   syncSharedState();
+  
+  console.log('✅ Boot function completed successfully!');
 }
 
 // -------------------- layout + HUD --------------------

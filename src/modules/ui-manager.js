@@ -166,15 +166,25 @@ class UIManager {
         combo: 0
       });
       
+      console.log('✅ Game state set, hiding homepage...');
+      
       // Hide homepage
       this.hideHomepage();
       
+      console.log('✅ Homepage hidden, importing app.js...');
+      
       // Start game
       const { boot } = await import('./app.js');
+      
+      console.log('✅ App.js imported, calling boot()...');
+      
       await boot();
+      
+      console.log('✅ Boot completed successfully!');
       
     } catch (error) {
       console.error('❌ Failed to start new game:', error);
+      console.error('❌ Error details:', error.stack);
     }
   }
   
