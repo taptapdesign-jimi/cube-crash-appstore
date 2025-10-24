@@ -9,11 +9,11 @@
   width: 100vw; /* Full width to center buttons properly */
   max-width: 500px; /* Maximum width */
   height: 120px;
-  z-index: 999999; /* Very high z-index - always on top */
+  z-index: 999999999; /* Very high z-index - always on top */
   pointer-events: none; /* Don't block game interactions by default */
-  display: block; /* Always visible */
-  opacity: 1;
-  visibility: visible;
+  display: block !important; /* Always visible */
+  opacity: 1 !important;
+  visibility: visible !important;
   /* Ensure it doesn't overflow on mobile */
   box-sizing: border-box;
   padding: 0 16px; /* Add padding to prevent edge bleeding */
@@ -39,6 +39,8 @@
   height: 2px; /* Fixed height like original */
   pointer-events: none;
   z-index: 1;
+  /* Debug: Add border to see divider position */
+  border: 2px solid blue;
 }
 
 /* Original divider based on SwiftUI code */
@@ -76,11 +78,11 @@
   max-width: 100%; /* Use full width */
   padding: 0 24px; /* Match divider padding */
   position: relative;
-  z-index: 10;
+  z-index: 999999999;
   pointer-events: auto; /* Allow button interactions */
   margin: 0; /* No centering - align with divider */
   /* Debug: Add border to see alignment */
-  /* border: 2px solid red; */
+  border: 2px solid red;
 }
 
 /* iPhone specific adjustments */
