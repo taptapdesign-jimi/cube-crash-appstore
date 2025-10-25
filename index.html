@@ -4,50 +4,117 @@
   <meta charset="UTF-8" />
   <title>CubeCrash</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <!-- PWA / iOS full-screen support -->
-  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="CubeCrash">
-  <meta name="theme-color" content="#f5f5f5">
-  <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="apple-touch-icon" sizes="180x180" href="./assets/wild.png">
   <link rel="icon" href="./favicon.ico">
   
-  <!-- Preload only critical assets (REMOVED DUPLICATE) -->
-  <link rel="preload" href="./assets/logo-cube-crash.png" as="image" fetchpriority="high" crossorigin="anonymous">
-  
-  <!-- Fonts (Load First) -->
+  <!-- Load LTCrow font first -->
   <link rel="stylesheet" href="./src/styles/fonts.css">
   
-  <!-- Main CSS -->
-  <link rel="stylesheet" href="./src/styles/main.css">
-  <link rel="stylesheet" href="./src/styles/slider.css">
-  <link rel="stylesheet" href="./src/styles/buttons.css">
-  
-  <!-- Performance Optimizations -->
-  <link rel="stylesheet" href="./src/styles/optimizations.css">
-  
-  <!-- Legacy CSS (to be refactored) -->
+  <!-- Load critical CSS -->
   <link rel="stylesheet" href="./src/style.css">
   <link rel="stylesheet" href="./src/slider-optimized.css">
-  <link rel="stylesheet" href="./src/ios-image-optimization.css">
-  <link rel="stylesheet" href="./src/collectibles-screen.css">
-  <link rel="stylesheet" href="./src/ios-optimizations.css">
   <link rel="stylesheet" href="./src/independent-navigation.css">
+  
   <style>
-    html,body{margin:0;padding:0;overflow:hidden;background:#f5f5f5;min-height:100%}
-    #ui-root{position:relative;min-height:100vh}
-    /* Dark mode support */
-    @media (prefers-color-scheme: dark) {
-      body { background: #1a1a1a; }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-height: 100vh;
+      min-height: 100dvh;
+      min-height: -webkit-fill-available;
+      overflow: hidden;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
     }
+    
+    body {
+      background: linear-gradient(180deg, #f5f5f5 0%, #fcecdf 100%);
+      background-attachment: fixed;
+      background-repeat: no-repeat;
+      font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
+      position: relative;
+      height: 100vh;
+      height: 100dvh;
+      min-height: 100vh;
+      min-height: 100dvh;
+    }
+    
+    #ui-root {
+      position: relative;
+      width: 100%;
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      min-height: 100dvh;
+    }
+    
+    #nav-root {
+      position: relative;
+      z-index: 999999;
+    }
+    
+    /* HIDE ALL SCREENS BY DEFAULT */
+    #home,
+    #stats-screen,
+    #collectibles-screen,
+    #menu-screen,
+    #collectibles-detail-modal {
+      display: none !important;
+      visibility: hidden !important;
+    }
+    
+    /* #app is controlled by JavaScript, not CSS */
+    
+    /* Navigation is controlled by JS, not CSS */
+    #independent-nav {
+      visibility: hidden;
+    }
+    
+    /* ONLY loading-screen visible by default */
+    #loading-screen {
+      display: flex !important;
+      visibility: visible !important;
+    }
+    
+    /* Ensure slider is visible when home is shown */
+    #home:not([hidden]) {
+      display: block !important;
+      visibility: visible !important;
+    }
+    
+    #home:not([hidden]) #slider-container {
+      display: block !important;
+      visibility: visible !important;
+    }
+    
+    /* No extra margin needed - navigation is separate */
   </style>
 </head>
 <body>
-  <div id="global-bg" aria-hidden="true"></div>
   <div id="ui-root"></div>
   <div id="nav-root"></div>
+  
+  <script>
+    console.log('✅ HTML loaded');
+    
+    // Fix mobile viewport height
+    function setViewportHeight() {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    }
+    
+    setViewportHeight();
+    window.addEventListener('resize', setViewportHeight);
+    window.addEventListener('orientationchange', setViewportHeight);
+  </script>
   
   <script type="module" src="./src/main.ts"></script>
 </body>
