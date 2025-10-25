@@ -324,11 +324,11 @@
   outline-offset: 4px;
 }
 
-/* FORCE NAVIGATION TO BE VISIBLE - OVERRIDE ALL OTHER RULES */
+/* DEFAULT: Hide navigation */
 .independent-nav {
-  display: block ;
-  opacity: 1 ;
-  visibility: visible ;
+  display: none !important;
+  opacity: 0;
+  visibility: hidden;
 }
 
 /* Enter animation for navigation - bounce scale in with fade in */
@@ -341,17 +341,18 @@
 
 /* Hide navigation ONLY when game is active */
 #app:not([hidden]) ~ .independent-nav {
-  display: none ;
+  display: none !important;
 }
 
 /* Hide navigation during loading */
-#loading-screen ~ .independent-nav {
-  display: none ;
+#loading-screen ~ .independent-nav,
+#loading-screen:not([hidden]) ~ .independent-nav {
+  display: none !important;
 }
 
 /* Ensure navigation is visible on homepage */
 #home:not([hidden]) ~ .independent-nav {
-  display: block ;
+  display: block !important;
   opacity: 1 ;
   visibility: visible ;
 }

@@ -1,6 +1,6 @@
 /* Collectibles Screen Styles - Based on Figma Design */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+/* Fonts are loaded from src/styles/fonts.css - LTCrow family */
 
 /* Utility */
 .hidden {
@@ -32,7 +32,7 @@
   z-index: 999999;
   overflow: hidden;
   font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  will-change: transform, opacity;
+  /* will-change removed for better performance - only use during active animations */
 }
 
 /* Layout shell with safe-area handling */
@@ -268,7 +268,51 @@
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   transform-style: preserve-3d;
-  will-change: transform;
+  /* will-change removed - only use during active animations via JS if needed */
+}
+
+.collectible-rarity-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--collectibles-brown);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.collectible-card.common .collectible-rarity-badge {
+  border: 1px solid rgba(173, 135, 117, 0.35);
+}
+
+.collectible-card.legendary .collectible-rarity-badge {
+  background: rgba(233, 116, 74, 0.92);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.collectible-card.locked .collectible-rarity-badge {
+  opacity: 0.75;
+}
+
+/* Non-color cue for rarity: pattern overlay */
+.collectible-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 18px;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .collectible-card.locked {
@@ -276,9 +320,31 @@
   border-color: rgba(233, 207, 196, 0.6);
 }
 
+.collectible-card.locked::before {
+  background: 
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      rgba(0, 0, 0, 0.03) 4px,
+      rgba(0, 0, 0, 0.03) 8px
+    );
+}
+
 .collectible-card.unlocked {
   box-shadow: 0 12px 26px var(--collectibles-card-shadow);
   border-color: rgba(233, 116, 74, 0.38);
+}
+
+/* Legendary rarity indicator (non-color cue) */
+.collectible-card.legendary.unlocked::after {
+  content: '⭐';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 16px;
+  z-index: 2;
+  opacity: 0.9;
 }
 
 .collectible-card:hover {

@@ -1,0 +1,58 @@
+/* LTCrow Font Family - All Weights */
+
+/* Regular (400) */
+@font-face {
+  font-family: 'LTCrow';
+  src: url('../assets/fonts/LTCrow-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap; /* Show fallback immediately */
+}
+
+/* Medium (500) */
+@font-face {
+  font-family: 'LTCrow';
+  src: url('../assets/fonts/LTCrow-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* SemiBold (600) */
+@font-face {
+  font-family: 'LTCrow';
+  src: url('../assets/fonts/LTCrow-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Bold (700) */
+@font-face {
+  font-family: 'LTCrow';
+  src: url('../assets/fonts/LTCrow-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ExtraBold (800) */
+@font-face {
+  font-family: 'LTCrow';
+  src: url('../assets/fonts/LTCrow-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* System fallback stack */
+:root {
+  --font-primary: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Apply to body */
+body {
+  font-family: var(--font-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

@@ -1,0 +1,81 @@
+/* Performance Optimizations */
+
+/* Remove excessive will-change usage */
+/* will-change is expensive and should only be used during active animations */
+
+/* GPU acceleration only when needed */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Optimize transitions */
+.optimized-transition {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  /* Only use will-change during active animation */
+}
+
+/* Remove will-change from idle elements */
+/* Use transform: translateZ(0) for GPU acceleration instead */
+
+/* Dark mode optimizations */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #1a1a1a;
+  }
+  
+  /* Optimize dark mode colors */
+  * {
+    /* Reduce color calculations */
+    color-scheme: dark;
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    will-change: auto !important;
+  }
+}
+
+/* Optimize images */
+img {
+  content-visibility: auto;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Fonts are loaded from src/styles/fonts.css with font-display: swap */
+
+/* Optimize scrolling */
+.scroll-container {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+}
+
+/* Optimize layout */
+.container {
+  contain: layout style paint;
+}
+
+/* Optimize rendering */
+.no-paint {
+  will-change: auto;
+  transform: none;
+}

@@ -1,26 +1,23 @@
-import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS, type ElementId } from '../constants/animations.ts';
+import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS } from '../constants/animations.js';
+import { logger } from '../core/logger.js';
 
-// Type definitions
-interface GameControls {
-  pauseGame?: () => void;
-  resumeGame?: () => void;
-}
-
+// Global window extensions
 declare global {
   interface Window {
-    CC?: GameControls;
-    pauseGame?: () => void;
-    resumeGame?: () => void;
+    CC?: {
+      pauseGame?: () => void;
+      resumeGame?: () => void;
+    };
     unlockSlider?: () => void;
   }
 }
 
 // Safe element getter
-export const getElement = (id: ElementId): HTMLElement | null => {
+export const getElement = (id: string): HTMLElement | null => {
   try {
     return document.getElementById(id);
   } catch (error) {
-    console.error(`Failed to get element with id: ${id}`, error);
+    logger.error(`Failed to get element with id: ${id}`, error);
     return null;
   }
 };
@@ -31,7 +28,7 @@ export const fadeOutHome = (): void => {
   if (home) {
     home.style.transition = `opacity ${ANIMATION_DURATIONS.NORMAL} ${ANIMATION_EASING.EASE}`;
     home.style.opacity = '0';
-    console.log('🎮 Animating #home element fade out');
+    logger.info('🎮 Animating #home element fade out');
   }
 };
 
@@ -41,7 +38,7 @@ export const fadeInHome = (): void => {
   if (home) {
     home.style.transition = `opacity ${ANIMATION_DURATIONS.NORMAL} ${ANIMATION_EASING.EASE}`;
     home.style.opacity = '1';
-    console.log('🎮 Animating #home element fade in');
+    logger.info('🎮 Animating #home element fade in');
   }
 };
 
@@ -50,12 +47,12 @@ export const safePauseGame = (): void => {
   try {
     if (window.CC?.pauseGame) {
       window.CC.pauseGame();
-      console.log('🎯 Game paused successfully');
+      logger.info('🎯 Game paused successfully');
     } else {
-      console.warn('⚠️ pauseGame function not available');
+      logger.warn('⚠️ pauseGame function not available');
     }
   } catch (error) {
-    console.error('❌ Failed to pause game:', error);
+    logger.error('❌ Failed to pause game:', error);
   }
 };
 
@@ -64,12 +61,12 @@ export const safeResumeGame = (): void => {
   try {
     if (window.CC?.resumeGame) {
       window.CC.resumeGame();
-      console.log('🎯 Game resumed successfully');
+      logger.info('🎯 Game resumed successfully');
     } else {
-      console.warn('⚠️ resumeGame function not available');
+      logger.warn('⚠️ resumeGame function not available');
     }
   } catch (error) {
-    console.error('❌ Failed to resume game:', error);
+    logger.error('❌ Failed to resume game:', error);
   }
 };
 
@@ -78,12 +75,12 @@ export const safeUnlockSlider = (): void => {
   try {
     if (typeof window.unlockSlider === 'function') {
       window.unlockSlider();
-      console.log('🔓 Slider unlocked successfully');
+      logger.info('🔓 Slider unlocked successfully');
     } else {
-      console.warn('⚠️ unlockSlider function not available');
+      logger.warn('⚠️ unlockSlider function not available');
     }
   } catch (error) {
-    console.warn('⚠️ Failed to unlock slider:', error);
+    logger.warn('⚠️ Failed to unlock slider:', error);
   }
 };
 
@@ -93,7 +90,7 @@ export const debounce = <T extends (...args: any[]) => any>(
   wait: number
 ): ((...args: Parameters<T>) => void) => {
   let timeout: NodeJS.Timeout | null = null;
-  return function executedFunction(...args: Parameters<T>) {
+  return function executedFunction(...args: Parameters<T>): void {
     const later = () => {
       clearTimeout(timeout!);
       func(...args);
@@ -108,8 +105,8 @@ export const throttle = <T extends (...args: any[]) => any>(
   func: T,
   limit: number
 ): ((...args: Parameters<T>) => void) => {
-  let inThrottle: boolean = false;
-  return function(this: any, ...args: Parameters<T>) {
+  let inThrottle = false;
+  return function(this: any, ...args: Parameters<T>): void {
     if (!inThrottle) {
       func.apply(this, args);
       inThrottle = true;

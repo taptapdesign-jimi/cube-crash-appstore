@@ -14,14 +14,19 @@
   <link rel="apple-touch-icon" sizes="180x180" href="./assets/wild.png">
   <link rel="icon" href="./favicon.ico">
   
-  <!-- Preload only critical assets -->
-  <link rel="preload" href="./assets/logo-cube-crash.png" as="image" fetchpriority="high">
-  <link rel="preconnect" href="./assets">
+  <!-- Preload only critical assets (REMOVED DUPLICATE) -->
+  <link rel="preload" href="./assets/logo-cube-crash.png" as="image" fetchpriority="high" crossorigin="anonymous">
+  
+  <!-- Fonts (Load First) -->
+  <link rel="stylesheet" href="./src/styles/fonts.css">
   
   <!-- Main CSS -->
   <link rel="stylesheet" href="./src/styles/main.css">
   <link rel="stylesheet" href="./src/styles/slider.css">
   <link rel="stylesheet" href="./src/styles/buttons.css">
+  
+  <!-- Performance Optimizations -->
+  <link rel="stylesheet" href="./src/styles/optimizations.css">
   
   <!-- Legacy CSS (to be refactored) -->
   <link rel="stylesheet" href="./src/style.css">
@@ -31,311 +36,19 @@
   <link rel="stylesheet" href="./src/ios-optimizations.css">
   <link rel="stylesheet" href="./src/independent-navigation.css">
   <style>
-    html,body{margin:0;padding:0;overflow:hidden;background:#f5f5f5}
-    #app{width:100vw;height:100vh}
+    html,body{margin:0;padding:0;overflow:hidden;background:#f5f5f5;min-height:100%}
+    #ui-root{position:relative;min-height:100vh}
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      body { background: #1a1a1a; }
+    }
   </style>
 </head>
 <body>
   <div id="global-bg" aria-hidden="true"></div>
-  <!-- Loading Screen -->
-  <div id="loading-screen" class="loading-screen">
-    <div class="loading-content">
-      <div class="loading-logo">
-        <img src="./assets/logo-cube-crash.png" alt="CubeCrash" loading="eager" fetchpriority="high" />
-      </div>
-      <div class="loading-text">Loading...</div>
-      <div class="loading-progress">
-        <div class="loading-percentage" id="loading-percentage">0</div>
-      </div>
-    </div>
-  </div>
-
-  <div id="home" style="display: none;">
-    <div class="content">
-      <img id="home-logo" src="./assets/logo-cube-crash.png" alt="CubeCrash" loading="eager" fetchpriority="high" />
-
-      <!-- OPTIMIZED SLIDER STRUCTURE -->
-      <div id="slider-container">
-        <div class="slider-viewport">
-          <div id="slider-wrapper">
-            <!-- Slide 0: Home -->
-          <div class="slider-slide active" data-slide="0">
-            <div class="slide-content">
-              <div class="hero-container">
-                <img class="hero-image" src="./assets/crash-cubes-homepage.png" alt="Crashed cubes" loading="eager" fetchpriority="high" />
-                <img id="slider-parallax-image" class="slider-parallax-image" src="./assets/crash-cubes-homepage.png" alt="Parallax" />
-                <div class="hero-shadow"></div>
-              </div>
-              <div class="slide-text">
-                <p class="slide-tagline">Stack and crash the cubes<br/>to get the required number</p>
-                <button id="btn-home" class="slide-button tap-scale menu-btn-primary">Play</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Slide 1: Stats -->
-          <div class="slider-slide" data-slide="1">
-            <div class="slide-content">
-              <div class="hero-container">
-                <img class="hero-image" src="./assets/stats-trophy.png" alt="Trophy" />
-                <div class="hero-shadow"></div>
-              </div>
-              <div class="slide-text">
-                <p class="slide-tagline">See your best score<br/>and other stats</p>
-                <button id="btn-stats" class="slide-button tap-scale menu-btn-primary">Stats</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Slide 2: Collectibles -->
-          <div class="slider-slide" data-slide="2">
-            <div class="slide-content">
-              <div class="hero-container">
-                <img class="hero-image" src="./assets/collectibles-box.png" alt="Collectibles box" />
-                <div class="hero-shadow"></div>
-              </div>
-              <div class="slide-text">
-                <p class="slide-tagline">Collect special rewards<br/>and earn bragging rights</p>
-                <button id="btn-collectibles" class="slide-button tap-scale menu-btn-primary">Collectibles</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Slide 3: Settings -->
-          <div class="slider-slide" data-slide="3">
-            <div class="slide-content">
-              <div class="hero-container">
-                <img class="hero-image" src="./assets/settings-slider.png" alt="Settings slider" />
-                <div class="hero-shadow"></div>
-              </div>
-              <div class="slide-text">
-                <p class="slide-tagline">Customize the game<br/>just the way you like.</p>
-                <button id="btn-settings" class="slide-button tap-scale menu-btn-primary">Settings</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        </div>
-        
-        
-      </div>
-    </div>
-  </div>
+  <div id="ui-root"></div>
+  <div id="nav-root"></div>
   
-  <!-- Stats Screen -->
-  <div id="stats-screen" hidden>
-    <div class="stats-content">
-      <div class="stats-header">
-        <div class="stats-header-top">
-          <button id="stats-back-btn" class="stats-back-button tap-scale">
-            <img src="./assets/chevron-back.png" alt="Back" />
-          </button>
-          <h1 class="stats-title">Stats</h1>
-          <div></div> <!-- Empty spacer for layout -->
-        </div>
-        <div class="stats-title-underline"></div>
-      </div>
-      
-      <div class="stats-scrollable">
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="./assets/highscore-icon.png" alt="High score" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value" id="high-score">8975</div>
-            <div class="stat-label">High score</div>
-          </div>
-        </div>
-        
-        <div class="stat-divider"></div>
-        
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="./assets/cubes-cracked.png" alt="Cubes cracked" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value" id="cubes-cracked">3441</div>
-            <div class="stat-label">Cubes cracked</div>
-          </div>
-        </div>
-        
-        <div class="stat-divider"></div>
-        
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="./assets/clean-board.png" alt="Highest board" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value" id="highest-board">0</div>
-            <div class="stat-label">Highest board</div>
-          </div>
-        </div>
-        
-        <div class="stat-divider"></div>
-        
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="./assets/combo-stats.png" alt="Longest combo" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value" id="longest-combo">12</div>
-            <div class="stat-label">Longest combo</div>
-          </div>
-        </div>
-        
-        <div class="stat-divider"></div>
-        
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="./assets/wild-stats.png" alt="Helpers used" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value" id="helpers-used">1527</div>
-            <div class="stat-label">Helpers used</div>
-          </div>
-        </div>
-        
-        <div class="stat-divider"></div>
-        
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="./assets/time-icon.png" alt="Time played" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value" id="time-played">00:00:00</div>
-            <div class="stat-label">Time played</div>
-          </div>
-        </div>
-        
-        <div class="stat-divider"></div>
-        
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="./assets/collectible-stats.png" alt="Collectibles unlocked" />
-          </div>
-          <div class="stat-content">
-            <div class="stat-value" id="collectibles-unlocked">3/20</div>
-            <div class="stat-label">Collectibles unlocked</div>
-          </div>
-        </div>
-
-        <!-- Reset stats (testing) -->
-        <button id="stats-reset-btn" class="stats-reset-btn menu-btn-primary" type="button" aria-label="Reset stats">Reset stats</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Menu Screen -->
-  <div id="menu-screen" hidden>
-    <div class="menu-content">
-      <h2>End This Run?</h2>
-      <div class="warning-message">Think twice, your progress disappears once you leave.</div>
-      
-      <div class="buttons-container">
-        <button id="menu-restart-action" class="modal-button restart-button">
-          Restart
-        </button>
-        <button id="menu-exit-btn" class="modal-button exit-button">
-          Exit
-        </button>
-      </div>
-    </div>
-  </div>
-  
-  <div id="app" hidden></div>
-  
-  <!-- Collectibles Screen -->
-  <div id="collectibles-screen" class="hidden">
-    <div class="collectibles-shell">
-      <div class="collectibles-header">
-        <div class="collectibles-header-top">
-          <button id="collectibles-back" class="collectibles-back-button tap-scale" type="button" aria-label="Back to slider">
-            <img src="./assets/chevron-back.png" alt="Back" />
-          </button>
-          <h1 class="collectibles-title">Collectibles</h1>
-          <div class="collectibles-header-spacer"></div>
-        </div>
-        <div class="collectibles-title-underline"></div>
-      </div>
-
-      <div class="collectibles-scrollable">
-        <section class="collectibles-section">
-          <div class="collectibles-section-header">
-            <h2 class="collectibles-section-title">COMMON</h2>
-            <span class="collectibles-counter" id="common-counter">0/20</span>
-          </div>
-          <div class="collectibles-grid" id="common-cards"></div>
-        </section>
-
-        <section class="collectibles-section">
-          <div class="collectibles-divider legend-divider"></div>
-          <div class="collectibles-section-header">
-            <h2 class="collectibles-section-title">LEGENDARY</h2>
-            <span class="collectibles-counter" id="legendary-counter">0/5</span>
-          </div>
-          <div class="collectibles-grid" id="legendary-cards"></div>
-        </section>
-      </div>
-
-      <div class="collectibles-debug-controls">
-        <button id="collectibles-unlock-btn" class="debug-btn collectibles-debug-btn" type="button">
-          🧪 Unlock Collectible
-        </button>
-        <button id="collectibles-hide-btn" class="debug-btn collectibles-debug-btn" type="button">
-          🧪 Hide Collectible
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Collectibles Detail Modal -->
-  <div id="collectibles-detail-modal" class="screen modal hidden">
-    <div class="modal-content">
-      <!-- Top Bar for Detail Modal -->
-      <div class="detail-top-bar">
-        <div class="card-number-display" id="detail-card-number">05</div>
-        <button class="close-btn" id="detail-close-btn">
-          <img src="assets/close-button.png" alt="Close">
-        </button>
-      </div>
-      
-      <div class="detail-divider"></div>
-      
-      <!-- Card Detail Content -->
-      <div class="card-detail-content">
-        <div class="card-image-container">
-          <div class="card-image" id="detail-card-image"></div>
-        </div>
-        
-        <div class="card-description-container">
-          <div class="description-divider"></div>
-          <p class="card-description" id="detail-card-description">
-            Clean a board in less than 2 minutes
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <!-- INDEPENDENT NAVIGATION - OUTSIDE ALL CONTAINERS -->
-  <div id="independent-nav" class="independent-nav">
-    <div class="independent-nav-divider"></div>
-    <div class="independent-nav-buttons">
-      <button type="button" class="independent-nav-button active" data-slide="0" aria-label="Home">
-        <img src="./assets/nav/cube-nav.png" alt="Home" loading="lazy" draggable="false" />
-      </button>
-      <button type="button" class="independent-nav-button" data-slide="1" aria-label="Stats">
-        <img src="./assets/nav/stats-nav.png" alt="Stats" loading="lazy" draggable="false" />
-      </button>
-      <button type="button" class="independent-nav-button" data-slide="2" aria-label="Collectibles">
-        <img src="./assets/nav/collectibles-nav.png" alt="Collectibles" loading="lazy" draggable="false" />
-      </button>
-      <button type="button" class="independent-nav-button" data-slide="3" aria-label="Settings">
-        <img src="./assets/nav/settings-nav.png" alt="Settings" loading="lazy" draggable="false" />
-      </button>
-    </div>
-  </div>
-  
-  <script type="module" src="./src/main.js"></script>
+  <script type="module" src="./src/main.ts"></script>
 </body>
 </html>

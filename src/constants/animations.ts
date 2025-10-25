@@ -37,8 +37,8 @@ export const ELEMENT_IDS = {
 } as const;
 
 // Type definitions
-export type AnimationDelay = typeof ANIMATION_DELAYS[keyof typeof ANIMATION_DELAYS];
-export type AnimationDuration = typeof ANIMATION_DURATIONS[keyof typeof ANIMATION_DURATIONS];
-export type AnimationEasing = typeof ANIMATION_EASING[keyof typeof ANIMATION_EASING];
-export type CssClass = typeof CSS_CLASSES[keyof typeof CSS_CLASSES];
-export type ElementId = typeof ELEMENT_IDS[keyof typeof ELEMENT_IDS];
+export type ElementId = keyof typeof ELEMENT_IDS;
+export type AnimationDelay = keyof typeof ANIMATION_DELAYS;
+export type AnimationDuration = keyof typeof ANIMATION_DURATIONS;
+export type AnimationEasing = keyof typeof ANIMATION_EASING;
+export type CssClass = keyof typeof CSS_CLASSES;

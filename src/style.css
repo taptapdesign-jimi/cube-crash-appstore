@@ -100,16 +100,6 @@ body{
   height: auto;
   margin-bottom: 0;
   animation: pulse 2s ease-in-out infinite;
-  opacity: 0;
-}
-
-.loading-text {
-  font-size: 20px;
-  font-weight: bold;
-  color: #DB9C77;
-  margin-bottom: 0;
-  font-family: "LT Crow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
-  opacity: 0;
 }
 
 .loading-progress {
@@ -129,7 +119,14 @@ body{
   background: transparent;
   position: relative;
   z-index: 2;
-  opacity: 0;
+}
+
+.loading-text {
+  font-size: 20px;
+  font-weight: bold;
+  color: #DB9C77;
+  margin-bottom: 0;
+  font-family: "LT Crow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
 }
 
 .loading-percentage::after {
@@ -138,6 +135,59 @@ body{
   font-weight: bold;
   color: #DB9C77;
   font-family: "LT Crow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
+}
+
+/* Loading bar container */
+.loading-bar-container {
+  width: 280px;
+  height: 6px;
+  background: rgba(219, 156, 119, 0.2);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+/* Loading bar fill */
+.loading-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #DB9C77 0%, #E8B896 100%);
+  border-radius: 6px;
+  width: 0%;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 12px rgba(219, 156, 119, 0.6);
+}
+
+/* Fade-in animation for loading elements */
+.loading-logo img {
+  animation: fadeInPulse 0.8s ease-out forwards;
+}
+
+.loading-text {
+  animation: fadeIn 0.8s ease-out 0.3s forwards;
+}
+
+.loading-percentage {
+  animation: fadeIn 0.8s ease-out 0.5s forwards;
+}
+
+.loading-bar-container {
+  animation: fadeIn 0.8s ease-out 0.7s forwards;
+}
+
+@keyframes fadeInPulse {
+  0% { 
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 
 @keyframes pulse {
@@ -518,12 +568,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   #home-nav{ width: auto; align-self: center; justify-content: center; }
 }
 
-/* Fonts for homepage */
-@font-face{ font-family:"LTCrow"; src:url("../assets/fonts/LTCrow-Regular.ttf") format("truetype"); font-weight:400; font-style:normal; font-display:swap; }
-@font-face{ font-family:"LTCrow"; src:url("../assets/fonts/LTCrow-SemiBold.ttf") format("truetype"); font-weight:600; font-style:normal; font-display:swap; }
-@font-face{ font-family:"LTCrow"; src:url("../assets/fonts/LTCrow-Bold.ttf") format("truetype"); font-weight:700; font-style:normal; font-display:swap; }
-
-/* LTCrow font for buttons - using system-ui as fallback */
+/* Fonts are loaded from src/styles/fonts.css - All LTCrow weights (Regular, Medium, SemiBold, Bold, ExtraBold) */
 
 /* Stats page placeholder */
 .content.stats{ gap: 24px; }
@@ -1652,12 +1697,19 @@ body{height:100dvh;height:100vh;overflow:hidden}
   flex: 1;
 }
 
-.stat-divider {
-  height: 2px;
-  background: #F0ECEB;
-  opacity: 1;
-  width: 100%;
+/* Stat dividers now rendered via CSS border on list items */
+.stats-scrollable ul {
+  list-style: none;
+  padding: 0;
   margin: 0;
+}
+
+.stats-scrollable li.stat-item {
+  border-bottom: 2px solid #F0ECEB;
+}
+
+.stats-scrollable li.stat-item:last-child {
+  border-bottom: none;
 }
 
 .stat-value {
@@ -1983,7 +2035,7 @@ body{height:100dvh;height:100vh;overflow:hidden}
   border-radius: 40px 40px 0 0; /* .cornerRadius(40) from Figma */
   box-shadow: 0 -12px 48px rgba(233, 210, 200, 0.5); /* Updated with 50% opacity */
   max-height: 60vh;
-  z-index: 999999999;
+  z-index: 9999999999; /* Higher than navigation (999999999) */
   transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Fluid animation like slider */
   padding: 28px 10% 40px 10%; /* 28px top padding (20px + 8px), 40px bottom, 10% left/right for responsive */
   

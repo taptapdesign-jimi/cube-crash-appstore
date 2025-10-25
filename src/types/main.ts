@@ -49,7 +49,7 @@ declare global {
     startGameNow: () => Promise<void>;
     continueGame: () => Promise<void>;
     startNewGame: () => Promise<void>;
-    exitToMenu: () => void;
+    exitToMenu: () => Promise<void>;
     
     // Slider functions
     unlockSlider?: () => void;
@@ -86,12 +86,12 @@ declare global {
     updateHighScore?: (score: number) => void;
     forceUpdateHighScore?: (score: number) => void;
     checkForUnsavedHighScore?: () => void;
-    trackCubesCracked?: () => void;
-    trackHelpersUsed?: () => void;
+  trackCubesCracked?: (count: number) => void;
+  trackHelpersUsed?: (count: number) => void;
     trackHighestBoard?: (level: number) => void;
     trackLongestCombo?: (combo: number) => void;
     trackCollectiblesUnlocked?: () => void;
-    checkCollectiblesMilestones?: () => void;
+    checkCollectiblesMilestones?: (score: number) => void;
     resetAllStats?: () => void;
     testEndRunModal?: () => void;
     hardResetStats?: () => void;
