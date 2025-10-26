@@ -56,11 +56,22 @@ class ErrorHandler {
 
   // Main error handler
   handleError(error: Error | Event, context = 'Unknown'): void {
+    // CRITICAL: Skip asset loading errors during preloader phase
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const isAssetError = errorMessage.includes('asset') || errorMessage.includes('loading') || errorMessage.includes('fetch');
+    
+    // During preloader phase, silently ignore asset errors
+    const isLoadingScreen = document.querySelector('.loading-screen') && !document.querySelector('.loading-screen.hidden');
+    if (isLoadingScreen && isAssetError) {
+      logger.info(`🔇 Silently ignoring asset error during preload: ${errorMessage}`);
+      return; // Don't show error or increment counter
+    }
+    
     this.errorCount++;
     
     // Log error details
     const errorInfo: ErrorInfo = {
-      message: error instanceof Error ? error.message : 'Unknown error',
+      message: errorMessage,
       stack: error instanceof Error ? error.stack || 'No stack trace' : 'No stack trace',
       context: context,
       timestamp: new Date().toISOString(),
@@ -116,6 +127,13 @@ class ErrorHandler {
   private handlePIXIError(error: Error | Event, context: string): void {
     logger.warn('🎮 PIXI.js error detected, attempting recovery...');
     
+    // Don't do anything during preloader phase
+    const isLoadingScreen = document.querySelector('.loading-screen') && !document.querySelector('.loading-screen.hidden');
+    if (isLoadingScreen) {
+      logger.info('🔇 Skipping PIXI error handling during preloader phase');
+      return;
+    }
+    
     // Try to recover PIXI context
     const app = container.get('app');
     if (app && app.destroy) {
@@ -127,8 +145,8 @@ class ErrorHandler {
       }
     }
     
-    // Notify user if in production
-    if (this.isProduction) {
+    // Notify user if in production (only after preloader)
+    if (this.isProduction && !isLoadingScreen) {
       this.showUserFriendlyError('Graphics error detected. Please refresh the page.');
     }
   }
@@ -136,6 +154,13 @@ class ErrorHandler {
   // Memory error handling
   private handleMemoryError(error: Error | Event, context: string): void {
     logger.warn('💾 Memory error detected, attempting cleanup...');
+    
+    // Don't do anything during preloader phase
+    const isLoadingScreen = document.querySelector('.loading-screen') && !document.querySelector('.loading-screen.hidden');
+    if (isLoadingScreen) {
+      logger.info('🔇 Skipping memory error handling during preloader phase');
+      return;
+    }
     
     // Force garbage collection if available
     if (window.gc) {
@@ -150,8 +175,8 @@ class ErrorHandler {
     // Clear caches
     this.clearCaches();
     
-    // Notify user
-    if (this.isProduction) {
+    // Notify user (only after preloader)
+    if (this.isProduction && !isLoadingScreen) {
       this.showUserFriendlyError('Memory issue detected. Please refresh the page.');
     }
   }
@@ -175,9 +200,19 @@ class ErrorHandler {
   private handleGenericError(error: Error | Event, context: string): void {
     logger.warn(`⚠️ Generic error in ${context}:`, error instanceof Error ? error.message : 'Unknown error');
     
-    // Show user-friendly message in production
-    if (this.isProduction) {
-      this.showUserFriendlyError('An unexpected error occurred. Please try again.');
+    // DON'T show user-friendly message during preloader phase
+    const isLoadingScreen = document.querySelector('.loading-screen') && !document.querySelector('.loading-screen.hidden');
+    if (isLoadingScreen) {
+      logger.info('🔇 Skipping error display during preloader phase');
+      return;
+    }
+    
+    // Show user-friendly message in production (only after preloader)
+    if (this.isProduction && !isLoadingScreen) {
+      // Only show error after max errors reached to avoid annoying user
+      if (this.errorCount >= 3) {
+        this.showUserFriendlyError('An unexpected error occurred. Please try again.');
+      }
     }
   }
 

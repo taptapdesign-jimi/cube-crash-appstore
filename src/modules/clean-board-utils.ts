@@ -45,7 +45,7 @@ const HEADLINES: string[] = [
 
 // Global state
 let activeOverlay: HTMLElement | null = null;
-let isModalVisible: boolean = false;
+let isModalVisibleState: boolean = false;
 let modalParams: ShowCleanBoardModalParams = {};
 
 /**
@@ -66,14 +66,14 @@ export function setActiveOverlay(overlay: HTMLElement | null): void {
  * Check if modal is visible
  */
 export function isModalVisible(): boolean {
-  return isModalVisible;
+  return isModalVisibleState;
 }
 
 /**
  * Set modal visibility
  */
 export function setModalVisible(visible: boolean): void {
-  isModalVisible = visible;
+  isModalVisibleState = visible;
 }
 
 /**

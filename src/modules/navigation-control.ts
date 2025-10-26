@@ -15,6 +15,10 @@ export function initNavigationControl(): void {
     return;
   }
 
+  // Force initial visibility state
+  navElement.style.display = 'block';
+  navElement.style.visibility = 'visible';
+
   // Watch for changes to #home and #app visibility
   const targetNode = document.body;
   const config = {
@@ -50,6 +54,7 @@ function updateNavigationVisibility(): void {
   // Hide navigation if loading
   if (loadingScreen && !loadingScreen.hidden && loadingScreen.style.display !== 'none') {
     navElement.style.display = 'none';
+    navElement.style.visibility = 'hidden';
     logger.debug('📱 Navigation hidden: Loading screen active');
     return;
   }
@@ -57,19 +62,27 @@ function updateNavigationVisibility(): void {
   // Hide navigation if game is active
   if (app && !app.hidden && app.style.display !== 'none') {
     navElement.style.display = 'none';
+    navElement.style.visibility = 'hidden';
     logger.debug('📱 Navigation hidden: Game active');
     return;
   }
 
   // Show navigation if home is visible
-  if (home && !home.hidden && home.style.display !== 'none') {
+  // Check both display style and hidden attribute
+  const homeVisible = home && (
+    (!home.hidden && (home.style.display !== 'none' || home.style.display === ''))
+  );
+  
+  if (homeVisible) {
     navElement.style.display = 'block';
+    navElement.style.visibility = 'visible';
     logger.debug('📱 Navigation visible: Home active');
     return;
   }
 
   // Default: hide
   navElement.style.display = 'none';
+  navElement.style.visibility = 'hidden';
   logger.debug('📱 Navigation hidden: Default');
 }
 

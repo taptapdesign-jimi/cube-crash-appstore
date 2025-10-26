@@ -406,4 +406,36 @@ export function cleanupEventHandlers(modal: HTMLElement, overlay: HTMLElement): 
   }
 }
 
+/**
+ * Create animated main score that starts at 0
+ */
+export function createAnimatedScoreElement(): HTMLElement {
+  const mainScore = document.createElement('div');
+  mainScore.textContent = '0';
+  mainScore.style.cssText = 'color:#B07F69;font-weight:800;font-size:48px;line-height:1;margin:0;letter-spacing:-0.02em;';
+  return mainScore;
+}
+
+/**
+ * Create bonus score display that appears below main score
+ */
+export function createBonusScoreDisplay(bonus: number, boardNumber: number): HTMLElement {
+  const bonusScore = document.createElement('div');
+  bonusScore.textContent = `+${bonus} Bonus score`;
+  bonusScore.style.cssText = 'color:#E8734A;font-weight:700;font-size:24px;line-height:1;margin:0;letter-spacing:-0.01em;opacity:0;transition:opacity 0.3s ease;';
+  bonusScore.id = 'bonus-score-display';
+  return bonusScore;
+}
+
+/**
+ * Create board info display (shows after bonus is added)
+ */
+export function createBoardInfoDisplay(boardNumber: number): HTMLElement {
+  const boardInfo = document.createElement('div');
+  boardInfo.textContent = `Board #${boardNumber} cleared`;
+  boardInfo.style.cssText = 'color:#E8734A;font-weight:700;font-size:24px;line-height:1;margin:0;letter-spacing:-0.01em;opacity:0;transition:opacity 0.3s ease;';
+  boardInfo.id = 'board-info-display';
+  return boardInfo;
+}
+
 // All functions are already exported individually above

@@ -36,7 +36,10 @@ import {
   attachButtonHandlers, 
   attachKeyboardHandlers, 
   attachOutsideClickHandlers,
-  cleanupEventHandlers
+  cleanupEventHandlers,
+  createAnimatedScoreElement,
+  createBonusScoreDisplay,
+  createBoardInfoDisplay
 } from './clean-board-ui.js';
 
 import { logger } from '../core/logger.js';
@@ -48,7 +51,8 @@ import {
   hideCardAnimation, 
   animateModalEntrance, 
   animateModalExit,
-  animateScoreChange
+  animateScoreChange,
+  animateCleanBoardCompleteFlow
 } from './clean-board-animations.js';
 
 // Type definitions
@@ -131,20 +135,21 @@ export async function showCleanBoardModal({
     const currentScore = getCurrentScore();
     const newScore = calculateBonusScore(currentScore, bonus, scoreCap);
 
-    // Create main score display
-    const mainScore = createMainScore(currentScore);
+    // Create animated main score (starts at 0)
+    const mainScore = createAnimatedScoreElement();
     scoreGroup.appendChild(mainScore);
 
-    // Create bonus score display
-    const bonusScore = createBonusScore(bonus);
+    // Create bonus score display (hidden initially)
+    const bonusScore = createBonusScoreDisplay(bonus, boardNumber);
     scoreGroup.appendChild(bonusScore);
 
-    // Create new score display
-    const newScoreEl = createNewScore(newScore);
-    scoreGroup.appendChild(newScoreEl);
+    // Create board info display (hidden initially)
+    const boardInfo = createBoardInfoDisplay(boardNumber);
+    scoreGroup.appendChild(boardInfo);
 
-    // Create button container
+    // Create button container (hidden initially)
     const buttonContainer = createButtonContainer();
+    buttonContainer.style.display = 'none'; // Hidden until Step 4
     infoStack.appendChild(buttonContainer);
 
     // Create buttons
@@ -174,11 +179,9 @@ export async function showCleanBoardModal({
           updateHUD();
           updateHighScore(newScore);
           
-          // Animate score change
-          animateScoreChange(mainScore, newScoreEl).then(() => {
-            hideCleanBoardModal();
-            resolve({ action: 'continue' });
-          });
+          // Hide modal immediately on continue
+          hideCleanBoardModal();
+          resolve({ action: 'continue' });
           break;
         case 'cancel':
           logger.info('❌ Cancelling clean board');
@@ -199,7 +202,18 @@ export async function showCleanBoardModal({
     card.addEventListener('clean-board-modal-close', handleClose);
 
     // Animate in
-    animateModalEntrance(overlay, card);
+    animateModalEntrance(overlay, card).then(() => {
+      // Start the complete 4-step animation flow
+      animateCleanBoardCompleteFlow(
+        mainScore,
+        bonusScore,
+        boardInfo,
+        currentScore,
+        bonus,
+        boardNumber,
+        buttonContainer
+      );
+    });
   });
 }
 

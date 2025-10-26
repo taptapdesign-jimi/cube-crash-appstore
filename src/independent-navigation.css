@@ -19,29 +19,23 @@
 
 .independent-nav {
   position: fixed;
-  bottom: -8px; /* Moved down 8px from bottom */
+  bottom: 0;
   left: 0;
   right: 0;
-  width: 100%;
+  width: 100vw;
   height: 120px;
-  z-index: 999999999;
+  z-index: 100;
   pointer-events: none;
   display: block;
   opacity: 1;
   visibility: visible;
   box-sizing: border-box;
-  padding: 0 16px;
-  background: none !important; /* Force no background */
-  background-color: transparent !important; /* Force transparent */
-  border: none !important; /* Force no borders */
-  box-shadow: none !important; /* Force no shadows */
-  /* Remove any potential grey backgrounds */
-  background-image: none !important;
-  background-clip: unset !important;
-  background-origin: unset !important;
-  background-size: unset !important;
-  background-position: unset !important;
-  background-repeat: unset !important;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 
@@ -53,7 +47,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  padding: 12px 24px calc(env(safe-area-inset-bottom, 0px) + 24px);
+  padding: 12px 16px 24px 16px;
   background: none; /* No background */
   background-color: transparent; /* Ensure transparent */
   border: none; /* No borders */
@@ -108,7 +102,7 @@
   justify-content: space-between;
   gap: 0;
   width: 100%;
-  padding: 0 24px;
+  padding: 0 20px;
   position: relative;
   z-index: 999999999;
   pointer-events: auto;
@@ -130,15 +124,15 @@
 /* iPhone specific adjustments */
 @media screen and (max-width: 430px) {
   .independent-nav {
-    padding: 0 12px;
+    padding: 0;
   }
-}
   
   .independent-nav-buttons {
     gap: 0;
-    padding: 0 16px;
+    padding: 0 12px;
     justify-content: space-between;
   }
+}
   
   .independent-nav-button {
     width: 56px; /* Same size on iPhone */
@@ -324,11 +318,10 @@
   outline-offset: 4px;
 }
 
-/* DEFAULT: Hide navigation */
+/* DEFAULT: Show navigation - JS will control visibility */
 .independent-nav {
-  display: none !important;
-  opacity: 0;
-  visibility: hidden;
+  opacity: 1;
+  visibility: visible;
 }
 
 /* Enter animation for navigation - bounce scale in with fade in */
@@ -339,23 +332,7 @@
   transform: translateX(-50%) scale(1) ;
 }
 
-/* Hide navigation ONLY when game is active */
-#app:not([hidden]) ~ .independent-nav {
-  display: none !important;
-}
-
-/* Hide navigation during loading */
-#loading-screen ~ .independent-nav,
-#loading-screen:not([hidden]) ~ .independent-nav {
-  display: none !important;
-}
-
-/* Ensure navigation is visible on homepage */
-#home:not([hidden]) ~ .independent-nav {
-  display: block !important;
-  opacity: 1 ;
-  visibility: visible ;
-}
+/* Navigation visibility now controlled by JS - no CSS rules needed here */
 
 /* Exit animation for navigation - bounce scale down to 0 with fade out */
 .independent-nav.exit-animation {

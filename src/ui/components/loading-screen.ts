@@ -6,6 +6,9 @@ export function createLoadingScreen(): HTMLElementConfig {
     tag: 'div',
     id: 'loading-screen',
     className: 'loading-screen',
+    attributes: {
+      style: 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10000; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, #f5f5f5 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%);'
+    },
     children: [
       {
         tag: 'div',
@@ -39,7 +42,7 @@ export function createLoadingScreen(): HTMLElementConfig {
                 tag: 'div',
                 id: 'loading-percentage',
                 className: 'loading-percentage',
-                text: '0%',
+                text: '0',
                 attributes: {
                   role: 'status',
                   'aria-live': 'polite',

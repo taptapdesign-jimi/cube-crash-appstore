@@ -1,9 +1,9 @@
 // CUBE CRASH - MAIN ENTRY POINT
 // Clean, modular architecture
 
-import './ui/bootstrap-ui.js';
+import { bootstrapReady } from './ui/bootstrap-ui.js';
 import './ui/collectibles-bridge.js';
-import { boot, layout } from './modules/app-core.js';
+// boot and layout imported in ui-manager.ts when needed
 import { gsap } from 'gsap';
 import { assetPreloader } from './modules/asset-preloader.js';
 import './ios-image-helper.js';
@@ -82,6 +82,8 @@ import { AccessibilityManager } from './utils/accessibility.js';
 import { AppStoreCompliance } from './utils/app-store-compliance.js';
 import { appManager } from './ui/app-manager.js';
 import { initNavigationControl } from './modules/navigation-control.js';
+import { showEndRunModalFromGame } from './modules/end-run-modal.js';
+import { animateSliderExit, animateSliderEnter } from './utils/animations.js';
 
 // Type definitions
 interface GameState {
@@ -97,6 +99,9 @@ interface GameState {
 // Initialize core systems
 async function initializeApp(): Promise<void> {
   try {
+    // Wait for bootstrap to complete (DOM elements must exist first)
+    await bootstrapReady;
+    
     // Initializing core systems
     
     // Initialize error handling
@@ -201,9 +206,8 @@ async function initializeGame(): Promise<void> {
   try {
     logger.info('🎮 Initializing game...');
     
-    // Initialize core modules
-    await boot();
-    await layout();
+    // DON'T initialize boot/layout here - wait for user to click Play
+    // boot() and layout() will be called from ui-manager.ts when starting a game
     
     // Set initial state
     gameState.setState({
@@ -243,3 +247,133 @@ initializeApp().catch((error: Error) => {
 (window as any).animationManager = animationManager;
 (window as any).sliderManager = sliderManager;
 (window as any).iosOptimizer = iosOptimizer;
+
+// Export end run modal function for HUD click
+(window as any).showEndRunModalFromGame = showEndRunModalFromGame;
+
+// Export lock/unlock slider functions
+(window as any).lockSlider = () => {
+  logger.info('🔒 Locking slider');
+  gameState.set('sliderLocked', true);
+};
+
+(window as any).unlockSlider = () => {
+  logger.info('🔓 Unlocking slider');
+  gameState.set('sliderLocked', false);
+};
+
+// Export startNewGame and continueGame functions for resume bottom sheet
+(window as any).startNewGame = () => {
+  logger.info('🎮 startNewGame called from window');
+  uiManager.startNewGame();
+};
+
+(window as any).continueGame = () => {
+  logger.info('🎮 continueGame called from window');
+  uiManager.startNewGame(); // Same as startNewGame for now
+};
+
+// Continue game with saved state
+(window as any).continueGameWithSavedState = async () => {
+  logger.info('🔄 continueGameWithSavedState called - loading saved game');
+  
+  try {
+    // Step 1: Play exit animation
+    console.log('🎬 Step 1: Playing exit animation');
+    animateSliderExit();
+    
+    // Step 2: Wait for exit animation, then start game with saved state
+    setTimeout(async () => {
+      console.log('🔄 Step 2: Loading saved game');
+      
+      // Hide homepage
+      uiManager.hideHomepage();
+      
+      // Show app element
+      uiManager.showApp();
+      
+      // Import app-core to access loadGameState
+      try {
+        const { boot, layout } = await import('./modules/app-core.js');
+        
+        // Boot the game first
+        await boot();
+        await layout();
+        
+        // Load saved game state
+        const loadGameState = (window as any).loadGameState;
+        if (typeof loadGameState === 'function') {
+          const loaded = await loadGameState();
+          if (!loaded) {
+            logger.warn('⚠️ Failed to load saved game, starting new game');
+            // Fallback to new game if load fails
+            uiManager.startNewGame();
+          }
+        } else {
+          logger.error('❌ loadGameState function not found');
+          uiManager.startNewGame();
+        }
+      } catch (error) {
+        logger.error('❌ Failed to load saved game:', error);
+        uiManager.startNewGame();
+      }
+    }, 500);
+    
+  } catch (error) {
+    logger.error('❌ Failed to continue game:', error);
+    uiManager.startNewGame();
+  }
+};
+
+// New sequence handler: bottom sheet close → exit anim → game start
+(window as any).triggerGameStartSequence = () => {
+  logger.info('🎬 Starting game start sequence...');
+  
+  // Step 1: Play exit animation
+  console.log('🎬 Step 1: Playing exit animation');
+  animateSliderExit();
+  
+  // Step 2: Wait for exit animation to complete (400ms), then start game
+  setTimeout(() => {
+    console.log('🎮 Step 2: Starting game after exit animation');
+    uiManager.startNewGame();
+  }, 500); // 400ms anim + 100ms buffer for smoother transition
+};
+
+// Export exitToMenu function for End This Run modal
+(window as any).exitToMenu = async () => {
+  logger.info('🏠 exitToMenu called from window');
+  
+  try {
+    // CRITICAL: Clear saved game so next play starts fresh (no resume sheet)
+    localStorage.removeItem('cc_saved_game');
+    localStorage.removeItem('cubeCrash_gameState');
+    logger.info('🗑️ Cleared saved game - next play will start fresh');
+    
+    // Hide app element (game)
+    uiManager.hideApp();
+    
+    // Show homepage with animation
+    uiManager.showHomepageWithAnimation();
+    
+    // Animate slider enter (elastic spring bounce pop in)
+    setTimeout(() => {
+      animateSliderEnter();
+    }, 100);
+    
+    // Show navigation
+    uiManager.showNavigation();
+    
+    // Reset game state
+    gameState.setState({
+      homepageReady: true,
+      isGameActive: false,
+      isPaused: false
+    });
+    
+    logger.info('✅ Exited to menu successfully - next play will start fresh without resume sheet');
+    
+  } catch (error) {
+    logger.error('❌ Failed to exit to menu:', error);
+  }
+};

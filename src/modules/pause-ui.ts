@@ -91,7 +91,7 @@ export function createPauseModalContent(): HTMLElement {
         height: 64px !important;
         padding: 0 56px !important;
         font-family: 'LTCrow', system-ui, -apple-system, sans-serif !important;
-        font-size: 24px !important;
+        font-size: 20px !important;
         font-weight: bold !important;
         box-shadow: 0 8px 0 0 #C24921 !important;
         cursor: pointer !important;
@@ -104,7 +104,7 @@ export function createPauseModalContent(): HTMLElement {
         outline: none !important;
         user-select: none !important;
         -webkit-tap-highlight-color: transparent !important;
-      ">Resume Game</button>
+      ">Continue</button>
       
       <button class="restart-btn" data-action="restart" style="
         background: #6C7B95 !important;
@@ -114,7 +114,7 @@ export function createPauseModalContent(): HTMLElement {
         height: 64px !important;
         padding: 0 56px !important;
         font-family: 'LTCrow', system-ui, -apple-system, sans-serif !important;
-        font-size: 24px !important;
+        font-size: 20px !important;
         font-weight: bold !important;
         box-shadow: 0 8px 0 0 #4A5A7A !important;
         cursor: pointer !important;
@@ -127,7 +127,7 @@ export function createPauseModalContent(): HTMLElement {
         outline: none !important;
         user-select: none !important;
         -webkit-tap-highlight-color: transparent !important;
-      ">Restart Game</button>
+      ">New Game</button>
       
       <button class="exit-btn" data-action="exit" style="
         background: #DC3545 !important;

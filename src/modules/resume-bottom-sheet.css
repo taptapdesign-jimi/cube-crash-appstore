@@ -1,0 +1,100 @@
+/* Resume Bottom Sheet - Modular CSS
+ * Pure CSS with no inline styles
+ * iOS-style drag functionality
+ */
+
+.resume-bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-radius: 40px 40px 0 0;
+  box-shadow: 0 -12px 48px rgba(233, 210, 200, 0.5);
+  max-height: 60vh;
+  z-index: 9999999999;
+  padding: 28px 10% 40px 10%;
+  width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
+  transform: translateY(100%);
+  
+  /* iOS touch optimizations */
+  -webkit-overflow-scrolling: touch;
+  -webkit-transform: translateY(100%);
+  -webkit-backface-visibility: hidden;
+  -webkit-perspective: 1000;
+  will-change: transform;
+  backface-visibility: hidden;
+  perspective: 1000;
+  
+  /* NO DEFAULT TRANSITION - JavaScript controls it */
+  transition: none;
+}
+
+/* Visible state - entrance animation controlled by CSS */
+.resume-bottom-sheet.visible {
+  transform: translateY(0);
+  transition: transform 0.4s ease-in-out;
+}
+
+/* Dragging state - instant following */
+.resume-bottom-sheet.dragging {
+  transition: none !important;
+}
+
+/* Closing state - gentle exit animation */
+.resume-bottom-sheet.closing {
+  transition: transform 0.4s ease-out;
+}
+
+/* Snapping back state - spring animation */
+.resume-bottom-sheet.snapping {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Resume modal buttons */
+.resume-bottom-sheet .continue-btn,
+.resume-bottom-sheet .new-game-btn {
+  background: #E97A55;
+  color: white;
+  border: none;
+  border-radius: 40px;
+  padding: 0 56px;
+  font-size: 24px;
+  font-weight: bold;
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+  width: 100%;
+  max-width: 310px;
+  height: 64px;
+  text-align: center;
+  box-shadow: 0 8px 0 0 #C24921;
+  transition: transform 0.15s ease;
+  
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.resume-bottom-sheet .new-game-btn {
+  background: white;
+  color: #AD8675;
+  border: 1px solid #E9DCD6;
+  box-shadow: 0 8px 0 0 #E9DCD6;
+}
+
+.resume-bottom-sheet .continue-btn:active,
+.resume-bottom-sheet .new-game-btn:active {
+  transform: scale(0.95);
+}
+
+/* Modal handle */
+.resume-bottom-sheet .modal-handle {
+  width: 40px;
+  height: 4px;
+  background: #ddd;
+  border-radius: 2px;
+  margin: 0 auto 20px;
+}

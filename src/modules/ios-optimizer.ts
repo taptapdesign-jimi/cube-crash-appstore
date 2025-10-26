@@ -186,6 +186,28 @@ class IOSOptimizer {
   private enableAnimationOptimization(): void {
     if (this.optimizations.animationOptimization) return;
     
+    // CRITICAL: Disable text selection and long-press menu on iOS
+    const disableSelection = document.createElement('style');
+    disableSelection.textContent = `
+      /* iOS: Disable text selection and long-press menu everywhere */
+      body * {
+        -webkit-user-select: none !important;
+        -webkit-touch-callout: none !important;
+        -khtml-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+        user-select: none !important;
+      }
+      
+      /* Prevent iOS context menu on images and links */
+      img, a, button {
+        -webkit-touch-callout: none !important;
+        -webkit-user-select: none !important;
+        user-select: none !important;
+      }
+    `;
+    document.head.appendChild(disableSelection);
+    
     // Optimize animations for iOS
     const style = document.createElement('style');
     style.textContent = `

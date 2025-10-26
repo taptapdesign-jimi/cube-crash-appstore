@@ -27,25 +27,28 @@ export function addBottomSheetStyles(): void {
   const style = document.createElement('style');
   style.id = 'bottom-sheet-styles';
   style.textContent = `
-    /* Bottom Sheet Button Styles - matching original CTA buttons */
+    /* Primary Button - Orange CTA (Tap Scale Animation) */
     .continue-btn {
+      all: unset !important;
       background: #E97A55 !important;
       color: white !important;
       border: none !important;
       border-radius: 40px !important;
       height: 64px !important;
-      padding: 0 56px !important;
+      width: 260px !important;
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
       font-size: 24px !important;
       font-weight: bold !important;
       box-shadow: 0 8px 0 0 #C24921 !important;
-      transition: transform 0.15s ease !important;
+      transition: transform 0.15s ease-in-out !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
+      text-align: center !important;
       transform: scale(1) !important;
       position: relative !important;
       overflow: hidden !important;
+      box-sizing: border-box !important;
       -webkit-tap-highlight-color: transparent !important;
       -webkit-touch-callout: none !important;
       -webkit-user-select: none !important;
@@ -53,36 +56,35 @@ export function addBottomSheetStyles(): void {
       cursor: pointer !important;
       outline: none !important;
       text-decoration: none !important;
-    }
-    
-    .continue-btn:hover {
-      background: #F08A65 !important;
-      transform: scale(1.02) !important;
+      pointer-events: auto !important;
     }
     
     .continue-btn:active {
-      transform: scale(0.98) !important;
-      box-shadow: 0 6px 0 0 #C24921 !important;
+      transform: scale(0.95) !important;
     }
     
+    /* Secondary Button - White with Brown Border (Tap Scale Animation) */
     .pause-btn {
-      background: #6C7B95 !important;
-      color: white !important;
-      border: none !important;
+      all: unset !important;
+      background: white !important;
+      color: #AD8675 !important;
+      border: 1px solid #E9DCD6 !important;
       border-radius: 40px !important;
       height: 64px !important;
-      padding: 0 56px !important;
+      width: 260px !important;
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
-      font-size: 24px !important;
+      font-size: 20px !important;
       font-weight: bold !important;
-      box-shadow: 0 8px 0 0 #4A5A7A !important;
-      transition: transform 0.15s ease !important;
+      box-shadow: 0 6px 0 0 rgba(233, 220, 214, 1) !important;
+      transition: transform 0.15s ease-in-out !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
+      text-align: center !important;
       transform: scale(1) !important;
       position: relative !important;
       overflow: hidden !important;
+      box-sizing: border-box !important;
       -webkit-tap-highlight-color: transparent !important;
       -webkit-touch-callout: none !important;
       -webkit-user-select: none !important;
@@ -90,16 +92,11 @@ export function addBottomSheetStyles(): void {
       cursor: pointer !important;
       outline: none !important;
       text-decoration: none !important;
-    }
-    
-    .pause-btn:hover {
-      background: #7C8BA5 !important;
-      transform: scale(1.02) !important;
+      pointer-events: auto !important;
     }
     
     .pause-btn:active {
-      transform: scale(0.98) !important;
-      box-shadow: 0 6px 0 0 #4A5A7A !important;
+      transform: scale(0.95) !important;
     }
     
     .resume-bottom-sheet {
@@ -110,7 +107,7 @@ export function addBottomSheetStyles(): void {
       background: white !important;
       border-radius: 20px 20px 0 0 !important;
       padding: 30px 20px 40px 20px !important;
-      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.3) !important;
+      box-shadow: 0 -10px 30px rgba(233, 210, 200, 1) !important;
       z-index: 10000 !important;
       transform: translateY(100%) !important;
       transition: transform 0.3s ease !important;
@@ -128,16 +125,16 @@ export function addBottomSheetStyles(): void {
     
     .resume-bottom-sheet-title {
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
-      font-size: 28px !important;
-      font-weight: bold !important;
-      color: #333 !important;
+      font-size: 40px !important;
+      font-weight: 800 !important;
+      color: #AD8675 !important;
       margin: 0 0 15px 0 !important;
     }
     
     .resume-bottom-sheet-subtitle {
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
       font-size: 18px !important;
-      color: #666 !important;
+      color: #AD8675 !important;
       margin: 0 0 30px 0 !important;
     }
     
@@ -162,18 +159,23 @@ export function addBottomSheetStyles(): void {
       }
       
       .resume-bottom-sheet-title {
-        font-size: 24px !important;
+        font-size: 36px !important;
       }
       
       .resume-bottom-sheet-subtitle {
         font-size: 16px !important;
       }
       
-      .continue-btn,
+      .continue-btn {
+        height: 56px !important;
+        font-size: 20px !important;
+        width: 240px !important;
+      }
+      
       .pause-btn {
         height: 56px !important;
         font-size: 20px !important;
-        padding: 0 40px !important;
+        width: 240px !important;
       }
     }
   `;
@@ -196,10 +198,10 @@ export function createResumeModal(): HTMLElementWithCleanup {
       <p class="resume-bottom-sheet-subtitle">Continue where you left off</p>
       <div class="resume-bottom-sheet-buttons">
         <button class="continue-btn" data-action="resume">
-          Continue Playing
+          Continue
         </button>
         <button class="pause-btn" data-action="pause">
-          Stay Paused
+          New Game
         </button>
       </div>
     </div>
@@ -297,25 +299,70 @@ export function attachButtonHandlers(modalEl: HTMLElementWithCleanup, registerCl
   const continueBtn = modalEl.querySelector('[data-action="resume"]');
   const pauseBtn = modalEl.querySelector('[data-action="pause"]');
   
+  console.log('🔘 Buttons found:', { continueBtn: !!continueBtn, pauseBtn: !!pauseBtn });
+  
   const handleAction = (action: string) => {
+    console.log('🔘 Button clicked! Action:', action);
     const actionEvent = new CustomEvent('resume-sheet-action', {
       detail: { action }
     });
     modalEl.dispatchEvent(actionEvent);
   };
   
+  const resumeHandler = (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('🔘 Resume button clicked!');
+    handleAction('resume');
+  };
+  
+  const pauseHandler = (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('🔘 Pause button clicked!');
+    handleAction('pause');
+  };
+  
+  const resumeTouchHandler = (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('🔘 Resume button touched!');
+    handleAction('resume');
+  };
+  
+  const pauseTouchHandler = (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('🔘 Pause button touched!');
+    handleAction('pause');
+  };
+  
   if (continueBtn) {
-    continueBtn.addEventListener('click', () => handleAction('resume'));
+    console.log('🔘 Adding resume listeners...');
+    continueBtn.addEventListener('click', resumeHandler);
+    continueBtn.addEventListener('touchend', resumeTouchHandler, { passive: false });
+  } else {
+    console.error('❌ Continue button not found!');
   }
   
   if (pauseBtn) {
-    pauseBtn.addEventListener('click', () => handleAction('pause'));
+    console.log('🔘 Adding pause listeners...');
+    pauseBtn.addEventListener('click', pauseHandler);
+    pauseBtn.addEventListener('touchend', pauseTouchHandler, { passive: false });
+  } else {
+    console.error('❌ Pause button not found!');
   }
   
   // Register cleanup
   registerCleanup(() => {
-    if (continueBtn) continueBtn.removeEventListener('click', () => handleAction('resume'));
-    if (pauseBtn) pauseBtn.removeEventListener('click', () => handleAction('pause'));
+    if (continueBtn) {
+      continueBtn.removeEventListener('click', resumeHandler);
+      continueBtn.removeEventListener('touchend', resumeTouchHandler);
+    }
+    if (pauseBtn) {
+      pauseBtn.removeEventListener('click', pauseHandler);
+      pauseBtn.removeEventListener('touchend', pauseTouchHandler);
+    }
   });
 }
 

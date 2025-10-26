@@ -38,10 +38,12 @@ export function showBottomSheetAnimation(modal: HTMLElement, options: AnimationO
  * Hide bottom sheet animation
  */
 export function hideBottomSheetAnimation(modal: HTMLElement, options: AnimationOptions = {}): Promise<void> {
-  const { duration = 300, easing = 'ease-in' } = options;
+  const { duration = 300, easing = 'ease-in-out' } = options;
   
   return new Promise((resolve) => {
+    // NO OPACITY FADE - just transform
     modal.style.transition = `transform ${duration}ms ${easing}`;
+    modal.style.opacity = '1'; // Keep full opacity
     modal.style.transform = 'translateY(100%)';
     
     setTimeout(() => {
@@ -300,24 +302,30 @@ export function staggerAnimation(
  */
 export function animateBottomSheetEntrance(modal: HTMLElement): Promise<void> {
   return new Promise((resolve) => {
-    const sequence = async () => {
-      // 1. Show bottom sheet
-      await showBottomSheetAnimation(modal);
-      
-      // 2. Animate title
-      const titleElement = modal.querySelector('.resume-bottom-sheet-title') as HTMLElement;
-      if (titleElement) {
-        await pulseTitleAnimation(titleElement);
-      }
-      
-      // 3. Animate buttons
-      const buttons = Array.from(modal.querySelectorAll('button')) as HTMLElement[];
-      await staggerAnimation(buttons, (btn) => slideUpAnimation(btn, { delay: 100 }), 150);
-      
-      resolve();
-    };
+    console.log('🎬 Starting entrance animation...');
     
-    sequence();
+    // Step 1: Set initial state while hidden
+    modal.style.display = 'block';
+    modal.style.transform = 'translateY(100%)';
+    modal.style.transition = 'transform 0.4s ease-in-out';
+    
+    // Step 2: Force reflow
+    void modal.offsetHeight;
+    
+    // Step 3: Wait for next frame
+    requestAnimationFrame(() => {
+      // Step 4: Trigger animation
+      modal.style.transform = 'translateY(0)';
+      
+      console.log('✅ Animation triggered');
+      
+      // Step 5: Wait for completion
+      setTimeout(() => {
+        modal.classList.add('visible');
+        console.log('✅ Animation complete');
+        resolve();
+      }, 400);
+    });
   });
 }
 

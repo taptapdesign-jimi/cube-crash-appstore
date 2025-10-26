@@ -2,7 +2,7 @@
 // Handles all UI interactions and animations
 
 import gameState from './game-state.js';
-import { fadeOutHome, fadeInHome } from '../utils/animations.js';
+import { fadeOutHome, fadeInHome, animateSliderExit } from '../utils/animations.js';
 import { logger } from '../core/logger.js';
 
 export interface UIManagerElements {
@@ -183,16 +183,28 @@ class UIManager {
       const savedGame = localStorage.getItem('cc_saved_game');
       logger.info('🔍 Saved game found:', !!savedGame, savedGame ? 'YES' : 'NO');
       
-      // TEMPORARY: Add test saved game for testing
-      if (!savedGame) {
-        logger.info('🧪 Adding test saved game for testing...');
-        localStorage.setItem('cc_saved_game', JSON.stringify({ test: true, score: 100 }));
-      }
-      
-      if (savedGame || localStorage.getItem('cc_saved_game')) {
+      // Show resume sheet ONLY if saved game exists
+      if (savedGame) {
         logger.info('📱 Showing resume game bottom sheet...');
-        // Show resume game modal
+        // Import resume sheet utilities
         const { showResumeGameBottomSheet } = await import('./resume-game-bottom-sheet.js');
+        const { setModalOptions } = await import('./resume-sheet-utils.js');
+        
+        // Set modal options with callbacks
+        setModalOptions({
+          resume: () => {
+            logger.info('▶️ Continue - resuming game...');
+            console.log('▶️ Continue button clicked - starting game...');
+            setTimeout(() => this.startNewGame(), 100);
+          },
+          pause: () => {
+            logger.info('🔄 New Game - starting fresh...');
+            console.log('🔄 New Game button clicked - starting game...');
+            setTimeout(() => this.startNewGame(), 100);
+          }
+        });
+        
+        // Show resume game modal
         showResumeGameBottomSheet();
       } else {
         logger.info('🎮 No saved game, starting new game...');
@@ -206,8 +218,8 @@ class UIManager {
     }
   }
   
-  // Start new game
-  private async startNewGame(): Promise<void> {
+  // Start new game (public method)
+  async startNewGame(): Promise<void> {
     try {
       logger.info('🎮 Starting new game...');
       
@@ -223,10 +235,11 @@ class UIManager {
       
       logger.info('✅ Game state set, hiding homepage...');
       
-      // Hide homepage
-      this.hideHomepage();
+      // NOTE: Slider exit animation was already played by triggerGameStartSequence
+      // Don't play it again here!
       
-      logger.info('✅ Homepage hidden, showing app element...');
+      // Hide homepage immediately (exit anim already played)
+      this.hideHomepage();
       
       // Show app element (CRITICAL!)
       this.showApp();
@@ -234,13 +247,44 @@ class UIManager {
       logger.info('✅ App element shown, importing app.js...');
       
       // Start game
-      const { boot } = await import('./app-core.js');
+      try {
+        logger.info('✅ Importing app-core...');
+        const { boot, layout } = await import('./app-core.js');
+        
+        logger.info('✅ App.js imported, calling boot()...');
+        
+        await boot();
+        
+        logger.info('✅ Boot completed, calling layout()...');
+        
+        await layout();
+        
+        logger.info('✅ Layout completed successfully!');
       
-      logger.info('✅ App.js imported, calling boot()...');
+      // CRITICAL: Verify canvas exists and is visible
+      setTimeout(() => {
+        const appEl = document.getElementById('app');
+        const canvas = appEl?.querySelector('canvas');
+        console.log('🔍 POST-BOOT CHECK:');
+        console.log('  → App element:', appEl);
+        console.log('  → Canvas:', canvas);
+        console.log('  → Canvas in DOM:', canvas ? document.body.contains(canvas) : 'NO CANVAS');
+        console.log('  → Canvas parent:', canvas?.parentElement);
+        console.log('  → Canvas dimensions:', canvas ? `${canvas.width}x${canvas.height}` : 'NO CANVAS');
+        console.log('  → Canvas display:', canvas ? getComputedStyle(canvas).display : 'NO CANVAS');
+        console.log('  → Canvas visibility:', canvas ? getComputedStyle(canvas).visibility : 'NO CANVAS');
+        console.log('  → Canvas opacity:', canvas ? getComputedStyle(canvas).opacity : 'NO CANVAS');
+        console.log('  → App display:', appEl ? getComputedStyle(appEl).display : 'NO APP');
+        console.log('  → App visibility:', appEl ? getComputedStyle(appEl).visibility : 'NO APP');
+        console.log('  → App opacity:', appEl ? getComputedStyle(appEl).opacity : 'NO APP');
+        console.log('  → App z-index:', appEl ? getComputedStyle(appEl).zIndex : 'NO APP');
+      }, 500);
       
-      await boot();
-      
-      logger.info('✅ Boot completed successfully!');
+      } catch (error) {
+        logger.error('❌ Failed to start game:', error);
+        logger.error('❌ Error details:', (error as Error).stack);
+        throw error;
+      }
       
     } catch (error) {
       logger.error('❌ Failed to start new game:', error);
@@ -271,7 +315,29 @@ class UIManager {
       appElement.removeAttribute('hidden');
       appElement.style.display = 'block';
       appElement.style.opacity = '1';
+      appElement.style.visibility = 'visible';
+      appElement.style.position = 'fixed';
+      appElement.style.top = '0';
+      appElement.style.left = '0';
+      appElement.style.width = '100%';
+      appElement.style.height = '100%';
+      appElement.style.zIndex = '1';
       logger.info('✅ App element shown');
+      
+      // Also check canvas visibility
+      const canvas = appElement.querySelector('canvas');
+      if (canvas) {
+        canvas.style.display = 'block';
+        canvas.style.visibility = 'visible';
+        canvas.style.opacity = '1';
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        logger.info('✅ Canvas shown and styled');
+        console.log('✅ Canvas dimensions:', canvas.width, 'x', canvas.height);
+        console.log('✅ Canvas computed style:', window.getComputedStyle(canvas));
+      } else {
+        logger.warn('⚠️ Canvas not found in app element');
+      }
     } else {
       logger.error('❌ App element not found!');
     }
@@ -395,8 +461,9 @@ class UIManager {
       this.elements.loadingFill.style.width = `${progress}%`;
     }
     
+    // Only show number, CSS ::after adds the % symbol
     if (this.elements.loadingPercentage) {
-      this.elements.loadingPercentage.textContent = `${Math.round(progress)}%`;
+      this.elements.loadingPercentage.textContent = `${Math.round(progress)}`;
     }
     
     // Update ARIA attributes for accessibility

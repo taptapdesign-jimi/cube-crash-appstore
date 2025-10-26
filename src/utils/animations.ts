@@ -42,31 +42,37 @@ export const fadeInHome = (): void => {
   }
 };
 
-// Safe pause game
+// Safe pause game - NO-OP for now (game not active yet)
 export const safePauseGame = (): void => {
   try {
-    if (window.CC?.pauseGame) {
-      window.CC.pauseGame();
-      logger.info('🎯 Game paused successfully');
-    } else {
-      logger.warn('⚠️ pauseGame function not available');
-    }
+    // No-op: game is not active when resume sheet shows
+    logger.info('🎯 safePauseGame called (no-op)');
   } catch (error) {
     logger.error('❌ Failed to pause game:', error);
   }
 };
 
-// Safe resume game
+// Safe resume game - NO-OP for now (game not active yet)
 export const safeResumeGame = (): void => {
   try {
-    if (window.CC?.resumeGame) {
-      window.CC.resumeGame();
-      logger.info('🎯 Game resumed successfully');
-    } else {
-      logger.warn('⚠️ resumeGame function not available');
-    }
+    // No-op: game is not active yet
+    logger.info('🎯 safeResumeGame called (no-op)');
   } catch (error) {
     logger.error('❌ Failed to resume game:', error);
+  }
+};
+
+// Safe lock slider
+export const safeLockSlider = (): void => {
+  try {
+    if (typeof window.lockSlider === 'function') {
+      window.lockSlider();
+      logger.info('🔒 Slider locked successfully');
+    } else {
+      logger.warn('⚠️ lockSlider function not available');
+    }
+  } catch (error) {
+    logger.warn('⚠️ Failed to lock slider:', error);
   }
 };
 
@@ -81,6 +87,77 @@ export const safeUnlockSlider = (): void => {
     }
   } catch (error) {
     logger.warn('⚠️ Failed to unlock slider:', error);
+  }
+};
+
+// Animate slider exit when clicking CTA
+export const animateSliderExit = (): void => {
+  try {
+    logger.info('🎬 Starting slider exit animation...');
+    
+    const slideContent = document.querySelector('.slide-content');
+    const slideText = document.querySelector('.slide-text');
+    const slideButton = document.querySelector('.slide-button');
+    const heroContainer = document.querySelector('.hero-container');
+    const homeLogo = document.querySelector('#home-logo');
+    
+    // Apply exit animation to all slider elements
+    const elements = [slideContent, slideText, slideButton, heroContainer, homeLogo].filter(el => el !== null);
+    
+    elements.forEach((element, index) => {
+      if (element) {
+        const el = element as HTMLElement;
+        // Add GPU acceleration for smoother animations on iOS
+        el.style.willChange = 'transform, opacity';
+        el.style.backfaceVisibility = 'hidden';
+        el.style.webkitBackfaceVisibility = 'hidden';
+        el.style.perspective = '1000px';
+        
+        // Smoother cubic-bezier for iOS-like feel
+        el.style.transition = 'all 0.4s cubic-bezier(0.4, 0.0, 0.2, 1)';
+        el.style.transform = 'scale(0.8) translateY(-20px)';
+        el.style.opacity = '0';
+      }
+    });
+    
+    logger.info('✅ Slider exit animation applied');
+  } catch (error) {
+    logger.error('❌ Failed to animate slider exit:', error);
+  }
+};
+
+// Animate slider enter when returning to home
+export const animateSliderEnter = (): void => {
+  try {
+    logger.info('🎬 Starting slider enter animation...');
+    
+    const slideContent = document.querySelector('.slide-content');
+    const slideText = document.querySelector('.slide-text');
+    const slideButton = document.querySelector('.slide-button');
+    const heroContainer = document.querySelector('.hero-container');
+    const homeLogo = document.querySelector('#home-logo');
+    
+    // Apply enter animation to all slider elements
+    const elements = [slideContent, slideText, slideButton, heroContainer, homeLogo].filter(el => el !== null);
+    
+    elements.forEach((element) => {
+      if (element) {
+        // Set initial state
+        (element as HTMLElement).style.transform = 'scale(0.8) translateY(-20px)';
+        (element as HTMLElement).style.opacity = '0';
+        
+        // Animate to final state
+        setTimeout(() => {
+          (element as HTMLElement).style.transition = 'all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+          (element as HTMLElement).style.transform = 'scale(1) translateY(0)';
+          (element as HTMLElement).style.opacity = '1';
+        }, 50);
+      }
+    });
+    
+    logger.info('✅ Slider enter animation applied');
+  } catch (error) {
+    logger.error('❌ Failed to animate slider enter:', error);
   }
 };
 

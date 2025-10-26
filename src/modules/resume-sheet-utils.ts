@@ -21,6 +21,10 @@ interface MouseEventWithTarget extends MouseEvent {
 // Global state
 let activeModal: HTMLElementWithCleanup | null = null;
 let modalVisible: boolean = false;
+let modalOptions: { 
+  resume: () => void;
+  pause: () => void;
+} | null = null;
 
 /**
  * Get active modal
@@ -252,10 +256,20 @@ export function getModalOptions(): {
   resume: () => void;
   pause: () => void;
 } {
-  return {
+  return modalOptions || {
     resume: resumeGame,
     pause: pauseGame
   };
+}
+
+/**
+ * Set modal options
+ */
+export function setModalOptions(options: { 
+  resume: () => void;
+  pause: () => void;
+}): void {
+  modalOptions = options;
 }
 
 /**

@@ -33,7 +33,6 @@ declare let window: WindowWithCC;
 
 // Global state
 let activeModal: HTMLElement | null = null;
-let isModalVisible: boolean = false;
 
 /**
  * Get active modal
@@ -53,14 +52,17 @@ export function setActiveModal(modal: HTMLElement | null): void {
  * Check if modal is visible
  */
 export function isModalVisible(): boolean {
-  return isModalVisible;
+  return isModalVisibleState;
 }
+
+// Rename the variable to avoid conflict with function name
+let isModalVisibleState: boolean = false;
 
 /**
  * Set modal visibility
  */
 export function setModalVisible(visible: boolean): void {
-  isModalVisible = visible;
+  isModalVisibleState = visible;
 }
 
 /**

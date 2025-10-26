@@ -1,6 +1,7 @@
 // clean-board-animations.ts
 // Animations for clean board modal
 
+import { gsap } from 'gsap';
 
 // Animation options
 interface AnimationOptions {
@@ -448,6 +449,138 @@ export function animateScoreChange(
       }, duration * 500);
     };
   });
+}
+
+/**
+ * Animate score counting from 0 to target value
+ */
+export function animateScoreCount(element: HTMLElement, targetValue: number, duration: number = 2000): Promise<void> {
+  return new Promise((resolve) => {
+    if (!element) {
+      resolve();
+      return;
+    }
+    
+    const proxy = { value: 0 };
+    
+    // Animate counting up
+    gsap.to(proxy, {
+      value: targetValue,
+      duration: duration / 1000, // Convert ms to seconds
+      ease: 'power2.out',
+      onUpdate: () => {
+        const rounded = Math.round(proxy.value);
+        element.textContent = rounded.toLocaleString();
+      },
+      onComplete: () => {
+        element.textContent = targetValue.toLocaleString();
+        resolve();
+      }
+    });
+  });
+}
+
+/**
+ * Complete 4-step clean board animation flow
+ */
+export async function animateCleanBoardCompleteFlow(
+  mainScoreElement: HTMLElement,
+  bonusScoreElement: HTMLElement,
+  boardInfoElement: HTMLElement,
+  currentScore: number,
+  bonus: number,
+  boardNumber: number,
+  continueButtonContainer: HTMLElement
+): Promise<void> {
+  
+  // STEP 1: Animate main score from 0 to current score
+  await animateScoreCount(mainScoreElement, currentScore, 1500);
+  
+  // Wait a bit
+  await new Promise(resolve => setTimeout(resolve, 300));
+  
+  // STEP 2: Show bonus score (+500 Bonus score)
+  gsap.to(bonusScoreElement, {
+    opacity: 1,
+    duration: 0.3,
+    ease: 'power2.out'
+  });
+  
+  // Wait a bit
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
+  // STEP 3: Animate main score increase and bonus decrease
+  const targetScore = currentScore + bonus;
+  const bonusProxy = { value: bonus };
+  
+  // Animate both simultaneously
+  await Promise.all([
+    // Main score counts up
+    new Promise<void>((resolve) => {
+      gsap.to({ value: currentScore }, {
+        value: targetScore,
+        duration: 1.5,
+        ease: 'power2.out',
+        onUpdate: function() {
+          mainScoreElement.textContent = Math.round(this.targets()[0].value).toLocaleString();
+        },
+        onComplete: () => {
+          mainScoreElement.textContent = targetScore.toLocaleString();
+          resolve();
+        }
+      });
+    }),
+    // Bonus counts down to 0
+    new Promise<void>((resolve) => {
+      gsap.to(bonusProxy, {
+        value: 0,
+        duration: 1.5,
+        ease: 'power2.in',
+        onUpdate: () => {
+          bonusScoreElement.textContent = `+${Math.round(bonusProxy.value)} Bonus score`;
+        },
+        onComplete: () => {
+          bonusScoreElement.textContent = '0 Bonus score';
+          resolve();
+        }
+      });
+    })
+  ]);
+  
+  // Hide bonus score, show board info
+  gsap.to(bonusScoreElement, {
+    opacity: 0,
+    duration: 0.2,
+    onComplete: () => {
+      bonusScoreElement.style.display = 'none';
+      boardInfoElement.textContent = `Board #${boardNumber} cleared`;
+      gsap.to(boardInfoElement, {
+        opacity: 1,
+        duration: 0.3
+      });
+    }
+  });
+  
+  // Wait a bit
+  await new Promise(resolve => setTimeout(resolve, 400));
+  
+  // STEP 4: Show continue button
+  continueButtonContainer.style.display = 'flex';
+  const continueBtn = continueButtonContainer.querySelector('[data-action="continue"]') as HTMLElement;
+  if (continueBtn) {
+    gsap.fromTo(continueBtn, 
+      { 
+        opacity: 0,
+        y: 20
+      },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.4,
+        ease: 'back.out(1.3)'
+      }
+    );
+  }
 }
 
 // All functions are already exported individually above

@@ -205,16 +205,46 @@ export class AssetPreloader {
       logger.info('🔄 Starting asset preloading...');
       
       try {
-        // Load all assets using PIXI Assets
-        await Assets.load(ALL_ASSETS, (progress: number) => {
-          this.loadedCount = Math.round(progress * this.totalCount);
+        // CRITICAL: Filter out problematic FX assets that cause hangs
+        const criticalAssets = ALL_ASSETS.filter(asset => {
+          // Skip FX assets - load them lazily during gameplay
+          if (asset.includes('/fx/boom/')) {
+            return false;
+          }
+          // Include everything else
+          return true;
+        });
+        
+        logger.info(`📦 Loading ${criticalAssets.length} critical assets (skipping ${ALL_ASSETS.length - criticalAssets.length} FX assets)`);
+        
+        // Update total count for progress tracking
+        this.totalCount = criticalAssets.length;
+        
+        // Load critical assets using PIXI Assets with timeout
+        const loadPromise = Assets.load(criticalAssets, (progress: number) => {
+          this.loadedCount = Math.round(progress * criticalAssets.length);
           this.updateProgress();
         });
         
-        logger.info('✅ All assets preloaded successfully');
+        // Add timeout to prevent infinite hangs (30 seconds max)
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Asset loading timeout after 30 seconds')), 30000);
+        });
+        
+        await Promise.race([loadPromise, timeoutPromise]);
+        
+        logger.info('✅ Critical assets preloaded successfully');
+        
+        // Mark as complete even if some assets failed
+        this.loadedCount = this.totalCount;
+        this.updateProgress();
         
         // Load audio files directly (not through PIXI.js)
-        await this.loadAudioFiles();
+        try {
+          await this.loadAudioFiles();
+        } catch (err) {
+          logger.warn('⚠️ Audio loading failed, continuing...', err);
+        }
         
         if (this.onComplete) {
           this.onComplete();
@@ -223,8 +253,13 @@ export class AssetPreloader {
       } catch (error) {
         logger.error('❌ Asset preloading failed:', error);
         
-        if (this.onError) {
-          this.onError(error as Error);
+        // Even on error, continue with the app
+        this.loadedCount = this.totalCount;
+        this.updateProgress();
+        
+        // Still call onComplete to allow app to continue
+        if (this.onComplete) {
+          this.onComplete();
         }
       }
     })();

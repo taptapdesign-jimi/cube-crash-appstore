@@ -17,7 +17,17 @@
   <link rel="stylesheet" href="./src/independent-navigation.css">
   
   <style>
-    * { box-sizing: border-box; }
+    * { 
+      box-sizing: border-box;
+      /* GLOBAL: Disable text selection and long-press menu everywhere */
+      -webkit-user-select: none !important;
+      -webkit-touch-callout: none !important;
+      -khtml-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+    }
+    
     html, body {
       margin: 0;
       padding: 0;
@@ -34,6 +44,10 @@
       left: 0;
       right: 0;
       bottom: 0;
+      /* iOS: Disable text selection and long-press menu */
+      -webkit-user-select: none !important;
+      -webkit-touch-callout: none !important;
+      user-select: none !important;
     }
     
     body {

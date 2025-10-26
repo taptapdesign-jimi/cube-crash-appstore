@@ -27,21 +27,13 @@ export function createHomeSlide(config: SlideConfig): HTMLElementConfig {
             children: [
               {
                 tag: 'img',
-                className: 'hero-image',
+                id: 'slider-parallax-image',
+                className: 'hero-image slider-parallax-image',
                 attributes: {
                   src: './assets/crash-cubes-homepage.png',
                   alt: 'Crashed cubes',
                   loading: 'eager',
                   fetchpriority: 'high',
-                },
-              },
-              {
-                tag: 'img',
-                id: 'slider-parallax-image',
-                className: 'slider-parallax-image',
-                attributes: {
-                  src: './assets/crash-cubes-homepage.png',
-                  alt: 'Parallax',
                 },
               },
               {
