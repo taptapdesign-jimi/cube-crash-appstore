@@ -233,12 +233,18 @@ class UIManager {
         combo: 0
       });
       
-      logger.info('✅ Game state set, hiding homepage...');
+      logger.info('✅ Game state set, starting game...');
       
-      // NOTE: Slider exit animation was already played by triggerGameStartSequence
-      // Don't play it again here!
+      // CRITICAL: Always play exit animation first, even when coming from resume sheet
+      logger.info('🎬 Playing exit animation before starting game...');
+      animateSliderExit();
       
-      // Hide homepage immediately (exit anim already played)
+      // Wait for exit animation to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      logger.info('✅ Exit animation complete, hiding homepage...');
+      
+      // Hide homepage after exit anim
       this.hideHomepage();
       
       // Show app element (CRITICAL!)

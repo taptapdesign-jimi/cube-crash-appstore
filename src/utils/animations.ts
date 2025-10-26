@@ -90,72 +90,237 @@ export const safeUnlockSlider = (): void => {
   }
 };
 
-// Animate slider exit when clicking CTA
+// Animate slider exit when clicking CTA - CARTOONISH BOUNCE-INTO-SCALE-0
 export const animateSliderExit = (): void => {
   try {
-    logger.info('🎬 Starting slider exit animation...');
+    logger.info('🎬 Starting cartoonish bounce-in-to-scale-0 exit animation...');
     
-    const slideContent = document.querySelector('.slide-content');
-    const slideText = document.querySelector('.slide-text');
-    const slideButton = document.querySelector('.slide-button');
-    const heroContainer = document.querySelector('.hero-container');
-    const homeLogo = document.querySelector('#home-logo');
+    // CRITICAL: Clean up any leftover animations first
+    const allSliderElements = [
+      '.hero-container',
+      '.slide-text',
+      '.slide-button',
+      '#slider-dots',
+      '#home-logo',
+      '#independent-nav',
+      '#slider-container'
+    ];
     
-    // Apply exit animation to all slider elements
-    const elements = [slideContent, slideText, slideButton, heroContainer, homeLogo].filter(el => el !== null);
-    
-    elements.forEach((element, index) => {
+    allSliderElements.forEach(selector => {
+      const element = document.querySelector(selector);
       if (element) {
         const el = element as HTMLElement;
-        // Add GPU acceleration for smoother animations on iOS
-        el.style.willChange = 'transform, opacity';
-        el.style.backfaceVisibility = 'hidden';
-        el.style.webkitBackfaceVisibility = 'hidden';
-        el.style.perspective = '1000px';
-        
-        // Smoother cubic-bezier for iOS-like feel
-        el.style.transition = 'all 0.4s cubic-bezier(0.4, 0.0, 0.2, 1)';
-        el.style.transform = 'scale(0.8) translateY(-20px)';
-        el.style.opacity = '0';
+        // Kill any ongoing transitions
+        el.style.transition = 'none';
+        el.style.transform = '';
+        el.style.opacity = '';
+        el.style.willChange = '';
+        // Force reflow to cancel animations
+        void el.offsetHeight;
       }
     });
     
-    logger.info('✅ Slider exit animation applied');
+    // Helper function for cartoonish bounce scale animation
+    const cartoonishBounce = (element: HTMLElement, delay: number) => {
+      setTimeout(() => {
+        element.style.willChange = 'transform, opacity';
+        element.style.transition = 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)'; // Bouncy easing
+        element.style.transform = 'scale(0)';
+        element.style.opacity = '0';
+      }, delay);
+    };
+    
+    // STEP 1: Hero image - bounce into nothing
+    const heroContainer = document.querySelector('.hero-container');
+    if (heroContainer) {
+      cartoonishBounce(heroContainer as HTMLElement, 0);
+      logger.info('🖼️ Step 1: Hero image cartoonish bounce to scale(0)');
+    }
+    
+    // STEP 2: Slide text
+    const slideText = document.querySelector('.slide-text');
+    if (slideText) {
+      cartoonishBounce(slideText as HTMLElement, 100);
+      logger.info('📝 Step 2: Slide text cartoonish bounce to scale(0)');
+    }
+    
+    // STEP 3: Play button
+    const slideButton = document.querySelector('.slide-button');
+    if (slideButton) {
+      cartoonishBounce(slideButton as HTMLElement, 200);
+      logger.info('🔘 Step 3: Play button cartoonish bounce to scale(0)');
+    }
+    
+    // STEP 4: Navigation dots
+    const sliderNav = document.querySelector('#slider-dots');
+    if (sliderNav) {
+      cartoonishBounce(sliderNav as HTMLElement, 300);
+      logger.info('🎯 Step 4: Navigation dots cartoonish bounce to scale(0)');
+    }
+    
+    // STEP 5: Home logo
+    const homeLogo = document.querySelector('#home-logo');
+    if (homeLogo) {
+      cartoonishBounce(homeLogo as HTMLElement, 400);
+      logger.info('🎨 Step 5: Home logo cartoonish bounce to scale(0)');
+    }
+    
+    // STEP 6: Independent navigation (bottom nav bar) - FASTER
+    const independentNav = document.getElementById('independent-nav');
+    if (independentNav) {
+      cartoonishBounce(independentNav as HTMLElement, 150);
+      logger.info('🎯 Step 6: Independent navigation cartoonish bounce to scale(0) - FASTER');
+    }
+    
+    // STEP 7: Slider container (last)
+    const sliderContainer = document.getElementById('slider-container');
+    if (sliderContainer) {
+      setTimeout(() => {
+        sliderContainer.style.willChange = 'transform, opacity';
+        sliderContainer.style.transition = 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        sliderContainer.style.transform = 'scale(0)';
+        sliderContainer.style.opacity = '0';
+      }, 600);
+      logger.info('📦 Step 7: Slider container cartoonish bounce to scale(0)');
+    }
+    
+    logger.info('✅ Cartoonish bounce-in-to-scale-0 exit animation started');
   } catch (error) {
     logger.error('❌ Failed to animate slider exit:', error);
   }
 };
 
-// Animate slider enter when returning to home
+// Animate slider enter when returning to home - REVERSE OF EXIT ANIMATION
 export const animateSliderEnter = (): void => {
   try {
-    logger.info('🎬 Starting slider enter animation...');
+    logger.info('🎬 Starting reverse cartoonish bounce enter animation...');
     
-    const slideContent = document.querySelector('.slide-content');
-    const slideText = document.querySelector('.slide-text');
-    const slideButton = document.querySelector('.slide-button');
-    const heroContainer = document.querySelector('.hero-container');
-    const homeLogo = document.querySelector('#home-logo');
+    // CRITICAL: Clean up any leftover animations first
+    const allSliderElements = [
+      '.hero-container',
+      '.slide-text',
+      '.slide-button',
+      '#slider-dots',
+      '#home-logo',
+      '#slider-container'
+    ];
     
-    // Apply enter animation to all slider elements
-    const elements = [slideContent, slideText, slideButton, heroContainer, homeLogo].filter(el => el !== null);
-    
-    elements.forEach((element) => {
+    allSliderElements.forEach(selector => {
+      const element = document.querySelector(selector);
       if (element) {
-        // Set initial state
-        (element as HTMLElement).style.transform = 'scale(0.8) translateY(-20px)';
-        (element as HTMLElement).style.opacity = '0';
-        
-        // Animate to final state
-        setTimeout(() => {
-          (element as HTMLElement).style.transition = 'all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-          (element as HTMLElement).style.transform = 'scale(1) translateY(0)';
-          (element as HTMLElement).style.opacity = '1';
-        }, 50);
+        const el = element as HTMLElement;
+        // Kill any ongoing transitions
+        el.style.transition = 'none';
+        el.style.transform = '';
+        el.style.opacity = '';
+        el.style.willChange = '';
+        // Force reflow to cancel animations
+        void el.offsetHeight;
       }
     });
     
-    logger.info('✅ Slider enter animation applied');
+    // Helper function for reverse bounce animation (scale 0 to 1)
+    const reverseBounce = (element: HTMLElement, delay: number) => {
+      // Set initial state (from scale 0) - NO TRANSITION YET
+      element.style.transition = 'none'; // Crucial: no transition when setting initial state
+      element.style.transform = 'scale(0)';
+      element.style.opacity = '0';
+      
+      // Force reflow to apply initial state
+      void element.offsetHeight;
+      
+      setTimeout(() => {
+        element.style.willChange = 'transform, opacity';
+        element.style.transition = 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)'; // Same bouncy easing
+        element.style.transform = 'scale(1)';
+        element.style.opacity = '1';
+      }, delay);
+    };
+    
+    // Get slider container and reset it first
+    const sliderContainer = document.getElementById('slider-container');
+    if (sliderContainer) {
+      sliderContainer.style.transform = 'scale(0)';
+      sliderContainer.style.opacity = '0';
+      setTimeout(() => {
+        sliderContainer.style.willChange = 'transform, opacity';
+        sliderContainer.style.transition = 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+        sliderContainer.style.transform = 'scale(1)';
+        sliderContainer.style.opacity = '1';
+      }, 0);
+      logger.info('📦 Step 1: Slider container reverse bounce from scale(0)');
+    }
+    
+    // STEP 1: Hero image - bounce from 0 to 1
+    const heroContainer = document.querySelector('.hero-container');
+    if (heroContainer) {
+      reverseBounce(heroContainer as HTMLElement, 100);
+      logger.info('🖼️ Step 2: Hero image reverse bounce from scale(0)');
+    }
+    
+    // STEP 2: Slide text
+    const slideText = document.querySelector('.slide-text');
+    if (slideText) {
+      reverseBounce(slideText as HTMLElement, 200);
+      logger.info('📝 Step 3: Slide text reverse bounce from scale(0)');
+    }
+    
+    // STEP 3: Play button
+    const slideButton = document.querySelector('.slide-button');
+    if (slideButton) {
+      reverseBounce(slideButton as HTMLElement, 300);
+      logger.info('🔘 Step 4: Play button reverse bounce from scale(0)');
+    }
+    
+    // STEP 4: Navigation dots
+    const sliderNav = document.querySelector('#slider-dots');
+    if (sliderNav) {
+      reverseBounce(sliderNav as HTMLElement, 400);
+      logger.info('🎯 Step 5: Navigation dots reverse bounce from scale(0)');
+    }
+    
+    // STEP 5: Home logo (faster appearance)
+    const homeLogo = document.querySelector('#home-logo');
+    if (homeLogo) {
+      reverseBounce(homeLogo as HTMLElement, 100);
+      logger.info('🎨 Step 6: Home logo reverse bounce from scale(0) - FASTER');
+    }
+    
+    // STEP 6: Independent navigation (bottom nav bar) - FASTER
+    const independentNav = document.getElementById('independent-nav');
+    if (independentNav) {
+      reverseBounce(independentNav as HTMLElement, 150);
+      logger.info('🎯 Step 7: Independent navigation reverse bounce from scale(0) - FASTER');
+    }
+    
+    // CRITICAL: After all animations complete, ensure all elements are at final state
+    setTimeout(() => {
+      const allElements = [
+        '.hero-container',
+        '.slide-text',
+        '.slide-button',
+        '#slider-dots',
+        '#home-logo',
+        '#independent-nav',
+        '#slider-container'
+      ];
+      
+      allElements.forEach(selector => {
+        const element = document.querySelector(selector);
+        if (element) {
+          const el = element as HTMLElement;
+          // Ensure final state - remove transitions, set to final values
+          el.style.transition = 'none';
+          el.style.transform = 'scale(1)';
+          el.style.opacity = '1';
+          el.style.willChange = 'auto';
+        }
+      });
+      
+      logger.info('✅ All slider elements set to final state (scale(1), opacity(1))');
+    }, 1100); // 500ms delay + 500ms animation + 100ms buffer
+    
+    logger.info('✅ Reverse cartoonish bounce enter animation started');
   } catch (error) {
     logger.error('❌ Failed to animate slider enter:', error);
   }

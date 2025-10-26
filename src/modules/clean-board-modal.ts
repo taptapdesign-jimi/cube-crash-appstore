@@ -174,9 +174,9 @@ export async function showCleanBoardModal({
         case 'continue':
           logger.info('✅ Continuing game');
           // Update score
-          setScore(newScore);
-          animateScore(newScore, 1000);
-          updateHUD();
+          if (setScore) setScore(newScore);
+          if (animateScore) animateScore(newScore, 1000);
+          if (updateHUD) updateHUD();
           updateHighScore(newScore);
           
           // Hide modal immediately on continue

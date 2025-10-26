@@ -83,9 +83,12 @@ function createResumeModal(): HTMLElement {
         console.warn('⚠️ Failed to clear saved game state:', error);
       }
       hideResumeModal();
+      // CRITICAL: Wait for modal to close, then start game directly (no duplicate exit anim)
       setTimeout(() => {
-        if (typeof (window as any).triggerGameStartSequence === 'function') {
-          (window as any).triggerGameStartSequence();
+        console.log('🎮 Starting game after modal closed');
+        // Call startNewGame directly - it will handle exit animation
+        if ((window as any).uiManager) {
+          (window as any).uiManager.startNewGame();
         }
       }, 600);
     });
@@ -157,7 +160,7 @@ export function hideResumeModal(): void {
   modalEl.style.transform = 'translateY(100%)';
   
   safeUnlockSlider();
-  safeResumeGame();
+  // CRITICAL: Don't resume game here - let startNewGame handle it
 
   try {
     const cleanups = Array.isArray((modalEl as any)._cleanupFns) ? [...(modalEl as any)._cleanupFns] : [];

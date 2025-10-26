@@ -767,20 +767,26 @@ function cellXY(c, r){ return { x: c*(TILE+GAP), y: r*(TILE+GAP) }; }
 let backgroundLayer = null;
 
 function initializeBackgroundLayer(){
-  if (backgroundLayer) {
-    console.log('⚠️ Background layer already exists, skipping initialization');
-    return;
-  }
-  
+  // CRITICAL: Always create new background layer for each game
   const PAD=5, RADIUS=Math.round(TILE*0.26), WIDTH=8, COLOR=0xEBE6E2, ALPHA=0.64;
   
-  // Create a dedicated container for background elements
+  // Remove existing background layer if it exists
+  if (backgroundLayer) {
+    try {
+      board.removeChild(backgroundLayer);
+      backgroundLayer.destroy({ children: true });
+    } catch (e) {
+      console.warn('⚠️ Error removing existing background layer:', e);
+    }
+  }
+  
+  // Create a new dedicated container for background elements
   backgroundLayer = new Container();
   backgroundLayer.zIndex = -10000; // Always at the very bottom
   backgroundLayer.eventMode = 'none'; // Non-interactive
   backgroundLayer.label = 'BackgroundLayer'; // For debugging
   
-  // Add to board ONCE
+  // Add to board
   board.addChildAt(backgroundLayer, 0);
   
   console.log('🎯 Creating FIXED background layer with all ghost placeholders');

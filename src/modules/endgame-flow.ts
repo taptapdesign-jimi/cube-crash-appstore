@@ -36,9 +36,6 @@ interface CleanBoardModalOptions {
   boardNumber: number;
 }
 
-export const importFresh = (p: string): Promise<any> =>
-  import(/* @vite-ignore */ `${p}?bust=${Date.now()}&r=${Math.random()}`);
-
 export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
   const {
     app, stage, board, boardBG,
@@ -60,7 +57,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     const effectiveBoard = Math.max(1, boardNumber | 0);
     const bonus = Math.max(500, effectiveBoard * 500);
 
-    const { showCleanBoardModal } = await importFresh('./clean-board-modal.js');
+    const { showCleanBoardModal } = await import('./clean-board-modal.js');
     await showCleanBoardModal({ 
       app, stage,
       getScore: ctx.getScore,

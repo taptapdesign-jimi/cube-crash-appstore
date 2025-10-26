@@ -68,7 +68,7 @@
   /* Moved up 16px towards top of mobile */
 }
 
-/* Divider with correct color #E9C698 */
+/* Divider with correct color #D9AC74 - darker for better visibility */
 .independent-nav-divider::before {
   content: '' !important;
   position: absolute !important;
@@ -76,7 +76,7 @@
   left: 0 !important;
   width: 100% !important;
   height: 0.5px !important; /* lineWidth: 0.50 */
-  background: #E9C698 !important; /* Correct color as requested */
+  background: #C19A67 !important; /* Even darker color for better visibility */
   z-index: 1 !important;
 }
 

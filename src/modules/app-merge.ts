@@ -254,6 +254,12 @@ export function merge(src, dst, helpers){
             ttl: 0.9
           });
         }
+        
+        // Update ghost visibility after merge
+        if (typeof window.updateGhostVisibility === 'function') {
+          window.updateGhostVisibility();
+        }
+        
         STATE.moves++; updateHUD();
         
         // CRITICAL FIX: Wild merges should spawn new tiles to prevent wild cubes from getting stuck
@@ -376,6 +382,11 @@ export function merge(src, dst, helpers){
         const holder = makeBoard.createTile({ board: STATE.board, grid: STATE.grid, tiles: STATE.tiles, c: gx, r: gy, val: 0, locked: true });
         holder.alpha = 0.35; holder.eventMode = 'none';
         drawBoardBG(); // Re-enabled for dynamic ghost placeholders
+
+        // Update ghost visibility after tile removal
+        if (typeof window.updateGhostVisibility === 'function') {
+          window.updateGhostVisibility();
+        }
 
         STATE.moves++; updateHUD();
         animateScore(STATE.score + 6 * mult, 0.45);

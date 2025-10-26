@@ -145,8 +145,9 @@ export function updateHUD(): void {
  * Update high score
  */
 export function updateHighScore(score: number): void {
-  if ((window as WindowWithUpdateHighScore).updateHighScore) {
-    (window as WindowWithUpdateHighScore).updateHighScore!(score);
+  const windowWithUpdate = window as WindowWithUpdateHighScore;
+  if (windowWithUpdate.updateHighScore) {
+    windowWithUpdate.updateHighScore(score);
   }
 }
 
@@ -316,11 +317,11 @@ export function executeModalCallback(callback: (() => void | Promise<void>) | un
       const result = callback();
       if (result instanceof Promise) {
         result.catch(error => {
-          logger.error('❌ Modal callback error:', error);
+          logger.error('❌ Modal callback error:', String(error));
         });
       }
     } catch (error) {
-      logger.error('❌ Modal callback error:', error);
+      logger.error('❌ Modal callback error:', String(error));
     }
   }
 }
