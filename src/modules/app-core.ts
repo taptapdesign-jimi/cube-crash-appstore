@@ -1510,9 +1510,6 @@ function merge(src, dst, helpers){
           } catch (error) {
             console.warn('⚠️ CLEAN BOARD: Failed to reset wild meter:', error);
           }
-          
-          // Track highest board reached
-          try { if (typeof window.trackHighestBoard === 'function') window.trackHighestBoard(boardNumber); } catch {}
 
           try {
             try { await new Promise(res => setTimeout(res, 1000)); } catch {}
