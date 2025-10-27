@@ -530,7 +530,7 @@ class UIManager {
       
       // CRITICAL: Update stats values when showing stats screen
       try {
-        import('./components/stats-screen.js').then(({ updateStatsValues }) => {
+        import('../ui/components/stats-screen.js').then(({ updateStatsValues }) => {
           console.log('📊 About to call updateStatsValues() from ui-manager...');
           updateStatsValues();
           console.log('✅ updateStatsValues() called from ui-manager');
