@@ -179,6 +179,19 @@ class StatsService {
       console.log(`🏆 New high score! ${this.stats.highScore} -> ${score}`);
       this.stats.highScore = score;
       this.saveStats();
+      // CRITICAL: Force immediate flush to localStorage to prevent data loss on iOS
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.highScore !== this.stats.highScore) {
+            console.warn('⚠️ High score mismatch! Forcing save...');
+            this.saveStats();
+          }
+        }
+      } catch (error) {
+        console.error('❌ Failed to verify high score save:', error);
+      }
     } else {
       console.log(`ℹ️ Score ${score} is not higher than current high score ${this.stats.highScore}`);
     }
