@@ -236,11 +236,11 @@ window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => 
   errorHandler.handleError(event.reason, 'Unhandled Promise Rejection');
 });
 
-// iOS HARD CLOSE: Save high score when app goes to background or closes
+// iOS HARD CLOSE: Save high score and time when app goes to background or closes
 document.addEventListener('visibilitychange', async () => {
   if (document.hidden) {
     // App is going to background or closing (hard close on iOS)
-    console.log('📱 App hidden - saving high score before close');
+    console.log('📱 App hidden - saving high score and time before close');
     
     try {
       // Get current score from STATE or HUD
@@ -256,8 +256,23 @@ document.addEventListener('visibilitychange', async () => {
         statsService.updateHighScore(currentScore);
         console.log('✅ High score saved before app hidden:', currentScore);
       }
+      
+      // CRITICAL: Save time played before app hidden
+      if (typeof (window as any).stopTimeTracking === 'function') {
+        console.log('⏱️ Saving time before app hidden');
+        (window as any).stopTimeTracking();
+        // Restart time tracking if game is still active
+        const { gameState: gs } = await import('./modules/game-state.js');
+        if (gs.get('isGameActive')) {
+          // Game is still active, restart time tracking
+          if (typeof (window as any).startTimeTracking === 'function') {
+            (window as any).startTimeTracking();
+            console.log('⏱️ Time tracking restarted (game still active)');
+          }
+        }
+      }
     } catch (error) {
-      console.error('❌ Failed to save high score before app hidden:', error);
+      console.error('❌ Failed to save data before app hidden:', error);
     }
   }
 });
