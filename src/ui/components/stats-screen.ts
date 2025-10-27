@@ -92,13 +92,13 @@ export function updateStatsValues(): void {
 }
 
 const DEFAULT_STATS: StatItem[] = [
-  { id: 'high-score', icon: './assets/highscore-icon.png', value: '8975', label: 'High score', valueId: 'high-score' },
-  { id: 'cubes-cracked', icon: './assets/cubes-cracked.png', value: '3441', label: 'Cubes cracked', valueId: 'cubes-cracked' },
+  { id: 'high-score', icon: './assets/highscore-icon.png', value: '0', label: 'High score', valueId: 'high-score' },
+  { id: 'cubes-cracked', icon: './assets/cubes-cracked.png', value: '0', label: 'Cubes cracked', valueId: 'cubes-cracked' },
   { id: 'highest-board', icon: './assets/clean-board.png', value: '0', label: 'Highest board', valueId: 'highest-board' },
-  { id: 'longest-combo', icon: './assets/combo-stats.png', value: '12', label: 'Longest combo', valueId: 'longest-combo' },
-  { id: 'helpers-used', icon: './assets/wild-stats.png', value: '1527', label: 'Helpers used', valueId: 'helpers-used' },
+  { id: 'longest-combo', icon: './assets/combo-stats.png', value: '0', label: 'Longest combo', valueId: 'longest-combo' },
+  { id: 'helpers-used', icon: './assets/wild-stats.png', value: '0', label: 'Helpers used', valueId: 'helpers-used' },
   { id: 'time-played', icon: './assets/time-icon.png', value: '00:00:00', label: 'Time played', valueId: 'time-played' },
-  { id: 'collectibles-unlocked', icon: './assets/collectible-stats.png', value: '3/20', label: 'Collectibles unlocked', valueId: 'collectibles-unlocked' },
+  { id: 'collectibles-unlocked', icon: './assets/collectible-stats.png', value: '0/20', label: 'Collectibles unlocked', valueId: 'collectibles-unlocked' },
 ];
 
 function createStatItem(stat: StatItem): HTMLElementConfig {
