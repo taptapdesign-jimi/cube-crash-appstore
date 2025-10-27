@@ -100,11 +100,33 @@ class StatsService {
     }
   }
 
-  // Save stats to localStorage
+  // Save stats to localStorage (with iOS optimizations)
   private saveStats(): void {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.stats));
-      console.log('💾 Stats saved:', this.stats);
+      const statsString = JSON.stringify(this.stats);
+      
+      // Try uncomfortable true and catch quota errors
+      try {
+        localStorage.setItem(STORAGE_KEY, statsString);
+        console.log('💾 Stats saved:', this.stats);
+      } catch (quotaError) {
+        // iOS sometimes throws quota errors, try cleaning and retrying
+        console.warn('⚠️ localStorage quota error, trying cleanup...');
+        
+        try {
+          // Clear old keys to free up space
+          const oldKeys = Object.keys(localStorage).filter(key => 
+            key.startsWith('cc_') && key !== STORAGE_KEY
+          );
+          oldKeys.forEach(key => localStorage.removeItem(key));
+          
+          // Retry save
+          localStorage.setItem(STORAGE_KEY, statsString);
+          console.log('💾 Stats saved after cleanup:', this.stats);
+        } catch (retryError) {
+          console.error('❌ Failed to save stats after retry:', retryError);
+        }
+      }
     } catch (error) {
       console.error('❌ Failed to save stats:', error);
     }
