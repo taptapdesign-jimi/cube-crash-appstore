@@ -105,7 +105,7 @@ class StatsService {
     try {
       const statsString = JSON.stringify(this.stats);
       
-      // Try uncomfortable true and catch quota errors
+      // Try to save first and catch quota errors
       try {
         localStorage.setItem(STORAGE_KEY, statsString);
         console.log('💾 Stats saved:', this.stats);
