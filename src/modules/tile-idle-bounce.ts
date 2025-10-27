@@ -129,10 +129,10 @@ function animateTile(tile: Tile): void {
   
   // Organic animation: cube rises from floor, wiggles, gravity brings it down
   
-  // Phase 1: Rise from floor - scale up to 1.3 (0-0.4s)
+  // Phase 1: Rise from floor - scale up to 1.15 (0-0.4s)
   tl.to(rotG.scale, {
-    x: baseScaleX * 1.3,
-    y: baseScaleY * 1.3,
+    x: baseScaleX * 1.15,
+    y: baseScaleY * 1.15,
     duration: 0.4,
     ease: 'back.out(1.5)'
   });
@@ -148,13 +148,27 @@ function animateTile(tile: Tile): void {
   
   // Slight scale variation during wiggle for organic feel
   tl.to(rotG.scale, {
-    x: baseScaleX * (1.3 + wiggleAmount / 100),
-    y: baseScaleY * (1.3 + wiggleAmount / 100),
+    x: baseScaleX * (1.15 + wiggleAmount / 100),
+    y: baseScaleY * (1.15 + wiggleAmount / 100),
     duration: 0.15,
     ease: 'sine.inOut',
     yoyo: true,
     repeat: 1
   }, '>');
+  
+  // Activate smoke bubbles 0.3s faster (at 0.55s)
+  tl.call(() => {
+    vice(board && tile) {
+      smokeBubblesAtTile(state.board, tile, 96, {
+        behind: true,
+        sizeScale: 1.12,
+        distanceScale: 0.7,
+        countScale: 0.75,
+        haloScale: 1.1,
+        strength: 0.5 + Math.random() * 0.3
+      });
+    }
+  }, null, '>');
   
   // Phase 3: Gravity brings it down to floor - quick return to 1.0 (0.7-0.85s)
   tl.to(rotG.scale, {
@@ -169,20 +183,6 @@ function animateTile(tile: Tile): void {
     duration: 0.15,
     ease: 'power2.in'
   }, '<');
-  
-  // Phase 4: Impact on floor - activate smoke bubbles (0.85s)
-  tl.call(() => {
-    if (state.board && tile) {
-      smokeBubblesAtTile(state.board, tile, 96, {
-        behind: true,
-        sizeScale: 1.12,
-        distanceScale: 0.7,
-        countScale: 0.75,
-        haloScale: 1.1,
-        strength: 0.5 + Math.random() * 0.3
-      });
-    }
-  });
   
   console.log('🎲 Animating tile:', tile.value);
 }
