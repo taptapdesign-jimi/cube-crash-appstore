@@ -117,31 +117,46 @@ function animateTile(tile: Tile): void {
   const baseScaleX = rotG.scale?.x || 1;
   const baseScaleY = rotG.scale?.y || 1;
   
-  const randomRotation = (Math.random() - 0.5) * 20;
-  const randomScale = 1.05 + Math.random() * 0.1;
-  const randomX = (Math.random() - 0.5) * 15;
-  const randomY = (Math.random() - 0.5) * 15;
-  
   const tl = gsap.timeline({
     onComplete: () => {
       state.activeAnimations.delete(tile);
     }
   });
   
-  tl.to(rotG, {
-    y: randomY,
-    rotation: randomRotation / 2,
+  // Phase 1: Scale to 1.3 (0-0.3s)
+  tl.to(rotG.scale, {
+    x: baseScaleX * 1.3,
+    y: baseScaleY * 1.3,
     duration: 0.3,
     ease: 'power2.out'
   });
   
-  tl.to(rotG.scale, {
-    x: baseScaleX * randomScale,
-    y: baseScaleY * randomScale,
-    duration: 0.3,
-    ease: 'power2.out'
-  }, '<');
+  // Phase 2: Stay at 1.3 and wiggle left-right (0.3-0.5s)
+  const wiggleX = 2 + Math.random() * 4; // 2-6px wiggle
+  tl.to(rotG, {
+    x: -wiggleX,
+    duration: 0.1,
+    ease: 'sine.inOut',
+    yoyo: true,
+    repeat: 1
+  }, '>-0.1');
   
+  // Phase 3: Return to original size quickly (0.5-0.65s)
+  tl.to(rotG.scale, {
+    x: baseScaleX,
+    y: baseScaleY,
+    duration: 0.15,
+    ease: 'back.out(1.5)'
+  });
+  
+  tl.to(rotG, {
+    x: 0,
+    y: 0,
+    duration: 0.15,
+    ease: 'back.out(1.黏)'
+  });
+  
+  // Phase 4: Activate smoke bubbles AFTER scale returns (0.65s)
   tl.call(() => {
     if (state.board && tile) {
       smokeBubblesAtTile(state.board, tile, 96, {
@@ -153,28 +168,7 @@ function animateTile(tile: Tile): void {
         strength: 0.5 + Math.random() * 0.3
       });
     }
-  }, null, 0.3);
-  
-  tl.to(rotG, {
-    rotation: randomRotation,
-    duration: 0.4,
-    ease: 'power2.inOut'
-  }, '>-0.1');
-  
-  tl.to(rotG, {
-    x: 0,
-    y: 0,
-    rotation: 0,
-    duration: 0.3,
-    ease: 'back.out(1.2)'
-  });
-  
-  tl.to(rotG.scale, {
-    x: baseScaleX,
-    y: baseScaleY,
-    duration: 0.3,
-    ease: 'back.out(1.2)'
-  }, '<');
+  }, null, '-=0.15');
   
   console.log('🎲 Animating tile:', tile.value);
 }
