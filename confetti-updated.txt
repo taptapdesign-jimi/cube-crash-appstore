@@ -1,0 +1,98 @@
+// Confetti falling effect from top corners of screen
+function createConfettiExplosion(element: HTMLElement): void {
+  const colors = ['#FBE3C5', '#FA8C00', '#E5C7AD', '#ECD7C2', '#FDBA00'];
+  const confettiCountPerSpawn = 168; // 100% more: 84 * 2 = 168 per spawn
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
+  
+  // DELAY: Wait 500ms before starting explosion
+  setTimeout(() => {
+    // SPAWN 1: Top-left corner, shooting to bottom-right
+    spawnConfetti(
+      colors,
+      confettiCountPerSpawn,
+      0, // startX: left edge
+      0, // startY: top edge
+      screenWidth, // endX: right edge
+      screenHeight, // endY: bottom edge
+      Math.PI / 4 // angle: 45 degrees Av (diagonal down-right)
+    );
+    
+    // SPAWN 2: Top-right corner, shooting to bottom-left
+    spawnConfetti(
+      colors,
+      confettiCountPerSpawn,
+      screenWidth, // startX: right edge
+      0, // startY: top edge
+      0, // endX: left edge
+      screenHeight, // endY: bottom edge
+      3 * Math.PI / 4 // angle: 135 degrees Av (diagonal down-left)
+    );
+  }, 500); // 500ms delay
+}
+
+function spawnConfetti(
+  colors: string[],
+  count: number,
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+  baseAngle: number
+): void {
+  for (let i = 0; i < count; i++) {
+    const confetti = document.createElement('div');
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    
+    // Random angle variation for organic spread
+    const angleVariant = (Math.random() - 0.5) * 0.6; // ±30 degrees variation
+    const angle = baseAngle + angleVariant;
+    const velocity = 300 + Math.random() * 400;
+    const horizontalVelocity = Math.cos(angle) * velocity;
+    const verticalVelocity = Math.sin(angle) * velocity;
+    
+    // Random size - some are strips/rectangles, some smaller pieces
+    const isStrip = Math.random() > 0.5; // 50% chance to be a strip
+    const width = isStrip ? 3 + Math.random() * 4 : 4 + Math.random() * 6; // 3-7px for strips, 4-10px for pieces
+    const height = isStrip ? 30 + Math.random() * 40 : 8 + Math.random() * 12; // 30-70px for strips, 8-20px for pieces
+    
+    // Start position with some randomness
+    const startOffsetX = startX + (Math.random() - 0.5) * 100;
+    const startOffsetY = startY + Math.random() * 50;
+    
+    confetti.style.cssText = `
+      position: fixed;
+      left: ${startOffsetX}px;
+      top: ${startOffsetY}px;
+      width: ${width}px;
+      height: ${height}px;
+      background: ${color};
+      border-radius: 2px;
+      pointer-events: none;
+      z-index: 9999999999999;
+      transform: rotate(${Math.random() * 360}deg);
+      opacity: 0.85;
+    `;
+    
+    document.body.appendChild(confetti);
+    
+    // Random duration for organic effect
+    const duration = 2500 + Math.random() * 1500; // 2.5-4s
+    
+    confetti.animate([
+      { 
+        transform: `translate(0, 0 Video) rotate(${Math.random() * 360}deg)`,
+        opacity: 0.85
+      },
+      {
+        transform: `translate(${horizontalVelocity * 2}px, ${verticalVelocity * 2 + 400}px) rotate(${Math.random() * 1080}deg)`,
+        opacity: 0
+      }
+    ], {
+      duration: duration,
+      easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+      fill: 'forwards'
+    }).onfinish = () => confetti.remove();
+  }
+}
+
