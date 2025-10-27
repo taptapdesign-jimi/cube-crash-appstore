@@ -23,24 +23,31 @@ export function updateStatsValues(): void {
   // Get all stats from localStorage
   const highScoreStr = localStorage.getItem('cc_best_score_v1');
   const highScore = highScoreStr ? parseInt(highScoreStr, 10) || 0 : 0;
+  console.log('📊 highScore from localStorage:', highScoreStr, 'parsed:', highScore);
   
   const highestBoardStr = localStorage.getItem('cc_highest_board');
   const highestBoard = highestBoardStr ? parseInt(highestBoardStr, 10) || 0 : 0;
+  console.log('📊 highestBoard from localStorage:', highestBoardStr, 'parsed:', highestBoard);
   
   const timePlayedStr = localStorage.getItem('cc_time_played');
   const timePlayed = timePlayedStr ? parseInt(timePlayedStr, 10) || 0 : 0;
+  console.log('📊 timePlayed from localStorage:', timePlayedStr, 'parsed:', timePlayed);
   
   const cubesCrackedStr = localStorage.getItem('cc_cubes_cracked');
   const cubesCracked = cubesCrackedStr ? parseInt(cubesCrackedStr, 10) || 0 : 0;
+  console.log('📊 cubesCracked from localStorage:', cubesCrackedStr, 'parsed:', cubesCracked);
   
   const longestComboStr = localStorage.getItem('cc_longest_combo');
   const longestCombo = longestComboStr ? parseInt(longestComboStr, 10) || 0 : 0;
+  console.log('📊 longestCombo from localStorage:', longestComboStr, 'parsed:', longestCombo);
   
   const helpersUsedStr = localStorage.getItem('cc_helpers_used');
   const helpersUsed = helpersUsedStr ? parseInt(helpersUsedStr, 10) || 0 : 0;
+  console.log('📊 helpersUsed from localStorage:', helpersUsedStr, 'parsed:', helpersUsed);
   
   const collectiblesStr = localStorage.getItem('cc_collectibles_unlocked');
   const collectiblesUnlocked = collectiblesStr ? parseInt(collectiblesStr, 10) || 0 : 0;
+  console.log('📊 collectiblesUnlocked from localStorage:', collectiblesStr, 'parsed:', collectiblesUnlocked);
   
   // Update high score
   const highScoreElement = document.getElementById('high-score');
