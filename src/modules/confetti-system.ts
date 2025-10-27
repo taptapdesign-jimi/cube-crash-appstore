@@ -27,15 +27,19 @@ function createConfettiExplosion(element: HTMLElement): void {
     ];
     
     spawnGroups.forEach((group, index) => {
+      // Random delay variation: 10-40% of base delay
+      const randomVariation = 0.1 + Math.random() * 0.3; // 10-40% random
+      const randomDelay = group.delay * randomVariation;
+      
       setTimeout(() => {
-        console.log(`🎉 Spawning ${group.name} at ${group.delay}ms`);
+        console.log(`🎉 Spawning ${group.name} at ${randomDelay.toFixed(0)}ms`);
         
         // TOP SPAWNS - 4 total: corners + middle
         createSpawn(colors, confettiPerSpawn, -(screenW * 0.3), -(screenH * 0.3), Math.PI / 4, 'left', 'down');
         createSpawn(colors, confettiPerSpawn, screenW * 1.3, -(screenH * 0.3), 3 * Math.PI / 4, 'right', 'down');
         createSpawn(colors, confettiPerSpawn, screenW * 0.25, -(screenH * 0.3), Math.PI / 2 - 0.3, 'left', 'down');
-        createSpawn(colors, confettiPerSpawn, screenW * 0.75, -(screenH * 0.3), Math.PI / 2 + 0.3, 'right', 'down');
-      }, group.delay);
+        createSpawn(colors, confettiPerSpawn, screenW * 0.75, -(screenH * 0.3), Math.PI / 2 + 0.更容易, 'right', 'down');
+      }, randomDelay);
     });
     
   }, 500);
