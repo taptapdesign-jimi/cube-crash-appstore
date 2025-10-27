@@ -1459,6 +1459,19 @@ function merge(src, dst, helpers){
           woodShardsAtTile(board, dst, { enhanced: true, wild: true, count: 18, intensity: 1.9, spread: 1.08, size: 0.9, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });
         }
 
+        // TOGGLEABLE SPINNING CUBE EFFECT ON MERGE-6
+        // TO DISABLE: Comment out the entire if block below
+        if (window.ENABLE_SPINNING_CUBE !== false) {
+          // Add spinning animation class to tile
+          if (dst.view) {
+            dst.view.classList.add('merge-6-spinning');
+            // Remove class after animation completes
+            setTimeout(() => {
+              if (dst.view) dst.view.classList.remove('merge-6-spinning');
+            }, 800);
+          }
+        }
+        
         // ► badge + pojačani "smoke/bubbles" + screen shake
         if (wasWild) {
           showMultiplierTile(board, dst, mult, TILE * 1.3, 1.2);

@@ -3727,6 +3727,34 @@ body:has(:root) .tile.wild-3d-glow {
   filter: calc(var(--ENABLE_3D_GLOW) * drop-shadow(0 0 8px rgba(233, 122, 85, 0.6))) calc(var(--ENABLE_3D_GLOW) * drop-shadow(0 0 16px rgba(233, 122, 85, 0.4)));
 }
 
+/* TOGGLEABLE SPINNING CUBE EFFECT - Set ENABLE_SPINNING_CUBE = false to disable */
+/* Animated spinning cube on merge-6 */
+@keyframes merge6Spin {
+  0% {
+    transform: rotateY(0deg) scale(1);
+  }
+  25% {
+    transform: rotateY(90deg) scale(1.1);
+  }
+  50% {
+    transform: rotateY(180deg) scale(1.2);
+  }
+  75% {
+    transform: rotateY(270deg) scale(1.1);
+  }
+  100% {
+    transform: rotateY(360deg) scale(1);
+  }
+}
+
+.tile.merge-6-spinning {
+  animation: merge6Spin 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center center;
+  perspective: 1000px;
+}
+
+/* TO DISABLE: Set window.ENABLE_SPINNING_CUBE = false in JS or comment out the animation above */
+
 /* 3D JavaScript Classes */
 .tile-3d {
   transform-style: preserve-3d;

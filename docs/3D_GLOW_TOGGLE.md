@@ -1,7 +1,8 @@
-# 3D Glow Effect - Toggle Instructions
+# 3D Effects - Toggle Instructions
 
 ## What It Does
-Adds a subtle orange glow around wild cubes for visual appeal.
+1. **3D Glow Effect**: Adds a subtle orange glow around wild cubes for visual appeal
+2. **Spinning Cube Effect**: Adds a spinning animation when merge-6 happens
 
 ## How to ENABLE
 **Already enabled by default!** Just play the game and wild cubes will glow.
@@ -38,11 +39,23 @@ if (tile.view) {
 
 Comment out the `if (tile.view)` block.
 
-## Performance Impact
-- **Enabled**: +2-3% CPU usage, barely noticeable
-- **Disabled**: 0% impact
-- **Recommendation**: Keep enabled, looks nice for App Store screenshots
+### Method 3: JavaScript Toggle (Spinning Cube)
+Open `src/modules/app-core.ts` and find line ~1464:
 
-## Screenshot
-Wild cubes have a subtle orange glow that pulses with their idle animation.
+```typescript
+// TOGGLEABLE SPINNING CUBE EFFECT ON MERGE-6
+if (window.ENABLE_SPINNING_CUBE !== false) {
+```
+
+Set in console: `window.ENABLE_SPINNING_CUBE = false`
+
+## Performance Impact
+- **3D Glow Enabled**: +2-3% CPU usage, barely noticeable
+- **Spinning Cube Enabled**: +1% CPU during animation (0.8s)
+- **Both Disabled**: 0% impact
+- **Recommendation**: Keep both enabled, looks professional for App Store
+
+## Screenshots
+- Wild cubes have a subtle orange glow that pulses with their idle animation
+- Merge-6 creates a dramatic spinning cube effect with scale animation
 
