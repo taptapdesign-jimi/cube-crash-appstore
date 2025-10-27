@@ -1717,6 +1717,9 @@ body{
   -webkit-tap-highlight-color: transparent;
   outline: none;
   user-select: none;
+  touch-action: manipulation;
+  pointer-events: auto;
+  z-index: 10;
 }
 
 .stats-reset-dev-button:hover {

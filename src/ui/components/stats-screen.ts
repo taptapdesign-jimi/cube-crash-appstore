@@ -236,7 +236,27 @@ export function createStatsScreen(config: StatsScreenConfig): HTMLElementConfig 
                     },
                     text: 'Reset',
                     eventListeners: {
-                      click: () => {
+                      click: (e: Event) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('🔄 Reset button clicked');
+                        if (confirm('Reset all stats to 0? (This is a dev feature)')) {
+                          try {
+                            const resetAllStats = (window as any).resetAllStats;
+                            if (typeof resetAllStats === 'function') {
+                              resetAllStats();
+                              updateStatsValues();
+                              console.log('🔄 Stats reset successfully');
+                            }
+                          } catch (error) {
+                            console.error('❌ Failed to reset stats:', error);
+                          }
+                        }
+                      },
+                      touchend: (e: Event) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('🔄 Reset button touched');
                         if (confirm('Reset all stats to 0? (This is a dev feature)')) {
                           try {
                             const resetAllStats = (window as any).resetAllStats;
