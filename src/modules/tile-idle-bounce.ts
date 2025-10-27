@@ -118,8 +118,32 @@ function animateTile(tile: Tile): void {
   const baseScaleX = rotG.scale?.x || 1;
   const baseScaleY = rotG.scale?.y || 1;
   
+  // Store original pivot and position
+  const originalPivotX = rotG.pivot?.x || 0;
+  const originalPivotY = rotG.pivot?.y || -TILE / 2;
+  const originalPosX = rotG.position?.x || 0;
+  const originalPosY = rotG.position?.y || 0;
+  
+  // Set pivot to center (0, 0) and adjust position to compensate
+  // This makes the tile scale from its true center
+  try {
+    rotG.pivot.set(0, 0);
+    // Compensate for the pivot change by adjusting position
+    // When pivot changes from (0, -TILE/2) to (0, 0), we need to move Y up by TILE/2
+    rotG.position.set(originalPosX, originalPosY - TILE / 2);
+  } catch (e) {
+    console.warn('⚠️ Could not set pivot to center:', e);
+  }
+  
   const tl = gsap.timeline({
     onComplete: () => {
+      // Reset pivot and position back to original
+      try {
+        rotG.pivot.set(originalPivotX, originalPivotY);
+        rotG.position.set(originalPosX, originalPosY);
+      } catch (e) {
+        console.warn('⚠️ Could not reset pivot:', e);
+      }
       state.activeAnimations.delete(tile);
     }
   });
@@ -201,12 +225,19 @@ function stopTileAnimation(tile: Tile): void {
   }
   
   if (rotG) {
+    // Reset everything to original state
     rotG.rotation = 0;
     if (rotG.scale) {
       rotG.scale.x = 1;
       rotG.scale.y = 1;
     }
-    // No pivot reset needed - we didn't change it
+    // Reset pivot to original (top-center)
+    try {
+      rotG.pivot.set(0, -TILE / 2);
+      rotG.position.set(0, -TILE / 2);
+    } catch (e) {
+      console.warn('⚠️ Could not reset pivot:', e);
+    }
   }
 }
 
