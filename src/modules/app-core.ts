@@ -1731,38 +1731,9 @@ async function showFinalScreen(){
     } catch {}
   }
 
-  // CRITICAL FIX: Update high score before restarting game
-  if (score > bestScore) {
-    bestScore = score;
-    try { 
-      localStorage.setItem('cc_best_score_v1', bestScore); 
-      console.log('✅ High score updated to:', bestScore);
-    } catch (error) {
-      console.warn('⚠️ Failed to save high score:', error);
-    }
-    updateHUD();
-  }
-
-  // CRITICAL FIX: Also update STATE.bestScore for consistency
-  if (score > STATE.bestScore) {
-    STATE.bestScore = score;
-    try { 
-      localStorage.setItem('cc_best_score_v1', STATE.bestScore); 
-      console.log('✅ STATE.bestScore updated to:', STATE.bestScore);
-    } catch (error) {
-      console.warn('⚠️ Failed to save STATE.bestScore:', error);
-    }
-  }
-
-  // CRITICAL FIX: Update high score in main.js stats system
-  if (typeof window.updateHighScore === 'function') {
-    try {
-      window.updateHighScore(score);
-      console.log('✅ window.updateHighScore called with score:', score);
-    } catch (error) {
-      console.warn('⚠️ Failed to call window.updateHighScore:', error);
-    }
-  }
+  // CRITICAL: Update high score using statsService
+  statsService.updateHighScore(score);
+  updateHUD();
 
   if (result?.action === 'menu') {
     try {
@@ -1783,26 +1754,11 @@ function restartGame(){
   // CRITICAL FIX: Reset game ended flag when restarting
   window._gameHasEnded = false;
   
-  // CRITICAL: Update high score before restart
+  // CRITICAL: Update high score before restart using statsService
   try {
     if (typeof score !== 'undefined' && score > 0) {
       console.log('🏆 Updating high score before restart:', score);
-      if (typeof window.updateHighScore === 'function') {
-        window.updateHighScore(score);
-      }
-      // Also update local storage directly
-      if (score > bestScore) {
-        bestScore = score;
-        localStorage.setItem('cc_best_score_v1', bestScore);
-        console.log('✅ High score saved to localStorage before restart:', bestScore);
-      }
-      // iOS specific: Save to sessionStorage as backup
-      try {
-        sessionStorage.setItem('cc_high_score_backup', score);
-        console.log('📱 High score saved to sessionStorage backup before restart:', score);
-      } catch (error) {
-        console.warn('⚠️ Failed to save to sessionStorage:', error);
-      }
+      statsService.updateHighScore(score);
     }
   } catch (error) {
     console.warn('⚠️ Failed to update high score during restart:', error);
@@ -1987,26 +1943,11 @@ export function restart() {
 export function cleanupGame() {
   console.log('🧹 Cleaning up game state');
   
-  // CRITICAL: Update high score before cleanup
+  // CRITICAL: Update high score before cleanup using statsService
   try {
     if (typeof score !== 'undefined' && score > 0) {
       console.log('🏆 Updating high score before cleanup:', score);
-      if (typeof window.updateHighScore === 'function') {
-        window.updateHighScore(score);
-      }
-      // Also update local storage directly
-      if (score > bestScore) {
-        bestScore = score;
-        localStorage.setItem('cc_best_score_v1', bestScore);
-        console.log('✅ High score saved to localStorage:', bestScore);
-      }
-      // iOS specific: Save to sessionStorage as backup
-      try {
-        sessionStorage.setItem('cc_high_score_backup', score);
-        console.log('📱 High score saved to sessionStorage backup:', score);
-      } catch (error) {
-        console.warn('⚠️ Failed to save to sessionStorage:', error);
-      }
+      statsService.updateHighScore(score);
     }
   } catch (error) {
     console.warn('⚠️ Failed to update high score during cleanup:', error);
