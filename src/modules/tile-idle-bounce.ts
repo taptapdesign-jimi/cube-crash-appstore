@@ -118,24 +118,29 @@ function animateTile(tile: Tile): void {
   const baseScaleX = rotG.scale?.x || 1;
   const baseScaleY = rotG.scale?.y || 1;
   
+  // For center scaling, we need to animate the parent tile's scale, not rotG
+  // This way it scales from the true geometric center without moving
+  const baseTileScaleX = tile.scale?.x || 1;
+  const baseTileScaleY = tile.scale?.y || 1;
+  
   const tl = gsap.timeline({
     onComplete: () => {
       state.activeAnimations.delete(tile);
     }
   });
   
-  // Simple cartoon bounce - scale up then down with bounce ease
-  tl.to(rotG.scale, {
-    x: baseScaleX * 1.15,
-    y: baseScaleY * 1.15,
+  // Simple cartoon bounce - scale the tile itself (not rotG) for center-point scaling
+  tl.to(tile.scale, {
+    x: baseTileScaleX * 1.15,
+    y: baseTileScaleY * 1.15,
     duration: 0.3,
     ease: 'back.out(2)' // Strong bounce out
   });
   
   // Return to normal with bounce
-  tl.to(rotG.scale, {
-    x: baseScaleX,
-    y: baseScaleY,
+  tl.to(tile.scale, {
+    x: baseTileScaleX,
+    y: baseTileScaleY,
     duration: 0.3,
     ease: 'elastic.out(1, 0.3)' // Soft elastic bounce
   });
@@ -160,18 +165,16 @@ function animateTile(tile: Tile): void {
 function stopTileAnimation(tile: Tile): void {
   if (!tile) return;
   
-  const rotG = tile.rotG || tile;
-  
   try {
-    gsap.killTweensOf(rotG);
-    gsap.killTweensOf(rotG.scale);
+    gsap.killTweensOf(tile);
+    gsap.killTweensOf(tile.scale);
   } catch (e) {
     console.warn('⚠️ Error stopping tile animation:', e);
   }
   
-  if (rotG && rotG.scale) {
-    rotG.scale.x = 1;
-    rotG.scale.y = 1;
+  if (tile && tile.scale) {
+    tile.scale.x = 1;
+    tile.scale.y = 1;
   }
 }
 
