@@ -147,10 +147,13 @@ class StatsService {
 
   // Update highest board reached
   public updateHighestBoard(board: number): void {
+    console.log(`🔍 updateHighestBoard called with board: ${board}, current highest board: ${this.stats.highestBoard}`);
     if (board > this.stats.highestBoard) {
       console.log(`📊 New highest board! ${this.stats.highestBoard} -> ${board}`);
       this.stats.highestBoard = board;
       this.saveStats();
+    } else {
+      console.log(`ℹ️ Board ${board} is not higher than current highest board ${this.stats.highestBoard}`);
     }
   }
 
