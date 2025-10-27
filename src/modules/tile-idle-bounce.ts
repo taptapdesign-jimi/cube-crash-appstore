@@ -118,12 +118,9 @@ function animateTile(tile: Tile): void {
   const baseScaleX = rotG.scale?.x || 1;
   const baseScaleY = rotG.scale?.y || 1;
   
-  // CRITICAL: Set pivot to center (0, 0) so tile scales from center, not from top
-  try {
-    rotG.pivot.set(0, 0);
-  } catch (e) {
-    console.warn('⚠️ Could not set pivot to center:', e);
-  }
+  // Store original position before any scaling
+  const origX = rotG.x;
+  const origY = rotG.y;
   
   const tl = gsap.timeline({
     onComplete: () => {
@@ -208,19 +205,12 @@ function stopTileAnimation(tile: Tile): void {
   }
   
   if (rotG) {
-    rotG.x = 0;
-    rotG.y = 0;
     rotG.rotation = 0;
     if (rotG.scale) {
       rotG.scale.x = 1;
       rotG.scale.y = 1;
     }
-    // Reset pivot back to original (top-center)
-    try {
-      rotG.pivot.set(0, -TILE / 2);
-    } catch (e) {
-      console.warn('⚠️ Could not reset pivot:', e);
-    }
+    // No pivot reset needed - we didn't change it
   }
 }
 
