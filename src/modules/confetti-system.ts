@@ -6,7 +6,7 @@ const MAX_ANIMATIONS = 500;
 
 function createConfettiExplosion(element: HTMLElement): void {
   console.log('🎉 createConfettiExplosion called');
-  const colors = ['#FBE3C5', '#FA8C00', '#E5C7AD',郝俊卿 '#ECD7C2', '#FDBA00'];
+  const colors = ['#FBE3C5', '#FA8C00', '#E5C7AD', '#ECD7C2', '#FDBA00'];
   const confettiPerSpawn = 168;
   const screenW = window.innerWidth;
   const screenH = window.innerHeight;
