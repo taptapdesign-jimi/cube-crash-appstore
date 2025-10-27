@@ -123,7 +123,10 @@ function animateTile(tile: Tile): void {
     }
   });
   
-  // Phase 1: Scale to 1.3 (0-0.3s)
+  // Random rotation for each tile (1-6 degrees)
+  const randomRotation = (Math.random() - 0.5) * 12 * (Math.PI / 180); // 1-6 degrees in radians
+  
+  // Phase 1: Scale to 1.3 from center (0-0.3s)
   tl.to(rotG.scale, {
     x: baseScaleX * 1.3,
     y: baseScaleY * 1.3,
@@ -131,10 +134,9 @@ function animateTile(tile: Tile): void {
     ease: 'power2.out'
   });
   
-  // Phase 2: Stay at 1.3 and wiggle left-right (0.3-0.5s)
-  const wiggleX = 2 + Math.random() * 4; // 2-6px wiggle
+  // Phase 2: Wiggle with rotation at 1.3 scale (0.3-0.5s)
   tl.to(rotG, {
-    x: -wiggleX,
+    rotation: randomRotation,
     duration: 0.1,
     ease: 'sine.inOut',
     yoyo: true,
@@ -146,17 +148,31 @@ function animateTile(tile: Tile): void {
     x: baseScaleX,
     y: baseScaleY,
     duration: 0.15,
-    ease: 'back.out(1.5)'
+    ease: 'power2.in'
   });
   
   tl.to(rotG, {
-    x: 0,
-    y: 0,
+    rotation: 0,
     duration: 0.15,
-    ease: 'back.out(1.5)'
+    ease: 'power2.in'
   });
   
-  // Phase 4: Activate smoke bubbles AFTER scale returns (0.65s)
+  // Phase 4: Next cycle - scale to 0.7, bounce back to 1.0 (0.65-1.05s)
+  tl.to(rotG.scale, {
+    x: baseScaleX * 0.7,
+    y: baseScaleY * 0.7,
+    duration: 0.2,
+    ease: 'power2.out'
+  });
+  
+  tl.to(rotG.scale, {
+    x: baseScaleX,
+    y: baseScaleY,
+    duration: 0.2,
+    ease: 'back.out(2)'
+  });
+  
+  // Phase 5: Activate smoke bubbles AFTER final scale return (1.05s)
   tl.call(() => {
     if (state.board && tile) {
       smokeBubblesAtTile(state.board, tile, 96, {
@@ -168,7 +184,7 @@ function animateTile(tile: Tile): void {
         strength: 0.5 + Math.random() * 0.3
       });
     }
-  }, null, '-=0.15');
+  });
   
   console.log('🎲 Animating tile:', tile.value);
 }
