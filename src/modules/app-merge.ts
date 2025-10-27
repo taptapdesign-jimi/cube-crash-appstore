@@ -392,13 +392,23 @@ export function merge(src, dst, helpers){
         animateScore(STATE.score + 6 * mult, 0.45);
         
         // Track cubes cracked for stats (count merge-6 events)
+        console.log('🔍 BEFORE trackCubesCracked check - typeof:', typeof window.trackCubesCracked);
+        console.log('🔍 wildActive:', wildActive, 'typeof trackHelpersUsed:', typeof window.trackHelpersUsed);
+        
         if (typeof window.trackCubesCracked === 'function') {
+          console.log('✅ CALLING trackCubesCracked(1)');
           window.trackCubesCracked(1);
+          console.log('✅ trackCubesCracked returned');
+        } else {
+          console.error('❌ trackCubesCracked is not a function!', typeof window.trackCubesCracked);
         }
         
         // Track wild cube usage as helper (any wild involvement)
         if (typeof window.trackHelpersUsed === 'function' && wildActive) {
+          console.log('✅ CALLING trackHelpersUsed(1)');
           window.trackHelpersUsed(1);
+        } else {
+          console.log('⏭️ Skipping trackHelpersUsed - function exists:', typeof window.trackHelpersUsed === 'function', 'wildActive:', wildActive);
         }
 
         // reset meter by consuming one full charge and keep any overflow
