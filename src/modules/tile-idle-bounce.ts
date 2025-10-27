@@ -153,7 +153,7 @@ function animateTile(tile: Tile): void {
     x: 0,
     y: 0,
     duration: 0.15,
-    ease: 'back.out(1.黏)'
+    ease: 'back.out(1.5)'
   });
   
   // Phase 4: Activate smoke bubbles AFTER scale returns (0.65s)
