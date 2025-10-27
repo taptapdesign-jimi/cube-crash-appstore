@@ -40,39 +40,39 @@ function createConfettiExplosion(element: HTMLElement): void {
     for (let i = 0; i < confettiCount; i++) {
       const confetti = document.createElement('div');
       const color = colors[Math.floor(Math.random() * colors.length)];
-    const angle = (Math.PI * 2 * i) / confettiCount;
-    const velocity = 200 + Math.random() * 300;
-    
-    confetti.style.cssText = `
-      position: fixed;
-      left: ${centerX}px;
-      top: ${centerY}px;
-      width: 8px;
-      height: 8px;
-      background: ${color};
-      border-radius: 2px;
-      pointer-events: none;
-      z-index: 9999999999999;
-      transform: rotate(${Math.random() * 360}deg);
-    `;
-    
+      const angle = (Math.PI * 2 * i) / confettiCount;
+      const velocity = 200 + Math.random() * 300;
+      
+      confetti.style.cssText = `
+        position: fixed;
+        left: ${centerX}px;
+        top: ${centerY}px;
+        width: 8px;
+        height: 8px;
+        background: ${color};
+        border-radius: 2px;
+        pointer-events: none;
+        z-index: 9999999999999;
+        transform: rotate(${Math.random() * 360}deg);
+      `;
+      
       document.body.appendChild(confetti);
       
       // DURATION: 2 seconds (2000ms)
       const duration = 2000;
-    confetti.animate([
-      { 
-        transform: `translate(0, 0) rotate(${Math.random() * 360}deg)`,
-        opacity: 1
-      },
-      {
-        transform: `translate(${Math.cos(angle) * velocity}px, ${Math.sin(angle) * velocity + 300}px) rotate(${Math.random() * 720}deg)`,
-        opacity: 0
-      }
-    ], {
-      duration: duration,
-      easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-      fill: 'forwards'
+      confetti.animate([
+        { 
+          transform: `translate(0, 0) rotate(${Math.random() * 360}deg)`,
+          opacity: 1
+        },
+        {
+          transform: `translate(${Math.cos(angle) * velocity}px, ${Math.sin(angle) * velocity + 300}px) rotate(${Math.random() * 720}deg)`,
+          opacity: 0
+        }
+      ], {
+        duration: duration,
+        easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+        fill: 'forwards'
       }).onfinish = () => confetti.remove();
     }
   }, 500); // 500ms delay
