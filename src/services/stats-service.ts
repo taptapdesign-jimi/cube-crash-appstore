@@ -34,10 +34,13 @@ class StatsService {
   private loadStats(): void {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
+      console.log('🔍 CRITICAL: loadStats called, stored data:', stored);
+      
       if (stored) {
         const parsed = JSON.parse(stored);
+        console.log('📊 Parsed stats from localStorage:', parsed);
         this.stats = { ...this.stats, ...parsed };
-        console.log('📊 Stats loaded from new storage:', this.stats);
+        console.log('📊 Stats loaded from new storage, highScore:', this.stats.highScore);
       } else {
         // MIGRATION: Load old separate keys and migrate to new format
         console.log('🔄 Migrating old stats to new format...');
@@ -118,11 +121,28 @@ class StatsService {
   private saveStats(): void {
     try {
       const statsString = JSON.stringify(this.stats);
+      console.log('🔍 CRITICAL: saveStats called with highScore:', this.stats.highScore);
       
       // Try to save first and catch quota errors
       try {
         localStorage.setItem(STORAGE_KEY, statsString);
         console.log('💾 Stats saved:', this.stats);
+        
+        // CRITICAL VERIFICATION: Read back immediately to verify it was saved
+        const verify = localStorage.getItem(STORAGE_KEY);
+        if (verify) {
+          const verifyParsed = JSON.parse(verify);
+          console.log('✅ VERIFICATION: High score in localStorage:', verifyParsed.highScore);
+          if (verifyParsed.highScore !== this.stats.highScore) {
+            console.error('❌ CRITICAL ERROR: High score mismatch!', {
+              expected: this.stats.highScore,
+              actual: verifyParsed.highScore
+            });
+            // Force save again
+            localStorage.setItem(STORAGE_KEY, statsString);
+            console.log('🔄 Forced re-save due to mismatch');
+          }
+        }
       } catch (quotaError) {
         // iOS sometimes throws quota errors
         console.warn('⚠️ localStorage quota error:', quotaError);
