@@ -1485,6 +1485,14 @@ function merge(src, dst, helpers){
           statsService.incrementHelpersUsed(1);
         }
         
+        // Stats: Track longest combo
+        if (combo > 0) {
+          statsService.updateLongestCombo(combo);
+        }
+        
+        // Stats: Update high score for every merge
+        statsService.updateHighScore(score);
+        
         // Ghost placeholders are now fixed and always visible
 
         // ► CLEAN BOARD flow (centralized orchestrator)

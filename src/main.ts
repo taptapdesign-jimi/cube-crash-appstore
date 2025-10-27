@@ -438,6 +438,11 @@ initializeApp().catch((error: Error) => {
   }
 };
 
+// ==========================================
+// STATS SERVICE INTEGRATION
+// All stats tracking uses statsService directly
+// ==========================================
+
 // Expose resetStats for stats screen Reset button
 (window as any).resetAllStats = () => {
   import('./services/stats-service.js').then(({ statsService }) => {
@@ -467,5 +472,96 @@ let gameStartTime: number | null = null;
     } catch (error) {
       console.error('❌ Failed to save time played:', error);
     }
+  }
+};
+
+// NEW: Stats tracking wrapper functions for global access
+// These replace old window.trackHighScore, window.trackHelpersUsed, etc.
+
+// Update high score
+(window as any).updateHighScore = async (score: number) => {
+  try {
+    const { statsService } = await import('./services/stats-service.js');
+    statsService.updateHighScore(score);
+    console.log('✅ High score updated:', score);
+  } catch (error) {
+    console.error('❌ Failed to update high score:', error);
+  }
+};
+
+// Track cubes cracked
+(window as any).trackCubesCracked = async (count: number = 1) => {
+  try {
+    const { statsService } = await import('./services/stats-service.js');
+    statsService.incrementCubesCracked(count);
+    console.log('✅ Cubes cracked tracked:', count);
+  } catch (error) {
+    console.error('❌ Failed to track cubes cracked:', error);
+  }
+};
+
+// Track helpers used
+(window as any).trackHelpersUsed = async (count: number = 1) => {
+  try {
+    const { statsService } = await import('./services/stats-service.js');
+    statsService.incrementHelpersUsed(count);
+    console.log('✅ Helpers used tracked:', count);
+  } catch (error) {
+    console.error('❌ Failed to track helpers used:', error);
+  }
+};
+
+// Track highest board
+(window as any).trackHighestBoard = async (board: number) => {
+  try {
+    const { statsService } = await import('./services/stats-service.js');
+    statsService.updateHighestBoard(board);
+    console.log('✅ Highest board tracked:', board);
+  } catch (error) {
+    console.error('❌ Failed to track highest board:', error);
+  }
+};
+
+// Track longest combo
+(window as any).trackLongestCombo = async (combo: number) => {
+  try {
+    const { statsService } = await import('./services/stats-service.js');
+    statsService.updateLongestCombo(combo);
+    console.log('✅ Longest combo tracked:', combo);
+  } catch (error) {
+    console.error('❌ Failed to track longest combo:', error);
+  }
+};
+
+// Track collectibles unlocked
+(window as any).trackCollectiblesUnlocked = async (count: number) => {
+  try {
+    const { statsService } = await import('./services/stats-service.js');
+    statsService.updateCollectiblesUnlocked(count);
+    console.log('✅ Collectibles unlocked tracked:', count);
+  } catch (error) {
+    console.error('❌ Failed to track collectibles unlocked:', error);
+  }
+};
+
+// Helper function to check and update collectibles based on score milestones
+(window as any).checkCollectiblesMilestones = async (score: number) => {
+  try {
+    const milestones = [100, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+    let unlocked = 0;
+    
+    for (const milestone of milestones) {
+      if (score >= milestone) {
+        unlocked++;
+      }
+    }
+    
+    if (unlocked > 0) {
+      const { statsService } = await import('./services/stats-service.js');
+      statsService.updateCollectiblesUnlocked(unlocked);
+      console.log('🎁 Collectibles updated based on score milestones:', unlocked);
+    }
+  } catch (error) {
+    console.error('❌ Failed to update collectibles milestones:', error);
   }
 };
