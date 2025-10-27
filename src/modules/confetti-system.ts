@@ -34,8 +34,7 @@ function createConfettiExplosion(element: HTMLElement): void {
       setTimeout(() => {
         console.log(`🎉 Spawning ${group.name} at ${randomDelay.toFixed(0)}ms`);
         
-        // TOP SPAWNS - 4 total: corners + middle with staggered timing
-        // Each spawn has random delay 0-300ms for organic effect
+        // Spawn from 4 top positions with random delays
         setTimeout(() => createSpawn(colors, confettiPerSpawn, -(screenW * 0.3), -(screenH * 0.3), Math.PI / 4, 'left', 'down'), Math.random() * 300);
         setTimeout(() => createSpawn(colors, confettiPerSpawn, screenW * 1.3, -(screenH * 0.3), 3 * Math.PI / 4, 'right', 'down'), Math.random() * 300);
         setTimeout(() => createSpawn(colors, confettiPerSpawn, screenW * 0.25, -(screenH * 0.3), Math.PI / 2 - 0.3, 'left', 'down'), Math.random() * 300);
@@ -120,9 +119,7 @@ function createSpawn(
     const wiggleAmount = 80 + Math.random() * 120; // More oscillation
     const wigglePhase = Math.random() * Math.PI * 2;
     
-    // Fade at 60% of screen, die completely at 30% past bottom
-    const fadeY = screenHeight * 0.6; // Start fading at 60% of screen
-    const endY = screenHeight * 1.3; // Fall 30% past bottom
+    const endY = screenHeight * 1.3; // Fall to 130% of screen height
     const endX = velX * 2 + (Math.sin(wigglePhase + 1) * wiggleAmount);
     const endRot = 360 + Math.random() * 720;
     
