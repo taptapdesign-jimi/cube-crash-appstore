@@ -7,6 +7,7 @@
 import { gsap } from 'gsap';
 import type { Tile } from '../types';
 import { smokeBubblesAtTile } from './fx.js';
+import { TILE } from './constants.js';
 
 const ENABLE_TILE_IDLE_BOUNCE = true;
 
@@ -216,7 +217,6 @@ function stopTileAnimation(tile: Tile): void {
     }
     // Reset pivot back to original (top-center)
     try {
-      const TILE = 96; // Tile size constant
       rotG.pivot.set(0, -TILE / 2);
     } catch (e) {
       console.warn('⚠️ Could not reset pivot:', e);
