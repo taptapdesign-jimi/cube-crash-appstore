@@ -1118,14 +1118,6 @@ function applyWildSkinLocal(tile){
     if (tile.num)  tile.num.visible = false;
     if (tile.pips) tile.pips.visible = false;
     tile.isWildFace = true;
-    
-    // TOGGLEABLE 3D GLOW: Add glow class for visual effect
-    // TO DISABLE: Comment out the next 3 lines
-    if (tile.view) {
-      tile.view.classList.add('wild-3d-glow');
-      tile.view.setAttribute('data-3d-glow', 'enabled');
-    }
-    
     try { startWildIdle(tile, { interval: 4 }); } catch {}
   }catch{}
 }
@@ -1459,28 +1451,6 @@ function merge(src, dst, helpers){
           woodShardsAtTile(board, dst, { enhanced: true, wild: true, count: 18, intensity: 1.9, spread: 1.08, size: 0.9, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });
         }
 
-        // TOGGLEABLE SPINNING CUBE EFFECT ON MERGE-6
-        // TO DISABLE: Comment out the entire if block below
-        if (window.ENABLE_SPINNING_CUBE !== false && dst && dst.rotation !== undefined) {
-          // Rotate tile 360 degrees with scale pulse
-          gsap.to(dst, {
-            rotation: dst.rotation + Math.PI * 2, // 360 degrees
-            duration: 0.8,
-            ease: 'power2.out',
-            overwrite: true
-          });
-          
-          // Scale pulse: 1 -> 1.2 -> 1
-          gsap.to(dst.scale, {
-            x: 1.2,
-            y: 1.2,
-            duration: 0.4,
-            ease: 'power2.out',
-            yoyo: true,
-            repeat: 1
-          });
-        }
-        
         // ► badge + pojačani "smoke/bubbles" + screen shake
         if (wasWild) {
           showMultiplierTile(board, dst, mult, TILE * 1.3, 1.2);
