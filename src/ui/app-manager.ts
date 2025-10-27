@@ -68,7 +68,10 @@ class AppManager {
       if (screen === 'stats') {
         try {
           const { updateStatsValues } = await import('./components/stats-screen.js');
-          updateStatsValues();
+          // Wait a bit for screen to be fully visible before updating
+          setTimeout(() => {
+            updateStatsValues();
+          }, 100);
         } catch (error) {
           logger.warn('⚠️ Failed to update stats values:', error);
         }
