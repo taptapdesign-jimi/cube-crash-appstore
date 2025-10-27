@@ -1461,15 +1461,24 @@ function merge(src, dst, helpers){
 
         // TOGGLEABLE SPINNING CUBE EFFECT ON MERGE-6
         // TO DISABLE: Comment out the entire if block below
-        if (window.ENABLE_SPINNING_CUBE !== false) {
-          // Add spinning animation class to tile
-          if (dst.view) {
-            dst.view.classList.add('merge-6-spinning');
-            // Remove class after animation completes
-            setTimeout(() => {
-              if (dst.view) dst.view.classList.remove('merge-6-spinning');
-            }, 800);
-          }
+        if (window.ENABLE_SPINNING_CUBE !== false && dst && dst.rotation !== undefined) {
+          // Rotate tile 360 degrees with scale pulse
+          gsap.to(dst, {
+            rotation: dst.rotation + Math.PI * 2, // 360 degrees
+            duration: 0.8,
+            ease: 'power2.out',
+            overwrite: true
+          });
+          
+          // Scale pulse: 1 -> 1.2 -> 1
+          gsap.to(dst.scale, {
+            x: 1.2,
+            y: 1.2,
+            duration: 0.4,
+            ease: 'power2.out',
+            yoyo: true,
+            repeat: 1
+          });
         }
         
         // ► badge + pojačani "smoke/bubbles" + screen shake
