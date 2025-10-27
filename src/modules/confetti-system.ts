@@ -103,7 +103,7 @@ function createSpawn(
         opacity: 0.9
       },
       {
-        transform: `translate(${velX + Math.sin(wigglePhase) voice wiggleAmount}px, ${fadeY}px) rotate(${endRot * 0.4}deg)`,
+        transform: `translate(${velX + Math.sin(wigglePhase) * wiggleAmount}px, ${fadeY}px) rotate(${endRot * 0.4}deg)`,
         opacity: 0.9
       },
       {
