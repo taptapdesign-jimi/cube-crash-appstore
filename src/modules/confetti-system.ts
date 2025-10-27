@@ -66,17 +66,17 @@ function createSpawn(
     
     // More confetti fall like feathers (weightCategory 0 and 1)
     if (weightCategory === 0) {
-      // Ultra light as feather - very slow, gentle fall
-      gravityMultiplier = 0.12 + Math.random() * 0.08; // 0.12-0.20
-      velocityRange = { min: 40, max: 80 };
+      // Ultra light - moderate speed
+      gravityMultiplier = 0.3 + Math.random() * 0.1; // 0.3-0.4
+      velocityRange = { min: 120, max: 180 };
     } else if (weightCategory === 1) {
-      // Light as feather - slow, gentle fall
-      gravityMultiplier = 0.15 + Math.random() * 0.1; // 0.15-0.25
-      velocityRange = { min: 50, max: 100 };
+      // Light - moderate to fast speed
+      gravityMultiplier = 0.35 + Math.random() * 0.1; // 0.35-0.45
+      velocityRange = { min: 150, max: 220 };
     } else {
-      // Medium weight - normal speed
-      gravityMultiplier = 0.25 + Math.random() * 0.1; // 0.25-0.35
-      velocityRange = { min: 90, max: 150 };
+      // Medium weight - faster speed
+      gravityMultiplier = 0.4 + Math.random() * 0.15; // 0.4-0.55
+      velocityRange = { min: 180, max: 280 };
     }
     
     const vel = velocityRange.min + Math.random() * (velocityRange.max - velocityRange.min);
@@ -141,8 +141,8 @@ function createSpawn(
       fill: 'forwards'
     });
     
-    // Instant fade-out at random position between 60-90% of screen
-    const fadeOutY = screenHeight * (0.6 + Math.random() * 0.3); // Random 60-90%
+    // Instant fade-out below screen: 400px past bottom for modal clearance
+    const fadeOutY = screenHeight + 400; // Below screen, past continue button
     const animProgress = setInterval(() => {
       const rect = confetti.getBoundingClientRect();
       const currentY = rect.top;
