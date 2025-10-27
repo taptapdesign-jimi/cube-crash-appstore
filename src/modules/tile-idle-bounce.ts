@@ -123,56 +123,54 @@ function animateTile(tile: Tile): void {
     }
   });
   
-  // Random rotation for each tile (1-6 degrees)
+  // Random rotation for organic feel (1-6 degrees)
   const randomRotation = (Math.random() - 0.5) * 12 * (Math.PI / 180); // 1-6 degrees in radians
+  const wiggleAmount = 1 + Math.random() * 2; // 1-3 degrees extra wiggle
   
-  // Phase 1: Scale to 1.3 from center (0-0.3s)
+  // Organic animation: cube rises from floor, wiggles, gravity brings it down
+  
+  // Phase 1: Rise from floor - scale up to 1.3 (0-0.4s)
   tl.to(rotG.scale, {
     x: baseScaleX * 1.3,
     y: baseScaleY * 1.3,
-    duration: 0.3,
-    ease: 'power2.out'
+    duration: 0.4,
+    ease: 'back.out(1.5)'
   });
   
-  // Phase 2: Wiggle with rotation at 1.3 scale (0.3-0.5s)
+  // Phase 2: Wiggle in air with rotation (0.4-0.7s)
   tl.to(rotG, {
     rotation: randomRotation,
-    duration: 0.1,
+    duration: 0.15,
     ease: 'sine.inOut',
     yoyo: true,
     repeat: 1
   }, '>-0.1');
   
-  // Phase 3: Return to original size quickly (0.5-0.65s)
+  // Slight scale variation during wiggle for organic feel
+  tl.to(rotG.scale, {
+    x: baseScaleX * (1.3 + wiggleAmount / 100),
+    y: baseScaleY * (1.3 + wiggleAmount / 100),
+    duration: 0.15,
+    ease: 'sine.inOut',
+    yoyo: true,
+    repeat: 1
+  }, '>');
+  
+  // Phase 3: Gravity brings it down to floor - quick return to 1.0 (0.7-0.85s)
   tl.to(rotG.scale, {
     x: baseScaleX,
     y: baseScaleY,
     duration: 0.15,
-    ease: 'power2.in'
+    ease: 'power3.in' // Fast fall with gravity
   });
   
   tl.to(rotG, {
     rotation: 0,
     duration: 0.15,
     ease: 'power2.in'
-  });
+  }, '<');
   
-  // Phase 4: Next cycle - scale to 0.7, bounce back to 1.0 (0.65-1.05s)
-  tl.to(rotG.scale, {
-    x: baseScaleX * 0.7,
-    y: baseScaleY * 0.7,
-    duration: 0.2,
-    ease: 'power2.out'
-  });
-  
-  tl.to(rotG.scale, {
-    x: baseScaleX,
-    y: baseScaleY,
-    duration: 0.2,
-    ease: 'back.out(2)'
-  });
-  
-  // Phase 5: Activate smoke bubbles AFTER final scale return (1.05s)
+  // Phase 4: Impact on floor - activate smoke bubbles (0.85s)
   tl.call(() => {
     if (state.board && tile) {
       smokeBubblesAtTile(state.board, tile, 96, {
