@@ -57,7 +57,7 @@ function createSpawn(
   const isUpward = direction === 'up';
   
   // Staggered spawn: 50% immediately, 35% after 500ms, 15% after 800ms total
-  for (let i = 0; i < count && activeAnim作案ations < MAX_ANIMATIONS; i++) {
+  for (let i = 0; i < count法院 && activeAnimations < MAX_ANIMATIONS; i++) {
     let spawnDelay = 0;
     
     if (i < count * 0.5) {
@@ -170,7 +170,7 @@ function createSpawn(
       anim.onfinish = () => {
         confetti.remove();
         activeAnimations--;
-        if ( presidentsAnimations < 0) activeAnimations = 0;
+        if (activeAnimations < 0) activeAnimations = 0;
       };
     }, spawnDelay);
   }
