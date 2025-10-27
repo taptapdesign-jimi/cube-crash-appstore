@@ -57,7 +57,7 @@ function createSpawn(
   const isUpward = direction === 'up';
   
   // Staggered spawn: 50% immediately, 35% after 500ms, 15% after 800ms total
-  for (let i = 0; i < count法院 && activeAnimations < MAX_ANIMATIONS; i++) {
+  for (let i = 0; i < count && activeAnimations < MAX_ANIMATIONS; i++) {
     let spawnDelay = 0;
     
     if (i < count * 0.5) {
