@@ -133,17 +133,31 @@ function createSpawn(
       },
       {
         transform: `translate(${endX * 0.8}px, ${endY * 0.9}px) rotate(${endRot * 0.7}deg)`,
-        opacity: 0.4
+        opacity: 0.7
       },
       {
-        transform: `translate(${endX}px, ${endY}px) rotate(${endRot}deg)`,
-        opacity: 0
+        transform: `translate(${endX}px, ${screenHeight}px) rotate(${endRot}deg)`,
+        opacity: 0.7
       }
     ], {
       duration,
       easing: 'ease-out',
       fill: 'forwards'
     });
+    
+    // Instant fade-out when reaching bottom - one by one
+    const fadeOutTrigger = screenHeight;
+    const animProgress = setInterval(() => {
+      const rect = confetti.getBoundingClientRect();
+      const currentY = rect.top;
+      
+      if (currentY >= fadeOutTrigger) {
+        // Instant fade out
+        confetti.style.opacity = '0';
+        confetti.style.transform = 'scale(0)';
+        clearInterval(animProgress);
+      }
+    }, 10);
     
     anim.onfinish = () => {
       confetti.remove();
