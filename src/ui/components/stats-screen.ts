@@ -110,15 +110,45 @@ export function updateStatsValues(): void {
   console.log('📊 Stats values updated successfully');
 }
 
-const DEFAULT_STATS: StatItem[] = [
-  { id: 'high-score', icon: './assets/highscore-icon.png', value: '0', label: 'High score', valueId: 'high-score' },
-  { id: 'cubes-cracked', icon: './assets/cubes-cracked.png', value: '0', label: 'Cubes cracked', valueId: 'cubes-cracked' },
-  { id: 'highest-board', icon: './assets/clean-board.png', value: '0', label: 'Highest board', valueId: 'highest-board' },
-  { id: 'longest-combo', icon: './assets/combo-stats.png', value: '0', label: 'Longest combo', valueId: 'longest-combo' },
-  { id: 'helpers-used', icon: './assets/wild-stats.png', value: '0', label: 'Helpers used', valueId: 'helpers-used' },
-  { id: 'time-played', icon: './assets/time-icon.png', value: '00:00:00', label: 'Time played', valueId: 'time-played' },
-  { id: 'collectibles-unlocked', icon: './assets/collectible-stats.png', value: '0/20', label: 'Collectibles unlocked', valueId: 'collectibles-unlocked' },
-];
+// Function to get stats from localStorage and return as StatItem[]
+function getStatsFromLocalStorage(): StatItem[] {
+  const highScoreStr = localStorage.getItem('cc_best_score_v1');
+  const highScore = highScoreStr ? parseInt(highScoreStr, 10) || 0 : 0;
+  
+  const cubesCrackedStr = localStorage.getItem('cc_cubes_cracked');
+  const cubesCracked = cubesCrackedStr ? parseInt(cubesCrackedStr, 10) || 0 : 0;
+  
+  const highestBoardStr = localStorage.getItem('cc_highest_board');
+  const highestBoard = highestBoardStr ? parseInt(highestBoardStr, 10) || 0 : 0;
+  
+  const longestComboStr = localStorage.getItem('cc_longest_combo');
+  const longestCombo = longestComboStr ? parseInt(longestComboStr, 10) || 0 : 0;
+  
+  const helpersUsedStr = localStorage.getItem('cc_helpers_used');
+  const helpersUsed = helpersUsedStr ? parseInt(helpersUsedStr, 10) || 0 : 0;
+  
+  const timePlayedStr = localStorage.getItem('cc_time_played');
+  const timePlayed = timePlayedStr ? parseInt(timePlayedStr, 10) || 0 : 0;
+  const hours = Math.floor(timePlayed / 3600);
+  const minutes = Math.floor((timePlayed % 3600) / 60);
+  const seconds = timePlayed % 60;
+  const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  
+  const collectiblesStr = localStorage.getItem('cc_collectibles_unlocked');
+  const collectiblesUnlocked = collectiblesStr ? parseInt(collectiblesStr, 10) || 0 : 0;
+  
+  return [
+    { id: 'high-score', icon: './assets/highscore-icon.png', value: highScore.toString(), label: 'High score', valueId: 'high-score' },
+    { id: 'cubes-cracked', icon: './assets/cubes-cracked.png', value: cubesCracked.toString(), label: 'Cubes cracked', valueId: 'cubes-cracked' },
+    { id: 'highest-board', icon: './assets/clean-board.png', value: highestBoard.toString(), label: 'Highest board', valueId: 'highest-board' },
+    { id: 'longest-combo', icon: './assets/combo-stats.png', value: longestCombo.toString(), label: 'Longest combo', valueId: 'longest-combo' },
+    { id: 'helpers-used', icon: './assets/wild-stats.png', value: helpersUsed.toString(), label: 'Helpers used', valueId: 'helpers-used' },
+    { id: 'time-played', icon: './assets/time-icon.png', value: formattedTime, label: 'Time played', valueId: 'time-played' },
+    { id: 'collectibles-unlocked', icon: './assets/collectible-stats.png', value: `${collectiblesUnlocked}/20`, label: 'Collectibles unlocked', valueId: 'collectibles-unlocked' },
+  ];
+}
+
+const DEFAULT_STATS: StatItem[] = getStatsFromLocalStorage();
 
 function createStatItem(stat: StatItem): HTMLElementConfig {
   return {
