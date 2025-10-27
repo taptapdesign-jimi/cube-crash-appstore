@@ -344,6 +344,13 @@ initializeApp().catch((error: Error) => {
 (window as any).exitToMenu = async () => {
   logger.info('🏠 exitToMenu called from window');
   
+  // Guard: Prevent multiple simultaneous calls
+  if ((window as any).exitingToMenu) {
+    console.log('⚠️ exitToMenu already in progress, ignoring duplicate call');
+    return;
+  }
+  (window as any).exitingToMenu = true;
+  
   try {
     console.log('🔥 Starting complete game cleanup...');
     
@@ -389,5 +396,9 @@ initializeApp().catch((error: Error) => {
     
   } catch (error) {
     logger.error('❌ Failed to exit to menu:', error);
+  } finally {
+    // Reset flag after cleanup
+    (window as any).exitingToMenu = false;
+    console.log('🔓 Reset exitingToMenu flag');
   }
 };

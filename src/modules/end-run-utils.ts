@@ -115,6 +115,12 @@ export function restartGame(): void {
  * Exit to menu
  */
 export function exitToMenu(): void {
+  // Guard: Prevent multiple calls
+  if ((window as any).exitingToMenu) {
+    console.log('⚠️ exitToMenu already in progress, skipping duplicate call');
+    return;
+  }
+  
   if (window.exitToMenu) {
     window.exitToMenu();
   }

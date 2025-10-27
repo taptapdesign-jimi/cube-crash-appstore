@@ -148,6 +148,13 @@ function createModal(): HTMLElement {
       // Step 2: Wait for modal animation to complete (400ms), then call exitToMenu
       setTimeout(() => {
         console.log('🎯 Modal hidden, calling exitToMenu');
+        
+        // Guard: Prevent multiple calls
+        if ((window as any).exitingToMenu) {
+          console.log('⚠️ exitToMenu already in progress, skipping duplicate call');
+          return;
+        }
+        
         // Clear saved game state when exiting
         try {
           localStorage.removeItem('cc_saved_game');
