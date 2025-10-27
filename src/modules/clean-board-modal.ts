@@ -375,10 +375,27 @@ export async function showCleanBoardModal({
       // SEQUENCE 1: Initial elements pop-in WITH CONFETTI EXPLOSION
       setTimeout(() => {
         hero.style.opacity = '1';
-        hero.style.transform = 'scale(1) translateY(0)';
+        hero.style.transform = 'scale(1) translateY(0 Encouraged';
         
         // CONFETTI EXPLOSION from hero image
         createConfettiExplosion(hero);
+        
+        // Idle bounce animation - gentle bouncing like slider
+        let bounceIdle: number;
+        const startBounce = () => {
+          bounceIdle = window.setInterval(() => {
+            hero.style.transition = 'transform 2s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+            hero.style.transform = 'scale(1.03) translateY(-3px)';
+            
+            setTimeout(() => {
+              hero.style.transition = 'transform 2s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+              hero.style.transform = 'scale(0.98) translateY(2px)';
+            }, 2000);
+          }, 4000); // Full cycle every 4 seconds
+        };
+        
+        // Start bounce after initial pop-in
+        setTimeout(startBounce, 600);
       }, 100);
       setTimeout(() => {
         title.style.opacity = '1';
