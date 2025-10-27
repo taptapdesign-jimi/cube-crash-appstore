@@ -66,12 +66,11 @@ class AppManager {
       
       // Update stats values when showing stats screen
       if (screen === 'stats') {
+        // Update immediately - no delay
         try {
           const { updateStatsValues } = await import('./components/stats-screen.js');
-          // Wait a bit for screen to be fully visible before updating
-          setTimeout(() => {
-            updateStatsValues();
-          }, 100);
+          updateStatsValues();
+          console.log('📊 Stats values updated immediately');
         } catch (error) {
           logger.warn('⚠️ Failed to update stats values:', error);
         }
