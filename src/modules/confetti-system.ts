@@ -54,9 +54,28 @@ function createSpawn(
     const color = colors[i % colors.length];
     const angleVariant = (Math.random() - 0.5) * 0.25;
     const angle = baseAngle + angleVariant;
-    const vel = 100 + Math.random() * 150;
-    const velX = Math.cos(angle) * vel;
-    const velY = Math.sin(angle) * vel * 0.3;
+    
+    // Vary gravity for different groups - some light like feathers, some heavier
+    const weightCategory = i % 3; // 0, 1, or 2
+    let gravityMultiplier, velocityRange;
+    
+    if (weightCategory === 0) {
+      // Light as feather - very slow, gentle fall
+      gravityMultiplier = 0.15 + Math.random() * 0.1; // 0.15-0.25
+      velocityRange = { min: 50, max: 100 };
+    } else if (weightCategory === 1) {
+      // Medium weight - normal speed
+      gravityMultiplier = 0.25 + Math.random() * 0.1; // 0.25-0.35
+      velocityRange = { min: 100, max: 180 };
+    } else {
+      // Heavy - faster fall
+      gravityMultiplier = 0.35 + Math.random() * 0.15; // 0.35-0.50
+      velocityRange = { min: 150, max: 250 };
+    }
+    
+    const vel = velocityRange.min + Math.random() * (velocityRange.max - velocityRange.min);
+    const velX = Math.cos( segmented angle) * vel;
+    const velY = Math.sin(angle) * vel * gravityMultiplier;
     
     const isStrip = i % 2 === 0;
     const w = isStrip ? 3 + Math.random() * 1 : 4 + Math.random() * 2; // Smaller width variation
