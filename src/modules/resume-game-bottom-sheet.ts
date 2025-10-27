@@ -67,7 +67,7 @@ function createResumeModal(): HTMLElement {
         } else {
           console.error('❌ continueGameWithSavedState function not found');
         }
-      }, 700); // 700ms to match New Game delay
+      }, 400); // Reduced from 700ms to 400ms for faster start
     });
   }
   
@@ -84,14 +84,14 @@ function createResumeModal(): HTMLElement {
       }
       hideResumeModal();
       // CRITICAL: Wait for modal to close, then start game directly
-      // IMPORTANT: This delay should be LONGER than Continue to ensure modal is closed
+      // Reduced delay for faster game start (400ms is enough for animation)
       setTimeout(() => {
         console.log('🎮 Starting game after modal closed (New Game)');
         // Call startNewGame directly - it will handle exit animation
         if ((window as any).uiManager) {
           (window as any).uiManager.startNewGame();
         }
-      }, 700); // 700ms instead of 600ms to ensure modal is fully closed
+      }, 400); // Reduced from 700ms to 400ms for faster start
     });
   }
   
@@ -107,24 +107,31 @@ function createResumeModal(): HTMLElement {
 }
 
 function addOutsideClickFunctionality(modalEl: HTMLElement, registerCleanup: (fn: () => void) => void): void {
+  // Use a named function so we can properly remove it
+  const handleDocumentClick = (e: Event) => {
+    // Check if click is outside modal AND not on a button
+    if (modalEl && !modalEl.contains(e.target as Node)) {
+      hideResumeModal();
+    }
+  };
+  
+  const handleDocumentTouchEnd = (e: TouchEvent) => {
+    // Check if touch is outside modal AND not on a button
+    if (modalEl && !modalEl.contains(e.target as Node)) {
+      hideResumeModal();
+    }
+  };
+  
+  // Attach with small delay to avoid capturing the click that opened the modal
   setTimeout(() => {
-    document.onclick = (e: Event) => {
-      if (modalEl && !modalEl.contains(e.target as Node)) {
-        hideResumeModal();
-      }
-    };
-    
-    document.ontouchend = (e: TouchEvent) => {
-      if (modalEl && !modalEl.contains(e.target as Node)) {
-        hideResumeModal();
-      }
-    };
-    
-    registerCleanup(() => {
-      document.onclick = null;
-      document.ontouchend = null;
-    });
-  }, 200);
+    document.addEventListener('click', handleDocumentClick);
+    document.addEventListener('touchend', handleDocumentTouchEnd);
+  }, 100);
+  
+  registerCleanup(() => {
+    document.removeEventListener('click', handleDocumentClick);
+    document.removeEventListener('touchend', handleDocumentTouchEnd);
+  });
 }
 
 // Import animation function at module level (no async import delay)
@@ -140,18 +147,16 @@ export function showResumeGameBottomSheet(): void {
   const el = createResumeModal();
   console.log('🎯 RESUME MODAL CREATED');
   
-  // CRITICAL: Small delay to ensure DOM is ready before animating
-  setTimeout(() => {
-    requestAnimationFrame(() => {
-      // Direct animation call - no async import, instant response
-      animateBottomSheetEntrance(el).then(() => {
-        console.log('✅ Bottom sheet entrance complete');
-      }).catch((error) => {
-        console.error('❌ Failed to animate:', error);
-        el.classList.add('visible');
-      });
+  // INSTANT animation - no delays
+  requestAnimationFrame(() => {
+    // Direct animation call - no async import, instant response
+    animateBottomSheetEntrance(el).then(() => {
+      console.log('✅ Bottom sheet entrance complete');
+    }).catch((error) => {
+      console.error('❌ Failed to animate:', error);
+      el.classList.add('visible');
     });
-  }, 50); // 50ms delay to ensure modal is fully created
+  });
 }
 
 export function hideResumeModal(): void {

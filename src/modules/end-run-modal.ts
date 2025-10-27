@@ -42,18 +42,26 @@ function createModal(): HTMLElement {
   
   if (restartBtn) {
     restartBtn.addEventListener('click', () => {
+      console.log('🔄 Restart button clicked - starting restart sequence');
+      
+      // Step 1: Animate modal exit
       hideModal();
-      // Clear saved game state when restarting
-      try {
-        localStorage.removeItem('cc_saved_game');
-        localStorage.removeItem('cubeCrash_gameState');
-        console.log('✅ end-run-modal: Cleared both saved game states on restart');
-      } catch (error) {
-        console.warn('⚠️ end-run-modal: Failed to clear saved game state on restart:', error);
-      }
-      if ((window as any).CC && (window as any).CC.restart) {
-        (window as any).CC.restart();
-      }
+      
+      // Step 2: Wait for modal animation to complete (400ms), then restart
+      setTimeout(() => {
+        console.log('🎯 Modal hidden, calling restart');
+        // Clear saved game state when restarting
+        try {
+          localStorage.removeItem('cc_saved_game');
+          localStorage.removeItem('cubeCrash_gameState');
+          console.log('✅ end-run-modal: Cleared both saved game states on restart');
+        } catch (error) {
+          console.warn('⚠️ end-run-modal: Failed to clear saved game state on restart:', error);
+        }
+        if ((window as any).CC && (window as any).CC.restart) {
+          (window as any).CC.restart();
+        }
+      }, 400); // Wait for modal close animation to complete
     });
   }
   
@@ -132,18 +140,26 @@ function createModal(): HTMLElement {
   
   if (exitBtn) {
     exitBtn.addEventListener('click', () => {
+      console.log('🚪 Exit button clicked - starting exit sequence');
+      
+      // Step 1: Animate modal exit
       hideModal();
-      // Clear saved game state when exiting
-      try {
-        localStorage.removeItem('cc_saved_game');
-        localStorage.removeItem('cubeCrash_gameState');
-        console.log('✅ end-run-modal: Cleared both saved game states on exit');
-      } catch (error) {
-        console.warn('⚠️ end-run-modal: Failed to clear saved game state on exit:', error);
-      }
-      if ((window as any).exitToMenu) {
-        (window as any).exitToMenu();
-      }
+      
+      // Step 2: Wait for modal animation to complete (400ms), then call exitToMenu
+      setTimeout(() => {
+        console.log('🎯 Modal hidden, calling exitToMenu');
+        // Clear saved game state when exiting
+        try {
+          localStorage.removeItem('cc_saved_game');
+          localStorage.removeItem('cubeCrash_gameState');
+          console.log('✅ end-run-modal: Cleared both saved game states on exit');
+        } catch (error) {
+          console.warn('⚠️ end-run-modal: Failed to clear saved game state on exit:', error);
+        }
+        if ((window as any).exitToMenu) {
+          (window as any).exitToMenu();
+        }
+      }, 400); // Wait for modal close animation to complete
     });
   }
   

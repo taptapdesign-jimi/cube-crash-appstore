@@ -404,25 +404,6 @@ export async function boot(){
   // Initialize fixed background layer AFTER layout is set
   // (will be called from startGame after layout())
   
-  // Debug: Monitor boardBG changes
-  const originalClear = boardBG.clear.bind(boardBG);
-  boardBG.clear = function() {
-    console.log('🎯 boardBG.clear() called at', new Date().toISOString().substr(11, 12), 'call stack:', new Error().stack?.split('\n').slice(1, 3));
-    return originalClear();
-  };
-  
-  const originalRoundRect = boardBG.roundRect.bind(boardBG);
-  boardBG.roundRect = function(...args) {
-    console.log('🎯 boardBG.roundRect() called at', new Date().toISOString().substr(11, 12), 'args:', args);
-    return originalRoundRect(...args);
-  };
-  
-  const originalStroke = boardBG.stroke.bind(boardBG);
-  boardBG.stroke = function(...args) {
-    console.log('🎯 boardBG.stroke() called at', new Date().toISOString().substr(11, 12), 'args:', args);
-    return originalStroke(...args);
-  };
-
   syncSharedState();
 
   stage.eventMode = 'static';
@@ -442,10 +423,9 @@ export async function boot(){
       const texture = Assets.get(assetPath);
       if (texture && texture.baseTexture) {
         texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
-        console.log('🎨 Optimized texture for pixel-perfect rendering:', assetPath);
       }
     } catch (error) {
-      console.warn('⚠️ Could not optimize texture:', assetPath, error);
+      // Silently fail texture optimization
     }
   }
   
