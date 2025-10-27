@@ -129,10 +129,10 @@ function animateTile(tile: Tile): void {
   
   // Organic animation: cube rises from floor, wiggles, gravity brings it down
   
-  // Phase 1: Rise from floor - scale up to 1.15 (0-0.4s)
+  // Phase 1: Rise from floor - scale up to 1.1 from center point (0-0.4s)
   tl.to(rotG.scale, {
-    x: baseScaleX * 1.15,
-    y: baseScaleY * 1.15,
+    x: baseScaleX * 1.1,
+    y: baseScaleY * 1.1,
     duration: 0.4,
     ease: 'back.out(1.5)'
   });
@@ -148,8 +148,8 @@ function animateTile(tile: Tile): void {
   
   // Slight scale variation during wiggle for organic feel
   tl.to(rotG.scale, {
-    x: baseScaleX * (1.15 + wiggleAmount / 100),
-    y: baseScaleY * (1.15 + wiggleAmount / 100),
+    x: baseScaleX * (1.1 + wiggleAmount / 100),
+    y: baseScaleY * (1.1 + wiggleAmount / 100),
     duration: 0.15,
     ease: 'sine.inOut',
     yoyo: true,
