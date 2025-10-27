@@ -54,14 +54,10 @@ function createSpawn(
   direction: 'up' | 'down' = 'down'
 ): void {
   const isLeft = side === 'left';
-  const isUpward = direction === 'up';
   
-  // Staggered spawn: 3 groups with 1.5s intervals, finishing within 5 seconds
+  // Random spawn: each confetti gets random delay 0-3000ms
   for (let i = 0; i < count && activeAnimations < MAX_ANIMATIONS; i++) {
-    let spawnDelay = 0;
-    
-    // Random spawn delay between 0-3000ms for each confetti
-    spawnDelay = Math.random() * 3000;
+    const spawnDelay = Math.random() * 3000;
     
     setTimeout(() => {
       const color = colors[i % colors.length];
