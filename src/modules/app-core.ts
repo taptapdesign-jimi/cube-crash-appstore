@@ -1118,6 +1118,14 @@ function applyWildSkinLocal(tile){
     if (tile.num)  tile.num.visible = false;
     if (tile.pips) tile.pips.visible = false;
     tile.isWildFace = true;
+    
+    // TOGGLEABLE 3D GLOW: Add glow class for visual effect
+    // TO DISABLE: Comment out the next 3 lines
+    if (tile.view) {
+      tile.view.classList.add('wild-3d-glow');
+      tile.view.setAttribute('data-3d-glow', 'enabled');
+    }
+    
     try { startWildIdle(tile, { interval: 4 }); } catch {}
   }catch{}
 }

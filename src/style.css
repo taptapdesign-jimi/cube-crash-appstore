@@ -3709,6 +3709,24 @@ html.collectible-reward-open body {
     0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
+/* TOGGLEABLE 3D GLOW EFFECT - Set ENABLE_3D_GLOW = false to disable */
+:root {
+  --ENABLE_3D_GLOW: 1; /* Change to 0 to disable */
+}
+
+/* 3D Glow on wild cubes - ENABLE/DISABLE HERE */
+.tile:has(.wild-glow-enabled),
+.tile.wild-3d-glow {
+  filter: drop-shadow(0 0 8px rgba(233, 122, 85, 0.6)) drop-shadow(0 0 16px rgba(233, 122, 85, 0.4));
+  transition: filter 0.3s ease;
+}
+
+/* Remove glow if disabled */
+body:has(:root) .tile:has(.wild-glow-enabled),
+body:has(:root) .tile.wild-3d-glow {
+  filter: calc(var(--ENABLE_3D_GLOW) * drop-shadow(0 0 8px rgba(233, 122, 85, 0.6))) calc(var(--ENABLE_3D_GLOW) * drop-shadow(0 0 16px rgba(233, 122, 85, 0.4)));
+}
+
 /* 3D JavaScript Classes */
 .tile-3d {
   transform-style: preserve-3d;
