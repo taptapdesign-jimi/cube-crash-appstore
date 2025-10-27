@@ -35,7 +35,7 @@ function createSpawn(
   
   for (let i = 0; i < count && activeAnimations < MAX_ANIMATIONS; i++) {
     const color = colors[i % colors.length];
-    const angleVariant = (Math.random() - 0.5) * 0.5;
+    const angleVariant = (Math.random() - 0.5) * 0.25; // 50% less randomness
     const angle = baseAngle + angleVariant;
     const vel = 300 + Math.random() * 400;
     const velX = Math.cos(angle) * vel;
