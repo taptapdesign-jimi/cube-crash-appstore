@@ -33,7 +33,7 @@ function createConfettiExplosion(element: HTMLElement): void {
   const centerY = rect.top + rect.height / 2;
   
   const colors = ['#FBE3C5', '#FA8C00', '#E5C7AD', '#ECD7C2', '#FDBA00'];
-  const confettiCount = 60; // More confetti pieces
+  const confettiCount = 84; // +40% from 60: 60 * 1.4 = 84
   
   // DELAY: Wait 500ms before starting explosion
   setTimeout(() => {
@@ -43,14 +43,18 @@ function createConfettiExplosion(element: HTMLElement): void {
       const angle = (Math.PI * 2 * i) / confettiCount;
       const velocity = 200 + Math.random() * 300;
       
+      // RANDOMIZER SIZE: Random width (6-12px) and height (8-16px) for rectangular confetti
+      const width = 6 + Math.random() * 6; // 6-12px
+      const height = 8 + Math.random() * 8; // 8-16px
+      
       confetti.style.cssText = `
         position: fixed;
         left: ${centerX}px;
         top: ${centerY}px;
-        width: 8px;
-        height: 8px;
+        width: ${width}px;
+        height: ${height}px;
         background: ${color};
-        border-radius: 2px;
+        border-radius: 1px;
         pointer-events: none;
         z-index: 9999999999999;
         transform: rotate(${Math.random() * 360}deg);
