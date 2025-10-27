@@ -1073,7 +1073,18 @@ function startLevel(n){
   resetWildProgress(0, false);
   
   // Start animation immediately - no delay
-  rebuildBoard(); 
+  rebuildBoard();
+  
+  // CRITICAL: Save game state immediately after starting Board 2+ to enable resume
+  // This ensures that if user exits without making moves, they can still continue
+  if (boardNumber >= 2) {
+    console.log('💾 Board 2+ started, forcing immediate save for resume capability');
+    // Force save after a short delay to ensure board is fully initialized
+    setTimeout(() => {
+      saveGameState();
+      console.log('✅ Game state saved after Board 2+ start');
+    }, 500);
+  } 
 
   syncSharedState();
   updateHUD();
