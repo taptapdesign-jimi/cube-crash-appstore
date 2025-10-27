@@ -380,10 +380,8 @@ export async function showCleanBoardModal({
         // CONFETTI EXPLOSION from hero image
         createConfettiExplosion(hero);
         
-        // Apply idle bounce animation using CSS (like collectibleCardIdle)
-        setTimeout(() => {
-          hero.style.animation = 'cleanBoardHeroIdle 4.5s ease-in-out infinite';
-        }, 600);
+        // Apply idle bounce animation immediately
+        hero.style.animation = 'cleanBoardHeroIdle 4.5s ease-in-out infinite';
       }, 100);
       setTimeout(() => {
         title.style.opacity = '1';

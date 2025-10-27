@@ -2943,19 +2943,19 @@ body{
 /* Clean board hero idle bounce animation - same as collectibleCardIdle */
 @keyframes cleanBoardHeroIdle {
   0% {
-    transform: translate3d(0px, 0px, 0) rotate(-0.2deg) scale(1);
+    transform: translate3d(0px, 0px, 0) rotate(-0.28deg) scale(1);
   }
   25% {
-    transform: translate3d(1px, -3px, 0) rotate(0.15deg) scale(1.002);
-  }
+    transform: translate3d(1.4px, -4.2px, 0) rotate(0.21deg) scale(1.003);
+arrow  }
   50% {
-    transform: translate3d(-1px, -2px, 0) rotate(-0.1deg) scale(0.999);
+    transform: translate3d(-1.4px, -2.8px, 0) rotate(-0.14deg) scale(0.998);
   }
   75% {
-    transform: translate3d(0.5px, -4px, 0) rotate(0.2deg) scale(1.001);
+    transform: translate3d(0.7px, -5.6px, 0) rotate(0.28deg) scale(1.001);
   }
   100% {
-    transform: translate3d(0px, 0px, 0) rotate(-0.2deg) scale(1);
+    transform: translate3d(0px, 0px, 0) rotate(-0.28deg) scale(1);
   }
 }
 
