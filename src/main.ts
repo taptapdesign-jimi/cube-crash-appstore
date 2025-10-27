@@ -603,18 +603,8 @@ initializeApp().catch((error: Error) => {
   }
 };
 
-// Track total time played
+// Track total time played using stats service
 let gameStartTime: number | null = null;
-let accumulatedTime: number = 0;
-
-// Initialize time tracking
-try {
-  const savedTimeStr = localStorage.getItem('cc_time_played');
-  accumulatedTime = savedTimeStr ? parseInt(savedTimeStr, 10) || 0 : 0;
-  console.log('⏱️ Loaded accumulated time from localStorage:', accumulatedTime, 'seconds');
-} catch (error) {
-  console.error('❌ Failed to load accumulated time:', error);
-}
 
 // Start tracking time when game starts
 (window as any).startTimeTracking = () => {
@@ -626,12 +616,12 @@ try {
 (window as any).stopTimeTracking = () => {
   if (gameStartTime !== null) {
     const elapsedTime = Math.floor((Date.now() - gameStartTime) / 1000); // Convert to seconds
-    accumulatedTime += elapsedTime;
     gameStartTime = null;
     
     try {
-      localStorage.setItem('cc_time_played', accumulatedTime.toString());
-      console.log('⏱️ Time tracked:', elapsedTime, 'seconds, total:', accumulatedTime, 'seconds');
+      const { statsService } = await import('./services/stats-service.js');
+      statsService.addTimePlayed(elapsedTime);
+      console.log('⏱️ Time tracked:', elapsedTime, 'seconds');
     } catch (error) {
       console.error('❌ Failed to save time played:', error);
     }

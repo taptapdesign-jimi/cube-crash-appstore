@@ -24,6 +24,7 @@ import { wild } from './hud-helpers.js';
 import * as FLOW  from './level-flow.js';
 import { openEmpties } from './app-spawn.ts';
 import { clearWildState } from './app-merge.ts';
+import { statsService } from '../services/stats-service.js';
 
 // HUD functions from hud-helpers.js
 
@@ -1290,32 +1291,10 @@ function merge(src, dst, helpers){
     if (wildActive) clearWildState(dst);
     score = Math.min(SCORE_CAP, score + effSum); updateHUD();
     
-    // STATS TRACKING: Update high score immediately for all merges
-    console.log('📊 ALL MERGES (<6) - Checking high score update, current score:', score);
-    console.log('🔍 DEBUG: window.trackHighScore is function:', typeof window.trackHighScore === 'function');
-    try {
-      if (typeof window.trackHighScore === 'function') {
-        console.log('✅ CALLING trackHighScore with score:', score);
-        window.trackHighScore(score);
-        console.log('✅ High score tracking called for merge:', effSum);
-      } else {
-        console.error('❌ trackHighScore is NOT a function! Type:', typeof window.trackHighScore);
-      }
-    } catch (e) {
-      console.error('❌ trackHighScore failed:', e);
-    }
-    
-    // STATS TRACKING: Track wild usage as helpers
+    // STATS TRACKING: Update stats using centralized service
+    statsService.updateHighScore(score);
     if (wildActive) {
-      console.log('🎯 WILD MERGE detected, tracking helpers used');
-      try {
-        if (typeof window.trackHelpersUsed === 'function') {
-          window.trackHelpersUsed(1);
-          console.log('✅ Helpers used tracking called');
-        }
-      } catch (e) {
-        console.error('❌ trackHelpersUsed failed:', e);
-      }
+      statsService.incrementHelpersUsed(1);
     }
     
     // Combo++ (bez realnog capa), bump anim
@@ -1323,9 +1302,8 @@ function merge(src, dst, helpers){
     try { HUD.bumpCombo?.({ kind: 'stack', combo }); } catch {}
     scheduleComboDecay();
 
-    // Stats: track longest combo progression
-    console.log('🔍 Tracking longest combo, combo value:', combo, 'function exists:', typeof window.trackLongestCombo === 'function');
-    try { if (typeof window.trackLongestCombo === 'function') window.trackLongestCombo(combo); } catch (e) { console.error('❌ trackLongestCombo failed:', e); }
+    // Stats: track longest combo
+    statsService.updateLongestCombo(combo);
 
     addWildProgress(WILD_INC_SMALL);
     
@@ -1473,11 +1451,11 @@ function merge(src, dst, helpers){
         animateBoardHUD(boardNumber, 0.40);
         animateScore(score, 0.40);
 
-        // Stats: count merge-6 as "cubes cracked"; count wild as helpers used
-        console.log('🔍 Attempting to track stats - trackCubesCracked function exists:', typeof window.trackCubesCracked === 'function');
-        console.log('🔍 wasWild:', wasWild, 'trackHelpersUsed function exists:', typeof window.trackHelpersUsed === 'function');
-        try { if (typeof window.trackCubesCracked === 'function') window.trackCubesCracked(1); } catch (e) { console.error('❌ trackCubesCracked failed:', e); }
-        try { if (wasWild && typeof window.trackHelpersUsed === 'function') window.trackHelpersUsed(1); } catch (e) { console.error('❌ trackHelpersUsed failed:', e); }
+        // Stats: count merge-6 as "cubes cracked"
+        statsService.incrementCubesCracked(1);
+        if (wasWild) {
+          statsService.incrementHelpersUsed(1);
+        }
         
         // Ghost placeholders are now fixed and always visible
 

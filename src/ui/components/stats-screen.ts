@@ -1,5 +1,6 @@
 // Stats Screen Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
+import { statsService } from '../../services/stats-service.js';
 
 export interface StatItem {
   id: string;
@@ -16,139 +17,66 @@ export interface StatsScreenConfig {
   showResetButton?: boolean;
 }
 
-// Function to update stats values dynamically
+// Function to update stats values dynamically using stats service
 export function updateStatsValues(): void {
-  console.log('📊 Updating stats values...');
+  console.log('📊 Updating stats values from stats service...');
   
-  // Get all stats from localStorage
-  const highScoreStr = localStorage.getItem('cc_best_score_v1');
-  const highScore = highScoreStr ? parseInt(highScoreStr, 10) || 0 : 0;
-  console.log('📊 highScore from localStorage:', highScoreStr, 'parsed:', highScore);
+  // Get stats from centralized service
+  const stats = statsService.getStats();
+  console.log('📊 Stats from service:', stats);
   
-  const highestBoardStr = localStorage.getItem('cc_highest_board');
-  const highestBoard = highestBoardStr ? parseInt(highestBoardStr, 10) || 0 : 0;
-  console.log('📊 highestBoard from localStorage:', highestBoardStr, 'parsed:', highestBoard);
+  // Helper to format time
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
   
-  const timePlayedStr = localStorage.getItem('cc_time_played');
-  const timePlayed = timePlayedStr ? parseInt(timePlayedStr, 10) || 0 : 0;
-  console.log('📊 timePlayed from localStorage:', timePlayedStr, 'parsed:', timePlayed);
+  // Update all stat elements
+  const updateElement = (id: string, value: string | number) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.textContent = value.toString();
+    } else {
+      console.error(`❌ Element not found: ${id}`);
+    }
+  };
   
-  const cubesCrackedStr = localStorage.getItem('cc_cubes_cracked');
-  const cubesCracked = cubesCrackedStr ? parseInt(cubesCrackedStr, 10) || 0 : 0;
-  console.log('📊 cubesCracked from localStorage:', cubesCrackedStr, 'parsed:', cubesCracked);
-  
-  const longestComboStr = localStorage.getItem('cc_longest_combo');
-  const longestCombo = longestComboStr ? parseInt(longestComboStr, 10) || 0 : 0;
-  console.log('📊 longestCombo from localStorage:', longestComboStr, 'parsed:', longestCombo);
-  
-  const helpersUsedStr = localStorage.getItem('cc_helpers_used');
-  const helpersUsed = helpersUsedStr ? parseInt(helpersUsedStr, 10) || 0 : 0;
-  console.log('📊 helpersUsed from localStorage:', helpersUsedStr, 'parsed:', helpersUsed);
-  
-  const collectiblesStr = localStorage.getItem('cc_collectibles_unlocked');
-  const collectiblesUnlocked = collectiblesStr ? parseInt(collectiblesStr, 10) || 0 : 0;
-  console.log('📊 collectiblesUnlocked from localStorage:', collectiblesStr, 'parsed:', collectiblesUnlocked);
-  
-  // Update high score
-  const highScoreElement = document.getElementById('high-score');
-  console.log('📊 DOM: high-score element found:', !!highScoreElement, 'setting to:', highScore);
-  if (highScoreElement) {
-    highScoreElement.textContent = highScore.toString();
-    console.log('✅ DOM: high-score element updated to:', highScoreElement.textContent);
-  } else {
-    console.error('❌ DOM: high-score element NOT found!');
-  }
-  
-  // Update cubes cracked
-  const cubesCrackedElement = document.getElementById('cubes-cracked');
-  console.log('📊 DOM: cubes-cracked element found:', !!cubesCrackedElement, 'setting to:', cubesCracked);
-  if (cubesCrackedElement) {
-    cubesCrackedElement.textContent = cubesCracked.toString();
-    console.log('✅ DOM: cubes-cracked element updated to:', cubesCrackedElement.textContent);
-  } else {
-    console.error('❌ DOM: cubes-cracked element NOT found!');
-  }
-  
-  // Update highest board
-  const highestBoardElement = document.getElementById('highest-board');
-  if (highestBoardElement) {
-    highestBoardElement.textContent = highestBoard.toString();
-  }
-  
-  // Update longest combo
-  const longestComboElement = document.getElementById('longest-combo');
-  console.log('📊 DOM: longest-combo element found:', !!longestComboElement, 'setting to:', longestCombo);
-  if (longestComboElement) {
-    longestComboElement.textContent = longestCombo.toString();
-    console.log('✅ DOM: longest-combo element updated to:', longestComboElement.textContent);
-  } else {
-    console.error('❌ DOM: longest-combo element NOT found!');
-  }
-  
-  // Update helpers used
-  const helpersUsedElement = document.getElementById('helpers-used');
-  if (helpersUsedElement) {
-    helpersUsedElement.textContent = helpersUsed.toString();
-  }
-  
-  // Update time played
-  const timePlayedElement = document.getElementById('time-played');
-  if (timePlayedElement) {
-    const hours = Math.floor(timePlayed / 3600);
-    const minutes = Math.floor((timePlayed % 3600) / 60);
-    const seconds = timePlayed % 60;
-    const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    timePlayedElement.textContent = formattedTime;
-  }
-  
-  // Update collectibles unlocked
-  const collectiblesElement = document.getElementById('collectibles-unlocked');
-  if (collectiblesElement) {
-    collectiblesElement.textContent = `${collectiblesUnlocked}/20`;
-  }
+  updateElement('high-score', stats.highScore);
+  updateElement('cubes-cracked', stats.cubesCracked);
+  updateElement('highest-board', stats.highestBoard);
+  updateElement('longest-combo', stats.longestCombo);
+  updateElement('helpers-used', stats.helpersUsed);
+  updateElement('time-played', formatTime(stats.timePlayed));
+  updateElement('collectibles-unlocked', `${stats.collectiblesUnlocked}/20`);
   
   console.log('📊 Stats values updated successfully');
 }
 
-// Function to get stats from localStorage and return as StatItem[]
-function getStatsFromLocalStorage(): StatItem[] {
-  const highScoreStr = localStorage.getItem('cc_best_score_v1');
-  const highScore = highScoreStr ? parseInt(highScoreStr, 10) || 0 : 0;
+// Function to get stats from service and return as StatItem[]
+function getStatsFromService(): StatItem[] {
+  const stats = statsService.getStats();
   
-  const cubesCrackedStr = localStorage.getItem('cc_cubes_cracked');
-  const cubesCracked = cubesCrackedStr ? parseInt(cubesCrackedStr, 10) || 0 : 0;
-  
-  const highestBoardStr = localStorage.getItem('cc_highest_board');
-  const highestBoard = highestBoardStr ? parseInt(highestBoardStr, 10) || 0 : 0;
-  
-  const longestComboStr = localStorage.getItem('cc_longest_combo');
-  const longestCombo = longestComboStr ? parseInt(longestComboStr, 10) || 0 : 0;
-  
-  const helpersUsedStr = localStorage.getItem('cc_helpers_used');
-  const helpersUsed = helpersUsedStr ? parseInt(helpersUsedStr, 10) || 0 : 0;
-  
-  const timePlayedStr = localStorage.getItem('cc_time_played');
-  const timePlayed = timePlayedStr ? parseInt(timePlayedStr, 10) || 0 : 0;
-  const hours = Math.floor(timePlayed / 3600);
-  const minutes = Math.floor((timePlayed % 3600) / 60);
-  const seconds = timePlayed % 60;
-  const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  
-  const collectiblesStr = localStorage.getItem('cc_collectibles_unlocked');
-  const collectiblesUnlocked = collectiblesStr ? parseInt(collectiblesStr, 10) || 0 : 0;
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
   
   return [
-    { id: 'high-score', icon: './assets/highscore-icon.png', value: highScore.toString(), label: 'High score', valueId: 'high-score' },
-    { id: 'cubes-cracked', icon: './assets/cubes-cracked.png', value: cubesCracked.toString(), label: 'Cubes cracked', valueId: 'cubes-cracked' },
-    { id: 'highest-board', icon: './assets/clean-board.png', value: highestBoard.toString(), label: 'Highest board', valueId: 'highest-board' },
-    { id: 'longest-combo', icon: './assets/combo-stats.png', value: longestCombo.toString(), label: 'Longest combo', valueId: 'longest-combo' },
-    { id: 'helpers-used', icon: './assets/wild-stats.png', value: helpersUsed.toString(), label: 'Helpers used', valueId: 'helpers-used' },
-    { id: 'time-played', icon: './assets/time-icon.png', value: formattedTime, label: 'Time played', valueId: 'time-played' },
-    { id: 'collectibles-unlocked', icon: './assets/collectible-stats.png', value: `${collectiblesUnlocked}/20`, label: 'Collectibles unlocked', valueId: 'collectibles-unlocked' },
+    { id: 'high-score', icon: './assets/highscore-icon.png', value: stats.highScore.toString(), label: 'High score', valueId: 'high-score' },
+    { id: 'cubes-cracked', icon: './assets/cubes-cracked.png', value: stats.cubesCracked.toString(), label: 'Cubes cracked', valueId: 'cubes-cracked' },
+    { id: 'highest-board', icon: './assets/clean-board.png', value: stats.highestBoard.toString(), label: 'Highest board', valueId: 'highest-board' },
+    { id: 'longest-combo', icon: './assets/combo-stats.png', value: stats.longestCombo.toString(), label: 'Longest combo', valueId: 'longest-combo' },
+    { id: 'helpers-used', icon: './assets/wild-stats.png', value: stats.helpersUsed.toString(), label: 'Helpers used', valueId: 'helpers-used' },
+    { id: 'time-played', icon: './assets/time-icon.png', value: formatTime(stats.timePlayed), label: 'Time played', valueId: 'time-played' },
+    { id: 'collectibles-unlocked', icon: './assets/collectible-stats.png', value: `${stats.collectiblesUnlocked}/20`, label: 'Collectibles unlocked', valueId: 'collectibles-unlocked' },
   ];
 }
 
-const DEFAULT_STATS: StatItem[] = getStatsFromLocalStorage();
+const DEFAULT_STATS: StatItem[] = getStatsFromService();
 
 function createStatItem(stat: StatItem): HTMLElementConfig {
   return {
@@ -194,8 +122,8 @@ function createStatItem(stat: StatItem): HTMLElementConfig {
 }
 
 export function createStatsScreen(config: StatsScreenConfig): HTMLElementConfig {
-  // ALWAYS get fresh stats from localStorage when creating the screen
-  const freshStats = getStatsFromLocalStorage();
+  // ALWAYS get fresh stats from service when creating the screen
+  const freshStats = getStatsFromService();
   
   const {
     stats = freshStats,
