@@ -128,11 +128,7 @@ function createSpawn(
         opacity: 0.9
       },
       {
-        transform: `translate(${velX + Math.sin(wigglePhase) * wiggleAmount}px, ${fadeY}px) rotate(${endRot * 0.4}deg)`,
-        opacity: 0.9
-      },
-      {
-        transform: `translate(${endX}px, ${screenHeight * 0.9}px) rotate(${endRot}deg)`,
+        transform: `translate(${endX}px, ${endY}px) rotate(${endRot}deg)`,
         opacity: 0.9
       }
     ], {
