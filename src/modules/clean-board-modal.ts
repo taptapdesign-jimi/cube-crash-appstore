@@ -3,6 +3,8 @@
 
 // Keep CSS-based pop-in like homepage slide 1
 
+import { createConfettiExplosion } from './confetti-system.js';
+
 const HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
   'Perfect!', 'Brilliant!', 'Superb!', 'Awesome!', 'Spectacular!',
@@ -26,16 +28,7 @@ interface ShowCleanBoardModalParams {
 
 const pickRandom = (arr: string[]): string => arr[Math.floor(Math.random() * arr.length)];
 
-// Import confetti system
-let createConfettiExplosion: (element: HTMLElement) => void;
-
-// Dynamically import confetti system
-(async () => {
-  const confettiModule = await import('./confetti-system.js');
-  createConfettiExplosion = confettiModule.createConfettiExplosion;
-})();
-
-// Confetti explosion effect from center of element (fallback)
+// Confetti explosion effect from center of element (fallback - not used)
 function createConfettiExplosionFallback(element: HTMLElement): void {
   const rect = element.getBoundingClientRect();
   const centerX = rect.left + rect.width / 2;
@@ -385,9 +378,7 @@ export async function showCleanBoardModal({
         hero.style.transform = 'scale(1) translateY(0)';
         
         // CONFETTI EXPLOSION from hero image
-        if (createConfettiExplosion) {
-          createConfettiExplosion(hero);
-        }
+        createConfettiExplosion(hero);
       }, 100);
       setTimeout(() => {
         title.style.opacity = '1';
