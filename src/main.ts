@@ -375,19 +375,10 @@ initializeApp().catch((error: Error) => {
       
       console.log('📊 Current score before exit:', currentScore);
       
-      // Get saved high score
-      const savedHighScoreStr = localStorage.getItem('cc_best_score_v1');
-      const savedHighScore = savedHighScoreStr ? parseInt(savedHighScoreStr, 10) || 0 : 0;
-      
-      console.log('📊 Saved high score:', savedHighScore);
-      
-      // Update if current score is higher
-      if (currentScore > savedHighScore) {
-        localStorage.setItem('cc_best_score_v1', currentScore.toString());
-        console.log('✅ High score updated to:', currentScore);
-      } else {
-        console.log('ℹ️ Current score', currentScore, 'is not higher than saved:', savedHighScore);
-      }
+      // Update high score using statsService
+      const { statsService } = await import('./services/stats-service.js');
+      statsService.updateHighScore(currentScore);
+      console.log('✅ High score updated via statsService:', currentScore);
     } catch (error) {
       console.warn('⚠️ Failed to save high score during exit:', error);
     }
