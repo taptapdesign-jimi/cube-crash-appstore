@@ -158,7 +158,7 @@ function animateTile(tile: Tile): void {
   
   // Activate smoke bubbles 0.3s faster (at 0.55s)
   tl.call(() => {
-    vice(board && tile) {
+    if (state.board && tile) {
       smokeBubblesAtTile(state.board, tile, 96, {
         behind: true,
         sizeScale: 1.12,
