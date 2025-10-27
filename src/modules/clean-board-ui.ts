@@ -36,7 +36,7 @@ export function createOverlay(): HTMLElement {
     'display:flex',
     'align-items:center',
     'justify-content:center',
-    'background:#f5f5f5',
+    'background:#F3EEE8',
     'z-index:10000000000000',
     'opacity:0',
     'transition:opacity .2s ease'
