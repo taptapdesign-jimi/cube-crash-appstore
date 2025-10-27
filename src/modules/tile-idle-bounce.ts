@@ -140,6 +140,20 @@ function animateTile(tile: Tile): void {
     ease: 'elastic.out(1, 0.3)' // Soft elastic bounce
   });
   
+  // Activate smoke bubbles 0.2s before end of animation
+  tl.call(() => {
+    if (state.board && tile) {
+      smokeBubblesAtTile(state.board, tile, 96, {
+        behind: true,
+        sizeScale: 1.12,
+        distanceScale: 0.7,
+        countScale: 0.75,
+        haloScale: 1.1,
+        strength: 0.5 + Math.random() * 0.3
+      });
+    }
+  }, null, '-=0.2');
+  
   console.log('🎲 Animating tile:', tile.value);
 }
 
