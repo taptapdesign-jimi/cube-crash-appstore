@@ -110,21 +110,24 @@ class StatsService {
         localStorage.setItem(STORAGE_KEY, statsString);
         console.log('💾 Stats saved:', this.stats);
       } catch (quotaError) {
-        // iOS sometimes throws quota errors, try cleaning and retrying
-        console.warn('⚠️ localStorage quota error, trying cleanup...');
+        // iOS sometimes throws quota errors
+        console.warn('⚠️ localStorage quota error:', quotaError);
         
         try {
-          // Clear old keys to free up space
-          const oldKeys = Object.keys(localStorage).filter(key => 
-            key.startsWith('cc_') && key !== STORAGE_KEY
-          );
-          oldKeys.forEach(key => localStorage.removeItem(key));
-          
-          // Retry save
-          localStorage.setItem(STORAGE_KEY, statsString);
-          console.log('💾 Stats saved after cleanup:', this.stats);
-        } catch (retryError) {
-          console.error('❌ Failed to save stats after retry:', retryError);
+          // Try to save a minimal version with only critical stats
+          const minimalStats = {
+            highScore: this.stats.highScore,
+            highestBoard: this.stats.highestBoard,
+            timePlayed: this.stats.timePlayed,
+            cubesCracked: this.stats.cubesCracked,
+            longestCombo: this.stats.longestCombo,
+            helpersUsed: this.stats.helpersUsed,
+            collectiblesUnlocked: this.stats.collectiblesUnlocked,
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(minimalStats));
+          console.log('💾 Saved minimal stats after quota error');
+        } catch (minimalError) {
+          console.error('❌ Failed to save even minimal stats:', minimalError);
         }
       }
     } catch (error) {
