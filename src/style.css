@@ -2947,7 +2947,7 @@ body{
   }
   25% {
     transform: translate3d(1.4px, -4.2px, 0) rotate(0.21deg) scale(1.003);
-arrow  }
+  }
   50% {
     transform: translate3d(-1.4px, -2.8px, 0) rotate(-0.14deg) scale(0.998);
   }
