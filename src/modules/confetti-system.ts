@@ -59,8 +59,8 @@ function createSpawn(
     const velY = Math.sin(angle) * vel * 0.3;
     
     const isStrip = i % 2 === 0;
-    const w = isStrip ? 3 + Math.random() * 1.5 : 4 + Math.random() * 2.5;
-    const h = isStrip ? 15 + Math.random() * 15 : 6 + Math.random() * 5;
+    const w = isStrip ? 3 + Math.random() * 1 : 4 + Math.random() * 2; // Smaller width variation
+    const h = isStrip ? 8 + Math.random() * 7 : 6 + Math.random() * 4; // Much shorter strips (8-15px instead of 15-30px)
     
     const x = startX + (isLeft ? Math.random() * 100 : -Math.random() * 100);
     const y = startY + Math.random() * 30;
