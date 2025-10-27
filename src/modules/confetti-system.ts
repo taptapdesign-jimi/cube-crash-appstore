@@ -109,7 +109,7 @@ function createSpawn(
     document.body.appendChild(confetti);
     activeAnimations++;
     
-    const duration = 7000 + Math.random() * 3000; // 7-10 seconds - longer life cycle
+    const duration = 5000 + Math.random() * 2000; // 5-7 seconds - faster fall
     const screenHeight = window.innerHeight;
     
     // Enhanced wiggly movement with more oscillation
