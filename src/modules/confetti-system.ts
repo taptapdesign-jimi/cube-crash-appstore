@@ -132,12 +132,8 @@ function createSpawn(
         opacity: 0.9
       },
       {
-        transform: `translate(${endX * 0.8}px, ${endY * 0.9}px) rotate(${endRot * 0.7}deg)`,
-        opacity: 0.7
-      },
-      {
-        transform: `translate(${endX}px, ${screenHeight}px) rotate(${endRot}deg)`,
-        opacity: 0.7
+        transform: `translate(${endX}px, ${screenHeight * 0.9}px) rotate(${endRot}deg)`,
+        opacity: 0.9
       }
     ], {
       duration,
@@ -145,14 +141,14 @@ function createSpawn(
       fill: 'forwards'
     });
     
-    // Instant fade-out when reaching bottom - one by one
-    const fadeOutTrigger = screenHeight;
+    // Instant fade-out at random position between 60-90% of screen
+    const fadeOutY = screenHeight * (0.6 + Math.random() * 0.3); // Random 60-90%
     const animProgress = setInterval(() => {
       const rect = confetti.getBoundingClientRect();
       const currentY = rect.top;
       
-      if (currentY >= fadeOutTrigger) {
-        // Instant fade out
+      if (currentY >= fadeOutY) {
+        // Instant fade out at random position
         confetti.style.opacity = '0';
         confetti.style.transform = 'scale(0)';
         clearInterval(animProgress);
