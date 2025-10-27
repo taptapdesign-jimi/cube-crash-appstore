@@ -466,32 +466,47 @@ initializeApp().catch((error: Error) => {
   }
 };
 
+// Helper function to increment a stat
+(window as any).incrementStat = (statName: string, increment: number = 1) => {
+  console.log('📊 incrementStat called:', statName, 'by', increment);
+  try {
+    const localStorageKeys: Record<string, string> = {
+      cubesCracked: 'cc_cubes_cracked',
+      helpersUsed: 'cc_helpers_used',
+      longestCombo: 'cc_longest_combo',
+      collectiblesUnlocked: 'cc_collectibles_unlocked',
+      highScore: 'cc_best_score_v1',
+      highestBoard: 'cc_highest_board',
+      timePlayed: 'cc_time_played'
+    };
+    
+    const key = localStorageKeys[statName];
+    if (!key) {
+      console.warn('⚠️ Unknown stat name:', statName);
+      return;
+    }
+    
+    const currentStr = localStorage.getItem(key);
+    const current = currentStr ? parseInt(currentStr, 10) || 0 : 0;
+    const newValue = current + increment;
+    
+    localStorage.setItem(key, newValue.toString());
+    console.log('✅', statName, 'incremented from', current, 'to', newValue);
+  } catch (error) {
+    console.error('❌ Failed to increment stat:', error);
+  }
+};
+
 // Track cubes cracked (when tiles are merged)
 (window as any).trackCubesCracked = (count: number = 1) => {
   console.log('🔍 trackCubesCracked called with count:', count);
-  try {
-    const savedCubesStr = localStorage.getItem('cc_cubes_cracked');
-    const savedCubes = savedCubesStr ? parseInt(savedCubesStr, 10) || 0 : 0;
-    const newCount = savedCubes + count;
-    localStorage.setItem('cc_cubes_cracked', newCount.toString());
-    console.log('✅ Cubes cracked updated from', savedCubes, 'to', newCount);
-  } catch (error) {
-    console.error('❌ Failed to track cubes cracked:', error);
-  }
+  (window as any).incrementStat?.('cubesCracked', count);
 };
 
 // Track helpers used (wild cubes, powerups, etc.)
 (window as any).trackHelpersUsed = (count: number = 1) => {
   console.log('🔍 trackHelpersUsed called with count:', count);
-  try {
-    const savedHelpersStr = localStorage.getItem('cc_helpers_used');
-    const savedHelpers = savedHelpersStr ? parseInt(savedHelpersStr, 10) || 0 : 0;
-    const newCount = savedHelpers + count;
-    localStorage.setItem('cc_helpers_used', newCount.toString());
-    console.log('✅ Helpers used updated from', savedHelpers, 'to', newCount);
-  } catch (error) {
-    console.error('❌ Failed to track helpers used:', error);
-  }
+  (window as any).incrementStat?.('helpersUsed', count);
 };
 
 // Track longest combo
