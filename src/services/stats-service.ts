@@ -35,7 +35,8 @@ class StatsService {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        this.stats = { ...this.stats, ...JSON.parse(stored) };
+        const parsed = JSON.parse(stored);
+        this.stats = { ...this.stats, ...parsed };
         console.log('📊 Stats loaded from new storage:', this.stats);
       } else {
         // MIGRATION: Load old separate keys and migrate to new format
@@ -43,13 +44,26 @@ class StatsService {
         const oldStats = this.loadOldStats();
         if (oldStats && Object.keys(oldStats).length > 0) {
           this.stats = { ...this.stats, ...oldStats };
+          console.log('📊 Migrated old stats to memory:', this.stats);
           this.saveStats(); // Save in new format
-          this.cleanupOldStats(); // Remove old keys
-          console.log('✅ Migrated old stats:', this.stats);
+          this.cleanupOldStats(); // Remove old keys ONLY after successful save
+          console.log('✅ Migration complete');
+        } else {
+          console.log('📊 No old stats found, starting fresh');
         }
       }
     } catch (error) {
       console.error('❌ Failed to load stats:', error);
+      // Try to load old stats as fallback
+      try {
+        const oldStats = this.loadOldStats();
+        if (oldStats && Object.keys(oldStats).length > 0) {
+          this.stats = { ...this.stats, ...oldStats };
+          console.log('📊 Fallback: Loaded old stats:', this.stats);
+        }
+      } catch (fallbackError) {
+        console.error('❌ Fallback load also failed:', fallbackError);
+      }
     }
   }
 
