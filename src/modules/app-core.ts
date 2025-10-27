@@ -2097,10 +2097,16 @@ function saveGameState() {
       return;
     }
 
-    // CRITICAL FIX: Don't save if user hasn't made any moves yet
-    if (!window._userMadeMove) {
-      console.log('💾 User has not made any moves yet, skipping save');
+    // CRITICAL FIX: Don't save if on Board 1 and user hasn't made any moves yet
+    // BUT: Always save if on Board 2 or higher (user made progress)
+    if (boardNumber === 1 && !window._userMadeMove) {
+      console.log('💾 Board 1 and user has not made any moves yet, skipping save');
       return;
+    }
+    
+    // Safety check: Always save if on Board 2+
+    if (boardNumber >= 2) {
+      console.log('💾 Board 2+ detected, forcing save regardless of move status');
     }
 
     if (!Array.isArray(grid) || grid.length === 0) {
