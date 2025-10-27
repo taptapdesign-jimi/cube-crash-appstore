@@ -236,6 +236,32 @@ window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => 
   errorHandler.handleError(event.reason, 'Unhandled Promise Rejection');
 });
 
+// iOS HARD CLOSE: Save high score when app goes to background or closes
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden) {
+    // App is going to background or closing (hard close on iOS)
+    console.log('📱 App hidden - saving high score before close');
+    
+    try {
+      // Get current score from STATE or HUD
+      const { STATE } = await import('./modules/app-state.js');
+      let currentScore = 0;
+      
+      if (STATE && typeof STATE.score === 'number') {
+        currentScore = STATE.score;
+      }
+      
+      if (currentScore > 0) {
+        const { statsService } = await import('./services/stats-service.js');
+        statsService.updateHighScore(currentScore);
+        console.log('✅ High score saved before app hidden:', currentScore);
+      }
+    } catch (error) {
+      console.error('❌ Failed to save high score before app hidden:', error);
+    }
+  }
+});
+
 // Start the app
 initializeApp().catch((error: Error) => {
   logger.error('❌ Critical error during app startup:', String(error));
