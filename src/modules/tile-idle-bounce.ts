@@ -118,96 +118,27 @@ function animateTile(tile: Tile): void {
   const baseScaleX = rotG.scale?.x || 1;
   const baseScaleY = rotG.scale?.y || 1;
   
-  // Store original pivot and position
-  const originalPivotX = rotG.pivot?.x || 0;
-  const originalPivotY = rotG.pivot?.y || -TILE / 2;
-  const originalPosX = rotG.position?.x || 0;
-  const originalPosY = rotG.position?.y || 0;
-  
-  // Set pivot to center (0, 0) and adjust position to compensate
-  // This makes the tile scale from its true center
-  try {
-    rotG.pivot.set(0, 0);
-    // Compensate for the pivot change by adjusting position
-    // When pivot changes from (0, -TILE/2) to (0, 0), we need to move Y up by TILE/2
-    rotG.position.set(originalPosX, originalPosY - TILE / 2);
-  } catch (e) {
-    console.warn('⚠️ Could not set pivot to center:', e);
-  }
-  
   const tl = gsap.timeline({
     onComplete: () => {
-      // Reset pivot and position back to original
-      try {
-        rotG.pivot.set(originalPivotX, originalPivotY);
-        rotG.position.set(originalPosX, originalPosY);
-      } catch (e) {
-        console.warn('⚠️ Could not reset pivot:', e);
-      }
       state.activeAnimations.delete(tile);
     }
   });
   
-  // Random rotation for organic feel (1-6 degrees)
-  const randomRotation = (Math.random() - 0.5) * 12 * (Math.PI / 180); // 1-6 degrees in radians
-  const wiggleAmount = 1 + Math.random() * 2; // 1-3 degrees extra wiggle
-  
-  // Organic animation: cube rises from floor, wiggles, gravity brings it down
-  
-  // Phase 1: Rise from floor - scale up to 1.1 from center point (0-0.4s)
+  // Simple cartoon bounce - scale up then down with bounce ease
   tl.to(rotG.scale, {
-    x: baseScaleX * 1.1,
-    y: baseScaleY * 1.1,
-    duration: 0.4,
-    ease: 'back.out(1.5)'
+    x: baseScaleX * 1.15,
+    y: baseScaleY * 1.15,
+    duration: 0.3,
+    ease: 'back.out(2)' // Strong bounce out
   });
   
-  // Phase 2: Wiggle in air with rotation (0.4-0.7s)
-  tl.to(rotG, {
-    rotation: randomRotation,
-    duration: 0.15,
-    ease: 'sine.inOut',
-    yoyo: true,
-    repeat: 1
-  }, '>-0.1');
-  
-  // Slight scale variation during wiggle for organic feel
-  tl.to(rotG.scale, {
-    x: baseScaleX * (1.1 + wiggleAmount / 100),
-    y: baseScaleY * (1.1 + wiggleAmount / 100),
-    duration: 0.15,
-    ease: 'sine.inOut',
-    yoyo: true,
-    repeat: 1
-  }, '>');
-  
-  // Activate smoke bubbles 0.3s faster (at 0.55s)
-  tl.call(() => {
-    if (state.board && tile) {
-      smokeBubblesAtTile(state.board, tile, 96, {
-        behind: true,
-        sizeScale: 1.12,
-        distanceScale: 0.7,
-        countScale: 0.75,
-        haloScale: 1.1,
-        strength: 0.5 + Math.random() * 0.3
-      });
-    }
-  }, null, '>');
-  
-  // Phase 3: Gravity brings it down to floor - quick return to 1.0 (0.7-0.85s)
+  // Return to normal with bounce
   tl.to(rotG.scale, {
     x: baseScaleX,
     y: baseScaleY,
-    duration: 0.15,
-    ease: 'power3.in' // Fast fall with gravity
+    duration: 0.3,
+    ease: 'elastic.out(1, 0.3)' // Soft elastic bounce
   });
-  
-  tl.to(rotG, {
-    rotation: 0,
-    duration: 0.15,
-    ease: 'power2.in'
-  }, '<');
   
   console.log('🎲 Animating tile:', tile.value);
 }
@@ -224,20 +155,9 @@ function stopTileAnimation(tile: Tile): void {
     console.warn('⚠️ Error stopping tile animation:', e);
   }
   
-  if (rotG) {
-    // Reset everything to original state
-    rotG.rotation = 0;
-    if (rotG.scale) {
-      rotG.scale.x = 1;
-      rotG.scale.y = 1;
-    }
-    // Reset pivot to original (top-center)
-    try {
-      rotG.pivot.set(0, -TILE / 2);
-      rotG.position.set(0, -TILE / 2);
-    } catch (e) {
-      console.warn('⚠️ Could not reset pivot:', e);
-    }
+  if (rotG && rotG.scale) {
+    rotG.scale.x = 1;
+    rotG.scale.y = 1;
   }
 }
 
