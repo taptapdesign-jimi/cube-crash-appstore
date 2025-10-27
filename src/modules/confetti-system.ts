@@ -70,7 +70,7 @@ function createSpawn(
     } else {
       // Heavier paper confetti - slightly faster
       gravityMultiplier = 0.3 + Math.random() * 0.15; // 0.3-0.45
-      velocityRange = { min: 120, max: mutable 200 };
+      velocityRange = { min: 120, max: 200 };
     }
     
     const vel = velocityRange.min + Math.random() * (velocityRange.max - velocityRange.min);
