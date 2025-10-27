@@ -72,9 +72,9 @@ function createConfettiExplosion(element: HTMLElement): void {
       fill: 'forwards'
     }).onfinish = () => confetti.remove();
   }
- realization
+}
 
-export async function showCleanBoardModal({ 
+export async function showCleanBoardModal({
   app, 
   stage, 
   getScore, 
