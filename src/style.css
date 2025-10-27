@@ -1617,10 +1617,10 @@ body{
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   margin-bottom: 16px;
-  padding-left: var(--pad-left);
-  padding-right: var(--pad-right);
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .stats-back-button {
@@ -1636,6 +1636,8 @@ body{
   position: relative;
   overflow: hidden;
   z-index: 2;
+  margin-left: calc(40px + env(safe-area-inset-left, 0px));
+  flex-shrink: 0;
 }
 
 .stats-back-button:hover {
@@ -1676,6 +1678,13 @@ body{
   object-fit: contain;
 }
 
+.stats-header-spacer {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  margin-right: calc(40px + env(safe-area-inset-right, 0px));
+}
+
 .stats-title {
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   font-size: 40px;
@@ -1690,14 +1699,18 @@ body{
   transform: translateX(-50%);
   pointer-events: none;
   z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .stats-title-underline {
   height: 2px;
   background: #9A8B7A;
   opacity: 0.20;
-  width: calc(100% - var(--pad-left) - var(--pad-right));
-  margin: 0 auto;
+  width: calc(100% - 80px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  margin: 0 calc(40px + env(safe-area-inset-right, 0px)) 0 calc(40px + env(safe-area-inset-left, 0px));
 }
 
 .stats-scrollable {

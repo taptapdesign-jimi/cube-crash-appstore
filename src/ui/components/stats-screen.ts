@@ -143,7 +143,8 @@ export function createStatsScreen(config: StatsScreenConfig): HTMLElementConfig 
                   },
                   {
                     tag: 'div',
-                    text: '', // Empty spacer
+                    className: 'stats-header-spacer',
+                    text: '', // Empty spacer for balance
                   },
                 ],
               },

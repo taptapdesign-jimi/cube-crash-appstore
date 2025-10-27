@@ -242,6 +242,11 @@ class UIManager {
       this.hideHomepage();
       console.log('✅ Homepage hidden');
       
+      // Clear old saved game state for new game
+      console.log('🧹 Clearing old saved game state...');
+      localStorage.removeItem('cc_saved_game');
+      console.log('✅ Old saved game cleared');
+      
       // Start game
       console.log('🎯 Starting game boot...');
       try {

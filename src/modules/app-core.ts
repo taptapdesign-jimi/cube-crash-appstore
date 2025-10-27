@@ -319,6 +319,10 @@ async function showMysteryPrize(){
 export async function boot(){
   console.log('🎮 Initializing PIXI app');
   
+  // Reset user made move flag for new game
+  window._userMadeMove = false;
+  console.log('🔄 Reset user made move flag for new game');
+  
   // CRITICAL: Check for unsaved high score on boot
   setTimeout(() => {
     if (typeof window.checkForUnsavedHighScore === 'function') {
@@ -2100,6 +2104,12 @@ function saveGameState() {
     // CRITICAL FIX: Don't save game state if game has ended
     if (window._gameHasEnded) {
       console.log('💾 Game has ended, skipping save');
+      return;
+    }
+
+    // CRITICAL FIX: Don't save if user hasn't made any moves yet
+    if (!window._userMadeMove) {
+      console.log('💾 User has not made any moves yet, skipping save');
       return;
     }
 

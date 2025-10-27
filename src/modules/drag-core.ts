@@ -158,6 +158,10 @@ export function initDrag(cfg) {
 
     console.log('🔍 DRAG START: Tile at', t.gridX, t.gridY, 'value:', t.value, 'locked:', t.locked);
     
+    // MARK: User has made a move
+    window._userMadeMove = true;
+    console.log('✅ User has made a move - game can now be saved');
+    
     // Show all ghost placeholders when user starts dragging
     if (window._ghostPlaceholders) {
       console.log('👻 Showing all ghost placeholders on drag start');
