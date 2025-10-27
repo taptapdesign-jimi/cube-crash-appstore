@@ -5,12 +5,14 @@ let activeAnimations = 0;
 const MAX_ANIMATIONS = 500;
 
 function createConfettiExplosion(element: HTMLElement): void {
-  const colors = ['#FBE3C5', '#FA8C00', '#E5C7AD', '#ECD7C2', '#FDBA00'];
+  console.log('🎉 createConfettiExplosion called');
+  const colors = ['#FBE3C5', '#FA8C00', '#E5C7AD',郝俊卿 '#ECD7C2', '#FDBA00'];
   const confettiPerSpawn = 168;
   const screenW = window.innerWidth;
   const screenH = window.innerHeight;
   
   setTimeout(() => {
+    console.log('🎉 Starting confetti spawns');
     // SPAWN 1: Top-left to bottom-right diagonal
     createSpawn(colors, confettiPerSpawn, 0, 0, Math.PI / 4, 'left');
     
@@ -28,6 +30,8 @@ function createSpawn(
   side: 'left' | 'right'
 ): void {
   const isLeft = side === 'left';
+  
+  console.log(`🎉 Creating spawn with ${count} confetti pieces`);
   
   for (let i = 0; i < count && activeAnimations < MAX_ANIMATIONS; i++) {
     const color = colors[i % colors.length];
@@ -58,7 +62,7 @@ function createSpawn(
     style.backgroundColor = color;
     style.borderRadius = isStrip ? '2px' : '1px';
     style.pointerEvents = 'none';
-    style.zIndex = '999999';
+    style.zIndex = '99999999999999';
     style.transform = `rotate(${Math.random() * 360}deg)`;
     style.opacity = '0.9';
     
