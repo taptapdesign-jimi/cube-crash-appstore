@@ -468,12 +468,13 @@ initializeApp().catch((error: Error) => {
 
 // Track cubes cracked (when tiles are merged)
 (window as any).trackCubesCracked = (count: number = 1) => {
+  console.log('🔍 trackCubesCracked called with count:', count);
   try {
     const savedCubesStr = localStorage.getItem('cc_cubes_cracked');
     const savedCubes = savedCubesStr ? parseInt(savedCubesStr, 10) || 0 : 0;
     const newCount = savedCubes + count;
     localStorage.setItem('cc_cubes_cracked', newCount.toString());
-    console.log('✅ Cubes cracked updated:', newCount);
+    console.log('✅ Cubes cracked updated from', savedCubes, 'to', newCount);
   } catch (error) {
     console.error('❌ Failed to track cubes cracked:', error);
   }
@@ -481,12 +482,13 @@ initializeApp().catch((error: Error) => {
 
 // Track helpers used (wild cubes, powerups, etc.)
 (window as any).trackHelpersUsed = (count: number = 1) => {
+  console.log('🔍 trackHelpersUsed called with count:', count);
   try {
     const savedHelpersStr = localStorage.getItem('cc_helpers_used');
     const savedHelpers = savedHelpersStr ? parseInt(savedHelpersStr, 10) || 0 : 0;
     const newCount = savedHelpers + count;
     localStorage.setItem('cc_helpers_used', newCount.toString());
-    console.log('✅ Helpers used updated:', newCount);
+    console.log('✅ Helpers used updated from', savedHelpers, 'to', newCount);
   } catch (error) {
     console.error('❌ Failed to track helpers used:', error);
   }
@@ -494,13 +496,18 @@ initializeApp().catch((error: Error) => {
 
 // Track longest combo
 (window as any).trackLongestCombo = (comboLength: number) => {
+  console.log('🔍 trackLongestCombo called with comboLength:', comboLength);
   try {
     const savedComboStr = localStorage.getItem('cc_longest_combo');
     const savedCombo = savedComboStr ? parseInt(savedComboStr, 10) || 0 : 0;
     
+    console.log('🔍 Current combo:', comboLength, 'saved combo:', savedCombo);
+    
     if (comboLength > savedCombo) {
       localStorage.setItem('cc_longest_combo', comboLength.toString());
-      console.log('🔥 New longest combo!', comboLength);
+      console.log('🔥 New longest combo! Updated from', savedCombo, 'to', comboLength);
+    } else {
+      console.log('ℹ️ Combo not updated, current:', comboLength, 'is not > saved:', savedCombo);
     }
   } catch (error) {
     console.error('❌ Failed to track longest combo:', error);
