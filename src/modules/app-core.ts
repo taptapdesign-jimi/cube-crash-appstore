@@ -2022,9 +2022,15 @@ export function cleanupGame() {
   // Remove global listeners to avoid duplicated layout calls on re-entry
   try { window.removeEventListener('resize', layout); } catch {}
   
-  // Reset wild progress
-  resetWildProgress(0, false);
-  try { HUD.resetWildLoader?.(); } catch {}
+  // Reset wild progress (with safety check for HUD)
+  try {
+    if (HUD && typeof HUD.resetWildLoader === 'function') {
+      resetWildProgress(0, false);
+      HUD.resetWildLoader();
+    }
+  } catch (error) {
+    console.log('⚠️ Wild progress reset skipped (HUD already destroyed):', error);
+  }
   
   // Clear tiles and grid
   if (tiles) {
