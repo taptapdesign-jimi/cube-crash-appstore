@@ -613,7 +613,7 @@ let gameStartTime: number | null = null;
 };
 
 // Stop tracking time and add to accumulated time
-(window as any).stopTimeTracking = () => {
+(window as any).stopTimeTracking = async () => {
   if (gameStartTime !== null) {
     const elapsedTime = Math.floor((Date.now() - gameStartTime) / 1000); // Convert to seconds
     gameStartTime = null;
