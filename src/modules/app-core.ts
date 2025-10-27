@@ -785,7 +785,7 @@ function initializeBackgroundLayer(){
       ghost.eventMode = 'none';
       ghost.label = `Ghost_${c}_${r}`;
       ghost.zIndex = -10000;
-      ghost.visible = true; // Start visible
+      ghost.visible = false; // Start HIDDEN - will be shown when user starts moving tiles
       backgroundLayer.addChild(ghost);
       window._ghostPlaceholders[r][c] = ghost; // Store reference
     }

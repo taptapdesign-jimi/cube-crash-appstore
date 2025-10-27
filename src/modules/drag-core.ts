@@ -158,6 +158,20 @@ export function initDrag(cfg) {
 
     console.log('🔍 DRAG START: Tile at', t.gridX, t.gridY, 'value:', t.value, 'locked:', t.locked);
     
+    // Show all ghost placeholders when user starts dragging
+    if (window._ghostPlaceholders) {
+      console.log('👻 Showing all ghost placeholders on drag start');
+      for (let r = 0; r < window._ghostPlaceholders.length; r++) {
+        if (window._ghostPlaceholders[r]) {
+          for (let c = 0; c < window._ghostPlaceholders[r].length; c++) {
+            if (window._ghostPlaceholders[r][c]) {
+              window._ghostPlaceholders[r][c].visible = true;
+            }
+          }
+        }
+      }
+    }
+    
     releaseMagnet({ immediate: true });
     drag.t = t;
     drag.startGX = t.gridX;
