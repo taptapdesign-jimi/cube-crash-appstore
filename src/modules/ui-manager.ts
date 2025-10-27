@@ -528,6 +528,17 @@ class UIManager {
       statsScreen.removeAttribute('hidden');
       statsScreen.setAttribute('aria-hidden', 'false');
       
+      // CRITICAL: Update stats values when showing stats screen
+      try {
+        import('./components/stats-screen.js').then(({ updateStatsValues }) => {
+          console.log('📊 About to call updateStatsValues() from ui-manager...');
+          updateStatsValues();
+          console.log('✅ updateStatsValues() called from ui-manager');
+        });
+      } catch (error) {
+        console.error('❌ Failed to update stats values from ui-manager:', error);
+      }
+      
       // Start stats screen enter animation immediately
       animateStatsScreenEnter();
       

@@ -69,9 +69,11 @@ class AppManager {
         // Update immediately - no delay
         try {
           const { updateStatsValues } = await import('./components/stats-screen.js');
+          console.log('📊 About to call updateStatsValues()...');
           updateStatsValues();
-          console.log('📊 Stats values updated immediately');
+          console.log('✅ updateStatsValues() called successfully');
         } catch (error) {
+          console.error('❌ Failed to update stats values:', error);
           logger.warn('⚠️ Failed to update stats values:', error);
         }
       }
