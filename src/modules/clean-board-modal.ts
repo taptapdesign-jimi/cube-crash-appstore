@@ -26,6 +26,54 @@ interface ShowCleanBoardModalParams {
 
 const pickRandom = (arr: string[]): string => arr[Math.floor(Math.random() * arr.length)];
 
+// Confetti explosion effect from center of element
+function createConfettiExplosion(element: HTMLElement): void {
+  const rect = element.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  
+  const colors = ['#E97A55', '#B07F69', '#E77449', '#F5A623', '#FF6B6B', '#4ECDC4', '#95E1D3'];
+  const confettiCount = 30;
+  
+  for (let i = 0; i < confettiCount; i++) {
+    const confetti = document.createElement('div');
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const angle = (Math.PI * 2 * i) / confettiCount;
+    const velocity = 200 + Math.random() * 300;
+    
+    confetti.style.cssText = `
+      position: fixed;
+      left: ${centerX}px;
+      top: ${centerY}px;
+      width: 8px;
+      height: 8px;
+      background: ${color};
+      border-radius: 2px;
+      pointer-events: none;
+      z-index: 9999999999999;
+      transform: rotate(${Math.random() * 360}deg);
+    `;
+    
+    document.body.appendChild(confetti);
+    
+    const duration = 800 + Math.random() * 400;
+    confetti.animate([
+      { 
+        transform: `translate(0, 0) rotate(${Math.random() * 360}deg)`,
+        opacity: 1
+      },
+      {
+        transform: `translate(${Math.cos(angle) * velocity}px, ${Math.sin(angle) * velocity + 300}px) rotate(${Math.random() * 720}deg)`,
+        opacity: 0
+      }
+    ], {
+      duration: duration,
+      easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+      fill: 'forwards'
+    }).onfinish = () => confetti.remove();
+  }
+ realization
+
 export async function showCleanBoardModal({ 
   app, 
   stage, 
@@ -314,10 +362,13 @@ export async function showCleanBoardModal({
         requestAnimationFrame(tick);
       };
 
-      // SEQUENCE 1: Initial elements pop-in
+      // SEQUENCE 1: Initial elements pop-in WITH CONFETTI EXPLOSION
       setTimeout(() => {
         hero.style.opacity = '1';
         hero.style.transform = 'scale(1) translateY(0)';
+        
+        // CONFETTI EXPLOSION from hero image
+        createConfettiExplosion(hero);
       }, 100);
       setTimeout(() => {
         title.style.opacity = '1';
