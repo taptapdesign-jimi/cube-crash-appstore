@@ -130,7 +130,22 @@ function getStatsFromService(): StatItem[] {
   ];
 }
 
-const DEFAULT_STATS: StatItem[] = getStatsFromService();
+// CRITICAL FIX: Don't call getStatsFromService() at module level
+// This is called too early, before statsService is fully initialized
+// Instead, use a getter function that's called when needed
+function getDefaultStats(): StatItem[] {
+  return getStatsFromService();
+}
+
+const DEFAULT_STATS: StatItem[] = [
+  { id: 'high-score', icon: './assets/highscore-icon.png', value: '0', label: 'High score', valueId: 'high-score' },
+  { id: 'cubes-cracked', icon: './assets/cubes-cracked.png', value: '0', label: 'Cubes cracked', valueId: 'cubes-cracked' },
+  { id: 'highest-board', icon: './assets/clean-board.png', value: '0', label: 'Highest board', valueId: 'highest-board' },
+  { id: 'longest-combo', icon: './assets/combo-stats.png', value: '0', label: 'Longest combo', valueId: 'longest-combo' },
+  { id: 'helpers-used', icon: './assets/wild-stats.png', value: '0', label: 'Helpers used', valueId: 'helpers-used' },
+  { id: 'time-played', icon: './assets/time-icon.png', value: '00:00:00', label: 'Time played', valueId: 'time-played' },
+  { id: 'collectibles-unlocked', icon: './assets/collectible-stats.png', value: '0/20', label: 'Collectibles unlocked', valueId: 'collectibles-unlocked' },
+];
 
 function createStatItem(stat: StatItem): HTMLElementConfig {
   return {
@@ -178,6 +193,7 @@ function createStatItem(stat: StatItem): HTMLElementConfig {
 export function createStatsScreen(config: StatsScreenConfig): HTMLElementConfig {
   // ALWAYS get fresh stats from service when creating the screen
   const freshStats = getStatsFromService();
+  console.log('🎯 createStatsScreen - fresh stats:', freshStats);
   
   const {
     stats = freshStats,
