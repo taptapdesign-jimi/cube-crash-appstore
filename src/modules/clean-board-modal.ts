@@ -375,7 +375,7 @@ export async function showCleanBoardModal({
       // SEQUENCE 1: Initial elements pop-in WITH CONFETTI EXPLOSION
       setTimeout(() => {
         hero.style.opacity = '1';
-        hero.style.transform = 'scale(1) translateY(0 Encouraged';
+        hero.style.transform = 'scale(1) translateY(0)';
         
         // CONFETTI EXPLOSION from hero image
         createConfettiExplosion(hero);
