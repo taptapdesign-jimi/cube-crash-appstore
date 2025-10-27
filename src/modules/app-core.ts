@@ -1289,6 +1289,35 @@ function merge(src, dst, helpers){
     makeBoard.setValue(dst, effSum, srcDepth);
     if (wildActive) clearWildState(dst);
     score = Math.min(SCORE_CAP, score + effSum); updateHUD();
+    
+    // STATS TRACKING: Update high score immediately for all merges
+    console.log('📊 ALL MERGES (<6) - Checking high score update, current score:', score);
+    console.log('🔍 DEBUG: window.trackHighScore is function:', typeof window.trackHighScore === 'function');
+    try {
+      if (typeof window.trackHighScore === 'function') {
+        console.log('✅ CALLING trackHighScore with score:', score);
+        window.trackHighScore(score);
+        console.log('✅ High score tracking called for merge:', effSum);
+      } else {
+        console.error('❌ trackHighScore is NOT a function! Type:', typeof window.trackHighScore);
+      }
+    } catch (e) {
+      console.error('❌ trackHighScore failed:', e);
+    }
+    
+    // STATS TRACKING: Track wild usage as helpers
+    if (wildActive) {
+      console.log('🎯 WILD MERGE detected, tracking helpers used');
+      try {
+        if (typeof window.trackHelpersUsed === 'function') {
+          window.trackHelpersUsed(1);
+          console.log('✅ Helpers used tracking called');
+        }
+      } catch (e) {
+        console.error('❌ trackHelpersUsed failed:', e);
+      }
+    }
+    
     // Combo++ (bez realnog capa), bump anim
     hudSetCombo(combo + 1);
     try { HUD.bumpCombo?.({ kind: 'stack', combo }); } catch {}
