@@ -13,17 +13,17 @@ function createConfettiExplosion(element: HTMLElement): void {
   const totalDuration = 5000; // Overall duration
   // Progressive staggered spawns handled below
   
-  setTimeout(() => {
-    console.log('🎉 Starting progressive confetti spawns');
+  // Start immediately, no delay
+  console.log('🎉 Starting progressive confetti spawns');
     
-    // Progressive staggered spawn: first group immediately, then with increasing delays
+    // Progressive staggered spawn: finish within 5 seconds total
     const spawnGroups = [
       { delay: 0, name: 'Group 1' },
-      { delay: 2000, name: 'Group 2' },
-      { delay: 5000, name: 'Group 3' },
-      { delay: 9000, name: 'Group 4' },
-      { delay: 14000, name: 'Group 5' },
-      { delay: 20000, name: 'Group 6' }
+      { delay: 500, name: 'Group 2' },
+      { delay: 1200, name: 'Group 3' },
+      { delay: 2100, name: 'Group 4' },
+      { delay: 3200, name: 'Group 5' },
+      { delay: 4500, name: 'Group 6' }
     ];
     
     spawnGroups.forEach((group, index) => {
@@ -41,8 +41,6 @@ function createConfettiExplosion(element: HTMLElement): void {
         createSpawn(colors, confettiPerSpawn, screenW * 0.75, -(screenH * 0.3), Math.PI / 2 + 0.3, 'right', 'down');
       }, randomDelay);
     });
-    
-  }, 500);
 }
 
 function createSpawn(
