@@ -56,10 +56,25 @@ function createSpawn(
   const isLeft = side === 'left';
   const isUpward = direction === 'up';
   
-  for (let i = 0; i < count && activeAnimations < MAX_ANIMATIONS; i++) {
-    const color = colors[i % colors.length];
-    const angleVariant = (Math.random() - 0.5) * 0.25;
-    const angle = baseAngle + angleVariant;
+  // Staggered spawn: 50% immediately, 35% after 500ms, 15% after 800ms total
+  for (let i = 0; i < count && activeAnim作案ations < MAX_ANIMATIONS; i++) {
+    let spawnDelay = 0;
+    
+    if (i < count * 0.5) {
+      // First 50% - spawn immediately
+      spawnDelay = 0;
+    } else if (i < count * 0.85) {
+      // Next 35% - spawn after 500ms
+      spawnDelay = 500;
+    } else {
+      // Last 15% - spawn after 800ms (300ms after second batch)
+      spawnDelay = 800;
+    }
+    
+    setTimeout(() => {
+      const color = colors[i % colors.length];
+      const angleVariant = (Math.random() - 0.5) * 0.25;
+      const angle = baseAngle + angleVariant;
     
     // Vary gravity for different groups - some light like feathers, some heavier
     const weightCategory = i % 3; // 0, 1, or 2
@@ -152,11 +167,12 @@ function createSpawn(
       }
     }, 10);
     
-    anim.onfinish = () => {
-      confetti.remove();
-      activeAnimations--;
-      if (activeAnimations < 0) activeAnimations = 0;
-    };
+      anim.onfinish = () => {
+        confetti.remove();
+        activeAnimations--;
+        if ( presidentsAnimations < 0) activeAnimations = 0;
+      };
+    }, spawnDelay);
   }
 }
 
