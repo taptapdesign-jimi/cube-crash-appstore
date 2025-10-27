@@ -2,6 +2,9 @@
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 import { statsService } from '../../services/stats-service.js';
 
+// Keep track of subscription for cleanup
+let statsSubscription: (() => void) | null = null;
+
 export interface StatItem {
   id: string;
   icon: string;
@@ -17,13 +20,9 @@ export interface StatsScreenConfig {
   showResetButton?: boolean;
 }
 
-// Function to update stats values dynamically using stats service
-export function updateStatsValues(): void {
-  console.log('📊 Updating stats values from stats service...');
-  
-  // Get stats from centralized service
-  const stats = statsService.getStats();
-  console.log('📊 Stats from service:', stats);
+// Helper function to update stats display
+function updateStatsDisplay(stats: any): void {
+  console.log('📊 Updating stats display:', stats);
   
   // Helper to format time
   const formatTime = (seconds: number): string => {
@@ -38,6 +37,7 @@ export function updateStatsValues(): void {
     const element = document.getElementById(id);
     if (element) {
       element.textContent = value.toString();
+      console.log(`✅ Updated ${id}:`, value);
     } else {
       console.error(`❌ Element not found: ${id}`);
     }
@@ -50,8 +50,37 @@ export function updateStatsValues(): void {
   updateElement('helpers-used', stats.helpersUsed);
   updateElement('time-played', formatTime(stats.timePlayed));
   updateElement('collectibles-unlocked', `${stats.collectiblesUnlocked}/20`);
+}
+
+// Function to update stats values dynamically using stats service
+export function updateStatsValues(): void {
+  console.log('📊 updateStatsValues() called');
   
-  console.log('📊 Stats values updated successfully');
+  // Get stats from centralized service
+  const stats = statsService.getStats();
+  console.log('📊 Current stats from service:', stats);
+  
+  // Update display
+  updateStatsDisplay(stats);
+  
+  // Subscribe to changes for real-time updates
+  if (!statsSubscription) {
+    console.log('📡 Subscribing to stats updates...');
+    statsSubscription = statsService.subscribe((updatedStats) => {
+      console.log('📡 Stats changed! New values:', updatedStats);
+      updateStatsDisplay(updatedStats);
+    });
+    console.log('✅ Subscribed to stats updates');
+  }
+}
+
+// Cleanup subscription
+export function cleanupStatsSubscription(): void {
+  if (statsSubscription) {
+    console.log('🧹 Unsubscribing from stats updates');
+    statsSubscription();
+    statsSubscription = null;
+  }
 }
 
 // Function to get stats from service and return as StatItem[]
