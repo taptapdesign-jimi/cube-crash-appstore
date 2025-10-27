@@ -91,11 +91,47 @@ export const safeUnlockSlider = (): void => {
 };
 
 // Animate slider exit when clicking CTA - CARTOONISH BOUNCE-INTO-SCALE-0
+// Helper function for EXTRA CARTOONISH bounce scale animation (SCALE ONLY, NO OPACITY)
+const cartoonishBounce = (element: HTMLElement, delay: number) => {
+  setTimeout(() => {
+    // CRITICAL: Reset element state first
+    element.style.willChange = 'transform';
+    element.style.transition = 'none';
+    element.style.transform = 'scale(1)';
+    
+    // Force reflow
+    void element.offsetHeight;
+    
+    // NOW animate with extra bouncy easing
+    element.style.transition = 'transform 0.6s cubic-bezier(0.68, -0.6, 0.32, 1.6)'; // EXTRA bouncy, longer duration
+    element.style.transform = 'scale(0)';
+    // NO OPACITY - only scale down
+  }, delay);
+};
+
+// Helper function for reverse bounce animation (scale 0 to 1) - NO OPACITY, SCALE ONLY
+const reverseBounce = (element: HTMLElement, delay: number) => {
+  // Set initial state (from scale 0) - NO TRANSITION YET
+  element.style.transition = 'none'; // Crucial: no transition when setting initial state
+  element.style.transform = 'scale(0)';
+  // NO OPACITY - scale only
+  
+  // Force reflow to apply initial state
+  void element.offsetHeight;
+  
+  setTimeout(() => {
+    element.style.willChange = 'transform';
+    element.style.transition = 'transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)'; // Same bouncy easing, scale only
+    element.style.transform = 'scale(1)';
+    // NO OPACITY
+  }, delay);
+};
+
 export const animateSliderExit = (): void => {
   try {
-    logger.info('🎬 Starting cartoonish bounce-in-to-scale-0 exit animation...');
+    logger.info('🎬 Starting CARTOONISH PROCEDURAL exit animation...');
     
-    // CRITICAL: Clean up any leftover animations first
+    // CRITICAL: Clean up any leftover animations and RESET to initial state first
     const allSliderElements = [
       '.hero-container',
       '.slide-text',
@@ -106,223 +142,354 @@ export const animateSliderExit = (): void => {
       '#slider-container'
     ];
     
+    // CRITICAL: Reset ALL elements to initial state (scale 1, visible) IMMEDIATELY
     allSliderElements.forEach(selector => {
-      const element = document.querySelector(selector);
+      const element = document.querySelector(selector) || document.getElementById(selector.replace('#', ''));
       if (element) {
         const el = element as HTMLElement;
+        
         // Kill any ongoing transitions
-        el.style.transition = 'none';
+        el.style.transition = '';
+        // RESET to initial state
         el.style.transform = '';
         el.style.opacity = '';
         el.style.willChange = '';
-        // Force reflow to cancel animations
-        void el.offsetHeight;
+        el.style.display = '';
+        el.style.visibility = '';
       }
     });
     
-    // Helper function for cartoonish bounce scale animation
-    const cartoonishBounce = (element: HTMLElement, delay: number) => {
-      setTimeout(() => {
-        element.style.willChange = 'transform, opacity';
-        element.style.transition = 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)'; // Bouncy easing
-        element.style.transform = 'scale(0)';
-        element.style.opacity = '0';
-      }, delay);
-    };
+    // CRITICAL: Force layout recalculation
+    void document.body.offsetHeight;
     
-    // STEP 1: Hero image - bounce into nothing
-    const heroContainer = document.querySelector('.hero-container');
-    if (heroContainer) {
-      cartoonishBounce(heroContainer as HTMLElement, 0);
-      logger.info('🖼️ Step 1: Hero image cartoonish bounce to scale(0)');
-    }
+    // NO ANIMATION - just return (animations removed)
+    logger.info('✅ Slider exit animation skipped - using fade out instead');
     
-    // STEP 2: Slide text
-    const slideText = document.querySelector('.slide-text');
-    if (slideText) {
-      cartoonishBounce(slideText as HTMLElement, 100);
-      logger.info('📝 Step 2: Slide text cartoonish bounce to scale(0)');
-    }
-    
-    // STEP 3: Play button
-    const slideButton = document.querySelector('.slide-button');
-    if (slideButton) {
-      cartoonishBounce(slideButton as HTMLElement, 200);
-      logger.info('🔘 Step 3: Play button cartoonish bounce to scale(0)');
-    }
-    
-    // STEP 4: Navigation dots
-    const sliderNav = document.querySelector('#slider-dots');
-    if (sliderNav) {
-      cartoonishBounce(sliderNav as HTMLElement, 300);
-      logger.info('🎯 Step 4: Navigation dots cartoonish bounce to scale(0)');
-    }
-    
-    // STEP 5: Home logo
-    const homeLogo = document.querySelector('#home-logo');
-    if (homeLogo) {
-      cartoonishBounce(homeLogo as HTMLElement, 400);
-      logger.info('🎨 Step 5: Home logo cartoonish bounce to scale(0)');
-    }
-    
-    // STEP 6: Independent navigation (bottom nav bar) - FASTER
-    const independentNav = document.getElementById('independent-nav');
-    if (independentNav) {
-      cartoonishBounce(independentNav as HTMLElement, 150);
-      logger.info('🎯 Step 6: Independent navigation cartoonish bounce to scale(0) - FASTER');
-    }
-    
-    // STEP 7: Slider container (last)
-    const sliderContainer = document.getElementById('slider-container');
-    if (sliderContainer) {
-      setTimeout(() => {
-        sliderContainer.style.willChange = 'transform, opacity';
-        sliderContainer.style.transition = 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-        sliderContainer.style.transform = 'scale(0)';
-        sliderContainer.style.opacity = '0';
-      }, 600);
-      logger.info('📦 Step 7: Slider container cartoonish bounce to scale(0)');
-    }
-    
-    logger.info('✅ Cartoonish bounce-in-to-scale-0 exit animation started');
   } catch (error) {
     logger.error('❌ Failed to animate slider exit:', error);
   }
 };
 
-// Animate slider enter when returning to home - REVERSE OF EXIT ANIMATION
-export const animateSliderEnter = (): void => {
+// Separate function for the actual animation sequence
+function startExitAnimationSequence(): void {
   try {
-    logger.info('🎬 Starting reverse cartoonish bounce enter animation...');
+    // CARTOONISH PROCEDURAL SEQUENCE: 1. Navigation → 2. Hero image → 3. Logo → 4. Text → 5. CTA
     
-    // CRITICAL: Clean up any leftover animations first
-    const allSliderElements = [
-      '.hero-container',
-      '.slide-text',
-      '.slide-button',
-      '#slider-dots',
-      '#home-logo',
-      '#slider-container'
+    // STEP 1: Navigation FIRST (0ms delay)
+    const independentNav = document.getElementById('independent-nav');
+    if (independentNav) {
+      cartoonishBounce(independentNav as HTMLElement, 0);
+      logger.info('🎯 Step 1: Navigation cartoonish bounce - FIRST');
+    }
+    
+    // STEP 2: Hero image SECOND (150ms delay)
+    const heroContainer = document.querySelector('.hero-container');
+    if (heroContainer) {
+      cartoonishBounce(heroContainer as HTMLElement, 150);
+      logger.info('🖼️ Step 2: Hero image cartoonish bounce - SECOND');
+    }
+    
+    // STEP 3: Home logo THIRD (300ms delay)
+    const homeLogo = document.querySelector('#home-logo');
+    if (homeLogo) {
+      cartoonishBounce(homeLogo as HTMLElement, 300);
+      logger.info('🎨 Step 3: Home logo cartoonish bounce - THIRD');
+    }
+    
+    // STEP 4: Slide text FOURTH (450ms delay)
+    const slideText = document.querySelector('.slide-text');
+    if (slideText) {
+      cartoonishBounce(slideText as HTMLElement, 450);
+      logger.info('📝 Step 4: Slide text cartoonish bounce - FOURTH');
+    }
+    
+    // STEP 5: Stats button/CTA LAST (600ms delay)
+    const slideButton = document.querySelector('.slide-button');
+    if (slideButton) {
+      cartoonishBounce(slideButton as HTMLElement, 600);
+      logger.info('🔘 Step 5: Stats button cartoonish bounce - LAST');
+    }
+    
+    // STEP 6: Slider container (after all elements, 800ms delay)
+    const sliderContainer = document.getElementById('slider-container');
+    if (sliderContainer) {
+      setTimeout(() => {
+        sliderContainer.style.willChange = 'transform';
+        sliderContainer.style.transition = 'none';
+        sliderContainer.style.transform = 'scale(1)';
+        void sliderContainer.offsetHeight;
+        sliderContainer.style.transition = 'transform 0.6s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+        sliderContainer.style.transform = 'scale(0)';
+        // NO OPACITY - only scale
+      }, 800);
+      logger.info('📦 Step 6: Slider container cartoonish bounce');
+    }
+    
+    logger.info('✅ Cartoonish bounce-in-to-scale-0 exit animation started');
+  } catch (error) {
+    logger.error('❌ Failed to start exit animation sequence:', error);
+  }
+};
+
+// Stats screen enter animation - SAME STYLE AS SLIDE 1 (NO OPACITY, SCALE ONLY)
+export const animateStatsScreenEnter = (): void => {
+  try {
+    logger.info('🎬 Starting stats screen enter animation (same as slide 1, scale only)...');
+    
+    // All stats screen elements
+    const statsSelectors = [
+      '.stats-back-button',
+      '.stats-title',
+      '.stats-title-underline',
+      '.stats-grid',
+      '.stats-scrollable'
     ];
     
-    allSliderElements.forEach(selector => {
+    // Reset all elements to initial state (scale 0 only, NO opacity)
+    statsSelectors.forEach(selector => {
       const element = document.querySelector(selector);
       if (element) {
         const el = element as HTMLElement;
-        // Kill any ongoing transitions
         el.style.transition = 'none';
-        el.style.transform = '';
-        el.style.opacity = '';
+        el.style.transform = 'scale(0)';
+        // NO OPACITY - scale only
         el.style.willChange = '';
-        // Force reflow to cancel animations
         void el.offsetHeight;
       }
     });
     
-    // Helper function for reverse bounce animation (scale 0 to 1)
-    const reverseBounce = (element: HTMLElement, delay: number) => {
+    // Helper function for reverse bounce animation (scale 0 to 1, NO OPACITY)
+    const reverseBounceStats = (element: HTMLElement, delay: number) => {
       // Set initial state (from scale 0) - NO TRANSITION YET
-      element.style.transition = 'none'; // Crucial: no transition when setting initial state
+      element.style.transition = 'none';
       element.style.transform = 'scale(0)';
-      element.style.opacity = '0';
+      // NO OPACITY - scale only
       
       // Force reflow to apply initial state
       void element.offsetHeight;
       
       setTimeout(() => {
-        element.style.willChange = 'transform, opacity';
-        element.style.transition = 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)'; // Same bouncy easing
+        element.style.willChange = 'transform';
+        element.style.transition = 'transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)'; // Bouncy easing, scale only
         element.style.transform = 'scale(1)';
-        element.style.opacity = '1';
+        // NO OPACITY
       }, delay);
     };
     
-    // Get slider container and reset it first
-    const sliderContainer = document.getElementById('slider-container');
-    if (sliderContainer) {
-      sliderContainer.style.transform = 'scale(0)';
-      sliderContainer.style.opacity = '0';
+    // Animate each element with reverse bounce (same as slide 1 enter, scale only)
+    const backButton = document.querySelector('.stats-back-button');
+    if (backButton) reverseBounceStats(backButton as HTMLElement, 0);
+    
+    const title = document.querySelector('.stats-title');
+    if (title) reverseBounceStats(title as HTMLElement, 100);
+    
+    const underline = document.querySelector('.stats-title-underline');
+    if (underline) reverseBounceStats(underline as HTMLElement, 200);
+    
+    const grid = document.querySelector('.stats-grid');
+    if (grid) reverseBounceStats(grid as HTMLElement, 300);
+    
+    const scrollable = document.querySelector('.stats-scrollable');
+    if (scrollable) reverseBounceStats(scrollable as HTMLElement, 400);
+    
+    logger.info('✅ Stats screen enter animation started (scale only, no opacity)');
+  } catch (error) {
+    logger.error('❌ Failed to animate stats screen enter:', error);
+  }
+};
+
+// Stats screen exit animation - SAME STYLE AS SLIDE 1 (NO OPACITY, SCALE ONLY)
+export const animateStatsScreenExit = (): void => {
+  try {
+    logger.info('🎬 Starting stats screen exit animation (same as slide 1, scale only)...');
+    
+    const statsElements = [
+      '.stats-back-button',
+      '.stats-title',
+      '.stats-title-underline',
+      '.stats-grid',
+      '.stats-scrollable'
+    ];
+    
+    // Reset all elements (scale 1 only, NO opacity)
+    statsElements.forEach(selector => {
+      const element = document.querySelector(selector);
+      if (element) {
+        const el = element as HTMLElement;
+        el.style.transition = 'none';
+        el.style.transform = 'scale(1)';
+        // NO OPACITY - scale only
+        el.style.willChange = '';
+        void el.offsetHeight;
+      }
+    });
+    
+    // Animate each element with stagger (same as slide 1 exit, scale only)
+    const backButton = document.querySelector('.stats-back-button');
+    if (backButton) cartoonishBounce(backButton as HTMLElement, 0);
+    
+    const title = document.querySelector('.stats-title');
+    if (title) cartoonishBounce(title as HTMLElement, 100);
+    
+    const underline = document.querySelector('.stats-title-underline');
+    if (underline) cartoonishBounce(underline as HTMLElement, 200);
+    
+    const grid = document.querySelector('.stats-grid');
+    if (grid) cartoonishBounce(grid as HTMLElement, 300);
+    
+    const scrollable = document.querySelector('.stats-scrollable');
+    if (scrollable) cartoonishBounce(scrollable as HTMLElement, 400);
+    
+    logger.info('✅ Stats screen exit animation started (scale only, no opacity)');
+  } catch (error) {
+    logger.error('❌ Failed to animate stats screen exit:', error);
+  }
+};
+
+// Animate slider enter when returning to home - CARTOONISH PROCEDURAL ENTER (SCALE ONLY, NO OPACITY)
+export const animateSliderEnter = (): void => {
+  try {
+    logger.info('🎬 Starting CARTOONISH PROCEDURAL enter animation...');
+    
+    // CRITICAL: Clean up any leftover animations first
+    const allSliderElements = [
+      '#independent-nav', // Add navigation
+      '.hero-container',
+      '.slide-text',
+      '.slide-button',
+      '#home-logo',
+      '#slider-container'
+    ];
+    
+    // CRITICAL: Reset ALL elements to initial state (scale 0, visible) IMMEDIATELY
+    allSliderElements.forEach(selector => {
+      const element = document.querySelector(selector) || document.getElementById(selector.replace('#', ''));
+      if (element) {
+        const el = element as HTMLElement;
+        // Kill any ongoing transitions
+        el.style.transition = '';
+        el.style.transform = '';
+        el.style.opacity = '';
+        el.style.willChange = '';
+        el.style.display = '';
+        el.style.visibility = '';
+      }
+    });
+    
+    // CRITICAL: Force layout recalculation
+    void document.body.offsetHeight;
+    
+    // NO ANIMATION - just return (animations removed)
+    logger.info('✅ Slider enter animation skipped - using fade in instead');
+    
+  } catch (error) {
+    logger.error('❌ Failed to animate slider enter:', error);
+  }
+};
+
+// Separate function for the actual enter animation sequence
+function startEnterAnimationSequence(): void {
+  try {
+    
+    // Helper function for EXTRA CARTOONISH reverse bounce animation (scale 0 to 1, NO OPACITY)
+    const reverseBounce = (element: HTMLElement, delay: number) => {
       setTimeout(() => {
-        sliderContainer.style.willChange = 'transform, opacity';
-        sliderContainer.style.transition = 'all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-        sliderContainer.style.transform = 'scale(1)';
-        sliderContainer.style.opacity = '1';
-      }, 0);
-      logger.info('📦 Step 1: Slider container reverse bounce from scale(0)');
-    }
+        // CRITICAL: Reset element state first
+        element.style.willChange = 'transform';
+        element.style.transition = 'none';
+        element.style.transform = 'scale(0)';
+        
+        // Force reflow
+        void element.offsetHeight;
+        
+        // NOW animate with extra bouncy easing
+        element.style.transition = 'transform 0.6s cubic-bezier(0.68, -0.6, 0.32, 1.6)'; // EXTRA bouncy, longer duration
+        element.style.transform = 'scale(1)';
+        // NO OPACITY
+      }, delay);
+    };
     
-    // STEP 1: Hero image - bounce from 0 to 1
-    const heroContainer = document.querySelector('.hero-container');
-    if (heroContainer) {
-      reverseBounce(heroContainer as HTMLElement, 100);
-      logger.info('🖼️ Step 2: Hero image reverse bounce from scale(0)');
-    }
+    // CARTOONISH PROCEDURAL SEQUENCE: 1. Navigation → 2. Hero image → 3. Logo → 4. Text → 5. CTA
     
-    // STEP 2: Slide text
-    const slideText = document.querySelector('.slide-text');
-    if (slideText) {
-      reverseBounce(slideText as HTMLElement, 200);
-      logger.info('📝 Step 3: Slide text reverse bounce from scale(0)');
-    }
-    
-    // STEP 3: Play button
-    const slideButton = document.querySelector('.slide-button');
-    if (slideButton) {
-      reverseBounce(slideButton as HTMLElement, 300);
-      logger.info('🔘 Step 4: Play button reverse bounce from scale(0)');
-    }
-    
-    // STEP 4: Navigation dots
-    const sliderNav = document.querySelector('#slider-dots');
-    if (sliderNav) {
-      reverseBounce(sliderNav as HTMLElement, 400);
-      logger.info('🎯 Step 5: Navigation dots reverse bounce from scale(0)');
-    }
-    
-    // STEP 5: Home logo (faster appearance)
-    const homeLogo = document.querySelector('#home-logo');
-    if (homeLogo) {
-      reverseBounce(homeLogo as HTMLElement, 100);
-      logger.info('🎨 Step 6: Home logo reverse bounce from scale(0) - FASTER');
-    }
-    
-    // STEP 6: Independent navigation (bottom nav bar) - FASTER
+    // STEP 1: Navigation FIRST (0ms delay)
     const independentNav = document.getElementById('independent-nav');
     if (independentNav) {
-      reverseBounce(independentNav as HTMLElement, 150);
-      logger.info('🎯 Step 7: Independent navigation reverse bounce from scale(0) - FASTER');
+      reverseBounce(independentNav as HTMLElement, 0);
+      logger.info('🎯 Step 1: Navigation cartoonish bounce - FIRST');
+    }
+    
+    // STEP 2: Hero image SECOND (150ms delay)
+    const heroContainer = document.querySelector('.hero-container');
+    if (heroContainer) {
+      reverseBounce(heroContainer as HTMLElement, 150);
+      logger.info('🖼️ Step 2: Hero image cartoonish bounce - SECOND');
+    }
+    
+    // STEP 3: Home logo THIRD (300ms delay)
+    const homeLogo = document.querySelector('#home-logo');
+    if (homeLogo) {
+      reverseBounce(homeLogo as HTMLElement, 300);
+      logger.info('🎨 Step 3: Home logo cartoonish bounce - THIRD');
+    }
+    
+    // STEP 4: Slide text FOURTH (450ms delay)
+    const slideText = document.querySelector('.slide-text');
+    if (slideText) {
+      reverseBounce(slideText as HTMLElement, 450);
+      logger.info('📝 Step 4: Slide text cartoonish bounce - FOURTH');
+    }
+    
+    // STEP 5: CTA button LAST (600ms delay)
+    const slideButton = document.querySelector('.slide-button');
+    if (slideButton) {
+      reverseBounce(slideButton as HTMLElement, 600);
+      logger.info('🔘 Step 5: CTA button cartoonish bounce - LAST');
+    }
+    
+    // STEP 6: Slider container (after all elements, 800ms delay)
+    const sliderContainer = document.getElementById('slider-container');
+    if (sliderContainer) {
+      setTimeout(() => {
+        sliderContainer.style.willChange = 'transform';
+        sliderContainer.style.transition = 'none';
+        sliderContainer.style.transform = 'scale(0)';
+        void sliderContainer.offsetHeight;
+        sliderContainer.style.transition = 'transform 0.6s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+        sliderContainer.style.transform = 'scale(1)';
+        // NO OPACITY - only scale
+      }, 800);
+      logger.info('📦 Step 6: Slider container cartoonish bounce');
     }
     
     // CRITICAL: After all animations complete, ensure all elements are at final state
     setTimeout(() => {
       const allElements = [
+        '#independent-nav',
         '.hero-container',
         '.slide-text',
         '.slide-button',
-        '#slider-dots',
         '#home-logo',
-        '#independent-nav',
         '#slider-container'
       ];
       
       allElements.forEach(selector => {
-        const element = document.querySelector(selector);
+        const element = document.querySelector(selector) || document.getElementById(selector.replace('#', ''));
         if (element) {
           const el = element as HTMLElement;
-          // Ensure final state - remove transitions, set to final values
+          // Ensure final state - remove transitions, set to final values (SCALE ONLY)
           el.style.transition = 'none';
           el.style.transform = 'scale(1)';
-          el.style.opacity = '1';
+          // NO OPACITY - scale only
           el.style.willChange = 'auto';
         }
       });
       
-      logger.info('✅ All slider elements set to final state (scale(1), opacity(1))');
-    }, 1100); // 500ms delay + 500ms animation + 100ms buffer
+      logger.info('✅ All slider elements set to final state (scale(1) only)');
+    }, 1400); // 800ms delay + 500ms animation + 100ms buffer
     
     logger.info('✅ Reverse cartoonish bounce enter animation started');
   } catch (error) {
-    logger.error('❌ Failed to animate slider enter:', error);
+    logger.error('❌ Failed to start enter animation sequence:', error);
   }
 };
 

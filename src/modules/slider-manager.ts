@@ -243,7 +243,23 @@ class SliderManager {
     
     const slideWidth = this.elements.container.offsetWidth;
     const baseOffset = -this.currentSlide * slideWidth;
-    const currentOffset = baseOffset + deltaX;
+    
+    // iOS SAFETY: Elastic bounce at edges (slide 0 and slide 3)
+    const maxDragDistance = slideWidth * 0.03; // 3% elastic limit
+    
+    let currentOffset = baseOffset + deltaX;
+    
+    // Slide 0 (first): Prevent dragging right (positive deltaX)
+    if (this.currentSlide === 0 && deltaX > 0) {
+      // Elastic resistance: reduce movement by 90%
+      currentOffset = baseOffset + (deltaX * 0.1);
+    }
+    
+    // Slide 3 (last): Prevent dragging left (negative deltaX)
+    if (this.currentSlide === this.totalSlides - 1 && deltaX < 0) {
+      // Elastic resistance: reduce movement by 90%
+      currentOffset = baseOffset + (deltaX * 0.1);
+    }
     
     this.elements.wrapper.style.transform = `translateX(${currentOffset}px)`;
   }
@@ -261,15 +277,23 @@ class SliderManager {
   
   // Go to next slide
   nextSlide(): void {
+    // iOS SAFETY: Prevent going beyond last slide
     if (this.currentSlide < this.totalSlides - 1) {
       this.goToSlide(this.currentSlide + 1);
+    } else {
+      // Last slide: snap back with bounce
+      this.updateSlider();
     }
   }
   
   // Go to previous slide
   previousSlide(): void {
+    // iOS SAFETY: Prevent going beyond first slide
     if (this.currentSlide > 0) {
       this.goToSlide(this.currentSlide - 1);
+    } else {
+      // First slide: snap back with bounce
+      this.updateSlider();
     }
   }
   

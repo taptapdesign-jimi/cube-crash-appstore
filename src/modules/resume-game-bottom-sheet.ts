@@ -67,7 +67,7 @@ function createResumeModal(): HTMLElement {
         } else {
           console.error('❌ continueGameWithSavedState function not found');
         }
-      }, 600);
+      }, 700); // 700ms to match New Game delay
     });
   }
   
@@ -83,14 +83,15 @@ function createResumeModal(): HTMLElement {
         console.warn('⚠️ Failed to clear saved game state:', error);
       }
       hideResumeModal();
-      // CRITICAL: Wait for modal to close, then start game directly (no duplicate exit anim)
+      // CRITICAL: Wait for modal to close, then start game directly
+      // IMPORTANT: This delay should be LONGER than Continue to ensure modal is closed
       setTimeout(() => {
-        console.log('🎮 Starting game after modal closed');
+        console.log('🎮 Starting game after modal closed (New Game)');
         // Call startNewGame directly - it will handle exit animation
         if ((window as any).uiManager) {
           (window as any).uiManager.startNewGame();
         }
-      }, 600);
+      }, 700); // 700ms instead of 600ms to ensure modal is fully closed
     });
   }
   
@@ -126,6 +127,9 @@ function addOutsideClickFunctionality(modalEl: HTMLElement, registerCleanup: (fn
   }, 200);
 }
 
+// Import animation function at module level (no async import delay)
+import { animateBottomSheetEntrance } from './resume-sheet-animations.js';
+
 export function showResumeGameBottomSheet(): void {
   console.log('🎯 Pausing game for bottom sheet');
   safePauseGame();
@@ -136,17 +140,18 @@ export function showResumeGameBottomSheet(): void {
   const el = createResumeModal();
   console.log('🎯 RESUME MODAL CREATED');
   
-  // Import and run animation - it will handle display and opacity
-  requestAnimationFrame(() => {
-    import('./resume-sheet-animations.js').then(({ animateBottomSheetEntrance }) => {
+  // CRITICAL: Small delay to ensure DOM is ready before animating
+  setTimeout(() => {
+    requestAnimationFrame(() => {
+      // Direct animation call - no async import, instant response
       animateBottomSheetEntrance(el).then(() => {
         console.log('✅ Bottom sheet entrance complete');
+      }).catch((error) => {
+        console.error('❌ Failed to animate:', error);
+        el.classList.add('visible');
       });
-    }).catch((error) => {
-      console.error('❌ Failed to load animation:', error);
-      el.classList.add('visible');
     });
-  });
+  }, 50); // 50ms delay to ensure modal is fully created
 }
 
 export function hideResumeModal(): void {
@@ -176,6 +181,14 @@ export function hideResumeModal(): void {
 
   setTimeout(() => {
     modalEl.classList.remove('visible');
+    
+    // CRITICAL: Force hide bottom sheet to prevent it from blocking animations
+    modalEl.style.display = 'none';
+    modalEl.style.visibility = 'hidden';
+    modalEl.style.zIndex = '-999999999';
+    modalEl.style.transform = 'translateY(100vh)';
+    modalEl.style.transition = 'none';
+    
     try { modalEl.remove(); } catch (error) {
       console.warn('⚠️ Failed to remove modal:', error);
     }

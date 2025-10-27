@@ -2081,6 +2081,19 @@ export function cleanupGame() {
     }
   }
   
+  // CRITICAL: Destroy and nullify app so boot() can create a new one
+  if (app) {
+    console.log('🧹 Destroying PIXI app in cleanupGame()');
+    try {
+      app.destroy(true, { children: true, texture: true, baseTexture: true });
+      console.log('✅ PIXI app destroyed in cleanupGame()');
+    } catch (e) {
+      console.log('⚠️ Error destroying app in cleanupGame():', e);
+    }
+    app = null;
+    console.log('✅ app set to null');
+  }
+  
   console.log('✅ Game cleanup completed');
   syncSharedState();
 }

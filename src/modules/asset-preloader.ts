@@ -128,7 +128,27 @@ const ALL_ASSETS: string[] = [
   './assets/colelctibles/legendary back.png',
 ];
 
-// Add collectibles assets
+// CRITICAL ASSETS: Only load what's needed for home page and first game frame
+const CRITICAL_ASSETS: string[] = [
+  // Homepage - only first slide
+  './assets/crash-cubes-homepage1.png',
+  './assets/logo-cube-crash.png',
+  './assets/logo.png',
+  
+  // Core game - minimum for initial play
+  './assets/tile.png',
+  './assets/tile_numbers.png',
+  './assets/wild.png',
+  
+  // Essential UI (first frame only)
+  './assets/close-button.png',
+  './assets/stop.png',
+  
+  // One font only
+  './assets/fonts/LTCrow-Regular.ttf',
+];
+
+// Add collectibles assets to ALL_ASSETS
 for (let i = 1; i <= 20; i++) {
   const id = String(i).padStart(2, '0');
   ALL_ASSETS.push(`./assets/colelctibles/common/${id}.png`);
@@ -138,6 +158,9 @@ for (let i = 21; i <= 25; i++) {
   const id = String(i).padStart(2, '0');
   ALL_ASSETS.push(`./assets/colelctibles/legendary/${id}.png`);
 }
+
+// DEFERRED ASSETS: Load these in background after critical
+const DEFERRED_ASSETS: string[] = ALL_ASSETS.filter(asset => !CRITICAL_ASSETS.includes(asset));
 
 export class AssetPreloader {
   private loadedCount: number = 0;
@@ -202,42 +225,37 @@ export class AssetPreloader {
       return this.preloadPromise;
     }
     this.preloadPromise = (async () => {
-      logger.info('🔄 Starting asset preloading...');
+      logger.info('🔄 Starting FAST asset preloading (critical only)...');
       
       try {
-        // CRITICAL: Filter out problematic FX assets that cause hangs
-        const criticalAssets = ALL_ASSETS.filter(asset => {
-          // Skip FX assets - load them lazily during gameplay
-          if (asset.includes('/fx/boom/')) {
-            return false;
-          }
-          // Include everything else
-          return true;
-        });
+        // OPTIMIZED: Load ONLY critical assets for instant game start
+        this.totalCount = CRITICAL_ASSETS.length;
         
-        logger.info(`📦 Loading ${criticalAssets.length} critical assets (skipping ${ALL_ASSETS.length - criticalAssets.length} FX assets)`);
-        
-        // Update total count for progress tracking
-        this.totalCount = criticalAssets.length;
+        logger.info(`📦 Loading ${CRITICAL_ASSETS.length} critical assets (deferring ${DEFERRED_ASSETS.length} assets)`);
         
         // Load critical assets using PIXI Assets with timeout
-        const loadPromise = Assets.load(criticalAssets, (progress: number) => {
-          this.loadedCount = Math.round(progress * criticalAssets.length);
+        const loadPromise = Assets.load(CRITICAL_ASSETS, (progress: number) => {
+          this.loadedCount = Math.round(progress * CRITICAL_ASSETS.length);
           this.updateProgress();
         });
         
-        // Add timeout to prevent infinite hangs (30 seconds max)
+        // Add timeout to prevent infinite hangs (10 seconds max - faster fail)
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Asset loading timeout after 30 seconds')), 30000);
+          setTimeout(() => reject(new Error('Asset loading timeout after 10 seconds')), 10000);
         });
         
         await Promise.race([loadPromise, timeoutPromise]);
         
-        logger.info('✅ Critical assets preloaded successfully');
+        logger.info('✅ Critical assets preloaded successfully (FAST MODE)');
         
         // Mark as complete even if some assets failed
         this.loadedCount = this.totalCount;
         this.updateProgress();
+        
+        // Load deferred assets in background (non-blocking)
+        this.preloadDeferredAssets().catch(err => {
+          logger.warn('⚠️ Deferred asset loading failed (non-critical):', err);
+        });
         
         // Load audio files directly (not through PIXI.js)
         try {
@@ -264,6 +282,25 @@ export class AssetPreloader {
       }
     })();
     return this.preloadPromise;
+  }
+
+  // Load deferred assets in background (non-blocking)
+  async preloadDeferredAssets(): Promise<void> {
+    logger.info(`🔄 Starting background loading of ${DEFERRED_ASSETS.length} deferred assets...`);
+    
+    try {
+      // Load in batches to avoid overwhelming the browser
+      const batchSize = 10;
+      for (let i = 0; i < DEFERRED_ASSETS.length; i += batchSize) {
+        const batch = DEFERRED_ASSETS.slice(i, i + batchSize);
+        await Assets.load(batch);
+        logger.info(`✅ Loaded batch ${Math.floor(i / batchSize) + 1} (${Math.min(i + batchSize, DEFERRED_ASSETS.length)}/${DEFERRED_ASSETS.length})`);
+      }
+      
+      logger.info('✅ All deferred assets loaded in background');
+    } catch (error) {
+      logger.warn('⚠️ Some deferred assets failed to load:', error);
+    }
   }
 
   // Alternative method for loading assets individually with better error handling

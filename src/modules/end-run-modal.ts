@@ -433,6 +433,14 @@ export function hideModal(): void {
   setTimeout(() => {
     // Remove modal from DOM
     modalEl.classList.remove('visible');
+    
+    // CRITICAL: Force hide bottom sheet to prevent it from blocking animations
+    modalEl.style.display = 'none';
+    modalEl.style.visibility = 'hidden';
+    modalEl.style.zIndex = '-999999999';
+    modalEl.style.transform = 'translateY(100vh)';
+    modalEl.style.transition = 'none';
+    
     if (modalEl) {
       modalEl.remove();
       modal = null;

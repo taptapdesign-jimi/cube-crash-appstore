@@ -112,6 +112,12 @@ function makeWildLoader() {
   
   // Methods
   container.setProgress = (ratio, animate = false) => {
+    // CRITICAL: Check if _fill exists before using it
+    if (!container._fill) {
+      console.error('❌ HUD: container._fill is null! Cannot update progress.');
+      return;
+    }
+    
     const progress = Math.max(0, Math.min(1, ratio));
     const width = progress * container._maxWidth;
     
@@ -133,10 +139,12 @@ function makeWildLoader() {
         ease: 'power2.out',
         onUpdate: function() {
           // Redraw fill with current width
-          container._fill.clear();
-          container._fill.beginFill(0xE7744A);
-          container._fill.drawRoundedRect(0, 0, this.targets()[0].width, 8, 4);
-          container._fill.endFill();
+          if (container._fill) {
+            container._fill.clear();
+            container._fill.beginFill(0xE7744A);
+            container._fill.drawRoundedRect(0, 0, this.targets()[0].width, 8, 4);
+            container._fill.endFill();
+          }
         },
         onComplete: () => {
           container._currentAnimation = null;
@@ -146,15 +154,23 @@ function makeWildLoader() {
       console.log('🎯 PIXI Wild meter: Animation started');
     } else {
       // Set width directly
-      container._fill.clear();
-      container._fill.beginFill(0xE7744A);
-      container._fill.drawRoundedRect(0, 0, width, 8, 4);
-      container._fill.endFill();
-      console.log('🎯 PIXI Wild meter set directly to width:', width);
+      if (container._fill) {
+        container._fill.clear();
+        container._fill.beginFill(0xE7744A);
+        container._fill.drawRoundedRect(0, 0, width, 8, 4);
+        container._fill.endFill();
+        console.log('🎯 PIXI Wild meter set directly to width:', width);
+      }
     }
   };
   
   container.setWidth = (width) => {
+    // CRITICAL: Check if _bg and _fill exist before using them
+    if (!container._bg || !container._fill) {
+      console.error('❌ HUD: container._bg or _fill is null! Cannot set width.');
+      return;
+    }
+    
     container._maxWidth = width;
     // Redraw background with new width
     container._bg.clear();
@@ -174,6 +190,8 @@ function makeWildLoader() {
     setWidth: container.setWidth
   };
 }
+
+// wild is declared at line 17, no need to redeclare
 
 export { wild };
 let __comboJitterTl = null;
@@ -542,13 +560,24 @@ export function bumpCombo(opts = {}){
 /* COMPLETELY NEW LOGIC: Simple DOM-based wild meter positioned in HUD */
 export function updateProgressBar(ratio, animate = false){
   console.log('🔥 PIXI LOGIC: updateProgressBar called with:', { ratio, animate });
+  
+  // CRITICAL: Check if wild exists
+  if (!wild) {
+    console.warn('⚠️ PIXI LOGIC: Wild meter not initialized yet');
+    return;
+  }
+  
   const clamped = Math.max(0, Math.min(1, Number.isFinite(ratio) ? ratio : 0));
   
-  if (wild && wild.setProgress) {
-    wild.setProgress(clamped, animate);
-    console.log('✅ PIXI LOGIC: Wild meter progress updated to', Math.round(clamped * 100) + '%');
+  if (wild.setProgress) {
+    try {
+      wild.setProgress(clamped, animate);
+      console.log('✅ PIXI LOGIC: Wild meter progress updated to', Math.round(clamped * 100) + '%');
+    } catch (error) {
+      console.error('❌ PIXI LOGIC: Error updating wild meter:', error);
+    }
   } else {
-    console.warn('⚠️ PIXI LOGIC: Wild meter not available for progress update');
+    console.warn('⚠️ PIXI LOGIC: wild.setProgress is not available');
   }
 }
 

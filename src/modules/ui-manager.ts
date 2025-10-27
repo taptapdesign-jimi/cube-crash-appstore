@@ -2,7 +2,7 @@
 // Handles all UI interactions and animations
 
 import gameState from './game-state.js';
-import { fadeOutHome, fadeInHome, animateSliderExit } from '../utils/animations.js';
+import { fadeOutHome, fadeInHome, animateSliderExit, animateSliderEnter, animateStatsScreenEnter, animateStatsScreenExit } from '../utils/animations.js';
 import { logger } from '../core/logger.js';
 
 export interface UIManagerElements {
@@ -148,14 +148,16 @@ class UIManager {
     event.preventDefault();
     logger.info('📊 Stats button clicked');
     
-    // Show stats screen
-    this.showStatsScreen();
+    // Play exit animation first, then show stats screen
+    this.showStatsScreenWithAnimation();
   }
 
   private handleStatsBackClick(event: Event): void {
     event.preventDefault();
     logger.info('📊 Stats back button clicked');
-    this.hideStatsScreen();
+    
+    // Play enter animation, then hide stats screen
+    this.hideStatsScreenWithAnimation();
   }
   
   // Handle collectibles button click
@@ -186,25 +188,10 @@ class UIManager {
       // Show resume sheet ONLY if saved game exists
       if (savedGame) {
         logger.info('📱 Showing resume game bottom sheet...');
-        // Import resume sheet utilities
+        // Import resume sheet utilities - CRITICAL: Import at module level to avoid delay
         const { showResumeGameBottomSheet } = await import('./resume-game-bottom-sheet.js');
-        const { setModalOptions } = await import('./resume-sheet-utils.js');
         
-        // Set modal options with callbacks
-        setModalOptions({
-          resume: () => {
-            logger.info('▶️ Continue - resuming game...');
-            console.log('▶️ Continue button clicked - starting game...');
-            setTimeout(() => this.startNewGame(), 100);
-          },
-          pause: () => {
-            logger.info('🔄 New Game - starting fresh...');
-            console.log('🔄 New Game button clicked - starting game...');
-            setTimeout(() => this.startNewGame(), 100);
-          }
-        });
-        
-        // Show resume game modal
+        // Show resume game modal IMMEDIATELY - no async operations
         showResumeGameBottomSheet();
       } else {
         logger.info('🎮 No saved game, starting new game...');
@@ -221,6 +208,9 @@ class UIManager {
   // Start new game (public method)
   async startNewGame(): Promise<void> {
     try {
+      console.log('🎮 ====================================');
+      console.log('🎮 START NEW GAME CALLED');
+      console.log('🎮 ====================================');
       logger.info('🎮 Starting new game...');
       
       // Set game state
@@ -233,68 +223,137 @@ class UIManager {
         combo: 0
       });
       
-      logger.info('✅ Game state set, starting game...');
+      console.log('✅ Game state set');
       
-      // CRITICAL: Always play exit animation first, even when coming from resume sheet
-      logger.info('🎬 Playing exit animation before starting game...');
-      animateSliderExit();
+      // Simple fade out homepage
+      console.log('🎬 Fading out homepage...');
+      if (this.elements.home) {
+        this.elements.home.style.transition = 'opacity 0.3s ease';
+        this.elements.home.style.opacity = '0';
+        console.log('✅ Fade out started');
+      }
       
-      // Wait for exit animation to complete
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait for fade out
+      await new Promise(resolve => setTimeout(resolve, 300));
+      console.log('✅ Fade out complete');
       
-      logger.info('✅ Exit animation complete, hiding homepage...');
-      
-      // Hide homepage after exit anim
+      // Hide homepage
+      console.log('🚫 Hiding homepage...');
       this.hideHomepage();
-      
-      // Show app element (CRITICAL!)
-      this.showApp();
-      
-      logger.info('✅ App element shown, importing app.js...');
+      console.log('✅ Homepage hidden');
       
       // Start game
+      console.log('🎯 Starting game boot...');
       try {
-        logger.info('✅ Importing app-core...');
         const { boot, layout } = await import('./app-core.js');
-        
-        logger.info('✅ App.js imported, calling boot()...');
+        console.log('✅ app-core imported');
         
         await boot();
-        
-        logger.info('✅ Boot completed, calling layout()...');
+        console.log('✅ boot() complete');
         
         await layout();
+        console.log('✅ layout() complete');
         
-        logger.info('✅ Layout completed successfully!');
-      
-      // CRITICAL: Verify canvas exists and is visible
-      setTimeout(() => {
-        const appEl = document.getElementById('app');
-        const canvas = appEl?.querySelector('canvas');
-        console.log('🔍 POST-BOOT CHECK:');
-        console.log('  → App element:', appEl);
-        console.log('  → Canvas:', canvas);
-        console.log('  → Canvas in DOM:', canvas ? document.body.contains(canvas) : 'NO CANVAS');
-        console.log('  → Canvas parent:', canvas?.parentElement);
-        console.log('  → Canvas dimensions:', canvas ? `${canvas.width}x${canvas.height}` : 'NO CANVAS');
-        console.log('  → Canvas display:', canvas ? getComputedStyle(canvas).display : 'NO CANVAS');
-        console.log('  → Canvas visibility:', canvas ? getComputedStyle(canvas).visibility : 'NO CANVAS');
-        console.log('  → Canvas opacity:', canvas ? getComputedStyle(canvas).opacity : 'NO CANVAS');
-        console.log('  → App display:', appEl ? getComputedStyle(appEl).display : 'NO APP');
-        console.log('  → App visibility:', appEl ? getComputedStyle(appEl).visibility : 'NO APP');
-        console.log('  → App opacity:', appEl ? getComputedStyle(appEl).opacity : 'NO APP');
-        console.log('  → App z-index:', appEl ? getComputedStyle(appEl).zIndex : 'NO APP');
-      }, 500);
+        // Show app element
+        console.log('📱 Showing app element...');
+        this.showApp();
+        console.log('✅ App element shown');
+        
+        console.log('🎮 ====================================');
+        console.log('🎮 GAME STARTED SUCCESSFULLY');
+        console.log('🎮 ====================================');
       
       } catch (error) {
+        console.error('❌ Game boot failed:', error);
         logger.error('❌ Failed to start game:', error);
-        logger.error('❌ Error details:', (error as Error).stack);
         throw error;
       }
       
     } catch (error) {
+      console.error('❌ Failed to start new game:', error);
       logger.error('❌ Failed to start new game:', error);
-      logger.error('❌ Error details:', (error as Error).stack);
+    }
+  }
+  
+  // Start new game with saved state (for Continue button)
+  async startNewGameWithSavedState(): Promise<void> {
+    try {
+      console.log('🔄 ====================================');
+      console.log('🔄 START NEW GAME WITH SAVED STATE');
+      console.log('🔄 ====================================');
+      logger.info('🔄 Starting new game WITH saved state...');
+      
+      // Set game state
+      gameState.setState({
+        isGameActive: true,
+        isPaused: false,
+        isGameEnded: false,
+        score: 0,
+        level: 1,
+        combo: 0
+      });
+      console.log('✅ Game state set');
+      
+      // Simple fade out homepage
+      console.log('🎬 Fading out homepage...');
+      if (this.elements.home) {
+        this.elements.home.style.transition = 'opacity 0.3s ease';
+        this.elements.home.style.opacity = '0';
+        console.log('✅ Fade out started');
+      }
+      
+      // Wait for fade out
+      await new Promise(resolve => setTimeout(resolve, 300));
+      console.log('✅ Fade out complete');
+      
+      // Hide homepage
+      console.log('🚫 Hiding homepage...');
+      this.hideHomepage();
+      console.log('✅ Homepage hidden');
+      
+      // Start game
+      console.log('🎯 Starting game boot...');
+      try {
+        const { boot, layout } = await import('./app-core.js');
+        console.log('✅ app-core imported');
+        
+        await boot();
+        console.log('✅ boot() complete');
+        
+        await layout();
+        console.log('✅ layout() complete');
+        
+        // Load saved game state AFTER boot/layout
+        const loadGameState = (window as any).loadGameState;
+        if (typeof loadGameState === 'function') {
+          console.log('🔄 Loading saved game state...');
+          const loaded = await loadGameState();
+          if (loaded) {
+            console.log('✅ Saved game state loaded');
+          } else {
+            console.warn('⚠️ Failed to load saved game');
+          }
+        } else {
+          console.error('❌ loadGameState function not found');
+        }
+        
+        // Show app element AFTER loading saved state
+        console.log('📱 Showing app element...');
+        this.showApp();
+        console.log('✅ App element shown');
+        
+        console.log('🔄 ====================================');
+        console.log('🔄 GAME WITH SAVED STATE STARTED');
+        console.log('🔄 ====================================');
+        
+      } catch (error) {
+        console.error('❌ Game boot failed:', error);
+        logger.error('❌ Failed to start game with saved state:', error);
+        throw error;
+      }
+      
+    } catch (error) {
+      logger.error('❌ Failed to start new game with saved state:', error);
     }
   }
   
@@ -310,7 +369,10 @@ class UIManager {
   // Hide homepage
   hideHomepage(): void {
     if (this.elements.home) {
-      fadeOutHome();
+      // NO OPACITY FADE - just hide immediately after scale animation completes
+      this.elements.home.style.display = 'none';
+      this.elements.home.setAttribute('hidden', 'true');
+      logger.info('✅ Homepage hidden (no opacity fade)');
     }
   }
   
@@ -339,8 +401,6 @@ class UIManager {
         canvas.style.width = '100%';
         canvas.style.height = '100%';
         logger.info('✅ Canvas shown and styled');
-        console.log('✅ Canvas dimensions:', canvas.width, 'x', canvas.height);
-        console.log('✅ Canvas computed style:', window.getComputedStyle(canvas));
       } else {
         logger.warn('⚠️ Canvas not found in app element');
       }
@@ -385,11 +445,22 @@ class UIManager {
     if (this.elements.home) {
       this.elements.home.style.display = 'block';
       this.elements.home.removeAttribute('hidden');
+      // NO OPACITY TRANSITION - animateSliderEnter will handle it
+      this.elements.home.style.opacity = '1';
+      this.elements.home.style.transition = 'none';
+      logger.info('✅ Homepage shown, ready for slider enter animation');
+    }
+  }
+  
+  // Show homepage QUIETLY - no animations, just show it (for exit flow)
+  showHomepageQuietly(): void {
+    if (this.elements.home) {
+      this.elements.home.style.display = 'block';
+      this.elements.home.removeAttribute('hidden');
+      // NO TRANSITIONS, NO OPACITY - elements will be animated by animateSliderEnter
       this.elements.home.style.opacity = '0';
-      this.elements.home.style.transition = 'opacity 0.6s ease';
-      setTimeout(() => {
-        fadeInHome();
-      }, 50);
+      this.elements.home.style.transition = 'none';
+      logger.info('✅ Homepage shown QUIETLY - ready for animateSliderEnter to control animations');
     }
   }
   
@@ -425,6 +496,68 @@ class UIManager {
     if (this.elements.statsButton) {
       this.elements.statsButton.focus();
     }
+  }
+  
+  // Show stats screen with exit animation
+  private showStatsScreenWithAnimation(): void {
+    logger.info('📊 Showing stats screen with exit animation');
+    
+    const statsScreen = this.elements.statsScreen;
+    if (!statsScreen) return;
+    
+    // Play exit animation FIRST
+    animateSliderExit();
+    
+    // Wait for exit animation to complete (2000ms - all elements animated)
+    setTimeout(() => {
+      // NOW show stats screen
+      this.hideHomepage();
+      this.setNavigationVisibility(false);
+      statsScreen.style.display = 'flex';
+      statsScreen.removeAttribute('hidden');
+      statsScreen.setAttribute('aria-hidden', 'false');
+      
+      // Start stats screen enter animation immediately
+      animateStatsScreenEnter();
+      
+      // Focus after animation starts
+      setTimeout(() => {
+        const focusTarget = statsScreen.querySelector('.stats-back-button') as HTMLElement | null;
+        focusTarget?.focus();
+      }, 100);
+    }, 2000);
+  }
+  
+  // Hide stats screen with enter animation
+  private hideStatsScreenWithAnimation(): void {
+    logger.info('📊 Hiding stats screen with enter animation');
+    
+    // Play stats screen exit animation first
+    animateStatsScreenExit();
+    
+    // Wait for stats exit animation (500ms)
+    setTimeout(() => {
+      // Hide stats screen
+      const statsScreen = this.elements.statsScreen;
+      if (statsScreen) {
+        statsScreen.setAttribute('aria-hidden', 'true');
+        statsScreen.style.display = 'none';
+        statsScreen.setAttribute('hidden', 'true');
+        this.setNavigationVisibility(true);
+      }
+      
+      // Play slider enter animation
+      animateSliderEnter();
+      
+      // Show homepage after slider animation completes (500ms)
+      setTimeout(() => {
+        this.showHomepage();
+        
+        if (this.elements.statsButton) {
+          this.elements.statsButton.focus();
+        }
+      }, 500);
+    }, 500);
   }
   
   // Show collectibles screen

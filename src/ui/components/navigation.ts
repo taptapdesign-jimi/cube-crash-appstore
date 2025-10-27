@@ -59,7 +59,8 @@ function createNavButton(
         attributes: {
           src: iconSrc,
           alt: '',
-          loading: 'lazy',
+          loading: 'eager',
+          fetchpriority: 'high',
           draggable: 'false',
           'aria-hidden': 'true',
         },

@@ -299,6 +299,7 @@ export function staggerAnimation(
 
 /**
  * Animate bottom sheet entrance
+ * OPTIMIZED: Removed unnecessary requestAnimationFrame delay for instant response
  */
 export function animateBottomSheetEntrance(modal: HTMLElement): Promise<void> {
   return new Promise((resolve) => {
@@ -312,20 +313,17 @@ export function animateBottomSheetEntrance(modal: HTMLElement): Promise<void> {
     // Step 2: Force reflow
     void modal.offsetHeight;
     
-    // Step 3: Wait for next frame
-    requestAnimationFrame(() => {
-      // Step 4: Trigger animation
-      modal.style.transform = 'translateY(0)';
-      
-      console.log('✅ Animation triggered');
-      
-      // Step 5: Wait for completion
-      setTimeout(() => {
-        modal.classList.add('visible');
-        console.log('✅ Animation complete');
-        resolve();
-      }, 400);
-    });
+    // Step 3: Trigger animation IMMEDIATELY (no requestAnimationFrame delay)
+    modal.style.transform = 'translateY(0)';
+    
+    console.log('✅ Animation triggered');
+    
+    // Step 4: Wait for completion
+    setTimeout(() => {
+      modal.classList.add('visible');
+      console.log('✅ Animation complete');
+      resolve();
+    }, 400);
   });
 }
 

@@ -345,6 +345,22 @@ initializeApp().catch((error: Error) => {
   logger.info('🏠 exitToMenu called from window');
   
   try {
+    console.log('🔥 Starting complete game cleanup...');
+    
+    // CRITICAL: Call cleanupGame() to properly clean up ALL game state (including PIXI app)
+    try {
+      const { cleanupGame } = await import('./modules/app-core.js');
+      if (typeof cleanupGame === 'function') {
+        console.log('🧹 Calling cleanupGame() to clean up all game resources...');
+        cleanupGame();
+        console.log('✅ cleanupGame() completed - PIXI app destroyed and nullified');
+      } else {
+        console.warn('⚠️ cleanupGame is not a function');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to import/run cleanupGame:', error);
+    }
+    
     // CRITICAL: Clear saved game so next play starts fresh (no resume sheet)
     localStorage.removeItem('cc_saved_game');
     localStorage.removeItem('cubeCrash_gameState');
@@ -353,23 +369,21 @@ initializeApp().catch((error: Error) => {
     // Hide app element (game)
     uiManager.hideApp();
     
-    // Show homepage with animation
-    uiManager.showHomepageWithAnimation();
-    
-    // Animate slider enter (elastic spring bounce pop in)
-    setTimeout(() => {
-      animateSliderEnter();
-    }, 100);
-    
-    // Show navigation
+    // Show navigation FIRST
     uiManager.showNavigation();
     
-    // Reset game state
+    // Show homepage with proper state
+    uiManager.showHomepage();
+    
+    // Reset game state FIRST
     gameState.setState({
       homepageReady: true,
       isGameActive: false,
       isPaused: false
     });
+    
+    console.log('✅ Game state reset - homepage should be visible now');
+    console.log('✅ Exit complete - Play button should work');
     
     logger.info('✅ Exited to menu successfully - next play will start fresh without resume sheet');
     

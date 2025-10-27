@@ -11,6 +11,12 @@
   <!-- Load LTCrow font first -->
   <link rel="stylesheet" href="./src/styles/fonts.css">
   
+  <!-- Preload navigation icons for instant display -->
+  <link rel="preload" as="image" href="./assets/nav/cube-nav.png" fetchpriority="high">
+  <link rel="preload" as="image" href="./assets/nav/stats-nav.png" fetchpriority="high">
+  <link rel="preload" as="image" href="./assets/nav/collectibles-nav.png" fetchpriority="high">
+  <link rel="preload" as="image" href="./assets/nav/settings-nav.png" fetchpriority="high">
+  
   <!-- Load critical CSS -->
   <link rel="stylesheet" href="./src/style.css">
   <link rel="stylesheet" href="./src/slider-optimized.css">
@@ -106,6 +112,12 @@
     
     #home:not([hidden]) #slider-container {
       display: block !important;
+      visibility: visible !important;
+    }
+    
+    /* Ensure stats screen is visible when shown (not hidden) */
+    #stats-screen:not([hidden]) {
+      display: flex !important;
       visibility: visible !important;
     }
     

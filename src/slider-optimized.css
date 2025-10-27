@@ -10,7 +10,7 @@
   margin-top: -10vh; /* Lift up slider to original position */
   background: transparent; /* Transparent - sit on global background */
   z-index: 2; /* Above background, below other elements */
-  transition: opacity 0.6s ease;
+  /* NO OPACITY TRANSITION - only scale animations */
 }
 
 /* Removed gradient-fade-out rules - gradient stays visible */
@@ -73,7 +73,7 @@
   object-fit: contain;
   position: relative;
   z-index: 2;
-  transition: all 0.3s ease;
+  /* NO TRANSITION - JavaScript controls animations */
   /* Individual animations per slide below */
   /* CRITICAL iOS FIX: Force immediate rendering */
   will-change: auto;
