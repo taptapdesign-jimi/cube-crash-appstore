@@ -1291,10 +1291,26 @@ function merge(src, dst, helpers){
     if (wildActive) clearWildState(dst);
     score = Math.min(SCORE_CAP, score + effSum); 
     
+    console.log('🎮 MERGE: Score updated to:', score);
+    console.log('🎮 MERGE: statsService exists?', typeof statsService !== 'undefined');
+    console.log('🎮 MERGE: statsService.updateHighScore exists?', typeof statsService?.updateHighScore === 'function');
+    
     // STATS TRACKING: Update high score immediately after score update
-    statsService.updateHighScore(score);
+    try {
+      statsService.updateHighScore(score);
+      console.log('✅ MERGE: statsService.updateHighScore called successfully');
+    } catch (error) {
+      console.error('❌ MERGE: statsService.updateHighScore failed:', error);
+    }
+    
     if (wildActive) {
-      statsService.incrementHelpersUsed(1);
+      console.log('🎯 MERGE: Wild merge detected');
+      try {
+        statsService.incrementHelpersUsed(1);
+        console.log('✅ MERGE: Incremented helpers used');
+      } catch (error) {
+        console.error('❌ MERGE: Failed to increment helpers used:', error);
+      }
     }
     
     updateHUD();
