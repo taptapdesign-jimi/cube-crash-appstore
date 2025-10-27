@@ -74,7 +74,7 @@ function createSpawn(
     }
     
     const vel = velocityRange.min + Math.random() * (velocityRange.max - velocityRange.min);
-    const velX = Math.cos( segmented angle) * vel;
+    const velX = Math.cos(angle) * vel;
     const velY = Math.sin(angle) * vel * gravityMultiplier;
     
     const isStrip = i % 2 === 0;
@@ -103,7 +103,9 @@ function createSpawn(
     document.body.appendChild(confetti);
     activeAnimations++;
     
-    const duration = 4000 + Math.random() * 2000; // 4-6 seconds
+    // Longer duration for lighter confetti, shorter for heavy
+    const baseDuration = weightCategory === 0 ? 6000 : (weightCategory === 1 ? 5000 : 4500);
+    const duration = baseDuration + Math.random() * 2000;
     const screenHeight = window.innerHeight;
     
     // Wiggly movement
