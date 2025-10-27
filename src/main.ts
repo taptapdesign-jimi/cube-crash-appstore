@@ -262,8 +262,7 @@ document.addEventListener('visibilitychange', async () => {
         console.log('⏱️ Saving time before app hidden');
         (window as any).stopTimeTracking();
         // Restart time tracking if game is still active
-        const { gameState: gs } = await import('./modules/game-state.js');
-        if (gs.get('isGameActive')) {
+        if (gameState.get('isGameActive')) {
           // Game is still active, restart time tracking
           if (typeof (window as any).startTimeTracking === 'function') {
             (window as any).startTimeTracking();
