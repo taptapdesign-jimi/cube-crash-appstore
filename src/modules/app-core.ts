@@ -1054,6 +1054,16 @@ function startLevel(n){
   console.log('🎯 startLevel called with:', n, 'current level:', level, 'current boardNumber:', boardNumber, 'current score:', score);
   level = n; // Set level to the board number
   boardNumber = n; // Set board number to the level number
+  
+  // STATS TRACKING: Update highest board reached
+  console.log('🎯 Updating highest board to:', n);
+  try {
+    statsService.updateHighestBoard(n);
+    console.log('✅ Highest board updated successfully');
+  } catch (error) {
+    console.error('❌ Failed to update highest board:', error);
+  }
+  
   moves = MOVES_MAX;
   busyEnding = false;
   hudResetCombo();
