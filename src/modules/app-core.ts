@@ -1289,13 +1289,15 @@ function merge(src, dst, helpers){
   if (effSum < 6){
     makeBoard.setValue(dst, effSum, srcDepth);
     if (wildActive) clearWildState(dst);
-    score = Math.min(SCORE_CAP, score + effSum); updateHUD();
+    score = Math.min(SCORE_CAP, score + effSum); 
     
-    // STATS TRACKING: Update stats using centralized service
+    // STATS TRACKING: Update high score immediately after score update
     statsService.updateHighScore(score);
     if (wildActive) {
       statsService.incrementHelpersUsed(1);
     }
+    
+    updateHUD();
     
     // Combo++ (bez realnog capa), bump anim
     hudSetCombo(combo + 1);
