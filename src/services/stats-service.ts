@@ -36,10 +36,67 @@ class StatsService {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         this.stats = { ...this.stats, ...JSON.parse(stored) };
-        console.log('📊 Stats loaded:', this.stats);
+        console.log('📊 Stats loaded from new storage:', this.stats);
+      } else {
+        // MIGRATION: Load old separate keys and migrate to new format
+        console.log('🔄 Migrating old stats to new format...');
+        const oldStats = this.loadOldStats();
+        if (oldStats && Object.keys(oldStats).length > 0) {
+          this.stats = { ...this.stats, ...oldStats };
+          this.saveStats(); // Save in new format
+          this.cleanupOldStats(); // Remove old keys
+          console.log('✅ Migrated old stats:', this.stats);
+        }
       }
     } catch (error) {
       console.error('❌ Failed to load stats:', error);
+    }
+  }
+
+  // Load from old localStorage keys (backward compatibility)
+  private loadOldStats(): Partial<GameStats> {
+    try {
+      const highScoreStr = localStorage.getItem('cc_best_score_v1');
+      const highestBoardStr = localStorage.getItem('cc_highest_board');
+      const timePlayedStr = localStorage.getItem('cc_time_played');
+      const cubesCrackedStr = localStorage.getItem('cc_cubes_cracked');
+      const helpersUsedStr = localStorage.getItem('cc_helpers_used');
+      const longestComboStr = localStorage.getItem('cc_longest_combo');
+      const collectiblesStr = localStorage.getItem('cc_collectibles_unlocked');
+
+      const migrated: Partial<GameStats> = {};
+      
+      if (highScoreStr) migrated.highScore = parseInt(highScoreStr, 10) || 0;
+      if (highestBoardStr) migrated.highestBoard = parseInt(highestBoardStr, 10) || 0;
+      if (timePlayedStr) migrated.timePlayed = parseInt(timePlayedStr, 10) || 0;
+      if (cubesCrackedStr) migrated.cubesCracked = parseInt(cubesCrackedStr, 10) || 0;
+      if (helpersUsedStr) migrated.helpersUsed = parseInt(helpersUsedStr, 10) || 0;
+      if (longestComboStr) migrated.longestCombo = parseInt(longestComboStr, 10) || 0;
+      if (collectiblesStr) migrated.collectiblesUnlocked = parseInt(collectiblesStr, 10) || 0;
+
+      return migrated;
+    } catch (error) {
+      console.error('❌ Failed to load old stats:', error);
+      return {};
+    }
+  }
+
+  // Clean up old localStorage keys after migration
+  private cleanupOldStats(): void {
+    try {
+      const oldKeys = [
+        'cc_best_score_v1',
+        'cc_highest_board',
+        'cc_time_played',
+        'cc_cubes_cracked',
+        'cc_helpers_used',
+        'cc_longest_combo',
+        'cc_collectibles_unlocked'
+      ];
+      oldKeys.forEach(key => localStorage.removeItem(key));
+      console.log('🧹 Cleaned up old localStorage keys');
+    } catch (error) {
+      console.error('❌ Failed to cleanup old stats:', error);
     }
   }
 
