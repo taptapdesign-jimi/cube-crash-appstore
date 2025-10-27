@@ -259,6 +259,12 @@ class UIManager {
         await layout();
         console.log('✅ layout() complete');
         
+        // Start time tracking
+        if (typeof (window as any).startTimeTracking === 'function') {
+          (window as any).startTimeTracking();
+          console.log('⏱️ Time tracking started');
+        }
+        
         // Show app element
         console.log('📱 Showing app element...');
         this.showApp();

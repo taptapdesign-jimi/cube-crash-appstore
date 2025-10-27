@@ -3,7 +3,7 @@
 
 
 // Board visual constants
-export const BOARD_BG_COLOR = 0xF5F5F5;
+export const BOARD_BG_COLOR = 0xF3EEE8;
 export const TILE_BG_COLOR = 0xFFFFFF;
 export const TILE_BORDER_COLOR = 0xCCCCCC;
 export const TILE_BORDER_WIDTH = 2;

@@ -16,6 +16,60 @@ export interface StatsScreenConfig {
   showResetButton?: boolean;
 }
 
+// Function to update stats values dynamically
+export function updateStatsValues(): void {
+  console.log('📊 Updating stats values...');
+  
+  // Get high score from localStorage
+  const highScoreStr = localStorage.getItem('cc_best_score_v1');
+  const highScore = highScoreStr ? parseInt(highScoreStr, 10) || 0 : 0;
+  console.log('📊 High score from localStorage:', highScore);
+  
+  // Get highest board from localStorage
+  const highestBoardStr = localStorage.getItem('cc_highest_board');
+  const highestBoard = highestBoardStr ? parseInt(highestBoardStr, 10) || 0 : 0;
+  console.log('📊 Highest board from localStorage:', highestBoard);
+  
+  // Get time played from localStorage
+  const timePlayedStr = localStorage.getItem('cc_time_played');
+  const timePlayed = timePlayedStr ? parseInt(timePlayedStr, 10) || 0 : 0;
+  console.log('📊 Time played from localStorage:', timePlayed);
+  
+  // Update high score
+  const highScoreElement = document.getElementById('high-score');
+  if (highScoreElement) {
+    highScoreElement.textContent = highScore.toString();
+    console.log('✅ Updated high score element:', highScore);
+  } else {
+    console.warn('⚠️ High score element not found');
+  }
+  
+  // Update highest board
+  const highestBoardElement = document.getElementById('highest-board');
+  if (highestBoardElement) {
+    highestBoardElement.textContent = highestBoard.toString();
+    console.log('✅ Updated highest board element:', highestBoard);
+  } else {
+    console.warn('⚠️ Highest board element not found');
+  }
+  
+  // Update time played
+  const timePlayedElement = document.getElementById('time-played');
+  if (timePlayedElement) {
+    // Convert seconds to HH:MM:SS format
+    const hours = Math.floor(timePlayed / 3600);
+    const minutes = Math.floor((timePlayed % 3600) / 60);
+    const seconds = timePlayed % 60;
+    const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    timePlayedElement.textContent = formattedTime;
+    console.log('✅ Updated time played element:', formattedTime);
+  } else {
+    console.warn('⚠️ Time played element not found');
+  }
+  
+  console.log('📊 Stats values updated successfully');
+}
+
 const DEFAULT_STATS: StatItem[] = [
   { id: 'high-score', icon: './assets/highscore-icon.png', value: '8975', label: 'High score', valueId: 'high-score' },
   { id: 'cubes-cracked', icon: './assets/cubes-cracked.png', value: '3441', label: 'Cubes cracked', valueId: 'cubes-cracked' },

@@ -64,6 +64,16 @@ class AppManager {
       // Mark as loaded
       this.loadedScreens.add(screen);
       
+      // Update stats values when showing stats screen
+      if (screen === 'stats') {
+        try {
+          const { updateStatsValues } = await import('./components/stats-screen.js');
+          updateStatsValues();
+        } catch (error) {
+          logger.warn('⚠️ Failed to update stats values:', error);
+        }
+      }
+      
       logger.info(`✅ Screen shown: ${screen}`);
     } else {
       logger.warn(`⚠️ Screen element not found: ${screen}`);

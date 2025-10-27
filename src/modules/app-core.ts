@@ -352,7 +352,7 @@ export async function boot(){
   app = new Application();
   await app.init({
     resizeTo: window,
-    background: 0xf5f5f5, // Game background color
+    background: 0xf3eee8, // Game background color
     antialias: false, // Disable antialiasing for pixel-perfect rendering
     // Use full device pixel ratio for maximum crispness
     resolution: window.devicePixelRatio || 1,
@@ -367,9 +367,9 @@ export async function boot(){
   }, 50);
   
   // Add background transition animation
-  app.renderer.backgroundColor = 0xf5f5f5; // Start with gradient color
+  app.renderer.backgroundColor = 0xf3eee8; // Start with gradient color
   setTimeout(() => {
-    app.renderer.backgroundColor = 0xf5f5f5; // Transition to game background
+    app.renderer.backgroundColor = 0xf3eee8; // Transition to game background
   }, 50);
   
   // Add CSS background transition animation
@@ -378,13 +378,13 @@ export async function boot(){
   if (appElement) {
     appElement.style.background = 'var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%))';
     setTimeout(() => {
-      appElement.style.background = '#f5f5f5';
+      appElement.style.background = '#f3eee8';
     }, 50);
   }
   if (canvasElement) {
     canvasElement.style.background = 'var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%))';
     setTimeout(() => {
-      canvasElement.style.background = '#f5f5f5';
+      canvasElement.style.background = '#f3eee8';
     }, 50);
   }
   host.appendChild(app.canvas);

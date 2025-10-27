@@ -7,7 +7,7 @@ import {
   ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4,
 } from './constants.js';
 
-const BOARD_BG_COLOR = 0xF5F5F5;
+const BOARD_BG_COLOR = 0xF3EEE8;
 const clamp = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
 
 // Type definitions

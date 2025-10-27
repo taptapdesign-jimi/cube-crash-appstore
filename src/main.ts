@@ -354,6 +354,44 @@ initializeApp().catch((error: Error) => {
   try {
     console.log('🔥 Starting complete game cleanup...');
     
+    // CRITICAL: Save high score BEFORE cleanup
+    try {
+      // Get current score from STATE
+      const { STATE } = await import('./modules/app-state.js');
+      let currentScore = 0;
+      
+      if (STATE && typeof STATE.score === 'number') {
+        currentScore = STATE.score;
+      }
+      
+      // Fallback: try to read from HUD
+      if (currentScore === 0) {
+        const scoreEl = document.querySelector('#score-text');
+        if (scoreEl) {
+          const text = scoreEl.textContent || '0';
+          currentScore = parseInt(text.replace(/,/g, '')) || 0;
+        }
+      }
+      
+      console.log('📊 Current score before exit:', currentScore);
+      
+      // Get saved high score
+      const savedHighScoreStr = localStorage.getItem('cc_best_score_v1');
+      const savedHighScore = savedHighScoreStr ? parseInt(savedHighScoreStr, 10) || 0 : 0;
+      
+      console.log('📊 Saved high score:', savedHighScore);
+      
+      // Update if current score is higher
+      if (currentScore > savedHighScore) {
+        localStorage.setItem('cc_best_score_v1', currentScore.toString());
+        console.log('✅ High score updated to:', currentScore);
+      } else {
+        console.log('ℹ️ Current score', currentScore, 'is not higher than saved:', savedHighScore);
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to save high score during exit:', error);
+    }
+    
     // CRITICAL: Call cleanupGame() to properly clean up ALL game state (including PIXI app)
     try {
       const { cleanupGame } = await import('./modules/app-core.js');
@@ -366,6 +404,12 @@ initializeApp().catch((error: Error) => {
       }
     } catch (error) {
       console.warn('⚠️ Failed to import/run cleanupGame:', error);
+    }
+    
+    // Stop time tracking
+    if (typeof (window as any).stopTimeTracking === 'function') {
+      (window as any).stopTimeTracking();
+      console.log('⏱️ Time tracking stopped');
     }
     
     // CRITICAL: Clear saved game so next play starts fresh (no resume sheet)
@@ -400,5 +444,59 @@ initializeApp().catch((error: Error) => {
     // Reset flag after cleanup
     (window as any).exitingToMenu = false;
     console.log('🔓 Reset exitingToMenu flag');
+  }
+};
+
+// Track highest board reached
+(window as any).trackHighestBoard = (currentBoard: number) => {
+  console.log('📊 Tracking highest board reached:', currentBoard);
+  
+  try {
+    const savedHighestBoardStr = localStorage.getItem('cc_highest_board');
+    const savedHighestBoard = savedHighestBoardStr ? parseInt(savedHighestBoardStr, 10) || 0 : 0;
+    
+    if (currentBoard > savedHighestBoard) {
+      localStorage.setItem('cc_highest_board', currentBoard.toString());
+      console.log('✅ Highest board updated to:', currentBoard);
+    } else {
+      console.log('ℹ️ Current board', currentBoard, 'is not higher than saved:', savedHighestBoard);
+    }
+  } catch (error) {
+    console.error('❌ Failed to track highest board:', error);
+  }
+};
+
+// Track total time played
+let gameStartTime: number | null = null;
+let accumulatedTime: number = 0;
+
+// Initialize time tracking
+try {
+  const savedTimeStr = localStorage.getItem('cc_time_played');
+  accumulatedTime = savedTimeStr ? parseInt(savedTimeStr, 10) || 0 : 0;
+  console.log('⏱️ Loaded accumulated time from localStorage:', accumulatedTime, 'seconds');
+} catch (error) {
+  console.error('❌ Failed to load accumulated time:', error);
+}
+
+// Start tracking time when game starts
+(window as any).startTimeTracking = () => {
+  gameStartTime = Date.now();
+  console.log('⏱️ Started tracking time');
+};
+
+// Stop tracking time and add to accumulated time
+(window as any).stopTimeTracking = () => {
+  if (gameStartTime !== null) {
+    const elapsedTime = Math.floor((Date.now() - gameStartTime) / 1000); // Convert to seconds
+    accumulatedTime += elapsedTime;
+    gameStartTime = null;
+    
+    try {
+      localStorage.setItem('cc_time_played', accumulatedTime.toString());
+      console.log('⏱️ Time tracked:', elapsedTime, 'seconds, total:', accumulatedTime, 'seconds');
+    } catch (error) {
+      console.error('❌ Failed to save time played:', error);
+    }
   }
 };
