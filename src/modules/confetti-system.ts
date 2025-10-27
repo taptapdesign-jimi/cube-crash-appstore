@@ -59,18 +59,19 @@ function createSpawn(
     const weightCategory = i % 3; // 0, 1, or 2
     let gravityMultiplier, velocityRange;
     
+    // More confetti fall like feathers (weightCategory 0 and 1)
     if (weightCategory === 0) {
-      // Light as feather - very slow, gentle fall
+      // Ultra light as feather - very slow, gentle fall
+      gravityMultiplier = 0.12 + Math.random() * 0.08; // 0.12-0.20
+      velocityRange = { min: 40, max: 80 };
+    } else if (weightCategory === 1) {
+      // Light as feather - slow, gentle fall
       gravityMultiplier = 0.15 + Math.random() * 0.1; // 0.15-0.25
       velocityRange = { min: 50, max: 100 };
-    } else if (weightCategory === 1) {
+    } else {
       // Medium weight - normal speed
       gravityMultiplier = 0.25 + Math.random() * 0.1; // 0.25-0.35
-      velocityRange = { min: 100, max: 180 };
-    } else {
-      // Heavy - faster fall
-      gravityMultiplier = 0.35 + Math.random() * 0.15; // 0.35-0.50
-      velocityRange = { min: 150, max: 250 };
+      velocityRange = { min: 90, max: 150 };
     }
     
     const vel = velocityRange.min + Math.random() * (velocityRange.max - velocityRange.min);
@@ -81,8 +82,8 @@ function createSpawn(
     const w = isStrip ? 3 + Math.random() * 1 : 4 + Math.random() * 2; // Smaller width variation
     const h = isStrip ? 8 + Math.random() * 7 : 6 + Math.random() * 4; // Much shorter strips (8-15px instead of 15-30px)
     
-    const x = startX + (isLeft ? Math.random() * 100 : -Math.random() * 100);
-    const y = startY + Math.random() * 30;
+    const x = startX + (isLeft ? Math.random() * 150 : -Math.random() * 150); // More spread
+    const y = startY + Math.random() * 50; // More vertical variation - staggered spawn
     
     const confetti = document.createElement('div');
     confetti.className = 'cc-confetti-piece';
@@ -103,11 +104,11 @@ function createSpawn(
     document.body.appendChild(confetti);
     activeAnimations++;
     
-    const duration = 4000 + Math.random() * 2000; // 4-6 seconds
+    const duration = 7000 + Math.random() * 3000; // 7-10 seconds - longer life cycle
     const screenHeight = window.innerHeight;
     
-    // Wiggly movement
-    const wiggleAmount = 50 + Math.random() * 100;
+    // Enhanced wiggly movement with more oscillation
+    const wiggleAmount = 80 + Math.random() * 120; // More oscillation
     const wigglePhase = Math.random() * Math.PI * 2;
     
     // Fade at 60% of screen, die completely at 30% past bottom
