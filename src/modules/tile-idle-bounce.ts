@@ -118,10 +118,6 @@ function animateTile(tile: Tile): void {
   const baseScaleX = rotG.scale?.x || 1;
   const baseScaleY = rotG.scale?.y || 1;
   
-  // Store original position before any scaling
-  const origX = rotG.x;
-  const origY = rotG.y;
-  
   const tl = gsap.timeline({
     onComplete: () => {
       state.activeAnimations.delete(tile);
