@@ -135,10 +135,13 @@ class StatsService {
 
   // Update high score (only if higher)
   public updateHighScore(score: number): void {
+    console.log(`🔍 updateHighScore called with score: ${score}, current high score: ${this.stats.highScore}`);
     if (score > this.stats.highScore) {
       console.log(`🏆 New high score! ${this.stats.highScore} -> ${score}`);
       this.stats.highScore = score;
       this.saveStats();
+    } else {
+      console.log(`ℹ️ Score ${score} is not higher than current high score ${this.stats.highScore}`);
     }
   }
 
