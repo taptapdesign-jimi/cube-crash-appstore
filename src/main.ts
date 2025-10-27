@@ -466,6 +466,102 @@ initializeApp().catch((error: Error) => {
   }
 };
 
+// Track cubes cracked (when tiles are merged)
+(window as any).trackCubesCracked = (count: number = 1) => {
+  try {
+    const savedCubesStr = localStorage.getItem('cc_cubes_cracked');
+    const savedCubes = savedCubesStr ? parseInt(savedCubesStr, 10) || 0 : 0;
+    const newCount = savedCubes + count;
+    localStorage.setItem('cc_cubes_cracked', newCount.toString());
+    console.log('✅ Cubes cracked updated:', newCount);
+  } catch (error) {
+    console.error('❌ Failed to track cubes cracked:', error);
+  }
+};
+
+// Track helpers used (wild cubes, powerups, etc.)
+(window as any).trackHelpersUsed = (count: number = 1) => {
+  try {
+    const savedHelpersStr = localStorage.getItem('cc_helpers_used');
+    const savedHelpers = savedHelpersStr ? parseInt(savedHelpersStr, 10) || 0 : 0;
+    const newCount = savedHelpers + count;
+    localStorage.setItem('cc_helpers_used', newCount.toString());
+    console.log('✅ Helpers used updated:', newCount);
+  } catch (error) {
+    console.error('❌ Failed to track helpers used:', error);
+  }
+};
+
+// Track longest combo
+(window as any).trackLongestCombo = (comboLength: number) => {
+  try {
+    const savedComboStr = localStorage.getItem('cc_longest_combo');
+    const savedCombo = savedComboStr ? parseInt(savedComboStr, 10) || 0 : 0;
+    
+    if (comboLength > savedCombo) {
+      localStorage.setItem('cc_longest_combo', comboLength.toString());
+      console.log('🔥 New longest combo!', comboLength);
+    }
+  } catch (error) {
+    console.error('❌ Failed to track longest combo:', error);
+  }
+};
+
+// Track collectibles unlocked
+(window as any).trackCollectiblesUnlocked = (unlockedCount: number) => {
+  try {
+    const savedStr = localStorage.getItem('cc_collectibles_unlocked');
+    const saved = savedStr ? parseInt(savedStr, 10) || 0 : 0;
+    
+    if (unlockedCount > saved) {
+      localStorage.setItem('cc_collectibles_unlocked', unlockedCount.toString());
+      console.log('🎁 Collectibles unlocked updated:', unlockedCount);
+    }
+  } catch (error) {
+    console.error('❌ Failed to track collectibles unlocked:', error);
+  }
+};
+
+// Check collectibles milestones based on score
+(window as any).checkCollectiblesMilestones = (score: number) => {
+  try {
+    const milestones = [100, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+    let unlocked = 0;
+    
+    for (const milestone of milestones) {
+      if (score >= milestone) {
+        unlocked++;
+      }
+    }
+    
+    const savedStr = localStorage.getItem('cc_collectibles_unlocked');
+    const saved = savedStr ? parseInt(savedStr, 10) || 0 : 0;
+    
+    if (unlocked > saved) {
+      localStorage.setItem('cc_collectibles_unlocked', unlocked.toString());
+      console.log('🎁 New collectible unlocked! Total:', unlocked);
+    }
+  } catch (error) {
+    console.error('❌ Failed to check collectibles milestones:', error);
+  }
+};
+
+// Reset all stats (dev function for testing)
+(window as any).resetAllStats = () => {
+  try {
+    localStorage.setItem('cc_best_score_v1', '0');
+    localStorage.setItem('cc_highest_board', '0');
+    localStorage.setItem('cc_time_played', '0');
+    localStorage.setItem('cc_cubes_cracked', '0');
+    localStorage.setItem('cc_helpers_used', '0');
+    localStorage.setItem('cc_longest_combo', '0');
+    localStorage.setItem('cc_collectibles_unlocked', '0');
+    console.log('🔄 All stats reset to 0');
+  } catch (error) {
+    console.error('❌ Failed to reset stats:', error);
+  }
+};
+
 // Track total time played
 let gameStartTime: number | null = null;
 let accumulatedTime: number = 0;

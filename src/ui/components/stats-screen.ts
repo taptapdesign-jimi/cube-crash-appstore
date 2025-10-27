@@ -20,51 +20,72 @@ export interface StatsScreenConfig {
 export function updateStatsValues(): void {
   console.log('📊 Updating stats values...');
   
-  // Get high score from localStorage
+  // Get all stats from localStorage
   const highScoreStr = localStorage.getItem('cc_best_score_v1');
   const highScore = highScoreStr ? parseInt(highScoreStr, 10) || 0 : 0;
-  console.log('📊 High score from localStorage:', highScore);
   
-  // Get highest board from localStorage
   const highestBoardStr = localStorage.getItem('cc_highest_board');
   const highestBoard = highestBoardStr ? parseInt(highestBoardStr, 10) || 0 : 0;
-  console.log('📊 Highest board from localStorage:', highestBoard);
   
-  // Get time played from localStorage
   const timePlayedStr = localStorage.getItem('cc_time_played');
   const timePlayed = timePlayedStr ? parseInt(timePlayedStr, 10) || 0 : 0;
-  console.log('📊 Time played from localStorage:', timePlayed);
+  
+  const cubesCrackedStr = localStorage.getItem('cc_cubes_cracked');
+  const cubesCracked = cubesCrackedStr ? parseInt(cubesCrackedStr, 10) || 0 : 0;
+  
+  const longestComboStr = localStorage.getItem('cc_longest_combo');
+  const longestCombo = longestComboStr ? parseInt(longestComboStr, 10) || 0 : 0;
+  
+  const helpersUsedStr = localStorage.getItem('cc_helpers_used');
+  const helpersUsed = helpersUsedStr ? parseInt(helpersUsedStr, 10) || 0 : 0;
+  
+  const collectiblesStr = localStorage.getItem('cc_collectibles_unlocked');
+  const collectiblesUnlocked = collectiblesStr ? parseInt(collectiblesStr, 10) || 0 : 0;
   
   // Update high score
   const highScoreElement = document.getElementById('high-score');
   if (highScoreElement) {
     highScoreElement.textContent = highScore.toString();
-    console.log('✅ Updated high score element:', highScore);
-  } else {
-    console.warn('⚠️ High score element not found');
+  }
+  
+  // Update cubes cracked
+  const cubesCrackedElement = document.getElementById('cubes-cracked');
+  if (cubesCrackedElement) {
+    cubesCrackedElement.textContent = cubesCracked.toString();
   }
   
   // Update highest board
   const highestBoardElement = document.getElementById('highest-board');
   if (highestBoardElement) {
     highestBoardElement.textContent = highestBoard.toString();
-    console.log('✅ Updated highest board element:', highestBoard);
-  } else {
-    console.warn('⚠️ Highest board element not found');
+  }
+  
+  // Update longest combo
+  const longestComboElement = document.getElementById('longest-combo');
+  if (longestComboElement) {
+    longestComboElement.textContent = longestCombo.toString();
+  }
+  
+  // Update helpers used
+  const helpersUsedElement = document.getElementById('helpers-used');
+  if (helpersUsedElement) {
+    helpersUsedElement.textContent = helpersUsed.toString();
   }
   
   // Update time played
   const timePlayedElement = document.getElementById('time-played');
   if (timePlayedElement) {
-    // Convert seconds to HH:MM:SS format
     const hours = Math.floor(timePlayed / 3600);
     const minutes = Math.floor((timePlayed % 3600) / 60);
     const seconds = timePlayed % 60;
     const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     timePlayedElement.textContent = formattedTime;
-    console.log('✅ Updated time played element:', formattedTime);
-  } else {
-    console.warn('⚠️ Time played element not found');
+  }
+  
+  // Update collectibles unlocked
+  const collectiblesElement = document.getElementById('collectibles-unlocked');
+  if (collectiblesElement) {
+    collectiblesElement.textContent = `${collectiblesUnlocked}/20`;
   }
   
   console.log('📊 Stats values updated successfully');
@@ -196,9 +217,31 @@ export function createStatsScreen(config: StatsScreenConfig): HTMLElementConfig 
                     text: 'Stats',
                   },
                   {
-                    tag: 'div',
-                    className: 'stats-header-spacer',
-                    text: '', // Empty spacer for balance
+                    tag: 'button',
+                    id: 'stats-reset-dev-btn',
+                    className: 'stats-reset-dev-button tap-scale',
+                    attributes: {
+                      type: 'button',
+                      'aria-label': 'Reset stats (dev)',
+                      title: 'Reset all stats to 0 (dev)',
+                    },
+                    text: 'Reset',
+                    eventListeners: {
+                      click: () => {
+                        if (confirm('Reset all stats to 0? (This is a dev feature)')) {
+                          try {
+                            const resetAllStats = (window as any).resetAllStats;
+                            if (typeof resetAllStats === 'function') {
+                              resetAllStats();
+                              updateStatsValues();
+                              console.log('🔄 Stats reset successfully');
+                            }
+                          } catch (error) {
+                            console.error('❌ Failed to reset stats:', error);
+                          }
+                        }
+                      },
+                    },
                   },
                 ],
               },

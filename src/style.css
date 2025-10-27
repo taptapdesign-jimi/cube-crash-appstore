@@ -1701,6 +1701,35 @@ body{
   justify-content: center;
 }
 
+.stats-reset-dev-button {
+  background: rgba(173, 134, 117, 0.1);
+  border: 1px solid rgba(173, 134, 117, 0.3);
+  color: #AD8675;
+  padding: 8px 16px;
+  border-radius: 16px;
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  margin-right: 40px;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  user-select: none;
+}
+
+.stats-reset-dev-button:hover {
+  background: rgba(173, 134, 117, 0.15);
+  border-color: rgba(173, 134, 117, 0.4);
+  transform: scale(1.05);
+}
+
+.stats-reset-dev-button:active {
+  transform: scale(0.95);
+  background: rgba(173, 134, 117, 0.2);
+}
+
 .stats-title-underline {
   height: 2px;
   background: #9A8B7A;
