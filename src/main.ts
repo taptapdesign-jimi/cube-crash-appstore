@@ -466,6 +466,25 @@ initializeApp().catch((error: Error) => {
   }
 };
 
+// Track high score (called on every score update)
+(window as any).trackHighScore = (currentScore: number) => {
+  console.log('📊 Tracking high score, current score:', currentScore);
+  
+  try {
+    const savedHighScoreStr = localStorage.getItem('cc_best_score_v1');
+    const savedHighScore = savedHighScoreStr ? parseInt(savedHighScoreStr, 10) || 0 : 0;
+    
+    if (currentScore > savedHighScore) {
+      localStorage.setItem('cc_best_score_v1', currentScore.toString());
+      console.log('🔥 New high score! Updated from', savedHighScore, 'to', currentScore);
+    } else {
+      console.log('ℹ️ Current score', currentScore, 'is not higher than saved high score:', savedHighScore);
+    }
+  } catch (error) {
+    console.error('❌ Failed to track high score:', error);
+  }
+};
+
 // Helper function to increment a stat
 (window as any).incrementStat = (statName: string, increment: number = 1) => {
   console.log('📊 incrementStat called:', statName, 'by', increment);

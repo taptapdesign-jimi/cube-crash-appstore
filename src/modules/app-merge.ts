@@ -198,6 +198,30 @@ export function merge(src, dst, helpers){
     if (wildActive) clearWildState(dst);
     STATE.score += effSum; updateHUD();
 
+    // STATS TRACKING: Update high score immediately for all merges
+    console.log('📊 ALL MERGES - Checking high score update, current score:', STATE.score);
+    try {
+      if (typeof window.trackHighScore === 'function') {
+        window.trackHighScore(STATE.score);
+        console.log('✅ High score tracking called for merge:', effSum);
+      }
+    } catch (e) {
+      console.error('❌ trackHighScore failed:', e);
+    }
+
+    // STATS TRACKING: Track wild usage as helpers
+    if (wildActive) {
+      console.log('🎯 WILD MERGE detected, tracking helpers used');
+      try {
+        if (typeof window.trackHelpersUsed === 'function') {
+          window.trackHelpersUsed(1);
+          console.log('✅ Helpers used tracking called');
+        }
+      } catch (e) {
+        console.error('❌ trackHelpersUsed failed:', e);
+      }
+    }
+
     // meter + little bounce on score
     const inc = 0.25; // 4 small merges to full
     const previous = STATE.wildMeter || 0;
