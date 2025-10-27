@@ -47,9 +47,10 @@ function createSpawn(
     const color = colors[i % colors.length];
     const angleVariant = (Math.random() - 0.5) * 0.25; // 50% less randomness
     const angle = baseAngle + angleVariant;
-    const vel = 300 + Math.random() * 400;
+    // Slower, gentler velocity for natural falling
+    const vel = 100 + Math.random() * 150;
     const velX = Math.cos(angle) * vel;
-    const velY = isUpward ? -(Math.abs(Math.sin(angle)) * vel) : Math.sin(angle) * vel; // Negative for upward
+    const velY = Math.sin(angle) * vel * 0.3; // Slow downward movement
     
     // 50% strips, 50% small pieces (smaller sizes - 50% less randomness)
     const isStrip = i % 2 === 0;
