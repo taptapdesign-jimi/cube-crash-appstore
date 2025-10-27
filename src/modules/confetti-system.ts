@@ -103,30 +103,18 @@ function createSpawn(
     document.body.appendChild(confetti);
     activeAnimations++;
     
+    const duration = 4000 + Math.random() * 2000; // 4-6 seconds
     const screenHeight = window.innerHeight;
-    const screenWidth = window.innerWidth;
-    
-    // Calculate organic fall distance: from spawn to 30% past screen bottom
-    const startPosY = y; // Current Y position (top of screen -30%)
-    const endPosY = screenHeight * 1.3; // Fall 30% past bottom
-    const totalDistance = endPosY - startPosY;
-    
-    // Calculate organic duration based on physics: time = distance / velocity
-    // Adjust for gravity acceleration effect - lighter items take longer
-    const timeMultiplier = weightCategory === 0 ? 1.5 : (weightCategory === 1 ? 1.0 : 0.7);
-    const organicDuration = (totalDistance / Math.abs(velY)) * timeMultiplier * 10; // Scale for smooth animation
     
     // Wiggly movement
     const wiggleAmount = 50 + Math.random() * 100;
     const wigglePhase = Math.random() * Math.PI * 2;
     
-    // Calculate end position based on velocity and wiggle
-    const endX = x + velX * organicDuration * 0.001 + (Math.sin(wigglePhase + 1) * wiggleAmount);
-    const endRot = 360 + Math.random() * 720;
-    
     // Fade at 60% of screen, die completely at 30% past bottom
-    const fadeY = screenHeight * 0.6;
-    const fadeX = x + velX * (organicDuration * 0.001 * 0.4) + Math.sin(wigglePhase) * wiggleAmount * 0.5;
+    const fadeY = screenHeight * 0.6; // Start fading at 60% of screen
+    const endY = screenHeight * 1.3; // Fall 30% past bottom
+    const endX = velX * 2 + (Math.sin(wigglePhase + 1) * wiggleAmount);
+    const endRot = 360 + Math.random() * 720;
     
     const anim = confetti.animate([
       {
@@ -134,15 +122,19 @@ function createSpawn(
         opacity: 0.9
       },
       {
-        transform: `translate(${fadeX - x}px, ${fadeY - startPosY}px) rotate(${endRot * 0.4}deg)`,
+        transform: `translate(${velX + Math.sin(wigglePhase) * wiggleAmount}px, ${fadeY}px) rotate(${endRot * 0.4}deg)`,
         opacity: 0.9
       },
       {
-        transform: `translate(${endX - x}px, ${endPosY - startPosY}px) rotate(${endRot}deg)`,
+        transform: `translate(${endX * 0.8}px, ${endY * 0.9}px) rotate(${endRot * 0.7}deg)`,
+        opacity: 0.4
+      },
+      {
+        transform: `translate(${endX}px, ${endY}px) rotate(${endRot}deg)`,
         opacity: 0
       }
     ], {
-      duration: organicDuration,
+      duration,
       easing: 'ease-out',
       fill: 'forwards'
     });
