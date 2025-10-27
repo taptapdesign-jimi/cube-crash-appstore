@@ -25,6 +25,7 @@ import * as FLOW  from './level-flow.js';
 import { openEmpties } from './app-spawn.ts';
 import { clearWildState } from './app-merge.ts';
 import { statsService } from '../services/stats-service.js';
+import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 
 // HUD functions from hud-helpers.js
 
@@ -740,6 +741,16 @@ export function layout(){
     console.error('❌ Error during HUD initialization/update in app.js layout:', error);
     // Reset HUD flag on error to retry next time
     _hudInitDone = false;
+  }
+  
+  // Start idle bounce animations for tiles with pips
+  if (TILE_IDLE_BOUNCE.ENABLE) {
+    try {
+      TILE_IDLE_BOUNCE.start(tiles, board);
+      console.log('✅ Tile idle bounce started');
+    } catch (error) {
+      console.warn('⚠️ Failed to start tile idle bounce:', error);
+    }
   }
 }
 
@@ -1986,6 +1997,14 @@ export function restart() {
 // Clean up game when exiting
 export function cleanupGame() {
   console.log('🧹 Cleaning up game state');
+  
+  // Stop tile idle bounce animations
+  try {
+    TILE_IDLE_BOUNCE.stop();
+    console.log('✅ Tile idle bounce stopped');
+  } catch (error) {
+    console.warn('⚠️ Failed to stop tile idle bounce:', error);
+  }
   
   // CRITICAL: Update high score before cleanup using statsService
   try {

@@ -8,6 +8,7 @@
 import { Graphics, Container, Sprite, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import { magicSparklesAtTile } from './fx.js';
+import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 
 // --- Inercijski tilt parametri (nagib SUPROTNO od smjera + lag) ---------------
 const TILT_MAX_RAD = 0.22;   // maksimalna rotacija (~12.6°)
@@ -157,6 +158,13 @@ export function initDrag(cfg) {
     const p = board.toLocal(e.global);
 
     console.log('🔍 DRAG START: Tile at', t.gridX, t.gridY, 'value:', t.value, 'locked:', t.locked);
+    
+    // Notify idle bounce that user is interacting
+    try {
+      TILE_IDLE_BOUNCE.notifyInteraction();
+    } catch (error) {
+      console.warn('⚠️ Failed to notify board interaction:', error);
+    }
     
     // MARK: User has made a move
     window._userMadeMove = true;
