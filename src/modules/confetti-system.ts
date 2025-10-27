@@ -80,26 +80,36 @@ function createSpawn(
     document.body.appendChild(confetti);
     activeAnimations++;
     
-    const duration = 2500 + Math.random() * 1000;
-    const endRot = Math.random() * 1080;
+    // Longer duration for smooth slow fall
+    const duration = 4000 + Math.random() * 3000; // 4-7 seconds
+    const screenHeight = window.innerHeight;
     
-    // For upward confetti, first go up then fall down with gravity
+    // Wiggly x-movement (side to side drift)
+    const wiggleAmount = 50 + Math.random() * 100;
+    const wigglePhase = Math.random() * Math.PI * 2;
+    
+    // Calculate ending position - fall past bottom of screen
+    const endX = velX * 2 + (Math.sin(wigglePhase + 1) * wiggleAmount);
+    const endY = screenHeight + 200; // Go well past bottom of screen
+    const endRot = 360 + Math.random() * 720; // 1-3 rotations
+    
+    // Smooth, slow fall with wiggly animation
     const anim = confetti.animate([
       {
         transform: `translate(0, 0) rotate(0deg)`,
         opacity: 0.9
       },
       {
-        transform: `translate(${velX * (isUpward ? 0.4 : 2)}px, ${isUpward ? velY * 0.4 : velY + 400}px) rotate(${endRot}deg)`,
+        transform: `translate(${velX + Math.sin(wigglePhase) * wiggleAmount}px, ${endY * 0.5}px) rotate(${endRot * 0.5}deg)`,
         opacity: 0.9
       },
       {
-        transform: `translate(${velX * 2}px, ${Math.abs(velY) + 400}px) rotate(${endRot}deg)`,
-        opacity: 0
+        transform: `translate(${endX}px, ${endY}px) rotate(${endRot}deg)`,
+        opacity: 0.3
       }
     ], {
       duration,
-      easing: isUpward ? 'cubic-bezier(0.5, 0, 0.5, 1)' : 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+      easing: 'ease-out', // Natural gravity fall
       fill: 'forwards'
     });
     
