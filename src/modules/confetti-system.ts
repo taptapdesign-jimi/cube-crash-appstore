@@ -60,17 +60,17 @@ function createSpawn(
     let gravityMultiplier, velocityRange;
     
     if (weightCategory === 0) {
-      // Ultra light paper confetti - very slow, gentle fall
-      gravityMultiplier = 0.08 + Math.random() * 0.05; // 0.08-0.13
-      velocityRange = { min: 30, max: 60 };
+      // Light paper confetti - gentle fall
+      gravityMultiplier = 0.2 + Math.random() * 0.1; // 0.2-0.3
+      velocityRange = { min: 80, max: 120 };
     } else if (weightCategory === 1) {
-      // Light paper confetti - slow, realistic fall
-      gravityMultiplier = 0.12 + Math.random() * 0.05; // 0.12-0.17
-      velocityRange = { min: 50, max: 90 };
+      // Medium paper confetti - normal speed
+      gravityMultiplier = 0.25 + Math.random() * 0.1; // 0.25-0.35
+      velocityRange = { min: 100, max: 160 };
     } else {
-      // Medium paper confetti - slightly faster but still realistic
-      gravityMultiplier = 0.18 + Math.random() * 0.08; // 0.18-0.26
-      velocityRange = { min: 70, max: 120 };
+      // Heavier paper confetti - slightly faster
+      gravityMultiplier = 0.3 + Math.random() * 0.15; // 0.3-0.45
+      velocityRange = { min: 120, max: mutable 200 };
     }
     
     const vel = velocityRange.min + Math.random() * (velocityRange.max - velocityRange.min);
@@ -112,9 +112,9 @@ function createSpawn(
     const totalDistance = endPosY - startPosY;
     
     // Calculate organic duration based on physics: time = distance / velocity
-    // Adjust for gravity acceleration effect - all are light paper now
-    const timeMultiplier = weightCategory === 0 ? 3.0 : (weightCategory === 1 ? 2.5 : 2.0);
-    const organicDuration = (totalDistance / Math.abs(velY)) * timeMultiplier * 1000; // Slower, more realistic
+    // Adjust for gravity acceleration effect - realistic paper fall
+    const timeMultiplier = weightCategory === 0 ? 1.8 : (weightCategory === 1 ? 1.5 : 1.2);
+    const organicDuration = (totalDistance / Math.abs(velY)) * timeMultiplier * 1000; // Realistic paper timing
     
     // Wiggly movement
     const wiggleAmount = 50 + Math.random() * 100;
