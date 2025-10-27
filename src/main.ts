@@ -495,23 +495,48 @@ let gameStartTime: number | null = null;
 
 // Start tracking time when game starts
 (window as any).startTimeTracking = () => {
-  gameStartTime = Date.now();
-  console.log('⏱️ Started tracking time');
+  const now = Date.now();
+  console.log('⏱️ Started tracking time at:', now);
+  
+  // If we already have a start time, save the previous session first
+  if (gameStartTime !== null) {
+    console.log('⏱️ Previous session was not stopped, stopping it now...');
+    // Don't await - just update the start time
+    const elapsedTime = Math.floor((now - gameStartTime) / 1000);
+    if (elapsedTime > 0) {
+      import('./services/stats-service.js').then(({ statsService }) => {
+        statsService.addTimePlayed(elapsedTime);
+        console.log('⏱️ Previous session tracked:', elapsedTime, 'seconds');
+      });
+    }
+  }
+  
+  gameStartTime = now;
+  console.log('⏱️ Time tracking started');
 };
 
 // Stop tracking time and add to accumulated time
 (window as any).stopTimeTracking = async () => {
   if (gameStartTime !== null) {
-    const elapsedTime = Math.floor((Date.now() - gameStartTime) / 1000); // Convert to seconds
-    gameStartTime = null;
+    const now = Date.now();
+    const elapsedTime = Math.floor((now - gameStartTime) / 1000); // Convert to seconds
     
-    try {
-      const { statsService } = await import('./services/stats-service.js');
-      statsService.addTimePlayed(elapsedTime);
-      console.log('⏱️ Time tracked:', elapsedTime, 'seconds');
-    } catch (error) {
-      console.error('❌ Failed to save time played:', error);
+    if (elapsedTime > 0) {
+      try {
+        const { statsService } = await import('./services/stats-service.js');
+        statsService.addTimePlayed(elapsedTime);
+        console.log('⏱️ Time tracked and saved:', elapsedTime, 'seconds');
+      } catch (error) {
+        console.error('❌ Failed to save time played:', error);
+      }
+    } else {
+      console.log('⏱️ No time to save (elapsedTime = 0)');
     }
+    
+    // Don't reset gameStartTime to null - keep tracking
+    // Only reset when explicitly starting a new session
+  } else {
+    console.log('⏱️ No time tracking session active');
   }
 };
 
