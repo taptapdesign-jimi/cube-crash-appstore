@@ -1295,7 +1295,8 @@ function merge(src, dst, helpers){
     scheduleComboDecay();
 
     // Stats: track longest combo progression
-    try { if (typeof window.trackLongestCombo === 'function') window.trackLongestCombo(combo); } catch {}
+    console.log('🔍 Tracking longest combo, combo value:', combo, 'function exists:', typeof window.trackLongestCombo === 'function');
+    try { if (typeof window.trackLongestCombo === 'function') window.trackLongestCombo(combo); } catch (e) { console.error('❌ trackLongestCombo failed:', e); }
 
     addWildProgress(WILD_INC_SMALL);
     
@@ -1444,8 +1445,10 @@ function merge(src, dst, helpers){
         animateScore(score, 0.40);
 
         // Stats: count merge-6 as "cubes cracked"; count wild as helpers used
-        try { if (typeof window.trackCubesCracked === 'function') window.trackCubesCracked(1); } catch {}
-        try { if (wasWild && typeof window.trackHelpersUsed === 'function') window.trackHelpersUsed(1); } catch {}
+        console.log('🔍 Attempting to track stats - trackCubesCracked function exists:', typeof window.trackCubesCracked === 'function');
+        console.log('🔍 wasWild:', wasWild, 'trackHelpersUsed function exists:', typeof window.trackHelpersUsed === 'function');
+        try { if (typeof window.trackCubesCracked === 'function') window.trackCubesCracked(1); } catch (e) { console.error('❌ trackCubesCracked failed:', e); }
+        try { if (wasWild && typeof window.trackHelpersUsed === 'function') window.trackHelpersUsed(1); } catch (e) { console.error('❌ trackHelpersUsed failed:', e); }
         
         // Ghost placeholders are now fixed and always visible
 
