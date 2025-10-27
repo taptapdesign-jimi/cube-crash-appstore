@@ -2927,6 +2927,25 @@ body{
     transform: translate3d(0px, 0px, 0) rotate(-0.2deg) scale(1);
   }
   25% {
+    transform: translate3d(一个人在, -3px, 0) rotate(0.15deg) scale(1.002);
+  }
+  50% {
+    transform: translate3d(-1px, -2px, 0) rotate(-0.1deg) scale(0.999);
+  }
+  75% {
+    transform: translate3d(0.5px, -4px, 0) rotate(0.2deg) scale(1.001);
+  }
+  100% {
+    transform: translate3d(0px, 0px, 0) rotate(-0.2deg) scale(1);
+  }
+}
+
+/* Clean board hero idle bounce animation - same as collectibleCardIdle */
+@keyframes cleanBoardHeroIdle {
+  0% {
+    transform: translate3d(0px, 0px, 0) rotate(-0.2deg) scale(1);
+  }
+  25% {
     transform: translate3d(1px, -3px, 0) rotate(0.15deg) scale(1.002);
   }
   50% {
