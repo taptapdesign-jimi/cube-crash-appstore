@@ -60,16 +60,8 @@ function createSpawn(
   for (let i = 0; i < count && activeAnimations < MAX_ANIMATIONS; i++) {
     let spawnDelay = 0;
     
-    if (i < count * 0.4) {
-      // First 40% - spawn immediately
-      spawnDelay = 0;
-    } else if (i < count * 0.7) {
-      // Next 30% - spawn after 1.5s
-      spawnDelay = 1500;
-    } else {
-      // Last 30% - spawn after 3s (1.5s after second batch)
-      spawnDelay = 3000;
-    }
+    // Random spawn delay between 0-3000ms for each confetti
+    spawnDelay = Math.random() * 3000;
     
     setTimeout(() => {
       const color = colors[i % colors.length];
