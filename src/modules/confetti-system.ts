@@ -56,19 +56,19 @@ function createSpawn(
   const isLeft = side === 'left';
   const isUpward = direction === 'up';
   
-  // Staggered spawn: 50% immediately, 35% after 500ms, 15% after 800ms total
+  // Staggered spawn: 3 groups with 1.5s intervals, finishing within 5 seconds
   for (let i = 0; i < count && activeAnimations < MAX_ANIMATIONS; i++) {
     let spawnDelay = 0;
     
-    if (i < count * 0.5) {
-      // First 50% - spawn immediately
+    if (i < count * 0.4) {
+      // First 40% - spawn immediately
       spawnDelay = 0;
-    } else if (i < count * 0.85) {
-      // Next 35% - spawn after 500ms
-      spawnDelay = 500;
+    } else if (i < count * 0.7) {
+      // Next 30% - spawn after 1.5s
+      spawnDelay = 1500;
     } else {
-      // Last 15% - spawn after 800ms (300ms after second batch)
-      spawnDelay = 800;
+      // Last 30% - spawn after 3s (1.5s after second batch)
+      spawnDelay = 3000;
     }
     
     setTimeout(() => {
