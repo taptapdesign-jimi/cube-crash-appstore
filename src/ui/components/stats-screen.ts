@@ -194,8 +194,11 @@ function createStatItem(stat: StatItem): HTMLElementConfig {
 }
 
 export function createStatsScreen(config: StatsScreenConfig): HTMLElementConfig {
+  // ALWAYS get fresh stats from localStorage when creating the screen
+  const freshStats = getStatsFromLocalStorage();
+  
   const {
-    stats = DEFAULT_STATS,
+    stats = freshStats,
     onBack,
     onReset,
     showResetButton = true,
