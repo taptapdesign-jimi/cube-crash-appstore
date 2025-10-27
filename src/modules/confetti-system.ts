@@ -34,11 +34,12 @@ function createConfettiExplosion(element: HTMLElement): void {
       setTimeout(() => {
         console.log(`🎉 Spawning ${group.name} at ${randomDelay.toFixed(0)}ms`);
         
-        // TOP SPAWNS - 4 total: corners + middle
-        createSpawn(colors, confettiPerSpawn, -(screenW * 0.3), -(screenH * 0.3), Math.PI / 4, 'left', 'down');
-        createSpawn(colors, confettiPerSpawn, screenW * 1.3, -(screenH * 0.3), 3 * Math.PI / 4, 'right', 'down');
-        createSpawn(colors, confettiPerSpawn, screenW * 0.25, -(screenH * 0.3), Math.PI / 2 - 0.3, 'left', 'down');
-        createSpawn(colors, confettiPerSpawn, screenW * 0.75, -(screenH * 0.3), Math.PI / 2 + 0.3, 'right', 'down');
+        // TOP SPAWNS - 4 total: corners + middle with staggered timing
+        // Each spawn has random delay 0-300ms for organic effect
+        setTimeout(() => createSpawn(colors, confettiPerSpawn, -(screenW * 0.3), -(screenH * 0.3), Math.PI / 4, 'left', 'down'), Math.random() * 300);
+        setTimeout(() => createSpawn(colors, confettiPerSpawn, screenW * 1.3, -(screenH * 0.3), 3 * Math.PI / 4, 'right', 'down'), Math.random() * 300);
+        setTimeout(() => createSpawn(colors, confettiPerSpawn, screenW * 0.25, -(screenH * 0.3), Math.PI / 2 - 0.3, 'left', 'down'), Math.random() * 300);
+        setTimeout(() => createSpawn(colors, confettiPerSpawn, screenW * 0.75, -(screenH * 0.3), Math.PI / 2 + 0.3, 'right', 'down'), Math.random() * 300);
       }, randomDelay);
     });
 }
