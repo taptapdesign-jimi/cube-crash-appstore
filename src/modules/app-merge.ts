@@ -200,10 +200,17 @@ export function merge(src, dst, helpers){
 
     // STATS TRACKING: Update high score immediately for all merges
     console.log('📊 ALL MERGES - Checking high score update, current score:', STATE.score);
+    console.log('🔍 DEBUG: window object exists:', typeof window !== 'undefined');
+    console.log('🔍 DEBUG: typeof window.trackHighScore:', typeof window.trackHighScore);
+    console.log('🔍 DEBUG: window.trackHighScore is function:', typeof window.trackHighScore === 'function');
+    
     try {
       if (typeof window.trackHighScore === 'function') {
+        console.log('✅ CALLING trackHighScore with score:', STATE.score);
         window.trackHighScore(STATE.score);
         console.log('✅ High score tracking called for merge:', effSum);
+      } else {
+        console.error('❌ trackHighScore is NOT a function! Type:', typeof window.trackHighScore);
       }
     } catch (e) {
       console.error('❌ trackHighScore failed:', e);
