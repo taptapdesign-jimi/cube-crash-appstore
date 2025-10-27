@@ -32,12 +32,14 @@ function createConfettiExplosion(element: HTMLElement): void {
   const centerX = rect.left + rect.width / 2;
   const centerY = rect.top + rect.height / 2;
   
-  const colors = ['#E97A55', '#B07F69', '#E77449', '#F5A623', '#FF6B6B', '#4ECDC4', '#95E1D3'];
-  const confettiCount = 30;
+  const colors = ['#FBE3C5', '#FA8C00', '#E5C7AD', '#ECD7C2', '#FDBA00'];
+  const confettiCount = 60; // More confetti pieces
   
-  for (let i = 0; i < confettiCount; i++) {
-    const confetti = document.createElement('div');
-    const color = colors[Math.floor(Math.random() * colors.length)];
+  // DELAY: Wait 500ms before starting explosion
+  setTimeout(() => {
+    for (let i = 0; i < confettiCount; i++) {
+      const confetti = document.createElement('div');
+      const color = colors[Math.floor(Math.random() * colors.length)];
     const angle = (Math.PI * 2 * i) / confettiCount;
     const velocity = 200 + Math.random() * 300;
     
@@ -54,9 +56,10 @@ function createConfettiExplosion(element: HTMLElement): void {
       transform: rotate(${Math.random() * 360}deg);
     `;
     
-    document.body.appendChild(confetti);
-    
-    const duration = 800 + Math.random() * 400;
+      document.body.appendChild(confetti);
+      
+      // DURATION: 2 seconds (2000ms)
+      const duration = 2000;
     confetti.animate([
       { 
         transform: `translate(0, 0) rotate(${Math.random() * 360}deg)`,
@@ -70,8 +73,9 @@ function createConfettiExplosion(element: HTMLElement): void {
       duration: duration,
       easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
       fill: 'forwards'
-    }).onfinish = () => confetti.remove();
-  }
+      }).onfinish = () => confetti.remove();
+    }
+  }, 500); // 500ms delay
 }
 
 export async function showCleanBoardModal({
