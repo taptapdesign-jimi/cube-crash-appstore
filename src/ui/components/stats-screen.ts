@@ -51,14 +51,22 @@ export function updateStatsValues(): void {
   
   // Update high score
   const highScoreElement = document.getElementById('high-score');
+  console.log('📊 DOM: high-score element found:', !!highScoreElement, 'setting to:', highScore);
   if (highScoreElement) {
     highScoreElement.textContent = highScore.toString();
+    console.log('✅ DOM: high-score element updated to:', highScoreElement.textContent);
+  } else {
+    console.error('❌ DOM: high-score element NOT found!');
   }
   
   // Update cubes cracked
   const cubesCrackedElement = document.getElementById('cubes-cracked');
+  console.log('📊 DOM: cubes-cracked element found:', !!cubesCrackedElement, 'setting to:', cubesCracked);
   if (cubesCrackedElement) {
     cubesCrackedElement.textContent = cubesCracked.toString();
+    console.log('✅ DOM: cubes-cracked element updated to:', cubesCrackedElement.textContent);
+  } else {
+    console.error('❌ DOM: cubes-cracked element NOT found!');
   }
   
   // Update highest board
@@ -69,8 +77,12 @@ export function updateStatsValues(): void {
   
   // Update longest combo
   const longestComboElement = document.getElementById('longest-combo');
+  console.log('📊 DOM: longest-combo element found:', !!longestComboElement, 'setting to:', longestCombo);
   if (longestComboElement) {
     longestComboElement.textContent = longestCombo.toString();
+    console.log('✅ DOM: longest-combo element updated to:', longestComboElement.textContent);
+  } else {
+    console.error('❌ DOM: longest-combo element NOT found!');
   }
   
   // Update helpers used
