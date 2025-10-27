@@ -7,12 +7,12 @@ const MAX_ANIMATIONS = 800; // Increased for continuous spawn
 function createConfettiExplosion(element: HTMLElement): void {
   console.log('🎉 createConfettiExplosion called');
   const colors = ['#FBE3C5', '#FA8C00', '#E5C7AD', '#ECD7C2', '#FDBA00'];
-  const confettiPerSpawn = 20; // Small batches for continuous effect
+  const confettiPerSpawn = 15; // Small batches for continuous effect
   const screenW = window.innerWidth;
   const screenH = window.innerHeight;
-  const totalDuration = 4000; // 4 seconds total
-  const spawnInterval = 150; // Spawn new batch every 150ms
-  const numSpawns = Math.floor(totalDuration / spawnInterval); // ~26 spawns
+  const totalDuration = 5000; // 5 seconds total
+  const spawnInterval = 200; // Spawn new batch every 200ms (slower for organic effect)
+  const numSpawns = Math.floor(totalDuration / spawnInterval); // ~25 spawns
   
   setTimeout(() => {
     console.log('🎉 Starting continuous confetti spawns');
@@ -91,9 +91,10 @@ function createSpawn(
     const wiggleAmount = 50 + Math.random() * 100;
     const wigglePhase = Math.random() * Math.PI * 2;
     
-    // Fall 30% past bottom of screen
+    // Fade at 60% of screen, die completely at 30% past bottom
+    const fadeY = screenHeight * 0.6; // Start fading at 60% of screen
+    const endY = screenHeight * 1.3; // Fall 30% past bottom
     const endX = velX * 2 + (Math.sin(wigglePhase + 1) * wiggleAmount);
-    const endY = screenHeight * 1.3; // 30% past screen
     const endRot = 360 + Math.random() * 720;
     
     const anim = confetti.animate([
@@ -102,12 +103,16 @@ function createSpawn(
         opacity: 0.9
       },
       {
-        transform: `translate(${velX + Math.sin(wigglePhase) * wiggleAmount}px, ${endY * 0.5}px) rotate(${endRot * 0.5}deg)`,
+        transform: `translate(${velX + Math.sin(wigglePhase) voice wiggleAmount}px, ${fadeY}px) rotate(${endRot * 0.4}deg)`,
         opacity: 0.9
       },
       {
+        transform: `translate(${endX * 0.8}px, ${endY * 0.9}px) rotate(${endRot * 0.7}deg)`,
+        opacity: 0.4
+      },
+      {
         transform: `translate(${endX}px, ${endY}px) rotate(${endRot}deg)`,
-        opacity: 0.3
+        opacity: 0
       }
     ], {
       duration,
