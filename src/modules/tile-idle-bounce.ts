@@ -11,7 +11,7 @@ import { TILE } from './constants.js';
 
 const ENABLE_TILE_IDLE_BOUNCE = true;
 
-const IDLE_WAIT_TIME = 2000;
+const IDLE_WAIT_TIME = 4000;  // 4 seconds after interaction
 const ANIMATION_INTERVAL = 3000;
 const RANDOM_INTERVAL = 1000;
 

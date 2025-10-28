@@ -1465,7 +1465,11 @@ function merge(src, dst, helpers){
         // ► badge + pojačani "smoke/bubbles" + screen shake
         if (wasWild) {
           showMultiplierTile(board, dst, mult, TILE * 1.3, 1.2);
-          smokeBubblesAtTile(board, dst, TILE * 1.3, 3.0);
+          smokeBubblesAtTile(board, dst, TILE * 1.3, 3.0, {
+            sizeScale: 0.7 + Math.random() * 0.6,  // Random size: 0.7-1.3x
+            countScale: 0.6 + Math.random() * 0.8, // Random count: 0.6-1.4x
+            trailAlpha: 0.95
+          });
         } else {
           showMultiplierTile(board, dst, mult, TILE, 1.0);
         }
