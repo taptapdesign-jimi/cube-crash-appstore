@@ -391,7 +391,7 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   const insetScale     = options.insetScale ?? 1;
   const ttl            = options.ttl ?? 1.0;
   const blendMode      = options.blendMode ?? 'add';
-  const bubbleAlpha    = options.baseAlpha ?? 0.16;
+  const bubbleAlpha    = options.baseAlpha ?? 1.0;
   const startScaleHint = options.startScale ?? null;
 
   const { x, y } = centerInBoard(board, tile, size);
