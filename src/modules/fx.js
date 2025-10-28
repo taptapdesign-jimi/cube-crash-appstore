@@ -532,7 +532,10 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
     } else {
       radius = 5 + Math.random() * 8; // Large: 5-13px
     }
-    puff.circle(0, 0, radius).fill({ color: 0xFFFFFF, alpha: 0.8 });
+    // Mix of white and cream colors
+    const colors = [0xFFFFFF, 0xECD7C2];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    puff.circle(0, 0, radius).fill({ color: color, alpha: 0.8 });
     puff.alpha = 0.8; // Set initial alpha to 0.8
     puff.x = x + (Math.random() - 0.5) * 80;  // Denser spawn radius: 80px
     puff.y = y + (Math.random() - 0.5) * 80;  // Denser spawn radius: 80px
