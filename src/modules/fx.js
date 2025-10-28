@@ -512,6 +512,43 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   });
 }
 
+// Light smoke trail for drag effect (separate from smokeBubblesAtTile)
+export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = {}){
+  if (!board || !tile) return;
+  
+  const count = Math.floor(4 + Math.random() * 4); // 4-8 particles
+  const { x, y } = centerInBoard(board, tile, tileSize);
+  
+  for (let i = 0; i < count; i++) {
+    const puff = new Graphics();
+    
+    // Small white circles
+    const radius = 3 + Math.random() * 2; // 3-5px
+    puff.circle(0, 0, radius).fill({ color: 0xFFFFFF, alpha: 0.5 });
+    puff.x = x + (Math.random() - 0.5) * 20;
+    puff.y = y + (Math.random() - 0.5) * 20;
+    
+    board.addChild(puff);
+    
+    // Simple fade out animation
+    const duration = 0.3 + Math.random() * 0.2; // 0.3-0.5s
+    gsap.to(puff, {
+      alpha: 0,
+      y: puff.y - 15 - Math.random() * 10,
+      duration: duration,
+      ease: 'power1.out',
+      onComplete: () => {
+        try {
+          if (puff && puff.parent) {
+            puff.parent.removeChild(puff);
+            puff.destroy();
+          }
+        } catch {}
+      }
+    });
+  }
+}
+
 // Dramatic screen shake for impactful events (e.g., wild merge-6)
 export function screenShake(app, opts = {}){
   try {
