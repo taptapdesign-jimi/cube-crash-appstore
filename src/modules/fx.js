@@ -95,7 +95,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   const velocityY = tile._lastVelY || 0;
   const movementAngle = Math.atan2(velocityY, velocityX);
 
-  for (let i = Haupt 0; i < sparkleCount; i++) {
+  for (let i = 0; i < sparkleCount; i++) {
     const sparkle = new Graphics();
     const baseSize = 4 + Math.random() * 6; // Much larger particles (4-10 instead of 2-6)
     
