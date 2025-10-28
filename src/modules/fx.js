@@ -87,7 +87,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   try { board.sortChildren?.(); } catch {}
   
   const intensity = opts.intensity ?? 1.0;
-  const sparkleCount = Math.max(3, Math.round(4 * intensity)); // 70% reduction (was 8-14, now 3-4)
+  const sparkleCount = Math.max(4, Math.round(5.2 * intensity)); // 30% more particles (was 4, now 5.2)
   const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
   
   // Get movement direction from tile if available
@@ -102,7 +102,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     // Rectangular confetti colors: F4EEE7, FBE3C5, ECD7C2, E5C7AD, FADEC0
     const colors = [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0]; 
     const color = colors[Math.floor(Math.random() * colors.length)];
-    const alpha = 1.0; // Full opacity for maximum visibility
+    const alpha = 1.0; // Full opacity for maximum visibility (already at max)
     
     // Random rectangular confetti (rectangles with varying aspect ratios) - like clean board
     const width = baseSize * (0.5 + Math.random() * 0.5); // 0.5-1.0 multiplier
