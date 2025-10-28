@@ -153,12 +153,13 @@ function makeWildLoader() {
         
         // Create anonymous Graphics for smoke
         const smokeBubble = new Graphics();
-        const radius = (3 + Math.random() * 3) * 1.96; // 5.88-11.76px bubbles (40% larger than previous)
+        const radius = 2 + Math.random() * 2; // 2-4px bubbles (small size)
         
         // Random color between white and orange
         const colors = [0xFFFFFF, 0xF86B3C];
         const color = colors[Math.floor(Math.random() * colors.length)];
-        smokeBubble.circle(0, 0, radius).fill({ color: color, alpha: 1 });
+        const alpha = color === 0xF86B3C ? 0.5 : 1.0; // Orange at 0.5 opacity, white at 1.0
+        smokeBubble.circle(0, 0, radius).fill({ color: color, alpha: alpha });
         
         // Position at the growing edge of the progress bar
         smokeBubble.x = globalX;
