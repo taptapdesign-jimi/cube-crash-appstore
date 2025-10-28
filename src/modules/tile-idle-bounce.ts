@@ -131,9 +131,9 @@ function animateTile(tile: Tile): void {
   const baseTileScaleX = tile.scale?.x || 1;
   const baseTileScaleY = tile.scale?.y || 1;
   
-  // Random tilt angle: 4-10 degrees left or right
+  // Random tilt angle: 1-5 degrees left or right
   const tiltDirection = Math.random() > 0.5 ? 1 : -1;
-  const tiltDegrees = 4 + Math.random() * 6; // 4-10 degrees
+  const tiltDegrees = 1 + Math.random() * 4; // 1-5 degrees
   const tiltRadians = (tiltDegrees * tiltDirection) * (Math.PI / 180);
   
   // Store original rotation
@@ -160,7 +160,7 @@ function animateTile(tile: Tile): void {
     ease: 'back.out(2)'
   }, '<'); // Start at same time as scale
   
-  // Phase 2: Return to scale but keep the tilt (0.3-0.6s)
+  // Phase 2: Return to scale and rotation (0.3-0.6s)
   tl.to(tile.scale, {
     x: baseTileScaleX,
     y: baseTileScaleY,
@@ -168,8 +168,12 @@ function animateTile(tile: Tile): void {
     ease: 'elastic.out(1, 0.3)' // Soft elastic bounce
   });
   
-  // Keep rotation at tilt angle - no return to 0
-  // Creates a "settled" look with the tile tilted
+  // Return rotation to 0 to avoid merge conflicts
+  tl.to(tile, {
+    rotation: originalRotation,
+    duration: 0.3,
+    ease: 'power2.out'
+  }, '<'); // Start at same time as scale return
   
   // Activate smoke bubbles 0.2s before end of animation
   tl.call(() => {
@@ -198,9 +202,13 @@ function stopTileAnimation(tile: Tile): void {
     console.warn('⚠️ Error stopping tile animation:', e);
   }
   
-  if (tile && tile.scale) {
-    tile.scale.x = 1;
-    tile.scale.y = 1;
+  if (tile) {
+    // Reset scale and rotation to prevent merge conflicts
+    if (tile.scale) {
+      tile.scale.x = 1;
+      tile.scale.y = 1;
+    }
+    tile.rotation = 0;
   }
 }
 
