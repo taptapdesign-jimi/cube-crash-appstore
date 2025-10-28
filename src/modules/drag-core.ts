@@ -255,7 +255,7 @@ export function initDrag(cfg) {
               drag._sparkleInterval = null;
             }
           }
-        }, 150); // Every 150ms
+        }, 100); // Every 100ms for more frequent emission
       } catch (err) {
         console.warn('Wild pickup sparkles error:', err);
       }
