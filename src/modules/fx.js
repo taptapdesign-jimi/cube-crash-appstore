@@ -525,6 +525,7 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
     // Larger white circles with random sizes
     const radius = 4 + Math.random() * 8; // 4-12px (more variation)
     puff.circle(0, 0, radius).fill({ color: 0xFFFFFF, alpha: 0.8 });
+    puff.alpha = 0.8; // Set initial alpha for GSAP animation
     puff.x = x + (Math.random() - 0.5) * 40;
     puff.y = y + (Math.random() - 0.5) * 40;
     
