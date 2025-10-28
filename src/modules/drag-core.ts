@@ -364,6 +364,13 @@ export function initDrag(cfg) {
     console.log('🔍 DRAG END: Tile at', t?.gridX, t?.gridY, 'value:', t?.value, 'locked:', t?.locked);
     drag.t = null;
     
+    // Notify idle bounce that drag has ended - start 2-second idle timer
+    try {
+      TILE_IDLE_BOUNCE.notifyInteraction();
+    } catch (error) {
+      console.warn('⚠️ Failed to notify board interaction on drag end:', error);
+    }
+    
     // Clear sparkle timer and interval when drag ends
     if (drag._lastSparkleTime) {
       drag._lastSparkleTime = null;
