@@ -524,17 +524,17 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
     
     // Larger white circles with random sizes
     const radius = 4 + Math.random() * 8; // 4-12px (more variation)
-    puff.circle(0, 0, radius).fill({ color: 0xFFFFFF, alpha: 0.8 });
-    puff.alpha = 0.8; // Set initial alpha for GSAP animation
-    puff.x = x + (Math.random() - 0.5) * 50;
-    puff.y = y + (Math.random() - 0.5) * 50;
+    puff.circle(0, 0, radius).fill({ color: 0xFFFFFF, alpha: 1.0 });
+    puff.alpha = 1.0; // Set initial alpha to 1.0
+    puff.x = x + (Math.random() - 0.5) * 70;  // Wider spawn radius: 70px
+    puff.y = y + (Math.random() - 0.5) * 70;  // Wider spawn radius: 70px
     
     board.addChild(puff);
     
     // Longer duration for visibility
     const duration = 0.9 + Math.random() * 0.5; // 0.9-1.4s (longer trail)
     gsap.to(puff, {
-      alpha: 0,
+      alpha: 0.2,  // Fade to 0.2 instead of 0
       y: puff.y - 20 - Math.random() * 15,
       duration: duration,
       ease: 'power1.out',
