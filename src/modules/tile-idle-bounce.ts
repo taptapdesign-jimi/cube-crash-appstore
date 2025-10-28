@@ -185,7 +185,8 @@ function animateTile(tile: Tile): void {
         countScale: 0.75,
         haloScale: 1.1,
         strength: 0.5 + Math.random() * 0.3,
-        trailAlpha: 0.25  // Set opacity to 0.25 for idle animation
+        trailAlpha: 0.25,  // Set opacity to 0.25 for idle animation
+        baseAlpha: 0.25   // Set initial fill alpha to 0.25 as well
       });
     }
   }, null, '-=0.55');
