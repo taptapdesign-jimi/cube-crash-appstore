@@ -78,7 +78,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
 
   // Use wood shards effect for wild cubes - simpler, cleaner
   const { x, y } = centerInBoard(board, tile, 96);
-  const shardCount = 6; // Small number for simple effect
+  const shardCount = 8; // More shards for visibility
   const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
   
   for (let i = 0; i < shardCount; i++) {
