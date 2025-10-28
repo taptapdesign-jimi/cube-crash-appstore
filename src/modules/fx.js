@@ -516,17 +516,17 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
 export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = {}){
   if (!board || !tile) return;
   
-  const count = Math.floor(6 + Math.random() * 4); // 6-10 particles
+  const count = Math.floor(10 + Math.random() * 6); // 10-16 particles
   const { x, y } = centerInBoard(board, tile, tileSize);
   
   for (let i = 0; i < count; i++) {
     const puff = new Graphics();
     
-    // Larger white circles for visibility
-    const radius = 6 + Math.random() * 4; // 6-10px
-    puff.circle(0, 0, radius).fill({ color: 0xFFFFFF, alpha: 0.75 });
-    puff.x = x + (Math.random() - 0.5) * 30;
-    puff.y = y + (Math.random() - 0.5) * 30;
+    // Larger white circles with random sizes
+    const radius = 4 + Math.random() * 8; // 4-12px (more variation)
+    puff.circle(0, 0, radius).fill({ color: 0xFFFFFF, alpha: 0.8 });
+    puff.x = x + (Math.random() - 0.5) * 40;
+    puff.y = y + (Math.random() - 0.5) * 40;
     
     board.addChild(puff);
     
