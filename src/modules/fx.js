@@ -76,106 +76,59 @@ export function glassCrackAtTile(board, tile, tileSize = 96, strength = 1){
 export function magicSparklesAtTile(board, tile, opts = {}){
   if (!board || !tile) return;
 
+  // Use wood shards effect for wild cubes - simpler, cleaner
   const { x, y } = centerInBoard(board, tile, 96);
-  const layer = new Container();
-  layer.x = x; layer.y = y;
-  const tileZ = tile?.zIndex ?? 0;
-  layer.zIndex = tileZ - 0.001; // Behind the wild cube
-
-  const ttl = opts.ttl ?? 1.0;
-  autoAdd(board, layer, ttl);
-  try { board.sortChildren?.(); } catch {}
-  
-  const intensity = opts.intensity ?? 1.0;
-  const sparkleCount = Math.max(4, Math.round(5.2 * intensity)); // 30% more particles (was 4, now 5.2)
+  const shardCount = 6; // Small number for simple effect
   const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
   
-  // Get movement direction from tile if available
-  const velocityX = tile._lastVelX || 0;
-  const velocityY = tile._lastVelY || 0;
-  const movementAngle = Math.atan2(velocityY, velocityX);
-
-  for (let i = 0; i < sparkleCount; i++) {
-    const sparkle = new Graphics();
-    const baseSize = 4 + Math.random() * 6; // Much larger particles (4-10 instead of 2-6)
+  for (let i = 0; i < shardCount; i++) {
+    const shard = new Graphics();
     
-    // Rectangular confetti colors: F4EEE7, FBE3C5, ECD7C2, E5C7AD, FADEC0
+    // Wild cube shard colors
     const colors = [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0]; 
     const color = colors[Math.floor(Math.random() * colors.length)];
-    const alpha = 1.0; // Full opacity for maximum visibility (already at max)
     
-    // Random rectangular confetti (rectangles with varying aspect ratios) - like clean board
-    const width = baseSize * (0.5 + Math.random() * 0.5); // 0.5-1.0 multiplier
-    const height = baseSize * (1.0 + Math.random() * 0.5); // 1.0-1.5 multiplier (more height)
+    // Simple rectangular shard - no blur, crisp
+    const width = 8 + Math.random() * 8; // 8-16px
+    const height = 12 + Math.random() * 12; // 12-24px
     
-    // Draw rectangular confetti piece - crisp, no blur
-    sparkle.rect(-width/2, -height/2, width, height)
-           .fill({ color: color, alpha: alpha });
+    shard.rect(-width/2, -height/2, width, height)
+         .fill({ color: color, alpha: 0.95 });
     
-    // Position scattered around the cube - 40% further from previous distance
-    let angle;
-    if (Math.abs(velocityX) > 0.1 || Math.abs(velocityY) > 0.1) {
-      // Follow movement direction with some spread
-      angle = movementAngle + (Math.random() - 0.5) * Math.PI * 0.8; // ±72 degrees from movement
-    } else {
-      // Random around the cube if no movement
-      angle = Math.random() * Math.PI * 2;
-    }
+    // Random position around tile
+    const angle = Math.random() * Math.PI * 2;
+    const distance = baseTile * (0.4 + Math.random() * 0.4);
     
-    // Position around the cube perimeter - 40% further from previous distance
-    const radius = baseTile * (0.63 + Math.random() * 0.84); // 40% further (63-147% of tile size)
-    const startX = Math.cos(angle) * radius; // Start around the cube
-    const startY = Math.sin(angle) * radius;
-    const endX = Math.cos(angle) * radius * (0.9 + Math.random() * 0.2); // Move slightly outward
-    const endY = Math.sin(angle) * radius * (0.9 + Math.random() * 0.2);
+    shard.x = Math.cos(angle) * distance;
+    shard.y = Math.sin(angle) * distance;
+    shard.rotation = Math.random() * Math.PI * 2;
     
-    sparkle.x = startX;
-    sparkle.y = startY;
+    board.addChild(shard);
     
-    // Random rotation for organic confetti effect
-    sparkle.rotation = Math.random() * Math.PI * 2; // 0-360 degrees random rotation
+    // Simple movement and fade
+    const endAngle = angle + (Math.random() - 0.5) * 0.5;
+    const endDistance = distance * (1.2 + Math.random() * 0.3);
+    const endX = Math.cos(endAngle) * endDistance;
+    const endY = Math.sin(endAngle) * endDistance;
     
-    layer.addChild(sparkle);
-
-    // Simple movement without complex fade - crisp confetti like clean board
-    const moveDuration = 0.5 + Math.random() * 0.3; // Faster, snappier
-    const delay = Math.random() * 0.1; // Quicker spawn
-    
-    setTimeout(() => {
-      if (sparkle && sparkle.parent) {
+    gsap.to(shard, {
+      x: x + endX,
+      y: y + endY,
+      rotation: shard.rotation + (Math.random() - 0.5) * Math.PI,
+      alpha: 0,
+      duration: 0.8 + Math.random() * 0.4,
+      ease: 'power2.out',
+      onComplete: () => {
         try {
-          // Move to end position with smooth motion
-          gsap.to(sparkle, {
-            x: endX,
-            y: endY,
-            rotation: sparkle.rotation + (Math.random() - 0.5) * Math.PI * 2,
-            duration: moveDuration,
-            ease: 'power2.out',
-            onComplete: () => {
-              // Simple fade out at end
-              if (sparkle && sparkle.parent) {
-                gsap.to(sparkle, {
-                  alpha: 0,
-                  duration: 0.2,
-                  onComplete: () => {
-                    try {
-                      if (sparkle && sparkle.parent) {
-                        sparkle.parent.removeChild(sparkle);
-                        sparkle.destroy();
-                      }
-                    } catch (err) {
-                      // Ignore cleanup errors
-                    }
-                  }
-                });
-              }
-            }
-          });
+          if (shard && shard.parent) {
+            shard.parent.removeChild(shard);
+            shard.destroy();
+          }
         } catch (err) {
-          // Ignore animation errors
+          // Ignore cleanup errors
         }
       }
-    }, delay * 1000);
+    });
   }
 }
 
