@@ -6,7 +6,7 @@ const MAX_ANIMATIONS = 800; // Increased for continuous spawn
 
 function createConfettiExplosion(element: HTMLElement): void {
   console.log('🎉 createConfettiExplosion called');
-  const colors = ['#FBE3C5', '#FA8C00', '#E5C7AD', '#ECD7C2', '#FDBA00'];
+  const colors = ['#FBE3C5', '#FA8C00', '#E5C7AD', '#ECD7C2', '#FDBA00', '#FADEC0'];
   const confettiPerSpawn = 15; // Small batches for continuous effect
   const screenW = window.innerWidth;
   const screenH = window.innerHeight;

@@ -99,22 +99,18 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     const sparkle = new Graphics();
     const baseSize = 4 + Math.random() * 6; // Much larger particles (4-10 instead of 2-6)
     
-    // Rectangular confetti colors: F4EEE7, FBE3C5, ECD7C2, E5C7AD
-    const colors = [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD]; 
+    // Rectangular confetti colors: F4EEE7, FBE3C5, ECD7C2, E5C7AD, FADEC0
+    const colors = [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0]; 
     const color = colors[Math.floor(Math.random() * colors.length)];
     const alpha = 1.0; // Full opacity for maximum visibility
     
-    // Random rectangular confetti (rectangles with varying aspect ratios)
-    const width = baseSize * (0.8 + Math.random() * 0.6); // 0.8-1.4 multiplier
-    const height = baseSize * (0.6 + Math.random() * 1.0); // 0.6-1.6 multiplier (more variation)
+    // Random rectangular confetti (rectangles with varying aspect ratios) - like clean board
+    const width = baseSize * (0.5 + Math.random() * 0.5); // 0.5-1.0 multiplier
+    const height = baseSize * (1.0 + Math.random() * 0.5); // 1.0-1.5 multiplier (more height)
     
-    // Draw rectangular confetti piece
+    // Draw rectangular confetti piece - crisp, no blur
     sparkle.rect(-width/2, -height/2, width, height)
            .fill({ color: color, alpha: alpha });
-    
-    // Add stronger glow effect for visibility
-    sparkle.rect(-width/2 * 2, -height/2 * 2, width * 2, height * 2)
-           .fill({ color: color, alpha: 0.4 }); // Stronger glow
     
     // Position scattered around the cube - 40% further from previous distance
     let angle;
@@ -141,60 +137,40 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     
     layer.addChild(sparkle);
 
-    // Slower movement with trail effect - less nervous animation
-    const moveDuration = 0.7 + Math.random() * 0.5; // Slower movement
-    const delay = Math.random() * 0.2; // Slower spawn
+    // Simple movement without complex fade - crisp confetti like clean board
+    const moveDuration = 0.5 + Math.random() * 0.3; // Faster, snappier
+    const delay = Math.random() * 0.1; // Quicker spawn
     
     setTimeout(() => {
       if (sparkle && sparkle.parent) {
         try {
-          // Move to end position
-          sparkle.x = endX;
-          sparkle.y = endY;
-          
-          // Trail effect - slower fade gradually
-          setTimeout(() => {
-            if (sparkle && sparkle.parent) {
-              sparkle.alpha = 0.5;
-            }
-          }, moveDuration * 300);
-          
-          setTimeout(() => {
-            if (sparkle && sparkle.parent) {
-              sparkle.alpha = 0.4;
-            }
-          }, moveDuration * 500);
-          
-          setTimeout(() => {
-            if (sparkle && sparkle.parent) {
-              sparkle.alpha = 0.3;
-            }
-          }, moveDuration * 700);
-          
-          setTimeout(() => {
-            if (sparkle && sparkle.parent) {
-              sparkle.alpha = 0.2;
-            }
-          }, moveDuration * 900);
-          
-          // Final fade out
-          setTimeout(() => {
-            if (sparkle && sparkle.parent) {
-              sparkle.alpha = 0;
-            }
-          }, moveDuration * 1100);
-          
-          // Remove from parent - longer duration
-          setTimeout(() => {
-            try {
+          // Move to end position with smooth motion
+          gsap.to(sparkle, {
+            x: endX,
+            y: endY,
+            rotation: sparkle.rotation + (Math.random() - 0.5) * Math.PI * 2,
+            duration: moveDuration,
+            ease: 'power2.out',
+            onComplete: () => {
+              // Simple fade out at end
               if (sparkle && sparkle.parent) {
-                sparkle.parent.removeChild(sparkle);
-                sparkle.destroy();
+                gsap.to(sparkle, {
+                  alpha: 0,
+                  duration: 0.2,
+                  onComplete: () => {
+                    try {
+                      if (sparkle && sparkle.parent) {
+                        sparkle.parent.removeChild(sparkle);
+                        sparkle.destroy();
+                      }
+                    } catch (err) {
+                      // Ignore cleanup errors
+                    }
+                  }
+                });
               }
-            } catch (err) {
-              // Ignore cleanup errors
             }
-          }, moveDuration * 1400);
+          });
         } catch (err) {
           // Ignore animation errors
         }
