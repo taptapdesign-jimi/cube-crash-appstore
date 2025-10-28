@@ -522,8 +522,8 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
   for (let i = 0; i < count; i++) {
     const puff = new Graphics();
     
-    // Larger white circles with random sizes
-    const radius = 4 + Math.random() * 8; // 4-12px (more variation)
+    // Mix of small, medium, and large particles
+    const radius = 3 + Math.random() * 15; // 3-18px (wide range: small to large)
     puff.circle(0, 0, radius).fill({ color: 0xFFFFFF, alpha: 1.0 });
     puff.alpha = 1.0; // Set initial alpha to 1.0
     puff.x = x + (Math.random() - 0.5) * 120;  // Very wide spawn radius: 120px
