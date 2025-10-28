@@ -78,7 +78,15 @@ export function notifyBoardInteraction(): void {
     state.animationTimer = null;
   }
   
-  console.log('👆 Board interaction detected');
+  // CRITICAL: Restart the loop after resetting the timer
+  // This ensures animations will resume after IDLE_WAIT_TIME
+  if (state.isActive) {
+    state.animationTimer = setTimeout(() => {
+      animateRandomTile();
+    }, IDLE_WAIT_TIME);
+  }
+  
+  console.log('👆 Board interaction detected, idle timer reset to', IDLE_WAIT_TIME, 'ms');
 }
 
 function animateRandomTile(): void {
