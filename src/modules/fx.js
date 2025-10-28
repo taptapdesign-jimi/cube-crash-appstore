@@ -135,6 +135,10 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     
     sparkle.x = startX;
     sparkle.y = startY;
+    
+    // Random rotation for organic confetti effect
+    sparkle.rotation = Math.random() * Math.PI * 2; // 0-360 degrees random rotation
+    
     layer.addChild(sparkle);
 
     // Slower movement with trail effect - less nervous animation
