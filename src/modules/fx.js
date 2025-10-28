@@ -93,7 +93,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     const height = 12 + Math.random() * 12; // 12-24px
     
     shard.rect(-width/2, -height/2, width, height)
-         .fill({ color: color, alpha: 0.95 });
+         .fill({ color: color, alpha: 1.0 }); // Full opacity for visibility
     
     // Random position around tile
     const angle = Math.random() * Math.PI * 2;
