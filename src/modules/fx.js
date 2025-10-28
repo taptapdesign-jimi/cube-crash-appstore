@@ -76,9 +76,9 @@ export function glassCrackAtTile(board, tile, tileSize = 96, strength = 1){
 export function magicSparklesAtTile(board, tile, opts = {}){
   if (!board || !tile) return;
 
-  // Use wood shards effect for wild cubes - simpler, cleaner
+  // Use wood shards effect for wild cubes - much more visible
   const { x, y } = centerInBoard(board, tile, 96);
-  const shardCount = 8; // More shards for visibility
+  const shardCount = 15; // Much more shards for visible trail
   const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
   
   for (let i = 0; i < shardCount; i++) {
@@ -88,48 +88,49 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     const colors = [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0]; 
     const color = colors[Math.floor(Math.random() * colors.length)];
     
-    // Simple rectangular shard - no blur, crisp
-    const width = 8 + Math.random() * 8; // 8-16px
-    const height = 12 + Math.random() * 12; // 12-24px
+    // Much larger rectangular shards - highly visible
+    const width = 12 + Math.random() * 12; // 12-24px (bigger!)
+    const height = 16 + Math.random() * 16; // 16-32px (bigger!)
     
     shard.rect(-width/2, -height/2, width, height)
-         .fill({ color: color, alpha: 1.0 }); // Full opacity for visibility
+         .fill({ color: color, alpha: 1.0 }); // Full opacity
     
-    // Random position around tile
+    // Random position around tile - closer to tile
     const angle = Math.random() * Math.PI * 2;
-    const distance = baseTile * (0.4 + Math.random() * 0.4);
+    const distance = baseTile * (0.2 + Math.random() * 0.4); // Closer spawn
     
-    shard.x = Math.cos(angle) * distance;
-    shard.y = Math.sin(angle) * distance;
+    shard.x = x + Math.cos(angle) * distance;
+    shard.y = y + Math.sin(angle) * distance;
     shard.rotation = Math.random() * Math.PI * 2;
     
     board.addChild(shard);
     
-    // Simple movement and fade
-    const endAngle = angle + (Math.random() - 0.5) * 0.5;
-    const endDistance = distance * (1.2 + Math.random() * 0.3);
-    const endX = Math.cos(endAngle) * endDistance;
-    const endY = Math.sin(endAngle) * endDistance;
+    // Stronger movement - more visible trail
+    const endAngle = angle + (Math.random() - 0.5) * 1.0; // Wider spread
+    const endDistance = distance * (1.5 + Math.random() * 0.5); // Further movement
+    const endX = x + Math.cos(endAngle) * endDistance;
+    const endY = y + Math.sin(endAngle) * endDistance;
     
     gsap.to(shard, {
-      x: x + endX,
-      y: y + endY,
-      rotation: shard.rotation + (Math.random() - 0.5) * Math.PI,
+      x: endX,
+      y: endY,
+      rotation: shard.rotation + (Math.random() - 0.5) * Math.PI * 2,
       alpha: 0,
-      duration: 0.8 + Math.random() * 0.4,
-      ease: 'power2.out',
+      duration: 0.4 + Math.random() * 0.3, // Faster for trailing effect
+      ease: 'power1.out', // Constant speed for trailing
       onComplete: () => {
         try {
           if (shard && shard.parent) {
             shard.parent.removeChild(shard);
             shard.destroy();
           }
-        } catch (err) {
+        } catch (жает
           // Ignore cleanup errors
         }
       }
     });
   }
+ sinonesse equals
 }
 
 export function woodShardsAtTile(board, tile, opts = {}){
