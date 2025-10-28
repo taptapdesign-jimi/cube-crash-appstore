@@ -78,7 +78,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
 
   // Use wood shards effect for wild cubes - much more visible
   const { x, y } = centerInBoard(board, tile, 96);
-  const shardCount = 15; // Much more shards for visible trail
+  const shardCount = 20; // Even more shards for visible trail
   const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
   
   for (let i = 0; i < shardCount; i++) {
@@ -93,11 +93,11 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     const height = 16 + Math.random() * 16; // 16-32px (bigger!)
     
     shard.rect(-width/2, -height/2, width, height)
-         .fill({ color: color, alpha: 1.0 }); // Full opacity
+         .fill({ color: color, alpha: 1.0 }); // Full opacity - maximum visibility
     
-    // Random position around tile - closer to tile
+    // Random position around tile - wider emission
     const angle = Math.random() * Math.PI * 2;
-    const distance = baseTile * (0.2 + Math.random() * 0.4); // Closer spawn
+    const distance = baseTile * (0.1 + Math.random() * 0.6); // Wider spawn range (0.1-0.7x tile size)
     
     shard.x = x + Math.cos(angle) * distance;
     shard.y = y + Math.sin(angle) * distance;
@@ -116,7 +116,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
       y: endY,
       rotation: shard.rotation + (Math.random() - 0.5) * Math.PI * 2,
       alpha: 0,
-      duration: 0.4 + Math.random() * 0.3, // Faster for trailing effect
+      duration: 0.5 + Math.random() * 0.4, // Slower fade for more visibility
       ease: 'power1.out', // Constant speed for trailing
       onComplete: () => {
         try {

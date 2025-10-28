@@ -328,7 +328,7 @@ export function initDrag(cfg) {
       t._lastVelY = drag.vy;
       
       // Continuous sparkles when wild cube is picked up (whether moving or not)
-      if (!drag._lastSparkleTime || (now - drag._lastSparkleTime) > 150) { // Every 150ms for continuous effect
+      if (!drag._lastSparkleTime || (now - drag._lastSparkleTime) > 100) { // Every 100ms for continuous effect
         try {
           magicSparklesAtTile(board, t, { intensity: 1.0 });
           drag._lastSparkleTime = now;
