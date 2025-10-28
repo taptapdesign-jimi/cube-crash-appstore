@@ -532,7 +532,7 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
     board.addChild(puff);
     
     // Longer duration for visibility
-    const duration = 0.5 + Math.random() * 0.3; // 0.5-0.8s
+    const duration = 0.9 + Math.random() * 0.5; // 0.9-1.4s (longer trail)
     gsap.to(puff, {
       alpha: 0,
       y: puff.y - 20 - Math.random() * 15,
