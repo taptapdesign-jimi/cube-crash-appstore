@@ -185,7 +185,7 @@ export function openEmpties(count: number, opts: OpenEmptiesOptions = {}): Promi
       try{ fixHoverAnchor(t); }catch{}; 
       res(); 
     }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 });
-  }))).then(() => { 
+  }))).then(async () => { 
     try{ 
       // drawBoardBG function should be imported from app.js
       (window as any).drawBoardBG?.(); 
