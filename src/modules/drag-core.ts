@@ -7,7 +7,7 @@
 
 import { Graphics, Container, Sprite, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
-import { magicSparklesAtTile } from './fx.js';
+import { magicSparklesAtTile, smokeBubblesAtTile } from './fx.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 
 // --- Inercijski tilt parametri (nagib SUPROTNO od smjera + lag) ---------------
@@ -336,6 +336,21 @@ export function initDrag(cfg) {
           console.warn('Wild sparkles error:', err);
         }
       }
+    } else {
+      // Smoke trail for regular cubes (not wild) - continuous when dragging
+      if (!drag._lastSmokeTime || (now - drag._lastSmokeTime) > 120) { // Every 120ms for smoke trail
+        try {
+          smokeBubblesAtTile(board, t, 96, 0.3, {
+            behind: false,
+            sizeScale: 0.8,
+            distanceScale: 0.6,
+            countScale: 0.5
+          });
+          drag._lastSmokeTime = now;
+        } catch (err) {
+          console.warn('Smoke trail error:', err);
+        }
+      }
     }
 
     // 🔧 SHADOW PATCH: refresh bez gubitka alpha
@@ -378,6 +393,11 @@ export function initDrag(cfg) {
     if (drag._sparkleInterval) {
       clearInterval(drag._sparkleInterval);
       drag._sparkleInterval = null;
+    }
+    
+    // Clear smoke trail timer when drag ends
+    if (drag._lastSmokeTime) {
+      drag._lastSmokeTime = null;
     }
     
     // SMART SAVE: Save after every move
