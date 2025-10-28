@@ -95,14 +95,14 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   const velocityY = tile._lastVelY || 0;
   const movementAngle = Math.atan2(velocityY, velocityX);
 
-  for (let i = 0; i < sparkleCount; i++) {
+  for (let i = Haupt 0; i < sparkleCount; i++) {
     const sparkle = new Graphics();
-    const baseSize = 2 + Math.random() * 4; // Random size variation
+    const baseSize = 4 + Math.random() * 6; // Much larger particles (4-10 instead of 2-6)
     
     // Rectangular confetti colors: F4EEE7, FBE3C5, ECD7C2, E5C7AD
     const colors = [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD]; 
     const color = colors[Math.floor(Math.random() * colors.length)];
-    const alpha = 0.8 + Math.random() * 0.2; // Random opacity 80-100%
+    const alpha = 1.0; // Full opacity for maximum visibility
     
     // Random rectangular confetti (rectangles with varying aspect ratios)
     const width = baseSize * (0.8 + Math.random() * 0.6); // 0.8-1.4 multiplier
@@ -112,9 +112,9 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     sparkle.rect(-width/2, -height/2, width, height)
            .fill({ color: color, alpha: alpha });
     
-    // Add subtle glow effect
-    sparkle.rect(-width/2 * 1.5, -height/2 * 1.5, width * 1.5, height * 1.5)
-           .fill({ color: color, alpha: alpha * 0.2 }); // Subtle glow
+    // Add stronger glow effect for visibility
+    sparkle.rect(-width/2 * 2, -height/2 * 2, width * 2, height * 2)
+           .fill({ color: color, alpha: 0.4 }); // Stronger glow
     
     // Position scattered around the cube - 40% further from previous distance
     let angle;
