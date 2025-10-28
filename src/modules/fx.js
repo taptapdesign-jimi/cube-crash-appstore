@@ -524,7 +524,7 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
     
     // Larger white circles for visibility
     const radius = 6 + Math.random() * 4; // 6-10px
-    puff.circle(0, 0, radius).fill({ color: 0xFFFFFF, alpha: 0.6 });
+    puff.circle(0, 0, radius).fill({ color: 0xFFFFFF, alpha: 0.75 });
     puff.x = x + (Math.random() - 0.5) * 30;
     puff.y = y + (Math.random() - 0.5) * 30;
     
