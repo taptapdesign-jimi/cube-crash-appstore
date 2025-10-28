@@ -131,13 +131,21 @@ function animateTile(tile: Tile): void {
   const baseTileScaleX = tile.scale?.x || 1;
   const baseTileScaleY = tile.scale?.y || 1;
   
+  // Random tilt angle: 4-10 degrees left or right
+  const tiltDirection = Math.random() > 0.5 ? 1 : -1;
+  const tiltDegrees = 4 + Math.random() * 6; // 4-10 degrees
+  const tiltRadians = (tiltDegrees * tiltDirection) * (Math.PI / 180);
+  
+  // Store original rotation
+  const originalRotation = tile.rotation || 0;
+  
   const tl = gsap.timeline({
     onComplete: () => {
       state.activeAnimations.delete(tile);
     }
   });
   
-  // Simple cartoon bounce - scale the tile itself (not rotG) for center-point scaling
+  // Phase 1: Scale up with rotation (0-0.3s)
   tl.to(tile.scale, {
     x: baseTileScaleX * 1.15,
     y: baseTileScaleY * 1.15,
@@ -145,13 +153,23 @@ function animateTile(tile: Tile): void {
     ease: 'back.out(2)' // Strong bounce out
   });
   
-  // Return to normal with bounce
+  // Simultaneously rotate the tile
+  tl.to(tile, {
+    rotation: originalRotation + tiltRadians,
+    duration: 0.3,
+    ease: 'back.out(2)'
+  }, '<'); // Start at same time as scale
+  
+  // Phase 2: Return to scale but keep the tilt (0.3-0.6s)
   tl.to(tile.scale, {
     x: baseTileScaleX,
     y: baseTileScaleY,
     duration: 0.3,
     ease: 'elastic.out(1, 0.3)' // Soft elastic bounce
   });
+  
+  // Keep rotation at tilt angle - no return to 0
+  // Creates a "settled" look with the tile tilted
   
   // Activate smoke bubbles 0.2s before end of animation
   tl.call(() => {
@@ -167,7 +185,7 @@ function animateTile(tile: Tile): void {
     }
   }, null, '-=0.2');
   
-  console.log('🎲 Animating tile:', tile.value);
+  console.log('🎲 Animating tile:', tile.value, 'with', tiltDegrees.toFixed(1), 'deg tilt', tiltDirection > 0 ? 'right' : 'left');
 }
 
 function stopTileAnimation(tile: Tile): void {
