@@ -516,25 +516,25 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
 export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = {}){
   if (!board || !tile) return;
   
-  const count = Math.floor(4 + Math.random() * 4); // 4-8 particles
+  const count = Math.floor(6 + Math.random() * 4); // 6-10 particles
   const { x, y } = centerInBoard(board, tile, tileSize);
   
   for (let i = 0; i < count; i++) {
     const puff = new Graphics();
     
-    // Small white circles
-    const radius = 3 + Math.random() * 2; // 3-5px
-    puff.circle(0, 0, radius).fill({ color: 0xFFFFFF, alpha: 0.5 });
-    puff.x = x + (Math.random() - 0.5) * 20;
-    puff.y = y + (Math.random() - 0.5) * 20;
+    // Larger white circles for visibility
+    const radius = 6 + Math.random() * 4; // 6-10px
+    puff.circle(0, 0, radius).fill({ color: 0xFFFFFF, alpha: 0.6 });
+    puff.x = x + (Math.random() - 0.5) * 30;
+    puff.y = y + (Math.random() - 0.5) * 30;
     
     board.addChild(puff);
     
-    // Simple fade out animation
-    const duration = 0.3 + Math.random() * 0.2; // 0.3-0.5s
+    // Longer duration for visibility
+    const duration = 0.5 + Math.random() * 0.3; // 0.5-0.8s
     gsap.to(puff, {
       alpha: 0,
-      y: puff.y - 15 - Math.random() * 10,
+      y: puff.y - 20 - Math.random() * 15,
       duration: duration,
       ease: 'power1.out',
       onComplete: () => {
