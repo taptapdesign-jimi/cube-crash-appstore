@@ -97,54 +97,24 @@ export function magicSparklesAtTile(board, tile, opts = {}){
 
   for (let i = 0; i < sparkleCount; i++) {
     const sparkle = new Graphics();
-    const size = 2 + Math.random() * 3; // Slightly larger sparkles
+    const baseSize = 2 + Math.random() * 4; // Random size variation
     
-    // Yellow sparkle colors: FEE524, FDF035, FDD915
-    const colors = [0xFEE524, 0xFDF035, 0xFDD915]; // Bright yellow, Golden yellow, Orange yellow
+    // Rectangular confetti colors: F4EEE7, FBE3C5, ECD7C2, E5C7AD
+    const colors = [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD]; 
     const color = colors[Math.floor(Math.random() * colors.length)];
+    const alpha = 0.8 + Math.random() * 0.2; // Random opacity 80-100%
     
-    // Create different shapes instead of just circles
-    const shapeType = Math.floor(Math.random() * 4);
-    const alpha = 1.0; // Full opacity (100%)
+    // Random rectangular confetti (rectangles with varying aspect ratios)
+    const width = baseSize * (0.8 + Math.random() * 0.6); // 0.8-1.4 multiplier
+    const height = baseSize * (0.6 + Math.random() * 1.0); // 0.6-1.6 multiplier (more variation)
     
-    switch (shapeType) {
-      case 0: // Star shape
-        const starPoints = [];
-        for (let j = 0; j < 5; j++) {
-          const angle = (j / 5) * Math.PI * 2;
-          const outerRadius = size;
-          const innerRadius = size * 0.4;
-          starPoints.push(Math.cos(angle) * outerRadius, Math.sin(angle) * outerRadius);
-          starPoints.push(Math.cos(angle + Math.PI / 5) * innerRadius, Math.sin(angle + Math.PI / 5) * innerRadius);
-        }
-        sparkle.drawPolygon(starPoints).fill({ color: color, alpha: alpha });
-        break;
-        
-      case 1: // Diamond shape
-        sparkle.drawPolygon([
-          -size, 0,
-          0, -size,
-          size, 0,
-          0, size
-        ]).fill({ color: color, alpha: alpha });
-        break;
-        
-      case 2: // Triangle shape
-        sparkle.drawPolygon([
-          0, -size,
-          -size * 0.866, size * 0.5,
-          size * 0.866, size * 0.5
-        ]).fill({ color: color, alpha: alpha });
-        break;
-        
-      case 3: // Square shape
-        sparkle.rect(-size/2, -size/2, size, size).fill({ color: color, alpha: alpha });
-        break;
-    }
+    // Draw rectangular confetti piece
+    sparkle.rect(-width/2, -height/2, width, height)
+           .fill({ color: color, alpha: alpha });
     
-        // Add smaller glow with full opacity
-        sparkle.circle(0, 0, size * 2.5)
-               .fill({ color: color, alpha: 0.5 }); // Glow opacity restored
+    // Add subtle glow effect
+    sparkle.rect(-width/2 * 1.5, -height/2 * 1.5, width * 1.5, height * 1.5)
+           .fill({ color: color, alpha: alpha * 0.2 }); // Subtle glow
     
     // Position scattered around the cube - 40% further from previous distance
     let angle;
