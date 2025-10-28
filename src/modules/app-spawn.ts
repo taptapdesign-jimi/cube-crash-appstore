@@ -190,6 +190,17 @@ export function openEmpties(count: number, opts: OpenEmptiesOptions = {}): Promi
       // drawBoardBG function should be imported from app.js
       (window as any).drawBoardBG?.(); 
     }catch{}; 
+    
+    // Update idle bounce tile list with newly spawned tiles
+    try {
+      const { TILE_IDLE_BOUNCE } = await import('./tile-idle-bounce.js');
+      if (TILE_IDLE_BOUNCE?.ENABLE) {
+        TILE_IDLE_BOUNCE.updateTileList(STATE.tiles);
+        console.log('🔄 Updated idle bounce tile list after openEmpties');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to update idle bounce tile list in openEmpties:', error);
+    }
   });
 }
 

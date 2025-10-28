@@ -1584,6 +1584,17 @@ function merge(src, dst, helpers){
           spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done),
           wildMergeTarget 
         });
+        
+        // Update idle bounce tile list with newly spawned tiles
+        if (TILE_IDLE_BOUNCE.ENABLE) {
+          try {
+            TILE_IDLE_BOUNCE.updateTileList(tiles);
+            console.log('🔄 Updated idle bounce tile list after spawn');
+          } catch (error) {
+            console.warn('⚠️ Failed to update idle bounce tile list:', error);
+          }
+        }
+        
         checkLevelEnd();
       }
     });
