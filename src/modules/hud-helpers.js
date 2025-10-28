@@ -4,6 +4,7 @@ import { gsap } from 'gsap';
 import { pauseGame, resumeGame, restart } from './app-core.js';
 // import { showPauseModal } from './pause-modal.js'; // Replaced with menu screen
 import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
+import { smokeBubblesAtTile } from './fx.js';
 
 // Local boardSize function (same as in app.js)
 function boardSize(){ return { w: COLS*TILE + (COLS-1)*GAP, h: ROWS*TILE + (ROWS-1)*GAP }; }
@@ -123,16 +124,52 @@ function makeWildLoader() {
     
     console.log('🎯 PIXI Wild meter progress:', Math.round(progress * 100) + '%', 'width:', width);
     
-    // Kill previous animation first
+    // Kill previous animation and smoke interval first
     if (container._currentAnimation) {
       container._currentAnimation.kill();
       container._currentAnimation = null;
       console.log('🎯 PIXI Wild meter: Previous animation killed');
     }
+    if (container._smokeInterval) {
+      clearInterval(container._smokeInterval);
+      container._smokeInterval = null;
+    }
     
     if (animate) {
       // Use GSAP to animate the width by redrawing the fill
       const startWidth = container._fill.width || 0;
+      
+      // Start smoke effect during animation
+      container._smokeInterval = setInterval(() => {
+        if (!container || !container.parent) return;
+        
+        // Get the board stage to spawn smoke on
+        const board = container.parent.parent?.children.find(c => c.name === 'board');
+        if (!board) return;
+        
+        // Get global position of the fill's right edge
+        const globalX = container.x + (container._fill.width || 0);
+        const globalY = container.y + 4; // Middle of the bar (8px height / 2)
+        const localPos = board.toLocal({ x: globalX, y: globalY });
+        
+        // Create a fake tile at the position for smokeBubblesAtTile
+        const fakeTile = {
+          x: localPos.x,
+          y: localPos.y,
+          width: 10,
+          height: 10
+        };
+        
+        // Spawn white smoke at the growing edge
+        smokeBubblesAtTile(board, fakeTile, 10, 0.3, {
+          behind: true,
+          sizeScale: 0.5,
+          countScale: 0.3,
+          trailAlpha: 0.8,
+          baseAlpha: 0.8
+        });
+      }, 100); // Every 100ms during animation
+      
       container._currentAnimation = gsap.to({ width: startWidth }, {
         width: width,
         duration: 0.4,
@@ -147,6 +184,11 @@ function makeWildLoader() {
           }
         },
         onComplete: () => {
+          // Clear smoke interval when animation completes
+          if (container._smokeInterval) {
+            clearInterval(container._smokeInterval);
+            container._smokeInterval = null;
+          }
           container._currentAnimation = null;
           console.log('🎯 PIXI Animation complete - final width:', width);
         }
