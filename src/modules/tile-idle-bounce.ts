@@ -180,13 +180,13 @@ function animateTile(tile: Tile): void {
     if (state.board && tile) {
       smokeBubblesAtTile(state.board, tile, 96, {
         behind: true,
-        sizeScale: 1.12,
+        sizeScale: 0.67,  // Reduced by 40% (1.12 * 0.6 = 0.67)
         distanceScale: 0.7,
         countScale: 0.75,
         haloScale: 1.1,
         strength: 0.5 + Math.random() * 0.3,
-        trailAlpha: 0.2,  // Set opacity to 0.2 for idle animation
-        baseAlpha: 0.2   // Set initial fill alpha to 0.2 as well
+        trailAlpha: 0,  // Reduced to 0 (was 0.2, now 0)
+        baseAlpha: 0   // Reduced to 0 (was 0.2, now 0)
       });
     }
   }, null, '-=0.55');
