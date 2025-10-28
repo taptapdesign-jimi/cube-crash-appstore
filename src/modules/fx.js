@@ -124,13 +124,12 @@ export function magicSparklesAtTile(board, tile, opts = {}){
             shard.parent.removeChild(shard);
             shard.destroy();
           }
-        } catch (жает
+        } catch (err) {
           // Ignore cleanup errors
         }
       }
     });
   }
- sinonesse equals
 }
 
 export function woodShardsAtTile(board, tile, opts = {}){
