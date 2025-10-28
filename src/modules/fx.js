@@ -391,7 +391,7 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   const insetScale     = options.insetScale ?? 1;
   const ttl            = options.ttl ?? 1.0;
   const blendMode      = options.blendMode ?? 'add';
-  const bubbleAlpha    = options.baseAlpha ?? 1.0;
+  const bubbleAlpha    = options.baseAlpha ?? 0.4;
   const startScaleHint = options.startScale ?? null;
 
   const { x, y } = centerInBoard(board, tile, size);
@@ -403,8 +403,8 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
 
   const baseStrength = Math.max(0.4, power);
   const COUNT     = Math.max(6, Math.round((44 + Math.random()*14) * baseStrength * countScale));
-  const BASE_R    = Math.max(4, Math.round(size * 0.034 * sizeScale));
-  const MAX_R     = Math.max(12, Math.round(size * 0.16 * sizeScale));
+  const BASE_R    = Math.max(6, Math.round(size * 0.051 * sizeScale)); // +50% larger base size
+  const MAX_R     = Math.max(18, Math.round(size * 0.24 * sizeScale)); // +50% larger max size
   const INSET     = size * 0.02 * insetScale;
   const OUT_MIN   = size * 0.15 * distanceScale;
   const OUT_MAX   = size * 0.34 * distanceScale;
