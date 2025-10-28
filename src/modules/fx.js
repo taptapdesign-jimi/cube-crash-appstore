@@ -492,9 +492,10 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
         onComplete: ()=>{ try{ if(puff && puff.parent){ puff.parent.removeChild(puff); puff.destroy(); } }catch{} }
       });
 
-      tl.to(puff, { alpha: randomAlpha, duration: tIn, ease: 'power2.out' }, stg)
+      const targetAlpha = options.trailAlpha ?? 0.95;
+      tl.to(puff, { alpha: targetAlpha, duration: tIn, ease: 'power2.out' }, stg)
         .to(puff, { x: dx + driftX, y: dy + driftY, duration: tRun, ease: 'sine.out' }, `>${0}`)
-        .to(puff, { alpha: randomAlpha, duration: tHold, ease: 'none' }, `>${0}`)
+        .to(puff, { alpha: targetAlpha, duration: tHold, ease: 'none' }, `>${0}`)
         .to(puff, { alpha: 0, duration: tOut, ease: 'power1.in' }, `>${0}`);
     }
   }

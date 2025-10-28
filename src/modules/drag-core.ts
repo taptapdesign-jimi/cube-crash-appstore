@@ -345,7 +345,7 @@ export function initDrag(cfg) {
             sizeScale: 0.8,
             distanceScale: 0.6,
             countScale: 0.5,
-            baseAlpha: 0.7
+            trailAlpha: 0.5
           });
           drag._lastSmokeTime = now;
         } catch (err) {
