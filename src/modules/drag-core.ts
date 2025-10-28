@@ -274,6 +274,13 @@ export function initDrag(cfg) {
       clearHover();
       return;
     }
+    
+    // Notify idle bounce that user is still interacting (carrying a tile)
+    try {
+      TILE_IDLE_BOUNCE.notifyInteraction();
+    } catch (error) {
+      console.warn('⚠️ Failed to notify board interaction on move:', error);
+    }
 
     // stari global point (za brzinu)
     const prevGP = drag._lastGlobal || { x: e.global.x, y: e.global.y };
