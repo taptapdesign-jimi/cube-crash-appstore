@@ -153,8 +153,8 @@ function makeWildLoader() {
         
         // Create anonymous Graphics for smoke
         const smokeBubble = new Graphics();
-        const radius = (3 + Math.random() * 3) * 1.4; // 4.2-8.4px bubbles (40% larger)
-        smokeBubble.circle(0, 0, radius).fill({ color: 0xFFFFFF, alpha: 0.8 });
+        const radius = (3 + Math.random() * 3) * 1.96; // 5.88-11.76px bubbles (40% larger than previous)
+        smokeBubble.circle(0, 0, radius).fill({ color: 0xFFFFFF, alpha: 1 });
         
         // Position at the growing edge of the progress bar
         smokeBubble.x = globalX;
@@ -168,7 +168,7 @@ function makeWildLoader() {
           y: globalY - 15 - Math.random() * 10,
           x: globalX + (Math.random() - 0.5) * 10,
           alpha: 0,
-          duration: 0.5 + Math.random() * 0.3,
+          duration: 1.0 + Math.random() * 0.3, // 0.5s longer (was 0.5-0.8s, now 1.0-1.3s)
           ease: 'power1.out',
           onComplete: () => {
             if (smokeBubble && smokeBubble.parent) {
