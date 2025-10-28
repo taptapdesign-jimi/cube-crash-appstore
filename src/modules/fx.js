@@ -525,9 +525,32 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       const puff = new Graphics();
       let r0 = BASE_R + Math.random() * (MAX_R - BASE_R);
       if (Math.random() < 0.22) r0 *= (1.35 + Math.random()*0.9);
-      puff.circle(0, 0, r0).fill({ color: 0xFFFFFF, alpha: bubbleAlpha });
+      
+      // Random shape: circle or ellipse
+      const isEllipse = Math.random() > 0.5;
+      const aspectRatio = isEllipse ? (0.6 + Math.random() * 0.8) : 1; // 0.6-1.4 for ellipse
+      const rx = r0;
+      const ry = r0 * aspectRatio;
+      
+      // Random opacity variation
+      const randomAlpha = bubbleAlpha * (0.7 + Math.random() * 0.6); // 70-130% of base alpha
+      
+      if (isEllipse) {
+        // Ellipse shape for variety
+        puff.ellipse(0, 0, rx, ry).fill({ color: 0xFFFFFF, alpha: randomAlpha });
+      } else {
+        // Circle shape
+        puff.circle(0, 0, rx).fill({ color: 0xFFFFFF, alpha: randomAlpha });
+      }
+      
       puff.alpha = 0.0;
       puff.blendMode = blendMode;
+      
+      // Random rotation for ellipses
+      if (isEllipse) {
+        puff.rotation = Math.random() * Math.PI * 2;
+      }
+      
       layer.addChild(puff);
 
       const side = (i + b) % 4;
