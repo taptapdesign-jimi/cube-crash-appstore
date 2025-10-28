@@ -185,8 +185,8 @@ function animateTile(tile: Tile): void {
         countScale: 0.75,
         haloScale: 1.1,
         strength: 0.5 + Math.random() * 0.3,
-        trailAlpha: 0,  // Reduced to 0 (was 0.2, now 0)
-        baseAlpha: 0   // Reduced to 0 (was 0.2, now 0)
+        trailAlpha: 0.3,  // Set to 0.3
+        baseAlpha: 0.3   // Set to 0.3
       });
     }
   }, null, '-=0.55');
