@@ -184,7 +184,8 @@ function animateTile(tile: Tile): void {
         distanceScale: 0.7,
         countScale: 0.75,
         haloScale: 1.1,
-        strength: 0.5 + Math.random() * 0.3
+        strength: 0.5 + Math.random() * 0.3,
+        trailAlpha: 0.4  // Set opacity to 0.4 for idle animation
       });
     }
   }, null, '-=0.55');
