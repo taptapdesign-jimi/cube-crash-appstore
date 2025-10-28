@@ -1,0 +1,18 @@
+# Button Class Mapping Strategy
+
+## PRIMARY BUTTONS (Orange) - Use .primary-button
+- .menu-btn-primary (Play on slider)
+- .continue-btn
+- .restart-btn
+- .complete-board-btn
+- Navigation buttons (Collectibles, Stats, Settings)
+
+## SECONDARY BUTTONS (White) - Use .secondary-button
+- .new-game-btn
+- .exit-btn
+
+## Strategy:
+1. Add .primary-button or .secondary-button as additional class
+2. Keep existing specific classes (continue-btn, exit-btn, etc.) for JavaScript targeting
+3. This way buttons have both specific functionality classes AND global type classes
+

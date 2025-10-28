@@ -4052,3 +4052,69 @@ body:has(:root) .tile.wild-3d-glow {
     transform: scale(0.1) translate(0, 0);
   }
 }
+
+/* ===== GLOBAL BUTTON TYPES ===== */
+/* Apply primary-button styling to all orange buttons */
+.primary-button,
+.menu-btn-primary,
+.continue-btn,
+.restart-btn,
+.complete-board-btn {
+  background: linear-gradient(180deg, #F89058 0%, #E36D37 100%);
+  box-shadow: 0 8px 0 0 #C24921;
+  color: white;
+}
+
+.primary-button:hover:not(:disabled),
+.menu-btn-primary:hover:not(:disabled),
+.continue-btn:hover:not(:disabled),
+.restart-btn:hover:not(:disabled),
+.complete-board-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #F89058 0%, #E36D37 100%);
+  transform: scale(1) !important;
+}
+
+.primary-button:active:not(:disabled),
+.primary-button:focus:not(:disabled),
+.menu-btn-primary:active:not(:disabled),
+.menu-btn-primary:focus:not(:disabled),
+.continue-btn:active:not(:disabled),
+.continue-btn:focus:not(:disabled),
+.restart-btn:active:not(:disabled),
+.restart-btn:focus:not(:disabled),
+.complete-board-btn:active:not(:disabled),
+.complete-board-btn:focus:not(:disabled) {
+  background: linear-gradient(180deg, #F89058 0%, #E36D37 100%);
+  transform: scale(0.80) !important;
+  box-shadow: 0 8px 0 0 #C24921;
+}
+
+/* Apply secondary-button styling to all white buttons */
+.secondary-button,
+.new-game-btn,
+.exit-btn {
+  background: white;
+  color: #AD8675;
+  border: 1px solid #E9DCD6;
+  box-shadow: 0 8px 0 0 #E9DCD6;
+}
+
+.secondary-button:hover:not(:disabled),
+.new-game-btn:hover:not(:disabled),
+.exit-btn:hover:not(:disabled) {
+  background: white;
+  color: #AD8675;
+  transform: scale(1) !important;
+}
+
+.secondary-button:active:not(:disabled),
+.secondary-button:focus:not(:disabled),
+.new-game-btn:active:not(:disabled),
+.new-game-btn:focus:not(:disabled),
+.exit-btn:active:not(:disabled),
+.exit-btn:focus:not(:disabled) {
+  background: white;
+  color: #AD8675;
+  transform: scale(0.80) !important;
+  box-shadow: 0 8px 0 0 #E9DCD6;
+}
