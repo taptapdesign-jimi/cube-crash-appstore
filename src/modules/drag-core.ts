@@ -340,11 +340,12 @@ export function initDrag(cfg) {
       // Smoke trail for regular cubes (not wild) - continuous when dragging
       if (!drag._lastSmokeTime || (now - drag._lastSmokeTime) > 120) { // Every 120ms for smoke trail
         try {
-          smokeBubblesAtTile(board, t, 96, 0.3, {
+          smokeBubblesAtTile(board, t, 96, 0.7, {
             behind: false,
             sizeScale: 0.8,
             distanceScale: 0.6,
-            countScale: 0.5
+            countScale: 0.5,
+            baseAlpha: 0.7
           });
           drag._lastSmokeTime = now;
         } catch (err) {
