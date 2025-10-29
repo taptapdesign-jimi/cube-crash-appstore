@@ -759,18 +759,18 @@ export function startWildIdle(tile, opts = {}){
   const tl = gsap.timeline({ repeat: -1, repeatDelay: Math.max(0, interval - (shiftDur + 0.20)) }); // Shorter delay
   tile._wildIdleTl = tl;
 
-  // 1) BIG DRAMATIC BOUNCE - very noticeable effect
+  // 1) INSTANT BOUNCE - no hold at peak, immediate return
   const sx = g.scale?.x || 1, sy = g.scale?.y || 1;
   const baseY = g.y || 0;
   
   // Y-axis bounce (up and down like a ball)
-  tl.to(g, { y: baseY - 20, duration: 0.25, ease: 'power2.out' }, 0) // BIG bounce up
-    .to(g, { y: baseY, duration: 0.20, ease: 'bounce.out' }, '>-0.25') // Bounce down with cartoony effect
+  tl.to(g, { y: baseY - 20, duration: 0.15, ease: 'power1.out' }, 0) // Quick bounce up
+    .to(g, { y: baseY, duration: 0.12, ease: 'bounce.out' }, '>-0.13') // Bounce down starts 0.02s before up ends
   
   // Scale squeeze effect (ball squishes when hitting ground)
-  .to(g.scale, { x: peak * 1.12, y: peak * 0.88, duration: 0.25, ease: 'power2.out' }, 0) // BIG stretch up
-    .to(g.scale, { x: sx * 0.92, y: sy * 1.15, duration: 0.12, ease: 'power2.in' }, '>-0.25') // BIG squeeze on impact
-    .to(g.scale, { x: sx, y: sy, duration: 0.10, ease: 'elastic.out(2.0, 0.7)' }, '>-0.12') // BIG bounce back to normal
+  .to(g.scale, { x: peak * 1.12, y: peak * 0.88, duration: 0.15, ease: 'power1.out' }, 0) // Quick stretch up
+    .to(g.scale, { x: sx * 0.92, y: sy * 1.15, duration: 0.08, ease: 'power1.in' }, '>-0.13') // Quick squeeze on impact
+    .to(g.scale, { x: sx, y: sy, duration: 0.10, ease: 'elastic.out(2.5, 0.6)' }, '>-0.08') // Bouncy elastic return
     // wiggle runs in parallel
     .to(g, { rotation: wiggle * 1.5, duration: 0.40, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0);
 
