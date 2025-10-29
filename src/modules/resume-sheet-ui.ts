@@ -55,10 +55,13 @@ export function addBottomSheetStyles(): void {
       box-sizing: border-box !important;
       width: 100% !important;
       max-width: 310px !important;
+      min-height: 64px !important;
+      line-height: 1 !important;
     }
     
     .continue-btn:active {
       transform: scale(0.80) !important;
+      transition: transform 0.35s ease !important;
     }
     
     /* Secondary Button - White with Brown Border */
@@ -89,10 +92,13 @@ export function addBottomSheetStyles(): void {
       box-sizing: border-box !important;
       width: 100% !important;
       max-width: 310px !important;
+      min-height: 64px !important;
+      line-height: 1 !important;
     }
     
     .pause-btn:active {
       transform: scale(0.80) !important;
+      transition: transform 0.35s ease !important;
     }
     
     .resume-bottom-sheet {
