@@ -761,8 +761,8 @@ export function startWildIdle(tile, opts = {}){
 
   // 1) BOUNCY SPRINGY ANIMATION - like board load bounce
   const sx = g.scale?.x || 1, sy = g.scale?.y || 1;
-  tl.to(g.scale, { x: peak, y: peak, duration: 0.20, ease: 'back.out(2.5)' }, 0) // More bouncy elastic scale up
-    .to(g.scale, { x: sx,   y: sy,   duration: 0.30, ease: 'elastic.out(1.2, 0.5)' }, '>-0.10') // Springy bounce back down with more oscillation
+  tl.to(g.scale, { x: peak, y: peak, duration: 0.15, ease: 'back.out(3.0)' }, 0) // Quick bouncy elastic scale up
+    .to(g.scale, { x: sx,   y: sy,   duration: 0.25, ease: 'elastic.out(1.3, 0.6)' }, '>-0.18') // Immediate springy bounce back with more overlap
     // wiggle runs in parallel with the scale timeline
     .to(g, { rotation: wiggle, duration: 0.30, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0);
 
