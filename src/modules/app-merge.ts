@@ -394,13 +394,13 @@ export function merge(src, dst, helpers){
               tileSize: TILE,
               strength: softSmokeStrength,
               behind: true,
-              sizeScale: 0.464, // 60% smaller (1.16 * 0.4 = 0.464)
+              sizeScale: 0.557, // 0.464 * 1.2 = 0.557 (20% increase)
               distanceScale: 0.30, // Much closer to edges (75% reduction from 0.75)
               countScale: 0.8,
               haloScale: 1.15,
               ttl: 1.0,
               // Limit max bubble size to prevent oversized bubbles
-              startScale: 0.35 // Force smaller initial scale to prevent huge bubbles
+              startScale: 0.42 // 0.35 * 1.2 = 0.42 (20% increase)
             });
             try { screenShake(STATE.app, { strength: Math.min(24, 10 + Math.max(1, mult) * 3), duration: 0.34, steps: 18, ease: 'power2.out' }); } catch {}
             woodShardsAtTile(STATE.board, dst, { intensity: 0.7, count: 12, spread: 1.1, size: 0.85, vanishDelay: 0.03, behind: true });
