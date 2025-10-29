@@ -93,7 +93,12 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false 
       } else { 
         applyWildSkinLocal(holder); 
       }
-      try { startWildIdle(holder, { interval: 4 }); } catch {}
+      try { 
+        console.log('🔵 CALLING startWildIdle for holder:', holder);
+        startWildIdle(holder, { interval: 4 }); 
+      } catch (e) {
+        console.error('❌ Error calling startWildIdle:', e);
+      }
     }
 
     holder.alpha = 0;
