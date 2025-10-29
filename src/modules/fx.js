@@ -429,6 +429,9 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       const puff = new Graphics();
       let r0 = BASE_R + Math.random() * (MAX_R - BASE_R);
       if (Math.random() < 0.22) r0 *= (1.35 + Math.random()*0.9);
+      // Cap max radius to prevent oversized bubbles (especially for merge 6)
+      const maxRadius = Math.min(MAX_R * 1.5, size * 0.18); // Cap at 18% of tile size
+      r0 = Math.min(r0, maxRadius);
       
       // Random shape: circle or ellipse
       const isEllipse = Math.random() > 0.5;
