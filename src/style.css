@@ -3135,103 +3135,7 @@ html.collectible-reward-open body {
   width: 100%;
 }
 
-.complete-board-btn {
-  background: #F57A31; /* Orange color for complete board */
-  color: white;
-  border: none;
-  border-radius: 40px; /* .cornerRadius(40) from Figma */
-  padding: 0 56px; /* Same as slider CTA */
-  font-size: 24px; /* Font.custom("LTCrow", size: 24) from Figma */
-  font-weight: bold; /* .weight(.bold) from Figma */
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
-  cursor: pointer;
-  width: 100%; /* RESPONSIVE - 100% of container */
-  max-width: 310px; /* Same max width as slider CTA */
-  height: 64px; /* Fixed height like other buttons */
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Ensure buttons are clickable */
-  pointer-events: auto;
-  position: relative;
-  z-index: 10;
-  /* Simple scale transition */
-  transition: transform 0.35s ease !important;
-  box-shadow: 0 8px 0 0 #C25921;
-  -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
-  -webkit-touch-callout: none !important; /* Remove mobile callout */
-  -webkit-user-select: none !important; /* Prevent text selection */
-  user-select: none !important; /* Prevent text selection */
-}
-
-/* Scale effect for complete board button */
-.complete-board-btn:hover {
-  transform: scale(1) !important;
-  transition: transform 0.35s ease !important;
-  box-shadow: 0 8px 0 0 #C25921;
-  background: #F57A31 !important; /* Keep original color */
-  color: white !important; /* Keep original text color */
-}
-
-.complete-board-btn:active,
-.complete-board-btn:focus,
-.complete-board-btn:focus-visible {
-  transform: scale(0.80) !important;
-  transition: transform 0.35s ease !important;
-  box-shadow: 0 8px 0 0 #C25921;
-  background: #F57A31 !important; /* Keep original color */
-  color: white !important; /* Keep original text color */
-}
-
-.restart-btn {
-  background: #E8734A; /* Color(red: 0.91, green: 0.45, blue: 0.29) from Figma */
-  color: white;
-  border: none;
-  border-radius: 40px; /* .cornerRadius(40) from Figma */
-  padding: 0 56px; /* Same as slider CTA */
-  font-size: 24px; /* Font.custom("LTCrow", size: 24) from Figma */
-  font-weight: bold; /* .weight(.bold) from Figma */
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
-  cursor: pointer;
-  width: 100%; /* RESPONSIVE - 100% of container */
-  max-width: 310px; /* Same max width as slider CTA */
-  height: 64px; /* Fixed height like other buttons */
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Ensure buttons are clickable */
-  pointer-events: auto;
-  position: relative;
-  z-index: 10;
-  /* Simple scale transition */
-  transition: transform 0.35s ease !important;
-  box-shadow: 0 8px 0 0 #C24921;
-  -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
-  -webkit-touch-callout: none !important; /* Remove mobile callout */
-  -webkit-user-select: none !important; /* Prevent text selection */
-  user-select: none !important; /* Prevent text selection */
-}
-
-/* Scale effect for restart button */
-.restart-btn:hover {
-  transform: scale(1) !important;
-  transition: transform 0.35s ease !important;
-  box-shadow: 0 8px 0 0 #C24921;
-  background: #E8734A !important; /* Keep original color */
-  color: white !important; /* Keep original text color */
-}
-
-.restart-btn:active,
-.restart-btn:focus,
-.restart-btn:focus-visible {
-  transform: scale(0.80) !important;
-  transition: transform 0.35s ease !important;
-  box-shadow: 0 8px 0 0 #C24921;
-  background: #E8734A !important; /* Keep original color */
-  color: white !important; /* Keep original text color */
-}
+/* Removed: complete-board-btn and restart-btn now use global primary-button styles */
 
 .exit-btn {
   background: white; /* .white from Figma */
@@ -3295,21 +3199,6 @@ html.collectible-reward-open body {
   
   .restart-btn, .exit-btn {
     max-width: 249px; /* Same as slider CTA on iPad */
-    transition: transform 0.35s ease !important; /* Simple scale transition */
-  }
-  
-  .restart-btn:hover {
-    transform: scale(1) !important;
-    transition: transform 0.35s ease !important;
-    box-shadow: 0 8px 0 0 #C24921;
-  }
-  
-  .restart-btn:active,
-  .restart-btn:focus,
-  .restart-btn:focus-visible {
-    transform: scale(0.80) !important;
-    transition: transform 0.35s ease !important;
-    box-shadow: 0 8px 0 0 #C24921;
   }
   
   .exit-btn:hover {
@@ -3346,23 +3235,8 @@ html.collectible-reward-open body {
   
   .restart-btn, .exit-btn {
     font-size: 22px;
-    padding: 0 56px; /* Same as slider CTA */
-    max-width: 249px; /* Same as slider CTA on mobile */
-    transition: transform 0.35s ease !important; /* Simple scale transition */
-  }
-  
-  .restart-btn:hover {
-    transform: scale(1) !important;
-    transition: transform 0.35s ease !important;
-    box-shadow: 0 8px 0 0 #C24921;
-  }
-  
-  .restart-btn:active,
-  .restart-btn:focus,
-  .restart-btn:focus-visible {
-    transform: scale(0.80) !important;
-    transition: transform 0.35s ease !important;
-    box-shadow: 0 8px 0 0 #C24921;
+    padding: 0 56px;
+    max-width: 249px;
   }
   
   .exit-btn:hover {
@@ -3977,15 +3851,27 @@ body:has(:root) .tile.wild-3d-glow {
 }
 
 /* ===== GLOBAL BUTTON TYPES ===== */
-/* Apply primary-button styling to all orange buttons */
+/* Apply CTA slider button styling to all orange buttons */
 .primary-button,
 .menu-btn-primary,
 .continue-btn,
 .restart-btn,
 .complete-board-btn {
-  background: linear-gradient(180deg, #F89058 0%, #E36D37 100%);
-  box-shadow: 0 8px 0 0 #C24921;
-  color: white;
+  /* Use exact slider CTA styles */
+  background: #E97A55 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 40px !important;
+  box-shadow: 0 8px 0 0 #C24921 !important;
+  transition: transform 0.35s ease !important;
+  position: relative !important;
+  overflow: hidden !important;
+  transform-style: flat !important;
+  perspective: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
 }
 
 .primary-button:hover:not(:disabled),
@@ -3993,8 +3879,10 @@ body:has(:root) .tile.wild-3d-glow {
 .continue-btn:hover:not(:disabled),
 .restart-btn:hover:not(:disabled),
 .complete-board-btn:hover:not(:disabled) {
-  background: linear-gradient(180deg, #F89058 0%, #E36D37 100%);
+  background: #E97A55 !important;
   transform: scale(1) !important;
+  box-shadow: 0 8px 0 0 #C24921 !important;
+  color: white !important;
 }
 
 .primary-button:active:not(:disabled),
@@ -4007,9 +3895,11 @@ body:has(:root) .tile.wild-3d-glow {
 .restart-btn:focus:not(:disabled),
 .complete-board-btn:active:not(:disabled),
 .complete-board-btn:focus:not(:disabled) {
-  background: linear-gradient(180deg, #F89058 0%, #E36D37 100%);
+  background: #E97A55 !important;
   transform: scale(0.80) !important;
-  box-shadow: 0 8px 0 0 #C24921;
+  box-shadow: 0 8px 0 0 #C24921 !important;
+  color: white !important;
+  transition: transform 0.35s ease !important;
 }
 
 /* Apply secondary-button styling to all white buttons */
