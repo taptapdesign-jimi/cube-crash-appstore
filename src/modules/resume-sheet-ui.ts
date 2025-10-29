@@ -28,10 +28,10 @@ export function addBottomSheetStyles(): void {
   style.id = 'bottom-sheet-styles';
   style.textContent = `
     /* Primary Button - Orange CTA (Tap Scale Animation) - Exact copy of slider CTA */
-    /* Using menu-btn-primary class to match slider CTA */
-    .resume-bottom-sheet .continue-btn.menu-btn-primary.tap-scale,
-    button.continue-btn.menu-btn-primary.tap-scale,
-    .resume-bottom-sheet button.continue-btn,
+    /* Using slide-button class to match slider CTA exactly */
+    .resume-bottom-sheet .slide-button.tap-scale.menu-btn-primary,
+    button.slide-button.tap-scale.menu-btn-primary,
+    .resume-bottom-sheet button.slide-button,
     button[data-action="resume"] {
       transform-style: flat !important;
       perspective: none !important;
@@ -64,9 +64,9 @@ export function addBottomSheetStyles(): void {
       touch-action: manipulation !important;
     }
     
-    .resume-bottom-sheet .continue-btn.menu-btn-primary.tap-scale:hover,
-    button.continue-btn.menu-btn-primary.tap-scale:hover,
-    .resume-bottom-sheet button.continue-btn:hover,
+    .resume-bottom-sheet .slide-button.tap-scale.menu-btn-primary:hover,
+    button.slide-button.tap-scale.menu-btn-primary:hover,
+    .resume-bottom-sheet button.slide-button:hover,
     button[data-action="resume"]:hover {
       transform: scale(1) !important;
       box-shadow: 0 8px 0 0 #C24921 !important;
@@ -74,9 +74,9 @@ export function addBottomSheetStyles(): void {
       color: white !important;
     }
     
-    .resume-bottom-sheet .continue-btn.menu-btn-primary.tap-scale:active,
-    button.continue-btn.menu-btn-primary.tap-scale:active,
-    .resume-bottom-sheet button.continue-btn:active,
+    .resume-bottom-sheet .slide-button.tap-scale.menu-btn-primary:active,
+    button.slide-button.tap-scale.menu-btn-primary:active,
+    .resume-bottom-sheet button.slide-button:active,
     button[data-action="resume"]:active {
       transform: scale(0.80) !important;
       transition: transform 0.35s ease !important;
@@ -203,9 +203,9 @@ export function addBottomSheetStyles(): void {
         font-size: 16px !important;
       }
       
-      .resume-bottom-sheet .continue-btn.menu-btn-primary.tap-scale,
-      button.continue-btn.menu-btn-primary.tap-scale,
-      .resume-bottom-sheet button.continue-btn,
+      .resume-bottom-sheet .slide-button.tap-scale.menu-btn-primary,
+      button.slide-button.tap-scale.menu-btn-primary,
+      .resume-bottom-sheet button.slide-button,
       button[data-action="resume"] {
         height: 64px !important;
         min-height: 64px !important;
@@ -243,7 +243,7 @@ export function createResumeModal(): HTMLElementWithCleanup {
       <h2 class="resume-bottom-sheet-title">Resume Game</h2>
       <p class="resume-bottom-sheet-subtitle">Continue where you left off</p>
       <div class="resume-bottom-sheet-buttons">
-        <button class="continue-btn menu-btn-primary tap-scale" data-action="resume">
+        <button class="slide-button tap-scale menu-btn-primary" data-action="resume">
           Continue
         </button>
         <button class="pause-btn secondary-button tap-scale" data-action="pause">
