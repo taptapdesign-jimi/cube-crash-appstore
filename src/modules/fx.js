@@ -759,10 +759,10 @@ export function startWildIdle(tile, opts = {}){
   const tl = gsap.timeline({ repeat: -1, repeatDelay: Math.max(0, interval - (shiftDur + 0.40)) });
   tile._wildIdleTl = tl;
 
-  // 1) subtle bounce + elastic wiggle (simultaneous)
+  // 1) subtle bounce + elastic wiggle (simultaneous) - smoother fluid animation
   const sx = g.scale?.x || 1, sy = g.scale?.y || 1;
-  tl.to(g.scale, { x: peak, y: peak, duration: 0.11, ease: 'back.out(2.2)' }, 0) // 50% faster scale up
-    .to(g.scale, { x: sx,   y: sy,   duration: 0.28, ease: 'power2.out' }, '>-0.08') // Same duration back down
+  tl.to(g.scale, { x: peak, y: peak, duration: 0.12, ease: 'power1.out' }, 0) // Quick scale up with smooth ease
+    .to(g.scale, { x: sx,   y: sy,   duration: 0.24, ease: 'power2.out' }, '>-0.08') // Smooth fluid return down
     // wiggle runs in parallel with the scale timeline
     .to(g, { rotation: wiggle, duration: 0.24, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0);
 
