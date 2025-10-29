@@ -28,7 +28,10 @@ export function addBottomSheetStyles(): void {
   style.id = 'bottom-sheet-styles';
   style.textContent = `
     /* Primary Button - Orange CTA (Tap Scale Animation) - Exact copy of slider CTA */
-    .continue-btn {
+    /* Using high specificity to override ALL other CSS */
+    button.continue-btn,
+    .resume-bottom-sheet button.continue-btn,
+    button[data-action="resume"] {
       transform-style: flat !important;
       perspective: none !important;
       background: #E97A55 !important;
@@ -36,6 +39,7 @@ export function addBottomSheetStyles(): void {
       border: none !important;
       border-radius: 40px !important;
       height: 64px !important;
+      min-height: 64px !important;
       padding: 0 56px !important;
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
       font-size: 24px !important;
@@ -55,26 +59,32 @@ export function addBottomSheetStyles(): void {
       box-sizing: border-box !important;
       width: 100% !important;
       max-width: 310px !important;
-      min-height: 64px !important;
       line-height: normal !important;
       touch-action: manipulation !important;
     }
     
-    .continue-btn:hover {
+    button.continue-btn:hover,
+    .resume-bottom-sheet button.continue-btn:hover,
+    button[data-action="resume"]:hover {
       transform: scale(1) !important;
       box-shadow: 0 8px 0 0 #C24921 !important;
       background: #E97A55 !important;
       color: white !important;
     }
     
-    .continue-btn:active {
+    button.continue-btn:active,
+    .resume-bottom-sheet button.continue-btn:active,
+    button[data-action="resume"]:active {
       transform: scale(0.80) !important;
       transition: transform 0.35s ease !important;
       -webkit-tap-highlight-color: transparent !important;
     }
     
     /* Secondary Button - White with Brown Border */
-    .pause-btn {
+    /* Using high specificity to override ALL other CSS */
+    button.pause-btn,
+    .resume-bottom-sheet button.pause-btn,
+    button[data-action="pause"] {
       transform-style: flat !important;
       perspective: none !important;
       background: white !important;
@@ -82,6 +92,7 @@ export function addBottomSheetStyles(): void {
       border: 1px solid #E9DCD6 !important;
       border-radius: 40px !important;
       height: 64px !important;
+      min-height: 64px !important;
       padding: 0 56px !important;
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
       font-size: 24px !important;
@@ -101,19 +112,22 @@ export function addBottomSheetStyles(): void {
       box-sizing: border-box !important;
       width: 100% !important;
       max-width: 310px !important;
-      min-height: 64px !important;
       line-height: normal !important;
       touch-action: manipulation !important;
     }
     
-    .pause-btn:hover {
+    button.pause-btn:hover,
+    .resume-bottom-sheet button.pause-btn:hover,
+    button[data-action="pause"]:hover {
       transform: scale(1) !important;
       background: white !important;
       color: #AD8675 !important;
       box-shadow: 0 8px 0 0 rgba(233, 220, 214, 1) !important;
     }
     
-    .pause-btn:active {
+    button.pause-btn:active,
+    .resume-bottom-sheet button.pause-btn:active,
+    button[data-action="pause"]:active {
       transform: scale(0.80) !important;
       transition: transform 0.35s ease !important;
       -webkit-tap-highlight-color: transparent !important;
@@ -186,15 +200,21 @@ export function addBottomSheetStyles(): void {
         font-size: 16px !important;
       }
       
-      .continue-btn {
+      button.continue-btn,
+      .resume-bottom-sheet button.continue-btn,
+      button[data-action="resume"] {
         height: 64px !important;
+        min-height: 64px !important;
         font-size: 24px !important;
         width: 100% !important;
         max-width: 310px !important;
       }
       
-      .pause-btn {
+      button.pause-btn,
+      .resume-bottom-sheet button.pause-btn,
+      button[data-action="pause"] {
         height: 64px !important;
+        min-height: 64px !important;
         font-size: 24px !important;
         width: 100% !important;
         max-width: 310px !important;
