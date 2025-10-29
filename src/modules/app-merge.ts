@@ -395,7 +395,7 @@ export function merge(src, dst, helpers){
               strength: softSmokeStrength,
               behind: true,
               sizeScale: 0.696, // 40% reduced from 1.16 (1.16 * 0.6 = 0.696)
-              distanceScale: 0.75,
+              distanceScale: 0.35, // Reduced from 0.75 - keeps bubbles much closer to tile (53% closer)
               countScale: 0.8,
               haloScale: 1.15,
               ttl: 1.0
