@@ -394,7 +394,7 @@ export function merge(src, dst, helpers){
               tileSize: TILE,
               strength: softSmokeStrength,
               behind: true,
-              sizeScale: 1.16,
+              sizeScale: 0.696, // 40% reduced from 1.16 (1.16 * 0.6 = 0.696)
               distanceScale: 0.75,
               countScale: 0.8,
               haloScale: 1.15,
