@@ -389,7 +389,7 @@ export function merge(src, dst, helpers){
             
           } else {
             // Normal merge 6 effects
-            const softSmokeStrength = 0.6 + Math.random() * 0.3;
+            const softSmokeStrength = 0.42 + Math.random() * 0.21; // 30% reduced from 0.6-0.9 to 0.42-0.63
             smokeBubblesAtTile(STATE.board, dst, {
               tileSize: TILE,
               strength: softSmokeStrength,
