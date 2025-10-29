@@ -167,15 +167,15 @@ export function addBottomSheetStyles(): void {
       }
       
       .continue-btn {
-        height: 56px !important;
-        font-size: 20px !important;
-        width: 240px !important;
+        height: 64px !important;
+        font-size: 24px !important;
+        width: 260px !important;
       }
       
       .pause-btn {
-        height: 56px !important;
-        font-size: 20px !important;
-        width: 240px !important;
+        height: 64px !important;
+        font-size: 24px !important;
+        width: 260px !important;
       }
     }
   `;
