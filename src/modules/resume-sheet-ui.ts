@@ -35,12 +35,14 @@ export function addBottomSheetStyles(): void {
       border: none !important;
       border-radius: 40px !important;
       height: 64px !important;
-      width: 260px !important;
+      width: 100% !important;
+      max-width: 310px !important;
+      padding: 0 56px !important;
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
       font-size: 24px !important;
       font-weight: bold !important;
       box-shadow: 0 8px 0 0 #C24921 !important;
-      transition: transform 0.15s ease-in-out !important;
+      transition: transform 0.35s ease !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
@@ -71,7 +73,9 @@ export function addBottomSheetStyles(): void {
       border: 1px solid #E9DCD6 !important;
       border-radius: 40px !important;
       height: 64px !important;
-      width: 260px !important;
+      width: 100% !important;
+      max-width: 310px !important;
+      padding: 0 56px !important;
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
       font-size: 24px !important;
       font-weight: bold !important;
@@ -169,13 +173,15 @@ export function addBottomSheetStyles(): void {
       .continue-btn {
         height: 64px !important;
         font-size: 24px !important;
-        width: 260px !important;
+        width: 100% !important;
+        max-width: 310px !important;
       }
       
       .pause-btn {
         height: 64px !important;
         font-size: 24px !important;
-        width: 260px !important;
+        width: 100% !important;
+        max-width: 310px !important;
       }
     }
   `;
