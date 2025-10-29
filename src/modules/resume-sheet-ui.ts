@@ -60,7 +60,7 @@ export function addBottomSheetStyles(): void {
     }
     
     .continue-btn:active {
-      transform: scale(0.95) !important;
+      transform: scale(0.80) !important;
     }
     
     /* Secondary Button - White with Brown Border (Tap Scale Animation) */
@@ -73,10 +73,10 @@ export function addBottomSheetStyles(): void {
       height: 64px !important;
       width: 260px !important;
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
-      font-size: 20px !important;
+      font-size: 24px !important;
       font-weight: bold !important;
-      box-shadow: 0 6px 0 0 rgba(233, 220, 214, 1) !important;
-      transition: transform 0.15s ease-in-out !important;
+      box-shadow: 0 8px 0 0 rgba(233, 220, 214, 1) !important;
+      transition: transform 0.35s ease !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
@@ -96,7 +96,7 @@ export function addBottomSheetStyles(): void {
     }
     
     .pause-btn:active {
-      transform: scale(0.95) !important;
+      transform: scale(0.80) !important;
     }
     
     .resume-bottom-sheet {
