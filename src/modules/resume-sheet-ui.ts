@@ -28,8 +28,9 @@ export function addBottomSheetStyles(): void {
   style.id = 'bottom-sheet-styles';
   style.textContent = `
     /* Primary Button - Orange CTA (Tap Scale Animation) - Exact copy of slider CTA */
-    /* Using high specificity to override ALL other CSS */
-    button.continue-btn,
+    /* Using menu-btn-primary class to match slider CTA */
+    .resume-bottom-sheet .continue-btn.menu-btn-primary.tap-scale,
+    button.continue-btn.menu-btn-primary.tap-scale,
     .resume-bottom-sheet button.continue-btn,
     button[data-action="resume"] {
       transform-style: flat !important;
@@ -63,7 +64,8 @@ export function addBottomSheetStyles(): void {
       touch-action: manipulation !important;
     }
     
-    button.continue-btn:hover,
+    .resume-bottom-sheet .continue-btn.menu-btn-primary.tap-scale:hover,
+    button.continue-btn.menu-btn-primary.tap-scale:hover,
     .resume-bottom-sheet button.continue-btn:hover,
     button[data-action="resume"]:hover {
       transform: scale(1) !important;
@@ -72,7 +74,8 @@ export function addBottomSheetStyles(): void {
       color: white !important;
     }
     
-    button.continue-btn:active,
+    .resume-bottom-sheet .continue-btn.menu-btn-primary.tap-scale:active,
+    button.continue-btn.menu-btn-primary.tap-scale:active,
     .resume-bottom-sheet button.continue-btn:active,
     button[data-action="resume"]:active {
       transform: scale(0.80) !important;
@@ -200,7 +203,8 @@ export function addBottomSheetStyles(): void {
         font-size: 16px !important;
       }
       
-      button.continue-btn,
+      .resume-bottom-sheet .continue-btn.menu-btn-primary.tap-scale,
+      button.continue-btn.menu-btn-primary.tap-scale,
       .resume-bottom-sheet button.continue-btn,
       button[data-action="resume"] {
         height: 64px !important;
@@ -239,10 +243,10 @@ export function createResumeModal(): HTMLElementWithCleanup {
       <h2 class="resume-bottom-sheet-title">Resume Game</h2>
       <p class="resume-bottom-sheet-subtitle">Continue where you left off</p>
       <div class="resume-bottom-sheet-buttons">
-        <button class="continue-btn" data-action="resume">
+        <button class="continue-btn menu-btn-primary tap-scale" data-action="resume">
           Continue
         </button>
-        <button class="pause-btn" data-action="pause">
+        <button class="pause-btn secondary-button tap-scale" data-action="pause">
           New Game
         </button>
       </div>
