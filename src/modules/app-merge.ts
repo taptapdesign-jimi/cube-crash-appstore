@@ -5,7 +5,7 @@ import * as makeBoard from './board.js';
 import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle } from './fx.js';
 import { COLS, ROWS, TILE, GAP } from './constants.js';
 import * as HUD from './hud-helpers.js';
-import { openAtCell, openEmpties, spawnBounce } from './app-spawn.js';
+import { openAtCell, openEmpties, spawnBounce } from './app-spawn.ts';
 import { showStarsModal } from './stars-modal.js';
 import { showBoardFailModal } from './board-fail-modal.js';
 import { rebuildBoard } from './app-board.js';
