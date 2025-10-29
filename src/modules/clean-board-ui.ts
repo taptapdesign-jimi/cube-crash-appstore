@@ -213,6 +213,7 @@ export function createContinueButton(): HTMLElement {
   const continueBtn = document.createElement('button');
   continueBtn.textContent = 'Continue';
   continueBtn.setAttribute('data-action', 'continue');
+  continueBtn.className = 'continue-btn primary-button';
   continueBtn.style.cssText = [
     'background:#E97A55',
     'color:white',
@@ -225,7 +226,7 @@ export function createContinueButton(): HTMLElement {
     'font-weight:bold',
     'box-shadow:0 8px 0 0 #C24921',
     'cursor:pointer',
-    'transition:all 0.2s ease',
+    'transition:transform 0.35s ease',
     'display:flex',
     'align-items:center',
     'justify-content:center',
@@ -233,7 +234,9 @@ export function createContinueButton(): HTMLElement {
     'text-decoration:none',
     'outline:none',
     'user-select:none',
-    '-webkit-tap-highlight-color:transparent'
+    '-webkit-tap-highlight-color:transparent',
+    'width:100%',
+    'max-width:310px'
   ].join(';');
   
   return continueBtn;

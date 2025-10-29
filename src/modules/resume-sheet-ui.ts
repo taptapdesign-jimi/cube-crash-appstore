@@ -41,7 +41,7 @@ export function addBottomSheetStyles(): void {
       border-radius: 40px !important;
       height: 64px !important;
       min-height: 64px !important;
-      padding: 0 56px !important;
+      padding: 0 !important;
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
       font-size: 24px !important;
       font-weight: bold !important;
@@ -96,7 +96,7 @@ export function addBottomSheetStyles(): void {
       border-radius: 40px !important;
       height: 64px !important;
       min-height: 64px !important;
-      padding: 0 56px !important;
+      padding: 0 !important;
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
       font-size: 24px !important;
       font-weight: bold !important;

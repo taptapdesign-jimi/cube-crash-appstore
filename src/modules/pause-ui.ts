@@ -83,19 +83,20 @@ export function createPauseModalContent(): HTMLElement {
       gap: 20px !important;
       align-items: center !important;
     ">
-      <button class="resume-btn" data-action="resume" style="
+      <button class="resume-btn continue-btn primary-button" data-action="resume" style="
         background: #E97A55 !important;
         color: white !important;
         border: none !important;
         border-radius: 40px !important;
         height: 64px !important;
+        min-height: 64px !important;
         padding: 0 56px !important;
         font-family: 'LTCrow', system-ui, -apple-system, sans-serif !important;
-        font-size: 20px !important;
+        font-size: 24px !important;
         font-weight: bold !important;
         box-shadow: 0 8px 0 0 #C24921 !important;
         cursor: pointer !important;
-        transition: all 0.2s ease !important;
+        transition: transform 0.35s ease !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -104,6 +105,12 @@ export function createPauseModalContent(): HTMLElement {
         outline: none !important;
         user-select: none !important;
         -webkit-tap-highlight-color: transparent !important;
+        width: 100% !important;
+        max-width: 310px !important;
+        transform: scale(1) !important;
+        transform-style: flat !important;
+        perspective: none !important;
+        overflow: hidden !important;
       ">Continue</button>
       
       <button class="restart-btn" data-action="restart" style="

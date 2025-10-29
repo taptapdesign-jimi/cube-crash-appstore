@@ -925,8 +925,64 @@ body{
 
 /* Dramatic click effect for all bottom sheet CTA buttons */
 .continue-btn,
-.new-game-btn,
 .restart-btn,
+.complete-board-btn {
+  transform-style: flat !important;
+  perspective: none !important;
+  background: #E97A55 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 40px !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  padding: 0 56px !important;
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+  font-size: 24px !important;
+  font-weight: bold !important;
+  box-shadow: 0 8px 0 0 #C24921 !important;
+  transition: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transform: scale(1) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 310px !important;
+  line-height: normal !important;
+  touch-action: manipulation !important;
+  cursor: pointer !important;
+}
+
+.continue-btn:hover,
+.restart-btn:hover,
+.complete-board-btn:hover {
+  transform: scale(1) !important;
+  box-shadow: 0 8px 0 0 #C24921 !important;
+  background: #E97A55 !important;
+  color: white !important;
+}
+
+.continue-btn:active,
+.continue-btn:focus,
+.continue-btn:focus-visible,
+.restart-btn:active,
+.restart-btn:focus,
+.restart-btn:focus-visible,
+.complete-board-btn:active,
+.complete-board-btn:focus,
+.complete-board-btn:focus-visible {
+  transform: scale(0.80) !important;
+  transition: transform 0.35s ease !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+.new-game-btn,
 .exit-btn {
   transition: transform 0.35s ease !important;
   position: relative !important;
@@ -964,23 +1020,15 @@ body{
   animation: working-shimmer 5s linear infinite !important;
 }
 
-.continue-btn:hover,
 .new-game-btn:hover,
-.restart-btn:hover,
 .exit-btn:hover {
   transform: scale(1) !important; /* No hover scaling */
   -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
 }
 
-.continue-btn:active,
-.continue-btn:focus,
-.continue-btn:focus-visible,
 .new-game-btn:active,
 .new-game-btn:focus,
 .new-game-btn:focus-visible,
-.restart-btn:active,
-.restart-btn:focus,
-.restart-btn:focus-visible,
 .exit-btn:active,
 .exit-btn:focus,
 .exit-btn:focus-visible {
@@ -3853,53 +3901,55 @@ body:has(:root) .tile.wild-3d-glow {
 /* ===== GLOBAL BUTTON TYPES ===== */
 /* Apply CTA slider button styling to all orange buttons */
 .primary-button,
-.menu-btn-primary,
-.continue-btn,
-.restart-btn,
-.complete-board-btn {
+.menu-btn-primary {
   /* Use exact slider CTA styles */
+  transform-style: flat !important;
+  perspective: none !important;
   background: #E97A55 !important;
   color: white !important;
   border: none !important;
   border-radius: 40px !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  padding: 0 56px !important;
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+  font-size: 24px !important;
+  font-weight: bold !important;
   box-shadow: 0 8px 0 0 #C24921 !important;
-  transition: transform 0.35s ease !important;
+  transition: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transform: scale(1) !important;
   position: relative !important;
   overflow: hidden !important;
-  transform-style: flat !important;
-  perspective: none !important;
   -webkit-tap-highlight-color: transparent !important;
   -webkit-touch-callout: none !important;
   -webkit-user-select: none !important;
   user-select: none !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 310px !important;
+  line-height: normal !important;
+  touch-action: manipulation !important;
+  cursor: pointer !important;
 }
 
 .primary-button:hover:not(:disabled),
-.menu-btn-primary:hover:not(:disabled),
-.continue-btn:hover:not(:disabled),
-.restart-btn:hover:not(:disabled),
-.complete-board-btn:hover:not(:disabled) {
-  background: #E97A55 !important;
+.menu-btn-primary:hover:not(:disabled) {
   transform: scale(1) !important;
   box-shadow: 0 8px 0 0 #C24921 !important;
+  background: #E97A55 !important;
   color: white !important;
 }
 
 .primary-button:active:not(:disabled),
 .primary-button:focus:not(:disabled),
 .menu-btn-primary:active:not(:disabled),
-.menu-btn-primary:focus:not(:disabled),
-.continue-btn:active:not(:disabled),
-.continue-btn:focus:not(:disabled),
-.restart-btn:active:not(:disabled),
-.restart-btn:focus:not(:disabled),
-.complete-board-btn:active:not(:disabled),
-.complete-board-btn:focus:not(:disabled) {
-  background: #E97A55 !important;
+.menu-btn-primary:focus:not(:disabled) {
   transform: scale(0.80) !important;
-  box-shadow: 0 8px 0 0 #C24921 !important;
-  color: white !important;
   transition: transform 0.35s ease !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 /* Apply secondary-button styling to all white buttons */
