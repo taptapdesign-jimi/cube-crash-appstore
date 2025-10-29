@@ -758,6 +758,23 @@ export function startWildIdle(tile, opts = {}){
 
   const tl = gsap.timeline({ repeat: -1, repeatDelay: Math.max(0, interval - (shiftDur + 0.20)) }); // Shorter delay
   tile._wildIdleTl = tl;
+  
+  // Stop animation when app is in background to prevent Metal GPU errors
+  const checkVisibility = () => {
+    if (document.hidden) {
+      tl.pause();
+    } else {
+      tl.resume();
+    }
+  };
+  
+  document.addEventListener('visibilitychange', checkVisibility);
+  // Clean up event listener when animation is stopped
+  const originalKill = tl.kill.bind(tl);
+  tl.kill = function() {
+    document.removeEventListener('visibilitychange', checkVisibility);
+    return originalKill();
+  };
 
   // 1) INSTANT BOUNCE - no hold at peak, immediate return
   const sx = g.scale?.x || 1, sy = g.scale?.y || 1;
