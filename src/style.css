@@ -2154,52 +2154,7 @@ body{
   transition: transform 2s ease-in-out;
 }
 
-/* Resume modal buttons - FLAT STYLE */
-.continue-btn {
-  background: #E97A55; /* Updated orange color */
-  color: white;
-  border: none;
-  border-radius: 40px;
-  padding: 0 56px; /* Same as slider CTA */
-  font-size: 24px;
-  font-weight: bold;
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
-  cursor: pointer;
-  width: 100%; /* RESPONSIVE - 100% of container */
-  max-width: 310px; /* Same max width as slider CTA */
-  height: 64px; /* Fixed height */
-  text-align: center;
-  /* Ensure buttons are clickable */
-  pointer-events: auto;
-  position: relative;
-  z-index: 10;
-  /* FLAT - no 3D effects */
-  box-shadow: 0 8px 0 0 #C24921;
-  transition: transform 0.35s ease !important; /* Simple scale transition */
-  overflow: hidden; /* For liquid fill effect */
-  -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
-  -webkit-touch-callout: none !important; /* Remove mobile callout */
-  -webkit-user-select: none !important; /* Prevent text selection */
-  user-select: none !important; /* Prevent text selection */
-}
-
-/* Remove liquid fill - using springy bounce instead */
-
-.continue-btn:hover {
-  background: #E97A55; /* Same color on hover - flat */
-  transform: scale(1) !important;
-  transition: transform 0.35s ease !important;
-  box-shadow: 0 8px 0 0 #C24921;
-}
-
-.continue-btn:active,
-.continue-btn:focus,
-.continue-btn:focus-visible {
-  background: #E97A55; /* Same color on active - flat */
-  transform: scale(0.80) !important;
-  transition: transform 0.35s ease !important;
-  box-shadow: 0 8px 0 0 #C24921;
-}
+/* Resume modal buttons - Using global primary-button styles above */
 
 .new-game-btn {
   background: white; /* .white from SwiftUI */
@@ -2356,22 +2311,6 @@ body{
   
   .continue-btn, .new-game-btn {
     max-width: 249px; /* Same as slider CTA on iPad */
-    /* Keep flat style on iPad */
-    transition: transform 0.35s ease !important; /* Simple scale transition */
-  }
-  
-  .continue-btn:hover {
-    transform: scale(1) !important;
-    transition: transform 0.35s ease !important;
-    box-shadow: 0 8px 0 0 #C24921;
-  }
-  
-  .continue-btn:active,
-  .continue-btn:focus,
-  .continue-btn:focus-visible {
-    transform: scale(0.80) !important;
-    transition: transform 0.35s ease !important;
-    box-shadow: 0 8px 0 0 #C24921;
   }
   
   .new-game-btn:hover {
@@ -2398,24 +2337,8 @@ body{
   
   .continue-btn, .new-game-btn {
     font-size: 22px;
-    padding: 0 56px; /* Same as slider CTA */
-    max-width: 249px; /* Same as slider CTA on mobile */
-    /* Keep flat style on mobile */
-    transition: transform 0.35s ease !important; /* Simple scale transition */
-  }
-  
-  .continue-btn:hover {
-    transform: scale(1) !important;
-    transition: transform 0.35s ease !important;
-    box-shadow: 0 8px 0 0 #C24921;
-  }
-  
-  .continue-btn:active,
-  .continue-btn:focus,
-  .continue-btn:focus-visible {
-    transform: scale(0.80) !important;
-    transition: transform 0.35s ease !important;
-    box-shadow: 0 8px 0 0 #C24921;
+    padding: 0 56px;
+    max-width: 249px;
   }
   
   .new-game-btn:hover {
