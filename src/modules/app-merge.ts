@@ -388,14 +388,14 @@ export function merge(src, dst, helpers){
             smokeBubblesAtTile(STATE.board, dst, 140, 9.0);
             
           } else {
-            // Normal merge 6 effects
-            const softSmokeStrength = 0.42 + Math.random() * 0.21; // 30% reduced from 0.6-0.9 to 0.42-0.63
+            // Normal merge 6 effects (restored from old-working v40)
+            const softSmokeStrength = 0.6 + Math.random() * 0.3;
             smokeBubblesAtTile(STATE.board, dst, {
               tileSize: TILE,
               strength: softSmokeStrength,
               behind: true,
-              sizeScale: 0.696, // 40% reduced from 1.16 (1.16 * 0.6 = 0.696)
-              distanceScale: 0.35, // Reduced from 0.75 - keeps bubbles much closer to tile (53% closer)
+              sizeScale: 1.16,
+              distanceScale: 0.75,
               countScale: 0.8,
               haloScale: 1.15,
               ttl: 1.0
