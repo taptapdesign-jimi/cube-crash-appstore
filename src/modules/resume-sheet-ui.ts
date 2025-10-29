@@ -57,17 +57,20 @@ export function addBottomSheetStyles(): void {
       max-width: 310px !important;
       min-height: 64px !important;
       line-height: normal !important;
+      touch-action: manipulation !important;
     }
     
     .continue-btn:hover {
       transform: scale(1) !important;
       box-shadow: 0 8px 0 0 #C24921 !important;
       background: #E97A55 !important;
+      color: white !important;
     }
     
     .continue-btn:active {
       transform: scale(0.80) !important;
       transition: transform 0.35s ease !important;
+      -webkit-tap-highlight-color: transparent !important;
     }
     
     /* Secondary Button - White with Brown Border */
@@ -100,6 +103,7 @@ export function addBottomSheetStyles(): void {
       max-width: 310px !important;
       min-height: 64px !important;
       line-height: normal !important;
+      touch-action: manipulation !important;
     }
     
     .pause-btn:hover {
@@ -112,6 +116,7 @@ export function addBottomSheetStyles(): void {
     .pause-btn:active {
       transform: scale(0.80) !important;
       transition: transform 0.35s ease !important;
+      -webkit-tap-highlight-color: transparent !important;
     }
     
     .resume-bottom-sheet {
