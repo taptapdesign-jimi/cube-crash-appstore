@@ -266,7 +266,16 @@ export function merge(src, dst, helpers){
           
           // Enhanced impact and smoke
           wildImpactEffect(dst, { squash: 0.34, stretch: 0.30, tilt: 0.22, bounce: 1.34 });
-          smokeBubblesAtTile(STATE.board, dst, 140, 5.0);
+          smokeBubblesAtTile(STATE.board, dst, {
+            tileSize: 140,
+            strength: 3.0, // Reduced from 5.0 to prevent overly strong effect
+            behind: true,
+            sizeScale: 0.75, // Smaller bubbles  
+            distanceScale: 0.45, // Keep closer to tile (was default 0.75)
+            countScale: 0.8,
+            haloScale: 1.0,
+            ttl: 0.9
+          });
           
           console.log('✅ WILD MERGE (< 6): Enhanced effects applied successfully');
         } else {
@@ -385,7 +394,16 @@ export function merge(src, dst, helpers){
             showMultiplierTile(STATE.board, dst, mult, 150, 1.6);
 
             // Additional smoke bubbles for wild explosion
-            smokeBubblesAtTile(STATE.board, dst, 140, 9.0);
+            smokeBubblesAtTile(STATE.board, dst, {
+              tileSize: 140,
+              strength: 4.0, // Reduced from 9.0 to prevent overly strong effect
+              behind: true,
+              sizeScale: 0.8, // Smaller bubbles
+              distanceScale: 0.45, // Keep closer (was default 0.75)
+              countScale: 0.8,
+              haloScale: 1.0,
+              ttl: 0.9
+            });
             
           } else {
             // Normal merge 6 effects - optimized
