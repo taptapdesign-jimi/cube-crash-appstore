@@ -754,7 +754,7 @@ export function startWildIdle(tile, opts = {}){
   const interval = Math.max(1.5, +opts.interval || 2.5); // Reduced from 4.0 for faster cycling
   const shiftDur = Math.max(0.35, +opts.shift || 0.50); // Reduced from 0.70 for shorter cycle
   const wiggle   = Math.max(0.01, +opts.wiggle || 0.040);
-  const peak     = Math.max(1.01, +opts.peak || 1.80); // 180% INCREASE - MASSIVE for testing visibility
+  const peak     = Math.max(1.01, +opts.peak || 1.04); // Normal wild idle animation (reduced from 1.80)
   
   console.log('🎯 START WILD IDLE CALLED with peak:', peak, 'opts:', opts);
 
