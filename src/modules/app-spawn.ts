@@ -3,7 +3,7 @@ import { Assets, Texture, Container } from 'pixi.js';
 import { gsap } from 'gsap';
 import { STATE, TILE, ASSET_WILD } from './app-state.js';
 import * as makeBoard from './board.js';
-import { startWildIdle, wildImpactEffect } from './fx-special-effects.js';
+import { startWildIdle, wildImpactEffect } from './fx.js';
 import { logger } from '../core/logger.js';
 // drawBoardBG function is now in app.js
 
