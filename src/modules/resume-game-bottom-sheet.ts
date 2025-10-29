@@ -46,8 +46,8 @@ function createResumeModal(): HTMLElement {
         </div>
         <div class="simple-buttons">
           <div class="simple-button-row">
-            <button class="continue-btn">Continue</button>
-            <button class="new-game-btn">New Game</button>
+            <button class="continue-btn primary-button">Continue</button>
+            <button class="new-game-btn secondary-button">New Game</button>
           </div>
         </div>
       </div>

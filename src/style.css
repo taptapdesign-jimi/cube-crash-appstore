@@ -953,7 +953,7 @@ body{
   user-select: none !important;
   box-sizing: border-box !important;
   width: 100% !important;
-  max-width: 310px !important;
+  max-width: 250px !important;
   line-height: normal !important;
   touch-action: manipulation !important;
   cursor: pointer !important;
@@ -1358,7 +1358,7 @@ body{
 
 .menu-body {
   width: 100%;
-  max-width: 310px;
+  max-width: 250px;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -1370,7 +1370,7 @@ body{
   align-items: flex-start;
   gap: 30% !important; /* 30% za iOS i Android */
   width: 100%;
-  max-width: 310px;
+  max-width: 250px;
   margin: 0 auto;
 }
 
@@ -1439,7 +1439,7 @@ body{
   gap: 16.41% !important; /* 64px od 390px */
   height: 109px;
   width: 100%;
-  max-width: 310px;
+  max-width: 250px;
   margin: 24px auto 24px auto !important;
 }
 
@@ -2215,7 +2215,7 @@ body{
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
-  max-width: 310px; /* Same max width as slider CTA */
+  max-width: 250px; /* Same max width as slider CTA */
   height: 64px; /* Fixed height */
   text-align: center;
   /* Ensure buttons are clickable */
@@ -3196,7 +3196,7 @@ html.collectible-reward-open body {
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   cursor: pointer;
   width: 100%; /* RESPONSIVE - 100% of container */
-  max-width: 310px; /* Same max width as slider CTA */
+  max-width: 250px; /* Same max width as slider CTA */
   height: 64px; /* Fixed height like other buttons */
   text-align: center;
   display: flex;
@@ -3351,7 +3351,7 @@ html.collectible-reward-open body {
   flex-direction: column;
   gap: 24px; /* VStack(spacing: 24) from Figma */
   width: 100%;
-  max-width: 310px; /* .frame(width: 310) from Figma */
+  max-width: 250px; /* .frame(width: 310) from Figma */
   margin: 0 auto;
   align-items: center; /* Center buttons horizontally */
 }
@@ -3929,7 +3929,7 @@ body:has(:root) .tile.wild-3d-glow {
   user-select: none !important;
   box-sizing: border-box !important;
   width: 100% !important;
-  max-width: 310px !important;
+  max-width: 250px !important;
   line-height: normal !important;
   touch-action: manipulation !important;
   cursor: pointer !important;
@@ -3956,10 +3956,36 @@ body:has(:root) .tile.wild-3d-glow {
 .secondary-button,
 .new-game-btn,
 .exit-btn {
-  background: white;
-  color: #AD8675;
-  border: 1px solid #E9DCD6;
-  box-shadow: 0 8px 0 0 #E9DCD6;
+  transform-style: flat !important;
+  perspective: none !important;
+  background: white !important;
+  color: #AD8675 !important;
+  border: 1px solid #E9DCD6 !important;
+  border-radius: 40px !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  padding: 0 56px !important;
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
+  font-size: 24px !important;
+  font-weight: bold !important;
+  box-shadow: 0 8px 0 0 #E9DCD6 !important;
+  transition: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transform: scale(1) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 250px !important;
+  line-height: normal !important;
+  touch-action: manipulation !important;
+  cursor: pointer !important;
 }
 
 .secondary-button:hover:not(:disabled),

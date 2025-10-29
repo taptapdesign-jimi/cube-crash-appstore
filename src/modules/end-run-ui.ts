@@ -24,37 +24,54 @@ export function addEndRunModalStyles(): void {
   style.textContent = `
     /* End Run Modal Button Styles - matching original CTA buttons */
     .restart-btn {
+      transform-style: flat !important;
+      perspective: none !important;
       background: #E97A55 !important;
       color: white !important;
       border: none !important;
       border-radius: 40px !important;
       height: 64px !important;
+      min-height: 64px !important;
       padding: 0 56px !important;
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
       font-size: 24px !important;
       font-weight: bold !important;
       box-shadow: 0 8px 0 0 #C24921 !important;
-      cursor: pointer !important;
-      transition: all 0.2s ease !important;
+      transition: none !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
+      transform: scale(1) !important;
+      position: relative !important;
+      overflow: hidden !important;
+      -webkit-tap-highlight-color: transparent !important;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      user-select: none !important;
+      box-sizing: border-box !important;
+      width: 100% !important;
+      max-width: 310px !important;
+      line-height: normal !important;
+      touch-action: manipulation !important;
+      cursor: pointer !important;
       text-align: center !important;
       text-decoration: none !important;
       outline: none !important;
-      user-select: none !important;
-      -webkit-tap-highlight-color: transparent !important;
     }
     
     .restart-btn:hover {
-      background: #F08A65 !important;
-      transform: translateY(-2px) !important;
-      box-shadow: 0 10px 0 0 #C24921 !important;
+      transform: scale(1) !important;
+      box-shadow: 0 8px 0 0 #C24921 !important;
+      background: #E97A55 !important;
+      color: white !important;
     }
     
-    .restart-btn:active {
-      transform: translateY(2px) !important;
-      box-shadow: 0 6px 0 0 #C24921 !important;
+    .restart-btn:active,
+    .restart-btn:focus,
+    .restart-btn:focus-visible {
+      transform: scale(0.80) !important;
+      transition: transform 0.35s ease !important;
+      -webkit-tap-highlight-color: transparent !important;
     }
     
     .exit-btn {

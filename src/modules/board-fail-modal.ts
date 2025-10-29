@@ -151,7 +151,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     const continueBtn = document.createElement('button');
     continueBtn.type = 'button';
     continueBtn.textContent = 'Play Again';
-    continueBtn.className = 'restart-btn bottom-sheet-cta';
+    continueBtn.className = 'restart-btn primary-button bottom-sheet-cta';
     continueBtn.style.width = '100%';
     continueBtn.style.maxWidth = buttonWidth;
     continueBtn.style.whiteSpace = 'nowrap';

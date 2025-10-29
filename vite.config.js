@@ -25,8 +25,13 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000
   },
   server: {
-    host: true,
-    port: 5173
+    host: true, // Allows access from network (iOS simulator)
+    port: 5173,
+    strictPort: true, // Fail if port 5173 is already in use
+    hmr: {
+      protocol: 'ws',
+      host: 'localhost'
+    }
   },
   optimizeDeps: {
     include: ['pixi.js', 'gsap']
