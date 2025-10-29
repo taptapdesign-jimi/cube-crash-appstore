@@ -755,6 +755,8 @@ export function startWildIdle(tile, opts = {}){
   const shiftDur = Math.max(0.35, +opts.shift || 0.50); // Reduced from 0.70 for shorter cycle
   const wiggle   = Math.max(0.01, +opts.wiggle || 0.040);
   const peak     = Math.max(1.01, +opts.peak || 1.80); // 180% INCREASE - MASSIVE for testing visibility
+  
+  console.log('🎯 START WILD IDLE CALLED with peak:', peak, 'opts:', opts);
 
   const tl = gsap.timeline({ repeat: -1, repeatDelay: Math.max(0, interval - (shiftDur + 0.20)) }); // Shorter delay
   tile._wildIdleTl = tl;
