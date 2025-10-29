@@ -56,7 +56,13 @@ export function addBottomSheetStyles(): void {
       width: 100% !important;
       max-width: 310px !important;
       min-height: 64px !important;
-      line-height: 1 !important;
+      line-height: normal !important;
+    }
+    
+    .continue-btn:hover {
+      transform: scale(1) !important;
+      box-shadow: 0 8px 0 0 #C24921 !important;
+      background: #E97A55 !important;
     }
     
     .continue-btn:active {
@@ -93,7 +99,14 @@ export function addBottomSheetStyles(): void {
       width: 100% !important;
       max-width: 310px !important;
       min-height: 64px !important;
-      line-height: 1 !important;
+      line-height: normal !important;
+    }
+    
+    .pause-btn:hover {
+      transform: scale(1) !important;
+      background: white !important;
+      color: #AD8675 !important;
+      box-shadow: 0 8px 0 0 rgba(233, 220, 214, 1) !important;
     }
     
     .pause-btn:active {
