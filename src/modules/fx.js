@@ -751,20 +751,20 @@ export function startWildIdle(tile, opts = {}){
   // Create shimmer effect
   const shimmer = createWildShimmer(tile);
 
-  const interval = Math.max(1.5, +opts.interval || 4.0);
-  const shiftDur = Math.max(0.35, +opts.shift || 0.70);
+  const interval = Math.max(1.5, +opts.interval || 2.5); // Reduced from 4.0 for faster cycling
+  const shiftDur = Math.max(0.35, +opts.shift || 0.50); // Reduced from 0.70 for shorter cycle
   const wiggle   = Math.max(0.01, +opts.wiggle || 0.040);
-  const peak     = Math.max(1.01, +opts.peak || 1.04);
+  const peak     = Math.max(1.01, +opts.peak || 1.06); // Increased from 1.04 for more noticeable bounce
 
-  const tl = gsap.timeline({ repeat: -1, repeatDelay: Math.max(0, interval - (shiftDur + 0.40)) });
+  const tl = gsap.timeline({ repeat: -1, repeatDelay: Math.max(0, interval - (shiftDur + 0.20)) }); // Shorter delay
   tile._wildIdleTl = tl;
 
   // 1) BOUNCY SPRINGY ANIMATION - like board load bounce
   const sx = g.scale?.x || 1, sy = g.scale?.y || 1;
-  tl.to(g.scale, { x: peak, y: peak, duration: 0.18, ease: 'back.out(1.8)' }, 0) // Bouncy elastic scale up
-    .to(g.scale, { x: sx,   y: sy,   duration: 0.16, ease: 'elastic.out(1, 0.4)' }, '>-0.12') // Springy bounce back down
+  tl.to(g.scale, { x: peak, y: peak, duration: 0.20, ease: 'back.out(2.5)' }, 0) // More bouncy elastic scale up
+    .to(g.scale, { x: sx,   y: sy,   duration: 0.30, ease: 'elastic.out(1.2, 0.5)' }, '>-0.10') // Springy bounce back down with more oscillation
     // wiggle runs in parallel with the scale timeline
-    .to(g, { rotation: wiggle, duration: 0.24, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0);
+    .to(g, { rotation: wiggle, duration: 0.30, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0);
 
   // Random shimmer effect every 4-8 seconds
   if (shimmer && tile._wildShimmerSprite) {
