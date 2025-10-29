@@ -27,76 +27,68 @@ export function addBottomSheetStyles(): void {
   const style = document.createElement('style');
   style.id = 'bottom-sheet-styles';
   style.textContent = `
-    /* Primary Button - Orange CTA (Tap Scale Animation) */
+    /* Primary Button - Orange CTA (Tap Scale Animation) - Exact copy of slider CTA */
     .continue-btn {
-      all: unset !important;
+      transform-style: flat !important;
+      perspective: none !important;
       background: #E97A55 !important;
       color: white !important;
       border: none !important;
       border-radius: 40px !important;
       height: 64px !important;
-      width: 100% !important;
-      max-width: 310px !important;
       padding: 0 56px !important;
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
       font-size: 24px !important;
       font-weight: bold !important;
       box-shadow: 0 8px 0 0 #C24921 !important;
-      transition: transform 0.35s ease !important;
+      transition: none !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
-      text-align: center !important;
       transform: scale(1) !important;
       position: relative !important;
       overflow: hidden !important;
-      box-sizing: border-box !important;
       -webkit-tap-highlight-color: transparent !important;
       -webkit-touch-callout: none !important;
       -webkit-user-select: none !important;
       user-select: none !important;
-      cursor: pointer !important;
-      outline: none !important;
-      text-decoration: none !important;
-      pointer-events: auto !important;
+      box-sizing: border-box !important;
+      width: 100% !important;
+      max-width: 310px !important;
     }
     
     .continue-btn:active {
       transform: scale(0.80) !important;
     }
     
-    /* Secondary Button - White with Brown Border (Tap Scale Animation) */
+    /* Secondary Button - White with Brown Border */
     .pause-btn {
-      all: unset !important;
+      transform-style: flat !important;
+      perspective: none !important;
       background: white !important;
       color: #AD8675 !important;
       border: 1px solid #E9DCD6 !important;
       border-radius: 40px !important;
       height: 64px !important;
-      width: 100% !important;
-      max-width: 310px !important;
       padding: 0 56px !important;
       font-family: "LTCrow", system-ui, -apple-system, sans-serif !important;
       font-size: 24px !important;
       font-weight: bold !important;
       box-shadow: 0 8px 0 0 rgba(233, 220, 214, 1) !important;
-      transition: transform 0.35s ease !important;
+      transition: none !important;
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
-      text-align: center !important;
       transform: scale(1) !important;
       position: relative !important;
       overflow: hidden !important;
-      box-sizing: border-box !important;
       -webkit-tap-highlight-color: transparent !important;
       -webkit-touch-callout: none !important;
       -webkit-user-select: none !important;
       user-select: none !important;
-      cursor: pointer !important;
-      outline: none !important;
-      text-decoration: none !important;
-      pointer-events: auto !important;
+      box-sizing: border-box !important;
+      width: 100% !important;
+      max-width: 310px !important;
     }
     
     .pause-btn:active {
