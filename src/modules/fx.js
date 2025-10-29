@@ -761,8 +761,8 @@ export function startWildIdle(tile, opts = {}){
 
   // 1) subtle bounce + elastic wiggle (simultaneous)
   const sx = g.scale?.x || 1, sy = g.scale?.y || 1;
-  tl.to(g.scale, { x: peak, y: peak, duration: 0.22, ease: 'back.out(2.2)' }, 0)
-    .to(g.scale, { x: sx,   y: sy,   duration: 0.28, ease: 'power2.out' }, '>-0.08')
+  tl.to(g.scale, { x: peak, y: peak, duration: 0.11, ease: 'back.out(2.2)' }, 0) // 50% faster scale up
+    .to(g.scale, { x: sx,   y: sy,   duration: 0.28, ease: 'power2.out' }, '>-0.08') // Same duration back down
     // wiggle runs in parallel with the scale timeline
     .to(g, { rotation: wiggle, duration: 0.24, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 0);
 
