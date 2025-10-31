@@ -95,17 +95,14 @@ export const safeUnlockSlider = (): void => {
 const cartoonishBounce = (element: HTMLElement, delay: number) => {
   const timeout = setTimeout(() => {
     activeTimeouts.delete(timeout);
-    // CRITICAL: Reset element state first
-    element.style.willChange = 'transform';
-    element.style.transition = 'none';
-    element.style.transform = 'scale(1)';
+    // Remove any existing animation classes
+    element.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
     
     // Force reflow
     void element.offsetHeight;
     
-    // NOW animate with extra bouncy easing
-    element.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
-    element.style.transform = 'scale(0)';
+    // NOW animate with CSS class
+    element.classList.add('animate-exit');
     // NO OPACITY - only scale down
   }, delay);
   activeTimeouts.add(timeout);
@@ -114,8 +111,8 @@ const cartoonishBounce = (element: HTMLElement, delay: number) => {
 // Helper function for reverse bounce animation (scale 0 to 1) - NO OPACITY, SCALE ONLY
 const reverseBounce = (element: HTMLElement, delay: number) => {
   // Set initial state (from scale 0) - NO TRANSITION YET
-  element.style.transition = 'none'; // Crucial: no transition when setting initial state
-  element.style.transform = 'scale(0)';
+  element.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+  element.classList.add('animate-enter-initial');
   // NO OPACITY - scale only
   
   // Force reflow to apply initial state
@@ -123,9 +120,8 @@ const reverseBounce = (element: HTMLElement, delay: number) => {
   
   const timeout = setTimeout(() => {
     activeTimeouts.delete(timeout);
-    element.style.willChange = 'transform';
-    element.style.transition = 'transform 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-    element.style.transform = 'scale(1)';
+    element.classList.remove('animate-enter-initial');
+    element.classList.add('animate-enter');
     // NO OPACITY
   }, delay);
   activeTimeouts.add(timeout);
@@ -442,11 +438,9 @@ function startEnterAnimationSequence(): void {
         const element = document.querySelector(selector) || document.getElementById(selector.replace('#', ''));
         if (element) {
           const el = element as HTMLElement;
-          // Ensure final state - remove transitions, set to final values (SCALE ONLY)
-          el.style.transition = 'none';
-          el.style.transform = 'scale(1)';
-          // NO OPACITY - scale only
-          el.style.willChange = 'auto';
+          // Ensure final state - remove all animation classes, add reset class
+          el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial');
+          el.classList.add('animate-reset');
         }
       });
       
