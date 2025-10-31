@@ -882,23 +882,22 @@ body{
 /* Hover state for slide buttons */
 .slide-button.tap-scale.menu-btn-primary:hover,
 .slider-slide .slide-button.tap-scale.menu-btn-primary:hover {
-  /* transform: scale(1) translateY(-1.9vh) !important; REMOVED - allow inline animations */
-  box-shadow: 0 8px 0 0 #C24921 !important; /* Keep original shadow */
+  transform: translateY(3px); /* Same as menu-btn-primary hover */
+  box-shadow: 0 4px 0 0 #C24921 !important; /* Keep original shadow */
   background: #E97A55 !important; /* Keep original color */
   color: white !important; /* Keep original text color */
   -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
 }
 
-/* Simple active state - only scale, no shadow movement */
+/* Simple active state - translateY like menu-btn-primary, preserve slide positioning */
 .slide-button.tap-scale.menu-btn-primary:active,
 .slide-button.tap-scale.menu-btn-primary:focus,
 .slide-button.tap-scale.menu-btn-primary:focus-visible,
 .slider-slide .slide-button.tap-scale.menu-btn-primary:active,
 .slider-slide .slide-button.tap-scale.menu-btn-primary:focus,
 .slider-slide .slide-button.tap-scale.menu-btn-primary:focus-visible {
-  transform: scale(0.80) translateY(-16px); /* NO !important - let animation classes override */
-  transition: transform 0.35s ease; /* NO !important - let animation classes override */
-  box-shadow: 0 8px 0 0 #C24921 !important; /* Keep original shadow */
+  transform: translateY(1px); /* Slight down push like menu-btn-primary:active but not as much */
+  box-shadow: 0 3px 0 0 #C24921 !important; /* Shadow moves with button */
   background: #E97A55 !important; /* Keep original color */
   color: white !important; /* Keep original text color */
   -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
