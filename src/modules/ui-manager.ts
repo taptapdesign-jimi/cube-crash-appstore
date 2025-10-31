@@ -144,19 +144,29 @@ class UIManager {
     this.checkForSavedGame();
   }
   
+  // Reset all slider buttons to prevent :active state persistence
+  private resetAllSliderButtons(): void {
+    const allSliderButtons = document.querySelectorAll('.slider-slide .slide-button');
+    allSliderButtons.forEach(button => {
+      const btn = button as HTMLElement;
+      btn.classList.add('button-reset');
+      btn.style.transform = '';
+      btn.style.transition = '';
+      btn.blur();
+      setTimeout(() => {
+        btn.classList.remove('button-reset');
+      }, 100);
+    });
+    logger.info('🔧 All slider buttons reset');
+  }
+  
   // Handle stats button click
   private handleStatsClick(event: Event): void {
     event.preventDefault();
     logger.info('📊 Stats button clicked');
     
     // CRITICAL: Reset ALL slider CTAs to prevent :active state from persisting
-    const allSliderButtons = document.querySelectorAll('.slider-slide .slide-button');
-    allSliderButtons.forEach(button => {
-      const btn = button as HTMLElement;
-      btn.style.transform = '';
-      btn.style.transition = '';
-      btn.blur(); // Remove focus to prevent :focus state
-    });
+    this.resetAllSliderButtons();
     
     // Play exit animation first, then show stats screen
     this.showStatsScreenWithAnimation();
@@ -175,6 +185,9 @@ class UIManager {
     event.preventDefault();
     logger.info('🎁 Collectibles button clicked');
     
+    // CRITICAL: Reset ALL slider CTAs to prevent :active state from persisting
+    this.resetAllSliderButtons();
+    
     // Show collectibles screen
     this.showCollectiblesScreen();
   }
@@ -183,6 +196,9 @@ class UIManager {
   private handleSettingsClick(event: Event): void {
     event.preventDefault();
     logger.info('⚙️ Settings button clicked');
+    
+    // CRITICAL: Reset ALL slider CTAs to prevent :active state from persisting
+    this.resetAllSliderButtons();
     
     // Show settings screen
     this.showSettingsScreen();
@@ -567,7 +583,6 @@ class UIManager {
       // Remove reset class after a short delay to allow CSS to apply
       setTimeout(() => {
         btn.classList.remove('button-reset');
-        console.log('🔧 Stats CTA reset after screen exit');
       }, 100);
     }
     
