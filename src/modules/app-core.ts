@@ -14,7 +14,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.js';
-import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer } from './fx.js';
 import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
 import FX from './fx-helpers.js';
@@ -2351,9 +2351,9 @@ async function loadGameState() {
           } else {
             applyWildSkinLocal(tile);
           }
-          try { startWildIdle(tile, { interval: 4 }); } catch {}
+          try { startWildShimmer(tile); } catch {} // Use shimmer instead of idle bounce
         } else {
-          try { stopWildIdle(tile); } catch {}
+          try { stopWildShimmer(tile); } catch {}
         }
       }
     }
