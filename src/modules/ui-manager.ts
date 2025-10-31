@@ -553,6 +553,16 @@ class UIManager {
       }
     });
     
+    // CRITICAL: Reset Stats CTA button to prevent :active state from persisting
+    const statsCTA = document.querySelector('#btn-stats');
+    if (statsCTA) {
+      const btn = statsCTA as HTMLElement;
+      btn.style.transform = '';
+      btn.style.transition = '';
+      btn.blur(); // Remove focus to prevent :focus state
+      console.log('🔧 Stats CTA reset after screen exit');
+    }
+    
     // Show homepage QUIETLY first (no animations yet)
     this.showHomepageQuietly();
     
