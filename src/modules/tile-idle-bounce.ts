@@ -145,34 +145,34 @@ function animateTile(tile: Tile): void {
     }
   });
   
-  // Phase 1: BOUNCY scale up with rotation - immediate bounce back
+  // Phase 1: Scale up with rotation
   tl.to(tile.scale, {
-    x: baseTileScaleX * 1.25,  // Increased from 1.15 to 1.25 for more visible bounce
-    y: baseTileScaleY * 1.25,
-    duration: 0.15,  // Faster scale up
-    ease: 'back.out(3.0)' // More bouncy elastic
+    x: baseTileScaleX * 1.18,  // Subtle scale up
+    y: baseTileScaleY * 1.18,
+    duration: 0.25,
+    ease: 'power2.out'
   });
   
   // Simultaneously rotate the tile
   tl.to(tile, {
     rotation: originalRotation + tiltRadians,
-    duration: 0.15,
-    ease: 'back.out(3.0)'
+    duration: 0.25,
+    ease: 'power2.out'
   }, '<'); // Start at same time as scale
   
-  // Phase 2: Return to scale and rotation - immediate bounce back with elastic
+  // Phase 2: Return to scale and rotation - smooth and calm
   tl.to(tile.scale, {
     x: baseTileScaleX,
     y: baseTileScaleY,
-    duration: 0.25,  // Slightly longer for smooth bounce
-    ease: 'elastic.out(2.0, 0.6)' // Strong elastic bounce
-  }, '>-0.12'); // Starts before scale up ends for smooth transition
+    duration: 0.25,
+    ease: 'power2.in'
+  });
   
   // Return rotation to 0 to avoid merge conflicts
   tl.to(tile, {
     rotation: originalRotation,
     duration: 0.25,
-    ease: 'elastic.out(2.0, 0.6)'
+    ease: 'power2.in'
   }, '<'); // Start at same time as scale return
   
   // Activate smoke bubbles 0.55s before end of animation (was 0.2s, now 0.35s earlier)
