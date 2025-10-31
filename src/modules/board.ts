@@ -1,5 +1,5 @@
 // src/modules/board.ts
-import { Container, Sprite, Assets, Graphics, SCALE_MODES } from 'pixi.js';
+import { Container, Sprite, Assets, Graphics, SCALE_MODES, Texture } from 'pixi.js';
 import {
   TILE, COLS, ROWS, GAP,
   PIPS_INNER_FACTOR, PIP_COLOR, PIP_ALPHA, PIP_RADIUS, PIP_SQUARE,
@@ -51,10 +51,10 @@ interface CreateTileParams {
 // random skin: 40% base, 30% alt2, 20% alt3, 10% alt4
 function pickNumbersSkin() {
   const p = Math.random();
-  if (p < 0.40) return Assets.get(ASSET_NUMBERS);
-  if (p < 0.70) return Assets.get(ASSET_NUMBERS2);
-  if (p < 0.90) return Assets.get(ASSET_NUMBERS3);
-  return Assets.get(ASSET_NUMBERS4);
+  if (p < 0.40) return Assets.get(ASSET_NUMBERS) || Texture.EMPTY;
+  if (p < 0.70) return Assets.get(ASSET_NUMBERS2) || Assets.get(ASSET_NUMBERS) || Texture.EMPTY;
+  if (p < 0.90) return Assets.get(ASSET_NUMBERS3) || Assets.get(ASSET_NUMBERS) || Texture.EMPTY;
+  return Assets.get(ASSET_NUMBERS4) || Assets.get(ASSET_NUMBERS) || Texture.EMPTY;
 }
 
 export function drawStack(tile: Tile): void {

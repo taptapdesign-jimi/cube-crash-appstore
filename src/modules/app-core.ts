@@ -415,12 +415,19 @@ export async function boot(){
   stage.eventMode = 'static';
   stage.hitArea   = new Rectangle(0, 0, app.renderer.width, app.renderer.height);
 
-  // Resolve prize assets
-  MYSTERY_PATH = await loadFirstTexture(MYSTERY_CANDIDATES);
-  COIN_PATH    = await loadFirstTexture(COIN_CANDIDATES);
+  // Resolve prize assets - DEFER non-critical prize loading to avoid delay
+  // These are only needed during endgame, not for initial board
+  setTimeout(() => {
+    loadFirstTexture(MYSTERY_CANDIDATES).then(path => { MYSTERY_PATH = path; }).catch(() => {});
+    loadFirstTexture(COIN_CANDIDATES).then(path => { COIN_PATH = path; }).catch(() => {});
+  }, 0);
 
-  // Core assets
-  await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD]);
+  // Load ONLY critical game assets for instant start
+  // tile_numbers2/3/4 are deferrable - can load in background
+  await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_WILD]);
+  
+  // Load additional tile number sheets in background (non-blocking)
+  Assets.load([ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4]).catch(() => {});
   
   // Optimize all loaded textures for pixel-perfect rendering
   const loadedTextures = [ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD];
