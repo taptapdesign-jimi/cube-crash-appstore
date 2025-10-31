@@ -845,7 +845,7 @@ body{
   font-size: 24px !important;
   font-weight: bold !important;
   box-shadow: 0 8px 0 0 #C24921 !important;
-  transition: none !important;
+  /* transition: none !important; REMOVED - conflicts with animation classes */
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -914,13 +914,13 @@ body{
 .slide-button.tap-scale.menu-btn-primary:not(:active),
 .slider-slide .slide-button.tap-scale.menu-btn-primary:not(:active) {
   /* transform: scale(1) translateY(-1.9vh) !important; REMOVED - allow inline animations */
-  transition: none !important; /* No automatic transitions */
+  /* transition: none !important; REMOVED - conflicts with animation classes */
 }
 
 /* Prevent any automatic scaling from bottom sheet animations */
 .slide-button.tap-scale.menu-btn-primary,
 .slider-slide .slide-button.tap-scale.menu-btn-primary {
-  will-change: auto !important; /* Prevent GPU acceleration that might cause scaling */
+  /* will-change: auto !important; REMOVED - conflicts with animation classes */
 }
 
 /* ===== EXIT/ENTER ANIMATION CLASSES ===== */
