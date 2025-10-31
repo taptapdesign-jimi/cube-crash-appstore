@@ -131,39 +131,8 @@ export const animateSliderExit = (): void => {
   try {
     logger.info('🎬 Starting CARTOONISH PROCEDURAL exit animation...');
     
-    // CRITICAL: Clean up any leftover animations and RESET to initial state first
-    const allSliderElements = [
-      '.hero-container',
-      '.slide-text',
-      '.slide-button',
-      '#slider-dots',
-      '#home-logo',
-      '#independent-nav',
-      '#slider-container'
-    ];
-    
-    // CRITICAL: Reset ALL elements to initial state (scale 1, visible) IMMEDIATELY
-    allSliderElements.forEach(selector => {
-      const element = document.querySelector(selector) || document.getElementById(selector.replace('#', ''));
-      if (element) {
-        const el = element as HTMLElement;
-        
-        // Kill any ongoing transitions
-        el.style.transition = '';
-        // RESET to initial state
-        el.style.transform = '';
-        el.style.opacity = '';
-        el.style.willChange = '';
-        el.style.display = '';
-        el.style.visibility = '';
-      }
-    });
-    
-    // CRITICAL: Force layout recalculation
-    void document.body.offsetHeight;
-    
-    // NO ANIMATION - just return (animations removed)
-    logger.info('✅ Slider exit animation skipped - using fade out instead');
+    // Start the actual exit animation sequence
+    startExitAnimationSequence();
     
   } catch (error) {
     logger.error('❌ Failed to animate slider exit:', error);
@@ -351,36 +320,8 @@ export const animateSliderEnter = (): void => {
   try {
     logger.info('🎬 Starting CARTOONISH PROCEDURAL enter animation...');
     
-    // CRITICAL: Clean up any leftover animations first
-    const allSliderElements = [
-      '#independent-nav', // Add navigation
-      '.hero-container',
-      '.slide-text',
-      '.slide-button',
-      '#home-logo',
-      '#slider-container'
-    ];
-    
-    // CRITICAL: Reset ALL elements to initial state (scale 0, visible) IMMEDIATELY
-    allSliderElements.forEach(selector => {
-      const element = document.querySelector(selector) || document.getElementById(selector.replace('#', ''));
-      if (element) {
-        const el = element as HTMLElement;
-        // Kill any ongoing transitions
-        el.style.transition = '';
-        el.style.transform = '';
-        el.style.opacity = '';
-        el.style.willChange = '';
-        el.style.display = '';
-        el.style.visibility = '';
-      }
-    });
-    
-    // CRITICAL: Force layout recalculation
-    void document.body.offsetHeight;
-    
-    // NO ANIMATION - just return (animations removed)
-    logger.info('✅ Slider enter animation skipped - using fade in instead');
+    // Start the actual enter animation sequence
+    startEnterAnimationSequence();
     
   } catch (error) {
     logger.error('❌ Failed to animate slider enter:', error);
