@@ -277,58 +277,14 @@ function startExitAnimationSequenceLegacy(): void {
   }
 };
 
-// Stats screen enter animation - SAME STYLE AS SLIDE 1 (NO OPACITY, SCALE ONLY)
+// Stats screen enter animation - REMOVED - no animations on stats screen
 export const animateStatsScreenEnter = (): void => {
-  try {
-    logger.info('🎬 Starting stats screen enter animation (same as slide 1, scale only)...');
-    
-    // Use same reverseBounce helper as slider for consistency
-    const backButton = document.querySelector('.stats-back-button');
-    if (backButton) reverseBounce(backButton as HTMLElement, 0);
-    
-    const title = document.querySelector('.stats-title');
-    if (title) reverseBounce(title as HTMLElement, 0);
-    
-    const underline = document.querySelector('.stats-title-underline');
-    if (underline) reverseBounce(underline as HTMLElement, 0);
-    
-    const grid = document.querySelector('.stats-grid');
-    if (grid) reverseBounce(grid as HTMLElement, 0);
-    
-    const scrollable = document.querySelector('.stats-scrollable');
-    if (scrollable) reverseBounce(scrollable as HTMLElement, 0);
-    
-    logger.info('✅ Stats screen enter animation started (scale only, no opacity)');
-  } catch (error) {
-    logger.error('❌ Failed to animate stats screen enter:', error);
-  }
+  logger.info('📊 Stats screen enter - animations disabled');
 };
 
-// Stats screen exit animation - SAME STYLE AS SLIDE 1 (NO OPACITY, SCALE ONLY)
+// Stats screen exit animation - REMOVED - no animations on stats screen
 export const animateStatsScreenExit = (): void => {
-  try {
-    logger.info('🎬 Starting stats screen exit animation (same as slide 1, scale only)...');
-    
-    // Use same cartoonishBounce helper as slider for consistency - no stagger for speed
-    const backButton = document.querySelector('.stats-back-button');
-    if (backButton) cartoonishBounce(backButton as HTMLElement, 0);
-    
-    const title = document.querySelector('.stats-title');
-    if (title) cartoonishBounce(title as HTMLElement, 0);
-    
-    const underline = document.querySelector('.stats-title-underline');
-    if (underline) cartoonishBounce(underline as HTMLElement, 0);
-    
-    const grid = document.querySelector('.stats-grid');
-    if (grid) cartoonishBounce(grid as HTMLElement, 0);
-    
-    const scrollable = document.querySelector('.stats-scrollable');
-    if (scrollable) cartoonishBounce(scrollable as HTMLElement, 0);
-    
-    logger.info('✅ Stats screen exit animation started (scale only, no opacity)');
-  } catch (error) {
-    logger.error('❌ Failed to animate stats screen exit:', error);
-  }
+  logger.info('📊 Stats screen exit - animations disabled');
 };
 
 // Animate slider enter when returning to home - CARTOONISH PROCEDURAL ENTER (SCALE ONLY, NO OPACITY)
