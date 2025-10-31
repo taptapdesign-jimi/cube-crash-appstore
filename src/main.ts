@@ -455,8 +455,8 @@ initializeApp().catch((error: Error) => {
     // Show navigation FIRST
     uiManager.showNavigation();
     
-    // Show homepage with proper state
-    uiManager.showHomepage();
+    // Show homepage QUIETLY (no animations yet)
+    uiManager.showHomepageQuietly();
     
     // Reset game state FIRST
     gameState.setState({
@@ -466,6 +466,10 @@ initializeApp().catch((error: Error) => {
     });
     
     console.log('✅ Game state reset - homepage should be visible now');
+    
+    // NOW play pop-in animation for slider elements
+    console.log('🎬 Playing pop-in animation for slider...');
+    animateSliderEnter();
     console.log('✅ Exit complete - Play button should work');
     
     logger.info('✅ Exited to menu successfully - next play will start fresh without resume sheet');
