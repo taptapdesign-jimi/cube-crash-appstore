@@ -400,40 +400,51 @@ function startEnterAnimationSequence(): void {
       activeTimeouts.add(timeout);
     };
     
-    // CARTOONISH PROCEDURAL SEQUENCE: 1. Hero → 2. Logo → 3. Text + CTA together → 4. Navigation LAST
+    // CARTOONISH PROCEDURAL SEQUENCE: 1. Hero → 2. CTA → 3. Text → 4. Logo → 5. Navigation LAST
     
     // STEP 1: Hero image FIRST (0ms delay)
     const heroContainer = document.querySelector('.hero-container');
     if (heroContainer) {
       reverseBounce(heroContainer as HTMLElement, 0);
       logger.info('🖼️ Step 1: Hero image cartoonish bounce - FIRST');
+    } else {
+      logger.warn('⚠️ Hero container not found');
     }
     
-    // STEP 2: Home logo SECOND (250ms delay)
-    const homeLogo = document.querySelector('#home-logo');
-    if (homeLogo) {
-      reverseBounce(homeLogo as HTMLElement, 250);
-      logger.info('🎨 Step 2: Home logo cartoonish bounce - SECOND');
+    // STEP 2: CTA button SECOND (30ms delay - right after Hero)
+    const slideButton = document.querySelector('.slide-button') || document.getElementById('btn-home');
+    if (slideButton) {
+      reverseBounce(slideButton as HTMLElement, 30);
+      logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND');
+    } else {
+      logger.warn('⚠️ CTA button not found');
     }
     
-    // STEP 3: Slide text + CTA button TOGETHER (450ms delay - they overlap)
+    // STEP 3: Slide text THIRD (60ms delay - right after CTA)
     const slideText = document.querySelector('.slide-text');
     if (slideText) {
-      reverseBounce(slideText as HTMLElement, 450);
-      logger.info('📝 Step 3: Slide text cartoonish bounce');
+      reverseBounce(slideText as HTMLElement, 60);
+      logger.info('📝 Step 3: Slide text cartoonish bounce - THIRD');
+    } else {
+      logger.warn('⚠️ Slide text not found');
     }
     
-    const slideButton = document.querySelector('.slide-button');
-    if (slideButton) {
-      reverseBounce(slideButton as HTMLElement, 450);
-      logger.info('🔘 Step 3: CTA button cartoonish bounce');
+    // STEP 4: Home logo FOURTH (90ms delay)
+    const homeLogo = document.querySelector('#home-logo');
+    if (homeLogo) {
+      reverseBounce(homeLogo as HTMLElement, 90);
+      logger.info('🎨 Step 4: Home logo cartoonish bounce - FOURTH');
+    } else {
+      logger.warn('⚠️ Home logo not found');
     }
     
-    // STEP 4: Navigation LAST (650ms delay)
+    // STEP 5: Navigation LAST (120ms delay - finishes at 420ms)
     const independentNav = document.getElementById('independent-nav');
     if (independentNav) {
-      reverseBounce(independentNav as HTMLElement, 650);
-      logger.info('🎯 Step 4: Navigation cartoonish bounce - LAST');
+      reverseBounce(independentNav as HTMLElement, 120);
+      logger.info('🎯 Step 5: Navigation cartoonish bounce - LAST');
+    } else {
+      logger.warn('⚠️ Navigation not found');
     }
     
     // CRITICAL: After all animations complete, ensure all elements are at final state
