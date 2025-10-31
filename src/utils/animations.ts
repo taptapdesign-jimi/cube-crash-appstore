@@ -422,20 +422,33 @@ function startEnterAnimationSequence(): void {
     // CRITICAL: After all animations complete, ensure all elements are at final state
     const finalTimeout = setTimeout(() => {
       activeTimeouts.delete(finalTimeout);
-      const allElements = [
-        '#independent-nav',
-        '.hero-container',
-        '.slide-text',
-        '.slide-button',
-        '#home-logo',
-        '#slider-container'
+      
+      // Clean up elements from active slide + shared elements
+      if (activeSlide) {
+        const slideElements = [
+          activeSlide.querySelector('.hero-container'),
+          activeSlide.querySelector('.slide-text'),
+          activeSlide.querySelector('.slide-button')
+        ];
+        
+        slideElements.forEach(element => {
+          if (element) {
+            const el = element as HTMLElement;
+            el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial');
+            el.classList.add('animate-reset');
+          }
+        });
+      }
+      
+      // Clean up shared elements
+      const sharedElements = [
+        document.querySelector('#independent-nav'),
+        document.querySelector('#home-logo')
       ];
       
-      allElements.forEach(selector => {
-        const element = document.querySelector(selector) || document.getElementById(selector.replace('#', ''));
+      sharedElements.forEach(element => {
         if (element) {
           const el = element as HTMLElement;
-          // Ensure final state - remove all animation classes, add reset class
           el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial');
           el.classList.add('animate-reset');
         }

@@ -938,7 +938,7 @@ body{
 
 /* Enter animation classes - scale up from 0, preserve translateY for slide-text */
 .animate-enter {
-  will-change: transform;
+  will-change: transform !important;
   transition: transform 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
   transform: scale(1) !important;
 }
