@@ -417,7 +417,7 @@
 /* Ensure CTA and dots are visible */
 .slide-content {
   min-height: 100vh;
-  padding-bottom: 88px !important; /* Reduced from 96px to 88px (8px less) to move CTA up */
+  padding-bottom: 64px !important; /* Reduced from 88px to 64px (24px less) to move content up */
 }
 
 /* Safe Area Support for iPhone */
