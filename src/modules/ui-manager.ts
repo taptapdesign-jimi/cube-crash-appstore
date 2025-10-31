@@ -557,10 +557,17 @@ class UIManager {
     const statsCTA = document.querySelector('#btn-stats');
     if (statsCTA) {
       const btn = statsCTA as HTMLElement;
-      btn.style.transform = '';
-      btn.style.transition = '';
-      btn.blur(); // Remove focus to prevent :focus state
-      console.log('🔧 Stats CTA reset after screen exit');
+      // Force browser to drop :active state by simulating mouse up
+      btn.style.pointerEvents = 'none';
+      setTimeout(() => {
+        btn.style.pointerEvents = '';
+        btn.style.transform = '';
+        btn.style.transition = '';
+        btn.blur();
+        // Remove ALL animation classes that might conflict
+        btn.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        console.log('🔧 Stats CTA reset after screen exit - forced :active removal');
+      }, 0);
     }
     
     // Show homepage QUIETLY first (no animations yet)
