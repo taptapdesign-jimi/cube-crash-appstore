@@ -308,9 +308,10 @@ body{
 }
 
 /* ===== ANIMATION STYLES ===== */
-.slide-text, .hero-image, .hero-shadow, .slider-nav-btn {
+/* REMOVED: Global transition conflicts with animation classes */
+/* .slide-text, .hero-image, .hero-shadow, .slider-nav-btn {
   transition: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
+} */
 
 /* Force CTA positioning - move up by 16px */
 .slide-text {
@@ -319,15 +320,16 @@ body{
 }
 
 /* Play button elastic spring bounce animation styles - 0.65 seconds */
-.slider-slide[data-slide="0"] .slide-content,
+/* REMOVED: Transition conflicts with animation classes */
+/* .slider-slide[data-slide="0"] .slide-content,
 .slider-slide[data-slide="0"] .slide-text,
 .slider-slide[data-slide="0"] .slide-button,
 .slider-slide[data-slide="0"] .hero-container,
 #home-logo,
 .slider-nav-btn {
-  transition: transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8); /* SCALE ONLY, NO OPACITY */
-  transform-origin: center center; /* Ensure elements scale from their center */
-}
+  transition: transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8);
+  transform-origin: center center;
+} */
 
 #app {
   transition: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
