@@ -190,7 +190,7 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  transform: translateY(-28px) !important; /* Moved up 8px from -20px */
+  transform: translateY(-16px) !important; /* Move up by 16px to match style.css */
 }
 
 /* Slide tagline text styling based on SwiftUI */
