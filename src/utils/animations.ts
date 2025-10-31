@@ -168,7 +168,7 @@ export const animateSliderExit = (): void => {
       activeTimeouts.delete(timeout);
       isAnimatingExit = false;
       logger.info('✅ Exit animation guard reset');
-    }, 400); // 100ms delay + 300ms animation = 400ms total
+    }, 420); // 120ms delay + 300ms animation = 420ms total
     activeTimeouts.add(timeout);
     
   } catch (error) {
@@ -180,40 +180,51 @@ export const animateSliderExit = (): void => {
 // Separate function for the actual animation sequence
 function startExitAnimationSequence(): void {
   try {
-    // CARTOONISH PROCEDURAL SEQUENCE: 1. Hero → 2. Logo → 3. CTA + Text → 4. Navigation LAST
+    // CARTOONISH PROCEDURAL SEQUENCE: 1. Hero → 2. CTA → 3. Text → 4. Logo → 5. Navigation LAST
     
     // STEP 1: Hero image FIRST (0ms delay)
     const heroContainer = document.querySelector('.hero-container');
     if (heroContainer) {
       cartoonishBounce(heroContainer as HTMLElement, 0);
       logger.info('🖼️ Step 1: Hero image cartoonish bounce - FIRST');
+    } else {
+      logger.warn('⚠️ Hero container not found');
     }
     
-    // STEP 2: Home logo SECOND (50ms delay)
-    const homeLogo = document.querySelector('#home-logo');
-    if (homeLogo) {
-      cartoonishBounce(homeLogo as HTMLElement, 50);
-      logger.info('🎨 Step 2: Home logo cartoonish bounce - SECOND');
-    }
-    
-    // STEP 3: CTA button + Slide text TOGETHER (75ms delay - they overlap)
-    const slideButton = document.querySelector('.slide-button');
+    // STEP 2: CTA button SECOND (30ms delay - right after Hero)
+    const slideButton = document.querySelector('.slide-button') || document.getElementById('btn-home');
     if (slideButton) {
-      cartoonishBounce(slideButton as HTMLElement, 75);
-      logger.info('🔘 Step 3: CTA button cartoonish bounce');
+      cartoonishBounce(slideButton as HTMLElement, 30);
+      logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND');
+    } else {
+      logger.warn('⚠️ CTA button not found');
     }
     
+    // STEP 3: Slide text THIRD (60ms delay - right after CTA)
     const slideText = document.querySelector('.slide-text');
     if (slideText) {
-      cartoonishBounce(slideText as HTMLElement, 75);
-      logger.info('📝 Step 3: Slide text cartoonish bounce');
+      cartoonishBounce(slideText as HTMLElement, 60);
+      logger.info('📝 Step 3: Slide text cartoonish bounce - THIRD');
+    } else {
+      logger.warn('⚠️ Slide text not found');
     }
     
-    // STEP 4: Navigation LAST (100ms delay - finishes at 400ms)
+    // STEP 4: Home logo FOURTH (90ms delay)
+    const homeLogo = document.querySelector('#home-logo');
+    if (homeLogo) {
+      cartoonishBounce(homeLogo as HTMLElement, 90);
+      logger.info('🎨 Step 4: Home logo cartoonish bounce - FOURTH');
+    } else {
+      logger.warn('⚠️ Home logo not found');
+    }
+    
+    // STEP 5: Navigation LAST (120ms delay - finishes at 420ms, close to 400ms)
     const independentNav = document.getElementById('independent-nav');
     if (independentNav) {
-      cartoonishBounce(independentNav as HTMLElement, 100);
-      logger.info('🎯 Step 4: Navigation cartoonish bounce - LAST');
+      cartoonishBounce(independentNav as HTMLElement, 120);
+      logger.info('🎯 Step 5: Navigation cartoonish bounce - LAST');
+    } else {
+      logger.warn('⚠️ Navigation not found');
     }
     
     logger.info('✅ Cartoonish bounce-in-to-scale-0 exit animation started');
@@ -356,7 +367,7 @@ export const animateSliderEnter = (): void => {
       activeTimeouts.delete(timeout);
       isAnimatingEnter = false;
       logger.info('✅ Enter animation guard reset');
-    }, 400); // 100ms delay + 300ms animation = 400ms total
+    }, 420); // 120ms delay + 300ms animation = 420ms total
     activeTimeouts.add(timeout);
     
   } catch (error) {
@@ -450,7 +461,7 @@ function startEnterAnimationSequence(): void {
       });
       
       logger.info('✅ All slider elements set to final state (scale(1) only)');
-    }, 400); // 100ms delay + 300ms animation = 400ms total
+    }, 420); // 120ms delay + 300ms animation = 420ms total
     activeTimeouts.add(finalTimeout);
     
     logger.info('✅ Reverse cartoonish bounce enter animation started');
