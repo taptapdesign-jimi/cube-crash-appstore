@@ -5,6 +5,7 @@ import gameState from './game-state.js';
 import { fadeOutHome, fadeInHome, animateSliderExit, animateSliderEnter, animateStatsScreenEnter, animateStatsScreenExit } from '../utils/animations.js';
 import { showResumeGameBottomSheet } from './resume-game-bottom-sheet.js';
 import { logger } from '../core/logger.js';
+import { boot as bootGame, layout as layoutGame } from './app-core.js';
 
 export interface UIManagerElements {
   loadingScreen: HTMLElement | null;
@@ -265,13 +266,13 @@ class UIManager {
       // Start game
       console.log('🎯 Starting game boot...');
       try {
-        const { boot, layout } = await import('./app-core.js');
-        console.log('✅ app-core imported');
+        // Use static import instead of dynamic import for instant response
+        console.log('✅ app-core already available (static import)');
         
-        await boot();
+        await bootGame();
         console.log('✅ boot() complete');
         
-        await layout();
+        await layoutGame();
         console.log('✅ layout() complete');
         
         // Start time tracking
@@ -323,13 +324,13 @@ class UIManager {
       // Start game
       console.log('🎯 Starting game boot...');
       try {
-        const { boot, layout } = await import('./app-core.js');
-        console.log('✅ app-core imported');
+        // Use static import instead of dynamic import for instant response
+        console.log('✅ app-core already available (static import)');
         
-        await boot();
+        await bootGame();
         console.log('✅ boot() complete');
         
-        await layout();
+        await layoutGame();
         console.log('✅ layout() complete');
         
         // Load saved game state AFTER boot/layout

@@ -3,7 +3,8 @@
 
 import { bootstrapReady } from './ui/bootstrap-ui.js';
 import './ui/collectibles-bridge.js';
-// boot and layout imported in ui-manager.ts when needed
+// boot and layout imported statically for instant access
+import { boot as bootGame, layout as layoutGame, cleanupGame } from './modules/app-core.js';
 import { gsap } from 'gsap';
 import { assetPreloader } from './modules/asset-preloader.js';
 import './ios-image-helper.js';
@@ -332,13 +333,11 @@ initializeApp().catch((error: Error) => {
       // Show app element
       uiManager.showApp();
       
-      // Import app-core to access loadGameState
+      // Use static import for instant response
       try {
-        const { boot, layout } = await import('./modules/app-core.js');
-        
         // Boot the game first
-        await boot();
-        await layout();
+        await bootGame();
+        await layoutGame();
         
         // Load saved game state
         const loadGameState = (window as any).loadGameState;
@@ -426,7 +425,6 @@ initializeApp().catch((error: Error) => {
     
     // CRITICAL: Call cleanupGame() to properly clean up ALL game state (including PIXI app)
     try {
-      const { cleanupGame } = await import('./modules/app-core.js');
       if (typeof cleanupGame === 'function') {
         console.log('🧹 Calling cleanupGame() to clean up all game resources...');
         cleanupGame();
@@ -435,7 +433,7 @@ initializeApp().catch((error: Error) => {
         console.warn('⚠️ cleanupGame is not a function');
       }
     } catch (error) {
-      console.warn('⚠️ Failed to import/run cleanupGame:', error);
+      console.warn('⚠️ Failed to run cleanupGame:', error);
     }
     
     // Stop time tracking
