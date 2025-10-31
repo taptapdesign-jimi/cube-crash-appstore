@@ -485,75 +485,60 @@ class UIManager {
   
   // Show stats screen with exit animation
   private showStatsScreenWithAnimation(): void {
-    logger.info('📊 Showing stats screen with exit animation');
+    logger.info('📊 Showing stats screen - no exit animation');
     
     const statsScreen = this.elements.statsScreen;
     if (!statsScreen) return;
     
-    // Play exit animation FIRST
-    animateSliderExit();
+    // Show stats screen immediately - NO exit animation
+    this.hideHomepage();
+    this.setNavigationVisibility(false);
+    statsScreen.style.display = 'flex';
+    statsScreen.removeAttribute('hidden');
+    statsScreen.setAttribute('aria-hidden', 'false');
     
-    // Wait for exit animation to complete (420ms - same as Play slide)
+    // CRITICAL: Update stats values when showing stats screen
+    try {
+      import('../ui/components/stats-screen.js').then(({ updateStatsValues }) => {
+        console.log('📊 About to call updateStatsValues() from ui-manager...');
+        updateStatsValues();
+        console.log('✅ updateStatsValues() called from ui-manager');
+      });
+    } catch (error) {
+      console.error('❌ Failed to update stats values from ui-manager:', error);
+    }
+    
+    // Focus immediately
     setTimeout(() => {
-      // NOW show stats screen
-      this.hideHomepage();
-      this.setNavigationVisibility(false);
-      statsScreen.style.display = 'flex';
-      statsScreen.removeAttribute('hidden');
-      statsScreen.setAttribute('aria-hidden', 'false');
-      
-      // CRITICAL: Update stats values when showing stats screen
-      try {
-        import('../ui/components/stats-screen.js').then(({ updateStatsValues }) => {
-          console.log('📊 About to call updateStatsValues() from ui-manager...');
-          updateStatsValues();
-          console.log('✅ updateStatsValues() called from ui-manager');
-        });
-      } catch (error) {
-        console.error('❌ Failed to update stats values from ui-manager:', error);
-      }
-      
-      // Start stats screen enter animation immediately
-      animateStatsScreenEnter();
-      
-      // Focus after animation starts
-      setTimeout(() => {
-        const focusTarget = statsScreen.querySelector('.stats-back-button') as HTMLElement | null;
-        focusTarget?.focus();
-      }, 100);
-    }, 420);
+      const focusTarget = statsScreen.querySelector('.stats-back-button') as HTMLElement | null;
+      focusTarget?.focus();
+    }, 100);
   }
   
   // Hide stats screen with enter animation
   private hideStatsScreenWithAnimation(): void {
-    logger.info('📊 Hiding stats screen with enter animation');
+    logger.info('📊 Hiding stats screen - no exit animation');
     
-    // Play stats screen exit animation first
-    animateStatsScreenExit();
+    // Hide stats screen immediately - NO exit animation
+    const statsScreen = this.elements.statsScreen;
+    if (statsScreen) {
+      statsScreen.setAttribute('aria-hidden', 'true');
+      statsScreen.style.display = 'none';
+      statsScreen.setAttribute('hidden', 'true');
+      this.setNavigationVisibility(true);
+    }
     
-    // Wait for stats exit animation (420ms - same as Play)
+    // Show homepage QUIETLY first (no animations yet)
+    this.showHomepageQuietly();
+    
+    // NOW play slider enter animation (after homepage is shown)
+    animateSliderEnter();
+    
+    // Focus after animation completes (420ms - same as Play)
     setTimeout(() => {
-      // Hide stats screen
-      const statsScreen = this.elements.statsScreen;
-      if (statsScreen) {
-        statsScreen.setAttribute('aria-hidden', 'true');
-        statsScreen.style.display = 'none';
-        statsScreen.setAttribute('hidden', 'true');
-        this.setNavigationVisibility(true);
+      if (this.elements.statsButton) {
+        this.elements.statsButton.focus();
       }
-      
-      // Show homepage QUIETLY first (no animations yet)
-      this.showHomepageQuietly();
-      
-      // NOW play slider enter animation (after homepage is shown)
-      animateSliderEnter();
-      
-      // Focus after animation completes (420ms - same as Play)
-      setTimeout(() => {
-        if (this.elements.statsButton) {
-          this.elements.statsButton.focus();
-        }
-      }, 420);
     }, 420);
   }
   
