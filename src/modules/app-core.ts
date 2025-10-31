@@ -1129,7 +1129,7 @@ function applyWildSkinLocal(tile){
     if (tile.num)  tile.num.visible = false;
     if (tile.pips) tile.pips.visible = false;
     tile.isWildFace = true;
-    try { startWildIdle(tile, { interval: 4 }); } catch {}
+    try { startWildShimmer(tile); } catch {} // Use shimmer instead of bounce
   }catch{}
 }
 
@@ -1161,7 +1161,7 @@ function openAtCell(c, r, { value=null, isWild=false } = {}){
       holder.isWildFace = true;
       if (typeof makeBoard.applyWildSkin === 'function') { makeBoard.applyWildSkin(holder); }
       else { applyWildSkinLocal(holder); }
-      try { startWildIdle(holder, { interval: 4 }); } catch {}
+      try { startWildShimmer(holder); } catch {} // Use shimmer instead of bounce
     } else {
       const v = (value == null) ? [1,2,3,4,5][(Math.random()*5)|0] : value;
       makeBoard.setValue(holder, v, 0);
