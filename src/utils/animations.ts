@@ -95,17 +95,17 @@ export const safeUnlockSlider = (): void => {
 const cartoonishBounce = (element: HTMLElement, delay: number) => {
   const timeout = setTimeout(() => {
     activeTimeouts.delete(timeout);
-    // CRITICAL: Reset element state first using setProperty for !important
-    element.style.setProperty('will-change', 'transform', 'important');
-    element.style.setProperty('transition', 'none', 'important');
-    element.style.setProperty('transform', 'scale(1)', 'important');
+    // CRITICAL: Reset element state first
+    element.style.willChange = 'transform';
+    element.style.transition = 'none';
+    element.style.transform = 'scale(1)';
     
     // Force reflow
     void element.offsetHeight;
     
-    // NOW animate with extra bouncy easing using setProperty for !important
-    element.style.setProperty('transition', 'transform 0.3s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
-    element.style.setProperty('transform', 'scale(0)', 'important'); // Override any CSS with !important
+    // NOW animate with extra bouncy easing
+    element.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+    element.style.transform = 'scale(0)';
     // NO OPACITY - only scale down
   }, delay);
   activeTimeouts.add(timeout);
@@ -113,9 +113,9 @@ const cartoonishBounce = (element: HTMLElement, delay: number) => {
 
 // Helper function for reverse bounce animation (scale 0 to 1) - NO OPACITY, SCALE ONLY
 const reverseBounce = (element: HTMLElement, delay: number) => {
-  // Set initial state (from scale 0) - NO TRANSITION YET using setProperty for !important
-  element.style.setProperty('transition', 'none', 'important'); // Crucial: no transition when setting initial state
-  element.style.setProperty('transform', 'scale(0)', 'important');
+  // Set initial state (from scale 0) - NO TRANSITION YET
+  element.style.transition = 'none'; // Crucial: no transition when setting initial state
+  element.style.transform = 'scale(0)';
   // NO OPACITY - scale only
   
   // Force reflow to apply initial state
@@ -123,9 +123,9 @@ const reverseBounce = (element: HTMLElement, delay: number) => {
   
   const timeout = setTimeout(() => {
     activeTimeouts.delete(timeout);
-    element.style.setProperty('will-change', 'transform', 'important');
-    element.style.setProperty('transition', 'transform 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)', 'important'); // 50% faster
-    element.style.setProperty('transform', 'scale(1)', 'important');
+    element.style.willChange = 'transform';
+    element.style.transition = 'transform 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+    element.style.transform = 'scale(1)';
     // NO OPACITY
   }, delay);
   activeTimeouts.add(timeout);

@@ -849,7 +849,7 @@ body{
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  transform: scale(1) !important; /* Always stay at default scale */
+  /* transform: scale(1) !important; REMOVED - allow inline animations */
   position: relative !important;
   overflow: hidden !important; /* Clip shimmer effect */
   -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
@@ -880,7 +880,7 @@ body{
 /* Hover state for slide buttons */
 .slide-button.tap-scale.menu-btn-primary:hover,
 .slider-slide .slide-button.tap-scale.menu-btn-primary:hover {
-  transform: scale(1) translateY(-1.9vh) !important; /* No hover scaling + move up 16px */
+  /* transform: scale(1) translateY(-1.9vh) !important; REMOVED - allow inline animations */
   box-shadow: 0 8px 0 0 #C24921 !important; /* Keep original shadow */
   background: #E97A55 !important; /* Keep original color */
   color: white !important; /* Keep original text color */
@@ -913,7 +913,7 @@ body{
 .slider-slide .slide-button.tap-scale.menu-btn-primary.play-button-reset,
 .slide-button.tap-scale.menu-btn-primary:not(:active),
 .slider-slide .slide-button.tap-scale.menu-btn-primary:not(:active) {
-  transform: scale(1) translateY(-1.9vh) !important; /* Always default scale when not being clicked + move up 16px */
+  /* transform: scale(1) translateY(-1.9vh) !important; REMOVED - allow inline animations */
   transition: none !important; /* No automatic transitions */
 }
 
