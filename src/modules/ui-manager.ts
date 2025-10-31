@@ -526,10 +526,28 @@ class UIManager {
       this.setNavigationVisibility(true);
     }
     
+    // CRITICAL: Switch to Play slide (index 0) BEFORE animations to prevent Stats CTA animation
+    const slides = document.querySelectorAll('.slider-slide');
+    const navButtons = document.querySelectorAll('.independent-nav-button');
+    slides.forEach((slide, index) => {
+      if (index === 0) {
+        slide.classList.add('active');
+      } else {
+        slide.classList.remove('active');
+      }
+    });
+    navButtons.forEach((button, index) => {
+      if (index === 0) {
+        button.classList.add('active');
+      } else {
+        button.classList.remove('active');
+      }
+    });
+    
     // Show homepage QUIETLY first (no animations yet)
     this.showHomepageQuietly();
     
-    // NOW play slider enter animation (after homepage is shown)
+    // NOW play slider enter animation (after homepage is shown AND slide switched)
     animateSliderEnter();
     
     // Focus after animation completes (420ms - same as Play)
