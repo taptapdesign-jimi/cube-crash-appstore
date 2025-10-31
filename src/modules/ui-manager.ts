@@ -532,7 +532,7 @@ class UIManager {
     // Play stats screen exit animation first
     animateStatsScreenExit();
     
-    // Wait for stats exit animation (500ms)
+    // Wait for stats exit animation (420ms - same as Play)
     setTimeout(() => {
       // Hide stats screen
       const statsScreen = this.elements.statsScreen;
@@ -546,15 +546,15 @@ class UIManager {
       // Play slider enter animation
       animateSliderEnter();
       
-      // Show homepage after slider animation completes (500ms)
+      // Show homepage after slider animation completes (420ms - same as Play)
       setTimeout(() => {
         this.showHomepage();
         
         if (this.elements.statsButton) {
           this.elements.statsButton.focus();
         }
-      }, 500);
-    }, 500);
+      }, 420);
+    }, 420);
   }
   
   // Show collectibles screen
