@@ -896,11 +896,11 @@ body{
 .slider-slide .slide-button.tap-scale.menu-btn-primary:active,
 .slider-slide .slide-button.tap-scale.menu-btn-primary:focus,
 .slider-slide .slide-button.tap-scale.menu-btn-primary:focus-visible {
-  transform: scale(0.80) translateY(-16px) !important; /* Scale down + move up 16px */
+  /* transform: scale(0.80) translateY(-16px) !important; REMOVED - conflicts with animations */
   box-shadow: 0 8px 0 0 #C24921 !important; /* Keep original shadow */
   background: #E97A55 !important; /* Keep original color */
   color: white !important; /* Keep original text color */
-  transition: transform 0.35s ease !important; /* Longer transition - 200ms more */
+  /* transition: transform 0.35s ease !important; REMOVED - conflicts with animations */
   -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
 }
 
@@ -929,48 +929,48 @@ body{
 /* Exit animation classes - scale down to 0, preserve translateY for slide-text and slide-button */
 .animate-exit {
   will-change: transform;
-  transition: transform 0.3s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-  transform: scale(0) !important;
+  transition: transform 0.3s cubic-bezier(0.68, -0.6, 0.32, 1.6);
+  transform: scale(0);
 }
 
 /* Slide-text needs to preserve translateY(-16px) during scale animation */
 .slide-text.animate-exit {
-  transform: translateY(-16px) scale(0) !important;
+  transform: translateY(-16px) scale(0);
 }
 
 /* Enter animation classes - scale up from 0, preserve translateY for slide-text */
 .animate-enter {
-  will-change: transform !important;
-  transition: transform 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
-  transform: scale(1) !important;
+  will-change: transform;
+  transition: transform 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  transform: scale(1);
 }
 
 /* Slide-text needs to preserve translateY(-16px) during scale animation */
 .slide-text.animate-enter {
-  transform: translateY(-16px) scale(1) !important;
+  transform: translateY(-16px) scale(1);
 }
 
 /* Initial state for enter animation - scale 0, no transition */
 .animate-enter-initial {
-  transition: none !important;
-  transform: scale(0) !important;
+  transition: none;
+  transform: scale(0);
 }
 
 /* Slide-text needs to preserve translateY(-16px) during initial state */
 .slide-text.animate-enter-initial {
-  transform: translateY(-16px) scale(0) !important;
+  transform: translateY(-16px) scale(0);
 }
 
 /* Reset state - remove all animation classes */
 .animate-reset {
-  transition: none !important;
-  transform: scale(1) !important;
-  will-change: auto !important;
+  transition: none;
+  transform: scale(1);
+  will-change: auto;
 }
 
 /* Slide-text needs to preserve translateY(-16px) in reset */
 .slide-text.animate-reset {
-  transform: translateY(-16px) scale(1) !important;
+  transform: translateY(-16px) scale(1);
 }
 
 /* Dramatic click effect for all bottom sheet CTA buttons */
@@ -3987,7 +3987,7 @@ body:has(:root) .tile.wild-3d-glow {
 
 .primary-button:hover:not(:disabled),
 .menu-btn-primary:hover:not(:disabled) {
-  transform: scale(1) !important;
+  /* transform: scale(1) !important; REMOVED - conflicts with animations */
   box-shadow: 0 8px 0 0 #C24921 !important;
   background: #E97A55 !important;
   color: white !important;
@@ -3997,8 +3997,8 @@ body:has(:root) .tile.wild-3d-glow {
 .primary-button:focus:not(:disabled),
 .menu-btn-primary:active:not(:disabled),
 .menu-btn-primary:focus:not(:disabled) {
-  transform: scale(0.80) !important;
-  transition: transform 0.35s ease !important;
+  /* transform: scale(0.80) !important; REMOVED - conflicts with animations */
+  /* transition: transform 0.35s ease !important; REMOVED - conflicts with animations */
   -webkit-tap-highlight-color: transparent !important;
 }
 
