@@ -93,7 +93,8 @@ export const safeUnlockSlider = (): void => {
 // Animate slider exit when clicking CTA - CARTOONISH BOUNCE-INTO-SCALE-0
 // Helper function for EXTRA CARTOONISH bounce scale animation (SCALE ONLY, NO OPACITY)
 const cartoonishBounce = (element: HTMLElement, delay: number) => {
-  setTimeout(() => {
+  const timeout = setTimeout(() => {
+    activeTimeouts.delete(timeout);
     // CRITICAL: Reset element state first
     element.style.willChange = 'transform';
     element.style.transition = 'none';
@@ -107,6 +108,7 @@ const cartoonishBounce = (element: HTMLElement, delay: number) => {
     element.style.transform = 'scale(0)';
     // NO OPACITY - only scale down
   }, delay);
+  activeTimeouts.add(timeout);
 };
 
 // Helper function for reverse bounce animation (scale 0 to 1) - NO OPACITY, SCALE ONLY
@@ -119,17 +121,34 @@ const reverseBounce = (element: HTMLElement, delay: number) => {
   // Force reflow to apply initial state
   void element.offsetHeight;
   
-  setTimeout(() => {
+  const timeout = setTimeout(() => {
+    activeTimeouts.delete(timeout);
     element.style.willChange = 'transform';
     element.style.transition = 'transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)'; // Same bouncy easing, scale only
     element.style.transform = 'scale(1)';
     // NO OPACITY
   }, delay);
+  activeTimeouts.add(timeout);
 };
 
 // Guard to prevent multiple simultaneous animations
 let isAnimatingExit = false;
 let isAnimatingEnter = false;
+
+// Track active animation timeouts for cleanup
+let activeTimeouts: Set<NodeJS.Timeout> = new Set();
+
+// Cleanup function to cancel all pending animations
+export const cleanupAnimations = (): void => {
+  logger.info('🧹 Cleaning up all animation timeouts...');
+  activeTimeouts.forEach(timeout => {
+    clearTimeout(timeout);
+  });
+  activeTimeouts.clear();
+  isAnimatingExit = false;
+  isAnimatingEnter = false;
+  logger.info('✅ Animation cleanup complete');
+};
 
 export const animateSliderExit = (): void => {
   try {
@@ -145,10 +164,12 @@ export const animateSliderExit = (): void => {
     startExitAnimationSequence();
     
     // Reset flag after animation completes
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
+      activeTimeouts.delete(timeout);
       isAnimatingExit = false;
       logger.info('✅ Exit animation guard reset');
     }, 1400);
+    activeTimeouts.add(timeout);
     
   } catch (error) {
     isAnimatingExit = false;
@@ -199,7 +220,8 @@ function startExitAnimationSequence(): void {
     // STEP 6: Slider container (after all elements, 800ms delay)
     const sliderContainer = document.getElementById('slider-container');
     if (sliderContainer) {
-      setTimeout(() => {
+      const timeout = setTimeout(() => {
+        activeTimeouts.delete(timeout);
         sliderContainer.style.willChange = 'transform';
         sliderContainer.style.transition = 'none';
         sliderContainer.style.transform = 'scale(1)';
@@ -208,6 +230,7 @@ function startExitAnimationSequence(): void {
         sliderContainer.style.transform = 'scale(0)';
         // NO OPACITY - only scale
       }, 800);
+      activeTimeouts.add(timeout);
       logger.info('📦 Step 6: Slider container cartoonish bounce');
     }
     
@@ -347,10 +370,12 @@ export const animateSliderEnter = (): void => {
     startEnterAnimationSequence();
     
     // Reset flag after animation completes
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
+      activeTimeouts.delete(timeout);
       isAnimatingEnter = false;
       logger.info('✅ Enter animation guard reset');
     }, 1400);
+    activeTimeouts.add(timeout);
     
   } catch (error) {
     isAnimatingEnter = false;
@@ -364,7 +389,8 @@ function startEnterAnimationSequence(): void {
     
     // Helper function for EXTRA CARTOONISH reverse bounce animation (scale 0 to 1, NO OPACITY)
     const reverseBounce = (element: HTMLElement, delay: number) => {
-      setTimeout(() => {
+      const timeout = setTimeout(() => {
+        activeTimeouts.delete(timeout);
         // CRITICAL: Reset element state first
         element.style.willChange = 'transform';
         element.style.transition = 'none';
@@ -378,6 +404,7 @@ function startEnterAnimationSequence(): void {
         element.style.transform = 'scale(1)';
         // NO OPACITY
       }, delay);
+      activeTimeouts.add(timeout);
     };
     
     // CARTOONISH PROCEDURAL SEQUENCE: 1. Navigation → 2. Hero image → 3. Logo → 4. Text → 5. CTA
@@ -433,7 +460,8 @@ function startEnterAnimationSequence(): void {
     }
     
     // CRITICAL: After all animations complete, ensure all elements are at final state
-    setTimeout(() => {
+    const finalTimeout = setTimeout(() => {
+      activeTimeouts.delete(finalTimeout);
       const allElements = [
         '#independent-nav',
         '.hero-container',
@@ -457,6 +485,7 @@ function startEnterAnimationSequence(): void {
       
       logger.info('✅ All slider elements set to final state (scale(1) only)');
     }, 1400); // 800ms delay + 500ms animation + 100ms buffer
+    activeTimeouts.add(finalTimeout);
     
     logger.info('✅ Reverse cartoonish bounce enter animation started');
   } catch (error) {
