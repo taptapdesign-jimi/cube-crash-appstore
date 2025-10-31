@@ -357,7 +357,7 @@ initializeApp().catch((error: Error) => {
         logger.error('❌ Failed to load saved game:', error);
         console.warn('⚠️ Starting fresh game');
       }
-    }, 1250); // 650ms delay + 600ms animation = 1250ms total
+    }, 625); // 325ms delay + 300ms animation = 625ms total (50% faster)
     
   } catch (error) {
     logger.error('❌ Failed to continue game:', error);
@@ -378,7 +378,7 @@ initializeApp().catch((error: Error) => {
     console.log('🎮 Step 2: Starting game after exit animation');
     uiManager.hideHomepage(); // Hide homepage AFTER animation
     uiManager.startNewGame();
-  }, 1250); // 650ms delay + 600ms animation = 1250ms total
+  }, 625); // 325ms delay + 300ms animation = 625ms total (50% faster)
 };
 
 // Export exitToMenu function for End This Run modal

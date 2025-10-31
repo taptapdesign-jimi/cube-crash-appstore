@@ -104,7 +104,7 @@ const cartoonishBounce = (element: HTMLElement, delay: number) => {
     void element.offsetHeight;
     
     // NOW animate with extra bouncy easing
-    element.style.transition = 'transform 0.6s cubic-bezier(0.68, -0.6, 0.32, 1.6)'; // EXTRA bouncy, longer duration
+    element.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.6, 0.32, 1.6)'; // 50% faster
     element.style.transform = 'scale(0)';
     // NO OPACITY - only scale down
   }, delay);
@@ -124,7 +124,7 @@ const reverseBounce = (element: HTMLElement, delay: number) => {
   const timeout = setTimeout(() => {
     activeTimeouts.delete(timeout);
     element.style.willChange = 'transform';
-    element.style.transition = 'transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)'; // Same bouncy easing, scale only
+    element.style.transition = 'transform 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55)'; // 50% faster
     element.style.transform = 'scale(1)';
     // NO OPACITY
   }, delay);
@@ -168,7 +168,7 @@ export const animateSliderExit = (): void => {
       activeTimeouts.delete(timeout);
       isAnimatingExit = false;
       logger.info('✅ Exit animation guard reset');
-    }, 1250); // 650ms delay + 600ms animation = 1250ms total
+    }, 625); // 325ms delay + 300ms animation = 625ms total (50% faster)
     activeTimeouts.add(timeout);
     
   } catch (error) {
@@ -189,30 +189,30 @@ function startExitAnimationSequence(): void {
       logger.info('🖼️ Step 1: Hero image cartoonish bounce - FIRST');
     }
     
-    // STEP 2: Home logo SECOND (250ms delay)
+    // STEP 2: Home logo SECOND (125ms delay - 50% faster)
     const homeLogo = document.querySelector('#home-logo');
     if (homeLogo) {
-      cartoonishBounce(homeLogo as HTMLElement, 250);
+      cartoonishBounce(homeLogo as HTMLElement, 125);
       logger.info('🎨 Step 2: Home logo cartoonish bounce - SECOND');
     }
     
-    // STEP 3: Slide text + CTA button TOGETHER (450ms delay - they overlap)
+    // STEP 3: Slide text + CTA button TOGETHER (225ms delay - they overlap, 50% faster)
     const slideText = document.querySelector('.slide-text');
     if (slideText) {
-      cartoonishBounce(slideText as HTMLElement, 450);
+      cartoonishBounce(slideText as HTMLElement, 225);
       logger.info('📝 Step 3: Slide text cartoonish bounce');
     }
     
     const slideButton = document.querySelector('.slide-button');
     if (slideButton) {
-      cartoonishBounce(slideButton as HTMLElement, 450);
+      cartoonishBounce(slideButton as HTMLElement, 225);
       logger.info('🔘 Step 3: CTA button cartoonish bounce');
     }
     
-    // STEP 4: Navigation LAST (650ms delay)
+    // STEP 4: Navigation LAST (325ms delay - 50% faster)
     const independentNav = document.getElementById('independent-nav');
     if (independentNav) {
-      cartoonishBounce(independentNav as HTMLElement, 650);
+      cartoonishBounce(independentNav as HTMLElement, 325);
       logger.info('🎯 Step 4: Navigation cartoonish bounce - LAST');
     }
     
@@ -356,7 +356,7 @@ export const animateSliderEnter = (): void => {
       activeTimeouts.delete(timeout);
       isAnimatingEnter = false;
       logger.info('✅ Enter animation guard reset');
-    }, 1250); // 650ms delay + 600ms animation = 1250ms total
+    }, 625); // 325ms delay + 300ms animation = 625ms total (50% faster)
     activeTimeouts.add(timeout);
     
   } catch (error) {
@@ -382,7 +382,7 @@ function startEnterAnimationSequence(): void {
         void element.offsetHeight;
         
         // NOW animate with extra bouncy easing
-        element.style.transition = 'transform 0.6s cubic-bezier(0.68, -0.6, 0.32, 1.6)'; // EXTRA bouncy, longer duration
+        element.style.transition = 'transform 0.3s cubic-bezier(0.68, -0.6, 0.32, 1.6)'; // 50% faster
         element.style.transform = 'scale(1)';
         // NO OPACITY
       }, delay);
@@ -450,7 +450,7 @@ function startEnterAnimationSequence(): void {
       });
       
       logger.info('✅ All slider elements set to final state (scale(1) only)');
-    }, 1250); // 650ms delay + 600ms animation = 1250ms total
+    }, 625); // 325ms delay + 300ms animation = 625ms total (50% faster)
     activeTimeouts.add(finalTimeout);
     
     logger.info('✅ Reverse cartoonish bounce enter animation started');
