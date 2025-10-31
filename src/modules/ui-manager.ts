@@ -225,19 +225,6 @@ class UIManager {
       
       console.log('✅ Game state set');
       
-      // CARTOONISH EXIT ANIMATION - scale down individual elements
-      console.log('🎬 Playing cartoonish exit animation...');
-      animateSliderExit();
-      
-      // Wait for exit animation to complete (1400ms total)
-      await new Promise(resolve => setTimeout(resolve, 1400));
-      console.log('✅ Exit animation complete');
-      
-      // Hide homepage AFTER animation
-      console.log('🚫 Hiding homepage...');
-      this.hideHomepage();
-      console.log('✅ Homepage hidden');
-      
       // Clear old saved game state for new game
       console.log('🧹 Clearing old saved game state...');
       localStorage.removeItem('cc_saved_game');
@@ -300,23 +287,6 @@ class UIManager {
         combo: 0
       });
       console.log('✅ Game state set');
-      
-      // Simple fade out homepage
-      console.log('🎬 Fading out homepage...');
-      if (this.elements.home) {
-        this.elements.home.style.transition = 'opacity 0.3s ease';
-        this.elements.home.style.opacity = '0';
-        console.log('✅ Fade out started');
-      }
-      
-      // Wait for fade out
-      await new Promise(resolve => setTimeout(resolve, 300));
-      console.log('✅ Fade out complete');
-      
-      // Hide homepage
-      console.log('🚫 Hiding homepage...');
-      this.hideHomepage();
-      console.log('✅ Homepage hidden');
       
       // Start game
       console.log('🎯 Starting game boot...');

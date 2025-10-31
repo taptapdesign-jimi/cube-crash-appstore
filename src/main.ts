@@ -346,22 +346,22 @@ initializeApp().catch((error: Error) => {
           const loaded = await loadGameState();
           if (!loaded) {
             logger.warn('⚠️ Failed to load saved game, starting new game');
-            // Fallback to new game if load fails
-            uiManager.startNewGame();
+            // Fallback - this shouldn't happen, but start boot anyway
+            console.warn('⚠️ No saved game found, starting fresh');
           }
         } else {
           logger.error('❌ loadGameState function not found');
-          uiManager.startNewGame();
+          console.warn('⚠️ Starting fresh game');
         }
       } catch (error) {
         logger.error('❌ Failed to load saved game:', error);
-        uiManager.startNewGame();
+        console.warn('⚠️ Starting fresh game');
       }
-    }, 500);
+    }, 1400); // 1400ms for all elements to scale down
     
   } catch (error) {
     logger.error('❌ Failed to continue game:', error);
-    uiManager.startNewGame();
+    console.warn('⚠️ Starting fresh game');
   }
 };
 
@@ -373,11 +373,12 @@ initializeApp().catch((error: Error) => {
   console.log('🎬 Step 1: Playing exit animation');
   animateSliderExit();
   
-  // Step 2: Wait for exit animation to complete (400ms), then start game
+  // Step 2: Wait for exit animation to complete (1400ms), then hide homepage and start game
   setTimeout(() => {
     console.log('🎮 Step 2: Starting game after exit animation');
+    uiManager.hideHomepage(); // Hide homepage AFTER animation
     uiManager.startNewGame();
-  }, 500); // 400ms anim + 100ms buffer for smoother transition
+  }, 1400); // 1400ms for all elements to scale down
 };
 
 // Export exitToMenu function for End This Run modal
