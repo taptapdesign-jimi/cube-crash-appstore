@@ -543,13 +543,14 @@ class UIManager {
         this.setNavigationVisibility(true);
       }
       
-      // Play slider enter animation
+      // Show homepage QUIETLY first (no animations yet)
+      this.showHomepageQuietly();
+      
+      // NOW play slider enter animation (after homepage is shown)
       animateSliderEnter();
       
-      // Show homepage after slider animation completes (420ms - same as Play)
+      // Focus after animation completes (420ms - same as Play)
       setTimeout(() => {
-        this.showHomepage();
-        
         if (this.elements.statsButton) {
           this.elements.statsButton.focus();
         }
