@@ -557,17 +557,18 @@ class UIManager {
     const statsCTA = document.querySelector('#btn-stats');
     if (statsCTA) {
       const btn = statsCTA as HTMLElement;
-      // Force browser to drop :active state by simulating mouse up
-      btn.style.pointerEvents = 'none';
+      // Add reset class to prevent :active styles
+      btn.classList.add('button-reset');
+      btn.style.transform = '';
+      btn.style.transition = '';
+      btn.blur();
+      // Remove ALL animation classes that might conflict
+      btn.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+      // Remove reset class after a short delay to allow CSS to apply
       setTimeout(() => {
-        btn.style.pointerEvents = '';
-        btn.style.transform = '';
-        btn.style.transition = '';
-        btn.blur();
-        // Remove ALL animation classes that might conflict
-        btn.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-        console.log('🔧 Stats CTA reset after screen exit - forced :active removal');
-      }, 0);
+        btn.classList.remove('button-reset');
+        console.log('🔧 Stats CTA reset after screen exit');
+      }, 100);
     }
     
     // Show homepage QUIETLY first (no animations yet)

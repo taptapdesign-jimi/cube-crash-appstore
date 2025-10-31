@@ -3927,6 +3927,13 @@ body:has(:root) .tile.wild-3d-glow {
   -webkit-tap-highlight-color: transparent !important;
 }
 
+/* Force reset for buttons that should not have :active state after navigation */
+.primary-button.button-reset:active,
+.menu-btn-primary.button-reset:active {
+  transform: scale(1);
+  transition: none;
+}
+
 /* Apply secondary-button styling to all white buttons */
 .secondary-button,
 .new-game-btn,
