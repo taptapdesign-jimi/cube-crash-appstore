@@ -3,7 +3,7 @@ import { Assets, Texture, Container } from 'pixi.js';
 import { gsap } from 'gsap';
 import { STATE, TILE, ASSET_WILD } from './app-state.js';
 import * as makeBoard from './board.js';
-import { startWildIdle, wildImpactEffect } from './fx.js';
+import { startWildIdle, wildImpactEffect, startWildShimmer } from './fx.js';
 import { logger } from '../core/logger.js';
 // drawBoardBG function is now in app.js
 
@@ -93,13 +93,12 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false 
       } else { 
         applyWildSkinLocal(holder); 
       }
-      // Wild idle animation disabled - wild cubes now static
-      // try { 
-      //   console.log('🔵 CALLING startWildIdle for holder:', holder);
-      //   startWildIdle(holder, { interval: 4 }); 
-      // } catch (e) {
-      //   console.error('❌ Error calling startWildIdle:', e);
-      // }
+      // Wild shimmer only (no bounce animation)
+      try { 
+        startWildShimmer(holder); 
+      } catch (e) {
+        console.error('❌ Error calling startWildShimmer:', e);
+      }
     }
 
     holder.alpha = 0;

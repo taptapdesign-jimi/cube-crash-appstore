@@ -638,7 +638,7 @@ function makeLinearGradientTexture(w, h, stops){
 }
 
 // Create shimmer effect for wild cubes
-function createWildShimmer(tile) {
+export function createWildShimmer(tile) {
   if (!tile) return null;
   
   const g = tile.rotG || tile;
@@ -834,6 +834,84 @@ export function startWildIdle(tile, opts = {}){
     
     scheduleShimmer();
   }
+}
+
+// Start wild shimmer only (no bounce/wiggle animation)
+export function startWildShimmer(tile) {
+  if (!tile) return;
+  try { stopWildShimmer(tile); } catch {}
+
+  const g = tile.rotG || tile;
+  const baseW = Math.max(64, (tile.base?.width || tile.width || 96));
+  const baseH = Math.max(64, (tile.base?.height || tile.height || 96));
+
+  // Create shimmer effect
+  const shimmer = createWildShimmer(tile);
+
+  // Random shimmer effect every 4-8 seconds
+  if (shimmer && tile._wildShimmerSprite) {
+    const scheduleShimmer = () => {
+      const delay = 4 + Math.random() * 4; // 4-8 seconds
+      gsap.delayedCall(delay, () => {
+        // Check if shimmer sprite still exists before accessing properties
+        if (!tile._wildShimmerSprite || tile.destroyed) return;
+
+        // Reset shimmer position
+        tile._wildShimmerSprite.x = -baseW * 0.8;
+        tile._wildShimmerSprite.y = -baseH * 0.8;
+
+        // Shimmer animation - diagonal sweep
+        const shimmerTl = gsap.timeline();
+        shimmerTl
+          .to(shimmer, { alpha: 0.30, duration: 0.28, ease: 'power2.out' })
+          .to(tile._wildShimmerSprite, { 
+            x: baseW * 0.8, 
+            y: baseH * 0.8,
+            duration: 2.0, 
+            ease: 'power2.inOut',
+            onUpdate: () => {
+              if (!tile._wildShimmerSprite) {
+                shimmerTl.kill();
+                return;
+              }
+            }
+          })
+          .to(shimmer, { alpha: 0, duration: 0.28, ease: 'power2.in' });
+
+        // Schedule next shimmer
+        scheduleShimmer();
+      });
+    };
+
+    scheduleShimmer();
+  }
+}
+
+// Stop wild shimmer only
+export function stopWildShimmer(tile) {
+  if (!tile) return;
+  try {
+    if (tile._wildShimmer){
+      // Kill any ongoing shimmer animations
+      if (tile._wildShimmerSprite) {
+        gsap.killTweensOf(tile._wildShimmerSprite);
+      }
+      gsap.killTweensOf(tile._wildShimmer);
+      
+      // Clean up shimmer elements
+      if (tile._wildShimmer.mask) tile._wildShimmer.mask = null;
+      tile._wildShimmer.parent?.removeChild(tile._wildShimmer);
+      tile._wildShimmer.destroy?.();
+    }
+  } catch {}
+  
+  // Clear all delayed calls for this tile to prevent shimmer scheduling
+  try {
+    gsap.killTweensOf(tile);
+  } catch {}
+  
+  tile._wildShimmer = null;
+  tile._wildShimmerSprite = null;
 }
 
 export function stopWildIdle(tile){
