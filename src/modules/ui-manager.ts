@@ -3,6 +3,7 @@
 
 import gameState from './game-state.js';
 import { fadeOutHome, fadeInHome, animateSliderExit, animateSliderEnter, animateStatsScreenEnter, animateStatsScreenExit } from '../utils/animations.js';
+import { showResumeGameBottomSheet } from './resume-game-bottom-sheet.js';
 import { logger } from '../core/logger.js';
 
 export interface UIManagerElements {
@@ -188,10 +189,7 @@ class UIManager {
       // Show resume sheet ONLY if saved game exists
       if (savedGame) {
         logger.info('📱 Showing resume game bottom sheet...');
-        // Import resume sheet utilities - CRITICAL: Import at module level to avoid delay
-        const { showResumeGameBottomSheet } = await import('./resume-game-bottom-sheet.js');
-        
-        // Show resume game modal IMMEDIATELY - no async operations
+        // Show resume game modal IMMEDIATELY - no async import delay
         showResumeGameBottomSheet();
       } else {
         logger.info('🎮 No saved game, starting new game with animation...');
