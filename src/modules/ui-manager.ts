@@ -444,8 +444,7 @@ class UIManager {
       this.elements.home.style.display = 'block';
       this.elements.home.removeAttribute('hidden');
       // NO TRANSITIONS, NO OPACITY - elements will be animated by animateSliderEnter
-      this.elements.home.style.opacity = '0';
-      this.elements.home.style.transition = 'none';
+      // DO NOT set opacity 0 here - it will break animation visibility
       logger.info('✅ Homepage shown QUIETLY - ready for animateSliderEnter to control animations');
     }
   }
