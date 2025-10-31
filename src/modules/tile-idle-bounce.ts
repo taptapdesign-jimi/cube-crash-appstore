@@ -175,7 +175,7 @@ function animateTile(tile: Tile): void {
     ease: 'power2.in'
   }, '<'); // Start at same time as scale return
   
-  // Activate smoke bubbles 0.55s before end of animation (was 0.2s, now 0.35s earlier)
+  // Activate smoke bubbles at 0.1s (peak of animation)
   tl.call(() => {
     if (state.board && tile) {
       smokeBubblesAtTile(state.board, tile, 96, {
@@ -189,7 +189,7 @@ function animateTile(tile: Tile): void {
         baseAlpha: 0.3   // Set to 0.3
       });
     }
-  }, null, '-=0.55');
+  }, null, 0.1);
   
   console.log('🎲 Animating tile:', tile.value, 'with', tiltDegrees.toFixed(1), 'deg tilt', tiltDirection > 0 ? 'right' : 'left');
 }
