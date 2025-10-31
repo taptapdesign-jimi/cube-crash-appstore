@@ -176,37 +176,48 @@ export const animateSliderExit = (): void => {
 // Separate function for the actual animation sequence
 function startExitAnimationSequence(): void {
   try {
+    // Find the currently active slide (slide with .active class)
+    const activeSlide = document.querySelector('.slider-slide.active');
+    if (!activeSlide) {
+      logger.warn('⚠️ No active slide found, animating from first slide');
+      startExitAnimationSequenceLegacy();
+      return;
+    }
+    
+    // Find elements within the active slide ONLY
+    const heroContainer = activeSlide.querySelector('.hero-container');
+    const slideButton = activeSlide.querySelector('.slide-button');
+    const slideText = activeSlide.querySelector('.slide-text');
+    const homeLogo = document.querySelector('#home-logo'); // Logo is shared, not per-slide
+    const independentNav = document.getElementById('independent-nav'); // Navigation is shared
+    
     // CARTOONISH PROCEDURAL SEQUENCE: 1. Hero → 2. CTA → 3. Text → 4. Logo → 5. Navigation LAST
     
     // STEP 1: Hero image FIRST (0ms delay)
-    const heroContainer = document.querySelector('.hero-container');
     if (heroContainer) {
       cartoonishBounce(heroContainer as HTMLElement, 0);
       logger.info('🖼️ Step 1: Hero image cartoonish bounce - FIRST');
     } else {
-      logger.warn('⚠️ Hero container not found');
+      logger.warn('⚠️ Hero container not found in active slide');
     }
     
     // STEP 2: CTA button SECOND (30ms delay - right after Hero)
-    const slideButton = document.querySelector('.slide-button') || document.getElementById('btn-home');
     if (slideButton) {
       cartoonishBounce(slideButton as HTMLElement, 30);
       logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND');
     } else {
-      logger.warn('⚠️ CTA button not found');
+      logger.warn('⚠️ CTA button not found in active slide');
     }
     
     // STEP 3: Slide text THIRD (60ms delay - right after CTA)
-    const slideText = document.querySelector('.slide-text');
     if (slideText) {
       cartoonishBounce(slideText as HTMLElement, 60);
       logger.info('📝 Step 3: Slide text cartoonish bounce - THIRD');
     } else {
-      logger.warn('⚠️ Slide text not found');
+      logger.warn('⚠️ Slide text not found in active slide');
     }
     
     // STEP 4: Home logo FOURTH (90ms delay)
-    const homeLogo = document.querySelector('#home-logo');
     if (homeLogo) {
       cartoonishBounce(homeLogo as HTMLElement, 90);
       logger.info('🎨 Step 4: Home logo cartoonish bounce - FOURTH');
@@ -215,7 +226,6 @@ function startExitAnimationSequence(): void {
     }
     
     // STEP 5: Navigation LAST (120ms delay - finishes at 420ms, close to 400ms)
-    const independentNav = document.getElementById('independent-nav');
     if (independentNav) {
       cartoonishBounce(independentNav as HTMLElement, 120);
       logger.info('🎯 Step 5: Navigation cartoonish bounce - LAST');
@@ -226,6 +236,44 @@ function startExitAnimationSequence(): void {
     logger.info('✅ Cartoonish bounce-in-to-scale-0 exit animation started');
   } catch (error) {
     logger.error('❌ Failed to start exit animation sequence:', error);
+  }
+};
+
+// Legacy fallback for when no active slide is found
+function startExitAnimationSequenceLegacy(): void {
+  // STEP 1: Hero image FIRST (0ms delay)
+  const heroContainer = document.querySelector('.hero-container');
+  if (heroContainer) {
+    cartoonishBounce(heroContainer as HTMLElement, 0);
+    logger.info('🖼️ Step 1: Hero image cartoonish bounce - FIRST (legacy)');
+  }
+  
+  // STEP 2: CTA button SECOND (30ms delay - right after Hero)
+  const slideButton = document.querySelector('.slide-button') || document.getElementById('btn-home');
+  if (slideButton) {
+    cartoonishBounce(slideButton as HTMLElement, 30);
+    logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND (legacy)');
+  }
+  
+  // STEP 3: Slide text THIRD (60ms delay - right after CTA)
+  const slideText = document.querySelector('.slide-text');
+  if (slideText) {
+    cartoonishBounce(slideText as HTMLElement, 60);
+    logger.info('📝 Step 3: Slide text cartoonish bounce - THIRD (legacy)');
+  }
+  
+  // STEP 4: Home logo FOURTH (90ms delay)
+  const homeLogo = document.querySelector('#home-logo');
+  if (homeLogo) {
+    cartoonishBounce(homeLogo as HTMLElement, 90);
+    logger.info('🎨 Step 4: Home logo cartoonish bounce - FOURTH (legacy)');
+  }
+  
+  // STEP 5: Navigation LAST (120ms delay)
+  const independentNav = document.getElementById('independent-nav');
+  if (independentNav) {
+    cartoonishBounce(independentNav as HTMLElement, 120);
+    logger.info('🎯 Step 5: Navigation cartoonish bounce - LAST (legacy)');
   }
 };
 
