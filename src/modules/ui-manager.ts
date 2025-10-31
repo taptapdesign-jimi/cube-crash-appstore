@@ -494,7 +494,7 @@ class UIManager {
     // Play exit animation FIRST
     animateSliderExit();
     
-    // Wait for exit animation to complete (2000ms - all elements animated)
+    // Wait for exit animation to complete (420ms - same as Play slide)
     setTimeout(() => {
       // NOW show stats screen
       this.hideHomepage();
@@ -522,7 +522,7 @@ class UIManager {
         const focusTarget = statsScreen.querySelector('.stats-back-button') as HTMLElement | null;
         focusTarget?.focus();
       }, 100);
-    }, 2000);
+    }, 420);
   }
   
   // Hide stats screen with enter animation

@@ -234,61 +234,21 @@ export const animateStatsScreenEnter = (): void => {
   try {
     logger.info('🎬 Starting stats screen enter animation (same as slide 1, scale only)...');
     
-    // All stats screen elements
-    const statsSelectors = [
-      '.stats-back-button',
-      '.stats-title',
-      '.stats-title-underline',
-      '.stats-grid',
-      '.stats-scrollable'
-    ];
-    
-    // Reset all elements to initial state (scale 0 only, NO opacity)
-    statsSelectors.forEach(selector => {
-      const element = document.querySelector(selector);
-      if (element) {
-        const el = element as HTMLElement;
-        el.style.transition = 'none';
-        el.style.transform = 'scale(0)';
-        // NO OPACITY - scale only
-        el.style.willChange = '';
-        void el.offsetHeight;
-      }
-    });
-    
-    // Helper function for reverse bounce animation (scale 0 to 1, NO OPACITY)
-    const reverseBounceStats = (element: HTMLElement, delay: number) => {
-      // Set initial state (from scale 0) - NO TRANSITION YET
-      element.style.transition = 'none';
-      element.style.transform = 'scale(0)';
-      // NO OPACITY - scale only
-      
-      // Force reflow to apply initial state
-      void element.offsetHeight;
-      
-      setTimeout(() => {
-        element.style.willChange = 'transform';
-        element.style.transition = 'transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)'; // Bouncy easing, scale only
-        element.style.transform = 'scale(1)';
-        // NO OPACITY
-      }, delay);
-    };
-    
-    // Animate each element with reverse bounce (same as slide 1 enter, scale only)
+    // Use same reverseBounce helper as slider for consistency
     const backButton = document.querySelector('.stats-back-button');
-    if (backButton) reverseBounceStats(backButton as HTMLElement, 0);
+    if (backButton) reverseBounce(backButton as HTMLElement, 0);
     
     const title = document.querySelector('.stats-title');
-    if (title) reverseBounceStats(title as HTMLElement, 100);
+    if (title) reverseBounce(title as HTMLElement, 0);
     
     const underline = document.querySelector('.stats-title-underline');
-    if (underline) reverseBounceStats(underline as HTMLElement, 200);
+    if (underline) reverseBounce(underline as HTMLElement, 0);
     
     const grid = document.querySelector('.stats-grid');
-    if (grid) reverseBounceStats(grid as HTMLElement, 300);
+    if (grid) reverseBounce(grid as HTMLElement, 0);
     
     const scrollable = document.querySelector('.stats-scrollable');
-    if (scrollable) reverseBounceStats(scrollable as HTMLElement, 400);
+    if (scrollable) reverseBounce(scrollable as HTMLElement, 0);
     
     logger.info('✅ Stats screen enter animation started (scale only, no opacity)');
   } catch (error) {
@@ -301,42 +261,21 @@ export const animateStatsScreenExit = (): void => {
   try {
     logger.info('🎬 Starting stats screen exit animation (same as slide 1, scale only)...');
     
-    const statsElements = [
-      '.stats-back-button',
-      '.stats-title',
-      '.stats-title-underline',
-      '.stats-grid',
-      '.stats-scrollable'
-    ];
-    
-    // Reset all elements (scale 1 only, NO opacity)
-    statsElements.forEach(selector => {
-      const element = document.querySelector(selector);
-      if (element) {
-        const el = element as HTMLElement;
-        el.style.transition = 'none';
-        el.style.transform = 'scale(1)';
-        // NO OPACITY - scale only
-        el.style.willChange = '';
-        void el.offsetHeight;
-      }
-    });
-    
-    // Animate each element with stagger (same as slide 1 exit, scale only)
+    // Use same cartoonishBounce helper as slider for consistency - no stagger for speed
     const backButton = document.querySelector('.stats-back-button');
     if (backButton) cartoonishBounce(backButton as HTMLElement, 0);
     
     const title = document.querySelector('.stats-title');
-    if (title) cartoonishBounce(title as HTMLElement, 100);
+    if (title) cartoonishBounce(title as HTMLElement, 0);
     
     const underline = document.querySelector('.stats-title-underline');
-    if (underline) cartoonishBounce(underline as HTMLElement, 200);
+    if (underline) cartoonishBounce(underline as HTMLElement, 0);
     
     const grid = document.querySelector('.stats-grid');
-    if (grid) cartoonishBounce(grid as HTMLElement, 300);
+    if (grid) cartoonishBounce(grid as HTMLElement, 0);
     
     const scrollable = document.querySelector('.stats-scrollable');
-    if (scrollable) cartoonishBounce(scrollable as HTMLElement, 400);
+    if (scrollable) cartoonishBounce(scrollable as HTMLElement, 0);
     
     logger.info('✅ Stats screen exit animation started (scale only, no opacity)');
   } catch (error) {
