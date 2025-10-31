@@ -168,7 +168,7 @@ export const animateSliderExit = (): void => {
       activeTimeouts.delete(timeout);
       isAnimatingExit = false;
       logger.info('✅ Exit animation guard reset');
-    }, 625); // 325ms delay + 300ms animation = 625ms total (50% faster)
+    }, 600); // 300ms delay + 300ms animation = 600ms total
     activeTimeouts.add(timeout);
     
   } catch (error) {
@@ -189,30 +189,30 @@ function startExitAnimationSequence(): void {
       logger.info('🖼️ Step 1: Hero image cartoonish bounce - FIRST');
     }
     
-    // STEP 2: Home logo SECOND (125ms delay - 50% faster)
+    // STEP 2: Home logo SECOND (100ms delay)
     const homeLogo = document.querySelector('#home-logo');
     if (homeLogo) {
-      cartoonishBounce(homeLogo as HTMLElement, 125);
+      cartoonishBounce(homeLogo as HTMLElement, 100);
       logger.info('🎨 Step 2: Home logo cartoonish bounce - SECOND');
     }
     
-    // STEP 3: Slide text + CTA button TOGETHER (225ms delay - they overlap, 50% faster)
+    // STEP 3: Slide text + CTA button TOGETHER (200ms delay - they overlap)
     const slideText = document.querySelector('.slide-text');
     if (slideText) {
-      cartoonishBounce(slideText as HTMLElement, 225);
+      cartoonishBounce(slideText as HTMLElement, 200);
       logger.info('📝 Step 3: Slide text cartoonish bounce');
     }
     
     const slideButton = document.querySelector('.slide-button');
     if (slideButton) {
-      cartoonishBounce(slideButton as HTMLElement, 225);
+      cartoonishBounce(slideButton as HTMLElement, 200);
       logger.info('🔘 Step 3: CTA button cartoonish bounce');
     }
     
-    // STEP 4: Navigation LAST (325ms delay - 50% faster)
+    // STEP 4: Navigation LAST (300ms delay - finishes at 600ms)
     const independentNav = document.getElementById('independent-nav');
     if (independentNav) {
-      cartoonishBounce(independentNav as HTMLElement, 325);
+      cartoonishBounce(independentNav as HTMLElement, 300);
       logger.info('🎯 Step 4: Navigation cartoonish bounce - LAST');
     }
     
@@ -356,7 +356,7 @@ export const animateSliderEnter = (): void => {
       activeTimeouts.delete(timeout);
       isAnimatingEnter = false;
       logger.info('✅ Enter animation guard reset');
-    }, 625); // 325ms delay + 300ms animation = 625ms total (50% faster)
+    }, 600); // 300ms delay + 300ms animation = 600ms total
     activeTimeouts.add(timeout);
     
   } catch (error) {
@@ -450,7 +450,7 @@ function startEnterAnimationSequence(): void {
       });
       
       logger.info('✅ All slider elements set to final state (scale(1) only)');
-    }, 625); // 325ms delay + 300ms animation = 625ms total (50% faster)
+    }, 600); // 300ms delay + 300ms animation = 600ms total
     activeTimeouts.add(finalTimeout);
     
     logger.info('✅ Reverse cartoonish bounce enter animation started');
