@@ -147,8 +147,8 @@ function animateTile(tile: Tile): void {
   
   // Phase 1: Scale up with rotation - fast 0.1s
   tl.to(tile.scale, {
-    x: baseTileScaleX * 1.18,  // Subtle scale up
-    y: baseTileScaleY * 1.18,
+    x: baseTileScaleX * 1.05,  // Very subtle scale up
+    y: baseTileScaleY * 1.05,
     duration: 0.1,
     ease: 'power2.out'
   });
