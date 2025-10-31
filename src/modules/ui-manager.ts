@@ -149,6 +149,15 @@ class UIManager {
     event.preventDefault();
     logger.info('📊 Stats button clicked');
     
+    // CRITICAL: Reset ALL slider CTAs to prevent :active state from persisting
+    const allSliderButtons = document.querySelectorAll('.slider-slide .slide-button');
+    allSliderButtons.forEach(button => {
+      const btn = button as HTMLElement;
+      btn.style.transform = '';
+      btn.style.transition = '';
+      btn.blur(); // Remove focus to prevent :focus state
+    });
+    
     // Play exit animation first, then show stats screen
     this.showStatsScreenWithAnimation();
   }
