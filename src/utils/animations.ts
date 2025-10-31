@@ -168,7 +168,7 @@ export const animateSliderExit = (): void => {
       activeTimeouts.delete(timeout);
       isAnimatingExit = false;
       logger.info('✅ Exit animation guard reset');
-    }, 600); // 300ms delay + 300ms animation = 600ms total
+    }, 400); // 100ms delay + 300ms animation = 400ms total
     activeTimeouts.add(timeout);
     
   } catch (error) {
@@ -180,7 +180,7 @@ export const animateSliderExit = (): void => {
 // Separate function for the actual animation sequence
 function startExitAnimationSequence(): void {
   try {
-    // CARTOONISH PROCEDURAL SEQUENCE: 1. Hero → 2. Logo → 3. Text + CTA together → 4. Navigation LAST
+    // CARTOONISH PROCEDURAL SEQUENCE: 1. Hero → 2. Logo → 3. CTA + Text → 4. Navigation LAST
     
     // STEP 1: Hero image FIRST (0ms delay)
     const heroContainer = document.querySelector('.hero-container');
@@ -189,30 +189,30 @@ function startExitAnimationSequence(): void {
       logger.info('🖼️ Step 1: Hero image cartoonish bounce - FIRST');
     }
     
-    // STEP 2: Home logo SECOND (100ms delay)
+    // STEP 2: Home logo SECOND (50ms delay)
     const homeLogo = document.querySelector('#home-logo');
     if (homeLogo) {
-      cartoonishBounce(homeLogo as HTMLElement, 100);
+      cartoonishBounce(homeLogo as HTMLElement, 50);
       logger.info('🎨 Step 2: Home logo cartoonish bounce - SECOND');
     }
     
-    // STEP 3: Slide text + CTA button TOGETHER (200ms delay - they overlap)
-    const slideText = document.querySelector('.slide-text');
-    if (slideText) {
-      cartoonishBounce(slideText as HTMLElement, 200);
-      logger.info('📝 Step 3: Slide text cartoonish bounce');
-    }
-    
+    // STEP 3: CTA button + Slide text TOGETHER (75ms delay - they overlap)
     const slideButton = document.querySelector('.slide-button');
     if (slideButton) {
-      cartoonishBounce(slideButton as HTMLElement, 200);
+      cartoonishBounce(slideButton as HTMLElement, 75);
       logger.info('🔘 Step 3: CTA button cartoonish bounce');
     }
     
-    // STEP 4: Navigation LAST (300ms delay - finishes at 600ms)
+    const slideText = document.querySelector('.slide-text');
+    if (slideText) {
+      cartoonishBounce(slideText as HTMLElement, 75);
+      logger.info('📝 Step 3: Slide text cartoonish bounce');
+    }
+    
+    // STEP 4: Navigation LAST (100ms delay - finishes at 400ms)
     const independentNav = document.getElementById('independent-nav');
     if (independentNav) {
-      cartoonishBounce(independentNav as HTMLElement, 300);
+      cartoonishBounce(independentNav as HTMLElement, 100);
       logger.info('🎯 Step 4: Navigation cartoonish bounce - LAST');
     }
     
@@ -356,7 +356,7 @@ export const animateSliderEnter = (): void => {
       activeTimeouts.delete(timeout);
       isAnimatingEnter = false;
       logger.info('✅ Enter animation guard reset');
-    }, 600); // 300ms delay + 300ms animation = 600ms total
+    }, 400); // 100ms delay + 300ms animation = 400ms total
     activeTimeouts.add(timeout);
     
   } catch (error) {
@@ -450,7 +450,7 @@ function startEnterAnimationSequence(): void {
       });
       
       logger.info('✅ All slider elements set to final state (scale(1) only)');
-    }, 600); // 300ms delay + 300ms animation = 600ms total
+    }, 400); // 100ms delay + 300ms animation = 400ms total
     activeTimeouts.add(finalTimeout);
     
     logger.info('✅ Reverse cartoonish bounce enter animation started');
