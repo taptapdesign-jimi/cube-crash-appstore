@@ -194,14 +194,23 @@ class UIManager {
         // Show resume game modal IMMEDIATELY - no async operations
         showResumeGameBottomSheet();
       } else {
-        logger.info('🎮 No saved game, starting new game...');
-        // Start new game
-        this.startNewGame();
+        logger.info('🎮 No saved game, starting new game with animation...');
+        // Start new game with animation via triggerGameStartSequence
+        if ((window as any).triggerGameStartSequence) {
+          (window as any).triggerGameStartSequence();
+        } else {
+          // Fallback: direct start if trigger not available
+          this.startNewGame();
+        }
       }
     } catch (error) {
       logger.error('❌ Failed to check for saved game:', error);
-      // Fallback to new game
-      this.startNewGame();
+      // Fallback to new game with animation
+      if ((window as any).triggerGameStartSequence) {
+        (window as any).triggerGameStartSequence();
+      } else {
+        this.startNewGame();
+      }
     }
   }
   
