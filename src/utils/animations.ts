@@ -127,14 +127,31 @@ const reverseBounce = (element: HTMLElement, delay: number) => {
   }, delay);
 };
 
+// Guard to prevent multiple simultaneous animations
+let isAnimatingExit = false;
+let isAnimatingEnter = false;
+
 export const animateSliderExit = (): void => {
   try {
+    if (isAnimatingExit) {
+      logger.warn('⚠️ Exit animation already in progress, ignoring duplicate call');
+      return;
+    }
+    
+    isAnimatingExit = true;
     logger.info('🎬 Starting CARTOONISH PROCEDURAL exit animation...');
     
     // Start the actual exit animation sequence
     startExitAnimationSequence();
     
+    // Reset flag after animation completes
+    setTimeout(() => {
+      isAnimatingExit = false;
+      logger.info('✅ Exit animation guard reset');
+    }, 1400);
+    
   } catch (error) {
+    isAnimatingExit = false;
     logger.error('❌ Failed to animate slider exit:', error);
   }
 };
@@ -318,12 +335,25 @@ export const animateStatsScreenExit = (): void => {
 // Animate slider enter when returning to home - CARTOONISH PROCEDURAL ENTER (SCALE ONLY, NO OPACITY)
 export const animateSliderEnter = (): void => {
   try {
+    if (isAnimatingEnter) {
+      logger.warn('⚠️ Enter animation already in progress, ignoring duplicate call');
+      return;
+    }
+    
+    isAnimatingEnter = true;
     logger.info('🎬 Starting CARTOONISH PROCEDURAL enter animation...');
     
     // Start the actual enter animation sequence
     startEnterAnimationSequence();
     
+    // Reset flag after animation completes
+    setTimeout(() => {
+      isAnimatingEnter = false;
+      logger.info('✅ Enter animation guard reset');
+    }, 1400);
+    
   } catch (error) {
+    isAnimatingEnter = false;
     logger.error('❌ Failed to animate slider enter:', error);
   }
 };
