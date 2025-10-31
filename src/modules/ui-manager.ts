@@ -547,15 +547,13 @@ class UIManager {
     // Show homepage QUIETLY first (no animations yet)
     this.showHomepageQuietly();
     
-    // NOW play slider enter animation (after homepage is shown AND slide switched)
-    animateSliderEnter();
+    // NO SLIDER ANIMATIONS - show homepage instantly after Stats
+    // animateSliderEnter(); // DISABLED - causing CTA scale issues
     
-    // Focus after animation completes (420ms - same as Play)
-    setTimeout(() => {
-      if (this.elements.statsButton) {
-        this.elements.statsButton.focus();
-      }
-    }, 420);
+    // Focus immediately
+    if (this.elements.statsButton) {
+      this.elements.statsButton.focus();
+    }
   }
   
   // Show collectibles screen
