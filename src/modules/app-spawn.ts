@@ -93,12 +93,13 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false 
       } else { 
         applyWildSkinLocal(holder); 
       }
-      try { 
-        console.log('🔵 CALLING startWildIdle for holder:', holder);
-        startWildIdle(holder, { interval: 4 }); 
-      } catch (e) {
-        console.error('❌ Error calling startWildIdle:', e);
-      }
+      // Wild idle animation disabled - wild cubes now static
+      // try { 
+      //   console.log('🔵 CALLING startWildIdle for holder:', holder);
+      //   startWildIdle(holder, { interval: 4 }); 
+      // } catch (e) {
+      //   console.error('❌ Error calling startWildIdle:', e);
+      // }
     }
 
     holder.alpha = 0;

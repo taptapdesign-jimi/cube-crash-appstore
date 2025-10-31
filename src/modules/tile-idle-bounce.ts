@@ -145,33 +145,33 @@ function animateTile(tile: Tile): void {
     }
   });
   
-  // Phase 1: Scale up with rotation
+  // Phase 1: Scale up with rotation - fast 0.1s
   tl.to(tile.scale, {
     x: baseTileScaleX * 1.18,  // Subtle scale up
     y: baseTileScaleY * 1.18,
-    duration: 0.25,
+    duration: 0.1,
     ease: 'power2.out'
   });
   
   // Simultaneously rotate the tile
   tl.to(tile, {
     rotation: originalRotation + tiltRadians,
-    duration: 0.25,
+    duration: 0.1,
     ease: 'power2.out'
   }, '<'); // Start at same time as scale
   
-  // Phase 2: Return to scale and rotation - smooth and calm
+  // Phase 2: Return to scale and rotation - fast 0.1s
   tl.to(tile.scale, {
     x: baseTileScaleX,
     y: baseTileScaleY,
-    duration: 0.25,
+    duration: 0.1,
     ease: 'power2.in'
   });
   
   // Return rotation to 0 to avoid merge conflicts
   tl.to(tile, {
     rotation: originalRotation,
-    duration: 0.25,
+    duration: 0.1,
     ease: 'power2.in'
   }, '<'); // Start at same time as scale return
   
