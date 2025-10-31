@@ -434,8 +434,7 @@ function startEnterAnimationSequence(): void {
         slideElements.forEach(element => {
           if (element) {
             const el = element as HTMLElement;
-            el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial');
-            el.classList.add('animate-reset');
+            el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
           }
         });
       }
@@ -449,8 +448,7 @@ function startEnterAnimationSequence(): void {
       sharedElements.forEach(element => {
         if (element) {
           const el = element as HTMLElement;
-          el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial');
-          el.classList.add('animate-reset');
+          el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
         }
       });
       
