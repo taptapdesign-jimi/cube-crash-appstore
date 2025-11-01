@@ -186,7 +186,7 @@
   text-align: center;
   z-index: 3;
   position: relative;
-  margin-bottom: 16px !important; /* 16px gap between text and CTA */
+  margin-bottom: 40px !important;
   display: flex;
   flex-direction: column;
   align-items: center;
