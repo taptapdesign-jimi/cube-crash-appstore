@@ -180,8 +180,15 @@ function renderStats(root: HTMLElement): void {
 }
 
 function renderCollectibles(root: HTMLElement): void {
-  if (document.getElementById('collectibles-screen')) return;
+  if (document.getElementById('collectibles-screen')) {
+    console.log('⚠️ collectibles-screen already exists, skipping render');
+    return;
+  }
+  console.log('🎁 Rendering collectibles screen into root:', root);
   renderCollectiblesScreen(root, { showDebugControls: false });
+  console.log('✅ Collectibles screen rendered');
+  const screen = document.getElementById('collectibles-screen');
+  console.log('🎁 Verify collectibles-screen exists:', !!screen);
 }
 
 function renderMenu(root: HTMLElement): void {
