@@ -516,23 +516,44 @@ export function playHudDrop({ duration = 0.8 } = {}){
 
 // Play HUD rise animation - exact reverse of playHudDrop
 export function playHudRise({ duration = 0.8 } = {}){
-  if (!HUD_ROOT) return;
-  const top = HUD_ROOT._dropTop ?? HUD_ROOT.y ?? 0;
-  try { gsap.killTweensOf(HUD_ROOT); } catch {}
+  if (!HUD_ROOT) {
+    console.warn('⚠️ playHudRise: HUD_ROOT is null, skipping animation');
+    return;
+  }
   
-  // Animate PIXI HUD rise (reverse of drop)
-  gsap.to(HUD_ROOT, {
-    alpha: 0,  // fade out
-    y: -top * 2,  // rise above screen
-    duration: duration,
-    ease: 'elastic.in(1, 0.6)',  // reverse of elastic.out(1, 0.6)
-    onComplete: () => { 
-      HUD_ROOT._dropped = false; 
-      HUD_ROOT.y = -top * 2; 
-    }
-  });
-  
-  console.log('✅ PIXI HUD rise animation started');
+  // Safety: double-check HUD_ROOT is still valid
+  try {
+    const top = HUD_ROOT._dropTop ?? HUD_ROOT.y ?? 0;
+    
+    // Kill any existing tweens
+    try { gsap.killTweensOf(HUD_ROOT); } catch {}
+    
+    // Animate PIXI HUD rise (reverse of drop)
+    gsap.to(HUD_ROOT, {
+      alpha: 0,  // fade out
+      y: -top * 2,  // rise above screen
+      duration: duration,
+      ease: 'elastic.in(1, 0.6)',  // reverse of elastic.out(1, 0.6)
+      onComplete: () => { 
+        // Safety check in callback - HUD_ROOT might be destroyed during animation
+        if (HUD_ROOT) {
+          HUD_ROOT._dropped = false; 
+          HUD_ROOT.y = -top * 2; 
+        }
+      },
+      onUpdate: function() {
+        // Safety check during animation - if HUD_ROOT is destroyed, kill this tween
+        if (!HUD_ROOT || !HUD_ROOT.parent) {
+          console.warn('⚠️ playHudRise: HUD_ROOT destroyed during animation, killing tween');
+          this.kill();
+        }
+      }
+    });
+    
+    console.log('✅ PIXI HUD rise animation started');
+  } catch (error) {
+    console.error('❌ playHudRise failed:', error);
+  }
 }
 
 export function updateHUD({ score, board, moves, combo }) {

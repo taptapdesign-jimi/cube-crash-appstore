@@ -234,6 +234,14 @@ export function sweetPopOut(listTiles, opts = {}){
     let completed = 0;
 
     list.forEach((t, i) => {
+      // Safety: skip null or destroyed tiles
+      if (!t || !t.scale || !t.alpha) {
+        console.warn(`⚠️ sweetPopOut: skipping null/destroyed tile at index ${i}`);
+        completed++;
+        if (completed === total) resolve();
+        return;
+      }
+      
       const step = stepMin + Math.random() * (stepMax - stepMin);
       const rate = 0.55;
       const burst = (Math.random() < 0.22) ? (-Math.random() * 0.16) : 0;
@@ -269,7 +277,14 @@ export function sweetPopOut(listTiles, opts = {}){
         x: 0.88,
         y: 0.88, 
         duration: d3,
-        ease: 'back.in(1.5)'  // reverse of back.out(1.5)
+        ease: 'back.in(1.5)',  // reverse of back.out(1.5)
+        onUpdate: function() {
+          // Safety: if tile destroyed during animation, kill tween
+          if (!t || !t.scale || !t.parent) {
+            console.warn('⚠️ sweetPopOut: tile destroyed during animation, killing tween');
+            this.kill();
+          }
+        }
       }, 0)
       .to(t.scale, { 
         x: amp,  // 1.08-1.15
