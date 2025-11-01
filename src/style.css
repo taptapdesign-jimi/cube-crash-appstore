@@ -884,36 +884,11 @@ body{
   transform: translateY(-28px) scale(0) !important;
 }
 
-/* Keyframes for enter animation with springy bounce: 0 → 1.10 → 1 */
-@keyframes enterWithBounce {
-  0% {
-    transform: scale(0);
-  }
-  85% {
-    transform: scale(1.10);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-/* Keyframes for enter animation with springy bounce and translateY */
-@keyframes enterWithBounceAndTranslate {
-  0% {
-    transform: translateY(-28px) scale(0);
-  }
-  85% {
-    transform: translateY(-28px) scale(1.10);
-  }
-  100% {
-    transform: translateY(-28px) scale(1);
-  }
-}
-
 /* Enter animation classes - scale up from 0, preserve translateY for slide-text */
 .animate-enter {
   will-change: transform !important;
-  animation: enterWithBounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards !important;
+  transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+  transform: scale(1) !important;
 }
 
 /* Ensure hero-container, logo, and navigation also animate */
@@ -921,29 +896,13 @@ body{
 #home-logo.animate-enter,
 #independent-nav.animate-enter {
   will-change: transform !important;
-  animation: enterWithBounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards !important;
-}
-
-/* Ensure slide-button also animates - NO 3D transforms */
-.slide-button.animate-enter {
-  will-change: transform !important;
-  animation: enterWithBounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards !important;
-  transform-style: flat !important; /* Prevent 3D rotation issues */
-  perspective: none !important; /* Prevent 3D rotation issues */
-}
-
-/* Prevent ::before and ::after pseudo-elements from rotating during animation */
-.slide-button.tap-scale.menu-btn-primary.animate-enter::before,
-.slide-button.tap-scale.menu-btn-primary.animate-enter::after,
-.slider-slide .slide-button.tap-scale.menu-btn-primary.animate-enter::before,
-.slider-slide .slide-button.tap-scale.menu-btn-primary.animate-enter::after {
-  transform: none !important; /* Remove all 3D transforms during animation */
-  animation: none !important; /* Disable shimmer during enter animation */
+  transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+  transform: scale(1) !important;
 }
 
 /* Slide-text needs to preserve translateY during scale animation */
 .slide-text.animate-enter {
-  animation: enterWithBounceAndTranslate 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards !important;
+  transform: translateY(-28px) scale(1) !important;
 }
 
 /* Initial state for enter animation - scale 0, no transition */
@@ -958,23 +917,6 @@ body{
 #independent-nav.animate-enter-initial {
   transition: none !important;
   transform: scale(0) !important;
-}
-
-/* Ensure slide-button also starts from scale 0 - NO 3D transforms */
-.slide-button.animate-enter-initial {
-  transition: none !important;
-  transform: scale(0) !important;
-  transform-style: flat !important; /* Prevent 3D rotation issues */
-  perspective: none !important; /* Prevent 3D rotation issues */
-}
-
-/* Prevent ::before and ::after pseudo-elements from rotating during initial state */
-.slide-button.tap-scale.menu-btn-primary.animate-enter-initial::before,
-.slide-button.tap-scale.menu-btn-primary.animate-enter-initial::after,
-.slider-slide .slide-button.tap-scale.menu-btn-primary.animate-enter-initial::before,
-.slider-slide .slide-button.tap-scale.menu-btn-primary.animate-enter-initial::after {
-  transform: none !important; /* Remove all 3D transforms during animation */
-  animation: none !important; /* Disable shimmer during enter animation */
 }
 
 /* Slide-text needs to preserve translateY during initial state */

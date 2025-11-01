@@ -390,17 +390,7 @@ function startEnterAnimationSequence(): void {
         slideElements.forEach(element => {
           if (element) {
             const el = element as HTMLElement;
-            // CRITICAL: Set final transform BEFORE removing animation class to prevent visual reset
-            if (el.classList.contains('slide-text')) {
-              el.style.transform = 'translateY(-28px) scale(1)';
-            } else {
-              el.style.transform = 'scale(1)';
-            }
             el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-            // Remove inline transform after class removal to let CSS take over
-            setTimeout(() => {
-              el.style.transform = '';
-            }, 50);
           }
         });
       }
@@ -414,13 +404,7 @@ function startEnterAnimationSequence(): void {
       sharedElements.forEach(element => {
         if (element) {
           const el = element as HTMLElement;
-          // CRITICAL: Set final transform BEFORE removing animation class to prevent visual reset
-          el.style.transform = 'scale(1)';
           el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-          // Remove inline transform after class removal to let CSS take over
-          setTimeout(() => {
-            el.style.transform = '';
-          }, 50);
         }
       });
       
@@ -471,47 +455,7 @@ function startEnterAnimationSequenceLegacy(): void {
     logger.info('🎯 Step 5: Navigation cartoonish bounce - LAST (legacy)');
   }
   
-  // Cleanup after animation completes
-  const legacyFinalTimeout = setTimeout(() => {
-    activeTimeouts.delete(legacyFinalTimeout);
-    
-    const slideElements = [
-      heroContainer,
-      slideButton,
-      slideText
-    ];
-    
-    slideElements.forEach(element => {
-      if (element) {
-        const el = element as HTMLElement;
-        if (el.classList.contains('slide-text')) {
-          el.style.transform = 'translateY(-28px) scale(1)';
-        } else {
-          el.style.transform = 'scale(1)';
-        }
-        el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-        setTimeout(() => {
-          el.style.transform = '';
-        }, 50);
-      }
-    });
-    
-    const sharedElements = [independentNav, homeLogo];
-    
-    sharedElements.forEach(element => {
-      if (element) {
-        const el = element as HTMLElement;
-        el.style.transform = 'scale(1)';
-        el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-        setTimeout(() => {
-          el.style.transform = '';
-        }, 50);
-      }
-    });
-    
-    logger.info('✅ Legacy enter animation cleanup complete');
-  }, 420);
-  activeTimeouts.add(legacyFinalTimeout);
+
 };
 
 // Debounce function
