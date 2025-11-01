@@ -399,6 +399,17 @@ initializeApp().catch((error: Error) => {
   try {
     console.log('🔥 Starting complete game cleanup...');
     
+    // CRITICAL: Save game state BEFORE animations
+    try {
+      if (typeof window.saveGameState === 'function') {
+        console.log('💾 Saving game state before exit...');
+        window.saveGameState();
+        console.log('✅ Game state saved before exit');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to save game state during exit:', error);
+    }
+    
     // CRITICAL: Save high score BEFORE animations
     try {
       const { STATE } = await import('./modules/app-state.js');
