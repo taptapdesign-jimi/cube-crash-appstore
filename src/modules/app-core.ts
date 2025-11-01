@@ -613,26 +613,13 @@ export function layout(){
     console.log('🖥️ Desktop: HUD at y:', safeTop, 'px, board starts at y:', hudBottom);
   }
   
-  // Gentle global nudge: move HUD and board down (iPad only)
-  const HUD_NUDGE_RATIO = -0.048; // raise HUD ≈ 24px more (scales with viewport height)
-  const HUD_NUDGE_PX = Math.round(vh * HUD_NUDGE_RATIO);
-  
-  // Only apply responsive offset on iPad (768px - 1400px)
   const isIPad = vw >= 768 && vw <= 1400;
-  // Responsive offset: 44px on iPad (40px + 8px + 4px - 8px), scaled by viewport height
-  const IPAD_OFFSET_PERCENT = isIPad ? 0.055 : 0; // 5.5% of viewport height on iPad (reduced by 8px)
-  const IPAD_OFFSET = Math.round(vh * IPAD_OFFSET_PERCENT);
-  
-  // Additional offset for iPad landscape
-  const IPAD_LANDSCAPE_OFFSET = isIPad ? 8 : 0;
   
   const BOARD_NUDGE_PX = 8; // original board nudge (was 4)
-  safeTop += HUD_NUDGE_PX + IPAD_OFFSET + IPAD_LANDSCAPE_OFFSET; // iPad gets responsive offset down, mobile stays original
-  hudBottom += HUD_NUDGE_PX + IPAD_OFFSET + IPAD_LANDSCAPE_OFFSET; // iPad gets responsive offset down, mobile stays original
   
-  // Scale board to fit screen width with 24px padding (equivalent to ~6% on mobile)
-  const paddingPercent = 0.06; // 6% padding (equivalent to ~24px on iPhone 13)
-  const availableWidth = vw * (1 - paddingPercent * 2); // 88% of screen width
+  // Scale board to fit screen width - match HUD width (vw - 48px for 24px SIDE padding)
+  const HUD_PADDING = 24;
+  const availableWidth = vw - (HUD_PADDING * 2); // Full width minus HUD padding
   const widthScale = availableWidth / w;
   const heightScale = (vh - hudBottom - BOT_PAD) / h;
   const s = Math.min(widthScale, heightScale); // Use smaller of the two, no max limit
@@ -642,16 +629,15 @@ export function layout(){
     widthScale, 
     heightScale, 
     finalScale: s,
-    paddingPercent: (paddingPercent * 100) + '%'
+    HUDpadding: HUD_PADDING + 'px'
   });
   board.scale.set(s, s); board.scale.y = board.scale.x;
 
   const sw = w * s, sh = h * s;
-  // Center horizontally with 6% padding
-  const paddingPixels = vw * paddingPercent;
+  // Center horizontally matching HUD width
   const idealLeft = Math.round((vw - sw) / 2);
-  const minLeft = paddingPixels;
-  const maxLeft = vw - paddingPixels - sw;
+  const minLeft = HUD_PADDING;
+  const maxLeft = vw - HUD_PADDING - sw;
   board.x = Math.min(Math.max(idealLeft, minLeft), maxLeft);
   
   // CENTER BOARD VERTICALLY in available space between HUD and bottom
@@ -662,7 +648,6 @@ export function layout(){
   board.y = Math.round(centerY + 16); // Move board down by 16px
   
   console.log('🎯 Board centered at y:', board.y, 'px (available height:', availableHeight, 'px, board height:', sh, 'px)');
-  console.log(`🎯 VIEWPORT OFFSET: ${IPAD_OFFSET}px (${IPAD_OFFSET_PERCENT*100}% of ${vh}px) applied to HUD and board (${isIPad ? 'iPad' : 'mobile/desktop'})`);
   
   console.log('🎯 Board positioning (HUD below notch on mobile):', {
     isMobile,
@@ -672,7 +657,8 @@ export function layout(){
     centerY: board.y,
     boardHeight: sh,
     viewportHeight: vh,
-    topPad: TOP_PAD
+    topPad: TOP_PAD,
+    isIPad
   });
 
   // Don't clear ghost placeholders - they should stay visible
