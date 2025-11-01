@@ -194,6 +194,10 @@ async function startAssetPreloading(): Promise<void> {
     uiManager.hideLoadingScreen();
     await appManager.showScreen('home');
     
+    // Play enter animation for Slide 1 after homepage is shown
+    console.log('🎬 Playing initial enter animation for Slide 1');
+    animateSliderEnter();
+    
     logger.info('✅ Assets preloaded successfully');
     
   } catch (error) {
