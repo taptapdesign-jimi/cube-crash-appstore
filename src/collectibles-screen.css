@@ -373,7 +373,7 @@
 }
 
 .collectible-card.locked .collectible-rarity-badge {
-  opacity: 0.75;
+  opacity: 1;
 }
 
 /* Non-color cue for rarity: pattern overlay */
