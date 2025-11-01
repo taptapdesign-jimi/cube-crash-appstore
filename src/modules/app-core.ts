@@ -591,7 +591,7 @@ export function layout(){
   const RIGHT_PAD = Math.max(MIN_SIDE, SAR);
   const TOP_PAD   = 20 + Math.round(vh * 0.004); // Move HUD lower (now 0.4% = ~4px on iPhone 13)
   const BOT_PAD   = (isMobilePortrait ? 24 : 24) + SAB;
-  const GAP_HUD   = 16;
+  const GAP_HUD   = 24;
 
   // For mobile devices, HUD will be positioned below notch, so calculate board positioning accordingly
   const isMobile = vw < 768 || vh > vw;
