@@ -124,6 +124,12 @@
       visibility: visible !important;
     }
     
+    /* Ensure collectibles screen is visible when shown (not hidden) */
+    #collectibles-screen:not([hidden]):not(.hidden) {
+      display: flex !important;
+      visibility: visible !important;
+    }
+    
     /* No extra margin needed - navigation is separate */
   </style>
 </head>
