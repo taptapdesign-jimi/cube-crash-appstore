@@ -641,7 +641,9 @@ export function layout(){
     sw = w * s;
     sh = h * s;
     boardX = IPAD_BOARD_PADDING; // Left edge flush with 40px padding
-    boardY = Math.round(hudBottom); // Board starts immediately after HUD gap
+    // Gap between HUD and board should be dynamic based on screen height (e.g. 5% of viewport height)
+    const boardTopGap = Math.round(vh * 0.05); // 5% of screen height
+    boardY = Math.round(hudBottom + boardTopGap); // Board starts after HUD + gap
   } else {
     // Mobile/Desktop: match HUD width
     availableWidth = vw - (HUD_PADDING * 2);
