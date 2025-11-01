@@ -1942,6 +1942,25 @@ function restartGame(){
       }
     }
     
+    // CRITICAL: Kill ALL GSAP tweens as nuclear option
+    try {
+      console.log('🔄 RESTART GAME: Nuclear option - killing ALL GSAP tweens...');
+      // Kill all timelines and tweens
+      const timelines = gsap.globalTimeline.getChildren(true, false, false);
+      timelines.forEach(tl => {
+        try { tl.kill(); } catch (e) {}
+      });
+      // Also clear global timeline
+      try {
+        gsap.globalTimeline.clear();
+      } catch (e) {
+        console.warn('⚠️ Failed to clear global timeline:', e);
+      }
+      console.log('✅ RESTART GAME: ALL GSAP tweens killed');
+    } catch (e) {
+      console.warn('⚠️ RESTART GAME: Error with nuclear GSAP kill:', e);
+    }
+    
     console.log('✅ RESTART GAME: All GSAP animations killed');
   } catch (e) {
     console.warn('⚠️ RESTART GAME: Error killing GSAP animations:', e);
@@ -2106,6 +2125,25 @@ export function restart() {
       } catch (e) {
         console.warn('⚠️ RESTART: Error killing HUD animations:', e);
       }
+    }
+    
+    // CRITICAL: Kill ALL GSAP tweens as nuclear option
+    try {
+      console.log('🔄 RESTART: Nuclear option - killing ALL GSAP tweens...');
+      // Kill all timelines and tweens
+      const timelines = gsap.globalTimeline.getChildren(true, false, false);
+      timelines.forEach(tl => {
+        try { tl.kill(); } catch (e) {}
+      });
+      // Also clear global timeline
+      try {
+        gsap.globalTimeline.clear();
+      } catch (e) {
+        console.warn('⚠️ Failed to clear global timeline:', e);
+      }
+      console.log('✅ RESTART: ALL GSAP tweens killed');
+    } catch (e) {
+      console.warn('⚠️ RESTART: Error with nuclear GSAP kill:', e);
     }
     
     console.log('✅ RESTART: All GSAP animations killed');
