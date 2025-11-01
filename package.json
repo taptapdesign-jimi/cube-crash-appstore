@@ -38,11 +38,15 @@
     "eslint-plugin-prettier": "^5.5.4",
     "jest": "^30.2.0",
     "prettier": "^3.6.2",
+    "terser": "^5.44.0",
     "ts-jest": "^29.4.5",
     "typescript": "^5.9.3",
     "vite": "^7.1.12"
   },
   "dependencies": {
+    "@capacitor/cli": "^7.4.4",
+    "@capacitor/core": "^7.4.4",
+    "@capacitor/ios": "^7.4.4",
     "gsap": "^3.12.5",
     "pixi.js": "^8.2.0"
   }
