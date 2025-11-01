@@ -3,7 +3,6 @@ import { gsap } from 'gsap';
 import { STATE, COLS, ROWS, TILE, GAP } from './app-state.ts';
 import * as makeBoard from './board.ts';
 import { drawBoardBG, layout } from './app-core.ts';
-import * as HUD from './hud-helpers.js';
 // drawBoardBG and layout functions are now in app-core.ts
 
 // reset container while preserving boardBG and backgroundLayer
