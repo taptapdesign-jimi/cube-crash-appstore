@@ -291,7 +291,8 @@ class UIManager {
         await bootGame();
         console.log('✅ boot() complete');
         
-        await layoutGame();
+        // layout() is synchronous, no await needed
+        layoutGame();
         console.log('✅ layout() complete');
         
         // Start time tracking
