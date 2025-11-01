@@ -486,11 +486,6 @@ export async function boot(){
       body{ min-height:100dvh; overflow:hidden; }
       #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)); z-index:10; transition: background 0.6s ease; }
       canvas{ position:absolute; inset:0; width:100vw; height:100dvh; display:block; background:var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)); z-index:10; transition: background 0.6s ease; }
-      @font-face{ font-family:"LTCrow"; src:url("./assets/fonts/LTCrow-Regular.ttf") format("truetype"); font-weight:400; font-style:normal; font-display:swap; }
-      @font-face{ font-family:"LTCrow"; src:url("./assets/fonts/LTCrow-Medium.ttf") format("truetype"); font-weight:500; font-style:normal; font-display:swap; }
-      @font-face{ font-family:"LTCrow"; src:url("./assets/fonts/LTCrow-SemiBold.ttf") format("truetype"); font-weight:600; font-style:normal; font-display:swap; }
-      @font-face{ font-family:"LTCrow"; src:url("./assets/fonts/LTCrow-Bold.ttf") format("truetype"); font-weight:700; font-style:normal; font-display:swap; }
-      @font-face{ font-family:"LTCrow"; src:url("./assets/fonts/LTCrow-ExtraBold.ttf") format("truetype"); font-weight:800; font-style:normal; font-display:swap; }
     `;
     document.head.appendChild(style);
   }

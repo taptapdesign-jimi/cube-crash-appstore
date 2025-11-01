@@ -4,7 +4,7 @@
 
 /* LTCrow font family for entire app */
 * {
-  font-family: 'LTCrow', system-ui, -apple-system, sans-serif !important;
+  font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
 }
 
 :root{
