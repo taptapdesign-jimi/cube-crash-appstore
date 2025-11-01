@@ -21,10 +21,18 @@ export function getGridDimensions(): GridDimensions {
   if (typeof window !== 'undefined') {
     const width = window.innerWidth;
     const height = window.innerHeight;
+    const isLandscape = width > height;
     
-    // iPad and tablet (768px - 1024px) - landscape oriented
+    // iPad and tablet (768px - 1024px)
     if (width >= 768 && width <= 1024) {
-      return { COLS: 9, ROWS: 5 };
+      // iPad landscape: wider board (9 cols x 5 rows)
+      if (isLandscape) {
+        return { COLS: 9, ROWS: 5 };
+      }
+      // iPad portrait: default (6 cols x 8 rows)
+      else {
+        return { COLS: 6, ROWS: 8 };
+      }
     }
     // Desktop and larger
     else if (width > 1024) {
