@@ -623,37 +623,57 @@ export function layout(){
   
   const BOARD_NUDGE_PX = 8; // original board nudge (was 4)
   
-  // Scale board to fit screen width - match HUD width (vw - 48px for 24px SIDE padding)
+  // Scale board to fit screen width
   const HUD_PADDING = 24;
-  const availableWidth = vw - (HUD_PADDING * 2); // Full width minus HUD padding
-  const widthScale = availableWidth / w;
-  const heightScale = (vh - hudBottom - BOT_PAD) / h;
-  const s = Math.min(widthScale, heightScale); // Use smaller of the two, no max limit
+  const IPAD_BOARD_PADDING = 40; // iPad-specific board padding
+  
+  // Calculate available height and centerY first
+  const availableHeight = vh - hudBottom - BOT_PAD;
+  
+  let availableWidth, s, sw, sh, boardX, boardY;
+  
+  if (isIPad) {
+    // iPad: full width with 40px edge-to-edge board
+    availableWidth = vw - (IPAD_BOARD_PADDING * 2);
+    const widthScale = availableWidth / w;
+    const heightScale = availableHeight / h;
+    s = Math.min(widthScale, heightScale);
+    
+    sw = w * s;
+    sh = h * s;
+    boardX = IPAD_BOARD_PADDING; // Left edge flush with 40px padding
+    const centerY = hudBottom + availableHeight / 2;
+    boardY = Math.round(centerY - sh / 2 + 16); // Move board down by 16px (8px more than center)
+  } else {
+    // Mobile/Desktop: match HUD width
+    availableWidth = vw - (HUD_PADDING * 2);
+    const widthScale = availableWidth / w;
+    const heightScale = availableHeight / h;
+    s = Math.min(widthScale, heightScale);
+    
+    sw = w * s;
+    sh = h * s;
+    const idealLeft = Math.round((vw - sw) / 2);
+    const minLeft = HUD_PADDING;
+    const maxLeft = vw - HUD_PADDING - sw;
+    boardX = Math.min(Math.max(idealLeft, minLeft), maxLeft);
+    const centerY = hudBottom + availableHeight / 2;
+    boardY = Math.round(centerY - sh / 2 + 8); // Move board down by 8px
+  }
   
   console.log('🎯 Board scaling:', { 
     availableWidth, 
-    widthScale, 
-    heightScale, 
+    widthScale: availableWidth / w, 
+    heightScale: availableHeight / h, 
     finalScale: s,
-    HUDpadding: HUD_PADDING + 'px'
+    padding: isIPad ? `${IPAD_BOARD_PADDING}px` : `${HUD_PADDING}px`
   });
-  board.scale.set(s, s); board.scale.y = board.scale.x;
-
-  const sw = w * s, sh = h * s;
-  // Center horizontally matching HUD width
-  const idealLeft = Math.round((vw - sw) / 2);
-  const minLeft = HUD_PADDING;
-  const maxLeft = vw - HUD_PADDING - sw;
-  board.x = Math.min(Math.max(idealLeft, minLeft), maxLeft);
   
-  // CENTER BOARD VERTICALLY in available space between HUD and bottom
-  // Use percentage-based positioning for responsive centering
-  const availableHeight = vh - hudBottom - BOT_PAD;
-  // Center at exactly 50% of available space, with 16px extra offset down
-  const centerY = hudBottom + (availableHeight - sh) / 2;
-  board.y = Math.round(centerY + 16); // Move board down by 16px
+  board.scale.set(s, s);
+  board.x = boardX;
+  board.y = boardY;
   
-  console.log('🎯 Board centered at y:', board.y, 'px (available height:', availableHeight, 'px, board height:', sh, 'px)');
+  console.log('🎯 Board positioned at y:', board.y, 'px (available height:', availableHeight, 'px, board height:', sh, 'px)');
   
   console.log('🎯 Board positioning (HUD below notch on mobile):', {
     isMobile,
