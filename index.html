@@ -137,7 +137,7 @@
     // Fix mobile viewport height
     function setViewportHeight() {
       const vh = window.innerHeight * 0.01;
-      document.documentElement.style.setProperty('--vh', `${vh}px`);
+      document.documentElement.style.setProperty('--vh', vh + 'px');
     }
     
     setViewportHeight();
@@ -146,24 +146,24 @@
     
     // Lock orientation to portrait
     if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
-      window.screen.orientation.lock('portrait').catch(err => {
+      window.screen.orientation.lock('portrait').catch(function(err) {
         console.log('Orientation lock not supported:', err);
       });
-    } else if ((window as any).DeviceOrientationEvent && (window as any).DeviceOrientationEvent.requestPermission) {
+    } else if (window.DeviceOrientationEvent && window.DeviceOrientationEvent.requestPermission) {
       // iOS 13+ - request permission first
-      (window as any).DeviceOrientationEvent.requestPermission()
-        .then((response: string) => {
+      window.DeviceOrientationEvent.requestPermission()
+        .then(function(response) {
           if (response === 'granted') {
             console.log('✅ Orientation lock granted');
           }
         })
-        .catch((err: any) => {
+        .catch(function(err) {
           console.log('Orientation lock permission denied:', err);
         });
     }
     
     // Prevent landscape orientation by detecting and warning
-    window.addEventListener('orientationchange', () => {
+    window.addEventListener('orientationchange', function() {
       const isLandscape = window.outerWidth > window.outerHeight;
       if (isLandscape) {
         console.log('⚠️ Landscape orientation detected - please rotate to portrait');
@@ -172,7 +172,7 @@
     });
     
     // Also check on resize
-    window.addEventListener('resize', () => {
+    window.addEventListener('resize', function() {
       const isLandscape = window.outerWidth > window.outerHeight;
       if (isLandscape) {
         console.log('⚠️ Landscape orientation detected - please rotate to portrait');
