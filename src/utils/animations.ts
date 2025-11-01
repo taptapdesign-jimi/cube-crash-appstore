@@ -127,23 +127,6 @@ const reverseBounce = (element: HTMLElement, delay: number) => {
   activeTimeouts.add(timeout);
 };
 
-// Helper function for PRELOADER enter animation (1 second) - scale 0 to 1
-const reverseBouncePreloader = (element: HTMLElement, delay: number) => {
-  // Set initial state (from scale 0) - NO TRANSITION YET
-  element.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset', 'animate-enter-preloader', 'animate-enter-preloader-initial');
-  element.classList.add('animate-enter-preloader-initial');
-  
-  // Force reflow to apply initial state
-  void element.offsetHeight;
-  
-  const timeout = setTimeout(() => {
-    activeTimeouts.delete(timeout);
-    element.classList.remove('animate-enter-preloader-initial');
-    element.classList.add('animate-enter-preloader');
-  }, delay);
-  activeTimeouts.add(timeout);
-};
-
 // Guard to prevent multiple simultaneous animations
 let isAnimatingExit = false;
 let isAnimatingEnter = false;
@@ -502,57 +485,4 @@ export const throttle = <T extends (...args: any[]) => any>(
       setTimeout(() => inThrottle = false, limit);
     }
   };
-};
-
-// Special animation for preloader ending - 1 second duration with procedural appearance
-export const animatePreloaderSlideEnter = (): void => {
-  try {
-    logger.info('🎬 Starting PRELOADER enter animation (1 second)...');
-    
-    // Find Slide 1 (Play slide) elements
-    const playSlide = document.querySelector('.slider-slide[data-slide="0"]');
-    if (!playSlide) {
-      logger.warn('⚠️ Play slide not found for preloader animation');
-      return;
-    }
-    
-    const heroContainer = playSlide.querySelector('.hero-container');
-    const slideButton = playSlide.querySelector('.slide-button');
-    const slideText = playSlide.querySelector('.slide-text');
-    const homeLogo = document.querySelector('#home-logo');
-    const independentNav = document.getElementById('independent-nav');
-    
-    // PROCEDURAL SEQUENCE with 100ms delays for 1 second animation:
-    // 1. Hero (0ms) → 2. CTA (100ms) → 3. Text (200ms) → 4. Logo (300ms) → 5. Nav (400ms)
-    
-    if (heroContainer) {
-      reverseBouncePreloader(heroContainer as HTMLElement, 0);
-      logger.info('🖼️ Preloader: Hero image - FIRST');
-    }
-    
-    if (slideButton) {
-      reverseBouncePreloader(slideButton as HTMLElement, 100);
-      logger.info('🔘 Preloader: CTA button - SECOND');
-    }
-    
-    if (slideText) {
-      reverseBouncePreloader(slideText as HTMLElement, 200);
-      logger.info('📝 Preloader: Slide text - THIRD');
-    }
-    
-    if (homeLogo) {
-      reverseBouncePreloader(homeLogo as HTMLElement, 300);
-      logger.info('🎨 Preloader: Home logo - FOURTH');
-    }
-    
-    if (independentNav) {
-      reverseBouncePreloader(independentNav as HTMLElement, 400);
-      logger.info('🎯 Preloader: Navigation - LAST');
-    }
-    
-    logger.info('✅ Preloader enter animation started');
-    
-  } catch (error) {
-    logger.error('❌ Failed to animate preloader enter:', error);
-  }
 };

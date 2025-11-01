@@ -84,7 +84,7 @@ import { AppStoreCompliance } from './utils/app-store-compliance.js';
 import { appManager } from './ui/app-manager.js';
 import { initNavigationControl } from './modules/navigation-control.js';
 import { showEndRunModalFromGame } from './modules/end-run-modal.js';
-import { animateSliderExit, animateSliderEnter, animatePreloaderSlideEnter } from './utils/animations.js';
+import { animateSliderExit, animateSliderEnter } from './utils/animations.js';
 
 // Type definitions
 interface GameState {
@@ -194,9 +194,9 @@ async function startAssetPreloading(): Promise<void> {
     uiManager.hideLoadingScreen();
     await appManager.showScreen('home');
     
-    // Play SPECIAL preloader enter animation for Slide 1 (1 second)
-    console.log('🎬 Playing preloader enter animation for Slide 1 (1 second)');
-    animatePreloaderSlideEnter();
+    // Play enter animation for Slide 1 after homepage is shown
+    console.log('🎬 Playing initial enter animation for Slide 1');
+    animateSliderEnter();
     
     logger.info('✅ Assets preloaded successfully');
     
