@@ -135,34 +135,34 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
               },
             ],
           },
-          ...(showDebugControls
-            ? [
-                {
-                  tag: 'div',
-                  className: 'collectibles-debug-controls',
-                  children: [
-                    {
-                      tag: 'button',
-                      id: 'collectibles-unlock-btn',
-                      className: 'debug-btn collectibles-debug-btn',
-                      text: 'Show Card',
-                      attributes: { type: 'button' },
-                      eventListeners: onUnlock ? { click: onUnlock } : undefined,
-                    },
-                    {
-                      tag: 'button',
-                      id: 'collectibles-hide-btn',
-                      className: 'debug-btn collectibles-debug-btn',
-                      text: 'Hide Card',
-                      attributes: { type: 'button' },
-                      eventListeners: onHide ? { click: onHide } : undefined,
-                    },
-                  ],
-                },
-              ]
-            : []),
         ],
       },
+      ...(showDebugControls
+        ? [
+            {
+              tag: 'div',
+              className: 'collectibles-debug-controls',
+              children: [
+                {
+                  tag: 'button',
+                  id: 'collectibles-unlock-btn',
+                  className: 'debug-btn collectibles-debug-btn',
+                  text: 'Show Card',
+                  attributes: { type: 'button' },
+                  eventListeners: onUnlock ? { click: onUnlock } : undefined,
+                },
+                {
+                  tag: 'button',
+                  id: 'collectibles-hide-btn',
+                  className: 'debug-btn collectibles-debug-btn',
+                  text: 'Hide Card',
+                  attributes: { type: 'button' },
+                  eventListeners: onHide ? { click: onHide } : undefined,
+                },
+              ],
+            },
+          ]
+        : []),
     ],
   };
 }
