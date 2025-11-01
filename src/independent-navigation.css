@@ -56,7 +56,7 @@
 
 .independent-nav-divider {
   position: absolute !important;
-  top: 16px !important; /* Moved up 16px towards nav icons */
+  top: 8px !important; /* Moved up 8px towards CTA button */
   left: 24px !important; /* 24px from left edge */
   right: 24px !important; /* 24px from right edge */
   width: auto !important; /* Auto width between left and right */
