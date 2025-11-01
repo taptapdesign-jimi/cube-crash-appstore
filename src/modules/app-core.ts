@@ -1901,7 +1901,7 @@ function restartGame(){
     console.warn('⚠️ Failed to update high score during restart:', error);
   }
   
-  // Kill all GSAP animations first
+  // Kill all GSAP animations first - CRITICAL to prevent null reference errors
   try {
     console.log('🔄 RESTART GAME: Killing all GSAP animations...');
     gsap.killTweensOf(wild?.view?._fill);
@@ -1910,6 +1910,38 @@ function restartGame(){
       wild.view._currentAnimation.kill();
       wild.view._currentAnimation = null;
     }
+    
+    // CRITICAL: Kill tile animations before destroying them
+    if (STATE && STATE.tiles && STATE.tiles.length > 0) {
+      console.log('🔄 RESTART GAME: Killing GSAP animations for', STATE.tiles.length, 'tiles...');
+      STATE.tiles.forEach(tile => {
+        try {
+          if (tile && tile.scale) {
+            gsap.killTweensOf(tile.scale);
+          }
+          if (tile) {
+            gsap.killTweensOf(tile);
+          }
+        } catch (e) {
+          // Ignore errors for already destroyed tiles
+        }
+      });
+      console.log('✅ RESTART GAME: Tile GSAP animations killed');
+    }
+    
+    // Kill HUD animations
+    if (STATE && STATE.hud) {
+      try {
+        console.log('🔄 RESTART GAME: Killing HUD GSAP animations...');
+        gsap.killTweensOf(STATE.hud);
+        gsap.killTweensOf(STATE.board);
+        gsap.killTweensOf(STATE.stage);
+        console.log('✅ RESTART GAME: HUD GSAP animations killed');
+      } catch (e) {
+        console.warn('⚠️ RESTART GAME: Error killing HUD animations:', e);
+      }
+    }
+    
     console.log('✅ RESTART GAME: All GSAP animations killed');
   } catch (e) {
     console.warn('⚠️ RESTART GAME: Error killing GSAP animations:', e);
@@ -2035,7 +2067,7 @@ export function resumeGame() {
 export function restart() {
   console.log('🔄 RESTART: Starting restart function');
   
-  // Kill all GSAP animations first
+  // Kill all GSAP animations first - CRITICAL to prevent null reference errors
   try {
     console.log('🔄 RESTART: Killing all GSAP animations...');
     gsap.killTweensOf(wild?.view?._fill);
@@ -2044,6 +2076,38 @@ export function restart() {
       wild.view._currentAnimation.kill();
       wild.view._currentAnimation = null;
     }
+    
+    // CRITICAL: Kill tile animations before destroying them
+    if (STATE && STATE.tiles && STATE.tiles.length > 0) {
+      console.log('🔄 RESTART: Killing GSAP animations for', STATE.tiles.length, 'tiles...');
+      STATE.tiles.forEach(tile => {
+        try {
+          if (tile && tile.scale) {
+            gsap.killTweensOf(tile.scale);
+          }
+          if (tile) {
+            gsap.killTweensOf(tile);
+          }
+        } catch (e) {
+          // Ignore errors for already destroyed tiles
+        }
+      });
+      console.log('✅ RESTART: Tile GSAP animations killed');
+    }
+    
+    // Kill HUD animations
+    if (STATE && STATE.hud) {
+      try {
+        console.log('🔄 RESTART: Killing HUD GSAP animations...');
+        gsap.killTweensOf(STATE.hud);
+        gsap.killTweensOf(STATE.board);
+        gsap.killTweensOf(STATE.stage);
+        console.log('✅ RESTART: HUD GSAP animations killed');
+      } catch (e) {
+        console.warn('⚠️ RESTART: Error killing HUD animations:', e);
+      }
+    }
+    
     console.log('✅ RESTART: All GSAP animations killed');
   } catch (e) {
     console.warn('⚠️ RESTART: Error killing GSAP animations:', e);
