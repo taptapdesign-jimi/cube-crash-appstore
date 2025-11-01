@@ -528,41 +528,50 @@ class UIManager {
   
   // Show stats screen with exit animation
   private showStatsScreenWithAnimation(): void {
-    logger.info('📊 Showing stats screen - no exit animation');
+    logger.info('📊 Showing stats screen - with exit animation');
     
-    const statsScreen = this.elements.statsScreen;
-    if (!statsScreen) return;
+    // Step 1: Play exit animation for Stats slide
+    console.log('🎬 Step 1: Playing exit animation for Stats slide');
+    animateSliderExit();
     
-    // Show stats screen immediately - NO exit animation
-    this.hideHomepage();
-    this.setNavigationVisibility(false);
-    statsScreen.style.display = 'flex';
-    statsScreen.removeAttribute('hidden');
-    statsScreen.setAttribute('aria-hidden', 'false');
-    
-    // CRITICAL: Update stats values when showing stats screen
-    try {
-      import('../ui/components/stats-screen.js').then(({ updateStatsValues }) => {
-        console.log('📊 About to call updateStatsValues() from ui-manager...');
-        updateStatsValues();
-        console.log('✅ updateStatsValues() called from ui-manager');
-      });
-    } catch (error) {
-      console.error('❌ Failed to update stats values from ui-manager:', error);
-    }
-    
-    // Focus immediately
+    // Step 2: Wait for exit animation, then show stats screen
     setTimeout(() => {
-      const focusTarget = statsScreen.querySelector('.stats-back-button') as HTMLElement | null;
-      focusTarget?.focus();
-    }, 100);
+      console.log('📊 Step 2: Showing stats screen after exit animation');
+      
+      const statsScreen = this.elements.statsScreen;
+      if (!statsScreen) return;
+      
+      // Show stats screen after animation
+      this.hideHomepage();
+      this.setNavigationVisibility(false);
+      statsScreen.style.display = 'flex';
+      statsScreen.removeAttribute('hidden');
+      statsScreen.setAttribute('aria-hidden', 'false');
+      
+      // CRITICAL: Update stats values when showing stats screen
+      try {
+        import('../ui/components/stats-screen.js').then(({ updateStatsValues }) => {
+          console.log('📊 About to call updateStatsValues() from ui-manager...');
+          updateStatsValues();
+          console.log('✅ updateStatsValues() called from ui-manager');
+        });
+      } catch (error) {
+        console.error('❌ Failed to update stats values from ui-manager:', error);
+      }
+      
+      // Focus immediately
+      setTimeout(() => {
+        const focusTarget = statsScreen.querySelector('.stats-back-button') as HTMLElement | null;
+        focusTarget?.focus();
+      }, 100);
+    }, 420); // 120ms delay + 300ms animation = 420ms total
   }
   
   // Hide stats screen with enter animation
   private hideStatsScreenWithAnimation(): void {
-    logger.info('📊 Hiding stats screen - no exit animation');
+    logger.info('📊 Hiding stats screen - with enter animation');
     
-    // Hide stats screen immediately - NO exit animation
+    // Hide stats screen immediately
     const statsScreen = this.elements.statsScreen;
     if (statsScreen) {
       statsScreen.setAttribute('aria-hidden', 'true');
@@ -570,8 +579,6 @@ class UIManager {
       statsScreen.setAttribute('hidden', 'true');
       this.setNavigationVisibility(true);
     }
-    
-    // REMOVED: Nuclear option not needed anymore - Stats button now has same classes as Play
     
     // CRITICAL: Switch to Stats slide (index 1) to show Stats slide after exiting Stats screen
     const slides = document.querySelectorAll('.slider-slide');
@@ -594,10 +601,9 @@ class UIManager {
     // Show homepage QUIETLY first (no animations yet)
     this.showHomepageQuietly();
     
-    // NO SLIDER ANIMATIONS - show homepage instantly after Stats
-    // animateSliderEnter(); // DISABLED - causing CTA scale issues
-    
-    // NO FOCUS - prevents :focus state from persisting
+    // Step 2: Play enter animation for Stats slide
+    console.log('🎬 Playing enter animation for Stats slide');
+    animateSliderEnter();
   }
   
   // Show collectibles screen
