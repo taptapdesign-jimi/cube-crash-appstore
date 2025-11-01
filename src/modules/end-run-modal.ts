@@ -142,31 +142,29 @@ function createModal(): HTMLElement {
     exitBtn.addEventListener('click', () => {
       console.log('🚪 Exit button clicked - starting exit sequence');
       
-      // Step 1: Animate modal exit
+      // Step 1: Animate modal exit (non-blocking)
       hideModal();
       
-      // Step 2: Wait for modal animation to complete (400ms), then call exitToMenu
-      setTimeout(() => {
-        console.log('🎯 Modal hidden, calling exitToMenu');
-        
-        // Guard: Prevent multiple calls
-        if ((window as any).exitingToMenu) {
-          console.log('⚠️ exitToMenu already in progress, skipping duplicate call');
-          return;
-        }
-        
-        // Clear saved game state when exiting
-        try {
-          localStorage.removeItem('cc_saved_game');
-          localStorage.removeItem('cubeCrash_gameState');
-          console.log('✅ end-run-modal: Cleared both saved game states on exit');
-        } catch (error) {
-          console.warn('⚠️ end-run-modal: Failed to clear saved game state on exit:', error);
-        }
-        if ((window as any).exitToMenu) {
-          (window as any).exitToMenu();
-        }
-      }, 400); // Wait for modal close animation to complete
+      // Step 2: Start board exit animation IMMEDIATELY (don't wait for modal to finish)
+      console.log('🎯 Starting board exit immediately - modal exits in parallel');
+      
+      // Guard: Prevent multiple calls
+      if ((window as any).exitingToMenu) {
+        console.log('⚠️ exitToMenu already in progress, skipping duplicate call');
+        return;
+      }
+      
+      // Clear saved game state when exiting
+      try {
+        localStorage.removeItem('cc_saved_game');
+        localStorage.removeItem('cubeCrash_gameState');
+        console.log('✅ end-run-modal: Cleared both saved game states on exit');
+      } catch (error) {
+        console.warn('⚠️ end-run-modal: Failed to clear saved game state on exit:', error);
+      }
+      if ((window as any).exitToMenu) {
+        (window as any).exitToMenu();
+      }
     });
   }
   
