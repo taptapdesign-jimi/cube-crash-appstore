@@ -424,8 +424,17 @@ initializeApp().catch((error: Error) => {
       console.warn('⚠️ Failed to save high score during exit:', error);
     }
     
-    // Step 1: Kill ALL GSAP tweens and cleanup IMMEDIATELY (no exit animations to prevent memory leaks)
-    console.log('🧹 Killing all GSAP tweens and cleaning up game...');
+    // Step 1: Play board exit animations (tiles + HUD)
+    console.log('🎬 Playing board exit animations...');
+    try {
+      await animateBoardExit();
+      console.log('✅ Board exit animations completed');
+    } catch (error) {
+      console.warn('⚠️ Board exit animation failed:', error);
+    }
+    
+    // Step 2: Kill ALL GSAP tweens immediately after animations complete
+    console.log('🧹 Killing all GSAP tweens after animations...');
     try {
       // Kill UI element tweens
       gsap.killTweensOf('[data-wild-loader]');
@@ -462,15 +471,19 @@ initializeApp().catch((error: Error) => {
       }
       
       console.log('✅ All GSAP tweens killed');
-      
-      // Clean up game state
+    } catch (gsapError) {
+      console.warn('⚠️ Error killing GSAP tweens:', gsapError);
+    }
+    
+    // Step 3: Clean up game state AFTER killing all tweens
+    try {
       if (typeof cleanupGame === 'function') {
         console.log('🧹 Calling cleanupGame() to clean up all game resources...');
         cleanupGame();
         console.log('✅ cleanupGame() completed - PIXI app destroyed and nullified');
       }
     } catch (error) {
-      console.warn('⚠️ Failed to cleanup game:', error);
+      console.warn('⚠️ Failed to run cleanupGame:', error);
     }
     
     // Stop time tracking
