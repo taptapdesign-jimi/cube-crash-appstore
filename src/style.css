@@ -3931,7 +3931,11 @@ body:has(:root) .tile.wild-3d-glow {
 .primary-button.button-reset:active,
 .menu-btn-primary.button-reset:active,
 .slide-button.button-reset:active,
-.tap-scale.button-reset:active {
+.tap-scale.button-reset:active,
+#btn-stats.button-reset:active,
+#btn-home.button-reset:active,
+#btn-collectibles.button-reset:active,
+#btn-settings.button-reset:active {
   transform: scale(1) !important;
   transition: none !important;
 }
