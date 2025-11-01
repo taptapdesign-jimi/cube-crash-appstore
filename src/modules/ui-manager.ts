@@ -207,8 +207,7 @@ class UIManager {
     event.preventDefault();
     logger.info('🎁 Collectibles button clicked');
     
-    // CRITICAL: Reset ALL slider CTAs to prevent :active state from persisting
-    this.resetAllSliderButtons();
+    // NO RESET - let :active work normally
     
     // Show collectibles screen
     this.showCollectiblesScreen();
@@ -219,8 +218,7 @@ class UIManager {
     event.preventDefault();
     logger.info('⚙️ Settings button clicked');
     
-    // CRITICAL: Reset ALL slider CTAs to prevent :active state from persisting
-    this.resetAllSliderButtons();
+    // NO RESET - let :active work normally
     
     // Show settings screen
     this.showSettingsScreen();
