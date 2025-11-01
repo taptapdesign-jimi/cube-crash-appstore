@@ -85,6 +85,7 @@ import { appManager } from './ui/app-manager.js';
 import { initNavigationControl } from './modules/navigation-control.js';
 import { showEndRunModalFromGame } from './modules/end-run-modal.js';
 import { animateSliderExit, animateSliderEnter } from './utils/animations.js';
+import { STATE } from './modules/app-state.js';
 
 // Type definitions
 interface GameState {
@@ -434,6 +435,49 @@ initializeApp().catch((error: Error) => {
     
     // Step 2: Clean up game state AFTER animations
     try {
+      // CRITICAL: Kill all GSAP tweens BEFORE destroying PIXI objects
+      // This prevents "Cannot set properties of null" errors from GSAP trying to animate destroyed objects
+      console.log('🧹 Killing all GSAP tweens before cleanup...');
+      try {
+        // Kill UI element tweens
+        gsap.killTweensOf('[data-wild-loader]');
+        gsap.killTweensOf('.wild-loader');
+        gsap.killTweensOf('p');
+        gsap.killTweensOf('progress');
+        
+        // CRITICAL: Kill PIXI object tweens (tiles and HUD)
+        // Kill all tile tweens
+        if (STATE && STATE.tiles && STATE.tiles.length > 0) {
+          STATE.tiles.forEach(tile => {
+            try {
+              if (tile && tile.scale) {
+                gsap.killTweensOf(tile.scale);
+              }
+              if (tile) {
+                gsap.killTweensOf(tile);
+              }
+            } catch (e) {
+              // Ignore errors for already destroyed tiles
+            }
+          });
+        }
+        
+        // Kill HUD tweens
+        if (STATE && STATE.hud) {
+          try {
+            gsap.killTweensOf(STATE.hud);
+            gsap.killTweensOf(STATE.board);
+            gsap.killTweensOf(STATE.stage);
+          } catch (e) {
+            // Ignore errors
+          }
+        }
+        
+        console.log('✅ All GSAP tweens killed');
+      } catch (gsapError) {
+        console.warn('⚠️ Error killing GSAP tweens:', gsapError);
+      }
+      
       if (typeof cleanupGame === 'function') {
         console.log('🧹 Calling cleanupGame() to clean up all game resources...');
         cleanupGame();

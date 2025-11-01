@@ -229,6 +229,9 @@ export function sweetPopOut(listTiles, opts = {}){
   const halfTotal = Math.ceil(total / 2);
   let halfFired = false;
   let maxEndTime = 0;
+  
+  // Track all GSAP timelines for cleanup
+  const activeTimelines = [];
 
   return new Promise(resolve => {
     let completed = 0;
@@ -257,7 +260,7 @@ export function sweetPopOut(listTiles, opts = {}){
       const d2  = Math.max(0.08, d2b * durMul); // compress
       const d1  = Math.max(0.10, d1b * durMul); // blow (reverse becomes last)
 
-      gsap.timeline({
+      const timeline = gsap.timeline({
         delay: exitDel,
         onComplete: () => {
           completed++;
@@ -271,7 +274,12 @@ export function sweetPopOut(listTiles, opts = {}){
             resolve();
           }
         }
-      })
+      });
+      
+      // Track timeline for cleanup
+      activeTimelines.push(timeline);
+      
+      timeline
       // REVERSE sequence: 1.0 → 0.88 → 1.15 → 0.0
       .to(t.scale, { 
         x: 0.88,
