@@ -936,6 +936,47 @@ body{
   transform: translateY(-28px) scale(1);
 }
 
+/* ===== PRELOADER SLIDE 1 ENTER ANIMATION (1 second) ===== */
+/* Separate animation for preloader ending - 1 second duration */
+.animate-enter-preloader {
+  will-change: transform !important;
+  transition: transform 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+  transform: scale(1) !important;
+}
+
+/* Ensure hero-container, logo, and navigation also animate */
+.hero-container.animate-enter-preloader,
+#home-logo.animate-enter-preloader,
+#independent-nav.animate-enter-preloader {
+  will-change: transform !important;
+  transition: transform 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+  transform: scale(1) !important;
+}
+
+/* Slide-text needs to preserve translateY during preloader animation */
+.slide-text.animate-enter-preloader {
+  transform: translateY(-28px) scale(1) !important;
+}
+
+/* Initial state for preloader enter animation - scale 0, no transition */
+.animate-enter-preloader-initial {
+  transition: none !important;
+  transform: scale(0) !important;
+}
+
+/* Ensure hero-container, logo, and navigation also start from scale 0 */
+.hero-container.animate-enter-preloader-initial,
+#home-logo.animate-enter-preloader-initial,
+#independent-nav.animate-enter-preloader-initial {
+  transition: none !important;
+  transform: scale(0) !important;
+}
+
+/* Slide-text needs to preserve translateY during initial state */
+.slide-text.animate-enter-preloader-initial {
+  transform: translateY(-28px) scale(0) !important;
+}
+
 /* Dramatic click effect for all bottom sheet CTA buttons */
 .continue-btn,
 .restart-btn,
