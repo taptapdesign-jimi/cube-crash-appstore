@@ -211,15 +211,14 @@ export function sweetPopIn(listTiles, opts = {}){
   });
 }
 
-// Board exit animation - exact reverse of sweetPopIn
+// Board exit animation - random order like sweetPopIn
 export function sweetPopOut(listTiles, opts = {}){
   const list = [...listTiles];
 
-  // CRITICAL: REVERSE the random order - last to spawn is first to exit
-  // We need to track spawn order, so reverse the list
-  for (let i = 0; i < Math.floor(list.length / 2); i++) {
-    const j = list.length - 1 - i;
-    [list[i], list[j]] = [list[j], list[i]];
+  // FULL random order — same as sweetPopIn (no reverse)
+  for (let i = list.length - 1; i > 0; i--){ 
+    const j = (Math.random() * (i + 1)) | 0; 
+    [list[i], list[j]] = [list[j], list[i]]; 
   }
 
   // Same timing parameters as entry
@@ -316,7 +315,7 @@ export function sweetPopOut(listTiles, opts = {}){
       if (endAt > maxEndTime) maxEndTime = endAt;
     });
 
-    console.log('🎯 Starting board exit pop-out — exact reverse of entry');
+    console.log('🎯 Starting board exit pop-out — random order like entry');
 
     // Fire onHalf at 50% of overall animation timeframe
     if (typeof opts.onHalf === 'function'){
