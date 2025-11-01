@@ -866,7 +866,7 @@ body{
 /* Exit animation classes - scale down to 0, preserve translateY for slide-text and slide-button */
 .animate-exit {
   will-change: transform !important;
-  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  transition: transform 1s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   transform: scale(0) !important;
 }
 
@@ -875,7 +875,7 @@ body{
 #home-logo.animate-exit,
 #independent-nav.animate-exit {
   will-change: transform !important;
-  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  transition: transform 1s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   transform: scale(0) !important;
 }
 
