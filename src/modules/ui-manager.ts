@@ -558,11 +558,19 @@ class UIManager {
     if (statsCTA) {
       console.log('🔧 Resetting Stats CTA button before slide switch...');
       const btn = statsCTA as HTMLElement;
-      btn.style.transform = '';
-      btn.style.transition = '';
-      btn.blur();
+      btn.classList.add('button-reset'); // Add reset class to override :active
+      btn.style.transform = 'scale(1) !important'; // Force scale to 1
+      btn.style.transition = 'none !important'; // Disable transition
+      btn.blur(); // Remove focus state
       btn.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
       console.log('✅ Stats CTA reset complete before slide switch');
+      
+      // Remove button-reset class after a delay
+      setTimeout(() => {
+        if (btn) {
+          btn.classList.remove('button-reset');
+        }
+      }, 100);
     }
     
     // CRITICAL: Switch to Play slide (index 0) AFTER reset to prevent Stats CTA animation
