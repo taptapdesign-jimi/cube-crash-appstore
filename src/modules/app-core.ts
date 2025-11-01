@@ -2089,15 +2089,19 @@ function restartGame(){
     console.error('❌ EDGE CASE: Error in force reset:', error);
   }
   
-  // Rebuild board WITHOUT calling layout
+  // Rebuild board
   console.log('🔄 RESTART: About to call rebuildBoard()...');
   rebuildBoard();
   console.log('✅ RESTART: rebuildBoard() completed');
   
+  // CRITICAL: Call layout to restart idle bounce and position everything
+  console.log('🔄 RESTART: Calling layout() to restart idle bounce...');
+  layout();
+  console.log('✅ RESTART: layout() completed');
+  
   // Reinitialize background layer if it was lost
   if (!backgroundLayer) {
     console.log('🔄 RESTART: Reinitializing background layer...');
-    layout();
     initializeBackgroundLayer();
     console.log('✅ RESTART: Background layer reinitialized');
   }
