@@ -442,8 +442,9 @@ export async function boot(){
     }
   }
   
-  await ensureFonts();
-
+  // Fonts are already loaded via CSS @font-face in index.html
+  // No need to load fonts dynamically - PIXI will use CSS fonts automatically
+  
   // drag
   const ret = installDrag({
     app, board, TILE,
