@@ -470,6 +470,16 @@ initializeApp().catch((error: Error) => {
       isPaused: false
     });
     
+    // CRITICAL: Reset slider to slide 0 (first slide) before entry animation
+    console.log('🎯 Resetting slider to slide 0...');
+    if (sliderManager) {
+      sliderManager.setCurrentSlide(0);
+      console.log('✅ Slider reset to slide 0');
+    } else {
+      console.warn('⚠️ SliderManager not found, trying gameState...');
+      gameState.setState({ currentSlide: 0 });
+    }
+    
     console.log('✅ Game state reset - homepage should be visible now');
     
     // Step 3: Play homepage entry animation
