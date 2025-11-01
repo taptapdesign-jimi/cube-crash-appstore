@@ -249,17 +249,46 @@
 }
 
 .collectibles-debug-controls {
-  margin: 24px auto calc(32px + env(safe-area-inset-bottom, 0px));
+  position: fixed;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  width: min(260px, 100%);
+  flex-direction: row;
+  gap: 16px;
+  width: auto;
+  z-index: 10000;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 12px 20px;
+  border-radius: 32px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
 }
 
 .collectibles-debug-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  background: var(--collectibles-orange);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.collectibles-debug-btn:hover {
+  background: #d6613a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(232, 115, 74, 0.4);
+}
+
+.collectibles-debug-btn:active {
+  transform: translateY(0);
 }
 
 .collectible-card-wrapper {

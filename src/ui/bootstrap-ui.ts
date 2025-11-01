@@ -181,7 +181,7 @@ function renderStats(root: HTMLElement): void {
 
 function renderCollectibles(root: HTMLElement): void {
   if (document.getElementById('collectibles-screen')) return;
-  renderCollectiblesScreen(root, { showDebugControls: false });
+  renderCollectiblesScreen(root, { showDebugControls: true });
 }
 
 function renderMenu(root: HTMLElement): void {
