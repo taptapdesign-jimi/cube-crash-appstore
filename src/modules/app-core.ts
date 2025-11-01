@@ -2638,6 +2638,11 @@ async function loadGameState() {
     updateHUD();
     resetWildProgress(wildMeter, true);
     
+    // CRITICAL: Set _userMadeMove flag to true after loading saved game
+    // This ensures that any future moves after Continue will trigger save
+    window._userMadeMove = true;
+    console.log('✅ Set _userMadeMove = true after loading saved game state');
+    
     // Update ghost visibility after loading game state
     if (typeof window.updateGhostVisibility === 'function') {
       window.updateGhostVisibility();
