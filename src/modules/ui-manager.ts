@@ -207,13 +207,11 @@ class UIManager {
   // Handle collectibles button click
   private handleCollectiblesClick(event: Event): void {
     event.preventDefault();
-    console.log('🎁 Collectibles button clicked - handler fired');
     logger.info('🎁 Collectibles button clicked');
     
     // NO RESET - let :active work normally
     
     // Show collectibles screen
-    console.log('🎁 Calling showCollectiblesScreen()...');
     this.showCollectiblesScreen();
   }
   
@@ -631,21 +629,15 @@ class UIManager {
   
   // Show collectibles screen
   showCollectiblesScreen(): void {
-    console.log('🎁 showCollectiblesScreen() called');
     logger.info('🎁 Showing collectibles screen');
-    console.log('🎁 window.showCollectiblesScreen type:', typeof window.showCollectiblesScreen);
-    console.log('🎁 window.showCollectibles type:', typeof window.showCollectibles);
     try {
       const promise =
         window.showCollectiblesScreen?.() ??
         window.showCollectibles?.();
-      console.log('🎁 Promise returned:', promise);
       promise?.catch(error => {
-        console.error('❌ Failed to show collectibles screen:', error);
         logger.error('❌ Failed to show collectibles screen:', error);
       });
     } catch (error) {
-      console.error('❌ Failed to trigger collectibles screen:', error);
       logger.error('❌ Failed to trigger collectibles screen:', error);
     }
   }
