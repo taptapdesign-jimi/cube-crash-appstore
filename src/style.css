@@ -316,7 +316,7 @@ body{
 /* Force CTA positioning - move up by 4px */
 .slide-text {
   transform: translateY(-28px) !important;
-  margin-bottom: 40px !important;
+  margin-bottom: 24px !important;
 }
 
 /* Play button elastic spring bounce animation styles - 0.65 seconds */
