@@ -609,17 +609,6 @@ class UIManager {
         slide.classList.add('active');
       } else {
         slide.classList.remove('active');
-        // CRITICAL: Reset Stats button when Stats slide becomes inactive
-        if (index === 1) {
-          const statsBtn = slide.querySelector('#btn-stats');
-          if (statsBtn) {
-            const btn = statsBtn as HTMLElement;
-            btn.style.transform = '';
-            btn.style.transition = '';
-            btn.blur();
-            btn.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-          }
-        }
       }
     });
     navButtons.forEach((button, index) => {
@@ -642,7 +631,6 @@ class UIManager {
     }
     
     // CRITICAL: Also set up a MutationObserver to reset Stats button when Stats slide becomes active again
-    const statsSlide = document.querySelector('.slider-slide[data-slide="1"]');
     if (statsSlide) {
       const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
