@@ -25,14 +25,8 @@ export function getGridDimensions(): GridDimensions {
     
     // iPad and tablet (768px - 1024px)
     if (width >= 768 && width <= 1024) {
-      // iPad landscape: wider board (9 cols x 5 rows)
-      if (isLandscape) {
-        return { COLS: 9, ROWS: 5 };
-      }
-      // iPad portrait: default (6 cols x 8 rows)
-      else {
-        return { COLS: 6, ROWS: 8 };
-      }
+      // iPad: landscape-oriented wider board (9 cols x 5 rows)
+      return { COLS: 9, ROWS: 5 };
     }
     // Desktop and larger
     else if (width > 1024) {
@@ -50,11 +44,10 @@ export function getGridDimensions(): GridDimensions {
 const gridDims = getGridDimensions();
 export const COLS: number = gridDims.COLS;
 export const ROWS: number = gridDims.ROWS;
+logger.info(`🎮 Grid dimensions: ${COLS}x${ROWS} (screen: ${typeof window !== 'undefined' ? window.innerWidth : 'unknown'}px)`);
+
 export const TILE: number = 128;
 export const GAP: number = 20;
-
-// Debug log for grid dimensions
-logger.info(`🎮 Grid dimensions: ${COLS}x${ROWS} (screen: ${typeof window !== 'undefined' ? window.innerWidth : 'unknown'}px)`);
 
 // HUD
 export const HUD_H: number = 60;
