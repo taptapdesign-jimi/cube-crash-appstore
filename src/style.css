@@ -313,9 +313,9 @@ body{
   transition: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 } */
 
-/* Force CTA positioning - move up by 40px */
+/* Force CTA positioning - move down by 16px from -40px */
 .slide-text {
-  transform: translateY(-40px) !important;
+  transform: translateY(-24px) !important;
   margin-bottom: 22px !important;
 }
 
@@ -862,7 +862,7 @@ body{
 
 /* Slide-text needs to preserve translateY during scale animation */
 .slide-text.animate-exit {
-  transform: translateY(-40px) scale(0);
+  transform: translateY(-24px) scale(0);
 }
 
 /* Enter animation classes - scale up from 0, preserve translateY for slide-text */
@@ -874,7 +874,7 @@ body{
 
 /* Slide-text needs to preserve translateY during scale animation */
 .slide-text.animate-enter {
-  transform: translateY(-40px) scale(1);
+  transform: translateY(-24px) scale(1);
 }
 
 /* Initial state for enter animation - scale 0, no transition */
@@ -885,7 +885,7 @@ body{
 
 /* Slide-text needs to preserve translateY during initial state */
 .slide-text.animate-enter-initial {
-  transform: translateY(-40px) scale(0);
+  transform: translateY(-24px) scale(0);
 }
 
 /* Reset state - remove all animation classes */
@@ -897,7 +897,7 @@ body{
 
 /* Slide-text needs to preserve translateY in reset */
 .slide-text.animate-reset {
-  transform: translateY(-40px) scale(1);
+  transform: translateY(-24px) scale(1);
 }
 
 /* Dramatic click effect for all bottom sheet CTA buttons */
