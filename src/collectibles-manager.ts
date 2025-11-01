@@ -369,7 +369,7 @@ class CollectiblesManager {
 
     const badge = document.createElement('span');
     badge.className = 'collectible-rarity-badge';
-    badge.textContent = `${numberStr} ${rarityLabel}`;
+    badge.innerHTML = `<span class="badge-number">${numberStr}</span> ${rarityLabel}`;
     badge.setAttribute('aria-hidden', 'true');
     cardDiv.appendChild(badge);
 

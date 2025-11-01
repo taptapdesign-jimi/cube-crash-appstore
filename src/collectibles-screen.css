@@ -339,7 +339,8 @@
 .collectible-rarity-badge {
   position: absolute;
   top: 18px;
-  left: 10px;
+  left: 50%;
+  transform: translateX(-50%);
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
@@ -351,6 +352,11 @@
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
   pointer-events: none;
   z-index: 2;
+  white-space: nowrap;
+}
+
+.collectible-rarity-badge .badge-number {
+  font-weight: 800;
 }
 
 .collectible-card.common .collectible-rarity-badge {
@@ -445,9 +451,19 @@
   pointer-events: none;
 }
 
+.collectible-card.flip-reveal-prep .collectible-rarity-badge {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
 .collectible-card.flip-reveal-prep.flip-reveal-play {
   transform: rotateY(0deg);
   box-shadow: 0 12px 26px var(--collectibles-card-shadow);
+}
+
+.collectible-card.flip-reveal-prep.flip-reveal-play .collectible-rarity-badge {
+  opacity: 1;
+  transition: opacity 0.2s ease 0.65s;
 }
 
 @keyframes collectibleUnlock {
