@@ -932,6 +932,12 @@ body{
   perspective: none !important; /* Prevent 3D rotation issues */
 }
 
+/* Prevent ::before and ::after pseudo-elements from rotating during animation */
+.slide-button.animate-enter::before,
+.slide-button.animate-enter::after {
+  transform: none !important; /* Remove all 3D transforms during animation */
+}
+
 /* Slide-text needs to preserve translateY during scale animation */
 .slide-text.animate-enter {
   animation: enterWithBounceAndTranslate 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards !important;
@@ -957,6 +963,12 @@ body{
   transform: scale(0) !important;
   transform-style: flat !important; /* Prevent 3D rotation issues */
   perspective: none !important; /* Prevent 3D rotation issues */
+}
+
+/* Prevent ::before and ::after pseudo-elements from rotating during initial state */
+.slide-button.animate-enter-initial::before,
+.slide-button.animate-enter-initial::after {
+  transform: none !important; /* Remove all 3D transforms during animation */
 }
 
 /* Slide-text needs to preserve translateY during initial state */
