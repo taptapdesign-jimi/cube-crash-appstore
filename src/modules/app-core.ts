@@ -641,8 +641,7 @@ export function layout(){
     sw = w * s;
     sh = h * s;
     boardX = IPAD_BOARD_PADDING; // Left edge flush with 40px padding
-    const centerY = hudBottom + availableHeight / 2;
-    boardY = Math.round(centerY - sh / 2 + 16); // Move board down by 16px (8px more than center)
+    boardY = Math.round(hudBottom); // Board starts immediately after HUD gap
   } else {
     // Mobile/Desktop: match HUD width
     availableWidth = vw - (HUD_PADDING * 2);
