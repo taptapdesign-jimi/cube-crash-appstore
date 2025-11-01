@@ -582,7 +582,7 @@ class UIManager {
         const focusTarget = statsScreen.querySelector('.stats-back-button') as HTMLElement | null;
         focusTarget?.focus();
       }, 100);
-    }, 420); // 120ms delay + 300ms animation = 420ms total
+    }, 770); // 120ms delay + 650ms animation = 770ms total (was 420ms, increased by 350ms)
   }
   
   // Hide stats screen with enter animation

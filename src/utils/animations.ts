@@ -164,7 +164,7 @@ export const animateSliderExit = (): void => {
       activeTimeouts.delete(timeout);
       isAnimatingExit = false;
       logger.info('✅ Exit animation guard reset');
-    }, 420); // 120ms delay + 300ms animation = 420ms total
+    }, 770); // 120ms delay + 650ms animation = 770ms total (was 420ms, increased by 350ms)
     activeTimeouts.add(timeout);
     
   } catch (error) {
@@ -306,7 +306,7 @@ export const animateSliderEnter = (): void => {
       activeTimeouts.delete(timeout);
       isAnimatingEnter = false;
       logger.info('✅ Enter animation guard reset');
-    }, 420); // 120ms delay + 300ms animation = 420ms total
+    }, 720); // 120ms delay + 600ms animation = 720ms total (was 420ms, increased by 300ms)
     activeTimeouts.add(timeout);
     
   } catch (error) {
