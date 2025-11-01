@@ -1095,8 +1095,17 @@ function rebuildBoard(){
 async function animateBoardExit(){
   console.log('🎬 Starting board exit animation...');
   
+  // Use STATE.tiles directly (not the module-level const reference)
+  const tilesToAnimate = STATE.tiles || [];
+  console.log('🎯 Animate tiles:', tilesToAnimate.length, 'tiles');
+  
+  if (tilesToAnimate.length === 0) {
+    console.warn('⚠️ No tiles to animate - skipping exit animation');
+    return Promise.resolve();
+  }
+  
   // Play sweetPopOut with onHalf callback for HUD rise
-  return sweetPopOut(tiles, {
+  return sweetPopOut(tilesToAnimate, {
     onHalf: () => {
       console.log('🎯 50% tiles exited - triggering HUD rise');
       try { 
