@@ -193,9 +193,12 @@ class CollectiblesManager {
   }
 
   async showCollectibles(options?: CollectiblesShowOptions): Promise<void> {
+    console.log('🎁 showCollectibles method called in CollectiblesManager');
     logger.info('🎁 showCollectibles method called');
     const screen = document.getElementById('collectibles-screen');
+    console.log('🎁 collectibles-screen element found:', !!screen);
     if (!screen) {
+      console.error('❌ collectibles-screen element not found in DOM');
       logger.error('❌ collectibles-screen element not found');
       return;
     }
@@ -206,21 +209,25 @@ class CollectiblesManager {
       logger.warn('⚠️ Collectibles assets preload encountered an issue:', error);
     }
     
+    console.log('🎁 Removing hidden class from collectibles-screen');
     screen.classList.remove('hidden');
     logger.info('🎁 Removed hidden class');
     
     // Trigger animation
     requestAnimationFrame(() => {
+      console.log('🎁 Adding show class to collectibles-screen');
       screen.classList.add('show');
       logger.info('🎁 Added show class');
     });
     
+    console.log('🎁 Rendering cards...');
     this.renderCards();
     this.updateCounters();
     const scrollable = document.querySelector('#collectibles-screen .collectibles-scrollable') as HTMLElement;
     if (scrollable) {
       scrollable.scrollTop = 0;
     }
+    console.log('🎁 Cards rendered and counters updated');
     logger.info('🎁 Cards rendered and counters updated');
     this.triggerPendingFlipAnimations();
     this.focusTargetCollectible(options);
@@ -313,8 +320,12 @@ class CollectiblesManager {
 
   private renderCategory(category: keyof CollectiblesData): void {
     const container = document.getElementById(`${category}-cards`);
-    if (!container) return;
+    if (!container) {
+      console.warn(`⚠️ Container ${category}-cards not found`);
+      return;
+    }
     
+    console.log(`🎁 Rendering ${category} category, ${this.collectiblesData[category].length} cards`);
     container.innerHTML = '';
 
     this.collectiblesData[category].forEach((card, index) => {
