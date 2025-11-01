@@ -21,18 +21,19 @@ export function getGridDimensions(): GridDimensions {
   if (typeof window !== 'undefined') {
     const width = window.innerWidth;
     const height = window.innerHeight;
-    const isLandscape = width > height;
     
-    // iPad and tablet (768px - 1024px)
-    if (width >= 768 && width <= 1024) {
+    // iPad and tablet: detect by width range
+    // iPad landscape: 1024x768, 1366x1024, etc.
+    // iPad portrait: 768x1024, 834x1194, etc.
+    if (width >= 768 && width <= 1400) {
       // iPad: landscape-oriented wider board (9 cols x 5 rows)
       return { COLS: 9, ROWS: 5 };
     }
-    // Desktop and larger
-    else if (width > 1024) {
+    // Desktop and larger (> 1400px)
+    else if (width > 1400) {
       return { COLS: 5, ROWS: 9 };
     }
-    // Mobile (default)
+    // Mobile (default) < 768px
     else {
       return { COLS: 5, ROWS: 9 };
     }
@@ -44,7 +45,16 @@ export function getGridDimensions(): GridDimensions {
 const gridDims = getGridDimensions();
 export const COLS: number = gridDims.COLS;
 export const ROWS: number = gridDims.ROWS;
-logger.info(`🎮 Grid dimensions: ${COLS}x${ROWS} (screen: ${typeof window !== 'undefined' ? window.innerWidth : 'unknown'}px)`);
+
+// Debug log with detailed screen info
+if (typeof window !== 'undefined') {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const isLandscape = width > height;
+  logger.info(`🎮 Grid dimensions: ${COLS}x${ROWS} (screen: ${width}x${height}, landscape: ${isLandscape})`);
+} else {
+  logger.info(`🎮 Grid dimensions: ${COLS}x${ROWS} (server-side)`);
+}
 
 export const TILE: number = 128;
 export const GAP: number = 20;
