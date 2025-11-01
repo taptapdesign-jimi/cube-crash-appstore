@@ -924,6 +924,14 @@ body{
   animation: enterWithBounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards !important;
 }
 
+/* Ensure slide-button also animates - NO 3D transforms */
+.slide-button.animate-enter {
+  will-change: transform !important;
+  animation: enterWithBounce 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards !important;
+  transform-style: flat !important; /* Prevent 3D rotation issues */
+  perspective: none !important; /* Prevent 3D rotation issues */
+}
+
 /* Slide-text needs to preserve translateY during scale animation */
 .slide-text.animate-enter {
   animation: enterWithBounceAndTranslate 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards !important;
@@ -941,6 +949,14 @@ body{
 #independent-nav.animate-enter-initial {
   transition: none !important;
   transform: scale(0) !important;
+}
+
+/* Ensure slide-button also starts from scale 0 - NO 3D transforms */
+.slide-button.animate-enter-initial {
+  transition: none !important;
+  transform: scale(0) !important;
+  transform-style: flat !important; /* Prevent 3D rotation issues */
+  perspective: none !important; /* Prevent 3D rotation issues */
 }
 
 /* Slide-text needs to preserve translateY during initial state */
