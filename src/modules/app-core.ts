@@ -621,6 +621,14 @@ export function layout(){
     hudBottom -= 56;
   }
   
+  // Raise HUD by additional 40px on iPhone (in percentages)
+  if (isMobile && !isIPad) {
+    const additionalOffset = Math.round(vh * 0.047); // ~40px on iPhone 13 (844px height)
+    safeTop -= additionalOffset;
+    hudBottom -= additionalOffset;
+    console.log('📱 iPhone: Raised HUD by', additionalOffset, 'px (4.7% of vh)');
+  }
+  
   const BOARD_NUDGE_PX = 8; // original board nudge (was 4)
   
   // Scale board to fit screen width
