@@ -573,18 +573,18 @@ class UIManager {
     
     // REMOVED: Nuclear option not needed anymore - Stats button now has same classes as Play
     
-    // CRITICAL: Switch to Play slide (index 0) AFTER reset to prevent Stats CTA animation
+    // CRITICAL: Switch to Stats slide (index 1) to show Stats slide after exiting Stats screen
     const slides = document.querySelectorAll('.slider-slide');
     const navButtons = document.querySelectorAll('.independent-nav-button');
     slides.forEach((slide, index) => {
-      if (index === 0) {
+      if (index === 1) {
         slide.classList.add('active');
       } else {
         slide.classList.remove('active');
       }
     });
     navButtons.forEach((button, index) => {
-      if (index === 0) {
+      if (index === 1) {
         button.classList.add('active');
       } else {
         button.classList.remove('active');
