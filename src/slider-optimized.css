@@ -217,7 +217,7 @@
   align-items: center;
   justify-content: center;
   line-height: 1; /* avoid baseline shifts */
-  margin-top: 24px !important;
+  margin-top: 28px !important;
 }
 
 /* Navigation Icons */
