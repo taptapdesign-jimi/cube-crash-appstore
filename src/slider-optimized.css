@@ -186,7 +186,7 @@
   text-align: center;
   z-index: 3;
   position: relative;
-  margin-bottom: 22px !important; /* Reset to original */
+  margin-bottom: 16px !important; /* 16px gap between text and CTA */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -217,7 +217,7 @@
   align-items: center;
   justify-content: center;
   line-height: 1; /* avoid baseline shifts */
-  margin-top: 24px !important; /* 24px gap between text and CTA (8px + 16px) */
+  margin-top: 0px !important; /* 0px gap - margin-bottom handles spacing */
 }
 
 /* Navigation Icons */
