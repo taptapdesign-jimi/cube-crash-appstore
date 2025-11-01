@@ -410,6 +410,10 @@
   border-color: rgba(233, 116, 74, 0.38);
 }
 
+.collectible-card.unlocked .collectible-rarity-badge {
+  display: none;
+}
+
 /* Legendary rarity indicator (non-color cue) */
 .collectible-card.legendary.unlocked::after {
   content: '⭐';
