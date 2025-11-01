@@ -420,12 +420,12 @@
 /* iPad Optimizations */
 @media screen and (min-width: 768px) and (max-width: 1400px) {
   .hero-container {
-    width: 461px;  /* 512px * 0.9 = 461px (60% increase, then 10% decrease) */
-    height: 461px; /* 512px * 0.9 = 461px */
+    width: 484px;  /* 461px * 1.05 = 484px */
+    height: 484px; /* 461px * 1.05 = 484px */
   }
   
   #home-logo {
-    width: min(461px, 80vw); /* 512px * 0.9 = 461px */
+    width: min(484px, 80vw); /* 461px * 1.05 = 484px */
   }
 }
 
