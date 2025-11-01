@@ -306,7 +306,7 @@ export const animateSliderEnter = (): void => {
       activeTimeouts.delete(timeout);
       isAnimatingEnter = false;
       logger.info('✅ Enter animation guard reset');
-    }, 720); // 120ms delay + 600ms animation = 720ms total (was 420ms, increased by 300ms)
+    }, 770); // 120ms delay + 650ms animation = 770ms total (matches exit animation)
     activeTimeouts.add(timeout);
     
   } catch (error) {
@@ -333,25 +333,26 @@ function startEnterAnimationSequence(): void {
     const homeLogo = document.querySelector('#home-logo'); // Logo is shared, not per-slide
     const independentNav = document.getElementById('independent-nav'); // Navigation is shared
     
-    // CARTOONISH PROCEDURAL SEQUENCE: 1. Hero → 2. CTA → 3. Text → 4. Logo → 5. Navigation LAST
+    // COMIC POP-IN PROCEDURAL SEQUENCE (REVERSE of exit): Nav → Logo → Text → CTA → Hero
+    // Last element that exits is first to enter!
     
-    // STEP 1: Hero image FIRST (0ms delay)
-    if (heroContainer) {
-      reverseBounce(heroContainer as HTMLElement, 0);
-      logger.info('🖼️ Step 1: Hero image cartoonish bounce - FIRST');
+    // STEP 1: Navigation FIRST (0ms delay) - was last to exit
+    if (independentNav) {
+      reverseBounce(independentNav as HTMLElement, 0);
+      logger.info('🎯 Step 1: Navigation cartoonish bounce - FIRST (reverse of exit)');
     } else {
-      logger.warn('⚠️ Hero container not found in active slide');
+      logger.warn('⚠️ Navigation not found');
     }
     
-    // STEP 2: CTA button SECOND (30ms delay - right after Hero)
-    if (slideButton) {
-      reverseBounce(slideButton as HTMLElement, 30);
-      logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND');
+    // STEP 2: Home logo SECOND (30ms delay)
+    if (homeLogo) {
+      reverseBounce(homeLogo as HTMLElement, 30);
+      logger.info('🎨 Step 2: Home logo cartoonish bounce - SECOND');
     } else {
-      logger.warn('⚠️ CTA button not found in active slide');
+      logger.warn('⚠️ Home logo not found');
     }
     
-    // STEP 3: Slide text THIRD (60ms delay - right after CTA)
+    // STEP 3: Slide text THIRD (60ms delay)
     if (slideText) {
       reverseBounce(slideText as HTMLElement, 60);
       logger.info('📝 Step 3: Slide text cartoonish bounce - THIRD');
@@ -359,20 +360,20 @@ function startEnterAnimationSequence(): void {
       logger.warn('⚠️ Slide text not found in active slide');
     }
     
-    // STEP 4: Home logo FOURTH (90ms delay)
-    if (homeLogo) {
-      reverseBounce(homeLogo as HTMLElement, 90);
-      logger.info('🎨 Step 4: Home logo cartoonish bounce - FOURTH');
+    // STEP 4: CTA button FOURTH (90ms delay)
+    if (slideButton) {
+      reverseBounce(slideButton as HTMLElement, 90);
+      logger.info('🔘 Step 4: CTA button cartoonish bounce - FOURTH');
     } else {
-      logger.warn('⚠️ Home logo not found');
+      logger.warn('⚠️ CTA button not found in active slide');
     }
     
-    // STEP 5: Navigation LAST (120ms delay - finishes at 420ms)
-    if (independentNav) {
-      reverseBounce(independentNav as HTMLElement, 120);
-      logger.info('🎯 Step 5: Navigation cartoonish bounce - LAST');
+    // STEP 5: Hero image LAST (120ms delay) - was first to exit
+    if (heroContainer) {
+      reverseBounce(heroContainer as HTMLElement, 120);
+      logger.info('🖼️ Step 5: Hero image cartoonish bounce - LAST (reverse of exit)');
     } else {
-      logger.warn('⚠️ Navigation not found');
+      logger.warn('⚠️ Hero container not found in active slide');
     }
     
     // CRITICAL: After all animations complete, ensure all elements are at final state
@@ -409,7 +410,7 @@ function startEnterAnimationSequence(): void {
       });
       
       logger.info('✅ All slider elements set to final state (scale(1) only)');
-    }, 420); // 120ms delay + 300ms animation = 420ms total
+    }, 770); // 120ms delay + 650ms animation = 770ms total (matches exit)
     activeTimeouts.add(finalTimeout);
     
     logger.info('✅ Reverse cartoonish bounce enter animation started');
@@ -420,41 +421,42 @@ function startEnterAnimationSequence(): void {
 
 // Legacy fallback for enter animation when no active slide is found
 function startEnterAnimationSequenceLegacy(): void {
-  // STEP 1: Hero image FIRST (0ms delay)
-  const heroContainer = document.querySelector('.hero-container');
-  if (heroContainer) {
-    reverseBounce(heroContainer as HTMLElement, 0);
-    logger.info('🖼️ Step 1: Hero image cartoonish bounce - FIRST (legacy)');
+  // COMIC POP-IN PROCEDURAL SEQUENCE (REVERSE of exit): Nav → Logo → Text → CTA → Hero
+  
+  // STEP 1: Navigation FIRST (0ms delay) - was last to exit
+  const independentNav = document.getElementById('independent-nav');
+  if (independentNav) {
+    reverseBounce(independentNav as HTMLElement, 0);
+    logger.info('🎯 Step 1: Navigation cartoonish bounce - FIRST (legacy, reverse of exit)');
   }
   
-  // STEP 2: CTA button SECOND (30ms delay - right after Hero)
-  const slideButton = document.querySelector('.slide-button') || document.getElementById('btn-home');
-  if (slideButton) {
-    reverseBounce(slideButton as HTMLElement, 30);
-    logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND (legacy)');
+  // STEP 2: Home logo SECOND (30ms delay)
+  const homeLogo = document.querySelector('#home-logo');
+  if (homeLogo) {
+    reverseBounce(homeLogo as HTMLElement, 30);
+    logger.info('🎨 Step 2: Home logo cartoonish bounce - SECOND (legacy)');
   }
   
-  // STEP 3: Slide text THIRD (60ms delay - right after CTA)
+  // STEP 3: Slide text THIRD (60ms delay)
   const slideText = document.querySelector('.slide-text');
   if (slideText) {
     reverseBounce(slideText as HTMLElement, 60);
     logger.info('📝 Step 3: Slide text cartoonish bounce - THIRD (legacy)');
   }
   
-  // STEP 4: Home logo FOURTH (90ms delay)
-  const homeLogo = document.querySelector('#home-logo');
-  if (homeLogo) {
-    reverseBounce(homeLogo as HTMLElement, 90);
-    logger.info('🎨 Step 4: Home logo cartoonish bounce - FOURTH (legacy)');
+  // STEP 4: CTA button FOURTH (90ms delay)
+  const slideButton = document.querySelector('.slide-button') || document.getElementById('btn-home');
+  if (slideButton) {
+    reverseBounce(slideButton as HTMLElement, 90);
+    logger.info('🔘 Step 4: CTA button cartoonish bounce - FOURTH (legacy)');
   }
   
-  // STEP 5: Navigation LAST (120ms delay)
-  const independentNav = document.getElementById('independent-nav');
-  if (independentNav) {
-    reverseBounce(independentNav as HTMLElement, 120);
-    logger.info('🎯 Step 5: Navigation cartoonish bounce - LAST (legacy)');
+  // STEP 5: Hero image LAST (120ms delay) - was first to exit
+  const heroContainer = document.querySelector('.hero-container');
+  if (heroContainer) {
+    reverseBounce(heroContainer as HTMLElement, 120);
+    logger.info('🖼️ Step 5: Hero image cartoonish bounce - LAST (legacy, reverse of exit)');
   }
-  
 
 };
 
