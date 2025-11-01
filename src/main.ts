@@ -492,10 +492,8 @@ initializeApp().catch((error: Error) => {
       console.log('⏱️ Time tracking stopped');
     }
     
-    // Clear saved game
-    localStorage.removeItem('cc_saved_game');
-    localStorage.removeItem('cubeCrash_gameState');
-    logger.info('🗑️ Cleared saved game - next play will start fresh');
+    // NOTE: Saved game state is now handled in end-run-modal.ts
+    // Only clear if user made no moves; otherwise keep state for resume
     
     // Hide app element
     uiManager.hideApp();

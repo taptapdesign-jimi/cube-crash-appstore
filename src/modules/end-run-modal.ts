@@ -154,13 +154,20 @@ function createModal(): HTMLElement {
         return;
       }
       
-      // Clear saved game state when exiting
+      // Clear saved game state ONLY if user hasn't made any moves
+      // If user made moves (stack/merge), the state is already saved and should be kept
       try {
-        localStorage.removeItem('cc_saved_game');
-        localStorage.removeItem('cubeCrash_gameState');
-        console.log('✅ end-run-modal: Cleared both saved game states on exit');
+        const userMadeMove = (window as any)._userMadeMove;
+        if (!userMadeMove) {
+          console.log('💾 User made no moves - clearing saved game state');
+          localStorage.removeItem('cc_saved_game');
+          localStorage.removeItem('cubeCrash_gameState');
+          console.log('✅ end-run-modal: Cleared both saved game states on exit (no moves made)');
+        } else {
+          console.log('💾 User made moves - keeping saved game state for resume');
+        }
       } catch (error) {
-        console.warn('⚠️ end-run-modal: Failed to clear saved game state on exit:', error);
+        console.warn('⚠️ end-run-modal: Failed to check/clear saved game state on exit:', error);
       }
       if ((window as any).exitToMenu) {
         (window as any).exitToMenu();
