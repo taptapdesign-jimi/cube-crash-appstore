@@ -1095,6 +1095,14 @@ function rebuildBoard(){
 async function animateBoardExit(){
   console.log('🎬 Starting board exit animation...');
   
+  // CRITICAL: Stop tile idle bounce before exit animation (prevents new smoke bubbles)
+  try {
+    TILE_IDLE_BOUNCE.stop();
+    console.log('✅ Board exit: Tile idle bounce stopped');
+  } catch (e) {
+    console.warn('⚠️ Board exit: Error stopping tile idle bounce:', e);
+  }
+  
   // CRITICAL: Cleanup smoke bubbles immediately before exit animation
   try {
     if (typeof HUD.cleanupSmokeBubbles === 'function') {
