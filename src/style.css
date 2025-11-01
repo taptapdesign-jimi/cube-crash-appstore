@@ -2353,10 +2353,11 @@ body{
   }
 }
 
-@media screen and (min-width: 768px) and (max-width: 1024px) {
+@media screen and (min-width: 768px) and (max-width: 1400px) {
   /* Ensure slider CTA is same width as bottom sheet buttons on iPad */
   .slide-button.tap-scale.menu-btn-primary {
-    max-width: 249px !important;
+    max-width: 349px !important;  /* 249px * 1.4 = 349px */
+    height: 77px !important;       /* 64px * 1.2 = 77px */
   }
   
   .resume-bottom-sheet {
