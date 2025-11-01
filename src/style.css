@@ -121,7 +121,7 @@ body{
   font-size: 80px;
   font-weight: bold;
   color: #DB9C77;
-  font-family: "LT Crow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
+  font-family: "LTCrow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
   background: transparent;
   position: relative;
   z-index: 2;
@@ -132,7 +132,7 @@ body{
   font-weight: bold;
   color: #DB9C77;
   margin-bottom: 0;
-  font-family: "LT Crow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
+  font-family: "LTCrow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
 }
 
 .loading-percentage::after {
@@ -140,7 +140,7 @@ body{
   font-size: 42px;
   font-weight: bold;
   color: #DB9C77;
-  font-family: "LT Crow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
+  font-family: "LTCrow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
 }
 
 /* Loading bar container */
@@ -612,7 +612,7 @@ body{
 
 /* Slide tagline - subtitle text on sliders */
 .slide-tagline {
-  font-family: "LT Crow", system-ui, -apple-system, sans-serif;
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   font-size: 20px;
   font-weight: 600; /* Semi-bold text */
   line-height: 28px; /* lineSpacing(28) from SwiftUI */

@@ -197,7 +197,7 @@
 
 /* Slide tagline text styling based on SwiftUI */
 .slide-tagline {
-  font-family: "LT Crow", system-ui, -apple-system, sans-serif;
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
   font-size: 20px;
   font-weight: 600; /* Semi-bold text */
   line-height: 28px; /* lineSpacing(28) from SwiftUI */
