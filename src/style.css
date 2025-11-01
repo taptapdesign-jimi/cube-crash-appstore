@@ -857,9 +857,18 @@ body{
 /* ===== EXIT/ENTER ANIMATION CLASSES ===== */
 /* Exit animation classes - scale down to 0, preserve translateY for slide-text and slide-button */
 .animate-exit {
-  will-change: transform;
-  transition: transform 0.3s cubic-bezier(0.68, -0.6, 0.32, 1.6);
-  transform: scale(0);
+  will-change: transform !important;
+  transition: transform 0.3s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  transform: scale(0) !important;
+}
+
+/* Ensure hero-container, logo, and navigation also animate */
+.hero-container.animate-exit,
+#home-logo.animate-exit,
+#independent-nav.animate-exit {
+  will-change: transform !important;
+  transition: transform 0.3s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  transform: scale(0) !important;
 }
 
 /* Slide-text needs to preserve translateY during scale animation */
@@ -869,9 +878,18 @@ body{
 
 /* Enter animation classes - scale up from 0, preserve translateY for slide-text */
 .animate-enter {
-  will-change: transform;
-  transition: transform 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  transform: scale(1);
+  will-change: transform !important;
+  transition: transform 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+  transform: scale(1) !important;
+}
+
+/* Ensure hero-container, logo, and navigation also animate */
+.hero-container.animate-enter,
+#home-logo.animate-enter,
+#independent-nav.animate-enter {
+  will-change: transform !important;
+  transition: transform 0.25s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+  transform: scale(1) !important;
 }
 
 /* Slide-text needs to preserve translateY during scale animation */
@@ -882,7 +900,15 @@ body{
 /* Initial state for enter animation - scale 0, no transition */
 .animate-enter-initial {
   transition: none !important;
-  transform: scale(0);
+  transform: scale(0) !important;
+}
+
+/* Ensure hero-container, logo, and navigation also start from scale 0 */
+.hero-container.animate-enter-initial,
+#home-logo.animate-enter-initial,
+#independent-nav.animate-enter-initial {
+  transition: none !important;
+  transform: scale(0) !important;
 }
 
 /* Slide-text needs to preserve translateY during initial state */
