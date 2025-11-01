@@ -3929,9 +3929,11 @@ body:has(:root) .tile.wild-3d-glow {
 
 /* Force reset for buttons that should not have :active state after navigation */
 .primary-button.button-reset:active,
-.menu-btn-primary.button-reset:active {
-  transform: scale(1);
-  transition: none;
+.menu-btn-primary.button-reset:active,
+.slide-button.button-reset:active,
+.tap-scale.button-reset:active {
+  transform: scale(1) !important;
+  transition: none !important;
 }
 
 /* Apply secondary-button styling to all white buttons */
