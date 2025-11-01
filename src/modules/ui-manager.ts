@@ -211,8 +211,8 @@ class UIManager {
     
     // NO RESET - let :active work normally
     
-    // Show collectibles screen
-    this.showCollectiblesScreen();
+    // Play exit animation first, then show collectibles screen
+    this.showCollectiblesScreenWithAnimation();
   }
   
   // Handle settings button click
@@ -624,6 +624,78 @@ class UIManager {
     
     // Step 2: Play enter animation for Stats slide
     console.log('🎬 Playing enter animation for Stats slide');
+    animateSliderEnter();
+  }
+  
+  // Show collectibles screen with exit animation
+  private showCollectiblesScreenWithAnimation(): void {
+    logger.info('🎁 Showing collectibles screen - with exit animation');
+    
+    // CRITICAL: Switch to Collectibles slide (index 2) BEFORE animation so it animates the correct slide
+    const slides = document.querySelectorAll('.slider-slide');
+    const navButtons = document.querySelectorAll('.independent-nav-button');
+    slides.forEach((slide, index) => {
+      if (index === 2) {
+        slide.classList.add('active');
+      } else {
+        slide.classList.remove('active');
+      }
+    });
+    navButtons.forEach((button, index) => {
+      if (index === 2) {
+        button.classList.add('active');
+      } else {
+        button.classList.remove('active');
+      }
+    });
+    
+    // Step 1: Play exit animation for Collectibles slide
+    console.log('🎬 Step 1: Playing exit animation for Collectibles slide');
+    animateSliderExit();
+    
+    // Step 2: Wait for exit animation, then show collectibles screen
+    setTimeout(() => {
+      console.log('🎁 Step 2: Showing collectibles screen after exit animation');
+      
+      // Show collectibles screen after animation
+      this.showCollectiblesScreen();
+    }, 770); // 120ms delay + 650ms animation = 770ms total
+  }
+  
+  // Hide collectibles screen with enter animation
+  hideCollectiblesScreenWithAnimation(): void {
+    logger.info('🎁 Hiding collectibles screen - with enter animation');
+    
+    // Hide collectibles screen immediately
+    const hideCollectibles = window.hideCollectiblesScreen || window.hideCollectibles;
+    if (typeof hideCollectibles === 'function') {
+      hideCollectibles();
+      this.setNavigationVisibility(true);
+    }
+    
+    // CRITICAL: Switch to Collectibles slide (index 2) to show Collectibles slide after exiting Collectibles screen
+    const slides = document.querySelectorAll('.slider-slide');
+    const navButtons = document.querySelectorAll('.independent-nav-button');
+    slides.forEach((slide, index) => {
+      if (index === 2) {
+        slide.classList.add('active');
+      } else {
+        slide.classList.remove('active');
+      }
+    });
+    navButtons.forEach((button, index) => {
+      if (index === 2) {
+        button.classList.add('active');
+      } else {
+        button.classList.remove('active');
+      }
+    });
+    
+    // Show homepage QUIETLY first (no animations yet)
+    this.showHomepageQuietly();
+    
+    // Step 2: Play enter animation for Collectibles slide
+    console.log('🎬 Playing enter animation for Collectibles slide');
     animateSliderEnter();
   }
   

@@ -693,3 +693,8 @@ let gameStartTime: number | null = null;
     console.error('❌ Failed to update collectibles milestones:', error);
   }
 };
+
+// Export collectibles hide with animation
+(window as any).hideCollectiblesScreenWithAnimation = () => {
+  uiManager.hideCollectiblesScreenWithAnimation();
+};

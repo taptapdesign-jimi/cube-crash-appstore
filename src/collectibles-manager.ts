@@ -144,8 +144,11 @@ class CollectiblesManager {
     if (backBtn) {
       backBtn.addEventListener('click', () => {
         logger.info('🎁 Collectibles back button clicked');
-        logger.info('🎁 window.hideCollectiblesScreen type:', typeof window.hideCollectiblesScreen);
-        if (typeof window.hideCollectiblesScreen === 'function') {
+        // Try to use animated version first, fallback to non-animated
+        if (typeof (window as any).hideCollectiblesScreenWithAnimation === 'function') {
+          logger.info('🎁 Calling window.hideCollectiblesScreenWithAnimation()');
+          (window as any).hideCollectiblesScreenWithAnimation();
+        } else if (typeof window.hideCollectiblesScreen === 'function') {
           logger.info('🎁 Calling window.hideCollectiblesScreen()');
           window.hideCollectiblesScreen();
         } else {

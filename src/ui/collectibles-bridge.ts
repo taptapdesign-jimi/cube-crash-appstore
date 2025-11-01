@@ -6,6 +6,7 @@ type CollectiblesWindow = Window & {
   hideCollectibles?: () => Promise<void>;
   showCollectiblesScreen?: (options?: CollectiblesShowOptions) => Promise<void>;
   hideCollectiblesScreen?: () => Promise<void>;
+  hideCollectiblesScreenWithAnimation?: () => void;
   unlockCollectible?: (eventName: string) => Promise<void>;
   unlockCollectibleByNumber?: (num: number) => Promise<void>;
   hideCollectibleByNumber?: (num: number) => Promise<void>;
