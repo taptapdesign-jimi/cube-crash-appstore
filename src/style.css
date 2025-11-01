@@ -2358,6 +2358,8 @@ body{
   .slide-button.tap-scale.menu-btn-primary {
     max-width: 349px !important;  /* 249px * 1.4 = 349px */
     height: 77px !important;       /* 64px * 1.2 = 77px */
+    font-size: 28px !important;    /* 26px → 28px */
+    font-weight: 800 !important;   /* 700 → 800 */
   }
   
   .resume-bottom-sheet {
