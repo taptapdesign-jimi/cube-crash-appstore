@@ -615,6 +615,12 @@ export function layout(){
   
   const isIPad = vw >= 768 && vw <= 1400;
   
+  // Raise HUD by 16px on iPad
+  if (isIPad) {
+    safeTop -= 16;
+    hudBottom -= 16;
+  }
+  
   const BOARD_NUDGE_PX = 8; // original board nudge (was 4)
   
   // Scale board to fit screen width - match HUD width (vw - 48px for 24px SIDE padding)
