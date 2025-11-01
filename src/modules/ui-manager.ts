@@ -574,16 +574,34 @@ class UIManager {
     const statsCTA = document.querySelector('#btn-stats');
     if (statsCTA) {
       const btn = statsCTA as HTMLElement;
-      // Add reset class to prevent :active styles
+      console.log('🔧 Resetting Stats CTA button...');
+      
+      // Force button to stay at default scale(1) - no animations
+      btn.style.transform = 'scale(1) !important';
+      btn.style.transition = 'none !important';
+      
+      // Temporarily disable pointer events for very short time
+      btn.style.pointerEvents = 'none';
       btn.classList.add('button-reset');
-      btn.style.transform = '';
-      btn.style.transition = '';
-      btn.blur();
+
+      try { btn.blur(); } catch {}
+      
+      // Force reflow to apply styles
+      void btn.offsetHeight;
+      
       // Remove ALL animation classes that might conflict
       btn.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-      // Remove reset class after a short delay to allow CSS to apply
+      
       setTimeout(() => {
+        if (!btn) return;
         btn.classList.remove('button-reset');
+        btn.style.pointerEvents = '';
+        
+        // Ensure button stays at scale(1) - no automatic scaling
+        btn.style.transform = 'scale(1) !important';
+        btn.style.transition = 'none !important';
+        
+        console.log('✅ Stats CTA button reset complete');
       }, 100);
     }
     
