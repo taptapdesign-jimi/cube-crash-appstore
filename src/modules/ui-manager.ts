@@ -558,19 +558,34 @@ class UIManager {
     if (statsCTA) {
       console.log('🔧 Resetting Stats CTA button before slide switch...');
       const btn = statsCTA as HTMLElement;
-      btn.classList.add('button-reset'); // Add reset class to override :active
-      btn.style.transform = 'scale(1) !important'; // Force scale to 1
-      btn.style.transition = 'none !important'; // Disable transition
-      btn.blur(); // Remove focus state
-      btn.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-      console.log('✅ Stats CTA reset complete before slide switch');
       
-      // Remove button-reset class after a delay
+      // Force button to stay at default scale(1) - no animations
+      btn.style.transform = 'scale(1) !important';
+      btn.style.transition = 'none !important';
+      
+      // Temporarily disable pointer events for very short time
+      btn.style.pointerEvents = 'none';
+      btn.classList.add('button-reset');
+      
+      try { btn.blur(); } catch {}
+      
+      // Force reflow to apply styles
+      void btn.offsetHeight;
+      
+      // Remove ALL animation classes that might conflict
+      btn.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+      
       setTimeout(() => {
-        if (btn) {
-          btn.classList.remove('button-reset');
-        }
-      }, 100);
+        if (!btn) return;
+        btn.classList.remove('button-reset');
+        btn.style.pointerEvents = '';
+        
+        // Ensure button stays at scale(1) - no automatic scaling
+        btn.style.transform = 'scale(1) !important';
+        btn.style.transition = 'none !important';
+        
+        console.log('✅ Stats CTA reset complete before slide switch');
+      }, 50);
     }
     
     // CRITICAL: Switch to Play slide (index 0) AFTER reset to prevent Stats CTA animation
