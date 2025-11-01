@@ -594,12 +594,11 @@ class UIManager {
       
       setTimeout(() => {
         if (!btn) return;
-        btn.classList.remove('button-reset');
-        btn.style.pointerEvents = '';
-        
-        // Ensure button stays at scale(1) - no automatic scaling
+        // CRITICAL: Set inline styles BEFORE removing class
         btn.style.transform = 'scale(1) !important';
         btn.style.transition = 'none !important';
+        btn.classList.remove('button-reset');
+        btn.style.pointerEvents = '';
         
         console.log('✅ Stats CTA button reset complete');
       }, 100);
