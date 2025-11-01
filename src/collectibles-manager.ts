@@ -203,11 +203,8 @@ class CollectiblesManager {
       return;
     }
 
-    try {
-      await this.preloadImages();
-    } catch (error) {
-      logger.warn('⚠️ Collectibles assets preload encountered an issue:', error);
-    }
+    // Preload already happens in constructor, skip await to show screen immediately
+    // Images will load progressively in the background
     
     screen.classList.remove('hidden');
     logger.info('🎁 Removed hidden class');
