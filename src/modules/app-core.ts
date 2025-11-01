@@ -1113,6 +1113,27 @@ async function animateBoardExit(){
     console.warn('⚠️ Board exit: Error cleaning up smoke bubbles:', e);
   }
   
+  // CRITICAL: Hide ghost placeholders before exit animation
+  try {
+    if (backgroundLayer) {
+      backgroundLayer.visible = false;
+      console.log('✅ Board exit: Ghost placeholders hidden');
+    }
+    // Also hide if stored in window._ghostPlaceholders
+    if (window._ghostPlaceholders && Array.isArray(window._ghostPlaceholders)) {
+      window._ghostPlaceholders.forEach((row: any[]) => {
+        row.forEach((ghost: any) => {
+          if (ghost && typeof ghost.visible !== 'undefined') {
+            ghost.visible = false;
+          }
+        });
+      });
+      console.log('✅ Board exit: All ghost placeholders hidden via window._ghostPlaceholders');
+    }
+  } catch (e) {
+    console.warn('⚠️ Board exit: Error hiding ghost placeholders:', e);
+  }
+  
   // Use STATE.tiles directly (not the module-level const reference)
   const tilesToAnimate = STATE.tiles || [];
   console.log('🎯 Animate tiles:', tilesToAnimate.length, 'tiles');
