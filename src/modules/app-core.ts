@@ -617,15 +617,18 @@ export function layout(){
   const HUD_NUDGE_RATIO = -0.048; // raise HUD ≈ 24px more (scales with viewport height)
   const HUD_NUDGE_PX = Math.round(vh * HUD_NUDGE_RATIO);
   
-  // Only apply responsive offset on iPad (768px - 1024px)
-  const isIPad = vw >= 768 && vw <= 1024;
+  // Only apply responsive offset on iPad (768px - 1400px)
+  const isIPad = vw >= 768 && vw <= 1400;
   // Responsive offset: 44px on iPad (40px + 8px + 4px - 8px), scaled by viewport height
   const IPAD_OFFSET_PERCENT = isIPad ? 0.055 : 0; // 5.5% of viewport height on iPad (reduced by 8px)
   const IPAD_OFFSET = Math.round(vh * IPAD_OFFSET_PERCENT);
   
+  // Additional 16px offset for iPad landscape
+  const IPAD_LANDSCAPE_OFFSET = isIPad ? 16 : 0;
+  
   const BOARD_NUDGE_PX = 8; // original board nudge (was 4)
-  safeTop += HUD_NUDGE_PX + IPAD_OFFSET; // iPad gets responsive offset down, mobile stays original
-  hudBottom += HUD_NUDGE_PX + IPAD_OFFSET; // iPad gets responsive offset down, mobile stays original
+  safeTop += HUD_NUDGE_PX + IPAD_OFFSET + IPAD_LANDSCAPE_OFFSET; // iPad gets responsive offset down, mobile stays original
+  hudBottom += HUD_NUDGE_PX + IPAD_OFFSET + IPAD_LANDSCAPE_OFFSET; // iPad gets responsive offset down, mobile stays original
   
   // Scale board to fit screen width with 24px padding (equivalent to ~6% on mobile)
   const paddingPercent = 0.06; // 6% padding (equivalent to ~24px on iPhone 13)
