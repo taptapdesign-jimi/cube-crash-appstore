@@ -530,6 +530,24 @@ class UIManager {
   private showStatsScreenWithAnimation(): void {
     logger.info('📊 Showing stats screen - with exit animation');
     
+    // CRITICAL: Switch to Stats slide (index 1) BEFORE animation so it animates the correct slide
+    const slides = document.querySelectorAll('.slider-slide');
+    const navButtons = document.querySelectorAll('.independent-nav-button');
+    slides.forEach((slide, index) => {
+      if (index === 1) {
+        slide.classList.add('active');
+      } else {
+        slide.classList.remove('active');
+      }
+    });
+    navButtons.forEach((button, index) => {
+      if (index === 1) {
+        button.classList.add('active');
+      } else {
+        button.classList.remove('active');
+      }
+    });
+    
     // Step 1: Play exit animation for Stats slide
     console.log('🎬 Step 1: Playing exit animation for Stats slide');
     animateSliderExit();

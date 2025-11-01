@@ -604,12 +604,14 @@ body{
 
 /* Slide tagline - subtitle text on sliders */
 .slide-tagline {
-  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-family: "LT Crow", system-ui, -apple-system, sans-serif;
   font-size: 20px;
-  line-height: 1.3;
+  font-weight: 600; /* Semi-bold text */
+  line-height: 28px; /* lineSpacing(28) from SwiftUI */
   text-align: center;
-  color: #C4A896;
-  margin: 0 0 24px 0;
+  color: #CB9873; /* Updated text color */
+  margin: 0;
+  padding: 0;
 }
 
 /* Extra guard for small phones */
@@ -862,7 +864,7 @@ body{
 
 /* Slide-text needs to preserve translateY during scale animation */
 .slide-text.animate-exit {
-  transform: translateY(-28px) scale(0);
+  transform: translateY(-28px) scale(0) !important;
 }
 
 /* Enter animation classes - scale up from 0, preserve translateY for slide-text */
@@ -874,18 +876,18 @@ body{
 
 /* Slide-text needs to preserve translateY during scale animation */
 .slide-text.animate-enter {
-  transform: translateY(-28px) scale(1);
+  transform: translateY(-28px) scale(1) !important;
 }
 
 /* Initial state for enter animation - scale 0, no transition */
 .animate-enter-initial {
-  transition: none;
+  transition: none !important;
   transform: scale(0);
 }
 
 /* Slide-text needs to preserve translateY during initial state */
 .slide-text.animate-enter-initial {
-  transform: translateY(-28px) scale(0);
+  transform: translateY(-28px) scale(0) !important;
 }
 
 /* Reset state - remove all animation classes */
