@@ -636,8 +636,7 @@ export function layout(){
     // iPad: full width with 40px edge-to-edge board
     availableWidth = vw - (IPAD_BOARD_PADDING * 2);
     const widthScale = availableWidth / w;
-    const heightScale = availableHeight / h;
-    s = Math.min(widthScale, heightScale);
+    s = widthScale; // Force board to match availableWidth exactly
     
     sw = w * s;
     sh = h * s;
