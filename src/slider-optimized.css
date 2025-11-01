@@ -51,9 +51,11 @@
   width: 100vw;
   height: auto;
   padding: 0;
+  padding-bottom: 20px;
   position: relative;
   gap: 0;
   margin-top: -16px;
+  min-height: 100vh;
 }
 
 .hero-container {
@@ -413,12 +415,6 @@
   #home-logo {
     width: min(280px, 75vw);
   }
-}
-
-/* Ensure CTA and dots are visible */
-.slide-content {
-  min-height: 100vh;
-  padding-bottom: 20px !important; /* Reduced to bring CTA closer to divider */
 }
 
 /* Safe Area Support for iPhone */
