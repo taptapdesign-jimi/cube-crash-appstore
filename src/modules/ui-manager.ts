@@ -553,7 +553,19 @@ class UIManager {
       this.setNavigationVisibility(true);
     }
     
-    // CRITICAL: Switch to Play slide (index 0) BEFORE animations to prevent Stats CTA animation
+    // CRITICAL: Reset Stats button FIRST before switching slides
+    const statsCTA = document.getElementById('btn-stats');
+    if (statsCTA) {
+      console.log('🔧 Resetting Stats CTA button before slide switch...');
+      const btn = statsCTA as HTMLElement;
+      btn.style.transform = '';
+      btn.style.transition = '';
+      btn.blur();
+      btn.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+      console.log('✅ Stats CTA reset complete before slide switch');
+    }
+    
+    // CRITICAL: Switch to Play slide (index 0) AFTER reset to prevent Stats CTA animation
     const slides = document.querySelectorAll('.slider-slide');
     const navButtons = document.querySelectorAll('.independent-nav-button');
     slides.forEach((slide, index) => {
@@ -570,8 +582,6 @@ class UIManager {
         button.classList.remove('active');
       }
     });
-    
-    // NO RESET NEEDED - Stats button is simple primary-button now
     
     // Show homepage QUIETLY first (no animations yet)
     this.showHomepageQuietly();
