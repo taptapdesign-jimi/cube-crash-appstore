@@ -3927,17 +3927,7 @@ body:has(:root) .tile.wild-3d-glow {
   -webkit-tap-highlight-color: transparent !important;
 }
 
-/* NUCLEAR: Remove ALL animations from Stats button */
-#btn-stats,
-#btn-stats:active,
-#btn-stats:hover,
-#btn-stats:focus,
-#btn-stats:focus-visible,
-#btn-stats:focus-within {
-  transform: none !important;
-  transition: none !important;
-  -webkit-transform: none !important;
-}
+/* REMOVED: Stats button now has same classes as Play button */
 
 /* Force reset for buttons that should not have :active state after navigation */
 .primary-button.button-reset:active,

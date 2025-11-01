@@ -51,7 +51,7 @@ export function createStatsSlide(config: SlideConfig): HTMLElementConfig {
               {
                 tag: 'button',
                 id: 'btn-stats',
-                className: 'primary-button',
+                className: 'slide-button tap-scale menu-btn-primary',
                 text: 'Stats',
                 attributes: {
                   type: 'button',

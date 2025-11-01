@@ -147,10 +147,14 @@ class UIManager {
   
   // Reset all slider buttons to prevent :active state persistence
   private resetAllSliderButtons(): void {
+    console.log('🔧 DEBUG: resetAllSliderButtons called');
     // Get both old .slide-button AND new .primary-button elements
     const sliderButtons = document.querySelectorAll('.slider-slide .slide-button, .slider-slide .primary-button');
-    sliderButtons.forEach(button => {
+    console.log('🔧 DEBUG: Found', sliderButtons.length, 'slider buttons');
+    sliderButtons.forEach((button, index) => {
       const btn = button as HTMLElement;
+      console.log(`🔧 DEBUG: Resetting button ${index}:`, btn.id, 'classes:', btn.className);
+      
       // Force button to stay at default scale(1) - no animations
       btn.style.transform = 'scale(1) !important';
       btn.style.transition = 'none !important';
@@ -172,6 +176,8 @@ class UIManager {
         // Ensure button stays at scale(1) - no automatic scaling
         btn.style.transform = 'scale(1) !important';
         btn.style.transition = 'none !important';
+        
+        console.log(`🔧 DEBUG: Reset complete for button ${index}:`, btn.id);
       }, 50);
     });
     logger.info('🔧 All slider buttons reset');
@@ -568,38 +574,7 @@ class UIManager {
       this.setNavigationVisibility(true);
     }
     
-    // NUCLEAR OPTION: Remove and recreate Stats button to reset everything
-    const statsCTA = document.getElementById('btn-stats');
-    const statsSlide = document.querySelector('.slider-slide[data-slide="1"]');
-    if (statsCTA && statsSlide) {
-      console.log('🔧 NUCLEAR: Removing Stats button to reset everything...');
-      
-      // Find the button's parent
-      const buttonParent = statsCTA.parentElement;
-      if (buttonParent) {
-        // Remove the button completely
-        statsCTA.remove();
-        
-        // Create a fresh button
-        const newButton = document.createElement('button');
-        newButton.id = 'btn-stats';
-        newButton.className = 'primary-button';
-        newButton.textContent = 'Stats';
-        newButton.setAttribute('type', 'button');
-        newButton.setAttribute('aria-label', 'View Stats');
-        
-        // Add click handler
-        newButton.addEventListener('click', this.handleStatsClick.bind(this));
-        
-        // Insert the new button
-        buttonParent.appendChild(newButton);
-        
-        // Re-register in elements cache
-        this.elements.statsButton = newButton as HTMLButtonElement;
-        
-        console.log('✅ Stats button completely recreated');
-      }
-    }
+    // REMOVED: Nuclear option not needed anymore - Stats button now has same classes as Play
     
     // CRITICAL: Switch to Play slide (index 0) AFTER reset to prevent Stats CTA animation
     const slides = document.querySelectorAll('.slider-slide');
@@ -631,6 +606,7 @@ class UIManager {
     }
     
     // CRITICAL: Also set up a MutationObserver to reset Stats button when Stats slide becomes active again
+    const statsSlide = document.querySelector('.slider-slide[data-slide="1"]');
     if (statsSlide) {
       const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
