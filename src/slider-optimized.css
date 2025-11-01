@@ -383,7 +383,7 @@
   width: min(320px, 80vw);
   height: auto;
   margin-bottom: 20px;
-  margin-top: -30px;
+  margin-top: -38px; /* Moved up 8px (from -30px to -38px) */
   position: relative; /* ensure stacking context */
   z-index: 10;        /* draw above slider content lifted with negative margin */
   /* No idle animation */
