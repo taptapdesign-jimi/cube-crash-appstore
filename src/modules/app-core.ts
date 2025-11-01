@@ -1095,6 +1095,16 @@ function rebuildBoard(){
 async function animateBoardExit(){
   console.log('🎬 Starting board exit animation...');
   
+  // CRITICAL: Cleanup smoke bubbles immediately before exit animation
+  try {
+    if (typeof HUD.cleanupSmokeBubbles === 'function') {
+      HUD.cleanupSmokeBubbles();
+      console.log('✅ Board exit: Smoke bubbles cleaned up');
+    }
+  } catch (e) {
+    console.warn('⚠️ Board exit: Error cleaning up smoke bubbles:', e);
+  }
+  
   // Use STATE.tiles directly (not the module-level const reference)
   const tilesToAnimate = STATE.tiles || [];
   console.log('🎯 Animate tiles:', tilesToAnimate.length, 'tiles');
@@ -1962,6 +1972,16 @@ function restartGame(){
     }
     
     console.log('✅ RESTART GAME: All GSAP animations killed');
+    
+    // CRITICAL: Cleanup smoke bubbles before restart
+    try {
+      if (typeof HUD.cleanupSmokeBubbles === 'function') {
+        HUD.cleanupSmokeBubbles();
+        console.log('✅ RESTART GAME: Smoke bubbles cleaned up');
+      }
+    } catch (e) {
+      console.warn('⚠️ RESTART GAME: Error cleaning up smoke bubbles:', e);
+    }
   } catch (e) {
     console.warn('⚠️ RESTART GAME: Error killing GSAP animations:', e);
   }

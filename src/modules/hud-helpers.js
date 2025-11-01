@@ -514,6 +514,48 @@ export function playHudDrop({ duration = 0.8 } = {}){
   console.log('✅ PIXI HUD drop animation started');
 }
 
+// Helper function to cleanup all smoke bubbles before exit
+export function cleanupSmokeBubbles() {
+  try {
+    // Find wild container and kill its smoke interval
+    if (wild && wild.view) {
+      const wildContainer = wild.view;
+      if (wildContainer._smokeInterval) {
+        clearInterval(wildContainer._smokeInterval);
+        wildContainer._smokeInterval = null;
+        console.log('✅ Killed wild meter smoke interval');
+      }
+    }
+    
+    // Kill all smoke bubble GSAP animations on HUD stage
+    if (HUD_ROOT && HUD_ROOT.parent && HUD_ROOT.parent.children) {
+      const hudStage = HUD_ROOT.parent;
+      let removedCount = 0;
+      hudStage.children.forEach(child => {
+        // Check if it's a smoke bubble (has zIndex 2000 or is Graphics with small size)
+        if (child && child.zIndex === 2000) {
+          try {
+            gsap.killTweensOf(child);
+            if (child.parent) {
+              child.parent.removeChild(child);
+            }
+            child.destroy();
+            removedCount++;
+          } catch (e) {
+            // Ignore errors
+          }
+        }
+      });
+      if (removedCount > 0) {
+        console.log(`✅ Removed ${removedCount} smoke bubbles`);
+      }
+    }
+    console.log('✅ All smoke bubbles cleaned up');
+  } catch (e) {
+    console.warn('⚠️ Error cleaning up smoke bubbles:', e);
+  }
+}
+
 // Play HUD rise animation - exact reverse of playHudDrop
 export function playHudRise({ duration = 0.8 } = {}){
   if (!HUD_ROOT) {
@@ -524,6 +566,9 @@ export function playHudRise({ duration = 0.8 } = {}){
   // Safety: double-check HUD_ROOT is still valid
   try {
     const top = HUD_ROOT._dropTop ?? HUD_ROOT.y ?? 0;
+    
+    // CRITICAL: Kill all smoke bubbles and intervals before exit
+    cleanupSmokeBubbles();
     
     // Kill any existing tweens
     try { gsap.killTweensOf(HUD_ROOT); } catch {}
