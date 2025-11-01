@@ -884,13 +884,13 @@ body{
   transform: translateY(-28px) scale(0) !important;
 }
 
-/* Keyframes for enter animation with springy bounce: 0 → 1.05 → 1 */
+/* Keyframes for enter animation with springy bounce: 0 → 1.10 → 1 */
 @keyframes enterWithBounce {
   0% {
     transform: scale(0);
   }
   85% {
-    transform: scale(1.05);
+    transform: scale(1.10);
   }
   100% {
     transform: scale(1);
@@ -903,7 +903,7 @@ body{
     transform: translateY(-28px) scale(0);
   }
   85% {
-    transform: translateY(-28px) scale(1.05);
+    transform: translateY(-28px) scale(1.10);
   }
   100% {
     transform: translateY(-28px) scale(1);
