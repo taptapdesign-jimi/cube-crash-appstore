@@ -237,7 +237,7 @@
 
 .slider-nav-divider {
   position: absolute;
-  top: 48px; /* Moved down 24px (from 24px to 48px) */
+  top: 32px; /* Moved up 16px (from 48px to 32px) to get closer to nav icons */
   left: 50%;
   transform: translateX(-50%);
   width: min(342px, 88vw);
