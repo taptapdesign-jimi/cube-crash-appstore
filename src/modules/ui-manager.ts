@@ -90,21 +90,27 @@ class UIManager {
     // Play button
     if (this.elements.playButton) {
       this.elements.playButton.addEventListener('click', this.handlePlayClick.bind(this));
+      console.log('✅ Play button handler attached');
     }
     
     // Stats button
     if (this.elements.statsButton) {
       this.elements.statsButton.addEventListener('click', this.handleStatsClick.bind(this));
+      console.log('✅ Stats button handler attached');
     }
     
     // Collectibles button
     if (this.elements.collectiblesButton) {
       this.elements.collectiblesButton.addEventListener('click', this.handleCollectiblesClick.bind(this));
+      console.log('✅ Collectibles button handler attached');
+    } else {
+      console.warn('⚠️ Collectibles button not found! btn-collectibles element missing');
     }
     
     // Settings button
     if (this.elements.settingsButton) {
       this.elements.settingsButton.addEventListener('click', this.handleSettingsClick.bind(this));
+      console.log('✅ Settings button handler attached');
     }
     
     if (this.elements.statsBackButton) {
