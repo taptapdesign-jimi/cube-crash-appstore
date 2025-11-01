@@ -17,14 +17,14 @@ export interface ShadowConfig {
 }
 
 // Grid - responsive based on screen size
-function getGridDimensions(): GridDimensions {
+export function getGridDimensions(): GridDimensions {
   if (typeof window !== 'undefined') {
     const width = window.innerWidth;
     const height = window.innerHeight;
     
-    // iPad and tablet (768px - 1024px)
+    // iPad and tablet (768px - 1024px) - landscape oriented
     if (width >= 768 && width <= 1024) {
-      return { COLS: 6, ROWS: 8 };
+      return { COLS: 9, ROWS: 5 };
     }
     // Desktop and larger
     else if (width > 1024) {
