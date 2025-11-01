@@ -615,10 +615,10 @@ export function layout(){
   
   const isIPad = vw >= 768 && vw <= 1400;
   
-  // Raise HUD by 48px on iPad (total)
+  // Raise HUD by 56px on iPad (total)
   if (isIPad) {
-    safeTop -= 48;
-    hudBottom -= 48;
+    safeTop -= 56;
+    hudBottom -= 56;
   }
   
   const BOARD_NUDGE_PX = 8; // original board nudge (was 4)
