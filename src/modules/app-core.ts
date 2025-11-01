@@ -623,8 +623,8 @@ export function layout(){
   const IPAD_OFFSET_PERCENT = isIPad ? 0.055 : 0; // 5.5% of viewport height on iPad (reduced by 8px)
   const IPAD_OFFSET = Math.round(vh * IPAD_OFFSET_PERCENT);
   
-  // Additional 16px offset for iPad landscape
-  const IPAD_LANDSCAPE_OFFSET = isIPad ? 16 : 0;
+  // Additional offset for iPad landscape
+  const IPAD_LANDSCAPE_OFFSET = isIPad ? 8 : 0;
   
   const BOARD_NUDGE_PX = 8; // original board nudge (was 4)
   safeTop += HUD_NUDGE_PX + IPAD_OFFSET + IPAD_LANDSCAPE_OFFSET; // iPad gets responsive offset down, mobile stays original
