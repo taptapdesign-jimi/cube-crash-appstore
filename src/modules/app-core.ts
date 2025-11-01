@@ -845,7 +845,6 @@ function setGhostVisibility(c, r, visible) {
   try {
     if (window._ghostPlaceholders && window._ghostPlaceholders[r] && window._ghostPlaceholders[r][c]) {
       window._ghostPlaceholders[r][c].visible = visible;
-      console.log('🎯 setGhostVisibility:', c, r, visible ? 'visible' : 'hidden');
     }
   } catch {}
 }
@@ -855,7 +854,6 @@ function setGhostVisibility(c, r, visible) {
 function updateGhostVisibility() {
   if (!window._ghostPlaceholders) return;
   
-  console.log('🎯 Updating ghost visibility - SIMPLE RULE: show only on empty cells');
   let visibleCount = 0;
   
   for (let r=0; r<ROWS; r++) {
@@ -869,8 +867,6 @@ function updateGhostVisibility() {
       }
     }
   }
-  
-  console.log('✅ Ghost visibility updated:', visibleCount, 'visible (empty cells only)');
 }
 
 // Export to window for use in board.js
@@ -1078,7 +1074,6 @@ function rebuildBoard(){
     if (typeof window.updateGhostVisibility === 'function') {
       window.updateGhostVisibility();
     }
-    console.log('✅ sweetPopIn completed - ghost visibility updated');
   });
   console.log('✅ sweetPopIn started immediately - no waiting');
 
@@ -1112,7 +1107,6 @@ async function animateBoardExit(){
   try {
     if (backgroundLayer) {
       backgroundLayer.visible = false;
-      console.log('✅ Board exit: Ghost placeholders hidden');
     }
     // Also hide if stored in window._ghostPlaceholders
     if (window._ghostPlaceholders && Array.isArray(window._ghostPlaceholders)) {
@@ -1123,10 +1117,9 @@ async function animateBoardExit(){
           }
         });
       });
-      console.log('✅ Board exit: All ghost placeholders hidden via window._ghostPlaceholders');
     }
   } catch (e) {
-    console.warn('⚠️ Board exit: Error hiding ghost placeholders:', e);
+    // Silently ignore errors
   }
   
   // Use STATE.tiles directly (not the module-level const reference)
@@ -2655,7 +2648,6 @@ async function loadGameState() {
     // Update ghost visibility after loading game state
     if (typeof window.updateGhostVisibility === 'function') {
       window.updateGhostVisibility();
-      console.log('✅ Ghost visibility updated after loading game state');
     }
 
     // CRITICAL: Resume GSAP and PIXI after loading
@@ -2671,13 +2663,11 @@ async function loadGameState() {
     // Update ghost visibility BEFORE animation
     if (typeof window.updateGhostVisibility === 'function') {
       window.updateGhostVisibility();
-      console.log('✅ Ghost visibility updated BEFORE Continue animation');
     }
     
     // Ensure background layer is visible from the start
     if (backgroundLayer) {
       backgroundLayer.visible = true;
-      console.log('✅ Ghost placeholders visible from start of Continue');
     }
     
     // Hide all tiles before animation (ghosts stay visible)
