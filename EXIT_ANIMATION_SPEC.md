@@ -19,11 +19,11 @@ cubic-bezier(0.68, -0.6, 0.32, 1.6)
 
 **Technical Breakdown:**
 - `0.68` = starts at 68% speed (fast out)
-- `-0.6` = **negative value** causes overshoot/bounce effect
+- `-0.6` = **negative value** causes initial GROWTH above 1.0
 - `0.32` = eases back to 32% at peak
-- `1.6` = overshoots by 60% before settling
+- `1.6` = overshoots below 0 by 60% before settling
 
-This creates a **cartoonish bounce** where elements appear to "squish" inward before disappearing.
+This creates a **cartoonish pop-out-reverse** where elements briefly GROW larger before shrinking to 0.
 
 ---
 
@@ -165,13 +165,14 @@ After `770ms`, the guard is reset and animation can run again.
 5. **Navigation** stays longest (orientation helper)
 
 ### **Bounce Effect:**
-The `-0.6` cubic-bezier value causes elements to:
-1. **Start** shrinking quickly
-2. **Overshoot** inward (briefly smaller than 0)
-3. **Bounce back** slightly
-4. **Settle** at scale 0
+The `cubic-bezier(0.68, -0.6, 0.32, 1.6)` with **negative middle value** causes elements to:
+1. **Start** at scale(1)
+2. **Briefly GROW** slightly above 1.0 (pop-up effect)
+3. **Shrink** downward through 1.0
+4. **Overshoot** below 0 briefly
+5. **Settle** at scale(0)
 
-This mimics a "puff of smoke" effect common in cartoon animations.
+This mimics a "POP-OUT-REVERSE" effect where elements expand first before disappearing - classic cartoon animation.
 
 ---
 
