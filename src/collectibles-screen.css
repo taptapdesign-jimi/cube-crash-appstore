@@ -311,12 +311,7 @@
 }
 
 .collectible-card-label {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--collectibles-brown);
-  letter-spacing: 0.08em;
-  line-height: 1.2;
-  pointer-events: none;
+  display: none;
 }
 
 .collectible-card {
