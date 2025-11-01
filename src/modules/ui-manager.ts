@@ -597,10 +597,7 @@ class UIManager {
     // NO SLIDER ANIMATIONS - show homepage instantly after Stats
     // animateSliderEnter(); // DISABLED - causing CTA scale issues
     
-    // Focus immediately
-    if (this.elements.statsButton) {
-      this.elements.statsButton.focus();
-    }
+    // NO FOCUS - prevents :focus state from persisting
   }
   
   // Show collectibles screen
