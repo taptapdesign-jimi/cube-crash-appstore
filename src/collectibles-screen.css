@@ -251,12 +251,13 @@
 .collectibles-debug-controls {
   position: fixed;
   bottom: calc(20px + env(safe-area-inset-bottom, 0px));
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
   display: flex;
   flex-direction: row;
   gap: 16px;
-  width: auto;
+  width: fit-content;
   z-index: 10000;
   background: rgba(255, 255, 255, 0.95);
   padding: 12px 20px;
@@ -339,8 +340,9 @@
 .collectible-rarity-badge {
   position: absolute;
   top: 18px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
@@ -353,6 +355,7 @@
   pointer-events: none;
   z-index: 2;
   white-space: nowrap;
+  width: fit-content;
 }
 
 .collectible-rarity-badge .badge-number {
