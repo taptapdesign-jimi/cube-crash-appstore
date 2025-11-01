@@ -2353,6 +2353,15 @@ function saveGameState() {
   try {
     syncSharedState();
     
+    // DEBUG: Log current state
+    console.log('💾 saveGameState called:', {
+      boardNumber,
+      _userMadeMove: window._userMadeMove,
+      _gameHasEnded: window._gameHasEnded,
+      score,
+      tilesCount: tiles.length
+    });
+    
     // CRITICAL FIX: Don't save game state if game has ended
     if (window._gameHasEnded) {
       console.log('💾 Game has ended, skipping save');
