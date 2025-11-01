@@ -147,8 +147,9 @@ class UIManager {
   
   // Reset all slider buttons to prevent :active state persistence
   private resetAllSliderButtons(): void {
-    const allSliderButtons = document.querySelectorAll('.slider-slide .slide-button');
-    allSliderButtons.forEach(button => {
+    // Get both old .slide-button AND new .primary-button elements
+    const sliderButtons = document.querySelectorAll('.slider-slide .slide-button, .slider-slide .primary-button');
+    sliderButtons.forEach(button => {
       const btn = button as HTMLElement;
       btn.classList.add('button-reset');
       btn.style.transform = '';
