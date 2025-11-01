@@ -26,8 +26,8 @@ export function getGridDimensions(): GridDimensions {
     // iPad landscape: 1024x768, 1366x1024, etc.
     // iPad portrait: 768x1024, 834x1194, etc.
     if (width >= 768 && width <= 1400) {
-      // iPad: optimized board (5 cols x 8 rows)
-      return { COLS: 5, ROWS: 8 };
+      // iPad: default board (5 cols x 9 rows)
+      return { COLS: 5, ROWS: 9 };
     }
     // Desktop and larger (> 1400px)
     else if (width > 1400) {
