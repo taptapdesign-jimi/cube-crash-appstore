@@ -417,6 +417,18 @@
   }
 }
 
+/* iPad Optimizations */
+@media screen and (min-width: 768px) and (max-width: 1400px) {
+  .hero-container {
+    width: 512px;  /* 320px * 1.6 = 512px */
+    height: 512px; /* 320px * 1.6 = 512px */
+  }
+  
+  #home-logo {
+    width: min(512px, 80vw); /* 320px * 1.6 = 512px */
+  }
+}
+
 /* Safe Area Support for iPhone */
 @supports (padding: max(0px)) {
   #slider-container {
