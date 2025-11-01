@@ -369,7 +369,7 @@ class CollectiblesManager {
 
     const badge = document.createElement('span');
     badge.className = 'collectible-rarity-badge';
-    badge.textContent = rarityLabel;
+    badge.textContent = `${numberStr} ${rarityLabel}`;
     badge.setAttribute('aria-hidden', 'true');
     cardDiv.appendChild(badge);
 
@@ -832,44 +832,158 @@ class CollectiblesManager {
     const unlockBtn = document.getElementById('collectibles-unlock-btn');
     if (unlockBtn) {
       unlockBtn.addEventListener('click', () => {
-        const num = this.promptForCardNumber('🧪 Unlock collectible (01-25):');
-        if (num === null) return;
-        if (this.unlockCardByNumber(num)) {
-          alert(`Collectible ${num.toString().padStart(2, '0')} unlocked.`);
-        } else {
-          alert(`Collectible ${num.toString().padStart(2, '0')} not found.`);
-        }
+        this.showCardPickerModal('show');
       });
     }
 
     const hideBtn = document.getElementById('collectibles-hide-btn');
     if (hideBtn) {
       hideBtn.addEventListener('click', () => {
-        const num = this.promptForCardNumber('🧪 Hide collectible (01-25):');
-        if (num === null) return;
-        if (this.lockCardByNumber(num)) {
-          alert(`Collectible ${num.toString().padStart(2, '0')} hidden.`);
-        } else {
-          alert(`Collectible ${num.toString().padStart(2, '0')} not found.`);
-        }
+        this.showCardPickerModal('hide');
       });
     }
   }
 
-  private promptForCardNumber(message: string): number | null {
-    const input = prompt(message, '01');
-    if (!input) return null;
-    const trimmed = input.trim();
-    if (!/^\d{1,2}$/.test(trimmed)) {
-      alert('Please enter a number between 1 and 25.');
-      return null;
+  private showCardPickerModal(action: 'show' | 'hide'): void {
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'card-picker-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100001;
+      backdrop-filter: blur(4px);
+    `;
+
+    // Create modal container
+    const modal = document.createElement('div');
+    modal.className = 'card-picker-modal';
+    modal.style.cssText = `
+      background: white;
+      border-radius: 24px;
+      padding: 24px;
+      max-width: 90vw;
+      width: 400px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    `;
+
+    // Title
+    const title = document.createElement('h3');
+    title.textContent = action === 'show' ? 'Show Card' : 'Hide Card';
+    title.style.cssText = `
+      font-size: 24px;
+      font-weight: 800;
+      color: #ad8775;
+      margin: 0 0 20px 0;
+      text-align: center;
+    `;
+
+    // Grid container
+    const grid = document.createElement('div');
+    grid.style.cssText = `
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    `;
+
+    // Create 25 buttons (01-25)
+    for (let i = 1; i <= 25; i++) {
+      const btn = document.createElement('button');
+      btn.textContent = i.toString().padStart(2, '0');
+      btn.style.cssText = `
+        background: #f5f5f5;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 16px;
+        font-size: 16px;
+        font-weight: 600;
+        color: #333;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      `;
+
+      btn.addEventListener('mouseenter', () => {
+        btn.style.background = '#e8734a';
+        btn.style.borderColor = '#e8734a';
+        btn.style.color = 'white';
+      });
+
+      btn.addEventListener('mouseleave', () => {
+        btn.style.background = '#f5f5f5';
+        btn.style.borderColor = '#e0e0e0';
+        btn.style.color = '#333';
+      });
+
+      btn.addEventListener('click', () => {
+        this.handleCardAction(action, i);
+        document.body.removeChild(overlay);
+      });
+
+      grid.appendChild(btn);
     }
-    const number = parseInt(trimmed, 10);
-    if (Number.isNaN(number) || number < 1 || number > 25) {
-      alert('Please enter a number between 1 and 25.');
-      return null;
+
+    // Close button
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Cancel';
+    closeBtn.style.cssText = `
+      width: 100%;
+      background: #e0e0e0;
+      border: none;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+
+    closeBtn.addEventListener('mouseenter', () => {
+      closeBtn.style.background = '#ccc';
+    });
+
+    closeBtn.addEventListener('mouseleave', () => {
+      closeBtn.style.background = '#e0e0e0';
+    });
+
+    closeBtn.addEventListener('click', () => {
+      document.body.removeChild(overlay);
+    });
+
+    // Assemble modal
+    modal.appendChild(title);
+    modal.appendChild(grid);
+    modal.appendChild(closeBtn);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        document.body.removeChild(overlay);
+      }
+    });
+  }
+
+  private handleCardAction(action: 'show' | 'hide', num: number): void {
+    if (action === 'show') {
+      if (this.unlockCardByNumber(num)) {
+        logger.info(`Collectible ${num.toString().padStart(2, '0')} unlocked.`);
+      } else {
+        logger.warn(`Collectible ${num.toString().padStart(2, '0')} not found.`);
+      }
+    } else {
+      if (this.lockCardByNumber(num)) {
+        logger.info(`Collectible ${num.toString().padStart(2, '0')} hidden.`);
+      } else {
+        logger.warn(`Collectible ${num.toString().padStart(2, '0')} not found.`);
+      }
     }
-    return number;
   }
 }
 
