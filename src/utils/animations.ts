@@ -306,7 +306,7 @@ export const animateSliderEnter = (): void => {
       activeTimeouts.delete(timeout);
       isAnimatingEnter = false;
       logger.info('✅ Enter animation guard reset');
-    }, 720); // 120ms delay + 600ms animation = 720ms total (was 420ms, increased by 300ms)
+    }, 1400); // 400ms delay + 1000ms animation = 1400ms total (1 second animation)
     activeTimeouts.add(timeout);
     
   } catch (error) {
@@ -343,33 +343,33 @@ function startEnterAnimationSequence(): void {
       logger.warn('⚠️ Hero container not found in active slide');
     }
     
-    // STEP 2: CTA button SECOND (30ms delay - right after Hero)
+    // STEP 2: CTA button SECOND (100ms delay - right after Hero)
     if (slideButton) {
-      reverseBounce(slideButton as HTMLElement, 30);
+      reverseBounce(slideButton as HTMLElement, 100);
       logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND');
     } else {
       logger.warn('⚠️ CTA button not found in active slide');
     }
     
-    // STEP 3: Slide text THIRD (60ms delay - right after CTA)
+    // STEP 3: Slide text THIRD (200ms delay - right after CTA)
     if (slideText) {
-      reverseBounce(slideText as HTMLElement, 60);
+      reverseBounce(slideText as HTMLElement, 200);
       logger.info('📝 Step 3: Slide text cartoonish bounce - THIRD');
     } else {
       logger.warn('⚠️ Slide text not found in active slide');
     }
     
-    // STEP 4: Home logo FOURTH (90ms delay)
+    // STEP 4: Home logo FOURTH (300ms delay)
     if (homeLogo) {
-      reverseBounce(homeLogo as HTMLElement, 90);
+      reverseBounce(homeLogo as HTMLElement, 300);
       logger.info('🎨 Step 4: Home logo cartoonish bounce - FOURTH');
     } else {
       logger.warn('⚠️ Home logo not found');
     }
     
-    // STEP 5: Navigation LAST (120ms delay - finishes at 420ms)
+    // STEP 5: Navigation LAST (400ms delay - finishes at 1400ms with 1s animation)
     if (independentNav) {
-      reverseBounce(independentNav as HTMLElement, 120);
+      reverseBounce(independentNav as HTMLElement, 400);
       logger.info('🎯 Step 5: Navigation cartoonish bounce - LAST');
     } else {
       logger.warn('⚠️ Navigation not found');
