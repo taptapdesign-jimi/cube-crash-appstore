@@ -1114,6 +1114,15 @@ async function animateBoardExit(){
         console.warn('⚠️ Failed to call HUD.playHudRise:', e);
       }
     }
+  }).then(() => {
+    // CRITICAL: Wait for HUD rise animation to complete (800ms)
+    // sweetPopOut completes at maxEndTime (~0.38-0.55s), but HUD rise (800ms) starts at 50%
+    // Worst case: tiles finish at 1000ms, HUD starts at 500ms, finishes at 1300ms
+    // So we need to wait at least 800ms MORE after sweetPopOut completes
+    console.log('⏳ Waiting for HUD rise animation to complete (800ms)...');
+    return new Promise(resolve => {
+      setTimeout(resolve, 800);
+    });
   });
 }
 

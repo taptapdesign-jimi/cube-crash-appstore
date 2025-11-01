@@ -433,51 +433,50 @@ initializeApp().catch((error: Error) => {
       console.warn('⚠️ Board exit animation failed:', error);
     }
     
-    // Step 2: Clean up game state AFTER animations
+    // Step 2: Kill ALL GSAP tweens immediately after animations complete
+    console.log('🧹 Killing all GSAP tweens after animations...');
     try {
-      // CRITICAL: Kill all GSAP tweens BEFORE destroying PIXI objects
-      // This prevents "Cannot set properties of null" errors from GSAP trying to animate destroyed objects
-      console.log('🧹 Killing all GSAP tweens before cleanup...');
-      try {
-        // Kill UI element tweens
-        gsap.killTweensOf('[data-wild-loader]');
-        gsap.killTweensOf('.wild-loader');
-        gsap.killTweensOf('p');
-        gsap.killTweensOf('progress');
-        
-        // CRITICAL: Kill PIXI object tweens (tiles and HUD)
-        // Kill all tile tweens
-        if (STATE && STATE.tiles && STATE.tiles.length > 0) {
-          STATE.tiles.forEach(tile => {
-            try {
-              if (tile && tile.scale) {
-                gsap.killTweensOf(tile.scale);
-              }
-              if (tile) {
-                gsap.killTweensOf(tile);
-              }
-            } catch (e) {
-              // Ignore errors for already destroyed tiles
-            }
-          });
-        }
-        
-        // Kill HUD tweens
-        if (STATE && STATE.hud) {
+      // Kill UI element tweens
+      gsap.killTweensOf('[data-wild-loader]');
+      gsap.killTweensOf('.wild-loader');
+      gsap.killTweensOf('p');
+      gsap.killTweensOf('progress');
+      
+      // CRITICAL: Kill PIXI object tweens (tiles and HUD)
+      // Kill all tile tweens
+      if (STATE && STATE.tiles && STATE.tiles.length > 0) {
+        STATE.tiles.forEach(tile => {
           try {
-            gsap.killTweensOf(STATE.hud);
-            gsap.killTweensOf(STATE.board);
-            gsap.killTweensOf(STATE.stage);
+            if (tile && tile.scale) {
+              gsap.killTweensOf(tile.scale);
+            }
+            if (tile) {
+              gsap.killTweensOf(tile);
+            }
           } catch (e) {
-            // Ignore errors
+            // Ignore errors for already destroyed tiles
           }
-        }
-        
-        console.log('✅ All GSAP tweens killed');
-      } catch (gsapError) {
-        console.warn('⚠️ Error killing GSAP tweens:', gsapError);
+        });
       }
       
+      // Kill HUD tweens
+      if (STATE && STATE.hud) {
+        try {
+          gsap.killTweensOf(STATE.hud);
+          gsap.killTweensOf(STATE.board);
+          gsap.killTweensOf(STATE.stage);
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+      
+      console.log('✅ All GSAP tweens killed');
+    } catch (gsapError) {
+      console.warn('⚠️ Error killing GSAP tweens:', gsapError);
+    }
+    
+    // Step 3: Clean up game state AFTER killing all tweens
+    try {
       if (typeof cleanupGame === 'function') {
         console.log('🧹 Calling cleanupGame() to clean up all game resources...');
         cleanupGame();
