@@ -188,8 +188,7 @@ class UIManager {
     event.preventDefault();
     logger.info('📊 Stats button clicked');
     
-    // CRITICAL: Reset ALL slider CTAs to prevent :active state from persisting
-    this.resetAllSliderButtons();
+    // NO RESET - let :active work normally like Play button
     
     // Play exit animation first, then show stats screen
     this.showStatsScreenWithAnimation();
@@ -603,36 +602,6 @@ class UIManager {
     // Focus immediately
     if (this.elements.statsButton) {
       this.elements.statsButton.focus();
-    }
-    
-    // CRITICAL: Also set up a MutationObserver to reset Stats button when Stats slide becomes active again
-    const statsSlide = document.querySelector('.slider-slide[data-slide="1"]');
-    if (statsSlide) {
-      const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-            const target = mutation.target as HTMLElement;
-            if (target.classList.contains('active')) {
-              // Stats slide became active - reset the button
-              const statsBtn = target.querySelector('#btn-stats');
-              if (statsBtn) {
-                const btn = statsBtn as HTMLElement;
-                console.log('🔧 Stats slide became active - resetting button...');
-                btn.style.transform = '';
-                btn.style.transition = '';
-                btn.blur();
-                btn.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-              }
-            }
-          }
-        });
-      });
-      observer.observe(statsSlide, { attributes: true, attributeFilter: ['class'] });
-      
-      // Clean up observer after 5 seconds (enough time for any slide switching)
-      setTimeout(() => {
-        observer.disconnect();
-      }, 5000);
     }
   }
   
