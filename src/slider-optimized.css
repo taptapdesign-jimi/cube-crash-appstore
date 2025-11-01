@@ -215,7 +215,7 @@
   align-items: center;
   justify-content: center;
   line-height: 1; /* avoid baseline shifts */
-  margin-top: 18px !important; /* Reduced from 44px to 18px for total 40px gap (22+18) */
+  margin-top: 8px !important; /* Reduced to 8px gap between text and CTA */
 }
 
 /* Navigation Icons */
