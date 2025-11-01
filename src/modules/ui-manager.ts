@@ -568,39 +568,37 @@ class UIManager {
       this.setNavigationVisibility(true);
     }
     
-    // CRITICAL: Reset Stats button FIRST before switching slides
+    // NUCLEAR OPTION: Remove and recreate Stats button to reset everything
     const statsCTA = document.getElementById('btn-stats');
-    if (statsCTA) {
-      console.log('🔧 Resetting Stats CTA button before slide switch...');
-      const btn = statsCTA as HTMLElement;
+    const statsSlide = document.querySelector('.slider-slide[data-slide="1"]');
+    if (statsCTA && statsSlide) {
+      console.log('🔧 NUCLEAR: Removing Stats button to reset everything...');
       
-      // Force button to stay at default scale(1) - no animations
-      btn.style.transform = 'scale(1) !important';
-      btn.style.transition = 'none !important';
-      
-      // Temporarily disable pointer events for very short time
-      btn.style.pointerEvents = 'none';
-      btn.classList.add('button-reset');
-      
-      try { btn.blur(); } catch {}
-      
-      // Force reflow to apply styles
-      void btn.offsetHeight;
-      
-      // Remove ALL animation classes that might conflict
-      btn.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-      
-      setTimeout(() => {
-        if (!btn) return;
-        btn.classList.remove('button-reset');
-        btn.style.pointerEvents = '';
+      // Find the button's parent
+      const buttonParent = statsCTA.parentElement;
+      if (buttonParent) {
+        // Remove the button completely
+        statsCTA.remove();
         
-        // Ensure button stays at scale(1) - no automatic scaling
-        btn.style.transform = 'scale(1) !important';
-        btn.style.transition = 'none !important';
+        // Create a fresh button
+        const newButton = document.createElement('button');
+        newButton.id = 'btn-stats';
+        newButton.className = 'primary-button';
+        newButton.textContent = 'Stats';
+        newButton.setAttribute('type', 'button');
+        newButton.setAttribute('aria-label', 'View Stats');
         
-        console.log('✅ Stats CTA reset complete before slide switch');
-      }, 50);
+        // Add click handler
+        newButton.addEventListener('click', this.handleStatsClick.bind(this));
+        
+        // Insert the new button
+        buttonParent.appendChild(newButton);
+        
+        // Re-register in elements cache
+        this.elements.statsButton = newButton as HTMLButtonElement;
+        
+        console.log('✅ Stats button completely recreated');
+      }
     }
     
     // CRITICAL: Switch to Play slide (index 0) AFTER reset to prevent Stats CTA animation
