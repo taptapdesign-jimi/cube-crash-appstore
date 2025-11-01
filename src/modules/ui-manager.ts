@@ -151,13 +151,28 @@ class UIManager {
     const sliderButtons = document.querySelectorAll('.slider-slide .slide-button, .slider-slide .primary-button');
     sliderButtons.forEach(button => {
       const btn = button as HTMLElement;
+      // Force button to stay at default scale(1) - no animations
+      btn.style.transform = 'scale(1) !important';
+      btn.style.transition = 'none !important';
+      
+      // Temporarily disable pointer events for very short time
+      btn.style.pointerEvents = 'none';
       btn.classList.add('button-reset');
-      btn.style.transform = '';
-      btn.style.transition = '';
-      btn.blur();
+      
+      try { btn.blur(); } catch {}
+      
+      // Force reflow to apply styles
+      void btn.offsetHeight;
+      
       setTimeout(() => {
+        if (!btn) return;
         btn.classList.remove('button-reset');
-      }, 100);
+        btn.style.pointerEvents = '';
+        
+        // Ensure button stays at scale(1) - no automatic scaling
+        btn.style.transform = 'scale(1) !important';
+        btn.style.transition = 'none !important';
+      }, 50);
     });
     logger.info('🔧 All slider buttons reset');
   }
