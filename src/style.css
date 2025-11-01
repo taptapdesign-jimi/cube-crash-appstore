@@ -313,9 +313,9 @@ body{
   transition: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 } */
 
-/* Force CTA positioning - move down by 16px */
+/* Force CTA positioning - move down by 24px */
 .slide-text {
-  transform: translateY(-32px) !important;
+  transform: translateY(24px) !important;
   margin-bottom: 22px !important;
 }
 
@@ -860,9 +860,9 @@ body{
   transform: scale(0);
 }
 
-/* Slide-text needs to preserve translateY(-32px) during scale animation */
+/* Slide-text needs to preserve translateY during scale animation */
 .slide-text.animate-exit {
-  transform: translateY(-32px) scale(0);
+  transform: translateY(24px) scale(0);
 }
 
 /* Enter animation classes - scale up from 0, preserve translateY for slide-text */
@@ -872,9 +872,9 @@ body{
   transform: scale(1);
 }
 
-/* Slide-text needs to preserve translateY(-32px) during scale animation */
+/* Slide-text needs to preserve translateY during scale animation */
 .slide-text.animate-enter {
-  transform: translateY(-32px) scale(1);
+  transform: translateY(24px) scale(1);
 }
 
 /* Initial state for enter animation - scale 0, no transition */
@@ -883,9 +883,9 @@ body{
   transform: scale(0);
 }
 
-/* Slide-text needs to preserve translateY(-32px) during initial state */
+/* Slide-text needs to preserve translateY during initial state */
 .slide-text.animate-enter-initial {
-  transform: translateY(-32px) scale(0);
+  transform: translateY(24px) scale(0);
 }
 
 /* Reset state - remove all animation classes */
@@ -895,9 +895,9 @@ body{
   will-change: auto;
 }
 
-/* Slide-text needs to preserve translateY(-32px) in reset */
+/* Slide-text needs to preserve translateY in reset */
 .slide-text.animate-reset {
-  transform: translateY(-32px) scale(1);
+  transform: translateY(24px) scale(1);
 }
 
 /* Dramatic click effect for all bottom sheet CTA buttons */
