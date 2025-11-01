@@ -23,21 +23,17 @@ const withModule = async <T>(handler: (mod: typeof import('../collectibles-manag
 };
 
 win.showCollectibles = async (options?: CollectiblesShowOptions) => {
-  console.log('🎁 showCollectibles bridge invoked', options);
   logger.info('🎁 showCollectibles bridge invoked');
   await withModule(mod => mod.showCollectiblesScreen(options));
 };
 
 win.hideCollectibles = async () => {
-  console.log('🎁 hideCollectibles bridge invoked');
   logger.info('🎁 hideCollectibles bridge invoked');
   await withModule(mod => mod.hideCollectiblesScreen());
 };
 
 win.showCollectiblesScreen = win.showCollectibles;
 win.hideCollectiblesScreen = win.hideCollectibles;
-
-console.log('✅ Collectibles bridge initialized - window.showCollectiblesScreen available:', typeof win.showCollectiblesScreen);
 
 win.unlockCollectible = async (eventName: string) => {
   await withModule(mod => mod.unlockCollectible(eventName));
