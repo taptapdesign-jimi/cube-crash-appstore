@@ -8,7 +8,7 @@ import {
   COLS, ROWS, TILE, GAP, HUD_H,
   ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD
 } from './constants.js';
-import { sweetPopIn } from './app-board.js';
+import { sweetPopIn, sweetPopOut } from './app-board.js';
 import * as CONSTS from './constants.js';
 import { STATE } from './app-state.ts';
 
@@ -1090,6 +1090,24 @@ function rebuildBoard(){
   syncSharedState();
 
 }
+
+// Board exit animation - reverse of sweetPopIn
+async function animateBoardExit(){
+  console.log('🎬 Starting board exit animation...');
+  
+  // Play sweetPopOut with onHalf callback for HUD rise
+  return sweetPopOut(tiles, {
+    onHalf: () => {
+      console.log('🎯 50% tiles exited - triggering HUD rise');
+      try { 
+        HUD.playHudRise?.({}); 
+      } catch (e) {
+        console.warn('⚠️ Failed to call HUD.playHudRise:', e);
+      }
+    }
+  });
+}
+
 function tintLocked(t){ try{ gsap.to(t, { alpha:0.35, duration:0.10, ease:'power1.out' }); }catch{} }
 function randVal(){ return [1,1,1,2,2,3,3,4,5][(Math.random()*9)|0]; }
 function startLevel(n){
@@ -2676,9 +2694,10 @@ window.saveGameState = saveGameState;
 window.loadGameState = loadGameState;
 window.showResumeGameModal = showResumeGameModal;
 window.drawBoardBG = drawBoardBG;
+window.animateBoardExit = animateBoardExit; // Export for exitToMenu
 
-// Export drawBoardBG for other modules
-export { drawBoardBG };
+// Export drawBoardBG and animateBoardExit for other modules
+export { drawBoardBG, animateBoardExit };
 
 
 // Mobile-specific save events

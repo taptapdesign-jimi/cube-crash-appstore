@@ -514,6 +514,27 @@ export function playHudDrop({ duration = 0.8 } = {}){
   console.log('✅ PIXI HUD drop animation started');
 }
 
+// Play HUD rise animation - exact reverse of playHudDrop
+export function playHudRise({ duration = 0.8 } = {}){
+  if (!HUD_ROOT) return;
+  const top = HUD_ROOT._dropTop ?? HUD_ROOT.y ?? 0;
+  try { gsap.killTweensOf(HUD_ROOT); } catch {}
+  
+  // Animate PIXI HUD rise (reverse of drop)
+  gsap.to(HUD_ROOT, {
+    alpha: 0,  // fade out
+    y: -top * 2,  // rise above screen
+    duration: duration,
+    ease: 'elastic.in(1, 0.6)',  // reverse of elastic.out(1, 0.6)
+    onComplete: () => { 
+      HUD_ROOT._dropped = false; 
+      HUD_ROOT.y = -top * 2; 
+    }
+  });
+  
+  console.log('✅ PIXI HUD rise animation started');
+}
+
 export function updateHUD({ score, board, moves, combo }) {
   if (!HUD_ROOT) {
     console.warn('⚠️ HUD_ROOT is null, cannot update HUD');

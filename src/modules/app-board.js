@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { STATE, COLS, ROWS, TILE, GAP } from './app-state.ts';
 import * as makeBoard from './board.ts';
 import { drawBoardBG, layout } from './app-core.ts';
+import * as HUD from './hud-helpers.js';
 // drawBoardBG and layout functions are now in app-core.ts
 
 // reset container while preserving boardBG and backgroundLayer
@@ -207,6 +208,103 @@ export function sweetPopIn(listTiles, opts = {}){
     if (typeof opts.onHalf === 'function'){
       const fireAt = Math.max(0.01, maxEndTime * 0.5);
       gsap.delayedCall(fireAt, () => { if (!halfFired){ halfFired = true; try { opts.onHalf(); } catch {} } });
+    }
+  });
+}
+
+// Board exit animation - exact reverse of sweetPopIn
+export function sweetPopOut(listTiles, opts = {}){
+  const list = [...listTiles];
+
+  // CRITICAL: REVERSE the random order - last to spawn is first to exit
+  // We need to track spawn order, so reverse the list
+  for (let i = 0; i < Math.floor(list.length / 2); i++) {
+    const j = list.length - 1 - i;
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+
+  // Same timing parameters as entry
+  const stepMin = 0.020, stepMax = 0.030;         
+  const jitterMax = 0.18;                         
+  const total = list.length || 1;
+  const halfTotal = Math.ceil(total / 2);
+  let halfFired = false;
+  let maxEndTime = 0;
+
+  return new Promise(resolve => {
+    let completed = 0;
+
+    list.forEach((t, i) => {
+      const step = stepMin + Math.random() * (stepMax - stepMin);
+      const rate = 0.55;
+      const burst = (Math.random() < 0.22) ? (-Math.random() * 0.16) : 0;
+      const exitDel = Math.max(0, (i * step * rate) + Math.random() * jitterMax + burst);
+
+      // Duration variations (same as entry)
+      const durMul = 0.55 + Math.random() * 0.20;
+      const amp = 1.08 + Math.random() * 0.07;
+      const d1b = 0.18 + Math.random() * 0.08;
+      const d2b = 0.12 + Math.random() * 0.05;
+      const d3b = 0.10 + Math.random() * 0.06;
+      const d3  = Math.max(0.08, d3b * durMul); // settle (reverse becomes first)
+      const d2  = Math.max(0.08, d2b * durMul); // compress
+      const d1  = Math.max(0.10, d1b * durMul); // blow (reverse becomes last)
+
+      gsap.timeline({
+        delay: exitDel,
+        onComplete: () => {
+          completed++;
+          // Halfway callback (50% tiles exited)
+          if (!halfFired && completed >= halfTotal){ 
+            halfFired = true; 
+            try { opts.onHalf?.(); } catch {} 
+          }
+          
+          if (completed === total){
+            resolve();
+          }
+        }
+      })
+      // REVERSE sequence: 1.0 → 0.88 → 1.15 → 0.0
+      .to(t.scale, { 
+        x: 0.88,
+        y: 0.88, 
+        duration: d3,
+        ease: 'back.in(1.5)'  // reverse of back.out(1.5)
+      }, 0)
+      .to(t.scale, { 
+        x: amp,  // 1.08-1.15
+        y: amp, 
+        duration: d2,
+        ease: 'power2.in'  // reverse of power2.out
+      }, d3)
+      .to(t, {
+        alpha: 0,
+        duration: Math.max(0.12, d1 * 0.68),
+        ease: 'power2.in'  // reverse of power2.out
+      }, d3)
+      .to(t.scale, { 
+        x: 0.0,
+        y: 0.0, 
+        duration: d1,
+        ease: 'back.in(2)'  // reverse of back.out(2)
+      }, d3 + d2);
+
+      const endAt = exitDel + d1 + d2 + d3;
+      if (endAt > maxEndTime) maxEndTime = endAt;
+    });
+
+    console.log('🎯 Starting board exit pop-out — exact reverse of entry');
+
+    // Fire onHalf at 50% of overall animation timeframe
+    if (typeof opts.onHalf === 'function'){
+      const fireAt = Math.max(0.01, maxEndTime * 0.5);
+      gsap.delayedCall(fireAt, () => { 
+        if (!halfFired){ 
+          halfFired = true; 
+          try { opts.onHalf(); } catch {} 
+        } 
+      });
     }
   });
 }

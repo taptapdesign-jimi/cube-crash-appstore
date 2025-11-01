@@ -4,7 +4,7 @@
 import { bootstrapReady } from './ui/bootstrap-ui.js';
 import './ui/collectibles-bridge.js';
 // boot and layout imported statically for instant access
-import { boot as bootGame, layout as layoutGame, cleanupGame } from './modules/app-core.js';
+import { boot as bootGame, layout as layoutGame, cleanupGame, animateBoardExit } from './modules/app-core.js';
 import { gsap } from 'gsap';
 import { assetPreloader } from './modules/asset-preloader.js';
 import './ios-image-helper.js';
@@ -398,9 +398,8 @@ initializeApp().catch((error: Error) => {
   try {
     console.log('🔥 Starting complete game cleanup...');
     
-    // CRITICAL: Save high score BEFORE cleanup
+    // CRITICAL: Save high score BEFORE animations
     try {
-      // Get current score from STATE
       const { STATE } = await import('./modules/app-state.js');
       let currentScore = 0;
       
@@ -408,7 +407,6 @@ initializeApp().catch((error: Error) => {
         currentScore = STATE.score;
       }
       
-      // Fallback: try to read from HUD
       if (currentScore === 0) {
         const scoreEl = document.querySelector('#score-text');
         if (scoreEl) {
@@ -418,8 +416,6 @@ initializeApp().catch((error: Error) => {
       }
       
       console.log('📊 Current score before exit:', currentScore);
-      
-      // Update high score using statsService
       const { statsService } = await import('./services/stats-service.js');
       statsService.updateHighScore(currentScore);
       console.log('✅ High score updated via statsService:', currentScore);
@@ -427,14 +423,21 @@ initializeApp().catch((error: Error) => {
       console.warn('⚠️ Failed to save high score during exit:', error);
     }
     
-    // CRITICAL: Call cleanupGame() to properly clean up ALL game state (including PIXI app)
+    // Step 1: Play board exit animations (tiles + HUD)
+    console.log('🎬 Playing board exit animations...');
+    try {
+      await animateBoardExit();
+      console.log('✅ Board exit animations completed');
+    } catch (error) {
+      console.warn('⚠️ Board exit animation failed:', error);
+    }
+    
+    // Step 2: Clean up game state AFTER animations
     try {
       if (typeof cleanupGame === 'function') {
         console.log('🧹 Calling cleanupGame() to clean up all game resources...');
         cleanupGame();
         console.log('✅ cleanupGame() completed - PIXI app destroyed and nullified');
-      } else {
-        console.warn('⚠️ cleanupGame is not a function');
       }
     } catch (error) {
       console.warn('⚠️ Failed to run cleanupGame:', error);
@@ -446,21 +449,21 @@ initializeApp().catch((error: Error) => {
       console.log('⏱️ Time tracking stopped');
     }
     
-    // CRITICAL: Clear saved game so next play starts fresh (no resume sheet)
+    // Clear saved game
     localStorage.removeItem('cc_saved_game');
     localStorage.removeItem('cubeCrash_gameState');
     logger.info('🗑️ Cleared saved game - next play will start fresh');
     
-    // Hide app element (game)
+    // Hide app element
     uiManager.hideApp();
     
-    // Show navigation FIRST
+    // Show navigation
     uiManager.showNavigation();
     
-    // Show homepage QUIETLY (no animations yet)
+    // Show homepage QUIETLY (ready for entry animation)
     uiManager.showHomepageQuietly();
     
-    // Reset game state FIRST
+    // Reset game state
     gameState.setState({
       homepageReady: true,
       isGameActive: false,
@@ -469,8 +472,8 @@ initializeApp().catch((error: Error) => {
     
     console.log('✅ Game state reset - homepage should be visible now');
     
-    // NOW play pop-in animation for slider elements
-    console.log('🎬 Playing pop-in animation for slider...');
+    // Step 3: Play homepage entry animation
+    console.log('🎬 Playing homepage entry animation...');
     animateSliderEnter();
     console.log('✅ Exit complete - Play button should work');
     

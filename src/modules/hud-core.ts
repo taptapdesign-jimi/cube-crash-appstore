@@ -201,6 +201,16 @@ export function playHudDrop({ duration = 0.8 }: PlayHudDropParams = {}): void {
 }
 
 /**
+ * Play HUD rise animation (reverse of drop)
+ */
+export function playHudRise({ duration = 0.8 }: PlayHudDropParams = {}): void {
+  logger.info(`🎬 Playing HUD rise: ${duration}s`);
+  // Import from hud-helpers at runtime to avoid circular deps
+  const { playHudRise: playRise } = require('./hud-helpers.js');
+  playRise({ duration });
+}
+
+/**
  * Update HUD
  */
 export function updateHUD({ score, board, moves, combo }: UpdateHUDParams): void {
