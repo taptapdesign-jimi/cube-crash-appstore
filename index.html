@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="screen-orientation" content="portrait">
+  <meta name="orientation" content="portrait">
   <link rel="icon" href="./favicon.ico">
   
   <!-- Load LTCrow font first -->
@@ -140,6 +142,41 @@
     setViewportHeight();
     window.addEventListener('resize', setViewportHeight);
     window.addEventListener('orientationchange', setViewportHeight);
+    
+    // Lock orientation to portrait
+    if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
+      window.screen.orientation.lock('portrait').catch(err => {
+        console.log('Orientation lock not supported:', err);
+      });
+    } else if ((window as any).DeviceOrientationEvent && (window as any).DeviceOrientationEvent.requestPermission) {
+      // iOS 13+ - request permission first
+      (window as any).DeviceOrientationEvent.requestPermission()
+        .then((response: string) => {
+          if (response === 'granted') {
+            console.log('✅ Orientation lock granted');
+          }
+        })
+        .catch((err: any) => {
+          console.log('Orientation lock permission denied:', err);
+        });
+    }
+    
+    // Prevent landscape orientation by detecting and warning
+    window.addEventListener('orientationchange', () => {
+      const isLandscape = window.outerWidth > window.outerHeight;
+      if (isLandscape) {
+        console.log('⚠️ Landscape orientation detected - please rotate to portrait');
+        alert('Please rotate your device to portrait mode for the best experience.');
+      }
+    });
+    
+    // Also check on resize
+    window.addEventListener('resize', () => {
+      const isLandscape = window.outerWidth > window.outerHeight;
+      if (isLandscape) {
+        console.log('⚠️ Landscape orientation detected - please rotate to portrait');
+      }
+    });
   </script>
   
   <script type="module" src="./src/main.ts"></script>
