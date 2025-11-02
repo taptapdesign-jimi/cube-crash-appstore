@@ -204,7 +204,7 @@ export function setActiveResolve(resolve: ((reason: string) => void) | null): vo
 /**
  * Check if closing
  */
-export function isClosing(): boolean {
+export function getIsClosing(): boolean {
   return isClosing;
 }
 

@@ -11,7 +11,7 @@ import {
   isOverlayActive,
   getActiveOverlay,
   getActiveResolve,
-  isClosing
+  getIsClosing
 } from './collectible-reward-utils.js';
 
 import { 
