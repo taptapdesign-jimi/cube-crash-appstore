@@ -64,10 +64,10 @@ win.showCollectibleRewardBottomSheet = async (detail: { cardName: string; imageP
   return Promise.resolve('failed');
 };
 
-// Export collectiblesManager to window
-win.collectiblesManager = null;
-loadModule().then(mod => {
-  win.collectiblesManager = mod.collectiblesManager;
-  logger.info('🎁 Collectibles manager exported to window');
+// CRITICAL: Initialize collectiblesManager on window
+// This triggers ensureCollectiblesManager which sets window.collectiblesManager
+loadModule().then(async (mod) => {
+  await mod.ensureCollectiblesManager();
+  logger.info('🎁 Collectibles manager initialized and exported to window');
 });
 

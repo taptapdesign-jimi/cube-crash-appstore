@@ -653,26 +653,41 @@ class CollectiblesManager {
   handleSettingsClick(): void {
     try {
       logger.info('⚙️ Settings clicked - checking for collectible 01 unlock');
+      console.log('🔍 DEBUG: Card01 exists?', !!this.collectiblesData.common[0]);
+      console.log('🔍 DEBUG: Card01 unlocked?', this.collectiblesData.common[0]?.unlocked);
       
       // Check if collectible 01 is already unlocked
       const card01 = this.collectiblesData.common[0]; // 01 - DAILY LOG
+      console.log('🔍 DEBUG: Card01 full object:', card01);
+      
       if (card01 && !card01.unlocked) {
+        console.log('🔍 DEBUG: Card01 is locked, attempting unlock...');
         if (this.unlockCardByNumber(1, { render: true, silent: false })) {
           logger.info('🎁 Settings click unlocked collectible 01 - DAILY LOG');
           
+          const imagePath = card01.imagePath || this.getCardImagePath('common', 1);
+          console.log('🔍 DEBUG: Showing reward bottom sheet with imagePath:', imagePath);
+          
           // Show reward bottom sheet
           if (typeof window.showCollectibleRewardBottomSheet === 'function') {
+            console.log('🔍 DEBUG: window.showCollectibleRewardBottomSheet is a function, calling it...');
             window.showCollectibleRewardBottomSheet({
               cardName: card01.name,
-              imagePath: card01.imagePath || this.getCardImagePath('common', 1)
+              imagePath: imagePath
             });
+          } else {
+            console.warn('⚠️ DEBUG: window.showCollectibleRewardBottomSheet is NOT a function!');
           }
+        } else {
+          console.warn('⚠️ DEBUG: unlockCardByNumber returned false');
         }
       } else {
         logger.info('🎁 Collectible 01 already unlocked or not found');
+        console.log('🔍 DEBUG: Card01 already unlocked or not found');
       }
     } catch (error) {
       logger.warn('Failed to process settings click unlock:', error);
+      console.error('❌ DEBUG: Error in handleSettingsClick:', error);
     }
   }
 

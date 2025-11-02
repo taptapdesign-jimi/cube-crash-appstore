@@ -220,12 +220,18 @@ class UIManager {
   private handleSettingsClick(event: Event): void {
     event.preventDefault();
     logger.info('⚙️ Settings button clicked');
+    console.log('🔍 DEBUG: handleSettingsClick called');
+    console.log('🔍 DEBUG: window.collectiblesManager exists?', !!(window as any).collectiblesManager);
+    console.log('🔍 DEBUG: handleSettingsClick method exists?', typeof (window as any).collectiblesManager?.handleSettingsClick === 'function');
     
     // NO RESET - let :active work normally
     
     // Trigger collectible 01 unlock via collectiblesManager
     if ((window as any).collectiblesManager && typeof (window as any).collectiblesManager.handleSettingsClick === 'function') {
+      console.log('🔍 DEBUG: Calling collectiblesManager.handleSettingsClick()...');
       (window as any).collectiblesManager.handleSettingsClick();
+    } else {
+      console.warn('⚠️ DEBUG: collectiblesManager or handleSettingsClick not available');
     }
     
     // Show settings screen (slide 3)
