@@ -146,10 +146,14 @@ class UIManager {
     logger.info('🎮 Play button clicked');
     
     // Haptic feedback on click (using Capacitor Haptics)
-    Haptics.impact({ style: 'medium' }).catch(() => {
+    Haptics.impact({ style: 'medium' }).catch((err) => {
+      console.warn('⚠️ Haptics failed, trying fallback:', err);
       // Fallback to navigator.vibrate if Capacitor not available
       if (navigator.vibrate) {
+        console.log('📳 Using navigator.vibrate fallback');
         navigator.vibrate(50);
+      } else {
+        console.warn('⚠️ navigator.vibrate not available');
       }
     });
     

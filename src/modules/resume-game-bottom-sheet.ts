@@ -2,6 +2,7 @@
 
 import { safePauseGame, safeResumeGame, safeUnlockSlider, safeLockSlider } from '../utils/animations.js';
 import { logger } from '../core/logger.js';
+import { Haptics } from '@capacitor/haptics';
 
 let resumeModal: HTMLElement | null = null;
 
@@ -60,6 +61,14 @@ function createResumeModal(): HTMLElement {
   if (continueBtn) {
     (continueBtn as HTMLButtonElement).addEventListener('click', () => {
       console.log('🔘 Continue button pressed - loading saved game');
+      
+      // Haptic feedback
+      Haptics.impact({ style: 'medium' }).catch(() => {
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+      });
+      
       hideResumeModal();
       setTimeout(() => {
         if (typeof (window as any).continueGameWithSavedState === 'function') {
@@ -74,6 +83,14 @@ function createResumeModal(): HTMLElement {
   if (newGameBtn) {
     (newGameBtn as HTMLButtonElement).addEventListener('click', () => {
       console.log('🔘 New Game button pressed - starting fresh');
+      
+      // Haptic feedback
+      Haptics.impact({ style: 'medium' }).catch(() => {
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+      });
+      
       // Clear saved game state
       try {
         localStorage.removeItem('cc_saved_game');
