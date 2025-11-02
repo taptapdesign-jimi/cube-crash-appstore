@@ -10,12 +10,18 @@ type CollectiblesWindow = Window & {
   unlockCollectible?: (eventName: string) => Promise<void>;
   unlockCollectibleByNumber?: (num: number) => Promise<void>;
   hideCollectibleByNumber?: (num: number) => Promise<void>;
+  showCollectibleRewardBottomSheet?: (detail: { cardName: string; imagePath: string }) => Promise<string>;
+  collectiblesManager?: any;
 };
 
 const win = window as CollectiblesWindow;
 
 const loadModule = async () => {
   return import('../collectibles-manager.js');
+};
+
+const loadRewardModule = async () => {
+  return import('../modules/collectible-reward-bottom-sheet.js');
 };
 
 const withModule = async <T>(handler: (mod: typeof import('../collectibles-manager.js')) => Promise<T>): Promise<T> => {
@@ -47,3 +53,21 @@ win.unlockCollectibleByNumber = async (num: number) => {
 win.hideCollectibleByNumber = async (num: number) => {
   await withModule(mod => mod.hideCollectibleByNumber(num));
 };
+
+// Export showCollectibleRewardBottomSheet to window
+win.showCollectibleRewardBottomSheet = async (detail: { cardName: string; imagePath: string }) => {
+  logger.info('🎁 showCollectibleRewardBottomSheet bridge invoked');
+  const rewardModule = await loadRewardModule();
+  if (rewardModule && typeof rewardModule.showCollectibleRewardBottomSheet === 'function') {
+    return rewardModule.showCollectibleRewardBottomSheet(detail);
+  }
+  return Promise.resolve('failed');
+};
+
+// Export collectiblesManager to window
+win.collectiblesManager = null;
+loadModule().then(mod => {
+  win.collectiblesManager = mod.collectiblesManager;
+  logger.info('🎁 Collectibles manager exported to window');
+});
+

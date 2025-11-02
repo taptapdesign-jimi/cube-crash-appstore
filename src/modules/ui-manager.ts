@@ -6,6 +6,7 @@ import { fadeOutHome, fadeInHome, animateSliderExit, animateSliderEnter, animate
 import { showResumeGameBottomSheet } from './resume-game-bottom-sheet.js';
 import { logger } from '../core/logger.js';
 import { boot as bootGame, layout as layoutGame } from './app-core.js';
+import sliderManager from './slider-manager.js';
 
 export interface UIManagerElements {
   loadingScreen: HTMLElement | null;
@@ -222,7 +223,12 @@ class UIManager {
     
     // NO RESET - let :active work normally
     
-    // Show settings screen
+    // Trigger collectible 01 unlock via collectiblesManager
+    if ((window as any).collectiblesManager && typeof (window as any).collectiblesManager.handleSettingsClick === 'function') {
+      (window as any).collectiblesManager.handleSettingsClick();
+    }
+    
+    // Show settings screen (slide 3)
     this.showSettingsScreen();
   }
   
@@ -717,7 +723,8 @@ class UIManager {
   // Show settings screen
   showSettingsScreen(): void {
     logger.info('⚙️ Showing settings screen');
-    // Implementation will be added
+    // Switch to slide 3 (Settings)
+    sliderManager.setCurrentSlide(3);
   }
   
   // Update slider lock state
