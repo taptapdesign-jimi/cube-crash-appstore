@@ -144,6 +144,11 @@ class UIManager {
     event.preventDefault();
     logger.info('🎮 Play button clicked');
     
+    // Haptic feedback on click
+    if (navigator.vibrate) {
+      navigator.vibrate(50); // 50ms gentle haptic feedback
+    }
+    
     // Check for saved game
     this.checkForSavedGame();
   }
