@@ -134,6 +134,12 @@ let isAnimatingEnter = false;
 // Track active animation timeouts for cleanup
 let activeTimeouts: Set<NodeJS.Timeout> = new Set();
 
+// Cache DOM elements for performance (prevent repeated querySelector calls on first click)
+let cachedElements: {
+  homeLogo?: HTMLElement | null;
+  independentNav?: HTMLElement | null;
+} = {};
+
 // Cleanup function to cancel all pending animations
 export const cleanupAnimations = (): void => {
   logger.info('🧹 Cleaning up all animation timeouts...');
@@ -156,7 +162,8 @@ export const animateSliderExit = (): void => {
     isAnimatingExit = true;
     logger.info('🎬 Starting CARTOONISH PROCEDURAL exit animation...');
     
-    // Start the actual exit animation sequence
+    // Start the actual exit animation sequence immediately
+    // REMOVED: requestAnimationFrame delay - no longer needed
     startExitAnimationSequence();
     
     // Reset flag after animation completes
@@ -188,8 +195,17 @@ function startExitAnimationSequence(): void {
     const heroContainer = activeSlide.querySelector('.hero-container');
     const slideButton = activeSlide.querySelector('.slide-button');
     const slideText = activeSlide.querySelector('.slide-text');
-    const homeLogo = document.querySelector('#home-logo'); // Logo is shared, not per-slide
-    const independentNav = document.getElementById('independent-nav'); // Navigation is shared
+    
+    // Use cached elements or query them once and cache
+    if (!cachedElements.homeLogo) {
+      cachedElements.homeLogo = document.querySelector('#home-logo');
+    }
+    const homeLogo = cachedElements.homeLogo;
+    
+    if (!cachedElements.independentNav) {
+      cachedElements.independentNav = document.getElementById('independent-nav');
+    }
+    const independentNav = cachedElements.independentNav;
     
     // CARTOONISH PROCEDURAL SEQUENCE: 1. Hero → 2. CTA → 3. Text → 4. Logo → 5. Navigation LAST
     
@@ -330,8 +346,17 @@ function startEnterAnimationSequence(): void {
     const heroContainer = activeSlide.querySelector('.hero-container');
     const slideButton = activeSlide.querySelector('.slide-button');
     const slideText = activeSlide.querySelector('.slide-text');
-    const homeLogo = document.querySelector('#home-logo'); // Logo is shared, not per-slide
-    const independentNav = document.getElementById('independent-nav'); // Navigation is shared
+    
+    // Use cached elements or query them once and cache
+    if (!cachedElements.homeLogo) {
+      cachedElements.homeLogo = document.querySelector('#home-logo');
+    }
+    const homeLogo = cachedElements.homeLogo;
+    
+    if (!cachedElements.independentNav) {
+      cachedElements.independentNav = document.getElementById('independent-nav');
+    }
+    const independentNav = cachedElements.independentNav;
     
     // COMIC POP-IN PROCEDURAL SEQUENCE (REVERSE of exit): Nav → Logo → Text → CTA → Hero
     // Last element that exits is first to enter!

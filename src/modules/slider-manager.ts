@@ -107,13 +107,23 @@ class SliderManager {
     
     // Navigation dots
     this.elements.dots.forEach((dot, index) => {
-      dot.addEventListener('click', () => this.goToSlide(index));
+      dot.addEventListener('click', () => {
+        // Light haptic for nav dots
+        if (typeof (window as any).triggerHapticImpact === 'function') {
+          (window as any).triggerHapticImpact('light');
+        }
+        this.goToSlide(index);
+      });
     });
     
     // Independent navigation buttons
     const navButtons = document.querySelectorAll('.independent-nav-button');
     navButtons.forEach((button, index) => {
       button.addEventListener('click', () => {
+        // Light haptic for nav buttons
+        if (typeof (window as any).triggerHapticImpact === 'function') {
+          (window as any).triggerHapticImpact('light');
+        }
         this.goToSlide(index);
       });
     });

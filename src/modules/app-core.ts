@@ -1441,6 +1441,20 @@ function merge(src, dst, helpers){
     
     updateHUD();
     
+    // Haptic feedback based on merge type
+    if (typeof (window as any).triggerHapticImpact === 'function') {
+      if (wildActive) {
+        // Wild merge = Double HEAVY for longer feel
+        (window as any).triggerHapticImpact('heavy');
+        setTimeout(() => {
+          (window as any).triggerHapticImpact('heavy');
+        }, 150);
+      } else {
+        // All non-wild merges = LIGHT (soft like CTA buttons)
+        (window as any).triggerHapticImpact('light');
+      }
+    }
+    
     // Combo++ (bez realnog capa), bump anim
     hudSetCombo(combo + 1);
     try { HUD.bumpCombo?.({ kind: 'stack', combo }); } catch {}
@@ -1503,6 +1517,20 @@ function merge(src, dst, helpers){
 
   // ---- 6 (računaj combo i ovdje – nastavlja x6, x7, x8…)
   if (effSum === 6){
+    // Haptic feedback for merge 6
+    if (typeof (window as any).triggerHapticImpact === 'function') {
+      if (wildActive) {
+        // Wild merge 6 = Double HEAVY for longer feel
+        (window as any).triggerHapticImpact('heavy');
+        setTimeout(() => {
+          (window as any).triggerHapticImpact('heavy');
+        }, 150);
+      } else {
+        // Normal merge 6 = MEDIUM (stronger than regular merge)
+        (window as any).triggerHapticImpact('medium');
+      }
+    }
+    
     const combinedCount = (src.stackDepth || 1) + (dst.stackDepth || 1);
     const visualDepth   = Math.min(4, combinedCount);
 
@@ -1619,6 +1647,12 @@ function merge(src, dst, helpers){
         console.log('🔥 Checking if board is clean after merge...');
         if (isBoardClean()){
           console.log('🚨🚨🚨 BOARD IS CLEAN - STARTING ENDGAME FLOW! 🚨🚨🚨');
+          
+          // SUCCESS haptic for clean board
+          if (typeof (window as any).triggerHapticNotification === 'function') {
+            (window as any).triggerHapticNotification('success');
+          }
+          
           busyEnding = true;
           
           // CRITICAL: Reset wild meter immediately to prevent visual residue
@@ -1881,6 +1915,11 @@ function removeTile(t){
 }
 
 async function showFinalScreen(){
+  // Haptic feedback for game over
+  if (typeof (window as any).triggerHapticNotification === 'function') {
+    (window as any).triggerHapticNotification('error');
+  }
+  
   let result = null;
   try {
     const { showBoardFailModal } = await import('./board-fail-modal.js');

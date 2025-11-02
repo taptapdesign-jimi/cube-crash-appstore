@@ -523,6 +523,11 @@ export async function showCleanBoardModal({
 
     // Continue
     addButtonPressHandling(btn, () => {
+      // Haptic for Continue button
+      if (typeof (window as any).triggerHapticSelection === 'function') {
+        (window as any).triggerHapticSelection();
+      }
+      
       btn.disabled = true;
       
       // CRITICAL: Reset boardCleared before exit animation - NO transforms at all

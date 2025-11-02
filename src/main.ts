@@ -370,10 +370,10 @@ initializeApp().catch((error: Error) => {
 };
 
 // New sequence handler: bottom sheet close → exit anim → game start
-(window as any).triggerGameStartSequence = () => {
+(window as any).triggerGameStartSequence = async () => {
   logger.info('🎬 Starting game start sequence...');
   
-  // Step 1: Play exit animation
+  // Step 1: Play exit animation FIRST
   console.log('🎬 Step 1: Playing exit animation');
   animateSliderExit();
   
@@ -381,8 +381,8 @@ initializeApp().catch((error: Error) => {
   setTimeout(() => {
     console.log('🎮 Step 2: Starting game after exit animation');
     uiManager.hideHomepage(); // Hide homepage AFTER animation
-    uiManager.startNewGame();
-  }, 770); // 120ms delay + 650ms animation = 770ms total (was 420ms, increased by 350ms)
+    uiManager.startNewGame(); // Start game boot
+  }, 770); // 120ms delay + 650ms animation = 770ms total
 };
 
 // Export exitToMenu function for End This Run modal

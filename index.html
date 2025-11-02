@@ -141,6 +141,56 @@
   <script>
     console.log('✅ HTML loaded');
     
+    // Haptic feedback helpers for iOS WebView
+    window.triggerHapticImpact = function(style = 'medium') {
+      try {
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticImpact) {
+          window.webkit.messageHandlers.hapticImpact.postMessage({ style: style });
+          console.log('📳 Haptic impact sent to iOS:', style);
+        } else if (navigator.vibrate) {
+          const duration = style === 'heavy' ? 70 : style === 'light' ? 30 : 50;
+          navigator.vibrate(duration);
+          console.log('📳 Haptic fallback (vibrate):', style);
+        }
+      } catch (e) {
+        console.warn('⚠️ Haptic impact failed:', e);
+      }
+    };
+    
+    window.triggerHapticSelection = function() {
+      try {
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticSelection) {
+          window.webkit.messageHandlers.hapticSelection.postMessage({});
+          console.log('📳 Haptic selection sent to iOS');
+        } else if (navigator.vibrate) {
+          navigator.vibrate(30);
+          console.log('📳 Selection fallback (vibrate)');
+        }
+      } catch (e) {
+        console.warn('⚠️ Haptic selection failed:', e);
+      }
+    };
+    
+    window.triggerHapticNotification = function(type = 'success') {
+      try {
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticNotification) {
+          window.webkit.messageHandlers.hapticNotification.postMessage({ style: type });
+          console.log('📳 Haptic notification sent to iOS:', type);
+        } else if (navigator.vibrate) {
+          const duration = type === 'error' ? 100 : type === 'warning' ? 70 : 50;
+          navigator.vibrate(duration);
+          console.log('📳 Notification fallback (vibrate):', type);
+        }
+      } catch (e) {
+        console.warn('⚠️ Haptic notification failed:', e);
+      }
+    };
+    
+    // Backwards compatibility
+    window.triggerHaptic = function() {
+      window.triggerHapticImpact('medium');
+    };
+    
     // Fix mobile viewport height
     function setViewportHeight() {
       const vh = window.innerHeight * 0.01;

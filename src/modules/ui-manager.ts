@@ -7,7 +7,8 @@ import { showResumeGameBottomSheet } from './resume-game-bottom-sheet.js';
 import { logger } from '../core/logger.js';
 import { boot as bootGame, layout as layoutGame } from './app-core.js';
 import sliderManager from './slider-manager.js';
-import { Haptics } from '@capacitor/haptics';
+
+// Extend Window interface for haptic feedback
 
 export interface UIManagerElements {
   loadingScreen: HTMLElement | null;
@@ -145,19 +146,10 @@ class UIManager {
     event.preventDefault();
     logger.info('🎮 Play button clicked');
     
-    // Haptic feedback on click (using Capacitor Haptics)
-    Haptics.impact({ style: 'medium' }).catch((err) => {
-      console.warn('⚠️ Haptics failed, trying fallback:', err);
-      // Fallback to navigator.vibrate if Capacitor not available
-      if (navigator.vibrate) {
-        console.log('📳 Using navigator.vibrate fallback');
-        navigator.vibrate(50);
-      } else {
-        console.warn('⚠️ navigator.vibrate not available');
-      }
-    });
+    // NO haptic on first play click - too much lag
+    // Haptic is too heavy for first interaction
     
-    // Check for saved game
+    // Check for saved game (starts exit animation)
     this.checkForSavedGame();
   }
   
@@ -204,6 +196,11 @@ class UIManager {
     event.preventDefault();
     logger.info('📊 Stats button clicked');
     
+    // Light haptic for Stats button
+    if (typeof (window as any).triggerHapticImpact === 'function') {
+      (window as any).triggerHapticImpact('light');
+    }
+    
     // NO RESET - let :active work normally like Play button
     
     // Play exit animation first, then show stats screen
@@ -214,6 +211,11 @@ class UIManager {
     event.preventDefault();
     logger.info('📊 Stats back button clicked');
     
+    // Light haptic for back button
+    if (typeof (window as any).triggerHapticImpact === 'function') {
+      (window as any).triggerHapticImpact('light');
+    }
+    
     // Play enter animation, then hide stats screen
     this.hideStatsScreenWithAnimation();
   }
@@ -222,6 +224,11 @@ class UIManager {
   private handleCollectiblesClick(event: Event): void {
     event.preventDefault();
     logger.info('🎁 Collectibles button clicked');
+    
+    // Light haptic for Collectibles button
+    if (typeof (window as any).triggerHapticImpact === 'function') {
+      (window as any).triggerHapticImpact('light');
+    }
     
     // NO RESET - let :active work normally
     
@@ -233,6 +240,11 @@ class UIManager {
   private handleSettingsClick(event: Event): void {
     event.preventDefault();
     logger.info('⚙️ Settings button clicked - disabled for now');
+    
+    // Light haptic for Settings button (even though disabled)
+    if (typeof (window as any).triggerHapticImpact === 'function') {
+      (window as any).triggerHapticImpact('light');
+    }
     
     // Settings button disabled - no action
   }

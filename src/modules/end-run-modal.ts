@@ -44,6 +44,11 @@ function createModal(): HTMLElement {
     restartBtn.addEventListener('click', () => {
       console.log('🔄 Restart button clicked - starting restart sequence');
       
+      // Haptic for Restart button
+      if (typeof (window as any).triggerHapticSelection === 'function') {
+        (window as any).triggerHapticSelection();
+      }
+      
       // Step 1: Animate modal exit
       hideModal();
       
@@ -68,6 +73,12 @@ function createModal(): HTMLElement {
   if (completeBoardBtn) {
     completeBoardBtn.addEventListener('click', async () => {
       console.log('🎯 Complete Board button clicked');
+      
+      // Haptic for Complete Board button
+      if (typeof (window as any).triggerHapticSelection === 'function') {
+        (window as any).triggerHapticSelection();
+      }
+      
       hideModal();
       
       // Call showCleanBoardModal instantly
@@ -142,6 +153,11 @@ function createModal(): HTMLElement {
     exitBtn.addEventListener('click', () => {
       console.log('🚪 Exit button clicked - starting exit sequence');
       
+      // Haptic for Exit button
+      if (typeof (window as any).triggerHapticSelection === 'function') {
+        (window as any).triggerHapticSelection();
+      }
+      
       // Step 1: Animate modal exit (non-blocking)
       hideModal();
       
@@ -187,6 +203,12 @@ function createModal(): HTMLElement {
 
 export function showEndRunModal(): void {
   console.log('🎯 Pausing game for End This Run modal');
+  
+  // Light haptic for opening bottom sheet
+  if (typeof (window as any).triggerHapticImpact === 'function') {
+    (window as any).triggerHapticImpact('light');
+  }
+  
   safePauseGame();
   
   // CRITICAL: Freeze entire game - disable ALL interactions

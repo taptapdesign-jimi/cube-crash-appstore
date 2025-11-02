@@ -197,6 +197,23 @@ export function merge(src, dst, helpers){
     makeBoard.setValue(dst, effSum, srcDepth);
     if (wildActive) clearWildState(dst);
     STATE.score += effSum; updateHUD();
+    
+    // Haptic feedback based on merge/stack type
+    console.log('🔍 HAPTIC CHECK:', { 
+      hasTriggerHaptic: typeof (window as any).triggerHaptic === 'function',
+      wildActive,
+      srcValue: src.value,
+      dstValue: dst.value,
+      isStacking: src.value === dst.value
+    });
+    
+    // Use same bridge as Continue/New Game buttons
+    if (typeof (window as any).triggerHaptic === 'function') {
+      console.log('📳 CALLING triggerHaptic');
+      (window as any).triggerHaptic();
+    } else {
+      console.warn('⚠️ triggerHaptic function not available!');
+    }
 
     // STATS TRACKING: Update high score immediately for all merges
     console.log('📊 ALL MERGES - Checking high score update, current score:', STATE.score);
@@ -324,6 +341,21 @@ export function merge(src, dst, helpers){
 
   // ---- 6: FX, then refill 2 (by depth), first 6 = Wild at explosion cell
   if (effSum === 6){
+    // Haptic feedback for merge 6
+    console.log('🔍 HAPTIC CHECK (merge-6):', { 
+      hasTriggerHaptic: typeof (window as any).triggerHaptic === 'function',
+      wildActive,
+      effSum
+    });
+    
+    // Use same bridge as Continue/New Game buttons
+    if (typeof (window as any).triggerHaptic === 'function') {
+      console.log('📳 CALLING triggerHaptic (merge-6)');
+      (window as any).triggerHaptic();
+    } else {
+      console.warn('⚠️ triggerHaptic function not available (merge-6)!');
+    }
+    
     const combined = Math.min(4, srcDepth + dstDepth);
     const avoidValue = Number.isFinite(wildTargetValue) ? wildTargetValue : null;
     dst._wildMergeTarget = avoidValue;
@@ -591,6 +623,19 @@ export async function checkGameOver(){
   }
   
   console.log('🚨 No merges possible, game over!');
+  
+  // Haptic feedback for game over
+  console.log('🔍 HAPTIC CHECK (game over):', { 
+    hasTriggerHaptic: typeof (window as any).triggerHaptic === 'function'
+  });
+  
+  // Use same bridge as Continue/New Game buttons
+  if (typeof (window as any).triggerHaptic === 'function') {
+    console.log('📳 CALLING triggerHaptic (game over)');
+    (window as any).triggerHaptic();
+  } else {
+    console.warn('⚠️ triggerHaptic function not available (game over)!');
+  }
 
   if (active.length === 2){
     const add = (active[0].value|0) + (active[1].value|0);

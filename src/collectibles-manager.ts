@@ -144,6 +144,12 @@ class CollectiblesManager {
     if (backBtn) {
       backBtn.addEventListener('click', () => {
         logger.info('🎁 Collectibles back button clicked');
+        
+        // Light haptic for back button
+        if (typeof (window as any).triggerHapticImpact === 'function') {
+          (window as any).triggerHapticImpact('light');
+        }
+        
         // Try to use animated version first, fallback to non-animated
         if (typeof (window as any).hideCollectiblesScreenWithAnimation === 'function') {
           logger.info('🎁 Calling window.hideCollectiblesScreenWithAnimation()');
