@@ -219,12 +219,9 @@ class UIManager {
   // Handle settings button click
   private handleSettingsClick(event: Event): void {
     event.preventDefault();
-    logger.info('⚙️ Settings button clicked - redirecting to collectibles screen');
+    logger.info('⚙️ Settings button clicked - disabled for now');
     
-    // NO RESET - let :active work normally
-    
-    // Just show collectibles screen - no unlock, no bottom sheet
-    this.showCollectiblesScreenWithAnimation();
+    // Settings button disabled - no action
   }
   
   // Check for saved game
