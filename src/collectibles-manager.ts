@@ -461,7 +461,6 @@ class CollectiblesManager {
     const card = cards[index];
     if (!card) return;
 
-    const rarityLabel = category === 'legendary' ? 'Legendary' : 'Common';
     const modal = document.getElementById('collectibles-detail-modal');
     const numberStr = (index + 1).toString().padStart(2, '0');
     const imagePath = this.getCardImagePath(category as keyof CollectiblesData, index + 1);
@@ -470,22 +469,19 @@ class CollectiblesManager {
     const cardImageEl = document.getElementById('detail-card-image') as HTMLElement;
     const cardDescriptionEl = document.getElementById('detail-card-description');
 
-    if (cardNumberEl) cardNumberEl.textContent = `${rarityLabel} • ${numberStr}`;
+    if (cardNumberEl) cardNumberEl.textContent = numberStr;
     if (cardImageEl) cardImageEl.style.backgroundImage = `url('${imagePath}')`;
     if (cardDescriptionEl) cardDescriptionEl.textContent = card.description;
 
     if (modal) {
       this.detailTrigger = document.activeElement as HTMLElement;
+      modal.removeAttribute('hidden');
       modal.setAttribute('aria-hidden', 'false');
-      modal.classList.remove('hidden');
-      requestAnimationFrame(() => {
-        modal.classList.add('show');
-        this.detailFocusTrap?.destroy();
-        this.detailFocusTrap = createFocusTrap({
-          container: modal,
-          initialFocus: document.getElementById('detail-close-btn') as HTMLElement,
-          onEscape: () => this.hideCardDetail(),
-        });
+      this.detailFocusTrap?.destroy();
+      this.detailFocusTrap = createFocusTrap({
+        container: modal,
+        initialFocus: document.getElementById('detail-close-btn') as HTMLElement,
+        onEscape: () => this.hideCardDetail(),
       });
     }
   }
@@ -494,7 +490,7 @@ class CollectiblesManager {
     const modal = document.getElementById('collectibles-detail-modal');
     if (!modal) return;
 
-    modal.classList.remove('show');
+    modal.setAttribute('hidden', 'true');
     modal.setAttribute('aria-hidden', 'true');
     this.detailFocusTrap?.destroy();
     this.detailFocusTrap = null;
@@ -502,12 +498,9 @@ class CollectiblesManager {
     const trigger = this.detailTrigger;
     this.detailTrigger = null;
 
-    setTimeout(() => {
-      modal.classList.add('hidden');
-      if (trigger && typeof trigger.focus === 'function') {
-        trigger.focus();
-      }
-    }, 300);
+    if (trigger && typeof trigger.focus === 'function') {
+      trigger.focus();
+    }
   }
 
   private showLockedMessage(): void {

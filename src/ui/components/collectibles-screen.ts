@@ -178,74 +178,84 @@ export function createCollectiblesDetailModal(): HTMLElementConfig {
   return {
     tag: 'div',
     id: 'collectibles-detail-modal',
-    className: 'screen modal hidden',
+    attributes: { hidden: 'true' },
     children: [
       {
         tag: 'div',
-        className: 'modal-content',
+        className: 'detail-content',
         children: [
           {
             tag: 'div',
-            className: 'detail-top-bar',
+            className: 'detail-header',
             children: [
               {
                 tag: 'div',
-                id: 'detail-card-number',
-                className: 'card-number-display',
-                text: '05',
-              },
-              {
-                tag: 'button',
-                id: 'detail-close-btn',
-                className: 'close-btn',
-                attributes: {
-                  type: 'button',
-                  'aria-label': 'Close collectible details',
-                },
+                className: 'detail-header-top',
                 children: [
                   {
-                    tag: 'img',
+                    tag: 'button',
+                    id: 'detail-close-btn',
+                    className: 'detail-close-button tap-scale',
                     attributes: {
-                      src: 'assets/close-button.png',
-                      alt: '',
-                      'aria-hidden': 'true',
+                      type: 'button',
+                      'aria-label': 'Close collectible details',
                     },
+                    children: [
+                      {
+                        tag: 'img',
+                        attributes: {
+                          src: './assets/close-icon.png',
+                          alt: '',
+                          'aria-hidden': 'true',
+                        },
+                      },
+                    ],
+                  },
+                  {
+                    tag: 'h1',
+                    id: 'detail-card-number',
+                    className: 'detail-title',
+                    text: '05',
+                  },
+                  {
+                    tag: 'div',
+                    className: 'detail-header-spacer',
                   },
                 ],
+              },
+              {
+                tag: 'div',
+                className: 'detail-title-underline',
               },
             ],
           },
           {
             tag: 'div',
-            className: 'detail-divider',
-          },
-          {
-            tag: 'div',
-            className: 'card-detail-content',
+            className: 'detail-scrollable',
             children: [
               {
                 tag: 'div',
-                className: 'card-image-container',
+                className: 'detail-image-container',
                 children: [
                   {
                     tag: 'div',
                     id: 'detail-card-image',
-                    className: 'card-image',
+                    className: 'detail-image',
                   },
                 ],
               },
               {
                 tag: 'div',
-                className: 'card-description-container',
+                className: 'detail-description-container',
                 children: [
                   {
                     tag: 'div',
-                    className: 'description-divider',
+                    className: 'detail-description-divider',
                   },
                   {
                     tag: 'p',
                     id: 'detail-card-description',
-                    className: 'card-description',
+                    className: 'detail-description',
                     text: 'Clean a board in less than 2 minutes',
                   },
                 ],

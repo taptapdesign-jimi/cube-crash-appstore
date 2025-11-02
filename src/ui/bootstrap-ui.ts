@@ -196,8 +196,6 @@ function renderCollectiblesModal(root: HTMLElement): void {
   modalElement.setAttribute('aria-modal', 'true');
   modalElement.setAttribute('aria-labelledby', 'detail-card-number');
   modalElement.setAttribute('aria-hidden', 'true');
-  modalElement.classList.add('hidden');
-  modalElement.style.display = 'none';
   root.appendChild(modalElement);
 }
 
