@@ -387,17 +387,17 @@ class CollectiblesManager {
 
   private getPlaceholderPath(category: keyof CollectiblesData): string {
     return category === 'legendary'
-      ? './assets/collectibles/legendary back.png'
-      : './assets/collectibles/common back.png';
+      ? './assets/colelctibles/legendary back.png'
+      : './assets/colelctibles/common back.png';
   }
 
   private getCardImagePath(category: keyof CollectiblesData, number: number): string {
     if (category === 'legendary') {
       const assetNumber = (number + 20).toString().padStart(2, '0');
-      return `./assets/collectibles/legendary/${assetNumber}.png`;
+      return `./assets/colelctibles/legendary/${assetNumber}.png`;
     }
     const assetNumber = number.toString().padStart(2, '0');
-    return `./assets/collectibles/common/${assetNumber}.png`;
+    return `./assets/colelctibles/common/${assetNumber}.png`;
   }
 
   private updateCounters(): void {
