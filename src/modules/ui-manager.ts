@@ -7,6 +7,7 @@ import { showResumeGameBottomSheet } from './resume-game-bottom-sheet.js';
 import { logger } from '../core/logger.js';
 import { boot as bootGame, layout as layoutGame } from './app-core.js';
 import sliderManager from './slider-manager.js';
+import { Haptics } from '@capacitor/haptics';
 
 export interface UIManagerElements {
   loadingScreen: HTMLElement | null;
@@ -144,10 +145,13 @@ class UIManager {
     event.preventDefault();
     logger.info('🎮 Play button clicked');
     
-    // Haptic feedback on click
-    if (navigator.vibrate) {
-      navigator.vibrate(50); // 50ms gentle haptic feedback
-    }
+    // Haptic feedback on click (using Capacitor Haptics)
+    Haptics.impact({ style: 'medium' }).catch(() => {
+      // Fallback to navigator.vibrate if Capacitor not available
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    });
     
     // Check for saved game
     this.checkForSavedGame();
