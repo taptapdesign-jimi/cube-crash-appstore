@@ -10,6 +10,7 @@ import {
   renderCollectiblesScreen,
   createCollectiblesDetailModal,
 } from './components/collectibles-screen.js';
+import { renderSettingsScreen } from './components/settings-screen.js';
 import { renderMenuModal } from './components/menu-modal.js';
 import { renderNavigation } from './components/navigation.js';
 import { createLoadingScreen } from './components/loading-screen.js';
@@ -47,6 +48,7 @@ function bootstrapUI() {
   renderGameContainer(uiRoot);
   renderStats(uiRoot);
   renderCollectibles(uiRoot);
+  renderSettings(uiRoot);
   renderMenu(uiRoot);
   renderCollectiblesModal(uiRoot);
   // Render navigation directly in body (not in navRoot)
@@ -182,6 +184,11 @@ function renderStats(root: HTMLElement): void {
 function renderCollectibles(root: HTMLElement): void {
   if (document.getElementById('collectibles-screen')) return;
   renderCollectiblesScreen(root, { showDebugControls: true });
+}
+
+function renderSettings(root: HTMLElement): void {
+  if (document.getElementById('settings-screen')) return;
+  renderSettingsScreen(root, {});
 }
 
 function renderMenu(root: HTMLElement): void {

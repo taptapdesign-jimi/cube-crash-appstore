@@ -27,6 +27,8 @@ export interface UIManagerElements {
   settingsButton: HTMLButtonElement | null;
   statsScreen: HTMLElement | null;
   statsBackButton: HTMLButtonElement | null;
+  settingsScreen: HTMLElement | null;
+  settingsBackButton: HTMLButtonElement | null;
   independentNav: HTMLElement | null;
 }
 
@@ -64,6 +66,8 @@ class UIManager {
         settingsButton: document.getElementById('btn-settings') as HTMLButtonElement,
         statsScreen: document.getElementById('stats-screen'),
         statsBackButton: document.getElementById('stats-back-btn') as HTMLButtonElement,
+        settingsScreen: document.getElementById('settings-screen'),
+        settingsBackButton: document.getElementById('settings-back-btn') as HTMLButtonElement,
         independentNav: document.getElementById('independent-nav')
       };
       
@@ -115,6 +119,13 @@ class UIManager {
     if (this.elements.statsBackButton) {
       this.elements.statsBackButton.addEventListener('click', this.handleStatsBackClick.bind(this));
     }
+    
+    if (this.elements.settingsBackButton) {
+      this.elements.settingsBackButton.addEventListener('click', this.handleSettingsBackClick.bind(this));
+    }
+    
+    // Setup settings toggles
+    this.setupSettingsToggles();
   }
   
   // Setup state subscriptions
@@ -234,14 +245,15 @@ class UIManager {
   // Handle settings button click
   private handleSettingsClick(event: Event): void {
     event.preventDefault();
-    logger.info('⚙️ Settings button clicked - disabled for now');
+    logger.info('⚙️ Settings button clicked');
     
-    // Light haptic for Settings button (even though disabled)
+    // Light haptic for Settings button
     if (typeof (window as any).triggerHapticImpact === 'function') {
       (window as any).triggerHapticImpact('light');
     }
     
-    // Settings button disabled - no action
+    // Show settings screen with animation
+    this.showSettingsScreenWithAnimation();
   }
   
   // Check for saved game
@@ -733,10 +745,203 @@ class UIManager {
   }
   
   // Show settings screen
-  showSettingsScreen(): void {
-    logger.info('⚙️ Showing settings screen');
-    // Switch to slide 3 (Settings)
-    sliderManager.setCurrentSlide(3);
+  private showSettingsScreenWithAnimation(): void {
+    logger.info('⚙️ Showing settings screen - with exit animation');
+    
+    // CRITICAL: Switch to Settings slide (index 3) BEFORE animation so it animates the correct slide
+    const slides = document.querySelectorAll('.slider-slide');
+    const navButtons = document.querySelectorAll('.independent-nav-button');
+    slides.forEach((slide, index) => {
+      if (index === 3) {
+        slide.classList.add('active');
+      } else {
+        slide.classList.remove('active');
+      }
+    });
+    navButtons.forEach((button, index) => {
+      if (index === 3) {
+        button.classList.add('active');
+      } else {
+        button.classList.remove('active');
+      }
+    });
+    
+    // Step 1: Play exit animation for Settings slide
+    console.log('🎬 Step 1: Playing exit animation for Settings slide');
+    animateSliderExit();
+    
+    // Step 2: Wait for exit animation, then show settings screen
+    setTimeout(() => {
+      console.log('⚙️ Step 2: Showing settings screen after exit animation');
+      
+      const settingsScreen = this.elements.settingsScreen;
+      if (!settingsScreen) return;
+      
+      // Show settings screen after animation
+      this.hideHomepage();
+      this.setNavigationVisibility(false);
+      settingsScreen.style.display = 'flex';
+      settingsScreen.removeAttribute('hidden');
+      settingsScreen.setAttribute('aria-hidden', 'false');
+      
+      // Focus immediately
+      setTimeout(() => {
+        const focusTarget = settingsScreen.querySelector('.settings-back-button') as HTMLElement | null;
+        focusTarget?.focus();
+      }, 100);
+    }, 770);
+  }
+  
+  // Hide settings screen with enter animation
+  private hideSettingsScreenWithAnimation(): void {
+    logger.info('⚙️ Hiding settings screen - with enter animation');
+    
+    // Hide settings screen immediately
+    const settingsScreen = this.elements.settingsScreen;
+    if (settingsScreen) {
+      settingsScreen.setAttribute('aria-hidden', 'true');
+      settingsScreen.style.display = 'none';
+      settingsScreen.setAttribute('hidden', 'true');
+      this.setNavigationVisibility(true);
+    }
+    
+    // CRITICAL: Switch to Settings slide (index 3) to show Settings slide after exiting Settings screen
+    const slides = document.querySelectorAll('.slider-slide');
+    const navButtons = document.querySelectorAll('.independent-nav-button');
+    slides.forEach((slide, index) => {
+      if (index === 3) {
+        slide.classList.add('active');
+      } else {
+        slide.classList.remove('active');
+      }
+    });
+    navButtons.forEach((button, index) => {
+      if (index === 3) {
+        button.classList.add('active');
+      } else {
+        button.classList.remove('active');
+      }
+    });
+    
+    // Show homepage QUIETLY first (no animations yet)
+    this.showHomepageQuietly();
+    
+    // Step 2: Play enter animation for Settings slide
+    console.log('🎬 Playing enter animation for Settings slide');
+    animateSliderEnter();
+  }
+  
+  // Show settings screen quietly (no animations) - DEPRECATED
+  private showSettingsScreenQuietly(): void {
+    logger.info('⚙️ Showing settings screen quietly');
+    const settingsScreen = this.elements.settingsScreen;
+    if (!settingsScreen) {
+      logger.warn('⚠️ Settings screen element not found');
+      return;
+    }
+
+    this.hideHomepage();
+    this.setNavigationVisibility(false);
+    settingsScreen.style.display = 'flex';
+    settingsScreen.removeAttribute('hidden');
+    settingsScreen.setAttribute('aria-hidden', 'false');
+
+    const focusTarget = settingsScreen.querySelector('.settings-back-button') as HTMLElement | null;
+    focusTarget?.focus();
+  }
+  
+  // Hide settings screen
+  private hideSettingsScreen(): void {
+    const settingsScreen = this.elements.settingsScreen;
+    if (!settingsScreen) return;
+
+    settingsScreen.setAttribute('aria-hidden', 'true');
+    settingsScreen.style.display = 'none';
+    settingsScreen.setAttribute('hidden', 'true');
+    this.setNavigationVisibility(true);
+    this.showHomepage();
+  }
+  
+  // Handle settings back button click
+  private handleSettingsBackClick(event: Event): void {
+    event.preventDefault();
+    logger.info('⚙️ Settings back button clicked');
+    
+    // Light haptic
+    if (typeof (window as any).triggerHapticImpact === 'function') {
+      (window as any).triggerHapticImpact('light');
+    }
+    
+    this.hideSettingsScreenWithAnimation();
+  }
+  
+  // Setup settings toggles
+  private setupSettingsToggles(): void {
+    const gameSoundsToggle = document.getElementById('toggle-game-sounds');
+    const vibrationToggle = document.getElementById('toggle-vibration');
+    
+    if (gameSoundsToggle) {
+      gameSoundsToggle.addEventListener('change', this.handleGameSoundsToggle.bind(this));
+    }
+    
+    if (vibrationToggle) {
+      vibrationToggle.addEventListener('change', this.handleVibrationToggle.bind(this));
+    }
+  }
+  
+  // Handle game sounds toggle
+  private handleGameSoundsToggle(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const enabled = target.checked;
+    
+    console.log('🔊 Game sounds toggled:', enabled);
+    
+    // Update status text
+    const statusEl = document.getElementById('status-game-sounds');
+    if (statusEl) {
+      statusEl.textContent = enabled ? 'ON' : 'OFF';
+    }
+    
+    // Update global state
+    if ((window as any)._settings) {
+      (window as any)._settings.gameSoundsEnabled = enabled;
+    }
+    
+    // Save settings to localStorage
+    if (typeof (window as any).saveSettings === 'function') {
+      (window as any).saveSettings((window as any)._settings);
+    }
+    
+    // TODO: Implement game sounds logic
+  }
+  
+  // Handle vibration toggle
+  private handleVibrationToggle(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const enabled = target.checked;
+    
+    console.log('📳 Vibration toggled:', enabled);
+    
+    // Update status text
+    const statusEl = document.getElementById('status-vibration');
+    if (statusEl) {
+      statusEl.textContent = enabled ? 'ON' : 'OFF';
+    }
+    
+    // Update global state
+    if ((window as any)._settings) {
+      (window as any)._settings.hapticsEnabled = enabled;
+    }
+    
+    // Save settings to localStorage
+    if (typeof (window as any).saveSettings === 'function') {
+      (window as any).saveSettings((window as any)._settings);
+    }
+    
+    // Light haptic to confirm toggle
+    if (enabled && typeof (window as any).triggerHapticImpact === 'function') {
+      (window as any).triggerHapticImpact('light');
+    }
   }
   
   // Update slider lock state

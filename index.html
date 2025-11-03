@@ -95,6 +95,12 @@
       visibility: hidden !important;
     }
     
+    /* Settings screen visibility handled by style.css */
+    #settings-screen {
+      display: none;
+      visibility: hidden;
+    }
+    
     /* #app is controlled by JavaScript, not CSS */
     
     /* Navigation is controlled by JS, not CSS */
@@ -147,9 +153,44 @@
   <script>
     console.log('✅ HTML loaded');
     
+    // Global settings state with localStorage persistence
+    function loadSettings() {
+      try {
+        const saved = localStorage.getItem('cc_settings');
+        if (saved) {
+          return JSON.parse(saved);
+        }
+      } catch (e) {
+        console.warn('⚠️ Failed to load settings:', e);
+      }
+      // Default settings
+      return {
+        hapticsEnabled: true,
+        gameSoundsEnabled: false
+      };
+    }
+    
+    function saveSettings(settings) {
+      try {
+        localStorage.setItem('cc_settings', JSON.stringify(settings));
+        console.log('💾 Settings saved:', settings);
+      } catch (e) {
+        console.warn('⚠️ Failed to save settings:', e);
+      }
+    }
+    
+    window._settings = loadSettings();
+    console.log('⚙️ Loaded settings:', window._settings);
+    
     // Haptic feedback helpers for iOS WebView
     window.triggerHapticImpact = function(style = 'medium') {
       try {
+        // Check if haptics are enabled
+        if (window._settings && !window._settings.hapticsEnabled) {
+          console.log('📳 Haptic disabled in settings, skipping');
+          return;
+        }
+        
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticImpact) {
           window.webkit.messageHandlers.hapticImpact.postMessage({ style: style });
           console.log('📳 Haptic impact sent to iOS:', style);
@@ -165,6 +206,12 @@
     
     window.triggerHapticSelection = function() {
       try {
+        // Check if haptics are enabled
+        if (window._settings && !window._settings.hapticsEnabled) {
+          console.log('📳 Haptic disabled in settings, skipping');
+          return;
+        }
+        
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticSelection) {
           window.webkit.messageHandlers.hapticSelection.postMessage({});
           console.log('📳 Haptic selection sent to iOS');
@@ -179,6 +226,12 @@
     
     window.triggerHapticNotification = function(type = 'success') {
       try {
+        // Check if haptics are enabled
+        if (window._settings && !window._settings.hapticsEnabled) {
+          console.log('📳 Haptic disabled in settings, skipping');
+          return;
+        }
+        
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticNotification) {
           window.webkit.messageHandlers.hapticNotification.postMessage({ style: type });
           console.log('📳 Haptic notification sent to iOS:', type);
@@ -196,6 +249,9 @@
     window.triggerHaptic = function() {
       window.triggerHapticImpact('medium');
     };
+    
+    // Expose saveSettings globally for ui-manager
+    window.saveSettings = saveSettings;
     
     // Fix mobile viewport height
     function setViewportHeight() {

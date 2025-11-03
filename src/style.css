@@ -4027,3 +4027,232 @@ body:has(:root) .tile.wild-3d-glow {
   transform: scale(0.80) !important;
   box-shadow: 0 8px 0 0 #E9DCD6;
 }
+
+/* ===== SETTINGS SCREEN ===== */
+#settings-screen {
+  position: fixed;
+  inset: 0;
+  background: #f5f5f5;
+  z-index: 10000;
+  display: none;
+  visibility: hidden;
+}
+
+#settings-screen:not([hidden]) {
+  display: flex;
+  visibility: visible;
+}
+
+#settings-screen[hidden] {
+  display: none !important;
+}
+
+.settings-content {
+  /* Safe paddings: 40px + device insets */
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --pad: 40px;
+  --pad-left: calc(var(--pad) + var(--safe-left));
+  --pad-right: calc(var(--pad) + var(--safe-right));
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.settings-header {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 2vh);
+  padding-bottom: 0;
+  background: #f5f5f5;
+  flex-shrink: 0;
+}
+
+.settings-header-top {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.settings-back-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  z-index: 2;
+  margin-left: 40px;
+  flex-shrink: 0;
+}
+
+.settings-back-button.tap-scale {
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  width: auto;
+  min-width: 0;
+  padding: 10px;
+  border-radius: 16px;
+  align-self: flex-start;
+}
+
+.settings-back-button img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.settings-header-spacer {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  margin-right: 40px;
+}
+
+.settings-title {
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 40px;
+  font-weight: 800;
+  color: #AD8775;
+  margin: 0;
+  line-height: 1;
+  text-align: center;
+  position: relative;
+  pointer-events: none;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-title-underline {
+  height: 2px;
+  background: #9A8B7A;
+  opacity: 0.20;
+  width: calc(100% - 80px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  margin: 0 calc(40px + env(safe-area-inset-right, 0px)) 0 calc(40px + env(safe-area-inset-left, 0px));
+}
+
+.settings-scrollable {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-left: var(--pad-left);
+  padding-right: var(--pad-right);
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2vh);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  padding-top: 24px;
+}
+
+.settings-scrollable::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-toggle-container {
+  padding: 16px 0;
+}
+
+.settings-toggle-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.settings-toggle-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.settings-toggle-status {
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  color: #E8744A;
+  line-height: 1;
+}
+
+.settings-toggle-description {
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  color: #AD8775;
+  line-height: 1.8;
+  margin: 0;
+}
+
+.settings-divider {
+  height: 2px;
+  background: #F0ECEB;
+  margin: 16px 0;
+}
+
+/* Toggle Switch */
+.settings-toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 51px;
+  height: 31px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.settings-toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.settings-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #DFD3CE;
+  transition: all 0.3s ease;
+  border-radius: 34px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.settings-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 27px;
+  width: 27px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: all 0.3s ease;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.settings-toggle-switch input:checked + .settings-toggle-slider {
+  background-color: #E8744A;
+}
+
+.settings-toggle-switch input:checked + .settings-toggle-slider:before {
+  transform: translateX(20px);
+}
