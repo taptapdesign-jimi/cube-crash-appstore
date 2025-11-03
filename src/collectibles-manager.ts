@@ -1,5 +1,9 @@
 import { logger } from './core/logger.js';
 import { createFocusTrap, FocusTrap } from './utils/focus-trap.js';
+import { Draggable } from 'gsap/Draggable';
+import { gsap } from 'gsap';
+// Register Draggable plugin
+gsap.registerPlugin(Draggable);
 // Collectibles Manager - Handles all collectibles functionality
 logger.info('🎁 Collectibles Manager module loaded');
 
@@ -62,6 +66,8 @@ class CollectiblesManager {
   private detailFocusTrap: FocusTrap | null = null;
   private detailTrigger: HTMLElement | null = null;
   private eventListenersInitialized: boolean = false;
+  private cardDraggable: Draggable | null = null;
+  private cardPeekListeners: { element: HTMLElement; onStart: (e: Event) => void } | null = null;
 
   constructor() {
     this.collectiblesData = {
@@ -537,19 +543,6 @@ class CollectiblesManager {
     }
     
     if (cardImageEl) {
-      // Add loading class before setting image
-      cardImageEl.classList.add('loading');
-      
-      // Create image to check when it's loaded
-      const img = new Image();
-      img.onload = () => {
-        cardImageEl.classList.remove('loading');
-      };
-      img.onerror = () => {
-        cardImageEl.classList.remove('loading');
-      };
-      img.src = imagePath;
-      
       cardImageEl.style.backgroundImage = `url('${imagePath}')`;
       console.log('✅ Card image set:', imagePath);
     } else {
@@ -591,6 +584,11 @@ class CollectiblesManager {
       requestAnimationFrame(() => {
         modal.style.opacity = '1';
         modal.style.transform = 'scale(1) translateY(0)';
+        
+        // After enter animation, set up drag
+        setTimeout(() => {
+          this.setupCardDrag(cardImageEl);
+        }, 500);
       });
       
       this.detailFocusTrap?.destroy();
@@ -605,8 +603,164 @@ class CollectiblesManager {
     }
   }
 
+  private setupCardDrag(cardElement: HTMLElement): void {
+    if (!cardElement) {
+      console.warn('⚠️ Card element not found for drag setup');
+      return;
+    }
+
+    // Kill any existing draggable
+    if (this.cardDraggable) {
+      this.cardDraggable.kill();
+      this.cardDraggable = null;
+    }
+
+    console.log('🎁 Setting up card elastic peek effect');
+
+    // Get card dimensions for 2% bounds (50% reduction)
+    const cardRect = cardElement.getBoundingClientRect();
+    const maxOffsetX = cardRect.width * 0.02; // 2% of width (was 4%)
+    const maxOffsetY = cardRect.height * 0.02; // 2% of height (was 4%)
+    
+    console.log('🎁 Card bounds:', { maxOffsetX, maxOffsetY, width: cardRect.width, height: cardRect.height });
+
+    // Variables to track touch/drag state
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let currentX = 0;
+    let currentY = 0;
+    let rafId: number | null = null;
+
+    // Mouse/Touch down
+    const onStart = (e: MouseEvent | TouchEvent) => {
+      // Don't prevent default on buttons/clicks inside the card
+      const target = e.target as HTMLElement;
+      if (target.closest('button') || target.tagName === 'BUTTON') {
+        return;
+      }
+      
+      e.preventDefault();
+      isDragging = true;
+      
+      // Get initial position
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      startX = clientX;
+      startY = clientY;
+      
+      console.log('🎁 Peek started');
+      cardElement.style.zIndex = '999999';
+      
+      // Add global listeners for move and end
+      document.addEventListener('mousemove', onMove as any);
+      document.addEventListener('mouseup', onEnd);
+      document.addEventListener('touchmove', onMove as any);
+      document.addEventListener('touchend', onEnd);
+    };
+
+    // Mouse/Touch move
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      if (!isDragging) return;
+      
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      
+      // Calculate offset
+      const offsetX = clientX - startX;
+      const offsetY = clientY - startY;
+      
+      // Apply resistance beyond 4% - elastic band effect (iOS style)
+      let resistedX = offsetX;
+      let resistedY = offsetY;
+      
+      if (Math.abs(offsetX) > maxOffsetX) {
+        // Exponential resistance - stronger as you go further (reduced by 60%)
+        const over = Math.abs(offsetX) - maxOffsetX;
+        resistedX = Math.sign(offsetX) * (maxOffsetX + over * 0.06);
+      }
+      if (Math.abs(offsetY) > maxOffsetY) {
+        const over = Math.abs(offsetY) - maxOffsetY;
+        resistedY = Math.sign(offsetY) * (maxOffsetY + over * 0.06);
+      }
+      
+      currentX = resistedX;
+      currentY = resistedY;
+      
+      // Apply transform with requestAnimationFrame for smoothness
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+      rafId = requestAnimationFrame(() => {
+        cardElement.style.transform = `translate(${resistedX}px, ${resistedY}px)`;
+        rafId = null;
+      });
+    };
+
+    // Mouse/Touch up
+    const onEnd = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      
+      // Cancel any pending RAF
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      
+      console.log('🎁 Peek ended, springing back');
+      
+      // Simple spring back for both drag and tap with scale bounce
+      gsap.to(cardElement, {
+        x: 0,
+        y: 0,
+        scale: 1.05,
+        duration: 0.15,
+        ease: 'power2.out',
+        onComplete: () => {
+          gsap.to(cardElement, {
+            scale: 1,
+            duration: 0.20,
+            ease: 'power2.in',
+            onComplete: () => {
+              cardElement.style.zIndex = '';
+              cardElement.style.transform = '';
+              console.log('✅ Bounce complete');
+            }
+          });
+        }
+      });
+      
+      // Remove event listeners
+      document.removeEventListener('mousemove', onMove as any);
+      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('touchmove', onMove as any);
+      document.removeEventListener('touchend', onEnd);
+    };
+
+    // Add event listeners
+    cardElement.addEventListener('mousedown', onStart);
+    cardElement.addEventListener('touchstart', onStart);
+    
+    // Store for cleanup
+    this.cardPeekListeners = { element: cardElement, onStart };
+  }
+
   private hideCardDetail(): void {
     console.log('🎁 hideCardDetail called');
+    
+    // Kill draggable
+    if (this.cardDraggable) {
+      this.cardDraggable.kill();
+      this.cardDraggable = null;
+    }
+    
+    // Clean up peek listeners
+    if (this.cardPeekListeners) {
+      this.cardPeekListeners.element.removeEventListener('mousedown', this.cardPeekListeners.onStart as any);
+      this.cardPeekListeners.element.removeEventListener('touchstart', this.cardPeekListeners.onStart as any);
+      this.cardPeekListeners = null;
+    }
     
     const modal = document.getElementById('collectibles-detail-modal');
     if (!modal) {
