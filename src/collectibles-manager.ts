@@ -626,6 +626,7 @@ class CollectiblesManager {
 
     // Variables to track touch/drag state
     let isDragging = false;
+    let hasMoved = false;
     let startX = 0;
     let startY = 0;
     let currentX = 0;
@@ -642,6 +643,7 @@ class CollectiblesManager {
       
       e.preventDefault();
       isDragging = true;
+      hasMoved = false;
       
       // Get initial position
       const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
@@ -662,6 +664,8 @@ class CollectiblesManager {
     // Mouse/Touch move
     const onMove = (e: MouseEvent | TouchEvent) => {
       if (!isDragging) return;
+      
+      hasMoved = true;
       
       const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
@@ -710,26 +714,42 @@ class CollectiblesManager {
       
       console.log('🎁 Peek ended, springing back');
       
-      // Simple spring back for both drag and tap with scale bounce
-      gsap.to(cardElement, {
-        x: 0,
-        y: 0,
-        scale: 1.05,
-        duration: 0.15,
-        ease: 'power2.out',
-        onComplete: () => {
-          gsap.to(cardElement, {
-            scale: 1,
-            duration: 0.20,
-            ease: 'power2.in',
-            onComplete: () => {
-              cardElement.style.zIndex = '';
-              cardElement.style.transform = '';
-              console.log('✅ Bounce complete');
-            }
-          });
-        }
-      });
+      if (hasMoved) {
+        // If dragged, just spring back position without scale
+        gsap.to(cardElement, {
+          x: 0,
+          y: 0,
+          scale: 1,
+          duration: 0.3,
+          ease: 'power2.out',
+          onComplete: () => {
+            cardElement.style.zIndex = '';
+            cardElement.style.transform = '';
+            console.log('✅ Drag spring complete');
+          }
+        });
+      } else {
+        // If just tapped, add scale bounce
+        gsap.to(cardElement, {
+          x: 0,
+          y: 0,
+          scale: 1.05,
+          duration: 0.15,
+          ease: 'power2.out',
+          onComplete: () => {
+            gsap.to(cardElement, {
+              scale: 1,
+              duration: 0.20,
+              ease: 'power2.in',
+              onComplete: () => {
+                cardElement.style.zIndex = '';
+                cardElement.style.transform = '';
+                console.log('✅ Tap bounce complete');
+              }
+            });
+          }
+        });
+      }
       
       // Remove event listeners
       document.removeEventListener('mousemove', onMove as any);

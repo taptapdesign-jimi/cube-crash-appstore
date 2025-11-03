@@ -62,7 +62,7 @@
   flex-direction: column;
   width: 100%;
   padding-top: calc(env(safe-area-inset-top, 0px) + 2vh);
-  padding-bottom: 11px;
+  padding-bottom: 0;
   background: var(--collectibles-surface);
   flex-shrink: 0;
 }
@@ -548,7 +548,7 @@
   flex-direction: column;
   width: 100%;
   padding-top: calc(env(safe-area-inset-top, 0px) + 2vh);
-  padding-bottom: 11px;
+  padding-bottom: 0;
   background: var(--collectibles-surface);
   flex-shrink: 0;
 }
@@ -648,7 +648,7 @@
 
 #collectibles-detail-modal .detail-image {
   width: 100%;
-  margin: 32px 0 0 0;
+  margin: 24px 0 0 0;
   min-height: 458px;
   aspect-ratio: 310 / 458;
   background-size: cover;
@@ -700,7 +700,7 @@
   align-items: center;
   gap: 24px;
   position: relative;
-  margin: 40px 0;
+  margin: 52px 0 40px 0;
 }
 
 #collectibles-detail-modal .detail-divider-left,
