@@ -512,18 +512,20 @@
 
 /* Detail modal - Full screen like Stats screen */
 #collectibles-detail-modal {
-  position: fixed;
+  position: fixed !important;
   inset: 0;
-  display: flex;
+  display: flex !important;
   flex-direction: column;
   background: var(--collectibles-surface);
   z-index: 1000000;
   overflow: hidden;
   font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  visibility: visible !important;
 }
 
 #collectibles-detail-modal[hidden] {
   display: none !important;
+  visibility: hidden !important;
 }
 
 #collectibles-detail-modal .detail-content {
@@ -629,9 +631,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-left: var(--pad-left);
-  padding-right: var(--pad-right);
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 2vh);
+  padding: 0 calc(env(safe-area-inset-right, 0px) + 40px) calc(env(safe-area-inset-bottom, 0px) + 2vh) calc(env(safe-area-inset-left, 0px) + 40px);
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
@@ -639,50 +639,117 @@
   overscroll-behavior: contain; /* Prevent scroll chaining */
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 0;
 }
 
 #collectibles-detail-modal .detail-scrollable::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
 }
 
-#collectibles-detail-modal .detail-image-container {
-  display: flex;
-  justify-content: center;
-}
-
 #collectibles-detail-modal .detail-image {
   width: 100%;
-  max-width: 310px;
+  margin: 32px 0 0 0;
   min-height: 458px;
-  background-size: contain;
+  aspect-ratio: 310 / 458;
+  background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
   border-radius: 34px;
-  box-shadow: 0 12px 24px rgba(247, 227, 213, 0.72);
-  background-color: rgba(128, 58, 69, 0.5);
+  box-shadow: 0 12px 26px var(--collectibles-card-shadow);
+  background-color: transparent;
+  position: relative;
+  overflow: hidden;
 }
 
-#collectibles-detail-modal .detail-description-container {
+#collectibles-detail-modal .detail-image::before {
+  content: "";
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 6px;
+  background: linear-gradient(90deg, #DB9C77 0%, #E8B896 100%);
+  border-radius: 6px;
+  box-shadow: 0 0 12px rgba(219, 156, 119, 0.6);
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  animation: loading-bar-fill 2s ease-in-out infinite;
+  transition: opacity 0.3s ease;
+}
+
+#collectibles-detail-modal .detail-image.loading::before {
+  opacity: 1;
+}
+
+#collectibles-detail-modal .detail-image::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.00) 0%,
+    rgba(255,255,255,0.52) 50%,
+    rgba(255,255,255,0.00) 100%
+  );
+  transform: translateX(-160%) skewX(-12deg);
+  opacity: 0;
+  will-change: transform, opacity;
+  filter: blur(0.56px);
+  backface-visibility: hidden;
+  pointer-events: none;
+  z-index: 1;
+  animation: card-detail-shimmer 3s linear infinite;
+  animation-delay: 0.5s;
+}
+
+#collectibles-detail-modal .detail-rarity-badge-container {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-direction: row;
+  align-items: center;
+  gap: 24px;
+  position: relative;
+  margin: 40px 0;
 }
 
-#collectibles-detail-modal .detail-description-divider {
+#collectibles-detail-modal .detail-divider-left,
+#collectibles-detail-modal .detail-divider-right {
   height: 2px;
-  background: #F0EFEC;
+  background: #F0EDEC;
+  flex: 1;
+}
+
+#collectibles-detail-modal .detail-rarity-badge {
+  font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: white;
+  padding: 0 8px;
+  border-radius: 200px;
+  background-color: #BD968C;
+  line-height: 25.20px;
+  text-align: center;
+  white-space: nowrap;
+  width: 135px;
+  flex-shrink: 0;
+}
+
+#collectibles-detail-modal .detail-rarity-badge.legendary {
+  background-color: #E87A54;
 }
 
 #collectibles-detail-modal .detail-description {
   font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 20px;
   font-weight: 400;
-  color: var(--collectibles-brown);
-  line-height: 1.4;
+  color: #AD8775;
+  line-height: 28px;
   margin: 0;
   text-align: center;
-  width: 310px;
 }
 
 @media (max-width: 768px) {
@@ -752,7 +819,72 @@
     border-radius: 16px;
   }
 
-  #collectibles-detail-modal .card-image {
+  #collectibles-detail-modal .detail-image {
     min-height: 260px;
   }
 }
+
+/* Slower shimmer animation for card detail */
+@keyframes card-detail-shimmer {
+  0%, 10%{
+    transform: translateX(-160%) skewX(-12deg);
+    opacity: 0;
+  }
+  11%{
+    transform: translateX(-160%) skewX(-12deg);
+    opacity: 0;
+  }
+  15%{
+    transform: translateX(-120%) skewX(-12deg);
+    opacity: 0.5;
+  }
+  20%{
+    transform: translateX(-80%) skewX(-12deg);
+    opacity: 1;
+  }
+  25%{
+    transform: translateX(-40%) skewX(-12deg);
+    opacity: 1;
+  }
+  30%{
+    transform: translateX(0%) skewX(-12deg);
+    opacity: 1;
+  }
+  35%{
+    transform: translateX(40%) skewX(-12deg);
+    opacity: 1;
+  }
+  40%{
+    transform: translateX(80%) skewX(-12deg);
+    opacity: 1;
+  }
+  45%{
+    transform: translateX(120%) skewX(-12deg);
+    opacity: 0.5;
+  }
+  50%{
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0;
+  }
+  51%, 100%{
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0;
+  }
+}
+
+/* Loading bar fill animation */
+@keyframes loading-bar-fill {
+  0% { 
+    width: 0%;
+    left: 50%;
+  }
+  50% { 
+    width: 100%;
+    left: 0%;
+  }
+  100% { 
+    width: 0%;
+    left: 100%;
+  }
+}
+

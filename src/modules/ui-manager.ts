@@ -211,11 +211,6 @@ class UIManager {
     event.preventDefault();
     logger.info('📊 Stats back button clicked');
     
-    // Light haptic for back button
-    if (typeof (window as any).triggerHapticImpact === 'function') {
-      (window as any).triggerHapticImpact('light');
-    }
-    
     // Play enter animation, then hide stats screen
     this.hideStatsScreenWithAnimation();
   }

@@ -52,6 +52,7 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
                   {
                     tag: 'h1',
                     className: 'collectibles-title',
+                    id: 'collectibles-title',
                     text: 'Collectibles',
                   },
                   {
@@ -235,30 +236,34 @@ export function createCollectiblesDetailModal(): HTMLElementConfig {
             children: [
               {
                 tag: 'div',
-                className: 'detail-image-container',
+                id: 'detail-card-image',
+                className: 'detail-image',
+              },
+              {
+                tag: 'div',
+                className: 'detail-rarity-badge-container',
                 children: [
                   {
                     tag: 'div',
-                    id: 'detail-card-image',
-                    className: 'detail-image',
+                    className: 'detail-divider-left',
+                  },
+                  {
+                    tag: 'div',
+                    id: 'detail-rarity-badge',
+                    className: 'detail-rarity-badge',
+                    text: 'COMMON',
+                  },
+                  {
+                    tag: 'div',
+                    className: 'detail-divider-right',
                   },
                 ],
               },
               {
-                tag: 'div',
-                className: 'detail-description-container',
-                children: [
-                  {
-                    tag: 'div',
-                    className: 'detail-description-divider',
-                  },
-                  {
-                    tag: 'p',
-                    id: 'detail-card-description',
-                    className: 'detail-description',
-                    text: 'Clean a board in less than 2 minutes',
-                  },
-                ],
+                tag: 'p',
+                id: 'detail-card-description',
+                className: 'detail-description',
+                text: 'Clean a board in less than 2 minutes',
               },
             ],
           },

@@ -61,6 +61,7 @@ class CollectiblesManager {
   private preloadPromise: Promise<PreloadResult[]> | null;
   private detailFocusTrap: FocusTrap | null = null;
   private detailTrigger: HTMLElement | null = null;
+  private eventListenersInitialized: boolean = false;
 
   constructor() {
     this.collectiblesData = {
@@ -139,16 +140,19 @@ class CollectiblesManager {
   }
 
   private initEventListeners(): void {
+    // Prevent duplicate initialization
+    if (this.eventListenersInitialized) {
+      console.log('🔄 Event listeners already initialized, skipping...');
+      return;
+    }
+    
+    console.log('🔌 Initializing event listeners...');
+    
     // Back button
     const backBtn = document.getElementById('collectibles-back');
     if (backBtn) {
       backBtn.addEventListener('click', () => {
         logger.info('🎁 Collectibles back button clicked');
-        
-        // Light haptic for back button
-        if (typeof (window as any).triggerHapticImpact === 'function') {
-          (window as any).triggerHapticImpact('light');
-        }
         
         // Try to use animated version first, fallback to non-animated
         if (typeof (window as any).hideCollectiblesScreenWithAnimation === 'function') {
@@ -164,6 +168,23 @@ class CollectiblesManager {
       });
     }
 
+    // Title click - scroll to top
+    const titleEl = document.getElementById('collectibles-title');
+    if (titleEl) {
+      titleEl.style.cursor = 'pointer';
+      titleEl.style.pointerEvents = 'auto'; // Override CSS pointer-events: none
+      titleEl.addEventListener('click', () => {
+        console.log('🎁 Title clicked, scrolling to top');
+        const scrollable = document.querySelector('.collectibles-scrollable');
+        if (scrollable) {
+          scrollable.scrollTo({ top: 0, behavior: 'smooth' });
+          console.log('✅ Scroll to top triggered');
+        } else {
+          console.warn('⚠️ Scrollable not found');
+        }
+      });
+    }
+
     // Card clicks
     document.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
@@ -173,6 +194,10 @@ class CollectiblesManager {
         const category = card.dataset.category;
         
         if (card.classList.contains('unlocked')) {
+          // Light haptic for unlocked card tap
+          if (typeof (window as any).triggerHapticImpact === 'function') {
+            (window as any).triggerHapticImpact('light');
+          }
           this.showCardDetail(cardId!, category!);
         } else {
           this.showLockedMessage();
@@ -183,7 +208,8 @@ class CollectiblesManager {
     // Modal close
     const closeBtn = document.getElementById('detail-close-btn');
     if (closeBtn) {
-      closeBtn.addEventListener('click', () => {
+      closeBtn.addEventListener('click', (e) => {
+        console.log('🎁 Close button clicked!', e);
         this.hideCardDetail();
       });
     }
@@ -199,6 +225,9 @@ class CollectiblesManager {
     }
 
     this.initDevButtons();
+    
+    this.eventListenersInitialized = true;
+    console.log('✅ Event listeners initialized successfully');
   }
 
   async showCollectibles(options?: CollectiblesShowOptions): Promise<void> {
@@ -223,12 +252,18 @@ class CollectiblesManager {
     
     this.renderCards();
     this.updateCounters();
-    const scrollable = document.querySelector('#collectibles-screen .collectibles-scrollable') as HTMLElement;
-    if (scrollable) {
-      scrollable.scrollTop = 0;
-    }
     logger.info('🎁 Cards rendered and counters updated');
     this.triggerPendingFlipAnimations();
+    
+    // Only scroll to top if no specific card is requested
+    if (!options?.scrollToCard) {
+      const scrollable = document.querySelector('#collectibles-screen .collectibles-scrollable') as HTMLElement;
+      if (scrollable) {
+        console.log('🎁 Scrolling collectibles screen to top on open');
+        scrollable.scrollTo({ top: 0, behavior: 'auto' }); // Use 'auto' for instant, or 'smooth' for animated
+      }
+    }
+    
     this.focusTargetCollectible(options);
   }
 
@@ -454,53 +489,166 @@ class CollectiblesManager {
   }
 
   private showCardDetail(cardId: string, category: string): void {
+    console.log('🎁 showCardDetail called:', { cardId, category });
+    
     const cards = this.collectiblesData[category as keyof CollectiblesData];
+    console.log('🎁 Cards found:', cards);
+    
     const index = cards.findIndex(c => c.id === cardId);
-    if (index === -1) return;
+    console.log('🎁 Card index:', index);
+    
+    if (index === -1) {
+      console.warn('⚠️ Card not found:', cardId);
+      return;
+    }
 
     const card = cards[index];
-    if (!card) return;
+    if (!card) {
+      console.warn('⚠️ Card is null at index:', index);
+      return;
+    }
+
+    console.log('🎁 Card found:', card);
 
     const modal = document.getElementById('collectibles-detail-modal');
+    console.log('🎁 Modal found:', !!modal);
+    
     const numberStr = (index + 1).toString().padStart(2, '0');
     const imagePath = this.getCardImagePath(category as keyof CollectiblesData, index + 1);
+    console.log('🎁 Image path:', imagePath);
 
     const cardNumberEl = document.getElementById('detail-card-number');
     const cardImageEl = document.getElementById('detail-card-image') as HTMLElement;
     const cardDescriptionEl = document.getElementById('detail-card-description');
+    const cardRarityBadge = document.getElementById('detail-rarity-badge');
+    
+    console.log('🎁 Elements found:', {
+      cardNumber: !!cardNumberEl,
+      cardImage: !!cardImageEl,
+      cardDescription: !!cardDescriptionEl,
+      cardRarityBadge: !!cardRarityBadge
+    });
 
-    if (cardNumberEl) cardNumberEl.textContent = numberStr;
-    if (cardImageEl) cardImageEl.style.backgroundImage = `url('${imagePath}')`;
-    if (cardDescriptionEl) cardDescriptionEl.textContent = card.description;
+    if (cardNumberEl) {
+      cardNumberEl.textContent = numberStr;
+      console.log('✅ Card number set:', numberStr);
+    } else {
+      console.warn('⚠️ Card number element not found');
+    }
+    
+    if (cardImageEl) {
+      // Add loading class before setting image
+      cardImageEl.classList.add('loading');
+      
+      // Create image to check when it's loaded
+      const img = new Image();
+      img.onload = () => {
+        cardImageEl.classList.remove('loading');
+      };
+      img.onerror = () => {
+        cardImageEl.classList.remove('loading');
+      };
+      img.src = imagePath;
+      
+      cardImageEl.style.backgroundImage = `url('${imagePath}')`;
+      console.log('✅ Card image set:', imagePath);
+    } else {
+      console.warn('⚠️ Card image element not found');
+    }
+    
+    if (cardRarityBadge) {
+      const rarityLabel = category === 'legendary' ? 'LEGENDARY' : 'COMMON';
+      cardRarityBadge.textContent = rarityLabel;
+      if (category === 'legendary') {
+        cardRarityBadge.classList.add('legendary');
+      } else {
+        cardRarityBadge.classList.remove('legendary');
+      }
+      console.log('✅ Rarity badge set:', rarityLabel);
+    } else {
+      console.warn('⚠️ Rarity badge element not found');
+    }
+    
+    if (cardDescriptionEl) {
+      cardDescriptionEl.textContent = card.description;
+      console.log('✅ Card description set:', card.description);
+    } else {
+      console.warn('⚠️ Card description element not found');
+    }
 
     if (modal) {
+      console.log('✅ Modal exists, showing...');
       this.detailTrigger = document.activeElement as HTMLElement;
       modal.removeAttribute('hidden');
       modal.setAttribute('aria-hidden', 'false');
+      
+      // Enter animation: scale and fade in
+      modal.style.opacity = '0';
+      modal.style.transform = 'scale(0.8) translateY(20px)';
+      modal.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+      
+      // Trigger animation
+      requestAnimationFrame(() => {
+        modal.style.opacity = '1';
+        modal.style.transform = 'scale(1) translateY(0)';
+      });
+      
       this.detailFocusTrap?.destroy();
       this.detailFocusTrap = createFocusTrap({
         container: modal,
         initialFocus: document.getElementById('detail-close-btn') as HTMLElement,
         onEscape: () => this.hideCardDetail(),
       });
+      console.log('✅ Modal shown');
+    } else {
+      console.error('❌ Modal not found in DOM!');
     }
   }
 
   private hideCardDetail(): void {
+    console.log('🎁 hideCardDetail called');
+    
     const modal = document.getElementById('collectibles-detail-modal');
-    if (!modal) return;
-
-    modal.setAttribute('hidden', 'true');
-    modal.setAttribute('aria-hidden', 'true');
-    this.detailFocusTrap?.destroy();
-    this.detailFocusTrap = null;
-
-    const trigger = this.detailTrigger;
-    this.detailTrigger = null;
-
-    if (trigger && typeof trigger.focus === 'function') {
-      trigger.focus();
+    if (!modal) {
+      console.warn('⚠️ Modal not found in hideCardDetail');
+      return;
     }
+
+    console.log('✅ Modal found, starting exit animation');
+    
+    // Clear any existing inline styles first
+    modal.style.removeProperty('transition');
+    modal.style.removeProperty('opacity');
+    modal.style.removeProperty('transform');
+    
+    // Force layout recalculation
+    void modal.offsetWidth;
+    
+    // Exit animation: scale down and fade out
+    modal.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+    modal.style.opacity = '0';
+    modal.style.transform = 'scale(0.8) translateY(20px)';
+    
+    // Wait for animation to complete, then hide modal
+    setTimeout(() => {
+      modal.setAttribute('hidden', 'true');
+      modal.setAttribute('aria-hidden', 'true');
+      modal.style.transition = '';
+      modal.style.opacity = '';
+      modal.style.transform = '';
+      
+      this.detailFocusTrap?.destroy();
+      this.detailFocusTrap = null;
+
+      const trigger = this.detailTrigger;
+      this.detailTrigger = null;
+
+      if (trigger && typeof trigger.focus === 'function') {
+        trigger.focus();
+      }
+      
+      console.log('✅ Modal hidden');
+    }, 500); // 500ms animation duration
   }
 
   private showLockedMessage(): void {
