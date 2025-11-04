@@ -53,9 +53,9 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
   try { hideGrid?.(); } catch {}
 
   try {
-    // Clean Board modal (bonus +500) → immediately start next level on Continue
+    // Clean Board modal (bonus starting at 500, +200 per board) → immediately start next level on Continue
     const effectiveBoard = Math.max(1, boardNumber | 0);
-    const bonus = Math.max(500, effectiveBoard * 500);
+    const bonus = 500 + (effectiveBoard - 1) * 200; // Board 1: 500, Board 2: 700, Board 3: 900, Board 4: 1100
 
     const { showCleanBoardModal } = await import('./clean-board-modal.js');
     await showCleanBoardModal({ 

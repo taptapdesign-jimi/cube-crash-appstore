@@ -90,7 +90,7 @@ export function rebuildBoard(){
 
 export function isBoardClean(){ 
   const allLockedOrEmpty = STATE.tiles.every(t => t.locked || t.value <= 0);
-  const hasWildCubes = STATE.tiles.some(t => t.special === 'wild' && !t.locked);
+  const hasWildCubes = STATE.tiles.some(t => (t.special === 'wild' || t.special === 'wild-magnet') && !t.locked);
   const isClean = allLockedOrEmpty && !hasWildCubes;
   
   console.log('🎯 isBoardClean check:', {
@@ -98,7 +98,7 @@ export function isBoardClean(){
     allLockedOrEmpty,
     hasWildCubes,
     isClean,
-    wildCubes: STATE.tiles.filter(t => t.special === 'wild' && !t.locked).length
+    wildCubes: STATE.tiles.filter(t => (t.special === 'wild' || t.special === 'wild-magnet') && !t.locked).length
   });
   
   return isClean;

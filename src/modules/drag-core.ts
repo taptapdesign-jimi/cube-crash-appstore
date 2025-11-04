@@ -9,6 +9,8 @@ import { Graphics, Container, Sprite, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import { magicSparklesAtTile, dragSmokeTrail } from './fx.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
+import { handleWildMagnetMergedPulledTiles } from './app-merge.ts';
+
 
 // --- Inercijski tilt parametri (nagib SUPROTNO od smjera + lag) ---------------
 const TILT_MAX_RAD = 0.22;   // maksimalna rotacija (~12.6°)
@@ -134,6 +136,12 @@ export function initDrag(cfg) {
       moveTween: null,
       scaleTween: null,
     },
+    wildMagnetPulledTiles: null as any, // New property to store pulled tiles
+    _wildMagnetPullState: null as any, // Track pull state for sequential pulling
+    _wildMagnetDragStartTime: null as any, // Track when drag started for sequential pulling
+    _lastSparkleTime: null as any,
+    _sparkleInterval: null as any,
+    _lastSmokeTime: null as any,
   };
 
   const helpers = { snapBack, clearHover };
@@ -194,6 +202,9 @@ export function initDrag(cfg) {
     drag.offY = p.y - t.y;
     drag.moved = false;
     drag._lastGlobal = e.global.clone?.() ?? { x: e.global.x, y: e.global.y };
+    
+    // Track drag start time for wild-magnet sequential pulling
+    drag._wildMagnetDragStartTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 
     // reset inertial state
     drag.vx = 0; drag.vy = 0;
@@ -362,6 +373,186 @@ export function initDrag(cfg) {
     showHover(target);
     updateMagnet(target);
     
+    // WILD-MAGNET: Pull 2 nearest tiles while dragging (sequentially and organically)
+    if (t.special === 'wild-magnet' && drag.moved) {
+      if (!drag.wildMagnetPulledTiles || drag.wildMagnetPulledTiles.length === 0) {
+        // Find and pull 2 nearest tiles
+        const allTiles = getTiles();
+        const targetX = t.x;
+        const targetY = t.y;
+        
+        // Filter: active tiles (not locked, has value, not the dragged tile, not wild/wild-magnet)
+        const candidates = allTiles.filter((candidate: any) => {
+          if (!candidate || candidate.destroyed) return false;
+          if (candidate === t) return false;
+          if (candidate.locked) return false;
+          if ((candidate.value | 0) <= 0) return false;
+          if (candidate.special === 'wild' || candidate.special === 'wild-magnet') return false;
+          return true;
+        });
+        
+        // Calculate distances and sort
+        const withDistance = candidates.map((candidate: any) => {
+          const dx = candidate.x - targetX;
+          const dy = candidate.y - targetY;
+          const dist = Math.hypot(dx, dy);
+          return { tile: candidate, distance: dist };
+        });
+        
+        withDistance.sort((a, b) => a.distance - b.distance);
+        
+        // Take 2 nearest tiles (random selection from nearest candidates for organic feel)
+        const nearestCount = Math.min(4, withDistance.length);
+        const randomSelection = withDistance.slice(0, nearestCount)
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 2)
+          .map(item => item.tile);
+        
+        if (randomSelection.length > 0) {
+          drag.wildMagnetPulledTiles = randomSelection;
+          drag._wildMagnetPullState = {
+            currentIndex: 0,
+            pulling: false,
+          };
+          
+          // Store original positions for snap back if needed
+          randomSelection.forEach((pulledTile: any) => {
+            if (!pulledTile._wildMagnetOriginalX) {
+              pulledTile._wildMagnetOriginalX = pulledTile.x;
+              pulledTile._wildMagnetOriginalY = pulledTile.y;
+            }
+            // Initialize pull start time for sequential pulling
+            if (!pulledTile._wildMagnetPullStartTime) {
+              pulledTile._wildMagnetPullStartTime = null;
+            }
+          });
+          
+          // Start pulling first tile immediately
+          if (randomSelection.length > 0 && drag._wildMagnetPullState) {
+            drag._wildMagnetPullState.currentIndex = 0;
+            drag._wildMagnetPullState.pulling = true;
+            randomSelection[0]._wildMagnetPullStartTime = now;
+          }
+        }
+      }
+      
+      // Sequentially pull tiles towards the dragged wild-magnet
+      if (drag.wildMagnetPulledTiles && drag.wildMagnetPulledTiles.length > 0 && drag._wildMagnetPullState) {
+        const pullState = drag._wildMagnetPullState;
+        const delayBetweenPulls = 200; // 200ms delay between pulling each tile
+        
+        drag.wildMagnetPulledTiles.forEach((pulledTile: any, index: number) => {
+          if (!pulledTile || pulledTile.destroyed) return;
+          
+          // Check if this tile should start pulling
+          const shouldStartPull = index === pullState.currentIndex;
+          const timeSinceDragStart = drag._wildMagnetDragStartTime ? (now - drag._wildMagnetDragStartTime) : 0;
+          
+          // Start pulling next tile after delay
+          if (index === pullState.currentIndex + 1 && 
+              pulledTile._wildMagnetPullStartTime === null &&
+              timeSinceDragStart > delayBetweenPulls * index) {
+            pulledTile._wildMagnetPullStartTime = now;
+            pullState.currentIndex = index;
+          }
+          
+          // Only animate if this tile has started pulling
+          if (pulledTile._wildMagnetPullStartTime !== null || (shouldStartPull && index === 0)) {
+            // CRITICAL: Ensure pulled tiles are ALWAYS full opacity when being pulled
+            // They should look full opacity under the magnet, not transparent
+            // Kill ALL alpha tweens immediately and force alpha = 1
+            gsap.killTweensOf(pulledTile, 'alpha');
+            if (pulledTile.alpha !== undefined && pulledTile.alpha !== 1) {
+              pulledTile.alpha = 1;
+            }
+            // Also ensure visible is true
+            if (pulledTile.visible !== undefined && !pulledTile.visible) {
+              pulledTile.visible = true;
+            }
+            
+            // Calculate position towards dragged tile
+            const dx = t.x - pulledTile.x;
+            const dy = t.y - pulledTile.y;
+            const dist = Math.hypot(dx, dy);
+            
+            // Fluid, organic movement with smooth easing
+            if (dist > 15) {
+              // Use smooth, fluid animation without lag
+              const pullStrength = 0.20; // Slightly faster for more responsive feel
+              const targetX = pulledTile.x + dx * pullStrength;
+              const targetY = pulledTile.y + dy * pullStrength;
+              
+              // Kill any existing tweens to prevent jittery behavior
+              gsap.killTweensOf(pulledTile);
+              
+              // CRITICAL: Ensure alpha is 1 before animation
+              pulledTile.alpha = 1;
+              
+              // Smooth, fluid animation with bounce feel but no jitter
+              // DO NOT animate alpha - keep it at 1 always
+              gsap.to(pulledTile, {
+                x: targetX,
+                y: targetY,
+                duration: 0.08, // Shorter duration for more responsive feel
+                ease: 'power2.out', // Smooth easing, no jitter
+                overwrite: 'auto', // Prevent overlapping tweens
+                onUpdate: () => {
+                  // CRITICAL: Force alpha to 1 on every update to prevent any transparency
+                  if (pulledTile.alpha !== undefined && pulledTile.alpha !== 1) {
+                    pulledTile.alpha = 1;
+                  }
+                }
+              });
+              
+              // Optional: subtle rotation/bounce effect for organic feel
+              if (pulledTile.rotG && !pulledTile._wildMagnetRotating) {
+                pulledTile._wildMagnetRotating = true;
+                const baseRot = pulledTile.rotG.rotation || 0;
+                gsap.to(pulledTile.rotG, {
+                  rotation: baseRot + (Math.random() - 0.5) * 0.1,
+                  duration: 0.3,
+                  ease: 'sine.inOut',
+                  yoyo: true,
+                  repeat: 1,
+                  onComplete: () => {
+                    pulledTile._wildMagnetRotating = false;
+                  }
+                });
+              }
+            }
+          }
+        });
+      }
+    } else if (t.special !== 'wild-magnet') {
+      // Clear pulled tiles if not wild-magnet - stop all animations and reset positions
+      if (drag.wildMagnetPulledTiles) {
+        drag.wildMagnetPulledTiles.forEach((pulledTile: any) => {
+          if (pulledTile && !pulledTile.destroyed) {
+            // Stop all animations
+            gsap.killTweensOf(pulledTile);
+            gsap.killTweensOf(pulledTile.rotG);
+            gsap.killTweensOf(pulledTile.scale);
+            
+            // Restore original position if available
+            if (pulledTile._wildMagnetOriginalX !== undefined && pulledTile._wildMagnetOriginalY !== undefined) {
+              gsap.to(pulledTile, {
+                x: pulledTile._wildMagnetOriginalX,
+                y: pulledTile._wildMagnetOriginalY,
+                duration: 0.2,
+                ease: 'power2.out'
+              });
+              pulledTile._wildMagnetOriginalX = undefined;
+              pulledTile._wildMagnetOriginalY = undefined;
+            }
+          }
+        });
+        drag.wildMagnetPulledTiles = null;
+      }
+      if (drag._wildMagnetPullState) {
+        drag._wildMagnetPullState = null;
+      }
+    }
+    
     // Ghost placeholders are now fixed and don't need redrawing
   }
 
@@ -444,19 +635,71 @@ export function initDrag(cfg) {
 
     // ✅ Z-INDEX SAFETY PATCH:
     // prije merge animacije vrati pločicu na originalni sloj,
-    // da NIKAD ne ostane “ispred” ostalih nakon brzih interakcija
+    // da NIKAD ne ostane "ispred" ostalih nakon brzih interakcija
     restoreZ(t);
-
+    
+    // CRITICAL: Pass pulled tiles to merge function so they can merge IN THE MIDDLE of main merge animation
+    // Pulled tiles will merge AFTER main merge 6 starts, creating a second merge 6 at the same location
+    if (t.special === 'wild-magnet' && drag.wildMagnetPulledTiles && drag.wildMagnetPulledTiles.length > 0) {
+      console.log('🧲 WILD-MAGNET dropped with', drag.wildMagnetPulledTiles.length, 'pulled tiles');
+      console.log('🧲 Target position:', target?.x, target?.y, 'target value:', target?.value);
+      console.log('🧲 Pulled tiles:', drag.wildMagnetPulledTiles.map((pt: any) => ({ x: pt?.x, y: pt?.y, value: pt?.value, destroyed: pt?.destroyed })));
+      
+      // CRITICAL: Stop ALL animations on pulled tiles immediately
+      drag.wildMagnetPulledTiles.forEach((pulledTile: any, idx: number) => {
+        if (pulledTile && !pulledTile.destroyed) {
+          console.log('🧲 Stopping animations for pulled tile', idx, 'at', pulledTile.x, pulledTile.y);
+          // Kill all animations immediately, including alpha tweens
+          gsap.killTweensOf(pulledTile);
+          gsap.killTweensOf(pulledTile.rotG);
+          gsap.killTweensOf(pulledTile.scale);
+          gsap.killTweensOf(pulledTile, 'alpha');
+          
+          // CRITICAL: Force full opacity - pulled tiles must be fully opaque
+          pulledTile.alpha = 1;
+          pulledTile.visible = true;
+          
+          // Freeze pulled tile in current position
+          pulledTile._wildMagnetAffected = true;
+          pulledTile._wildMagnetMergeValue = 6;
+        }
+      });
+      
+      // CRITICAL: Pass pulled tiles to merge function via helpers AND src tile
+      // Make a copy to avoid reference issues
+      const pulledTilesCopy = drag.wildMagnetPulledTiles.filter((pt: any) => pt && !pt.destroyed);
+      console.log('🧲 Passing', pulledTilesCopy.length, 'valid pulled tiles to merge function');
+      
+      (helpers as any).wildMagnetPulledTiles = pulledTilesCopy;
+      (t as any)._wildMagnetPulledTiles = pulledTilesCopy;
+      
+      console.log('🧲 Pulled tiles set in helpers:', !!(helpers as any).wildMagnetPulledTiles);
+      console.log('🧲 Pulled tiles set in src:', !!(t as any)._wildMagnetPulledTiles);
+    } else {
+      console.log('⚠️ WILD-MAGNET: No pulled tiles to merge');
+      console.log('⚠️ isWildMagnet:', t.special === 'wild-magnet');
+      console.log('⚠️ hasPulledTiles:', !!drag.wildMagnetPulledTiles);
+      console.log('⚠️ pulledTilesCount:', drag.wildMagnetPulledTiles?.length || 0);
+    }
+    
     onMerge?.(t, target, helpers);
+    
+    // CRITICAL: DON'T clear pulled tiles immediately - they need to be available for merge
+    // They will be cleared after merge completes in app-merge.ts
+    // Only clear pull state, not the tiles array
+    drag._wildMagnetPullState = null;
   }
 
   // === STABLE HIT-TEST: preklapanje pravokutnika, bez auto-aimanja ===
   function pickDropTarget(src) {
-    if (!src) return null;
+    if (!src || src.destroyed) return null;
 
     const list = (typeof getTiles === 'function' ? getTiles() : []) || [];
+    if (!list || !Array.isArray(list)) return null;
+    
     const candidates = list.filter(t =>
       t &&
+      !t.destroyed &&
       t !== src &&
       !t.locked &&
       (t.value | 0) > 0
@@ -465,12 +708,16 @@ export function initDrag(cfg) {
     if (!candidates.length) return null;
 
     const srcR = getRect(src);
+    if (!srcR || srcR.w === 0 || srcR.h === 0) return null;
+    
     let best = null;
     let bestRatio = 0;
 
     for (const t of candidates) {
+      if (!t || t.destroyed) continue;
       if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
       const dstR = getRect(t);
+      if (!dstR || dstR.w === 0 || dstR.h === 0) continue;
       const r = intersectRatio(srcR, dstR);
       if (r > bestRatio) { bestRatio = r; best = t; }
     }
@@ -637,8 +884,9 @@ export function initDrag(cfg) {
   }
 
   function getRect(d) {
-    const b = d.getBounds?.(true) || { x: d.x, y: d.y, width: d.width, height: d.height };
-    return { x: b.x, y: b.y, w: b.width, h: b.height };
+    if (!d || d.destroyed) return { x: 0, y: 0, w: 0, h: 0 };
+    const b = d.getBounds?.(true) || { x: d.x, y: d.y, width: d.width || 128, height: d.height || 128 };
+    return { x: b.x || 0, y: b.y || 0, w: b.width || 128, h: b.height || 128 };
   }
   function intersectRatio(a, b) {
     const x1 = Math.max(a.x, b.x);

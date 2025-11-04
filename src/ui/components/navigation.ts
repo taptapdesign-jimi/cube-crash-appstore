@@ -48,17 +48,17 @@ function createNavButton(
   badgeCount?: number
 ): HTMLElementConfig {
   const children: HTMLElementConfig[] = [
-    {
-      tag: 'img',
-      attributes: {
-        src: iconSrc,
-        alt: '',
-        loading: 'eager',
-        fetchpriority: 'high',
-        draggable: 'false',
-        'aria-hidden': 'true',
+      {
+        tag: 'img',
+        attributes: {
+          src: iconSrc,
+          alt: '',
+          loading: 'eager',
+          fetchpriority: 'high',
+          draggable: 'false',
+          'aria-hidden': 'true',
+        },
       },
-    },
   ];
 
   // Add badge for Collectibles icon (index 2) if badgeCount is set

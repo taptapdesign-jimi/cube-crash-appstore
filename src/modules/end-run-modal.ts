@@ -163,16 +163,16 @@ function createModal(): HTMLElement {
       
       // Step 2: Start board exit animation IMMEDIATELY (don't wait for modal to finish)
       console.log('🎯 Starting board exit immediately - modal exits in parallel');
-      
-      // Guard: Prevent multiple calls
-      if ((window as any).exitingToMenu) {
-        console.log('⚠️ exitToMenu already in progress, skipping duplicate call');
-        return;
-      }
-      
+        
+        // Guard: Prevent multiple calls
+        if ((window as any).exitingToMenu) {
+          console.log('⚠️ exitToMenu already in progress, skipping duplicate call');
+          return;
+        }
+        
       // Clear saved game state ONLY if user hasn't made any moves
       // If user made moves (stack/merge), the state is already saved and should be kept
-      try {
+        try {
         const userMadeMove = (window as any)._userMadeMove;
         if (!userMadeMove) {
           console.log('💾 User made no moves - clearing saved game state');
@@ -182,12 +182,12 @@ function createModal(): HTMLElement {
         } else {
           console.log('💾 User made moves - keeping saved game state for resume');
         }
-      } catch (error) {
+        } catch (error) {
         console.warn('⚠️ end-run-modal: Failed to check/clear saved game state on exit:', error);
-      }
-      if ((window as any).exitToMenu) {
-        (window as any).exitToMenu();
-      }
+        }
+        if ((window as any).exitToMenu) {
+          (window as any).exitToMenu();
+        }
     });
   }
   

@@ -96,6 +96,27 @@ export async function showCleanBoardModal({
   boardNumber = 1 
 }: ShowCleanBoardModalParams = {}): Promise<{ action: string }> {
   return new Promise(async resolve => {
+    // Calculate score values early for high score check
+    const rawCurrent = typeof getScore === 'function' ? (getScore()|0) : 0;
+    const safeBonus = Math.max(0, bonus | 0);
+    const currentScore = Math.max(0, rawCurrent);
+    const finalScore = Math.min(scoreCap, currentScore + safeBonus);
+    
+    // Get previous best score from localStorage
+    const getBestScore = (): number => {
+      try {
+        const stored = localStorage.getItem('cc_best_score_v1');
+        if (stored) {
+          return parseInt(stored, 10) || 0;
+        }
+      } catch (e) {
+        console.warn('Failed to read best score from localStorage:', e);
+      }
+      return 0;
+    };
+    const previousBestScore = getBestScore();
+    const isNewHighScore = finalScore > previousBestScore;
+    
     const overlayId = 'cc-clean-board-overlay';
     const old = document.getElementById(overlayId);
     if (old) old.remove();
@@ -159,7 +180,7 @@ export async function showCleanBoardModal({
       'display:flex',
       'flex-direction:column',
       'align-items:center',
-      'gap:8px',
+      'gap:16px',
       'width:100%'
     ].join(';');
 
@@ -177,10 +198,16 @@ export async function showCleanBoardModal({
     title.textContent = pickRandom(HEADLINES);
     title.style.cssText = 'color:#B07F69;font-weight:800;font-size:40px;line-height:1;margin:0;';
 
-    // "Your score" label
+    // "Your score" label (or "NEW Highscore" if new high score)
     const scoreLabel = document.createElement('div');
-    scoreLabel.textContent = 'Your score';
     scoreLabel.style.cssText = 'color:#b69077;font-weight:600;font-size:20px;line-height:1.2;margin:0;letter-spacing:0.02em;';
+    
+    // Set label text based on whether it's a new high score
+    if (isNewHighScore) {
+      scoreLabel.innerHTML = '<span style="color:#E97A55;font-weight:900;font-size:20px;letter-spacing:0.02em;">NEW</span> <span>Highscore</span>';
+    } else {
+      scoreLabel.textContent = 'Your score';
+    }
 
     // Main score display (casino-style spinning)
     const mainScore = document.createElement('div');
@@ -275,11 +302,7 @@ export async function showCleanBoardModal({
     el.appendChild(card);
     document.body.appendChild(el);
 
-    // Score bookkeeping
-    const rawCurrent = typeof getScore === 'function' ? (getScore()|0) : 0;
-    const safeBonus = Math.max(0, bonus | 0);
-    const currentScore = Math.max(0, rawCurrent);
-    const finalScore = Math.min(scoreCap, currentScore + safeBonus);
+    // Score bookkeeping (already calculated above for high score check)
 
     const formatScore = (value: number): string => {
       const safe = Math.max(0, Math.floor(Number.isFinite(value) ? value : 0));

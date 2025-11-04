@@ -43,7 +43,7 @@ export class HTMLBuilder {
       Object.entries(config.attributes).forEach(([key, value]) => {
         // Only set attribute if value is not undefined or null
         if (value !== undefined && value !== null) {
-          element.setAttribute(key, value);
+        element.setAttribute(key, value);
         }
       });
     }

@@ -133,37 +133,37 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
                     className: 'collectibles-grid',
                   },
                 ],
+                  },
+                ],
               },
             ],
           },
-        ],
-      },
-      ...(showDebugControls
-        ? [
-            {
-              tag: 'div',
-              className: 'collectibles-debug-controls',
-              children: [
+          ...(showDebugControls
+            ? [
                 {
-                  tag: 'button',
-                  id: 'collectibles-unlock-btn',
-                  className: 'debug-btn collectibles-debug-btn',
+                  tag: 'div',
+                  className: 'collectibles-debug-controls',
+                  children: [
+                    {
+                      tag: 'button',
+                      id: 'collectibles-unlock-btn',
+                      className: 'debug-btn collectibles-debug-btn',
                   text: 'Show Card',
-                  attributes: { type: 'button' },
-                  eventListeners: onUnlock ? { click: onUnlock } : undefined,
-                },
-                {
-                  tag: 'button',
-                  id: 'collectibles-hide-btn',
-                  className: 'debug-btn collectibles-debug-btn',
+                      attributes: { type: 'button' },
+                      eventListeners: onUnlock ? { click: onUnlock } : undefined,
+                    },
+                    {
+                      tag: 'button',
+                      id: 'collectibles-hide-btn',
+                      className: 'debug-btn collectibles-debug-btn',
                   text: 'Hide Card',
-                  attributes: { type: 'button' },
-                  eventListeners: onHide ? { click: onHide } : undefined,
+                      attributes: { type: 'button' },
+                      eventListeners: onHide ? { click: onHide } : undefined,
+                    },
+                  ],
                 },
-              ],
-            },
-          ]
-        : []),
+              ]
+            : []),
     ],
   };
 }
@@ -193,25 +193,25 @@ export function createCollectiblesDetailModal(): HTMLElementConfig {
                 tag: 'div',
                 className: 'detail-header-top',
                 children: [
-                  {
-                    tag: 'button',
-                    id: 'detail-close-btn',
+              {
+                tag: 'button',
+                id: 'detail-close-btn',
                     className: 'detail-close-button tap-scale',
+                attributes: {
+                  type: 'button',
+                  'aria-label': 'Close collectible details',
+                },
+                children: [
+                  {
+                    tag: 'img',
                     attributes: {
-                      type: 'button',
-                      'aria-label': 'Close collectible details',
-                    },
-                    children: [
-                      {
-                        tag: 'img',
-                        attributes: {
                           src: './assets/close-icon.png',
-                          alt: '',
-                          'aria-hidden': 'true',
-                        },
-                      },
-                    ],
+                      alt: '',
+                      'aria-hidden': 'true',
+                    },
                   },
+                ],
+              },
                   {
                     tag: 'h1',
                     id: 'detail-card-number',
@@ -222,10 +222,10 @@ export function createCollectiblesDetailModal(): HTMLElementConfig {
                     tag: 'div',
                     className: 'detail-header-spacer',
                   },
-                ],
-              },
-              {
-                tag: 'div',
+            ],
+          },
+          {
+            tag: 'div',
                 className: 'detail-title-underline',
               },
             ],
@@ -233,10 +233,10 @@ export function createCollectiblesDetailModal(): HTMLElementConfig {
           {
             tag: 'div',
             className: 'detail-scrollable',
-            children: [
-              {
-                tag: 'div',
-                id: 'detail-card-image',
+                children: [
+                  {
+                    tag: 'div',
+                    id: 'detail-card-image',
                 className: 'detail-image',
               },
               {

@@ -257,11 +257,11 @@ class CollectiblesManager {
     
     // Only scroll to top if no specific card is requested
     if (!options?.scrollToCard) {
-      const scrollable = document.querySelector('#collectibles-screen .collectibles-scrollable') as HTMLElement;
-      if (scrollable) {
+    const scrollable = document.querySelector('#collectibles-screen .collectibles-scrollable') as HTMLElement;
+    if (scrollable) {
         console.log('🎁 Scrolling collectibles screen to top on open');
         scrollable.scrollTo({ top: 0, behavior: 'auto' }); // Use 'auto' for instant, or 'smooth' for animated
-      }
+    }
     }
     
     this.focusTargetCollectible(options);
@@ -309,7 +309,7 @@ class CollectiblesManager {
     // Clear pending flips after viewing (cards are already shown as unlocked)
     try { localStorage.removeItem(storageKey); } catch {}
     window.__pendingCollectibleFlips = [];
-    
+
     // Clear navigation badge
     if (typeof (window as any).updateNavBadge === 'function') {
       (window as any).updateNavBadge(0);
@@ -317,7 +317,7 @@ class CollectiblesManager {
 
     // Add bounce animation to newly unlocked cards
     // Cards are already rendered as unlocked, just add bounce animation
-    requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
       pending.forEach((item) => {
         const cardEl = document.querySelector(`.collectible-card[data-card-id="${item.cardId}"].newly-unlocked`) as HTMLElement;
         if (!cardEl) return;
@@ -668,12 +668,12 @@ class CollectiblesManager {
         // Drag removed - no longer needed
       });
       
-      this.detailFocusTrap?.destroy();
-      this.detailFocusTrap = createFocusTrap({
-        container: modal,
-        initialFocus: document.getElementById('detail-close-btn') as HTMLElement,
-        onEscape: () => this.hideCardDetail(),
-      });
+        this.detailFocusTrap?.destroy();
+        this.detailFocusTrap = createFocusTrap({
+          container: modal,
+          initialFocus: document.getElementById('detail-close-btn') as HTMLElement,
+          onEscape: () => this.hideCardDetail(),
+        });
       console.log('✅ Modal shown');
     } else {
       console.error('❌ Modal not found in DOM!');
@@ -719,17 +719,17 @@ class CollectiblesManager {
     // Wait for animation to complete, then hide modal
     setTimeout(() => {
       modal.setAttribute('hidden', 'true');
-      modal.setAttribute('aria-hidden', 'true');
+    modal.setAttribute('aria-hidden', 'true');
       modal.style.transition = '';
       modal.style.opacity = '';
       modal.style.transform = '';
       
-      this.detailFocusTrap?.destroy();
-      this.detailFocusTrap = null;
+    this.detailFocusTrap?.destroy();
+    this.detailFocusTrap = null;
 
-      const trigger = this.detailTrigger;
-      this.detailTrigger = null;
-      
+    const trigger = this.detailTrigger;
+    this.detailTrigger = null;
+
       // Remove bounce animation from the card that was viewed
       if (this.currentDetailCardId) {
         const viewedCard = document.querySelector(`.collectible-card[data-card-id="${this.currentDetailCardId}"]`) as HTMLElement;
@@ -1273,7 +1273,7 @@ class CollectiblesManager {
         logger.info(`Collectible ${num.toString().padStart(2, '0')} unlocked.`);
       } else {
         logger.warn(`Collectible ${num.toString().padStart(2, '0')} not found.`);
-      }
+    }
     } else {
       if (this.lockCardByNumber(num)) {
         logger.info(`Collectible ${num.toString().padStart(2, '0')} hidden.`);

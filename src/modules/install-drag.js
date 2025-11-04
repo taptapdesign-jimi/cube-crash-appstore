@@ -63,21 +63,50 @@ export function installDrag({
     if (!dst || dst.locked) return false;
     const sv = (src && (src.value|0)) || 0;
     const dv = (dst && (dst.value|0)) || 0;
-    const wild = (src?.special === 'wild' || dst?.special === 'wild');
+    
+    // WILD-MAGNET LOGIC: Can go on anything except wild and wild-magnet, and anything can go on it
+    const srcIsWildMagnet = src?.special === 'wild-magnet';
+    const dstIsWildMagnet = dst?.special === 'wild-magnet';
+    const srcIsWild = src?.special === 'wild';
+    const dstIsWild = dst?.special === 'wild';
+    
+    if (srcIsWildMagnet) {
+      // Wild-magnet cannot merge into wild or wild-magnet
+      if (dstIsWild || dstIsWildMagnet) {
+        console.log('🔥 Wild-magnet cannot merge into wild or wild-magnet');
+        return false;
+      }
+      // Wild-magnet can merge into any normal tile
+      console.log('🔥 Wild-magnet can merge into normal tile');
+      return true;
+    }
+    
+    if (dstIsWildMagnet) {
+      // Any tile can merge into wild-magnet (except wild and wild-magnet)
+      if (srcIsWild || srcIsWildMagnet) {
+        console.log('🔥 Wild or wild-magnet cannot merge into wild-magnet');
+        return false;
+      }
+      // Normal tiles can merge into wild-magnet
+      console.log('🔥 Normal tile can merge into wild-magnet');
+      return true;
+    }
+    
+    const wild = (srcIsWild || dstIsWild);
     
     // WILD LOGIC: Wild cube cannot merge into same value
     if (wild) {
-      if (src?.special === 'wild' && dst?.special !== 'wild') {
+      if (srcIsWild && !dstIsWild) {
         // Wild merging into normal tile - check if target value is different
         const canMerge = sv !== dv; // Wild cannot merge into same value as itself
         console.log('🔥 Wild merge check (wild->normal):', { wildValue: sv, targetValue: dv, canMerge });
         return canMerge;
-      } else if (dst?.special === 'wild' && src?.special !== 'wild') {
+      } else if (dstIsWild && !srcIsWild) {
         // Normal tile merging into wild - check if source value is different
         const canMerge = sv !== dv; // Normal cannot merge into wild of same value
         console.log('🔥 Wild merge check (normal->wild):', { sourceValue: sv, wildValue: dv, canMerge });
         return canMerge;
-      } else if (src?.special === 'wild' && dst?.special === 'wild') {
+      } else if (srcIsWild && dstIsWild) {
         // Wild merging into wild - not allowed
         console.log('🔥 Wild merge check (wild->wild): not allowed');
         return false;

@@ -2,6 +2,7 @@
 import { Assets, Texture, Container } from 'pixi.js';
 import { gsap } from 'gsap';
 import { STATE, TILE, ASSET_WILD } from './app-state.js';
+import { ASSET_WILD_MAGNET } from './constants.js';
 import * as makeBoard from './board.js';
 import { startWildIdle, wildImpactEffect, startWildShimmer } from './fx.js';
 import { logger } from '../core/logger.js';
@@ -37,6 +38,7 @@ interface SpawnBounceOptions {
 interface OpenAtCellOptions {
   value?: number | null;
   isWild?: boolean;
+  isWildMagnet?: boolean;
 }
 
 interface OpenEmptiesOptions {
@@ -54,7 +56,9 @@ export function fixHoverAnchor(t: Tile): void {
 
 function applyWildSkinLocal(tile: Tile): void {
   try{
-    const tex = Assets.get(ASSET_WILD) || Texture.from(ASSET_WILD);
+    // Use wild-magnet.png for wild-magnet, wild.png for regular wild
+    const assetPath = tile.special === 'wild-magnet' ? ASSET_WILD_MAGNET : ASSET_WILD;
+    const tex = Assets.get(assetPath) || Texture.from(assetPath);
     if (!tex || !tile) return;
     const host = tile.rotG || tile;
     let base = tile.base;
@@ -73,7 +77,7 @@ function applyWildSkinLocal(tile: Tile): void {
   }catch{}
 }
 
-export function openAtCell(c: number, r: number, { value = null, isWild = false }: OpenAtCellOptions = {}): Promise<void> {
+export function openAtCell(c: number, r: number, { value = null, isWild = false, isWildMagnet = false }: OpenAtCellOptions = {}): Promise<void> {
   return new Promise((resolve) => {
     let holder = STATE.grid?.[r]?.[c] || null;
     if (!holder) holder = makeBoard.createTile({ board: STATE.board!, grid: STATE.grid, tiles: STATE.tiles, c, r, val: 0, locked: true });
@@ -86,8 +90,8 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false 
     const v = (value == null) ? [1,2,3,4,5][(Math.random()*5)|0] : value;
     makeBoard.setValue(holder, v, 0);
 
-    if (isWild){
-      holder.special = 'wild';
+    if (isWild || isWildMagnet){
+      holder.special = isWildMagnet ? 'wild-magnet' : 'wild';
       if (typeof makeBoard.applyWildSkin === 'function') { 
         makeBoard.applyWildSkin(holder); 
       } else { 

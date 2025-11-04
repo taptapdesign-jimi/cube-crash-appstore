@@ -6,7 +6,7 @@ import { gsap } from 'gsap';
 
 import {
   COLS, ROWS, TILE, GAP, HUD_H,
-  ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD
+  ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, ASSET_WILD_MAGNET
 } from './constants.js';
 import { sweetPopIn, sweetPopOut } from './app-board.js';
 import * as CONSTS from './constants.js';
@@ -23,7 +23,7 @@ import * as HUD   from './hud-helpers.js';
 import { wild } from './hud-helpers.js';
 import * as FLOW  from './level-flow.js';
 import { openEmpties } from './app-spawn.ts';
-import { clearWildState } from './app-merge.ts';
+import { clearWildState, handleWildMagnetMergedPulledTiles } from './app-merge.ts';
 import { statsService } from '../services/stats-service.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 
@@ -424,13 +424,13 @@ export async function boot(){
 
   // Load ONLY critical game assets for instant start
   // tile_numbers2/3/4 are deferrable - can load in background
-  await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_WILD]);
+  await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_WILD, ASSET_WILD_MAGNET]);
   
   // Load additional tile number sheets in background (non-blocking)
   Assets.load([ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4]).catch(() => {});
   
   // Optimize all loaded textures for pixel-perfect rendering
-  const loadedTextures = [ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD];
+  const loadedTextures = [ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, ASSET_WILD_MAGNET];
   for (const assetPath of loadedTextures) {
     try {
       const texture = Assets.get(assetPath);
@@ -1211,7 +1211,9 @@ function startLevel(n){
 // --- local Wild skin fallback
 function applyWildSkinLocal(tile){
   try{
-    const tex = Assets.get(ASSET_WILD) || Texture.from(ASSET_WILD);
+    // Use wild-magnet.png for wild-magnet, wild.png for regular wild
+    const assetPath = tile.special === 'wild-magnet' ? './assets/wild-magnet.png' : ASSET_WILD;
+    const tex = Assets.get(assetPath) || Texture.from(assetPath);
     if (!tex || !tile) return;
     const host = tile.rotG || tile;
     let base = tile.base;
@@ -1228,12 +1230,12 @@ function applyWildSkinLocal(tile){
 }
 
 // --- spawn exactly at grid cell ---
-function openAtCell(c, r, { value=null, isWild=false } = {}){
+function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false } = {}){
   return new Promise((resolve)=>{
     let holder = grid?.[r]?.[c] || null;
 
     if (holder && !holder.locked) {
-      const isWildTile = holder.special === 'wild' || holder.isWild === true || holder.isWildFace === true;
+      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.isWild === true || holder.isWildFace === true;
       if (isWildTile || (holder.value|0) > 0) {
         resolve(false);
         return;
@@ -1247,10 +1249,10 @@ function openAtCell(c, r, { value=null, isWild=false } = {}){
     holder.cursor = 'pointer';
     if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(holder);
 
-    if (isWild){
+    if (isWild || isWildMagnet){
       makeBoard.setValue(holder, 6, 0);
       holder.value = 6;
-      holder.special = 'wild';
+      holder.special = isWildMagnet ? 'wild-magnet' : 'wild';
       holder.isWild = true;
       holder.isWildFace = true;
       if (typeof makeBoard.applyWildSkin === 'function') { makeBoard.applyWildSkin(holder); }
@@ -1278,7 +1280,7 @@ function randomEmptyCell(){
       const isGhost = !!(t && t.locked === true);
       const isMissing = !t;
       const isZero = !!(t && (t.value|0) <= 0);
-      const isWildTile = !!(t && !t.locked && (t.special === 'wild' || t.isWild === true || t.isWildFace === true));
+      const isWildTile = !!(t && !t.locked && (t.special === 'wild' || t.special === 'wild-magnet' || t.isWild === true || t.isWildFace === true));
       const isActive = !!(t && !t.locked && (t.value|0) > 0);
       if (!isActive && !isWildTile && (isGhost || isMissing || isZero)) empties.push({ c, r });
     }
@@ -1286,6 +1288,9 @@ function randomEmptyCell(){
   if (!empties.length) return null;
   return empties[(Math.random()*empties.length)|0];
 }
+
+// Track if wild-magnet has been spawned (first wild spawn should be wild-magnet)
+let wildMagnetSpawned = false;
 
 async function spawnWildFromMeter(){
   if (wildMeter < 1) {
@@ -1305,6 +1310,9 @@ async function spawnWildFromMeter(){
   let tries = 0;
   let spawned = false;
   let lastCell = null;
+  
+  // First spawn should be wild-magnet, rest should be regular wild
+  const isFirstSpawn = !wildMagnetSpawned;
 
   while (tries < maxAttempts && !spawned) {
     const cell = randomEmptyCell();
@@ -1322,10 +1330,14 @@ async function spawnWildFromMeter(){
     lastCell = cell;
 
     try {
-      const ok = await openAtCell(cell.c, cell.r, { isWild: true });
+      const ok = await openAtCell(cell.c, cell.r, { isWild: true, isWildMagnet: isFirstSpawn });
       if (ok) {
         consumeCharge();
         spawned = true;
+        if (isFirstSpawn) {
+          wildMagnetSpawned = true;
+          console.log('🧲 Wild-magnet spawned (first wild spawn)!');
+        }
       } else {
         console.warn('⚠️ Wild spawn skipped (cell no longer empty):', cell);
         tries++;
@@ -1346,7 +1358,7 @@ async function spawnWildFromMeter(){
     wildSpawnRetryTimer = null;
   }
 
-  console.log('✅ Wild cube spawned successfully at', lastCell?.c, lastCell?.r, 'Leftover meter:', wildMeter);
+  console.log('✅ Wild cube spawned successfully at', lastCell?.c, lastCell?.r, 'Leftover meter:', wildMeter, 'isWildMagnet:', isFirstSpawn);
   return true;
 }
 
@@ -1390,14 +1402,19 @@ function merge(src, dst, helpers){
   console.log('🔥🔥🔥 MERGE FUNCTION CALLED! src:', src?.value, 'dst:', dst?.value);
   if (busyEnding) { helpers.snapBack?.(src); return; }
   if (src === dst) { helpers.snapBack(src); return; }
-  if (src?.special === 'wild' && dst?.special === 'wild'){ helpers.snapBack?.(src); return; }
+  // Block wild/wild, wild/magnet, magnet/magnet merges
+  if ((src?.special === 'wild' && dst?.special === 'wild') || 
+      (src?.special === 'wild-magnet' && dst?.special === 'wild-magnet') ||
+      (src?.special === 'wild' && dst?.special === 'wild-magnet') ||
+      (src?.special === 'wild-magnet' && dst?.special === 'wild')){ helpers.snapBack?.(src); return; }
 
   const sum      = (src.value|0) + (dst.value|0);
   const srcDepth = src.stackDepth || 1;
   const dstDepth = dst.stackDepth || 1;
 
-  const wildActive = (src.special === 'wild' || dst.special === 'wild');
-  const wildTargetValue = wildActive ? ((src.special === 'wild') ? (dst.value|0) : (src.value|0)) : null;
+  // Wild-magnet works like wild: always merges to 6
+  const wildActive = (src.special === 'wild' || dst.special === 'wild' || src.special === 'wild-magnet' || dst.special === 'wild-magnet');
+  const wildTargetValue = wildActive ? ((src.special === 'wild' || src.special === 'wild-magnet') ? (dst.value|0) : (src.value|0)) : null;
   let effSum = sum;
 
   // Wild cube logic: always merge to 6, but remember target for later spawn
@@ -1548,7 +1565,21 @@ function merge(src, dst, helpers){
     makeBoard.drawStack(dst);
     dst.zIndex = 10000;
 
-    const mult = combinedCount;
+    // CRITICAL: For wild-magnet, always use x2 multiplier for main merge
+    const isWildMagnet = src.special === 'wild-magnet';
+    const mult = isWildMagnet ? 2 : (combinedCount >= 3 ? 3 : combinedCount);
+
+    // WILD-MAGNET: Check for pulled tiles BEFORE animation starts
+    const pulledTiles = (helpers as any)?.wildMagnetPulledTiles || (src as any)?._wildMagnetPulledTiles;
+    const hasPulledTiles = isWildMagnet && pulledTiles && pulledTiles.length > 0;
+    
+    console.log('🔥 MERGE-6 DEBUG (app-core):', {
+      isWildMagnet,
+      hasPulledTiles,
+      pulledTilesCount: pulledTiles?.length || 0,
+      helpersHasPulledTiles: !!(helpers as any)?.wildMagnetPulledTiles,
+      srcHasPulledTiles: !!(src as any)?._wildMagnetPulledTiles
+    });
 
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
@@ -1592,16 +1623,68 @@ function merge(src, dst, helpers){
           woodShardsAtTile(board, dst, { enhanced: true, wild: true, count: 18, intensity: 1.9, spread: 1.08, size: 0.9, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });
         }
 
+        // WILD-MAGNET: Merge pulled tiles FIRST, BEFORE multiplier display and score calculation
+        // CRITICAL: This must happen FIRST so that stackDepth increases to 4 before multiplier/score display
+        if (hasPulledTiles && dst && !dst.destroyed) {
+          console.log('🧲 WILD-MAGNET (app-core): Starting pulled tiles merge FIRST');
+          console.log('🧲 Pulled tiles:', pulledTiles);
+          console.log('🧲 Destination tile BEFORE merge:', {
+            gridX: dst.gridX,
+            gridY: dst.gridY,
+            x: dst.x,
+            y: dst.y,
+            stackDepth: dst.stackDepth,
+            destroyed: dst.destroyed
+          });
+          
+          // Call handleWildMagnetMergedPulledTiles
+          try {
+            console.log('🧲 Calling handleWildMagnetMergedPulledTiles with', pulledTiles.length, 'tiles');
+            await handleWildMagnetMergedPulledTiles(dst, pulledTiles, helpers);
+            console.log('✅ Pulled tiles merge completed successfully');
+            console.log('🧲 Destination tile AFTER merge:', {
+              stackDepth: dst.stackDepth,
+              destroyed: dst.destroyed
+            });
+          } catch (err) {
+            console.error('❌ Error merging pulled tiles:', err);
+            console.error('❌ Error details:', err instanceof Error ? err.message : String(err));
+            // Fallback: remove pulled tiles if merge fails
+            if (pulledTiles && pulledTiles.length > 0) {
+              pulledTiles.forEach((pulledTile: any) => {
+                if (pulledTile && !pulledTile.destroyed) {
+                  console.log('🧹 Force removing pulled tile at', pulledTile.x, pulledTile.y);
+                  gsap.killTweensOf(pulledTile);
+                  removeTile(pulledTile);
+                }
+              });
+            }
+          }
+        }
+
         // ► badge + pojačani "smoke/bubbles" + screen shake
+        // CRITICAL: For wild-magnet with pulled tiles, use final stackDepth for multiplier display
+        // Pulled tiles merge should have increased stackDepth to 4, so use that for display
+        // CRITICAL: Check stackDepth AFTER pulled tiles merge (if it happened)
+        let finalMult = mult;
+        if (isWildMagnet && hasPulledTiles && dst && !dst.destroyed) {
+          // Pulled tiles merge should have increased stackDepth to 4
+          const actualStackDepth = dst.stackDepth || mult;
+          finalMult = Math.min(4, actualStackDepth);
+          console.log('🎯 Multiplier display: stackDepth=', actualStackDepth, 'finalMult=', finalMult);
+        } else {
+          console.log('🎯 Multiplier display: no pulled tiles, using mult=', mult);
+        }
+        
         if (wasWild) {
-          showMultiplierTile(board, dst, mult, TILE * 1.3, 1.2);
+          showMultiplierTile(board, dst, finalMult, TILE * 1.3, 1.2);
           smokeBubblesAtTile(board, dst, TILE * 1.3, 3.0, {
             sizeScale: 0.7 + Math.random() * 0.6,  // Random size: 0.7-1.3x
             countScale: 0.6 + Math.random() * 0.8, // Random count: 0.6-1.4x
             trailAlpha: 0.95
           });
         } else {
-          showMultiplierTile(board, dst, mult, TILE, 1.0);
+          showMultiplierTile(board, dst, finalMult, TILE, 1.0);
         }
 
         if (!wasWild) {
@@ -1627,10 +1710,37 @@ function merge(src, dst, helpers){
         moves = Math.max(0, moves - 1);
 
         // scoring with bubble multiplier and combo multiplier
-        const bubbleMult = mult || 1;
+        // CRITICAL: For wild-magnet with pulled tiles:
+        // - Main merge (magnet + target) uses x2 multiplier → 6 * 2 = 12
+        // - Pulled tiles merge already added score in performMerge6Effects → 6 * 4 = 24
+        // - Total: 12 + 24 = 36
+        // DO NOT use final stackDepth for main merge score - pulled tiles merge already added its own score
+        let scoreMult = mult; // Always use original mult (x2 for wild-magnet) for main merge
+        if (isWildMagnet && hasPulledTiles) {
+          console.log('🎯 Score calculation: wild-magnet with pulled tiles - main merge uses mult=', mult, '(x2), pulled tiles merge already added x4 separately');
+        } else {
+          console.log('🎯 Score calculation: using mult=', mult);
+        }
+        const bubbleMult = scoreMult || 1;
         const comboMult  = combo > 0 ? combo : 1;
         const scoreDelta = 6 * bubbleMult * comboMult;
+        console.log('🎯 Score calculation: bubbleMult=', bubbleMult, 'comboMult=', comboMult, 'scoreDelta=', scoreDelta);
+        
+        // CRITICAL: Sync score with STATE.score before adding
+        // pulled tiles merge already added score to STATE.score, so sync first
+        if (isWildMagnet && hasPulledTiles) {
+          console.log('🎯 Syncing score with STATE.score before adding main merge score');
+          console.log('🎯 STATE.score before sync:', STATE.score);
+          console.log('🎯 Local score before sync:', score);
+          // Pulled tiles merge already added to STATE.score, so sync local score with STATE.score
+          score = STATE.score;
+          console.log('🎯 Local score after sync:', score);
+        }
+        
         score = Math.min(SCORE_CAP, score + scoreDelta);
+        // CRITICAL: Sync STATE.score with local score after adding
+        STATE.score = score;
+        console.log('🎯 Final score after merge:', score, 'STATE.score:', STATE.score);
 
         animateBoardHUD(boardNumber, 0.40);
         animateScore(score, 0.40);
@@ -1777,17 +1887,17 @@ function isStuck(){
   const act = activeTilesList();
   console.log('🚨 isStuck: Active tiles count:', act.length);
   
-  // CRITICAL SAFETY: If we have wild cubes and any non-wild tiles, we're never stuck
-  const wildCubes = act.filter(t => t.special === 'wild');
-  const nonWildTiles = act.filter(t => t.special !== 'wild');
+  // CRITICAL SAFETY: If we have wild cubes (wild or wild-magnet) and any non-wild tiles, we're never stuck
+  const wildCubes = act.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
+  const nonWildTiles = act.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
   
   console.log('🚨 isStuck: Wild cubes:', wildCubes.length, 'Non-wild tiles:', nonWildTiles.length);
   console.log('🚨 isStuck: Wild cubes details:', wildCubes.map(t => ({ value: t.value, special: t.special, locked: t.locked })));
   console.log('🚨 isStuck: Non-wild tiles details:', nonWildTiles.map(t => ({ value: t.value, special: t.special, locked: t.locked })));
   
   // CRITICAL FIX: If we have wild cubes, we're never stuck (wild can merge with any tile)
-  if (wildCubes.length > 0) {
-    console.log('✅ isStuck: SAFETY CHECK - Wild cubes exist, game NOT stuck (wild can merge with any tile)');
+  if (wildCubes.length > 0 && nonWildTiles.length > 0) {
+    console.log('✅ isStuck: SAFETY CHECK - Wild cubes exist with non-wild tiles, game NOT stuck (wild can merge with any tile)');
     return false;
   }
   
@@ -1805,7 +1915,7 @@ function isStuck(){
       const a = act[i], b = act[j];
       
       // Skip wild cubes in this check (they can't merge with each other)
-      if (a.special === 'wild' || b.special === 'wild') {
+      if (a.special === 'wild' || b.special === 'wild' || a.special === 'wild-magnet' || b.special === 'wild-magnet') {
         continue;
       }
       
@@ -1828,8 +1938,8 @@ function checkLevelEnd(){
     
     // EMERGENCY SAFETY: If we have wild cubes but no non-wild tiles, spawn some!
     const act = activeTilesList();
-    const wildCubes = act.filter(t => t.special === 'wild');
-    const nonWildTiles = act.filter(t => t.special !== 'wild');
+    const wildCubes = act.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
+    const nonWildTiles = act.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
     
     if (wildCubes.length > 0 && nonWildTiles.length === 0) {
       console.log('🚨 EMERGENCY: Wild cubes exist but no non-wild tiles! Scheduling emergency rescue...');
@@ -1868,8 +1978,8 @@ function isBoardClean(){
   
   // Get all tiles that are not locked
   const activeTiles = tiles.filter(t => t && !t.locked);
-  const wildCubes = tiles.filter(t => t && t.special === 'wild' && !t.locked);
-  const nonWildActiveTiles = activeTiles.filter(t => t.special !== 'wild');
+  const wildCubes = tiles.filter(t => t && (t.special === 'wild' || t.special === 'wild-magnet') && !t.locked);
+  const nonWildActiveTiles = activeTiles.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
   
   // Board is clean ONLY if there are NO active tiles at all (all locked or empty)
   const isClean = activeTiles.length === 0;
