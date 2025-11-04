@@ -312,6 +312,41 @@
   gap: 0;
   align-items: flex-start;
   perspective: 1200px;
+  position: relative;
+}
+
+/* Sparkle effect during flip animation - wild cube style */
+.collectible-card-wrapper::after {
+  content: '';
+  position: absolute;
+  top: -30%; /* 60% larger = 30% offset on each side */
+  left: -30%;
+  width: 160%; /* 60% larger */
+  height: 160%;
+  background: 
+    radial-gradient(circle 8px at 20% 30%, rgba(255, 255, 255, 0.8) 0%, transparent 50%),
+    radial-gradient(circle 6px at 80% 20%, rgba(255, 255, 255, 0.7) 0%, transparent 50%),
+    radial-gradient(circle 10px at 50% 80%, rgba(255, 255, 255, 0.9) 0%, transparent 50%),
+    radial-gradient(circle 7px at 15% 70%, rgba(255, 255, 255, 0.6) 0%, transparent 50%),
+    radial-gradient(circle 9px at 85% 60%, rgba(255, 255, 255, 0.8) 0%, transparent 50%),
+    radial-gradient(circle 5px at 60% 40%, rgba(255, 255, 255, 0.7) 0%, transparent 50%),
+    radial-gradient(circle 8px at 90% 80%, rgba(255, 255, 255, 0.9) 0%, transparent 50%),
+    radial-gradient(circle 6px at 10% 50%, rgba(255, 255, 255, 0.6) 0%, transparent 50%),
+    radial-gradient(circle 7px at 70% 10%, rgba(255, 255, 255, 0.8) 0%, transparent 50%),
+    radial-gradient(circle 9px at 40% 90%, rgba(255, 255, 255, 0.7) 0%, transparent 50%),
+    radial-gradient(circle 5px at 30% 20%, rgba(255, 255, 255, 0.9) 0%, transparent 50%),
+    radial-gradient(circle 6px at 95% 40%, rgba(255, 255, 255, 0.6) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0;
+  animation: none;
+  border-radius: 18px;
+  filter: blur(1px);
+}
+
+/* Activate sparkles during flip animation */
+.collectible-card-wrapper.flip-sparkles::after {
+  animation: cardSparklesExplosion 1.0s ease-out forwards;
 }
 
 .collectible-card-label {
@@ -386,6 +421,53 @@
   border-radius: 18px;
   pointer-events: none;
   z-index: 1;
+}
+
+/* New card star indicator */
+.collectible-new-star {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 32px;
+  height: 32px;
+  background-image: url('./assets/star-slider.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  z-index: 100;
+  pointer-events: none;
+  animation: newStarPulse 2s ease-in-out infinite;
+}
+
+@keyframes newStarPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+}
+
+/* Bounce up cartoony idle animation for newly unlocked cards */
+@keyframes bounceIdle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(calc(-1 * var(--card-bounce-height, 12px)));
+  }
+}
+
+.collectible-card.bounce-idle {
+  animation: bounceIdle var(--card-bounce-duration, 1.2s) ease-in-out infinite;
+  animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  animation-delay: var(--card-bounce-delay, 0s);
+  transform-origin: center center;
+  --card-bounce-height: 12px; /* Default bounce height */
+  --card-bounce-duration: 1.2s; /* Default bounce duration */
+  --card-bounce-delay: 0s; /* Default bounce delay */
 }
 
 .collectible-card.locked {
@@ -470,6 +552,53 @@
 .collectible-card.flip-reveal-prep.flip-reveal-play .collectible-rarity-badge {
   opacity: 1;
   transition: opacity 0.2s ease 0.65s;
+}
+
+@keyframes cardSparklesExplosion {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  10% {
+    opacity: 1;
+    transform: scale(2.5) rotate(60deg);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(2.2) rotate(120deg);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(2) rotate(180deg);
+  }
+  40% {
+    opacity: 0.9;
+    transform: scale(1.5) rotate(240deg);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.2) rotate(300deg);
+  }
+  60% {
+    opacity: 0.7;
+    transform: scale(1) rotate(360deg);
+  }
+  70% {
+    opacity: 0.5;
+    transform: scale(0.8) rotate(360deg);
+  }
+  80% {
+    opacity: 0.3;
+    transform: scale(0.6) rotate(360deg);
+  }
+  90% {
+    opacity: 0.15;
+    transform: scale(0.4) rotate(360deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.2) rotate(360deg);
+  }
 }
 
 @keyframes collectibleUnlock {
@@ -577,7 +706,7 @@
   justify-content: center;
   position: relative;
   overflow: hidden;
-  z-index: 2000000;
+  z-index: 2000000 !important;
   margin-left: 40px;
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
@@ -587,6 +716,11 @@
   padding: 10px;
   border-radius: 16px;
   align-self: flex-start;
+  /* CRITICAL: Always ensure button is clickable */
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
 }
 
 #collectibles-detail-modal .detail-close-button img {
@@ -658,11 +792,13 @@
   box-shadow: 0 12px 26px var(--collectibles-card-shadow);
   background-color: transparent;
   position: relative;
-  overflow: visible;
+  overflow: hidden; /* Clip shimmer effect to card boundaries */
   will-change: transform;
   cursor: grab;
   -webkit-user-select: none;
   user-select: none;
+  /* Idle animation - continuous forever like slide 1 main image */
+  animation: detailImageIdle 3s ease-in-out infinite;
 }
 
 #collectibles-detail-modal .detail-image:active {
@@ -690,6 +826,7 @@
   backface-visibility: hidden;
   pointer-events: none;
   z-index: 1;
+  border-radius: 34px; /* Match parent border-radius to clip shimmer properly */
   animation: card-detail-shimmer 3s linear infinite;
   animation-delay: 0.5s;
 }
@@ -712,10 +849,10 @@
 
 #collectibles-detail-modal .detail-rarity-badge {
   font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px;
-  font-weight: 400;
+  font-size: 18px; /* Increased by 4px from 14px */
+  font-weight: 700; /* Bold */
   color: white;
-  padding: 0 8px;
+  padding: 8px 8px; /* 8px top and bottom, 8px left and right */
   border-radius: 200px;
   background-color: #BD968C;
   line-height: 25.20px;
@@ -856,6 +993,16 @@
   51%, 100%{
     transform: translateX(160%) skewX(-12deg);
     opacity: 0;
+  }
+}
+
+/* Idle animation for detail card image - similar to slide 1 main image */
+@keyframes detailImageIdle {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) rotate(1deg) scale(1.02);
   }
 }
 

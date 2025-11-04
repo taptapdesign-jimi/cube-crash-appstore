@@ -1,9 +1,5 @@
 import { logger } from './core/logger.js';
 import { createFocusTrap, FocusTrap } from './utils/focus-trap.js';
-import { Draggable } from 'gsap/Draggable';
-import { gsap } from 'gsap';
-// Register Draggable plugin
-gsap.registerPlugin(Draggable);
 // Collectibles Manager - Handles all collectibles functionality
 logger.info('🎁 Collectibles Manager module loaded');
 
@@ -65,14 +61,13 @@ class CollectiblesManager {
   private preloadPromise: Promise<PreloadResult[]> | null;
   private detailFocusTrap: FocusTrap | null = null;
   private detailTrigger: HTMLElement | null = null;
+  private currentDetailCardId: string | null = null;
   private eventListenersInitialized: boolean = false;
-  private cardDraggable: Draggable | null = null;
-  private cardPeekListeners: { element: HTMLElement; onStart: (e: Event) => void } | null = null;
 
   constructor() {
     this.collectiblesData = {
       common: [
-        { id: 'common01', name: 'First Merge', description: 'Complete your first merge', rarity: 'Common', event: 'first_merge', unlocked: false },
+        { id: 'common01', name: 'First Merge 6', description: 'Complete your first merge 6', rarity: 'Common', event: 'first_merge_6', unlocked: false },
         { id: 'common02', name: 'Quick Start', description: 'Start your first game', rarity: 'Common', event: 'game_start', unlocked: false },
         { id: 'common03', name: 'Score Hunter', description: 'Reach 100 points', rarity: 'Common', event: 'score_100', unlocked: false },
         { id: 'common04', name: 'Merge Master', description: 'Complete 10 merges', rarity: 'Common', event: 'merge_10', unlocked: false },
@@ -199,14 +194,13 @@ class CollectiblesManager {
         const cardId = card.dataset.cardId;
         const category = card.dataset.category;
         
-        if (card.classList.contains('unlocked')) {
-          // Light haptic for unlocked card tap
+        // Allow all cards (locked or unlocked) to open detail page
+        if (cardId && category) {
+          // Light haptic for card tap
           if (typeof (window as any).triggerHapticImpact === 'function') {
             (window as any).triggerHapticImpact('light');
           }
-          this.showCardDetail(cardId!, category!);
-        } else {
-          this.showLockedMessage();
+          this.showCardDetail(cardId, category);
         }
       }
     });
@@ -312,50 +306,41 @@ class CollectiblesManager {
       return;
     }
 
+    // Clear pending flips after viewing (cards are already shown as unlocked)
     try { localStorage.removeItem(storageKey); } catch {}
     window.__pendingCollectibleFlips = [];
+    
+    // Clear navigation badge
+    if (typeof (window as any).updateNavBadge === 'function') {
+      (window as any).updateNavBadge(0);
+    }
 
-    const startDelay = 2000;
-    setTimeout(() => {
-      pending.forEach((item, index) => {
-        const cardEl = document.querySelector(`.collectible-card[data-card-id="${item.cardId}"]`) as HTMLElement;
+    // Add bounce animation to newly unlocked cards
+    // Cards are already rendered as unlocked, just add bounce animation
+    requestAnimationFrame(() => {
+      pending.forEach((item) => {
+        const cardEl = document.querySelector(`.collectible-card[data-card-id="${item.cardId}"].newly-unlocked`) as HTMLElement;
         if (!cardEl) return;
 
-        const frontImage = cardEl.dataset.frontImage || item.frontImage;
-        const category = (item.category || cardEl.dataset.category || 'common') as keyof CollectiblesData;
-        const backImage = cardEl.dataset.backImage || item.backImage || this.getPlaceholderPath(category);
-
-        const playAnimation = () => {
-          const originalBg = cardEl.style.backgroundImage;
-          if (backImage) {
-            cardEl.style.backgroundImage = `url('${backImage}')`;
-          }
-
-          cardEl.classList.add('flip-reveal-prep');
-          requestAnimationFrame(() => {
-            cardEl.classList.add('flip-reveal-play');
-            setTimeout(() => {
-              if (frontImage) {
-                cardEl.style.backgroundImage = `url('${frontImage}')`;
-              } else if (originalBg) {
-                cardEl.style.backgroundImage = originalBg;
-              }
-            }, 180);
-          });
-
-          setTimeout(() => {
-            cardEl.classList.remove('flip-reveal-prep', 'flip-reveal-play');
-            if (frontImage) {
-              cardEl.style.backgroundImage = `url('${frontImage}')`;
-            } else if (originalBg) {
-              cardEl.style.backgroundImage = originalBg;
-            }
-          }, 1100);
-        };
-
-        setTimeout(playAnimation, index * 220);
+        // Add bounce animation class
+        cardEl.classList.add('bounce-idle');
+        
+        // Random bounce parameters for each card to make them unique
+        // Bounce height: random between 10px and 14px
+        const randomHeight = Math.random() * 4 + 10; // 10-14px
+        // Bounce duration: random between 1.0s and 1.4s
+        const randomDuration = Math.random() * 0.4 + 1.0; // 1.0-1.4s
+        // Bounce delay: random between 0s and 0.3s (small delay to stagger animations)
+        const randomDelay = Math.random() * 0.3; // 0-0.3s
+        
+        // Apply random bounce parameters
+        cardEl.style.setProperty('--card-bounce-height', `${randomHeight}px`);
+        cardEl.style.setProperty('--card-bounce-duration', `${randomDuration}s`);
+        cardEl.style.setProperty('--card-bounce-delay', `${randomDelay}s`);
+        
+        console.log('✅ Added bounce animation to card:', item.cardId, 'height:', randomHeight.toFixed(1), 'px, duration:', randomDuration.toFixed(2), 's, delay:', randomDelay.toFixed(2), 's');
       });
-    }, startDelay);
+    });
   }
 
   private renderCategory(category: keyof CollectiblesData): void {
@@ -397,14 +382,30 @@ class CollectiblesManager {
 
     cardDiv.dataset.frontImage = imagePath;
     cardDiv.dataset.backImage = placeholderPath;
+    
+    // Check if this is a new card (pending flip)
+    const pendingFlips = Array.isArray((window as any).__pendingCollectibleFlips) ? (window as any).__pendingCollectibleFlips : [];
+    const isNewCard = pendingFlips.some((item: any) => item && item.cardId === card.id);
+    
+    // Debug logging
+    if (card.unlocked && isNewCard) {
+      console.log('🎁 Rendering new card as locked:', card.id, 'pendingFlips length:', pendingFlips.length);
+    }
 
     if (card.unlocked) {
+      // Always show unlocked cards as unlocked (no flip animation)
       cardDiv.classList.add('unlocked');
       cardDiv.style.backgroundImage = `url('${imagePath}')`;
       cardDiv.setAttribute(
         'aria-label',
         `Collectible ${numberStr} (${rarityLabel}): ${card.name} unlocked`
       );
+      
+      // Mark new cards for bounce animation
+      if (isNewCard) {
+        cardDiv.classList.add('newly-unlocked');
+        cardDiv.setAttribute('data-newly-unlocked', 'true');
+      }
     } else {
       cardDiv.classList.add('locked');
       cardDiv.style.backgroundImage = `url('${placeholderPath}')`;
@@ -419,6 +420,14 @@ class CollectiblesManager {
     badge.innerHTML = `<span class="badge-number">${numberStr}</span> ${rarityLabel}`;
     badge.setAttribute('aria-hidden', 'true');
     cardDiv.appendChild(badge);
+    
+    // Add star indicator for new cards
+    if (isNewCard) {
+      const star = document.createElement('div');
+      star.className = 'collectible-new-star';
+      star.setAttribute('aria-hidden', 'true');
+      cardDiv.appendChild(star);
+    }
 
     cardDiv.addEventListener('keydown', (event: KeyboardEvent) => {
       if (event.key === 'Enter' || event.key === ' ') {
@@ -494,7 +503,7 @@ class CollectiblesManager {
     return this.preloadPromise;
   }
 
-  private showCardDetail(cardId: string, category: string): void {
+  public showCardDetail(cardId: string, category: string): void {
     console.log('🎁 showCardDetail called:', { cardId, category });
     
     const cards = this.collectiblesData[category as keyof CollectiblesData];
@@ -520,8 +529,12 @@ class CollectiblesManager {
     console.log('🎁 Modal found:', !!modal);
     
     const numberStr = (index + 1).toString().padStart(2, '0');
-    const imagePath = this.getCardImagePath(category as keyof CollectiblesData, index + 1);
-    console.log('🎁 Image path:', imagePath);
+    const frontImagePath = this.getCardImagePath(category as keyof CollectiblesData, index + 1);
+    const backImagePath = this.getPlaceholderPath(category as keyof CollectiblesData);
+    
+    // Use back image if card is locked, front image if unlocked
+    const imagePath = card.unlocked ? frontImagePath : backImagePath;
+    console.log('🎁 Image path:', imagePath, 'unlocked:', card.unlocked);
 
     const cardNumberEl = document.getElementById('detail-card-number');
     const cardImageEl = document.getElementById('detail-card-image') as HTMLElement;
@@ -544,7 +557,15 @@ class CollectiblesManager {
     
     if (cardImageEl) {
       cardImageEl.style.backgroundImage = `url('${imagePath}')`;
-      console.log('✅ Card image set:', imagePath);
+      
+      // Add locked class to image element if card is locked
+      if (card.unlocked) {
+        cardImageEl.classList.remove('locked');
+      } else {
+        cardImageEl.classList.add('locked');
+      }
+      
+      console.log('✅ Card image set:', imagePath, 'locked:', !card.unlocked);
     } else {
       console.warn('⚠️ Card image element not found');
     }
@@ -572,8 +593,67 @@ class CollectiblesManager {
     if (modal) {
       console.log('✅ Modal exists, showing...');
       this.detailTrigger = document.activeElement as HTMLElement;
+      this.currentDetailCardId = cardId; // Store current card ID
       modal.removeAttribute('hidden');
       modal.setAttribute('aria-hidden', 'false');
+      
+      // CRITICAL: Ensure close button is always clickable
+      const closeBtn = document.getElementById('detail-close-btn');
+      if (closeBtn) {
+        // Remove any existing event listeners by cloning the button
+        const newCloseBtn = closeBtn.cloneNode(true) as HTMLElement;
+        closeBtn.parentNode?.replaceChild(newCloseBtn, closeBtn);
+        
+        // Set pointer events explicitly to ensure it's always clickable
+        newCloseBtn.style.pointerEvents = 'auto';
+        newCloseBtn.style.zIndex = '2000000';
+        newCloseBtn.style.position = 'relative';
+        newCloseBtn.style.cursor = 'pointer';
+        
+        // Add click listener directly to ensure it always works
+        const handleCloseClick = (e: Event) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🎁 Close button clicked (direct listener)!');
+          this.hideCardDetail();
+        };
+        
+        // Multiple ways to attach listener for maximum compatibility
+        newCloseBtn.addEventListener('click', handleCloseClick, { capture: true });
+        newCloseBtn.addEventListener('click', handleCloseClick, { capture: false });
+        newCloseBtn.onclick = handleCloseClick;
+        
+        // Also handle touch events for mobile
+        newCloseBtn.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🎁 Close button touched (touchend)!');
+          this.hideCardDetail();
+        }, { capture: true, passive: false });
+        
+        console.log('✅ Close button made clickable with multiple listeners');
+      } else {
+        console.warn('⚠️ Close button not found when showing modal');
+      }
+      
+      // CRITICAL: Ensure background click also works to close modal
+      const handleBackgroundClick = (e: MouseEvent | TouchEvent) => {
+        const target = e.target as HTMLElement;
+        // Only close if clicking directly on modal background (not on content)
+        if (target === modal || target.id === 'collectibles-detail-modal') {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🎁 Modal background clicked, closing modal');
+          this.hideCardDetail();
+        }
+      };
+      
+      // Add background click listener with multiple options
+      modal.addEventListener('click', handleBackgroundClick, { capture: true });
+      modal.addEventListener('click', handleBackgroundClick, { capture: false });
+      modal.addEventListener('touchend', handleBackgroundClick, { capture: true, passive: false });
+      
+      console.log('✅ Background click listener attached to modal');
       
       // Enter animation: scale and fade in
       modal.style.opacity = '0';
@@ -585,10 +665,7 @@ class CollectiblesManager {
         modal.style.opacity = '1';
         modal.style.transform = 'scale(1) translateY(0)';
         
-        // After enter animation, set up drag
-        setTimeout(() => {
-          this.setupCardDrag(cardImageEl);
-        }, 500);
+        // Drag removed - no longer needed
       });
       
       this.detailFocusTrap?.destroy();
@@ -603,184 +680,20 @@ class CollectiblesManager {
     }
   }
 
-  private setupCardDrag(cardElement: HTMLElement): void {
-    if (!cardElement) {
-      console.warn('⚠️ Card element not found for drag setup');
-      return;
+
+  public showFirstCard(): void {
+    // Show first unlocked card or first card in common category
+    const cards = this.collectiblesData.common;
+    if (cards && cards.length > 0) {
+      const firstCard = cards[0];
+      this.showCardDetail(firstCard.id, 'common');
+    } else {
+      console.warn('⚠️ No cards found to show');
     }
-
-    // Kill any existing draggable
-    if (this.cardDraggable) {
-      this.cardDraggable.kill();
-      this.cardDraggable = null;
-    }
-
-    console.log('🎁 Setting up card elastic peek effect');
-
-    // Get card dimensions for 2% bounds (50% reduction)
-    const cardRect = cardElement.getBoundingClientRect();
-    const maxOffsetX = cardRect.width * 0.02; // 2% of width (was 4%)
-    const maxOffsetY = cardRect.height * 0.02; // 2% of height (was 4%)
-    
-    console.log('🎁 Card bounds:', { maxOffsetX, maxOffsetY, width: cardRect.width, height: cardRect.height });
-
-    // Variables to track touch/drag state
-    let isDragging = false;
-    let hasMoved = false;
-    let startX = 0;
-    let startY = 0;
-    let currentX = 0;
-    let currentY = 0;
-    let rafId: number | null = null;
-
-    // Mouse/Touch down
-    const onStart = (e: MouseEvent | TouchEvent) => {
-      // Don't prevent default on buttons/clicks inside the card
-      const target = e.target as HTMLElement;
-      if (target.closest('button') || target.tagName === 'BUTTON') {
-        return;
-      }
-      
-      e.preventDefault();
-      isDragging = true;
-      hasMoved = false;
-      
-      // Get initial position
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-      startX = clientX;
-      startY = clientY;
-      
-      console.log('🎁 Peek started');
-      cardElement.style.zIndex = '999999';
-      
-      // Add global listeners for move and end
-      document.addEventListener('mousemove', onMove as any);
-      document.addEventListener('mouseup', onEnd);
-      document.addEventListener('touchmove', onMove as any);
-      document.addEventListener('touchend', onEnd);
-    };
-
-    // Mouse/Touch move
-    const onMove = (e: MouseEvent | TouchEvent) => {
-      if (!isDragging) return;
-      
-      hasMoved = true;
-      
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-      
-      // Calculate offset
-      const offsetX = clientX - startX;
-      const offsetY = clientY - startY;
-      
-      // Apply resistance beyond 4% - elastic band effect (iOS style)
-      let resistedX = offsetX;
-      let resistedY = offsetY;
-      
-      if (Math.abs(offsetX) > maxOffsetX) {
-        // Exponential resistance - stronger as you go further (reduced by 60%)
-        const over = Math.abs(offsetX) - maxOffsetX;
-        resistedX = Math.sign(offsetX) * (maxOffsetX + over * 0.06);
-      }
-      if (Math.abs(offsetY) > maxOffsetY) {
-        const over = Math.abs(offsetY) - maxOffsetY;
-        resistedY = Math.sign(offsetY) * (maxOffsetY + over * 0.06);
-      }
-      
-      currentX = resistedX;
-      currentY = resistedY;
-      
-      // Apply transform with requestAnimationFrame for smoothness
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId);
-      }
-      rafId = requestAnimationFrame(() => {
-        cardElement.style.transform = `translate(${resistedX}px, ${resistedY}px)`;
-        rafId = null;
-      });
-    };
-
-    // Mouse/Touch up
-    const onEnd = () => {
-      if (!isDragging) return;
-      isDragging = false;
-      
-      // Cancel any pending RAF
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId);
-        rafId = null;
-      }
-      
-      console.log('🎁 Peek ended, springing back');
-      
-      if (hasMoved) {
-        // If dragged, just spring back position without scale
-        gsap.to(cardElement, {
-          x: 0,
-          y: 0,
-          scale: 1,
-          duration: 0.3,
-          ease: 'power2.out',
-          onComplete: () => {
-            cardElement.style.zIndex = '';
-            cardElement.style.transform = '';
-            console.log('✅ Drag spring complete');
-          }
-        });
-      } else {
-        // If just tapped, add scale bounce
-        gsap.to(cardElement, {
-          x: 0,
-          y: 0,
-          scale: 1.05,
-          duration: 0.15,
-          ease: 'power2.out',
-          onComplete: () => {
-            gsap.to(cardElement, {
-              scale: 1,
-              duration: 0.20,
-              ease: 'power2.in',
-              onComplete: () => {
-                cardElement.style.zIndex = '';
-                cardElement.style.transform = '';
-                console.log('✅ Tap bounce complete');
-              }
-            });
-          }
-        });
-      }
-      
-      // Remove event listeners
-      document.removeEventListener('mousemove', onMove as any);
-      document.removeEventListener('mouseup', onEnd);
-      document.removeEventListener('touchmove', onMove as any);
-      document.removeEventListener('touchend', onEnd);
-    };
-
-    // Add event listeners
-    cardElement.addEventListener('mousedown', onStart);
-    cardElement.addEventListener('touchstart', onStart);
-    
-    // Store for cleanup
-    this.cardPeekListeners = { element: cardElement, onStart };
   }
 
-  private hideCardDetail(): void {
+  public hideCardDetail(): void {
     console.log('🎁 hideCardDetail called');
-    
-    // Kill draggable
-    if (this.cardDraggable) {
-      this.cardDraggable.kill();
-      this.cardDraggable = null;
-    }
-    
-    // Clean up peek listeners
-    if (this.cardPeekListeners) {
-      this.cardPeekListeners.element.removeEventListener('mousedown', this.cardPeekListeners.onStart as any);
-      this.cardPeekListeners.element.removeEventListener('touchstart', this.cardPeekListeners.onStart as any);
-      this.cardPeekListeners = null;
-    }
     
     const modal = document.getElementById('collectibles-detail-modal');
     if (!modal) {
@@ -816,6 +729,20 @@ class CollectiblesManager {
 
       const trigger = this.detailTrigger;
       this.detailTrigger = null;
+      
+      // Remove bounce animation from the card that was viewed
+      if (this.currentDetailCardId) {
+        const viewedCard = document.querySelector(`.collectible-card[data-card-id="${this.currentDetailCardId}"]`) as HTMLElement;
+        if (viewedCard) {
+          viewedCard.classList.remove('bounce-idle', 'newly-unlocked');
+          viewedCard.removeAttribute('data-newly-unlocked');
+          viewedCard.style.removeProperty('--card-bounce-height');
+          viewedCard.style.removeProperty('--card-bounce-duration');
+          viewedCard.style.removeProperty('--card-bounce-delay');
+          console.log('✅ Removed bounce animation from viewed card:', this.currentDetailCardId);
+        }
+        this.currentDetailCardId = null;
+      }
 
       if (trigger && typeof trigger.focus === 'function') {
         trigger.focus();
@@ -1103,6 +1030,14 @@ class CollectiblesManager {
         }
         localStorage.setItem(storageKey, JSON.stringify(list));
         window.__pendingCollectibleFlips = list;
+        
+        // Update navigation badge
+        if (typeof (window as any).updateNavBadge === 'function') {
+          (window as any).updateNavBadge(list.length);
+          console.log('✅ Badge updated to', list.length, 'pending collectibles');
+        } else {
+          console.warn('⚠️ updateNavBadge function not available');
+        }
       }
     } catch (error) {
       logger.warn('Failed to queue collectible flip animation:', error);
@@ -1126,6 +1061,18 @@ class CollectiblesManager {
       if (render) {
         this.renderCards();
         this.updateCounters();
+      }
+      
+      // Remove from pending flips and update badge
+      if (Array.isArray((window as any).__pendingCollectibleFlips)) {
+        (window as any).__pendingCollectibleFlips = (window as any).__pendingCollectibleFlips.filter(
+          (item: any) => item && item.cardId !== card.id
+        );
+        
+        // Update badge count
+        if (typeof (window as any).updateNavBadge === 'function') {
+          (window as any).updateNavBadge((window as any).__pendingCollectibleFlips.length);
+        }
       }
     }
 
@@ -1180,7 +1127,7 @@ class CollectiblesManager {
 
     // Title
     const title = document.createElement('h3');
-    title.textContent = action === 'show' ? 'Show Card' : 'Hide Card';
+    title.textContent = action === 'show' ? 'Show Cards' : 'Hide Cards';
     title.style.cssText = `
       font-size: 24px;
       font-weight: 800;
@@ -1198,6 +1145,9 @@ class CollectiblesManager {
       margin-bottom: 20px;
     `;
 
+    // Store selected cards
+    const selectedCards: Set<number> = new Set();
+
     // Create 25 buttons (01-25)
     for (let i = 1; i <= 25; i++) {
       const btn = document.createElement('button');
@@ -1214,31 +1164,69 @@ class CollectiblesManager {
         transition: all 0.2s ease;
       `;
 
-      btn.addEventListener('mouseenter', () => {
-        btn.style.background = '#e8734a';
-        btn.style.borderColor = '#e8734a';
-        btn.style.color = 'white';
-      });
-
-      btn.addEventListener('mouseleave', () => {
-        btn.style.background = '#f5f5f5';
-        btn.style.borderColor = '#e0e0e0';
-        btn.style.color = '#333';
-      });
-
       btn.addEventListener('click', () => {
-        this.handleCardAction(action, i);
-        document.body.removeChild(overlay);
+        if (selectedCards.has(i)) {
+          // Deselect
+          selectedCards.delete(i);
+          btn.style.background = '#f5f5f5';
+          btn.style.borderColor = '#e0e0e0';
+          btn.style.color = '#333';
+        } else {
+          // Select
+          selectedCards.add(i);
+          btn.style.background = '#e8734a';
+          btn.style.borderColor = '#e8734a';
+          btn.style.color = 'white';
+        }
       });
 
       grid.appendChild(btn);
     }
 
-    // Close button
+    // Button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = `
+      display: flex;
+      gap: 12px;
+    `;
+
+    // OK button
+    const okBtn = document.createElement('button');
+    okBtn.textContent = 'OK';
+    okBtn.style.cssText = `
+      flex: 1;
+      background: #e8734a;
+      border: none;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+
+    okBtn.addEventListener('mouseenter', () => {
+      okBtn.style.background = '#d1653a';
+    });
+
+    okBtn.addEventListener('mouseleave', () => {
+      okBtn.style.background = '#e8734a';
+    });
+
+    okBtn.addEventListener('click', () => {
+      // Apply action to all selected cards
+      selectedCards.forEach(cardNum => {
+        this.handleCardAction(action, cardNum);
+      });
+      document.body.removeChild(overlay);
+    });
+
+    // Cancel button
     const closeBtn = document.createElement('button');
     closeBtn.textContent = 'Cancel';
     closeBtn.style.cssText = `
-      width: 100%;
+      flex: 1;
       background: #e0e0e0;
       border: none;
       border-radius: 12px;
@@ -1265,7 +1253,9 @@ class CollectiblesManager {
     // Assemble modal
     modal.appendChild(title);
     modal.appendChild(grid);
-    modal.appendChild(closeBtn);
+    buttonContainer.appendChild(okBtn);
+    buttonContainer.appendChild(closeBtn);
+    modal.appendChild(buttonContainer);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 

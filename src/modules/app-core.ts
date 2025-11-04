@@ -1429,6 +1429,14 @@ function merge(src, dst, helpers){
       console.error('❌ MERGE: statsService.updateHighScore failed:', error);
     }
     
+    // COLLECTIBLES: Check for score-based unlocks
+    if (score >= 100 && typeof (window as any).collectiblesManager !== 'undefined' && (window as any).collectiblesManager) {
+      const manager = (window as any).collectiblesManager;
+      if (typeof manager.unlockCard === 'function') {
+        manager.unlockCard('score_100');
+      }
+    }
+    
     if (wildActive) {
       console.log('🎯 MERGE: Wild merge detected');
       try {
@@ -1640,6 +1648,14 @@ function merge(src, dst, helpers){
         
         // Stats: Update high score for every merge
         statsService.updateHighScore(score);
+        
+        // COLLECTIBLES: Dispatch event for first merge 6
+        if (!wasWild && typeof (window as any).collectiblesManager !== 'undefined' && (window as any).collectiblesManager) {
+          const manager = (window as any).collectiblesManager;
+          if (typeof manager.unlockCard === 'function') {
+            manager.unlockCard('first_merge_6');
+          }
+        }
         
         // Ghost placeholders are now fixed and always visible
 

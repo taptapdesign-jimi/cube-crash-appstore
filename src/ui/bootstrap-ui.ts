@@ -12,7 +12,7 @@ import {
 } from './components/collectibles-screen.js';
 import { renderSettingsScreen } from './components/settings-screen.js';
 import { renderMenuModal } from './components/menu-modal.js';
-import { renderNavigation } from './components/navigation.js';
+import { renderNavigation, updateNavBadge } from './components/navigation.js';
 import { createLoadingScreen } from './components/loading-screen.js';
 import { HTMLBuilder } from './components/html-builder.js';
 import { logger } from '../core/logger.js';
@@ -59,6 +59,24 @@ function bootstrapUI() {
     return el;
   })();
   renderNav(bodyNav);
+  
+  // Expose updateNavBadge globally
+  (window as any).updateNavBadge = updateNavBadge;
+  
+  // Initialize badge count on load from localStorage
+  try {
+    const raw = localStorage.getItem('pending_collectible_flips_v1');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        (window as any).__pendingCollectibleFlips = parsed;
+        updateNavBadge(parsed.length);
+        console.log('✅ Badge initialized with', parsed.length, 'pending collectibles');
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to load pending collectible flips:', error);
+  }
 
   windowRef[BOOTSTRAP_FLAG] = true;
   logger.info('✅ UI bootstrap completed');

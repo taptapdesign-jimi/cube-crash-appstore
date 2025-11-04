@@ -104,6 +104,11 @@ async function initializeApp(): Promise<void> {
     // Wait for bootstrap to complete (DOM elements must exist first)
     await bootstrapReady;
     
+    // Initialize pending collectibles flip list
+    if (!Array.isArray((window as any).__pendingCollectibleFlips)) {
+      (window as any).__pendingCollectibleFlips = [];
+    }
+    
     // Initializing core systems
     
     // Initialize error handling
@@ -188,8 +193,8 @@ async function startAssetPreloading(): Promise<void> {
     // Set to 100% before hiding
     uiManager.updateLoadingProgress(100);
     
-    // Small delay to show 100%
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // Small delay to show 100% + pause before transitioning to home
+    await new Promise(resolve => setTimeout(resolve, 800));
     
     // Hide loading screen and show home
     uiManager.hideLoadingScreen();

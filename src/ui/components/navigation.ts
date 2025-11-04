@@ -4,10 +4,11 @@ import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 export interface NavigationConfig {
   currentSlide?: number;
   onSlideChange?: (slideIndex: number) => void;
+  badgeCount?: number; // Badge count for collectibles icon
 }
 
 export function createNavigation(config: NavigationConfig = {}): HTMLElementConfig {
-  const { currentSlide = 0, onSlideChange } = config;
+  const { currentSlide = 0, onSlideChange, badgeCount } = config;
 
   return {
     tag: 'div',
@@ -28,7 +29,7 @@ export function createNavigation(config: NavigationConfig = {}): HTMLElementConf
             children: [
               createNavButton(0, 'Home', './assets/nav/cube-nav.png', currentSlide === 0, onSlideChange),
               createNavButton(1, 'Stats', './assets/nav/stats-nav.png', currentSlide === 1, onSlideChange),
-              createNavButton(2, 'Collectibles', './assets/nav/collectibles-nav.png', currentSlide === 2, onSlideChange),
+              createNavButton(2, 'Collectibles', './assets/nav/collectibles-nav.png', currentSlide === 2, onSlideChange, badgeCount),
               createNavButton(3, 'Settings', './assets/nav/settings-nav.png', currentSlide === 3, onSlideChange),
             ],
           },
@@ -43,8 +44,41 @@ function createNavButton(
   label: string,
   iconSrc: string,
   isActive: boolean,
-  onSlideChange?: (slideIndex: number) => void
+  onSlideChange?: (slideIndex: number) => void,
+  badgeCount?: number
 ): HTMLElementConfig {
+  const children: HTMLElementConfig[] = [
+    {
+      tag: 'img',
+      attributes: {
+        src: iconSrc,
+        alt: '',
+        loading: 'eager',
+        fetchpriority: 'high',
+        draggable: 'false',
+        'aria-hidden': 'true',
+      },
+    },
+  ];
+
+  // Add badge for Collectibles icon (index 2) if badgeCount is set
+  if (slideIndex === 2 && badgeCount !== undefined && badgeCount > 0) {
+    children.push({
+      tag: 'div',
+      className: 'nav-badge',
+      attributes: {
+        'aria-label': `${badgeCount} new collectibles`,
+      },
+      children: [
+        {
+          tag: 'span',
+          className: 'nav-badge-text',
+          text: badgeCount.toString(),
+        },
+      ],
+    });
+  }
+
   return {
     tag: 'button',
     className: `independent-nav-button${isActive ? ' active' : ''}`,
@@ -53,19 +87,7 @@ function createNavButton(
       'data-slide': slideIndex.toString(),
       'aria-label': label,
     },
-    children: [
-      {
-        tag: 'img',
-        attributes: {
-          src: iconSrc,
-          alt: '',
-          loading: 'eager',
-          fetchpriority: 'high',
-          draggable: 'false',
-          'aria-hidden': 'true',
-        },
-      },
-    ],
+    children,
     eventListeners: onSlideChange ? {
       click: () => onSlideChange(slideIndex),
     } : undefined,
@@ -76,4 +98,41 @@ export function renderNavigation(container: HTMLElement, config: NavigationConfi
   const navConfig = createNavigation(config);
   const element = HTMLBuilder.createElement(navConfig);
   container.appendChild(element);
+}
+
+export function updateNavBadge(count: number): void {
+  console.log('🎁 updateNavBadge called with count:', count);
+  const navButton = document.querySelector('.independent-nav-button[data-slide="2"]') as HTMLElement;
+  if (!navButton) {
+    console.warn('⚠️ Nav button not found for slide 2');
+    return;
+  }
+  
+  const existingBadge = navButton.querySelector('.nav-badge');
+  
+  if (count > 0) {
+    // Update or create badge
+    if (existingBadge) {
+      const badgeText = existingBadge.querySelector('.nav-badge-text');
+      if (badgeText) badgeText.textContent = count.toString();
+      console.log('✅ Badge updated to', count);
+    } else {
+      // Create new badge
+      const badge = document.createElement('div');
+      badge.className = 'nav-badge';
+      badge.setAttribute('aria-label', `${count} new collectibles`);
+      const badgeText = document.createElement('span');
+      badgeText.className = 'nav-badge-text';
+      badgeText.textContent = count.toString();
+      badge.appendChild(badgeText);
+      navButton.appendChild(badge);
+      console.log('✅ Badge created with', count);
+    }
+  } else {
+    // Remove badge if count is 0 or less
+    if (existingBadge) {
+      existingBadge.remove();
+      console.log('✅ Badge removed');
+    }
+  }
 }

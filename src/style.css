@@ -105,7 +105,8 @@ body{
   width: 320px;
   height: auto;
   margin-bottom: 0;
-  animation: pulse 2s ease-in-out infinite;
+  /* Static - no animations, always visible */
+  opacity: 1;
 }
 
 .loading-progress {
@@ -133,6 +134,8 @@ body{
   color: #DB9C77;
   margin-bottom: 0;
   font-family: "LTCrow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
+  /* Static - no fade in */
+  opacity: 1;
 }
 
 .loading-percentage::after {
@@ -156,29 +159,14 @@ body{
 /* Loading bar fill */
 .loading-bar {
   height: 100%;
-  background: linear-gradient(90deg, #DB9C77 0%, #E8B896 100%);
+  background: #E7744A; /* Wild meter orange color */
   border-radius: 6px;
   width: 0%;
   transition: width 0.3s ease;
-  box-shadow: 0 0 12px rgba(219, 156, 119, 0.6);
+  box-shadow: 0 0 12px rgba(231, 116, 74, 0.6);
 }
 
-/* Fade-in animation for loading elements */
-.loading-logo img {
-  animation: fadeInPulse 0.8s ease-out forwards;
-}
-
-.loading-text {
-  animation: fadeIn 0.8s ease-out 0.3s forwards;
-}
-
-.loading-percentage {
-  animation: fadeIn 0.8s ease-out 0.5s forwards;
-}
-
-.loading-bar-container {
-  animation: fadeIn 0.8s ease-out 0.7s forwards;
-}
+/* Fade-in animations removed - all elements static now */
 
 @keyframes fadeInPulse {
   0% { 

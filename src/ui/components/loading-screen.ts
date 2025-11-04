@@ -38,17 +38,18 @@ export function createLoadingScreen(): HTMLElementConfig {
             tag: 'div',
             className: 'loading-progress',
             children: [
-              {
-                tag: 'div',
-                id: 'loading-percentage',
-                className: 'loading-percentage',
-                text: '0',
-                attributes: {
-                  role: 'status',
-                  'aria-live': 'polite',
-                  'aria-atomic': 'true',
-                },
-              },
+              // Percentage counter (commented out for cleaner look)
+              // {
+              //   tag: 'div',
+              //   id: 'loading-percentage',
+              //   className: 'loading-percentage',
+              //   text: '0',
+              //   attributes: {
+              //     role: 'status',
+              //     'aria-live': 'polite',
+              //     'aria-atomic': 'true',
+              //   },
+              // },
               {
                 tag: 'div',
                 className: 'loading-bar-container',

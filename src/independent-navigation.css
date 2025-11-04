@@ -1,11 +1,12 @@
 /* INDEPENDENT NAVIGATION - COMPLETELY SEPARATE FROM EVERYTHING */
 /* This navigation is outside all containers and has its own lifecycle */
 
-/* Global reset for navigation buttons only - exclude divider */
+/* Global reset for navigation buttons only - exclude divider and badge */
 .independent-nav-button,
-.independent-nav-button *,
-.independent-nav-button *::before,
-.independent-nav-button *::after {
+.independent-nav-button *:not(.nav-badge),
+.independent-nav-button *:not(.nav-badge)::before,
+.independent-nav-button *:not(.nav-badge)::after,
+.independent-nav-button *:not(.nav-badge) * {
   background: none !important;
   background-color: transparent !important;
   border: none !important;
@@ -348,3 +349,29 @@
 
 /* Hide navigation during exit animations */
 /* Removed gradient-fade-out rules - gradient stays visible */
+
+/* Navigation badge for collectibles icon */
+.nav-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 40px;
+  height: 40px;
+  background: #FFFFFF; /* White background */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000000000; /* Super high to be above everything */
+  pointer-events: none;
+  transform: translate(0, 0); /* No additional offset, we're using top/right */
+}
+
+.nav-badge-text {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 20px;
+  font-weight: bold;
+  color: #E97A55; /* Orange text color - same as slide CTA buttons */
+  line-height: 1;
+  text-align: center;
+}
