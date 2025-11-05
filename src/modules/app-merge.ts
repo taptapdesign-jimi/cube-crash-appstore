@@ -2,7 +2,7 @@
 import { gsap } from 'gsap';
 import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';
 import * as makeBoard from './board.js';
-import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle } from './fx.js';
 import { COLS, ROWS, TILE, GAP } from './constants.js';
 import * as HUD from './hud-helpers.js';
 import { openAtCell, openEmpties, spawnBounce } from './app-spawn.ts';
@@ -581,9 +581,46 @@ export function merge(src, dst, helpers){
     // Centralized HUD combo balloon for merge 6
     try { HUD.bumpCombo?.({ kind: 'merge6' }); } catch {}
 
+    // 🔥 JIGGLY ANIMATION: Add shake and rotation to pulled tiles before merge
+    if (isPulledTilesMerge) {
+      console.log('🧲 Adding jiggly shake and rotation animation to pulled tiles');
+      
+      // Shake and rotate both tiles with a jiggly effect
+      const shakeDuration = 0.25;
+      const shakeAmount = 3; // pixels
+      const rotationAmount = 0.08; // radians (about 4.5 degrees)
+      
+      // Shake and rotate src tile
+      gsap.to(src, {
+        x: `+=${(Math.random() - 0.5) * shakeAmount * 2}`,
+        y: `+=${(Math.random() - 0.5) * shakeAmount * 2}`,
+        rotation: `+=${(Math.random() - 0.5) * rotationAmount * 2}`,
+        duration: shakeDuration,
+        ease: 'power2.inOut',
+        yoyo: true,
+        repeat: 1
+      });
+      
+      // Shake and rotate dst tile
+      gsap.to(dst, {
+        x: `+=${(Math.random() - 0.5) * shakeAmount * 2}`,
+        y: `+=${(Math.random() - 0.5) * shakeAmount * 2}`,
+        rotation: `+=${(Math.random() - 0.5) * rotationAmount * 2}`,
+        duration: shakeDuration,
+        ease: 'power2.inOut',
+        yoyo: true,
+        repeat: 1
+      });
+    }
+
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.10, ease: 'power2.out',
       onComplete: async () => {
+        // 🔥 CRITICAL: Snimiti src.special i dst.special PRIJE removeTile(src)!
+        // Nakon removeTile, src može biti destroyed ili undefined
+        const srcSpecial = src?.special;
+        const dstSpecial = dst?.special;
+
         removeTile(src);
         
         // CRITICAL FIX: Check for wild cubes properly (including wild-magnet)
@@ -596,7 +633,48 @@ export function merge(src, dst, helpers){
           await landPreBounce(dst);
           showMultiplierTile(STATE.board, dst, mult, 120, 1.0);
           
-          if (wildActive) {
+          // 🔥 CRITICAL: Check if this is pulled tiles merge 6 (both _wildMagnetAffected)
+          // Pulled tiles merge 6 should use same shard parameters as magnet merge 6
+          if (isPulledTilesMerge) {
+            console.log('🧲 PULLED TILES MERGE 6: Using same shard parameters as magnet merge 6');
+            const base = Math.min(28, 12 + Math.max(1, mult) * 4);
+            try {
+              screenShake(STATE.app, {
+                strength: base,
+                duration: 0.36,
+                steps: 28,
+                ease: 'sine.inOut'
+              });
+            } catch {}
+
+            // Glass, flash, shards with same parameters as magnet merge 6
+            glassCrackAtTile(STATE.board, dst, 200, 2.6);
+            innerFlashAtTile(STATE.board, dst, 220, 2.2);
+            
+            // 🔥 Use woodShardsAtTile with same parameters as magnet merge 6 (brown shards only)
+            // 🔥 SIZE: 300x larger for pulled tiles merge 6 (1.5 * 300 = 450)
+            // 🔥 CRITICAL: Add explicit flag to ensure pulled tiles merge 6 shards are properly generated
+            woodShardsAtTile(STATE.board, dst, { 
+              enhanced: true, 
+              wild: false,  // Not wild, just magnet-affected
+              wildMagnet: false,  // Not wild-magnet itself, just affected tiles
+              pulledTilesMerge: true,  // 🔥 EXPLICIT FLAG for pulled tiles merge 6
+              count: 30,  // Same as magnet merge 6
+              intensity: 1.9,  // Same as magnet merge 6
+              spread: 1.8,  // Same as magnet merge 6
+              size: 450,  // 300x larger than magnet merge 6 (1.5 * 300 = 450)
+              speed: 0.85,  // Same as magnet merge 6
+              vanishDelay: 0.0, 
+              vanishJitter: 0.02 
+            });
+
+            // Enhanced multiplier
+            showMultiplierTile(STATE.board, dst, mult, 150, 1.6);
+
+            // Smoke bubbles completely removed for pulled tiles merge 6
+            // smokeBubblesAtTile call removed - no smoke for pulled tiles merge
+            
+          } else if (wildActive) {
             console.log('WILD EXPLOSION (= 6): Triggering dramatic effects');
             const base = Math.min(28, 12 + Math.max(1, mult) * 4);
             try {
@@ -612,8 +690,14 @@ export function merge(src, dst, helpers){
             glassCrackAtTile(STATE.board, dst, 200, 2.6);        // stronger intensity
             innerFlashAtTile(STATE.board, dst, 220, 2.2);        // brighter flash
             
-            woodShardsAtTile(STATE.board, dst, { enhanced: true, wild: true, intensity: 1.8, vanishDelay: 0.0, vanishJitter: 0.02 });
-            woodShardsAtTile(STATE.board, dst, { enhanced: true, wild: true, intensity: 1.45, speed: 0.9, sizeBoost: 1.3, vanishDelay: 0.0, vanishJitter: 0.02 });
+            // 🔥 CRITICAL: Use spawnMerge6Shards with saved srcSpecial AND dstSpecial snapshots
+            // Create clean snapshot objects WITHOUT spread operator to avoid property conflicts
+            // This ensures getMerge6ShardConfig can properly detect wild vs wild-magnet vs regular
+            const srcSnapshot = { special: srcSpecial };
+            const dstSnapshot = { special: dstSpecial };
+            console.log('🔥 Wild merge 6 shards (app-merge) - srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial);
+            spawnMerge6Shards(STATE.board, srcSnapshot, dst, dstSnapshot, { intensity: 1.8, vanishDelay: 0.0, vanishJitter: 0.02 });
+            spawnMerge6Shards(STATE.board, srcSnapshot, dst, dstSnapshot, { intensity: 1.45, speed: 0.9, size: 1.3, vanishDelay: 0.0, vanishJitter: 0.02 });
 
             // Enhanced multiplier for wild
             showMultiplierTile(STATE.board, dst, mult, 150, 1.6);
@@ -646,7 +730,11 @@ export function merge(src, dst, helpers){
               startScale: 0.42 // 0.35 * 1.2 = 0.42 (20% increase)
             });
             try { screenShake(STATE.app, { strength: Math.min(24, 10 + Math.max(1, mult) * 3), duration: 0.34, steps: 18, ease: 'power2.out' }); } catch {}
-            woodShardsAtTile(STATE.board, dst, { intensity: 0.7, count: 12, spread: 1.1, size: 0.85, vanishDelay: 0.03, behind: true });
+            // 🔥 CRITICAL: Use spawnMerge6Shards with saved srcSpecial AND dstSpecial snapshots (regular merge 6 = brown)
+            // Create clean snapshot objects WITHOUT spread operator to avoid property conflicts
+            const srcSnapshot = { special: srcSpecial };
+            const dstSnapshot = { special: dstSpecial };
+            spawnMerge6Shards(STATE.board, srcSnapshot, dst, dstSnapshot, { intensity: 0.7, count: 12, spread: 1.1, size: 0.85, vanishDelay: 0.03, behind: true });
           }
         }
 

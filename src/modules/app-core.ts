@@ -14,7 +14,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.js';
-import { glassCrackAtTile, woodShardsAtTile, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, centerInBoard } from './fx.js';
 import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
 import FX from './fx-helpers.js';
@@ -1665,6 +1665,11 @@ function merge(src, dst, helpers){
 
   // ---- 6 (računaj combo i ovdje – nastavlja x6, x7, x8…)
   if (effSum === 6){
+    // 🔥 CRITICAL: Snimiti src.special i dst.special PRIJE setValue i clearWildState!
+    // setValue i clearWildState mogu promijeniti special property
+    const srcSpecial = src?.special;
+    const dstSpecial = dst?.special;
+    
     // Haptic feedback for merge 6
     if (typeof (window as any).triggerHapticImpact === 'function') {
       if (wildActive) {
@@ -1821,13 +1826,13 @@ function merge(src, dst, helpers){
           const awayDirY = dist > 0 ? dy / dist : 0;
           
           // Distance to move away (similar to exit animations)
-          // 🔥 INCREASED: 100% more distance (21% → 42%)
-          const awayDistance = TILE * 0.42; // 42% of tile size (100% increase from 21%)
+          // 🔥 INCREASED: 50% more distance (42% → 63%) for exaggerated "zalet" animation
+          const awayDistance = TILE * 0.63; // 63% of tile size (50% increase from 42%)
           const awayX = startX + awayDirX * awayDistance;
           const awayY = startY + awayDirY * awayDistance;
           
-          // Random rotation: 5-10 degrees in either direction (clockwise or counterclockwise)
-          const rotationDegrees = 5 + Math.random() * 5; // 5-10 degrees
+          // Random rotation: 10-30 degrees in either direction (clockwise or counterclockwise)
+          const rotationDegrees = 10 + Math.random() * 20; // 10-30 degrees (exaggerated)
           const rotationDirection = Math.random() < 0.5 ? 1 : -1; // Random direction
           const rotationRadians = (rotationDegrees * rotationDirection) * (Math.PI / 180);
           
@@ -1974,6 +1979,9 @@ function merge(src, dst, helpers){
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
       onComplete: async () => {
+        // 🔥 CRITICAL: srcSpecial i dstSpecial su već snimljeni PRIJE setValue i clearWildState!
+        // Koristimo ih iz closure-a, ne snimamo ih ponovo (jer bi mogli biti već promijenjeni)
+
         removeTile(src);
 
         // Combo++ + bump (merge 6 hits maximum balloon)
@@ -1982,8 +1990,20 @@ function merge(src, dst, helpers){
         
         scheduleComboDecay();
 
+        // 🔥 CRITICAL: Snimiti dst poziciju PRIJE nego što se pozovu shardovi!
+        // Nakon removeTile(dst), dst može biti destroyed ili undefined
+        const dstX = dst?.x ?? 0;
+        const dstY = dst?.y ?? 0;
+        const dstGridX = dst?.gridX ?? 0;
+        const dstGridY = dst?.gridY ?? 0;
+        const dstZIndex = dst?.zIndex ?? 0;
+        
         // FX
         const wasWild = wildActive;
+        // 🔥 CRITICAL: Determine if this is wild-magnet or wild-only merge
+        const isMainWildMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
+        const isMainWildOnlyMerge = (srcSpecial === 'wild' || dstSpecial === 'wild') && !isMainWildMagnetMerge;
+        
         if (wasWild) {
           const baseShake = Math.min(28, 12 + Math.max(1, mult) * 4);
           try {
@@ -1995,24 +2015,69 @@ function merge(src, dst, helpers){
             });
           } catch {}
           glassCrackAtTile(board, dst, TILE * 1.5, 2.0);
-          // 🔥 CRITICAL: Pass wasWildMagnet info to woodShardsAtTile for red color
-          woodShardsAtTile(board, dst, { enhanced: true, wild: true, wildMagnet: wasWildMagnet, count: 30, intensity: 1.9, spread: 1.8, size: 1.5, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });
+          
+          // 🔥 NEW SYSTEM: Direct call to woodShardsAtTile with explicit flags
+          // This bypasses getMerge6ShardConfig and ensures correct shard colors
+          if (isMainWildMagnetMerge) {
+            // Wild-magnet merge: red/brown shards (50/50 random)
+            console.log('🔥 Wild-magnet merge 6 - using red/brown shards');
+            woodShardsAtTile(board, dst, { 
+              enhanced: true, 
+              wild: true, 
+              wildMagnet: true,  // Explicitly set wildMagnet flag
+              count: 30, 
+              intensity: 1.9, 
+              spread: 0.3,  // Dramatically reduced from 1.2 to keep shards very close to tile
+              size: 1.5, 
+              speed: 0.85, 
+              vanishDelay: 0.0, 
+              vanishJitter: 0.02 
+            });
+          } else if (isMainWildOnlyMerge) {
+            // Wild-only merge (wild on ordinary or ordinary on wild): yellow/brown shards (50/50 random)
+            // Use same system as magnet merge 6 (woodShardsAtTile) with same size and spread ratio
+            console.log('🔥 Wild-only merge 6 - using yellow/brown shards (srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, ')');
+            woodShardsAtTile(board, dst, { 
+              enhanced: true, 
+              wild: true,  // Explicitly set wild flag (not wild-magnet)
+              wildMagnet: false,  // Explicitly NOT wild-magnet
+              count: 30, 
+              intensity: 1.9, 
+              spread: 0.3,  // Dramatically reduced from 1.2 to keep shards very close to tile
+              size: 1.5,     // Same size as magnet merge 6
+              speed: 0.85, 
+              vanishDelay: 0.0, 
+              vanishJitter: 0.02 
+            });
+          } else {
+            // Fallback: use spawnMerge6Shards (shouldn't happen, but safety)
+            console.warn('⚠️ Wild merge but neither wild-magnet nor wild-only detected, using spawnMerge6Shards');
+            const srcSnapshot = { special: srcSpecial };
+            const dstSnapshot = { special: dstSpecial };
+            spawnMerge6Shards(board, srcSnapshot, dst, dstSnapshot, { count: 30, intensity: 1.9, spread: 0.3, size: 1.5, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });
+          }
+          
           wildImpactEffect(dst, { squash: 0.30, stretch: 0.26, tilt: 0.18, bounce: 1.24 });
         } else {
-          const gentleSmokeStrength = 0.6 + Math.random() * 0.28;
-          smokeBubblesAtTile(board, dst, {
-            tileSize: TILE,
-            strength: gentleSmokeStrength,
-            behind: true,
-            sizeScale: 1.16,
-            distanceScale: 0.75,
-            countScale: 0.8,
-            haloScale: 1.15,
-            ttl: 1.0
+          // 🔥 REGULAR MERGE 6: Use same system as wild/magnet merge but with 50% reduced intensity
+          // Same effects as wild merge, but all parameters scaled down by 50%
+          
+          // Glass crack effect (50% of wild: 1.3 * 0.5 = 0.65, but keep minimum 1.0)
+          glassCrackAtTile(board, dst, TILE * 1.0, 1.0);
+          
+          // 🔥 CRITICAL: Regular merge 6 shards - use centerInBoard to get exact center position
+          // This ensures shards are perfectly centered on the tile
+          const mergePos = centerInBoard(board, dst, TILE);
+          regularMerge6Shards(board, { x: mergePos.x, y: mergePos.y, gridX: dstGridX, gridY: dstGridY, zIndex: dstZIndex } as any, { 
+            count: 16 + Math.floor(Math.random() * 9), // Random between 16-24
+            ttl: 1.6        // Time to live
           });
-          // Wooden shards for merge 6 (40% reduced)
-          // 🔥 CRITICAL: Pass wasWildMagnet info to woodShardsAtTile for red color
-          woodShardsAtTile(board, dst, { enhanced: true, wild: true, wildMagnet: wasWildMagnet, count: 18, intensity: 1.9, spread: 1.08, size: 0.9, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });
+          
+          // Impact effect (50% of wild: squash 0.24->0.12, stretch 0.20->0.10, tilt 0.14->0.07, bounce 1.18->1.09)
+          wildImpactEffect(dst, { squash: 0.12, stretch: 0.10, tilt: 0.07, bounce: 1.09 });
+          
+          // Smoke bubbles (50% of wild: 2.6 * 0.5 = 1.3)
+          smokeBubblesAtTile(board, dst, TILE * 1.0, 1.3);
         }
 
         
@@ -2020,7 +2085,9 @@ function merge(src, dst, helpers){
         if (dst && !dst.destroyed) {
         if (wasWild) {
           showMultiplierTile(board, dst, mult, TILE * 1.3, 1.2);
-          smokeBubblesAtTile(board, dst, TILE * 1.3, 3.0, {
+          // 🔥 Wild-magnet merge: Reduce smoke intensity by 80% (3.0 * 0.2 = 0.6)
+          const smokeStrength = isMainWildMagnetMerge ? 0.6 : 3.0;  // 80% reduction for wild-magnet
+          smokeBubblesAtTile(board, dst, TILE * 1.3, smokeStrength, {
             sizeScale: 0.7 + Math.random() * 0.6,  // Random size: 0.7-1.3x
             countScale: 0.6 + Math.random() * 0.8, // Random count: 0.6-1.4x
             trailAlpha: 0.95

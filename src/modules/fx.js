@@ -26,7 +26,7 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
 }
 
 // Board-local center of a tile (robust against rotG wrappers)
-function centerInBoard(board, tile, tileSize = 96){
+export function centerInBoard(board, tile, tileSize = 96){
   if (!board || !tile) return { x:0, y:0 };
   // CRITICAL: Check if tile is destroyed before accessing properties
   if (tile.destroyed) {
@@ -142,6 +142,241 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   }
 }
 
+/**
+ * 🔥 CENTRAL: Determines merge 6 shard configuration based on src and dst tiles
+ * This function is the single source of truth for shard colors
+ * @param {Object} src - Source tile (can be null/undefined for pulled tiles merge)
+ * @param {Object} dst - Destination tile (can be null/undefined)
+ * @returns {Object} Config with { isWild, isWildMagnet, shardColor }
+ */
+function getMerge6ShardConfig(src, dst) {
+  // 🔥 CRITICAL: Check both src and dst for special properties
+  // Handle both snapshot objects ({ special: 'wild' }) and live tile objects
+  const srcSpecial = src?.special;
+  const dstSpecial = dst?.special;
+  
+  // 🔥 CRITICAL: Explicitly check for wild-magnet FIRST (before wild)
+  const srcIsWildMagnet = srcSpecial === 'wild-magnet';
+  const dstIsWildMagnet = dstSpecial === 'wild-magnet';
+  const isWildMagnet = srcIsWildMagnet || dstIsWildMagnet;
+
+  // 🔥 CRITICAL: Check both src and dst for wild (not wild-magnet)
+  // If either src or dst is wild (and not wild-magnet), then it's a wild merge
+  const srcIsWild = srcSpecial === 'wild' && !srcIsWildMagnet;
+  const dstIsWild = dstSpecial === 'wild' && !dstIsWildMagnet;
+  const isWild = srcIsWild || dstIsWild;
+
+  // Determine shard color
+  const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only
+  const redColor = 0xF26034;    // Red (#F26034) for wild-magnet
+  const brownColor = 0xD4A584;   // Brown (#D4A584) for regular merge 6
+
+  let shardColor = brownColor;
+  if (isWildMagnet) {
+    shardColor = redColor; // Wild-magnet → red
+  } else if (isWild) {
+    shardColor = yellowColor; // Wild-only → yellow
+  }
+  // Otherwise: regular merge 6 → brown (default)
+
+  // 🔥 DEBUG: Log configuration for troubleshooting
+  console.log('🔥 getMerge6ShardConfig:', {
+    srcSpecial,
+    dstSpecial,
+    srcIsWild,
+    dstIsWild,
+    isWild,
+    srcIsWildMagnet,
+    dstIsWildMagnet,
+    isWildMagnet,
+    shardColor: shardColor.toString(16)
+  });
+
+  return {
+    isWild,
+    isWildMagnet,
+    shardColor,
+    isRegular: !isWild && !isWildMagnet
+  };
+}
+
+/**
+ * 🔥 WRAPPER: Spawns shards for merge 6 with correct colors based on src/dst
+ * This is the bulletproof function that should be called for all merge 6 shards
+ * @param {Object} board - Board container
+ * @param {Object} src - Source tile snapshot for special detection (can be null for pulled tiles merge)
+ * @param {Object} dstLive - Live destination tile for position calculation
+ * @param {Object} dstSnapshot - Destination tile snapshot for special detection (optional, falls back to dstLive)
+ * @param {Object} opts - Additional options (count, intensity, etc.)
+ */
+export function spawnMerge6Shards(board, src, dstLive, dstSnapshot = null, opts = {}) {
+  if (!board || !dstLive) {
+    console.warn('⚠️ spawnMerge6Shards: Missing board or dstLive', { board: !!board, dstLive: !!dstLive });
+    return;
+  }
+
+  // 🔥 CRITICAL: Use dstSnapshot for special detection if provided, otherwise use dstLive
+  // This ensures we get the correct special property even if dstLive is destroyed
+  const dstForSpecial = dstSnapshot || dstLive;
+
+  // Get shard config from src/dst snapshots
+  const config = getMerge6ShardConfig(src, dstForSpecial);
+  console.log('🔥 spawnMerge6Shards config:', {
+    srcSpecial: src?.special,
+    dstSpecial: dstForSpecial?.special,
+    isWild: config.isWild,
+    isWildMagnet: config.isWildMagnet,
+    shardColor: config.shardColor
+  });
+
+  // Prepare opts for woodShardsAtTile
+  const shardOpts = {
+    enhanced: true,
+    wild: config.isWild || config.isWildMagnet, // true if wild or wild-magnet
+    wildMagnet: config.isWildMagnet, // true only if wild-magnet
+    ...opts // Override with any passed options
+  };
+
+  // 🔥 CRITICAL: Use live dstLive for position calculation (has x, y, gridX, gridY)
+  // but config from snapshots for correct special detection
+  woodShardsAtTile(board, dstLive, shardOpts);
+}
+
+/* ---------- Regular merge 6 shards (NEW, SEPARATE FUNCTION) ---------- */
+export function regularMerge6Shards(board, tile, opts = {}){
+  if (!board || !tile) {
+    console.warn('⚠️ regularMerge6Shards: Missing board or tile', { board: !!board, tile: !!tile });
+    return;
+  }
+
+  // 🔥 CRITICAL: Use direct position if tile is a snapshot object, otherwise use centerInBoard
+  let x, y;
+  if (tile.x !== undefined && tile.y !== undefined) {
+    // Tile is a snapshot object with direct x/y coordinates
+    x = tile.x;
+    y = tile.y;
+  } else {
+    // Tile is a live tile object - use centerInBoard
+    const pos = centerInBoard(board, tile, 96);
+    x = pos.x;
+    y = pos.y;
+  }
+  
+  // Create layer
+  const layer = new Container();
+  layer.x = x;
+  layer.y = y;
+  layer.visible = true;
+  layer.alpha = 1.0;
+  layer.zIndex = opts.zIndex ?? 9993; // High zIndex to ensure visibility (below multiplier 10000)
+  
+  // Add to board IMMEDIATELY (don't wait for autoAdd delay)
+  board.addChild(layer);
+  
+  // Sort children to ensure correct zIndex order
+  try {
+    board.sortChildren?.();
+  } catch {}
+  
+  // Auto-remove after TTL
+  const ttl = opts.ttl ?? 1.6;
+  gsap.delayedCall(ttl, () => {
+    try {
+      if (layer && layer.parent === board) {
+        board.removeChild(layer);
+      }
+      layer.destroy?.({ children: true });
+    } catch {}
+  });
+  
+  // Shard parameters - 200% larger (2x zoom, reduced from 4x) OR custom from opts
+  const shardCount = opts.count ?? 13;
+  const brownColor = 0xD4A584; // Brown color
+  const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only
+  const isWildOnly = opts.isWildOnly === true; // Flag to use yellow/brown colors
+  const baseTile = 96;
+  const sizeMultiplier = opts.sizeMultiplier ?? 2.4; // Default 240% larger (20% increase from 2.0), can be overridden
+  const distanceMultiplier = opts.distanceMultiplier ?? 5.6; // Default 560% larger distance (40% increase from 4.0), can be overridden
+  const minDistance = (baseTile * 0.08) * distanceMultiplier;
+  const maxDistance = (baseTile * 0.24) * distanceMultiplier;
+  
+  // Create shards
+  for (let i = 0; i < shardCount; i++) {
+    const shard = new Graphics();
+    
+    // Shard size - 200% larger (2x, reduced from 4x)
+    const baseSize = (8 + Math.random() * 10) * sizeMultiplier; // 16-36px (was 32-72px, reduced by 50%)
+    const width = baseSize;
+    const height = width * (0.8 + Math.random() * 1.4);
+    
+    // Create irregular polygon shape
+    const points = [];
+    const numPoints = 4 + Math.floor(Math.random() * 4); // 4-7 points
+    
+    for (let j = 0; j < numPoints; j++) {
+      const angle = (j / numPoints) * Math.PI * 2 + (Math.random() - 0.5) * 0.8;
+      const radius = (0.3 + Math.random() * 0.7) * Math.min(width, height) / 2;
+      const px = Math.cos(angle) * radius;
+      const py = Math.sin(angle) * radius;
+      points.push(px, py);
+    }
+    
+    // Determine shard color - yellow/brown for wild-only, brown for regular
+    let shardColor = brownColor;
+    if (isWildOnly) {
+      // Wild-only: 50% yellow, 50% brown
+      shardColor = Math.random() < 0.5 ? yellowColor : brownColor;
+    }
+    
+    // Draw shard
+    try {
+      shard.poly(points).fill({ color: shardColor, alpha: 1.0 });
+    } catch (e) {
+      // Fallback to rect
+      shard.clear();
+      const size = Math.max(4, Math.max(...points.map((p, i) => Math.abs(p))) * 2);
+      shard.rect(-size/2, -size/2, size, size).fill({ color: shardColor, alpha: 1.0 });
+    }
+    
+    // Position and rotation
+    shard.rotation = Math.random() * Math.PI;
+    shard.x = 0;
+    shard.y = 0;
+    shard.alpha = 1.0;
+    
+    // Add to layer
+    layer.addChild(shard);
+    
+    // Animation parameters
+    const angle = Math.random() * Math.PI * 2;
+    const distance = minDistance + Math.random() * (maxDistance - minDistance);
+    // 🔥 50% wider horizontal spread (1.5x in width)
+    const endX = Math.cos(angle) * distance * 1.5;
+    const endY = Math.sin(angle) * distance;
+    const travelDur = 0.42 + Math.random() * 0.18; // 0.42-0.60s
+    const spin = (Math.random() - 0.5) * Math.PI * 2;
+    
+    // Animate shard
+    gsap.to(shard, {
+      x: endX,
+      y: endY,
+      rotation: shard.rotation + spin,
+      duration: travelDur,
+      ease: 'power3.out',
+      onComplete: () => {
+        gsap.delayedCall(0.03 + Math.random() * 0.06, () => {
+          try {
+            if (layer && layer.children.includes(shard)) {
+              layer.removeChild(shard);
+            }
+            shard.destroy();
+          } catch {}
+        });
+      }
+    });
+  }
+}
+
 export function woodShardsAtTile(board, tile, opts = {}){
   if (!board || !tile) return;
 
@@ -157,40 +392,103 @@ export function woodShardsAtTile(board, tile, opts = {}){
   layer.x = x; layer.y = y;
   const tileZ = tile?.zIndex ?? 0;
   const behind = opts.behind ?? false;
-  if (wildMode || enhanced) {
+  // CRITICAL: Only use low zIndex for wild mode (when wildMode is true)
+  // For regular merge 6, use high zIndex (9993) to ensure shards are visible
+  if (wildMode) {
     layer.zIndex = tileZ - 0.002; // sit behind smoke/flash for wild mode
   } else {
-    layer.zIndex = behind ? tileZ - 0.001 : 9993;
+    layer.zIndex = behind ? tileZ - 0.001 : 9993; // High zIndex for regular merge 6
   }
+
 
   const ttl = opts.ttl ?? (wildMode ? 0.9 : 1.6);
   autoAdd(board, layer, ttl, behind ? { before: tile } : undefined);
-  try { board.sortChildren?.(); } catch {}
   const intensity = opts.intensity ?? (enhanced ? 1.35 : 1.0);
   const countBase = opts.count ?? (enhanced ? 18 : 12);
   const shardCountRaw = Math.max(6, Math.round(countBase * intensity));
-  const shardCount = wildMode ? Math.max(14, Math.round(shardCountRaw * 0.8)) : shardCountRaw; // Reduced count by 50%
+  const shardCount = wildMode ? Math.max(14, Math.round(shardCountRaw * 0.8)) : shardCountRaw;
   const spread = opts.spread ?? (enhanced ? 1.4 : 1.0);
   const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
-  const radiusBoost = wildMode ? 1.25 : 0.5; // Reduced by 50% for wild mode
-  const minDistance = (opts.minDistance ?? (wildMode ? baseTile * 0.2 : baseTile * 0.08)) * spread * radiusBoost;
-  const maxDistanceBase = opts.maxDistance ?? (wildMode ? baseTile * 1.1 : (enhanced ? baseTile * 0.24 : baseTile * 0.2)); // Reduced by 50% for wild
-  const maxDistance = maxDistanceBase * spread * radiusBoost;
-  const sizeMul = (opts.size ?? opts.sizeBoost ?? (enhanced ? 1.3 : 1.0));
+  // 🔥 CRITICAL: Check if this is pulled tiles merge 6 (explicit flag)
+  const isPulledTilesMerge = opts.pulledTilesMerge === true;
+  // 🔥 CRITICAL FIX: For regular merge, use larger radiusBoost to ensure shards are visible
+  // Regular merge shards were too small (0.5) - increase to 1.0 to match wild-magnet visibility
+  const radiusBoost = wildMode ? 1.25 : 1.0; // 🔥 FIXED: Regular merge now uses 1.0 instead of 0.5
+  // 🔥 CRITICAL FIX: For very large sizeMul (pulled tiles merge 6), use much larger distances
+  const sizeMul = (opts.size ?? opts.sizeBoost ?? (enhanced ? 1.3 : 1.2)); // 🔥 FIXED: Regular merge now uses 1.2 instead of 1.0
+  // 🔥 CRITICAL: For pulled tiles merge 6, force sizeMul to be used directly (don't let it be overridden)
+  // For pulled tiles merge 6, use opts.size directly (450) but scale it down for reasonable rendering
+  // 450 / 30 = 15, which is still 10x larger than 1.5 (wild-magnet merge 6)
+  const finalSizeMul = isPulledTilesMerge && opts.size ? (opts.size / 30) : sizeMul;
+  // If sizeMul is very large (e.g., 450 for pulled tiles merge 6), scale distances accordingly
+  const distanceMultiplier = finalSizeMul > 1 ? (finalSizeMul * 3) : 1.0; // Scale distances for very large shards
+  const minDistance = (opts.minDistance ?? (wildMode ? baseTile * 0.2 : baseTile * 0.08)) * spread * radiusBoost * distanceMultiplier;
+  const maxDistanceBase = opts.maxDistance ?? (wildMode ? baseTile * 1.1 : (enhanced ? baseTile * 0.24 : baseTile * 0.2));
+  const maxDistance = maxDistanceBase * spread * radiusBoost * distanceMultiplier;
   const speed = Math.max(0.2, opts.speed ?? 1.0);
   const vanishDelay = opts.vanishDelay ?? (wildMode ? 0 : 0);
   const vanishJitter = opts.vanishJitter ?? (wildMode ? 0.02 : 0.06);
 
-  // 🔥 CRITICAL: Check if this is a wild-magnet merge to use mixed colors for shards
-  // Check both tile.special and opts.wildMagnet (passed from app-core.ts)
-  const isWildMagnet = tile?.special === 'wild-magnet' || opts.wildMagnet === true;
-  const redColor = 0xF26034; // Red (#F26034) for wild-magnet
-  const brownColor = 0xD4A584; // Brown for others
+  // 🔥 CRITICAL: Determine shard color based on opts.wildMagnet and opts.wild
+  // Priority: opts flags FIRST (explicit), then tile.special (fallback)
+  // This ensures explicit flags ALWAYS override tile.special
+  let isWildMagnet = false;
+  let isWildOnly = false;
+  
+  // Step 1: Check opts.wildMagnet FIRST (explicit override)
+  if (opts.wildMagnet === true) {
+    isWildMagnet = true;
+  } else if (opts.wildMagnet === false) {
+    // Explicitly NOT wild-magnet, even if tile.special is 'wild-magnet'
+    isWildMagnet = false;
+  } else {
+    // opts.wildMagnet not set, fallback to tile.special
+    isWildMagnet = tile?.special === 'wild-magnet';
+  }
+  
+  // Step 2: Check opts.wild SECOND (explicit override)
+  if (opts.wild === true && !isWildMagnet) {
+    // Explicitly wild, but not wild-magnet
+    isWildOnly = true;
+  } else if (opts.wild === false) {
+    // Explicitly NOT wild
+    isWildOnly = false;
+  } else if (!isWildMagnet && tile?.special === 'wild') {
+    // opts.wild not set, fallback to tile.special (but only if not wild-magnet)
+    isWildOnly = true;
+  }
+  
+  const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only
+  const redColor = 0xF26034;    // Red (#F26034) for wild-magnet
+  const brownColor = 0xD4A584;  // Brown (#D4A584) for regular merge 6
 
-  const emitShard = (distance, angle, scaleFactor = 1, alpha = 0.92, speedMul = 1) => {
+  // Determine base shard color
+  let baseShardColor = brownColor; // Default: brown
+  if (isWildMagnet) {
+    baseShardColor = redColor; // Wild-magnet → red
+  } else if (isWildOnly) {
+    baseShardColor = yellowColor; // Wild-only → yellow
+  }
+
+  const emitShard = (distance, angle, scaleFactor = 1, alpha = 1.0, speedMul = 1) => {
     const shard = new Graphics();
-    const base = 6 + Math.random() * 8; // Much larger base size (2-3x bigger)
-    const width = base * sizeMul * scaleFactor;
+    
+    // CRITICAL: Clear graphics before drawing (ensures clean state)
+    shard.clear();
+    
+    // 🔥 CRITICAL FIX: For regular merge, use larger base size to ensure visibility
+    // Regular merge shards were too small - increase base size
+    // 🔥 CRITICAL: If sizeMul is very large (e.g., 450 for pulled tiles merge 6), use much larger base
+    // Use finalSizeMul (which respects pulledTilesMerge flag) instead of sizeMul
+    let base;
+    if (finalSizeMul > 10 || isPulledTilesMerge) {
+      // For very large sizeMul (pulled tiles merge 6), use much larger base to ensure visibility
+      // For pulled tiles merge 6, use larger base (40-80) to ensure visibility
+      base = wildMode ? (40 + Math.random() * 40) : (50 + Math.random() * 50); // 40-80 for wildMode, 50-100 for regular
+    } else {
+      base = wildMode ? (6 + Math.random() * 8) : (8 + Math.random() * 10); // 🔥 FIXED: Regular merge uses larger base (8-18 vs 6-14)
+    }
+    const width = base * finalSizeMul * scaleFactor;
     const height = width * (0.8 + Math.random() * 1.4); // More variation in height
 
     // Create irregular vector-like shape instead of rectangle
@@ -205,16 +503,41 @@ export function woodShardsAtTile(board, tile, opts = {}){
       points.push(x, y);
     }
 
-    // 🔥 CRITICAL: For wild-magnet, randomly choose between red and brown (50/50 mix)
-    // For others, always use brown
-    const shardColor = isWildMagnet 
-      ? (Math.random() < 0.5 ? redColor : brownColor) // 50% red, 50% brown
-      : brownColor; // Always brown for non-wild-magnet
+    // 🔥 CRITICAL: For wild-magnet, randomly mix red and brown (50/50)
+    // For wild-only, randomly mix yellow and brown (50/50)
+    // For regular, use only brown
+    let shardColor = baseShardColor;
+    if (isWildMagnet) {
+      // Wild-magnet: 50% red, 50% brown
+      shardColor = Math.random() < 0.5 ? redColor : brownColor;
+    } else if (isWildOnly) {
+      // Wild-only: 50% yellow, 50% brown
+      shardColor = Math.random() < 0.5 ? yellowColor : brownColor;
+    }
+    // Otherwise: use baseShardColor (brown for regular)
 
-    shard.drawPolygon(points) // Fixed: Changed .polygon to .drawPolygon
-         .fill({ color: shardColor, alpha });
+    // CRITICAL FIX: PixiJS v8+ uses .poly() instead of .drawPolygon()
+    try {
+      shard.poly(points).fill({ color: shardColor, alpha });
+    } catch (e) {
+      // Fallback to rect if polygon fails
+      try {
+        shard.clear();
+        const maxRadius = Math.max(8, Math.max(...points.map((p, i) => Math.abs(p))));
+        const shardSize = Math.max(4, maxRadius * 2);
+        shard.rect(-shardSize/2, -shardSize/2, shardSize, shardSize)
+             .fill({ color: shardColor, alpha });
+      } catch (e2) {
+        // Last resort: simple rect
+        shard.clear();
+        shard.rect(-4, -4, 8, 8).fill({ color: shardColor, alpha });
+      }
+    }
 
     shard.rotation = Math.random() * Math.PI;
+    shard.x = 0;
+    shard.y = 0;
+    shard.alpha = alpha;
     layer.addChild(shard);
 
     const dist = Math.max(minDistance, Math.min(maxDistance, distance)) * (1 + (Math.random() - 0.5) * 0.15);
@@ -235,13 +558,16 @@ export function woodShardsAtTile(board, tile, opts = {}){
       onComplete: () => {
         gsap.delayedCall(vanishDelay + Math.random() * Math.max(0, vanishJitter), () => {
           try {
-            layer.removeChild(shard);
+            if (layer && layer.children.includes(shard)) {
+              layer.removeChild(shard);
+            }
             shard.destroy();
           } catch {}
         });
       }
     });
   };
+
 
   for (let i = 0; i < shardCount; i++) {
     const angle = Math.random() * Math.PI * 2;
@@ -264,7 +590,19 @@ export function woodShardsAtTile(board, tile, opts = {}){
         emitShard(extraDistance, extraAngle, scale * 0.6, alpha * 0.9, speedMul * 1.25);
       }
     } else {
+      // 🔥 CRITICAL FIX: For regular merge, use full alpha (1.0) and larger scale to ensure visibility
       distance = minDistance + Math.random() * (maxDistance - minDistance);
+      alpha = 1.0; // 🔥 FIXED: Regular merge uses full alpha (1.0) instead of 0.92
+      // 🔥 CRITICAL: If sizeMul is very large (e.g., 450 for pulled tiles merge 6), use larger scale
+      // This ensures shards are properly scaled when sizeMul is 300x larger
+      // Use finalSizeMul (which respects pulledTilesMerge flag) instead of sizeMul
+      if (finalSizeMul > 10 || isPulledTilesMerge) {
+        // For very large sizeMul (pulled tiles merge 6), use much larger scale to ensure visibility
+        // For pulled tiles merge 6, use larger scale (3.0-6.0) to ensure visibility
+        scale = 3.0 + Math.random() * 3.0; // 3.0-6.0 for very large shards
+      } else {
+        scale = 1.0 + Math.random() * 0.5; // 🔥 FIXED: Regular merge uses larger scale (1.0-1.5) instead of 1.0
+      }
     }
 
     emitShard(distance, angle, scale, alpha, speedMul);
