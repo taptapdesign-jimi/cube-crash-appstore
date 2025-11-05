@@ -452,11 +452,85 @@ export async function boot(){
     getGrid: () => grid, // Add getGrid function for drag system
     cellXY, // Add cellXY function
     merge,
-    canDrop: (s, d) => !d.locked,
+    canDrop: (s, d) => {
+      // CRITICAL: Check if destination is valid FIRST
+      if (!d || d.locked || (d.value | 0) <= 0) {
+        console.log('🔥 canDrop (app-core): Invalid destination (null, locked, or value = 0)');
+        return false;
+      }
+      
+      const sv = (s && (s.value|0)) || 0;
+      const dv = (d && (d.value|0)) || 0;
+      
+      // WILD-MAGNET LOGIC: Can go on anything except wild and wild-magnet, and anything can go on it
+      const srcIsWildMagnet = s?.special === 'wild-magnet';
+      const dstIsWildMagnet = d?.special === 'wild-magnet';
+      const srcIsWild = s?.special === 'wild';
+      const dstIsWild = d?.special === 'wild';
+      
+      if (srcIsWildMagnet) {
+        // Wild-magnet cannot merge into wild or wild-magnet
+        if (dstIsWild || dstIsWildMagnet) {
+          console.log('🔥 canDrop (app-core): Wild-magnet cannot merge into wild or wild-magnet');
+          return false;
+        }
+        // Wild-magnet can merge into any normal tile
+        console.log('🔥 canDrop (app-core): Wild-magnet can merge into normal tile');
+        return true;
+      }
+      
+      if (dstIsWildMagnet) {
+        // Any tile can merge into wild-magnet (except wild and wild-magnet)
+        if (srcIsWild || srcIsWildMagnet) {
+          console.log('🔥 canDrop (app-core): Wild or wild-magnet cannot merge into wild-magnet');
+          return false;
+        }
+        // Normal tiles can merge into wild-magnet
+        console.log('🔥 canDrop (app-core): Normal tile can merge into wild-magnet');
+        return true;
+      }
+      
+      const wild = (srcIsWild || dstIsWild);
+      
+      // WILD LOGIC: Wild cube cannot merge into same value
+      if (wild) {
+        if (srcIsWild && !dstIsWild) {
+          // Wild merging into normal tile - check if target value is different
+          const canMerge = sv !== dv;
+          console.log('🔥 canDrop (app-core): Wild merge check (wild->normal):', { wildValue: sv, targetValue: dv, canMerge });
+          return canMerge;
+        } else if (dstIsWild && !srcIsWild) {
+          // Normal tile merging into wild - check if source value is different
+          const canMerge = sv !== dv;
+          console.log('🔥 canDrop (app-core): Wild merge check (normal->wild):', { sourceValue: sv, wildValue: dv, canMerge });
+          return canMerge;
+        } else if (srcIsWild && dstIsWild) {
+          // Wild merging into wild - not allowed
+          console.log('🔥 canDrop (app-core): Wild merge check (wild->wild): not allowed');
+          return false;
+        }
+      }
+      
+      // 🔥 CRITICAL: If one tile is wild-magnet affected, it can merge with the other
+      const srcIsWildMagnetAffected = (s as any)?._wildMagnetAffected === true;
+      const dstIsWildMagnetAffected = (d as any)?._wildMagnetAffected === true;
+      
+      if (srcIsWildMagnetAffected || dstIsWildMagnetAffected) {
+        console.log('🔥 canDrop (app-core): One tile is wild-magnet affected - can merge regardless of pips');
+        return true;
+      }
+      
+      // NORMAL LOGIC: Regular merge rules
+      if (!Number.isFinite(sv) || !Number.isFinite(dv)) return false;
+      if (sv === dv) return true;         // allow stacking equal values (e.g., 3+3)
+      const canMerge = (sv + dv) <= 6;    // allow different values that sum to 6 (e.g., 4+2, 2+4)
+      console.log('🔥 canDrop (app-core): Normal merge result:', canMerge);
+      return canMerge;
+    },
     hoverColor: 0x8a6e57,
     hoverWidth: 10,
     hoverAlpha: 0.28,
-    threshold: 0.03,
+    threshold: 0.05, // Increased from 0.03 to prevent accidental merges
     hitPad: 0.26,
     snapRadius: 0.68,
   });
@@ -1400,21 +1474,70 @@ function pickWildValue(dstValue) {
 }
 function merge(src, dst, helpers){
   console.log('🔥🔥🔥 MERGE FUNCTION CALLED! src:', src?.value, 'dst:', dst?.value);
+  console.log('🔥🔥🔥 MERGE DESTINATION CHECK:', {
+    hasDst: !!dst,
+    dstValue: dst?.value,
+    dstLocked: dst?.locked,
+    dstDestroyed: dst?.destroyed,
+    dstGridX: dst?.gridX,
+    dstGridY: dst?.gridY,
+    isInTiles: typeof getTiles === 'function' && getTiles ? getTiles().includes(dst) : 'unknown'
+  });
+  
   if (busyEnding) { helpers.snapBack?.(src); return; }
   if (src === dst) { helpers.snapBack(src); return; }
+  
+  // CRITICAL: Validate that both tiles are valid and merge is allowed
+  if (!src || !dst || src.destroyed || dst.destroyed) {
+    console.warn('⚠️ MERGE: Invalid tiles - src:', src, 'dst:', dst);
+    if (src && !src.destroyed) helpers.snapBack?.(src);
+    return;
+  }
+  
+  // 🔥 CRITICAL: Check if both tiles are wild-magnet affected (pulled tiles merge)
+  const srcIsWildMagnetAffected = (src as any)?._wildMagnetAffected === true;
+  const dstIsWildMagnetAffected = (dst as any)?._wildMagnetAffected === true;
+  const isPulledTilesMerge = srcIsWildMagnetAffected && dstIsWildMagnetAffected;
+  
+  // CRITICAL: If destination is locked or has value 0, this is not a valid merge (ghost placeholder)
+  // BUT: For pulled tiles merge (both wild-magnet affected), allow merge even if dst is locked/value 0
+  if (dst.locked || (dst.value | 0) <= 0) {
+    if (!isPulledTilesMerge) {
+      console.warn('🚨🚨🚨 MERGE BLOCKED: Destination is locked or has value 0');
+      console.warn('⚠️ Destination:', { locked: dst.locked, value: dst.value, gridX: dst.gridX, gridY: dst.gridY });
+      helpers.snapBack?.(src);
+      return;
+    } else {
+      console.log('🧲 MERGE: Allowing pulled tiles merge even if dst is locked/value 0 (both are wild-magnet affected)');
+    }
+  }
+  
   // Block wild/wild, wild/magnet, magnet/magnet merges
+  // BUT: If BOTH tiles are wild-magnet affected (pulled tiles), allow merge regardless of wild status
   if ((src?.special === 'wild' && dst?.special === 'wild') || 
       (src?.special === 'wild-magnet' && dst?.special === 'wild-magnet') ||
       (src?.special === 'wild' && dst?.special === 'wild-magnet') ||
-      (src?.special === 'wild-magnet' && dst?.special === 'wild')){ helpers.snapBack?.(src); return; }
+      (src?.special === 'wild-magnet' && dst?.special === 'wild')){ 
+    // CRITICAL: If both tiles are wild-magnet affected (pulled tiles), allow merge even if wild/wild
+    if (!isPulledTilesMerge) {
+      console.warn('🚨🚨🚨 MERGE BLOCKED: Wild/wild, wild/magnet, or magnet/magnet merge not allowed');
+      helpers.snapBack?.(src); 
+      return;
+    } else {
+      console.log('🧲 MERGE: Allowing wild/wild merge because both tiles are wild-magnet affected (pulled tiles)');
+    }
+  }
 
   const sum      = (src.value|0) + (dst.value|0);
   const srcDepth = src.stackDepth || 1;
   const dstDepth = dst.stackDepth || 1;
 
-  // Wild-magnet works like wild: always merges to 6
-  const wildActive = (src.special === 'wild' || dst.special === 'wild' || src.special === 'wild-magnet' || dst.special === 'wild-magnet');
-  const wildTargetValue = wildActive ? ((src.special === 'wild' || src.special === 'wild-magnet') ? (dst.value|0) : (src.value|0)) : null;
+  // Wild-magnet works exactly like wild: always merges to 6
+  // Also, if BOTH tiles are _wildMagnetAffected (pulled tiles), they act like wild
+  // NOTE: srcIsWildMagnetAffected and dstIsWildMagnetAffected are already declared above
+  const wildActive = (src.special === 'wild' || dst.special === 'wild' || src.special === 'wild-magnet' || dst.special === 'wild-magnet') ||
+                     (srcIsWildMagnetAffected && dstIsWildMagnetAffected);
+  const wildTargetValue = wildActive ? ((src.special === 'wild' || src.special === 'wild-magnet' || srcIsWildMagnetAffected) ? (dst.value|0) : (src.value|0)) : null;
   let effSum = sum;
 
   // Wild cube logic: always merge to 6, but remember target for later spawn
@@ -1568,18 +1691,285 @@ function merge(src, dst, helpers){
     // CRITICAL: For wild-magnet, always use x2 multiplier for main merge
     const isWildMagnet = src.special === 'wild-magnet';
     const mult = isWildMagnet ? 2 : (combinedCount >= 3 ? 3 : combinedCount);
-
-    // WILD-MAGNET: Check for pulled tiles BEFORE animation starts
-    const pulledTiles = (helpers as any)?.wildMagnetPulledTiles || (src as any)?._wildMagnetPulledTiles;
-    const hasPulledTiles = isWildMagnet && pulledTiles && pulledTiles.length > 0;
     
-    console.log('🔥 MERGE-6 DEBUG (app-core):', {
-      isWildMagnet,
-      hasPulledTiles,
-      pulledTilesCount: pulledTiles?.length || 0,
-      helpersHasPulledTiles: !!(helpers as any)?.wildMagnetPulledTiles,
-      srcHasPulledTiles: !!(src as any)?._wildMagnetPulledTiles
-    });
+    // Store isWildMagnet for use in onComplete callback
+    const wasWildMagnet = isWildMagnet;
+
+    // 🧲 WILD-MAGNET: Find and pull 2 nearest tiles IMMEDIATELY when merge 6 starts
+    // This happens BEFORE the merge animation completes
+    if (isWildMagnet && dst && !dst.destroyed && !dst.locked && (dst.value | 0) > 0) {
+      console.log('🧲 WILD-MAGNET: Merge 6 starting, finding 2 nearest tiles to pull IMMEDIATELY');
+      
+      // Find 2 nearest tiles to the merge location (use dst position BEFORE merge animation)
+      const mergeX = dst.x;
+      const mergeY = dst.y;
+      const allTiles = STATE.tiles.filter((tile: any) => {
+        if (!tile || tile.destroyed) return false;
+        if (tile === dst) return false; // Don't include the merge 6 tile itself
+        if (tile === src) return false; // Don't include the magnet tile itself
+        if (tile.locked) return false;
+        if ((tile.value | 0) <= 0) return false;
+        if (tile.special === 'wild' || tile.special === 'wild-magnet') return false; // Don't pull wild tiles
+        return true;
+      });
+      
+      // Calculate distances and find 2 nearest
+      const withDistance = allTiles.map((tile: any) => {
+        const dx = tile.x - mergeX;
+        const dy = tile.y - mergeY;
+        const dist = Math.hypot(dx, dy);
+        return { tile, distance: dist };
+      });
+      
+      withDistance.sort((a, b) => a.distance - b.distance);
+      const nearestTiles = withDistance.slice(0, 2).map(item => item.tile);
+      
+      console.log('🧲 Found', nearestTiles.length, 'nearest tiles to pull immediately');
+      
+      if (nearestTiles.length > 0) {
+        // Store original positions and mark tiles as magnet-affected IMMEDIATELY
+        nearestTiles.forEach((tile: any) => {
+          if (!tile || tile.destroyed) return;
+          
+          // Store original position
+          if (!tile._wildMagnetOriginalX) {
+            tile._wildMagnetOriginalX = tile.x;
+            tile._wildMagnetOriginalY = tile.y;
+          }
+          
+          // 🔥 CRITICAL: Mark tiles as magnet-affected IMMEDIATELY (before animation)
+          // This allows them to merge regardless of pips or wild status
+          tile._wildMagnetAffected = true;
+          
+          // 🔥 CRITICAL: Disable drag for pulled tiles (prevent user from dragging them)
+          tile.eventMode = 'none';
+          tile.cursor = 'default';
+          
+          // Clear from grid immediately (they're being pulled)
+          if (tile.gridX !== undefined && tile.gridY !== undefined && grid && grid[tile.gridY]) {
+            grid[tile.gridY][tile.gridX] = null;
+          }
+          
+          // 🔥 CRITICAL: Ensure tiles remain in tiles array (don't remove them yet!)
+          // They will be removed when merge completes
+          if (!tiles.includes(tile)) {
+            console.warn('⚠️ Pulled tile not in tiles array, adding it back');
+            tiles.push(tile);
+          }
+          if (!STATE.tiles.includes(tile)) {
+            console.warn('⚠️ Pulled tile not in STATE.tiles array, adding it back');
+            STATE.tiles.push(tile);
+          }
+          
+          console.log('🧲 Marked tile as magnet-affected:', tile.value, 'special:', tile.special, 'in tiles:', tiles.includes(tile), 'in STATE.tiles:', STATE.tiles.includes(tile));
+        });
+        
+        // Track how many tiles have arrived
+        let arrivedCount = 0;
+        const totalTiles = nearestTiles.length;
+        let allTilesArrived = false;
+        let multiplierShown = false;
+        
+        // Function to merge pulled tiles when both conditions are met
+        const tryMergePulledTiles = async () => {
+          if (allTilesArrived && multiplierShown) {
+            console.log('🧲 Both conditions met: all tiles arrived AND multiplier shown, starting merge');
+            try {
+              // Import handleWildMagnetMergedPulledTiles asynchronously
+              const { handleWildMagnetMergedPulledTiles } = await import('./app-merge');
+              
+              // Check if dst is still valid before merging
+              // NOTE: For pulled tiles merge, dst might be removed already (merge 6 tile), so we check differently
+              const validTiles = nearestTiles.filter((t: any) => t && !t.destroyed);
+              if (validTiles.length >= 2) {
+                // 🔥 CRITICAL: Add merge function to helpers so handleWildMagnetMergedPulledTiles can use it
+                const helpersWithMerge = {
+                  ...helpers,
+                  merge: merge // Add merge function from app-core.ts to helpers
+                };
+                
+                // Use dst if still valid, otherwise use merge location from first tile
+                const mergeLocation = dst && !dst.destroyed ? dst : { x: validTiles[0].x, y: validTiles[0].y };
+                
+                console.log('🧲 Calling handleWildMagnetMergedPulledTiles with', validTiles.length, 'valid tiles');
+                await handleWildMagnetMergedPulledTiles(mergeLocation, validTiles, helpersWithMerge);
+                console.log('✅ Pulled tiles merge completed into existing merge 6');
+              } else {
+                console.warn('⚠️ Not enough valid pulled tiles to merge (need 2, got', validTiles.length, ')');
+              }
+            } catch (err) {
+              console.error('❌ Error merging pulled tiles:', err);
+              console.error('❌ Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+            }
+          }
+        };
+        
+        // Pull tiles towards merge location with enhanced magnetic animation
+        nearestTiles.forEach((tile: any, index: number) => {
+          if (!tile || tile.destroyed) return;
+          
+          // Store original position and rotation
+          const startX = tile.x;
+          const startY = tile.y;
+          const startRotation = tile.rotG?.rotation || tile.rotation || 0;
+          
+          // Calculate direction away from center (opposite direction)
+          const dx = startX - mergeX;
+          const dy = startY - mergeY;
+          const dist = Math.hypot(dx, dy);
+          const awayDirX = dist > 0 ? dx / dist : 0;
+          const awayDirY = dist > 0 ? dy / dist : 0;
+          
+          // Distance to move away (similar to exit animations)
+          // 🔥 INCREASED: 100% more distance (21% → 42%)
+          const awayDistance = TILE * 0.42; // 42% of tile size (100% increase from 21%)
+          const awayX = startX + awayDirX * awayDistance;
+          const awayY = startY + awayDirY * awayDistance;
+          
+          // Random rotation: 5-10 degrees in either direction (clockwise or counterclockwise)
+          const rotationDegrees = 5 + Math.random() * 5; // 5-10 degrees
+          const rotationDirection = Math.random() < 0.5 ? 1 : -1; // Random direction
+          const rotationRadians = (rotationDegrees * rotationDirection) * (Math.PI / 180);
+          
+          // Create timeline for complex animation
+          // 🔥 SPEED UP: All durations reduced by 40% (multiply by 0.6)
+          // Sequential delay: each tile starts after the previous one has moved away - FASTER
+          const sequentialDelay = index * 0.08 * 0.6; // 40% faster: 0.08s → 0.048s
+          const initialDelay = 0.350; // 🔥 CRITICAL: 350ms delay before pulling starts
+          const tl = gsap.timeline({
+            delay: initialDelay + sequentialDelay, // Start 350ms after merge 6 starts, then sequential delay
+            onUpdate: async () => {
+              // 🔥 CRITICAL: Safety check - tile must exist and not be destroyed
+              if (!tile || tile.destroyed) {
+                console.warn('⚠️ Tile destroyed during animation, killing timeline');
+                try { tl.kill(); } catch {}
+                return;
+              }
+              
+              // 🔥 CRITICAL: Safety check - tile must have valid position properties
+              if (tile.x == null || tile.y == null || typeof tile.x !== 'number' || typeof tile.y !== 'number' || !Number.isFinite(tile.x) || !Number.isFinite(tile.y)) {
+                console.warn('⚠️ Tile position invalid during animation, killing timeline');
+                try { tl.kill(); } catch {}
+                return;
+              }
+              
+              // 🔥 CRITICAL: Check if tile is 75% of the way to merge location
+              // Calculate current distance to merge location
+              const currentDx = tile.x - mergeX;
+              const currentDy = tile.y - mergeY;
+              const currentDist = Math.hypot(currentDx, currentDy);
+              
+              // Calculate initial distance
+              const initialDx = startX - mergeX;
+              const initialDy = startY - mergeY;
+              const initialDist = Math.hypot(initialDx, initialDy);
+              
+              // Calculate progress (0 = start, 1 = end)
+              const progress = initialDist > 0 ? 1 - (currentDist / initialDist) : 1;
+              
+              // 🔥 CRITICAL: Trigger merge when tiles are 75% of the way (0.75 progress)
+              // Only trigger once per tile
+              if (progress >= 0.75 && !tile._mergeTriggered75) {
+                // 🔥 CRITICAL: Double-check tile is still valid before triggering merge
+                if (!tile || tile.destroyed || tile.x == null || tile.y == null) {
+                  console.warn('⚠️ Tile destroyed just before merge trigger, skipping');
+                  try { tl.kill(); } catch {}
+                  return;
+                }
+                
+                tile._mergeTriggered75 = true;
+                arrivedCount++;
+                console.log(`🧲 Tile ${index + 1}/${totalTiles} reached 75% - triggering merge immediately`);
+                
+                // When all tiles reach 75%, trigger merge IMMEDIATELY
+                if (arrivedCount === totalTiles) {
+                  console.log('🧲 All tiles reached 75%, triggering merge 6 IMMEDIATELY (no final alignment)');
+                  allTilesArrived = true;
+                  multiplierShown = true; // Mark multiplier as shown to trigger merge immediately
+                  // Try to merge immediately (will merge right away)
+                  await tryMergePulledTiles();
+                }
+              }
+            }
+          });
+          
+          // Step 1: Move away from center + rotate (no scale yet) - 40% FASTER
+          tl.to(tile, {
+            x: awayX,
+            y: awayY,
+            duration: 0.08 * 0.6, // 40% faster: 0.08s → 0.048s
+            ease: 'power2.out'
+          }, 0);
+          
+          // Rotate (random 5-10 degrees)
+          if (tile.rotG) {
+            tl.to(tile.rotG, {
+              rotation: startRotation + rotationRadians,
+              duration: 0.08 * 0.6, // 40% faster: 0.08s → 0.048s
+              ease: 'power2.out'
+            }, 0);
+          } else if (tile.rotation !== undefined) {
+            tl.to(tile, {
+              rotation: startRotation + rotationRadians,
+              duration: 0.08 * 0.6, // 40% faster: 0.08s → 0.048s
+              ease: 'power2.out'
+            }, 0);
+          }
+          
+          // Step 2: Move towards merge location + scale down 20% SIMULTANEOUSLY with movement - 40% FASTER
+          // Scale down from 1.0 to 0.8 (20% reduction) PROPORTIONALLY to movement
+          // Both animations start at the same time and move together
+          // 🔥 CRITICAL: Calculate 75% position - merge will trigger before reaching 100%
+          const target75X = startX + (mergeX - startX) * 0.75;
+          const target75Y = startY + (mergeY - startY) * 0.75;
+          
+          const moveDuration = 0.2 * 0.6; // 40% faster: 0.2s → 0.12s
+          
+          // Move towards 75% position (merge triggers before reaching 100%)
+          // After merge triggers, tiles continue to 100% but merge happens immediately
+          tl.to(tile, {
+            x: mergeX,
+            y: mergeY,
+            duration: moveDuration,
+            ease: 'power2.inOut'
+          }, `>${0.02 * 0.6}`); // 40% faster: 0.02s → 0.012s
+          
+          // Scale down SIMULTANEOUSLY with movement (proportional to movement progress)
+          if (tile.scale) {
+            tl.to(tile.scale, {
+              x: 0.8,
+              y: 0.8,
+              duration: moveDuration, // Same duration as movement
+              ease: 'power2.inOut' // Same ease as movement
+            }, '<'); // Start at the SAME time as movement (not after)
+          }
+          
+          // Rotate back to 0 while moving
+          if (tile.rotG) {
+            tl.to(tile.rotG, {
+              rotation: startRotation,
+              duration: moveDuration,
+              ease: 'power2.inOut'
+            }, '<');
+          } else if (tile.rotation !== undefined) {
+            tl.to(tile, {
+              rotation: startRotation,
+              duration: moveDuration,
+              ease: 'power2.inOut'
+            }, '<');
+          }
+        });
+        
+        // Store callback to trigger merge when multiplier appears
+        // This will be called from the onComplete callback after showMultiplierTile
+        (dst as any)._wildMagnetMergeCallback = async () => {
+          console.log('🧲 Multiplier appeared, checking if can merge pulled tiles');
+          multiplierShown = true;
+          // Try to merge (will only merge if all tiles have arrived)
+          await tryMergePulledTiles();
+        };
+      }
+    }
 
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
@@ -1605,7 +1995,8 @@ function merge(src, dst, helpers){
             });
           } catch {}
           glassCrackAtTile(board, dst, TILE * 1.5, 2.0);
-          woodShardsAtTile(board, dst, { enhanced: true, wild: true, count: 30, intensity: 1.9, spread: 1.8, size: 1.5, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });
+          // 🔥 CRITICAL: Pass wasWildMagnet info to woodShardsAtTile for red color
+          woodShardsAtTile(board, dst, { enhanced: true, wild: true, wildMagnet: wasWildMagnet, count: 30, intensity: 1.9, spread: 1.8, size: 1.5, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });
           wildImpactEffect(dst, { squash: 0.30, stretch: 0.26, tilt: 0.18, bounce: 1.24 });
         } else {
           const gentleSmokeStrength = 0.6 + Math.random() * 0.28;
@@ -1620,71 +2011,48 @@ function merge(src, dst, helpers){
             ttl: 1.0
           });
           // Wooden shards for merge 6 (40% reduced)
-          woodShardsAtTile(board, dst, { enhanced: true, wild: true, count: 18, intensity: 1.9, spread: 1.08, size: 0.9, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });
+          // 🔥 CRITICAL: Pass wasWildMagnet info to woodShardsAtTile for red color
+          woodShardsAtTile(board, dst, { enhanced: true, wild: true, wildMagnet: wasWildMagnet, count: 18, intensity: 1.9, spread: 1.08, size: 0.9, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });
         }
 
-        // WILD-MAGNET: Merge pulled tiles FIRST, BEFORE multiplier display and score calculation
-        // CRITICAL: This must happen FIRST so that stackDepth increases to 4 before multiplier/score display
-        if (hasPulledTiles && dst && !dst.destroyed) {
-          console.log('🧲 WILD-MAGNET (app-core): Starting pulled tiles merge FIRST');
-          console.log('🧲 Pulled tiles:', pulledTiles);
-          console.log('🧲 Destination tile BEFORE merge:', {
-            gridX: dst.gridX,
-            gridY: dst.gridY,
-            x: dst.x,
-            y: dst.y,
-            stackDepth: dst.stackDepth,
-            destroyed: dst.destroyed
-          });
-          
-          // Call handleWildMagnetMergedPulledTiles
-          try {
-            console.log('🧲 Calling handleWildMagnetMergedPulledTiles with', pulledTiles.length, 'tiles');
-            await handleWildMagnetMergedPulledTiles(dst, pulledTiles, helpers);
-            console.log('✅ Pulled tiles merge completed successfully');
-            console.log('🧲 Destination tile AFTER merge:', {
-              stackDepth: dst.stackDepth,
-              destroyed: dst.destroyed
-            });
-          } catch (err) {
-            console.error('❌ Error merging pulled tiles:', err);
-            console.error('❌ Error details:', err instanceof Error ? err.message : String(err));
-            // Fallback: remove pulled tiles if merge fails
-            if (pulledTiles && pulledTiles.length > 0) {
-              pulledTiles.forEach((pulledTile: any) => {
-                if (pulledTile && !pulledTile.destroyed) {
-                  console.log('🧹 Force removing pulled tile at', pulledTile.x, pulledTile.y);
-                  gsap.killTweensOf(pulledTile);
-                  removeTile(pulledTile);
-                }
-              });
-            }
-          }
-        }
-
-        // ► badge + pojačani "smoke/bubbles" + screen shake
-        // CRITICAL: For wild-magnet with pulled tiles, use final stackDepth for multiplier display
-        // Pulled tiles merge should have increased stackDepth to 4, so use that for display
-        // CRITICAL: Check stackDepth AFTER pulled tiles merge (if it happened)
-        let finalMult = mult;
-        if (isWildMagnet && hasPulledTiles && dst && !dst.destroyed) {
-          // Pulled tiles merge should have increased stackDepth to 4
-          const actualStackDepth = dst.stackDepth || mult;
-          finalMult = Math.min(4, actualStackDepth);
-          console.log('🎯 Multiplier display: stackDepth=', actualStackDepth, 'finalMult=', finalMult);
-        } else {
-          console.log('🎯 Multiplier display: no pulled tiles, using mult=', mult);
-        }
         
+        // Show multiplier for merge 6
+        if (dst && !dst.destroyed) {
         if (wasWild) {
-          showMultiplierTile(board, dst, finalMult, TILE * 1.3, 1.2);
+          showMultiplierTile(board, dst, mult, TILE * 1.3, 1.2);
           smokeBubblesAtTile(board, dst, TILE * 1.3, 3.0, {
             sizeScale: 0.7 + Math.random() * 0.6,  // Random size: 0.7-1.3x
             countScale: 0.6 + Math.random() * 0.8, // Random count: 0.6-1.4x
             trailAlpha: 0.95
           });
         } else {
-          showMultiplierTile(board, dst, finalMult, TILE, 1.0);
+          showMultiplierTile(board, dst, mult, TILE, 1.0);
+          }
+          
+          // 🔥 CRITICAL: For wild-magnet, trigger pulled tiles merge when multiplier animation STARTS
+          // Multiplier animation starts immediately (scale from 0.12 to 1.26 over 0.18s)
+          // We want to trigger when the animation starts, not when it completes
+          // 🔥 SPEED UP: For wild-magnet, speed up multiplier appearance by 60% (0.18s → 0.072s)
+          // Set flag on tile so showMultiplierTile can detect it and speed up animation
+          if (wasWildMagnet && (dst as any)._wildMagnetMergeCallback) {
+            // Mark tile so showMultiplierTile can speed up animation by 60%
+            (dst as any)._wildMagnetSpeedUp = true;
+            
+            // Trigger immediately when multiplier animation starts (scale begins growing)
+            // Note: Pulled tiles animation already started when merge 6 began (no delay)
+            // Speed up by 60%: original delay was 0.2s, now 0.08s (60% faster)
+            setTimeout(async () => {
+              console.log('🧲 Multiplier x2 animation started (sped up 60%), triggering pulled tiles merge');
+              if ((dst as any)._wildMagnetMergeCallback) {
+                await (dst as any)._wildMagnetMergeCallback();
+                // Clean up callback
+                (dst as any)._wildMagnetMergeCallback = undefined;
+                (dst as any)._wildMagnetSpeedUp = undefined;
+              }
+            }, 80); // Speed up by 60%: 0.2s * 0.4 = 0.08s = 80ms (was 0ms, now 80ms for 60% speedup)
+          }
+        } else {
+          console.warn('⚠️ Cannot show multiplier - destination tile is destroyed');
         }
 
         if (!wasWild) {
@@ -1694,48 +2062,33 @@ function merge(src, dst, helpers){
           } catch {}
         }
 
-        // clean up dst slot
+        // CRITICAL: Store grid position BEFORE any checks
         const gx = dst.gridX, gy = dst.gridY;
+        
+        // Remove destination tile (merge 6 creates new tile, so remove old one)
+        if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
         grid[gy][gx] = null;
         dst.visible = false;
         removeTile(dst);
 
+          // Create holder after removing tile
         const willBeClean = isBoardClean();
         if (!willBeClean){
           const holder = makeBoard.createTile({ board, grid, tiles, c: gx, r: gy, val: 0, locked: true });
           holder.alpha = 0.35; holder.eventMode = 'none';
+          }
+        } else {
+          console.warn('⚠️ Destination tile is invalid or already destroyed - skipping removal');
         }
 
-        // countdown moves
+        // countdown moves (this happens for both normal and pulled tiles merge)
         moves = Math.max(0, moves - 1);
 
         // scoring with bubble multiplier and combo multiplier
-        // CRITICAL: For wild-magnet with pulled tiles:
-        // - Main merge (magnet + target) uses x2 multiplier → 6 * 2 = 12
-        // - Pulled tiles merge already added score in performMerge6Effects → 6 * 4 = 24
-        // - Total: 12 + 24 = 36
-        // DO NOT use final stackDepth for main merge score - pulled tiles merge already added its own score
-        let scoreMult = mult; // Always use original mult (x2 for wild-magnet) for main merge
-        if (isWildMagnet && hasPulledTiles) {
-          console.log('🎯 Score calculation: wild-magnet with pulled tiles - main merge uses mult=', mult, '(x2), pulled tiles merge already added x4 separately');
-        } else {
-          console.log('🎯 Score calculation: using mult=', mult);
-        }
-        const bubbleMult = scoreMult || 1;
+        const bubbleMult = mult || 1;
         const comboMult  = combo > 0 ? combo : 1;
         const scoreDelta = 6 * bubbleMult * comboMult;
-        console.log('🎯 Score calculation: bubbleMult=', bubbleMult, 'comboMult=', comboMult, 'scoreDelta=', scoreDelta);
-        
-        // CRITICAL: Sync score with STATE.score before adding
-        // pulled tiles merge already added score to STATE.score, so sync first
-        if (isWildMagnet && hasPulledTiles) {
-          console.log('🎯 Syncing score with STATE.score before adding main merge score');
-          console.log('🎯 STATE.score before sync:', STATE.score);
-          console.log('🎯 Local score before sync:', score);
-          // Pulled tiles merge already added to STATE.score, so sync local score with STATE.score
-          score = STATE.score;
-          console.log('🎯 Local score after sync:', score);
-        }
+        console.log('🎯 Score calculation: mult=', mult, 'bubbleMult=', bubbleMult, 'comboMult=', comboMult, 'scoreDelta=', scoreDelta);
         
         score = Math.min(SCORE_CAP, score + scoreDelta);
         // CRITICAL: Sync STATE.score with local score after adding
@@ -1830,9 +2183,15 @@ function merge(src, dst, helpers){
         addWildProgress(WILD_INC_BIG);
         // Pass wild merge target info for smart spawning
         const wildMergeTarget = Number.isFinite(wildTargetValue) ? wildTargetValue : null;
+        
+        // Use multiplier for spawning new tiles
+        const spawnMult = mult;
+        
+        console.log('🎯 Spawning new tiles with multiplier:', spawnMult);
+        
         await FLOW.openLockedBounceParallel({ 
           tiles, 
-          k: mult, 
+          k: spawnMult, 
           drag, 
           makeBoard, 
           gsap, 

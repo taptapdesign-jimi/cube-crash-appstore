@@ -394,11 +394,11 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
 }
 
 export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
-  const open = allTiles.filter((t) => !(t as Tile).locked) as Tile[];
+  const open = allTiles.filter((t) => !(t as Tile).locked && (t as Tile).value > 0) as Tile[];
 
-  // Check for wild cubes - they can merge with any other tile
-  const wildCubes = open.filter((t) => t.special === 'wild');
-  const nonWildTiles = open.filter((t) => t.special !== 'wild');
+  // Check for wild cubes - they can merge with any other tile (including wild-magnet)
+  const wildCubes = open.filter((t) => t.special === 'wild' || t.special === 'wild-magnet');
+  const nonWildTiles = open.filter((t) => t.special !== 'wild' && t.special !== 'wild-magnet');
 
   // If we have wild cubes and any non-wild tiles, we can always merge
   if (wildCubes.length > 0 && nonWildTiles.length > 0) {

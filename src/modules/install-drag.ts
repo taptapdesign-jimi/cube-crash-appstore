@@ -83,10 +83,26 @@ export function installDrag({
   cellXY, // Pass cellXY to drag manager
   onMerge: merge,
   canDrop: canDrop ?? ((src: Tile, dst: Tile): boolean => {
-    logger.info('🔥 canDrop check:', { src: src?.value, dst: dst?.value, locked: dst?.locked, srcSpecial: src?.special, dstSpecial: dst?.special });
-    if (!dst || dst.locked) return false;
+    logger.info('🔥 canDrop check:', { src: src?.value, dst: dst?.value, locked: dst?.locked, srcSpecial: src?.special, dstSpecial: dst?.special, srcWildMagnetAffected: (src as any)?._wildMagnetAffected, dstWildMagnetAffected: (dst as any)?._wildMagnetAffected });
+    // CRITICAL: Check if destination is valid FIRST
+    if (!dst || dst.locked || (dst.value | 0) <= 0) {
+      logger.info('🔥 canDrop: Invalid destination (null, locked, or value = 0)');
+      return false;
+    }
     const sv = (src && (src.value|0)) || 0;
     const dv = (dst && (dst.value|0)) || 0;
+    
+    // 🔥 CRITICAL: WILD-MAGNET AFFECTED TILES: Can merge regardless of pips values AND wild status
+    // If BOTH tiles are affected by wild-magnet, they can merge regardless of pips OR wild status
+    const srcIsWildMagnetAffected = (src as any)?._wildMagnetAffected === true;
+    const dstIsWildMagnetAffected = (dst as any)?._wildMagnetAffected === true;
+    
+    if (srcIsWildMagnetAffected && dstIsWildMagnetAffected) {
+      // Both tiles are affected by wild-magnet - they can merge regardless of pips OR wild status
+      // This allows wild/wild merges if both are magnet-affected
+      logger.info('🔥 Both tiles are wild-magnet affected - can merge regardless of pips or wild status');
+      return true;
+    }
     
     // WILD-MAGNET LOGIC: Can go on anything except wild and wild-magnet, and anything can go on it
     const srcIsWildMagnet = src?.special === 'wild-magnet';
@@ -98,6 +114,11 @@ export function installDrag({
       // Wild-magnet cannot merge into wild or wild-magnet
       if (dstIsWild || dstIsWildMagnet) {
         logger.info('🔥 Wild-magnet cannot merge into wild or wild-magnet');
+        return false;
+      }
+      // CRITICAL: Check if destination is valid (not locked, has value > 0)
+      if (!dst || dst.locked || (dst.value | 0) <= 0) {
+        logger.info('🔥 Wild-magnet cannot merge into invalid destination (locked or value = 0)');
         return false;
       }
       // Wild-magnet can merge into any normal tile
@@ -119,7 +140,14 @@ export function installDrag({
     const wild = (srcIsWild || dstIsWild);
     
     // WILD LOGIC: Wild cube cannot merge into same value
+    // BUT: If either tile is wild-magnet affected, allow merge regardless of wild status
     if (wild) {
+      // CRITICAL: If either tile is wild-magnet affected, allow merge (even if wild/wild)
+      if (srcIsWildMagnetAffected || dstIsWildMagnetAffected) {
+        logger.info('🔥 Wild tile merge allowed because one or both are wild-magnet affected');
+        return true;
+      }
+      
       if (srcIsWild && !dstIsWild) {
         // Wild merging into normal tile - check if target value is different
         const canMerge = sv !== dv; // Wild cannot merge into same value as itself
@@ -131,7 +159,7 @@ export function installDrag({
         logger.info('🔥 Wild merge check (normal->wild):', { sourceValue: sv, wildValue: dv, canMerge });
         return canMerge;
       } else if (srcIsWild && dstIsWild) {
-        // Wild merging into wild - not allowed
+        // Wild merging into wild - not allowed (unless wild-magnet affected, checked above)
         logger.info('🔥 Wild merge check (wild->wild): not allowed');
         return false;
       }

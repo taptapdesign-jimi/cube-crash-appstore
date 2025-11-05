@@ -28,6 +28,11 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
 // Board-local center of a tile (robust against rotG wrappers)
 function centerInBoard(board, tile, tileSize = 96){
   if (!board || !tile) return { x:0, y:0 };
+  // CRITICAL: Check if tile is destroyed before accessing properties
+  if (tile.destroyed) {
+    console.warn('⚠️ centerInBoard: Tile is destroyed, returning default position');
+    return { x: 0, y: 0 };
+  }
   const node = tile.rotG || tile;
   try {
     const g = node.toGlobal({ x:0, y:0 });
@@ -82,11 +87,15 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   const shardCount = 20; // Even more shards for visible trail
   const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
   
+  // 🔥 CRITICAL: For wild-magnet, add red color #F26034 to sparkles
+  const isWildMagnet = tile?.special === 'wild-magnet';
+  const baseColors = [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0];
+  const colors = isWildMagnet ? [...baseColors, 0xF26034] : baseColors; // Add red color for wild-magnet
+  
   for (let i = 0; i < shardCount; i++) {
     const shard = new Graphics();
     
-    // Wild cube shard colors
-    const colors = [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0]; 
+    // Wild cube shard colors (with red for wild-magnet)
     const color = colors[Math.floor(Math.random() * colors.length)];
     
     // Much larger rectangular shards - highly visible
@@ -172,6 +181,12 @@ export function woodShardsAtTile(board, tile, opts = {}){
   const vanishDelay = opts.vanishDelay ?? (wildMode ? 0 : 0);
   const vanishJitter = opts.vanishJitter ?? (wildMode ? 0.02 : 0.06);
 
+  // 🔥 CRITICAL: Check if this is a wild-magnet merge to use mixed colors for shards
+  // Check both tile.special and opts.wildMagnet (passed from app-core.ts)
+  const isWildMagnet = tile?.special === 'wild-magnet' || opts.wildMagnet === true;
+  const redColor = 0xF26034; // Red (#F26034) for wild-magnet
+  const brownColor = 0xD4A584; // Brown for others
+
   const emitShard = (distance, angle, scaleFactor = 1, alpha = 0.92, speedMul = 1) => {
     const shard = new Graphics();
     const base = 6 + Math.random() * 8; // Much larger base size (2-3x bigger)
@@ -190,8 +205,14 @@ export function woodShardsAtTile(board, tile, opts = {}){
       points.push(x, y);
     }
 
+    // 🔥 CRITICAL: For wild-magnet, randomly choose between red and brown (50/50 mix)
+    // For others, always use brown
+    const shardColor = isWildMagnet 
+      ? (Math.random() < 0.5 ? redColor : brownColor) // 50% red, 50% brown
+      : brownColor; // Always brown for non-wild-magnet
+
     shard.drawPolygon(points) // Fixed: Changed .polygon to .drawPolygon
-         .fill({ color: 0xD4A584, alpha });
+         .fill({ color: shardColor, alpha });
 
     shard.rotation = Math.random() * Math.PI;
     layer.addChild(shard);
@@ -357,8 +378,14 @@ export function showMultiplierTile(board, tile, mult = 2, tileSize = 96, life = 
   const tl = gsap.timeline();
   c.scale.set(0.12);
   const hold = Math.max(0.05, Math.min(0.14, (life || 0.45) - 0.30));
+  
+  // 🔥 CRITICAL: For wild-magnet pulled tiles merge, speed up multiplier appearance by 60%
+  // Check if this is a wild-magnet merge by checking if tile has _wildMagnetSpeedUp flag
+  const isWildMagnetMerge = tile?._wildMagnetSpeedUp === true;
+  const multiplierDuration = isWildMagnetMerge ? 0.18 * 0.4 : 0.18; // 60% faster: 0.18s → 0.072s (≈0.08s)
+  
   tl.to(c,       { alpha: 1,              duration: 0.06, ease: 'power2.out' }, 0)
-    .to(c.scale, { x: 1.26, y: 1.26,     duration: 0.18, ease: 'elastic.out(1, 0.55)' }, 0)
+    .to(c.scale, { x: 1.26, y: 1.26,     duration: multiplierDuration, ease: 'elastic.out(1, 0.55)' }, 0)
     .to(c.scale, { x: 1.00, y: 1.00,     duration: 0.10, ease: 'back.out(3)' }, '>-0.06')
     .to(c,       { rotation: 0.05,       duration: 0.08, ease:'sine.inOut', yoyo:true, repeat:1 }, '<')
     .to(c.scale, { x: 0.0,  y: 0.0,      duration: 0.22, ease: 'elastic.in(1, 0.6)' }, `+=${hold}`)

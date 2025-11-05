@@ -76,7 +76,16 @@ export async function boot(): Promise<void> {
     getTiles: () => STATE.tiles,
     cellXY, // Add cellXY function
     merge,
-    canDrop: (s: unknown, d: unknown) => !(d as { locked?: boolean }).locked,
+    canDrop: (s: unknown, d: unknown) => {
+      const dst = d as { locked?: boolean; value?: number };
+      // CRITICAL: Check if destination is valid FIRST
+      if (!dst || dst.locked || ((dst.value || 0) | 0) <= 0) {
+        console.log('🔥 canDrop (app-boot): Invalid destination (null, locked, or value = 0)');
+        return false;
+      }
+      // Basic check: destination is not locked
+      return !dst.locked;
+    },
     hoverColor: 0x8a6e57,
     hoverWidth: 6,
     hoverAlpha: 0.18,

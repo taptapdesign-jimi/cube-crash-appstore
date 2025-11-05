@@ -8,7 +8,7 @@ import * as HUD from './hud-helpers.js';
 import { openAtCell, openEmpties, spawnBounce } from './app-spawn.ts';
 import { showStarsModal } from './stars-modal.js';
 import { showBoardFailModal } from './board-fail-modal.js';
-import { rebuildBoard } from './app-board.js';
+import { rebuildBoard, isBoardClean } from './app-board.js';
 import { drawBoardBG } from './app-core.js';
 
 // Import updateProgressBar function
@@ -220,378 +220,141 @@ function animateMagnetPull(tile: any, targetTile: any): Promise<void> {
   });
 }
 
-// Handle wild-magnet merged pulled tiles: IMMEDIATELY when magnet is dropped, merge tiles that were pulled during drag
-export async function handleWildMagnetMergedPulledTiles(dst: any, pulledTiles: any[], helpers: any): Promise<void> {
-  console.log('🧲 WILD-MAGNET merging', pulledTiles?.length || 0, 'pulled tiles IN MIDDLE of animation at position:', dst?.x, dst?.y);
-  console.log('🧲 Destination tile:', dst, 'pulledTiles:', pulledTiles);
+// Simple function to merge pulled tiles: ignores pips and forces merge to 6
+function mergePulledTiles(tile1: any, tile2: any, mergeX: number, mergeY: number, helpers: any): void {
+  if (!tile1 || !tile2 || tile1.destroyed || tile2.destroyed) return;
   
-  // CRITICAL: Pulled tiles merge together FIRST (hard merge), then create merge 6
-  // This creates a second merge 6 at the same location as the main merge 6
+  // Stop animations
+  gsap.killTweensOf(tile1);
+  gsap.killTweensOf(tile2);
   
-  if (!dst || dst.destroyed) {
-    console.warn('⚠️ Destination is invalid, skipping pulled tiles merge');
-    if (pulledTiles && pulledTiles.length > 0) {
-      pulledTiles.forEach((pulledTile: any) => {
-        if (pulledTile && !pulledTile.destroyed) {
-          gsap.killTweensOf(pulledTile);
-          removeTile(pulledTile);
-        }
-      });
-    }
+  // Position both tiles at merge location
+  tile1.x = mergeX;
+  tile1.y = mergeY;
+  tile2.x = mergeX;
+  tile2.y = mergeY;
+  
+  // Mark tiles as magnet-affected so they can merge regardless of pips
+  tile1._wildMagnetAffected = true;
+  tile2._wildMagnetAffected = true;
+  
+  // Get merge function from helpers
+  const mergeFunction = (helpers as any)?.merge;
+  if (!mergeFunction || typeof mergeFunction !== 'function') {
+    console.error('❌ Cannot get merge function from helpers');
     return;
   }
   
-  // CRITICAL: Get destination position from grid coordinates (more reliable than x/y)
-  // Use gridX/gridY to calculate position using cellXY formula
-  let targetX = 0;
-  let targetY = 0;
-  
-  if (dst.gridX !== undefined && dst.gridY !== undefined) {
-    // Calculate position from grid coordinates: x = c * (TILE + GAP), y = r * (TILE + GAP)
-    targetX = dst.gridX * (TILE + GAP);
-    targetY = dst.gridY * (TILE + GAP);
-    console.log('🧲 Target position from grid:', dst.gridX, dst.gridY, '->', targetX, targetY);
-  } else if (dst.x !== undefined && dst.y !== undefined) {
-    // Fallback to x/y if grid coordinates not available
-    targetX = dst.x;
-    targetY = dst.y;
-    console.log('🧲 Target position from x/y:', targetX, targetY);
-  } else {
-    // Try to get bounds as last resort
-    try {
-      const bounds = dst.getBounds();
-      if (bounds) {
-        targetX = bounds.x + bounds.width / 2;
-        targetY = bounds.y + bounds.height / 2;
-        console.log('🧲 Target position from bounds:', targetX, targetY);
-      }
-    } catch {}
-  }
-  
-  console.log('🧲 Final target position:', targetX, targetY);
-  console.log('🧲 Destination tile:', {
-    gridX: dst.gridX,
-    gridY: dst.gridY,
-    x: dst.x,
-    y: dst.y,
-    destroyed: dst.destroyed
-  });
-  
-  if (!targetX && !targetY) {
-    console.warn('⚠️ Destination position is invalid, skipping pulled tiles merge');
-    if (pulledTiles && pulledTiles.length > 0) {
-      pulledTiles.forEach((pulledTile: any) => {
-        if (pulledTile && !pulledTile.destroyed) {
-          gsap.killTweensOf(pulledTile);
-          removeTile(pulledTile);
-        }
-      });
-    }
-    return;
-  }
-  
-  if (!pulledTiles || pulledTiles.length === 0) {
-    console.warn('⚠️ No pulled tiles provided, skipping merge');
-    return;
-  }
-  
-  // CRITICAL: Validate pulled tiles are still available
-  const validPulledTiles = pulledTiles.filter((pt: any) => pt && !pt.destroyed && STATE.tiles.includes(pt));
-  
-  if (validPulledTiles.length < 2) {
-    console.warn('⚠️ Not enough valid pulled tiles for merge, removing remaining ones');
-    validPulledTiles.forEach((pulledTile: any) => {
-      if (pulledTile && !pulledTile.destroyed) {
-        gsap.killTweensOf(pulledTile);
-        removeTile(pulledTile);
-      }
-    });
-    return;
-  }
-  
-  // CRITICAL: First, merge pulled tiles together (hard merge - they crash into each other)
-  const tile1 = validPulledTiles[0];
-  const tile2 = validPulledTiles[1];
-  
-  if (tile1 && !tile1.destroyed && tile2 && !tile2.destroyed) {
-    console.log('🧲 HARD MERGE: Pulled tiles crashing into each other at', targetX, targetY);
-    
-    // Stop all animations on both tiles
-    gsap.killTweensOf(tile1);
-    gsap.killTweensOf(tile1.rotG);
-    gsap.killTweensOf(tile1.scale);
-    gsap.killTweensOf(tile2);
-    gsap.killTweensOf(tile2.rotG);
-    gsap.killTweensOf(tile2.scale);
-    
-    // Clear from grid
-    if (tile1.gridX !== undefined && tile1.gridY !== undefined) {
-      STATE.grid[tile1.gridY][tile1.gridX] = null;
-    }
-    if (tile2.gridX !== undefined && tile2.gridY !== undefined) {
-      STATE.grid[tile2.gridY][tile2.gridX] = null;
-    }
-    
-    // Set zIndex so they're visible
-    tile1.visible = true;
-    tile1.alpha = 1;
-    tile1.zIndex = 9999;
-    tile2.visible = true;
-    tile2.alpha = 1;
-    tile2.zIndex = 9998;
-    
-    console.log('🧲 Tile1 position:', tile1.x, tile1.y, 'Tile2 position:', tile2.x, tile2.y);
-    console.log('🧲 Target position:', targetX, targetY);
-    
-    // Animate both tiles moving to destination (crashing into each other)
-    await Promise.all([
-      new Promise<void>((resolve) => {
-        gsap.to(tile1, {
-          x: targetX - 10, // Slight offset for crash effect
-          y: targetY - 10,
-          duration: 0.20,
-          ease: 'power2.out',
-          onComplete: () => {
-            console.log('✅ Tile1 moved to crash position');
-            resolve();
-          }
-        });
-      }),
-      new Promise<void>((resolve) => {
-        gsap.to(tile2, {
-          x: targetX + 10, // Slight offset for crash effect
-          y: targetY + 10,
-          duration: 0.20,
-          ease: 'power2.out',
-          onComplete: () => {
-            console.log('✅ Tile2 moved to crash position');
-            resolve();
-          }
-        });
-      })
-    ]);
-    
-    // HARD CRASH: Both tiles scale down and crash into each other
-    await Promise.all([
-      new Promise<void>((resolve) => {
-        gsap.to(tile1, {
-          x: targetX,
-          y: targetY,
-          scaleX: 0.5,
-          scaleY: 0.5,
-          duration: 0.12,
-          ease: 'power2.in',
-          onComplete: () => {
-            console.log('✅ Tile1 crashed');
-            resolve();
-          }
-        });
-      }),
-      new Promise<void>((resolve) => {
-        gsap.to(tile2, {
-          x: targetX,
-          y: targetY,
-          scaleX: 0.5,
-          scaleY: 0.5,
-          duration: 0.12,
-          ease: 'power2.in',
-          onComplete: () => {
-            console.log('✅ Tile2 crashed');
-            resolve();
-          }
-        });
-      })
-    ]);
-    
-    // Remove both tiles
-    [tile1, tile2].forEach((pulledTile: any) => {
-      if (pulledTile && !pulledTile.destroyed) {
-        console.log('🧹 Removing pulled tile at', pulledTile.x, pulledTile.y);
-        gsap.killTweensOf(pulledTile);
-        if (pulledTile.parent) {
-          pulledTile.parent.removeChild(pulledTile);
-        }
-        STATE.tiles = STATE.tiles.filter((t: any) => t !== pulledTile);
-        pulledTile.destroy?.({ children: true, texture: false, textureSource: false });
-      }
-    });
-    
-    console.log('✅ Both pulled tiles removed');
-  } else {
-    console.warn('⚠️ Pulled tiles are invalid, cannot merge');
-    return;
-  }
-  
-  // CRITICAL: Now create merge 6 at the same location with full effects
-  // Set destination stackDepth to 4 for x4 multiplier
-  // Previous stackDepth was 2 (from main merge), now increase to 4 for x4 multiplier
-  if (dst && !dst.destroyed) {
-    console.log('🧲 Creating merge 6 at destination with stackDepth 4 (for x4 multiplier)');
-    console.log('🧲 Previous stackDepth:', dst.stackDepth);
-    
-    // CRITICAL: Set stackDepth to 4 explicitly for x4 multiplier
-    // Main merge set it to 2, now we need 4 total
-    dst.stackDepth = 4;
-    makeBoard.drawStack(dst);
-    makeBoard.setValue(dst, 6, 0);
-    
-    console.log('🧲 New stackDepth:', dst.stackDepth);
-    
-    // Perform merge 6 effects with x4 multiplier
-    await performMerge6Effects(dst, helpers);
-    console.log('✅ Merge 6 effects completed with stackDepth', dst.stackDepth);
-  } else {
-    console.warn('⚠️ Destination tile is destroyed, cannot create merge 6');
-  }
-  
-  console.log('✅ Pulled tiles merge completed');
-  
-  // Clean up original position references
-  pulledTiles.forEach((pulledTile: any) => {
-    if (pulledTile) {
-      pulledTile._wildMagnetOriginalX = undefined;
-      pulledTile._wildMagnetOriginalY = undefined;
-      pulledTile._wildMagnetAffected = undefined;
-      pulledTile._wildMagnetMergeValue = undefined;
-    }
-  });
-  
-  // CRITICAL: Clear pulled tiles from drag state after merge completes
-  if (helpers && (helpers as any).wildMagnetPulledTiles) {
-    (helpers as any).wildMagnetPulledTiles = null;
-  }
+  // Merge tile1 into tile2 (will create merge 6 because both are _wildMagnetAffected)
+  mergeFunction(tile1, tile2, helpers);
 }
 
-// Handle wild-magnet pull: after merge 6, pull 2 nearest tiles and merge them sequentially
-async function handleWildMagnetPullAfterMerge(dst: any, helpers: any): Promise<void> {
-  console.log('🧲 WILD-MAGNET pull after merge 6 triggered!');
+export async function handleWildMagnetMergedPulledTiles(dst: any, pulledTiles: any[], helpers: any): Promise<boolean> {
+  console.log('🧲 handleWildMagnetMergedPulledTiles called with', pulledTiles?.length || 0, 'tiles');
   
-  // Small delay after merge 6 effects
-  await new Promise(resolve => setTimeout(resolve, 400));
+  // Filter valid tiles
+  const validTiles = (pulledTiles || []).filter((t: any) => t && !t.destroyed);
   
-  // Find 2 nearest tiles to attract (excluding wild and wild-magnet)
-  const nearestTiles = findNearestTiles(dst, 2);
-  console.log('🧲 Found', nearestTiles.length, 'tiles to attract');
-  
-  if (nearestTiles.length === 0) {
-    // No tiles to attract, we're done
-    return;
+  if (validTiles.length < 2) {
+    console.warn('⚠️ Not enough pulled tiles to merge (need 2, got', validTiles.length, ')');
+    return false;
   }
   
-  // Attract tiles (pull all simultaneously)
-  const pullPromises = nearestTiles.map((tile: any) => animateMagnetPull(tile, dst));
-  await Promise.all(pullPromises);
+  const tile1 = validTiles[0];
+  const tile2 = validTiles[1];
   
-  // Small delay after pull completes
-  await new Promise(resolve => setTimeout(resolve, 200));
+  console.log('🧲 Pulled tiles state:', {
+    tile1: { value: tile1.value, special: tile1.special, _wildMagnetAffected: tile1._wildMagnetAffected, destroyed: tile1.destroyed, inTiles: STATE.tiles.includes(tile1) },
+    tile2: { value: tile2.value, special: tile2.special, _wildMagnetAffected: tile2._wildMagnetAffected, destroyed: tile2.destroyed, inTiles: STATE.tiles.includes(tile2) },
+    dst: { value: dst?.value, special: dst?.special, destroyed: dst?.destroyed, locked: dst?.locked }
+  });
   
-  // NOW: Merge each attracted tile sequentially into dst (creating merge 6 each time)
-  for (let i = 0; i < nearestTiles.length; i++) {
-    const attractedTile = nearestTiles[i];
-    if (!attractedTile || attractedTile.destroyed || !STATE.tiles.includes(attractedTile)) {
-      continue; // Skip if tile was destroyed or removed
-    }
-    
-    // Move tile to destination position if not already there
-    if (attractedTile.x !== dst.x || attractedTile.y !== dst.y) {
-      attractedTile.x = dst.x;
-      attractedTile.y = dst.y;
-    }
-    
-    // Clear from grid
-    if (attractedTile.gridX !== undefined && attractedTile.gridY !== undefined) {
-      STATE.grid[attractedTile.gridY][attractedTile.gridX] = null;
-    }
-    
-    // Increase stack depth
-    dst.stackDepth = Math.min(4, (dst.stackDepth || 1) + 1);
-    makeBoard.drawStack(dst);
-    
-    // Animate merge
-    await new Promise<void>((resolve) => {
-      gsap.to(attractedTile, {
-        scaleX: 0.8,
-        scaleY: 0.8,
-        alpha: 0,
-        duration: 0.10,
-        ease: 'power2.out',
-        onComplete: () => {
-          removeTile(attractedTile);
-          resolve();
-        }
-      });
-    });
-    
-    // Merge 6 effects for each merge
-    await performMerge6Effects(dst, helpers);
-    
-    // Small delay between merges
-    if (i < nearestTiles.length - 1) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-    }
+  // 🔥 CRITICAL: Ensure both tiles are in STATE.tiles array before merging
+  if (!STATE.tiles.includes(tile1)) {
+    console.warn('⚠️ Tile1 not in STATE.tiles, adding it');
+    STATE.tiles.push(tile1);
   }
-}
-
-// Helper function to perform merge 6 effects
-async function performMerge6Effects(tile: any, helpers: any): Promise<void> {
-  // CRITICAL: Use actual stackDepth for multiplier (up to x4)
-  // For pulled tiles merge, stackDepth should be 4 for x4 multiplier
-  const actualMult = tile.stackDepth || 1;
-  const mult = actualMult >= 4 ? 4 : (actualMult >= 3 ? 3 : actualMult); // Use actual depth (up to x4)
-  
-  console.log('🎯 performMerge6Effects: stackDepth=', actualMult, 'multiplier=', mult);
-  
-  // Use existing merge 6 effects from the codebase
-  try {
-    screenShake(STATE.app, { strength: Math.min(24, 10 + Math.max(1, mult) * 3), duration: 0.34, steps: 18, ease: 'power2.out' });
-  } catch {}
-  
-  try {
-    const softSmokeStrength = 0.6 + Math.random() * 0.3;
-    smokeBubblesAtTile(STATE.board, tile, {
-      tileSize: TILE,
-      strength: softSmokeStrength,
-      behind: true,
-      sizeScale: 0.557,
-      distanceScale: 0.30,
-      countScale: 0.8,
-      haloScale: 1.15,
-      ttl: 1.0,
-      startScale: 0.42
-    });
-  } catch {}
-  
-  try {
-    woodShardsAtTile(STATE.board, tile, { intensity: 0.7, count: 12, spread: 1.1, size: 0.85, vanishDelay: 0.03, behind: true });
-  } catch {}
-  
-  // CRITICAL: Update score with multiplier (like main merge function)
-  // For pulled tiles merge, use actual stackDepth (up to x4)
-  // Note: actualMult is already declared above, so use it directly
-  const scoreMult = actualMult >= 4 ? 4 : (actualMult >= 3 ? 3 : actualMult); // Use actual depth (up to x4)
-  const scoreDelta = 6 * scoreMult;
-  STATE.score += scoreDelta;
-  console.log('🎯 performMerge6Effects: stackDepth=', actualMult, 'scoreMult=', scoreMult, 'scoreDelta=', scoreDelta, 'new score=', STATE.score);
-  updateHUD();
-  
-  // Combo bump
-  try { HUD.bumpCombo?.({ kind: 'merge6' }); } catch {}
-  
-  // Add wild progress
-  const inc = 0.22;
-  const previous = STATE.wildMeter || 0;
-  STATE.wildMeter = Math.max(0, previous + inc);
-  const displayRatio = Math.min(1, STATE.wildMeter);
-  if (updateProgressBar) {
-    updateProgressBar(displayRatio, true);
+  if (!STATE.tiles.includes(tile2)) {
+    console.warn('⚠️ Tile2 not in STATE.tiles, adding it');
+    STATE.tiles.push(tile2);
   }
   
-  tile.eventMode = 'static';
+  // 🔥 CRITICAL: Ensure both tiles have _wildMagnetAffected flag set
+  if (!tile1._wildMagnetAffected) {
+    console.warn('⚠️ Tile1 missing _wildMagnetAffected flag, setting it');
+    tile1._wildMagnetAffected = true;
+  }
+  if (!tile2._wildMagnetAffected) {
+    console.warn('⚠️ Tile2 missing _wildMagnetAffected flag, setting it');
+    tile2._wildMagnetAffected = true;
+  }
+  
+  const mergeX = dst.x;
+  const mergeY = dst.y;
+  
+  console.log('🧲 Calling mergePulledTiles with tiles at', mergeX, mergeY);
+  
+  // Merge pulled tiles together (ignores pips, creates merge 6)
+  mergePulledTiles(tile1, tile2, mergeX, mergeY, helpers);
+  
+  console.log('✅ mergePulledTiles called, waiting for merge to complete...');
+  
+  return true;
 }
 
 export function merge(src, dst, helpers){
-  if (STATE.busyEnding) { helpers.snapBack?.(src); return; }
-  if (src === dst) { helpers.snapBack(src); return; }
+  console.log('🔥🔥🔥 MERGE FUNCTION CALLED in app-merge.ts');
+  console.log('🔥🔥🔥 MERGE DEBUG:', {
+    srcValue: src?.value,
+    dstValue: dst?.value,
+    srcSpecial: src?.special,
+    dstSpecial: dst?.special,
+    srcWildMagnetAffected: (src as any)?._wildMagnetAffected,
+    dstWildMagnetAffected: (dst as any)?._wildMagnetAffected,
+    srcDestroyed: src?.destroyed,
+    dstDestroyed: dst?.destroyed,
+    dstLocked: dst?.locked,
+    busyEnding: STATE.busyEnding,
+    srcEqualsDst: src === dst
+  });
+  
+  if (STATE.busyEnding) { 
+    console.warn('⚠️ MERGE BLOCKED: STATE.busyEnding is true');
+    helpers.snapBack?.(src); 
+    return; 
+  }
+  if (src === dst) { 
+    console.warn('⚠️ MERGE BLOCKED: src === dst');
+    helpers.snapBack(src); 
+    return; 
+  }
+  
+  // CRITICAL: Validate that both tiles are valid and merge is allowed
+  if (!src || !dst || src.destroyed || dst.destroyed) {
+    console.warn('⚠️ MERGE: Invalid tiles - src:', src, 'dst:', dst);
+    if (src && !src.destroyed) helpers.snapBack?.(src);
+    return;
+  }
+  
+  // CRITICAL: If destination is locked or has value 0, this is not a valid merge (ghost placeholder)
+  // BUT: For wild-magnet affected tiles, we might want to allow merge even if dst is locked or has value 0
+  // because they're merging into each other at the same location
+  const srcIsWildMagnetAffected = (src as any)?._wildMagnetAffected === true;
+  const dstIsWildMagnetAffected = (dst as any)?._wildMagnetAffected === true;
+  const isPulledTilesMerge = srcIsWildMagnetAffected && dstIsWildMagnetAffected;
+  
+  if (dst.locked || (dst.value | 0) <= 0) {
+    // For pulled tiles merge (both wild-magnet affected), allow merge even if dst is locked/value 0
+    // because they're merging at the same location and creating merge 6
+    if (!isPulledTilesMerge) {
+      console.warn('⚠️ MERGE: Destination is locked or has value 0 - this should not happen!');
+      console.warn('⚠️ Destination:', { locked: dst.locked, value: dst.value, gridX: dst.gridX, gridY: dst.gridY });
+      helpers.snapBack?.(src);
+      return;
+    } else {
+      console.log('🧲 MERGE: Allowing pulled tiles merge even if dst is locked/value 0 (both are wild-magnet affected)');
+    }
+  }
 
   // 3D Effects - Add merging animation
   if (window.threeDEffects && window.threeDEffects.is3DEnabled) {
@@ -606,9 +369,15 @@ export function merge(src, dst, helpers){
   const dstDepth = dst.stackDepth || 1;
 
   const srcGX = src.gridX, srcGY = src.gridY;
+  
+  // 🔥 CRITICAL: Check if tiles are wild-magnet affected (become "wild" through magnet meaning)
+  // NOTE: srcIsWildMagnetAffected and dstIsWildMagnetAffected are already declared above in the function
+  
   // Wild-magnet works like wild: always merges to 6
-  const wildActive = (src.special === 'wild' || dst.special === 'wild' || src.special === 'wild-magnet' || dst.special === 'wild-magnet');
-  const wildTargetValue = wildActive ? ((src.special === 'wild' || src.special === 'wild-magnet') ? (dst.value|0) : (src.value|0)) : null;
+  // Also, if BOTH tiles are wild-magnet affected, they act like wild (can merge regardless of pips)
+  const wildActive = (src.special === 'wild' || dst.special === 'wild' || src.special === 'wild-magnet' || dst.special === 'wild-magnet') ||
+                     (srcIsWildMagnetAffected && dstIsWildMagnetAffected);
+  const wildTargetValue = wildActive ? ((src.special === 'wild' || src.special === 'wild-magnet' || srcIsWildMagnetAffected) ? (dst.value|0) : (src.value|0)) : null;
   const effSum = wildActive ? 6 : sum;
   
   console.log('🔥 MERGE DEBUG:', { 
@@ -617,13 +386,19 @@ export function merge(src, dst, helpers){
     dstSpecial: dst.special,
     srcValue: src.value,
     dstValue: dst.value,
-    effSum 
+    effSum,
+    srcIsWildMagnetAffected,
+    dstIsWildMagnetAffected,
+    sum
   });
   
   if (wildActive) {
     console.log('🎯 WILD MERGE DETECTED! Should trigger enhanced effects...');
+    console.log('🎯 effSum =', effSum, '(should be 6 for merge 6)');
   } else {
     console.log('❌ NOT a wild merge - src.special:', src.special, 'dst.special:', dst.special);
+    console.log('❌ srcIsWildMagnetAffected:', srcIsWildMagnetAffected, 'dstIsWildMagnetAffected:', dstIsWildMagnetAffected);
+    console.log('❌ sum =', sum, 'effSum =', effSum);
   }
 
   STATE.grid[src.gridY][src.gridX] = null;
@@ -806,19 +581,6 @@ export function merge(src, dst, helpers){
     // Centralized HUD combo balloon for merge 6
     try { HUD.bumpCombo?.({ kind: 'merge6' }); } catch {}
 
-    // WILD-MAGNET: Check for pulled tiles BEFORE animation starts
-    const pulledTiles = (helpers as any).wildMagnetPulledTiles || (src as any)._wildMagnetPulledTiles;
-    const hasPulledTiles = isWildMagnet && pulledTiles && pulledTiles.length > 0;
-    
-    console.log('🔥 MERGE-6 DEBUG:', {
-      isWildMagnet,
-      hasPulledTiles,
-      pulledTilesCount: pulledTiles?.length || 0,
-      pulledTiles: pulledTiles,
-      helpersHasPulledTiles: !!(helpers as any).wildMagnetPulledTiles,
-      srcHasPulledTiles: !!(src as any)._wildMagnetPulledTiles
-    });
-
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.10, ease: 'power2.out',
       onComplete: async () => {
@@ -829,80 +591,6 @@ export function merge(src, dst, helpers){
         const wildCubes = allTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
         const nonWildTiles = allTiles.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
         const willClean = wildCubes.length === 0 && nonWildTiles.length <= 1;
-        
-        // WILD-MAGNET: Re-check pulled tiles in case they weren't available before
-        const pulledTilesFinal = (helpers as any).wildMagnetPulledTiles || (src as any)._wildMagnetPulledTiles;
-        const hasPulledTilesFinal = isWildMagnet && pulledTilesFinal && pulledTilesFinal.length > 0;
-        
-        console.log('🔥 MERGE-6 onComplete DEBUG:', {
-          isWildMagnet,
-          hasPulledTilesFinal,
-          pulledTilesFinalCount: pulledTilesFinal?.length || 0,
-          willClean,
-          dstValid: dst && !dst.destroyed,
-          dstX: dst?.x,
-          dstY: dst?.y
-        });
-        
-        // WILD-MAGNET: Merge pulled tiles IMMEDIATELY after main merge animation starts
-        // This creates a second merge 6 at the same location, making it look like 2 merges happen
-        if (hasPulledTilesFinal && !willClean && dst && !dst.destroyed) {
-          console.log('🧲 WILD-MAGNET: Starting pulled tiles merge IMMEDIATELY after main merge');
-          console.log('🧲 Destination tile:', dst.x, dst.y, 'stackDepth:', dst.stackDepth);
-          console.log('🧲 Pulled tiles:', pulledTilesFinal);
-          
-          // CRITICAL: Merge pulled tiles IMMEDIATELY (don't wait, execute now)
-          // Use async/await to ensure it happens synchronously
-          try {
-            console.log('🧲 Calling handleWildMagnetMergedPulledTiles...');
-            await handleWildMagnetMergedPulledTiles(dst, pulledTilesFinal, helpers);
-            console.log('✅ Pulled tiles merge completed successfully');
-          } catch (err) {
-            console.error('❌ Error merging pulled tiles:', err);
-            console.error('❌ Error stack:', err instanceof Error ? err.stack : 'No stack trace');
-            // Fallback: remove pulled tiles if merge fails
-            if (pulledTilesFinal && pulledTilesFinal.length > 0) {
-              pulledTilesFinal.forEach((pulledTile: any) => {
-                if (pulledTile && !pulledTile.destroyed) {
-                  console.log('🧹 Force removing pulled tile at', pulledTile.x, pulledTile.y);
-                  gsap.killTweensOf(pulledTile);
-                  removeTile(pulledTile);
-                }
-              });
-            }
-          }
-        } else {
-          console.log('⚠️ WILD-MAGNET: Skipping pulled tiles merge');
-          console.log('⚠️ hasPulledTilesFinal:', hasPulledTilesFinal, 'willClean:', willClean, 'dstValid:', dst && !dst.destroyed);
-          if (isWildMagnet && !willClean && !hasPulledTilesFinal) {
-            // If no pulled tiles, trigger magnet pull after merge 6 (before cleanup/refill)
-            console.log('🧲 No pulled tiles, triggering magnet pull after merge');
-            handleWildMagnetPullAfterMerge(dst, helpers).catch((err) => {
-              console.warn('⚠️ Error in wild-magnet pull:', err);
-            });
-          }
-        }
-        
-        console.log('🔥 MERGE-6 willClean check:', {
-          totalActiveTiles: allTiles.length,
-          wildCubesCount: wildCubes.length,
-          nonWildTilesCount: nonWildTiles.length,
-          willClean,
-          wildCubes: wildCubes.map(t => ({
-            value: t.value,
-            special: t.special,
-            locked: t.locked,
-            gridX: t.gridX,
-            gridY: t.gridY
-          })),
-          nonWildTiles: nonWildTiles.map(t => ({
-            value: t.value,
-            special: t.special,
-            locked: t.locked,
-            gridX: t.gridX,
-            gridY: t.gridY
-          }))
-        });
 
         if (!willClean) {
           await landPreBounce(dst);
@@ -1040,6 +728,57 @@ export function merge(src, dst, helpers){
           }
         }
 
+        // CRITICAL: Check if board is clean AFTER spawning new tiles
+        // This must happen BEFORE checkGameOver() to prevent level failed screen
+        const isClean = isBoardClean();
+        console.log('🔥 Checking if board is clean after merge 6 and spawn:', isClean);
+        
+        if (isClean) {
+          console.log('🚨🚨🚨 BOARD IS CLEAN AFTER MERGE 6 - STARTING ENDGAME FLOW! 🚨🚨🚨');
+          
+          // SUCCESS haptic for clean board
+          if (typeof (window as any).triggerHapticNotification === 'function') {
+            (window as any).triggerHapticNotification('success');
+          }
+          
+          STATE.busyEnding = true;
+          
+          // CRITICAL: Reset wild meter immediately to prevent visual residue
+          console.log('🔥 CLEAN BOARD: Resetting wild meter immediately...');
+          STATE.wildMeter = 0;
+          if (updateProgressBar) {
+            updateProgressBar(0, true); // instant = true for immediate reset
+          }
+          
+          try {
+            try { await new Promise(res => setTimeout(res, 1000)); } catch {}
+            const { runEndgameFlow } = await import('./endgame-flow.js');
+            await runEndgameFlow({
+              app: STATE.app,
+              stage: STATE.stage,
+              board: STATE.board,
+              boardBG: STATE.boardBG,
+              level: STATE.level,
+              startLevel: (n: number) => { console.log('startLevel called with', n); },
+              score: STATE.score,
+              getScore: () => STATE.score,
+              setScore: (v: number) => { STATE.score = v|0; updateHUD(); },
+              animateScore: (score: number, dur?: number) => { 
+                try { HUD.animateScore?.({ scoreRef: () => STATE.score, setScore: (v: number) => { STATE.score = v; updateHUD(); }, updateHUD }); } catch {} 
+              },
+              updateHUD,
+              boardNumber: 1,
+              hideGrid: () => { try { if (STATE.board) STATE.board.visible = false; } catch {} },
+              showGrid: () => { try { if (STATE.board) STATE.board.visible = true; } catch {} }
+            });
+            console.log('✅ Endgame flow completed');
+          } catch (error) {
+            console.error('❌ Error in endgame flow:', error);
+            STATE.busyEnding = false;
+          }
+          return; // Exit early - don't call checkGameOver()
+        }
+
         if (STATE.tiles.every(t => t.locked || t.value <= 0)){
           // Track highest board reached in alt merge flow
           try { if (typeof window.trackHighestBoard === 'function') window.trackHighestBoard(STATE.level); } catch {}
@@ -1084,17 +823,46 @@ export async function checkGameOver(){
     }))
   });
   
-  if (makeBoard.anyMergePossible(STATE.tiles)) {
-    console.log('🎯 anyMergePossible returned true, game continues');
+  // CRITICAL: Check if board is clean BEFORE checking merges
+  // If board is clean, endgame flow should have been triggered already, but double-check here
+  const isClean = isBoardClean();
+  if (isClean) {
+    console.log('🚨🚨🚨 checkGameOver: Board is CLEAN - should have been handled by merge function!');
+    console.log('🚨🚨🚨 This should not happen - clean board should trigger endgame flow in merge function');
+    // Don't show level failed if board is clean - this is a safety check
     return;
   }
   
-  // CRITICAL FIX: Check for wild cube merges before game over (including wild-magnet)
+  // Get active tiles first
   const active = STATE.tiles.filter(t => t && !t.locked && t.value > 0);
   const activeWildCubes = active.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
   const activeNonWildTiles = active.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
 
-  console.log('🎯 Active tiles:', active.length, 'Wild cubes:', activeWildCubes.length, 'Non-wild tiles:', activeNonWildTiles.length);
+  console.log('🎯 checkGameOver: Active tiles:', active.length, 'Wild cubes:', activeWildCubes.length, 'Non-wild tiles:', activeNonWildTiles.length);
+  console.log('🎯 checkGameOver: Active tile values:', active.map(t => ({ value: t.value, special: t.special })));
+  
+  // CRITICAL: Check if any merges are possible FIRST
+  const canMerge = makeBoard.anyMergePossible(STATE.tiles);
+  console.log('🎯 checkGameOver: anyMergePossible returned:', canMerge);
+  
+  if (canMerge) {
+    console.log('🎯 anyMergePossible returned true, game continues');
+    return;
+  }
+  
+  // If no merges possible, check edge cases
+  if (active.length === 0) {
+    // No active tiles - this should have been caught by isBoardClean check above
+    console.log('🚨 No active tiles - should have been clean board, but showing fail screen as fallback');
+    // Continue to show fail screen
+  } else if (active.length === 1 && activeWildCubes.length === 0) {
+    console.log('🚨 Only one non-wild tile remains, no merges possible - game over!');
+    // Continue to show fail screen (fall through to game over logic below)
+  } else {
+    console.log('🚨 Multiple tiles but no valid merges possible - game over!');
+    console.log('🚨 Tile combinations:', active.map(t => t.value).join(', '));
+    // Continue to show fail screen
+  }
 
   // EMERGENCY SAFETY: If we have wild cubes but no non-wild tiles, spawn some!
   if (activeWildCubes.length > 0 && activeNonWildTiles.length === 0) {
@@ -1111,7 +879,12 @@ export async function checkGameOver(){
     return;
   }
   
+  // CRITICAL: Double-check wild merges (this should already be covered by anyMergePossible, but safety check)
   const hasWildMerge = () => {
+    if (active.length < 2) {
+      console.log('🎯 hasWildMerge: Not enough tiles (need 2, have', active.length, ')');
+      return false; // Need at least 2 tiles for merge
+    }
     for (let i = 0; i < active.length; i++) {
       for (let j = i + 1; j < active.length; j++) {
         const a = active[i], b = active[j];
@@ -1124,15 +897,23 @@ export async function checkGameOver(){
         }
       }
     }
+    console.log('🎯 hasWildMerge: No wild merges found');
     return false;
   };
   
-  if (hasWildMerge()) {
-    console.log('🎯 Wild cube merge possible, game continues');
+  // CRITICAL: If anyMergePossible returned false, we should still check wild merges as safety
+  // But if hasWildMerge also returns false, then definitely no merges possible
+  const canWildMerge = hasWildMerge();
+  console.log('🎯 checkGameOver: hasWildMerge returned:', canWildMerge);
+  
+  if (canWildMerge) {
+    console.log('🎯 Wild cube merge possible (safety check), game continues');
     return;
   }
   
+  // CRITICAL: If we reach here, no merges are possible - show fail screen
   console.log('🚨 No merges possible, game over!');
+  console.log('🚨 Final check - Active tiles:', active.length, 'Values:', active.map(t => t.value).join(', '));
   
   // Haptic feedback for game over
   console.log('🔍 HAPTIC CHECK (game over):', { 
@@ -1170,10 +951,14 @@ export async function checkGameOver(){
     window.checkCollectiblesMilestones(STATE.score);
   }
 
+  // CRITICAL: Set busyEnding BEFORE showing fail modal to prevent duplicate calls
   STATE.busyEnding = true;
+  console.log('🚨 Setting STATE.busyEnding = true before showing fail modal');
 
   const levelNumber = Math.max(1, STATE.level | 0);
   const scoreValue = Math.max(0, STATE.score | 0);
+
+  console.log('🚨 Showing board fail modal with score:', scoreValue, 'board:', levelNumber);
 
   let action = 'retry';
 
@@ -1183,6 +968,7 @@ export async function checkGameOver(){
         score: scoreValue,
         boardNumber: levelNumber
       });
+      console.log('✅ Board fail modal returned:', result);
       action = result?.action || 'retry';
     } catch (error) {
       console.error('❌ showBoardFailModal failed, falling back to stars modal:', error);

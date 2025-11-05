@@ -9,7 +9,6 @@ import { Graphics, Container, Sprite, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
 import { magicSparklesAtTile, dragSmokeTrail } from './fx.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
-import { handleWildMagnetMergedPulledTiles } from './app-merge.ts';
 
 
 // --- Inercijski tilt parametri (nagib SUPROTNO od smjera + lag) ---------------
@@ -136,9 +135,6 @@ export function initDrag(cfg) {
       moveTween: null,
       scaleTween: null,
     },
-    wildMagnetPulledTiles: null as any, // New property to store pulled tiles
-    _wildMagnetPullState: null as any, // Track pull state for sequential pulling
-    _wildMagnetDragStartTime: null as any, // Track when drag started for sequential pulling
     _lastSparkleTime: null as any,
     _sparkleInterval: null as any,
     _lastSmokeTime: null as any,
@@ -163,6 +159,9 @@ export function initDrag(cfg) {
   }
 
   function onDown(e, t) {
+    // 🧲 MAGNETIC REACTION: No need to store original positions
+    // updateMagnet function handles gentle pull automatically (same as wild tile)
+    // No custom pull effect needed - updateMagnet provides the same gentle effect
     const p = board.toLocal(e.global);
 
     console.log('🔍 DRAG START: Tile at', t.gridX, t.gridY, 'value:', t.value, 'locked:', t.locked);
@@ -347,6 +346,25 @@ export function initDrag(cfg) {
           console.warn('Wild sparkles error:', err);
         }
       }
+    } else if (t.special === 'wild-magnet') {
+      // Wild-magnet sparkles effect (same as wild)
+      t._lastVelX = drag.vx;
+      t._lastVelY = drag.vy;
+      
+      // Continuous sparkles when wild-magnet is picked up
+      if (!drag._lastSparkleTime || (now - drag._lastSparkleTime) > 100) {
+        try {
+          magicSparklesAtTile(board, t, { intensity: 1.0 });
+          drag._lastSparkleTime = now;
+        } catch (err) {
+          console.warn('Wild-magnet sparkles error:', err);
+        }
+      }
+      
+      // 🧲 MAGNETIC REACTION: Use same gentle pull as wild tile (via updateMagnet)
+      // The updateMagnet function is already called below for the target tile
+      // This provides the same gentle magnetic pull effect as wild tiles
+      // No need for custom strong pull - updateMagnet handles it perfectly
     } else {
       // Smoke trail for regular cubes (not wild) - continuous when dragging
       if (!drag._lastSmokeTime || (now - drag._lastSmokeTime) > 120) { // Every 120ms for smoke trail
@@ -370,187 +388,188 @@ export function initDrag(cfg) {
     drag._lastGlobal = e.global.clone?.() ?? { x: e.global.x, y: e.global.y };
 
     const target = pickDropTarget(t); 
-    showHover(target);
-    updateMagnet(target);
     
-    // WILD-MAGNET: Pull 2 nearest tiles while dragging (sequentially and organically)
-    if (t.special === 'wild-magnet' && drag.moved) {
-      if (!drag.wildMagnetPulledTiles || drag.wildMagnetPulledTiles.length === 0) {
-        // Find and pull 2 nearest tiles
-        const allTiles = getTiles();
-        const targetX = t.x;
-        const targetY = t.y;
-        
-        // Filter: active tiles (not locked, has value, not the dragged tile, not wild/wild-magnet)
-        const candidates = allTiles.filter((candidate: any) => {
-          if (!candidate || candidate.destroyed) return false;
-          if (candidate === t) return false;
-          if (candidate.locked) return false;
-          if ((candidate.value | 0) <= 0) return false;
-          if (candidate.special === 'wild' || candidate.special === 'wild-magnet') return false;
-          return true;
-        });
-        
-        // Calculate distances and sort
-        const withDistance = candidates.map((candidate: any) => {
-          const dx = candidate.x - targetX;
-          const dy = candidate.y - targetY;
-          const dist = Math.hypot(dx, dy);
-          return { tile: candidate, distance: dist };
-        });
-        
-        withDistance.sort((a, b) => a.distance - b.distance);
-        
-        // Take 2 nearest tiles (random selection from nearest candidates for organic feel)
-        const nearestCount = Math.min(4, withDistance.length);
-        const randomSelection = withDistance.slice(0, nearestCount)
-          .sort(() => Math.random() - 0.5)
-          .slice(0, 2)
-          .map(item => item.tile);
-        
-        if (randomSelection.length > 0) {
-          drag.wildMagnetPulledTiles = randomSelection;
-          drag._wildMagnetPullState = {
-            currentIndex: 0,
-            pulling: false,
-          };
-          
-          // Store original positions for snap back if needed
-          randomSelection.forEach((pulledTile: any) => {
-            if (!pulledTile._wildMagnetOriginalX) {
-              pulledTile._wildMagnetOriginalX = pulledTile.x;
-              pulledTile._wildMagnetOriginalY = pulledTile.y;
-            }
-            // Initialize pull start time for sequential pulling
-            if (!pulledTile._wildMagnetPullStartTime) {
-              pulledTile._wildMagnetPullStartTime = null;
-            }
-          });
-          
-          // Start pulling first tile immediately
-          if (randomSelection.length > 0 && drag._wildMagnetPullState) {
-            drag._wildMagnetPullState.currentIndex = 0;
-            drag._wildMagnetPullState.pulling = true;
-            randomSelection[0]._wildMagnetPullStartTime = now;
-          }
-        }
-      }
+    // 🧲 MAGNETIC REACTION: For wild-magnet, apply gentle pull to ALL nearby tiles (like wild tile)
+    // This provides the same gentle magnetic pull effect as wild tiles for all tiles in range
+    if (t.special === 'wild-magnet') {
+      const allTiles = typeof getTiles === 'function' ? getTiles() : [];
+      const magnetX = t.x;
+      const magnetY = t.y;
+      const magnetRange = tileSize * 1.5; // Magnet affects tiles within 1.5 tiles
+      const selectionRange = tileSize * 1.2; // Show selection if magnet is within 1.2 tiles
+      const hoverRange = tileSize * 1.5; // Show hover effect if magnet is within 1.5 tiles
       
-      // Sequentially pull tiles towards the dragged wild-magnet
-      if (drag.wildMagnetPulledTiles && drag.wildMagnetPulledTiles.length > 0 && drag._wildMagnetPullState) {
-        const pullState = drag._wildMagnetPullState;
-        const delayBetweenPulls = 200; // 200ms delay between pulling each tile
+      // Track best hover target (closest valid tile)
+      let bestHoverTarget = null;
+      let bestHoverDistance = Infinity;
+      
+      allTiles.forEach((otherTile: any) => {
+        if (!otherTile || otherTile.destroyed) return;
+        if (otherTile === t) return; // Skip the magnet itself
+        if (otherTile.locked) return;
+        if ((otherTile.value | 0) <= 0) return;
+        if (otherTile.special === 'wild' || otherTile.special === 'wild-magnet') return; // Skip wild tiles
+        if (otherTile._wildMagnetAffected) return; // Skip tiles that are already being pulled by magnet merge
         
-        drag.wildMagnetPulledTiles.forEach((pulledTile: any, index: number) => {
-          if (!pulledTile || pulledTile.destroyed) return;
-          
-          // Check if this tile should start pulling
-          const shouldStartPull = index === pullState.currentIndex;
-          const timeSinceDragStart = drag._wildMagnetDragStartTime ? (now - drag._wildMagnetDragStartTime) : 0;
-          
-          // Start pulling next tile after delay
-          if (index === pullState.currentIndex + 1 && 
-              pulledTile._wildMagnetPullStartTime === null &&
-              timeSinceDragStart > delayBetweenPulls * index) {
-            pulledTile._wildMagnetPullStartTime = now;
-            pullState.currentIndex = index;
+        // Calculate distance from magnet to tile
+        const dxToMagnet = magnetX - otherTile.x;
+        const dyToMagnet = magnetY - otherTile.y;
+        const distToMagnet = Math.hypot(dxToMagnet, dyToMagnet);
+        
+        // Apply gentle magnetic pull to all tiles in range (same as wild tile)
+        if (distToMagnet < magnetRange) {
+          // 🔥 CRITICAL: Each tile gets its own magnet state (stored on the tile itself)
+          // This allows multiple tiles to be affected simultaneously
+          if (!otherTile._magnetState) {
+            // Initialize magnet state for this tile
+            const container = otherTile.rotG || otherTile;
+            const homeX = Number.isFinite(otherTile.targetX) ? otherTile.targetX : otherTile.x;
+            const homeY = Number.isFinite(otherTile.targetY) ? otherTile.targetY : otherTile.y;
+            otherTile._magnetHomeX = homeX;
+            otherTile._magnetHomeY = homeY;
+            otherTile._magnetState = {
+              target: otherTile,
+              container: container,
+              originX: homeX,
+              originY: homeY,
+              originScaleX: container?.scale?.x ?? 1,
+              originScaleY: container?.scale?.y ?? 1,
+              moveTween: null,
+              scaleTween: null,
+            };
+            
+            // Store base scale
+            if (container && !container._magnetBaseScaleX) {
+              container._magnetBaseScaleX = container.scale?.x ?? 1;
+              container._magnetBaseScaleY = container.scale?.y ?? 1;
+            }
+            
+            // Scale up effect
+            if (container && container.scale) {
+              try { otherTile._magnetState.scaleTween?.kill(); } catch {}
+              otherTile._magnetState.scaleTween = gsap.to(container.scale, {
+                x: otherTile._magnetState.originScaleX * MAGNET_SCALE_MULT,
+                y: otherTile._magnetState.originScaleY * MAGNET_SCALE_MULT,
+                duration: MAGNET_IN_DUR,
+                ease: 'back.out(2)',
+                overwrite: 'auto'
+              });
+            }
           }
           
-          // Only animate if this tile has started pulling
-          if (pulledTile._wildMagnetPullStartTime !== null || (shouldStartPull && index === 0)) {
-            // CRITICAL: Ensure pulled tiles are ALWAYS full opacity when being pulled
-            // They should look full opacity under the magnet, not transparent
-            // Kill ALL alpha tweens immediately and force alpha = 1
-            gsap.killTweensOf(pulledTile, 'alpha');
-            if (pulledTile.alpha !== undefined && pulledTile.alpha !== 1) {
-              pulledTile.alpha = 1;
-            }
-            // Also ensure visible is true
-            if (pulledTile.visible !== undefined && !pulledTile.visible) {
-              pulledTile.visible = true;
-            }
+          // Update position (gentle pull towards magnet)
+          const state = otherTile._magnetState;
+          const originX = state.originX;
+          const originY = state.originY;
+          const maxOffset = Math.max(0, tileSize * MAGNET_OFFSET_RATIO);
+          const dxToOrigin = magnetX - originX;
+          const dyToOrigin = magnetY - originY;
+          const distToOrigin = Math.hypot(dxToOrigin, dyToOrigin);
+          
+          let offsetX = 0;
+          let offsetY = 0;
+          if (distToOrigin > 0.0001) {
+            const ratio = Math.min(maxOffset, distToOrigin) / distToOrigin;
+            offsetX = dxToOrigin * ratio;
+            offsetY = dyToOrigin * ratio;
+          }
+          
+          const destX = originX + Math.max(-maxOffset, Math.min(maxOffset, offsetX));
+          const destY = originY + Math.max(-maxOffset, Math.min(maxOffset, offsetY));
+          
+          try { state.moveTween?.kill(); } catch {}
+          if (!otherTile.destroyed) {
+            state.moveTween = gsap.to(otherTile, {
+              x: destX,
+              y: destY,
+              duration: MAGNET_MOVE_DUR,
+              ease: 'sine.out',
+              overwrite: 'auto'
+            });
+          }
+        } else {
+          // Out of range - release magnet effect for this tile
+          if (otherTile._magnetState) {
+            const state = otherTile._magnetState;
+            const homeX = otherTile._magnetHomeX ?? state.originX ?? otherTile.x;
+            const homeY = otherTile._magnetHomeY ?? state.originY ?? otherTile.y;
             
-            // Calculate position towards dragged tile
-            const dx = t.x - pulledTile.x;
-            const dy = t.y - pulledTile.y;
-            const dist = Math.hypot(dx, dy);
+            try { state.moveTween?.kill(); } catch {}
+            try { state.scaleTween?.kill(); } catch {}
             
-            // Fluid, organic movement with smooth easing
-            if (dist > 15) {
-              // Use smooth, fluid animation without lag
-              const pullStrength = 0.20; // Slightly faster for more responsive feel
-              const targetX = pulledTile.x + dx * pullStrength;
-              const targetY = pulledTile.y + dy * pullStrength;
-              
-              // Kill any existing tweens to prevent jittery behavior
-              gsap.killTweensOf(pulledTile);
-              
-              // CRITICAL: Ensure alpha is 1 before animation
-              pulledTile.alpha = 1;
-              
-              // Smooth, fluid animation with bounce feel but no jitter
-              // DO NOT animate alpha - keep it at 1 always
-              gsap.to(pulledTile, {
-                x: targetX,
-                y: targetY,
-                duration: 0.08, // Shorter duration for more responsive feel
-                ease: 'power2.out', // Smooth easing, no jitter
-                overwrite: 'auto', // Prevent overlapping tweens
-                onUpdate: () => {
-                  // CRITICAL: Force alpha to 1 on every update to prevent any transparency
-                  if (pulledTile.alpha !== undefined && pulledTile.alpha !== 1) {
-                    pulledTile.alpha = 1;
-                  }
+            if (!otherTile.destroyed) {
+              state.moveTween = gsap.to(otherTile, {
+                x: homeX,
+                y: homeY,
+                duration: MAGNET_RETURN_DUR,
+                ease: 'sine.inOut',
+                overwrite: 'auto',
+                onComplete: () => {
+                  // Clean up state when returned
+                  otherTile._magnetState = null;
+                  otherTile._magnetHomeX = undefined;
+                  otherTile._magnetHomeY = undefined;
                 }
               });
               
-              // Optional: subtle rotation/bounce effect for organic feel
-              if (pulledTile.rotG && !pulledTile._wildMagnetRotating) {
-                pulledTile._wildMagnetRotating = true;
-                const baseRot = pulledTile.rotG.rotation || 0;
-                gsap.to(pulledTile.rotG, {
-                  rotation: baseRot + (Math.random() - 0.5) * 0.1,
-                  duration: 0.3,
+              if (state.container && state.container.scale) {
+                state.scaleTween = gsap.to(state.container.scale, {
+                  x: state.originScaleX,
+                  y: state.originScaleY,
+                  duration: MAGNET_RETURN_DUR,
                   ease: 'sine.inOut',
-                  yoyo: true,
-                  repeat: 1,
-                  onComplete: () => {
-                    pulledTile._wildMagnetRotating = false;
-                  }
+                  overwrite: 'auto'
                 });
               }
             }
           }
-        });
-      }
-    } else if (t.special !== 'wild-magnet') {
-      // Clear pulled tiles if not wild-magnet - stop all animations and reset positions
-      if (drag.wildMagnetPulledTiles) {
-        drag.wildMagnetPulledTiles.forEach((pulledTile: any) => {
-          if (pulledTile && !pulledTile.destroyed) {
-            // Stop all animations
-            gsap.killTweensOf(pulledTile);
-            gsap.killTweensOf(pulledTile.rotG);
-            gsap.killTweensOf(pulledTile.scale);
-            
-            // Restore original position if available
-            if (pulledTile._wildMagnetOriginalX !== undefined && pulledTile._wildMagnetOriginalY !== undefined) {
-              gsap.to(pulledTile, {
-                x: pulledTile._wildMagnetOriginalX,
-                y: pulledTile._wildMagnetOriginalY,
-                duration: 0.2,
-                ease: 'power2.out'
-              });
-              pulledTile._wildMagnetOriginalX = undefined;
-              pulledTile._wildMagnetOriginalY = undefined;
+        }
+        
+        // Show selection animation if magnet is close (like wild tile selection)
+        if (distToMagnet < selectionRange) {
+          // Only show selection if not already showing or if magnet just entered range
+          if (!otherTile._magnetSelected || (now - (otherTile._magnetSelectedTime || 0)) > 150) {
+            try {
+              magicSparklesAtTile(board, otherTile, { intensity: 0.6 }); // Lighter intensity for nearby tiles
+              otherTile._magnetSelected = true;
+              otherTile._magnetSelectedTime = now;
+            } catch (err) {
+              console.warn('Magnetic selection sparkles error:', err);
             }
           }
-        });
-        drag.wildMagnetPulledTiles = null;
+        } else {
+          // Out of range - clear selection flag
+          otherTile._magnetSelected = false;
+        }
+        
+        // 🔥 CRITICAL: Track best hover target for wild-magnet (closest valid tile)
+        // Show hover effect (brown border) on the closest valid tile
+        if (distToMagnet < hoverRange && isHoverValid(t, otherTile)) {
+          if (distToMagnet < bestHoverDistance) {
+            bestHoverDistance = distToMagnet;
+            bestHoverTarget = otherTile;
+          }
+        }
+      });
+      
+      // Show hover effect on the best target (closest valid tile)
+      // For wild-magnet, we use bestHoverTarget instead of pickDropTarget result
+      // because pickDropTarget is too strict (requires direct overlap)
+      if (bestHoverTarget && bestHoverTarget !== drag.hoverTarget) {
+        showHover(bestHoverTarget);
+      } else if (!bestHoverTarget && drag.hoverTarget) {
+        // No valid hover target, clear hover
+        clearHover();
       }
-      if (drag._wildMagnetPullState) {
-        drag._wildMagnetPullState = null;
+      
+      // Also update magnet effect for the best hover target
+      if (bestHoverTarget) {
+        updateMagnet(bestHoverTarget);
       }
+    } else {
+      // For non-wild-magnet tiles, use normal hover logic
+      showHover(target);
+      updateMagnet(target);
     }
     
     // Ghost placeholders are now fixed and don't need redrawing
@@ -585,6 +604,51 @@ export function initDrag(cfg) {
     if (drag._lastSmokeTime) {
       drag._lastSmokeTime = null;
     }
+    
+    // 🧲 MAGNETIC REACTION: Return all tiles with magnet effect to original positions
+    if (t?.special === 'wild-magnet') {
+      const allTiles = typeof getTiles === 'function' ? getTiles() : [];
+      allTiles.forEach((otherTile: any) => {
+        if (!otherTile || otherTile.destroyed) return;
+        if (!otherTile._magnetState) return; // No magnet effect on this tile
+        
+        const state = otherTile._magnetState;
+        const homeX = otherTile._magnetHomeX ?? state.originX ?? otherTile.x;
+        const homeY = otherTile._magnetHomeY ?? state.originY ?? otherTile.y;
+        
+        try { state.moveTween?.kill(); } catch {}
+        try { state.scaleTween?.kill(); } catch {}
+        
+        if (!otherTile.destroyed) {
+          state.moveTween = gsap.to(otherTile, {
+            x: homeX,
+            y: homeY,
+            duration: MAGNET_RETURN_DUR,
+            ease: 'sine.inOut',
+            overwrite: 'auto',
+            onComplete: () => {
+              // Clean up state when returned
+              otherTile._magnetState = null;
+              otherTile._magnetHomeX = undefined;
+              otherTile._magnetHomeY = undefined;
+            }
+          });
+          
+          if (state.container && state.container.scale) {
+            state.scaleTween = gsap.to(state.container.scale, {
+              x: state.originScaleX,
+              y: state.originScaleY,
+              duration: MAGNET_RETURN_DUR,
+              ease: 'sine.inOut',
+              overwrite: 'auto'
+            });
+          }
+        }
+      });
+    }
+    
+    // Also release main magnet target (for the primary target from pickDropTarget)
+    releaseMagnet({ immediate: true });
     
     // SMART SAVE: Save after every move
     if (typeof window.saveGameState === 'function') {
@@ -624,8 +688,27 @@ export function initDrag(cfg) {
     if (!drag.moved) { snapBack(t); clearHover(); return; }
 
     const target = pickDropTarget(t);
-    if (!target || !canDrop(t, target)) {
-      snapBack(t);            // z-index se vraća u snapBack onComplete
+    
+    if (!target) {
+      snapBack(t);
+      clearHover();
+      return;
+    }
+    
+    // CRITICAL: Check if target is valid (not ghost placeholder, not locked, has value > 0)
+    // Also check if target is actually in tiles list (not a ghost placeholder)
+    const isValidTarget = !target.destroyed && 
+                          !target.locked && 
+                          (target.value | 0) > 0 &&
+                          typeof getTiles === 'function' && 
+                          getTiles().includes(target); // Make sure target is in actual tiles list
+    
+    // CRITICAL: Only call canDrop if target is valid
+    // If target is invalid, canMerge is false
+    const canMerge = isValidTarget && canDrop(t, target);
+    
+    if (!canMerge) {
+      snapBack(t);
       clearHover();
       return;
     }
@@ -638,56 +721,7 @@ export function initDrag(cfg) {
     // da NIKAD ne ostane "ispred" ostalih nakon brzih interakcija
     restoreZ(t);
     
-    // CRITICAL: Pass pulled tiles to merge function so they can merge IN THE MIDDLE of main merge animation
-    // Pulled tiles will merge AFTER main merge 6 starts, creating a second merge 6 at the same location
-    if (t.special === 'wild-magnet' && drag.wildMagnetPulledTiles && drag.wildMagnetPulledTiles.length > 0) {
-      console.log('🧲 WILD-MAGNET dropped with', drag.wildMagnetPulledTiles.length, 'pulled tiles');
-      console.log('🧲 Target position:', target?.x, target?.y, 'target value:', target?.value);
-      console.log('🧲 Pulled tiles:', drag.wildMagnetPulledTiles.map((pt: any) => ({ x: pt?.x, y: pt?.y, value: pt?.value, destroyed: pt?.destroyed })));
-      
-      // CRITICAL: Stop ALL animations on pulled tiles immediately
-      drag.wildMagnetPulledTiles.forEach((pulledTile: any, idx: number) => {
-        if (pulledTile && !pulledTile.destroyed) {
-          console.log('🧲 Stopping animations for pulled tile', idx, 'at', pulledTile.x, pulledTile.y);
-          // Kill all animations immediately, including alpha tweens
-          gsap.killTweensOf(pulledTile);
-          gsap.killTweensOf(pulledTile.rotG);
-          gsap.killTweensOf(pulledTile.scale);
-          gsap.killTweensOf(pulledTile, 'alpha');
-          
-          // CRITICAL: Force full opacity - pulled tiles must be fully opaque
-          pulledTile.alpha = 1;
-          pulledTile.visible = true;
-          
-          // Freeze pulled tile in current position
-          pulledTile._wildMagnetAffected = true;
-          pulledTile._wildMagnetMergeValue = 6;
-        }
-      });
-      
-      // CRITICAL: Pass pulled tiles to merge function via helpers AND src tile
-      // Make a copy to avoid reference issues
-      const pulledTilesCopy = drag.wildMagnetPulledTiles.filter((pt: any) => pt && !pt.destroyed);
-      console.log('🧲 Passing', pulledTilesCopy.length, 'valid pulled tiles to merge function');
-      
-      (helpers as any).wildMagnetPulledTiles = pulledTilesCopy;
-      (t as any)._wildMagnetPulledTiles = pulledTilesCopy;
-      
-      console.log('🧲 Pulled tiles set in helpers:', !!(helpers as any).wildMagnetPulledTiles);
-      console.log('🧲 Pulled tiles set in src:', !!(t as any)._wildMagnetPulledTiles);
-    } else {
-      console.log('⚠️ WILD-MAGNET: No pulled tiles to merge');
-      console.log('⚠️ isWildMagnet:', t.special === 'wild-magnet');
-      console.log('⚠️ hasPulledTiles:', !!drag.wildMagnetPulledTiles);
-      console.log('⚠️ pulledTilesCount:', drag.wildMagnetPulledTiles?.length || 0);
-    }
-    
     onMerge?.(t, target, helpers);
-    
-    // CRITICAL: DON'T clear pulled tiles immediately - they need to be available for merge
-    // They will be cleared after merge completes in app-merge.ts
-    // Only clear pull state, not the tiles array
-    drag._wildMagnetPullState = null;
   }
 
   // === STABLE HIT-TEST: preklapanje pravokutnika, bez auto-aimanja ===
@@ -697,13 +731,19 @@ export function initDrag(cfg) {
     const list = (typeof getTiles === 'function' ? getTiles() : []) || [];
     if (!list || !Array.isArray(list)) return null;
     
-    const candidates = list.filter(t =>
-      t &&
-      !t.destroyed &&
-      t !== src &&
-      !t.locked &&
-      (t.value | 0) > 0
-    );
+    // CRITICAL: Filter out ghost placeholders and invalid tiles
+    // Only include actual tiles with value > 0, not locked, and in tiles list
+    const candidates = list.filter(t => {
+      if (!t || t.destroyed) return false;
+      if (t === src) return false;
+      if (t.locked) return false;
+      if ((t.value | 0) <= 0) return false;
+      // CRITICAL: Make sure tile has gridX and gridY (real tiles have grid positions)
+      if (typeof t.gridX !== 'number' || typeof t.gridY !== 'number') return false;
+      // CRITICAL: Make sure tile is in tiles list (not a ghost placeholder)
+      if (!list.includes(t)) return false;
+      return true;
+    });
 
     if (!candidates.length) return null;
 
@@ -715,15 +755,141 @@ export function initDrag(cfg) {
 
     for (const t of candidates) {
       if (!t || t.destroyed) continue;
+      // CRITICAL: Double-check canDrop before considering this tile
       if (typeof canDrop === 'function' && !canDrop(src, t)) continue;
+      // CRITICAL: Make sure tile is still valid before checking intersection
+      if (t.locked || (t.value | 0) <= 0) continue;
       const dstR = getRect(t);
       if (!dstR || dstR.w === 0 || dstR.h === 0) continue;
-      const r = intersectRatio(srcR, dstR);
-      if (r > bestRatio) { bestRatio = r; best = t; }
+      
+      // 🔥 CRITICAL NEW LOGIC: For wild-magnet, magnet MUST be DIRECTLY above target tile
+      // This prevents merge when pulled tiles are close but magnet is far from target
+      if (src.special === 'wild-magnet') {
+        const srcCenterX = srcR.x + srcR.w / 2;
+        const srcCenterY = srcR.y + srcR.h / 2;
+        const dstCenterX = dstR.x + dstR.w / 2;
+        const dstCenterY = dstR.y + dstR.h / 2;
+        
+        // 🔥 CRITICAL: For wild-magnet, check if magnet is above target tile center
+        // Use reasonable limits - magnet must be close to tile center (20% tolerance for better usability)
+        const dx = Math.abs(srcCenterX - dstCenterX);
+        const dy = Math.abs(srcCenterY - dstCenterY);
+        const maxOffset = tileSize * 0.20; // 🔥 Max 20% offset - More forgiving for better usability
+        
+        // 🔥 CRITICAL: For wild-magnet, we ONLY allow merge if magnet is directly above target
+        // Ignore overlap completely - only check position
+        if (dx > maxOffset || dy > maxOffset) {
+          console.log('🔍 pickDropTarget: Wild-magnet NOT directly above tile:', {
+            dx,
+            dy,
+            maxOffset,
+            tileSize,
+            srcCenter: { x: srcCenterX, y: srcCenterY },
+            dstCenter: { x: dstCenterX, y: dstCenterY }
+          });
+          continue; // Skip this tile - magnet is not directly above it
+        }
+        
+        // 🔥 For wild-magnet, if position is OK, calculate overlap and use it
+        const r = intersectRatio(srcR, dstR);
+        if (r > bestRatio) { bestRatio = r; best = t; }
+      } else {
+        // For non-wild-magnet, calculate overlap normally
+        const r = intersectRatio(srcR, dstR);
+        if (r > bestRatio) { bestRatio = r; best = t; }
+      }
     }
 
-    const th = Number.isFinite(drag.threshold) ? drag.threshold : 0.05;
-    return (best && bestRatio >= th) ? best : null;
+    // 🔥 CRITICAL: For wild-magnet, use reasonable threshold to balance usability and prevent accidental merges
+    // Regular threshold is 0.05, but for wild-magnet we want at least 0.30 overlap (30% of tile)
+    // Since we already check position (20% offset), overlap threshold can be more forgiving
+    const baseThreshold = Number.isFinite(drag.threshold) ? drag.threshold : 0.05;
+    const th = src.special === 'wild-magnet' ? Math.max(baseThreshold, 0.30) : baseThreshold; // 🔥 Reduced to 0.30 for better usability
+    
+    // 🔥 CRITICAL: For wild-magnet, if no tile passed position check, result is ALWAYS null
+    // This ensures that if magnet is not directly above any tile, no merge happens
+    const result = (best && bestRatio >= th) ? best : null;
+    
+    console.log('🔍 pickDropTarget threshold check:', {
+      isWildMagnet: src.special === 'wild-magnet',
+      baseThreshold,
+      finalThreshold: th,
+      bestRatio: best ? bestRatio : 0,
+      hasBest: !!best,
+      bestValue: best?.value,
+      bestGridX: best?.gridX,
+      bestGridY: best?.gridY,
+      hasResult: !!result,
+      resultValue: result?.value,
+      resultGridX: result?.gridX,
+      resultGridY: result?.gridY
+    });
+    
+    // 🔥 CRITICAL: For wild-magnet, log if no result found
+    if (src.special === 'wild-magnet' && !result) {
+      console.log('🔍 pickDropTarget: No valid target found for wild-magnet');
+      if (best) {
+        console.log('🔍 pickDropTarget: Best tile found but did not pass threshold:', {
+          bestValue: best.value,
+          bestRatio,
+          threshold: th,
+          passed: bestRatio >= th
+        });
+      } else {
+        console.log('🔍 pickDropTarget: No best tile found (position check failed for all tiles)');
+      }
+    }
+    
+    // CRITICAL: Final validation before returning
+    if (result) {
+      // Make sure result is valid tile
+      if (result.destroyed || result.locked || (result.value | 0) <= 0) {
+        console.warn('⚠️ pickDropTarget: Returning invalid target (destroyed, locked, or value = 0), returning null instead');
+        return null;
+      }
+      // Make sure result is in tiles list
+      if (typeof getTiles === 'function' && !getTiles().includes(result)) {
+        console.warn('⚠️ pickDropTarget: Target not in tiles list, returning null instead');
+        return null;
+      }
+      // Make sure result has grid positions
+      if (typeof result.gridX !== 'number' || typeof result.gridY !== 'number') {
+        console.warn('⚠️ pickDropTarget: Target missing grid positions, returning null instead');
+        return null;
+      }
+      
+      // 🔥 CRITICAL: For wild-magnet, ensure overlap is significant (not just a tiny edge overlap)
+      // If bestRatio is very small (< 0.30), it might be an accidental edge overlap
+      // This check matches the threshold above (0.30) for consistency
+      if (src.special === 'wild-magnet' && bestRatio < 0.30) {
+        console.warn('⚠️ pickDropTarget: Wild-magnet overlap too small (< 0.30), returning null instead');
+        console.warn('⚠️ Overlap ratio:', bestRatio, 'threshold:', th, 'best tile:', result?.value);
+        return null;
+      }
+      
+      // CRITICAL: Double-check canDrop for the final result
+      if (typeof canDrop === 'function' && !canDrop(src, result)) {
+        console.warn('⚠️ pickDropTarget: canDrop returned false for final result, returning null instead');
+        return null;
+      }
+    }
+    
+    // Only log if result exists or if wild-magnet (for debugging)
+    if (result || src.special === 'wild-magnet') {
+      console.log('🔍 pickDropTarget result:', {
+        hasResult: !!result,
+        resultValue: result?.value,
+        resultGridX: result?.gridX,
+        resultGridY: result?.gridY,
+        bestRatio: result ? bestRatio : 0,
+        threshold: th,
+        baseThreshold,
+        isWildMagnet: src.special === 'wild-magnet',
+        candidatesCount: candidates.length
+      });
+    }
+    
+    return result;
   }
 
   function releaseMagnet(opts = {}) {
@@ -947,7 +1113,9 @@ export function initDrag(cfg) {
     
     const srcSpecial = src.special;
     const targetSpecial = target.special;
-    if (srcSpecial === 'wild' || targetSpecial === 'wild') return true;
+    // Wild and wild-magnet can merge with any tile (show hover)
+    if (srcSpecial === 'wild' || targetSpecial === 'wild' || 
+        srcSpecial === 'wild-magnet' || targetSpecial === 'wild-magnet') return true;
 
     const srcVal = Number(src.value) || 0;
     const targetVal = Number(target.value) || 0;

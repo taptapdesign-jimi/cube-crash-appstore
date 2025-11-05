@@ -60,7 +60,11 @@ export function installDrag({
   onMerge: merge,
   canDrop: canDrop ?? ((src, dst) => {
     console.log('🔥 canDrop check:', { src: src?.value, dst: dst?.value, locked: dst?.locked, srcSpecial: src?.special, dstSpecial: dst?.special });
-    if (!dst || dst.locked) return false;
+    // CRITICAL: Check if destination is valid FIRST
+    if (!dst || dst.locked || (dst.value | 0) <= 0) {
+      console.log('🔥 canDrop: Invalid destination (null, locked, or value = 0)');
+      return false;
+    }
     const sv = (src && (src.value|0)) || 0;
     const dv = (dst && (dst.value|0)) || 0;
     
@@ -74,6 +78,11 @@ export function installDrag({
       // Wild-magnet cannot merge into wild or wild-magnet
       if (dstIsWild || dstIsWildMagnet) {
         console.log('🔥 Wild-magnet cannot merge into wild or wild-magnet');
+        return false;
+      }
+      // CRITICAL: Check if destination is valid (not locked, has value > 0)
+      if (!dst || dst.locked || (dst.value | 0) <= 0) {
+        console.log('🔥 Wild-magnet cannot merge into invalid destination (locked or value = 0)');
         return false;
       }
       // Wild-magnet can merge into any normal tile
