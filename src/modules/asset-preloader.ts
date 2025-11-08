@@ -62,6 +62,11 @@ const ALL_ASSETS: string[] = [
   './assets/tile_numbers4.png',
   './assets/wild.png',
   
+  // Wild star assets
+  './assets/small-star.png',
+  './assets/small-star@2x.png',
+  './assets/small-star@3x.png',
+  
   // Other UI assets
   './assets/stats-trophy.png',
   './assets/collectibles-box.png',

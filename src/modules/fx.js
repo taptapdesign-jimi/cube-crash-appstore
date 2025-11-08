@@ -5,6 +5,20 @@
 import { Container, Graphics, Text, Texture, Sprite } from 'pixi.js';
 import { gsap } from 'gsap';
 
+import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from './wild-stars.js';
+
+try {
+  preloadWildStarTexture();
+} catch {}
+
+export function startWildStars(tile){
+  attachWildStarHalo(tile);
+}
+
+export function stopWildStars(tile){
+  detachWildStarHalo(tile);
+}
+
 /* ---------- tiny helpers ---------- */
 function autoAdd(parent, child, ttlSec = 0.8, options = {}){
   const before = options?.before ?? null;
@@ -1108,6 +1122,7 @@ export function wildImpactEffect(tile, opts = {}) {
 export function startWildIdle(tile, opts = {}){
   if (!tile) return;
   try { stopWildIdle(tile); } catch {}
+  try { startWildStars(tile); } catch {}
 
   const g = tile.rotG || tile;
   const baseW = Math.max(64, (tile.base?.width || tile.width || 96));
@@ -1282,6 +1297,7 @@ export function stopWildShimmer(tile) {
 export function stopWildIdle(tile){
   if (!tile) return;
   try { tile._wildIdleTl?.kill?.(); } catch {}
+  try { stopWildStars(tile); } catch {}
   tile._wildIdleTl = null;
   try {
     if (tile._wildShimmer){

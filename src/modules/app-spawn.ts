@@ -4,7 +4,7 @@ import { gsap } from 'gsap';
 import { STATE, TILE, ASSET_WILD } from './app-state.js';
 import { ASSET_WILD_MAGNET } from './constants.js';
 import * as makeBoard from './board.js';
-import { startWildIdle, wildImpactEffect, startWildShimmer } from './fx.js';
+import { startWildIdle, wildImpactEffect, startWildShimmer, startWildStars } from './fx.js';
 import { logger } from '../core/logger.js';
 // drawBoardBG function is now in app.js
 
@@ -100,6 +100,7 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false,
       // Wild shimmer only (no bounce animation)
       try { 
         startWildShimmer(holder); 
+        startWildStars(holder);
       } catch (e) {
         console.error('❌ Error calling startWildShimmer:', e);
       }

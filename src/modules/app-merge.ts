@@ -362,7 +362,7 @@ export function merge(src, dst, helpers){
   }
 
   // Check if this is a wild-magnet merge (for special pull logic after merge 6)
-  const isWildMagnet = src.special === 'wild-magnet';
+  const isWildMagnet = src.special === 'wild-magnet' || dst.special === 'wild-magnet';
   
   const sum      = src.value + dst.value;
   const srcDepth = src.stackDepth || 1;

@@ -357,7 +357,7 @@
   right: -8px;
   width: 40px;
   height: 40px;
-  background: #FFFFFF; /* White background */
+  background: #E97A55; /* Orange background */
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -371,7 +371,7 @@
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 20px;
   font-weight: bold;
-  color: #E97A55; /* Orange text color - same as slide CTA buttons */
+  color: #FFFFFF; /* White text color */
   line-height: 1;
   text-align: center;
 }

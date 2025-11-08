@@ -14,7 +14,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, centerInBoard } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, centerInBoard } from './fx.js';
 import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
 import FX from './fx-helpers.js';
@@ -1299,7 +1299,10 @@ function applyWildSkinLocal(tile){
     if (tile.num)  tile.num.visible = false;
     if (tile.pips) tile.pips.visible = false;
     tile.isWildFace = true;
-    try { startWildShimmer(tile); } catch {} // Use shimmer instead of bounce
+    try {
+      startWildShimmer(tile); // Use shimmer instead of bounce
+      startWildStars(tile);
+    } catch {}
   }catch{}
 }
 
@@ -1331,7 +1334,10 @@ function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false } = {})
       holder.isWildFace = true;
       if (typeof makeBoard.applyWildSkin === 'function') { makeBoard.applyWildSkin(holder); }
       else { applyWildSkinLocal(holder); }
-      try { startWildShimmer(holder); } catch {} // Use shimmer instead of bounce
+      try {
+        startWildShimmer(holder); // Use shimmer instead of bounce
+        startWildStars(holder);
+      } catch {}
     } else {
       const v = (value == null) ? [1,2,3,4,5][(Math.random()*5)|0] : value;
       makeBoard.setValue(holder, v, 0);
@@ -1694,7 +1700,7 @@ function merge(src, dst, helpers){
     dst.zIndex = 10000;
 
     // CRITICAL: For wild-magnet, always use x2 multiplier for main merge
-    const isWildMagnet = src.special === 'wild-magnet';
+    const isWildMagnet = src.special === 'wild-magnet' || dst.special === 'wild-magnet';
     const mult = isWildMagnet ? 2 : (combinedCount >= 3 ? 3 : combinedCount);
     
     // Store isWildMagnet for use in onComplete callback
@@ -1702,6 +1708,7 @@ function merge(src, dst, helpers){
 
     // 🧲 WILD-MAGNET: Find and pull 2 nearest tiles IMMEDIATELY when merge 6 starts
     // This happens BEFORE the merge animation completes
+    // Works for BOTH: magnet on tile AND tile on magnet
     if (isWildMagnet && dst && !dst.destroyed && !dst.locked && (dst.value | 0) > 0) {
       console.log('🧲 WILD-MAGNET: Merge 6 starting, finding 2 nearest tiles to pull IMMEDIATELY');
       
