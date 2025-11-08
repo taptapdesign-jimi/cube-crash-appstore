@@ -49,7 +49,7 @@ body{
   justify-content: center;
   z-index: 10000;
   transition: opacity 0.5s ease, visibility 0.5s ease;
-  background: var(--app-gradient); /* Gradient background */
+  background: linear-gradient(180deg, rgba(219, 156, 119, 0.15) 0%, rgba(219, 156, 119, 0.25) 60%, rgba(219, 156, 119, 0.20) 100%); /* Same brown color as loader text */
 }
 
 /* Removed gradient-fade-out rules - gradient stays visible */
@@ -159,11 +159,11 @@ body{
 /* Loading bar fill */
 .loading-bar {
   height: 100%;
-  background: #E7744A; /* Wild meter orange color */
+  background: #DB9C77; /* Same brown color as loader text */
   border-radius: 6px;
   width: 0%;
   transition: width 0.3s ease;
-  box-shadow: 0 0 12px rgba(231, 116, 74, 0.6);
+  box-shadow: 0 0 12px rgba(219, 156, 119, 0.6);
 }
 
 /* Fade-in animations removed - all elements static now */
