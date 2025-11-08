@@ -535,6 +535,7 @@ export async function boot(){
     snapRadius: 0.68,
   });
   drag = (ret && ret.drag) ? ret.drag : ret;
+  STATE.drag = drag; // 🔥 CRITICAL: Set STATE.drag so tiles can be bound after spawning
 
   // Start game
   boardNumber = 1;
@@ -1306,8 +1307,40 @@ function applyWildSkinLocal(tile){
   }catch{}
 }
 
+function bindTileWithFallback(tile, skipBind){
+  const attemptBind = () => {
+    if (drag && typeof drag.bindToTile === 'function') {
+      drag.bindToTile(tile);
+      return true;
+    }
+    return false;
+  };
+
+  if (!skipBind || !(drag && drag.t)) {
+    attemptBind();
+    return;
+  }
+
+  let attempts = 0;
+  const maxAttempts = 60;
+  const schedule = (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function')
+    ? window.requestAnimationFrame.bind(window)
+    : (cb) => setTimeout(cb, 16);
+
+  const retry = () => {
+    if (!drag?.t || attempts >= maxAttempts) {
+      attemptBind();
+      return;
+    }
+    attempts += 1;
+    schedule(retry);
+  };
+
+  retry();
+}
+
 // --- spawn exactly at grid cell ---
-function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false } = {}){
+function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, skipBind=false } = {}){
   return new Promise((resolve)=>{
     let holder = grid?.[r]?.[c] || null;
 
@@ -1324,7 +1357,7 @@ function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false } = {})
     holder.locked = false;
     holder.eventMode = 'static';
     holder.cursor = 'pointer';
-    if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(holder);
+    bindTileWithFallback(holder, skipBind);
 
     if (isWild || isWildMagnet){
       makeBoard.setValue(holder, 6, 0);
@@ -1789,6 +1822,12 @@ function merge(src, dst, helpers){
         let allTilesArrived = false;
         let multiplierShown = false;
         
+        // 🔥 CRITICAL: Calculate merge location early (for shards animation)
+        const calculateMergeLocation = () => {
+          const validTiles = nearestTiles.filter((t: any) => t && !t.destroyed);
+          return dst && !dst.destroyed ? dst : (validTiles.length > 0 ? { x: validTiles[0].x, y: validTiles[0].y } : null);
+        };
+        
         // Function to merge pulled tiles when both conditions are met
         const tryMergePulledTiles = async () => {
           if (allTilesArrived && multiplierShown) {
@@ -1916,7 +1955,9 @@ function merge(src, dst, helpers){
                   console.log('🧲 All tiles reached 75%, triggering merge 6 IMMEDIATELY (no final alignment)');
                   allTilesArrived = true;
                   multiplierShown = true; // Mark multiplier as shown to trigger merge immediately
+                  
                   // Try to merge immediately (will merge right away)
+                  // Shards animation will be triggered in mergePulledTilesIntoMerge6
                   await tryMergePulledTiles();
                 }
               }
@@ -1953,7 +1994,7 @@ function merge(src, dst, helpers){
           const target75X = startX + (mergeX - startX) * 0.75;
           const target75Y = startY + (mergeY - startY) * 0.75;
           
-          const moveDuration = 0.15; // Faster: 0.15s (was 0.12s)
+          const moveDuration = 0.35; // Faster: 0.35s (was 0.55s, decreased by 0.200s)
           
           // Move towards 75% position (merge triggers before reaching 100%)
           // After merge triggers, tiles continue to 100% but merge happens immediately
@@ -2282,18 +2323,81 @@ function merge(src, dst, helpers){
         const wildMergeTarget = Number.isFinite(wildTargetValue) ? wildTargetValue : null;
         
         // 🔥 CRITICAL: Skip normal spawn if pulled tiles merge is happening
-        // Pulled tiles merge already spawns 3 new tiles in destroyAllTilesAndSpawn
+        // Pulled tiles merge already spawns 4 new tiles in mergePulledTilesIntoMerge6
         if ((dst as any)?._wildMagnetPulledTilesMerge) {
-          console.log('🧲 Skipping normal spawn - pulled tiles merge already spawned 3 new tiles');
-          // Clean up flag
-          (dst as any)._wildMagnetPulledTilesMerge = undefined;
+          console.log('🧲 Skipping normal spawn - pulled tiles merge already spawned 4 new tiles');
+          // Clean up flag AFTER checking (don't clean too early)
+          // The flag will be cleaned up in the pulled tiles merge handler
+          return;
+        }
+        
+        // 🔥 CRITICAL: Check if this was the last merge (only 2 tiles left before merge)
+        // If only wild + one regular tile remained, and we merged them, skip spawn and trigger clean board
+        const activeTilesAfterMerge = tiles.filter(t => t && !t.locked && (t.value|0) > 0);
+        console.log('🎯 Active tiles after merge:', activeTilesAfterMerge.length, 'tiles:', activeTilesAfterMerge.map(t => ({ value: t.value, special: t.special })));
+        
+        // If only 1 tile remains (the merge 6 we just created) AND this was a wild merge, this was the last merge
+        // Skip spawn and trigger clean board flow
+        if (activeTilesAfterMerge.length === 1 && activeTilesAfterMerge[0] === dst && wasWild) {
+          console.log('🚨🚨🚨 LAST MERGE DETECTED - Only 1 tile remains (merge 6) after wild merge, skipping spawn and triggering clean board flow');
+          
+          // Remove the last tile (merge 6) to make board clean
+          removeTile(dst);
+          
+          // Trigger clean board flow
+          busyEnding = true;
+          
+          // CRITICAL: Reset wild meter immediately to prevent visual residue
+          console.log('🔥 LAST MERGE: Resetting wild meter immediately...');
+          wildMeter = 0;
+          STATE.wildMeter = 0;
+          resetWildProgress(0, false);
+          
+          // Force immediate HUD update to clear wild meter visually
+          try {
+            if (typeof HUD.resetWildMeter === 'function') {
+              HUD.resetWildMeter(true); // instant = true for immediate reset
+            } else {
+              HUD.updateProgressBar?.(0, false);
+            }
+            console.log('✅ LAST MERGE: Wild meter reset completed');
+          } catch (error) {
+            console.warn('⚠️ LAST MERGE: Failed to reset wild meter:', error);
+          }
+          
+          try {
+            try { await new Promise(res => setTimeout(res, 1000)); } catch {}
+            await runEndgameFlow({
+              app,
+              stage,
+              board,
+              boardBG,
+              level,
+              startLevel,
+              score,
+              getScore: () => score,
+              setScore: (v) => { score = v|0; updateHUD(); },
+              animateScore,
+              updateHUD,
+              boardNumber,
+              hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+              showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+            });
+          } finally {
+            busyEnding = false;
+          }
           return;
         }
         
         // Use multiplier for spawning new tiles
         const spawnMult = mult;
         
+        // 🔥 CRITICAL: Get pulled cells from dst tile to exclude from normal spawn
+        const pulledCells = (dst as any)?._wildMagnetPulledCells || [];
+        const pulledCellsSet = new Set(pulledCells.map((cell: { c: number; r: number }) => `${cell.c},${cell.r}`));
+        
         console.log('🎯 Spawning new tiles with multiplier:', spawnMult);
+        console.log('🎯 Excluding pulled cells from spawn:', pulledCells);
         
         await FLOW.openLockedBounceParallel({ 
           tiles, 
@@ -2305,8 +2409,14 @@ function merge(src, dst, helpers){
           TILE, 
           fixHoverAnchor, 
           spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done),
-          wildMergeTarget 
+          wildMergeTarget,
+          excludeCells: pulledCellsSet  // 🔥 CRITICAL: Exclude pulled cells from spawn
         });
+        
+        // Clean up pulled cells flag after spawn
+        if ((dst as any)?._wildMagnetPulledCells) {
+          (dst as any)._wildMagnetPulledCells = undefined;
+        }
         
         // Update idle bounce tile list with newly spawned tiles
         if (TILE_IDLE_BOUNCE.ENABLE) {

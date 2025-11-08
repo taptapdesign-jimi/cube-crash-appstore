@@ -43,6 +43,7 @@ const animateScore = (toValue, duration = 0.45) => {
 function play(name, vol=null){ /* muted */ }
 function removeTile(t){
   if(!t) return;
+  try { stopWildIdle?.(t); } catch {}
   try { if (t.hover?.clear) t.hover.clear(); } catch {}
   t.eventMode='none'; t.removeAllListeners?.();
   try{ gsap.killTweensOf(t); gsap.killTweensOf(t.scale); gsap.killTweensOf(t.rotG);}catch{}
@@ -228,11 +229,23 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   // Filter valid tiles
   const validTiles = tiles.filter((t: any) => t && !t.destroyed);
+  const pulledCells: { c: number; r: number }[] = [];
   
   if (validTiles.length === 0 || !dst || dst.destroyed) {
     console.warn('⚠️ No valid tiles or dst destroyed');
     return;
   }
+  
+  // 🔥 CRITICAL: Store pulled cells BEFORE removing tiles (for excluding from later spawns)
+  validTiles.forEach((tile: any) => {
+    if (!tile || tile.destroyed) return;
+    if (Number.isFinite(tile.gridX) && Number.isFinite(tile.gridY)) {
+      pulledCells.push({ c: tile.gridX | 0, r: tile.gridY | 0 });
+    }
+  });
+  
+  // 🔥 CRITICAL: Store pulled cells in dst tile so they can be excluded from normal spawn
+  (dst as any)._wildMagnetPulledCells = pulledCells;
   
   // Stop all animations
   validTiles.forEach((tile: any) => {
@@ -264,12 +277,22 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // Set multiplier to 4x
   const mult = 4;
   
-  // 🔥 CRITICAL: Calculate correct position from grid coordinates (same as createTile)
-  // Position formula: c * (TILE + GAP) + TILE / 2, r * (TILE + GAP) + TILE / 2
-  const correctX = dst.gridX * (TILE + GAP) + TILE / 2;
-  const correctY = dst.gridY * (TILE + GAP) + TILE / 2;
+  // 🔥 CRITICAL: Calculate correct position - use grid coordinates if available, otherwise use current position
+  let correctX: number;
+  let correctY: number;
   
-  console.log('🧲 Adding 4x multiplier animations to existing merge 6 tile at grid', dst.gridX, dst.gridY);
+  if (typeof dst.gridX === 'number' && typeof dst.gridY === 'number' && Number.isFinite(dst.gridX) && Number.isFinite(dst.gridY)) {
+    // Position formula: c * (TILE + GAP) + TILE / 2, r * (TILE + GAP) + TILE / 2
+    correctX = dst.gridX * (TILE + GAP) + TILE / 2;
+    correctY = dst.gridY * (TILE + GAP) + TILE / 2;
+    console.log('🧲 Adding 4x multiplier animations to existing merge 6 tile at grid', dst.gridX, dst.gridY);
+  } else {
+    // Fallback: Use current position if grid coordinates are not available
+    correctX = dst.x || 0;
+    correctY = dst.y || 0;
+    console.warn('⚠️ dst.gridX or dst.gridY is undefined, using current position:', correctX, correctY);
+  }
+  
   console.log('🧲 Correct position calculated:', correctX, correctY, 'current position:', dst.x, dst.y);
   
   // 🔥 CRITICAL: Set position immediately using correct formula (same as createTile)
@@ -277,8 +300,103 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   dst.targetX = correctX;
   dst.targetY = correctY;
   
+  // 🔥 CRITICAL: Ensure grid coordinates are set if they're missing
+  if (typeof dst.gridX !== 'number' || typeof dst.gridY !== 'number' || !Number.isFinite(dst.gridX) || !Number.isFinite(dst.gridY)) {
+    // Try to find grid coordinates from STATE.grid
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (STATE.grid?.[r]?.[c] === dst) {
+          dst.gridX = c;
+          dst.gridY = r;
+          console.log('🧲 Found grid coordinates from STATE.grid:', c, r);
+          break;
+        }
+      }
+      if (typeof dst.gridX === 'number' && Number.isFinite(dst.gridX)) break;
+    }
+  }
+  
+  // 🔥 CRITICAL: Red-brown shards animation when tiles gather (enhanced, visible)
+  // Trigger 0.200s earlier by calling it before other animations
+  if (dst && !dst.destroyed && STATE.board) {
+    // 🔥 CRITICAL: Calculate shards position DIRECTLY from grid coordinates or current position
+    // Don't rely on centerInBoard which might use toGlobal/toLocal transformations
+    let shardX: number;
+    let shardY: number;
+    
+    // First, try to use grid coordinates to calculate exact position (same as createTile)
+    if (typeof dst.gridX === 'number' && typeof dst.gridY === 'number' && Number.isFinite(dst.gridX) && Number.isFinite(dst.gridY)) {
+      // Use the same formula as createTile: c * (TILE + GAP) + TILE / 2
+      shardX = dst.gridX * (TILE + GAP) + TILE / 2;
+      shardY = dst.gridY * (TILE + GAP) + TILE / 2;
+      console.log('🧲 Shards: Using grid coordinates', dst.gridX, dst.gridY, '→ position', shardX, shardY);
+    } else if (typeof dst.x === 'number' && typeof dst.y === 'number' && Number.isFinite(dst.x) && Number.isFinite(dst.y)) {
+      // Fallback: Use current tile position directly
+      shardX = dst.x;
+      shardY = dst.y;
+      console.log('🧲 Shards: Using current tile position', shardX, shardY);
+    } else {
+      // Last resort: Use correctX/correctY that we calculated earlier
+      shardX = correctX;
+      shardY = correctY;
+      console.log('🧲 Shards: Using calculated correct position', shardX, shardY);
+    }
+    
+    // Ensure position is valid
+    if (!Number.isFinite(shardX) || !Number.isFinite(shardY)) {
+      console.error('❌ Invalid shards position:', shardX, shardY, 'dst:', dst);
+    } else {
+      // Ensure tile position is set correctly
+      if (dst.x !== shardX || dst.y !== shardY) {
+        gsap.set(dst, { x: shardX, y: shardY });
+        dst.targetX = shardX;
+        dst.targetY = shardY;
+      }
+      
+      // 🔥 CRITICAL: Create a tile-like object with the exact calculated position
+      // This bypasses centerInBoard's toGlobal/toLocal transformations which can cause offset
+      const tileForShards = {
+        x: shardX,
+        y: shardY,
+        gridX: dst.gridX,
+        gridY: dst.gridY,
+        zIndex: dst.zIndex || 0,
+        rotG: dst.rotG,
+        getBounds: () => ({ x: shardX - TILE/2, y: shardY - TILE/2, width: TILE, height: TILE }),
+        toGlobal: (point: any) => {
+          try {
+            return STATE.board.toGlobal({ x: shardX + (point.x || 0), y: shardY + (point.y || 0) });
+          } catch {
+            return { x: shardX + (point.x || 0), y: shardY + (point.y || 0) };
+          }
+        },
+        destroyed: false
+      };
+      
+      console.log('🧲 Creating shards at calculated position:', shardX, shardY, 'grid:', dst.gridX, dst.gridY);
+      
+      // 🔥 CRITICAL: Trigger shards animation immediately (0.200s earlier than before)
+      woodShardsAtTile(STATE.board, tileForShards as any, { 
+        enhanced: true, 
+        wild: false,  // Not wild-only, this is wild-magnet merge
+        wildMagnet: true,  // Red-brown shards (wild-magnet style)
+        count: 12,  // 60% fewer shards (was 30, now 12 = 30 * 0.4)
+        intensity: 1.9,  // Same as magnet merge 6
+        spread: 1.08,  // 40% smaller spread (was 1.8, now 1.08 = 1.8 * 0.6)
+        size: 1.8,  // Size for shards
+        speed: 0.85, 
+        vanishDelay: 0.0, 
+        vanishJitter: 0.02,
+        ttl: 1.4,  // 200ms shorter duration (was 1.6, now 1.4)
+        behind: false  // Ensure shards are visible (not behind tile)
+      });
+      
+      console.log('🧲 Shards animation triggered at position:', shardX, shardY, 'grid:', dst.gridX, dst.gridY, 'dst.x:', dst.x, 'dst.y:', dst.y);
+    }
+  }
+  
   // Apply magnet merge 6 animations to EXISTING merge 6 tile (same as main magnet merge 6)
-  // Screen shake
+  // Screen shake (triggered after shards for better visual effect)
   try {
     const baseShake = Math.min(28, 12 + Math.max(1, mult) * 4);
     screenShake(STATE.app, {
@@ -289,36 +407,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     });
   } catch {}
   
-  // Glass crack
-  glassCrackAtTile(STATE.board, dst, TILE * 1.5, 2.0);
-  
-  // Wood shards (magnet merge 6 style)
-  woodShardsAtTile(STATE.board, dst, { 
-    enhanced: true, 
-    wild: true, 
-    wildMagnet: true,  // Explicitly wild-magnet
-    count: 30, 
-    intensity: 1.9, 
-    spread: 0.3, 
-    size: 1.5, 
-    speed: 0.85, 
-    vanishDelay: 0.0, 
-    vanishJitter: 0.02 
-  });
-  
   // Wild impact effect
   wildImpactEffect(dst, { squash: 0.30, stretch: 0.26, tilt: 0.18, bounce: 1.24 });
-  
-  // Show multiplier (4x) on existing tile
-  showMultiplierTile(STATE.board, dst, mult, TILE * 1.3, 1.2);
-  
-  // Smoke bubbles (magnet merge 6 style - reduced intensity)
-  const smokeStrength = 0.6; // Same as magnet merge 6
-  smokeBubblesAtTile(STATE.board, dst, TILE * 1.3, smokeStrength, {
-    sizeScale: 0.7 + Math.random() * 0.6,  // Random size: 0.7-1.3x
-    countScale: 0.6 + Math.random() * 0.8, // Random count: 0.6-1.4x
-    trailAlpha: 0.95
-  });
   
   // 🔥 CRITICAL: Ensure tile position stays correct after animations
   // Use gsap.set to immediately set position using correct formula
@@ -374,6 +464,127 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   statsService.incrementHelpersUsed(1);
   
   console.log('✅ mergePulledTilesIntoMerge6 completed - score updated to', newScore);
+
+  // Find random empty cells on the board for spawning new tiles
+  const findRandomEmptyCells = (count: number): { c: number; r: number }[] => {
+    const empties: { c: number; r: number }[] = [];
+    
+    // Find all empty cells on the board
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const t = STATE.grid?.[r]?.[c];
+        
+        // 🔥 CRITICAL: Check if cell is truly empty (no active tile)
+        // A cell is empty if:
+        // 1. It's missing (null) - no tile at all
+        // 2. It's locked (ghost placeholder) - can be replaced
+        // 3. It has value 0 or less AND is locked (ghost placeholder)
+        // A cell is NOT empty if:
+        // - It has a value > 0 AND is not locked (active tile)
+        // - It's a wild tile (wild or wild-magnet) AND is not locked
+        
+        const isMissing = !t;
+        const isLocked = !!(t && t.locked === true);
+        const hasValue = !!(t && (t.value|0) > 0);
+        const isWildTile = !!(t && !t.locked && (t.special === 'wild' || t.special === 'wild-magnet' || (t as any).isWild === true || (t as any).isWildFace === true));
+        const isActive = !!(t && !t.locked && hasValue);
+        
+        // Cell is empty if it's missing, locked (ghost), or has zero value and is locked
+        // Cell is NOT empty if it has an active tile or wild tile
+        if (isMissing || (isLocked && !hasValue) || (!isActive && !isWildTile && !hasValue)) {
+          empties.push({ c, r });
+        }
+      }
+    }
+    
+    // Shuffle and pick random cells
+    if (empties.length === 0) {
+      console.warn('⚠️ No empty cells found for spawning');
+      return [];
+    }
+    
+    // Shuffle array (Fisher-Yates shuffle)
+    for (let i = empties.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [empties[i], empties[j]] = [empties[j], empties[i]];
+    }
+    
+    // Return up to 'count' random empty cells
+    return empties.slice(0, Math.min(count, empties.length));
+  };
+  
+  const spawnCount = pulledCells.length; // Spawn as many tiles as were pulled
+  const spawnTargets = findRandomEmptyCells(spawnCount);
+
+  if (spawnTargets.length) {
+    console.log('🧲 Respawning', spawnCount, 'tiles at random empty cells:', spawnTargets);
+    console.log('🧲 STATE.drag exists?', !!STATE.drag);
+    console.log('🧲 STATE.drag.bindToTile exists?', !!(STATE.drag as any)?.bindToTile);
+    
+    // 🔥 CRITICAL FIX: Spawn tiles with minimal delay between them for faster spawning
+    // spawnBounce animation already takes ~0.58s, so we only need a very small stagger delay
+    // Using parallel spawning with staggered start times (20ms apart) for faster overall completion
+    await Promise.all(
+      spawnTargets.map(async ({ c, r }, index) => {
+        // Stagger start times: first tile starts immediately, others start 20ms apart (reduced from 50ms)
+        if (index > 0) {
+          await new Promise(resolve => setTimeout(resolve, index * 20));
+        }
+        
+        try {
+          // 🔥 CRITICAL: Double-check cell is still empty before spawning (race condition protection)
+          const existingTile = STATE.grid?.[r]?.[c];
+          if (existingTile && !existingTile.locked) {
+            const isActive = (existingTile.value|0) > 0;
+            const isWildTile = existingTile.special === 'wild' || existingTile.special === 'wild-magnet' || (existingTile as any).isWild === true || (existingTile as any).isWildFace === true;
+            
+            if (isActive || isWildTile) {
+              console.warn(`⚠️ Cell (${c}, ${r}) became occupied before spawn, skipping`);
+              return; // Skip this cell
+            }
+          }
+          
+          // Spawn tile normally (skipBind = false means it will try to bind immediately)
+          await openAtCell(c, r, { skipBind: false });
+          
+          // No delay needed - spawnBounce animation handles the visual delay
+          
+          // Get the spawned tile
+          const tile = STATE.grid?.[r]?.[c];
+          console.log('🧲 After spawn at', c, r, 'tile:', tile, 'locked:', tile?.locked, 'value:', tile?.value);
+          
+          if (tile && !tile.locked && tile.value > 0) {
+            // Double-check: Ensure tile is draggable and bound to drag system
+            tile.eventMode = 'static';
+            tile.cursor = 'pointer';
+            
+            // Check if tile is in STATE.tiles
+            const inTilesArray = STATE.tiles.includes(tile);
+            console.log('🧲 Tile at', c, r, 'in STATE.tiles?', inTilesArray);
+            
+            // Explicitly bind to drag system (in case bindTileWithFallback failed)
+            const drag = STATE.drag as any;
+            if (drag && typeof drag.bindToTile === 'function') {
+              drag.bindToTile(tile);
+              console.log('✅ Spawned and bound tile to drag system at', c, r, 'value:', tile.value, 'eventMode:', tile.eventMode);
+            } else {
+              console.warn('⚠️ Drag system not available at', c, r, 'drag:', drag);
+            }
+          } else {
+            console.warn('⚠️ Tile not found or invalid after spawn at', c, r, 'tile:', tile, 'locked:', tile?.locked, 'value:', tile?.value);
+          }
+        } catch (err) {
+          console.warn(`⚠️ Failed to respawn tile at (${c}, ${r}):`, err);
+        }
+      })
+    );
+  }
+
+  const canMerge = makeBoard.anyMergePossible(STATE.tiles);
+  console.log('🧲 Post-respawn mergeability:', canMerge);
+  if (!canMerge) {
+    await checkGameOver();
+  }
 }
 
 export async function handleWildMagnetMergedPulledTiles(dst: any, pulledTiles: any[], helpers: any): Promise<boolean> {
@@ -725,6 +936,7 @@ export function merge(src, dst, helpers){
         const wildCubes = allTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
         const nonWildTiles = allTiles.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
         const willClean = wildCubes.length === 0 && nonWildTiles.length <= 1;
+        const shouldRefillAfterMerge = !willClean;
 
         if (!willClean) {
           await landPreBounce(dst);
@@ -894,6 +1106,7 @@ export function merge(src, dst, helpers){
         const isWildMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
         const toOpen = isWildMagnetMerge ? 3 : (REFILL_ON_SIX_BY_DEPTH[depth-1] || 2); // Wild-magnet = 3, else default
 
+        if (shouldRefillAfterMerge) {
         if (!STATE.wildGuaranteedOnce){
           await openAtCell(gx, gy, { isWild:true });
           STATE.wildGuaranteedOnce = true;
@@ -914,6 +1127,9 @@ export function merge(src, dst, helpers){
           } catch (error) {
             console.warn('⚠️ Failed to spawn additional tiles after wild merge (effSum=6):', error);
           }
+          }
+        } else {
+          console.log('🎯 Clean board detected - skipping automatic refills after merge 6.');
         }
 
         // CRITICAL: Check if board is clean AFTER spawning new tiles

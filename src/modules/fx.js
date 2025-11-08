@@ -47,19 +47,46 @@ export function centerInBoard(board, tile, tileSize = 96){
     console.warn('⚠️ centerInBoard: Tile is destroyed, returning default position');
     return { x: 0, y: 0 };
   }
+  
+  // 🔥 CRITICAL: If tile has direct x/y coordinates and they're valid, use them directly
+  // This avoids toGlobal/toLocal transformations which can cause offset issues
+  if (typeof tile.x === 'number' && typeof tile.y === 'number' && Number.isFinite(tile.x) && Number.isFinite(tile.y)) {
+    // Use tile.x/y directly (they're already in board coordinates and calculated correctly)
+    // The tile object passed to woodShardsAtTile already has correct x/y from grid calculation
+    return { x: tile.x, y: tile.y };
+  }
+  
   const node = tile.rotG || tile;
   try {
     const g = node.toGlobal({ x:0, y:0 });
-    return board.toLocal(g);
+    const result = board.toLocal(g);
+    // 🔥 CRITICAL: Validate result is not NaN
+    if (Number.isFinite(result.x) && Number.isFinite(result.y)) {
+      return result;
+    }
   } catch {}
   try {
     const b = tile.getBounds?.();
-    if (b) return board.toLocal({ x:b.x + b.width/2, y:b.y + b.height/2 });
+    if (b && Number.isFinite(b.x) && Number.isFinite(b.y) && Number.isFinite(b.width) && Number.isFinite(b.height)) {
+      const result = board.toLocal({ x:b.x + b.width/2, y:b.y + b.height/2 });
+      if (Number.isFinite(result.x) && Number.isFinite(result.y)) {
+        return result;
+      }
+    }
   } catch {}
-  return {
-    x: (tile.x||0) + ((tile.width  ?? tileSize) / 2),
-    y: (tile.y||0) + ((tile.height ?? tileSize) / 2),
+  // 🔥 CRITICAL: Fallback to tile.x/y if they're valid numbers
+  const fallbackX = typeof tile.x === 'number' && Number.isFinite(tile.x) ? tile.x : 0;
+  const fallbackY = typeof tile.y === 'number' && Number.isFinite(tile.y) ? tile.y : 0;
+  const result = {
+    x: fallbackX + ((tile.width  ?? tileSize) / 2),
+    y: fallbackY + ((tile.height ?? tileSize) / 2),
   };
+  // 🔥 CRITICAL: Log warning if position is still invalid
+  if (!Number.isFinite(result.x) || !Number.isFinite(result.y)) {
+    console.warn('⚠️ centerInBoard: Invalid position calculated, using board center', { tileX: tile.x, tileY: tile.y, result });
+    return { x: board.width / 2 || 0, y: board.height / 2 || 0 };
+  }
+  return result;
 }
 
 /* ---------- Dramatic explosion effects for wild merges ---------- */
@@ -392,31 +419,71 @@ export function regularMerge6Shards(board, tile, opts = {}){
 }
 
 export function woodShardsAtTile(board, tile, opts = {}){
-  if (!board || !tile) return;
+  if (!board || !tile) {
+    console.warn('⚠️ woodShardsAtTile: Missing board or tile', { board: !!board, tile: !!tile });
+    return;
+  }
 
   if (typeof opts === 'boolean') {
     opts = opts ? { enhanced: true } : {};
   }
 
   const { x, y } = centerInBoard(board, tile, 96);
+  
+  // 🔥 CRITICAL: Validate position is not NaN
+  if (!Number.isFinite(x) || !Number.isFinite(y)) {
+    console.error('❌ woodShardsAtTile: Invalid position from centerInBoard', { x, y, tileX: tile.x, tileY: tile.y, gridX: tile.gridX, gridY: tile.gridY });
+    return;
+  }
+  
+  console.log('🔥 woodShardsAtTile: Creating shards at position', x, y, 'tile position:', tile.x, tile.y, 'grid:', tile.gridX, tile.gridY);
+  
   const wildMode = opts.wild === true;
   const enhanced = opts.enhanced ?? (wildMode || false);
 
   const layer = new Container();
   layer.x = x; layer.y = y;
+  layer.visible = true; // 🔥 CRITICAL: Ensure layer is visible
+  layer.alpha = 1.0; // 🔥 CRITICAL: Ensure layer has full alpha
   const tileZ = tile?.zIndex ?? 0;
   const behind = opts.behind ?? false;
+  // 🔥 CRITICAL: Check if this is wild-magnet (red-brown shards) - should use high zIndex
+  const isWildMagnetShards = opts.wildMagnet === true;
   // CRITICAL: Only use low zIndex for wild mode (when wildMode is true)
-  // For regular merge 6, use high zIndex (9993) to ensure shards are visible
-  if (wildMode) {
-    layer.zIndex = tileZ - 0.002; // sit behind smoke/flash for wild mode
+  // For regular merge 6 and wild-magnet, use high zIndex (9993) to ensure shards are visible
+  if (wildMode && !isWildMagnetShards) {
+    layer.zIndex = tileZ - 0.002; // sit behind smoke/flash for wild mode (but not wild-magnet)
   } else {
-    layer.zIndex = behind ? tileZ - 0.001 : 9993; // High zIndex for regular merge 6
+    layer.zIndex = behind ? tileZ - 0.001 : 9993; // High zIndex for regular merge 6 and wild-magnet
   }
 
 
   const ttl = opts.ttl ?? (wildMode ? 0.9 : 1.6);
   autoAdd(board, layer, ttl, behind ? { before: tile } : undefined);
+  
+  // 🔥 CRITICAL: Verify layer was added to board
+  if (!layer.parent) {
+    console.error('❌ woodShardsAtTile: Layer was not added to board!', { board, layer, tile });
+    try {
+      board.addChild(layer);
+      console.log('✅ woodShardsAtTile: Manually added layer to board');
+    } catch (err) {
+      console.error('❌ woodShardsAtTile: Failed to manually add layer to board', err);
+      return;
+    }
+  }
+  
+  // 🔥 CRITICAL: Verify layer is visible and has correct position
+  console.log('🔥 woodShardsAtTile: Layer added to board', {
+    layerX: layer.x,
+    layerY: layer.y,
+    layerVisible: layer.visible,
+    layerAlpha: layer.alpha,
+    layerZIndex: layer.zIndex,
+    layerParent: !!layer.parent,
+    boardChildren: board.children.length
+  });
+  
   const intensity = opts.intensity ?? (enhanced ? 1.35 : 1.0);
   const countBase = opts.count ?? (enhanced ? 18 : 12);
   const shardCountRaw = Math.max(6, Math.round(countBase * intensity));

@@ -43,6 +43,7 @@ interface OpenLockedBounceParallelParams {
   fixHoverAnchor?: (tile: Tile) => void;
   spawnBounce?: (tile: Tile, callback: () => void, options: SpawnBounceOptions) => void;
   wildMergeTarget?: number | null;
+  excludeCells?: Set<string>; // 🔥 CRITICAL: Set of cell keys (format: "c,r") to exclude from spawning
 }
 
 interface CheckGameOverParams {
@@ -89,9 +90,36 @@ export async function openLockedBounceParallel({
   TILE, 
   fixHoverAnchor, 
   spawnBounce, 
-  wildMergeTarget = null 
+  wildMergeTarget = null,
+  excludeCells = new Set<string>()  // 🔥 CRITICAL: Exclude cells where pulled tiles were
 }: OpenLockedBounceParallelParams = {}): Promise<void> {
-  const locked = tiles.filter(t => t.locked);
+  let locked = tiles.filter(t => t.locked);
+  
+  // 🔥 CRITICAL: Filter out locked tiles that are on excluded cells (where pulled tiles were)
+  if (excludeCells.size > 0) {
+    locked = locked.filter((t: any) => {
+      if (typeof t.gridX === 'number' && typeof t.gridY === 'number') {
+        const cellKey = `${t.gridX},${t.gridY}`;
+        const isExcluded = excludeCells.has(cellKey);
+        if (isExcluded) {
+          logger.info(`🎯 Excluding cell (${t.gridX}, ${t.gridY}) from spawn (was pulled tile location)`);
+        }
+        return !isExcluded;
+      }
+      return true; // Keep tiles without grid positions
+    });
+  }
+  
+  // 🔥 CRITICAL: Filter out tiles that are already spawned (have _spawned flag)
+  // This prevents reanimating tiles that were already spawned in mergePulledTilesIntoMerge6
+  locked = locked.filter((t: any) => {
+    if ((t as any)._spawned === true) {
+      logger.info(`🎯 Excluding tile at (${(t as any).gridX}, ${(t as any).gridY}) from spawn (already spawned)`);
+      return false;
+    }
+    return true;
+  });
+  
   if (!locked.length || k <= 0) return;
 
   for (let i=locked.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [locked[i],locked[j]]=[locked[j],locked[i]]; }

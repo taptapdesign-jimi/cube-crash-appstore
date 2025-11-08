@@ -39,10 +39,67 @@ interface OpenAtCellOptions {
   value?: number | null;
   isWild?: boolean;
   isWildMagnet?: boolean;
+  skipBind?: boolean;
 }
 
 interface OpenEmptiesOptions {
   exclude?: number | number[];
+}
+
+function bindTileWithFallback(tile: Tile, skipBind: boolean): void {
+  const attemptBind = () => {
+    const drag = STATE.drag as any;
+    if (!drag || typeof drag.bindToTile !== 'function') return false;
+    drag.bindToTile(tile);
+    return true;
+  };
+
+  // If skipBind is false, try to bind immediately
+  if (!skipBind) {
+    if (!attemptBind()) {
+      // If STATE.drag is null, retry with delay
+      let attempts = 0;
+      const maxAttempts = 30;
+      const schedule = typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
+        ? window.requestAnimationFrame.bind(window)
+        : (cb: FrameRequestCallback | (() => void)) => setTimeout(cb as () => void, 16);
+
+      const retry = () => {
+        if (attemptBind() || attempts >= maxAttempts) {
+          return;
+        }
+        attempts += 1;
+        schedule(retry);
+      };
+      retry();
+    }
+    return;
+  }
+
+  // If skipBind is true, only bind if no tile is currently being dragged
+  if (!(STATE.drag as any)?.t) {
+    attemptBind();
+    return;
+  }
+
+  // If a tile is being dragged, wait for it to finish
+  let attempts = 0;
+  const maxAttempts = 60;
+  const schedule = typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function'
+    ? window.requestAnimationFrame.bind(window)
+    : (cb: FrameRequestCallback | (() => void)) => setTimeout(cb as () => void, 16);
+
+  const retry = () => {
+    const drag = STATE.drag as any;
+    if (!drag?.t || attempts >= maxAttempts) {
+      attemptBind();
+      return;
+    }
+    attempts += 1;
+    schedule(retry);
+  };
+
+  retry();
 }
 
 export function fixHoverAnchor(t: Tile): void { 
@@ -77,15 +134,29 @@ function applyWildSkinLocal(tile: Tile): void {
   }catch{}
 }
 
-export function openAtCell(c: number, r: number, { value = null, isWild = false, isWildMagnet = false }: OpenAtCellOptions = {}): Promise<void> {
+export function openAtCell(c: number, r: number, { value = null, isWild = false, isWildMagnet = false, skipBind = false }: OpenAtCellOptions = {}): Promise<void> {
   return new Promise((resolve) => {
     let holder = STATE.grid?.[r]?.[c] || null;
+    
+    // 🔥 CRITICAL: Check if cell is already occupied by an active tile
+    if (holder && !holder.locked) {
+      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || (holder as any).isWild === true || (holder as any).isWildFace === true;
+      const isActive = (holder.value|0) > 0;
+      
+      // If cell has an active tile or wild tile, don't spawn here
+      if (isWildTile || isActive) {
+        console.warn(`⚠️ Cell (${c}, ${r}) is already occupied by active tile (value: ${holder.value}, special: ${holder.special}), skipping spawn`);
+        resolve();
+        return;
+      }
+    }
+    
     if (!holder) holder = makeBoard.createTile({ board: STATE.board!, grid: STATE.grid, tiles: STATE.tiles, c, r, val: 0, locked: true });
 
     holder.locked = false; 
     holder.eventMode = 'static'; 
     holder.cursor = 'pointer';
-    if (STATE.drag && (STATE.drag as any).bindToTile) (STATE.drag as any).bindToTile(holder);
+    bindTileWithFallback(holder, skipBind);
 
     const v = (value == null) ? [1,2,3,4,5][(Math.random()*5)|0] : value;
     makeBoard.setValue(holder, v, 0);
@@ -155,7 +226,12 @@ export function sweepForUnanimatedSpawns(): void {
   try{
     STATE.tiles.forEach(t => {
       if (!t || t.locked) return;
-      if (!t._spawned){
+      // 🔥 CRITICAL FIX: Only animate tiles that are actually newly spawned
+      // If a tile is already visible (alpha === 1), it's an existing tile and shouldn't be re-animated
+      // Only animate tiles that are invisible (alpha === 0) or don't have _spawned flag set
+      // This prevents re-animating existing tiles that were already on the board
+      const isAlreadyVisible = (t.alpha ?? 1) >= 0.99; // Tile is already visible
+      if (!t._spawned && !isAlreadyVisible){
         spawnBounce(t, () => {}, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 });
       }
     });
@@ -220,4 +296,3 @@ function smokeBubblesAtTile(board: Container, tile: Tile, tileSize: number, inte
   // For now, we'll add a placeholder
   logger.info('smokeBubblesAtTile called with:', { board, tile, tileSize, intensity });
 }
-
