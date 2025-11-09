@@ -5,7 +5,7 @@ import { STATE, ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET
 // layout function is now in app.js
 import { installDrag } from './install-drag.js';
 import { rebuildBoard } from './app-board.js';
-import { merge, checkGameOver } from './merge-core.js';
+import { merge, checkGameOver } from './app-merge.ts';
 import { logger } from '../core/logger.js';
 
 // Types - Window interface is now defined in src/types/window.d.ts
@@ -147,4 +147,3 @@ function layout(): void {
   // For now, we'll add a placeholder
   logger.info('Layout function called');
 }
-

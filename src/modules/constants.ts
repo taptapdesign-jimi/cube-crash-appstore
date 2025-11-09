@@ -18,6 +18,10 @@ export interface ShadowConfig {
 
 // Grid - responsive based on screen size
 export function getGridDimensions(): GridDimensions {
+  // 🔥 TESTING: Temporarily set to 5x5 for testing
+  return { COLS: 5, ROWS: 5 };
+  
+  /* Original code - commented out for testing
   if (typeof window !== 'undefined') {
     const width = window.innerWidth;
     const height = window.innerHeight;
@@ -40,6 +44,7 @@ export function getGridDimensions(): GridDimensions {
   }
   // Fallback for server-side rendering
   return { COLS: 5, ROWS: 9 };
+  */
 }
 
 const gridDims = getGridDimensions();

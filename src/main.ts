@@ -59,11 +59,6 @@ import {
   onDragEnd 
 } from './modules/drag-core.js';
 import { 
-  merge, 
-  clearWildState, 
-  anyMergePossibleOnBoard 
-} from './modules/merge-core.js';
-import { 
   createUnifiedHudContainer, 
   animateUnifiedHudDrop, 
   getUnifiedHudInfo, 

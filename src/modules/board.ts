@@ -393,8 +393,21 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   return t;
 }
 
+function tileIsWild(tile: Tile | null | undefined): boolean {
+  if (!tile) return false;
+  const special = tile.special;
+  return special === 'wild' || special === 'wild-magnet';
+}
+
+function tileIsActive(tile: Tile | null | undefined): boolean {
+  if (!tile || tile.locked || tile.destroyed) return false;
+  if (tile.visible === false) return false;
+  const hasValue = ((tile.value | 0) > 0);
+  return hasValue || tileIsWild(tile);
+}
+
 export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
-  const open = allTiles.filter((t) => !(t as Tile).locked && (t as Tile).value > 0) as Tile[];
+  const open = allTiles.filter((t) => tileIsActive(t as Tile)) as Tile[];
   
   console.log('🔍 anyMergePossible: Checking', open.length, 'active tiles:', open.map(t => ({ 
     value: t.value, 

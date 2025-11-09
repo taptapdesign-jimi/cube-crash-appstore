@@ -40,7 +40,33 @@ const animateScore = (toValue, duration = 0.45) => {
 };
 // drawBoardBG is imported from app.js
 
+function triggerCentralEndgameCheck(source = 'app-merge'): boolean {
+  const checker = (window as any)?.CC?.checkLevelEnd;
+  if (typeof checker !== 'function') return false;
+  try {
+    console.log(`🎯 triggerCentralEndgameCheck invoked from ${source}`);
+    checker();
+    return true;
+  } catch (error) {
+    console.warn(`⚠️ triggerCentralEndgameCheck failed (${source})`, error);
+    return false;
+  }
+}
+
 function play(name, vol=null){ /* muted */ }
+
+function tileIsWild(tile: any): boolean {
+  if (!tile) return false;
+  const special = tile.special;
+  return special === 'wild' || special === 'wild-magnet' || tile.isWild === true || tile.isWildFace === true;
+}
+
+function tileIsActive(tile: any): boolean {
+  if (!tile || tile.locked || tile.destroyed) return false;
+  if (tile.visible === false) return false;
+  const hasValue = ((tile.value | 0) > 0);
+  return hasValue || tileIsWild(tile);
+}
 function removeTile(t){
   if(!t) return;
   try { stopWildIdle?.(t); } catch {}
@@ -814,6 +840,15 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     return empties.slice(0, Math.min(count, empties.length));
   };
   
+  const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
+  const activeAfterRemoval = STATE.tiles.filter(tileIsActive);
+  const onlyDstRemains = activeAfterRemoval.length === 1 && activeAfterRemoval[0] === dst;
+
+  if ((isLastMergeFlagSet || onlyDstRemains) && triggerCentralEndgameCheck('mergePulledTilesBeforeRespawn')) {
+    console.log('🧲 mergePulledTilesIntoMerge6: Central endgame handled before respawn, skipping spawns.');
+    return;
+  }
+
   const spawnCount = pulledCells.length; // Spawn as many tiles as were pulled
   const spawnTargets = findRandomEmptyCells(spawnCount);
 
@@ -879,6 +914,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         }
       })
     );
+  }
+
+  if (triggerCentralEndgameCheck('mergePulledTilesRespawn')) {
+    return;
   }
 
   // 🔥 CRITICAL: After spawning new tiles, check if they can merge
@@ -1535,247 +1574,6 @@ export function merge(src, dst, helpers){
 }
 
 export async function checkGameOver(){
-  if (STATE.busyEnding) {
-    console.log('⏳ checkGameOver skipped - end sequence already running');
-    return;
-  }
-  console.log('🔥 checkGameOver called');
-  
-  const activeTiles = STATE.tiles.filter(t => !t.locked && t.value > 0);
-  const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
-  const nonWildTiles = activeTiles.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
-  
-  console.log('🔥 checkGameOver state:', {
-    totalTiles: STATE.tiles.length,
-    activeTiles: activeTiles.length,
-    wildCubes: wildCubes.length,
-    nonWildTiles: nonWildTiles.length,
-    activeTileDetails: activeTiles.map(t => ({ 
-      value: t.value, 
-      special: t.special, 
-      locked: t.locked,
-      gridX: t.gridX,
-      gridY: t.gridY 
-    }))
-  });
-  
-  // CRITICAL: Check if board is clean BEFORE checking merges
-  // If board is clean, endgame flow should have been triggered already, but double-check here
-  const isClean = isBoardClean();
-  if (isClean) {
-    console.log('🚨🚨🚨 checkGameOver: Board is CLEAN - should have been handled by merge function!');
-    console.log('🚨🚨🚨 This should not happen - clean board should trigger endgame flow in merge function');
-    // Don't show level failed if board is clean - this is a safety check
-    return;
-  }
-  
-  // Get active tiles first
-  const active = STATE.tiles.filter(t => t && !t.locked && t.value > 0);
-  const activeWildCubes = active.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
-  const activeNonWildTiles = active.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
-
-  console.log('🎯 checkGameOver: Active tiles:', active.length, 'Wild cubes:', activeWildCubes.length, 'Non-wild tiles:', activeNonWildTiles.length);
-  console.log('🎯 checkGameOver: Active tile values:', active.map(t => ({ value: t.value, special: t.special })));
-  
-  // CRITICAL: Check if any merges are possible FIRST
-  const canMerge = makeBoard.anyMergePossible(STATE.tiles);
-  console.log('🎯 checkGameOver: anyMergePossible returned:', canMerge);
-  
-  if (canMerge) {
-    console.log('🎯 anyMergePossible returned true, game continues');
-    return;
-  }
-  
-  // If no merges possible, check edge cases
-  if (active.length === 0) {
-    // No active tiles - this should have been caught by isBoardClean check above
-    console.log('🚨 No active tiles - should have been clean board, but showing fail screen as fallback');
-    // Continue to show fail screen
-  } else if (active.length === 1 && activeWildCubes.length === 0) {
-    console.log('🚨 Only one non-wild tile remains, no merges possible - game over!');
-    // Continue to show fail screen (fall through to game over logic below)
-  } else {
-    console.log('🚨 Multiple tiles but no valid merges possible - game over!');
-    console.log('🚨 Tile combinations:', active.map(t => t.value).join(', '));
-    // Continue to show fail screen
-  }
-
-  // EMERGENCY SAFETY: If we have wild cubes but no non-wild tiles, spawn some!
-  if (activeWildCubes.length > 0 && activeNonWildTiles.length === 0) {
-    console.log('🚨 EMERGENCY: Wild cubes exist but no non-wild tiles! Spawning emergency tiles...');
-    // Spawn 2-3 emergency tiles to prevent wild cubes from getting stuck
-    const emergencyCount = Math.min(3, Math.max(2, activeWildCubes.length));
-    openEmpties(emergencyCount).then(() => {
-      console.log('✅ Emergency tiles spawned, checking again...');
-      checkGameOver(); // Check again after spawning
-    }).catch(error => {
-      console.error('❌ Emergency spawn failed:', error);
-      // If emergency spawn fails, proceed with normal game over
-    });
-    return;
-  }
-  
-  // CRITICAL: Double-check wild merges (this should already be covered by anyMergePossible, but safety check)
-  const hasWildMerge = () => {
-    if (active.length < 2) {
-      console.log('🎯 hasWildMerge: Not enough tiles (need 2, have', active.length, ')');
-      return false; // Need at least 2 tiles for merge
-    }
-    for (let i = 0; i < active.length; i++) {
-      for (let j = i + 1; j < active.length; j++) {
-        const a = active[i], b = active[j];
-        // Wild cube can merge with any non-wild tile
-        const aIsWild = (a.special === 'wild' || a.special === 'wild-magnet');
-        const bIsWild = (b.special === 'wild' || b.special === 'wild-magnet');
-        if ((aIsWild && !bIsWild) || (bIsWild && !aIsWild)) {
-          console.log('🎯 Wild merge found:', aIsWild ? a.special : a.value, 'with', bIsWild ? b.special : b.value);
-          return true;
-        }
-      }
-    }
-    console.log('🎯 hasWildMerge: No wild merges found');
-    return false;
-  };
-  
-  // CRITICAL: If anyMergePossible returned false, we should still check wild merges as safety
-  // But if hasWildMerge also returns false, then definitely no merges possible
-  const canWildMerge = hasWildMerge();
-  console.log('🎯 checkGameOver: hasWildMerge returned:', canWildMerge);
-  
-  if (canWildMerge) {
-    console.log('🎯 Wild cube merge possible (safety check), game continues');
-    return;
-  }
-  
-  // CRITICAL: If we reach here, no merges are possible - show fail screen
-  console.log('🚨 No merges possible, game over!');
-  console.log('🚨 Final check - Active tiles:', active.length, 'Values:', active.map(t => t.value).join(', '));
-  
-  // Haptic feedback for game over
-  console.log('🔍 HAPTIC CHECK (game over):', { 
-    hasTriggerHaptic: typeof (window as any).triggerHaptic === 'function'
-  });
-  
-  // Use same bridge as Continue/New Game buttons
-  if (typeof (window as any).triggerHaptic === 'function') {
-    console.log('📳 CALLING triggerHaptic (game over)');
-    (window as any).triggerHaptic();
-  } else {
-    console.warn('⚠️ triggerHaptic function not available (game over)!');
-  }
-
-  if (active.length === 2){
-    const add = (active[0].value|0) + (active[1].value|0);
-    if (add > 0){ STATE.score += add; updateHUD(); }
-  }
-
-  if (STATE.score > STATE.bestScore){
-    STATE.bestScore = STATE.score;
-    try { localStorage.setItem('cc_best_score_v1', STATE.bestScore); } catch {}
-    updateHUD();
-  }
-
-  // Update stats before showing stars modal
-  if (typeof window.updateHighScore === 'function') {
-    window.updateHighScore(STATE.score);
-  }
-  
-  // Do not estimate cubes cracked by score; only count real merge-6 events in merge()
-  
-  if (typeof window.checkCollectiblesMilestones === 'function') {
-    // Check for collectibles based on score milestones
-    window.checkCollectiblesMilestones(STATE.score);
-  }
-
-  // CRITICAL: Set busyEnding BEFORE showing fail modal to prevent duplicate calls
-  STATE.busyEnding = true;
-  console.log('🚨 Setting STATE.busyEnding = true before showing fail modal');
-
-  const levelNumber = Math.max(1, STATE.level | 0);
-  const scoreValue = Math.max(0, STATE.score | 0);
-
-  console.log('🚨 Showing board fail modal with score:', scoreValue, 'board:', levelNumber);
-
-  let action = 'retry';
-
-  try {
-    try {
-      const result = await showBoardFailModal({
-        score: scoreValue,
-        boardNumber: levelNumber
-      });
-      console.log('✅ Board fail modal returned:', result);
-      action = result?.action || 'retry';
-    } catch (error) {
-      console.error('❌ showBoardFailModal failed, falling back to stars modal:', error);
-      try {
-        await showStarsModal({
-          app: STATE.app,
-          stage: STATE.stage,
-          board: STATE.board,
-          score: scoreValue,
-          thresholds:{ one:Infinity, two:Infinity, three:Infinity },
-          buttonLabel:'Retry'
-        });
-      } catch (fallbackError) {
-        console.error('❌ Fallback stars modal failed:', fallbackError);
-      }
-      action = 'retry';
-    }
-
-    if (action === 'menu') {
-      try {
-        // Navigation will be shown by markHomepageVisible() after slide animation
-        
-        await window.exitToMenu?.();
-        window.goToSlide?.(0, { animate: true });
-      } catch (error) {
-        console.warn('⚠️ exitToMenu failed, reloading as fallback:', error);
-        try { window.location.reload(); } catch {}
-      }
-      return;
-    }
-
-    let usedCCRelaunch = false;
-
-    if (window.CC?.restart) {
-      try {
-        window.CC.restart();
-        usedCCRelaunch = true;
-      } catch (error) {
-        console.warn('⚠️ window.CC.restart failed, falling back to manual restart:', error);
-      }
-    }
-
-    if (!usedCCRelaunch) {
-      STATE.score = 0;
-      STATE.moves = 0;
-      STATE.wildMeter = 0;
-
-      try {
-        if (typeof HUD.resetWildMeter === 'function') {
-          HUD.resetWildMeter(true);
-        } else if (typeof HUD.updateProgressBar === 'function') {
-          HUD.updateProgressBar(0, false);
-        }
-      } catch (error) {
-        console.warn('⚠️ Failed to reset wild meter during retry:', error);
-      }
-
-      updateHUD();
-
-      rebuildBoard();                  // ✅ no more fake dynamic imports
-    } else {
-      // ensure HUD reflects reset when restart handled elsewhere
-      try { updateHUD(); } catch {}
-    }
-
-    setTimeout(() => {
-      try { checkGameOver(); } catch (error) {
-        console.warn('⚠️ checkGameOver retry call failed:', error);
-      }
-    }, 1000);
-  } finally {
-    STATE.busyEnding = false;
-  }
+  if (triggerCentralEndgameCheck('app-merge.checkGameOver')) return;
+  console.warn('⚠️ app-merge.checkGameOver: Centralized checker not available, skipping legacy flow.');
 }

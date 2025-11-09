@@ -49,6 +49,19 @@ let cachedTilesHash: string = '';
  * Uses tile references and key properties to detect changes
  * OPTIMIZED: Uses simple hash instead of full string concatenation for performance
  */
+function tileIsWild(tile: any): boolean {
+  if (!tile) return false;
+  const special = tile.special;
+  return special === 'wild' || special === 'wild-magnet';
+}
+
+function tileIsActive(tile: any): boolean {
+  if (!tile || tile.locked || tile.destroyed) return false;
+  if (tile.visible === false) return false;
+  const hasValue = ((tile.value | 0) > 0);
+  return hasValue || tileIsWild(tile);
+}
+
 function createTilesHash(tiles: any[]): string {
   try {
     // OPTIMIZED: Use simple hash based on length + first few tile properties
@@ -65,11 +78,14 @@ function createTilesHash(tiles: any[]): string {
       }
       // Use key properties: value, locked, special
       const tileId = (t as any).uid || (t as any).gridX + '_' + (t as any).gridY || i;
-      hash += `|${tileId}:${(t.value|0)}:${t.locked ? 'L' : 'U'}:${t.special || 'none'}`;
+      const aliveFlag = t.destroyed ? 'D' : 'A';
+      const visibleFlag = t.visible === false ? 'H' : 'V';
+      const modeFlag = t.eventMode === 'none' ? 'N' : 'S';
+      hash += `|${tileId}:${(t.value|0)}:${t.locked ? 'L' : 'U'}:${aliveFlag}${visibleFlag}${modeFlag}:${t.special || 'none'}`;
     }
     
     // Add total count of active tiles for better hash uniqueness
-    const activeCount = tiles.filter(t => t && !t.locked && (t.value|0) > 0).length;
+    const activeCount = tiles.filter(tileIsActive).length;
     hash += `:active${activeCount}`;
     
     return hash;
@@ -92,7 +108,7 @@ function getActiveTiles(tiles: any[]): any[] {
     if (currentHash !== cachedTilesHash || tiles.length !== cachedTilesLength) {
       cachedTilesHash = currentHash;
       cachedTilesLength = tiles.length;
-      cachedActiveTiles = tiles.filter(t => t && !t.locked && (t.value|0) > 0);
+      cachedActiveTiles = tiles.filter(tileIsActive);
       console.log('🔄 EndGameChecker: Active tiles cache refreshed', {
         count: cachedActiveTiles.length,
         hash: currentHash.substring(0, 50) + '...'
@@ -198,14 +214,23 @@ function isGameStuck(context: EndGameContext): boolean {
     return true;
   }
   
-  // Check for wild cubes edge case (emergency rescue scenario)
+  // Check for wild cubes edge cases
   const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
-  const nonWildTiles = activeTiles.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
+  const mergeableNonWildTiles = activeTiles.filter(t => {
+    if (!t || t.special === 'wild' || t.special === 'wild-magnet') return false;
+    const value = (t.value|0);
+    return value > 0 && value < 6; // merge 6 cannot merge with wild
+  });
   
-  console.log('🔍 isGameStuck: Wild cubes:', wildCubes.length, 'Non-wild tiles:', nonWildTiles.length);
+  console.log('🔍 isGameStuck: Wild cubes:', wildCubes.length, 'Mergeable non-wild tiles:', mergeableNonWildTiles.length);
+
+  if (wildCubes.length > 0 && mergeableNonWildTiles.length > 0) {
+    console.log('✅ isGameStuck: Wild + regular tiles present - guaranteed merge available');
+    return false;
+  }
   
   // If we have wild cubes but no non-wild tiles, emergency rescue will handle this
-  if (wildCubes.length > 0 && nonWildTiles.length === 0) {
+  if (wildCubes.length > 0 && mergeableNonWildTiles.length === 0) {
     console.log('✅ isGameStuck: Wild cubes but no non-wild tiles - emergency rescue will handle (NOT STUCK)');
     return false; // Not stuck - emergency rescue will spawn tiles
   }
@@ -331,8 +356,11 @@ export function clearEndGameCache(): void {
 export function needsEmergencyRescue(tiles: any[]): boolean {
   const activeTiles = getActiveTiles(tiles);
   const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
-  const nonWildTiles = activeTiles.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
+  const mergeableNonWildTiles = activeTiles.filter(t => {
+    if (!t || t.special === 'wild' || t.special === 'wild-magnet') return false;
+    const value = (t.value|0);
+    return value > 0 && value < 6;
+  });
   
-  return wildCubes.length > 0 && nonWildTiles.length === 0;
+  return wildCubes.length > 0 && mergeableNonWildTiles.length === 0;
 }
-
