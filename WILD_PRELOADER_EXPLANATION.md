@@ -25,7 +25,7 @@ Wild preloader se puni kada **spajaš kockice**:
 - **Znači:** **~8 mala merge-a = puna crta** ✅ (7.7 merge-a točno)
 - **Napomena:** 
   - Merge 6 (npr. 3+3=6) **NIJE** mali merge - to je poseban merge koji daje više!
-  - Ako spajaš **iste brojeve** (npr. 2+2), to je "stack merge" koji daje samo 10%, ne 25%!
+  - Ako spajaš **iste brojeve** (npr. 2+2), to je "stack merge" koji daje samo 10%, ne 13%!
 
 ### 2. **Stack Merge** (spajanje ISTIH brojeva)
 - **Što je:** Kada spajaš **dvije kockice s istim brojem** (npr. 2+2, 3+3, 4+4)
