@@ -339,6 +339,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   // Filter valid tiles
   const validTiles = tiles.filter((t: any) => t && !t.destroyed);
+  const pulledTileCount = validTiles.length;
   const pulledCells: { c: number; r: number }[] = [];
   
   if (validTiles.length === 0 || !dst || dst.destroyed) {
@@ -578,6 +579,14 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   statsService.incrementHelpersUsed(1);
   
   console.log('✅ mergePulledTilesIntoMerge6 completed - score updated to', newScore);
+
+  if (pulledTileCount >= 4 && typeof (window as any).triggerHapticImpact === 'function') {
+    try {
+      (window as any).triggerHapticImpact('medium');
+    } catch (error) {
+      console.warn('⚠️ Failed to trigger haptic for pulled tiles merge:', error);
+    }
+  }
 
   // 🔥 CRITICAL: Check if magnet merge 6 is left with few tiles (3 or less) - if so, pull remaining tiles and trigger clean board
   // After pulled tiles merge, dst is merge 6, so we check if there are few remaining tiles on the board
@@ -1142,7 +1151,7 @@ export function merge(src, dst, helpers){
     }
 
     // meter + little bounce on score
-    const inc = 0.25; // 4 small merges to full
+    const inc = 0.13; // ~7.7 small merges to full (promijenjeno sa 0.25 na 0.13)
     const previous = STATE.wildMeter || 0;
     STATE.wildMeter = Math.max(0, previous + inc);
     const displayRatio = Math.min(1, STATE.wildMeter);
