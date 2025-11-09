@@ -1,4 +1,5 @@
 import { logger } from '../core/logger.js';
+import { statsService } from '../services/stats-service.ts';
 // public/src/modules/board-fail-modal.ts
 // Game-over overlay when the board isn't fully cleared
 
@@ -120,11 +121,39 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     title.style.cssText = 'color:#D78157;font-weight:800;font-size:40px;line-height:1;margin:0;';
 
     const scoreLabel = document.createElement('div');
-    scoreLabel.textContent = 'Your score';
     scoreLabel.style.cssText = 'color:#b69077;font-weight:600;font-size:20px;line-height:1.2;margin:0;letter-spacing:0.02em;';
 
+    const currentScore = Math.max(0, Math.floor(score || 0));
+    const storedHighScore = (() => {
+      try {
+        const stats = statsService?.getStats?.();
+        if (stats && Number.isFinite(stats.highScore)) return stats.highScore | 0;
+      } catch (error) {
+        console.warn('⚠️ board-fail-modal: Failed to read stats high score:', error);
+      }
+      try {
+        const legacy = localStorage.getItem('cc_best_score_v1');
+        if (legacy) return parseInt(legacy, 10) || 0;
+      } catch (error) {
+        console.warn('⚠️ board-fail-modal: Failed to read legacy high score:', error);
+      }
+      return 0;
+    })();
+
+    const highScoreJustUpdated = typeof statsService?.wasHighScoreJustUpdated === 'function'
+      ? statsService.wasHighScoreJustUpdated(currentScore)
+      : false;
+
+    const isNewHighScore = currentScore > storedHighScore || highScoreJustUpdated;
+
+    if (isNewHighScore) {
+      scoreLabel.innerHTML = '<span style="color:#E97A55;font-weight:900;font-size:20px;letter-spacing:0.02em;">NEW</span> <span>Highscore</span>';
+    } else {
+      scoreLabel.textContent = 'Your score';
+    }
+
     const scoreValue = document.createElement('div');
-    scoreValue.textContent = Math.max(0, Math.floor(score || 0)).toString();
+    scoreValue.textContent = currentScore.toString();
     scoreValue.style.cssText = 'color:#E77449;font-weight:800;font-size:64px;line-height:1;margin:0;';
 
     const boardStatus = document.createElement('div');
@@ -374,4 +403,3 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     });
   });
 }
-
