@@ -1,4 +1,5 @@
 import { logger } from '../core/logger.js';
+import { resetTileToNormalState } from './tile-state-utils.ts';
 // public/src/modules/level-flow.ts
 
 // Type definitions
@@ -130,6 +131,8 @@ export async function openLockedBounceParallel({
     // t.eventMode='static'; 
     // t.cursor='pointer';
     if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
+
+    resetTileToNormalState(t);
     
     // Smart spawning: if this is after wild merge, avoid the target number
     let spawnValue: number;

@@ -6,6 +6,7 @@ import { ASSET_WILD_MAGNET } from './constants.js';
 import * as makeBoard from './board.js';
 import { startWildIdle, wildImpactEffect, startWildShimmer, startWildStars } from './fx.js';
 import { logger } from '../core/logger.js';
+import { resetTileToNormalState } from './tile-state-utils.ts';
 // drawBoardBG function is now in app.js
 
 // Types
@@ -157,6 +158,10 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false,
     holder.eventMode = 'static'; 
     holder.cursor = 'pointer';
     bindTileWithFallback(holder, skipBind);
+
+    if (!isWild && !isWildMagnet) {
+      resetTileToNormalState(holder);
+    }
 
     const v = (value == null) ? [1,2,3,4,5][(Math.random()*5)|0] : value;
     makeBoard.setValue(holder, v, 0);

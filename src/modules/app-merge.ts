@@ -486,6 +486,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       console.log('🧲 Creating shards at calculated position:', shardX, shardY, 'grid:', dst.gridX, dst.gridY);
       
       // 🔥 CRITICAL: Trigger shards animation immediately (0.200s earlier than before)
+      // 🔥 SPEED UP: Instant procedural fade-out + animation duration exactly 1s (same as regular merge 6)
       woodShardsAtTile(STATE.board, tileForShards as any, { 
         enhanced: true, 
         wild: false,  // Not wild-only, this is wild-magnet merge
@@ -497,7 +498,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         speed: 0.85, 
         vanishDelay: 0.0, 
         vanishJitter: 0.02,
-        ttl: 1.4,  // 200ms shorter duration (was 1.6, now 1.4)
+        ttl: 1.0,  // Time to live (exactly 1 second, same as regular merge 6)
+        fastFadeOut: true,  // Enable instant procedural fade-out
+        travelDurMultiplier: 0.5,  // 50% faster travel duration
+        fadeDelayMultiplier: 0.1,  // 90% faster fade delay (instant)
         behind: false  // Ensure shards are visible (not behind tile)
       });
       

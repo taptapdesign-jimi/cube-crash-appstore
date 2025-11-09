@@ -175,7 +175,7 @@ function setupStars(system: WildStarSystem, texture: Texture): void {
       angle: (Math.PI * 2 * i) / BABY_STAR_COUNT,
       speed: 0.4 + Math.random() * 0.3, // Sporije brzine
       direction: i === 0 ? 1 : -1, // Prva u smjeru kazaljke, ostale suprotno
-      orbitRadius: 0.6 + Math.random() * 0.1,
+      orbitRadius: 0.6 + Math.random() * 0.17, // Povećano za 10%: maksimum 0.77 umjesto 0.7
       radiusJitter: 0.05 + Math.random() * 0.04,
       radiusJitterSpeed: 0.85 + Math.random() * 0.6,
       pulseSpeed: 1.1 + Math.random() * 0.3,
@@ -350,7 +350,7 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined): void {
         angle: (Math.PI * 2 * i) / BABY_STAR_COUNT,
         speed: 0.4 + Math.random() * 0.3,
         direction: i === 0 ? 1 : -1, // Prva u smjeru kazaljke, ostale suprotno
-        orbitRadius: 0.6 + Math.random() * 0.1,
+        orbitRadius: 0.6 + Math.random() * 0.17, // Povećano za 10%: maksimum 0.77 umjesto 0.7
         radiusJitter: 0.05 + Math.random() * 0.04,
         radiusJitterSpeed: 0.85 + Math.random() * 0.6,
         pulseSpeed: 1.1 + Math.random() * 0.3,

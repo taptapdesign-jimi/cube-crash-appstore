@@ -102,14 +102,16 @@ let wildRescueScheduled = false; // Prevent duplicate emergency spawns
 let drag;
 let busyEnding = false;
 
+function tileIsVisuallyActive(tile: any): boolean {
+  if (!tile || tile.destroyed || tile.locked) return false;
+  const value = (tile.value | 0);
+  const special = tile.special;
+  const isWild = special === 'wild' || special === 'wild-magnet';
+  return value > 0 || isWild;
+}
+
 function getReactiveActiveTiles(): any[] {
-  return tiles.filter((t) => {
-    if (!t || t.destroyed || t.locked) return false;
-    const value = (t.value | 0);
-    const special = t.special;
-    const isWild = special === 'wild' || special === 'wild-magnet';
-    return value > 0 || isWild;
-  });
+  return tiles.filter(tileIsVisuallyActive);
 }
 
 function isBoardCleanReactive(): boolean {
@@ -1524,7 +1526,7 @@ function randomEmptyCell(){
 }
 
 // Track if wild-magnet has been spawned (first wild spawn should be wild-magnet)
-let wildMagnetSpawned = false;
+const WILD_MAGNET_SPAWN_CHANCE = 0.4; // 40% chance new wild is a magnet
 
 async function spawnWildFromMeter(){
   if (wildMeter < 1) {
@@ -1545,9 +1547,6 @@ async function spawnWildFromMeter(){
   let spawned = false;
   let lastCell = null;
   
-  // First spawn should be wild-magnet, rest should be regular wild
-  const isFirstSpawn = !wildMagnetSpawned;
-
   while (tries < maxAttempts && !spawned) {
     const cell = randomEmptyCell();
     if (!cell) {
@@ -1564,14 +1563,12 @@ async function spawnWildFromMeter(){
     lastCell = cell;
 
     try {
-      const ok = await openAtCell(cell.c, cell.r, { isWild: true, isWildMagnet: isFirstSpawn });
+      const spawnMagnet = Math.random() < WILD_MAGNET_SPAWN_CHANCE;
+      const ok = await openAtCell(cell.c, cell.r, { isWild: true, isWildMagnet: spawnMagnet });
       if (ok) {
         consumeCharge();
         spawned = true;
-        if (isFirstSpawn) {
-          wildMagnetSpawned = true;
-          console.log('🧲 Wild-magnet spawned (first wild spawn)!');
-        }
+        console.log(spawnMagnet ? '🧲 Wild-magnet spawned (random roll)' : '🌪️ Regular wild spawned (random roll)');
       } else {
         console.warn('⚠️ Wild spawn skipped (cell no longer empty):', cell);
         tries++;
@@ -1592,7 +1589,7 @@ async function spawnWildFromMeter(){
     wildSpawnRetryTimer = null;
   }
 
-  console.log('✅ Wild cube spawned successfully at', lastCell?.c, lastCell?.r, 'Leftover meter:', wildMeter, 'isWildMagnet:', isFirstSpawn);
+  console.log('✅ Wild cube spawned successfully at', lastCell?.c, lastCell?.r, 'Leftover meter:', wildMeter);
   return true;
 }
 
@@ -1792,7 +1789,7 @@ function merge(src, dst, helpers){
           await new Promise(resolve => setTimeout(resolve, 50));
           
           // 🔥 CRITICAL: Verify dst tile state before checking
-          const activeTilesBeforeCheck = tiles.filter(t => t && !t.locked && (t.value|0) > 0);
+          const activeTilesBeforeCheck = tiles.filter(tileIsVisuallyActive);
           const dstInTiles = tiles.includes(dst);
           const dstIsActive = dst && !dst.locked && (dst.value|0) > 0;
           
@@ -2138,6 +2135,7 @@ function merge(src, dst, helpers){
           // 🔥 CRITICAL: Mark tiles as magnet-affected IMMEDIATELY (before animation)
           // This allows them to merge regardless of pips or wild status
           tile._wildMagnetAffected = true;
+          tile._skipIdleScaleReset = true;
           
           // 🔥 CRITICAL: Disable drag for pulled tiles (prevent user from dragging them)
           tile.eventMode = 'none';
@@ -2340,32 +2338,57 @@ function merge(src, dst, helpers){
             }, 0);
           }
           
-          // Step 2: Move towards merge location + scale down 20% SIMULTANEOUSLY with movement - FASTER
-          // Scale down from 1.0 to 0.8 (20% reduction) PROPORTIONALLY to movement
-          // Both animations start at the same time and move together
+          // Step 2: Move towards merge location - FASTER
           // 🔥 CRITICAL: Calculate 75% position - merge will trigger before reaching 100%
           const target75X = startX + (mergeX - startX) * 0.75;
           const target75Y = startY + (mergeY - startY) * 0.75;
           
           const moveDuration = 0.35; // Faster: 0.35s (was 0.55s, decreased by 0.200s)
+          const scaleHoldDuration = moveDuration * 0.20; // Hold original scale for first 20% of the path
+          const scaleShrinkDuration = moveDuration - scaleHoldDuration; // Shrink during remaining 80%
+          const moveStartTime = 0.015; // Start time for movement animation
           
-          // Move towards 75% position (merge triggers before reaching 100%)
-          // After merge triggers, tiles continue to 100% but merge happens immediately
-          tl.to(tile, {
+          // Move towards merge location (full path)
+          // Add label at the START of movement for precise timing
+          tl.addLabel('moveStart', `>${moveStartTime}`);
+          
+          const moveTween = tl.to(tile, {
             x: mergeX,
             y: mergeY,
             duration: moveDuration,
             ease: 'power2.inOut'
-          }, `>${0.015}`); // Faster: 0.015s delay (was 0.012s)
+          }, 'moveStart'); // Start at moveStart label
           
-          // Scale down SIMULTANEOUSLY with movement (proportional to movement progress)
-          if (tile.scale) {
-            tl.to(tile.scale, {
-              x: 0.8,
-              y: 0.8,
-              duration: moveDuration, // Same duration as movement
-              ease: 'power2.inOut' // Same ease as movement
-            }, '<'); // Start at the SAME time as movement (not after)
+          // 🔥 NEW: Scale-down to 40% AFTER reaching 40% of the path
+          // Start scale-down animation at 40% progress point
+          // Use scale.x/y (PIXI Point object) like in fx.js, not scaleX/scaleY
+          const scaleTarget = tile;
+          if (scaleTarget?.scale) {
+            try { gsap.killTweensOf(scaleTarget.scale); } catch {}
+            
+            const currentScaleX = scaleTarget.scale.x ?? 1.0;
+            const currentScaleY = scaleTarget.scale.y ?? 1.0;
+            const finalScaleX = currentScaleX * 0.40;
+            const finalScaleY = currentScaleY * 0.40;
+            
+            tl.set(scaleTarget.scale, {
+              x: currentScaleX,
+              y: currentScaleY
+            }, 'moveStart');
+            
+            tl.to(scaleTarget.scale, {
+              x: currentScaleX,
+              y: currentScaleY,
+              duration: scaleHoldDuration,
+              ease: 'linear'
+            }, 'moveStart');
+            
+            tl.to(scaleTarget.scale, {
+              x: finalScaleX,
+              y: finalScaleY,
+              duration: scaleShrinkDuration,
+              ease: 'power2.inOut'
+            }, `moveStart+=${scaleHoldDuration}`);
           }
           
           // Rotate back to 0 while moving
@@ -2708,10 +2731,14 @@ function merge(src, dst, helpers){
           
           // 🔥 CRITICAL: Regular merge 6 shards - START 0.150s EARLIER (before glass crack)
           // This ensures shards animation starts before tile "dies off"
+          // 🔥 SPEED UP: Instant procedural fade-out + animation duration exactly 1s
           const mergePos = centerInBoard(board, dst, TILE);
           regularMerge6Shards(board, { x: mergePos.x, y: mergePos.y, gridX: dstGridX, gridY: dstGridY, zIndex: dstZIndex } as any, { 
             count: 16 + Math.floor(Math.random() * 9), // Random between 16-24
-            ttl: 1.4        // Time to live (reduced by 0.200s for faster fade-out)
+            ttl: 1.0,        // Time to live (exactly 1 second)
+            fastFadeOut: true,  // Enable instant procedural fade-out
+            travelDurMultiplier: 0.5,  // 50% faster travel duration
+            fadeDelayMultiplier: 0.1   // 90% faster fade delay (instant)
           });
           
           // Glass crack effect (50% of wild: 1.3 * 0.5 = 0.65, but keep minimum 1.0)
@@ -3028,7 +3055,7 @@ function merge(src, dst, helpers){
         
         // 🔥 SAFEGUARD: Double-check _isLastMerge flag before spawning
         // 🔥 ENHANCED: Also check active tiles count to catch edge cases
-        const activeTilesBeforeSpawn = tiles.filter(t => t && !t.locked && (t.value|0) > 0);
+        const activeTilesBeforeSpawn = tiles.filter(tileIsVisuallyActive);
         const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
         const onlyMerge6Remains = activeTilesBeforeSpawn.length === 1 && activeTilesBeforeSpawn[0] === dst && dst.value === 6;
         
@@ -3326,7 +3353,7 @@ function checkMovesDepleted(){
 function activeTilesList(){ 
   console.warn('⚠️ DEPRECATED: activeTilesList() called - use checkEndGame() from endgame-checker.ts instead');
   try { 
-    return tiles.filter(t => t && !t.locked && (t.value|0) > 0); 
+    return tiles.filter(tileIsVisuallyActive); 
   } catch { 
     return []; 
   } 
@@ -3361,7 +3388,7 @@ function checkLevelEnd(){
     // Check for emergency rescue first
     if (needsEmergencyRescue(tiles)) {
       console.log('🚨 EMERGENCY: Wild cubes exist but no non-wild tiles! Scheduling emergency rescue...');
-      const activeTiles = tiles.filter(t => t && !t.locked && (t.value|0) > 0);
+      const activeTiles = tiles.filter(tileIsVisuallyActive);
       const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
       const emergencyCount = Math.min(3, Math.max(2, wildCubes.length));
       scheduleWildRescue('checkLevelEnd', emergencyCount);
@@ -3434,7 +3461,7 @@ function checkLevelEnd(){
     if (checkLevelEndResult.type === 'stuck') {
       console.log('🚨🚨🚨 checkLevelEnd: Game is stuck, showing fail screen');
       console.log('🔍 checkLevelEnd: Stuck reason:', checkLevelEndResult.reason);
-      console.log('🔍 checkLevelEnd: Current tiles:', tiles.filter(t => t && !t.locked && (t.value|0) > 0).map(t => ({ 
+      console.log('🔍 checkLevelEnd: Current tiles:', tiles.filter(tileIsVisuallyActive).map(t => ({ 
         value: t.value, 
         special: t.special, 
         locked: t.locked 
@@ -3467,7 +3494,7 @@ async function openLockedBounceParallel(k){
 
 // DEPRECATED: Use checkEndGame() from endgame-checker.ts instead
 // This function is kept for backward compatibility but should not be used
-function isBoardClean(){ 
+function isBoardClean(){
   console.warn('⚠️ DEPRECATED: isBoardClean() called - use checkEndGame() from endgame-checker.ts instead');
   
   // Fallback implementation using centralized checker
@@ -3502,6 +3529,7 @@ function removeTile(t){
   if (idx !== -1) {
     tiles.splice(idx, 1);
   }
+  try { delete (t as any)._skipIdleScaleReset; } catch {}
   t.destroy?.({children:true, texture:false, textureSource:false});
 }
 

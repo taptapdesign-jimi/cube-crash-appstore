@@ -394,8 +394,35 @@ export function regularMerge6Shards(board, tile, opts = {}){
     // 🔥 50% wider horizontal spread (1.5x in width)
     const endX = Math.cos(angle) * distance * 1.5;
     const endY = Math.sin(angle) * distance;
-    const travelDur = 0.42 + Math.random() * 0.18; // 0.42-0.60s
+    
+    // 🔥 SPEED UP: 50% faster travel duration if fastFadeOut is enabled
+    const travelDurMultiplier = opts.travelDurMultiplier ?? 1.0;
+    const baseTravelDur = 0.42 + Math.random() * 0.18; // 0.42-0.60s
+    const travelDur = baseTravelDur * travelDurMultiplier; // 50% faster = 0.21-0.30s
+    
     const spin = (Math.random() - 0.5) * Math.PI * 2;
+    
+    // 🔥 INSTANT FADE-OUT: Start fading immediately with staggered timing
+    const fastFadeOut = opts.fastFadeOut === true;
+    const fadeDelayMultiplier = opts.fadeDelayMultiplier ?? 1.0;
+    const staggerDelay = fastFadeOut ? (i * 0.01) : 0; // 10ms stagger between shards for procedural fade
+    
+    // Start fade-out animation immediately (procedural, one by one)
+    if (fastFadeOut) {
+      gsap.delayedCall(staggerDelay, () => {
+        // Start fading out immediately after a short delay
+        const fadeStartDelay = travelDur * 0.3; // Start fading 30% into travel
+        const fadeDuration = travelDur * 0.4; // Fade over 40% of travel duration
+        
+        gsap.delayedCall(fadeStartDelay, () => {
+          gsap.to(shard, {
+            alpha: 0,
+            duration: fadeDuration,
+            ease: 'power2.in'
+          });
+        });
+      });
+    }
     
     // Animate shard
     gsap.to(shard, {
@@ -405,7 +432,11 @@ export function regularMerge6Shards(board, tile, opts = {}){
       duration: travelDur,
       ease: 'power3.out',
       onComplete: () => {
-        gsap.delayedCall(0.03 + Math.random() * 0.06, () => {
+        // 🔥 SPEED UP: 90% faster fade delay (instant or very fast)
+        const baseFadeDelay = 0.03 + Math.random() * 0.06; // 0.03-0.09s
+        const fadeDelay = baseFadeDelay * fadeDelayMultiplier; // 0.003-0.009s (instant)
+        
+        gsap.delayedCall(fadeDelay, () => {
           try {
             if (layer && layer.children.includes(shard)) {
               layer.removeChild(shard);
@@ -551,7 +582,7 @@ export function woodShardsAtTile(board, tile, opts = {}){
     baseShardColor = yellowColor; // Wild-only → yellow
   }
 
-  const emitShard = (distance, angle, scaleFactor = 1, alpha = 1.0, speedMul = 1) => {
+  const emitShard = (distance, angle, scaleFactor = 1, alpha = 1.0, speedMul = 1, shardIndex = 0) => {
     const shard = new Graphics();
     
     // CRITICAL: Clear graphics before drawing (ensures clean state)
@@ -627,8 +658,35 @@ export function woodShardsAtTile(board, tile, opts = {}){
 
     const travelBase = wildMode ? 0.28 : 0.42;
     const travelVar  = wildMode ? 0.18 : 0.18;
-    const travelDur = (travelBase + Math.random() * travelVar) * (1 / (speed * speedMul));
+    const baseTravelDur = (travelBase + Math.random() * travelVar) * (1 / (speed * speedMul));
+    
+    // 🔥 SPEED UP: Apply travelDurMultiplier if fastFadeOut is enabled
+    const travelDurMultiplier = opts.travelDurMultiplier ?? 1.0;
+    const travelDur = baseTravelDur * travelDurMultiplier;
+    
     const spin = (Math.random() - 0.5) * Math.PI * 2 * intensity;
+    
+    // 🔥 INSTANT FADE-OUT: Start fading immediately with staggered timing
+    const fastFadeOut = opts.fastFadeOut === true;
+    const fadeDelayMultiplier = opts.fadeDelayMultiplier ?? 1.0;
+    const staggerDelay = fastFadeOut ? (shardIndex * 0.01) : 0; // 10ms stagger between shards for procedural fade
+    
+    // Start fade-out animation immediately (procedural, one by one)
+    if (fastFadeOut) {
+      gsap.delayedCall(staggerDelay, () => {
+        // Start fading out immediately after a short delay
+        const fadeStartDelay = travelDur * 0.3; // Start fading 30% into travel
+        const fadeDuration = travelDur * 0.4; // Fade over 40% of travel duration
+        
+        gsap.delayedCall(fadeStartDelay, () => {
+          gsap.to(shard, {
+            alpha: 0,
+            duration: fadeDuration,
+            ease: 'power2.in'
+          });
+        });
+      });
+    }
 
     gsap.to(shard, {
       x: endX,
@@ -637,7 +695,11 @@ export function woodShardsAtTile(board, tile, opts = {}){
       duration: travelDur,
       ease: 'power3.out',
       onComplete: () => {
-        gsap.delayedCall(vanishDelay + Math.random() * Math.max(0, vanishJitter), () => {
+        // 🔥 SPEED UP: Apply fadeDelayMultiplier for faster fade delay
+        const baseFadeDelay = vanishDelay + Math.random() * Math.max(0, vanishJitter);
+        const fadeDelay = baseFadeDelay * fadeDelayMultiplier;
+        
+        gsap.delayedCall(fadeDelay, () => {
           try {
             if (layer && layer.children.includes(shard)) {
               layer.removeChild(shard);
@@ -668,7 +730,7 @@ export function woodShardsAtTile(board, tile, opts = {}){
       if (Math.random() < 0.25) { // Reduced from 0.45 to 0.25
         const extraDistance = minDistance + Math.random() * (maxDistance - minDistance);
         const extraAngle = angle + (Math.random() - 0.5) * 0.8; // More angle variation
-        emitShard(extraDistance, extraAngle, scale * 0.6, alpha * 0.9, speedMul * 1.25);
+        emitShard(extraDistance, extraAngle, scale * 0.6, alpha * 0.9, speedMul * 1.25, i);
       }
     } else {
       // 🔥 CRITICAL FIX: For regular merge, use full alpha (1.0) and larger scale to ensure visibility
@@ -686,7 +748,7 @@ export function woodShardsAtTile(board, tile, opts = {}){
       }
     }
 
-    emitShard(distance, angle, scale, alpha, speedMul);
+    emitShard(distance, angle, scale, alpha, speedMul, i);
   }
 }
 

@@ -175,20 +175,40 @@ export function addStyles(): void {
       position: absolute;
       top: -5px;
       right: -5px;
-      background: #333;
-      color: white;
+      background: white;
       padding: 4px 8px;
       border-radius: 12px;
       font-size: 12px;
       font-weight: bold;
       text-transform: uppercase;
+      border: 1px solid;
     }
     
-    .rarity-common { background: #8B8B8B; }
-    .rarity-uncommon { background: #4CAF50; }
-    .rarity-rare { background: #2196F3; }
-    .rarity-epic { background: #9C27B0; }
-    .rarity-legendary { background: #FF9800; }
+    .rarity-common { 
+      background: white;
+      border-color: #8B8B8B;
+      color: #8B8B8B;
+    }
+    .rarity-uncommon { 
+      background: white;
+      border-color: #4CAF50;
+      color: #4CAF50;
+    }
+    .rarity-rare { 
+      background: white;
+      border-color: #2196F3;
+      color: #2196F3;
+    }
+    .rarity-epic { 
+      background: white;
+      border-color: #9C27B0;
+      color: #9C27B0;
+    }
+    .rarity-legendary { 
+      background: white;
+      border-color: #FF9800;
+      color: #FF9800;
+    }
     
     .collectible-reward-info {
       margin-bottom: 20px;

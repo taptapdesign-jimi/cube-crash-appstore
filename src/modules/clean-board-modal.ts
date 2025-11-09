@@ -4,6 +4,7 @@
 // Keep CSS-based pop-in like homepage slide 1
 
 import { createConfettiExplosion } from './confetti-system.js';
+import { statsService } from '../services/stats-service.ts';
 
 const HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
@@ -102,20 +103,41 @@ export async function showCleanBoardModal({
     const currentScore = Math.max(0, rawCurrent);
     const finalScore = Math.min(scoreCap, currentScore + safeBonus);
     
-    // Get previous best score from localStorage
+    // Get previous best score from centralized stats service (fallback to legacy storage)
     const getBestScore = (): number => {
       try {
-        const stored = localStorage.getItem('cc_best_score_v1');
-        if (stored) {
-          return parseInt(stored, 10) || 0;
+        if (statsService && typeof statsService.getStats === 'function') {
+          const stats = statsService.getStats();
+          const highScore = stats?.highScore;
+          if (Number.isFinite(highScore)) {
+            return highScore | 0;
+          }
         }
-      } catch (e) {
-        console.warn('Failed to read best score from localStorage:', e);
+      } catch (error) {
+        console.warn('⚠️ Failed to read high score from statsService:', error);
+      }
+      try {
+        const legacy = localStorage.getItem('cc_best_score_v1');
+        if (legacy) {
+          return parseInt(legacy, 10) || 0;
+        }
+      } catch (legacyError) {
+        console.warn('⚠️ Failed to read legacy high score key:', legacyError);
       }
       return 0;
     };
     const previousBestScore = getBestScore();
-    const isNewHighScore = finalScore > previousBestScore;
+    // 🔥 CRITICAL FIX: Check if CURRENT score (without bonus) is higher than previous best
+    // Bonus should not be included in high score check - it's added AFTER the check
+    const isNewHighScore = currentScore > previousBestScore;
+    
+    console.log('🏆 High score check:', {
+      currentScore,
+      previousBestScore,
+      finalScore,
+      bonus: safeBonus,
+      isNewHighScore
+    });
     
     const overlayId = 'cc-clean-board-overlay';
     const old = document.getElementById(overlayId);

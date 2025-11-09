@@ -418,13 +418,17 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
 
   // Check for wild cubes - they can merge with any other tile (including wild-magnet)
   const wildCubes = open.filter((t) => t.special === 'wild' || t.special === 'wild-magnet');
-  const nonWildTiles = open.filter((t) => t.special !== 'wild' && t.special !== 'wild-magnet');
+  const mergeableNonWildTiles = open.filter((t) => {
+    if (!t || t.special === 'wild' || t.special === 'wild-magnet') return false;
+    const value = (t.value | 0);
+    return value > 0 && value < 6; // merge6 cannot merge with wild/rescue
+  });
 
-  console.log('🔍 anyMergePossible: Wild cubes:', wildCubes.length, 'Non-wild tiles:', nonWildTiles.length);
+  console.log('🔍 anyMergePossible: Wild cubes:', wildCubes.length, 'Mergeable non-wild tiles:', mergeableNonWildTiles.length);
 
-  // If we have wild cubes and any non-wild tiles, we can always merge
-  if (wildCubes.length > 0 && nonWildTiles.length > 0) {
-    console.log('✅ anyMergePossible: Wild cubes + non-wild tiles = TRUE (can merge)');
+  // If we have wild cubes and any mergeable non-wild tiles, we can merge
+  if (wildCubes.length > 0 && mergeableNonWildTiles.length > 0) {
+    console.log('✅ anyMergePossible: Wild cubes + mergeable non-wild tiles = TRUE (can merge)');
     return true;
   }
 

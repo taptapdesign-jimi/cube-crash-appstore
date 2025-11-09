@@ -205,12 +205,14 @@ function stopTileAnimation(tile: Tile): void {
   }
   
   if (tile) {
-    // Reset scale and rotation to prevent merge conflicts
-    if (tile.scale) {
-      tile.scale.x = 1;
-      tile.scale.y = 1;
+    // Reset scale/rotation unless tile is being manipulated by another system (e.g., wild-magnet pull)
+    if (!((tile as any)._skipIdleScaleReset)) {
+      if (tile.scale) {
+        tile.scale.x = 1;
+        tile.scale.y = 1;
+      }
+      tile.rotation = 0;
     }
-    tile.rotation = 0;
   }
 }
 
