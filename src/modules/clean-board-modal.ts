@@ -127,9 +127,12 @@ export async function showCleanBoardModal({
       return 0;
     };
     const previousBestScore = getBestScore();
+    const highScoreJustUpdated = typeof statsService?.wasHighScoreJustUpdated === 'function'
+      ? statsService.wasHighScoreJustUpdated(currentScore)
+      : false;
     // 🔥 CRITICAL FIX: Check if CURRENT score (without bonus) is higher than previous best
     // Bonus should not be included in high score check - it's added AFTER the check
-    const isNewHighScore = currentScore > previousBestScore;
+    const isNewHighScore = currentScore > previousBestScore || highScoreJustUpdated;
     
     console.log('🏆 High score check:', {
       currentScore,

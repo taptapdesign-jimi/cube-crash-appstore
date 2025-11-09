@@ -25,6 +25,8 @@ class StatsService {
   };
 
   private listeners: Array<(stats: GameStats) => void> = [];
+  private lastHighScoreUpdateScore = 0;
+  private lastHighScoreUpdateAt = 0;
 
   constructor() {
     this.loadStats();
@@ -197,6 +199,8 @@ class StatsService {
     console.log(`🔍 updateHighScore called with score: ${score}, current high score: ${this.stats.highScore}`);
     if (score > this.stats.highScore) {
       console.log(`🏆 New high score! ${this.stats.highScore} -> ${score}`);
+      this.lastHighScoreUpdateScore = score;
+      this.lastHighScoreUpdateAt = Date.now();
       this.stats.highScore = score;
       this.saveStats();
       // CRITICAL: Force immediate flush to localStorage to prevent data loss on iOS
@@ -215,6 +219,15 @@ class StatsService {
     } else {
       console.log(`ℹ️ Score ${score} is not higher than current high score ${this.stats.highScore}`);
     }
+  }
+
+  // Did we bump the high score very recently (during this session)?
+  public wasHighScoreJustUpdated(expectedScore?: number, windowMs = 120000): boolean {
+    if (!this.lastHighScoreUpdateAt) return false;
+    if (typeof expectedScore === 'number' && expectedScore !== this.lastHighScoreUpdateScore) {
+      return false;
+    }
+    return (Date.now() - this.lastHighScoreUpdateAt) <= windowMs;
   }
 
   // Update highest board reached
