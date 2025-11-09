@@ -26,6 +26,7 @@ import { openEmpties } from './app-spawn.ts';
 import { clearWildState, handleWildMagnetMergedPulledTiles } from './app-merge.ts';
 import { statsService } from '../services/stats-service.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
+import { checkEndGame, needsEmergencyRescue, clearEndGameCache, type EndGameContext } from './endgame-checker.ts';
 
 // HUD functions from hud-helpers.js
 
@@ -523,7 +524,7 @@ export async function boot(){
       // NORMAL LOGIC: Regular merge rules
       if (!Number.isFinite(sv) || !Number.isFinite(dv)) return false;
       if (sv === dv) return true;         // allow stacking equal values (e.g., 3+3)
-      const canMerge = (sv + dv) <= 6;    // allow different values that sum to 6 (e.g., 4+2, 2+4)
+      const canMerge = (sv + dv) <= 6;    // allow different values that sum to 6 (e.g., 4+2, 2+4, 3+2=5)
       console.log('🔥 canDrop (app-core): Normal merge result:', canMerge);
       return canMerge;
     },
@@ -615,6 +616,7 @@ export async function boot(){
     resume: () => resumeGame(),
     restart: () => restart(),
     showCleanBoardOverlay: () => showCleanBoardOverlay(),
+    checkLevelEnd: () => checkLevelEnd(), // Export checkLevelEnd for use in app-merge.ts
   };
   window.testCleanAndPrize = () => window.CC.testCleanAndPrize();
 
@@ -1245,12 +1247,16 @@ function startLevel(n){
   }
   
   moves = MOVES_MAX;
-  busyEnding = false;
+  // 🔥 CRITICAL: Don't reset busyEnding here - let runEndgameFlow handle it in finally block
+  // busyEnding = false; // REMOVED - runEndgameFlow resets it in finally block
   hudResetCombo();
   console.log('🎯 startLevel updated - level:', level, 'boardNumber:', boardNumber, 'score preserved:', score);
   try { comboIdleTimer?.kill?.(); } catch {}
   wildMeter = 0;
   resetWildProgress(0, false);
+  
+  // Clear end game cache when starting new level
+  clearEndGameCache();
   
   // Start animation immediately - no delay
   rebuildBoard();
@@ -1662,6 +1668,62 @@ function merge(src, dst, helpers){
       onComplete: async () => {
         removeTile(src);
         dst.eventMode = 'static';
+        
+        // 🔥 CRITICAL: Check if game is stuck IMMEDIATELY after regular merge
+        // This catches cases where merge leaves unmergable tiles (e.g., 3+2=5, leaving only tile with value 5)
+        // IMPORTANT: This check happens AFTER removeTile(src), so if only dst tile remains, activeTiles.length will be 1
+        if (!busyEnding) {
+          // Add small delay to ensure removeTile has completed and tiles array is updated
+          await new Promise(resolve => setTimeout(resolve, 50));
+          
+          // 🔥 CRITICAL: Verify dst tile state before checking
+          const activeTilesBeforeCheck = tiles.filter(t => t && !t.locked && (t.value|0) > 0);
+          const dstInTiles = tiles.includes(dst);
+          const dstIsActive = dst && !dst.locked && (dst.value|0) > 0;
+          
+          console.log('🔍 Post-merge stuck check - DETAILED STATE:', {
+            totalTiles: tiles.length,
+            activeTilesCount: activeTilesBeforeCheck.length,
+            activeTiles: activeTilesBeforeCheck.map(t => ({ 
+              value: t.value, 
+              special: t.special, 
+              locked: t.locked,
+              isDst: t === dst 
+            })),
+            dstValue: dst.value,
+            dstLocked: dst.locked,
+            dstInTiles: dstInTiles,
+            dstIsActive: dstIsActive,
+            effSum: effSum
+          });
+          
+          // 🔥 CRITICAL: Clear cache right before check to ensure fresh data
+          clearEndGameCache();
+          
+          const stuckCheckContext: EndGameContext = {
+            tiles,
+            moves,
+            makeBoard
+          };
+          // Force refresh because tile was just removed
+          const stuckCheckResult = checkEndGame(stuckCheckContext, true);
+          
+          console.log('🔍 Post-merge stuck check - RESULT:', {
+            resultType: stuckCheckResult.type,
+            resultReason: stuckCheckResult.reason,
+            activeTilesCount: activeTilesBeforeCheck.length
+          });
+          
+          if (stuckCheckResult.type === 'stuck') {
+            console.log('🚨🚨🚨 GAME STUCK after regular merge - showing fail screen immediately');
+            if (!busyEnding) {
+              busyEnding = true; // Set flag BEFORE calling showFinalScreen
+              showFinalScreen();
+            }
+            return;
+          }
+        }
+        
         if (wildActive) {
           try {
             screenShake(app, {
@@ -1709,6 +1771,175 @@ function merge(src, dst, helpers){
     const srcSpecial = src?.special;
     const dstSpecial = dst?.special;
     
+    // 🔥 CRITICAL: Check if this is the last merge BEFORE starting merge 6 animation
+    // This covers ALL scenarios where merge 6 is made from ALL remaining tiles:
+    // - 2 tiles (stacked or not) that can merge = merge 6
+    // - 3+ tiles (all stacked, e.g. 1+1+1+1+1+1) that can merge = merge 6
+    // - Any combination where ALL active tiles are involved in this merge 6
+    // - last tile + wild = merge 6
+    // - wild + last tile(s) = merge 6
+    
+    // 🔥 CRITICAL: Include wild tiles even if they have value 0
+    // Wild tiles should be counted as active tiles for last merge detection
+    const activeTilesBeforeMerge = tiles.filter(t => {
+      if (!t || t.locked) return false;
+      const isWild = t.special === 'wild' || t.special === 'wild-magnet';
+      const hasValue = (t.value|0) > 0;
+      return isWild || hasValue; // Include if wild OR has value > 0
+    });
+    const activeTilesCount = activeTilesBeforeMerge.length;
+    
+    // 🔥 CRITICAL: Check if this is a wild-magnet merge that will pull other tiles
+    // If wild-magnet will pull tiles, it's NOT a last merge (unless there are no tiles to pull)
+    const isWildMagnetMerge = (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet');
+    let hasTilesToPull = false;
+    if (isWildMagnetMerge) {
+      // Check if there are other tiles that can be pulled (same logic as findNearestTiles)
+      const targetTile = srcSpecial === 'wild-magnet' ? src : dst;
+      const candidates = tiles.filter((t: any) => {
+        if (!t || t.destroyed) return false;
+        if (t.locked) return false;
+        if ((t.value | 0) <= 0) return false;
+        if (t === targetTile) return false;
+        if (t === src || t === dst) return false; // Don't count the merging tiles
+        if (t.special === 'wild-magnet') return false; // Don't attract other wild-magnets
+        return true;
+      });
+      hasTilesToPull = candidates.length > 0;
+      console.log('🧲 Wild-magnet merge detected - tiles that can be pulled:', candidates.length, hasTilesToPull ? '(will pull tiles, NOT last merge)' : '(no tiles to pull, might be last merge)');
+    }
+    
+    // Calculate how many tiles are involved in this merge (including stacked tiles)
+    const srcDepth = src.stackDepth || 1;
+    const dstDepth = dst.stackDepth || 1;
+    const combinedCount = srcDepth + dstDepth; // Total tiles involved in merge (including stacked)
+    
+    // 🔥 CRITICAL: If ALL active tiles on board are involved in this merge, it's the last merge
+    // This works for ANY number of tiles: 2, 3, 4, 5, 6... as long as they're all involved
+    
+    // 🔥 ENHANCED LOGGING: Log all details for debugging
+    console.log('🔍 LAST MERGE CHECK (BEFORE merge 6):', {
+      activeTilesCount,
+      combinedCount,
+      srcValue: src.value,
+      dstValue: dst.value,
+      srcSpecial: srcSpecial,
+      dstSpecial: dstSpecial,
+      srcInActiveTiles: activeTilesBeforeMerge.includes(src),
+      dstInActiveTiles: activeTilesBeforeMerge.includes(dst),
+      isWildMagnetMerge,
+      hasTilesToPull,
+      activeTilesDetails: activeTilesBeforeMerge.map(t => ({ 
+        value: t.value, 
+        special: t.special, 
+        locked: t.locked,
+        isSrc: t === src,
+        isDst: t === dst
+      }))
+    });
+    
+    const allTilesInvolved = combinedCount >= activeTilesCount && 
+                              activeTilesBeforeMerge.includes(src) && 
+                              activeTilesBeforeMerge.includes(dst);
+    
+    // 🔥 CRITICAL: Special case for wild + regular merge when only 2 tiles exist
+    // This is the MOST COMMON last merge scenario: wild + last regular tile = merge 6
+    // BUT: Exclude wild-magnet merges that will pull other tiles
+    // 🔥 ENHANCED: Separate check for regular wild (not wild-magnet) when only 2 tiles exist
+    // 🔥 ENHANCED: More explicit check - ensure exactly one is wild and one is regular
+    const oneIsRegularWild = (srcSpecial === 'wild' || dstSpecial === 'wild');
+    const neitherIsWildMagnet = !(srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet');
+    const exactlyTwoActiveTiles = activeTilesCount === 2;
+    const bothTilesInActiveList = activeTilesBeforeMerge.includes(src) && activeTilesBeforeMerge.includes(dst);
+    const isRegularWildLastTwo = oneIsRegularWild && 
+                                 neitherIsWildMagnet &&
+                                 exactlyTwoActiveTiles &&
+                                 bothTilesInActiveList;
+    
+    // 🔥 ENHANCED LOGGING: Log detailed breakdown for debugging
+    if (oneIsRegularWild && neitherIsWildMagnet) {
+      console.log('🔍 REGULAR WILD LAST TWO CHECK:', {
+        oneIsRegularWild,
+        neitherIsWildMagnet,
+        exactlyTwoActiveTiles,
+        bothTilesInActiveList,
+        activeTilesCount,
+        srcSpecial,
+        dstSpecial,
+        srcInActive: activeTilesBeforeMerge.includes(src),
+        dstInActive: activeTilesBeforeMerge.includes(dst),
+        activeTilesDetails: activeTilesBeforeMerge.map(t => ({ 
+          value: t.value, 
+          special: t.special, 
+          isSrc: t === src,
+          isDst: t === dst
+        })),
+        isRegularWildLastTwo
+      });
+    }
+    const isWildRegularLastTwo = (srcSpecial === 'wild' || srcSpecial === 'wild-magnet' || dstSpecial === 'wild' || dstSpecial === 'wild-magnet') &&
+                                 activeTilesCount === 2 &&
+                                 activeTilesBeforeMerge.includes(src) &&
+                                 activeTilesBeforeMerge.includes(dst) &&
+                                 !(isWildMagnetMerge && hasTilesToPull); // 🔥 CRITICAL: Exclude if wild-magnet will pull tiles
+    
+    // Check if one is wild and the other is the last regular tile(s)
+    // BUT: Exclude wild-magnet merges that will pull other tiles
+    const isWildLastTileMerge = (srcSpecial === 'wild' || srcSpecial === 'wild-magnet' || dstSpecial === 'wild' || dstSpecial === 'wild-magnet') &&
+                                 allTilesInvolved &&
+                                 !(isWildMagnetMerge && hasTilesToPull); // 🔥 CRITICAL: Exclude if wild-magnet will pull tiles
+    
+    // Check if these tiles can merge together to form merge 6
+    // Since we're in the effSum === 6 block, the merge WILL result in a merge 6
+    // So if all tiles are involved, this is the last merge
+    // - Wild merge always creates merge 6
+    // - Regular merge: sum must equal 6 OR all tiles are involved (stacked tiles can combine to 6)
+    const canMergeTogether = wildActive || 
+                             (src.value|0) + (dst.value|0) === 6 ||
+                             (allTilesInvolved && (src.value|0) + (dst.value|0) <= 6); // If all tiles involved, they can merge to 6
+    
+    const isLastMergeableTiles = allTilesInvolved && canMergeTogether;
+    
+    // 🔥 CRITICAL: Check if this is last merge (wild + regular = last 2 tiles)
+    // 🔥 ENHANCED: Prioritize regular wild last two check (most common scenario)
+    if (isRegularWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge) {
+      console.log('🚨🚨🚨 LAST MERGE DETECTED (BEFORE merge 6 animation) - ALL', activeTilesCount, 'tiles are involved in merge 6');
+      console.log('🚨🚨🚨 Last merge details:', {
+        activeTilesCount,
+        combinedCount,
+        allTilesInvolved,
+        canMergeTogether,
+        isWildLastTileMerge,
+        isWildRegularLastTwo,
+        isRegularWildLastTwo, // 🔥 NEW: Regular wild last two check
+        isWildMagnetMerge,
+        hasTilesToPull,
+        srcValue: src.value,
+        dstValue: dst.value,
+        srcSpecial: srcSpecial,
+        dstSpecial: dstSpecial
+      });
+      
+      // Set busyEnding flag IMMEDIATELY to prevent any other code from running
+      busyEnding = true;
+      
+      // Continue with merge 6 animation, but mark that this is the last merge
+      // We'll handle clean board flow in the onComplete callback
+      (dst as any)._isLastMerge = true;
+      console.log('✅ _isLastMerge flag set to TRUE on dst tile');
+    } else {
+      console.log('❌ NOT last merge:', {
+        activeTilesCount,
+        combinedCount,
+        allTilesInvolved,
+        canMergeTogether,
+        isWildLastTileMerge,
+        isWildRegularLastTwo,
+        isWildMagnetMerge,
+        hasTilesToPull
+      });
+    }
+    
     // Haptic feedback for merge 6
     if (typeof (window as any).triggerHapticImpact === 'function') {
       if (wildActive) {
@@ -1723,7 +1954,8 @@ function merge(src, dst, helpers){
       }
     }
     
-    const combinedCount = (src.stackDepth || 1) + (dst.stackDepth || 1);
+    // Use combinedCount calculated earlier (for last merge check)
+    // combinedCount is already calculated above: srcDepth + dstDepth
     const visualDepth   = Math.min(4, combinedCount);
 
     makeBoard.setValue(dst, 6, 0);
@@ -1807,6 +2039,8 @@ function merge(src, dst, helpers){
           if (!tiles.includes(tile)) {
             console.warn('⚠️ Pulled tile not in tiles array, adding it back');
             tiles.push(tile);
+            // Clear end game cache when tile is added
+            clearEndGameCache();
           }
           if (!STATE.tiles.includes(tile)) {
             console.warn('⚠️ Pulled tile not in STATE.tiles array, adding it back');
@@ -1840,27 +2074,32 @@ function merge(src, dst, helpers){
               // NOTE: For pulled tiles merge, dst might be removed already (merge 6 tile), so we check differently
               const validTiles = nearestTiles.filter((t: any) => t && !t.destroyed);
               if (validTiles.length >= 1) { // Changed: need at least 1 tile (can be less than 4)
+                // 🔥 CRITICAL: Mark that pulled tiles merge is happening - skip normal spawn AND scoring
+                // Set flag on dst BEFORE calling handleWildMagnetMergedPulledTiles
+                // This ensures the flag is checked in onComplete callback
+                if (dst && !dst.destroyed) {
+                  (dst as any)._wildMagnetPulledTilesMerge = true;
+                  (dst as any)._wildMagnetPulledTilesScoring = true; // Flag to skip scoring in main merge 6 flow
+                }
+                
                 // 🔥 CRITICAL: Add merge function to helpers so handleWildMagnetMergedPulledTiles can use it
                 const helpersWithMerge = {
                   ...helpers,
-                  merge: merge // Add merge function from app-core.ts to helpers
+                  merge: merge, // Add merge function from app-core.ts to helpers
+                  startLevel: startLevel // Add startLevel function to helpers for clean board flow
                 };
                 
                 // Use dst if still valid, otherwise use merge location from first tile
                 const mergeLocation = dst && !dst.destroyed ? dst : { x: validTiles[0].x, y: validTiles[0].y };
                 
-                // 🔥 CRITICAL: Mark that pulled tiles merge is happening - skip normal spawn AND scoring
-                // Scoring will be handled in mergePulledTilesIntoMerge6
-                (mergeLocation as any)._wildMagnetPulledTilesMerge = true;
-                (mergeLocation as any)._wildMagnetPulledTilesScoring = true; // Flag to skip scoring in main merge 6 flow
-                
                 console.log('🧲 Calling handleWildMagnetMergedPulledTiles with', validTiles.length, 'valid tiles');
                 await handleWildMagnetMergedPulledTiles(mergeLocation, validTiles, helpersWithMerge);
                 console.log('✅ Pulled tiles merge completed - merge 6 created with 4x multiplier');
                 
-                // Clean up flags after pulled tiles merge completes
-                (mergeLocation as any)._wildMagnetPulledTilesMerge = undefined;
-                (mergeLocation as any)._wildMagnetPulledTilesScoring = undefined;
+                // 🔥 CRITICAL: DON'T clean up flags immediately - they need to stay until onComplete callback checks them
+                // The flags will be cleaned up in the onComplete callback after spawn completes
+                // (mergeLocation as any)._wildMagnetPulledTilesMerge = undefined;
+                // (mergeLocation as any)._wildMagnetPulledTilesScoring = undefined;
               } else {
                 console.warn('⚠️ Not enough valid pulled tiles to merge (need at least 1, got', validTiles.length, ')');
               }
@@ -2042,6 +2281,23 @@ function merge(src, dst, helpers){
       }
     }
 
+    // 🔥 CRITICAL: Check if this is a last merge BEFORE starting animation
+    // If _isLastMerge is set, we need to skip all FX and spawn logic and only handle clean board flow
+    const isLastMergeScenario = (dst as any)?._isLastMerge === true;
+    
+    if (isLastMergeScenario) {
+      console.log('🚨🚨🚨 LAST MERGE DETECTED (before animation) - Skipping FX and spawn, will trigger clean board flow after animation');
+      console.log('🚨🚨🚨 Last merge details:', {
+        srcValue: src.value,
+        dstValue: dst.value,
+        srcSpecial: srcSpecial,
+        dstSpecial: dstSpecial,
+        _isLastMerge: (dst as any)?._isLastMerge
+      });
+      // Set busyEnding immediately to prevent any other code from running
+      busyEnding = true;
+    }
+
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
       onComplete: async () => {
@@ -2049,6 +2305,201 @@ function merge(src, dst, helpers){
         // Koristimo ih iz closure-a, ne snimamo ih ponovo (jer bi mogli biti već promijenjeni)
 
         removeTile(src);
+        
+        // 🔥 CRITICAL: Check if this was marked as last merge BEFORE animation started
+        // 🔥 ENHANCED: Double-check _isLastMerge flag and verify dst still exists
+        const isLastMergeInOnComplete = (dst as any)?._isLastMerge === true;
+        const dstStillExists = dst && !dst.destroyed && STATE.tiles.includes(dst);
+        
+        console.log('🔍 LAST MERGE CHECK in onComplete:', {
+          isLastMergeInOnComplete,
+          dstStillExists,
+          dstValue: dst?.value,
+          dstSpecial: dst?.special,
+          busyEnding
+        });
+        
+        if (isLastMergeInOnComplete && dstStillExists) {
+          console.log('🚨🚨🚨 LAST MERGE DETECTED (_isLastMerge flag) - Only 2 tiles merged to merge 6, triggering clean board flow');
+          
+          // Set busyEnding flag IMMEDIATELY to prevent any other code from running
+          busyEnding = true;
+          
+          // Remove dst tile (merge 6) to make board clean
+          if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+            grid[dst.gridY][dst.gridX] = null;
+            dst.visible = false;
+            removeTile(dst);
+          }
+          
+          // CRITICAL: Reset wild meter immediately to prevent visual residue
+          console.log('🔥 LAST MERGE: Resetting wild meter immediately...');
+          wildMeter = 0;
+          STATE.wildMeter = 0;
+          resetWildProgress(0, false);
+          
+          // Force immediate HUD update to clear wild meter visually
+          try {
+            if (typeof HUD.resetWildMeter === 'function') {
+              HUD.resetWildMeter(true); // instant = true for immediate reset
+            } else {
+              HUD.updateProgressBar?.(0, false);
+            }
+            console.log('✅ LAST MERGE: Wild meter reset completed');
+          } catch (error) {
+            console.warn('⚠️ LAST MERGE: Failed to reset wild meter:', error);
+          }
+          
+          try {
+            try { await new Promise(res => setTimeout(res, 1000)); } catch {}
+            await runEndgameFlow({
+              app,
+              stage,
+              board,
+              boardBG,
+              level,
+              startLevel,
+              score,
+              getScore: () => score,
+              setScore: (v) => { score = v|0; updateHUD(); },
+              animateScore,
+              updateHUD,
+              boardNumber,
+              hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+              showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+            });
+          } finally {
+            busyEnding = false;
+          }
+          
+          // 🔥 CRITICAL: Return IMMEDIATELY to prevent any further code execution
+          console.log('✅ LAST MERGE: Clean board flow triggered, exiting onComplete callback');
+          return; // Exit early - don't continue with normal merge 6 flow
+        } else if (isLastMergeInOnComplete && !dstStillExists) {
+          console.warn('⚠️ LAST MERGE: _isLastMerge flag is set but dst tile no longer exists - this should not happen');
+          // If dst was already removed, we still need to trigger clean board flow
+          busyEnding = true;
+          try {
+            try { await new Promise(res => setTimeout(res, 1000)); } catch {}
+            await runEndgameFlow({
+              app,
+              stage,
+              board,
+              boardBG,
+              level,
+              startLevel,
+              score,
+              getScore: () => score,
+              setScore: (v) => { score = v|0; updateHUD(); },
+              animateScore,
+              updateHUD,
+              boardNumber,
+              hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+              showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+            });
+          } finally {
+            busyEnding = false;
+          }
+          return; // Exit early
+        }
+        
+        // 🔥 CRITICAL: Skip endgame check if this is a wild-magnet merge that will pull tiles
+        // OR if this is a regular wild merge that is NOT the last merge
+        // Wild-magnet merges that pull tiles should NOT trigger endgame checks until AFTER the pulled tiles merge
+        // Regular wild merges mid-game should NOT trigger endgame checks unless they're truly the last merge
+        const isWildMagnetMergeWithPull = (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet') && 
+                                          (dst as any)?._wildMagnetMergeCallback;
+        const isRegularWildMerge = (srcSpecial === 'wild' || dstSpecial === 'wild') && 
+                                   !(srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet');
+        const isNotLastMerge = !(dst as any)?._isLastMerge;
+        
+        if (isWildMagnetMergeWithPull) {
+          console.log('🧲 Wild-magnet merge with pull detected - skipping endgame check until pulled tiles merge completes');
+        } else if (isRegularWildMerge && isNotLastMerge) {
+          console.log('⭐ Regular wild merge mid-game detected (NOT last merge) - skipping endgame check to prevent false fail screen');
+        } else {
+          // 🔥 CRITICAL: Use centralized end game checker
+          // Check if this was the last merge AFTER removing src tile
+          const lastMergeContext: EndGameContext = {
+            tiles,
+            moves,
+            makeBoard,
+            srcTile: src,
+            dstTile: dst,
+            justRemovedSrc: true
+          };
+          
+          // Force refresh because src tile was just removed
+          const lastMergeResult = checkEndGame(lastMergeContext, true);
+        
+          if (lastMergeResult.type === 'clean' && lastMergeResult.reason === 'last_merge') {
+            console.log('🚨🚨🚨 LAST MERGE DETECTED (centralized checker) - Only merge 6 remains after removing src, triggering clean board flow');
+            
+            // Set busyEnding flag IMMEDIATELY to prevent any other code from running
+            busyEnding = true;
+            
+            // Remove dst tile (merge 6) to make board clean
+            if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+              grid[dst.gridY][dst.gridX] = null;
+              dst.visible = false;
+              removeTile(dst);
+            }
+            
+            // CRITICAL: Reset wild meter immediately to prevent visual residue
+            console.log('🔥 LAST MERGE: Resetting wild meter immediately...');
+            wildMeter = 0;
+            STATE.wildMeter = 0;
+            resetWildProgress(0, false);
+            
+            // Force immediate HUD update to clear wild meter visually
+            try {
+              if (typeof HUD.resetWildMeter === 'function') {
+                HUD.resetWildMeter(true); // instant = true for immediate reset
+              } else {
+                HUD.updateProgressBar?.(0, false);
+              }
+              console.log('✅ LAST MERGE: Wild meter reset completed');
+            } catch (error) {
+              console.warn('⚠️ LAST MERGE: Failed to reset wild meter:', error);
+            }
+            
+            try {
+              try { await new Promise(res => setTimeout(res, 1000)); } catch {}
+              await runEndgameFlow({
+                app,
+                stage,
+                board,
+                boardBG,
+                level,
+                startLevel,
+                score,
+                getScore: () => score,
+                setScore: (v) => { score = v|0; updateHUD(); },
+                animateScore,
+                updateHUD,
+                boardNumber,
+                hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+              });
+            } finally {
+              busyEnding = false;
+            }
+            return; // Exit early - don't continue with normal merge 6 flow
+          }
+        }
+        
+        // 🔥 CRITICAL: If this is a last merge scenario, skip all FX and spawn logic
+        // The clean board flow will be handled in the onComplete callback above
+        if (isLastMergeScenario) {
+          console.log('🚨🚨🚨 LAST MERGE: Skipping all FX and spawn logic - clean board flow will be triggered');
+          return; // Exit early - don't continue with normal merge 6 flow
+        }
+        
+        // If busyEnding was set by another process, exit early
+        if (busyEnding) {
+          console.log('⏳ Last merge check skipped - busyEnding is true');
+          return;
+        }
 
         // Combo++ + bump (merge 6 hits maximum balloon)
         hudSetCombo(combo + 1);
@@ -2198,17 +2649,169 @@ function merge(src, dst, helpers){
         // CRITICAL: Store grid position BEFORE any checks
         const gx = dst.gridX, gy = dst.gridY;
         
+        // 🔥 CRITICAL: Use centralized end game checker BEFORE removing dst
+        // This is a safety check to catch cases where the earlier check might have missed it
+        // BUT: Skip if this is a wild-magnet merge that will pull tiles OR a regular wild merge that is NOT the last merge
+        const isWildMagnetMergeWithPullBeforeDst = (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet') && 
+                                                    (dst as any)?._wildMagnetMergeCallback;
+        const isRegularWildMergeBeforeDst = (srcSpecial === 'wild' || dstSpecial === 'wild') && 
+                                            !(srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet');
+        const isNotLastMergeBeforeDst = !(dst as any)?._isLastMerge;
+        
+        if (!busyEnding && !isWildMagnetMergeWithPullBeforeDst && !(isRegularWildMergeBeforeDst && isNotLastMergeBeforeDst)) {
+          const beforeDstRemovalContext: EndGameContext = {
+            tiles,
+            moves,
+            makeBoard,
+            dstTile: dst,
+            justRemovedSrc: false
+          };
+          
+          // Force refresh for critical check before dst removal
+          const beforeDstRemovalResult = checkEndGame(beforeDstRemovalContext, true);
+          
+          // Use centralized checker result - it handles all last merge scenarios
+          if (beforeDstRemovalResult.type === 'clean' && beforeDstRemovalResult.reason === 'last_merge') {
+            console.log('🚨🚨🚨 LAST MERGE DETECTED (before dst removal, centralized checker) - Only merge 6 remains, triggering clean board flow');
+            
+            // Set busyEnding flag IMMEDIATELY to prevent any other code from running
+            busyEnding = true;
+            
+            // Remove dst tile (merge 6) to make board clean
+            if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+              grid[gy][gx] = null;
+              dst.visible = false;
+              removeTile(dst);
+            }
+            
+            // CRITICAL: Reset wild meter immediately to prevent visual residue
+            console.log('🔥 LAST MERGE: Resetting wild meter immediately...');
+            wildMeter = 0;
+            STATE.wildMeter = 0;
+            resetWildProgress(0, false);
+            
+            // Force immediate HUD update to clear wild meter visually
+            try {
+              if (typeof HUD.resetWildMeter === 'function') {
+                HUD.resetWildMeter(true); // instant = true for immediate reset
+              } else {
+                HUD.updateProgressBar?.(0, false);
+              }
+              console.log('✅ LAST MERGE: Wild meter reset completed');
+            } catch (error) {
+              console.warn('⚠️ LAST MERGE: Failed to reset wild meter:', error);
+            }
+            
+            try {
+              try { await new Promise(res => setTimeout(res, 1000)); } catch {}
+              await runEndgameFlow({
+                app,
+                stage,
+                board,
+                boardBG,
+                level,
+                startLevel,
+                score,
+                getScore: () => score,
+                setScore: (v) => { score = v|0; updateHUD(); },
+                animateScore,
+                updateHUD,
+                boardNumber,
+                hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+              });
+            } finally {
+              busyEnding = false;
+            }
+            return; // Exit early - don't continue with normal merge 6 flow
+          }
+        } else {
+          if (busyEnding) {
+            console.log('⏳ Last merge check (before dst removal) skipped - busyEnding is true');
+          } else if (isWildMagnetMergeWithPullBeforeDst) {
+            console.log('🧲 Last merge check (before dst removal) skipped - wild-magnet merge will pull tiles');
+          } else if (isRegularWildMergeBeforeDst && isNotLastMergeBeforeDst) {
+            console.log('⭐ Last merge check (before dst removal) skipped - regular wild merge mid-game (NOT last merge)');
+          }
+          // Don't return here - continue with normal merge 6 flow for wild-magnet and regular wild merges
+        }
+        
         // Remove destination tile (merge 6 creates new tile, so remove old one)
         if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-        grid[gy][gx] = null;
-        dst.visible = false;
-        removeTile(dst);
+          grid[gy][gx] = null;
+          dst.visible = false;
+          removeTile(dst);
+          
+          // 🔥 CRITICAL: Check if board is clean IMMEDIATELY after removing dst tile
+          // This catches cases where merge 6 was made from last 2-3 tiles
+          const immediateCleanCheckContext: EndGameContext = {
+            tiles,
+            moves,
+            makeBoard
+          };
+          // Force refresh because dst tile was just removed
+          const immediateCleanCheckResult = checkEndGame(immediateCleanCheckContext, true);
+          
+          if (immediateCleanCheckResult.type === 'clean') {
+            console.log('🚨🚨🚨 BOARD IS CLEAN immediately after removing dst (merge 6) - triggering clean board flow');
+            busyEnding = true;
+            
+            // CRITICAL: Reset wild meter immediately to prevent visual residue
+            console.log('🔥 CLEAN BOARD: Resetting wild meter immediately...');
+            wildMeter = 0;
+            STATE.wildMeter = 0;
+            resetWildProgress(0, false);
+            
+            // Force immediate HUD update to clear wild meter visually
+            try {
+              if (typeof HUD.resetWildMeter === 'function') {
+                HUD.resetWildMeter(true); // instant = true for immediate reset
+              } else {
+                HUD.updateProgressBar?.(0, false);
+              }
+              console.log('✅ CLEAN BOARD: Wild meter reset completed');
+            } catch (error) {
+              console.warn('⚠️ CLEAN BOARD: Failed to reset wild meter:', error);
+            }
+            
+            try {
+              try { await new Promise(res => setTimeout(res, 1000)); } catch {}
+              await runEndgameFlow({
+                app,
+                stage,
+                board,
+                boardBG,
+                level,
+                startLevel,
+                score,
+                getScore: () => score,
+                setScore: (v) => { score = v|0; updateHUD(); },
+                animateScore,
+                updateHUD,
+                boardNumber,
+                hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+              });
+            } finally {
+              busyEnding = false;
+            }
+            return; // Exit early - don't continue with normal merge 6 flow
+          }
 
-          // Create holder after removing tile
-        const willBeClean = isBoardClean();
-        if (!willBeClean){
-          const holder = makeBoard.createTile({ board, grid, tiles, c: gx, r: gy, val: 0, locked: true });
-          holder.alpha = 0.35; holder.eventMode = 'none';
+          // Create holder after removing tile (only if board is not clean)
+          // Use centralized end game checker instead of isBoardClean()
+          const holderContext: EndGameContext = {
+            tiles,
+            moves,
+            makeBoard
+          };
+          // Force refresh because dst tile was just removed
+          const holderResult = checkEndGame(holderContext, true);
+          const willBeClean = holderResult.type === 'clean';
+          
+          if (!willBeClean){
+            const holder = makeBoard.createTile({ board, grid, tiles, c: gx, r: gy, val: 0, locked: true });
+            holder.alpha = 0.35; holder.eventMode = 'none';
           }
         } else {
           console.warn('⚠️ Destination tile is invalid or already destroyed - skipping removal');
@@ -2261,8 +2864,31 @@ function merge(src, dst, helpers){
         // Ghost placeholders are now fixed and always visible
 
         // ► CLEAN BOARD flow (centralized orchestrator)
-        console.log('🔥 Checking if board is clean after merge...');
-        if (isBoardClean()){
+        // 🔥 CRITICAL: Skip end game check if pulled tiles merge is happening
+        // The check will be done AFTER pulled tiles merge completes and spawns new tiles
+        if ((dst as any)?._wildMagnetPulledTilesMerge) {
+          console.log('🧲 Skipping end game check - pulled tiles merge in progress, will check after spawn completes');
+          // Don't check end game here - it will be checked after pulled tiles merge completes
+          // The pulled tiles merge handler will spawn new tiles and then check end game
+          return;
+        }
+        
+        // Use centralized end game checker
+        // 🔥 CRITICAL: Check AFTER dst removal - if only merge 6 remained, it's now clean board
+        console.log('🔥 Checking end game conditions after merge 6 (after dst removal)...');
+        
+        const afterMergeContext: EndGameContext = {
+          tiles,
+          moves,
+          makeBoard
+        };
+        
+        // Force refresh because dst tile was just removed
+        const afterMergeResult = checkEndGame(afterMergeContext, true);
+        
+        // 🔥 CRITICAL: If board is clean OR last merge, trigger clean board flow
+        // This handles cases where merge 6 was made from last 2-3 tiles
+        if (afterMergeResult.type === 'clean') {
           console.log('🚨🚨🚨 BOARD IS CLEAN - STARTING ENDGAME FLOW! 🚨🚨🚨');
           
           // SUCCESS haptic for clean board
@@ -2313,9 +2939,36 @@ function merge(src, dst, helpers){
           }
           return;
         }
-
+        
+        // 🔥 CRITICAL: Only show fail screen if game is stuck AND board is NOT clean
+        // If board is clean, we already handled it above
+        if (afterMergeResult.type === 'stuck') {
+          console.log('🚨🚨🚨 GAME STUCK - showing fail screen');
+          if (!busyEnding) {
+            showFinalScreen();
+          }
+          return;
+        }
+        
+        // Game continues - check moves and proceed with spawn
         if (moves === 0) {
-          checkMovesDepleted();
+          // Use centralized checker for moves depleted scenario
+          const movesDepletedContext: EndGameContext = {
+            tiles,
+            moves: 0,
+            makeBoard
+          };
+          
+          // 🔥 CRITICAL: Use forceRefresh for moves depleted check
+          const movesDepletedResult = checkEndGame(movesDepletedContext, true);
+          
+          if (movesDepletedResult.type === 'stuck') {
+            console.log('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
+            if (!busyEnding) {
+              showFinalScreen();
+            }
+            return;
+          }
         }
 
         addWildProgress(WILD_INC_BIG);
@@ -2326,67 +2979,231 @@ function merge(src, dst, helpers){
         // Pulled tiles merge already spawns 4 new tiles in mergePulledTilesIntoMerge6
         if ((dst as any)?._wildMagnetPulledTilesMerge) {
           console.log('🧲 Skipping normal spawn - pulled tiles merge already spawned 4 new tiles');
-          // Clean up flag AFTER checking (don't clean too early)
-          // The flag will be cleaned up in the pulled tiles merge handler
+          // 🔥 CRITICAL: Clean up flags AFTER checking (they were set before handleWildMagnetMergedPulledTiles)
+          // The pulled tiles merge handler has already spawned new tiles and will check end game
+          (dst as any)._wildMagnetPulledTilesMerge = undefined;
+          (dst as any)._wildMagnetPulledTilesScoring = undefined;
           return;
         }
         
-        // 🔥 CRITICAL: Check if this was the last merge (only 2 tiles left before merge)
-        // If only wild + one regular tile remained, and we merged them, skip spawn and trigger clean board
-        const activeTilesAfterMerge = tiles.filter(t => t && !t.locked && (t.value|0) > 0);
-        console.log('🎯 Active tiles after merge:', activeTilesAfterMerge.length, 'tiles:', activeTilesAfterMerge.map(t => ({ value: t.value, special: t.special })));
+        // 🔥 CRITICAL: Last merge checks are handled earlier (after src removal and before dst removal)
+        // If we reach here, it means it's NOT a last merge scenario, so proceed with normal spawn
         
-        // If only 1 tile remains (the merge 6 we just created) AND this was a wild merge, this was the last merge
-        // Skip spawn and trigger clean board flow
-        if (activeTilesAfterMerge.length === 1 && activeTilesAfterMerge[0] === dst && wasWild) {
-          console.log('🚨🚨🚨 LAST MERGE DETECTED - Only 1 tile remains (merge 6) after wild merge, skipping spawn and triggering clean board flow');
+        // 🔥 SAFEGUARD: Double-check _isLastMerge flag before spawning
+        // 🔥 ENHANCED: Also check active tiles count to catch edge cases
+        const activeTilesBeforeSpawn = tiles.filter(t => t && !t.locked && (t.value|0) > 0);
+        const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
+        const onlyMerge6Remains = activeTilesBeforeSpawn.length === 1 && activeTilesBeforeSpawn[0] === dst && dst.value === 6;
+        
+        console.log('🔍 PRE-SPAWN CHECK:', {
+          isLastMergeFlagSet,
+          onlyMerge6Remains,
+          activeTilesCount: activeTilesBeforeSpawn.length,
+          dstValue: dst.value,
+          dstInTiles: tiles.includes(dst),
+          activeTilesDetails: activeTilesBeforeSpawn.map(t => ({ 
+            value: t.value, 
+            special: t.special, 
+            isDst: t === dst 
+          }))
+        });
+        
+        if (isLastMergeFlagSet || onlyMerge6Remains) {
+          console.log('🚨🚨🚨 SAFEGUARD: _isLastMerge flag detected OR only merge 6 remains - preventing spawn');
+          console.log('🚨🚨🚨 Reason:', isLastMergeFlagSet ? '_isLastMerge flag is TRUE' : 'Only merge 6 remains on board');
           
-          // Remove the last tile (merge 6) to make board clean
-          removeTile(dst);
-          
-          // Trigger clean board flow
-          busyEnding = true;
-          
-          // CRITICAL: Reset wild meter immediately to prevent visual residue
-          console.log('🔥 LAST MERGE: Resetting wild meter immediately...');
-          wildMeter = 0;
-          STATE.wildMeter = 0;
-          resetWildProgress(0, false);
-          
-          // Force immediate HUD update to clear wild meter visually
-          try {
-            if (typeof HUD.resetWildMeter === 'function') {
-              HUD.resetWildMeter(true); // instant = true for immediate reset
-            } else {
-              HUD.updateProgressBar?.(0, false);
+          // 🔥 CRITICAL: If _isLastMerge flag is set, we should have already handled clean board flow
+          // But if we reach here, it means the flag was set but clean board flow wasn't triggered
+          // This can happen if the onComplete callback didn't run or was skipped
+          // So we need to trigger clean board flow here as a safeguard
+          if (isLastMergeFlagSet) {
+            console.log('🚨🚨🚨 _isLastMerge flag is TRUE but we reached pre-spawn check - triggering clean board flow as safeguard');
+            busyEnding = true;
+            
+            // Remove dst tile and trigger clean board flow
+            if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+              grid[dst.gridY][dst.gridX] = null;
+              dst.visible = false;
+              removeTile(dst);
             }
-            console.log('✅ LAST MERGE: Wild meter reset completed');
-          } catch (error) {
-            console.warn('⚠️ LAST MERGE: Failed to reset wild meter:', error);
+            
+            // Reset wild meter
+            wildMeter = 0;
+            STATE.wildMeter = 0;
+            resetWildProgress(0, false);
+            
+            try {
+              if (typeof HUD.resetWildMeter === 'function') {
+                HUD.resetWildMeter(true);
+              } else {
+                HUD.updateProgressBar?.(0, false);
+              }
+            } catch (error) {
+              console.warn('⚠️ Failed to reset wild meter:', error);
+            }
+            
+            try {
+              try { await new Promise(res => setTimeout(res, 1000)); } catch {}
+              await runEndgameFlow({
+                app,
+                stage,
+                board,
+                boardBG,
+                level,
+                startLevel,
+                score,
+                getScore: () => score,
+                setScore: (v) => { score = v|0; updateHUD(); },
+                animateScore,
+                updateHUD,
+                boardNumber,
+                hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+              });
+            } finally {
+              busyEnding = false;
+            }
+            return;
           }
           
-          try {
-            try { await new Promise(res => setTimeout(res, 1000)); } catch {}
-            await runEndgameFlow({
-              app,
-              stage,
-              board,
-              boardBG,
-              level,
-              startLevel,
-              score,
-              getScore: () => score,
-              setScore: (v) => { score = v|0; updateHUD(); },
-              animateScore,
-              updateHUD,
-              boardNumber,
-              hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
-              showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
-            });
-          } finally {
-            busyEnding = false;
+          // If only merge 6 remains but flag not set, trigger clean board flow
+          if (onlyMerge6Remains && !isLastMergeFlagSet) {
+            console.log('🚨🚨🚨 Only merge 6 remains but _isLastMerge flag not set - setting it now and triggering clean board');
+            (dst as any)._isLastMerge = true;
+            busyEnding = true;
+            
+            // Remove dst tile and trigger clean board flow
+            if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+              grid[dst.gridY][dst.gridX] = null;
+              dst.visible = false;
+              removeTile(dst);
+            }
+            
+            // Reset wild meter
+            wildMeter = 0;
+            STATE.wildMeter = 0;
+            resetWildProgress(0, false);
+            
+            try {
+              if (typeof HUD.resetWildMeter === 'function') {
+                HUD.resetWildMeter(true);
+              } else {
+                HUD.updateProgressBar?.(0, false);
+              }
+            } catch (error) {
+              console.warn('⚠️ Failed to reset wild meter:', error);
+            }
+            
+            try {
+              try { await new Promise(res => setTimeout(res, 1000)); } catch {}
+              await runEndgameFlow({
+                app,
+                stage,
+                board,
+                boardBG,
+                level,
+                startLevel,
+                score,
+                getScore: () => score,
+                setScore: (v) => { score = v|0; updateHUD(); },
+                animateScore,
+                updateHUD,
+                boardNumber,
+                hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+              });
+            } finally {
+              busyEnding = false;
+            }
           }
+          
           return;
+        }
+        
+        // 🔥 CRITICAL: Skip spawn if this was marked as last merge
+        // This prevents spawning new tiles when wild + regular merge is the last 2 tiles
+        // 🔥 ENHANCED: Check both the captured isLastMergeScenario AND the current dst._isLastMerge flag
+        // 🔥 ENHANCED: Also check if only merge 6 remains (double-check active tiles count)
+        const currentIsLastMerge = (dst as any)?._isLastMerge === true;
+        const activeTilesAfterSrcRemoval = tiles.filter(t => {
+          if (!t || t.locked) return false;
+          const isWild = t.special === 'wild' || t.special === 'wild-magnet';
+          const hasValue = (t.value|0) > 0;
+          return isWild || hasValue;
+        });
+        const onlyMerge6RemainsAfterSrcRemoval = activeTilesAfterSrcRemoval.length === 1 && 
+                                  activeTilesAfterSrcRemoval[0] === dst &&
+                                  dst.value === 6;
+        
+        // 🔥 CRITICAL: Multiple checks to prevent spawn
+        if (isLastMergeScenario || currentIsLastMerge || busyEnding || onlyMerge6RemainsAfterSrcRemoval) {
+          console.log('🚨🚨🚨 LAST MERGE: Skipping spawn - preventing new tile spawn', {
+            isLastMergeScenario,
+            currentIsLastMerge,
+            busyEnding,
+            onlyMerge6RemainsAfterSrcRemoval,
+            activeTilesAfterSrcRemoval: activeTilesAfterSrcRemoval.length,
+            dstExists: !!dst,
+            dstValue: dst?.value,
+            dstSpecial: dst?.special,
+            activeTilesDetails: activeTilesAfterSrcRemoval.map(t => ({ 
+              value: t.value, 
+              special: t.special,
+              isDst: t === dst
+            }))
+          });
+          
+          // 🔥 CRITICAL: If we somehow reached here with _isLastMerge set OR only merge 6 remains, trigger clean board flow as safeguard
+          if ((currentIsLastMerge || onlyMerge6RemainsAfterSrcRemoval) && !busyEnding) {
+            console.warn('⚠️ LAST MERGE: Reached spawn section with _isLastMerge flag set OR only merge 6 remains - triggering clean board flow as safeguard');
+            busyEnding = true;
+            
+            // Remove dst tile if it still exists
+            if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+              grid[dst.gridY][dst.gridX] = null;
+              dst.visible = false;
+              removeTile(dst);
+            }
+            
+            // Reset wild meter
+            wildMeter = 0;
+            STATE.wildMeter = 0;
+            resetWildProgress(0, false);
+            
+            try {
+              if (typeof HUD.resetWildMeter === 'function') {
+                HUD.resetWildMeter(true);
+              } else {
+                HUD.updateProgressBar?.(0, false);
+              }
+            } catch (error) {
+              console.warn('⚠️ Failed to reset wild meter:', error);
+            }
+            
+            try {
+              try { await new Promise(res => setTimeout(res, 1000)); } catch {}
+              await runEndgameFlow({
+                app,
+                stage,
+                board,
+                boardBG,
+                level,
+                startLevel,
+                score,
+                getScore: () => score,
+                setScore: (v) => { score = v|0; updateHUD(); },
+                animateScore,
+                updateHUD,
+                boardNumber,
+                hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+              });
+            } finally {
+              busyEnding = false;
+            }
+          }
+          
+          return; // Exit early - don't spawn new tiles
         }
         
         // Use multiplier for spawning new tiles
@@ -2413,6 +3230,8 @@ function merge(src, dst, helpers){
           excludeCells: pulledCellsSet  // 🔥 CRITICAL: Exclude pulled cells from spawn
         });
         
+        console.log('✅ openLockedBounceParallel completed - all spawn animations finished');
+        
         // Clean up pulled cells flag after spawn
         if ((dst as any)?._wildMagnetPulledCells) {
           (dst as any)._wildMagnetPulledCells = undefined;
@@ -2428,6 +3247,9 @@ function merge(src, dst, helpers){
           }
         }
         
+        // 🔥 CRITICAL: Check end game after spawn completes (with delay to allow animations)
+        // Use checkLevelEnd which already has proper delay and handles all edge cases
+        // This replaces the inline setTimeout check to avoid duplicate checks
         checkLevelEnd();
       }
     });
@@ -2440,101 +3262,154 @@ function merge(src, dst, helpers){
 }
 
 function checkMovesDepleted(){
-  // Only end if truly stuck (no valid merges). Allows finishing chains with Wild even at 0 moves.
-  try {
-    // CRITICAL FIX: Check if any merge is possible before showing fail screen
-    if (makeBoard.anyMergePossible(tiles)) {
-      console.log('✅ checkMovesDepleted: anyMergePossible returned true, game continues');
-      return;
-    }
-    if (!isStuck()) return;
-  } catch {}
+  // Use centralized end game checker
   if (busyEnding) return;
-  busyEnding = true;
-  showFinalScreen().finally(()=>{ busyEnding = false; });
+  
+  const movesDepletedCheckContext: EndGameContext = {
+    tiles,
+    moves: 0,
+    makeBoard
+  };
+  
+  // 🔥 CRITICAL: Use forceRefresh for moves depleted check
+  const movesDepletedCheckResult = checkEndGame(movesDepletedCheckContext, true);
+  
+  if (movesDepletedCheckResult.type === 'stuck') {
+    console.log('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
+    if (!busyEnding) {
+      showFinalScreen();
+    }
+  } else {
+    console.log('✅ Moves depleted but merges still possible, game continues');
+  }
 }
 
-// -------------------- stuck detection --------------------
-function activeTilesList(){ try { return tiles.filter(t => t && !t.locked && (t.value|0) > 0); } catch { return []; } }
+// DEPRECATED: Use checkEndGame() from endgame-checker.ts instead
+// These functions are kept for backward compatibility but should not be used
+function activeTilesList(){ 
+  console.warn('⚠️ DEPRECATED: activeTilesList() called - use checkEndGame() from endgame-checker.ts instead');
+  try { 
+    return tiles.filter(t => t && !t.locked && (t.value|0) > 0); 
+  } catch { 
+    return []; 
+  } 
+}
+
 function isStuck(){
-  console.log('🚨🚨🚨 CRITICAL: isStuck called - checking if game is stuck...');
+  console.warn('⚠️ DEPRECATED: isStuck() called - use checkEndGame() from endgame-checker.ts instead');
   
-  const act = activeTilesList();
-  console.log('🚨 isStuck: Active tiles count:', act.length);
-  
-  // CRITICAL SAFETY: If we have wild cubes (wild or wild-magnet) and any non-wild tiles, we're never stuck
-  const wildCubes = act.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
-  const nonWildTiles = act.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
-  
-  console.log('🚨 isStuck: Wild cubes:', wildCubes.length, 'Non-wild tiles:', nonWildTiles.length);
-  console.log('🚨 isStuck: Wild cubes details:', wildCubes.map(t => ({ value: t.value, special: t.special, locked: t.locked })));
-  console.log('🚨 isStuck: Non-wild tiles details:', nonWildTiles.map(t => ({ value: t.value, special: t.special, locked: t.locked })));
-  
-  // CRITICAL FIX: If we have wild cubes, we're never stuck (wild can merge with any tile)
-  if (wildCubes.length > 0 && nonWildTiles.length > 0) {
-    console.log('✅ isStuck: SAFETY CHECK - Wild cubes exist with non-wild tiles, game NOT stuck (wild can merge with any tile)');
-    return false;
-  }
-  
-  // This is now handled by the check above
-  
-  // If we have less than 2 tiles total, we're stuck
-  if (act.length < 2) {
-    console.log('🚨 isStuck: Less than 2 active tiles, game is stuck');
-    return true;
-  }
-  
-  // Check for possible merges between non-wild tiles
-  for (let i=0;i<act.length;i++){
-    for (let j=i+1;j<act.length;j++){
-      const a = act[i], b = act[j];
-      
-      // Skip wild cubes in this check (they can't merge with each other)
-      if (a.special === 'wild' || b.special === 'wild' || a.special === 'wild-magnet' || b.special === 'wild-magnet') {
-        continue;
-      }
-      
-      // Normal merge check
-      if (((a.value|0) + (b.value|0)) <= 6) {
-        console.log('✅ isStuck: Normal merge possible', a.value, '+', b.value, 'game NOT stuck');
-        return false;
-      }
-    }
-  }
-  
-  console.log('🚨🚨🚨 isStuck: No possible merges found, game IS stuck');
-  return true;
+  // Fallback implementation using centralized checker
+  const context: EndGameContext = {
+    tiles,
+    moves,
+    makeBoard
+  };
+  const result = checkEndGame(context);
+  return result.type === 'stuck';
 }
 
 // -------------------- level-end scaffolding --------------------
+// NOTE: All end game checks now use centralized checkEndGame() from endgame-checker.ts
+// Old functions (isStuck, isBoardClean) are kept for backward compatibility but should not be used
 function checkLevelEnd(){
-  gsap.delayedCall(0.01, () => {
-    if (busyEnding) return;
+  // Use centralized end game checker with delay
+  gsap.delayedCall(0.3, async () => {
+    if (busyEnding) {
+      console.log('⏳ checkLevelEnd skipped - busyEnding is true');
+      return;
+    }
     
-    // EMERGENCY SAFETY: If we have wild cubes but no non-wild tiles, spawn some!
-    const act = activeTilesList();
-    const wildCubes = act.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
-    const nonWildTiles = act.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
+    console.log('🎯 checkLevelEnd called - using centralized end game checker...');
     
-    if (wildCubes.length > 0 && nonWildTiles.length === 0) {
+    // Check for emergency rescue first
+    if (needsEmergencyRescue(tiles)) {
       console.log('🚨 EMERGENCY: Wild cubes exist but no non-wild tiles! Scheduling emergency rescue...');
+      const activeTiles = tiles.filter(t => t && !t.locked && (t.value|0) > 0);
+      const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
       const emergencyCount = Math.min(3, Math.max(2, wildCubes.length));
       scheduleWildRescue('checkLevelEnd', emergencyCount);
       return;
     }
     
-    // CRITICAL FIX: Check if any merge is possible before showing fail screen
-    if (makeBoard.anyMergePossible(tiles)) {
-      console.log('✅ checkLevelEnd: anyMergePossible returned true, game continues');
+    // Use centralized end game checker
+    const checkLevelEndContext: EndGameContext = {
+      tiles,
+      moves,
+      makeBoard
+    };
+    
+    // 🔥 CRITICAL: Use forceRefresh because delay might have caused cache staleness
+    const checkLevelEndResult = checkEndGame(checkLevelEndContext, true);
+    
+    if (checkLevelEndResult.type === 'clean') {
+      console.log('🚨🚨🚨 checkLevelEnd: Board is clean, triggering clean board flow');
+      
+      // 🔥 CRITICAL: Actually trigger runEndgameFlow, don't just log!
+      if (!busyEnding) {
+        busyEnding = true;
+        
+        // CRITICAL: Reset wild meter immediately
+        wildMeter = 0;
+        STATE.wildMeter = 0;
+        resetWildProgress(0, false);
+        
+        try {
+          if (typeof HUD.resetWildMeter === 'function') {
+            HUD.resetWildMeter(true);
+          } else {
+            HUD.updateProgressBar?.(0, false);
+          }
+        } catch (error) {
+          console.warn('⚠️ checkLevelEnd: Failed to reset wild meter:', error);
+        }
+        
+        try {
+          try { await new Promise(res => setTimeout(res, 1000)); } catch {}
+          await runEndgameFlow({
+            app,
+            stage,
+            board,
+            boardBG,
+            level,
+            startLevel,
+            score,
+            getScore: () => score,
+            setScore: (v) => { score = v|0; updateHUD(); },
+            animateScore,
+            updateHUD,
+            boardNumber,
+            hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+            showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+          });
+        } finally {
+          busyEnding = false;
+        }
+      }
       return;
     }
     
-    if (isStuck()){
-      busyEnding = true;
-      showFinalScreen().finally(()=>{ busyEnding = false; });
+    if (checkLevelEndResult.type === 'stuck') {
+      console.log('🚨🚨🚨 checkLevelEnd: Game is stuck, showing fail screen');
+      console.log('🔍 checkLevelEnd: Stuck reason:', checkLevelEndResult.reason);
+      console.log('🔍 checkLevelEnd: Current tiles:', tiles.filter(t => t && !t.locked && (t.value|0) > 0).map(t => ({ 
+        value: t.value, 
+        special: t.special, 
+        locked: t.locked 
+      })));
+      if (!busyEnding) {
+        busyEnding = true; // Set flag BEFORE calling showFinalScreen
+        showFinalScreen();
+      } else {
+        console.warn('⚠️ checkLevelEnd: busyEnding is true, skipping showFinalScreen');
+      }
+    } else {
+      console.log('✅ checkLevelEnd: Game continues -', checkLevelEndResult.reason);
     }
   });
 }
+
+// DEPRECATED: Use checkEndGame() from endgame-checker.ts instead
+// Kept for backward compatibility only
 function showCleanBoardEdgeCase(){
   if (busyEnding) return;
   const active = tiles.filter(t => !t.locked && t.value > 0);
@@ -2548,53 +3423,19 @@ async function openLockedBounceParallel(k){
   await FLOW.openLockedBounceParallel({ tiles, k, drag, makeBoard, gsap, drawBoardBG, TILE, fixHoverAnchor, spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done) });
 }
 
+// DEPRECATED: Use checkEndGame() from endgame-checker.ts instead
+// This function is kept for backward compatibility but should not be used
 function isBoardClean(){ 
-  console.log('🚨🚨🚨 CRITICAL: isBoardClean called - checking for wild cubes...');
+  console.warn('⚠️ DEPRECATED: isBoardClean() called - use checkEndGame() from endgame-checker.ts instead');
   
-  // Get all tiles that are not locked
-  const activeTiles = tiles.filter(t => t && !t.locked);
-  const wildCubes = tiles.filter(t => t && (t.special === 'wild' || t.special === 'wild-magnet') && !t.locked);
-  const nonWildActiveTiles = activeTiles.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
-  
-  // Board is clean ONLY if there are NO active tiles at all (all locked or empty)
-  const isClean = activeTiles.length === 0;
-  
-  console.log('🔥🔥🔥 CRITICAL isBoardClean CHECK:', {
-    totalTiles: tiles.length,
-    activeTiles: activeTiles.length,
-    wildCubesCount: wildCubes.length,
-    nonWildActiveTiles: nonWildActiveTiles.length,
-    isClean,
-    'ALL_TILES': tiles.map(t => ({ 
-      value: t.value, 
-      special: t.special, 
-      locked: t.locked,
-      gridX: t.gridX,
-      gridY: t.gridY 
-    })),
-    'WILD_CUBES': wildCubes.map(t => ({ 
-      value: t.value, 
-      special: t.special, 
-      locked: t.locked,
-      gridX: t.gridX,
-      gridY: t.gridY 
-    })),
-    'NON_WILD_ACTIVE': nonWildActiveTiles.map(t => ({ 
-      value: t.value, 
-      special: t.special, 
-      locked: t.locked,
-      gridX: t.gridX,
-      gridY: t.gridY 
-    }))
-  });
-  
-  if (isClean) {
-    console.log('🚨🚨🚨 BOARD IS CLEAN - NO ACTIVE TILES - TRIGGERING ENDGAME FLOW! 🚨🚨🚨');
-  } else {
-    console.log('✅ BOARD NOT CLEAN - ACTIVE TILES EXIST - Game continues');
-  }
-  
-  return isClean;
+  // Fallback implementation using centralized checker
+  const context: EndGameContext = {
+    tiles,
+    moves,
+    makeBoard
+  };
+  const result = checkEndGame(context);
+  return result.type === 'clean';
 }
 
 // -------------------- helpers --------------------
@@ -2602,13 +3443,20 @@ function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 
 function removeTile(t){
   if(!t) return;
+  
+  // 🔥 CRITICAL: Clear cache BEFORE removing tile to prevent race conditions
+  // This ensures checkEndGame gets fresh data even if called during removal
+  const idx = tiles.indexOf(t);
+  if (idx !== -1) {
+    clearEndGameCache(); // Clear cache BEFORE splice
+  }
+  
   try { if (t.hover && typeof t.hover.clear === 'function') t.hover.clear(); } catch {}
   t.eventMode='none'; if (t.removeAllListeners) t.removeAllListeners();
   if (t.hover && typeof t.hover.clear === 'function') t.hover.clear();
   try{ gsap.killTweensOf(t); gsap.killTweensOf(t.scale); gsap.killTweensOf(t.rotG);}catch{}
   try { stopWildIdle?.(t); } catch {}
   board.removeChild(t);
-  const idx = tiles.indexOf(t);
   if (idx !== -1) {
     tiles.splice(idx, 1);
   }
@@ -2616,6 +3464,14 @@ function removeTile(t){
 }
 
 async function showFinalScreen(){
+  // 🔥 CRITICAL: Guard against multiple simultaneous calls
+  if (busyEnding) {
+    console.warn('⚠️ showFinalScreen: busyEnding is true, skipping duplicate call');
+    return;
+  }
+  
+  busyEnding = true;
+  
   // Haptic feedback for game over
   if (typeof (window as any).triggerHapticNotification === 'function') {
     (window as any).triggerHapticNotification('error');
@@ -2650,6 +3506,8 @@ async function showFinalScreen(){
     // 'retry' action - functions are called directly from board-fail-modal now
     console.log('🎮 Play Again action received - functions called directly from modal');
   }
+  
+  busyEnding = false;
 }
 
 function restartGame(){

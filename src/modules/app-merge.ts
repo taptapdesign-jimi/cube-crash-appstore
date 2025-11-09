@@ -224,6 +224,90 @@ function animateMagnetPull(tile: any, targetTile: any): Promise<void> {
 
 // Function to add 4x multiplier animations to existing merge 6 tile
 // All pulled tiles are removed, and animations are applied to the existing merge 6 tile
+/**
+ * 🔥 CRITICAL: Check if all tiles on the board can be merged together
+ * This simulates all possible merges to determine if the board can be completely cleared
+ * Returns true if all tiles can be merged and the final merge is merge 6
+ */
+async function checkIfAllTilesCanMerge(tiles: any[], helpers: any): Promise<boolean> {
+  // Get active tiles only
+  const activeTiles = tiles.filter((t: any) => t && !t.locked && (t.value|0) > 0);
+  
+  if (activeTiles.length === 0) {
+    return true; // Board is already clean
+  }
+  
+  if (activeTiles.length === 1) {
+    // Only one tile left - check if it's merge 6
+    return activeTiles[0].value === 6;
+  }
+  
+  // Simulate merges by creating a copy of tile values
+  const tileValues = activeTiles.map((t: any) => ({
+    value: t.value|0,
+    isWild: t.special === 'wild' || t.special === 'wild-magnet',
+    original: t
+  }));
+  
+  // Try to simulate all possible merges
+  // This is a simplified check - we try to merge tiles until we can't merge anymore
+  let currentTiles = [...tileValues];
+  let mergeCount = 0;
+  const maxIterations = 100; // Safety limit
+  
+  while (currentTiles.length > 1 && mergeCount < maxIterations) {
+    let merged = false;
+    
+    // Try to find a valid merge
+    for (let i = 0; i < currentTiles.length; i++) {
+      for (let j = i + 1; j < currentTiles.length; j++) {
+        const tile1 = currentTiles[i];
+        const tile2 = currentTiles[j];
+        
+        // Check if tiles can merge
+        const canMerge = 
+          tile1.isWild || tile2.isWild || // Wild can merge with anything
+          (tile1.value + tile2.value >= 2 && tile1.value + tile2.value <= 6); // Regular merge
+        
+        if (canMerge) {
+          // Simulate merge
+          // Wild merge always results in merge 6
+          const newValue = (tile1.isWild || tile2.isWild) ? 6 : Math.min(6, tile1.value + tile2.value);
+          const newIsWild = false; // After merge, wild is consumed
+          
+          // Remove merged tiles and add new merged tile
+          currentTiles = currentTiles.filter((_, idx) => idx !== i && idx !== j);
+          currentTiles.push({ value: newValue, isWild: newIsWild });
+          
+          merged = true;
+          mergeCount++;
+          break;
+        }
+      }
+      
+      if (merged) break;
+    }
+    
+    // If no merge was possible, break
+    if (!merged) {
+      break;
+    }
+  }
+  
+  // Check if we ended up with a single merge 6 tile
+  const finalResult = currentTiles.length === 1 && currentTiles[0].value === 6;
+  
+  console.log('🧲 checkIfAllTilesCanMerge result:', {
+    initialTiles: tileValues.length,
+    finalTiles: currentTiles.length,
+    finalValue: currentTiles[0]?.value,
+    canAllMerge: finalResult,
+    mergeCount
+  });
+  
+  return finalResult;
+}
+
 async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any): Promise<void> {
   console.log('🧲 mergePulledTilesIntoMerge6: Removing', tiles.length, 'pulled tiles and adding 4x multiplier animations to existing merge 6');
   
@@ -465,6 +549,223 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   console.log('✅ mergePulledTilesIntoMerge6 completed - score updated to', newScore);
 
+  // 🔥 CRITICAL: Check if magnet merge 6 is left with few tiles (3 or less) - if so, pull remaining tiles and trigger clean board
+  // After pulled tiles merge, dst is merge 6, so we check if there are few remaining tiles on the board
+  // EDGE CASE: If magnet pulled the last 4 tiles from the board, don't spawn new tiles - trigger clean board flow
+  const activeTilesAfterPulledMerge = STATE.tiles.filter((t: any) => t && !t.locked && (t.value|0) > 0);
+  const remainingTilesCount = activeTilesAfterPulledMerge.length;
+  
+  console.log('🧲 After pulled tiles merge - active tiles:', remainingTilesCount, 'dst is merge 6:', dst?.value === 6);
+  
+  // 🔥 EDGE CASE: If only merge 6 remains (magnet pulled the last 4 tiles), don't spawn new tiles - trigger clean board immediately
+  // This covers the case when magnet pulled the last 4 tiles from the board
+  if (remainingTilesCount === 1 && activeTilesAfterPulledMerge[0] === dst) {
+    // Only merge 6 remains - this means magnet pulled the last tiles from the board
+    console.log('🚨🚨🚨 EDGE CASE: Only merge 6 remains after magnet pulled last 4 tiles - Triggering clean board flow immediately (no spawn)');
+    
+    // Remove merge 6
+    if (dst && !dst.destroyed) {
+      removeTile(dst);
+    }
+    
+    // Trigger clean board flow
+    const { runEndgameFlow } = await import('./endgame-flow.js');
+    
+    // Get app context from STATE and helpers
+    const app = STATE.app;
+    const stage = STATE.stage;
+    const board = STATE.board;
+    const boardBG = STATE.boardBG;
+    const level = STATE.level || 1;
+    const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
+    const boardNumber = STATE.boardNumber || 1;
+    
+    if (!app || !stage || !board || !startLevel) {
+      console.error('❌ Missing required context for clean board flow:', { app: !!app, stage: !!stage, board: !!board, startLevel: !!startLevel });
+      return;
+    }
+    
+    // Reset wild meter
+    if (typeof (window as any).CC?.resetWildProgress === 'function') {
+      (window as any).CC.resetWildProgress(0, false);
+    } else if (typeof (window as any).resetWildProgress === 'function') {
+      (window as any).resetWildProgress(0, false);
+    }
+    if (typeof HUD.resetWildMeter === 'function') {
+      HUD.resetWildMeter(true);
+    }
+    
+    // Set busy ending flag
+    STATE.busyEnding = true;
+    
+    // Wait a bit before showing clean board
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Trigger clean board flow
+    try {
+      await runEndgameFlow({
+        app,
+        stage,
+        board,
+        boardBG,
+        level,
+        startLevel,
+        score: newScore,
+        getScore: () => newScore,
+        setScore: (v) => { 
+          if (typeof (window as any).CC?.setScore === 'function') {
+            (window as any).CC.setScore(v);
+          } else {
+            STATE.score = v|0;
+          }
+          updateHUD();
+        },
+        animateScore,
+        updateHUD,
+        boardNumber,
+        hideGrid: () => { try { if (board) board.visible = false; } catch {} },
+        showGrid: () => { try { if (board) board.visible = true; } catch {} }
+      });
+    } finally {
+      STATE.busyEnding = false;
+    }
+    
+    return; // Don't spawn new tiles - EDGE CASE: magnet pulled last 4 tiles
+  }
+  
+  // If merge 6 is on board with 2-3 tiles remaining (including merge 6 itself), pull all remaining tiles and trigger clean board
+  // This means if there are 2-3 tiles total (including merge 6), pull them and trigger clean board
+  if (remainingTilesCount >= 2 && remainingTilesCount <= 3) {
+    console.log('🚨🚨🚨 MAGNET MERGE 6 WITH FEW TILES DETECTED - Pulling all remaining tiles and triggering clean board flow');
+    
+    // Find merge 6 tile (dst) and remaining tiles
+    const merge6Tile = activeTilesAfterPulledMerge.find((t: any) => t === dst && t.value === 6);
+    const remainingTiles = activeTilesAfterPulledMerge.filter((t: any) => t !== dst);
+    
+    if (merge6Tile && remainingTiles.length > 0) {
+      console.log('🧲 Pulling', remainingTiles.length, 'remaining tiles to merge 6');
+      
+      // Pull all remaining tiles to merge 6 (similar to normal magnet pull)
+      const pullPromises = remainingTiles.map(async (tile: any, index: number) => {
+        const delay = index * 0.04; // Small stagger delay
+        
+        await new Promise(resolve => setTimeout(resolve, delay * 1000));
+        
+        // Animate tile moving to merge 6
+        const merge6X = merge6Tile.x;
+        const merge6Y = merge6Tile.y;
+        
+        return new Promise<void>((resolve) => {
+          gsap.to(tile, {
+            x: merge6X,
+            y: merge6Y,
+            duration: 0.35,
+            ease: 'power2.inOut',
+            onComplete: () => {
+              resolve();
+            }
+          });
+        });
+      });
+      
+      // Wait for all tiles to arrive
+      await Promise.all(pullPromises);
+      
+      // Merge all pulled tiles into merge 6 (create merge 6 with multiplier based on number of pulled tiles)
+      // Multiplier = number of pulled tiles (remainingTiles.length)
+      // If 3 tiles pulled → 3x, if 2 tiles pulled → 2x, if 1 tile pulled → 1x
+      // Dynamic multiplier: exactly matches the number of tiles that were pulled
+      const finalMult = remainingTiles.length; // Dynamic multiplier based on number of pulled tiles
+      const finalScoreDelta = 6 * finalMult;
+      const finalScore = Math.min(999999, newScore + finalScoreDelta);
+      
+      console.log('🧲 Final merge: pulled tiles=', remainingTiles.length, 'mult=', finalMult, 'scoreDelta=', finalScoreDelta, 'finalScore=', finalScore);
+      
+      // Update score
+      if (typeof (window as any).CC?.setScore === 'function') {
+        (window as any).CC.setScore(finalScore);
+      } else {
+        STATE.score = finalScore;
+      }
+      updateHUD();
+      animateScore(finalScore, 0.45);
+      
+      // Remove all pulled tiles and merge 6
+      remainingTiles.forEach((tile: any) => {
+        if (tile && !tile.destroyed) {
+          removeTile(tile);
+        }
+      });
+      if (merge6Tile && !merge6Tile.destroyed) {
+        removeTile(merge6Tile);
+      }
+      
+      // Trigger clean board flow
+      const { runEndgameFlow } = await import('./endgame-flow.js');
+      
+      // Get app context from STATE and helpers
+      const app = STATE.app;
+      const stage = STATE.stage;
+      const board = STATE.board;
+      const boardBG = STATE.boardBG;
+      const level = STATE.level || 1;
+      const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
+      const boardNumber = STATE.boardNumber || 1;
+      
+      if (!app || !stage || !board || !startLevel) {
+        console.error('❌ Missing required context for clean board flow:', { app: !!app, stage: !!stage, board: !!board, startLevel: !!startLevel });
+        return;
+      }
+      
+      // Reset wild meter - use window.CC if available
+      if (typeof (window as any).CC?.resetWildProgress === 'function') {
+        (window as any).CC.resetWildProgress(0, false);
+      } else if (typeof (window as any).resetWildProgress === 'function') {
+        (window as any).resetWildProgress(0, false);
+      }
+      if (typeof HUD.resetWildMeter === 'function') {
+        HUD.resetWildMeter(true);
+      }
+      
+      // Set busy ending flag
+      STATE.busyEnding = true;
+      
+      // Wait a bit before showing clean board
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Trigger clean board flow
+      try {
+        await runEndgameFlow({
+          app,
+          stage,
+          board,
+          boardBG,
+          level,
+          startLevel,
+          score: finalScore,
+          getScore: () => finalScore,
+          setScore: (v) => { 
+            if (typeof (window as any).CC?.setScore === 'function') {
+              (window as any).CC.setScore(v);
+            } else {
+              STATE.score = v|0;
+            }
+            updateHUD();
+          },
+          animateScore,
+          updateHUD,
+          boardNumber,
+          hideGrid: () => { try { if (board) board.visible = false; } catch {} },
+          showGrid: () => { try { if (board) board.visible = true; } catch {} }
+        });
+      } finally {
+        STATE.busyEnding = false;
+      }
+      
+      return; // Don't spawn new tiles
+    }
+  }
+
   // Find random empty cells on the board for spawning new tiles
   const findRandomEmptyCells = (count: number): { c: number; r: number }[] => {
     const empties: { c: number; r: number }[] = [];
@@ -580,10 +881,41 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     );
   }
 
+  // 🔥 CRITICAL: After spawning new tiles, check if they can merge
+  // This is the edge case: if magnet pulled last tiles and spawned 4 new ones,
+  // we need to check if those 4 can merge with each other or with existing tiles
+  // 🔥 CRITICAL: Add delay to allow spawn animations to complete before checking
+  await new Promise(resolve => setTimeout(resolve, 600)); // 600ms delay for spawn animations
+  
   const canMerge = makeBoard.anyMergePossible(STATE.tiles);
-  console.log('🧲 Post-respawn mergeability:', canMerge);
+  console.log('🧲 Post-respawn mergeability check (after delay):', canMerge);
+  
   if (!canMerge) {
-    await checkGameOver();
+    // No merges possible - show fail screen
+    console.log('🚨🚨🚨 No merges possible after magnet pull spawn - showing fail screen');
+    
+    // Use checkLevelEnd from app-core.ts if available, otherwise use checkGameOver
+    if (typeof (window as any).CC?.checkLevelEnd === 'function') {
+      (window as any).CC.checkLevelEnd();
+    } else {
+      await checkGameOver();
+    }
+    return;
+  }
+  
+  // 🔥 CRITICAL: Check if ALL tiles can be merged together (simulate all possible merges)
+  // If all tiles can be merged and the final merge is merge 6, trigger clean board flow
+  const canAllMerge = await checkIfAllTilesCanMerge(STATE.tiles, helpers);
+  if (canAllMerge) {
+    console.log('🚨🚨🚨 All tiles can be merged together - will trigger clean board flow after final merge 6');
+    // Note: Clean board flow will be triggered automatically when the final merge 6 occurs
+    // This is handled in the merge function when board becomes clean
+  }
+  
+  // 🔥 CRITICAL: Also call checkLevelEnd as backup (it has its own delay and handles all edge cases)
+  // This ensures end game is checked even if checkGameOver doesn't catch it
+  if (typeof (window as any).CC?.checkLevelEnd === 'function') {
+    (window as any).CC.checkLevelEnd();
   }
 }
 

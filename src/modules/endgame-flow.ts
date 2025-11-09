@@ -37,6 +37,15 @@ interface CleanBoardModalOptions {
 }
 
 export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
+  // 🔥 CRITICAL: Guard against multiple simultaneous calls
+  if ((window as any).CC?._endgameFlowRunning) {
+    console.warn('⚠️ runEndgameFlow: Already running, skipping duplicate call');
+    return;
+  }
+  
+  (window as any).CC = (window as any).CC || {};
+  (window as any).CC._endgameFlowRunning = true;
+  
   const {
     app, stage, board, boardBG,
     level, startLevel,
@@ -79,6 +88,8 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     try { if (boardBG) boardBG.visible = prevBG; } catch {}
     try { showGrid?.(); } catch {}
     stage.eventMode = prevMode;
+    // Clear flag
+    (window as any).CC._endgameFlowRunning = false;
   }
 }
 

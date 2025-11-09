@@ -395,23 +395,64 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
 
 export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
   const open = allTiles.filter((t) => !(t as Tile).locked && (t as Tile).value > 0) as Tile[];
+  
+  console.log('🔍 anyMergePossible: Checking', open.length, 'active tiles:', open.map(t => ({ 
+    value: t.value, 
+    special: t.special,
+    stackDepth: (t as any).stackDepth || 1,
+    locked: t.locked
+  })));
 
   // Check for wild cubes - they can merge with any other tile (including wild-magnet)
   const wildCubes = open.filter((t) => t.special === 'wild' || t.special === 'wild-magnet');
   const nonWildTiles = open.filter((t) => t.special !== 'wild' && t.special !== 'wild-magnet');
 
+  console.log('🔍 anyMergePossible: Wild cubes:', wildCubes.length, 'Non-wild tiles:', nonWildTiles.length);
+
   // If we have wild cubes and any non-wild tiles, we can always merge
   if (wildCubes.length > 0 && nonWildTiles.length > 0) {
+    console.log('✅ anyMergePossible: Wild cubes + non-wild tiles = TRUE (can merge)');
     return true;
   }
 
   // Check regular tile combinations
+  // 🔥 CRITICAL: If only 1 tile remains, no merges are possible (can't merge with itself)
+  if (open.length < 2) {
+    console.log('❌ anyMergePossible: Less than 2 tiles, no merges possible (FALSE)');
+    return false;
+  }
+  
+  // 🔥 ENHANCED: Collect all possible sums for debugging
+  const allSums: Array<{ tile1: number, tile2: number, sum: number, valid: boolean }> = [];
+  
   for (let i = 0; i < open.length; i++) {
     for (let j = i + 1; j < open.length; j++) {
-      const s = (open[i].value || 0) + (open[j].value || 0);
-      if (s >= 2 && s <= 6) return true;
+      const tile1 = open[i];
+      const tile2 = open[j];
+      
+      // Skip wild cubes in this check (they're already handled above)
+      if (tile1.special === 'wild' || tile1.special === 'wild-magnet' || 
+          tile2.special === 'wild' || tile2.special === 'wild-magnet') {
+        continue;
+      }
+      
+      const s = (tile1.value || 0) + (tile2.value || 0);
+      const isValid = s >= 2 && s <= 6;
+      
+      allSums.push({ tile1: tile1.value, tile2: tile2.value, sum: s, valid: isValid });
+      
+      console.log(`🔍 anyMergePossible: Checking ${tile1.value} + ${tile2.value} = ${s} ${isValid ? '✅ VALID' : '❌ INVALID'}`);
+      
+      if (isValid) {
+        console.log(`✅ anyMergePossible: Found mergeable pair ${tile1.value} + ${tile2.value} = ${s} (TRUE)`);
+        console.log('🔍 anyMergePossible: All checked sums:', allSums);
+        return true;
+      }
     }
   }
 
+  console.log('❌ anyMergePossible: No mergeable pairs found (FALSE)');
+  console.log('🔍 anyMergePossible: All checked sums:', allSums);
+  console.log('🔍 anyMergePossible: Summary -', open.length, 'tiles,', allSums.length, 'pairs checked,', allSums.filter(s => s.valid).length, 'valid merges found');
   return false;
 }

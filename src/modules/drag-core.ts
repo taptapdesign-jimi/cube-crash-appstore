@@ -710,6 +710,16 @@ export function initDrag(cfg) {
     if (!canMerge) {
       snapBack(t);
       clearHover();
+      
+      // 🔥 CRITICAL: Check stuck state after failed merge attempt
+      // This catches cases where user tries to merge but can't (e.g., 3+2=5 which is invalid)
+      // We need to check if the board is now stuck after this failed attempt
+      if (typeof (window as any).CC?.checkLevelEnd === 'function') {
+        // Use setTimeout to ensure snapBack animation completes first
+        setTimeout(() => {
+          (window as any).CC.checkLevelEnd();
+        }, 100);
+      }
       return;
     }
 
