@@ -1526,7 +1526,7 @@ function randomEmptyCell(){
 }
 
 // Track if wild-magnet has been spawned (first wild spawn should be wild-magnet)
-const WILD_MAGNET_SPAWN_CHANCE = 0.4; // 40% chance new wild is a magnet
+const WILD_MAGNET_SPAWN_CHANCE = 0.3; // 30% chance new wild is a magnet
 
 async function spawnWildFromMeter(){
   if (wildMeter < 1) {
