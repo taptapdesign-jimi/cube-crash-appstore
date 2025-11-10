@@ -356,7 +356,7 @@ export function clearEndGameCache(): void {
  * Check if emergency rescue is needed (wild cubes but no non-wild tiles)
  */
 export function needsEmergencyRescue(tiles: any[]): boolean {
-  if (STATE?.wildMagnetFlowActive || STATE?.respawnInProgress) {
+  if (STATE?.wildMagnetFlowActive || STATE?.respawnInProgress || STATE?.pendingWildReward) {
     console.log('🧲 needsEmergencyRescue: Flow/spawn active, skipping emergency check');
     return false;
   }

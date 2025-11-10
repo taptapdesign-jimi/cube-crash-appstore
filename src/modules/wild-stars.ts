@@ -48,6 +48,14 @@ const STAR_TEXTURE_SOURCES = [
 const systems = new WeakMap<WildishTile, WildStarSystem>();
 
 let cachedTexture: Texture | null = null;
+let textureLoadAttempted = false;
+const STAR_DEBUG = false;
+
+const debugLog = (...args: any[]): void => {
+  if (STAR_DEBUG) {
+    console.log('[wild-stars]', ...args);
+  }
+};
 
 const BABY_STAR_COUNT = 3;
 const BASE_RADIUS_FACTOR = 0.6;
@@ -64,58 +72,66 @@ function tileIsPureWild(tile: WildishTile | null | undefined): tile is WildishTi
 }
 
 function loadTextureFromSource(source: string): Texture | null {
-  console.log('🌟 Attempting to load star texture from:', source);
+  debugLog('Attempting to load star texture from:', source);
   try {
     // Prvo pokušaj Assets.get() - ako je već učitano
     let texture = Assets.get(source);
     if (texture && texture instanceof Texture) {
-      console.log('✅ Got texture from Assets.get():', texture, 'width:', texture.width, 'height:', texture.height);
+      debugLog('Got texture from Assets.get():', source, 'size:', texture.width, texture.height);
       return texture;
     }
     
     // Fallback na Texture.from() - direktno učitavanje
     texture = Texture.from(source);
-    console.log('✅ Got texture from Texture.from():', texture, 'width:', texture.width, 'height:', texture.height);
+    if (texture) {
+      debugLog('Got texture from Texture.from():', source, 'size:', texture.width, texture.height);
+    }
     
     // Čekaj da se tekstura učita ako nije spremna
     if (texture && texture.baseTexture) {
       if (texture.baseTexture.valid) {
-        console.log('✅ Texture is valid and ready!');
+        debugLog('Texture is valid and ready');
         return texture;
       } else {
-        console.log('⏳ Texture not yet valid, but returning anyway - will load async');
+        debugLog('Texture not yet valid, returning placeholder (async load)');
         // Vratimo teksturu iako još nije valid - PIXI će je učitati asinkrono
         return texture;
       }
     }
     
-    console.warn('⚠️ Could not create texture from:', source);
+    debugLog('Could not create texture from:', source);
     return null;
   } catch (err) {
-    console.error('❌ Failed to load texture from:', source, err);
+    if (STAR_DEBUG) {
+      console.error('Failed to load texture from:', source, err);
+    }
     return null;
   }
 }
 
 function ensureTexture(): Texture | null {
   if (cachedTexture) {
-    console.log('✅ Using cached texture');
+    debugLog('Using cached star texture');
     return cachedTexture;
   }
+  if (textureLoadAttempted) {
+    return null;
+  }
+  textureLoadAttempted = true;
 
-  console.log('🔄 Starting texture load from sources:', STAR_TEXTURE_SOURCES);
+  debugLog('Starting texture load from sources:', STAR_TEXTURE_SOURCES);
   for (let i = 0; i < STAR_TEXTURE_SOURCES.length; i++) {
     const source = STAR_TEXTURE_SOURCES[i];
-    console.log(`🔄 Trying source ${i + 1}/${STAR_TEXTURE_SOURCES.length}:`, source);
+    debugLog(`Trying source ${i + 1}/${STAR_TEXTURE_SOURCES.length}:`, source);
     const texture = loadTextureFromSource(source);
     if (texture) {
-      console.log('✅ Texture loaded and cached successfully!', texture);
+      debugLog('Texture loaded and cached successfully:', source);
       cachedTexture = texture;
       return texture;
     }
   }
   
-  console.error('❌ All texture sources failed!');
+  debugLog('All texture sources failed; falling back to vector star');
   return null;
 }
 
@@ -140,7 +156,7 @@ function createFallbackStar(): Graphics {
   g.alpha = 1.0;
   g.visible = true;
   g.renderable = true;
-  console.log(`🌟 Fallback star created: size=${STAR_TARGET_SIZE}, visible=${g.visible}, alpha=${g.alpha}`);
+  debugLog('Fallback star created');
   return g;
 }
 
@@ -158,7 +174,7 @@ function createStarSprite(texture: Texture, star: OrbitingStar): Sprite {
   star.scaleNormalizer = normalizer;
   sprite.scale.set(normalizer * star.baseScale);
   
-  console.log(`🌟 Sprite created: width=${baseWidth}, normalizer=${normalizer}, final scale=${normalizer * star.baseScale}, visible=${sprite.visible}, alpha=${sprite.alpha}, renderable=${sprite.renderable}`);
+  debugLog('Sprite created', { baseWidth, normalizer, finalScale: normalizer * star.baseScale });
 
   return sprite;
 }
@@ -167,7 +183,7 @@ function setupStars(system: WildStarSystem, texture: Texture): void {
   system.container.removeChildren();
   system.stars = [];
 
-  console.log('🌟 Creating stars with texture:', texture);
+  debugLog('Creating stars with texture');
 
   for (let i = 0; i < BABY_STAR_COUNT; i += 1) {
     const star: OrbitingStar = {
@@ -192,10 +208,10 @@ function setupStars(system: WildStarSystem, texture: Texture): void {
     star.sprite = display;
     system.stars.push(star);
     system.container.addChild(display);
-    console.log(`✅ Star ${i + 1} created with texture sprite`);
+    debugLog(`Star ${i + 1} created with texture sprite`);
   }
   
-  console.log('✅ All stars created with texture!');
+  debugLog('All stars created with texture');
 }
 
 function upgradeStarsToTexture(system: WildStarSystem, texture: Texture): void {

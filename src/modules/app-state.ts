@@ -36,6 +36,7 @@ interface GameState {
   wildMagnetFlowActive: boolean;
   wildMagnetFlowTimer: number | null;
   respawnInProgress: boolean;
+  pendingWildReward: boolean;
 
   // HUD refs
   scoreNumText: Text | null;
@@ -69,6 +70,7 @@ export const STATE: GameState = {
   wildMagnetFlowActive: false,
   wildMagnetFlowTimer: null,
   respawnInProgress: false,
+  pendingWildReward: false,
 
   // HUD refs
   scoreNumText: null,

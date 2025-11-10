@@ -24,7 +24,7 @@ import { wild } from './hud-helpers.js';
 import * as FLOW  from './level-flow.js';
 import { openEmpties } from './app-spawn.ts';
 import { clearWildState, handleWildMagnetMergedPulledTiles } from './app-merge.ts';
-import { startWildMagnetFlow, endWildMagnetFlow } from './wild-magnet-flow.ts';
+import { startWildMagnetFlow, endWildMagnetFlow, registerMagnetTimeline } from './wild-magnet-flow.ts';
 import { statsService } from '../services/stats-service.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import { checkEndGame, needsEmergencyRescue, clearEndGameCache, type EndGameContext } from './endgame-checker.ts';
@@ -102,6 +102,33 @@ let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildRescueScheduled = false; // Prevent duplicate emergency spawns
 let drag;
 let busyEnding = false;
+let pendingWildCheckTimer: number | null = null;
+
+function isHelperTile(tile: any): boolean {
+  if (!tile) return false;
+  const special = tile.special;
+  return special === 'wild' || special === 'wild-magnet' || tile.isWild === true || tile.isWildFace === true;
+}
+
+function getActiveRegularTiles(): any[] {
+  return tiles.filter((tile) => tileIsVisuallyActive(tile) && !isHelperTile(tile));
+}
+
+function removeAllHelperTiles(reason: string) {
+  const helpers = tiles.filter(isHelperTile);
+  if (!helpers.length) return;
+  console.log('🧹 Removing helper tiles before', reason, '- count:', helpers.length);
+  helpers.forEach(helper => {
+    try {
+      if (Number.isFinite(helper.gridX) && Number.isFinite(helper.gridY) && grid?.[helper.gridY]) {
+        grid[helper.gridY][helper.gridX] = null;
+      }
+      removeTile(helper);
+    } catch (error) {
+      console.warn('⚠️ Failed to remove helper tile:', error);
+    }
+  });
+}
 
 function tileIsVisuallyActive(tile: any): boolean {
   if (!tile || tile.destroyed || tile.locked) return false;
@@ -246,18 +273,21 @@ let hudUpdateProgress = (ratio, animate) => {};
 // HUD metrics (for DOM helpers to position UI under HUD)
 let __hudMetrics = { top: 0, bottom: 80 };
 let allowWildDecrease = false;
-function queueWildSpawnIfNeeded(){
+function queueWildSpawnIfNeeded(force = false){
   if (wildSpawnInProgress) return;
-  if (wildMeter < 1) return;
+  if (!force && STATE.pendingWildReward) return;
+  if (wildMeter < 1 && !force) return;
 
   console.log('🎯 Wild meter ready – queueing wild spawn');
   wildSpawnInProgress = true;
 
   try { HUD.shimmerProgress?.({}); } catch {}
 
-  spawnWildFromMeter()
+  let lastResult: boolean | 'deferred' = false;
+  spawnWildFromMeter({ force })
     .then((spawned) => {
-      if (!spawned && !wildSpawnRetryTimer) {
+      lastResult = spawned;
+      if (spawned === false && !wildSpawnRetryTimer) {
         wildSpawnRetryTimer = setTimeout(() => {
       wildSpawnRetryTimer = null;
       queueWildSpawnIfNeeded();
@@ -269,10 +299,35 @@ function queueWildSpawnIfNeeded(){
     })
     .finally(() => {
       wildSpawnInProgress = false;
-      if (wildMeter >= 1 && !wildSpawnRetryTimer) {
+      if (lastResult !== 'deferred' && wildMeter >= 1 && !wildSpawnRetryTimer) {
         Promise.resolve().then(() => queueWildSpawnIfNeeded());
       }
     });
+}
+
+function schedulePendingWildCheck(delay = 400){
+  try {
+    if (pendingWildCheckTimer != null) {
+      clearTimeout(pendingWildCheckTimer);
+      pendingWildCheckTimer = null;
+    }
+    pendingWildCheckTimer = setTimeout(() => {
+      pendingWildCheckTimer = null;
+      maybeDropPendingWild('scheduled');
+    }, delay) as unknown as number;
+  } catch {}
+}
+
+function maybeDropPendingWild(reason: string){
+  if (!STATE.pendingWildReward) return;
+  const regularCount = getActiveRegularTiles().length;
+  if (regularCount <= 1) {
+    console.log('⏸️ Pending wild still blocked:', { reason, regularCount });
+    return;
+  }
+  console.log('✅ Releasing pending wild reward:', reason);
+  STATE.pendingWildReward = false;
+  queueWildSpawnIfNeeded(true);
 }
 
 function scheduleWildRescue(reason = 'unknown', requested = 2) {
@@ -1374,6 +1429,7 @@ function startLevel(n){
   try { comboIdleTimer?.kill?.(); } catch {}
   wildMeter = 0;
   resetWildProgress(0, false);
+  STATE.pendingWildReward = false;
   
   // Clear end game cache when starting new level
   clearEndGameCache();
@@ -1531,10 +1587,24 @@ function randomEmptyCell(){
 // Track if wild-magnet has been spawned (first wild spawn should be wild-magnet)
 const WILD_MAGNET_SPAWN_CHANCE = 0.3; // 30% chance new wild is a magnet
 
-async function spawnWildFromMeter(){
-  if (wildMeter < 1) {
+async function spawnWildFromMeter(options: { force?: boolean } = {}){
+  const { force = false } = options;
+  if (!force && wildMeter < 1) {
     console.log('⚠️ spawnWildFromMeter called without enough charge. Raw meter:', wildMeter);
     return false;
+  }
+  if (!force && STATE.pendingWildReward) {
+    console.log('⏸️ spawnWildFromMeter blocked – pending reward already queued');
+    return 'deferred';
+  }
+  if (!force) {
+    const regularCount = getActiveRegularTiles().length;
+    if (regularCount <= 1) {
+      console.log('⏸️ Deferring wild spawn (regular tiles:', regularCount, ')');
+      STATE.pendingWildReward = true;
+      schedulePendingWildCheck();
+      return 'deferred';
+    }
   }
 
   const consumeCharge = () => {
@@ -1566,7 +1636,7 @@ async function spawnWildFromMeter(){
     lastCell = cell;
 
     try {
-      const helperAlreadyPresent = tiles.some(t => t && !t.locked && (t.special === 'wild-magnet' || t.special === 'wild' || t.isWild === true || t.isWildFace === true));
+      const helperAlreadyPresent = tiles.some(t => t && !t.locked && isHelperTile(t));
       const spawnMagnet = !helperAlreadyPresent && Math.random() < WILD_MAGNET_SPAWN_CHANCE;
       const ok = await openAtCell(cell.c, cell.r, { isWild: true, isWildMagnet: spawnMagnet });
       if (ok) {
@@ -1593,6 +1663,8 @@ async function spawnWildFromMeter(){
     wildSpawnRetryTimer = null;
   }
 
+  STATE.pendingWildReward = false;
+  maybeDropPendingWild('wild_spawn_complete');
   console.log('✅ Wild cube spawned successfully at', lastCell?.c, lastCell?.r, 'Leftover meter:', wildMeter);
   return true;
 }
@@ -2263,7 +2335,7 @@ function merge(src, dst, helpers){
           const initialDelay = 0.300; // 🔥 CRITICAL: 300ms delay before pulling starts (faster than before)
           const tl = gsap.timeline({
             delay: Math.max(0, initialDelay + sequentialDelay), // Ensure delay is never negative
-            onUpdate: async () => {
+            onUpdate: () => {
               // 🔥 CRITICAL: Safety check - tile must exist and not be destroyed
               if (!tile || tile.destroyed) {
                 console.warn('⚠️ Tile destroyed during animation, killing timeline');
@@ -2314,11 +2386,25 @@ function merge(src, dst, helpers){
                   
                   // Try to merge immediately (will merge right away)
                   // Shards animation will be triggered in mergePulledTilesIntoMerge6
-                  await tryMergePulledTiles();
+                  tryMergePulledTiles().catch(err => console.warn('⚠️ Magnet merge failed:', err));
                 }
               }
             }
           });
+          registerMagnetTimeline(tl);
+          (tile as any)._magnetPullTimeline = tl;
+          try {
+            tl.eventCallback('onKill', () => {
+              if ((tile as any)._magnetPullTimeline === tl) {
+                (tile as any)._magnetPullTimeline = null;
+              }
+            });
+            tl.eventCallback('onComplete', () => {
+              if ((tile as any)._magnetPullTimeline === tl) {
+                (tile as any)._magnetPullTimeline = null;
+              }
+            });
+          } catch {}
           
           // Step 1: Move away from center + rotate (no scale yet) - FASTER for 4 tiles
           tl.to(tile, {
@@ -2423,22 +2509,8 @@ function merge(src, dst, helpers){
       }
     }
 
-    // 🔥 CRITICAL: Check if this is a last merge BEFORE starting animation
-    // If _isLastMerge is set, we need to skip all FX and spawn logic and only handle clean board flow
+    // 🔥 CRITICAL: Check if this is a last merge BEFORE starting animation (used later to skip spawn)
     const isLastMergeScenario = (dst as any)?._isLastMerge === true;
-    
-    if (isLastMergeScenario) {
-      console.log('🚨🚨🚨 LAST MERGE DETECTED (before animation) - Skipping FX and spawn, will trigger clean board flow after animation');
-      console.log('🚨🚨🚨 Last merge details:', {
-        srcValue: src.value,
-        dstValue: dst.value,
-        srcSpecial: srcSpecial,
-        dstSpecial: dstSpecial,
-        _isLastMerge: (dst as any)?._isLastMerge
-      });
-      // Set busyEnding immediately to prevent any other code from running
-      busyEnding = true;
-    }
 
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
@@ -3318,6 +3390,7 @@ function merge(src, dst, helpers){
         
         // 🔥 CRITICAL: Check end game after spawn completes (with delay to allow animations)
         // Keep magnet-flow guard active until after the centralized check runs
+        maybeDropPendingWild('magnet_respawn');
         checkLevelEnd();
         endWildMagnetFlow();
       }
@@ -3387,13 +3460,23 @@ function checkLevelEnd(){
       console.log('⏳ checkLevelEnd skipped - busyEnding is true');
       return;
     }
-    if (STATE.wildMagnetFlowActive || STATE.respawnInProgress) {
+    if (STATE.wildMagnetFlowActive || STATE.respawnInProgress || STATE.pendingWildReward) {
       console.log('⏳ checkLevelEnd skipped - merge/spawn flow active, deferring...');
       gsap.delayedCall(0.35, checkLevelEnd);
       return;
     }
     
     console.log('🎯 checkLevelEnd called - using centralized end game checker...');
+    
+    const regularTiles = getActiveRegularTiles();
+    const helperTiles = tiles.filter(isHelperTile);
+    const hasMagnet = helperTiles.some(t => t.special === 'wild-magnet');
+    if (helperTiles.length > 0 && regularTiles.length === 0 && !hasMagnet) {
+      console.log('🌟 Wild-only board detected - triggering clean board');
+      removeAllHelperTiles('wild_only_clean_board');
+      await triggerCleanBoardFlow('wild_only_clean_board');
+      return;
+    }
     
     // Check for emergency rescue first
     if (needsEmergencyRescue(tiles)) {
@@ -3508,6 +3591,7 @@ async function runOpenLockedBounceParallel(options){
     await FLOW.openLockedBounceParallel(options);
   } finally {
     STATE.respawnInProgress = false;
+    maybeDropPendingWild('open_locked_bounce');
   }
 }
 
@@ -3543,6 +3627,13 @@ function removeTile(t){
   t.eventMode='none'; if (t.removeAllListeners) t.removeAllListeners();
   if (t.hover && typeof t.hover.clear === 'function') t.hover.clear();
   try{ gsap.killTweensOf(t); gsap.killTweensOf(t.scale); gsap.killTweensOf(t.rotG);}catch{}
+  try {
+    const magnetTl = (t as any)._magnetPullTimeline;
+    if (magnetTl) {
+      magnetTl.kill?.();
+      (t as any)._magnetPullTimeline = null;
+    }
+  } catch {}
   try { stopWildIdle?.(t); } catch {}
   board.removeChild(t);
   if (idx !== -1) {

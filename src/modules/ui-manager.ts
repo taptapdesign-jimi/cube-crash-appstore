@@ -157,11 +157,25 @@ class UIManager {
     event.preventDefault();
     logger.info('🎮 Play button clicked');
     
-    // NO haptic on first play click - too much lag
-    // Haptic is too heavy for first interaction
+    let savedGame: string | null = null;
+    try {
+      savedGame = localStorage.getItem('cc_saved_game');
+    } catch (error) {
+      logger.warn('⚠️ Unable to read saved game before play click:', error);
+    }
+    
+    if (!savedGame) {
+      try {
+        if (typeof (window as any).triggerHapticImpact === 'function') {
+          (window as any).triggerHapticImpact('medium');
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to trigger haptic for Play button:', error);
+      }
+    }
     
     // Check for saved game (starts exit animation)
-    this.checkForSavedGame();
+    this.checkForSavedGame(savedGame);
   }
   
   // Reset all slider buttons to prevent :active state persistence
@@ -207,9 +221,9 @@ class UIManager {
     event.preventDefault();
     logger.info('📊 Stats button clicked');
     
-    // Light haptic for Stats button
+    // Medium haptic for Stats button
     if (typeof (window as any).triggerHapticImpact === 'function') {
-      (window as any).triggerHapticImpact('light');
+      (window as any).triggerHapticImpact('medium');
     }
     
     // NO RESET - let :active work normally like Play button
@@ -231,9 +245,9 @@ class UIManager {
     event.preventDefault();
     logger.info('🎁 Collectibles button clicked');
     
-    // Light haptic for Collectibles button
+    // Medium haptic for Collectibles button
     if (typeof (window as any).triggerHapticImpact === 'function') {
-      (window as any).triggerHapticImpact('light');
+      (window as any).triggerHapticImpact('medium');
     }
     
     // NO RESET - let :active work normally
@@ -247,9 +261,9 @@ class UIManager {
     event.preventDefault();
     logger.info('⚙️ Settings button clicked');
     
-    // Light haptic for Settings button
+    // Medium haptic for Settings button
     if (typeof (window as any).triggerHapticImpact === 'function') {
-      (window as any).triggerHapticImpact('light');
+      (window as any).triggerHapticImpact('medium');
     }
     
     // Show settings screen with animation
@@ -257,10 +271,10 @@ class UIManager {
   }
   
   // Check for saved game
-  private async checkForSavedGame(): Promise<void> {
+  private async checkForSavedGame(preloadedSavedGame?: string | null): Promise<void> {
     try {
       logger.info('🔍 Checking for saved game...');
-      const savedGame = localStorage.getItem('cc_saved_game');
+      const savedGame = typeof preloadedSavedGame === 'string' ? preloadedSavedGame : localStorage.getItem('cc_saved_game');
       logger.info('🔍 Saved game found:', !!savedGame, savedGame ? 'YES' : 'NO');
       
       // Show resume sheet ONLY if saved game exists
