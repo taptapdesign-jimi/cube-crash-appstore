@@ -33,6 +33,9 @@ interface GameState {
   bestScore: number;
   wildGuaranteedOnce: boolean;
   busyEnding: boolean;
+  wildMagnetFlowActive: boolean;
+  wildMagnetFlowTimer: number | null;
+  respawnInProgress: boolean;
 
   // HUD refs
   scoreNumText: Text | null;
@@ -63,6 +66,9 @@ export const STATE: GameState = {
   bestScore: +(localStorage.getItem(STORAGE_BEST) || 0),
   wildGuaranteedOnce: false,
   busyEnding: false,
+  wildMagnetFlowActive: false,
+  wildMagnetFlowTimer: null,
+  respawnInProgress: false,
 
   // HUD refs
   scoreNumText: null,
@@ -86,4 +92,3 @@ export {
   SFX_EXPLODE, ENDLESS, STORAGE_BEST,
   REFILL_ON_SIX_BY_DEPTH, REFILL_AFTER_SMALL_EVERY, POWERUP_WILD_CHANCE,
 };
-

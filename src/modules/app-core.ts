@@ -24,6 +24,7 @@ import { wild } from './hud-helpers.js';
 import * as FLOW  from './level-flow.js';
 import { openEmpties } from './app-spawn.ts';
 import { clearWildState, handleWildMagnetMergedPulledTiles } from './app-merge.ts';
+import { startWildMagnetFlow, endWildMagnetFlow } from './wild-magnet-flow.ts';
 import { statsService } from '../services/stats-service.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import { checkEndGame, needsEmergencyRescue, clearEndGameCache, type EndGameContext } from './endgame-checker.ts';
@@ -823,36 +824,38 @@ export function layout(){
   // Scale board to fit screen width
   const HUD_PADDING = 24;
   const IPAD_BOARD_PADDING = 40; // iPad-specific board padding
+  const paddingPixelsBase = isIPad ? IPAD_BOARD_PADDING : HUD_PADDING;
   
   // Calculate available height and centerY first
   const availableHeight = vh - hudBottom - BOT_PAD;
+  const heightScale = availableHeight / h;
   
-  let availableWidth, s, sw, sh, boardX, boardY;
+  // Calculate available width depending on device type
+  const availableWidth = isIPad
+    ? vw - (IPAD_BOARD_PADDING * 2)
+    : vw - (HUD_PADDING * 2);
+  const baseWidthScale = availableWidth / w;
+  
+  let s, sw, sh, boardX, boardY;
   
   if (isIPad) {
-    // iPad: full width with 40px edge-to-edge board
-    availableWidth = vw - (IPAD_BOARD_PADDING * 2);
-    const widthScale = availableWidth / w;
-    s = widthScale; // Force board to match availableWidth exactly
-    
+    // iPad: force width-fit with explicit padding
+    s = baseWidthScale;
     sw = w * s;
     sh = h * s;
-    boardX = IPAD_BOARD_PADDING; // Left edge flush with 40px padding
-    // Gap between HUD and board: exactly 24px
+    boardX = IPAD_BOARD_PADDING; // Left edge flush with padding
     const boardTopGap = 24;
-    boardY = Math.round(hudBottom + boardTopGap); // Board starts after HUD + 24px gap
+    boardY = Math.round(hudBottom + boardTopGap); // Board starts after HUD + gap
   } else {
-    // Mobile/Desktop: match HUD width
-    availableWidth = vw - (HUD_PADDING * 2);
-    const widthScale = availableWidth / w;
-    const heightScale = availableHeight / h;
+    // Mobile/Desktop: match HUD width but keep height constraints
+    const widthScale = baseWidthScale;
     s = Math.min(widthScale, heightScale);
     
     sw = w * s;
     sh = h * s;
     const idealLeft = Math.round((vw - sw) / 2);
-    const minLeft = HUD_PADDING;
-    const maxLeft = vw - HUD_PADDING - sw;
+    const minLeft = paddingPixelsBase;
+    const maxLeft = vw - paddingPixelsBase - sw;
     boardX = Math.min(Math.max(idealLeft, minLeft), maxLeft);
     const centerY = hudBottom + availableHeight / 2;
     boardY = Math.round(centerY - sh / 2 + 8); // Move board down by 8px
@@ -860,8 +863,8 @@ export function layout(){
   
   console.log('🎯 Board scaling:', { 
     availableWidth, 
-    widthScale: availableWidth / w, 
-    heightScale: availableHeight / h, 
+    widthScale: baseWidthScale, 
+    heightScale, 
     finalScale: s,
     padding: isIPad ? `${IPAD_BOARD_PADDING}px` : `${HUD_PADDING}px`
   });
@@ -935,11 +938,11 @@ export function layout(){
     __hudMetrics.bottom = Math.round(dynamicHudBottom);
     // Recompute vertical scale to ensure board fits in space between wild bottom and screen bottom
     const heightScale2 = (vh - dynamicHudBottom - BOT_PAD) / h;
-    const s2 = Math.min(widthScale, heightScale2);
+    const s2 = Math.min(baseWidthScale, heightScale2);
     board.scale.set(s2, s2);
     const sw2 = w * s2, sh2 = h * s2;
     // recenter horizontally with the same padding
-    const paddingPixels2 = vw * paddingPercent;
+    const paddingPixels2 = paddingPixelsBase;
     const idealLeft2 = Math.round((vw - sw2) / 2);
     const minLeft2 = paddingPixels2;
     const maxLeft2 = vw - paddingPixels2 - sw2;
@@ -1563,7 +1566,8 @@ async function spawnWildFromMeter(){
     lastCell = cell;
 
     try {
-      const spawnMagnet = Math.random() < WILD_MAGNET_SPAWN_CHANCE;
+      const helperAlreadyPresent = tiles.some(t => t && !t.locked && (t.special === 'wild-magnet' || t.special === 'wild' || t.isWild === true || t.isWildFace === true));
+      const spawnMagnet = !helperAlreadyPresent && Math.random() < WILD_MAGNET_SPAWN_CHANCE;
       const ok = await openAtCell(cell.c, cell.r, { isWild: true, isWildMagnet: spawnMagnet });
       if (ok) {
         consumeCharge();
@@ -2087,6 +2091,7 @@ function merge(src, dst, helpers){
     // This happens BEFORE the merge animation completes
     // Works for BOTH: magnet on tile AND tile on magnet
     if (isWildMagnet && dst && !dst.destroyed && !dst.locked && (dst.value | 0) > 0) {
+      startWildMagnetFlow();
       console.log('🧲 WILD-MAGNET: Merge 6 starting, finding up to 4 nearest tiles to pull IMMEDIATELY');
       
       // Find up to 4 nearest tiles to the merge location (use dst position BEFORE merge animation)
@@ -2513,6 +2518,8 @@ function merge(src, dst, helpers){
             
             // 🔥 CRITICAL: Return IMMEDIATELY to prevent any further code execution
             console.log('✅ LAST MERGE: Clean board flow triggered, exiting onComplete callback');
+            endWildMagnetFlow();
+            endWildMagnetFlow();
             return; // Exit early - don't continue with normal merge 6 flow
           } else if (otherActive.length > 0) {
             console.warn('⚠️ LAST MERGE: False positive detected - other active tiles remain. Continuing normal flow.', {
@@ -2640,13 +2647,8 @@ function merge(src, dst, helpers){
         
         // 🔥 CRITICAL: If this is a last merge scenario, skip all FX and spawn logic
         // The clean board flow will be handled in the onComplete callback above
-        if (isLastMergeScenario) {
-          console.log('🚨🚨🚨 LAST MERGE: Skipping all FX and spawn logic - clean board flow will be triggered');
-          return; // Exit early - don't continue with normal merge 6 flow
-        }
-        
-        // If busyEnding was set by another process, exit early
-        if (busyEnding) {
+        // If busyEnding was set by another process (not this last-merge flow), exit early
+        if (busyEnding && !isLastMergeScenario) {
           console.log('⏳ Last merge check skipped - busyEnding is true');
           return;
         }
@@ -2880,6 +2882,7 @@ function merge(src, dst, helpers){
             } finally {
               busyEnding = false;
             }
+            endWildMagnetFlow();
             return; // Exit early - don't continue with normal merge 6 flow
           }
         } else {
@@ -2913,6 +2916,7 @@ function merge(src, dst, helpers){
           
           if (boardIsCleanAfterDstRemoval) {
             await triggerCleanBoardFlow('reactive_after_merge6_dst_removal');
+            endWildMagnetFlow();
             return; // Exit early - don't continue with normal merge 6 flow
           }
 
@@ -3267,6 +3271,7 @@ function merge(src, dst, helpers){
             }
           }
           
+          endWildMagnetFlow();
           return; // Exit early - don't spawn new tiles
         }
         
@@ -3280,7 +3285,7 @@ function merge(src, dst, helpers){
         console.log('🎯 Spawning new tiles with multiplier:', spawnMult);
         console.log('🎯 Excluding pulled cells from spawn:', pulledCells);
         
-        await FLOW.openLockedBounceParallel({ 
+        await runOpenLockedBounceParallel({ 
           tiles, 
           k: spawnMult, 
           drag, 
@@ -3312,9 +3317,9 @@ function merge(src, dst, helpers){
         }
         
         // 🔥 CRITICAL: Check end game after spawn completes (with delay to allow animations)
-        // Use checkLevelEnd which already has proper delay and handles all edge cases
-        // This replaces the inline setTimeout check to avoid duplicate checks
+        // Keep magnet-flow guard active until after the centralized check runs
         checkLevelEnd();
+        endWildMagnetFlow();
       }
     });
     return;
@@ -3380,6 +3385,11 @@ function checkLevelEnd(){
   gsap.delayedCall(0.3, async () => {
     if (busyEnding) {
       console.log('⏳ checkLevelEnd skipped - busyEnding is true');
+      return;
+    }
+    if (STATE.wildMagnetFlowActive || STATE.respawnInProgress) {
+      console.log('⏳ checkLevelEnd skipped - merge/spawn flow active, deferring...');
+      gsap.delayedCall(0.35, checkLevelEnd);
       return;
     }
     
@@ -3489,7 +3499,16 @@ function showCleanBoardEdgeCase(){
 }
 
 async function openLockedBounceParallel(k){
-  await FLOW.openLockedBounceParallel({ tiles, k, drag, makeBoard, gsap, drawBoardBG, TILE, fixHoverAnchor, spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done) });
+  await runOpenLockedBounceParallel({ tiles, k, drag, makeBoard, gsap, drawBoardBG, TILE, fixHoverAnchor, spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done) });
+}
+
+async function runOpenLockedBounceParallel(options){
+  try {
+    STATE.respawnInProgress = true;
+    await FLOW.openLockedBounceParallel(options);
+  } finally {
+    STATE.respawnInProgress = false;
+  }
 }
 
 // DEPRECATED: Use checkEndGame() from endgame-checker.ts instead

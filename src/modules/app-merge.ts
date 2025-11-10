@@ -11,6 +11,7 @@ import { showBoardFailModal } from './board-fail-modal.js';
 import { rebuildBoard, isBoardClean } from './app-board.js';
 import { drawBoardBG } from './app-core.js';
 import { statsService } from '../services/stats-service.js';
+import { endWildMagnetFlow } from './wild-magnet-flow.ts';
 
 // Import updateProgressBar function
 const updateProgressBar = HUD.updateProgressBar;
@@ -341,12 +342,17 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const validTiles = tiles.filter((t: any) => t && !t.destroyed);
   const pulledTileCount = validTiles.length;
   const pulledCells: { c: number; r: number }[] = [];
+  const finalizeMagnetFlow = () => {
+    endWildMagnetFlow();
+  };
   
   if (validTiles.length === 0 || !dst || dst.destroyed) {
     console.warn('⚠️ No valid tiles or dst destroyed');
+    finalizeMagnetFlow();
     return;
   }
   
+  try {
   // 🔥 CRITICAL: Store pulled cells BEFORE removing tiles (for excluding from later spawns)
   validTiles.forEach((tile: any) => {
     if (!tile || tile.destroyed) return;
@@ -968,6 +974,9 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // This ensures end game is checked even if checkGameOver doesn't catch it
   if (typeof (window as any).CC?.checkLevelEnd === 'function') {
     (window as any).CC.checkLevelEnd();
+  }
+  } finally {
+    finalizeMagnetFlow();
   }
 }
 

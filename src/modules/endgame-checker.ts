@@ -1,3 +1,5 @@
+import { STATE } from './app-state.ts';
+
 /**
  * 🔥 CENTRALIZED END GAME CHECKER
  * 
@@ -354,6 +356,10 @@ export function clearEndGameCache(): void {
  * Check if emergency rescue is needed (wild cubes but no non-wild tiles)
  */
 export function needsEmergencyRescue(tiles: any[]): boolean {
+  if (STATE?.wildMagnetFlowActive || STATE?.respawnInProgress) {
+    console.log('🧲 needsEmergencyRescue: Flow/spawn active, skipping emergency check');
+    return false;
+  }
   const activeTiles = getActiveTiles(tiles);
   const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
   const mergeableNonWildTiles = activeTiles.filter(t => {
