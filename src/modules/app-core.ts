@@ -2037,8 +2037,9 @@ function merge(src, dst, helpers){
         dstSpecial: dstSpecial
       });
       
-      // Set busyEnding flag IMMEDIATELY to prevent any other code from running
-      busyEnding = true;
+      // 🔥 CRITICAL: DON'T set busyEnding here - let normal merge 6 flow complete with animations
+      // busyEnding will be set in onComplete callback AFTER animations finish
+      // busyEnding = true; // REMOVED - was preventing normal merge 6 animations
       
       // Continue with merge 6 animation, but mark that this is the last merge
       // We'll handle clean board flow in the onComplete callback
@@ -2465,61 +2466,19 @@ function merge(src, dst, helpers){
         if (isLastMergeInOnComplete) {
           const otherActive = getReactiveActiveTiles().filter((t) => t !== dst);
           if (otherActive.length === 0 && dstStillExists) {
-            console.log('🚨🚨🚨 LAST MERGE DETECTED (_isLastMerge flag) - Only 2 tiles merged to merge 6, triggering clean board flow');
+            console.log('🚨🚨🚨 LAST MERGE DETECTED (_isLastMerge flag) - Only 2 tiles merged to merge 6');
+            console.log('💥 LAST MERGE: Letting normal merge 6 flow continue (animations, dst removal, spawn check)');
+            console.log('💥 LAST MERGE: Spawn will be skipped by safeguard check (line 3070), then clean board flow will trigger');
             
-            // Set busyEnding flag IMMEDIATELY to prevent any other code from running
-            busyEnding = true;
+            // 🔥 CRITICAL: DON'T set busyEnding here - let normal merge 6 flow continue
+            // The safeguard check (line 3070) will skip spawn and trigger clean board flow
+            // busyEnding = true; // REMOVED - was preventing normal merge 6 flow
             
-            // Remove dst tile (merge 6) to make board clean
-            if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-              grid[dst.gridY][dst.gridX] = null;
-              dst.visible = false;
-              removeTile(dst);
-            }
-            
-            // CRITICAL: Reset wild meter immediately to prevent visual residue
-            console.log('🔥 LAST MERGE: Resetting wild meter immediately...');
-            wildMeter = 0;
-            STATE.wildMeter = 0;
-            resetWildProgress(0, false);
-            
-            // Force immediate HUD update to clear wild meter visually
-            try {
-              if (typeof HUD.resetWildMeter === 'function') {
-                HUD.resetWildMeter(true); // instant = true for immediate reset
-              } else {
-                HUD.updateProgressBar?.(0, false);
-              }
-              console.log('✅ LAST MERGE: Wild meter reset completed');
-            } catch (error) {
-              console.warn('⚠️ LAST MERGE: Failed to reset wild meter:', error);
-            }
-            
-            try {
-              try { await new Promise(res => setTimeout(res, 1000)); } catch {}
-              await runEndgameFlow({
-                app,
-                stage,
-                board,
-                boardBG,
-                level,
-                startLevel,
-                score,
-                getScore: () => score,
-                setScore: (v) => { score = v|0; updateHUD(); },
-                animateScore,
-                updateHUD,
-                boardNumber,
-                hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
-                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
-              });
-            } finally {
-              busyEnding = false;
-            }
-            
-            // 🔥 CRITICAL: Return IMMEDIATELY to prevent any further code execution
-            console.log('✅ LAST MERGE: Clean board flow triggered, exiting onComplete callback');
-            return; // Exit early - don't continue with normal merge 6 flow
+            // 🔥 CRITICAL: DON'T reset wild meter here - let safeguard check handle it
+            // 🔥 CRITICAL: DON'T trigger clean board flow here - let safeguard check handle it
+            // Just let the normal merge 6 flow continue (dst removal, spawn check, clean board flow)
+            console.log('✅ LAST MERGE: Continuing with normal merge 6 flow (dst removal, spawn check, clean board flow)');
+            // No return - continue with normal merge 6 flow
           } else if (otherActive.length > 0) {
             console.warn('⚠️ LAST MERGE: False positive detected - other active tiles remain. Continuing normal flow.', {
               otherActive: otherActive.map(t => ({ value: t.value, special: t.special, locked: t.locked }))
@@ -2589,58 +2548,18 @@ function merge(src, dst, helpers){
           const lastMergeResult = checkEndGame(lastMergeContext, true);
         
           if (lastMergeResult.type === 'clean' && lastMergeResult.reason === 'last_merge') {
-            console.log('🚨🚨🚨 LAST MERGE DETECTED (centralized checker) - Only merge 6 remains after removing src, triggering clean board flow');
+            console.log('🚨🚨🚨 LAST MERGE DETECTED (centralized checker) - Only merge 6 remains after removing src');
+            console.log('💥 LAST MERGE: This check should not trigger if _isLastMerge flag was set properly');
+            console.log('💥 LAST MERGE: Continuing with normal merge 6 flow (dst removal, spawn check, clean board flow)');
             
-            // Set busyEnding flag IMMEDIATELY to prevent any other code from running
-            busyEnding = true;
-            
-            // Remove dst tile (merge 6) to make board clean
-            if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-              grid[dst.gridY][dst.gridX] = null;
-              dst.visible = false;
-              removeTile(dst);
+            // 🔥 CRITICAL: Set _isLastMerge flag if not already set
+            if (!(dst as any)?._isLastMerge) {
+              (dst as any)._isLastMerge = true;
+              console.log('✅ _isLastMerge flag set to TRUE (was missing)');
             }
             
-            // CRITICAL: Reset wild meter immediately to prevent visual residue
-            console.log('🔥 LAST MERGE: Resetting wild meter immediately...');
-            wildMeter = 0;
-            STATE.wildMeter = 0;
-            resetWildProgress(0, false);
-            
-            // Force immediate HUD update to clear wild meter visually
-            try {
-              if (typeof HUD.resetWildMeter === 'function') {
-                HUD.resetWildMeter(true); // instant = true for immediate reset
-              } else {
-                HUD.updateProgressBar?.(0, false);
-              }
-              console.log('✅ LAST MERGE: Wild meter reset completed');
-            } catch (error) {
-              console.warn('⚠️ LAST MERGE: Failed to reset wild meter:', error);
-            }
-            
-            try {
-              try { await new Promise(res => setTimeout(res, 1000)); } catch {}
-              await runEndgameFlow({
-                app,
-                stage,
-                board,
-                boardBG,
-                level,
-                startLevel,
-                score,
-                getScore: () => score,
-                setScore: (v) => { score = v|0; updateHUD(); },
-                animateScore,
-                updateHUD,
-                boardNumber,
-                hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
-                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
-              });
-            } finally {
-              busyEnding = false;
-            }
-            return; // Exit early - don't continue with normal merge 6 flow
+            // Don't set busyEnding or trigger clean board flow here - let normal flow handle it
+            // No return - continue with normal merge 6 flow
           }
         }
         
