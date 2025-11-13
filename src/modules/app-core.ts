@@ -3331,7 +3331,7 @@ function merge(src, dst, helpers){
   dst.eventMode = 'static';
 }
 
-function checkMovesDepleted(){
+async function checkMovesDepleted(){
   // Use centralized end game checker
   if (busyEnding) return;
   
@@ -3347,6 +3347,9 @@ function checkMovesDepleted(){
   if (movesDepletedCheckResult.type === 'stuck') {
     console.log('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
     if (!busyEnding) {
+      // 🔥 CRITICAL: Wait 1 second before showing fail screen so user can see the board state
+      console.log('⏳ Waiting 1 second before showing fail screen so user can see board state...');
+      await new Promise(res => setTimeout(res, 1000));
       showFinalScreen();
     }
   } else {
@@ -3479,6 +3482,10 @@ function checkLevelEnd(){
         locked: t.locked 
       })));
       if (!busyEnding) {
+        // 🔥 CRITICAL: Wait 1 second before showing fail screen so user can see the board state
+        // This prevents instant fail screen when board becomes non-mergable (e.g. after wild spawn)
+        console.log('⏳ Waiting 1 second before showing fail screen so user can see board state...');
+        await new Promise(res => setTimeout(res, 1000));
         showFinalScreen();
       } else {
         console.warn('⚠️ checkLevelEnd: busyEnding is true, skipping showFinalScreen');
