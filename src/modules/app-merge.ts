@@ -602,11 +602,12 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const activeTilesAfterPulledMerge = STATE.tiles.filter((t: any) => t && !t.locked && (t.value|0) > 0);
   const remainingTilesCount = activeTilesAfterPulledMerge.length;
   
-  console.log('🧲 After pulled tiles merge - active tiles:', remainingTilesCount, 'dst is merge 6:', dst?.value === 6);
+  console.log('🧲 After pulled tiles merge - active tiles:', remainingTilesCount, 'dst is merge 6:', dst?.value === 6, 'pulledCells to respawn:', pulledCells.length);
   
   // 🔥 EDGE CASE: If only merge 6 remains (magnet pulled the last 4 tiles), don't spawn new tiles - trigger clean board immediately
+  // BUT: Only if there are NO pulled cells to respawn! If we have pulled cells, we MUST spawn them first!
   // This covers the case when magnet pulled the last 4 tiles from the board
-  if (remainingTilesCount === 1 && activeTilesAfterPulledMerge[0] === dst) {
+  if (remainingTilesCount === 1 && activeTilesAfterPulledMerge[0] === dst && pulledCells.length === 0) {
     // Only merge 6 remains - this means magnet pulled the last tiles from the board
     console.log('🚨🚨🚨 EDGE CASE: Only merge 6 remains after magnet pulled last 4 tiles - Triggering clean board flow immediately (no spawn)');
     
@@ -681,8 +682,9 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   }
   
   // If merge 6 is on board with 2-3 tiles remaining (including merge 6 itself), pull all remaining tiles and trigger clean board
+  // BUT: Only if there are NO pulled cells to respawn! If we have pulled cells, we MUST spawn them first!
   // This means if there are 2-3 tiles total (including merge 6), pull them and trigger clean board
-  if (remainingTilesCount >= 2 && remainingTilesCount <= 3) {
+  if (remainingTilesCount >= 2 && remainingTilesCount <= 3 && pulledCells.length === 0) {
     console.log('🚨🚨🚨 MAGNET MERGE 6 WITH FEW TILES DETECTED - Pulling all remaining tiles and triggering clean board flow');
     
     // Find merge 6 tile (dst) and remaining tiles
@@ -974,6 +976,11 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   if (!canMerge) {
     // No merges possible - show fail screen
     console.log('🚨🚨🚨 No merges possible after magnet pull spawn - showing fail screen');
+    
+    // 🔥 CRITICAL: Wait 1 second before showing fail screen so user can see spawned tiles
+    // This prevents instant fail screen after magnet spawns non-mergable tiles
+    console.log('⏳ Waiting 1 second before fail screen so user can see spawned tiles...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Use checkLevelEnd from app-core.ts if available, otherwise use checkGameOver
     if (typeof (window as any).CC?.checkLevelEnd === 'function') {
