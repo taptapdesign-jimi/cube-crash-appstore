@@ -66,7 +66,7 @@ interface CheckGameOverParams {
   animateScore?: (score: number) => void;
   wildAPI?: any;
   openEmpties?: () => void;
-  isBoardClean?: () => boolean;
+  // 🔥 REMOVED: isBoardClean - deprecated, use checkEndGame() from endgame-checker.ts
   gsap?: any;
 }
 
@@ -159,7 +159,7 @@ export async function checkGameOver({
   showStarsModal, app, stage, board,
   level, startLevel,
   animateScore,
-  wildAPI, openEmpties, isBoardClean, gsap
+  wildAPI, openEmpties, gsap
 }: CheckGameOverParams = {}): Promise<void> {
   if (makeBoard?.anyMergePossible?.(tiles || [])) return;
   if (hasWildOnBoard?.()) return;

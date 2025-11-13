@@ -38,6 +38,13 @@ const COMBO_CAP = 99;   // praktični safety cap
 // Combo idle decay: reset na x0 poslije 2s
 const COMBO_IDLE_RESET_MS = 2000;
 let comboIdleTimer = null;
+let checkLevelEndTimer = null;
+// 🔥 CRITICAL: Increased from 500ms to 1200ms to allow all animations to complete
+// - Wild spawn bounce: ~580ms
+// - Magnet pull + respawn: ~1000ms
+// - Regular merge animations: ~600-800ms
+// This prevents premature endgame checks while animations are still running
+const CHECK_LEVEL_END_DELAY_MS = 1200;
 function scheduleComboDecay(){
   try { comboIdleTimer?.kill?.(); } catch {}
   comboIdleTimer = gsap.delayedCall(COMBO_IDLE_RESET_MS/1000, () => {
@@ -114,9 +121,8 @@ function getReactiveActiveTiles(): any[] {
   return tiles.filter(tileIsVisuallyActive);
 }
 
-function isBoardCleanReactive(): boolean {
-  return getReactiveActiveTiles().length === 0;
-}
+// 🔥 REMOVED: isBoardCleanReactive() - use checkEndGame() from endgame-checker.ts instead
+// This function was a duplicate of isBoardCleanCheck() and could cause conflicts
 
 async function triggerCleanBoardFlow(reason: string): Promise<void> {
   console.log('🚨🚨🚨 triggerCleanBoardFlow invoked:', reason);
@@ -3359,31 +3365,37 @@ function activeTilesList(){
   } 
 }
 
-function isStuck(){
-  console.warn('⚠️ DEPRECATED: isStuck() called - use checkEndGame() from endgame-checker.ts instead');
-  
-  // Fallback implementation using centralized checker
-  const context: EndGameContext = {
-    tiles,
-    moves,
-    makeBoard
-  };
-  const result = checkEndGame(context);
-  return result.type === 'stuck';
-}
+// 🔥 REMOVED: isStuck() - DEPRECATED function that caused conflicts
+// Use checkEndGame() from endgame-checker.ts instead
 
 // -------------------- level-end scaffolding --------------------
 // NOTE: All end game checks now use centralized checkEndGame() from endgame-checker.ts
-// Old functions (isStuck, isBoardClean) are kept for backward compatibility but should not be used
+// Old deprecated functions (isStuck, isBoardClean, showCleanBoardEdgeCase) have been removed
 function checkLevelEnd(){
-  // Use centralized end game checker with delay
-  gsap.delayedCall(0.3, async () => {
+  // Always wait a bit so animations/spawns can finish before deciding
+  try {
+    checkLevelEndTimer?.kill?.();
+  } catch {}
+
+  checkLevelEndTimer = gsap.delayedCall(CHECK_LEVEL_END_DELAY_MS / 1000, async () => {
+    checkLevelEndTimer = null;
     if (busyEnding) {
       console.log('⏳ checkLevelEnd skipped - busyEnding is true');
       return;
     }
     
     console.log('🎯 checkLevelEnd called - using centralized end game checker...');
+    
+    // 🔥 CRITICAL: Skip check if wild spawn is in progress (animation not finished yet)
+    if (wildSpawnInProgress) {
+      console.log('⏳ checkLevelEnd skipped - wild spawn animation in progress');
+      // Reschedule after spawn completes
+      checkLevelEndTimer = gsap.delayedCall(0.3, () => {
+        checkLevelEndTimer = null;
+        checkLevelEnd();
+      });
+      return;
+    }
     
     // Check for emergency rescue first
     if (needsEmergencyRescue(tiles)) {
@@ -3477,34 +3489,11 @@ function checkLevelEnd(){
   });
 }
 
-// DEPRECATED: Use checkEndGame() from endgame-checker.ts instead
-// Kept for backward compatibility only
-function showCleanBoardEdgeCase(){
-  if (busyEnding) return;
-  const active = tiles.filter(t => !t.locked && t.value > 0);
-  if (active.length === 2){
-    const add = (active[0].value|0) + (active[1].value|0);
-    score = Math.min(SCORE_CAP, score + Math.max(0, add)); updateHUD();
-  }
-}
+// 🔥 REMOVED: showCleanBoardEdgeCase() - DEPRECATED function no longer needed
+// Endgame checker handles all edge cases now
 
 async function openLockedBounceParallel(k){
   await FLOW.openLockedBounceParallel({ tiles, k, drag, makeBoard, gsap, drawBoardBG, TILE, fixHoverAnchor, spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done) });
-}
-
-// DEPRECATED: Use checkEndGame() from endgame-checker.ts instead
-// This function is kept for backward compatibility but should not be used
-function isBoardClean(){
-  console.warn('⚠️ DEPRECATED: isBoardClean() called - use checkEndGame() from endgame-checker.ts instead');
-  
-  // Fallback implementation using centralized checker
-  const context: EndGameContext = {
-    tiles,
-    moves,
-    makeBoard
-  };
-  const result = checkEndGame(context);
-  return result.type === 'clean';
 }
 
 // -------------------- helpers --------------------

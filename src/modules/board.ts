@@ -400,10 +400,18 @@ function tileIsWild(tile: Tile | null | undefined): boolean {
 }
 
 function tileIsActive(tile: Tile | null | undefined): boolean {
-  if (!tile || tile.locked || tile.destroyed) return false;
+  if (!tile || tile.destroyed) return false;
   if (tile.visible === false) return false;
-  const hasValue = ((tile.value | 0) > 0);
-  return hasValue || tileIsWild(tile);
+  
+  // 🔥 CRITICAL: Locked tiles with value > 0 are still active (e.g. during magnet pull)
+  // Only exclude locked tiles with value 0 (ghost placeholders)
+  const value = (tile.value | 0);
+  if (value > 0) {
+    return true; // Active regardless of locked status
+  }
+  
+  // Wild tiles are active even if locked temporarily
+  return tileIsWild(tile);
 }
 
 export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {

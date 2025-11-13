@@ -88,21 +88,11 @@ export function rebuildBoard(){
   // Ghost placeholders are now fixed and always visible
 }
 
-export function isBoardClean(){ 
-  const allLockedOrEmpty = STATE.tiles.every(t => t.locked || t.value <= 0);
-  const hasWildCubes = STATE.tiles.some(t => (t.special === 'wild' || t.special === 'wild-magnet') && !t.locked);
-  const isClean = allLockedOrEmpty && !hasWildCubes;
-  
-  console.log('🎯 isBoardClean check:', {
-    totalTiles: STATE.tiles.length,
-    allLockedOrEmpty,
-    hasWildCubes,
-    isClean,
-    wildCubes: STATE.tiles.filter(t => (t.special === 'wild' || t.special === 'wild-magnet') && !t.locked).length
-  });
-  
-  return isClean;
-}
+// 🔥 REMOVED: isBoardClean() - DEPRECATED function with critical bug
+// This function was causing false positives when tiles were locked (e.g. during magnet pull)
+// Use checkEndGame() from endgame-checker.ts instead
+// Bug: STATE.tiles.every(t => t.locked || t.value <= 0) returned true when all tiles were locked,
+// even if they had values > 0, causing premature "clean board" detection
 
 function randVal(){ return [1,1,1,2,2,3,3,4,5][(Math.random()*9)|0]; }
 

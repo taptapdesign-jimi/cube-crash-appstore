@@ -8,7 +8,7 @@ import * as HUD from './hud-helpers.js';
 import { openAtCell, openEmpties, spawnBounce } from './app-spawn.ts';
 import { showStarsModal } from './stars-modal.js';
 import { showBoardFailModal } from './board-fail-modal.js';
-import { rebuildBoard, isBoardClean } from './app-board.js';
+import { rebuildBoard } from './app-board.js';
 import { drawBoardBG } from './app-core.js';
 import { statsService } from '../services/stats-service.js';
 
@@ -62,10 +62,18 @@ function tileIsWild(tile: any): boolean {
 }
 
 function tileIsActive(tile: any): boolean {
-  if (!tile || tile.locked || tile.destroyed) return false;
+  if (!tile || tile.destroyed) return false;
   if (tile.visible === false) return false;
-  const hasValue = ((tile.value | 0) > 0);
-  return hasValue || tileIsWild(tile);
+  
+  // 🔥 CRITICAL: Locked tiles with value > 0 are still active (e.g. during magnet pull)
+  // Only exclude locked tiles with value 0 (ghost placeholders)
+  const value = (tile.value | 0);
+  if (value > 0) {
+    return true; // Active regardless of locked status
+  }
+  
+  // Wild tiles are active even if locked temporarily
+  return tileIsWild(tile);
 }
 function removeTile(t){
   if(!t) return;
@@ -856,13 +864,33 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
   const activeAfterRemoval = STATE.tiles.filter(tileIsActive);
   const onlyDstRemains = activeAfterRemoval.length === 1 && activeAfterRemoval[0] === dst;
+  const hasTilesToRespawn = pulledCells.length > 0;
 
-  if ((isLastMergeFlagSet || onlyDstRemains) && triggerCentralEndgameCheck('mergePulledTilesBeforeRespawn')) {
+  // 🔥 CRITICAL: Only skip respawn if explicitly marked as last merge
+  // OR if only dst remains AND there are no tiles to respawn
+  // This prevents premature endgame when there are still wild/magnet tiles on board
+  const shouldSkipRespawnAndEndGame = isLastMergeFlagSet || (onlyDstRemains && !hasTilesToRespawn);
+
+  console.log('🧲 Pre-respawn check:', {
+    isLastMergeFlagSet,
+    activeAfterRemoval: activeAfterRemoval.length,
+    onlyDstRemains,
+    hasTilesToRespawn,
+    shouldSkipRespawnAndEndGame
+  });
+
+  if (shouldSkipRespawnAndEndGame && triggerCentralEndgameCheck('mergePulledTilesBeforeRespawn')) {
     console.log('🧲 mergePulledTilesIntoMerge6: Central endgame handled before respawn, skipping spawns.');
     return;
   }
+  
+  // 🔥 SAFETY: If we have tiles to respawn, ALWAYS respawn them regardless of endgame state
+  // This prevents the "instant fail" bug when magnet pulls tiles but doesn't spawn new ones
+  if (hasTilesToRespawn) {
+    console.log('🧲 Has tiles to respawn:', pulledCells.length, '- proceeding with spawn regardless of endgame state');
+  }
 
-  const spawnCount = pulledCells.length; // Spawn as many tiles as were pulled
+  const spawnCount = hasTilesToRespawn ? pulledCells.length : 0; // Spawn as many tiles as were pulled
   const spawnTargets = findRandomEmptyCells(spawnCount);
 
   if (spawnTargets.length) {
@@ -937,7 +965,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // This is the edge case: if magnet pulled last tiles and spawned 4 new ones,
   // we need to check if those 4 can merge with each other or with existing tiles
   // 🔥 CRITICAL: Add delay to allow spawn animations to complete before checking
-  await new Promise(resolve => setTimeout(resolve, 600)); // 600ms delay for spawn animations
+  // Increased from 600ms to 800ms to ensure spawn bounce (~580ms) + unlock/bind (~50ms) completes
+  await new Promise(resolve => setTimeout(resolve, 800)); // 800ms delay for spawn animations
   
   const canMerge = makeBoard.anyMergePossible(STATE.tiles);
   console.log('🧲 Post-respawn mergeability check (after delay):', canMerge);
@@ -954,6 +983,11 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     }
     return;
   }
+  
+  // 🔥 CRITICAL: Wait longer for spawn animations to complete before checking endgame
+  // Spawn bounce animation takes ~580ms, plus unlock/bind takes ~50ms
+  // Total safe delay: 800ms (increased from 600ms)
+  console.log('⏳ Waiting 800ms for spawn animations to complete before endgame check...');
   
   // 🔥 CRITICAL: Check if ALL tiles can be merged together (simulate all possible merges)
   // If all tiles can be merged and the final merge is merge 6, trigger clean board flow
@@ -1315,20 +1349,21 @@ export function merge(src, dst, helpers){
 
         removeTile(src);
         
+        // 🔥 CRITICAL: ALWAYS run animations and remove merge 6, regardless of willClean
+        // The old code would skip animations if willClean=true, causing merge 6 to freeze
+        await landPreBounce(dst);
+        showMultiplierTile(STATE.board, dst, mult, 120, 1.0);
+        
         // CRITICAL FIX: Check for wild cubes properly (including wild-magnet)
         const allTiles = STATE.tiles.filter(t => t && !t.locked);
         const wildCubes = allTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
-        const nonWildTiles = allTiles.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
+        const nonWildTiles = allTiles.filter(t => t.special !== 'wild' && t.special === 'wild-magnet');
         const willClean = wildCubes.length === 0 && nonWildTiles.length <= 1;
         const shouldRefillAfterMerge = !willClean;
-
-        if (!willClean) {
-          await landPreBounce(dst);
-          showMultiplierTile(STATE.board, dst, mult, 120, 1.0);
-          
-          // 🔥 CRITICAL: Check if this is pulled tiles merge 6 (both _wildMagnetAffected)
-          // Pulled tiles merge 6 should use same shard parameters as magnet merge 6
-          if (isPulledTilesMerge) {
+        
+        // 🔥 CRITICAL: Check if this is pulled tiles merge 6 (both _wildMagnetAffected)
+        // Pulled tiles merge 6 should use same shard parameters as magnet merge 6
+        if (isPulledTilesMerge) {
             console.log('🧲 PULLED TILES MERGE 6: Using same shard parameters as magnet merge 6');
             const base = Math.min(28, 12 + Math.max(1, mult) * 4);
             try {
@@ -1429,7 +1464,6 @@ export function merge(src, dst, helpers){
             const dstSnapshot = { special: dstSpecial };
             spawnMerge6Shards(STATE.board, srcSnapshot, dst, dstSnapshot, { intensity: 0.7, count: 12, spread: 1.1, size: 0.85, vanishDelay: 0.03, behind: true });
           }
-        }
 
         const gx = dst.gridX, gy = dst.gridY;
         STATE.grid[gy][gx] = null;
@@ -1490,7 +1524,11 @@ export function merge(src, dst, helpers){
         const isWildMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
         const toOpen = isWildMagnetMerge ? 3 : (REFILL_ON_SIX_BY_DEPTH[depth-1] || 2); // Wild-magnet = 3, else default
 
-        if (shouldRefillAfterMerge) {
+        // 🔥 CRITICAL: ALWAYS spawn tiles after merge 6, regardless of shouldRefillAfterMerge
+        // The old code would skip spawning if shouldRefillAfterMerge=false, causing merge 6 to freeze
+        // We need to spawn first, THEN check if board is clean
+        console.log('🎯 Merge 6: Spawning', toOpen, 'new tiles (shouldRefillAfterMerge:', shouldRefillAfterMerge, ')');
+        
         if (!STATE.wildGuaranteedOnce){
           await openAtCell(gx, gy, { isWild:true });
           STATE.wildGuaranteedOnce = true;
@@ -1511,17 +1549,20 @@ export function merge(src, dst, helpers){
           } catch (error) {
             console.warn('⚠️ Failed to spawn additional tiles after wild merge (effSum=6):', error);
           }
-          }
-        } else {
-          console.log('🎯 Clean board detected - skipping automatic refills after merge 6.');
         }
 
-        // CRITICAL: Check if board is clean AFTER spawning new tiles
-        // This must happen BEFORE checkGameOver() to prevent level failed screen
-        const isClean = isBoardClean();
-        console.log('🔥 Checking if board is clean after merge 6 and spawn:', isClean);
+        // 🔥 CRITICAL: Use centralized endgame checker instead of old isBoardClean()
+        // Old isBoardClean() from app-board.js was causing false positives when tiles were locked
+        const { checkEndGame } = await import('./endgame-checker.js');
+        const endgameResult = checkEndGame({
+          tiles: STATE.tiles,
+          moves: 999, // Not relevant for clean board check
+          makeBoard: { anyMergePossible: makeBoard.anyMergePossible }
+        }, true); // forceRefresh = true
         
-        if (isClean) {
+        console.log('🔥 Checking endgame after merge 6 and spawn:', endgameResult);
+        
+        if (endgameResult.type === 'clean') {
           console.log('🚨🚨🚨 BOARD IS CLEAN AFTER MERGE 6 - STARTING ENDGAME FLOW! 🚨🚨🚨');
           
           // SUCCESS haptic for clean board
@@ -1567,20 +1608,22 @@ export function merge(src, dst, helpers){
           return; // Exit early - don't call checkGameOver()
         }
 
-        if (STATE.tiles.every(t => t.locked || t.value <= 0)){
-          // Track highest board reached in alt merge flow
-          try { if (typeof window.trackHighestBoard === 'function') window.trackHighestBoard(STATE.level); } catch {}
-          try { await new Promise(res => setTimeout(res, 1000)); } catch {}
-          await showStarsModal({ app: STATE.app, stage: STATE.stage, board: STATE.board, score: STATE.score, thresholds:{one:120,two:240,three:360}, buttonLabel:'Keep Going' });
-          STATE.score = 0; STATE.moves = 0; updateHUD();
-        }
+        // 🔥 REMOVED: Old buggy check that caused premature stars modal
+        // Bug: STATE.tiles.every(t => t.locked || t.value <= 0) returned true when tiles were locked
+        // This caused stars modal to show before new tiles spawned after merge 6
+        // Now we rely on checkGameOver() which uses centralized endgame checker with proper delays
+        
+        // 🔥 CRITICAL: Wait for spawn animations to complete before checking endgame
+        // Spawn bounce takes ~580ms, so we wait 800ms to be safe
+        await new Promise(res => setTimeout(res, 800));
+        
         checkGameOver();
       }
     });
     return;
   }
 
-  // >6 (shouldn’t happen)
+  // >6 (shouldn't happen)
   wobble(dst);
   helpers.snapBack(src);
   dst.eventMode = 'static';
