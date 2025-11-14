@@ -18,8 +18,8 @@ export interface ShadowConfig {
 
 // Grid - responsive based on screen size
 export function getGridDimensions(): GridDimensions {
-  // 🔥 TESTING: Return 5x5 board for faster testing (was 5x9)
-  return { COLS: 5, ROWS: 5 };
+  // Production: 5x9 board (standard gameplay)
+  return { COLS: 5, ROWS: 9 };
   
   /* Original responsive code - commented out
   if (typeof window !== 'undefined') {

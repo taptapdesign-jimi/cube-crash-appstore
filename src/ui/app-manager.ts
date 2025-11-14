@@ -51,13 +51,20 @@ class AppManager {
       element.hidden = false;
       element.style.display = 'block';
       
-      // Add fade-in animation
-      element.style.opacity = '0';
-      element.style.transition = 'opacity 0.3s ease';
-      
-      requestAnimationFrame(() => {
+      // 🎬 For stats screen, skip fade-in and use GSAP animations instead
+      if (screen === 'stats') {
+        // Set opacity to 1 immediately (no transition) so GSAP can control individual elements
         element.style.opacity = '1';
-      });
+        element.style.transition = 'none';
+      } else {
+        // Add fade-in animation for other screens
+        element.style.opacity = '0';
+        element.style.transition = 'opacity 0.3s ease';
+        
+        requestAnimationFrame(() => {
+          element.style.opacity = '1';
+        });
+      }
 
       this.currentScreen = screen;
       
@@ -72,6 +79,18 @@ class AppManager {
           console.log('📊 About to call updateStatsValues()...');
           updateStatsValues();
           console.log('✅ updateStatsValues() called successfully');
+          
+          // 🎬 Trigger stats screen enter animation (pop-in) using GSAP
+          console.log('🎬 About to import stats-animations.js...');
+          const { animateStatsScreenEnter } = await import('./stats-animations.js');
+          console.log('✅ stats-animations.js imported successfully');
+          // Longer delay to ensure DOM is fully ready and elements are visible
+          setTimeout(() => {
+            console.log('🎬 Calling animateStatsScreenEnter() after 200ms delay...');
+            console.log('🔍 Stats screen element:', document.getElementById('stats-screen'));
+            console.log('🔍 Stat items:', document.querySelectorAll('.stat-item').length);
+            animateStatsScreenEnter();
+          }, 200);
         } catch (error) {
           console.error('❌ Failed to update stats values:', error);
           logger.warn('⚠️ Failed to update stats values:', error);
@@ -87,13 +106,31 @@ class AppManager {
   hideScreen(screen: ScreenType): void {
     const element = this.screenElements.get(screen);
     if (element && !element.hidden) {
-      element.style.opacity = '0';
-      
-      // Hide after transition
-      setTimeout(() => {
-        element.hidden = true;
-        element.style.display = 'none';
-      }, 300);
+      // 🎬 For stats screen, use GSAP exit animation instead of fade-out
+      if (screen === 'stats') {
+        try {
+          import('./stats-animations.js').then(({ animateStatsScreenExit }) => {
+            animateStatsScreenExit();
+          });
+        } catch (error) {
+          logger.warn('⚠️ Failed to trigger stats exit animation:', error);
+        }
+        
+        // Hide after GSAP animation completes (500ms animation + 100ms buffer)
+        setTimeout(() => {
+          element.hidden = true;
+          element.style.display = 'none';
+        }, 600);
+      } else {
+        // Use fade-out for other screens
+        element.style.opacity = '0';
+        
+        // Hide after transition
+        setTimeout(() => {
+          element.hidden = true;
+          element.style.display = 'none';
+        }, 300);
+      }
       
       logger.info(`👋 Screen hidden: ${screen}`);
     }

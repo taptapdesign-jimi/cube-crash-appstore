@@ -241,15 +241,12 @@ class CollectiblesManager {
     // Preload already happens in constructor, skip await to show screen immediately
     // Images will load progressively in the background
     
+    // 🔥 CRITICAL: Set opacity to 0 FIRST so screen is invisible while GSAP sets initial state
+    (screen as HTMLElement).style.opacity = '0';
     screen.classList.remove('hidden');
     logger.info('🎁 Removed hidden class');
     
-    // Trigger animation
-    requestAnimationFrame(() => {
-      screen.classList.add('show');
-      logger.info('🎁 Added show class');
-    });
-    
+    // Render cards BEFORE animation so GSAP can find them
     this.renderCards();
     this.updateCounters();
     logger.info('🎁 Cards rendered and counters updated');
@@ -257,24 +254,54 @@ class CollectiblesManager {
     
     // Only scroll to top if no specific card is requested
     if (!options?.scrollToCard) {
-    const scrollable = document.querySelector('#collectibles-screen .collectibles-scrollable') as HTMLElement;
-    if (scrollable) {
+      const scrollable = document.querySelector('#collectibles-screen .collectibles-scrollable') as HTMLElement;
+      if (scrollable) {
         console.log('🎁 Scrolling collectibles screen to top on open');
         scrollable.scrollTo({ top: 0, behavior: 'auto' }); // Use 'auto' for instant, or 'smooth' for animated
-    }
+      }
     }
     
     this.focusTargetCollectible(options);
+    
+    // 🎬 CRITICAL: Trigger collectibles screen enter animation (pop-in) using GSAP
+    try {
+      const { animateCollectiblesScreenEnter } = await import('./ui/collectibles-animations.js');
+      console.log('🎬 About to call animateCollectiblesScreenEnter()...');
+      // Small delay to ensure DOM is ready, then make screen visible and start animation
+      setTimeout(() => {
+        // Make screen visible so GSAP can animate individual elements
+        (screen as HTMLElement).style.opacity = '1';
+        screen.classList.add('show');
+        console.log('🎬 Calling animateCollectiblesScreenEnter() after 50ms delay...');
+        animateCollectiblesScreenEnter();
+      }, 50);
+    } catch (error) {
+      console.error('❌ Failed to trigger collectibles enter animation:', error);
+      // Fallback: just show the screen normally
+      (screen as HTMLElement).style.opacity = '1';
+      screen.classList.add('show');
+    }
   }
 
   hideCollectibles(): void {
     const screen = document.getElementById('collectibles-screen');
     if (screen) {
+      // 🎬 CRITICAL: Trigger collectibles screen exit animation (pop-out) BEFORE hiding
+      try {
+        import('./ui/collectibles-animations.js').then(({ animateCollectiblesScreenExit }) => {
+          console.log('🎬 About to call animateCollectiblesScreenExit()...');
+          animateCollectiblesScreenExit();
+        });
+      } catch (error) {
+        console.error('❌ Failed to trigger collectibles exit animation:', error);
+      }
+      
       screen.classList.remove('show');
       
+      // Hide after animation completes (600ms)
       setTimeout(() => {
         screen.classList.add('hidden');
-      }, 400);
+      }, 600);
     }
   }
 

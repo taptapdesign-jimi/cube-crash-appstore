@@ -595,6 +595,9 @@ class UIManager {
       // Show stats screen after animation
       this.hideHomepage();
       this.setNavigationVisibility(false);
+      
+      // 🔥 CRITICAL: Set opacity to 0 FIRST so screen is invisible while GSAP sets initial state
+      statsScreen.style.opacity = '0';
       statsScreen.style.display = 'flex';
       statsScreen.removeAttribute('hidden');
       statsScreen.setAttribute('aria-hidden', 'false');
@@ -610,6 +613,22 @@ class UIManager {
         console.error('❌ Failed to update stats values from ui-manager:', error);
       }
       
+      // 🎬 CRITICAL: Trigger stats screen enter animation (pop-in) using GSAP
+      try {
+        import('../ui/stats-animations.js').then(({ animateStatsScreenEnter }) => {
+          console.log('🎬 About to call animateStatsScreenEnter() from ui-manager...');
+          // Small delay to ensure DOM is ready, then make screen visible and start animation
+          setTimeout(() => {
+            // Make screen visible so GSAP can animate individual elements
+            statsScreen.style.opacity = '1';
+            console.log('🎬 Calling animateStatsScreenEnter() after 50ms delay...');
+            animateStatsScreenEnter();
+          }, 50);
+        });
+      } catch (error) {
+        console.error('❌ Failed to trigger stats enter animation from ui-manager:', error);
+      }
+      
       // Focus immediately
       setTimeout(() => {
         const focusTarget = statsScreen.querySelector('.stats-back-button') as HTMLElement | null;
@@ -622,39 +641,51 @@ class UIManager {
   private hideStatsScreenWithAnimation(): void {
     logger.info('📊 Hiding stats screen - with enter animation');
     
-    // Hide stats screen immediately
-    const statsScreen = this.elements.statsScreen;
-    if (statsScreen) {
-      statsScreen.setAttribute('aria-hidden', 'true');
-      statsScreen.style.display = 'none';
-      statsScreen.setAttribute('hidden', 'true');
-      this.setNavigationVisibility(true);
+    // 🎬 CRITICAL: Trigger stats screen exit animation (pop-out) BEFORE hiding
+    try {
+      import('../ui/stats-animations.js').then(({ animateStatsScreenExit }) => {
+        console.log('🎬 About to call animateStatsScreenExit() from ui-manager...');
+        animateStatsScreenExit();
+      });
+    } catch (error) {
+      console.error('❌ Failed to trigger stats exit animation from ui-manager:', error);
     }
     
-    // CRITICAL: Switch to Stats slide (index 1) to show Stats slide after exiting Stats screen
-    const slides = document.querySelectorAll('.slider-slide');
-    const navButtons = document.querySelectorAll('.independent-nav-button');
-    slides.forEach((slide, index) => {
-      if (index === 1) {
-        slide.classList.add('active');
-      } else {
-        slide.classList.remove('active');
+    // Hide stats screen after animation completes (600ms)
+    setTimeout(() => {
+      const statsScreen = this.elements.statsScreen;
+      if (statsScreen) {
+        statsScreen.setAttribute('aria-hidden', 'true');
+        statsScreen.style.display = 'none';
+        statsScreen.setAttribute('hidden', 'true');
+        this.setNavigationVisibility(true);
       }
-    });
-    navButtons.forEach((button, index) => {
-      if (index === 1) {
-        button.classList.add('active');
-      } else {
-        button.classList.remove('active');
-      }
-    });
-    
-    // Show homepage QUIETLY first (no animations yet)
-    this.showHomepageQuietly();
-    
-    // Step 2: Play enter animation for Stats slide
-    console.log('🎬 Playing enter animation for Stats slide');
-    animateSliderEnter();
+      
+      // CRITICAL: Switch to Stats slide (index 1) to show Stats slide after exiting Stats screen
+      const slides = document.querySelectorAll('.slider-slide');
+      const navButtons = document.querySelectorAll('.independent-nav-button');
+      slides.forEach((slide, index) => {
+        if (index === 1) {
+          slide.classList.add('active');
+        } else {
+          slide.classList.remove('active');
+        }
+      });
+      navButtons.forEach((button, index) => {
+        if (index === 1) {
+          button.classList.add('active');
+        } else {
+          button.classList.remove('active');
+        }
+      });
+      
+      // Show homepage QUIETLY first (no animations yet)
+      this.showHomepageQuietly();
+      
+      // Step 2: Play enter animation for Stats slide
+      console.log('🎬 Playing enter animation for Stats slide');
+      animateSliderEnter();
+    }, 600);
   }
   
   // Show collectibles screen with exit animation
@@ -780,9 +811,30 @@ class UIManager {
       // Show settings screen after animation
       this.hideHomepage();
       this.setNavigationVisibility(false);
+      
+      // 🔥 CRITICAL: Set opacity to 0 FIRST so screen is invisible while GSAP sets initial state
+      settingsScreen.style.opacity = '0';
       settingsScreen.style.display = 'flex';
       settingsScreen.removeAttribute('hidden');
       settingsScreen.setAttribute('aria-hidden', 'false');
+      
+      // 🎬 CRITICAL: Trigger settings screen enter animation (pop-in) using GSAP
+      try {
+        import('../ui/settings-animations.js').then(({ animateSettingsScreenEnter }) => {
+          console.log('🎬 About to call animateSettingsScreenEnter()...');
+          // Small delay to ensure DOM is ready, then make screen visible and start animation
+          setTimeout(() => {
+            // Make screen visible so GSAP can animate individual elements
+            settingsScreen.style.opacity = '1';
+            console.log('🎬 Calling animateSettingsScreenEnter() after 50ms delay...');
+            animateSettingsScreenEnter();
+          }, 50);
+        });
+      } catch (error) {
+        console.error('❌ Failed to trigger settings enter animation:', error);
+        // Fallback: just show the screen normally
+        settingsScreen.style.opacity = '1';
+      }
       
       // Focus immediately
       setTimeout(() => {
@@ -796,39 +848,51 @@ class UIManager {
   private hideSettingsScreenWithAnimation(): void {
     logger.info('⚙️ Hiding settings screen - with enter animation');
     
-    // Hide settings screen immediately
-    const settingsScreen = this.elements.settingsScreen;
-    if (settingsScreen) {
-      settingsScreen.setAttribute('aria-hidden', 'true');
-      settingsScreen.style.display = 'none';
-      settingsScreen.setAttribute('hidden', 'true');
-      this.setNavigationVisibility(true);
+    // 🎬 CRITICAL: Trigger settings screen exit animation (pop-out) BEFORE hiding
+    try {
+      import('../ui/settings-animations.js').then(({ animateSettingsScreenExit }) => {
+        console.log('🎬 About to call animateSettingsScreenExit()...');
+        animateSettingsScreenExit();
+      });
+    } catch (error) {
+      console.error('❌ Failed to trigger settings exit animation:', error);
     }
     
-    // CRITICAL: Switch to Settings slide (index 3) to show Settings slide after exiting Settings screen
-    const slides = document.querySelectorAll('.slider-slide');
-    const navButtons = document.querySelectorAll('.independent-nav-button');
-    slides.forEach((slide, index) => {
-      if (index === 3) {
-        slide.classList.add('active');
-      } else {
-        slide.classList.remove('active');
+    // Hide settings screen after animation completes (600ms)
+    setTimeout(() => {
+      const settingsScreen = this.elements.settingsScreen;
+      if (settingsScreen) {
+        settingsScreen.setAttribute('aria-hidden', 'true');
+        settingsScreen.style.display = 'none';
+        settingsScreen.setAttribute('hidden', 'true');
+        this.setNavigationVisibility(true);
       }
-    });
-    navButtons.forEach((button, index) => {
-      if (index === 3) {
-        button.classList.add('active');
-      } else {
-        button.classList.remove('active');
-      }
-    });
-    
-    // Show homepage QUIETLY first (no animations yet)
-    this.showHomepageQuietly();
-    
-    // Step 2: Play enter animation for Settings slide
-    console.log('🎬 Playing enter animation for Settings slide');
-    animateSliderEnter();
+      
+      // CRITICAL: Switch to Settings slide (index 3) to show Settings slide after exiting Settings screen
+      const slides = document.querySelectorAll('.slider-slide');
+      const navButtons = document.querySelectorAll('.independent-nav-button');
+      slides.forEach((slide, index) => {
+        if (index === 3) {
+          slide.classList.add('active');
+        } else {
+          slide.classList.remove('active');
+        }
+      });
+      navButtons.forEach((button, index) => {
+        if (index === 3) {
+          button.classList.add('active');
+        } else {
+          button.classList.remove('active');
+        }
+      });
+      
+      // Show homepage QUIETLY first (no animations yet)
+      this.showHomepageQuietly();
+      
+      // Step 2: Play enter animation for Settings slide
+      console.log('🎬 Playing enter animation for Settings slide');
+      animateSliderEnter();
+    }, 600);
   }
   
   // Show settings screen quietly (no animations) - DEPRECATED
@@ -1012,3 +1076,8 @@ export default uiManager;
 
 // Export class for testing
 export { UIManager };
+
+// 🔥 CRITICAL: Export hideCollectiblesScreenWithAnimation to window for back button
+(window as any).hideCollectiblesScreenWithAnimation = () => {
+  uiManager.hideCollectiblesScreenWithAnimation();
+};

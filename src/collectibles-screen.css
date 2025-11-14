@@ -63,8 +63,11 @@
   width: 100%;
   padding-top: calc(env(safe-area-inset-top, 0px) + 2vh);
   padding-bottom: 0;
-  background: var(--collectibles-surface);
+  /* background removed - parent screen has background, this prevents visual artifacts during scale animation */
   flex-shrink: 0;
+  position: relative;
+  z-index: 100; /* 🔥 CRITICAL: Header always above scrollable content */
+  pointer-events: auto !important; /* 🔥 CRITICAL: Header always receives clicks */
 }
 
 .collectibles-header-top {
@@ -92,7 +95,8 @@
   justify-content: center;
   position: relative;
   overflow: hidden;
-  z-index: 2;
+  z-index: 9999 !important; /* 🔥 CRITICAL: Always on top, always clickable */
+  pointer-events: auto !important; /* 🔥 CRITICAL: Always receives clicks */
   margin-left: 40px;
   flex-shrink: 0;
 }
@@ -178,7 +182,7 @@
   padding-top: 24px;
   padding-bottom: calc(40px + var(--safe-bottom));
   align-items: center;
-  background: var(--collectibles-surface);
+  /* background removed - parent screen has background, this prevents visual artifacts during scale animation */
 }
 
 .collectibles-scrollable::-webkit-scrollbar {
