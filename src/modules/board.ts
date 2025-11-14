@@ -383,11 +383,22 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
     __origDestroy(opts);
 
     // Update all ghost placeholders after tile is destroyed
-    setTimeout(() => {
+    // 🔥 MEMORY LEAK FIX: Track timeout for cleanup
+    const timeout = setTimeout(() => {
       if (typeof (window as any).updateGhostVisibility === 'function') {
         (window as any).updateGhostVisibility();
       }
+      // 🔥 Remove from global tracker
+      if ((window as any)._activeTimeouts) {
+        (window as any)._activeTimeouts.delete(timeout);
+      }
     }, 50);
+    
+    // 🔥 MEMORY LEAK FIX: Track timeout globally for cleanup
+    if (!(window as any)._activeTimeouts) {
+      (window as any)._activeTimeouts = new Set();
+    }
+    (window as any)._activeTimeouts.add(timeout);
   };
 
   return t;
@@ -417,39 +428,56 @@ function tileIsActive(tile: Tile | null | undefined): boolean {
 export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
   const open = allTiles.filter((t) => tileIsActive(t as Tile)) as Tile[];
   
-  console.log('🔍 anyMergePossible: Checking', open.length, 'active tiles:', open.map(t => ({ 
-    value: t.value, 
-    special: t.special,
-    stackDepth: (t as any).stackDepth || 1,
-    locked: t.locked
-  })));
-
   // Check for wild cubes - they can merge with any other tile (including wild-magnet)
   const wildCubes = open.filter((t) => t.special === 'wild' || t.special === 'wild-magnet');
+  
+  // 🔥 CRITICAL: Separate wild stars from magnets for better logic
+  const wildStars = open.filter((t) => t.special === 'wild');
+  const magnets = open.filter((t) => t.special === 'wild-magnet');
+  
   const mergeableNonWildTiles = open.filter((t) => {
     if (!t || t.special === 'wild' || t.special === 'wild-magnet') return false;
     const value = (t.value | 0);
     return value > 0 && value < 6; // merge6 cannot merge with wild/rescue
   });
 
-  console.log('🔍 anyMergePossible: Wild cubes:', wildCubes.length, 'Mergeable non-wild tiles:', mergeableNonWildTiles.length);
+  // 🔥 OPTIMIZED: Reduced logging - only log summary
+  console.log('🔍 anyMergePossible:', open.length, 'active tiles (', wildStars.length, 'wild,', magnets.length, 'magnets,', mergeableNonWildTiles.length, 'regular)');
 
-  // If we have wild cubes and any mergeable non-wild tiles, we can merge
-  if (wildCubes.length > 0 && mergeableNonWildTiles.length > 0) {
-    console.log('✅ anyMergePossible: Wild cubes + mergeable non-wild tiles = TRUE (can merge)');
+  // 🔥 CRITICAL FIX: If we have wild stars and any mergeable non-wild tiles, we can merge
+  // Wild stars can merge with regular tiles
+  // 🚨 NOTE: Wild + wild merges are BLOCKED in app-core.ts (line 1680)
+  if (wildStars.length > 0 && mergeableNonWildTiles.length > 0) {
+    console.log('✅ anyMergePossible: Wild + regular = TRUE');
     return true;
   }
+  
+  // 🚨 CRITICAL: If we have ONLY wild stars (no regular tiles), game is stuck!
+  // Wild + wild merges are BLOCKED, so 2+ wilds alone cannot merge
+  if (wildStars.length >= 2 && mergeableNonWildTiles.length === 0 && magnets.length === 0) {
+    console.log('❌ anyMergePossible: Only wilds (wild+wild blocked) = FALSE');
+    return false;
+  }
+  
+  // 🔥 CRITICAL FIX: If we have magnets and ANY other tiles (including wild stars), we can merge
+  // Magnets can pull tiles together to create merges
+  if (magnets.length > 0 && (mergeableNonWildTiles.length > 0 || wildStars.length > 0)) {
+    console.log('✅ anyMergePossible: Magnet + other tiles = TRUE');
+    return true;
+  }
+  
+  // 🚨 NOTE: Magnet + magnet merges are BLOCKED in app-core.ts (line 1681)
+  // So we DON'T check for magnets.length >= 2 here
+  // If only magnets remain, game is stuck (emergency rescue will spawn tiles)
 
   // Check regular tile combinations
   // 🔥 CRITICAL: If only 1 tile remains, no merges are possible (can't merge with itself)
   if (open.length < 2) {
-    console.log('❌ anyMergePossible: Less than 2 tiles, no merges possible (FALSE)');
+    console.log('❌ anyMergePossible: < 2 tiles = FALSE');
     return false;
   }
   
-  // 🔥 ENHANCED: Collect all possible sums for debugging
-  const allSums: Array<{ tile1: number, tile2: number, sum: number, valid: boolean }> = [];
-  
+  // Check regular tile combinations
   for (let i = 0; i < open.length; i++) {
     for (let j = i + 1; j < open.length; j++) {
       const tile1 = open[i];
@@ -464,20 +492,13 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
       const s = (tile1.value || 0) + (tile2.value || 0);
       const isValid = s >= 2 && s <= 6;
       
-      allSums.push({ tile1: tile1.value, tile2: tile2.value, sum: s, valid: isValid });
-      
-      console.log(`🔍 anyMergePossible: Checking ${tile1.value} + ${tile2.value} = ${s} ${isValid ? '✅ VALID' : '❌ INVALID'}`);
-      
       if (isValid) {
-        console.log(`✅ anyMergePossible: Found mergeable pair ${tile1.value} + ${tile2.value} = ${s} (TRUE)`);
-        console.log('🔍 anyMergePossible: All checked sums:', allSums);
+        console.log(`✅ anyMergePossible: ${tile1.value}+${tile2.value}=${s} = TRUE`);
         return true;
       }
     }
   }
 
-  console.log('❌ anyMergePossible: No mergeable pairs found (FALSE)');
-  console.log('🔍 anyMergePossible: All checked sums:', allSums);
-  console.log('🔍 anyMergePossible: Summary -', open.length, 'tiles,', allSums.length, 'pairs checked,', allSums.filter(s => s.valid).length, 'valid merges found');
+  console.log('❌ anyMergePossible: No valid pairs = FALSE');
   return false;
 }

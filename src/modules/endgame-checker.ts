@@ -224,16 +224,29 @@ function isGameStuck(context: EndGameContext): boolean {
   
   // Check for wild cubes edge cases
   const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
+  
+  // 🔥 CRITICAL: Separate wild stars from magnets for better logic
+  const wildStars = activeTiles.filter(t => t.special === 'wild');
+  const magnets = activeTiles.filter(t => t.special === 'wild-magnet');
+  
   const mergeableNonWildTiles = activeTiles.filter(t => {
     if (!t || t.special === 'wild' || t.special === 'wild-magnet') return false;
     const value = (t.value|0);
     return value > 0 && value < 6; // merge 6 cannot merge with wild
   });
   
-  console.log('🔍 isGameStuck: Wild cubes:', wildCubes.length, 'Mergeable non-wild tiles:', mergeableNonWildTiles.length);
+  console.log('🔍 isGameStuck: Wild stars:', wildStars.length, 'Magnets:', magnets.length, 'Total wild cubes:', wildCubes.length, 'Mergeable non-wild tiles:', mergeableNonWildTiles.length);
 
-  if (wildCubes.length > 0 && mergeableNonWildTiles.length > 0) {
-    console.log('✅ isGameStuck: Wild + regular tiles present - guaranteed merge available');
+  // 🔥 CRITICAL FIX: If we have wild stars and any mergeable non-wild tiles, we can merge
+  if (wildStars.length > 0 && mergeableNonWildTiles.length > 0) {
+    console.log('✅ isGameStuck: Wild stars + regular tiles present - guaranteed merge available');
+    return false;
+  }
+  
+  // 🔥 CRITICAL FIX: If we have magnets and ANY other tiles (including wild stars), we can merge
+  // Magnets can pull tiles together to create merges
+  if (magnets.length > 0 && (mergeableNonWildTiles.length > 0 || wildStars.length > 0)) {
+    console.log('✅ isGameStuck: Magnets + other tiles present - can pull and merge');
     return false;
   }
   

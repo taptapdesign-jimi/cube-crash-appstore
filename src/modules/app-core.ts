@@ -14,7 +14,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, centerInBoard } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects } from './fx.js';
 import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
 import FX from './fx-helpers.js';
@@ -740,7 +740,12 @@ export async function boot(){
     restart: () => restart(),
     showCleanBoardOverlay: () => showCleanBoardOverlay(),
     checkLevelEnd: () => checkLevelEnd(), // Export checkLevelEnd for use in app-merge.ts
+    scheduleWildRescue: (reason, count) => scheduleWildRescue(reason, count), // 🔥 CRITICAL: Export for emergency rescue
   };
+  
+  // 🔥 MEMORY LEAK FIX: Export cleanup functions for global cleanup
+  (window as any).killAllDelayedCalls = killAllDelayedCalls;
+  (window as any).destroyAllGraphicsObjects = destroyAllGraphicsObjects;
   window.testCleanAndPrize = () => window.CC.testCleanAndPrize();
 
   // Run layout after viewport/meta/styles are in place to get correct safe-area values
@@ -1790,7 +1795,10 @@ function merge(src, dst, helpers){
         // 🔥 CRITICAL: Check if game is stuck IMMEDIATELY after regular merge
         // This catches cases where merge leaves unmergable tiles (e.g., 3+2=5, leaving only tile with value 5)
         // IMPORTANT: This check happens AFTER removeTile(src), so if only dst tile remains, activeTiles.length will be 1
-        if (!busyEnding) {
+        // 🔥 CRITICAL FIX: SKIP this check if wild-magnet merge (magnet will pull tiles AFTER this merge)
+        const isWildMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
+        
+        if (!busyEnding && !isWildMagnetMerge) {
           // Add small delay to ensure removeTile has completed and tiles array is updated
           await new Promise(resolve => setTimeout(resolve, 50));
           
@@ -1833,12 +1841,18 @@ function merge(src, dst, helpers){
           });
           
           if (stuckCheckResult.type === 'stuck') {
-            console.log('🚨🚨🚨 GAME STUCK after regular merge - showing fail screen immediately');
+            console.log('🚨🚨🚨 GAME STUCK after regular merge - waiting 1s before fail screen to let user see board');
             if (!busyEnding) {
+              // 🔥 CRITICAL: Wait 1 second before showing fail screen
+              // This gives user time to see the board state and understand why game ended
+              // Without this delay, fail screen appears too fast and feels like cheating
+              await new Promise(resolve => setTimeout(resolve, 1000));
               showFinalScreen();
             }
             return;
           }
+        } else if (isWildMagnetMerge) {
+          console.log('🧲 SKIPPING post-merge stuck check - wild-magnet will pull tiles after merge completes');
         }
         
         if (wildActive) {
@@ -2316,7 +2330,12 @@ function merge(src, dst, helpers){
                   
                   // Try to merge immediately (will merge right away)
                   // Shards animation will be triggered in mergePulledTilesIntoMerge6
-                  await tryMergePulledTiles();
+                  // 🔥 CRITICAL FIX: Wrap in try-catch to prevent unhandled promise rejection
+                  try {
+                    await tryMergePulledTiles();
+                  } catch (error) {
+                    console.error('❌ Error in tryMergePulledTiles:', error);
+                  }
                 }
               }
             }
@@ -2420,17 +2439,22 @@ function merge(src, dst, helpers){
           console.log('🧲 Multiplier appeared, checking if can merge pulled tiles');
           multiplierShown = true;
           // Try to merge (will only merge if all tiles have arrived)
-          await tryMergePulledTiles();
+          // 🔥 CRITICAL FIX: Wrap in try-catch to prevent unhandled promise rejection
+          try {
+            await tryMergePulledTiles();
+          } catch (error) {
+            console.error('❌ Error in tryMergePulledTiles (from multiplier callback):', error);
+          }
         };
       }
     }
 
     // 🔥 CRITICAL: Check if this is a last merge BEFORE starting animation
-    // If _isLastMerge is set, we need to skip all FX and spawn logic and only handle clean board flow
+    // If _isLastMerge is set, we need to skip spawn logic but ALLOW animations and clean board flow
     const isLastMergeScenario = (dst as any)?._isLastMerge === true;
     
     if (isLastMergeScenario) {
-      console.log('🚨🚨🚨 LAST MERGE DETECTED (before animation) - Skipping FX and spawn, will trigger clean board flow after animation');
+      console.log('🚨🚨🚨 LAST MERGE DETECTED (before animation) - Will play animations, skip spawn, and trigger clean board flow');
       console.log('🚨🚨🚨 Last merge details:', {
         srcValue: src.value,
         dstValue: dst.value,
@@ -2438,8 +2462,10 @@ function merge(src, dst, helpers){
         dstSpecial: dstSpecial,
         _isLastMerge: (dst as any)?._isLastMerge
       });
-      // Set busyEnding immediately to prevent any other code from running
-      busyEnding = true;
+      // 🔥 CRITICAL FIX: DON'T set busyEnding here!
+      // Setting busyEnding = true here prevents animations and clean board flow from running
+      // We need to let animations play, then trigger clean board flow
+      // busyEnding = true; // REMOVED - was preventing animations and clean board flow
     }
 
     gsap.to(src, {
@@ -3236,6 +3262,12 @@ function merge(src, dst, helpers){
           }
         }
         
+        // 🔥 CRITICAL: Wait 500ms AFTER spawn animations complete to let user see the board
+        // This ensures user can see the spawned tiles before endgame check runs
+        // Total delay: spawn animations (~480ms) + this delay (500ms) + checkLevelEnd delay (1200ms) = ~2180ms
+        console.log('⏳ Waiting 500ms after spawn animations to let user see board state...');
+        await new Promise(res => setTimeout(res, 500));
+        
         // 🔥 CRITICAL: Check end game after spawn completes (with delay to allow animations)
         // Use checkLevelEnd which already has proper delay and handles all edge cases
         // This replaces the inline setTimeout check to avoid duplicate checks
@@ -3696,6 +3728,31 @@ export function resumeGame() {
 export function restart() {
   console.log('🔄 RESTART: Starting restart function');
   
+  // 🔥 MEMORY LEAK FIX: Kill all pending delayed calls and timeouts
+  try {
+    console.log('🔄 RESTART: Killing all pending delayed calls and timeouts...');
+    // Kill all gsap.delayedCall from fx.js
+    if (typeof (window as any).killAllDelayedCalls === 'function') {
+      (window as any).killAllDelayedCalls();
+    }
+    // Destroy all Graphics objects from fx.js
+    if (typeof (window as any).destroyAllGraphicsObjects === 'function') {
+      (window as any).destroyAllGraphicsObjects();
+    }
+    // Kill all setTimeout/setInterval from modals
+    if ((window as any)._activeTimeouts) {
+      (window as any)._activeTimeouts.forEach((timeout: NodeJS.Timeout) => clearTimeout(timeout));
+      (window as any)._activeTimeouts.clear();
+    }
+    if ((window as any)._activeIntervals) {
+      (window as any)._activeIntervals.forEach((interval: NodeJS.Timeout) => clearInterval(interval));
+      (window as any)._activeIntervals.clear();
+    }
+    console.log('✅ RESTART: All pending delayed calls and timeouts killed');
+  } catch (e) {
+    console.warn('⚠️ RESTART: Error killing delayed calls:', e);
+  }
+  
   // Kill all GSAP animations first - CRITICAL to prevent null reference errors
   try {
     console.log('🔄 RESTART: Killing all GSAP animations...');
@@ -4090,8 +4147,14 @@ async function loadGameState() {
 
         // Postavi osnovne svojstva prije setValue
         tile.value = value;
-        const isWildSnapshot = snapshot && (snapshot.special === 'wild' || snapshot.isWild || snapshot.isWildFace);
-        tile.special = isWildSnapshot ? 'wild' : (snapshot?.special || null);
+        
+        // 🔥 CRITICAL FIX: Preserve exact special type (wild vs wild-magnet)
+        // Don't convert wild-magnet to wild!
+        const savedSpecial = snapshot?.special || null;
+        const isWildSnapshot = savedSpecial === 'wild' || savedSpecial === 'wild-magnet' || snapshot?.isWild || snapshot?.isWildFace;
+        
+        // 🔥 CRITICAL: Use exact special value from snapshot, don't convert!
+        tile.special = savedSpecial; // Keep wild-magnet as wild-magnet, wild as wild
         tile.isWild = !!isWildSnapshot;
         tile.isWildFace = !!(snapshot?.isWildFace || isWildSnapshot);
         tile.visible = typeof snapshot.visible === 'boolean' ? snapshot.visible : true;

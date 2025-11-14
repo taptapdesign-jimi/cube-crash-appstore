@@ -53,7 +53,8 @@ function createModal(): HTMLElement {
       hideModal();
       
       // Step 2: Wait for modal animation to complete (400ms), then restart
-      setTimeout(() => {
+      // 🔥 MEMORY LEAK FIX: Store timeout ID for cleanup
+      const timeout = setTimeout(() => {
         console.log('🎯 Modal hidden, calling restart');
         // Clear saved game state when restarting
         try {
@@ -66,7 +67,17 @@ function createModal(): HTMLElement {
         if ((window as any).CC && (window as any).CC.restart) {
           (window as any).CC.restart();
         }
+        // 🔥 Remove from global tracker
+        if ((window as any)._activeTimeouts) {
+          (window as any)._activeTimeouts.delete(timeout);
+        }
       }, 400); // Wait for modal close animation to complete
+      
+      // 🔥 MEMORY LEAK FIX: Track timeout globally for cleanup
+      if (!(window as any)._activeTimeouts) {
+        (window as any)._activeTimeouts = new Set();
+      }
+      (window as any)._activeTimeouts.add(timeout);
     });
   }
   
@@ -112,16 +123,27 @@ function createModal(): HTMLElement {
             let current = currentScore;
             let step = 0;
             
+            // 🔥 MEMORY LEAK FIX: Store interval ID for cleanup
             const interval = setInterval(() => {
               step++;
               current += stepSize;
               if (step >= steps) {
                 scoreEl.textContent = newScore.toLocaleString();
                 clearInterval(interval);
+                // 🔥 Remove from global tracker
+                if ((window as any)._activeIntervals) {
+                  (window as any)._activeIntervals.delete(interval);
+                }
               } else {
                 scoreEl.textContent = Math.round(current).toLocaleString();
               }
             }, duration / steps);
+            
+            // 🔥 MEMORY LEAK FIX: Track interval globally for cleanup
+            if (!(window as any)._activeIntervals) {
+              (window as any)._activeIntervals = new Set();
+            }
+            (window as any)._activeIntervals.add(interval);
           }
         };
         

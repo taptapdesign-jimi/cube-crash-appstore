@@ -20,6 +20,12 @@ export function stopWildStars(tile){
 }
 
 /* ---------- tiny helpers ---------- */
+// 🔥 MEMORY LEAK FIX: Track all delayed calls globally so they can be killed on cleanup
+const __globalDelayedCalls = new Set();
+
+// 🔥 MEMORY LEAK FIX: Track all Graphics objects created for effects
+const __globalGraphicsObjects = new Set();
+
 function autoAdd(parent, child, ttlSec = 0.8, options = {}){
   const before = options?.before ?? null;
   try {
@@ -33,10 +39,54 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
     try { parent.addChild(child); } catch {}
   }
   if (ttlSec > 0){
-    gsap.delayedCall(ttlSec, () => {
-      try { parent.removeChild(child); child.destroy?.({ children:true }); } catch {}
+    // 🔥 MEMORY LEAK FIX: Store delayed call reference and auto-cleanup
+    const delayedCall = gsap.delayedCall(ttlSec, () => {
+      try { 
+        parent.removeChild(child); 
+        child.destroy?.({ children:true }); 
+        __globalDelayedCalls.delete(delayedCall); // Remove from tracker
+      } catch {}
     });
+    __globalDelayedCalls.add(delayedCall);
+    
+    // 🔥 CRITICAL: If child is destroyed before timeout, kill the delayed call
+    if (child && typeof child.on === 'function') {
+      const cleanup = () => {
+        if (delayedCall) {
+          delayedCall.kill();
+          __globalDelayedCalls.delete(delayedCall);
+        }
+      };
+      try {
+        child.once?.('destroyed', cleanup);
+      } catch {}
+    }
   }
+}
+
+// 🔥 MEMORY LEAK FIX: Global cleanup function to kill all pending delayed calls
+export function killAllDelayedCalls() {
+  console.log(`🧹 Killing ${__globalDelayedCalls.size} pending delayed calls`);
+  __globalDelayedCalls.forEach(call => {
+    try { call.kill(); } catch {}
+  });
+  __globalDelayedCalls.clear();
+}
+
+// 🔥 MEMORY LEAK FIX: Global cleanup function to destroy all Graphics objects
+export function destroyAllGraphicsObjects() {
+  console.log(`🧹 Destroying ${__globalGraphicsObjects.size} Graphics objects`);
+  __globalGraphicsObjects.forEach(graphics => {
+    try {
+      if (graphics && graphics.parent) {
+        graphics.parent.removeChild(graphics);
+      }
+      if (graphics && graphics.destroy) {
+        graphics.destroy();
+      }
+    } catch {}
+  });
+  __globalGraphicsObjects.clear();
 }
 
 // Board-local center of a tile (robust against rotG wrappers)
@@ -136,6 +186,9 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   for (let i = 0; i < shardCount; i++) {
     const shard = new Graphics();
     
+    // 🔥 MEMORY LEAK FIX: Track Graphics object
+    __globalGraphicsObjects.add(shard);
+    
     // Wild cube shard colors (with red for wild-magnet)
     const color = colors[Math.floor(Math.random() * colors.length)];
     
@@ -175,6 +228,8 @@ export function magicSparklesAtTile(board, tile, opts = {}){
             shard.parent.removeChild(shard);
             shard.destroy();
           }
+          // 🔥 MEMORY LEAK FIX: Remove from tracker
+          __globalGraphicsObjects.delete(shard);
         } catch (err) {
           // Ignore cleanup errors
         }
@@ -1280,10 +1335,15 @@ export function startWildIdle(tile, opts = {}){
   };
   
   document.addEventListener('visibilitychange', checkVisibility);
+  
+  // 🔥 MEMORY LEAK FIX: Store event listener reference for cleanup
+  tile._visibilityListener = checkVisibility;
+  
   // Clean up event listener when animation is stopped
   const originalKill = tl.kill.bind(tl);
   tl.kill = function() {
     document.removeEventListener('visibilitychange', checkVisibility);
+    tile._visibilityListener = null;
     return originalKill();
   };
 
@@ -1306,7 +1366,8 @@ export function startWildIdle(tile, opts = {}){
   if (shimmer && tile._wildShimmerSprite) {
     const scheduleShimmer = () => {
       const delay = 4 + Math.random() * 4; // 4-8 seconds
-      gsap.delayedCall(delay, () => {
+      // 🔥 MEMORY LEAK FIX: Store delayed call reference for cleanup
+      const delayedCall = gsap.delayedCall(delay, () => {
         if (tile._wildIdleTl && !tile._wildIdleTl.isActive()) return; // Don't shimmer if idle stopped
         
         // Check if shimmer sprite still exists before accessing properties
@@ -1339,6 +1400,11 @@ export function startWildIdle(tile, opts = {}){
         // Schedule next shimmer
         scheduleShimmer();
       });
+      __globalDelayedCalls.add(delayedCall);
+      
+      // 🔥 MEMORY LEAK FIX: Store delayed call on tile for cleanup
+      if (!tile._shimmerDelayedCalls) tile._shimmerDelayedCalls = [];
+      tile._shimmerDelayedCalls.push(delayedCall);
     };
     
     scheduleShimmer();
@@ -1361,7 +1427,8 @@ export function startWildShimmer(tile) {
   if (shimmer && tile._wildShimmerSprite) {
     const scheduleShimmer = () => {
       const delay = 4 + Math.random() * 4; // 4-8 seconds
-      gsap.delayedCall(delay, () => {
+      // 🔥 MEMORY LEAK FIX: Store delayed call reference for cleanup
+      const delayedCall = gsap.delayedCall(delay, () => {
         // Check if shimmer sprite still exists before accessing properties
         if (!tile._wildShimmerSprite || tile.destroyed) return;
 
@@ -1390,6 +1457,11 @@ export function startWildShimmer(tile) {
         // Schedule next shimmer
         scheduleShimmer();
       });
+      __globalDelayedCalls.add(delayedCall);
+      
+      // 🔥 MEMORY LEAK FIX: Store delayed call on tile for cleanup
+      if (!tile._shimmerDelayedCalls) tile._shimmerDelayedCalls = [];
+      tile._shimmerDelayedCalls.push(delayedCall);
     };
 
     scheduleShimmer();
@@ -1399,6 +1471,20 @@ export function startWildShimmer(tile) {
 // Stop wild shimmer only
 export function stopWildShimmer(tile) {
   if (!tile) return;
+  
+  // 🔥 MEMORY LEAK FIX: Kill all shimmer delayed calls
+  try {
+    if (tile._shimmerDelayedCalls && Array.isArray(tile._shimmerDelayedCalls)) {
+      tile._shimmerDelayedCalls.forEach(call => {
+        try { 
+          call.kill(); 
+          __globalDelayedCalls.delete(call);
+        } catch {}
+      });
+      tile._shimmerDelayedCalls = [];
+    }
+  } catch {}
+  
   try {
     if (tile._wildShimmer){
       // Kill any ongoing shimmer animations
@@ -1425,9 +1511,32 @@ export function stopWildShimmer(tile) {
 
 export function stopWildIdle(tile){
   if (!tile) return;
+  
+  // 🔥 MEMORY LEAK FIX: Remove visibility event listener
+  try {
+    if (tile._visibilityListener) {
+      document.removeEventListener('visibilitychange', tile._visibilityListener);
+      tile._visibilityListener = null;
+    }
+  } catch {}
+  
   try { tile._wildIdleTl?.kill?.(); } catch {}
   try { stopWildStars(tile); } catch {}
   tile._wildIdleTl = null;
+  
+  // 🔥 MEMORY LEAK FIX: Kill all shimmer delayed calls
+  try {
+    if (tile._shimmerDelayedCalls && Array.isArray(tile._shimmerDelayedCalls)) {
+      tile._shimmerDelayedCalls.forEach(call => {
+        try { 
+          call.kill(); 
+          __globalDelayedCalls.delete(call);
+        } catch {}
+      });
+      tile._shimmerDelayedCalls = [];
+    }
+  } catch {}
+  
   try {
     if (tile._wildShimmer){
       // Kill any ongoing shimmer animations

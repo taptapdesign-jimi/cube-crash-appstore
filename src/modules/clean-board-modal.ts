@@ -29,6 +29,24 @@ interface ShowCleanBoardModalParams {
 
 const pickRandom = (arr: string[]): string => arr[Math.floor(Math.random() * arr.length)];
 
+// 🔥 MEMORY LEAK FIX: Track all timeouts for cleanup
+const _modalTimeouts: Set<NodeJS.Timeout> = new Set();
+
+function trackTimeout(callback: () => void, delay: number): NodeJS.Timeout {
+  const timeout = setTimeout(() => {
+    callback();
+    _modalTimeouts.delete(timeout);
+  }, delay);
+  _modalTimeouts.add(timeout);
+  return timeout;
+}
+
+function clearAllModalTimeouts() {
+  console.log(`🧹 Clearing ${_modalTimeouts.size} pending timeouts from clean-board-modal`);
+  _modalTimeouts.forEach(timeout => clearTimeout(timeout));
+  _modalTimeouts.clear();
+}
+
 // Confetti explosion effect from center of element (fallback - not used)
 function createConfettiExplosionFallback(element: HTMLElement): void {
   const rect = element.getBoundingClientRect();
@@ -652,8 +670,9 @@ export async function showCleanBoardModal({
         console.warn('⚠️ clean-board-modal: Failed to clear saved game state:', error);
       }
       
-      setTimeout(() => { 
-        try { el.remove(); } catch {} 
+      trackTimeout(() => { 
+        try { el.remove(); } catch {}
+        clearAllModalTimeouts(); // 🔥 Cleanup all remaining timeouts
         resolve({ action: 'continue' }); 
       }, collapseDuration + 220);
     });

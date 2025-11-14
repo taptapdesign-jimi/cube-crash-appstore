@@ -209,8 +209,9 @@ class ErrorHandler {
     
     // Show user-friendly message in production (only after preloader)
     if (this.isProduction && !isLoadingScreen) {
-      // Only show error after max errors reached to avoid annoying user
-      if (this.errorCount >= 3) {
+      // 🔥 CRITICAL FIX: Increase error threshold from 3 to 50 to prevent premature error screen
+      // Only show error after many errors to avoid annoying user during normal gameplay
+      if (this.errorCount >= 50) {
         this.showUserFriendlyError('An unexpected error occurred. Please try again.');
       }
     }

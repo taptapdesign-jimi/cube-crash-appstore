@@ -78,10 +78,30 @@ function tileIsActive(tile: any): boolean {
 function removeTile(t){
   if(!t) return;
   try { stopWildIdle?.(t); } catch {}
-  try { if (t.hover?.clear) t.hover.clear(); } catch {}
+  try { if ((t as any).hover?.clear) (t as any).hover.clear(); } catch {}
   t.eventMode='none'; t.removeAllListeners?.();
-  try{ gsap.killTweensOf(t); gsap.killTweensOf(t.scale); gsap.killTweensOf(t.rotG);}catch{}
-  STATE.board.removeChild(t);
+  
+  // 🔥 MEMORY LEAK FIX: Kill ALL animations and timelines on tile
+  try{ 
+    gsap.killTweensOf(t); 
+    gsap.killTweensOf(t.scale); 
+    gsap.killTweensOf((t as any).rotG);
+    
+    // Kill all stored timelines
+    if ((t as any)._wobbleTl) { (t as any)._wobbleTl.kill(); (t as any)._wobbleTl = null; }
+    if ((t as any)._bounceTl) { (t as any)._bounceTl.kill(); (t as any)._bounceTl = null; }
+    if ((t as any)._bounceRotTl) { (t as any)._bounceRotTl.kill(); (t as any)._bounceRotTl = null; }
+    if ((t as any)._preBounceTl) { (t as any)._preBounceTl.kill(); (t as any)._preBounceTl = null; }
+    if ((t as any)._preBounceRotTl) { (t as any)._preBounceRotTl.kill(); (t as any)._preBounceRotTl = null; }
+    if ((t as any)._mergeTween) { (t as any)._mergeTween.kill(); (t as any)._mergeTween = null; }
+    if ((t as any)._wildMergeTween) { (t as any)._wildMergeTween.kill(); (t as any)._wildMergeTween = null; }
+    if ((t as any)._pulseTween) { (t as any)._pulseTween.kill(); (t as any)._pulseTween = null; }
+    if ((t as any)._wildPulseTween) { (t as any)._wildPulseTween.kill(); (t as any)._wildPulseTween = null; }
+    if ((t as any)._spawnTween) { (t as any)._spawnTween.kill(); (t as any)._spawnTween = null; }
+    if ((t as any)._destroyTween) { (t as any)._destroyTween.kill(); (t as any)._destroyTween = null; }
+  }catch{}
+  
+  if (STATE.board) STATE.board.removeChild(t);
   STATE.tiles = STATE.tiles.filter(x=>x!==t);
   t.destroy?.({children:true, texture:false, textureSource:false});
 }
@@ -103,10 +123,20 @@ export function clearWildState(tile){
   }
 }
 
-function pulseBoardZoom(factor = 0.92, opts = {}) {
+function pulseBoardZoom(factor = 0.92, opts: any = {}) {
   const board = STATE.board;
   if (!board) return;
-  try { board._wildZoomTl?.kill?.(); } catch {}
+  
+  // 🔥 MEMORY LEAK FIX: Kill existing timeline AND clear all board tweens
+  try { 
+    if ((board as any)._wildZoomTl) {
+      (board as any)._wildZoomTl.kill(); 
+      (board as any)._wildZoomTl = null;
+    }
+    // Also kill any lingering board tweens
+    gsap.killTweensOf(board);
+    gsap.killTweensOf(board.scale);
+  } catch {}
 
   const baseW = COLS * TILE + (COLS - 1) * GAP;
   const baseH = ROWS * TILE + (ROWS - 1) * GAP;
@@ -127,7 +157,14 @@ function pulseBoardZoom(factor = 0.92, opts = {}) {
   const outDur = opts.outDur ?? 0.12;
   const inDur  = opts.inDur  ?? 0.22;
 
-  const tl = gsap.timeline({ onComplete: () => { board._wildZoomTl = null; try { userOnComplete?.(); } catch {} } });
+  const tl = gsap.timeline({ 
+    onComplete: () => { 
+      (board as any)._wildZoomTl = null; 
+      try { userOnComplete?.(); } catch {} 
+    },
+    // 🔥 MEMORY LEAK FIX: Auto-kill timeline on complete
+    onInterrupt: () => { (board as any)._wildZoomTl = null; }
+  });
 
   tl.to(board.scale, {
     x: sx0 * scaleFactor,
@@ -159,39 +196,119 @@ function pulseBoardZoom(factor = 0.92, opts = {}) {
     ease: opts.inEase ?? 'elastic.out(1, 0.6)'
   }, `>${hold}`);
 
-  board._wildZoomTl = tl;
+  (board as any)._wildZoomTl = tl;
   return tl;
 }
 
-function wobble(t){ const x0=t.x;
-  gsap.timeline().to(t,{x:x0+9,rotation:0.06,duration:0.06})
-                 .to(t,{x:x0-9,rotation:-0.06,duration:0.08})
-                 .to(t,{x:x0,rotation:0,duration:0.08});
+function wobble(t){ 
+  if (!t || t.destroyed) return;
+  const x0=t.x;
+  
+  // 🔥 MEMORY LEAK FIX: Kill existing wobble animations first
+  try {
+    gsap.killTweensOf(t);
+    if ((t as any)._wobbleTl) {
+      (t as any)._wobbleTl.kill();
+      (t as any)._wobbleTl = null;
+    }
+  } catch {}
+  
+  // Create timeline with auto-cleanup
+  const tl = gsap.timeline({ 
+    onComplete: () => { (t as any)._wobbleTl = null; },
+    onInterrupt: () => { (t as any)._wobbleTl = null; }
+  });
+  
+  tl.to(t,{x:x0+9,rotation:0.06,duration:0.06})
+    .to(t,{x:x0-9,rotation:-0.06,duration:0.08})
+    .to(t,{x:x0,rotation:0,duration:0.08});
+  
+  (t as any)._wobbleTl = tl;
 }
 function landBounce(t){
-  const r0 = t.rotG?.rotation || 0;
-  gsap.killTweensOf(t.scale); gsap.killTweensOf(t.rotG);
+  if (!t || t.destroyed) return;
+  const r0 = (t as any).rotG?.rotation || 0;
+  
+  // 🔥 MEMORY LEAK FIX: Kill ALL existing animations on tile
+  try {
+    gsap.killTweensOf(t);
+    gsap.killTweensOf(t.scale);
+    if ((t as any).rotG) gsap.killTweensOf((t as any).rotG);
+    if ((t as any)._bounceTl) {
+      (t as any)._bounceTl.kill();
+      (t as any)._bounceTl = null;
+    }
+    if ((t as any)._bounceRotTl) {
+      (t as any)._bounceRotTl.kill();
+      (t as any)._bounceRotTl = null;
+    }
+  } catch {}
+  
   // nježniji, elastičniji povrat
-  gsap.timeline()
-    .to(t.scale, { x:1.10, y:0.94, duration:0.07, ease:'power2.out' })
+  const tl = gsap.timeline({ 
+    onComplete: () => { (t as any)._bounceTl = null; },
+    onInterrupt: () => { (t as any)._bounceTl = null; }
+  });
+  tl.to(t.scale, { x:1.10, y:0.94, duration:0.07, ease:'power2.out' })
     .to(t.scale, { x:1.00, y:1.00, duration:0.24, ease:'elastic.out(1,0.8)' });
-  if (t.rotG){
-    gsap.timeline()
-      .to(t.rotG, { rotation: r0 + 0.05, duration: 0.06, ease:'power2.out' }, 0)
-      .to(t.rotG, { rotation: r0,        duration: 0.20, ease:'elastic.out(1,0.8)' });
+  (t as any)._bounceTl = tl;
+  
+  if ((t as any).rotG){
+    const rotTl = gsap.timeline({ 
+      onComplete: () => { (t as any)._bounceRotTl = null; },
+      onInterrupt: () => { (t as any)._bounceRotTl = null; }
+    });
+    rotTl.to((t as any).rotG, { rotation: r0 + 0.05, duration: 0.06, ease:'power2.out' }, 0)
+         .to((t as any).rotG, { rotation: r0,        duration: 0.20, ease:'elastic.out(1,0.8)' });
+    (t as any)._bounceRotTl = rotTl;
   }
 }
 function landPreBounce(t){
-  return new Promise((resolve)=>{
-    const r0 = t.rotG?.rotation || 0;
-    gsap.killTweensOf(t.scale); gsap.killTweensOf(t.rotG);
-    gsap.timeline({ onComplete: resolve })
-      .to(t.scale, { x:1.10, y:0.94, duration:0.05, ease:'power3.out' })
+  return new Promise<void>((resolve)=>{
+    if (!t || t.destroyed) {
+      resolve();
+      return;
+    }
+    
+    const r0 = (t as any).rotG?.rotation || 0;
+    
+    // 🔥 MEMORY LEAK FIX: Kill ALL existing animations on tile
+    try {
+      gsap.killTweensOf(t);
+      gsap.killTweensOf(t.scale);
+      if ((t as any).rotG) gsap.killTweensOf((t as any).rotG);
+      if ((t as any)._preBounceTl) {
+        (t as any)._preBounceTl.kill();
+        (t as any)._preBounceTl = null;
+      }
+      if ((t as any)._preBounceRotTl) {
+        (t as any)._preBounceRotTl.kill();
+        (t as any)._preBounceRotTl = null;
+      }
+    } catch {}
+    
+    const tl = gsap.timeline({ 
+      onComplete: () => { 
+        (t as any)._preBounceTl = null; 
+        resolve(); 
+      },
+      onInterrupt: () => { 
+        (t as any)._preBounceTl = null; 
+        resolve(); 
+      }
+    });
+    tl.to(t.scale, { x:1.10, y:0.94, duration:0.05, ease:'power3.out' })
       .to(t.scale, { x:1.00, y:1.00, duration:0.07, ease:'back.out(2)' });
-    if (t.rotG){
-      gsap.timeline()
-        .to(t.rotG, { rotation: r0 + 0.05, duration: 0.05, ease:'power2.out' }, 0)
-        .to(t.rotG, { rotation: r0,        duration: 0.07, ease:'back.out(2)' });
+    (t as any)._preBounceTl = tl;
+    
+    if ((t as any).rotG){
+      const rotTl = gsap.timeline({ 
+        onComplete: () => { (t as any)._preBounceRotTl = null; },
+        onInterrupt: () => { (t as any)._preBounceRotTl = null; }
+      });
+      rotTl.to((t as any).rotG, { rotation: r0 + 0.05, duration: 0.05, ease:'power2.out' }, 0)
+           .to((t as any).rotG, { rotation: r0,        duration: 0.07, ease:'back.out(2)' });
+      (t as any)._preBounceRotTl = rotTl;
     }
   });
 }
@@ -264,83 +381,99 @@ function animateMagnetPull(tile: any, targetTile: any): Promise<void> {
  * Returns true if all tiles can be merged and the final merge is merge 6
  */
 async function checkIfAllTilesCanMerge(tiles: any[], helpers: any): Promise<boolean> {
-  // Get active tiles only
-  // 🔥 CRITICAL: Use tileIsActive to properly count wild tiles and locked tiles with value > 0
-  const activeTiles = tiles.filter(tileIsActive);
-  
-  if (activeTiles.length === 0) {
-    return true; // Board is already clean
-  }
-  
-  if (activeTiles.length === 1) {
-    // Only one tile left - check if it's merge 6
-    return activeTiles[0].value === 6;
-  }
-  
-  // Simulate merges by creating a copy of tile values
-  const tileValues = activeTiles.map((t: any) => ({
-    value: t.value|0,
-    isWild: t.special === 'wild' || t.special === 'wild-magnet',
-    original: t
-  }));
-  
-  // Try to simulate all possible merges
-  // This is a simplified check - we try to merge tiles until we can't merge anymore
-  let currentTiles = [...tileValues];
-  let mergeCount = 0;
-  const maxIterations = 100; // Safety limit
-  
-  while (currentTiles.length > 1 && mergeCount < maxIterations) {
-    let merged = false;
+  try {
+    // Get active tiles only
+    // 🔥 CRITICAL: Use tileIsActive to properly count wild tiles and locked tiles with value > 0
+    const activeTiles = tiles.filter(tileIsActive);
     
-    // Try to find a valid merge
-    for (let i = 0; i < currentTiles.length; i++) {
-      for (let j = i + 1; j < currentTiles.length; j++) {
-        const tile1 = currentTiles[i];
-        const tile2 = currentTiles[j];
-        
-        // Check if tiles can merge
-        const canMerge = 
-          tile1.isWild || tile2.isWild || // Wild can merge with anything
-          (tile1.value + tile2.value >= 2 && tile1.value + tile2.value <= 6); // Regular merge
-        
-        if (canMerge) {
-          // Simulate merge
-          // Wild merge always results in merge 6
-          const newValue = (tile1.isWild || tile2.isWild) ? 6 : Math.min(6, tile1.value + tile2.value);
-          const newIsWild = false; // After merge, wild is consumed
+    if (activeTiles.length === 0) {
+      return true; // Board is already clean
+    }
+    
+    if (activeTiles.length === 1) {
+      // Only one tile left - check if it's merge 6
+      return activeTiles[0].value === 6;
+    }
+    
+    // 🔥 PERFORMANCE FIX: Skip simulation if there are too many tiles (prevents lag/crash)
+    // With many wild tiles, this can become exponentially slow
+    if (activeTiles.length > 15) {
+      console.log('🧲 checkIfAllTilesCanMerge: Too many tiles (', activeTiles.length, '), skipping simulation to prevent lag');
+      return false; // Conservative: assume not all can merge
+    }
+    
+    // Simulate merges by creating a copy of tile values
+    const tileValues = activeTiles.map((t: any) => ({
+      value: t.value|0,
+      isWild: t.special === 'wild' || t.special === 'wild-magnet',
+      original: t
+    }));
+    
+    // Try to simulate all possible merges
+    // This is a simplified check - we try to merge tiles until we can't merge anymore
+    let currentTiles = [...tileValues];
+    let mergeCount = 0;
+    const maxIterations = 50; // 🔥 REDUCED from 100 to 50 to prevent lag
+    
+    while (currentTiles.length > 1 && mergeCount < maxIterations) {
+      let merged = false;
+      
+      // 🔥 PERFORMANCE FIX: Limit nested loop iterations
+      const maxI = Math.min(currentTiles.length, 10); // Max 10 tiles to check
+      
+      // Try to find a valid merge
+      for (let i = 0; i < maxI; i++) {
+        for (let j = i + 1; j < currentTiles.length; j++) {
+          const tile1 = currentTiles[i];
+          const tile2 = currentTiles[j];
           
-          // Remove merged tiles and add new merged tile
-          currentTiles = currentTiles.filter((_, idx) => idx !== i && idx !== j);
-          currentTiles.push({ value: newValue, isWild: newIsWild });
+          // Check if tiles can merge
+          const canMerge = 
+            tile1.isWild || tile2.isWild || // Wild can merge with anything
+            (tile1.value + tile2.value >= 2 && tile1.value + tile2.value <= 6); // Regular merge
           
-          merged = true;
-          mergeCount++;
-          break;
+          if (canMerge) {
+            // Simulate merge
+            // Wild merge always results in merge 6
+            const newValue = (tile1.isWild || tile2.isWild) ? 6 : Math.min(6, tile1.value + tile2.value);
+            const newIsWild = false; // After merge, wild is consumed
+            
+            // Remove merged tiles and add new merged tile
+            currentTiles = currentTiles.filter((_, idx) => idx !== i && idx !== j);
+            currentTiles.push({ value: newValue, isWild: newIsWild, original: null });
+            
+            merged = true;
+            mergeCount++;
+            break;
+          }
         }
+        
+        if (merged) break;
       }
       
-      if (merged) break;
+      // If no merge was possible, break
+      if (!merged) {
+        break;
+      }
     }
     
-    // If no merge was possible, break
-    if (!merged) {
-      break;
-    }
+    // Check if we ended up with a single merge 6 tile
+    const finalResult = currentTiles.length === 1 && currentTiles[0].value === 6;
+    
+    console.log('🧲 checkIfAllTilesCanMerge result:', {
+      initialTiles: tileValues.length,
+      finalTiles: currentTiles.length,
+      finalValue: currentTiles[0]?.value,
+      canAllMerge: finalResult,
+      mergeCount,
+      hitMaxIterations: mergeCount >= maxIterations
+    });
+    
+    return finalResult;
+  } catch (error) {
+    console.error('❌ checkIfAllTilesCanMerge error:', error);
+    return false; // Safe fallback: assume tiles can't all merge
   }
-  
-  // Check if we ended up with a single merge 6 tile
-  const finalResult = currentTiles.length === 1 && currentTiles[0].value === 6;
-  
-  console.log('🧲 checkIfAllTilesCanMerge result:', {
-    initialTiles: tileValues.length,
-    finalTiles: currentTiles.length,
-    finalValue: currentTiles[0]?.value,
-    canAllMerge: finalResult,
-    mergeCount
-  });
-  
-  return finalResult;
 }
 
 async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any): Promise<void> {
@@ -421,18 +554,24 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   dst.targetY = correctY;
   
   // 🔥 CRITICAL: Ensure grid coordinates are set if they're missing
+  // 🔥 PERFORMANCE FIX: Cache grid search to prevent repeated loops
   if (typeof dst.gridX !== 'number' || typeof dst.gridY !== 'number' || !Number.isFinite(dst.gridX) || !Number.isFinite(dst.gridY)) {
-    // Try to find grid coordinates from STATE.grid
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
+    // Try to find grid coordinates from STATE.grid (optimized search)
+    let found = false;
+    for (let r = 0; r < ROWS && !found; r++) {
+      for (let c = 0; c < COLS && !found; c++) {
         if (STATE.grid?.[r]?.[c] === dst) {
           dst.gridX = c;
           dst.gridY = r;
           console.log('🧲 Found grid coordinates from STATE.grid:', c, r);
-          break;
+          found = true;
         }
       }
-      if (typeof dst.gridX === 'number' && Number.isFinite(dst.gridX)) break;
+    }
+    
+    // If still not found, log error
+    if (!found) {
+      console.error('❌ Could not find grid coordinates for dst tile!', dst);
     }
   }
   
@@ -902,7 +1041,27 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.log('🧲 Has tiles to respawn:', pulledCells.length, '- proceeding with spawn regardless of endgame state');
   }
 
-  const spawnCount = hasTilesToRespawn ? pulledCells.length : 0; // Spawn as many tiles as were pulled
+  // 🔥 CRITICAL: Wild-magnet spawn logic is DIFFERENT from regular merge 6!
+  // Wild-magnet merge 6:
+  // 1. Magnet merges with a tile → creates merge 6
+  // 2. Magnet automatically pulls up to 4 tiles towards it
+  // 3. Pulled tiles merge with merge 6 and disappear
+  // 4. NEW tiles spawn = EXACTLY the number of pulled tiles (max 4)
+  // 5. NO multiplier, NO bonus tiles, just equal replacement of pulled tiles
+  // 
+  // Example scenarios:
+  // - Wild-magnet + cube, pulls 2 tiles → spawn 2 new tiles
+  // - Wild-magnet + cube, pulls 4 tiles → spawn 4 new tiles
+  // - Wild-magnet + cube, pulls 0 tiles → spawn 0 new tiles
+  
+  const spawnCount = hasTilesToRespawn ? pulledCells.length : 0; // Spawn = number of pulled tiles (max 4)
+  
+  console.log('🧲 Wild-magnet spawn calculation:', {
+    pulledTilesCount: pulledCells.length,
+    spawnCount: spawnCount,
+    note: 'Spawn count equals pulled tiles count (no multiplier, no bonus)'
+  });
+  
   const spawnTargets = findRandomEmptyCells(spawnCount);
 
   if (spawnTargets.length) {
@@ -969,37 +1128,27 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     );
   }
 
-  if (triggerCentralEndgameCheck('mergePulledTilesRespawn')) {
-    return;
-  }
-
-  // 🔥 CRITICAL: After spawning new tiles, check if they can merge
-  // This is the edge case: if magnet pulled last tiles and spawned 4 new ones,
-  // we need to check if those 4 can merge with each other or with existing tiles
-  // 🔥 CRITICAL: Add delay to allow spawn animations to complete before checking
-  // Increased from 600ms to 800ms to ensure spawn bounce (~580ms) + unlock/bind (~50ms) completes
-  await new Promise(resolve => setTimeout(resolve, 800)); // 800ms delay for spawn animations
+  // 🔥 REMOVED: Premature endgame check - this was causing instant fail screen
+  // when magnet pulled wild star (e.g., magnet + regular + wild scenario)
+  // The check would see only merge 6 tile BEFORE wild merged with it
+  // We'll check endgame AFTER all merges complete (line 1020)
   
-  const canMerge = makeBoard.anyMergePossible(STATE.tiles);
-  console.log('🧲 Post-respawn mergeability check (after delay):', canMerge);
+  // 🔥 CRITICAL FIX: REMOVED premature mergeability check!
+  // This check was causing instant fail screen when magnet pulled wild tiles
+  // because it ran BEFORE the pulled tiles merged with merge 6 tile
+  // Example: magnet + stack (2 tiles) + wild star
+  //   1. Magnet merges with stack → merge 6
+  //   2. Magnet pulls wild star → wild is LOCKED and animating towards merge 6
+  //   3. Respawn 1 new tile (because 1 tile was pulled)
+  //   4. OLD CHECK: anyMergePossible sees: merge 6 + new tile + wild (LOCKED)
+  //      - Wild is LOCKED so tileIsActive doesn't count it
+  //      - Result: only 2 tiles (merge 6 + new tile) → NOT MERGABLE → FAIL SCREEN ❌
+  //   5. CORRECT: Let pulled tiles merge with merge 6 FIRST, then check endgame
+  //
+  // The endgame check will happen automatically in app-core.ts after all animations complete
+  // via checkLevelEnd (line 3251) which has proper delays and handles all edge cases
   
-  if (!canMerge) {
-    // No merges possible - show fail screen
-    console.log('🚨🚨🚨 No merges possible after magnet pull spawn - showing fail screen');
-    
-    // 🔥 CRITICAL: Wait 1 second before showing fail screen so user can see spawned tiles
-    // This prevents instant fail screen after magnet spawns non-mergable tiles
-    console.log('⏳ Waiting 1 second before fail screen so user can see spawned tiles...');
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Use checkLevelEnd from app-core.ts if available, otherwise use checkGameOver
-    if (typeof (window as any).CC?.checkLevelEnd === 'function') {
-      (window as any).CC.checkLevelEnd();
-    } else {
-      await checkGameOver();
-    }
-    return;
-  }
+  console.log('🧲 Respawn complete - letting pulled tiles merge with merge 6 before endgame check');
   
   // 🔥 CRITICAL: Wait longer for spawn animations to complete before checking endgame
   // Spawn bounce animation takes ~580ms, plus unlock/bind takes ~50ms
@@ -1374,7 +1523,7 @@ export function merge(src, dst, helpers){
         // CRITICAL FIX: Check for wild cubes properly (including wild-magnet)
         const allTiles = STATE.tiles.filter(t => t && !t.locked);
         const wildCubes = allTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
-        const nonWildTiles = allTiles.filter(t => t.special !== 'wild' && t.special === 'wild-magnet');
+        const nonWildTiles = allTiles.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
         const willClean = wildCubes.length === 0 && nonWildTiles.length <= 1;
         const shouldRefillAfterMerge = !willClean;
         
@@ -1568,6 +1717,12 @@ export function merge(src, dst, helpers){
           }
         }
 
+        // 🔥 CRITICAL: Wait for spawn animations to complete BEFORE checking endgame
+        // Spawn bounce takes ~580ms, so we wait 800ms to ensure tiles are unlocked and visible
+        // This prevents premature fail screen when wild cubes are still on board
+        console.log('⏳ Waiting 800ms for spawn animations to complete before endgame check...');
+        await new Promise(res => setTimeout(res, 800));
+
         // 🔥 CRITICAL: Use centralized endgame checker instead of old isBoardClean()
         // Old isBoardClean() from app-board.js was causing false positives when tiles were locked
         const { checkEndGame } = await import('./endgame-checker.js');
@@ -1577,7 +1732,7 @@ export function merge(src, dst, helpers){
           makeBoard: { anyMergePossible: makeBoard.anyMergePossible }
         }, true); // forceRefresh = true
         
-        console.log('🔥 Checking endgame after merge 6 and spawn:', endgameResult);
+        console.log('🔥 Checking endgame after merge 6 and spawn (after 800ms delay):', endgameResult);
         
         if (endgameResult.type === 'clean') {
           console.log('🚨🚨🚨 BOARD IS CLEAN AFTER MERGE 6 - STARTING ENDGAME FLOW! 🚨🚨🚨');
@@ -1625,16 +1780,19 @@ export function merge(src, dst, helpers){
           return; // Exit early - don't call checkGameOver()
         }
 
-        // 🔥 REMOVED: Old buggy check that caused premature stars modal
-        // Bug: STATE.tiles.every(t => t.locked || t.value <= 0) returned true when tiles were locked
-        // This caused stars modal to show before new tiles spawned after merge 6
-        // Now we rely on checkGameOver() which uses centralized endgame checker with proper delays
-        
-        // 🔥 CRITICAL: Wait for spawn animations to complete before checking endgame
-        // Spawn bounce takes ~580ms, so we wait 800ms to be safe
-        await new Promise(res => setTimeout(res, 800));
-        
-        checkGameOver();
+        // 🔥 CRITICAL: Check if emergency rescue is needed (only wild/magnet tiles remain)
+        // This must happen IMMEDIATELY after spawn, not after 1200ms delay
+        const { needsEmergencyRescue } = await import('./endgame-checker.js');
+        if (needsEmergencyRescue(STATE.tiles)) {
+          console.log('🚨 EMERGENCY: Only wild/magnet tiles remain after merge 6 spawn! Triggering rescue...');
+          // Call emergency rescue from window.CC if available
+          if (typeof (window as any).CC?.scheduleWildRescue === 'function') {
+            const activeTiles = STATE.tiles.filter(t => t && !t.destroyed && (t.value|0) > 0);
+            const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
+            const emergencyCount = Math.min(3, Math.max(2, wildCubes.length));
+            (window as any).CC.scheduleWildRescue('merge6_spawn', emergencyCount);
+          }
+        }
       }
     });
     return;
