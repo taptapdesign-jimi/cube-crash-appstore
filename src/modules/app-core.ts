@@ -2563,11 +2563,11 @@ function merge(src, dst, helpers){
           }
         }
         
-        // 🔥 CRITICAL: If this is a last merge scenario, skip all FX and spawn logic
-        // The clean board flow will be handled in the onComplete callback above
+        // 🔥 CRITICAL FIX: DON'T skip animations for last merge!
+        // User needs to see merge 6 animations (smoke, shards, explosion) before clean board
+        // We'll only skip SPAWN logic, not animations
         if (isLastMergeScenario) {
-          console.log('🚨🚨🚨 LAST MERGE: Skipping all FX and spawn logic - clean board flow will be triggered');
-          return; // Exit early - don't continue with normal merge 6 flow
+          console.log('🚨🚨🚨 LAST MERGE: Will play animations but skip spawn - clean board flow will trigger after animations');
         }
         
         // If busyEnding was set by another process, exit early
@@ -3276,23 +3276,9 @@ async function checkMovesDepleted(){
   }
 }
 
-// DEPRECATED: Use checkEndGame() from endgame-checker.ts instead
-// These functions are kept for backward compatibility but should not be used
-function activeTilesList(){ 
-  console.warn('⚠️ DEPRECATED: activeTilesList() called - use checkEndGame() from endgame-checker.ts instead');
-  try { 
-    return tiles.filter(tileIsVisuallyActive); 
-  } catch { 
-    return []; 
-  } 
-}
-
-// 🔥 REMOVED: isStuck() - DEPRECATED function that caused conflicts
-// Use checkEndGame() from endgame-checker.ts instead
-
 // -------------------- level-end scaffolding --------------------
 // NOTE: All end game checks now use centralized checkEndGame() from endgame-checker.ts
-// Old deprecated functions (isStuck, isBoardClean, showCleanBoardEdgeCase) have been removed
+// All deprecated functions (activeTilesList, isStuck, isBoardClean, showCleanBoardEdgeCase) have been removed
 function checkLevelEnd(){
   // Always wait a bit so animations/spawns can finish before deciding
   try {

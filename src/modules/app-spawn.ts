@@ -163,8 +163,33 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false,
       resetTileToNormalState(holder);
     }
 
-    const v = (value == null) ? [1,2,3,4,5][(Math.random()*5)|0] : value;
+    // 🔥 CRITICAL: Spawn guard - NEVER spawn a tile with value <= 0!
+    let v = (value == null) ? [1,2,3,4,5][(Math.random()*5)|0] : value;
+    if (!Number.isFinite(v) || (v|0) <= 0) {
+      console.error('🚨 SPAWN GUARD: Invalid spawn value detected!', { value, v, c, r });
+      v = [1,2,3,4,5][(Math.random()*5)|0]; // Fallback to random 1-5
+    }
+    
     makeBoard.setValue(holder, v, 0);
+    
+    // 🔥 CRITICAL: Double-check after setValue - if value is still <= 0, force it to a valid value
+    if ((holder.value|0) <= 0 && !isWild && !isWildMagnet) {
+      console.error('🚨 SPAWN GUARD: Tile value is 0 after setValue! Forcing to random value.', { 
+        holderValue: holder.value, 
+        requestedValue: v,
+        c, 
+        r 
+      });
+      const fallbackValue = [1,2,3,4,5][(Math.random()*5)|0];
+      makeBoard.setValue(holder, fallbackValue, 0);
+      
+      // Final check - if STILL 0, something is very wrong
+      if ((holder.value|0) <= 0) {
+        console.error('🚨🚨🚨 CRITICAL: Tile value is STILL 0 after fallback! This should never happen!');
+        // Last resort: set value directly
+        holder.value = fallbackValue;
+      }
+    }
 
     if (isWild || isWildMagnet){
       holder.special = isWildMagnet ? 'wild-magnet' : 'wild';
@@ -271,7 +296,36 @@ export function openEmpties(count: number, opts: OpenEmptiesOptions = {}): Promi
     t.eventMode = 'static'; 
     t.cursor = 'pointer';
     if (STATE.drag && (STATE.drag as any).bindToTile) (STATE.drag as any).bindToTile(t);
-    makeBoard.setValue(t, getSpawnValue(), 0);
+    
+    // 🔥 CRITICAL: Spawn guard - NEVER spawn a tile with value <= 0!
+    let spawnValue = getSpawnValue();
+    if (!Number.isFinite(spawnValue) || (spawnValue|0) <= 0) {
+      console.error('🚨 SPAWN GUARD (openEmpties): Invalid spawn value detected!', { spawnValue, tileId: (t as any)?.uid });
+      spawnValue = [1,2,3,4,5][(Math.random()*5)|0]; // Fallback to random 1-5
+    }
+    
+    makeBoard.setValue(t, spawnValue, 0);
+    
+    // 🔥 CRITICAL: Double-check after setValue - if value is still <= 0, force it to a valid value
+    if ((t.value|0) <= 0) {
+      console.error('🚨 SPAWN GUARD (openEmpties): Tile value is 0 after setValue! Forcing to random value.', { 
+        tileValue: t.value, 
+        requestedValue: spawnValue,
+        tileId: (t as any)?.uid,
+        gridX: t.gridX,
+        gridY: t.gridY
+      });
+      const fallbackValue = [1,2,3,4,5][(Math.random()*5)|0];
+      makeBoard.setValue(t, fallbackValue, 0);
+      
+      // Final check - if STILL 0, something is very wrong
+      if ((t.value|0) <= 0) {
+        console.error('🚨🚨🚨 CRITICAL (openEmpties): Tile value is STILL 0 after fallback! This should never happen!');
+        // Last resort: set value directly
+        t.value = fallbackValue;
+      }
+    }
+    
     spawnBounce(t, () => { 
       try{ fixHoverAnchor(t); }catch{}; 
       res(); 

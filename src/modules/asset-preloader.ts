@@ -145,6 +145,11 @@ const CRITICAL_ASSETS: string[] = [
   './assets/tile_numbers.png',
   './assets/wild.png',
   
+  // Wild star assets (needed immediately when wild cubes spawn)
+  './assets/small-star.png',
+  './assets/small-star@2x.png',
+  './assets/small-star@3x.png',
+  
   // Essential UI (first frame only)
   './assets/close-button.png',
   './assets/stop.png',
@@ -238,6 +243,16 @@ export class AssetPreloader {
         
         logger.info(`📦 Loading ${CRITICAL_ASSETS.length} critical assets (deferring ${DEFERRED_ASSETS.length} assets)`);
         
+        // 🔥 CRITICAL: Register assets with Assets.add() BEFORE loading
+        // This ensures Assets.get() can find them later by the same path
+        CRITICAL_ASSETS.forEach((assetPath: string) => {
+          try {
+            Assets.add({ alias: assetPath, src: assetPath });
+          } catch (err) {
+            // Ignore if already added
+          }
+        });
+        
         // Load critical assets using PIXI Assets with timeout
         const loadPromise = Assets.load(CRITICAL_ASSETS, (progress: number) => {
           this.loadedCount = Math.round(progress * CRITICAL_ASSETS.length);
@@ -294,6 +309,15 @@ export class AssetPreloader {
     logger.info(`🔄 Starting background loading of ${DEFERRED_ASSETS.length} deferred assets...`);
     
     try {
+      // 🔥 CRITICAL: Register deferred assets with Assets.add() BEFORE loading
+      DEFERRED_ASSETS.forEach((assetPath: string) => {
+        try {
+          Assets.add({ alias: assetPath, src: assetPath });
+        } catch (err) {
+          // Ignore if already added
+        }
+      });
+      
       // Load in batches to avoid overwhelming the browser
       const batchSize = 10;
       for (let i = 0; i < DEFERRED_ASSETS.length; i += batchSize) {

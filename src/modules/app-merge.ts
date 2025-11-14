@@ -265,7 +265,8 @@ function animateMagnetPull(tile: any, targetTile: any): Promise<void> {
  */
 async function checkIfAllTilesCanMerge(tiles: any[], helpers: any): Promise<boolean> {
   // Get active tiles only
-  const activeTiles = tiles.filter((t: any) => t && !t.locked && (t.value|0) > 0);
+  // 🔥 CRITICAL: Use tileIsActive to properly count wild tiles and locked tiles with value > 0
+  const activeTiles = tiles.filter(tileIsActive);
   
   if (activeTiles.length === 0) {
     return true; // Board is already clean
@@ -599,10 +600,12 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 CRITICAL: Check if magnet merge 6 is left with few tiles (3 or less) - if so, pull remaining tiles and trigger clean board
   // After pulled tiles merge, dst is merge 6, so we check if there are few remaining tiles on the board
   // EDGE CASE: If magnet pulled the last 4 tiles from the board, don't spawn new tiles - trigger clean board flow
-  const activeTilesAfterPulledMerge = STATE.tiles.filter((t: any) => t && !t.locked && (t.value|0) > 0);
+  // 🔥 CRITICAL: Use tileIsActive instead of !t.locked to properly count wild tiles and locked tiles with value > 0
+  const activeTilesAfterPulledMerge = STATE.tiles.filter(tileIsActive);
   const remainingTilesCount = activeTilesAfterPulledMerge.length;
   
   console.log('🧲 After pulled tiles merge - active tiles:', remainingTilesCount, 'dst is merge 6:', dst?.value === 6, 'pulledCells to respawn:', pulledCells.length);
+  console.log('🧲 Active tiles list:', activeTilesAfterPulledMerge.map(t => ({ value: t.value, special: t.special, locked: t.locked })));
   
   // 🔥 EDGE CASE: If only merge 6 remains (magnet pulled the last 4 tiles), don't spawn new tiles - trigger clean board immediately
   // BUT: Only if there are NO pulled cells to respawn! If we have pulled cells, we MUST spawn them first!
@@ -827,21 +830,25 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         // 🔥 CRITICAL: Check if cell is truly empty (no active tile)
         // A cell is empty if:
         // 1. It's missing (null) - no tile at all
-        // 2. It's locked (ghost placeholder) - can be replaced
-        // 3. It has value 0 or less AND is locked (ghost placeholder)
+        // 2. It's locked (ghost placeholder) WITH value 0 or less - can be replaced
         // A cell is NOT empty if:
-        // - It has a value > 0 AND is not locked (active tile)
-        // - It's a wild tile (wild or wild-magnet) AND is not locked
+        // - It has a value > 0 (regardless of locked status) - active tile
+        // - It's a wild tile (wild or wild-magnet) - active tile
         
         const isMissing = !t;
         const isLocked = !!(t && t.locked === true);
         const hasValue = !!(t && (t.value|0) > 0);
-        const isWildTile = !!(t && !t.locked && (t.special === 'wild' || t.special === 'wild-magnet' || (t as any).isWild === true || (t as any).isWildFace === true));
-        const isActive = !!(t && !t.locked && hasValue);
+        const isWildTile = !!(t && (t.special === 'wild' || t.special === 'wild-magnet' || (t as any).isWild === true || (t as any).isWildFace === true));
         
-        // Cell is empty if it's missing, locked (ghost), or has zero value and is locked
-        // Cell is NOT empty if it has an active tile or wild tile
-        if (isMissing || (isLocked && !hasValue) || (!isActive && !isWildTile && !hasValue)) {
+        // 🔥 CRITICAL FIX: NEVER spawn on a tile with value > 0, even if it's locked!
+        // Locked tiles with value > 0 are tiles that are being animated (e.g., during magnet pull)
+        // Spawning on them would overwrite their value and cause "empty cube" bug
+        if (hasValue || isWildTile) {
+          continue; // Skip this cell - it's occupied
+        }
+        
+        // Cell is empty if it's missing OR locked with value 0
+        if (isMissing || (isLocked && !hasValue)) {
           empties.push({ c, r });
         }
       }
@@ -881,7 +888,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     shouldSkipRespawnAndEndGame
   });
 
-  if (shouldSkipRespawnAndEndGame && triggerCentralEndgameCheck('mergePulledTilesBeforeRespawn')) {
+  // 🔥 CRITICAL FIX: NEVER call endgame check if we have tiles to respawn!
+  // This was causing instant fail screen when magnet pulled tiles (e.g., magnet + 2 cubes)
+  // because endgame check would see only merge 6 tile BEFORE new tiles spawned
+  if (shouldSkipRespawnAndEndGame && !hasTilesToRespawn && triggerCentralEndgameCheck('mergePulledTilesBeforeRespawn')) {
     console.log('🧲 mergePulledTilesIntoMerge6: Central endgame handled before respawn, skipping spawns.');
     return;
   }
