@@ -341,14 +341,26 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
     }
   }
   
-  // 4. Check if game is stuck (no merges possible)
-  if (isGameStuck(context)) {
-    console.log('🚨🚨🚨 EndGameChecker: GAME STUCK - no merges possible');
-    lastCheckResult = { type: 'stuck', reason: 'no_merges_possible' };
+// 4. Check if game is stuck (no merges possible)
+if (isGameStuck(context)) {
+  console.log('🚨🚨🚨 EndGameChecker: GAME STUCK - no merges possible');
+
+  // 🔥 CRITICAL FIX: If only 1 tile remains and it's not merge 6, it's stuck
+  // This handles the case where user merges all spawned tiles into one non-6 tile
+  const activeTiles = getActiveTiles(tiles);
+  if (activeTiles.length === 1 && activeTiles[0].value !== 6) {
+    console.log('🚨🚨🚨 EndGameChecker: SINGLE NON-6 TILE - DEFINITELY STUCK');
+    lastCheckResult = { type: 'stuck', reason: 'single_non_6_tile' };
     lastCheckTime = now;
     lastCheckContextHash = contextHash;
     return lastCheckResult;
   }
+
+  lastCheckResult = { type: 'stuck', reason: 'no_merges_possible' };
+  lastCheckTime = now;
+  lastCheckContextHash = contextHash;
+  return lastCheckResult;
+}
   
   // 5. Game continues
   console.log('✅ EndGameChecker: Game continues - merges possible');

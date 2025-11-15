@@ -106,6 +106,13 @@ class CollectiblesManager {
     this.preloadImages();
     this.initEventListeners();
     this.handleDailyVisit();
+    
+    // 🔥 CRITICAL: Update stats service with current unlocked count after loading state
+    const totalUnlocked = this.collectiblesData.common.filter(c => c.unlocked).length + 
+                          this.collectiblesData.legendary.filter(c => c.unlocked).length;
+    if (typeof (window as any).trackCollectiblesUnlocked === 'function') {
+      (window as any).trackCollectiblesUnlocked(totalUnlocked);
+    }
   }
 
   private loadCollectiblesState(): void {
@@ -149,25 +156,34 @@ class CollectiblesManager {
     
     console.log('🔌 Initializing event listeners...');
     
-    // Back button
-    const backBtn = document.getElementById('collectibles-back');
-    if (backBtn) {
-      backBtn.addEventListener('click', () => {
+    // Back button - use event delegation to handle clicks even if button doesn't exist yet
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const backBtn = target.closest('#collectibles-back');
+      if (backBtn) {
         logger.info('🎁 Collectibles back button clicked');
+        e.preventDefault();
+        e.stopPropagation();
         
         // Try to use animated version first, fallback to non-animated
         if (typeof (window as any).hideCollectiblesScreenWithAnimation === 'function') {
           logger.info('🎁 Calling window.hideCollectiblesScreenWithAnimation()');
-          (window as any).hideCollectiblesScreenWithAnimation();
+          (window as any).hideCollectiblesScreenWithAnimation().catch((err: any) => {
+            logger.error('❌ Error in hideCollectiblesScreenWithAnimation:', err);
+          });
         } else if (typeof window.hideCollectiblesScreen === 'function') {
           logger.info('🎁 Calling window.hideCollectiblesScreen()');
-          window.hideCollectiblesScreen();
+          window.hideCollectiblesScreen().catch((err: any) => {
+            logger.error('❌ Error in hideCollectiblesScreen:', err);
+          });
         } else {
           logger.warn('⚠️ window.hideCollectiblesScreen not available, using fallback');
-          this.hideCollectibles();
+          this.hideCollectibles().catch((err: any) => {
+            logger.error('❌ Error in hideCollectibles:', err);
+          });
         }
-      });
-    }
+      }
+    });
 
     // Title click - scroll to top
     const titleEl = document.getElementById('collectibles-title');
@@ -241,6 +257,34 @@ class CollectiblesManager {
     // Preload already happens in constructor, skip await to show screen immediately
     // Images will load progressively in the background
     
+    // 🔥 CRITICAL FIX: Ensure back button event listener is attached (button might not exist when initEventListeners was called)
+    const backBtn = document.getElementById('collectibles-back');
+    if (backBtn && !backBtn.hasAttribute('data-listener-attached')) {
+      console.log('🔌 Attaching back button listener in showCollectibles');
+      backBtn.addEventListener('click', () => {
+        logger.info('🎁 Collectibles back button clicked');
+        
+        // Try to use animated version first, fallback to non-animated
+        if (typeof (window as any).hideCollectiblesScreenWithAnimation === 'function') {
+          logger.info('🎁 Calling window.hideCollectiblesScreenWithAnimation()');
+          (window as any).hideCollectiblesScreenWithAnimation().catch((err: any) => {
+            logger.error('❌ Error in hideCollectiblesScreenWithAnimation:', err);
+          });
+        } else if (typeof window.hideCollectiblesScreen === 'function') {
+          logger.info('🎁 Calling window.hideCollectiblesScreen()');
+          window.hideCollectiblesScreen().catch((err: any) => {
+            logger.error('❌ Error in hideCollectiblesScreen:', err);
+          });
+        } else {
+          logger.warn('⚠️ window.hideCollectiblesScreen not available, using fallback');
+          this.hideCollectibles().catch((err: any) => {
+            logger.error('❌ Error in hideCollectibles:', err);
+          });
+        }
+      });
+      backBtn.setAttribute('data-listener-attached', 'true');
+    }
+    
     // 🔥 CRITICAL: Set opacity to 0 FIRST so screen is invisible while GSAP sets initial state
     (screen as HTMLElement).style.opacity = '0';
     screen.classList.remove('hidden');
@@ -283,25 +327,23 @@ class CollectiblesManager {
     }
   }
 
-  hideCollectibles(): void {
+  async hideCollectibles(): Promise<void> {
     const screen = document.getElementById('collectibles-screen');
     if (screen) {
       // 🎬 CRITICAL: Trigger collectibles screen exit animation (pop-out) BEFORE hiding
       try {
-        import('./ui/collectibles-animations.js').then(({ animateCollectiblesScreenExit }) => {
-          console.log('🎬 About to call animateCollectiblesScreenExit()...');
-          animateCollectiblesScreenExit();
-        });
+        const { animateCollectiblesScreenExit } = await import('./ui/collectibles-animations.js');
+        console.log('🎬 About to call animateCollectiblesScreenExit()...');
+        await animateCollectiblesScreenExit();
+        console.log('✅ Exit animation completed');
       } catch (error) {
         console.error('❌ Failed to trigger collectibles exit animation:', error);
       }
       
       screen.classList.remove('show');
       
-      // Hide after animation completes (600ms)
-      setTimeout(() => {
-        screen.classList.add('hidden');
-      }, 600);
+      // Hide after animation completes
+      screen.classList.add('hidden');
     }
   }
 
@@ -830,6 +872,13 @@ class CollectiblesManager {
       unlockedCards.forEach(({ category, card, number }) => {
         this.notifyCardUnlocked(category, number, card, { source: 'event', eventName });
       });
+      
+      // 🔥 CRITICAL: Update stats service with current unlocked count
+      const totalUnlocked = this.collectiblesData.common.filter(c => c.unlocked).length + 
+                            this.collectiblesData.legendary.filter(c => c.unlocked).length;
+      if (typeof (window as any).trackCollectiblesUnlocked === 'function') {
+        (window as any).trackCollectiblesUnlocked(totalUnlocked);
+      }
     }
   }
 
@@ -1329,7 +1378,7 @@ export async function showCollectiblesScreen(options?: CollectiblesShowOptions):
 
 export async function hideCollectiblesScreen(): Promise<void> {
   const manager = await ensureCollectiblesManager();
-  manager.hideCollectibles();
+  await manager.hideCollectibles();
 }
 
 export async function unlockCollectible(eventName: string): Promise<void> {

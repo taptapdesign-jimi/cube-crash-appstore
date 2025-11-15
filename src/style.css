@@ -4042,6 +4042,7 @@ body:has(:root) .tile.wild-3d-glow {
   --pad: 40px;
   --pad-left: calc(var(--pad) + var(--safe-left));
   --pad-right: calc(var(--pad) + var(--safe-right));
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -4152,6 +4153,40 @@ body:has(:root) .tile.wild-3d-glow {
 
 .settings-scrollable::-webkit-scrollbar {
   display: none;
+}
+
+.settings-footer {
+  position: absolute;
+  bottom: 64px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  padding-left: var(--pad-left);
+  padding-right: var(--pad-right);
+  z-index: 1;
+}
+
+.settings-footer-text {
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 22px;
+  color: #CB9873;
+  margin: 0;
+  padding: 0;
+  opacity: 0.85;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: opacity 0.2s ease;
+}
+
+.settings-footer-text:hover {
+  opacity: 1;
+}
+
+.settings-footer-text:active {
+  opacity: 0.7;
 }
 
 .settings-toggle-container {

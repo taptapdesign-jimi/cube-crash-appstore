@@ -157,8 +157,10 @@ class UIManager {
     event.preventDefault();
     logger.info('🎮 Play button clicked');
     
-    // NO haptic on first play click - too much lag
-    // Haptic is too heavy for first interaction
+    // Light haptic for Play button (same as other slider CTA buttons)
+    if (typeof (window as any).triggerHapticImpact === 'function') {
+      (window as any).triggerHapticImpact('light');
+    }
     
     // Check for saved game (starts exit animation)
     this.checkForSavedGame();
@@ -724,15 +726,8 @@ class UIManager {
   }
   
   // Hide collectibles screen with enter animation
-  hideCollectiblesScreenWithAnimation(): void {
+  async hideCollectiblesScreenWithAnimation(): Promise<void> {
     logger.info('🎁 Hiding collectibles screen - with enter animation');
-    
-    // Hide collectibles screen immediately
-    const hideCollectibles = window.hideCollectiblesScreen || window.hideCollectibles;
-    if (typeof hideCollectibles === 'function') {
-      hideCollectibles();
-      this.setNavigationVisibility(true);
-    }
     
     // CRITICAL: Switch to Collectibles slide (index 2) to show Collectibles slide after exiting Collectibles screen
     const slides = document.querySelectorAll('.slider-slide');
@@ -755,7 +750,16 @@ class UIManager {
     // Show homepage QUIETLY first (no animations yet)
     this.showHomepageQuietly();
     
-    // Step 2: Play enter animation for Collectibles slide
+    // 🔥 CRITICAL FIX: Wait for exit animation to complete BEFORE starting enter animation
+    const hideCollectibles = window.hideCollectiblesScreen || window.hideCollectibles;
+    if (typeof hideCollectibles === 'function') {
+      logger.info('🎁 Waiting for collectibles exit animation to complete...');
+      await hideCollectibles();
+      logger.info('✅ Collectibles exit animation completed, now starting slider enter animation');
+      this.setNavigationVisibility(true);
+    }
+    
+    // Step 2: Play enter animation for Collectibles slide AFTER exit animation completes
     console.log('🎬 Playing enter animation for Collectibles slide');
     animateSliderEnter();
   }
@@ -1078,6 +1082,6 @@ export default uiManager;
 export { UIManager };
 
 // 🔥 CRITICAL: Export hideCollectiblesScreenWithAnimation to window for back button
-(window as any).hideCollectiblesScreenWithAnimation = () => {
-  uiManager.hideCollectiblesScreenWithAnimation();
+(window as any).hideCollectiblesScreenWithAnimation = async () => {
+  await uiManager.hideCollectiblesScreenWithAnimation();
 };

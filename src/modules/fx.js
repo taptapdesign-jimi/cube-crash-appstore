@@ -535,9 +535,10 @@ export function woodShardsAtTile(board, tile, opts = {}){
   const behind = opts.behind ?? false;
   // 🔥 CRITICAL: Check if this is wild-magnet (red-brown shards) - should use high zIndex
   const isWildMagnetShards = opts.wildMagnet === true;
-  // CRITICAL: Only use low zIndex for wild mode (when wildMode is true)
-  // For regular merge 6 and wild-magnet, use high zIndex (9993) to ensure shards are visible
-  if (wildMode && !isWildMagnetShards) {
+  // 🔥 CRITICAL: If zIndex is explicitly provided in opts, use it (for settings screen overlay)
+  if (opts.zIndex != null) {
+    layer.zIndex = opts.zIndex;
+  } else if (wildMode && !isWildMagnetShards) {
     layer.zIndex = tileZ - 0.002; // sit behind smoke/flash for wild mode (but not wild-magnet)
   } else {
     layer.zIndex = behind ? tileZ - 0.001 : 9993; // High zIndex for regular merge 6 and wild-magnet

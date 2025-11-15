@@ -274,8 +274,9 @@ class StatsService {
 
   // Update collectibles unlocked
   public updateCollectiblesUnlocked(count: number): void {
-    if (count > this.stats.collectiblesUnlocked) {
-      console.log(`🎁 Collectibles unlocked: ${count}`);
+    // Always update to ensure stats are in sync with actual collectibles state
+    if (count !== this.stats.collectiblesUnlocked) {
+      console.log(`🎁 Collectibles unlocked updated: ${this.stats.collectiblesUnlocked} -> ${count}`);
       this.stats.collectiblesUnlocked = count;
       this.saveStats();
     }

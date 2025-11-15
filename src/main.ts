@@ -704,6 +704,6 @@ let gameStartTime: number | null = null;
 };
 
 // Export collectibles hide with animation
-(window as any).hideCollectiblesScreenWithAnimation = () => {
-  uiManager.hideCollectiblesScreenWithAnimation();
+(window as any).hideCollectiblesScreenWithAnimation = async () => {
+  await uiManager.hideCollectiblesScreenWithAnimation();
 };

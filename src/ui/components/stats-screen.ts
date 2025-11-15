@@ -74,7 +74,9 @@ function updateStatsDisplay(stats: any): void {
   updateElement('longest-combo', stats.longestCombo);
   updateElement('helpers-used', stats.helpersUsed);
   updateElement('time-played', formatTime(stats.timePlayed));
-  updateElement('collectibles-unlocked', `${stats.collectiblesUnlocked}/20`);
+  // Calculate total collectibles (20 common + 5 legendary = 25)
+  const totalCollectibles = 25;
+  updateElement('collectibles-unlocked', `${stats.collectiblesUnlocked}/${totalCollectibles}`);
 }
 
 // Function to update stats values dynamically using stats service
@@ -126,7 +128,11 @@ function getStatsFromService(): StatItem[] {
     { id: 'longest-combo', icon: './assets/combo-stats.png', value: stats.longestCombo.toString(), label: 'Longest combo', valueId: 'longest-combo' },
     { id: 'helpers-used', icon: './assets/wild-stats.png', value: stats.helpersUsed.toString(), label: 'Helpers used', valueId: 'helpers-used' },
     { id: 'time-played', icon: './assets/time-icon.png', value: formatTime(stats.timePlayed), label: 'Time played', valueId: 'time-played' },
-    { id: 'collectibles-unlocked', icon: './assets/collectible-stats.png', value: `${stats.collectiblesUnlocked}/20`, label: 'Collectibles unlocked', valueId: 'collectibles-unlocked' },
+    // Calculate total collectibles (20 common + 5 legendary = 25)
+    (() => {
+      const totalCollectibles = 25;
+      return { id: 'collectibles-unlocked', icon: './assets/collectible-stats.png', value: `${stats.collectiblesUnlocked}/${totalCollectibles}`, label: 'Collectibles unlocked', valueId: 'collectibles-unlocked' };
+    })(),
   ];
 }
 
@@ -144,7 +150,7 @@ const DEFAULT_STATS: StatItem[] = [
   { id: 'longest-combo', icon: './assets/combo-stats.png', value: '0', label: 'Longest combo', valueId: 'longest-combo' },
   { id: 'helpers-used', icon: './assets/wild-stats.png', value: '0', label: 'Helpers used', valueId: 'helpers-used' },
   { id: 'time-played', icon: './assets/time-icon.png', value: '00:00:00', label: 'Time played', valueId: 'time-played' },
-  { id: 'collectibles-unlocked', icon: './assets/collectible-stats.png', value: '0/20', label: 'Collectibles unlocked', valueId: 'collectibles-unlocked' },
+    { id: 'collectibles-unlocked', icon: './assets/collectible-stats.png', value: '0/25', label: 'Collectibles unlocked', valueId: 'collectibles-unlocked' },
 ];
 
 function createStatItem(stat: StatItem): HTMLElementConfig {

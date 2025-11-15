@@ -1723,6 +1723,62 @@ function merge(src, dst, helpers){
   if (effSum < 6){
     makeBoard.setValue(dst, effSum, srcDepth);
     if (wildActive) clearWildState(dst);
+
+    // 🔥 COMBINED MERGE ANIMATION: Impact bump + single strong bounce
+    playMergeImpactAndAbsorbAnimation(dst);
+
+    // 2. Rotation and overlay for all stack layers (each rotates opposite to previous)
+    if (srcDepth > 1 && dst.stackG && dst.stackG.children.length > 0) {
+      let previousDirection = 0; // Start with no direction
+
+      // Iterate through all stack layers (starting from bottom)
+      dst.stackG.children.forEach((layer: any, index: number) => {
+        if (layer && layer.alpha !== undefined) {
+          // Add brown overlay to this layer
+          const overlay = new Graphics();
+          overlay.fill({ color: 0x8B4513, alpha: 0.4 }); // Brown color
+          overlay.rect(-TILE/2, -TILE/2, TILE, TILE);
+
+          // Position overlay at same position as the layer
+          overlay.x = layer.x || 0;
+          overlay.y = layer.y || 0;
+          overlay.rotation = layer.rotation || 0;
+          overlay.scale.set(layer.scale?.x || 1, layer.scale?.y || 1);
+
+          dst.stackG.addChild(overlay);
+          overlay.zIndex = -1;
+
+          // Rotate this layer in opposite direction to previous layer
+          const rotationDirection = previousDirection === 0 ?
+            (Math.random() > 0.5 ? 1 : -1) : // First layer: random direction
+            -previousDirection; // Subsequent layers: opposite to previous
+
+          const rotationDegrees = rotationDirection * (5 + Math.random() * 5); // 5-10 degrees
+          const rotationAmount = rotationDegrees * (Math.PI / 180); // Convert degrees to radians
+
+          // Set rotation to the final value, not add to existing
+          gsap.to(layer, {
+            rotation: rotationAmount, // Set to final value, don't add
+            duration: 0.2,
+            ease: 'power2.out'
+          });
+
+          // Update previous direction for next layer
+          previousDirection = rotationDirection;
+
+          // Fade out overlay after animation
+          gsap.to(overlay, {
+            alpha: 0,
+            duration: 0.4,
+            delay: 0.2,
+            onComplete: () => {
+              try { overlay.destroy(); } catch {}
+            }
+          });
+        }
+      });
+    }
+
     score = Math.min(SCORE_CAP, score + effSum); 
     
     console.log('🎮 MERGE: Score updated to:', score);
@@ -1890,6 +1946,19 @@ function merge(src, dst, helpers){
         if (moves === 0) { checkMovesDepleted(); return; }
 
         checkLevelEnd();
+
+        // 🔥 STUCK PROTECTION: Add fallback timer to check for stuck state after 1 second
+        // This prevents cases where player merges 3 tiles into 1 non-6 tile and game gets stuck
+        gsap.delayedCall(1.0, () => {
+          if (!busyEnding) {
+            console.log('🔍 STUCK PROTECTION: Checking for stuck state 1 second after merge...');
+            const activeTiles = tiles.filter(tileIsVisuallyActive);
+            if (activeTiles.length === 1 && activeTiles[0].value !== 6) {
+              console.log('🚨 STUCK PROTECTION: Single non-6 tile detected - forcing fail screen!');
+              showFinalScreen();
+            }
+          }
+        });
       }
     });
     return;
@@ -3464,6 +3533,49 @@ function removeTile(t){
   }
   try { delete (t as any)._skipIdleScaleReset; } catch {}
   t.destroy?.({children:true, texture:false, textureSource:false});
+}
+
+// 🔥 COMBINED MERGE ANIMATION: Impact bump + single strong bounce
+function playMergeImpactAndAbsorbAnimation(targetTile: any): void {
+  if (!targetTile) return;
+
+  // Ensure anchor/pivot is centered for proper scaling from center
+  if (targetTile.anchor) {
+    targetTile.anchor.set(0.5, 0.5);
+  }
+
+  // Create combined timeline: impact bump + strong bounce, all returning to exactly (1,1)
+  const tl = gsap.timeline({
+    onComplete: () => {
+      // Hard-reset to exactly (1, 1) to avoid floating-point drift
+      if (targetTile.scale) {
+        targetTile.scale.set(1, 1);
+      }
+    }
+  });
+
+  // Step 1: Immediate impact bump (1 → 1.02)
+  tl.to(targetTile.scale, {
+    x: 1.02,
+    y: 1.02,
+    duration: 0.08,
+    ease: 'power2.out'
+  });
+
+  // Step 2: Strong bounce from current scale (1.02 → 1.16 → back to 1.0) - 30% longer
+  tl.to(targetTile.scale, {
+    x: 1.16,        // Strong overshoot from current 1.02
+    y: 1.16,
+    duration: 0.078, // Bounce up - 30% longer (was 0.06)
+    ease: 'power2.out'
+  }).to(targetTile.scale, {
+    x: 1.0,         // Back to exactly 1.0
+    y: 1.0,
+    duration: 0.117, // Smooth return - 30% longer (was 0.09)
+    ease: 'back.out(1.8)' // Juicy clean bounce, no extra wobble
+  }, '+=0'); // No delay between bounce phases
+
+  console.log('🍬 Playing combined merge impact + absorb animation on tile');
 }
 
 async function showFinalScreen(){
