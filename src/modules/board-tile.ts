@@ -224,16 +224,39 @@ function createPips(tile: Tile, value: number): void {
 function createStackVisualization(tile: Tile, stackDepth: number): void {
   if (!tile.stackG) return;
   
-  // Clear existing stack
   tile.stackG.removeChildren();
+  tile.stackG.sortableChildren = true;
   
-  // Create stack layers
+  const minRotationDeg = 10;
+  const maxRotationDeg = 20;
+  let previousDirection = 0;
+  
   for (let i = 0; i < stackDepth; i++) {
-    const stackLayer = new Graphics();
-    stackLayer.fill({ color: 0x888888, alpha: 0.3 })
-      .rect(-TILE/2 + i*2, -TILE/2 + i*2, TILE - i*4, TILE - i*4);
-    stackLayer.zIndex = i;
-    tile.stackG.addChild(stackLayer);
+    const layer = new Container();
+    const shrink = i * 2;
+    const size = TILE - shrink * 2;
+    const pos = -TILE / 2 + shrink;
+    
+    const base = new Graphics();
+    base.fill({ color: 0x888888, alpha: 0.3 })
+      .rect(pos, pos, size, size);
+    layer.addChild(base);
+    
+    const overlay = new Graphics();
+    overlay.fill({ color: 0x8B4513, alpha: 0.2 })
+      .rect(pos, pos, size, size);
+    layer.addChild(overlay);
+    
+    const rotationDirection = previousDirection === 0
+      ? (Math.random() > 0.5 ? 1 : -1)
+      : -previousDirection;
+    const rotationDegrees = minRotationDeg + Math.random() * (maxRotationDeg - minRotationDeg);
+    layer.rotation = rotationDirection * (rotationDegrees * Math.PI / 180);
+    
+    layer.zIndex = i;
+    tile.stackG.addChild(layer);
+    
+    previousDirection = rotationDirection;
   }
 }
 
@@ -244,17 +267,39 @@ export function drawStack(tile: Tile): void {
   if (!tile || !tile.stackG) return;
   
   const stackDepth = tile.stackDepth || 0;
-  
-  // Clear existing stack
   tile.stackG.removeChildren();
+  tile.stackG.sortableChildren = true;
   
-  // Draw stack layers
+  const minRotationDeg = 10;
+  const maxRotationDeg = 20;
+  let previousDirection = 0;
+  
   for (let i = 0; i < stackDepth; i++) {
-    const stackLayer = new Graphics();
-    stackLayer.fill({ color: 0x666666, alpha: 0.5 })
-      .rect(-TILE/2 + i*2, -TILE/2 + i*2, TILE - i*4, TILE - i*4);
-    stackLayer.zIndex = i;
-    tile.stackG.addChild(stackLayer);
+    const layer = new Container();
+    const shrink = i * 2;
+    const size = TILE - shrink * 2;
+    const pos = -TILE / 2 + shrink;
+    
+    const base = new Graphics();
+    base.fill({ color: 0x666666, alpha: 0.5 })
+      .rect(pos, pos, size, size);
+    layer.addChild(base);
+    
+    const overlay = new Graphics();
+    overlay.fill({ color: 0x8B4513, alpha: 0.25 })
+      .rect(pos, pos, size, size);
+    layer.addChild(overlay);
+    
+    const rotationDirection = previousDirection === 0
+      ? (Math.random() > 0.5 ? 1 : -1)
+      : -previousDirection;
+    const rotationDegrees = minRotationDeg + Math.random() * (maxRotationDeg - minRotationDeg);
+    layer.rotation = rotationDirection * (rotationDegrees * Math.PI / 180);
+    
+    layer.zIndex = i;
+    tile.stackG.addChild(layer);
+    
+    previousDirection = rotationDirection;
   }
 }
 

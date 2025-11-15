@@ -91,30 +91,55 @@ export function drawStack(tile: Tile): void {
   const baseScaleX = (base as any)?.scale?.x ?? (((base as any)?.width ?? TILE) / tW);
   const baseScaleY = (base as any)?.scale?.y ?? (((base as any)?.height ?? TILE) / tH);
 
+  const minRotationDeg = 10;
+  const maxRotationDeg = 20;
+  let previousDirection = 0;
+
   for (let i = 1; i < depth; i++) {
     const scExtra = 1 - i * 0.05;
-    let s;
+    const layer = new Container();
+
+    let spriteOrGraphics;
     if (tex) {
-      s = new Sprite(tex);
-      s.anchor.set(baseAnchorX, baseAnchorY);
-      s.scale.set(baseScaleX * scExtra, baseScaleY * scExtra);
-      s.x = baseX;
-      s.y = baseY;
+      const sprite = new Sprite(tex);
+      sprite.anchor.set(baseAnchorX, baseAnchorY);
+      sprite.scale.set(baseScaleX * scExtra, baseScaleY * scExtra);
+      sprite.x = 0;
+      sprite.y = 0;
+      sprite.alpha = 0.9;
+      spriteOrGraphics = sprite;
     } else {
-      s = new Graphics()
-        .roundRect(-TILE/2, -TILE/2, TILE * scExtra, TILE * scExtra, 22)
+      const shape = new Graphics()
+        .roundRect(-TILE / 2, -TILE / 2, TILE * scExtra, TILE * scExtra, 22)
         .fill(0xffffff);
+      shape.alpha = 0.25;
+      spriteOrGraphics = shape;
     }
+    layer.addChild(spriteOrGraphics);
+
+    const overlaySize = TILE * scExtra;
+    const overlay = new Graphics();
+    overlay
+      .roundRect(-overlaySize / 2, -overlaySize / 2, overlaySize, overlaySize, 20)
+      .fill(0x8B5A2B);
+    overlay.alpha = 0.25;
+    layer.addChild(overlay);
+
     const dx = (Math.random() * 2 - 1) * (6 + i * 1.6);
     const dy = (Math.random() * 2 - 1) * (5 + i * 1.3);
-    const rot = (Math.random() * 2 - 1) * (i === depth - 1 ? 0.18 : 0.24);
+    const rotationDirection = previousDirection === 0
+      ? (Math.random() > 0.5 ? 1 : -1)
+      : -previousDirection;
+    const rotationDegrees = minRotationDeg + Math.random() * (maxRotationDeg - minRotationDeg);
+    const rot = rotationDirection * (rotationDegrees * Math.PI / 180);
 
-    s.rotation = rot;
-    s.x += dx;
-    s.y += dy;
-    s.alpha = tex ? 0.97 : 0.12;
-    s.zIndex = -10 + i;
-    g.addChild(s);
+    layer.rotation = rot;
+    layer.x = baseX + dx;
+    layer.y = baseY + dy;
+    layer.zIndex = -10 + i;
+    g.addChild(layer);
+
+    previousDirection = rotationDirection;
   }
   try { host.sortChildren(); } catch {}
 }
