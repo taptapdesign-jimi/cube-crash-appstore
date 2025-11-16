@@ -816,6 +816,8 @@ export function layout(){
   const isIPad = vw >= 768 && vw <= 1400;
   
   // Raise HUD by 56px on iPad (total)
+  const BOARD_LIFT = 16;
+  
   if (isIPad) {
     safeTop -= 56;
     hudBottom -= 56;
@@ -828,6 +830,13 @@ export function layout(){
     hudBottom -= additionalOffset;
     console.log('📱 iPhone: Raised HUD by', additionalOffset, 'px (4.7% of vh)');
   }
+
+  // Final lift: move HUD 8px closer to the top edge (extra 4px lift)
+  const HUD_LIFT = 8;
+  safeTop -= HUD_LIFT;
+  hudBottom = safeTop + HUD_H + GAP_HUD;
+  __hudMetrics.top = Math.round(safeTop);
+  __hudMetrics.bottom = Math.round(hudBottom);
   
   const BOARD_NUDGE_PX = 8; // original board nudge (was 4)
   
@@ -851,7 +860,7 @@ export function layout(){
     boardX = IPAD_BOARD_PADDING; // Left edge flush with 40px padding
     // Gap between HUD and board: exactly 24px
     const boardTopGap = 24;
-    boardY = Math.round(hudBottom + boardTopGap); // Board starts after HUD + 24px gap
+    boardY = Math.round(hudBottom + boardTopGap - BOARD_LIFT + 6 - 2); // Board starts after HUD gap, lifted up, +6px down, -2px up
   } else {
     // Mobile/Desktop: match HUD width
     availableWidth = vw - (HUD_PADDING * 2);
@@ -866,7 +875,7 @@ export function layout(){
     const maxLeft = vw - HUD_PADDING - sw;
     boardX = Math.min(Math.max(idealLeft, minLeft), maxLeft);
     const centerY = hudBottom + availableHeight / 2;
-    boardY = Math.round(centerY - sh / 2 + 8); // Move board down by 8px
+    boardY = Math.round(centerY - sh / 2 + 8 - BOARD_LIFT + 6 - 2); // Previous +8 offset, now lifted up, +6px down, -2px up
   }
   
   console.log('🎯 Board scaling:', { 
@@ -958,9 +967,9 @@ export function layout(){
     // CENTER BOARD VERTICALLY in the space between wild bottom and bottom of screen
     // Use percentage-based positioning for responsive centering
     const avail2 = vh - dynamicHudBottom - BOT_PAD;
-    // Center at exactly 50% of available space, with 16px extra offset down
+    // Center at exactly 50% of available space
     const center2 = dynamicHudBottom + (avail2 - sh2) / 2;
-    board.y = Math.round(center2 + 16); // Move board down by 16px
+    board.y = Math.round(center2 - BOARD_LIFT + 6 - 2); // +6px down, -2px up
     console.log('🎯 Recentered board using PIXI wild meter (centered 50%):', { dynamicHudBottom, center2, wildY, wildH, s2, hudYForLayout, avail2 });
   } catch (e) {
     console.warn('⚠️ Could not recenter using PIXI wild meter, using estimate.', e);
@@ -1855,8 +1864,9 @@ function merge(src, dst, helpers){
         const isWildMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
         
         if (!busyEnding && !isWildMagnetMerge) {
-          // Add small delay to ensure removeTile has completed and tiles array is updated
-          await new Promise(resolve => setTimeout(resolve, 50));
+          // Add delay to ensure removeTile has completed and tiles array is updated
+          // 🔥 INCREASED DELAY: 100ms instead of 50ms to ensure tiles array is fully updated
+          await new Promise(resolve => setTimeout(resolve, 100));
           
           // 🔥 CRITICAL: Verify dst tile state before checking
           const activeTilesBeforeCheck = tiles.filter(tileIsVisuallyActive);
@@ -1870,13 +1880,16 @@ function merge(src, dst, helpers){
               value: t.value, 
               special: t.special, 
               locked: t.locked,
+              stackDepth: t.stackDepth || 1,
               isDst: t === dst 
             })),
             dstValue: dst.value,
+            dstStackDepth: dst.stackDepth || 1,
             dstLocked: dst.locked,
             dstInTiles: dstInTiles,
             dstIsActive: dstIsActive,
-            effSum: effSum
+            effSum: effSum,
+            busyEnding: busyEnding
           });
           
           // 🔥 CRITICAL: Clear cache right before check to ensure fresh data
@@ -1897,15 +1910,30 @@ function merge(src, dst, helpers){
           });
           
           if (stuckCheckResult.type === 'stuck') {
-            console.log('🚨🚨🚨 GAME STUCK after regular merge - waiting 1s before fail screen to let user see board');
+            console.log('🚨🚨🚨 GAME STUCK after regular merge - triggering fail screen');
+            console.log('🚨 Final state:', {
+              activeTilesCount: activeTilesBeforeCheck.length,
+              tiles: activeTilesBeforeCheck.map(t => ({ 
+                value: t.value, 
+                stackDepth: t.stackDepth || 1,
+                special: t.special 
+              })),
+              reason: stuckCheckResult.reason
+            });
+            
             if (!busyEnding) {
               // 🔥 CRITICAL: Wait 1 second before showing fail screen
               // This gives user time to see the board state and understand why game ended
               // Without this delay, fail screen appears too fast and feels like cheating
               await new Promise(resolve => setTimeout(resolve, 1000));
+              console.log('🚨 Showing fail screen NOW');
               showFinalScreen();
+            } else {
+              console.warn('⚠️ busyEnding is true, NOT showing fail screen');
             }
             return;
+          } else {
+            console.log('✅ Post-merge stuck check: Game continues -', stuckCheckResult.reason);
           }
         } else if (isWildMagnetMerge) {
           console.log('🧲 SKIPPING post-merge stuck check - wild-magnet will pull tiles after merge completes');
@@ -3409,7 +3437,6 @@ function checkLevelEnd(){
     // Check for emergency rescue first
     if (needsEmergencyRescue(tiles)) {
       console.log('🚨 EMERGENCY: Wild cubes exist but no non-wild tiles! Scheduling emergency rescue...');
-      const activeTiles = tiles.filter(tileIsVisuallyActive);
       const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
       const emergencyCount = Math.min(3, Math.max(2, wildCubes.length));
       scheduleWildRescue('checkLevelEnd', emergencyCount);

@@ -769,7 +769,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 0 calc(env(safe-area-inset-right, 0px) + 40px) calc(env(safe-area-inset-bottom, 0px) + 2vh) calc(env(safe-area-inset-left, 0px) + 40px);
+  padding: 16px calc(env(safe-area-inset-right, 0px) + 40px) calc(env(safe-area-inset-bottom, 0px) + 2vh) calc(env(safe-area-inset-left, 0px) + 40px);
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
@@ -786,7 +786,7 @@
 
 #collectibles-detail-modal .detail-image {
   width: 100%;
-  margin: 24px 0 0 0;
+  margin: 16px 0 0 0;
   min-height: 458px;
   aspect-ratio: 310 / 458;
   background-size: cover;
@@ -839,6 +839,7 @@
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: center;
   gap: 24px;
   position: relative;
   margin: 52px 0 40px 0;
@@ -846,9 +847,15 @@
 
 #collectibles-detail-modal .detail-divider-left,
 #collectibles-detail-modal .detail-divider-right {
-  height: 2px;
-  background: #F0EDEC;
+  height: 1px;
+  background: #BD968C;
   flex: 1;
+}
+
+/* Legendary tag dividers - match legendary stroke color */
+#collectibles-detail-modal .detail-rarity-badge-container.has-legendary .detail-divider-left,
+#collectibles-detail-modal .detail-rarity-badge-container.has-legendary .detail-divider-right {
+  background: #E87A54;
 }
 
 #collectibles-detail-modal .detail-rarity-badge {

@@ -46,7 +46,7 @@ export function createCollectiblesSlide(config: SlideConfig): HTMLElementConfig 
               {
                 tag: 'p',
                 className: 'slide-tagline',
-                html: 'Collect special rewards<br/>and earn bragging rights',
+                text: 'Collect unique cards',
               },
               {
                 tag: 'button',

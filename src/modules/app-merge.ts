@@ -1154,6 +1154,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // Spawn bounce animation takes ~580ms, plus unlock/bind takes ~50ms
   // Total safe delay: 800ms (increased from 600ms)
   console.log('⏳ Waiting 800ms for spawn animations to complete before endgame check...');
+  await new Promise(resolve => setTimeout(resolve, 800));
   
   // 🔥 CRITICAL: Check if ALL tiles can be merged together (simulate all possible merges)
   // If all tiles can be merged and the final merge is merge 6, trigger clean board flow

@@ -66,7 +66,7 @@
   align-items: center;
   justify-content: center;
   margin-bottom: 40px;
-  margin-top: 20px;
+  margin-top: 28px; /* 20px + 8px spušteno dolje */
 }
 
 .hero-image {
@@ -239,7 +239,7 @@
 
 .slider-nav-divider {
   position: absolute;
-  top: 32px; /* Moved up 16px (from 48px to 32px) to get closer to nav icons */
+  top: 48px; /* Shifted down another 8px */
   left: 50%;
   transform: translateX(-50%);
   width: min(342px, 88vw);
@@ -277,7 +277,7 @@
   border-radius: 50%;
   background: rgba(209, 170, 140, 0.35);
   filter: blur(16px);
-  margin-top: -2px;
+  margin-top: 14px; /* Keep 8px offset relative to divider */
 }
 
 .slider-nav {
@@ -385,7 +385,7 @@
   width: min(320px, 80vw);
   height: auto;
   margin-bottom: 20px;
-  margin-top: -38px; /* Moved up 8px (from -30px to -38px) */
+  margin-top: -46px;
   position: relative; /* ensure stacking context */
   z-index: 10;        /* draw above slider content lifted with negative margin */
   /* No idle animation */

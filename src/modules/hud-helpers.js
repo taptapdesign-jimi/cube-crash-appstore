@@ -1,9 +1,10 @@
 // public/src/modules/hud-helpers.js
-import { Container, Graphics, Text, Rectangle } from 'pixi.js';
+import { Container, Graphics, Text, Rectangle, Sprite, Assets } from 'pixi.js';
 import { gsap } from 'gsap';
 import { pauseGame, resumeGame, restart } from './app-core.js';
 // import { showPauseModal } from './pause-modal.js'; // Replaced with menu screen
 import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
+import uiManager from './ui-manager.js';
 import { smokeBubblesAtTile } from './fx.js';
 
 // Local boardSize function (same as in app.js)
@@ -14,8 +15,202 @@ function boardSize(){ return { w: COLS*TILE + (COLS-1)*GAP, h: ROWS*TILE + (ROWS
 /* ---------------- Minimal HUD the app.js expects ---------------- */
 let HUD_ROOT = null;
 let boardText, scoreText, comboText; 
+let closeIconSprite = null; // Close icon sprite (replaces boardText)
 let comboWrap; // wrapper for jitter
 let wild;
+let hudCloseButton = null;
+let boardIndicator = null;
+let boardIndicatorLabel = null;
+const BOARD_INDICATOR_ANIM_OFFSET = 72;
+const BOARD_INDICATOR_BOTTOM = 24;
+
+function ensureBoardIndicator() {
+  if (boardIndicator && document.body.contains(boardIndicator)) {
+    return boardIndicator;
+  }
+  
+  const container = document.createElement('div');
+  container.id = 'hud-board-indicator';
+  container.style.cssText = `
+    position: fixed;
+    bottom: ${BOARD_INDICATOR_BOTTOM}px;
+    left: 50%;
+    margin-left: -160px;
+    width: 320px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    z-index: 2500;
+    pointer-events: none;
+    font-family: 'LTCrow', 'Arial', sans-serif;
+    transform: translateY(0);
+    opacity: 1;
+  `;
+  
+  const createLine = () => {
+    const line = document.createElement('div');
+    line.style.cssText = `
+      flex: 1;
+      height: 2px;
+      background: #EDE0D5;
+      border-radius: 999px;
+    `;
+    return line;
+  };
+  
+  const label = document.createElement('div');
+  label.id = 'hud-board-indicator-label';
+  label.textContent = 'Board #1';
+  label.style.cssText = `
+    min-width: 135px;
+    padding: 4px 12px;
+    border-radius: 24px;
+    background: transparent;
+    border: 1px solid #E8D3C8;
+    color: #AD8775;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-align: center;
+    text-transform: none;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  `;
+  
+  const leftLine = createLine();
+  const rightLine = createLine();
+  leftLine.style.zIndex = '1';
+  rightLine.style.zIndex = '1';
+  label.style.zIndex = '2';
+  label.style.position = 'relative';
+  
+  container.appendChild(leftLine);
+  container.appendChild(label);
+  container.appendChild(rightLine);
+  
+  document.body.appendChild(container);
+  gsap.set(container, { y: BOARD_INDICATOR_ANIM_OFFSET, opacity: 0 });
+  container.setAttribute('data-state', 'hidden');
+  boardIndicator = container;
+  boardIndicatorLabel = label;
+  return container;
+}
+
+function handleHUDClose() {
+  try {
+    uiManager.showHomepageWithAnimation();
+  } catch (error) {
+    console.warn('⚠️ HUD close animation failed, falling back to standard homepage', error);
+    try {
+      uiManager.showHomepage();
+    } catch (fallbackError) {
+      console.warn('⚠️ HUD close fallback failed:', fallbackError);
+    }
+  }
+}
+
+function applyCloseButtonStyles(button, useFixedPosition) {
+  button.style.cssText = `
+    position: ${useFixedPosition ? 'fixed' : 'absolute'};
+    top: 28px;
+    left: 24px;
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: auto;
+    z-index: ${useFixedPosition ? 4000 : 10};
+  `;
+}
+
+function ensureHUDCloseButton(parent = null) {
+  const targetParent = parent || document.querySelector('[data-unified-hud]') || document.body;
+  const useFixedPosition = !parent;
+  
+  if (!hudCloseButton) {
+    const button = document.createElement('button');
+    button.id = 'hud-close-button';
+    button.type = 'button';
+    button.setAttribute('aria-label', 'Close');
+    applyCloseButtonStyles(button, useFixedPosition);
+    
+    button.addEventListener('click', () => handleHUDClose());
+    button.addEventListener('pointerdown', () => {
+      button.style.transform = 'scale(0.92)';
+    });
+    const resetScale = () => {
+      button.style.transform = 'scale(1)';
+    };
+    button.addEventListener('pointerup', resetScale);
+    button.addEventListener('pointerleave', resetScale);
+    
+    const icon = document.createElement('img');
+    icon.src = './assets/close-icon.png';
+    icon.srcset = './assets/close-icon.png 1x, ./assets/close-icon@2x.png 2x, ./assets/close-icon@3x.png 3x';
+    icon.alt = 'Close';
+    icon.style.cssText = `
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+      pointer-events: none;
+    `;
+    button.appendChild(icon);
+    
+    hudCloseButton = button;
+  } else {
+    applyCloseButtonStyles(hudCloseButton, useFixedPosition);
+  }
+  
+  if (targetParent && hudCloseButton.parentElement !== targetParent) {
+    targetParent.appendChild(hudCloseButton);
+  }
+  
+  return hudCloseButton;
+}
+
+function updateBoardIndicatorValue(boardNumber) {
+  if (!boardIndicatorLabel) {
+    ensureBoardIndicator();
+  }
+  if (boardIndicatorLabel) {
+    boardIndicatorLabel.textContent = `Board #${boardNumber}`;
+  }
+}
+
+function animateBoardIndicatorEnter(duration = 0.8) {
+  const indicator = ensureBoardIndicator();
+  try { gsap.killTweensOf(indicator); } catch {}
+  gsap.set(indicator, { y: BOARD_INDICATOR_ANIM_OFFSET, opacity: 0 });
+  gsap.to(indicator, {
+    y: 0,
+    opacity: 1,
+    duration,
+    ease: 'elastic.out(1, 0.6)',
+    onComplete: () => indicator?.setAttribute('data-state', 'visible')
+  });
+}
+
+function animateBoardIndicatorExit(duration = 0.3) {
+  if (!boardIndicator || !document.body.contains(boardIndicator)) return;
+  try { gsap.killTweensOf(boardIndicator); } catch {}
+  // Use fixed 0.3s duration to match HUD exit speed, or use provided duration if it's faster
+  const exitDuration = Math.min(0.3, duration || 0.3);
+  gsap.to(boardIndicator, {
+    y: BOARD_INDICATOR_ANIM_OFFSET,
+    opacity: 0,
+    duration: exitDuration,
+    ease: 'power2.in',
+    onComplete: () => boardIndicator?.setAttribute('data-state', 'hidden')
+  });
+}
 
 // Unified container for PIXI HUD + DOM wild preloader
 let unifiedHudContainer = null;
@@ -47,6 +242,9 @@ export function createUnifiedHudContainer() {
     document.body.appendChild(unifiedHudContainer);
     console.log('✅ Unified HUD container created and added to body (fallback)');
   }
+  
+  ensureHUDCloseButton(unifiedHudContainer);
+  ensureBoardIndicator();
   
   return unifiedHudContainer;
 }
@@ -92,14 +290,42 @@ function makeWildLoader() {
   bg.beginFill(0xEADFD6); // Light beige
   bg.drawRoundedRect(0, 0, 200, 8, 4);
   bg.endFill();
+  bg.zIndex = 0;
+  
+  // Decorative dashed line 2px above wild bar
+  const dashLine = new Graphics();
+  const drawDashLine = (width = 200) => {
+    dashLine.clear();
+    const dashLength = 6;
+    const gapLength = 4;
+    let currentX = 0;
+    const lineY = -4;
+    while (currentX < width) {
+      dashLine.moveTo(currentX, lineY);
+      const nextX = Math.min(currentX + dashLength, width);
+      dashLine.lineTo(nextX, lineY);
+      currentX = nextX + gapLength;
+    }
+    dashLine.stroke({
+      color: 0xEAD7CD,
+      width: 1,
+      alignment: 0.5,
+      cap: 'round'
+    });
+  };
+  drawDashLine();
+  dashLine.visible = false; // temporarily hide dashed line; retain for future styling tweaks
+  dashLine.zIndex = 10_000;
+  container.sortableChildren = true;
   
   // Progress fill - start with 0 width
   const fill = new Graphics();
   fill.beginFill(0xE7744A); // Orange
   fill.drawRoundedRect(0, 0, 0, 8, 4);
   fill.endFill();
+  fill.zIndex = 5000;
   
-  container.addChild(bg, fill);
+  container.addChild(bg, fill, dashLine);
   
   // Position relative to HUD
   container.x = 24;
@@ -109,6 +335,8 @@ function makeWildLoader() {
   // Store references
   container._bg = bg;
   container._fill = fill;
+  container._dashLine = dashLine;
+  container._drawDashLine = drawDashLine;
   container._maxWidth = 200;
   
   // Methods
@@ -240,6 +468,9 @@ function makeWildLoader() {
     container._fill.beginFill(0xE7744A);
     container._fill.drawRoundedRect(0, 0, 0, 8, 4);
     container._fill.endFill();
+    if (container._drawDashLine) {
+      container._drawDashLine(width);
+    }
   };
   
   return {
@@ -338,6 +569,10 @@ export function layout({ app, top }) {
     HUD_ROOT._labels = { m, s, c };
   }
   const { m, s, c } = HUD_ROOT._labels;
+  if (m) {
+    m.visible = false;
+    m.renderable = false;
+  }
 
   // pozicioniranje labela
   const leftCenter  = SIDE + m.width / 2;   // center of the left column
@@ -349,14 +584,22 @@ export function layout({ app, top }) {
   c.x = rightCenter;
   m.y = s.y = c.y = yLabel;
 
-  // poravnanja — Board lijevo (broj), Score sredina, Combo desno
+  // poravnanja — Close icon lijevo (umjesto Board), Score sredina, Combo desno
   // center values under their labels (using anchors)
   boardText.x = leftCenter;
+  boardText.y = yValue;
+  // Position close icon sprite where boardText was (centered vertically with text)
+  if (closeIconSprite) {
+    closeIconSprite.x = leftCenter;
+    // Center vertically: yValue is top of text, add half of text height to center the icon
+    closeIconSprite.y = yValue + (valueRowH / 2);
+    closeIconSprite.visible = true;
+  }
   scoreText.x = midCenter;
   if (comboWrap){ comboWrap.x = rightCenter; comboWrap.y = yValue; }
   // keep text at origin within wrapper
   comboText.x = 0; comboText.y = 0;
-  boardText.y = yValue; scoreText.y = yValue;
+  scoreText.y = yValue;
 
   const barW = Math.max(120, vw - SIDE * 2);
   // Old wild loader disabled - using DOM wild meter instead
@@ -409,11 +652,159 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   stage.addChild(HUD_ROOT);
 
   // vrijednosti - Use system font stack for better App Store compatibility
-  const valBoard = { fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif', fontSize: 24, fill: 0xAD8775, fontWeight: '700', fontStyle: 'normal' };
   const valMain  = { fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif', fontSize: 24, fill: 0xAD8775, fontWeight: '700', fontStyle: 'normal' };
   const valCombo = { fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif', fontSize: 24, fill: 0xE77449, fontWeight: '700', fontStyle: 'normal' }; // Same color as preloader
 
-  boardText = new Text({ text: '#1', style: valBoard });
+  // Create close icon sprite instead of board text
+  try {
+    let closeIconTexture = null;
+    try {
+      closeIconTexture = Assets.get('./assets/close-icon.png');
+    } catch (e) {
+      // Asset might not be loaded yet, will load asynchronously
+    }
+    
+    if (closeIconTexture) {
+      // Create container for icon + circle
+      const closeButtonContainer = new Container();
+      closeButtonContainer.eventMode = 'static';
+      closeButtonContainer.cursor = 'pointer';
+      
+      // Create dashed circle (40px diameter with 2px stroke, 6px dash + 6px gap)
+      const circle = new Graphics();
+      const radius = 20;
+      const dashLength = 6;
+      const gapLength = 6;
+      const circumference = 2 * Math.PI * radius;
+      const totalSegment = dashLength + gapLength;
+      const dashCount = Math.floor(circumference / totalSegment);
+      
+      for (let i = 0; i < dashCount; i++) {
+        // Calculate angles for this dash
+        const startAngle = (i * totalSegment / circumference) * 2 * Math.PI;
+        const endAngle = startAngle + (dashLength / circumference) * 2 * Math.PI;
+        
+        // Calculate start and end points
+        const startX = Math.cos(startAngle) * radius;
+        const startY = Math.sin(startAngle) * radius;
+        const endX = Math.cos(endAngle) * radius;
+        const endY = Math.sin(endAngle) * radius;
+        
+        // Draw arc segment
+        circle.moveTo(startX, startY);
+        circle.arc(0, 0, radius, startAngle, endAngle);
+      }
+      circle.stroke({ width: 2, color: 0xE8D4C7 }); // 2px stroke, light beige color
+      closeButtonContainer.addChild(circle);
+      
+      // Create icon sprite (24px) centered in the circle
+      const iconSprite = new Sprite(closeIconTexture);
+      iconSprite.anchor.set(0.5, 0.5);
+      const iconSize = 24;
+      if (iconSprite.width > 0 && iconSprite.height > 0) {
+        const scale = iconSize / Math.max(iconSprite.width, iconSprite.height);
+        iconSprite.scale.set(scale);
+      }
+      iconSprite.alpha = 0.8;
+      closeButtonContainer.addChild(iconSprite);
+      
+      // Store reference to container (not just sprite)
+      closeIconSprite = closeButtonContainer;
+      
+      // Add interactive behavior
+      closeButtonContainer.on('pointertap', () => handleHUDClose());
+      closeButtonContainer.on('pointerdown', () => {
+        closeButtonContainer.scale.set(0.92);
+      });
+      closeButtonContainer.on('pointerup', () => {
+        closeButtonContainer.scale.set(1);
+      });
+      closeButtonContainer.on('pointerleave', () => {
+        closeButtonContainer.scale.set(1);
+      });
+      
+      HUD_ROOT.addChild(closeButtonContainer);
+      console.log('✅ Close icon with circle created and added');
+    } else {
+      console.warn('⚠️ Close icon texture not found, trying to load...');
+      // Try loading it asynchronously
+      Assets.load('./assets/close-icon.png').then((tex) => {
+        if (tex && HUD_ROOT) {
+          // Create container for icon + circle
+          const closeButtonContainer = new Container();
+          closeButtonContainer.eventMode = 'static';
+          closeButtonContainer.cursor = 'pointer';
+          
+          // Create dashed circle (40px diameter with 2px stroke, 6px dash + 6px gap)
+          const circle = new Graphics();
+          const radius = 20;
+          const dashLength = 6;
+          const gapLength = 6;
+          const circumference = 2 * Math.PI * radius;
+          const totalSegment = dashLength + gapLength;
+          const dashCount = Math.floor(circumference / totalSegment);
+          
+          for (let i = 0; i < dashCount; i++) {
+            // Calculate angles for this dash
+            const startAngle = (i * totalSegment / circumference) * 2 * Math.PI;
+            const endAngle = startAngle + (dashLength / circumference) * 2 * Math.PI;
+            
+            // Calculate start and end points
+            const startX = Math.cos(startAngle) * radius;
+            const startY = Math.sin(startAngle) * radius;
+            const endX = Math.cos(endAngle) * radius;
+            const endY = Math.sin(endAngle) * radius;
+            
+            // Draw arc segment
+            circle.moveTo(startX, startY);
+            circle.arc(0, 0, radius, startAngle, endAngle);
+          }
+          circle.stroke({ width: 2, color: 0xE8D4C7 }); // 2px stroke, light beige color
+          closeButtonContainer.addChild(circle);
+          
+          // Create icon sprite (24px) centered in the circle
+          const iconSprite = new Sprite(tex);
+          iconSprite.anchor.set(0.5, 0.5);
+          const iconSize = 24;
+          if (iconSprite.width > 0 && iconSprite.height > 0) {
+            const scale = iconSize / Math.max(iconSprite.width, iconSprite.height);
+            iconSprite.scale.set(scale);
+          }
+          iconSprite.alpha = 0.8;
+          closeButtonContainer.addChild(iconSprite);
+          
+          // Store reference
+          closeIconSprite = closeButtonContainer;
+          
+          // Add interactive behavior
+          closeButtonContainer.on('pointertap', () => handleHUDClose());
+          closeButtonContainer.on('pointerdown', () => {
+            closeButtonContainer.scale.set(0.92);
+          });
+          closeButtonContainer.on('pointerup', () => {
+            closeButtonContainer.scale.set(1);
+          });
+          closeButtonContainer.on('pointerleave', () => {
+            closeButtonContainer.scale.set(1);
+          });
+          
+          HUD_ROOT.addChild(closeButtonContainer);
+          layout({ app, top });
+          console.log('✅ Close icon with circle loaded and added');
+        }
+      }).catch((err) => {
+        console.error('❌ Failed to load close icon:', err);
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error creating close icon sprite:', error);
+  }
+
+  // Create dummy boardText for compatibility (hidden)
+  boardText = new Text({ text: '#1', style: { fontSize: 24, fill: 0xAD8775 } });
+  boardText.visible = false;
+  boardText.renderable = false;
+
   scoreText = new Text({ text: '0', style: valMain  });
   comboText = new Text({ text: 'x0', style: valCombo });
   
@@ -428,9 +819,17 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   comboWrap = new Container();
   comboWrap.addChild(comboText);
   HUD_ROOT.addChild(boardText, scoreText, comboWrap);
+  
+  // Add close icon sprite if it was created synchronously
+  if (closeIconSprite && closeIconSprite.parent !== HUD_ROOT) {
+    HUD_ROOT.addChild(closeIconSprite);
+    console.log('✅ Close icon sprite added to HUD_ROOT');
+  }
+  
   // ensure combo is drawn above wild bar if overlapping
   try {
     boardText.zIndex = 10;
+    if (closeIconSprite) closeIconSprite.zIndex = 10;
     scoreText.zIndex = 10;
     comboWrap.zIndex = 2000;
     comboText.zIndex = 2000;
@@ -512,6 +911,7 @@ export function playHudDrop({ duration = 0.8 } = {}){
   });
   
   console.log('✅ PIXI HUD drop animation started');
+  animateBoardIndicatorEnter(duration);
 }
 
 // Helper function to cleanup all smoke bubbles before exit
@@ -557,9 +957,13 @@ export function cleanupSmokeBubbles() {
 }
 
 // Play HUD rise animation - exact reverse of playHudDrop
-export function playHudRise({ duration = 0.8 } = {}){
+export function playHudRise({ duration = 0.3 } = {}){
   if (!HUD_ROOT) {
     console.warn('⚠️ playHudRise: HUD_ROOT is null, skipping animation');
+    // Wait 0.1s after HUD would have started, then animate board indicator
+    setTimeout(() => {
+      animateBoardIndicatorExit(0.3);
+    }, 100);
     return;
   }
   
@@ -573,12 +977,15 @@ export function playHudRise({ duration = 0.8 } = {}){
     // Kill any existing tweens
     try { gsap.killTweensOf(HUD_ROOT); } catch {}
     
-    // Animate PIXI HUD rise (reverse of drop)
+    // Use fixed 0.3s duration for faster exit animation
+    const exitDuration = 0.3;
+    
+    // Animate PIXI HUD rise (reverse of drop) - faster exit
     gsap.to(HUD_ROOT, {
       alpha: 0,  // fade out
       y: -top * 2,  // rise above screen
-      duration: duration,
-      ease: 'elastic.in(1, 0.6)',  // reverse of elastic.out(1, 0.6)
+      duration: exitDuration,
+      ease: 'power2.in',  // faster, simpler ease for exit
       onComplete: () => { 
         // Safety check in callback - HUD_ROOT might be destroyed during animation
         if (HUD_ROOT) {
@@ -596,8 +1003,17 @@ export function playHudRise({ duration = 0.8 } = {}){
     });
     
     console.log('✅ PIXI HUD rise animation started');
+    
+    // Wait 0.1s after HUD animation starts, then animate board indicator with 0.3s duration
+    setTimeout(() => {
+      animateBoardIndicatorExit(0.3);
+    }, 100);
   } catch (error) {
     console.error('❌ playHudRise failed:', error);
+    // Even on error, try to animate board indicator after delay
+    setTimeout(() => {
+      animateBoardIndicatorExit(0.3);
+    }, 100);
   }
 }
 
@@ -620,6 +1036,7 @@ export function updateHUD({ score, board, moves, combo }) {
       if (!__boardTweening) bounceText(boardText, { peak: 1.32, back: 1.10, up: 0.10, down: 0.24 });
       __prevBoard = bd;
     }
+    updateBoardIndicatorValue(bd);
   }
   if (typeof score === 'number') {
     const sc = score|0;
@@ -638,7 +1055,11 @@ export function updateHUD({ score, board, moves, combo }) {
 }
 
 export function setScore(v){ if (scoreText) scoreText.text = String(v|0); }
-export function setBoard(v){ if (boardText) boardText.text = `#${v|0}`; }
+export function setBoard(v){
+  const val = v|0;
+  if (boardText) boardText.text = `#${val}`;
+  updateBoardIndicatorValue(val);
+}
 export function setCombo(v){
   const val = v|0;
   if (!comboText) return;

@@ -46,7 +46,7 @@ export function createSettingsSlide(config: SlideConfig): HTMLElementConfig {
               {
                 tag: 'p',
                 className: 'slide-tagline',
-                html: 'Customize the game<br/>just the way you like.',
+                text: 'Tune the game your way',
               },
               {
                 tag: 'button',

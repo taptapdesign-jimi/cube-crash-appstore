@@ -62,6 +62,7 @@ class CollectiblesManager {
   private detailFocusTrap: FocusTrap | null = null;
   private detailTrigger: HTMLElement | null = null;
   private currentDetailCardId: string | null = null;
+  private currentDetailCategory: string | null = null;
   private eventListenersInitialized: boolean = false;
 
   constructor() {
@@ -652,6 +653,16 @@ class CollectiblesManager {
       console.warn('⚠️ Rarity badge element not found');
     }
     
+    // Update container class for divider styling
+    const badgeContainer = document.querySelector('.detail-rarity-badge-container');
+    if (badgeContainer) {
+      if (category === 'legendary') {
+        badgeContainer.classList.add('has-legendary');
+      } else {
+        badgeContainer.classList.remove('has-legendary');
+      }
+    }
+    
     if (cardDescriptionEl) {
       cardDescriptionEl.textContent = card.description;
       console.log('✅ Card description set:', card.description);
@@ -663,6 +674,7 @@ class CollectiblesManager {
       console.log('✅ Modal exists, showing...');
       this.detailTrigger = document.activeElement as HTMLElement;
       this.currentDetailCardId = cardId; // Store current card ID
+      this.currentDetailCategory = category; // Store current category
       modal.removeAttribute('hidden');
       modal.setAttribute('aria-hidden', 'false');
       
@@ -733,8 +745,6 @@ class CollectiblesManager {
       requestAnimationFrame(() => {
         modal.style.opacity = '1';
         modal.style.transform = 'scale(1) translateY(0)';
-        
-        // Drag removed - no longer needed
       });
       
         this.detailFocusTrap?.destroy();
@@ -769,6 +779,8 @@ class CollectiblesManager {
       console.warn('⚠️ Modal not found in hideCardDetail');
       return;
     }
+
+    this.currentDetailCategory = null;
 
     console.log('✅ Modal found, starting exit animation');
     

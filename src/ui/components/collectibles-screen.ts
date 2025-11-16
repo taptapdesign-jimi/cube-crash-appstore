@@ -212,31 +212,17 @@ export function createCollectiblesDetailModal(): HTMLElementConfig {
                   },
                 ],
               },
-                  {
-                    tag: 'h1',
-                    id: 'detail-card-number',
-                    className: 'detail-title',
-                    text: '05',
-                  },
-                  {
-                    tag: 'div',
-                    className: 'detail-header-spacer',
-                  },
             ],
           },
-          {
-            tag: 'div',
-                className: 'detail-title-underline',
-              },
             ],
           },
           {
             tag: 'div',
             className: 'detail-scrollable',
                 children: [
-                  {
-                    tag: 'div',
-                    id: 'detail-card-image',
+              {
+                tag: 'div',
+                id: 'detail-card-image',
                 className: 'detail-image',
               },
               {

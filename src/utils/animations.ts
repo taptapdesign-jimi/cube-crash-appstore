@@ -217,21 +217,38 @@ function startExitAnimationSequence(): void {
       logger.warn('⚠️ Hero container not found in active slide');
     }
     
-    // STEP 2: CTA button SECOND (30ms delay - right after Hero)
-    if (slideButton) {
-      cartoonishBounce(slideButton as HTMLElement, 30);
-      logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND');
-    } else {
-      logger.warn('⚠️ CTA button not found in active slide');
-    }
-    
-    // STEP 3: Slide text THIRD (60ms delay - right after CTA)
-    if (slideText) {
-      cartoonishBounce(slideText as HTMLElement, 60);
-      logger.info('📝 Step 3: Slide text cartoonish bounce - THIRD');
-    } else {
-      logger.warn('⚠️ Slide text not found in active slide');
-    }
+    // STEP 2: CTA button, Slide text, and Tagline TOGETHER (30ms delay - right after Hero)
+    // Animate all at exactly the same time using the same timeout
+    const slideTagline = activeSlide.querySelector('.slide-tagline');
+    const timeout = setTimeout(() => {
+      activeTimeouts.delete(timeout);
+      if (slideButton) {
+        slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        void slideButton.offsetHeight;
+        slideButton.classList.add('animate-exit');
+        logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND');
+      } else {
+        logger.warn('⚠️ CTA button not found in active slide');
+      }
+      
+      if (slideText) {
+        slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        void slideText.offsetHeight;
+        slideText.classList.add('animate-exit');
+        logger.info('📝 Step 2: Slide text cartoonish bounce - TOGETHER with CTA');
+      } else {
+        logger.warn('⚠️ Slide text not found in active slide');
+      }
+      
+      // Animate tagline together with text and CTA
+      if (slideTagline) {
+        (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        void (slideTagline as HTMLElement).offsetHeight;
+        (slideTagline as HTMLElement).classList.add('animate-exit');
+        logger.info('📝 Step 2: Slide tagline cartoonish bounce - TOGETHER with text and CTA');
+      }
+    }, 30);
+    activeTimeouts.add(timeout);
     
     // STEP 4: Home logo FOURTH (90ms delay)
     if (homeLogo) {
@@ -241,12 +258,19 @@ function startExitAnimationSequence(): void {
       logger.warn('⚠️ Home logo not found');
     }
     
-    // STEP 5: Navigation LAST (120ms delay - finishes at 420ms, close to 400ms)
+    // STEP 5: Navigation and Shadow LAST (120ms delay - finishes at 420ms, close to 400ms)
     if (independentNav) {
       cartoonishBounce(independentNav as HTMLElement, 120);
       logger.info('🎯 Step 5: Navigation cartoonish bounce - LAST');
     } else {
       logger.warn('⚠️ Navigation not found');
+    }
+    
+    // Shadow animates together with navigation
+    const fixedShadowBottom = document.getElementById('home-fixed-shadow-bottom');
+    if (fixedShadowBottom) {
+      cartoonishBounce(fixedShadowBottom as HTMLElement, 120);
+      logger.info('🌑 Step 5: Shadow cartoonish bounce - LAST (with navigation)');
     }
     
     logger.info('✅ Cartoonish bounce-in-to-scale-0 exit animation started');
@@ -264,19 +288,37 @@ function startExitAnimationSequenceLegacy(): void {
     logger.info('🖼️ Step 1: Hero image cartoonish bounce - FIRST (legacy)');
   }
   
-  // STEP 2: CTA button SECOND (30ms delay - right after Hero)
+  // STEP 2: CTA button, Slide text, and Tagline TOGETHER (30ms delay - right after Hero)
+  // Animate all at exactly the same time using the same timeout
   const slideButton = document.querySelector('.slide-button') || document.getElementById('btn-home');
-  if (slideButton) {
-    cartoonishBounce(slideButton as HTMLElement, 30);
-    logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND (legacy)');
-  }
-  
-  // STEP 3: Slide text THIRD (60ms delay - right after CTA)
   const slideText = document.querySelector('.slide-text');
-  if (slideText) {
-    cartoonishBounce(slideText as HTMLElement, 60);
-    logger.info('📝 Step 3: Slide text cartoonish bounce - THIRD (legacy)');
-  }
+  const slideTagline = document.querySelector('.slide-tagline');
+  
+  const timeout = setTimeout(() => {
+    activeTimeouts.delete(timeout);
+    if (slideButton) {
+      slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+      void slideButton.offsetHeight;
+      slideButton.classList.add('animate-exit');
+      logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND (legacy)');
+    }
+    
+    if (slideText) {
+      slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+      void slideText.offsetHeight;
+      slideText.classList.add('animate-exit');
+      logger.info('📝 Step 2: Slide text cartoonish bounce - TOGETHER with CTA (legacy)');
+    }
+    
+    // Animate tagline together with text and CTA
+    if (slideTagline) {
+      (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+      void (slideTagline as HTMLElement).offsetHeight;
+      (slideTagline as HTMLElement).classList.add('animate-exit');
+      logger.info('📝 Step 2: Slide tagline cartoonish bounce - TOGETHER with text and CTA (legacy)');
+    }
+  }, 30);
+  activeTimeouts.add(timeout);
   
   // STEP 4: Home logo FOURTH (90ms delay)
   const homeLogo = document.querySelector('#home-logo');
@@ -285,11 +327,18 @@ function startExitAnimationSequenceLegacy(): void {
     logger.info('🎨 Step 4: Home logo cartoonish bounce - FOURTH (legacy)');
   }
   
-  // STEP 5: Navigation LAST (120ms delay)
+  // STEP 5: Navigation and Shadow LAST (120ms delay)
   const independentNav = document.getElementById('independent-nav');
   if (independentNav) {
     cartoonishBounce(independentNav as HTMLElement, 120);
     logger.info('🎯 Step 5: Navigation cartoonish bounce - LAST (legacy)');
+  }
+  
+  // Shadow animates together with navigation
+  const fixedShadowBottom = document.getElementById('home-fixed-shadow-bottom');
+  if (fixedShadowBottom) {
+    cartoonishBounce(fixedShadowBottom as HTMLElement, 120);
+    logger.info('🌑 Step 5: Shadow cartoonish bounce - LAST (legacy, with navigation)');
   }
 };
 
@@ -361,12 +410,19 @@ function startEnterAnimationSequence(): void {
     // COMIC POP-IN PROCEDURAL SEQUENCE (REVERSE of exit): Nav → Logo → Text → CTA → Hero
     // Last element that exits is first to enter!
     
-    // STEP 1: Navigation FIRST (0ms delay) - was last to exit
+    // STEP 1: Navigation and Shadow FIRST (0ms delay) - was last to exit
     if (independentNav) {
       reverseBounce(independentNav as HTMLElement, 0);
       logger.info('🎯 Step 1: Navigation cartoonish bounce - FIRST (reverse of exit)');
     } else {
       logger.warn('⚠️ Navigation not found');
+    }
+    
+    // Shadow animates together with navigation
+    const fixedShadowBottom = document.getElementById('home-fixed-shadow-bottom');
+    if (fixedShadowBottom) {
+      reverseBounce(fixedShadowBottom as HTMLElement, 0);
+      logger.info('🌑 Step 1: Shadow cartoonish bounce - FIRST (with navigation)');
     }
     
     // STEP 2: Home logo SECOND (30ms delay)
@@ -377,21 +433,51 @@ function startEnterAnimationSequence(): void {
       logger.warn('⚠️ Home logo not found');
     }
     
-    // STEP 3: Slide text THIRD (60ms delay)
+    // STEP 3: Slide text, CTA button, and Tagline TOGETHER (60ms delay)
+    // Animate all at exactly the same time using the same timeout
+    const slideTagline = activeSlide.querySelector('.slide-tagline');
     if (slideText) {
-      reverseBounce(slideText as HTMLElement, 60);
-      logger.info('📝 Step 3: Slide text cartoonish bounce - THIRD');
-    } else {
-      logger.warn('⚠️ Slide text not found in active slide');
+      slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+      slideText.classList.add('animate-enter-initial');
+      void slideText.offsetHeight;
+    }
+    if (slideButton) {
+      slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+      slideButton.classList.add('animate-enter-initial');
+      void slideButton.offsetHeight;
+    }
+    if (slideTagline) {
+      (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+      (slideTagline as HTMLElement).classList.add('animate-enter-initial');
+      void (slideTagline as HTMLElement).offsetHeight;
     }
     
-    // STEP 4: CTA button FOURTH (90ms delay)
-    if (slideButton) {
-      reverseBounce(slideButton as HTMLElement, 90);
-      logger.info('🔘 Step 4: CTA button cartoonish bounce - FOURTH');
-    } else {
-      logger.warn('⚠️ CTA button not found in active slide');
-    }
+    const enterTimeout = setTimeout(() => {
+      activeTimeouts.delete(enterTimeout);
+      if (slideText) {
+        slideText.classList.remove('animate-enter-initial');
+        slideText.classList.add('animate-enter');
+        logger.info('📝 Step 3: Slide text cartoonish bounce - TOGETHER with CTA');
+      } else {
+        logger.warn('⚠️ Slide text not found in active slide');
+      }
+      
+      if (slideButton) {
+        slideButton.classList.remove('animate-enter-initial');
+        slideButton.classList.add('animate-enter');
+        logger.info('🔘 Step 3: CTA button cartoonish bounce - TOGETHER with text');
+      } else {
+        logger.warn('⚠️ CTA button not found in active slide');
+      }
+      
+      // Animate tagline together with text and CTA
+      if (slideTagline) {
+        (slideTagline as HTMLElement).classList.remove('animate-enter-initial');
+        (slideTagline as HTMLElement).classList.add('animate-enter');
+        logger.info('📝 Step 3: Slide tagline cartoonish bounce - TOGETHER with text and CTA');
+      }
+    }, 60);
+    activeTimeouts.add(enterTimeout);
     
     // STEP 5: Hero image LAST (120ms delay) - was first to exit
     if (heroContainer) {
@@ -410,7 +496,8 @@ function startEnterAnimationSequence(): void {
         const slideElements = [
           activeSlide.querySelector('.hero-container'),
           activeSlide.querySelector('.slide-text'),
-          activeSlide.querySelector('.slide-button')
+          activeSlide.querySelector('.slide-button'),
+          activeSlide.querySelector('.slide-tagline')
         ];
         
         slideElements.forEach(element => {
@@ -424,7 +511,8 @@ function startEnterAnimationSequence(): void {
       // Clean up shared elements
       const sharedElements = [
         document.querySelector('#independent-nav'),
-        document.querySelector('#home-logo')
+        document.querySelector('#home-logo'),
+        document.getElementById('home-fixed-shadow-bottom')
       ];
       
       sharedElements.forEach(element => {
@@ -448,11 +536,18 @@ function startEnterAnimationSequence(): void {
 function startEnterAnimationSequenceLegacy(): void {
   // COMIC POP-IN PROCEDURAL SEQUENCE (REVERSE of exit): Nav → Logo → Text → CTA → Hero
   
-  // STEP 1: Navigation FIRST (0ms delay) - was last to exit
+  // STEP 1: Navigation and Shadow FIRST (0ms delay) - was last to exit
   const independentNav = document.getElementById('independent-nav');
   if (independentNav) {
     reverseBounce(independentNav as HTMLElement, 0);
     logger.info('🎯 Step 1: Navigation cartoonish bounce - FIRST (legacy, reverse of exit)');
+  }
+  
+  // Shadow animates together with navigation
+  const fixedShadowBottom = document.getElementById('home-fixed-shadow-bottom');
+  if (fixedShadowBottom) {
+    reverseBounce(fixedShadowBottom as HTMLElement, 0);
+    logger.info('🌑 Step 1: Shadow cartoonish bounce - FIRST (legacy, with navigation)');
   }
   
   // STEP 2: Home logo SECOND (30ms delay)
@@ -462,19 +557,50 @@ function startEnterAnimationSequenceLegacy(): void {
     logger.info('🎨 Step 2: Home logo cartoonish bounce - SECOND (legacy)');
   }
   
-  // STEP 3: Slide text THIRD (60ms delay)
+  // STEP 3: Slide text, CTA button, and Tagline TOGETHER (60ms delay)
+  // Animate all at exactly the same time using the same timeout
   const slideText = document.querySelector('.slide-text');
+  const slideButton = document.querySelector('.slide-button') || document.getElementById('btn-home');
+  const slideTagline = document.querySelector('.slide-tagline');
+  
   if (slideText) {
-    reverseBounce(slideText as HTMLElement, 60);
-    logger.info('📝 Step 3: Slide text cartoonish bounce - THIRD (legacy)');
+    slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+    slideText.classList.add('animate-enter-initial');
+    void slideText.offsetHeight;
+  }
+  if (slideButton) {
+    slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+    slideButton.classList.add('animate-enter-initial');
+    void slideButton.offsetHeight;
+  }
+  if (slideTagline) {
+    (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+    (slideTagline as HTMLElement).classList.add('animate-enter-initial');
+    void (slideTagline as HTMLElement).offsetHeight;
   }
   
-  // STEP 4: CTA button FOURTH (90ms delay)
-  const slideButton = document.querySelector('.slide-button') || document.getElementById('btn-home');
-  if (slideButton) {
-    reverseBounce(slideButton as HTMLElement, 90);
-    logger.info('🔘 Step 4: CTA button cartoonish bounce - FOURTH (legacy)');
-  }
+  const enterTimeout = setTimeout(() => {
+    activeTimeouts.delete(enterTimeout);
+    if (slideText) {
+      slideText.classList.remove('animate-enter-initial');
+      slideText.classList.add('animate-enter');
+      logger.info('📝 Step 3: Slide text cartoonish bounce - TOGETHER with CTA (legacy)');
+    }
+    
+    if (slideButton) {
+      slideButton.classList.remove('animate-enter-initial');
+      slideButton.classList.add('animate-enter');
+      logger.info('🔘 Step 3: CTA button cartoonish bounce - TOGETHER with text (legacy)');
+    }
+    
+    // Animate tagline together with text and CTA
+    if (slideTagline) {
+      (slideTagline as HTMLElement).classList.remove('animate-enter-initial');
+      (slideTagline as HTMLElement).classList.add('animate-enter');
+      logger.info('📝 Step 3: Slide tagline cartoonish bounce - TOGETHER with text and CTA (legacy)');
+    }
+  }, 60);
+  activeTimeouts.add(enterTimeout);
   
   // STEP 5: Hero image LAST (120ms delay) - was first to exit
   const heroContainer = document.querySelector('.hero-container');

@@ -306,13 +306,64 @@ body{
   text-align: center !important;
   z-index: 3 !important;
   position: relative !important;
-  margin-bottom: 24px !important;
+  margin-bottom: 64px !important;
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
   width: 100% !important;
-  transform: translateY(-28px) !important;
+  transform: translateY(12px) !important;
+}
+
+/* Lower CTA buttons on slider screens - all on same position */
+#btn-home {
+  margin-top: 20px !important;
+}
+
+#btn-stats,
+#btn-collectibles,
+#btn-settings {
+  margin-top: 20px !important;
+}
+
+/* Position text and CTA together on home screen - podignuto 16px */
+.slider-slide[data-slide="0"] .slide-text {
+  transform: translateY(-26px) !important;
+}
+
+/* Position tagline text on home screen - 24px spacing from top divider */
+.slider-slide[data-slide="0"] .slide-tagline {
+  margin-top: 16px;
+}
+
+/* Position text and CTA together on stats slide - same position as home slide */
+.slider-slide[data-slide="1"] .slide-text {
+  transform: translateY(-26px) !important;
+}
+
+/* Position tagline text on stats slide - same spacing as home slide */
+.slider-slide[data-slide="1"] .slide-tagline {
+  margin-top: 16px;
+}
+
+/* Position text and CTA together on collectibles slide - same position as home slide */
+.slider-slide[data-slide="2"] .slide-text {
+  transform: translateY(-26px) !important;
+}
+
+/* Position tagline text on collectibles slide - same spacing as home slide */
+.slider-slide[data-slide="2"] .slide-tagline {
+  margin-top: 16px;
+}
+
+/* Position text and CTA together on settings slide - same position as home slide */
+.slider-slide[data-slide="3"] .slide-text {
+  transform: translateY(-26px) !important;
+}
+
+/* Position tagline text on settings slide - same spacing as home slide */
+.slider-slide[data-slide="3"] .slide-tagline {
+  margin-top: 16px;
 }
 
 /* Play button elastic spring bounce animation styles - 0.65 seconds */
@@ -600,6 +651,11 @@ body{
 
 /* Slide tagline - moved to slider-optimized.css for single source of truth */
 
+/* Home logo position - lift 16px towards top of screen */
+#home-logo {
+  margin-top: -16px;
+}
+
 /* Extra guard for small phones */
 @media (max-width: 420px) {
   #home-logo{ width: min(300px, 94vw); }
@@ -848,18 +904,25 @@ body{
   transform: scale(0) !important;
 }
 
-/* Ensure hero-container, logo, and navigation also animate */
+/* Ensure hero-container, logo, navigation, and shadow also animate */
 .hero-container.animate-exit,
 #home-logo.animate-exit,
-#independent-nav.animate-exit {
-  will-change: transform !important;
-  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-  transform: scale(0) !important;
+#independent-nav.animate-exit,
+#home-fixed-shadow-bottom.animate-exit {
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 
 /* Slide-text needs to preserve translateY during scale animation */
 .slide-text.animate-exit {
-  transform: translateY(-28px) scale(0) !important;
+  transform: translateY(12px) scale(0) !important;
+}
+
+/* Slide-tagline animates together with slide-text */
+.slide-tagline.animate-exit {
+  will-change: transform !important;
+  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  transform: scale(0) !important;
 }
 
 /* Enter animation classes - scale up from 0, preserve translateY for slide-text */
@@ -870,18 +933,25 @@ body{
   transform: scale(1) !important;
 }
 
-/* Ensure hero-container, logo, and navigation also animate */
+/* Ensure hero-container, logo, navigation, and shadow also animate */
 .hero-container.animate-enter,
 #home-logo.animate-enter,
-#independent-nav.animate-enter {
-  will-change: transform !important;
-  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-  transform: scale(1) !important;
+#independent-nav.animate-enter,
+#home-fixed-shadow-bottom.animate-enter {
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 
 /* Slide-text needs to preserve translateY during scale animation */
 .slide-text.animate-enter {
-  transform: translateY(-28px) scale(1) !important;
+  transform: translateY(12px) scale(1) !important;
+}
+
+/* Slide-tagline animates together with slide-text */
+.slide-tagline.animate-enter {
+  will-change: transform !important;
+  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  transform: scale(1) !important;
 }
 
 /* Initial state for enter animation - scale 0, no transition */
@@ -890,17 +960,24 @@ body{
   transform: scale(0) !important;
 }
 
-/* Ensure hero-container, logo, and navigation also start from scale 0 */
+/* Ensure hero-container, logo, navigation, and shadow also start from scale 0 */
 .hero-container.animate-enter-initial,
 #home-logo.animate-enter-initial,
-#independent-nav.animate-enter-initial {
+#independent-nav.animate-enter-initial,
+#home-fixed-shadow-bottom.animate-enter-initial {
   transition: none !important;
   transform: scale(0) !important;
 }
 
 /* Slide-text needs to preserve translateY during initial state */
 .slide-text.animate-enter-initial {
-  transform: translateY(-28px) scale(0) !important;
+  transform: translateY(12px) scale(0) !important;
+}
+
+/* Slide-tagline animates together with slide-text */
+.slide-tagline.animate-enter-initial {
+  transition: none !important;
+  transform: scale(0) !important;
 }
 
 /* Reset state - remove all animation classes */
@@ -912,7 +989,14 @@ body{
 
 /* Slide-text needs to preserve translateY in reset */
 .slide-text.animate-reset {
-  transform: translateY(-28px) scale(1);
+  transform: translateY(12px) scale(1);
+}
+
+/* Slide-tagline reset state */
+.slide-tagline.animate-reset {
+  transition: none;
+  transform: scale(1);
+  will-change: auto;
 }
 
 /* Dramatic click effect for all bottom sheet CTA buttons */
@@ -4238,12 +4322,15 @@ body:has(:root) .tile.wild-3d-glow {
   height: 31px;
   flex-shrink: 0;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  tap-highlight-color: transparent;
 }
 
 .settings-toggle-switch input {
   opacity: 0;
   width: 0;
   height: 0;
+  outline: none;
 }
 
 .settings-toggle-slider {
@@ -4257,6 +4344,13 @@ body:has(:root) .tile.wild-3d-glow {
   transition: all 0.3s ease;
   border-radius: 34px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.settings-toggle-switch input:focus + .settings-toggle-slider,
+.settings-toggle-switch input:active + .settings-toggle-slider {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: #DFD3CE;
 }
 
 .settings-toggle-slider:before {

@@ -21,6 +21,7 @@ import {
   setScoreText,
   setComboText
 } from './hud-utils.js';
+import uiManager from './ui-manager.js';
 
 // Type definitions
 interface LayoutParams {
@@ -67,18 +68,19 @@ export function createUnifiedHudContainer(): HTMLElement {
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   `;
   
+  // Close button section (replaces former board slot)
+  const closeSection = createCloseButtonSection();
+  hudContainer.appendChild(closeSection);
+  
   // Create score section
   const scoreSection = createScoreSection();
   hudContainer.appendChild(scoreSection);
-  
-  // Create board section
-  const boardSection = createBoardSection();
-  hudContainer.appendChild(boardSection);
   
   // Create combo section
   const comboSection = createComboSection();
   hudContainer.appendChild(comboSection);
   
+  ensureBoardIndicator();
   logger.info('✅ Unified HUD container created');
   
   return hudContainer;
@@ -92,7 +94,9 @@ function createScoreSection(): HTMLElement {
   section.style.cssText = `
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
+    text-align: center;
+    flex: 1;
   `;
   
   const label = document.createElement('div');
@@ -101,6 +105,10 @@ function createScoreSection(): HTMLElement {
     font-size: 12px;
     color: #ccc;
     margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    text-align: center;
+    width: 100%;
   `;
   
   const value = document.createElement('div');
@@ -111,6 +119,7 @@ function createScoreSection(): HTMLElement {
     font-weight: bold;
     color: #fff;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    width: 100%;
   `;
   
   section.appendChild(label);
@@ -120,37 +129,57 @@ function createScoreSection(): HTMLElement {
 }
 
 /**
- * Create board section
+ * Create close button section (replaces board indicator slot)
  */
-function createBoardSection(): HTMLElement {
+function createCloseButtonSection(): HTMLElement {
   const section = document.createElement('div');
   section.style.cssText = `
     display: flex;
-    flex-direction: column;
     align-items: center;
+    justify-content: flex-start;
   `;
   
-  const label = document.createElement('div');
-  label.textContent = 'BOARD';
-  label.style.cssText = `
-    font-size: 12px;
-    color: #ccc;
-    margin-bottom: 2px;
+  const button = document.createElement('button');
+  button.id = 'hud-close-button';
+  button.type = 'button';
+  button.setAttribute('aria-label', 'Close');
+  button.style.cssText = `
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    border: none;
+    background: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 18px rgba(90, 47, 26, 0.25);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
   `;
+  button.addEventListener('pointerdown', () => {
+    button.style.transform = 'scale(0.92)';
+  });
+  button.addEventListener('pointerup', () => {
+    button.style.transform = 'scale(1)';
+  });
+  button.addEventListener('pointerleave', () => {
+    button.style.transform = 'scale(1)';
+  });
+  button.addEventListener('click', () => handleHUDClose());
   
-  const value = document.createElement('div');
-  value.id = 'hud-board';
-  value.textContent = '1';
-  value.style.cssText = `
-    font-size: 20px;
-    font-weight: bold;
-    color: #fff;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  const icon = document.createElement('img');
+  icon.src = './assets/close-icon.png';
+  icon.srcset = './assets/close-icon.png 1x, ./assets/close-icon@2x.png 2x, ./assets/close-icon@3x.png 3x';
+  icon.alt = '';
+  icon.style.cssText = `
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    pointer-events: none;
   `;
+  button.appendChild(icon);
   
-  section.appendChild(label);
-  section.appendChild(value);
-  
+  section.appendChild(button);
   return section;
 }
 
@@ -163,6 +192,8 @@ function createComboSection(): HTMLElement {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+    flex: 1;
+    text-align: right;
   `;
   
   const label = document.createElement('div');
@@ -171,6 +202,8 @@ function createComboSection(): HTMLElement {
     font-size: 12px;
     color: #ccc;
     margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
   `;
   
   const value = document.createElement('div');
@@ -189,6 +222,53 @@ function createComboSection(): HTMLElement {
   return section;
 }
 
+function handleHUDClose(): void {
+  try {
+    uiManager.showHomepageWithAnimation();
+  } catch (error) {
+    logger.warn('HUD close failed, falling back to standard homepage', 'hud-components');
+    try {
+      uiManager.showHomepage();
+    } catch {}
+  }
+}
+
+function ensureBoardIndicator(): void {
+  let indicator = document.getElementById('hud-board');
+  if (!indicator) {
+    indicator = document.createElement('div');
+    indicator.id = 'hud-board';
+    indicator.style.cssText = `
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 18px 30px rgba(60, 32, 20, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    `;
+    const icon = document.createElement('img');
+    icon.src = './assets/close-icon.png';
+    icon.srcset = './assets/close-icon.png 1x, ./assets/close-icon@2x.png 2x, ./assets/close-icon@3x.png 3x';
+    icon.alt = 'Close';
+    icon.style.cssText = `
+      width: 22px;
+      height: 22px;
+      object-fit: contain;
+      pointer-events: none;
+    `;
+    indicator.appendChild(icon);
+    document.body.appendChild(indicator);
+  }
+}
+
 /**
  * Create PIXI HUD container
  */
@@ -202,25 +282,58 @@ export function createPIXIHUDContainer(): Container {
   const background = createHUDBackground(400, HUD_HEIGHT);
   container.addChild(background);
   
-  // Create score text
+  // Close button (left slot)
+  const closeContainer = new Container();
+  closeContainer.name = 'closeButton';
+  closeContainer.x = 16;
+  closeContainer.y = 16;
+  closeContainer.eventMode = 'static';
+  closeContainer.cursor = 'pointer';
+  closeContainer.on('pointertap', () => handleHUDClose());
+  closeContainer.on('pointerdown', () => {
+    closeContainer.scale.set(0.92);
+  });
+  closeContainer.on('pointerup', () => {
+    closeContainer.scale.set(1);
+  });
+  closeContainer.on('pointerleave', () => {
+    closeContainer.scale.set(1);
+  });
+  
+  const closeBg = new Graphics()
+    .roundRect(0, 0, 56, 56, 18)
+    .fill(0xf7d9c1)
+    .stroke({ color: 0xe3a884, width: 3 });
+  closeContainer.addChild(closeBg);
+  
+  const closeText = createStyledText('×', {
+    ...TEXT_STYLES.SCORE,
+    fontSize: 40,
+    fill: '#5b2e1f',
+  });
+  closeText.x = 28;
+  closeText.y = 6;
+  closeContainer.addChild(closeText);
+  container.addChild(closeContainer);
+  
+  // Create score text (centered)
   const scoreText = createStyledText('0', TEXT_STYLES.SCORE);
-  scoreText.x = 20;
+  scoreText.x = 180;
   scoreText.y = 20;
   scoreText.name = 'scoreText';
   container.addChild(scoreText);
   setScoreText(scoreText);
   
-  // Create board text
+  // Create board text but hide in PIXI HUD (handled by close button area)
   const boardText = createStyledText('1', TEXT_STYLES.BOARD);
-  boardText.x = 200;
-  boardText.y = 20;
+  boardText.visible = false;
   boardText.name = 'boardText';
   container.addChild(boardText);
   setBoardText(boardText);
   
-  // Create combo text
+  // Create combo text (right aligned)
   const comboText = createStyledText('', TEXT_STYLES.COMBO);
-  comboText.x = 350;
+  comboText.x = 330;
   comboText.y = 20;
   comboText.name = 'comboText';
   container.addChild(comboText);
@@ -248,7 +361,7 @@ export function updateHUDInfo(info: UnifiedHudInfo): void {
   // Update board
   const boardElement = document.getElementById('hud-board');
   if (boardElement) {
-    boardElement.textContent = info.board.toString();
+    boardElement.setAttribute('data-board-value', `${info.board}`);
   }
   
   // Update combo
@@ -265,15 +378,19 @@ export function getUnifiedHudInfo(): UnifiedHudInfo | null {
   const scoreElement = document.getElementById('hud-score');
   const boardElement = document.getElementById('hud-board');
   const comboElement = document.getElementById('hud-combo');
+  const movesElement = document.getElementById('hud-moves');
   
   if (!scoreElement || !boardElement || !comboElement) {
     return null;
   }
   
+  const boardRaw = boardElement.getAttribute('data-board-value') ?? boardElement.textContent ?? '1';
+  const boardClean = boardRaw.replace(/[^0-9]/g, '') || '1';
+  
   return {
     score: parseInt(scoreElement.textContent || '0'),
-    board: parseInt(boardElement.textContent || '1'),
-    moves: parseInt(movesElement.textContent || '0'),
+    board: parseInt(boardClean),
+    moves: parseInt(movesElement?.textContent || '0'),
     combo: parseInt(comboElement.textContent?.replace('x', '') || '0')
   };
 }

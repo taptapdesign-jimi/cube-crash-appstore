@@ -175,6 +175,29 @@ function renderHome(root: HTMLElement): void {
 
   content.appendChild(logo);
   content.appendChild(sliderContainer);
+  
+  // Create fixed shadow BELOW Play button (like logo - always visible)
+  // Base position: 120px (safe area) + 76px (offset) = 196px
+  // Donji shadow: shadow height = 49px - spušteno 40px (32px + 8px)
+  const fixedShadowBottom = document.createElement('img');
+  fixedShadowBottom.id = 'home-fixed-shadow-bottom';
+  fixedShadowBottom.src = './assets/home-shadow.png';
+  fixedShadowBottom.alt = '';
+  fixedShadowBottom.setAttribute('aria-hidden', 'true');
+  fixedShadowBottom.style.cssText = `
+    position: fixed;
+    left: 0;
+    right: 0;
+    width: 100%;
+    bottom: calc(120px + 76px - 24px - 49px - 34px - 8px);
+    height: 49px;
+    object-fit: contain;
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0.55;
+  `;
+  
+  home.appendChild(fixedShadowBottom);
   home.appendChild(content);
   root.appendChild(home);
 

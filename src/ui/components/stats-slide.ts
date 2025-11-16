@@ -46,7 +46,7 @@ export function createStatsSlide(config: SlideConfig): HTMLElementConfig {
               {
                 tag: 'p',
                 className: 'slide-tagline',
-                html: 'See your best score<br/>and other stats',
+                text: 'High score and stats',
               },
               {
                 tag: 'button',

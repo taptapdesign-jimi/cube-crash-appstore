@@ -83,6 +83,7 @@ const ALL_ASSETS: string[] = [
   // Icons
   './assets/chevron-back.png',
   './assets/close-button.png',
+  './assets/close-icon.png',
   './assets/collectible-stats.png',
   './assets/combo-icon.png',
   './assets/combo-stats.png',
@@ -152,6 +153,7 @@ const CRITICAL_ASSETS: string[] = [
   
   // Essential UI (first frame only)
   './assets/close-button.png',
+  './assets/close-icon.png',
   './assets/stop.png',
   
   // One font only

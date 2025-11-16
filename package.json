@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
+    "postbuild": "mkdir -p dist/assets/fonts && cp -r assets/fonts/* dist/assets/fonts/ 2>/dev/null || true",
     "build:check": "tsc --noEmit",
     "build:strict": "tsc && vite build",
     "preview": "vite preview",
