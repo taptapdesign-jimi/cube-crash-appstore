@@ -497,11 +497,39 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
   // So we DON'T check for magnets.length >= 2 here
   // If only magnets remain, game is stuck (emergency rescue will spawn tiles)
 
-  // Check regular tile combinations
-  // 🔥 CRITICAL: If only 1 tile remains, no merges are possible (can't merge with itself)
-  if (open.length < 2) {
-    console.log('❌ anyMergePossible: < 2 tiles = FALSE');
+  // 🔥 CRITICAL FIX v38: Check stackDepth for single tiles
+  // A single STACK can merge with itself if depth > 1
+  // Calculate total tiles including stackDepth
+  const totalTiles = open.reduce((sum, t) => {
+    const depth = (t as any).stackDepth || 1;
+    return sum + depth;
+  }, 0);
+  
+  console.log('🔍 anyMergePossible: Total tiles (with stackDepth):', totalTiles, 'Visible tiles:', open.length);
+  
+  // If less than 2 TOTAL tiles, no merges possible
+  if (totalTiles < 2) {
+    console.log('❌ anyMergePossible: < 2 total tiles = FALSE');
     return false;
+  }
+  
+  // 🔥 EDGE CASE: Single visible tile but it's a stack (depth > 1)
+  // Stack can merge with itself (unless it's merge 6 with depth 1)
+  if (open.length === 1 && totalTiles >= 2) {
+    const singleTile = open[0];
+    const value = (singleTile.value || 0);
+    const stackDepth = (singleTile as any).stackDepth || 1;
+    
+    console.log('🔍 anyMergePossible: Single visible tile is a stack:', { value, stackDepth, totalTiles });
+    
+    // Stack can always merge with itself (unless merge 6 with depth 1)
+    if (value !== 6 || stackDepth > 1) {
+      console.log('✅ anyMergePossible: Single stack can merge with itself = TRUE');
+      return true;
+    } else {
+      console.log('❌ anyMergePossible: Single merge 6 with depth 1 = FALSE');
+      return false;
+    }
   }
   
   // Check regular tile combinations

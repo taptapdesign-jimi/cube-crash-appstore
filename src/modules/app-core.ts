@@ -40,6 +40,8 @@ const COMBO_CAP = 99;   // praktični safety cap
 const COMBO_IDLE_RESET_MS = 2000;
 let comboIdleTimer = null;
 let checkLevelEndTimer = null;
+let checkLevelEndRetryCount = 0; // 🔥 v38: Track reschedule attempts
+const MAX_CHECK_LEVEL_END_RETRIES = 10; // 🔥 v38: Prevent infinite reschedule loops
 // 🔥 CRITICAL: Increased from 500ms to 1200ms to allow all animations to complete
 // - Wild spawn bounce: ~580ms
 // - Magnet pull + respawn: ~1000ms
@@ -3887,6 +3889,9 @@ async function checkMovesDepleted(){
 // NOTE: All end game checks now use centralized checkEndGame() from endgame-checker.ts
 // All deprecated functions (activeTilesList, isStuck, isBoardClean, showCleanBoardEdgeCase) have been removed
 function checkLevelEnd(){
+  // 🔥 v38: Reset retry counter on new checkLevelEnd() call (not reschedule)
+  checkLevelEndRetryCount = 0;
+  
   // Always wait a bit so animations/spawns can finish before deciding
   try {
     checkLevelEndTimer?.kill?.();
@@ -3896,6 +3901,7 @@ function checkLevelEnd(){
     checkLevelEndTimer = null;
     if (busyEnding) {
       console.log('⏳ checkLevelEnd skipped - busyEnding is true');
+      checkLevelEndRetryCount = 0; // Reset on exit
       return;
     }
     
@@ -3903,13 +3909,22 @@ function checkLevelEnd(){
     
     // 🔥 CRITICAL: Skip check if wild spawn is in progress (animation not finished yet)
     if (wildSpawnInProgress) {
-      console.log('⏳ checkLevelEnd skipped - wild spawn animation in progress');
-      // Reschedule after spawn completes
-      checkLevelEndTimer = gsap.delayedCall(0.3, () => {
-        checkLevelEndTimer = null;
-        checkLevelEnd();
-      });
-      return;
+      checkLevelEndRetryCount++;
+      console.log('⏳ checkLevelEnd skipped - wild spawn animation in progress (retry', checkLevelEndRetryCount, '/', MAX_CHECK_LEVEL_END_RETRIES, ')');
+      
+      // 🔥 v38: Check max retries to prevent infinite loop
+      if (checkLevelEndRetryCount > MAX_CHECK_LEVEL_END_RETRIES) {
+        console.error('🚨 checkLevelEnd: Max retries exceeded for wild spawn - forcing check anyway');
+        checkLevelEndRetryCount = 0;
+        // Continue to check (don't return)
+      } else {
+        // Reschedule after spawn completes
+        checkLevelEndTimer = gsap.delayedCall(0.3, () => {
+          checkLevelEndTimer = null;
+          checkLevelEnd();
+        });
+        return;
+      }
     }
     
     // 🔥 CRITICAL FIX: Skip check if there are LOCKED tiles with value > 0 (spawn animations in progress)
@@ -3921,17 +3936,30 @@ function checkLevelEnd(){
     });
     
     if (lockedActiveTiles.length > 0) {
-      console.log('⏳ checkLevelEnd skipped - locked active tiles still animating:', {
+      checkLevelEndRetryCount++;
+      console.log('⏳ checkLevelEnd skipped - locked active tiles still animating (retry', checkLevelEndRetryCount, '/', MAX_CHECK_LEVEL_END_RETRIES, '):', {
         lockedCount: lockedActiveTiles.length,
         lockedTiles: lockedActiveTiles.map(t => ({ value: t.value, special: t.special, gridX: t.gridX, gridY: t.gridY }))
       });
-      // Reschedule after animations complete
-      checkLevelEndTimer = gsap.delayedCall(0.5, () => {
-        checkLevelEndTimer = null;
-        checkLevelEnd();
-      });
-      return;
+      
+      // 🔥 v38: Check max retries to prevent infinite loop
+      if (checkLevelEndRetryCount > MAX_CHECK_LEVEL_END_RETRIES) {
+        console.error('🚨 checkLevelEnd: Max retries exceeded for locked tiles - forcing check anyway');
+        console.error('🚨 WARNING: Tiles still locked:', lockedActiveTiles.map(t => ({ value: t.value, locked: t.locked })));
+        checkLevelEndRetryCount = 0;
+        // Continue to check (don't return)
+      } else {
+        // Reschedule after animations complete
+        checkLevelEndTimer = gsap.delayedCall(0.5, () => {
+          checkLevelEndTimer = null;
+          checkLevelEnd();
+        });
+        return;
+      }
     }
+    
+    // 🔥 v38: Reset retry counter after successful reschedule bypass (tiles no longer locked/spawn done)
+    checkLevelEndRetryCount = 0;
     
     // Check for emergency rescue first
     if (needsEmergencyRescue(tiles)) {
