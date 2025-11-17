@@ -3702,6 +3702,18 @@ function merge(src, dst, helpers){
           spawnMult: spawnMult
         });
         
+        // 🔥 CRITICAL FIX: If there's a magnet on board after merge 6, DON'T call checkLevelEnd yet
+        // Magnet can pull tiles and create merges, so we should wait for player to use it
+        // This prevents premature fail screen when: magnet + wild + tile → wild merge → magnet + merge6 + new tiles
+        const hasMagnetAfterSpawn = activeTilesBeforeCheck.some(t => t.special === 'wild-magnet');
+        if (hasMagnetAfterSpawn) {
+          console.log('🧲 MAGNET SAFETY: Magnet detected after merge 6 spawn - SKIPPING checkLevelEnd to allow player to use magnet');
+          console.log('🧲 Player can merge magnet with spawned tiles or pull tiles together');
+          // Don't call checkLevelEnd - let player make next move
+          // checkLevelEnd will be called after player's next move
+          return;
+        }
+        
         // 🔥 CRITICAL: Check end game after spawn completes (with delay to allow animations)
         // Use checkLevelEnd which already has proper delay and handles all edge cases
         // This replaces the inline setTimeout check to avoid duplicate checks
