@@ -3401,13 +3401,33 @@ function merge(src, dst, helpers){
         const wildMergeTarget = Number.isFinite(wildTargetValue) ? wildTargetValue : null;
         
         // 🔥 CRITICAL: Skip normal spawn if pulled tiles merge is happening
-        // Pulled tiles merge already spawns 4 new tiles in mergePulledTilesIntoMerge6
+        // Pulled tiles merge already spawns new tiles in mergePulledTilesIntoMerge6
         if ((dst as any)?._wildMagnetPulledTilesMerge) {
-          console.log('🧲 Skipping normal spawn - pulled tiles merge already spawned 4 new tiles');
+          console.log('🧲 Skipping normal spawn - pulled tiles merge already spawned tiles');
           // 🔥 CRITICAL: Clean up flags AFTER checking (they were set before handleWildMagnetMergedPulledTiles)
-          // The pulled tiles merge handler has already spawned new tiles and will check end game
           (dst as any)._wildMagnetPulledTilesMerge = undefined;
           (dst as any)._wildMagnetPulledTilesScoring = undefined;
+          
+          // 🔥 CRITICAL FIX: We MUST call checkLevelEnd after magnet pull spawn completes!
+          // Otherwise the game will never check for endgame conditions
+          // Wait a bit for spawn animations to complete, then check
+          console.log('🧲 Waiting 1000ms for magnet pull spawn animations to complete...');
+          await new Promise(res => setTimeout(res, 1000));
+          
+          // Log board state before check
+          const activeTilesAfterPull = tiles.filter(tileIsVisuallyActive);
+          console.log('🔍 Board state AFTER magnet pull:', {
+            activeTilesCount: activeTilesAfterPull.length,
+            activeTiles: activeTilesAfterPull.map(t => ({ 
+              value: t.value, 
+              special: t.special, 
+              locked: t.locked
+            }))
+          });
+          
+          // Call checkLevelEnd to verify game can continue
+          console.log('🧲 Calling checkLevelEnd after magnet pull spawn...');
+          checkLevelEnd();
           return;
         }
         
