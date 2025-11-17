@@ -463,7 +463,9 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
   const mergeableNonWildTiles = open.filter((t) => {
     if (!t || t.special === 'wild' || t.special === 'wild-magnet') return false;
     const value = (t.value | 0);
-    return value > 0 && value < 6; // merge6 cannot merge with wild/rescue
+    // 🔥 CRITICAL FIX: Wild CAN merge with merge 6! Changed from < 6 to <= 6
+    // This was causing false "stuck" detection when board had merge 6 + wild star
+    return value > 0 && value <= 6; // Wild can merge with 1, 2, 3, 4, 5, AND 6!
   });
 
   // 🔥 OPTIMIZED: Reduced logging - only log summary
