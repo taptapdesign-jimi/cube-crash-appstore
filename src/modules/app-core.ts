@@ -2119,7 +2119,17 @@ function merge(src, dst, helpers){
               return;
             }
             
+            // 🔥 CRITICAL FIX v36: Check stackDepth - if it's a stack, NOT stuck!
+            // Example: Single tile with value 5 and stackDepth=3 means 3 stacked tiles - can still merge!
             if (activeTiles.length === 1 && activeTiles[0].value !== 6) {
+              const singleTile = activeTiles[0];
+              const stackDepth = singleTile.stackDepth || 1;
+              
+              if (stackDepth > 1) {
+                console.log('✅ STUCK PROTECTION: Single visible tile BUT it\'s a stack (depth=' + stackDepth + ') - NOT stuck!');
+                return; // Stack can still merge with itself
+              }
+              
               console.log('🚨 STUCK PROTECTION: Single non-6 tile detected - forcing fail screen!');
               showFinalScreen();
             }
@@ -2153,7 +2163,25 @@ function merge(src, dst, helpers){
       const hasValue = (t.value|0) > 0;
       return isWild || hasValue; // Include if wild OR has value > 0
     });
-    const activeTilesCount = activeTilesBeforeMerge.length;
+    
+    // 🔥 CRITICAL FIX v36: Count TOTAL tiles including stacked tiles (stackDepth)
+    // This is essential for correct "last merge" detection with stacked tiles
+    // Example: wild + stack(5, depth=3) + stack(5, depth=2) = 6 total tiles, not 3!
+    // Previous bug: activeTilesCount = activeTilesBeforeMerge.length (ignored stackDepth)
+    const activeTilesCount = activeTilesBeforeMerge.reduce((sum, t) => {
+      const depth = t.stackDepth || 1;
+      return sum + depth;
+    }, 0);
+    
+    console.log('🔍 ACTIVE TILES COUNT (including stackDepth):', {
+      visibleTiles: activeTilesBeforeMerge.length,
+      totalTilesWithStackDepth: activeTilesCount,
+      tilesDetails: activeTilesBeforeMerge.map(t => ({
+        value: t.value,
+        special: t.special,
+        stackDepth: t.stackDepth || 1
+      }))
+    });
     
     // 🔥 CRITICAL: Check if this is a wild-magnet merge that will pull other tiles
     // If wild-magnet will pull tiles, it's NOT a last merge (unless there are no tiles to pull)

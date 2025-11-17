@@ -120,6 +120,30 @@
   - Game continues ✅
 - **Status**: WORKING (already fixed in v32.1)
 
+#### 2.8 Wild + 2 Stacks (v36 CRITICAL FIX)
+- **Board**: wild + stack(5, depth=3) + stack(5, depth=2)
+- **Action**: Merge wild + stack(5, depth=3) → merge 6
+- **Expected**:
+  - `activeTilesCount` = 6 (not 3!) ✅
+  - `combinedCount` = 4 (1 + 3)
+  - `allTilesInvolved` = FALSE (4 < 6) ✅
+  - NOT marked as "last merge" ✅
+  - Merge 6 animations play ✅
+  - Spawn 4 new tiles ✅
+  - Board: merge 6 + stack(5, depth=2) + 4 new tiles ✅
+  - Game continues ✅
+- **Status**: WORKING (fixed in v36)
+
+#### 2.9 Single Stack (depth > 1)
+- **Board**: stack(5, depth=3)
+- **Action**: Stack can merge with itself
+- **Expected**:
+  - `totalTilesCount` = 3 (not 1!) ✅
+  - `isGameStuck` returns FALSE ✅
+  - STUCK PROTECTION skipped ✅
+  - Game continues ✅
+- **Status**: WORKING (fixed in v36)
+
 ---
 
 ### **FAIL SCENARIOS (Game Stuck)**
@@ -237,6 +261,20 @@
 - Skip `checkLevelEnd` if locked active tiles present
 - Skip STUCK PROTECTION if wild/magnet present or locked tiles animating
 
+### v35 - Critical anyMergePossible Fix
+- **CRITICAL**: Fixed `board.ts` to include merge 6 in `mergeableNonWildTiles`
+- Consistent with `endgame-checker.ts` fix from v32.1
+- Created comprehensive `ENDGAME_SCENARIOS.md` documentation
+
+### v36 - StackDepth Awareness (CRITICAL)
+- **ROOT CAUSE FIX**: `activeTilesCount` now includes `stackDepth` in calculations
+- **Example**: wild + stack(5, depth=3) + stack(5, depth=2) = 6 total tiles, not 3!
+- Fixed `app-core.ts` line 2161: Count total tiles with stackDepth for "last merge" detection
+- Fixed `app-core.ts` line 2122: STUCK PROTECTION now checks stackDepth
+- Fixed `endgame-checker.ts` line 228: `isGameStuck` now counts total tiles with stackDepth
+- Fixed `endgame-checker.ts` line 242: Single stack can merge with itself
+- **Impact**: Wild + 2 stacks scenario now works correctly with merge animations and spawns
+
 ---
 
 ## 🎯 VERIFICATION CHECKLIST
@@ -254,6 +292,8 @@
 | Single non-6 tile | ❌ Fail | ✅ WORKING |
 | Only wilds (2+) | ❌ Fail | ✅ WORKING |
 | Wild + 1 tile (2 total) → clean | ✅ Clean | ✅ WORKING |
+| Wild + 2 stacks → merge → spawn | ✅ Continue | ✅ FIXED (v36) |
+| Single stack (depth > 1) | ✅ Continue | ✅ FIXED (v36) |
 
 ---
 

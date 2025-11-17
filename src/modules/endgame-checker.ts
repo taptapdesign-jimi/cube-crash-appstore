@@ -225,10 +225,34 @@ function isGameStuck(context: EndGameContext): boolean {
     stackDepth: (t as any).stackDepth || 1
   })));
   
-  // If less than 2 tiles, we're definitely stuck
-  if (activeTiles.length < 2) {
-    console.log('🚨 isGameStuck: Less than 2 active tiles, game IS STUCK');
+  // 🔥 CRITICAL FIX v36: Count total tiles including stackDepth
+  // If less than 2 TOTAL tiles (including stacked), we're definitely stuck
+  const totalTilesCount = activeTiles.reduce((sum, t) => {
+    const depth = (t as any).stackDepth || 1;
+    return sum + depth;
+  }, 0);
+  
+  console.log('🔍 isGameStuck: Total tiles count (with stackDepth):', totalTilesCount, 'Visible tiles:', activeTiles.length);
+  
+  if (totalTilesCount < 2) {
+    console.log('🚨 isGameStuck: Less than 2 total tiles, game IS STUCK');
     return true;
+  }
+  
+  // 🔥 EDGE CASE: If only 1 visible tile but it's a stack, check if it can merge with itself
+  // Example: Single stack(5, depth=3) can merge 2 tiles to create stack(6) + 1 leftover
+  if (activeTiles.length === 1 && totalTilesCount >= 2) {
+    const singleTile = activeTiles[0];
+    const value = (singleTile.value | 0);
+    const stackDepth = (singleTile as any).stackDepth || 1;
+    
+    console.log('🔍 isGameStuck: Single visible tile is a stack:', { value, stackDepth, totalTilesCount });
+    
+    // A stack can always merge with itself (unless it's merge 6 with depth 1)
+    if (value !== 6 || stackDepth > 1) {
+      console.log('✅ isGameStuck: Stack can merge with itself - NOT stuck');
+      return false;
+    }
   }
   
   // Check for wild cubes edge cases
