@@ -159,6 +159,7 @@ function createContextHash(context: EndGameContext): string {
 /**
  * Check if this is a "last merge" scenario
  * Last merge = wild + regular tile merge to create merge 6, leaving only merge 6 on board
+ * 🔥 CRITICAL FIX: If magnet exists on board, it's NOT a last merge - user can still merge magnet with merge 6
  */
 function isLastMergeScenario(context: EndGameContext): boolean {
   const { tiles, dstTile, justRemovedSrc } = context;
@@ -170,6 +171,14 @@ function isLastMergeScenario(context: EndGameContext): boolean {
   
   // Get active tiles excluding dst
   const activeTiles = getActiveTiles(tiles).filter(t => t !== dstTile);
+  
+  // 🔥 CRITICAL FIX: If magnet exists on board, it's NOT a last merge
+  // User can still merge magnet with merge 6 to create final merge
+  const hasMagnet = activeTiles.some(t => t.special === 'wild-magnet');
+  if (hasMagnet) {
+    console.log('🧲 isLastMergeScenario: Magnet detected on board - NOT a last merge');
+    return false;
+  }
   
   // If no other active tiles remain, this is the last merge
   if (activeTiles.length === 0 && 
@@ -232,14 +241,16 @@ function isGameStuck(context: EndGameContext): boolean {
   const mergeableNonWildTiles = activeTiles.filter(t => {
     if (!t || t.special === 'wild' || t.special === 'wild-magnet') return false;
     const value = (t.value|0);
-    return value > 0 && value < 6; // merge 6 cannot merge with wild
+    // 🔥 CRITICAL FIX: Wild CAN merge with merge 6! Wild can merge with ANY tile from 1-6
+    // Previous bug: return value > 0 && value < 6; // This excluded merge 6, causing FAIL screen
+    return value > 0 && value <= 6; // Wild can merge with 1, 2, 3, 4, 5, AND 6!
   });
   
   console.log('🔍 isGameStuck: Wild stars:', wildStars.length, 'Magnets:', magnets.length, 'Total wild cubes:', wildCubes.length, 'Mergeable non-wild tiles:', mergeableNonWildTiles.length);
 
-  // 🔥 CRITICAL FIX: If we have wild stars and any mergeable non-wild tiles, we can merge
+  // 🔥 CRITICAL FIX: If we have wild stars and any mergeable non-wild tiles (including merge 6), we can merge
   if (wildStars.length > 0 && mergeableNonWildTiles.length > 0) {
-    console.log('✅ isGameStuck: Wild stars + regular tiles present - guaranteed merge available');
+    console.log('✅ isGameStuck: Wild stars + regular tiles (including merge 6) present - guaranteed merge available');
     return false;
   }
   
@@ -392,7 +403,8 @@ export function needsEmergencyRescue(tiles: any[]): boolean {
   const mergeableNonWildTiles = activeTiles.filter(t => {
     if (!t || t.special === 'wild' || t.special === 'wild-magnet') return false;
     const value = (t.value|0);
-    return value > 0 && value < 6;
+    // 🔥 CRITICAL FIX: Wild CAN merge with merge 6! Include merge 6 in mergeable tiles
+    return value > 0 && value <= 6;
   });
   
   return wildCubes.length > 0 && mergeableNonWildTiles.length === 0;
