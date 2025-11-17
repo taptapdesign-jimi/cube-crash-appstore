@@ -48,12 +48,14 @@ class MemoryManager {
     
     this.isMonitoring = true;
     
-    // Start periodic cleanup with longer interval to prevent performance issues
+    // 🔥 CRITICAL: Shorter cleanup interval for iOS memory management (MEMORY LEAK FIX)
+    // Reduced from 2 minutes to 30 seconds to prevent memory crashes on iOS
     this.cleanupInterval = setInterval(() => {
       if (this.isMonitoring) {
+        console.log('🧹 Performing periodic memory cleanup...');
         this.performCleanup();
       }
-    }, 120000); // Every 2 minutes (optimized for App Store)
+    }, 30000); // Every 30 seconds (optimized for iOS)
     
     // Setup state subscriptions
     this.setupStateSubscriptions();

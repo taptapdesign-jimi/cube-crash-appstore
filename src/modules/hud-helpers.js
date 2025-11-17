@@ -643,8 +643,43 @@ export function layout({ app, top }) {
 export function initHUD({ stage, app, top = 8, initialHide = false }) { 
   // očisti stari root ako postoji i skini stari resize listener
   try { if (HUD_ROOT && HUD_ROOT._onResize) window.removeEventListener('resize', HUD_ROOT._onResize); } catch {}
-  // očisti stari root ako postoji
-  try { if (HUD_ROOT && HUD_ROOT.parent) HUD_ROOT.parent.removeChild(HUD_ROOT); } catch {}
+  // 🔥 CRITICAL: DESTROY old HUD_ROOT completely (MEMORY LEAK FIX)
+  try { 
+    if (HUD_ROOT) {
+      console.log('🧹 Destroying old HUD_ROOT with', HUD_ROOT.children.length, 'children');
+      // Remove from parent first
+      if (HUD_ROOT.parent) HUD_ROOT.parent.removeChild(HUD_ROOT);
+      // Kill any active tweens on HUD_ROOT
+      try { gsap.killTweensOf(HUD_ROOT); } catch {}
+      // Destroy HUD_ROOT and all its children (Graphics, Sprites, etc.)
+      HUD_ROOT.destroy({ children: true, texture: false, textureSource: false });
+      console.log('✅ Old HUD_ROOT destroyed');
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to destroy old HUD_ROOT:', error);
+  }
+  // 🔥 CRITICAL: Clear smoke interval if it exists (MEMORY LEAK FIX)
+  if (wild?.view?._smokeInterval) {
+    console.log('🧹 Clearing wild meter smoke interval');
+    clearInterval(wild.view._smokeInterval);
+    wild.view._smokeInterval = null;
+  }
+  
+  // 🔥 CRITICAL: Kill any active animations (MEMORY LEAK FIX)
+  if (wild?.view?._currentAnimation) {
+    console.log('🧹 Killing wild meter animation');
+    wild.view._currentAnimation.kill();
+    wild.view._currentAnimation = null;
+  }
+  
+  // Clear references
+  closeIconSprite = null;
+  boardText = null;
+  scoreText = null;
+  comboText = null;
+  comboWrap = null;
+  wild = null;
+  
   HUD_ROOT = new Container();
   HUD_ROOT.label = 'HUD_ROOT';
   HUD_ROOT.zIndex = 10_000;
@@ -670,9 +705,9 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       closeButtonContainer.eventMode = 'static';
       closeButtonContainer.cursor = 'pointer';
       
-      // Create dashed circle (40px diameter with 2px stroke, 6px dash + 6px gap)
+      // Create dashed circle (44px diameter with 2px stroke, 6px dash + 6px gap, 10px from icon)
       const circle = new Graphics();
-      const radius = 20;
+      const radius = 22;
       const dashLength = 6;
       const gapLength = 6;
       const circumference = 2 * Math.PI * radius;
@@ -735,9 +770,9 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
           closeButtonContainer.eventMode = 'static';
           closeButtonContainer.cursor = 'pointer';
           
-          // Create dashed circle (40px diameter with 2px stroke, 6px dash + 6px gap)
+          // Create dashed circle (44px diameter with 2px stroke, 6px dash + 6px gap, 10px from icon)
           const circle = new Graphics();
-          const radius = 20;
+          const radius = 22;
           const dashLength = 6;
           const gapLength = 6;
           const circumference = 2 * Math.PI * radius;

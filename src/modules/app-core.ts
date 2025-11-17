@@ -27,6 +27,7 @@ import { clearWildState, handleWildMagnetMergedPulledTiles } from './app-merge.t
 import { statsService } from '../services/stats-service.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import { checkEndGame, needsEmergencyRescue, clearEndGameCache, type EndGameContext } from './endgame-checker.ts';
+import memoryManager from './memory-manager.ts';
 
 // HUD functions from hud-helpers.js
 
@@ -106,6 +107,7 @@ let wildMeter = 0;
 let wildSpawnInProgress = false; // Prevent overlapping wild spawns
 let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildRescueScheduled = false; // Prevent duplicate emergency spawns
+let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
 let drag;
 let busyEnding = false;
 
@@ -133,6 +135,15 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   }
 
   busyEnding = true;
+  
+  // 🔥 CRITICAL: Perform memory cleanup before board transition (MEMORY LEAK FIX)
+  console.log('🧹 Performing memory cleanup before board transition...');
+  try {
+    memoryManager.performCleanup();
+    console.log('✅ Memory cleanup completed');
+  } catch (error) {
+    console.warn('⚠️ Memory cleanup failed:', error);
+  }
 
   // Reset wild meter immediately (legacy behavior)
   wildMeter = 0;
@@ -277,6 +288,9 @@ function queueWildSpawnIfNeeded(){
       if (wildMeter >= 1 && !wildSpawnRetryTimer) {
         Promise.resolve().then(() => queueWildSpawnIfNeeded());
       }
+      
+      // Save game state after wild spawn completes
+      debouncedSaveGameState(400);
     });
 }
 
@@ -307,6 +321,9 @@ function scheduleWildRescue(reason = 'unknown', requested = 2) {
       gsap.delayedCall(0.05, () => {
         try { checkLevelEnd(); } catch (err) { console.warn('🛟 Post-rescue checkLevelEnd failed:', err); }
       });
+      
+      // Save game state after rescue spawn completes
+      debouncedSaveGameState(400);
     });
 }
 
@@ -741,6 +758,7 @@ export async function boot(){
     showCleanBoardOverlay: () => showCleanBoardOverlay(),
     checkLevelEnd: () => checkLevelEnd(), // Export checkLevelEnd for use in app-merge.ts
     scheduleWildRescue: (reason, count) => scheduleWildRescue(reason, count), // 🔥 CRITICAL: Export for emergency rescue
+    applyWildSkinLocal: (tile) => applyWildSkinLocal(tile), // 🔥 CRITICAL: Export for wild-magnet electric glow
   };
   
   // 🔥 MEMORY LEAK FIX: Export cleanup functions for global cleanup
@@ -1402,11 +1420,11 @@ function startLevel(n){
   // This ensures that if user exits without making moves, they can still continue
   if (boardNumber >= 2) {
     console.log('💾 Board 2+ started, forcing immediate save for resume capability');
-    // Force save after a short delay to ensure board is fully initialized
+    // Force save with minimal delay to ensure user can exit immediately and resume later
     setTimeout(() => {
       saveGameState();
       console.log('✅ Game state saved after Board 2+ start');
-    }, 500);
+    }, 100); // Reduced from 500ms to 100ms for faster save
   } 
 
   syncSharedState();
@@ -1443,11 +1461,111 @@ function applyWildSkinLocal(tile){
     if (tile.num)  tile.num.visible = false;
     if (tile.pips) tile.pips.visible = false;
     tile.isWildFace = true;
+    
     try {
       startWildShimmer(tile); // Use shimmer instead of bounce
       startWildStars(tile);
     } catch {}
   }catch{}
+}
+
+// Electric glow effect for wild-magnet tiles
+function addElectricGlow(tile){
+  try {
+    // Remove existing glow if present
+    if (tile._electricGlow) {
+      try {
+        tile._electricGlow.parent?.removeChild(tile._electricGlow);
+        tile._electricGlow.destroy();
+      } catch {}
+    }
+    if (tile._glowAnimation) {
+      tile._glowAnimation.kill();
+    }
+    
+    const glowContainer = new Container();
+    glowContainer.zIndex = -1; // Behind tile
+    tile._electricGlow = glowContainer;
+    
+    const host = tile.rotG || tile;
+    if (host && host.addChild) {
+      host.addChildAt(glowContainer, 0);
+    }
+    
+    // Create 4 glow rings with different phases
+    const rings = [];
+    const colors = [0xF26034, 0xE97A55, 0xFF8C5A, 0xF26034]; // Red-orange spectrum
+    
+    for (let i = 0; i < 4; i++) {
+      const ring = new Graphics();
+      const radius = 50 + i * 4;
+      const thickness = 2 + Math.random() * 2;
+      
+      // Draw circle with segments for jittery effect
+      const segments = 32;
+      for (let s = 0; s < segments; s++) {
+        const angle1 = (s / segments) * Math.PI * 2;
+        const angle2 = ((s + 1) / segments) * Math.PI * 2;
+        
+        const x1 = Math.cos(angle1) * radius;
+        const y1 = Math.sin(angle1) * radius;
+        const x2 = Math.cos(angle2) * radius;
+        const y2 = Math.sin(angle2) * radius;
+        
+        ring.moveTo(x1, y1);
+        ring.lineTo(x2, y2);
+      }
+      
+      ring.stroke({ width: thickness, color: colors[i], alpha: 0.3 });
+      ring.alpha = 0.5;
+      glowContainer.addChild(ring);
+      rings.push(ring);
+    }
+    
+    // Animate rings with jittery pulsing effect
+    const tl = gsap.timeline({ repeat: -1 });
+    
+    rings.forEach((ring, index) => {
+      const delay = index * 0.1;
+      const baseRadius = 50 + index * 4;
+      
+      // Jittery pulsing animation
+      tl.to(ring.scale, {
+        x: 1.12,
+        y: 1.12,
+        duration: 0.6 + Math.random() * 0.3,
+        ease: 'power2.inOut',
+        repeat: -1,
+        yoyo: true,
+        delay: delay,
+        modifiers: {
+          x: () => ring.scale.x + (Math.random() - 0.5) * 0.02, // Jitter
+          y: () => ring.scale.y + (Math.random() - 0.5) * 0.02  // Jitter
+        }
+      }, 0);
+      
+      tl.to(ring, {
+        alpha: 0.2 + Math.random() * 0.3,
+        duration: 0.4 + Math.random() * 0.2,
+        ease: 'power2.inOut',
+        repeat: -1,
+        yoyo: true,
+        delay: delay
+      }, 0);
+      
+      // Random rotation for electric effect
+      tl.to(ring, {
+        rotation: Math.PI * 2,
+        duration: 3 + Math.random() * 2,
+        ease: 'none',
+        repeat: -1
+      }, 0);
+    });
+    
+    tile._glowAnimation = tl;
+  } catch (error) {
+    console.warn('⚠️ Failed to add electric glow:', error);
+  }
 }
 
 function bindTileWithFallback(tile, skipBind){
@@ -1508,8 +1626,8 @@ function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, skipBi
       holder.special = isWildMagnet ? 'wild-magnet' : 'wild';
       holder.isWild = true;
       holder.isWildFace = true;
-      if (typeof makeBoard.applyWildSkin === 'function') { makeBoard.applyWildSkin(holder); }
-      else { applyWildSkinLocal(holder); }
+      // Always use applyWildSkinLocal to ensure electric glow is added for wild-magnet
+      applyWildSkinLocal(holder);
       try {
         startWildShimmer(holder); // Use shimmer instead of bounce
         startWildStars(holder);
@@ -1846,11 +1964,15 @@ function merge(src, dst, helpers){
 
     addWildProgress(WILD_INC_SMALL);
     
-    // SMART SAVE: Save after every merge
-    saveGameState();
+    // SMART SAVE: Debounced save after merge+spawn flow completes
+    // 1200ms delay ensures all spawn animations complete before save
+    // This prevents saving mid-animation which causes inconsistent state
+    debouncedSaveGameState(1200);
     
     // Ghost placeholders are now fixed and always visible
 
+    const srcSpecial = src?.special;
+    const dstSpecial = dst?.special;
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
       onComplete: async () => {
@@ -2030,7 +2152,8 @@ function merge(src, dst, helpers){
         if ((t.value | 0) <= 0) return false;
         if (t === targetTile) return false;
         if (t === src || t === dst) return false; // Don't count the merging tiles
-        if (t.special === 'wild-magnet') return false; // Don't attract other wild-magnets
+        // 🔥 CRITICAL: Wild-magnet CAN pull other wild-magnets! (MAGNET-ON-MAGNET FIX)
+        // Magnet attracts everything - magnets, wild stars, ordinary tiles
         return true;
       });
       hasTilesToPull = candidates.length > 0;
@@ -2205,7 +2328,14 @@ function merge(src, dst, helpers){
     // This happens BEFORE the merge animation completes
     // Works for BOTH: magnet on tile AND tile on magnet
     if (isWildMagnet && dst && !dst.destroyed && !dst.locked && (dst.value | 0) > 0) {
-      console.log('🧲 WILD-MAGNET: Merge 6 starting, finding up to 4 nearest tiles to pull IMMEDIATELY');
+      // 🔥 CRITICAL: Prevent overlapping wild-magnet pull animations
+      if (wildMagnetPullInProgress) {
+        console.warn('⚠️ Wild-magnet pull already in progress, skipping new pull animation');
+        // Set mult to 1 for regular merge 6 scoring
+        mult = 1;
+      } else {
+        wildMagnetPullInProgress = true;
+        console.log('🧲 WILD-MAGNET: Merge 6 starting, finding up to 4 nearest tiles to pull IMMEDIATELY');
       
       // Find up to 4 nearest tiles to the merge location (use dst position BEFORE merge animation)
       const mergeX = dst.x;
@@ -2216,7 +2346,8 @@ function merge(src, dst, helpers){
         if (tile === src) return false; // Don't include the magnet tile itself
         if (tile.locked) return false;
         if ((tile.value | 0) <= 0) return false;
-        // 🔥 REMOVED: Wild tiles can now be pulled! (removed filter for wild/wild-magnet)
+        // 🔥 CRITICAL: Wild-magnets CAN pull other wild-magnets, wild stars, and ordinary tiles!
+        // This is intentional behavior - magnet attracts EVERYTHING
         return true;
       });
       
@@ -2232,6 +2363,13 @@ function merge(src, dst, helpers){
       const nearestTiles = withDistance.slice(0, 4).map(item => item.tile); // Max 4 tiles
       
       console.log('🧲 Found', nearestTiles.length, 'nearest tiles to pull immediately (max 4)');
+      
+      // 🔥 CRITICAL: Log if no tiles can be pulled (MAGNET-ON-MAGNET EDGE CASE FIX)
+      if (nearestTiles.length === 0) {
+        console.warn('⚠️ WILD-MAGNET: No tiles can be pulled (all nearby tiles are magnets or invalid)');
+        console.log('🧲 Wild-magnet merge will proceed with mult=2 (default) and spawn 2 new tiles');
+        console.log('🧲 Active tiles on board after merge:', allTiles.length + 2, '(', nearestTiles.length, 'pulled +', 2, 'merge tiles)');
+      }
       
       // Update multiplier based on number of pulled tiles (max 4x)
       if (nearestTiles.length > 0) {
@@ -2285,6 +2423,10 @@ function merge(src, dst, helpers){
         const totalTiles = nearestTiles.length;
         let allTilesArrived = false;
         let multiplierShown = false;
+        let mergeStarted = false; // 🔥 CRITICAL: Track if merge has started (prevent cleanup after merge begins)
+        
+        // 🔥 CRITICAL: Store all timeline references for cleanup (MEMORY LEAK FIX)
+        const activeTimelines: any[] = [];
         
         // 🔥 CRITICAL: Calculate merge location early (for shards animation)
         const calculateMergeLocation = () => {
@@ -2292,10 +2434,110 @@ function merge(src, dst, helpers){
           return dst && !dst.destroyed ? dst : (validTiles.length > 0 ? { x: validTiles[0].x, y: validTiles[0].y } : null);
         };
         
+        // 🔥 CRITICAL: Cleanup function for pulled tiles
+        // Resets tile to original state if animation is interrupted or merge fails
+        const cleanupPulledTile = (tile: any, origX: number, origY: number, origRotation: number, origScaleX: number, origScaleY: number) => {
+          if (!tile || tile.destroyed) return;
+          
+          console.log('🧹 Cleaning up pulled tile - resetting to original state');
+          
+          // Kill all tweens on this tile
+          try {
+            gsap.killTweensOf(tile);
+            gsap.killTweensOf(tile.scale);
+            if (tile.rotG) gsap.killTweensOf(tile.rotG);
+          } catch {}
+          
+          // Reset position
+          tile.x = origX;
+          tile.y = origY;
+          
+          // Reset rotation
+          if (tile.rotG) {
+            tile.rotG.rotation = origRotation;
+          } else if (tile.rotation !== undefined) {
+            tile.rotation = origRotation;
+          }
+          
+          // Reset scale
+          if (tile.scale) {
+            tile.scale.x = origScaleX;
+            tile.scale.y = origScaleY;
+          }
+          
+          // Clear magnet flags
+          delete tile._wildMagnetAffected;
+          delete tile._wildMagnetOriginalX;
+          delete tile._wildMagnetOriginalY;
+          delete tile._mergeTriggered75;
+          delete tile._skipIdleScaleReset;
+          
+          // Re-enable drag
+          tile.eventMode = 'static';
+          tile.cursor = 'pointer';
+          
+          // 🔥 CRITICAL: Rebind drag handler (FAST DRAG BUG FIX)
+          if (drag && typeof drag.bindToTile === 'function') {
+            try {
+              drag.bindToTile(tile);
+              console.log('✅ Drag handler re-bound to cleaned tile');
+            } catch (error) {
+              console.warn('⚠️ Failed to rebind drag handler:', error);
+            }
+          }
+          
+          // Re-add to grid if it has grid coordinates
+          if (tile.gridX !== undefined && tile.gridY !== undefined && grid && grid[tile.gridY]) {
+            grid[tile.gridY][tile.gridX] = tile;
+            console.log('✅ Tile re-added to grid at (', tile.gridX, ',', tile.gridY, ')');
+          }
+          
+          // 🔥 CRITICAL: Force scale to exactly 1.0 (ensure no floating-point drift)
+          if (tile.scale) {
+            tile.scale.set(origScaleX, origScaleY);
+            console.log('✅ Tile scale reset to (', origScaleX, ',', origScaleY, ')');
+          }
+          
+          console.log('✅ Tile cleanup complete - tile restored to original state');
+        };
+        
+        // 🔥 CRITICAL: Cleanup ALL timelines and pulled tiles (MEMORY LEAK FIX)
+        const cleanupAllPullAnimations = () => {
+          console.log('🧹 Cleaning up all wild-magnet pull animations - killing', activeTimelines.length, 'timelines');
+          
+          // Kill all active timelines
+          activeTimelines.forEach((tl, idx) => {
+            try {
+              if (tl && !tl.killed) {
+                tl.kill();
+                console.log(`✅ Killed timeline ${idx + 1}/${activeTimelines.length}`);
+              }
+            } catch (error) {
+              console.warn(`⚠️ Failed to kill timeline ${idx + 1}:`, error);
+            }
+          });
+          
+          // Clear array
+          activeTimelines.length = 0;
+          console.log('✅ All wild-magnet pull timelines cleaned up');
+          
+          // 🔥 CRITICAL: Reset wildMagnetPullInProgress when cleanup is called (FAST DRAG BUG FIX)
+          // This ensures that a new pull can start even if the previous one was interrupted
+          if (wildMagnetPullInProgress) {
+            wildMagnetPullInProgress = false;
+            console.log('✅ wildMagnetPullInProgress reset to false after cleanup');
+          }
+        };
+        
         // Function to merge pulled tiles when both conditions are met
         const tryMergePulledTiles = async () => {
           if (allTilesArrived && multiplierShown) {
             console.log('🧲 Both conditions met: all tiles arrived AND multiplier shown, starting merge');
+            
+            // 🔥 CRITICAL: Mark merge as started (prevent cleanup after this point)
+            mergeStarted = true;
+            console.log('✅ mergeStarted flag set to true - cleanup will be skipped if animation is interrupted');
+            
             try {
               // Import handleWildMagnetMergedPulledTiles asynchronously
               const { handleWildMagnetMergedPulledTiles } = await import('./app-merge');
@@ -2303,6 +2545,18 @@ function merge(src, dst, helpers){
               // Check if dst is still valid before merging
               // NOTE: For pulled tiles merge, dst might be removed already (merge 6 tile), so we check differently
               const validTiles = nearestTiles.filter((t: any) => t && !t.destroyed);
+              
+              console.log('🧲 Wild-magnet pulled tiles validation:', {
+                totalPulled: nearestTiles.length,
+                validTiles: validTiles.length,
+                pulledTileTypes: nearestTiles.map((t: any) => ({
+                  value: t?.value,
+                  special: t?.special,
+                  destroyed: t?.destroyed,
+                  locked: t?.locked
+                }))
+              });
+              
               if (validTiles.length >= 1) { // Changed: need at least 1 tile (can be less than 4)
                 // 🔥 CRITICAL: Mark that pulled tiles merge is happening - skip normal spawn AND scoring
                 // Set flag on dst BEFORE calling handleWildMagnetMergedPulledTiles
@@ -2326,16 +2580,53 @@ function merge(src, dst, helpers){
                 await handleWildMagnetMergedPulledTiles(mergeLocation, validTiles, helpersWithMerge);
                 console.log('✅ Pulled tiles merge completed - merge 6 created with 4x multiplier');
                 
+                // 🔥 CRITICAL: Cleanup all timelines after successful merge (MEMORY LEAK FIX)
+                cleanupAllPullAnimations();
+                
+                // 🔥 CRITICAL: Reset wildMagnetPullInProgress after successful merge
+                wildMagnetPullInProgress = false;
+                console.log('✅ Wild-magnet pull animation guard reset (merge completed)');
+                
                 // 🔥 CRITICAL: DON'T clean up flags immediately - they need to stay until onComplete callback checks them
                 // The flags will be cleaned up in the onComplete callback after spawn completes
                 // (mergeLocation as any)._wildMagnetPulledTilesMerge = undefined;
                 // (mergeLocation as any)._wildMagnetPulledTilesScoring = undefined;
               } else {
                 console.warn('⚠️ Not enough valid pulled tiles to merge (need at least 1, got', validTiles.length, ')');
+                // Cleanup all timelines (MEMORY LEAK FIX)
+                cleanupAllPullAnimations();
+                // Cleanup all pulled tiles since merge failed
+                nearestTiles.forEach((t: any, idx: number) => {
+                  if (t && !t.destroyed) {
+                    const origX = t._wildMagnetOriginalX ?? t.x;
+                    const origY = t._wildMagnetOriginalY ?? t.y;
+                    const origRot = 0; // Default rotation
+                    const origScaleX = 1.0; // Default scale
+                    const origScaleY = 1.0; // Default scale
+                    cleanupPulledTile(t, origX, origY, origRot, origScaleX, origScaleY);
+                  }
+                });
+                // Reset guard after cleanup (redundant but safe - cleanupAllPullAnimations also resets)
+                wildMagnetPullInProgress = false;
               }
             } catch (err) {
               console.error('❌ Error merging pulled tiles:', err);
               console.error('❌ Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+              // Cleanup all timelines (MEMORY LEAK FIX)
+              cleanupAllPullAnimations();
+              // Cleanup all pulled tiles on error
+              nearestTiles.forEach((t: any) => {
+                if (t && !t.destroyed) {
+                  const origX = t._wildMagnetOriginalX ?? t.x;
+                  const origY = t._wildMagnetOriginalY ?? t.y;
+                  const origRot = 0;
+                  const origScaleX = 1.0;
+                  const origScaleY = 1.0;
+                  cleanupPulledTile(t, origX, origY, origRot, origScaleX, origScaleY);
+                }
+              });
+              // Reset guard after error
+              wildMagnetPullInProgress = false;
             }
           }
         };
@@ -2367,6 +2658,10 @@ function merge(src, dst, helpers){
           const rotationDirection = Math.random() < 0.5 ? 1 : -1; // Random direction
           const rotationRadians = (rotationDegrees * rotationDirection) * (Math.PI / 180);
           
+          // Store original scale for cleanup
+          const originalScaleX = tile.scale?.x ?? 1.0;
+          const originalScaleY = tile.scale?.y ?? 1.0;
+          
           // Create timeline for complex animation
           // 🔥 SPEED UP: All durations reduced by 50% for faster sequential pulling (4 tiles)
           // Sequential delay: each tile starts after the previous one has moved away - FASTER for 4 tiles
@@ -2376,17 +2671,40 @@ function merge(src, dst, helpers){
           const initialDelay = 0.300; // 🔥 CRITICAL: 300ms delay before pulling starts (faster than before)
           const tl = gsap.timeline({
             delay: Math.max(0, initialDelay + sequentialDelay), // Ensure delay is never negative
+            onInterrupt: () => {
+              // 🔥 CRITICAL: Don't cleanup if merge has already started
+              if (mergeStarted) {
+                console.log('⏳ Wild-magnet pull animation interrupted but merge already started - skipping cleanup for tile:', index);
+                return;
+              }
+              // 🔥 CRITICAL: Cleanup on animation interrupt (e.g., user drags tile)
+              console.warn('⚠️ Wild-magnet pull animation interrupted for tile:', index);
+              cleanupPulledTile(tile, startX, startY, startRotation, originalScaleX, originalScaleY);
+            },
+            onComplete: () => {
+              // 🔥 CRITICAL: Mark timeline as killed when complete (MEMORY LEAK FIX)
+              (tl as any).killed = true;
+              console.log(`✅ Timeline ${index + 1}/${totalTiles} completed and marked as killed`);
+            },
             onUpdate: async () => {
+              // 🔥 CRITICAL: Don't cleanup if merge has already started
+              if (mergeStarted) {
+                // Merge has started, let it complete - don't interrupt
+                return;
+              }
+              
               // 🔥 CRITICAL: Safety check - tile must exist and not be destroyed
               if (!tile || tile.destroyed) {
-                console.warn('⚠️ Tile destroyed during animation, killing timeline');
+                console.warn('⚠️ Tile destroyed during animation, cleaning up and killing timeline');
+                cleanupPulledTile(tile, startX, startY, startRotation, originalScaleX, originalScaleY);
                 try { tl.kill(); } catch {}
                 return;
               }
               
               // 🔥 CRITICAL: Safety check - tile must have valid position properties
               if (tile.x == null || tile.y == null || typeof tile.x !== 'number' || typeof tile.y !== 'number' || !Number.isFinite(tile.x) || !Number.isFinite(tile.y)) {
-                console.warn('⚠️ Tile position invalid during animation, killing timeline');
+                console.warn('⚠️ Tile position invalid during animation, cleaning up and killing timeline');
+                cleanupPulledTile(tile, startX, startY, startRotation, originalScaleX, originalScaleY);
                 try { tl.kill(); } catch {}
                 return;
               }
@@ -2528,6 +2846,10 @@ function merge(src, dst, helpers){
               ease: 'power2.inOut'
             }, '<');
           }
+          
+          // 🔥 CRITICAL: Store timeline reference for cleanup (MEMORY LEAK FIX)
+          activeTimelines.push(tl);
+          console.log(`✅ Timeline ${index + 1}/${totalTiles} created and stored for cleanup`);
         });
         
         // Store callback to trigger merge when multiplier appears
@@ -2541,8 +2863,41 @@ function merge(src, dst, helpers){
             await tryMergePulledTiles();
           } catch (error) {
             console.error('❌ Error in tryMergePulledTiles (from multiplier callback):', error);
+            // Cleanup all timelines (MEMORY LEAK FIX)
+            cleanupAllPullAnimations();
+            // Reset guard on error
+            wildMagnetPullInProgress = false;
           }
         };
+      }
+        
+        // 🔥 CRITICAL: Reset wildMagnetPullInProgress after animation completes or fails
+        // Use a timeout to ensure it's reset even if merge fails or animation is interrupted
+        setTimeout(() => {
+          if (wildMagnetPullInProgress) {
+            console.warn('⚠️ Wild-magnet pull animation timeout - cleaning up after 2s');
+            
+            // 🔥 CRITICAL: Cleanup all animations and tiles on timeout (FAST DRAG BUG FIX)
+            cleanupAllPullAnimations();
+            
+            // Cleanup all pulled tiles
+            nearestTiles.forEach((t: any) => {
+              if (t && !t.destroyed && !mergeStarted) {
+                // Only cleanup if merge hasn't started
+                const origX = t._wildMagnetOriginalX ?? t.x;
+                const origY = t._wildMagnetOriginalY ?? t.y;
+                const origRot = 0;
+                const origScaleX = 1.0;
+                const origScaleY = 1.0;
+                cleanupPulledTile(t, origX, origY, origRot, origScaleX, origScaleY);
+                console.log('✅ Timeout fallback: Cleaned tile with scale reset to 1.0');
+              }
+            });
+            
+            wildMagnetPullInProgress = false;
+            console.log('✅ Wild-magnet pull animation guard reset (timeout fallback with cleanup)');
+          }
+        }, 2000); // 2 second timeout (animation should complete in ~1s)
       }
     }
 
@@ -2729,7 +3084,6 @@ function merge(src, dst, helpers){
               ease: 'sine.inOut'
             });
           } catch {}
-          glassCrackAtTile(board, dst, TILE * 1.5, 2.0);
           
           // 🔥 NEW SYSTEM: Direct call to woodShardsAtTile with explicit flags
           // This bypasses getMerge6ShardConfig and ensures correct shard colors
@@ -2787,12 +3141,6 @@ function merge(src, dst, helpers){
             fastFadeOut: true,  // Enable instant procedural fade-out
             travelDurMultiplier: 0.5,  // 50% faster travel duration
             fadeDelayMultiplier: 0.1   // 90% faster fade delay (instant)
-          });
-          
-          // Glass crack effect (50% of wild: 1.3 * 0.5 = 0.65, but keep minimum 1.0)
-          // Delay glass crack by 0.150s to allow shards to start first
-          gsap.delayedCall(0.150, () => {
-            glassCrackAtTile(board, dst, TILE * 1.0, 1.0);
           });
           
           // Impact effect (50% of wild: squash 0.24->0.12, stretch 0.20->0.10, tilt 0.14->0.07, bounce 1.18->1.09)
@@ -2941,35 +3289,28 @@ function merge(src, dst, helpers){
           // Don't return here - continue with normal merge 6 flow for wild-magnet and regular wild merges
         }
         
-        // Remove destination tile (merge 6 creates new tile, so remove old one)
+        // 🔥 CRITICAL: DON'T remove dst tile yet - we need it for endgame checks and spawn logic
+        // dst will be removed AFTER spawn logic, not before
+        // This prevents false "clean board" detection when dst is still the only remaining tile
+        
+        // Create locked placeholder at dst position for spawn logic
         if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-        grid[gy][gx] = null;
-        dst.visible = false;
-        removeTile(dst);
-
-          const reactiveActiveTiles = getReactiveActiveTiles();
-          const boardIsCleanAfterDstRemoval = reactiveActiveTiles.length === 0;
-          console.log('🔍 Reactive clean-board check after dst removal:', {
-            boardIsCleanAfterDstRemoval,
-            activeTilesCount: reactiveActiveTiles.length,
-            activeTiles: reactiveActiveTiles.map(t => ({
-              value: t.value,
-              special: t.special,
-              locked: t.locked
-            }))
-          });
+          // Clear grid position FIRST (before hiding dst)
+          grid[gy][gx] = null;
           
-          if (boardIsCleanAfterDstRemoval) {
-            await triggerCleanBoardFlow('reactive_after_merge6_dst_removal');
-            return; // Exit early - don't continue with normal merge 6 flow
-          }
-
-          // Create holder after removing tile (only if board is not clean)
+          // Hide dst tile but DON'T remove it from tiles array yet
+          dst.visible = false;
+          dst.alpha = 0;
+          dst.eventMode = 'none';
+          
+          // Create locked placeholder for spawn
           const holder = makeBoard.createTile({ board, grid, tiles, c: gx, r: gy, val: 0, locked: true });
           holder.alpha = 0.35;
           holder.eventMode = 'none';
+          
+          console.log('🔍 Dst tile hidden but NOT removed from tiles array yet - will be removed AFTER spawn');
         } else {
-          console.warn('⚠️ Destination tile is invalid or already destroyed - skipping removal');
+          console.warn('⚠️ Destination tile is invalid or already destroyed');
         }
 
         // countdown moves (this happens for both normal and pulled tiles merge)
@@ -3344,6 +3685,15 @@ function merge(src, dst, helpers){
         
         console.log('✅ openLockedBounceParallel completed - all spawn animations finished');
         
+        // 🔥 CRITICAL: NOW remove dst tile after spawn completes
+        // This was previously done BEFORE spawn, which caused false "clean board" detection
+        if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+          console.log('🗑️ Removing dst tile AFTER spawn (delayed from earlier)');
+          // Note: grid[gy][gx] was already set to null when placeholder was created
+          removeTile(dst); // Remove from tiles array
+          console.log('✅ Dst tile removed successfully');
+        }
+        
         // Clean up pulled cells flag after spawn
         if ((dst as any)?._wildMagnetPulledCells) {
           (dst as any)._wildMagnetPulledCells = undefined;
@@ -3437,7 +3787,7 @@ function checkLevelEnd(){
     // Check for emergency rescue first
     if (needsEmergencyRescue(tiles)) {
       console.log('🚨 EMERGENCY: Wild cubes exist but no non-wild tiles! Scheduling emergency rescue...');
-      const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
+      const wildCubes = tiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
       const emergencyCount = Math.min(3, Math.max(2, wildCubes.length));
       scheduleWildRescue('checkLevelEnd', emergencyCount);
       return;
@@ -3613,6 +3963,15 @@ async function showFinalScreen(){
   }
   
   busyEnding = true;
+  
+  // 🔥 CRITICAL: Perform memory cleanup on game over (MEMORY LEAK FIX)
+  console.log('🧹 Performing memory cleanup on game over...');
+  try {
+    memoryManager.performCleanup();
+    console.log('✅ Memory cleanup completed');
+  } catch (error) {
+    console.warn('⚠️ Memory cleanup failed:', error);
+  }
   
   // Haptic feedback for game over
   if (typeof (window as any).triggerHapticNotification === 'function') {
@@ -4107,6 +4466,24 @@ function updateAllGhostPlaceholders() {
   // Ne mijenjaju se, samo se crtaju u drawBoardBG
 }
 
+// Debounced save timer to prevent saving mid-animation
+let saveGameTimer = null;
+
+function debouncedSaveGameState(delayMs = 800) {
+  // Cancel any pending save
+  if (saveGameTimer) {
+    clearTimeout(saveGameTimer);
+  }
+  
+  // Schedule new save
+  saveGameTimer = setTimeout(() => {
+    saveGameTimer = null;
+    saveGameState();
+  }, delayMs);
+  
+  console.log(`💾 Debounced save scheduled in ${delayMs}ms`);
+}
+
 function saveGameState() {
   try {
     syncSharedState();
@@ -4117,7 +4494,8 @@ function saveGameState() {
       _userMadeMove: window._userMadeMove,
       _gameHasEnded: window._gameHasEnded,
       score,
-      tilesCount: tiles.length
+      tilesCount: tiles.length,
+      activeTilesCount: tiles.filter(t => t && !t.locked && (t.value|0) > 0).length
     });
     
     // CRITICAL FIX: Don't save game state if game has ended
@@ -4126,16 +4504,18 @@ function saveGameState() {
       return;
     }
 
-    // CRITICAL FIX: Don't save if on Board 1 and user hasn't made any moves yet
-    // BUT: Always save if on Board 2 or higher (user made progress)
+    // CRITICAL FIX: Save logic based on board number
+    // Board 1: Only save if user made at least 1 move
+    // Board 2+: ALWAYS save (user already progressed past Board 1, even if no moves on current board)
     if (boardNumber === 1 && !window._userMadeMove) {
       console.log('💾 Board 1 and user has not made any moves yet, skipping save');
       return;
     }
     
-    // Safety check: Always save if on Board 2+
+    // Board 2+: Always save (reaching Board 2+ means user completed Board 1)
     if (boardNumber >= 2) {
-      console.log('💾 Board 2+ detected, forcing save regardless of move status');
+      console.log('💾 Board', boardNumber, '- forcing save (user completed at least Board 1)');
+      // Continue with save regardless of _userMadeMove status
     }
 
     if (!Array.isArray(grid) || grid.length === 0) {
@@ -4281,7 +4661,11 @@ async function loadGameState() {
         const shouldLock = !openFlag;
         const tile = makeBoard.createTile({ board, grid, tiles, c, r, val: value, locked: shouldLock });
 
-        tile._spawned = true;
+        // 🔥 CRITICAL FIX: Only set _spawned for unlocked tiles (active tiles with value)
+        // DON'T set _spawned for locked tiles (placeholders) - they need to be available for spawn after merge
+        if (!shouldLock && value > 0) {
+          tile._spawned = true;
+        }
         tile.scale.set(1);
 
         // Postavi osnovne svojstva prije setValue
@@ -4336,11 +4720,8 @@ async function loadGameState() {
         }
 
         if (isWildSnapshot) {
-          if (typeof makeBoard.applyWildSkin === 'function') {
-            makeBoard.applyWildSkin(tile);
-          } else {
-            applyWildSkinLocal(tile);
-          }
+          // Always use applyWildSkinLocal to ensure electric glow is added for wild-magnet
+          applyWildSkinLocal(tile);
           try { startWildShimmer(tile); } catch {} // Use shimmer instead of idle bounce
         } else {
           try { stopWildShimmer(tile); } catch {}

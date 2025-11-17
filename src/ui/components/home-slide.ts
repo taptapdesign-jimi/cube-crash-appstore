@@ -49,7 +49,7 @@ export function createHomeSlide(config: SlideConfig): HTMLElementConfig {
               {
                 tag: 'p',
                 className: 'slide-tagline',
-                text: 'Stack to 6. Clear the board',
+                text: 'Stack to 6 and clear the board',
               },
               {
                 tag: 'button',

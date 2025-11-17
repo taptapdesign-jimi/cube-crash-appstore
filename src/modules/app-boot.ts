@@ -7,6 +7,7 @@ import { installDrag } from './install-drag.js';
 import { rebuildBoard } from './app-board.js';
 import { merge, checkGameOver } from './app-merge.ts';
 import { logger } from '../core/logger.js';
+import memoryManager from './memory-manager.ts';
 
 // Types - Window interface is now defined in src/types/window.d.ts
 
@@ -48,6 +49,11 @@ gsap.set = (target: any, vars: any) => {
 };
 
 export async function boot(): Promise<void> {
+  // 🔥 CRITICAL: Initialize memory manager (MEMORY LEAK FIX)
+  console.log('🧹 Initializing memory manager...');
+  memoryManager.init();
+  console.log('✅ Memory manager initialized');
+  
   STATE.app = new Application();
   await STATE.app.init({ resizeTo: window, backgroundAlpha: 0, antialias: true });
   const canvas = STATE.app.view as HTMLCanvasElement;

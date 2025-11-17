@@ -508,23 +508,36 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   });
   
   // Remove all pulled tiles from grid and STATE
-  validTiles.forEach((tile: any) => {
+  console.log('🧲 Removing', validTiles.length, 'pulled tiles from grid and STATE');
+  validTiles.forEach((tile: any, index: number) => {
     if (!tile || tile.destroyed) return;
+    
+    console.log(`🧲 Removing tile ${index + 1}:`, {
+      gridX: tile.gridX,
+      gridY: tile.gridY,
+      value: tile.value,
+      special: tile.special,
+      destroyed: tile.destroyed,
+      currentGridValue: STATE.grid?.[tile.gridY]?.[tile.gridX]
+    });
     
     // Clear from grid
     if (tile.gridX !== undefined && tile.gridY !== undefined && STATE.grid && STATE.grid[tile.gridY]) {
       STATE.grid[tile.gridY][tile.gridX] = null;
+      console.log(`🧲 Cleared grid[${tile.gridY}][${tile.gridX}] = null`);
     }
     
     // Remove from STATE.tiles
     const tileIndex = STATE.tiles.indexOf(tile);
     if (tileIndex >= 0) {
       STATE.tiles.splice(tileIndex, 1);
+      console.log(`🧲 Removed tile from STATE.tiles at index ${tileIndex}`);
     }
     
     // Hide and remove
     tile.visible = false;
     removeTile(tile);
+    console.log(`🧲 Tile ${index + 1} removed and marked destroyed`);
   });
   
   // Set multiplier to 4x
@@ -960,6 +973,19 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // Find random empty cells on the board for spawning new tiles
   const findRandomEmptyCells = (count: number): { c: number; r: number }[] => {
     const empties: { c: number; r: number }[] = [];
+    const occupied: { c: number; r: number; reason: string }[] = [];
+    
+    console.log('🔍 findRandomEmptyCells: Scanning board for', count, 'empty cells');
+    console.log('🔍 Grid state:', STATE.grid?.map((row: any[], r: number) => 
+      row.map((cell: any, c: number) => ({
+        c, r,
+        hasCell: !!cell,
+        value: cell?.value,
+        special: cell?.special,
+        locked: cell?.locked,
+        destroyed: cell?.destroyed
+      }))
+    ));
     
     // Find all empty cells on the board
     for (let r = 0; r < ROWS; r++) {
@@ -983,19 +1009,34 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         // Locked tiles with value > 0 are tiles that are being animated (e.g., during magnet pull)
         // Spawning on them would overwrite their value and cause "empty cube" bug
         if (hasValue || isWildTile) {
+          occupied.push({ c, r, reason: hasValue ? 'hasValue' : 'isWildTile' });
           continue; // Skip this cell - it's occupied
         }
         
         // Cell is empty if it's missing OR locked with value 0
         if (isMissing || (isLocked && !hasValue)) {
           empties.push({ c, r });
+        } else {
+          occupied.push({ c, r, reason: 'notEmptyNotLocked' });
         }
       }
     }
     
+    console.log('🔍 Found', empties.length, 'empty cells:', empties);
+    console.log('🔍 Found', occupied.length, 'occupied cells:', occupied);
+    
     // Shuffle and pick random cells
     if (empties.length === 0) {
       console.warn('⚠️ No empty cells found for spawning');
+      console.warn('⚠️ Detailed board state:', {
+        totalCells: ROWS * COLS,
+        emptyCells: empties.length,
+        occupiedCells: occupied.length,
+        occupiedReasons: occupied.reduce((acc: any, { reason }) => {
+          acc[reason] = (acc[reason] || 0) + 1;
+          return acc;
+        }, {})
+      });
       return [];
     }
     
@@ -1044,25 +1085,33 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 CRITICAL: Wild-magnet spawn logic is DIFFERENT from regular merge 6!
   // Wild-magnet merge 6:
   // 1. Magnet merges with a tile → creates merge 6
-  // 2. Magnet automatically pulls up to 4 tiles towards it
+  // 2. Magnet automatically pulls up to 4 nearest tiles towards it (ANY tiles: magnets, wild stars, ordinary cubes)
   // 3. Pulled tiles merge with merge 6 and disappear
   // 4. NEW tiles spawn = EXACTLY the number of pulled tiles (max 4)
   // 5. NO multiplier, NO bonus tiles, just equal replacement of pulled tiles
   // 
   // Example scenarios:
-  // - Wild-magnet + cube, pulls 2 tiles → spawn 2 new tiles
-  // - Wild-magnet + cube, pulls 4 tiles → spawn 4 new tiles
-  // - Wild-magnet + cube, pulls 0 tiles → spawn 0 new tiles
+  // - Wild-magnet + cube, pulls 2 ordinary cubes → spawn 2 new tiles
+  // - Wild-magnet + cube, pulls 4 wild-magnets → spawn 4 new tiles
+  // - Wild-magnet + cube, pulls 2 magnets + 2 wild stars → spawn 4 new tiles
+  // - Wild-magnet + cube, pulls 0 tiles (board is empty) → spawn 0 new tiles
+  // 
+  // 🔥 MAGNET-ON-MAGNET FIX: Magnet CAN pull other magnets - this is intentional!
+  // When magnets pull other magnets, they get removed and replaced with new ordinary tiles
   
   const spawnCount = hasTilesToRespawn ? pulledCells.length : 0; // Spawn = number of pulled tiles (max 4)
   
   console.log('🧲 Wild-magnet spawn calculation:', {
     pulledTilesCount: pulledCells.length,
+    pulledTilesDetails: validTiles.map(t => ({ value: t.value, special: t.special })),
     spawnCount: spawnCount,
     note: 'Spawn count equals pulled tiles count (no multiplier, no bonus)'
   });
   
   const spawnTargets = findRandomEmptyCells(spawnCount);
+  
+  console.log('🧲 findRandomEmptyCells returned:', spawnTargets.length, 'targets out of', spawnCount, 'requested');
+  console.log('🧲 Spawn targets:', spawnTargets);
 
   if (spawnTargets.length) {
     console.log('🧲 Respawning', spawnCount, 'tiles at random empty cells:', spawnTargets);
@@ -1126,6 +1175,14 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         }
       })
     );
+  } else if (spawnCount > 0) {
+    console.warn('⚠️ No spawn targets found!', {
+      spawnCountRequested: spawnCount,
+      spawnTargetsFound: spawnTargets.length,
+      pulledCellsCount: pulledCells.length,
+      hasTilesToRespawn,
+      note: 'Wild-magnet merge did not spawn any new tiles - board might be full or spawn logic issue!'
+    });
   }
 
   // 🔥 REMOVED: Premature endgame check - this was causing instant fail screen
