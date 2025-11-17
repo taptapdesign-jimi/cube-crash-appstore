@@ -2193,18 +2193,24 @@ function merge(src, dst, helpers){
                               activeTilesBeforeMerge.includes(src) && 
                               activeTilesBeforeMerge.includes(dst);
     
-    // 🔥 CRITICAL: Special case for wild + regular merge when only 2 tiles exist
-    // This is the MOST COMMON last merge scenario: wild + last regular tile = merge 6
-    // BUT: Exclude wild-magnet merges that will pull other tiles
-    // 🔥 ENHANCED: Separate check for regular wild (not wild-magnet) when only 2 tiles exist
-    // 🔥 ENHANCED: More explicit check - ensure exactly one is wild and one is regular
+    // 🔥 CRITICAL FIX: Wild merge should NEVER be marked as "last merge" if there are other tiles on board!
+    // Wild merge ALWAYS spawns new tiles (mult based on combinedCount), so it's NOT a last merge
+    // Example: 2 tiles + wild = 3 tiles total
+    //   - Merge tile + wild → merge 6 (wild is one of the merging tiles)
+    //   - Spawns 2 new tiles (combinedCount = 2)
+    //   - Board: merge 6 + 1 remaining tile + 2 new tiles = 4 tiles total
+    //   - Game continues!
+    // 
+    // ONLY mark as last merge if:
+    // 1. Exactly 2 tiles total (wild + 1 tile)
+    // 2. No other tiles on board
     const oneIsRegularWild = (srcSpecial === 'wild' || dstSpecial === 'wild');
     const neitherIsWildMagnet = !(srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet');
-    const exactlyTwoActiveTiles = activeTilesCount === 2;
+    const exactlyTwoActiveTiles = activeTilesCount === 2; // ONLY if 2 tiles total
     const bothTilesInActiveList = activeTilesBeforeMerge.includes(src) && activeTilesBeforeMerge.includes(dst);
     const isRegularWildLastTwo = oneIsRegularWild && 
                                  neitherIsWildMagnet &&
-                                 exactlyTwoActiveTiles &&
+                                 exactlyTwoActiveTiles && // This is key - ONLY 2 tiles
                                  bothTilesInActiveList;
     
     // 🔥 ENHANCED LOGGING: Log detailed breakdown for debugging
@@ -2228,15 +2234,19 @@ function merge(src, dst, helpers){
         isRegularWildLastTwo
       });
     }
+    // 🔥 CRITICAL FIX: For wild-magnet, still check if it's last merge (2 tiles total)
+    // Wild-magnet pulls tiles, so it's different from regular wild
     const isWildRegularLastTwo = (srcSpecial === 'wild' || srcSpecial === 'wild-magnet' || dstSpecial === 'wild' || dstSpecial === 'wild-magnet') &&
-                                 activeTilesCount === 2 &&
+                                 activeTilesCount === 2 && // ONLY if exactly 2 tiles total
                                  activeTilesBeforeMerge.includes(src) &&
                                  activeTilesBeforeMerge.includes(dst) &&
                                  !(isWildMagnetMerge && hasTilesToPull); // 🔥 CRITICAL: Exclude if wild-magnet will pull tiles
     
-    // Check if one is wild and the other is the last regular tile(s)
-    // BUT: Exclude wild-magnet merges that will pull other tiles
+    // 🔥 CRITICAL FIX: Wild merge should ONLY be "last merge" if exactly 2 tiles total
+    // If more than 2 tiles, it's NOT last merge because spawn will happen
+    // Example: wild + 2 tiles = 3 tiles total → NOT last merge, will spawn
     const isWildLastTileMerge = (srcSpecial === 'wild' || srcSpecial === 'wild-magnet' || dstSpecial === 'wild' || dstSpecial === 'wild-magnet') &&
+                                 activeTilesCount === 2 && // 🔥 KEY FIX: ONLY if exactly 2 tiles total
                                  allTilesInvolved &&
                                  !(isWildMagnetMerge && hasTilesToPull); // 🔥 CRITICAL: Exclude if wild-magnet will pull tiles
     
@@ -2245,14 +2255,28 @@ function merge(src, dst, helpers){
     // So if all tiles are involved, this is the last merge
     // - Wild merge always creates merge 6
     // - Regular merge: sum must equal 6 OR all tiles are involved (stacked tiles can combine to 6)
+    // 🔥 CRITICAL FIX: For wild merge, ONLY mark as last merge if exactly 2 tiles total
     const canMergeTogether = wildActive || 
                              (src.value|0) + (dst.value|0) === 6 ||
                              (allTilesInvolved && (src.value|0) + (dst.value|0) <= 6); // If all tiles involved, they can merge to 6
     
-    const isLastMergeableTiles = allTilesInvolved && canMergeTogether;
+    // 🔥 CRITICAL FIX: If wild merge and more than 2 tiles, NOT last merge (will spawn)
+    const isLastMergeableTiles = allTilesInvolved && canMergeTogether && 
+                                 (!wildActive || activeTilesCount === 2); // If wild, only last merge if 2 tiles total
     
     // 🔥 CRITICAL: Check if this is last merge (wild + regular = last 2 tiles)
     // 🔥 ENHANCED: Prioritize regular wild last two check (most common scenario)
+    // 🔥 KEY FIX: For wild merge, ONLY mark as last merge if exactly 2 tiles total
+    console.log('🔍 LAST MERGE CHECK DETAILS:', {
+      activeTilesCount,
+      wildActive,
+      isRegularWildLastTwo,
+      isWildRegularLastTwo,
+      isLastMergeableTiles,
+      isWildLastTileMerge,
+      willMarkAsLastMerge: isRegularWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge
+    });
+    
     if (isRegularWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge) {
       console.log('🚨🚨🚨 LAST MERGE DETECTED (BEFORE merge 6 animation) - ALL', activeTilesCount, 'tiles are involved in merge 6');
       console.log('🚨🚨🚨 Last merge details:', {
