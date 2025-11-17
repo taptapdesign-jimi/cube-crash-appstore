@@ -2193,9 +2193,14 @@ function merge(src, dst, helpers){
       const candidates = tiles.filter((t: any) => {
         if (!t || t.destroyed) return false;
         if (t.locked) return false;
-        if ((t.value | 0) <= 0) return false;
         if (t === targetTile) return false;
         if (t === src || t === dst) return false; // Don't count the merging tiles
+        
+        // 🔥 CRITICAL FIX v37: Check if tile is wild or magnet BEFORE checking value
+        // Wild-magnet and wild tiles have value = 0, but they can STILL be pulled!
+        const isWildOrMagnet = t.special === 'wild' || t.special === 'wild-magnet';
+        if (!isWildOrMagnet && (t.value | 0) <= 0) return false;
+        
         // 🔥 CRITICAL: Wild-magnet CAN pull other wild-magnets! (MAGNET-ON-MAGNET FIX)
         // Magnet attracts everything - magnets, wild stars, ordinary tiles
         return true;
@@ -2408,14 +2413,44 @@ function merge(src, dst, helpers){
       // Find up to 4 nearest tiles to the merge location (use dst position BEFORE merge animation)
       const mergeX = dst.x;
       const mergeY = dst.y;
+      
+      // 🔥 CRITICAL FIX v37: Detailed logging to debug why tiles might not be found
+      console.log('🔍 MAGNET PULL DEBUG: Checking all tiles on board:', {
+        totalTilesInState: STATE.tiles.length,
+        srcTile: { value: src.value, special: src.special, locked: src.locked },
+        dstTile: { value: dst.value, special: dst.special, locked: dst.locked }
+      });
+      
       const allTiles = STATE.tiles.filter((tile: any) => {
-        if (!tile || tile.destroyed) return false;
-        if (tile === dst) return false; // Don't include the merge 6 tile itself
-        if (tile === src) return false; // Don't include the magnet tile itself
-        if (tile.locked) return false;
-        if ((tile.value | 0) <= 0) return false;
+        if (!tile || tile.destroyed) {
+          if (tile) console.log('🔍 FILTER OUT: destroyed tile');
+          return false;
+        }
+        if (tile === dst) {
+          console.log('🔍 FILTER OUT: dst tile (merge 6 itself)');
+          return false;
+        }
+        if (tile === src) {
+          console.log('🔍 FILTER OUT: src tile (magnet itself)');
+          return false;
+        }
+        if (tile.locked) {
+          console.log('🔍 FILTER OUT: locked tile', { value: tile.value, special: tile.special });
+          return false;
+        }
+        
+        // 🔥 CRITICAL FIX v37: Check if tile is wild or magnet BEFORE checking value
+        // Wild-magnet and wild tiles have value = 0, but they should STILL be pulled!
+        const isWildOrMagnet = tile.special === 'wild' || tile.special === 'wild-magnet';
+        
+        if (!isWildOrMagnet && (tile.value | 0) <= 0) {
+          console.log('🔍 FILTER OUT: regular tile with value <= 0', { value: tile.value, special: tile.special });
+          return false;
+        }
+        
         // 🔥 CRITICAL: Wild-magnets CAN pull other wild-magnets, wild stars, and ordinary tiles!
         // This is intentional behavior - magnet attracts EVERYTHING
+        console.log('✅ INCLUDE: tile for pull', { value: tile.value, special: tile.special, locked: tile.locked, isWildOrMagnet });
         return true;
       });
       
@@ -2432,11 +2467,17 @@ function merge(src, dst, helpers){
       
       console.log('🧲 Found', nearestTiles.length, 'nearest tiles to pull immediately (max 4)');
       
-      // 🔥 CRITICAL: Log if no tiles can be pulled (MAGNET-ON-MAGNET EDGE CASE FIX)
+      // 🔥 CRITICAL FIX v37: Log if no tiles can be pulled AND reset wildMagnetPullInProgress
+      // Without this reset, subsequent pulls would be blocked!
       if (nearestTiles.length === 0) {
-        console.warn('⚠️ WILD-MAGNET: No tiles can be pulled (all nearby tiles are magnets or invalid)');
+        console.warn('⚠️ WILD-MAGNET: No tiles can be pulled (all nearby tiles are locked or invalid)');
         console.log('🧲 Wild-magnet merge will proceed with mult=2 (default) and spawn 2 new tiles');
         console.log('🧲 Active tiles on board after merge:', allTiles.length + 2, '(', nearestTiles.length, 'pulled +', 2, 'merge tiles)');
+        
+        // 🔥 CRITICAL: Reset wildMagnetPullInProgress if no tiles to pull
+        // Otherwise, subsequent magnet merges will be blocked!
+        wildMagnetPullInProgress = false;
+        console.log('✅ wildMagnetPullInProgress reset to false (no tiles to pull)');
       }
       
       // Update multiplier based on number of pulled tiles (max 4x)

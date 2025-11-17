@@ -144,6 +144,18 @@
   - Game continues ✅
 - **Status**: WORKING (fixed in v36)
 
+#### 2.10 Magnet + Tile Pulls Other Magnets (v37 CRITICAL FIX)
+- **Board**: 3 magnets + 1 tile
+- **Action**: Merge magnet + tile → should pull other 2 magnets
+- **Expected**:
+  - Magnet filter includes wild/magnet tiles (value = 0 OK) ✅
+  - Finds 2 magnets to pull ✅
+  - Pulls 2 magnets to merge location ✅
+  - Creates merge 6 with 3x multiplier (1 main + 2 pulled) ✅
+  - Spawns 3 new tiles ✅
+  - Game continues ✅
+- **Status**: WORKING (fixed in v37)
+
 ---
 
 ### **FAIL SCENARIOS (Game Stuck)**
@@ -275,6 +287,16 @@
 - Fixed `endgame-checker.ts` line 242: Single stack can merge with itself
 - **Impact**: Wild + 2 stacks scenario now works correctly with merge animations and spawns
 
+### v37 - Magnet Pull Filter Fix (CRITICAL)
+- **ROOT CAUSE FIX**: Magnet pull filter was excluding wild/magnet tiles with `value = 0`
+- **Problem**: `if ((tile.value | 0) <= 0) return false;` excluded ALL magnets/wilds!
+- **Example**: 3 magnets + 1 tile → merge magnet + tile → other magnets NOT pulled!
+- Fixed `app-core.ts` line 2199: Check `isWildOrMagnet` BEFORE value check
+- Fixed `app-core.ts` line 2437: Same fix for actual pull animation filter
+- Fixed `app-core.ts` line 2444: Reset `wildMagnetPullInProgress` if no tiles to pull
+- Added detailed logging to debug filter issues
+- **Impact**: Magnets now CORRECTLY pull other magnets, wilds, and tiles (max 4)
+
 ---
 
 ## 🎯 VERIFICATION CHECKLIST
@@ -294,6 +316,8 @@
 | Wild + 1 tile (2 total) → clean | ✅ Clean | ✅ WORKING |
 | Wild + 2 stacks → merge → spawn | ✅ Continue | ✅ FIXED (v36) |
 | Single stack (depth > 1) | ✅ Continue | ✅ FIXED (v36) |
+| 3 magnets + tile → pull magnets | ✅ Pull | ✅ FIXED (v37) |
+| Magnet pulls wild/magnet/tiles | ✅ Pull all | ✅ FIXED (v37) |
 
 ---
 
