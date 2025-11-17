@@ -3687,6 +3687,21 @@ function merge(src, dst, helpers){
         console.log('⏳ Waiting 500ms after spawn animations to let user see board state...');
         await new Promise(res => setTimeout(res, 500));
         
+        // 🔥 CRITICAL: Log detailed board state before calling checkLevelEnd
+        const activeTilesBeforeCheck = tiles.filter(tileIsVisuallyActive);
+        console.log('🔍 Board state BEFORE checkLevelEnd:', {
+          activeTilesCount: activeTilesBeforeCheck.length,
+          activeTiles: activeTilesBeforeCheck.map(t => ({ 
+            value: t.value, 
+            special: t.special, 
+            locked: t.locked,
+            gridX: t.gridX,
+            gridY: t.gridY
+          })),
+          wildMergeTarget: wildMergeTarget,
+          spawnMult: spawnMult
+        });
+        
         // 🔥 CRITICAL: Check end game after spawn completes (with delay to allow animations)
         // Use checkLevelEnd which already has proper delay and handles all edge cases
         // This replaces the inline setTimeout check to avoid duplicate checks

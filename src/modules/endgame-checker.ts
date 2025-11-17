@@ -258,6 +258,13 @@ function isGameStuck(context: EndGameContext): boolean {
   // Magnets can pull tiles together to create merges
   if (magnets.length > 0 && (mergeableNonWildTiles.length > 0 || wildStars.length > 0)) {
     console.log('✅ isGameStuck: Magnets + other tiles present - can pull and merge');
+    console.log('✅ Details:', {
+      magnetsCount: magnets.length,
+      magnets: magnets.map(t => ({ value: t.value, gridX: (t as any).gridX, gridY: (t as any).gridY })),
+      mergeableTilesCount: mergeableNonWildTiles.length,
+      mergeableTiles: mergeableNonWildTiles.map(t => ({ value: t.value, gridX: (t as any).gridX, gridY: (t as any).gridY })),
+      wildStarsCount: wildStars.length
+    });
     return false;
   }
   
