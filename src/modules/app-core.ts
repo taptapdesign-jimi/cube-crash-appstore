@@ -2103,6 +2103,22 @@ function merge(src, dst, helpers){
           if (!busyEnding) {
             console.log('🔍 STUCK PROTECTION: Checking for stuck state 1 second after merge...');
             const activeTiles = tiles.filter(tileIsVisuallyActive);
+            
+            // 🔥 CRITICAL FIX: NEVER trigger fail screen if there's a wild or magnet on board!
+            // Wild/magnet can merge with anything, so game is NOT stuck
+            const hasWildOrMagnet = activeTiles.some(t => t.special === 'wild' || t.special === 'wild-magnet');
+            if (hasWildOrMagnet) {
+              console.log('✅ STUCK PROTECTION: Wild/magnet on board - game can continue, skipping fail screen');
+              return;
+            }
+            
+            // 🔥 CRITICAL FIX: NEVER trigger fail screen if there are locked tiles (animations in progress)
+            const hasLockedTiles = tiles.some((t: any) => t && !t.destroyed && t.locked && ((t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet'));
+            if (hasLockedTiles) {
+              console.log('✅ STUCK PROTECTION: Locked tiles animating - skipping fail screen');
+              return;
+            }
+            
             if (activeTiles.length === 1 && activeTiles[0].value !== 6) {
               console.log('🚨 STUCK PROTECTION: Single non-6 tile detected - forcing fail screen!');
               showFinalScreen();
@@ -3821,6 +3837,27 @@ function checkLevelEnd(){
       console.log('⏳ checkLevelEnd skipped - wild spawn animation in progress');
       // Reschedule after spawn completes
       checkLevelEndTimer = gsap.delayedCall(0.3, () => {
+        checkLevelEndTimer = null;
+        checkLevelEnd();
+      });
+      return;
+    }
+    
+    // 🔥 CRITICAL FIX: Skip check if there are LOCKED tiles with value > 0 (spawn animations in progress)
+    // This prevents premature fail screen when tiles are still being spawned/animated
+    const lockedActiveTiles = tiles.filter((t: any) => {
+      if (!t || t.destroyed) return false;
+      if (!t.locked) return false; // Only check locked tiles
+      return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet';
+    });
+    
+    if (lockedActiveTiles.length > 0) {
+      console.log('⏳ checkLevelEnd skipped - locked active tiles still animating:', {
+        lockedCount: lockedActiveTiles.length,
+        lockedTiles: lockedActiveTiles.map(t => ({ value: t.value, special: t.special, gridX: t.gridX, gridY: t.gridY }))
+      });
+      // Reschedule after animations complete
+      checkLevelEndTimer = gsap.delayedCall(0.5, () => {
         checkLevelEndTimer = null;
         checkLevelEnd();
       });
