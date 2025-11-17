@@ -3369,68 +3369,11 @@ function merge(src, dst, helpers){
           return;
         }
         
-        // 🔥 CRITICAL FIX: Skip end game check if this is a wild merge (wild + regular tile)
-        // Wild merge should spawn a new tile FIRST, then check end game AFTER spawn
-        // This prevents premature clean board screen when wild merges with regular tile
-        const isWildMerge = (srcSpecial === 'wild' || dstSpecial === 'wild') && 
-                           (srcSpecial !== 'wild-magnet' && dstSpecial !== 'wild-magnet');
-        const hasWildMergeTarget = (dst as any)?._wildMergeTarget !== undefined;
-        
-        if (isWildMerge || hasWildMergeTarget) {
-          console.log('🎯 Wild merge detected - skipping end game check BEFORE spawn, will check AFTER spawn completes');
-          // Don't check end game here - it will be checked after spawn completes
-          // Continue to spawn logic below
-        } else {
-          // Use centralized end game checker
-          // 🔥 CRITICAL: Check AFTER dst removal - if only merge 6 remained, it's now clean board
-          console.log('🔥 Checking end game conditions after merge 6 (after dst removal)...');
-          
-          const afterMergeContext: EndGameContext = {
-            tiles,
-            moves,
-            makeBoard
-          };
-          
-          // Force refresh because dst tile was just removed
-          const afterMergeResult = checkEndGame(afterMergeContext, true);
-          
-          // 🔥 CRITICAL: If board is clean OR last merge, trigger clean board flow
-          // This handles cases where merge 6 was made from last 2-3 tiles
-          // BUT: Only if there's NO magnet on board that can be used for merge
-          if (afterMergeResult.type === 'clean') {
-            // 🔥 CRITICAL FIX: Check if there's a magnet on board that can be used for merge
-            // If magnet exists, it's NOT a clean board - user can still merge magnet with merge 6
-            const activeTiles = tiles.filter((t: any) => {
-              if (!t || t.destroyed) return false;
-              if (t.locked && (t.value|0) <= 0) return false; // Ghost placeholder
-              return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet';
-            });
-            const hasMagnet = activeTiles.some((t: any) => t.special === 'wild-magnet');
-            
-            if (hasMagnet) {
-              console.log('🧲 Magnet detected on board - NOT a clean board, game continues');
-              // Continue to spawn logic - don't trigger clean board
-            } else {
-              console.log('🚨🚨🚨 BOARD IS CLEAN - STARTING ENDGAME FLOW! 🚨🚨🚨');
-              
-              // SUCCESS haptic for clean board
-              if (typeof (window as any).triggerHapticNotification === 'function') {
-                (window as any).triggerHapticNotification('success');
-              }
-              
-              await triggerCleanBoardFlow('after_merge_endgame_checker');
-              return;
-            }
-          }
-        }
-        
-        // 🔥 CRITICAL: Merge-6 flow always spawns new tiles, so a temporary stuck state is expected
-        // If centralized checker reports "stuck" here, it simply means no merges exist before respawn.
-        // Do NOT trigger fail; continue into spawn/rescue logic just like legacy V40 flow.
-        // Note: afterMergeResult is only defined if we didn't skip the check (non-wild merge)
-        if (!isWildMerge && !hasWildMergeTarget && afterMergeResult && afterMergeResult.type === 'stuck') {
-          console.log('ℹ️ Merge-6 post-check reported stuck, but spawn/rescue will handle it. Continuing...');
-        }
+        // 🔥 REMOVED: Premature endgame check that was blocking spawn logic
+        // The endgame check was running BEFORE spawn, causing board to look empty (dst removed)
+        // This made it trigger clean board flow instead of spawning new tiles
+        // Endgame check will be done AFTER spawn in checkLevelEnd()
+        console.log('🎯 Merge 6 completed, proceeding to spawn logic...');
         
         // Game continues - check moves and proceed with spawn
         if (moves === 0) {
