@@ -12,7 +12,13 @@ const HEADLINES = [
   'Magnificent!', 'Phenomenal!', 'Marvelous!', 'Exceptional!', 'Stellar!',
   'Remarkable!', 'Impressive!', 'Unbelievable!', 'Wonderful!', 'Fabulous!',
   'Sensational!', 'Terrific!', 'Splendid!', 'Exquisite!', 'Divine!',
-  'Glorious!', 'Masterful!', 'Flawless!', 'Supreme!', 'Epic!'
+  'Glorious!', 'Masterful!', 'Flawless!', 'Supreme!', 'Epic!',
+  'Legendary!', 'Radiant!', 'Majestic!', 'Unstoppable!', 'Victorious!',
+  'Triumphant!', 'Dominant!', 'Epicness!', 'Powerful!', 'Heroic!',
+  'Gorgeous!', 'Sparkling!', 'Blazing!', 'Vibrant!', 'Shining!',
+  'Golden!', 'Prime!', 'Royal!', 'Ace!', 'Infinite!',
+  'Titanic!', 'Grand!', 'Mythic!', 'Immortal!', 'Mega!',
+  'Ultra!', 'Primeval!', 'Booming!'
 ];
 
 interface ShowCleanBoardModalParams {
