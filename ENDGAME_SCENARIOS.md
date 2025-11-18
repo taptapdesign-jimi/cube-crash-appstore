@@ -335,16 +335,26 @@
 - Fixed `app-core.ts` line 3805: Include `isRegularMerge6LastTwo` in clean board flow trigger
 - **Impact**: Regular merge with 2 tiles now correctly skips spawn and triggers clean board screen
 
-### v40.5 - Wild Merge Last Two Fix (CRITICAL)
-- **ROOT CAUSE FIX**: Wild merge (wild + regular tile) with exactly 2 tiles was not detected as last merge
-- **Problem**: wild + regular tile → merge6 → spawn new tile → fail screen!
-- **Example**: Board has wild + regular tile (last 2) → merge wild + tile → merge6 → spawns new tile → fail!
-- **Expected**: wild + regular tile → merge6 → NO spawn → clean board screen after 1 second
-- Fixed `app-core.ts` line 2379: Set `_wasWildMerge` flag when wild merge is detected as last merge
-- Fixed `app-core.ts` line 3775: Added `isWildMerge6LastTwo` check in spawn skip logic
-- Fixed `app-core.ts` line 3784: Include `isWildMerge6LastTwo` in spawn skip condition
-- Fixed `app-core.ts` line 3829: Include `isWildMerge6LastTwo` in clean board flow trigger
-- **Impact**: Wild merge with 2 tiles now correctly skips spawn and triggers clean board screen
+### v40.5 - Wild/Magnet Merge Last Two Fix (CRITICAL - COMPLETE)
+- **ROOT CAUSE FIX**: Wild merge (wild + regular tile) and magnet merge (magnet + regular tile) with exactly 2 tiles were not detected as last merge
+- **Problem**: 
+  - wild + regular tile → merge6 → spawn new tile → fail screen!
+  - magnet + regular tile → merge6 → spawn new tile → fail screen!
+- **Example**: 
+  - Board has wild + regular tile (last 2) → merge wild + tile → merge6 → spawns new tile → fail!
+  - Board has magnet + regular tile (last 2) → merge magnet + tile → merge6 → spawns new tile → fail!
+- **Expected**: 
+  - wild + regular tile → merge6 → NO spawn → clean board screen after 1 second
+  - magnet + regular tile → merge6 → NO spawn → clean board screen after 1 second
+- Fixed `app-core.ts` line 2340: Added `isMagnetMergeLastTwo` check for magnet merge (magnet + regular) with exactly 2 tiles
+- Fixed `app-core.ts` line 2361: Include `isMagnetMergeLastTwo` in last merge detection
+- Fixed `app-core.ts` line 2382: Set `_wasWildMerge` flag for BOTH wild AND magnet merge (includes magnet)
+- Fixed `app-core.ts` line 3795: Added `isWildMerge6LastTwo` check in spawn skip logic (covers both wild and magnet)
+- Fixed `app-core.ts` line 3804: Include `isWildMerge6LastTwo` in spawn skip condition
+- Fixed `app-core.ts` line 3841: Include `isWildMerge6LastTwo` in clean board flow trigger
+- **Impact**: 
+  - Wild merge with 2 tiles now correctly skips spawn and triggers clean board screen
+  - Magnet merge with 2 tiles now correctly skips spawn and triggers clean board screen
 
 ---
 

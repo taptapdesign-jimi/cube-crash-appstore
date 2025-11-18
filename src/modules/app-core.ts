@@ -2335,6 +2335,14 @@ function merge(src, dst, helpers){
                                   activeTilesBeforeMerge.includes(dst) &&
                                   (src.value|0) + (dst.value|0) === 6; // Sum equals 6
     
+    // 🔥 CRITICAL FIX v40.5: Explicit check for magnet merge (magnet + regular) with exactly 2 tiles
+    // This handles the case: magnet + regular tile → merge 6 → should be last merge (clean board)
+    const isMagnetMergeLastTwo = (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet') &&
+                                 activeTilesCount === 2 && 
+                                 activeTilesBeforeMerge.includes(src) && 
+                                 activeTilesBeforeMerge.includes(dst) &&
+                                 !hasTilesToPull; // 🔥 CRITICAL: Only if magnet CANNOT pull other tiles (last 2 tiles)
+    
     // 🔥 CRITICAL: Check if this is last merge (wild + regular = last 2 tiles)
     // 🔥 ENHANCED: Prioritize regular wild last two check (most common scenario)
     // 🔥 KEY FIX: For wild merge, ONLY mark as last merge if exactly 2 tiles total
@@ -2346,10 +2354,11 @@ function merge(src, dst, helpers){
       isLastMergeableTiles,
       isWildLastTileMerge,
       isRegularMergeLastTwo, // 🔥 v40.2: New check for regular merge
-      willMarkAsLastMerge: isRegularWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge || isRegularMergeLastTwo
+      isMagnetMergeLastTwo, // 🔥 v40.5: New check for magnet merge
+      willMarkAsLastMerge: isRegularWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge || isRegularMergeLastTwo || isMagnetMergeLastTwo
     });
     
-    if (isRegularWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge || isRegularMergeLastTwo) {
+    if (isRegularWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge || isRegularMergeLastTwo || isMagnetMergeLastTwo) {
       console.log('🚨🚨🚨 LAST MERGE DETECTED (BEFORE merge 6 animation) - ALL', activeTilesCount, 'tiles are involved in merge 6');
       console.log('🚨🚨🚨 Last merge details:', {
         activeTilesCount,
@@ -2359,6 +2368,7 @@ function merge(src, dst, helpers){
         isWildLastTileMerge,
         isWildRegularLastTwo,
         isRegularWildLastTwo, // 🔥 NEW: Regular wild last two check
+        isMagnetMergeLastTwo, // 🔥 v40.5: Magnet merge last two check
         isWildMagnetMerge,
         hasTilesToPull,
         srcValue: src.value,
@@ -2375,11 +2385,18 @@ function merge(src, dst, helpers){
       // We'll handle clean board flow in the onComplete callback
       (dst as any)._isLastMerge = true;
       
-      // 🔥 CRITICAL FIX v40.5: Mark if this was a wild merge (for spawn skip logic)
+      // 🔥 CRITICAL FIX v40.5: Mark if this was a wild merge OR magnet merge (for spawn skip logic)
+      // This includes: wild + regular, regular + wild, magnet + regular, regular + magnet
       const wasWildMerge = srcSpecial === 'wild' || dstSpecial === 'wild';
-      if (wasWildMerge) {
+      const wasMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
+      if (wasWildMerge || wasMagnetMerge) {
         (dst as any)._wasWildMerge = true;
-        console.log('✅ _wasWildMerge flag set to TRUE (wild merge detected)');
+        console.log('✅ _wasWildMerge flag set to TRUE (wild/magnet merge detected)', {
+          wasWildMerge,
+          wasMagnetMerge,
+          srcSpecial,
+          dstSpecial
+        });
       }
       
       console.log('✅ _isLastMerge flag set to TRUE on dst tile');
@@ -3768,17 +3785,20 @@ function merge(src, dst, helpers){
                                        !hasWildAfterSrcRemoval &&
                                        !(dst.special === 'wild' || dst.special === 'wild-magnet'); // Not a wild merge
         
-        // 🔥 CRITICAL FIX v40.5: Explicit check for wild merge (wild + regular) with exactly 2 tiles
-        // This handles the case: wild + regular tile → merge 6 → should skip spawn (clean board)
-        // Check if dst is merge 6 from wild merge and there are no other active tiles
-        // Use _wasWildMerge flag set during last merge detection (line 2381)
+        // 🔥 CRITICAL FIX v40.5: Explicit check for wild/magnet merge (wild/magnet + regular) with exactly 2 tiles
+        // This handles the cases:
+        //   - wild + regular tile → merge 6 → should skip spawn (clean board)
+        //   - magnet + regular tile → merge 6 → should skip spawn (clean board)
+        //   - regular + wild/magnet → merge 6 → should skip spawn (clean board)
+        // Check if dst is merge 6 from wild/magnet merge and there are no other active tiles
+        // Use _wasWildMerge flag set during last merge detection (line 2381) - includes both wild and magnet
         const isWildMerge6LastTwo = dst && 
                                     dst.value === 6 && 
                                     activeTilesAfterSrcRemoval.length === 1 && 
                                     activeTilesAfterSrcRemoval[0] === dst &&
                                     !hasMagnetAfterSrcRemoval &&
                                     !hasWildAfterSrcRemoval &&
-                                    (dst as any)._wasWildMerge === true; // Flag set during wild merge last merge detection
+                                    (dst as any)._wasWildMerge === true; // Flag set during wild/magnet merge last merge detection
         
         // 🔥 CRITICAL: Multiple checks to prevent spawn
         if (isLastMergeScenario || currentIsLastMerge || busyEnding || onlyMerge6RemainsAfterSrcRemoval || isRegularMerge6LastTwo || isWildMerge6LastTwo) {
