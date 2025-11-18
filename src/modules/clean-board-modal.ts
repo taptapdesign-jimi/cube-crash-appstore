@@ -205,15 +205,43 @@ export async function showCleanBoardModal({
     // Hero
     const hero = document.createElement('img');
     hero.alt = 'Board cleared';
-    hero.src = './assets/clean-board.png';
     // 🔥 CRITICAL FIX: Remove transform:scale(1) from initial CSS to allow proper animation
     // transform will be set by setInit() and animation sequence
     hero.style.cssText = 'width:min(240px,70vw);height:auto;display:block;margin:0 auto 0 auto;';
+    
+    // 🔥 CRITICAL FIX v40.8: Wait for image to load AND be in DOM before setting up animation
+    // This ensures the image is rendered in DOM before we apply transform animations
+    let heroImageLoaded = false;
+    const setupHeroAnimation = () => {
+      if (heroImageLoaded) return;
+      
+      // 🔥 CRITICAL: Only setup animation if hero is in DOM
+      // Transform animations don't work properly on elements not in DOM
+      if (!hero.parentElement) {
+        // Hero not in DOM yet - will be set up after it's added
+        return;
+      }
+      
+      heroImageLoaded = true;
+      
+      // Now that image is loaded and in DOM, set initial state for animation
+      setInit(hero, -25, 0);
+    };
+    
+    hero.onload = () => {
+      setupHeroAnimation();
+    };
+    
+    hero.src = './assets/clean-board.png';
+    
+    // If image is already cached, onload might not fire - check complete property
+    // But only after hero is added to DOM (will be checked later)
 
     // Add error handling for image
     hero.onerror = () => {
       // Fallback to a simple div - also remove transform to allow animation
       hero.style.cssText = 'width:min(260px,46vw);height:min(260px,46vw);background:#4CAF50;border-radius:20px;display:block;margin:0 auto 24px auto;';
+      setupHeroAnimation(); // Setup animation even for fallback
     };
 
     // Content stacks replicate design spacing (hero + text)
@@ -369,8 +397,10 @@ export async function showCleanBoardModal({
       element.style.transform = `scale(${scale}) translateY(${dy}px)`;
       element.style.transition = 'none';
     };
-    // 🔥 CRITICAL FIX: Hero should start with scale(0) like other elements for proper pop-in animation
-    setInit(hero, -25, 0);
+    
+    // 🔥 CRITICAL FIX v40.8: Hero animation setup is now handled in hero.onload/onerror
+    // This ensures image is loaded before we apply transform animations
+    // For other elements, set initial state immediately
     setInit(title, -20);
     setInit(scoreLabel, -15);
     setInit(mainScore, -10);
@@ -379,11 +409,21 @@ export async function showCleanBoardModal({
     boardCleared.style.opacity = '0';
     boardCleared.style.transition = 'none';
     setInit(btn, 12, 0.7);
-
+    
     // Show modal and card immediately
     el.style.opacity = '1';
     card.style.opacity = '1';
     card.style.transform = 'scale(1)';
+    
+    // 🔥 CRITICAL FIX v40.8: Setup hero animation after hero is added to DOM
+    // Check if image is already loaded (cached) and setup animation
+    // This must happen AFTER hero is added to DOM (which happens at line 342: infoStack.appendChild(hero))
+    requestAnimationFrame(() => {
+      // Hero is now in DOM, check if image is loaded
+      if (hero.complete && !heroImageLoaded) {
+        setupHeroAnimation();
+      }
+    });
     
     // Wait for next frame to ensure elements are rendered
     requestAnimationFrame(() => {
@@ -449,14 +489,30 @@ export async function showCleanBoardModal({
 
       // SEQUENCE 1: Initial elements pop-in WITH CONFETTI EXPLOSION
       setTimeout(() => {
+        // 🔥 CRITICAL FIX v40.8: Ensure hero is properly initialized before animating
+        // Double-check that initial state is set (in case image loaded after setInit was called)
+        if (!heroImageLoaded && hero.complete) {
+          setInit(hero, -25, 0);
+          heroImageLoaded = true;
+        }
+        
+        // Ensure transition is set before animating
+        hero.style.transition = trans;
+        
         hero.style.opacity = '1';
         hero.style.transform = 'scale(1) translateY(0)';
         
         // CONFETTI EXPLOSION from hero image
         createConfettiExplosion(hero);
         
-        // Apply idle bounce animation immediately
-        hero.style.animation = 'cleanBoardHeroIdle 4.5s ease-in-out infinite';
+        // 🔥 CRITICAL FIX v40.8: Apply idle bounce animation AFTER transform animation completes
+        // This prevents conflict between CSS animation and transform animation
+        // Wait for transform animation to complete (0.65s) before starting idle animation
+        setTimeout(() => {
+          if (hero && hero.parentElement) {
+            hero.style.animation = 'cleanBoardHeroIdle 4.5s ease-in-out infinite';
+          }
+        }, 650); // Wait for transform animation to complete
       }, 100);
       setTimeout(() => {
         title.style.opacity = '1';
