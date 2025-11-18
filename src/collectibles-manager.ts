@@ -64,6 +64,15 @@ class CollectiblesManager {
   private currentDetailCardId: string | null = null;
   private currentDetailCategory: string | null = null;
   private eventListenersInitialized: boolean = false;
+  
+  // 🔥 MEMORY LEAK FIX: Store event handler references for cleanup
+  private boundHandlers: {
+    backButtonClick?: (e: Event) => void;
+    cardClick?: (e: Event) => void;
+    titleClick?: () => void;
+    closeBtnClick?: (e: Event) => void;
+    modalClick?: (e: Event) => void;
+  } = {};
 
   constructor() {
     this.collectiblesData = {
@@ -157,8 +166,9 @@ class CollectiblesManager {
     
     console.log('🔌 Initializing event listeners...');
     
+    // 🔥 MEMORY LEAK FIX: Store bound handlers for cleanup
     // Back button - use event delegation to handle clicks even if button doesn't exist yet
-    document.addEventListener('click', (e) => {
+    this.boundHandlers.backButtonClick = (e: Event) => {
       const target = e.target as HTMLElement;
       const backBtn = target.closest('#collectibles-back');
       if (backBtn) {
@@ -184,14 +194,15 @@ class CollectiblesManager {
           });
         }
       }
-    });
+    };
+    document.addEventListener('click', this.boundHandlers.backButtonClick);
 
     // Title click - scroll to top
     const titleEl = document.getElementById('collectibles-title');
     if (titleEl) {
       titleEl.style.cursor = 'pointer';
       titleEl.style.pointerEvents = 'auto'; // Override CSS pointer-events: none
-      titleEl.addEventListener('click', () => {
+      this.boundHandlers.titleClick = () => {
         console.log('🎁 Title clicked, scrolling to top');
         const scrollable = document.querySelector('.collectibles-scrollable');
         if (scrollable) {
@@ -200,11 +211,12 @@ class CollectiblesManager {
         } else {
           console.warn('⚠️ Scrollable not found');
         }
-      });
+      };
+      titleEl.addEventListener('click', this.boundHandlers.titleClick);
     }
 
     // Card clicks
-    document.addEventListener('click', (e) => {
+    this.boundHandlers.cardClick = (e: Event) => {
       const target = e.target as HTMLElement;
       if (target.closest('.collectible-card')) {
         const card = target.closest('.collectible-card') as HTMLElement;
@@ -220,31 +232,71 @@ class CollectiblesManager {
           this.showCardDetail(cardId, category);
         }
       }
-    });
+    };
+    document.addEventListener('click', this.boundHandlers.cardClick);
 
     // Modal close
     const closeBtn = document.getElementById('detail-close-btn');
     if (closeBtn) {
-      closeBtn.addEventListener('click', (e) => {
+      this.boundHandlers.closeBtnClick = (e: Event) => {
         console.log('🎁 Close button clicked!', e);
         this.hideCardDetail();
-      });
+      };
+      closeBtn.addEventListener('click', this.boundHandlers.closeBtnClick);
     }
 
     // Close modal on background click
     const modal = document.getElementById('collectibles-detail-modal');
     if (modal) {
-      modal.addEventListener('click', (e) => {
+      this.boundHandlers.modalClick = (e: Event) => {
         if (e.target === modal) {
           this.hideCardDetail();
         }
-      });
+      };
+      modal.addEventListener('click', this.boundHandlers.modalClick);
     }
 
     this.initDevButtons();
     
     this.eventListenersInitialized = true;
     console.log('✅ Event listeners initialized successfully');
+  }
+  
+  // 🔥 MEMORY LEAK FIX: Cleanup all event listeners (public for app-manager)
+  public cleanupEventListeners(): void {
+    if (!this.eventListenersInitialized) return;
+    
+    console.log('🧹 Cleaning up collectibles event listeners...');
+    
+    // Remove global document event listeners
+    if (this.boundHandlers.backButtonClick) {
+      document.removeEventListener('click', this.boundHandlers.backButtonClick);
+    }
+    if (this.boundHandlers.cardClick) {
+      document.removeEventListener('click', this.boundHandlers.cardClick);
+    }
+    
+    // Remove element-specific event listeners
+    const titleEl = document.getElementById('collectibles-title');
+    if (titleEl && this.boundHandlers.titleClick) {
+      titleEl.removeEventListener('click', this.boundHandlers.titleClick);
+    }
+    
+    const closeBtn = document.getElementById('detail-close-btn');
+    if (closeBtn && this.boundHandlers.closeBtnClick) {
+      closeBtn.removeEventListener('click', this.boundHandlers.closeBtnClick);
+    }
+    
+    const modal = document.getElementById('collectibles-detail-modal');
+    if (modal && this.boundHandlers.modalClick) {
+      modal.removeEventListener('click', this.boundHandlers.modalClick);
+    }
+    
+    // Clear bound handlers
+    this.boundHandlers = {};
+    this.eventListenersInitialized = false;
+    
+    console.log('✅ Collectibles event listeners cleaned up');
   }
 
   async showCollectibles(options?: CollectiblesShowOptions): Promise<void> {

@@ -43,7 +43,7 @@ class AppManager {
     logger.info(`📺 Showing screen: ${screen}`);
 
     // Hide current screen
-    this.hideScreen(this.currentScreen);
+    await this.hideScreen(this.currentScreen);
 
     // Show new screen
     const element = this.screenElements.get(screen);
@@ -103,11 +103,36 @@ class AppManager {
     }
   }
 
-  hideScreen(screen: ScreenType): void {
+  async hideScreen(screen: ScreenType): Promise<void> {
     const element = this.screenElements.get(screen);
     if (element && !element.hidden) {
+      // 🔥 MEMORY LEAK FIX: Cleanup screen-specific resources before hiding
+      
       // 🎬 For stats screen, use GSAP exit animation instead of fade-out
       if (screen === 'stats') {
+        // 🔥 MEMORY LEAK FIX: Cleanup stats subscription
+        try {
+          const statsScreenModule = await import('./components/stats-screen.js');
+          if (statsScreenModule.cleanupStatsSubscription) {
+            statsScreenModule.cleanupStatsSubscription();
+            logger.info('🧹 Stats subscription cleaned up');
+          }
+        } catch (error) {
+          logger.warn('⚠️ Failed to cleanup stats subscription:', error);
+        }
+        
+        // 🔥 MEMORY LEAK FIX: Kill all GSAP animations on stats screen
+        try {
+          const gsap = (window as any).gsap || require('gsap');
+          const statsScreen = document.getElementById('stats-screen');
+          if (statsScreen && gsap) {
+            gsap.killTweensOf(statsScreen.querySelectorAll('*'));
+            logger.info('🧹 Stats screen GSAP animations killed');
+          }
+        } catch (error) {
+          logger.warn('⚠️ Failed to cleanup stats GSAP animations:', error);
+        }
+        
         try {
           import('./stats-animations.js').then(({ animateStatsScreenExit }) => {
             animateStatsScreenExit();
@@ -121,6 +146,62 @@ class AppManager {
           element.hidden = true;
           element.style.display = 'none';
         }, 600);
+      } else if (screen === 'collectibles') {
+        // 🔥 MEMORY LEAK FIX: Cleanup collectibles event listeners
+        try {
+          // CollectiblesManager uses singleton pattern, instance is on window.collectiblesManager
+          const collectiblesManager = (window as any).collectiblesManager;
+          if (collectiblesManager && typeof collectiblesManager.cleanupEventListeners === 'function') {
+            collectiblesManager.cleanupEventListeners();
+            logger.info('🧹 Collectibles event listeners cleaned up');
+          } else {
+            logger.warn('⚠️ Collectibles manager instance not found or cleanup method not available');
+          }
+        } catch (error) {
+          logger.warn('⚠️ Failed to cleanup collectibles event listeners:', error);
+        }
+        
+        // 🔥 MEMORY LEAK FIX: Kill all GSAP animations on collectibles screen
+        try {
+          const gsap = (window as any).gsap || require('gsap');
+          const collectiblesScreen = document.getElementById('collectibles-screen');
+          if (collectiblesScreen && gsap) {
+            gsap.killTweensOf(collectiblesScreen.querySelectorAll('*'));
+            logger.info('🧹 Collectibles screen GSAP animations killed');
+          }
+        } catch (error) {
+          logger.warn('⚠️ Failed to cleanup collectibles GSAP animations:', error);
+        }
+        
+        // Use fade-out for collectibles screen
+        element.style.opacity = '0';
+        
+        // Hide after transition
+        setTimeout(() => {
+          element.hidden = true;
+          element.style.display = 'none';
+        }, 300);
+      } else if (screen === 'settings') {
+        // 🔥 MEMORY LEAK FIX: Kill all GSAP animations on settings screen
+        try {
+          const gsap = (window as any).gsap || require('gsap');
+          const settingsScreen = document.getElementById('settings-screen');
+          if (settingsScreen && gsap) {
+            gsap.killTweensOf(settingsScreen.querySelectorAll('*'));
+            logger.info('🧹 Settings screen GSAP animations killed');
+          }
+        } catch (error) {
+          logger.warn('⚠️ Failed to cleanup settings GSAP animations:', error);
+        }
+        
+        // Use fade-out for settings screen
+        element.style.opacity = '0';
+        
+        // Hide after transition
+        setTimeout(() => {
+          element.hidden = true;
+          element.style.display = 'none';
+        }, 300);
       } else {
         // Use fade-out for other screens
         element.style.opacity = '0';
