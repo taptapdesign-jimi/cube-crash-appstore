@@ -36,7 +36,21 @@ const HEADLINES: string[] = [
   'Missed It!', 'Darn!', 'Not Quite!', 'Retry Time!', 'Oh Snap!', 'Melted down!',
   'Ouch!', 'Fail!', 'Next Try!', 'Argh!', 'No Luck!', 'Oof!', 'Nearly!',
   'Shoot!', 'Try Again!', 'Whoa There!', 'Not Today!', 'Gah!', 'So Near!',
-  'Drat!', 'Aw Man!', 'Dang!', 'One More!', 'That Hurt!'
+  'Drat!', 'Aw Man!', 'Dang!', 'One More!', 'That Hurt!',
+  'Big L!', 'Epic Fail!', 'Nice Try!', 'Almost There!', 'Too Slow!', 'Wrong Move!',
+  'Out of Luck!', 'You Died!', 'Close Call!', 'Oopsie Daisy!', 'Denied Again!',
+  'Try Harder!', 'Next Time!', 'Bad Timing!', 'Off Target!', 'Miss Click?',
+  'Wrong Turn!', 'Nope Nope!', 'Weak Hit!', 'Fumble Time!', 'You Slipped!',
+  'Almost Got It!', 'Almost Made!', 'So Nearly!', 'Nice Effort!', 'Close… Again!',
+  'Missed Again!', 'Not Enough!', 'Try Once More!', 'Lost It!', 'Off By One!',
+  'Tiny Miss!', 'Slip Up!', 'Fell Short!', 'Nearly There!', 'Almost Win!',
+  'Off Course!', 'You Almost!', 'Barely Missed!', 'Not This Run!', 'Just Missed!',
+  'One Off!', 'Not Quite Yet!', 'Miss Again!', 'Fell Off!', 'Tiny Fail!',
+  'Close Miss!', 'Try Again Soon!', 'Off Mark!', 'Almost Counted!', 'Nice Almost!',
+  'Just Short!', 'Barely Off!', 'Miss By Inch!', 'So Very Close!', 'Almost Did It!',
+  'Wrong Spot!', 'Next One!', 'Not Enough Yet!', 'Almost Clutch!', 'Barely Lost!',
+  'Slip Moment!', 'Try Again Champ!', 'Solid Try!', 'Off Balance!', 'Almost Boss!',
+  'Too Late!', 'Nice Attempt!', 'Close Runner!', 'Oh noo!'
 ];
 
 const OVERLAY_ID = 'cc-board-fail-overlay';
