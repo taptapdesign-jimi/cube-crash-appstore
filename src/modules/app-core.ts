@@ -2374,6 +2374,14 @@ function merge(src, dst, helpers){
       // Continue with merge 6 animation, but mark that this is the last merge
       // We'll handle clean board flow in the onComplete callback
       (dst as any)._isLastMerge = true;
+      
+      // 🔥 CRITICAL FIX v40.5: Mark if this was a wild merge (for spawn skip logic)
+      const wasWildMerge = srcSpecial === 'wild' || dstSpecial === 'wild';
+      if (wasWildMerge) {
+        (dst as any)._wasWildMerge = true;
+        console.log('✅ _wasWildMerge flag set to TRUE (wild merge detected)');
+      }
+      
       console.log('✅ _isLastMerge flag set to TRUE on dst tile');
     } else {
       console.log('❌ NOT last merge:', {
@@ -3760,14 +3768,28 @@ function merge(src, dst, helpers){
                                        !hasWildAfterSrcRemoval &&
                                        !(dst.special === 'wild' || dst.special === 'wild-magnet'); // Not a wild merge
         
+        // 🔥 CRITICAL FIX v40.5: Explicit check for wild merge (wild + regular) with exactly 2 tiles
+        // This handles the case: wild + regular tile → merge 6 → should skip spawn (clean board)
+        // Check if dst is merge 6 from wild merge and there are no other active tiles
+        // Use _wasWildMerge flag set during last merge detection (line 2381)
+        const isWildMerge6LastTwo = dst && 
+                                    dst.value === 6 && 
+                                    activeTilesAfterSrcRemoval.length === 1 && 
+                                    activeTilesAfterSrcRemoval[0] === dst &&
+                                    !hasMagnetAfterSrcRemoval &&
+                                    !hasWildAfterSrcRemoval &&
+                                    (dst as any)._wasWildMerge === true; // Flag set during wild merge last merge detection
+        
         // 🔥 CRITICAL: Multiple checks to prevent spawn
-        if (isLastMergeScenario || currentIsLastMerge || busyEnding || onlyMerge6RemainsAfterSrcRemoval || isRegularMerge6LastTwo) {
+        if (isLastMergeScenario || currentIsLastMerge || busyEnding || onlyMerge6RemainsAfterSrcRemoval || isRegularMerge6LastTwo || isWildMerge6LastTwo) {
           console.log('🚨🚨🚨 LAST MERGE: Skipping spawn - preventing new tile spawn', {
             isLastMergeScenario,
             currentIsLastMerge,
             busyEnding,
             onlyMerge6RemainsAfterSrcRemoval,
             isRegularMerge6LastTwo, // 🔥 v40.2: New check for regular merge
+            isWildMerge6LastTwo, // 🔥 v40.5: New check for wild merge
+            wasWildMerge: (dst as any)?._wasWildMerge,
             activeTilesAfterSrcRemoval: activeTilesAfterSrcRemoval.length,
             dstExists: !!dst,
             dstValue: dst?.value,
@@ -3803,8 +3825,9 @@ function merge(src, dst, helpers){
           
           // 🔥 CRITICAL: If we somehow reached here with _isLastMerge set OR only merge 6 remains, trigger clean board flow as safeguard
           // 🔥 CRITICAL FIX v40.2: Also check isRegularMerge6LastTwo for regular merge (non-wild) with 2 tiles
-          if ((currentIsLastMerge || onlyMerge6RemainsAfterSrcRemoval || isRegularMerge6LastTwo) && !busyEnding) {
-            console.warn('⚠️ LAST MERGE: Reached spawn section with _isLastMerge flag set OR only merge 6 remains OR regular merge 6 last two - triggering clean board flow as safeguard');
+          // 🔥 CRITICAL FIX v40.5: Also check isWildMerge6LastTwo for wild merge (wild + regular) with 2 tiles
+          if ((currentIsLastMerge || onlyMerge6RemainsAfterSrcRemoval || isRegularMerge6LastTwo || isWildMerge6LastTwo) && !busyEnding) {
+            console.warn('⚠️ LAST MERGE: Reached spawn section with _isLastMerge flag set OR only merge 6 remains OR regular/wild merge 6 last two - triggering clean board flow as safeguard');
             busyEnding = true;
             
             // Remove dst tile if it still exists

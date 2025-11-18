@@ -335,6 +335,17 @@
 - Fixed `app-core.ts` line 3805: Include `isRegularMerge6LastTwo` in clean board flow trigger
 - **Impact**: Regular merge with 2 tiles now correctly skips spawn and triggers clean board screen
 
+### v40.5 - Wild Merge Last Two Fix (CRITICAL)
+- **ROOT CAUSE FIX**: Wild merge (wild + regular tile) with exactly 2 tiles was not detected as last merge
+- **Problem**: wild + regular tile → merge6 → spawn new tile → fail screen!
+- **Example**: Board has wild + regular tile (last 2) → merge wild + tile → merge6 → spawns new tile → fail!
+- **Expected**: wild + regular tile → merge6 → NO spawn → clean board screen after 1 second
+- Fixed `app-core.ts` line 2379: Set `_wasWildMerge` flag when wild merge is detected as last merge
+- Fixed `app-core.ts` line 3775: Added `isWildMerge6LastTwo` check in spawn skip logic
+- Fixed `app-core.ts` line 3784: Include `isWildMerge6LastTwo` in spawn skip condition
+- Fixed `app-core.ts` line 3829: Include `isWildMerge6LastTwo` in clean board flow trigger
+- **Impact**: Wild merge with 2 tiles now correctly skips spawn and triggers clean board screen
+
 ---
 
 ## 🎯 VERIFICATION CHECKLIST
