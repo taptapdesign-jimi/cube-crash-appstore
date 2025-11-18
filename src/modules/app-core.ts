@@ -3335,19 +3335,41 @@ function merge(src, dst, helpers){
         const isNotLastMergeBeforeDst = !(dst as any)?._isLastMerge;
         
         if (!busyEnding && !isWildMagnetMergeWithPullBeforeDst && !(isRegularWildMergeBeforeDst && isNotLastMergeBeforeDst)) {
-          const beforeDstRemovalContext: EndGameContext = {
-            tiles,
-            moves,
-            makeBoard,
-            dstTile: dst,
-            justRemovedSrc: false
-          };
+          // 🔥 CRITICAL FIX v40: Check for magnet/wild BEFORE calling checkEndGame
+          // If magnet or wild exists on board, it's NOT a last merge - they can merge with merge6
+          // This prevents premature clean board when: wild + tile + magnet → wild merge → magnet + merge6 (before spawn)
+          const activeTilesBeforeCheck = tiles.filter((t: any) => {
+            if (!t || t.destroyed || t.locked) return false;
+            const value = (t.value | 0);
+            const special = t.special;
+            const isWild = special === 'wild' || special === 'wild-magnet';
+            return value > 0 || isWild;
+          });
           
-          // Force refresh for critical check before dst removal
-          const beforeDstRemovalResult = checkEndGame(beforeDstRemovalContext, true);
+          const hasMagnetBeforeCheck = activeTilesBeforeCheck.some((t: any) => t.special === 'wild-magnet');
+          const hasWildBeforeCheck = activeTilesBeforeCheck.some((t: any) => t.special === 'wild');
+          const hasMerge6BeforeCheck = activeTilesBeforeCheck.some((t: any) => t.value === 6);
           
-          // Use centralized checker result - it handles all last merge scenarios
-          if (beforeDstRemovalResult.type === 'clean' && beforeDstRemovalResult.reason === 'last_merge') {
+          // 🔥 CRITICAL: If magnet + merge6 or wild + merge6 exists, skip last merge check
+          // They can merge together, so it's NOT a last merge
+          if ((hasMagnetBeforeCheck && hasMerge6BeforeCheck) || (hasWildBeforeCheck && hasMerge6BeforeCheck)) {
+            console.log('🧲⭐ MAGNET/WILD SAFETY (before dst removal): Magnet/wild + merge6 detected - NOT a last merge, game continues');
+            console.log('🧲⭐ Details:', { hasMagnet: hasMagnetBeforeCheck, hasWild: hasWildBeforeCheck, hasMerge6: hasMerge6BeforeCheck });
+            // Don't call checkEndGame - continue with normal merge 6 flow (spawn, etc.)
+          } else {
+            const beforeDstRemovalContext: EndGameContext = {
+              tiles,
+              moves,
+              makeBoard,
+              dstTile: dst,
+              justRemovedSrc: false
+            };
+            
+            // Force refresh for critical check before dst removal
+            const beforeDstRemovalResult = checkEndGame(beforeDstRemovalContext, true);
+            
+            // Use centralized checker result - it handles all last merge scenarios
+            if (beforeDstRemovalResult.type === 'clean' && beforeDstRemovalResult.reason === 'last_merge') {
             console.log('🚨🚨🚨 LAST MERGE DETECTED (before dst removal, centralized checker) - Only merge 6 remains, triggering clean board flow');
             
             // Set busyEnding flag IMMEDIATELY to prevent any other code from running
@@ -3401,6 +3423,7 @@ function merge(src, dst, helpers){
             }
             return; // Exit early - don't continue with normal merge 6 flow
           }
+          } // End of else block for checkEndGame call
         } else {
           if (busyEnding) {
             console.log('⏳ Last merge check (before dst removal) skipped - busyEnding is true');

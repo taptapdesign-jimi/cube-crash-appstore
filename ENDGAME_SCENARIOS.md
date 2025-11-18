@@ -306,6 +306,14 @@
 - Fixed `app-core.ts` line 2135: STUCK PROTECTION timer also validates stack self-merge
 - **Impact**: stack(5, depth=3) now correctly detected as STUCK → fail screen triggered
 
+### v40 - Wild/Magnet + Merge6 Safety (CRITICAL)
+- **ROOT CAUSE FIX**: checkEndGame was called BEFORE spawn, detecting stuck when magnet/wild + merge6 exists
+- **Problem**: wild + tile + magnet → wild merge → instant fail screen (magnet + merge6 should continue!)
+- **Example**: Board has wild + tile + magnet → merge wild + tile → merge6 created → magnet still on board → fail screen!
+- Fixed `endgame-checker.ts` line 410: Check magnet/wild + merge6 BEFORE isGameStuck
+- Fixed `app-core.ts` line 3355: Check magnet/wild + merge6 BEFORE calling checkEndGame (before dst removal)
+- **Impact**: wild + tile + magnet scenario now correctly continues → spawns new tiles → magnet can be used
+
 ---
 
 ## 🎯 VERIFICATION CHECKLIST

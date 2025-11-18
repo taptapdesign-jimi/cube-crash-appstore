@@ -399,12 +399,37 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
   }
   
 // 4. Check if game is stuck (no merges possible)
+// 🔥 CRITICAL FIX v40: Check for magnet/wild BEFORE isGameStuck
+// If magnet or wild exists, game is NOT stuck - they can always merge
+// This prevents premature fail screen when: wild + tile + magnet → wild merge → magnet + merge6 (before spawn)
+const activeTiles = getActiveTiles(tiles);
+const hasMagnet = activeTiles.some(t => t.special === 'wild-magnet');
+const hasWild = activeTiles.some(t => t.special === 'wild');
+const hasMerge6 = activeTiles.some(t => t.value === 6);
+
+// 🔥 CRITICAL: If magnet + merge6 exists, game can continue (magnet can merge with merge6)
+if (hasMagnet && hasMerge6) {
+  console.log('🧲 EndGameChecker: Magnet + merge6 detected - game can continue (magnet can merge with merge6)');
+  lastCheckResult = { type: 'continue', reason: 'magnet_can_merge_with_merge6' };
+  lastCheckTime = now;
+  lastCheckContextHash = contextHash;
+  return lastCheckResult;
+}
+
+// 🔥 CRITICAL: If wild + merge6 exists, game can continue (wild can merge with merge6)
+if (hasWild && hasMerge6) {
+  console.log('⭐ EndGameChecker: Wild + merge6 detected - game can continue (wild can merge with merge6)');
+  lastCheckResult = { type: 'continue', reason: 'wild_can_merge_with_merge6' };
+  lastCheckTime = now;
+  lastCheckContextHash = contextHash;
+  return lastCheckResult;
+}
+
 if (isGameStuck(context)) {
   console.log('🚨🚨🚨 EndGameChecker: GAME STUCK - no merges possible');
 
   // 🔥 CRITICAL FIX: If only 1 tile remains and it's not merge 6, it's stuck
   // This handles the case where user merges all spawned tiles into one non-6 tile
-  const activeTiles = getActiveTiles(tiles);
   if (activeTiles.length === 1 && activeTiles[0].value !== 6) {
     console.log('🚨🚨🚨 EndGameChecker: SINGLE NON-6 TILE - DEFINITELY STUCK');
     lastCheckResult = { type: 'stuck', reason: 'single_non_6_tile' };
