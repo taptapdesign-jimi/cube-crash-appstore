@@ -14,7 +14,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, startMagnetShake, stopMagnetShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects } from './fx.js';
 import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
 import FX from './fx-helpers.js';
@@ -1477,6 +1477,10 @@ function applyWildSkinLocal(tile){
     try {
       startWildShimmer(tile); // Use shimmer instead of bounce
       startWildStars(tile);
+      // 🔥 NEW: Start magnet shake animation for wild-magnet tiles only
+      if (tile.special === 'wild-magnet') {
+        startMagnetShake(tile);
+      }
     } catch {}
   }catch{}
 }
@@ -5127,8 +5131,13 @@ async function loadGameState() {
           // Always use applyWildSkinLocal to ensure electric glow is added for wild-magnet
           applyWildSkinLocal(tile);
           try { startWildShimmer(tile); } catch {} // Use shimmer instead of idle bounce
+          // 🔥 NEW: Start magnet shake animation for wild-magnet tiles only
+          if (tile.special === 'wild-magnet') {
+            try { startMagnetShake(tile); } catch {}
+          }
         } else {
           try { stopWildShimmer(tile); } catch {}
+          try { stopMagnetShake(tile); } catch {} // Stop magnet shake if tile is no longer wild-magnet
         }
       }
     }

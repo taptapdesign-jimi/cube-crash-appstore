@@ -1510,6 +1510,118 @@ export function stopWildShimmer(tile) {
   tile._wildShimmerSprite = null;
 }
 
+/**
+ * Start magnet shake animation - shakes every 2 seconds
+ * Shakes 10 degrees left-right, extremely fast, 6 revolutions per shake
+ */
+export function startMagnetShake(tile) {
+  if (!tile) return;
+  
+  // Stop existing shake animation
+  if (tile._magnetShakeTl) {
+    tile._magnetShakeTl.kill();
+    tile._magnetShakeTl = null;
+  }
+  
+  const g = tile.rotG || tile;
+  const shakeAngle = 10; // 10 degrees
+  const shakeDuration = 0.06; // Extremely fast - 60ms for 6 revolutions (very fast shake)
+  const revolutions = 6; // 6 revolutions per shake (left-right-left-right-left-right)
+  
+  // Convert degrees to radians
+  const shakeRad = (shakeAngle * Math.PI) / 180;
+  
+  // Create shake animation function
+  const performShake = () => {
+    if (!tile || tile.destroyed || !g) return;
+    
+    // Reset rotation
+    gsap.set(g, { rotation: 0 });
+    
+    // Create extremely fast shake with 6 revolutions
+    // Shake left-right-left-right-left-right 6 times in 60ms (very fast, looks like shaking)
+    const shakeTl = gsap.timeline();
+    
+    // Each revolution is left-right, so 6 revolutions = 12 steps (6 left, 6 right)
+    const stepDuration = shakeDuration / (revolutions * 2); // Very fast per step
+    
+    for (let i = 0; i < revolutions * 2; i++) {
+      const direction = i % 2 === 0 ? 1 : -1; // Alternate left-right
+      
+      shakeTl.to(g, {
+        rotation: direction * shakeRad,
+        duration: stepDuration,
+        ease: 'power1.inOut'
+      });
+    }
+    
+    // Return to center
+    shakeTl.to(g, {
+      rotation: 0,
+      duration: stepDuration,
+      ease: 'power1.inOut'
+    });
+  };
+  
+  // Perform shake immediately
+  performShake();
+  
+  // Schedule shake every 2 seconds
+  const scheduleShake = () => {
+    if (!tile || tile.destroyed) return;
+    
+    const delayedCall = gsap.delayedCall(2.0, () => {
+      if (!tile || tile.destroyed) return;
+      performShake();
+      scheduleShake(); // Schedule next shake
+    });
+    
+    // Store delayed call for cleanup
+    __globalDelayedCalls.add(delayedCall);
+    if (!tile._magnetShakeDelayedCalls) tile._magnetShakeDelayedCalls = [];
+    tile._magnetShakeDelayedCalls.push(delayedCall);
+    tile._magnetShakeTl = delayedCall;
+  };
+  
+  scheduleShake();
+}
+
+/**
+ * Stop magnet shake animation
+ */
+export function stopMagnetShake(tile) {
+  if (!tile) return;
+  
+  // Kill timeline
+  if (tile._magnetShakeTl) {
+    try {
+      tile._magnetShakeTl.kill();
+      __globalDelayedCalls.delete(tile._magnetShakeTl);
+    } catch {}
+    tile._magnetShakeTl = null;
+  }
+  
+  // Kill all delayed calls
+  if (tile._magnetShakeDelayedCalls) {
+    tile._magnetShakeDelayedCalls.forEach(call => {
+      try {
+        call.kill();
+        __globalDelayedCalls.delete(call);
+      } catch {}
+    });
+    tile._magnetShakeDelayedCalls = [];
+  }
+  
+  // Reset rotation
+  const g = tile.rotG || tile;
+  if (g) {
+    try {
+      gsap.killTweensOf(g);
+      gsap.set(g, { rotation: 0 });
+    } catch {}
+  }
+}
+
 export function stopWildIdle(tile){
   if (!tile) return;
   
