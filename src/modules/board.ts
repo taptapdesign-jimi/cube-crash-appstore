@@ -514,7 +514,9 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
   }
   
   // 🔥 EDGE CASE: Single visible tile but it's a stack (depth > 1)
-  // Stack can merge with itself (unless it's merge 6 with depth 1)
+  // Stack can merge with itself ONLY if value + value <= 6
+  // Example: stack(2, depth=3) → 2+2=4 <= 6 → CAN merge ✅
+  // Example: stack(5, depth=3) → 5+5=10 > 6 → CANNOT merge ❌
   if (open.length === 1 && totalTiles >= 2) {
     const singleTile = open[0];
     const value = (singleTile.value || 0);
@@ -522,12 +524,22 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
     
     console.log('🔍 anyMergePossible: Single visible tile is a stack:', { value, stackDepth, totalTiles });
     
-    // Stack can always merge with itself (unless merge 6 with depth 1)
-    if (value !== 6 || stackDepth > 1) {
-      console.log('✅ anyMergePossible: Single stack can merge with itself = TRUE');
+    // 🔥 CRITICAL FIX v39: Check if stack CAN actually merge with itself
+    // Stack can merge with itself ONLY if: value + value <= 6
+    // Special case: merge 6 with depth 1 cannot merge (already max)
+    if (value === 6 && stackDepth === 1) {
+      console.log('❌ anyMergePossible: Single merge 6 with depth 1 = FALSE');
+      return false;
+    }
+    
+    // Check if stack can merge with itself (2 tiles from stack)
+    const canMergeSelf = (value + value) <= 6;
+    
+    if (canMergeSelf && stackDepth >= 2) {
+      console.log('✅ anyMergePossible: Single stack can merge with itself (', value, '+', value, '=', value + value, '<= 6) = TRUE');
       return true;
     } else {
-      console.log('❌ anyMergePossible: Single merge 6 with depth 1 = FALSE');
+      console.log('❌ anyMergePossible: Single stack CANNOT merge with itself (', value, '+', value, '=', value + value, '> 6) = FALSE');
       return false;
     }
   }

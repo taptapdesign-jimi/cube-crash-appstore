@@ -297,6 +297,14 @@
 - Added detailed logging to debug filter issues
 - **Impact**: Magnets now CORRECTLY pull other magnets, wilds, and tiles (max 4)
 
+### v39 - Stack Self-Merge Validation (CRITICAL)
+- **ROOT CAUSE FIX**: Stack self-merge check was incorrect - assumed ALL stacks can merge
+- **Problem**: stack(5, depth=3) was marked as "can merge" but 5+5=10 > 6 (CANNOT merge!)
+- **Example**: 3 tiles → stack(5, depth=3) → game stuck but no fail screen
+- Fixed `board.ts` line 536: Check `value + value <= 6` before allowing self-merge
+- Fixed `endgame-checker.ts` line 262: Same validation in `isGameStuck`
+- **Impact**: stack(5, depth=3) now correctly detected as STUCK → fail screen triggered
+
 ---
 
 ## 🎯 VERIFICATION CHECKLIST
@@ -315,7 +323,8 @@
 | Only wilds (2+) | ❌ Fail | ✅ WORKING |
 | Wild + 1 tile (2 total) → clean | ✅ Clean | ✅ WORKING |
 | Wild + 2 stacks → merge → spawn | ✅ Continue | ✅ FIXED (v36) |
-| Single stack (depth > 1) | ✅ Continue | ✅ FIXED (v36) |
+| Single stack (depth > 1, value <= 3) | ✅ Continue | ✅ FIXED (v36) |
+| Single stack (depth > 1, value > 3) | ❌ Fail | ✅ FIXED (v39) |
 | 3 magnets + tile → pull magnets | ✅ Pull | ✅ FIXED (v37) |
 | Magnet pulls wild/magnet/tiles | ✅ Pull all | ✅ FIXED (v37) |
 

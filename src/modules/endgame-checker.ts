@@ -240,7 +240,9 @@ function isGameStuck(context: EndGameContext): boolean {
   }
   
   // 🔥 EDGE CASE: If only 1 visible tile but it's a stack, check if it can merge with itself
-  // Example: Single stack(5, depth=3) can merge 2 tiles to create stack(6) + 1 leftover
+  // Stack can merge with itself ONLY if value + value <= 6
+  // Example: stack(2, depth=3) → 2+2=4 <= 6 → CAN merge ✅
+  // Example: stack(5, depth=3) → 5+5=10 > 6 → CANNOT merge ❌
   if (activeTiles.length === 1 && totalTilesCount >= 2) {
     const singleTile = activeTiles[0];
     const value = (singleTile.value | 0);
@@ -248,10 +250,23 @@ function isGameStuck(context: EndGameContext): boolean {
     
     console.log('🔍 isGameStuck: Single visible tile is a stack:', { value, stackDepth, totalTilesCount });
     
-    // A stack can always merge with itself (unless it's merge 6 with depth 1)
-    if (value !== 6 || stackDepth > 1) {
-      console.log('✅ isGameStuck: Stack can merge with itself - NOT stuck');
+    // 🔥 CRITICAL FIX v39: Check if stack CAN actually merge with itself
+    // Stack can merge with itself ONLY if: value + value <= 6
+    // Special case: merge 6 with depth 1 cannot merge (already max)
+    if (value === 6 && stackDepth === 1) {
+      console.log('🚨 isGameStuck: Single merge 6 with depth 1 - DEFINITELY STUCK');
+      return true;
+    }
+    
+    // Check if stack can merge with itself (2 tiles from stack)
+    const canMergeSelf = (value + value) <= 6;
+    
+    if (canMergeSelf && stackDepth >= 2) {
+      console.log('✅ isGameStuck: Stack can merge with itself (', value, '+', value, '=', value + value, '<= 6) - NOT stuck');
       return false;
+    } else {
+      console.log('🚨 isGameStuck: Stack CANNOT merge with itself (', value, '+', value, '=', value + value, '> 6) - IS STUCK');
+      return true;
     }
   }
   
