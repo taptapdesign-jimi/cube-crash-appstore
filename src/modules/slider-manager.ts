@@ -37,6 +37,19 @@ class SliderManager {
     dots: {} as NodeListOf<Element>,
     divider: null
   };
+  
+  // 🔥 MEMORY LEAK FIX: Store bound event handlers and unsubscribe functions for cleanup
+  private boundHandlers: {
+    touchStart?: (e: TouchEvent) => void;
+    touchMove?: (e: TouchEvent) => void;
+    touchEnd?: (e: TouchEvent) => void;
+    mouseDown?: (e: MouseEvent) => void;
+    mouseMove?: (e: MouseEvent) => void;
+    mouseUp?: (e: MouseEvent) => void;
+    dotClick?: Map<Element, (e: Event) => void>;
+    navButtonClick?: Map<Element, (e: Event) => void>;
+  } = {};
+  private unsubscribeFunctions: (() => void)[] = [];
 
   constructor() {
     this.currentSlide = 0;
@@ -58,7 +71,11 @@ class SliderManager {
   
   // Initialize slider
   init(): void {
-    if (this.isInitialized) return;
+    // 🔥 MEMORY LEAK FIX: Clean up before reinitializing (prevents duplicate event listeners)
+    if (this.isInitialized) {
+      logger.warn('⚠️ Slider Manager already initialized - cleaning up before reinitializing');
+      this.destroy();
+    }
     
     try {
       // Cache elements
@@ -90,57 +107,73 @@ class SliderManager {
   
   // Setup event listeners
   private setupEventListeners(): void {
-    // Touch events
+    // 🔥 MEMORY LEAK FIX: Store bound handlers for cleanup
     if (this.elements.container) {
-      this.elements.container.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true });
-      this.elements.container.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: true });
-      this.elements.container.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: true });
-    }
-    
-    // Mouse events
-    if (this.elements.container) {
-      this.elements.container.addEventListener('mousedown', this.handleMouseDown.bind(this));
-      this.elements.container.addEventListener('mousemove', this.handleMouseMove.bind(this));
-      this.elements.container.addEventListener('mouseup', this.handleMouseUp.bind(this));
-      this.elements.container.addEventListener('mouseleave', this.handleMouseUp.bind(this));
+      // Touch events
+      this.boundHandlers.touchStart = this.handleTouchStart.bind(this);
+      this.boundHandlers.touchMove = this.handleTouchMove.bind(this);
+      this.boundHandlers.touchEnd = this.handleTouchEnd.bind(this);
+      
+      this.elements.container.addEventListener('touchstart', this.boundHandlers.touchStart, { passive: true });
+      this.elements.container.addEventListener('touchmove', this.boundHandlers.touchMove, { passive: true });
+      this.elements.container.addEventListener('touchend', this.boundHandlers.touchEnd, { passive: true });
+      
+      // Mouse events
+      this.boundHandlers.mouseDown = this.handleMouseDown.bind(this);
+      this.boundHandlers.mouseMove = this.handleMouseMove.bind(this);
+      this.boundHandlers.mouseUp = this.handleMouseUp.bind(this);
+      
+      this.elements.container.addEventListener('mousedown', this.boundHandlers.mouseDown);
+      this.elements.container.addEventListener('mousemove', this.boundHandlers.mouseMove);
+      this.elements.container.addEventListener('mouseup', this.boundHandlers.mouseUp);
+      this.elements.container.addEventListener('mouseleave', this.boundHandlers.mouseUp);
     }
     
     // Navigation dots
+    this.boundHandlers.dotClick = new Map();
     this.elements.dots.forEach((dot, index) => {
-      dot.addEventListener('click', () => {
+      const handler = () => {
         // Light haptic for nav dots
         if (typeof (window as any).triggerHapticImpact === 'function') {
           (window as any).triggerHapticImpact('light');
         }
         this.goToSlide(index);
-      });
+      };
+      this.boundHandlers.dotClick!.set(dot, handler);
+      dot.addEventListener('click', handler);
     });
     
     // Independent navigation buttons
+    this.boundHandlers.navButtonClick = new Map();
     const navButtons = document.querySelectorAll('.independent-nav-button');
     navButtons.forEach((button, index) => {
-      button.addEventListener('click', () => {
+      const handler = () => {
         // Light haptic for nav buttons
         if (typeof (window as any).triggerHapticImpact === 'function') {
           (window as any).triggerHapticImpact('light');
         }
         this.goToSlide(index);
-      });
+      };
+      this.boundHandlers.navButtonClick!.set(button, handler);
+      button.addEventListener('click', handler);
     });
   }
   
   // Setup state subscriptions
   private setupStateSubscriptions(): void {
+    // 🔥 MEMORY LEAK FIX: Store unsubscribe functions for cleanup
     // Slider locked state
-    gameState.subscribe('sliderLocked', (isLocked: boolean) => {
+    const unsubscribeSliderLocked = gameState.subscribe('sliderLocked', (isLocked: boolean) => {
       this.updateSliderLockState(isLocked);
     });
+    this.unsubscribeFunctions.push(unsubscribeSliderLocked);
     
     // Current slide state
-    gameState.subscribe('currentSlide', (slide: number) => {
+    const unsubscribeCurrentSlide = gameState.subscribe('currentSlide', (slide: number) => {
       this.currentSlide = slide;
       this.updateSlider();
     });
+    this.unsubscribeFunctions.push(unsubscribeCurrentSlide);
   }
   
   // Handle touch start
@@ -354,6 +387,56 @@ class SliderManager {
   
   // Cleanup
   destroy(): void {
+    // 🔥 MEMORY LEAK FIX: Remove all event listeners
+    if (this.elements.container) {
+      // Remove touch events
+      if (this.boundHandlers.touchStart) {
+        this.elements.container.removeEventListener('touchstart', this.boundHandlers.touchStart);
+      }
+      if (this.boundHandlers.touchMove) {
+        this.elements.container.removeEventListener('touchmove', this.boundHandlers.touchMove);
+      }
+      if (this.boundHandlers.touchEnd) {
+        this.elements.container.removeEventListener('touchend', this.boundHandlers.touchEnd);
+      }
+      
+      // Remove mouse events
+      if (this.boundHandlers.mouseDown) {
+        this.elements.container.removeEventListener('mousedown', this.boundHandlers.mouseDown);
+      }
+      if (this.boundHandlers.mouseMove) {
+        this.elements.container.removeEventListener('mousemove', this.boundHandlers.mouseMove);
+      }
+      if (this.boundHandlers.mouseUp) {
+        this.elements.container.removeEventListener('mouseup', this.boundHandlers.mouseUp);
+        this.elements.container.removeEventListener('mouseleave', this.boundHandlers.mouseUp);
+      }
+    }
+    
+    // Remove dot click listeners
+    if (this.boundHandlers.dotClick) {
+      this.boundHandlers.dotClick.forEach((handler, dot) => {
+        dot.removeEventListener('click', handler);
+      });
+      this.boundHandlers.dotClick.clear();
+    }
+    
+    // Remove nav button click listeners
+    if (this.boundHandlers.navButtonClick) {
+      this.boundHandlers.navButtonClick.forEach((handler, button) => {
+        button.removeEventListener('click', handler);
+      });
+      this.boundHandlers.navButtonClick.clear();
+    }
+    
+    // Unsubscribe from gameState
+    this.unsubscribeFunctions.forEach(unsubscribe => unsubscribe());
+    this.unsubscribeFunctions = [];
+    
+    // Clear bound handlers
+    this.boundHandlers = {};
+    
+    // Clear elements
     this.elements = {
       container: null,
       wrapper: null,
@@ -362,6 +445,8 @@ class SliderManager {
       divider: null
     };
     this.isInitialized = false;
+    
+    logger.info('🧹 Slider Manager cleaned up');
   }
 }
 
