@@ -335,6 +335,16 @@
 - Fixed `app-core.ts` line 3805: Include `isRegularMerge6LastTwo` in clean board flow trigger
 - **Impact**: Regular merge with 2 tiles now correctly skips spawn and triggers clean board screen
 
+### v40.7 - Prevent Wild Meter Fill and Spawn on Last Merge (CRITICAL)
+- **ROOT CAUSE FIX**: Wild meter se puni i wild spawn se izvršava na last merge (zadnje 2 kockice), što dovodi do wild/magnet spawna prije clean board screena
+- **Problem**: Last merge (2 tiles) → merge6 → wild meter se puni → wild spawn → nova kockica (wild/magnet) pada na board prije clean board!
+- **Example**: Board has 2 tiles (regular, wild, or magnet) → merge → merge6 → wild meter se puni → wild spawn → nova kockica pada → clean board screen (prekasno!)
+- **Expected**: Last merge (2 tiles) → merge6 → wild meter se NE puni → wild spawn se NE izvršava → clean board screen (bez wild spawna)
+- Fixed `app-merge.ts` line 1433: Skip wild meter fill if `_isLastMerge` flag is set
+- Fixed `app-core.ts` line 271: Skip wild spawn queue if last merge tile exists
+- Fixed `app-core.ts` line 1716: Skip wild spawn execution if last merge tile exists
+- **Impact**: Wild meter se ne puni na last merge, wild spawn se ne izvršava na last merge, clean board screen se pojavljuje bez prethodnog wild spawna
+
 ### v40.6 - Spawn on Occupied Cell Fix (CRITICAL)
 - **ROOT CAUSE FIX**: Spawning on occupied cells (locked tiles with value > 0 or wild tiles) causes "2 tiles on same position" bug
 - **Problem**: Magnet pull → spawn new tile (wild) → spawnala se ispod već aktivne obične kockice → visual bug: 2 kockice jedna ispod druge

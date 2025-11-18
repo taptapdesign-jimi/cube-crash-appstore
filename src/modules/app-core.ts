@@ -267,6 +267,16 @@ let allowWildDecrease = false;
 function queueWildSpawnIfNeeded(){
   if (wildSpawnInProgress) return;
   if (wildMeter < 1) return;
+  
+  // 🔥 CRITICAL FIX v40.7: Skip wild spawn if last merge is in progress
+  // Problem: Last merge (2 tiles) → merge6 → wild meter se puni → wild spawn → nova kockica na board prije clean board!
+  // Solution: Provjeri da li postoji merge6 tile s _isLastMerge flag-om
+  const hasLastMergeTile = STATE.tiles.some((t: any) => t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true);
+  if (hasLastMergeTile) {
+    console.log('🚨🚨🚨 LAST MERGE: Skipping wild spawn - prevent wild spawn before clean board');
+    console.log('🚨🚨🚨 Wild spawn will NOT be queued, preventing wild spawn on last merge');
+    return;
+  }
 
   console.log('🎯 Wild meter ready – queueing wild spawn');
   wildSpawnInProgress = true;
@@ -1700,6 +1710,16 @@ const WILD_MAGNET_SPAWN_CHANCE = 0.3; // 30% chance new wild is a magnet
 async function spawnWildFromMeter(){
   if (wildMeter < 1) {
     console.log('⚠️ spawnWildFromMeter called without enough charge. Raw meter:', wildMeter);
+    return false;
+  }
+  
+  // 🔥 CRITICAL FIX v40.7: Skip wild spawn if last merge is in progress
+  // Problem: Last merge (2 tiles) → merge6 → wild meter se puni → wild spawn → nova kockica na board prije clean board!
+  // Solution: Provjeri da li postoji merge6 tile s _isLastMerge flag-om
+  const hasLastMergeTile = STATE.tiles.some((t: any) => t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true);
+  if (hasLastMergeTile) {
+    console.log('🚨🚨🚨 LAST MERGE: Skipping wild spawn - prevent wild spawn before clean board');
+    console.log('🚨🚨🚨 Wild spawn will NOT be executed, preventing wild spawn on last merge');
     return false;
   }
 

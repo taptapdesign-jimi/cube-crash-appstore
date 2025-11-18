@@ -1430,17 +1430,27 @@ export function merge(src, dst, helpers){
       }
     }
 
+    // 🔥 CRITICAL FIX v40.7: Skip wild meter fill if this is last merge (zadnje 2 kockice)
+    // Problem: Last merge (2 tiles) → merge6 → wild meter se puni → wild spawn → nova kockica na board prije clean board!
+    // Solution: Provjeri _isLastMerge flag - ako je postavljen, ne puni wild meter
+    const isLastMerge = (dst as any)?._isLastMerge === true;
+    
     // meter + little bounce on score
-    const inc = 0.13; // ~7.7 small merges to full (promijenjeno sa 0.25 na 0.13)
-    const previous = STATE.wildMeter || 0;
-    STATE.wildMeter = Math.max(0, previous + inc);
-    const displayRatio = Math.min(1, STATE.wildMeter);
-    console.log('🔥 MERGE: Updating wild meter raw to:', STATE.wildMeter, 'display:', displayRatio, 'inc:', inc);
-    if (updateProgressBar) {
-      updateProgressBar(displayRatio, true);
-      console.log('✅ MERGE: updateProgressBar called successfully');
+    if (!isLastMerge) {
+      const inc = 0.13; // ~7.7 small merges to full (promijenjeno sa 0.25 na 0.13)
+      const previous = STATE.wildMeter || 0;
+      STATE.wildMeter = Math.max(0, previous + inc);
+      const displayRatio = Math.min(1, STATE.wildMeter);
+      console.log('🔥 MERGE: Updating wild meter raw to:', STATE.wildMeter, 'display:', displayRatio, 'inc:', inc);
+      if (updateProgressBar) {
+        updateProgressBar(displayRatio, true);
+        console.log('✅ MERGE: updateProgressBar called successfully');
+      } else {
+        console.error('❌ MERGE: updateProgressBar is not defined!');
+      }
     } else {
-      console.error('❌ MERGE: updateProgressBar is not defined!');
+      console.log('🚨🚨🚨 LAST MERGE: Skipping wild meter fill - prevent wild spawn before clean board');
+      console.log('🚨🚨🚨 Wild meter will NOT be filled, preventing wild spawn on last merge');
     }
 
     gsap.to(src, {
