@@ -2327,6 +2327,14 @@ function merge(src, dst, helpers){
     const isLastMergeableTiles = allTilesInvolved && canMergeTogether && 
                                  (!wildActive || activeTilesCount === 2); // If wild, only last merge if 2 tiles total
     
+    // 🔥 CRITICAL FIX v40.2: Explicit check for regular merge (non-wild) with exactly 2 tiles
+    // This handles the case: 2 regular tiles → merge 6 → should be last merge (clean board)
+    const isRegularMergeLastTwo = !wildActive && 
+                                  activeTilesCount === 2 && 
+                                  activeTilesBeforeMerge.includes(src) && 
+                                  activeTilesBeforeMerge.includes(dst) &&
+                                  (src.value|0) + (dst.value|0) === 6; // Sum equals 6
+    
     // 🔥 CRITICAL: Check if this is last merge (wild + regular = last 2 tiles)
     // 🔥 ENHANCED: Prioritize regular wild last two check (most common scenario)
     // 🔥 KEY FIX: For wild merge, ONLY mark as last merge if exactly 2 tiles total
@@ -2337,10 +2345,11 @@ function merge(src, dst, helpers){
       isWildRegularLastTwo,
       isLastMergeableTiles,
       isWildLastTileMerge,
-      willMarkAsLastMerge: isRegularWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge
+      isRegularMergeLastTwo, // 🔥 v40.2: New check for regular merge
+      willMarkAsLastMerge: isRegularWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge || isRegularMergeLastTwo
     });
     
-    if (isRegularWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge) {
+    if (isRegularWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge || isRegularMergeLastTwo) {
       console.log('🚨🚨🚨 LAST MERGE DETECTED (BEFORE merge 6 animation) - ALL', activeTilesCount, 'tiles are involved in merge 6');
       console.log('🚨🚨🚨 Last merge details:', {
         activeTilesCount,
@@ -3740,13 +3749,25 @@ function merge(src, dst, helpers){
                                   !hasMagnetAfterSrcRemoval && // 🔥 v40.1: Magnet can merge with merge6
                                   !hasWildAfterSrcRemoval;     // 🔥 v40.1: Wild can merge with merge6
         
+        // 🔥 CRITICAL FIX v40.2: Explicit check for regular merge (non-wild) with exactly 2 tiles
+        // This handles the case: 2 regular tiles → merge 6 → should skip spawn (clean board)
+        // Check if dst is merge 6 and there are no other active tiles (excluding locked placeholders)
+        const isRegularMerge6LastTwo = dst && 
+                                       dst.value === 6 && 
+                                       activeTilesAfterSrcRemoval.length === 1 && 
+                                       activeTilesAfterSrcRemoval[0] === dst &&
+                                       !hasMagnetAfterSrcRemoval &&
+                                       !hasWildAfterSrcRemoval &&
+                                       !(dst.special === 'wild' || dst.special === 'wild-magnet'); // Not a wild merge
+        
         // 🔥 CRITICAL: Multiple checks to prevent spawn
-        if (isLastMergeScenario || currentIsLastMerge || busyEnding || onlyMerge6RemainsAfterSrcRemoval) {
+        if (isLastMergeScenario || currentIsLastMerge || busyEnding || onlyMerge6RemainsAfterSrcRemoval || isRegularMerge6LastTwo) {
           console.log('🚨🚨🚨 LAST MERGE: Skipping spawn - preventing new tile spawn', {
             isLastMergeScenario,
             currentIsLastMerge,
             busyEnding,
             onlyMerge6RemainsAfterSrcRemoval,
+            isRegularMerge6LastTwo, // 🔥 v40.2: New check for regular merge
             activeTilesAfterSrcRemoval: activeTilesAfterSrcRemoval.length,
             dstExists: !!dst,
             dstValue: dst?.value,
@@ -3773,14 +3794,17 @@ function merge(src, dst, helpers){
             removeTile(placeholderHolder);
             
             // Clear reference
-            (dst as any)?._placeholderHolder = undefined;
+            if (dst) {
+              (dst as any)._placeholderHolder = undefined;
+            }
             
             console.log('✅ Placeholder removed (spawn skipped)');
           }
           
           // 🔥 CRITICAL: If we somehow reached here with _isLastMerge set OR only merge 6 remains, trigger clean board flow as safeguard
-          if ((currentIsLastMerge || onlyMerge6RemainsAfterSrcRemoval) && !busyEnding) {
-            console.warn('⚠️ LAST MERGE: Reached spawn section with _isLastMerge flag set OR only merge 6 remains - triggering clean board flow as safeguard');
+          // 🔥 CRITICAL FIX v40.2: Also check isRegularMerge6LastTwo for regular merge (non-wild) with 2 tiles
+          if ((currentIsLastMerge || onlyMerge6RemainsAfterSrcRemoval || isRegularMerge6LastTwo) && !busyEnding) {
+            console.warn('⚠️ LAST MERGE: Reached spawn section with _isLastMerge flag set OR only merge 6 remains OR regular merge 6 last two - triggering clean board flow as safeguard');
             busyEnding = true;
             
             // Remove dst tile if it still exists
@@ -3859,19 +3883,19 @@ function merge(src, dst, helpers){
         
         // 🔥 CRITICAL FIX v40.1: Clean up unused placeholder if it wasn't used in spawn
         // Placeholder might not be used if spawnMult = 0 or if placeholder was excluded
-        const placeholderHolder = (dst as any)?._placeholderHolder;
-        if (placeholderHolder && !placeholderHolder.destroyed) {
+        const placeholderHolderAfterSpawn = (dst as any)?._placeholderHolder;
+        if (placeholderHolderAfterSpawn && !placeholderHolderAfterSpawn.destroyed) {
           // Check if placeholder is still locked (wasn't used in spawn)
-          if (placeholderHolder.locked && (placeholderHolder.value | 0) === 0) {
-            console.log('🧹 Cleaning up unused placeholder at (', placeholderHolder.gridX, ',', placeholderHolder.gridY, ')');
+          if (placeholderHolderAfterSpawn.locked && (placeholderHolderAfterSpawn.value | 0) === 0) {
+            console.log('🧹 Cleaning up unused placeholder at (', placeholderHolderAfterSpawn.gridX, ',', placeholderHolderAfterSpawn.gridY, ')');
             
             // Remove from grid
-            if (placeholderHolder.gridX !== undefined && placeholderHolder.gridY !== undefined && grid && grid[placeholderHolder.gridY]) {
-              grid[placeholderHolder.gridY][placeholderHolder.gridX] = null;
+            if (placeholderHolderAfterSpawn.gridX !== undefined && placeholderHolderAfterSpawn.gridY !== undefined && grid && grid[placeholderHolderAfterSpawn.gridY]) {
+              grid[placeholderHolderAfterSpawn.gridY][placeholderHolderAfterSpawn.gridX] = null;
             }
             
             // Remove from tiles array
-            removeTile(placeholderHolder);
+            removeTile(placeholderHolderAfterSpawn);
             
             console.log('✅ Unused placeholder removed successfully');
           } else {
@@ -3879,7 +3903,9 @@ function merge(src, dst, helpers){
           }
           
           // Clear reference
-          (dst as any)._placeholderHolder = undefined;
+          if (dst) {
+            (dst as any)._placeholderHolder = undefined;
+          }
         }
         
         // 🔥 CRITICAL: NOW remove dst tile after spawn completes

@@ -323,6 +323,18 @@
 - Fixed `app-core.ts` line 3740: Check magnet/wild in onlyMerge6RemainsAfterSrcRemoval (prevent spawn skip)
 - **Impact**: Placeholders now correctly removed, no more ghost tiles on board
 
+### v40.2 - Regular Merge Last Two Fix (CRITICAL)
+- **ROOT CAUSE FIX**: Regular merge (non-wild) with exactly 2 tiles was not detected as last merge
+- **Problem**: 2 regular tiles → merge6 → spawn new tile → stuck position → no clean board screen!
+- **Example**: Board has 2 regular tiles (e.g., 3+3) → merge → merge6 → spawns new tile → stuck!
+- **Expected**: 2 regular tiles → merge6 → NO spawn → clean board screen after 1 second
+- Fixed `app-core.ts` line 2332: Added `isRegularMergeLastTwo` check for regular merge (non-wild) with exactly 2 tiles
+- Fixed `app-core.ts` line 2352: Include `isRegularMergeLastTwo` in last merge detection
+- Fixed `app-core.ts` line 3755: Added `isRegularMerge6LastTwo` check in spawn skip logic
+- Fixed `app-core.ts` line 3764: Include `isRegularMerge6LastTwo` in spawn skip condition
+- Fixed `app-core.ts` line 3805: Include `isRegularMerge6LastTwo` in clean board flow trigger
+- **Impact**: Regular merge with 2 tiles now correctly skips spawn and triggers clean board screen
+
 ---
 
 ## 🎯 VERIFICATION CHECKLIST

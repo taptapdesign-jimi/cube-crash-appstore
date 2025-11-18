@@ -807,7 +807,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
           }
           iconSprite.alpha = 0.8;
           closeButtonContainer.addChild(iconSprite);
-          
+  
           // Store reference
           closeIconSprite = closeButtonContainer;
           

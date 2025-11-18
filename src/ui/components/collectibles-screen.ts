@@ -213,16 +213,16 @@ export function createCollectiblesDetailModal(): HTMLElementConfig {
                 ],
               },
             ],
-          },
+              },
             ],
           },
           {
             tag: 'div',
             className: 'detail-scrollable',
                 children: [
-              {
-                tag: 'div',
-                id: 'detail-card-image',
+                  {
+                    tag: 'div',
+                    id: 'detail-card-image',
                 className: 'detail-image',
               },
               {

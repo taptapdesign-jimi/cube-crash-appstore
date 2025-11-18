@@ -222,23 +222,23 @@ function startExitAnimationSequence(): void {
     const slideTagline = activeSlide.querySelector('.slide-tagline');
     const timeout = setTimeout(() => {
       activeTimeouts.delete(timeout);
-      if (slideButton) {
+    if (slideButton) {
         slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
         void slideButton.offsetHeight;
         slideButton.classList.add('animate-exit');
-        logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND');
-      } else {
-        logger.warn('⚠️ CTA button not found in active slide');
-      }
-      
-      if (slideText) {
+      logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND');
+    } else {
+      logger.warn('⚠️ CTA button not found in active slide');
+    }
+    
+    if (slideText) {
         slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
         void slideText.offsetHeight;
         slideText.classList.add('animate-exit');
         logger.info('📝 Step 2: Slide text cartoonish bounce - TOGETHER with CTA');
-      } else {
-        logger.warn('⚠️ Slide text not found in active slide');
-      }
+    } else {
+      logger.warn('⚠️ Slide text not found in active slide');
+    }
       
       // Animate tagline together with text and CTA
       if (slideTagline) {
@@ -296,14 +296,14 @@ function startExitAnimationSequenceLegacy(): void {
   
   const timeout = setTimeout(() => {
     activeTimeouts.delete(timeout);
-    if (slideButton) {
+  if (slideButton) {
       slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
       void slideButton.offsetHeight;
       slideButton.classList.add('animate-exit');
-      logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND (legacy)');
-    }
-    
-    if (slideText) {
+    logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND (legacy)');
+  }
+  
+  if (slideText) {
       slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
       void slideText.offsetHeight;
       slideText.classList.add('animate-exit');
@@ -316,7 +316,7 @@ function startExitAnimationSequenceLegacy(): void {
       void (slideTagline as HTMLElement).offsetHeight;
       (slideTagline as HTMLElement).classList.add('animate-exit');
       logger.info('📝 Step 2: Slide tagline cartoonish bounce - TOGETHER with text and CTA (legacy)');
-    }
+  }
   }, 30);
   activeTimeouts.add(timeout);
   
@@ -458,17 +458,17 @@ function startEnterAnimationSequence(): void {
         slideText.classList.remove('animate-enter-initial');
         slideText.classList.add('animate-enter');
         logger.info('📝 Step 3: Slide text cartoonish bounce - TOGETHER with CTA');
-      } else {
-        logger.warn('⚠️ Slide text not found in active slide');
-      }
-      
-      if (slideButton) {
+    } else {
+      logger.warn('⚠️ Slide text not found in active slide');
+    }
+    
+    if (slideButton) {
         slideButton.classList.remove('animate-enter-initial');
         slideButton.classList.add('animate-enter');
         logger.info('🔘 Step 3: CTA button cartoonish bounce - TOGETHER with text');
-      } else {
-        logger.warn('⚠️ CTA button not found in active slide');
-      }
+    } else {
+      logger.warn('⚠️ CTA button not found in active slide');
+    }
       
       // Animate tagline together with text and CTA
       if (slideTagline) {
@@ -598,7 +598,7 @@ function startEnterAnimationSequenceLegacy(): void {
       (slideTagline as HTMLElement).classList.remove('animate-enter-initial');
       (slideTagline as HTMLElement).classList.add('animate-enter');
       logger.info('📝 Step 3: Slide tagline cartoonish bounce - TOGETHER with text and CTA (legacy)');
-    }
+  }
   }, 60);
   activeTimeouts.add(enterTimeout);
   
