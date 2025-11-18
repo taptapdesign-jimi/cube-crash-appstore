@@ -1511,9 +1511,10 @@ export function stopWildShimmer(tile) {
 }
 
 /**
- * Start magnet shake animation - continuous shaking with no pause
+ * Start magnet shake animation - idle shake every 3 seconds
+ * Each magnet has random shake parameters (angle, translate range, duration)
  * Shakes 10.5 degrees left-right (5% more), random up-down and left-right translation
- * Extremely fast, 6 revolutions per shake, continuous loop
+ * Slower animation (80% slower), 6 revolutions per shake, 3 second pause between shakes
  */
 export function startMagnetShake(tile) {
   if (!tile) return;
@@ -1525,21 +1526,33 @@ export function startMagnetShake(tile) {
   }
   
   const g = tile.rotG || tile;
-  const shakeAngle = 10.5; // 10.5 degrees (5% more than 10)
-  const shakeDuration = 0.06; // Extremely fast - 60ms for 6 revolutions (very fast shake)
+  
+  // 🔥 NEW: Random shake parameters for each magnet (makes each magnet unique)
+  // Store random parameters on tile so they persist across shake cycles
+  if (tile._magnetShakeAngle === undefined) {
+    // Random shake angle: 8-12 degrees (base 10.5 with variation)
+    tile._magnetShakeAngle = 10.5 + (Math.random() - 0.5) * 4; // 8.5 to 12.5 degrees
+    // Random translate range: 1.5-2.5 pixels
+    tile._magnetShakeTranslateRange = 1.5 + Math.random() * 1.0; // 1.5 to 2.5 pixels
+    // Random duration multiplier: 0.9-1.1x (slight variation in speed)
+    tile._magnetShakeDurationMultiplier = 0.9 + Math.random() * 0.2; // 0.9 to 1.1
+  }
+  
+  const shakeAngle = tile._magnetShakeAngle;
+  const shakeDuration = 0.06 * 1.8 * tile._magnetShakeDurationMultiplier; // 80% slower: 60ms * 1.8 = 108ms base, with random variation
   const revolutions = 6; // 6 revolutions per shake (left-right-left-right-left-right)
-  const translateRange = 2; // Random translate range: ±2 pixels (gore-dolje, lijevo-desno)
+  const translateRange = tile._magnetShakeTranslateRange; // Random translate range per magnet
   
   // Convert degrees to radians
   const shakeRad = (shakeAngle * Math.PI) / 180;
   
-  // Create continuous shake animation
-  const createShakeLoop = () => {
+  // Create shake animation function
+  const performShake = () => {
     if (!tile || tile.destroyed || !g) return;
     
     // Random translate values for this shake cycle (gore-dolje, lijevo-desno)
-    const randomX = (Math.random() - 0.5) * translateRange * 2; // -2 to +2 pixels
-    const randomY = (Math.random() - 0.5) * translateRange * 2; // -2 to +2 pixels
+    const randomX = (Math.random() - 0.5) * translateRange * 2; // -translateRange to +translateRange pixels
+    const randomY = (Math.random() - 0.5) * translateRange * 2; // -translateRange to +translateRange pixels
     
     // 🔥 CRITICAL: Store original position to restore it after shake
     // Use a property to track original position if not already set
@@ -1551,18 +1564,12 @@ export function startMagnetShake(tile) {
     const originalX = g._originalShakeX;
     const originalY = g._originalShakeY;
     
-    // Create extremely fast shake with 6 revolutions
-    // Shake left-right-left-right-left-right 6 times in 60ms (very fast, looks like shaking)
-    const shakeTl = gsap.timeline({
-      onComplete: () => {
-        // Immediately start next shake cycle (no pause - continuous)
-        if (!tile || tile.destroyed) return;
-        createShakeLoop();
-      }
-    });
+    // Create shake with 6 revolutions
+    // Shake left-right-left-right-left-right 6 times (slower, looks like shaking)
+    const shakeTl = gsap.timeline();
     
     // Each revolution is left-right, so 6 revolutions = 12 steps (6 left, 6 right)
-    const stepDuration = shakeDuration / (revolutions * 2); // Very fast per step
+    const stepDuration = shakeDuration / (revolutions * 2);
     
     // Add random translate at the start (gore-dolje, lijevo-desno)
     shakeTl.set(g, { 
@@ -1588,13 +1595,29 @@ export function startMagnetShake(tile) {
       duration: stepDuration,
       ease: 'power1.inOut'
     });
-    
-    // Store timeline for cleanup
-    tile._magnetShakeTl = shakeTl;
   };
   
-  // Start continuous shake loop immediately
-  createShakeLoop();
+  // Perform shake immediately
+  performShake();
+  
+  // Schedule shake every 3 seconds (idle shake with pause)
+  const scheduleShake = () => {
+    if (!tile || tile.destroyed) return;
+    
+    const delayedCall = gsap.delayedCall(3.0, () => {
+      if (!tile || tile.destroyed) return;
+      performShake();
+      scheduleShake(); // Schedule next shake after 3 seconds
+    });
+    
+    // Store delayed call for cleanup
+    __globalDelayedCalls.add(delayedCall);
+    if (!tile._magnetShakeDelayedCalls) tile._magnetShakeDelayedCalls = [];
+    tile._magnetShakeDelayedCalls.push(delayedCall);
+    tile._magnetShakeTl = delayedCall;
+  };
+  
+  scheduleShake();
 }
 
 /**
@@ -1636,6 +1659,11 @@ export function stopMagnetShake(tile) {
       g._originalShakeY = undefined;
     } catch {}
   }
+  
+  // Clear random shake parameters
+  tile._magnetShakeAngle = undefined;
+  tile._magnetShakeTranslateRange = undefined;
+  tile._magnetShakeDurationMultiplier = undefined;
 }
 
 export function stopWildIdle(tile){
