@@ -1512,8 +1512,8 @@ export function stopWildShimmer(tile) {
 
 /**
  * Start magnet shake animation - idle shake every 3 seconds
- * Each magnet has random shake parameters (angle, translate range, duration)
- * Shakes 10.5 degrees left-right (5% more), random up-down and left-right translation
+ * Each magnet has random shake parameters (angle, duration)
+ * Shakes using rotation only (does NOT modify tile position - keeps tile on board!)
  * Slower animation (80% slower), 6 revolutions per shake, 3 second pause between shakes
  */
 export function startMagnetShake(tile) {
@@ -1532,8 +1532,6 @@ export function startMagnetShake(tile) {
   if (tile._magnetShakeAngle === undefined) {
     // Random shake angle: 8-12 degrees (base 10.5 with variation)
     tile._magnetShakeAngle = 10.5 + (Math.random() - 0.5) * 4; // 8.5 to 12.5 degrees
-    // Random translate range: 1.5-2.5 pixels
-    tile._magnetShakeTranslateRange = 1.5 + Math.random() * 1.0; // 1.5 to 2.5 pixels
     // Random duration multiplier: 0.9-1.1x (slight variation in speed)
     tile._magnetShakeDurationMultiplier = 0.9 + Math.random() * 0.2; // 0.9 to 1.1
   }
@@ -1541,7 +1539,6 @@ export function startMagnetShake(tile) {
   const shakeAngle = tile._magnetShakeAngle;
   const shakeDuration = 0.06 * 1.8 * tile._magnetShakeDurationMultiplier; // 80% slower: 60ms * 1.8 = 108ms base, with random variation
   const revolutions = 6; // 6 revolutions per shake (left-right-left-right-left-right)
-  const translateRange = tile._magnetShakeTranslateRange; // Random translate range per magnet
   
   // Convert degrees to radians
   const shakeRad = (shakeAngle * Math.PI) / 180;
@@ -1550,19 +1547,17 @@ export function startMagnetShake(tile) {
   const performShake = () => {
     if (!tile || tile.destroyed || !g) return;
     
-    // Random translate values for this shake cycle (gore-dolje, lijevo-desno)
-    const randomX = (Math.random() - 0.5) * translateRange * 2; // -translateRange to +translateRange pixels
-    const randomY = (Math.random() - 0.5) * translateRange * 2; // -translateRange to +translateRange pixels
-    
-    // 🔥 CRITICAL: Store original position to restore it after shake
-    // Use a property to track original position if not already set
-    if (g._originalShakeX === undefined) {
-      g._originalShakeX = g.x || 0;
-      g._originalShakeY = g.y || 0;
+    // 🔥 CRITICAL: Don't modify tile position (x, y) - that moves tile off board!
+    // Instead, use only rotation for shake effect
+    // Store original rotation to restore it after shake
+    if (g._originalShakeRotation === undefined) {
+      g._originalShakeRotation = g.rotation || 0;
     }
     
-    const originalX = g._originalShakeX;
-    const originalY = g._originalShakeY;
+    const originalRotation = g._originalShakeRotation;
+    
+    // Random rotation offset for this shake cycle (adds variation)
+    const randomRotationOffset = (Math.random() - 0.5) * 0.1; // Small random offset: ±0.05 radians (~±3 degrees)
     
     // Create shake with 6 revolutions
     // Shake left-right-left-right-left-right 6 times (slower, looks like shaking)
@@ -1571,27 +1566,24 @@ export function startMagnetShake(tile) {
     // Each revolution is left-right, so 6 revolutions = 12 steps (6 left, 6 right)
     const stepDuration = shakeDuration / (revolutions * 2);
     
-    // Add random translate at the start (gore-dolje, lijevo-desno)
+    // Start from original rotation with small random offset
     shakeTl.set(g, { 
-      x: originalX + randomX, 
-      y: originalY + randomY 
+      rotation: originalRotation + randomRotationOffset
     });
     
     for (let i = 0; i < revolutions * 2; i++) {
       const direction = i % 2 === 0 ? 1 : -1; // Alternate left-right
       
       shakeTl.to(g, {
-        rotation: direction * shakeRad,
+        rotation: originalRotation + (direction * shakeRad) + randomRotationOffset,
         duration: stepDuration,
         ease: 'power1.inOut'
       });
     }
     
-    // Return to center rotation and reset translate to original position
+    // Return to original rotation
     shakeTl.to(g, {
-      rotation: 0,
-      x: originalX,
-      y: originalY,
+      rotation: originalRotation,
       duration: stepDuration,
       ease: 'power1.inOut'
     });
@@ -1645,24 +1637,21 @@ export function stopMagnetShake(tile) {
     tile._magnetShakeDelayedCalls = [];
   }
   
-  // Reset rotation and position
+  // Reset rotation only (don't touch position - that would move tile off board!)
   const g = tile.rotG || tile;
   if (g) {
     try {
       gsap.killTweensOf(g);
-      // Reset to original position if stored, otherwise 0
-      const resetX = g._originalShakeX !== undefined ? g._originalShakeX : 0;
-      const resetY = g._originalShakeY !== undefined ? g._originalShakeY : 0;
-      gsap.set(g, { rotation: 0, x: resetX, y: resetY });
-      // Clear stored original position
-      g._originalShakeX = undefined;
-      g._originalShakeY = undefined;
+      // Reset to original rotation if stored, otherwise 0
+      const resetRotation = g._originalShakeRotation !== undefined ? g._originalShakeRotation : 0;
+      gsap.set(g, { rotation: resetRotation });
+      // Clear stored original rotation
+      g._originalShakeRotation = undefined;
     } catch {}
   }
   
   // Clear random shake parameters
   tile._magnetShakeAngle = undefined;
-  tile._magnetShakeTranslateRange = undefined;
   tile._magnetShakeDurationMultiplier = undefined;
 }
 
