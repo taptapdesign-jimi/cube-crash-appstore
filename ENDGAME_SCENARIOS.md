@@ -335,6 +335,17 @@
 - Fixed `app-core.ts` line 3805: Include `isRegularMerge6LastTwo` in clean board flow trigger
 - **Impact**: Regular merge with 2 tiles now correctly skips spawn and triggers clean board screen
 
+### v40.6 - Spawn on Occupied Cell Fix (CRITICAL)
+- **ROOT CAUSE FIX**: Spawning on occupied cells (locked tiles with value > 0 or wild tiles) causes "2 tiles on same position" bug
+- **Problem**: Magnet pull → spawn new tile (wild) → spawnala se ispod već aktivne obične kockice → visual bug: 2 kockice jedna ispod druge
+- **Example**: Board has active tile at (c, r) → magnet pull spawn → wild tile spawns at (c, r) → 2 tiles on same position!
+- **Expected**: Spawn should skip occupied cells and find truly empty cells
+- Fixed `app-core.ts` line 1610: Enhanced `openAtCell` to check BOTH locked AND unlocked tiles for active tiles
+- Fixed `app-core.ts` line 1620: NEVER spawn on tile with value > 0 or wild tile, even if locked
+- Fixed `app-merge.ts` line 1132: Enhanced pre-spawn check to check BOTH locked AND unlocked tiles
+- Fixed `app-merge.ts` line 1161: Check `openAtCell` result - if false, skip spawn (cell was occupied)
+- **Impact**: Spawn will never happen on occupied cells, preventing "2 tiles on same position" bug
+
 ### v40.5 - Wild/Magnet Merge Last Two Fix (CRITICAL - COMPLETE)
 - **ROOT CAUSE FIX**: Wild merge (wild + regular tile) and magnet merge (magnet + regular tile) with exactly 2 tiles were not detected as last merge
 - **Problem**: 

@@ -1129,20 +1129,42 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         }
         
         try {
-          // 🔥 CRITICAL: Double-check cell is still empty before spawning (race condition protection)
+          // 🔥 CRITICAL FIX v40.6: Double-check cell is still empty before spawning (race condition protection)
+          // Problem: Spawning on locked tiles with value > 0 or wild tiles causes "2 tiles on same position" bug
+          // Solution: ALWAYS check if tile has value > 0 or is wild, regardless of locked status
           const existingTile = STATE.grid?.[r]?.[c];
-          if (existingTile && !existingTile.locked) {
+          if (existingTile) {
             const isActive = (existingTile.value|0) > 0;
             const isWildTile = existingTile.special === 'wild' || existingTile.special === 'wild-magnet' || (existingTile as any).isWild === true || (existingTile as any).isWildFace === true;
             
+            // 🔥 CRITICAL: NEVER spawn on a tile that has value > 0 or is wild, even if it's locked!
+            // Locked tiles with value > 0 are active tiles (e.g., during animations)
             if (isActive || isWildTile) {
-              console.warn(`⚠️ Cell (${c}, ${r}) became occupied before spawn, skipping`);
+              console.warn(`⚠️ Cell (${c}, ${r}) already occupied by active tile before spawn, skipping:`, {
+                value: existingTile.value,
+                special: existingTile.special,
+                locked: existingTile.locked,
+                isActive,
+                isWildTile
+              });
+              return; // Skip this cell
+            }
+            
+            // 🔥 CRITICAL: If tile is NOT locked, it's an active tile (should not happen, but safety check)
+            if (!existingTile.locked) {
+              console.warn(`⚠️ Cell (${c}, ${r}) has unlocked tile without value - this should not happen, skipping`);
               return; // Skip this cell
             }
           }
           
           // Spawn tile normally (skipBind = false means it will try to bind immediately)
-          await openAtCell(c, r, { skipBind: false });
+          const spawnResult = await openAtCell(c, r, { skipBind: false });
+          
+          // 🔥 CRITICAL FIX v40.6: Check spawn result - if false, cell was occupied and spawn failed
+          if (!spawnResult) {
+            console.warn(`⚠️ openAtCell returned false for cell (${c}, ${r}) - spawn failed, cell was occupied`);
+            return; // Skip this cell
+          }
           
           // No delay needed - spawnBounce animation handles the visual delay
           

@@ -1607,9 +1607,38 @@ function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, skipBi
   return new Promise((resolve)=>{
     let holder = grid?.[r]?.[c] || null;
 
-    if (holder && !holder.locked) {
+    // 🔥 CRITICAL FIX v40.6: Check BOTH locked AND unlocked tiles for active tiles
+    // Problem: Spawning on locked tiles with value > 0 or wild tiles causes "2 tiles on same position" bug
+    // Solution: ALWAYS check if tile has value > 0 or is wild, regardless of locked status
+    if (holder) {
       const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.isWild === true || holder.isWildFace === true;
-      if (isWildTile || (holder.value|0) > 0) {
+      const hasValue = (holder.value|0) > 0;
+      
+      // 🔥 CRITICAL: NEVER spawn on a tile that has value > 0 or is wild, even if it's locked!
+      // Locked tiles with value > 0 are active tiles (e.g., during animations)
+      // Spawning on them would create "2 tiles on same position" bug
+      if (hasValue || isWildTile) {
+        console.warn('⚠️ openAtCell: Cell already occupied by active tile:', {
+          c, r,
+          holderValue: holder.value,
+          holderSpecial: holder.special,
+          holderLocked: holder.locked,
+          hasValue,
+          isWildTile,
+          reason: hasValue ? 'hasValue' : 'isWildTile'
+        });
+        resolve(false);
+        return;
+      }
+      
+      // 🔥 CRITICAL: If holder is NOT locked, it means it's an active tile (should not happen, but safety check)
+      if (!holder.locked) {
+        console.warn('⚠️ openAtCell: Cell has unlocked holder without value - this should not happen:', {
+          c, r,
+          holderValue: holder.value,
+          holderSpecial: holder.special,
+          holderLocked: holder.locked
+        });
         resolve(false);
         return;
       }
