@@ -300,9 +300,10 @@
 ### v39 - Stack Self-Merge Validation (CRITICAL)
 - **ROOT CAUSE FIX**: Stack self-merge check was incorrect - assumed ALL stacks can merge
 - **Problem**: stack(5, depth=3) was marked as "can merge" but 5+5=10 > 6 (CANNOT merge!)
-- **Example**: 3 tiles → stack(5, depth=3) → game stuck but no fail screen
+- **Example**: 3 tiles (2+2+1) → stack(5, depth=3) → game stuck but no fail screen
 - Fixed `board.ts` line 536: Check `value + value <= 6` before allowing self-merge
 - Fixed `endgame-checker.ts` line 262: Same validation in `isGameStuck`
+- Fixed `app-core.ts` line 2135: STUCK PROTECTION timer also validates stack self-merge
 - **Impact**: stack(5, depth=3) now correctly detected as STUCK → fail screen triggered
 
 ---

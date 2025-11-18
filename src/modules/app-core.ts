@@ -2121,15 +2121,27 @@ function merge(src, dst, helpers){
               return;
             }
             
-            // 🔥 CRITICAL FIX v36: Check stackDepth - if it's a stack, NOT stuck!
-            // Example: Single tile with value 5 and stackDepth=3 means 3 stacked tiles - can still merge!
+            // 🔥 CRITICAL FIX v39: Check stackDepth AND validate if stack CAN merge with itself
+            // Stack can merge with itself ONLY if value + value <= 6
+            // Example: stack(2, depth=3) → 2+2=4 <= 6 → CAN merge ✅
+            // Example: stack(5, depth=3) → 5+5=10 > 6 → CANNOT merge ❌ → STUCK!
             if (activeTiles.length === 1 && activeTiles[0].value !== 6) {
               const singleTile = activeTiles[0];
               const stackDepth = singleTile.stackDepth || 1;
+              const value = singleTile.value || 0;
               
+              // Check if stack can merge with itself
               if (stackDepth > 1) {
-                console.log('✅ STUCK PROTECTION: Single visible tile BUT it\'s a stack (depth=' + stackDepth + ') - NOT stuck!');
-                return; // Stack can still merge with itself
+                const canMergeSelf = (value + value) <= 6;
+                
+                if (canMergeSelf) {
+                  console.log('✅ STUCK PROTECTION: Single visible tile is a stack (depth=' + stackDepth + ', value=' + value + ') that CAN merge (', value, '+', value, '=', value + value, '<= 6) - NOT stuck!');
+                  return; // Stack can still merge with itself
+                } else {
+                  console.log('🚨 STUCK PROTECTION: Single visible tile is a stack (depth=' + stackDepth + ', value=' + value + ') that CANNOT merge (', value, '+', value, '=', value + value, '> 6) - IS STUCK!');
+                  showFinalScreen();
+                  return;
+                }
               }
               
               console.log('🚨 STUCK PROTECTION: Single non-6 tile detected - forcing fail screen!');
