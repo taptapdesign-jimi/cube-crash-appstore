@@ -206,12 +206,14 @@ export async function showCleanBoardModal({
     const hero = document.createElement('img');
     hero.alt = 'Board cleared';
     hero.src = './assets/clean-board.png';
-    hero.style.cssText = 'width:min(240px,70vw);height:auto;display:block;margin:0 auto 0 auto;transform:scale(1);';
+    // 🔥 CRITICAL FIX: Remove transform:scale(1) from initial CSS to allow proper animation
+    // transform will be set by setInit() and animation sequence
+    hero.style.cssText = 'width:min(240px,70vw);height:auto;display:block;margin:0 auto 0 auto;';
 
     // Add error handling for image
     hero.onerror = () => {
-      // Fallback to a simple div
-      hero.style.cssText = 'width:min(260px,46vw);height:min(260px,46vw);background:#4CAF50;border-radius:20px;display:block;margin:0 auto 24px auto;transform:scale(0.92);';
+      // Fallback to a simple div - also remove transform to allow animation
+      hero.style.cssText = 'width:min(260px,46vw);height:min(260px,46vw);background:#4CAF50;border-radius:20px;display:block;margin:0 auto 24px auto;';
     };
 
     // Content stacks replicate design spacing (hero + text)
@@ -367,7 +369,8 @@ export async function showCleanBoardModal({
       element.style.transform = `scale(${scale}) translateY(${dy}px)`;
       element.style.transition = 'none';
     };
-    setInit(hero, -25);
+    // 🔥 CRITICAL FIX: Hero should start with scale(0) like other elements for proper pop-in animation
+    setInit(hero, -25, 0);
     setInit(title, -20);
     setInit(scoreLabel, -15);
     setInit(mainScore, -10);
