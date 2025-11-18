@@ -3440,6 +3440,7 @@ function merge(src, dst, helpers){
         // This prevents false "clean board" detection when dst is still the only remaining tile
         
         // Create locked placeholder at dst position for spawn logic
+        let placeholderHolder: any = null; // 🔥 v40.1: Store reference to placeholder for cleanup
         if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
           // Clear grid position FIRST (before hiding dst)
           grid[gy][gx] = null;
@@ -3450,11 +3451,15 @@ function merge(src, dst, helpers){
           dst.eventMode = 'none';
           
           // Create locked placeholder for spawn
-          const holder = makeBoard.createTile({ board, grid, tiles, c: gx, r: gy, val: 0, locked: true });
-          holder.alpha = 0.35;
-          holder.eventMode = 'none';
+          placeholderHolder = makeBoard.createTile({ board, grid, tiles, c: gx, r: gy, val: 0, locked: true });
+          placeholderHolder.alpha = 0.35;
+          placeholderHolder.eventMode = 'none';
+          
+          // 🔥 v40.1: Store reference on dst for cleanup
+          (dst as any)._placeholderHolder = placeholderHolder;
           
           console.log('🔍 Dst tile hidden but NOT removed from tiles array yet - will be removed AFTER spawn');
+          console.log('🔍 Placeholder created at (', gx, ',', gy, ') for spawn logic');
         } else {
           console.warn('⚠️ Destination tile is invalid or already destroyed');
         }
@@ -3722,9 +3727,18 @@ function merge(src, dst, helpers){
           const hasValue = (t.value|0) > 0;
           return isWild || hasValue;
         });
+        
+        // 🔥 CRITICAL FIX v40.1: Check for magnet/wild BEFORE determining if only merge6 remains
+        // If magnet/wild exists, it's NOT a last merge - they can merge with merge6
+        const hasMagnetAfterSrcRemoval = activeTilesAfterSrcRemoval.some(t => t.special === 'wild-magnet');
+        const hasWildAfterSrcRemoval = activeTilesAfterSrcRemoval.some(t => t.special === 'wild');
+        
+        // Only consider it "last merge" if NO other active tiles (excluding magnet/wild that can merge with merge6)
         const onlyMerge6RemainsAfterSrcRemoval = activeTilesAfterSrcRemoval.length === 1 && 
                                   activeTilesAfterSrcRemoval[0] === dst &&
-                                  dst.value === 6;
+                                  dst.value === 6 &&
+                                  !hasMagnetAfterSrcRemoval && // 🔥 v40.1: Magnet can merge with merge6
+                                  !hasWildAfterSrcRemoval;     // 🔥 v40.1: Wild can merge with merge6
         
         // 🔥 CRITICAL: Multiple checks to prevent spawn
         if (isLastMergeScenario || currentIsLastMerge || busyEnding || onlyMerge6RemainsAfterSrcRemoval) {
@@ -3743,6 +3757,26 @@ function merge(src, dst, helpers){
               isDst: t === dst
             }))
           });
+          
+          // 🔥 CRITICAL FIX v40.1: Clean up placeholder if spawn is skipped
+          // Placeholder was created but won't be used, so remove it
+          const placeholderHolder = (dst as any)?._placeholderHolder;
+          if (placeholderHolder && !placeholderHolder.destroyed) {
+            console.log('🧹 LAST MERGE: Cleaning up placeholder (spawn skipped)');
+            
+            // Remove from grid
+            if (placeholderHolder.gridX !== undefined && placeholderHolder.gridY !== undefined && grid && grid[placeholderHolder.gridY]) {
+              grid[placeholderHolder.gridY][placeholderHolder.gridX] = null;
+            }
+            
+            // Remove from tiles array
+            removeTile(placeholderHolder);
+            
+            // Clear reference
+            (dst as any)?._placeholderHolder = undefined;
+            
+            console.log('✅ Placeholder removed (spawn skipped)');
+          }
           
           // 🔥 CRITICAL: If we somehow reached here with _isLastMerge set OR only merge 6 remains, trigger clean board flow as safeguard
           if ((currentIsLastMerge || onlyMerge6RemainsAfterSrcRemoval) && !busyEnding) {
@@ -3822,6 +3856,31 @@ function merge(src, dst, helpers){
         });
         
         console.log('✅ openLockedBounceParallel completed - all spawn animations finished');
+        
+        // 🔥 CRITICAL FIX v40.1: Clean up unused placeholder if it wasn't used in spawn
+        // Placeholder might not be used if spawnMult = 0 or if placeholder was excluded
+        const placeholderHolder = (dst as any)?._placeholderHolder;
+        if (placeholderHolder && !placeholderHolder.destroyed) {
+          // Check if placeholder is still locked (wasn't used in spawn)
+          if (placeholderHolder.locked && (placeholderHolder.value | 0) === 0) {
+            console.log('🧹 Cleaning up unused placeholder at (', placeholderHolder.gridX, ',', placeholderHolder.gridY, ')');
+            
+            // Remove from grid
+            if (placeholderHolder.gridX !== undefined && placeholderHolder.gridY !== undefined && grid && grid[placeholderHolder.gridY]) {
+              grid[placeholderHolder.gridY][placeholderHolder.gridX] = null;
+            }
+            
+            // Remove from tiles array
+            removeTile(placeholderHolder);
+            
+            console.log('✅ Unused placeholder removed successfully');
+          } else {
+            console.log('✅ Placeholder was used in spawn - no cleanup needed');
+          }
+          
+          // Clear reference
+          (dst as any)._placeholderHolder = undefined;
+        }
         
         // 🔥 CRITICAL: NOW remove dst tile after spawn completes
         // This was previously done BEFORE spawn, which caused false "clean board" detection

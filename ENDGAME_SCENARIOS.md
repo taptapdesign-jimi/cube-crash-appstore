@@ -314,6 +314,15 @@
 - Fixed `app-core.ts` line 3355: Check magnet/wild + merge6 BEFORE calling checkEndGame (before dst removal)
 - **Impact**: wild + tile + magnet scenario now correctly continues → spawns new tiles → magnet can be used
 
+### v40.1 - Placeholder Cleanup + Spawn Skip Fix (CRITICAL)
+- **ROOT CAUSE FIX**: Locked placeholder tiles were not cleaned up if spawn was skipped or unused
+- **Problem**: wild + tile → merge6 → placeholder created → spawn skipped → placeholder remains on board (alpha 0.35, no pips, flipped)
+- **Example**: 2 tiles + wild → merge wild + tile → merge6 → spawn skipped → placeholder visible on board!
+- Fixed `app-core.ts` line 3754: Clean up placeholder if spawn is skipped (last merge scenario)
+- Fixed `app-core.ts` line 3833: Clean up unused placeholder after spawn completes
+- Fixed `app-core.ts` line 3740: Check magnet/wild in onlyMerge6RemainsAfterSrcRemoval (prevent spawn skip)
+- **Impact**: Placeholders now correctly removed, no more ghost tiles on board
+
 ---
 
 ## 🎯 VERIFICATION CHECKLIST
