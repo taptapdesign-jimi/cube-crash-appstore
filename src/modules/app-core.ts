@@ -4340,7 +4340,10 @@ function removeTile(t){
   t.eventMode='none'; if (t.removeAllListeners) t.removeAllListeners();
   if (t.hover && typeof t.hover.clear === 'function') t.hover.clear();
   try{ gsap.killTweensOf(t); gsap.killTweensOf(t.scale); gsap.killTweensOf(t.rotG);}catch{}
+  // 🔥 MEMORY LEAK FIX: Cleanup all tile animations and intervals
   try { stopWildIdle?.(t); } catch {}
+  try { stopWildShimmer?.(t); } catch {}
+  try { stopMagnetIdleParticles?.(t); } catch {}
   board.removeChild(t);
   if (idx !== -1) {
     tiles.splice(idx, 1);
@@ -4816,6 +4819,15 @@ export function cleanupGame() {
     console.log('⚠️ GSAP cleanup error:', e);
   }
   
+  // 🔥 MEMORY LEAK FIX: Cleanup all global delayed calls and graphics objects
+  try {
+    killAllDelayedCalls?.();
+    destroyAllGraphicsObjects?.();
+    console.log('✅ Global delayed calls and graphics objects cleaned up');
+  } catch (e) {
+    console.log('⚠️ Global cleanup error:', e);
+  }
+  
   // CRITICAL: Reset HUD initialization flag
   _hudInitDone = false;
   // Prepare HUD drop for next entry from menu
@@ -4851,7 +4863,10 @@ export function cleanupGame() {
   // Clear tiles and grid
   if (tiles) {
     tiles.forEach(t => {
+      // 🔥 MEMORY LEAK FIX: Cleanup all tile animations and intervals before destroy
       try { stopWildIdle?.(t); } catch {}
+      try { stopWildShimmer?.(t); } catch {}
+      try { stopMagnetIdleParticles?.(t); } catch {}
       try { t.destroy?.({children: true, texture: false, textureSource: false}); } catch {}
     });
     tiles.length = 0;
