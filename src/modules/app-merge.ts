@@ -553,34 +553,38 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     }
     
     // Also remove from app-core.ts tiles array if it exists
-    const appCoreTiles = (window as any).CC?.getTiles?.();
-    if (appCoreTiles && Array.isArray(appCoreTiles)) {
-      const appCoreIndex = appCoreTiles.indexOf(tile);
-      if (appCoreIndex >= 0) {
-        appCoreTiles.splice(appCoreIndex, 1);
-        console.log(`🧲 Removed tile from app-core tiles array at index ${appCoreIndex}`);
-      }
-    }
-    
-    // Hide and remove
-    tile.visible = false;
-    tile.alpha = 0; // 🔥 CRITICAL: Set alpha to 0 to ensure it's not visible
-    removeTile(tile);
-    
-    // 🔥 CRITICAL: Destroy tile completely to ensure it's removed
+    // 🔥 SAFETY: Only try to remove if getTiles function exists and returns array
+    // This prevents errors if getTiles doesn't exist or returns something else
     try {
-      if (tile.destroy && typeof tile.destroy === 'function') {
-        tile.destroy({ children: true, texture: false, textureSource: false });
-        console.log(`🧲 Tile ${index + 1} destroyed`);
+      const getTilesFunc = (window as any).CC?.getTiles;
+      if (typeof getTilesFunc === 'function') {
+        const appCoreTiles = getTilesFunc();
+        if (appCoreTiles && Array.isArray(appCoreTiles)) {
+          const appCoreIndex = appCoreTiles.indexOf(tile);
+          if (appCoreIndex >= 0) {
+            appCoreTiles.splice(appCoreIndex, 1);
+            console.log(`🧲 Removed tile from app-core tiles array at index ${appCoreIndex}`);
+          }
+        }
       }
     } catch (error) {
-      console.warn(`⚠️ Failed to destroy tile ${index + 1}:`, error);
+      // 🔥 SAFETY: Silently ignore if getTiles doesn't exist or fails
+      // This is not critical - STATE.tiles removal is the main cleanup
+      console.warn(`⚠️ Could not remove tile from app-core tiles array:`, error);
     }
     
-    // Clear _wildMagnetAffected flag
+    // Hide tile before removal
+    tile.visible = false;
+    tile.alpha = 0; // 🔥 CRITICAL: Set alpha to 0 to ensure it's not visible
+    
+    // Clear _wildMagnetAffected flag BEFORE removeTile (to prevent interference)
     delete tile._wildMagnetAffected;
     delete tile._wildMagnetOriginalX;
     delete tile._wildMagnetOriginalY;
+    
+    // 🔥 CRITICAL: removeTile already calls destroy, so we don't need to call it again
+    // removeTile handles: stopWildIdle, hover.clear, removeAllListeners, killTweens, removeChild, destroy
+    removeTile(tile);
     
     console.log(`🧲 Tile ${index + 1} removed and marked destroyed`);
   });
