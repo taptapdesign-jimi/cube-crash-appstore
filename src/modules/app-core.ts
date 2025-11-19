@@ -2290,6 +2290,14 @@ function merge(src, dst, helpers){
           if (t === targetTile) return false;
           if (t === src || t === dst) return false; // Don't count the merging tiles
           
+          // 🔥 CRITICAL FIX: Exclude tiles that are currently being pulled by another magnet
+          // If a tile is already marked as _wildMagnetAffected, it's being pulled by another magnet
+          // and should NOT be counted as available for this pull
+          if (t._wildMagnetAffected) {
+            console.log('🔍 FILTER OUT: tile already being pulled by another magnet', { value: t.value, special: t.special });
+            return false;
+          }
+          
           // 🔥 CRITICAL FIX v37: Check if tile is wild or magnet BEFORE checking value
           // Wild-magnet and wild tiles have value = 0, but they can STILL be pulled!
           const isWildOrMagnet = t.special === 'wild' || t.special === 'wild-magnet';
@@ -2566,6 +2574,14 @@ function merge(src, dst, helpers){
         }
         if (tile.locked) {
           console.log('🔍 FILTER OUT: locked tile', { value: tile.value, special: tile.special });
+          return false;
+        }
+        
+        // 🔥 CRITICAL FIX: Exclude tiles that are currently being pulled by another magnet
+        // If a tile is already marked as _wildMagnetAffected, it's being pulled by another magnet
+        // and should NOT be pulled again
+        if (tile._wildMagnetAffected) {
+          console.log('🔍 FILTER OUT: tile already being pulled by another magnet', { value: tile.value, special: tile.special });
           return false;
         }
         
