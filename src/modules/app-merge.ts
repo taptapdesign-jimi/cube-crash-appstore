@@ -518,8 +518,26 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       value: tile.value,
       special: tile.special,
       destroyed: tile.destroyed,
-      currentGridValue: STATE.grid?.[tile.gridY]?.[tile.gridX]
+      currentGridValue: STATE.grid?.[tile.gridY]?.[tile.gridX],
+      hasParent: !!tile.parent,
+      parentType: tile.parent?.constructor?.name
     });
+    
+    // 🔥 CRITICAL FIX: Remove from board FIRST before removing from grid/STATE
+    // This ensures tile is properly removed from visual hierarchy
+    if (tile.parent && STATE.board) {
+      try {
+        if (tile.parent === STATE.board || STATE.board.children.includes(tile)) {
+          STATE.board.removeChild(tile);
+          console.log(`🧲 Removed tile ${index + 1} from board`);
+        } else if (tile.parent.removeChild) {
+          tile.parent.removeChild(tile);
+          console.log(`🧲 Removed tile ${index + 1} from parent:`, tile.parent.constructor?.name);
+        }
+      } catch (error) {
+        console.warn(`⚠️ Failed to remove tile ${index + 1} from board:`, error);
+      }
+    }
     
     // Clear from grid
     if (tile.gridX !== undefined && tile.gridY !== undefined && STATE.grid && STATE.grid[tile.gridY]) {
@@ -534,9 +552,36 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       console.log(`🧲 Removed tile from STATE.tiles at index ${tileIndex}`);
     }
     
+    // Also remove from app-core.ts tiles array if it exists
+    const appCoreTiles = (window as any).CC?.getTiles?.();
+    if (appCoreTiles && Array.isArray(appCoreTiles)) {
+      const appCoreIndex = appCoreTiles.indexOf(tile);
+      if (appCoreIndex >= 0) {
+        appCoreTiles.splice(appCoreIndex, 1);
+        console.log(`🧲 Removed tile from app-core tiles array at index ${appCoreIndex}`);
+      }
+    }
+    
     // Hide and remove
     tile.visible = false;
+    tile.alpha = 0; // 🔥 CRITICAL: Set alpha to 0 to ensure it's not visible
     removeTile(tile);
+    
+    // 🔥 CRITICAL: Destroy tile completely to ensure it's removed
+    try {
+      if (tile.destroy && typeof tile.destroy === 'function') {
+        tile.destroy({ children: true, texture: false, textureSource: false });
+        console.log(`🧲 Tile ${index + 1} destroyed`);
+      }
+    } catch (error) {
+      console.warn(`⚠️ Failed to destroy tile ${index + 1}:`, error);
+    }
+    
+    // Clear _wildMagnetAffected flag
+    delete tile._wildMagnetAffected;
+    delete tile._wildMagnetOriginalX;
+    delete tile._wildMagnetOriginalY;
+    
     console.log(`🧲 Tile ${index + 1} removed and marked destroyed`);
   });
   
