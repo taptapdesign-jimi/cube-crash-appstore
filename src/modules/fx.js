@@ -1515,8 +1515,8 @@ export function stopWildShimmer(tile) {
 }
 
 /**
- * Start magnet idle particles animation - continuous particles at 20% intensity
- * Uses same particles as drag animation but with 20% intensity (0.2)
+ * Start magnet idle particles animation - continuous particles at 24% intensity
+ * Uses same particles as drag animation but with 24% intensity (0.24)
  */
 export function startMagnetIdleParticles(tile) {
   if (!tile) return;
@@ -1536,11 +1536,11 @@ export function startMagnetIdleParticles(tile) {
     return;
   }
   
-  // Generate particles every 200ms (5 times per second) at 20% intensity
+  // Generate particles every 200ms (5 times per second) at 24% intensity (20% base + 20% increase)
   const generateParticles = () => {
     if (!tile || tile.destroyed) return;
     try {
-      magicSparklesAtTile(board, tile, { intensity: 0.2 }); // 20% intensity
+      magicSparklesAtTile(board, tile, { intensity: 0.24 }); // 24% intensity (increased by 20%)
     } catch (err) {
       console.warn('Magnet idle particles error:', err);
     }

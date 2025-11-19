@@ -1480,7 +1480,7 @@ function applyWildSkinLocal(tile){
     try {
       startWildShimmer(tile); // Use shimmer instead of bounce
       startWildStars(tile);
-      // 🔥 NEW: Start magnet idle particles animation (20% intensity)
+      // 🔥 NEW: Start magnet idle particles animation (24% intensity)
       if (tile.special === 'wild-magnet') {
         startMagnetIdleParticles(tile);
       }
@@ -5160,7 +5160,7 @@ async function loadGameState() {
           // Always use applyWildSkinLocal to ensure electric glow is added for wild-magnet
           applyWildSkinLocal(tile);
           try { startWildShimmer(tile); } catch {} // Use shimmer instead of idle bounce
-          // 🔥 NEW: Start magnet idle particles animation (20% intensity)
+          // 🔥 NEW: Start magnet idle particles animation (24% intensity)
           if (tile.special === 'wild-magnet') {
             try { startMagnetIdleParticles(tile); } catch {}
           }
