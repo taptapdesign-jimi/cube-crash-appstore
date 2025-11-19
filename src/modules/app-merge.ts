@@ -552,26 +552,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       console.log(`🧲 Removed tile from STATE.tiles at index ${tileIndex}`);
     }
     
-    // Also remove from app-core.ts tiles array if it exists
-    // 🔥 SAFETY: Only try to remove if getTiles function exists and returns array
-    // This prevents errors if getTiles doesn't exist or returns something else
-    try {
-      const getTilesFunc = (window as any).CC?.getTiles;
-      if (typeof getTilesFunc === 'function') {
-        const appCoreTiles = getTilesFunc();
-        if (appCoreTiles && Array.isArray(appCoreTiles)) {
-          const appCoreIndex = appCoreTiles.indexOf(tile);
-          if (appCoreIndex >= 0) {
-            appCoreTiles.splice(appCoreIndex, 1);
-            console.log(`🧲 Removed tile from app-core tiles array at index ${appCoreIndex}`);
-          }
-        }
-      }
-    } catch (error) {
-      // 🔥 SAFETY: Silently ignore if getTiles doesn't exist or fails
-      // This is not critical - STATE.tiles removal is the main cleanup
-      console.warn(`⚠️ Could not remove tile from app-core tiles array:`, error);
-    }
+    // 🔥 NOTE: app-core.ts uses `const tiles = STATE.tiles;` which is a reference, not a copy
+    // This means removing from STATE.tiles automatically removes from app-core tiles array
+    // No need to manually remove from app-core tiles array - STATE.tiles is the source of truth
+    // End game checks use STATE.tiles via context.tiles, so cleanup is already handled
     
     // Hide tile before removal
     tile.visible = false;
