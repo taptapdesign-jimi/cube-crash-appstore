@@ -113,6 +113,39 @@ class AppManager {
           // 🔥 CRITICAL: Don't throw error - stats screen should still be shown even if update fails
           // This prevents error handler from triggering loading screen reload
         }
+      } else if (screen === 'collectibles') {
+        // 🔥 CRITICAL FIX: Add error handling for collectibles screen initialization
+        try {
+          // Initialize collectibles screen if needed
+          const collectiblesManager = (window as any).collectiblesManager;
+          if (collectiblesManager && typeof collectiblesManager.init === 'function') {
+            try {
+              collectiblesManager.init();
+              console.log('✅ Collectibles manager initialized successfully');
+            } catch (initError) {
+              console.error('❌ Error initializing collectibles manager:', initError);
+              logger.warn('⚠️ Error initializing collectibles manager, continuing:', initError);
+              // Don't throw - collectibles screen should still be shown even if init fails
+            }
+          }
+        } catch (error) {
+          console.error('❌ Failed to initialize collectibles screen:', error);
+          logger.warn('⚠️ Failed to initialize collectibles screen:', error);
+          // 🔥 CRITICAL: Don't throw error - collectibles screen should still be shown even if init fails
+          // This prevents error handler from triggering loading screen reload
+        }
+      } else if (screen === 'settings') {
+        // 🔥 CRITICAL FIX: Add error handling for settings screen initialization
+        try {
+          // Settings screen doesn't require special initialization, but wrap in try-catch anyway
+          // This prevents any unexpected errors from crashing the app
+          console.log('✅ Settings screen shown');
+        } catch (error) {
+          console.error('❌ Failed to show settings screen:', error);
+          logger.warn('⚠️ Failed to show settings screen:', error);
+          // 🔥 CRITICAL: Don't throw error - settings screen should still be shown even if init fails
+          // This prevents error handler from triggering loading screen reload
+        }
       }
       
       logger.info(`✅ Screen shown: ${screen}`);

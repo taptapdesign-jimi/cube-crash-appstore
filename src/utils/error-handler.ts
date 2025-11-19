@@ -71,11 +71,19 @@ class ErrorHandler {
     }
     
     // 🔥 CRITICAL FIX: If app is initialized, don't trigger loading screen or reload
-    // This prevents crash when opening stats screen after long gameplay
-    if (isAppInitialized && (errorMessage.includes('stats') || errorMessage.includes('screen') || context.includes('stats'))) {
-      logger.warn(`⚠️ Error in stats screen after app initialization - logging but not reloading: ${errorMessage}`);
+    // This prevents crash when opening stats/collectibles/settings screens after long gameplay
+    const isScreenError = errorMessage.includes('stats') || 
+                          errorMessage.includes('collectibles') || 
+                          errorMessage.includes('settings') || 
+                          errorMessage.includes('screen') ||
+                          context.includes('stats') ||
+                          context.includes('collectibles') ||
+                          context.includes('settings');
+    
+    if (isAppInitialized && isScreenError) {
+      logger.warn(`⚠️ Error in ${context} screen after app initialization - logging but not reloading: ${errorMessage}`);
       // Still log the error but don't increment counter or show error screen
-      console.error('Stats screen error:', error);
+      console.error(`${context} screen error:`, error);
       return;
     }
     
