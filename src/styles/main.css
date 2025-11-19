@@ -126,7 +126,7 @@ body {
 }
 
 .loading-screen__logo {
-  width: 200px;
+  width: 160px; /* 🔥 20% smaller: 200px * 0.8 = 160px */
   height: auto;
   margin-bottom: var(--spacing-xl);
   animation: loading-pulse 2s ease-in-out infinite;
@@ -168,7 +168,7 @@ body {
 }
 
 .homepage__logo {
-  width: 300px;
+  width: 240px; /* 🔥 20% smaller: 300px * 0.8 = 240px */
   height: auto;
   margin-bottom: var(--spacing-xxl);
   animation: logo-float 3s ease-in-out infinite;

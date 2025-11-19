@@ -382,7 +382,7 @@
 
 /* Logo styling */
 #home-logo {
-  width: min(320px, 80vw);
+  width: min(256px, 64vw); /* 🔥 20% smaller: 320px * 0.8 = 256px, 80vw * 0.8 = 64vw */
   height: auto;
   margin-bottom: 20px;
   margin-top: -46px;
@@ -413,7 +413,7 @@
   }
   
   #home-logo {
-    width: min(280px, 75vw);
+    width: min(224px, 60vw); /* 🔥 20% smaller: 280px * 0.8 = 224px, 75vw * 0.8 = 60vw */
   }
 }
 
