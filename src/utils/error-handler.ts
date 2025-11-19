@@ -60,11 +60,23 @@ class ErrorHandler {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const isAssetError = errorMessage.includes('asset') || errorMessage.includes('loading') || errorMessage.includes('fetch');
     
+    // 🔥 CRITICAL FIX: Check if app is already initialized - don't show loading screen if it is
+    const isAppInitialized = (window as any).__cube_crash_ui_bootstrapped__ === true;
+    
     // During preloader phase, silently ignore asset errors
     const isLoadingScreen = document.querySelector('.loading-screen') && !document.querySelector('.loading-screen.hidden');
     if (isLoadingScreen && isAssetError) {
       logger.info(`🔇 Silently ignoring asset error during preload: ${errorMessage}`);
       return; // Don't show error or increment counter
+    }
+    
+    // 🔥 CRITICAL FIX: If app is initialized, don't trigger loading screen or reload
+    // This prevents crash when opening stats screen after long gameplay
+    if (isAppInitialized && (errorMessage.includes('stats') || errorMessage.includes('screen') || context.includes('stats'))) {
+      logger.warn(`⚠️ Error in stats screen after app initialization - logging but not reloading: ${errorMessage}`);
+      // Still log the error but don't increment counter or show error screen
+      console.error('Stats screen error:', error);
+      return;
     }
     
     this.errorCount++;

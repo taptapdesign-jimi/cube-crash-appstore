@@ -75,10 +75,20 @@ class AppManager {
       if (screen === 'stats') {
         // Update immediately - no delay
         try {
+          // 🔥 CRITICAL FIX: Wrap in try-catch to prevent crash from propagating
+          // This prevents error handler from triggering loading screen reload
           const { updateStatsValues } = await import('./components/stats-screen.js');
           console.log('📊 About to call updateStatsValues()...');
-          updateStatsValues();
-          console.log('✅ updateStatsValues() called successfully');
+          
+          // 🔥 CRITICAL: Check if statsService is available before calling updateStatsValues
+          try {
+            updateStatsValues();
+            console.log('✅ updateStatsValues() called successfully');
+          } catch (statsError) {
+            console.error('❌ Error in updateStatsValues:', statsError);
+            logger.warn('⚠️ Error in updateStatsValues, continuing without update:', statsError);
+            // Don't throw - continue with animation even if stats update fails
+          }
           
           // 🎬 Trigger stats screen enter animation (pop-in) using GSAP
           console.log('🎬 About to import stats-animations.js...');
@@ -89,11 +99,19 @@ class AppManager {
             console.log('🎬 Calling animateStatsScreenEnter() after 200ms delay...');
             console.log('🔍 Stats screen element:', document.getElementById('stats-screen'));
             console.log('🔍 Stat items:', document.querySelectorAll('.stat-item').length);
-            animateStatsScreenEnter();
+            try {
+              animateStatsScreenEnter();
+            } catch (animError) {
+              console.error('❌ Error in animateStatsScreenEnter:', animError);
+              logger.warn('⚠️ Error in animateStatsScreenEnter, continuing:', animError);
+              // Don't throw - stats screen should still be visible even if animation fails
+            }
           }, 200);
         } catch (error) {
-          console.error('❌ Failed to update stats values:', error);
-          logger.warn('⚠️ Failed to update stats values:', error);
+          console.error('❌ Failed to import stats modules:', error);
+          logger.warn('⚠️ Failed to import stats modules:', error);
+          // 🔥 CRITICAL: Don't throw error - stats screen should still be shown even if update fails
+          // This prevents error handler from triggering loading screen reload
         }
       }
       
