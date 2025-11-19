@@ -126,9 +126,10 @@ body {
 }
 
 .loading-screen__logo {
-  width: 160px; /* 🔥 20% smaller: 200px * 0.8 = 160px */
+  width: 128px; /* 🔥 20% smaller: 160px * 0.8 = 128px */
   height: auto;
   margin-bottom: var(--spacing-xl);
+  margin-top: -24px; /* 🔥 Dignuto 24px gore */
   animation: loading-pulse 2s ease-in-out infinite;
 }
 

@@ -102,9 +102,10 @@ body{
 }
 
 .loading-logo img {
-  width: 320px;
+  width: 256px; /* 🔥 20% smaller: 320px * 0.8 = 256px */
   height: auto;
   margin-bottom: 0;
+  margin-top: -24px; /* 🔥 Dignuto 24px gore */
   /* Static - no animations, always visible */
   opacity: 1;
 }
@@ -658,7 +659,7 @@ body{
 
 /* Extra guard for small phones */
 @media (max-width: 420px) {
-  #home-logo{ width: min(300px, 94vw); }
+  #home-logo{ width: min(240px, 75.2vw); } /* 🔥 20% smaller: 300px * 0.8 = 240px, 94vw * 0.8 = 75.2vw */
   .slide .hero-wrap{ width: min(320px, 96vw); height: 350px; }
   .hero{ width: min(320px, 96vw); max-height: 350px; }
   .slide .copy{ width: min(240px, 86vw); }
