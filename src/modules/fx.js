@@ -175,7 +175,8 @@ export function magicSparklesAtTile(board, tile, opts = {}){
 
   // Use wood shards effect for wild cubes - much more visible
   const { x, y } = centerInBoard(board, tile, 96);
-  const shardCount = 20; // Even more shards for visible trail
+  const intensity = opts.intensity ?? 1.0; // Default intensity 1.0 (100%)
+  const shardCount = Math.max(1, Math.round(20 * intensity)); // Scale shard count by intensity (20% = 4 shards)
   const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
   
   // 🔥 CRITICAL: For wild-magnet, add red color #F26034 to sparkles
@@ -196,8 +197,11 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     const width = 12 + Math.random() * 12; // 12-24px (bigger!)
     const height = 16 + Math.random() * 16; // 16-32px (bigger!)
     
+    // Scale alpha by intensity (20% intensity = 0.2 alpha)
+    const alpha = 1.0 * intensity; // Scale alpha by intensity
+    
     shard.rect(-width/2, -height/2, width, height)
-         .fill({ color: color, alpha: 1.0 }); // Full opacity - maximum visibility
+         .fill({ color: color, alpha: alpha }); // Scale opacity by intensity
     
     // Random position around tile - wider emission
     const angle = Math.random() * Math.PI * 2;
@@ -1508,6 +1512,66 @@ export function stopWildShimmer(tile) {
   
   tile._wildShimmer = null;
   tile._wildShimmerSprite = null;
+}
+
+/**
+ * Start magnet idle particles animation - continuous particles at 20% intensity
+ * Uses same particles as drag animation but with 20% intensity (0.2)
+ */
+export function startMagnetIdleParticles(tile) {
+  if (!tile) return;
+  
+  // Stop existing particles animation if any
+  if (tile._magnetIdleParticlesInterval) {
+    clearInterval(tile._magnetIdleParticlesInterval);
+    tile._magnetIdleParticlesInterval = null;
+  }
+  
+  // Get board from STATE - access via window to avoid circular dependency
+  // STATE is exposed to window by app-core.ts
+  const board = (window as any).STATE?.board;
+  
+  if (!board) {
+    console.warn('⚠️ startMagnetIdleParticles: Board not found in STATE');
+    return;
+  }
+  
+  // Generate particles every 200ms (5 times per second) at 20% intensity
+  const generateParticles = () => {
+    if (!tile || tile.destroyed) return;
+    try {
+      magicSparklesAtTile(board, tile, { intensity: 0.2 }); // 20% intensity
+    } catch (err) {
+      console.warn('Magnet idle particles error:', err);
+    }
+  };
+  
+  // Generate particles immediately
+  generateParticles();
+  
+  // Schedule continuous particles every 200ms
+  tile._magnetIdleParticlesInterval = setInterval(() => {
+    if (!tile || tile.destroyed) {
+      if (tile._magnetIdleParticlesInterval) {
+        clearInterval(tile._magnetIdleParticlesInterval);
+        tile._magnetIdleParticlesInterval = null;
+      }
+      return;
+    }
+    generateParticles();
+  }, 200); // Every 200ms (5 times per second)
+}
+
+/**
+ * Stop magnet idle particles animation
+ */
+export function stopMagnetIdleParticles(tile) {
+  if (!tile) return;
+  
+  if (tile._magnetIdleParticlesInterval) {
+    clearInterval(tile._magnetIdleParticlesInterval);
+    tile._magnetIdleParticlesInterval = null;
+  }
 }
 
 /**

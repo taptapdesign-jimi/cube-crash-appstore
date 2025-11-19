@@ -14,7 +14,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects } from './fx.js';
 import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
 import FX from './fx-helpers.js';
@@ -246,6 +246,9 @@ function syncSharedState() {
   STATE.stage = stage;
   STATE.board = board;
   STATE.boardBG = boardBG;
+  
+  // 🔥 EXPOSE STATE to window for magnet idle particles access
+  (window as any).STATE = STATE;
   STATE.hud = hud;
   STATE.grid = grid;
   STATE.tiles = tiles;
@@ -1477,7 +1480,10 @@ function applyWildSkinLocal(tile){
     try {
       startWildShimmer(tile); // Use shimmer instead of bounce
       startWildStars(tile);
-      // 🔥 REMOVED: Magnet shake animation removed per user request
+      // 🔥 NEW: Start magnet idle particles animation (20% intensity)
+      if (tile.special === 'wild-magnet') {
+        startMagnetIdleParticles(tile);
+      }
     } catch {}
   }catch{}
 }
@@ -5154,10 +5160,14 @@ async function loadGameState() {
           // Always use applyWildSkinLocal to ensure electric glow is added for wild-magnet
           applyWildSkinLocal(tile);
           try { startWildShimmer(tile); } catch {} // Use shimmer instead of idle bounce
-          // 🔥 REMOVED: Magnet shake animation removed per user request
+          // 🔥 NEW: Start magnet idle particles animation (20% intensity)
+          if (tile.special === 'wild-magnet') {
+            try { startMagnetIdleParticles(tile); } catch {}
+          }
         } else {
           try { stopWildShimmer(tile); } catch {}
-          // 🔥 REMOVED: Magnet shake animation removed per user request
+          // 🔥 NEW: Stop magnet idle particles animation (when tile is no longer wild)
+          try { stopMagnetIdleParticles(tile); } catch {}
         }
       }
     }
