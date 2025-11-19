@@ -14,7 +14,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, startMagnetShake, stopMagnetShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects } from './fx.js';
 import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
 import FX from './fx-helpers.js';
@@ -1477,10 +1477,7 @@ function applyWildSkinLocal(tile){
     try {
       startWildShimmer(tile); // Use shimmer instead of bounce
       startWildStars(tile);
-      // 🔥 NEW: Start magnet shake animation for wild-magnet tiles only
-      if (tile.special === 'wild-magnet') {
-        startMagnetShake(tile);
-      }
+      // 🔥 REMOVED: Magnet shake animation removed per user request
     } catch {}
   }catch{}
 }
@@ -2255,25 +2252,55 @@ function merge(src, dst, helpers){
     const isWildMagnetMerge = (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet');
     let hasTilesToPull = false;
     if (isWildMagnetMerge) {
-      // Check if there are other tiles that can be pulled (same logic as findNearestTiles)
-      const targetTile = srcSpecial === 'wild-magnet' ? src : dst;
-      const candidates = tiles.filter((t: any) => {
-        if (!t || t.destroyed) return false;
-        if (t.locked) return false;
-        if (t === targetTile) return false;
-        if (t === src || t === dst) return false; // Don't count the merging tiles
-        
-        // 🔥 CRITICAL FIX v37: Check if tile is wild or magnet BEFORE checking value
-        // Wild-magnet and wild tiles have value = 0, but they can STILL be pulled!
-        const isWildOrMagnet = t.special === 'wild' || t.special === 'wild-magnet';
-        if (!isWildOrMagnet && (t.value | 0) <= 0) return false;
-        
-        // 🔥 CRITICAL: Wild-magnet CAN pull other wild-magnets! (MAGNET-ON-MAGNET FIX)
-        // Magnet attracts everything - magnets, wild stars, ordinary tiles
-        return true;
+      // 🔥 NEW LOGIC: Count magnets and regular tiles on board
+      const magnetsOnBoard = activeTilesBeforeMerge.filter((t: any) => t.special === 'wild-magnet').length;
+      const regularTilesOnBoard = activeTilesBeforeMerge.filter((t: any) => 
+        t.special !== 'wild-magnet' && t.special !== 'wild' && (t.value|0) > 0
+      ).length;
+      const totalActiveTiles = activeTilesBeforeMerge.length;
+      
+      console.log('🧲 Magnet pull logic check:', {
+        magnetsOnBoard,
+        regularTilesOnBoard,
+        totalActiveTiles,
+        srcSpecial,
+        dstSpecial
       });
-      hasTilesToPull = candidates.length > 0;
-      console.log('🧲 Wild-magnet merge detected - tiles that can be pulled:', candidates.length, hasTilesToPull ? '(will pull tiles, NOT last merge)' : '(no tiles to pull, might be last merge)');
+      
+      // 🔥 CRITICAL: Special cases where magnet behaves like wild (NO pull):
+      // 1. 2 magnets + 1 regular tile (last 3 tiles) → NO pull, behaves like wild
+      // 2. 1 magnet + 1 regular tile (last 2 tiles) → NO pull, behaves like wild
+      const isTwoMagnetsOneTile = magnetsOnBoard === 2 && regularTilesOnBoard === 1 && totalActiveTiles === 3;
+      const isOneMagnetOneTile = magnetsOnBoard === 1 && regularTilesOnBoard === 1 && totalActiveTiles === 2;
+      
+      if (isTwoMagnetsOneTile || isOneMagnetOneTile) {
+        hasTilesToPull = false;
+        console.log('🧲 Magnet behaves like wild (NO pull):', {
+          isTwoMagnetsOneTile,
+          isOneMagnetOneTile,
+          reason: isTwoMagnetsOneTile ? '2 magnets + 1 tile (last 3)' : '1 magnet + 1 tile (last 2)'
+        });
+      } else {
+        // Normal magnet behavior: Check if there are other tiles that can be pulled
+        const targetTile = srcSpecial === 'wild-magnet' ? src : dst;
+        const candidates = tiles.filter((t: any) => {
+          if (!t || t.destroyed) return false;
+          if (t.locked) return false;
+          if (t === targetTile) return false;
+          if (t === src || t === dst) return false; // Don't count the merging tiles
+          
+          // 🔥 CRITICAL FIX v37: Check if tile is wild or magnet BEFORE checking value
+          // Wild-magnet and wild tiles have value = 0, but they can STILL be pulled!
+          const isWildOrMagnet = t.special === 'wild' || t.special === 'wild-magnet';
+          if (!isWildOrMagnet && (t.value | 0) <= 0) return false;
+          
+          // 🔥 CRITICAL: Wild-magnet CAN pull other wild-magnets! (MAGNET-ON-MAGNET FIX)
+          // Magnet attracts everything - magnets, wild stars, ordinary tiles
+          return true;
+        });
+        hasTilesToPull = candidates.length > 0;
+        console.log('🧲 Wild-magnet merge detected - tiles that can be pulled:', candidates.length, hasTilesToPull ? '(will pull tiles, NOT last merge)' : '(no tiles to pull, might be last merge)');
+      }
     }
     
     // Calculate how many tiles are involved in this merge (including stacked tiles)
@@ -2501,7 +2528,8 @@ function merge(src, dst, helpers){
     // 🧲 WILD-MAGNET: Find and pull up to 4 nearest tiles IMMEDIATELY when merge 6 starts
     // This happens BEFORE the merge animation completes
     // Works for BOTH: magnet on tile AND tile on magnet
-    if (isWildMagnet && dst && !dst.destroyed && !dst.locked && (dst.value | 0) > 0) {
+    // 🔥 CRITICAL: Only pull if hasTilesToPull is true (magnet behaves like wild if false)
+    if (isWildMagnet && hasTilesToPull && dst && !dst.destroyed && !dst.locked && (dst.value | 0) > 0) {
       // 🔥 CRITICAL: Prevent overlapping wild-magnet pull animations
       if (wildMagnetPullInProgress) {
         console.warn('⚠️ Wild-magnet pull already in progress, skipping new pull animation');
@@ -5131,13 +5159,10 @@ async function loadGameState() {
           // Always use applyWildSkinLocal to ensure electric glow is added for wild-magnet
           applyWildSkinLocal(tile);
           try { startWildShimmer(tile); } catch {} // Use shimmer instead of idle bounce
-          // 🔥 NEW: Start magnet shake animation for wild-magnet tiles only
-          if (tile.special === 'wild-magnet') {
-            try { startMagnetShake(tile); } catch {}
-          }
+          // 🔥 REMOVED: Magnet shake animation removed per user request
         } else {
           try { stopWildShimmer(tile); } catch {}
-          try { stopMagnetShake(tile); } catch {} // Stop magnet shake if tile is no longer wild-magnet
+          // 🔥 REMOVED: Magnet shake animation removed per user request
         }
       }
     }
