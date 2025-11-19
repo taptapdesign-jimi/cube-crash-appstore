@@ -2267,19 +2267,14 @@ function merge(src, dst, helpers){
         dstSpecial
       });
       
-      // 🔥 CRITICAL: Special cases where magnet behaves like wild (NO pull):
-      // 1. 2 magnets + 1 regular tile (last 3 tiles) → NO pull, behaves like wild
-      // 2. 1 magnet + 1 regular tile (last 2 tiles) → NO pull, behaves like wild
-      const isTwoMagnetsOneTile = magnetsOnBoard === 2 && regularTilesOnBoard === 1 && totalActiveTiles === 3;
+      // 🔥 CRITICAL: ONLY special case where magnet behaves like wild (NO pull):
+      // 1 magnet + 1 regular tile (last 2 tiles) → NO pull, behaves like wild
+      // ALL other cases (including 2 magnets + 1 tile) → magnet pulls normally
       const isOneMagnetOneTile = magnetsOnBoard === 1 && regularTilesOnBoard === 1 && totalActiveTiles === 2;
       
-      if (isTwoMagnetsOneTile || isOneMagnetOneTile) {
+      if (isOneMagnetOneTile) {
         hasTilesToPull = false;
-        console.log('🧲 Magnet behaves like wild (NO pull):', {
-          isTwoMagnetsOneTile,
-          isOneMagnetOneTile,
-          reason: isTwoMagnetsOneTile ? '2 magnets + 1 tile (last 3)' : '1 magnet + 1 tile (last 2)'
-        });
+        console.log('🧲 Magnet behaves like wild (NO pull): 1 magnet + 1 tile (last 2)');
       } else {
         // Normal magnet behavior: Check if there are other tiles that can be pulled
         const targetTile = srcSpecial === 'wild-magnet' ? src : dst;
