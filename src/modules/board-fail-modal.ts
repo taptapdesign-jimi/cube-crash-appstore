@@ -46,9 +46,9 @@ const HEADLINES: string[] = [
   'Tiny Miss!', 'Slip Up!', 'Fell Short!', 'Nearly There!', 'Almost Win!',
   'Off Course!', 'You Almost!', 'Barely Missed!', 'Not This Run!', 'Just Missed!',
   'One Off!', 'Not Quite Yet!', 'Miss Again!', 'Fell Off!', 'Tiny Fail!',
-  'Close Miss!', 'Try Again Soon!', 'Off Mark!', 'Almost Counted!', 'Nice Almost!',
+  'Close Miss!', 'Off Mark!', 'Nice Almost!',
   'Just Short!', 'Barely Off!', 'Miss By Inch!', 'So Very Close!', 'Almost Did It!',
-  'Wrong Spot!', 'Next One!', 'Not Enough Yet!', 'Almost Clutch!', 'Barely Lost!',
+  'Wrong Spot!', 'Next One!', 'Almost Clutch!', 'Barely Lost!',
   'Slip Moment!', 'Try Again Champ!', 'Solid Try!', 'Off Balance!', 'Almost Boss!',
   'Too Late!', 'Nice Attempt!', 'Close Runner!', 'Oh noo!'
 ];
