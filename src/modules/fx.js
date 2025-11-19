@@ -1529,7 +1529,7 @@ export function startMagnetIdleParticles(tile) {
   
   // Get board from STATE - access via window to avoid circular dependency
   // STATE is exposed to window by app-core.ts
-  const board = (window as any).STATE?.board;
+  const board = (typeof window !== 'undefined' && window.STATE) ? window.STATE.board : null;
   
   if (!board) {
     console.warn('⚠️ startMagnetIdleParticles: Board not found in STATE');
