@@ -386,7 +386,9 @@ class UIManager {
         try {
           const state = JSON.parse(completedState);
           const resumeLevel = Number(state.nextLevel) || 2;
-          const resumeScore = Number(state.finalScore ?? state.score) || 0;
+          const baseScore = Number(state.score) || 0;
+          const bonusScore = Number(state.bonus) || 0;
+          const resumeScore = Number(state.finalScore ?? (baseScore + bonusScore)) || 0;
           logger.info('🎮 Pending completion detected - starting next board', resumeLevel, 'with score', resumeScore);
           
           // Clear completion state up front so we don't get stuck

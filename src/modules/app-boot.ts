@@ -109,8 +109,16 @@ export async function startLevel(n: number): Promise<void> {
   
   // 🔥 CRITICAL: Preserve score if continuing from previous board (not a fresh start)
   // Check if score should be preserved (set by clean board modal when continuing)
+  const resumeScore = Number((window as any).__ccResumeScore);
   const preservedScore = (window as any).__ccPreserveScore;
-  if (typeof preservedScore === 'number' && preservedScore > 0) {
+  if (Number.isFinite(resumeScore)) {
+    STATE.score = Math.max(0, resumeScore | 0);
+    if (typeof (window as any).syncScoreToCore === 'function') {
+      (window as any).syncScoreToCore(STATE.score);
+    }
+    delete (window as any).__ccResumeScore;
+    console.log('🎯 startLevel (app-boot): Using resume score', STATE.score);
+  } else if (typeof preservedScore === 'number' && preservedScore > 0) {
     STATE.score = preservedScore;
     // CRITICAL: Also sync to app-core.ts local score variable
     // This ensures both STATE.score and local score are in sync

@@ -325,20 +325,18 @@ initializeApp().catch((error: Error) => {
   logger.info('🔄 continueGameWithSavedState called - loading saved game');
   
   try {
-    // CRITICAL: First check if there's a normal saved game (cc_saved_game)
-    // If it exists, use normal flow - don't check cc_board_completed
-    const savedGame = localStorage.getItem('cc_saved_game');
-    if (savedGame) {
-      logger.info('📊 Normal saved game found, using normal flow');
-      // Continue with normal flow below
-    } else {
-      // No normal saved game - check if board was completed (clean board was active when hard exit happened)
-      const completedState = localStorage.getItem('cc_board_completed');
-      if (completedState) {
-        try {
-          const state = JSON.parse(completedState);
-          const resumeLevel = Number(state.nextLevel) || 2;
-          const resumeScore = Number(state.finalScore ?? state.score) || 0;
+    // CRITICAL: Always prefer clean-board resume over generic saved state
+    const completedState = localStorage.getItem('cc_board_completed');
+    if (completedState) {
+      try {
+        const state = JSON.parse(completedState);
+        const ageMs = Date.now() - (Number(state.timestamp) || 0);
+        const resumeLevel = Number(state.nextLevel) || 2;
+        // Fallback: if finalScore missing, add bonus to base score
+        const baseScore = Number(state.score) || 0;
+        const bonusScore = Number(state.bonus) || 0;
+        const resumeScore = Number(state.finalScore ?? (baseScore + bonusScore)) || 0;
+        if (Number.isFinite(ageMs) && ageMs < 60 * 60 * 1000) {
           logger.info('🎮 Board was completed - starting next board (level', resumeLevel, ', score:', resumeScore, ')');
           
           // Play exit animation
@@ -379,10 +377,12 @@ initializeApp().catch((error: Error) => {
           }, 770);
           
           return; // Exit early - don't load old game state
-        } catch (error) {
-          logger.warn('⚠️ Failed to parse completed board state:', error);
+        } else {
           localStorage.removeItem('cc_board_completed');
         }
+      } catch (error) {
+        logger.warn('⚠️ Failed to parse completed board state:', error);
+        localStorage.removeItem('cc_board_completed');
       }
     }
     

@@ -1,6 +1,7 @@
 // Slider Manager Module
 // Handles slider functionality and navigation
 
+import { gsap } from 'gsap';
 import gameState from './game-state.js';
 import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
@@ -30,6 +31,8 @@ class SliderManager {
   private currentX: number = 0;
   private threshold: number = 50;
   private isInitialized: boolean = false;
+  private slideAnimation: gsap.core.Tween | null = null;
+  private quickSetX: ((value: number) => void) | null = null;
   private elements: SliderElements = {
     container: null,
     wrapper: null,
@@ -92,6 +95,11 @@ class SliderManager {
       
       // Setup state subscriptions
       this.setupStateSubscriptions();
+      
+      // Initialize GSAP quickSetter for smooth drag updates
+      if (this.elements.wrapper) {
+        this.quickSetX = gsap.quickSetter(this.elements.wrapper, 'x', 'px') as (value: number) => void;
+      }
       
       // Initialize slider
       this.updateSlider();
@@ -304,7 +312,13 @@ class SliderManager {
       currentOffset = baseOffset + (deltaX * 0.1);
     }
     
-    this.elements.wrapper.style.transform = `translateX(${currentOffset}px)`;
+    // Use GSAP quickSetter for smooth drag updates (better performance and sync)
+    if (this.quickSetX) {
+      this.quickSetX(currentOffset);
+    } else {
+      // Fallback to direct transform
+      this.elements.wrapper.style.transform = `translateX(${currentOffset}px)`;
+    }
   }
   
   // Go to specific slide
@@ -347,8 +361,34 @@ class SliderManager {
     const slideWidth = this.elements.container.offsetWidth;
     const offset = -this.currentSlide * slideWidth;
     
-    // Update wrapper position
-    this.elements.wrapper.style.transform = `translateX(${offset}px)`;
+    // Kill previous animation if exists
+    if (this.slideAnimation) {
+      this.slideAnimation.kill();
+      this.slideAnimation = null;
+    }
+    
+    // Use GSAP for premium smooth animation with slight bounce
+    // Only animate if not dragging (during drag, we want instant updates)
+    if (!this.isDragging) {
+      // Get current position from GSAP (quickSetter keeps it in sync)
+      const currentX = gsap.getProperty(this.elements.wrapper, 'x') as number || 0;
+      
+      // Use GSAP for smooth transition from current position
+      this.slideAnimation = gsap.to(this.elements.wrapper, {
+        x: offset,
+        duration: 0.5,
+        ease: 'back.out(1.2)', // Blagi bounce efekt
+        force3D: true, // Better performance
+        overwrite: true
+      });
+    } else {
+      // During drag, use quickSetter (already handled in updateSliderPosition)
+      if (this.quickSetX) {
+        this.quickSetX(offset);
+      } else {
+        this.elements.wrapper.style.transform = `translateX(${offset}px)`;
+      }
+    }
     
     // Update dots
     this.elements.dots.forEach((dot, index) => {
@@ -387,6 +427,12 @@ class SliderManager {
   
   // Cleanup
   destroy(): void {
+    // Kill GSAP animation if exists
+    if (this.slideAnimation) {
+      this.slideAnimation.kill();
+      this.slideAnimation = null;
+    }
+    
     // 🔥 MEMORY LEAK FIX: Remove all event listeners
     if (this.elements.container) {
       // Remove touch events

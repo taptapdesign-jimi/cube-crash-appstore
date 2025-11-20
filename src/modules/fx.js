@@ -1749,15 +1749,11 @@ export function startHeroImageParticles(heroImageElement) {
       const wildMagnetSize = 20 + Math.random() * 20; // 20-40px base size, will be 50% smaller (10-20px)
       createParticle('./assets/wild-magnet.png', wildMagnetSize, true);
       
-      // Generate 1 wild-stats (normal size)
-      const wildStatsSize = 20 + Math.random() * 20; // 20-40px
-      createParticle('./assets/wild-stats.png', wildStatsSize);
-      
       // Generate 1 cube-nav (normal size)
       const cubeNavSize = 20 + Math.random() * 20; // 20-40px
       createParticle('./assets/nav/cube-nav.png', cubeNavSize);
       
-      console.log(`✅ generateParticles: Created ${starCount} stars + 1 wild-magnet + 1 wild-stats + 1 cube-nav for hero image on click/tap, overlay children:`, overlayContainer.children.length);
+      console.log(`✅ generateParticles: Created ${starCount} stars + 1 wild-magnet + 1 cube-nav for hero image on click/tap, overlay children:`, overlayContainer.children.length);
     } catch (err) {
       console.error('❌ Hero image particles error:', err);
     }
