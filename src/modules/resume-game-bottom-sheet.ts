@@ -95,15 +95,21 @@ function createResumeModal(): HTMLElement {
         console.warn('⚠️ Failed to clear saved game state:', error);
       }
       hideResumeModal();
-      // CRITICAL: Wait for modal to close, then start game directly
-      // Reduced delay for faster game start (400ms is enough for animation)
+      // CRITICAL: Wait for modal to close, then trigger game start sequence with exit animation
+      // Same as continue button - uses triggerGameStartSequence which plays exit animation
       setTimeout(() => {
-        console.log('🎮 Starting game after modal closed (New Game)');
-        // Call startNewGame directly - it will handle exit animation
-        if ((window as any).uiManager) {
-          (window as any).uiManager.startNewGame();
+        console.log('🎮 Starting game after modal closed (New Game) - with exit animation');
+        // Use triggerGameStartSequence to play exit animation (same as continue button)
+        if (typeof (window as any).triggerGameStartSequence === 'function') {
+          (window as any).triggerGameStartSequence();
+        } else {
+          // Fallback to direct start if function not available
+          console.warn('⚠️ triggerGameStartSequence not found, using direct start');
+          if ((window as any).uiManager) {
+            (window as any).uiManager.startNewGame();
+          }
         }
-      }, 400); // Reduced from 700ms to 400ms for faster start
+      }, 400); // Wait for modal close animation (400ms)
     });
   }
   

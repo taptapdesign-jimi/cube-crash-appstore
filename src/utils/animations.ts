@@ -250,13 +250,26 @@ function startExitAnimationSequence(): void {
     }, 30);
     activeTimeouts.add(timeout);
     
-    // STEP 4: Home logo FOURTH (90ms delay)
+    // STEP 4: Home logo and shards FOURTH (90ms delay)
     if (homeLogo) {
       cartoonishBounce(homeLogo as HTMLElement, 90);
       logger.info('🎨 Step 4: Home logo cartoonish bounce - FOURTH');
     } else {
       logger.warn('⚠️ Home logo not found');
     }
+    
+    // Animate shards together with logo - ALL at the same time as logo (90ms delay)
+    const logoAddons = [
+      document.getElementById('logo-shards-gore-ljevo'),
+      document.getElementById('logo-shards-gore-desno')
+    ];
+    logoAddons.forEach((addon, index) => {
+      if (addon) {
+        cartoonishBounce(addon as HTMLElement, 90); // Same delay as logo - no stagger
+        logger.info(`✨ Step 4: Logo addon ${index + 1} cartoonish bounce - with logo (same time)`);
+      }
+    });
+    
     
     // STEP 5: Navigation and Shadow LAST (120ms delay - finishes at 420ms, close to 400ms)
     if (independentNav) {
@@ -425,13 +438,26 @@ function startEnterAnimationSequence(): void {
       logger.info('🌑 Step 1: Shadow cartoonish bounce - FIRST (with navigation)');
     }
     
-    // STEP 2: Home logo SECOND (30ms delay)
+    // STEP 2: Home logo and shards SECOND (30ms delay)
     if (homeLogo) {
       reverseBounce(homeLogo as HTMLElement, 30);
       logger.info('🎨 Step 2: Home logo cartoonish bounce - SECOND');
     } else {
       logger.warn('⚠️ Home logo not found');
     }
+    
+    // Animate shards together with logo - ALL at the same time as logo (30ms delay)
+    const logoAddons = [
+      document.getElementById('logo-shards-gore-ljevo'),
+      document.getElementById('logo-shards-gore-desno')
+    ];
+    logoAddons.forEach((addon, index) => {
+      if (addon) {
+        reverseBounce(addon as HTMLElement, 30); // Same delay as logo - no stagger
+        logger.info(`✨ Step 2: Logo addon ${index + 1} cartoonish bounce - with logo (same time)`);
+      }
+    });
+    
     
     // STEP 3: Slide text, CTA button, and Tagline TOGETHER (60ms delay)
     // Animate all at exactly the same time using the same timeout
@@ -512,6 +538,8 @@ function startEnterAnimationSequence(): void {
       const sharedElements = [
         document.querySelector('#independent-nav'),
         document.querySelector('#home-logo'),
+        document.getElementById('logo-shards-gore-ljevo'),
+        document.getElementById('logo-shards-gore-desno'),
         document.getElementById('home-fixed-shadow-bottom')
       ];
       
@@ -550,12 +578,24 @@ function startEnterAnimationSequenceLegacy(): void {
     logger.info('🌑 Step 1: Shadow cartoonish bounce - FIRST (legacy, with navigation)');
   }
   
-  // STEP 2: Home logo SECOND (30ms delay)
+  // STEP 2: Home logo and shards SECOND (30ms delay)
   const homeLogo = document.querySelector('#home-logo');
   if (homeLogo) {
     reverseBounce(homeLogo as HTMLElement, 30);
     logger.info('🎨 Step 2: Home logo cartoonish bounce - SECOND (legacy)');
   }
+  
+  // Animate shards together with logo
+  const logoAddons = [
+    document.getElementById('logo-shards-gore-ljevo'),
+    document.getElementById('logo-shards-gore-desno')
+  ];
+  logoAddons.forEach((addon, index) => {
+    if (addon) {
+      reverseBounce(addon as HTMLElement, 30 + (index * 5)); // Slight stagger for visual effect
+      logger.info(`✨ Step 2: Logo addon ${index + 1} cartoonish bounce - with logo (legacy)`);
+    }
+  });
   
   // STEP 3: Slide text, CTA button, and Tagline TOGETHER (60ms delay)
   // Animate all at exactly the same time using the same timeout

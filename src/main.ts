@@ -320,10 +320,73 @@ initializeApp().catch((error: Error) => {
 };
 
 // Continue game with saved state
+// SIMPLE: If board was completed (hard exit during clean board), start next board directly with saved score
 (window as any).continueGameWithSavedState = async () => {
   logger.info('🔄 continueGameWithSavedState called - loading saved game');
   
   try {
+    // CRITICAL: First check if there's a normal saved game (cc_saved_game)
+    // If it exists, use normal flow - don't check cc_board_completed
+    const savedGame = localStorage.getItem('cc_saved_game');
+    if (savedGame) {
+      logger.info('📊 Normal saved game found, using normal flow');
+      // Continue with normal flow below
+    } else {
+      // No normal saved game - check if board was completed (clean board was active when hard exit happened)
+      const completedState = localStorage.getItem('cc_board_completed');
+      if (completedState) {
+        try {
+          const state = JSON.parse(completedState);
+          const resumeLevel = Number(state.nextLevel) || 2;
+          const resumeScore = Number(state.finalScore ?? state.score) || 0;
+          logger.info('🎮 Board was completed - starting next board (level', resumeLevel, ', score:', resumeScore, ')');
+          
+          // Play exit animation
+          animateSliderExit();
+          
+          // Wait for exit animation, then start next board with saved score
+          setTimeout(async () => {
+            // Hide homepage and show app
+            uiManager.hideHomepage();
+            uiManager.showApp();
+            
+            try {
+              // Set flags so boot() and startLevel start at correct level with correct score
+              (window as any).__ccStartAtLevel = resumeLevel;
+              (window as any).__ccResumeScore = resumeScore;
+              
+              // Boot the game (boot() will use __ccStartAtLevel to start at resumeLevel)
+              await bootGame();
+              await layoutGame();
+              
+              // Clear completion state AFTER boot
+              localStorage.removeItem('cc_board_completed');
+              localStorage.removeItem('cc_saved_game');
+              localStorage.removeItem('cubeCrash_gameState');
+              
+              logger.info('✅ Next board started with score:', resumeScore);
+              delete (window as any).__ccStartAtLevel;
+              delete (window as any).__ccResumeScore;
+            } catch (error) {
+              logger.error('❌ Failed to start next board:', error);
+              console.warn('⚠️ Starting fresh game');
+              // Clear completed state on error
+              localStorage.removeItem('cc_board_completed');
+              // Clear flags on error
+              delete (window as any).__ccStartAtLevel;
+              delete (window as any).__ccResumeScore;
+            }
+          }, 770);
+          
+          return; // Exit early - don't load old game state
+        } catch (error) {
+          logger.warn('⚠️ Failed to parse completed board state:', error);
+          localStorage.removeItem('cc_board_completed');
+        }
+      }
+    }
+    
+    // Normal flow: load saved game state
     // Step 1: Play exit animation
     console.log('🎬 Step 1: Playing exit animation');
     animateSliderExit();
@@ -438,6 +501,13 @@ initializeApp().catch((error: Error) => {
     // Step 1: Play board exit animations (tiles + HUD)
     console.log('🎬 Playing board exit animations...');
     try {
+      // Hide board indicator (board tag) before board exit animation
+      const { animateBoardIndicatorExit } = await import('./modules/hud-helpers.js');
+      if (typeof animateBoardIndicatorExit === 'function') {
+        animateBoardIndicatorExit(0.3);
+        console.log('✅ Board indicator exit animation started');
+      }
+      
       await animateBoardExit();
       console.log('✅ Board exit animations completed');
     } catch (error) {

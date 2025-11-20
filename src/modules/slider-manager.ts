@@ -37,7 +37,7 @@ class SliderManager {
     dots: {} as NodeListOf<Element>,
     divider: null
   };
-  
+
   // 🔥 MEMORY LEAK FIX: Store bound event handlers and unsubscribe functions for cleanup
   private boundHandlers: {
     touchStart?: (e: TouchEvent) => void;
@@ -117,8 +117,8 @@ class SliderManager {
       this.elements.container.addEventListener('touchstart', this.boundHandlers.touchStart, { passive: true });
       this.elements.container.addEventListener('touchmove', this.boundHandlers.touchMove, { passive: true });
       this.elements.container.addEventListener('touchend', this.boundHandlers.touchEnd, { passive: true });
-      
-      // Mouse events
+    
+    // Mouse events
       this.boundHandlers.mouseDown = this.handleMouseDown.bind(this);
       this.boundHandlers.mouseMove = this.handleMouseMove.bind(this);
       this.boundHandlers.mouseUp = this.handleMouseUp.bind(this);

@@ -118,7 +118,7 @@ export async function showCleanBoardModal({
   updateHUD, 
   bonus = 500, 
   scoreCap = 999999, 
-  boardNumber = 1 
+  boardNumber = 1
 }: ShowCleanBoardModalParams = {}): Promise<{ action: string }> {
   return new Promise(async resolve => {
     // Calculate score values early for high score check
@@ -487,88 +487,90 @@ export async function showCleanBoardModal({
         requestAnimationFrame(tick);
       };
 
-      // SEQUENCE 1: Initial elements pop-in WITH CONFETTI EXPLOSION
-      setTimeout(() => {
-        // 🔥 CRITICAL FIX v40.8: Ensure hero is properly initialized before animating
-        // Double-check that initial state is set (in case image loaded after setInit was called)
-        if (!heroImageLoaded && hero.complete) {
-          setInit(hero, -25, 0);
-          heroImageLoaded = true;
-        }
-        
-        // Ensure transition is set before animating
-        hero.style.transition = trans;
-        
-        hero.style.opacity = '1';
-        hero.style.transform = 'scale(1) translateY(0)';
-        
-        // CONFETTI EXPLOSION from hero image
+      {
+        // SEQUENCE 1: Initial elements pop-in WITH CONFETTI EXPLOSION
+        // Start confetti 400ms earlier (immediately, no delay)
         createConfettiExplosion(hero);
         
-        // 🔥 CRITICAL FIX v40.8: Apply idle bounce animation AFTER transform animation completes
-        // This prevents conflict between CSS animation and transform animation
-        // Wait for transform animation to complete (0.65s) before starting idle animation
         setTimeout(() => {
-          if (hero && hero.parentElement) {
-            hero.style.animation = 'cleanBoardHeroIdle 4.5s ease-in-out infinite';
+          // 🔥 CRITICAL FIX v40.8: Ensure hero is properly initialized before animating
+          // Double-check that initial state is set (in case image loaded after setInit was called)
+          if (!heroImageLoaded && hero.complete) {
+            setInit(hero, -25, 0);
+            heroImageLoaded = true;
           }
-        }, 650); // Wait for transform animation to complete
-      }, 100);
-      setTimeout(() => {
-        title.style.opacity = '1';
-        title.style.transform = 'scale(1) translateY(0)';
-      }, 220);
-      setTimeout(() => {
-        scoreLabel.style.opacity = '1';
-        scoreLabel.style.transform = 'scale(1) translateY(0)';
-      }, 320);
-      setTimeout(() => {
-        mainScore.style.opacity = '1';
-        mainScore.style.transform = 'scale(1) translateY(0)';
-      }, 420);
-
-      // SEQUENCE 2: Casino wobble to confirm current score
-      setTimeout(runCasinoIntro, 650);
-
-      // SEQUENCE 3: Bonus stack pop-in
-      setTimeout(() => {
-        bonusWrapper.style.transition = 'opacity 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-        bonusWrapper.style.opacity = '1';
-        bonusWrapper.style.transform = 'scale(1) translateY(0)';
-      }, 1350);
-
-      // SEQUENCE 4: Transfer bonus into score while draining to zero
-      setTimeout(() => {
-        if (safeBonus <= 0) {
-          bonusValue.textContent = '+0';
-          mainScore.textContent = toScoreText(finalScore);
-          return;
-        }
-        transferBonus();
-      }, 2150);
-
-      // SEQUENCE 5: Swap bonus stack for "Board cleared" label
-      setTimeout(() => {
-        bonusWrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-        bonusWrapper.style.opacity = '0';
-        bonusWrapper.style.transform = 'scale(0.8) translateY(-8px)';
-
+          
+          // Ensure transition is set before animating
+          hero.style.transition = trans;
+          
+          hero.style.opacity = '1';
+          hero.style.transform = 'scale(1) translateY(0)';
+          
+          // 🔥 CRITICAL FIX v40.8: Apply idle bounce animation AFTER transform animation completes
+          // This prevents conflict between CSS animation and transform animation
+          // Wait for transform animation to complete (0.65s) before starting idle animation
+          setTimeout(() => {
+            if (hero && hero.parentElement) {
+              hero.style.animation = 'cleanBoardHeroIdle 4.5s ease-in-out infinite';
+            }
+          }, 650); // Wait for transform animation to complete
+        }, 100);
         setTimeout(() => {
-          bonusWrapper.style.visibility = 'hidden';
-          bonusWrapper.style.display = 'none'; // iOS FIX: Completely remove from layout
-          // SIMPLE transition - only opacity, NO transforms at all
-          boardCleared.style.transition = 'opacity 0.4s ease';
-          boardCleared.style.opacity = '1';
+          title.style.opacity = '1';
+          title.style.transform = 'scale(1) translateY(0)';
+        }, 220);
+        setTimeout(() => {
+          scoreLabel.style.opacity = '1';
+          scoreLabel.style.transform = 'scale(1) translateY(0)';
         }, 320);
-      }, 3250);
+        setTimeout(() => {
+          mainScore.style.opacity = '1';
+          mainScore.style.transform = 'scale(1) translateY(0)';
+        }, 420);
 
-      // SEQUENCE 6: Continue button pop-in
-      setTimeout(() => {
-        btn.style.transition = 'opacity 0.6s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.6s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-        btn.style.opacity = '1';
-        btn.style.transform = 'scale(1) translateY(0)';
-      }, 3840);
-    });
+        // SEQUENCE 2: Casino wobble to confirm current score
+        setTimeout(runCasinoIntro, 650);
+
+        // SEQUENCE 3: Bonus stack pop-in
+        setTimeout(() => {
+          bonusWrapper.style.transition = 'opacity 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          bonusWrapper.style.opacity = '1';
+          bonusWrapper.style.transform = 'scale(1) translateY(0)';
+        }, 1350);
+
+        // SEQUENCE 4: Transfer bonus into score while draining to zero
+        setTimeout(() => {
+          if (safeBonus <= 0) {
+            bonusValue.textContent = '+0';
+            mainScore.textContent = toScoreText(finalScore);
+            return;
+          }
+          transferBonus();
+        }, 2150);
+
+        // SEQUENCE 5: Swap bonus stack for "Board cleared" label
+        setTimeout(() => {
+          bonusWrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+          bonusWrapper.style.opacity = '0';
+          bonusWrapper.style.transform = 'scale(0.8) translateY(-8px)';
+
+          setTimeout(() => {
+            bonusWrapper.style.visibility = 'hidden';
+            bonusWrapper.style.display = 'none'; // iOS FIX: Completely remove from layout
+            // SIMPLE transition - only opacity, NO transforms at all
+            boardCleared.style.transition = 'opacity 0.4s ease';
+            boardCleared.style.opacity = '1';
+          }, 320);
+        }, 3250);
+
+        // SEQUENCE 6: Continue button pop-in
+        setTimeout(() => {
+          btn.style.transition = 'opacity 0.6s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.6s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          btn.style.opacity = '1';
+          btn.style.transform = 'scale(1) translateY(0)';
+        }, 3840);
+      }
+    }); // Close requestAnimationFrame from line 431
 
     // Add button press handling for proper UX
     const addButtonPressHandling = (button: HTMLButtonElement, action: () => void): void => {
@@ -713,9 +715,11 @@ export async function showCleanBoardModal({
         el.style.opacity = '0';
       }, collapseDuration);
       
+      // CRITICAL: Update score with bonus when Continue is clicked
       try {
         const cur = typeof getScore === 'function' ? (getScore()|0) : 0;
         const next = Math.min(scoreCap, cur + (bonus|0));
+        console.log('💾 clean-board-modal: Setting final score on Continue:', cur, '+', bonus, '=', next);
         if (typeof animateScore === 'function') {
           animateScore(next, 0.45);
         } else if (typeof setScore === 'function') {
@@ -723,17 +727,11 @@ export async function showCleanBoardModal({
           if (updateHUD) updateHUD();
         }
         try { (window as any).updateHighScore?.(next); } catch {}
+        
+        // SIMPLE: Clear completed board state (user clicked Continue, normal flow)
+        localStorage.removeItem('cc_board_completed');
       } catch {}
       
-      // CRITICAL FIX: Clear saved game state when board is cleared
-      // This prevents the user from being able to "continue" after board completion
-      try {
-        localStorage.removeItem('cc_saved_game');
-        localStorage.removeItem('cubeCrash_gameState');
-        console.log('✅ clean-board-modal: Cleared both saved game states after board completion');
-      } catch (error) {
-        console.warn('⚠️ clean-board-modal: Failed to clear saved game state:', error);
-      }
       
       trackTimeout(() => { 
         try { el.remove(); } catch {}

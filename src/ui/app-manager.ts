@@ -1,5 +1,6 @@
 // App Manager - Handles lazy loading and dynamic component rendering
 import { logger } from '../core/logger.js';
+import { startHeroImageParticles, stopHeroImageParticles } from '../modules/fx.js';
 
 export type ScreenType = 'loading' | 'home' | 'game' | 'stats' | 'collectibles' | 'menu' | 'settings';
 
@@ -46,7 +47,19 @@ class AppManager {
     await this.hideScreen(this.currentScreen);
 
     // Show new screen
-    const element = this.screenElements.get(screen);
+    let element = this.screenElements.get(screen);
+    
+    // If element not found in cache, try to find it directly
+    if (!element) {
+      const screenId = this.getScreenId(screen);
+      const foundElement = document.getElementById(screenId);
+      if (foundElement) {
+        element = foundElement;
+        this.screenElements.set(screen, element);
+        logger.info(`✅ Found and cached screen element: ${screen}`);
+      }
+    }
+    
     if (element) {
       element.hidden = false;
       element.style.display = 'block';
@@ -148,6 +161,30 @@ class AppManager {
         }
       }
       
+      // Start logo idle smoke when home screen is shown
+      if (screen === 'home') {
+        // Start hero image particles on slide 1 (homepage)
+        const tryStartHeroParticles = (attempt = 0) => {
+          const heroImage = document.querySelector('.slider-slide[data-slide="0"] .hero-image');
+          if (heroImage && heroImage.parentElement) {
+            console.log('✅ Hero image found, starting particles', heroImage);
+            try {
+              startHeroImageParticles(heroImage);
+            } catch (err) {
+              console.error('❌ Failed to start hero image particles:', err);
+            }
+          } else if (attempt < 5) {
+            // Retry up to 5 times with increasing delays
+            setTimeout(() => tryStartHeroParticles(attempt + 1), 100 * (attempt + 1));
+          } else {
+            console.warn('⚠️ Hero image not found after 5 attempts');
+          }
+        };
+        
+        // Start trying immediately, then retry if needed
+        tryStartHeroParticles(0);
+      }
+      
       logger.info(`✅ Screen shown: ${screen}`);
     } else {
       logger.warn(`⚠️ Screen element not found: ${screen}`);
@@ -155,6 +192,18 @@ class AppManager {
   }
 
   async hideScreen(screen: ScreenType): Promise<void> {
+    // Stop hero image particles and logo shimmer when home screen is hidden
+    if (screen === 'home') {
+      const heroImage = document.querySelector('.slider-slide[data-slide="0"] .hero-image');
+      if (heroImage) {
+        try {
+          stopHeroImageParticles(heroImage);
+        } catch (err) {
+          console.warn('Failed to stop hero image particles:', err);
+        }
+      }
+      
+    }
     const element = this.screenElements.get(screen);
     if (element && !element.hidden) {
       // 🔥 MEMORY LEAK FIX: Cleanup screen-specific resources before hiding

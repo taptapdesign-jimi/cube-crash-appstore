@@ -263,10 +263,24 @@ class UIManager {
     try {
       logger.info('🔍 Checking for saved game...');
       const savedGame = localStorage.getItem('cc_saved_game');
-      logger.info('🔍 Saved game found:', !!savedGame, savedGame ? 'YES' : 'NO');
+      const completionState = localStorage.getItem('cc_board_completed');
+      let hasFreshCompletion = false;
+      if (completionState) {
+        try {
+          const state = JSON.parse(completionState);
+          const ageMs = Date.now() - (Number(state.timestamp) || 0);
+          hasFreshCompletion = Number.isFinite(ageMs) && ageMs < 60 * 60 * 1000;
+          if (!hasFreshCompletion) {
+            localStorage.removeItem('cc_board_completed');
+          }
+        } catch (error) {
+          localStorage.removeItem('cc_board_completed');
+        }
+      }
+      logger.info('🔍 Saved game found:', !!savedGame, 'Completion pending:', hasFreshCompletion);
       
-      // Show resume sheet ONLY if saved game exists
-      if (savedGame) {
+      // Show resume sheet if saved game exists OR a fresh clean-board completion exists
+      if (savedGame || hasFreshCompletion) {
         logger.info('📱 Showing resume game bottom sheet...');
         // Show resume game modal IMMEDIATELY - no async import delay
         showResumeGameBottomSheet();
@@ -314,6 +328,8 @@ class UIManager {
       // Clear old saved game state for new game
       console.log('🧹 Clearing old saved game state...');
       localStorage.removeItem('cc_saved_game');
+      localStorage.removeItem('cc_board_completed');
+      localStorage.removeItem('cubeCrash_gameState');
       console.log('✅ Old saved game cleared');
       
       // Start game
@@ -363,6 +379,56 @@ class UIManager {
       console.log('🔄 START NEW GAME WITH SAVED STATE');
       console.log('🔄 ====================================');
       logger.info('🔄 Starting new game WITH saved state...');
+      
+      // Check if a clean-board completion was pending (hard-exit case)
+      const completedState = localStorage.getItem('cc_board_completed');
+      if (completedState) {
+        try {
+          const state = JSON.parse(completedState);
+          const resumeLevel = Number(state.nextLevel) || 2;
+          const resumeScore = Number(state.finalScore ?? state.score) || 0;
+          logger.info('🎮 Pending completion detected - starting next board', resumeLevel, 'with score', resumeScore);
+          
+          // Clear completion state up front so we don't get stuck
+          localStorage.removeItem('cc_board_completed');
+          localStorage.removeItem('cc_saved_game');
+          localStorage.removeItem('cubeCrash_gameState');
+          
+          // Set flags for boot/startLevel
+          (window as any).__ccStartAtLevel = resumeLevel;
+          (window as any).__ccResumeScore = resumeScore;
+          
+          // Set game state
+          gameState.setState({
+            isGameActive: true,
+            isPaused: false,
+            isGameEnded: false,
+            score: resumeScore,
+            level: resumeLevel,
+            combo: 0
+          });
+          
+          await bootGame();
+          await layoutGame();
+          
+          // Flags consumed by startLevel; clear them after boot
+          delete (window as any).__ccStartAtLevel;
+          delete (window as any).__ccResumeScore;
+          
+          // Show app element
+          this.showApp();
+          
+          console.log('🔄 ====================================');
+          console.log('🔄 NEXT BOARD STARTED (clean-board resume)');
+          console.log('🔄 ====================================');
+          
+          return;
+        } catch (error) {
+          console.warn('⚠️ Failed to resume from completion state, falling back to normal flow:', error);
+          // Clear corrupted flag
+          localStorage.removeItem('cc_board_completed');
+        }
+      }
       
       // Set game state
       gameState.setState({

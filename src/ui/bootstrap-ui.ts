@@ -154,12 +154,37 @@ function renderHome(root: HTMLElement): void {
   const content = document.createElement('div');
   content.className = 'content';
 
+  // Logo wrapper
+  const logoWrapper = document.createElement('div');
+  logoWrapper.id = 'home-logo-wrapper';
+  logoWrapper.className = 'home-logo-wrapper';
+
+  // Shards gore ljevo - above logo, top left
+  const shardsGoreLjevo = document.createElement('img');
+  shardsGoreLjevo.id = 'logo-shards-gore-ljevo';
+  shardsGoreLjevo.className = 'logo-addon logo-shards-gore-ljevo';
+  shardsGoreLjevo.src = './assets/logo addons/gore ljevo shards.png';
+  shardsGoreLjevo.alt = '';
+  shardsGoreLjevo.loading = 'lazy';
+  logoWrapper.appendChild(shardsGoreLjevo);
+
+  // Shards gore desno - above logo, top right, close to logo
+  const shardsGoreDesno = document.createElement('img');
+  shardsGoreDesno.id = 'logo-shards-gore-desno';
+  shardsGoreDesno.className = 'logo-addon logo-shards-gore-desno';
+  shardsGoreDesno.src = './assets/logo addons/shards gore desno.png';
+  shardsGoreDesno.alt = '';
+  shardsGoreDesno.loading = 'lazy';
+  logoWrapper.appendChild(shardsGoreDesno);
+
+  // Main logo
   const logo = document.createElement('img');
   logo.id = 'home-logo';
   logo.src = './assets/logo-cube-crash.png';
   logo.alt = 'CubeCrash';
   logo.loading = 'eager';
   logo.setAttribute('fetchpriority', 'high');
+  logoWrapper.appendChild(logo);
 
   const sliderContainer = document.createElement('div');
   sliderContainer.id = 'slider-container';
@@ -173,7 +198,7 @@ function renderHome(root: HTMLElement): void {
   sliderViewport.appendChild(sliderWrapper);
   sliderContainer.appendChild(sliderViewport);
 
-  content.appendChild(logo);
+  content.appendChild(logoWrapper);
   content.appendChild(sliderContainer);
   
   // Create fixed shadow BELOW Play button (like logo - always visible)

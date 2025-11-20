@@ -99,13 +99,36 @@ export async function boot(): Promise<void> {
   });
   STATE.drag = (ret && (ret as any).drag) ? (ret as any).drag : ret;
 
-  startLevel(1);
+  // CRITICAL: Don't auto-start level 1 here - let the calling code decide which level to start
+  // This allows continueGameWithSavedState to start the correct level when resuming from completed board
   window.addEventListener('resize', layout);
 }
 
 export async function startLevel(n: number): Promise<void> {
   STATE.level = n; 
-  STATE.score = 0; 
+  
+  // 🔥 CRITICAL: Preserve score if continuing from previous board (not a fresh start)
+  // Check if score should be preserved (set by clean board modal when continuing)
+  const preservedScore = (window as any).__ccPreserveScore;
+  if (typeof preservedScore === 'number' && preservedScore > 0) {
+    STATE.score = preservedScore;
+    // CRITICAL: Also sync to app-core.ts local score variable
+    // This ensures both STATE.score and local score are in sync
+    if (typeof (window as any).syncScoreToCore === 'function') {
+      (window as any).syncScoreToCore(preservedScore);
+    }
+    console.log('💾 Preserved score from previous board:', preservedScore);
+    // Clear the flag so it doesn't affect future starts
+    delete (window as any).__ccPreserveScore;
+  } else {
+    // Fresh start - reset score to 0
+    STATE.score = 0;
+    // CRITICAL: Also sync to app-core.ts local score variable
+    if (typeof (window as any).syncScoreToCore === 'function') {
+      (window as any).syncScoreToCore(0);
+    }
+  }
+  
   STATE.moves = 0; 
   STATE.busyEnding = false;
   STATE.wildGuaranteedOnce = false;
@@ -122,8 +145,8 @@ export async function startLevel(n: number): Promise<void> {
         const saveAge = Date.now() - gameState.timestamp;
         if (saveAge < 24 * 60 * 60 * 1000) { // Less than 24 hours old
           logger.info('🎮 Found saved game, showing resume modal...');
-          if (typeof (window as WindowWithShowResumeGameModal).showResumeGameModal === 'function') {
-            await (window as WindowWithShowResumeGameModal).showResumeGameModal!();
+          if (typeof (window as any).showResumeGameModal === 'function') {
+            await (window as any).showResumeGameModal();
             return; // Modal will handle loading or starting new game
           }
         } else {

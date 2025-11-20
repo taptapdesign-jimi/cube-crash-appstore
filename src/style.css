@@ -327,9 +327,9 @@ body{
   margin-top: 20px !important;
 }
 
-/* Position text and CTA together on home screen - podignuto 16px */
+/* Position text and CTA together on home screen - podignuto 32px (16px + 16px) */
 .slider-slide[data-slide="0"] .slide-text {
-  transform: translateY(-26px) !important;
+  transform: translateY(-42px) !important;
 }
 
 /* Position tagline text on home screen - 24px spacing from top divider */
@@ -339,7 +339,7 @@ body{
 
 /* Position text and CTA together on stats slide - same position as home slide */
 .slider-slide[data-slide="1"] .slide-text {
-  transform: translateY(-26px) !important;
+  transform: translateY(-42px) !important;
 }
 
 /* Position tagline text on stats slide - same spacing as home slide */
@@ -349,7 +349,7 @@ body{
 
 /* Position text and CTA together on collectibles slide - same position as home slide */
 .slider-slide[data-slide="2"] .slide-text {
-  transform: translateY(-26px) !important;
+  transform: translateY(-42px) !important;
 }
 
 /* Position tagline text on collectibles slide - same spacing as home slide */
@@ -359,7 +359,7 @@ body{
 
 /* Position text and CTA together on settings slide - same position as home slide */
 .slider-slide[data-slide="3"] .slide-text {
-  transform: translateY(-26px) !important;
+  transform: translateY(-42px) !important;
 }
 
 /* Position tagline text on settings slide - same spacing as home slide */
@@ -659,7 +659,7 @@ body{
 
 /* Extra guard for small phones */
 @media (max-width: 420px) {
-  #home-logo{ width: min(240px, 75.2vw); } /* 🔥 20% smaller: 300px * 0.8 = 240px, 94vw * 0.8 = 75.2vw */
+  #home-logo{ width: 208px; } /* Original size, no scaling */
   .slide .hero-wrap{ width: min(320px, 96vw); height: 350px; }
   .hero{ width: min(320px, 96vw); max-height: 350px; }
   .slide .copy{ width: min(240px, 86vw); }
@@ -908,6 +908,8 @@ body{
 /* Ensure hero-container, logo, navigation, and shadow also animate */
 .hero-container.animate-exit,
 #home-logo.animate-exit,
+#logo-shards-gore-ljevo.animate-exit,
+#logo-shards-gore-desno.animate-exit,
 #independent-nav.animate-exit,
 #home-fixed-shadow-bottom.animate-exit {
   background-color: transparent !important;
@@ -918,6 +920,7 @@ body{
 .slide-text.animate-exit {
   transform: translateY(12px) scale(0) !important;
 }
+
 
 /* Slide-tagline animates together with slide-text */
 .slide-tagline.animate-exit {
@@ -934,9 +937,11 @@ body{
   transform: scale(1) !important;
 }
 
-/* Ensure hero-container, logo, navigation, and shadow also animate */
+/* Ensure hero-container, logo, shards, navigation, and shadow also animate */
 .hero-container.animate-enter,
 #home-logo.animate-enter,
+#logo-shards-gore-ljevo.animate-enter,
+#logo-shards-gore-desno.animate-enter,
 #independent-nav.animate-enter,
 #home-fixed-shadow-bottom.animate-enter {
   background-color: transparent !important;
@@ -961,9 +966,11 @@ body{
   transform: scale(0) !important;
 }
 
-/* Ensure hero-container, logo, navigation, and shadow also start from scale 0 */
+/* Ensure hero-container, logo, shards, navigation, and shadow also start from scale 0 */
 .hero-container.animate-enter-initial,
 #home-logo.animate-enter-initial,
+#logo-shards-gore-ljevo.animate-enter-initial,
+#logo-shards-gore-desno.animate-enter-initial,
 #independent-nav.animate-enter-initial,
 #home-fixed-shadow-bottom.animate-enter-initial {
   transition: none !important;

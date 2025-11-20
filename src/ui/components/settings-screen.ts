@@ -203,7 +203,43 @@ export function renderSettingsScreen(
   // Setup footer explosion animation after render
   const footerText = element.querySelector('.settings-footer-text') as HTMLElement;
   if (footerText) {
-    footerText.addEventListener('click', () => triggerFooterExplosion(footerText));
+    footerText.addEventListener('click', () => {
+      triggerFooterExplosion(footerText);
+      // Easter egg: unlock legendary card 22 (legendary02)
+      unlockLegendaryCard22();
+    });
+  }
+}
+
+/**
+ * Easter egg: Unlock legendary card 22 (legendary02) when tapping "Made with ❤️" text
+ */
+function unlockLegendaryCard22(): void {
+  try {
+    // Check if card 22 is already unlocked
+    const collectiblesState = localStorage.getItem('collectibles_state');
+    if (collectiblesState) {
+      const state = JSON.parse(collectiblesState);
+      const legendary02 = state.legendary?.find((c: any) => c.id === 'legendary02');
+      if (legendary02 && legendary02.unlocked) {
+        console.log('✅ Card 22 already unlocked');
+        return;
+      }
+    }
+    
+    // Unlock card 22
+    console.log('🎉 Easter egg triggered! Unlocking legendary card 22...');
+    if (typeof window !== 'undefined' && typeof (window as any).unlockCollectibleByNumber === 'function') {
+      (window as any).unlockCollectibleByNumber(22).then(() => {
+        console.log('✅ Legendary card 22 unlocked via easter egg!');
+      }).catch((err: any) => {
+        console.error('❌ Failed to unlock card 22:', err);
+      });
+    } else {
+      console.warn('⚠️ unlockCollectibleByNumber not available');
+    }
+  } catch (err) {
+    console.error('❌ Error checking/unlocking card 22:', err);
   }
 }
 

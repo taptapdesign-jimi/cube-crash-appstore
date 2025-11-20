@@ -54,6 +54,10 @@ const ALL_ASSETS: string[] = [
   './assets/logo-cube-crash.png',
   './assets/logo.png',
   
+  // Logo addons
+  './assets/logo addons/gore ljevo shards.png',
+  './assets/logo addons/shards gore desno.png',
+  
   // Core game assets
   './assets/tile.png',
   './assets/tile_numbers.png',

@@ -66,7 +66,19 @@
   align-items: center;
   justify-content: center;
   margin-bottom: 40px;
-  margin-top: 44px; /* 🔥 52px - 8px podignuto gore */
+  margin-top: 28px; /* 🔥 36px - 8px podignuto gore = 28px */
+}
+
+/* Hero image particles overlay - must be behind hero image */
+#hero-image-particles-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1 !important; /* Behind hero image (z-index: 2) */
+  pointer-events: none;
+  overflow: visible;
 }
 
 .hero-image {
@@ -203,7 +215,7 @@
   line-height: 28px; /* lineSpacing(28) from SwiftUI */
   color: #CB9873; /* Updated text color */
   margin: 0;
-  margin-top: 12px; /* 🔥 16px - 4px podignuto gore */
+  margin-top: 4px; /* 🔥 12px - 8px podignuto gore */
   padding: 0;
 }
 
@@ -218,7 +230,7 @@
   align-items: center;
   justify-content: center;
   line-height: 1; /* avoid baseline shifts */
-  margin-top: 40px !important; /* 🔥 44px - 4px podignuto gore */
+  margin-top: 16px !important; /* 🔥 32px - 16px podignuto gore */
 }
 
 /* Navigation Icons */
@@ -381,16 +393,67 @@
 }
 
 
-/* Logo styling */
-#home-logo {
-  width: min(256px, 64vw); /* 🔥 20% smaller: 320px * 0.8 = 256px, 80vw * 0.8 = 64vw */
-  height: auto;
+
+/* Logo wrapper */
+.home-logo-wrapper {
+  position: relative;
+  display: inline-block;
   margin-bottom: 20px;
-  margin-top: -30px; /* 🔥 -46px + 16px spušteno dolje = -30px */
-  position: relative; /* ensure stacking context */
-  z-index: 10;        /* draw above slider content lifted with negative margin */
-  /* No idle animation */
+  margin-top: -14px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+  z-index: 30; /* Higher z-index to ensure logo wrapper is above particles overlay */
+  isolation: isolate; /* Create new stacking context to ensure logo is above overlay */
 }
+
+/* Logo addons base styling */
+.logo-addon {
+  position: absolute;
+  pointer-events: none;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Shards gore ljevo - above logo, top left */
+.logo-shards-gore-ljevo {
+  top: -16%; /* Moved 20% closer: -20% * 0.8 = -16% */
+  left: -12%; /* Moved 20% closer: -15% * 0.8 = -12% */
+  width: 59px !important; /* Increased by 20%: 49px * 1.2 = 58.8px ≈ 59px */
+  height: 59px !important; /* Increased by 20%: 49px * 1.2 = 58.8px ≈ 59px */
+  max-width: 59px !important;
+  max-height: 59px !important;
+  z-index: 15; /* Behind logo but above particles */
+  object-fit: contain;
+  transform-origin: center center;
+}
+
+/* Shards gore desno - above logo, top right, close to logo */
+.logo-shards-gore-desno {
+  top: -16%; /* Moved 20% closer: -20% * 0.8 = -16% */
+  right: -8%; /* Moved 20% closer: -10% * 0.8 = -8% */
+  width: 59px !important; /* Increased by 20%: 49px * 1.2 = 58.8px ≈ 59px */
+  height: 59px !important; /* Increased by 20%: 49px * 1.2 = 58.8px ≈ 59px */
+  max-width: 59px !important;
+  max-height: 59px !important;
+  z-index: 15; /* Behind logo but above particles */
+  object-fit: contain;
+  transform-origin: center center;
+}
+
+/* Shards dole ljevo - below logo, bottom left corner */
+
+/* Main logo (in front) - no scaling, original size */
+#home-logo {
+  width: 208px;
+  height: auto;
+  position: relative;
+  z-index: 20; /* Higher z-index to ensure logo is above particles overlay */
+  display: block;
+  margin: 0 auto; /* Center logo within wrapper */
+}
+
 
 /* iPhone 13 Optimizations */
 @media screen and (max-width: 428px) {
@@ -413,8 +476,27 @@
     font-size: 24px;
   }
   
+  .home-logo-wrapper {
+    margin-top: -14px; /* 🔥 -22px + 8px spušteno dolje = -14px */
+  }
+  
   #home-logo {
-    width: min(224px, 60vw); /* 🔥 20% smaller: 280px * 0.8 = 224px, 75vw * 0.8 = 60vw */
+    width: 208px; /* Original size, no scaling */
+  }
+  
+  /* Scale down addons on mobile - but shards have specific sizes */
+  .logo-addon:not(.logo-shards-gore-ljevo):not(.logo-shards-gore-desno) {
+    max-width: 80px;
+    max-height: 80px;
+  }
+  
+  /* Shards specific sizes on mobile - 20% increased */
+  .logo-shards-gore-ljevo,
+  .logo-shards-gore-desno {
+    width: 59px !important;
+    height: 59px !important;
+    max-width: 59px !important;
+    max-height: 59px !important;
   }
 }
 
@@ -426,7 +508,7 @@
   }
   
   #home-logo {
-    width: min(484px, 80vw); /* 461px * 1.05 = 484px */
+    width: 208px; /* Original size, no scaling */
   }
 }
 

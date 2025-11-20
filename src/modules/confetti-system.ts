@@ -7,40 +7,50 @@ const MAX_ANIMATIONS = 800; // Increased for continuous spawn
 function createConfettiExplosion(element: HTMLElement): void {
   console.log('🎉 createConfettiExplosion called');
   const colors = ['#FBE3C5', '#FA8C00', '#E5C7AD', '#ECD7C2', '#FDBA00', '#FADEC0'];
-  const confettiPerSpawn = 15; // Small batches for continuous effect
+  const confettiPerSpawn = 15; // Original value - restored from 6
   const screenW = window.innerWidth;
   const screenH = window.innerHeight;
   const totalDuration = 5000; // Overall duration
-  // Progressive staggered spawns handled below
   
-  // Start immediately, no delay
-  console.log('🎉 Starting progressive confetti spawns');
+  // Start immediately, no delay - spawn first batch right away (400ms earlier)
+  console.log('🎉 Starting confetti spawns every 1 second');
+  
+  // Spawn every 1 second
+  let spawnCount = 0;
+  const maxSpawns = 5; // Spawn for 5 seconds total
+  
+  // Helper function to spawn a batch
+  const spawnBatch = (isFirstBatch = false) => {
+    if (spawnCount >= maxSpawns) {
+      return;
+    }
     
-    // Progressive staggered spawn: finish within 5 seconds total
-    const spawnGroups = [
-      { delay: 0, name: 'Group 1' },
-      { delay: 500, name: 'Group 2' },
-      { delay: 1200, name: 'Group 3' },
-      { delay: 2100, name: 'Group 4' },
-      { delay: 3200, name: 'Group 5' },
-      { delay: 4500, name: 'Group 6' }
-    ];
+    console.log(`🎉 Spawning confetti batch ${spawnCount + 1}`);
     
-    spawnGroups.forEach((group, index) => {
-      // Random delay variation: 10-40% of base delay
-      const randomVariation = 0.1 + Math.random() * 0.3; // 10-40% random
-      const randomDelay = group.delay * randomVariation;
-      
-      setTimeout(() => {
-        console.log(`🎉 Spawning ${group.name} at ${randomDelay.toFixed(0)}ms`);
-        
-        // Spawn from 4 top positions with random delays
-        setTimeout(() => createSpawn(colors, confettiPerSpawn, -(screenW * 0.3), -(screenH * 0.3), Math.PI / 4, 'left', 'down'), Math.random() * 300);
-        setTimeout(() => createSpawn(colors, confettiPerSpawn, screenW * 1.3, -(screenH * 0.3), 3 * Math.PI / 4, 'right', 'down'), Math.random() * 300);
-        setTimeout(() => createSpawn(colors, confettiPerSpawn, screenW * 0.25, -(screenH * 0.3), Math.PI / 2 - 0.3, 'left', 'down'), Math.random() * 300);
-        setTimeout(() => createSpawn(colors, confettiPerSpawn, screenW * 0.75, -(screenH * 0.3), Math.PI / 2 + 0.3, 'right', 'down'), Math.random() * 300);
-      }, randomDelay);
-    });
+    // For first batch, start immediately (no delay) to start 400ms earlier
+    // For subsequent batches, use small random delays
+    const delay = isFirstBatch ? 0 : Math.random() * 200;
+    
+    // Spawn from 4 top positions
+    setTimeout(() => createSpawn(colors, confettiPerSpawn, -(screenW * 0.3), -(screenH * 0.3), Math.PI / 4, 'left', 'down'), delay);
+    setTimeout(() => createSpawn(colors, confettiPerSpawn, screenW * 1.3, -(screenH * 0.3), 3 * Math.PI / 4, 'right', 'down'), delay);
+    setTimeout(() => createSpawn(colors, confettiPerSpawn, screenW * 0.25, -(screenH * 0.3), Math.PI / 2 - 0.3, 'left', 'down'), delay);
+    setTimeout(() => createSpawn(colors, confettiPerSpawn, screenW * 0.75, -(screenH * 0.3), Math.PI / 2 + 0.3, 'right', 'down'), delay);
+    
+    spawnCount++;
+  };
+  
+  // Spawn first batch immediately with no delay (400ms earlier than before)
+  spawnBatch(true);
+  
+  // Then continue with interval
+  const spawnInterval = setInterval(() => {
+    if (spawnCount >= maxSpawns) {
+      clearInterval(spawnInterval);
+      return;
+    }
+    spawnBatch();
+  }, 1000); // Every 1 second
 }
 
 function createSpawn(
@@ -54,9 +64,9 @@ function createSpawn(
 ): void {
   const isLeft = side === 'left';
   
-  // Random spawn: each confetti gets random delay 0-3000ms
+  // Random spawn: each confetti gets random delay 0-2600ms (reduced by 400ms to start earlier)
   for (let i = 0; i < count && activeAnimations < MAX_ANIMATIONS; i++) {
-    const spawnDelay = Math.random() * 3000;
+    const spawnDelay = Math.max(0, Math.random() * 3000 - 400); // Start 400ms earlier
     
     setTimeout(() => {
       const color = colors[i % colors.length];
@@ -86,28 +96,58 @@ function createSpawn(
     const velX = Math.cos(angle) * vel;
     const velY = Math.sin(angle) * vel * gravityMultiplier;
     
-    const isStrip = i % 2 === 0;
-    const w = isStrip ? 3 + Math.random() * 1 : 4 + Math.random() * 2; // Smaller width variation
-    const h = isStrip ? 8 + Math.random() * 7 : 6 + Math.random() * 4; // Much shorter strips (8-15px instead of 15-30px)
+    // 100% confetti only (stars are in separate logo animation)
+    const isStar = false; // 0% chance for star - only confetti
     
-    const x = startX + (isLeft ? Math.random() * 150 : -Math.random() * 150); // More spread
-    const y = startY + Math.random() * 50; // More vertical variation - staggered spawn
+    let confetti: HTMLElement;
     
-    const confetti = document.createElement('div');
-    confetti.className = 'cc-confetti-piece';
-    
-    const style = confetti.style;
-    style.position = 'fixed';
-    style.left = `${x}px`;
-    style.top = `${y}px`;
-    style.width = `${w}px`;
-    style.height = `${h}px`;
-    style.backgroundColor = color;
-    style.borderRadius = isStrip ? '2px' : '1px';
-    style.pointerEvents = 'none';
-    style.zIndex = '99999999999999';
-    style.transform = `rotate(${Math.random() * 360}deg)`;
-    style.opacity = '0.9';
+    if (isStar) {
+      // Create star image element
+      confetti = document.createElement('img');
+      confetti.className = 'cc-confetti-piece cc-confetti-star';
+      (confetti as HTMLImageElement).src = './assets/baby-star.png';
+      (confetti as HTMLImageElement).alt = '';
+      
+      // Random star size: 18-36px (50% larger: 12-24px * 1.5)
+      const starSize = 18 + Math.random() * 18;
+      const w = starSize;
+      const h = starSize;
+      
+      const style = confetti.style;
+      style.position = 'fixed';
+      style.left = `${startX + (isLeft ? Math.random() * 150 : -Math.random() * 150)}px`;
+      style.top = `${startY + Math.random() * 50}px`;
+      style.width = `${w}px`;
+      style.height = `${h}px`;
+      style.objectFit = 'contain';
+      style.pointerEvents = 'none';
+      style.zIndex = '99999999999999';
+      style.transform = `rotate(${Math.random() * 360}deg)`;
+      style.opacity = '1.0'; // Full opacity for stars
+      style.backgroundColor = 'transparent'; // No background fill
+      style.background = 'none'; // No background
+    } else {
+      // Create confetti div element (original)
+      const isStrip = i % 2 === 0;
+      const w = isStrip ? 3 + Math.random() * 1 : 4 + Math.random() * 2; // Original width variation
+      const h = isStrip ? 8 + Math.random() * 7 : 6 + Math.random() * 4; // Height: 8-15px for strips
+      
+      confetti = document.createElement('div');
+      confetti.className = 'cc-confetti-piece';
+      
+      const style = confetti.style;
+      style.position = 'fixed';
+      style.left = `${startX + (isLeft ? Math.random() * 150 : -Math.random() * 150)}px`;
+      style.top = `${startY + Math.random() * 50}px`;
+      style.width = `${w}px`;
+      style.height = `${h}px`;
+      style.backgroundColor = color;
+      style.borderRadius = isStrip ? '2px' : '1px';
+      style.pointerEvents = 'none';
+      style.zIndex = '99999999999999';
+      style.transform = `rotate(${Math.random() * 360}deg)`;
+      style.opacity = '0.9'; // Original opacity - restored from 0.54
+    }
     
     document.body.appendChild(confetti);
     activeAnimations++;
@@ -123,40 +163,66 @@ function createSpawn(
     const endX = velX * 2 + (Math.sin(wigglePhase + 1) * wiggleAmount);
     const endRot = 360 + Math.random() * 720;
     
-    const anim = confetti.animate([
-      {
-        transform: `translate(0, 0) rotate(0deg)`,
-        opacity: 0.9
-      },
-      {
-        transform: `translate(${endX}px, ${endY}px) rotate(${endRot}deg)`,
-        opacity: 0.9
-      }
-    ], {
-      duration,
-      easing: 'ease-out',
-      fill: 'forwards'
-    });
-    
-    // Instant fade-out below screen: 400px past bottom for modal clearance
-    const fadeOutY = screenHeight + 400; // Below screen, past continue button
-    const animProgress = setInterval(() => {
-      const rect = confetti.getBoundingClientRect();
-      const currentY = rect.top;
+    // Different animation for stars vs confetti
+    if (isStar) {
+      // Stars: full opacity, no fade-out
+      const anim = confetti.animate([
+        {
+          transform: `translate(0, 0) rotate(0deg)`,
+          opacity: 1.0
+        },
+        {
+          transform: `translate(${endX}px, ${endY}px) rotate(${endRot}deg)`,
+          opacity: 1.0
+        }
+      ], {
+        duration,
+        easing: 'ease-out',
+        fill: 'forwards'
+      });
       
-      if (currentY >= fadeOutY) {
-        // Instant fade out at random position
-        confetti.style.opacity = '0';
-        confetti.style.transform = 'scale(0)';
-        clearInterval(animProgress);
-      }
-    }, 10);
-    
       anim.onfinish = () => {
         confetti.remove();
         activeAnimations--;
         if (activeAnimations < 0) activeAnimations = 0;
       };
+    } else {
+      // Confetti: original animation with fade-out
+      const anim = confetti.animate([
+        {
+          transform: `translate(0, 0) rotate(0deg)`,
+          opacity: 0.9 // Original opacity - restored from 0.54
+        },
+        {
+          transform: `translate(${endX}px, ${endY}px) rotate(${endRot}deg)`,
+          opacity: 0.9 // Original opacity - restored from 0.54
+        }
+      ], {
+        duration,
+        easing: 'ease-out',
+        fill: 'forwards'
+      });
+      
+      // Instant fade-out below screen: 400px past bottom for modal clearance
+      const fadeOutY = screenHeight + 400; // Below screen, past continue button
+      const animProgress = setInterval(() => {
+        const rect = confetti.getBoundingClientRect();
+        const currentY = rect.top;
+        
+        if (currentY >= fadeOutY) {
+          // Instant fade out at random position
+          confetti.style.opacity = '0';
+          confetti.style.transform = 'scale(0)';
+          clearInterval(animProgress);
+        }
+      }, 10);
+      
+      anim.onfinish = () => {
+        confetti.remove();
+        activeAnimations--;
+        if (activeAnimations < 0) activeAnimations = 0;
+      };
+    }
     }, spawnDelay);
   }
 }

@@ -360,6 +360,12 @@ class CollectiblesManager {
     
     this.focusTargetCollectible(options);
     
+    // 🔥 CRITICAL: Initialize dev buttons after screen is shown (buttons might not exist when constructor runs)
+    // Use setTimeout to ensure buttons are in DOM after screen is rendered
+    setTimeout(() => {
+      this.initDevButtons();
+    }, 100);
+    
     // 🎬 CRITICAL: Trigger collectibles screen enter animation (pop-in) using GSAP
     try {
       const { animateCollectiblesScreenEnter } = await import('./ui/collectibles-animations.js');
@@ -1107,13 +1113,14 @@ class CollectiblesManager {
     if (!card.unlocked) {
       card.unlocked = true;
       this.saveCollectiblesState();
+      // Notify BEFORE rendering so card is in pendingFlips when renderCards() runs
+      this.notifyCardUnlocked(categoryKey, number, card, { source: 'number' });
       if (render) {
         this.renderCards();
         this.updateCounters();
       } else {
         this.updateCounters();
       }
-      this.notifyCardUnlocked(categoryKey, number, card, { source: 'number' });
       if (!silent) {
         logger.info(`🎁 Collectible ${number.toString().padStart(2, '0')} unlocked via dev tool.`);
       }
@@ -1225,16 +1232,30 @@ class CollectiblesManager {
   private initDevButtons(): void {
     const unlockBtn = document.getElementById('collectibles-unlock-btn');
     if (unlockBtn) {
-      unlockBtn.addEventListener('click', () => {
+      // Remove existing listener if any to prevent duplicates
+      const newUnlockBtn = unlockBtn.cloneNode(true);
+      unlockBtn.parentNode?.replaceChild(newUnlockBtn, unlockBtn);
+      (newUnlockBtn as HTMLElement).addEventListener('click', () => {
+        console.log('🎁 Show Card button clicked');
         this.showCardPickerModal('show');
       });
+      console.log('✅ Show Card button listener attached');
+    } else {
+      console.warn('⚠️ collectibles-unlock-btn not found');
     }
 
     const hideBtn = document.getElementById('collectibles-hide-btn');
     if (hideBtn) {
-      hideBtn.addEventListener('click', () => {
+      // Remove existing listener if any to prevent duplicates
+      const newHideBtn = hideBtn.cloneNode(true);
+      hideBtn.parentNode?.replaceChild(newHideBtn, hideBtn);
+      (newHideBtn as HTMLElement).addEventListener('click', () => {
+        console.log('🎁 Hide Card button clicked');
         this.showCardPickerModal('hide');
       });
+      console.log('✅ Hide Card button listener attached');
+    } else {
+      console.warn('⚠️ collectibles-hide-btn not found');
     }
   }
 

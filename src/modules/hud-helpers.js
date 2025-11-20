@@ -188,17 +188,26 @@ function updateBoardIndicatorValue(boardNumber) {
 function animateBoardIndicatorEnter(duration = 0.8) {
   const indicator = ensureBoardIndicator();
   try { gsap.killTweensOf(indicator); } catch {}
+  // CRITICAL: Make sure element is visible before animating
+  if (indicator) {
+    indicator.style.display = 'flex'; // Restore display (was set to 'none' on exit)
+    indicator.setAttribute('data-state', 'entering');
+  }
   gsap.set(indicator, { y: BOARD_INDICATOR_ANIM_OFFSET, opacity: 0 });
   gsap.to(indicator, {
     y: 0,
     opacity: 1,
     duration,
     ease: 'elastic.out(1, 0.6)',
-    onComplete: () => indicator?.setAttribute('data-state', 'visible')
+    onComplete: () => {
+      if (indicator) {
+        indicator.setAttribute('data-state', 'visible');
+      }
+    }
   });
 }
 
-function animateBoardIndicatorExit(duration = 0.3) {
+export function animateBoardIndicatorExit(duration = 0.3) {
   if (!boardIndicator || !document.body.contains(boardIndicator)) return;
   try { gsap.killTweensOf(boardIndicator); } catch {}
   // Use fixed 0.3s duration to match HUD exit speed, or use provided duration if it's faster
@@ -208,7 +217,13 @@ function animateBoardIndicatorExit(duration = 0.3) {
     opacity: 0,
     duration: exitDuration,
     ease: 'power2.in',
-    onComplete: () => boardIndicator?.setAttribute('data-state', 'hidden')
+    onComplete: () => {
+      if (boardIndicator) {
+        boardIndicator.setAttribute('data-state', 'hidden');
+        // Hide element completely after animation
+        boardIndicator.style.display = 'none';
+      }
+    }
   });
 }
 
