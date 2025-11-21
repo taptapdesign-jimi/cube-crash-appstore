@@ -7,6 +7,7 @@ import { showResumeGameBottomSheet } from './resume-game-bottom-sheet.js';
 import { logger } from '../core/logger.js';
 import { boot as bootGame, layout as layoutGame } from './app-core.js';
 import sliderManager from './slider-manager.js';
+import { gsap } from 'gsap';
 
 // Extend Window interface for haptic feedback
 
@@ -153,7 +154,7 @@ class UIManager {
   }
   
   // Handle play button click
-  private handlePlayClick(event: Event): void {
+  private async handlePlayClick(event: Event): Promise<void> {
     event.preventDefault();
     logger.info('🎮 Play button clicked');
     
@@ -570,6 +571,7 @@ class UIManager {
       appElement.style.display = 'none';
       logger.info('✅ App element hidden');
     }
+    
   }
   
   // Show homepage with animation
@@ -651,7 +653,46 @@ class UIManager {
       }
     });
     
-    // Step 1: Play exit animation for Stats slide
+    // 🎨 CRITICAL: Set background color IMMEDIATELY (no animation) to prevent dark flash
+    // This must happen BEFORE exit animation to avoid alpha gap showing dark background
+    const body = document.body;
+    const globalBg = document.getElementById('global-bg');
+    const appElement = document.getElementById('app');
+    console.log('🎨 Setting background to solid color IMMEDIATELY - GSAP available:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
+    if (gsap && body) {
+      // Kill any existing animations on body first
+      gsap.killTweensOf(body);
+      // Remove any CSS transitions that might interfere
+      body.style.transition = 'none';
+      // Set target background color IMMEDIATELY (no animation) to prevent dark flash
+      gsap.set(body, {
+        background: '#f3eee8',
+        immediateRender: true
+      });
+      console.log('✅ Body background set immediately to #f3eee8');
+    }
+    // Set global-bg element if it exists
+    if (gsap && globalBg) {
+      gsap.killTweensOf(globalBg);
+      (globalBg as HTMLElement).style.transition = 'none';
+      gsap.set(globalBg, {
+        background: '#f3eee8',
+        immediateRender: true
+      });
+      console.log('✅ Global-bg background set immediately to #f3eee8');
+    }
+    // Set #app element background if it exists (prevents dark flash from app element)
+    if (gsap && appElement) {
+      gsap.killTweensOf(appElement);
+      appElement.style.transition = 'none';
+      gsap.set(appElement, {
+        background: '#f3eee8',
+        immediateRender: true
+      });
+      console.log('✅ App element background set immediately to #f3eee8');
+    }
+    
+    // Step 1: Play exit animation for Stats slide (background is already set, no dark flash)
     console.log('🎬 Step 1: Playing exit animation for Stats slide');
     animateSliderExit();
     
@@ -711,6 +752,65 @@ class UIManager {
   private hideStatsScreenWithAnimation(): void {
     logger.info('📊 Hiding stats screen - with enter animation');
     
+    // 🎨 CRITICAL: Animate background color from solid color back to gradient (SMOOTH FADE)
+    // This must happen IMMEDIATELY when back button is clicked, BEFORE anything else
+    // Start animation immediately (not in requestAnimationFrame) to ensure it starts before any other code runs
+    const body = document.body;
+    const globalBg = document.getElementById('global-bg');
+    const appElement = document.getElementById('app');
+    const targetGradient = 'linear-gradient(180deg, #f5f5f5 0%, #fcecdf 100%)';
+    const targetGlobalBgGradient = 'linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)';
+    
+    console.log('🎨 [EXIT] Starting smooth background fade to gradient - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
+    
+    if (gsap && body) {
+      gsap.killTweensOf(body);
+      body.style.transition = 'none';
+      // Get current background to ensure smooth transition
+      const currentBg = window.getComputedStyle(body).background || window.getComputedStyle(body).backgroundColor || '#f3eee8';
+      // CRITICAL: Set initial background explicitly to prevent CSS override
+      gsap.set(body, { background: currentBg || '#f3eee8' });
+      // Use fromTo to ensure smooth fade from current solid color to gradient
+      gsap.to(body, {
+        background: targetGradient,
+        duration: 0.6,
+        ease: 'power2.inOut',
+        overwrite: 'auto',
+        immediateRender: false
+      });
+      console.log('✅ [EXIT] Body background fade animation started from:', currentBg);
+    }
+    if (gsap && globalBg) {
+      gsap.killTweensOf(globalBg);
+      (globalBg as HTMLElement).style.transition = 'none';
+      const currentGlobalBg = window.getComputedStyle(globalBg as HTMLElement).background || window.getComputedStyle(globalBg as HTMLElement).backgroundColor || '#f3eee8';
+      // CRITICAL: Set initial background explicitly to prevent CSS override
+      gsap.set(globalBg, { background: currentGlobalBg || '#f3eee8' });
+      gsap.to(globalBg, {
+        background: targetGlobalBgGradient,
+        duration: 0.6,
+        ease: 'power2.inOut',
+        overwrite: 'auto',
+        immediateRender: false
+      });
+      console.log('✅ [EXIT] Global-bg background fade animation started from:', currentGlobalBg);
+    }
+    if (gsap && appElement) {
+      gsap.killTweensOf(appElement);
+      appElement.style.transition = 'none';
+      const currentAppBg = window.getComputedStyle(appElement).background || window.getComputedStyle(appElement).backgroundColor || '#f3eee8';
+      // CRITICAL: Set initial background explicitly to prevent CSS override
+      gsap.set(appElement, { background: currentAppBg || '#f3eee8' });
+      gsap.to(appElement, {
+        background: targetGlobalBgGradient,
+        duration: 0.6,
+        ease: 'power2.inOut',
+        overwrite: 'auto',
+        immediateRender: false
+      });
+      console.log('✅ [EXIT] App element background fade animation started from:', currentAppBg);
+    }
+    
     // 🎬 CRITICAL: Trigger stats screen exit animation (pop-out) BEFORE hiding
     try {
       import('../ui/stats-animations.js').then(({ animateStatsScreenExit }) => {
@@ -722,6 +822,7 @@ class UIManager {
     }
     
     // Hide stats screen after animation completes (600ms)
+    // BUT: Background fade animation takes 600ms, so we need to wait for it to complete
     setTimeout(() => {
       const statsScreen = this.elements.statsScreen;
       if (statsScreen) {
@@ -750,12 +851,16 @@ class UIManager {
       });
       
       // Show homepage QUIETLY first (no animations yet)
+      // CRITICAL: Do NOT override background animation - it's still running
       this.showHomepageQuietly();
       
       // Step 2: Play enter animation for Stats slide
       console.log('🎬 Playing enter animation for Stats slide');
       animateSliderEnter();
     }, 600);
+    
+    // CRITICAL: Ensure background animation is NOT killed when homepage is shown
+    // The animation should continue running for its full 600ms duration
   }
   
   // Show collectibles screen with exit animation
@@ -780,7 +885,41 @@ class UIManager {
       }
     });
     
-    // Step 1: Play exit animation for Collectibles slide
+    // 🎨 CRITICAL: Set background color IMMEDIATELY (no animation) to prevent dark flash
+    // This must happen BEFORE exit animation to avoid alpha gap showing dark background
+    const body = document.body;
+    const globalBg = document.getElementById('global-bg');
+    const appElement = document.getElementById('app');
+    console.log('🎨 [Collectibles] Setting background to solid color IMMEDIATELY - GSAP available:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
+    if (gsap && body) {
+      gsap.killTweensOf(body);
+      body.style.transition = 'none';
+      gsap.set(body, {
+        background: '#f3eee8',
+        immediateRender: true
+      });
+      console.log('✅ [Collectibles] Body background set immediately to #f3eee8');
+    }
+    if (gsap && globalBg) {
+      gsap.killTweensOf(globalBg);
+      (globalBg as HTMLElement).style.transition = 'none';
+      gsap.set(globalBg, {
+        background: '#f3eee8',
+        immediateRender: true
+      });
+      console.log('✅ [Collectibles] Global-bg background set immediately to #f3eee8');
+    }
+    if (gsap && appElement) {
+      gsap.killTweensOf(appElement);
+      appElement.style.transition = 'none';
+      gsap.set(appElement, {
+        background: '#f3eee8',
+        immediateRender: true
+      });
+      console.log('✅ [Collectibles] App element background set immediately to #f3eee8');
+    }
+    
+    // Step 1: Play exit animation for Collectibles slide (background is already set, no dark flash)
     console.log('🎬 Step 1: Playing exit animation for Collectibles slide');
     animateSliderExit();
     
@@ -796,6 +935,59 @@ class UIManager {
   // Hide collectibles screen with enter animation
   async hideCollectiblesScreenWithAnimation(): Promise<void> {
     logger.info('🎁 Hiding collectibles screen - with enter animation');
+    
+    // 🎨 CRITICAL: Animate background color from solid color back to gradient (SMOOTH FADE)
+    // This must happen IMMEDIATELY when back button is clicked, BEFORE anything else
+    const body = document.body;
+    const globalBg = document.getElementById('global-bg');
+    const appElement = document.getElementById('app');
+    const targetGradient = 'linear-gradient(180deg, #f5f5f5 0%, #fcecdf 100%)';
+    const targetGlobalBgGradient = 'linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)';
+    
+    console.log('🎨 [Collectibles EXIT] Starting smooth background fade to gradient - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
+    
+    if (gsap && body) {
+      gsap.killTweensOf(body);
+      body.style.transition = 'none';
+      const currentBg = window.getComputedStyle(body).background || window.getComputedStyle(body).backgroundColor || '#f3eee8';
+      gsap.set(body, { background: currentBg || '#f3eee8' });
+      gsap.to(body, {
+        background: targetGradient,
+        duration: 0.6,
+        ease: 'power2.inOut',
+        overwrite: 'auto',
+        immediateRender: false
+      });
+      console.log('✅ [Collectibles EXIT] Body background fade animation started from:', currentBg);
+    }
+    if (gsap && globalBg) {
+      gsap.killTweensOf(globalBg);
+      (globalBg as HTMLElement).style.transition = 'none';
+      const currentGlobalBg = window.getComputedStyle(globalBg as HTMLElement).background || window.getComputedStyle(globalBg as HTMLElement).backgroundColor || '#f3eee8';
+      gsap.set(globalBg, { background: currentGlobalBg || '#f3eee8' });
+      gsap.to(globalBg, {
+        background: targetGlobalBgGradient,
+        duration: 0.6,
+        ease: 'power2.inOut',
+        overwrite: 'auto',
+        immediateRender: false
+      });
+      console.log('✅ [Collectibles EXIT] Global-bg background fade animation started from:', currentGlobalBg);
+    }
+    if (gsap && appElement) {
+      gsap.killTweensOf(appElement);
+      appElement.style.transition = 'none';
+      const currentAppBg = window.getComputedStyle(appElement).background || window.getComputedStyle(appElement).backgroundColor || '#f3eee8';
+      gsap.set(appElement, { background: currentAppBg || '#f3eee8' });
+      gsap.to(appElement, {
+        background: targetGlobalBgGradient,
+        duration: 0.6,
+        ease: 'power2.inOut',
+        overwrite: 'auto',
+        immediateRender: false
+      });
+      console.log('✅ [Collectibles EXIT] App element background fade animation started from:', currentAppBg);
+    }
     
     // CRITICAL: Switch to Collectibles slide (index 2) to show Collectibles slide after exiting Collectibles screen
     const slides = document.querySelectorAll('.slider-slide');
@@ -869,7 +1061,41 @@ class UIManager {
       }
     });
     
-    // Step 1: Play exit animation for Settings slide
+    // 🎨 CRITICAL: Set background color IMMEDIATELY (no animation) to prevent dark flash
+    // This must happen BEFORE exit animation to avoid alpha gap showing dark background
+    const body = document.body;
+    const globalBg = document.getElementById('global-bg');
+    const appElement = document.getElementById('app');
+    console.log('🎨 [Settings] Setting background to solid color IMMEDIATELY - GSAP available:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
+    if (gsap && body) {
+      gsap.killTweensOf(body);
+      body.style.transition = 'none';
+      gsap.set(body, {
+        background: '#f3eee8',
+        immediateRender: true
+      });
+      console.log('✅ [Settings] Body background set immediately to #f3eee8');
+    }
+    if (gsap && globalBg) {
+      gsap.killTweensOf(globalBg);
+      (globalBg as HTMLElement).style.transition = 'none';
+      gsap.set(globalBg, {
+        background: '#f3eee8',
+        immediateRender: true
+      });
+      console.log('✅ [Settings] Global-bg background set immediately to #f3eee8');
+    }
+    if (gsap && appElement) {
+      gsap.killTweensOf(appElement);
+      appElement.style.transition = 'none';
+      gsap.set(appElement, {
+        background: '#f3eee8',
+        immediateRender: true
+      });
+      console.log('✅ [Settings] App element background set immediately to #f3eee8');
+    }
+    
+    // Step 1: Play exit animation for Settings slide (background is already set, no dark flash)
     console.log('🎬 Step 1: Playing exit animation for Settings slide');
     animateSliderExit();
     
@@ -919,6 +1145,59 @@ class UIManager {
   // Hide settings screen with enter animation
   private hideSettingsScreenWithAnimation(): void {
     logger.info('⚙️ Hiding settings screen - with enter animation');
+    
+    // 🎨 CRITICAL: Animate background color from solid color back to gradient (SMOOTH FADE)
+    // This must happen IMMEDIATELY when back button is clicked, BEFORE anything else
+    const body = document.body;
+    const globalBg = document.getElementById('global-bg');
+    const appElement = document.getElementById('app');
+    const targetGradient = 'linear-gradient(180deg, #f5f5f5 0%, #fcecdf 100%)';
+    const targetGlobalBgGradient = 'linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)';
+    
+    console.log('🎨 [Settings EXIT] Starting smooth background fade to gradient - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
+    
+    if (gsap && body) {
+      gsap.killTweensOf(body);
+      body.style.transition = 'none';
+      const currentBg = window.getComputedStyle(body).background || window.getComputedStyle(body).backgroundColor || '#f3eee8';
+      gsap.set(body, { background: currentBg || '#f3eee8' });
+      gsap.to(body, {
+        background: targetGradient,
+        duration: 0.6,
+        ease: 'power2.inOut',
+        overwrite: 'auto',
+        immediateRender: false
+      });
+      console.log('✅ [Settings EXIT] Body background fade animation started from:', currentBg);
+    }
+    if (gsap && globalBg) {
+      gsap.killTweensOf(globalBg);
+      (globalBg as HTMLElement).style.transition = 'none';
+      const currentGlobalBg = window.getComputedStyle(globalBg as HTMLElement).background || window.getComputedStyle(globalBg as HTMLElement).backgroundColor || '#f3eee8';
+      gsap.set(globalBg, { background: currentGlobalBg || '#f3eee8' });
+      gsap.to(globalBg, {
+        background: targetGlobalBgGradient,
+        duration: 0.6,
+        ease: 'power2.inOut',
+        overwrite: 'auto',
+        immediateRender: false
+      });
+      console.log('✅ [Settings EXIT] Global-bg background fade animation started from:', currentGlobalBg);
+    }
+    if (gsap && appElement) {
+      gsap.killTweensOf(appElement);
+      appElement.style.transition = 'none';
+      const currentAppBg = window.getComputedStyle(appElement).background || window.getComputedStyle(appElement).backgroundColor || '#f3eee8';
+      gsap.set(appElement, { background: currentAppBg || '#f3eee8' });
+      gsap.to(appElement, {
+        background: targetGlobalBgGradient,
+        duration: 0.6,
+        ease: 'power2.inOut',
+        overwrite: 'auto',
+        immediateRender: false
+      });
+      console.log('✅ [Settings EXIT] App element background fade animation started from:', currentAppBg);
+    }
     
     // 🎬 CRITICAL: Trigger settings screen exit animation (pop-out) BEFORE hiding
     try {

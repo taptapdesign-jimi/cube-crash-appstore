@@ -733,8 +733,8 @@ export async function boot(){
       :root{ --sat:env(safe-area-inset-top,0px); --sal:env(safe-area-inset-left,0px); --sar:env(safe-area-inset-right,0px); --sab:env(safe-area-inset-bottom,0px); }
       html,body{ margin:0; padding:0; background:var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)); height:auto; }
       body{ min-height:100dvh; overflow:hidden; }
-      #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)); z-index:10; transition: background 0.6s ease; }
-      canvas{ position:absolute; inset:0; width:100vw; height:100dvh; display:block; background:var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)); z-index:10; transition: background 0.6s ease; }
+      #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)); z-index:10; /* Transition removed - GSAP handles background animations */ }
+      canvas{ position:absolute; inset:0; width:100vw; height:100dvh; display:block; background:var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)); z-index:10; /* Transition removed - GSAP handles background animations */ }
     `;
     document.head.appendChild(style);
   }
@@ -1484,7 +1484,8 @@ function startLevel(n){
   hudResetCombo();
   console.log('🎯 startLevel updated - level:', level, 'boardNumber:', boardNumber, 'score preserved:', score);
   try { comboIdleTimer?.kill?.(); } catch {}
-  wildMeter = 0;
+  
+wildMeter = 0;
   resetWildProgress(0, false);
   
   // Clear end game cache when starting new level
@@ -3406,11 +3407,12 @@ function merge(src, dst, helpers){
           // This bypasses getMerge6ShardConfig and ensures correct shard colors
           if (isMainWildMagnetMerge) {
             // Wild-magnet merge: red/brown shards (50/50 random)
-            console.log('🔥 Wild-magnet merge 6 - using red/brown shards');
+            // NO STARS for wild-magnet merge
+            console.log('🔥 Wild-magnet merge 6 - using red/brown shards (NO STARS)');
             woodShardsAtTile(board, dst, { 
               enhanced: true, 
               wild: true, 
-              wildMagnet: true,  // Explicitly set wildMagnet flag
+              wildMagnet: true,  // Explicitly set wildMagnet flag - this will prevent stars
               count: 30, 
               intensity: 1.9, 
               spread: 0.3,  // Dramatically reduced from 1.2 to keep shards very close to tile
@@ -3421,12 +3423,12 @@ function merge(src, dst, helpers){
             });
           } else if (isMainWildOnlyMerge) {
             // Wild-only merge (wild on ordinary or ordinary on wild): yellow/brown shards (50/50 random)
-            // Use same system as magnet merge 6 (woodShardsAtTile) with same size and spread ratio
-            console.log('🔥 Wild-only merge 6 - using yellow/brown shards (srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, ')');
+            // STARS WILL BE CREATED (wild: true, wildMagnet: false)
+            console.log('🔥 Wild-only merge 6 - using yellow/brown shards WITH STARS (srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, ')');
             woodShardsAtTile(board, dst, { 
               enhanced: true, 
-              wild: true,  // Explicitly set wild flag (not wild-magnet)
-              wildMagnet: false,  // Explicitly NOT wild-magnet
+              wild: true,  // Explicitly set wild flag (not wild-magnet) - this will create stars
+              wildMagnet: false,  // Explicitly NOT wild-magnet - this will allow stars
               count: 30, 
               intensity: 1.9, 
               spread: 0.3,  // Dramatically reduced from 1.2 to keep shards very close to tile

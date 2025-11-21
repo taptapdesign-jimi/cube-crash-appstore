@@ -52,6 +52,7 @@ class MemoryManager {
   private cleanupCallbacks: (() => void)[];
   private limits: MemoryLimits;
   private isMonitoring: boolean;
+  private monitorTimeoutId: ReturnType<typeof setTimeout> | null;
 
   constructor() {
     this.textureCache = new Map();
@@ -68,6 +69,7 @@ class MemoryManager {
     };
     
     this.isMonitoring = false;
+    this.monitorTimeoutId = null;
   }
 
   // Initialize memory manager
@@ -89,6 +91,10 @@ class MemoryManager {
   // Stop memory monitoring
   stop(): void {
     this.isMonitoring = false;
+    if (this.monitorTimeoutId !== null) {
+      clearTimeout(this.monitorTimeoutId);
+      this.monitorTimeoutId = null;
+    }
     logger.info('💾 Memory management stopped');
   }
 
@@ -97,7 +103,7 @@ class MemoryManager {
     if (!this.isMonitoring) return;
     
     // Check memory usage every 5 seconds
-    setTimeout(() => {
+    this.monitorTimeoutId = setTimeout(() => {
       this.checkMemoryUsage();
       this.monitorMemory();
     }, 5000);

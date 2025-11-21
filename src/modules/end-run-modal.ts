@@ -27,7 +27,7 @@ function createModal(): HTMLElement {
         <div class="simple-buttons">
           <div class="simple-button-row">
             <button class="restart-btn">Restart</button>
-            <button class="complete-board-btn">Complete Board</button>
+            <button class="complete-board-btn">Clean Board</button>
             <button class="exit-btn">Exit</button>
           </div>
         </div>

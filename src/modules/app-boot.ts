@@ -72,7 +72,8 @@ export async function boot(): Promise<void> {
   STATE.board!.addChildAt(STATE.boardBG!, 0); STATE.boardBG!.zIndex = -1000; STATE.board!.sortChildren();
 
   STATE.stage!.eventMode = 'static';
-  STATE.stage!.hitArea   = new Rectangle(0, 0, STATE.app!.renderer.width, STATE.app!.renderer.height);
+  
+STATE.stage!.hitArea   = new Rectangle(0, 0, STATE.app!.renderer.width, STATE.app!.renderer.height);
 
   await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD]);
   await ensureFonts();
@@ -170,6 +171,7 @@ export async function startLevel(n: number): Promise<void> {
   
   rebuildBoard();       // builds + ring deal-in
   layout();
+  
   setTimeout(() => checkGameOver(), 1000);
 }
 

@@ -533,6 +533,8 @@ export function regularMerge6Shards(board, tile, opts = {}){
       }
     });
   }
+  
+  // NO STARS for regular merge 6 (ordinary + ordinary)
 }
 
 export function woodShardsAtTile(board, tile, opts = {}){
@@ -836,6 +838,79 @@ export function woodShardsAtTile(board, tile, opts = {}){
     }
 
     emitShard(distance, angle, scale, alpha, speedMul, i);
+  }
+  
+  // Generate 3 stars ONLY for wild-only merge (wild + ordinary or ordinary + wild)
+  // NOT for wild-magnet merge, regular merge, or any other case
+  // isWildOnly is determined above based on opts.wild and opts.wildMagnet
+  if (isWildOnly && !isWildMagnet) {
+    createMerge6Stars(board, layer, x, y);
+  }
+}
+
+/**
+ * Create 3 stars for merge 6 effect
+ * Stars are 42-57px in size (random, each different), random positions, directions, and rotations
+ */
+function createMerge6Stars(board, layer, centerX, centerY) {
+  try {
+    // Load star texture
+    const starTexture = Texture.from('./assets/small-star.png');
+    
+    // Create 3 stars - each with random size, position, direction, and rotation
+    for (let i = 0; i < 3; i++) {
+      const star = new Sprite(starTexture);
+      
+      // Random size between 42-57px (15% smaller than 50-67px, each star different size)
+      const starSize = 42 + Math.random() * 15; // 42-57px (was 50-67px, reduced by 15%)
+      star.width = starSize;
+      star.height = starSize;
+      star.anchor.set(0.5);
+      
+      // Random direction (angle) - each star goes in different direction
+      const angle = Math.random() * Math.PI * 2;
+      
+      // Random distance from center (spread) - random positions around tile
+      const distance = 30 + Math.random() * 50; // 30-80px from center (more spread)
+      star.x = Math.cos(angle) * distance;
+      star.y = Math.sin(angle) * distance;
+      
+      // Random starting rotation
+      star.rotation = Math.random() * Math.PI * 2;
+      
+      // Start with 100% opacity (no fade in)
+      star.alpha = 1.0;
+      
+      // Add to layer
+      layer.addChild(star);
+      
+      // Animate star: move outward in its own direction, rotate, then instant disappear
+      const travelDistance = 60 + Math.random() * 60; // 60-120px travel (random, each different)
+      const travelAngle = angle + (Math.random() - 0.5) * 1.2; // Each star goes in different direction
+      const rotationAmount = (Math.random() - 0.5) * Math.PI * 4; // Random rotation amount (each different)
+      const duration = 0.6 + Math.random() * 0.4; // 0.6-1.0s (random duration, each different)
+      
+      // Move outward with rotation and 100% opacity (no fade)
+      gsap.to(star, {
+        x: star.x + Math.cos(travelAngle) * travelDistance,
+        y: star.y + Math.sin(travelAngle) * travelDistance,
+        rotation: star.rotation + rotationAmount, // Rotate during animation (each different)
+        alpha: 1.0, // Keep at 100% opacity
+        duration: duration,
+        ease: 'power2.out',
+        onComplete: () => {
+          // Instant disappear (no fade out)
+          try {
+            if (layer && layer.children.includes(star)) {
+              layer.removeChild(star);
+            }
+            star.destroy();
+          } catch {}
+        }
+      });
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to create merge 6 stars:', error);
   }
 }
 

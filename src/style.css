@@ -18,7 +18,7 @@
 body{
   position: relative;
   background: var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%));
-  transition: background 0.6s ease;
+  /* Background transition removed - GSAP now handles smooth fade animations */
 }
 
 /* Removed gradient-fade-out rules - gradient stays visible */
@@ -32,7 +32,7 @@ body{
   background: var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%));
   pointer-events: none;
   z-index: 1; /* Above body, below sliders */
-  transition: opacity 0.6s ease;
+  /* Transition removed - GSAP now handles background animations */
 }
 
 /* Removed gradient-fade-out rules - gradient stays visible */
@@ -102,7 +102,7 @@ body{
 }
 
 .loading-logo img {
-  width: 256px; /* 🔥 20% smaller: 320px * 0.8 = 256px */
+  width: 204px; /* 🔥 Further 20% smaller from 256px: 256 * 0.8 = 204.8 */
   height: auto;
   margin-bottom: 0;
   margin-top: -24px; /* 🔥 Dignuto 24px gore */
@@ -380,7 +380,7 @@ body{
 } */
 
 #app {
-  transition: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  /* Transition removed - GSAP now handles background animations */
   z-index: 10; /* Above background, below sliders */
   background: #f5f5f5; /* Game background color */
 }

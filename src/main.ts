@@ -52,11 +52,7 @@ import {
 
 // Import new core modules
 import { 
-  initDrag, 
-  updateDrag, 
-  onDragStart, 
-  onDragMove, 
-  onDragEnd 
+  initDrag
 } from './modules/drag-core.js';
 import { 
   createUnifiedHudContainer, 
@@ -578,6 +574,7 @@ initializeApp().catch((error: Error) => {
     
     // Hide app element
     uiManager.hideApp();
+    
     
     // Show navigation
     uiManager.showNavigation();
