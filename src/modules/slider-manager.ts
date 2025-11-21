@@ -395,11 +395,60 @@ class SliderManager {
       dot.classList.toggle('active', index === this.currentSlide);
     });
     
-    // Update independent navigation buttons
+    // Update independent navigation buttons with premium GSAP animation
     const navButtons = document.querySelectorAll('.independent-nav-button');
     navButtons.forEach((button, index) => {
       const isActive = index === this.currentSlide;
-      button.classList.toggle('active', isActive);
+      const navButton = button as HTMLElement;
+      const navImage = navButton.querySelector('img') as HTMLElement;
+      
+      // Kill any existing animations
+      gsap.killTweensOf(navButton);
+      if (navImage) {
+        gsap.killTweensOf(navImage);
+      }
+      
+      if (isActive) {
+        // Animate to active state with premium ease-in-out
+        button.classList.add('active');
+        gsap.to(navButton, {
+          width: 80,
+          height: 80,
+          marginTop: 0,
+          scale: 1.0,
+          duration: 0.1,
+          ease: 'power2.inOut', // Premium smooth ease-in-out
+          force3D: true
+        });
+        if (navImage) {
+          gsap.to(navImage, {
+            y: -12,
+            duration: 0.1,
+            ease: 'power2.inOut',
+            force3D: true
+          });
+        }
+      } else {
+        // Animate to inactive state with premium ease-in-out
+        button.classList.remove('active');
+        gsap.to(navButton, {
+          width: 56,
+          height: 56,
+          marginTop: 24,
+          scale: 1.0,
+          duration: 0.1,
+          ease: 'power2.inOut', // Premium smooth ease-in-out
+          force3D: true
+        });
+        if (navImage) {
+          gsap.to(navImage, {
+            y: 0,
+            duration: 0.1,
+            ease: 'power2.inOut',
+            force3D: true
+          });
+        }
+      }
     });
     
     // Update slides

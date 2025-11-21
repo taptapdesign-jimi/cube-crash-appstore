@@ -131,10 +131,7 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  transition: width 420ms cubic-bezier(0.23, 1, 0.32, 1),
-              height 420ms cubic-bezier(0.23, 1, 0.32, 1),
-              margin-top 420ms cubic-bezier(0.23, 1, 0.32, 1),
-              transform 320ms ease;
+  /* Transition removed - GSAP handles animation now */
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent !important; /* Force remove tap highlight */
@@ -178,8 +175,7 @@
   box-shadow: none; /* No shadows */
   border: none; /* No borders */
   outline: none; /* No outline */
-  /* Smooth transitions */
-  transition: transform 420ms cubic-bezier(0.23, 1, 0.32, 1);
+  /* Transition removed - GSAP handles animation now */
   pointer-events: none;
   /* Clean rendering */
   -webkit-font-smoothing: antialiased;
