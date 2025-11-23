@@ -47,7 +47,7 @@ function trackTimeout(callback: () => void, delay: number): NodeJS.Timeout {
   return timeout;
 }
 
-function clearAllModalTimeouts() {
+export function clearAllModalTimeouts() {
   console.log(`🧹 Clearing ${_modalTimeouts.size} pending timeouts from clean-board-modal`);
   _modalTimeouts.forEach(timeout => clearTimeout(timeout));
   _modalTimeouts.clear();
