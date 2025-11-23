@@ -1,7 +1,7 @@
 // src/modules/app-boot.ts
 import { Application, Container, Graphics, Rectangle, Assets } from 'pixi.js';
 import { gsap } from 'gsap';
-import { STATE, ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, TILE } from './app-state.js';
+import { STATE, ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, ASSET_WILD_BEER, TILE } from './app-state.js';
 // layout function is now in app.js
 import { installDrag } from './install-drag.js';
 import { rebuildBoard } from './app-board.js';
@@ -75,7 +75,8 @@ export async function boot(): Promise<void> {
   
 STATE.stage!.hitArea   = new Rectangle(0, 0, STATE.app!.renderer.width, STATE.app!.renderer.height);
 
-  await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD]);
+  // 🔥 CRITICAL: ASSET_WILD_BEER MUST be loaded for wild-beer tiles to display correctly
+  await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, ASSET_WILD_BEER]);
   await ensureFonts();
 
   const ret = installDrag({

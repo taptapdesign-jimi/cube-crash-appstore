@@ -123,7 +123,7 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
                         tag: 'span',
                         id: 'legendary-counter',
                         className: 'collectibles-counter',
-                        text: '0/5',
+                        text: '0/6',
                       },
                     ],
                   },

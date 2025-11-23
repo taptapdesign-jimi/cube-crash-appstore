@@ -7,7 +7,7 @@
 
 import { Graphics, Container, Sprite, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
-import { magicSparklesAtTile, dragSmokeTrail } from './fx.js';
+import { magicSparklesAtTile, dragSmokeTrail, dragBeerBubbleTrail } from './fx.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 
 
@@ -18,6 +18,7 @@ const VEL_SMOOTH   = 0.10;   // sporije prihvaća promjenu brzine (teži osjeća
 const ROT_SMOOTH   = 0.08;   // sporije naginje prema cilju (teži osjećaj)
 const POS_LAG_PX   = 6;      // maksimalni parallax pomak (px)
 const TILT_DUR     = 0.5;    // zadržano za release tween na onUp
+const BOARD_WOBBLE_ENABLED = false; // Central toggle: set true to restore wobble
 
 const MAGNET_OFFSET_RATIO = 14 / 128; // 14px od 128px pločice ≈ 10.9375%
 const MAGNET_SCALE_MULT  = 1.03;    // 3% napuhavanje ciljane pločice
@@ -138,6 +139,15 @@ export function initDrag(cfg) {
     _lastSparkleTime: null as any,
     _sparkleInterval: null as any,
     _lastSmokeTime: null as any,
+    _boardWobbleActive: false,
+    _boardBaseX: board?.x ?? 0,
+    _boardBaseY: board?.y ?? 0,
+    _boardBaseRot: board?.rotation ?? 0,
+    _boardPivotX: board?.pivot?.x ?? 0,
+    _boardPivotY: board?.pivot?.y ?? 0,
+    _boardCenterX: board ? board.x : 0,
+    _boardCenterY: board ? board.y : 0,
+    _boardPivotApplied: false,
   };
 
   const helpers = { snapBack, clearHover };
@@ -210,6 +220,16 @@ export function initDrag(cfg) {
     drag.lastTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     drag.lagX = 0; drag.lagY = 0;
     if (t.rotG) gsap.killTweensOf(t.rotG);
+    // Remember board baseline and enable wobble only for beer wild
+    drag._boardBaseX = board?.x ?? 0;
+    drag._boardBaseY = board?.y ?? 0;
+    drag._boardBaseRot = board?.rotation ?? 0;
+    drag._boardCenterX = board ? board.x : 0;
+    drag._boardCenterY = board ? board.y : 0;
+    drag._boardPivotX = board?.pivot?.x ?? 0;
+    drag._boardPivotY = board?.pivot?.y ?? 0;
+    drag._boardWobbleActive = t.special === 'wild-beer';
+    drag._boardPivotApplied = false;
 
     // ⬆️ digni na vrh, ali zapamti prijašnji z-index
     rememberZ(t);
@@ -245,14 +265,14 @@ export function initDrag(cfg) {
     gsap.to(t.scale, { x: 1.12, y: 1.12, duration: 0.08 });
 
     // Start sparkles immediately when wild cube is picked up
-    if (t.special === 'wild') {
+    if (t.special === 'wild' || t.special === 'wild-beer') {
       try {
         magicSparklesAtTile(board, t, { intensity: 1.0 });
         drag._lastSparkleTime = drag.lastTime;
         
         // Start continuous sparkles interval
         drag._sparkleInterval = setInterval(() => {
-          if (drag.t && drag.t.special === 'wild' && !drag.t.destroyed) {
+          if (drag.t && (drag.t.special === 'wild' || drag.t.special === 'wild-beer') && !drag.t.destroyed) {
             try {
               magicSparklesAtTile(board, drag.t, { intensity: 1.0 });
             } catch (err) {
@@ -311,6 +331,21 @@ export function initDrag(cfg) {
     drag.vx = drag.vx + (instVX - drag.vx) * VEL_SMOOTH;
     drag.vy = drag.vy + (instVY - drag.vy) * VEL_SMOOTH;
     drag.lastTime = now;
+    
+    // Board wobble: subtle parallax (currently disabled; set BOARD_WOBBLE_ENABLED=true to restore)
+    if (BOARD_WOBBLE_ENABLED) {
+      if (drag._boardWobbleActive && board) {
+        const smooth = 0.16;
+        const curShiftX = (board.x ?? 0) - drag._boardBaseX;
+        const curShiftY = (board.y ?? 0) - drag._boardBaseY;
+        const targetShiftX = Math.max(-12.6, Math.min(12.6, -drag.vx * 252)); // +50% stronger
+        const targetShiftY = Math.max(-12.6, Math.min(12.6, -drag.vy * 252)); // +50% stronger
+        const nextShiftX = curShiftX + (targetShiftX - curShiftX) * smooth;
+        const nextShiftY = curShiftY + (targetShiftY - curShiftY) * smooth;
+        board.x = drag._boardBaseX + nextShiftX;
+        board.y = drag._boardBaseY + nextShiftY;
+      }
+    }
 
     // --- target rotacija SUPROTNO od smjera (low-pass težina) ---
     const targetRot = Math.max(-TILT_MAX_RAD, Math.min(TILT_MAX_RAD, (-drag.vx * TILT_SCALE)));
@@ -332,7 +367,7 @@ export function initDrag(cfg) {
     }
 
     // Wild cube sparkles effect - continuous when selected (picked up)
-    if (t.special === 'wild') {
+    if (t.special === 'wild' || t.special === 'wild-beer') {
       // Store velocity for sparkles direction
       t._lastVelX = drag.vx;
       t._lastVelY = drag.vy;
@@ -366,13 +401,17 @@ export function initDrag(cfg) {
       // This provides the same gentle magnetic pull effect as wild tiles
       // No need for custom strong pull - updateMagnet handles it perfectly
     } else {
-      // Smoke trail for regular cubes (not wild) - continuous when dragging
-      if (!drag._lastSmokeTime || (now - drag._lastSmokeTime) > 120) { // Every 120ms for smoke trail
+      // Trails: beer wild gets bubbles; others get smoke
+      if (!drag._lastSmokeTime || (now - drag._lastSmokeTime) > 120) { // Every 120ms
         try {
-          dragSmokeTrail(board, t, 96, 0.7);
+          if (t.special === 'wild-beer') {
+            dragBeerBubbleTrail(board, t, 96, 0.9);
+          } else {
+            dragSmokeTrail(board, t, 96, 0.7);
+          }
           drag._lastSmokeTime = now;
         } catch (err) {
-          console.warn('Smoke trail error:', err);
+          console.warn('Trail error:', err);
         }
       }
     }
@@ -387,7 +426,10 @@ export function initDrag(cfg) {
     // ažuriraj _lastGlobal za sljedeći frame
     drag._lastGlobal = e.global.clone?.() ?? { x: e.global.x, y: e.global.y };
 
-    const target = pickDropTarget(t); 
+    const target = pickDropTarget(t);
+    
+    // 🔥 NOTE: Bubbles animation is now triggered in onUp() when wild-beer is dropped on regular tile (merge 6)
+    // This ensures bubbles start exactly when merge 6 happens, not when drag starts 
     
     // 🧲 MAGNETIC REACTION: For wild-magnet, apply gentle pull to ALL nearby tiles (like wild tile)
     // This provides the same gentle magnetic pull effect as wild tiles for all tiles in range
@@ -408,7 +450,7 @@ export function initDrag(cfg) {
         if (otherTile === t) return; // Skip the magnet itself
         if (otherTile.locked) return;
         if ((otherTile.value | 0) <= 0) return;
-        if (otherTile.special === 'wild' || otherTile.special === 'wild-magnet') return; // Skip wild tiles
+        if (otherTile.special === 'wild' || otherTile.special === 'wild-magnet' || otherTile.special === 'wild-beer') return; // Skip wild tiles
         if (otherTile._wildMagnetAffected) return; // Skip tiles that are already being pulled by magnet merge
         
         // Calculate distance from magnet to tile
@@ -604,6 +646,17 @@ export function initDrag(cfg) {
     if (drag._lastSmokeTime) {
       drag._lastSmokeTime = null;
     }
+    // Stop board wobble and reset when drag ends
+    if (drag._boardWobbleActive && board) {
+      drag._boardWobbleActive = false;
+      gsap.to(board, {
+        rotation: drag._boardBaseRot,
+        x: drag._boardBaseX,
+        y: drag._boardBaseY,
+        duration: 0.18,
+        ease: 'power2.out'
+      });
+    }
     
     // 🧲 MAGNETIC REACTION: Return all tiles with magnet effect to original positions
     if (t?.special === 'wild-magnet') {
@@ -731,11 +784,26 @@ export function initDrag(cfg) {
     // da NIKAD ne ostane "ispred" ostalih nakon brzih interakcija
     restoreZ(t);
     
+    // Wild-beer bubbles explosion is triggered centrally in app-core effSum === 6 flow.
+    
     onMerge?.(t, target, helpers);
   }
 
   // === STABLE HIT-TEST: preklapanje pravokutnika, bez auto-aimanja ===
+  // 🔥 PERFORMANCE: Throttle pickDropTarget to prevent lag
+  let lastPickDropTime = 0;
+  const PICK_DROP_THROTTLE = 16; // ~60fps max (16ms between calls)
+  let lastPickDropResult = null;
+  let lastPickDropSrc = null;
+  
   function pickDropTarget(src) {
+    // 🔥 PERFORMANCE: Throttle pickDropTarget calls to prevent lag
+    const now = performance.now();
+    if (src === lastPickDropSrc && now - lastPickDropTime < PICK_DROP_THROTTLE) {
+      return lastPickDropResult; // Return cached result if called too soon
+    }
+    lastPickDropTime = now;
+    lastPickDropSrc = src;
     if (!src || src.destroyed) return null;
 
     const list = (typeof getTiles === 'function' ? getTiles() : []) || [];
@@ -789,14 +857,8 @@ export function initDrag(cfg) {
         // 🔥 CRITICAL: For wild-magnet, we ONLY allow merge if magnet is directly above target
         // Ignore overlap completely - only check position
         if (dx > maxOffset || dy > maxOffset) {
-          console.log('🔍 pickDropTarget: Wild-magnet NOT directly above tile:', {
-            dx,
-            dy,
-            maxOffset,
-            tileSize,
-            srcCenter: { x: srcCenterX, y: srcCenterY },
-            dstCenter: { x: dstCenterX, y: dstCenterY }
-          });
+          // 🔥 PERFORMANCE: Removed console.log to prevent lag
+          // console.log('🔍 pickDropTarget: Wild-magnet NOT directly above tile:', { ... });
           continue; // Skip this tile - magnet is not directly above it
         }
         
@@ -820,33 +882,23 @@ export function initDrag(cfg) {
     // This ensures that if magnet is not directly above any tile, no merge happens
     const result = (best && bestRatio >= th) ? best : null;
     
-    console.log('🔍 pickDropTarget threshold check:', {
-      isWildMagnet: src.special === 'wild-magnet',
-      baseThreshold,
-      finalThreshold: th,
-      bestRatio: best ? bestRatio : 0,
-      hasBest: !!best,
-      bestValue: best?.value,
-      bestGridX: best?.gridX,
-      bestGridY: best?.gridY,
-      hasResult: !!result,
-      resultValue: result?.value,
-      resultGridX: result?.gridX,
-      resultGridY: result?.gridY
-    });
+    // 🔥 PERFORMANCE: Removed console.log to prevent lag (too many calls per second)
+    // console.log('🔍 pickDropTarget threshold check:', { ... });
     
+    // 🔥 PERFORMANCE: Removed console.log to prevent lag
     // 🔥 CRITICAL: For wild-magnet, log if no result found
     if (src.special === 'wild-magnet' && !result) {
-      console.log('🔍 pickDropTarget: No valid target found for wild-magnet');
+      // console.log('🔍 pickDropTarget: No valid target found for wild-magnet');
       if (best) {
-        console.log('🔍 pickDropTarget: Best tile found but did not pass threshold:', {
-          bestValue: best.value,
-          bestRatio,
-          threshold: th,
-          passed: bestRatio >= th
-        });
+        // console.log('🔍 pickDropTarget: Best tile found but did not pass threshold:', {
+        //   bestValue: best.value,
+        //   bestRatio,
+        //   threshold: th,
+        //   passed: bestRatio >= th
+        // });
       } else {
-        console.log('🔍 pickDropTarget: No best tile found (position check failed for all tiles)');
+        // 🔥 PERFORMANCE: Removed console.log to prevent lag
+        // console.log('🔍 pickDropTarget: No best tile found (position check failed for all tiles)');
       }
     }
     
@@ -884,20 +936,24 @@ export function initDrag(cfg) {
       }
     }
     
+    // 🔥 PERFORMANCE: Cache result and return
+    lastPickDropResult = result;
+    
+    // 🔥 PERFORMANCE: Removed console.log to prevent lag (too many calls per second)
     // Only log if result exists or if wild-magnet (for debugging)
-    if (result || src.special === 'wild-magnet') {
-      console.log('🔍 pickDropTarget result:', {
-        hasResult: !!result,
-        resultValue: result?.value,
-        resultGridX: result?.gridX,
-        resultGridY: result?.gridY,
-        bestRatio: result ? bestRatio : 0,
-        threshold: th,
-        baseThreshold,
-        isWildMagnet: src.special === 'wild-magnet',
-        candidatesCount: candidates.length
-      });
-    }
+    // if (result || src.special === 'wild-magnet') {
+    //   console.log('🔍 pickDropTarget result:', {
+    //     hasResult: !!result,
+    //     resultValue: result?.value,
+    //     resultGridX: result?.gridX,
+    //     resultGridY: result?.gridY,
+    //     bestRatio: result ? bestRatio : 0,
+    //     threshold: th,
+    //     baseThreshold,
+    //     isWildMagnet: src.special === 'wild-magnet',
+    //     candidatesCount: candidates.length
+    //   });
+    // }
     
     return result;
   }
@@ -1123,9 +1179,10 @@ export function initDrag(cfg) {
     
     const srcSpecial = src.special;
     const targetSpecial = target.special;
-    // Wild and wild-magnet can merge with any tile (show hover)
+    // Wild, wild-magnet, and wild-beer can merge with any tile (show hover)
     if (srcSpecial === 'wild' || targetSpecial === 'wild' || 
-        srcSpecial === 'wild-magnet' || targetSpecial === 'wild-magnet') return true;
+        srcSpecial === 'wild-magnet' || targetSpecial === 'wild-magnet' ||
+        srcSpecial === 'wild-beer' || targetSpecial === 'wild-beer') return true;
 
     const srcVal = Number(src.value) || 0;
     const targetVal = Number(target.value) || 0;

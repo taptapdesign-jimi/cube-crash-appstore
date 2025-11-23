@@ -31,9 +31,16 @@ export function createHomeSlide(config: SlideConfig): HTMLElementConfig {
                 className: 'hero-image slider-parallax-image',
                 attributes: {
                   src: './assets/crash-cubes-homepage.png',
+                  srcset: [
+                    './assets/crash-cubes-homepage.png 1x',
+                    './assets/crash-cubes-homepage@2x.png 2x',
+                    './assets/crash-cubes-homepage@3x.png 3x',
+                  ].join(', '),
+                  sizes: '(max-width: 500px) 90vw, 320px',
                   alt: 'Crashed cubes',
                   loading: 'eager',
                   fetchpriority: 'high',
+                  decoding: 'async',
                 },
               },
               {

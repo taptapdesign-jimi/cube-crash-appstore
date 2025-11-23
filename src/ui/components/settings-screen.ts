@@ -205,41 +205,41 @@ export function renderSettingsScreen(
   if (footerText) {
     footerText.addEventListener('click', () => {
       triggerFooterExplosion(footerText);
-      // Easter egg: unlock legendary card 22 (legendary02)
-      unlockLegendaryCard22();
+      // Easter egg: unlock legendary card 26 (legendary06)
+      unlockLegendaryCard26();
     });
   }
 }
 
 /**
- * Easter egg: Unlock legendary card 22 (legendary02) when tapping "Made with ❤️" text
+ * Easter egg: Unlock legendary card 26 (legendary06) when tapping "Made with ❤️" text
  */
-function unlockLegendaryCard22(): void {
+function unlockLegendaryCard26(): void {
   try {
-    // Check if card 22 is already unlocked
+    // Check if card 26 is already unlocked
     const collectiblesState = localStorage.getItem('collectibles_state');
     if (collectiblesState) {
       const state = JSON.parse(collectiblesState);
-      const legendary02 = state.legendary?.find((c: any) => c.id === 'legendary02');
-      if (legendary02 && legendary02.unlocked) {
-        console.log('✅ Card 22 already unlocked');
+      const legendary06 = state.legendary?.find((c: any) => c.id === 'legendary06');
+      if (legendary06 && legendary06.unlocked) {
+        console.log('✅ Card 26 already unlocked');
         return;
       }
     }
     
-    // Unlock card 22
-    console.log('🎉 Easter egg triggered! Unlocking legendary card 22...');
+    // Unlock card 26
+    console.log('🎉 Easter egg triggered! Unlocking legendary card 26...');
     if (typeof window !== 'undefined' && typeof (window as any).unlockCollectibleByNumber === 'function') {
-      (window as any).unlockCollectibleByNumber(22).then(() => {
-        console.log('✅ Legendary card 22 unlocked via easter egg!');
+      (window as any).unlockCollectibleByNumber(26).then(() => {
+        console.log('✅ Legendary card 26 unlocked via easter egg!');
       }).catch((err: any) => {
-        console.error('❌ Failed to unlock card 22:', err);
+        console.error('❌ Failed to unlock card 26:', err);
       });
     } else {
       console.warn('⚠️ unlockCollectibleByNumber not available');
     }
   } catch (err) {
-    console.error('❌ Error checking/unlocking card 22:', err);
+    console.error('❌ Error checking/unlocking card 26:', err);
   }
 }
 

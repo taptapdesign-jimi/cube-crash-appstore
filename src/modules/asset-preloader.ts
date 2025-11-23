@@ -51,12 +51,20 @@ if (Assets.addParser) {
 const ALL_ASSETS: string[] = [
   // Homepage images (priority - load first for immediate display)
   './assets/crash-cubes-homepage.png',
+  './assets/crash-cubes-homepage@2x.png',
+  './assets/crash-cubes-homepage@3x.png',
+  // Note: homepage1 and homepage2 removed - not used in slider
   './assets/logo-cube-crash.png',
+  './assets/logo-cube-crash@2x.png',
+  './assets/logo-cube-crash@3x.png',
   './assets/logo.png',
   
   // Logo addons
   './assets/logo addons/gore ljevo shards.png',
   './assets/logo addons/shards gore desno.png',
+  './assets/home-shadow.png',
+  './assets/home-shadow@2x.png',
+  './assets/home-shadow@3x.png',
   
   // Core game assets
   './assets/tile.png',
@@ -65,6 +73,8 @@ const ALL_ASSETS: string[] = [
   './assets/tile_numbers3.png',
   './assets/tile_numbers4.png',
   './assets/wild.png',
+  './assets/wild-magnet.png',
+  './assets/wild-beer.png',
   
   // Wild star assets
   './assets/small-star.png',
@@ -73,8 +83,14 @@ const ALL_ASSETS: string[] = [
   
   // Other UI assets
   './assets/stats-trophy.png',
+  './assets/stats-trophy@2x.png',
+  './assets/stats-trophy@3x.png',
   './assets/collectibles-box.png',
+  './assets/collectibles-box@2x.png',
+  './assets/collectibles-box@3x.png',
   './assets/settings-slider.png',
+  './assets/settings-slider@2x.png',
+  './assets/settings-slider@3x.png',
   './assets/clean-board.png',
   './assets/mystery-box.png',
   './assets/gold-coin.png',
@@ -138,12 +154,31 @@ const ALL_ASSETS: string[] = [
   './assets/colelctibles/legendary back.png',
 ];
 
-// CRITICAL ASSETS: Only load what's needed for home page and first game frame
+// CRITICAL ASSETS: All assets needed for homepage slider and first game frame
 const CRITICAL_ASSETS: string[] = [
-  // Homepage - only first slide
-  './assets/crash-cubes-homepage1.png',
+  // Homepage hero (all DPRs) + logo/shards/shadow
+  './assets/crash-cubes-homepage.png',
+  './assets/crash-cubes-homepage@2x.png',
+  './assets/crash-cubes-homepage@3x.png',
   './assets/logo-cube-crash.png',
-  './assets/logo.png',
+  './assets/logo-cube-crash@2x.png',
+  './assets/logo-cube-crash@3x.png',
+  './assets/logo addons/gore ljevo shards.png',
+  './assets/logo addons/shards gore desno.png',
+  './assets/home-shadow.png',
+  './assets/home-shadow@2x.png',
+  './assets/home-shadow@3x.png',
+  
+  // Homepage slider images (ALL slides must be loaded before showing homepage)
+  './assets/stats-trophy.png',
+  './assets/stats-trophy@2x.png',
+  './assets/stats-trophy@3x.png',
+  './assets/collectibles-box.png',
+  './assets/collectibles-box@2x.png',
+  './assets/collectibles-box@3x.png',
+  './assets/settings-slider.png',
+  './assets/settings-slider@2x.png',
+  './assets/settings-slider@3x.png',
   
   // Core game - minimum for initial play
   './assets/tile.png',
@@ -162,6 +197,12 @@ const CRITICAL_ASSETS: string[] = [
   
   // One font only
   './assets/fonts/LTCrow-Regular.ttf',
+  
+  // Collectibles placeholder images (needed for collectibles screen)
+  './assets/colelctibles/common back.png',
+  './assets/colelctibles/legendary back.png',
+  // NOTE: Collectibles card images are loaded in background via preloadCollectiblesImages()
+  // They are NOT in CRITICAL_ASSETS to keep preload fast
 ];
 
 // Add collectibles assets to ALL_ASSETS
@@ -170,7 +211,7 @@ for (let i = 1; i <= 20; i++) {
   ALL_ASSETS.push(`./assets/colelctibles/common/${id}.png`);
 }
 
-for (let i = 21; i <= 25; i++) {
+for (let i = 21; i <= 26; i++) {
   const id = String(i).padStart(2, '0');
   ALL_ASSETS.push(`./assets/colelctibles/legendary/${id}.png`);
 }
@@ -208,9 +249,14 @@ export class AssetPreloader {
   }
 
   private updateProgress(): void {
-    const percentage = Math.round((this.loadedCount / this.totalCount) * 100);
+    // Ensure percentage is between 0 and 100
+    const percentage = Math.min(100, Math.max(0, Math.round((this.loadedCount / this.totalCount) * 100)));
     if (this.onProgress) {
       this.onProgress(percentage, this.loadedCount, this.totalCount);
+    }
+    // Also log for debugging
+    if (this.loadedCount % 5 === 0 || this.loadedCount === this.totalCount) {
+      logger.info(`📊 Progress: ${percentage}% (${this.loadedCount}/${this.totalCount})`);
     }
   }
 
@@ -236,16 +282,104 @@ export class AssetPreloader {
     }
   }
 
+  // 🔥 CRITICAL: Preload HTML img tag images to ensure they're in browser cache
+  // This prevents images from disappearing on mobile after preload screen hides
+  async preloadHTMLImages(): Promise<void> {
+    const htmlImages = [
+      // Homepage slider images (all DPRs)
+      './assets/crash-cubes-homepage.png',
+      './assets/crash-cubes-homepage@2x.png',
+      './assets/crash-cubes-homepage@3x.png',
+      // Stats slide
+      './assets/stats-trophy.png',
+      './assets/stats-trophy@2x.png',
+      './assets/stats-trophy@3x.png',
+      // Collectibles slide
+      './assets/collectibles-box.png',
+      './assets/collectibles-box@2x.png',
+      './assets/collectibles-box@3x.png',
+      // Settings slide
+      './assets/settings-slider.png',
+      './assets/settings-slider@2x.png',
+      './assets/settings-slider@3x.png',
+    ];
+    
+    logger.info(`🖼️ Preloading ${htmlImages.length} HTML images for homepage slider...`);
+    
+    const loadPromises = htmlImages.map((src: string) => {
+      return new Promise<void>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          logger.info(`✅ HTML image loaded: ${src}`);
+          resolve();
+        };
+        img.onerror = () => {
+          logger.warn(`⚠️ HTML image failed: ${src}`);
+          resolve(); // Don't block on errors
+        };
+        img.src = src;
+      });
+    });
+    
+    await Promise.allSettled(loadPromises);
+    logger.info('✅ All HTML images preloaded');
+  }
+
+  // 🔥 CRITICAL: Preload collectibles card images through native Image objects for browser cache
+  // This ensures collectibles screen loads instantly when opened (no delay)
+  async preloadCollectiblesImages(): Promise<void> {
+    const collectiblesImages: string[] = [];
+    
+    // Add all common card images (1-20)
+    for (let i = 1; i <= 20; i++) {
+      const id = String(i).padStart(2, '0');
+      collectiblesImages.push(`./assets/colelctibles/common/${id}.png`);
+    }
+    
+    // Add all legendary card images (21-26)
+    for (let i = 21; i <= 26; i++) {
+      const id = String(i).padStart(2, '0');
+      collectiblesImages.push(`./assets/colelctibles/legendary/${id}.png`);
+    }
+    
+    // Add placeholder images
+    collectiblesImages.push('./assets/colelctibles/common back.png');
+    collectiblesImages.push('./assets/colelctibles/legendary back.png');
+    
+    logger.info(`🎁 Preloading ${collectiblesImages.length} collectibles images for instant screen load...`);
+    
+    // Load all images in parallel for fastest loading
+    const loadPromises = collectiblesImages.map((src: string) => {
+      return new Promise<void>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          // Image loaded successfully, now in browser cache
+          resolve();
+        };
+        img.onerror = () => {
+          // Don't block on errors, but log them
+          logger.warn(`⚠️ Collectibles image failed: ${src}`);
+          resolve();
+        };
+        img.src = src;
+      });
+    });
+    
+    await Promise.allSettled(loadPromises);
+    logger.info(`✅ All ${collectiblesImages.length} collectibles images preloaded (browser cache ready)`);
+  }
+
   async preloadAll(): Promise<void> {
     if (this.preloadPromise) {
       return this.preloadPromise;
     }
     this.preloadPromise = (async () => {
-      logger.info('🔄 Starting FAST asset preloading (critical only)...');
+      logger.info('🔄 Starting asset preloading (critical assets first)...');
       
       try {
-        // OPTIMIZED: Load ONLY critical assets for instant game start
+        // Set total count to critical assets only for progress tracking
         this.totalCount = CRITICAL_ASSETS.length;
+        this.loadedCount = 0;
         
         logger.info(`📦 Loading ${CRITICAL_ASSETS.length} critical assets (deferring ${DEFERRED_ASSETS.length} assets)`);
         
@@ -259,24 +393,63 @@ export class AssetPreloader {
           }
         });
         
-        // Load critical assets using PIXI Assets with timeout
-        const loadPromise = Assets.load(CRITICAL_ASSETS, (progress: number) => {
-          this.loadedCount = Math.round(progress * CRITICAL_ASSETS.length);
-          this.updateProgress();
-        });
+        // 🔥 OPTIMIZED: Load assets with progress tracking for smooth progress bar
+        // Use smaller batches with progress updates for better UX
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
         
-        // Add timeout to prevent infinite hangs (10 seconds max - faster fail)
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Asset loading timeout after 10 seconds')), 10000);
-        });
+        // Use smaller batches for better progress tracking and faster perceived loading
+        const batchSize = isIOS ? 8 : (isMobile ? 6 : 10);
         
-        await Promise.race([loadPromise, timeoutPromise]);
+        logger.info(`📦 Loading ${CRITICAL_ASSETS.length} critical assets in batches of ${batchSize} (mobile: ${isMobile}, iOS: ${isIOS})`);
         
-        logger.info('✅ Critical assets preloaded successfully (FAST MODE)');
+        // Initial progress update
+        this.updateProgress();
         
-        // Mark as complete even if some assets failed
+        let totalLoaded = 0;
+        for (let i = 0; i < CRITICAL_ASSETS.length; i += batchSize) {
+          const batch = CRITICAL_ASSETS.slice(i, i + batchSize);
+          try {
+            // Load batch in parallel
+            await Assets.load(batch);
+            totalLoaded += batch.length;
+            this.loadedCount = totalLoaded;
+            this.updateProgress(); // Update progress after each batch
+            logger.info(`✅ Loaded batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(CRITICAL_ASSETS.length / batchSize)}: ${batch.length} assets (${totalLoaded}/${this.totalCount})`);
+          } catch (error) {
+            // If batch fails, try loading individually
+            logger.warn(`⚠️ Batch ${Math.floor(i / batchSize) + 1} failed, trying individual loading...`, error);
+            for (const assetPath of batch) {
+              try {
+                await Assets.load(assetPath);
+                totalLoaded++;
+                this.loadedCount = totalLoaded;
+                this.updateProgress(); // Update progress after each asset
+              } catch (err) {
+                logger.warn(`⚠️ Failed to load: ${assetPath}`, err);
+                totalLoaded++; // Count as loaded to prevent blocking
+                this.loadedCount = totalLoaded;
+                this.updateProgress(); // Update progress even on error
+              }
+            }
+          }
+        }
+        
+        // Ensure progress is at 100% before completing
         this.loadedCount = this.totalCount;
         this.updateProgress();
+        
+        logger.info(`✅ All critical assets preloaded successfully (${this.loadedCount}/${this.totalCount} loaded)`);
+        
+        // 🔥 CRITICAL: Preload HTML img tag images (homepage slider) to ensure they're in browser cache
+        // This prevents images from disappearing on mobile after preload screen hides
+        await this.preloadHTMLImages();
+        
+        // Start collectibles preload in background (non-blocking) - don't wait for it
+        // This ensures collectibles screen loads instantly when opened, but doesn't delay initial load
+        this.preloadCollectiblesImages().catch(err => {
+          logger.warn('⚠️ Collectibles preload failed (non-critical):', err);
+        });
         
         // Load deferred assets in background (non-blocking)
         this.preloadDeferredAssets().catch(err => {
@@ -324,12 +497,28 @@ export class AssetPreloader {
         }
       });
       
-      // Load in batches to avoid overwhelming the browser
-      const batchSize = 10;
+      // 🔥 OPTIMIZED: Use smaller batches on mobile for better performance
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const batchSize = isMobile ? 5 : 10; // Smaller batches on mobile
+      
+      logger.info(`📦 Loading ${DEFERRED_ASSETS.length} deferred assets in batches of ${batchSize} (mobile: ${isMobile})`);
+      
       for (let i = 0; i < DEFERRED_ASSETS.length; i += batchSize) {
         const batch = DEFERRED_ASSETS.slice(i, i + batchSize);
-        await Assets.load(batch);
-        logger.info(`✅ Loaded batch ${Math.floor(i / batchSize) + 1} (${Math.min(i + batchSize, DEFERRED_ASSETS.length)}/${DEFERRED_ASSETS.length})`);
+        try {
+          await Assets.load(batch);
+          logger.info(`✅ Loaded batch ${Math.floor(i / batchSize) + 1} (${Math.min(i + batchSize, DEFERRED_ASSETS.length)}/${DEFERRED_ASSETS.length})`);
+        } catch (error) {
+          // If batch fails, try loading individually as fallback
+          logger.warn(`⚠️ Batch ${Math.floor(i / batchSize) + 1} failed, trying individual loading...`, error);
+          for (const assetPath of batch) {
+            try {
+              await Assets.load(assetPath);
+            } catch (err) {
+              logger.warn(`⚠️ Failed to load: ${assetPath}`, err);
+            }
+          }
+        }
       }
       
       logger.info('✅ All deferred assets loaded in background');

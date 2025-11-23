@@ -16,6 +16,7 @@ import { renderNavigation, updateNavBadge } from './components/navigation.js';
 import { createLoadingScreen } from './components/loading-screen.js';
 import { HTMLBuilder } from './components/html-builder.js';
 import { logger } from '../core/logger.js';
+// Note: preloadCriticalAssets removed - assetPreloader.preloadAll() handles all preloading
 
 const BOOTSTRAP_FLAG = '__cube_crash_ui_bootstrapped__';
 
@@ -23,6 +24,9 @@ function bootstrapUI() {
   console.log('🚀 bootstrapUI called');
   console.log('Document readyState:', document.readyState);
   console.log('Body exists:', !!document.body);
+
+  // Note: Asset preloading is handled by assetPreloader.preloadAll() in main.ts
+  // No need for duplicate preloading here
   
   const windowRef = window as Record<string, unknown>;
   if (windowRef[BOOTSTRAP_FLAG]) {
@@ -90,28 +94,29 @@ export const bootstrapReady = new Promise<void>((resolve) => {
   function waitForReady() {
     console.log('⏳ waitForReady called, readyState:', document.readyState);
     
-    if (document.readyState === 'complete') {
-      console.log('✅ Document complete, calling bootstrapUI immediately');
+    // Start as soon as DOM is parsed (interactive) to avoid waiting for full window load
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      console.log('✅ Document ready/interactive, calling bootstrapUI immediately');
       bootstrapUI();
       resolve();
-    } else {
-      console.log('⏳ Waiting for window.load event...');
-      window.addEventListener('load', () => {
-        console.log('✅ window.load fired, calling bootstrapUI');
-        bootstrapUI();
-        resolve();
-      });
-      
-      // Fallback: Also listen for DOMContentLoaded
-      if (document.readyState === 'loading') {
-        console.log('⏳ Also listening for DOMContentLoaded');
-        document.addEventListener('DOMContentLoaded', () => {
-          console.log('✅ DOMContentLoaded fired, calling bootstrapUI');
-          bootstrapUI();
-          resolve();
-        });
-      }
+      return;
     }
+
+    // If still loading, run on DOMContentLoaded (earliest safe hook)
+    console.log('⏳ Waiting for DOMContentLoaded (document still loading)...');
+    const onReady = () => {
+      console.log('✅ DOMContentLoaded fired, calling bootstrapUI');
+      bootstrapUI();
+      resolve();
+    };
+    document.addEventListener('DOMContentLoaded', onReady, { once: true });
+
+    // Fallback: window load if DOMContentLoaded somehow missed
+    window.addEventListener('load', () => {
+      console.log('✅ window.load fired (fallback), calling bootstrapUI');
+      bootstrapUI();
+      resolve();
+    }, { once: true });
   }
   
   // Start immediately if already loaded, otherwise wait

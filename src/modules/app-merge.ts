@@ -58,7 +58,7 @@ function play(name, vol=null){ /* muted */ }
 function tileIsWild(tile: any): boolean {
   if (!tile) return false;
   const special = tile.special;
-  return special === 'wild' || special === 'wild-magnet' || tile.isWild === true || tile.isWildFace === true;
+  return special === 'wild' || special === 'wild-magnet' || special === 'wild-beer' || tile.isWild === true || tile.isWildFace === true;
 }
 
 function tileIsActive(tile: any): boolean {
@@ -110,7 +110,7 @@ export function clearWildState(tile){
   if (!tile) return;
   try { stopWildIdle(tile); } catch {}
   // Only clear wild state if it's a regular wild (not wild-magnet, which keeps its special property)
-  if (tile.special === 'wild') {
+  if (tile.special === 'wild' || tile.special === 'wild-beer') {
     tile.special = null;
   }
   // For wild-magnet, we keep special='wild-magnet' but clear other wild properties
@@ -405,7 +405,7 @@ async function checkIfAllTilesCanMerge(tiles: any[], helpers: any): Promise<bool
     // Simulate merges by creating a copy of tile values
     const tileValues = activeTiles.map((t: any) => ({
       value: t.value|0,
-      isWild: t.special === 'wild' || t.special === 'wild-magnet',
+      isWild: t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer',
       original: t
     }));
     
@@ -1036,7 +1036,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         const isMissing = !t;
         const isLocked = !!(t && t.locked === true);
         const hasValue = !!(t && (t.value|0) > 0);
-        const isWildTile = !!(t && (t.special === 'wild' || t.special === 'wild-magnet' || (t as any).isWild === true || (t as any).isWildFace === true));
+        const isWildTile = !!(t && (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || (t as any).isWild === true || (t as any).isWildFace === true));
         
         // 🔥 CRITICAL FIX: NEVER spawn on a tile with value > 0, even if it's locked!
         // Locked tiles with value > 0 are tiles that are being animated (e.g., during magnet pull)
@@ -1168,7 +1168,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
           const existingTile = STATE.grid?.[r]?.[c];
           if (existingTile) {
             const isActive = (existingTile.value|0) > 0;
-            const isWildTile = existingTile.special === 'wild' || existingTile.special === 'wild-magnet' || (existingTile as any).isWild === true || (existingTile as any).isWildFace === true;
+            const isWildTile = existingTile.special === 'wild' || existingTile.special === 'wild-magnet' || existingTile.special === 'wild-beer' || (existingTile as any).isWild === true || (existingTile as any).isWildFace === true;
             
             // 🔥 CRITICAL: NEVER spawn on a tile that has value > 0 or is wild, even if it's locked!
             // Locked tiles with value > 0 are active tiles (e.g., during animations)
@@ -1380,9 +1380,9 @@ export function merge(src, dst, helpers){
   
   // Wild-magnet works like wild: always merges to 6
   // Also, if BOTH tiles are wild-magnet affected, they act like wild (can merge regardless of pips)
-  const wildActive = (src.special === 'wild' || dst.special === 'wild' || src.special === 'wild-magnet' || dst.special === 'wild-magnet') ||
+  const wildActive = (src.special === 'wild' || dst.special === 'wild' || src.special === 'wild-magnet' || dst.special === 'wild-magnet' || src.special === 'wild-beer' || dst.special === 'wild-beer') ||
                      (srcIsWildMagnetAffected && dstIsWildMagnetAffected);
-  const wildTargetValue = wildActive ? ((src.special === 'wild' || src.special === 'wild-magnet' || srcIsWildMagnetAffected) ? (dst.value|0) : (src.value|0)) : null;
+  const wildTargetValue = wildActive ? ((src.special === 'wild' || src.special === 'wild-magnet' || src.special === 'wild-beer' || srcIsWildMagnetAffected) ? (dst.value|0) : (src.value|0)) : null;
   const effSum = wildActive ? 6 : sum;
   
   console.log('🔥 MERGE DEBUG:', { 
@@ -1645,8 +1645,8 @@ export function merge(src, dst, helpers){
         
         // CRITICAL FIX: Check for wild cubes properly (including wild-magnet)
         const allTiles = STATE.tiles.filter(t => t && !t.locked);
-        const wildCubes = allTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
-        const nonWildTiles = allTiles.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet');
+        const wildCubes = allTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer');
+        const nonWildTiles = allTiles.filter(t => t.special !== 'wild' && t.special !== 'wild-magnet' && t.special !== 'wild-beer');
         const willClean = wildCubes.length === 0 && nonWildTiles.length <= 1;
         const shouldRefillAfterMerge = !willClean;
         
@@ -1911,7 +1911,7 @@ export function merge(src, dst, helpers){
           // Call emergency rescue from window.CC if available
           if (typeof (window as any).CC?.scheduleWildRescue === 'function') {
             const activeTiles = STATE.tiles.filter(t => t && !t.destroyed && (t.value|0) > 0);
-            const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
+            const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer');
             const emergencyCount = Math.min(3, Math.max(2, wildCubes.length));
             (window as any).CC.scheduleWildRescue('merge6_spawn', emergencyCount);
           }

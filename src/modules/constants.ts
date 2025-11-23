@@ -78,6 +78,7 @@ export const ASSET_NUMBERS3: string = './assets/tile_numbers3.png';
 export const ASSET_NUMBERS4: string = './assets/tile_numbers4.png';
 export const ASSET_WILD: string = './assets/wild.png';
 export const ASSET_WILD_MAGNET: string = './assets/wild-magnet.png';
+export const ASSET_WILD_BEER: string = './assets/wild-beer.png';
 export const ASSET_MYSTERY: string = './assets/mystery-box.png';
 export const ASSET_COIN: string = './assets/gold-coin.png';
 export const SFX_EXPLODE: string = './assets/explode.mp3';

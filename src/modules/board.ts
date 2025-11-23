@@ -5,6 +5,7 @@ import {
   PIPS_INNER_FACTOR, PIP_COLOR, PIP_ALPHA, PIP_RADIUS, PIP_SQUARE,
   ASSET_TILE,
   ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4,
+  ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_BEER,
 } from './constants.js';
 
 const BOARD_BG_COLOR = 0xF3EEE8;
@@ -194,8 +195,55 @@ export function setValue(t: Tile, v: number, addStack = 0): void {
     t.alpha = 1;
   }
 
-  if ((v | 0) > 0) {
-    // aktivna pločica
+  // 🔥 CRITICAL: Check special FIRST before setting any texture
+  // This ensures wild-beer, wild-magnet, and wild tiles ALWAYS get correct texture
+  if (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer') {
+    try {
+      // 🔥 CRITICAL: Ensure base sprite exists
+      if (!t.base) {
+        const host = t.rotG || t;
+        t.base = host.children?.find((c: any) => c.texture instanceof Texture) as Sprite || null;
+        if (!t.base && host) {
+          // Create base sprite if it doesn't exist
+          t.base = new Sprite(Texture.from(ASSET_TILE));
+          t.base.anchor.set(0.5);
+          t.base.width = TILE;
+          t.base.height = TILE;
+          host.addChild(t.base);
+        }
+      }
+      
+      // 🔥 CRITICAL: Always use correct texture for wild-beer
+      // This MUST be wild-beer.png for wild-beer tiles, nothing else
+      const assetPath = t.special === 'wild-magnet'
+        ? ASSET_WILD_MAGNET
+        : (t.special === 'wild-beer' ? ASSET_WILD_BEER : ASSET_WILD);
+      
+      const tex = Assets.get(assetPath) || Texture.from(assetPath);
+      if (t.base && tex && tex !== Texture.EMPTY) {
+        t.base.texture = tex;
+        (t.base as any).tint = 0xFFFFFF;
+        (t.base as any).alpha = 1;
+        t.base.visible = true;
+        // Optimize texture for pixel-perfect rendering
+        if (t.base.texture && t.base.texture.baseTexture) {
+          t.base.texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
+        }
+      }
+      
+      // 🔥 CRITICAL: Hide pips and num for wild tiles
+      if (t.num) t.num.visible = false;
+      if (t.pips) {
+        t.pips.visible = false;
+        t.pips.clear?.(); // Clear pips to prevent them from showing
+      }
+      t.isWild = true;
+      t.isWildFace = true;
+    } catch (error) {
+      console.error('❌ Error setting wild texture:', error);
+    }
+  } else if ((v | 0) > 0) {
+    // aktivna pločica (only if NOT a wild tile)
     if (t.base) {
       t.base.texture = pickNumbersSkin();
       // Optimize texture for pixel-perfect rendering
@@ -216,11 +264,16 @@ export function setValue(t: Tile, v: number, addStack = 0): void {
     if (t.overlay) t.overlay.visible = false;
     t.pips?.clear?.(); // odmah ukloni pips da ne "procure"
   }
+
   // Ghost placeholders are now handled by drawBoardBG
 
   if (addStack) t.stackDepth = Math.min(4, (t.stackDepth || 1) + addStack);
   drawStack(t);
-  drawPips(t);
+  
+  // 🔥 CRITICAL: Don't draw pips for wild tiles (they should never show pips)
+  if (!(t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer')) {
+    drawPips(t);
+  }
 }
 
 // --- Merge score chain bookkeeping (ostavljeno ako ti treba kasnije) ---
@@ -432,7 +485,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
 function tileIsWild(tile: Tile | null | undefined): boolean {
   if (!tile) return false;
   const special = tile.special;
-  return special === 'wild' || special === 'wild-magnet';
+  return special === 'wild' || special === 'wild-magnet' || special === 'wild-beer';
 }
 
 function tileIsActive(tile: Tile | null | undefined): boolean {
@@ -454,14 +507,14 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
   const open = allTiles.filter((t) => tileIsActive(t as Tile)) as Tile[];
   
   // Check for wild cubes - they can merge with any other tile (including wild-magnet)
-  const wildCubes = open.filter((t) => t.special === 'wild' || t.special === 'wild-magnet');
+  const wildCubes = open.filter((t) => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer');
   
   // 🔥 CRITICAL: Separate wild stars from magnets for better logic
-  const wildStars = open.filter((t) => t.special === 'wild');
+  const wildStars = open.filter((t) => t.special === 'wild' || t.special === 'wild-beer');
   const magnets = open.filter((t) => t.special === 'wild-magnet');
   
   const mergeableNonWildTiles = open.filter((t) => {
-    if (!t || t.special === 'wild' || t.special === 'wild-magnet') return false;
+    if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer') return false;
     const value = (t.value | 0);
     // 🔥 CRITICAL FIX: Wild CAN merge with merge 6! Changed from < 6 to <= 6
     // This was causing false "stuck" detection when board had merge 6 + wild star
@@ -551,8 +604,8 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
       const tile2 = open[j];
       
       // Skip wild cubes in this check (they're already handled above)
-      if (tile1.special === 'wild' || tile1.special === 'wild-magnet' || 
-          tile2.special === 'wild' || tile2.special === 'wild-magnet') {
+      if (tile1.special === 'wild' || tile1.special === 'wild-magnet' || tile1.special === 'wild-beer' || 
+          tile2.special === 'wild' || tile2.special === 'wild-magnet' || tile2.special === 'wild-beer') {
         continue;
       }
       

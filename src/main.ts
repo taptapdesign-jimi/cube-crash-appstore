@@ -171,6 +171,12 @@ async function startAssetPreloading(): Promise<void> {
     
     // Show loading screen
     uiManager.showLoadingScreen();
+
+    // Fallback: force-hide loader if something stalls (safety net)
+    const forceHideTimeout = setTimeout(() => {
+      logger.warn('⚠️ Loader safety timeout reached - forcing hide');
+      uiManager.hideLoadingScreen();
+    }, 12000);
     
     // Setup progress callback
     assetPreloader.setProgressCallback((percentage: number, loadedCount: number, totalCount: number) => {
@@ -189,6 +195,7 @@ async function startAssetPreloading(): Promise<void> {
     
     // Hide loading screen and show home
     uiManager.hideLoadingScreen();
+    clearTimeout(forceHideTimeout);
     await appManager.showScreen('home');
     
     // Play enter animation for Slide 1 after homepage is shown
@@ -199,6 +206,8 @@ async function startAssetPreloading(): Promise<void> {
     
   } catch (error) {
     logger.error('❌ Asset preloading failed:', String(error));
+    // Ensure loader doesn’t block UI if preload fails
+    try { uiManager.hideLoadingScreen(); } catch {}
     throw error;
   }
 }

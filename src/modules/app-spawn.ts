@@ -2,9 +2,9 @@
 import { Assets, Texture, Container, Graphics } from 'pixi.js';
 import { gsap } from 'gsap';
 import { STATE, TILE, ASSET_WILD } from './app-state.js';
-import { ASSET_WILD_MAGNET } from './constants.js';
+import { ASSET_WILD_MAGNET, ASSET_WILD_BEER } from './constants.js';
 import * as makeBoard from './board.js';
-import { startWildIdle, wildImpactEffect, startWildShimmer, startWildStars } from './fx.js';
+import { startWildIdle, wildImpactEffect, startWildShimmer, startWildStars, startWildBeerBubbles } from './fx.js';
 import { logger } from '../core/logger.js';
 import { resetTileToNormalState } from './tile-state-utils.ts';
 // drawBoardBG function is now in app.js
@@ -212,8 +212,13 @@ function addElectricGlow(tile: any): void {
 
 function applyWildSkinLocal(tile: Tile): void {
   try{
-    // Use wild-magnet.png for wild-magnet, wild.png for regular wild
-    const assetPath = tile.special === 'wild-magnet' ? ASSET_WILD_MAGNET : ASSET_WILD;
+    // Use appropriate texture based on special type
+    let assetPath = ASSET_WILD;
+    if (tile.special === 'wild-magnet') {
+      assetPath = ASSET_WILD_MAGNET;
+    } else if (tile.special === 'wild-beer') {
+      assetPath = ASSET_WILD_BEER;
+    }
     const tex = Assets.get(assetPath) || Texture.from(assetPath);
     if (!tex || !tile) return;
     const host = tile.rotG || tile;

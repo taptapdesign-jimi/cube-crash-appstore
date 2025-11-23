@@ -6,6 +6,7 @@ import { Container, Graphics, Text, Texture, Sprite } from 'pixi.js';
 import { gsap } from 'gsap';
 
 import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from './wild-stars.js';
+import { TILE } from './constants.js';
 
 try {
   preloadWildStarTexture();
@@ -17,6 +18,237 @@ export function startWildStars(tile){
 
 export function stopWildStars(tile){
   detachWildStarHalo(tile);
+}
+
+// 🔥 WILD-BEER: Continuous bubble animation system
+const wildBeerBubbleSystems = new Map();
+
+/**
+ * Start continuous sparkling water bubbles for wild-beer tiles
+ * Bubbles spawn from bottom, rise to top + 30%, max 40px, white/transparent
+ */
+export function startWildBeerBubbles(tile) {
+  if (!tile || tile.special !== 'wild-beer') return;
+  
+  // Stop existing bubble system if any
+  stopWildBeerBubbles(tile);
+  
+  const host = (tile.rotG || tile);
+  if (!host) return;
+  
+  const container = new Container();
+  container.name = 'wild-beer-bubbles';
+  container.sortableChildren = false;
+  container.zIndex = 2600; // Same z-index as wild stars
+  container.visible = true;
+  container.renderable = true;
+  container.eventMode = 'none'; // Do not block pointer events
+  // Disable child interactivity without TS cast (plain JS)
+  try { container.interactiveChildren = false; } catch {}
+  
+  try {
+    host.sortableChildren = true;
+    host.addChild(container);
+    host.sortChildren?.();
+  } catch {
+    container.destroy?.();
+    return;
+  }
+  
+  const system = {
+    tile,
+    host,
+    container,
+    spawnInterval: null,
+    disposed: false,
+    bubbles: []
+  };
+  
+  try {
+    wildBeerBubbleSystems.set(tile, system);
+    tile._wildBeerBubbleSystem = system;
+  } catch (error) {
+    console.warn('⚠️ Error setting wild-beer bubble system:', error);
+    return;
+  }
+  
+  // Tile size reference (assuming standard tile size ~128px)
+  const TILE_SIZE = 128;
+  const tileHeight = TILE_SIZE;
+  const maxRiseAbove = tileHeight * 0.30; // 30% above tile
+  
+  // Function to create and animate a single bubble
+  const createBubble = () => {
+    if (system.disposed || !container.parent) return;
+    
+    const bubble = new Graphics();
+    bubble.eventMode = 'none';
+    bubble.cursor = 'default';
+    
+    // Random size, max 40px (15-40px for variation)
+    const bubbleSize = 15 + Math.random() * 25; // 15-40px
+    const radius = bubbleSize / 2;
+    
+    // Draw bubble as circle with highlight (sparkling water bubble effect)
+    bubble.circle(0, 0, radius);
+    bubble.fill({ color: 0xFFFFFF, alpha: 0.6 }); // White/transparent (sparkling water)
+    
+    // Add highlight (smaller circle at top-left) for 3D sparkling effect
+    const highlightRadius = radius * 0.3;
+    bubble.circle(-radius * 0.2, -radius * 0.2, highlightRadius);
+    bubble.fill({ color: 0xFFFFFF, alpha: 0.8 });
+    
+    // Add subtle border for definition
+    bubble.circle(0, 0, radius);
+    bubble.stroke({ color: 0xFFFFFF, alpha: 0.4, width: 1 });
+    
+    // Start position: bottom of tile (relative to container, which is centered on tile)
+    // Random horizontal position within tile width (±50% of tile width)
+    const tileWidth = TILE_SIZE;
+    const startX = (Math.random() - 0.5) * tileWidth * 0.8; // Random X within tile
+    const startY = tileHeight / 2; // Bottom of tile (relative to container center)
+    
+    bubble.x = startX;
+    bubble.y = startY;
+    
+    // Random starting scale (small, then grow as it rises)
+    bubble.scale.set(0.2 + Math.random() * 0.2); // Start at 20-40% scale
+    bubble.alpha = 0.7 + Math.random() * 0.3; // Start with 70-100% opacity
+    
+    // Add to container
+    container.addChild(bubble);
+    system.bubbles.push(bubble);
+    
+    // Animation: rise from bottom to top, then 30% above tile
+    const totalRise = tileHeight + maxRiseAbove; // Full tile height + 30% above
+    const endY = startY - totalRise; // Move up (negative Y, relative to container)
+    
+    // Slight horizontal drift (like real bubbles)
+    const horizontalDrift = (Math.random() - 0.5) * 20; // ±10px horizontal drift
+    const endX = startX + horizontalDrift;
+    
+    // Random duration for each bubble (0.8-1.5s)
+    const duration = 0.8 + Math.random() * 0.7;
+    
+    // Grow slightly as it rises (like bubbles expanding)
+    gsap.to(bubble.scale, {
+      x: 0.6 + Math.random() * 0.4, // Grow to 60-100% of size
+      y: 0.6 + Math.random() * 0.4,
+      duration: duration * 0.3, // Grow in first 30% of animation
+      ease: 'power2.out'
+    });
+    
+    // Rise up smoothly (like sparkling water bubbles)
+    gsap.to(bubble, {
+      x: endX,
+      y: endY,
+      duration: duration,
+      ease: 'power1.out', // Smooth upward motion
+      onComplete: () => {
+        // Pop/disappear at the end
+        try {
+          const idx = system.bubbles.indexOf(bubble);
+          if (idx >= 0) system.bubbles.splice(idx, 1);
+          if (container && container.children.includes(bubble)) {
+            container.removeChild(bubble);
+          }
+          bubble.destroy();
+        } catch {}
+      }
+    });
+    
+    // Fade out as it reaches the top (last 40% of animation)
+    gsap.to(bubble, {
+      alpha: 0,
+      duration: duration * 0.4,
+      delay: duration * 0.6,
+      ease: 'power2.in'
+    });
+  };
+  
+  // Spawn bubbles continuously (every 0.3-0.6 seconds)
+  const spawnBubble = () => {
+    if (system.disposed || !container.parent) return;
+    createBubble();
+    const nextDelay = 0.3 + Math.random() * 0.3; // 0.3-0.6s between bubbles
+    system.spawnInterval = gsap.delayedCall(nextDelay, spawnBubble);
+  };
+  
+  // Start spawning bubbles immediately and then continuously
+  spawnBubble();
+}
+
+/**
+ * Stop continuous bubble animation for wild-beer tiles
+ */
+export function stopWildBeerBubbles(tile) {
+  if (!tile) return;
+  
+  let system = null;
+  try {
+    system = wildBeerBubbleSystems.get(tile);
+    if (!system && tile._wildBeerBubbleSystem) {
+      system = tile._wildBeerBubbleSystem;
+    }
+  } catch (error) {
+    console.warn('⚠️ Error accessing wild-beer bubble system:', error);
+    return;
+  }
+  
+  if (!system) return;
+  
+  system.disposed = true;
+  
+  // Kill spawn interval
+  if (system.spawnInterval) {
+    try {
+      system.spawnInterval.kill();
+      system.spawnInterval = null;
+    } catch {}
+  }
+  
+  // Clean up all bubbles - kill all GSAP animations first
+  if (system.bubbles) {
+    system.bubbles.forEach(bubble => {
+      try {
+        // Kill all GSAP animations on bubble (position, scale, alpha)
+        gsap.killTweensOf(bubble);
+        gsap.killTweensOf(bubble.scale);
+        gsap.killTweensOf(bubble.x);
+        gsap.killTweensOf(bubble.y);
+        gsap.killTweensOf(bubble.alpha);
+        // Remove from parent before destroying
+        if (bubble.parent) {
+          bubble.parent.removeChild(bubble);
+        }
+        // Destroy the bubble graphics object
+        bubble.destroy();
+      } catch {}
+    });
+    system.bubbles = [];
+  }
+  
+  // Remove container
+  if (system.container && system.container.parent) {
+    try {
+      system.container.parent.removeChild(system.container);
+    } catch {}
+  }
+  
+  if (system.container) {
+    try {
+      system.container.destroy({ children: true });
+    } catch {}
+  }
+  
+  try {
+    wildBeerBubbleSystems.delete(tile);
+    if (tile._wildBeerBubbleSystem) {
+      delete tile._wildBeerBubbleSystem;
+    }
+  } catch (error) {
+    console.warn('⚠️ Error cleaning up wild-beer bubble system:', error);
+  }
 }
 
 /* ---------- tiny helpers ---------- */
@@ -87,6 +319,23 @@ export function destroyAllGraphicsObjects() {
     } catch {}
   });
   __globalGraphicsObjects.clear();
+}
+
+// Lightweight helper to trigger beer fizz immediately (standalone, no confetti reuse)
+export function triggerBeerMergeFizz(board, tile) {
+  try {
+    if (!board || !tile) return;
+    const { x, y } = centerInBoard(board, tile, 96);
+    const layer = new Container();
+    layer.x = x;
+    layer.y = y;
+    layer.zIndex = (tile?.zIndex ?? 0) + 0.002;
+    layer.sortableChildren = true;
+    autoAdd(board, layer, 1.6);
+    createMerge6Bubbles(board, layer, x, y);
+  } catch (error) {
+    console.warn('⚠️ triggerBeerMergeFizz failed:', error);
+  }
 }
 
 // Board-local center of a tile (robust against rotG wrappers)
@@ -559,6 +808,7 @@ export function woodShardsAtTile(board, tile, opts = {}){
   
   const wildMode = opts.wild === true;
   const enhanced = opts.enhanced ?? (wildMode || false);
+  const isWildBeerMerge = tile?.special === 'wild-beer' || opts.isWildBeer === true;
 
   const layer = new Container();
   layer.x = x; layer.y = y;
@@ -578,7 +828,9 @@ export function woodShardsAtTile(board, tile, opts = {}){
   }
 
 
-  const ttl = opts.ttl ?? (wildMode ? 0.9 : 1.6);
+  // Extend layer lifetime for wild-beer so bubble animation can finish (spawnDuration ~2.7s)
+  const ttlBase = opts.ttl ?? (wildMode ? 0.9 : 1.6);
+  const ttl = isWildBeerMerge ? Math.max(ttlBase, 3.6) : ttlBase;
   autoAdd(board, layer, ttl, behind ? { before: tile } : undefined);
   
   // 🔥 CRITICAL: Verify layer was added to board
@@ -607,7 +859,9 @@ export function woodShardsAtTile(board, tile, opts = {}){
   const intensity = opts.intensity ?? (enhanced ? 1.35 : 1.0);
   const countBase = opts.count ?? (enhanced ? 18 : 12);
   const shardCountRaw = Math.max(6, Math.round(countBase * intensity));
-  const shardCount = wildMode ? Math.max(14, Math.round(shardCountRaw * 0.8)) : shardCountRaw;
+  const shardCount = wildMode
+    ? Math.max(14, Math.round(shardCountRaw * 0.8))
+    : Math.round(shardCountRaw);
   const spread = opts.spread ?? (enhanced ? 1.4 : 1.0);
   const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
   // 🔥 CRITICAL: Check if this is pulled tiles merge 6 (explicit flag)
@@ -654,7 +908,7 @@ export function woodShardsAtTile(board, tile, opts = {}){
   } else if (opts.wild === false) {
     // Explicitly NOT wild
     isWildOnly = false;
-  } else if (!isWildMagnet && tile?.special === 'wild') {
+  } else if (!isWildMagnet && (tile?.special === 'wild' || tile?.special === 'wild-beer')) {
     // opts.wild not set, fallback to tile.special (but only if not wild-magnet)
     isWildOnly = true;
   }
@@ -843,9 +1097,366 @@ export function woodShardsAtTile(board, tile, opts = {}){
   // Generate 3 stars ONLY for wild-only merge (wild + ordinary or ordinary + wild)
   // NOT for wild-magnet merge, regular merge, or any other case
   // isWildOnly is determined above based on opts.wild and opts.wildMagnet
+  // 🔥 WILD-BEER SPECIAL: Use bubbles instead of stars for wild-beer merge
+  // Check both tile.special and opts.isWildBeer (passed from merge function)
+  const isWildBeer = isWildBeerMerge;
+  console.log('💧 Stars/Bubbles check:', { 
+    isWildOnly, 
+    isWildMagnet, 
+    isWildBeer, 
+    tileSpecial: tile?.special, 
+    optsIsWildBeer: opts.isWildBeer,
+    optsWild: opts.wild,
+    optsWildMagnet: opts.wildMagnet
+  });
   if (isWildOnly && !isWildMagnet) {
-    createMerge6Stars(board, layer, x, y);
+    if (isWildBeer) {
+      // Wild-beer: skip local fizz here to avoid double wave; handled by triggerBeerMergeFizz/explosion
+      console.log('💧 Skipping local merge6 bubbles for wild-beer (handled elsewhere)');
+    } else {
+      // Regular wild: 3 stars
+      console.log('⭐ Creating regular wild stars at position:', x, y);
+      createMerge6Stars(board, layer, x, y);
+    }
+  } else {
+    console.log('💧 Skipping stars/bubbles:', { isWildOnly, isWildMagnet, isWildBeer });
   }
+}
+
+/**
+ * Create sparkling water bubbles for wild-beer merge 6 effect
+ * Bubbles rise from bottom of tile to top, max 30% above tile, white/transparent, max 40px size
+ */
+function createMerge6Bubbles(board, layer, centerX, centerY) {
+  try {
+  console.log('💧 createMerge6Bubbles (beer fizz) triggered');
+  
+  const screenH = typeof window !== 'undefined' ? window.innerHeight : 800;
+  // Longer fizz: ~2.5s total emission
+  const spawnDuration = 2400 + Math.random() * 300; // ~2.4-2.7s
+  const totalBubbles = 32 + Math.floor(Math.random() * 12); // 32-43 bubbles
+  const bubblesPerMs = totalBubbles / spawnDuration;
+  
+  // Ensure layer never blocks pointer interactions
+  layer.eventMode = 'none';
+  try { layer.interactiveChildren = false; } catch {}
+    
+    let spawned = 0;
+    let startTime = performance.now();
+    let lastTickTime = startTime;
+    let accumulator = 0;
+    
+    const makeBubble = () => {
+      if (spawned >= totalBubbles) return;
+      spawned++;
+      
+      const bubble = new Graphics();
+      bubble.eventMode = 'none';
+      bubble.cursor = 'default';
+      
+      // Size mix: 12-36px
+      const bubbleSize = 12 + Math.random() * 24;
+      const radius = bubbleSize / 2;
+      
+      bubble.circle(0, 0, radius);
+      bubble.fill({ color: 0xFFFFFF, alpha: 0.6 });
+      const highlightRadius = radius * 0.3;
+      bubble.circle(-radius * 0.2, -radius * 0.2, highlightRadius);
+      bubble.fill({ color: 0xFFFFFF, alpha: 0.8 });
+      bubble.circle(0, 0, radius);
+      bubble.stroke({ color: 0xFFFFFF, alpha: 0.4, width: 1 });
+      
+      // Origin: just below tile bottom (layer-local)
+      // 🔥 FIX: Use TILE constant instead of undefined tileWidth/tileHeight
+      const startX = (Math.random() - 0.5) * TILE * 0.7;
+      const startY = TILE * 0.5 + (5 + Math.random() * 10); // 5-15px below tile bottom
+      bubble.x = startX;
+      bubble.y = startY;
+      
+      // Initial state
+      bubble.scale.set(0.25 + Math.random() * 0.25);
+      bubble.alpha = 0.75 + Math.random() * 0.25;
+      layer.addChild(bubble);
+      
+      // Rise off-screen
+      const riseDistance = startY + screenH * (0.9 + Math.random() * 0.15); // 90-105% of screen height added
+      const endY = startY - riseDistance;
+      
+      // Wobble
+      const wobbleAmp = 10 + (bubbleSize / 36) * 18; // ~10-28px
+      const wobbleSpeed = 1.0 + Math.random() * 1.6; // 1.0-2.6 cycles
+      const wobblePhase = Math.random() * Math.PI * 2;
+      const wobblePhase2 = Math.random() * Math.PI * 2;
+      const wobbleSpeed2 = 0.5 + Math.random() * 0.9; // secondary drift
+      
+      // Duration: size-dependent, varied speeds, clamped 0.7-1.4s
+      const baseDur = 0.8 + (bubbleSize / 36) * 0.6;
+      const speedJitter = (Math.random() - 0.5) * 0.4; // ±0.2s jitter
+      const duration = Math.min(1.4, Math.max(0.7, baseDur + speedJitter));
+      
+      const wobbleObj = { t: wobblePhase, t2: wobblePhase2 };
+      const tl = gsap.timeline({
+        onComplete: () => {
+          try {
+            if (layer && layer.children.includes(bubble)) {
+              layer.removeChild(bubble);
+            }
+            bubble.destroy();
+          } catch {}
+        }
+      });
+      
+      // Wobble motion
+      tl.to(wobbleObj, {
+        t: wobblePhase + Math.PI * 2 * wobbleSpeed,
+        t2: wobblePhase2 + Math.PI * 2 * wobbleSpeed2,
+        duration,
+        ease: 'none',
+        onUpdate: () => {
+          const offset = Math.sin(wobbleObj.t) * wobbleAmp + Math.sin(wobbleObj.t2) * (wobbleAmp * 0.35);
+          bubble.x = startX + offset;
+        }
+      }, 0);
+      
+      // Rise + fade
+      tl.to(bubble, {
+        y: endY,
+        duration,
+        ease: 'sine.out'
+      }, 0);
+      
+      tl.to(bubble.scale, {
+        x: 0.6 + Math.random() * 0.4,
+        y: 0.6 + Math.random() * 0.4,
+        duration: duration * 0.35,
+        ease: 'power2.out'
+      }, 0);
+      
+      tl.to(bubble, {
+        alpha: 0,
+        duration: duration * 0.4,
+        ease: 'power1.in'
+      }, duration * 0.6);
+    };
+    
+    const spawnTick = () => {
+      const now = performance.now();
+      const delta = now - lastTickTime;
+      lastTickTime = now;
+      const elapsed = now - startTime;
+      
+      accumulator += bubblesPerMs * delta;
+      const toSpawn = Math.min(3, Math.floor(accumulator));
+      if (toSpawn > 0) {
+        accumulator -= toSpawn;
+        for (let i = 0; i < toSpawn && spawned < totalBubbles; i++) {
+          makeBubble();
+        }
+      }
+      
+      // Stop only after all bubbles emitted (no end flush, no early exit)
+      if (spawned >= totalBubbles) {
+        gsap.ticker.remove(spawnTick);
+      }
+    };
+    
+    // Start immediately on the merge frame with three instant bubbles to avoid any perceived delay
+    makeBubble();
+    makeBubble();
+    makeBubble();
+    gsap.ticker.add(spawnTick);
+    spawnTick();
+  } catch (error) {
+    console.warn('⚠️ Failed to create merge 6 bubbles:', error);
+  }
+}
+
+// --- Merge-6 wild-beer bubble explosion (organic drift) ---
+let wildBeerExplosionContainer = null;
+let wildBeerExplosionActive = false;
+
+function cleanupWildBeerExplosion() {
+  try {
+    wildBeerExplosionActive = false;
+    if (wildBeerExplosionContainer) {
+      const container = wildBeerExplosionContainer;
+      wildBeerExplosionContainer = null;
+      const children = [...(container.children || [])];
+      children.forEach((bubble) => {
+        try {
+          gsap.killTweensOf(bubble);
+          gsap.killTweensOf(bubble.scale);
+          gsap.killTweensOf(bubble.rotation);
+          if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
+          bubble.destroy?.();
+        } catch {}
+      });
+      if (container.parent) container.parent.removeChild(container);
+      container.destroy?.({ children: true });
+    }
+  } catch {}
+}
+
+export function isWildBeerExplosionRunning() {
+  return wildBeerExplosionActive;
+}
+
+export function createWildBeerBubblesExplosion(board, tile) {
+  if (!board || !tile) return;
+  if (wildBeerExplosionActive) return; // Guard duplicate triggers during same animation
+
+  cleanupWildBeerExplosion();
+
+  const windowState = typeof window !== 'undefined' ? window.STATE : null;
+  const app = (windowState && windowState.app) || board.parent?.parent;
+  const stage = (app && app.stage) || board.parent;
+  if (!stage) return;
+
+  const container = new Container();
+  container.name = 'wild-beer-explosion-bubbles';
+  container.zIndex = 10000;
+  container.sortableChildren = true;
+  container.eventMode = 'none'; // Allow dragging through overlay
+  try { container.interactiveChildren = false; } catch {}
+  stage.addChild(container);
+  stage.sortChildren?.();
+
+  wildBeerExplosionContainer = container;
+  wildBeerExplosionActive = true;
+
+  const screenW = typeof window !== 'undefined' ? window.innerWidth : 800;
+  const screenH = typeof window !== 'undefined' ? window.innerHeight : 600;
+
+  // Shorter, denser burst so whole animation wraps in ~<=3s
+  const totalBubbles = 240;
+  const spawnDuration = 1500;
+  const maxActive = 200;
+  let active = 0;
+  let spawned = 0;
+  const perMs = totalBubbles / spawnDuration;
+  let startTime = performance.now();
+  let lastTick = startTime;
+  let acc = 0;
+
+  const makeBubble = () => {
+    if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) return;
+    if (spawned >= totalBubbles || active >= maxActive) return;
+
+    spawned += 1;
+    active += 1;
+
+    const bubble = new Graphics();
+    bubble.eventMode = 'none';
+    bubble.cursor = 'default';
+    const size = 14 + Math.random() * 34; // 14-48px
+    const radius = size / 2;
+    const alpha = 0.55 + Math.random() * 0.35;
+
+    bubble.circle(0, 0, radius);
+    bubble.fill({ color: 0xFFFFFF, alpha });
+    bubble.circle(-radius * 0.25, -radius * 0.25, radius * 0.32);
+    bubble.fill({ color: 0xFFFFFF, alpha: Math.min(1, alpha + 0.2) });
+    bubble.circle(0, 0, radius);
+    bubble.stroke({ color: 0xFFFFFF, alpha: alpha * 0.65, width: 1 });
+
+    const startX = (Math.random() - 0.5) * screenW * 1.4 + screenW * 0.5;
+    const startY = screenH * (0.95 + Math.random() * 0.2);
+    bubble.x = startX;
+    bubble.y = startY;
+    bubble.alpha = alpha;
+    bubble.scale.set(0.25 + Math.random() * 0.25);
+    bubble.renderable = true;
+
+    wildBeerExplosionContainer.addChild(bubble);
+
+    const endY = -screenH * (0.1 + Math.random() * 0.15);
+    // Faster rise so the entire burst finishes under ~3s
+    const duration = Math.min(2.1, Math.max(1.1, 1.6 + (Math.random() - 0.5) * 0.6));
+
+    const drift1 = (Math.random() - 0.5) * 180;
+    const drift2 = drift1 * -0.6 + (Math.random() - 0.5) * 220;
+    const drift3 = (Math.random() - 0.5) * 240;
+
+    const bubbleTweens = [];
+
+    bubbleTweens.push(gsap.to(bubble, {
+      keyframes: [
+        { x: startX + drift1, duration: duration * 0.3, ease: 'sine.inOut' },
+        { x: startX + drift2, duration: duration * 0.35, ease: 'sine.inOut' },
+        { x: startX + drift3, duration: duration * 0.35, ease: 'sine.inOut' }
+      ],
+      immediateRender: true
+    }));
+
+    bubbleTweens.push(gsap.to(bubble, {
+      y: endY,
+      duration,
+      ease: 'power2.inOut',
+      immediateRender: true
+    }));
+
+    bubbleTweens.push(gsap.to(bubble.scale, {
+      x: 0.65 + Math.random() * 0.35,
+      y: 0.65 + Math.random() * 0.35,
+      duration: duration * 0.45,
+      ease: 'power1.out',
+      immediateRender: true
+    }));
+
+    bubbleTweens.push(gsap.to(bubble, {
+      rotation: (Math.random() - 0.5) * Math.PI * 1.2,
+      duration,
+      ease: 'sine.inOut',
+      immediateRender: true
+    }));
+
+    bubbleTweens.push(gsap.to(bubble, {
+      alpha: 0,
+      duration: duration * 0.4,
+      delay: duration * 0.6,
+      ease: 'power2.in',
+      immediateRender: true,
+      onComplete: () => {
+        try {
+          bubbleTweens.forEach(t => { try { t.kill?.(); } catch {} });
+          if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
+          bubble.destroy?.();
+        } catch {}
+        active = Math.max(0, active - 1);
+      }
+    }));
+  };
+
+  const spawnTick = () => {
+    if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) {
+      cleanupWildBeerExplosion();
+      return;
+    }
+    const now = performance.now();
+    const dt = Math.max(1, now - lastTick);
+    lastTick = now;
+    const elapsed = now - startTime;
+
+    if (elapsed >= spawnDuration && spawned >= totalBubbles) {
+      gsap.ticker.remove(spawnTick);
+      setTimeout(() => cleanupWildBeerExplosion(), 2400);
+      return;
+    }
+
+    acc += perMs * dt;
+    const toSpawn = Math.min(3, Math.floor(acc));
+    if (toSpawn > 0) {
+      acc -= toSpawn;
+      for (let i = 0; i < toSpawn; i++) {
+        makeBubble();
+      }
+    }
+  };
+
+  // Initial burst for instant feedback
+  for (let i = 0; i < 12; i++) makeBubble();
+  gsap.ticker.add(spawnTick);
+  spawnTick();
 }
 
 /**
@@ -884,22 +1495,20 @@ function createMerge6Stars(board, layer, centerX, centerY) {
       // Add to layer
       layer.addChild(star);
       
-      // Animate star: move outward in its own direction, rotate, then instant disappear
-      const travelDistance = 60 + Math.random() * 60; // 60-120px travel (random, each different)
-      const travelAngle = angle + (Math.random() - 0.5) * 1.2; // Each star goes in different direction
-      const rotationAmount = (Math.random() - 0.5) * Math.PI * 4; // Random rotation amount (each different)
-      const duration = 0.6 + Math.random() * 0.4; // 0.6-1.0s (random duration, each different)
+      // Animate star flying away from center
+      const travelDistance = 200 + Math.random() * 150; // 200-350px travel distance
+      const travelAngle = angle; // Same direction as initial position
+      const endX = centerX + Math.cos(travelAngle) * travelDistance;
+      const endY = centerY + Math.sin(travelAngle) * travelDistance;
+      const travelDuration = 0.8 + Math.random() * 0.4; // 0.8-1.2s
       
-      // Move outward with rotation and 100% opacity (no fade)
+      // Animate position
       gsap.to(star, {
-        x: star.x + Math.cos(travelAngle) * travelDistance,
-        y: star.y + Math.sin(travelAngle) * travelDistance,
-        rotation: star.rotation + rotationAmount, // Rotate during animation (each different)
-        alpha: 1.0, // Keep at 100% opacity
-        duration: duration,
+        x: endX,
+        y: endY,
+        duration: travelDuration,
         ease: 'power2.out',
         onComplete: () => {
-          // Instant disappear (no fade out)
           try {
             if (layer && layer.children.includes(star)) {
               layer.removeChild(star);
@@ -908,9 +1517,25 @@ function createMerge6Stars(board, layer, centerX, centerY) {
           } catch {}
         }
       });
+      
+      // Animate rotation (spinning as it flies)
+      const spinAmount = (Math.random() - 0.5) * Math.PI * 4; // -2π to +2π rotation
+      gsap.to(star, {
+        rotation: star.rotation + spinAmount,
+        duration: travelDuration,
+        ease: 'power2.out'
+      });
+      
+      // Fade out near the end
+      gsap.to(star, {
+        alpha: 0,
+        duration: travelDuration * 0.3,
+        delay: travelDuration * 0.7,
+        ease: 'power2.in'
+      });
     }
   } catch (error) {
-    console.warn('⚠️ Failed to create merge 6 stars:', error);
+    console.warn('⚠️ Error creating merge 6 stars:', error);
   }
 }
 
@@ -1228,6 +1853,56 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
           if (puff && puff.parent) {
             puff.parent.removeChild(puff);
             puff.destroy();
+          }
+        } catch {}
+      }
+    });
+  }
+}
+
+// Beer-specific drag bubbles (palette-matched, replaces smoke for beer wild)
+export function dragBeerBubbleTrail(board, tile, tileSize = 96, strength = 1, opts = {}) {
+  if (!board || !tile) return;
+  
+  const count = Math.floor(14 + Math.random() * 8); // 14-21 bubbles
+  const { x, y } = centerInBoard(board, tile, tileSize);
+  const baseRise = tileSize * 0.25;
+  
+  for (let i = 0; i < count; i++) {
+    const bubble = new Graphics();
+    
+    // Sizes: small/medium/large (2.5-9px)
+    const rand = Math.random();
+    let radius;
+    if (rand < 0.33) radius = 2.5 + Math.random() * 2.5;
+    else if (rand < 0.66) radius = 3.5 + Math.random() * 3.5;
+    else radius = 4.5 + Math.random() * 4.5;
+    
+    // Warm palette (same as smoke tones but as bubbles)
+    const colors = [0xFFFFFF, 0xECD7C2, 0xDB9C77];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    bubble.circle(0, 0, radius).fill({ color, alpha: 0.9 });
+    bubble.alpha = 0.9;
+    bubble.x = x + (Math.random() - 0.5) * 70;
+    bubble.y = y + (Math.random() - 0.5) * 70;
+    
+    board.addChild(bubble);
+    
+    const rise = baseRise * (0.8 + Math.random() * 0.8) * strength;
+    const driftX = (Math.random() - 0.5) * (tileSize * 0.1);
+    const dur = 0.7 + Math.random() * 0.35; // 0.7-1.05s
+    
+    gsap.to(bubble, {
+      alpha: 0,
+      y: bubble.y - rise,
+      x: bubble.x + driftX,
+      duration: dur,
+      ease: 'sine.out',
+      onComplete: () => {
+        try {
+          if (bubble && bubble.parent) {
+            bubble.parent.removeChild(bubble);
+            bubble.destroy();
           }
         } catch {}
       }

@@ -1392,15 +1392,6 @@ class UIManager {
   
   // Show loading screen
   showLoadingScreen(): void {
-    // 🔥 CRITICAL FIX: Prevent showing loading screen if app is already initialized
-    // This prevents crash when opening stats screen after long gameplay
-    const isAppInitialized = (window as any).__cube_crash_ui_bootstrapped__ === true;
-    if (isAppInitialized) {
-      console.warn('⚠️ Attempted to show loading screen after app initialization - ignoring');
-      logger.warn('⚠️ Attempted to show loading screen after app initialization - ignoring');
-      return;
-    }
-    
     if (this.elements.loadingScreen) {
       this.elements.loadingScreen.style.display = 'flex';
       this.elements.loadingScreen.classList.remove('hidden');
@@ -1412,6 +1403,11 @@ class UIManager {
     if (this.elements.loadingScreen) {
       this.elements.loadingScreen.style.display = 'none';
       this.elements.loadingScreen.classList.add('hidden');
+      // Remove from DOM to avoid any pointer interception after boot
+      try {
+        this.elements.loadingScreen.parentElement?.removeChild(this.elements.loadingScreen);
+        this.elements.loadingScreen = null;
+      } catch {}
     }
   }
   

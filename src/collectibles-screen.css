@@ -860,25 +860,25 @@
 
 #collectibles-detail-modal .detail-rarity-badge {
   font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 18px; /* Increased by 4px from 14px */
-  font-weight: 700; /* Bold */
-  color: #BD968C; /* Smeđa boja za tekst (bila je fill boja) */
-  padding: 8px 40px; /* 8px top and bottom, 40px left and right (povećano za još 16px) */
+  font-size: 14px; /* Ista kao #hud-board-indicator-label */
+  font-weight: 600; /* Ista kao #hud-board-indicator-label */
+  color: white; /* Bijeli tekst */
+  padding: 4px 12px; /* Ista kao #hud-board-indicator-label */
   border-radius: 200px;
-  background-color: white; /* Bijeli fill */
+  background-color: #BD968C; /* Smeđa boja u backgroundu */
   border: 1px solid #BD968C; /* Smeđi stroke (1px) */
-  line-height: 25.20px;
+  line-height: 1.4;
   text-align: center;
   white-space: nowrap;
   width: auto; /* Promijenjeno sa 135px na auto da tag može rasti s padding-om */
-  min-width: 135px; /* Minimalna širina */
+  min-width: 135px; /* Ista kao #hud-board-indicator-label */
   flex-shrink: 0;
 }
 
 #collectibles-detail-modal .detail-rarity-badge.legendary {
-  background-color: white; /* Bijeli fill */
+  background-color: #E87A54; /* Narančasti background */
   border-color: #E87A54; /* Narančasti stroke (1px) */
-  color: #E87A54; /* Narančasta boja za tekst (bila je fill boja) */
+  color: white; /* Bijeli tekst */
 }
 
 #collectibles-detail-modal .detail-description {

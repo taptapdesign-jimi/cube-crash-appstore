@@ -103,7 +103,8 @@ class CollectiblesManager {
         { id: 'legendary02', name: 'Wild Storm', description: 'Use 25 wild cubes in a single game', rarity: 'Legendary', event: 'wild_25', unlocked: false },
         { id: 'legendary03', name: 'Combo Storm', description: 'Get a 20x combo', rarity: 'Legendary', event: 'combo_20', unlocked: false },
         { id: 'legendary04', name: 'Board Storm', description: 'Clean 50 boards', rarity: 'Legendary', event: 'clean_50', unlocked: false },
-        { id: 'legendary05', name: 'Ultimate Master', description: 'Complete 500 merges', rarity: 'Legendary', event: 'merge_500', unlocked: false }
+        { id: 'legendary05', name: 'Ultimate Master', description: 'Complete 500 merges', rarity: 'Legendary', event: 'merge_500', unlocked: false },
+        { id: 'legendary06', name: 'Legendary Cube', description: 'Find me if you can', rarity: 'Legendary', event: 'legendary_all', unlocked: false }
       ]
     };
     this.defaultUnlockedIds = new Set<string>();
@@ -592,7 +593,7 @@ class CollectiblesManager {
     const legendaryCounter = document.getElementById('legendary-counter');
     
     if (commonCounter) commonCounter.textContent = `${commonUnlocked}/20`;
-    if (legendaryCounter) legendaryCounter.textContent = `${legendaryUnlocked}/5`;
+    if (legendaryCounter) legendaryCounter.textContent = `${legendaryUnlocked}/6`;
   }
 
   private preloadImages(): Promise<PreloadResult[]> {
@@ -1103,7 +1104,7 @@ class CollectiblesManager {
     if (number >= 1 && number <= 20) {
       categoryKey = 'common';
       card = this.collectiblesData.common[number - 1] || null;
-    } else if (number >= 21 && number <= 25) {
+    } else if (number >= 21 && number <= 26) {
       categoryKey = 'legendary';
       card = this.collectiblesData.legendary[number - 21] || null;
     }
@@ -1196,7 +1197,7 @@ class CollectiblesManager {
     let card: CollectibleCard | null = null;
     if (number >= 1 && number <= 20) {
       card = this.collectiblesData.common[number - 1] || null;
-    } else if (number >= 21 && number <= 25) {
+    } else if (number >= 21 && number <= 26) {
       card = this.collectiblesData.legendary[number - 21] || null;
     }
 
@@ -1309,8 +1310,8 @@ class CollectiblesManager {
     // Store selected cards
     const selectedCards: Set<number> = new Set();
 
-    // Create 25 buttons (01-25)
-    for (let i = 1; i <= 25; i++) {
+    // Create 26 buttons (01-26)
+    for (let i = 1; i <= 26; i++) {
       const btn = document.createElement('button');
       btn.textContent = i.toString().padStart(2, '0');
       btn.style.cssText = `

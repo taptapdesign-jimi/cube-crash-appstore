@@ -19,6 +19,18 @@
   <link rel="preload" as="image" href="./assets/nav/stats-nav.png" fetchpriority="high">
   <link rel="preload" as="image" href="./assets/nav/collectibles-nav.png" fetchpriority="high">
   <link rel="preload" as="image" href="./assets/nav/settings-nav.png" fetchpriority="high">
+  <!-- Preload homepage hero + logo/shards to prevent blank slides -->
+  <link rel="preload" as="image" href="./assets/crash-cubes-homepage.png" fetchpriority="high">
+  <link rel="preload" as="image" href="./assets/crash-cubes-homepage@2x.png">
+  <link rel="preload" as="image" href="./assets/crash-cubes-homepage@3x.png">
+  <link rel="preload" as="image" href="./assets/logo-cube-crash.png" fetchpriority="high">
+  <link rel="preload" as="image" href="./assets/logo addons/gore ljevo shards.png">
+  <link rel="preload" as="image" href="./assets/logo addons/shards gore desno.png">
+  <link rel="preload" as="image" href="./assets/home-shadow.png">
+  <!-- Preload homepage hero art to avoid blank slide 1 -->
+  <link rel="preload" as="image" href="./assets/crash-cubes-homepage.png" fetchpriority="high">
+  <link rel="preload" as="image" href="./assets/crash-cubes-homepage@2x.png" fetchpriority="high">
+  <link rel="preload" as="image" href="./assets/crash-cubes-homepage@3x.png" fetchpriority="high">
   
   <!-- Load critical CSS -->
   <link rel="stylesheet" href="./src/style.css">
@@ -146,7 +158,80 @@
     /* No extra margin needed - navigation is separate */
   </style>
 </head>
-<body>
+<body style="background: #F3EEE8; overflow: hidden;">
+  <!-- Inline critical loader with production styling -->
+  <style>
+    /* Inline critical loader styling matching production CSS */
+    #loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+      background: linear-gradient(180deg, rgba(219, 156, 119, 0.15) 0%, rgba(219, 156, 119, 0.25) 60%, rgba(219, 156, 119, 0.20) 100%);
+    }
+    #loading-screen .loading-content {
+      text-align: center;
+      max-width: 400px;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      position: relative;
+    }
+    #loading-screen .loading-logo img {
+      width: 204px;
+      height: auto;
+      margin-bottom: 0;
+      margin-top: -24px;
+      opacity: 1;
+      display: block;
+    }
+    #loading-screen .loading-text {
+      font-size: 20px;
+      font-weight: bold;
+      color: #DB9C77;
+      margin-bottom: 0;
+      font-family: "LTCrow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
+      opacity: 1;
+    }
+    #loading-screen .loading-bar-container {
+      width: 280px;
+      height: 6px;
+      background: rgba(219, 156, 119, 0.2);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 16px;
+    }
+    #loading-screen .loading-bar {
+      height: 100%;
+      background: #DB9C77;
+      border-radius: 6px;
+      width: 0%;
+      transition: width 0.3s ease;
+      box-shadow: 0 0 12px rgba(219, 156, 119, 0.6);
+    }
+  </style>
+  <div id="loading-screen">
+    <div class="loading-content">
+      <div class="loading-logo">
+        <img src="./assets/logo-cube-crash.png" alt="CubeCrash" loading="eager" fetchpriority="high">
+      </div>
+      <div class="loading-text">Loading...</div>
+      <div class="loading-progress">
+        <div class="loading-bar-container" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Loading progress">
+          <div id="loading-fill" class="loading-bar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="ui-root"></div>
   <div id="nav-root"></div>
   

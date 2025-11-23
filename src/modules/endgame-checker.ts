@@ -52,7 +52,7 @@ let cachedTilesHash: string = '';
 function tileIsWild(tile: any): boolean {
   if (!tile) return false;
   const special = tile.special;
-  return special === 'wild' || special === 'wild-magnet';
+  return special === 'wild' || special === 'wild-magnet' || special === 'wild-beer';
 }
 
 function tileIsActive(tile: any): boolean {
@@ -271,14 +271,14 @@ function isGameStuck(context: EndGameContext): boolean {
   }
   
   // Check for wild cubes edge cases
-  const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
+  const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer');
   
   // 🔥 CRITICAL: Separate wild stars from magnets for better logic
-  const wildStars = activeTiles.filter(t => t.special === 'wild');
+  const wildStars = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-beer');
   const magnets = activeTiles.filter(t => t.special === 'wild-magnet');
   
   const mergeableNonWildTiles = activeTiles.filter(t => {
-    if (!t || t.special === 'wild' || t.special === 'wild-magnet') return false;
+    if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer') return false;
     const value = (t.value|0);
     // 🔥 CRITICAL FIX: Wild CAN merge with merge 6! Wild can merge with ANY tile from 1-6
     // Previous bug: return value > 0 && value < 6; // This excluded merge 6, causing FAIL screen
@@ -404,7 +404,7 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
 // This prevents premature fail screen when: wild + tile + magnet → wild merge → magnet + merge6 (before spawn)
 const activeTiles = getActiveTiles(tiles);
 const hasMagnet = activeTiles.some(t => t.special === 'wild-magnet');
-const hasWild = activeTiles.some(t => t.special === 'wild');
+const hasWild = activeTiles.some(t => t.special === 'wild' || t.special === 'wild-beer');
 const hasMerge6 = activeTiles.some(t => t.value === 6);
 
 // 🔥 CRITICAL: If magnet + merge6 exists, game can continue (magnet can merge with merge6)
@@ -470,9 +470,9 @@ export function clearEndGameCache(): void {
  */
 export function needsEmergencyRescue(tiles: any[]): boolean {
   const activeTiles = getActiveTiles(tiles);
-  const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
+  const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer');
   const mergeableNonWildTiles = activeTiles.filter(t => {
-    if (!t || t.special === 'wild' || t.special === 'wild-magnet') return false;
+    if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer') return false;
     const value = (t.value|0);
     // 🔥 CRITICAL FIX: Wild CAN merge with merge 6! Include merge 6 in mergeable tiles
     return value > 0 && value <= 6;

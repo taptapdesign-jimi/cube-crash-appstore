@@ -6,7 +6,7 @@ import { gsap } from 'gsap';
 
 import {
   COLS, ROWS, TILE, GAP, HUD_H,
-  ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, ASSET_WILD_MAGNET
+  ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_BEER
 } from './constants.js';
 import { sweetPopIn, sweetPopOut } from './app-board.js';
 import * as CONSTS from './constants.js';
@@ -14,7 +14,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning } from './fx.js';
 import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
 import FX from './fx-helpers.js';
@@ -117,7 +117,7 @@ function tileIsVisuallyActive(tile: any): boolean {
   if (!tile || tile.destroyed || tile.locked) return false;
   const value = (tile.value | 0);
   const special = tile.special;
-  const isWild = special === 'wild' || special === 'wild-magnet';
+  const isWild = special === 'wild' || special === 'wild-magnet' || special === 'wild-beer';
   return value > 0 || isWild;
 }
 
@@ -159,6 +159,7 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   wildMeter = 0;
   STATE.wildMeter = 0;
   resetWildProgress(0, false);
+  wildBeerSpawned = false; // Reset wild-beer spawn tracking
 
   try {
     if (typeof HUD.resetWildMeter === 'function') {
@@ -588,13 +589,15 @@ export async function boot(){
 
   // Load ONLY critical game assets for instant start
   // tile_numbers2/3/4 are deferrable - can load in background
-  await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_WILD, ASSET_WILD_MAGNET]);
+  // 🔥 CRITICAL: ASSET_WILD_BEER MUST be loaded for wild-beer tiles to display correctly
+  await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_BEER]);
   
   // Load additional tile number sheets in background (non-blocking)
   Assets.load([ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4]).catch(() => {});
   
   // Optimize all loaded textures for pixel-perfect rendering
-  const loadedTextures = [ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, ASSET_WILD_MAGNET];
+  // 🔥 CRITICAL: Include ASSET_WILD_BEER in loaded textures list
+  const loadedTextures = [ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_BEER];
   for (const assetPath of loadedTextures) {
     try {
       const texture = Assets.get(assetPath);
@@ -629,8 +632,8 @@ export async function boot(){
       // WILD-MAGNET LOGIC: Can go on anything except wild and wild-magnet, and anything can go on it
       const srcIsWildMagnet = s?.special === 'wild-magnet';
       const dstIsWildMagnet = d?.special === 'wild-magnet';
-      const srcIsWild = s?.special === 'wild';
-      const dstIsWild = d?.special === 'wild';
+      const srcIsWild = s?.special === 'wild' || s?.special === 'wild-beer';
+      const dstIsWild = d?.special === 'wild' || d?.special === 'wild-beer';
       
       if (srcIsWildMagnet) {
         // Wild-magnet cannot merge into wild or wild-magnet
@@ -666,11 +669,13 @@ export async function boot(){
         } else if (dstIsWild && !srcIsWild) {
           // Normal tile merging into wild - check if source value is different
           const canMerge = sv !== dv;
-          console.log('🔥 canDrop (app-core): Wild merge check (normal->wild):', { sourceValue: sv, wildValue: dv, canMerge });
+          // 🔥 PERFORMANCE: Removed console.log to prevent lag
+          // console.log('🔥 canDrop (app-core): Wild merge check (normal->wild):', { sourceValue: sv, wildValue: dv, canMerge });
           return canMerge;
         } else if (srcIsWild && dstIsWild) {
           // Wild merging into wild - not allowed
-          console.log('🔥 canDrop (app-core): Wild merge check (wild->wild): not allowed');
+          // 🔥 PERFORMANCE: Removed console.log to prevent lag
+          // console.log('🔥 canDrop (app-core): Wild merge check (wild->wild): not allowed');
           return false;
         }
       }
@@ -1207,6 +1212,8 @@ function pulseBoardZoom(factor = 0.92, opts = {}) {
   return tl;
 }
 
+
+
 const updateHUD = () => {
   console.log('🎯 updateHUD called with:', { score, board: boardNumber, moves, combo });
   syncSharedState();
@@ -1487,6 +1494,7 @@ function startLevel(n){
   
 wildMeter = 0;
   resetWildProgress(0, false);
+  wildBeerSpawned = false; // Reset wild-beer spawn tracking for new level
   
   // Clear end game cache when starting new level
   clearEndGameCache();
@@ -1525,8 +1533,15 @@ wildMeter = 0;
 // --- local Wild skin fallback
 function applyWildSkinLocal(tile){
   try{
-    // Use wild-magnet.png for wild-magnet, wild.png for regular wild
-    const assetPath = tile.special === 'wild-magnet' ? './assets/wild-magnet.png' : ASSET_WILD;
+  // 🔥 CRITICAL: Use appropriate texture based on special type
+  // Wild-beer MUST always use wild-beer.png texture
+  let assetPath = ASSET_WILD;
+  if (tile.special === 'wild-magnet') {
+    assetPath = ASSET_WILD_MAGNET;
+  } else if (tile.special === 'wild-beer') {
+      assetPath = ASSET_WILD_BEER;
+    }
+    
     const tex = Assets.get(assetPath) || Texture.from(assetPath);
     if (!tex || !tile) return;
     const host = tile.rotG || tile;
@@ -1535,14 +1550,53 @@ function applyWildSkinLocal(tile){
       base = host.children?.find(c => c.texture instanceof Texture) || null;
       if (base) tile.base = base;
     }
-    if (base){ base.texture = tex; base.tint=0xFFFFFF; base.alpha=1; }
-    if (tile.num)  tile.num.visible = false;
-    if (tile.pips) tile.pips.visible = false;
-    tile.isWildFace = true;
     
-    try {
-      startWildShimmer(tile); // Use shimmer instead of bounce
-      startWildStars(tile);
+    // 🔥 CRITICAL: Always set wild-beer texture and ensure it's visible
+    // This MUST be called every time to ensure texture is never lost
+    if (base && tex && tex !== Texture.EMPTY){ 
+      // Force set texture even if it's already set (prevents texture loss)
+      base.texture = tex; 
+      base.tint = 0xFFFFFF; 
+      base.alpha = 1;
+      base.visible = true;
+      // Optimize texture for pixel-perfect rendering
+      if (base.texture && base.texture.baseTexture) {
+        base.texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
+      }
+    }
+    
+    // 🔥 CRITICAL: Hide pips and num for wild tiles
+    if (tile.num) tile.num.visible = false;
+    if (tile.pips) {
+      tile.pips.visible = false;
+      tile.pips.clear?.(); // Clear pips to prevent them from showing
+    }
+    tile.isWildFace = true;
+  
+  // Wild-magnet grab reliability: ensure hit area and pointer mode are solid
+  if (tile.special === 'wild-magnet') {
+    const host = tile.rotG || tile;
+    const hitSize = TILE * 1.05; // Slightly larger hit box for easier tap
+    const half = hitSize / 2;
+    const hitArea = new Rectangle(-half, -half, hitSize, hitSize);
+    tile.hitArea = hitArea;
+    if (host) host.hitArea = hitArea;
+    tile.eventMode = 'static';
+    tile.cursor = 'pointer';
+    if (host && (host as any).eventMode !== 'static') {
+      (host as any).eventMode = 'static';
+      (host as any).cursor = 'pointer';
+    }
+  }
+  
+  try {
+    startWildShimmer(tile); // Use shimmer instead of bounce
+    // 🔥 WILD-BEER: Use bubbles animation instead of rotating stars
+    if (tile.special === 'wild-beer') {
+        startWildBeerBubbles(tile);
+      } else {
+        startWildStars(tile);
+      }
       // 🔥 NEW: Start magnet idle particles animation (24% intensity)
       if (tile.special === 'wild-magnet') {
         startMagnetIdleParticles(tile);
@@ -1683,7 +1737,7 @@ function bindTileWithFallback(tile, skipBind){
 }
 
 // --- spawn exactly at grid cell ---
-function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, skipBind=false } = {}){
+function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWildBeer=false, skipBind=false } = {}){
   return new Promise((resolve)=>{
     let holder = grid?.[r]?.[c] || null;
 
@@ -1691,7 +1745,7 @@ function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, skipBi
     // Problem: Spawning on locked tiles with value > 0 or wild tiles causes "2 tiles on same position" bug
     // Solution: ALWAYS check if tile has value > 0 or is wild, regardless of locked status
     if (holder) {
-      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.isWild === true || holder.isWildFace === true;
+      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-beer' || holder.isWild === true || holder.isWildFace === true;
       const hasValue = (holder.value|0) > 0;
       
       // 🔥 CRITICAL: NEVER spawn on a tile that has value > 0 or is wild, even if it's locked!
@@ -1731,17 +1785,24 @@ function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, skipBi
     holder.cursor = 'pointer';
     bindTileWithFallback(holder, skipBind);
 
-    if (isWild || isWildMagnet){
-      makeBoard.setValue(holder, 6, 0);
-      holder.value = 6;
-      holder.special = isWildMagnet ? 'wild-magnet' : 'wild';
+    if (isWild || isWildMagnet || isWildBeer){
+      // 🔥 CRITICAL: Set special BEFORE setValue to ensure correct texture is applied
+      holder.special = isWildBeer ? 'wild-beer' : (isWildMagnet ? 'wild-magnet' : 'wild');
       holder.isWild = true;
       holder.isWildFace = true;
-      // Always use applyWildSkinLocal to ensure electric glow is added for wild-magnet
+      holder.value = 6;
+      // Now setValue will check special FIRST and apply correct wild texture
+      makeBoard.setValue(holder, 6, 0);
+      // Always use applyWildSkinLocal to ensure correct texture is applied (double-check)
       applyWildSkinLocal(holder);
       try {
         startWildShimmer(holder); // Use shimmer instead of bounce
-        startWildStars(holder);
+        // 🔥 WILD-BEER: Use bubbles animation instead of rotating stars
+        if (holder.special === 'wild-beer') {
+          startWildBeerBubbles(holder);
+        } else {
+          startWildStars(holder);
+        }
       } catch {}
     } else {
       const v = (value == null) ? [1,2,3,4,5][(Math.random()*5)|0] : value;
@@ -1765,7 +1826,7 @@ function randomEmptyCell(){
       const isGhost = !!(t && t.locked === true);
       const isMissing = !t;
       const isZero = !!(t && (t.value|0) <= 0);
-      const isWildTile = !!(t && !t.locked && (t.special === 'wild' || t.special === 'wild-magnet' || t.isWild === true || t.isWildFace === true));
+      const isWildTile = !!(t && !t.locked && (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.isWild === true || t.isWildFace === true));
       const isActive = !!(t && !t.locked && (t.value|0) > 0);
       if (!isActive && !isWildTile && (isGhost || isMissing || isZero)) empties.push({ c, r });
     }
@@ -1774,8 +1835,10 @@ function randomEmptyCell(){
   return empties[(Math.random()*empties.length)|0];
 }
 
-// Track if wild-magnet has been spawned (first wild spawn should be wild-magnet)
-const WILD_MAGNET_SPAWN_CHANCE = 0.3; // 30% chance new wild is a magnet
+// Track if wild-beer has been spawned (first wild spawn should be wild-beer)
+let wildBeerSpawned = false;
+const WILD_MAGNET_SPAWN_CHANCE = 0.3; // 30% chance new wild is a magnet (after first wild-beer)
+const WILD_BEER_RESPAWN_CHANCE = 0.4; // 40% chance wild-beer spawns again after first spawn
 
 async function spawnWildFromMeter(){
   if (wildMeter < 1) {
@@ -1822,12 +1885,29 @@ async function spawnWildFromMeter(){
     lastCell = cell;
 
     try {
-      const spawnMagnet = Math.random() < WILD_MAGNET_SPAWN_CHANCE;
-      const ok = await openAtCell(cell.c, cell.r, { isWild: true, isWildMagnet: spawnMagnet });
+      // First wild spawn should be wild-beer
+      const isFirstWild = !wildBeerSpawned;
+      // 🔥 USER REQUEST: After first wild-beer spawn, 40% chance to spawn wild-beer again
+      // Otherwise, 30% chance for wild-magnet, rest is regular wild
+      const spawnBeer = isFirstWild || (wildBeerSpawned && Math.random() < WILD_BEER_RESPAWN_CHANCE);
+      const spawnMagnet = !spawnBeer && Math.random() < WILD_MAGNET_SPAWN_CHANCE;
+      
+      const ok = await openAtCell(cell.c, cell.r, { 
+        isWild: true, 
+        isWildMagnet: spawnMagnet,
+        isWildBeer: spawnBeer 
+      });
+      
       if (ok) {
         consumeCharge();
         spawned = true;
-        console.log(spawnMagnet ? '🧲 Wild-magnet spawned (random roll)' : '🌪️ Regular wild spawned (random roll)');
+        if (spawnBeer) {
+          wildBeerSpawned = true; // Mark as spawned (but can spawn again with 40% chance)
+          console.log(isFirstWild ? '🍺 Wild-beer spawned (first wild spawn)' : '🍺 Wild-beer spawned again (40% chance)');
+          // No board shake on spawn - only on merge 6
+        } else {
+          console.log(spawnMagnet ? '🧲 Wild-magnet spawned (random roll)' : '🌪️ Regular wild spawned (random roll)');
+        }
       } else {
         console.warn('⚠️ Wild spawn skipped (cell no longer empty):', cell);
         tries++;
@@ -1928,12 +2008,14 @@ function merge(src, dst, helpers){
     }
   }
   
-  // Block wild/wild, wild/magnet, magnet/magnet merges
+  // Block wild/wild, wild/magnet, magnet/magnet, wild-beer/wild-beer, wild-beer/wild, wild-beer/magnet merges
   // BUT: If BOTH tiles are wild-magnet affected (pulled tiles), allow merge regardless of wild status
-  if ((src?.special === 'wild' && dst?.special === 'wild') || 
+  const srcIsWild = src?.special === 'wild' || src?.special === 'wild-beer';
+  const dstIsWild = dst?.special === 'wild' || dst?.special === 'wild-beer';
+  if ((srcIsWild && dstIsWild) || 
       (src?.special === 'wild-magnet' && dst?.special === 'wild-magnet') ||
-      (src?.special === 'wild' && dst?.special === 'wild-magnet') ||
-      (src?.special === 'wild-magnet' && dst?.special === 'wild')){ 
+      (srcIsWild && dst?.special === 'wild-magnet') ||
+      (src?.special === 'wild-magnet' && dstIsWild)){ 
     // CRITICAL: If both tiles are wild-magnet affected (pulled tiles), allow merge even if wild/wild
     if (!isPulledTilesMerge) {
       console.warn('🚨🚨🚨 MERGE BLOCKED: Wild/wild, wild/magnet, or magnet/magnet merge not allowed');
@@ -1951,10 +2033,13 @@ function merge(src, dst, helpers){
   // Wild-magnet works exactly like wild: always merges to 6
   // Also, if BOTH tiles are _wildMagnetAffected (pulled tiles), they act like wild
   // NOTE: srcIsWildMagnetAffected and dstIsWildMagnetAffected are already declared above
-  const wildActive = (src.special === 'wild' || dst.special === 'wild' || src.special === 'wild-magnet' || dst.special === 'wild-magnet') ||
+  const wildActive = (src.special === 'wild' || dst.special === 'wild' || src.special === 'wild-magnet' || dst.special === 'wild-magnet' || src.special === 'wild-beer' || dst.special === 'wild-beer') ||
                      (srcIsWildMagnetAffected && dstIsWildMagnetAffected);
-  const wildTargetValue = wildActive ? ((src.special === 'wild' || src.special === 'wild-magnet' || srcIsWildMagnetAffected) ? (dst.value|0) : (src.value|0)) : null;
+  const wildTargetValue = wildActive ? ((src.special === 'wild' || src.special === 'wild-magnet' || src.special === 'wild-beer' || srcIsWildMagnetAffected) ? (dst.value|0) : (src.value|0)) : null;
   let effSum = sum;
+  
+  // 🔥 NOTE: Bubbles animation is now triggered when merge 6 animation starts (in effSum === 6 block)
+  // This ensures bubbles start exactly when merge 6 shards animation begins
 
   // Wild cube logic: always merge to 6, but remember target for later spawn
   if (wildActive) {
@@ -2227,14 +2312,14 @@ function merge(src, dst, helpers){
             
             // 🔥 CRITICAL FIX: NEVER trigger fail screen if there's a wild or magnet on board!
             // Wild/magnet can merge with anything, so game is NOT stuck
-            const hasWildOrMagnet = activeTiles.some(t => t.special === 'wild' || t.special === 'wild-magnet');
+            const hasWildOrMagnet = activeTiles.some(t => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer');
             if (hasWildOrMagnet) {
               console.log('✅ STUCK PROTECTION: Wild/magnet on board - game can continue, skipping fail screen');
               return;
             }
             
             // 🔥 CRITICAL FIX: NEVER trigger fail screen if there are locked tiles (animations in progress)
-            const hasLockedTiles = tiles.some((t: any) => t && !t.destroyed && t.locked && ((t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet'));
+            const hasLockedTiles = tiles.some((t: any) => t && !t.destroyed && t.locked && ((t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer'));
             if (hasLockedTiles) {
               console.log('✅ STUCK PROTECTION: Locked tiles animating - skipping fail screen');
               return;
@@ -2279,6 +2364,10 @@ function merge(src, dst, helpers){
     // setValue i clearWildState mogu promijeniti special property
     const srcSpecial = src?.special;
     const dstSpecial = dst?.special;
+    
+    // 🔥 NOTE: Bubbles animation is now triggered in drag-core.ts BEFORE merge function is called
+    // This ensures bubbles start IMMEDIATELY when wild-beer is dropped, before any merge logic
+    // No need to call it here again (it's already started in drag-core.ts)
     
     // 🔥 CRITICAL: Check if this is the last merge BEFORE starting merge 6 animation
     // This covers ALL scenarios where merge 6 is made from ALL remaining tiles:
@@ -3390,9 +3479,10 @@ function merge(src, dst, helpers){
         const wasWild = wildActive;
         // 🔥 CRITICAL: Determine if this is wild-magnet or wild-only merge
         const isMainWildMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
-        const isMainWildOnlyMerge = (srcSpecial === 'wild' || dstSpecial === 'wild') && !isMainWildMagnetMerge;
+        const isMainWildOnlyMerge = (srcSpecial === 'wild' || dstSpecial === 'wild' || srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer') && !isMainWildMagnetMerge;
         
         if (wasWild) {
+          // Standard screen shake for all wild merges (including wild-beer)
           const baseShake = Math.min(28, 12 + Math.max(1, mult) * 4);
           try {
             screenShake(app, {
@@ -3425,10 +3515,14 @@ function merge(src, dst, helpers){
             // Wild-only merge (wild on ordinary or ordinary on wild): yellow/brown shards (50/50 random)
             // STARS WILL BE CREATED (wild: true, wildMagnet: false)
             console.log('🔥 Wild-only merge 6 - using yellow/brown shards WITH STARS (srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, ')');
+            // 🔥 WILD-BEER: Pass wild-beer info to woodShardsAtTile
+            const isWildBeerMerge = srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
+            
             woodShardsAtTile(board, dst, { 
               enhanced: true, 
               wild: true,  // Explicitly set wild flag (not wild-magnet) - this will create stars
               wildMagnet: false,  // Explicitly NOT wild-magnet - this will allow stars
+              isWildBeer: isWildBeerMerge,  // 🔥 Pass wild-beer flag
               count: 30, 
               intensity: 1.9, 
               spread: 0.3,  // Dramatically reduced from 1.2 to keep shards very close to tile
@@ -3437,6 +3531,19 @@ function merge(src, dst, helpers){
               vanishDelay: 0.0, 
               vanishJitter: 0.02 
             });
+            
+            // Trigger only the main bubbles explosion (skip smaller fizz to avoid double-wave)
+            if (isWildBeerMerge) {
+              setTimeout(() => {
+                try {
+                  if (dst && !dst.destroyed && board) {
+                    createWildBeerBubblesExplosion(board, dst);
+                  }
+                } catch (error) {
+                  console.warn('⚠️ Failed to trigger bubbles foam:', error);
+                }
+              }, 200);
+            }
           } else {
             // Fallback: use spawnMerge6Shards (shouldn't happen, but safety)
             console.warn('⚠️ Wild merge but neither wild-magnet nor wild-only detected, using spawnMerge6Shards');
@@ -4423,6 +4530,8 @@ function removeTile(t){
   // 🔥 MEMORY LEAK FIX: Cleanup all tile animations and intervals
   try { stopWildIdle?.(t); } catch {}
   try { stopWildShimmer?.(t); } catch {}
+  try { stopWildStars?.(t); } catch {}
+  try { stopWildBeerBubbles?.(t); } catch {}
   try { stopMagnetIdleParticles?.(t); } catch {}
   board.removeChild(t);
   if (idx !== -1) {
@@ -5182,6 +5291,7 @@ async function loadGameState() {
     const savedGrid = Array.isArray(gameState.grid) ? gameState.grid : [];
     createEmptyGrid();
 
+    const tilesToRestore: Array<{ snapshot: any; gridX: number; gridY: number }> = [];
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const snapshot = savedGrid[r]?.[c];
@@ -5189,82 +5299,90 @@ async function loadGameState() {
           grid[r][c] = null;
           continue;
         }
-        const value = Number.isFinite(snapshot.value) ? (snapshot.value | 0) : 0;
-        const openFlag = typeof snapshot.open === 'boolean' ? snapshot.open : !snapshot.locked;
-        const shouldLock = !openFlag;
-        const tile = makeBoard.createTile({ board, grid, tiles, c, r, val: value, locked: shouldLock });
+        const savedGridX = Number.isFinite(snapshot.gridX) ? (snapshot.gridX | 0) : c;
+        const savedGridY = Number.isFinite(snapshot.gridY) ? (snapshot.gridY | 0) : r;
+        tilesToRestore.push({ snapshot, gridX: savedGridX, gridY: savedGridY });
+      }
+    }
 
-        // 🔥 CRITICAL FIX: Only set _spawned for unlocked tiles (active tiles with value)
-        // DON'T set _spawned for locked tiles (placeholders) - they need to be available for spawn after merge
-        if (!shouldLock && value > 0) {
+    for (const { snapshot, gridX: savedGridX, gridY: savedGridY } of tilesToRestore) {
+      const value = Number.isFinite(snapshot.value) ? (snapshot.value | 0) : 0;
+      const openFlag = typeof snapshot.open === 'boolean' ? snapshot.open : !snapshot.locked;
+      const shouldLock = !openFlag;
+
+      const tile = makeBoard.createTile({ board, grid, tiles, c: savedGridX, r: savedGridY, val: value, locked: shouldLock });
+      tile.gridX = savedGridX;
+      tile.gridY = savedGridY;
+
+      if (grid[savedGridY]?.[savedGridX] && grid[savedGridY][savedGridX] !== tile) {
+        const existingTile = grid[savedGridY][savedGridX];
+        const existingIndex = tiles.indexOf(existingTile);
+        if (existingIndex >= 0) tiles.splice(existingIndex, 1);
+        if (existingTile?.parent) existingTile.parent.removeChild(existingTile);
+        existingTile?.destroy?.({ children: true });
+      }
+      grid[savedGridY] = grid[savedGridY] || [];
+      grid[savedGridY][savedGridX] = tile;
+
+      if (!shouldLock && value > 0) {
         tile._spawned = true;
+      }
+      tile.scale.set(1);
+
+      tile.value = value;
+      const savedSpecial = snapshot?.special || null;
+      const isWildSnapshot = savedSpecial === 'wild' || savedSpecial === 'wild-magnet' || savedSpecial === 'wild-beer' || snapshot?.isWild || snapshot?.isWildFace;
+      // 🔥 CRITICAL: Set special BEFORE setValue to ensure correct texture is applied
+      tile.special = savedSpecial;
+      tile.isWild = !!isWildSnapshot;
+      tile.isWildFace = !!(snapshot?.isWildFace || isWildSnapshot);
+      tile.visible = typeof snapshot.visible === 'boolean' ? snapshot.visible : true;
+
+      tile.locked = shouldLock;
+      // Now setValue will check special FIRST and apply correct wild texture
+      makeBoard.setValue(tile, value, 0);
+
+      if (shouldLock) {
+        tile.eventMode = 'none';
+        tile.cursor = 'default';
+        tile.alpha = snapshot && Number.isFinite(snapshot.alpha) ? snapshot.alpha : (value > 0 ? 1 : 0.25);
+        if (tile.occluder) tile.occluder.visible = snapshot && typeof snapshot.occluderVisible === 'boolean' ? snapshot.occluderVisible : true;
+      } else {
+        tile.eventMode = 'static';
+        tile.cursor = 'pointer';
+        if (drag?.bindToTile) drag.bindToTile(tile);
+        tile.alpha = snapshot && Number.isFinite(snapshot.alpha) ? snapshot.alpha : (value > 0 ? 1 : 0);
+        if (tile.occluder) tile.occluder.visible = snapshot && typeof snapshot.occluderVisible === 'boolean' ? snapshot.occluderVisible : false;
+        if (tile.ghostFrame) tile.ghostFrame._suspended = false;
+      }
+
+      if (snapshot && Number.isFinite(snapshot.alpha)) {
+        tile.alpha = snapshot.alpha;
+      }
+
+      if (tile.ghostFrame) {
+        tile.ghostFrame.alpha = tile.ghostFrame._ghostAlpha ?? 0.28;
+      }
+
+      if (isWildSnapshot) {
+        applyWildSkinLocal(tile);
+        try { startWildShimmer(tile); } catch {}
+        if (tile.special === 'wild-magnet') {
+          try { startMagnetIdleParticles(tile); } catch {}
         }
-        tile.scale.set(1);
-
-        // Postavi osnovne svojstva prije setValue
-        tile.value = value;
-        
-        // 🔥 CRITICAL FIX: Preserve exact special type (wild vs wild-magnet)
-        // Don't convert wild-magnet to wild!
-        const savedSpecial = snapshot?.special || null;
-        const isWildSnapshot = savedSpecial === 'wild' || savedSpecial === 'wild-magnet' || snapshot?.isWild || snapshot?.isWildFace;
-        
-        // 🔥 CRITICAL: Use exact special value from snapshot, don't convert!
-        tile.special = savedSpecial; // Keep wild-magnet as wild-magnet, wild as wild
-        tile.isWild = !!isWildSnapshot;
-        tile.isWildFace = !!(snapshot?.isWildFace || isWildSnapshot);
-        tile.visible = typeof snapshot.visible === 'boolean' ? snapshot.visible : true;
-
-        // Postavi locked status prije setValue
-        tile.locked = shouldLock;
-
-        // Pozovi setValue
-        makeBoard.setValue(tile, value, 0);
-
-        // Sada postavi ghost frame vidljivost NAKON setValue
-        if (shouldLock) {
-          tile.eventMode = 'none';
-          tile.cursor = 'default';
-          tile.alpha = snapshot && Number.isFinite(snapshot.alpha) ? snapshot.alpha : (value > 0 ? 1 : 0.25);
-          if (tile.occluder) tile.occluder.visible = snapshot && typeof snapshot.occluderVisible === 'boolean' ? snapshot.occluderVisible : true;
-          if (tile.ghostFrame) {
-            // BAKED IN: Ghost placeholders su uvijek vidljivi za unlocked tile-ove
-            // Ne mijenjamo visible - ostaje kako je postavljeno u createTile
+        if (tile.special === 'wild-beer') {
+          wildBeerSpawned = true;
+          try {
+            if (typeof startWildBeerBubbles === 'function') {
+              startWildBeerBubbles(tile);
+            }
+          } catch (error) {
+            console.warn('⚠️ Failed to start wild-beer bubbles on load:', error);
           }
-        } else {
-          tile.eventMode = 'static';
-          tile.cursor = 'pointer';
-          if (drag?.bindToTile) drag.bindToTile(tile);
-          tile.alpha = snapshot && Number.isFinite(snapshot.alpha) ? snapshot.alpha : (value > 0 ? 1 : 0);
-          if (tile.occluder) tile.occluder.visible = snapshot && typeof snapshot.occluderVisible === 'boolean' ? snapshot.occluderVisible : false;
-          if (tile.ghostFrame) {
-            // BAKED IN: Ghost placeholders su uvijek vidljivi za unlocked tile-ove
-            // Ne mijenjamo visible - ostaje kako je postavljeno u createTile
-            tile.ghostFrame._suspended = false;
-          }
         }
-
-        if (snapshot && Number.isFinite(snapshot.alpha)) {
-          tile.alpha = snapshot.alpha;
-        }
-
-        if (tile.ghostFrame) {
-          tile.ghostFrame.alpha = tile.ghostFrame._ghostAlpha ?? 0.28;
-        }
-
-        if (isWildSnapshot) {
-          // Always use applyWildSkinLocal to ensure electric glow is added for wild-magnet
-            applyWildSkinLocal(tile);
-          try { startWildShimmer(tile); } catch {} // Use shimmer instead of idle bounce
-          // 🔥 NEW: Start magnet idle particles animation (24% intensity)
-          if (tile.special === 'wild-magnet') {
-            try { startMagnetIdleParticles(tile); } catch {}
-          }
-        } else {
-          try { stopWildShimmer(tile); } catch {}
-          // 🔥 NEW: Stop magnet idle particles animation (when tile is no longer wild)
-          try { stopMagnetIdleParticles(tile); } catch {}
-        }
+      } else {
+        try { stopWildShimmer(tile); } catch {}
+        try { stopMagnetIdleParticles(tile); } catch {}
       }
     }
 
