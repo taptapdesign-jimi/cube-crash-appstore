@@ -49,7 +49,7 @@ body{
   justify-content: center;
   z-index: 10000;
   transition: opacity 0.5s ease, visibility 0.5s ease;
-  background: var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)); /* Same gradient as homepage */
+  background: linear-gradient(180deg, #f3eee8 0%, #fcecdf 100%); /* Same gradient as homepage body */
 }
 
 /* Removed gradient-fade-out rules - gradient stays visible */
@@ -1731,6 +1731,7 @@ body{
 }
 
 .stats-header {
+  position: relative; /* Potrebno za absolute positioning shadow-a */
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -1864,11 +1865,59 @@ body{
 }
 
 .stats-title-underline {
+  position: relative; /* Potrebno za absolute positioning shadow-a */
   height: 2px;
   background: #9A8B7A;
   opacity: 0.20;
   width: calc(100% - 80px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
   margin: 0 calc(40px + env(safe-area-inset-right, 0px)) 0 calc(40px + env(safe-area-inset-left, 0px));
+}
+
+/* Home shadow direktno ispod stats dividera - najjednostavnije rješenje */
+/* Shadow je child element od stats-title-underline, pozicioniran absolute */
+/* 100% širok od ruba do ruba ekrana */
+.stats-shadow-image {
+  position: absolute;
+  top: calc(100% + 0px); /* Podignuto 2px gore (bilo +2px, sada 0px) */
+  left: calc(-40px - env(safe-area-inset-left, 0px)); /* Kompenzira padding parenta */
+  right: calc(-40px - env(safe-area-inset-right, 0px)); /* Kompenzira padding parenta */
+  width: calc(100% + 80px + env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px)); /* Full width ekrana */
+  height: 49px;
+  object-fit: contain;
+  object-position: center;
+  opacity: 1.0;
+  pointer-events: none;
+  z-index: 99;
+  display: block;
+}
+
+/* Home shadow ispod dividera - uvijek 1px ispod, jednostavno i konzistentno */
+/* Shadow se automatski pozicionira relativno na divider, bez JavaScript */
+.stats-title-underline::after,
+.collectibles-title-underline::after,
+.settings-title-underline::after {
+  content: '';
+  position: absolute;
+  top: calc(100% + 1px); /* Uvijek točno 1px ispod dividera */
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: 49px;
+  background-image: url('./assets/home-shadow.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.6; /* 60% opacity */
+  pointer-events: none;
+  z-index: 99;
+  display: block;
+}
+
+/* Sakrij shadow kada je screen hidden */
+#stats-screen[hidden] .stats-title-underline::after,
+#collectibles-screen[hidden] .collectibles-title-underline::after,
+#settings-screen[hidden] .settings-title-underline::after {
+  display: none;
 }
 
 .stats-scrollable {
@@ -4221,11 +4270,29 @@ body:has(:root) .tile.wild-3d-glow {
 }
 
 .settings-title-underline {
+  position: relative; /* Potrebno za absolute positioning shadow-a */
   height: 2px;
   background: #9A8B7A;
   opacity: 0.20;
   width: calc(100% - 80px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
   margin: 0 calc(40px + env(safe-area-inset-right, 0px)) 0 calc(40px + env(safe-area-inset-left, 0px));
+}
+
+/* Home shadow direktno ispod settings dividera - isti kao stats i collectibles */
+/* 100% širok od ruba do ruba ekrana */
+.settings-shadow-image {
+  position: absolute;
+  top: calc(100% + 0px); /* Točno na donjoj liniji dividera */
+  left: calc(-40px - env(safe-area-inset-left, 0px)); /* Kompenzira padding parenta */
+  right: calc(-40px - env(safe-area-inset-right, 0px)); /* Kompenzira padding parenta */
+  width: calc(100% + 80px + env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px)); /* Full width ekrana */
+  height: 49px;
+  object-fit: contain;
+  object-position: center;
+  opacity: 1.0;
+  pointer-events: none;
+  z-index: 99;
+  display: block;
 }
 
 .settings-scrollable {

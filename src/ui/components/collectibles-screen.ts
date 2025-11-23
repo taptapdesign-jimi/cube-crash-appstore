@@ -64,6 +64,17 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
               {
                 tag: 'div',
                 className: 'collectibles-title-underline',
+                children: [
+                  {
+                    tag: 'img',
+                    className: 'collectibles-shadow-image',
+                    attributes: {
+                      src: './assets/divider-shadow.png',
+                      alt: '',
+                      'aria-hidden': 'true',
+                    },
+                  },
+                ],
               },
             ],
           },

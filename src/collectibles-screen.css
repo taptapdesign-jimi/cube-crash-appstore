@@ -162,11 +162,29 @@
 }
 
 .collectibles-title-underline {
+  position: relative; /* Potrebno za absolute positioning shadow-a */
   height: 2px;
   background: var(--collectibles-brown);
   opacity: 0.20;
   width: calc(100% - 80px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
   margin: 0 calc(40px + env(safe-area-inset-right, 0px)) 0 calc(40px + env(safe-area-inset-left, 0px));
+}
+
+/* Home shadow direktno ispod collectibles dividera - isti kao stats */
+/* 100% širok od ruba do ruba ekrana */
+.collectibles-shadow-image {
+  position: absolute;
+  top: calc(100% + 0px); /* Točno na donjoj liniji dividera */
+  left: calc(-40px - env(safe-area-inset-left, 0px)); /* Kompenzira padding parenta */
+  right: calc(-40px - env(safe-area-inset-right, 0px)); /* Kompenzira padding parenta */
+  width: calc(100% + 80px + env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px)); /* Full width ekrana */
+  height: 49px;
+  object-fit: contain;
+  object-position: center;
+  opacity: 1.0;
+  pointer-events: none;
+  z-index: 99;
+  display: block;
 }
 
 /* Scrollable body */
@@ -1020,5 +1038,4 @@
     transform: translateY(-8px) rotate(1deg) scale(1.02);
   }
 }
-
 

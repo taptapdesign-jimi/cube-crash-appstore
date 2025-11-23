@@ -160,6 +160,17 @@ export function createSettingsScreen(config: SettingsScreenConfig): HTMLElementC
               {
                 tag: 'div',
                 className: 'settings-title-underline',
+                children: [
+                  {
+                    tag: 'img',
+                    className: 'settings-shadow-image',
+                    attributes: {
+                      src: './assets/divider-shadow.png',
+                      alt: '',
+                      'aria-hidden': 'true',
+                    },
+                  },
+                ],
               },
             ],
           },

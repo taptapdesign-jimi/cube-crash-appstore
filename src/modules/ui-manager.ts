@@ -1063,10 +1063,32 @@ class UIManager {
   
   // Hide collectibles screen with enter animation
   async hideCollectiblesScreenWithAnimation(): Promise<void> {
-    logger.info('🎁 Hiding collectibles screen - with enter animation');
+    logger.info('🎁 Hiding collectibles screen - with exit animation');
+    
+    // 🔥 CRITICAL FIX: Start exit animation IMMEDIATELY (no delay)
+    // This ensures the screen responds instantly to back button click
+    const hideCollectibles = window.hideCollectiblesScreen || window.hideCollectibles;
+    let exitAnimationPromise: Promise<void> | null = null;
+    
+    if (typeof hideCollectibles === 'function') {
+      logger.info('🎁 Starting collectibles exit animation IMMEDIATELY...');
+      try {
+        const result = hideCollectibles() as Promise<void> | void;
+        // Ensure we have a Promise
+        if (result && typeof result === 'object' && 'then' in result) {
+          exitAnimationPromise = result as Promise<void>;
+        } else {
+          // If it's not a Promise, create a resolved one
+          exitAnimationPromise = Promise.resolve();
+        }
+      } catch (error) {
+        logger.error('❌ Error starting exit animation:', error);
+        exitAnimationPromise = Promise.resolve();
+      }
+    }
     
     // 🎨 CRITICAL: Animate background color from solid color back to gradient (SMOOTH FADE)
-    // This must happen IMMEDIATELY when back button is clicked, BEFORE anything else
+    // This runs PARALLEL with exit animation (not blocking it)
     const body = document.body;
     const globalBg = document.getElementById('global-bg');
     const appElement = document.getElementById('app');
@@ -1139,24 +1161,16 @@ class UIManager {
       }
     });
     
-    // 🔥 CRITICAL: Wait for fade animation to complete BEFORE showing homepage
-    // Fade duration: 0.8s (already declared above)
-    const fadeDurationMs = fadeDuration * 1000;
-    
-    // Wait for fade animation to complete
-    await new Promise(resolve => setTimeout(resolve, fadeDurationMs));
-    
-    // Show homepage QUIETLY after fade animation completes
-    this.showHomepageQuietly();
-    
-    // 🔥 CRITICAL FIX: Wait for exit animation to complete BEFORE starting enter animation
-    const hideCollectibles = window.hideCollectiblesScreen || window.hideCollectibles;
-    if (typeof hideCollectibles === 'function') {
+    // 🔥 CRITICAL FIX: Wait for exit animation to complete (it started immediately above)
+    if (exitAnimationPromise) {
       logger.info('🎁 Waiting for collectibles exit animation to complete...');
-      await hideCollectibles();
-      logger.info('✅ Collectibles exit animation completed, now starting slider enter animation');
-      this.setNavigationVisibility(true);
+      await exitAnimationPromise;
+      logger.info('✅ Collectibles exit animation completed');
     }
+    
+    // Show homepage QUIETLY after exit animation completes
+    this.showHomepageQuietly();
+    this.setNavigationVisibility(true);
     
     // Step 2: Play enter animation for Collectibles slide AFTER exit animation completes
     console.log('🎬 Playing enter animation for Collectibles slide');

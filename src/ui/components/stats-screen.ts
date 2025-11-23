@@ -292,6 +292,17 @@ export function createStatsScreen(config: StatsScreenConfig): HTMLElementConfig 
               {
                 tag: 'div',
                 className: 'stats-title-underline',
+                children: [
+                  {
+                    tag: 'img',
+                    className: 'stats-shadow-image',
+                    attributes: {
+                      src: './assets/divider-shadow.png',
+                      alt: '',
+                      'aria-hidden': 'true',
+                    },
+                  },
+                ],
               },
             ],
           },

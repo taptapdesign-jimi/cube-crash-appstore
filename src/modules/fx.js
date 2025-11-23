@@ -258,6 +258,10 @@ const __globalDelayedCalls = new Set();
 // 🔥 MEMORY LEAK FIX: Track all Graphics objects created for effects
 const __globalGraphicsObjects = new Set();
 
+// 🔥 PERFORMANCE OPTIMIZATION: Track active star particles for seamless cleanup (invisible to user)
+const __activeStarParticles = new Set();
+const MAX_ACTIVE_STARS = 30; // Only cleanup if we exceed this (very high threshold - user won't notice)
+
 function autoAdd(parent, child, ttlSec = 0.8, options = {}){
   const before = options?.before ?? null;
   try {
@@ -273,7 +277,36 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
   if (ttlSec > 0){
     // 🔥 MEMORY LEAK FIX: Store delayed call reference and auto-cleanup
     const delayedCall = gsap.delayedCall(ttlSec, () => {
-      try { 
+      try {
+        // 🔥 MEMORY LEAK FIX: Kill all animations before destroying
+        if (child._starAnimations && Array.isArray(child._starAnimations)) {
+          child._starAnimations.forEach(anim => {
+            try {
+              if (anim && anim.kill) anim.kill();
+            } catch {}
+          });
+          child._starAnimations = [];
+        }
+        
+        // Kill all GSAP animations on child and its children
+        gsap.killTweensOf(child);
+        if (child.children) {
+          child.children.forEach((c) => {
+            try {
+              gsap.killTweensOf(c);
+              gsap.killTweensOf(c.x);
+              gsap.killTweensOf(c.y);
+              gsap.killTweensOf(c.alpha);
+              gsap.killTweensOf(c.rotation);
+              gsap.killTweensOf(c.scale);
+              // Remove from tracker if it's a tracked object
+              if (__globalGraphicsObjects.has(c)) {
+                __globalGraphicsObjects.delete(c);
+              }
+            } catch {}
+          });
+        }
+        
         parent.removeChild(child); 
         child.destroy?.({ children:true }); 
         __globalDelayedCalls.delete(delayedCall); // Remove from tracker
@@ -1461,33 +1494,72 @@ export function createWildBeerBubblesExplosion(board, tile) {
 
 /**
  * Create 3 stars for merge 6 effect
- * Stars are 42-57px in size (random, each different), random positions, directions, and rotations
+ * Stars are 56-80px in size (random, each different), random positions, directions, and rotations
  */
+// 🔥 PERFORMANCE OPTIMIZATION: Cache star texture to avoid reloading (seamless, invisible to user)
+let _cachedStarTexture = null;
+function getStarTexture() {
+  if (!_cachedStarTexture) {
+    _cachedStarTexture = Texture.from('./assets/small-star.png');
+  }
+  return _cachedStarTexture;
+}
+
 function createMerge6Stars(board, layer, centerX, centerY) {
   try {
-    // Load star texture
-    const starTexture = Texture.from('./assets/small-star.png');
+    // 🔥 PERFORMANCE OPTIMIZATION: Use cached texture (seamless, invisible to user)
+    const starTexture = getStarTexture();
     
-    // Create 3 stars - each with random size, position, direction, and rotation
+    // 🔥 PERFORMANCE OPTIMIZATION: Seamless cleanup of old stars only if we exceed threshold (user won't notice)
+    if (__activeStarParticles.size > MAX_ACTIVE_STARS) {
+      // Kill oldest 10% of stars (seamless, happens only in extreme cases)
+      const starsToKill = Math.floor(__activeStarParticles.size * 0.1);
+      let killed = 0;
+      for (const star of __activeStarParticles) {
+        if (killed >= starsToKill) break;
+        try {
+          gsap.killTweensOf(star);
+          gsap.killTweensOf(star.x);
+          gsap.killTweensOf(star.y);
+          gsap.killTweensOf(star.alpha);
+          if (star.parent) star.parent.removeChild(star);
+          __globalGraphicsObjects.delete(star);
+          __activeStarParticles.delete(star);
+          star.destroy();
+          killed++;
+        } catch {}
+      }
+    }
+    
+    // Store animations for proper cleanup
+    const starAnimations = [];
+    
+    // Create 3 stars - each with random size, COMPLETELY RANDOM directions, and random position around tile
     for (let i = 0; i < 3; i++) {
       const star = new Sprite(starTexture);
       
-      // Random size between 42-57px (15% smaller than 50-67px, each star different size)
-      const starSize = 42 + Math.random() * 15; // 42-57px (was 50-67px, reduced by 15%)
+      // 🔥 MEMORY LEAK FIX: Track Sprite object
+      __globalGraphicsObjects.add(star);
+      
+      // 🔥 PERFORMANCE OPTIMIZATION: Track active star for seamless cleanup (invisible to user)
+      __activeStarParticles.add(star);
+      
+      // Size: max 80px (reduced from 80-112px)
+      const starSize = 40 + Math.random() * 40; // 40-80px (max 80px)
       star.width = starSize;
       star.height = starSize;
       star.anchor.set(0.5);
       
-      // Random direction (angle) - each star goes in different direction
-      const angle = Math.random() * Math.PI * 2;
+      // COMPLETELY RANDOM direction - each star goes in completely random direction (0-360 degrees)
+      const angle = Math.random() * Math.PI * 2; // Completely random angle 0-360 degrees
       
-      // Random distance from center (spread) - random positions around tile
-      const distance = 30 + Math.random() * 50; // 30-80px from center (more spread)
+      // Random distance from center (better spread around tile) - wider range for better distribution
+      const distance = 20 + Math.random() * 60; // 20-80px from center (wider spread)
       star.x = Math.cos(angle) * distance;
       star.y = Math.sin(angle) * distance;
       
-      // Random starting rotation
-      star.rotation = Math.random() * Math.PI * 2;
+      // NO ROTATION - removed rotation animation
+      star.rotation = 0;
       
       // Start with 100% opacity (no fade in)
       star.alpha = 1.0;
@@ -1500,40 +1572,62 @@ function createMerge6Stars(board, layer, centerX, centerY) {
       const travelAngle = angle; // Same direction as initial position
       const endX = centerX + Math.cos(travelAngle) * travelDistance;
       const endY = centerY + Math.sin(travelAngle) * travelDistance;
-      const travelDuration = 0.8 + Math.random() * 0.4; // 0.8-1.2s
+      // DOUBLE SLOWER: 1.6-2.4s (was 0.8-1.2s, now doubled)
+      const travelDuration = 1.6 + Math.random() * 0.8; // 1.6-2.4s (doubled from 0.8-1.2s)
       
       // Animate position
-      gsap.to(star, {
+      const positionTween = gsap.to(star, {
         x: endX,
         y: endY,
         duration: travelDuration,
         ease: 'power2.out',
         onComplete: () => {
+          // 🔥 MEMORY LEAK FIX: Proper cleanup - kill all animations first, then destroy
           try {
+            // Kill all GSAP animations on star
+            gsap.killTweensOf(star);
+            gsap.killTweensOf(star.x);
+            gsap.killTweensOf(star.y);
+            gsap.killTweensOf(star.alpha);
+            
+            // Remove from parent before destroying
             if (layer && layer.children.includes(star)) {
               layer.removeChild(star);
             }
+            
+            // Remove from trackers
+            __globalGraphicsObjects.delete(star);
+            __activeStarParticles.delete(star);
+            
+            // Destroy sprite
             star.destroy();
-          } catch {}
+          } catch (err) {
+            console.warn('⚠️ Error cleaning up star:', err);
+          }
         }
       });
+      starAnimations.push(positionTween);
       
-      // Animate rotation (spinning as it flies)
-      const spinAmount = (Math.random() - 0.5) * Math.PI * 4; // -2π to +2π rotation
-      gsap.to(star, {
-        rotation: star.rotation + spinAmount,
-        duration: travelDuration,
-        ease: 'power2.out'
-      });
+      // NO ROTATION ANIMATION - removed completely
       
-      // Fade out near the end
-      gsap.to(star, {
+      // Fade out near the end - REDUCED BY 50% (was 0.3 duration, now 0.15)
+      const fadeDuration = travelDuration * 0.15; // 50% reduced from 0.3 to 0.15
+      const fadeDelay = travelDuration * 0.85; // Adjusted delay (was 0.7, now 0.85)
+      const fadeTween = gsap.to(star, {
         alpha: 0,
-        duration: travelDuration * 0.3,
-        delay: travelDuration * 0.7,
+        duration: fadeDuration,
+        delay: fadeDelay,
         ease: 'power2.in'
       });
+      starAnimations.push(fadeTween);
     }
+    
+    // Store animations reference for potential cleanup
+    if (!layer._starAnimations) {
+      layer._starAnimations = [];
+    }
+    layer._starAnimations.push(...starAnimations);
+    
   } catch (error) {
     console.warn('⚠️ Error creating merge 6 stars:', error);
   }
