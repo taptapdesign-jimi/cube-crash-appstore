@@ -247,9 +247,12 @@
   transform: translateX(-50%);
   width: 60px; /* Elliptical width */
   height: 15px; /* Elliptical height */
-  background: rgba(245, 222, 194, 1); /* SwiftUI: Color(red: 0.96, green: 0.87, blue: 0.76) */
+  background: rgba(244, 222, 203, 0.8); /* #F4DECB - 80% opacity */
   border-radius: 50%; /* Perfect ellipse */
   z-index: -1; /* Behind the icon */
+  /* Add blur filter for shadow effect (20% blur) */
+  filter: blur(3px);
+  -webkit-filter: blur(3px);
   /* Add idle animation */
   animation: navShadowPulse 3s ease-in-out infinite;
 }

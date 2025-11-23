@@ -7,7 +7,7 @@ export function createLoadingScreen(): HTMLElementConfig {
     id: 'loading-screen',
     className: 'loading-screen',
     attributes: {
-      style: 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10000; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, rgba(219, 156, 119, 0.15) 0%, rgba(219, 156, 119, 0.25) 60%, rgba(219, 156, 119, 0.20) 100%);'
+      style: 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10000; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%);'
     },
     children: [
       {

@@ -93,7 +93,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       'align-items:center',
       'justify-content:center',
       'padding:48px 24px',
-      'background:#f5f5f5',
+      'background:#f3eee8',
       'z-index:10000000000000',
       'opacity:0',
       'transition:opacity 0.25s ease'

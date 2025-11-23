@@ -1315,7 +1315,7 @@ class CollectiblesManager {
       const btn = document.createElement('button');
       btn.textContent = i.toString().padStart(2, '0');
       btn.style.cssText = `
-        background: #f5f5f5;
+        background: #f3eee8;
         border: 2px solid #e0e0e0;
         border-radius: 12px;
         padding: 16px;
@@ -1330,7 +1330,7 @@ class CollectiblesManager {
         if (selectedCards.has(i)) {
           // Deselect
           selectedCards.delete(i);
-          btn.style.background = '#f5f5f5';
+          btn.style.background = '#f3eee8';
           btn.style.borderColor = '#e0e0e0';
           btn.style.color = '#333';
         } else {

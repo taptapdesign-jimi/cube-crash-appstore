@@ -8,7 +8,7 @@
 }
 
 :root{
-  --app-gradient: linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%);
+  --app-gradient: linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%);
   --board-perspective: 1200px;
   --tile-3d-depth: 20px;
   --board-tilt: 20deg;
@@ -17,7 +17,7 @@
 
 body{
   position: relative;
-  background: var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%));
+  background: var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%));
   /* Background transition removed - GSAP now handles smooth fade animations */
 }
 
@@ -29,7 +29,7 @@ body{
   bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
   left: -12vw;
   right: -12vw;
-  background: var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%));
+  background: var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%));
   pointer-events: none;
   z-index: 1; /* Above body, below sliders */
   /* Transition removed - GSAP now handles background animations */
@@ -49,7 +49,7 @@ body{
   justify-content: center;
   z-index: 10000;
   transition: opacity 0.5s ease, visibility 0.5s ease;
-  background: linear-gradient(180deg, rgba(219, 156, 119, 0.15) 0%, rgba(219, 156, 119, 0.25) 60%, rgba(219, 156, 119, 0.20) 100%); /* Same brown color as loader text */
+  background: var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)); /* Same gradient as homepage */
 }
 
 /* Removed gradient-fade-out rules - gradient stays visible */
@@ -382,9 +382,9 @@ body{
 #app {
   /* Transition removed - GSAP now handles background animations */
   z-index: 10; /* Above background, below sliders */
-  background: #f5f5f5; /* Game background color */
+  background: #f3eee8; /* Game background color */
 }
-html,body{height:100%;margin:0;background:var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%));font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+html,body{height:100%;margin:0;background:var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%));font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
 
 /* Optimize canvas for pixel-perfect rendering */
 canvas {
@@ -392,7 +392,7 @@ canvas {
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
   z-index: 10; /* Above background, below sliders */
-  background: #f5f5f5; /* Game background color */
+  background: #f3eee8; /* Game background color */
 }
 html{height:100dvh;height:100vh}
 html{
@@ -460,7 +460,7 @@ body{
   height: 100% !important;
   overflow: hidden !important;
   z-index: 999 !important;
-  background: #f5f5f5 !important;
+  background: #f3eee8 !important;
   visibility: visible !important;
   opacity: 1 !important;
 }
@@ -1313,7 +1313,7 @@ body{
   width: 100%;
   padding-top: calc(env(safe-area-inset-top, 0px) + 2vh);
   padding-bottom: 11px;
-  background: #f5f5f5;
+  background: #f3eee8;
   flex-shrink: 0;
   margin-bottom: 40px !important;
 }
@@ -2333,7 +2333,7 @@ body{
 
 /* Debug button styling */
 .debug-btn {
-  background: #F5F5F5; /* Light gray background */
+  background: #f3eee8; /* Light gray background */
   color: #666666; /* Dark gray text */
   border: 1px solid #CCCCCC; /* Light gray border */
   border-radius: 20px; /* Smaller radius for debug button */

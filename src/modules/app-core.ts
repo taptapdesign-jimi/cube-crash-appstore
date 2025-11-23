@@ -533,26 +533,20 @@ export async function boot(){
     app.canvas.style.opacity = '1';
   }, 50);
   
-  // Add background transition animation
-  app.renderer.backgroundColor = 0xf3eee8; // Start with gradient color
-  setTimeout(() => {
-    app.renderer.backgroundColor = 0xf3eee8; // Transition to game background
-  }, 50);
+  // 🔥 CRITICAL: Keep background as gradient initially (not solid color)
+  // Background will change to solid color only when entering game or individual screens
+  app.renderer.backgroundColor = 0xf3eee8; // PIXI renderer background (for game canvas)
   
-  // Add CSS background transition animation
+  // Keep CSS background as gradient for homepage
   const appElement = document.getElementById('app');
   const canvasElement = app.canvas;
   if (appElement) {
-    appElement.style.background = 'var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%))';
-    setTimeout(() => {
-      appElement.style.background = '#f3eee8';
-    }, 50);
+    // Start with gradient - will change to solid color only when entering game
+    appElement.style.background = 'var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%))';
   }
   if (canvasElement) {
-    canvasElement.style.background = 'var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%))';
-    setTimeout(() => {
-      canvasElement.style.background = '#f3eee8';
-    }, 50);
+    // Start with gradient - will change to solid color only when entering game
+    canvasElement.style.background = 'var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%))';
   }
   host.appendChild(app.canvas);
   app.canvas.style.touchAction = 'none';
@@ -736,10 +730,10 @@ export async function boot(){
     const style = document.createElement('style');
     style.textContent = `
       :root{ --sat:env(safe-area-inset-top,0px); --sal:env(safe-area-inset-left,0px); --sar:env(safe-area-inset-right,0px); --sab:env(safe-area-inset-bottom,0px); }
-      html,body{ margin:0; padding:0; background:var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)); height:auto; }
+      html,body{ margin:0; padding:0; background:var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)); height:auto; }
       body{ min-height:100dvh; overflow:hidden; }
-      #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)); z-index:10; /* Transition removed - GSAP handles background animations */ }
-      canvas{ position:absolute; inset:0; width:100vw; height:100dvh; display:block; background:var(--app-gradient, linear-gradient(180deg, #f5f5f5 0%, #FBE3C5 100%)); z-index:10; /* Transition removed - GSAP handles background animations */ }
+      #app{ position:fixed; inset:0; width:100vw; height:100dvh; background:var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)); z-index:10; /* Transition removed - GSAP handles background animations */ }
+      canvas{ position:absolute; inset:0; width:100vw; height:100dvh; display:block; background:var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)); z-index:10; /* Transition removed - GSAP handles background animations */ }
     `;
     document.head.appendChild(style);
   }

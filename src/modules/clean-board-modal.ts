@@ -178,7 +178,7 @@ export async function showCleanBoardModal({
       'display:flex',
       'align-items:center',
       'justify-content:center',
-      'background:#f5f5f5',
+      'background:#f3eee8',
       'z-index:10000000000000',
       'opacity:0',
       'transition:opacity .2s ease'

@@ -59,6 +59,18 @@ function pickNumbersSkin() {
 }
 
 export function drawStack(tile: Tile): void {
+  // 🔥 OPTIMIZATION: Use requestAnimationFrame to prevent blocking during bubbles animation
+  // This prevents frame drops when stack is drawn during active animations
+  if (typeof window !== 'undefined' && window.requestAnimationFrame) {
+    requestAnimationFrame(() => {
+      _drawStackInternal(tile);
+    });
+  } else {
+    _drawStackInternal(tile);
+  }
+}
+
+function _drawStackInternal(tile: Tile): void {
   try { tile.stackG?.destroy({ children: true }); } catch {}
   tile.stackG = null;
 
@@ -147,6 +159,18 @@ export function drawStack(tile: Tile): void {
 
 // ✅ PATCH: nikad pipsi na praznom/locked, i overlay nikad ne "probija"
 function drawPips(t: Tile): void {
+  // 🔥 OPTIMIZATION: Use requestAnimationFrame to prevent blocking during animations
+  // This prevents frame drops when pips are drawn during bubbles/wild animations
+  if (typeof window !== 'undefined' && window.requestAnimationFrame) {
+    requestAnimationFrame(() => {
+      _drawPipsInternal(t);
+    });
+  } else {
+    _drawPipsInternal(t);
+  }
+}
+
+function _drawPipsInternal(t: Tile): void {
   const g = t.pips;
   if (!g) return;
   g.clear();
@@ -195,6 +219,18 @@ export function setValue(t: Tile, v: number, addStack = 0): void {
     t.alpha = 1;
   }
 
+  // 🔥 OPTIMIZATION: Use requestAnimationFrame for visual updates to prevent blocking during animations
+  // This prevents frame drops when setValue is called during bubbles/wild animations
+  if (typeof window !== 'undefined' && window.requestAnimationFrame) {
+    requestAnimationFrame(() => {
+      _setValueVisuals(t, v, addStack);
+    });
+  } else {
+    _setValueVisuals(t, v, addStack);
+  }
+}
+
+function _setValueVisuals(t: Tile, v: number, addStack: number): void {
   // 🔥 CRITICAL: Check special FIRST before setting any texture
   // This ensures wild-beer, wild-magnet, and wild tiles ALWAYS get correct texture
   if (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer') {

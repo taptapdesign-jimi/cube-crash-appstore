@@ -7,7 +7,7 @@
 
 import { Graphics, Container, Sprite, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
-import { magicSparklesAtTile, dragSmokeTrail, dragBeerBubbleTrail } from './fx.js';
+import { magicSparklesAtTile, dragSmokeTrail, dragBeerBubbleTrail, isWildBeerExplosionRunning } from './fx.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 
 
@@ -18,7 +18,7 @@ const VEL_SMOOTH   = 0.10;   // sporije prihvaća promjenu brzine (teži osjeća
 const ROT_SMOOTH   = 0.08;   // sporije naginje prema cilju (teži osjećaj)
 const POS_LAG_PX   = 6;      // maksimalni parallax pomak (px)
 const TILT_DUR     = 0.5;    // zadržano za release tween na onUp
-const BOARD_WOBBLE_ENABLED = false; // Central toggle: set true to restore wobble
+const BOARD_WOBBLE_ENABLED = true; // 🔥 ENABLED: Board wobble for wild-beer drag (disabled during bubbles animation)
 
 const MAGNET_OFFSET_RATIO = 14 / 128; // 14px od 128px pločice ≈ 10.9375%
 const MAGNET_SCALE_MULT  = 1.03;    // 3% napuhavanje ciljane pločice
@@ -332,9 +332,10 @@ export function initDrag(cfg) {
     drag.vy = drag.vy + (instVY - drag.vy) * VEL_SMOOTH;
     drag.lastTime = now;
     
-    // Board wobble: subtle parallax (currently disabled; set BOARD_WOBBLE_ENABLED=true to restore)
+    // Board wobble: subtle parallax for wild-beer drag (disabled during bubbles animation)
     if (BOARD_WOBBLE_ENABLED) {
-      if (drag._boardWobbleActive && board) {
+      // 🔥 CRITICAL: Disable board wobble when bubbles animation is active to prevent conflicts
+      if (drag._boardWobbleActive && board && !isWildBeerExplosionRunning()) {
         const smooth = 0.16;
         const curShiftX = (board.x ?? 0) - drag._boardBaseX;
         const curShiftY = (board.y ?? 0) - drag._boardBaseY;
