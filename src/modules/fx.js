@@ -2010,7 +2010,27 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
     puff.x = x + (Math.random() - 0.5) * 80;  // Denser spawn radius: 80px
     puff.y = y + (Math.random() - 0.5) * 80;  // Denser spawn radius: 80px
     
+    // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (particles should be behind tile)
+    // If tile is being dragged (zIndex > 9000), particles should be at tileZ - 1
+    // Otherwise, particles should be slightly below tile
+    if (opts.zIndex != null) {
+      puff.zIndex = opts.zIndex;
+    } else {
+      const tileZ = tile?.zIndex ?? 0;
+      puff.zIndex = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
+    }
+    
+    // 🔥 CRITICAL: Set eventMode to 'none' to prevent particles from blocking touch events
+    puff.eventMode = 'none';
+    puff.cursor = 'default';
+    try { puff.interactiveChildren = false; } catch {}
+    
     board.addChild(puff);
+    
+    // Sort children to ensure correct zIndex order
+    try {
+      board.sortChildren?.();
+    } catch {}
     
     // Longer duration for visibility
     const duration = 0.9 + Math.random() * 0.5; // 0.9-1.4s (longer trail)
@@ -2057,7 +2077,27 @@ export function dragBeerBubbleTrail(board, tile, tileSize = 96, strength = 1, op
     bubble.x = x + (Math.random() - 0.5) * 70;
     bubble.y = y + (Math.random() - 0.5) * 70;
     
+    // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (particles should be behind tile)
+    // If tile is being dragged (zIndex > 9000), particles should be at tileZ - 1
+    // Otherwise, particles should be slightly below tile
+    if (opts.zIndex != null) {
+      bubble.zIndex = opts.zIndex;
+    } else {
+      const tileZ = tile?.zIndex ?? 0;
+      bubble.zIndex = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
+    }
+    
+    // 🔥 CRITICAL: Set eventMode to 'none' to prevent particles from blocking touch events
+    bubble.eventMode = 'none';
+    bubble.cursor = 'default';
+    try { bubble.interactiveChildren = false; } catch {}
+    
     board.addChild(bubble);
+    
+    // Sort children to ensure correct zIndex order
+    try {
+      board.sortChildren?.();
+    } catch {}
     
     const rise = baseRise * (0.8 + Math.random() * 0.8) * strength;
     const driftX = (Math.random() - 0.5) * (tileSize * 0.1);

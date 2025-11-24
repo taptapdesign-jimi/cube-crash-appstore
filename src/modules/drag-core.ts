@@ -267,14 +267,21 @@ export function initDrag(cfg) {
     // Start sparkles immediately when wild cube is picked up
     if (t.special === 'wild' || t.special === 'wild-beer') {
       try {
-        magicSparklesAtTile(board, t, { intensity: 1.0 });
+        // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
+        // This ensures particles appear behind the wild tile when dragging
+        const tileZ = t?.zIndex ?? 0;
+        const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
+        magicSparklesAtTile(board, t, { intensity: 1.0, zIndex: particlesZ });
         drag._lastSparkleTime = drag.lastTime;
         
         // Start continuous sparkles interval
         drag._sparkleInterval = setInterval(() => {
           if (drag.t && (drag.t.special === 'wild' || drag.t.special === 'wild-beer') && !drag.t.destroyed) {
             try {
-              magicSparklesAtTile(board, drag.t, { intensity: 1.0 });
+              // 🔥 CRITICAL: Set z-index to be BELOW dragged tile
+              const tileZ = drag.t?.zIndex ?? 0;
+              const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
+              magicSparklesAtTile(board, drag.t, { intensity: 1.0, zIndex: particlesZ });
             } catch (err) {
               console.warn('Wild interval sparkles error:', err);
             }
@@ -413,10 +420,15 @@ export function initDrag(cfg) {
       // Trails: beer wild gets bubbles; others get smoke
       if (!drag._lastSmokeTime || (now - drag._lastSmokeTime) > 120) { // Every 120ms
         try {
+          // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
+          // This ensures particles appear behind the tile when dragging
+          const tileZ = t?.zIndex ?? 0;
+          const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
+          
           if (t.special === 'wild-beer') {
-            dragBeerBubbleTrail(board, t, 96, 0.9);
+            dragBeerBubbleTrail(board, t, 96, 0.9, { zIndex: particlesZ });
           } else {
-            dragSmokeTrail(board, t, 96, 0.7);
+            dragSmokeTrail(board, t, 96, 0.7, { zIndex: particlesZ });
           }
           drag._lastSmokeTime = now;
         } catch (err) {

@@ -42,6 +42,24 @@ let comboIdleTimer = null;
 let checkLevelEndTimer = null;
 let checkLevelEndRetryCount = 0; // 🔥 v38: Track reschedule attempts
 const MAX_CHECK_LEVEL_END_RETRIES = 10; // 🔥 v38: Prevent infinite reschedule loops
+
+// 🔥 MEMORY LEAK FIX: Track all timeouts for cleanup (optimization)
+const _appTimeouts: Set<NodeJS.Timeout> = new Set();
+
+function trackAppTimeout(callback: () => void, delay: number): NodeJS.Timeout {
+  const timeout = setTimeout(() => {
+    callback();
+    _appTimeouts.delete(timeout);
+  }, delay);
+  _appTimeouts.add(timeout);
+  return timeout;
+}
+
+function clearAllAppTimeouts() {
+  console.log(`🧹 Clearing ${_appTimeouts.size} pending timeouts from app-core`);
+  _appTimeouts.forEach(timeout => clearTimeout(timeout));
+  _appTimeouts.clear();
+}
 // 🔥 CRITICAL: Increased from 500ms to 1200ms to allow all animations to complete
 // - Wild spawn bounce: ~580ms
 // - Magnet pull + respawn: ~1000ms
@@ -1290,6 +1308,21 @@ function resetBoardContainer(){
 }
 function rebuildBoard(){
   resetBoardContainer();
+  
+  // 🔥 OPTIMIZATION: Clear all tracked timeouts before rebuild
+  clearAllAppTimeouts();
+  
+  // 🔥 OPTIMIZATION: Kill all GSAP delayed calls before rebuild
+  try {
+    if (typeof killAllDelayedCalls === 'function') {
+      killAllDelayedCalls();
+      console.log('🧹 Killed all GSAP delayed calls during board rebuild');
+    } else {
+      // Fallback: try to kill delayed calls directly
+      try { gsap.killDelayedCalls(); } catch {}
+    }
+  } catch {}
+  
   // 🔥 MEMORY LEAK FIX: Cleanup all wild animations and GSAP tweens before destroy
   // This prevents "ghost" animations from continuing after tiles are destroyed
   tiles.forEach(t => {
@@ -1298,6 +1331,16 @@ function rebuildBoard(){
     try { stopWildStars?.(t); } catch {}
     try { stopWildBeerBubbles?.(t); } catch {}
     try { stopMagnetIdleParticles?.(t); } catch {}
+    
+    // 🔥 OPTIMIZATION: Kill tile animations from animation modules (if available)
+    try {
+      // Try to import and use killTileAnimations from merge-animations or drag-animations
+      // Note: We can't import directly here, so we check if it's available globally
+      if (typeof (window as any).killTileAnimations === 'function') {
+        (window as any).killTileAnimations(t);
+      }
+    } catch {}
+    
     try { gsap.killTweensOf(t); gsap.killTweensOf(t.scale); gsap.killTweensOf(t.rotG); } catch {}
     t.destroy({children:true, texture:false, textureSource:false});
   });
@@ -4109,8 +4152,8 @@ function merge(src, dst, helpers){
           }
           
           // Spawn new ACTIVE tile with pips at dst position
-          // Use setTimeout to ensure grid is cleared and placeholder is removed
-          setTimeout(() => {
+          // Use tracked setTimeout to ensure grid is cleared and placeholder is removed
+          trackAppTimeout(() => {
             openAtCell(spawnC, spawnR, { 
               value: wildMergeTarget ? (() => {
                 const candidates = [1,2,3,4,5].filter(v => v !== wildMergeTarget);
@@ -4765,6 +4808,18 @@ function restartGame(){
   
   updateHUD();
   
+  // 🔥 OPTIMIZATION: Clear all tracked timeouts before restart
+  clearAllAppTimeouts();
+  
+  // 🔥 OPTIMIZATION: Kill all GSAP delayed calls before restart
+  try {
+    if (typeof killAllDelayedCalls === 'function') {
+      killAllDelayedCalls();
+    } else {
+      try { gsap.killDelayedCalls(); } catch {}
+    }
+  } catch {}
+  
   // Ensure game is resumed after restart
   try {
     gsap.globalTimeline.resume();
@@ -4795,6 +4850,18 @@ export function resumeGame() {
 
 export function restart() {
   console.log('🔄 RESTART: Starting restart function');
+  
+  // 🔥 OPTIMIZATION: Clear all tracked timeouts before restart
+  clearAllAppTimeouts();
+  
+  // 🔥 OPTIMIZATION: Kill all GSAP delayed calls before restart
+  try {
+    if (typeof killAllDelayedCalls === 'function') {
+      killAllDelayedCalls();
+    } else {
+      try { gsap.killDelayedCalls(); } catch {}
+    }
+  } catch {}
   
   // 🔥 MEMORY LEAK FIX: Kill all pending delayed calls and timeouts
   try {
