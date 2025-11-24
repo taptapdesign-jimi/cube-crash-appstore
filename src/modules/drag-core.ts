@@ -376,7 +376,11 @@ export function initDrag(cfg) {
       // Continuous sparkles when wild cube is picked up (whether moving or not)
       if (!drag._lastSparkleTime || (now - drag._lastSparkleTime) > 100) { // Every 100ms for continuous effect
         try {
-          magicSparklesAtTile(board, t, { intensity: 1.0 });
+          // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
+          // This ensures particles appear behind the wild tile when dragging
+          const tileZ = t?.zIndex ?? 0;
+          const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
+          magicSparklesAtTile(board, t, { intensity: 1.0, zIndex: particlesZ });
           drag._lastSparkleTime = now;
         } catch (err) {
           console.warn('Wild sparkles error:', err);
@@ -390,7 +394,11 @@ export function initDrag(cfg) {
       // Continuous sparkles when wild-magnet is picked up
       if (!drag._lastSparkleTime || (now - drag._lastSparkleTime) > 100) {
         try {
-          magicSparklesAtTile(board, t, { intensity: 1.0 });
+          // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
+          // This ensures particles appear behind the magnet when dragging
+          const tileZ = t?.zIndex ?? 0;
+          const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
+          magicSparklesAtTile(board, t, { intensity: 1.0, zIndex: particlesZ });
           drag._lastSparkleTime = now;
         } catch (err) {
           console.warn('Wild-magnet sparkles error:', err);

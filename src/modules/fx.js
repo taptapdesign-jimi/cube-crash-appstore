@@ -499,6 +499,12 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     shard.rect(-width/2, -height/2, width, height)
          .fill({ color: color, alpha: alpha }); // Scale opacity by intensity
     
+    // 🔥 CRITICAL: Set eventMode to 'none' to prevent particles from blocking touch events
+    // This is especially important for wild-magnet idle particles that spawn continuously
+    shard.eventMode = 'none';
+    shard.cursor = 'default';
+    try { shard.interactiveChildren = false; } catch {}
+    
     // Random position around tile - wider emission
     const angle = Math.random() * Math.PI * 2;
     const distance = baseTile * (0.1 + Math.random() * 0.6); // Wider spawn range (0.1-0.7x tile size)
@@ -508,11 +514,14 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     shard.rotation = Math.random() * Math.PI * 2;
     
     // 🔥 Z-INDEX: Set z-index if provided in opts (for logo smoke to appear above logo, or behind tile)
+    // For idle particles, use lower z-index to ensure they don't block tile interaction
     if (opts.zIndex != null) {
       shard.zIndex = opts.zIndex;
     } else {
-      // Default z-index for particles (above tiles normally)
-      shard.zIndex = 100;
+      // Default z-index for particles (above tiles normally, but below interactive elements)
+      // Use tile's zIndex + small offset to ensure particles are visible but don't block interaction
+      const tileZ = tile?.zIndex ?? 0;
+      shard.zIndex = tileZ + 0.001; // Just above tile, but low enough to not block interaction
     }
     
     board.addChild(shard);
@@ -1307,9 +1316,18 @@ function createMerge6Bubbles(board, layer, centerX, centerY) {
 // --- Merge-6 wild-beer bubble explosion (organic drift) ---
 let wildBeerExplosionContainer = null;
 let wildBeerExplosionActive = false;
+let wildBeerExplosionSpawnTick = null; // 🔥 CRITICAL: Store spawnTick reference for cleanup
 
-function cleanupWildBeerExplosion() {
+export function cleanupWildBeerExplosion() {
   try {
+    // 🔥 CRITICAL: Remove spawnTick from ticker FIRST to prevent new bubbles from spawning
+    if (wildBeerExplosionSpawnTick) {
+      try {
+        gsap.ticker.remove(wildBeerExplosionSpawnTick);
+      } catch {}
+      wildBeerExplosionSpawnTick = null;
+    }
+    
     wildBeerExplosionActive = false;
     if (wildBeerExplosionContainer) {
       const container = wildBeerExplosionContainer;
@@ -1335,15 +1353,55 @@ export function isWildBeerExplosionRunning() {
 }
 
 export function createWildBeerBubblesExplosion(board, tile) {
-  if (!board || !tile) return;
-  if (wildBeerExplosionActive) return; // Guard duplicate triggers during same animation
+  console.log('💧 createWildBeerBubblesExplosion called!', {
+    board: !!board,
+    tile: !!tile,
+    wildBeerExplosionActive,
+    boardDestroyed: board?.destroyed,
+    tileDestroyed: tile?.destroyed
+  });
+  
+  if (!board || !tile) {
+    console.warn('⚠️ createWildBeerBubblesExplosion: Missing board or tile', { board: !!board, tile: !!tile });
+    return;
+  }
+  
+  if (wildBeerExplosionActive) {
+    console.warn('⚠️ createWildBeerBubblesExplosion: Already active, skipping duplicate trigger');
+    return; // Guard duplicate triggers during same animation
+  }
 
   cleanupWildBeerExplosion();
 
+  // 🔥 CRITICAL: Get stage directly from window.STATE (most reliable method)
   const windowState = typeof window !== 'undefined' ? window.STATE : null;
-  const app = (windowState && windowState.app) || board.parent?.parent;
-  const stage = (app && app.stage) || board.parent;
-  if (!stage) return;
+  const stage = (windowState && windowState.stage) || 
+                (windowState && windowState.app && windowState.app.stage) || 
+                board.parent?.parent?.stage || 
+                board.parent;
+  
+  console.log('💧 createWildBeerBubblesExplosion: Stage check', {
+    windowState: !!windowState,
+    stageFromState: !!(windowState && windowState.stage),
+    stageFromApp: !!(windowState && windowState.app && windowState.app.stage),
+    stageFromBoard: !!board.parent,
+    stage: !!stage,
+    stageType: stage ? stage.constructor?.name : 'null'
+  });
+  
+  if (!stage) {
+    console.error('❌ createWildBeerBubblesExplosion: No stage found! Cannot create bubbles.');
+    console.error('❌ Debug info:', {
+      windowState: !!windowState,
+      windowStateStage: !!(windowState && windowState.stage),
+      windowStateApp: !!(windowState && windowState.app),
+      boardParent: !!board.parent,
+      boardParentParent: !!board.parent?.parent
+    });
+    return;
+  }
+  
+  console.log('💧 createWildBeerBubblesExplosion: Creating bubbles container...');
 
   const container = new Container();
   container.name = 'wild-beer-explosion-bubbles';
@@ -1356,6 +1414,13 @@ export function createWildBeerBubblesExplosion(board, tile) {
 
   wildBeerExplosionContainer = container;
   wildBeerExplosionActive = true;
+  
+  console.log('💧 createWildBeerBubblesExplosion: Container created and added to stage!', {
+    container: !!container,
+    stage: !!stage,
+    containerParent: !!container.parent,
+    wildBeerExplosionActive
+  });
 
   const screenW = typeof window !== 'undefined' ? window.innerWidth : 800;
   const screenH = typeof window !== 'undefined' ? window.innerHeight : 600;
@@ -1462,6 +1527,11 @@ export function createWildBeerBubblesExplosion(board, tile) {
 
   const spawnTick = () => {
     if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) {
+      // 🔥 CRITICAL: Remove spawnTick from ticker when container is destroyed
+      if (wildBeerExplosionSpawnTick === spawnTick) {
+        gsap.ticker.remove(spawnTick);
+        wildBeerExplosionSpawnTick = null;
+      }
       cleanupWildBeerExplosion();
       return;
     }
@@ -1471,7 +1541,11 @@ export function createWildBeerBubblesExplosion(board, tile) {
     const elapsed = now - startTime;
 
     if (elapsed >= spawnDuration && spawned >= totalBubbles) {
-      gsap.ticker.remove(spawnTick);
+      // 🔥 CRITICAL: Remove spawnTick from ticker and clear reference
+      if (wildBeerExplosionSpawnTick === spawnTick) {
+        gsap.ticker.remove(spawnTick);
+        wildBeerExplosionSpawnTick = null;
+      }
       setTimeout(() => cleanupWildBeerExplosion(), 2400);
       return;
     }
@@ -1488,6 +1562,9 @@ export function createWildBeerBubblesExplosion(board, tile) {
 
   // Initial burst for instant feedback
   for (let i = 0; i < 12; i++) makeBubble();
+  
+  // 🔥 CRITICAL: Store spawnTick reference for cleanup
+  wildBeerExplosionSpawnTick = spawnTick;
   gsap.ticker.add(spawnTick);
   spawnTick();
 }

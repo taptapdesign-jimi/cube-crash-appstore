@@ -63,6 +63,13 @@ interface OpenEmptiesOptions {
 }
 
 export function spawnBounce(t: Tile, gsap: any, opts: SpawnBounceOptions = {}, done?: () => void): void {
+  // 🔥 CRITICAL: Check if tile and scale exist before proceeding
+  if (!t || t.destroyed || !t.scale) {
+    console.warn('⚠️ spawnBounce skipped: tile is null, destroyed, or has no scale', { tile: t, destroyed: t?.destroyed, hasScale: !!t?.scale });
+    if (typeof done === 'function') done();
+    return;
+  }
+  
   const {
     startScale = 0.30,
     max       = 1.08,
@@ -75,6 +82,14 @@ export function spawnBounce(t: Tile, gsap: any, opts: SpawnBounceOptions = {}, d
 
   const trg = t.rotG || t;
   t.alpha = 0;
+  
+  // 🔥 CRITICAL: Check scale again before using it
+  if (!t.scale || !t.scale.set) {
+    console.warn('⚠️ spawnBounce skipped: tile.scale is null or has no set method');
+    if (typeof done === 'function') done();
+    return;
+  }
+  
   t.scale.set(startScale, startScale);
 
   const dir = Math.random() < 0.5 ? 1 : -1;
@@ -160,13 +175,27 @@ export async function openEmpties({ count=0, tiles=[], drag, makeBoard, gsap, dr
   for (let i=locked.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [locked[i],locked[j]]=[locked[j],locked[i]]; }
   const picks = locked.slice(0, Math.min(count, locked.length));
 
-  await Promise.all(picks.map(t => new Promise<void>(res=>{
-    t.locked=false; t.eventMode='static'; t.cursor='pointer';
-    if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
-    makeBoard?.setValue(t, [1,2,3,4,5][(Math.random()*5)|0], 0);
-    try { fixHoverAnchor?.(t); } catch {}
-    spawnBounce(t, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 }, res);
-  })));
+  // 🔥 CRITICAL FIX: Procedural spawn with fast cascading animations (same as magnet merge spawn)
+  // spawnBounce animation takes ~0.24s (with timeScale 2.0), delay is 30ms for very fast cascading
+  // Each tile starts when previous is at 12.5% of its animation - creates very fast cascading effect
+  // Sequential spawning: 1st at 0ms, 2nd at 30ms, 3rd at 60ms, 4th at 90ms
+  // 🔥 CRITICAL: Use setTimeout instead of await to allow parallel execution (same as magnet pull)
+  for (let index = 0; index < picks.length; index++) {
+    const t = picks[index];
+    const delay = index * 30; // 0ms, 30ms, 60ms, 90ms...
+    
+    // 🔥 CRITICAL: Use setTimeout to schedule spawn without blocking
+    // This allows all tiles to be scheduled with delays, but animations run concurrently
+    setTimeout(() => {
+      t.locked=false; t.eventMode='static'; t.cursor='pointer';
+      if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
+      makeBoard?.setValue(t, [1,2,3,4,5][(Math.random()*5)|0], 0);
+      try { fixHoverAnchor?.(t); } catch {}
+      // 🔥 CRITICAL: Use timeScale: 2.0 to make spawn animation 50% faster (2x speed = half duration)
+      // Same as magnet merge spawn for consistent feel
+      spawnBounce(t, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, timeScale: 2.0 }, () => {});
+    }, delay);
+  }
 
   try { drawBoardBG?.(); } catch {}
   sweepForUnanimatedSpawns(tiles, gsap);

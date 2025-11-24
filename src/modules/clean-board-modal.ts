@@ -37,6 +37,8 @@ const pickRandom = (arr: string[]): string => arr[Math.floor(Math.random() * arr
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts for cleanup
 const _modalTimeouts: Set<NodeJS.Timeout> = new Set();
+// 🔥 MEMORY LEAK FIX: Track all requestAnimationFrame callbacks for cleanup
+const _modalAnimationFrames: Set<number> = new Set();
 
 function trackTimeout(callback: () => void, delay: number): NodeJS.Timeout {
   const timeout = setTimeout(() => {
@@ -47,10 +49,25 @@ function trackTimeout(callback: () => void, delay: number): NodeJS.Timeout {
   return timeout;
 }
 
+function trackAnimationFrame(callback: FrameRequestCallback): number {
+  const rafId = requestAnimationFrame((now: number) => {
+    callback(now);
+    _modalAnimationFrames.delete(rafId);
+  });
+  _modalAnimationFrames.add(rafId);
+  return rafId;
+}
+
 export function clearAllModalTimeouts() {
   console.log(`🧹 Clearing ${_modalTimeouts.size} pending timeouts from clean-board-modal`);
   _modalTimeouts.forEach(timeout => clearTimeout(timeout));
   _modalTimeouts.clear();
+}
+
+export function clearAllModalAnimationFrames() {
+  console.log(`🧹 Clearing ${_modalAnimationFrames.size} pending animation frames from clean-board-modal`);
+  _modalAnimationFrames.forEach(rafId => cancelAnimationFrame(rafId));
+  _modalAnimationFrames.clear();
 }
 
 // Confetti explosion effect from center of element (fallback - not used)
@@ -441,6 +458,7 @@ export async function showCleanBoardModal({
         const wobbleBase = Math.pow(10, Math.max(digits - 2, 0));
         const t0 = performance.now();
 
+        let rafId: number | null = null;
         const tick = (now: number) => {
           const elapsed = now - t0;
           const p = Math.min(elapsed / duration, 1);
@@ -450,12 +468,16 @@ export async function showCleanBoardModal({
           const value = Math.max(0, currentScore + wobble);
           mainScore.textContent = toScoreText(value);
           if (p < 1) {
-            requestAnimationFrame(tick);
+            rafId = trackAnimationFrame(tick);
           } else {
             mainScore.textContent = toScoreText(currentScore);
+            if (rafId !== null) {
+              _modalAnimationFrames.delete(rafId);
+              rafId = null;
+            }
           }
         };
-        requestAnimationFrame(tick);
+        rafId = trackAnimationFrame(tick);
       };
 
       const transferBonus = (): void => {
@@ -469,6 +491,7 @@ export async function showCleanBoardModal({
           mainScore.style.transform = 'scale(1) translateY(0)';
         }, 420);
 
+        let rafId: number | null = null;
         const tick = (now: number) => {
           const elapsed = now - t0;
           const p = Math.min(elapsed / duration, 1);
@@ -478,13 +501,17 @@ export async function showCleanBoardModal({
           mainScore.textContent = toScoreText(scoreValue);
           bonusValue.textContent = `+${formatScore(Math.round(bonusLeft))}`;
           if (p < 1) {
-            requestAnimationFrame(tick);
+            rafId = trackAnimationFrame(tick);
           } else {
             mainScore.textContent = toScoreText(finalScore);
             bonusValue.textContent = '+0';
+            if (rafId !== null) {
+              _modalAnimationFrames.delete(rafId);
+              rafId = null;
+            }
           }
         };
-        requestAnimationFrame(tick);
+        rafId = trackAnimationFrame(tick);
       };
 
       {
@@ -733,9 +760,14 @@ export async function showCleanBoardModal({
       } catch {}
       
       
+      // 🔥 MEMORY LEAK FIX: Cleanup all animations and timeouts before resolving
+      clearAllModalTimeouts();
+      clearAllModalAnimationFrames();
+      
       trackTimeout(() => { 
         try { el.remove(); } catch {}
-        clearAllModalTimeouts(); // 🔥 Cleanup all remaining timeouts
+        clearAllModalTimeouts(); // 🔥 Cleanup all remaining timeouts (double-check)
+        clearAllModalAnimationFrames(); // 🔥 Cleanup all remaining animation frames (double-check)
         resolve({ action: 'continue' }); 
       }, collapseDuration + 220);
     });

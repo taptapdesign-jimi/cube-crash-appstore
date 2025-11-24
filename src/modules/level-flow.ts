@@ -94,11 +94,14 @@ export async function openLockedBounceParallel({
   wildMergeTarget = null,
   excludeCells = new Set<string>()  // 🔥 CRITICAL: Exclude cells where pulled tiles were
 }: OpenLockedBounceParallelParams = {}): Promise<void> {
-  let locked = tiles.filter(t => t.locked);
+  // 🔥 CRITICAL: Filter out destroyed tiles FIRST before any other checks
+  // Also filter out tiles without scale (they can't be spawned)
+  let locked = tiles.filter(t => t && !t.destroyed && t.locked && t.scale);
   
   // 🔥 CRITICAL: Filter out locked tiles that are on excluded cells (where pulled tiles were)
   if (excludeCells.size > 0) {
     locked = locked.filter((t: any) => {
+      if (!t || t.destroyed) return false; // Double-check destroyed
       if (typeof t.gridX === 'number' && typeof t.gridY === 'number') {
         const cellKey = `${t.gridX},${t.gridY}`;
         const isExcluded = excludeCells.has(cellKey);
@@ -114,6 +117,7 @@ export async function openLockedBounceParallel({
   // 🔥 CRITICAL: Filter out tiles that are already spawned (have _spawned flag)
   // This prevents reanimating tiles that were already spawned in mergePulledTilesIntoMerge6
   locked = locked.filter((t: any) => {
+    if (!t || t.destroyed) return false; // Double-check destroyed
     if ((t as any)._spawned === true) {
       logger.info(`🎯 Excluding tile at (${(t as any).gridX}, ${(t as any).gridY}) from spawn (already spawned)`);
       return false;
@@ -126,30 +130,62 @@ export async function openLockedBounceParallel({
   for (let i=locked.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [locked[i],locked[j]]=[locked[j],locked[i]]; }
   const picks = locked.slice(0, Math.min(k, locked.length));
 
-  const promises = picks.map(t => new Promise<void>(res=>{
-    t.locked=false; 
-    // t.eventMode='static'; 
-    // t.cursor='pointer';
-    if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
+  // 🔥 CRITICAL FIX: Procedural spawn with fast cascading animations (same as magnet merge spawn)
+  // spawnBounce animation takes ~0.24s (with timeScale 2.0), delay is 30ms for very fast cascading
+  // Each tile starts when previous is at 12.5% of its animation - creates very fast cascading effect
+  // Sequential spawning: 1st at 0ms, 2nd at 30ms, 3rd at 60ms, 4th at 90ms
+  // 🔥 CRITICAL: Use setTimeout instead of await to allow parallel execution (same as magnet pull)
+  for (let index = 0; index < picks.length; index++) {
+    const t = picks[index];
+    const delay = index * 30; // 0ms, 30ms, 60ms, 90ms...
+    
+    // 🔥 CRITICAL: Use setTimeout to schedule spawn without blocking
+    // This allows all tiles to be scheduled with delays, but animations run concurrently
+    setTimeout(() => {
+      // 🔥 CRITICAL: Check if tile still exists and is not destroyed before spawning
+      if (!t || t.destroyed || !t.scale) {
+        console.warn('⚠️ Spawn skipped: tile is null, destroyed, or has no scale', { tile: t, destroyed: t?.destroyed, hasScale: !!t?.scale });
+        return;
+      }
+      
+      t.locked=false; 
+      // t.eventMode='static'; 
+      // t.cursor='pointer';
+      if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
 
-    resetTileToNormalState(t);
-    
-    // Smart spawning: if this is after wild merge, avoid the target number
-    let spawnValue: number;
-    if (wildMergeTarget) {
-      // Import pickWildValue function (assuming it's available globally or we need to pass it)
-      const candidates = [1,2,3,4,5].filter(v => v !== wildMergeTarget);
-      spawnValue = candidates[(Math.random() * candidates.length) | 0];
-      logger.info('🎯 Smart spawn: avoiding', wildMergeTarget, 'spawning', spawnValue);
-    } else {
-      spawnValue = [1,2,3,4,5][(Math.random()*5)|0];
-    }
-    
-    makeBoard?.setValue?.(t, spawnValue, 0);
-    try { fixHoverAnchor?.(t); } catch {}
-    spawnBounce?.(t, res, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 });
-  }));
-  await Promise.all(promises);
+      resetTileToNormalState(t);
+      
+      // Smart spawning: if this is after wild merge, avoid the target number
+      let spawnValue: number;
+      if (wildMergeTarget) {
+        // Import pickWildValue function (assuming it's available globally or we need to pass it)
+        const candidates = [1,2,3,4,5].filter(v => v !== wildMergeTarget);
+        spawnValue = candidates[(Math.random() * candidates.length) | 0];
+        logger.info('🎯 Smart spawn: avoiding', wildMergeTarget, 'spawning', spawnValue);
+      } else {
+        spawnValue = [1,2,3,4,5][(Math.random()*5)|0];
+      }
+      
+      // 🔥 CRITICAL: Check tile again before setValue (it might have been destroyed during resetTileToNormalState)
+      if (!t || t.destroyed || !t.scale) {
+        console.warn('⚠️ Spawn skipped: tile destroyed during resetTileToNormalState');
+        return;
+      }
+      
+      makeBoard?.setValue?.(t, spawnValue, 0);
+      try { fixHoverAnchor?.(t); } catch {}
+      
+      // 🔥 CRITICAL: Final check before spawnBounce (tile might have been destroyed during setValue)
+      if (!t || t.destroyed || !t.scale) {
+        console.warn('⚠️ Spawn skipped: tile destroyed during setValue');
+        return;
+      }
+      
+      // 🔥 CRITICAL: Use timeScale: 2.0 to make spawn animation 50% faster (2x speed = half duration)
+      // Same as magnet merge spawn for consistent feel
+      spawnBounce?.(t, () => {}, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, timeScale: 2.0 });
+    }, delay);
+  }
   try { drawBoardBG?.(); } catch {}
 }
 

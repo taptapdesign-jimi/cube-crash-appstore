@@ -171,9 +171,19 @@ function drawPips(t: Tile): void {
 }
 
 function _drawPipsInternal(t: Tile): void {
+  // 🔥 CRITICAL FIX: Check if tile is destroyed or pips is null before clearing
+  if (!t || t.destroyed) return;
   const g = t.pips;
-  if (!g) return;
-  g.clear();
+  if (!g || g.destroyed) return;
+  // 🔥 CRITICAL FIX: Double-check pips context before clearing (can become null during async operations)
+  try {
+    if (g.context) {
+      g.clear();
+    }
+  } catch (err) {
+    // Graphics object may be destroyed or context may be null - silently skip
+    return;
+  }
 
   // Overlay NIKAD ne koristimo kao "ghost"; uvijek ga gasimo ovdje.
   if (t.overlay) t.overlay.visible = false;
@@ -223,9 +233,19 @@ export function setValue(t: Tile, v: number, addStack = 0): void {
   // This prevents frame drops when setValue is called during bubbles/wild animations
   if (typeof window !== 'undefined' && window.requestAnimationFrame) {
     requestAnimationFrame(() => {
+      // 🔥 CRITICAL: Check if tile still exists before setting visuals (it might have been destroyed)
+      if (!t || t.destroyed) {
+        console.warn('⚠️ setValue skipped: tile is null or destroyed', { tile: t, destroyed: t?.destroyed });
+        return;
+      }
       _setValueVisuals(t, v, addStack);
     });
   } else {
+    // 🔥 CRITICAL: Check if tile still exists before setting visuals
+    if (!t || t.destroyed) {
+      console.warn('⚠️ setValue skipped: tile is null or destroyed', { tile: t, destroyed: t?.destroyed });
+      return;
+    }
     _setValueVisuals(t, v, addStack);
   }
 }

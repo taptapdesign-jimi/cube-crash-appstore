@@ -14,7 +14,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning, cleanupWildBeerExplosion } from './fx.js';
 import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
 import FX from './fx-helpers.js';
@@ -659,7 +659,8 @@ export async function boot(){
         if (srcIsWild && !dstIsWild) {
           // Wild merging into normal tile - check if target value is different
           const canMerge = sv !== dv;
-          console.log('🔥 canDrop (app-core): Wild merge check (wild->normal):', { wildValue: sv, targetValue: dv, canMerge });
+          // 🔥 PERFORMANCE: Removed console.log to prevent lag during drag (called hundreds of times)
+          // console.log('🔥 canDrop (app-core): Wild merge check (wild->normal):', { wildValue: sv, targetValue: dv, canMerge });
           return canMerge;
         } else if (dstIsWild && !srcIsWild) {
           // Normal tile merging into wild - check if source value is different
@@ -1289,8 +1290,26 @@ function resetBoardContainer(){
 }
 function rebuildBoard(){
   resetBoardContainer();
-  tiles.forEach(t=>t.destroy({children:true, texture:false, textureSource:false}));
+  // 🔥 MEMORY LEAK FIX: Cleanup all wild animations and GSAP tweens before destroy
+  // This prevents "ghost" animations from continuing after tiles are destroyed
+  tiles.forEach(t => {
+    try { stopWildIdle?.(t); } catch {}
+    try { stopWildShimmer?.(t); } catch {}
+    try { stopWildStars?.(t); } catch {}
+    try { stopWildBeerBubbles?.(t); } catch {}
+    try { stopMagnetIdleParticles?.(t); } catch {}
+    try { gsap.killTweensOf(t); gsap.killTweensOf(t.scale); gsap.killTweensOf(t.rotG); } catch {}
+    t.destroy({children:true, texture:false, textureSource:false});
+  });
   tiles.length=0;
+  
+  // 🔥 CRITICAL: Cleanup wild beer explosion animation when board is rebuilt
+  try {
+    if (isWildBeerExplosionRunning && cleanupWildBeerExplosion) {
+      cleanupWildBeerExplosion();
+      console.log('🧹 Cleaned up wild beer explosion animation during board rebuild');
+    }
+  } catch {}
   createEmptyGrid();
   drawBoardBG('none');
 
@@ -1571,16 +1590,31 @@ function applyWildSkinLocal(tile){
   // Wild-magnet grab reliability: ensure hit area and pointer mode are solid
   if (tile.special === 'wild-magnet') {
     const host = tile.rotG || tile;
-    const hitSize = TILE * 1.05; // Slightly larger hit box for easier tap
+    const hitSize = TILE * 1.10; // 🔥 INCREASED: 10% larger hit box for easier tap (was 1.05)
     const half = hitSize / 2;
     const hitArea = new Rectangle(-half, -half, hitSize, hitSize);
     tile.hitArea = hitArea;
     if (host) host.hitArea = hitArea;
+    // 🔥 CRITICAL: Ensure eventMode is set to 'static' for touch events
     tile.eventMode = 'static';
     tile.cursor = 'pointer';
     if (host && (host as any).eventMode !== 'static') {
       (host as any).eventMode = 'static';
       (host as any).cursor = 'pointer';
+    }
+    // 🔥 CRITICAL: Ensure all children have eventMode = 'none' to prevent blocking touch events
+    if (tile.children) {
+      tile.children.forEach((child: any) => {
+        if (child && child !== host) {
+          try {
+            child.eventMode = 'none';
+            child.cursor = 'default';
+            if (child.interactiveChildren !== undefined) {
+              child.interactiveChildren = false;
+            }
+          } catch {}
+        }
+      });
     }
   }
   
@@ -1593,8 +1627,16 @@ function applyWildSkinLocal(tile){
         startWildStars(tile);
       }
       // 🔥 NEW: Start magnet idle particles animation (24% intensity)
+      // 🔥 CRITICAL: Start particles AFTER ensuring eventMode is set correctly
       if (tile.special === 'wild-magnet') {
-        startMagnetIdleParticles(tile);
+        // Use requestAnimationFrame to ensure tile is fully set up before starting particles
+        requestAnimationFrame(() => {
+          try {
+            startMagnetIdleParticles(tile);
+          } catch (err) {
+            console.warn('⚠️ Failed to start magnet idle particles:', err);
+          }
+        });
       }
     } catch {}
   }catch{}
@@ -2630,13 +2672,15 @@ function merge(src, dst, helpers){
       (dst as any)._isLastMerge = true;
       
       // 🔥 CRITICAL FIX v40.5: Mark if this was a wild merge OR magnet merge (for spawn skip logic)
-      // This includes: wild + regular, regular + wild, magnet + regular, regular + magnet
+      // This includes: wild + regular, regular + wild, magnet + regular, regular + magnet, wild-beer + regular, regular + wild-beer
       const wasWildMerge = srcSpecial === 'wild' || dstSpecial === 'wild';
+      const wasWildBeerMerge = srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
       const wasMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
-      if (wasWildMerge || wasMagnetMerge) {
+      if (wasWildMerge || wasMagnetMerge || wasWildBeerMerge) {
         (dst as any)._wasWildMerge = true;
-        console.log('✅ _wasWildMerge flag set to TRUE (wild/magnet merge detected)', {
+        console.log('✅ _wasWildMerge flag set to TRUE (wild/magnet/wild-beer merge detected)', {
           wasWildMerge,
+          wasWildBeerMerge,
           wasMagnetMerge,
           srcSpecial,
           dstSpecial
@@ -3537,15 +3581,35 @@ function merge(src, dst, helpers){
             
             // Trigger only the main bubbles explosion (skip smaller fizz to avoid double-wave)
             if (isWildBeerMerge) {
-              setTimeout(() => {
+              console.log('💧 Wild-beer merge detected! isWildBeerMerge:', isWildBeerMerge, 'srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial);
+              // 🔥 CRITICAL: Trigger immediately without delay to ensure it happens
+              // Use requestAnimationFrame to ensure board and dst are ready
+              requestAnimationFrame(() => {
+                console.log('💧 requestAnimationFrame callback - checking dst and board...');
                 try {
-                  if (dst && !dst.destroyed && board) {
+                  // 🔥 CRITICAL: Double-check dst is still valid before triggering explosion
+                  if (dst && !dst.destroyed && board && !board.destroyed) {
+                    console.log('💧 Triggering wild-beer bubbles explosion at merge 6 - dst and board are valid');
                     createWildBeerBubblesExplosion(board, dst);
+                  } else {
+                    console.warn('⚠️ Cannot trigger bubbles explosion - dst or board invalid:', {
+                      dst: !!dst,
+                      dstDestroyed: dst?.destroyed,
+                      board: !!board,
+                      boardDestroyed: board?.destroyed
+                    });
+                    // 🔥 FALLBACK: Try to trigger anyway if board is valid (dst might be destroyed but board should work)
+                    if (board && !board.destroyed) {
+                      console.log('💧 FALLBACK: Triggering bubbles explosion with board only (dst may be destroyed)');
+                      createWildBeerBubblesExplosion(board, dst);
+                    }
                   }
                 } catch (error) {
-                  console.warn('⚠️ Failed to trigger bubbles foam:', error);
+                  console.error('❌ Failed to trigger bubbles foam:', error);
                 }
-              }, 200);
+              });
+            } else {
+              console.log('⚠️ Wild-beer merge NOT detected! isWildBeerMerge:', isWildBeerMerge, 'srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial);
             }
           } else {
             // Fallback: use spawnMerge6Shards (shouldn't happen, but safety)
@@ -3831,6 +3895,7 @@ function merge(src, dst, helpers){
         // This made it trigger clean board flow instead of spawning new tiles
         // Endgame check will be done AFTER spawn in checkLevelEnd()
         console.log('🎯 Merge 6 completed, proceeding to spawn logic...');
+        console.log('🔍 DEBUG: mult value in onComplete:', mult, 'typeof mult:', typeof mult);
         
         // Game continues - check moves and proceed with spawn
         if (moves === 0) {
@@ -3888,90 +3953,16 @@ function merge(src, dst, helpers){
           return;
         }
         
-        // 🔥 CRITICAL: Last merge checks are handled earlier (after src removal and before dst removal)
-        // If we reach here, it means it's NOT a last merge scenario, so proceed with normal spawn
-        
-        // 🔥 SAFEGUARD: Double-check _isLastMerge flag before spawning
-        // 🔥 ENHANCED: Also check active tiles count to catch edge cases
-        const activeTilesBeforeSpawn = tiles.filter(tileIsVisuallyActive);
+        // 🔥 SIMPLIFIED: Only check _isLastMerge flag - this is set ONLY when it's truly the last merge (2 tiles total)
+        // All other checks were too aggressive and blocked spawn when it shouldn't be blocked
         const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
-        const onlyMerge6Remains = activeTilesBeforeSpawn.length === 1 && activeTilesBeforeSpawn[0] === dst && dst.value === 6;
         
-        console.log('🔍 PRE-SPAWN CHECK:', {
-          isLastMergeFlagSet,
-          onlyMerge6Remains,
-          activeTilesCount: activeTilesBeforeSpawn.length,
-          dstValue: dst.value,
-          dstInTiles: tiles.includes(dst),
-          activeTilesDetails: activeTilesBeforeSpawn.map(t => ({ 
-            value: t.value, 
-            special: t.special, 
-            isDst: t === dst 
-          }))
-        });
-        
-        if (isLastMergeFlagSet || onlyMerge6Remains) {
-          console.log('🚨🚨🚨 SAFEGUARD: _isLastMerge flag detected OR only merge 6 remains - preventing spawn');
-          console.log('🚨🚨🚨 Reason:', isLastMergeFlagSet ? '_isLastMerge flag is TRUE' : 'Only merge 6 remains on board');
+        if (isLastMergeFlagSet || busyEnding) {
+          console.log('🚨🚨🚨 LAST MERGE: Skipping spawn - _isLastMerge flag is TRUE or busyEnding is true');
           
-          // 🔥 CRITICAL: If _isLastMerge flag is set, we should have already handled clean board flow
-          // But if we reach here, it means the flag was set but clean board flow wasn't triggered
-          // This can happen if the onComplete callback didn't run or was skipped
-          // So we need to trigger clean board flow here as a safeguard
-          if (isLastMergeFlagSet) {
-            console.log('🚨🚨🚨 _isLastMerge flag is TRUE but we reached pre-spawn check - triggering clean board flow as safeguard');
-          busyEnding = true;
-          
-            // Remove dst tile and trigger clean board flow
-            if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-              grid[dst.gridY][dst.gridX] = null;
-              dst.visible = false;
-              removeTile(dst);
-            }
-            
-            // Reset wild meter
-          wildMeter = 0;
-          STATE.wildMeter = 0;
-          resetWildProgress(0, false);
-          
-          try {
-            if (typeof HUD.resetWildMeter === 'function') {
-                HUD.resetWildMeter(true);
-            } else {
-              HUD.updateProgressBar?.(0, false);
-            }
-          } catch (error) {
-              console.warn('⚠️ Failed to reset wild meter:', error);
-          }
-
-          try {
-            try { await new Promise(res => setTimeout(res, 1000)); } catch {}
-            await runEndgameFlow({
-              app,
-              stage,
-              board,
-              boardBG,
-              level,
-              startLevel,
-              score,
-              getScore: () => score,
-              setScore: (v) => { score = v|0; updateHUD(); },
-              animateScore,
-              updateHUD,
-              boardNumber,
-              hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
-              showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
-            });
-          } finally {
-            busyEnding = false;
-          }
-          return;
-        }
-
-          // If only merge 6 remains but flag not set, trigger clean board flow
-          if (onlyMerge6Remains && !isLastMergeFlagSet) {
-            console.log('🚨🚨🚨 Only merge 6 remains but _isLastMerge flag not set - setting it now and triggering clean board');
-            (dst as any)._isLastMerge = true;
+          // 🔥 CRITICAL: If _isLastMerge flag is set, trigger clean board flow
+          if (isLastMergeFlagSet && !busyEnding) {
+            console.log('🚨🚨🚨 _isLastMerge flag is TRUE - triggering clean board flow');
             busyEnding = true;
             
             // Remove dst tile and trigger clean board flow
@@ -3995,155 +3986,7 @@ function merge(src, dst, helpers){
             } catch (error) {
               console.warn('⚠️ Failed to reset wild meter:', error);
             }
-            
-            try {
-              try { await new Promise(res => setTimeout(res, 1000)); } catch {}
-              await runEndgameFlow({
-                app,
-                stage,
-                board,
-                boardBG,
-                level,
-                startLevel,
-                score,
-                getScore: () => score,
-                setScore: (v) => { score = v|0; updateHUD(); },
-                animateScore,
-                updateHUD,
-                boardNumber,
-                hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
-                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
-              });
-            } finally {
-              busyEnding = false;
-            }
-          }
-          
-          return;
-        }
-        
-        // 🔥 CRITICAL: Skip spawn if this was marked as last merge
-        // This prevents spawning new tiles when wild + regular merge is the last 2 tiles
-        // 🔥 ENHANCED: Check both the captured isLastMergeScenario AND the current dst._isLastMerge flag
-        // 🔥 ENHANCED: Also check if only merge 6 remains (double-check active tiles count)
-        const currentIsLastMerge = (dst as any)?._isLastMerge === true;
-        const activeTilesAfterSrcRemoval = tiles.filter(t => {
-          if (!t || t.locked) return false;
-          const isWild = t.special === 'wild' || t.special === 'wild-magnet';
-          const hasValue = (t.value|0) > 0;
-          return isWild || hasValue;
-        });
-        
-        // 🔥 CRITICAL FIX v40.1: Check for magnet/wild BEFORE determining if only merge6 remains
-        // If magnet/wild exists, it's NOT a last merge - they can merge with merge6
-        const hasMagnetAfterSrcRemoval = activeTilesAfterSrcRemoval.some(t => t.special === 'wild-magnet');
-        const hasWildAfterSrcRemoval = activeTilesAfterSrcRemoval.some(t => t.special === 'wild');
-        
-        // Only consider it "last merge" if NO other active tiles (excluding magnet/wild that can merge with merge6)
-        const onlyMerge6RemainsAfterSrcRemoval = activeTilesAfterSrcRemoval.length === 1 && 
-                                  activeTilesAfterSrcRemoval[0] === dst &&
-                                  dst.value === 6 &&
-                                  !hasMagnetAfterSrcRemoval && // 🔥 v40.1: Magnet can merge with merge6
-                                  !hasWildAfterSrcRemoval;     // 🔥 v40.1: Wild can merge with merge6
-        
-        // 🔥 CRITICAL FIX v40.2: Explicit check for regular merge (non-wild) with exactly 2 tiles
-        // This handles the case: 2 regular tiles → merge 6 → should skip spawn (clean board)
-        // Check if dst is merge 6 and there are no other active tiles (excluding locked placeholders)
-        const isRegularMerge6LastTwo = dst && 
-                                       dst.value === 6 && 
-                                       activeTilesAfterSrcRemoval.length === 1 && 
-                                       activeTilesAfterSrcRemoval[0] === dst &&
-                                       !hasMagnetAfterSrcRemoval &&
-                                       !hasWildAfterSrcRemoval &&
-                                       !(dst.special === 'wild' || dst.special === 'wild-magnet'); // Not a wild merge
-        
-        // 🔥 CRITICAL FIX v40.5: Explicit check for wild/magnet merge (wild/magnet + regular) with exactly 2 tiles
-        // This handles the cases:
-        //   - wild + regular tile → merge 6 → should skip spawn (clean board)
-        //   - magnet + regular tile → merge 6 → should skip spawn (clean board)
-        //   - regular + wild/magnet → merge 6 → should skip spawn (clean board)
-        // Check if dst is merge 6 from wild/magnet merge and there are no other active tiles
-        // Use _wasWildMerge flag set during last merge detection (line 2381) - includes both wild and magnet
-        const isWildMerge6LastTwo = dst && 
-                                    dst.value === 6 && 
-                                    activeTilesAfterSrcRemoval.length === 1 && 
-                                    activeTilesAfterSrcRemoval[0] === dst &&
-                                    !hasMagnetAfterSrcRemoval &&
-                                    !hasWildAfterSrcRemoval &&
-                                    (dst as any)._wasWildMerge === true; // Flag set during wild/magnet merge last merge detection
-        
-        // 🔥 CRITICAL: Multiple checks to prevent spawn
-        if (isLastMergeScenario || currentIsLastMerge || busyEnding || onlyMerge6RemainsAfterSrcRemoval || isRegularMerge6LastTwo || isWildMerge6LastTwo) {
-          console.log('🚨🚨🚨 LAST MERGE: Skipping spawn - preventing new tile spawn', {
-            isLastMergeScenario,
-            currentIsLastMerge,
-            busyEnding,
-            onlyMerge6RemainsAfterSrcRemoval,
-            isRegularMerge6LastTwo, // 🔥 v40.2: New check for regular merge
-            isWildMerge6LastTwo, // 🔥 v40.5: New check for wild merge
-            wasWildMerge: (dst as any)?._wasWildMerge,
-            activeTilesAfterSrcRemoval: activeTilesAfterSrcRemoval.length,
-            dstExists: !!dst,
-            dstValue: dst?.value,
-            dstSpecial: dst?.special,
-            activeTilesDetails: activeTilesAfterSrcRemoval.map(t => ({ 
-              value: t.value, 
-              special: t.special,
-              isDst: t === dst
-            }))
-          });
-          
-          // 🔥 CRITICAL FIX v40.1: Clean up placeholder if spawn is skipped
-          // Placeholder was created but won't be used, so remove it
-          const placeholderHolder = (dst as any)?._placeholderHolder;
-          if (placeholderHolder && !placeholderHolder.destroyed) {
-            console.log('🧹 LAST MERGE: Cleaning up placeholder (spawn skipped)');
-            
-            // Remove from grid
-            if (placeholderHolder.gridX !== undefined && placeholderHolder.gridY !== undefined && grid && grid[placeholderHolder.gridY]) {
-              grid[placeholderHolder.gridY][placeholderHolder.gridX] = null;
-            }
-            
-            // Remove from tiles array
-            removeTile(placeholderHolder);
-            
-            // Clear reference
-            if (dst) {
-              (dst as any)._placeholderHolder = undefined;
-            }
-            
-            console.log('✅ Placeholder removed (spawn skipped)');
-          }
-          
-          // 🔥 CRITICAL: If we somehow reached here with _isLastMerge set OR only merge 6 remains, trigger clean board flow as safeguard
-          // 🔥 CRITICAL FIX v40.2: Also check isRegularMerge6LastTwo for regular merge (non-wild) with 2 tiles
-          // 🔥 CRITICAL FIX v40.5: Also check isWildMerge6LastTwo for wild merge (wild + regular) with 2 tiles
-          if ((currentIsLastMerge || onlyMerge6RemainsAfterSrcRemoval || isRegularMerge6LastTwo || isWildMerge6LastTwo) && !busyEnding) {
-            console.warn('⚠️ LAST MERGE: Reached spawn section with _isLastMerge flag set OR only merge 6 remains OR regular/wild merge 6 last two - triggering clean board flow as safeguard');
-            busyEnding = true;
-            
-            // Remove dst tile if it still exists
-            if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-              grid[dst.gridY][dst.gridX] = null;
-              dst.visible = false;
-              removeTile(dst);
-            }
-            
-            // Reset wild meter
-            wildMeter = 0;
-            STATE.wildMeter = 0;
-            resetWildProgress(0, false);
-            
-            try {
-              if (typeof HUD.resetWildMeter === 'function') {
-                HUD.resetWildMeter(true);
-              } else {
-                HUD.updateProgressBar?.(0, false);
-              }
-            } catch (error) {
-              console.warn('⚠️ Failed to reset wild meter:', error);
-            }
-            
+
             try {
               try { await new Promise(res => setTimeout(res, 1000)); } catch {}
               await runEndgameFlow({
@@ -4173,14 +4016,56 @@ function merge(src, dst, helpers){
         // Use multiplier for spawning new tiles
         const spawnMult = mult;
         
+        // 🔥 CRITICAL: Check if spawnMult is valid before proceeding
+        if (!spawnMult || spawnMult <= 0) {
+          console.warn('⚠️ SPAWN BLOCKED: spawnMult is invalid:', spawnMult, 'mult:', mult);
+          return;
+        }
+        
         // 🔥 CRITICAL: Get pulled cells from dst tile to exclude from normal spawn
         const pulledCells = (dst as any)?._wildMagnetPulledCells || [];
         const pulledCellsSet = new Set(pulledCells.map((cell: { c: number; r: number }) => `${cell.c},${cell.r}`));
         
+        // 🔥 DEBUG: Detailed spawn check for all merge-6 types
+        const mergeType = !wildActive ? 'regular-regular' : 
+                         (srcSpecial === 'wild' || dstSpecial === 'wild') ? 'wild-regular' :
+                         (srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer') ? 'wild-beer-regular' :
+                         (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet') ? 'wild-magnet-regular' : 'unknown';
+        
+        const activeTilesCount = tiles.filter(tileIsVisuallyActive).length;
+        
+        console.log('🎯🎯🎯 SPAWN CHECK FOR MERGE-6:', {
+          mergeType,
+          srcSpecial,
+          dstSpecial,
+          spawnMult,
+          mult,
+          wasWild: wildActive,
+          isWildBeer: srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer',
+          isWildMagnet: srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet',
+          isWild: srcSpecial === 'wild' || dstSpecial === 'wild',
+          willSpawn: spawnMult > 0,
+          activeTilesCount,
+          isLastMergeFlagSet,
+          _wasWildMerge: (dst as any)?._wasWildMerge
+        });
+        
         console.log('🎯 Spawning new tiles with multiplier:', spawnMult);
         console.log('🎯 Excluding pulled cells from spawn:', pulledCells);
+        console.log('🎯 Wild merge target (for smart spawn):', wildMergeTarget);
+        console.log('🎯 Merge type check:', {
+          srcSpecial,
+          dstSpecial,
+          wasWild: wildActive,
+          isWildBeer: srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer',
+          isWildMagnet: srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet',
+          isWild: srcSpecial === 'wild' || dstSpecial === 'wild'
+        });
         
-        await FLOW.openLockedBounceParallel({ 
+        // 🔥 CRITICAL: Don't await - spawn tiles in parallel, let animations run concurrently (same as magnet pull)
+        // This allows spawn to happen immediately without waiting for animations to complete
+        console.log('🚀 CALLING openLockedBounceParallel with spawnMult:', spawnMult);
+        FLOW.openLockedBounceParallel({ 
           tiles, 
           k: spawnMult, 
           drag, 
@@ -4192,9 +4077,11 @@ function merge(src, dst, helpers){
           spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done),
           wildMergeTarget,
           excludeCells: pulledCellsSet  // 🔥 CRITICAL: Exclude pulled cells from spawn
+        }).then(() => {
+          console.log('✅ openLockedBounceParallel completed - all spawn animations finished');
+        }).catch((err) => {
+          console.warn('⚠️ openLockedBounceParallel error:', err);
         });
-        
-        console.log('✅ openLockedBounceParallel completed - all spawn animations finished');
         
         // 🔥 CRITICAL FIX v40.1: Clean up unused placeholder if it wasn't used in spawn
         // Placeholder might not be used if spawnMult = 0 or if placeholder was excluded
@@ -4223,14 +4110,17 @@ function merge(src, dst, helpers){
           }
         }
         
-        // 🔥 CRITICAL: NOW remove dst tile after spawn completes
-        // This was previously done BEFORE spawn, which caused false "clean board" detection
-        if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-          console.log('🗑️ Removing dst tile AFTER spawn (delayed from earlier)');
-          // Note: grid[gy][gx] was already set to null when placeholder was created
-          removeTile(dst); // Remove from tiles array
-          console.log('✅ Dst tile removed successfully');
-        }
+        // 🔥 CRITICAL: Wait for spawn to complete BEFORE removing dst tile
+        // This ensures locked tiles are still valid when spawn happens
+        // Wait a bit to ensure spawn animations have started
+        setTimeout(() => {
+          if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+            console.log('🗑️ Removing dst tile AFTER spawn (delayed from earlier)');
+            // Note: grid[gy][gx] was already set to null when placeholder was created
+            removeTile(dst); // Remove from tiles array
+            console.log('✅ Dst tile removed successfully');
+          }
+        }, 100); // Small delay to ensure spawn has started
         
         // Clean up pulled cells flag after spawn
         if ((dst as any)?._wildMagnetPulledCells) {
@@ -4252,33 +4142,6 @@ function merge(src, dst, helpers){
         // Total delay: spawn animations (~480ms) + this delay (500ms) + checkLevelEnd delay (1200ms) = ~2180ms
         console.log('⏳ Waiting 500ms after spawn animations to let user see board state...');
         await new Promise(res => setTimeout(res, 500));
-        
-        // 🔥 CRITICAL: Log detailed board state before calling checkLevelEnd
-        const activeTilesBeforeCheck = tiles.filter(tileIsVisuallyActive);
-        console.log('🔍 Board state BEFORE checkLevelEnd:', {
-          activeTilesCount: activeTilesBeforeCheck.length,
-          activeTiles: activeTilesBeforeCheck.map(t => ({ 
-            value: t.value, 
-            special: t.special, 
-            locked: t.locked,
-            gridX: t.gridX,
-            gridY: t.gridY
-          })),
-          wildMergeTarget: wildMergeTarget,
-          spawnMult: spawnMult
-        });
-        
-        // 🔥 CRITICAL FIX: If there's a magnet on board after merge 6, DON'T call checkLevelEnd yet
-        // Magnet can pull tiles and create merges, so we should wait for player to use it
-        // This prevents premature fail screen when: magnet + wild + tile → wild merge → magnet + merge6 + new tiles
-        const hasMagnetAfterSpawn = activeTilesBeforeCheck.some(t => t.special === 'wild-magnet');
-        if (hasMagnetAfterSpawn) {
-          console.log('🧲 MAGNET SAFETY: Magnet detected after merge 6 spawn - SKIPPING checkLevelEnd to allow player to use magnet');
-          console.log('🧲 Player can merge magnet with spawned tiles or pull tiles together');
-          // Don't call checkLevelEnd - let player make next move
-          // checkLevelEnd will be called after player's next move
-          return;
-        }
         
         // 🔥 CRITICAL: Check end game after spawn completes (with delay to allow animations)
         // Use checkLevelEnd which already has proper delay and handles all edge cases
@@ -4510,7 +4373,14 @@ function checkLevelEnd(){
 // Endgame checker handles all edge cases now
 
 async function openLockedBounceParallel(k){
-  await FLOW.openLockedBounceParallel({ tiles, k, drag, makeBoard, gsap, drawBoardBG, TILE, fixHoverAnchor, spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done) });
+  // 🔥 CRITICAL: Don't await - spawn tiles in parallel, let animations run concurrently
+  // openLockedBounceParallel now uses setTimeout instead of await, so Promise resolves immediately
+  // This allows tiles to spawn at the correct delays (0ms, 30ms, 60ms, 90ms) without waiting for previous animations
+  FLOW.openLockedBounceParallel({ tiles, k, drag, makeBoard, gsap, drawBoardBG, TILE, fixHoverAnchor, spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done) }).then(() => {
+    console.log('✅ openLockedBounceParallel completed - all spawn animations scheduled');
+  }).catch((err) => {
+    console.warn('⚠️ openLockedBounceParallel failed:', err);
+  });
 }
 
 // -------------------- helpers --------------------

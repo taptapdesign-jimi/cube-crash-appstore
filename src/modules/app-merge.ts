@@ -1164,23 +1164,23 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.log('🧲 STATE.drag exists?', !!STATE.drag);
     console.log('🧲 STATE.drag.bindToTile exists?', !!(STATE.drag as any)?.bindToTile);
     
-    // 🔥 CRITICAL FIX: Wait for merge-6 shards animation to complete before spawning
+    // 🔥 CRITICAL FIX: Wait minimal time for merge-6 shards animation before spawning
     // Shards animation takes ~1.0s (ttl), but with fastFadeOut it's effectively ~0.5-0.6s
-    // Wait 100ms to ensure shards are visible but spawn happens faster (reduced from 200ms to 100ms)
+    // Wait only 50ms to ensure shards start but spawn happens very fast (standard for all merge-6 spawns)
     console.log('⏳ Waiting for merge-6 shards animation to complete before spawning...');
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 50));
     
-    // 🔥 CRITICAL FIX: Spawn tiles with overlapping animations for premium speedy feel
-    // spawnBounce animation takes ~0.24s (with timeScale 2.0), so delay is half of that (120ms)
-    // Each tile starts when previous is at 50% of its animation - creates smooth cascading effect
-    // Sequential spawning: 1st at 0ms, 2nd at 120ms (half of 240ms), 3rd at 240ms, 4th at 360ms
+    // 🔥 CRITICAL FIX: Spawn tiles with very fast overlapping animations for premium speedy feel
+    // spawnBounce animation takes ~0.24s (with timeScale 2.0), delay is 30ms for very fast cascading
+    // Each tile starts when previous is at 12.5% of its animation - creates very fast cascading effect
+    // Sequential spawning: 1st at 0ms, 2nd at 30ms, 3rd at 60ms, 4th at 90ms
     for (let index = 0; index < spawnTargets.length; index++) {
       const { c, r } = spawnTargets[index];
       
-      // Wait half of animation duration before spawning each tile (120ms = half of 240ms)
-      // This creates overlapping effect where each tile starts when previous is at 50%
+      // Wait 30ms before spawning each tile (eighth of 240ms) for very fast cascading
+      // This creates very fast overlapping effect where each tile starts when previous is at 12.5%
       if (index > 0) {
-        await new Promise(resolve => setTimeout(resolve, 120));
+        await new Promise(resolve => setTimeout(resolve, 30));
       }
       
       try {
