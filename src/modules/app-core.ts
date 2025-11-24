@@ -4062,26 +4062,94 @@ function merge(src, dst, helpers){
           isWild: srcSpecial === 'wild' || dstSpecial === 'wild'
         });
         
-        // 🔥 CRITICAL: Don't await - spawn tiles in parallel, let animations run concurrently (same as magnet pull)
-        // This allows spawn to happen immediately without waiting for animations to complete
-        console.log('🚀 CALLING openLockedBounceParallel with spawnMult:', spawnMult);
-        FLOW.openLockedBounceParallel({ 
-          tiles, 
-          k: spawnMult, 
-          drag, 
-          makeBoard, 
-          gsap, 
-          drawBoardBG, 
-          TILE, 
-          fixHoverAnchor, 
-          spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done),
-          wildMergeTarget,
-          excludeCells: pulledCellsSet  // 🔥 CRITICAL: Exclude pulled cells from spawn
-        }).then(() => {
-          console.log('✅ openLockedBounceParallel completed - all spawn animations finished');
-        }).catch((err) => {
-          console.warn('⚠️ openLockedBounceParallel error:', err);
+        // 🔥 CRITICAL: Check if there are locked tiles available for spawn (excluding placeholder at dst position)
+        // If no locked tiles (or only placeholder exists), spawn directly at dst position (end-game scenario)
+        const lockedTiles = tiles.filter(t => t && !t.destroyed && t.locked && t.scale);
+        const placeholderHolderRef = (dst as any)?._placeholderHolder;
+        
+        // Filter out placeholder at dst position and pulled cells
+        const availableLockedTiles = lockedTiles.filter((t: any) => {
+          if (!t || t.destroyed) return false;
+          // Exclude placeholder at dst position
+          if (placeholderHolderRef && t === placeholderHolderRef) {
+            return false;
+          }
+          // Exclude pulled cells
+          if (typeof t.gridX === 'number' && typeof t.gridY === 'number') {
+            const cellKey = `${t.gridX},${t.gridY}`;
+            return !pulledCellsSet.has(cellKey);
+          }
+          return true;
         });
+        
+        // 🔥 CRITICAL: If no locked tiles available (or only placeholder exists), spawn directly at dst position
+        // This happens when all tiles are opened and merge-6 is made
+        // Spawn new ACTIVE tile with pips at the exact position of merge-6
+        if (availableLockedTiles.length === 0 && spawnMult > 0) {
+          console.log('🎯🎯🎯 END-GAME SPAWN: No locked tiles available - spawning directly at dst position (', gx, ',', gy, ')');
+          
+          // Remove placeholder if it exists (we'll spawn active tile instead)
+          if (placeholderHolderRef && !placeholderHolderRef.destroyed) {
+            console.log('🧹 Removing placeholder before spawning active tile at dst position');
+            if (placeholderHolderRef.gridX !== undefined && placeholderHolderRef.gridY !== undefined && grid && grid[placeholderHolderRef.gridY]) {
+              grid[placeholderHolderRef.gridY][placeholderHolderRef.gridX] = null;
+            }
+            removeTile(placeholderHolderRef);
+            (dst as any)._placeholderHolder = undefined;
+          }
+          
+          // Get dst position
+          const spawnC = gx;
+          const spawnR = gy;
+          
+          // 🔥 CRITICAL: Ensure grid position is clear before spawning
+          if (grid && grid[spawnR] && grid[spawnR][spawnC]) {
+            console.log('🧹 Clearing grid position before spawning active tile');
+            grid[spawnR][spawnC] = null;
+          }
+          
+          // Spawn new ACTIVE tile with pips at dst position
+          // Use setTimeout to ensure grid is cleared and placeholder is removed
+          setTimeout(() => {
+            openAtCell(spawnC, spawnR, { 
+              value: wildMergeTarget ? (() => {
+                const candidates = [1,2,3,4,5].filter(v => v !== wildMergeTarget);
+                return candidates[(Math.random() * candidates.length) | 0];
+              })() : null,
+              skipBind: false,
+              timeScale: 2.0  // Fast spawn animation
+            }).then((spawnResult) => {
+              if (spawnResult) {
+                console.log('✅✅✅ END-GAME SPAWN: Spawned new ACTIVE tile with pips at dst position (', spawnC, ',', spawnR, ')');
+              } else {
+                console.warn('⚠️ END-GAME SPAWN: Failed to spawn tile at dst position (', spawnC, ',', spawnR, ')');
+              }
+            }).catch((err) => {
+              console.warn('⚠️ END-GAME SPAWN: Error spawning tile at dst position:', err);
+            });
+          }, 50); // Small delay to ensure cleanup is complete
+        } else {
+          // 🔥 CRITICAL: Don't await - spawn tiles in parallel, let animations run concurrently (same as magnet pull)
+          // This allows spawn to happen immediately without waiting for animations to complete
+          console.log('🚀 CALLING openLockedBounceParallel with spawnMult:', spawnMult, 'available locked tiles:', availableLockedTiles.length);
+          FLOW.openLockedBounceParallel({ 
+            tiles, 
+            k: spawnMult, 
+            drag, 
+            makeBoard, 
+            gsap, 
+            drawBoardBG, 
+            TILE, 
+            fixHoverAnchor, 
+            spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done),
+            wildMergeTarget,
+            excludeCells: pulledCellsSet  // 🔥 CRITICAL: Exclude pulled cells from spawn
+          }).then(() => {
+            console.log('✅ openLockedBounceParallel completed - all spawn animations finished');
+          }).catch((err) => {
+            console.warn('⚠️ openLockedBounceParallel error:', err);
+          });
+        }
         
         // 🔥 CRITICAL FIX v40.1: Clean up unused placeholder if it wasn't used in spawn
         // Placeholder might not be used if spawnMult = 0 or if placeholder was excluded

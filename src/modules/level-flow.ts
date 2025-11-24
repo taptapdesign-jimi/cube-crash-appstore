@@ -127,6 +127,8 @@ export async function openLockedBounceParallel({
   
   if (!locked.length || k <= 0) return;
 
+  // 🔥 REVERTED: Back to old logic - no prioritization, just random shuffle and pick
+  // This ensures all k tiles are spawned correctly
   for (let i=locked.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [locked[i],locked[j]]=[locked[j],locked[i]]; }
   const picks = locked.slice(0, Math.min(k, locked.length));
 
