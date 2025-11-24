@@ -37,6 +37,7 @@ interface SpawnBounceOptions {
   rebound?: number;
   wiggle?: number;
   fadeIn?: number;
+  timeScale?: number; // Speed multiplier (1.0 = normal, 2.0 = 2x faster, 0.5 = 2x slower)
 }
 
 interface DealFromRimOptions {
@@ -68,7 +69,8 @@ export function spawnBounce(t: Tile, gsap: any, opts: SpawnBounceOptions = {}, d
     compress  = 0.96,
     rebound   = 1.02,
     wiggle    = 0.035,
-    fadeIn    = 0.10
+    fadeIn    = 0.10,
+    timeScale = 1.0  // Default: normal speed
   } = opts || {};
 
   const trg = t.rotG || t;
@@ -79,16 +81,18 @@ export function spawnBounce(t: Tile, gsap: any, opts: SpawnBounceOptions = {}, d
   const finish = () => { t._spawned = true; if (typeof done === 'function') done(); };
   const tl = gsap.timeline({ onComplete: finish });
 
-  tl.to(t,       { alpha: 1,            duration: fadeIn,  ease: 'power1.out' }, 0)
-    .to(t.scale, { x: max,  y: max,     duration: 0.12,    ease: 'back.out(2.1)' }, 0)
-    .to(t.scale, { x: compress, y: compress, duration: 0.08, ease: 'power2.inOut' })
-    .to(t.scale, { x: rebound,  y: rebound,  duration: 0.08, ease: 'power2.out' })
-    .to(t.scale, { x: 1.00,     y: 1.00,     duration: 0.10, ease: 'back.out(2)' });
+  // Apply timeScale to all durations (multiply by timeScale to speed up, divide to slow down)
+  // For 50% faster: timeScale = 2.0 (duration becomes half)
+  tl.to(t,       { alpha: 1,            duration: fadeIn / timeScale,  ease: 'power1.out' }, 0)
+    .to(t.scale, { x: max,  y: max,     duration: 0.12 / timeScale,    ease: 'back.out(2.1)' }, 0)
+    .to(t.scale, { x: compress, y: compress, duration: 0.08 / timeScale, ease: 'power2.inOut' })
+    .to(t.scale, { x: rebound,  y: rebound,  duration: 0.08 / timeScale, ease: 'power2.out' })
+    .to(t.scale, { x: 1.00,     y: 1.00,     duration: 0.10 / timeScale, ease: 'back.out(2)' });
 
   gsap.timeline()
-    .to(trg, { rotation:  wiggle*dir,        duration: 0.08, ease: 'power2.out' })
-    .to(trg, { rotation: -wiggle*0.6*dir,    duration: 0.10, ease: 'power2.out' })
-    .to(trg, { rotation:  0,                 duration: 0.12, ease: 'power2.out' });
+    .to(trg, { rotation:  wiggle*dir,        duration: 0.08 / timeScale, ease: 'power2.out' })
+    .to(trg, { rotation: -wiggle*0.6*dir,    duration: 0.10 / timeScale, ease: 'power2.out' })
+    .to(trg, { rotation:  0,                 duration: 0.12 / timeScale, ease: 'power2.out' });
 }
 
 export function sweepForUnanimatedSpawns(tiles: Tile[], gsap: any): void {

@@ -85,8 +85,6 @@ export function notifyBoardInteraction(): void {
       animateRandomTile();
     }, IDLE_WAIT_TIME);
   }
-  
-  console.log('👆 Board interaction detected, idle timer reset to', IDLE_WAIT_TIME, 'ms');
 }
 
 function animateRandomTile(): void {
@@ -190,8 +188,6 @@ function animateTile(tile: Tile): void {
       });
     }
   }, null, 0.1);
-  
-  console.log('🎲 Animating tile:', tile.value, 'with', tiltDegrees.toFixed(1), 'deg tilt', tiltDirection > 0 ? 'right' : 'left');
 }
 
 function stopTileAnimation(tile: Tile): void {

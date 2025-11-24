@@ -160,6 +160,7 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   STATE.wildMeter = 0;
   resetWildProgress(0, false);
   wildBeerSpawned = false; // Reset wild-beer spawn tracking
+  wildMagnetSpawned = false; // Reset wild-magnet spawn tracking
 
   try {
     if (typeof HUD.resetWildMeter === 'function') {
@@ -687,7 +688,6 @@ export async function boot(){
       if (!Number.isFinite(sv) || !Number.isFinite(dv)) return false;
       if (sv === dv) return true;         // allow stacking equal values (e.g., 3+3)
       const canMerge = (sv + dv) <= 6;    // allow different values that sum to 6 (e.g., 4+2, 2+4, 3+2=5)
-      console.log('🔥 canDrop (app-core): Normal merge result:', canMerge);
       return canMerge;
     },
     hoverColor: 0x8a6e57,
@@ -1488,7 +1488,8 @@ function startLevel(n){
   
 wildMeter = 0;
   resetWildProgress(0, false);
-  wildBeerSpawned = false; // Reset wild-beer spawn tracking for new level
+  wildBeerSpawned = false; // Reset wild-beer spawn tracking
+  wildMagnetSpawned = false; // Reset wild-magnet spawn tracking for new level
   
   // Clear end game cache when starting new level
   clearEndGameCache();
@@ -1731,7 +1732,7 @@ function bindTileWithFallback(tile, skipBind){
 }
 
 // --- spawn exactly at grid cell ---
-function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWildBeer=false, skipBind=false } = {}){
+function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWildBeer=false, skipBind=false, timeScale=1.0 } = {}){
   return new Promise((resolve)=>{
     let holder = grid?.[r]?.[c] || null;
 
@@ -1805,7 +1806,7 @@ function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWild
 
     holder.visible = true;
     holder.alpha = 0;
-    SPAWN.spawnBounce(holder, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, fadeIn:0.10 }, () => {
+    SPAWN.spawnBounce(holder, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, fadeIn:0.10, timeScale: timeScale }, () => {
       holder.alpha = 1;
       resolve(true);
     });
@@ -1831,7 +1832,9 @@ function randomEmptyCell(){
 
 // Track if wild-beer has been spawned (first wild spawn should be wild-beer)
 let wildBeerSpawned = false;
-const WILD_MAGNET_SPAWN_CHANCE = 0.3; // 30% chance new wild is a magnet (after first wild-beer)
+// Track if wild-magnet has been spawned (second wild spawn should be wild-magnet)
+let wildMagnetSpawned = false;
+const WILD_MAGNET_SPAWN_CHANCE = 0.3; // 30% chance new wild is a magnet (after first wild-beer and wild-magnet)
 const WILD_BEER_RESPAWN_CHANCE = 0.4; // 40% chance wild-beer spawns again after first spawn
 
 async function spawnWildFromMeter(){
@@ -1881,10 +1884,13 @@ async function spawnWildFromMeter(){
     try {
       // First wild spawn should be wild-beer
       const isFirstWild = !wildBeerSpawned;
-      // 🔥 USER REQUEST: After first wild-beer spawn, 40% chance to spawn wild-beer again
+      // Second wild spawn should be wild-magnet (after wild-beer)
+      const isSecondWild = wildBeerSpawned && !wildMagnetSpawned;
+      // 🔥 USER REQUEST: After first wild-beer spawn, second spawn is always wild-magnet
+      // After both wild-beer and wild-magnet are spawned, 40% chance to spawn wild-beer again
       // Otherwise, 30% chance for wild-magnet, rest is regular wild
-      const spawnBeer = isFirstWild || (wildBeerSpawned && Math.random() < WILD_BEER_RESPAWN_CHANCE);
-      const spawnMagnet = !spawnBeer && Math.random() < WILD_MAGNET_SPAWN_CHANCE;
+      const spawnBeer = isFirstWild || (wildBeerSpawned && wildMagnetSpawned && Math.random() < WILD_BEER_RESPAWN_CHANCE);
+      const spawnMagnet = isSecondWild || (!spawnBeer && wildMagnetSpawned && Math.random() < WILD_MAGNET_SPAWN_CHANCE);
       
       const ok = await openAtCell(cell.c, cell.r, { 
         isWild: true, 
@@ -1899,8 +1905,11 @@ async function spawnWildFromMeter(){
           wildBeerSpawned = true; // Mark as spawned (but can spawn again with 40% chance)
           console.log(isFirstWild ? '🍺 Wild-beer spawned (first wild spawn)' : '🍺 Wild-beer spawned again (40% chance)');
           // No board shake on spawn - only on merge 6
+        } else if (spawnMagnet) {
+          wildMagnetSpawned = true; // Mark as spawned
+          console.log(isSecondWild ? '🧲 Wild-magnet spawned (second wild spawn)' : '🧲 Wild-magnet spawned (random roll)');
         } else {
-          console.log(spawnMagnet ? '🧲 Wild-magnet spawned (random roll)' : '🌪️ Regular wild spawned (random roll)');
+          console.log('🌪️ Regular wild spawned (random roll)');
         }
       } else {
         console.warn('⚠️ Wild spawn skipped (cell no longer empty):', cell);

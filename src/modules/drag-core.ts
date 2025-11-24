@@ -624,7 +624,6 @@ export function initDrag(cfg) {
     app.stage.off('pointerupoutside', onUp);
 
     const t = drag.t;
-    console.log('🔍 DRAG END: Tile at', t?.gridX, t?.gridY, 'value:', t?.value, 'locked:', t?.locked);
     drag.t = null;
     
     // Notify idle bounce that drag has ended - start 2-second idle timer
@@ -1208,7 +1207,6 @@ export function initDrag(cfg) {
       const grid = cfg.getGrid();
       if (grid && grid[drag.startGY]) {
         grid[drag.startGY][drag.startGX] = t;
-        console.log('🎯 DRAG END: Restored tile to grid at', drag.startGX, drag.startGY);
         
         // Update ghost visibility to hide placeholder at tile position
         if (typeof window.updateGhostVisibility === 'function') {

@@ -2,7 +2,7 @@
 import { gsap } from 'gsap';
 import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';
 import * as makeBoard from './board.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle, stopWildBeerBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles } from './fx.js';
 import { COLS, ROWS, TILE, GAP } from './constants.js';
 import * as HUD from './hud-helpers.js';
 import { openAtCell, openEmpties, spawnBounce } from './app-spawn.ts';
@@ -500,11 +500,35 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 CRITICAL: Store pulled cells in dst tile so they can be excluded from normal spawn
   (dst as any)._wildMagnetPulledCells = pulledCells;
   
-  // Stop all animations
+  // 🔥 CRITICAL: Stop all animations INCLUDING wild animations (wild-beer bubbles, wild stars, wild shimmer, wild idle)
+  // This prevents animation conflicts when wild-beer tiles are pulled by magnet
   validTiles.forEach((tile: any) => {
     if (!tile || tile.destroyed) return;
+    
+    // Kill GSAP tweens
     gsap.killTweensOf(tile);
-    if (tile.rotG) gsap.killTweensOf(tile.rotG);
+    gsap.killTweensOf(tile.scale);
+    if (tile.rotG) {
+      gsap.killTweensOf(tile.rotG);
+      gsap.killTweensOf(tile.rotG.scale);
+    }
+    
+    // 🔥 CRITICAL: Stop wild animations BEFORE removeTile (prevents conflicts)
+    try { 
+      if (typeof stopWildBeerBubbles === 'function') stopWildBeerBubbles(tile); 
+    } catch {}
+    try { 
+      if (typeof stopWildStars === 'function') stopWildStars(tile); 
+    } catch {}
+    try { 
+      if (typeof stopWildShimmer === 'function') stopWildShimmer(tile); 
+    } catch {}
+    try { 
+      if (typeof stopWildIdle === 'function') stopWildIdle(tile); 
+    } catch {}
+    try { 
+      if (typeof stopMagnetIdleParticles === 'function') stopMagnetIdleParticles(tile); 
+    } catch {}
   });
   
   // Remove all pulled tiles from grid and STATE
@@ -658,31 +682,20 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         dst.targetY = shardY;
       }
       
-      // 🔥 CRITICAL: Create a tile-like object with the exact calculated position
-      // This bypasses centerInBoard's toGlobal/toLocal transformations which can cause offset
-      const tileForShards = {
-        x: shardX,
-        y: shardY,
-        gridX: dst.gridX,
-        gridY: dst.gridY,
-        zIndex: dst.zIndex || 0,
-        rotG: dst.rotG,
-        getBounds: () => ({ x: shardX - TILE/2, y: shardY - TILE/2, width: TILE, height: TILE }),
-        toGlobal: (point: any) => {
-          try {
-            return STATE.board.toGlobal({ x: shardX + (point.x || 0), y: shardY + (point.y || 0) });
-          } catch {
-            return { x: shardX + (point.x || 0), y: shardY + (point.y || 0) };
-          }
-        },
-        destroyed: false
-      };
-      
       console.log('🧲 Creating shards at calculated position:', shardX, shardY, 'grid:', dst.gridX, dst.gridY);
       
-      // 🔥 CRITICAL: Trigger shards animation immediately (0.200s earlier than before)
-      // 🔥 SPEED UP: Instant procedural fade-out + animation duration exactly 1s (same as regular merge 6)
-      woodShardsAtTile(STATE.board, tileForShards as any, { 
+      // 🔥 CRITICAL FIX: Use dst tile directly (same as regular merge-6) instead of tileForShards object
+      // This ensures centerInBoard works correctly and shards appear at the right position
+      // Ensure dst position is set correctly before triggering shards
+      if (dst.x !== shardX || dst.y !== shardY) {
+        gsap.set(dst, { x: shardX, y: shardY });
+        dst.targetX = shardX;
+        dst.targetY = shardY;
+      }
+      
+      // 🔥 CRITICAL: Trigger shards animation immediately using dst tile directly
+      // This ensures shards appear at the correct position (centerInBoard will use dst.x/y or gridX/gridY)
+      woodShardsAtTile(STATE.board, dst, { 
         enhanced: true, 
         wild: false,  // Not wild-only, this is wild-magnet merge
         wildMagnet: true,  // Red-brown shards (wild-magnet style)
@@ -1151,85 +1164,87 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.log('🧲 STATE.drag exists?', !!STATE.drag);
     console.log('🧲 STATE.drag.bindToTile exists?', !!(STATE.drag as any)?.bindToTile);
     
-    // 🔥 CRITICAL FIX: Spawn tiles with minimal delay between them for faster spawning
-    // spawnBounce animation already takes ~0.58s, so we only need a very small stagger delay
-    // Using parallel spawning with staggered start times (20ms apart) for faster overall completion
-    await Promise.all(
-      spawnTargets.map(async ({ c, r }, index) => {
-        // Stagger start times: first tile starts immediately, others start 20ms apart (reduced from 50ms)
-        if (index > 0) {
-          await new Promise(resolve => setTimeout(resolve, index * 20));
-        }
-        
-        try {
-          // 🔥 CRITICAL FIX v40.6: Double-check cell is still empty before spawning (race condition protection)
-          // Problem: Spawning on locked tiles with value > 0 or wild tiles causes "2 tiles on same position" bug
-          // Solution: ALWAYS check if tile has value > 0 or is wild, regardless of locked status
-          const existingTile = STATE.grid?.[r]?.[c];
-          if (existingTile) {
-            const isActive = (existingTile.value|0) > 0;
-            const isWildTile = existingTile.special === 'wild' || existingTile.special === 'wild-magnet' || existingTile.special === 'wild-beer' || (existingTile as any).isWild === true || (existingTile as any).isWildFace === true;
-            
-            // 🔥 CRITICAL: NEVER spawn on a tile that has value > 0 or is wild, even if it's locked!
-            // Locked tiles with value > 0 are active tiles (e.g., during animations)
-            if (isActive || isWildTile) {
-              console.warn(`⚠️ Cell (${c}, ${r}) already occupied by active tile before spawn, skipping:`, {
-                value: existingTile.value,
-                special: existingTile.special,
-                locked: existingTile.locked,
-                isActive,
-                isWildTile
-              });
-              return; // Skip this cell
-            }
-            
-            // 🔥 CRITICAL: If tile is NOT locked, it's an active tile (should not happen, but safety check)
-            if (!existingTile.locked) {
-              console.warn(`⚠️ Cell (${c}, ${r}) has unlocked tile without value - this should not happen, skipping`);
-              return; // Skip this cell
-            }
+    // 🔥 CRITICAL FIX: Wait for merge-6 shards animation to complete before spawning
+    // Shards animation takes ~1.0s (ttl), but with fastFadeOut it's effectively ~0.5-0.6s
+    // Wait 100ms to ensure shards are visible but spawn happens faster (reduced from 200ms to 100ms)
+    console.log('⏳ Waiting for merge-6 shards animation to complete before spawning...');
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // 🔥 CRITICAL FIX: Spawn tiles with overlapping animations for premium speedy feel
+    // spawnBounce animation takes ~0.24s (with timeScale 2.0), so delay is half of that (120ms)
+    // Each tile starts when previous is at 50% of its animation - creates smooth cascading effect
+    // Sequential spawning: 1st at 0ms, 2nd at 120ms (half of 240ms), 3rd at 240ms, 4th at 360ms
+    for (let index = 0; index < spawnTargets.length; index++) {
+      const { c, r } = spawnTargets[index];
+      
+      // Wait half of animation duration before spawning each tile (120ms = half of 240ms)
+      // This creates overlapping effect where each tile starts when previous is at 50%
+      if (index > 0) {
+        await new Promise(resolve => setTimeout(resolve, 120));
+      }
+      
+      try {
+        // 🔥 CRITICAL FIX v40.6: Double-check cell is still empty before spawning (race condition protection)
+        // Problem: Spawning on locked tiles with value > 0 or wild tiles causes "2 tiles on same position" bug
+        // Solution: ALWAYS check if tile has value > 0 or is wild, regardless of locked status
+        const existingTile = STATE.grid?.[r]?.[c];
+        if (existingTile) {
+          const isActive = (existingTile.value|0) > 0;
+          const isWildTile = existingTile.special === 'wild' || existingTile.special === 'wild-magnet' || existingTile.special === 'wild-beer' || (existingTile as any).isWild === true || (existingTile as any).isWildFace === true;
+          
+          // 🔥 CRITICAL: NEVER spawn on a tile that has value > 0 or is wild, even if it's locked!
+          // Locked tiles with value > 0 are active tiles (e.g., during animations)
+          if (isActive || isWildTile) {
+            console.warn(`⚠️ Cell (${c}, ${r}) already occupied by active tile before spawn, skipping:`, {
+              value: existingTile.value,
+              special: existingTile.special,
+              locked: existingTile.locked,
+              isActive,
+              isWildTile
+            });
+            continue; // Skip this cell
           }
           
-          // Spawn tile normally (skipBind = false means it will try to bind immediately)
-          const spawnResult = await openAtCell(c, r, { skipBind: false });
-          
+          // 🔥 CRITICAL: If tile is NOT locked, it's an active tile (should not happen, but safety check)
+          if (!existingTile.locked) {
+            console.warn(`⚠️ Cell (${c}, ${r}) has unlocked tile without value - this should not happen, skipping`);
+            continue; // Skip this cell
+          }
+        }
+        
+        // Spawn tile normally (skipBind = false means it will try to bind immediately)
+        // Use timeScale: 2.0 to make spawn animation 50% faster (2x speed = half duration)
+        // 🔥 CRITICAL: Don't await - spawn tiles in parallel, let animations run concurrently
+        // This allows tiles to spawn at the correct delays (0ms, 250ms, 500ms, 750ms) without waiting for previous animations
+        openAtCell(c, r, { skipBind: false, timeScale: 2.0 }).then((spawnResult) => {
           // 🔥 CRITICAL FIX v40.6: Check spawn result - if false, cell was occupied and spawn failed
           if (!spawnResult) {
             console.warn(`⚠️ openAtCell returned false for cell (${c}, ${r}) - spawn failed, cell was occupied`);
-            return; // Skip this cell
+            return;
           }
           
-          // No delay needed - spawnBounce animation handles the visual delay
-          
-          // Get the spawned tile
-          const tile = STATE.grid?.[r]?.[c];
-          console.log('🧲 After spawn at', c, r, 'tile:', tile, 'locked:', tile?.locked, 'value:', tile?.value);
-          
-          if (tile && !tile.locked && tile.value > 0) {
-            // Double-check: Ensure tile is draggable and bound to drag system
-            tile.eventMode = 'static';
-            tile.cursor = 'pointer';
-            
-            // Check if tile is in STATE.tiles
-            const inTilesArray = STATE.tiles.includes(tile);
-            console.log('🧲 Tile at', c, r, 'in STATE.tiles?', inTilesArray);
-            
-            // Explicitly bind to drag system (in case bindTileWithFallback failed)
-            const drag = STATE.drag as any;
-            if (drag && typeof drag.bindToTile === 'function') {
-              drag.bindToTile(tile);
-              console.log('✅ Spawned and bound tile to drag system at', c, r, 'value:', tile.value, 'eventMode:', tile.eventMode);
-            } else {
-              console.warn('⚠️ Drag system not available at', c, r, 'drag:', drag);
+          // Get the spawned tile after a short delay to ensure it's created
+          setTimeout(() => {
+            const tile = STATE.grid?.[r]?.[c];
+            if (tile && !tile.locked && tile.value > 0) {
+              // Double-check: Ensure tile is draggable and bound to drag system
+              tile.eventMode = 'static';
+              tile.cursor = 'pointer';
+              
+              // Explicitly bind to drag system (in case bindTileWithFallback failed)
+              const drag = STATE.drag as any;
+              if (drag && typeof drag.bindToTile === 'function') {
+                drag.bindToTile(tile);
+              }
             }
-          } else {
-            console.warn('⚠️ Tile not found or invalid after spawn at', c, r, 'tile:', tile, 'locked:', tile?.locked, 'value:', tile?.value);
-          }
-        } catch (err) {
-          console.warn(`⚠️ Failed to respawn tile at (${c}, ${r}):`, err);
-        }
-      })
-    );
+          }, 50); // Small delay to ensure tile is created
+        }).catch((err) => {
+          console.warn(`⚠️ Failed to spawn tile at (${c}, ${r}):`, err);
+        });
+      } catch (err) {
+        console.warn(`⚠️ Failed to respawn tile at (${c}, ${r}):`, err);
+      }
+    }
   } else if (spawnCount > 0) {
     console.warn('⚠️ No spawn targets found!', {
       spawnCountRequested: spawnCount,
