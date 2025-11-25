@@ -375,7 +375,8 @@ export function initDrag(cfg) {
     }
 
     // Wild cube sparkles effect - continuous when selected (picked up)
-    if (t.special === 'wild' || t.special === 'wild-beer') {
+    // 🔥 CRITICAL: wild-beer does NOT get sparkles, only bubbles (handled in else block)
+    if (t.special === 'wild') {
       // Store velocity for sparkles direction
       t._lastVelX = drag.vx;
       t._lastVelY = drag.vy;

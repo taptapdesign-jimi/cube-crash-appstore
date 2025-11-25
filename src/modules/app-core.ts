@@ -65,7 +65,7 @@ function clearAllAppTimeouts() {
 // - Magnet pull + respawn: ~1000ms
 // - Regular merge animations: ~600-800ms
 // This prevents premature endgame checks while animations are still running
-const CHECK_LEVEL_END_DELAY_MS = 1200;
+const CHECK_LEVEL_END_DELAY_MS = 500; // 🔥 REDUCED: From 1200ms to 500ms for faster fail screen detection
 function scheduleComboDecay(){
   try { comboIdleTimer?.kill?.(); } catch {}
   comboIdleTimer = gsap.delayedCall(COMBO_IDLE_RESET_MS/1000, () => {
@@ -1675,7 +1675,7 @@ function applyWildSkinLocal(tile){
         // Use requestAnimationFrame to ensure tile is fully set up before starting particles
         requestAnimationFrame(() => {
           try {
-            startMagnetIdleParticles(tile);
+        startMagnetIdleParticles(tile);
           } catch (err) {
             console.warn('⚠️ Failed to start magnet idle particles:', err);
           }
@@ -2142,6 +2142,10 @@ function merge(src, dst, helpers){
 
   // ---- 2..5 (računaj combo i ovdje)
   if (effSum < 6){
+    // 🔥 CRITICAL FIX: Ensure dst.value is set immediately (before requestAnimationFrame)
+    // This prevents race conditions where visuals might use stale value
+    console.log('🔧 MERGE: Setting dst.value to', effSum, 'from src.value', src.value, '+ dst.value', dst.value, 'srcDepth:', srcDepth, 'dstDepth:', dstDepth);
+    dst.value = effSum;
     makeBoard.setValue(dst, effSum, srcDepth);
     if (wildActive) clearWildState(dst);
 
@@ -2256,7 +2260,68 @@ function merge(src, dst, helpers){
     // Stats: track longest combo
     statsService.updateLongestCombo(combo);
 
-    addWildProgress(WILD_INC_SMALL);
+    // 🔥 CRITICAL FIX: Check if this is last merge BEFORE adding wild progress
+    // This prevents wild meter from filling and triggering wild spawn on last merge
+    // We need to check early (before merge 6 block) to prevent race condition
+    const activeTilesBeforeWildProgress = tiles.filter(t => {
+      if (!t || t.locked) return false;
+      const isWild = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer';
+      const hasValue = (t.value|0) > 0;
+      return isWild || hasValue;
+    });
+    const activeTilesCountBeforeWildProgress = activeTilesBeforeWildProgress.reduce((sum, t) => {
+      const depth = t.stackDepth || 1;
+      return sum + depth;
+    }, 0);
+    
+    // Check if this merge involves all remaining tiles (last merge scenario)
+    const srcDepthForCheck = src.stackDepth || 1;
+    const dstDepthForCheck = dst.stackDepth || 1;
+    const combinedCountForCheck = srcDepthForCheck + dstDepthForCheck;
+    const allTilesInvolvedForCheck = combinedCountForCheck >= activeTilesCountBeforeWildProgress && 
+                                     activeTilesBeforeWildProgress.includes(src) && 
+                                     activeTilesBeforeWildProgress.includes(dst);
+    
+    // Check if this is a wild merge with exactly 2 tiles (wild + regular = last merge)
+    const srcSpecialForCheck = src?.special;
+    const dstSpecialForCheck = dst?.special;
+    const oneIsWildForCheck = (srcSpecialForCheck === 'wild' || dstSpecialForCheck === 'wild' || 
+                              srcSpecialForCheck === 'wild-beer' || dstSpecialForCheck === 'wild-beer');
+    const isWildLastTwoForCheck = oneIsWildForCheck && 
+                                 activeTilesCountBeforeWildProgress === 2 && 
+                                 activeTilesBeforeWildProgress.includes(src) && 
+                                 activeTilesBeforeWildProgress.includes(dst);
+    
+    // If this is last merge, reset wild meter and skip addWildProgress
+    if (isWildLastTwoForCheck || (allTilesInvolvedForCheck && effSum === 6)) {
+      console.log('🚨🚨🚨 LAST MERGE DETECTED (early check) - Resetting wild meter and skipping addWildProgress');
+      console.log('🚨 Details:', { 
+        isWildLastTwoForCheck, 
+        allTilesInvolvedForCheck, 
+        effSum, 
+        activeTilesCountBeforeWildProgress,
+        srcSpecial: srcSpecialForCheck,
+        dstSpecial: dstSpecialForCheck
+      });
+      // Reset wild meter to prevent wild spawn
+      wildMeter = 0;
+      STATE.wildMeter = 0;
+      try {
+        if (typeof HUD.resetWildMeter === 'function') {
+          HUD.resetWildMeter(true);
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to reset wild meter in HUD:', error);
+      }
+      // Mark dst as last merge early (will be set again in merge 6 block, but this prevents race condition)
+      if (effSum === 6) {
+        (dst as any)._isLastMerge = true;
+        console.log('✅ _isLastMerge flag set EARLY on dst tile (before merge 6 block)');
+      }
+    } else {
+      // Normal merge - add wild progress
+      addWildProgress(WILD_INC_SMALL);
+    }
     
     // SMART SAVE: Debounced save after merge+spawn flow completes
     // 1200ms delay ensures all spawn animations complete before save
@@ -2273,13 +2338,16 @@ function merge(src, dst, helpers){
         removeTile(src);
         dst.eventMode = 'static';
         
-        // 🔥 CRITICAL: Check if game is stuck IMMEDIATELY after regular merge
-        // This catches cases where merge leaves unmergable tiles (e.g., 3+2=5, leaving only tile with value 5)
-        // IMPORTANT: This check happens AFTER removeTile(src), so if only dst tile remains, activeTiles.length will be 1
+        // 🔥 CRITICAL FIX: SKIP stuck check for merge-6 (effSum === 6)
+        // Merge-6 will spawn new tiles, so we should check AFTER spawn completes, not before
+        // This prevents false "stuck" detection when board has 2 tiles (e.g., 4 and 2) that can merge
         // 🔥 CRITICAL FIX: SKIP this check if wild-magnet merge (magnet will pull tiles AFTER this merge)
         const isWildMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
+        const isMerge6 = effSum === 6;
         
-        if (!busyEnding && !isWildMagnetMerge) {
+        // 🔥 CRITICAL: Only check for stuck state if it's NOT a merge-6 (merge-6 will spawn new tiles)
+        // For merge-6, we check AFTER spawn completes in checkLevelEnd()
+        if (!busyEnding && !isWildMagnetMerge && !isMerge6) {
           // Add delay to ensure removeTile has completed and tiles array is updated
           // 🔥 INCREASED DELAY: 100ms instead of 50ms to ensure tiles array is fully updated
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -2338,10 +2406,10 @@ function merge(src, dst, helpers){
             });
             
             if (!busyEnding) {
-              // 🔥 CRITICAL: Wait 1 second before showing fail screen
+              // 🔥 CRITICAL: Wait 0.5 seconds before showing fail screen
               // This gives user time to see the board state and understand why game ended
-              // Without this delay, fail screen appears too fast and feels like cheating
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              // 🔥 REDUCED: From 1000ms to 500ms for faster fail screen (total delay now ~1.5s instead of ~2s)
+              await new Promise(resolve => setTimeout(resolve, 500));
               console.log('🚨 Showing fail screen NOW');
               showFinalScreen();
             } else {
@@ -2353,6 +2421,8 @@ function merge(src, dst, helpers){
           }
         } else if (isWildMagnetMerge) {
           console.log('🧲 SKIPPING post-merge stuck check - wild-magnet will pull tiles after merge completes');
+        } else if (isMerge6) {
+          console.log('🎯 SKIPPING post-merge stuck check - merge-6 will spawn new tiles, check will happen AFTER spawn completes');
         }
         
         if (wildActive) {
@@ -2393,10 +2463,25 @@ function merge(src, dst, helpers){
 
         // 🔥 STUCK PROTECTION: Add fallback timer to check for stuck state after 1 second
         // This prevents cases where player merges 3 tiles into 1 non-6 tile and game gets stuck
+        // 🔥 CRITICAL FIX: SKIP this check for merge-6 (merge-6 will spawn new tiles, so we should check AFTER spawn)
+        // Note: isMerge6 is already declared earlier in the function, so we reuse it here
+        if (effSum !== 6) {
         gsap.delayedCall(1.0, () => {
           if (!busyEnding) {
             console.log('🔍 STUCK PROTECTION: Checking for stuck state 1 second after merge...');
             const activeTiles = tiles.filter(tileIsVisuallyActive);
+              
+              // 🔥 CRITICAL FIX: ALWAYS check anyMergePossible before triggering fail screen!
+              // This prevents false positives when tiles can still merge
+              if (makeBoard && typeof makeBoard.anyMergePossible === 'function') {
+                const canMerge = makeBoard.anyMergePossible(tiles);
+                if (canMerge) {
+                  console.log('✅ STUCK PROTECTION: anyMergePossible returned TRUE - merges still possible, skipping fail screen');
+                  return;
+                } else {
+                  console.log('🔍 STUCK PROTECTION: anyMergePossible returned FALSE - checking further...');
+                }
+              }
             
             // 🔥 CRITICAL FIX: NEVER trigger fail screen if there's a wild or magnet on board!
             // Wild/magnet can merge with anything, so game is NOT stuck
@@ -2441,6 +2526,9 @@ function merge(src, dst, helpers){
             }
           }
         });
+        } else {
+          console.log('🎯 STUCK PROTECTION: Skipped for merge-6 - will check AFTER spawn completes');
+        }
       }
     });
     return;
@@ -2467,9 +2555,10 @@ function merge(src, dst, helpers){
     
     // 🔥 CRITICAL: Include wild tiles even if they have value 0
     // Wild tiles should be counted as active tiles for last merge detection
+    // 🔥 CRITICAL FIX: Include wild-beer in wild tile check (same as wild star)
     const activeTilesBeforeMerge = tiles.filter(t => {
       if (!t || t.locked) return false;
-      const isWild = t.special === 'wild' || t.special === 'wild-magnet';
+      const isWild = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer';
       const hasValue = (t.value|0) > 0;
       return isWild || hasValue; // Include if wild OR has value > 0
     });
@@ -2540,7 +2629,8 @@ function merge(src, dst, helpers){
           
           // 🔥 CRITICAL FIX v37: Check if tile is wild or magnet BEFORE checking value
           // Wild-magnet and wild tiles have value = 0, but they can STILL be pulled!
-          const isWildOrMagnet = t.special === 'wild' || t.special === 'wild-magnet';
+          // 🔥 CRITICAL FIX: Include wild-beer in wild tile check (same as wild star)
+          const isWildOrMagnet = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer';
           if (!isWildOrMagnet && (t.value | 0) <= 0) return false;
           
           // 🔥 CRITICAL: Wild-magnet CAN pull other wild-magnets! (MAGNET-ON-MAGNET FIX)
@@ -2596,7 +2686,8 @@ function merge(src, dst, helpers){
     // ONLY mark as last merge if:
     // 1. Exactly 2 tiles total (wild + 1 tile)
     // 2. No other tiles on board
-    const oneIsRegularWild = (srcSpecial === 'wild' || dstSpecial === 'wild');
+    // 🔥 CRITICAL FIX: Include wild-beer in wild tile check (same as wild star)
+    const oneIsRegularWild = (srcSpecial === 'wild' || dstSpecial === 'wild' || srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer');
     const neitherIsWildMagnet = !(srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet');
     const exactlyTwoActiveTiles = activeTilesCount === 2; // ONLY if 2 tiles total
     const bothTilesInActiveList = activeTilesBeforeMerge.includes(src) && activeTilesBeforeMerge.includes(dst);
@@ -2628,7 +2719,8 @@ function merge(src, dst, helpers){
     }
     // 🔥 CRITICAL FIX: For wild-magnet, still check if it's last merge (2 tiles total)
     // Wild-magnet pulls tiles, so it's different from regular wild
-    const isWildRegularLastTwo = (srcSpecial === 'wild' || srcSpecial === 'wild-magnet' || dstSpecial === 'wild' || dstSpecial === 'wild-magnet') &&
+    // 🔥 CRITICAL FIX: Include wild-beer in wild tile check (same as wild star)
+    const isWildRegularLastTwo = (srcSpecial === 'wild' || srcSpecial === 'wild-magnet' || srcSpecial === 'wild-beer' || dstSpecial === 'wild' || dstSpecial === 'wild-magnet' || dstSpecial === 'wild-beer') &&
                                  activeTilesCount === 2 && // ONLY if exactly 2 tiles total
                                  activeTilesBeforeMerge.includes(src) &&
                                  activeTilesBeforeMerge.includes(dst) &&
@@ -2637,7 +2729,8 @@ function merge(src, dst, helpers){
     // 🔥 CRITICAL FIX: Wild merge should ONLY be "last merge" if exactly 2 tiles total
     // If more than 2 tiles, it's NOT last merge because spawn will happen
     // Example: wild + 2 tiles = 3 tiles total → NOT last merge, will spawn
-    const isWildLastTileMerge = (srcSpecial === 'wild' || srcSpecial === 'wild-magnet' || dstSpecial === 'wild' || dstSpecial === 'wild-magnet') &&
+    // 🔥 CRITICAL FIX: Include wild-beer in wild tile check (same as wild star)
+    const isWildLastTileMerge = (srcSpecial === 'wild' || srcSpecial === 'wild-magnet' || srcSpecial === 'wild-beer' || dstSpecial === 'wild' || dstSpecial === 'wild-magnet' || dstSpecial === 'wild-beer') &&
                                  activeTilesCount === 2 && // 🔥 KEY FIX: ONLY if exactly 2 tiles total
                                  allTilesInvolved &&
                                  !(isWildMagnetMerge && hasTilesToPull); // 🔥 CRITICAL: Exclude if wild-magnet will pull tiles
@@ -2713,6 +2806,21 @@ function merge(src, dst, helpers){
       // Continue with merge 6 animation, but mark that this is the last merge
       // We'll handle clean board flow in the onComplete callback
       (dst as any)._isLastMerge = true;
+      
+      // 🔥 CRITICAL FIX: Reset wild meter IMMEDIATELY when last merge is detected in merge-6 block
+      // This prevents wild spawn from happening after last merge (double protection)
+      // Wild meter may have been filled by addWildProgress before last merge was detected
+      console.log('🚨🚨🚨 LAST MERGE (merge-6 block): Resetting wild meter to prevent wild spawn');
+      wildMeter = 0;
+      STATE.wildMeter = 0;
+      try {
+        if (typeof HUD.resetWildMeter === 'function') {
+          HUD.resetWildMeter(true);
+          console.log('✅ LAST MERGE: Wild meter reset in HUD');
+        }
+      } catch (error) {
+        console.warn('⚠️ LAST MERGE: Failed to reset wild meter in HUD:', error);
+      }
       
       // 🔥 CRITICAL FIX v40.5: Mark if this was a wild merge OR magnet merge (for spawn skip logic)
       // This includes: wild + regular, regular + wild, magnet + regular, regular + magnet, wild-beer + regular, regular + wild-beer
@@ -3644,7 +3752,7 @@ function merge(src, dst, helpers){
                     // 🔥 FALLBACK: Try to trigger anyway if board is valid (dst might be destroyed but board should work)
                     if (board && !board.destroyed) {
                       console.log('💧 FALLBACK: Triggering bubbles explosion with board only (dst may be destroyed)');
-                      createWildBeerBubblesExplosion(board, dst);
+                    createWildBeerBubblesExplosion(board, dst);
                     }
                   }
                 } catch (error) {
@@ -4006,8 +4114,8 @@ function merge(src, dst, helpers){
           // 🔥 CRITICAL: If _isLastMerge flag is set, trigger clean board flow
           if (isLastMergeFlagSet && !busyEnding) {
             console.log('🚨🚨🚨 _isLastMerge flag is TRUE - triggering clean board flow');
-            busyEnding = true;
-            
+          busyEnding = true;
+          
             // Remove dst tile and trigger clean board flow
             if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
               grid[dst.gridY][dst.gridX] = null;
@@ -4016,41 +4124,41 @@ function merge(src, dst, helpers){
             }
             
             // Reset wild meter
-            wildMeter = 0;
-            STATE.wildMeter = 0;
-            resetWildProgress(0, false);
-            
-            try {
-              if (typeof HUD.resetWildMeter === 'function') {
+          wildMeter = 0;
+          STATE.wildMeter = 0;
+          resetWildProgress(0, false);
+          
+          try {
+            if (typeof HUD.resetWildMeter === 'function') {
                 HUD.resetWildMeter(true);
-              } else {
-                HUD.updateProgressBar?.(0, false);
-              }
-            } catch (error) {
+            } else {
+              HUD.updateProgressBar?.(0, false);
+            }
+          } catch (error) {
               console.warn('⚠️ Failed to reset wild meter:', error);
-            }
+          }
 
-            try {
-              try { await new Promise(res => setTimeout(res, 1000)); } catch {}
-              await runEndgameFlow({
-                app,
-                stage,
-                board,
-                boardBG,
-                level,
-                startLevel,
-                score,
-                getScore: () => score,
-                setScore: (v) => { score = v|0; updateHUD(); },
-                animateScore,
-                updateHUD,
-                boardNumber,
-                hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
-                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
-              });
-            } finally {
-              busyEnding = false;
-            }
+          try {
+            try { await new Promise(res => setTimeout(res, 1000)); } catch {}
+            await runEndgameFlow({
+              app,
+              stage,
+              board,
+              boardBG,
+              level,
+              startLevel,
+              score,
+              getScore: () => score,
+              setScore: (v) => { score = v|0; updateHUD(); },
+              animateScore,
+              updateHUD,
+              boardNumber,
+              hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+              showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+            });
+          } finally {
+            busyEnding = false;
+          }
           }
           
           return; // Exit early - don't spawn new tiles
@@ -4138,9 +4246,9 @@ function merge(src, dst, helpers){
               grid[placeholderHolderRef.gridY][placeholderHolderRef.gridX] = null;
             }
             removeTile(placeholderHolderRef);
-            (dst as any)._placeholderHolder = undefined;
-          }
-          
+              (dst as any)._placeholderHolder = undefined;
+            }
+            
           // Get dst position
           const spawnC = gx;
           const spawnR = gy;
@@ -4176,22 +4284,22 @@ function merge(src, dst, helpers){
           // This allows spawn to happen immediately without waiting for animations to complete
           console.log('🚀 CALLING openLockedBounceParallel with spawnMult:', spawnMult, 'available locked tiles:', availableLockedTiles.length);
           FLOW.openLockedBounceParallel({ 
-            tiles, 
-            k: spawnMult, 
-            drag, 
-            makeBoard, 
-            gsap, 
-            drawBoardBG, 
-            TILE, 
-            fixHoverAnchor, 
-            spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done),
-            wildMergeTarget,
-            excludeCells: pulledCellsSet  // 🔥 CRITICAL: Exclude pulled cells from spawn
+          tiles, 
+          k: spawnMult, 
+          drag, 
+          makeBoard, 
+          gsap, 
+          drawBoardBG, 
+          TILE, 
+          fixHoverAnchor, 
+          spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done),
+          wildMergeTarget,
+          excludeCells: pulledCellsSet  // 🔥 CRITICAL: Exclude pulled cells from spawn
           }).then(() => {
             console.log('✅ openLockedBounceParallel completed - all spawn animations finished');
           }).catch((err) => {
             console.warn('⚠️ openLockedBounceParallel error:', err);
-          });
+        });
         }
         
         // 🔥 CRITICAL FIX v40.1: Clean up unused placeholder if it wasn't used in spawn
@@ -4225,12 +4333,12 @@ function merge(src, dst, helpers){
         // This ensures locked tiles are still valid when spawn happens
         // Wait a bit to ensure spawn animations have started
         setTimeout(() => {
-          if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-            console.log('🗑️ Removing dst tile AFTER spawn (delayed from earlier)');
-            // Note: grid[gy][gx] was already set to null when placeholder was created
-            removeTile(dst); // Remove from tiles array
-            console.log('✅ Dst tile removed successfully');
-          }
+        if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+          console.log('🗑️ Removing dst tile AFTER spawn (delayed from earlier)');
+          // Note: grid[gy][gx] was already set to null when placeholder was created
+          removeTile(dst); // Remove from tiles array
+          console.log('✅ Dst tile removed successfully');
+        }
         }, 100); // Small delay to ensure spawn has started
         
         // Clean up pulled cells flag after spawn
@@ -4284,9 +4392,10 @@ async function checkMovesDepleted(){
   if (movesDepletedCheckResult.type === 'stuck') {
     console.log('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
     if (!busyEnding) {
-      // 🔥 CRITICAL: Wait 1 second before showing fail screen so user can see the board state
-      console.log('⏳ Waiting 1 second before showing fail screen so user can see board state...');
-      await new Promise(res => setTimeout(res, 1000));
+      // 🔥 CRITICAL: Wait 0.5 seconds before showing fail screen so user can see the board state
+      // 🔥 REDUCED: From 1000ms to 500ms for faster fail screen
+      console.log('⏳ Waiting 0.5 seconds before showing fail screen so user can see board state...');
+      await new Promise(res => setTimeout(res, 500));
       showFinalScreen();
     }
   } else {
@@ -4466,10 +4575,11 @@ function checkLevelEnd(){
         locked: t.locked 
       })));
       if (!busyEnding) {
-        // 🔥 CRITICAL: Wait 1 second before showing fail screen so user can see the board state
+        // 🔥 CRITICAL: Wait 0.5 seconds before showing fail screen so user can see the board state
         // This prevents instant fail screen when board becomes non-mergable (e.g. after wild spawn)
-        console.log('⏳ Waiting 1 second before showing fail screen so user can see board state...');
-        await new Promise(res => setTimeout(res, 1000));
+        // 🔥 REDUCED: From 1000ms to 500ms for faster fail screen (total delay now ~1s instead of ~2.2s)
+        console.log('⏳ Waiting 0.5 seconds before showing fail screen so user can see board state...');
+        await new Promise(res => setTimeout(res, 500));
         showFinalScreen();
       } else {
         console.warn('⚠️ checkLevelEnd: busyEnding is true, skipping showFinalScreen');

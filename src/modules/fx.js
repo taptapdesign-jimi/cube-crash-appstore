@@ -955,7 +955,7 @@ export function woodShardsAtTile(board, tile, opts = {}){
     isWildOnly = true;
   }
   
-  const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only
+  const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only (wild star and wild-beer)
   const redColor = 0xF26034;    // Red (#F26034) for wild-magnet
   const brownColor = 0xD4A584;  // Brown (#D4A584) for regular merge 6
 
@@ -964,7 +964,7 @@ export function woodShardsAtTile(board, tile, opts = {}){
   if (isWildMagnet) {
     baseShardColor = redColor; // Wild-magnet → red
   } else if (isWildOnly) {
-    baseShardColor = yellowColor; // Wild-only → yellow
+    baseShardColor = yellowColor; // Wild-only (star and wild-beer) → yellow
   }
 
   const emitShard = (distance, angle, scaleFactor = 1, alpha = 1.0, speedMul = 1, shardIndex = 0) => {
@@ -1001,14 +1001,14 @@ export function woodShardsAtTile(board, tile, opts = {}){
     }
 
     // 🔥 CRITICAL: For wild-magnet, randomly mix red and brown (50/50)
-    // For wild-only, randomly mix yellow and brown (50/50)
+    // For wild-only (wild star and wild-beer), randomly mix yellow and brown (50/50)
     // For regular, use only brown
     let shardColor = baseShardColor;
     if (isWildMagnet) {
       // Wild-magnet: 50% red, 50% brown
       shardColor = Math.random() < 0.5 ? redColor : brownColor;
     } else if (isWildOnly) {
-      // Wild-only: 50% yellow, 50% brown
+      // Wild-only (star and wild-beer): 50% yellow, 50% brown (same for both)
       shardColor = Math.random() < 0.5 ? yellowColor : brownColor;
     }
     // Otherwise: use baseShardColor (brown for regular)
@@ -2051,31 +2051,53 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
   }
 }
 
-// Beer-specific drag bubbles (palette-matched, replaces smoke for beer wild)
+// Beer-specific drag bubbles (same style as idle bubbles, with three color shades)
 export function dragBeerBubbleTrail(board, tile, tileSize = 96, strength = 1, opts = {}) {
   if (!board || !tile) return;
   
-  const count = Math.floor(14 + Math.random() * 8); // 14-21 bubbles
+  // Max 4-10 bubbles per call
+  const count = Math.floor(4 + Math.random() * 7); // 4-10 bubbles
   const { x, y } = centerInBoard(board, tile, tileSize);
   const baseRise = tileSize * 0.25;
   
+  // Three color shades (same as idle bubbles but with color variation)
+  // 🔥 UPDATED: Using foam colors from wild-beer.png image
+  const colors = [0xFFFFFF, 0xFEFCEF, 0xF2EFEA]; // White, light cream (foam), darker cream (foam)
+  
   for (let i = 0; i < count; i++) {
     const bubble = new Graphics();
+    bubble.eventMode = 'none';
+    bubble.cursor = 'default';
+    try { bubble.interactiveChildren = false; } catch {}
     
-    // Sizes: small/medium/large (2.5-9px)
-    const rand = Math.random();
-    let radius;
-    if (rand < 0.33) radius = 2.5 + Math.random() * 2.5;
-    else if (rand < 0.66) radius = 3.5 + Math.random() * 3.5;
-    else radius = 4.5 + Math.random() * 4.5;
+    // Random size (same range as idle bubbles: 15-40px diameter = 7.5-20px radius)
+    const bubbleSize = 15 + Math.random() * 25; // 15-40px
+    const radius = bubbleSize / 2; // 7.5-20px radius
     
-    // Warm palette (same as smoke tones but as bubbles)
-    const colors = [0xFFFFFF, 0xECD7C2, 0xDB9C77];
+    // Random color from three shades
     const color = colors[Math.floor(Math.random() * colors.length)];
-    bubble.circle(0, 0, radius).fill({ color, alpha: 0.9 });
-    bubble.alpha = 0.9;
+    
+    // Draw bubble as circle with highlight (EXACT same style as idle bubbles)
+    // 🔥 CRITICAL: Must be perfectly rounded circle particles, not rectangles or other shapes
+    bubble.circle(0, 0, radius);
+    bubble.fill({ color: color, alpha: 0.6 }); // Same alpha as idle bubbles (0.6)
+    
+    // Add highlight (smaller circle at top-left) for 3D sparkling effect (EXACT same as idle)
+    const highlightRadius = radius * 0.3;
+    bubble.circle(-radius * 0.2, -radius * 0.2, highlightRadius);
+    bubble.fill({ color: color, alpha: 0.8 }); // Brighter highlight (same as idle: 0.8)
+    
+    // Add subtle border for definition (EXACT same as idle bubbles)
+    bubble.circle(0, 0, radius);
+    bubble.stroke({ color: color, alpha: 0.4, width: 1 }); // Same border as idle (alpha 0.4, width 1)
+    
+    // Random position around tile center
     bubble.x = x + (Math.random() - 0.5) * 70;
     bubble.y = y + (Math.random() - 0.5) * 70;
+    
+    // Random starting scale (same as idle bubbles: 20-40% start)
+    bubble.scale.set(0.2 + Math.random() * 0.2);
+    bubble.alpha = 0.7 + Math.random() * 0.3; // Start with 70-100% opacity
     
     // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (particles should be behind tile)
     // If tile is being dragged (zIndex > 9000), particles should be at tileZ - 1
@@ -2087,11 +2109,6 @@ export function dragBeerBubbleTrail(board, tile, tileSize = 96, strength = 1, op
       bubble.zIndex = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
     }
     
-    // 🔥 CRITICAL: Set eventMode to 'none' to prevent particles from blocking touch events
-    bubble.eventMode = 'none';
-    bubble.cursor = 'default';
-    try { bubble.interactiveChildren = false; } catch {}
-    
     board.addChild(bubble);
     
     // Sort children to ensure correct zIndex order
@@ -2099,16 +2116,25 @@ export function dragBeerBubbleTrail(board, tile, tileSize = 96, strength = 1, op
       board.sortChildren?.();
     } catch {}
     
+    // Animation: rise up with slight drift (like idle bubbles)
     const rise = baseRise * (0.8 + Math.random() * 0.8) * strength;
-    const driftX = (Math.random() - 0.5) * (tileSize * 0.1);
-    const dur = 0.7 + Math.random() * 0.35; // 0.7-1.05s
+    const driftX = (Math.random() - 0.5) * 20; // ±10px horizontal drift (same as idle)
+    const dur = 0.8 + Math.random() * 0.7; // 0.8-1.5s (same as idle bubbles)
     
+    // Grow slightly as it rises (same as idle bubbles)
+    gsap.to(bubble.scale, {
+      x: 0.6 + Math.random() * 0.4, // Grow to 60-100% of size
+      y: 0.6 + Math.random() * 0.4,
+      duration: dur * 0.3, // Grow in first 30% of animation
+      ease: 'power2.out'
+    });
+    
+    // Rise up smoothly
     gsap.to(bubble, {
-      alpha: 0,
-      y: bubble.y - rise,
       x: bubble.x + driftX,
+      y: bubble.y - rise,
       duration: dur,
-      ease: 'sine.out',
+      ease: 'power1.out', // Smooth upward motion (same as idle)
       onComplete: () => {
         try {
           if (bubble && bubble.parent) {
@@ -2117,6 +2143,14 @@ export function dragBeerBubbleTrail(board, tile, tileSize = 96, strength = 1, op
           }
         } catch {}
       }
+    });
+    
+    // Fade out as it reaches the top (last 40% of animation, same as idle)
+    gsap.to(bubble, {
+      alpha: 0,
+      duration: dur * 0.4,
+      delay: dur * 0.6,
+      ease: 'power2.in'
     });
   }
 }

@@ -251,6 +251,13 @@ export function setValue(t: Tile, v: number, addStack = 0): void {
 }
 
 function _setValueVisuals(t: Tile, v: number, addStack: number): void {
+  // 🔥 CRITICAL FIX: Ensure t.value is set to v BEFORE any visual operations
+  // This prevents race conditions where drawPips might use stale t.value
+  // (especially important when called via requestAnimationFrame)
+  if (t && !t.destroyed) {
+    t.value = v;
+  }
+  
   // 🔥 CRITICAL: Check special FIRST before setting any texture
   // This ensures wild-beer, wild-magnet, and wild tiles ALWAYS get correct texture
   if (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer') {
@@ -654,10 +661,22 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
   }
   
   // Check regular tile combinations
+  // 🔥 CRITICAL: Log all tiles being checked for debugging
+  if (open.length > 0) {
+    console.log('🔍 anyMergePossible: Checking', open.length, 'tiles for valid merge pairs:', 
+      open.map(t => ({ value: t.value, special: t.special, locked: t.locked, destroyed: t.destroyed, visible: t.visible }))
+    );
+  }
+  
   for (let i = 0; i < open.length; i++) {
     for (let j = i + 1; j < open.length; j++) {
       const tile1 = open[i];
       const tile2 = open[j];
+      
+      // 🔥 CRITICAL: Skip null/destroyed tiles
+      if (!tile1 || !tile2 || tile1.destroyed || tile2.destroyed) {
+        continue;
+      }
       
       // Skip wild cubes in this check (they're already handled above)
       if (tile1.special === 'wild' || tile1.special === 'wild-magnet' || tile1.special === 'wild-beer' || 
@@ -665,16 +684,33 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
         continue;
       }
       
-      const s = (tile1.value || 0) + (tile2.value || 0);
+      const val1 = (tile1.value || 0);
+      const val2 = (tile2.value || 0);
+      const s = val1 + val2;
       const isValid = s >= 2 && s <= 6;
       
+      // 🔥 CRITICAL: Log each pair being checked for debugging
+      if (open.length <= 6) { // Only log for small boards to avoid spam
+        console.log(`🔍 anyMergePossible: Checking pair ${val1}+${val2}=${s} (valid: ${isValid})`);
+      }
+      
       if (isValid) {
-        console.log(`✅ anyMergePossible: ${tile1.value}+${tile2.value}=${s} = TRUE`);
+        console.log(`✅ anyMergePossible: ${val1}+${val2}=${s} = TRUE`);
         return true;
       }
     }
   }
 
+  // 🔥 CRITICAL: Log detailed info when no valid pairs found
   console.log('❌ anyMergePossible: No valid pairs = FALSE');
+  console.log('❌ anyMergePossible: Tile details:', open.map(t => ({
+    value: t.value,
+    special: t.special,
+    locked: t.locked,
+    destroyed: t.destroyed,
+    visible: t.visible,
+    gridX: (t as any).gridX,
+    gridY: (t as any).gridY
+  })));
   return false;
 }

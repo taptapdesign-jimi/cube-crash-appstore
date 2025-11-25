@@ -160,13 +160,24 @@ function createContextHash(context: EndGameContext): string {
  * Check if this is a "last merge" scenario
  * Last merge = wild + regular tile merge to create merge 6, leaving only merge 6 on board
  * 🔥 CRITICAL FIX: If magnet exists on board, it's NOT a last merge - user can still merge magnet with merge 6
+ * 🔥 CRITICAL FIX: Include wild-beer in wild tile check (same as wild star)
  */
 function isLastMergeScenario(context: EndGameContext): boolean {
-  const { tiles, dstTile, justRemovedSrc } = context;
+  const { tiles, dstTile, srcTile, justRemovedSrc } = context;
   
   // Only check if we just removed src tile and dst is merge 6
   if (!justRemovedSrc || !dstTile || dstTile.value !== 6) {
     return false;
+  }
+  
+  // 🔥 CRITICAL FIX: Verify that srcTile was a wild tile (wild star or wild-beer)
+  // Last merge only applies when wild + regular tile → merge 6
+  if (srcTile) {
+    const srcIsWild = srcTile.special === 'wild' || srcTile.special === 'wild-beer';
+    if (!srcIsWild) {
+      console.log('🔍 isLastMergeScenario: srcTile is not wild (special:', srcTile.special, ') - NOT a last merge');
+      return false;
+    }
   }
   
   // Get active tiles excluding dst
@@ -185,6 +196,7 @@ function isLastMergeScenario(context: EndGameContext): boolean {
       dstTile && 
       !dstTile.destroyed && 
       dstTile.value === 6) {
+    console.log('✅ isLastMergeScenario: Last merge detected - wild (star or beer) + regular → merge 6, only merge 6 remains');
     return true;
   }
   
