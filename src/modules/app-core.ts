@@ -2292,16 +2292,29 @@ function merge(src, dst, helpers){
                                  activeTilesBeforeWildProgress.includes(src) && 
                                  activeTilesBeforeWildProgress.includes(dst);
     
+    // 🔥 CRITICAL FIX: Check if this is regular + regular → merge 6 with exactly 2 tiles (last merge)
+    // Example: 4 + 2 = 6, only 2 tiles on board → last merge
+    const bothAreRegular = !srcSpecialForCheck && !dstSpecialForCheck && 
+                          (src.value|0) > 0 && (dst.value|0) > 0;
+    const isRegularLastTwoForCheck = bothAreRegular && 
+                                     activeTilesCountBeforeWildProgress === 2 && 
+                                     activeTilesBeforeWildProgress.includes(src) && 
+                                     activeTilesBeforeWildProgress.includes(dst) &&
+                                     effSum === 6;
+    
     // If this is last merge, reset wild meter and skip addWildProgress
-    if (isWildLastTwoForCheck || (allTilesInvolvedForCheck && effSum === 6)) {
+    if (isWildLastTwoForCheck || isRegularLastTwoForCheck || (allTilesInvolvedForCheck && effSum === 6)) {
       console.log('🚨🚨🚨 LAST MERGE DETECTED (early check) - Resetting wild meter and skipping addWildProgress');
       console.log('🚨 Details:', { 
         isWildLastTwoForCheck, 
+        isRegularLastTwoForCheck,
         allTilesInvolvedForCheck, 
         effSum, 
         activeTilesCountBeforeWildProgress,
         srcSpecial: srcSpecialForCheck,
-        dstSpecial: dstSpecialForCheck
+        dstSpecial: dstSpecialForCheck,
+        srcValue: src.value,
+        dstValue: dst.value
       });
       // Reset wild meter to prevent wild spawn
       wildMeter = 0;
