@@ -158,7 +158,11 @@ function createContextHash(context: EndGameContext): string {
 
 /**
  * Check if this is a "last merge" scenario
- * Last merge = wild + regular tile merge to create merge 6, leaving only merge 6 on board
+ * Last merge = ALL remaining tiles merge to create merge 6, leaving only merge 6 on board
+ * This includes:
+ * - wild + regular tile → merge 6 (only 2 tiles on board)
+ * - regular + regular → merge 6 (only 2 tiles on board, e.g. 4+2=6)
+ * - Any combination where ALL active tiles merge into merge 6
  * 🔥 CRITICAL FIX: If magnet exists on board, it's NOT a last merge - user can still merge magnet with merge 6
  * 🔥 CRITICAL FIX: Include wild-beer in wild tile check (same as wild star)
  */
@@ -168,16 +172,6 @@ function isLastMergeScenario(context: EndGameContext): boolean {
   // Only check if we just removed src tile and dst is merge 6
   if (!justRemovedSrc || !dstTile || dstTile.value !== 6) {
     return false;
-  }
-  
-  // 🔥 CRITICAL FIX: Verify that srcTile was a wild tile (wild star or wild-beer)
-  // Last merge only applies when wild + regular tile → merge 6
-  if (srcTile) {
-    const srcIsWild = srcTile.special === 'wild' || srcTile.special === 'wild-beer';
-    if (!srcIsWild) {
-      console.log('🔍 isLastMergeScenario: srcTile is not wild (special:', srcTile.special, ') - NOT a last merge');
-      return false;
-    }
   }
   
   // Get active tiles excluding dst
@@ -191,12 +185,22 @@ function isLastMergeScenario(context: EndGameContext): boolean {
     return false;
   }
   
+  // 🔥 CRITICAL FIX: Check if this is last merge regardless of whether srcTile was wild or regular
+  // Last merge = ALL remaining tiles merge into merge 6, leaving only merge 6 on board
+  // This includes:
+  // - wild + regular → merge 6 (only 2 tiles)
+  // - regular + regular → merge 6 (only 2 tiles, e.g. 4+2=6)
+  // - Any combination where ALL active tiles are involved in this merge
+  
   // If no other active tiles remain, this is the last merge
   if (activeTiles.length === 0 && 
       dstTile && 
       !dstTile.destroyed && 
       dstTile.value === 6) {
-    console.log('✅ isLastMergeScenario: Last merge detected - wild (star or beer) + regular → merge 6, only merge 6 remains');
+    const srcIsWild = srcTile && (srcTile.special === 'wild' || srcTile.special === 'wild-beer');
+    const srcIsRegular = srcTile && !srcTile.special && (srcTile.value|0) > 0;
+    const mergeType = srcIsWild ? 'wild + regular' : (srcIsRegular ? 'regular + regular' : 'unknown');
+    console.log('✅ isLastMergeScenario: Last merge detected -', mergeType, '→ merge 6, only merge 6 remains');
     return true;
   }
   

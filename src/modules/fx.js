@@ -7,6 +7,7 @@ import { gsap } from 'gsap';
 
 import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from './wild-stars.js';
 import { TILE } from './constants.js';
+import { graphicsPool } from './object-pool.js';
 
 try {
   preloadWildStarTexture();
@@ -81,7 +82,8 @@ export function startWildBeerBubbles(tile) {
   const createBubble = () => {
     if (system.disposed || !container.parent) return;
     
-    const bubble = new Graphics();
+    // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics
+    const bubble = graphicsPool.acquire();
     bubble.eventMode = 'none';
     bubble.cursor = 'default';
     
@@ -152,7 +154,8 @@ export function startWildBeerBubbles(tile) {
           if (container && container.children.includes(bubble)) {
             container.removeChild(bubble);
           }
-          bubble.destroy();
+          // 🔥 OBJECT POOLING: Release back to pool instead of destroying
+          graphicsPool.release(bubble);
         } catch {}
       }
     });
@@ -221,8 +224,8 @@ export function stopWildBeerBubbles(tile) {
         if (bubble.parent) {
           bubble.parent.removeChild(bubble);
         }
-        // Destroy the bubble graphics object
-        bubble.destroy();
+        // 🔥 OBJECT POOLING: Release back to pool instead of destroying
+        graphicsPool.release(bubble);
       } catch {}
     });
     system.bubbles = [];
@@ -476,7 +479,8 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   const colors = isWildMagnet ? [...baseColors, 0xF26034] : baseColors; // Add red color for wild-magnet
   
   for (let i = 0; i < shardCount; i++) {
-    const shard = new Graphics();
+    // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics
+    const shard = graphicsPool.acquire();
     
     // 🔥 MEMORY LEAK FIX: Track Graphics object
     __globalGraphicsObjects.add(shard);
@@ -548,10 +552,11 @@ export function magicSparklesAtTile(board, tile, opts = {}){
         try {
           if (shard && shard.parent) {
             shard.parent.removeChild(shard);
-            shard.destroy();
           }
           // 🔥 MEMORY LEAK FIX: Remove from tracker
           __globalGraphicsObjects.delete(shard);
+          // 🔥 OBJECT POOLING: Release back to pool instead of destroying
+          graphicsPool.release(shard);
         } catch (err) {
           // Ignore cleanup errors
         }
@@ -720,7 +725,8 @@ export function regularMerge6Shards(board, tile, opts = {}){
   
   // Create shards
   for (let i = 0; i < shardCount; i++) {
-    const shard = new Graphics();
+    // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics
+    const shard = graphicsPool.acquire();
     
     // Shard size - 200% larger (2x, reduced from 4x)
     const baseSize = (8 + Math.random() * 10) * sizeMultiplier; // 16-36px (was 32-72px, reduced by 50%)
@@ -818,7 +824,8 @@ export function regularMerge6Shards(board, tile, opts = {}){
             if (layer && layer.children.includes(shard)) {
               layer.removeChild(shard);
             }
-            shard.destroy();
+            // 🔥 OBJECT POOLING: Release back to pool instead of destroying
+            graphicsPool.release(shard);
           } catch {}
         });
       }
@@ -968,9 +975,11 @@ export function woodShardsAtTile(board, tile, opts = {}){
   }
 
   const emitShard = (distance, angle, scaleFactor = 1, alpha = 1.0, speedMul = 1, shardIndex = 0) => {
-    const shard = new Graphics();
+    // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics
+    const shard = graphicsPool.acquire();
     
     // CRITICAL: Clear graphics before drawing (ensures clean state)
+    // Note: graphicsPool.acquire() already calls clear(), but we keep this for safety
     shard.clear();
     
     // 🔥 CRITICAL FIX: For regular merge, use larger base size to ensure visibility
@@ -1089,7 +1098,8 @@ export function woodShardsAtTile(board, tile, opts = {}){
             if (layer && layer.children.includes(shard)) {
               layer.removeChild(shard);
             }
-            shard.destroy();
+            // 🔥 OBJECT POOLING: Release back to pool instead of destroying
+            graphicsPool.release(shard);
           } catch {}
         });
       }
@@ -1188,11 +1198,12 @@ function createMerge6Bubbles(board, layer, centerX, centerY) {
     let lastTickTime = startTime;
     let accumulator = 0;
     
-    const makeBubble = () => {
+      const makeBubble = () => {
       if (spawned >= totalBubbles) return;
       spawned++;
       
-      const bubble = new Graphics();
+      // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics
+      const bubble = graphicsPool.acquire();
       bubble.eventMode = 'none';
       bubble.cursor = 'default';
       
@@ -1243,7 +1254,8 @@ function createMerge6Bubbles(board, layer, centerX, centerY) {
             if (layer && layer.children.includes(bubble)) {
               layer.removeChild(bubble);
             }
-            bubble.destroy();
+            // 🔥 OBJECT POOLING: Release back to pool instead of destroying
+            graphicsPool.release(bubble);
           } catch {}
         }
       });
@@ -1339,7 +1351,8 @@ export function cleanupWildBeerExplosion() {
           gsap.killTweensOf(bubble.scale);
           gsap.killTweensOf(bubble.rotation);
           if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
-          bubble.destroy?.();
+          // 🔥 OBJECT POOLING: Release back to pool instead of destroying
+          graphicsPool.release(bubble);
         } catch {}
       });
       if (container.parent) container.parent.removeChild(container);
@@ -1443,7 +1456,8 @@ export function createWildBeerBubblesExplosion(board, tile) {
     spawned += 1;
     active += 1;
 
-    const bubble = new Graphics();
+    // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics
+    const bubble = graphicsPool.acquire();
     bubble.eventMode = 'none';
     bubble.cursor = 'default';
     const size = 14 + Math.random() * 34; // 14-48px
@@ -1518,7 +1532,8 @@ export function createWildBeerBubblesExplosion(board, tile) {
         try {
           bubbleTweens.forEach(t => { try { t.kill?.(); } catch {} });
           if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
-          bubble.destroy?.();
+          // 🔥 OBJECT POOLING: Release back to pool instead of destroying
+          graphicsPool.release(bubble);
         } catch {}
         active = Math.max(0, active - 1);
       }
@@ -2065,7 +2080,8 @@ export function dragBeerBubbleTrail(board, tile, tileSize = 96, strength = 1, op
   const colors = [0xFFFFFF, 0xFEFCEF, 0xF2EFEA]; // White, light cream (foam), darker cream (foam)
   
   for (let i = 0; i < count; i++) {
-    const bubble = new Graphics();
+    // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics
+    const bubble = graphicsPool.acquire();
     bubble.eventMode = 'none';
     bubble.cursor = 'default';
     try { bubble.interactiveChildren = false; } catch {}
@@ -2139,8 +2155,9 @@ export function dragBeerBubbleTrail(board, tile, tileSize = 96, strength = 1, op
         try {
           if (bubble && bubble.parent) {
             bubble.parent.removeChild(bubble);
-            bubble.destroy();
           }
+          // 🔥 OBJECT POOLING: Release back to pool instead of destroying
+          graphicsPool.release(bubble);
         } catch {}
       }
     });
