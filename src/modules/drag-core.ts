@@ -162,6 +162,15 @@ export function initDrag(cfg) {
   }
 
   function bindToTile(t) {
+    // If null/undefined passed, clear current drag target and listeners safely
+    if (!t) {
+      if (drag.t && drag.t.removeAllListeners) {
+        try { drag.t.removeAllListeners('pointerdown'); } catch {}
+      }
+      drag.t = null;
+      return;
+    }
+
     t.removeAllListeners?.('pointerdown');
     t.eventMode = 'static';
     t.cursor = 'pointer';

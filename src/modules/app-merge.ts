@@ -1174,76 +1174,76 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     // spawnBounce animation takes ~0.24s (with timeScale 2.0), delay is 30ms for very fast cascading
     // Each tile starts when previous is at 12.5% of its animation - creates very fast cascading effect
     // Sequential spawning: 1st at 0ms, 2nd at 30ms, 3rd at 60ms, 4th at 90ms
+    // 🔥 CRITICAL: Use setTimeout instead of await to allow parallel execution (same as spawn-helpers.ts and level-flow.ts)
     for (let index = 0; index < spawnTargets.length; index++) {
       const { c, r } = spawnTargets[index];
+      const delay = index * 30; // 0ms, 30ms, 60ms, 90ms...
       
-      // Wait 30ms before spawning each tile (eighth of 240ms) for very fast cascading
-      // This creates very fast overlapping effect where each tile starts when previous is at 12.5%
-      if (index > 0) {
-        await new Promise(resolve => setTimeout(resolve, 30));
-      }
-      
-      try {
-        // 🔥 CRITICAL FIX v40.6: Double-check cell is still empty before spawning (race condition protection)
-        // Problem: Spawning on locked tiles with value > 0 or wild tiles causes "2 tiles on same position" bug
-        // Solution: ALWAYS check if tile has value > 0 or is wild, regardless of locked status
-        const existingTile = STATE.grid?.[r]?.[c];
-        if (existingTile) {
-          const isActive = (existingTile.value|0) > 0;
-          const isWildTile = existingTile.special === 'wild' || existingTile.special === 'wild-magnet' || existingTile.special === 'wild-beer' || (existingTile as any).isWild === true || (existingTile as any).isWildFace === true;
-          
-          // 🔥 CRITICAL: NEVER spawn on a tile that has value > 0 or is wild, even if it's locked!
-          // Locked tiles with value > 0 are active tiles (e.g., during animations)
-          if (isActive || isWildTile) {
-            console.warn(`⚠️ Cell (${c}, ${r}) already occupied by active tile before spawn, skipping:`, {
-              value: existingTile.value,
-              special: existingTile.special,
-              locked: existingTile.locked,
-              isActive,
-              isWildTile
-            });
-            continue; // Skip this cell
-          }
-          
-          // 🔥 CRITICAL: If tile is NOT locked, it's an active tile (should not happen, but safety check)
-          if (!existingTile.locked) {
-            console.warn(`⚠️ Cell (${c}, ${r}) has unlocked tile without value - this should not happen, skipping`);
-            continue; // Skip this cell
-          }
-        }
-        
-        // Spawn tile normally (skipBind = false means it will try to bind immediately)
-        // Use timeScale: 2.0 to make spawn animation 50% faster (2x speed = half duration)
-        // 🔥 CRITICAL: Don't await - spawn tiles in parallel, let animations run concurrently
-        // This allows tiles to spawn at the correct delays (0ms, 250ms, 500ms, 750ms) without waiting for previous animations
-        openAtCell(c, r, { skipBind: false, timeScale: 2.0 }).then((spawnResult) => {
-          // 🔥 CRITICAL FIX v40.6: Check spawn result - if false, cell was occupied and spawn failed
-          if (!spawnResult) {
-            console.warn(`⚠️ openAtCell returned false for cell (${c}, ${r}) - spawn failed, cell was occupied`);
-            return;
-          }
-          
-          // Get the spawned tile after a short delay to ensure it's created
-          setTimeout(() => {
-            const tile = STATE.grid?.[r]?.[c];
-            if (tile && !tile.locked && tile.value > 0) {
-              // Double-check: Ensure tile is draggable and bound to drag system
-              tile.eventMode = 'static';
-              tile.cursor = 'pointer';
-              
-              // Explicitly bind to drag system (in case bindTileWithFallback failed)
-              const drag = STATE.drag as any;
-              if (drag && typeof drag.bindToTile === 'function') {
-                drag.bindToTile(tile);
-              }
+      // 🔥 CRITICAL: Use setTimeout to schedule spawn without blocking
+      // This allows all tiles to be scheduled with delays, but animations run concurrently
+      setTimeout(() => {
+        try {
+          // 🔥 CRITICAL FIX v40.6: Double-check cell is still empty before spawning (race condition protection)
+          // Problem: Spawning on locked tiles with value > 0 or wild tiles causes "2 tiles on same position" bug
+          // Solution: ALWAYS check if tile has value > 0 or is wild, regardless of locked status
+          const existingTile = STATE.grid?.[r]?.[c];
+          if (existingTile) {
+            const isActive = (existingTile.value|0) > 0;
+            const isWildTile = existingTile.special === 'wild' || existingTile.special === 'wild-magnet' || existingTile.special === 'wild-beer' || (existingTile as any).isWild === true || (existingTile as any).isWildFace === true;
+            
+            // 🔥 CRITICAL: NEVER spawn on a tile that has value > 0 or is wild, even if it's locked!
+            // Locked tiles with value > 0 are active tiles (e.g., during animations)
+            if (isActive || isWildTile) {
+              console.warn(`⚠️ Cell (${c}, ${r}) already occupied by active tile before spawn, skipping:`, {
+                value: existingTile.value,
+                special: existingTile.special,
+                locked: existingTile.locked,
+                isActive,
+                isWildTile
+              });
+              return; // Skip this cell
             }
-          }, 50); // Small delay to ensure tile is created
-        }).catch((err) => {
-          console.warn(`⚠️ Failed to spawn tile at (${c}, ${r}):`, err);
-        });
-      } catch (err) {
-        console.warn(`⚠️ Failed to respawn tile at (${c}, ${r}):`, err);
-      }
+            
+            // 🔥 CRITICAL: If tile is NOT locked, it's an active tile (should not happen, but safety check)
+            if (!existingTile.locked) {
+              console.warn(`⚠️ Cell (${c}, ${r}) has unlocked tile without value - this should not happen, skipping`);
+              return; // Skip this cell
+            }
+          }
+          
+          // Spawn tile normally (skipBind = false means it will try to bind immediately)
+          // Use timeScale: 2.0 to make spawn animation 50% faster (2x speed = half duration)
+          // 🔥 CRITICAL: Don't await - spawn tiles in parallel, let animations run concurrently
+          // This allows tiles to spawn at the correct delays (0ms, 30ms, 60ms, 90ms) without waiting for previous animations
+          openAtCell(c, r, { skipBind: false, timeScale: 2.0 }).then((spawnResult) => {
+            // 🔥 CRITICAL FIX v40.6: Check spawn result - if false, cell was occupied and spawn failed
+            if (!spawnResult) {
+              console.warn(`⚠️ openAtCell returned false for cell (${c}, ${r}) - spawn failed, cell was occupied`);
+              return;
+            }
+            
+            // Get the spawned tile after a short delay to ensure it's created
+            setTimeout(() => {
+              const tile = STATE.grid?.[r]?.[c];
+              if (tile && !tile.locked && tile.value > 0) {
+                // Double-check: Ensure tile is draggable and bound to drag system
+                tile.eventMode = 'static';
+                tile.cursor = 'pointer';
+                
+                // Explicitly bind to drag system (in case bindTileWithFallback failed)
+                const drag = STATE.drag as any;
+                if (drag && typeof drag.bindToTile === 'function') {
+                  drag.bindToTile(tile);
+                }
+              }
+            }, 50); // Small delay to ensure tile is created
+          }).catch((err) => {
+            console.warn(`⚠️ Failed to spawn tile at (${c}, ${r}):`, err);
+          });
+        } catch (err) {
+          console.warn(`⚠️ Failed to respawn tile at (${c}, ${r}):`, err);
+        }
+      }, delay);
     }
   } else if (spawnCount > 0) {
     console.warn('⚠️ No spawn targets found!', {
