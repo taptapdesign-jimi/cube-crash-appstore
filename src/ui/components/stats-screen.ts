@@ -110,15 +110,17 @@ function updateStatsDisplay(stats: any): void {
     });
   };
   
-  updateElement('high-score', stats.highScore);
-  updateElement('cubes-cracked', stats.cubesCracked);
-  updateElement('highest-board', stats.highestBoard);
-  updateElement('longest-combo', stats.longestCombo);
-  updateElement('helpers-used', stats.helpersUsed);
-  updateElement('time-played', formatTime(stats.timePlayed));
-  // Calculate total collectibles (20 common + 6 legendary = 26)
+  // 🔥 ANIMATION: Animate numeric stats from 0 to target value
+  // Start all animations with small delay for staggered effect
+  updateElement('high-score', stats.highScore, true);
+  setTimeout(() => updateElement('cubes-cracked', stats.cubesCracked, true), 100);
+  setTimeout(() => updateElement('highest-board', stats.highestBoard, true), 200);
+  setTimeout(() => updateElement('longest-combo', stats.longestCombo, true), 300);
+  setTimeout(() => updateElement('helpers-used', stats.helpersUsed, true), 400);
+  // Time played and collectibles are formatted strings, so no animation
+  updateElement('time-played', formatTime(stats.timePlayed), false);
   const totalCollectibles = 26;
-  updateElement('collectibles-unlocked', `${stats.collectiblesUnlocked}/${totalCollectibles}`);
+  updateElement('collectibles-unlocked', `${stats.collectiblesUnlocked}/${totalCollectibles}`, false);
 }
 
 // Function to update stats values dynamically using stats service
