@@ -2324,6 +2324,9 @@ function merge(src, dst, helpers){
       const hasValue = (t.value|0) > 0;
       return isWild || hasValue;
     });
+    // 🔥 CRITICAL: Use visible tiles count (not stackDepth sum) for "last 2 tiles" detection
+    // Example: 2 visible tiles (1 and 2) should trigger fail screen when stacked, not sum of stackDepth
+    const visibleTilesCountBeforeWildProgress = activeTilesBeforeWildProgress.length;
     const activeTilesCountBeforeWildProgress = activeTilesBeforeWildProgress.reduce((sum, t) => {
       const depth = t.stackDepth || 1;
       return sum + depth;
@@ -2356,13 +2359,13 @@ function merge(src, dst, helpers){
                                             allTilesInvolvedForCheck; // All tiles involved
     
     const isWildLastTwoForCheck = oneIsWildForCheck && 
-                                 activeTilesCountBeforeWildProgress === 2 && 
+                                 visibleTilesCountBeforeWildProgress === 2 && 
                                  activeTilesBeforeWildProgress.includes(src) && 
                                  activeTilesBeforeWildProgress.includes(dst);
     
     // 🔥 NEW: Regular + regular → merge 6 (only 2 tiles) = clean board
     const isRegularLastTwoMerge6 = bothAreRegular && 
-                                   activeTilesCountBeforeWildProgress === 2 && 
+                                   visibleTilesCountBeforeWildProgress === 2 && 
                                    activeTilesBeforeWildProgress.includes(src) && 
                                    activeTilesBeforeWildProgress.includes(dst) &&
                                    effSum === 6; // Must be merge 6
@@ -2460,9 +2463,12 @@ function merge(src, dst, helpers){
         // 3. Wild + regular → merge 6 (only 2 tiles) = clean board (handled in merge-6 block)
         const bothAreRegularForCheck = !srcSpecial && !dstSpecial && 
                                       (src.value|0) > 0 && (dst.value|0) > 0;
+        // 🔥 CRITICAL FIX: Use visibleTilesCountBeforeWildProgress (not activeTilesCountBeforeWildProgress) for "last 2 tiles" detection
+        // activeTilesCountBeforeWildProgress sums stackDepth, which can be > 2 even with 2 visible tiles
+        // visibleTilesCountBeforeWildProgress counts actual visible tiles, which is what we need
         const wasLastTwoRegularStack = bothAreRegularForCheck && 
                                       effSum < 6 && // Stack, not merge 6
-                                      activeTilesCountBeforeWildProgress === 2 &&
+                                      visibleTilesCountBeforeWildProgress === 2 &&
                                       activeTilesBeforeWildProgress.includes(src) && 
                                       activeTilesBeforeWildProgress.includes(dst);
         
