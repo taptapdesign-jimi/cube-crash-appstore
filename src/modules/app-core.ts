@@ -749,7 +749,7 @@ export async function boot(){
   
   // Force HUD reinit after board numbering changes
   _hudInitDone = false;
-  window.addEventListener('resize', layout);
+  window.addEventListener('resize', layoutBoard);
   scheduleIdleCheck();
 
   // viewport + fonts
@@ -930,12 +930,12 @@ export function layoutBoard(){
   // Calculate available height and centerY first
   const availableHeight = vh - hudBottom - BOT_PAD;
   
-  let availableWidth, s, sw, sh, boardX, boardY;
+  let availableWidth, s, sw, sh, boardX, boardY, widthScale;
   
   if (isIPad) {
     // iPad: full width with 40px edge-to-edge board
     availableWidth = vw - (IPAD_BOARD_PADDING * 2);
-    const widthScale = availableWidth / w;
+    widthScale = availableWidth / w;
     s = widthScale; // Force board to match availableWidth exactly
     
     sw = w * s;
@@ -947,7 +947,7 @@ export function layoutBoard(){
   } else {
     // Mobile/Desktop: match HUD width
     availableWidth = vw - (HUD_PADDING * 2);
-    const widthScale = availableWidth / w;
+    widthScale = availableWidth / w;
     const heightScale = availableHeight / h;
     s = Math.min(widthScale, heightScale);
     
