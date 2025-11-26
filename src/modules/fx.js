@@ -1464,8 +1464,8 @@ export function createWildBeerBubblesExplosion(board, tile) {
     const radius = size / 2;
     const alpha = 0.55 + Math.random() * 0.35;
 
-    // 🔥 COLOR: Fill #FCE2B1 (peachy cream), highlight and stroke #FFFFFF (white)
-    const bubbleFillColor = 0xFCE2B1;
+    // 🔥 COLOR: Fill #F5F5F5 (light gray/off-white), highlight and stroke #FFFFFF (white)
+    const bubbleFillColor = 0xF5F5F5;
     const bubbleHighlightColor = 0xFFFFFF;
     const bubbleStrokeColor = 0xFFFFFF;
     bubble.circle(0, 0, radius);
