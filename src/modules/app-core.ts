@@ -1042,6 +1042,7 @@ export function layoutBoard(){
     board.scale.set(s2, s2);
     const sw2 = w * s2, sh2 = h * s2;
     // recenter horizontally with the same padding
+    const paddingPercent = isIPad ? (IPAD_BOARD_PADDING / vw) : (HUD_PADDING / vw);
     const paddingPixels2 = vw * paddingPercent;
     const idealLeft2 = Math.round((vw - sw2) / 2);
     const minLeft2 = paddingPixels2;
