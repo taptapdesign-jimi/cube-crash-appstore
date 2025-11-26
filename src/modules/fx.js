@@ -1578,17 +1578,18 @@ export function createWildBeerBubblesExplosion(board, tile) {
   };
 
   // 🔥 PERFORMANCE FIX: Staggered initial burst to prevent FPS drop
-  // Instead of 12 bubbles at once (60 GSAP tweens), spawn them gradually over 3 frames
-  // This prevents the initial lag spike while maintaining visual feedback
+  // Instead of 12 bubbles at once (60 GSAP tweens), spawn them gradually over 4 frames
+  // Reduced to 2 bubbles per frame for even lighter initial load
   const initialBurstCount = 12;
-  const bubblesPerFrame = 4; // Spawn 4 bubbles per frame
+  const bubblesPerFrame = 2; // Spawn 2 bubbles per frame (reduced from 4)
+  const totalFrames = 4; // Spread over 4 frames instead of 3
   
-  // First frame: spawn 4 bubbles immediately
+  // First frame: spawn 2 bubbles immediately
   for (let i = 0; i < bubblesPerFrame && i < initialBurstCount; i++) {
     makeBubble();
   }
   
-  // Second frame: spawn next 4 bubbles
+  // Second frame: spawn next 2 bubbles
   requestAnimationFrame(() => {
     if (wildBeerExplosionContainer && !wildBeerExplosionContainer.destroyed) {
       for (let i = bubblesPerFrame; i < bubblesPerFrame * 2 && i < initialBurstCount; i++) {
@@ -1597,14 +1598,27 @@ export function createWildBeerBubblesExplosion(board, tile) {
     }
   });
   
-  // Third frame: spawn remaining bubbles
+  // Third frame: spawn next 2 bubbles
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       if (wildBeerExplosionContainer && !wildBeerExplosionContainer.destroyed) {
-        for (let i = bubblesPerFrame * 2; i < initialBurstCount; i++) {
+        for (let i = bubblesPerFrame * 2; i < bubblesPerFrame * 3 && i < initialBurstCount; i++) {
           makeBubble();
         }
       }
+    });
+  });
+  
+  // Fourth frame: spawn remaining bubbles
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (wildBeerExplosionContainer && !wildBeerExplosionContainer.destroyed) {
+          for (let i = bubblesPerFrame * 3; i < initialBurstCount; i++) {
+            makeBubble();
+          }
+        }
+      });
     });
   });
   
