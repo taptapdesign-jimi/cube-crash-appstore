@@ -1438,10 +1438,11 @@ export function createWildBeerBubblesExplosion(board, tile) {
   const screenW = typeof window !== 'undefined' ? window.innerWidth : 800;
   const screenH = typeof window !== 'undefined' ? window.innerHeight : 600;
 
-  // Shorter, denser burst so whole animation wraps in ~<=3s
-  const totalBubbles = 240;
-  const spawnDuration = 1500;
-  const maxActive = 200;
+  // 🔥 PERFORMANCE OPTIMIZATION: Reduced bubble count and spawn rate to prevent FPS drop
+  // Reduced from 240 to 120 bubbles, maxActive from 200 to 80, initial burst from 12 to 4
+  const totalBubbles = 120; // Reduced from 240 (50% reduction)
+  const spawnDuration = 1800; // Slightly longer spawn duration for smoother distribution
+  const maxActive = 80; // Reduced from 200 (60% reduction) - prevents GPU overload
   let active = 0;
   let spawned = 0;
   const perMs = totalBubbles / spawnDuration;
@@ -1489,55 +1490,57 @@ export function createWildBeerBubblesExplosion(board, tile) {
     const drift2 = drift1 * -0.6 + (Math.random() - 0.5) * 220;
     const drift3 = (Math.random() - 0.5) * 240;
 
-    const bubbleTweens = [];
-
-    bubbleTweens.push(gsap.to(bubble, {
-      keyframes: [
-        { x: startX + drift1, duration: duration * 0.3, ease: 'sine.inOut' },
-        { x: startX + drift2, duration: duration * 0.35, ease: 'sine.inOut' },
-        { x: startX + drift3, duration: duration * 0.35, ease: 'sine.inOut' }
-      ],
-      immediateRender: true
-    }));
-
-    bubbleTweens.push(gsap.to(bubble, {
-      y: endY,
-      duration,
-      ease: 'power2.inOut',
-      immediateRender: true
-    }));
-
-    bubbleTweens.push(gsap.to(bubble.scale, {
-      x: 0.65 + Math.random() * 0.35,
-      y: 0.65 + Math.random() * 0.35,
-      duration: duration * 0.45,
-      ease: 'power1.out',
-      immediateRender: true
-    }));
-
-    bubbleTweens.push(gsap.to(bubble, {
-      rotation: (Math.random() - 0.5) * Math.PI * 1.2,
-      duration,
-      ease: 'sine.inOut',
-      immediateRender: true
-    }));
-
-    bubbleTweens.push(gsap.to(bubble, {
-      alpha: 0,
-      duration: duration * 0.4,
-      delay: duration * 0.6,
-      ease: 'power2.in',
-      immediateRender: true,
+    // 🔥 PERFORMANCE OPTIMIZATION: Use single timeline instead of multiple tweens
+    // This reduces GSAP overhead and improves performance
+    const finalScale = 0.65 + Math.random() * 0.35;
+    const finalRotation = (Math.random() - 0.5) * Math.PI * 1.2;
+    
+    // Single timeline for all animations (more efficient than multiple tweens)
+    const bubbleTl = gsap.timeline({
       onComplete: () => {
         try {
-          bubbleTweens.forEach(t => { try { t.kill?.(); } catch {} });
           if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
           // 🔥 OBJECT POOLING: Release back to pool instead of destroying
           graphicsPool.release(bubble);
         } catch {}
         active = Math.max(0, active - 1);
       }
-    }));
+    });
+    
+    // Combine all animations into one timeline (reduces GSAP overhead)
+    bubbleTl.to(bubble, {
+      x: startX + drift1,
+      y: endY * 0.3, // Start moving up
+      duration: duration * 0.3,
+      ease: 'sine.inOut'
+    }).to(bubble, {
+      x: startX + drift2,
+      y: endY * 0.65,
+      duration: duration * 0.35,
+      ease: 'sine.inOut'
+    }).to(bubble, {
+      x: startX + drift3,
+      y: endY,
+      rotation: finalRotation,
+      duration: duration * 0.35,
+      ease: 'sine.inOut'
+    }, '<'); // Start at same time as previous
+    
+    // Scale animation (separate for different timing)
+    gsap.to(bubble.scale, {
+      x: finalScale,
+      y: finalScale,
+      duration: duration * 0.45,
+      ease: 'power1.out'
+    });
+    
+    // Fade out (separate for different timing)
+    gsap.to(bubble, {
+      alpha: 0,
+      duration: duration * 0.4,
+      delay: duration * 0.6,
+      ease: 'power2.in'
+    });
   };
 
   const spawnTick = () => {
@@ -1565,8 +1568,10 @@ export function createWildBeerBubblesExplosion(board, tile) {
       return;
     }
 
+    // 🔥 PERFORMANCE OPTIMIZATION: Throttle spawn rate to prevent FPS drop
+    // Spawn max 2 bubbles per frame instead of 3
     acc += perMs * dt;
-    const toSpawn = Math.min(3, Math.floor(acc));
+    const toSpawn = Math.min(2, Math.floor(acc)); // Reduced from 3 to 2
     if (toSpawn > 0) {
       acc -= toSpawn;
       for (let i = 0; i < toSpawn; i++) {
@@ -1575,8 +1580,19 @@ export function createWildBeerBubblesExplosion(board, tile) {
     }
   };
 
-  // Initial burst for instant feedback
-  for (let i = 0; i < 12; i++) makeBubble();
+  // 🔥 PERFORMANCE OPTIMIZATION: Reduced initial burst from 12 to 4 to prevent FPS drop
+  // Stagger initial burst over 2 frames for smoother start
+  for (let i = 0; i < 2; i++) {
+    makeBubble();
+  }
+  // Spawn remaining initial bubbles after 1 frame to prevent initial FPS drop
+  requestAnimationFrame(() => {
+    if (wildBeerExplosionContainer && !wildBeerExplosionContainer.destroyed) {
+      for (let i = 0; i < 2; i++) {
+        makeBubble();
+      }
+    }
+  });
   
   // 🔥 CRITICAL: Store spawnTick reference for cleanup
   wildBeerExplosionSpawnTick = spawnTick;
