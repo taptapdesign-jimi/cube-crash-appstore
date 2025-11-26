@@ -1577,8 +1577,36 @@ export function createWildBeerBubblesExplosion(board, tile) {
     }
   };
 
-  // Initial burst for instant feedback
-  for (let i = 0; i < 12; i++) makeBubble();
+  // 🔥 PERFORMANCE FIX: Staggered initial burst to prevent FPS drop
+  // Instead of 12 bubbles at once (60 GSAP tweens), spawn them gradually over 3 frames
+  // This prevents the initial lag spike while maintaining visual feedback
+  const initialBurstCount = 12;
+  const bubblesPerFrame = 4; // Spawn 4 bubbles per frame
+  
+  // First frame: spawn 4 bubbles immediately
+  for (let i = 0; i < bubblesPerFrame && i < initialBurstCount; i++) {
+    makeBubble();
+  }
+  
+  // Second frame: spawn next 4 bubbles
+  requestAnimationFrame(() => {
+    if (wildBeerExplosionContainer && !wildBeerExplosionContainer.destroyed) {
+      for (let i = bubblesPerFrame; i < bubblesPerFrame * 2 && i < initialBurstCount; i++) {
+        makeBubble();
+      }
+    }
+  });
+  
+  // Third frame: spawn remaining bubbles
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (wildBeerExplosionContainer && !wildBeerExplosionContainer.destroyed) {
+        for (let i = bubblesPerFrame * 2; i < initialBurstCount; i++) {
+          makeBubble();
+        }
+      }
+    });
+  });
   
   // 🔥 CRITICAL: Store spawnTick reference for cleanup
   wildBeerExplosionSpawnTick = spawnTick;
