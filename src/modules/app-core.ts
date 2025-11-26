@@ -832,16 +832,17 @@ export async function boot(){
 
   // Run layout after viewport/meta/styles are in place to get correct safe-area values
   try {
-    requestAnimationFrame(() => layout());
+    requestAnimationFrame(() => layoutBoard());
   } catch {
-    layout();
+    layoutBoard();
   }
 
   syncSharedState();
 }
 
 // -------------------- layout + HUD --------------------
-export function layout(){
+// 🔥 REFACTORED: Preimenovano za jasnoću - ovo je board layout, ne HUD layout
+export function layoutBoard(){
   const { w, h} = boardSize();
   const vw = app.renderer.width, vh = app.renderer.height;
   stage.hitArea = new Rectangle(0, 0, vw, vh);
@@ -1597,7 +1598,7 @@ wildMeter = 0;
   
   // Call layout only for initial game start, not for restart
   if (n === 1) {
-    layout();
+    layoutBoard();
     console.log('🎯 Layout called for initial game start');
   }
   
@@ -5673,7 +5674,7 @@ async function loadGameState() {
       console.log('✅ Boot completed, app:', !!app, 'board:', !!board);
       
       // Initialize background layer after boot
-      layout();
+      layoutBoard();
       console.log('✅ Layout completed');
       
       initializeBackgroundLayer();
@@ -5696,7 +5697,7 @@ async function loadGameState() {
       if (!backgroundLayer || !bgInBoard) {
         console.log('⚠️ backgroundLayer missing or not in board, reinitializing...');
         backgroundLayer = null; // Force recreation
-        layout();
+        layoutBoard();
         initializeBackgroundLayer();
         console.log('✅ Background layer reinitialized');
       }
@@ -5837,7 +5838,7 @@ async function loadGameState() {
     drawBoardBG('active+empty');
     
     // CRITICAL: Call layout to position HUD correctly
-    layout();
+    layoutBoard();
     console.log('✅ Layout called for saved game - HUD should be positioned');
     
     // CRITICAL: Ensure HUD is visible

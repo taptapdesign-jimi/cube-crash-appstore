@@ -171,7 +171,7 @@ export async function startLevel(n: number): Promise<void> {
   }
   
   rebuildBoard();       // builds + ring deal-in
-  layout();
+  layoutBoot();
   
   setTimeout(() => checkGameOver(), 1000);
 }
@@ -182,7 +182,8 @@ function cellXY(x: number, y: number): { x: number; y: number } {
 }
 
 // Add layout function (needed by window.addEventListener)
-function layout(): void {
+// 🔥 REFACTORED: Preimenovano za jasnoću - ovo je placeholder, poziva layoutBoard iz app-core.ts
+function layoutBoot(): void {
   // This function should be implemented in app.js
   // For now, we'll add a placeholder
   logger.info('Layout function called');

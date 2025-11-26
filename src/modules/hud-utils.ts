@@ -147,6 +147,15 @@ export function formatScore(score: number): string {
 }
 
 /**
+ * Format score as simple number (no K/M suffixes)
+ * Used in clean board modal where we want exact numbers
+ */
+export function formatScoreSimple(value: number): string {
+  const safe = Math.max(0, Math.floor(Number.isFinite(value) ? value : 0));
+  return safe.toString();
+}
+
+/**
  * Format combo with multiplier
  */
 export function formatCombo(combo: number): string {

@@ -5,7 +5,7 @@ import gameState from './game-state.js';
 import { fadeOutHome, fadeInHome, animateSliderExit, animateSliderEnter, animateStatsScreenEnter, animateStatsScreenExit } from '../utils/animations.js';
 import { showResumeGameBottomSheet } from './resume-game-bottom-sheet.js';
 import { logger } from '../core/logger.js';
-import { boot as bootGame, layout as layoutGame } from './app-core.js';
+import { boot as bootGame, layoutBoard as layoutGame } from './app-core.js';
 import sliderManager from './slider-manager.js';
 import { gsap } from 'gsap';
 

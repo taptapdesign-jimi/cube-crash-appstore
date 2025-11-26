@@ -1,5 +1,6 @@
 import { logger } from '../core/logger.js';
 import { statsService } from '../services/stats-service.ts';
+import { pickRandom } from './clean-board-utils.js';
 // public/src/modules/board-fail-modal.ts
 // Game-over overlay when the board isn't fully cleared
 
@@ -55,9 +56,7 @@ const HEADLINES: string[] = [
 
 const OVERLAY_ID = 'cc-board-fail-overlay';
 
-function pickRandom(list: string[]): string {
-  return list[Math.floor(Math.random() * list.length)] || list[0];
-}
+// 🔥 REFACTORED: Koristimo pickRandom iz clean-board-utils.ts umjesto lokalne verzije
 
 function removeExisting(): void {
   try {

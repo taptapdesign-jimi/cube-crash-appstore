@@ -4,7 +4,7 @@
 import { bootstrapReady } from './ui/bootstrap-ui.js';
 import './ui/collectibles-bridge.js';
 // boot and layout imported statically for instant access
-import { boot as bootGame, layout as layoutGame, cleanupGame, animateBoardExit } from './modules/app-core.js';
+import { boot as bootGame, layoutBoard as layoutGame, cleanupGame, animateBoardExit } from './modules/app-core.js';
 import { gsap } from 'gsap';
 import { assetPreloader } from './modules/asset-preloader.js';
 import './ios-image-helper.js';

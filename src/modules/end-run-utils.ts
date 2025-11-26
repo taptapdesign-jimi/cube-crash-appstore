@@ -4,6 +4,7 @@
 import { showCleanBoardModal } from './clean-board-modal.js';
 import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animations.js';
 import { logger } from '../core/logger.js';
+import { getCurrentScore as getCurrentScoreFromPause } from './pause-utils.js';
 
 // Type definitions
 interface TouchEventWithTouches extends TouchEvent {
@@ -67,12 +68,10 @@ export function setModalVisible(visible: boolean): void {
 
 /**
  * Get current score
+ * 🔥 REFACTORED: Koristimo getCurrentScore iz pause-utils.ts umjesto duplicirane verzije
  */
 export function getCurrentScore(): number {
-  if (window.CC?.getScore) {
-    return window.CC.getScore();
-  }
-  return 0;
+  return getCurrentScoreFromPause();
 }
 
 /**
