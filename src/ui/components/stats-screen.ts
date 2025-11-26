@@ -6,6 +6,9 @@ import { gsap } from 'gsap';
 // Keep track of subscription for cleanup
 let statsSubscription: (() => void) | null = null;
 
+// 🔥 MEMORY LEAK FIX: Track all stat animation proxies for cleanup
+const statAnimationProxies: Array<{ value: number }> = [];
+
 // Handle reset stats with iOS-compatible approach
 function handleResetStats(e: Event): void {
   e.preventDefault();
@@ -78,19 +81,34 @@ function updateStatsDisplay(stats: any): void {
     
     // Parse target value
     const targetValue = typeof value === 'number' ? value : parseInt(value, 10);
-    const currentText = element.textContent || '0';
-    const cleanedText = currentText.replace(/[^0-9]/g, '');
-    const currentDisplayed = cleanedText ? parseInt(cleanedText, 10) : 0;
     
-    if (currentDisplayed === targetValue) {
+    // 🔥 CRITICAL: Always start from 0 for fresh animation every time
+    // This ensures animation plays every time stats screen is opened
+    const startValue = 0;
+    
+    if (startValue === targetValue) {
       element.textContent = targetValue.toString();
       return;
     }
     
-    // Animate from current to target
-    const statProxy = { value: currentDisplayed };
-    gsap.killTweensOf(statProxy);
-    statProxy.value = currentDisplayed;
+    // 🔥 MEMORY LEAK FIX: Kill any existing animation on this element first
+    // Find and kill existing proxy for this element
+    const existingProxy = statAnimationProxies.find(p => {
+      // Check if this proxy is being used for this element
+      // We'll track this by storing element reference in proxy
+      return (p as any).elementId === id;
+    });
+    
+    if (existingProxy) {
+      gsap.killTweensOf(existingProxy);
+      const index = statAnimationProxies.indexOf(existingProxy);
+      if (index > -1) statAnimationProxies.splice(index, 1);
+    }
+    
+    // Create new proxy for this animation
+    const statProxy = { value: startValue };
+    (statProxy as any).elementId = id; // Track which element this proxy is for
+    statAnimationProxies.push(statProxy);
     
     // Calculate duration: minimum 0.8s, maximum 1.5s, based on difference
     const diff = Math.abs(targetValue - currentDisplayed);
@@ -152,6 +170,25 @@ export function cleanupStatsSubscription(): void {
     statsSubscription();
     statsSubscription = null;
   }
+}
+
+// 🔥 MEMORY LEAK FIX: Cleanup all stat animations when stats screen is closed
+export function cleanupStatsAnimations(): void {
+  console.log('🧹 Cleaning up stats animations...');
+  
+  // Kill all GSAP animations on stat proxies
+  statAnimationProxies.forEach(proxy => {
+    try {
+      gsap.killTweensOf(proxy);
+    } catch (err) {
+      // Ignore errors
+    }
+  });
+  
+  // Clear the array
+  statAnimationProxies.length = 0;
+  
+  console.log('✅ Stats animations cleaned up');
 }
 
 // Function to get stats from service and return as StatItem[]

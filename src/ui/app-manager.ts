@@ -210,15 +210,19 @@ class AppManager {
       
       // 🎬 For stats screen, use GSAP exit animation instead of fade-out
       if (screen === 'stats') {
-        // 🔥 MEMORY LEAK FIX: Cleanup stats subscription
+        // 🔥 MEMORY LEAK FIX: Cleanup stats subscription and animations
         try {
           const statsScreenModule = await import('./components/stats-screen.js');
           if (statsScreenModule.cleanupStatsSubscription) {
             statsScreenModule.cleanupStatsSubscription();
             logger.info('🧹 Stats subscription cleaned up');
           }
+          if (statsScreenModule.cleanupStatsAnimations) {
+            statsScreenModule.cleanupStatsAnimations();
+            logger.info('🧹 Stats animations cleaned up');
+          }
         } catch (error) {
-          logger.warn('⚠️ Failed to cleanup stats subscription:', error);
+          logger.warn('⚠️ Failed to cleanup stats subscription/animations:', error);
         }
         
         // 🔥 MEMORY LEAK FIX: Kill all GSAP animations on stats screen
