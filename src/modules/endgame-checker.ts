@@ -55,7 +55,11 @@ function tileIsWild(tile: any): boolean {
   return special === 'wild' || special === 'wild-magnet' || special === 'wild-beer';
 }
 
-function tileIsActive(tile: any): boolean {
+/**
+ * 🔥 EXPORTED: Check if tile is active (can be merged/moved)
+ * Used by app-core.ts and other modules for consistent tile filtering
+ */
+export function tileIsActive(tile: any): boolean {
   if (!tile || tile.destroyed) return false;
   if (tile.visible === false) return false;
   
@@ -103,11 +107,12 @@ function createTilesHash(tiles: any[]): string {
 }
 
 /**
- * Get active tiles (not locked, value > 0)
+ * 🔥 EXPORTED: Get active tiles (not locked, value > 0)
  * OPTIMIZED: Cached result if tiles array hasn't changed
  * IMPROVED: Now checks tile references and properties, not just length
+ * Used by app-core.ts and other modules for consistent tile filtering
  */
-function getActiveTiles(tiles: any[]): any[] {
+export function getActiveTiles(tiles: any[]): any[] {
   try {
     // Calculate current hash
     const currentHash = createTilesHash(tiles);
@@ -157,12 +162,13 @@ function createContextHash(context: EndGameContext): string {
 }
 
 /**
- * Check if this is a "last merge" scenario
+ * 🔥 REFACTORED: Check if this is a "last merge" scenario
  * Last merge = ALL remaining tiles merge to create merge 6, leaving only merge 6 on board
  * This includes:
  * - wild + regular tile → merge 6 (only 2 tiles on board)
- * - regular + regular → merge 6 (only 2 tiles on board, e.g. 4+2=6)
- * - Any combination where ALL active tiles merge into merge 6
+ * - regular + regular → merge 6 (only 2 tiles on board, e.g. 4+2=6, 3+3=6)
+ * - wild-beer + regular → merge 6 (only 2 tiles on board)
+ * - Any wild type + regular → merge 6 (only 2 tiles on board)
  * 🔥 CRITICAL FIX: If magnet exists on board, it's NOT a last merge - user can still merge magnet with merge 6
  * 🔥 CRITICAL FIX: Include wild-beer in wild tile check (same as wild star)
  */
@@ -174,24 +180,7 @@ function isLastMergeScenario(context: EndGameContext): boolean {
     return false;
   }
   
-  // 🔥 USER REQUEST: Last merge applies to:
-  // 1. Wild + regular → merge 6 (only 2 tiles)
-  // 2. Regular + regular → merge 6 (only 2 tiles, e.g. 4+2=6)
-  // Check if srcTile was wild OR if both tiles were regular
-  if (srcTile) {
-    const srcIsWild = srcTile.special === 'wild' || srcTile.special === 'wild-beer';
-    const srcIsRegular = !srcTile.special && (srcTile.value|0) > 0;
-    const dstIsRegular = !dstTile.special && (dstTile.value|0) > 0;
-    const isRegularRegularMerge6 = srcIsRegular && dstIsRegular && (srcTile.value|0) + (dstTile.value|0) === 6;
-    
-    // If neither wild nor regular+regular merge-6, it's not a last merge
-    if (!srcIsWild && !isRegularRegularMerge6) {
-      console.log('🔍 isLastMergeScenario: srcTile is not wild and not regular+regular merge-6 (special:', srcTile.special, ') - NOT a last merge');
-      return false;
-    }
-  }
-  
-  // Get active tiles excluding dst
+  // Get active tiles excluding dst (after src was removed)
   const activeTiles = getActiveTiles(tiles).filter(t => t !== dstTile);
   
   // 🔥 CRITICAL FIX: If magnet exists on board, it's NOT a last merge
@@ -207,11 +196,23 @@ function isLastMergeScenario(context: EndGameContext): boolean {
       dstTile && 
       !dstTile.destroyed && 
       dstTile.value === 6) {
-    const srcIsWild = srcTile && (srcTile.special === 'wild' || srcTile.special === 'wild-beer');
-    const srcIsRegular = srcTile && !srcTile.special && (srcTile.value|0) > 0;
-    const dstIsRegular = !dstTile.special && (dstTile.value|0) > 0;
-    const mergeType = srcIsWild ? 'wild (star or beer) + regular' : 
-                     (srcIsRegular && dstIsRegular) ? 'regular + regular' : 'unknown';
+    
+    // Determine merge type for logging
+    let mergeType = 'unknown';
+    if (srcTile) {
+      const srcIsWild = srcTile.special === 'wild' || srcTile.special === 'wild-beer' || srcTile.special === 'wild-magnet';
+      const srcIsRegular = !srcTile.special && (srcTile.value|0) > 0;
+      const dstIsRegular = !dstTile.special && (dstTile.value|0) > 0;
+      
+      if (srcIsWild && !dstIsRegular) {
+        mergeType = 'wild + regular';
+      } else if (srcIsRegular && dstIsRegular && (srcTile.value|0) + (dstTile.value|0) === 6) {
+        mergeType = 'regular + regular';
+      } else if (srcIsWild) {
+        mergeType = 'wild (any type) + regular';
+      }
+    }
+    
     console.log(`✅ isLastMergeScenario: Last merge detected - ${mergeType} → merge 6, only merge 6 remains`);
     return true;
   }
@@ -456,21 +457,9 @@ if (hasWild && hasMerge6) {
 if (isGameStuck(context)) {
   console.log('🚨🚨🚨 EndGameChecker: GAME STUCK - no merges possible');
 
-  // 🔥 CRITICAL FIX: Double-check anyMergePossible before returning stuck!
-  // This prevents false positives when 2 regular tiles can still merge to 6
-  // Example: 2 regular tiles (e.g. 3+3=6 or 4+2=6) should NOT trigger fail screen
-  if (makeBoard && typeof makeBoard.anyMergePossible === 'function') {
-    const canMergeDoubleCheck = makeBoard.anyMergePossible(tiles);
-    if (canMergeDoubleCheck) {
-      console.log('✅ EndGameChecker: anyMergePossible DOUBLE-CHECK returned TRUE - merges still possible (e.g. 2 regular tiles can merge to 6), game continues');
-      lastCheckResult = { type: 'continue', reason: 'double_check_merges_possible' };
-      lastCheckTime = now;
-      lastCheckContextHash = contextHash;
-      return lastCheckResult;
-    } else {
-      console.log('🔍 EndGameChecker: anyMergePossible DOUBLE-CHECK returned FALSE - game is truly stuck');
-    }
-  }
+  // 🔥 REFACTORED: Uklonjen double-check - isGameStuck() već poziva anyMergePossible()
+  // Ako isGameStuck() vraća true, znači da anyMergePossible() već vratio false
+  // Nema potrebe za double-check-om
 
   // 🔥 CRITICAL FIX: If only 1 tile remains and it's not merge 6, it's stuck
   // This handles the case where user merges all spawned tiles into one non-6 tile

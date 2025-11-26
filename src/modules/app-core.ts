@@ -26,7 +26,7 @@ import { openEmpties } from './app-spawn.ts';
 import { clearWildState, handleWildMagnetMergedPulledTiles } from './app-merge.ts';
 import { statsService } from '../services/stats-service.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
-import { checkEndGame, needsEmergencyRescue, clearEndGameCache, type EndGameContext } from './endgame-checker.ts';
+import { checkEndGame, needsEmergencyRescue, clearEndGameCache, tileIsActive, getActiveTiles, type EndGameContext } from './endgame-checker.ts';
 import memoryManager from './memory-manager.ts';
 import { boardSpecificRules, isWildSpawnEnabled, isWildMeterEnabled, filterWildType, getWildMeterFillRate } from './board-specific-rules.ts';
 
@@ -132,16 +132,11 @@ let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull an
 let drag;
 let busyEnding = false;
 
-function tileIsVisuallyActive(tile: any): boolean {
-  if (!tile || tile.destroyed || tile.locked) return false;
-  const value = (tile.value | 0);
-  const special = tile.special;
-  const isWild = special === 'wild' || special === 'wild-magnet' || special === 'wild-beer';
-  return value > 0 || isWild;
-}
+// 🔥 REFACTORED: Koristimo tileIsActive iz endgame-checker.ts za konzistentnost
+// Uklonjeno tileIsVisuallyActive() - sada koristimo tileIsActive() iz endgame-checker.ts
 
 function getReactiveActiveTiles(): any[] {
-  return tiles.filter(tileIsVisuallyActive);
+  return tiles.filter(tileIsActive);
 }
 
 // 🔥 REMOVED: isBoardCleanReactive() - use checkEndGame() from endgame-checker.ts instead
@@ -2490,7 +2485,7 @@ function merge(src, dst, helpers){
           await new Promise(resolve => setTimeout(resolve, 100));
           
           // 🔥 CRITICAL: Verify dst tile state before checking
-          const activeTilesBeforeCheck = tiles.filter(tileIsVisuallyActive);
+          const activeTilesBeforeCheck = tiles.filter(tileIsActive);
           const dstInTiles = tiles.includes(dst);
           const dstIsActive = dst && !dst.locked && (dst.value|0) > 0;
           
@@ -2680,59 +2675,19 @@ function merge(src, dst, helpers){
         animateBoardHUD(boardNumber, 0.40);
         if (moves === 0) { checkMovesDepleted(); return; }
 
-        checkLevelEnd();
-
-        // 🔥 STUCK PROTECTION: Add fallback timer to check for stuck state after 1 second
-        // This prevents cases where player merges 3 tiles into 1 non-6 tile and game gets stuck
-        // 🔥 CRITICAL FIX: SKIP this check for merge-6 (merge-6 will spawn new tiles, so we should check AFTER spawn)
-        // Note: isMerge6 is already declared earlier in the function, so we reuse it here
+        // 🔥 REFACTORED: Uklonjen STUCK PROTECTION timer - koristimo samo checkLevelEnd() s delay-om
+        // checkLevelEnd() već provjerava sve potrebne scenarije kroz checkEndGame()
+        // Nema potrebe za dodatnim timerom koji stvara race conditions
+        
+        // Za non-merge-6, provjeri nakon kratke delay za animaciju
         if (effSum !== 6) {
-        gsap.delayedCall(1.0, () => {
-          if (!busyEnding) {
-            console.log('🔍 STUCK PROTECTION: Checking for stuck state 1 second after merge...');
-            const activeTiles = tiles.filter(tileIsVisuallyActive);
-              
-              // 🔥 CRITICAL FIX: ALWAYS check anyMergePossible before triggering fail screen!
-              // This prevents false positives when tiles can still merge
-              if (makeBoard && typeof makeBoard.anyMergePossible === 'function') {
-                const canMerge = makeBoard.anyMergePossible(tiles);
-                if (canMerge) {
-                  console.log('✅ STUCK PROTECTION: anyMergePossible returned TRUE - merges still possible, skipping fail screen');
-                  return;
-                } else {
-                  console.log('🔍 STUCK PROTECTION: anyMergePossible returned FALSE - checking further...');
-                }
-              }
-            
-            // 🔥 CRITICAL FIX: NEVER trigger fail screen if there's a wild or magnet on board!
-            // Wild/magnet can merge with anything, so game is NOT stuck
-            const hasWildOrMagnet = activeTiles.some(t => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer');
-            if (hasWildOrMagnet) {
-              console.log('✅ STUCK PROTECTION: Wild/magnet on board - game can continue, skipping fail screen');
-              return;
-            }
-            
-            // 🔥 CRITICAL FIX: NEVER trigger fail screen if there are locked tiles (animations in progress)
-            const hasLockedTiles = tiles.some((t: any) => t && !t.destroyed && t.locked && ((t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer'));
-            if (hasLockedTiles) {
-              console.log('✅ STUCK PROTECTION: Locked tiles animating - skipping fail screen');
-              return;
-            }
-            
-            // 🔥 STUCK PROTECTION: If only one tile remains and it's not a 6, there's no possible move
-            // (Even stacked tiles cannot merge by themselves; user is effectively stuck.)
-            if (activeTiles.length === 1 && activeTiles[0].value !== 6) {
-              const singleTile = activeTiles[0];
-              const stackDepth = singleTile.stackDepth || 1;
-              const value = singleTile.value || 0;
-              console.log('🚨 STUCK PROTECTION: Single non-6 tile detected - forcing fail screen', { value, stackDepth });
-              showFinalScreen();
-              return;
-            }
-          }
-        });
+          // Mala delay za animaciju, zatim provjeri
+          setTimeout(() => {
+            checkLevelEnd();
+          }, 100);
         } else {
-          console.log('🎯 STUCK PROTECTION: Skipped for merge-6 - will check AFTER spawn completes');
+          // Za merge-6, checkLevelEnd() se poziva nakon spawn-a (već postoji delay u merge-6 block)
+          // Ne treba dodatni poziv ovdje
         }
       }
     });
@@ -4413,7 +4368,7 @@ function merge(src, dst, helpers){
           await new Promise(res => setTimeout(res, 1000));
           
           // Log board state before check
-          const activeTilesAfterPull = tiles.filter(tileIsVisuallyActive);
+          const activeTilesAfterPull = tiles.filter(tileIsActive);
           console.log('🔍 Board state AFTER magnet pull:', {
             activeTilesCount: activeTilesAfterPull.length,
             activeTiles: activeTilesAfterPull.map(t => ({ 
@@ -4508,7 +4463,7 @@ function merge(src, dst, helpers){
                          (srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer') ? 'wild-beer-regular' :
                          (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet') ? 'wild-magnet-regular' : 'unknown';
         
-        const activeTilesCount = tiles.filter(tileIsVisuallyActive).length;
+        const activeTilesCount = tiles.filter(tileIsActive).length;
         
         console.log('🎯🎯🎯 SPAWN CHECK FOR MERGE-6:', {
           mergeType,
@@ -4911,23 +4866,15 @@ function checkLevelEnd(){
     if (checkLevelEndResult.type === 'stuck') {
       console.log('🚨🚨🚨 checkLevelEnd: Game is stuck, checking anyMergePossible before showing fail screen');
       console.log('🔍 checkLevelEnd: Stuck reason:', checkLevelEndResult.reason);
-      console.log('🔍 checkLevelEnd: Current tiles:', tiles.filter(tileIsVisuallyActive).map(t => ({ 
+      console.log('🔍 checkLevelEnd: Current tiles:', tiles.filter(tileIsActive).map(t => ({ 
         value: t.value, 
         special: t.special, 
         locked: t.locked 
       })));
       
-      // 🔥 CRITICAL FIX: ALWAYS check anyMergePossible before showing fail screen!
-      // This prevents false positives when 2 regular tiles can still merge to 6
-      if (makeBoard && typeof makeBoard.anyMergePossible === 'function') {
-        const canMerge = makeBoard.anyMergePossible(tiles);
-        if (canMerge) {
-          console.log('✅ checkLevelEnd: anyMergePossible returned TRUE - merges still possible (e.g. 2 regular tiles can merge to 6), skipping fail screen');
-          return;
-        } else {
-          console.log('🔍 checkLevelEnd: anyMergePossible returned FALSE - game is truly stuck');
-        }
-      }
+      // 🔥 REFACTORED: Uklonjena redundancija - checkEndGame() već poziva anyMergePossible() kroz isGameStuck()
+      // Ako checkEndGame() vraća 'stuck', znači da anyMergePossible() već vratio false
+      // Nema potrebe za dodatnom provjerom
       
       if (!busyEnding) {
         // 🔥 CRITICAL: Wait 0.5 seconds before showing fail screen so user can see the board state

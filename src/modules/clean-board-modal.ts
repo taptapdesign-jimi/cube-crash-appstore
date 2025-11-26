@@ -3,6 +3,7 @@
 
 // Keep CSS-based pop-in like homepage slide 1
 
+import { gsap } from 'gsap';
 import { createConfettiExplosion } from './confetti-system.js';
 import { statsService } from '../services/stats-service.ts';
 
@@ -405,7 +406,145 @@ export async function showCleanBoardModal({
       return safe.toString();
     };
 
-    mainScore.textContent = formatScore(currentScore);
+    // Slot-style flip number helper (per-digit vertical reel)
+    const createFlipNumber = (host: HTMLElement, initial: string) => {
+      host.innerHTML = '';
+      host.style.display = 'flex';
+      host.style.gap = '4px';
+      host.style.alignItems = 'center';
+      host.style.letterSpacing = '0.02em';
+      host.style.fontVariantNumeric = 'tabular-nums';
+      host.style.perspective = '900px';
+
+      const computedSize = parseFloat(getComputedStyle(host).fontSize || '64') || 64;
+      const digitHeight = Math.round(computedSize * 1.05);
+      const digitWidth = Math.round(digitHeight * 0.62);
+
+      const makeCell = (char: string) => {
+        const cell = document.createElement('div');
+        cell.textContent = char;
+        cell.style.height = `${digitHeight}px`;
+        cell.style.width = `${digitWidth}px`;
+        cell.style.display = 'flex';
+        cell.style.alignItems = 'center';
+        cell.style.justifyContent = 'center';
+        cell.style.backfaceVisibility = 'hidden';
+        cell.style.willChange = 'transform';
+        cell.style.transform = 'translateZ(0)';
+        cell.style.textShadow = '0 1px 1px rgba(0,0,0,0.12)';
+        return cell;
+      };
+
+      const digits: Array<{ wrap: HTMLElement; reel: HTMLElement; current: number }> = [];
+
+      const ensureDigitCount = (count: number) => {
+        while (digits.length < count) {
+          const wrap = document.createElement('div');
+          wrap.style.position = 'relative';
+          wrap.style.width = `${digitWidth}px`;
+          wrap.style.height = `${digitHeight}px`;
+          wrap.style.overflow = 'hidden';
+          wrap.style.borderRadius = '10px';
+          wrap.style.background = 'transparent'; // remove grey container
+          wrap.style.boxShadow = 'none';
+          wrap.style.display = 'flex';
+          wrap.style.alignItems = 'center';
+          wrap.style.justifyContent = 'center';
+
+          const reel = document.createElement('div');
+          reel.style.position = 'absolute';
+          reel.style.left = '0';
+          reel.style.top = '0';
+          reel.style.width = '100%';
+          reel.style.willChange = 'transform';
+          wrap.appendChild(reel);
+
+          host.appendChild(wrap);
+          digits.push({ wrap, reel, current: 0 });
+        }
+        while (digits.length > count) {
+          const d = digits.pop();
+          d?.wrap.remove();
+        }
+      };
+
+      const setStaticDigit = (digit: number, slot: { wrap: HTMLElement; reel: HTMLElement; current: number }) => {
+        slot.reel.innerHTML = '';
+        const cell = makeCell(String(digit));
+        slot.reel.appendChild(cell);
+        slot.reel.style.transform = 'translateY(0px)';
+        slot.current = digit;
+        slot.wrap.style.filter = 'none';
+        slot.wrap.style.opacity = '1';
+      };
+
+      const spinDigit = (
+        targetDigit: number,
+        slot: { wrap: HTMLElement; reel: HTMLElement; current: number },
+        opts: { duration?: number; spins?: number; ease?: string }
+      ) => {
+        const duration = Math.max(0, opts.duration ?? 0.8);
+        const spins = Math.max(0, opts.spins ?? 1.2);
+        const ease = opts.ease ?? 'power3.inOut';
+        const start = Number.isFinite(slot.current) ? slot.current : 0;
+
+        // Build a reel long enough to simulate spinning
+        const extraSteps = Math.max(1, Math.round(spins * 10));
+        const delta = (targetDigit - start + 10) % 10;
+        const totalSteps = extraSteps + delta;
+
+        slot.reel.innerHTML = '';
+        for (let i = 0; i <= totalSteps; i++) {
+          const val = (start + i) % 10;
+          slot.reel.appendChild(makeCell(String(val)));
+        }
+
+        slot.reel.style.transform = 'translateY(0px)';
+        slot.wrap.style.filter = duration > 0 ? 'blur(2px)' : 'none';
+        slot.wrap.style.opacity = duration > 0 ? '0.9' : '1';
+
+        gsap.killTweensOf(slot.reel);
+        gsap.to(slot.reel, {
+          y: -totalSteps * digitHeight,
+          duration,
+          ease,
+          onComplete: () => {
+            setStaticDigit(targetDigit, slot);
+          }
+        });
+
+        slot.current = targetDigit;
+      };
+
+      const setValue = (value: number, opts: { duration?: number; spins?: number; ease?: string } = {}) => {
+        const text = formatScore(value);
+        ensureDigitCount(text.length);
+        const chars = text.split('');
+        chars.forEach((char, idx) => {
+          const slot = digits[idx];
+          const targetDigit = Number(char);
+          if (!Number.isFinite(targetDigit)) {
+            setStaticDigit(0, slot);
+            return;
+          }
+          const needsSpin = opts.duration !== 0 && targetDigit !== slot.current;
+          if (needsSpin) {
+            spinDigit(targetDigit, slot, opts);
+          } else {
+            setStaticDigit(targetDigit, slot);
+          }
+        });
+      };
+
+      setValue(parseInt(initial, 10) || 0, { duration: 0 });
+
+      return {
+        setValue,
+        jumpTo: (value: number) => setValue(value, { duration: 0 })
+      };
+    };
+
+    const scoreFlip = createFlipNumber(mainScore, formatScore(currentScore));
     bonusValue.textContent = `+${formatScore(safeBonus)}`;
 
     // Prepare initial pop-in states
@@ -454,36 +593,12 @@ export async function showCleanBoardModal({
       const toScoreText = (value: number) => formatScore(value);
 
       const runCasinoIntro = (): void => {
-        const duration = 1100;
-        const wobbleBase = Math.pow(10, Math.max(digits - 2, 0));
-        const t0 = performance.now();
-
-        let rafId: number | null = null;
-        const tick = (now: number) => {
-          const elapsed = now - t0;
-          const p = Math.min(elapsed / duration, 1);
-          const ease = 1 - Math.pow(1 - p, 3);
-          const wobbleStrength = (1 - ease) * 0.75;
-          const wobble = Math.floor((Math.random() - 0.5) * wobbleBase * 6 * wobbleStrength);
-          const value = Math.max(0, currentScore + wobble);
-          mainScore.textContent = toScoreText(value);
-          if (p < 1) {
-            rafId = trackAnimationFrame(tick);
-          } else {
-            mainScore.textContent = toScoreText(currentScore);
-            if (rafId !== null) {
-              _modalAnimationFrames.delete(rafId);
-              rafId = null;
-            }
-          }
-        };
-        rafId = trackAnimationFrame(tick);
+        scoreFlip.setValue(currentScore, { duration: 1.1, spins: 1.4, ease: 'power3.out' });
       };
 
       const transferBonus = (): void => {
-        const duration = safeBonus > 0 ? 1400 : 800;
-        const scoreDiff = finalScore - currentScore;
-        const t0 = performance.now();
+        const durationMs = safeBonus > 0 ? 1400 : 800;
+        const durationSec = durationMs / 1000;
         mainScore.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
         mainScore.style.transform = 'scale(1.08) translateY(0)';
         setTimeout(() => {
@@ -491,27 +606,22 @@ export async function showCleanBoardModal({
           mainScore.style.transform = 'scale(1) translateY(0)';
         }, 420);
 
-        let rafId: number | null = null;
-        const tick = (now: number) => {
-          const elapsed = now - t0;
-          const p = Math.min(elapsed / duration, 1);
-          const eased = 1 - Math.pow(1 - p, 3);
-          const scoreValue = currentScore + scoreDiff * eased;
-          const bonusLeft = Math.max(0, safeBonus - safeBonus * eased);
-          mainScore.textContent = toScoreText(scoreValue);
-          bonusValue.textContent = `+${formatScore(Math.round(bonusLeft))}`;
-          if (p < 1) {
-            rafId = trackAnimationFrame(tick);
-          } else {
-            mainScore.textContent = toScoreText(finalScore);
+        // Flip score to final value
+        scoreFlip.setValue(finalScore, { duration: durationSec, spins: safeBonus > 0 ? 1.8 : 1.2, ease: 'power2.out' });
+
+        // Animate bonus countdown separately
+        const bonusProxy = { value: safeBonus };
+        gsap.to(bonusProxy, {
+          value: 0,
+          duration: durationSec,
+          ease: 'power2.out',
+          onUpdate: () => {
+            bonusValue.textContent = `+${formatScore(Math.round(bonusProxy.value))}`;
+          },
+          onComplete: () => {
             bonusValue.textContent = '+0';
-            if (rafId !== null) {
-              _modalAnimationFrames.delete(rafId);
-              rafId = null;
-            }
           }
-        };
-        rafId = trackAnimationFrame(tick);
+        });
       };
 
       {
@@ -569,7 +679,7 @@ export async function showCleanBoardModal({
         setTimeout(() => {
           if (safeBonus <= 0) {
             bonusValue.textContent = '+0';
-            mainScore.textContent = toScoreText(finalScore);
+            scoreFlip.setValue(finalScore, { duration: 0, spins: 0 });
             return;
           }
           transferBonus();
