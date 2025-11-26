@@ -1593,7 +1593,7 @@ wildMeter = 0;
   updateHUD();
   
   // Initialize background layer after first layout
-  layout();
+  layoutBoard();
   initializeBackgroundLayer();
   
   // Call layout only for initial game start, not for restart
@@ -5208,9 +5208,9 @@ function restartGame(){
   console.log('✅ RESTART: rebuildBoard() completed');
   
   // CRITICAL: Call layout to restart idle bounce and position everything
-  console.log('🔄 RESTART: Calling layout() to restart idle bounce...');
-  layout();
-  console.log('✅ RESTART: layout() completed');
+  console.log('🔄 RESTART: Calling layoutBoard() to restart idle bounce...');
+  layoutBoard();
+  console.log('✅ RESTART: layoutBoard() completed');
   
   // Reinitialize background layer if it was lost
   if (!backgroundLayer) {
