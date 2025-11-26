@@ -2500,9 +2500,11 @@ function merge(src, dst, helpers){
           // 🔥 USER REQUEST: If this was last 2 regular tiles that stacked (not merge 6), trigger fail screen immediately
           // 🔥 CRITICAL: Only trigger if this is TRULY the last move (no other tiles on board, no locked tiles)
           // This prevents blocking normal gameplay when stacking in the middle of the game
+          // 🔥 CRITICAL FIX: Use visible tiles count (not stackDepth sum) for accurate "last 2 tiles" detection
+          const visibleTilesBeforeCheck = activeTilesBeforeCheck.length; // Count visible tiles, not stackDepth sum
           const hasOtherActiveTilesForTwo = activeTilesBeforeCheck.some(t => t !== dst);
           const hasLockedTilesForTwo = tiles.some((t: any) => t && !t.destroyed && t.locked && (t.value|0) > 0);
-          const isTrulyLastMoveForTwo = !hasOtherActiveTilesForTwo && !hasLockedTilesForTwo && activeTilesBeforeCheck.length === 1 && activeTilesBeforeCheck[0] === dst;
+          const isTrulyLastMoveForTwo = !hasOtherActiveTilesForTwo && !hasLockedTilesForTwo && visibleTilesBeforeCheck === 1 && activeTilesBeforeCheck[0] === dst;
           
           if (wasLastTwoRegularStack && isTrulyLastMoveForTwo) {
             // 🔥 CRITICAL: Check if stack can reach merge 6 by merging with itself
