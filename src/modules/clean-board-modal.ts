@@ -461,27 +461,39 @@ export async function showCleanBoardModal({
           return;
         }
         
-        // Animate from current displayed value to new score
-        const currentDisplayed = parseInt(mainScore.textContent?.replace(/,/g, '') || '0') || 0;
+        // Get current displayed value - parse from textContent
+        const currentText = mainScore.textContent || '0';
+        const currentDisplayed = parseInt(currentText.replace(/[^0-9]/g, '') || '0') || 0;
         const targetScore = Math.max(0, Math.floor(newScore));
+        
+        console.log('🎯 updateScore called:', { currentDisplayed, targetScore, currentText, newScore });
         
         if (currentDisplayed === targetScore) {
           mainScore.textContent = formatScoreSimple(targetScore);
           return;
         }
         
+        // Kill any existing animation on this element
+        gsap.killTweensOf({});
+        
         const scoreProxy = { value: currentDisplayed };
-        const duration = Math.min(1.2, Math.max(0.6, (targetScore - currentDisplayed) / 1000)); // Dynamic duration based on difference
+        // Calculate duration: minimum 0.8s, maximum 1.5s, based on difference
+        const diff = Math.abs(targetScore - currentDisplayed);
+        const duration = Math.min(1.5, Math.max(0.8, diff / 500)); // Slower for better visibility
+        
+        console.log('🎯 Starting score animation:', { from: currentDisplayed, to: targetScore, duration, diff });
         
         gsap.to(scoreProxy, {
           value: targetScore,
           duration: duration,
           ease: 'power2.out',
           onUpdate: () => {
-            mainScore.textContent = formatScoreSimple(Math.round(scoreProxy.value));
+            const rounded = Math.round(scoreProxy.value);
+            mainScore.textContent = formatScoreSimple(rounded);
           },
           onComplete: () => {
             mainScore.textContent = formatScoreSimple(targetScore);
+            console.log('✅ Score animation complete:', targetScore);
           }
         });
       };
@@ -554,7 +566,11 @@ export async function showCleanBoardModal({
           mainScore.style.opacity = '1';
           mainScore.style.transform = 'scale(1) translateY(0)';
           // 🔥 ANIMATION: Start counting from 0 to currentScore when score appears
-          updateScore(currentScore, true);
+          // Add small delay to ensure element is fully visible before animation starts
+          setTimeout(() => {
+            console.log('🎯 Starting initial score animation from 0 to', currentScore);
+            updateScore(currentScore, true);
+          }, 50); // Small delay to ensure element is rendered
         }, 420);
 
         // SEQUENCE 2: Score already displayed (no animation needed)
