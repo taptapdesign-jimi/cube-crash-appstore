@@ -1438,11 +1438,11 @@ export function createWildBeerBubblesExplosion(board, tile) {
   const screenW = typeof window !== 'undefined' ? window.innerWidth : 800;
   const screenH = typeof window !== 'undefined' ? window.innerHeight : 600;
 
-  // 🔥 PERFORMANCE OPTIMIZATION: Reduced bubble count and spawn rate to prevent FPS drop
-  // Reduced from 240 to 120 bubbles, maxActive from 200 to 80, initial burst from 12 to 4
-  const totalBubbles = 120; // Reduced from 240 (50% reduction)
+  // 🔥 PERFORMANCE OPTIMIZATION: Small initial burst (4 bubbles) to prevent FPS drop, then full 250 bubbles
+  // Initial burst is small (4 bubbles staggered), but total is 250 for rich effect
+  const totalBubbles = 250; // Full bubble count for rich effect
   const spawnDuration = 1800; // Slightly longer spawn duration for smoother distribution
-  const maxActive = 80; // Reduced from 200 (60% reduction) - prevents GPU overload
+  const maxActive = 120; // Increased from 80 to allow more bubbles, but still capped to prevent overload
   let active = 0;
   let spawned = 0;
   const perMs = totalBubbles / spawnDuration;
