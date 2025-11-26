@@ -408,9 +408,8 @@ export async function showCleanBoardModal({
       return safe.toString();
     };
 
-    // 🔥 REVERTED: Removed flip number animation - using simple text display like v50
-    // 🔥 REFACTORED: Koristimo formatScoreSimple iz hud-utils.ts
-    mainScore.textContent = formatScoreSimple(currentScore);
+    // 🔥 ANIMATION: Start with 0, will animate to currentScore
+    mainScore.textContent = '0';
     bonusValue.textContent = `+${formatScoreSimple(safeBonus)}`;
 
     // Prepare initial pop-in states
@@ -455,10 +454,36 @@ export async function showCleanBoardModal({
       scoreLabel.style.transition = trans;
       mainScore.style.transition = trans;
 
-      // 🔥 REVERTED: Simple score update without flip animation (like v50)
-      // 🔥 REFACTORED: Koristimo formatScoreSimple iz hud-utils.ts
-      const updateScore = (newScore: number): void => {
-        mainScore.textContent = formatScoreSimple(newScore);
+      // 🔥 ANIMATION: Animate score counting from 0 to target value
+      const updateScore = (newScore: number, animate: boolean = true): void => {
+        if (!animate) {
+          mainScore.textContent = formatScoreSimple(newScore);
+          return;
+        }
+        
+        // Animate from current displayed value to new score
+        const currentDisplayed = parseInt(mainScore.textContent?.replace(/,/g, '') || '0') || 0;
+        const targetScore = Math.max(0, Math.floor(newScore));
+        
+        if (currentDisplayed === targetScore) {
+          mainScore.textContent = formatScoreSimple(targetScore);
+          return;
+        }
+        
+        const scoreProxy = { value: currentDisplayed };
+        const duration = Math.min(1.2, Math.max(0.6, (targetScore - currentDisplayed) / 1000)); // Dynamic duration based on difference
+        
+        gsap.to(scoreProxy, {
+          value: targetScore,
+          duration: duration,
+          ease: 'power2.out',
+          onUpdate: () => {
+            mainScore.textContent = formatScoreSimple(Math.round(scoreProxy.value));
+          },
+          onComplete: () => {
+            mainScore.textContent = formatScoreSimple(targetScore);
+          }
+        });
       };
 
       const transferBonus = (): void => {
@@ -471,8 +496,8 @@ export async function showCleanBoardModal({
           mainScore.style.transform = 'scale(1) translateY(0)';
         }, 420);
 
-        // Update score to final value (simple text update, no flip animation)
-        updateScore(finalScore);
+        // 🔥 ANIMATION: Animate score from current to final value (with bonus added)
+        updateScore(finalScore, true);
 
         // Animate bonus countdown separately
         const bonusProxy = { value: safeBonus };
@@ -528,6 +553,8 @@ export async function showCleanBoardModal({
         setTimeout(() => {
           mainScore.style.opacity = '1';
           mainScore.style.transform = 'scale(1) translateY(0)';
+          // 🔥 ANIMATION: Start counting from 0 to currentScore when score appears
+          updateScore(currentScore, true);
         }, 420);
 
         // SEQUENCE 2: Score already displayed (no animation needed)
@@ -543,7 +570,7 @@ export async function showCleanBoardModal({
         setTimeout(() => {
           if (safeBonus <= 0) {
             bonusValue.textContent = '+0';
-            updateScore(finalScore);
+            updateScore(finalScore, true);
             return;
           }
           transferBonus();
