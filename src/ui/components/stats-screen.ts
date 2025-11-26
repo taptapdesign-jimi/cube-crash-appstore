@@ -105,14 +105,19 @@ function updateStatsDisplay(stats: any): void {
       if (index > -1) statAnimationProxies.splice(index, 1);
     }
     
+    // 🔥 CRITICAL: Set element to 0 immediately before starting animation
+    element.textContent = '0';
+    
     // Create new proxy for this animation
     const statProxy = { value: startValue };
     (statProxy as any).elementId = id; // Track which element this proxy is for
     statAnimationProxies.push(statProxy);
     
     // Calculate duration: minimum 0.8s, maximum 1.5s, based on difference
-    const diff = Math.abs(targetValue - currentDisplayed);
+    const diff = Math.abs(targetValue - startValue);
     const duration = Math.min(1.5, Math.max(0.8, diff / 500));
+    
+    console.log(`🎯 Animating ${id} from ${startValue} to ${targetValue}, duration: ${duration}`);
     
     gsap.to(statProxy, {
       value: targetValue,
@@ -124,6 +129,7 @@ function updateStatsDisplay(stats: any): void {
       },
       onComplete: () => {
         element.textContent = targetValue.toString();
+        console.log(`✅ Animation complete for ${id}: ${targetValue}`);
       }
     });
   };
