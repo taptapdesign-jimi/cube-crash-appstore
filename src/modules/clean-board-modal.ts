@@ -463,25 +463,41 @@ export async function showCleanBoardModal({
         
         // Get current displayed value - parse from textContent
         const currentText = mainScore.textContent || '0';
-        const currentDisplayed = parseInt(currentText.replace(/[^0-9]/g, '') || '0') || 0;
+        // Remove all non-numeric characters and parse
+        const cleanedText = currentText.replace(/[^0-9]/g, '');
+        const currentDisplayed = cleanedText ? parseInt(cleanedText, 10) : 0;
         const targetScore = Math.max(0, Math.floor(newScore));
         
-        console.log('🎯 updateScore called:', { currentDisplayed, targetScore, currentText, newScore });
+        console.log('🎯 updateScore called:', { 
+          currentText, 
+          cleanedText, 
+          currentDisplayed, 
+          targetScore, 
+          newScore 
+        });
         
         if (currentDisplayed === targetScore) {
           mainScore.textContent = formatScoreSimple(targetScore);
           return;
         }
         
-        // Kill any existing animation on this element
-        gsap.killTweensOf({});
+        // Kill any existing animation on scoreProxy object
+        let scoreProxy = { value: currentDisplayed };
+        gsap.killTweensOf(scoreProxy);
         
-        const scoreProxy = { value: currentDisplayed };
+        // Reset proxy to current value
+        scoreProxy.value = currentDisplayed;
+        
         // Calculate duration: minimum 0.8s, maximum 1.5s, based on difference
         const diff = Math.abs(targetScore - currentDisplayed);
         const duration = Math.min(1.5, Math.max(0.8, diff / 500)); // Slower for better visibility
         
-        console.log('🎯 Starting score animation:', { from: currentDisplayed, to: targetScore, duration, diff });
+        console.log('🎯 Starting score animation:', { 
+          from: currentDisplayed, 
+          to: targetScore, 
+          duration, 
+          diff 
+        });
         
         gsap.to(scoreProxy, {
           value: targetScore,
@@ -489,7 +505,9 @@ export async function showCleanBoardModal({
           ease: 'power2.out',
           onUpdate: () => {
             const rounded = Math.round(scoreProxy.value);
-            mainScore.textContent = formatScoreSimple(rounded);
+            const formatted = formatScoreSimple(rounded);
+            mainScore.textContent = formatted;
+            console.log('🔄 Score update:', rounded, '->', formatted);
           },
           onComplete: () => {
             mainScore.textContent = formatScoreSimple(targetScore);
