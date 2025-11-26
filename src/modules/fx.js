@@ -1482,8 +1482,10 @@ export function createWildBeerBubblesExplosion(board, tile) {
     wildBeerExplosionContainer.addChild(bubble);
 
     const endY = -screenH * (0.1 + Math.random() * 0.15);
-    // Faster rise so the entire burst finishes under ~3s
-    const duration = Math.min(2.1, Math.max(1.1, 1.6 + (Math.random() - 0.5) * 0.6));
+    // 🔥 SLOW DOWN: Increased duration by 30% for slower bubble rise
+    // Original: 1.1-2.1s, now: 1.43-2.73s (30% slower)
+    const baseDuration = 1.6 + (Math.random() - 0.5) * 0.6;
+    const duration = Math.min(2.73, Math.max(1.43, baseDuration * 1.3));
 
     const drift1 = (Math.random() - 0.5) * 180;
     const drift2 = drift1 * -0.6 + (Math.random() - 0.5) * 220;
