@@ -1104,7 +1104,62 @@ export function updateHUD({ score, board, moves, combo }) {
   }
 }
 
-export function setScore(v){ if (scoreText) scoreText.text = String(v|0); }
+// 🔥 ANIMATION: Animate score counting from current to target value
+let __scoreProxy = null;
+let __scoreTween = null;
+
+export function setScore(v, animate = true){ 
+  if (!scoreText) return;
+  
+  const targetScore = v|0;
+  const currentText = scoreText.text || '0';
+  const currentScore = parseInt(currentText.replace(/[^0-9]/g, '') || '0', 10) || 0;
+  
+  // If already at target, just set it directly
+  if (currentScore === targetScore) {
+    scoreText.text = String(targetScore);
+    return;
+  }
+  
+  // If animation is already in progress (from animateScore), just update directly
+  // This prevents double animation when animateScore calls setScore in onUpdate
+  if (__scoreTweening || !animate) {
+    scoreText.text = String(targetScore);
+    return;
+  }
+  
+  // Kill any existing animation
+  if (__scoreTween) {
+    gsap.killTweensOf(__scoreProxy);
+    __scoreTween = null;
+  }
+  
+  // Create proxy object for animation
+  if (!__scoreProxy) {
+    __scoreProxy = { value: currentScore };
+  } else {
+    __scoreProxy.value = currentScore;
+  }
+  
+  // Calculate duration based on difference
+  const diff = Math.abs(targetScore - currentScore);
+  const duration = Math.min(1.2, Math.max(0.6, diff / 1000));
+  
+  // Animate score counting
+  __scoreTween = gsap.to(__scoreProxy, {
+    value: targetScore,
+    duration: duration,
+    ease: 'power2.out',
+    onUpdate: () => {
+      const rounded = Math.round(__scoreProxy.value);
+      scoreText.text = String(rounded);
+    },
+    onComplete: () => {
+      scoreText.text = String(targetScore);
+      __scoreTween = null;
+    }
+  });
+}
 export function setBoard(v){
   const val = v|0;
   if (boardText) boardText.text = `#${val}`;
