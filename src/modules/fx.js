@@ -1438,14 +1438,18 @@ export function createWildBeerBubblesExplosion(board, tile) {
   const screenW = typeof window !== 'undefined' ? window.innerWidth : 800;
   const screenH = typeof window !== 'undefined' ? window.innerHeight : 600;
 
-  // 🔥 PERFORMANCE OPTIMIZATION: Small initial burst (4 bubbles) to prevent FPS drop, then full 250 bubbles
-  // Initial burst is small (4 bubbles staggered), but total is 250 for rich effect
-  const totalBubbles = 250; // Full bubble count for rich effect
-  const spawnDuration = 1800; // Slightly longer spawn duration for smoother distribution
-  const maxActive = 120; // Increased from 80 to allow more bubbles, but still capped to prevent overload
+  // 🔥 PERFORMANCE OPTIMIZATION: Small initial burst (4 bubbles) to prevent FPS drop, then 5x more bubbles
+  // First second: slow spawn (sparse), after 1 second: 5x faster spawn rate for rich effect
+  const totalBubbles = 1250; // 5x more bubbles (250 * 5) for rich effect after first second
+  const spawnDuration = 2500; // Longer duration to accommodate more bubbles
+  const maxActive = 150; // Increased to allow more bubbles active at once
   let active = 0;
   let spawned = 0;
-  const perMs = totalBubbles / spawnDuration;
+  
+  // Dynamic spawn rate: slow for first 1000ms, then 5x faster
+  const slowSpawnRate = 50 / 1000; // 50 bubbles in first second (sparse)
+  const fastSpawnRate = (totalBubbles - 50) / (spawnDuration - 1000); // Rest of bubbles in remaining time (5x faster)
+  
   let startTime = performance.now();
   let lastTick = startTime;
   let acc = 0;
@@ -1568,10 +1572,20 @@ export function createWildBeerBubblesExplosion(board, tile) {
       return;
     }
 
-    // 🔥 PERFORMANCE OPTIMIZATION: Throttle spawn rate to prevent FPS drop
-    // Spawn max 2 bubbles per frame instead of 3
-    acc += perMs * dt;
-    const toSpawn = Math.min(2, Math.floor(acc)); // Reduced from 3 to 2
+    // 🔥 DYNAMIC SPAWN RATE: Slow for first 1000ms, then 5x faster
+    let currentSpawnRate;
+    if (elapsed < 1000) {
+      // First second: slow spawn (sparse)
+      currentSpawnRate = slowSpawnRate;
+    } else {
+      // After first second: 5x faster spawn rate
+      currentSpawnRate = fastSpawnRate;
+    }
+    
+    acc += currentSpawnRate * dt;
+    // Allow more bubbles per frame after first second (up to 5 per frame)
+    const maxPerFrame = elapsed < 1000 ? 2 : 5;
+    const toSpawn = Math.min(maxPerFrame, Math.floor(acc));
     if (toSpawn > 0) {
       acc -= toSpawn;
       for (let i = 0; i < toSpawn; i++) {
