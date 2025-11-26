@@ -1,6 +1,7 @@
 // Stats Screen Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 import { statsService } from '../../services/stats-service.js';
+import { gsap } from 'gsap';
 
 // Keep track of subscription for cleanup
 let statsSubscription: (() => void) | null = null;
@@ -57,15 +58,56 @@ function updateStatsDisplay(stats: any): void {
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
   
-  // Update all stat elements
-  const updateElement = (id: string, value: string | number) => {
+  // 🔥 ANIMATION: Animate stat numbers from 0 to target value (same style as clean board)
+  const updateElement = (id: string, value: string | number, animate: boolean = true) => {
     const element = document.getElementById(id);
-    if (element) {
+    if (!element) {
+      console.error(`❌ Element not found: ${id}`);
+      return;
+    }
+    
+    // Check if value is a number (for animation) or string (like time format or "0/26")
+    const isNumeric = typeof value === 'number' || (typeof value === 'string' && /^\d+$/.test(value));
+    
+    if (!isNumeric || !animate) {
+      // Non-numeric values (like time format "00:00:00" or "0/26") - set directly
       element.textContent = value.toString();
       console.log(`✅ Updated ${id}:`, value);
-    } else {
-      console.error(`❌ Element not found: ${id}`);
+      return;
     }
+    
+    // Parse target value
+    const targetValue = typeof value === 'number' ? value : parseInt(value, 10);
+    const currentText = element.textContent || '0';
+    const cleanedText = currentText.replace(/[^0-9]/g, '');
+    const currentDisplayed = cleanedText ? parseInt(cleanedText, 10) : 0;
+    
+    if (currentDisplayed === targetValue) {
+      element.textContent = targetValue.toString();
+      return;
+    }
+    
+    // Animate from current to target
+    const statProxy = { value: currentDisplayed };
+    gsap.killTweensOf(statProxy);
+    statProxy.value = currentDisplayed;
+    
+    // Calculate duration: minimum 0.8s, maximum 1.5s, based on difference
+    const diff = Math.abs(targetValue - currentDisplayed);
+    const duration = Math.min(1.5, Math.max(0.8, diff / 500));
+    
+    gsap.to(statProxy, {
+      value: targetValue,
+      duration: duration,
+      ease: 'power2.out',
+      onUpdate: () => {
+        const rounded = Math.round(statProxy.value);
+        element.textContent = rounded.toString();
+      },
+      onComplete: () => {
+        element.textContent = targetValue.toString();
+      }
+    });
   };
   
   updateElement('high-score', stats.highScore);
