@@ -4930,9 +4930,16 @@ function checkLevelEnd(){
         locked: t.locked 
       })));
       
-      // 🔥 REFACTORED: Uklonjena redundancija - checkEndGame() već poziva anyMergePossible() kroz isGameStuck()
-      // Ako checkEndGame() vraća 'stuck', znači da anyMergePossible() već vratio false
-      // Nema potrebe za dodatnom provjerom
+      // 🔥 CRITICAL FIX: Double-check anyMergePossible to ensure game is truly stuck
+      // This prevents false positives where checkEndGame might incorrectly detect stuck state
+      const doubleCheckMerge = makeBoard && typeof makeBoard.anyMergePossible === 'function' ? makeBoard.anyMergePossible(tiles) : false;
+      
+      if (doubleCheckMerge) {
+        console.log('✅ checkLevelEnd: Double-check found merges possible - game is NOT stuck, continuing');
+        return; // Don't show fail screen if merges are still possible
+      }
+      
+      console.log('🚨🚨🚨 checkLevelEnd: Double-check confirmed - NO merges possible, game IS stuck');
       
       if (!busyEnding) {
         // 🔥 CRITICAL: Wait 0.5 seconds before showing fail screen so user can see the board state
@@ -4940,6 +4947,7 @@ function checkLevelEnd(){
         // 🔥 REDUCED: From 1000ms to 500ms for faster fail screen (total delay now ~1s instead of ~2.2s)
         console.log('⏳ Waiting 0.5 seconds before showing fail screen so user can see board state...');
         await new Promise(res => setTimeout(res, 500));
+        console.log('🚨🚨🚨 checkLevelEnd: Calling showFinalScreen() NOW');
         showFinalScreen();
       } else {
         console.warn('⚠️ checkLevelEnd: busyEnding is true, skipping showFinalScreen');
