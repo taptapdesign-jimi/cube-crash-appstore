@@ -4319,12 +4319,43 @@ function merge(src, dst, helpers){
         // 2. Regular + regular → merge 6 (only 2 tiles, e.g. 4+2=6) = clean board
         const hasLastMergeFlag = (dst as any)?._isLastMerge === true;
         
+        // 🔥 CRITICAL FIX: Double-check with centralized end game checker if flag is not set
+        // This catches cases where flag might not have been set correctly
+        let shouldBeLastMerge = hasLastMergeFlag;
+        if (!hasLastMergeFlag) {
+          // Re-check if this should be a last merge using visible tiles count
+          const activeTilesNow = tiles.filter(tileIsActive);
+          const visibleTilesNow = activeTilesNow.length;
+          const srcIsWildNow = src?.special && (src.special.startsWith('wild') || src.special === 'wild-beer');
+          const dstIsWildNow = dst?.special && (dst.special.startsWith('wild') || dst.special === 'wild-beer');
+          const bothAreRegularNow = !srcIsWildNow && !dstIsWildNow && (src?.value|0) > 0 && (dst.value|0) > 0;
+          const isMerge6Now = (src?.value|0) + (dst.value|0) === 6 || dst.value === 6;
+          
+          // Check if this should be last merge: exactly 2 visible tiles, merge to 6
+          if (visibleTilesNow === 2 && isMerge6Now && (srcIsWildNow !== dstIsWildNow || bothAreRegularNow)) {
+            console.log('🚨🚨🚨 LAST MERGE MISSED BY FLAG - Re-detecting in onComplete:', {
+              visibleTilesNow,
+              isMerge6Now,
+              srcIsWildNow,
+              dstIsWildNow,
+              bothAreRegularNow,
+              srcSpecial: src?.special,
+              dstSpecial: dst?.special
+            });
+            shouldBeLastMerge = true;
+            // Set flag now to prevent spawn
+            (dst as any)._isLastMerge = true;
+          }
+        }
+        
         console.log('🔍 LAST MERGE CHECK in merge-6 onComplete:', {
           hasLastMergeFlag,
+          shouldBeLastMerge,
           srcSpecial: src?.special,
           dstSpecial: dst?.special,
           srcValue: src?.value,
-          dstValue: dst.value
+          dstValue: dst.value,
+          _isLastMerge: (dst as any)?._isLastMerge
         });
         
         // If _isLastMerge flag is set (from early check or merge-6 block), skip wild progress and spawn
