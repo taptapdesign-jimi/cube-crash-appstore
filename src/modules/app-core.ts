@@ -2932,8 +2932,9 @@ function merge(src, dst, helpers){
     // 2. Regular + regular → merge 6 (only 2 tiles, e.g. 4+2=6, 3+3=6) = clean board
     // Regular + regular → stack (only 2 tiles, e.g. 3+2=5) = fail screen (handled in post-merge check)
     // 🔥 CRITICAL: Check if either tile is wild (any wild type with "wild" prefix)
-    const srcIsWild = srcSpecial && srcSpecial.startsWith('wild');
-    const dstIsWild = dstSpecial && dstSpecial.startsWith('wild');
+    // 🔥 FIX: Include wild-beer explicitly in wild check (startsWith('wild') should catch it, but be explicit)
+    const srcIsWild = srcSpecial && (srcSpecial.startsWith('wild') || srcSpecial === 'wild-beer');
+    const dstIsWild = dstSpecial && (dstSpecial.startsWith('wild') || dstSpecial === 'wild-beer');
     const bothAreRegularForMerge6 = !srcIsWild && !dstIsWild && 
                                     (src.value|0) > 0 && (dst.value|0) > 0;
     // 🔥 CRITICAL FIX: Use visibleTilesCount (visible tiles) NOT activeTilesCount (includes stackDepth)
@@ -4328,7 +4329,7 @@ function merge(src, dst, helpers){
         
         // If _isLastMerge flag is set (from early check or merge-6 block), skip wild progress and spawn
         // This flag is set for wild + regular OR regular + regular → merge 6 scenarios (only 2 tiles)
-        if (hasLastMergeFlag) {
+        if (shouldBeLastMerge) {
           const mergeType = (!src?.special && !dst?.special) ? 'Regular + regular' : 'Wild + regular';
           console.log(`🚨🚨🚨 LAST MERGE DETECTED (in merge-6 onComplete) - ${mergeType} → merge 6, skipping wild progress and spawn, triggering clean board`);
           console.log('🚨🚨🚨 LAST MERGE: hasLastMergeFlag =', hasLastMergeFlag, 'dst._isLastMerge =', (dst as any)?._isLastMerge);
@@ -4400,11 +4401,25 @@ function merge(src, dst, helpers){
         // All other checks were too aggressive and blocked spawn when it shouldn't be blocked
         const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
         
-        if (isLastMergeFlagSet || busyEnding) {
-          console.log('🚨🚨🚨 LAST MERGE: Skipping spawn - _isLastMerge flag is TRUE or busyEnding is true');
+        // 🔥 CRITICAL FIX: Double-check with visible tiles count if flag is set
+        // This prevents false positives where flag might be set incorrectly
+        const activeTilesBeforeSpawn = tiles.filter(tileIsActive);
+        const visibleTilesBeforeSpawn = activeTilesBeforeSpawn.length;
+        const shouldSkipSpawn = isLastMergeFlagSet && visibleTilesBeforeSpawn <= 1; // Only skip if flag is set AND only merge-6 remains
+        
+        if (shouldSkipSpawn || busyEnding) {
+          console.log('🚨🚨🚨 LAST MERGE: Skipping spawn - _isLastMerge flag is TRUE and only merge-6 remains, or busyEnding is true');
+          console.log('🚨🚨🚨 Spawn check details:', {
+            isLastMergeFlagSet,
+            visibleTilesBeforeSpawn,
+            shouldSkipSpawn,
+            busyEnding,
+            dstValue: dst?.value,
+            dstSpecial: dst?.special
+          });
           
           // 🔥 CRITICAL: If _isLastMerge flag is set, trigger clean board flow
-          if (isLastMergeFlagSet && !busyEnding) {
+          if (shouldSkipSpawn && !busyEnding) {
             console.log('🚨🚨🚨 _isLastMerge flag is TRUE - triggering clean board flow');
           busyEnding = true;
           
