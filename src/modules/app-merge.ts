@@ -1263,7 +1263,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
           // Use timeScale: 2.0 to make spawn animation 50% faster (2x speed = half duration)
           // 🔥 CRITICAL: Don't await - spawn tiles in parallel, let animations run concurrently
           // This allows tiles to spawn at the correct delays (0ms, 30ms, 60ms, 90ms) without waiting for previous animations
-          openAtCell(c, r, { value: spawnValue, skipBind: false, timeScale: 2.0 }).then((spawnResult) => {
+          openAtCell(c, r, { value: spawnValue, skipBind: false }).then((spawnResult) => {
             // 🔥 CRITICAL FIX v40.6: Check spawn result - if false, cell was occupied and spawn failed
             if (!spawnResult) {
               console.warn(`⚠️ openAtCell returned false for cell (${c}, ${r}) - spawn failed, cell was occupied`);
