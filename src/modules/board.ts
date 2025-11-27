@@ -629,6 +629,29 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
     return false;
   }
   
+  // 🔥 CRITICAL FIX: Check if single tile can merge with itself (even if not a stack)
+  // This handles cases where wild merge leaves one tile that can be merge-6
+  // Example: wild + 4 → merge 6, leaves 3 → 3+3=6 is possible if another 3 spawns
+  // BUT: We can't know if another 3 will spawn, so we check if current tile value allows merge-6
+  // If value <= 3, it CAN merge with itself to make merge-6 (e.g., 3+3=6, 2+2=4, 1+1=2)
+  if (open.length === 1 && totalTiles === 1) {
+    const singleTile = open[0];
+    const value = (singleTile.value || 0);
+    
+    // If value <= 3, it can merge with itself to make merge-6 or less
+    // This means game is NOT stuck - player can wait for spawn or make move
+    if (value > 0 && value <= 3) {
+      console.log('✅ anyMergePossible: Single tile (value', value, ') can merge with itself (', value, '+', value, '=', value + value, '<= 6) = TRUE');
+      return true;
+    }
+    
+    // If value is 4 or 5, it CANNOT merge with itself (4+4=8 > 6, 5+5=10 > 6)
+    if (value === 4 || value === 5) {
+      console.log('❌ anyMergePossible: Single tile (value', value, ') CANNOT merge with itself (', value, '+', value, '=', value + value, '> 6) = FALSE');
+      return false;
+    }
+  }
+  
   // 🔥 EDGE CASE: Single visible tile but it's a stack (depth > 1)
   // Stack can merge with itself ONLY if value + value <= 6
   // Example: stack(2, depth=3) → 2+2=4 <= 6 → CAN merge ✅

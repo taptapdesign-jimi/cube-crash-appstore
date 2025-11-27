@@ -4705,11 +4705,30 @@ function merge(src, dst, helpers){
           return;
         }
         
-        // 🔥 CRITICAL: Wait 500ms AFTER spawn animations complete to let user see the board
-        // This ensures user can see the spawned tiles before endgame check runs
-        // Total delay: spawn animations (~480ms) + this delay (500ms) + checkLevelEnd delay (1200ms) = ~2180ms
-        console.log('⏳ Waiting 500ms after spawn animations to let user see board state...');
-        await new Promise(res => setTimeout(res, 500));
+        // 🔥 CRITICAL: Wait longer AFTER spawn animations complete to let user see the board AND allow tiles to become active
+        // This ensures spawned tiles are fully active and anyMergePossible can detect them correctly
+        // Total delay: spawn animations (~480ms) + this delay (800ms) + checkLevelEnd delay (500ms) = ~1780ms
+        console.log('⏳ Waiting 800ms after spawn animations to let user see board state and tiles become active...');
+        await new Promise(res => setTimeout(res, 800));
+        
+        // 🔥 CRITICAL FIX: Double-check anyMergePossible BEFORE calling checkLevelEnd
+        // This prevents false "stuck" detection when tiles are still spawning/activating
+        const activeTilesAfterSpawn = tiles.filter(tileIsActive);
+        const canMergeAfterSpawn = makeBoard && typeof makeBoard.anyMergePossible === 'function' 
+          ? makeBoard.anyMergePossible(tiles) 
+          : false;
+        
+        console.log('🔍 Post-spawn check:', {
+          activeTilesCount: activeTilesAfterSpawn.length,
+          activeTiles: activeTilesAfterSpawn.map(t => ({ value: t.value, special: t.special })),
+          canMergeAfterSpawn
+        });
+        
+        if (!canMergeAfterSpawn) {
+          console.log('🚨🚨🚨 Post-spawn: NO merges possible - will trigger fail screen via checkLevelEnd');
+        } else {
+          console.log('✅ Post-spawn: Merges possible - game continues');
+        }
         
         // 🔥 CRITICAL: Check end game after spawn completes (with delay to allow animations)
         // Use checkLevelEnd which already has proper delay and handles all edge cases
