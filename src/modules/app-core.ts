@@ -2695,6 +2695,7 @@ function merge(src, dst, helpers){
         if (effSum !== 6) {
           // Mala delay za animaciju, zatim provjeri
           setTimeout(() => {
+            console.log('🔍 Post-merge checkLevelEnd called (non-merge-6)');
             checkLevelEnd();
           }, 100);
         } else {
