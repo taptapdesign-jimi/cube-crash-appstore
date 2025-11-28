@@ -2389,11 +2389,13 @@ function merge(src, dst, helpers){
                                  !hasOtherTilesBeforeWildProgress; // 🔥 CRITICAL FIX: Exclude if ANY other tiles (including stacks) exist
     
     // 🔥 NEW: Regular + regular → merge 6 (only 2 tiles) = clean board
+    // 🔥 CRITICAL FIX: Also check if there are OTHER tiles (including stacks) on board
     const isRegularLastTwoMerge6 = bothAreRegular && 
                                    visibleTilesCountBeforeWildProgress === 2 && 
                                    activeTilesBeforeWildProgress.includes(src) && 
                                    activeTilesBeforeWildProgress.includes(dst) &&
-                                   effSum === 6; // Must be merge 6
+                                   effSum === 6 && // Must be merge 6
+                                   !hasOtherTilesBeforeWildProgress; // 🔥 CRITICAL FIX: Exclude if ANY other tiles (including stacks) exist
     
     // If this is last merge (wild + regular OR regular + regular → merge 6 with only 2 tiles), reset wild meter and skip addWildProgress
     if (isWildLastTwoForCheck || isRegularLastTwoMerge6) {
