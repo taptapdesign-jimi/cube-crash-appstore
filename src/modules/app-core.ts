@@ -2350,8 +2350,10 @@ function merge(src, dst, helpers){
     // 3. Regular + regular → stack (only 2 tiles, e.g. 3+2=5) = fail screen (handled in post-merge check)
     const srcSpecialForCheck = src?.special;
     const dstSpecialForCheck = dst?.special;
+    // 🔥 CRITICAL FIX: Include ALL wild types: wild, wild-beer, AND wild-magnet
     const oneIsWildForCheck = (srcSpecialForCheck === 'wild' || dstSpecialForCheck === 'wild' || 
-                              srcSpecialForCheck === 'wild-beer' || dstSpecialForCheck === 'wild-beer');
+                              srcSpecialForCheck === 'wild-beer' || dstSpecialForCheck === 'wild-beer' ||
+                              srcSpecialForCheck === 'wild-magnet' || dstSpecialForCheck === 'wild-magnet');
     const bothAreRegular = !srcSpecialForCheck && !dstSpecialForCheck && 
                           (src.value|0) > 0 && (dst.value|0) > 0;
     
@@ -2362,10 +2364,19 @@ function merge(src, dst, helpers){
                                             activeTilesCountBeforeWildProgress >= 3 && // 3 or more tiles
                                             allTilesInvolvedForCheck; // All tiles involved
     
+    // 🔥 CRITICAL FIX: Check if there are OTHER wild tiles (including magnets) on board BEFORE marking as last merge
+    // If wild-magnet exists on board (and is NOT one of the merging tiles), it's NOT a last merge
+    const otherWildTilesBeforeWildProgress = activeTilesBeforeWildProgress.filter(t => {
+      if (t === src || t === dst) return false; // Don't count merging tiles
+      return t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-magnet';
+    });
+    const hasOtherWildTilesBeforeWildProgress = otherWildTilesBeforeWildProgress.length > 0;
+    
     const isWildLastTwoForCheck = oneIsWildForCheck && 
                                  visibleTilesCountBeforeWildProgress === 2 && 
                                  activeTilesBeforeWildProgress.includes(src) && 
-                                 activeTilesBeforeWildProgress.includes(dst);
+                                 activeTilesBeforeWildProgress.includes(dst) &&
+                                 !hasOtherWildTilesBeforeWildProgress; // 🔥 CRITICAL: Exclude if other wild tiles (including magnets) exist
     
     // 🔥 NEW: Regular + regular → merge 6 (only 2 tiles) = clean board
     const isRegularLastTwoMerge6 = bothAreRegular && 
@@ -4389,6 +4400,8 @@ function merge(src, dst, helpers){
               bothAreRegularNow,
               srcSpecial: src?.special,
               dstSpecial: dst?.special,
+              hasOtherWildTilesAfterSrcRemoval, // 🔥 NEW: Log other wild tiles check
+              otherWildTilesAfterSrcRemoval: otherWildTilesAfterSrcRemoval.map(t => ({ value: t.value, special: t.special })), // 🔥 NEW: Log other wild tiles
               activeTilesAfterSrcRemoval: activeTilesAfterSrcRemoval.map(t => ({ value: t.value, special: t.special }))
             });
             shouldBeLastMerge = true;
