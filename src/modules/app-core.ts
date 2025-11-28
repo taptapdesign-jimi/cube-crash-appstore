@@ -2000,13 +2000,34 @@ async function spawnWildFromMeter(){
         console.log('🎯 Board 3: Forcing wild-beer spawn only');
       } else {
         // Default logic (for boards without specific rules)
-        // First wild spawn should be wild-beer (default behavior)
-        const isFirstWild = !wildBeerSpawned;
-        // Second wild spawn should be wild-magnet (after wild-beer)
-        const isSecondWild = wildBeerSpawned && !wildMagnetSpawned;
+        // 🔥 USER REQUEST: First and second wild spawn should be RANDOM (beer or magnet)
+        const isFirstWild = !wildBeerSpawned && !wildMagnetSpawned;
+        const isSecondWild = (wildBeerSpawned && !wildMagnetSpawned) || (!wildBeerSpawned && wildMagnetSpawned);
         
-        let preferredBeer = isFirstWild || (wildBeerSpawned && wildMagnetSpawned && Math.random() < WILD_BEER_RESPAWN_CHANCE);
-        let preferredMagnet = isSecondWild || (!preferredBeer && wildMagnetSpawned && Math.random() < WILD_MAGNET_SPAWN_CHANCE);
+        // 🔥 RANDOM LOGIC: First wild = random beer or magnet, Second wild = random beer or magnet (opposite of first)
+        let preferredBeer = false;
+        let preferredMagnet = false;
+        
+        if (isFirstWild) {
+          // First wild: random choice between beer and magnet
+          preferredBeer = Math.random() < 0.5; // 50% chance for beer
+          preferredMagnet = !preferredBeer; // 50% chance for magnet
+        } else if (isSecondWild) {
+          // Second wild: random choice between beer and magnet (opposite of what was spawned first)
+          if (wildBeerSpawned) {
+            // First was beer, second is random (but prefer magnet for variety)
+            preferredMagnet = Math.random() < 0.6; // 60% chance for magnet (to ensure variety)
+            preferredBeer = !preferredMagnet;
+          } else if (wildMagnetSpawned) {
+            // First was magnet, second is random (but prefer beer for variety)
+            preferredBeer = Math.random() < 0.6; // 60% chance for beer (to ensure variety)
+            preferredMagnet = !preferredBeer;
+          }
+        } else {
+          // After first two wilds: use original random logic
+          preferredBeer = wildBeerSpawned && wildMagnetSpawned && Math.random() < WILD_BEER_RESPAWN_CHANCE;
+          preferredMagnet = wildBeerSpawned && wildMagnetSpawned && Math.random() < WILD_MAGNET_SPAWN_CHANCE;
+        }
         
         // Apply board-specific rules
         if (preferredBeer) {
