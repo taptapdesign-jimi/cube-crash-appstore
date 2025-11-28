@@ -3027,12 +3027,22 @@ function merge(src, dst, helpers){
     });
     const hasOtherWildTiles = otherWildTilesOnBoard.length > 0;
     
+    // 🔥 CRITICAL FIX: Check if there are OTHER tiles (including stacks) on board BEFORE marking as last merge
+    // If ANY other tile exists (not just wild tiles), it's NOT a last merge
+    // Example: stack(5) + kockica(4) + wild-beer → merge 4+wild-beer = merge 6, but stack(5) is still on board!
+    const otherTilesOnBoard = activeTilesBeforeMerge.filter(t => {
+      if (t === src || t === dst) return false; // Don't count merging tiles
+      return true; // Count ALL other tiles (including stacks, regular tiles, wild tiles)
+    });
+    const hasOtherTiles = otherTilesOnBoard.length > 0;
+    
     const isAnyWildLastTwo = (srcIsWild || dstIsWild) && 
                              (srcIsWild !== dstIsWild) && // One is wild, one is NOT wild
                              visibleTilesCount === 2 && // 🔥 FIX: Use visible tiles count, not activeTilesCount
                              activeTilesBeforeMerge.includes(src) && 
                              activeTilesBeforeMerge.includes(dst) &&
                              !hasOtherWildTiles && // 🔥 CRITICAL: Exclude if other wild tiles (including magnets) exist on board
+                             !hasOtherTiles && // 🔥 CRITICAL FIX: Exclude if ANY other tiles (including stacks) exist
                              !(isWildMagnetMerge && hasTilesToPull); // 🔥 CRITICAL: Exclude if wild-magnet will pull tiles
     
     console.log('🔍 isAnyWildLastTwo CHECK:', {
