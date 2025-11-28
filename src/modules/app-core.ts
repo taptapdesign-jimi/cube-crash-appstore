@@ -4501,11 +4501,21 @@ function merge(src, dst, helpers){
         const bothAreRegularBeforeSpawn = !srcIsWildBeforeSpawn && !dstIsWildBeforeSpawn && (src?.value|0) > 0 && (dst.value|0) > 0;
         const isMerge6BeforeSpawn = dst.value === 6;
         
+        // 🔥 CRITICAL FIX: Check if there are OTHER wild tiles (including magnets) on board BEFORE marking as last merge
+        // If wild-magnet exists on board (and is NOT the merge-6 dst), it's NOT a last merge
+        const otherWildTilesBeforeSpawn = activeTilesBeforeSpawn.filter(t => {
+          if (t === dst) return false; // Don't count merge-6 dst
+          return t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-magnet';
+        });
+        const hasOtherWildTilesBeforeSpawn = otherWildTilesBeforeSpawn.length > 0;
+        
         // 🔥 USER REQUEST: If exactly 2 visible tiles merged to 6 (regular+regular or wild+regular), NEVER spawn
         // Check if only merge-6 remains (src was already removed in onComplete callback)
+        // BUT: Exclude if other wild tiles (including magnets) exist on board
         const isLastTwoMerge6BeforeSpawn = visibleTilesBeforeSpawn <= 1 && // Only merge-6 remains (or 0 if already removed)
                                           isMerge6BeforeSpawn &&
-                                          (bothAreRegularBeforeSpawn || (srcIsWildBeforeSpawn !== dstIsWildBeforeSpawn));
+                                          (bothAreRegularBeforeSpawn || (srcIsWildBeforeSpawn !== dstIsWildBeforeSpawn)) &&
+                                          !hasOtherWildTilesBeforeSpawn; // 🔥 CRITICAL: Exclude if other wild tiles exist
         
         const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
         
@@ -4534,12 +4544,12 @@ function merge(src, dst, helpers){
           if (shouldSkipSpawn && !busyEnding) {
             // Set flag if not already set (for consistency)
             if (!isLastMergeFlagSet) {
-              (dst as any)._isLastMerge = true;
+            (dst as any)._isLastMerge = true;
               console.log('✅ Setting _isLastMerge flag for last 2 tiles merge-6');
             }
             console.log('🚨🚨🚨 _isLastMerge flag is TRUE - triggering clean board flow');
-          busyEnding = true;
-          
+            busyEnding = true;
+            
             // Remove dst tile and trigger clean board flow
             if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
               grid[dst.gridY][dst.gridX] = null;
@@ -4548,41 +4558,41 @@ function merge(src, dst, helpers){
             }
             
             // Reset wild meter
-          wildMeter = 0;
-          STATE.wildMeter = 0;
-          resetWildProgress(0, false);
-          
-          try {
-            if (typeof HUD.resetWildMeter === 'function') {
+            wildMeter = 0;
+            STATE.wildMeter = 0;
+            resetWildProgress(0, false);
+            
+            try {
+              if (typeof HUD.resetWildMeter === 'function') {
                 HUD.resetWildMeter(true);
-            } else {
-              HUD.updateProgressBar?.(0, false);
-            }
-          } catch (error) {
+              } else {
+                HUD.updateProgressBar?.(0, false);
+              }
+            } catch (error) {
               console.warn('⚠️ Failed to reset wild meter:', error);
-          }
-
-          try {
-            try { await new Promise(res => setTimeout(res, 1000)); } catch {}
-            await runEndgameFlow({
-              app,
-              stage,
-              board,
-              boardBG,
-              level,
-              startLevel,
-              score,
-              getScore: () => score,
-              setScore: (v) => { score = v|0; updateHUD(); },
-              animateScore,
-              updateHUD,
-              boardNumber,
-              hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
-              showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
-            });
-          } finally {
-            busyEnding = false;
-          }
+            }
+            
+            try {
+              try { await new Promise(res => setTimeout(res, 1000)); } catch {}
+              await runEndgameFlow({
+                app,
+                stage,
+                board,
+                boardBG,
+                level,
+                startLevel,
+                score,
+                getScore: () => score,
+                setScore: (v) => { score = v|0; updateHUD(); },
+                animateScore,
+                updateHUD,
+                boardNumber,
+                hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+              });
+            } finally {
+              busyEnding = false;
+            }
           }
           
           return; // Exit early - don't spawn new tiles
