@@ -1389,6 +1389,7 @@ function createMerge6Bubbles(board, layer, centerX, centerY) {
 let wildBeerExplosionContainer = null;
 let wildBeerExplosionActive = false;
 let wildBeerExplosionSpawnTick = null; // 🔥 CRITICAL: Store spawnTick reference for cleanup
+let _cachedBubbleTexture = null; // 🔥 v75 FAZA 1: Cache bubble texture globally
 
 export function cleanupWildBeerExplosion() {
   try {
@@ -1421,7 +1422,7 @@ export function cleanupWildBeerExplosion() {
         container._spawnInterval = null;
       }
 
-      // 🔥 v70 CLEANUP: Clean up all bubbles with all tweens
+      // 🔥 v75 CLEANUP: Clean up all bubbles (Sprite or Graphics) with all tweens
       const children = [...(container.children || [])];
       children.forEach((bubble) => {
         try {
@@ -1436,7 +1437,12 @@ export function cleanupWildBeerExplosion() {
           gsap.killTweensOf(bubble);
           gsap.killTweensOf(bubble.scale);
           if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
-          graphicsPool.release(bubble);
+          // v75: Sprite objects use destroy() (texture is reused), Graphics use pool
+          if (bubble instanceof Sprite) {
+            bubble.destroy();
+          } else {
+            graphicsPool.release(bubble);
+          }
         } catch {}
       });
 
@@ -1565,10 +1571,14 @@ export function createWildBeerBubblesExplosion(board, tile) {
   // Start FPS monitoring
   startFpsMonitoring();
 
-  // 🔥 v74 ORIGINAL: Restore original v74 implementation with white bubbles and keyframes
-  const totalBubbles = 240; // Original v74: 240 bubbles
-  const spawnDuration = 1500; // 1.5 seconds spawn duration
-  const maxActive = 200;
+  // 🔥 v75 OPTIMIZED: Faze 1+2+3 - Texture pooling, reduced bubbles, optimized animations
+  // FAZA 1: Texture Pooling - Create bubble texture once, reuse for all bubbles
+  // FAZA 2: Reduced bubbles - 120 (was 240), max 100 active (was 200), 1.0s spawn (was 1.5s)
+  // FAZA 3: Optimized animations - Simple drift (no keyframes), no rotation, 3 anims (was 5)
+  
+  const totalBubbles = 120; // FAZA 2: -50% (was 240)
+  const spawnDuration = 1000; // FAZA 2: 1.0s (was 1.5s) - faster, fewer simultaneous
+  const maxActive = 100; // FAZA 2: -50% (was 200)
   let active = 0;
   let spawned = 0;
   const perMs = totalBubbles / spawnDuration;
@@ -1576,7 +1586,42 @@ export function createWildBeerBubblesExplosion(board, tile) {
   let lastTick = startTime;
   let acc = 0;
 
-  console.log(`💧 v74 ORIGINAL: ${totalBubbles} bubbles, spawn duration: ${spawnDuration}ms`);
+  // 🔥 FAZA 1: Create bubble texture once (max size 48px) - cached globally
+  if (!_cachedBubbleTexture && app && app.renderer) {
+    const maxSize = 48; // Max bubble size
+    const maxRadius = maxSize / 2;
+    const tempGraphics = new Graphics();
+    // White bubble with highlight effect (same as v74 style)
+    tempGraphics.circle(0, 0, maxRadius);
+    tempGraphics.fill({ color: 0xFFFFFF, alpha: 1.0 }); // White fill
+    // Highlight circle (top-left)
+    tempGraphics.circle(-maxRadius * 0.25, -maxRadius * 0.25, maxRadius * 0.32);
+    tempGraphics.fill({ color: 0xFFFFFF, alpha: 1.0 }); // Brighter highlight
+    // Stroke
+    tempGraphics.circle(0, 0, maxRadius);
+    tempGraphics.stroke({ color: 0xFFFFFF, alpha: 0.65, width: 1 });
+    
+    // Generate texture from Graphics
+    try {
+      _cachedBubbleTexture = app.renderer.generateTexture(tempGraphics, {
+        resolution: 2, // Higher resolution for crisp rendering
+        region: { x: -maxRadius - 2, y: -maxRadius - 2, width: maxSize + 4, height: maxSize + 4 }
+      });
+    } catch (e) {
+      console.warn('⚠️ Failed to generate bubble texture, using Graphics fallback:', e);
+      _cachedBubbleTexture = null; // Fallback to Graphics if texture generation fails
+    }
+    tempGraphics.destroy(); // Clean up temp Graphics
+  }
+  
+  const bubbleTexture = _cachedBubbleTexture;
+
+  // Fallback: If texture generation failed, use Graphics (slower but works)
+  if (!bubbleTexture) {
+    console.warn('⚠️ Bubble texture not available, using Graphics fallback (slower)');
+  }
+
+  console.log(`💧 v75 OPTIMIZED: ${totalBubbles} bubbles (was 240), texture pooling: ${bubbleTexture ? 'YES' : 'NO (Graphics fallback)'}, 3 anims (was 5), spawn: ${spawnDuration}ms`);
 
   const makeBubble = () => {
     if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) return;
@@ -1585,33 +1630,43 @@ export function createWildBeerBubblesExplosion(board, tile) {
     spawned += 1;
     active += 1;
 
-    // 🔥 OBJECT POOLING: Use pool
-    const bubble = graphicsPool.acquire();
-    bubble.eventMode = 'none';
-    bubble.cursor = 'default';
-    
-    const size = 14 + Math.random() * 34; // 14-48px (original v74 size range)
+    let bubble;
+    const size = 14 + Math.random() * 34; // 14-48px (same size range as v74)
+    const sizeRatio = size / 48; // Ratio to max texture size
     const radius = size / 2;
     const alpha = 0.55 + Math.random() * 0.35; // 0.55-0.9 alpha
 
-    // 🔥 v74 WHITE BUBBLES: White bubbles with highlight effect (original v74 style)
-    bubble.clear();
-    bubble.circle(0, 0, radius);
-    bubble.fill({ color: 0xFFFFFF, alpha }); // White fill
-    // Highlight circle (top-left)
-    bubble.circle(-radius * 0.25, -radius * 0.25, radius * 0.32);
-    bubble.fill({ color: 0xFFFFFF, alpha: Math.min(1, alpha + 0.2) }); // Brighter highlight
-    // Stroke
-    bubble.circle(0, 0, radius);
-    bubble.stroke({ color: 0xFFFFFF, alpha: alpha * 0.65, width: 1 });
-
-    // 🔥 v74 RANDOM DISTRIBUTION: Random positions across full screen
+    // 🔥 FAZA 1: Use Sprite with texture (1 draw call) OR Graphics fallback
+    if (bubbleTexture) {
+      bubble = new Sprite(bubbleTexture);
+      bubble.eventMode = 'none';
+      bubble.cursor = 'default';
+      bubble.anchor.set(0.5); // Center anchor for proper scaling/rotation
+    } else {
+      // Fallback: Use Graphics (slower, but works if texture generation fails)
+      bubble = graphicsPool.acquire();
+      bubble.eventMode = 'none';
+      bubble.cursor = 'default';
+      bubble.clear();
+      bubble.circle(0, 0, radius);
+      bubble.fill({ color: 0xFFFFFF, alpha });
+      bubble.circle(-radius * 0.25, -radius * 0.25, radius * 0.32);
+      bubble.fill({ color: 0xFFFFFF, alpha: Math.min(1, alpha + 0.2) });
+      bubble.circle(0, 0, radius);
+      bubble.stroke({ color: 0xFFFFFF, alpha: alpha * 0.65, width: 1 });
+    }
+    
+    // 🔥 FAZA 2: Random distribution (same as v74)
     const startX = (Math.random() - 0.5) * screenW * 1.4 + screenW * 0.5;
     const startY = screenH * (0.95 + Math.random() * 0.2); // Bottom 5-25% of screen
     bubble.x = startX;
     bubble.y = startY;
     bubble.alpha = alpha;
-    bubble.scale.set(0.25 + Math.random() * 0.25); // 0.25-0.5 initial scale
+    if (bubbleTexture) {
+      bubble.scale.set((0.25 + Math.random() * 0.25) * sizeRatio); // 0.25-0.5 initial scale × size ratio
+    } else {
+      bubble.scale.set(0.25 + Math.random() * 0.25); // 0.25-0.5 initial scale
+    }
     bubble.renderable = true;
 
     wildBeerExplosionContainer.addChild(bubble);
@@ -1619,49 +1674,32 @@ export function createWildBeerBubblesExplosion(board, tile) {
     const endY = -screenH * (0.1 + Math.random() * 0.15); // End 10-25% above top
     const duration = Math.min(2.1, Math.max(1.1, 1.6 + (Math.random() - 0.5) * 0.6)); // 1.1-2.1s
 
-    // 🔥 v74 KEYFRAMES DRIFT: 3-phase horizontal drift (original v74 style)
-    const drift1 = (Math.random() - 0.5) * 180;
-    const drift2 = drift1 * -0.6 + (Math.random() - 0.5) * 220;
-    const drift3 = (Math.random() - 0.5) * 240;
+    // 🔥 FAZA 3: Simple drift (no keyframes) - single horizontal drift instead of 3-phase
+    const driftX = (Math.random() - 0.5) * 200; // ±100px horizontal drift (simpler than keyframes)
 
     const bubbleTweens = [];
 
-    // 🔥 1. KEYFRAMES DRIFT: 3-phase horizontal movement (v74 style)
+    // 🔥 FAZA 3: 1. VERTICAL RISE + DRIFT (combined, no keyframes)
     bubbleTweens.push(gsap.to(bubble, {
-      keyframes: [
-        { x: startX + drift1, duration: duration * 0.3, ease: 'sine.inOut' },
-        { x: startX + drift2, duration: duration * 0.35, ease: 'sine.inOut' },
-        { x: startX + drift3, duration: duration * 0.35, ease: 'sine.inOut' }
-      ],
-      immediateRender: true
-    }));
-
-    // 🔥 2. VERTICAL RISE: Main upward movement
-    bubbleTweens.push(gsap.to(bubble, {
+      x: startX + driftX, // Simple drift (no keyframes)
       y: endY,
       duration,
       ease: 'power2.inOut',
       immediateRender: true
     }));
 
-    // 🔥 3. SCALE ANIMATION: Scale up during rise
+    // 🔥 FAZA 3: 2. SCALE ANIMATION (kept - important visual effect)
+    const finalScale = 0.65 + Math.random() * 0.35; // 0.65-1.0 final scale
     bubbleTweens.push(gsap.to(bubble.scale, {
-      x: 0.65 + Math.random() * 0.35, // 0.65-1.0 final scale
-      y: 0.65 + Math.random() * 0.35,
+      x: bubbleTexture ? finalScale * sizeRatio : finalScale, // Apply size ratio only for texture
+      y: bubbleTexture ? finalScale * sizeRatio : finalScale,
       duration: duration * 0.45,
       ease: 'power1.out',
       immediateRender: true
     }));
 
-    // 🔥 4. ROTATION: Continuous rotation
-    bubbleTweens.push(gsap.to(bubble, {
-      rotation: (Math.random() - 0.5) * Math.PI * 1.2,
-      duration,
-      ease: 'sine.inOut',
-      immediateRender: true
-    }));
-
-    // 🔥 5. ALPHA FADE: Fade out near top
+    // 🔥 FAZA 3: 3. ALPHA FADE (kept - important visual effect)
+    // FAZA 3: Rotation removed (not very visible, saves CPU)
     bubbleTweens.push(gsap.to(bubble, {
       alpha: 0,
       duration: duration * 0.4,
@@ -1672,7 +1710,12 @@ export function createWildBeerBubblesExplosion(board, tile) {
         try {
           bubbleTweens.forEach(t => { try { t.kill?.(); } catch {} });
           if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
-          graphicsPool.release(bubble);
+          // v75: Sprite uses destroy() (texture reused), Graphics uses pool
+          if (bubble instanceof Sprite) {
+            bubble.destroy();
+          } else {
+            graphicsPool.release(bubble);
+          }
         } catch {}
         active = Math.max(0, active - 1);
       }
@@ -1717,8 +1760,8 @@ export function createWildBeerBubblesExplosion(board, tile) {
     }
   };
 
-  // 🔥 v74 INITIAL BURST: Spawn 12 bubbles immediately for instant feedback
-  for (let i = 0; i < 12; i++) makeBubble();
+  // 🔥 v75 INITIAL BURST: Spawn 6 bubbles immediately (proportional to 120 total, was 12 for 240)
+  for (let i = 0; i < 6; i++) makeBubble();
   
   // Start spawn ticker
   wildBeerExplosionSpawnTick = spawnTick;
