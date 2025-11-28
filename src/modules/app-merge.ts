@@ -1164,53 +1164,6 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.log('🧲 STATE.drag exists?', !!STATE.drag);
     console.log('🧲 STATE.drag.bindToTile exists?', !!(STATE.drag as any)?.bindToTile);
     
-    // 🔥 USER REQUEST: Smart spawn values for magnet pull
-    // First 2 tiles: Must be mergable with each other (e.g., 2+2=4, 1+2=3, 3+3=6)
-    // Last 2 tiles: Random but different from each other (e.g., 5 and 2, 3 and 1, 2 and 1)
-    const generateSmartSpawnValues = (count: number): number[] => {
-      const values: number[] = [];
-      
-      if (count >= 2) {
-        // First 2 tiles: Generate mergable pair
-        // Valid mergable pairs: (1,1), (1,2), (1,3), (1,4), (1,5), (2,2), (2,3), (2,4), (3,3)
-        const mergablePairs = [
-          [1, 1], [1, 2], [1, 3], [1, 4], [1, 5],
-          [2, 2], [2, 3], [2, 4],
-          [3, 3]
-        ];
-        const pair = mergablePairs[Math.floor(Math.random() * mergablePairs.length)];
-        values.push(pair[0], pair[1]);
-      }
-      
-      // Remaining tiles: Random but different from each other
-      const availableValues = [1, 2, 3, 4, 5];
-      for (let i = values.length; i < count; i++) {
-        // Filter out values already used in this batch
-        const usedInBatch = values.slice(2); // Only check last tiles (not the mergable pair)
-        const candidates = availableValues.filter(v => !usedInBatch.includes(v));
-        const randomValue = candidates[Math.floor(Math.random() * candidates.length)];
-        values.push(randomValue);
-      }
-      
-      // Shuffle the mergable pair and random tiles separately to mix them up
-      // But keep first 2 as mergable pair
-      if (values.length >= 2) {
-        const mergablePair = values.slice(0, 2);
-        const randomTiles = values.slice(2);
-        // Shuffle random tiles
-        for (let i = randomTiles.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [randomTiles[i], randomTiles[j]] = [randomTiles[j], randomTiles[i]];
-        }
-        return [...mergablePair, ...randomTiles];
-      }
-      
-      return values;
-    };
-    
-    const spawnValues = generateSmartSpawnValues(spawnTargets.length);
-    console.log('🧲 Smart spawn values generated:', spawnValues, '(first 2 mergable, rest random but different)');
-    
     // 🔥 CRITICAL FIX: Wait minimal time for merge-6 shards animation before spawning
     // Shards animation takes ~1.0s (ttl), but with fastFadeOut it's effectively ~0.5-0.6s
     // Wait only 50ms to ensure shards start but spawn happens very fast (standard for all merge-6 spawns)
@@ -1225,7 +1178,6 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     for (let index = 0; index < spawnTargets.length; index++) {
       const { c, r } = spawnTargets[index];
       const delay = index * 30; // 0ms, 30ms, 60ms, 90ms...
-      const spawnValue = spawnValues[index] || [1,2,3,4,5][(Math.random()*5)|0]; // Fallback to random if not enough values
       
       // 🔥 CRITICAL: Use setTimeout to schedule spawn without blocking
       // This allows all tiles to be scheduled with delays, but animations run concurrently
@@ -1259,11 +1211,11 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
             }
           }
           
-          // Spawn tile with smart value (skipBind = false means it will try to bind immediately)
+          // Spawn tile normally (skipBind = false means it will try to bind immediately)
           // Use timeScale: 2.0 to make spawn animation 50% faster (2x speed = half duration)
           // 🔥 CRITICAL: Don't await - spawn tiles in parallel, let animations run concurrently
           // This allows tiles to spawn at the correct delays (0ms, 30ms, 60ms, 90ms) without waiting for previous animations
-          openAtCell(c, r, { value: spawnValue, skipBind: false }).then((spawnResult) => {
+          openAtCell(c, r, { skipBind: false, timeScale: 2.0 }).then((spawnResult) => {
             // 🔥 CRITICAL FIX v40.6: Check spawn result - if false, cell was occupied and spawn failed
             if (!spawnResult) {
               console.warn(`⚠️ openAtCell returned false for cell (${c}, ${r}) - spawn failed, cell was occupied`);

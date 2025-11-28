@@ -33,16 +33,31 @@ export interface EndGameContext {
   justRemovedDst?: boolean;
 }
 
+// Configuration constants
+const DEBOUNCE_MS = 50; // 50ms debounce window
+const MAX_MERGE_VALUE = 6; // Maximum merge value (merge 6)
+const MIN_TILES_FOR_MERGE = 2; // Minimum total tiles needed for any merge
+const DEFAULT_STACK_DEPTH = 1; // Default stack depth if not specified
+const MAX_OSCILLATION_CYCLES = 10; // Maximum oscillation cycles for animations (if used)
+
 // Debouncing system to prevent multiple simultaneous checks
 let lastCheckTime = 0;
 let lastCheckResult: EndGameResult | null = null;
 let lastCheckContextHash: string = '';
-const DEBOUNCE_MS = 50; // 50ms debounce window
 
 // Cache for active tiles
 let cachedActiveTiles: any[] = [];
 let cachedTilesLength = 0;
 let cachedTilesHash: string = '';
+
+// Cache for tile categories (wild cubes, etc.)
+let cachedTileCategories: {
+  wildCubes: any[];
+  wildStars: any[];
+  magnets: any[];
+  mergeableNonWildTiles: any[];
+} | null = null;
+let cachedCategoriesHash: string = '';
 
 /**
  * Create a hash of tile array for cache invalidation
@@ -116,9 +131,15 @@ export function getActiveTiles(tiles: any[]): any[] {
   try {
     // Calculate current hash
     const currentHash = createTilesHash(tiles);
-    
+
     // If hash changed OR length changed, recalculate
     if (currentHash !== cachedTilesHash || tiles.length !== cachedTilesLength) {
+      console.log('🔄 EndGameChecker DIAGNOSTIC: Cache MISS - refreshing active tiles', {
+        oldHash: cachedTilesHash.substring(0, 20) + '...',
+        newHash: currentHash.substring(0, 20) + '...',
+        oldLength: cachedTilesLength,
+        newLength: tiles.length
+      });
       cachedTilesHash = currentHash;
       cachedTilesLength = tiles.length;
       cachedActiveTiles = tiles.filter(tileIsActive);
@@ -126,8 +147,13 @@ export function getActiveTiles(tiles: any[]): any[] {
         count: cachedActiveTiles.length,
         hash: currentHash.substring(0, 50) + '...'
       });
+    } else {
+      console.log('💾 EndGameChecker DIAGNOSTIC: Cache HIT - using cached active tiles', {
+        count: cachedActiveTiles.length,
+        hash: currentHash.substring(0, 20) + '...'
+      });
     }
-    
+
     return cachedActiveTiles;
   } catch (error) {
     console.warn('⚠️ EndGameChecker: Error in getActiveTiles', error);
@@ -174,15 +200,20 @@ function createContextHash(context: EndGameContext): string {
  */
 function isLastMergeScenario(context: EndGameContext): boolean {
   const { tiles, dstTile, srcTile, justRemovedSrc } = context;
-  
+
+  console.log('🔍 isLastMergeScenario: Checking last merge - justRemovedSrc:', justRemovedSrc, 'dstTile.value:', dstTile?.value, 'srcTile:', srcTile ? { value: srcTile.value, special: srcTile.special } : null);
+
   // Only check if we just removed src tile and dst is merge 6
-  if (!justRemovedSrc || !dstTile || dstTile.value !== 6) {
+  if (!justRemovedSrc || !dstTile || dstTile.value !== MAX_MERGE_VALUE) {
+    console.log('🔍 isLastMergeScenario: Conditions not met for last merge check');
     return false;
   }
-  
+
   // Get active tiles excluding dst (after src was removed)
   const activeTiles = getActiveTiles(tiles).filter(t => t !== dstTile);
-  
+
+  console.log('🔍 isLastMergeScenario: Active tiles excluding dst:', activeTiles.map(t => ({ value: t.value, special: t.special })));
+
   // 🔥 CRITICAL FIX: If magnet exists on board, it's NOT a last merge
   // User can still merge magnet with merge 6 to create final merge
   const hasMagnet = activeTiles.some(t => t.special === 'wild-magnet');
@@ -190,33 +221,36 @@ function isLastMergeScenario(context: EndGameContext): boolean {
     console.log('🧲 isLastMergeScenario: Magnet detected on board - NOT a last merge');
     return false;
   }
-  
+
   // If no other active tiles remain, this is the last merge
-  if (activeTiles.length === 0 && 
-      dstTile && 
-      !dstTile.destroyed && 
-      dstTile.value === 6) {
-    
+  if (activeTiles.length === 0 &&
+      dstTile &&
+      !dstTile.destroyed &&
+      dstTile.value === MAX_MERGE_VALUE) {
+
     // Determine merge type for logging
     let mergeType = 'unknown';
     if (srcTile) {
       const srcIsWild = srcTile.special === 'wild' || srcTile.special === 'wild-beer' || srcTile.special === 'wild-magnet';
       const srcIsRegular = !srcTile.special && (srcTile.value|0) > 0;
       const dstIsRegular = !dstTile.special && (dstTile.value|0) > 0;
-      
-      if (srcIsWild && !dstIsRegular) {
+
+      if (srcIsWild && dstIsRegular) {
         mergeType = 'wild + regular';
-      } else if (srcIsRegular && dstIsRegular && (srcTile.value|0) + (dstTile.value|0) === 6) {
+      } else if (srcIsRegular && dstIsRegular && (srcTile.value|0) + (dstTile.value|0) === MAX_MERGE_VALUE) {
         mergeType = 'regular + regular';
+      } else if (srcIsRegular && !dstIsRegular) {
+        mergeType = 'regular + wild/special';
       } else if (srcIsWild) {
-        mergeType = 'wild (any type) + regular';
+        mergeType = 'wild (any type) + tile';
       }
     }
-    
+
     console.log(`✅ isLastMergeScenario: Last merge detected - ${mergeType} → merge 6, only merge 6 remains`);
     return true;
   }
-  
+
+  console.log('🔍 isLastMergeScenario: Not a last merge - active tiles remaining or conditions not met');
   return false;
 }
 
@@ -229,101 +263,100 @@ function isBoardCleanCheck(tiles: any[]): boolean {
 }
 
 /**
- * Check if game is stuck (no merges possible)
- * 🔥 SIMPLIFIED: Trusts anyMergePossible completely - no redundant checks
+ * Check if anyMergePossible indicates merges are available
  */
-function isGameStuck(context: EndGameContext): boolean {
-  const { tiles, makeBoard } = context;
-  
-  // 🔥 CRITICAL: Trust anyMergePossible completely - it already handles all cases
+function checkAnyMergePossible(context: EndGameContext): boolean {
+  const { makeBoard, tiles } = context;
   const canMerge = makeBoard.anyMergePossible(tiles);
   console.log('🔍 isGameStuck: anyMergePossible returned:', canMerge);
-  
-  if (canMerge) {
-    console.log('✅ isGameStuck: Merges possible, game is NOT stuck');
-    return false;
-  }
-  
-  // If anyMergePossible returns false, we're stuck
-  // But let's verify active tiles count for logging purposes
-  const activeTiles = getActiveTiles(tiles);
-  console.log('🔍 isGameStuck: Active tiles count:', activeTiles.length, 'Details:', activeTiles.map(t => ({ 
-    value: t.value, 
-    special: t.special, 
-    locked: t.locked,
-    stackDepth: (t as any).stackDepth || 1
-  })));
-  
-  // 🔥 CRITICAL FIX v36: Count total tiles including stackDepth
-  // If less than 2 TOTAL tiles (including stacked), we're definitely stuck
-  const totalTilesCount = activeTiles.reduce((sum, t) => {
-    const depth = (t as any).stackDepth || 1;
+  return canMerge;
+}
+
+/**
+ * Count total tiles including stack depth
+ */
+function getTotalTileCount(activeTiles: any[]): number {
+  return activeTiles.reduce((sum, t) => {
+    const depth = (t as any).stackDepth || DEFAULT_STACK_DEPTH;
     return sum + depth;
   }, 0);
-  
-  console.log('🔍 isGameStuck: Total tiles count (with stackDepth):', totalTilesCount, 'Visible tiles:', activeTiles.length);
-  
-  if (totalTilesCount < 2) {
-    console.log('🚨 isGameStuck: Less than 2 total tiles, game IS STUCK');
+}
+
+/**
+ * Check if a single stack tile can merge with itself
+ */
+function canSingleStackMerge(activeTiles: any[], totalTilesCount: number): boolean | null {
+  if (activeTiles.length !== 1 || totalTilesCount < MIN_TILES_FOR_MERGE) {
+    return null; // Not applicable
+  }
+
+  const singleTile = activeTiles[0];
+  const value = (singleTile.value | 0);
+  const stackDepth = (singleTile as any).stackDepth || 1;
+
+  console.log('🔍 isGameStuck: Single visible tile is a stack:', { value, stackDepth, totalTilesCount });
+
+  // Special case: merge 6 with depth 1 cannot merge (already max)
+  if (value === MAX_MERGE_VALUE && stackDepth === 1) {
+    console.log('🚨 isGameStuck: Single merge 6 with depth 1 - DEFINITELY STUCK');
+    return false;
+  }
+
+  // Check if stack can merge with itself (2 tiles from stack)
+  const canMergeSelf = (value + value) <= MAX_MERGE_VALUE;
+
+  if (canMergeSelf && stackDepth >= 2) {
+    console.log('✅ isGameStuck: Stack can merge with itself (', value, '+', value, '=', value + value, '<= 6) - NOT stuck');
     return true;
+  } else {
+    console.log('🚨 isGameStuck: Stack CANNOT merge with itself (', value, '+', value, '=', value + value, '> 6) - IS STUCK');
+    return false;
   }
-  
-  // 🔥 EDGE CASE: If only 1 visible tile but it's a stack, check if it can merge with itself
-  // Stack can merge with itself ONLY if value + value <= 6
-  // Example: stack(2, depth=3) → 2+2=4 <= 6 → CAN merge ✅
-  // Example: stack(5, depth=3) → 5+5=10 > 6 → CANNOT merge ❌
-  if (activeTiles.length === 1 && totalTilesCount >= 2) {
-    const singleTile = activeTiles[0];
-    const value = (singleTile.value | 0);
-    const stackDepth = (singleTile as any).stackDepth || 1;
-    
-    console.log('🔍 isGameStuck: Single visible tile is a stack:', { value, stackDepth, totalTilesCount });
-    
-    // 🔥 CRITICAL FIX v39: Check if stack CAN actually merge with itself
-    // Stack can merge with itself ONLY if: value + value <= 6
-    // Special case: merge 6 with depth 1 cannot merge (already max)
-    if (value === 6 && stackDepth === 1) {
-      console.log('🚨 isGameStuck: Single merge 6 with depth 1 - DEFINITELY STUCK');
-      return true;
-    }
-    
-    // Check if stack can merge with itself (2 tiles from stack)
-    const canMergeSelf = (value + value) <= 6;
-    
-    if (canMergeSelf && stackDepth >= 2) {
-      console.log('✅ isGameStuck: Stack can merge with itself (', value, '+', value, '=', value + value, '<= 6) - NOT stuck');
-      return false;
-    } else {
-      console.log('🚨 isGameStuck: Stack CANNOT merge with itself (', value, '+', value, '=', value + value, '> 6) - IS STUCK');
-      return true;
-    }
+}
+
+/**
+ * Get categorized tile counts for wild combinations check
+ * OPTIMIZED: Cached result if activeTiles haven't changed
+ */
+function getTileCategories(activeTiles: any[]) {
+  // Create a simple hash of activeTiles for caching
+  const tilesHash = activeTiles.map(t => (t.value|0) + '_' + (t.special || 'none')).sort().join('|');
+
+  if (cachedTileCategories && cachedCategoriesHash === tilesHash) {
+    console.log('💾 getTileCategories: Using cached tile categories');
+    return cachedTileCategories;
   }
-  
-  // Check for wild cubes edge cases
+
+  console.log('🔄 getTileCategories: Computing tile categories');
   const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer');
-  
-  // 🔥 CRITICAL: Separate wild stars from magnets for better logic
   const wildStars = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-beer');
   const magnets = activeTiles.filter(t => t.special === 'wild-magnet');
-  
+
   const mergeableNonWildTiles = activeTiles.filter(t => {
     if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer') return false;
     const value = (t.value|0);
-    // 🔥 CRITICAL FIX: Wild CAN merge with merge 6! Wild can merge with ANY tile from 1-6
-    // Previous bug: return value > 0 && value < 6; // This excluded merge 6, causing FAIL screen
-    return value > 0 && value <= 6; // Wild can merge with 1, 2, 3, 4, 5, AND 6!
+    return value > 0 && value <= MAX_MERGE_VALUE; // Wild can merge with 1-6
   });
-  
-  console.log('🔍 isGameStuck: Wild stars:', wildStars.length, 'Magnets:', magnets.length, 'Total wild cubes:', wildCubes.length, 'Mergeable non-wild tiles:', mergeableNonWildTiles.length);
 
-  // 🔥 CRITICAL FIX: If we have wild stars and any mergeable non-wild tiles (including merge 6), we can merge
+  cachedTileCategories = { wildCubes, wildStars, magnets, mergeableNonWildTiles };
+  cachedCategoriesHash = tilesHash;
+
+  return cachedTileCategories;
+}
+
+/**
+ * Check if wild tile combinations allow continuation
+ */
+function checkWildCombinations(wildStars: any[], magnets: any[], mergeableNonWildTiles: any[]): boolean {
+  console.log('🔍 isGameStuck: Wild stars:', wildStars.length, 'Magnets:', magnets.length, 'Total wild cubes:', wildStars.length + magnets.length, 'Mergeable non-wild tiles:', mergeableNonWildTiles.length);
+
+  // If we have wild stars and any mergeable non-wild tiles (including merge 6), we can merge
   if (wildStars.length > 0 && mergeableNonWildTiles.length > 0) {
     console.log('✅ isGameStuck: Wild stars + regular tiles (including merge 6) present - guaranteed merge available');
-    return false;
+    return true;
   }
-  
-  // 🔥 CRITICAL FIX: If we have magnets and ANY other tiles (including wild stars), we can merge
-  // Magnets can pull tiles together to create merges
+
+  // If we have magnets and ANY other tiles (including wild stars), we can merge
   if (magnets.length > 0 && (mergeableNonWildTiles.length > 0 || wildStars.length > 0)) {
     console.log('✅ isGameStuck: Magnets + other tiles present - can pull and merge');
     console.log('✅ Details:', {
@@ -333,17 +366,64 @@ function isGameStuck(context: EndGameContext): boolean {
       mergeableTiles: mergeableNonWildTiles.map(t => ({ value: t.value, gridX: (t as any).gridX, gridY: (t as any).gridY })),
       wildStarsCount: wildStars.length
     });
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if game is stuck (no merges possible)
+ * 🔥 REFACTORED: Broken into smaller, focused functions for better maintainability
+ */
+function isGameStuck(context: EndGameContext): boolean {
+  const { tiles } = context;
+
+  // First check: anyMergePossible
+  if (checkAnyMergePossible(context)) {
+    console.log('✅ isGameStuck: Merges possible, game is NOT stuck');
     return false;
   }
-  
-  // If we have wild cubes but no non-wild tiles, emergency rescue will handle this
+
+  // Get active tiles for detailed analysis
+  const activeTiles = getActiveTiles(tiles);
+  console.log('🔍 isGameStuck: Active tiles count:', activeTiles.length, 'Details:', activeTiles.map(t => ({
+    value: t.value,
+    special: t.special,
+    locked: t.locked,
+    stackDepth: (t as any).stackDepth || 1
+  })));
+
+  // Second check: total tile count including stacks
+  const totalTilesCount = getTotalTileCount(activeTiles);
+  console.log('🔍 isGameStuck: Total tiles count (with stackDepth):', totalTilesCount, 'Visible tiles:', activeTiles.length);
+
+  if (totalTilesCount < MIN_TILES_FOR_MERGE) {
+    console.log('🚨 isGameStuck: Less than 2 total tiles, game IS STUCK');
+    return true;
+  }
+
+  // Third check: single stack merging capability
+  const singleStackResult = canSingleStackMerge(activeTiles, totalTilesCount);
+  if (singleStackResult !== null) {
+    return !singleStackResult; // If can merge, not stuck; if cannot, stuck
+  }
+
+  // Fourth check: wild tile combinations
+  const { wildCubes, wildStars, magnets, mergeableNonWildTiles } = getTileCategories(activeTiles);
+
+  if (checkWildCombinations(wildStars, magnets, mergeableNonWildTiles)) {
+    return false;
+  }
+
+  // Fifth check: emergency rescue scenario
   if (wildCubes.length > 0 && mergeableNonWildTiles.length === 0) {
     console.log('✅ isGameStuck: Wild cubes but no non-wild tiles - emergency rescue will handle (NOT STUCK)');
     return false; // Not stuck - emergency rescue will spawn tiles
   }
-  
-  // If anyMergePossible returned false, we're stuck (it already checked all merge possibilities)
-  console.log('🚨 isGameStuck: anyMergePossible returned FALSE - game IS STUCK');
+
+  // If all checks fail, game is stuck
+  console.log('🚨 isGameStuck: anyMergePossible returned FALSE and no edge cases apply - game IS STUCK');
   return true;
 }
 
@@ -375,11 +455,18 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
     // Debouncing: if same context checked recently, return cached result
     // BUT: Only if hash matches exactly (meaning tiles haven't changed)
     if (now - lastCheckTime < DEBOUNCE_MS && contextHash === lastCheckContextHash && lastCheckResult) {
-      console.log('🎯 EndGameChecker: Using cached result (debounced)', {
+      console.log('🎯 EndGameChecker DIAGNOSTIC: Using CACHED result (debounced)', {
         timeSinceLastCheck: now - lastCheckTime,
-        hash: contextHash.substring(0, 50) + '...'
+        hash: contextHash.substring(0, 50) + '...',
+        cachedResult: lastCheckResult
       });
       return lastCheckResult;
+    } else {
+      console.log('🎯 EndGameChecker DIAGNOSTIC: Debounce check failed - performing fresh check', {
+        timeSinceLastCheck: now - lastCheckTime,
+        hashMatch: contextHash === lastCheckContextHash,
+        hasCachedResult: !!lastCheckResult
+      });
     }
   } else {
     console.log('🔥 EndGameChecker: Force refresh requested - bypassing cache');
@@ -406,11 +493,40 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
     lastCheckContextHash = contextHash;
     return lastCheckResult;
   }
-  
+
+  // 🔥 CRITICAL FIX: Check for magnet/wild + merge6 combinations BEFORE moves check
+  // These combinations allow continuation even with 0 moves
+  const activeTiles = getActiveTiles(tiles);
+  const hasMagnet = activeTiles.some(t => t.special === 'wild-magnet');
+  const hasWild = activeTiles.some(t => t.special === 'wild' || t.special === 'wild-beer');
+  const hasMerge6 = activeTiles.some(t => t.value === MAX_MERGE_VALUE);
+
+  // 🔥 DIAGNOSTIC LOG: Check anyMergePossible result vs additional conditions
+  const anyMergePossibleResult = makeBoard.anyMergePossible(tiles);
+  console.log('🔍 EndGameChecker DIAGNOSTIC: anyMergePossible result:', anyMergePossibleResult, 'hasMagnet:', hasMagnet, 'hasWild:', hasWild, 'hasMerge6:', hasMerge6);
+
+  // 🔥 CRITICAL: If magnet + merge6 exists, game can continue (magnet can merge with merge6)
+  if (hasMagnet && hasMerge6) {
+    console.log('🧲 EndGameChecker: Magnet + merge6 detected - game can continue (magnet can merge with merge6)');
+    lastCheckResult = { type: 'continue', reason: 'magnet_can_merge_with_merge6' };
+    lastCheckTime = now;
+    lastCheckContextHash = contextHash;
+    return lastCheckResult;
+  }
+
+  // 🔥 CRITICAL: If wild + merge6 exists, game can continue (wild can merge with merge6)
+  if (hasWild && hasMerge6) {
+    console.log('⭐ EndGameChecker: Wild + merge6 detected - game can continue (wild can merge with merge6)');
+    lastCheckResult = { type: 'continue', reason: 'wild_can_merge_with_merge6' };
+    lastCheckTime = now;
+    lastCheckContextHash = contextHash;
+    return lastCheckResult;
+  }
+
   // 3. Check if moves are depleted
   if (isMovesDepleted(context)) {
     console.log('🎯 EndGameChecker: Moves depleted, checking if game is stuck...');
-    
+
     // If moves = 0, check if game is stuck
     if (isGameStuck(context)) {
       console.log('🚨🚨🚨 EndGameChecker: MOVES DEPLETED + GAME STUCK');
@@ -426,33 +542,6 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
       return lastCheckResult;
     }
   }
-  
-// 4. Check if game is stuck (no merges possible)
-// 🔥 CRITICAL FIX v40: Check for magnet/wild BEFORE isGameStuck
-// If magnet or wild exists, game is NOT stuck - they can always merge
-// This prevents premature fail screen when: wild + tile + magnet → wild merge → magnet + merge6 (before spawn)
-const activeTiles = getActiveTiles(tiles);
-const hasMagnet = activeTiles.some(t => t.special === 'wild-magnet');
-const hasWild = activeTiles.some(t => t.special === 'wild' || t.special === 'wild-beer');
-const hasMerge6 = activeTiles.some(t => t.value === 6);
-
-// 🔥 CRITICAL: If magnet + merge6 exists, game can continue (magnet can merge with merge6)
-if (hasMagnet && hasMerge6) {
-  console.log('🧲 EndGameChecker: Magnet + merge6 detected - game can continue (magnet can merge with merge6)');
-  lastCheckResult = { type: 'continue', reason: 'magnet_can_merge_with_merge6' };
-  lastCheckTime = now;
-  lastCheckContextHash = contextHash;
-  return lastCheckResult;
-}
-
-// 🔥 CRITICAL: If wild + merge6 exists, game can continue (wild can merge with merge6)
-if (hasWild && hasMerge6) {
-  console.log('⭐ EndGameChecker: Wild + merge6 detected - game can continue (wild can merge with merge6)');
-  lastCheckResult = { type: 'continue', reason: 'wild_can_merge_with_merge6' };
-  lastCheckTime = now;
-  lastCheckContextHash = contextHash;
-  return lastCheckResult;
-}
 
 if (isGameStuck(context)) {
   console.log('🚨🚨🚨 EndGameChecker: GAME STUCK - no merges possible');
@@ -463,7 +552,7 @@ if (isGameStuck(context)) {
 
   // 🔥 CRITICAL FIX: If only 1 tile remains and it's not merge 6, it's stuck
   // This handles the case where user merges all spawned tiles into one non-6 tile
-  if (activeTiles.length === 1 && activeTiles[0].value !== 6) {
+  if (activeTiles.length === 1 && activeTiles[0].value !== MAX_MERGE_VALUE) {
     console.log('🚨🚨🚨 EndGameChecker: SINGLE NON-6 TILE - DEFINITELY STUCK');
     lastCheckResult = { type: 'stuck', reason: 'single_non_6_tile' };
     lastCheckTime = now;
@@ -487,15 +576,17 @@ if (isGameStuck(context)) {
 
 /**
  * Clear cache (call when tiles array changes significantly)
- * IMPROVED: Now also clears tiles hash cache
+ * IMPROVED: Now also clears tiles hash cache and tile categories cache
  */
 export function clearEndGameCache(): void {
   cachedActiveTiles = [];
   cachedTilesLength = 0;
   cachedTilesHash = '';
+  cachedTileCategories = null;
+  cachedCategoriesHash = '';
   lastCheckResult = null;
   lastCheckContextHash = '';
-  console.log('🔄 EndGameChecker: All caches cleared (active tiles, result cache, hash cache)');
+  console.log('🔄 EndGameChecker: All caches cleared (active tiles, tile categories, result cache, hash cache)');
 }
 
 /**
@@ -508,7 +599,7 @@ export function needsEmergencyRescue(tiles: any[]): boolean {
     if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer') return false;
     const value = (t.value|0);
     // 🔥 CRITICAL FIX: Wild CAN merge with merge 6! Include merge 6 in mergeable tiles
-    return value > 0 && value <= 6;
+    return value > 0 && value <= MAX_MERGE_VALUE;
   });
   
   return wildCubes.length > 0 && mergeableNonWildTiles.length === 0;

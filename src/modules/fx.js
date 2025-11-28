@@ -24,6 +24,66 @@ export function stopWildStars(tile){
 // 🔥 WILD-BEER: Continuous bubble animation system
 const wildBeerBubbleSystems = new Map();
 
+// FPS monitoring for dynamic quality reduction
+let fpsMonitorActive = false;
+let fpsFrameCount = 0;
+let fpsStartTime = 0;
+let currentFps = 60;
+let lastFpsCheck = 0;
+
+/**
+ * Start FPS monitoring
+ */
+function startFpsMonitoring() {
+  if (fpsMonitorActive) return;
+  fpsMonitorActive = true;
+  fpsFrameCount = 0;
+  fpsStartTime = performance.now();
+  lastFpsCheck = fpsStartTime;
+  console.log('🎯 FPS monitoring started');
+}
+
+/**
+ * Stop FPS monitoring and return current FPS
+ */
+function stopFpsMonitoring() {
+  if (!fpsMonitorActive) return currentFps;
+  fpsMonitorActive = false;
+  const elapsed = performance.now() - fpsStartTime;
+  if (elapsed > 0) {
+    currentFps = (fpsFrameCount * 1000) / elapsed;
+  }
+  console.log(`🎯 FPS monitoring stopped - Average FPS: ${currentFps.toFixed(1)}`);
+  return currentFps;
+}
+
+/**
+ * Update FPS counter (call this each frame)
+ */
+function updateFpsCounter() {
+  if (!fpsMonitorActive) return;
+  fpsFrameCount++;
+  const now = performance.now();
+  // Update current FPS every 500ms for responsiveness
+  if (now - lastFpsCheck >= 500) {
+    const elapsed = now - fpsStartTime;
+    if (elapsed > 0) {
+      currentFps = (fpsFrameCount * 1000) / elapsed;
+    }
+    lastFpsCheck = now;
+  }
+}
+
+/**
+ * Get dynamic bubble count based on current FPS (simplified version)
+ */
+function getDynamicBubbleCount(baseCount) {
+  if (currentFps >= 40) return baseCount; // Full quality
+  if (currentFps >= 25) return Math.max(20, Math.floor(baseCount * 0.7)); // 70% quality
+  if (currentFps >= 15) return Math.max(15, Math.floor(baseCount * 0.5)); // 50% quality
+  return Math.max(10, Math.floor(baseCount * 0.3)); // 30% quality minimum
+}
+
 /**
  * Start continuous sparkling water bubbles for wild-beer tiles
  * Bubbles spawn from bottom, rise to top + 30%, max 40px, white/transparent
@@ -1332,29 +1392,54 @@ let wildBeerExplosionSpawnTick = null; // 🔥 CRITICAL: Store spawnTick referen
 
 export function cleanupWildBeerExplosion() {
   try {
-    // 🔥 CRITICAL: Remove spawnTick from ticker FIRST to prevent new bubbles from spawning
-    if (wildBeerExplosionSpawnTick) {
-      try {
-        gsap.ticker.remove(wildBeerExplosionSpawnTick);
-      } catch {}
-      wildBeerExplosionSpawnTick = null;
-    }
-    
+    // Stop FPS monitoring
+    stopFpsMonitoring();
+
     wildBeerExplosionActive = false;
+
     if (wildBeerExplosionContainer) {
       const container = wildBeerExplosionContainer;
       wildBeerExplosionContainer = null;
+
+      // 🔥 v70 CLEANUP: Remove GSAP ticker
+      if (container._bubbleSpawnTicker) {
+        try {
+          gsap.ticker.remove(container._bubbleSpawnTicker);
+          container._bubbleSpawnTicker = null;
+        } catch {}
+      }
+      if (wildBeerExplosionSpawnTick) {
+        try {
+          gsap.ticker.remove(wildBeerExplosionSpawnTick);
+          wildBeerExplosionSpawnTick = null;
+        } catch {}
+      }
+
+      // Clear spawn interval (if exists from old version)
+      if (container._spawnInterval) {
+        clearInterval(container._spawnInterval);
+        container._spawnInterval = null;
+      }
+
+      // 🔥 v70 CLEANUP: Clean up all bubbles with all tweens
       const children = [...(container.children || [])];
       children.forEach((bubble) => {
         try {
+          // Kill all tweens stored on bubble
+          if (bubble._bubbleTweens && Array.isArray(bubble._bubbleTweens)) {
+            bubble._bubbleTweens.forEach(tween => {
+              try { if (tween && tween.kill) tween.kill(); } catch {}
+            });
+            bubble._bubbleTweens = null;
+          }
+          // Kill all tweens on bubble properties
           gsap.killTweensOf(bubble);
           gsap.killTweensOf(bubble.scale);
-          gsap.killTweensOf(bubble.rotation);
           if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
-          // 🔥 OBJECT POOLING: Release back to pool instead of destroying
           graphicsPool.release(bubble);
         } catch {}
       });
+
       if (container.parent) container.parent.removeChild(container);
       container.destroy?.({ children: true });
     }
@@ -1365,82 +1450,124 @@ export function isWildBeerExplosionRunning() {
   return wildBeerExplosionActive;
 }
 
-export function createWildBeerBubblesExplosion(board, tile) {
-  console.log('💧 createWildBeerBubblesExplosion called!', {
-    board: !!board,
-    tile: !!tile,
-    wildBeerExplosionActive,
-    boardDestroyed: board?.destroyed,
-    tileDestroyed: tile?.destroyed
+/**
+ * 🔥 COMPREHENSIVE CLEANUP: Call this on game state changes (level end, board reset, etc.)
+ * Ensures all animations and effects are properly cleaned up to prevent memory leaks
+ */
+export function cleanupAllEffects() {
+  console.log('🧹 cleanupAllEffects: Cleaning up all active effects');
+
+  // Cleanup wild beer explosion
+  cleanupWildBeerExplosion();
+
+  // Cleanup wild beer bubble systems
+  wildBeerBubbleSystems.forEach((system, tile) => {
+    try {
+      stopWildBeerBubbles(tile);
+    } catch {}
   });
-  
+  wildBeerBubbleSystems.clear();
+
+  // Kill all global delayed calls
+  killAllDelayedCalls();
+
+  // Destroy all graphics objects
+  destroyAllGraphicsObjects();
+
+  // Stop FPS monitoring
+  fpsMonitorActive = false;
+
+  console.log('✅ cleanupAllEffects: All effects cleaned up');
+}
+
+export function createWildBeerBubblesExplosion(board, tile) {
+  console.log('💧 createWildBeerBubblesExplosion: Starting simplified version');
+
   if (!board || !tile) {
-    console.warn('⚠️ createWildBeerBubblesExplosion: Missing board or tile', { board: !!board, tile: !!tile });
+    console.warn('⚠️ createWildBeerBubblesExplosion: Missing board or tile');
     return;
   }
-  
+
   if (wildBeerExplosionActive) {
-    console.warn('⚠️ createWildBeerBubblesExplosion: Already active, skipping duplicate trigger');
-    return; // Guard duplicate triggers during same animation
+    console.warn('⚠️ createWildBeerBubblesExplosion: Already active, skipping');
+    return;
   }
 
   cleanupWildBeerExplosion();
 
-  // 🔥 CRITICAL: Get stage directly from window.STATE (most reliable method)
+  // Get app and stage from window.STATE (most reliable)
   const windowState = typeof window !== 'undefined' ? window.STATE : null;
-  const stage = (windowState && windowState.stage) || 
-                (windowState && windowState.app && windowState.app.stage) || 
-                board.parent?.parent?.stage || 
+  const app = (windowState && windowState.app) || null;
+  const stage = (windowState && windowState.stage) ||
+                (app && app.stage) ||
+                board.parent?.parent?.stage ||
                 board.parent;
-  
-  console.log('💧 createWildBeerBubblesExplosion: Stage check', {
-    windowState: !!windowState,
-    stageFromState: !!(windowState && windowState.stage),
-    stageFromApp: !!(windowState && windowState.app && windowState.app.stage),
-    stageFromBoard: !!board.parent,
-    stage: !!stage,
-    stageType: stage ? stage.constructor?.name : 'null'
-  });
-  
+
   if (!stage) {
-    console.error('❌ createWildBeerBubblesExplosion: No stage found! Cannot create bubbles.');
-    console.error('❌ Debug info:', {
-      windowState: !!windowState,
-      windowStateStage: !!(windowState && windowState.stage),
-      windowStateApp: !!(windowState && windowState.app),
-      boardParent: !!board.parent,
-      boardParentParent: !!board.parent?.parent
-    });
+    console.error('❌ createWildBeerBubblesExplosion: No stage found!');
     return;
   }
-  
-  console.log('💧 createWildBeerBubblesExplosion: Creating bubbles container...');
 
+  console.log('💧 createWildBeerBubblesExplosion: Stage found, proceeding with bubble creation');
+
+  // 🔥 CRITICAL: Get accurate screen dimensions - use window.innerWidth/Height for actual viewport
+  // This ensures we get the real screen size regardless of PixiJS coordinate system
+  const screenW = (typeof window !== 'undefined' ? window.innerWidth : 800);
+  const screenH = (typeof window !== 'undefined' ? window.innerHeight : 600);
+  
+  // Also get renderer dimensions for reference
+  const rendererW = (app && app.renderer && app.renderer.width) || screenW;
+  const rendererH = (app && app.renderer && app.renderer.height) || screenH;
+  
+  console.log(`💧 Screen dimensions: ${screenW}x${screenH} (window), renderer: ${rendererW}x${rendererH}`);
+
+  // Create container
   const container = new Container();
   container.name = 'wild-beer-explosion-bubbles';
-  container.zIndex = 10000;
-  container.sortableChildren = true;
-  container.eventMode = 'none'; // Allow dragging through overlay
+  container.zIndex = 20000; // 🔥 VERY HIGH z-index to ensure visibility above everything
+  container.eventMode = 'none';
+  container.visible = true; // 🔥 CRITICAL: Ensure container is visible
+  container.alpha = 1.0; // 🔥 CRITICAL: Ensure container is fully opaque
   try { container.interactiveChildren = false; } catch {}
+  
+  // Position container at stage origin (0,0 relative to stage)
+  // In PixiJS, stage is usually at (0,0) and covers the entire screen
+  container.x = 0;
+  container.y = 0;
   stage.addChild(container);
   stage.sortChildren?.();
 
   wildBeerExplosionContainer = container;
   wildBeerExplosionActive = true;
+
+  // Debug: Verify stage and container positions, and get actual canvas position
+  const stagePos = { x: stage.x || 0, y: stage.y || 0 };
+  const containerPos = { x: container.x || 0, y: container.y || 0 };
   
-  console.log('💧 createWildBeerBubblesExplosion: Container created and added to stage!', {
-    container: !!container,
-    stage: !!stage,
-    containerParent: !!container.parent,
-    wildBeerExplosionActive
-  });
+  // Get actual canvas viewport position
+  let canvasRect = { x: 0, y: 0, width: screenW, height: screenH };
+  try {
+    if (app && app.canvas) {
+      const rect = app.canvas.getBoundingClientRect();
+      canvasRect = { x: rect.x || 0, y: rect.y || 0, width: rect.width || screenW, height: rect.height || screenH };
+    }
+  } catch (e) {
+    console.warn('⚠️ Could not get canvas bounding rect:', e);
+  }
+  
+  console.log(`💧 Container created and added to stage:`);
+  console.log(`   - Stage position: (${stagePos.x}, ${stagePos.y})`);
+  console.log(`   - Container position: (${containerPos.x}, ${containerPos.y})`);
+  console.log(`   - Screen dimensions: ${screenW}x${screenH}`);
+  console.log(`   - Canvas rect: x=${canvasRect.x}, y=${canvasRect.y}, w=${canvasRect.width}, h=${canvasRect.height}`);
+  console.log(`   - Stage children: ${stage.children.length}, container zIndex: ${container.zIndex}`);
 
-  const screenW = typeof window !== 'undefined' ? window.innerWidth : 800;
-  const screenH = typeof window !== 'undefined' ? window.innerHeight : 600;
+  // Start FPS monitoring
+  startFpsMonitoring();
 
-  // Shorter, denser burst so whole animation wraps in ~<=3s
-  const totalBubbles = 240;
-  const spawnDuration = 1500;
+  // 🔥 v74 ORIGINAL: Restore original v74 implementation with white bubbles and keyframes
+  const totalBubbles = 240; // Original v74: 240 bubbles
+  const spawnDuration = 1500; // 1.5 seconds spawn duration
   const maxActive = 200;
   let active = 0;
   let spawned = 0;
@@ -1449,6 +1576,8 @@ export function createWildBeerBubblesExplosion(board, tile) {
   let lastTick = startTime;
   let acc = 0;
 
+  console.log(`💧 v74 ORIGINAL: ${totalBubbles} bubbles, spawn duration: ${spawnDuration}ms`);
+
   const makeBubble = () => {
     if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) return;
     if (spawned >= totalBubbles || active >= maxActive) return;
@@ -1456,47 +1585,48 @@ export function createWildBeerBubblesExplosion(board, tile) {
     spawned += 1;
     active += 1;
 
-    // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics
+    // 🔥 OBJECT POOLING: Use pool
     const bubble = graphicsPool.acquire();
     bubble.eventMode = 'none';
     bubble.cursor = 'default';
-    const size = 14 + Math.random() * 34; // 14-48px
+    
+    const size = 14 + Math.random() * 34; // 14-48px (original v74 size range)
     const radius = size / 2;
-    const alpha = 0.55 + Math.random() * 0.35;
+    const alpha = 0.55 + Math.random() * 0.35; // 0.55-0.9 alpha
 
-    // 🔥 COLOR: Fill #FFFFFF (white), highlight and stroke #FFFFFF (white)
-    const bubbleFillColor = 0xFFFFFF;
-    const bubbleHighlightColor = 0xFFFFFF;
-    const bubbleStrokeColor = 0xFFFFFF;
+    // 🔥 v74 WHITE BUBBLES: White bubbles with highlight effect (original v74 style)
+    bubble.clear();
     bubble.circle(0, 0, radius);
-    bubble.fill({ color: bubbleFillColor, alpha });
+    bubble.fill({ color: 0xFFFFFF, alpha }); // White fill
+    // Highlight circle (top-left)
     bubble.circle(-radius * 0.25, -radius * 0.25, radius * 0.32);
-    bubble.fill({ color: bubbleHighlightColor, alpha: Math.min(1, alpha + 0.2) });
+    bubble.fill({ color: 0xFFFFFF, alpha: Math.min(1, alpha + 0.2) }); // Brighter highlight
+    // Stroke
     bubble.circle(0, 0, radius);
-    bubble.stroke({ color: bubbleStrokeColor, alpha: alpha * 0.65, width: 1 });
+    bubble.stroke({ color: 0xFFFFFF, alpha: alpha * 0.65, width: 1 });
 
+    // 🔥 v74 RANDOM DISTRIBUTION: Random positions across full screen
     const startX = (Math.random() - 0.5) * screenW * 1.4 + screenW * 0.5;
-    const startY = screenH * (0.95 + Math.random() * 0.2);
+    const startY = screenH * (0.95 + Math.random() * 0.2); // Bottom 5-25% of screen
     bubble.x = startX;
     bubble.y = startY;
     bubble.alpha = alpha;
-    bubble.scale.set(0.25 + Math.random() * 0.25);
+    bubble.scale.set(0.25 + Math.random() * 0.25); // 0.25-0.5 initial scale
     bubble.renderable = true;
 
     wildBeerExplosionContainer.addChild(bubble);
 
-    const endY = -screenH * (0.1 + Math.random() * 0.15);
-    // 🔥 SLOW DOWN: Increased duration by 30% for slower bubble rise
-    // Original: 1.1-2.1s, now: 1.43-2.73s (30% slower)
-    const baseDuration = 1.6 + (Math.random() - 0.5) * 0.6;
-    const duration = Math.min(2.73, Math.max(1.43, baseDuration * 1.3));
+    const endY = -screenH * (0.1 + Math.random() * 0.15); // End 10-25% above top
+    const duration = Math.min(2.1, Math.max(1.1, 1.6 + (Math.random() - 0.5) * 0.6)); // 1.1-2.1s
 
+    // 🔥 v74 KEYFRAMES DRIFT: 3-phase horizontal drift (original v74 style)
     const drift1 = (Math.random() - 0.5) * 180;
     const drift2 = drift1 * -0.6 + (Math.random() - 0.5) * 220;
     const drift3 = (Math.random() - 0.5) * 240;
 
     const bubbleTweens = [];
 
+    // 🔥 1. KEYFRAMES DRIFT: 3-phase horizontal movement (v74 style)
     bubbleTweens.push(gsap.to(bubble, {
       keyframes: [
         { x: startX + drift1, duration: duration * 0.3, ease: 'sine.inOut' },
@@ -1506,6 +1636,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
       immediateRender: true
     }));
 
+    // 🔥 2. VERTICAL RISE: Main upward movement
     bubbleTweens.push(gsap.to(bubble, {
       y: endY,
       duration,
@@ -1513,14 +1644,16 @@ export function createWildBeerBubblesExplosion(board, tile) {
       immediateRender: true
     }));
 
+    // 🔥 3. SCALE ANIMATION: Scale up during rise
     bubbleTweens.push(gsap.to(bubble.scale, {
-      x: 0.65 + Math.random() * 0.35,
+      x: 0.65 + Math.random() * 0.35, // 0.65-1.0 final scale
       y: 0.65 + Math.random() * 0.35,
       duration: duration * 0.45,
       ease: 'power1.out',
       immediateRender: true
     }));
 
+    // 🔥 4. ROTATION: Continuous rotation
     bubbleTweens.push(gsap.to(bubble, {
       rotation: (Math.random() - 0.5) * Math.PI * 1.2,
       duration,
@@ -1528,6 +1661,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
       immediateRender: true
     }));
 
+    // 🔥 5. ALPHA FADE: Fade out near top
     bubbleTweens.push(gsap.to(bubble, {
       alpha: 0,
       duration: duration * 0.4,
@@ -1538,17 +1672,19 @@ export function createWildBeerBubblesExplosion(board, tile) {
         try {
           bubbleTweens.forEach(t => { try { t.kill?.(); } catch {} });
           if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
-          // 🔥 OBJECT POOLING: Release back to pool instead of destroying
           graphicsPool.release(bubble);
         } catch {}
         active = Math.max(0, active - 1);
       }
     }));
+
+    // Store tweens for cleanup
+    bubble._bubbleTweens = bubbleTweens;
   };
 
+  // 🔥 v74 SPAWN TICKER: Performance-based spawn ticker (original v74 style)
   const spawnTick = () => {
     if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) {
-      // 🔥 CRITICAL: Remove spawnTick from ticker when container is destroyed
       if (wildBeerExplosionSpawnTick === spawnTick) {
         gsap.ticker.remove(spawnTick);
         wildBeerExplosionSpawnTick = null;
@@ -1556,13 +1692,13 @@ export function createWildBeerBubblesExplosion(board, tile) {
       cleanupWildBeerExplosion();
       return;
     }
+    
     const now = performance.now();
     const dt = Math.max(1, now - lastTick);
     lastTick = now;
     const elapsed = now - startTime;
 
     if (elapsed >= spawnDuration && spawned >= totalBubbles) {
-      // 🔥 CRITICAL: Remove spawnTick from ticker and clear reference
       if (wildBeerExplosionSpawnTick === spawnTick) {
         gsap.ticker.remove(spawnTick);
         wildBeerExplosionSpawnTick = null;
@@ -1581,53 +1717,12 @@ export function createWildBeerBubblesExplosion(board, tile) {
     }
   };
 
-  // 🔥 PERFORMANCE FIX: Staggered initial burst to prevent FPS drop
-  // Instead of 12 bubbles at once (60 GSAP tweens), spawn them gradually over 4 frames
-  // Reduced to 2 bubbles per frame for even lighter initial load
-  const initialBurstCount = 12;
-  const bubblesPerFrame = 2; // Spawn 2 bubbles per frame (reduced from 4)
-  const totalFrames = 4; // Spread over 4 frames instead of 3
+  // 🔥 v74 INITIAL BURST: Spawn 12 bubbles immediately for instant feedback
+  for (let i = 0; i < 12; i++) makeBubble();
   
-  // First frame: spawn 2 bubbles immediately
-  for (let i = 0; i < bubblesPerFrame && i < initialBurstCount; i++) {
-    makeBubble();
-  }
-  
-  // Second frame: spawn next 2 bubbles
-  requestAnimationFrame(() => {
-    if (wildBeerExplosionContainer && !wildBeerExplosionContainer.destroyed) {
-      for (let i = bubblesPerFrame; i < bubblesPerFrame * 2 && i < initialBurstCount; i++) {
-        makeBubble();
-      }
-    }
-  });
-  
-  // Third frame: spawn next 2 bubbles
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      if (wildBeerExplosionContainer && !wildBeerExplosionContainer.destroyed) {
-        for (let i = bubblesPerFrame * 2; i < bubblesPerFrame * 3 && i < initialBurstCount; i++) {
-          makeBubble();
-        }
-      }
-    });
-  });
-  
-  // Fourth frame: spawn remaining bubbles
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (wildBeerExplosionContainer && !wildBeerExplosionContainer.destroyed) {
-          for (let i = bubblesPerFrame * 3; i < initialBurstCount; i++) {
-            makeBubble();
-          }
-        }
-      });
-    });
-  });
-  
-  // 🔥 CRITICAL: Store spawnTick reference for cleanup
+  // Start spawn ticker
   wildBeerExplosionSpawnTick = spawnTick;
+  wildBeerExplosionContainer._bubbleSpawnTicker = spawnTick;
   gsap.ticker.add(spawnTick);
   spawnTick();
 }

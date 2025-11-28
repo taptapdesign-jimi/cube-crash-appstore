@@ -79,3 +79,4 @@ Mjehurići se ne vide odmah kada se napravi merge 6 wild-beer sa običnom kockic
 4. Provjeriti da li animacija teče glatko bez lag-a
 
 
+
