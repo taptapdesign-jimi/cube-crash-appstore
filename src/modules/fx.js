@@ -1486,6 +1486,76 @@ export function cleanupAllEffects() {
   console.log('✅ cleanupAllEffects: All effects cleaned up');
 }
 
+// 🔥 DEBUG: Expose bubble stats to window for DevTools console access
+if (typeof window !== 'undefined') {
+  window.getBubbleStats = function() {
+    if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) {
+      return { active: 0, spawned: 0, total: 0, fps: currentFps || 60 };
+    }
+    const children = wildBeerExplosionContainer.children || [];
+    const visible = children.filter(b => b.visible !== false).length;
+    return {
+      active: active || 0,
+      spawned: spawned || 0,
+      total: totalBubbles || 0,
+      visible: visible,
+      fps: currentFps || 60,
+      container: !!wildBeerExplosionContainer,
+      texture: useTexturePooling ? 'YES' : 'NO (Graphics fallback)'
+    };
+  };
+  
+  window.monitorBubbles = function(interval = 500) {
+    const monitor = setInterval(() => {
+      const stats = window.getBubbleStats();
+      console.log(`💧 Bubbles: ${stats.spawned}/${stats.total} spawned, ${stats.active} active, ${stats.visible} visible, FPS: ${stats.fps.toFixed(1)}`);
+    }, interval);
+    
+    console.log(`💧 Monitoring bubbles every ${interval}ms. Call window.stopBubbleMonitor() to stop.`);
+    window.stopBubbleMonitor = () => {
+      clearInterval(monitor);
+      console.log('💧 Bubble monitoring stopped');
+    };
+    
+    return monitor;
+  };
+}
+
+// 🔥 DEBUG: Expose bubble stats to window for DevTools console access
+if (typeof window !== 'undefined') {
+  window.getBubbleStats = function() {
+    if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) {
+      return { active: 0, spawned: 0, total: 0, fps: (typeof currentFps !== 'undefined' ? currentFps : 60) };
+    }
+    const children = wildBeerExplosionContainer.children || [];
+    const visible = children.filter(b => b && b.visible !== false).length;
+    return {
+      active: (typeof active !== 'undefined' ? active : 0),
+      spawned: (typeof spawned !== 'undefined' ? spawned : 0),
+      total: 125, // Fixed value
+      visible: visible,
+      fps: (typeof currentFps !== 'undefined' ? currentFps : 60),
+      container: !!wildBeerExplosionContainer,
+      texture: (typeof useTexturePooling !== 'undefined' && useTexturePooling) ? 'YES' : 'NO (Graphics fallback)'
+    };
+  };
+  
+  window.monitorBubbles = function(interval = 500) {
+    const monitor = setInterval(() => {
+      const stats = window.getBubbleStats();
+      console.log(`💧 Bubbles: ${stats.spawned}/${stats.total} spawned, ${stats.active} active, ${stats.visible} visible, FPS: ${stats.fps.toFixed(1)}`);
+    }, interval);
+    
+    console.log(`💧 Monitoring bubbles every ${interval}ms. Call window.stopBubbleMonitor() to stop.`);
+    window.stopBubbleMonitor = () => {
+      clearInterval(monitor);
+      console.log('💧 Bubble monitoring stopped');
+    };
+    
+    return monitor;
+  };
+}
+
 export function createWildBeerBubblesExplosion(board, tile) {
   console.log('💧 createWildBeerBubblesExplosion: Starting simplified version');
 
@@ -1672,6 +1742,12 @@ export function createWildBeerBubblesExplosion(board, tile) {
 
     spawned += 1;
     active += 1;
+    
+    // 🔥 DEBUG: Update stats for DevTools access
+    if (typeof window !== 'undefined' && window._bubbleStats) {
+      window._bubbleStats.active = active;
+      window._bubbleStats.spawned = spawned;
+    }
 
     let bubble;
     const size = 14 + Math.random() * 34; // 14-48px (same size range as v74)
@@ -1780,6 +1856,11 @@ export function createWildBeerBubblesExplosion(board, tile) {
           }
         } catch {}
         active = Math.max(0, active - 1);
+        
+        // 🔥 DEBUG: Update stats for DevTools access
+        if (typeof window !== 'undefined' && window._bubbleStats) {
+          window._bubbleStats.active = active;
+        }
       }
     }));
 
