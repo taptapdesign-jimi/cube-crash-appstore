@@ -1993,6 +1993,11 @@ async function spawnWildFromMeter(){
       let spawnBeer = false;
       let spawnMagnet = false;
       
+      // 🔥 USER REQUEST: First and second wild spawn should be RANDOM (beer or magnet)
+      // Define these BEFORE the if/else so they're available later
+      const isFirstWild = !wildBeerSpawned && !wildMagnetSpawned;
+      const isSecondWild = (wildBeerSpawned && !wildMagnetSpawned) || (!wildBeerSpawned && wildMagnetSpawned);
+      
       // 🎯 BOARD 3: Force wild-beer only (check first, before default logic)
       if (boardNumber === 3) {
         spawnBeer = true;
@@ -2000,10 +2005,6 @@ async function spawnWildFromMeter(){
         console.log('🎯 Board 3: Forcing wild-beer spawn only');
       } else {
         // Default logic (for boards without specific rules)
-        // 🔥 USER REQUEST: First and second wild spawn should be RANDOM (beer or magnet)
-        const isFirstWild = !wildBeerSpawned && !wildMagnetSpawned;
-        const isSecondWild = (wildBeerSpawned && !wildMagnetSpawned) || (!wildBeerSpawned && wildMagnetSpawned);
-        
         // 🔥 RANDOM LOGIC: First wild = random beer or magnet, Second wild = random beer or magnet (opposite of first)
         let preferredBeer = false;
         let preferredMagnet = false;
@@ -2066,11 +2067,11 @@ async function spawnWildFromMeter(){
         spawned = true;
         if (spawnBeer) {
           wildBeerSpawned = true; // Mark as spawned (but can spawn again with 40% chance)
-          console.log(isFirstWild ? '🍺 Wild-beer spawned (first wild spawn)' : '🍺 Wild-beer spawned again (40% chance)');
+          console.log(isFirstWild ? '🍺 Wild-beer spawned (first wild spawn - random)' : isSecondWild ? '🍺 Wild-beer spawned (second wild spawn - random)' : '🍺 Wild-beer spawned again (40% chance)');
           // No board shake on spawn - only on merge 6
         } else if (spawnMagnet) {
           wildMagnetSpawned = true; // Mark as spawned
-          console.log(isSecondWild ? '🧲 Wild-magnet spawned (second wild spawn)' : '🧲 Wild-magnet spawned (random roll)');
+          console.log(isFirstWild ? '🧲 Wild-magnet spawned (first wild spawn - random)' : isSecondWild ? '🧲 Wild-magnet spawned (second wild spawn - random)' : '🧲 Wild-magnet spawned (random roll)');
         } else {
           console.log('🌪️ Regular wild spawned (random roll)');
         }
