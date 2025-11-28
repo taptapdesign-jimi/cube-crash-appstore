@@ -18,7 +18,7 @@ const VEL_SMOOTH   = 0.10;   // sporije prihvaća promjenu brzine (teži osjeća
 const ROT_SMOOTH   = 0.08;   // sporije naginje prema cilju (teži osjećaj)
 const POS_LAG_PX   = 6;      // maksimalni parallax pomak (px)
 const TILT_DUR     = 0.5;    // zadržano za release tween na onUp
-const BOARD_WOBBLE_ENABLED = true; // 🔥 ENABLED: Board wobble for wild-beer drag (disabled during bubbles animation)
+const BOARD_WOBBLE_ENABLED = true; // 🔥 USER REQUEST: Disabled for wild-beer drag (may use later) - kept constant for future use
 
 const MAGNET_OFFSET_RATIO = 14 / 128; // 14px od 128px pločice ≈ 10.9375%
 const MAGNET_SCALE_MULT  = 1.03;    // 3% napuhavanje ciljane pločice
@@ -237,7 +237,9 @@ export function initDrag(cfg) {
     drag._boardCenterY = board ? board.y : 0;
     drag._boardPivotX = board?.pivot?.x ?? 0;
     drag._boardPivotY = board?.pivot?.y ?? 0;
-    drag._boardWobbleActive = t.special === 'wild-beer';
+    // 🔥 USER REQUEST: Board wobble disabled for wild-beer drag (may use later)
+    // drag._boardWobbleActive = t.special === 'wild-beer';
+    drag._boardWobbleActive = false; // Disabled - commented out for future use
     drag._boardPivotApplied = false;
 
     // ⬆️ digni na vrh, ali zapamti prijašnji z-index
@@ -348,7 +350,9 @@ export function initDrag(cfg) {
     drag.vy = drag.vy + (instVY - drag.vy) * VEL_SMOOTH;
     drag.lastTime = now;
     
+    // 🔥 USER REQUEST: Board wobble disabled for wild-beer drag (may use later)
     // Board wobble: subtle parallax for wild-beer drag (disabled during bubbles animation)
+    /*
     if (BOARD_WOBBLE_ENABLED) {
       // 🔥 CRITICAL: Disable board wobble when bubbles animation is active to prevent conflicts
       if (drag._boardWobbleActive && board && !isWildBeerExplosionRunning()) {
@@ -363,6 +367,7 @@ export function initDrag(cfg) {
         board.y = drag._boardBaseY + nextShiftY;
       }
     }
+    */
 
     // --- target rotacija SUPROTNO od smjera (low-pass težina) ---
     const targetRot = Math.max(-TILT_MAX_RAD, Math.min(TILT_MAX_RAD, (-drag.vx * TILT_SCALE)));
@@ -676,7 +681,9 @@ export function initDrag(cfg) {
     if (drag._lastSmokeTime) {
       drag._lastSmokeTime = null;
     }
+    // 🔥 USER REQUEST: Board wobble disabled for wild-beer drag (may use later)
     // Stop board wobble and reset when drag ends
+    /*
     if (drag._boardWobbleActive && board) {
       drag._boardWobbleActive = false;
       gsap.to(board, {
@@ -686,6 +693,8 @@ export function initDrag(cfg) {
         duration: 0.18,
         ease: 'power2.out'
       });
+    }
+    */
     }
     
     // 🧲 MAGNETIC REACTION: Return all tiles with magnet effect to original positions
