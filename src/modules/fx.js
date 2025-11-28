@@ -1572,13 +1572,13 @@ export function createWildBeerBubblesExplosion(board, tile) {
   startFpsMonitoring();
 
   // 🔥 v75 OPTIMIZED: Faze 1+2+3 - Texture pooling, reduced bubbles, optimized animations
-  // FAZA 1: Texture Pooling - Create bubble texture once, reuse for all bubbles
-  // FAZA 2: Reduced bubbles - 180 (was 240, better compromise), max 150 active (was 200), 1.0s spawn (was 1.5s)
+  // FAZA 1: Texture Pooling - Create bubble texture once, reuse for all bubbles (with better fallback)
+  // FAZA 2: Reduced bubbles - 150 (was 240, App Store safe), max 120 active (was 200), 1.0s spawn (was 1.5s)
   // FAZA 3: Optimized animations - Simple drift (no keyframes), no rotation, 3 anims (was 5)
   
-  const totalBubbles = 180; // FAZA 2: -25% (was 240, better compromise than 120)
+  const totalBubbles = 150; // FAZA 2: -37.5% (was 240, App Store safe for older devices)
   const spawnDuration = 1000; // FAZA 2: 1.0s (was 1.5s) - faster, fewer simultaneous
-  const maxActive = 150; // FAZA 2: -25% (was 200, proportional to 180 bubbles)
+  const maxActive = 120; // FAZA 2: -40% (was 200, proportional to 150 bubbles, App Store safe)
   let active = 0;
   let spawned = 0;
   const perMs = totalBubbles / spawnDuration;
@@ -1586,42 +1586,85 @@ export function createWildBeerBubblesExplosion(board, tile) {
   let lastTick = startTime;
   let acc = 0;
 
-  // 🔥 FAZA 1: Create bubble texture once (max size 48px) - cached globally
+  // 🔥 FAZA 1: Create bubble texture once (max size 48px) - cached globally with better fallback
   if (!_cachedBubbleTexture && app && app.renderer) {
     const maxSize = 48; // Max bubble size
     const maxRadius = maxSize / 2;
     const tempGraphics = new Graphics();
-    // White bubble with highlight effect (same as v74 style)
-    tempGraphics.circle(0, 0, maxRadius);
-    tempGraphics.fill({ color: 0xFFFFFF, alpha: 1.0 }); // White fill
-    // Highlight circle (top-left)
-    tempGraphics.circle(-maxRadius * 0.25, -maxRadius * 0.25, maxRadius * 0.32);
-    tempGraphics.fill({ color: 0xFFFFFF, alpha: 1.0 }); // Brighter highlight
-    // Stroke
-    tempGraphics.circle(0, 0, maxRadius);
-    tempGraphics.stroke({ color: 0xFFFFFF, alpha: 0.65, width: 1 });
     
-    // Generate texture from Graphics
     try {
-      _cachedBubbleTexture = app.renderer.generateTexture(tempGraphics, {
-        resolution: 2, // Higher resolution for crisp rendering
-        region: { x: -maxRadius - 2, y: -maxRadius - 2, width: maxSize + 4, height: maxSize + 4 }
-      });
+      // White bubble with highlight effect (same as v74 style)
+      tempGraphics.circle(0, 0, maxRadius);
+      tempGraphics.fill({ color: 0xFFFFFF, alpha: 1.0 }); // White fill
+      // Highlight circle (top-left)
+      tempGraphics.circle(-maxRadius * 0.25, -maxRadius * 0.25, maxRadius * 0.32);
+      tempGraphics.fill({ color: 0xFFFFFF, alpha: 1.0 }); // Brighter highlight
+      // Stroke
+      tempGraphics.circle(0, 0, maxRadius);
+      tempGraphics.stroke({ color: 0xFFFFFF, alpha: 0.65, width: 1 });
+      
+      // 🔥 IMPROVED: Better texture generation with multiple fallback strategies
+      // Try high resolution first
+      try {
+        _cachedBubbleTexture = app.renderer.generateTexture(tempGraphics, {
+          resolution: 2, // Higher resolution for crisp rendering
+          region: { x: -maxRadius - 2, y: -maxRadius - 2, width: maxSize + 4, height: maxSize + 4 }
+        });
+        if (!_cachedBubbleTexture || _cachedBubbleTexture.destroyed) {
+          throw new Error('Texture generation returned invalid texture');
+        }
+      } catch (e1) {
+        // Fallback 1: Try lower resolution
+        try {
+          console.warn('⚠️ High-res texture generation failed, trying lower resolution:', e1);
+          _cachedBubbleTexture = app.renderer.generateTexture(tempGraphics, {
+            resolution: 1, // Lower resolution fallback
+            region: { x: -maxRadius - 2, y: -maxRadius - 2, width: maxSize + 4, height: maxSize + 4 }
+          });
+          if (!_cachedBubbleTexture || _cachedBubbleTexture.destroyed) {
+            throw new Error('Low-res texture generation returned invalid texture');
+          }
+        } catch (e2) {
+          // Fallback 2: Try without region (auto-calculate)
+          try {
+            console.warn('⚠️ Region-based texture generation failed, trying auto-region:', e2);
+            _cachedBubbleTexture = app.renderer.generateTexture(tempGraphics, {
+              resolution: 1
+            });
+            if (!_cachedBubbleTexture || _cachedBubbleTexture.destroyed) {
+              throw new Error('Auto-region texture generation returned invalid texture');
+            }
+          } catch (e3) {
+            // Final fallback: Use Graphics (no texture)
+            console.warn('⚠️ All texture generation methods failed, using Graphics fallback:', e3);
+            _cachedBubbleTexture = null; // Will use Graphics fallback
+          }
+        }
+      }
     } catch (e) {
-      console.warn('⚠️ Failed to generate bubble texture, using Graphics fallback:', e);
-      _cachedBubbleTexture = null; // Fallback to Graphics if texture generation fails
+      console.error('❌ Critical error in texture generation setup:', e);
+      _cachedBubbleTexture = null; // Fallback to Graphics
+    } finally {
+      // Always clean up temp Graphics
+      try {
+        tempGraphics.destroy();
+      } catch (e) {
+        console.warn('⚠️ Failed to destroy temp Graphics:', e);
+      }
     }
-    tempGraphics.destroy(); // Clean up temp Graphics
   }
   
   const bubbleTexture = _cachedBubbleTexture;
+  const useTexturePooling = bubbleTexture !== null && !bubbleTexture.destroyed;
 
-  // Fallback: If texture generation failed, use Graphics (slower but works)
-  if (!bubbleTexture) {
-    console.warn('⚠️ Bubble texture not available, using Graphics fallback (slower)');
+  // Log texture status for debugging
+  if (!useTexturePooling) {
+    console.warn('⚠️ Bubble texture not available, using Graphics fallback (slower but safe)');
+  } else {
+    console.log('✅ Bubble texture generated successfully, using Sprite optimization');
   }
 
-  console.log(`💧 v75 OPTIMIZED: ${totalBubbles} bubbles (was 240, better compromise), texture pooling: ${bubbleTexture ? 'YES' : 'NO (Graphics fallback)'}, 3 anims (was 5), spawn: ${spawnDuration}ms`);
+  console.log(`💧 v75 OPTIMIZED: ${totalBubbles} bubbles (was 240, App Store safe), texture pooling: ${useTexturePooling ? 'YES' : 'NO (Graphics fallback)'}, 3 anims (was 5), spawn: ${spawnDuration}ms`);
 
   const makeBubble = () => {
     if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) return;
@@ -1636,12 +1679,30 @@ export function createWildBeerBubblesExplosion(board, tile) {
     const radius = size / 2;
     const alpha = 0.55 + Math.random() * 0.35; // 0.55-0.9 alpha
 
-    // 🔥 FAZA 1: Use Sprite with texture (1 draw call) OR Graphics fallback
-    if (bubbleTexture) {
-      bubble = new Sprite(bubbleTexture);
-      bubble.eventMode = 'none';
-      bubble.cursor = 'default';
-      bubble.anchor.set(0.5); // Center anchor for proper scaling/rotation
+    // 🔥 FAZA 1: Use Sprite with texture (1 draw call) OR Graphics fallback (improved)
+    let isSprite = false;
+    if (useTexturePooling && bubbleTexture) {
+      try {
+        bubble = new Sprite(bubbleTexture);
+        bubble.eventMode = 'none';
+        bubble.cursor = 'default';
+        bubble.anchor.set(0.5); // Center anchor for proper scaling/rotation
+        isSprite = true;
+      } catch (e) {
+        // If Sprite creation fails, fallback to Graphics
+        console.warn('⚠️ Sprite creation failed, using Graphics fallback:', e);
+        bubble = graphicsPool.acquire();
+        bubble.eventMode = 'none';
+        bubble.cursor = 'default';
+        bubble.clear();
+        bubble.circle(0, 0, radius);
+        bubble.fill({ color: 0xFFFFFF, alpha });
+        bubble.circle(-radius * 0.25, -radius * 0.25, radius * 0.32);
+        bubble.fill({ color: 0xFFFFFF, alpha: Math.min(1, alpha + 0.2) });
+        bubble.circle(0, 0, radius);
+        bubble.stroke({ color: 0xFFFFFF, alpha: alpha * 0.65, width: 1 });
+        isSprite = false;
+      }
     } else {
       // Fallback: Use Graphics (slower, but works if texture generation fails)
       bubble = graphicsPool.acquire();
@@ -1654,6 +1715,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
       bubble.fill({ color: 0xFFFFFF, alpha: Math.min(1, alpha + 0.2) });
       bubble.circle(0, 0, radius);
       bubble.stroke({ color: 0xFFFFFF, alpha: alpha * 0.65, width: 1 });
+      isSprite = false;
     }
     
     // 🔥 FAZA 2: Random distribution (same as v74)
@@ -1662,7 +1724,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
     bubble.x = startX;
     bubble.y = startY;
     bubble.alpha = alpha;
-    if (bubbleTexture) {
+    if (isSprite) {
       bubble.scale.set((0.25 + Math.random() * 0.25) * sizeRatio); // 0.25-0.5 initial scale × size ratio
     } else {
       bubble.scale.set(0.25 + Math.random() * 0.25); // 0.25-0.5 initial scale
@@ -1691,8 +1753,8 @@ export function createWildBeerBubblesExplosion(board, tile) {
     // 🔥 FAZA 3: 2. SCALE ANIMATION (kept - important visual effect)
     const finalScale = 0.65 + Math.random() * 0.35; // 0.65-1.0 final scale
     bubbleTweens.push(gsap.to(bubble.scale, {
-      x: bubbleTexture ? finalScale * sizeRatio : finalScale, // Apply size ratio only for texture
-      y: bubbleTexture ? finalScale * sizeRatio : finalScale,
+      x: isSprite ? finalScale * sizeRatio : finalScale, // Apply size ratio only for Sprite
+      y: isSprite ? finalScale * sizeRatio : finalScale,
       duration: duration * 0.45,
       ease: 'power1.out',
       immediateRender: true
@@ -1760,8 +1822,9 @@ export function createWildBeerBubblesExplosion(board, tile) {
     }
   };
 
-  // 🔥 v75 INITIAL BURST: Spawn 9 bubbles immediately (proportional to 180 total, was 12 for 240)
-  for (let i = 0; i < 9; i++) makeBubble();
+  // 🔥 v75 INITIAL BURST: Spawn 7-8 bubbles immediately (proportional to 150 total, was 12 for 240)
+  const initialBurst = Math.floor(totalBubbles / 20); // ~7-8 bubbles for 150 total
+  for (let i = 0; i < initialBurst; i++) makeBubble();
   
   // Start spawn ticker
   wildBeerExplosionSpawnTick = spawnTick;
