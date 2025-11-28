@@ -2003,7 +2003,7 @@ async function spawnWildFromMeter(){
       } else {
         // Default logic (for boards without specific rules)
         // First wild spawn should be wild-beer (default behavior)
-        const isFirstWild = !wildBeerSpawned;
+      const isFirstWild = !wildBeerSpawned;
         // Second wild spawn should be wild-magnet (after wild-beer)
         const isSecondWild = wildBeerSpawned && !wildMagnetSpawned;
         
@@ -2405,7 +2405,7 @@ function merge(src, dst, helpers){
       }
     } else {
       // Normal merge - add wild progress
-      addWildProgress(WILD_INC_SMALL);
+    addWildProgress(WILD_INC_SMALL);
     }
     
     // SMART SAVE: Debounced save after merge+spawn flow completes
@@ -2719,7 +2719,7 @@ function merge(src, dst, helpers){
             console.log('🔍 Post-merge checkLevelEnd called (non-merge-6)');
             checkLevelEnd();
           }, 100);
-        } else {
+                } else {
           // Za merge-6, checkLevelEnd() se poziva nakon spawn-a (već postoji delay u merge-6 block)
           // Ne treba dodatni poziv ovdje
         }
@@ -2954,17 +2954,18 @@ function merge(src, dst, helpers){
     // 2. Regular + regular → merge 6 (only 2 tiles, e.g. 4+2=6, 3+3=6) = clean board
     // Regular + regular → stack (only 2 tiles, e.g. 3+2=5) = fail screen (handled in post-merge check)
     // 🔥 CRITICAL: Check if either tile is wild (any wild type with "wild" prefix)
-    // 🔥 FIX: Include wild-beer explicitly in wild check (startsWith('wild') should catch it, but be explicit)
-    const srcIsWild = srcSpecial && (srcSpecial.startsWith('wild') || srcSpecial === 'wild-beer');
-    const dstIsWild = dstSpecial && (dstSpecial.startsWith('wild') || dstSpecial === 'wild-beer');
+    // 🔥 FIX: Include ALL wild types: wild, wild-beer, AND wild-magnet
+    // Wild-magnet is also a wild tile and should be treated as such in end game logic
+    const srcIsWild = srcSpecial && (srcSpecial.startsWith('wild') || srcSpecial === 'wild-beer' || srcSpecial === 'wild-magnet');
+    const dstIsWild = dstSpecial && (dstSpecial.startsWith('wild') || dstSpecial === 'wild-beer' || dstSpecial === 'wild-magnet');
     const bothAreRegularForMerge6 = !srcIsWild && !dstIsWild && 
                                     (src.value|0) > 0 && (dst.value|0) > 0;
     // 🔥 CRITICAL FIX: Use visibleTilesCount (visible tiles) NOT activeTilesCount (includes stackDepth)
     const visibleTilesCountForRegular = activeTilesBeforeMerge.length; // Number of VISIBLE tiles
     const isRegularRegularLastTwoMerge6 = bothAreRegularForMerge6 && 
                                           visibleTilesCountForRegular === 2 && // 🔥 FIX: Use visible tiles count
-                                          activeTilesBeforeMerge.includes(src) && 
-                                          activeTilesBeforeMerge.includes(dst) &&
+                                  activeTilesBeforeMerge.includes(src) && 
+                                  activeTilesBeforeMerge.includes(dst) &&
                                           (src.value|0) + (dst.value|0) === 6; // Must be merge 6
     
     console.log('🔍 LAST MERGE CHECK DETAILS (with regular + regular support):', {
@@ -2983,11 +2984,22 @@ function merge(src, dst, helpers){
     // 🔥 USER REQUEST: Simple rule - if exactly 2 VISIBLE tiles total and one is wild (any wild type), it's last merge
     // 🔥 CRITICAL FIX: Use activeTilesBeforeMerge.length (visible tiles) NOT activeTilesCount (includes stackDepth)
     const visibleTilesCount = activeTilesBeforeMerge.length; // Number of VISIBLE tiles (not including stackDepth)
+    
+    // 🔥 CRITICAL FIX: Check if there are OTHER wild tiles (including magnets) on board BEFORE marking as last merge
+    // If wild-magnet exists on board (and is NOT one of the merging tiles), it's NOT a last merge
+    // User can still merge magnet with merge 6 to create final merge
+    const otherWildTilesOnBoard = activeTilesBeforeMerge.filter(t => {
+      if (t === src || t === dst) return false; // Don't count merging tiles
+      return t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-magnet';
+    });
+    const hasOtherWildTiles = otherWildTilesOnBoard.length > 0;
+    
     const isAnyWildLastTwo = (srcIsWild || dstIsWild) && 
                              (srcIsWild !== dstIsWild) && // One is wild, one is NOT wild
                              visibleTilesCount === 2 && // 🔥 FIX: Use visible tiles count, not activeTilesCount
                              activeTilesBeforeMerge.includes(src) && 
                              activeTilesBeforeMerge.includes(dst) &&
+                             !hasOtherWildTiles && // 🔥 CRITICAL: Exclude if other wild tiles (including magnets) exist on board
                              !(isWildMagnetMerge && hasTilesToPull); // 🔥 CRITICAL: Exclude if wild-magnet will pull tiles
     
     console.log('🔍 isAnyWildLastTwo CHECK:', {
@@ -4490,7 +4502,7 @@ function merge(src, dst, helpers){
         if (shouldSkipSpawn || busyEnding) {
           console.log('🚨🚨🚨 LAST MERGE: Skipping spawn - last 2 tiles merge-6 detected, or busyEnding is true');
           console.log('🚨🚨🚨 Spawn check details:', {
-            isLastMergeFlagSet,
+          isLastMergeFlagSet,
             isLastTwoMerge6BeforeSpawn,
             visibleTilesBeforeSpawn,
             isMerge6BeforeSpawn,
