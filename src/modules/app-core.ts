@@ -4495,8 +4495,9 @@ function merge(src, dst, helpers){
         // 🔥 CRITICAL: Check if this is last 2 tiles merge-6 BEFORE checking flag
         const activeTilesBeforeSpawn = tiles.filter(tileIsActive);
         const visibleTilesBeforeSpawn = activeTilesBeforeSpawn.length;
-        const srcIsWildBeforeSpawn = src?.special && (src.special.startsWith('wild') || src.special === 'wild-beer');
-        const dstIsWildBeforeSpawn = dst?.special && (dst.special.startsWith('wild') || dst.special === 'wild-beer');
+        // 🔥 CRITICAL FIX: Include ALL wild types: wild, wild-beer, AND wild-magnet
+        const srcIsWildBeforeSpawn = src?.special && (src.special.startsWith('wild') || src.special === 'wild-beer' || src.special === 'wild-magnet');
+        const dstIsWildBeforeSpawn = dst?.special && (dst.special.startsWith('wild') || dst.special === 'wild-beer' || dst.special === 'wild-magnet');
         const bothAreRegularBeforeSpawn = !srcIsWildBeforeSpawn && !dstIsWildBeforeSpawn && (src?.value|0) > 0 && (dst.value|0) > 0;
         const isMerge6BeforeSpawn = dst.value === 6;
         
