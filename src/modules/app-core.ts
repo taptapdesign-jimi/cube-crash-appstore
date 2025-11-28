@@ -4563,10 +4563,16 @@ function merge(src, dst, helpers){
         // 🔥 USER REQUEST: If exactly 2 visible tiles merged to 6 (regular+regular or wild+regular), NEVER spawn
         // Check if only merge-6 remains (src was already removed in onComplete callback)
         // BUT: Exclude if other wild tiles (including magnets) exist on board
+        // 🔥 CRITICAL FIX: Last merge is ONLY when there were EXACTLY 2 tiles total on board BEFORE merge
+        // If there were 3+ tiles on board, it's NOT a last merge, even if we're merging 2 of them
+        // Check if there were exactly 2 tiles BEFORE src was removed
+        const tilesBeforeSpawn = visibleTilesBeforeSpawn + 1; // +1 for src that was just removed
+        
         const isLastTwoMerge6BeforeSpawn = visibleTilesBeforeSpawn <= 1 && // Only merge-6 remains (or 0 if already removed)
                                           isMerge6BeforeSpawn &&
                                           (bothAreRegularBeforeSpawn || (srcIsWildBeforeSpawn !== dstIsWildBeforeSpawn)) &&
-                                          !hasOtherWildTilesBeforeSpawn; // 🔥 CRITICAL: Exclude if other wild tiles exist
+                                          !hasOtherWildTilesBeforeSpawn && // 🔥 CRITICAL: Exclude if other wild tiles exist
+                                          tilesBeforeSpawn === 2; // 🔥 CRITICAL FIX: Must have been exactly 2 tiles total BEFORE merge
         
         const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
         
