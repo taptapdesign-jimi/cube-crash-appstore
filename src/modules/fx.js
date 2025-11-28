@@ -1524,35 +1524,93 @@ if (typeof window !== 'undefined') {
 // 🔥 DEBUG: Expose bubble stats to window for DevTools console access
 if (typeof window !== 'undefined') {
   window.getBubbleStats = function() {
-    if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) {
-      return { active: 0, spawned: 0, total: 0, fps: (typeof currentFps !== 'undefined' ? currentFps : 60) };
+    try {
+      if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) {
+        return { 
+          active: 0, 
+          spawned: 0, 
+          total: 125, 
+          visible: 0,
+          fps: (typeof currentFps !== 'undefined' ? currentFps : 60),
+          container: false,
+          texture: 'N/A',
+          elapsed: 0
+        };
+      }
+      const children = wildBeerExplosionContainer.children || [];
+      const visible = children.filter(b => b && b.visible !== false).length;
+      const stats = window._bubbleStats || {};
+      const elapsed = stats.startTime ? (performance.now() - stats.startTime) / 1000 : 0;
+      
+      return {
+        active: stats.active || 0,
+        spawned: stats.spawned || 0,
+        total: stats.totalBubbles || 125,
+        visible: visible,
+        fps: (typeof currentFps !== 'undefined' ? currentFps : 60),
+        container: !!wildBeerExplosionContainer,
+        texture: (typeof useTexturePooling !== 'undefined' && useTexturePooling) ? 'YES' : 'NO (Graphics fallback)',
+        elapsed: elapsed.toFixed(1) + 's'
+      };
+    } catch (e) {
+      return { error: e.message };
     }
-    const children = wildBeerExplosionContainer.children || [];
-    const visible = children.filter(b => b && b.visible !== false).length;
-    return {
-      active: (typeof active !== 'undefined' ? active : 0),
-      spawned: (typeof spawned !== 'undefined' ? spawned : 0),
-      total: 125, // Fixed value
-      visible: visible,
-      fps: (typeof currentFps !== 'undefined' ? currentFps : 60),
-      container: !!wildBeerExplosionContainer,
-      texture: (typeof useTexturePooling !== 'undefined' && useTexturePooling) ? 'YES' : 'NO (Graphics fallback)'
-    };
   };
   
   window.monitorBubbles = function(interval = 500) {
+    console.log(`💧 Starting bubble monitoring every ${interval}ms...`);
+    let count = 0;
     const monitor = setInterval(() => {
+      count++;
       const stats = window.getBubbleStats();
-      console.log(`💧 Bubbles: ${stats.spawned}/${stats.total} spawned, ${stats.active} active, ${stats.visible} visible, FPS: ${stats.fps.toFixed(1)}`);
+      if (stats.error) {
+        console.warn('⚠️ Error getting bubble stats:', stats.error);
+        return;
+      }
+      
+      const status = stats.container ? '🟢 ACTIVE' : '🔴 INACTIVE';
+      const fpsStatus = stats.fps >= 50 ? '✅' : stats.fps >= 30 ? '⚠️' : '❌';
+      
+      console.log(`${status} | ${stats.elapsed} | Bubbles: ${stats.spawned}/${stats.total} spawned, ${stats.active} active, ${stats.visible} visible | FPS: ${fpsStatus} ${stats.fps.toFixed(1)}`);
+      
+      // Warn if FPS drops below 30
+      if (stats.fps < 30 && stats.container) {
+        console.warn(`⚠️ FRAME DROP DETECTED: FPS=${stats.fps.toFixed(1)} (should be ≥30fps)`);
+      }
     }, interval);
     
     console.log(`💧 Monitoring bubbles every ${interval}ms. Call window.stopBubbleMonitor() to stop.`);
     window.stopBubbleMonitor = () => {
       clearInterval(monitor);
-      console.log('💧 Bubble monitoring stopped');
+      console.log(`💧 Bubble monitoring stopped after ${count} checks`);
     };
     
     return monitor;
+  };
+  
+  // Helper to check frame drop after 1 second
+  window.checkFrameDropAfter1s = function() {
+    console.log('💧 Starting frame drop check after 1 second...');
+    setTimeout(() => {
+      const stats = window.getBubbleStats();
+      if (stats.container) {
+        const fpsStatus = stats.fps >= 50 ? '✅ GOOD' : stats.fps >= 30 ? '⚠️ WARNING' : '❌ BAD';
+        console.log(`📊 After 1 second:`);
+        console.log(`   FPS: ${fpsStatus} ${stats.fps.toFixed(1)}`);
+        console.log(`   Bubbles: ${stats.spawned}/${stats.total} spawned, ${stats.active} active`);
+        console.log(`   Visible: ${stats.visible}`);
+        
+        if (stats.fps < 30) {
+          console.warn(`❌ FRAME DROP DETECTED: FPS=${stats.fps.toFixed(1)} is below 30fps threshold!`);
+        } else if (stats.fps < 50) {
+          console.warn(`⚠️ FPS WARNING: FPS=${stats.fps.toFixed(1)} is below 50fps (acceptable but not ideal)`);
+        } else {
+          console.log(`✅ FPS is good: ${stats.fps.toFixed(1)}fps`);
+        }
+      } else {
+        console.warn('⚠️ No active bubble animation');
+      }
+    }, 1000);
   };
 }
 
