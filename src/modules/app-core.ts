@@ -1127,7 +1127,7 @@ function initializeBackgroundLayer(){
       ghost.eventMode = 'none';
       ghost.label = `Ghost_${c}_${r}`;
       ghost.zIndex = -10000;
-      ghost.visible = false; // Start HIDDEN - will be shown when user starts moving tiles
+      ghost.visible = true; // 🔥 v70 STYLE: Always visible - shown for empty cells
       backgroundLayer.addChild(ghost);
       window._ghostPlaceholders[r][c] = ghost; // Store reference
     }
@@ -1138,6 +1138,15 @@ function initializeBackgroundLayer(){
   console.log('✅ FIXED background layer created with', ROWS * COLS, 'ghost placeholders');
   console.log('✅ This layer will NEVER be modified or destroyed');
   console.log('🔍 Background layer zIndex:', backgroundLayer.zIndex);
+  
+  // 🔥 v70 STYLE: Update ghost visibility immediately after creation
+  // Show ghosts for empty cells (where grid[r][c] === null)
+  if (typeof window.updateGhostVisibility === 'function') {
+    window.updateGhostVisibility();
+  } else {
+    // Fallback: Show all ghosts initially (will be hidden by updateGhostVisibility later)
+    updateGhostVisibility();
+  }
 }
 
 // Helper function to hide/show ghost at specific position
@@ -1173,13 +1182,18 @@ function updateGhostVisibility() {
 window.setGhostVisibility = setGhostVisibility;
 window.updateGhostVisibility = updateGhostVisibility;
 
-// Compatibility function - does nothing (background is always there)
+// 🔥 v70 STYLE: Draw ghost placeholders for empty cells
 function drawBoardBG(mode = 'active+empty'){
-  // Background layer is fixed and always visible
-  // This function is kept for compatibility but does nothing
   if (!backgroundLayer) {
-    console.warn('⚠️ drawBoardBG called but background layer not initialized');
     initializeBackgroundLayer();
+  }
+  
+  // 🔥 v70 STYLE: Update ghost visibility based on grid state
+  // Show ghosts for empty cells (where grid[r][c] === null)
+  if (typeof window.updateGhostVisibility === 'function') {
+    window.updateGhostVisibility();
+  } else {
+    updateGhostVisibility();
   }
 }
 
@@ -1392,11 +1406,15 @@ function rebuildBoard(){
   try { tiles.forEach(t => t.visible = false); } catch {}
   drawBoardBG('active+empty');
   
-  // Hide all ghost placeholders during board setup animation
+  // 🔥 v70 STYLE: Ghost placeholders stay visible during animation
+  // (No need to hide them - they show empty cells)
   if (backgroundLayer) {
-    backgroundLayer.visible = false;
-    console.log('🎯 Hiding ghost placeholders during sweetPopIn animation');
+    backgroundLayer.visible = true; // Keep visible - v70 style
+    console.log('✅ Ghost placeholders visible (v70 style)');
   }
+  
+  // 🔥 v70 STYLE: Update ghost visibility before animation starts
+  updateGhostVisibility();
   
   // Start animation immediately - NO WAITING
   console.log('🎯 Starting sweetPopIn from app.js with', tiles.length, 'tiles');
@@ -1408,17 +1426,10 @@ function rebuildBoard(){
       }
     }
   }).then(() => {
-    // Show ghost placeholders after animation completes
-    if (backgroundLayer) {
-      backgroundLayer.visible = true;
-      console.log('✅ Showing ghost placeholders after sweetPopIn');
-    }
-    
-    // Update ghost visibility after tiles are set up
-    // Hide ghosts only under locked tiles that REMAIN locked
-    if (typeof window.updateGhostVisibility === 'function') {
-      window.updateGhostVisibility();
-    }
+    // 🔥 v70 STYLE: Update ghost visibility after animation completes
+    // Show ghosts for empty cells (where grid[r][c] === null)
+    updateGhostVisibility();
+    console.log('✅ Ghost placeholders updated after sweetPopIn (v70 style)');
   });
   console.log('✅ sweetPopIn started immediately - no waiting');
 
