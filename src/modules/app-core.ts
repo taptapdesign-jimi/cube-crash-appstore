@@ -2381,21 +2381,27 @@ function merge(src, dst, helpers){
     });
     const hasOtherTilesBeforeWildProgress = otherTilesBeforeWildProgress.length > 0;
     
+    // 🔥 CRITICAL FIX: Last merge is ONLY when there are EXACTLY 2 tiles total on board (including merging tiles)
+    // If there are 3+ tiles on board, it's NOT a last merge, even if we're merging 2 of them
+    // Example: 3 tiles (A, B, C) → merge A+B = merge 6, but C is still on board → NOT last merge
     const isWildLastTwoForCheck = oneIsWildForCheck && 
-                                 visibleTilesCountBeforeWildProgress === 2 && 
+                                 visibleTilesCountBeforeWildProgress === 2 && // 🔥 CRITICAL: Must be EXACTLY 2 tiles total on board
                                  activeTilesBeforeWildProgress.includes(src) && 
                                  activeTilesBeforeWildProgress.includes(dst) &&
                                  !hasOtherWildTilesBeforeWildProgress && // 🔥 CRITICAL: Exclude if other wild tiles (including magnets) exist
-                                 !hasOtherTilesBeforeWildProgress; // 🔥 CRITICAL FIX: Exclude if ANY other tiles (including stacks) exist
+                                 !hasOtherTilesBeforeWildProgress && // 🔥 CRITICAL FIX: Exclude if ANY other tiles (including stacks) exist
+                                 activeTilesBeforeWildProgress.length === 2; // 🔥 CRITICAL FIX: Double-check - must be EXACTLY 2 tiles total
     
     // 🔥 NEW: Regular + regular → merge 6 (only 2 tiles) = clean board
-    // 🔥 CRITICAL FIX: Also check if there are OTHER tiles (including stacks) on board
+    // 🔥 CRITICAL FIX: Last merge is ONLY when there are EXACTLY 2 tiles total on board (including merging tiles)
+    // If there are 3+ tiles on board, it's NOT a last merge, even if we're merging 2 of them
     const isRegularLastTwoMerge6 = bothAreRegular && 
-                                   visibleTilesCountBeforeWildProgress === 2 && 
+                                   visibleTilesCountBeforeWildProgress === 2 && // 🔥 CRITICAL: Must be EXACTLY 2 tiles total on board
                                    activeTilesBeforeWildProgress.includes(src) && 
                                    activeTilesBeforeWildProgress.includes(dst) &&
                                    effSum === 6 && // Must be merge 6
-                                   !hasOtherTilesBeforeWildProgress; // 🔥 CRITICAL FIX: Exclude if ANY other tiles (including stacks) exist
+                                   !hasOtherTilesBeforeWildProgress && // 🔥 CRITICAL FIX: Exclude if ANY other tiles (including stacks) exist
+                                   activeTilesBeforeWildProgress.length === 2; // 🔥 CRITICAL FIX: Double-check - must be EXACTLY 2 tiles total
     
     // If this is last merge (wild + regular OR regular + regular → merge 6 with only 2 tiles), reset wild meter and skip addWildProgress
     if (isWildLastTwoForCheck || isRegularLastTwoMerge6) {
@@ -2994,12 +3000,15 @@ function merge(src, dst, helpers){
     });
     const hasOtherTilesForRegular = otherTilesForRegular.length > 0;
     
+    // 🔥 CRITICAL FIX: Last merge is ONLY when there are EXACTLY 2 tiles total on board (including merging tiles)
+    // If there are 3+ tiles on board, it's NOT a last merge, even if we're merging 2 of them
     const isRegularRegularLastTwoMerge6 = bothAreRegularForMerge6 && 
                                           visibleTilesCountForRegular === 2 && // 🔥 FIX: Use visible tiles count
                                           activeTilesBeforeMerge.includes(src) && 
                                           activeTilesBeforeMerge.includes(dst) &&
                                           (src.value|0) + (dst.value|0) === 6 && // Must be merge 6
-                                          !hasOtherTilesForRegular; // 🔥 CRITICAL FIX: Exclude if ANY other tiles (including stacks) exist
+                                          !hasOtherTilesForRegular && // 🔥 CRITICAL FIX: Exclude if ANY other tiles (including stacks) exist
+                                          activeTilesBeforeMerge.length === 2; // 🔥 CRITICAL FIX: Double-check - must be EXACTLY 2 tiles total
     
     console.log('🔍 LAST MERGE CHECK DETAILS (with regular + regular support):', {
       activeTilesCount,
@@ -3036,6 +3045,8 @@ function merge(src, dst, helpers){
     });
     const hasOtherTiles = otherTilesOnBoard.length > 0;
     
+    // 🔥 CRITICAL FIX: Last merge is ONLY when there are EXACTLY 2 tiles total on board (including merging tiles)
+    // If there are 3+ tiles on board, it's NOT a last merge, even if we're merging 2 of them
     const isAnyWildLastTwo = (srcIsWild || dstIsWild) && 
                              (srcIsWild !== dstIsWild) && // One is wild, one is NOT wild
                              visibleTilesCount === 2 && // 🔥 FIX: Use visible tiles count, not activeTilesCount
@@ -3043,7 +3054,8 @@ function merge(src, dst, helpers){
                              activeTilesBeforeMerge.includes(dst) &&
                              !hasOtherWildTiles && // 🔥 CRITICAL: Exclude if other wild tiles (including magnets) exist on board
                              !hasOtherTiles && // 🔥 CRITICAL FIX: Exclude if ANY other tiles (including stacks) exist
-                             !(isWildMagnetMerge && hasTilesToPull); // 🔥 CRITICAL: Exclude if wild-magnet will pull tiles
+                             !(isWildMagnetMerge && hasTilesToPull) && // 🔥 CRITICAL: Exclude if wild-magnet will pull tiles
+                             activeTilesBeforeMerge.length === 2; // 🔥 CRITICAL FIX: Double-check - must be EXACTLY 2 tiles total
     
     console.log('🔍 isAnyWildLastTwo CHECK:', {
       srcIsWild,
