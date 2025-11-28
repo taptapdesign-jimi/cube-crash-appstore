@@ -4431,10 +4431,17 @@ function merge(src, dst, helpers){
           });
           const visibleTilesAfterSrcRemoval = activeTilesAfterSrcRemoval.length;
           
+          // 🔥 CRITICAL FIX: Last merge is ONLY when there were EXACTLY 2 tiles total on board BEFORE merge
+          // If there were 3+ tiles on board, it's NOT a last merge, even if we're merging 2 of them
+          // Check if there were exactly 2 tiles BEFORE src was removed
+          const tilesBeforeSrcRemoval = visibleTilesAfterSrcRemoval + 1; // +1 for src that was just removed
+          
           // If only merge-6 remains (or 0 if already removed), this was last 2 tiles merge-6
+          // BUT: Must have been exactly 2 tiles total BEFORE merge
           if ((visibleTilesAfterSrcRemoval === 0 || (visibleTilesAfterSrcRemoval === 1 && activeTilesAfterSrcRemoval[0] === dst)) && 
               isMerge6Now && 
-              (srcIsWildNow !== dstIsWildNow || bothAreRegularNow)) {
+              (srcIsWildNow !== dstIsWildNow || bothAreRegularNow) &&
+              tilesBeforeSrcRemoval === 2) { // 🔥 CRITICAL FIX: Must have been exactly 2 tiles total BEFORE merge
             console.log('🚨🚨🚨 LAST MERGE MISSED BY FLAG - Re-detecting in onComplete:', {
               visibleTilesNow,
               visibleTilesAfterSrcRemoval,
