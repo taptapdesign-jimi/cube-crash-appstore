@@ -424,8 +424,8 @@ function addWildProgress(amount){
 
   // 🎯 BOARD-SPECIFIC RULES: Apply wild meter fill rate multiplier
   const fillRate = getWildMeterFillRate(boardNumber);
-  // 🔥 GLOBAL: Reduce wild meter fill rate by 40% for all boards (60% of original = 40% slower)
-  const globalSlowdown = 0.6; // 40% slower = 60% of original speed
+  // 🔥 USER REQUEST: Reduce wild meter fill rate by 20% for all boards (80% of original = 20% slower)
+  const globalSlowdown = 0.8; // 20% slower = 80% of original speed (was 0.6 = 40% slower)
   const adjustedInc = inc * fillRate * globalSlowdown;
   console.log(`🎯 Board ${boardNumber}: Wild meter fill rate: ${fillRate}x, global slowdown: ${globalSlowdown}x, adjusted increment: ${adjustedInc} (from ${inc})`);
 

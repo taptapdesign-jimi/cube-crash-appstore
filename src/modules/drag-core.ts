@@ -695,7 +695,7 @@ export function initDrag(cfg) {
       });
     }
     */
-    }
+  }
     
     // 🧲 MAGNETIC REACTION: Return all tiles with magnet effect to original positions
     if (t?.special === 'wild-magnet') {
