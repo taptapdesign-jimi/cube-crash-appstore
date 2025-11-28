@@ -1573,12 +1573,12 @@ export function createWildBeerBubblesExplosion(board, tile) {
 
   // 🔥 v75 OPTIMIZED: Faze 1+2+3 - Texture pooling, reduced bubbles, optimized animations
   // FAZA 1: Texture Pooling - Create bubble texture once, reuse for all bubbles
-  // FAZA 2: Reduced bubbles - 120 (was 240), max 100 active (was 200), 1.0s spawn (was 1.5s)
+  // FAZA 2: Reduced bubbles - 180 (was 240, better compromise), max 150 active (was 200), 1.0s spawn (was 1.5s)
   // FAZA 3: Optimized animations - Simple drift (no keyframes), no rotation, 3 anims (was 5)
   
-  const totalBubbles = 120; // FAZA 2: -50% (was 240)
+  const totalBubbles = 180; // FAZA 2: -25% (was 240, better compromise than 120)
   const spawnDuration = 1000; // FAZA 2: 1.0s (was 1.5s) - faster, fewer simultaneous
-  const maxActive = 100; // FAZA 2: -50% (was 200)
+  const maxActive = 150; // FAZA 2: -25% (was 200, proportional to 180 bubbles)
   let active = 0;
   let spawned = 0;
   const perMs = totalBubbles / spawnDuration;
@@ -1621,7 +1621,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
     console.warn('⚠️ Bubble texture not available, using Graphics fallback (slower)');
   }
 
-  console.log(`💧 v75 OPTIMIZED: ${totalBubbles} bubbles (was 240), texture pooling: ${bubbleTexture ? 'YES' : 'NO (Graphics fallback)'}, 3 anims (was 5), spawn: ${spawnDuration}ms`);
+  console.log(`💧 v75 OPTIMIZED: ${totalBubbles} bubbles (was 240, better compromise), texture pooling: ${bubbleTexture ? 'YES' : 'NO (Graphics fallback)'}, 3 anims (was 5), spawn: ${spawnDuration}ms`);
 
   const makeBubble = () => {
     if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) return;
@@ -1760,8 +1760,8 @@ export function createWildBeerBubblesExplosion(board, tile) {
     }
   };
 
-  // 🔥 v75 INITIAL BURST: Spawn 6 bubbles immediately (proportional to 120 total, was 12 for 240)
-  for (let i = 0; i < 6; i++) makeBubble();
+  // 🔥 v75 INITIAL BURST: Spawn 9 bubbles immediately (proportional to 180 total, was 12 for 240)
+  for (let i = 0; i < 9; i++) makeBubble();
   
   // Start spawn ticker
   wildBeerExplosionSpawnTick = spawnTick;
