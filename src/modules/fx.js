@@ -1792,7 +1792,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
     console.log('✅ Bubble texture generated successfully, using Sprite optimization');
   }
 
-  console.log(`💧 v75 OPTIMIZED: ${totalBubbles} bubbles (was 240, App Store safe), texture pooling: ${useTexturePooling ? 'YES' : 'NO (Graphics fallback)'}, 3 anims (was 5), spawn: ${spawnDuration}ms`);
+             console.log(`💧 v75 PERFORMANCE OPTIMIZED: ${totalBubbles} bubbles (was 125, now 100 for better FPS), texture pooling: ${useTexturePooling ? 'YES' : 'NO (Graphics fallback)'}, 3 anims (was 5), spawn: ${spawnDuration}ms, FPS monitoring: throttled (every 2nd frame), culling: throttled (every 3rd frame)`);
 
   const makeBubble = () => {
     if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) return;
