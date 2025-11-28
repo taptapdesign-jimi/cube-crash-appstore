@@ -1799,7 +1799,11 @@ export function createWildBeerBubblesExplosion(board, tile) {
     }
     
     // 🔥 FRAME DROP FIX: Update FPS counter each frame
-    updateFpsCounter();
+    try {
+      updateFpsCounter();
+    } catch (e) {
+      console.warn('⚠️ FPS counter update failed:', e);
+    }
     
     const now = performance.now();
     const dt = Math.max(1, now - lastTick);
@@ -1816,14 +1820,16 @@ export function createWildBeerBubblesExplosion(board, tile) {
     }
 
     // 🔥 FRAME DROP FIX: Dynamic spawn rate based on FPS (prevent frame drops)
-    const fpsFactor = currentFps >= 50 ? 1.0 : Math.max(0.5, currentFps / 50); // Reduce spawn if FPS drops
+    // Use safe access to currentFps with fallback
+    const safeFps = (typeof currentFps !== 'undefined' && currentFps !== null) ? currentFps : 60;
+    const fpsFactor = safeFps >= 50 ? 1.0 : Math.max(0.5, safeFps / 50); // Reduce spawn if FPS drops
     acc += perMs * dt * fpsFactor;
     const toSpawn = Math.min(3, Math.floor(acc));
     if (toSpawn > 0) {
       acc -= toSpawn;
       for (let i = 0; i < toSpawn; i++) {
         // 🔥 FRAME DROP FIX: Check FPS before spawning (prevent overload)
-        if (currentFps < 30 && spawned >= totalBubbles * 0.7) {
+        if (safeFps < 30 && spawned >= totalBubbles * 0.7) {
           // If FPS drops below 30, stop spawning after 70% of bubbles
           break;
         }
@@ -1833,18 +1839,22 @@ export function createWildBeerBubblesExplosion(board, tile) {
     
     // 🔥 FRAME DROP FIX: Culling - hide off-screen bubbles to reduce render load
     if (elapsed > 0.5) { // Start culling after 0.5s (bubbles are moving)
-      const children = wildBeerExplosionContainer.children || [];
-      const cullMargin = 50; // Margin for culling
-      for (let i = 0; i < children.length; i++) {
-        const bubble = children[i];
-        if (bubble && bubble.y !== undefined) {
-          // Hide bubbles that are off-screen
-          if (bubble.y < -cullMargin || bubble.y > screenH + cullMargin) {
-            bubble.visible = false;
-          } else {
-            bubble.visible = true;
+      try {
+        const children = wildBeerExplosionContainer.children || [];
+        const cullMargin = 50; // Margin for culling
+        for (let i = 0; i < children.length; i++) {
+          const bubble = children[i];
+          if (bubble && bubble.y !== undefined) {
+            // Hide bubbles that are off-screen
+            if (bubble.y < -cullMargin || bubble.y > screenH + cullMargin) {
+              bubble.visible = false;
+            } else {
+              bubble.visible = true;
+            }
           }
         }
+      } catch (e) {
+        // Silently fail culling if there's an error
       }
     }
   };
