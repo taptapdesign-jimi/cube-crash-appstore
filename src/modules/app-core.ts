@@ -2624,7 +2624,7 @@ function merge(src, dst, helpers){
           });
           
           if (stuckCheckResult.type === 'stuck') {
-            console.log('🚨🚨🚨 GAME STUCK after regular merge - triggering fail screen');
+            console.log('🚨🚨🚨 GAME STUCK after regular merge - checking if merges/stacking are truly impossible');
             console.log('🚨 Final state:', {
               activeTilesCount: activeTilesBeforeCheck.length,
               tiles: activeTilesBeforeCheck.map(t => ({ 
@@ -2634,6 +2634,25 @@ function merge(src, dst, helpers){
               })),
               reason: stuckCheckResult.reason
             });
+            
+            // 🔥 USER REQUEST: Double-check anyMergePossible before showing fail screen
+            // This ensures we don't show fail screen if merges are still possible
+            // Especially important for 3 regular tiles scenario
+            const doubleCheckMerge = makeBoard && typeof makeBoard.anyMergePossible === 'function' 
+              ? makeBoard.anyMergePossible(tiles) 
+              : false;
+            
+            if (doubleCheckMerge) {
+              console.log('✅ Post-merge stuck check: Double-check found merges possible - game is NOT stuck, continuing');
+              console.log('✅ Active tiles:', activeTilesBeforeCheck.map(t => ({ 
+                value: t.value, 
+                stackDepth: t.stackDepth || 1,
+                special: t.special 
+              })));
+              return; // Don't show fail screen if merges are still possible
+            }
+            
+            console.log('🚨🚨🚨 Post-merge stuck check: Double-check confirmed - NO merges possible, game IS stuck');
             
             if (!busyEnding) {
               // 🔥 CRITICAL: Wait 0.5 seconds before showing fail screen
@@ -4442,18 +4461,29 @@ function merge(src, dst, helpers){
         const shouldSkipSpawn = isLastMergeFlagSet && visibleTilesBeforeSpawn <= 1; // Only skip if flag is set AND only merge-6 remains
         
         if (shouldSkipSpawn || busyEnding) {
-          console.log('🚨🚨🚨 LAST MERGE: Skipping spawn - _isLastMerge flag is TRUE and only merge-6 remains, or busyEnding is true');
+          console.log('🚨🚨🚨 LAST MERGE: Skipping spawn - last 2 tiles merge-6 detected, or busyEnding is true');
           console.log('🚨🚨🚨 Spawn check details:', {
             isLastMergeFlagSet,
+            isLastTwoMerge6BeforeSpawn,
             visibleTilesBeforeSpawn,
+            isMerge6BeforeSpawn,
+            bothAreRegularBeforeSpawn,
+            srcIsWildBeforeSpawn,
+            dstIsWildBeforeSpawn,
             shouldSkipSpawn,
             busyEnding,
             dstValue: dst?.value,
             dstSpecial: dst?.special
           });
           
-          // 🔥 CRITICAL: If _isLastMerge flag is set, trigger clean board flow
+          // 🔥 USER REQUEST: If last 2 tiles merge-6 (regular+regular or wild+regular), ALWAYS trigger clean board
+          // NEVER spawn new tile - this is the final move
           if (shouldSkipSpawn && !busyEnding) {
+            // Set flag if not already set (for consistency)
+            if (!isLastMergeFlagSet) {
+              (dst as any)._isLastMerge = true;
+              console.log('✅ Setting _isLastMerge flag for last 2 tiles merge-6');
+            }
             console.log('🚨🚨🚨 _isLastMerge flag is TRUE - triggering clean board flow');
           busyEnding = true;
           
