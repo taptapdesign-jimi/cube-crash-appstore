@@ -1573,12 +1573,12 @@ export function createWildBeerBubblesExplosion(board, tile) {
 
   // 🔥 v75 OPTIMIZED: Faze 1+2+3 - Texture pooling, reduced bubbles, optimized animations
   // FAZA 1: Texture Pooling - Create bubble texture once, reuse for all bubbles (with better fallback)
-  // FAZA 2: Reduced bubbles - 150 (was 240, App Store safe), max 120 active (was 200), 1.0s spawn (was 1.5s)
+  // FAZA 2: Reduced bubbles - 125 (was 240, App Store safe), max 100 active (was 200), 1.0s spawn (was 1.5s)
   // FAZA 3: Optimized animations - Simple drift (no keyframes), no rotation, 3 anims (was 5)
   
-  const totalBubbles = 150; // FAZA 2: -37.5% (was 240, App Store safe for older devices)
+  const totalBubbles = 125; // FAZA 2: -48% (was 240, App Store safe for older devices)
   const spawnDuration = 1000; // FAZA 2: 1.0s (was 1.5s) - faster, fewer simultaneous
-  const maxActive = 120; // FAZA 2: -40% (was 200, proportional to 150 bubbles, App Store safe)
+  const maxActive = 100; // FAZA 2: -50% (was 200, proportional to 125 bubbles, App Store safe)
   let active = 0;
   let spawned = 0;
   const perMs = totalBubbles / spawnDuration;
@@ -1822,8 +1822,8 @@ export function createWildBeerBubblesExplosion(board, tile) {
     }
   };
 
-  // 🔥 v75 INITIAL BURST: Spawn 7-8 bubbles immediately (proportional to 150 total, was 12 for 240)
-  const initialBurst = Math.floor(totalBubbles / 20); // ~7-8 bubbles for 150 total
+  // 🔥 v75 INITIAL BURST: Spawn 6 bubbles immediately (proportional to 125 total, was 12 for 240)
+  const initialBurst = Math.floor(totalBubbles / 20); // ~6 bubbles for 125 total
   for (let i = 0; i < initialBurst; i++) makeBubble();
   
   // Start spawn ticker
