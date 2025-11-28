@@ -1993,41 +1993,27 @@ async function spawnWildFromMeter(){
       let spawnBeer = false;
       let spawnMagnet = false;
       
-      // 🔥 USER REQUEST: First and second wild spawn should be RANDOM (beer or magnet)
-      // Define these BEFORE the if/else so they're available later
-      const isFirstWild = !wildBeerSpawned && !wildMagnetSpawned;
-      const isSecondWild = (wildBeerSpawned && !wildMagnetSpawned) || (!wildBeerSpawned && wildMagnetSpawned);
-      
       // 🎯 BOARD 3: Force wild-beer only (check first, before default logic)
       if (boardNumber === 3) {
         spawnBeer = true;
         spawnMagnet = false;
         console.log('🎯 Board 3: Forcing wild-beer spawn only');
       } else {
-        // Default logic (for boards without specific rules)
-        // 🔥 RANDOM LOGIC: First wild = random beer or magnet, Second wild = random beer or magnet (opposite of first)
+        // 🔥 USER REQUEST: Always random wild spawn - 40% beer, 40% wild (stars), 20% magnet
+        const randomRoll = Math.random();
         let preferredBeer = false;
         let preferredMagnet = false;
+        let preferredWild = false;
         
-        if (isFirstWild) {
-          // First wild: random choice between beer and magnet
-          preferredBeer = Math.random() < 0.5; // 50% chance for beer
-          preferredMagnet = !preferredBeer; // 50% chance for magnet
-        } else if (isSecondWild) {
-          // Second wild: random choice between beer and magnet (opposite of what was spawned first)
-          if (wildBeerSpawned) {
-            // First was beer, second is random (but prefer magnet for variety)
-            preferredMagnet = Math.random() < 0.6; // 60% chance for magnet (to ensure variety)
-            preferredBeer = !preferredMagnet;
-          } else if (wildMagnetSpawned) {
-            // First was magnet, second is random (but prefer beer for variety)
-            preferredBeer = Math.random() < 0.6; // 60% chance for beer (to ensure variety)
-            preferredMagnet = !preferredBeer;
-          }
+        if (randomRoll < 0.4) {
+          // 0-0.4 = 40% chance for beer
+          preferredBeer = true;
+        } else if (randomRoll < 0.8) {
+          // 0.4-0.8 = 40% chance for wild (stars)
+          preferredWild = true;
         } else {
-          // After first two wilds: use original random logic
-          preferredBeer = wildBeerSpawned && wildMagnetSpawned && Math.random() < WILD_BEER_RESPAWN_CHANCE;
-          preferredMagnet = wildBeerSpawned && wildMagnetSpawned && Math.random() < WILD_MAGNET_SPAWN_CHANCE;
+          // 0.8-1.0 = 20% chance for magnet
+          preferredMagnet = true;
         }
         
         // Apply board-specific rules
@@ -2039,7 +2025,27 @@ async function spawnWildFromMeter(){
           const filtered = filterWildType('wild-magnet', boardNumber);
           spawnMagnet = filtered === 'wild-magnet';
           spawnBeer = false;
+        } else if (preferredWild) {
+          // Regular wild (stars) - check if allowed
+          const filtered = filterWildType('wild', boardNumber);
+          if (filtered === 'wild-beer') {
+            spawnBeer = true;
+            spawnMagnet = false;
+          } else if (filtered === 'wild-magnet') {
+            spawnMagnet = true;
+            spawnBeer = false;
+          } else if (filtered === 'wild') {
+            // Regular wild allowed (stars)
+            spawnBeer = false;
+            spawnMagnet = false;
+          } else {
+            // No wild type allowed for this board - should not happen if we got here
+            console.warn(`⚠️ Board ${boardNumber}: No wild type allowed, but spawn was attempted`);
+            tries++;
+            continue;
+          }
         } else {
+          // Fallback: use filterWildType with 'wild'
           const filtered = filterWildType('wild', boardNumber);
           if (filtered === 'wild-beer') {
             spawnBeer = true;
