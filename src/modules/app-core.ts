@@ -4353,16 +4353,31 @@ function merge(src, dst, helpers){
           const bothAreRegularNow = !srcIsWildNow && !dstIsWildNow && (src?.value|0) > 0 && (dst.value|0) > 0;
           const isMerge6Now = (src?.value|0) + (dst.value|0) === 6 || dst.value === 6;
           
-          // Check if this should be last merge: exactly 2 visible tiles, merge to 6
-          if (visibleTilesNow === 2 && isMerge6Now && (srcIsWildNow !== dstIsWildNow || bothAreRegularNow)) {
+          // 🔥 USER REQUEST: Check if this should be last merge: exactly 2 visible tiles, merge to 6
+          // This covers both regular+regular and wild+regular scenarios
+          // After src is removed, only dst (merge-6) should remain if this was last 2 tiles
+          const activeTilesAfterSrcRemoval = tiles.filter(t => {
+            if (!t || t.destroyed || t.locked) return false;
+            const isWild = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer';
+            const hasValue = (t.value|0) > 0;
+            return isWild || hasValue;
+          });
+          const visibleTilesAfterSrcRemoval = activeTilesAfterSrcRemoval.length;
+          
+          // If only merge-6 remains (or 0 if already removed), this was last 2 tiles merge-6
+          if ((visibleTilesAfterSrcRemoval === 0 || (visibleTilesAfterSrcRemoval === 1 && activeTilesAfterSrcRemoval[0] === dst)) && 
+              isMerge6Now && 
+              (srcIsWildNow !== dstIsWildNow || bothAreRegularNow)) {
             console.log('🚨🚨🚨 LAST MERGE MISSED BY FLAG - Re-detecting in onComplete:', {
               visibleTilesNow,
+              visibleTilesAfterSrcRemoval,
               isMerge6Now,
               srcIsWildNow,
               dstIsWildNow,
               bothAreRegularNow,
               srcSpecial: src?.special,
-              dstSpecial: dst?.special
+              dstSpecial: dst?.special,
+              activeTilesAfterSrcRemoval: activeTilesAfterSrcRemoval.map(t => ({ value: t.value, special: t.special }))
             });
             shouldBeLastMerge = true;
             // Set flag now to prevent spawn
