@@ -2372,11 +2372,21 @@ function merge(src, dst, helpers){
     });
     const hasOtherWildTilesBeforeWildProgress = otherWildTilesBeforeWildProgress.length > 0;
     
+    // 🔥 CRITICAL FIX: Check if there are OTHER tiles (including stacks) on board BEFORE marking as last merge
+    // If ANY other tile exists (not just wild tiles), it's NOT a last merge
+    // Example: stack(5) + kockica(4) + wild-beer → merge 4+wild-beer = merge 6, but stack(5) is still on board!
+    const otherTilesBeforeWildProgress = activeTilesBeforeWildProgress.filter(t => {
+      if (t === src || t === dst) return false; // Don't count merging tiles
+      return true; // Count ALL other tiles (including stacks, regular tiles, wild tiles)
+    });
+    const hasOtherTilesBeforeWildProgress = otherTilesBeforeWildProgress.length > 0;
+    
     const isWildLastTwoForCheck = oneIsWildForCheck && 
                                  visibleTilesCountBeforeWildProgress === 2 && 
                                  activeTilesBeforeWildProgress.includes(src) && 
                                  activeTilesBeforeWildProgress.includes(dst) &&
-                                 !hasOtherWildTilesBeforeWildProgress; // 🔥 CRITICAL: Exclude if other wild tiles (including magnets) exist
+                                 !hasOtherWildTilesBeforeWildProgress && // 🔥 CRITICAL: Exclude if other wild tiles (including magnets) exist
+                                 !hasOtherTilesBeforeWildProgress; // 🔥 CRITICAL FIX: Exclude if ANY other tiles (including stacks) exist
     
     // 🔥 NEW: Regular + regular → merge 6 (only 2 tiles) = clean board
     const isRegularLastTwoMerge6 = bothAreRegular && 
@@ -2973,11 +2983,21 @@ function merge(src, dst, helpers){
                                     (src.value|0) > 0 && (dst.value|0) > 0;
     // 🔥 CRITICAL FIX: Use visibleTilesCount (visible tiles) NOT activeTilesCount (includes stackDepth)
     const visibleTilesCountForRegular = activeTilesBeforeMerge.length; // Number of VISIBLE tiles
+    
+    // 🔥 CRITICAL FIX: Check if there are OTHER tiles (including stacks) on board BEFORE marking as last merge
+    // If ANY other tile exists, it's NOT a last merge
+    const otherTilesForRegular = activeTilesBeforeMerge.filter(t => {
+      if (t === src || t === dst) return false; // Don't count merging tiles
+      return true; // Count ALL other tiles (including stacks, regular tiles, wild tiles)
+    });
+    const hasOtherTilesForRegular = otherTilesForRegular.length > 0;
+    
     const isRegularRegularLastTwoMerge6 = bothAreRegularForMerge6 && 
                                           visibleTilesCountForRegular === 2 && // 🔥 FIX: Use visible tiles count
-                                  activeTilesBeforeMerge.includes(src) && 
-                                  activeTilesBeforeMerge.includes(dst) &&
-                                          (src.value|0) + (dst.value|0) === 6; // Must be merge 6
+                                          activeTilesBeforeMerge.includes(src) && 
+                                          activeTilesBeforeMerge.includes(dst) &&
+                                          (src.value|0) + (dst.value|0) === 6 && // Must be merge 6
+                                          !hasOtherTilesForRegular; // 🔥 CRITICAL FIX: Exclude if ANY other tiles (including stacks) exist
     
     console.log('🔍 LAST MERGE CHECK DETAILS (with regular + regular support):', {
       activeTilesCount,
