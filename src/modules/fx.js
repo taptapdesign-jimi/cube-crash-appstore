@@ -1577,7 +1577,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
   // FAZA 3: Optimized animations - Simple drift (no keyframes), no rotation, 3 anims (was 5)
   
   const totalBubbles = 125; // FAZA 2: -48% (was 240, App Store safe for older devices)
-  const spawnDuration = 1000; // FAZA 2: 1.0s (was 1.5s) - faster, fewer simultaneous
+  const spawnDuration = 1500; // 🔥 FRAME DROP FIX: 1.5s (was 1.0s) - stagger spawn to reduce peak load after 1s
   const maxActive = 100; // FAZA 2: -50% (was 200, proportional to 125 bubbles, App Store safe)
   let active = 0;
   let spawned = 0;
@@ -1787,7 +1787,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
     bubble._bubbleTweens = bubbleTweens;
   };
 
-  // 🔥 v74 SPAWN TICKER: Performance-based spawn ticker (original v74 style)
+  // 🔥 FRAME DROP FIX: Performance-based spawn ticker with FPS monitoring and culling
   const spawnTick = () => {
     if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) {
       if (wildBeerExplosionSpawnTick === spawnTick) {
@@ -1797,6 +1797,9 @@ export function createWildBeerBubblesExplosion(board, tile) {
       cleanupWildBeerExplosion();
       return;
     }
+    
+    // 🔥 FRAME DROP FIX: Update FPS counter each frame
+    updateFpsCounter();
     
     const now = performance.now();
     const dt = Math.max(1, now - lastTick);
@@ -1812,12 +1815,36 @@ export function createWildBeerBubblesExplosion(board, tile) {
       return;
     }
 
-    acc += perMs * dt;
+    // 🔥 FRAME DROP FIX: Dynamic spawn rate based on FPS (prevent frame drops)
+    const fpsFactor = currentFps >= 50 ? 1.0 : Math.max(0.5, currentFps / 50); // Reduce spawn if FPS drops
+    acc += perMs * dt * fpsFactor;
     const toSpawn = Math.min(3, Math.floor(acc));
     if (toSpawn > 0) {
       acc -= toSpawn;
       for (let i = 0; i < toSpawn; i++) {
+        // 🔥 FRAME DROP FIX: Check FPS before spawning (prevent overload)
+        if (currentFps < 30 && spawned >= totalBubbles * 0.7) {
+          // If FPS drops below 30, stop spawning after 70% of bubbles
+          break;
+        }
         makeBubble();
+      }
+    }
+    
+    // 🔥 FRAME DROP FIX: Culling - hide off-screen bubbles to reduce render load
+    if (elapsed > 0.5) { // Start culling after 0.5s (bubbles are moving)
+      const children = wildBeerExplosionContainer.children || [];
+      const cullMargin = 50; // Margin for culling
+      for (let i = 0; i < children.length; i++) {
+        const bubble = children[i];
+        if (bubble && bubble.y !== undefined) {
+          // Hide bubbles that are off-screen
+          if (bubble.y < -cullMargin || bubble.y > screenH + cullMargin) {
+            bubble.visible = false;
+          } else {
+            bubble.visible = true;
+          }
+        }
       }
     }
   };
