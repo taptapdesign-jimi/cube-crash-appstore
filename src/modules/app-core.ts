@@ -4465,15 +4465,27 @@ function merge(src, dst, helpers){
           return;
         }
         
-        // 🔥 SIMPLIFIED: Only check _isLastMerge flag - this is set ONLY when it's truly the last merge (2 tiles total)
-        // All other checks were too aggressive and blocked spawn when it shouldn't be blocked
-        const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
-        
-        // 🔥 CRITICAL FIX: Double-check with visible tiles count if flag is set
-        // This prevents false positives where flag might be set incorrectly
+        // 🔥 USER REQUEST: Last 2 tiles merge-6 (regular+regular or wild+regular) should NEVER spawn new tile
+        // Always trigger clean board instead
+        // 🔥 CRITICAL: Check if this is last 2 tiles merge-6 BEFORE checking flag
         const activeTilesBeforeSpawn = tiles.filter(tileIsActive);
         const visibleTilesBeforeSpawn = activeTilesBeforeSpawn.length;
-        const shouldSkipSpawn = isLastMergeFlagSet && visibleTilesBeforeSpawn <= 1; // Only skip if flag is set AND only merge-6 remains
+        const srcIsWildBeforeSpawn = src?.special && (src.special.startsWith('wild') || src.special === 'wild-beer');
+        const dstIsWildBeforeSpawn = dst?.special && (dst.special.startsWith('wild') || dst.special === 'wild-beer');
+        const bothAreRegularBeforeSpawn = !srcIsWildBeforeSpawn && !dstIsWildBeforeSpawn && (src?.value|0) > 0 && (dst.value|0) > 0;
+        const isMerge6BeforeSpawn = dst.value === 6;
+        
+        // 🔥 USER REQUEST: If exactly 2 visible tiles merged to 6 (regular+regular or wild+regular), NEVER spawn
+        // Check if only merge-6 remains (src was already removed in onComplete callback)
+        const isLastTwoMerge6BeforeSpawn = visibleTilesBeforeSpawn <= 1 && // Only merge-6 remains (or 0 if already removed)
+                                          isMerge6BeforeSpawn &&
+                                          (bothAreRegularBeforeSpawn || (srcIsWildBeforeSpawn !== dstIsWildBeforeSpawn));
+        
+        const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
+        
+        // 🔥 CRITICAL FIX: Skip spawn if flag is set OR if we detect last 2 tiles merge-6
+        // This ensures spawn is ALWAYS blocked for last 2 tiles merge-6 scenarios
+        const shouldSkipSpawn = isLastMergeFlagSet || isLastTwoMerge6BeforeSpawn;
         
         if (shouldSkipSpawn || busyEnding) {
           console.log('🚨🚨🚨 LAST MERGE: Skipping spawn - last 2 tiles merge-6 detected, or busyEnding is true');
