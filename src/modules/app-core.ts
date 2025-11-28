@@ -2066,14 +2066,14 @@ async function spawnWildFromMeter(){
         consumeCharge();
         spawned = true;
         if (spawnBeer) {
-          wildBeerSpawned = true; // Mark as spawned (but can spawn again with 40% chance)
-          console.log(isFirstWild ? '🍺 Wild-beer spawned (first wild spawn - random)' : isSecondWild ? '🍺 Wild-beer spawned (second wild spawn - random)' : '🍺 Wild-beer spawned again (40% chance)');
+          wildBeerSpawned = true; // Mark as spawned (but can spawn again)
+          console.log('🍺 Wild-beer spawned (40% random chance)');
           // No board shake on spawn - only on merge 6
         } else if (spawnMagnet) {
           wildMagnetSpawned = true; // Mark as spawned
-          console.log(isFirstWild ? '🧲 Wild-magnet spawned (first wild spawn - random)' : isSecondWild ? '🧲 Wild-magnet spawned (second wild spawn - random)' : '🧲 Wild-magnet spawned (random roll)');
+          console.log('🧲 Wild-magnet spawned (20% random chance)');
         } else {
-          console.log('🌪️ Regular wild spawned (random roll)');
+          console.log('⭐ Regular wild spawned (40% random chance - stars)');
         }
       } else {
         console.warn('⚠️ Wild spawn skipped (cell no longer empty):', cell);
