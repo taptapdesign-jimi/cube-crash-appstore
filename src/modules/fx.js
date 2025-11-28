@@ -1877,7 +1877,8 @@ export function createWildBeerBubblesExplosion(board, tile) {
     const duration = Math.min(2.1, Math.max(1.1, 1.6 + (Math.random() - 0.5) * 0.6)); // 1.1-2.1s
 
     // 🔥 FAZA 3: Simple drift (no keyframes) - single horizontal drift instead of 3-phase
-    const driftX = (Math.random() - 0.5) * 200; // ±100px horizontal drift (simpler than keyframes)
+    // 🔥 USER REQUEST: Smanjeno za 50% da bubbles budu bliže jedni drugima
+    const driftX = (Math.random() - 0.5) * 100; // ±50px horizontal drift (50% smanjeno, was ±100px)
 
     const bubbleTweens = [];
 
