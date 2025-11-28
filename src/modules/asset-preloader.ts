@@ -73,6 +73,8 @@ const ALL_ASSETS: string[] = [
   './assets/tile_numbers3.png',
   './assets/tile_numbers4.png',
   './assets/wild.png',
+  './assets/wild@2x.png',
+  './assets/wild@3x.png',
   './assets/wild-magnet.png',
   './assets/wild-beer.png',
   
