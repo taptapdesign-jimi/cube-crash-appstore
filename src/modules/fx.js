@@ -59,8 +59,13 @@ function stopFpsMonitoring() {
 
 /**
  * Update FPS counter (call this each frame)
+ * 🔥 PERFORMANCE FIX: Throttled to every 2nd frame to reduce overhead
  */
+let fpsUpdateCounter = 0;
 function updateFpsCounter() {
+  // 🔥 PERFORMANCE FIX: Throttle to every 2nd frame (50% reduction in overhead)
+  fpsUpdateCounter++;
+  if (fpsUpdateCounter % 2 !== 0) return; // Skip every other frame
   if (!fpsMonitorActive) return;
   fpsFrameCount++;
   const now = performance.now();
@@ -1701,12 +1706,13 @@ export function createWildBeerBubblesExplosion(board, tile) {
 
   // 🔥 v75 OPTIMIZED: Faze 1+2+3 - Texture pooling, reduced bubbles, optimized animations
   // FAZA 1: Texture Pooling - Create bubble texture once, reuse for all bubbles (with better fallback)
-  // FAZA 2: Reduced bubbles - 125 (was 240, App Store safe), max 100 active (was 200), 1.0s spawn (was 1.5s)
+  // FAZA 2: Reduced bubbles - 100 (was 125, PERFORMANCE FIX for better FPS), max 80 active (was 100), 2.0s spawn (was 1.5s)
   // FAZA 3: Optimized animations - Simple drift (no keyframes), no rotation, 3 anims (was 5)
+  // 🔥 PERFORMANCE TAB ANALYSIS: Smanjeno na 100 bubbles (-20% animacija) za bolji FPS 40-45fps
   
-  const totalBubbles = 125; // FAZA 2: -48% (was 240, App Store safe for older devices)
-  const spawnDuration = 1500; // 🔥 FRAME DROP FIX: 1.5s (was 1.0s) - stagger spawn to reduce peak load after 1s
-  const maxActive = 100; // FAZA 2: -50% (was 200, proportional to 125 bubbles, App Store safe)
+  const totalBubbles = 100; // 🔥 PERFORMANCE FIX: -20% (was 125, now 100 for better FPS 40-45fps)
+  const spawnDuration = 2000; // 🔥 PERFORMANCE FIX: 2.0s (was 1.5s) - stagger spawn to reduce peak load after 1s
+  const maxActive = 80; // 🔥 PERFORMANCE FIX: -20% (was 100, proportional to 100 bubbles)
   let active = 0;
   let spawned = 0;
   const perMs = totalBubbles / spawnDuration;
@@ -1977,29 +1983,33 @@ export function createWildBeerBubblesExplosion(board, tile) {
     }
     
     // 🔥 FRAME DROP FIX: Culling - hide off-screen bubbles to reduce render load
+    // 🔥 PERFORMANCE FIX: Throttled to every 3rd frame (66% reduction in overhead)
     if (elapsed > 0.5) { // Start culling after 0.5s (bubbles are moving)
-      try {
-        const children = wildBeerExplosionContainer.children || [];
-        const cullMargin = 50; // Margin for culling
-        for (let i = 0; i < children.length; i++) {
-          const bubble = children[i];
-          if (bubble && bubble.y !== undefined) {
-            // Hide bubbles that are off-screen
-            if (bubble.y < -cullMargin || bubble.y > screenH + cullMargin) {
-              bubble.visible = false;
-            } else {
-              bubble.visible = true;
+      const frameCount = Math.floor(elapsed * 60); // Approximate frame count
+      if (frameCount % 3 === 0) { // Every 3rd frame only
+        try {
+          const children = wildBeerExplosionContainer.children || [];
+          const cullMargin = 50; // Margin for culling
+          for (let i = 0; i < children.length; i++) {
+            const bubble = children[i];
+            if (bubble && bubble.y !== undefined) {
+              // Hide bubbles that are off-screen
+              if (bubble.y < -cullMargin || bubble.y > screenH + cullMargin) {
+                bubble.visible = false;
+              } else {
+                bubble.visible = true;
+              }
             }
           }
+        } catch (e) {
+          // Silently fail culling if there's an error
         }
-      } catch (e) {
-        // Silently fail culling if there's an error
       }
     }
   };
 
-  // 🔥 v75 INITIAL BURST: Spawn 6 bubbles immediately (proportional to 125 total, was 12 for 240)
-  const initialBurst = Math.floor(totalBubbles / 20); // ~6 bubbles for 125 total
+  // 🔥 v75 INITIAL BURST: Spawn 5 bubbles immediately (proportional to 100 total, was 6 for 125)
+  const initialBurst = Math.floor(totalBubbles / 20); // ~5 bubbles for 100 total
   for (let i = 0; i < initialBurst; i++) makeBubble();
   
   // Start spawn ticker
