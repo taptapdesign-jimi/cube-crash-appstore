@@ -55,7 +55,6 @@ let hudCloseButton = null;
 let boardIndicator = null;
 let boardIndicatorLabel = null;
 let comboWobbleTween = null; // GSAP tween for combo icon wobble animation
-let comboParticlesInterval = null; // Interval for combo idle particles
 const BOARD_INDICATOR_ANIM_OFFSET = 72;
 const BOARD_INDICATOR_BOTTOM = 24;
 
@@ -1428,9 +1427,6 @@ export function updateHUD({ score, board, moves, combo }) {
     // 🔥 COMBO WOBBLE: Start wobble animation when combo >= 10
     updateComboWobble(v);
     
-    // 🔥 COMBO PARTICLES: Start idle particles when combo >= 10
-    updateComboParticles(v);
-    
     // 🔥 CONTAIN COMBO: Adjust combo position and scale to keep it within viewport
     if (HUD_ROOT && HUD_ROOT._hudElements && HUD_ROOT._hudElements.combo && comboWrap) {
       const comboEl = HUD_ROOT._hudElements.combo;
@@ -1610,125 +1606,6 @@ function updateComboIcon(comboValue) {
   }
 }
 
-// 🔥 COMBO PARTICLES: Function to create particles behind combo number
-function createComboParticles() {
-  if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.combo) return;
-  
-  const combo = HUD_ROOT._hudElements.combo;
-  const comboContainer = combo.container;
-  const comboText = combo.text;
-  
-  if (!comboContainer || !comboText || comboContainer.destroyed) return;
-  
-  // Get combo text position (relative to combo container)
-  const textX = comboText.x;
-  const textY = comboText.y;
-  
-  // Combo particle colors: F39245, FFCD7A, FFB677
-  const comboColors = [0xF39245, 0xFFCD7A, 0xFFB677];
-  
-  // Create 3-5 particles per spawn
-  const particleCount = 3 + Math.floor(Math.random() * 3);
-  
-  const pool = getGraphicsPool();
-  
-  for (let i = 0; i < particleCount; i++) {
-    const particle = pool.acquire();
-    
-    // Track graphics object
-    if (__globalGraphicsObjects) {
-      __globalGraphicsObjects.add(particle);
-    }
-    
-    // Random color from combo colors
-    const color = comboColors[Math.floor(Math.random() * comboColors.length)];
-    
-    // 🔥 USER REQUEST: Smaller rectangular particles (duplo manji - 2-4px instead of 4-8px)
-    const baseWidth = 2 + Math.random() * 2; // 2-4px width (was 4-8px radius)
-    const baseHeight = 2 + Math.random() * 2; // 2-4px height (was 4-8px radius)
-    
-    // Create rectangle particle (centered at 0,0)
-    particle.rect(-baseWidth/2, -baseHeight/2, baseWidth, baseHeight)
-           .fill({ color: color, alpha: 0.8 });
-    
-    // Position particles around combo text (behind it)
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 15 + Math.random() * 20; // 15-35px from text center
-    
-    // Position relative to combo container
-    particle.x = textX + Math.cos(angle) * distance;
-    particle.y = textY + Math.sin(angle) * distance;
-    particle.rotation = Math.random() * Math.PI * 2;
-    
-    // Set z-index to be behind text (lower than text)
-    particle.zIndex = -1;
-    particle.eventMode = 'none';
-    
-    // Add to combo container (behind text)
-    comboContainer.addChildAt(particle, 0);
-    
-    // Animate particle
-    const endAngle = angle + (Math.random() - 0.5) * 1.0;
-    const endDistance = distance * (1.5 + Math.random() * 0.5);
-    const endX = textX + Math.cos(endAngle) * endDistance;
-    const endY = textY + Math.sin(endAngle) * endDistance;
-    
-    gsap.to(particle, {
-      x: endX,
-      y: endY,
-      rotation: particle.rotation + (Math.random() - 0.5) * Math.PI * 2,
-      alpha: 0,
-      duration: 0.4 + Math.random() * 0.3, // 0.4-0.7s
-      ease: 'power1.out',
-      onComplete: () => {
-        try {
-          if (particle && particle.parent) {
-            particle.parent.removeChild(particle);
-          }
-          if (__globalGraphicsObjects) {
-            __globalGraphicsObjects.delete(particle);
-          }
-          pool.release(particle);
-        } catch (err) {
-          // Ignore cleanup errors
-        }
-      }
-    });
-  }
-}
-
-// 🔥 COMBO PARTICLES: Function to start/stop combo idle particles
-// 🔥 USER REQUEST: Combo particles always active (not just when combo >= 10)
-function updateComboParticles(comboValue) {
-  // 🔥 USER REQUEST: Always show particles (removed comboValue >= 10 condition)
-  const shouldShowParticles = true; // Always active
-  
-  // Stop existing particles if any (to restart with new settings)
-  if (comboParticlesInterval) {
-    clearInterval(comboParticlesInterval);
-    comboParticlesInterval = null;
-  }
-  
-  // Always show particles (combo idle always active)
-  if (shouldShowParticles) {
-    // Generate particles immediately
-    createComboParticles();
-    
-    // Schedule continuous particles every 200ms (same as magnet idle)
-    comboParticlesInterval = setInterval(() => {
-      if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.combo) {
-        if (comboParticlesInterval) {
-          clearInterval(comboParticlesInterval);
-          comboParticlesInterval = null;
-        }
-        return;
-      }
-      createComboParticles();
-    }, 200); // Every 200ms (5 times per second)
-    
-    console.log('💧 Combo idle particles started (always active)');
-  }
-}
 
 // 🔥 COMBO WOBBLE: Function to start/stop wobble animation on combo icon
 function updateComboWobble(comboValue) {
@@ -1777,12 +1654,6 @@ export function setCombo(v){
   
   // 🔥 COMBO WOBBLE: Start wobble animation when combo >= 10
   updateComboWobble(val);
-  
-  // 🔥 COMBO PARTICLES: Start idle particles (always active, but only start once)
-  // Start particles only if not already started (check if interval exists)
-  if (!comboParticlesInterval) {
-    updateComboParticles(val);
-  }
   
   // 🔥 CONTAIN COMBO: Adjust combo position and scale to keep it within viewport
   if (HUD_ROOT && HUD_ROOT._hudElements && HUD_ROOT._hudElements.combo && comboWrap) {
@@ -1850,9 +1721,6 @@ export function resetCombo(){
   
   // 🔥 COMBO WOBBLE: Stop wobble animation when combo resets
   updateComboWobble(0);
-  
-  // 🔥 COMBO PARTICLES: Stop idle particles when combo resets
-  updateComboParticles(0);
   
   stopComboFX();
 }
