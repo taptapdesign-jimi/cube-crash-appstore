@@ -186,6 +186,7 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   resetWildProgress(0, false);
   wildBeerSpawned = false; // Reset wild-beer spawn tracking
   wildMagnetSpawned = false; // Reset wild-magnet spawn tracking
+  firstWildSpawned = false; // 🔥 USER REQUEST: Reset first wild spawn tracking
 
   try {
     if (typeof HUD.resetWildMeter === 'function') {
@@ -1684,7 +1685,8 @@ function startLevel(n){
 wildMeter = 0;
   resetWildProgress(0, false);
   wildBeerSpawned = false; // Reset wild-beer spawn tracking
-  wildMagnetSpawned = false; // Reset wild-magnet spawn tracking for new level
+  wildMagnetSpawned = false; // Reset wild-magnet spawn tracking
+  firstWildSpawned = false; // 🔥 USER REQUEST: Reset first wild spawn tracking for new level
   
   // Clear end game cache when starting new level
   clearEndGameCache();
@@ -2104,8 +2106,13 @@ async function spawnWildFromMeter(){
       let spawnBeer = false;
       let spawnMagnet = false;
       
+      // 🔥 USER REQUEST: First wild spawn is always wild zvjezdica (not wild-beer, not wild-magnet)
+      if (!firstWildSpawned) {
+        spawnBeer = false;
+        spawnMagnet = false;
+        console.log('⭐ First wild spawn: Forcing wild zvjezdica (stars)');
+      } else if (boardNumber === 3) {
       // 🎯 BOARD 3: Force wild-beer only (check first, before default logic)
-      if (boardNumber === 3) {
         spawnBeer = true;
         spawnMagnet = false;
         console.log('🎯 Board 3: Forcing wild-beer spawn only');
@@ -2182,6 +2189,13 @@ async function spawnWildFromMeter(){
       if (ok) {
         consumeCharge();
         spawned = true;
+        
+        // 🔥 USER REQUEST: Mark first wild as spawned
+        if (!firstWildSpawned) {
+          firstWildSpawned = true;
+          console.log('⭐ First wild spawned: wild zvjezdica (stars)');
+        }
+        
         if (spawnBeer) {
           wildBeerSpawned = true; // Mark as spawned (but can spawn again)
           console.log('🍺 Wild-beer spawned (40% random chance)');
