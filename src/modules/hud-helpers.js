@@ -956,12 +956,12 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     
     // Create text
     const text = new Text({ text: textValue, style: textStyle });
-    text.anchor.set(0.5, 0.5);
-    // Position text to the right of icon (spacing: 4px)
+    text.anchor.set(0, 0.5); // Left-align text (anchor at left center for proper positioning)
+    // Position text to the right of icon (spacing: 4px as per SwiftUI HStack spacing)
     if (iconSprite) {
-      text.x = (iconSprite.width * iconSprite.scale.x) / 2 + 4 + text.width / 2;
+      text.x = (iconSprite.width * iconSprite.scale.x) / 2 + 4;
     } else {
-      text.x = rectWidth / 2 + 4 + text.width / 2;
+      text.x = rectWidth / 2 + 4;
     }
     text.y = 0;
     container.addChild(text);
