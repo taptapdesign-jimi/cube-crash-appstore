@@ -1086,8 +1086,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   
   const comboHud = {
     container: comboContainer,
-    text: comboNumberText, // Store number text as main text reference
-    xText: comboXText, // Store "x" text separately
+    text: comboNumberText, // Store number text as main text reference (18px)
+    xText: comboXText, // Store "x" text separately (14px)
     iconSprite: comboIconSprite
   };
   
