@@ -3478,11 +3478,35 @@ function merge(src, dst, helpers){
                 await handleWildMagnetMergedPulledTiles(mergeLocation, validTiles, helpersWithMerge);
                 console.log('✅ Pulled tiles merge completed - merge 6 created with 4x multiplier');
                 
+                // 🔥 CRITICAL FIX: Check if this is last merge (only 2 tiles on board) BEFORE adding wild progress
+                // This prevents wild meter from filling when magnet pull results in clean board
+                const activeTilesAfterPull = tiles.filter(t => {
+                  if (!t || t.locked) return false;
+                  const isWild = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer';
+                  const hasValue = (t.value|0) > 0;
+                  return isWild || hasValue;
+                });
+                const visibleTilesCountAfterPull = activeTilesAfterPull.length;
+                const isLastMergeAfterPull = visibleTilesCountAfterPull <= 1; // Only merge 6 tile remains (or none)
+                
                 // 🔥 USER REQUEST: Add wild progress when magnet pulls tiles (1-4 tiles, treat as merge 6)
-                // This fills wild meter bar when magnet pulls tiles and creates fake merge
-                if (validTiles.length >= 1 && validTiles.length <= 4) {
-                  console.log(`🧲 Magnet pulled ${validTiles.length} tiles - adding wild progress (treating as merge 6)`);
+                // BUT: Skip if this is last merge (would result in clean board)
+                if (validTiles.length >= 1 && validTiles.length <= 4 && !isLastMergeAfterPull) {
+                  console.log(`🧲 Magnet pulled ${validTiles.length} tiles - adding wild progress (treating as merge 6, NOT last merge)`);
                   addWildProgress(WILD_INC_BIG); // Same as regular merge 6
+                } else if (isLastMergeAfterPull) {
+                  console.log(`🚨🚨🚨 LAST MERGE DETECTED (magnet pull) - ${visibleTilesCountAfterPull} tiles remaining, skipping wild progress`);
+                  // Reset wild meter to prevent wild spawn before clean board
+                  wildMeter = 0;
+                  STATE.wildMeter = 0;
+                  try {
+                    if (typeof HUD.resetWildMeter === 'function') {
+                      HUD.resetWildMeter(true);
+                      console.log('✅ LAST MERGE (magnet pull): Wild meter reset in HUD');
+                    }
+                  } catch (error) {
+                    console.warn('⚠️ LAST MERGE (magnet pull): Failed to reset wild meter in HUD:', error);
+                  }
                 }
                 
                 // 🔥 CRITICAL: Cleanup all timelines after successful merge (MEMORY LEAK FIX)
