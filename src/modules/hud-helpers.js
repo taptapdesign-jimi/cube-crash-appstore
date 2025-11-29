@@ -714,7 +714,7 @@ export function layout({ app, top }) {
     const barGap = Math.round(vh * 0.02);
     
     wild.view.x = SIDE;
-    wild.view.y = yValue + valueRowH + barGap;
+    wild.view.y = yValue + valueRowH + barGap - 8; // Moved up 8px
     wild.setWidth(barW);
     
     console.log('🎯 PIXI Wild meter positioned:', { x: SIDE, y: wild.view.y, width: barW });
