@@ -14,7 +14,7 @@ function boardSize(){ return { w: COLS*TILE + (COLS-1)*GAP, h: ROWS*TILE + (ROWS
 
 /* ---------------- Minimal HUD the app.js expects ---------------- */
 let HUD_ROOT = null;
-let boardText, scoreText, comboText; 
+let boardText, scoreText, comboText, starText; 
 let closeIconSprite = null; // Close icon sprite (replaces boardText)
 let comboWrap; // wrapper for jitter
 let wild;
@@ -584,9 +584,18 @@ export function layout({ app, top }) {
     HUD_ROOT._labels = { m, s, c };
   }
   const { m, s, c } = HUD_ROOT._labels;
+  // 🔥 NEW HUD: Hide all old labels (we now use icons)
   if (m) {
     m.visible = false;
     m.renderable = false;
+  }
+  if (s) {
+    s.visible = false;
+    s.renderable = false;
+  }
+  if (c) {
+    c.visible = false;
+    c.renderable = false;
   }
 
   // pozicioniranje labela
@@ -599,22 +608,58 @@ export function layout({ app, top }) {
   c.x = rightCenter;
   m.y = s.y = c.y = yLabel;
 
-  // poravnanja — Close icon lijevo (umjesto Board), Score sredina, Combo desno
-  // center values under their labels (using anchors)
+  // 🔥 NEW HUD DESIGN: Position elements based on SwiftUI layout
+  // Layout: 268px width, 36px height
+  // - Close icon: left (existing)
+  // - Coin (score): left, offset -112px from center
+  // - Star (currency): right, offset 108px from center  
+  // - Combo: left, offset -4.50px from center
+  
+  const centerX = vw / 2;
+  const hudHeight = 36;
+  const hudY = yValue + (valueRowH - hudHeight) / 2; // Center vertically in value row
+  
+  // Position close icon (left, existing position)
   boardText.x = leftCenter;
   boardText.y = yValue;
-  // Position close icon sprite where boardText was (centered vertically with text)
   if (closeIconSprite) {
     closeIconSprite.x = leftCenter;
-    // Center vertically: yValue is top of text, add half of text height to center the icon
     closeIconSprite.y = yValue + (valueRowH / 2);
     closeIconSprite.visible = true;
   }
-  scoreText.x = midCenter;
-  if (comboWrap){ comboWrap.x = rightCenter; comboWrap.y = yValue; }
-  // keep text at origin within wrapper
-  comboText.x = 0; comboText.y = 0;
-  scoreText.y = yValue;
+  
+  // Position new HUD elements
+  if (HUD_ROOT._hudElements) {
+    const { star, coin, combo } = HUD_ROOT._hudElements;
+    
+    // Coin (score) - left, offset -112px from center
+    if (coin && coin.container) {
+      coin.container.x = centerX - 112;
+      coin.container.y = hudY + hudHeight / 2;
+    }
+    
+    // Star (currency) - right, offset 108px from center
+    if (star && star.container) {
+      star.container.x = centerX + 108;
+      star.container.y = hudY + hudHeight / 2;
+    }
+    
+    // Combo - left, offset -4.50px from center
+    if (comboWrap && combo && combo.container) {
+      comboWrap.x = centerX - 4.5;
+      comboWrap.y = hudY + hudHeight / 2;
+    }
+  } else {
+    // Fallback to old positioning if new elements not created yet
+    scoreText.x = midCenter;
+    scoreText.y = yValue;
+    if (comboWrap) {
+      comboWrap.x = rightCenter;
+      comboWrap.y = yValue;
+    }
+    comboText.x = 0;
+    comboText.y = 0;
+  }
 
   const barW = Math.max(120, vw - SIDE * 2);
   // Old wild loader disabled - using DOM wild meter instead
@@ -855,20 +900,129 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   boardText.visible = false;
   boardText.renderable = false;
 
-  scoreText = new Text({ text: '0', style: valMain  });
-  comboText = new Text({ text: 'x0', style: valCombo });
+  // 🔥 NEW HUD DESIGN: Create HUD elements with icons (star-hud, coin-hud, combo-hud)
+  // Layout based on SwiftUI design:
+  // - Left (offset -112): coin-hud.png + score number
+  // - Right (offset 108): star-hud.png + currency number (or energy "X0")
+  // - Left (offset -4.50): combo-hud.png + combo number
+  
+  // Create containers for each HUD element
+  const createHudElement = (iconPath, textValue, textStyle, isCombo = false) => {
+    const container = new Container();
+    container.eventMode = 'none';
+    
+    // Load icon sprite
+    let iconSprite = null;
+    try {
+      const iconTexture = Assets.get(iconPath);
+      if (iconTexture) {
+        iconSprite = new Sprite(iconTexture);
+        iconSprite.anchor.set(0.5, 0.5);
+        // Scale to 28x28 (or 28x26.25 for score)
+        const targetSize = isCombo ? 28 : 28;
+        if (iconSprite.width > 0 && iconSprite.height > 0) {
+          const scale = targetSize / Math.max(iconSprite.width, iconSprite.height);
+          iconSprite.scale.set(scale);
+        }
+        container.addChild(iconSprite);
+      }
+    } catch (e) {
+      console.warn(`⚠️ Failed to load icon ${iconPath}, will try async:`, e);
+      // Try async load
+      Assets.load(iconPath).then((tex) => {
+        if (tex && container && !container.destroyed) {
+          iconSprite = new Sprite(tex);
+          iconSprite.anchor.set(0.5, 0.5);
+          const targetSize = isCombo ? 28 : 28;
+          if (iconSprite.width > 0 && iconSprite.height > 0) {
+            const scale = targetSize / Math.max(iconSprite.width, iconSprite.height);
+            iconSprite.scale.set(scale);
+          }
+          container.addChildAt(iconSprite, 0);
+        }
+      }).catch((err) => {
+        console.error(`❌ Failed to load icon ${iconPath}:`, err);
+      });
+    }
+    
+    // Create background rectangle (28x28 or 28x26.25)
+    const bgRect = new Graphics();
+    const rectWidth = 28;
+    const rectHeight = isCombo ? 26.25 : 28;
+    // Color: rgba(0.50, 0.23, 0.27, 0.50) = 0x803B45 with 0.5 alpha
+    bgRect.rect(-rectWidth/2, -rectHeight/2, rectWidth, rectHeight);
+    bgRect.fill({ color: 0x803B45, alpha: 0.5 });
+    container.addChildAt(bgRect, 0);
+    
+    // Create text
+    const text = new Text({ text: textValue, style: textStyle });
+    text.anchor.set(0.5, 0.5);
+    // Position text to the right of icon (spacing: 4px)
+    if (iconSprite) {
+      text.x = (iconSprite.width * iconSprite.scale.x) / 2 + 4 + text.width / 2;
+    } else {
+      text.x = rectWidth / 2 + 4 + text.width / 2;
+    }
+    text.y = 0;
+    container.addChild(text);
+    
+    return { container, text, iconSprite };
+  };
+  
+  // Create HUD elements
+  // 1. Star (currency) - right side
+  const starHud = createHudElement('./assets/star-hud.png', '0', {
+    fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
+    fontSize: 18,
+    fill: 0xB58573, // Color(red: 0.71, green: 0.52, blue: 0.45)
+    fontWeight: 'bold',
+    fontStyle: 'normal'
+  });
+  
+  // 2. Coin (score) - left side
+  const coinHud = createHudElement('./assets/coin-hud.png', '0', {
+    fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
+    fontSize: 20,
+    fill: 0xB58573, // Color(red: 0.71, green: 0.52, blue: 0.45)
+    fontWeight: 'bold',
+    fontStyle: 'normal'
+  }, true); // 28x26.25 for score
+  
+  // 3. Combo - left side (offset -4.50)
+  const comboHud = createHudElement('./assets/combo-hud.png', '0', {
+    fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
+    fontSize: 18,
+    fill: 0xB58573, // Color(red: 0.71, green: 0.52, blue: 0.45)
+    fontWeight: 'bold',
+    fontStyle: 'normal'
+  });
+  
+  // Store references
+  scoreText = coinHud.text; // Use coin text for score
+  comboText = comboHud.text; // Use combo text
+  starText = starHud.text; // Currency/energy text
   
   // Export combo text for animations
   window.comboText = comboText;
-
-  boardText.anchor.set(0.5, 0);
-  scoreText.anchor.set(0.5, 0);
-  comboText.anchor.set(0.5, 0);
-
-  // add texts; wrap combo for independent jitter
+  
+  // Create wrapper for combo (for jitter animation)
   comboWrap = new Container();
-  comboWrap.addChild(comboText);
-  HUD_ROOT.addChild(boardText, scoreText, comboWrap);
+  comboWrap.addChild(comboHud.container);
+  
+  // Add all HUD elements to root
+  HUD_ROOT.addChild(
+    boardText,
+    coinHud.container,  // Score (left)
+    starHud.container,   // Currency (right)
+    comboWrap            // Combo (left, offset)
+  );
+  
+  // Store references for layout
+  HUD_ROOT._hudElements = {
+    star: starHud,
+    coin: coinHud,
+    combo: comboHud
+  };
   
   // Add close icon sprite if it was created synchronously
   if (closeIconSprite && closeIconSprite.parent !== HUD_ROOT) {
@@ -880,11 +1034,26 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   try {
     boardText.zIndex = 10;
     if (closeIconSprite) closeIconSprite.zIndex = 10;
-    scoreText.zIndex = 10;
-    comboWrap.zIndex = 2000;
-    comboText.zIndex = 2000;
+    if (HUD_ROOT._hudElements) {
+      const { star, coin, combo } = HUD_ROOT._hudElements;
+      if (coin && coin.container) coin.container.zIndex = 10;
+      if (star && star.container) star.container.zIndex = 10;
+      if (combo && combo.container) combo.container.zIndex = 2000;
+    }
+    if (scoreText) scoreText.zIndex = 10;
+    if (comboWrap) comboWrap.zIndex = 2000;
+    if (comboText) comboText.zIndex = 2000;
     HUD_ROOT.sortChildren?.();
   } catch {}
+  
+  // 🔥 NEW HUD: Export function to update currency/energy (for future use)
+  if (starText) {
+    window.setCurrency = (value) => {
+      if (starText) {
+        starText.text = String(value|0);
+      }
+    };
+  }
 
   // Create PIXI wild meter
   console.log('🎯 Creating PIXI wild meter...');
@@ -1098,7 +1267,8 @@ export function updateHUD({ score, board, moves, combo }) {
   }
   if (typeof combo === 'number') {
     const v = combo|0;
-    comboText.text = `x${v}`;
+    // 🔥 NEW HUD: Update combo text (no "x" prefix, just number)
+    comboText.text = String(v);
     if (v > 0) { startComboFX(); } else { stopComboFX(); }
     __lastComboVal = v;
   }
@@ -1168,13 +1338,15 @@ export function setBoard(v){
 export function setCombo(v){
   const val = v|0;
   if (!comboText) return;
-  comboText.text = `x${val}`;
+  // 🔥 NEW HUD: Update combo text (no "x" prefix, just number)
+  comboText.text = String(val);
   if (val > 0) startComboFX(); else stopComboFX();
   __lastComboVal = val;
 }
 export function resetCombo(){
   if (!comboText) return;
-  comboText.text = 'x0';
+  // 🔥 NEW HUD: Update combo text (no "x" prefix, just number)
+  comboText.text = '0';
   stopComboFX();
 }
 export function bumpCombo(opts = {}){
