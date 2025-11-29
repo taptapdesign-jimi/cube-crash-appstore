@@ -90,6 +90,22 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     const effectiveBoard = Math.max(1, boardNumber | 0);
     const bonus = 500 + (effectiveBoard - 1) * 200; // Board 1: 500, Board 2: 700, Board 3: 900, Board 4: 1100
 
+    // 🔥 CRITICAL FIX: Cleanup bubbles animaciju PRIJE clean board flow-a
+    // This prevents conflicts with stage/board objects during clean board flow
+    try {
+      const fxModule = await import('./fx.js');
+      if (fxModule && typeof fxModule.isWildBeerExplosionRunning === 'function' && 
+          typeof fxModule.cleanupWildBeerExplosion === 'function') {
+        if (fxModule.isWildBeerExplosionRunning()) {
+          console.log('🧹 endgame-flow: Bubbles animation detected - cleaning up before clean board flow');
+          fxModule.cleanupWildBeerExplosion();
+          console.log('✅ endgame-flow: Bubbles animation cleaned up');
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ endgame-flow: Failed to cleanup bubbles animation:', e);
+    }
+
     const { showCleanBoardModal } = await import('./clean-board-modal.js');
     const nextLevel = (level | 0) + 1;
     const currentScore = ctx.getScore ? (ctx.getScore() | 0) : 0;
@@ -210,6 +226,30 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           (cleanBoardModal as any).clearAllModalTimeouts();
         }
       } catch {}
+      
+      // 🔥 MEMORY LEAK FIX: Cleanup confetti animations
+      try {
+        const confettiSystem = await import('./confetti-system.js');
+        if (confettiSystem && typeof confettiSystem.cleanupConfetti === 'function') {
+          confettiSystem.cleanupConfetti();
+          console.log('🧹 endgame-flow: Cleaned up confetti animations');
+        }
+      } catch (e) {
+        console.warn('⚠️ endgame-flow: Failed to cleanup confetti animations:', e);
+      }
+      
+      // 🔥 CRITICAL FIX: Cleanup bubbles animation again (in case it was restarted)
+      try {
+        const fxModule = await import('./fx.js');
+        if (fxModule && typeof fxModule.cleanupWildBeerExplosion === 'function') {
+          if (fxModule.isWildBeerExplosionRunning && fxModule.isWildBeerExplosionRunning()) {
+            fxModule.cleanupWildBeerExplosion();
+            console.log('🧹 endgame-flow: Cleaned up bubbles animation in cleanup section');
+          }
+        }
+      } catch (e) {
+        console.warn('⚠️ endgame-flow: Failed to cleanup bubbles animation in cleanup section:', e);
+      }
       
       // Memory cleanup (lazy import to avoid circular dependency)
       try {

@@ -4,6 +4,11 @@
 let activeAnimations = 0;
 const MAX_ANIMATIONS = 800; // Increased for continuous spawn
 
+// 🔥 MEMORY LEAK FIX: Track all active intervals and DOM elements for cleanup
+const activeIntervals: Set<NodeJS.Timeout> = new Set();
+const activeConfettiElements: Set<HTMLElement> = new Set();
+const activeAnimProgressIntervals: Set<NodeJS.Timeout> = new Set();
+
 function createConfettiExplosion(element: HTMLElement): void {
   console.log('🎉 createConfettiExplosion called');
   const colors = ['#FBE3C5', '#FA8C00', '#E5C7AD', '#ECD7C2', '#FDBA00', '#FADEC0'];
@@ -47,10 +52,14 @@ function createConfettiExplosion(element: HTMLElement): void {
   const spawnInterval = setInterval(() => {
     if (spawnCount >= maxSpawns) {
       clearInterval(spawnInterval);
+      activeIntervals.delete(spawnInterval); // 🔥 MEMORY LEAK FIX: Remove from tracking
       return;
     }
     spawnBatch();
   }, 1000); // Every 1 second
+  
+  // 🔥 MEMORY LEAK FIX: Track interval for cleanup
+  activeIntervals.add(spawnInterval);
 }
 
 function createSpawn(
@@ -152,6 +161,9 @@ function createSpawn(
     document.body.appendChild(confetti);
     activeAnimations++;
     
+    // 🔥 MEMORY LEAK FIX: Track DOM element for cleanup
+    activeConfettiElements.add(confetti);
+    
     const duration = 3000; // 3 seconds total duration
     const screenHeight = window.innerHeight;
     
@@ -214,17 +226,71 @@ function createSpawn(
           confetti.style.opacity = '0';
           confetti.style.transform = 'scale(0)';
           clearInterval(animProgress);
+          activeAnimProgressIntervals.delete(animProgress); // 🔥 MEMORY LEAK FIX: Remove from tracking
         }
       }, 10);
+      
+      // 🔥 MEMORY LEAK FIX: Track animProgress interval for cleanup
+      activeAnimProgressIntervals.add(animProgress);
       
       anim.onfinish = () => {
         confetti.remove();
         activeAnimations--;
         if (activeAnimations < 0) activeAnimations = 0;
+        // 🔥 MEMORY LEAK FIX: Remove from tracking when animation finishes
+        activeConfettiElements.delete(confetti);
       };
     }
     }, spawnDelay);
   }
+}
+
+// 🔥 MEMORY LEAK FIX: Cleanup function to clear all confetti animations
+export function cleanupConfetti(): void {
+  console.log('🧹 cleanupConfetti: Starting cleanup...');
+  
+  // Clear all spawn intervals
+  let intervalsCleared = 0;
+  activeIntervals.forEach(interval => {
+    try {
+      clearInterval(interval);
+      intervalsCleared++;
+    } catch (e) {
+      console.warn('⚠️ cleanupConfetti: Failed to clear interval:', e);
+    }
+  });
+  activeIntervals.clear();
+  
+  // Clear all animProgress intervals
+  let animProgressCleared = 0;
+  activeAnimProgressIntervals.forEach(interval => {
+    try {
+      clearInterval(interval);
+      animProgressCleared++;
+    } catch (e) {
+      console.warn('⚠️ cleanupConfetti: Failed to clear animProgress interval:', e);
+    }
+  });
+  activeAnimProgressIntervals.clear();
+  
+  // Remove all DOM elements
+  let elementsRemoved = 0;
+  activeConfettiElements.forEach(element => {
+    try {
+      if (element && element.parentNode) {
+        element.remove();
+        elementsRemoved++;
+      }
+    } catch (e) {
+      console.warn('⚠️ cleanupConfetti: Failed to remove element:', e);
+    }
+  });
+  activeConfettiElements.clear();
+  
+  // Reset counter
+  activeAnimations = 0;
+  
+  console.log(`🧹 cleanupConfetti: Cleanup completed - ${intervalsCleared} intervals, ${animProgressCleared} animProgress intervals, ${elementsRemoved} DOM elements removed`);
 }
 
 export { createConfettiExplosion };

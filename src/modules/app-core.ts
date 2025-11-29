@@ -1537,6 +1537,29 @@ function randVal(){ return [1,1,1,2,2,3,3,4,5][(Math.random()*9)|0]; }
 function startLevel(n){
   console.log('🎯 startLevel called with:', n, 'current level:', level, 'current boardNumber:', boardNumber, 'current score:', score);
   
+  // 🔥 CRITICAL FIX: Cleanup all animations before starting new level
+  // This prevents memory leaks and conflicts that could cause crashes
+  try {
+    // Cleanup bubbles animation
+    const fxModule = typeof window !== 'undefined' && (window as any).cleanupWildBeerExplosion;
+    if (typeof fxModule === 'function') {
+      fxModule();
+      console.log('🧹 startLevel: Cleaned up bubbles animation');
+    }
+    
+    // Cleanup confetti animations
+    import('./confetti-system.js').then(confettiModule => {
+      if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
+        confettiModule.cleanupConfetti();
+        console.log('🧹 startLevel: Cleaned up confetti animations');
+      }
+    }).catch(() => {
+      // Ignore import errors
+    });
+  } catch (e) {
+    console.warn('⚠️ startLevel: Failed to cleanup animations (non-fatal):', e);
+  }
+  
   // 🎯 BOARD-SPECIFIC RULES: Set current board for board-specific rules
   boardNumber = n | 0;
   boardSpecificRules.setCurrentBoard(boardNumber);
