@@ -1285,6 +1285,17 @@ export function initDrag(cfg) {
     releaseMagnet({ immediate: true });
     restoreGridCell(t); // Restore to grid before snapping back
     
+    // 🔥 BUG FIX: Reset wild beer explosion state on snapBack (prevents bubbles animation from being blocked)
+    // If wild beer is dragged and released without merge, reset the explosion state
+    if (t.special === 'wild-beer') {
+      try {
+        cleanupWildBeerExplosion();
+        console.log('🧹 Cleaned up wild beer explosion state on snapBack');
+      } catch (err) {
+        console.warn('⚠️ Failed to cleanup wild beer explosion on snapBack:', err);
+      }
+    }
+    
     // Ghost placeholders are now fixed and always visible
     
     gsap.timeline({
