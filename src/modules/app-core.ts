@@ -187,14 +187,7 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   }
 
   try {
-    // 🔥 USER REQUEST: Bubbles animation continues over clean board screen
-    // Clean board modal appears, but bubbles animation renders on top (z-index 999999)
-    // Bubbles animation will cleanup naturally when it finishes
-    console.log('💧 Clean board flow starting - bubbles animation (if running) will continue over modal');
-    
-    // Original 1 second delay (bubbles animation continues independently)
     try { await new Promise((res) => setTimeout(res, 1000)); } catch {}
-    
     await runEndgameFlow({
       app,
       stage,
