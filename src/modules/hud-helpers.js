@@ -638,9 +638,12 @@ export function layout({ app, top }) {
     
     // Combo - 24px from right edge (desni rub elementa je na rightEdge - 24)
     if (comboWrap && combo && combo.container) {
-      // Calculate combo width (icon + text)
-      const comboWidth = (combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28) + 
-                         (combo.text ? combo.text.width : 0);
+      // Calculate combo width (icon + "x" text + number text + spacing)
+      const iconWidth = combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28;
+      const xTextWidth = combo.xText ? combo.xText.width : 0;
+      const numberTextWidth = combo.text ? combo.text.width : 0;
+      const spacing = 4; // Spacing between icon and text
+      const comboWidth = iconWidth + spacing + xTextWidth + numberTextWidth;
       // Position combo so its right edge is 24px from right edge
       // Since anchor is at center, we need to offset by half width
       comboWrap.x = rightEdge - comboRightPadding - comboWidth / 2;
@@ -650,8 +653,11 @@ export function layout({ app, top }) {
     // Coin - 64px lijevo od lijevog ruba Combo
     if (coin && coin.container) {
       // Calculate combo position and width
-      const comboWidth = (combo && combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28) + 
-                         (combo && combo.text ? combo.text.width : 0);
+      const comboIconWidth = combo && combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28;
+      const comboXTextWidth = combo && combo.xText ? combo.xText.width : 0;
+      const comboNumberTextWidth = combo && combo.text ? combo.text.width : 0;
+      const comboSpacing = 4;
+      const comboWidth = comboIconWidth + comboSpacing + comboXTextWidth + comboNumberTextWidth;
       const comboLeftEdge = rightEdge - comboRightPadding - comboWidth;
       const coinWidth = (coin.iconSprite ? coin.iconSprite.width * coin.iconSprite.scale.x : 28) + 
                         (coin.text ? coin.text.width : 0);
@@ -664,8 +670,11 @@ export function layout({ app, top }) {
     // Star - 64px lijevo od lijevog ruba Coin
     if (star && star.container) {
       // Calculate coin position and width
-      const comboWidth = (combo && combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28) + 
-                         (combo && combo.text ? combo.text.width : 0);
+      const comboIconWidth = combo && combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28;
+      const comboXTextWidth = combo && combo.xText ? combo.xText.width : 0;
+      const comboNumberTextWidth = combo && combo.text ? combo.text.width : 0;
+      const comboSpacing = 4;
+      const comboWidth = comboIconWidth + comboSpacing + comboXTextWidth + comboNumberTextWidth;
       const comboLeftEdge = rightEdge - comboRightPadding - comboWidth;
       const coinWidth = (coin && coin.iconSprite ? coin.iconSprite.width * coin.iconSprite.scale.x : 28) + 
                         (coin && coin.text ? coin.text.width : 0);
