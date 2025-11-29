@@ -4201,18 +4201,21 @@ function merge(src, dst, helpers){
             });
           } else if (isMainWildOnlyMerge) {
             // Wild-only merge (wild on ordinary or ordinary on wild): yellow/brown shards (50/50 random)
-            // STARS WILL BE CREATED (wild: true, wildMagnet: false)
-            console.log('🔥 Wild-only merge 6 - using yellow/brown shards WITH STARS (srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, ')');
+            // 🔥 USER REQUEST: Skip star particles - orbiting stars will be animated to HUD instead
+            console.log('🔥 Wild-only merge 6 - using yellow/brown shards (srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, ')');
             // 🔥 WILD-BEER: Pass wild-beer info to woodShardsAtTile
             const isWildBeerMerge = srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
+            // 🔥 USER REQUEST: Check if this is pure wild star (not wild-beer, not wild-magnet)
+            const isPureWildStarMerge = (srcSpecial === 'wild' || dstSpecial === 'wild') && !isWildBeerMerge;
             
-            console.log('💧 Merge 6 check - isWildBeerMerge:', isWildBeerMerge, 'srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, 'srcValue:', src?.value, 'dstValue:', dst?.value);
+            console.log('💧 Merge 6 check - isWildBeerMerge:', isWildBeerMerge, 'isPureWildStarMerge:', isPureWildStarMerge, 'srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, 'srcValue:', src?.value, 'dstValue:', dst?.value);
             
             woodShardsAtTile(board, dst, { 
               enhanced: true, 
-              wild: true,  // Explicitly set wild flag (not wild-magnet) - this will create stars
+              wild: true,  // Explicitly set wild flag (not wild-magnet) - this will allow stars check
               wildMagnet: false,  // Explicitly NOT wild-magnet - this will allow stars
               isWildBeer: isWildBeerMerge,  // 🔥 Pass wild-beer flag
+              skipStars: isPureWildStarMerge,  // 🔥 USER REQUEST: Skip star particles for pure wild star merge 6
               count: 30, 
               intensity: 1.9, 
               spread: 0.3,  // Dramatically reduced from 1.2 to keep shards very close to tile
