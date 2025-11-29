@@ -1466,7 +1466,7 @@ export function isWildBeerExplosionRunning() {
  * Returns a promise that resolves when bubbles animation finishes (or timeout)
  * Max wait time: 5 seconds (bubbles animation max duration ~4.4s)
  */
-export function waitForBubblesAnimationToComplete(maxWaitMs = 5000): Promise<void> {
+export function waitForBubblesAnimationToComplete(maxWaitMs = 5000) {
   return new Promise((resolve) => {
     if (!wildBeerExplosionActive) {
       // Animation not running, resolve immediately
