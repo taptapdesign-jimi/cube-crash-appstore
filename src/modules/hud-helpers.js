@@ -1594,6 +1594,122 @@ function updateComboIcon(comboValue) {
   }
 }
 
+// 🔥 COMBO PARTICLES: Function to create particles behind combo number
+function createComboParticles() {
+  if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.combo) return;
+  
+  const combo = HUD_ROOT._hudElements.combo;
+  const comboContainer = combo.container;
+  const comboText = combo.text;
+  
+  if (!comboContainer || !comboText || comboContainer.destroyed) return;
+  
+  // Get combo text position (relative to combo container)
+  const textX = comboText.x;
+  const textY = comboText.y;
+  
+  // Combo particle colors: F39245, FFCD7A, FFB677
+  const comboColors = [0xF39245, 0xFFCD7A, 0xFFB677];
+  
+  // Create 3-5 particles per spawn
+  const particleCount = 3 + Math.floor(Math.random() * 3);
+  
+  const pool = getGraphicsPool();
+  
+  for (let i = 0; i < particleCount; i++) {
+    const particle = pool.acquire();
+    
+    // Track graphics object
+    if (__globalGraphicsObjects) {
+      __globalGraphicsObjects.add(particle);
+    }
+    
+    // Random color from combo colors
+    const color = comboColors[Math.floor(Math.random() * comboColors.length)];
+    
+    // Small circular particles (similar to magnet idle)
+    const radius = 4 + Math.random() * 4; // 4-8px radius
+    particle.circle(0, 0, radius)
+           .fill({ color: color, alpha: 0.8 });
+    
+    // Position particles around combo text (behind it)
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 15 + Math.random() * 20; // 15-35px from text center
+    
+    // Position relative to combo container
+    particle.x = textX + Math.cos(angle) * distance;
+    particle.y = textY + Math.sin(angle) * distance;
+    particle.rotation = Math.random() * Math.PI * 2;
+    
+    // Set z-index to be behind text (lower than text)
+    particle.zIndex = -1;
+    particle.eventMode = 'none';
+    
+    // Add to combo container (behind text)
+    comboContainer.addChildAt(particle, 0);
+    
+    // Animate particle
+    const endAngle = angle + (Math.random() - 0.5) * 1.0;
+    const endDistance = distance * (1.5 + Math.random() * 0.5);
+    const endX = textX + Math.cos(endAngle) * endDistance;
+    const endY = textY + Math.sin(endAngle) * endDistance;
+    
+    gsap.to(particle, {
+      x: endX,
+      y: endY,
+      rotation: particle.rotation + (Math.random() - 0.5) * Math.PI * 2,
+      alpha: 0,
+      duration: 0.4 + Math.random() * 0.3, // 0.4-0.7s
+      ease: 'power1.out',
+      onComplete: () => {
+        try {
+          if (particle && particle.parent) {
+            particle.parent.removeChild(particle);
+          }
+          if (__globalGraphicsObjects) {
+            __globalGraphicsObjects.delete(particle);
+          }
+          pool.release(particle);
+        } catch (err) {
+          // Ignore cleanup errors
+        }
+      }
+    });
+  }
+}
+
+// 🔥 COMBO PARTICLES: Function to start/stop combo idle particles
+function updateComboParticles(comboValue) {
+  const shouldShowParticles = comboValue >= 10;
+  
+  // Stop existing particles if any
+  if (comboParticlesInterval) {
+    clearInterval(comboParticlesInterval);
+    comboParticlesInterval = null;
+  }
+  
+  if (shouldShowParticles) {
+    // Generate particles immediately
+    createComboParticles();
+    
+    // Schedule continuous particles every 200ms (same as magnet idle)
+    comboParticlesInterval = setInterval(() => {
+      if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.combo) {
+        if (comboParticlesInterval) {
+          clearInterval(comboParticlesInterval);
+          comboParticlesInterval = null;
+        }
+        return;
+      }
+      createComboParticles();
+    }, 200); // Every 200ms (5 times per second)
+    
+    console.log('💧 Combo idle particles started (combo >= 10)');
+  } else {
+    console.log('💧 Combo idle particles stopped (combo < 10)');
+  }
+}
+
 // 🔥 COMBO WOBBLE: Function to start/stop wobble animation on combo icon
 function updateComboWobble(comboValue) {
   if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.combo) return;
