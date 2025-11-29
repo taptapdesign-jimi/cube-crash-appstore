@@ -608,16 +608,16 @@ export function layout({ app, top }) {
   c.x = rightCenter;
   m.y = s.y = c.y = yLabel;
 
-  // 🔥 NEW HUD DESIGN: Position elements in order - Close → Star → Coin → Combo
-  // Layout: Elements positioned from left to right with spacing
+  // 🔥 NEW HUD DESIGN: Position elements from right to left
+  // Layout: Combo (right) → Coin (64px left) → Star (64px left)
   // - Close icon: left (existing position)
-  // - Star (currency): after close
-  // - Coin (score): after star
-  // - Combo: after coin (last)
+  // - Combo: skroz desno
+  // - Coin: 64px lijevo od Combo
+  // - Star: 64px lijevo od Coin
   
   const hudHeight = 36;
   const hudY = yValue + (valueRowH - hudHeight) / 2; // Center vertically in value row
-  const elementSpacing = 4; // Spacing between elements (as per SwiftUI HStack spacing: 4)
+  const elementSpacing = 64; // 64px spacing between elements
   
   // Position close icon (left, existing position)
   boardText.x = leftCenter;
@@ -628,37 +628,47 @@ export function layout({ app, top }) {
     closeIconSprite.visible = true;
   }
   
-  // Position new HUD elements from left to right
+  // Position new HUD elements from right to left
   if (HUD_ROOT._hudElements) {
     const { star, coin, combo } = HUD_ROOT._hudElements;
     
-    // Calculate starting X position (after close icon)
-    let currentX = leftCenter + (closeIconSprite ? 28 : 0) + elementSpacing;
+    // Start from right edge (with side padding)
+    const rightEdge = vw - SIDE;
     
-    // Star (currency) - second (after close)
-    if (star && star.container) {
-      star.container.x = currentX;
-      star.container.y = hudY + hudHeight / 2;
-      // Move to next position (icon width + text width + spacing)
-      const starWidth = (star.iconSprite ? star.iconSprite.width * star.iconSprite.scale.x : 28) + 
-                        (star.text ? star.text.width : 0) + elementSpacing;
-      currentX += starWidth;
-    }
-    
-    // Coin (score) - third (after star)
-    if (coin && coin.container) {
-      coin.container.x = currentX;
-      coin.container.y = hudY + hudHeight / 2;
-      // Move to next position
-      const coinWidth = (coin.iconSprite ? coin.iconSprite.width * coin.iconSprite.scale.x : 28) + 
-                        (coin.text ? coin.text.width : 0) + elementSpacing;
-      currentX += coinWidth;
-    }
-    
-    // Combo - fourth (last, after coin)
+    // Combo - skroz desno
     if (comboWrap && combo && combo.container) {
-      comboWrap.x = currentX;
+      // Calculate combo width (icon + text)
+      const comboWidth = (combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28) + 
+                         (combo.text ? combo.text.width : 0);
+      comboWrap.x = rightEdge - comboWidth / 2; // Center combo at right edge
       comboWrap.y = hudY + hudHeight / 2;
+    }
+    
+    // Coin - 64px lijevo od Combo
+    if (coin && coin.container) {
+      // Calculate combo width for positioning
+      const comboWidth = (combo && combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28) + 
+                         (combo && combo.text ? combo.text.width : 0);
+      const coinWidth = (coin.iconSprite ? coin.iconSprite.width * coin.iconSprite.scale.x : 28) + 
+                        (coin.text ? coin.text.width : 0);
+      // Position coin 64px left of combo center
+      coin.container.x = rightEdge - comboWidth / 2 - elementSpacing - coinWidth / 2;
+      coin.container.y = hudY + hudHeight / 2;
+    }
+    
+    // Star - 64px lijevo od Coin
+    if (star && star.container) {
+      // Calculate coin position for positioning
+      const comboWidth = (combo && combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28) + 
+                         (combo && combo.text ? combo.text.width : 0);
+      const coinWidth = (coin && coin.iconSprite ? coin.iconSprite.width * coin.iconSprite.scale.x : 28) + 
+                        (coin && coin.text ? coin.text.width : 0);
+      const starWidth = (star.iconSprite ? star.iconSprite.width * star.iconSprite.scale.x : 28) + 
+                        (star.text ? star.text.width : 0);
+      // Position star 64px left of coin center
+      const coinCenterX = rightEdge - comboWidth / 2 - elementSpacing - coinWidth / 2;
+      star.container.x = coinCenterX - coinWidth / 2 - elementSpacing - starWidth / 2;
+      star.container.y = hudY + hudHeight / 2;
     }
   } else {
     // Fallback to old positioning if new elements not created yet
