@@ -1011,17 +1011,90 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   });
   
   // 3. Combo - fourth (last)
-  const comboHud = createHudElement('./assets/combo-hud.png', 'x0', {
-    fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
-    fontSize: 14, // Changed from 18 to 14
-    fill: 0xE77449, // Color #E77449 (orange/red)
-    fontWeight: 'bold',
-    fontStyle: 'normal'
+  // Create combo with separate "x" (14px) and number (18px) text objects
+  const comboContainer = new Container();
+  comboContainer.eventMode = 'none';
+  
+  // Load combo icon sprite
+  let comboIconSprite = null;
+  try {
+    const comboIconTexture = Assets.get('./assets/combo-hud.png');
+    if (comboIconTexture) {
+      comboIconSprite = new Sprite(comboIconTexture);
+      comboIconSprite.anchor.set(0.5, 0.5);
+      const targetSize = 28;
+      if (comboIconSprite.width > 0 && comboIconSprite.height > 0) {
+        const scale = targetSize / Math.max(comboIconSprite.width, comboIconSprite.height);
+        comboIconSprite.scale.set(scale);
+      }
+      comboContainer.addChild(comboIconSprite);
+    }
+  } catch (e) {
+    console.warn('⚠️ Failed to load combo icon, will try async:', e);
+    Assets.load('./assets/combo-hud.png').then((tex) => {
+      if (tex && comboContainer && !comboContainer.destroyed) {
+        comboIconSprite = new Sprite(tex);
+        comboIconSprite.anchor.set(0.5, 0.5);
+        const targetSize = 28;
+        if (comboIconSprite.width > 0 && comboIconSprite.height > 0) {
+          const scale = targetSize / Math.max(comboIconSprite.width, comboIconSprite.height);
+          comboIconSprite.scale.set(scale);
+        }
+        comboContainer.addChildAt(comboIconSprite, 0);
+      }
+    }).catch((err) => {
+      console.error('❌ Failed to load combo icon:', err);
+    });
+  }
+  
+  // Create "x" text (14px)
+  const comboXText = new Text({ 
+    text: 'x', 
+    style: {
+      fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
+      fontSize: 14,
+      fill: 0xE77449, // Color #E77449
+      fontWeight: 'bold',
+      fontStyle: 'normal'
+    }
   });
+  comboXText.anchor.set(0, 0.5);
+  if (comboIconSprite) {
+    comboXText.x = (comboIconSprite.width * comboIconSprite.scale.x) / 2 + 4;
+  } else {
+    comboXText.x = 14 + 4;
+  }
+  comboXText.y = 0;
+  comboContainer.addChild(comboXText);
+  
+  // Create number text (18px)
+  const comboNumberText = new Text({ 
+    text: '0', 
+    style: {
+      fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
+      fontSize: 18, // All numbers are 18px
+      fill: 0xE77449, // Color #E77449
+      fontWeight: 'bold',
+      fontStyle: 'normal'
+    }
+  });
+  comboNumberText.anchor.set(0, 0.5);
+  // Position number text right after "x" text
+  comboNumberText.x = comboXText.x + comboXText.width;
+  comboNumberText.y = 0;
+  comboContainer.addChild(comboNumberText);
+  
+  const comboHud = {
+    container: comboContainer,
+    text: comboNumberText, // Store number text as main text reference
+    xText: comboXText, // Store "x" text separately
+    iconSprite: comboIconSprite
+  };
   
   // Store references
   scoreText = coinHud.text; // Use coin text for score
-  comboText = comboHud.text; // Use combo text
+  comboText = comboHud.text; // Use combo number text (18px)
+  comboXText = comboHud.xText; // Store "x" text reference (14px)
   starText = starHud.text; // Currency/energy text
   
   // Export combo text for animations
@@ -1289,8 +1362,10 @@ export function updateHUD({ score, board, moves, combo }) {
   }
   if (typeof combo === 'number') {
     const v = combo|0;
-    // 🔥 NEW HUD: Update combo text with "x" prefix (e.g., "x2", "x5")
-    comboText.text = 'x' + String(v);
+    // 🔥 NEW HUD: Update combo number text (18px) - "x" stays constant (14px)
+    if (comboText) {
+      comboText.text = String(v);
+    }
     if (v > 0) { startComboFX(); } else { stopComboFX(); }
     __lastComboVal = v;
   }
@@ -1360,15 +1435,23 @@ export function setBoard(v){
 export function setCombo(v){
   const val = v|0;
   if (!comboText) return;
-  // 🔥 NEW HUD: Update combo text with "x" prefix (e.g., "x2", "x5")
-  comboText.text = 'x' + String(val);
+  // 🔥 NEW HUD: Update combo number text (18px) - "x" stays constant (14px)
+  comboText.text = String(val);
+  // Update "x" text position if number width changed
+  if (comboXText && comboText.parent) {
+    comboNumberText.x = comboXText.x + comboXText.width;
+  }
   if (val > 0) startComboFX(); else stopComboFX();
   __lastComboVal = val;
 }
 export function resetCombo(){
   if (!comboText) return;
-  // 🔥 NEW HUD: Update combo text with "x" prefix
-  comboText.text = 'x0';
+  // 🔥 NEW HUD: Update combo number text (18px) - "x" stays constant (14px)
+  comboText.text = '0';
+  // Update number text position relative to "x" text if it exists
+  if (comboXText && comboText.parent) {
+    comboText.x = comboXText.x + comboXText.width;
+  }
   stopComboFX();
 }
 export function bumpCombo(opts = {}){
