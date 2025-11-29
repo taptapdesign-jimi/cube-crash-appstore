@@ -659,7 +659,7 @@ export function layout({ app, top }) {
   boardText.y = yValue;
   if (closeIconSprite) {
     closeIconSprite.x = leftCenter;
-    closeIconSprite.y = yValue + 2; // Moved down 2px from other HUD elements
+    closeIconSprite.y = yValue; // Aligned with other HUD elements (moved up 2px from previous position)
     closeIconSprite.visible = true;
   }
   
