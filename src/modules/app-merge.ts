@@ -805,23 +805,63 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // Update combo using window.CC.setCombo
   if (typeof (window as any).CC?.setCombo === 'function') {
     (window as any).CC.setCombo(newCombo);
+    console.log('🔥 MAGNET COMBO: Called window.CC.setCombo with newCombo=', newCombo);
+    
+    // 🔥 CRITICAL: Double-check combo was actually set (read it back)
+    const verifyCombo = typeof (window as any).CC?.getCombo === 'function'
+      ? (window as any).CC.getCombo()
+      : null;
+    console.log('🔥 MAGNET COMBO: Verified combo after setCombo=', verifyCombo, '(should be', newCombo, ')');
+    
+    if (verifyCombo !== newCombo) {
+      console.error('❌ MAGNET COMBO: Combo mismatch! Set to', newCombo, 'but read back as', verifyCombo);
+      // Force set again
+      (window as any).CC.setCombo(newCombo);
+      console.log('🔥 MAGNET COMBO: Force-set combo again to', newCombo);
+    }
+  } else {
+    console.error('❌ MAGNET COMBO: window.CC.setCombo is not a function!');
   }
   
   // Schedule combo decay (same as normal merge) - reset combo timer but don't reset combo value
   // This starts a NEW timer for the updated combo value
   if (typeof (window as any).CC?.scheduleComboDecay === 'function') {
     (window as any).CC.scheduleComboDecay();
+    console.log('🔥 MAGNET COMBO: Scheduled combo decay for combo=', newCombo);
+  } else {
+    console.error('❌ MAGNET COMBO: window.CC.scheduleComboDecay is not a function!');
   }
   
   // Also trigger combo bump animation if available
   try {
     if (typeof HUD.bumpCombo === 'function') {
       HUD.bumpCombo({ kind: 'magnet-pull', combo: newCombo });
+      console.log('🔥 MAGNET COMBO: Called HUD.bumpCombo with combo=', newCombo);
     }
-  } catch {}
+  } catch (e) {
+    console.warn('⚠️ MAGNET COMBO: Failed to call HUD.bumpCombo:', e);
+  }
   
-  // Update HUD
+  // Update HUD - ensure combo value is passed correctly
+  console.log('🔥 MAGNET COMBO: About to call updateHUD() with combo=', newCombo);
   updateHUD();
+  
+  // 🔥 CRITICAL: Double-check combo after updateHUD
+  const comboAfterHUD = typeof (window as any).CC?.getCombo === 'function'
+    ? (window as any).CC.getCombo()
+    : null;
+  console.log('🔥 MAGNET COMBO: Combo after updateHUD()=', comboAfterHUD, '(should still be', newCombo, ')');
+  
+  if (comboAfterHUD !== newCombo) {
+    console.error('❌ MAGNET COMBO: Combo was reset after updateHUD()! Was', newCombo, 'now is', comboAfterHUD);
+    // Force restore combo
+    if (typeof (window as any).CC?.setCombo === 'function') {
+      (window as any).CC.setCombo(newCombo);
+      console.log('🔥 MAGNET COMBO: Force-restored combo to', newCombo);
+      updateHUD(); // Update HUD again with correct combo
+    }
+  }
+  
   animateScore(newScore, 0.45);
   
   // Stats
