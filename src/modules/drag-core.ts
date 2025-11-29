@@ -275,6 +275,23 @@ export function initDrag(cfg) {
 
     gsap.to(t.scale, { x: 1.12, y: 1.12, duration: 0.08 });
 
+    // 🔥 FPS DROP FIX: Stop wild beer idle bubbles when dragging starts (prevents conflict with drag particles)
+    if (t.special === 'wild-beer') {
+      try {
+        // Import stopWildBeerBubbles dynamically to avoid circular dependency
+        import('./fx.js').then(fxModule => {
+          if (fxModule && typeof fxModule.stopWildBeerBubbles === 'function') {
+            fxModule.stopWildBeerBubbles(t);
+            console.log('🧹 Stopped wild beer idle bubbles on drag start');
+          }
+        }).catch(err => {
+          console.warn('⚠️ Failed to stop wild beer bubbles on drag start:', err);
+        });
+      } catch (err) {
+        console.warn('⚠️ Error stopping wild beer bubbles on drag start:', err);
+      }
+    }
+
     // Start sparkles immediately when wild cube is picked up
     if (t.special === 'wild' || t.special === 'wild-beer') {
       try {
@@ -286,15 +303,20 @@ export function initDrag(cfg) {
         magicSparklesAtTile(board, t, { intensity: 1.0, zIndex: particlesZ });
         drag._lastSparkleTime = drag.lastTime;
         
-        // 🔥 USER REQUEST: Wild beer uses same interval and intensity as wild star for consistent smoke trail
+        // 🔥 FPS DROP FIX: Optimize drag particles interval based on drag speed (prevent comet trails)
+        // Use velocity-based throttling to reduce particles when dragging fast
         drag._sparkleInterval = setInterval(() => {
           if (drag.t && (drag.t.special === 'wild' || drag.t.special === 'wild-beer') && !drag.t.destroyed) {
             try {
+              // 🔥 FPS DROP FIX: Calculate drag speed and reduce particles if dragging fast
+              const dragSpeed = Math.hypot(drag.vx || 0, drag.vy || 0);
+              const speedFactor = dragSpeed > 5 ? 0.6 : 1.0; // Reduce intensity by 40% if dragging fast (>5px/frame)
+              
               // 🔥 CRITICAL: Set z-index to be BELOW dragged tile
               const tileZ = drag.t?.zIndex ?? 0;
               const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
-              // 🔥 USER REQUEST: Wild beer uses same intensity as wild star (1.0) for consistent smoke trail
-              magicSparklesAtTile(board, drag.t, { intensity: 1.0, zIndex: particlesZ });
+              // 🔥 FPS DROP FIX: Reduce intensity when dragging fast to prevent comet trails
+              magicSparklesAtTile(board, drag.t, { intensity: 1.0 * speedFactor, zIndex: particlesZ });
             } catch (err) {
               console.warn('Wild interval sparkles error:', err);
             }
