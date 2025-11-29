@@ -1047,8 +1047,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     });
   }
   
-  // Create "x" text (14px)
-  const comboXText = new Text({ 
+  // Create "x" text (14px) - use local variable name to avoid conflict
+  const comboXTextLocal = new Text({ 
     text: 'x', 
     style: {
       fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
@@ -1058,14 +1058,14 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       fontStyle: 'normal'
     }
   });
-  comboXText.anchor.set(0, 0.5);
+  comboXTextLocal.anchor.set(0, 0.5);
   if (comboIconSprite) {
-    comboXText.x = (comboIconSprite.width * comboIconSprite.scale.x) / 2 + 4;
+    comboXTextLocal.x = (comboIconSprite.width * comboIconSprite.scale.x) / 2 + 4;
   } else {
-    comboXText.x = 14 + 4;
+    comboXTextLocal.x = 14 + 4;
   }
-  comboXText.y = 0;
-  comboContainer.addChild(comboXText);
+  comboXTextLocal.y = 0;
+  comboContainer.addChild(comboXTextLocal);
   
   // Create number text (18px)
   const comboNumberText = new Text({ 
@@ -1080,7 +1080,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   });
   comboNumberText.anchor.set(0, 0.5);
   // Position number text right after "x" text
-  comboNumberText.x = comboXText.x + comboXText.width;
+  comboNumberText.x = comboXTextLocal.x + comboXTextLocal.width;
   comboNumberText.y = 0;
   comboContainer.addChild(comboNumberText);
   
