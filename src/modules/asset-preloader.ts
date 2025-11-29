@@ -111,6 +111,7 @@ const ALL_ASSETS: string[] = [
   './assets/star-hud.png',
   './assets/coin-hud.png',
   './assets/combo-hud.png',
+  './assets/extra-combo-hud.png',
   './assets/combo-stats.png',
   './assets/cubes-cracked.png',
   './assets/highscore-icon.png',

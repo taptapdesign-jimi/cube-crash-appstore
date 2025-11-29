@@ -22,6 +22,7 @@ let wild;
 let hudCloseButton = null;
 let boardIndicator = null;
 let boardIndicatorLabel = null;
+let comboWobbleTween = null; // GSAP tween for combo icon wobble animation
 const BOARD_INDICATOR_ANIM_OFFSET = 72;
 const BOARD_INDICATOR_BOTTOM = 24;
 
@@ -1094,7 +1095,9 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     container: comboContainer,
     text: comboNumberText, // Store number text as main text reference (18px)
     xText: comboXTextLocal, // Store "x" text separately (14px)
-    iconSprite: comboIconSprite
+    iconSprite: comboIconSprite,
+    originalIconPath: './assets/combo-hud.png', // Store original icon path
+    extraIconPath: './assets/extra-combo-hud.png' // Store extra icon path
   };
   
   // Store references
@@ -1489,6 +1492,87 @@ export function setBoard(v){
   if (boardText) boardText.text = `#${val}`;
   updateBoardIndicatorValue(val);
 }
+// 🔥 COMBO ICON SWAP: Function to swap combo icon based on combo value
+function updateComboIcon(comboValue) {
+  if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.combo) return;
+  
+  const combo = HUD_ROOT._hudElements.combo;
+  const iconSprite = combo.iconSprite;
+  
+  if (!iconSprite || iconSprite.destroyed) return;
+  
+  const needsExtraIcon = comboValue >= 10;
+  const currentIsExtra = iconSprite.texture && iconSprite.texture.textureCacheIds && 
+                          iconSprite.texture.textureCacheIds.some((id: string) => id.includes('extra-combo-hud'));
+  
+  // Only swap if needed
+  if (needsExtraIcon && !currentIsExtra) {
+    // Switch to extra-combo-hud.png
+    try {
+      const extraTexture = Assets.get('./assets/extra-combo-hud.png');
+      if (extraTexture) {
+        iconSprite.texture = extraTexture;
+        console.log('💧 Combo icon swapped to extra-combo-hud.png (combo >= 10)');
+      } else {
+        // Try async load
+        Assets.load('./assets/extra-combo-hud.png').then((tex) => {
+          if (tex && iconSprite && !iconSprite.destroyed) {
+            iconSprite.texture = tex;
+            console.log('💧 Combo icon swapped to extra-combo-hud.png (async load)');
+          }
+        }).catch((err) => {
+          console.warn('⚠️ Failed to load extra-combo-hud.png:', err);
+        });
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to get extra-combo-hud.png texture:', e);
+    }
+  } else if (!needsExtraIcon && currentIsExtra) {
+    // Switch back to combo-hud.png
+    try {
+      const normalTexture = Assets.get('./assets/combo-hud.png');
+      if (normalTexture) {
+        iconSprite.texture = normalTexture;
+        console.log('💧 Combo icon swapped back to combo-hud.png (combo < 10)');
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to get combo-hud.png texture:', e);
+    }
+  }
+}
+
+// 🔥 COMBO WOBBLE: Function to start/stop wobble animation on combo icon
+function updateComboWobble(comboValue) {
+  if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.combo) return;
+  
+  const combo = HUD_ROOT._hudElements.combo;
+  const iconSprite = combo.iconSprite;
+  
+  if (!iconSprite || iconSprite.destroyed) return;
+  
+  const shouldWobble = comboValue >= 10;
+  
+  // Kill existing wobble animation
+  if (comboWobbleTween) {
+    comboWobbleTween.kill();
+    comboWobbleTween = null;
+    // Reset rotation
+    iconSprite.rotation = 0;
+  }
+  
+  if (shouldWobble) {
+    // Start continuous wobble animation
+    comboWobbleTween = gsap.to(iconSprite, {
+      rotation: 0.15, // ~8.6 degrees
+      duration: 0.3,
+      ease: 'power2.inOut',
+      yoyo: true,
+      repeat: -1 // Infinite repeat
+    });
+    console.log('💧 Combo icon wobble animation started (combo >= 10)');
+  }
+}
+
 export function setCombo(v){
   const val = v|0;
   if (!comboText) return;
@@ -1498,6 +1582,12 @@ export function setCombo(v){
   if (comboXText && comboText.parent) {
     comboText.x = comboXText.x + comboXText.width;
   }
+  
+  // 🔥 COMBO ICON SWAP: Swap icon to extra-combo-hud.png when combo >= 10
+  updateComboIcon(val);
+  
+  // 🔥 COMBO WOBBLE: Start wobble animation when combo >= 10
+  updateComboWobble(val);
   
   // 🔥 CONTAIN COMBO: Adjust combo position and scale to keep it within viewport
   if (HUD_ROOT && HUD_ROOT._hudElements && HUD_ROOT._hudElements.combo && comboWrap) {
@@ -1559,6 +1649,13 @@ export function resetCombo(){
   if (comboXText && comboText.parent) {
     comboText.x = comboXText.x + comboXText.width;
   }
+  
+  // 🔥 COMBO ICON SWAP: Reset to normal icon when combo resets
+  updateComboIcon(0);
+  
+  // 🔥 COMBO WOBBLE: Stop wobble animation when combo resets
+  updateComboWobble(0);
+  
   stopComboFX();
 }
 export function bumpCombo(opts = {}){
