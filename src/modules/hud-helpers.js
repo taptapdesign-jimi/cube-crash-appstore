@@ -1371,7 +1371,43 @@ export function updateHUD({ score, board, moves, combo }) {
     // 🔥 NEW HUD: Update combo number text (18px) - "x" stays constant (14px)
     if (comboText) {
       comboText.text = String(v);
+      // Update number text position relative to "x" text if it exists
+      if (comboXText && comboText.parent) {
+        comboText.x = comboXText.x + comboXText.width;
+      }
     }
+    
+    // 🔥 CONTAIN COMBO: Scale down combo element if it's too wide to fit on screen
+    if (HUD_ROOT && HUD_ROOT._hudElements && HUD_ROOT._hudElements.combo) {
+      const comboEl = HUD_ROOT._hudElements.combo;
+      const comboContainer = comboEl.container;
+      
+      if (comboContainer && comboContainer.parent) {
+        // Get screen width from app renderer or window
+        const app = comboContainer.parent.parent?.app || (typeof window !== 'undefined' && window.STATE?.app);
+        const screenWidth = app?.renderer?.width || (typeof window !== 'undefined' ? window.innerWidth : 800);
+        
+        // Calculate total combo width (icon + spacing + "x" + number)
+        const iconWidth = comboEl.iconSprite ? comboEl.iconSprite.width * comboEl.iconSprite.scale.x : 28;
+        const xTextWidth = comboEl.xText ? comboEl.xText.width : 0;
+        const numberTextWidth = comboEl.text ? comboEl.text.width : 0;
+        const spacing = 4;
+        const totalWidth = iconWidth + spacing + xTextWidth + numberTextWidth;
+        
+        // Maximum allowed width: screen width - right padding (24px) - left padding (24px) - some margin (40px)
+        const maxAllowedWidth = screenWidth - 24 - 24 - 40;
+        
+        // If combo is too wide, scale it down
+        if (totalWidth > maxAllowedWidth && maxAllowedWidth > 0) {
+          const scale = maxAllowedWidth / totalWidth;
+          comboContainer.scale.set(Math.min(1, scale)); // Don't scale up, only down
+        } else {
+          // Reset to normal scale if it fits
+          comboContainer.scale.set(1);
+        }
+      }
+    }
+    
     if (v > 0) { startComboFX(); } else { stopComboFX(); }
     __lastComboVal = v;
   }
@@ -1447,6 +1483,39 @@ export function setCombo(v){
   if (comboXText && comboText.parent) {
     comboText.x = comboXText.x + comboXText.width;
   }
+  
+  // 🔥 CONTAIN COMBO: Scale down combo element if it's too wide to fit on screen
+  if (HUD_ROOT && HUD_ROOT._hudElements && HUD_ROOT._hudElements.combo) {
+    const combo = HUD_ROOT._hudElements.combo;
+    const comboContainer = combo.container;
+    
+    if (comboContainer && comboContainer.parent) {
+      // Get screen width from app renderer or window
+      const app = comboContainer.parent.parent?.app || (typeof window !== 'undefined' && window.STATE?.app);
+      const screenWidth = app?.renderer?.width || (typeof window !== 'undefined' ? window.innerWidth : 800);
+      
+      // Calculate total combo width (icon + spacing + "x" + number)
+      const iconWidth = combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28;
+      const xTextWidth = combo.xText ? combo.xText.width : 0;
+      const numberTextWidth = combo.text ? combo.text.width : 0;
+      const spacing = 4;
+      const totalWidth = iconWidth + spacing + xTextWidth + numberTextWidth;
+      
+      // Maximum allowed width: screen width - right padding (24px) - left padding (24px) - some margin (40px)
+      const maxAllowedWidth = screenWidth - 24 - 24 - 40;
+      
+      // If combo is too wide, scale it down
+      if (totalWidth > maxAllowedWidth && maxAllowedWidth > 0) {
+        const scale = maxAllowedWidth / totalWidth;
+        comboContainer.scale.set(Math.min(1, scale)); // Don't scale up, only down
+        console.log(`💧 Combo scaled to ${(scale * 100).toFixed(1)}% to fit on screen (width: ${totalWidth.toFixed(1)}px, max: ${maxAllowedWidth.toFixed(1)}px)`);
+      } else {
+        // Reset to normal scale if it fits
+        comboContainer.scale.set(1);
+      }
+    }
+  }
+  
   if (val > 0) startComboFX(); else stopComboFX();
   __lastComboVal = val;
 }
