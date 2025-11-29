@@ -618,7 +618,8 @@ export function layout({ app, top }) {
   
   const hudHeight = 36;
   const hudY = yValue + (valueRowH - hudHeight) / 2; // Center vertically in value row
-  const elementSpacing = 64; // 64px spacing between elements
+  const comboToCoinSpacing = 80; // 80px spacing from combo icon to coin element
+  const coinToStarSpacing = 64; // 64px spacing from coin icon to star element
   const comboRightPadding = 24; // 24px from right edge for combo
   
   // Position close icon (left, existing position) - aligned with other HUD elements
@@ -650,7 +651,7 @@ export function layout({ app, top }) {
       comboWrap.y = yValue;
     }
     
-    // Coin - 64px left of Combo ICON (not center) - fixed position
+    // Coin - 80px left of Combo ICON (not center) - fixed position
     if (coin && coin.container) {
       // Calculate combo center position
       const estimatedComboWidth = 62;
@@ -661,9 +662,9 @@ export function layout({ app, top }) {
       // Icon center is at comboCenterX - estimatedComboWidth/2 + 14 (half of 28px)
       const comboIconLeftEdge = comboCenterX - estimatedComboWidth / 2;
       
-      // Coin center is 64px left of combo icon left edge
+      // Coin center is 80px left of combo icon left edge
       // Since coin container anchor is at center, we need to position it correctly
-      coin.container.x = comboIconLeftEdge - elementSpacing;
+      coin.container.x = comboIconLeftEdge - comboToCoinSpacing;
       coin.container.y = yValue;
     }
     
@@ -673,13 +674,13 @@ export function layout({ app, top }) {
       const estimatedComboWidth = 62;
       const comboCenterX = rightEdge - comboRightPadding - estimatedComboWidth / 2;
       const comboIconLeftEdge = comboCenterX - estimatedComboWidth / 2;
-      const coinCenterX = comboIconLeftEdge - elementSpacing;
+      const coinCenterX = comboIconLeftEdge - comboToCoinSpacing;
       
       // Coin icon left edge (coin icon is 28px, so left edge is coinCenterX - 14)
       const coinIconLeftEdge = coinCenterX - 14; // Half of 28px icon
       
       // Star center is 64px left of coin icon left edge
-      star.container.x = coinIconLeftEdge - elementSpacing;
+      star.container.x = coinIconLeftEdge - coinToStarSpacing;
       star.container.y = yValue;
     }
   } else {
