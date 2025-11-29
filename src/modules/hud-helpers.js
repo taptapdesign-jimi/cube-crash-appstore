@@ -1772,8 +1772,11 @@ export function setCombo(v){
   // 🔥 COMBO WOBBLE: Start wobble animation when combo >= 10
   updateComboWobble(val);
   
-  // 🔥 COMBO PARTICLES: Start idle particles when combo >= 10
-  updateComboParticles(val);
+  // 🔥 COMBO PARTICLES: Start idle particles (always active, but only start once)
+  // Start particles only if not already started (check if interval exists)
+  if (!comboParticlesInterval) {
+    updateComboParticles(val);
+  }
   
   // 🔥 CONTAIN COMBO: Adjust combo position and scale to keep it within viewport
   if (HUD_ROOT && HUD_ROOT._hudElements && HUD_ROOT._hudElements.combo && comboWrap) {
