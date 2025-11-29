@@ -558,17 +558,28 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     // Size multiplier support (200x for magnet particles)
     const sizeMultiplier = opts.sizeMultiplier ?? 1;
     
-    // Much larger rectangular shards - highly visible, scaled by multiplier
-    const baseWidth = 12 + Math.random() * 12; // 12-24px base
-    const baseHeight = 16 + Math.random() * 16; // 16-32px base
-    const width = baseWidth * sizeMultiplier; // Scale by multiplier (200x for magnet)
-    const height = baseHeight * sizeMultiplier; // Scale by multiplier (200x for magnet)
+    // 🔥 USER REQUEST: Wild beer uses circles instead of rectangles for smoke trail
+    const isWildBeer = tile?.special === 'wild-beer';
     
-    // Use intensity directly as opacity (65% = 0.65)
-    const alpha = intensity; // Direct opacity value (0.65 for 65%)
-    
-    shard.rect(-width/2, -height/2, width, height)
-         .fill({ color: color, alpha: alpha }); // Scale opacity by intensity
+    if (isWildBeer) {
+      // Wild beer: use circles (bubbles-like particles)
+      const baseRadius = 8 + Math.random() * 8; // 8-16px base radius
+      const radius = baseRadius * sizeMultiplier; // Scale by multiplier
+      const alpha = intensity; // Direct opacity value
+      
+      shard.circle(0, 0, radius)
+           .fill({ color: color, alpha: alpha });
+    } else {
+      // Other tiles: use rectangular shards (original behavior)
+      const baseWidth = 12 + Math.random() * 12; // 12-24px base
+      const baseHeight = 16 + Math.random() * 16; // 16-32px base
+      const width = baseWidth * sizeMultiplier; // Scale by multiplier (200x for magnet)
+      const height = baseHeight * sizeMultiplier; // Scale by multiplier (200x for magnet)
+      const alpha = intensity; // Direct opacity value
+      
+      shard.rect(-width/2, -height/2, width, height)
+           .fill({ color: color, alpha: alpha }); // Scale opacity by intensity
+    }
     
     // 🔥 CRITICAL: Set eventMode to 'none' to prevent particles from blocking touch events
     // This is especially important for wild-magnet idle particles that spawn continuously
