@@ -7,7 +7,6 @@ import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
 import uiManager from './ui-manager.js';
 import { smokeBubblesAtTile } from './fx.js';
 
-// 🔥 COMBO PARTICLES: Import graphics pool for particle creation
 let graphicsPool = null;
 let __globalGraphicsObjects = null;
 
@@ -1166,8 +1165,6 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     coin: coinHud,
     combo: comboHud
   };
-  
-  // 🔥 COMBO PARTICLES: Will be started automatically when setCombo is called (not here to avoid blocking HUD init)
   
   // Add close icon sprite if it was created synchronously
   if (closeIconSprite && closeIconSprite.parent !== HUD_ROOT) {
