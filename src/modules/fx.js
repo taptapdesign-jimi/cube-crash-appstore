@@ -1462,6 +1462,41 @@ export function isWildBeerExplosionRunning() {
 }
 
 /**
+ * 🔥 USER REQUEST: Wait for bubbles animation to complete
+ * Returns a promise that resolves when bubbles animation finishes (or timeout)
+ * Max wait time: 5 seconds (bubbles animation max duration ~4.4s)
+ */
+export function waitForBubblesAnimationToComplete(maxWaitMs = 5000): Promise<void> {
+  return new Promise((resolve) => {
+    if (!wildBeerExplosionActive) {
+      // Animation not running, resolve immediately
+      resolve();
+      return;
+    }
+
+    console.log('⏳ Waiting for bubbles animation to complete (max', maxWaitMs, 'ms)...');
+    const startTime = performance.now();
+    const checkInterval = 100; // Check every 100ms
+    
+    const checkTimer = setInterval(() => {
+      const elapsed = performance.now() - startTime;
+      
+      if (!wildBeerExplosionActive) {
+        // Animation finished
+        clearInterval(checkTimer);
+        console.log('✅ Bubbles animation completed after', Math.round(elapsed), 'ms');
+        resolve();
+      } else if (elapsed >= maxWaitMs) {
+        // Timeout - animation still running but we've waited long enough
+        clearInterval(checkTimer);
+        console.warn('⚠️ Bubbles animation timeout after', maxWaitMs, 'ms - proceeding anyway');
+        resolve();
+      }
+    }, checkInterval);
+  });
+}
+
+/**
  * 🔥 COMPREHENSIVE CLEANUP: Call this on game state changes (level end, board reset, etc.)
  * Ensures all animations and effects are properly cleaned up to prevent memory leaks
  */
@@ -1663,7 +1698,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
   // Create container
   const container = new Container();
   container.name = 'wild-beer-explosion-bubbles';
-  container.zIndex = 20000; // 🔥 VERY HIGH z-index to ensure visibility above everything
+  container.zIndex = 999999; // 🔥 USER REQUEST: VERY HIGH z-index to render OVER clean board modal (was 20000)
   container.eventMode = 'none';
   container.visible = true; // 🔥 CRITICAL: Ensure container is visible
   container.alpha = 1.0; // 🔥 CRITICAL: Ensure container is fully opaque

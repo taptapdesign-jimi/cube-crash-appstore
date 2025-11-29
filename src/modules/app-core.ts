@@ -14,7 +14,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning, cleanupWildBeerExplosion } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning, cleanupWildBeerExplosion, waitForBubblesAnimationToComplete } from './fx.js';
 import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
 import FX from './fx-helpers.js';
@@ -187,7 +187,29 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   }
 
   try {
-    try { await new Promise((res) => setTimeout(res, 1000)); } catch {}
+    // 🔥 USER REQUEST: Wait for bubbles animation to complete before showing clean board
+    // Bubbles animation can render over clean board screen (z-index 20000)
+    // Max duration: ~4.4s (2s spawn + 2.4s cleanup delay)
+    if (isWildBeerExplosionRunning()) {
+      console.log('💧 Bubbles animation is running - waiting for it to complete before clean board...');
+      await waitForBubblesAnimationToComplete(5000); // Max 5 seconds wait
+      console.log('✅ Bubbles animation completed - proceeding with clean board flow');
+      
+      // 🔥 CRITICAL: Cleanup bubbles animation after it completes
+      // This ensures all resources are freed before clean board appears
+      try {
+        if (isWildBeerExplosionRunning() && cleanupWildBeerExplosion) {
+          cleanupWildBeerExplosion();
+          console.log('🧹 Cleaned up bubbles animation after completion');
+        }
+      } catch (e) {
+        console.warn('⚠️ Failed to cleanup bubbles animation:', e);
+      }
+    } else {
+      // No bubbles animation - use original 1 second delay
+      try { await new Promise((res) => setTimeout(res, 1000)); } catch {}
+    }
+    
     await runEndgameFlow({
       app,
       stage,
