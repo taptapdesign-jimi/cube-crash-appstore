@@ -2415,23 +2415,22 @@ function merge(src, dst, helpers){
     }
     
     // 🔥 CRITICAL: Check if this is wild-magnet merge that will pull tiles
-    // If so, skip combo increment here - magnet pull will handle it with proper count
+    // If so, skip combo increment AND timer here - magnet pull will handle both with proper count
     const isWildMagnetMerge = src.special === 'wild-magnet' || dst.special === 'wild-magnet';
     const willPullTiles = isWildMagnetMerge && effSum === 6; // Only merge 6 triggers pull
     
     // Combo++ (bez realnog capa), bump anim
-    // 🔥 MAGNET FIX: Skip combo increment if wild-magnet merge will pull tiles
-    // Magnet pull will increase combo by correct amount (currentCombo + pulledTileCount)
+    // 🔥 MAGNET FIX: Skip combo increment AND timer if wild-magnet merge will pull tiles
+    // Magnet pull will increase combo by correct amount (currentCombo + 1 + pulledTileCount) and set new timer
     if (!willPullTiles) {
       hudSetCombo(combo + 1);
       try { HUD.bumpCombo?.({ kind: 'stack', combo }); } catch {}
       scheduleComboDecay();
     } else {
-      // Wild-magnet merge that will pull tiles - don't increment combo here
-      // Combo will be handled in mergePulledTilesIntoMerge6 with proper increment
-      console.log('🧲 MAGNET COMBO: Skipping combo increment in main merge flow - magnet pull will handle it');
-      // Still schedule decay, but magnet pull will kill it and restart with new combo
-      scheduleComboDecay(); // This will be killed in magnet pull
+      // Wild-magnet merge that will pull tiles - don't increment combo or start timer here
+      // Combo will be handled in mergePulledTilesIntoMerge6 with proper increment (currentCombo + 1 + pulledTileCount)
+      console.log('🧲 MAGNET COMBO: Skipping combo increment and timer in main merge flow - magnet pull will handle it');
+      // DO NOT schedule decay here - magnet pull will set up its own timer after updating combo
     }
 
     // Stats: track longest combo
