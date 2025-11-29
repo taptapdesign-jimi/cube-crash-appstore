@@ -7,7 +7,7 @@
 
 import { Graphics, Container, Sprite, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
-import { magicSparklesAtTile, dragSmokeTrail, isWildBeerExplosionRunning } from './fx.js';
+import { magicSparklesAtTile, dragSmokeTrail, isWildBeerExplosionRunning, cleanupWildBeerExplosion } from './fx.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 
 
