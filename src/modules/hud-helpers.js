@@ -1437,9 +1437,9 @@ export function setCombo(v){
   if (!comboText) return;
   // 🔥 NEW HUD: Update combo number text (18px) - "x" stays constant (14px)
   comboText.text = String(val);
-  // Update "x" text position if number width changed
+  // Update number text position relative to "x" text if it exists
   if (comboXText && comboText.parent) {
-    comboNumberText.x = comboXText.x + comboXText.width;
+    comboText.x = comboXText.x + comboXText.width;
   }
   if (val > 0) startComboFX(); else stopComboFX();
   __lastComboVal = val;
