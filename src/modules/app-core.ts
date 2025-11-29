@@ -67,6 +67,16 @@ function clearAllAppTimeouts() {
 // - Regular merge animations: ~600-800ms
 // This prevents premature endgame checks while animations are still running
 const CHECK_LEVEL_END_DELAY_MS = 500; // 🔥 REDUCED: From 1200ms to 500ms for faster fail screen detection
+function killComboTimer(){
+  try { 
+    comboIdleTimer?.kill?.(); 
+    comboIdleTimer = null;
+    console.log('🔥 Combo timer killed');
+  } catch (e) {
+    console.warn('⚠️ Failed to kill combo timer:', e);
+  }
+}
+
 function scheduleComboDecay(){
   try { comboIdleTimer?.kill?.(); } catch {}
   comboIdleTimer = gsap.delayedCall(COMBO_IDLE_RESET_MS/1000, () => {
@@ -857,6 +867,7 @@ export async function boot(){
     getCombo: () => combo, // 🔥 CRITICAL: Export getCombo for magnet pull combo logic
     setCombo: (v) => hudSetCombo(v|0), // 🔥 CRITICAL: Export setCombo for magnet pull combo logic
     scheduleComboDecay: () => scheduleComboDecay(), // 🔥 CRITICAL: Export scheduleComboDecay for magnet pull combo logic
+    killComboTimer: () => killComboTimer(), // 🔥 CRITICAL: Export killComboTimer to kill existing timer before updating combo
   };
   
   // 🔥 MEMORY LEAK FIX: Export cleanup functions for global cleanup

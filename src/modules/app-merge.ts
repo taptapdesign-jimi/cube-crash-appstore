@@ -780,6 +780,19 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 CRITICAL: Update combo - increase by number of pulled tiles (don't reset!)
   // Combo should continue and increase for each pulled tile that creates fake merge
   // Example: If combo is 5 and magnet pulls 4 tiles, combo becomes 5 + 4 = 9
+  // 🔥 CRITICAL FIX: Kill existing combo timer FIRST before updating combo!
+  // The main merge flow already started a timer that would reset combo to 0
+  // We need to kill that timer so it doesn't reset our new combo value
+  try {
+    // Kill existing combo timer to prevent it from resetting combo
+    if (typeof (window as any).CC?.killComboTimer === 'function') {
+      (window as any).CC.killComboTimer();
+      console.log('🔥 MAGNET COMBO: Killed existing combo timer before updating combo');
+    }
+  } catch (e) {
+    console.warn('⚠️ Failed to kill combo timer:', e);
+  }
+  
   const currentCombo = typeof (window as any).CC?.getCombo === 'function'
     ? (window as any).CC.getCombo()
     : (typeof (window as any).CC?.combo === 'number' ? (window as any).CC.combo : 0);
@@ -793,6 +806,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   }
   
   // Schedule combo decay (same as normal merge) - reset combo timer but don't reset combo value
+  // This starts a NEW timer for the updated combo value
   if (typeof (window as any).CC?.scheduleComboDecay === 'function') {
     (window as any).CC.scheduleComboDecay();
   }
