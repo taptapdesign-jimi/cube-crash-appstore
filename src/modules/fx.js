@@ -1247,9 +1247,10 @@ export function woodShardsAtTile(board, tile, opts = {}){
     } else {
       // 🔥 USER REQUEST: Skip creating star particles for wild star merge 6
       // Instead, orbiting stars will be animated to HUD icon via stars-collector module
-      // Check if this is a pure wild star (not wild-beer, not wild-magnet)
-      const isPureWildStar = tile?.special === 'wild' && !isWildBeer && !isWildMagnet;
-      if (isPureWildStar) {
+      // Check opts.skipStars flag (passed from app-core.ts) or tile.special === 'wild'
+      const shouldSkipStars = opts.skipStars === true || (tile?.special === 'wild' && !isWildBeer && !isWildMagnet);
+      
+      if (shouldSkipStars) {
         console.log('⭐ Skipping star particles for wild star merge 6 - orbiting stars will be animated to HUD instead');
       } else {
         // Fallback: create stars for other wild types (shouldn't happen, but safety)
