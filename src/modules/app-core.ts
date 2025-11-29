@@ -2054,6 +2054,8 @@ function randomEmptyCell(){
 let wildBeerSpawned = false;
 // Track if wild-magnet has been spawned (second wild spawn should be wild-magnet)
 let wildMagnetSpawned = false;
+// 🔥 USER REQUEST: Track if first wild has been spawned (must be wild zvjezdica)
+let firstWildSpawned = false;
 const WILD_MAGNET_SPAWN_CHANCE = 0.3; // 30% chance new wild is a magnet (after first wild-beer and wild-magnet)
 const WILD_BEER_RESPAWN_CHANCE = 0.4; // 40% chance wild-beer spawns again after first spawn
 
