@@ -198,8 +198,95 @@ export function createTileShadow(tile: Tile): Graphics {
     g.closePath();
   };
   
-  // 🔥 USER REQUEST: Check if this is a wild star tile (not wild-beer or wild-magnet)
+  // 🔥 USER REQUEST: Helper function to draw beer mug shape for wild-beer tile shadow
+  const drawBeerMug = (g: Graphics, x: number, y: number, width: number, height: number): void => {
+    const mugWidth = width * 0.85;
+    const mugHeight = height * 0.9;
+    const handleWidth = width * 0.15;
+    const handleHeight = height * 0.4;
+    const bottomWidth = mugWidth * 0.75;
+    const bodyHeight = mugHeight * 0.7;
+    
+    // Main mug body (trapezoid)
+    g.moveTo(x - mugWidth / 2, y - mugHeight / 2);
+    g.lineTo(x + mugWidth / 2, y - mugHeight / 2);
+    g.lineTo(x + bottomWidth / 2, y - mugHeight / 2 + bodyHeight);
+    g.lineTo(x - bottomWidth / 2, y - mugHeight / 2 + bodyHeight);
+    g.closePath();
+    
+    // Handle (semicircle on right)
+    const handleCenterX = x + mugWidth / 2 + handleWidth * 0.3;
+    const handleCenterY = y - mugHeight / 2 + handleHeight / 2;
+    const handleRadius = handleWidth * 0.4;
+    
+    g.moveTo(x + mugWidth / 2, y - mugHeight / 2 + handleHeight * 0.2);
+    g.quadraticCurveTo(handleCenterX, y - mugHeight / 2 + handleHeight * 0.1, handleCenterX, handleCenterY - handleRadius);
+    g.arc(handleCenterX, handleCenterY, handleRadius, -Math.PI / 2, Math.PI / 2);
+    g.quadraticCurveTo(handleCenterX, y - mugHeight / 2 + handleHeight * 0.9, x + mugWidth / 2, y - mugHeight / 2 + handleHeight * 0.8);
+    g.closePath();
+  };
+  
+  // 🔥 USER REQUEST: Helper function to draw magnet shape for wild-magnet tile shadow
+  const drawMagnet = (g: Graphics, x: number, y: number, width: number, height: number): void => {
+    const magnetWidth = width * 0.8;
+    const magnetHeight = height * 0.85;
+    const barWidth = magnetWidth * 0.25;
+    
+    // Left bar (U shape)
+    const leftBarX = x - magnetWidth / 2;
+    const topY = y - magnetHeight / 2;
+    const bottomY = y + magnetHeight / 2;
+    
+    // Top horizontal bar (left)
+    g.moveTo(leftBarX, topY);
+    g.lineTo(leftBarX + barWidth, topY);
+    g.lineTo(leftBarX + barWidth, topY + barWidth);
+    g.lineTo(leftBarX, topY + barWidth);
+    g.closePath();
+    
+    // Left vertical bar
+    g.moveTo(leftBarX, topY + barWidth);
+    g.lineTo(leftBarX + barWidth, topY + barWidth);
+    g.lineTo(leftBarX + barWidth, bottomY - barWidth);
+    g.lineTo(leftBarX, bottomY - barWidth);
+    g.closePath();
+    
+    // Bottom horizontal bar (left)
+    g.moveTo(leftBarX, bottomY - barWidth);
+    g.lineTo(leftBarX + barWidth, bottomY - barWidth);
+    g.lineTo(leftBarX + barWidth, bottomY);
+    g.lineTo(leftBarX, bottomY);
+    g.closePath();
+    
+    // Right bar (U shape)
+    const rightBarX = x + magnetWidth / 2 - barWidth;
+    
+    // Top horizontal bar (right)
+    g.moveTo(rightBarX, topY);
+    g.lineTo(rightBarX + barWidth, topY);
+    g.lineTo(rightBarX + barWidth, topY + barWidth);
+    g.lineTo(rightBarX, topY + barWidth);
+    g.closePath();
+    
+    // Right vertical bar
+    g.moveTo(rightBarX, topY + barWidth);
+    g.lineTo(rightBarX + barWidth, topY + barWidth);
+    g.lineTo(rightBarX + barWidth, bottomY - barWidth);
+    g.lineTo(rightBarX, bottomY - barWidth);
+    g.closePath();
+    
+    // Bottom horizontal bar (right)
+    g.moveTo(rightBarX, bottomY - barWidth);
+    g.lineTo(rightBarX + barWidth, bottomY - barWidth);
+    g.lineTo(rightBarX + barWidth, bottomY);
+    g.lineTo(rightBarX, bottomY);
+    g.closePath();
+  };
+  
+  // 🔥 USER REQUEST: Check tile type for custom shadow shapes
   const isWildStar = tile.special === 'wild';
+  const isWildBeer = tile.special === 'wild-beer';
+  const isWildMagnet = tile.special === 'wild-magnet';
   
   shadow.fill({ color: 0x000000, alpha: VISUAL_EFFECTS.SHADOW_ALPHA });
   
@@ -210,8 +297,18 @@ export function createTileShadow(tile: Tile): Graphics {
     const outerRadius = Math.min(tile.width, tile.height) * 0.45;
     const innerRadius = outerRadius * 0.4;
     drawStar(shadow, centerX, centerY, outerRadius, innerRadius, 5);
+  } else if (isWildBeer) {
+    // 🔥 USER REQUEST: Draw beer mug-shaped shadow for wild-beer tile
+    const centerX = VISUAL_EFFECTS.SHADOW_OFFSET + tile.width / 2;
+    const centerY = VISUAL_EFFECTS.SHADOW_OFFSET + tile.height / 2;
+    drawBeerMug(shadow, centerX, centerY, tile.width, tile.height);
+  } else if (isWildMagnet) {
+    // 🔥 USER REQUEST: Draw magnet-shaped shadow for wild-magnet tile
+    const centerX = VISUAL_EFFECTS.SHADOW_OFFSET + tile.width / 2;
+    const centerY = VISUAL_EFFECTS.SHADOW_OFFSET + tile.height / 2;
+    drawMagnet(shadow, centerX, centerY, tile.width, tile.height);
   } else {
-    // Regular rectangle shadow for non-wild tiles
+    // Regular rectangle shadow for regular tiles
     shadow.rect(
       VISUAL_EFFECTS.SHADOW_OFFSET,
       VISUAL_EFFECTS.SHADOW_OFFSET,
