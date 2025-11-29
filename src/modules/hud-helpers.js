@@ -814,6 +814,9 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   HUD_ROOT.sortableChildren = true;
   HUD_ROOT.visible = true; // 🔥 CRITICAL: Ensure HUD is visible
   HUD_ROOT.alpha = 1; // 🔥 CRITICAL: Ensure HUD is fully opaque
+  
+  // 🔥 CRITICAL: Add HUD_ROOT directly to stage (hud container is just a wrapper)
+  // The hud container in app-core.ts is separate from HUD_ROOT
   stage.addChild(HUD_ROOT);
   console.log('✅ HUD_ROOT created and added to stage');
 

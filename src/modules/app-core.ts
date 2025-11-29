@@ -617,9 +617,17 @@ export async function boot(){
   boardBG = new Graphics();
   hud     = new Container(); hud.eventMode = 'none';
 
+  // 🔥 CRITICAL: Ensure board and hud are visible
+  board.visible = true;
+  board.alpha = 1;
+  hud.visible = true;
+  hud.alpha = 1;
+
   board.zIndex = 100; hud.zIndex = 10000;
   stage.addChild(board, hud);
   board.addChildAt(boardBG, 0); boardBG.zIndex = -1000; board.sortChildren();
+  
+  console.log('✅ Board and HUD containers created and added to stage');
   
   // Initialize fixed background layer AFTER layout is set
   // (will be called from startGame after layout())
