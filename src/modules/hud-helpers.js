@@ -7,6 +7,30 @@ import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
 import uiManager from './ui-manager.js';
 import { smokeBubblesAtTile } from './fx.js';
 
+// 🔥 COMBO PARTICLES: Import graphics pool for particle creation
+let graphicsPool = null;
+let __globalGraphicsObjects = null;
+
+// Lazy load graphics pool to avoid circular dependency
+function getGraphicsPool() {
+  if (!graphicsPool) {
+    try {
+      const poolModule = require('./object-pool.js');
+      graphicsPool = poolModule.graphicsPool;
+      __globalGraphicsObjects = poolModule.__globalGraphicsObjects || new Set();
+    } catch (e) {
+      console.warn('⚠️ Failed to load graphics pool, using fallback:', e);
+      // Fallback: create simple pool
+      graphicsPool = {
+        acquire: () => new Graphics(),
+        release: () => {}
+      };
+      __globalGraphicsObjects = new Set();
+    }
+  }
+  return graphicsPool;
+}
+
 // Local boardSize function (same as in app.js)
 function boardSize(){ return { w: COLS*TILE + (COLS-1)*GAP, h: ROWS*TILE + (ROWS-1)*GAP }; }
 
@@ -23,6 +47,7 @@ let hudCloseButton = null;
 let boardIndicator = null;
 let boardIndicatorLabel = null;
 let comboWobbleTween = null; // GSAP tween for combo icon wobble animation
+let comboParticlesInterval = null; // Interval for combo idle particles
 const BOARD_INDICATOR_ANIM_OFFSET = 72;
 const BOARD_INDICATOR_BOTTOM = 24;
 
@@ -1387,6 +1412,9 @@ export function updateHUD({ score, board, moves, combo }) {
     // 🔥 COMBO WOBBLE: Start wobble animation when combo >= 10
     updateComboWobble(v);
     
+    // 🔥 COMBO PARTICLES: Start idle particles when combo >= 10
+    updateComboParticles(v);
+    
     // 🔥 CONTAIN COMBO: Adjust combo position and scale to keep it within viewport
     if (HUD_ROOT && HUD_ROOT._hudElements && HUD_ROOT._hudElements.combo && comboWrap) {
       const comboEl = HUD_ROOT._hudElements.combo;
@@ -1614,6 +1642,9 @@ export function setCombo(v){
   // 🔥 COMBO WOBBLE: Start wobble animation when combo >= 10
   updateComboWobble(val);
   
+  // 🔥 COMBO PARTICLES: Start idle particles when combo >= 10
+  updateComboParticles(val);
+  
   // 🔥 CONTAIN COMBO: Adjust combo position and scale to keep it within viewport
   if (HUD_ROOT && HUD_ROOT._hudElements && HUD_ROOT._hudElements.combo && comboWrap) {
     const combo = HUD_ROOT._hudElements.combo;
@@ -1680,6 +1711,9 @@ export function resetCombo(){
   
   // 🔥 COMBO WOBBLE: Stop wobble animation when combo resets
   updateComboWobble(0);
+  
+  // 🔥 COMBO PARTICLES: Stop idle particles when combo resets
+  updateComboParticles(0);
   
   stopComboFX();
 }
