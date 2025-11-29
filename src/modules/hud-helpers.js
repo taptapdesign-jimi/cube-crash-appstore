@@ -679,8 +679,8 @@ export function layout({ app, top }) {
       // Coin icon left edge (coin icon is 28px, so left edge is coinCenterX - 14)
       const coinIconLeftEdge = coinCenterX - 14; // Half of 28px icon
       
-      // Star center is 64px left of coin icon left edge
-      star.container.x = coinIconLeftEdge - coinToStarSpacing;
+      // Star center is 64px left of coin icon left edge, then 16px more to the left
+      star.container.x = coinIconLeftEdge - coinToStarSpacing - 16;
       star.container.y = yValue;
     }
   } else {
