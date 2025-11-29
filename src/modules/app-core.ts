@@ -4121,12 +4121,29 @@ function merge(src, dst, helpers){
               console.log('💧 src tile special:', src?.special, 'dst tile special:', dst?.special);
               console.log('💧 src value:', src?.value, 'dst value:', dst?.value);
               
+              // 🔥 CRITICAL: Ensure cleanup is called BEFORE triggering new explosion
+              // This prevents race condition where previous explosion state blocks new one
+              try {
+                const wasActive = isWildBeerExplosionRunning();
+                if (wasActive) {
+                  console.log('🧹 Cleaning up previous wild beer explosion state before merge 6 bubbles');
+                  cleanupWildBeerExplosion();
+                }
+              } catch (err) {
+                console.warn('⚠️ Failed to cleanup wild beer explosion before merge 6:', err);
+              }
+              
               // 🔥 FPS DROP FIX: Stagger bubbles explosion NAKON 200ms (ne istovremeno s drugim animacijama)
               // Ovo smanjuje CPU/GPU spike i sprječava freeze
               gsap.delayedCall(0.2, () => {
                 try {
                   // 🔥 CRITICAL: Double-check dst is still valid before triggering explosion
                   if (dst && !dst.destroyed && board && !board.destroyed) {
+                    const isStillActive = isWildBeerExplosionRunning();
+                    if (isStillActive) {
+                      console.warn('⚠️ Wild beer explosion still active, forcing cleanup before new explosion');
+                      cleanupWildBeerExplosion();
+                    }
                     console.log('💧 Triggering wild-beer bubbles explosion at merge 6 (staggered 200ms) - dst and board are valid');
                     createWildBeerBubblesExplosion(board, dst);
                   } else {
