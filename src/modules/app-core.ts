@@ -403,6 +403,27 @@ function addWildProgress(amount){
     return;
   }
   
+  // 🔥 CRITICAL FIX: Check if this is last merge (only 2 tiles on board) BEFORE adding wild progress
+  // This is a safety check to prevent wild meter from filling when last merge happens
+  // The flag should be set in merge logic, but this provides double protection
+  const hasLastMergeTile = STATE.tiles.some((t: any) => t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true);
+  if (hasLastMergeTile) {
+    console.log('🚨🚨🚨 LAST MERGE DETECTED (in addWildProgress) - skipping wild progress to prevent wild spawn before clean board');
+    console.log('🚨🚨🚨 Wild meter will NOT be filled, preventing wild spawn on last merge');
+    // Reset wild meter to ensure it's empty
+    wildMeter = 0;
+    STATE.wildMeter = 0;
+    try {
+      if (typeof HUD.resetWildMeter === 'function') {
+        HUD.resetWildMeter(true);
+        console.log('✅ LAST MERGE (addWildProgress): Wild meter reset in HUD');
+      }
+    } catch (error) {
+      console.warn('⚠️ LAST MERGE (addWildProgress): Failed to reset wild meter in HUD:', error);
+    }
+    return;
+  }
+  
   // Kill any existing animations first
   try {
     gsap.killTweensOf(wild?.view?._fill);
