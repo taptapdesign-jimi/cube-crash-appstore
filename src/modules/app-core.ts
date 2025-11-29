@@ -4100,6 +4100,8 @@ function merge(src, dst, helpers){
             // 🔥 WILD-BEER: Pass wild-beer info to woodShardsAtTile
             const isWildBeerMerge = srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
             
+            console.log('💧 Merge 6 check - isWildBeerMerge:', isWildBeerMerge, 'srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, 'srcValue:', src?.value, 'dstValue:', dst?.value);
+            
             woodShardsAtTile(board, dst, { 
               enhanced: true, 
               wild: true,  // Explicitly set wild flag (not wild-magnet) - this will create stars
