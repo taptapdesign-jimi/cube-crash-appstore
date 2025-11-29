@@ -1997,3 +1997,75 @@ export function animateHUDDrop() {
   
   console.log('✅ Unified HUD drop animation started');
 }
+
+/**
+ * Get star HUD icon position in screen coordinates
+ */
+export function getStarHudPosition() {
+  if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.star) {
+    return null;
+  }
+  
+  const starElement = HUD_ROOT._hudElements.star;
+  if (!starElement.container) {
+    return null;
+  }
+  
+  // Get global position (screen coordinates)
+  const globalPos = starElement.container.getGlobalPosition();
+  return {
+    x: globalPos.x,
+    y: globalPos.y
+  };
+}
+
+/**
+ * Bounce animation on star HUD icon (like stack merge bounce)
+ */
+export function bounceStarIcon() {
+  if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.star) {
+    return;
+  }
+  
+  const starElement = HUD_ROOT._hudElements.star;
+  if (!starElement.container) {
+    return;
+  }
+  
+  // Similar to stack merge bounce: scale up then elastic settle
+  try {
+    gsap.killTweensOf(starElement.container.scale);
+  } catch {}
+  
+  const tl = gsap.timeline();
+  // Scale up (like stack merge)
+  tl.to(starElement.container.scale, { 
+    x: 1.10, 
+    y: 0.94, 
+    duration: 0.07, 
+    ease: 'power2.out' 
+  });
+  // Elastic settle back
+  tl.to(starElement.container.scale, { 
+    x: 1.00, 
+    y: 1.00, 
+    duration: 0.24, 
+    ease: 'elastic.out(1,0.8)' 
+  });
+  
+  console.log('⭐ Star icon bounce animation triggered');
+}
+
+/**
+ * Set stars count and update HUD display
+ */
+export function setStarsCount(count) {
+  if (!starText) {
+    console.warn('⚠️ starText not available, cannot set stars count');
+    return;
+  }
+  
+  const starsCount = Math.max(0, Math.floor(count || 0));
+  starText.text = String(starsCount);
+  console.log('⭐ Stars count updated to:', starsCount);
+}
