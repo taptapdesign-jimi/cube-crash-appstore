@@ -1635,9 +1635,12 @@ function createComboParticles() {
     // Random color from combo colors
     const color = comboColors[Math.floor(Math.random() * comboColors.length)];
     
-    // Small circular particles (similar to magnet idle)
-    const radius = 4 + Math.random() * 4; // 4-8px radius
-    particle.circle(0, 0, radius)
+    // 🔥 USER REQUEST: Smaller rectangular particles (duplo manji - 2-4px instead of 4-8px)
+    const baseWidth = 2 + Math.random() * 2; // 2-4px width (was 4-8px radius)
+    const baseHeight = 2 + Math.random() * 2; // 2-4px height (was 4-8px radius)
+    
+    // Create rectangle particle (centered at 0,0)
+    particle.rect(-baseWidth/2, -baseHeight/2, baseWidth, baseHeight)
            .fill({ color: color, alpha: 0.8 });
     
     // Position particles around combo text (behind it)
@@ -1687,15 +1690,18 @@ function createComboParticles() {
 }
 
 // 🔥 COMBO PARTICLES: Function to start/stop combo idle particles
+// 🔥 USER REQUEST: Combo particles always active (not just when combo >= 10)
 function updateComboParticles(comboValue) {
-  const shouldShowParticles = comboValue >= 10;
+  // 🔥 USER REQUEST: Always show particles (removed comboValue >= 10 condition)
+  const shouldShowParticles = true; // Always active
   
-  // Stop existing particles if any
+  // Stop existing particles if any (to restart with new settings)
   if (comboParticlesInterval) {
     clearInterval(comboParticlesInterval);
     comboParticlesInterval = null;
   }
   
+  // Always show particles (combo idle always active)
   if (shouldShowParticles) {
     // Generate particles immediately
     createComboParticles();
@@ -1712,9 +1718,7 @@ function updateComboParticles(comboValue) {
       createComboParticles();
     }, 200); // Every 200ms (5 times per second)
     
-    console.log('💧 Combo idle particles started (combo >= 10)');
-  } else {
-    console.log('💧 Combo idle particles stopped (combo < 10)');
+    console.log('💧 Combo idle particles started (always active)');
   }
 }
 
