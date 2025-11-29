@@ -1196,6 +1196,15 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       }
     };
   }
+  
+  // 🔥 Export HUD functions to window for stars-collector module
+  if (typeof window !== 'undefined') {
+    window.HUD = window.HUD || {};
+    window.HUD.bounceStarIcon = bounceStarIcon;
+    window.HUD.getStarHudPosition = getStarHudPosition;
+    window.HUD.setStarsCount = setStarsCount;
+    console.log('✅ HUD functions exported to window.HUD');
+  }
 
   // Create PIXI wild meter
   console.log('🎯 Creating PIXI wild meter...');

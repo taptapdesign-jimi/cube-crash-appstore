@@ -15,6 +15,7 @@ import { STATE } from './app-state.ts';
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.js';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning, cleanupWildBeerExplosion, waitForBubblesAnimationToComplete } from './fx.js';
+import * as StarsCollector from './stars-collector.ts';
 import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
 import FX from './fx-helpers.js';
@@ -1054,6 +1055,30 @@ export function layoutBoard(){
             console.error('❌ Error calling HUD.updateProgressBar:', error);
           }
         };
+        
+        // 🔥 Initialize stars collector
+        try {
+          StarsCollector.initStarsCollector({
+            app,
+            board,
+            hud,
+            getStarHudPosition: () => {
+              if (typeof HUD.getStarHudPosition === 'function') {
+                return HUD.getStarHudPosition();
+              }
+              return null;
+            },
+            onStarsUpdated: (count) => {
+              // Update HUD star count display
+              if (typeof HUD.setStarsCount === 'function') {
+                HUD.setStarsCount(count);
+              }
+            }
+          });
+          console.log('✅ Stars collector initialized');
+        } catch (error) {
+          console.warn('⚠️ Failed to initialize stars collector:', error);
+        }
       }
       
       // Update HUD with current values
@@ -2561,6 +2586,42 @@ function merge(src, dst, helpers){
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
       onComplete: async () => {
+        // 🔥 STARS COLLECTOR: Check if this is merge 6 with wild star (not wild-beer, not wild-magnet)
+        // Collect orbiting stars from wild star tile before removing it
+        if (effSum === 6) {
+          // Check if src or dst is a pure wild star (special === 'wild', not wild-beer or wild-magnet)
+          const srcIsWildStar = srcSpecial === 'wild';
+          const dstIsWildStar = dstSpecial === 'wild';
+          
+          if (srcIsWildStar || dstIsWildStar) {
+            // Find which tile is the wild star
+            const wildStarTile = srcIsWildStar ? src : (dstIsWildStar ? dst : null);
+            
+            if (wildStarTile && (wildStarTile as any)?._wildStarSystem) {
+              console.log('⭐ Merge 6 with wild star detected, collecting orbiting stars...');
+              
+              // Get merge 6 position for star animation start (convert to screen coordinates)
+              const merge6Pos = centerInBoard(board, dst, TILE);
+              
+              // Trigger star collection animation (delayed slightly to let merge animation settle)
+              gsap.delayedCall(0.3, async () => {
+                try {
+                  if (typeof StarsCollector.collectStarsFromWildTile === 'function') {
+                    await StarsCollector.collectStarsFromWildTile(wildStarTile, merge6Pos);
+                    console.log('✅ Stars collection animation completed');
+                  } else {
+                    console.warn('⚠️ StarsCollector.collectStarsFromWildTile not available');
+                  }
+                } catch (error) {
+                  console.error('❌ Failed to collect stars from wild tile:', error);
+                }
+              });
+            } else {
+              console.log('⚠️ Wild star tile found but no orbiting stars system detected');
+            }
+          }
+        }
+        
         removeTile(src);
         // Re-enable drag on the merged tile and ensure drag points to the new stack
         // 🔥 CRITICAL FIX: Ensure dst is NOT locked and is interactive after merge

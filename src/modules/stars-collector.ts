@@ -132,13 +132,37 @@ export async function collectStarsFromWildTile(
   const board = config.board;
   const hud = config.hud;
   
-  // Convert merge 6 position to screen coordinates
-  const merge6ScreenX = merge6Position.x;
-  const merge6ScreenY = merge6Position.y;
+  // Get wild tile position in screen coordinates (wild tile is where stars orbit)
+  // Wild tile position might already be in screen coords, but we need to ensure it's correct
+  const wildTileX = wildTile.x;
+  const wildTileY = wildTile.y;
+  
+  // If wild tile is a child of board, get its global position
+  let wildTileScreenX = wildTileX;
+  let wildTileScreenY = wildTileY;
+  
+  try {
+    // Get global position of wild tile
+    const wildTileGlobalPos = wildTile.getGlobalPosition();
+    wildTileScreenX = wildTileGlobalPos.x;
+    wildTileScreenY = wildTileGlobalPos.y;
+  } catch {
+    // Fallback: use local position + board position
+    if (board) {
+      wildTileScreenX = board.x + wildTileX;
+      wildTileScreenY = board.y + wildTileY;
+    }
+  }
   
   // Convert HUD position to screen coordinates (HUD is already in screen space)
   const hudScreenX = hudStarPos.x;
   const hudScreenY = hudStarPos.y;
+  
+  console.log('⭐ Star collection positions:', {
+    wildTile: { x: wildTileScreenX, y: wildTileScreenY },
+    merge6: { x: merge6Position.x, y: merge6Position.y },
+    hud: { x: hudScreenX, y: hudScreenY }
+  });
   
   // Create container for animated stars (on board layer, above everything)
   const animationContainer = new Container();
@@ -155,16 +179,32 @@ export async function collectStarsFromWildTile(
     const star = orbitingStars[i];
     if (!star || !star.sprite) continue;
     
-    // Get star's current position relative to merge 6 tile
-    const starAngle = star.angle;
-    const baseRadius = 48; // Approximate orbit radius
-    const radius = baseRadius * (star.orbitRadius || 0.65);
-    const starOffsetX = Math.cos(starAngle) * radius;
-    const starOffsetY = Math.sin(starAngle) * radius;
+    // Get star's current position relative to wild tile (from orbit system)
+    // Stars orbit around wild tile, so get their actual sprite position
+    const starContainer = (wildTile as any)?._wildStarSystem?.container;
+    let starOffsetX = 0;
+    let starOffsetY = 0;
     
-    // Calculate start position (merge 6 position + star offset)
-    const startX = merge6ScreenX + starOffsetX;
-    const startY = merge6ScreenY + starOffsetY;
+    if (starContainer && star.sprite) {
+      // Get star's position relative to container (already calculated in orbit system)
+      starOffsetX = star.sprite.x || 0;
+      starOffsetY = star.sprite.y || 0;
+      
+      // If star is in a container, need to get its global position
+      try {
+        const starGlobalPos = star.sprite.getGlobalPosition();
+        // Calculate offset from wild tile
+        starOffsetX = starGlobalPos.x - wildTileScreenX;
+        starOffsetY = starGlobalPos.y - wildTileScreenY;
+      } catch {
+        // Fallback: use local position (stars are relative to wild tile container)
+        // starOffsetX and starOffsetY are already relative to container
+      }
+    }
+    
+    // Calculate start position (wild tile position + star orbit offset)
+    const startX = wildTileScreenX + starOffsetX;
+    const startY = wildTileScreenY + starOffsetY;
     
     // Create animated star sprite (clone of orbiting star)
     const animatedStar = createAnimatedStarSprite(star.sprite);
@@ -181,7 +221,7 @@ export async function collectStarsFromWildTile(
       { x: startX, y: startY },
       { x: hudScreenX, y: hudScreenY },
       delay,
-      i === STAR_COUNT - 1 // Last star triggers bounce
+      i // Star index for sequential bounce
     );
     
     animations.push(animationPromise);
@@ -203,11 +243,8 @@ export async function collectStarsFromWildTile(
     detachWildStarHalo(wildTile);
   } catch {}
   
-  // Add stars to count
-  addStars(STAR_COUNT);
-  
-  // Trigger bounce animation on HUD star icon
-  triggerStarHudBounce();
+  // Stars are already added individually as they arrive (in onComplete callback)
+  // No need to add again here
   
   console.log('✅ Stars collection completed');
 }
@@ -253,7 +290,7 @@ function animateStarToHUD(
   start: { x: number; y: number },
   end: { x: number; y: number },
   delay: number,
-  isLast: boolean
+  starIndex: number
 ): Promise<void> {
   return new Promise((resolve) => {
     // Calculate distance
@@ -339,6 +376,14 @@ function animateStarToHUD(
       onUpdate: () => {
         star.x = path.x;
         star.y = path.y;
+      },
+      onComplete: () => {
+        // 🔥 USER REQUEST: Bounce animation when star enters HUD icon (like stack merge)
+        // Trigger bounce for each star as it arrives
+        triggerStarHudBounce();
+        
+        // Also increment stars count for this star (sequential)
+        addStars(1);
       }
     });
     
@@ -373,17 +418,27 @@ function animateStarToHUD(
 function triggerStarHudBounce(): void {
   if (!config) return;
   
-  // Get star HUD element from global HUD object
+  // Try window.HUD first (faster, already loaded)
   if (typeof window !== 'undefined' && (window as any).HUD) {
     const HUD = (window as any).HUD;
     if (typeof HUD.bounceStarIcon === 'function') {
       HUD.bounceStarIcon();
+      console.log('⭐ Star HUD bounce animation triggered');
       return;
     }
   }
   
-  // Fallback: try to find star icon directly
-  console.log('⭐ Triggering star HUD bounce (fallback)');
+  // Fallback: Import HUD module dynamically
+  import('./hud-helpers.js').then((HUD) => {
+    if (typeof HUD.bounceStarIcon === 'function') {
+      HUD.bounceStarIcon();
+      console.log('⭐ Star HUD bounce animation triggered (via import)');
+    } else {
+      console.warn('⚠️ HUD.bounceStarIcon not available');
+    }
+  }).catch((error) => {
+    console.warn('⚠️ Failed to import HUD module for bounce:', error);
+  });
 }
 
 /**
