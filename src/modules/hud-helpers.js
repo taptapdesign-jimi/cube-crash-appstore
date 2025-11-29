@@ -459,7 +459,7 @@ function makeWildLoader() {
       if (container._fill) {
         container._fill.clear();
         container._fill.beginFill(0xE7744A);
-        container._fill.drawRoundedRect(0, 0, width, 8, 4);
+        container._fill.drawRoundedRect(0, 0, width, 10, 5); // Height: 10px, border radius: 5px
         container._fill.endFill();
         console.log('🎯 PIXI Wild meter set directly to width:', width);
       }
@@ -477,12 +477,12 @@ function makeWildLoader() {
     // Redraw background with new width
     container._bg.clear();
     container._bg.beginFill(0xEADFD6);
-    container._bg.drawRoundedRect(0, 0, width, 8, 4);
+    container._bg.drawRoundedRect(0, 0, width, 10, 5); // Height: 10px, border radius: 5px
     container._bg.endFill();
     // Reset fill to 0 width
     container._fill.clear();
     container._fill.beginFill(0xE7744A);
-    container._fill.drawRoundedRect(0, 0, 0, 8, 4);
+    container._fill.drawRoundedRect(0, 0, 0, 10, 5); // Height: 10px, border radius: 5px
     container._fill.endFill();
     if (container._drawDashLine) {
       container._drawDashLine(width);
