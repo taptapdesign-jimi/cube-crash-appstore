@@ -608,16 +608,16 @@ export function layout({ app, top }) {
   c.x = rightCenter;
   m.y = s.y = c.y = yLabel;
 
-  // 🔥 NEW HUD DESIGN: Position elements based on SwiftUI layout
-  // Layout: 268px width, 36px height
-  // - Close icon: left (existing)
-  // - Coin (score): left, offset -112px from center
-  // - Star (currency): right, offset 108px from center  
-  // - Combo: left, offset -4.50px from center
+  // 🔥 NEW HUD DESIGN: Position elements in order - Close → Star → Coin → Combo
+  // Layout: Elements positioned from left to right with spacing
+  // - Close icon: left (existing position)
+  // - Star (currency): after close
+  // - Coin (score): after star
+  // - Combo: after coin (last)
   
-  const centerX = vw / 2;
   const hudHeight = 36;
   const hudY = yValue + (valueRowH - hudHeight) / 2; // Center vertically in value row
+  const elementSpacing = 4; // Spacing between elements (as per SwiftUI HStack spacing: 4)
   
   // Position close icon (left, existing position)
   boardText.x = leftCenter;
@@ -628,25 +628,36 @@ export function layout({ app, top }) {
     closeIconSprite.visible = true;
   }
   
-  // Position new HUD elements
+  // Position new HUD elements from left to right
   if (HUD_ROOT._hudElements) {
     const { star, coin, combo } = HUD_ROOT._hudElements;
     
-    // Coin (score) - left, offset -112px from center
-    if (coin && coin.container) {
-      coin.container.x = centerX - 112;
-      coin.container.y = hudY + hudHeight / 2;
-    }
+    // Calculate starting X position (after close icon)
+    let currentX = leftCenter + (closeIconSprite ? 28 : 0) + elementSpacing;
     
-    // Star (currency) - right, offset 108px from center
+    // Star (currency) - second (after close)
     if (star && star.container) {
-      star.container.x = centerX + 108;
+      star.container.x = currentX;
       star.container.y = hudY + hudHeight / 2;
+      // Move to next position (icon width + text width + spacing)
+      const starWidth = (star.iconSprite ? star.iconSprite.width * star.iconSprite.scale.x : 28) + 
+                        (star.text ? star.text.width : 0) + elementSpacing;
+      currentX += starWidth;
     }
     
-    // Combo - left, offset -4.50px from center
+    // Coin (score) - third (after star)
+    if (coin && coin.container) {
+      coin.container.x = currentX;
+      coin.container.y = hudY + hudHeight / 2;
+      // Move to next position
+      const coinWidth = (coin.iconSprite ? coin.iconSprite.width * coin.iconSprite.scale.x : 28) + 
+                        (coin.text ? coin.text.width : 0) + elementSpacing;
+      currentX += coinWidth;
+    }
+    
+    // Combo - fourth (last, after coin)
     if (comboWrap && combo && combo.container) {
-      comboWrap.x = centerX - 4.5;
+      comboWrap.x = currentX;
       comboWrap.y = hudY + hudHeight / 2;
     }
   } else {
@@ -907,19 +918,19 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // - Left (offset -4.50): combo-hud.png + combo number
   
   // Create containers for each HUD element
-  const createHudElement = (iconPath, textValue, textStyle, isCombo = false) => {
+  const createHudElement = (iconPath, textValue, textStyle) => {
     const container = new Container();
     container.eventMode = 'none';
     
-    // Load icon sprite
+    // Load icon sprite (transparent background - no bg rectangle)
     let iconSprite = null;
     try {
       const iconTexture = Assets.get(iconPath);
       if (iconTexture) {
         iconSprite = new Sprite(iconTexture);
         iconSprite.anchor.set(0.5, 0.5);
-        // Scale to 28x28 (or 28x26.25 for score)
-        const targetSize = isCombo ? 28 : 28;
+        // Scale to 28x28
+        const targetSize = 28;
         if (iconSprite.width > 0 && iconSprite.height > 0) {
           const scale = targetSize / Math.max(iconSprite.width, iconSprite.height);
           iconSprite.scale.set(scale);
@@ -933,7 +944,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
         if (tex && container && !container.destroyed) {
           iconSprite = new Sprite(tex);
           iconSprite.anchor.set(0.5, 0.5);
-          const targetSize = isCombo ? 28 : 28;
+          const targetSize = 28;
           if (iconSprite.width > 0 && iconSprite.height > 0) {
             const scale = targetSize / Math.max(iconSprite.width, iconSprite.height);
             iconSprite.scale.set(scale);
@@ -945,14 +956,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       });
     }
     
-    // Create background rectangle (28x28 or 28x26.25)
-    const bgRect = new Graphics();
-    const rectWidth = 28;
-    const rectHeight = isCombo ? 26.25 : 28;
-    // Color: rgba(0.50, 0.23, 0.27, 0.50) = 0x803B45 with 0.5 alpha
-    bgRect.rect(-rectWidth/2, -rectHeight/2, rectWidth, rectHeight);
-    bgRect.fill({ color: 0x803B45, alpha: 0.5 });
-    container.addChildAt(bgRect, 0);
+    // 🔥 NO BACKGROUND: PNG icons have transparent background, no bg rectangle needed
     
     // Create text
     const text = new Text({ text: textValue, style: textStyle });
@@ -961,7 +965,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     if (iconSprite) {
       text.x = (iconSprite.width * iconSprite.scale.x) / 2 + 4;
     } else {
-      text.x = rectWidth / 2 + 4;
+      text.x = 14 + 4; // Half of 28px + spacing
     }
     text.y = 0;
     container.addChild(text);
@@ -970,7 +974,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   };
   
   // Create HUD elements
-  // 1. Star (currency) - right side
+  // 🔥 NEW ORDER: Close → Star → Coin → Combo
+  // 1. Star (currency) - second (after close)
   const starHud = createHudElement('./assets/star-hud.png', '0', {
     fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
     fontSize: 18,
@@ -979,16 +984,16 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     fontStyle: 'normal'
   });
   
-  // 2. Coin (score) - left side
+  // 2. Coin (score) - third
   const coinHud = createHudElement('./assets/coin-hud.png', '0', {
     fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
     fontSize: 20,
     fill: 0xB58573, // Color(red: 0.71, green: 0.52, blue: 0.45)
     fontWeight: 'bold',
     fontStyle: 'normal'
-  }, true); // 28x26.25 for score
+  });
   
-  // 3. Combo - left side (offset -4.50)
+  // 3. Combo - fourth (last)
   const comboHud = createHudElement('./assets/combo-hud.png', '0', {
     fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
     fontSize: 18,
@@ -1009,12 +1014,12 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   comboWrap = new Container();
   comboWrap.addChild(comboHud.container);
   
-  // Add all HUD elements to root
+  // Add all HUD elements to root in order: Close → Star → Coin → Combo
   HUD_ROOT.addChild(
     boardText,
-    coinHud.container,  // Score (left)
-    starHud.container,   // Currency (right)
-    comboWrap            // Combo (left, offset)
+    starHud.container,   // Star (currency) - second
+    coinHud.container,   // Coin (score) - third
+    comboWrap            // Combo - fourth
   );
   
   // Store references for layout
