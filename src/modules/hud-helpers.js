@@ -1004,17 +1004,17 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // 2. Coin (score) - third
   const coinHud = createHudElement('./assets/coin-hud.png', '0', {
     fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
-    fontSize: 20,
+    fontSize: 18, // Changed from 20 to 18
     fill: 0xB58573, // Color(red: 0.71, green: 0.52, blue: 0.45)
     fontWeight: 'bold',
     fontStyle: 'normal'
   });
   
   // 3. Combo - fourth (last)
-  const comboHud = createHudElement('./assets/combo-hud.png', '0', {
+  const comboHud = createHudElement('./assets/combo-hud.png', 'x0', {
     fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
-    fontSize: 18,
-    fill: 0xB58573, // Color(red: 0.71, green: 0.52, blue: 0.45)
+    fontSize: 14, // Changed from 18 to 14
+    fill: 0xE77449, // Color #E77449 (orange/red)
     fontWeight: 'bold',
     fontStyle: 'normal'
   });
@@ -1289,8 +1289,8 @@ export function updateHUD({ score, board, moves, combo }) {
   }
   if (typeof combo === 'number') {
     const v = combo|0;
-    // 🔥 NEW HUD: Update combo text (no "x" prefix, just number)
-    comboText.text = String(v);
+    // 🔥 NEW HUD: Update combo text with "x" prefix (e.g., "x2", "x5")
+    comboText.text = 'x' + String(v);
     if (v > 0) { startComboFX(); } else { stopComboFX(); }
     __lastComboVal = v;
   }
@@ -1360,15 +1360,15 @@ export function setBoard(v){
 export function setCombo(v){
   const val = v|0;
   if (!comboText) return;
-  // 🔥 NEW HUD: Update combo text (no "x" prefix, just number)
-  comboText.text = String(val);
+  // 🔥 NEW HUD: Update combo text with "x" prefix (e.g., "x2", "x5")
+  comboText.text = 'x' + String(val);
   if (val > 0) startComboFX(); else stopComboFX();
   __lastComboVal = val;
 }
 export function resetCombo(){
   if (!comboText) return;
-  // 🔥 NEW HUD: Update combo text (no "x" prefix, just number)
-  comboText.text = '0';
+  // 🔥 NEW HUD: Update combo text with "x" prefix
+  comboText.text = 'x0';
   stopComboFX();
 }
 export function bumpCombo(opts = {}){
