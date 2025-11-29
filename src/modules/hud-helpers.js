@@ -1097,7 +1097,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     xText: comboXTextLocal, // Store "x" text separately (14px)
     iconSprite: comboIconSprite,
     originalIconPath: './assets/combo-hud.png', // Store original icon path
-    extraIconPath: './assets/extra-combo-hud.png' // Store extra icon path
+    extraIconPath: './assets/extra-combo-hud.png', // Store extra icon path
+    isUsingExtraIcon: false // Flag to track if extra icon is currently active
   };
   
   // Store references
@@ -1494,49 +1495,67 @@ export function setBoard(v){
 }
 // 🔥 COMBO ICON SWAP: Function to swap combo icon based on combo value
 function updateComboIcon(comboValue) {
-  if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.combo) return;
+  if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.combo) {
+    console.warn('⚠️ updateComboIcon: HUD elements not ready');
+    return;
+  }
   
   const combo = HUD_ROOT._hudElements.combo;
   const iconSprite = combo.iconSprite;
   
-  if (!iconSprite || iconSprite.destroyed) return;
+  if (!iconSprite || iconSprite.destroyed) {
+    console.warn('⚠️ updateComboIcon: Icon sprite not available');
+    return;
+  }
   
   const needsExtraIcon = comboValue >= 10;
-  const currentIsExtra = iconSprite.texture && iconSprite.texture.textureCacheIds && 
-                          iconSprite.texture.textureCacheIds.some((id) => id.includes('extra-combo-hud'));
+  const currentIsExtra = combo.isUsingExtraIcon || false;
+  
+  console.log(`💧 updateComboIcon: combo=${comboValue}, needsExtra=${needsExtraIcon}, currentIsExtra=${currentIsExtra}`);
   
   // Only swap if needed
   if (needsExtraIcon && !currentIsExtra) {
     // Switch to extra-combo-hud.png
-    try {
-      const extraTexture = Assets.get('./assets/extra-combo-hud.png');
-      if (extraTexture) {
-        iconSprite.texture = extraTexture;
-        console.log('💧 Combo icon swapped to extra-combo-hud.png (combo >= 10)');
-      } else {
-        // Try async load
-        Assets.load('./assets/extra-combo-hud.png').then((tex) => {
-          if (tex && iconSprite && !iconSprite.destroyed) {
-            iconSprite.texture = tex;
-            console.log('💧 Combo icon swapped to extra-combo-hud.png (async load)');
-          }
-        }).catch((err) => {
-          console.warn('⚠️ Failed to load extra-combo-hud.png:', err);
-        });
+    console.log('💧 Switching to extra-combo-hud.png...');
+    const loadExtraIcon = async () => {
+      try {
+        // Try to get texture (might already be loaded)
+        let extraTexture = null;
+        try {
+          extraTexture = Assets.get('./assets/extra-combo-hud.png');
+        } catch (e) {
+          // Texture not in cache, load it
+          console.log('💧 extra-combo-hud.png not in cache, loading...');
+          extraTexture = await Assets.load('./assets/extra-combo-hud.png');
+        }
+        
+        if (extraTexture && iconSprite && !iconSprite.destroyed) {
+          iconSprite.texture = extraTexture;
+          combo.isUsingExtraIcon = true;
+          console.log('✅ Combo icon swapped to extra-combo-hud.png (combo >= 10)');
+        } else {
+          console.warn('⚠️ Failed to get extra-combo-hud.png texture or sprite destroyed');
+        }
+      } catch (err) {
+        console.error('❌ Failed to load extra-combo-hud.png:', err);
       }
-    } catch (e) {
-      console.warn('⚠️ Failed to get extra-combo-hud.png texture:', e);
-    }
+    };
+    
+    loadExtraIcon();
   } else if (!needsExtraIcon && currentIsExtra) {
     // Switch back to combo-hud.png
+    console.log('💧 Switching back to combo-hud.png...');
     try {
       const normalTexture = Assets.get('./assets/combo-hud.png');
-      if (normalTexture) {
+      if (normalTexture && iconSprite && !iconSprite.destroyed) {
         iconSprite.texture = normalTexture;
-        console.log('💧 Combo icon swapped back to combo-hud.png (combo < 10)');
+        combo.isUsingExtraIcon = false;
+        console.log('✅ Combo icon swapped back to combo-hud.png (combo < 10)');
+      } else {
+        console.warn('⚠️ Failed to get combo-hud.png texture or sprite destroyed');
       }
     } catch (e) {
-      console.warn('⚠️ Failed to get combo-hud.png texture:', e);
+      console.error('❌ Failed to get combo-hud.png texture:', e);
     }
   }
 }
