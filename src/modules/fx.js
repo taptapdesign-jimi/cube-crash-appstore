@@ -1403,13 +1403,25 @@ export function cleanupWildBeerExplosion() {
 
     wildBeerExplosionActive = false;
 
-    // 🔥 USER REQUEST: Restore canvas z-index after bubbles animation completes
+    // 🔥 USER REQUEST: Restore canvas z-index and position after bubbles animation completes
     if (wildBeerExplosionContainer && wildBeerExplosionContainer._originalCanvasZIndex !== undefined) {
       const windowState = typeof window !== 'undefined' ? window.STATE : null;
       const app = (windowState && windowState.app) || null;
       if (app && app.canvas) {
         app.canvas.style.zIndex = wildBeerExplosionContainer._originalCanvasZIndex;
-        console.log('💧 Restored canvas z-index to', app.canvas.style.zIndex, 'after bubbles animation');
+        // Restore original position if it was stored
+        if (wildBeerExplosionContainer._originalCanvasPosition !== undefined) {
+          app.canvas.style.position = wildBeerExplosionContainer._originalCanvasPosition || '';
+          if (!wildBeerExplosionContainer._originalCanvasPosition) {
+            // If original was empty, remove inline position (let CSS handle it)
+            app.canvas.style.removeProperty('position');
+            app.canvas.style.removeProperty('top');
+            app.canvas.style.removeProperty('left');
+            app.canvas.style.removeProperty('width');
+            app.canvas.style.removeProperty('height');
+          }
+        }
+        console.log('💧 Restored canvas z-index to', app.canvas.style.zIndex, 'and position after bubbles animation');
       }
     }
 
@@ -1714,15 +1726,28 @@ export function createWildBeerBubblesExplosion(board, tile) {
   container.alpha = 1.0; // 🔥 CRITICAL: Ensure container is fully opaque
   try { container.interactiveChildren = false; } catch {}
   
-  // 🔥 USER REQUEST: Raise canvas CSS z-index so bubbles render OVER clean board modal
-  // Clean board modal has z-index: 10000000000000 (or 9999999999999 if bubbles running)
-  // Canvas needs to be higher to render bubbles on top
+  // 🔥 USER REQUEST: Raise canvas CSS z-index and position so bubbles render OVER clean board modal
+  // Clean board modal has z-index: 10000000000000, canvas needs to be higher
   if (app && app.canvas) {
     const originalZIndex = app.canvas.style.zIndex || '10';
+    const originalPosition = app.canvas.style.position || '';
+    
+    // 🔥 CRITICAL: Set position to fixed/absolute for z-index to work
+    // Canvas must have position property for z-index to take effect
+    if (!app.canvas.style.position || app.canvas.style.position === 'static') {
+      app.canvas.style.position = 'fixed'; // Fixed positioning for z-index to work
+      app.canvas.style.top = '0';
+      app.canvas.style.left = '0';
+      app.canvas.style.width = '100%';
+      app.canvas.style.height = '100%';
+    }
+    
     // Use very high z-index to ensure bubbles render over clean board modal
-    app.canvas.style.zIndex = '10000000000001'; // Above clean board modal
+    app.canvas.style.zIndex = '10000000000001'; // Above clean board modal (10000000000000)
+    
     container._originalCanvasZIndex = originalZIndex; // Store for cleanup
-    console.log('💧 Raised canvas z-index to', app.canvas.style.zIndex, 'so bubbles render over clean board modal');
+    container._originalCanvasPosition = originalPosition; // Store for cleanup
+    console.log('💧 Raised canvas z-index to', app.canvas.style.zIndex, 'and position to', app.canvas.style.position, 'so bubbles render over clean board modal');
     
     // 🔥 CRITICAL: Force reflow to ensure z-index change takes effect
     void app.canvas.offsetHeight;
