@@ -648,7 +648,7 @@ export function layout({ app, top }) {
       // Position combo so its right edge is 24px from right edge
       // Since anchor is at center, we need to offset by half width
       comboWrap.x = rightEdge - comboRightPadding - comboWidth / 2;
-      comboWrap.y = hudY + hudHeight / 2;
+      comboWrap.y = yValue; // Use yValue directly (local to HUD_ROOT)
     }
     
     // Coin - 64px lijevo od lijevog ruba Combo
@@ -665,7 +665,7 @@ export function layout({ app, top }) {
       // Position coin so its right edge is 64px left of combo's left edge
       // Since anchor is at center, we need to offset by half width
       coin.container.x = comboLeftEdge - elementSpacing - coinWidth / 2;
-      coin.container.y = hudY + hudHeight / 2;
+      coin.container.y = yValue; // Use yValue directly (local to HUD_ROOT)
     }
     
     // Star - 64px lijevo od lijevog ruba Coin
@@ -685,7 +685,7 @@ export function layout({ app, top }) {
       // Position star so its right edge is 64px left of coin's left edge
       // Since anchor is at center, we need to offset by half width
       star.container.x = coinLeftEdge - elementSpacing - starWidth / 2;
-      star.container.y = hudY + hudHeight / 2;
+      star.container.y = yValue; // Use yValue directly (local to HUD_ROOT)
     }
   } else {
     // Fallback to old positioning if new elements not created yet
