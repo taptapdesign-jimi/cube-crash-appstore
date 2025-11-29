@@ -1302,14 +1302,23 @@ function pulseBoardZoom(factor = 0.92, opts = {}) {
 
 
 const updateHUD = () => {
-  console.log('🎯 updateHUD called with:', { score, board: boardNumber, moves, combo });
+  // 🔥 CRITICAL FIX: Get actual combo value from window.CC.getCombo() instead of local combo variable
+  // This ensures combo value is always in sync, especially after magnet pull updates combo via window.CC.setCombo()
+  const actualCombo = typeof (window as any).CC?.getCombo === 'function'
+    ? (window as any).CC.getCombo()
+    : combo; // Fallback to local combo if window.CC.getCombo not available
+  
+  // Sync local combo variable with actual combo value
+  combo = actualCombo;
+  
+  console.log('🎯 updateHUD called with:', { score, board: boardNumber, moves, combo: actualCombo });
   syncSharedState();
   
   try {
     // First try to use HUD from hud-helpers.js
     if (typeof HUD.updateHUD === 'function') { 
       console.log('🎯 Calling HUD.updateHUD from hud-helpers.js');
-      HUD.updateHUD({ score, board: boardNumber, moves, combo }); 
+      HUD.updateHUD({ score, board: boardNumber, moves, combo: actualCombo }); 
       return; 
     } else {
       console.log('⚠️ HUD.updateHUD function not available');
@@ -1322,7 +1331,7 @@ const updateHUD = () => {
     // Fallback to old method
     if (typeof _updateHUD === 'function') { 
       console.log('🎯 Using fallback _updateHUD');
-      _updateHUD({ score, board: boardNumber, moves, combo }); 
+      _updateHUD({ score, board: boardNumber, moves, combo: actualCombo }); 
       return; 
     }
   } catch (error) {
@@ -1333,7 +1342,7 @@ const updateHUD = () => {
   console.log('🎯 Using legacy fallback for HUD update');
   if (boardNumText) boardNumText.text = `#${boardNumber}`;
   if (scoreNumText) scoreNumText.text = String(score);
-  if (comboNumText) comboNumText.text = `x${combo}`;
+  if (comboNumText) comboNumText.text = `x${actualCombo}`;
 };
 
 function animateScore(toValue, duration=0.45){
