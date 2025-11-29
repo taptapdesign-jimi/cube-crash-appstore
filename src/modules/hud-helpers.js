@@ -1503,7 +1503,7 @@ function updateComboIcon(comboValue) {
   
   const needsExtraIcon = comboValue >= 10;
   const currentIsExtra = iconSprite.texture && iconSprite.texture.textureCacheIds && 
-                          iconSprite.texture.textureCacheIds.some((id: string) => id.includes('extra-combo-hud'));
+                          iconSprite.texture.textureCacheIds.some((id) => id.includes('extra-combo-hud'));
   
   // Only swap if needed
   if (needsExtraIcon && !currentIsExtra) {
