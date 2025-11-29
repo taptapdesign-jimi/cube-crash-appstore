@@ -535,8 +535,9 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   }
   
   const intensity = opts.intensity ?? 1.0; // Default intensity 1.0 (100%)
-  // 🔥 OPTIMIZATION: Reduced default shard count from 20 to 10 (50% reduction) for better performance
-  const shardCount = Math.max(1, Math.round(10 * intensity)); // Scale shard count by intensity (50% = 5 shards, 100% = 10 shards)
+  // 🔥 USER REQUEST: Increased shard count by 20% (from 10 to 12) for more visible smoke trail
+  const baseShardCount = 12; // Increased from 10 to 12 (20% increase)
+  const shardCount = Math.max(1, Math.round(baseShardCount * intensity)); // Scale shard count by intensity (50% = 6 shards, 100% = 12 shards)
   const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
   
   // 🔥 CRITICAL: For wild-magnet, add red color #F26034 to sparkles

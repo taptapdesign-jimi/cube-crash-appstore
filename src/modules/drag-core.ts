@@ -282,19 +282,19 @@ export function initDrag(cfg) {
         // This ensures particles appear behind the wild tile when dragging
         const tileZ = t?.zIndex ?? 0;
         const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
+        // 🔥 USER REQUEST: Wild beer uses same intensity as wild star (1.0) for consistent smoke trail
         magicSparklesAtTile(board, t, { intensity: 1.0, zIndex: particlesZ });
         drag._lastSparkleTime = drag.lastTime;
         
-        // 🔥 OPTIMIZATION: Start continuous sparkles interval with reduced frequency and intensity
-        // Reduced from 100ms to 250ms (4x less frequent) and intensity from 1.0 to 0.5 (50% fewer shards)
+        // 🔥 USER REQUEST: Wild beer uses same interval and intensity as wild star for consistent smoke trail
         drag._sparkleInterval = setInterval(() => {
           if (drag.t && (drag.t.special === 'wild' || drag.t.special === 'wild-beer') && !drag.t.destroyed) {
             try {
               // 🔥 CRITICAL: Set z-index to be BELOW dragged tile
               const tileZ = drag.t?.zIndex ?? 0;
               const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
-              // 🔥 OPTIMIZATION: Reduced intensity from 1.0 to 0.5 (50% fewer shards = 10 instead of 20)
-              magicSparklesAtTile(board, drag.t, { intensity: 0.5, zIndex: particlesZ });
+              // 🔥 USER REQUEST: Wild beer uses same intensity as wild star (1.0) for consistent smoke trail
+              magicSparklesAtTile(board, drag.t, { intensity: 1.0, zIndex: particlesZ });
             } catch (err) {
               console.warn('Wild interval sparkles error:', err);
             }
@@ -305,7 +305,7 @@ export function initDrag(cfg) {
               drag._sparkleInterval = null;
             }
           }
-        }, 250); // 🔥 OPTIMIZATION: Increased from 100ms to 250ms (4x less frequent = 4 calls/sec instead of 10)
+        }, 250); // Same interval as before (250ms for smooth performance)
       } catch (err) {
         console.warn('Wild pickup sparkles error:', err);
       }
