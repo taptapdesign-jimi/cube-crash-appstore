@@ -1677,12 +1677,15 @@ export function createWildBeerBubblesExplosion(board, tile) {
     return;
   }
 
-  if (wildBeerExplosionActive) {
-    console.warn('⚠️ createWildBeerBubblesExplosion: Already active, skipping');
-    return;
-  }
-
+  // 🔥 CRITICAL: Always cleanup first to ensure clean state
+  // This prevents race conditions where flag is stuck
   cleanupWildBeerExplosion();
+  
+  // Double-check after cleanup
+  if (wildBeerExplosionActive) {
+    console.warn('⚠️ createWildBeerBubblesExplosion: Flag still active after cleanup, forcing reset');
+    wildBeerExplosionActive = false;
+  }
 
   // Get app and stage from window.STATE (most reliable)
   const windowState = typeof window !== 'undefined' ? window.STATE : null;
