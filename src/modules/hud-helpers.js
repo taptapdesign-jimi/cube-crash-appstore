@@ -621,12 +621,12 @@ export function layout({ app, top }) {
   const elementSpacing = 64; // 64px spacing between elements
   const comboRightPadding = 24; // 24px from right edge for combo
   
-  // Position close icon (left, existing position)
+  // Position close icon (left, existing position) - aligned with other HUD elements
   boardText.x = leftCenter;
   boardText.y = yValue;
   if (closeIconSprite) {
     closeIconSprite.x = leftCenter;
-    closeIconSprite.y = yValue + (valueRowH / 2);
+    closeIconSprite.y = yValue; // Aligned with other HUD elements (star, coin, combo)
     closeIconSprite.visible = true;
   }
   
