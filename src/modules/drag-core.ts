@@ -7,7 +7,7 @@
 
 import { Graphics, Container, Sprite, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
-import { magicSparklesAtTile, dragSmokeTrail, dragBeerBubbleTrail, isWildBeerExplosionRunning } from './fx.js';
+import { magicSparklesAtTile, dragSmokeTrail, isWildBeerExplosionRunning } from './fx.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 
 
@@ -464,11 +464,13 @@ export function initDrag(cfg) {
           const tileZ = t?.zIndex ?? 0;
           const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
           
-          if (t.special === 'wild-beer') {
-            dragBeerBubbleTrail(board, t, 96, 0.9, { zIndex: particlesZ });
-          } else {
+          // 🔥 USER REQUEST: Wild beer uses same particles as wild star (no bubbles, only magicSparklesAtTile)
+          // Removed dragBeerBubbleTrail - wild beer now uses only magicSparklesAtTile particles like wild star
+          if (t.special !== 'wild-beer' && t.special !== 'wild') {
+            // Only non-wild tiles use dragSmokeTrail
             dragSmokeTrail(board, t, 96, 0.7, { zIndex: particlesZ });
           }
+          // Wild and wild-beer use only magicSparklesAtTile (no additional bubbles or smoke)
           drag._lastSmokeTime = now;
         } catch (err) {
           console.warn('Trail error:', err);
