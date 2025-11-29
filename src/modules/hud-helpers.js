@@ -812,7 +812,10 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   HUD_ROOT.label = 'HUD_ROOT';
   HUD_ROOT.zIndex = 10_000;
   HUD_ROOT.sortableChildren = true;
+  HUD_ROOT.visible = true; // 🔥 CRITICAL: Ensure HUD is visible
+  HUD_ROOT.alpha = 1; // 🔥 CRITICAL: Ensure HUD is fully opaque
   stage.addChild(HUD_ROOT);
+  console.log('✅ HUD_ROOT created and added to stage');
 
   // vrijednosti - Use system font stack for better App Store compatibility
   const valMain  = { fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif', fontSize: 24, fill: 0xAD8775, fontWeight: '700', fontStyle: 'normal' };
