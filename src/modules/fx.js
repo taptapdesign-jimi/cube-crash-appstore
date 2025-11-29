@@ -1699,7 +1699,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
   // Create container
   const container = new Container();
   container.name = 'wild-beer-explosion-bubbles';
-  container.zIndex = 999999; // 🔥 USER REQUEST: VERY HIGH z-index to render OVER clean board modal (was 20000)
+  container.zIndex = 20000;
   container.eventMode = 'none';
   container.visible = true; // 🔥 CRITICAL: Ensure container is visible
   container.alpha = 1.0; // 🔥 CRITICAL: Ensure container is fully opaque
