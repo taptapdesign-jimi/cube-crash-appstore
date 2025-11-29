@@ -1715,12 +1715,17 @@ export function createWildBeerBubblesExplosion(board, tile) {
   try { container.interactiveChildren = false; } catch {}
   
   // 🔥 USER REQUEST: Raise canvas CSS z-index so bubbles render OVER clean board modal
-  // Clean board modal has z-index: 10000000000000, so we need canvas higher
+  // Clean board modal has z-index: 10000000000000 (or 9999999999999 if bubbles running)
+  // Canvas needs to be higher to render bubbles on top
   if (app && app.canvas) {
     const originalZIndex = app.canvas.style.zIndex || '10';
-    app.canvas.style.zIndex = '10000000000001'; // Above clean board modal (10000000000000)
+    // Use very high z-index to ensure bubbles render over clean board modal
+    app.canvas.style.zIndex = '10000000000001'; // Above clean board modal
     container._originalCanvasZIndex = originalZIndex; // Store for cleanup
     console.log('💧 Raised canvas z-index to', app.canvas.style.zIndex, 'so bubbles render over clean board modal');
+    
+    // 🔥 CRITICAL: Force reflow to ensure z-index change takes effect
+    void app.canvas.offsetHeight;
   }
   
   // Position container at stage origin (0,0 relative to stage)

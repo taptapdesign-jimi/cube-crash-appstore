@@ -192,6 +192,14 @@ export async function showCleanBoardModal({
 
     const el = document.createElement('div');
     el.id = overlayId;
+    // 🔥 USER REQUEST: If bubbles animation is running, lower modal z-index so bubbles render on top
+    // Bubbles animation needs to be visible over clean board modal
+    const bubblesRunning = typeof window !== 'undefined' && 
+                          typeof (window as any).isWildBeerExplosionRunning === 'function' &&
+                          (window as any).isWildBeerExplosionRunning();
+    
+    const modalZIndex = bubblesRunning ? '9999999999999' : '10000000000000'; // Lower if bubbles running
+    
     el.style.cssText = [
       'position:fixed',
       'inset:0',
@@ -199,10 +207,14 @@ export async function showCleanBoardModal({
       'align-items:center',
       'justify-content:center',
       'background:#f3eee8',
-      'z-index:10000000000000',
+      `z-index:${modalZIndex}`,
       'opacity:0',
       'transition:opacity .2s ease'
     ].join(';');
+    
+    if (bubblesRunning) {
+      console.log('💧 Clean board modal: Bubbles animation detected - using lower z-index so bubbles render on top');
+    }
 
     // Card
     const card = document.createElement('div');
