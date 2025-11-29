@@ -4796,15 +4796,17 @@ function merge(src, dst, helpers){
           return;
         }
         
-        // 🔥 CRITICAL: Wait 500ms AFTER spawn animations complete to let user see the board
-        // This ensures user can see the spawned tiles before endgame check runs
-        // Total delay: spawn animations (~480ms) + this delay (500ms) + checkLevelEnd delay (1200ms) = ~2180ms
-        console.log('⏳ Waiting 500ms after spawn animations to let user see board state...');
+        // 🔥 CRITICAL BUG FIX: Don't wait for bubbles animation - it's just visual and shouldn't block end game check
+        // Bubbles animation can run for 4+ seconds, which would delay fail screen detection
+        // Instead, check end game immediately after spawn completes (with small delay for spawn animations)
+        // This ensures stuck positions are detected even if user makes quick second merge during bubbles animation
+        console.log('⏳ Waiting 500ms after spawn animations to let user see board state (bubbles animation continues in background)...');
         await new Promise(res => setTimeout(res, 500));
         
         // 🔥 CRITICAL: Check end game after spawn completes (with delay to allow animations)
         // Use checkLevelEnd which already has proper delay and handles all edge cases
         // This replaces the inline setTimeout check to avoid duplicate checks
+        // NOTE: Bubbles animation continues in background - it doesn't block end game detection
         checkLevelEnd();
       }
     });
