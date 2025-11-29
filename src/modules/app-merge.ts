@@ -1643,6 +1643,24 @@ export function merge(src, dst, helpers){
       });
     }
 
+    // 🔥 CRITICAL: Stop wild beer bubbles PRIJE merge 6 animacije (prevents memory leaks and conflicts)
+    if (src?.special === 'wild-beer') {
+      try {
+        stopWildBeerBubbles(src);
+        console.log('🧹 Stopped wild beer bubbles for src tile before merge 6');
+      } catch (e) {
+        console.warn('⚠️ Failed to stop wild beer bubbles for src tile:', e);
+      }
+    }
+    if (dst?.special === 'wild-beer') {
+      try {
+        stopWildBeerBubbles(dst);
+        console.log('🧹 Stopped wild beer bubbles for dst tile before merge 6');
+      } catch (e) {
+        console.warn('⚠️ Failed to stop wild beer bubbles for dst tile:', e);
+      }
+    }
+
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.10, ease: 'power2.out',
       onComplete: async () => {

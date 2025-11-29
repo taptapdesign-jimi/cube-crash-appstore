@@ -535,7 +535,8 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   }
   
   const intensity = opts.intensity ?? 1.0; // Default intensity 1.0 (100%)
-  const shardCount = Math.max(1, Math.round(20 * intensity)); // Scale shard count by intensity (20% = 4 shards)
+  // 🔥 OPTIMIZATION: Reduced default shard count from 20 to 10 (50% reduction) for better performance
+  const shardCount = Math.max(1, Math.round(10 * intensity)); // Scale shard count by intensity (50% = 5 shards, 100% = 10 shards)
   const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
   
   // 🔥 CRITICAL: For wild-magnet, add red color #F26034 to sparkles
@@ -611,7 +612,8 @@ export function magicSparklesAtTile(board, tile, opts = {}){
       y: endY,
       rotation: shard.rotation + (Math.random() - 0.5) * Math.PI * 2,
       alpha: 0,
-      duration: 0.5 + Math.random() * 0.4, // Slower fade for more visibility
+      // 🔥 OPTIMIZATION: Reduced duration from 0.5-0.9s to 0.3-0.6s (faster cleanup, less CPU/GPU pressure)
+      duration: 0.3 + Math.random() * 0.3, // Faster fade for better performance
       ease: 'power1.out', // Constant speed for trailing
       onComplete: () => {
         try {
