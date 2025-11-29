@@ -4876,6 +4876,14 @@ function checkLevelEnd(){
     
     console.log('🎯 checkLevelEnd called - using centralized end game checker...');
     
+    // 🔥 CRITICAL BUG FIX: Don't skip check if bubbles animation is running - it's just visual
+    // Bubbles animation can run for 4+ seconds and shouldn't block end game detection
+    // This fixes the bug where user makes quick second merge during bubbles animation and gets stuck position
+    const bubblesRunning = isWildBeerExplosionRunning();
+    if (bubblesRunning) {
+      console.log('💧 Bubbles animation is running, but continuing with end game check (bubbles are visual only, don\'t block detection)');
+    }
+    
     // 🔥 CRITICAL: Skip check if wild spawn is in progress (animation not finished yet)
     if (wildSpawnInProgress) {
       checkLevelEndRetryCount++;
