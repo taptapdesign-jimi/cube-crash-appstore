@@ -1162,6 +1162,12 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     combo: comboHud
   };
   
+  // 🔥 COMBO PARTICLES: Start idle particles immediately (always active)
+  // Delay to ensure HUD is fully initialized
+  setTimeout(() => {
+    updateComboParticles(0); // Start particles even when combo is 0
+  }, 500);
+  
   // Add close icon sprite if it was created synchronously
   if (closeIconSprite && closeIconSprite.parent !== HUD_ROOT) {
     HUD_ROOT.addChild(closeIconSprite);
