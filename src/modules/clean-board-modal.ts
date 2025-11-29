@@ -190,43 +190,6 @@ export async function showCleanBoardModal({
     const old = document.getElementById(overlayId);
     if (old) old.remove();
 
-    // 🔥 USER REQUEST: If bubbles animation is running, ensure canvas z-index and position are set correctly
-    // This allows bubbles to render over clean board modal
-    const bubblesRunning = typeof window !== 'undefined' && 
-                          typeof (window as any).isWildBeerExplosionRunning === 'function' &&
-                          (window as any).isWildBeerExplosionRunning();
-    
-    if (bubblesRunning && app && app.canvas) {
-      // Ensure canvas has position fixed/absolute for z-index to work
-      if (!app.canvas.style.position || app.canvas.style.position === 'static') {
-        app.canvas.style.position = 'fixed';
-        app.canvas.style.top = '0';
-        app.canvas.style.left = '0';
-        app.canvas.style.width = '100%';
-        app.canvas.style.height = '100%';
-      }
-      
-      // Ensure canvas z-index is higher than modal so bubbles render on top
-      const currentCanvasZIndex = app.canvas.style.zIndex || '10';
-      const targetZIndex = '10000000000001'; // Above modal (10000000000000)
-      if (parseInt(currentCanvasZIndex) < 10000000000000) {
-        app.canvas.style.zIndex = targetZIndex;
-        console.log('💧 Clean board modal: Bubbles animation detected - set canvas position to', app.canvas.style.position, 'and z-index to', app.canvas.style.zIndex, 'so bubbles render on top');
-        // Force reflow to ensure z-index change takes effect
-        void app.canvas.offsetHeight;
-      } else {
-        console.log('💧 Clean board modal: Canvas z-index already high enough:', app.canvas.style.zIndex);
-      }
-    }
-    
-    // 🔥 USER REQUEST: If bubbles animation is running, use lower z-index so bubbles render on top
-    const bubblesRunning = typeof window !== 'undefined' && 
-                          typeof (window as any).isWildBeerExplosionRunning === 'function' &&
-                          (window as any).isWildBeerExplosionRunning();
-    
-    // Use lower z-index if bubbles are running so canvas (z-index 10000000000001) renders on top
-    const modalZIndex = bubblesRunning ? '9999999999999' : '10000000000000';
-    
     const el = document.createElement('div');
     el.id = overlayId;
     el.style.cssText = [
@@ -236,14 +199,10 @@ export async function showCleanBoardModal({
       'align-items:center',
       'justify-content:center',
       'background:#f3eee8',
-      `z-index:${modalZIndex}`,
+      'z-index:10000000000000',
       'opacity:0',
       'transition:opacity .2s ease'
     ].join(';');
-    
-    if (bubblesRunning) {
-      console.log('💧 Clean board modal: Bubbles animation detected - using lower z-index', modalZIndex, 'so bubbles (canvas z-index 10000000000001) render on top');
-    }
 
     // Card
     const card = document.createElement('div');
