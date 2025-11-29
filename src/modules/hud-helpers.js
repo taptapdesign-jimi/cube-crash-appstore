@@ -626,7 +626,7 @@ export function layout({ app, top }) {
   boardText.y = yValue;
   if (closeIconSprite) {
     closeIconSprite.x = leftCenter;
-    closeIconSprite.y = yValue; // Aligned with other HUD elements (star, coin, combo)
+    closeIconSprite.y = yValue + 2; // Moved down 2px from other HUD elements
     closeIconSprite.visible = true;
   }
   
