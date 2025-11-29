@@ -187,28 +187,13 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   }
 
   try {
-    // 🔥 USER REQUEST: Wait for bubbles animation to complete before showing clean board
-    // Bubbles animation can render over clean board screen (z-index 20000)
-    // Max duration: ~4.4s (2s spawn + 2.4s cleanup delay)
-    if (isWildBeerExplosionRunning()) {
-      console.log('💧 Bubbles animation is running - waiting for it to complete before clean board...');
-      await waitForBubblesAnimationToComplete(5000); // Max 5 seconds wait
-      console.log('✅ Bubbles animation completed - proceeding with clean board flow');
-      
-      // 🔥 CRITICAL: Cleanup bubbles animation after it completes
-      // This ensures all resources are freed before clean board appears
-      try {
-        if (isWildBeerExplosionRunning() && cleanupWildBeerExplosion) {
-          cleanupWildBeerExplosion();
-          console.log('🧹 Cleaned up bubbles animation after completion');
-        }
-      } catch (e) {
-        console.warn('⚠️ Failed to cleanup bubbles animation:', e);
-      }
-    } else {
-      // No bubbles animation - use original 1 second delay
-      try { await new Promise((res) => setTimeout(res, 1000)); } catch {}
-    }
+    // 🔥 USER REQUEST: Bubbles animation continues over clean board screen
+    // Clean board modal appears, but bubbles animation renders on top (z-index 999999)
+    // Bubbles animation will cleanup naturally when it finishes
+    console.log('💧 Clean board flow starting - bubbles animation (if running) will continue over modal');
+    
+    // Original 1 second delay (bubbles animation continues independently)
+    try { await new Promise((res) => setTimeout(res, 1000)); } catch {}
     
     await runEndgameFlow({
       app,

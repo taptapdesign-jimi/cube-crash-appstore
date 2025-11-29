@@ -1403,6 +1403,16 @@ export function cleanupWildBeerExplosion() {
 
     wildBeerExplosionActive = false;
 
+    // 🔥 USER REQUEST: Restore canvas z-index after bubbles animation completes
+    if (wildBeerExplosionContainer && wildBeerExplosionContainer._originalCanvasZIndex !== undefined) {
+      const windowState = typeof window !== 'undefined' ? window.STATE : null;
+      const app = (windowState && windowState.app) || null;
+      if (app && app.canvas) {
+        app.canvas.style.zIndex = wildBeerExplosionContainer._originalCanvasZIndex;
+        console.log('💧 Restored canvas z-index to', app.canvas.style.zIndex, 'after bubbles animation');
+      }
+    }
+
     if (wildBeerExplosionContainer) {
       const container = wildBeerExplosionContainer;
       wildBeerExplosionContainer = null;
@@ -1703,6 +1713,15 @@ export function createWildBeerBubblesExplosion(board, tile) {
   container.visible = true; // 🔥 CRITICAL: Ensure container is visible
   container.alpha = 1.0; // 🔥 CRITICAL: Ensure container is fully opaque
   try { container.interactiveChildren = false; } catch {}
+  
+  // 🔥 USER REQUEST: Raise canvas CSS z-index so bubbles render OVER clean board modal
+  // Clean board modal has z-index: 10000000000000, so we need canvas higher
+  if (app && app.canvas) {
+    const originalZIndex = app.canvas.style.zIndex || '10';
+    app.canvas.style.zIndex = '10000000000001'; // Above clean board modal (10000000000000)
+    container._originalCanvasZIndex = originalZIndex; // Store for cleanup
+    console.log('💧 Raised canvas z-index to', app.canvas.style.zIndex, 'so bubbles render over clean board modal');
+  }
   
   // Position container at stage origin (0,0 relative to stage)
   // In PixiJS, stage is usually at (0,0) and covers the entire screen
