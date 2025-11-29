@@ -1381,6 +1381,12 @@ export function updateHUD({ score, board, moves, combo }) {
       }
     }
     
+    // 🔥 COMBO ICON SWAP: Swap icon to extra-combo-hud.png when combo >= 10
+    updateComboIcon(v);
+    
+    // 🔥 COMBO WOBBLE: Start wobble animation when combo >= 10
+    updateComboWobble(v);
+    
     // 🔥 CONTAIN COMBO: Adjust combo position and scale to keep it within viewport
     if (HUD_ROOT && HUD_ROOT._hudElements && HUD_ROOT._hudElements.combo && comboWrap) {
       const comboEl = HUD_ROOT._hudElements.combo;
