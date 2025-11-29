@@ -803,6 +803,21 @@ export async function showCleanBoardModal({
         try { el.remove(); } catch {}
         clearAllModalTimeouts(); // 🔥 Cleanup all remaining timeouts (double-check)
         clearAllModalAnimationFrames(); // 🔥 Cleanup all remaining animation frames (double-check)
+        
+        // 🔥 MEMORY LEAK FIX: Cleanup confetti animations when modal closes
+        try {
+          import('./confetti-system.js').then(confettiModule => {
+            if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
+              confettiModule.cleanupConfetti();
+              console.log('🧹 clean-board-modal: Cleaned up confetti animations on modal close');
+            }
+          }).catch(() => {
+            // Ignore import errors
+          });
+        } catch (e) {
+          console.warn('⚠️ clean-board-modal: Failed to cleanup confetti animations:', e);
+        }
+        
         resolve({ action: 'continue' }); 
       }, collapseDuration + 220);
     });
