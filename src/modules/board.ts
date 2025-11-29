@@ -388,6 +388,28 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   const boardCenterY = ((ROWS - 1) * (TILE + GAP) + TILE) * 0.5;
 
   t.shadow!.visible = false;
+  
+  // 🔥 USER REQUEST: Helper function to draw star shape for wild tile shadow
+  const drawStar = (g: Graphics, x: number, y: number, outerRadius: number, innerRadius: number, points: number = 5): void => {
+    const angleStep = (Math.PI * 2) / points;
+    const startAngle = -Math.PI / 2; // Start at top
+    
+    g.moveTo(
+      x + Math.cos(startAngle) * outerRadius,
+      y + Math.sin(startAngle) * outerRadius
+    );
+    
+    for (let i = 1; i <= points * 2; i++) {
+      const angle = startAngle + (i * angleStep / 2);
+      const radius = i % 2 === 0 ? outerRadius : innerRadius;
+      g.lineTo(
+        x + Math.cos(angle) * radius,
+        y + Math.sin(angle) * radius
+      );
+    }
+    g.closePath();
+  };
+  
   const drawShadow = (): void => {
     sh.clear();
 
@@ -410,6 +432,9 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
     const baseShift = TILE * 0.065 * strength;
     const biasY = TILE * 0.012; // gentle "below" bias
 
+    // 🔥 USER REQUEST: Check if this is a wild star tile (not wild-beer or wild-magnet)
+    const isWildStar = t.special === 'wild';
+
     // Smooth, gaussian-like falloff: more (but thinner) layers → softer edge
     const layers = 10;
     for (let i = 0; i < layers; i++) {
@@ -429,9 +454,22 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
       const ox = -width / 2 + nx * shift + 1; // +1 tiny pixel nudge for sub-pixel crispness
       const oy = -height / 2 + ny * shift + 4 + biasY;
 
-      sh.beginFill(0xBDA38D, alpha)
-        .drawRoundedRect(ox, oy, width, height, TILE * 0.22)
-        .endFill();
+      sh.beginFill(0xBDA38D, alpha);
+      
+      if (isWildStar) {
+        // 🔥 USER REQUEST: Draw star-shaped shadow for wild star tile
+        // Use center of shadow area and calculate star dimensions
+        const centerX = ox + width / 2;
+        const centerY = oy + height / 2;
+        const outerRadius = Math.min(width, height) * 0.45; // Slightly smaller than tile
+        const innerRadius = outerRadius * 0.4; // Inner radius for star points
+        drawStar(sh, centerX, centerY, outerRadius, innerRadius, 5);
+      } else {
+        // Regular rounded rectangle shadow for non-wild tiles
+        sh.drawRoundedRect(ox, oy, width, height, TILE * 0.22);
+      }
+      
+      sh.endFill();
     }
 
     // rotate and subtly distort shadow to follow visual tilt
