@@ -1163,10 +1163,16 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   };
   
   // 🔥 COMBO PARTICLES: Start idle particles immediately (always active)
-  // Delay to ensure HUD is fully initialized
+  // Delay to ensure HUD is fully initialized - wrap in try-catch to prevent blocking
   setTimeout(() => {
-    updateComboParticles(0); // Start particles even when combo is 0
-  }, 500);
+    try {
+      if (typeof updateComboParticles === 'function') {
+        updateComboParticles(0); // Start particles even when combo is 0
+      }
+    } catch (err) {
+      console.warn('⚠️ Failed to start combo particles on HUD init:', err);
+    }
+  }, 1000); // Increased delay to ensure everything is ready
   
   // Add close icon sprite if it was created synchronously
   if (closeIconSprite && closeIconSprite.parent !== HUD_ROOT) {
