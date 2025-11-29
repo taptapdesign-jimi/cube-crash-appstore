@@ -637,69 +637,40 @@ export function layout({ app, top }) {
     // Start from right edge (with side padding)
     const rightEdge = vw - SIDE;
     
-    // Combo - 24px from right edge (desni rub elementa je na rightEdge - 24)
+    // 🔥 FIXED POSITIONS: All elements (Combo, Coin, Star) have fixed positions with 64px spacing
+    // Positions are calculated from right edge, not based on text width (non-responsive)
+    
+    // Combo - 24px from right edge (fixed position)
     if (comboWrap && combo && combo.container) {
-      // Calculate combo width (icon + "x" text + number text + spacing)
-      const iconWidth = combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28;
-      const xTextWidth = combo.xText ? combo.xText.width : 0;
-      const numberTextWidth = combo.text ? combo.text.width : 0;
-      const spacing = 4; // Spacing between icon and text
-      const comboWidth = iconWidth + spacing + xTextWidth + numberTextWidth;
-      // Position combo so its right edge is 24px from right edge
-      // Since anchor is at center, we need to offset by half width
-      comboWrap.x = rightEdge - comboRightPadding - comboWidth / 2;
-      comboWrap.y = yValue; // Use yValue directly (local to HUD_ROOT)
+      // Use fixed center position - combo container anchor is at center
+      // Position combo center at: rightEdge - 24px - (estimated combo width / 2)
+      // Estimated combo width: icon (28px) + spacing (4px) + "x" text (~10px) + number text (~20px) = ~62px
+      const estimatedComboWidth = 62;
+      comboWrap.x = rightEdge - comboRightPadding - estimatedComboWidth / 2;
+      comboWrap.y = yValue;
     }
     
-    // Coin - 64px lijevo od lijevog ruba Combo
-    // 🔥 FIXED POSITION: Use fixed icon width (28px) + estimated text width, not actual text width
-    // This prevents elements from moving when score text grows
+    // Coin - 64px left of Combo center (fixed position)
     if (coin && coin.container) {
-      // Calculate combo position using fixed widths (not dynamic text width)
-      const comboIconWidth = combo && combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28;
-      const comboXTextWidth = combo && combo.xText ? combo.xText.width : 0; // "x" width is fixed
-      const comboNumberTextWidth = combo && combo.text ? combo.text.width : 0; // Combo number width is relatively fixed
-      const comboSpacing = 4;
-      const comboWidth = comboIconWidth + comboSpacing + comboXTextWidth + comboNumberTextWidth;
-      const comboLeftEdge = rightEdge - comboRightPadding - comboWidth;
+      // Calculate combo center position
+      const estimatedComboWidth = 62;
+      const comboCenterX = rightEdge - comboRightPadding - estimatedComboWidth / 2;
       
-      // Use fixed icon width (28px) + estimated max text width for positioning
-      // This keeps coin position fixed even when score text grows
-      const coinIconWidth = coin.iconSprite ? coin.iconSprite.width * coin.iconSprite.scale.x : 28;
-      const estimatedCoinTextWidth = 60; // Estimated max width for score text (enough for large numbers)
-      const coinFixedWidth = coinIconWidth + 4 + estimatedCoinTextWidth; // icon + spacing + estimated text
-      
-      // Position coin using fixed width calculation (not actual text width)
-      coin.container.x = comboLeftEdge - elementSpacing - coinFixedWidth / 2;
-      coin.container.y = yValue; // Use yValue directly (local to HUD_ROOT)
+      // Coin center is 64px left of combo center
+      coin.container.x = comboCenterX - elementSpacing;
+      coin.container.y = yValue;
     }
     
-    // Star - 64px lijevo od lijevog ruba Coin
-    // 🔥 FIXED POSITION: Use fixed icon width (28px) + estimated text width, not actual text width
-    // This prevents elements from moving when star number grows
+    // Star - 64px left of Coin center (fixed position)
     if (star && star.container) {
-      // Calculate combo position using fixed widths
-      const comboIconWidth = combo && combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28;
-      const comboXTextWidth = combo && combo.xText ? combo.xText.width : 0;
-      const comboNumberTextWidth = combo && combo.text ? combo.text.width : 0;
-      const comboSpacing = 4;
-      const comboWidth = comboIconWidth + comboSpacing + comboXTextWidth + comboNumberTextWidth;
-      const comboLeftEdge = rightEdge - comboRightPadding - comboWidth;
+      // Calculate combo and coin center positions
+      const estimatedComboWidth = 62;
+      const comboCenterX = rightEdge - comboRightPadding - estimatedComboWidth / 2;
+      const coinCenterX = comboCenterX - elementSpacing;
       
-      // Use fixed icon width (28px) + estimated max text width for coin positioning
-      const coinIconWidth = coin && coin.iconSprite ? coin.iconSprite.width * coin.iconSprite.scale.x : 28;
-      const estimatedCoinTextWidth = 60; // Estimated max width for score text
-      const coinFixedWidth = coinIconWidth + 4 + estimatedCoinTextWidth;
-      const coinLeftEdge = comboLeftEdge - elementSpacing - coinFixedWidth;
-      
-      // Use fixed icon width (28px) + estimated max text width for star positioning
-      const starIconWidth = star.iconSprite ? star.iconSprite.width * star.iconSprite.scale.x : 28;
-      const estimatedStarTextWidth = 40; // Estimated max width for star/currency text
-      const starFixedWidth = starIconWidth + 4 + estimatedStarTextWidth; // icon + spacing + estimated text
-      
-      // Position star using fixed width calculation (not actual text width)
-      star.container.x = coinLeftEdge - elementSpacing - starFixedWidth / 2;
-      star.container.y = yValue; // Use yValue directly (local to HUD_ROOT)
+      // Star center is 64px left of coin center
+      star.container.x = coinCenterX - elementSpacing;
+      star.container.y = yValue;
     }
   } else {
     // Fallback to old positioning if new elements not created yet
