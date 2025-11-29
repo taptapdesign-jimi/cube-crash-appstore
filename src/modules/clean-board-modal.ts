@@ -190,16 +190,28 @@ export async function showCleanBoardModal({
     const old = document.getElementById(overlayId);
     if (old) old.remove();
 
-    const el = document.createElement('div');
-    el.id = overlayId;
-    // 🔥 USER REQUEST: If bubbles animation is running, lower modal z-index so bubbles render on top
-    // Bubbles animation needs to be visible over clean board modal
+    // 🔥 USER REQUEST: If bubbles animation is running, ensure canvas z-index is higher than modal
+    // This allows bubbles to render over clean board modal
     const bubblesRunning = typeof window !== 'undefined' && 
                           typeof (window as any).isWildBeerExplosionRunning === 'function' &&
                           (window as any).isWildBeerExplosionRunning();
     
-    const modalZIndex = bubblesRunning ? '9999999999999' : '10000000000000'; // Lower if bubbles running
+    if (bubblesRunning && app && app.canvas) {
+      // Ensure canvas z-index is higher than modal so bubbles render on top
+      const currentCanvasZIndex = app.canvas.style.zIndex || '10';
+      const targetZIndex = '10000000000001'; // Above modal (10000000000000)
+      if (parseInt(currentCanvasZIndex) < 10000000000000) {
+        app.canvas.style.zIndex = targetZIndex;
+        console.log('💧 Clean board modal: Bubbles animation detected - raised canvas z-index to', app.canvas.style.zIndex, 'so bubbles render on top');
+        // Force reflow to ensure z-index change takes effect
+        void app.canvas.offsetHeight;
+      } else {
+        console.log('💧 Clean board modal: Canvas z-index already high enough:', app.canvas.style.zIndex);
+      }
+    }
     
+    const el = document.createElement('div');
+    el.id = overlayId;
     el.style.cssText = [
       'position:fixed',
       'inset:0',
@@ -207,14 +219,10 @@ export async function showCleanBoardModal({
       'align-items:center',
       'justify-content:center',
       'background:#f3eee8',
-      `z-index:${modalZIndex}`,
+      'z-index:10000000000000',
       'opacity:0',
       'transition:opacity .2s ease'
     ].join(';');
-    
-    if (bubblesRunning) {
-      console.log('💧 Clean board modal: Bubbles animation detected - using lower z-index so bubbles render on top');
-    }
 
     // Card
     const card = document.createElement('div');
