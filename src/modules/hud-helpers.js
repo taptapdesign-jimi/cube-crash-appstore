@@ -608,16 +608,17 @@ export function layout({ app, top }) {
   c.x = rightCenter;
   m.y = s.y = c.y = yLabel;
 
-  // 🔥 NEW HUD DESIGN: Position elements from right to left
-  // Layout: Combo (right) → Coin (64px left) → Star (64px left)
+  // 🔥 NEW HUD DESIGN: Fixed positions from right to left
+  // Layout: Combo (24px from right edge) → Coin (64px left) → Star (64px left)
   // - Close icon: left (existing position)
-  // - Combo: skroz desno
-  // - Coin: 64px lijevo od Combo
-  // - Star: 64px lijevo od Coin
+  // - Combo: 24px from right edge (desni rub elementa)
+  // - Coin: 64px lijevo od lijevog ruba Combo
+  // - Star: 64px lijevo od lijevog ruba Coin
   
   const hudHeight = 36;
   const hudY = yValue + (valueRowH - hudHeight) / 2; // Center vertically in value row
   const elementSpacing = 64; // 64px spacing between elements
+  const comboRightPadding = 24; // 24px from right edge for combo
   
   // Position close icon (left, existing position)
   boardText.x = leftCenter;
@@ -628,46 +629,52 @@ export function layout({ app, top }) {
     closeIconSprite.visible = true;
   }
   
-  // Position new HUD elements from right to left
+  // Position new HUD elements from right to left with fixed positions
   if (HUD_ROOT._hudElements) {
     const { star, coin, combo } = HUD_ROOT._hudElements;
     
     // Start from right edge (with side padding)
     const rightEdge = vw - SIDE;
     
-    // Combo - skroz desno
+    // Combo - 24px from right edge (desni rub elementa je na rightEdge - 24)
     if (comboWrap && combo && combo.container) {
       // Calculate combo width (icon + text)
       const comboWidth = (combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28) + 
                          (combo.text ? combo.text.width : 0);
-      comboWrap.x = rightEdge - comboWidth / 2; // Center combo at right edge
+      // Position combo so its right edge is 24px from right edge
+      // Since anchor is at center, we need to offset by half width
+      comboWrap.x = rightEdge - comboRightPadding - comboWidth / 2;
       comboWrap.y = hudY + hudHeight / 2;
     }
     
-    // Coin - 64px lijevo od Combo
+    // Coin - 64px lijevo od lijevog ruba Combo
     if (coin && coin.container) {
-      // Calculate combo width for positioning
+      // Calculate combo position and width
       const comboWidth = (combo && combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28) + 
                          (combo && combo.text ? combo.text.width : 0);
+      const comboLeftEdge = rightEdge - comboRightPadding - comboWidth;
       const coinWidth = (coin.iconSprite ? coin.iconSprite.width * coin.iconSprite.scale.x : 28) + 
                         (coin.text ? coin.text.width : 0);
-      // Position coin 64px left of combo center
-      coin.container.x = rightEdge - comboWidth / 2 - elementSpacing - coinWidth / 2;
+      // Position coin so its right edge is 64px left of combo's left edge
+      // Since anchor is at center, we need to offset by half width
+      coin.container.x = comboLeftEdge - elementSpacing - coinWidth / 2;
       coin.container.y = hudY + hudHeight / 2;
     }
     
-    // Star - 64px lijevo od Coin
+    // Star - 64px lijevo od lijevog ruba Coin
     if (star && star.container) {
-      // Calculate coin position for positioning
+      // Calculate coin position and width
       const comboWidth = (combo && combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28) + 
                          (combo && combo.text ? combo.text.width : 0);
+      const comboLeftEdge = rightEdge - comboRightPadding - comboWidth;
       const coinWidth = (coin && coin.iconSprite ? coin.iconSprite.width * coin.iconSprite.scale.x : 28) + 
                         (coin && coin.text ? coin.text.width : 0);
+      const coinLeftEdge = comboLeftEdge - elementSpacing - coinWidth;
       const starWidth = (star.iconSprite ? star.iconSprite.width * star.iconSprite.scale.x : 28) + 
                         (star.text ? star.text.width : 0);
-      // Position star 64px left of coin center
-      const coinCenterX = rightEdge - comboWidth / 2 - elementSpacing - coinWidth / 2;
-      star.container.x = coinCenterX - coinWidth / 2 - elementSpacing - starWidth / 2;
+      // Position star so its right edge is 64px left of coin's left edge
+      // Since anchor is at center, we need to offset by half width
+      star.container.x = coinLeftEdge - elementSpacing - starWidth / 2;
       star.container.y = hudY + hudHeight / 2;
     }
   } else {
