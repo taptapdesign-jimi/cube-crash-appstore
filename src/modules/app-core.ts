@@ -4056,19 +4056,20 @@ function merge(src, dst, helpers){
               vanishJitter: 0.02 
             });
             
+            // 🔥 FPS DROP FIX: Stagger animacije umjesto istovremenog pokretanja
             // Trigger only the main bubbles explosion (skip smaller fizz to avoid double-wave)
             if (isWildBeerMerge) {
               console.log('💧 Wild-beer merge detected! isWildBeerMerge:', isWildBeerMerge, 'srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial);
               console.log('💧 src tile special:', src?.special, 'dst tile special:', dst?.special);
               console.log('💧 src value:', src?.value, 'dst value:', dst?.value);
-              // 🔥 CRITICAL: Trigger immediately without delay to ensure it happens
-              // Use requestAnimationFrame to ensure board and dst are ready
-              requestAnimationFrame(() => {
-                console.log('💧 requestAnimationFrame callback - checking dst and board...');
+              
+              // 🔥 FPS DROP FIX: Stagger bubbles explosion NAKON 200ms (ne istovremeno s drugim animacijama)
+              // Ovo smanjuje CPU/GPU spike i sprječava freeze
+              gsap.delayedCall(0.2, () => {
                 try {
                   // 🔥 CRITICAL: Double-check dst is still valid before triggering explosion
                   if (dst && !dst.destroyed && board && !board.destroyed) {
-                    console.log('💧 Triggering wild-beer bubbles explosion at merge 6 - dst and board are valid');
+                    console.log('💧 Triggering wild-beer bubbles explosion at merge 6 (staggered 200ms) - dst and board are valid');
                     createWildBeerBubblesExplosion(board, dst);
                   } else {
                     console.warn('⚠️ Cannot trigger bubbles explosion - dst or board invalid:', {
@@ -4080,7 +4081,7 @@ function merge(src, dst, helpers){
                     // 🔥 FALLBACK: Try to trigger anyway if board is valid (dst might be destroyed but board should work)
                     if (board && !board.destroyed) {
                       console.log('💧 FALLBACK: Triggering bubbles explosion with board only (dst may be destroyed)');
-                    createWildBeerBubblesExplosion(board, dst);
+                      createWildBeerBubblesExplosion(board, dst);
                     }
                   }
                 } catch (error) {

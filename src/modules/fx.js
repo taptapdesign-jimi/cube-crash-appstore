@@ -1741,18 +1741,25 @@ export function createWildBeerBubblesExplosion(board, tile) {
   console.log(`   - Canvas rect: x=${canvasRect.x}, y=${canvasRect.y}, w=${canvasRect.width}, h=${canvasRect.height}`);
   console.log(`   - Stage children: ${stage.children.length}, container zIndex: ${container.zIndex}`);
 
-  // Start FPS monitoring
-  startFpsMonitoring();
+  // 🔥 FPS DROP FIX: Start FPS monitoring only if not already active (prevent overhead)
+  // Auto-disable after 2 seconds to reduce overhead
+  if (!fpsMonitorActive) {
+    startFpsMonitoring();
+    // Auto-disable FPS monitoring after 2 seconds (bubbles animation is mostly done)
+    gsap.delayedCall(2.0, () => {
+      stopFpsMonitoring();
+    });
+  }
 
-  // 🔥 v75 OPTIMIZED: Faze 1+2+3 - Texture pooling, reduced bubbles, optimized animations
+  // 🔥 FPS DROP FIX: Faze 1+2+3 - Texture pooling, reduced bubbles, optimized animations
   // FAZA 1: Texture Pooling - Create bubble texture once, reuse for all bubbles (with better fallback)
-  // FAZA 2: Reduced bubbles - 100 (was 125, PERFORMANCE FIX for better FPS), max 80 active (was 100), 2.0s spawn (was 1.5s)
+  // FAZA 2: Reduced bubbles - 70 (was 100, FPS DROP FIX for merge 6), max 60 active (was 80), 1.5s spawn (was 2.0s)
   // FAZA 3: Optimized animations - Simple drift (no keyframes), no rotation, 3 anims (was 5)
-  // 🔥 PERFORMANCE TAB ANALYSIS: Smanjeno na 100 bubbles (-20% animacija) za bolji FPS 40-45fps
+  // 🔥 FPS DROP FIX: Smanjeno na 70 bubbles (-30% reduction) za bolji FPS na merge 6
   
-  const totalBubbles = 100; // 🔥 PERFORMANCE FIX: -20% (was 125, now 100 for better FPS 40-45fps)
-  const spawnDuration = 2000; // 🔥 PERFORMANCE FIX: 2.0s (was 1.5s) - stagger spawn to reduce peak load after 1s
-  const maxActive = 80; // 🔥 PERFORMANCE FIX: -20% (was 100, proportional to 100 bubbles)
+  const totalBubbles = 70; // 🔥 FPS DROP FIX: -30% (was 100, now 70 for better FPS on merge 6)
+  const spawnDuration = 1500; // 🔥 FPS DROP FIX: 1.5s (was 2.0s) - faster spawn, less peak load
+  const maxActive = 60; // 🔥 FPS DROP FIX: -25% (was 80, proportional to 70 bubbles)
   let active = 0;
   let spawned = 0;
   const perMs = totalBubbles / spawnDuration;
@@ -1838,7 +1845,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
     console.log('✅ Bubble texture generated successfully, using Sprite optimization');
   }
 
-             console.log(`💧 v75 PERFORMANCE OPTIMIZED: ${totalBubbles} bubbles (was 125, now 100 for better FPS), texture pooling: ${useTexturePooling ? 'YES' : 'NO (Graphics fallback)'}, 3 anims (was 5), spawn: ${spawnDuration}ms, FPS monitoring: throttled (every 2nd frame), culling: throttled (every 3rd frame)`);
+             console.log(`💧 FPS DROP FIX OPTIMIZED: ${totalBubbles} bubbles (was 100, now 70 for merge 6 FPS fix), texture pooling: ${useTexturePooling ? 'YES' : 'NO (Graphics fallback)'}, 3 anims (was 5), spawn: ${spawnDuration}ms, FPS monitoring: throttled (every 4th frame), spawn logic: throttled (every 2nd frame), culling: throttled (every 5th frame)`);
 
   const makeBubble = () => {
     if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) return;
@@ -1973,7 +1980,8 @@ export function createWildBeerBubblesExplosion(board, tile) {
     bubble._bubbleTweens = bubbleTweens;
   };
 
-  // 🔥 FRAME DROP FIX: Performance-based spawn ticker with FPS monitoring and culling
+  // 🔥 FPS DROP FIX: Performance-based spawn ticker with throttled FPS monitoring and culling
+  let frameCounter = 0; // Track frame count for throttling
   const spawnTick = () => {
     if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) {
       if (wildBeerExplosionSpawnTick === spawnTick) {
@@ -1984,50 +1992,57 @@ export function createWildBeerBubblesExplosion(board, tile) {
       return;
     }
     
-    // 🔥 FRAME DROP FIX: Update FPS counter each frame
-    try {
-      updateFpsCounter();
-    } catch (e) {
-      console.warn('⚠️ FPS counter update failed:', e);
+    frameCounter++;
+    
+    // 🔥 FPS DROP FIX: Throttle FPS monitoring to every 4th frame (75% reduction in overhead)
+    if (frameCounter % 4 === 0) {
+      try {
+        updateFpsCounter();
+      } catch (e) {
+        console.warn('⚠️ FPS counter update failed:', e);
+      }
     }
     
-    const now = performance.now();
-    const dt = Math.max(1, now - lastTick);
-    lastTick = now;
-    const elapsed = now - startTime;
+    // 🔥 FPS DROP FIX: Throttle spawn logic to every 2nd frame (50% reduction in overhead)
+    if (frameCounter % 2 === 0) {
+      const now = performance.now();
+      const dt = Math.max(1, now - lastTick);
+      lastTick = now;
+      const elapsed = now - startTime;
 
-    if (elapsed >= spawnDuration && spawned >= totalBubbles) {
-      if (wildBeerExplosionSpawnTick === spawnTick) {
-        gsap.ticker.remove(spawnTick);
-        wildBeerExplosionSpawnTick = null;
-      }
-      setTimeout(() => cleanupWildBeerExplosion(), 2400);
-      return;
-    }
-
-    // 🔥 FRAME DROP FIX: Dynamic spawn rate based on FPS (prevent frame drops)
-    // Use safe access to currentFps with fallback
-    const safeFps = (typeof currentFps !== 'undefined' && currentFps !== null) ? currentFps : 60;
-    const fpsFactor = safeFps >= 50 ? 1.0 : Math.max(0.5, safeFps / 50); // Reduce spawn if FPS drops
-    acc += perMs * dt * fpsFactor;
-    const toSpawn = Math.min(3, Math.floor(acc));
-    if (toSpawn > 0) {
-      acc -= toSpawn;
-      for (let i = 0; i < toSpawn; i++) {
-        // 🔥 FRAME DROP FIX: Check FPS before spawning (prevent overload)
-        if (safeFps < 30 && spawned >= totalBubbles * 0.7) {
-          // If FPS drops below 30, stop spawning after 70% of bubbles
-          break;
+      if (elapsed >= spawnDuration && spawned >= totalBubbles) {
+        if (wildBeerExplosionSpawnTick === spawnTick) {
+          gsap.ticker.remove(spawnTick);
+          wildBeerExplosionSpawnTick = null;
         }
-        makeBubble();
+        setTimeout(() => cleanupWildBeerExplosion(), 2400);
+        return;
+      }
+
+      // 🔥 FPS DROP FIX: Dynamic spawn rate based on FPS (prevent frame drops)
+      // Use safe access to currentFps with fallback
+      const safeFps = (typeof currentFps !== 'undefined' && currentFps !== null) ? currentFps : 60;
+      const fpsFactor = safeFps >= 50 ? 1.0 : Math.max(0.5, safeFps / 50); // Reduce spawn if FPS drops
+      acc += perMs * dt * fpsFactor;
+      const toSpawn = Math.min(2, Math.floor(acc)); // 🔥 FPS DROP FIX: Reduced from 3 to 2 (33% reduction)
+      if (toSpawn > 0) {
+        acc -= toSpawn;
+        for (let i = 0; i < toSpawn; i++) {
+          // 🔥 FRAME DROP FIX: Check FPS before spawning (prevent overload)
+          if (safeFps < 30 && spawned >= totalBubbles * 0.7) {
+            // If FPS drops below 30, stop spawning after 70% of bubbles
+            break;
+          }
+          makeBubble();
+        }
       }
     }
     
-    // 🔥 FRAME DROP FIX: Culling - hide off-screen bubbles to reduce render load
-    // 🔥 PERFORMANCE FIX: Throttled to every 3rd frame (66% reduction in overhead)
-    if (elapsed > 0.5) { // Start culling after 0.5s (bubbles are moving)
-      const frameCount = Math.floor(elapsed * 60); // Approximate frame count
-      if (frameCount % 3 === 0) { // Every 3rd frame only
+    // 🔥 FPS DROP FIX: Culling - hide off-screen bubbles to reduce render load
+    // 🔥 FPS DROP FIX: Throttled to every 5th frame (80% reduction in overhead, was every 3rd)
+    if (frameCounter % 5 === 0) {
+      const elapsed = performance.now() - startTime;
+      if (elapsed > 0.5) { // Start culling after 0.5s (bubbles are moving)
         try {
           const children = wildBeerExplosionContainer.children || [];
           const cullMargin = 50; // Margin for culling
