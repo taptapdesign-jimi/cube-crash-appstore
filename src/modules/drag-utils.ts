@@ -176,13 +176,50 @@ export function removeHoverEffect(tile: Tile): void {
  */
 export function createTileShadow(tile: Tile): Graphics {
   const shadow = new Graphics();
-  shadow.fill({ color: 0x000000, alpha: VISUAL_EFFECTS.SHADOW_ALPHA })
-    .rect(
+  
+  // 🔥 USER REQUEST: Helper function to draw star shape for wild star tile shadow
+  const drawStar = (g: Graphics, x: number, y: number, outerRadius: number, innerRadius: number, points: number = 5): void => {
+    const angleStep = (Math.PI * 2) / points;
+    const startAngle = -Math.PI / 2; // Start at top
+    
+    g.moveTo(
+      x + Math.cos(startAngle) * outerRadius,
+      y + Math.sin(startAngle) * outerRadius
+    );
+    
+    for (let i = 1; i <= points * 2; i++) {
+      const angle = startAngle + (i * angleStep / 2);
+      const radius = i % 2 === 0 ? outerRadius : innerRadius;
+      g.lineTo(
+        x + Math.cos(angle) * radius,
+        y + Math.sin(angle) * radius
+      );
+    }
+    g.closePath();
+  };
+  
+  // 🔥 USER REQUEST: Check if this is a wild star tile (not wild-beer or wild-magnet)
+  const isWildStar = tile.special === 'wild';
+  
+  shadow.fill({ color: 0x000000, alpha: VISUAL_EFFECTS.SHADOW_ALPHA });
+  
+  if (isWildStar) {
+    // 🔥 USER REQUEST: Draw star-shaped shadow for wild star tile
+    const centerX = VISUAL_EFFECTS.SHADOW_OFFSET + tile.width / 2;
+    const centerY = VISUAL_EFFECTS.SHADOW_OFFSET + tile.height / 2;
+    const outerRadius = Math.min(tile.width, tile.height) * 0.45;
+    const innerRadius = outerRadius * 0.4;
+    drawStar(shadow, centerX, centerY, outerRadius, innerRadius, 5);
+  } else {
+    // Regular rectangle shadow for non-wild tiles
+    shadow.rect(
       VISUAL_EFFECTS.SHADOW_OFFSET,
       VISUAL_EFFECTS.SHADOW_OFFSET,
       tile.width,
       tile.height
     );
+  }
+  
   shadow.filters = [new PIXI.filters.BlurFilter(VISUAL_EFFECTS.SHADOW_BLUR)];
   
   tile.addChildAt(shadow, 0);
