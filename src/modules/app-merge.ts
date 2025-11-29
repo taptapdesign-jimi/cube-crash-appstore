@@ -797,8 +797,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     ? (window as any).CC.getCombo()
     : (typeof (window as any).CC?.combo === 'number' ? (window as any).CC.combo : 0);
   
-  const newCombo = currentCombo + pulledTileCount;
-  console.log('🔥 MAGNET COMBO: currentCombo=', currentCombo, 'pulledTileCount=', pulledTileCount, 'newCombo=', newCombo);
+  // 🔥 CRITICAL: Combo should be: currentCombo + 1 (for main merge 6) + pulledTileCount (for pulled tiles)
+  // The main merge flow skipped combo increment, so we add 1 here for the main merge 6
+  const newCombo = currentCombo + 1 + pulledTileCount;
+  console.log('🔥 MAGNET COMBO: currentCombo=', currentCombo, '+ 1 (main merge 6) +', pulledTileCount, '(pulled tiles) = newCombo=', newCombo);
   
   // Update combo using window.CC.setCombo
   if (typeof (window as any).CC?.setCombo === 'function') {
