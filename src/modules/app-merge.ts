@@ -16,8 +16,15 @@ import { statsService } from '../services/stats-service.js';
 const updateProgressBar = HUD.updateProgressBar;
 const updateHUD = () => {
   try {
+    // 🔥 CRITICAL FIX: Get actual combo value from window.CC.getCombo() instead of hardcoded 0
+    // This was causing combo to reset to 0 after magnet pull!
+    const currentCombo = typeof (window as any).CC?.getCombo === 'function'
+      ? (window as any).CC.getCombo()
+      : 0;
+    
     if (typeof HUD.updateHUD === 'function') { 
-      HUD.updateHUD({ score: STATE.score, board: 1, moves: STATE.moves, combo: 0 }); 
+      HUD.updateHUD({ score: STATE.score, board: 1, moves: STATE.moves, combo: currentCombo }); 
+      console.log('🔥 MAGNET updateHUD: Updated HUD with combo=', currentCombo);
     }
   } catch (error) {
     console.error('❌ Error calling HUD.updateHUD:', error);
