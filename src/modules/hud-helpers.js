@@ -345,7 +345,7 @@ function makeWildLoader() {
   
   // Position relative to HUD
   container.x = 24;
-  container.y = 60; // Below HUD values
+  container.y = 52; // Below HUD values (moved up 8px from 60)
   container.zIndex = 1000; // Below PIXI HUD
   
   // Store references
