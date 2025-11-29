@@ -304,7 +304,7 @@ function makeWildLoader() {
   // Background bar
   const bg = new Graphics();
   bg.beginFill(0xEADFD6); // Light beige
-  bg.drawRoundedRect(0, 0, 200, 8, 4);
+  bg.drawRoundedRect(0, 0, 200, 10, 5); // Height: 10px, border radius: 5px
   bg.endFill();
   bg.zIndex = 0;
   
@@ -337,7 +337,7 @@ function makeWildLoader() {
   // Progress fill - start with 0 width
   const fill = new Graphics();
   fill.beginFill(0xE7744A); // Orange
-  fill.drawRoundedRect(0, 0, 0, 8, 4);
+  fill.drawRoundedRect(0, 0, 0, 10, 5); // Height: 10px, border radius: 5px
   fill.endFill();
   fill.zIndex = 5000;
   
@@ -393,7 +393,7 @@ function makeWildLoader() {
         
         // Get global position of the fill's right edge
         const globalX = container.x + (container._fill.width || 0);
-        const globalY = container.y + 4; // Middle of the bar (8px height / 2)
+        const globalY = container.y + 5; // Middle of the bar (10px height / 2)
         
         // Create anonymous Graphics for smoke
         const smokeBubble = new Graphics();
@@ -439,7 +439,7 @@ function makeWildLoader() {
           if (container._fill) {
             container._fill.clear();
             container._fill.beginFill(0xE7744A);
-            container._fill.drawRoundedRect(0, 0, this.targets()[0].width, 8, 4);
+            container._fill.drawRoundedRect(0, 0, this.targets()[0].width, 10, 5); // Height: 10px, border radius: 5px
             container._fill.endFill();
           }
         },
