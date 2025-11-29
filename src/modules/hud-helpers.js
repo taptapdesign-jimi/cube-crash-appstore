@@ -14,18 +14,26 @@ let __globalGraphicsObjects = null;
 // Lazy load graphics pool to avoid circular dependency
 function getGraphicsPool() {
   if (!graphicsPool) {
+    // Fallback: create simple pool (object-pool.js might not be available)
+    graphicsPool = {
+      acquire: () => new Graphics(),
+      release: () => {}
+    };
+    __globalGraphicsObjects = new Set();
+    
+    // Try to load object pool dynamically (if available)
     try {
-      const poolModule = require('./object-pool.js');
-      graphicsPool = poolModule.graphicsPool;
-      __globalGraphicsObjects = poolModule.__globalGraphicsObjects || new Set();
+      import('./object-pool.js').then((poolModule) => {
+        if (poolModule && poolModule.graphicsPool) {
+          graphicsPool = poolModule.graphicsPool;
+          __globalGraphicsObjects = poolModule.__globalGraphicsObjects || new Set();
+          console.log('✅ Graphics pool loaded from object-pool.js');
+        }
+      }).catch(() => {
+        // Silently fail - use fallback pool
+      });
     } catch (e) {
-      console.warn('⚠️ Failed to load graphics pool, using fallback:', e);
-      // Fallback: create simple pool
-      graphicsPool = {
-        acquire: () => new Graphics(),
-        release: () => {}
-      };
-      __globalGraphicsObjects = new Set();
+      // Silently fail - use fallback pool
     }
   }
   return graphicsPool;
