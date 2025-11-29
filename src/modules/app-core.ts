@@ -3478,10 +3478,10 @@ function merge(src, dst, helpers){
                 await handleWildMagnetMergedPulledTiles(mergeLocation, validTiles, helpersWithMerge);
                 console.log('✅ Pulled tiles merge completed - merge 6 created with 4x multiplier');
                 
-                // 🔥 USER REQUEST: Add wild progress when magnet pulls max 4 tiles (treat as merge 6)
-                // This fills wild meter bar when magnet pulls 4 tiles and creates fake merge
-                if (validTiles.length === 4) {
-                  console.log('🧲 Magnet pulled max 4 tiles - adding wild progress (treating as merge 6)');
+                // 🔥 USER REQUEST: Add wild progress when magnet pulls tiles (1-4 tiles, treat as merge 6)
+                // This fills wild meter bar when magnet pulls tiles and creates fake merge
+                if (validTiles.length >= 1 && validTiles.length <= 4) {
+                  console.log(`🧲 Magnet pulled ${validTiles.length} tiles - adding wild progress (treating as merge 6)`);
                   addWildProgress(WILD_INC_BIG); // Same as regular merge 6
                 }
                 
