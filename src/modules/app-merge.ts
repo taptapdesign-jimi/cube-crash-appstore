@@ -777,6 +777,33 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     STATE.score = newScore;
   }
   
+  // 🔥 CRITICAL: Update combo - increase by number of pulled tiles (don't reset!)
+  // Combo should continue and increase for each pulled tile that creates fake merge
+  // Example: If combo is 5 and magnet pulls 4 tiles, combo becomes 5 + 4 = 9
+  const currentCombo = typeof (window as any).CC?.getCombo === 'function'
+    ? (window as any).CC.getCombo()
+    : (typeof (window as any).CC?.combo === 'number' ? (window as any).CC.combo : 0);
+  
+  const newCombo = currentCombo + pulledTileCount;
+  console.log('🔥 MAGNET COMBO: currentCombo=', currentCombo, 'pulledTileCount=', pulledTileCount, 'newCombo=', newCombo);
+  
+  // Update combo using window.CC.setCombo
+  if (typeof (window as any).CC?.setCombo === 'function') {
+    (window as any).CC.setCombo(newCombo);
+  }
+  
+  // Schedule combo decay (same as normal merge) - reset combo timer but don't reset combo value
+  if (typeof (window as any).CC?.scheduleComboDecay === 'function') {
+    (window as any).CC.scheduleComboDecay();
+  }
+  
+  // Also trigger combo bump animation if available
+  try {
+    if (typeof HUD.bumpCombo === 'function') {
+      HUD.bumpCombo({ kind: 'magnet-pull', combo: newCombo });
+    }
+  } catch {}
+  
   // Update HUD
   updateHUD();
   animateScore(newScore, 0.45);
@@ -785,7 +812,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   statsService.incrementCubesCracked(1);
   statsService.incrementHelpersUsed(1);
   
-  console.log('✅ mergePulledTilesIntoMerge6 completed - score updated to', newScore);
+  console.log('✅ mergePulledTilesIntoMerge6 completed - score updated to', newScore, 'combo updated to', newCombo);
 
   if (pulledTileCount >= 4 && typeof (window as any).triggerHapticImpact === 'function') {
     try {

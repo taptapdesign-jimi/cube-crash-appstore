@@ -854,6 +854,10 @@ export async function boot(){
     checkLevelEnd: () => checkLevelEnd(), // Export checkLevelEnd for use in app-merge.ts
     scheduleWildRescue: (reason, count) => scheduleWildRescue(reason, count), // 🔥 CRITICAL: Export for emergency rescue
     applyWildSkinLocal: (tile) => applyWildSkinLocal(tile), // 🔥 CRITICAL: Export for wild-magnet electric glow
+    getCombo: () => combo, // 🔥 CRITICAL: Export getCombo for magnet pull combo logic
+    setCombo: (v) => hudSetCombo(v|0), // 🔥 CRITICAL: Export setCombo for magnet pull combo logic
+    scheduleComboDecay: () => scheduleComboDecay(), // 🔥 CRITICAL: Export scheduleComboDecay for magnet pull combo logic
+    combo: combo, // Export combo variable directly (read-only reference)
   };
   
   // 🔥 MEMORY LEAK FIX: Export cleanup functions for global cleanup
