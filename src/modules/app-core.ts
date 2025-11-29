@@ -857,7 +857,6 @@ export async function boot(){
     getCombo: () => combo, // 🔥 CRITICAL: Export getCombo for magnet pull combo logic
     setCombo: (v) => hudSetCombo(v|0), // 🔥 CRITICAL: Export setCombo for magnet pull combo logic
     scheduleComboDecay: () => scheduleComboDecay(), // 🔥 CRITICAL: Export scheduleComboDecay for magnet pull combo logic
-    combo: combo, // Export combo variable directly (read-only reference)
   };
   
   // 🔥 MEMORY LEAK FIX: Export cleanup functions for global cleanup
