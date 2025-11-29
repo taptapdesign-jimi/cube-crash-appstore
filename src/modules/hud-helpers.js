@@ -1087,14 +1087,14 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   const comboHud = {
     container: comboContainer,
     text: comboNumberText, // Store number text as main text reference (18px)
-    xText: comboXText, // Store "x" text separately (14px)
+    xText: comboXTextLocal, // Store "x" text separately (14px)
     iconSprite: comboIconSprite
   };
   
   // Store references
   scoreText = coinHud.text; // Use coin text for score
   comboText = comboHud.text; // Use combo number text (18px)
-  comboXText = comboHud.xText; // Store "x" text reference (14px)
+  comboXText = comboHud.xText; // Store "x" text reference (14px) - use global variable
   starText = starHud.text; // Currency/energy text
   
   // Export combo text for animations
