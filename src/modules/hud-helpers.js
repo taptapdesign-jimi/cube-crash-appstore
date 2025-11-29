@@ -14,7 +14,8 @@ function boardSize(){ return { w: COLS*TILE + (COLS-1)*GAP, h: ROWS*TILE + (ROWS
 
 /* ---------------- Minimal HUD the app.js expects ---------------- */
 let HUD_ROOT = null;
-let boardText, scoreText, comboText, starText; 
+let boardText, scoreText, comboText, starText;
+let comboXText = null; // "x" text reference for combo (14px)
 let closeIconSprite = null; // Close icon sprite (replaces boardText)
 let comboWrap; // wrapper for jitter
 let wild;
