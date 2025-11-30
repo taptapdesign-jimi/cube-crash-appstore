@@ -2353,6 +2353,19 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     if (index === 1) return 0.08; // Second star: 80ms delay
     return 0.23; // Third star: 230ms delay (larger gap from star 2)
   };
+  // 🔥 USER REQUEST: Different durations for each star (slower animation for 2nd and 3rd star)
+  // Star 1: baseDuration (1.6s)
+  // Star 2: baseDuration + 0.3s (1.9s) - 300ms slower
+  // Star 3: baseDuration + 0.4s (2.0s) - 400ms slower
+  const getStarDuration = (index, baseDur, distanceFactor) => {
+    let duration = baseDur * distanceFactor;
+    if (index === 1) {
+      duration += 0.3; // 🔥 Second star: 300ms slower
+    } else if (index === 2) {
+      duration += 0.4; // 🔥 Third star: 400ms slower
+    }
+    return duration;
+  };
   const targetScaleSize = 28; // Target size when scaling down at 90%
   
   // 🔥 CRITICAL: Track bounce delays to ensure sequential bounces (one after another)
@@ -2392,7 +2405,8 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     const dy = hudScreenY - starStartY;
     const distance = Math.hypot(dx, dy);
     const distanceFactor = Math.min(1.0, Math.max(0.6, distance / 800));
-    const duration = baseDuration * distanceFactor;
+    // 🔥 USER REQUEST: Use different duration for each star (2nd and 3rd are slower)
+    const duration = getStarDuration(i, baseDuration, distanceFactor);
     
     // 🔥 USER REQUEST: More randomized and fluid path for each star
     // Each star gets unique random path parameters for more variety
@@ -2593,9 +2607,10 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     });
     
     // 2. Apply rotation throughout path (stops at 98% when star disappears)
+    // 🔥 USER REQUEST: Use same duration as path animation (slower for 2nd and 3rd star)
     tl.to(animatedStar, {
       rotation: rotationRadians,
-      duration: duration * 0.98, // Rotate until 98% (when star disappears)
+      duration: duration * 0.98, // Rotate until 98% (when star disappears) - uses adjusted duration
       ease: 'sine.inOut'
     }, 0);
     

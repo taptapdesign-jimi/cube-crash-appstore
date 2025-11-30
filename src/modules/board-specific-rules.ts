@@ -37,7 +37,7 @@ const BOARD_RULES: BoardRule[] = [
     boardNumber: 2,
     wildSpawnEnabled: true, // Enable wild spawning
     wildMeterEnabled: true, // Enable wild meter
-    wildMeterFillRate: 0.5, // 50% sporije punjenje (50% brzine)
+    wildMeterFillRate: 1.0, // 🔥 USER REQUEST: Ista brzina kao board 1 (originalna brzina)
     allowedWildTypes: ['wild', 'wild-beer', 'wild-magnet'] // Svi wild types dostupni
   },
   {
