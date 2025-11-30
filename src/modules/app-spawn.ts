@@ -386,7 +386,53 @@ export function openEmpties(count: number, opts: OpenEmptiesOptions = {}): Promi
     return pool[(Math.random()*pool.length)|0];
   };
   if (count <= 0) return Promise.resolve();
-  const locked = STATE.tiles.filter(t => t.locked);
+  let locked = STATE.tiles.filter(t => t.locked);
+  
+  // 🔥 CRITICAL FIX: If we don't have enough locked tiles, create new ones at empty cells
+  // This ensures we can always spawn the requested number of tiles, even on end board
+  if (locked.length < count) {
+    console.log(`⚠️ openEmpties: Only ${locked.length} locked tiles available, but need ${count}. Creating ${count - locked.length} new locked tiles at empty cells...`);
+    
+    // Find empty cells (where grid[r][c] === null)
+    const emptyCells: { c: number; r: number }[] = [];
+    const ROWS = STATE.grid?.length || 0;
+    const COLS = STATE.grid?.[0]?.length || 0;
+    
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (!STATE.grid?.[r]?.[c]) {
+          emptyCells.push({ c, r });
+        }
+      }
+    }
+    
+    // Shuffle empty cells and create locked tiles
+    for (let i = emptyCells.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      [emptyCells[i], emptyCells[j]] = [emptyCells[j], emptyCells[i]];
+    }
+    
+    // Create new locked tiles at empty cells (up to the number we need)
+    const needed = count - locked.length;
+    for (let i = 0; i < Math.min(needed, emptyCells.length); i++) {
+      const { c, r } = emptyCells[i];
+      try {
+        const newTile = makeBoard.createTile({ board: STATE.board!, grid: STATE.grid, tiles: STATE.tiles, c, r, val: 0, locked: true });
+        if (newTile) {
+          console.log(`✅ Created new locked tile at (${c}, ${r})`);
+        }
+      } catch (err) {
+        console.warn(`⚠️ Failed to create locked tile at (${c}, ${r}):`, err);
+      }
+    }
+    
+    // Re-fetch locked tiles after creating new ones
+    locked = STATE.tiles.filter(t => t.locked);
+    if (locked.length < count) {
+      console.warn(`⚠️ openEmpties: Still only ${locked.length} locked tiles after creating new ones. Will spawn ${locked.length} tiles instead of ${count}.`);
+    }
+  }
+  
   if (!locked.length) return Promise.resolve();
 
   for (let i = locked.length - 1; i > 0; i--){

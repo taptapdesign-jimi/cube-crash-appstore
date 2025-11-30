@@ -549,9 +549,18 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
   
   // 🔥 CRITICAL: For wild-magnet, add red color #F26034 to sparkles
+  // 🔥 USER REQUEST: For wild-beer, use new smoke colors: FBD295 / F9BE9C / F6E6C8 / F99D77
   const isWildMagnet = tile?.special === 'wild-magnet';
+  const isWildBeer = tile?.special === 'wild-beer';
   const baseColors = [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0];
-  const colors = isWildMagnet ? [...baseColors, 0xF26034] : baseColors; // Add red color for wild-magnet
+  let colors;
+  if (isWildMagnet) {
+    colors = [...baseColors, 0xF26034]; // Add red color for wild-magnet
+  } else if (isWildBeer) {
+    colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; // 🔥 USER REQUEST: New smoke colors for wild-beer drag
+  } else {
+    colors = baseColors; // Default colors for other tiles
+  }
   
   for (let i = 0; i < shardCount; i++) {
     // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics
@@ -670,20 +679,28 @@ function getMerge6ShardConfig(src, dst) {
   const dstIsWildMagnet = dstSpecial === 'wild-magnet';
   const isWildMagnet = srcIsWildMagnet || dstIsWildMagnet;
 
-  // 🔥 CRITICAL: Check both src and dst for wild (not wild-magnet)
-  // If either src or dst is wild (and not wild-magnet), then it's a wild merge
-  const srcIsWild = srcSpecial === 'wild' && !srcIsWildMagnet;
-  const dstIsWild = dstSpecial === 'wild' && !dstIsWildMagnet;
+  // 🔥 CRITICAL: Check for wild-beer (before wild star)
+  const srcIsWildBeer = srcSpecial === 'wild-beer';
+  const dstIsWildBeer = dstSpecial === 'wild-beer';
+  const isWildBeer = srcIsWildBeer || dstIsWildBeer;
+
+  // 🔥 CRITICAL: Check both src and dst for wild (not wild-magnet, not wild-beer)
+  // If either src or dst is wild (and not wild-magnet, not wild-beer), then it's a wild merge
+  const srcIsWild = srcSpecial === 'wild' && !srcIsWildMagnet && !srcIsWildBeer;
+  const dstIsWild = dstSpecial === 'wild' && !dstIsWildMagnet && !dstIsWildBeer;
   const isWild = srcIsWild || dstIsWild;
 
   // Determine shard color
-  const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only
+  const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only (wild star)
   const redColor = 0xF26034;    // Red (#F26034) for wild-magnet
+  const beerColor = 0xF99D77;   // Orange (#F99D77) for wild-beer
   const brownColor = 0xD4A584;   // Brown (#D4A584) for regular merge 6
 
   let shardColor = brownColor;
   if (isWildMagnet) {
     shardColor = redColor; // Wild-magnet → red
+  } else if (isWildBeer) {
+    shardColor = beerColor; // Wild-beer → orange (#F99D77)
   } else if (isWild) {
     shardColor = yellowColor; // Wild-only → yellow
   }
@@ -699,14 +716,18 @@ function getMerge6ShardConfig(src, dst) {
     srcIsWildMagnet,
     dstIsWildMagnet,
     isWildMagnet,
+    srcIsWildBeer,
+    dstIsWildBeer,
+    isWildBeer,
     shardColor: shardColor.toString(16)
   });
 
   return {
     isWild,
     isWildMagnet,
+    isWildBeer,
     shardColor,
-    isRegular: !isWild && !isWildMagnet
+    isRegular: !isWild && !isWildMagnet && !isWildBeer
   };
 }
 
@@ -742,8 +763,9 @@ export function spawnMerge6Shards(board, src, dstLive, dstSnapshot = null, opts 
   // Prepare opts for woodShardsAtTile
   const shardOpts = {
     enhanced: true,
-    wild: config.isWild || config.isWildMagnet, // true if wild or wild-magnet
+    wild: config.isWild || config.isWildMagnet || config.isWildBeer, // true if wild, wild-magnet, or wild-beer
     wildMagnet: config.isWildMagnet, // true only if wild-magnet
+    isWildBeer: config.isWildBeer, // 🔥 CRITICAL: Pass wild-beer flag for correct color (#F99D77)
     ...opts // Override with any passed options
   };
 
@@ -802,8 +824,10 @@ export function regularMerge6Shards(board, tile, opts = {}){
   // Shard parameters - 200% larger (2x zoom, reduced from 4x) OR custom from opts
   const shardCount = opts.count ?? 13;
   const brownColor = 0xD4A584; // Brown color
-  const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only
+  const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only (wild star)
+  const beerColor = 0xF99D77;   // Orange (#F99D77) for wild-beer
   const isWildOnly = opts.isWildOnly === true; // Flag to use yellow/brown colors
+  const isWildBeer = opts.isWildBeer === true; // Flag to use beer color
   const baseTile = 96;
   const sizeMultiplier = opts.sizeMultiplier ?? 2.4; // Default 240% larger (20% increase from 2.0), can be overridden
   const distanceMultiplier = opts.distanceMultiplier ?? 5.6; // Default 560% larger distance (40% increase from 4.0), can be overridden
@@ -832,10 +856,13 @@ export function regularMerge6Shards(board, tile, opts = {}){
       points.push(px, py);
     }
     
-    // Determine shard color - yellow/brown for wild-only, brown for regular
+    // Determine shard color - beer color for wild-beer, yellow/brown for wild-only (wild star), brown for regular
     let shardColor = brownColor;
-    if (isWildOnly) {
-      // Wild-only: 50% yellow, 50% brown
+    if (isWildBeer) {
+      // Wild-beer: use beer color (#F99D77)
+      shardColor = beerColor;
+    } else if (isWildOnly) {
+      // Wild-only (wild star): 50% yellow, 50% brown
       shardColor = Math.random() < 0.5 ? yellowColor : brownColor;
     }
     
@@ -1047,18 +1074,27 @@ export function woodShardsAtTile(board, tile, opts = {}){
   } else if (!isWildMagnet && (tile?.special === 'wild' || tile?.special === 'wild-beer')) {
     // opts.wild not set, fallback to tile.special (but only if not wild-magnet)
     isWildOnly = true;
+  } else if (!isWildMagnet && opts.isWildBeer === true) {
+    // opts.isWildBeer is set, treat as wild-only (for wild-beer merge 6)
+    isWildOnly = true;
   }
   
-  const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only (wild star and wild-beer)
+  // 🔥 CRITICAL: Check for wild-beer separately
+  const isWildBeer = tile?.special === 'wild-beer' || opts.isWildBeer === true;
+  
+  const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only (wild star)
   const redColor = 0xF26034;    // Red (#F26034) for wild-magnet
+  const beerColor = 0xF99D77;   // Orange (#F99D77) for wild-beer
   const brownColor = 0xD4A584;  // Brown (#D4A584) for regular merge 6
 
   // Determine base shard color
   let baseShardColor = brownColor; // Default: brown
   if (isWildMagnet) {
     baseShardColor = redColor; // Wild-magnet → red
+  } else if (isWildBeer) {
+    baseShardColor = beerColor; // Wild-beer → orange (#F99D77)
   } else if (isWildOnly) {
-    baseShardColor = yellowColor; // Wild-only (star and wild-beer) → yellow
+    baseShardColor = yellowColor; // Wild-only (wild star) → yellow
   }
 
   const emitShard = (distance, angle, scaleFactor = 1, alpha = 1.0, speedMul = 1, shardIndex = 0) => {
@@ -1097,14 +1133,18 @@ export function woodShardsAtTile(board, tile, opts = {}){
     }
 
     // 🔥 CRITICAL: For wild-magnet, randomly mix red and brown (50/50)
-    // For wild-only (wild star and wild-beer), randomly mix yellow and brown (50/50)
+    // For wild-beer, use beer color (#F99D77)
+    // For wild-only (wild star), randomly mix yellow and brown (50/50)
     // For regular, use only brown
     let shardColor = baseShardColor;
     if (isWildMagnet) {
       // Wild-magnet: 50% red, 50% brown
       shardColor = Math.random() < 0.5 ? redColor : brownColor;
+    } else if (isWildBeer) {
+      // Wild-beer: use beer color (#F99D77)
+      shardColor = beerColor;
     } else if (isWildOnly) {
-      // Wild-only (star and wild-beer): 50% yellow, 50% brown (same for both)
+      // Wild-only (wild star): 50% yellow, 50% brown
       shardColor = Math.random() < 0.5 ? yellowColor : brownColor;
     }
     // Otherwise: use baseShardColor (brown for regular)
@@ -1237,12 +1277,11 @@ export function woodShardsAtTile(board, tile, opts = {}){
   // NOT for wild-magnet merge, regular merge, or any other case
   // isWildOnly is determined above based on opts.wild and opts.wildMagnet
   // 🔥 WILD-BEER SPECIAL: Use bubbles instead of stars for wild-beer merge
-  // Check both tile.special and opts.isWildBeer (passed from merge function)
-  const isWildBeer = isWildBeerMerge;
+  // Note: isWildBeer is already declared above (line 1080) - use that variable
   console.log('💧 Stars/Bubbles check:', { 
     isWildOnly, 
     isWildMagnet, 
-    isWildBeer, 
+    isWildBeer, // Use isWildBeer declared above (line 1080) 
     tileSpecial: tile?.special, 
     optsIsWildBeer: opts.isWildBeer,
     optsWild: opts.wild,
@@ -1689,9 +1728,18 @@ if (typeof window !== 'undefined') {
 export function createWildBeerBubblesExplosion(board, tile) {
   console.log('💧 createWildBeerBubblesExplosion: Starting simplified version');
 
-  if (!board || !tile) {
-    console.warn('⚠️ createWildBeerBubblesExplosion: Missing board or tile');
+  // 🔥 CRITICAL FIX: Allow tile to be null or destroyed (use position object instead)
+  // After merge 6, dst tile is destroyed but we still have position data
+  if (!board) {
+    console.warn('⚠️ createWildBeerBubblesExplosion: Missing board');
     return;
+  }
+  
+  // Tile can be null or destroyed - bubbles don't need tile reference, just board
+  if (!tile) {
+    console.warn('⚠️ createWildBeerBubblesExplosion: Tile is null/undefined (may be destroyed), continuing with board only');
+  } else if (tile.destroyed) {
+    console.warn('⚠️ createWildBeerBubblesExplosion: Tile is destroyed, continuing with board only');
   }
 
   // 🔥 CRITICAL: Always cleanup first to ensure clean state
@@ -2620,7 +2668,10 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   // 🔥 MEMORY LEAK FIX: Improved cleanup after all animations complete
   // Each star cleans itself up immediately when it reaches destination
   // But we still need to ensure container and all references are cleaned up
-  const totalDuration = baseDuration + (STAR_COUNT - 1) * sequentialDelay;
+  // Calculate sequential delay based on star delays (max delay between stars)
+  const maxDelay = getStarDelay(STAR_COUNT - 1); // Maximum delay (for last star: 0.23s)
+  const sequentialDelay = maxDelay; // Use maximum delay for total duration calculation
+  const totalDuration = baseDuration + maxDelay; // Base duration + maximum delay for cleanup timing
   
   // Track cleanup state to prevent double cleanup
   let cleanupDone = false;

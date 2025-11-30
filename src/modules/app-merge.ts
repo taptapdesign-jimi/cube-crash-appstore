@@ -496,6 +496,68 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     return;
   }
   
+  // 🔥 USER REQUEST: Check for wild star tiles BEFORE removing them (to capture _wildStarSystem)
+  // This allows us to animate stars to HUD when magnet pulls wild star
+  let wildStarTileForAnimation: any = null;
+  let savedStarSystemEarly: any = null;
+  let savedStarPositionsEarly: any[] = [];
+  let savedWildTileScreenPosEarly: { x: number; y: number } | null = null;
+  
+  // Check if any pulled tile is a wild star
+  for (const tile of validTiles) {
+    if (!tile || tile.destroyed) continue;
+    if (tile.special === 'wild' && (tile as any)?._wildStarSystem) {
+      wildStarTileForAnimation = tile;
+      const wildStarSystem = (tile as any)?._wildStarSystem;
+      if (wildStarSystem && wildStarSystem.stars && wildStarSystem.stars.length > 0) {
+        savedStarSystemEarly = wildStarSystem;
+        // 🔥 CRITICAL: Save star textures and their global positions (NOT sprite references - sprites get destroyed!)
+        // Use same structure as app-core.ts
+        savedStarPositionsEarly = wildStarSystem.stars.map((star: any) => {
+          if (!star || !star.sprite) return null;
+          try {
+            const globalPos = star.sprite.getGlobalPosition();
+            // 🔥 CRITICAL: Save texture reference and scale values, NOT sprite reference
+            // Sprite gets destroyed when tile is removed/transformed, but texture persists
+            const texture = star.sprite.texture;
+            const scaleX = star.sprite.scale.x;
+            const scaleY = star.sprite.scale.y;
+            
+            if (!texture) {
+              console.warn('⚠️ MAGNET PULL: Star sprite has no texture, skipping');
+              return null;
+            }
+            
+            return {
+              texture: texture, // Save texture reference (not sprite!)
+              globalX: globalPos.x,
+              globalY: globalPos.y,
+              scale: { x: scaleX, y: scaleY }
+            };
+          } catch (err) {
+            console.warn('⚠️ MAGNET PULL: Failed to save star data early:', err);
+            return null;
+          }
+        }).filter(Boolean);
+        
+        // Save wild tile screen position
+        try {
+          const wildTileGlobalPos = wildStarTileForAnimation.getGlobalPosition();
+          savedWildTileScreenPosEarly = { x: wildTileGlobalPos.x, y: wildTileGlobalPos.y };
+        } catch {
+          console.warn('⚠️ MAGNET PULL: Failed to get wild tile global position for early saving');
+          savedWildTileScreenPosEarly = { x: wildStarTileForAnimation.x || 0, y: wildStarTileForAnimation.y || 0 };
+        }
+        
+        console.log('⭐ MAGNET PULL: Found wild star tile, saved star system data:', {
+          starCount: savedStarPositionsEarly.length,
+          wildTilePos: savedWildTileScreenPosEarly
+        });
+        break; // Only need one wild star
+      }
+    }
+  }
+  
   // 🔥 CRITICAL: Store pulled cells BEFORE removing tiles (for excluding from later spawns)
   validTiles.forEach((tile: any) => {
     if (!tile || tile.destroyed) return;
@@ -853,6 +915,59 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   console.log('🔥 MAGNET COMBO: About to call updateHUD() with combo=', newCombo);
   updateHUD();
   
+  // 🔥 USER REQUEST: Animate stars to HUD if magnet pulled wild star
+  if (wildStarTileForAnimation && savedStarSystemEarly && savedStarPositionsEarly.length > 0) {
+    console.log('⭐ MAGNET PULL: Animating stars to HUD from pulled wild star');
+    
+    // Get HUD star position
+    let hudStarPos: { x: number; y: number } | null = null;
+    try {
+      if (typeof HUD.getStarHudPosition === 'function') {
+        hudStarPos = HUD.getStarHudPosition();
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to get HUD star position:', e);
+    }
+    
+    if (!hudStarPos) {
+      console.warn('⚠️ HUD star position not available, using fallback');
+      hudStarPos = { x: 0, y: 0 };
+    }
+    
+    // Get merge 6 position (dst tile position)
+    let merge6Pos: { x: number; y: number };
+    if (typeof dst.getGlobalPosition === 'function') {
+      merge6Pos = dst.getGlobalPosition();
+    } else {
+      merge6Pos = { x: dst.x || 0, y: dst.y || 0 };
+    }
+    
+    // Animate stars to HUD (same as normal wild star merge 6)
+    requestAnimationFrame(() => {
+      setTimeout(async () => {
+        try {
+          const { animateStarsToHudIcon } = await import('./fx.js');
+          if (typeof animateStarsToHudIcon === 'function' && STATE.board && STATE.stage) {
+            console.log('⭐ MAGNET PULL: Calling animateStarsToHudIcon with saved star data');
+            await animateStarsToHudIcon(
+              STATE.board,
+              STATE.stage,
+              savedStarPositionsEarly,
+              savedWildTileScreenPosEarly || { x: 0, y: 0 },
+              merge6Pos,
+              hudStarPos
+            );
+            console.log('✅ MAGNET PULL: Stars animation to HUD completed');
+          } else {
+            console.warn('⚠️ animateStarsToHudIcon not available or STATE.board/stage missing');
+          }
+        } catch (error) {
+          console.error('❌ MAGNET PULL: Failed to animate stars to HUD:', error);
+        }
+      }, 200); // Small delay to ensure tiles are removed
+    });
+  }
+  
   // 🔥 CRITICAL: Double-check combo after updateHUD
   const comboAfterHUD = typeof (window as any).CC?.getCombo === 'function'
     ? (window as any).CC.getCombo()
@@ -889,16 +1004,23 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // After pulled tiles merge, dst is merge 6, so we check if there are few remaining tiles on the board
   // EDGE CASE: If magnet pulled the last 4 tiles from the board, don't spawn new tiles - trigger clean board flow
   // 🔥 CRITICAL: Use tileIsActive instead of !t.locked to properly count wild tiles and locked tiles with value > 0
+  // 🔥 CRITICAL: Count merge 6 tile (dst) as active tile - it should remain on board after magnet pull merge!
   const activeTilesAfterPulledMerge = STATE.tiles.filter(tileIsActive);
-  const remainingTilesCount = activeTilesAfterPulledMerge.length;
+  // 🔥 CRITICAL FIX: Include dst (merge 6) in count if it's still active and not destroyed
+  // This ensures we count merge 6 tile that should remain on board
+  const dstIsActive = dst && !dst.destroyed && (dst.value === 6) && !activeTilesAfterPulledMerge.includes(dst);
+  const remainingTilesCount = activeTilesAfterPulledMerge.length + (dstIsActive ? 1 : 0);
   
   console.log('🧲 After pulled tiles merge - active tiles:', remainingTilesCount, 'dst is merge 6:', dst?.value === 6, 'pulledCells to respawn:', pulledCells.length);
   console.log('🧲 Active tiles list:', activeTilesAfterPulledMerge.map(t => ({ value: t.value, special: t.special, locked: t.locked })));
+  console.log('🧲 Dst (merge 6) is active:', dstIsActive, 'dst value:', dst?.value, 'dst destroyed:', dst?.destroyed);
   
   // 🔥 EDGE CASE: If only merge 6 remains (magnet pulled the last 4 tiles), don't spawn new tiles - trigger clean board immediately
   // BUT: Only if there are NO pulled cells to respawn! If we have pulled cells, we MUST spawn them first!
   // This covers the case when magnet pulled the last 4 tiles from the board
-  if (remainingTilesCount === 1 && activeTilesAfterPulledMerge[0] === dst && pulledCells.length === 0) {
+  // 🔥 CRITICAL FIX: Check if dst is the only remaining tile (including dst in count)
+  const onlyDstRemainsAfterPull = remainingTilesCount === 1 && (activeTilesAfterPulledMerge[0] === dst || dstIsActive) && pulledCells.length === 0;
+  if (onlyDstRemainsAfterPull) {
     // Only merge 6 remains - this means magnet pulled the last tiles from the board
     console.log('🚨🚨🚨 EDGE CASE: Only merge 6 remains after magnet pulled last 4 tiles - Triggering clean board flow immediately (no spawn)');
     
@@ -1235,22 +1357,180 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 MAGNET-ON-MAGNET FIX: Magnet CAN pull other magnets - this is intentional!
   // When magnets pull other magnets, they get removed and replaced with new ordinary tiles
   
-  const spawnCount = hasTilesToRespawn ? pulledCells.length : 0; // Spawn = number of pulled tiles (max 4)
+  // 🔥 CRITICAL FIX: Spawn count = pulled tiles count (for replacement) + 1 (OBLIGATORY tile below merge 6)
+  // When magnet pulls tiles, we need to:
+  // 1. Spawn tiles to replace pulled tiles (pulledCells.length)
+  // 2. Spawn ONE OBLIGATORY tile below merge 6 (to anchor it and provide merge target)
+  // 3. Merge 6 tile should remain on board at magnet position (it's already there, don't spawn it)
+  // 🔥 USER BUG REPORT: Magnet + stack (2 tiles) → pulled 1 tile → should spawn 1 replacement + 1 obligatory below merge 6 + merge 6 = 3 total
+  // Problem: Only 1 tile spawned instead of 2 (missing obligatory tile below merge 6)
+  // Solution: Ensure we spawn pulledCells.length tiles PLUS 1 obligatory tile below merge 6
+  const replacementSpawnCount = hasTilesToRespawn ? pulledCells.length : 0; // Spawn = number of pulled tiles (max 4)
+  const obligatorySpawnCount = 1; // ALWAYS spawn 1 tile below merge 6 (even if no tiles were pulled)
+  const spawnCount = replacementSpawnCount + obligatorySpawnCount;
   
   console.log('🧲 Wild-magnet spawn calculation:', {
     pulledTilesCount: pulledCells.length,
     pulledTilesDetails: validTiles.map(t => ({ value: t.value, special: t.special })),
-    spawnCount: spawnCount,
-    note: 'Spawn count equals pulled tiles count (no multiplier, no bonus)'
+    replacementSpawnCount: replacementSpawnCount,
+    obligatorySpawnCount: obligatorySpawnCount,
+    totalSpawnCount: spawnCount,
+    merge6StaysVisible: true, // Merge 6 should remain visible on board
+    merge6Position: dst ? { gridX: dst.gridX, gridY: dst.gridY } : null,
+    expectedTotalTiles: spawnCount + 1, // Spawned tiles + merge 6
+    note: 'Spawn = pulled tiles count + 1 obligatory tile below merge 6. Merge 6 stays on board.'
   });
   
-  const spawnTargets = findRandomEmptyCells(spawnCount);
+  // 🔥 CRITICAL FIX: Find position for OBLIGATORY tile below merge 6
+  // This tile should be positioned below merge 6 (or near center if merge 6 is at edge)
+  let obligatoryCell: { c: number; r: number } | null = null;
+  if (dst && !dst.destroyed) {
+    const merge6GridX = dst.gridX | 0;
+    const merge6GridY = dst.gridY | 0;
+    
+    // Try to find cell below merge 6 (r+1)
+    const belowCell = { c: merge6GridX, r: merge6GridY + 1 };
+    if (belowCell.r < ROWS) {
+      const existingTile = STATE.grid?.[belowCell.r]?.[belowCell.c];
+      const isEmpty = !existingTile || (existingTile.locked && (existingTile.value|0) === 0);
+      if (isEmpty) {
+        obligatoryCell = belowCell;
+        console.log('✅ Found cell below merge 6 for obligatory spawn:', obligatoryCell);
+      } else {
+        console.warn('⚠️ Cell below merge 6 is occupied, finding alternative...');
+        // Try nearby cells (below-left, below-right, or same column but different row)
+        const alternatives = [
+          { c: merge6GridX - 1, r: merge6GridY + 1 }, // Below-left
+          { c: merge6GridX + 1, r: merge6GridY + 1 }, // Below-right
+          { c: merge6GridX, r: merge6GridY + 2 },     // Two rows below
+          { c: merge6GridX, r: merge6GridY - 1 },     // Above (if below is blocked)
+        ];
+        
+        for (const alt of alternatives) {
+          if (alt.r >= 0 && alt.r < ROWS && alt.c >= 0 && alt.c < COLS) {
+            const altTile = STATE.grid?.[alt.r]?.[alt.c];
+            const altIsEmpty = !altTile || (altTile.locked && (altTile.value|0) === 0);
+            if (altIsEmpty) {
+              obligatoryCell = alt;
+              console.log('✅ Found alternative cell for obligatory spawn:', obligatoryCell);
+              break;
+            }
+          }
+        }
+      }
+    } else {
+      // Merge 6 is at bottom row, try above or sides
+      const alternatives = [
+        { c: merge6GridX, r: merge6GridY - 1 }, // Above
+        { c: merge6GridX - 1, r: merge6GridY }, // Left
+        { c: merge6GridX + 1, r: merge6GridY }, // Right
+      ];
+      
+      for (const alt of alternatives) {
+        if (alt.r >= 0 && alt.r < ROWS && alt.c >= 0 && alt.c < COLS) {
+          const altTile = STATE.grid?.[alt.r]?.[alt.c];
+          const altIsEmpty = !altTile || (altTile.locked && (altTile.value|0) === 0);
+          if (altIsEmpty) {
+            obligatoryCell = alt;
+            console.log('✅ Found alternative cell (merge 6 at bottom) for obligatory spawn:', obligatoryCell);
+            break;
+          }
+        }
+      }
+    }
+    
+    // If still no cell found, use findRandomEmptyCells to find one near merge 6
+    if (!obligatoryCell) {
+      console.warn('⚠️ Could not find cell near merge 6, using random empty cell...');
+      const nearCells = findRandomEmptyCells(1);
+      if (nearCells.length > 0) {
+        obligatoryCell = nearCells[0];
+        console.log('✅ Using random cell for obligatory spawn:', obligatoryCell);
+      }
+    }
+  }
   
-  console.log('🧲 findRandomEmptyCells returned:', spawnTargets.length, 'targets out of', spawnCount, 'requested');
-  console.log('🧲 Spawn targets:', spawnTargets);
+  // Find cells for replacement spawns (excluding obligatory cell)
+  const excludeCellsSet = new Set<string>();
+  if (obligatoryCell) {
+    excludeCellsSet.add(`${obligatoryCell.c},${obligatoryCell.r}`);
+  }
+  // Also exclude pulled cells (they might still be in grid as locked placeholders)
+  pulledCells.forEach(cell => {
+    excludeCellsSet.add(`${cell.c},${cell.r}`);
+  });
+  
+  // Find replacement spawn targets (excluding obligatory cell and pulled cells)
+  let replacementTargets = findRandomEmptyCells(replacementSpawnCount);
+  // Filter out excluded cells
+  replacementTargets = replacementTargets.filter(cell => {
+    const key = `${cell.c},${cell.r}`;
+    return !excludeCellsSet.has(key);
+  });
+  
+  // Combine obligatory cell + replacement targets
+  let spawnTargets: { c: number; r: number }[] = [];
+  if (obligatoryCell) {
+    spawnTargets.push(obligatoryCell);
+  }
+  spawnTargets.push(...replacementTargets.slice(0, replacementSpawnCount));
+  
+  console.log('🧲 Final spawn targets:', {
+    total: spawnTargets.length,
+    requested: spawnCount,
+    obligatory: obligatoryCell ? 1 : 0,
+    replacement: replacementTargets.length,
+    targets: spawnTargets
+  });
+  
+  // 🔥 CRITICAL FIX: If we don't have enough spawn targets, try to find more cells
+  // This can happen if board is nearly full - retry with larger search
+  if (spawnTargets.length < spawnCount && spawnCount > 0) {
+    console.warn('⚠️ Not enough spawn targets found, retrying with larger search...', {
+      requested: spawnCount,
+      found: spawnTargets.length,
+      pulledTilesCount: pulledCells.length
+    });
+    
+    // Retry with larger count (search for more cells than needed)
+    const retryTargets = findRandomEmptyCells(spawnCount + 2);
+    // Filter out excluded cells
+    const filteredRetryTargets = retryTargets.filter(cell => {
+      const key = `${cell.c},${cell.r}`;
+      return !excludeCellsSet.has(key);
+    });
+    
+    // Add to spawnTargets if we found more
+    const additionalNeeded = spawnCount - spawnTargets.length;
+    const additionalTargets = filteredRetryTargets
+      .filter(cell => !spawnTargets.some(st => st.c === cell.c && st.r === cell.r))
+      .slice(0, additionalNeeded);
+    spawnTargets.push(...additionalTargets);
+    
+    if (spawnTargets.length >= spawnCount) {
+      console.log('✅ Found additional spawn targets:', spawnTargets.length, 'total');
+    } else {
+      console.error('🚨🚨🚨 CRITICAL: Still not enough spawn targets after retry!', {
+        requested: spawnCount,
+        found: spawnTargets.length,
+        pulledTilesCount: pulledCells.length,
+        note: 'Will attempt to spawn what we can, but tile count may be incorrect!'
+      });
+    }
+  }
 
-  if (spawnTargets.length) {
-    console.log('🧲 Respawning', spawnCount, 'tiles at random empty cells:', spawnTargets);
+  // 🔥 CRITICAL FIX: Track successful spawns to ensure we spawn EXACTLY spawnCount tiles
+  // Prioritize obligatory spawn (must spawn first), then replacement spawns
+  let successfulSpawns = 0;
+  let successfulObligatorySpawn = false;
+  const spawnPromises: Promise<boolean>[] = [];
+  
+  if (spawnTargets.length > 0) {
+    console.log('🧲 Respawning', spawnCount, 'tiles:', {
+      obligatory: obligatoryCell ? 1 : 0,
+      replacement: replacementSpawnCount,
+      targets: spawnTargets
+    });
     console.log('🧲 STATE.drag exists?', !!STATE.drag);
     console.log('🧲 STATE.drag.bindToTile exists?', !!(STATE.drag as any)?.bindToTile);
     
@@ -1260,17 +1540,18 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.log('⏳ Waiting for merge-6 shards animation to complete before spawning...');
     await new Promise(resolve => setTimeout(resolve, 50));
     
-    // 🔥 CRITICAL FIX: Spawn tiles with very fast overlapping animations for premium speedy feel
-    // spawnBounce animation takes ~0.24s (with timeScale 2.0), delay is 30ms for very fast cascading
-    // Each tile starts when previous is at 12.5% of its animation - creates very fast cascading effect
-    // Sequential spawning: 1st at 0ms, 2nd at 30ms, 3rd at 60ms, 4th at 90ms
-    // 🔥 CRITICAL: Use setTimeout instead of await to allow parallel execution (same as spawn-helpers.ts and level-flow.ts)
-    for (let index = 0; index < spawnTargets.length; index++) {
+    // 🔥 CRITICAL FIX: Spawn OBLIGATORY tile FIRST (priority)
+    // Then spawn replacement tiles with cascading delays
+    // Obligatory tile spawns immediately (0ms delay), replacement tiles cascade (30ms, 60ms, 90ms)
+    // 🔥 CRITICAL: Use Promise-based approach to track successful spawns
+    for (let index = 0; index < spawnTargets.length && successfulSpawns < spawnCount; index++) {
       const { c, r } = spawnTargets[index];
-      const delay = index * 30; // 0ms, 30ms, 60ms, 90ms...
+      const isObligatory = obligatoryCell && c === obligatoryCell.c && r === obligatoryCell.r;
+      // Obligatory tile spawns first (0ms), replacement tiles cascade (30ms, 60ms, 90ms...)
+      const delay = isObligatory ? 0 : (successfulObligatorySpawn ? (successfulSpawns * 30) : 30);
       
-      // 🔥 CRITICAL: Use setTimeout to schedule spawn without blocking
-      // This allows all tiles to be scheduled with delays, but animations run concurrently
+      // Create promise that resolves when spawn completes
+      const spawnPromise = new Promise<boolean>((resolve) => {
       setTimeout(() => {
         try {
           // 🔥 CRITICAL FIX v40.6: Double-check cell is still empty before spawning (race condition protection)
@@ -1291,49 +1572,99 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
                 isActive,
                 isWildTile
               });
-              return; // Skip this cell
+                resolve(false); // Spawn failed
+                return;
             }
             
             // 🔥 CRITICAL: If tile is NOT locked, it's an active tile (should not happen, but safety check)
             if (!existingTile.locked) {
               console.warn(`⚠️ Cell (${c}, ${r}) has unlocked tile without value - this should not happen, skipping`);
-              return; // Skip this cell
+                resolve(false); // Spawn failed
+                return;
             }
           }
           
           // Spawn tile normally (skipBind = false means it will try to bind immediately)
-          // Use timeScale: 2.0 to make spawn animation 50% faster (2x speed = half duration)
-          // 🔥 CRITICAL: Don't await - spawn tiles in parallel, let animations run concurrently
-          // This allows tiles to spawn at the correct delays (0ms, 30ms, 60ms, 90ms) without waiting for previous animations
-          openAtCell(c, r, { skipBind: false, timeScale: 2.0 }).then((spawnResult) => {
-            // 🔥 CRITICAL FIX v40.6: Check spawn result - if false, cell was occupied and spawn failed
-            if (!spawnResult) {
-              console.warn(`⚠️ openAtCell returned false for cell (${c}, ${r}) - spawn failed, cell was occupied`);
-              return;
-            }
-            
-            // Get the spawned tile after a short delay to ensure it's created
+            openAtCell(c, r, { skipBind: false }).then(() => {
+              // Check if spawn was successful by verifying tile exists and has value > 0
             setTimeout(() => {
               const tile = STATE.grid?.[r]?.[c];
-              if (tile && !tile.locked && tile.value > 0) {
-                // Double-check: Ensure tile is draggable and bound to drag system
-                tile.eventMode = 'static';
-                tile.cursor = 'pointer';
+                const spawnSuccess = !!(tile && !tile.locked && (tile.value|0) > 0);
                 
-                // Explicitly bind to drag system (in case bindTileWithFallback failed)
-                const drag = STATE.drag as any;
-                if (drag && typeof drag.bindToTile === 'function') {
-                  drag.bindToTile(tile);
+                if (spawnSuccess) {
+                  successfulSpawns++;
+                  if (isObligatory) {
+                    successfulObligatorySpawn = true;
+                    console.log(`✅ Successfully spawned OBLIGATORY tile below merge 6 at (${c}, ${r})`);
+                  }
+                  // Double-check: Ensure tile is draggable and bound to drag system
+                  tile.eventMode = 'static';
+                  tile.cursor = 'pointer';
+                  
+                  // Explicitly bind to drag system (in case bindTileWithFallback failed)
+                  const drag = STATE.drag as any;
+                  if (drag && typeof drag.bindToTile === 'function') {
+                    drag.bindToTile(tile);
+                  }
+                  console.log(`✅ Successfully spawned ${isObligatory ? 'OBLIGATORY' : 'replacement'} tile at (${c}, ${r}), total successful: ${successfulSpawns}/${spawnCount}`);
+                } else {
+                  console.warn(`⚠️ Spawn verification failed at (${c}, ${r}) - tile not properly created`);
+                  if (isObligatory) {
+                    console.error(`🚨🚨🚨 CRITICAL: OBLIGATORY tile spawn failed at (${c}, ${r})!`);
+                  }
                 }
-              }
+                resolve(spawnSuccess);
             }, 50); // Small delay to ensure tile is created
           }).catch((err) => {
             console.warn(`⚠️ Failed to spawn tile at (${c}, ${r}):`, err);
+              resolve(false);
           });
         } catch (err) {
           console.warn(`⚠️ Failed to respawn tile at (${c}, ${r}):`, err);
+            resolve(false);
         }
       }, delay);
+      });
+      
+      spawnPromises.push(spawnPromise);
+    }
+    
+    // 🔥 CRITICAL: If we still don't have enough successful spawns, try to spawn on additional cells
+    // Wait a bit for initial spawns to complete, then check if we need more
+    await Promise.all(spawnPromises);
+    
+    if (successfulSpawns < spawnCount && spawnCount > 0) {
+      console.warn(`⚠️ Only ${successfulSpawns}/${spawnCount} tiles spawned successfully, attempting to spawn remaining tiles...`);
+      
+      // Try to find additional empty cells for remaining spawns
+      const remainingCount = spawnCount - successfulSpawns;
+      const additionalTargets = findRandomEmptyCells(remainingCount);
+      
+      for (let i = 0; i < additionalTargets.length && successfulSpawns < spawnCount; i++) {
+        const { c, r } = additionalTargets[i];
+        try {
+          await openAtCell(c, r, { skipBind: false });
+          setTimeout(() => {
+            const tile = STATE.grid?.[r]?.[c];
+            if (tile && !tile.locked && (tile.value|0) > 0) {
+              successfulSpawns++;
+              tile.eventMode = 'static';
+              tile.cursor = 'pointer';
+              const drag = STATE.drag as any;
+              if (drag && typeof drag.bindToTile === 'function') {
+                drag.bindToTile(tile);
+              }
+              console.log(`✅ Successfully spawned additional tile at (${c}, ${r}), total successful: ${successfulSpawns}/${spawnCount}`);
+            }
+          }, 50);
+        } catch (err) {
+          console.warn(`⚠️ Failed to spawn additional tile at (${c}, ${r}):`, err);
+        }
+      }
+      
+      if (successfulSpawns < spawnCount) {
+        console.error(`🚨🚨🚨 CRITICAL: Only ${successfulSpawns}/${spawnCount} tiles spawned! This will cause incorrect tile count!`);
+      }
     }
   } else if (spawnCount > 0) {
     console.warn('⚠️ No spawn targets found!', {
@@ -1367,14 +1698,14 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   console.log('🧲 Respawn complete - letting pulled tiles merge with merge 6 before endgame check');
   
-  // 🔥 CRITICAL FIX: Wait longer for spawn animations to complete before checking endgame
+  // 🔥 CRITICAL FIX: Wait for spawn animations to complete before checking endgame
   // Spawn bounce animation with timeScale 2.0 takes ~0.24s (240ms) per tile
   // With cascading delays (0ms, 30ms, 60ms, 90ms), last tile finishes at ~330ms
   // Plus unlock/bind takes ~50ms per tile, so last tile is fully ready at ~380ms
-  // Add safety margin for bubbles animation and other effects: 1200ms total
-  // This ensures ALL animations (spawn, bubbles, magnet pull) are complete before endgame check
-  console.log('⏳ Waiting 1200ms for ALL animations (spawn, bubbles, magnet pull) to complete before endgame check...');
-  await new Promise(resolve => setTimeout(resolve, 1200));
+  // Total safe delay: 800ms (same as v78) - enough for spawn animations to complete
+  // This ensures spawn animations are complete before endgame check
+  console.log('⏳ Waiting 800ms for spawn animations to complete before endgame check...');
+  await new Promise(resolve => setTimeout(resolve, 800));
   
   // 🔥 CRITICAL: Check if ALL tiles can be merged together (simulate all possible merges)
   // If all tiles can be merged and the final merge is merge 6, trigger clean board flow
@@ -1393,13 +1724,46 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet';
   });
   
+  // Count active tiles to verify spawn completed
+  const activeTilesAfterSpawn = STATE.tiles.filter(tileIsActive);
+  const expectedTileCount = spawnCount + 1; // Spawned tiles + merge 6
+  const actualTileCount = activeTilesAfterSpawn.length;
+  
+  console.log('🧲 Spawn verification:', {
+    lockedTilesStillAnimating: lockedActiveTiles.length,
+    expectedTileCount: expectedTileCount,
+    actualTileCount: actualTileCount,
+    spawnCount: spawnCount,
+    merge6ShouldBeVisible: true,
+    activeTiles: activeTilesAfterSpawn.map((t: any) => ({ value: t.value, special: t.special }))
+  });
+  
   if (lockedActiveTiles.length > 0) {
     console.log('⏳ Delaying endgame check - spawn animations still in progress:', {
       lockedCount: lockedActiveTiles.length,
-      lockedTiles: lockedActiveTiles.map(t => ({ value: t.value, special: t.special }))
+      lockedTiles: lockedActiveTiles.map((t: any) => ({ value: t.value, special: t.special }))
     });
     // Wait additional 500ms for spawn animations to complete
     await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  
+  // 🔥 CRITICAL FIX: Verify spawn completed correctly
+  // If we expected more tiles than we have, something went wrong
+  if (actualTileCount < expectedTileCount && spawnCount > 0) {
+    console.error('🚨🚨🚨 CRITICAL: Spawn incomplete!', {
+      expected: expectedTileCount,
+      actual: actualTileCount,
+      spawnCount: spawnCount,
+      note: 'Not all tiles were spawned - this will cause incorrect endgame check!'
+    });
+    // Wait additional time and re-check
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    const recheckActiveTiles = STATE.tiles.filter(tileIsActive);
+    console.log('🧲 Re-check after additional wait:', {
+      expected: expectedTileCount,
+      actual: recheckActiveTiles.length,
+      tiles: recheckActiveTiles.map((t: any) => ({ value: t.value, special: t.special }))
+    });
   }
   
   // 🔥 CRITICAL FIX: Check if bubbles animation is still running (from wild-beer merge)
@@ -1418,6 +1782,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 CRITICAL: Also call checkLevelEnd as backup (it has its own delay and handles all edge cases)
   // This ensures end game is checked even if checkGameOver doesn't catch it
   // But only after we've verified spawn animations are complete
+  // 🔥 v78 LOGIC: Call checkLevelEnd immediately after spawn verification (no additional delay)
+  // checkLevelEnd has its own internal delay and handles all edge cases properly
   if (typeof (window as any).CC?.checkLevelEnd === 'function') {
     console.log('🧲 Calling checkLevelEnd after magnet pull spawn complete (all animations verified)');
     (window as any).CC.checkLevelEnd();
@@ -1966,10 +2332,10 @@ export function merge(src, dst, helpers){
         }
 
         const depth = Math.min(4, combined);
-        // 🔥 CRITICAL: For wild-magnet merge with 4 pulled tiles, spawn 3 new tiles
+        // 🔥 CRITICAL: For wild-magnet merge, spawn 2 new tiles (same as regular merge 6)
         // Check if this is wild-magnet merge by checking if src or dst was wild-magnet
         const isWildMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
-        const toOpen = isWildMagnetMerge ? 3 : (REFILL_ON_SIX_BY_DEPTH[depth-1] || 2); // Wild-magnet = 3, else default
+        const toOpen = REFILL_ON_SIX_BY_DEPTH[depth-1] || 2; // Always 2 for merge 6 (wild-magnet or regular)
 
         // 🔥 CRITICAL: ALWAYS spawn tiles after merge 6, regardless of shouldRefillAfterMerge
         // The old code would skip spawning if shouldRefillAfterMerge=false, causing merge 6 to freeze

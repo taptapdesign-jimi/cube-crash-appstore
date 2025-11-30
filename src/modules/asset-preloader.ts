@@ -77,6 +77,8 @@ const ALL_ASSETS: string[] = [
   './assets/wild@3x.png',
   './assets/wild-magnet.png',
   './assets/wild-beer.png',
+  './assets/wild-beer@2x.png',
+  './assets/wild-beer@3x.png',
   
   // Wild star assets
   './assets/small-star.png',

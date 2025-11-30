@@ -199,7 +199,10 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   }
 
   try {
-    try { await new Promise((res) => setTimeout(res, 1000)); } catch {}
+    // 🔥 USER REQUEST: 1.5 seconds delay before showing clean board overlay
+    // This gives player time to see the board and all calculations to complete
+    console.log('⏳ Waiting 1.5 seconds before showing clean board overlay...');
+    try { await new Promise((res) => setTimeout(res, 1500)); } catch {}
     await runEndgameFlow({
       app,
       stage,
@@ -2904,7 +2907,10 @@ function merge(src, dst, helpers){
               });
               
               if (!busyEnding) {
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // 🔥 USER REQUEST: 1.5 seconds delay before showing fail screen
+                // This gives player time to see the board and all calculations to complete
+                console.log('⏳ Waiting 1.5 seconds before showing fail screen (last move - stack, cannot reach merge 6)...');
+                await new Promise(resolve => setTimeout(resolve, 1500));
                 console.log('🚨 Showing fail screen NOW (last move - stack, cannot reach merge 6)');
                 showFinalScreen();
               }
@@ -2947,7 +2953,10 @@ function merge(src, dst, helpers){
               });
               
               if (!busyEnding) {
-                await new Promise(resolve => setTimeout(resolve, 500));
+                // 🔥 USER REQUEST: 1.5 seconds delay before showing fail screen
+                // This gives player time to see the board and all calculations to complete
+                console.log('⏳ Waiting 1.5 seconds before showing fail screen (last move - 3+ stack, cannot reach merge 6)...');
+                await new Promise(resolve => setTimeout(resolve, 1500));
                 console.log('🚨 Showing fail screen NOW (last move - 3+ stack, cannot reach merge 6)');
                 showFinalScreen();
               }
@@ -3007,10 +3016,10 @@ function merge(src, dst, helpers){
             });
             
             if (!busyEnding) {
-              // 🔥 CRITICAL: Wait 0.5 seconds before showing fail screen
-              // This gives user time to see the board state and understand why game ended
-              // 🔥 REDUCED: From 1000ms to 500ms for faster fail screen (total delay now ~1.5s instead of ~2s)
-              await new Promise(resolve => setTimeout(resolve, 500));
+              // 🔥 USER REQUEST: 1.5 seconds delay before showing fail screen
+              // This gives player time to see the board and all calculations to complete
+              console.log('⏳ Waiting 1.5 seconds before showing fail screen (post-merge stuck check)...');
+              await new Promise(resolve => setTimeout(resolve, 1500));
               console.log('🚨 Showing fail screen NOW');
               showFinalScreen();
             } else {
@@ -3058,7 +3067,17 @@ function merge(src, dst, helpers){
         // countdown moves
         moves = Math.max(0, moves - 1);
         animateBoardHUD(boardNumber, 0.40);
-        if (moves === 0) { checkMovesDepleted(); return; }
+        
+        // 🔥 CRITICAL FIX: If moves === 0, delay check to ensure tiles array is updated after merge
+        // Problem: checkMovesDepleted() was called immediately but tiles array might not be updated yet
+        // Solution: Wait for merge animation to complete (400ms) before checking
+        if (moves === 0) {
+          // Wait for merge animation to complete before checking stuck state
+          setTimeout(() => {
+            checkMovesDepleted();
+          }, 400);
+          return;
+        }
 
         // 🔥 REFACTORED: Uklonjen STUCK PROTECTION timer - koristimo samo checkLevelEnd() s delay-om
         // checkLevelEnd() već provjerava sve potrebne scenarije kroz checkEndGame()
@@ -4510,31 +4529,45 @@ function merge(src, dst, helpers){
                 console.warn('⚠️ Failed to cleanup wild beer explosion before merge 6:', err);
               }
               
+              // 🔥 CRITICAL: Snimiti dst poziciju PRIJE nego što se ukloni (za bubbles explosion)
+              // dst tile se uklanja u merge 6 bloku, ali bubbles explosion treba poziciju
+              const dstPosForBubbles = {
+                x: dst?.x ?? dstX ?? 0,
+                y: dst?.y ?? dstY ?? 0,
+                gridX: dst?.gridX ?? dstGridX ?? 0,
+                gridY: dst?.gridY ?? dstGridY ?? 0
+              };
+              
               // 🔥 FPS DROP FIX: Stagger bubbles explosion NAKON 200ms (ne istovremeno s drugim animacijama)
               // Ovo smanjuje CPU/GPU spike i sprječava freeze
               gsap.delayedCall(0.2, () => {
                 try {
-                  // 🔥 CRITICAL: Double-check dst is still valid before triggering explosion
-                  if (dst && !dst.destroyed && board && !board.destroyed) {
+                  // 🔥 CRITICAL: Use saved position instead of dst tile (dst may be destroyed by now)
+                  // Bubbles explosion can work with position data instead of tile reference
+                  if (board && !board.destroyed) {
                     const isStillActive = isWildBeerExplosionRunning();
                     if (isStillActive) {
                       console.warn('⚠️ Wild beer explosion still active, forcing cleanup before new explosion');
                       cleanupWildBeerExplosion();
                     }
-                    console.log('💧 Triggering wild-beer bubbles explosion at merge 6 (staggered 200ms) - dst and board are valid');
-                    createWildBeerBubblesExplosion(board, dst);
+                    
+                    // Create a temporary position object for bubbles explosion
+                    // If dst is still valid, use it; otherwise use saved position
+                    const bubbleTarget = (dst && !dst.destroyed) ? dst : {
+                      x: dstPosForBubbles.x,
+                      y: dstPosForBubbles.y,
+                      gridX: dstPosForBubbles.gridX,
+                      gridY: dstPosForBubbles.gridY,
+                      destroyed: false // Fake tile object for bubbles explosion
+                    };
+                    
+                    console.log('💧 Triggering wild-beer bubbles explosion at merge 6 (staggered 200ms) - using saved position if dst destroyed');
+                    createWildBeerBubblesExplosion(board, bubbleTarget);
                   } else {
-                    console.warn('⚠️ Cannot trigger bubbles explosion - dst or board invalid:', {
-                      dst: !!dst,
-                      dstDestroyed: dst?.destroyed,
+                    console.warn('⚠️ Cannot trigger bubbles explosion - board invalid:', {
                       board: !!board,
                       boardDestroyed: board?.destroyed
                     });
-                    // 🔥 FALLBACK: Try to trigger anyway if board is valid (dst might be destroyed but board should work)
-                    if (board && !board.destroyed) {
-                      console.log('💧 FALLBACK: Triggering bubbles explosion with board only (dst may be destroyed)');
-                      createWildBeerBubblesExplosion(board, dst);
-                    }
                   }
                 } catch (error) {
                   console.error('❌ Failed to trigger bubbles foam:', error);
@@ -4741,27 +4774,50 @@ function merge(src, dst, helpers){
         // dst will be removed AFTER spawn logic, not before
         // This prevents false "clean board" detection when dst is still the only remaining tile
         
+        // 🔥 CRITICAL: Check if this is magnet pull merge BEFORE hiding dst tile
+        // For magnet pull merge, dst (merge 6) should remain visible on the board
+        // Check both the flag (set later) AND wasWildMagnet + _wildMagnetMergeCallback (set earlier)
+        const isMagnetPullMergeFlag = (dst as any)?._wildMagnetPulledTilesMerge === true;
+        const isMagnetPullMergeEarly = wasWildMagnet && (dst as any)?._wildMagnetMergeCallback;
+        const isMagnetPullMerge = isMagnetPullMergeFlag || isMagnetPullMergeEarly;
+        
         // Create locked placeholder at dst position for spawn logic
         let placeholderHolder: any = null; // 🔥 v40.1: Store reference to placeholder for cleanup
         if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
           // Clear grid position FIRST (before hiding dst)
         grid[gy][gx] = null;
           
-          // Hide dst tile but DON'T remove it from tiles array yet
-        dst.visible = false;
-          dst.alpha = 0;
-          dst.eventMode = 'none';
-          
-          // Create locked placeholder for spawn
-          placeholderHolder = makeBoard.createTile({ board, grid, tiles, c: gx, r: gy, val: 0, locked: true });
-          placeholderHolder.alpha = 0.35;
-          placeholderHolder.eventMode = 'none';
-          
-          // 🔥 v40.1: Store reference on dst for cleanup
-          (dst as any)._placeholderHolder = placeholderHolder;
-          
-          console.log('🔍 Dst tile hidden but NOT removed from tiles array yet - will be removed AFTER spawn');
-          console.log('🔍 Placeholder created at (', gx, ',', gy, ') for spawn logic');
+          // 🔥 CRITICAL FIX: For magnet pull merge, DON'T hide dst tile - it should remain visible!
+          // Only hide dst tile for regular merge 6 (not magnet pull merge)
+          if (!isMagnetPullMerge) {
+            // Hide dst tile but DON'T remove it from tiles array yet (regular merge 6 only)
+            dst.visible = false;
+            dst.alpha = 0;
+            dst.eventMode = 'none';
+            
+            // Create locked placeholder for spawn
+            placeholderHolder = makeBoard.createTile({ board, grid, tiles, c: gx, r: gy, val: 0, locked: true });
+            placeholderHolder.alpha = 0.35;
+            placeholderHolder.eventMode = 'none';
+            
+            // 🔥 v40.1: Store reference on dst for cleanup
+            (dst as any)._placeholderHolder = placeholderHolder;
+            
+            console.log('🔍 Dst tile hidden but NOT removed from tiles array yet - will be removed AFTER spawn');
+            console.log('🔍 Placeholder created at (', gx, ',', gy, ') for spawn logic');
+          } else {
+            // 🔥 CRITICAL: For magnet pull merge, keep dst tile visible and don't create placeholder
+            // The merge 6 tile should remain on the board along with newly spawned tiles
+            console.log('🧲 Magnet pull merge detected - keeping merge 6 tile visible on board');
+            console.log('🧲 Dst tile (merge 6) will remain visible:', { 
+              value: dst.value, 
+              gridX: dst.gridX, 
+              gridY: dst.gridY,
+              wasWildMagnet: wasWildMagnet,
+              hasCallback: !!(dst as any)?._wildMagnetMergeCallback,
+              hasFlag: isMagnetPullMergeFlag
+            });
+          }
         } else {
           console.warn('⚠️ Destination tile is invalid or already destroyed');
         }
@@ -4874,6 +4930,10 @@ function merge(src, dst, helpers){
           if (movesDepletedResult.type === 'stuck') {
             console.log('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
             if (!busyEnding) {
+              // 🔥 USER REQUEST: 1.5 seconds delay before showing fail screen
+              // This gives player time to see the board and all calculations to complete
+              console.log('⏳ Waiting 1.5 seconds before showing fail screen (moves depleted + stuck in merge 6)...');
+              await new Promise(res => setTimeout(res, 1500));
               showFinalScreen();
             }
             return;
@@ -4890,26 +4950,10 @@ function merge(src, dst, helpers){
           (dst as any)._wildMagnetPulledTilesMerge = undefined;
           (dst as any)._wildMagnetPulledTilesScoring = undefined;
           
-          // 🔥 CRITICAL FIX: We MUST call checkLevelEnd after magnet pull spawn completes!
-          // Otherwise the game will never check for endgame conditions
-          // Wait a bit for spawn animations to complete, then check
-          console.log('🧲 Waiting 1000ms for magnet pull spawn animations to complete...');
-          await new Promise(res => setTimeout(res, 1000));
-          
-          // Log board state before check
-          const activeTilesAfterPull = tiles.filter(tileIsActive);
-          console.log('🔍 Board state AFTER magnet pull:', {
-            activeTilesCount: activeTilesAfterPull.length,
-            activeTiles: activeTilesAfterPull.map(t => ({ 
-              value: t.value, 
-              special: t.special, 
-              locked: t.locked
-            }))
-          });
-          
-          // Call checkLevelEnd to verify game can continue
-          console.log('🧲 Calling checkLevelEnd after magnet pull spawn...');
-          checkLevelEnd();
+          // 🔥 CRITICAL FIX: Don't call checkLevelEnd here - it's already called in mergePulledTilesIntoMerge6
+          // Calling it twice causes race conditions and premature fail screens
+          // mergePulledTilesIntoMerge6 waits for spawn animations and calls checkLevelEnd with proper timing
+          console.log('🧲 Skipping checkLevelEnd call here - mergePulledTilesIntoMerge6 will handle it after spawn completes');
           return;
         }
         
@@ -5199,6 +5243,11 @@ async function checkMovesDepleted(){
   // Use centralized end game checker
   if (busyEnding) return;
   
+  // 🔥 CRITICAL FIX: Ensure tiles array is fully updated before checking
+  // After merge completes, tiles array might still be updating
+  // Wait a bit to ensure all tile state updates are complete
+  await new Promise(res => setTimeout(res, 100));
+  
   const movesDepletedCheckContext: EndGameContext = {
     tiles,
     moves: 0,
@@ -5208,13 +5257,25 @@ async function checkMovesDepleted(){
   // 🔥 CRITICAL: Use forceRefresh for moves depleted check
   const movesDepletedCheckResult = checkEndGame(movesDepletedCheckContext, true);
   
+  console.log('🔍 checkMovesDepleted: End game check result:', {
+    type: movesDepletedCheckResult.type,
+    reason: movesDepletedCheckResult.reason,
+    activeTilesCount: tiles.filter(tileIsActive).length,
+    activeTiles: tiles.filter(tileIsActive).map(t => ({ 
+      value: t.value, 
+      special: t.special, 
+      stackDepth: (t as any).stackDepth || 1,
+      locked: t.locked
+    }))
+  });
+  
   if (movesDepletedCheckResult.type === 'stuck') {
     console.log('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
     if (!busyEnding) {
-      // 🔥 CRITICAL: Wait 0.5 seconds before showing fail screen so user can see the board state
-      // 🔥 REDUCED: From 1000ms to 500ms for faster fail screen
-      console.log('⏳ Waiting 0.5 seconds before showing fail screen so user can see board state...');
-      await new Promise(res => setTimeout(res, 500));
+      // 🔥 USER REQUEST: 1.5 seconds delay before showing fail screen
+      // This gives player time to see the board and all calculations to complete
+      console.log('⏳ Waiting 1.5 seconds before showing fail screen so user can see board state...');
+      await new Promise(res => setTimeout(res, 1500));
       showFinalScreen();
     }
   } else {
@@ -5420,11 +5481,11 @@ function checkLevelEnd(){
       // Nema potrebe za dodatnom provjerom
       
       if (!busyEnding) {
-        // 🔥 CRITICAL: Wait 0.5 seconds before showing fail screen so user can see the board state
+        // 🔥 USER REQUEST: 1.5 seconds delay before showing fail screen
+        // This gives player time to see the board and all calculations to complete
         // This prevents instant fail screen when board becomes non-mergable (e.g. after wild spawn)
-        // 🔥 REDUCED: From 1000ms to 500ms for faster fail screen (total delay now ~1s instead of ~2.2s)
-        console.log('⏳ Waiting 0.5 seconds before showing fail screen so user can see board state...');
-        await new Promise(res => setTimeout(res, 500));
+        console.log('⏳ Waiting 1.5 seconds before showing fail screen so user can see board state...');
+        await new Promise(res => setTimeout(res, 1500));
         showFinalScreen();
       } else {
         console.warn('⚠️ checkLevelEnd: busyEnding is true, skipping showFinalScreen');
