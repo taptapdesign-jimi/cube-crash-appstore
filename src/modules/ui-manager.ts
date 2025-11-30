@@ -1467,10 +1467,7 @@ class UIManager {
     event.preventDefault();
     logger.info('⚙️ Settings back button clicked');
     
-    // Light haptic
-    if (typeof (window as any).triggerHapticImpact === 'function') {
-      (window as any).triggerHapticImpact('light');
-    }
+    // 🔥 USER REQUEST: Haptic feedback removed from settings back button
     
     this.hideSettingsScreenWithAnimation();
   }

@@ -1,4 +1,7 @@
 import { logger } from '../core/logger.js';
+import { container } from '../core/dependency-injection.js';
+import { gsap } from 'gsap';
+import { Container } from 'pixi.js';
 // pause-utils.ts
 // Utility functions for pause modal
 
@@ -30,7 +33,8 @@ declare global {
 
 // Global state
 let overlay: HTMLElement | null = null;
-let isModalVisible: boolean = false;
+// 🔥 FIX: Rename variable to avoid conflict with function name
+let pauseModalVisibleState: boolean = false;
 let modalOptions: PauseModalOptions = {};
 
 /**
@@ -51,14 +55,14 @@ export function setActiveOverlay(overlayEl: HTMLElement | null): void {
  * Check if modal is visible
  */
 export function isModalVisible(): boolean {
-  return isModalVisible;
+  return pauseModalVisibleState;
 }
 
 /**
  * Set modal visibility
  */
 export function setModalVisible(visible: boolean): void {
-  isModalVisible = visible;
+  pauseModalVisibleState = visible;
 }
 
 /**

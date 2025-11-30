@@ -1384,6 +1384,45 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
           e.stopPropagation();
           console.log('🎯 HUD CLICKED!');
 
+          // 🔥 CRITICAL FIX: Check if modal is already visible before opening new one
+          // Prevent opening modal if it's already open or closing
+          let isModalOpen = false;
+          try {
+            // Try to check if modal is visible via window function
+            if (typeof window.isEndRunModalVisible === 'function') {
+              isModalOpen = window.isEndRunModalVisible();
+            }
+            
+            // Also check if modal element exists in DOM and is visible
+            const modalExists = document.querySelector('.simple-bottom-sheet');
+            if (modalExists) {
+              const modalEl = modalExists;
+              // Check if modal is visible (not closing, in DOM, and not hidden)
+              const isVisible = modalEl.parentNode !== null && 
+                               !modalEl.hasAttribute('hidden') &&
+                               (!modalEl.style || modalEl.style.display !== 'none');
+              const isClosing = modalEl._closing === true;
+              
+              if (isVisible && !isClosing) {
+                isModalOpen = true;
+              }
+            }
+          } catch (err) {
+            console.warn('⚠️ Error checking modal visibility:', err);
+          }
+          
+          if (isModalOpen) {
+            console.log('⚠️ End Run modal already open - ignoring HUD click to prevent conflicts');
+            return; // Prevent opening multiple modals
+          }
+          
+          // 🔥 CRITICAL FIX: Also check if overlay exists (indicates modal is open)
+          const overlay = document.getElementById('end-run-overlay');
+          if (overlay && overlay.parentNode) {
+            console.log('⚠️ End Run overlay exists - modal is likely open - ignoring HUD click');
+            return;
+          }
+
           // Show End This Run modal instead of pause menu
           if (typeof window.showEndRunModalFromGame === 'function') {
             console.log('🎯 Calling showEndRunModalFromGame...');

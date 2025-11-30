@@ -879,6 +879,7 @@ export async function boot(){
     scheduleComboDecay: () => scheduleComboDecay(), // 🔥 CRITICAL: Export scheduleComboDecay for magnet pull combo logic
     killComboTimer: () => killComboTimer(), // 🔥 CRITICAL: Export killComboTimer to kill existing timer before updating combo
     addStars: (count) => StarsCollector.addStars(count|0), // 🔥 CRITICAL: Export addStars for synchronous star collection
+    setStarsCount: (count) => StarsCollector.setStarsCount(count|0), // 🔥 CRITICAL: Export setStarsCount for resetting star count on restart
   };
   
   // 🔥 MEMORY LEAK FIX: Export cleanup functions for global cleanup
@@ -3063,12 +3064,14 @@ function merge(src, dst, helpers){
         // checkLevelEnd() već provjerava sve potrebne scenarije kroz checkEndGame()
         // Nema potrebe za dodatnim timerom koji stvara race conditions
         
-        // Za non-merge-6, provjeri nakon kratke delay za animaciju
+        // Za non-merge-6, provjeri nakon delay za animaciju
         if (effSum !== 6) {
-          // Mala delay za animaciju, zatim provjeri
+          // 🔥 CRITICAL FIX: Increase delay to ensure merge animation completes before endgame check
+          // This prevents stuck detection from being blocked by merge animations
+          // Delay increased from 100ms to 400ms to match merge animation duration
           setTimeout(() => {
             checkLevelEnd();
-          }, 100);
+          }, 400);
         } else {
           // Za merge-6, checkLevelEnd() se poziva nakon spawn-a (već postoji delay u merge-6 block)
           // Ne treba dodatni poziv ovdje
@@ -5280,9 +5283,13 @@ function checkLevelEnd(){
     
     // 🔥 CRITICAL FIX: Skip check if there are LOCKED tiles with value > 0 (spawn animations in progress)
     // This prevents premature fail screen when tiles are still being spawned/animated
+    // 🔥 CRITICAL FIX: Exclude wild-beer tiles from locked check - bubbles animation doesn't mean tile is locked
+    // Wild-beer bubbles animation is visual only and shouldn't block endgame detection
     const lockedActiveTiles = tiles.filter((t: any) => {
       if (!t || t.destroyed) return false;
       if (!t.locked) return false; // Only check locked tiles
+      // 🔥 CRITICAL FIX: Exclude wild-beer from locked check - bubbles animation is visual only
+      if (t.special === 'wild-beer') return false; // Wild-beer bubbles don't block endgame check
       return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet';
     });
     
@@ -5923,6 +5930,28 @@ export function restart() {
     console.warn('HARD RESET: Failed to reset wild meter:', error);
   }
   
+  // 🔥 CRITICAL FIX: Reset star count when restarting from end game bottom sheet
+  try {
+    console.log('🔄 RESTART: Resetting star count...');
+    // Reset stars collector via window.CC.setStarsCount (exported above)
+    if (typeof (window as any).CC?.setStarsCount === 'function') {
+      (window as any).CC.setStarsCount(0);
+      console.log('✅ RESTART: Star count reset to 0');
+    } else {
+      // Fallback: try to import and reset directly
+      import('./stars-collector.js').then((StarsCollector) => {
+        if (typeof StarsCollector.setStarsCount === 'function') {
+          StarsCollector.setStarsCount(0);
+          console.log('✅ RESTART: Star count reset to 0 (via import)');
+        }
+      }).catch((err) => {
+        console.warn('⚠️ RESTART: Failed to reset star count:', err);
+      });
+    }
+  } catch (error) {
+    console.warn('⚠️ RESTART: Error resetting star count:', error);
+  }
+  
   console.log('🔄 RESTART: About to call restartGame()...');
   restartGame();
   console.log('✅ RESTART: restartGame() completed');
@@ -6211,6 +6240,19 @@ function saveGameState() {
     
     console.log('💾 Saved', savedTiles.length, 'tiles total (from tiles array + grid check)');
 
+    // 🔥 CRITICAL FIX: Get stars count from stars collector before saving
+    let savedStarsCount = 0;
+    try {
+      if (typeof StarsCollector.getStarsCount === 'function') {
+        savedStarsCount = StarsCollector.getStarsCount();
+        console.log('💾 Saving stars count:', savedStarsCount);
+      } else {
+        console.warn('⚠️ StarsCollector.getStarsCount not available, defaulting to 0');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to get stars count for save:', error);
+    }
+
     const currentState = {
       grid: gridSnapshot,
       score: Number.isFinite(score) ? score : 0,
@@ -6219,6 +6261,7 @@ function saveGameState() {
       moves: Number.isFinite(moves) ? moves : MOVES_MAX,
       wildMeter: Number.isFinite(wildMeter) ? wildMeter : 0,
       bestScore: Number.isFinite(STATE.bestScore) ? STATE.bestScore : 0,
+      starsCount: Number.isFinite(savedStarsCount) ? savedStarsCount : 0, // 🔥 CRITICAL FIX: Save stars count
       timestamp: Date.now(),
     };
 
@@ -6442,13 +6485,36 @@ async function loadGameState() {
       STATE.bestScore = gameState.bestScore;
     }
 
+    // 🔥 CRITICAL FIX: Save stars count BEFORE layoutBoard (which may reset it)
+    const savedStarsCount = Number.isFinite(gameState.starsCount) ? gameState.starsCount : 0;
+    console.log('💾 Will restore stars count after HUD initialization:', savedStarsCount);
+
     syncSharedState();
     // CRITICAL: Draw ghost placeholders BEFORE HUD update
     drawBoardBG('active+empty');
     
-    // CRITICAL: Call layout to position HUD correctly
+    // CRITICAL: Call layout to position HUD correctly (this initializes stars collector)
     layoutBoard();
     console.log('✅ Layout called for saved game - HUD should be positioned');
+    
+    // 🔥 CRITICAL FIX: Restore stars count AFTER layoutBoard (which initializes stars collector)
+    // This ensures stars collector is initialized before we try to set the count
+    try {
+      if (typeof StarsCollector.setStarsCount === 'function') {
+        StarsCollector.setStarsCount(savedStarsCount);
+        console.log('💾 Restored stars count from saved game:', savedStarsCount);
+        
+        // 🔥 CRITICAL: Also update HUD display immediately after restoring stars count
+        if (typeof HUD.setStarsCount === 'function') {
+          HUD.setStarsCount(savedStarsCount);
+          console.log('💾 Updated HUD star count display:', savedStarsCount);
+        }
+      } else {
+        console.warn('⚠️ StarsCollector.setStarsCount not available, stars count not restored');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to restore stars count from saved game:', error);
+    }
     
     // CRITICAL: Ensure HUD is visible
     if (hud) {

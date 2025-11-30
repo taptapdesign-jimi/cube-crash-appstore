@@ -1,6 +1,7 @@
 // Simple End Run Modal
 import { showCleanBoardModal } from './clean-board-modal.js';
 import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animations.js';
+import { setModalVisible, isModalVisible } from './end-run-utils.js';
 
 let modal: HTMLElement | null = null;
 
@@ -224,6 +225,18 @@ function createModal(): HTMLElement {
 }
 
 export function showEndRunModal(): void {
+  // 🔥 CRITICAL FIX: Check if modal is already visible/open before opening new one
+  if (modal && modal.parentNode && !(modal as any)._closing) {
+    console.warn('⚠️ End Run modal already open - ignoring duplicate show call');
+    return; // Prevent opening multiple modals
+  }
+  
+  // 🔥 CRITICAL FIX: Check if modal is in closing state
+  if (modal && (modal as any)._closing) {
+    console.warn('⚠️ End Run modal is closing - ignoring show call');
+    return;
+  }
+  
   console.log('🎯 Pausing game for End This Run modal');
   
   // Light haptic for opening bottom sheet
@@ -278,6 +291,19 @@ export function showEndRunModal(): void {
   
   const el = createModal();
   console.log('🎯 END RUN MODAL CREATED');
+  
+  // 🔥 CRITICAL FIX: Mark modal as visible and set closing flag to false
+  (el as any)._closing = false;
+  
+  // 🔥 CRITICAL FIX: Update modal visibility state
+  setModalVisible(true);
+  try {
+    if (typeof window.setEndRunModalVisible === 'function') {
+      window.setEndRunModalVisible(true);
+    }
+  } catch (err) {
+    console.warn('⚠️ Error setting modal visibility state:', err);
+  }
   
   // Import and run animation - same as resume modal
   requestAnimationFrame(() => {
@@ -454,14 +480,51 @@ function addDragFunctionality(modalEl: HTMLElement): void {
 }
 
 // Simple outside click functionality
+// 🔥 CRITICAL FIX: Store outside click handler reference for proper cleanup
+let outsideClickHandler: ((e: Event) => void) | null = null;
+let outsideTouchEndHandler: ((e: TouchEvent) => void) | null = null;
+
 function addOutsideClickFunctionality(modalEl: HTMLElement): void {
-  // Simple outside click
-  setTimeout(() => {
-    document.onclick = (e: Event) => {
-      if (e.target && !modalEl.contains(e.target as Node)) {
+  // 🔥 CRITICAL FIX: Clean up previous handlers first
+  if (outsideClickHandler) {
+    document.removeEventListener('click', outsideClickHandler);
+    outsideClickHandler = null;
+  }
+  if (outsideTouchEndHandler) {
+    document.removeEventListener('touchend', outsideTouchEndHandler);
+    outsideTouchEndHandler = null;
+  }
+  
+  // Create named handlers for proper cleanup
+  outsideClickHandler = (e: Event) => {
+    // Check if click is outside modal AND modal is still open
+    if (modalEl && modalEl.parentNode && e.target && !modalEl.contains(e.target as Node)) {
+      // Don't close if clicking on overlay (it's part of modal structure)
+      const target = e.target as HTMLElement;
+      if (target.id !== 'end-run-overlay' && !target.closest('#end-run-overlay')) {
         hideModal();
       }
-    };
+    }
+  };
+  
+  outsideTouchEndHandler = (e: TouchEvent) => {
+    // Check if touch is outside modal AND modal is still open
+    if (modalEl && modalEl.parentNode && e.target && !modalEl.contains(e.target as Node)) {
+      const target = e.target as HTMLElement;
+      if (target.id !== 'end-run-overlay' && !target.closest('#end-run-overlay')) {
+        hideModal();
+      }
+    }
+  };
+  
+  // Attach with small delay to avoid capturing the click that opened the modal
+  setTimeout(() => {
+    if (outsideClickHandler) {
+      document.addEventListener('click', outsideClickHandler);
+    }
+    if (outsideTouchEndHandler) {
+      document.addEventListener('touchend', outsideTouchEndHandler);
+    }
   }, 200);
 }
 
@@ -470,6 +533,29 @@ export function hideModal(): void {
   if (!modalEl || (modalEl as any)._closing) return;
 
   (modalEl as any)._closing = true;
+  
+  // 🔥 CRITICAL FIX: Clean up outside click handlers immediately
+  if (outsideClickHandler) {
+    document.removeEventListener('click', outsideClickHandler);
+    outsideClickHandler = null;
+  }
+  if (outsideTouchEndHandler) {
+    document.removeEventListener('touchend', outsideTouchEndHandler);
+    outsideTouchEndHandler = null;
+  }
+  
+  // 🔥 CRITICAL FIX: Clear document.onclick if it was set (legacy cleanup)
+  document.onclick = null;
+  
+  // 🔥 CRITICAL FIX: Update modal visibility state immediately
+  setModalVisible(false);
+  try {
+    if (typeof window.setEndRunModalVisible === 'function') {
+      window.setEndRunModalVisible(false);
+    }
+  } catch (err) {
+    console.warn('⚠️ Error updating modal visibility state:', err);
+  }
   
   // Animate out with 0.4s duration (same as resume modal)
   modalEl.style.transition = 'transform 0.4s ease-in-out';
@@ -518,6 +604,16 @@ export function hideModal(): void {
       modal = null;
     }
     
+    // 🔥 CRITICAL FIX: Ensure modal state is cleared
+    setModalVisible(false);
+    try {
+      if (typeof window.setEndRunModalVisible === 'function') {
+        window.setEndRunModalVisible(false);
+      }
+    } catch (err) {
+      console.warn('⚠️ Error clearing modal visibility state:', err);
+    }
+    
     // CRITICAL: Resume game AFTER modal is completely removed
     console.log('🎯 Resuming game after End This Run modal closed');
     safeResumeGame();
@@ -530,5 +626,38 @@ export function hideModal(): void {
 }
 
 export function showEndRunModalFromGame(): void {
+  // 🔥 CRITICAL FIX: Check if modal is already visible before opening
+  if (modal && modal.parentNode && !(modal as any)._closing) {
+    console.warn('⚠️ End Run modal already open - ignoring HUD click');
+    return;
+  }
+  
+  // 🔥 CRITICAL FIX: Also check via isModalVisible function
+  if (isModalVisible()) {
+    console.warn('⚠️ End Run modal already visible (via isModalVisible) - ignoring HUD click');
+    return;
+  }
+  
   showEndRunModal();
+}
+
+// 🔥 CRITICAL FIX: Export function to check if modal is visible (for HUD click guard)
+export function isEndRunModalVisible(): boolean {
+  if (modal && modal.parentNode && !(modal as any)._closing) {
+    return true;
+  }
+  return isModalVisible(); // Also check via utility function
+}
+
+// Export to window for HUD click handler
+if (typeof window !== 'undefined') {
+  (window as any).isEndRunModalVisible = isEndRunModalVisible;
+  (window as any).setEndRunModalVisible = (visible: boolean) => {
+    // Update visibility state via utility function
+    setModalVisible(visible);
+    // Helper function for closing state management
+    if (!visible && modal) {
+      (modal as any)._closing = true;
+    }
+  };
 }
