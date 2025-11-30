@@ -397,11 +397,19 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
   }
 }
 
-// 🔥 MEMORY LEAK FIX: Global cleanup function to kill all pending delayed calls
+  // 🔥 MEMORY LEAK FIX: Global cleanup function to kill all pending delayed calls
+  // 🔥 CRITICAL: PROTECT star animation delayed calls from being killed
 export function killAllDelayedCalls() {
   console.log(`🧹 Killing ${__globalDelayedCalls.size} pending delayed calls`);
   __globalDelayedCalls.forEach(call => {
-    try { call.kill(); } catch {}
+    try {
+      // 🔥 CRITICAL: Skip killing protected star animation delayed calls
+      if (call && call._isProtectedStarAnimation) {
+        console.log('🛡️ Skipping protected star animation delayed call');
+        return;
+      }
+      call.kill();
+    } catch {}
   });
   __globalDelayedCalls.clear();
 }
@@ -2237,6 +2245,473 @@ function createMerge6Stars(board, layer, centerX, centerY) {
   } catch (error) {
     console.warn('⚠️ Error creating merge 6 stars:', error);
   }
+}
+
+/**
+ * 🔥 USER REQUEST: Animate 3 orbiting stars from wild tile to HUD star icon
+ * Similar to createMerge6Stars but animates stars TO HUD icon instead of away
+ * @param {*} board - Board container
+ * @param {*} stage - Stage container (for screen coordinates)
+ * @param {Array} savedStarPositions - Array of saved star data: [{ sprite, globalX, globalY, scale }]
+ * @param {Object} savedWildTileScreenPos - Saved wild tile position: { x, y }
+ * @param {Object} merge6CenterPos - Merge 6 center position: { x, y }
+ * @param {Object} hudStarIconPos - HUD star icon position: { x, y }
+ */
+export async function animateStarsToHudIcon(board, stage, savedStarPositions, savedWildTileScreenPos, merge6CenterPos, hudStarIconPos) {
+  if (!board || !stage || !savedStarPositions || !Array.isArray(savedStarPositions) || savedStarPositions.length === 0) {
+    console.warn('⚠️ animateStarsToHudIcon: Missing saved star positions');
+    return;
+  }
+  
+  if (!hudStarIconPos) {
+    console.warn('⚠️ animateStarsToHudIcon: Missing HUD star icon position');
+    return;
+  }
+  
+  console.log('⭐ animateStarsToHudIcon: Using', savedStarPositions.length, 'saved star positions');
+  
+  // Use saved wild tile position or fallback to merge6CenterPos
+  const wildTileScreenX = savedWildTileScreenPos?.x ?? merge6CenterPos?.x ?? 0;
+  const wildTileScreenY = savedWildTileScreenPos?.y ?? merge6CenterPos?.y ?? 0;
+  
+  // Get HUD star icon position (already in screen coordinates)
+  const hudScreenX = hudStarIconPos.x;
+  const hudScreenY = hudStarIconPos.y;
+  
+  // 🔥 CRITICAL: Create animation container on STAGE with PROTECTED identifier
+  // This ensures it's independent of board animations and won't be killed by cleanup
+  const animationContainer = new Container();
+  animationContainer.name = 'stars-to-hud-animation';
+  animationContainer.zIndex = 30000; // 🔥 VERY HIGH z-index to be above all board animations
+  animationContainer.eventMode = 'none';
+  animationContainer.x = 0;
+  animationContainer.y = 0;
+  
+  // 🔥 CRITICAL: Mark container as PROTECTED to prevent it from being killed by cleanup functions
+  animationContainer._isProtectedStarAnimation = true;
+  
+  // Ensure stage sortable children is enabled for z-index
+  if (stage.sortableChildren !== undefined) {
+    stage.sortableChildren = true;
+  }
+  
+  stage.addChild(animationContainer);
+  
+  // Force sort to ensure z-index is respected
+  try {
+    stage.sortChildren();
+  } catch {}
+  
+  console.log('⭐ Star animation container created with PROTECTED flag (z-index: 30000)');
+  
+  // Store references for cleanup
+  const starSprites = [];
+  const timelines = [];
+  
+  const STAR_COUNT = Math.min(3, savedStarPositions.length);
+  
+  // 🔥 PERFORMANCE OPTIMIZATION: Use single shared texture for all stars (object pooling)
+  // This reduces memory usage and improves frame rate
+  let sharedStarTexture = null;
+  try {
+    // Try to get cached texture first (from getStarTexture function)
+    if (typeof getStarTexture === 'function') {
+      sharedStarTexture = getStarTexture();
+    }
+    
+    // Fallback: try to get from saved positions
+    if (!sharedStarTexture && savedStarPositions.length > 0 && savedStarPositions[0]?.texture) {
+      sharedStarTexture = savedStarPositions[0].texture;
+    }
+    
+    // Last resort: create new texture
+    if (!sharedStarTexture) {
+      sharedStarTexture = Texture.from('./assets/small-star.png');
+    }
+  } catch (e) {
+    console.warn('⚠️ Failed to get shared star texture, using first saved texture as fallback:', e);
+    if (savedStarPositions.length > 0 && savedStarPositions[0]?.texture) {
+      sharedStarTexture = savedStarPositions[0].texture;
+    }
+  }
+  
+  if (!sharedStarTexture) {
+    console.error('❌ No star texture available, aborting animation');
+    return;
+  }
+  
+  const textureSize = sharedStarTexture.width || 32; // Shared texture size
+  
+  // Animation parameters
+  const baseDuration = 1.6; // 🔥 USER REQUEST: Increased by 0.6s (from 1.0s to 1.6s)
+  // 🔥 USER REQUEST: Different delays for each star to create better spacing
+  // Star 1: immediate (0ms)
+  // Star 2: small delay (0.08s)
+  // Star 3: larger delay (0.08s + 0.15s = 0.23s) - more separation from star 2
+  const getStarDelay = (index) => {
+    if (index === 0) return 0; // First star: immediate
+    if (index === 1) return 0.08; // Second star: 80ms delay
+    return 0.23; // Third star: 230ms delay (larger gap from star 2)
+  };
+  const targetScaleSize = 28; // Target size when scaling down at 90%
+  
+  // 🔥 CRITICAL: Track bounce delays to ensure sequential bounces (one after another)
+  let bounceDelayTracker = 0;
+  const bounceDelayBetweenStars = 0.23; // Duration of bounce animation (0.08 + 0.15 = 0.23s)
+  
+  // Animate stars sequentially (one after another)
+  for (let i = 0; i < STAR_COUNT; i++) {
+    const savedStarData = savedStarPositions[i];
+    if (!savedStarData) {
+      console.warn('⚠️ Saved star data missing, skipping star', i);
+      continue;
+    }
+    
+    // Use saved star position (already in screen coordinates)
+    const starStartX = savedStarData.globalX ?? wildTileScreenX;
+    const starStartY = savedStarData.globalY ?? wildTileScreenY;
+    
+    // 1. Random size between 24-56px
+    const randomSize = 24 + Math.random() * 32; // 24-56px
+    const initialScale = randomSize / textureSize;
+    
+    // 🔥 PERFORMANCE: Use shared texture instead of individual textures
+    // Create animated star sprite with shared texture
+    const animatedStar = new Sprite(sharedStarTexture);
+    animatedStar.anchor.set(0.5);
+    animatedStar.scale.set(initialScale, initialScale);
+    animatedStar.tint = 0xFFFFFF;
+    animatedStar.alpha = 1.0;
+    animatedStar.x = starStartX;
+    animatedStar.y = starStartY;
+    animationContainer.addChild(animatedStar);
+    starSprites.push(animatedStar);
+    
+    // Calculate path to HUD (upward wavy motion)
+    const dx = hudScreenX - starStartX;
+    const dy = hudScreenY - starStartY;
+    const distance = Math.hypot(dx, dy);
+    const distanceFactor = Math.min(1.0, Math.max(0.6, distance / 800));
+    const duration = baseDuration * distanceFactor;
+    
+    // 🔥 USER REQUEST: More randomized and fluid path for each star
+    // Each star gets unique random path parameters for more variety
+    const pathPoints = [];
+    const numPoints = 16; // 🔥 More points for smoother, more fluid curve
+    
+    // 🔥 More randomization: Each star gets unique random parameters
+    const waveDirection = (i % 2 === 0) ? -1 : 1; // Alternating base direction
+    const randomDirectionVariation = (Math.random() - 0.5) * 0.3; // Add random variation
+    const finalWaveDirection = waveDirection + randomDirectionVariation;
+    
+    // More varied amplitude and frequency for each star
+    const waveAmplitude = 50 + Math.random() * 40; // 50-90px amplitude (more varied)
+    const waveFrequency = 1.5 + Math.random() * 1.5; // 1.5-3.0 frequency (more varied)
+    const wavePhaseOffset = Math.random() * Math.PI * 2; // Random phase offset for each star
+    
+    // Additional randomization: slight vertical/horizontal offset
+    const verticalOffset = (Math.random() - 0.5) * 20; // -10 to +10px vertical variation
+    const horizontalOffset = (Math.random() - 0.5) * 20; // -10 to +10px horizontal variation
+    
+    for (let p = 0; p <= numPoints; p++) {
+      const t = p / numPoints;
+      
+      // Base position along straight line to HUD
+      const baseX = starStartX + dx * t;
+      const baseY = starStartY + dy * t;
+      
+      // 🔥 More fluid path: Use bezier-like curve with multiple wave components
+      const perpAngle = Math.atan2(dy, dx) + Math.PI / 2;
+      
+      // Primary wave component
+      const wavePhase = t * Math.PI * waveFrequency + wavePhaseOffset;
+      const primaryWave = Math.sin(wavePhase) * waveAmplitude * (1 - t * 0.7); // Decreases more gradually
+      
+      // Secondary wave component for more fluid motion (smaller, faster)
+      const secondaryWaveFreq = waveFrequency * 2.5;
+      const secondaryWave = Math.sin(t * Math.PI * secondaryWaveFreq + wavePhaseOffset * 0.5) * (waveAmplitude * 0.3) * (1 - t);
+      
+      // Combined wave offset
+      const totalWaveOffset = (primaryWave + secondaryWave) * finalWaveDirection;
+      
+      // Apply random offsets for more variety
+      const offsetX = Math.cos(perpAngle) * totalWaveOffset + horizontalOffset * (1 - t);
+      const offsetY = Math.sin(perpAngle) * totalWaveOffset + verticalOffset * (1 - t);
+      
+      // Final point MUST be exactly at HUD position (t = 1.0)
+      if (p === numPoints) {
+        pathPoints.push({
+          x: hudScreenX, // Exact HUD position
+          y: hudScreenY, // Exact HUD position
+          t: 1.0
+        });
+      } else {
+        pathPoints.push({
+          x: baseX + offsetX,
+          y: baseY + offsetY,
+          t: t
+        });
+      }
+    }
+    
+    // 2. Rotation: 10-15 degrees, matching wave direction (left wave = left rotation, right wave = right rotation)
+    const rotationDegrees = (10 + Math.random() * 5) * waveDirection; // 10-15 degrees, matches wave direction
+    const rotationRadians = rotationDegrees * (Math.PI / 180);
+    
+    // Create timeline with custom delay (different for each star)
+    const delay = getStarDelay(i);
+    const path = { x: starStartX, y: starStartY, progress: 0 };
+    
+    // Track if star has already disappeared (to prevent multiple triggers)
+    let starDisappeared = false;
+    
+    const tl = gsap.timeline({
+      delay,
+      onComplete: () => {
+        // Safety cleanup if star somehow didn't disappear at 50%
+        if (!starDisappeared) {
+          try {
+            gsap.killTweensOf(animatedStar);
+            animatedStar.alpha = 0;
+            animatedStar.visible = false;
+            if (animatedStar.parent) {
+              animatedStar.parent.removeChild(animatedStar);
+            }
+            animatedStar.destroy();
+          } catch {}
+        }
+      }
+    });
+    
+    // 🔥 CRITICAL: Mark timeline as PROTECTED to prevent it from being killed by external cleanup
+    // This ensures star animations continue even if killTweensOf(stage) is called
+    tl._isProtectedStarAnimation = true;
+    animatedStar._isProtectedStarAnimation = true; // Also mark sprite as protected
+    
+    // 🔥 OPTIMIZATION: Use more efficient easing and reduce calculations
+    // Animate along wavy path with optimized interpolation
+    tl.to(path, {
+      progress: 1,
+      duration: duration,
+      ease: 'power1.inOut', // 🔥 Faster easing for better performance (less calculations than sine)
+      onUpdate: () => {
+        // 🔥 OPTIMIZATION: Cache calculations and reduce redundant operations
+        const t = path.progress;
+        
+        // Early exit if star already disappeared
+        if (starDisappeared) return;
+        
+        // Optimized interpolation: use linear interpolation between cached points
+        const pointIndex = Math.floor(t * (pathPoints.length - 1));
+        const nextIndex = Math.min(pointIndex + 1, pathPoints.length - 1);
+        const localT = (t * (pathPoints.length - 1)) - pointIndex;
+        
+        const currentPoint = pathPoints[pointIndex];
+        const nextPoint = pathPoints[nextIndex];
+        
+        // Calculate new position
+        const newX = currentPoint.x + (nextPoint.x - currentPoint.x) * localT;
+        const newY = currentPoint.y + (nextPoint.y - currentPoint.y) * localT;
+        
+        // Only update if position changed significantly (performance optimization)
+        if (Math.abs(animatedStar.x - newX) > 0.5 || Math.abs(animatedStar.y - newY) > 0.5) {
+          path.x = newX;
+          path.y = newY;
+          animatedStar.x = newX;
+          animatedStar.y = newY;
+        }
+        
+        // 1. MUST HAVE: Star disappears at 98% of its path (when it reaches 98% of distance to star-hud)
+        // No waiting for other stars, no rotation animation at destination - instant disappear
+        if (t >= 0.98 && !starDisappeared) {
+          starDisappeared = true;
+          
+          // Kill all animations on this star immediately
+          gsap.killTweensOf(animatedStar);
+          gsap.killTweensOf(animatedStar.scale);
+          gsap.killTweensOf(animatedStar.rotation);
+          gsap.killTweensOf(animatedStar.alpha);
+          
+          // 3. Instant disappearance - no rotation, no waiting, alpha = 0 immediately
+          animatedStar.alpha = 0;
+          animatedStar.visible = false;
+          
+          // Immediately remove sprite
+          try {
+            if (animatedStar.parent) {
+              animatedStar.parent.removeChild(animatedStar);
+            }
+            animatedStar.destroy();
+            
+            // Remove from starSprites array
+            const index = starSprites.indexOf(animatedStar);
+            if (index > -1) {
+              starSprites.splice(index, 1);
+            }
+          } catch (err) {
+            console.warn('⚠️ Error removing star:', err);
+          }
+          
+          // 🔥 CRITICAL: Add star count - this triggers bounce via queue system (sequential, no overlap)
+          // Only ONE call to addStars per star (removed duplicate)
+          try {
+            if (typeof window !== 'undefined' && window.CC && typeof window.CC.addStars === 'function') {
+              window.CC.addStars(1);
+              console.log('⭐ Star', i, 'added via window.CC.addStars (triggers bounce via queue)');
+            } else {
+              console.warn('⚠️ window.CC.addStars not available, falling back to dynamic import');
+              // Fallback: dynamic import (slower, but should not happen)
+              import('./stars-collector.js').then((StarsCollector) => {
+                if (typeof StarsCollector.addStars === 'function') {
+                  StarsCollector.addStars(1);
+                  console.log('⭐ Star added via dynamic import (fallback)');
+                }
+              }).catch((err) => {
+                console.warn('⚠️ Error importing stars-collector:', err);
+              });
+            }
+          } catch (err) {
+            console.warn('⚠️ Error adding star:', err);
+          }
+          
+          // Stop timeline for this star (it has disappeared)
+          return;
+        }
+        
+        // Scale down to 28px after 90% of path (only if star hasn't disappeared yet)
+        // 🔥 OPTIMIZATION: Only update scale if needed (reduce calculations)
+        if (t >= 0.9 && !starDisappeared) {
+          const scaleProgress = (t - 0.9) / 0.1; // 0 to 1 in last 10%
+          const targetScale = (targetScaleSize / textureSize);
+          const currentScale = initialScale + (targetScale - initialScale) * scaleProgress;
+          // Only update if scale actually changed (performance optimization)
+          if (Math.abs(animatedStar.scale.x - currentScale) > 0.01) {
+            animatedStar.scale.set(currentScale, currentScale);
+          }
+        }
+      }
+    });
+    
+    // 2. Apply rotation throughout path (stops at 98% when star disappears)
+    tl.to(animatedStar, {
+      rotation: rotationRadians,
+      duration: duration * 0.98, // Rotate until 98% (when star disappears)
+      ease: 'sine.inOut'
+    }, 0);
+    
+    timelines.push(tl);
+  }
+  
+  // 🔥 MEMORY LEAK FIX: Improved cleanup after all animations complete
+  // Each star cleans itself up immediately when it reaches destination
+  // But we still need to ensure container and all references are cleaned up
+  const totalDuration = baseDuration + (STAR_COUNT - 1) * sequentialDelay;
+  
+  // Track cleanup state to prevent double cleanup
+  let cleanupDone = false;
+  
+  const performCleanup = () => {
+    if (cleanupDone) return;
+    cleanupDone = true;
+    
+    try {
+      // Kill all timelines (active or not)
+      timelines.forEach(tl => {
+        try { 
+          if (tl) {
+            tl.kill();
+            tl.clear?.();
+          }
+        } catch {}
+      });
+      timelines.length = 0; // Clear array
+      
+      // Remove all sprites (even if already destroyed, ensure cleanup)
+      starSprites.forEach(sprite => {
+        try {
+          if (sprite) {
+            // Kill all tweens on sprite
+            gsap.killTweensOf(sprite);
+            gsap.killTweensOf(sprite.scale);
+            gsap.killTweensOf(sprite.rotation);
+            gsap.killTweensOf(sprite.alpha);
+            
+            // Remove from parent if still attached
+            if (sprite.parent) {
+              sprite.parent.removeChild(sprite);
+            }
+            
+            // Destroy sprite (even if already destroyed, safe to call)
+            if (!sprite.destroyed) {
+              sprite.destroy({ children: true });
+            }
+          }
+        } catch {}
+      });
+      starSprites.length = 0; // Clear array
+      
+      // Remove container if still exists
+      if (animationContainer) {
+        try {
+          // Kill any tweens on container
+          gsap.killTweensOf(animationContainer);
+          gsap.killTweensOf(animationContainer.scale);
+          gsap.killTweensOf(animationContainer.alpha);
+          
+          // Remove from parent
+          if (animationContainer.parent) {
+            animationContainer.parent.removeChild(animationContainer);
+          }
+          
+          // Destroy container and all children
+          if (!animationContainer.destroyed) {
+            animationContainer.destroy({ children: true });
+          }
+        } catch {}
+      }
+      
+      console.log('✅ Stars to HUD animation cleanup completed (memory leak prevention)');
+    } catch (err) {
+      console.warn('⚠️ Error during animation cleanup:', err);
+    }
+  };
+  
+  // 🔥 CRITICAL: Use setTimeout instead of gsap.delayedCall for cleanup
+  // This ensures cleanup is NOT killed by killAllDelayedCalls() and is completely independent
+  // Safety cleanup: ensure container is removed even if something goes wrong
+  // Use shorter delay for faster cleanup (0.5s buffer instead of 1.0s)
+  const cleanupTimeout = setTimeout(() => {
+    performCleanup();
+  }, (totalDuration + 0.5) * 1000); // Convert to milliseconds
+  
+  // Store timeout reference on container for manual cleanup if needed
+  if (animationContainer) {
+    animationContainer._cleanupTimeout = cleanupTimeout;
+    
+    // Also cleanup on container destroy (if container is destroyed externally)
+    const originalDestroy = animationContainer.destroy;
+    animationContainer.destroy = function(opts) {
+      try {
+        if (cleanupTimeout) {
+          clearTimeout(cleanupTimeout);
+        }
+      } catch {}
+      performCleanup();
+      if (originalDestroy) {
+        return originalDestroy.call(this, opts);
+      }
+    };
+  }
+  
+  // 🔥 CRITICAL: Store reference to animation container and timelines for protection
+  // Mark timeline with protection flag to prevent external kill
+  timelines.forEach(tl => {
+    if (tl) {
+      tl._isProtectedStarAnimation = true;
+    }
+  });
+  
+  console.log('🛡️ Star animation is PROTECTED and completely independent from board animations');
 }
 
 export function innerFlashAtTile(board, tile, tileSize = 96, intensity = 1){

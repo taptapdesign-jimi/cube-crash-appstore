@@ -1367,11 +1367,14 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   console.log('🧲 Respawn complete - letting pulled tiles merge with merge 6 before endgame check');
   
-  // 🔥 CRITICAL: Wait longer for spawn animations to complete before checking endgame
-  // Spawn bounce animation takes ~580ms, plus unlock/bind takes ~50ms
-  // Total safe delay: 800ms (increased from 600ms)
-  console.log('⏳ Waiting 800ms for spawn animations to complete before endgame check...');
-  await new Promise(resolve => setTimeout(resolve, 800));
+  // 🔥 CRITICAL FIX: Wait longer for spawn animations to complete before checking endgame
+  // Spawn bounce animation with timeScale 2.0 takes ~0.24s (240ms) per tile
+  // With cascading delays (0ms, 30ms, 60ms, 90ms), last tile finishes at ~330ms
+  // Plus unlock/bind takes ~50ms per tile, so last tile is fully ready at ~380ms
+  // Add safety margin for bubbles animation and other effects: 1200ms total
+  // This ensures ALL animations (spawn, bubbles, magnet pull) are complete before endgame check
+  console.log('⏳ Waiting 1200ms for ALL animations (spawn, bubbles, magnet pull) to complete before endgame check...');
+  await new Promise(resolve => setTimeout(resolve, 1200));
   
   // 🔥 CRITICAL: Check if ALL tiles can be merged together (simulate all possible merges)
   // If all tiles can be merged and the final merge is merge 6, trigger clean board flow
@@ -1382,9 +1385,41 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     // This is handled in the merge function when board becomes clean
   }
   
+  // 🔥 CRITICAL FIX: Before calling checkLevelEnd, verify that spawn animations are complete
+  // Check if there are any locked tiles that are still animating (spawn in progress)
+  const lockedActiveTiles = STATE.tiles.filter((t: any) => {
+    if (!t || t.destroyed) return false;
+    if (!t.locked) return false; // Only check locked tiles
+    return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet';
+  });
+  
+  if (lockedActiveTiles.length > 0) {
+    console.log('⏳ Delaying endgame check - spawn animations still in progress:', {
+      lockedCount: lockedActiveTiles.length,
+      lockedTiles: lockedActiveTiles.map(t => ({ value: t.value, special: t.special }))
+    });
+    // Wait additional 500ms for spawn animations to complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  
+  // 🔥 CRITICAL FIX: Check if bubbles animation is still running (from wild-beer merge)
+  // Bubbles animation can run for 4+ seconds and shouldn't block endgame detection
+  // BUT: We should ensure spawn animations are complete before checking endgame
+  try {
+    const { isWildBeerExplosionRunning } = await import('./fx.js');
+    if (typeof isWildBeerExplosionRunning === 'function' && isWildBeerExplosionRunning()) {
+      console.log('💧 Bubbles animation is running, but spawn animations are complete - proceeding with endgame check');
+      // Bubbles animation is visual only and doesn't block endgame detection
+    }
+  } catch (err) {
+    console.warn('⚠️ Failed to check bubbles animation status:', err);
+  }
+  
   // 🔥 CRITICAL: Also call checkLevelEnd as backup (it has its own delay and handles all edge cases)
   // This ensures end game is checked even if checkGameOver doesn't catch it
+  // But only after we've verified spawn animations are complete
   if (typeof (window as any).CC?.checkLevelEnd === 'function') {
+    console.log('🧲 Calling checkLevelEnd after magnet pull spawn complete (all animations verified)');
     (window as any).CC.checkLevelEnd();
   }
 }

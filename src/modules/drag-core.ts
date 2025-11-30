@@ -178,6 +178,19 @@ export function initDrag(cfg) {
   }
 
   function onDown(e, t) {
+    // 🛡️ CRITICAL: Block drag for tiles that are being pulled by magnet
+    // These tiles are protected and cannot be dragged or merged with other tiles
+    if ((t as any)?._wildMagnetAffected === true) {
+      console.log('🛡️ DRAG BLOCKED: Tile is being pulled by magnet (protected)', t.value, 'special:', t.special);
+      return;
+    }
+    
+    // 🛡️ CRITICAL: Block drag for locked tiles (including pulled tiles that are locked)
+    if (t.locked) {
+      console.log('🛡️ DRAG BLOCKED: Tile is locked', t.value, 'special:', t.special);
+      return;
+    }
+    
     // 🧲 MAGNETIC REACTION: No need to store original positions
     // updateMagnet function handles gentle pull automatically (same as wild tile)
     // No custom pull effect needed - updateMagnet provides the same gentle effect

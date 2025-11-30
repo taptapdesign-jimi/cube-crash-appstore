@@ -7,6 +7,7 @@ import { detachWildStarHalo } from './wild-stars.js';
 
 interface StarCollectionConfig {
   app: any;
+  stage: Container; // 🔥 CRITICAL: Need stage for screen coordinates
   board: Container;
   hud: Container;
   getStarHudPosition: () => { x: number; y: number };
@@ -77,12 +78,142 @@ export function getStarsCount(): number {
 /**
  * Add stars (called when wild star merges into merge 6)
  */
+// Queue system for bounce animations with faster timing for 2nd and 3rd bounce
+// Bounce animation duration: 0.08s (scale up) + 0.15s (scale down) = 0.23s total
+let bounceQueue: number = 0;
+let bounceCounter = 0; // Track which bounce number we're on
+
+function triggerBounceWithCallback(onComplete?: () => void) {
+  if (typeof window !== 'undefined' && window.HUD && typeof window.HUD.bounceStarIcon === 'function') {
+    // Call bounce function with callback
+    window.HUD.bounceStarIcon(onComplete);
+  } else if (onComplete) {
+    // If bounce function doesn't exist, call onComplete immediately
+    setTimeout(onComplete, 250);
+  }
+}
+
+function processBounceQueue() {
+  // 🔥 USER REQUEST: Faster bounce animations
+  // Bounce animation duration: 0.23s total (0.08s scale up + 0.15s scale down)
+  // Current behavior: Each bounce waits for previous to finish (0.23s between each)
+  // Requested behavior:
+  // - 2nd bounce should start 50% earlier = after 0.115s instead of 0.23s (50% faster)
+  // - 3rd bounce should start 100% earlier = after 0s instead of 0.46s (immediately, like 1st)
+  
+  if (bounceQueue <= 0) {
+    console.log('✅ Bounce queue empty');
+    bounceCounter = 0; // Reset counter when queue is empty
+    return;
+  }
+  
+  const bounceDuration = 0.23; // Total bounce animation duration
+  
+  // If this is the first time, schedule all 3 bounces with their respective delays
+  if (bounceCounter === 0 && bounceQueue >= 3) {
+    // Schedule all 3 bounces at once with their delays
+    console.log('⭐ Scheduling 3 bounces with faster timing');
+    
+    // Bounce 1: starts immediately (0ms)
+    setTimeout(() => {
+      bounceCounter++;
+      console.log('⭐ Triggering HUD bounce 1 (immediate)');
+      triggerBounceWithCallback(() => {
+        console.log('✅ Bounce 1 completed');
+        bounceCounter--;
+        if (bounceCounter === 0 && bounceQueue === 0) {
+          console.log('✅ All bounces completed');
+        }
+      });
+    }, 0);
+    
+    // Bounce 2: starts 50% earlier = after 0.115s (instead of 0.23s)
+    setTimeout(() => {
+      bounceCounter++;
+      console.log('⭐ Triggering HUD bounce 2 (50% earlier: 115ms delay)');
+      triggerBounceWithCallback(() => {
+        console.log('✅ Bounce 2 completed');
+        bounceCounter--;
+        if (bounceCounter === 0 && bounceQueue === 0) {
+          console.log('✅ All bounces completed');
+        }
+      });
+    }, bounceDuration * 0.5 * 1000); // 0.115s = 115ms
+    
+    // Bounce 3: starts 100% earlier = immediately after bounce 2 starts (115ms, same as bounce 2)
+    // Instead of waiting for bounce 2 to finish (345ms total), start immediately after bounce 2 starts
+    setTimeout(() => {
+      bounceCounter++;
+      console.log('⭐ Triggering HUD bounce 3 (100% earlier: same time as bounce 2, 115ms)');
+      triggerBounceWithCallback(() => {
+        console.log('✅ Bounce 3 completed');
+        bounceCounter--;
+        if (bounceCounter === 0 && bounceQueue === 0) {
+          console.log('✅ All bounces completed');
+        }
+      });
+    }, bounceDuration * 0.5 * 1000); // Same delay as bounce 2 (115ms), not 0ms
+    
+    // Remove 3 bounces from queue
+    bounceQueue -= 3;
+    bounceCounter += 3; // Track that we scheduled 3 bounces
+    
+    console.log('✅ Scheduled 3 bounces: bounce 1 at 0ms, bounce 2 & 3 at 115ms');
+    return;
+  }
+  
+  // Fallback: if less than 3 bounces or not first time, use normal sequential processing
+  bounceCounter++;
+  const currentBounceNum = bounceCounter;
+  bounceQueue--;
+  
+  console.log('⭐ Processing bounce', currentBounceNum, '(queue remaining:', bounceQueue, ')');
+  
+  let delay = 0;
+  if (currentBounceNum === 2) {
+    delay = bounceDuration * 0.5; // 50% earlier (0.115s)
+  } else if (currentBounceNum === 3) {
+    delay = 0; // 100% earlier (immediate)
+  }
+  
+  setTimeout(() => {
+    console.log('⭐ Triggering HUD bounce', currentBounceNum, 'with delay', (delay * 1000).toFixed(0), 'ms');
+    triggerBounceWithCallback(() => {
+      console.log('✅ Bounce', currentBounceNum, 'completed');
+      if (bounceQueue > 0) {
+        processBounceQueue();
+      } else {
+        bounceCounter = 0;
+      }
+    });
+  }, delay * 1000);
+  
+  if (bounceQueue > 0 && currentBounceNum < 3) {
+    processBounceQueue();
+  }
+}
+
 export function addStars(count: number): void {
+  const oldCount = starsCount;
   starsCount += count;
-  console.log('⭐ Stars added:', count, 'Total:', starsCount);
+  console.log('⭐ Stars added:', count, 'Total:', starsCount, 'Old count:', oldCount);
   
   if (config?.onStarsUpdated) {
     config.onStarsUpdated(starsCount);
+  }
+  
+  // 🔥 CRITICAL: Trigger HUD bounce animation via queue system (sequential, no overlap)
+  // Queue ensures each bounce completes before next one starts
+  // This ensures smooth, sequential bounces without delay
+  if (starsCount > oldCount) {
+    const starsAdded = starsCount - oldCount;
+    console.log('⭐ Adding', starsAdded, 'bounces to queue (current queue:', bounceQueue, ')');
+    
+    // Add each bounce to queue (one bounce per star added)
+    bounceQueue += starsAdded;
+    
+    // Start processing queue immediately (no delay)
+    processBounceQueue();
   }
 }
 
@@ -164,12 +295,22 @@ export async function collectStarsFromWildTile(
     hud: { x: hudScreenX, y: hudScreenY }
   });
   
-  // Create container for animated stars (on board layer, above everything)
+  // 🔥 CRITICAL FIX: Create container on stage (screen coordinates), not board (local coordinates)
+  // This ensures screen coordinate positions work correctly
   const animationContainer = new Container();
   animationContainer.name = 'stars-collection-animation';
-  animationContainer.zIndex = 10000; // Above everything
+  animationContainer.zIndex = 10000; // Above everything (above HUD which is 10000)
   animationContainer.eventMode = 'none';
-  board.addChild(animationContainer);
+  animationContainer.x = 0; // Stage uses screen coordinates (0,0 is top-left)
+  animationContainer.y = 0;
+  
+  // Add to stage (screen coordinates) instead of board (local coordinates)
+  const stage = config.stage;
+  if (!stage) {
+    console.error('❌ Cannot create animation: stage not available in config');
+    return;
+  }
+  stage.addChild(animationContainer);
   
   // Animate each star sequentially (one after another)
   const STAR_COUNT = Math.min(3, orbitingStars.length);
@@ -202,7 +343,7 @@ export async function collectStarsFromWildTile(
       }
     }
     
-    // Calculate start position (wild tile position + star orbit offset)
+    // Calculate start position (wild tile position + star orbit offset) - screen coordinates
     const startX = wildTileScreenX + starOffsetX;
     const startY = wildTileScreenY + starOffsetY;
     
@@ -210,9 +351,12 @@ export async function collectStarsFromWildTile(
     const animatedStar = createAnimatedStarSprite(star.sprite);
     if (!animatedStar) continue;
     
+    // Set position directly in screen coordinates (animationContainer is on stage)
     animatedStar.x = startX;
     animatedStar.y = startY;
     animationContainer.addChild(animatedStar);
+    
+    console.log(`⭐ Star ${i + 1} start position:`, { x: startX, y: startY, hudX: hudScreenX, hudY: hudScreenY });
     
     // Create wavy path to HUD
     const delay = i * 0.15; // Sequential delay (0ms, 150ms, 300ms)

@@ -754,9 +754,17 @@ export async function boot(){
       const srcIsWildMagnetAffected = (s as any)?._wildMagnetAffected === true;
       const dstIsWildMagnetAffected = (d as any)?._wildMagnetAffected === true;
       
-      if (srcIsWildMagnetAffected || dstIsWildMagnetAffected) {
-        console.log('🔥 canDrop (app-core): One tile is wild-magnet affected - can merge regardless of pips');
+      // 🔥 CRITICAL: Only allow merge if BOTH tiles are wild-magnet affected (pulled tiles merging together)
+      // If only one is affected, block the merge (protected tile cannot merge with other tiles)
+      if (srcIsWildMagnetAffected && dstIsWildMagnetAffected) {
+        console.log('🧲 canDrop (app-core): Both tiles are wild-magnet affected (pulled tiles) - can merge');
         return true;
+      }
+      
+      // 🔥 CRITICAL: Block merge if only one tile is wild-magnet affected (protected tile)
+      if (srcIsWildMagnetAffected || dstIsWildMagnetAffected) {
+        console.log('🛡️ canDrop (app-core): One tile is wild-magnet affected (protected) - blocking merge with other tiles');
+        return false;
       }
       
       // NORMAL LOGIC: Regular merge rules
@@ -870,6 +878,7 @@ export async function boot(){
     setCombo: (v) => hudSetCombo(v|0), // 🔥 CRITICAL: Export setCombo for magnet pull combo logic
     scheduleComboDecay: () => scheduleComboDecay(), // 🔥 CRITICAL: Export scheduleComboDecay for magnet pull combo logic
     killComboTimer: () => killComboTimer(), // 🔥 CRITICAL: Export killComboTimer to kill existing timer before updating combo
+    addStars: (count) => StarsCollector.addStars(count|0), // 🔥 CRITICAL: Export addStars for synchronous star collection
   };
   
   // 🔥 MEMORY LEAK FIX: Export cleanup functions for global cleanup
@@ -1061,6 +1070,7 @@ export function layoutBoard(){
         try {
           StarsCollector.initStarsCollector({
             app,
+            stage, // 🔥 CRITICAL: Add stage for screen coordinate animations
             board,
             hud,
             getStarHudPosition: () => {
@@ -2295,6 +2305,16 @@ function merge(src, dst, helpers){
   const dstIsWildMagnetAffected = (dst as any)?._wildMagnetAffected === true;
   const isPulledTilesMerge = srcIsWildMagnetAffected && dstIsWildMagnetAffected;
   
+  // 🛡️ CRITICAL: Block merge if only ONE tile is wild-magnet affected (protected tile cannot merge with others)
+  // Protected tiles can only merge with other protected tiles (pulled tiles merge)
+  if ((srcIsWildMagnetAffected && !dstIsWildMagnetAffected) || (!srcIsWildMagnetAffected && dstIsWildMagnetAffected)) {
+    console.warn('🛡️ MERGE BLOCKED: Only one tile is wild-magnet affected (protected tile cannot merge with others)');
+    console.warn('⚠️ Source protected:', srcIsWildMagnetAffected, 'Destination protected:', dstIsWildMagnetAffected);
+    console.warn('⚠️ Protected tiles can only merge with other protected tiles (pulled tiles merge)');
+    helpers.snapBack?.(src);
+    return;
+  }
+  
   // CRITICAL: If destination is locked or has value 0, this is not a valid merge (ghost placeholder)
   // BUT: For pulled tiles merge (both wild-magnet affected), allow merge even if dst is locked/value 0
   if (dst.locked || (dst.value | 0) <= 0) {
@@ -2337,6 +2357,111 @@ function merge(src, dst, helpers){
                      (srcIsWildMagnetAffected && dstIsWildMagnetAffected);
   const wildTargetValue = wildActive ? ((src.special === 'wild' || src.special === 'wild-magnet' || src.special === 'wild-beer' || srcIsWildMagnetAffected) ? (dst.value|0) : (src.value|0)) : null;
   let effSum = sum;
+  
+  // 🔥 CRITICAL: Check for wild star merge 6 BEFORE any animations or branches (to capture wildStarSystem)
+  // This must happen early to capture the wild tile's _wildStarSystem before it's modified or removed
+  const srcSpecialForStarCheck = src?.special;
+  const dstSpecialForStarCheck = dst?.special;
+  let wildStarTileForAnimation = null;
+  let shouldAnimateStarsToHUD = false;
+  
+  // 🔥 CRITICAL: Save wild star system data EARLY, before any transformations
+  // This ensures data is saved even if dst tile becomes merge 6 and loses its _wildStarSystem
+  let savedStarSystemEarly = null;
+  let savedStarPositionsEarly = [];
+  let savedWildTileScreenPosEarly = null;
+  
+  // Calculate effSum early for wild star check (wild always merges to 6)
+  const tempEffSum = wildActive ? 6 : sum;
+  
+  console.log('⭐ EARLY wild star check - tempEffSum:', tempEffSum, 'srcSpecial:', srcSpecialForStarCheck, 'dstSpecial:', dstSpecialForStarCheck);
+  
+  if (tempEffSum === 6) {
+    console.log('⭐ tempEffSum === 6, checking for wild star...');
+    const srcIsWildStar = srcSpecialForStarCheck === 'wild';
+    const dstIsWildStar = dstSpecialForStarCheck === 'wild';
+    
+    console.log('⭐ Wild star check:', { srcIsWildStar, dstIsWildStar });
+    
+    if (srcIsWildStar || dstIsWildStar) {
+      wildStarTileForAnimation = srcIsWildStar ? src : (dstIsWildStar ? dst : null);
+      const hasWildStarSystem = !!(wildStarTileForAnimation as any)?._wildStarSystem;
+      
+      console.log('⭐ EARLY wild star check:', {
+        tempEffSum,
+        srcSpecialForStarCheck,
+        dstSpecialForStarCheck,
+        srcIsWildStar,
+        dstIsWildStar,
+        wildStarTile: !!wildStarTileForAnimation,
+        hasWildStarSystem,
+        wildStarTileValue: wildStarTileForAnimation?.value,
+        wildStarTileSpecial: wildStarTileForAnimation?.special
+      });
+      
+      if (wildStarTileForAnimation && hasWildStarSystem) {
+        shouldAnimateStarsToHUD = true;
+        
+        // 🔥 CRITICAL: Save wild star system data IMMEDIATELY, before any transformations
+        // This ensures data is preserved even if dst tile becomes merge 6 and loses _wildStarSystem
+        const wildStarSystem = (wildStarTileForAnimation as any)?._wildStarSystem;
+        if (wildStarSystem && wildStarSystem.stars && wildStarSystem.stars.length > 0) {
+          savedStarSystemEarly = wildStarSystem;
+          
+          // Save star textures and their global positions (NOT sprite references - sprites get destroyed!)
+          savedStarPositionsEarly = wildStarSystem.stars.map((star: any) => {
+            if (!star || !star.sprite) return null;
+            try {
+              const globalPos = star.sprite.getGlobalPosition();
+              // 🔥 CRITICAL: Save texture reference and scale values, NOT sprite reference
+              // Sprite gets destroyed when tile is removed/transformed, but texture persists
+              const texture = star.sprite.texture;
+              const scaleX = star.sprite.scale.x;
+              const scaleY = star.sprite.scale.y;
+              
+              if (!texture) {
+                console.warn('⚠️ Star sprite has no texture, skipping');
+                return null;
+              }
+              
+              return {
+                texture: texture, // Save texture reference (not sprite!)
+                globalX: globalPos.x,
+                globalY: globalPos.y,
+                scale: { x: scaleX, y: scaleY }
+              };
+            } catch (err) {
+              console.warn('⚠️ Failed to save star data early:', err);
+              return null;
+            }
+          }).filter(Boolean);
+          
+          // Save wild tile screen position
+          try {
+            const wildTileGlobalPos = wildStarTileForAnimation.getGlobalPosition();
+            savedWildTileScreenPosEarly = { x: wildTileGlobalPos.x, y: wildTileGlobalPos.y };
+          } catch {
+            console.warn('⚠️ Failed to get wild tile global position for early saving');
+          }
+          
+          console.log('✅ Saved', savedStarPositionsEarly.length, 'star positions EARLY (before any transformations)');
+        } else {
+          console.warn('⚠️ Wild star system not found or empty in early check, cannot save star data');
+        }
+        
+        console.log('✅ Will animate stars to HUD after merge animation');
+      } else {
+        console.log('⚠️ Wild star tile found but conditions not met:', {
+          hasWildStarTile: !!wildStarTileForAnimation,
+          hasWildStarSystem
+        });
+      }
+    } else {
+      console.log('⭐ Not a wild star merge:', { srcSpecialForStarCheck, dstSpecialForStarCheck });
+    }
+  } else {
+    console.log('⭐ Not merge 6, tempEffSum:', tempEffSum);
+  }
   
   // 🔥 NOTE: Bubbles animation is now triggered when merge 6 animation starts (in effSum === 6 block)
   // This ensures bubbles start exactly when merge 6 shards animation begins
@@ -2599,46 +2724,88 @@ function merge(src, dst, helpers){
       }
     }
 
+    // 🔥 NOTE: wildStarTileForAnimation and shouldAnimateStarsToHUD are already set at the beginning of merge function
+    // Use the pre-captured values here in the animation callback
+
     gsap.to(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
       onComplete: async () => {
-        // 🔥 STARS COLLECTOR: Check if this is merge 6 with wild star (not wild-beer, not wild-magnet)
-        // Collect orbiting stars from wild star tile before removing it
-        if (effSum === 6) {
-          // Check if src or dst is a pure wild star (special === 'wild', not wild-beer or wild-magnet)
-          const srcIsWildStar = srcSpecial === 'wild';
-          const dstIsWildStar = dstSpecial === 'wild';
-          
-          if (srcIsWildStar || dstIsWildStar) {
-            // Find which tile is the wild star
-            const wildStarTile = srcIsWildStar ? src : (dstIsWildStar ? dst : null);
-            
-            if (wildStarTile && (wildStarTile as any)?._wildStarSystem) {
-              console.log('⭐ Merge 6 with wild star detected, collecting orbiting stars...');
-              
-              // Get merge 6 position for star animation start (convert to screen coordinates)
-              const merge6Pos = centerInBoard(board, dst, TILE);
-              
-              // Trigger star collection animation (delayed slightly to let merge animation settle)
-              gsap.delayedCall(0.3, async () => {
-                try {
-                  if (typeof StarsCollector.collectStarsFromWildTile === 'function') {
-                    await StarsCollector.collectStarsFromWildTile(wildStarTile, merge6Pos);
-                    console.log('✅ Stars collection animation completed');
-                  } else {
-                    console.warn('⚠️ StarsCollector.collectStarsFromWildTile not available');
-                  }
-                } catch (error) {
-                  console.error('❌ Failed to collect stars from wild tile:', error);
-                }
-              });
+        // 🔥 CRITICAL: Use EARLY saved star data (saved before any transformations)
+        // This ensures data is available even if dst tile became merge 6 and lost _wildStarSystem
+        const savedStarPositionsSmall = savedStarPositionsEarly.length > 0 ? savedStarPositionsEarly : [];
+        const savedWildTileScreenPosSmall = savedWildTileScreenPosEarly;
+        
+        // Get merge 6 position for reference (convert to screen coordinates)
+        const merge6PosSmall = centerInBoard(board, dst, TILE);
+        
+        // Get HUD star icon position
+        let hudStarPosSmall = null;
+        if (shouldAnimateStarsToHUD) {
+          try {
+            if (typeof HUD.getStarHudPosition === 'function') {
+              hudStarPosSmall = HUD.getStarHudPosition();
+              console.log('⭐ HUD star position retrieved:', hudStarPosSmall);
             } else {
-              console.log('⚠️ Wild star tile found but no orbiting stars system detected');
+              console.warn('⚠️ HUD.getStarHudPosition is not a function');
             }
+          } catch (err) {
+            console.error('❌ Error getting HUD star position:', err);
           }
         }
         
         removeTile(src);
+        
+        // 🔥 STARS ANIMATION: Trigger animation with EARLY saved star data (after tile is removed)
+        // 🔥 CRITICAL: Always trigger animation if shouldAnimateStarsToHUD is true, even if bubbles animation is running
+        if (shouldAnimateStarsToHUD) {
+          if (savedStarPositionsSmall.length > 0 && hudStarPosSmall) {
+            console.log('⭐ Starting stars animation to HUD with saved data:', { 
+              starCount: savedStarPositionsSmall.length,
+              merge6Pos: merge6PosSmall,
+              hudStarPos: hudStarPosSmall,
+              hasBubblesRunning: isWildBeerExplosionRunning?.() || false
+            });
+            
+            // 🔥 CRITICAL: Trigger star animation INDEPENDENTLY using requestAnimationFrame
+            // This ensures animation starts immediately and is not affected by killAllDelayedCalls()
+            // Use requestAnimationFrame for immediate start, with a tiny delay via setTimeout (not GSAP delayedCall)
+            requestAnimationFrame(() => {
+              // Use setTimeout instead of gsap.delayedCall to avoid being killed by killAllDelayedCalls()
+              setTimeout(async () => {
+                try {
+                  console.log('⭐ About to import animateStarsToHudIcon from fx.js...');
+                  // Import and call fx.js animation function with SAVED star data
+                  const { animateStarsToHudIcon } = await import('./fx.js');
+                  console.log('⭐ Imported animateStarsToHudIcon:', typeof animateStarsToHudIcon);
+                  if (typeof animateStarsToHudIcon === 'function') {
+                    console.log('⭐ Calling animateStarsToHudIcon with saved star data (INDEPENDENT):', { 
+                      board: !!board, 
+                      stage: !!stage,
+                      savedStarCount: savedStarPositionsSmall.length,
+                      merge6Pos: merge6PosSmall,
+                      hudStarPos: hudStarPosSmall
+                    });
+                    // Pass saved star data instead of tile object
+                    await animateStarsToHudIcon(board, stage, savedStarPositionsSmall, savedWildTileScreenPosSmall, merge6PosSmall, hudStarPosSmall);
+                    console.log('✅ Stars animation to HUD completed (INDEPENDENT)');
+                  } else {
+                    console.warn('⚠️ animateStarsToHudIcon not available in fx.js');
+                  }
+                } catch (error) {
+                  console.error('❌ Failed to animate stars to HUD:', error);
+                }
+              }, 200); // 200ms delay using setTimeout (not GSAP, so won't be killed)
+            });
+          } else {
+            console.warn('⭐ Stars animation skipped - missing data:', { 
+              shouldAnimate: shouldAnimateStarsToHUD,
+              savedStarCount: savedStarPositionsSmall?.length || 0,
+              hasHudPos: !!hudStarPosSmall,
+              hasEarlySavedData: savedStarPositionsEarly.length > 0,
+              hasBubblesRunning: isWildBeerExplosionRunning?.() || false
+            });
+          }
+        }
         // Re-enable drag on the merged tile and ensure drag points to the new stack
         // 🔥 CRITICAL FIX: Ensure dst is NOT locked and is interactive after merge
         dst.locked = false; // Ensure tile is not locked after merge
@@ -3430,13 +3597,17 @@ function merge(src, dst, helpers){
           }
           
           // 🔥 CRITICAL: Mark tiles as magnet-affected IMMEDIATELY (before animation)
-          // This allows them to merge regardless of pips or wild status
+          // This allows them to merge only with other pulled tiles
           tile._wildMagnetAffected = true;
           tile._skipIdleScaleReset = true;
           
-          // 🔥 CRITICAL: Disable drag for pulled tiles (prevent user from dragging them)
+          // 🔥 CRITICAL: Disable drag and lock pulled tiles (prevent user from dragging or merging them)
+          // This ensures tiles are protected from any external interaction while being pulled
           tile.eventMode = 'none';
           tile.cursor = 'default';
+          tile.locked = true; // Lock tile to prevent any interactions
+          
+          console.log('🛡️ Protected pulled tile:', tile.value, 'special:', tile.special, 'eventMode:', tile.eventMode, 'locked:', tile.locked);
           
           // Clear from grid immediately (they're being pulled)
           if (tile.gridX !== undefined && tile.gridY !== undefined && grid && grid[tile.gridY]) {
@@ -3513,7 +3684,8 @@ function merge(src, dst, helpers){
           delete tile._mergeTriggered75;
           delete tile._skipIdleScaleReset;
           
-          // Re-enable drag
+          // 🔥 CRITICAL: Re-enable drag and unlock tile (restore original state)
+          tile.locked = false;
           tile.eventMode = 'static';
           tile.cursor = 'pointer';
           
@@ -4003,8 +4175,83 @@ function merge(src, dst, helpers){
       onComplete: async () => {
         // 🔥 CRITICAL: srcSpecial i dstSpecial su već snimljeni PRIJE setValue i clearWildState!
         // Koristimo ih iz closure-a, ne snimamo ih ponovo (jer bi mogli biti već promijenjeni)
+        
+        // 🔥 CRITICAL: Use EARLY saved star data (saved before any transformations)
+        // This ensures data is available even if dst tile became merge 6 and lost _wildStarSystem
+        const savedStarPositions = savedStarPositionsEarly.length > 0 ? savedStarPositionsEarly : [];
+        const savedWildTileScreenPos = savedWildTileScreenPosEarly;
+        
+        // Get merge 6 position for reference (convert to screen coordinates)
+        const merge6Pos = centerInBoard(board, dst, TILE);
+        
+        // Get HUD star icon position
+        let hudStarPos = null;
+        if (shouldAnimateStarsToHUD) {
+          try {
+            if (typeof HUD.getStarHudPosition === 'function') {
+              hudStarPos = HUD.getStarHudPosition();
+              console.log('⭐ HUD star position retrieved:', hudStarPos);
+            } else {
+              console.warn('⚠️ HUD.getStarHudPosition is not a function');
+            }
+          } catch (err) {
+            console.error('❌ Error getting HUD star position:', err);
+          }
+        }
 
         removeTile(src);
+        
+        // 🔥 STARS ANIMATION: Trigger animation with EARLY saved star data (after tile is removed)
+        // 🔥 CRITICAL: Always trigger animation if shouldAnimateStarsToHUD is true, even if bubbles animation is running
+        if (shouldAnimateStarsToHUD) {
+          if (savedStarPositions.length > 0 && hudStarPos) {
+            console.log('⭐ Starting stars animation to HUD with saved data:', { 
+              starCount: savedStarPositions.length,
+              merge6Pos,
+              hudStarPos,
+              hasBubblesRunning: isWildBeerExplosionRunning?.() || false
+            });
+            
+            // 🔥 CRITICAL: Trigger star animation INDEPENDENTLY using requestAnimationFrame
+            // This ensures animation starts immediately and is not affected by killAllDelayedCalls()
+            // Use requestAnimationFrame for immediate start, with a tiny delay via setTimeout (not GSAP delayedCall)
+            requestAnimationFrame(() => {
+              // Use setTimeout instead of gsap.delayedCall to avoid being killed by killAllDelayedCalls()
+              setTimeout(async () => {
+                try {
+                  console.log('⭐ About to import animateStarsToHudIcon from fx.js...');
+                  // Import and call fx.js animation function with SAVED star data
+                  const { animateStarsToHudIcon } = await import('./fx.js');
+                  console.log('⭐ Imported animateStarsToHudIcon:', typeof animateStarsToHudIcon);
+                  if (typeof animateStarsToHudIcon === 'function') {
+                    console.log('⭐ Calling animateStarsToHudIcon with saved star data (INDEPENDENT):', { 
+                      board: !!board, 
+                      stage: !!stage,
+                      savedStarCount: savedStarPositions.length,
+                      merge6Pos,
+                      hudStarPos
+                    });
+                    // Pass saved star data instead of tile object
+                    await animateStarsToHudIcon(board, stage, savedStarPositions, savedWildTileScreenPos, merge6Pos, hudStarPos);
+                    console.log('✅ Stars animation to HUD completed (INDEPENDENT)');
+                  } else {
+                    console.warn('⚠️ animateStarsToHudIcon not available in fx.js');
+                  }
+                } catch (error) {
+                  console.error('❌ Failed to animate stars to HUD:', error);
+                }
+              }, 200); // 200ms delay using setTimeout (not GSAP, so won't be killed)
+            });
+          } else {
+            console.warn('⭐ Stars animation skipped - missing data:', { 
+              shouldAnimate: shouldAnimateStarsToHUD,
+              savedStarCount: savedStarPositions?.length || 0,
+              hasHudPos: !!hudStarPos,
+              hasEarlySavedData: savedStarPositionsEarly.length > 0,
+              hasBubblesRunning: isWildBeerExplosionRunning?.() || false
+            });
+          }
+        }
         
         // 🔥 CRITICAL: Check if this was marked as last merge BEFORE animation started
         // 🔥 ENHANCED: Double-check _isLastMerge flag and verify dst still exists
@@ -5872,23 +6119,97 @@ function saveGameState() {
       console.log('💾 Grid not ready, skipping save');
       return;
     }
-    const gridSnapshot = grid.map((row, r) =>
-      Array.isArray(row)
-        ? row.map((tile, c) => {
-            if (!tile) return null;
-            return {
-              value: Number.isFinite(tile.value) ? tile.value : 0,
-              special: tile.special || null,
-              locked: !!tile.locked,
-              open: !tile.locked,
-              isWild: !!tile.isWild,
-              isWildFace: !!tile.isWildFace,
-              gridX: Number.isFinite(tile.gridX) ? tile.gridX : c,
-              gridY: Number.isFinite(tile.gridY) ? tile.gridY : r,
-            };
-          })
-        : []
-    );
+    
+    // 🔥 CRITICAL FIX: Save all tiles from tiles array, not just from grid
+    // This ensures no tiles are lost during save (e.g., tiles with inconsistent grid positions)
+    const gridSnapshot = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    
+    // First, save all tiles from tiles array (both active and locked tiles)
+    const savedTiles = [];
+    tiles.forEach((tile) => {
+      if (!tile || tile.destroyed) {
+        return; // Skip destroyed tiles only
+      }
+      
+      // Only skip tiles with invalid value (null, undefined, NaN, negative)
+      // Allow value 0 for locked/empty tiles
+      const tileValue = tile.value;
+      if (tileValue === null || tileValue === undefined || !Number.isFinite(tileValue) || tileValue < 0) {
+        return; // Skip tiles with invalid value
+      }
+      
+      const gridX = Number.isFinite(tile.gridX) ? (tile.gridX | 0) : -1;
+      const gridY = Number.isFinite(tile.gridY) ? (tile.gridY | 0) : -1;
+      
+      // Validate grid position
+      if (gridX < 0 || gridX >= COLS || gridY < 0 || gridY >= ROWS) {
+        console.warn('⚠️ Tile has invalid grid position:', { gridX, gridY, value: tile.value, special: tile.special, locked: tile.locked });
+        return;
+      }
+      
+      const tileSnapshot = {
+        value: Number.isFinite(tileValue) ? tileValue : 0,
+        special: tile.special || null,
+        locked: !!tile.locked,
+        open: !tile.locked,
+        isWild: !!tile.isWild,
+        isWildFace: !!tile.isWildFace,
+        gridX: gridX,
+        gridY: gridY,
+      };
+      
+      savedTiles.push({ snapshot: tileSnapshot, gridX, gridY });
+      
+      // Also place in grid snapshot at correct position
+      // If position already occupied, log warning but still save (might be duplicate)
+      if (gridSnapshot[gridY] && gridSnapshot[gridY][gridX] === null) {
+        gridSnapshot[gridY][gridX] = tileSnapshot;
+      } else if (gridSnapshot[gridY] && gridSnapshot[gridY][gridX] !== null) {
+        console.warn('⚠️ Grid position already occupied - overwriting:', { gridX, gridY, existing: gridSnapshot[gridY][gridX], new: tileSnapshot });
+        gridSnapshot[gridY][gridX] = tileSnapshot; // Overwrite to ensure latest tile is saved
+      }
+    });
+    
+    // 🔥 ADDITIONAL FIX: Also check grid array for any tiles that might not be in tiles array
+    // This ensures we don't lose tiles even if there's a mismatch between grid and tiles array
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const gridTile = grid[r]?.[c];
+        if (!gridTile || gridTile.destroyed) continue;
+        
+        // Check if this tile is already saved
+        const alreadySaved = savedTiles.some(st => st.gridX === c && st.gridY === r);
+        if (alreadySaved) continue;
+        
+        // Check if tile has valid value
+        const tileValue = gridTile.value;
+        if (tileValue === null || tileValue === undefined || !Number.isFinite(tileValue) || tileValue < 0) {
+          continue;
+        }
+        
+        // Save tile from grid
+        const tileSnapshot = {
+          value: Number.isFinite(tileValue) ? tileValue : 0,
+          special: gridTile.special || null,
+          locked: !!gridTile.locked,
+          open: !gridTile.locked,
+          isWild: !!gridTile.isWild,
+          isWildFace: !!gridTile.isWildFace,
+          gridX: c,
+          gridY: r,
+        };
+        
+        savedTiles.push({ snapshot: tileSnapshot, gridX: c, gridY: r });
+        if (gridSnapshot[r] && gridSnapshot[r][c] === null) {
+          gridSnapshot[r][c] = tileSnapshot;
+        } else if (gridSnapshot[r] && gridSnapshot[r][c] !== null) {
+          console.warn('⚠️ Grid tile already saved - overwriting:', { gridX: c, gridY: r, existing: gridSnapshot[r][c], new: tileSnapshot });
+          gridSnapshot[r][c] = tileSnapshot;
+        }
+      }
+    }
+    
+    console.log('💾 Saved', savedTiles.length, 'tiles total (from tiles array + grid check)');
 
     const currentState = {
       grid: gridSnapshot,

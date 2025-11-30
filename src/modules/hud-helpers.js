@@ -54,6 +54,116 @@ let hudCloseButton = null;
 let boardIndicator = null;
 let boardIndicatorLabel = null;
 let comboWobbleTween = null; // GSAP tween for combo icon wobble animation
+
+// 🔥 CLEANUP: Function to kill all combo animations and prevent memory leaks
+export function cleanupComboAnimations() {
+  console.log('🧹 Cleaning up all combo animations...');
+  
+  try {
+    // 1. Kill wobble animation
+    if (comboWobbleTween) {
+      try {
+        comboWobbleTween.kill();
+        comboWobbleTween = null;
+      } catch (e) {
+        console.warn('⚠️ Error killing comboWobbleTween:', e);
+      }
+    }
+    
+    // 2. Kill morph timeline on combo icon sprite
+    if (HUD_ROOT && HUD_ROOT._hudElements && HUD_ROOT._hudElements.combo) {
+      const combo = HUD_ROOT._hudElements.combo;
+      const iconSprite = combo.iconSprite;
+      
+      if (iconSprite && !iconSprite.destroyed) {
+        // Kill morph timeline
+        if (iconSprite._morphTimeline) {
+          try {
+            iconSprite._morphTimeline.kill();
+            iconSprite._morphTimeline.clear?.();
+            iconSprite._morphTimeline = null;
+          } catch (e) {
+            console.warn('⚠️ Error killing morphTimeline:', e);
+          }
+        }
+        
+        // Kill all GSAP tweens on icon sprite
+        try {
+          gsap.killTweensOf(iconSprite);
+          gsap.killTweensOf(iconSprite.scale);
+          gsap.killTweensOf(iconSprite.rotation);
+          gsap.killTweensOf(iconSprite.alpha);
+        } catch (e) {
+          console.warn('⚠️ Error killing tweens on iconSprite:', e);
+        }
+        
+        // Reset rotation
+        iconSprite.rotation = 0;
+      }
+    }
+    
+    // 3. Kill jitter timeline
+    if (__comboJitterTl) {
+      try {
+        __comboJitterTl.kill();
+        __comboJitterTl.clear?.();
+        __comboJitterTl = null;
+      } catch (e) {
+        console.warn('⚠️ Error killing __comboJitterTl:', e);
+      }
+    }
+    
+    // 4. Kill bump timeline
+    if (__comboBumpTl) {
+      try {
+        __comboBumpTl.kill();
+        __comboBumpTl.clear?.();
+        __comboBumpTl = null;
+      } catch (e) {
+        console.warn('⚠️ Error killing __comboBumpTl:', e);
+      }
+    }
+    
+    // 5. Kill shake timeline
+    if (__shakeTl) {
+      try {
+        __shakeTl.kill();
+        __shakeTl.clear?.();
+        __shakeTl = null;
+      } catch (e) {
+        console.warn('⚠️ Error killing __shakeTl:', e);
+      }
+    }
+    
+    // 6. Kill all tweens on combo text and wrap
+    if (comboText) {
+      try {
+        gsap.killTweensOf(comboText);
+        gsap.killTweensOf(comboText.scale);
+        gsap.killTweensOf(comboText.rotation);
+      } catch (e) {
+        console.warn('⚠️ Error killing tweens on comboText:', e);
+      }
+    }
+    
+    if (comboWrap) {
+      try {
+        gsap.killTweensOf(comboWrap);
+        gsap.killTweensOf(comboWrap.scale);
+        gsap.killTweensOf(comboWrap.rotation);
+      } catch (e) {
+        console.warn('⚠️ Error killing tweens on comboWrap:', e);
+      }
+    }
+    
+    // 7. Reset shake multiplier
+    __shakeMul = 1.0;
+    
+    console.log('✅ All combo animations cleaned up');
+  } catch (err) {
+    console.error('❌ Error during combo animations cleanup:', err);
+  }
+}
 const BOARD_INDICATOR_ANIM_OFFSET = 72;
 const BOARD_INDICATOR_BOTTOM = 24;
 
@@ -564,7 +674,9 @@ function startComboFX(){
   }
 }
 function stopComboFX(){
-  if (__comboJitterTl){ try { __comboJitterTl.kill(); } catch {} __comboJitterTl = null; }
+  // 🔥 CLEANUP: Kill all combo animations before stopping
+  cleanupComboAnimations();
+  
   if (!comboText) return;
   // elastic bounce back to rest
   try {
@@ -572,10 +684,11 @@ function stopComboFX(){
     // sporiji, nježniji decay natrag na 1.0
     gsap.to(comboWrap ? comboWrap.scale : comboText.scale, { x: 1, y: 1, duration: 0.40, ease: 'power2.out' });
     gsap.to(comboText.scale, { x: 1, y: 1, duration: 1.40, ease: 'elastic.out(1,0.9)' });
-    // reset shake multiplier smoothly
-    try { __shakeTl?.kill?.(); } catch {}
-    const sh = { k: __shakeMul };
-    __shakeTl = gsap.to(sh, { k: 1.0, duration: 0.60, ease: 'power2.out', onUpdate: () => { __shakeMul = sh.k; } });
+    // reset shake multiplier smoothly (but don't recreate if we just cleaned up)
+    if (!__shakeTl) {
+      const sh = { k: __shakeMul };
+      __shakeTl = gsap.to(sh, { k: 1.0, duration: 0.60, ease: 'power2.out', onUpdate: () => { __shakeMul = sh.k; } });
+    }
   } catch {}
 }
 
@@ -990,11 +1103,23 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       if (iconTexture) {
         iconSprite = new Sprite(iconTexture);
         iconSprite.anchor.set(0.5, 0.5);
-        // Scale to 28x28
-        const targetSize = 28;
-        if (iconSprite.width > 0 && iconSprite.height > 0) {
-          const scale = targetSize / Math.max(iconSprite.width, iconSprite.height);
-          iconSprite.scale.set(scale);
+        
+        // 🔥 USER REQUEST: star-hud.png should have height 28px with aspect ratio preserved
+        if (iconPath.includes('star-hud.png')) {
+          const targetHeight = 28;
+          if (iconSprite.width > 0 && iconSprite.height > 0) {
+            // Scale based on height to maintain aspect ratio
+            const scale = targetHeight / iconSprite.height;
+            iconSprite.scale.set(scale);
+            console.log('⭐ star-hud.png scaled to height 28px, width:', iconSprite.width * scale, 'px (aspect ratio preserved)');
+          }
+        } else {
+          // Other icons: scale to 28x28 (max dimension)
+          const targetSize = 28;
+          if (iconSprite.width > 0 && iconSprite.height > 0) {
+            const scale = targetSize / Math.max(iconSprite.width, iconSprite.height);
+            iconSprite.scale.set(scale);
+          }
         }
         container.addChild(iconSprite);
       }
@@ -1005,10 +1130,23 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
         if (tex && container && !container.destroyed) {
           iconSprite = new Sprite(tex);
           iconSprite.anchor.set(0.5, 0.5);
-          const targetSize = 28;
-          if (iconSprite.width > 0 && iconSprite.height > 0) {
-            const scale = targetSize / Math.max(iconSprite.width, iconSprite.height);
-            iconSprite.scale.set(scale);
+          
+          // 🔥 USER REQUEST: star-hud.png should have height 28px with aspect ratio preserved
+          if (iconPath.includes('star-hud.png')) {
+            const targetHeight = 28;
+            if (iconSprite.width > 0 && iconSprite.height > 0) {
+              // Scale based on height to maintain aspect ratio
+              const scale = targetHeight / iconSprite.height;
+              iconSprite.scale.set(scale);
+              console.log('⭐ star-hud.png scaled to height 28px, width:', iconSprite.width * scale, 'px (aspect ratio preserved)');
+            }
+          } else {
+            // Other icons: scale to 28x28 (max dimension)
+            const targetSize = 28;
+            if (iconSprite.width > 0 && iconSprite.height > 0) {
+              const scale = targetSize / Math.max(iconSprite.width, iconSprite.height);
+              iconSprite.scale.set(scale);
+            }
           }
           container.addChildAt(iconSprite, 0);
         }
@@ -1133,9 +1271,10 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     text: comboNumberText, // Store number text as main text reference (18px)
     xText: comboXTextLocal, // Store "x" text separately (14px)
     iconSprite: comboIconSprite,
-    originalIconPath: './assets/combo-hud.png', // Store original icon path
-    extraIconPath: './assets/extra-combo-hud.png', // Store extra icon path
-    isUsingExtraIcon: false // Flag to track if extra icon is currently active
+    originalIconPath: './assets/combo-hud.png', // Store original icon path (0-4)
+    extraIconPath: './assets/extra-combo-hud.png', // Store extra icon path (5-9)
+    megaIconPath: './assets/mega-combo-hud.png', // Store mega icon path (10+)
+    currentIconType: 'normal' // Track current icon: 'normal', 'extra', or 'mega'
   };
   
   // Store references
@@ -1203,6 +1342,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     window.HUD.bounceStarIcon = bounceStarIcon;
     window.HUD.getStarHudPosition = getStarHudPosition;
     window.HUD.setStarsCount = setStarsCount;
+    window.HUD.cleanupComboAnimations = cleanupComboAnimations; // 🔥 Export cleanup function
     console.log('✅ HUD functions exported to window.HUD');
   }
 
@@ -1343,6 +1483,9 @@ export function playHudRise({ duration = 0.3 } = {}){
     
     // CRITICAL: Kill all smoke bubbles and intervals before exit
     cleanupSmokeBubbles();
+    
+    // 🔥 CLEANUP: Kill all combo animations before exit
+    cleanupComboAnimations();
     
     // Kill any existing tweens
     try { gsap.killTweensOf(HUD_ROOT); } catch {}
@@ -1546,6 +1689,10 @@ export function setBoard(v){
   updateBoardIndicatorValue(val);
 }
 // 🔥 COMBO ICON SWAP: Function to swap combo icon based on combo value
+// Three levels:
+// - 0-4: combo-hud.png (normal)
+// - 5-9: extra-combo-hud.png (extra)
+// - 10+: mega-combo-hud.png (mega)
 function updateComboIcon(comboValue) {
   if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.combo) {
     console.warn('⚠️ updateComboIcon: HUD elements not ready');
@@ -1560,55 +1707,185 @@ function updateComboIcon(comboValue) {
     return;
   }
   
-  const needsExtraIcon = comboValue >= 10;
-  const currentIsExtra = combo.isUsingExtraIcon || false;
+  // Determine which icon to use based on combo value
+  let targetIconType = 'normal';
+  let targetIconPath = './assets/combo-hud.png';
   
-  console.log(`💧 updateComboIcon: combo=${comboValue}, needsExtra=${needsExtraIcon}, currentIsExtra=${currentIsExtra}`);
+  if (comboValue >= 10) {
+    targetIconType = 'mega';
+    targetIconPath = './assets/mega-combo-hud.png';
+  } else if (comboValue >= 5) {
+    targetIconType = 'extra';
+    targetIconPath = './assets/extra-combo-hud.png';
+  } else {
+    targetIconType = 'normal';
+    targetIconPath = './assets/combo-hud.png';
+  }
+  
+  const currentIconType = combo.currentIconType || 'normal';
+  
+  console.log(`💧 updateComboIcon: combo=${comboValue}, targetIcon=${targetIconType}, currentIcon=${currentIconType}`);
   
   // Only swap if needed
-  if (needsExtraIcon && !currentIsExtra) {
-    // Switch to extra-combo-hud.png
-    console.log('💧 Switching to extra-combo-hud.png...');
-    const loadExtraIcon = async () => {
+  if (targetIconType !== currentIconType) {
+    console.log(`💧 Switching to ${targetIconPath}...`);
+    const loadIcon = async () => {
       try {
+        // 🔥 CRITICAL: Store current sprite properties before swapping
+        const currentVisible = iconSprite.visible;
+        const currentAlpha = iconSprite.alpha;
+        const currentScaleX = iconSprite.scale.x;
+        const currentScaleY = iconSprite.scale.y;
+        const currentAnchorX = iconSprite.anchor?.x ?? 0.5;
+        const currentAnchorY = iconSprite.anchor?.y ?? 0.5;
+        
         // Try to get texture (might already be loaded)
-        let extraTexture = null;
+        let texture = null;
         try {
-          extraTexture = Assets.get('./assets/extra-combo-hud.png');
+          texture = Assets.get(targetIconPath);
+          if (!texture) {
+            console.log(`💧 ${targetIconPath} not in cache (Assets.get returned null), loading...`);
+            texture = await Assets.load(targetIconPath);
+          } else {
+            console.log(`💧 ${targetIconPath} found in cache`);
+          }
         } catch (e) {
           // Texture not in cache, load it
-          console.log('💧 extra-combo-hud.png not in cache, loading...');
-          extraTexture = await Assets.load('./assets/extra-combo-hud.png');
+          console.log(`💧 ${targetIconPath} not in cache (error), loading...`, e);
+          try {
+            texture = await Assets.load(targetIconPath);
+          } catch (loadError) {
+            console.error(`❌ Failed to load ${targetIconPath}:`, loadError);
+            // 🔥 CRITICAL: Fallback to previous icon if loading fails
+            console.warn(`⚠️ Falling back to previous icon type: ${currentIconType}`);
+            return; // Exit early if texture loading fails
+          }
         }
         
-        if (extraTexture && iconSprite && !iconSprite.destroyed) {
-          iconSprite.texture = extraTexture;
-          combo.isUsingExtraIcon = true;
-          console.log('✅ Combo icon swapped to extra-combo-hud.png (combo >= 10)');
+        // 🔥 CRITICAL: Double-check texture is valid
+        if (!texture) {
+          console.error(`❌ Texture ${targetIconPath} is null or undefined after loading attempt!`);
+          return; // Exit early if texture is invalid
+        }
+        
+        if (texture && iconSprite && !iconSprite.destroyed) {
+          // 🔥 CRITICAL: Store target size (same as initial combo icon size)
+          const targetSize = 28; // Same as initial combo icon size
+          
+          // 🔥 USER REQUEST: Smooth morph animation with ease in/out
+          // Kill any existing animations on this sprite
+          try {
+            gsap.killTweensOf(iconSprite);
+            gsap.killTweensOf(iconSprite.scale);
+            if (iconSprite._morphTimeline) {
+              try {
+                iconSprite._morphTimeline.kill();
+              } catch {}
+            }
+          } catch {}
+          
+          // Calculate new scale for target texture
+          let newScale = currentScaleX || 1;
+          if (texture && texture.width > 0 && texture.height > 0) {
+            newScale = targetSize / Math.max(texture.width, texture.height);
+            console.log(`💧 New scale calculated for ${targetIconType} icon: ${newScale} (texture size: ${texture.width}x${texture.height})`);
+          }
+          
+          // Store current scale before animation
+          const oldScaleX = iconSprite.scale.x;
+          const oldScaleY = iconSprite.scale.y;
+          
+          // 🔥 USER REQUEST: Fast morph transition (cross-fade, no fade out)
+          // Direct texture swap with quick scale animation for smooth morph effect
+          const morphDuration = 0.15; // 🔥 Faster: 150ms (reduced from 300ms)
+          const morphTimeline = gsap.timeline({
+            onComplete: () => {
+              // Update icon type after animation completes
+              combo.currentIconType = targetIconType;
+              
+              // Clean up timeline reference
+              try {
+                if (iconSprite) {
+                  iconSprite._morphTimeline = null;
+                }
+              } catch {}
+              
+              console.log(`✅ Combo icon morph animation completed (combo ${comboValue}, type: ${targetIconType})`);
+            }
+          });
+          
+          // Store timeline for cleanup
+          iconSprite._morphTimeline = morphTimeline;
+          
+          // 🔥 USER REQUEST: Direct morph (no fade out) - swap texture immediately and animate scale
+          // Step 1: Swap texture immediately (no fade out)
+          if (iconSprite && !iconSprite.destroyed) {
+            iconSprite.texture = texture;
+            
+            // Preserve anchor
+            if (iconSprite.anchor) {
+              iconSprite.anchor.set(currentAnchorX, currentAnchorY);
+            }
+            
+            // Set initial scale (slightly smaller for pop-in effect)
+            iconSprite.scale.set(newScale * 0.9, newScale * 0.9);
+            iconSprite.alpha = 1; // Ensure visible immediately
+          }
+          
+          // Step 2: Quick scale up animation (morph effect) - fast and smooth
+          morphTimeline.to(iconSprite, {
+            scaleX: newScale,
+            scaleY: newScale,
+            duration: morphDuration, // 150ms - fast morph
+            ease: 'power2.out' // Smooth ease out for natural feel
+          });
+          
+          // Ensure sprite remains visible
+          iconSprite.visible = true;
+          
+          // Preserve anchor
+          if (iconSprite.anchor) {
+            iconSprite.anchor.set(currentAnchorX, currentAnchorY);
+          }
+          
+          // 🔥 CRITICAL: Ensure sprite is in container and visible
+          if (!iconSprite.parent) {
+            console.warn('⚠️ Icon sprite lost parent container, attempting to re-add...');
+            if (combo.container && !combo.container.destroyed) {
+              combo.container.addChildAt(iconSprite, 0);
+              console.log('✅ Icon sprite re-added to container');
+            }
+          }
+          
+          // 🔥 CRITICAL: Ensure container is also visible
+          if (combo.container) {
+            combo.container.visible = true;
+            combo.container.alpha = 1;
+          }
+          
+          // 🔥 CRITICAL: Don't update currentIconType yet - wait for animation to complete
+          // This is now set in morphTimeline.onComplete callback
+          console.log(`✅ Combo icon morph animation started: ${currentIconType} -> ${targetIconType} (combo ${comboValue})`);
+          console.log(`✅ Animation timeline created with duration: ${morphDuration}s`);
         } else {
-          console.warn('⚠️ Failed to get extra-combo-hud.png texture or sprite destroyed');
+          console.warn(`⚠️ Failed to get ${targetIconPath} texture or sprite destroyed`);
+          if (!iconSprite || iconSprite.destroyed) {
+            console.error(`❌ Icon sprite was destroyed during texture swap!`);
+          } else if (!texture) {
+            console.error(`❌ Texture ${targetIconPath} is null or undefined!`);
+          }
         }
       } catch (err) {
-        console.error('❌ Failed to load extra-combo-hud.png:', err);
+        console.error(`❌ Failed to load ${targetIconPath}:`, err);
+        // 🔥 CRITICAL: Ensure sprite remains visible even if loading fails
+        if (iconSprite && !iconSprite.destroyed) {
+          iconSprite.visible = true;
+          iconSprite.alpha = 1;
+        }
       }
     };
     
-    loadExtraIcon();
-  } else if (!needsExtraIcon && currentIsExtra) {
-    // Switch back to combo-hud.png
-    console.log('💧 Switching back to combo-hud.png...');
-    try {
-      const normalTexture = Assets.get('./assets/combo-hud.png');
-      if (normalTexture && iconSprite && !iconSprite.destroyed) {
-        iconSprite.texture = normalTexture;
-        combo.isUsingExtraIcon = false;
-        console.log('✅ Combo icon swapped back to combo-hud.png (combo < 10)');
-      } else {
-        console.warn('⚠️ Failed to get combo-hud.png texture or sprite destroyed');
-      }
-    } catch (e) {
-      console.error('❌ Failed to get combo-hud.png texture:', e);
-    }
+    loadIcon();
   }
 }
 
@@ -1721,6 +1998,9 @@ export function resetCombo(){
   if (comboXText && comboText.parent) {
     comboText.x = comboXText.x + comboXText.width;
   }
+  
+  // 🔥 CLEANUP: Kill all combo animations before resetting
+  cleanupComboAnimations();
   
   // 🔥 COMBO ICON SWAP: Reset to normal icon when combo resets
   updateComboIcon(0);
@@ -2031,35 +2311,80 @@ export function getStarHudPosition() {
 /**
  * Bounce animation on star HUD icon (like stack merge bounce)
  */
-export function bounceStarIcon() {
+export function bounceStarIcon(onComplete) {
+  console.log('⭐ bounceStarIcon called, has callback:', !!onComplete);
+  
   if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.star) {
+    console.warn('⚠️ bounceStarIcon: HUD_ROOT or star element not found');
+    if (onComplete && typeof onComplete === 'function') {
+      onComplete();
+    }
     return;
   }
   
   const starElement = HUD_ROOT._hudElements.star;
   if (!starElement.container) {
+    console.warn('⚠️ bounceStarIcon: star container not found');
+    if (onComplete && typeof onComplete === 'function') {
+      onComplete();
+    }
     return;
   }
   
-  // Similar to stack merge bounce: scale up then elastic settle
+  // Pop in/out animation: scale up 30% then return to original (like stacking tile animation)
+  // Triggered every time star count increases (n → n+1)
+  // CRITICAL: Kill previous animation to ensure clean start for each bounce
   try {
     gsap.killTweensOf(starElement.container.scale);
+    if (starElement.container._bounceTimeline) {
+      try {
+        starElement.container._bounceTimeline.kill();
+      } catch {}
+    }
   } catch {}
   
-  const tl = gsap.timeline();
-  // Scale up (like stack merge)
+  console.log('⭐ Starting bounce animation (scale 30%)');
+  
+  const tl = gsap.timeline({
+    onComplete: () => {
+      console.log('✅ Bounce animation timeline completed, calling callback');
+      // Clean up timeline reference
+      try {
+        if (starElement.container) {
+          starElement.container._bounceTimeline = null;
+        }
+      } catch {}
+      
+      // Call onComplete callback when animation finishes
+      if (onComplete && typeof onComplete === 'function') {
+        try {
+          onComplete();
+          console.log('✅ Bounce callback executed');
+        } catch (err) {
+          console.error('❌ Error in bounce callback:', err);
+        }
+      } else {
+        console.warn('⚠️ No callback provided or callback is not a function');
+      }
+    }
+  });
+  
+  // Store timeline reference for cleanup
+  starElement.container._bounceTimeline = tl;
+  
+  // Pop in: scale up 30% (1.3x)
   tl.to(starElement.container.scale, { 
-    x: 1.10, 
-    y: 0.94, 
-    duration: 0.07, 
+    x: 1.30, 
+    y: 1.30, 
+    duration: 0.08, 
     ease: 'power2.out' 
   });
-  // Elastic settle back
+  // Pop out: return to original size immediately
   tl.to(starElement.container.scale, { 
     x: 1.00, 
     y: 1.00, 
-    duration: 0.24, 
-    ease: 'elastic.out(1,0.8)' 
+    duration: 0.15, 
+    ease: 'back.out(1.7)' 
   });
   
   console.log('⭐ Star icon bounce animation triggered');
