@@ -23,17 +23,17 @@ export function createNavigation(config: NavigationConfig = {}): HTMLElementConf
             tag: 'div',
             className: 'independent-nav-divider',
           },
-          {
-            tag: 'div',
-            className: 'independent-nav-buttons',
-            children: [
-              createNavButton(0, 'Home', './assets/nav/cube-nav.png', currentSlide === 0, onSlideChange),
-              createNavButton(1, 'Stats', './assets/nav/stats-nav.png', currentSlide === 1, onSlideChange),
-              createNavButton(2, 'Collectibles', './assets/nav/collectibles-nav.png', currentSlide === 2, onSlideChange, badgeCount),
-              createNavButton(3, 'Settings', './assets/nav/settings-nav.png', currentSlide === 3, onSlideChange),
-            ],
-          },
+      {
+        tag: 'div',
+        className: 'independent-nav-buttons',
+        children: [
+          createNavButton(0, 'Home', './assets/nav/cube-nav.png', currentSlide === 0, onSlideChange),
+          createNavButton(1, 'Journey', './assets/nav/stats-nav.png', currentSlide === 1, onSlideChange),
+          createNavButton(2, 'Collectibles', './assets/nav/collectibles-nav.png', currentSlide === 2, onSlideChange, badgeCount),
+          createNavButton(3, 'Settings', './assets/nav/settings-nav.png', currentSlide === 3, onSlideChange),
         ],
+      },
+    ],
       },
     ],
   };

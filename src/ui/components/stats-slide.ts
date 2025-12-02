@@ -29,8 +29,8 @@ export function createStatsSlide(config: SlideConfig): HTMLElementConfig {
                 tag: 'img',
                 className: 'hero-image',
                 attributes: {
-                  src: './assets/stats-trophy.png',
-                  alt: 'Trophy',
+                  src: './assets/journey-map-homepage.png',
+                  alt: 'Journey Map',
                 },
               },
               {
@@ -46,16 +46,16 @@ export function createStatsSlide(config: SlideConfig): HTMLElementConfig {
               {
                 tag: 'p',
                 className: 'slide-tagline',
-                text: 'High score and stats',
+                text: 'Chart your journey',
               },
               {
                 tag: 'button',
-                id: 'btn-stats',
+                id: 'btn-journey',
                 className: 'slide-button tap-scale menu-btn-primary',
-                text: 'Stats',
+                text: 'Journey',
                 attributes: {
                   type: 'button',
-                  'aria-label': 'View Stats',
+                  'aria-label': 'View Journey',
                 },
                 eventListeners: onButtonClick ? { click: onButtonClick } : undefined,
               },

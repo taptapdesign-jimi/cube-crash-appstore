@@ -322,6 +322,7 @@ body{
 }
 
 #btn-stats,
+#btn-journey,
 #btn-collectibles,
 #btn-settings {
   margin-top: 20px !important;
@@ -337,22 +338,22 @@ body{
   margin-top: 16px;
 }
 
-/* Position text and CTA together on stats slide - same position as home slide */
+/* Position text and CTA together on stats slide (Journey) - same position as home slide */
 .slider-slide[data-slide="1"] .slide-text {
   transform: translateY(-42px) !important;
 }
 
-/* Position tagline text on stats slide - same spacing as home slide */
+/* Position tagline text on stats slide (Journey) - same spacing as home slide */
 .slider-slide[data-slide="1"] .slide-tagline {
   margin-top: 16px;
 }
 
-/* Position text and CTA together on collectibles slide - same position as home slide */
+/* Position text and CTA together on collectibles slide - same position as Journey slide */
 .slider-slide[data-slide="2"] .slide-text {
   transform: translateY(-42px) !important;
 }
 
-/* Position tagline text on collectibles slide - same spacing as home slide */
+/* Position tagline text on collectibles slide - same spacing as Journey slide */
 .slider-slide[data-slide="2"] .slide-tagline {
   margin-top: 16px;
 }
@@ -899,6 +900,7 @@ body{
 
 /* ===== EXIT/ENTER ANIMATION CLASSES ===== */
 /* Exit animation classes - scale down to 0, preserve translateY for slide-text and slide-button */
+/* V79 CARTOONISH BOUNCE POP OUT */
 .animate-exit {
   will-change: transform !important;
   transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
@@ -921,6 +923,10 @@ body{
   transform: translateY(12px) scale(0) !important;
 }
 
+/* Slide-button needs to preserve translateY during scale animation */
+.slide-button.animate-exit {
+  transform: translateY(12px) scale(0) !important;
+}
 
 /* Slide-tagline animates together with slide-text */
 .slide-tagline.animate-exit {
@@ -930,7 +936,7 @@ body{
 }
 
 /* Enter animation classes - scale up from 0, preserve translateY for slide-text */
-/* COMIC POP-IN: Same bezier as exit for perfect reverse effect */
+/* V79 CARTOONISH BOUNCE POP IN: Same bezier as exit for perfect reverse effect */
 .animate-enter {
   will-change: transform !important;
   transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
@@ -951,6 +957,11 @@ body{
 /* Slide-text needs to preserve translateY during scale animation */
 .slide-text.animate-enter {
   transform: translateY(12px) scale(1) !important;
+}
+
+/* Slide-button needs to preserve translateY during scale animation - no translateY in enter, stays in position */
+.slide-button.animate-enter {
+  transform: scale(1) !important;
 }
 
 /* Slide-tagline animates together with slide-text */
@@ -982,6 +993,11 @@ body{
   transform: translateY(12px) scale(0) !important;
 }
 
+/* Slide-button needs to preserve translateY during initial state - no translateY, stays in position */
+.slide-button.animate-enter-initial {
+  transform: scale(0) !important;
+}
+
 /* Slide-tagline animates together with slide-text */
 .slide-tagline.animate-enter-initial {
   transition: none !important;
@@ -1006,6 +1022,7 @@ body{
   transform: scale(1);
   will-change: auto;
 }
+
 
 /* Dramatic click effect for all bottom sheet CTA buttons */
 .continue-btn,
@@ -1916,6 +1933,7 @@ body{
 /* Sakrij shadow kada je screen hidden */
 #stats-screen[hidden] .stats-title-underline::after,
 #collectibles-screen[hidden] .collectibles-title-underline::after,
+.journey-screen[hidden] .collectibles-title-underline::after,
 #settings-screen[hidden] .settings-title-underline::after {
   display: none;
 }
@@ -4094,6 +4112,7 @@ body:has(:root) .tile.wild-3d-glow {
 .slide-button.button-reset:active,
 .tap-scale.button-reset:active,
 #btn-stats.button-reset:active,
+#btn-journey.button-reset:active,
 #btn-home.button-reset:active,
 #btn-collectibles.button-reset:active,
 #btn-settings.button-reset:active {

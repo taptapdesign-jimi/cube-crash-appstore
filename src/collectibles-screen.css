@@ -23,7 +23,8 @@
 }
 
 /* Root screen */
-#collectibles-screen {
+#collectibles-screen,
+.journey-screen {
   position: fixed;
   inset: 0;
   display: flex;
@@ -35,7 +36,8 @@
   /* will-change removed for better performance - only use during active animations */
 }
 
-#collectibles-screen[hidden] {
+#collectibles-screen[hidden],
+.journey-screen[hidden] {
   display: none !important;
 }
 
@@ -1038,4 +1040,3 @@
     transform: translateY(-8px) rotate(1deg) scale(1.02);
   }
 }
-

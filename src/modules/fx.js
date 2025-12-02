@@ -397,7 +397,7 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
   }
 }
 
-  // 🔥 MEMORY LEAK FIX: Global cleanup function to kill all pending delayed calls
+// 🔥 MEMORY LEAK FIX: Global cleanup function to kill all pending delayed calls
   // 🔥 CRITICAL: PROTECT star animation delayed calls from being killed
 export function killAllDelayedCalls() {
   console.log(`🧹 Killing ${__globalDelayedCalls.size} pending delayed calls`);
@@ -588,14 +588,14 @@ export function magicSparklesAtTile(board, tile, opts = {}){
            .fill({ color: color, alpha: alpha });
     } else {
       // Other tiles: use rectangular shards (original behavior)
-      const baseWidth = 12 + Math.random() * 12; // 12-24px base
-      const baseHeight = 16 + Math.random() * 16; // 16-32px base
-      const width = baseWidth * sizeMultiplier; // Scale by multiplier (200x for magnet)
-      const height = baseHeight * sizeMultiplier; // Scale by multiplier (200x for magnet)
+    const baseWidth = 12 + Math.random() * 12; // 12-24px base
+    const baseHeight = 16 + Math.random() * 16; // 16-32px base
+    const width = baseWidth * sizeMultiplier; // Scale by multiplier (200x for magnet)
+    const height = baseHeight * sizeMultiplier; // Scale by multiplier (200x for magnet)
       const alpha = intensity; // Direct opacity value
-      
-      shard.rect(-width/2, -height/2, width, height)
-           .fill({ color: color, alpha: alpha }); // Scale opacity by intensity
+    
+    shard.rect(-width/2, -height/2, width, height)
+         .fill({ color: color, alpha: alpha }); // Scale opacity by intensity
     }
     
     // 🔥 CRITICAL: Set eventMode to 'none' to prevent particles from blocking touch events
@@ -1301,8 +1301,8 @@ export function woodShardsAtTile(board, tile, opts = {}){
         console.log('⭐ Skipping star particles for wild star merge 6 - orbiting stars will be animated to HUD instead');
       } else {
         // Fallback: create stars for other wild types (shouldn't happen, but safety)
-        console.log('⭐ Creating regular wild stars at position:', x, y);
-        createMerge6Stars(board, layer, x, y);
+      console.log('⭐ Creating regular wild stars at position:', x, y);
+      createMerge6Stars(board, layer, x, y);
       }
     }
   } else {
@@ -1517,7 +1517,7 @@ export function cleanupWildBeerExplosion() {
           if (bubble instanceof Sprite) {
             bubble.destroy();
           } else {
-            graphicsPool.release(bubble);
+          graphicsPool.release(bubble);
           }
         } catch {}
       });
@@ -1734,7 +1734,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
     console.warn('⚠️ createWildBeerBubblesExplosion: Missing board');
     return;
   }
-  
+
   // Tile can be null or destroyed - bubbles don't need tile reference, just board
   if (!tile) {
     console.warn('⚠️ createWildBeerBubblesExplosion: Tile is null/undefined (may be destroyed), continuing with board only');
@@ -1745,7 +1745,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
   // 🔥 CRITICAL: Always cleanup first to ensure clean state
   // This prevents race conditions where flag is stuck
   cleanupWildBeerExplosion();
-  
+
   // Double-check after cleanup
   if (wildBeerExplosionActive) {
     console.warn('⚠️ createWildBeerBubblesExplosion: Flag still active after cleanup, forcing reset');
@@ -1932,7 +1932,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
 
     spawned += 1;
     active += 1;
-    
+
     // 🔥 DEBUG: Update stats for DevTools access
     if (typeof window !== 'undefined' && window._bubbleStats) {
       window._bubbleStats.active = active;
@@ -1950,8 +1950,8 @@ export function createWildBeerBubblesExplosion(board, tile) {
     if (useTexturePooling && bubbleTexture) {
       try {
         bubble = new Sprite(bubbleTexture);
-        bubble.eventMode = 'none';
-        bubble.cursor = 'default';
+    bubble.eventMode = 'none';
+    bubble.cursor = 'default';
         bubble.anchor.set(0.5); // Center anchor for proper scaling/rotation
         isSprite = true;
       } catch (e) {
@@ -1960,8 +1960,8 @@ export function createWildBeerBubblesExplosion(board, tile) {
         bubble = graphicsPool.acquire();
         bubble.eventMode = 'none';
         bubble.cursor = 'default';
-        bubble.clear();
-        bubble.circle(0, 0, radius);
+    bubble.clear();
+    bubble.circle(0, 0, radius);
         bubble.fill({ color: 0xFFFFFF, alpha });
         bubble.circle(-radius * 0.25, -radius * 0.25, radius * 0.32);
         bubble.fill({ color: 0xFFFFFF, alpha: Math.min(1, alpha + 0.2) });
@@ -2043,7 +2043,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
           if (bubble instanceof Sprite) {
             bubble.destroy();
           } else {
-            graphicsPool.release(bubble);
+          graphicsPool.release(bubble);
           }
         } catch {}
         active = Math.max(0, active - 1);
@@ -2070,7 +2070,7 @@ export function createWildBeerBubblesExplosion(board, tile) {
       cleanupWildBeerExplosion();
       return;
     }
-    
+
     frameCounter++;
     
     // 🔥 FPS DROP FIX: Throttle FPS monitoring to every 4th frame (75% reduction in overhead)
@@ -2112,8 +2112,8 @@ export function createWildBeerBubblesExplosion(board, tile) {
             // If FPS drops below 30, stop spawning after 70% of bubbles
             break;
           }
-          makeBubble();
-        }
+    makeBubble();
+  }
       }
     }
     

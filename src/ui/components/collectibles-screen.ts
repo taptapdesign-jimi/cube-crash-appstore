@@ -14,7 +14,7 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
   return {
     tag: 'div',
     id: 'collectibles-screen',
-    className: 'hidden',
+    className: 'hidden journey-screen',
     children: [
       {
         tag: 'div',
@@ -53,7 +53,7 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
                     tag: 'h1',
                     className: 'collectibles-title',
                     id: 'collectibles-title',
-                    text: 'Collectibles',
+                    text: 'Journey',
                   },
                   {
                     tag: 'div',

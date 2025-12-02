@@ -191,10 +191,21 @@ function startExitAnimationSequence(): void {
       return;
     }
     
+    const slideIndex = activeSlide.getAttribute('data-slide');
+    logger.info(`🎬 Starting exit animation for slide ${slideIndex}`);
+    
     // Find elements within the active slide ONLY
     const heroContainer = activeSlide.querySelector('.hero-container');
     const slideButton = activeSlide.querySelector('.slide-button');
     const slideText = activeSlide.querySelector('.slide-text');
+    const slideTagline = activeSlide.querySelector('.slide-tagline');
+    
+    logger.info(`🔍 Found elements in slide ${slideIndex}:`, {
+      heroContainer: !!heroContainer,
+      slideButton: !!slideButton,
+      slideText: !!slideText,
+      slideTagline: !!slideTagline
+    });
     
     // Use cached elements or query them once and cache
     if (!cachedElements.homeLogo) {
@@ -219,7 +230,7 @@ function startExitAnimationSequence(): void {
     
     // STEP 2: CTA button, Slide text, and Tagline TOGETHER (30ms delay - right after Hero)
     // Animate all at exactly the same time using the same timeout
-    const slideTagline = activeSlide.querySelector('.slide-tagline');
+    // Note: slideTagline is already defined above
     const timeout = setTimeout(() => {
       activeTimeouts.delete(timeout);
     if (slideButton) {

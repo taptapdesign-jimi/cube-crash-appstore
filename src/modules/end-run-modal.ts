@@ -515,7 +515,7 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
         hideModal();
       }
     }
-  };
+    };
   
   // Attach with small delay to avoid capturing the click that opened the modal
   setTimeout(() => {

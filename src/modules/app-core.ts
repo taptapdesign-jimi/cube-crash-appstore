@@ -16,7 +16,8 @@ import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.js';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning, cleanupWildBeerExplosion, waitForBubblesAnimationToComplete } from './fx.js';
 import * as StarsCollector from './stars-collector.ts';
-import { showStarsModal } from './stars-modal.js';
+// 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
+// import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
 import FX from './fx-helpers.js';
 import * as SPAWN from './spawn-helpers.js';
@@ -122,6 +123,7 @@ let grid = Array.isArray(STATE.grid) ? STATE.grid : [];
 const tiles = STATE.tiles;
 let score = 0; let level = 1; let boardNumber = 1; let moves = MOVES_MAX;
 const SCORE_CAP = 999999;
+const MAX_CHECK_LEVEL_END_SKIP_MS = 3000; // Hard stop for skip gates to avoid perma-deferral
 
 // Combo (UI driven)
 let combo = 0; // default x0
@@ -142,6 +144,7 @@ let wildRescueScheduled = false; // Prevent duplicate emergency spawns
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
 let drag;
 let busyEnding = false;
+let checkLevelEndSkipStartedAt: number | null = null; // Track skip window to force fall-through
 
 // 🔥 REFACTORED: Koristimo tileIsActive iz endgame-checker.ts za konzistentnost
 // Uklonjeno tileIsVisuallyActive() - sada koristimo tileIsActive() iz endgame-checker.ts
@@ -5295,11 +5298,11 @@ function checkLevelEnd(){
     checkLevelEndTimer?.kill?.();
   } catch {}
 
-  checkLevelEndTimer = gsap.delayedCall(CHECK_LEVEL_END_DELAY_MS / 1000, async () => {
-    checkLevelEndTimer = null;
-    if (busyEnding) {
-      console.log('⏳ checkLevelEnd skipped - busyEnding is true');
-      checkLevelEndRetryCount = 0; // Reset on exit
+    checkLevelEndTimer = gsap.delayedCall(CHECK_LEVEL_END_DELAY_MS / 1000, async () => {
+      checkLevelEndTimer = null;
+      if (busyEnding) {
+        console.log('⏳ checkLevelEnd skipped - busyEnding is true');
+        checkLevelEndRetryCount = 0; // Reset on exit
       return;
     }
     
@@ -5313,6 +5316,8 @@ function checkLevelEnd(){
     }
     
     console.log('🎯 checkLevelEnd called - using centralized end game checker...');
+    const now = Date.now();
+    const skipWindowExceeded = checkLevelEndSkipStartedAt !== null && (now - checkLevelEndSkipStartedAt) > MAX_CHECK_LEVEL_END_SKIP_MS;
     
     // 🔥 CRITICAL BUG FIX: Don't skip check if bubbles animation is running - it's just visual
     // Bubbles animation can run for 4+ seconds and shouldn't block end game detection
@@ -5323,7 +5328,8 @@ function checkLevelEnd(){
     }
     
     // 🔥 CRITICAL: Skip check if wild spawn is in progress (animation not finished yet)
-    if (wildSpawnInProgress) {
+    if (wildSpawnInProgress && !skipWindowExceeded) {
+      if (checkLevelEndSkipStartedAt === null) checkLevelEndSkipStartedAt = now;
       checkLevelEndRetryCount++;
       console.log('⏳ checkLevelEnd skipped - wild spawn animation in progress (retry', checkLevelEndRetryCount, '/', MAX_CHECK_LEVEL_END_RETRIES, ')');
       
@@ -5331,15 +5337,21 @@ function checkLevelEnd(){
       if (checkLevelEndRetryCount > MAX_CHECK_LEVEL_END_RETRIES) {
         console.error('🚨 checkLevelEnd: Max retries exceeded for wild spawn - forcing check anyway');
         checkLevelEndRetryCount = 0;
+        checkLevelEndSkipStartedAt = null;
         // Continue to check (don't return)
       } else {
-      // Reschedule after spawn completes
-      checkLevelEndTimer = gsap.delayedCall(0.3, () => {
-        checkLevelEndTimer = null;
-        checkLevelEnd();
-      });
-      return;
+        // Reschedule after spawn completes
+        checkLevelEndTimer = gsap.delayedCall(0.3, () => {
+          checkLevelEndTimer = null;
+          checkLevelEnd();
+        });
+        return;
+      }
     }
+    if (wildSpawnInProgress && skipWindowExceeded) {
+      console.warn('⏱️ checkLevelEnd: Skip window exceeded for wild spawn - forcing check despite flag');
+      checkLevelEndRetryCount = 0;
+      checkLevelEndSkipStartedAt = null;
     }
     
     // 🔥 CRITICAL FIX: Skip check if there are LOCKED tiles with value > 0 (spawn animations in progress)
@@ -5354,7 +5366,8 @@ function checkLevelEnd(){
       return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet';
     });
     
-    if (lockedActiveTiles.length > 0) {
+    if (lockedActiveTiles.length > 0 && !skipWindowExceeded) {
+      if (checkLevelEndSkipStartedAt === null) checkLevelEndSkipStartedAt = now;
       checkLevelEndRetryCount++;
       console.log('⏳ checkLevelEnd skipped - locked active tiles still animating (retry', checkLevelEndRetryCount, '/', MAX_CHECK_LEVEL_END_RETRIES, '):', {
         lockedCount: lockedActiveTiles.length,
@@ -5366,6 +5379,7 @@ function checkLevelEnd(){
         console.error('🚨 checkLevelEnd: Max retries exceeded for locked tiles - forcing check anyway');
         console.error('🚨 WARNING: Tiles still locked:', lockedActiveTiles.map(t => ({ value: t.value, locked: t.locked })));
         checkLevelEndRetryCount = 0;
+        checkLevelEndSkipStartedAt = null;
         // Continue to check (don't return)
       } else {
         // Reschedule after animations complete
@@ -5376,9 +5390,15 @@ function checkLevelEnd(){
         return;
       }
     }
+    if (lockedActiveTiles.length > 0 && skipWindowExceeded) {
+      console.warn('⏱️ checkLevelEnd: Skip window exceeded for locked tiles - forcing check despite locks');
+      checkLevelEndRetryCount = 0;
+      checkLevelEndSkipStartedAt = null;
+    }
     
     // 🔥 v38: Reset retry counter after successful reschedule bypass (tiles no longer locked/spawn done)
     checkLevelEndRetryCount = 0;
+    checkLevelEndSkipStartedAt = null;
     
     // Check for emergency rescue first
     if (needsEmergencyRescue(tiles)) {
@@ -5615,10 +5635,11 @@ async function showFinalScreen(){
       boardNumber: Math.max(1, boardNumber | 0)
     });
   } catch (error) {
-    console.error('⚠️ Board fail modal failed, falling back to stars modal:', error);
-    try {
-      await showStarsModal({ app, stage, board, score, title: 'Game Over', subtitle: `Score ${score}` });
-    } catch {}
+    // 🔥 REMOVED: Fallback to showStarsModal - this old "Level Complete" overlay is deprecated
+    // If board-fail-modal fails, log error but don't show the old overlay
+    console.error('❌ CRITICAL: Board fail modal failed - cannot show fail screen:', error);
+    console.error('❌ This should never happen. Check board-fail-modal.js for errors.');
+    // Don't show old stars modal - it's deprecated and shows wrong UI
   }
 
   // CRITICAL: Update high score using statsService

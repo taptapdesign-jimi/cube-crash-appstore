@@ -686,8 +686,8 @@ function stopComboFX(){
     gsap.to(comboText.scale, { x: 1, y: 1, duration: 1.40, ease: 'elastic.out(1,0.9)' });
     // reset shake multiplier smoothly (but don't recreate if we just cleaned up)
     if (!__shakeTl) {
-      const sh = { k: __shakeMul };
-      __shakeTl = gsap.to(sh, { k: 1.0, duration: 0.60, ease: 'power2.out', onUpdate: () => { __shakeMul = sh.k; } });
+    const sh = { k: __shakeMul };
+    __shakeTl = gsap.to(sh, { k: 1.0, duration: 0.60, ease: 'power2.out', onUpdate: () => { __shakeMul = sh.k; } });
     }
   } catch {}
 }
@@ -830,8 +830,8 @@ export function layout({ app, top }) {
     }
   } else {
     // Fallback to old positioning if new elements not created yet
-    scoreText.x = midCenter;
-    scoreText.y = yValue;
+  scoreText.x = midCenter;
+  scoreText.y = yValue;
     if (comboWrap) {
       comboWrap.x = rightCenter;
       comboWrap.y = yValue;
@@ -1285,7 +1285,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   
   // Export combo text for animations
   window.comboText = comboText;
-  
+
   // Create wrapper for combo (for jitter animation)
   comboWrap = new Container();
   comboWrap.addChild(comboHud.container);

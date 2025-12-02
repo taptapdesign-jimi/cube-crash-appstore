@@ -23,7 +23,7 @@ export interface UIManagerElements {
   sliderDots: NodeListOf<Element> | null;
   sliderDivider: Element | null;
   playButton: HTMLButtonElement | null;
-  statsButton: HTMLButtonElement | null;
+  journeyButton: HTMLButtonElement | null;
   collectiblesButton: HTMLButtonElement | null;
   settingsButton: HTMLButtonElement | null;
   statsScreen: HTMLElement | null;
@@ -62,7 +62,7 @@ class UIManager {
         sliderDots: document.querySelectorAll('.slider-dot'),
         sliderDivider: document.querySelector('.slider-nav-divider'),
         playButton: document.getElementById('btn-home') as HTMLButtonElement,
-        statsButton: document.getElementById('btn-stats') as HTMLButtonElement,
+        journeyButton: (document.getElementById('btn-journey') || document.getElementById('btn-stats')) as HTMLButtonElement,
         collectiblesButton: document.getElementById('btn-collectibles') as HTMLButtonElement,
         settingsButton: document.getElementById('btn-settings') as HTMLButtonElement,
         statsScreen: document.getElementById('stats-screen'),
@@ -100,9 +100,9 @@ class UIManager {
       this.elements.playButton.addEventListener('click', this.handlePlayClick.bind(this));
     }
     
-    // Stats button
-    if (this.elements.statsButton) {
-      this.elements.statsButton.addEventListener('click', this.handleStatsClick.bind(this));
+    // Journey button (was stats)
+    if (this.elements.journeyButton) {
+      this.elements.journeyButton.addEventListener('click', this.handleStatsClick.bind(this));
     }
     
     // Collectibles button
@@ -208,7 +208,7 @@ class UIManager {
   // Handle stats button click
   private handleStatsClick(event: Event): void {
     event.preventDefault();
-    logger.info('📊 Stats button clicked');
+    logger.info('🗺️ Journey button clicked (opens Journey/Collectibles screen)');
     
     // Light haptic for Stats button
     if (typeof (window as any).triggerHapticImpact === 'function') {
@@ -217,8 +217,8 @@ class UIManager {
     
     // NO RESET - let :active work normally like Play button
     
-    // Play exit animation first, then show stats screen
-    this.showStatsScreenWithAnimation();
+    // Play exit animation first, then show collectibles screen (swapped)
+    this.showCollectiblesScreenWithAnimation();
   }
 
   private handleStatsBackClick(event: Event): void {
@@ -232,7 +232,7 @@ class UIManager {
   // Handle collectibles button click
   private handleCollectiblesClick(event: Event): void {
     event.preventDefault();
-    logger.info('🎁 Collectibles button clicked');
+    logger.info('🎁 Collectibles button clicked (Collectibles -> Stats)');
     
     // Light haptic for Collectibles button
     if (typeof (window as any).triggerHapticImpact === 'function') {
@@ -241,8 +241,8 @@ class UIManager {
     
     // NO RESET - let :active work normally
     
-    // Play exit animation first, then show collectibles screen
-    this.showCollectiblesScreenWithAnimation();
+    // Play exit animation first, then show stats screen (swapped)
+    this.showStatsScreenWithAnimation();
   }
   
   // Handle settings button click
@@ -699,8 +699,8 @@ class UIManager {
     this.setNavigationVisibility(true);
     this.showHomepage();
 
-    if (this.elements.statsButton) {
-      this.elements.statsButton.focus();
+    if (this.elements.journeyButton) {
+      this.elements.journeyButton.focus();
     }
   }
   
@@ -968,23 +968,27 @@ class UIManager {
   private showCollectiblesScreenWithAnimation(): void {
     logger.info('🎁 Showing collectibles screen - with exit animation');
     
-    // CRITICAL: Switch to Collectibles slide (index 2) BEFORE animation so it animates the correct slide
+    // CRITICAL: Switch to Journey slide (index 1) BEFORE animation so its elements animate out
+    // (CTA, text, hero). We still open the collectibles screen after the animation.
     const slides = document.querySelectorAll('.slider-slide');
     const navButtons = document.querySelectorAll('.independent-nav-button');
     slides.forEach((slide, index) => {
-      if (index === 2) {
+      if (index === 1) {
         slide.classList.add('active');
       } else {
         slide.classList.remove('active');
       }
     });
     navButtons.forEach((button, index) => {
-      if (index === 2) {
+      if (index === 1) {
         button.classList.add('active');
       } else {
         button.classList.remove('active');
       }
     });
+    
+    // 🔥 CRITICAL: Force reflow to ensure DOM is updated before animation
+    void document.querySelector('.slider-slide.active')?.offsetHeight;
     
     // 🎨 PREMIUM FADE: Animate background color from gradient to solid color (SMOOTH FADE)
     // This creates a premium transition effect when entering individual screens
@@ -995,7 +999,7 @@ class UIManager {
     const currentGradient = 'linear-gradient(180deg, #f3eee8 0%, #fcecdf 100%)';
     const currentGlobalBgGradient = 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)';
     
-    console.log('🎨 [Collectibles ENTER] Starting premium fade from gradient to solid color - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
+    console.log('🎨 [Journey EXIT] Starting premium fade from gradient to solid color - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
     
     // 🔥 CRITICAL: Start fade animation FIRST, then play exit animation
     // Fade duration: 0.8s for smooth premium transition
@@ -1014,7 +1018,7 @@ class UIManager {
         overwrite: 'auto',
         immediateRender: false
       });
-      console.log('✅ [Collectibles ENTER] Body background fade animation started from gradient to', targetSolidColor);
+      console.log('✅ [Journey EXIT] Body background fade animation started from gradient to', targetSolidColor);
     }
     if (gsap && globalBg) {
       gsap.killTweensOf(globalBg);
@@ -1028,7 +1032,7 @@ class UIManager {
         overwrite: 'auto',
         immediateRender: false
       });
-      console.log('✅ [Collectibles ENTER] Global-bg background fade animation started from gradient to', targetSolidColor);
+      console.log('✅ [Journey EXIT] Global-bg background fade animation started from gradient to', targetSolidColor);
     }
     if (gsap && appElement) {
       gsap.killTweensOf(appElement);
@@ -1042,12 +1046,27 @@ class UIManager {
         overwrite: 'auto',
         immediateRender: false
       });
-      console.log('✅ [Collectibles ENTER] App element background fade animation started from gradient to', targetSolidColor);
+      console.log('✅ [Journey EXIT] App element background fade animation started from gradient to', targetSolidColor);
     }
     
-    // Step 1: Play exit animation for Collectibles slide (background fade is running in parallel)
-    console.log('🎬 Step 1: Playing exit animation for Collectibles slide');
-    animateSliderExit();
+    // Step 1: Play exit animation for Journey slide (background fade is running in parallel)
+    // 🔥 CRITICAL: Small delay to ensure DOM is updated and slide is marked as active
+    setTimeout(() => {
+      console.log('🎬 Step 1: Playing exit animation for Journey slide');
+      const activeSlide = document.querySelector('.slider-slide.active');
+      console.log('🔍 Active slide found:', !!activeSlide, 'Slide index:', activeSlide?.getAttribute('data-slide'));
+      if (activeSlide) {
+        const heroContainer = activeSlide.querySelector('.hero-container');
+        const slideButton = activeSlide.querySelector('.slide-button');
+        const slideTagline = activeSlide.querySelector('.slide-tagline');
+        console.log('🔍 Journey slide elements:', {
+          heroContainer: !!heroContainer,
+          slideButton: !!slideButton,
+          slideTagline: !!slideTagline
+        });
+      }
+      animateSliderExit();
+    }, 10);
     
     // Step 2: Wait for exit animation AND fade animation to complete, then show collectibles screen
     // Exit animation: 770ms, Fade animation: 800ms - wait for the longer one
@@ -1143,18 +1162,18 @@ class UIManager {
       console.log('✅ [Collectibles EXIT] App element background fade animation started from:', currentAppBg);
     }
     
-    // CRITICAL: Switch to Collectibles slide (index 2) to show Collectibles slide after exiting Collectibles screen
+    // CRITICAL: Switch to Journey slide (index 1) so Journey slide animates back in after exiting Journey screen
     const slides = document.querySelectorAll('.slider-slide');
     const navButtons = document.querySelectorAll('.independent-nav-button');
     slides.forEach((slide, index) => {
-      if (index === 2) {
+      if (index === 1) {
         slide.classList.add('active');
       } else {
         slide.classList.remove('active');
       }
     });
     navButtons.forEach((button, index) => {
-      if (index === 2) {
+      if (index === 1) {
         button.classList.add('active');
       } else {
         button.classList.remove('active');
@@ -1172,8 +1191,8 @@ class UIManager {
     this.showHomepageQuietly();
     this.setNavigationVisibility(true);
     
-    // Step 2: Play enter animation for Collectibles slide AFTER exit animation completes
-    console.log('🎬 Playing enter animation for Collectibles slide');
+    // Step 2: Play enter animation for Journey slide AFTER exit animation completes
+    console.log('🎬 Playing enter animation for Journey slide');
     animateSliderEnter();
   }
   

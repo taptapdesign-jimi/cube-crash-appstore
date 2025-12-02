@@ -173,7 +173,11 @@ export async function startLevel(n: number): Promise<void> {
   rebuildBoard();       // builds + ring deal-in
   layoutBoot();
   
-  setTimeout(() => checkGameOver(), 1000);
+  // 🔥 REMOVED: checkGameOver() call after startLevel - DEPRECATED
+  // End game checks are now handled by checkLevelEnd() in app-core.ts which uses
+  // the centralized endgame-checker.ts system. This old checkGameOver call
+  // could potentially trigger the deprecated "Level Complete" overlay.
+  // setTimeout(() => checkGameOver(), 1000);
 }
 
 // Add cellXY function (needed by installDrag)

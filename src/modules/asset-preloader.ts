@@ -86,9 +86,9 @@ const ALL_ASSETS: string[] = [
   './assets/small-star@3x.png',
   
   // Other UI assets
-  './assets/stats-trophy.png',
-  './assets/stats-trophy@2x.png',
-  './assets/stats-trophy@3x.png',
+  './assets/journey-map-homepage.png',
+  './assets/journey-map-homepage@2x.png',
+  './assets/journey-map-homepage@3x.png',
   './assets/collectibles-box.png',
   './assets/collectibles-box@2x.png',
   './assets/collectibles-box@3x.png',
@@ -132,7 +132,7 @@ const ALL_ASSETS: string[] = [
   './assets/resume-game.png',
   './assets/settings-icon.png',
   './assets/settings-slider.png',
-  './assets/stats-trophy.png',
+  './assets/journey-map-homepage.png',
   './assets/stop.png',
   './assets/time-icon.png',
   './assets/unpause-icon.png',
@@ -189,9 +189,9 @@ const CRITICAL_ASSETS: string[] = [
   './assets/home-shadow@3x.png',
   
   // Homepage slider images (ALL slides must be loaded before showing homepage)
-  './assets/stats-trophy.png',
-  './assets/stats-trophy@2x.png',
-  './assets/stats-trophy@3x.png',
+  './assets/journey-map-homepage.png',
+  './assets/journey-map-homepage@2x.png',
+  './assets/journey-map-homepage@3x.png',
   './assets/collectibles-box.png',
   './assets/collectibles-box@2x.png',
   './assets/collectibles-box@3x.png',
@@ -310,9 +310,9 @@ export class AssetPreloader {
       './assets/crash-cubes-homepage@2x.png',
       './assets/crash-cubes-homepage@3x.png',
       // Stats slide
-      './assets/stats-trophy.png',
-      './assets/stats-trophy@2x.png',
-      './assets/stats-trophy@3x.png',
+      './assets/journey-map-homepage.png',
+      './assets/journey-map-homepage@2x.png',
+      './assets/journey-map-homepage@3x.png',
       // Collectibles slide
       './assets/collectibles-box.png',
       './assets/collectibles-box@2x.png',

@@ -1474,6 +1474,32 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     spawnTargets.push(obligatoryCell);
   }
   spawnTargets.push(...replacementTargets.slice(0, replacementSpawnCount));
+
+  // 🎯 Bias: Ako magnet povuče točno 2 tilea (regular ili wild, bez magneta), daj ~55% šanse
+  // da replacement spawnovi budu par koji zbraja u 6 (1+5, 2+4 ili 3+3).
+  // Primjenjuje se samo na replacement slotove (ne na obavezni slot ispod merge 6).
+  const forcedSpawnValues = new Map<string, number>();
+  const endgameTileCount = activeAfterRemoval.length + (dstIsActive ? 1 : 0);
+  const isEndgameLowTiles = endgameTileCount <= 3; // fokus samo na endgame (<=3 tilea na boardu)
+  const pulledTwoNonMagnet = isEndgameLowTiles &&
+    replacementSpawnCount === 2 &&
+    validTiles.length === 2 &&
+    validTiles.every(t => t && t.special !== 'wild-magnet');
+  if (pulledTwoNonMagnet) {
+    const roll = Math.random();
+    if (roll < 0.55) {
+      const pairs: [number, number][] = [[1, 5], [2, 4], [3, 3]];
+      const chosenPair = pairs[Math.floor(Math.random() * pairs.length)];
+      const replacementSlots = spawnTargets
+        .filter(cell => !obligatoryCell || !(cell.c === obligatoryCell.c && cell.r === obligatoryCell.r))
+        .slice(0, 2);
+      if (replacementSlots.length === 2) {
+        forcedSpawnValues.set(`${replacementSlots[0].c},${replacementSlots[0].r}`, chosenPair[0]);
+        forcedSpawnValues.set(`${replacementSlots[1].c},${replacementSlots[1].r}`, chosenPair[1]);
+        console.log('🎯 Magnet bias: Forcing merge-6-friendly spawn values', chosenPair, 'on slots', replacementSlots);
+      }
+    }
+  }
   
   console.log('🧲 Final spawn targets:', {
     total: spawnTargets.length,
@@ -1506,7 +1532,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       .filter(cell => !spawnTargets.some(st => st.c === cell.c && st.r === cell.r))
       .slice(0, additionalNeeded);
     spawnTargets.push(...additionalTargets);
-    
+
     if (spawnTargets.length >= spawnCount) {
       console.log('✅ Found additional spawn targets:', spawnTargets.length, 'total');
     } else {
@@ -1549,6 +1575,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       const isObligatory = obligatoryCell && c === obligatoryCell.c && r === obligatoryCell.r;
       // Obligatory tile spawns first (0ms), replacement tiles cascade (30ms, 60ms, 90ms...)
       const delay = isObligatory ? 0 : (successfulObligatorySpawn ? (successfulSpawns * 30) : 30);
+      const key = `${c},${r}`;
+      const forcedValue = forcedSpawnValues.get(key);
       
       // Create promise that resolves when spawn completes
       const spawnPromise = new Promise<boolean>((resolve) => {
@@ -1585,7 +1613,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
           }
           
           // Spawn tile normally (skipBind = false means it will try to bind immediately)
-            openAtCell(c, r, { skipBind: false }).then(() => {
+            openAtCell(c, r, forcedValue ? { skipBind: false, value: forcedValue } : { skipBind: false }).then(() => {
               // Check if spawn was successful by verifying tile exists and has value > 0
             setTimeout(() => {
               const tile = STATE.grid?.[r]?.[c];
@@ -1597,21 +1625,21 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
                     successfulObligatorySpawn = true;
                     console.log(`✅ Successfully spawned OBLIGATORY tile below merge 6 at (${c}, ${r})`);
                   }
-                  // Double-check: Ensure tile is draggable and bound to drag system
-                  tile.eventMode = 'static';
-                  tile.cursor = 'pointer';
-                  
-                  // Explicitly bind to drag system (in case bindTileWithFallback failed)
-                  const drag = STATE.drag as any;
-                  if (drag && typeof drag.bindToTile === 'function') {
-                    drag.bindToTile(tile);
-                  }
+                // Double-check: Ensure tile is draggable and bound to drag system
+                tile.eventMode = 'static';
+                tile.cursor = 'pointer';
+                
+                // Explicitly bind to drag system (in case bindTileWithFallback failed)
+                const drag = STATE.drag as any;
+                if (drag && typeof drag.bindToTile === 'function') {
+                  drag.bindToTile(tile);
+                }
                   console.log(`✅ Successfully spawned ${isObligatory ? 'OBLIGATORY' : 'replacement'} tile at (${c}, ${r}), total successful: ${successfulSpawns}/${spawnCount}`);
                 } else {
                   console.warn(`⚠️ Spawn verification failed at (${c}, ${r}) - tile not properly created`);
                   if (isObligatory) {
                     console.error(`🚨🚨🚨 CRITICAL: OBLIGATORY tile spawn failed at (${c}, ${r})!`);
-                  }
+              }
                 }
                 resolve(spawnSuccess);
             }, 50); // Small delay to ensure tile is created

@@ -191,6 +191,10 @@ export async function openLockedBounceParallel({
   try { drawBoardBG?.(); } catch {}
 }
 
+// 🔥 REMOVED: checkGameOver function - DEPRECATED, use checkEndGame() from endgame-checker.ts instead
+// This old function showed the "Level Complete" overlay which is no longer used.
+// All end game logic now goes through the centralized endgame-checker.ts system.
+// If this function is still being called somewhere, it means there's dead code that needs to be removed.
 export async function checkGameOver({
   makeBoard, tiles, hasWildOnBoard,
   getScore, setScore, bestScore, updateBest, updateHUD, ENDLESS,
@@ -199,52 +203,12 @@ export async function checkGameOver({
   animateScore,
   wildAPI, openEmpties, gsap
 }: CheckGameOverParams = {}): Promise<void> {
-  if (makeBoard?.anyMergePossible?.(tiles || [])) return;
-  if (hasWildOnBoard?.()) return;
-
-  // mali bonus kad ostanu 2 tile-a
-  const active = tiles?.filter(t => !t.locked && t.value > 0) || [];
-  if (active.length === 2){
-    const add = (active[0].value|0) + (active[1].value|0);
-    setScore?.(Math.min(999999, (getScore?.()|0) + Math.max(0, add))); 
-    updateHUD?.();
-  }
-
-  if ((getScore?.()|0) > (bestScore|0)){ 
-    updateBest?.(getScore?.()|0); 
-    updateHUD?.(); 
-  }
+  // 🔥 DEPRECATED: This function is no longer used and should not be called.
+  // All end game checks now use checkEndGame() from endgame-checker.ts.
+  // This function used to show the old "Level Complete" overlay (showStarsModal),
+  // which has been replaced with board-fail-modal.ts and clean-board-modal.ts.
+  console.warn('⚠️ DEPRECATED: checkGameOver from level-flow.ts was called. This is dead code and should be removed. Use checkEndGame() from endgame-checker.ts instead.');
   
-  // CRITICAL FIX: Update high score in main.js stats system
-  if (typeof window.updateHighScore === 'function') {
-    try {
-      window.updateHighScore(getScore?.() || 0);
-      logger.info('✅ level-flow: window.updateHighScore called with score:', getScore?.() || 0);
-    } catch (error) {
-      logger.warn('⚠️ level-flow: Failed to call window.updateHighScore:', error);
-    }
-  }
-
-  const { pass } = await showStarsModal?.({
-    app, stage, board, score: getScore?.(),
-    thresholds:{one:200,two:300,three:360},
-    ...(ENDLESS ? { buttonLabel:'Keep Going' } : {})
-  }) ?? { pass:false };
-
-  if (ENDLESS){
-    if (pass){
-      startLevel?.(level! + 1);
-    } else {
-      startLevel?.(level!);
-    }
-    return;
-  }
-
-  if (pass){
-    startLevel?.(level! + 1);
-  } else {
-    setScore?.(0); 
-    updateHUD?.();
-    startLevel?.(level!);
-  }
+  // Do nothing - this prevents the old "Level Complete" overlay from appearing
+  return;
 }

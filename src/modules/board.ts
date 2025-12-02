@@ -540,24 +540,24 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
       const isWildBeer = t.special === 'wild-beer';
       const isWildMagnet = t.special === 'wild-magnet';
 
-      // Smooth, gaussian-like falloff: more (but thinner) layers → softer edge
-      const layers = 10;
-      for (let i = 0; i < layers; i++) {
-        const p = i / (layers - 1); // 0..1
-        const grow = 1.0 + p * 0.42; // total size growth
-        const width = TILE * grow * 1.08; // a bit wider than tall (elliptical feel)
-        const height = TILE * grow * 0.90; // compress vertically for a softer base
+    // Smooth, gaussian-like falloff: more (but thinner) layers → softer edge
+    const layers = 10;
+    for (let i = 0; i < layers; i++) {
+      const p = i / (layers - 1); // 0..1
+      const grow = 1.0 + p * 0.42; // total size growth
+      const width = TILE * grow * 1.08; // a bit wider than tall (elliptical feel)
+      const height = TILE * grow * 0.90; // compress vertically for a softer base
 
-        // Exponential alpha falloff so outer rings are very subtle
-        const alpha = 0.20 * Math.pow(1 - p, 1.6);
-        if (alpha <= 0.003) continue;
+      // Exponential alpha falloff so outer rings are very subtle
+      const alpha = 0.20 * Math.pow(1 - p, 1.6);
+      if (alpha <= 0.003) continue;
 
-        // Increase shift with each outer layer for natural parallax
-        let shift = baseShift * (0.35 + p * 1.1);
-        // extra push from tilt (stronger inner layers)
-        shift += (TILE * 0.02) * (1 - p) * tiltAbs;
-        const ox = -width / 2 + nx * shift + 1; // +1 tiny pixel nudge for sub-pixel crispness
-        const oy = -height / 2 + ny * shift + 4 + biasY;
+      // Increase shift with each outer layer for natural parallax
+      let shift = baseShift * (0.35 + p * 1.1);
+      // extra push from tilt (stronger inner layers)
+      shift += (TILE * 0.02) * (1 - p) * tiltAbs;
+      const ox = -width / 2 + nx * shift + 1; // +1 tiny pixel nudge for sub-pixel crispness
+      const oy = -height / 2 + ny * shift + 4 + biasY;
 
         sh.beginFill(0xBDA38D, alpha);
         
@@ -584,7 +584,7 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
         }
         
         sh.endFill();
-      }
+    }
 
     // rotate and subtly distort shadow to follow visual tilt
     try {
