@@ -345,9 +345,20 @@ class CollectiblesManager {
     logger.info('🎁 Removed hidden class');
     
     // Render cards BEFORE animation so GSAP can find them
-    this.renderCards();
-    this.updateCounters();
-    logger.info('🎁 Cards rendered and counters updated');
+    // Check if this is Journey screen (has journey-boards-container)
+    const journeyContainer = document.getElementById('journey-boards-container');
+    if (journeyContainer) {
+      // This is Journey screen - render boards instead of collectibles
+      const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+      journeyBoardsManager.renderBoards();
+      journeyBoardsManager.updateCounter();
+      logger.info('🗺️ Journey boards rendered');
+    } else {
+      // This is Collectibles screen - render collectibles
+      this.renderCards();
+      this.updateCounters();
+      logger.info('🎁 Cards rendered and counters updated');
+    }
     this.triggerPendingFlipAnimations();
     
     // Only scroll to top if no specific card is requested
@@ -795,15 +806,60 @@ class CollectiblesManager {
       
       console.log('✅ Background click listener attached to modal');
       
-      // Enter animation: scale and fade in
-      modal.style.opacity = '0';
-      modal.style.transform = 'scale(0.8) translateY(20px)';
-      modal.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-      
-      // Trigger animation
+      // Enter animation: pop in (same style as slider)
+      // Wait for modal to be visible before animating
       requestAnimationFrame(() => {
-        modal.style.opacity = '1';
-        modal.style.transform = 'scale(1) translateY(0)';
+        // Find modal elements
+        const detailImage = modal.querySelector('#detail-card-image');
+        const detailDescription = modal.querySelector('#detail-card-description');
+        const detailRarityBadge = modal.querySelector('#detail-rarity-badge');
+        const detailCloseBtn = modal.querySelector('#detail-close-btn');
+        
+        console.log('🎬 Starting enter animation for detail modal elements:', {
+          detailImage: !!detailImage,
+          detailDescription: !!detailDescription,
+          detailRarityBadge: !!detailRarityBadge,
+          detailCloseBtn: !!detailCloseBtn
+        });
+        
+        // Set initial state (scale 0) for all elements
+        [detailImage, detailDescription, detailRarityBadge, detailCloseBtn].forEach(el => {
+          if (el) {
+            (el as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+            (el as HTMLElement).classList.add('animate-enter-initial');
+            void (el as HTMLElement).offsetHeight; // Force reflow
+          }
+        });
+        
+        // Animate in with staggered delays (same as slider)
+        if (detailImage) {
+          setTimeout(() => {
+            (detailImage as HTMLElement).classList.remove('animate-enter-initial');
+            (detailImage as HTMLElement).classList.add('animate-enter');
+            console.log('✅ Detail image enter animation started');
+          }, 0);
+        }
+        if (detailDescription) {
+          setTimeout(() => {
+            (detailDescription as HTMLElement).classList.remove('animate-enter-initial');
+            (detailDescription as HTMLElement).classList.add('animate-enter');
+            console.log('✅ Detail description enter animation started');
+          }, 30);
+        }
+        if (detailRarityBadge) {
+          setTimeout(() => {
+            (detailRarityBadge as HTMLElement).classList.remove('animate-enter-initial');
+            (detailRarityBadge as HTMLElement).classList.add('animate-enter');
+            console.log('✅ Detail rarity badge enter animation started');
+          }, 60);
+        }
+        if (detailCloseBtn) {
+          setTimeout(() => {
+            (detailCloseBtn as HTMLElement).classList.remove('animate-enter-initial');
+            (detailCloseBtn as HTMLElement).classList.add('animate-enter');
+            console.log('✅ Detail close button enter animation started');
+          }, 90);
+        }
       });
       
         this.detailFocusTrap?.destroy();
@@ -843,26 +899,53 @@ class CollectiblesManager {
 
     console.log('✅ Modal found, starting exit animation');
     
-    // Clear any existing inline styles first
-    modal.style.removeProperty('transition');
-    modal.style.removeProperty('opacity');
-    modal.style.removeProperty('transform');
+    // Exit animation: pop out (same style as slider)
+    // Find modal elements
+    const detailImage = modal.querySelector('#detail-card-image');
+    const detailDescription = modal.querySelector('#detail-card-description');
+    const detailRarityBadge = modal.querySelector('#detail-rarity-badge');
+    const detailCloseBtn = modal.querySelector('#detail-close-btn');
     
-    // Force layout recalculation
-    void modal.offsetWidth;
+    // Animate out with staggered delays (reverse order of enter)
+    if (detailCloseBtn) {
+      (detailCloseBtn as HTMLElement).classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
+      (detailCloseBtn as HTMLElement).classList.add('animate-exit');
+    }
+    if (detailRarityBadge) {
+      setTimeout(() => {
+        (detailRarityBadge as HTMLElement).classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
+        (detailRarityBadge as HTMLElement).classList.add('animate-exit');
+      }, 30);
+    }
+    if (detailDescription) {
+      setTimeout(() => {
+        (detailDescription as HTMLElement).classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
+        (detailDescription as HTMLElement).classList.add('animate-exit');
+      }, 60);
+    }
+    if (detailImage) {
+      setTimeout(() => {
+        (detailImage as HTMLElement).classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
+        (detailImage as HTMLElement).classList.add('animate-exit');
+      }, 90);
+    }
     
-    // Exit animation: scale down and fade out
-    modal.style.transition = 'opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
-    modal.style.opacity = '0';
-    modal.style.transform = 'scale(0.8) translateY(20px)';
-    
-    // Wait for animation to complete, then hide modal
+    // Wait for animation to complete (650ms for exit animation), then hide modal
     setTimeout(() => {
+      // Remove animation classes
+      const detailImage = modal.querySelector('#detail-card-image');
+      const detailDescription = modal.querySelector('#detail-card-description');
+      const detailRarityBadge = modal.querySelector('#detail-rarity-badge');
+      const detailCloseBtn = modal.querySelector('#detail-close-btn');
+      
+      [detailImage, detailDescription, detailRarityBadge, detailCloseBtn].forEach(el => {
+        if (el) {
+          (el as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        }
+      });
+      
       modal.setAttribute('hidden', 'true');
-    modal.setAttribute('aria-hidden', 'true');
-      modal.style.transition = '';
-      modal.style.opacity = '';
-      modal.style.transform = '';
+      modal.setAttribute('aria-hidden', 'true');
       
     this.detailFocusTrap?.destroy();
     this.detailFocusTrap = null;

@@ -83,7 +83,7 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
             tag: 'div',
             className: 'collectibles-scrollable',
             children: [
-              // Common section
+              // Boards section
               {
                 tag: 'section',
                 className: 'collectibles-section',
@@ -95,86 +95,53 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
                       {
                         tag: 'h2',
                         className: 'collectibles-section-title',
-                        text: 'COMMON',
+                        text: 'Boards',
                       },
                       {
                         tag: 'span',
-                        id: 'common-counter',
+                        id: 'boards-counter',
                         className: 'collectibles-counter',
-                        text: '0/20',
+                        text: '09/25',
                       },
                     ],
                   },
                   {
                     tag: 'div',
-                    id: 'common-cards',
-                    className: 'collectibles-grid',
-                  },
-                ],
-              },
-              // Legendary section
-              {
-                tag: 'section',
-                className: 'collectibles-section',
-                children: [
-                  {
-                    tag: 'div',
-                    className: 'collectibles-divider legend-divider',
-                  },
-                  {
-                    tag: 'div',
-                    className: 'collectibles-section-header',
-                    children: [
-                      {
-                        tag: 'h2',
-                        className: 'collectibles-section-title',
-                        text: 'LEGENDARY',
-                      },
-                      {
-                        tag: 'span',
-                        id: 'legendary-counter',
-                        className: 'collectibles-counter',
-                        text: '0/6',
-                      },
-                    ],
-                  },
-                  {
-                    tag: 'div',
-                    id: 'legendary-cards',
-                    className: 'collectibles-grid',
-                  },
-                ],
+                    id: 'journey-boards-container',
+                    className: 'journey-boards-container',
                   },
                 ],
               },
             ],
           },
-          ...(showDebugControls
-            ? [
+        ],
+      },
+      ...(showDebugControls
+        ? [
+            {
+              tag: 'div',
+              className: 'collectibles-debug-controls',
+              children: [
                 {
-                  tag: 'div',
-                  className: 'collectibles-debug-controls',
-                  children: [
-                    {
-                      tag: 'button',
-                      id: 'collectibles-unlock-btn',
-                      className: 'debug-btn collectibles-debug-btn',
+                  tag: 'button',
+                  id: 'collectibles-unlock-btn',
+                  className: 'debug-btn collectibles-debug-btn',
                   text: 'Show Card',
-                      attributes: { type: 'button' },
-                      eventListeners: onUnlock ? { click: onUnlock } : undefined,
-                    },
-                    {
-                      tag: 'button',
-                      id: 'collectibles-hide-btn',
-                      className: 'debug-btn collectibles-debug-btn',
-                  text: 'Hide Card',
-                      attributes: { type: 'button' },
-                      eventListeners: onHide ? { click: onHide } : undefined,
-                    },
-                  ],
+                  attributes: { type: 'button' },
+                  eventListeners: onUnlock ? { click: onUnlock } : undefined,
                 },
-              ]
-            : []),
+                {
+                  tag: 'button',
+                  id: 'collectibles-hide-btn',
+                  className: 'debug-btn collectibles-debug-btn',
+                  text: 'Hide Card',
+                  attributes: { type: 'button' },
+                  eventListeners: onHide ? { click: onHide } : undefined,
+                },
+              ],
+            },
+          ]
+        : []),
     ],
   };
 }

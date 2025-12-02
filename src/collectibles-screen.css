@@ -223,6 +223,13 @@
   margin: 0 auto;
 }
 
+/* Journey boards section - override flex layout for absolute positioning */
+.collectibles-section:has(#journey-boards-container) {
+  position: relative;
+  display: block; /* Change from flex to block for absolute positioning */
+  min-height: 500px; /* Ensure enough space */
+}
+
 .collectibles-section .collectibles-divider {
   margin-top: 16px;
 }
@@ -804,6 +811,33 @@
   display: none; /* Chrome, Safari, Opera */
 }
 
+/* Detail modal animation classes - same style as slider (pop in/pop out) */
+#collectibles-detail-modal #detail-card-image.animate-exit,
+#collectibles-detail-modal #detail-card-description.animate-exit,
+#collectibles-detail-modal #detail-rarity-badge.animate-exit,
+#collectibles-detail-modal #detail-close-btn.animate-exit {
+  will-change: transform !important;
+  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  transform: scale(0) !important;
+}
+
+#collectibles-detail-modal #detail-card-image.animate-enter,
+#collectibles-detail-modal #detail-card-description.animate-enter,
+#collectibles-detail-modal #detail-rarity-badge.animate-enter,
+#collectibles-detail-modal #detail-close-btn.animate-enter {
+  will-change: transform !important;
+  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  transform: scale(1) !important;
+}
+
+#collectibles-detail-modal #detail-card-image.animate-enter-initial,
+#collectibles-detail-modal #detail-card-description.animate-enter-initial,
+#collectibles-detail-modal #detail-rarity-badge.animate-enter-initial,
+#collectibles-detail-modal #detail-close-btn.animate-enter-initial {
+  transition: none !important;
+  transform: scale(0) !important;
+}
+
 #collectibles-detail-modal .detail-image {
   width: 100%;
   margin: 16px 0 0 0;
@@ -1038,5 +1072,152 @@
   }
   50% {
     transform: translateY(-8px) rotate(1deg) scale(1.02);
+  }
+}
+
+/* ===== JOURNEY BOARDS STYLES ===== */
+.journey-boards-container {
+  position: relative;
+  width: 100%;
+  min-height: 500px; /* Ensure enough space for cards */
+  padding: 0;
+  margin-top: 0;
+  overflow: visible !important; /* Override any parent overflow */
+  isolation: isolate; /* Create new stacking context */
+  /* Remove any flex constraints */
+  display: block !important;
+  flex: none !important;
+}
+
+.journey-pathway-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.journey-cards-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 500px; /* Ensure enough space */
+  overflow: visible !important;
+  /* Remove any flex constraints */
+  display: block !important;
+  flex: none !important;
+}
+
+.journey-board-card-wrapper {
+  position: absolute;
+  /* Width and height are set inline per card - no fixed dimensions */
+}
+
+.journey-board-card {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.journey-board-card.unlocked {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.journey-board-card.unlocked .journey-board-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* No cut-off, show full image */
+  display: block;
+  border-radius: 12px;
+}
+
+.journey-board-card.locked {
+  background: #f3eee8;
+  border: 1px solid #d4c4a8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.journey-board-card.locked .journey-board-number {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--collectibles-brown);
+  letter-spacing: 0.05em;
+}
+
+/* Ensure journey boards container doesn't conflict with flex layout */
+#journey-boards-container {
+  position: relative !important;
+  isolation: isolate !important;
+  /* Override parent flex constraints */
+  display: block !important;
+  flex: none !important;
+  align-self: stretch !important;
+  padding: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.journey-bg-container {
+  position: absolute !important;
+  /* Compensate for .collectibles-scrollable padding to stretch edge-to-edge */
+  left: calc(-1 * var(--pad-left, 40px)) !important;
+  right: calc(-1 * var(--pad-right, 40px)) !important;
+  width: calc(100% + var(--pad-left, 40px) + var(--pad-right, 40px)) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.journey-bg-container img {
+  width: 100% !important;
+  height: auto !important;
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Journey board card wrappers - absolute positioning with pixel precision */
+.journey-board-card-wrapper {
+  position: absolute !important;
+  /* Cards can be positioned anywhere */
+  margin: 0 !important;
+  /* Remove any flex constraints */
+  display: block !important;
+  flex: none !important;
+}
+
+.journey-environment-element {
+  position: absolute;
+  max-width: 60px;
+  max-height: 60px;
+  object-fit: contain;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .journey-board-card-wrapper {
+    width: 70px;
+    height: 90px;
+  }
+  
+  .journey-board-card.locked .journey-board-number {
+    font-size: 28px;
+  }
+  
+  .journey-environment-element {
+    max-width: 50px;
+    max-height: 50px;
   }
 }
