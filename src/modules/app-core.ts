@@ -1433,6 +1433,16 @@ function resetBoardContainer(){
   console.log('🔄 resetBoardContainer (app.js): Final children count:', board.children.length);
 }
 function rebuildBoard(){
+  // 🔥 CRITICAL: Stop tile idle bounce before rebuild
+  try {
+    if (TILE_IDLE_BOUNCE && typeof TILE_IDLE_BOUNCE.stop === 'function') {
+      TILE_IDLE_BOUNCE.stop();
+      console.log('✅ rebuildBoard: Tile idle bounce stopped');
+    }
+  } catch (e) {
+    console.warn('⚠️ rebuildBoard: Error stopping tile idle bounce:', e);
+  }
+  
   resetBoardContainer();
   
   // 🔥 OPTIMIZATION: Clear all tracked timeouts before rebuild
@@ -1452,11 +1462,29 @@ function rebuildBoard(){
   // 🔥 MEMORY LEAK FIX: Cleanup all wild animations and GSAP tweens before destroy
   // This prevents "ghost" animations from continuing after tiles are destroyed
   tiles.forEach(t => {
+    // 🔥 CRITICAL: Stop all idle animations first
     try { stopWildIdle?.(t); } catch {}
     try { stopWildShimmer?.(t); } catch {}
     try { stopWildStars?.(t); } catch {}
     try { stopWildBeerBubbles?.(t); } catch {}
     try { stopMagnetIdleParticles?.(t); } catch {}
+    
+    // 🔥 CRITICAL: Kill any GSAP tweens from idle bounce (but don't reset interaction timer)
+    // notifyInteraction() would reset the timer, which could interfere with end game checks
+    try {
+      // Just kill tweens, don't reset interaction timer
+      gsap.killTweensOf(t);
+      gsap.killTweensOf(t.scale);
+      gsap.killTweensOf(t.rotation);
+      
+      // Kill idle bounce timeline if it exists on tile
+      if ((t as any)._idleBounceTl) {
+        try {
+          (t as any)._idleBounceTl.kill();
+          (t as any)._idleBounceTl = null;
+        } catch {}
+      }
+    } catch {}
     
     // 🔥 OPTIMIZATION: Kill tile animations from animation modules (if available)
     try {
@@ -1467,7 +1495,19 @@ function rebuildBoard(){
       }
     } catch {}
     
-    try { gsap.killTweensOf(t); gsap.killTweensOf(t.scale); gsap.killTweensOf(t.rotG); } catch {}
+    // 🔥 CRITICAL: Kill all GSAP tweens on tile and its properties
+    try { 
+      gsap.killTweensOf(t); 
+      gsap.killTweensOf(t.scale); 
+      gsap.killTweensOf(t.rotG);
+      gsap.killTweensOf(t.rotation);
+      // Kill any glow animations
+      if ((t as any)._glowAnimation) {
+        (t as any)._glowAnimation.kill();
+        (t as any)._glowAnimation = null;
+      }
+    } catch {}
+    
     t.destroy({children:true, texture:false, textureSource:false});
   });
   tiles.length=0;
@@ -3498,8 +3538,32 @@ function merge(src, dst, helpers){
     // combinedCount is already calculated above: srcDepth + dstDepth
     const visualDepth   = Math.min(4, combinedCount);
 
+    // 🔥 CRITICAL FIX: Clear wild state BEFORE setValue to ensure pips are drawn correctly
+    // Problem: If setValue is called first, _setValueVisuals sees tile as wild and hides pips.
+    // Then clearWildState makes pips visible, but they're not drawn because drawPips wasn't called.
+    // Solution: Clear wild state first, then setValue will see tile as regular and draw pips.
+    if (wildActive) {
+      clearWildState(dst);
+      // Ensure special is null so _setValueVisuals treats it as regular tile
+      dst.special = null;
+      dst.isWild = false;
+      dst.isWildFace = false;
+    }
     makeBoard.setValue(dst, 6, 0);
-    if (wildActive) clearWildState(dst);
+    // 🔥 CRITICAL: After setValue (which uses requestAnimationFrame), double-check pips are drawn
+    // This ensures pips are visible even if there was a race condition
+    if (wildActive) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (dst && !dst.destroyed && dst.value === 6 && !dst.special && !dst.isWild) {
+            // Tile is now regular merge 6, ensure pips are visible
+            if (dst.pips) {
+              dst.pips.visible = true;
+            }
+          }
+        });
+      });
+    }
     dst.stackDepth = visualDepth;
     makeBoard.drawStack(dst);
     dst.zIndex = 10000;
@@ -4892,10 +4956,31 @@ function merge(src, dst, helpers){
         // Last merge applies to:
         // 1. Wild + regular → merge 6 (only 2 tiles) = clean board
         // 2. Regular + regular → merge 6 (only 2 tiles, e.g. 4+2=6) = clean board
+        // 3. Wild-magnet + regular → merge 6 (only 2 tiles) = clean board
         const hasLastMergeFlag = (dst as any)?._isLastMerge === true;
+        
+        // 🔥 CRITICAL: Double-check last merge scenario using end game checker
+        // This ensures we catch last merge even if flag wasn't set properly
+        const activeTilesAfterMerge = tiles.filter((t: any) => {
+          if (!t || t.destroyed || t.locked) return false;
+          const value = (t.value | 0);
+          const special = t.special;
+          const isWild = special === 'wild' || special === 'wild-magnet' || special === 'wild-beer';
+          return value > 0 || isWild;
+        });
+        
+        // If only merge 6 remains (or merge 6 + locked tiles), this is last merge
+        const onlyMerge6RemainsInOnComplete = activeTilesAfterMerge.length === 1 && 
+                                              activeTilesAfterMerge[0] === dst && 
+                                              dst.value === 6;
+        
+        const isActuallyLastMerge = hasLastMergeFlag || onlyMerge6RemainsInOnComplete;
         
         console.log('🔍 LAST MERGE CHECK in merge-6 onComplete:', {
           hasLastMergeFlag,
+          onlyMerge6RemainsInOnComplete,
+          isActuallyLastMerge,
+          activeTilesAfterMergeCount: activeTilesAfterMerge.length,
           srcSpecial: src?.special,
           dstSpecial: dst?.special,
           srcValue: src?.value,
@@ -4904,10 +4989,18 @@ function merge(src, dst, helpers){
         
         // If _isLastMerge flag is set (from early check or merge-6 block), skip wild progress and spawn
         // This flag is set for wild + regular OR regular + regular → merge 6 scenarios (only 2 tiles)
-        if (hasLastMergeFlag) {
-          const mergeType = (!src?.special && !dst?.special) ? 'Regular + regular' : 'Wild + regular';
+        if (isActuallyLastMerge) {
+          const mergeType = (!src?.special && !dst?.special) ? 'Regular + regular' : 
+                           (src?.special === 'wild-magnet' || dst?.special === 'wild-magnet') ? 'Wild-magnet + regular' :
+                           'Wild + regular';
           console.log(`🚨🚨🚨 LAST MERGE DETECTED (in merge-6 onComplete) - ${mergeType} → merge 6, skipping wild progress and spawn, triggering clean board`);
-          console.log('🚨🚨🚨 LAST MERGE: hasLastMergeFlag =', hasLastMergeFlag, 'dst._isLastMerge =', (dst as any)?._isLastMerge);
+          console.log('🚨🚨🚨 LAST MERGE: hasLastMergeFlag =', hasLastMergeFlag, 'onlyMerge6RemainsInOnComplete =', onlyMerge6RemainsInOnComplete, 'dst._isLastMerge =', (dst as any)?._isLastMerge);
+          
+          // Ensure flag is set for consistency
+          if (!hasLastMergeFlag) {
+            (dst as any)._isLastMerge = true;
+            console.log('✅ Setting _isLastMerge flag in onComplete (was missing)');
+          }
           
           // Skip wild progress and spawn - go directly to clean board flow
           // The clean board flow will be triggered by the _isLastMerge flag check below
@@ -5427,6 +5520,17 @@ function checkLevelEnd(){
       return;
     }
       
+      // 🔥 CRITICAL FIX: Check if there are unlocked mergeable tiles on board
+      // If there are unlocked tiles (other than merge 6), it's NOT a clean board - user can still merge them
+      const unlockedActiveTiles = tiles.filter((t: any) => {
+        if (!t || t.destroyed) return false;
+        if (t.locked) return false; // Only check unlocked tiles
+        return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet';
+      });
+      
+      // Check if there are more than 1 unlocked tile (merge 6 + other tiles = can merge)
+      const hasUnlockedMergeableTiles = unlockedActiveTiles.length > 1;
+      
       // 🔥 CRITICAL FIX: Check if there's a magnet on board that can be used for merge
       // If magnet exists, it's NOT a clean board - user can still merge magnet with merge 6
       const activeTiles = tiles.filter((t: any) => {
@@ -5435,6 +5539,12 @@ function checkLevelEnd(){
         return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet';
       });
       const hasMagnet = activeTiles.some((t: any) => t.special === 'wild-magnet');
+      
+      if (hasUnlockedMergeableTiles) {
+        console.log('🧲 checkLevelEnd: Unlocked mergeable tiles detected on board - NOT a clean board, game continues');
+        console.log('🧲 Unlocked tiles:', unlockedActiveTiles.map((t: any) => ({ value: t.value, special: t.special, locked: t.locked })));
+        return; // Don't trigger clean board - game continues
+      }
       
       if (hasMagnet) {
         console.log('🧲 checkLevelEnd: Magnet detected on board - NOT a clean board, game continues');
@@ -5680,6 +5790,37 @@ function restartGame(){
   // Kill all GSAP animations first - CRITICAL to prevent null reference errors
   try {
     console.log('🔄 RESTART GAME: Killing all GSAP animations...');
+    
+    // 🔥 CRITICAL: Stop tile idle bounce animations
+    try {
+      if (TILE_IDLE_BOUNCE && typeof TILE_IDLE_BOUNCE.stop === 'function') {
+        TILE_IDLE_BOUNCE.stop();
+        console.log('✅ RESTART GAME: Tile idle bounce stopped');
+      }
+    } catch (e) {
+      console.warn('⚠️ RESTART GAME: Error stopping tile idle bounce:', e);
+    }
+    
+    // 🔥 CRITICAL: Cleanup combo animations
+    try {
+      if (typeof HUD.cleanupComboAnimations === 'function') {
+        HUD.cleanupComboAnimations();
+        console.log('✅ RESTART GAME: Combo animations cleaned up');
+      }
+    } catch (e) {
+      console.warn('⚠️ RESTART GAME: Error cleaning up combo animations:', e);
+    }
+    
+    // 🔥 CRITICAL: Kill combo idle timer
+    try { 
+      comboIdleTimer?.kill?.(); 
+      comboIdleTimer = null;
+      console.log('✅ RESTART GAME: Combo idle timer killed');
+    } catch (e) {
+      console.warn('⚠️ RESTART GAME: Error killing combo idle timer:', e);
+    }
+    
+    // 🔥 CRITICAL: Stop wild loader animations
     gsap.killTweensOf(wild?.view?._fill);
     gsap.killTweensOf({ width: 0 });
     if (wild?.view?._currentAnimation) {
@@ -5687,16 +5828,48 @@ function restartGame(){
       wild.view._currentAnimation = null;
     }
     
+    // 🔥 CRITICAL: Kill HUD progress bar animations
+    try {
+      gsap.killTweensOf('[data-wild-loader]');
+      gsap.killTweensOf('.wild-loader');
+      if (wild && wild.view) {
+        gsap.killTweensOf(wild.view);
+        if (wild.view._fill) {
+          gsap.killTweensOf(wild.view._fill);
+        }
+        if (wild.view._mask) {
+          gsap.killTweensOf(wild.view._mask);
+        }
+      }
+      console.log('✅ RESTART GAME: HUD progress bar animations killed');
+    } catch (e) {
+      console.warn('⚠️ RESTART GAME: Error killing HUD progress bar animations:', e);
+    }
+    
     // CRITICAL: Kill tile animations before destroying them
     if (STATE && STATE.tiles && STATE.tiles.length > 0) {
       console.log('🔄 RESTART GAME: Killing GSAP animations for', STATE.tiles.length, 'tiles...');
       STATE.tiles.forEach(tile => {
         try {
+          // 🔥 CRITICAL: Stop all wild animations
+          try { stopWildIdle?.(tile); } catch {}
+          try { stopWildShimmer?.(tile); } catch {}
+          try { stopWildStars?.(tile); } catch {}
+          try { stopWildBeerBubbles?.(tile); } catch {}
+          try { stopMagnetIdleParticles?.(tile); } catch {}
+          
+          // 🔥 CRITICAL: Kill all GSAP tweens
           if (tile && tile.scale) {
             gsap.killTweensOf(tile.scale);
           }
           if (tile) {
             gsap.killTweensOf(tile);
+            gsap.killTweensOf(tile.rotation);
+            // Kill glow animations
+            if ((tile as any)._glowAnimation) {
+              (tile as any)._glowAnimation.kill();
+              (tile as any)._glowAnimation = null;
+            }
           }
         } catch (e) {
           // Ignore errors for already destroyed tiles

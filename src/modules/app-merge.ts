@@ -1807,14 +1807,47 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.warn('⚠️ Failed to check bubbles animation status:', err);
   }
   
-  // 🔥 CRITICAL: Also call checkLevelEnd as backup (it has its own delay and handles all edge cases)
-  // This ensures end game is checked even if checkGameOver doesn't catch it
-  // But only after we've verified spawn animations are complete
-  // 🔥 v78 LOGIC: Call checkLevelEnd immediately after spawn verification (no additional delay)
-  // checkLevelEnd has its own internal delay and handles all edge cases properly
-  if (typeof (window as any).CC?.checkLevelEnd === 'function') {
-    console.log('🧲 Calling checkLevelEnd after magnet pull spawn complete (all animations verified)');
-    (window as any).CC.checkLevelEnd();
+  // 🔥 CRITICAL FIX: Check if board is clean BEFORE calling checkLevelEnd
+  // If new tiles can be merged, don't trigger clean board flow yet - wait for player to merge them
+  const activeTilesFinal = STATE.tiles.filter(tileIsActive);
+  const hasMergeableTiles = activeTilesFinal.length > 1; // More than just merge 6 = can merge
+  
+  // Check if board is clean (only merge 6 remains, no other active tiles)
+  // 🔥 CRITICAL: Must have EXACTLY 1 active tile and it must be merge 6
+  const isBoardClean = activeTilesFinal.length === 1 && activeTilesFinal[0]?.value === 6;
+  
+  // 🔥 ADDITIONAL CHECK: Verify that all spawned tiles are actually unlocked and active
+  // Sometimes tiles might still be locked after spawn animation, so we need to double-check
+  const unlockedActiveTiles = activeTilesFinal.filter((t: any) => !t.locked);
+  const hasUnlockedTiles = unlockedActiveTiles.length > 1; // More than just merge 6 = can merge
+  
+  console.log('🧲 Pre-checkLevelEnd verification:', {
+    activeTilesCount: activeTilesFinal.length,
+    unlockedActiveTilesCount: unlockedActiveTiles.length,
+    hasMergeableTiles,
+    hasUnlockedTiles,
+    isBoardClean,
+    expectedSpawnCount: spawnCount,
+    tiles: activeTilesFinal.map((t: any) => ({ value: t.value, special: t.special, locked: t.locked }))
+  });
+  
+  // 🔥 CRITICAL: Only call checkLevelEnd if board is TRULY clean (only merge 6 remains, no other tiles)
+  // If there are mergeable tiles (locked or unlocked), DON'T call checkLevelEnd - let player merge them first
+  // checkLevelEnd will be called automatically after merge completes (via post-merge check in app-core.ts)
+  if (isBoardClean && !hasUnlockedTiles) {
+    console.log('🧲 Board is clean (only merge 6, no other tiles) - calling checkLevelEnd to trigger clean board flow');
+    if (typeof (window as any).CC?.checkLevelEnd === 'function') {
+      (window as any).CC.checkLevelEnd();
+    }
+  } else {
+    console.log('🧲 Board has mergeable tiles - NOT calling checkLevelEnd yet, waiting for player to merge');
+    console.log('🧲 Details:', {
+      isBoardClean,
+      hasUnlockedTiles,
+      activeTilesCount: activeTilesFinal.length,
+      unlockedTilesCount: unlockedActiveTiles.length,
+      note: 'checkLevelEnd will be called automatically after merge completes (via post-merge check in app-core.ts)'
+    });
   }
 }
 

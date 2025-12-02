@@ -137,11 +137,14 @@ function animateTile(tile: Tile): void {
   // Store original rotation
   const originalRotation = tile.rotation || 0;
   
+  // 🔥 CRITICAL: Store timeline reference on tile for cleanup
   const tl = gsap.timeline({
     onComplete: () => {
       state.activeAnimations.delete(tile);
+      (tile as any)._idleBounceTl = null;
     }
   });
+  (tile as any)._idleBounceTl = tl;
   
   // Phase 1: Scale up with rotation - fast 0.1s
   tl.to(tile.scale, {
@@ -194,8 +197,18 @@ function stopTileAnimation(tile: Tile): void {
   if (!tile) return;
   
   try {
+    // 🔥 CRITICAL: Kill all GSAP tweens on tile and its properties
     gsap.killTweensOf(tile);
     gsap.killTweensOf(tile.scale);
+    gsap.killTweensOf(tile.rotation);
+    
+    // 🔥 CRITICAL: Kill any timeline animations stored on tile
+    if ((tile as any)._idleBounceTl) {
+      try {
+        (tile as any)._idleBounceTl.kill();
+        (tile as any)._idleBounceTl = null;
+      } catch {}
+    }
   } catch (e) {
     console.warn('⚠️ Error stopping tile animation:', e);
   }

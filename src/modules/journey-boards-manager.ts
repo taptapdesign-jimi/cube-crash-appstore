@@ -88,6 +88,14 @@ const CARD_POSITIONS = [
   { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 32), top: pxToPercent(811 + 80 - 16), width: STANDARD_CARD_WIDTH, height: 150, rotation: -2 },
   // Card 12 - (18px - 8px = 10px from left edge, 80px below card 11 + 16px = 875px + 80px + 16px = 971px from top, rotated +3° clockwise)
   { x: pxToPercent(24 - 6 - 8), top: pxToPercent(875 + 80 + 16), width: STANDARD_CARD_WIDTH, height: 150, rotation: 3 },
+  // Card 13 - (152px from left edge, 1007px + 2px = 1009px from top, rotated -4° counter-clockwise)
+  { x: pxToPercent(120 + 32), top: pxToPercent(971 + 80 - 36 - 8 + 2), width: STANDARD_CARD_WIDTH, height: 150, rotation: -4 },
+  // Card 14 - (0px from left edge, 1105px + 6px = 1111px from top, rotated -6° counter-clockwise)
+  { x: pxToPercent(0), top: pxToPercent(1009 + 80 + 16 + 6), width: STANDARD_CARD_WIDTH, height: 150, rotation: -6 },
+  // Card 15 - (4px from right edge, 1159px from top, rotated +6° clockwise)
+  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 4), top: pxToPercent(1111 + 80 - 40 + 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: 6 },
+  // Card 16 - (102px - 6px = 96px from left edge, 1269px from top, rotated +3° clockwise)
+  { x: pxToPercent(106 - 4 - 6), top: pxToPercent(1159 + 80 + 34 - 4), width: STANDARD_CARD_WIDTH, height: 150, rotation: 3 },
 ];
 
 
@@ -173,6 +181,30 @@ class JourneyBoardsManager {
         unlocked: true,
         imagePath: this.getBoardImagePath(12),
         name: this.getBoardName(12),
+      },
+      {
+        id: 13,
+        unlocked: true,
+        imagePath: this.getBoardImagePath(13),
+        name: this.getBoardName(13),
+      },
+      {
+        id: 14,
+        unlocked: true,
+        imagePath: this.getBoardImagePath(14),
+        name: this.getBoardName(14),
+      },
+      {
+        id: 15,
+        unlocked: true,
+        imagePath: this.getBoardImagePath(15),
+        name: this.getBoardName(15),
+      },
+      {
+        id: 16,
+        unlocked: true,
+        imagePath: this.getBoardImagePath(16),
+        name: this.getBoardName(16),
       },
     ];
   }

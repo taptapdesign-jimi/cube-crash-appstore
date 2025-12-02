@@ -125,7 +125,16 @@ export function createWildLoaderFX({
     const scaleUp = 1.25 + Math.random() * 0.45;   // punchier pop size
 
     const tl = gsap.timeline({
-      onComplete: () => { try { bubbles.removeChild(g); g.destroy(); } catch {} }
+      onComplete: () => { 
+        try { 
+          // 🔥 CRITICAL: Kill all tweens before removing
+          gsap.killTweensOf(g);
+          gsap.killTweensOf(g.scale);
+          gsap.killTweensOf(g.rotation);
+          bubbles.removeChild(g); 
+          g.destroy(); 
+        } catch {} 
+      }
     });
 
     // punchy pop in
@@ -134,9 +143,14 @@ export function createWildLoaderFX({
       .to(g, { x: x0 + drift, y: g.y - rise, duration: life, ease: 'sine.inOut' }, 0)
       .to(g, { alpha: 0, duration: Math.min(0.16, life * 0.35), ease: 'sine.in' }, Math.max(0, life - 0.16));
 
-    // micro “shimmy” to feel more lively (scale + slight rotation)
-    gsap.to(g.scale, { x: '+=0.10', y: '+=0.10', duration: 0.18, repeat: Math.ceil(life / 0.18), yoyo: true, ease: 'sine.inOut' });
-    gsap.to(g, { rotation: (Math.random() * 0.18) - 0.09, duration: 0.22, repeat: Math.ceil(life / 0.22), yoyo: true, ease: 'sine.inOut' });
+    // micro "shimmy" to feel more lively (scale + slight rotation)
+    // 🔥 CRITICAL: Store tween references for cleanup
+    const shimmyScaleTween = gsap.to(g.scale, { x: '+=0.10', y: '+=0.10', duration: 0.18, repeat: Math.ceil(life / 0.18), yoyo: true, ease: 'sine.inOut' });
+    const shimmyRotTween = gsap.to(g, { rotation: (Math.random() * 0.18) - 0.09, duration: 0.22, repeat: Math.ceil(life / 0.22), yoyo: true, ease: 'sine.inOut' });
+    
+    // Store tweens on graphics object for cleanup
+    g._shimmyScaleTween = shimmyScaleTween;
+    g._shimmyRotTween = shimmyRotTween;
   }
 
   let bubbleAccumulator = 0; 
@@ -167,21 +181,57 @@ export function createWildLoaderFX({
     running = false;
     gsap.ticker.remove(tick);
   }
+  let progressAnimation = null;
+  
   function setProgress(ratio, animate = false) {
     const target = Math.max(0, Math.min(1, ratio || 0)); 
     if (!animate) {
+      // 🔥 CRITICAL: Kill existing animation if switching to instant
+      if (progressAnimation) {
+        try {
+          progressAnimation.kill();
+          progressAnimation = null;
+        } catch {}
+      }
       progress = target;
       redrawMask();
       return;
     }
+    
+    // 🔥 CRITICAL: Kill existing animation before starting new one
+    if (progressAnimation) {
+      try {
+        progressAnimation.kill();
+      } catch {}
+    }
+    
     const obj = { p: progress };
-    gsap.to(obj, {
+    progressAnimation = gsap.to(obj, {
       p: target, duration: 0.25, ease: 'power2.out',
-      onUpdate: () => { progress = obj.p; redrawMask(); }
+      onUpdate: () => { progress = obj.p; redrawMask(); },
+      onComplete: () => { progressAnimation = null; }
     });
   }
   function destroy() {
     stop();
+    
+    // 🔥 CRITICAL: Kill progress animation before destroy
+    if (progressAnimation) {
+      try {
+        progressAnimation.kill();
+        progressAnimation = null;
+      } catch {}
+    }
+    
+    // 🔥 CRITICAL: Kill all GSAP tweens on bubbles
+    try {
+      bubbles.children.forEach(child => {
+        gsap.killTweensOf(child);
+        gsap.killTweensOf(child.scale);
+        gsap.killTweensOf(child.rotation);
+      });
+    } catch {}
+    
     try { bubbles.removeChildren(); } catch {}
     try { view.removeChildren(); } catch {}
     try { view.destroy({ children: true }); } catch {}
