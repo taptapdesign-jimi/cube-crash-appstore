@@ -2165,8 +2165,13 @@ async function spawnWildFromMeter(){
       let spawnBeer = false;
       let spawnMagnet = false;
       
-      // 🔥 USER REQUEST: First wild spawn is always wild zvjezdica (not wild-beer, not wild-magnet)
-      if (!firstWildSpawned) {
+      // 🔥 USER REQUEST: On board 1, first wild spawn is always magnet
+      if (!firstWildSpawned && boardNumber === 1) {
+        spawnBeer = false;
+        spawnMagnet = true;
+        console.log('🧲 Board 1: First wild spawn: Forcing wild-magnet');
+      } else if (!firstWildSpawned) {
+        // 🔥 USER REQUEST: First wild spawn on other boards is always wild zvjezdica (not wild-beer, not wild-magnet)
         spawnBeer = false;
         spawnMagnet = false;
         console.log('⭐ First wild spawn: Forcing wild zvjezdica (stars)');
@@ -2250,9 +2255,9 @@ async function spawnWildFromMeter(){
         spawned = true;
         
         // 🔥 USER REQUEST: Mark first wild as spawned
+        const wasFirstWild = !firstWildSpawned;
         if (!firstWildSpawned) {
           firstWildSpawned = true;
-          console.log('⭐ First wild spawned: wild zvjezdica (stars)');
         }
         
         if (spawnBeer) {
@@ -2261,9 +2266,17 @@ async function spawnWildFromMeter(){
           // No board shake on spawn - only on merge 6
         } else if (spawnMagnet) {
           wildMagnetSpawned = true; // Mark as spawned
-          console.log('🧲 Wild-magnet spawned (20% random chance)');
+          if (wasFirstWild && boardNumber === 1) {
+            console.log('🧲 Board 1: First wild-magnet spawned from preloader');
+          } else {
+            console.log('🧲 Wild-magnet spawned (20% random chance)');
+          }
         } else {
-          console.log('⭐ Regular wild spawned (40% random chance - stars)');
+          if (wasFirstWild) {
+            console.log('⭐ First wild spawned: wild zvjezdica (stars)');
+          } else {
+            console.log('⭐ Regular wild spawned (40% random chance - stars)');
+          }
         }
       } else {
         console.warn('⚠️ Wild spawn skipped (cell no longer empty):', cell);
@@ -2638,13 +2651,17 @@ function merge(src, dst, helpers){
     
     // 🔥 CRITICAL: Check if this is wild-magnet merge that will pull tiles
     // If so, skip combo increment AND timer here - magnet pull will handle both with proper count
+    // NOTE: hasTilesToPull will be calculated later in merge-6 block, but we need a preliminary check here
     const isWildMagnetMerge = src.special === 'wild-magnet' || dst.special === 'wild-magnet';
-    const willPullTiles = isWildMagnetMerge && effSum === 6; // Only merge 6 triggers pull
+    // 🔥 CRITICAL: Store isWildMagnetMerge for later use in last merge check
+    (dst as any)._isWildMagnetMerge = isWildMagnetMerge;
     
     // Combo++ (bez realnog capa), bump anim
     // 🔥 MAGNET FIX: Skip combo increment AND timer if wild-magnet merge will pull tiles
     // Magnet pull will increase combo by correct amount (currentCombo + 1 + pulledTileCount) and set new timer
-    if (!willPullTiles) {
+    // NOTE: willPullTiles will be calculated later in the last merge check section
+    const willPullTilesForCombo = isWildMagnetMerge && effSum === 6; // Preliminary check for combo logic
+    if (!willPullTilesForCombo) {
       hudSetCombo(combo + 1);
       try { HUD.bumpCombo?.({ kind: 'stack', combo }); } catch {}
       scheduleComboDecay();
@@ -2714,7 +2731,14 @@ function merge(src, dst, helpers){
                                    effSum === 6; // Must be merge 6
     
     // If this is last merge (wild + regular OR regular + regular → merge 6 with only 2 tiles), reset wild meter and skip addWildProgress
-    if (isWildLastTwoForCheck || isRegularLastTwoMerge6) {
+    // 🔥 CRITICAL FIX: Don't mark as last merge if wild-magnet will pull tiles (new tiles will spawn)
+    // Check if hasTilesToPull was already calculated (from merge-6 block) or use preliminary check
+    const hasTilesToPullValue = (dst as any)?._hasTilesToPull;
+    // 🔥 CRITICAL: willPullTiles is calculated here - if hasTilesToPull was already calculated, use it; otherwise use preliminary check
+    const willPullTiles = isWildMagnetMerge && effSum === 6 && (hasTilesToPullValue !== false); // Only merge 6 triggers pull, and only if hasTilesToPull is not false
+    const isActuallyLastMerge = (isWildLastTwoForCheck || isRegularLastTwoMerge6) && !willPullTiles;
+    
+    if (isActuallyLastMerge) {
       const mergeType = isWildLastTwoForCheck ? 'Wild + regular' : 'Regular + regular';
       console.log(`🚨🚨🚨 LAST MERGE DETECTED (early check) - ${mergeType} → merge 6, resetting wild meter and skipping addWildProgress`);
       console.log('🚨 Details:', { 
@@ -2725,7 +2749,9 @@ function merge(src, dst, helpers){
         srcSpecial: srcSpecialForCheck,
         dstSpecial: dstSpecialForCheck,
         srcValue: src.value,
-        dstValue: dst.value
+        dstValue: dst.value,
+        isWildMagnetMerge,
+        willPullTiles
       });
       // Reset wild meter to prevent wild spawn
       wildMeter = 0;
@@ -2742,6 +2768,9 @@ function merge(src, dst, helpers){
         (dst as any)._isLastMerge = true;
         console.log('✅ _isLastMerge flag set EARLY on dst tile (before merge 6 block)');
       }
+    } else if (isWildLastTwoForCheck || isRegularLastTwoMerge6) {
+      // This would be last merge, but wild-magnet will pull tiles, so it's NOT last merge
+      console.log('🧲 Would be last merge, but wild-magnet will pull tiles - NOT marking as last merge (new tiles will spawn)');
     } else {
       // Normal merge - add wild progress
       addWildProgress(WILD_INC_SMALL);
@@ -3249,6 +3278,10 @@ function merge(src, dst, helpers){
       hasTilesToPull = candidates.length > 0;
       console.log('🧲 Wild-magnet merge detected - tiles that can be pulled:', candidates.length, hasTilesToPull ? '(will pull tiles, NOT last merge)' : '(no tiles to pull, might be last merge)');
       }
+      // 🔥 CRITICAL: Store hasTilesToPull on dst tile for later use in last merge check
+      if (dst && !dst.destroyed) {
+        (dst as any)._hasTilesToPull = hasTilesToPull;
+      }
     }
     
     // Calculate how many tiles are involved in this merge (including stacked tiles)
@@ -3569,7 +3602,9 @@ function merge(src, dst, helpers){
     dst.zIndex = 10000;
 
     // CRITICAL: For wild-magnet, use multiplier based on number of pulled tiles (max 4x)
-    const isWildMagnet = src.special === 'wild-magnet' || dst.special === 'wild-magnet';
+    // 🔥 CRITICAL FIX: Use saved srcSpecial and dstSpecial (captured before dst.special was cleared)
+    // dst.special was set to null on line 3561, so we must use the saved values
+    const isWildMagnet = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
     // Calculate multiplier: if wild-magnet, will be set after pulling tiles (max 4)
     let mult = isWildMagnet ? 2 : (combinedCount >= 3 ? 3 : combinedCount); // Temporary, will be updated
     
@@ -3595,10 +3630,11 @@ function merge(src, dst, helpers){
       const mergeY = dst.y;
       
       // 🔥 CRITICAL FIX v37: Detailed logging to debug why tiles might not be found
+      // Use saved srcSpecial and dstSpecial for accurate logging (dst.special was cleared on line 3561)
       console.log('🔍 MAGNET PULL DEBUG: Checking all tiles on board:', {
         totalTilesInState: STATE.tiles.length,
-        srcTile: { value: src.value, special: src.special, locked: src.locked },
-        dstTile: { value: dst.value, special: dst.special, locked: dst.locked }
+        srcTile: { value: src.value, special: srcSpecial, locked: src.locked },
+        dstTile: { value: dst.value, special: dstSpecial, locked: dst.locked }
       });
       
       const allTiles = STATE.tiles.filter((tile: any) => {
@@ -4957,35 +4993,56 @@ function merge(src, dst, helpers){
         // 1. Wild + regular → merge 6 (only 2 tiles) = clean board
         // 2. Regular + regular → merge 6 (only 2 tiles, e.g. 4+2=6) = clean board
         // 3. Wild-magnet + regular → merge 6 (only 2 tiles) = clean board
+        // 🔥 CRITICAL FIX v85: If pulled tiles will merge, this is NOT last merge (new tiles will spawn)
+        // Check BOTH flags: _wildMagnetPulledTilesMerge (set when merge starts) AND _hasTilesToPull (set earlier in merge function)
+        // _hasTilesToPull is set when wild-magnet merge is detected and there are tiles to pull
+        // This prevents premature clean board trigger when magnet pulls tiles and spawns new ones
+        const willPulledTilesMerge = (dst as any)?._wildMagnetPulledTilesMerge === true;
+        const hasTilesToPull = (dst as any)?._hasTilesToPull === true;
+        // If hasTilesToPull is true, it means wild-magnet merge will pull tiles (only for merge 6)
+        const willPullTiles = willPulledTilesMerge || hasTilesToPull;
         const hasLastMergeFlag = (dst as any)?._isLastMerge === true;
         
-        // 🔥 CRITICAL: Double-check last merge scenario using end game checker
-        // This ensures we catch last merge even if flag wasn't set properly
-        const activeTilesAfterMerge = tiles.filter((t: any) => {
-          if (!t || t.destroyed || t.locked) return false;
-          const value = (t.value | 0);
-          const special = t.special;
-          const isWild = special === 'wild' || special === 'wild-magnet' || special === 'wild-beer';
-          return value > 0 || isWild;
-        });
+        // 🔥 CRITICAL FIX: If pulled tiles will merge, skip last merge check (new tiles will spawn)
+        let isActuallyLastMerge = false;
+        if (willPullTiles) {
+          console.log('🧲 Pulled tiles will merge - this is NOT last merge (new tiles will spawn)', {
+            willPulledTilesMerge,
+            hasTilesToPull,
+            willPullTiles,
+            note: 'Skipping last merge check because tiles will be pulled and new tiles will spawn'
+          });
+          // Don't check for last merge - pulled tiles merge will spawn new tiles
+          isActuallyLastMerge = false;
+        } else {
+          // 🔥 CRITICAL: Double-check last merge scenario using end game checker
+          // This ensures we catch last merge even if flag wasn't set properly
+          const activeTilesAfterMerge = tiles.filter((t: any) => {
+            if (!t || t.destroyed || t.locked) return false;
+            const value = (t.value | 0);
+            const special = t.special;
+            const isWild = special === 'wild' || special === 'wild-magnet' || special === 'wild-beer';
+            return value > 0 || isWild;
+          });
+          
+          // If only merge 6 remains (or merge 6 + locked tiles), this is last merge
+          const onlyMerge6RemainsInOnComplete = activeTilesAfterMerge.length === 1 && 
+                                                activeTilesAfterMerge[0] === dst && 
+                                                dst.value === 6;
+          
+          isActuallyLastMerge = hasLastMergeFlag || onlyMerge6RemainsInOnComplete;
         
-        // If only merge 6 remains (or merge 6 + locked tiles), this is last merge
-        const onlyMerge6RemainsInOnComplete = activeTilesAfterMerge.length === 1 && 
-                                              activeTilesAfterMerge[0] === dst && 
-                                              dst.value === 6;
-        
-        const isActuallyLastMerge = hasLastMergeFlag || onlyMerge6RemainsInOnComplete;
-        
-        console.log('🔍 LAST MERGE CHECK in merge-6 onComplete:', {
-          hasLastMergeFlag,
-          onlyMerge6RemainsInOnComplete,
-          isActuallyLastMerge,
-          activeTilesAfterMergeCount: activeTilesAfterMerge.length,
-          srcSpecial: src?.special,
-          dstSpecial: dst?.special,
-          srcValue: src?.value,
-          dstValue: dst.value
-        });
+          console.log('🔍 LAST MERGE CHECK in merge-6 onComplete:', {
+            hasLastMergeFlag,
+            onlyMerge6RemainsInOnComplete,
+            isActuallyLastMerge,
+            activeTilesAfterMergeCount: activeTilesAfterMerge.length,
+            srcSpecial: src?.special,
+            dstSpecial: dst?.special,
+            srcValue: src?.value,
+            dstValue: dst.value
+          });
+        }
         
         // If _isLastMerge flag is set (from early check or merge-6 block), skip wild progress and spawn
         // This flag is set for wild + regular OR regular + regular → merge 6 scenarios (only 2 tiles)
@@ -4994,7 +5051,7 @@ function merge(src, dst, helpers){
                            (src?.special === 'wild-magnet' || dst?.special === 'wild-magnet') ? 'Wild-magnet + regular' :
                            'Wild + regular';
           console.log(`🚨🚨🚨 LAST MERGE DETECTED (in merge-6 onComplete) - ${mergeType} → merge 6, skipping wild progress and spawn, triggering clean board`);
-          console.log('🚨🚨🚨 LAST MERGE: hasLastMergeFlag =', hasLastMergeFlag, 'onlyMerge6RemainsInOnComplete =', onlyMerge6RemainsInOnComplete, 'dst._isLastMerge =', (dst as any)?._isLastMerge);
+          console.log('🚨🚨🚨 LAST MERGE: hasLastMergeFlag =', hasLastMergeFlag, 'onlyMerge6RemainsInOnComplete =', isActuallyLastMerge, 'dst._isLastMerge =', (dst as any)?._isLastMerge);
           
           // Ensure flag is set for consistency
           if (!hasLastMergeFlag) {
@@ -5055,15 +5112,23 @@ function merge(src, dst, helpers){
         
         // 🔥 SIMPLIFIED: Only check _isLastMerge flag - this is set ONLY when it's truly the last merge (2 tiles total)
         // All other checks were too aggressive and blocked spawn when it shouldn't be blocked
+        // 🔥 CRITICAL FIX: If pulled tiles will merge, this is NOT last merge (new tiles will spawn)
+        // Note: willPulledTilesMerge is already declared above (line 4997), so we reuse it here
         const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
         
-        if (isLastMergeFlagSet || busyEnding) {
+        // 🔥 CRITICAL FIX: Don't trigger clean board if pulled tiles will merge (new tiles will spawn)
+        if (willPulledTilesMerge) {
+          console.log('🧲 Pulled tiles will merge - this is NOT last merge (new tiles will spawn), clearing _isLastMerge flag');
+          // Clear the flag since new tiles will spawn
+          (dst as any)._isLastMerge = false;
+          // Don't trigger clean board - pulled tiles merge will handle spawn and endgame check
+        } else if (isLastMergeFlagSet || busyEnding) {
           console.log('🚨🚨🚨 LAST MERGE: Skipping spawn - _isLastMerge flag is TRUE or busyEnding is true');
           
           // 🔥 CRITICAL: If _isLastMerge flag is set, trigger clean board flow
           if (isLastMergeFlagSet && !busyEnding) {
             console.log('🚨🚨🚨 _isLastMerge flag is TRUE - triggering clean board flow');
-          busyEnding = true;
+            busyEnding = true;
           
             // Remove dst tile and trigger clean board flow
             if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
@@ -5531,6 +5596,21 @@ function checkLevelEnd(){
       // Check if there are more than 1 unlocked tile (merge 6 + other tiles = can merge)
       const hasUnlockedMergeableTiles = unlockedActiveTiles.length > 1;
       
+      // 🔥 USER REQUEST v85: Check if unlocked tiles have potential for merge/stack
+      // If anyMergePossible returns true → game continues (don't trigger clean board)
+      // If anyMergePossible returns false → trigger clean board or fail screen
+      // This ensures clean board is only triggered when no merges/stack are possible
+      let hasMergeOrStackPotential = false;
+      if (unlockedActiveTiles.length > 0 && makeBoard?.anyMergePossible) {
+        // Check only with unlocked tiles (available for player to use)
+        hasMergeOrStackPotential = makeBoard.anyMergePossible(unlockedActiveTiles);
+        console.log('🧲 checkLevelEnd: anyMergePossible check with unlocked tiles:', {
+          unlockedTilesCount: unlockedActiveTiles.length,
+          hasMergeOrStackPotential,
+          tiles: unlockedActiveTiles.map((t: any) => ({ value: t.value, special: t.special, locked: t.locked }))
+        });
+      }
+      
       // 🔥 CRITICAL FIX: Check if there's a magnet on board that can be used for merge
       // If magnet exists, it's NOT a clean board - user can still merge magnet with merge 6
       const activeTiles = tiles.filter((t: any) => {
@@ -5540,10 +5620,15 @@ function checkLevelEnd(){
       });
       const hasMagnet = activeTiles.some((t: any) => t.special === 'wild-magnet');
       
-      if (hasUnlockedMergeableTiles) {
-        console.log('🧲 checkLevelEnd: Unlocked mergeable tiles detected on board - NOT a clean board, game continues');
-        console.log('🧲 Unlocked tiles:', unlockedActiveTiles.map((t: any) => ({ value: t.value, special: t.special, locked: t.locked })));
+      // 🔥 USER REQUEST: If unlocked tiles have merge/stack potential → game continues
+      if (hasMergeOrStackPotential) {
+        console.log('✅ checkLevelEnd: Unlocked tiles have merge/stack potential - game continues, NOT triggering clean board');
         return; // Don't trigger clean board - game continues
+      }
+      
+      if (hasUnlockedMergeableTiles && !hasMergeOrStackPotential) {
+        console.log('🧲 checkLevelEnd: Unlocked mergeable tiles detected but no merge/stack potential - will check stuck in checkEndGame');
+        // Continue to checkEndGame which will check stuck and show fail screen if needed
       }
       
       if (hasMagnet) {

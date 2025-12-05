@@ -52,7 +52,7 @@ export function createCollectiblesSlide(config: SlideConfig): HTMLElementConfig 
                 tag: 'button',
                 id: 'btn-collectibles',
                 className: 'slide-button tap-scale menu-btn-primary',
-                text: 'Collectibles',
+                text: 'Shop',
                 attributes: {
                   type: 'button',
                   'aria-label': 'View Collectibles',

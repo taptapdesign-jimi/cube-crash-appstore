@@ -105,6 +105,7 @@ class JourneyBoardsManager {
 
   constructor() {
     this.initializeBoards();
+    this.loadBoardsState();
   }
 
   private initializeBoards(): void {
@@ -237,31 +238,19 @@ class JourneyBoardsManager {
 
     this.container = container;
     container.innerHTML = '';
+    
+    // Initialize journey debug buttons
+    this.initJourneyButtons();
 
     // Create background image container (behind cards)
-    // NOTE: Must compensate for .collectibles-scrollable padding (40px + safe-area)
+    // NOTE: Position relative to journey-boards-container, not fixed offset
     const bgContainer = document.createElement('div');
     bgContainer.className = 'journey-bg-container';
-    bgContainer.style.position = 'absolute';
-    bgContainer.style.top = '40px'; // 56px - 16px = 40px below Boards subtitle
-    // Compensate for parent padding to stretch edge-to-edge using CSS variables
-    bgContainer.style.left = 'calc(-1 * var(--pad-left, 40px))'; // Negative margin to compensate parent padding
-    bgContainer.style.right = 'calc(-1 * var(--pad-right, 40px))'; // Negative margin to compensate parent padding
-    bgContainer.style.width = 'calc(100% + var(--pad-left, 40px) + var(--pad-right, 40px))'; // Full width including compensation
-    bgContainer.style.margin = '0';
-    bgContainer.style.padding = '0';
-    bgContainer.style.zIndex = '1';
-    bgContainer.style.overflow = 'visible'; // Allow full image to show
     
     const bgImage = document.createElement('img');
     bgImage.src = './assets/journey assets/1-16bg.png';
     bgImage.alt = 'Journey background';
-    bgImage.style.width = '100%'; // Stretch from edge to edge
-    bgImage.style.height = 'auto'; // Maintain aspect ratio
-    bgImage.style.display = 'block';
-    bgImage.style.margin = '0';
-    bgImage.style.padding = '0';
-    // No object-fit needed - width: 100% + height: auto maintains aspect ratio naturally
+    
     bgContainer.appendChild(bgImage);
     container.appendChild(bgContainer);
 
@@ -283,9 +272,8 @@ class JourneyBoardsManager {
     const position = CARD_POSITIONS[index] || { x: pxToPercent(24), top: pxToPercent(24), rotation: 5, width: STANDARD_CARD_WIDTH, height: 150 };
     const cardWrapper = document.createElement('div');
     cardWrapper.className = 'journey-board-card-wrapper';
-    cardWrapper.style.position = 'absolute';
     
-    // FINAL positions - ALL in percentages (pixels are auto-converted)
+    // Dynamic positions - must be inline as they vary per card
     cardWrapper.style.left = `${position.x}%`;
     cardWrapper.style.top = `${position.top}%`;
     
@@ -297,28 +285,16 @@ class JourneyBoardsManager {
       cardWrapper.style.transform = `rotate(${position.rotation}deg)`;
     }
     
-    cardWrapper.style.zIndex = '10';
-    // All cards must have the same size - use position width or fallback to standard
+    // Dynamic dimensions - must be inline as they vary per card
     const cardWidth = position.width || STANDARD_CARD_WIDTH;
     const cardHeight = position.height || 150;
     cardWrapper.style.width = `${cardWidth}px`;
     cardWrapper.style.height = `${cardHeight}px`;
-    // Ensure dimensions are applied (override any CSS)
-    cardWrapper.style.setProperty('width', `${cardWidth}px`, 'important');
-    cardWrapper.style.setProperty('height', `${cardHeight}px`, 'important');
-    
-    // Ensure cards don't move when other elements are added
-    cardWrapper.style.willChange = 'transform';
-    cardWrapper.style.margin = '0';
-    cardWrapper.style.display = 'block';
 
     const card = document.createElement('div');
     card.className = `journey-board-card ${board.unlocked ? 'unlocked' : 'locked'}`;
     card.dataset.boardId = board.id.toString();
     card.dataset.boardNumber = board.id.toString().padStart(2, '0');
-    card.style.width = '100%';
-    card.style.height = '100%';
-    card.style.cursor = 'pointer';
 
     if (board.unlocked) {
       // Card image only (no badge, no banner, no overlay)
@@ -326,10 +302,6 @@ class JourneyBoardsManager {
       image.src = board.imagePath || '';
       image.alt = board.name || `Board ${board.id}`;
       image.className = 'journey-board-image';
-      image.style.width = '100%';
-      image.style.height = '100%';
-      image.style.objectFit = 'contain';
-      image.style.display = 'block';
       card.appendChild(image);
 
       // Add click handler to open details screen
@@ -337,11 +309,16 @@ class JourneyBoardsManager {
         this.openBoardDetails(board);
       });
     } else {
-      // Locked card placeholder
+      // Locked card placeholder - use same approach as unlocked (inner element for styling)
+      const lockedContainer = document.createElement('div');
+      lockedContainer.className = 'journey-board-locked-container';
+      
       const number = document.createElement('div');
       number.className = 'journey-board-number';
       number.textContent = board.id.toString().padStart(2, '0');
-      card.appendChild(number);
+      
+      lockedContainer.appendChild(number);
+      card.appendChild(lockedContainer);
     }
 
     cardWrapper.appendChild(card);
@@ -383,6 +360,281 @@ class JourneyBoardsManager {
     if (counter) {
       const unlockedCount = this.boards.filter(b => b.unlocked).length;
       counter.textContent = `${unlockedCount.toString().padStart(2, '0')}/25`;
+    }
+  }
+
+  public unlockBoardByNumber(boardNumber: number): boolean {
+    if (boardNumber < 1 || boardNumber > 16) return false;
+    
+    const board = this.boards.find(b => b.id === boardNumber);
+    if (!board) return false;
+    
+    if (!board.unlocked) {
+      board.unlocked = true;
+      this.saveBoardsState();
+      this.renderBoards();
+      this.updateCounter();
+      logger.info(`🗺️ Journey board ${boardNumber.toString().padStart(2, '0')} unlocked.`);
+      return true;
+    }
+    return false;
+  }
+
+  public lockBoardByNumber(boardNumber: number): boolean {
+    if (boardNumber < 1 || boardNumber > 16) return false;
+    
+    const board = this.boards.find(b => b.id === boardNumber);
+    if (!board) return false;
+    
+    if (board.unlocked) {
+      board.unlocked = false;
+      this.saveBoardsState();
+      this.renderBoards();
+      this.updateCounter();
+      logger.info(`🗺️ Journey board ${boardNumber.toString().padStart(2, '0')} locked.`);
+      return true;
+    }
+    return false;
+  }
+
+  private saveBoardsState(): void {
+    try {
+      const state = this.boards.map(b => ({ id: b.id, unlocked: b.unlocked }));
+      localStorage.setItem('journey_boards_state', JSON.stringify(state));
+    } catch (error) {
+      logger.warn('Failed to save journey boards state:', error);
+    }
+  }
+
+  private loadBoardsState(): void {
+    try {
+      const saved = localStorage.getItem('journey_boards_state');
+      if (saved) {
+        const state = JSON.parse(saved);
+        state.forEach((savedBoard: { id: number; unlocked: boolean }) => {
+          const board = this.boards.find(b => b.id === savedBoard.id);
+          if (board) {
+            board.unlocked = savedBoard.unlocked;
+          }
+        });
+      }
+    } catch (error) {
+      logger.warn('Failed to load journey boards state:', error);
+    }
+  }
+
+  public showBoardPickerModal(action: 'show' | 'hide'): void {
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'card-picker-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100001;
+      backdrop-filter: blur(4px);
+    `;
+
+    // Create modal container
+    const modal = document.createElement('div');
+    modal.className = 'card-picker-modal';
+    modal.style.cssText = `
+      background: white;
+      border-radius: 24px;
+      padding: 24px;
+      max-width: 90vw;
+      width: 400px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    `;
+
+    // Title
+    const title = document.createElement('h3');
+    title.textContent = action === 'show' ? 'Show Boards' : 'Hide Boards';
+    title.style.cssText = `
+      font-size: 24px;
+      font-weight: 800;
+      color: #ad8775;
+      margin: 0 0 20px 0;
+      text-align: center;
+    `;
+
+    // Grid container
+    const grid = document.createElement('div');
+    grid.style.cssText = `
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    `;
+
+    // Store selected boards
+    const selectedBoards: Set<number> = new Set();
+
+    // Create 16 buttons (01-16)
+    for (let i = 1; i <= 16; i++) {
+      const btn = document.createElement('button');
+      btn.textContent = i.toString().padStart(2, '0');
+      
+      // Check current state
+      const board = this.boards.find(b => b.id === i);
+      const isUnlocked = board?.unlocked ?? false;
+      
+      // For "show" action, only show locked boards
+      // For "hide" action, only show unlocked boards
+      const shouldShow = action === 'show' ? !isUnlocked : isUnlocked;
+      
+      btn.style.cssText = `
+        background: ${shouldShow ? '#f3eee8' : '#e0e0e0'};
+        border: 2px solid ${shouldShow ? '#e0e0e0' : '#ccc'};
+        border-radius: 12px;
+        padding: 16px;
+        font-size: 16px;
+        font-weight: 600;
+        color: ${shouldShow ? '#333' : '#999'};
+        cursor: ${shouldShow ? 'pointer' : 'not-allowed'};
+        transition: all 0.2s ease;
+        opacity: ${shouldShow ? '1' : '0.5'};
+      `;
+
+      if (shouldShow) {
+        btn.addEventListener('click', () => {
+          if (selectedBoards.has(i)) {
+            // Deselect
+            selectedBoards.delete(i);
+            btn.style.background = '#f3eee8';
+            btn.style.borderColor = '#e0e0e0';
+            btn.style.color = '#333';
+          } else {
+            // Select
+            selectedBoards.add(i);
+            btn.style.background = '#e8734a';
+            btn.style.borderColor = '#e8734a';
+            btn.style.color = 'white';
+          }
+        });
+      }
+
+      grid.appendChild(btn);
+    }
+
+    // Button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = `
+      display: flex;
+      gap: 12px;
+    `;
+
+    // OK button
+    const okBtn = document.createElement('button');
+    okBtn.textContent = 'OK';
+    okBtn.style.cssText = `
+      flex: 1;
+      background: #e8734a;
+      border: none;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+
+    okBtn.addEventListener('mouseenter', () => {
+      okBtn.style.background = '#d1653a';
+    });
+
+    okBtn.addEventListener('mouseleave', () => {
+      okBtn.style.background = '#e8734a';
+    });
+
+    okBtn.addEventListener('click', () => {
+      // Apply action to all selected boards
+      selectedBoards.forEach(boardNum => {
+        if (action === 'show') {
+          this.unlockBoardByNumber(boardNum);
+        } else {
+          this.lockBoardByNumber(boardNum);
+        }
+      });
+      document.body.removeChild(overlay);
+    });
+
+    // Cancel button
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Cancel';
+    closeBtn.style.cssText = `
+      flex: 1;
+      background: #e0e0e0;
+      border: none;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+
+    closeBtn.addEventListener('mouseenter', () => {
+      closeBtn.style.background = '#ccc';
+    });
+
+    closeBtn.addEventListener('mouseleave', () => {
+      closeBtn.style.background = '#e0e0e0';
+    });
+
+    closeBtn.addEventListener('click', () => {
+      document.body.removeChild(overlay);
+    });
+
+    // Assemble modal
+    modal.appendChild(title);
+    modal.appendChild(grid);
+    buttonContainer.appendChild(okBtn);
+    buttonContainer.appendChild(closeBtn);
+    modal.appendChild(buttonContainer);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        document.body.removeChild(overlay);
+      }
+    });
+  }
+
+  private initJourneyButtons(): void {
+    const unlockBtn = document.getElementById('journey-unlock-btn');
+    if (unlockBtn) {
+      // Remove existing listener if any to prevent duplicates
+      const newUnlockBtn = unlockBtn.cloneNode(true);
+      unlockBtn.parentNode?.replaceChild(newUnlockBtn, unlockBtn);
+      (newUnlockBtn as HTMLElement).addEventListener('click', () => {
+        console.log('🗺️ Journey Show Card button clicked');
+        this.showBoardPickerModal('show');
+      });
+      console.log('✅ Journey Show Card button listener attached');
+    } else {
+      console.warn('⚠️ journey-unlock-btn not found');
+    }
+
+    const hideBtn = document.getElementById('journey-hide-btn');
+    if (hideBtn) {
+      // Remove existing listener if any to prevent duplicates
+      const newHideBtn = hideBtn.cloneNode(true);
+      hideBtn.parentNode?.replaceChild(newHideBtn, hideBtn);
+      (newHideBtn as HTMLElement).addEventListener('click', () => {
+        console.log('🗺️ Journey Hide Card button clicked');
+        this.showBoardPickerModal('hide');
+      });
+      console.log('✅ Journey Hide Card button listener attached');
+    } else {
+      console.warn('⚠️ journey-hide-btn not found');
     }
   }
 }

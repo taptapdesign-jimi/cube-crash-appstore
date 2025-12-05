@@ -1501,6 +1501,41 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     }
   }
   
+  // 🎯 NEW: Ako magnet povuče 4 tilea, spawnuj 4 replacement kockice kao mergable parove
+  // Parovi koji zbrajaju 6: (1,5), (2,4), (3,3)
+  // Moguće kombinacije za 4 kockice: [1,5,2,4], [1,5,3,3], [2,4,3,3]
+  if (replacementSpawnCount === 4) {
+    const replacementSlots = spawnTargets
+      .filter(cell => !obligatoryCell || !(cell.c === obligatoryCell.c && cell.r === obligatoryCell.r))
+      .slice(0, 4);
+    
+    if (replacementSlots.length === 4) {
+      // Generiši 2 para koji zbrajaju 6
+      const pairCombinations: number[][] = [
+        [1, 5, 2, 4], // par (1,5) i par (2,4)
+        [1, 5, 3, 3], // par (1,5) i par (3,3)
+        [2, 4, 3, 3]  // par (2,4) i par (3,3)
+      ];
+      
+      // Odaberi random kombinaciju
+      const chosenValues = pairCombinations[Math.floor(Math.random() * pairCombinations.length)];
+      
+      // Shuffle vrednosti pre dodele (da parovi ne budu uvek na istim pozicijama)
+      const shuffledValues = [...chosenValues];
+      for (let i = shuffledValues.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledValues[i], shuffledValues[j]] = [shuffledValues[j], shuffledValues[i]];
+      }
+      
+      // Dodeli vrednosti slotovima
+      replacementSlots.forEach((cell, index) => {
+        forcedSpawnValues.set(`${cell.c},${cell.r}`, shuffledValues[index]);
+      });
+      
+      console.log('🎯 Magnet 4-tile spawn: Forcing merge-6-friendly pairs', chosenValues, 'shuffled to', shuffledValues, 'on slots', replacementSlots);
+    }
+  }
+  
   console.log('🧲 Final spawn targets:', {
     total: spawnTargets.length,
     requested: spawnCount,
@@ -1809,6 +1844,36 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   // 🔥 CRITICAL FIX: Check if board is clean BEFORE calling checkLevelEnd
   // If new tiles can be merged, don't trigger clean board flow yet - wait for player to merge them
+  // 🔥 CRITICAL FIX: Check if _isLastMerge flag is set - if so, this was marked as last merge BEFORE pulled tiles merged
+  // If pulled tiles were merged and new tiles spawned, this is NOT last merge anymore!
+  // Note: isLastMergeFlagSet is already declared above (line 1311), so we reuse it here
+  
+  // 🔥 CRITICAL FIX v85: Wait for ALL spawned tiles to be unlocked before checking endgame
+  // Spawned tiles unlock asynchronously (via setTimeout in openLockedBounceParallel/openAtCell)
+  // We need to wait until ALL tiles are unlocked before checking anyMergePossible
+  // Maximum wait: 500ms (spawn animation + unlock delay)
+  // This ensures endgame check sees all spawned tiles and correctly determines if game can continue
+  let allTilesUnlocked = false;
+  let retryCount = 0;
+  const maxRetries = 10; // 10 retries * 50ms = 500ms max wait
+  while (!allTilesUnlocked && retryCount < maxRetries) {
+    const activeTilesCheck = STATE.tiles.filter(tileIsActive);
+    const lockedActiveTilesCheck = activeTilesCheck.filter((t: any) => t.locked && (t.value|0) > 0);
+    
+    if (lockedActiveTilesCheck.length === 0) {
+      allTilesUnlocked = true;
+      console.log('✅ All spawned tiles are now unlocked');
+    } else {
+      retryCount++;
+      console.log(`⏳ Waiting for ${lockedActiveTilesCheck.length} tiles to unlock (retry ${retryCount}/${maxRetries})...`);
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }
+  
+  if (!allTilesUnlocked) {
+    console.warn('⚠️ Some tiles are still locked after max wait time, proceeding with check anyway');
+  }
+  
   const activeTilesFinal = STATE.tiles.filter(tileIsActive);
   const hasMergeableTiles = activeTilesFinal.length > 1; // More than just merge 6 = can merge
   
@@ -1817,33 +1882,90 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const isBoardClean = activeTilesFinal.length === 1 && activeTilesFinal[0]?.value === 6;
   
   // 🔥 ADDITIONAL CHECK: Verify that all spawned tiles are actually unlocked and active
-  // Sometimes tiles might still be locked after spawn animation, so we need to double-check
+  // After waiting, all tiles should be unlocked, but double-check anyway
   const unlockedActiveTiles = activeTilesFinal.filter((t: any) => !t.locked);
   const hasUnlockedTiles = unlockedActiveTiles.length > 1; // More than just merge 6 = can merge
   
+  // 🔥 CRITICAL FIX: If we spawned new tiles, this is NOT last merge (even if _isLastMerge flag was set)
+  // The flag was set BEFORE pulled tiles merged, but now we have new tiles, so it's not last merge anymore
+  const hasSpawnedNewTiles = spawnCount > 0 && activeTilesFinal.length > 1;
+  const isActuallyLastMerge = isLastMergeFlagSet && !hasSpawnedNewTiles;
+  
+  // 🔥 USER REQUEST v85: Check if unlocked tiles have potential for merge/stack
+  // If anyMergePossible returns true → game continues (don't call checkLevelEnd)
+  // If anyMergePossible returns false → call checkLevelEnd (will check stuck and show fail screen)
+  // 🔥 CRITICAL: Use ALL active tiles (not just unlocked) for anyMergePossible check
+  // This ensures we check ALL spawned tiles, even if some are still locked (shouldn't happen after wait)
+  // This fixes the bug where clean board was triggered immediately after magnet pull spawns new tiles
+  const { makeBoard } = helpers;
+  let hasMergeOrStackPotential = false;
+  if (activeTilesFinal.length > 0 && makeBoard?.anyMergePossible) {
+    // 🔥 CRITICAL: Check with ALL active tiles (including merge 6) to see if there's merge potential
+    // This ensures we see ALL spawned tiles, not just unlocked ones
+    hasMergeOrStackPotential = makeBoard.anyMergePossible(activeTilesFinal);
+    console.log('🧲 anyMergePossible check with ALL active tiles (after unlock wait):', {
+      activeTilesCount: activeTilesFinal.length,
+      unlockedTilesCount: unlockedActiveTiles.length,
+      hasMergeOrStackPotential,
+      tiles: activeTilesFinal.map((t: any) => ({ value: t.value, special: t.special, locked: t.locked }))
+    });
+  }
+  
   console.log('🧲 Pre-checkLevelEnd verification:', {
+    isLastMergeFlagSet,
+    hasSpawnedNewTiles,
+    isActuallyLastMerge,
     activeTilesCount: activeTilesFinal.length,
     unlockedActiveTilesCount: unlockedActiveTiles.length,
     hasMergeableTiles,
     hasUnlockedTiles,
+    hasMergeOrStackPotential,
     isBoardClean,
     expectedSpawnCount: spawnCount,
     tiles: activeTilesFinal.map((t: any) => ({ value: t.value, special: t.special, locked: t.locked }))
   });
   
-  // 🔥 CRITICAL: Only call checkLevelEnd if board is TRULY clean (only merge 6 remains, no other tiles)
-  // If there are mergeable tiles (locked or unlocked), DON'T call checkLevelEnd - let player merge them first
-  // checkLevelEnd will be called automatically after merge completes (via post-merge check in app-core.ts)
-  if (isBoardClean && !hasUnlockedTiles) {
-    console.log('🧲 Board is clean (only merge 6, no other tiles) - calling checkLevelEnd to trigger clean board flow');
+  // 🔥 USER REQUEST: Logic for end game check
+  // 1. If unlocked tiles have merge/stack potential → game continues (don't call checkLevelEnd)
+  // 2. If board is clean AND no unlocked tiles AND actually last merge → trigger clean board flow
+  // 3. If no merge/stack potential → call checkLevelEnd (will check stuck and show fail screen)
+  if (hasMergeOrStackPotential) {
+    // Spawned tiles have potential for merge/stack → game continues
+    if (isLastMergeFlagSet && hasSpawnedNewTiles) {
+      console.log('🧲 _isLastMerge flag was set, but new tiles with merge potential were spawned - this is NOT last merge anymore, clearing flag');
+      // Clear the flag since new tiles with merge potential were spawned
+      (dst as any)._isLastMerge = false;
+    }
+    console.log('✅ Spawned tiles have merge/stack potential - game continues, NOT calling checkLevelEnd');
+    return; // Don't call checkLevelEnd - let player merge/stack tiles
+  }
+  
+  // No merge/stack potential - check if board is clean or if we should show fail screen
+  if (isBoardClean && !hasUnlockedTiles && isActuallyLastMerge) {
+    console.log('🧲 Board is clean (only merge 6, no other tiles) AND this is actually last merge - calling checkLevelEnd to trigger clean board flow');
+    if (typeof (window as any).CC?.checkLevelEnd === 'function') {
+      (window as any).CC.checkLevelEnd();
+    }
+  } else if (!hasMergeOrStackPotential && unlockedActiveTiles.length > 0) {
+    // No merge/stack potential but we have unlocked tiles → call checkLevelEnd to check stuck and show fail screen
+    console.log('🚨 No merge/stack potential with unlocked tiles - calling checkLevelEnd to check stuck and show fail screen');
     if (typeof (window as any).CC?.checkLevelEnd === 'function') {
       (window as any).CC.checkLevelEnd();
     }
   } else {
-    console.log('🧲 Board has mergeable tiles - NOT calling checkLevelEnd yet, waiting for player to merge');
+    if (isLastMergeFlagSet && hasSpawnedNewTiles) {
+      console.log('🧲 _isLastMerge flag was set, but new tiles were spawned - this is NOT last merge anymore, clearing flag');
+      // Clear the flag since new tiles were spawned
+      (dst as any)._isLastMerge = false;
+    }
+    console.log('🧲 Board has mergeable tiles OR new tiles were spawned - NOT calling checkLevelEnd yet, waiting for player to merge');
     console.log('🧲 Details:', {
       isBoardClean,
       hasUnlockedTiles,
+      hasMergeOrStackPotential,
+      isLastMergeFlagSet,
+      hasSpawnedNewTiles,
+      isActuallyLastMerge,
       activeTilesCount: activeTilesFinal.length,
       unlockedTilesCount: unlockedActiveTiles.length,
       note: 'checkLevelEnd will be called automatically after merge completes (via post-merge check in app-core.ts)'
