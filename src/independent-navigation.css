@@ -72,7 +72,7 @@
   justify-content: space-between;
   gap: 0;
   width: 100%;
-  padding: 0 20px;
+  padding: 0 20px; /* Original padding za iPhone */
   position: relative;
   z-index: 999999999;
   pointer-events: auto;
@@ -344,4 +344,28 @@
   color: #FFFFFF; /* White text color */
   line-height: 1;
   text-align: center;
+}
+
+/* 🔥 iPad-specific adjustments */
+@media screen and (min-width: 768px) and (max-width: 1024px) {
+  /* 3. Padding od 80px od rubova ekrana samo na iPad-u */
+  .independent-nav-buttons {
+    gap: 0 !important; /* Ukloniti gap */
+    justify-content: space-between !important;
+    padding: 0 80px !important; /* 80px padding od rubova ekrana */
+  }
+  
+  /* 4. Povećati veličine navigacijskih ikona na iPad-u */
+  .independent-nav-button {
+    width: 64px !important; /* Neaktivna ikona - 64px na iPad-u */
+    height: 64px !important;
+  }
+  
+  .independent-nav-button.active {
+    width: 96px !important; /* Aktivna ikona - 96px na iPad-u */
+    height: 96px !important;
+  }
+  
+  /* 2. Proširiti divider shadow na navigaciji do 40px sa strane ekrana */
+  /* Note: Divider shadow se nalazi u slider-optimized.css, ali ako postoji u navigation, dodati ovdje */
 }

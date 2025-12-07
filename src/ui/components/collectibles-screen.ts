@@ -107,32 +107,34 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
                   },
                   {
                     tag: 'div',
-                    className: 'journey-debug-controls',
-                    children: [
-                      {
-                        tag: 'button',
-                        id: 'journey-unlock-btn',
-                        className: 'debug-btn journey-debug-btn',
-                        text: 'Show Card',
-                        attributes: { type: 'button' },
-                      },
-                      {
-                        tag: 'button',
-                        id: 'journey-hide-btn',
-                        className: 'debug-btn journey-debug-btn',
-                        text: 'Hide Card',
-                        attributes: { type: 'button' },
-                      },
-                    ],
-                  },
-                  {
-                    tag: 'div',
                     id: 'journey-boards-container',
                     className: 'journey-boards-container',
                   },
                 ],
               },
             ],
+          },
+        ],
+      },
+      // 🔥 Floating buttons - DIRECTLY in journey-screen, outside collectibles-shell
+      // This ensures they're on the same level as cards and can have highest z-index
+      {
+        tag: 'div',
+        className: 'journey-floating-buttons-container',
+        children: [
+          {
+            tag: 'button',
+            id: 'journey-unlock-btn',
+            className: 'journey-floating-btn',
+            text: 'Show Card',
+            attributes: { type: 'button' },
+          },
+          {
+            tag: 'button',
+            id: 'journey-hide-btn',
+            className: 'journey-floating-btn',
+            text: 'Hide Card',
+            attributes: { type: 'button' },
           },
         ],
       },

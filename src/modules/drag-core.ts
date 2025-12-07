@@ -680,13 +680,24 @@ export function initDrag(cfg) {
       }
       
       // Also update magnet effect for the best hover target
-      if (bestHoverTarget) {
+      // 🔥 CRITICAL FIX: Only apply magnet effect if combination is stackable (canDrop returns true)
+      if (bestHoverTarget && typeof canDrop === 'function' && canDrop(t, bestHoverTarget)) {
         updateMagnet(bestHoverTarget);
+      } else {
+        // Release magnet if target is not stackable
+        releaseMagnet();
       }
     } else {
       // For non-wild-magnet tiles, use normal hover logic
       showHover(target);
-      updateMagnet(target);
+      // 🔥 CRITICAL FIX: Only apply magnet effect if combination is stackable (canDrop returns true)
+      // This prevents magnet attraction for non-stackable combinations (e.g., 4+4)
+      if (target && typeof canDrop === 'function' && canDrop(t, target)) {
+        updateMagnet(target);
+      } else {
+        // Release magnet if target is not stackable
+        releaseMagnet();
+      }
     }
     
     // Ghost placeholders are now fixed and don't need redrawing
@@ -1098,6 +1109,13 @@ export function initDrag(cfg) {
     }
 
     if (!target || target.destroyed) {
+      releaseMagnet();
+      return;
+    }
+
+    // 🔥 CRITICAL FIX: Check if combination is stackable before applying magnet effect
+    // This prevents magnet attraction for non-stackable combinations (e.g., 4+4)
+    if (typeof canDrop === 'function' && !canDrop(src, target)) {
       releaseMagnet();
       return;
     }

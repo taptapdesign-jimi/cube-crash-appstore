@@ -353,6 +353,9 @@ class CollectiblesManager {
       journeyBoardsManager.renderBoards();
       journeyBoardsManager.updateCounter();
       logger.info('🗺️ Journey boards rendered');
+      
+      // 🔥 PREMIUM FIX: Position is already set synchronously in renderBoards()
+      // No need to refresh - CSS custom properties handle positioning without visible movement
     } else {
       // This is Collectibles screen - render collectibles
       this.renderCards();
@@ -390,11 +393,17 @@ class CollectiblesManager {
         console.log('🎬 Calling animateCollectiblesScreenEnter() after 50ms delay...');
         animateCollectiblesScreenEnter();
       }, 50);
+      
+      // 🔥 PREMIUM FIX: Position is set synchronously in renderBoards() via CSS custom properties
+      // No need to refresh after animation - this would cause visible movement
     } catch (error) {
       console.error('❌ Failed to trigger collectibles enter animation:', error);
       // Fallback: just show the screen normally
       (screen as HTMLElement).style.opacity = '1';
       screen.classList.add('show');
+      
+      // 🔥 PREMIUM FIX: Position is already set synchronously in renderBoards()
+      // No need to refresh - CSS custom properties handle positioning without visible movement
     }
   }
 
@@ -409,6 +418,13 @@ class CollectiblesManager {
         console.log('✅ Exit animation completed');
       } catch (error) {
         console.error('❌ Failed to trigger collectibles exit animation:', error);
+      }
+      
+      // 🔥 FIX: Clean up journey board elements before hiding screen
+      const journeyContainer = document.getElementById('journey-boards-container');
+      if (journeyContainer) {
+        const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+        journeyBoardsManager.cleanup();
       }
       
       screen.classList.remove('show');

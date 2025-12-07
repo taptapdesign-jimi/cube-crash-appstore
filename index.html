@@ -267,7 +267,7 @@
     window._settings = loadSettings();
     console.log('⚙️ Loaded settings:', window._settings);
     
-    // Haptic feedback helpers for iOS WebView
+    // Haptic feedback helpers for iOS WebView and iPad
     window.triggerHapticImpact = function(style = 'medium') {
       try {
         // Check if haptics are enabled
@@ -276,13 +276,25 @@
           return;
         }
         
+        // Try iOS WebView message handler first
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticImpact) {
           window.webkit.messageHandlers.hapticImpact.postMessage({ style: style });
-          console.log('📳 Haptic impact sent to iOS:', style);
-        } else if (navigator.vibrate) {
+          console.log('📳 Haptic impact sent to iOS WebView:', style);
+          return;
+        }
+        
+        // Try iPad/iOS Safari with Vibration API (iPad Pro and newer iPads support haptics)
+        if (navigator.vibrate) {
           const duration = style === 'heavy' ? 70 : style === 'light' ? 30 : 50;
           navigator.vibrate(duration);
           console.log('📳 Haptic fallback (vibrate):', style);
+          return;
+        }
+        
+        // Try iOS-specific haptic API for iPad (if available)
+        if (window.DeviceMotionEvent && window.DeviceMotionEvent.requestPermission) {
+          // iOS 13+ haptic feedback might be available through other APIs
+          console.log('📳 Haptic API not available on this device');
         }
       } catch (e) {
         console.warn('⚠️ Haptic impact failed:', e);
@@ -297,13 +309,21 @@
           return;
         }
         
+        // Try iOS WebView message handler first
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticSelection) {
           window.webkit.messageHandlers.hapticSelection.postMessage({});
-          console.log('📳 Haptic selection sent to iOS');
-        } else if (navigator.vibrate) {
+          console.log('📳 Haptic selection sent to iOS WebView');
+          return;
+        }
+        
+        // Try iPad/iOS Safari with Vibration API
+        if (navigator.vibrate) {
           navigator.vibrate(30);
           console.log('📳 Selection fallback (vibrate)');
+          return;
         }
+        
+        console.log('📳 Haptic selection API not available on this device');
       } catch (e) {
         console.warn('⚠️ Haptic selection failed:', e);
       }
@@ -317,14 +337,22 @@
           return;
         }
         
+        // Try iOS WebView message handler first
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticNotification) {
           window.webkit.messageHandlers.hapticNotification.postMessage({ style: type });
-          console.log('📳 Haptic notification sent to iOS:', type);
-        } else if (navigator.vibrate) {
+          console.log('📳 Haptic notification sent to iOS WebView:', type);
+          return;
+        }
+        
+        // Try iPad/iOS Safari with Vibration API
+        if (navigator.vibrate) {
           const duration = type === 'error' ? 100 : type === 'warning' ? 70 : 50;
           navigator.vibrate(duration);
           console.log('📳 Notification fallback (vibrate):', type);
+          return;
         }
+        
+        console.log('📳 Haptic notification API not available on this device');
       } catch (e) {
         console.warn('⚠️ Haptic notification failed:', e);
       }

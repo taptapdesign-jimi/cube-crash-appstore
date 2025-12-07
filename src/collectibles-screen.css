@@ -70,6 +70,8 @@
   position: relative;
   z-index: 100; /* 🔥 CRITICAL: Header always above scrollable content */
   pointer-events: auto !important; /* 🔥 CRITICAL: Header always receives clicks */
+  /* 🔥 FIX: Allow content to scroll under header - header stays fixed but content scrolls behind */
+  background: var(--collectibles-surface);
 }
 
 .collectibles-header-top {
@@ -194,14 +196,21 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  /* 🔥 FIX: Enable smooth swipeable scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   gap: 24px;
   padding-left: var(--pad-left);
   padding-right: var(--pad-right);
   padding-top: 24px;
-  padding-bottom: calc(40px + var(--safe-bottom));
+  padding-bottom: calc(40px + var(--safe-bottom) + 80px); /* Extra space for floating buttons */
   align-items: center;
+  /* 🔥 FIX: Ensure scrollable area is swipeable */
+  touch-action: pan-y;
+  /* 🔥 FIX: Allow content to scroll under header */
+  position: relative;
+  z-index: 1;
   /* background removed - parent screen has background, this prevents visual artifacts during scale animation */
 }
 
@@ -228,6 +237,14 @@
   position: relative;
   display: block; /* Change from flex to block for absolute positioning */
   min-height: 500px; /* Ensure enough space */
+  overflow: visible !important; /* Allow background image to extend fully without clipping */
+  overflow-x: visible !important; /* Specifically allow horizontal overflow for full background image width */
+  overflow-y: visible !important; /* Allow vertical overflow for full background image height */
+}
+
+/* Allow overflow-x: visible for journey section within scrollable container */
+.collectibles-scrollable:has(#journey-boards-container) {
+  overflow-x: visible !important; /* Allow horizontal overflow for journey background image */
 }
 
 .collectibles-section .collectibles-divider {
@@ -1079,7 +1096,11 @@
 .journey-boards-container {
   position: relative;
   width: 100%;
-  min-height: 500px; /* Ensure enough space for cards */
+  /* Container height will be determined by background image aspect ratio */
+  /* Background image uses 100% auto, so container needs to accommodate full image height */
+  /* Using aspect-ratio based on typical journey bg image: ~390px width, calculate height */
+  /* If image is 390px wide and aspect ratio is maintained, container will grow accordingly */
+  min-height: 500px; /* Fallback for older browsers */
   padding: 0;
   margin-top: 0;
   overflow: visible; /* Override any parent overflow */
@@ -1100,19 +1121,25 @@
 }
 
 .journey-cards-container {
-  position: relative;
+  position: absolute;
+  /* Dynamic values (top, height) set inline in JavaScript - fallback values here */
+  left: 0;
+  /* 🔥 PREMIUM FIX: Use 100% width - cards use percentage positioning for consistency */
   width: 100%;
-  height: 100%;
   min-height: 500px; /* Ensure enough space */
-  overflow: visible !important;
+  overflow: visible;
   /* Remove any flex constraints */
-  display: block !important;
-  flex: none !important;
+  display: block;
+  flex: none;
+  /* No transform - cards positioned directly using percentages */
+  z-index: 2; /* Cards container z-index - lower than floating buttons */
+  pointer-events: none; /* Allow clicks to pass through to cards */
 }
 
 .journey-board-card-wrapper {
   position: absolute;
   /* Width and height are set inline per card - no fixed dimensions */
+  overflow: visible; /* Allow shadow to be visible */
 }
 
 .journey-board-card {
@@ -1130,7 +1157,8 @@
 .journey-board-card.unlocked {
   background: transparent;
   border: none;
-  box-shadow: none;
+  box-shadow: 0 12px 13px var(--collectibles-card-shadow) !important;
+  overflow: visible !important; /* Allow shadow to be visible */
 }
 
 .journey-board-card.unlocked .journey-board-image {
@@ -1172,7 +1200,7 @@
   right: 0;
   bottom: 0;
   border-radius: 12px;
-  box-shadow: inset 0 0 0 2px #d4c4a8;
+  box-shadow: inset 0 0 0 2px #BC8A76;
   pointer-events: none;
   box-sizing: border-box;
 }
@@ -1213,29 +1241,36 @@
 }
 
 .journey-bg-container {
+  /* 🔥 SCROLLABLE FIX: Absolute positioning within scrollable container */
   position: absolute;
-  top: 40px;
-  /* Compensate for .collectibles-scrollable padding to stretch edge-to-edge */
+  /* 🔥 EDGE-TO-EDGE: Extend beyond parent padding using negative margins */
   left: calc(-1 * var(--pad-left, 40px));
   right: calc(-1 * var(--pad-right, 40px));
   width: calc(100% + var(--pad-left, 40px) + var(--pad-right, 40px));
+  /* Dynamic values (top, height) set inline in JavaScript - fallback values here */
+  min-height: 500px; /* Fallback minimum height */
   margin: 0;
   padding: 0;
   z-index: 1;
   overflow: visible;
-}
-
-.journey-bg-container img {
-  width: 100%;
-  height: auto;
+  /* 🔥 APP STORE FIX: No transitions to prevent visible movement */
+  transition: none;
+  will-change: auto;
+  /* Background image - goes edge-to-edge width, maintains aspect ratio */
+  background-image: url('./assets/journey assets/1-17bg.png');
+  background-size: 100% auto;
+  background-position: top center;
+  background-repeat: no-repeat;
+  /* Ensure background is visible */
   display: block;
-  margin: 0;
-  padding: 0;
+  visibility: visible;
+  opacity: 1;
 }
 
-/* Journey board card wrappers - absolute positioning with pixel precision */
+/* Journey board card wrappers - fixed positioning with viewport units for universal consistency */
 .journey-board-card-wrapper {
-  position: absolute;
+  /* 🔥 APP STORE FIX: Fixed positioning using viewport units (vw/vh) */
+  position: absolute; /* Absolute within fixed cards container */
   margin: 0;
   padding: 0;
   display: block;
@@ -1273,13 +1308,9 @@
 
 /* Journey Debug Controls */
 .journey-debug-controls {
-  display: flex;
-  flex-direction: row;
-  gap: 12px;
-  justify-content: center;
-  align-items: center;
-  margin: 16px 0;
-  padding: 0 20px;
+  /* 🔥 FIX: Don't interfere with floating buttons positioning */
+  position: static !important;
+  display: none !important; /* Hide parent, floating buttons are positioned independently */
 }
 
 .journey-debug-btn {
@@ -1316,4 +1347,62 @@
 
 .journey-debug-btn:active {
   transform: translateY(0) !important;
+}
+
+/* 🔥 Floating journey buttons container - fixed at bottom of screen, ON TOP OF EVERYTHING */
+.journey-floating-buttons-container {
+  position: fixed !important;
+  top: auto !important;
+  bottom: 24px !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  /* 🔥 DEV TOOLS: Highest z-index to be on top of everything - higher than cards (z-index: 10) */
+  z-index: 999999999 !important;
+  display: flex !important;
+  gap: 12px !important;
+  background: white !important;
+  border-radius: 16px !important;
+  padding: 8px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  /* Hug logic - container fits content */
+  width: fit-content !important;
+  max-width: calc(100vw - 48px) !important;
+  margin: 0 !important;
+  pointer-events: auto !important;
+  /* 🔥 DEV TOOLS: Ensure it's above all stacking contexts */
+  isolation: isolate !important;
+}
+
+/* Floating buttons - orange, hug content */
+.journey-floating-btn {
+  background: var(--collectibles-orange, #e8734a) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 12px 20px !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  font-family: 'LTCrow', system-ui, -apple-system, sans-serif !important;
+  cursor: pointer !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+  /* Hug logic - button fits text content */
+  width: fit-content !important;
+  white-space: nowrap !important;
+  box-shadow: 0 2px 8px rgba(232, 115, 74, 0.3) !important;
+  /* 🔥 DEV TOOLS: Ensure buttons are on top */
+  position: relative !important;
+  z-index: 999999999 !important;
+  pointer-events: auto !important;
+}
+
+.journey-floating-btn:hover {
+  background: #d6613a !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 16px rgba(232, 115, 74, 0.4) !important;
+}
+
+.journey-floating-btn:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 8px rgba(232, 115, 74, 0.3) !important;
 }

@@ -217,6 +217,13 @@ body{
   position:relative;
   transform:translateY(0);
   transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+
+/* CRITICAL: Override .cta-btn transition when animate-exit is active */
+.cta-btn.animate-exit,
+.slide-button.cta-btn.animate-exit {
+  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   /* subtle bevel */
   inset: 0;
   box-shadow:
@@ -314,6 +321,12 @@ body{
   justify-content: center !important;
   width: 100% !important;
   transform: translateY(12px) !important;
+}
+
+/* CRITICAL: Override .slide-text transform when animate-exit is active */
+.slide-text.animate-exit {
+  transform: translateY(12px) scale(0) !important;
+  -webkit-transform: translateY(12px) scale(0) !important;
 }
 
 /* Lower CTA buttons on slider screens - all on same position */
@@ -920,12 +933,26 @@ body{
 
 /* Slide-text needs to preserve translateY during scale animation */
 .slide-text.animate-exit {
+  will-change: transform !important;
+  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   transform: translateY(12px) scale(0) !important;
 }
 
 /* Slide-button needs to preserve translateY during scale animation */
-.slide-button.animate-exit {
+/* CRITICAL: Higher specificity to override .cta-btn transition */
+.slide-button.animate-exit,
+.slider-slide .slide-button.animate-exit,
+.slide-content .slide-button.animate-exit,
+.slide-button.tap-scale.animate-exit,
+.slide-button.menu-btn-primary.animate-exit,
+.cta-btn.animate-exit,
+.slide-button.cta-btn.animate-exit {
+  will-change: transform !important;
+  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   transform: translateY(12px) scale(0) !important;
+  /* Override any other transform transitions */
+  -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  -webkit-transform: translateY(12px) scale(0) !important;
 }
 
 /* Slide-tagline animates together with slide-text */
@@ -1916,18 +1943,26 @@ body{
   content: '';
   position: absolute;
   top: calc(100% + 1px); /* Uvijek točno 1px ispod dividera */
-  left: 0;
-  right: 0;
-  width: 100%;
+  left: -48px; /* 40px * 1.2 = 48px padding sa lijeve strane */
+  right: -48px; /* 40px * 1.2 = 48px padding sa desne strane */
+  width: calc(120% + 96px); /* Prošireno za 20% (100% + 80px) * 1.2 = 120% + 96px */
   height: 49px;
   background-image: url('./assets/home-shadow.png');
-  background-size: contain;
+  background-size: cover; /* Rastegnuti da pokrije cijelu širinu */
   background-repeat: no-repeat;
   background-position: center;
   opacity: 0.6; /* 60% opacity */
   pointer-events: none;
   z-index: 99;
   display: block;
+}
+
+/* Home fixed shadow bottom - proširiti na širinu ekrana sa 40px paddingom, zatim za još 20% */
+#home-fixed-shadow-bottom {
+  width: calc(120vw - 96px) !important; /* Prošireno za 20% (100vw - 80px) * 1.2 = 120vw - 96px */
+  left: calc(40px - 10vw) !important; /* Centriranje sa proširenjem */
+  right: calc(40px - 10vw) !important; /* Centriranje sa proširenjem */
+  object-fit: cover !important; /* Rastegnuti da pokrije cijelu širinu */
 }
 
 /* Sakrij shadow kada je screen hidden */

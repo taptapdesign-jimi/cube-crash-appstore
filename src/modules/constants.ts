@@ -18,33 +18,31 @@ export interface ShadowConfig {
 
 // Grid - responsive based on screen size
 export function getGridDimensions(): GridDimensions {
-  // Production: 5x9 board (standard gameplay)
-  return { COLS: 5, ROWS:9 };
-  
-  /* Original responsive code - commented out
   if (typeof window !== 'undefined') {
     const width = window.innerWidth;
     const height = window.innerHeight;
     
-    // iPad and tablet: detect by width range
-    // iPad landscape: 1024x768, 1366x1024, etc.
-    // iPad portrait: 768x1024, 834x1194, etc.
-    if (width >= 768 && width <= 1400) {
-      // iPad: wider board (6 cols x 8 rows)
-      return { COLS: 6, ROWS: 8 };
+    // iPad detection: check for iPad-specific characteristics
+    // iPad sizes: 768x1024 (portrait), 1024x768 (landscape), 834x1194, 1194x834, etc.
+    const isIPad = 
+      // Check by user agent
+      /iPad/.test(navigator.userAgent) ||
+      // Check by screen dimensions (iPad range)
+      ((width >= 768 && width <= 1400) && (height >= 768 && height <= 1400)) ||
+      // Check for touch support and larger screen (tablet-like)
+      (navigator.maxTouchPoints > 1 && width >= 768 && width <= 1400);
+    
+    if (isIPad) {
+      // iPad: 6 columns x 7 rows
+      return { COLS: 6, ROWS: 7 };
     }
-    // Desktop and larger (> 1400px)
-    else if (width > 1400) {
-      return { COLS: 5, ROWS: 9 };
-    }
-    // Mobile (default) < 768px
-    else {
-      return { COLS: 5, ROWS: 9 };
-    }
+    
+    // Mobile and Desktop: 5x9 board (standard gameplay)
+    return { COLS: 5, ROWS: 9 };
   }
+  
   // Fallback for server-side rendering
   return { COLS: 5, ROWS: 9 };
-  */
 }
 
 const gridDims = getGridDimensions();

@@ -291,12 +291,18 @@
 }
 
 .slider-nav-shadow {
-  width: min(310px, 86vw);
+  width: 100vw; /* 100% širina ekrana */
+  max-width: 100vw;
   height: 20px;
   border-radius: 50%;
   background: rgba(209, 170, 140, 0.35);
   filter: blur(16px);
   margin-top: 14px; /* Keep 8px offset relative to divider */
+  margin-left: 0;
+  margin-right: 0;
+  left: 0;
+  right: 0;
+  position: relative;
 }
 
 .slider-nav {
@@ -420,6 +426,227 @@
   will-change: transform;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+}
+
+/* 🔥 iPad-specific adjustments - Povećati glavnu sliku za 20% scale i spustiti za 20% */
+@media only screen and (min-device-width: 768px) and (max-device-width: 1024px),
+       only screen and (min-device-width: 1024px) and (max-device-width: 1366px),
+       screen and (min-width: 768px) and (max-width: 1024px) {
+  /* KRITIČNO: Override default iPhone stil za slide-text i slide-button ODMAH */
+  /* Ovo se primjenjuje prije bilo koje animacijske klase */
+  .slider-slide .slide-text,
+  .slider-slide .slide-content .slide-text,
+  .slider-slide .slide-text.slide-text,
+  .slider-slide .slide-content .slide-text.slide-text {
+    transform: translateY(104px) !important; /* Override iPhone translateY(-28px) */
+    -webkit-transform: translateY(104px) !important;
+    margin-top: 0 !important;
+    margin-bottom: 8px !important;
+  }
+  
+  .slider-slide .slide-button,
+  .slider-slide .slide-content .slide-button,
+  .slider-slide .slide-button.slide-button,
+  .slider-slide .slide-content .slide-button.slide-button {
+    margin-top: 0 !important;
+    transform: translateY(40px) !important; /* Override iPhone default */
+    -webkit-transform: translateY(40px) !important;
+  }
+  
+  /* Povećati hero-image za 16% scale na iPad-u (20% - 4% = 16%) */
+  .hero-image {
+    transform: scale(1.152) translateZ(0) !important; /* 20% * 0.96 = 19.2%, ali zaokruženo na 1.152 */
+    -webkit-transform: scale(1.152) translateZ(0) !important;
+  }
+  
+  /* Povećati hero-container da prati scale, spustiti za 20%, podignuti za 24px, zatim pomaknuti 16px prema logotipu */
+  /* Ne primjenjivati na animacijske klase - omogućiti animacije */
+  .hero-container:not(.animate-exit):not(.animate-enter):not(.animate-enter-initial) {
+    transform: scale(1.152) translateY(calc(20% - 24px - 16px)) !important; /* 16px gore prema logotipu */
+    -webkit-transform: scale(1.152) translateY(calc(20% - 24px - 16px)) !important;
+    transform-origin: center center !important;
+    -webkit-transform-origin: center center !important;
+  }
+  
+  /* Postaviti subtitle i CTA točno 24px ispod slike, skupljeno - samo za iPad */
+  .slider-slide .hero-container {
+    margin-bottom: 24px !important; /* 24px gap ispod slike */
+  }
+  
+  /* Override za animacijske klase - osigurati da se iPad pozicije koriste i tijekom animacije */
+  /* Koristimo veću specifičnost da override-amo sve animacijske klase */
+  .slider-slide .slide-text.animate-exit,
+  .slider-slide .slide-content .slide-text.animate-exit,
+  .slider-slide .slide-text.animate-enter,
+  .slider-slide .slide-content .slide-text.animate-enter,
+  .slider-slide .slide-text.animate-enter-initial,
+  .slider-slide .slide-content .slide-text.animate-enter-initial,
+  .slider-slide .slide-text.animate-reset,
+  .slider-slide .slide-content .slide-text.animate-reset {
+    transform: translateY(104px) !important;
+    -webkit-transform: translateY(104px) !important;
+    margin-top: 0 !important;
+    margin-bottom: 8px !important;
+  }
+  
+  /* Slide tagline (merge dice clear boards subtitle) - spustiti za 24px (-8px + 24px = 16px) */
+  /* Ne primjenjivati na animacijske klase - omogućiti animacije */
+  .slider-slide .slide-tagline:not(.animate-exit):not(.animate-enter):not(.animate-enter-initial) {
+    transform: translateY(16px) !important; /* -8px + 24px = 16px */
+    -webkit-transform: translateY(16px) !important;
+    margin-top: 4px !important; /* Original margin-top bez dodatnih 24px */
+  }
+  
+  /* Override za animacijske klase - osigurati da se iPad pozicije koriste i tijekom animacije */
+  /* Koristimo veću specifičnost da override-amo sve animacijske klase */
+  .slider-slide .slide-button.animate-enter,
+  .slider-slide .slide-content .slide-button.animate-enter,
+  .slider-slide .slide-button.animate-enter-initial,
+  .slider-slide .slide-content .slide-button.animate-enter-initial,
+  .slider-slide .slide-button.animate-reset,
+  .slider-slide .slide-content .slide-button.animate-reset {
+    margin-top: 0 !important;
+    transform: translateY(40px) !important;
+    -webkit-transform: translateY(40px) !important;
+  }
+  
+  /* CRITICAL: Exit animation must override iPad positioning */
+  .slider-slide .slide-button.animate-exit,
+  .slider-slide .slide-content .slide-button.animate-exit {
+    margin-top: 0 !important;
+    will-change: transform !important;
+    transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+    -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+    transform: translateY(40px) scale(0) !important;
+    -webkit-transform: translateY(40px) scale(0) !important;
+  }
+  
+  /* Osigurati da animacije rade na iPad-u - kombinirati iPad-specificke pozicije sa animacijama */
+  .hero-container.animate-exit {
+    transform: scale(1.152) translateY(calc(20% - 24px - 16px)) scale(0) !important;
+    -webkit-transform: scale(1.152) translateY(calc(20% - 24px - 16px)) scale(0) !important;
+    transform-origin: center center !important;
+    -webkit-transform-origin: center center !important;
+    transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+    -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  }
+  
+  .hero-container.animate-enter {
+    transform: scale(1.152) translateY(calc(20% - 24px - 16px)) scale(1) !important;
+    -webkit-transform: scale(1.152) translateY(calc(20% - 24px - 16px)) scale(1) !important;
+    transform-origin: center center !important;
+    -webkit-transform-origin: center center !important;
+    transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+    -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  }
+  
+  .hero-container.animate-enter-initial {
+    transform: scale(1.152) translateY(calc(20% - 24px - 16px)) scale(0) !important;
+    -webkit-transform: scale(1.152) translateY(calc(20% - 24px - 16px)) scale(0) !important;
+    transform-origin: center center !important;
+    -webkit-transform-origin: center center !important;
+    transition: none !important;
+    -webkit-transition: none !important;
+  }
+  
+  /* Override animacijske klase - osigurati da se iPad pozicije koriste i tijekom animacije */
+  .slide-text.animate-exit {
+    transform: translateY(104px) scale(0) !important;
+    -webkit-transform: translateY(104px) scale(0) !important;
+    transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+    -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  }
+  
+  .slide-text.animate-enter {
+    transform: translateY(104px) scale(1) !important;
+    -webkit-transform: translateY(104px) scale(1) !important;
+    transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+    -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  }
+  
+  .slide-text.animate-enter-initial {
+    transform: translateY(104px) scale(0) !important;
+    -webkit-transform: translateY(104px) scale(0) !important;
+    transition: none !important;
+    -webkit-transition: none !important;
+  }
+  
+  /* Override animacijske klase - osigurati da se iPad pozicije koriste i tijekom animacije */
+  /* Koristimo veću specifičnost da override-amo iPhone stilove iz style.css */
+  .slider-slide .slide-button.animate-exit,
+  .slider-slide .slide-content .slide-button.animate-exit,
+  .slide-button.animate-exit {
+    transform: translateY(40px) scale(0) !important;
+    -webkit-transform: translateY(40px) scale(0) !important;
+    transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+    -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  }
+  
+  /* Override iPhone stilove iz style.css s većom specifičnošću */
+  .slider-slide .slide-button.animate-enter,
+  .slider-slide .slide-content .slide-button.animate-enter,
+  .slide-button.animate-enter {
+    transform: translateY(40px) scale(1) !important;
+    -webkit-transform: translateY(40px) scale(1) !important;
+    transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+    -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  }
+  
+  .slider-slide .slide-button.animate-enter-initial,
+  .slider-slide .slide-content .slide-button.animate-enter-initial,
+  .slide-button.animate-enter-initial {
+    transform: translateY(40px) scale(0) !important;
+    -webkit-transform: translateY(40px) scale(0) !important;
+    transition: none !important;
+    -webkit-transition: none !important;
+  }
+  
+  .slide-tagline.animate-exit {
+    transform: translateY(16px) scale(0) !important;
+    -webkit-transform: translateY(16px) scale(0) !important;
+    transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+    -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  }
+  
+  .slide-tagline.animate-enter {
+    transform: translateY(16px) scale(1) !important;
+    -webkit-transform: translateY(16px) scale(1) !important;
+    transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+    -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  }
+  
+  .slide-tagline.animate-enter-initial {
+    transform: translateY(16px) scale(0) !important;
+    -webkit-transform: translateY(16px) scale(0) !important;
+    transition: none !important;
+    -webkit-transition: none !important;
+  }
+  
+  /* Reset state nakon animacije - osigurati da se elementi vrate na iPad-specificke pozicije */
+  .hero-container.animate-reset {
+    transform: scale(1.152) translateY(calc(20% - 24px - 16px)) !important;
+    -webkit-transform: scale(1.152) translateY(calc(20% - 24px - 16px)) !important;
+    transform-origin: center center !important;
+    -webkit-transform-origin: center center !important;
+  }
+  
+  .slide-text.animate-reset {
+    transform: translateY(104px) !important;
+    -webkit-transform: translateY(104px) !important;
+  }
+  
+  /* Override iPhone stilove iz style.css s većom specifičnošću */
+  .slider-slide .slide-button.animate-reset,
+  .slider-slide .slide-content .slide-button.animate-reset,
+  .slide-button.animate-reset {
+    transform: translateY(40px) scale(1) !important;
+    -webkit-transform: translateY(40px) scale(1) !important;
+  }
+  
+  .slide-tagline.animate-reset {
+    transform: translateY(16px) !important;
+    -webkit-transform: translateY(16px) !important;
+  }
 }
 
 /* Shards gore ljevo - above logo, top left */

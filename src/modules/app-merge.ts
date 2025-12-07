@@ -1927,7 +1927,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   // 🔥 USER REQUEST: Logic for end game check
   // 1. If unlocked tiles have merge/stack potential → game continues (don't call checkLevelEnd)
-  // 2. If board is clean AND no unlocked tiles AND actually last merge → trigger clean board flow
+  // 2. If board is clean AND no merge potential → trigger clean board flow (regardless of isActuallyLastMerge)
   // 3. If no merge/stack potential → call checkLevelEnd (will check stuck and show fail screen)
   if (hasMergeOrStackPotential) {
     // Spawned tiles have potential for merge/stack → game continues
@@ -1941,36 +1941,60 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   }
   
   // No merge/stack potential - check if board is clean or if we should show fail screen
-  if (isBoardClean && !hasUnlockedTiles && isActuallyLastMerge) {
-    console.log('🧲 Board is clean (only merge 6, no other tiles) AND this is actually last merge - calling checkLevelEnd to trigger clean board flow');
+  // 🔥 BUG FIX 1: Check isBoardClean independently - if board is clean and no merge potential, trigger clean board flow
+  // This handles the case where isBoardClean is true but isActuallyLastMerge is false (due to spawnCount > 0)
+  if (isBoardClean && !hasUnlockedTiles) {
+    console.log('🧲 Board is clean (only merge 6, no other tiles) and no merge potential - calling checkLevelEnd to trigger clean board flow');
     if (typeof (window as any).CC?.checkLevelEnd === 'function') {
       (window as any).CC.checkLevelEnd();
     }
-  } else if (!hasMergeOrStackPotential && unlockedActiveTiles.length > 0) {
-    // No merge/stack potential but we have unlocked tiles → call checkLevelEnd to check stuck and show fail screen
-    console.log('🚨 No merge/stack potential with unlocked tiles - calling checkLevelEnd to check stuck and show fail screen');
-    if (typeof (window as any).CC?.checkLevelEnd === 'function') {
-      (window as any).CC.checkLevelEnd();
-    }
-  } else {
-    if (isLastMergeFlagSet && hasSpawnedNewTiles) {
-      console.log('🧲 _isLastMerge flag was set, but new tiles were spawned - this is NOT last merge anymore, clearing flag');
-      // Clear the flag since new tiles were spawned
-      (dst as any)._isLastMerge = false;
-    }
-    console.log('🧲 Board has mergeable tiles OR new tiles were spawned - NOT calling checkLevelEnd yet, waiting for player to merge');
-    console.log('🧲 Details:', {
-      isBoardClean,
-      hasUnlockedTiles,
-      hasMergeOrStackPotential,
-      isLastMergeFlagSet,
-      hasSpawnedNewTiles,
-      isActuallyLastMerge,
-      activeTilesCount: activeTilesFinal.length,
-      unlockedTilesCount: unlockedActiveTiles.length,
-      note: 'checkLevelEnd will be called automatically after merge completes (via post-merge check in app-core.ts)'
-    });
+    return; // Exit early after triggering clean board flow
   }
+  
+  // 🔥 BUG FIX 2: Check if we have no merge potential and either:
+  // - We have unlocked tiles (normal stuck case), OR
+  // - We have locked tiles but no merge potential (all tiles locked after spawn, stuck state)
+  // In both cases, we should call checkLevelEnd to check stuck and show fail screen
+  if (!hasMergeOrStackPotential) {
+    // No merge/stack potential - check if we have any active tiles (locked or unlocked)
+    const hasAnyActiveTiles = activeTilesFinal.length > 0;
+    
+    if (unlockedActiveTiles.length > 0) {
+      // No merge/stack potential but we have unlocked tiles → call checkLevelEnd to check stuck and show fail screen
+      console.log('🚨 No merge/stack potential with unlocked tiles - calling checkLevelEnd to check stuck and show fail screen');
+      if (typeof (window as any).CC?.checkLevelEnd === 'function') {
+        (window as any).CC.checkLevelEnd();
+      }
+      return; // Exit early after triggering fail screen check
+    } else if (hasAnyActiveTiles && activeTilesFinal.length > 1) {
+      // No merge/stack potential, all tiles are locked, but we have multiple active tiles → stuck state
+      // This handles Bug 2: all tiles remain locked after spawn, no merge potential
+      console.log('🚨 No merge/stack potential, all tiles are locked - calling checkLevelEnd to check stuck and show fail screen');
+      if (typeof (window as any).CC?.checkLevelEnd === 'function') {
+        (window as any).CC.checkLevelEnd();
+      }
+      return; // Exit early after triggering fail screen check
+    }
+  }
+  
+  // Fallback: If we get here, something unexpected happened
+  if (isLastMergeFlagSet && hasSpawnedNewTiles) {
+    console.log('🧲 _isLastMerge flag was set, but new tiles were spawned - this is NOT last merge anymore, clearing flag');
+    // Clear the flag since new tiles were spawned
+    (dst as any)._isLastMerge = false;
+  }
+  console.log('🧲 Board has mergeable tiles OR new tiles were spawned - NOT calling checkLevelEnd yet, waiting for player to merge');
+  console.log('🧲 Details:', {
+    isBoardClean,
+    hasUnlockedTiles,
+    hasMergeOrStackPotential,
+    isLastMergeFlagSet,
+    hasSpawnedNewTiles,
+    isActuallyLastMerge,
+    activeTilesCount: activeTilesFinal.length,
+    unlockedTilesCount: unlockedActiveTiles.length,
+    note: 'checkLevelEnd will be called automatically after merge completes (via post-merge check in app-core.ts)'
+  });
 }
 
 export async function handleWildMagnetMergedPulledTiles(dst: any, pulledTiles: any[], helpers: any): Promise<boolean> {

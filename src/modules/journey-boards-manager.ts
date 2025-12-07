@@ -52,50 +52,76 @@ function figmaToPercent(xOffset: number, yOffset: number): { x: number; y: numbe
 // - Each card can be positioned individually anywhere you want
 // ============================================================================
 
-// Helper to convert pixels to percentage (based on typical mobile screen width ~375px)
-function pxToPercent(px: number, baseWidth: number = 375): number {
+// 🔥 PREMIUM FIX: Viewport-based positioning system for consistent positioning across all iPhone devices
+// Using viewport units (vw/vh) directly - cards will be positioned relative to viewport, not container
+// This ensures identical positions on all devices (iPhone 13, 14, 17, etc.)
+const BASE_VIEWPORT_WIDTH = 390; // iPhone 13/14 base width in pixels (for conversion calculations)
+const BASE_VIEWPORT_HEIGHT = 844; // iPhone 13/14 base height in pixels (for conversion calculations)
+
+// Helper to convert pixels to viewport width units (vw)
+// This ensures cards are always at the same position relative to screen width
+function pxToVW(px: number, baseWidth: number = BASE_VIEWPORT_WIDTH): number {
   return (px / baseWidth) * 100;
 }
 
-// Card positions - specify in PIXELS, system converts to PERCENTAGES
-// Format: { x: pxToPercent(pixels_from_left), top: pxToPercent(pixels_from_top), width, height, rotation }
+// Helper to convert pixels to viewport height units (vh)
+// This ensures cards are always at the same position relative to screen height
+function pxToVH(px: number, baseHeight: number = BASE_VIEWPORT_HEIGHT): number {
+  return (px / baseHeight) * 100;
+}
+
+// Legacy helpers for backward compatibility - now convert to viewport units
+function pxToPercent(px: number, baseWidth: number = BASE_VIEWPORT_WIDTH): number {
+  // For horizontal positions, convert to vw equivalent
+  return pxToVW(px, baseWidth);
+}
+
+function pxToPercentTop(px: number, baseHeight: number = FRAME_HEIGHT): number {
+  // For vertical positions, convert to vh equivalent
+  // We need to map FRAME_HEIGHT pixels to viewport height
+  const viewportRatio = BASE_VIEWPORT_HEIGHT / FRAME_HEIGHT;
+  return pxToVH(px * viewportRatio, BASE_VIEWPORT_HEIGHT);
+}
+
+// Card positions - specify in PIXELS, system converts to VIEWPORT UNITS (vw/vh)
+// Format: { x: pxToPercent(pixels_from_left) or vw value, top: pxToPercentTop(pixels_from_top) or vh value, width, height, rotation }
 // IMPORTANT: When adding new cards, DO NOT change existing card positions!
 // Standard card width - all cards must be the same size
 const STANDARD_CARD_WIDTH = 109.82; // Use consistent width for all cards
 
 const CARD_POSITIONS = [
-  // Card 01 - FIRST DAY (0px from left edge, 24px below Boards title, rotated +4° clockwise - reversed)
-  { x: pxToPercent(0), top: pxToPercent(24), width: STANDARD_CARD_WIDTH, height: 150, rotation: 4 },
-  // Card 02 - SO SPECIAL (centered horizontally 50%, 89px from top, rotated -3° counter-clockwise - reversed)
-  { x: 50, top: pxToPercent(89), width: STANDARD_CARD_WIDTH, height: 150, rotation: -3 },
-  // Card 03 - ALL STAR (0px from right edge, 154px + 8px = 162px from top, rotated +6° clockwise - reversed)
-  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH), top: pxToPercent(154 + 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: 6 },
-  // Card 04 - FLYING UP (centered horizontally 50%, 277px + 40px - 16px = 301px from top, rotated 2° clockwise)
-  { x: 50, top: pxToPercent(277 + 40 - 16), width: STANDARD_CARD_WIDTH, height: 150, rotation: 2 },
-  // Card 05 - PLANNER (-8px from left edge - intentionally pushed left, 277px + 86px + 24px = 387px from top, rotated -3° counter-clockwise)
-  { x: pxToPercent(-8), top: pxToPercent(277 + 86 + 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: -3 },
-  // Card 06 - (0px from right edge, 80px below card 5 = 363px + 80px = 443px, rotated -3° counter-clockwise)
-  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH), top: pxToPercent(363 + 80), width: STANDARD_CARD_WIDTH, height: 150, rotation: -3 },
-  // Card 07 - (64px from left edge, 80px below card 6 = 443px + 80px = 523px from top, rotated +3° clockwise)
-  { x: pxToPercent(64), top: pxToPercent(443 + 80), width: STANDARD_CARD_WIDTH, height: 150, rotation: 3 },
-  // Card 08 - (20px + 16px = 36px from right edge, 80px below card 7 = 523px + 80px = 603px from top, rotated -3° counter-clockwise)
-  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 36), top: pxToPercent(523 + 80), width: STANDARD_CARD_WIDTH, height: 150, rotation: -3 },
-  // Card 09 - (50px - 4px = 46px from left edge, 80px below card 8 = 603px + 80px = 683px from top, rotated -9° counter-clockwise)
-  { x: pxToPercent(46), top: pxToPercent(603 + 80), width: STANDARD_CARD_WIDTH, height: 150, rotation: -9 },
-  // Card 10 - (84px + 8px = 92px from left edge, 811px from top, rotated +2° clockwise)
-  { x: pxToPercent(76 + 16 - 4 - 4 + 8), top: pxToPercent(683 + 80 + 80 - 24 - 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: 2 },
-  // Card 11 - (16px + 16px = 32px from right edge, 875px from top, rotated -2° counter-clockwise)
-  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 32), top: pxToPercent(811 + 80 - 16), width: STANDARD_CARD_WIDTH, height: 150, rotation: -2 },
-  // Card 12 - (18px - 8px = 10px from left edge, 80px below card 11 + 16px = 875px + 80px + 16px = 971px from top, rotated +3° clockwise)
-  { x: pxToPercent(24 - 6 - 8), top: pxToPercent(875 + 80 + 16), width: STANDARD_CARD_WIDTH, height: 150, rotation: 3 },
-  // Card 13 - (152px from left edge, 1007px + 2px = 1009px from top, rotated -4° counter-clockwise)
-  { x: pxToPercent(120 + 32), top: pxToPercent(971 + 80 - 36 - 8 + 2), width: STANDARD_CARD_WIDTH, height: 150, rotation: -4 },
-  // Card 14 - (0px from left edge, 1105px + 6px = 1111px from top, rotated -6° counter-clockwise)
-  { x: pxToPercent(0), top: pxToPercent(1009 + 80 + 16 + 6), width: STANDARD_CARD_WIDTH, height: 150, rotation: -6 },
-  // Card 15 - (4px from right edge, 1159px from top, rotated +6° clockwise)
-  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 4), top: pxToPercent(1111 + 80 - 40 + 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: 6 },
-  // Card 16 - (102px - 6px = 96px from left edge, 1269px from top, rotated +3° clockwise)
-  { x: pxToPercent(106 - 4 - 6), top: pxToPercent(1159 + 80 + 34 - 4), width: STANDARD_CARD_WIDTH, height: 150, rotation: 3 },
+  // Card 01 - FIRST DAY (moved 8px left from left edge, moved up additional 48px from current position) - total moved up 72px from original, lowered by 8px
+  { x: pxToPercent(-8), top: pxToPercentTop(24 - 24 - 24 - 48 + 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: 4 },
+  // Card 02 - SO SPECIAL (centered horizontally 50%, 89px - 24px = 65px from top, rotated -3° counter-clockwise - reversed) - moved up 24px
+  { x: 50, top: pxToPercentTop(89 - 24 - 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: -3 },
+  // Card 03 - ALL STAR (moved left 40px from right edge - 24px + 16px, 154px + 8px - 120px + 80px - 8px = 114px from top, rotated +6° clockwise - reversed) - moved up 24px, lowered by 32px total
+  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 24 + 16), top: pxToPercentTop(154 + 8 - 120 + 80 - 8 - 24 + 16 + 8 + 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: 6 },
+  // Card 04 - FLYING UP (centered horizontally 50%, 277px + 40px - 16px - 150px + 80px - 24px - 16px = 191px from top, rotated 2° clockwise) - moved up 24px, lowered by 144px total
+  { x: 50, top: pxToPercentTop(277 + 40 - 16 - 150 + 80 - 24 - 16 - 24 + 40 + 40 + 40 + 8 + 16), width: STANDARD_CARD_WIDTH, height: 150, rotation: 2 },
+  // Card 05 - PLANNER (-8px from left edge - intentionally pushed left, 277px + 86px + 24px - 250px + 80px + 32px = 249px from top, rotated -3° counter-clockwise) - moved up 24px, lowered by 208px total
+  { x: pxToPercent(-8), top: pxToPercentTop(277 + 86 + 24 - 250 + 80 + 32 - 24 + 40 + 120 + 24 + 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: -3 },
+  // Card 06 - (42px from right edge, 80px below card 5 = 363px + 80px - 150px - 16px = 277px, rotated -3° counter-clockwise) - moved up 24px, lowered by 242px total (raised by 148px total, moved left by 42px)
+  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 42), top: pxToPercentTop(363 + 80 - 150 - 16 - 24 + 150 + 240 + 300 - 300 - 80 - 40 - 4 - 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: -3 },
+  // Card 07 - (64px from left edge, 80px below card 6 = 443px + 80px - 300px + 100px + 10px = 333px from top, rotated +3° clockwise) - moved up 24px, lowered by 298px total (raised by 352px total)
+  { x: pxToPercent(64), top: pxToPercentTop(443 + 80 - 300 + 100 + 10 - 24 + 400 + 250 - 200 - 120 - 16 - 16), width: STANDARD_CARD_WIDTH, height: 150, rotation: 3 },
+  // Card 08 - (60px from right edge - moved left 24px, 80px below card 7 = 523px + 80px = 603px from top, rotated -3° counter-clockwise) - moved up 24px, lowered by 170px total (raised by 96px total, moved left 24px) - raised by additional 24px, lowered by 8px, moved left by 8px
+  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 36 + 24 + 8), top: pxToPercentTop(523 + 80 - 24 + 250 - 80 - 16 - 24 + 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: -3 },
+  // Card 09 - (50px - 4px = 46px from left edge, 80px below card 8 = 603px + 80px = 683px from top, rotated -9° counter-clockwise) - moved up 24px, lowered by 250px - raised by additional 80px, lowered by 8px, raised by 50px, moved left by 16px, lowered by 8px
+  { x: pxToPercent(46 - 16), top: pxToPercentTop(603 + 80 - 24 + 250 - 80 + 8 - 50 + 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: -9 },
+  // Card 10 - (84px + 8px = 92px from left edge, 811px from top, rotated +2° clockwise) - moved up 24px, lowered by 250px, raised by 16px, moved right by 8px, raised by 24px, raised by additional 24px, moved left by 16px
+  { x: pxToPercent(76 + 16 - 4 - 4 + 8 - 8 - 16), top: pxToPercentTop(683 + 80 + 80 - 24 - 8 - 24 + 250 - 16 - 24 - 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: 2 },
+  // Card 11 - (16px + 16px = 32px from right edge, 875px from top, rotated -2° counter-clockwise) - moved up 24px, lowered by 250px, raised by 24px, moved left by 32px, moved left by additional 8px, rotated 2 degrees more to the left
+  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 32 + 32 + 8), top: pxToPercentTop(811 + 80 - 16 - 24 + 250 - 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: -4 },
+  // Card 12 - (18px - 8px = 10px from left edge, 80px below card 11 + 16px = 875px + 80px + 16px = 971px from top, rotated +3° clockwise) - moved up 24px, lowered by 250px, lowered by 8px
+  { x: pxToPercent(24 - 6 - 8), top: pxToPercentTop(875 + 80 + 16 - 24 + 250 + 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: 3 },
+  // Card 13 - (152px from left edge, 1007px + 2px = 1009px from top, rotated -4° counter-clockwise) - moved up 24px, lowered by 250px, lowered by 24px
+  { x: pxToPercent(120 + 32), top: pxToPercentTop(971 + 80 - 36 - 8 + 2 - 24 + 250 + 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: -4 },
+  // Card 14 - (0px from left edge, 1105px + 6px = 1111px from top, rotated -6° counter-clockwise) - moved up 24px, lowered by 250px, lowered by 80px, raised by 10px, moved left by 6px, raised by additional 8px
+  { x: pxToPercent(0 - 6), top: pxToPercentTop(1009 + 80 + 16 + 6 - 24 + 250 + 80 - 10 - 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: -6 },
+  // Card 15 - (4px from right edge, 1159px from top, rotated +6° clockwise) - moved up 24px, lowered by 250px, lowered by 100px, moved left by 24px, raised by 10px, moved left by additional 20px, raised by 4px, moved right by 2px
+  { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 4 + 24 + 20 - 2), top: pxToPercentTop(1111 + 80 - 40 + 8 - 24 + 250 + 100 - 10 - 4), width: STANDARD_CARD_WIDTH, height: 150, rotation: 6 },
+  // Card 16 - (102px - 6px = 96px from left edge, 1269px from top, rotated +3° clockwise) - moved up 24px, lowered by 250px, lowered by 84px, lowered by additional 24px, moved left by 10px
+  { x: pxToPercent(106 - 4 - 6 - 10), top: pxToPercentTop(1159 + 80 + 34 - 4 - 24 + 250 + 84 + 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: 3 },
 ];
 
 
@@ -106,6 +132,36 @@ class JourneyBoardsManager {
   constructor() {
     this.initializeBoards();
     this.loadBoardsState();
+  }
+
+  /**
+   * Clean up journey board elements when screen is hidden
+   */
+  public cleanup(): void {
+    // Remove background and cards containers from journey screen
+    const journeyScreen = document.getElementById('collectibles-screen');
+    if (journeyScreen) {
+      const bgContainer = journeyScreen.querySelector('.journey-bg-container');
+      const cardsContainer = journeyScreen.querySelector('.journey-cards-container');
+      
+      if (bgContainer && bgContainer.parentNode) {
+        bgContainer.parentNode.removeChild(bgContainer);
+      }
+      if (cardsContainer && cardsContainer.parentNode) {
+        cardsContainer.parentNode.removeChild(cardsContainer);
+      }
+    }
+    
+    // Also check body (fallback cleanup)
+    const bgFromBody = document.body.querySelector('.journey-bg-container');
+    const cardsFromBody = document.body.querySelector('.journey-cards-container');
+    
+    if (bgFromBody && bgFromBody.parentNode) {
+      bgFromBody.parentNode.removeChild(bgFromBody);
+    }
+    if (cardsFromBody && cardsFromBody.parentNode) {
+      cardsFromBody.parentNode.removeChild(cardsFromBody);
+    }
   }
 
   private initializeBoards(): void {
@@ -237,79 +293,264 @@ class JourneyBoardsManager {
     }
 
     this.container = container;
+    
+    // 🔥 CRITICAL FIX: Clean up previous observer if exists
+    if ((container as any)._positionObserver) {
+      try {
+        (container as any)._positionObserver.disconnect();
+        (container as any)._positionObserver = null;
+      } catch (e) {
+        console.warn('⚠️ Failed to disconnect previous position observer:', e);
+      }
+    }
+    
     container.innerHTML = '';
+    
+    // 🔥 APP STORE FIX: Clean up previous fixed-positioned elements from body
+    // Remove any existing background or cards containers from previous renders
+    const existingBg = document.querySelector('.journey-bg-container');
+    const existingCards = document.querySelector('.journey-cards-container');
+    if (existingBg && existingBg.parentNode) {
+      existingBg.parentNode.removeChild(existingBg);
+    }
+    if (existingCards && existingCards.parentNode) {
+      existingCards.parentNode.removeChild(existingCards);
+    }
     
     // Initialize journey debug buttons
     this.initJourneyButtons();
 
-    // Create background image container (behind cards)
-    // NOTE: Position relative to journey-boards-container, not fixed offset
+    // 🔥 APP STORE FIX: Use FIXED viewport-based positioning - NO dynamic calculations
+    // Background and cards use position: fixed with viewport units (vw/vh)
+    // This ensures identical positions on ALL devices (iPhone 13, 14, 17, etc.)
+    this.renderBoardsFixed(container);
+  }
+
+  private renderBoardsFixed(container: HTMLElement): void {
+    // 🔥 APP STORE FIX: Fixed background position using viewport units
+    // Background starts at a fixed position from top of viewport
+    // Based on iPhone 13/14 layout: header + section header + spacing = ~50px from top (moved up 150px)
+    // Convert to viewport height units for consistency
+    const FIXED_BG_TOP_VH = pxToVH(50, BASE_VIEWPORT_HEIGHT); // Fixed top position in vh (moved up 150px from original 200px)
+    
+    // 🔥 FIX: Load image asynchronously to get exact dimensions
+    const img = new Image();
+    const KNOWN_ASPECT_RATIO = 1.97; // Fallback aspect ratio
+    
+    // Load image and calculate dimensions
+    img.onload = () => {
+      const imageAspectRatio = img.height / img.width;
+      const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
+      const bgHeightPx = viewportWidth * imageAspectRatio; // Calculate height in pixels based on viewport width
+      
+      // 🔥 SCROLLABLE FIX: Put elements INSIDE journey-boards-container so they scroll with content
+      // Calculate top offset in pixels for absolute positioning within container
+      const FIXED_BG_TOP_PX = (FIXED_BG_TOP_VH / 100) * window.innerHeight;
+      
+      // Set container height to accommodate FULL background image height + top offset
+      const containerHeightPx = bgHeightPx + FIXED_BG_TOP_PX;
+      container.style.height = `${containerHeightPx}px`;
+      container.style.position = 'relative';
+      container.style.width = '100%';
+      container.style.minHeight = `${containerHeightPx}px`;
+      container.style.overflow = 'visible'; // Ensure container doesn't clip background
+      
+      // Update background container height
+      const bgContainer = container.querySelector('.journey-bg-container') as HTMLElement;
+      if (bgContainer) {
+        bgContainer.style.height = `${bgHeightPx}px`; // Set exact height to show full image
+      }
+      
+      // Update cards container height
+      const cardsContainer = container.querySelector('.journey-cards-container') as HTMLElement;
+      if (cardsContainer) {
+        cardsContainer.style.height = `${bgHeightPx}px`; // Match background height
+      }
+    };
+    
+    img.onerror = () => {
+      // Fallback to known aspect ratio if image fails to load
+      const imageAspectRatio = KNOWN_ASPECT_RATIO;
+      const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
+      const bgHeightPx = viewportWidth * imageAspectRatio;
+      const FIXED_BG_TOP_PX = (FIXED_BG_TOP_VH / 100) * window.innerHeight;
+      const containerHeightPx = bgHeightPx + FIXED_BG_TOP_PX;
+      container.style.height = `${containerHeightPx}px`;
+      container.style.minHeight = `${containerHeightPx}px`;
+      container.style.overflow = 'visible';
+    };
+    
+    img.src = './assets/journey assets/1-17bg.png';
+    
+    // Use fallback aspect ratio for initial calculation
+    const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
+    const initialBgHeightPx = viewportWidth * KNOWN_ASPECT_RATIO;
+    const FIXED_BG_TOP_PX = (FIXED_BG_TOP_VH / 100) * window.innerHeight;
+    const initialContainerHeightPx = initialBgHeightPx + FIXED_BG_TOP_PX;
+    
+    // Set initial container height
+    container.style.height = `${initialContainerHeightPx}px`;
+    container.style.position = 'relative';
+    container.style.width = '100%';
+    container.style.minHeight = `${initialContainerHeightPx}px`;
+    container.style.overflow = 'visible'; // Ensure container doesn't clip background
+    
+    // Get padding values from CSS custom properties or use defaults
+    const scrollableArea = container.closest('.collectibles-scrollable') as HTMLElement;
+    
+    // 🔥 FIX: Allow parent scrollable container to show full background image
+    if (scrollableArea) {
+      scrollableArea.style.overflowX = 'visible'; // Allow horizontal overflow for full background image
+    }
+    
+    // Create background image container - ABSOLUTE position within journey-boards-container
+    // Set ALL critical styles inline to ensure visibility and edge-to-edge positioning
     const bgContainer = document.createElement('div');
     bgContainer.className = 'journey-bg-container';
+    const padLeft = scrollableArea ? 
+      parseInt(getComputedStyle(scrollableArea).getPropertyValue('--pad-left') || '40', 10) : 40;
+    const padRight = scrollableArea ? 
+      parseInt(getComputedStyle(scrollableArea).getPropertyValue('--pad-right') || '40', 10) : 40;
     
-    const bgImage = document.createElement('img');
-    bgImage.src = './assets/journey assets/1-16bg.png';
-    bgImage.alt = 'Journey background';
+    // Use viewport width directly for true edge-to-edge (not relative to parent)
+    const vw = window.innerWidth;
     
-    bgContainer.appendChild(bgImage);
+    // Position and size - edge-to-edge using viewport width directly
+    bgContainer.style.position = 'absolute';
+    bgContainer.style.top = `${FIXED_BG_TOP_PX}px`;
+    bgContainer.style.height = `${initialBgHeightPx}px`; // Will be updated when image loads
+    bgContainer.style.left = `-${padLeft}px`; // Negative left to extend beyond parent padding
+    bgContainer.style.width = `${vw}px`; // Use viewport width directly for true edge-to-edge
+    
+    // Background image styles
+    bgContainer.style.backgroundImage = "url('./assets/journey assets/1-17bg.png')";
+    bgContainer.style.backgroundSize = '100% auto'; // Maintain aspect ratio, full width
+    bgContainer.style.backgroundPosition = 'top center';
+    bgContainer.style.backgroundRepeat = 'no-repeat';
+    
+    // Visibility and stacking
+    bgContainer.style.zIndex = '1';
+    bgContainer.style.margin = '0';
+    bgContainer.style.padding = '0';
+    bgContainer.style.display = 'block';
+    bgContainer.style.visibility = 'visible';
+    bgContainer.style.opacity = '1';
+    bgContainer.style.overflow = 'visible'; // Don't clip background image
+    
+    // Append to container (journey-boards-container) so it scrolls with content
     container.appendChild(bgContainer);
+    
+    // Debug: Verify edge-to-edge positioning (with delay to ensure styles are applied)
+    setTimeout(() => {
+      const computed = window.getComputedStyle(bgContainer);
+      const containerRect = container.getBoundingClientRect();
+      const bgRect = bgContainer.getBoundingClientRect();
+      console.log('🎨 Background edge-to-edge check:', {
+        containerLeft: containerRect.left,
+        containerWidth: containerRect.width,
+        bgLeft: bgRect.left,
+        bgWidth: bgRect.width,
+        viewportWidth: window.innerWidth,
+        padLeft,
+        padRight,
+        inlineWidth: bgContainer.style.width,
+        inlineLeft: bgContainer.style.left,
+        computedWidth: computed.width,
+        computedLeft: computed.left,
+        isEdgeToEdge: bgRect.left <= 0 && bgRect.width >= window.innerWidth
+      });
+    }, 100);
 
-    // Create cards container (above background)
+    // Create cards container - also ABSOLUTE position within journey-boards-container
+    // Set critical dynamic values inline (top, height) - static styles in CSS
     const cardsContainer = document.createElement('div');
     cardsContainer.className = 'journey-cards-container';
-    cardsContainer.style.position = 'relative';
-    cardsContainer.style.zIndex = '2';
+    // Critical dynamic values must be inline to ensure they're applied
+    cardsContainer.style.top = `${FIXED_BG_TOP_PX}px`;
+    cardsContainer.style.height = `${initialBgHeightPx}px`; // Will be updated when image loads
+    
+    // Append to container (journey-boards-container) so it scrolls with content
     container.appendChild(cardsContainer);
 
-    // Render cards only (no environment elements, no pathway lines)
+    // Render cards with FIXED viewport-based positions
     this.boards.forEach((board, index) => {
-      const cardElement = this.createBoardCard(board, index);
+      const cardElement = this.createBoardCardFixed(board, index);
       cardsContainer.appendChild(cardElement);
     });
   }
 
-  private createBoardCard(board: JourneyBoard, index: number): HTMLElement {
-    const position = CARD_POSITIONS[index] || { x: pxToPercent(24), top: pxToPercent(24), rotation: 5, width: STANDARD_CARD_WIDTH, height: 150 };
+  private createBoardCardFixed(board: JourneyBoard, index: number): HTMLElement {
+    const position = CARD_POSITIONS[index] || { x: pxToPercent(24), top: pxToPercentTop(24), rotation: 5, width: STANDARD_CARD_WIDTH, height: 150 };
     const cardWrapper = document.createElement('div');
     cardWrapper.className = 'journey-board-card-wrapper';
     
-    // Dynamic positions - must be inline as they vary per card
-    cardWrapper.style.left = `${position.x}%`;
-    cardWrapper.style.top = `${position.top}%`;
+    // 🔥 SCROLLABLE FIX: Use pixel-based positioning within scrollable container
+    // Background starts at FIXED_BG_TOP_PX, so we add card's top offset to that
+    const FIXED_BG_TOP_PX = (pxToVH(50, BASE_VIEWPORT_HEIGHT) / 100) * window.innerHeight; // Moved up 150px from original 200px
     
-    // Cards with x: 50 are centered horizontally using translateX(-50%)
-    // Other cards: positioned from left edge
+    // Calculate background height in pixels
+    const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
+    const imageAspectRatio = 1.97; // Known aspect ratio
+    const bgHeightPx = viewportWidth * imageAspectRatio;
+    
+    // Convert card position to pixels
+    let leftPx: number;
     if (position.x === 50) {
-      cardWrapper.style.transform = `translateX(-50%) rotate(${position.rotation}deg)`;
+      // Centered: 50% of container width
+      leftPx = 50; // Will use percentage in CSS
+    } else if (typeof position.x === 'number' && position.x < 50) {
+      // Left side: convert percentage to pixels
+      leftPx = (position.x / 100) * viewportWidth;
     } else {
-      cardWrapper.style.transform = `rotate(${position.rotation}deg)`;
+      // Right side or percentage: convert to pixels
+      const xValue = typeof position.x === 'number' ? position.x : parseFloat(String(position.x || 0));
+      leftPx = (xValue / 100) * viewportWidth;
     }
     
-    // Dynamic dimensions - must be inline as they vary per card
+    // Convert top position to pixels (relative to background start)
+    const topPercent = typeof position.top === 'number' ? position.top : parseFloat(String(position.top || 0));
+    // topPercent is percentage of background height
+    const topPx = FIXED_BG_TOP_PX + (topPercent / 100) * bgHeightPx;
+    
+    // Set absolute position using pixels
+    cardWrapper.style.position = 'absolute';
+    if (position.x === 50) {
+      cardWrapper.style.left = '50%';
+      cardWrapper.style.transform = `translateX(-50%) rotate(${position.rotation}deg)`;
+    } else {
+      cardWrapper.style.left = `${leftPx}px`;
+      cardWrapper.style.transform = `rotate(${position.rotation}deg)`;
+    }
+    cardWrapper.style.top = `${topPx}px`;
+    
+    // Set card dimensions in pixels
     const cardWidth = position.width || STANDARD_CARD_WIDTH;
     const cardHeight = position.height || 150;
     cardWrapper.style.width = `${cardWidth}px`;
     cardWrapper.style.height = `${cardHeight}px`;
-
+    cardWrapper.style.pointerEvents = 'auto'; // Enable clicks on cards
+    cardWrapper.style.zIndex = '10';
+    
+    // Create card element (same as before)
     const card = document.createElement('div');
     card.className = `journey-board-card ${board.unlocked ? 'unlocked' : 'locked'}`;
     card.dataset.boardId = board.id.toString();
     card.dataset.boardNumber = board.id.toString().padStart(2, '0');
 
     if (board.unlocked) {
-      // Card image only (no badge, no banner, no overlay)
+      // Unlocked card - show image
       const image = document.createElement('img');
       image.src = board.imagePath || '';
       image.alt = board.name || `Board ${board.id}`;
       image.className = 'journey-board-image';
       card.appendChild(image);
-
+      
       // Add click handler to open details screen
       card.addEventListener('click', () => {
         this.openBoardDetails(board);
       });
     } else {
-      // Locked card placeholder - use same approach as unlocked (inner element for styling)
+      // Locked card placeholder
       const lockedContainer = document.createElement('div');
       lockedContainer.className = 'journey-board-locked-container';
       
@@ -363,6 +604,84 @@ class JourneyBoardsManager {
     }
   }
 
+  // 🔥 CRITICAL FIX: Method to refresh background position after screen animation completes
+  // This ensures consistent positioning when screen is shown again
+  public refreshBackgroundPosition(): void {
+    const container = this.container || document.getElementById('journey-boards-container');
+    if (!container) return;
+    
+    const bgContainer = container.querySelector('.journey-bg-container') as HTMLElement;
+    if (!bgContainer) return;
+    
+    // Find the image element to get dimensions
+    const img = new Image();
+    img.onload = () => {
+      // Use double requestAnimationFrame to ensure DOM is stable
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (!container || !bgContainer) return;
+          
+          const imageAspectRatio = img.height / img.width;
+          const containerWidth = container.offsetWidth || container.clientWidth || 375;
+          const calculatedHeight = containerWidth * imageAspectRatio;
+          
+          // Find the "Boards" subtitle header
+          const sectionHeader = container.closest('.collectibles-section')?.querySelector('.collectibles-section-header');
+          let topOffset = 0;
+          
+          if (sectionHeader) {
+            const containerRect = container.getBoundingClientRect();
+            const headerRect = sectionHeader.getBoundingClientRect();
+            const containerTop = containerRect.top;
+            const headerBottom = headerRect.bottom;
+            const headerBottomRelativeToContainer = headerBottom - containerTop;
+            topOffset = Math.max(0, headerBottomRelativeToContainer + 160 - 24 - 24 - 24);
+          }
+          
+          // Update positions - hide during update if position changed significantly
+          const currentTop = parseFloat(bgContainer.style.top) || 0;
+          const positionChanged = Math.abs(currentTop - topOffset) > 1;
+          
+          if (positionChanged && bgContainer.style.opacity !== '0') {
+            // Position changed significantly, hide during update to prevent visible jump
+            bgContainer.style.opacity = '0';
+            bgContainer.style.transition = 'none';
+          } else {
+            bgContainer.style.transition = 'none';
+          }
+          
+          container.style.height = `${calculatedHeight + topOffset}px`;
+          bgContainer.style.height = `${calculatedHeight}px`;
+          bgContainer.style.top = `${topOffset}px`;
+          bgContainer.style.position = 'absolute';
+          
+          // Show container after position is set (if it was hidden)
+          if (positionChanged) {
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                bgContainer.style.opacity = '1';
+                bgContainer.style.visibility = 'visible';
+              });
+            });
+          } else {
+            // Ensure it's visible
+            bgContainer.style.opacity = '1';
+            bgContainer.style.visibility = 'visible';
+          }
+          
+          console.log('📐 Journey background position refreshed:', { topOffset, calculatedHeight });
+        });
+      });
+    };
+    
+    img.src = './assets/journey assets/1-17bg.png';
+    
+    // If image is cached, trigger immediately
+    if (img.complete) {
+      img.onload(null as any);
+    }
+  }
+
   public unlockBoardByNumber(boardNumber: number): boolean {
     if (boardNumber < 1 || boardNumber > 16) return false;
     
@@ -402,7 +721,7 @@ class JourneyBoardsManager {
       const state = this.boards.map(b => ({ id: b.id, unlocked: b.unlocked }));
       localStorage.setItem('journey_boards_state', JSON.stringify(state));
     } catch (error) {
-      logger.warn('Failed to save journey boards state:', error);
+      logger.warn('Failed to save journey boards state:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -419,7 +738,7 @@ class JourneyBoardsManager {
         });
       }
     } catch (error) {
-      logger.warn('Failed to load journey boards state:', error);
+      logger.warn('Failed to load journey boards state:', error instanceof Error ? error.message : String(error));
     }
   }
 
