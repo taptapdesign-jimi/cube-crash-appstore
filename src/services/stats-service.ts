@@ -242,6 +242,14 @@ class StatsService {
     }
   }
 
+  // Reset highest board (for dev button "hide cards")
+  public resetHighestBoard(): void {
+    console.log('🔄 resetHighestBoard called - resetting highest board to 0');
+    this.stats.highestBoard = 0;
+    this.saveStats();
+    console.log('✅ Highest board reset to 0');
+  }
+
   // Increment cubes cracked
   public incrementCubesCracked(count: number = 1): void {
     this.stats.cubesCracked += count;

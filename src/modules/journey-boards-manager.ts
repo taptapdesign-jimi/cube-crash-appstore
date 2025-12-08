@@ -12,6 +12,7 @@ import { logger } from '../core/logger.js';
 export interface JourneyBoard {
   id: number;
   unlocked: boolean;
+  interim?: boolean; // Interim state: board is accessible but not completed (shows common back.png, cannot click for details)
   imagePath?: string;
   name?: string;
 }
@@ -132,6 +133,13 @@ class JourneyBoardsManager {
   constructor() {
     this.initializeBoards();
     this.loadBoardsState();
+    
+    // 🔥 USER BUG FIX: Initialize journey_last_viewed_board_id if it doesn't exist
+    // This ensures badge works correctly from the start
+    if (!localStorage.getItem('journey_last_viewed_board_id')) {
+      localStorage.setItem('journey_last_viewed_board_id', '0');
+      logger.info('🗺️ Initialized journey_last_viewed_board_id to 0 in constructor');
+    }
   }
 
   /**
@@ -165,101 +173,104 @@ class JourneyBoardsManager {
   }
 
   private initializeBoards(): void {
-    // Initialize first 5 boards
+    // Initialize boards - only first board is unlocked by default
+    // Other boards will be unlocked based on game progress (boardNumber)
     this.boards = [
       {
         id: 1,
-        unlocked: true,
+        unlocked: true, // First board is always unlocked
+        interim: false, // 🔥 USER FIX: Board 1 is NOT interim by default - only becomes interim when user actually starts playing
         imagePath: this.getBoardImagePath(1),
         name: this.getBoardName(1),
       },
       {
         id: 2,
-        unlocked: true,
+        unlocked: false, // Locked until board 2 is completed
+        interim: false, // Will be set to true when board 1 is completed
         imagePath: this.getBoardImagePath(2),
         name: this.getBoardName(2),
       },
       {
         id: 3,
-        unlocked: true,
+        unlocked: false,
         imagePath: this.getBoardImagePath(3),
         name: this.getBoardName(3),
       },
       {
         id: 4,
-        unlocked: true,
+        unlocked: false,
         imagePath: this.getBoardImagePath(4),
         name: this.getBoardName(4),
       },
       {
         id: 5,
-        unlocked: true,
+        unlocked: false,
         imagePath: this.getBoardImagePath(5),
         name: this.getBoardName(5),
       },
       {
         id: 6,
-        unlocked: true,
+        unlocked: false,
         imagePath: this.getBoardImagePath(6),
         name: this.getBoardName(6),
       },
       {
         id: 7,
-        unlocked: true,
+        unlocked: false,
         imagePath: this.getBoardImagePath(7),
         name: this.getBoardName(7),
       },
       {
         id: 8,
-        unlocked: true,
+        unlocked: false,
         imagePath: this.getBoardImagePath(8),
         name: this.getBoardName(8),
       },
       {
         id: 9,
-        unlocked: true,
+        unlocked: false,
         imagePath: this.getBoardImagePath(9),
         name: this.getBoardName(9),
       },
       {
         id: 10,
-        unlocked: true,
+        unlocked: false,
         imagePath: this.getBoardImagePath(10),
         name: this.getBoardName(10),
       },
       {
         id: 11,
-        unlocked: true,
+        unlocked: false,
         imagePath: this.getBoardImagePath(11),
         name: this.getBoardName(11),
       },
       {
         id: 12,
-        unlocked: true,
+        unlocked: false,
         imagePath: this.getBoardImagePath(12),
         name: this.getBoardName(12),
       },
       {
         id: 13,
-        unlocked: true,
+        unlocked: false,
         imagePath: this.getBoardImagePath(13),
         name: this.getBoardName(13),
       },
       {
         id: 14,
-        unlocked: true,
+        unlocked: false,
         imagePath: this.getBoardImagePath(14),
         name: this.getBoardName(14),
       },
       {
         id: 15,
-        unlocked: true,
+        unlocked: false,
         imagePath: this.getBoardImagePath(15),
         name: this.getBoardName(15),
       },
       {
         id: 16,
-        unlocked: true,
+        unlocked: false,
         imagePath: this.getBoardImagePath(16),
         name: this.getBoardName(16),
       },
@@ -533,12 +544,14 @@ class JourneyBoardsManager {
     
     // Create card element (same as before)
     const card = document.createElement('div');
-    card.className = `journey-board-card ${board.unlocked ? 'unlocked' : 'locked'}`;
+    const isInterim = board.interim === true;
+    const isUnlocked = board.unlocked === true;
+    card.className = `journey-board-card ${isUnlocked ? 'unlocked' : isInterim ? 'interim' : 'locked'}`;
     card.dataset.boardId = board.id.toString();
     card.dataset.boardNumber = board.id.toString().padStart(2, '0');
 
-    if (board.unlocked) {
-      // Unlocked card - show image
+    if (isUnlocked) {
+      // Unlocked card - show image and can click for details
       const image = document.createElement('img');
       image.src = board.imagePath || '';
       image.alt = board.name || `Board ${board.id}`;
@@ -549,6 +562,17 @@ class JourneyBoardsManager {
       card.addEventListener('click', () => {
         this.openBoardDetails(board);
       });
+    } else if (isInterim) {
+      // Interim card - show common back.png, cannot click for details
+      const image = document.createElement('img');
+      image.src = './assets/colelctibles/common back.png';
+      image.alt = `Board ${board.id} (interim)`;
+      image.className = 'journey-board-image';
+      card.appendChild(image);
+      
+      // NO click handler - interim cards cannot be clicked for details
+      card.style.cursor = 'default';
+      card.style.pointerEvents = 'none';
     } else {
       // Locked card placeholder
       const lockedContainer = document.createElement('div');
@@ -690,6 +714,7 @@ class JourneyBoardsManager {
     
     if (!board.unlocked) {
       board.unlocked = true;
+      board.interim = false; // Remove interim status when unlocking
       this.saveBoardsState();
       this.renderBoards();
       this.updateCounter();
@@ -705,15 +730,79 @@ class JourneyBoardsManager {
     const board = this.boards.find(b => b.id === boardNumber);
     if (!board) return false;
     
-    if (board.unlocked) {
+    if (board.unlocked || board.interim) {
       board.unlocked = false;
+      board.interim = false; // Also remove interim status when locking
       this.saveBoardsState();
       this.renderBoards();
       this.updateCounter();
       logger.info(`🗺️ Journey board ${boardNumber.toString().padStart(2, '0')} locked.`);
+      
+      // 🔥 DEV BUTTON RESET: Check if all boards are locked except board 1
+      // If so, reset game progress (highestBoard, boardNumber, badge count)
+      this.checkAndResetProgressIfNeeded();
+      
       return true;
     }
     return false;
+  }
+
+  /**
+   * Check if all boards are locked except board 1, and reset game progress if needed
+   * This is called when using dev button "hide cards" to reset progress
+   */
+  private checkAndResetProgressIfNeeded(): void {
+    try {
+      // Check if only board 1 is unlocked
+      const unlockedBoards = this.boards.filter(b => b.unlocked);
+      const onlyFirstBoardUnlocked = unlockedBoards.length === 1 && unlockedBoards[0].id === 1;
+      
+      if (onlyFirstBoardUnlocked) {
+        logger.info('🗺️ DEV RESET: All boards locked except board 1 - resetting game progress');
+        
+        // Reset game progress (highestBoard, boardNumber)
+        try {
+          const statsService = (window as any).statsService;
+          if (statsService && typeof statsService.resetHighestBoard === 'function') {
+            statsService.resetHighestBoard();
+            logger.info('✅ DEV RESET: Game progress (highestBoard) reset');
+          } else {
+            // Fallback: manually reset highestBoard in localStorage
+            localStorage.removeItem('cc_highest_board');
+            localStorage.removeItem('cc_stats');
+            logger.info('✅ DEV RESET: Game progress reset via localStorage');
+          }
+        } catch (error) {
+          logger.warn('⚠️ DEV RESET: Failed to reset game progress:', error instanceof Error ? error.message : String(error));
+        }
+        
+        // Reset boardNumber in saved game state
+        try {
+          const savedGame = localStorage.getItem('cc_saved_game');
+          if (savedGame) {
+            const gameState = JSON.parse(savedGame) as any;
+            gameState.boardNumber = 1;
+            gameState.level = 1;
+            localStorage.setItem('cc_saved_game', JSON.stringify(gameState));
+            logger.info('✅ DEV RESET: Board number reset to 1 in saved game state');
+          }
+        } catch (error) {
+          logger.warn('⚠️ DEV RESET: Failed to reset boardNumber:', error instanceof Error ? error.message : String(error));
+        }
+        
+        // Reset badge count (journey_last_viewed_board_id)
+        localStorage.setItem('journey_last_viewed_board_id', '0'); // Reset to 0 (no boards viewed)
+        logger.info('✅ DEV RESET: Badge count reset (journey_last_viewed_board_id = 0)');
+        
+        // Reset badge in UI
+        if (typeof (window as any).updateNavBadge === 'function') {
+          (window as any).updateNavBadge(0, 1); // Reset journey badge (slideIndex 1)
+          logger.info('✅ DEV RESET: Journey badge reset in UI');
+        }
+      }
+    } catch (error) {
+      logger.warn('⚠️ DEV RESET: Failed to check and reset progress:', error instanceof Error ? error.message : String(error));
+    }
   }
 
   private saveBoardsState(): void {
@@ -730,15 +819,251 @@ class JourneyBoardsManager {
       const saved = localStorage.getItem('journey_boards_state');
       if (saved) {
         const state = JSON.parse(saved);
-        state.forEach((savedBoard: { id: number; unlocked: boolean }) => {
+        state.forEach((savedBoard: { id: number; unlocked: boolean; interim?: boolean }) => {
           const board = this.boards.find(b => b.id === savedBoard.id);
           if (board) {
             board.unlocked = savedBoard.unlocked;
+            board.interim = savedBoard.interim || false;
           }
         });
       }
+      
+      // 🔥 CRITICAL: Also sync with game progress (boardNumber from localStorage or game state)
+      // This ensures journey boards are unlocked based on actual game progress
+      this.syncWithGameProgress();
     } catch (error) {
       logger.warn('Failed to load journey boards state:', error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
+   * Sync journey boards with game progress (boardNumber)
+   * Sets current board to interim (shows common back.png, cannot click)
+   * Only unlocks boards that have been completed (won)
+   */
+  public syncWithGameProgress(boardNumber?: number): void {
+    try {
+      // Get boardNumber from game state if not provided
+      if (boardNumber === undefined) {
+        try {
+          const savedGame = localStorage.getItem('cc_saved_game');
+          if (savedGame) {
+            const gameState = JSON.parse(savedGame);
+            boardNumber = Number(gameState.boardNumber) || 1;
+          } else {
+            // Try to get from stats service
+            const statsService = (window as any).statsService;
+            if (statsService && typeof statsService.getHighestBoard === 'function') {
+              boardNumber = statsService.getHighestBoard() || 1;
+            } else {
+              boardNumber = 1;
+            }
+          }
+        } catch (e) {
+          boardNumber = 1;
+        }
+      }
+      
+      // 🔥 USER FIX: Only set board to interim if user has actually started playing
+      // Check if user has started game by looking for saved game or highest board > 0
+      let hasStartedGame = false;
+      try {
+        const savedGame = localStorage.getItem('cc_saved_game');
+        if (savedGame) {
+          hasStartedGame = true;
+        } else {
+          const statsService = (window as any).statsService;
+          if (statsService && typeof statsService.getHighestBoard === 'function') {
+            const highestBoard = statsService.getHighestBoard() || 0;
+            // User has started if they've reached at least Board 1 (highestBoard >= 1)
+            // But we need to be careful - if highestBoard is exactly 1, it might mean they just started
+            // So we check if they've made progress beyond initial state
+            hasStartedGame = highestBoard >= 1;
+          }
+        }
+      } catch (e) {
+        // If we can't check, don't set interim status
+        hasStartedGame = false;
+      }
+      
+      // 🔥 USER FIX: Board 1 should NOT be interim if user hasn't started playing
+      // Board 1 stays unlocked (clickable) until user actually starts the game
+      const targetBoard = boardNumber ?? 1;
+      const currentBoard = this.boards.find(b => b.id === targetBoard);
+      
+      // Only set interim if:
+      // 1. User has actually started the game (hasStartedGame = true)
+      // 2. Board is not already unlocked
+      // 3. For Board 1 specifically: also check if game is actually in progress
+      if (currentBoard && !currentBoard.unlocked) {
+        // Special handling for Board 1 - don't set interim if user hasn't started
+        if (targetBoard === 1 && !hasStartedGame) {
+          // Board 1 stays unlocked (not interim, not locked) until user starts playing
+          currentBoard.interim = false;
+          logger.info('🗺️ Board 1 stays unlocked (not interim) - user hasn\'t started game yet');
+        } else if (hasStartedGame) {
+          // User has started game - set current board to interim if not already unlocked
+          currentBoard.interim = true;
+          this.saveBoardsState();
+          logger.info(`🗺️ Board ${targetBoard} set to interim (currently playing, not yet won)`);
+        }
+      }
+      
+      // Note: Next board is set to interim when current board is completed (in unlockBoardOnCompletion)
+      // This ensures that board N+1 becomes interim only after board N is won
+      
+      // Note: Boards are unlocked (unlocked=true, interim=false) only when they are completed (won)
+      // This is done in unlockBoardByNumber() which is called when board is completed
+    } catch (error) {
+      logger.warn('Failed to sync journey boards with game progress:', error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
+   * Unlock board when it's completed (won)
+   * This is called when board is successfully completed (clean board)
+   */
+  public unlockBoardOnCompletion(boardNumber: number): void {
+    try {
+      if (boardNumber < 1 || boardNumber > 16) return;
+      
+      const board = this.boards.find(b => b.id === boardNumber);
+      if (!board) return;
+      
+      // Check if board was already unlocked (for Board 1 which starts unlocked)
+      const wasAlreadyUnlocked = board.unlocked;
+      
+      // Unlock the board (remove interim status, set unlocked)
+      board.unlocked = true;
+      board.interim = false;
+      this.saveBoardsState();
+      this.renderBoards();
+      this.updateCounter();
+      logger.info(`🗺️ Board ${boardNumber.toString().padStart(2, '0')} unlocked on completion (won) - was already unlocked: ${wasAlreadyUnlocked}`);
+      
+      // Set next board to interim (if exists and not already unlocked)
+      if (boardNumber < 16) {
+        const nextBoard = this.boards.find(b => b.id === boardNumber + 1);
+        if (nextBoard && !nextBoard.unlocked && !nextBoard.interim) {
+          nextBoard.interim = true;
+          this.saveBoardsState();
+          logger.info(`🗺️ Board ${boardNumber + 1} set to interim (accessible after winning board ${boardNumber})`);
+        }
+      }
+      
+      // 🔥 USER BUG FIX: Update navigation badge immediately after unlocking board
+      // This ensures badge shows newly unlocked board count even when user is still in game
+      // Even if board was already unlocked (like Board 1), we still need to check badge count
+      const newlyUnlockedCount = this.getNewlyUnlockedCount();
+      logger.info(`🗺️ unlockBoardOnCompletion: Badge count calculated: ${newlyUnlockedCount} for board ${boardNumber} (was already unlocked: ${wasAlreadyUnlocked})`);
+      
+      if (typeof (window as any).updateNavBadge === 'function') {
+        (window as any).updateNavBadge(newlyUnlockedCount, 1); // Pass slideIndex 1 for Journey
+        logger.info(`🗺️ Journey badge updated after unlocking board ${boardNumber}: ${newlyUnlockedCount} newly unlocked boards (was already unlocked: ${wasAlreadyUnlocked})`);
+      } else {
+        logger.warn(`⚠️ updateNavBadge function not found! Badge will not be updated for board ${boardNumber}`);
+      }
+    } catch (error) {
+      logger.warn('Failed to unlock board on completion:', error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
+   * Get count of newly unlocked boards (boards that were just unlocked/won)
+   * This is used for badge notification
+   * 
+   * IMPORTANT: Badge shows ONLY unlocked (completed/won) boards that user hasn't viewed yet
+   * - Interim boards are NOT counted (they are accessible but not won yet)
+   * - Only unlocked boards count towards badge
+   * - Badge resets to 0 when user visits journey screen
+   * 
+   * Example:
+   * - Win Board 1 → Board 1 unlocked → badge = 1
+   * - Start Board 2 → Board 2 interim (NOT unlocked) → badge = 1 (still, Board 2 doesn't count)
+   * - Win Board 2 → Board 2 unlocked → badge = 2
+   * - Visit journey screen → badge = 0 (all unlocked boards marked as viewed)
+   * - Win Board 3 → Board 3 unlocked → badge = 1 (Board 1 and 2 were already viewed)
+   */
+  public getNewlyUnlockedCount(): number {
+    try {
+      // Get last viewed board ID from localStorage
+      // This represents the highest unlocked board ID that user has viewed in journey screen
+      // Default to 0 if not set (user hasn't viewed any boards yet)
+      let lastViewedBoardId = parseInt(localStorage.getItem('journey_last_viewed_board_id') || '0', 10);
+      
+      // 🔥 USER BUG FIX: If key doesn't exist, initialize it to 0
+      // This ensures badge works correctly from the start
+      if (!localStorage.getItem('journey_last_viewed_board_id')) {
+        localStorage.setItem('journey_last_viewed_board_id', '0');
+        lastViewedBoardId = 0;
+        logger.info('🗺️ Initialized journey_last_viewed_board_id to 0 (first time)');
+      }
+      
+      // Count ONLY unlocked boards (completed/won boards)
+      // Interim boards are NOT counted - they are accessible but not won yet
+      const unlockedBoards = this.boards.filter(b => b.unlocked);
+      const unlockedCount = unlockedBoards.length;
+      
+      // Count how many unlocked boards user has NOT viewed yet
+      // A board is "viewed" if its ID is <= lastViewedBoardId
+      // Only unlocked boards count towards badge
+      const newUnlockedBoards = unlockedBoards.filter(b => b.id > lastViewedBoardId);
+      const newCount = newUnlockedBoards.length;
+      
+      logger.info(`🗺️ Badge count: ${unlockedCount} unlocked boards total, last viewed board ID: ${lastViewedBoardId}, new boards: [${newUnlockedBoards.map(b => b.id).join(', ')}], ${newCount} new unlocked boards not viewed yet (interim boards NOT counted)`);
+      
+      return newCount;
+    } catch (error) {
+      logger.warn('Failed to get newly unlocked count:', error instanceof Error ? error.message : String(error));
+      return 0;
+    }
+  }
+
+  /**
+   * Get total unlocked boards count (excluding board 1)
+   * This is used to show badge with total number of unlocked boards
+   */
+  public getTotalUnlockedCount(): number {
+    try {
+      const currentUnlockedCount = this.boards.filter(b => b.unlocked).length;
+      // Subtract 1 for board 1 which is always unlocked
+      const unlockedBoardsExcludingFirst = Math.max(0, currentUnlockedCount - 1);
+      return unlockedBoardsExcludingFirst;
+    } catch (error) {
+      logger.warn('Failed to get total unlocked count:', error instanceof Error ? error.message : String(error));
+      return 0;
+    }
+  }
+
+  /**
+   * Mark all currently unlocked (completed/won) boards as viewed (reset badge count)
+   * This is called when user visits journey screen
+   * 
+   * IMPORTANT: Only unlocked boards are marked as viewed (interim boards don't count)
+   * Badge resets to 0 after user visits journey screen
+   */
+  public markAsViewed(): void {
+    try {
+      // Find the highest board ID that is unlocked (completed/won)
+      // Only unlocked boards count - interim boards are not marked as viewed
+      const unlockedBoards = this.boards.filter(b => b.unlocked);
+      if (unlockedBoards.length > 0) {
+        const highestUnlockedId = Math.max(...unlockedBoards.map(b => b.id));
+        localStorage.setItem('journey_last_viewed_board_id', highestUnlockedId.toString());
+        logger.info(`🗺️ Marked all unlocked boards up to Board ${highestUnlockedId} as viewed (${unlockedBoards.length} unlocked boards, interim boards NOT counted)`);
+      } else {
+        // No unlocked boards - reset to 0
+        localStorage.setItem('journey_last_viewed_board_id', '0');
+        logger.info('🗺️ No unlocked boards - reset viewed board ID to 0');
+      }
+      
+      // Reset badge in UI to 0 (user has viewed all unlocked boards)
+      if (typeof (window as any).updateNavBadge === 'function') {
+        (window as any).updateNavBadge(0, 1); // Reset journey badge (slideIndex 1)
+        logger.info('🗺️ Journey badge reset to 0 in UI after marking unlocked boards as viewed');
+      }
+    } catch (error) {
+      logger.warn('Failed to mark journey boards as viewed:', error instanceof Error ? error.message : String(error));
     }
   }
 

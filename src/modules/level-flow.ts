@@ -151,8 +151,10 @@ export async function openLockedBounceParallel({
       }
       
       t.locked=false; 
-      // t.eventMode='static'; 
-      // t.cursor='pointer';
+      // 🔥 USER BUG FIX: Enable eventMode='static' so tiles are interactive immediately after unlock
+      // This prevents fail screen when user tries to merge tiles that just spawned
+      t.eventMode='static'; 
+      t.cursor='pointer';
       if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
 
       resetTileToNormalState(t);

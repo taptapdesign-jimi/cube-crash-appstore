@@ -522,6 +522,27 @@ class UIManager {
       // Keep app element with gradient for homepage (will change to solid when entering game)
       gsap.set(appElement, { background: 'var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%))' });
     }
+    
+    // 🗺️ JOURNEY BADGE: Update badge when returning to homepage
+    // Show NEWLY unlocked boards count (excluding board 1 and already viewed boards) as badge
+    // This ensures badge only shows boards that haven't been viewed yet
+    import('./journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+      try {
+        // 🔥 USER BUG FIX: Sync journey boards with current game progress first
+        // This ensures board states are up to date before calculating badge count
+        journeyBoardsManager.syncWithGameProgress();
+        
+        const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
+        if (typeof (window as any).updateNavBadge === 'function') {
+          (window as any).updateNavBadge(newlyUnlockedCount, 1); // Pass slideIndex 1 for Journey
+          logger.info(`🗺️ Journey badge updated on homepage: ${newlyUnlockedCount} newly unlocked boards (not yet viewed)`);
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to update journey badge on homepage:', error);
+      }
+    }).catch((error) => {
+      logger.warn('⚠️ Failed to import journey boards manager on homepage:', error);
+    });
   }
   
   // Hide homepage
@@ -538,6 +559,22 @@ class UIManager {
   showApp(): void {
     const appElement = document.getElementById('app');
     if (appElement) {
+      // 🔥 CRITICAL FIX: Remove any leftover canvas elements before showing app
+      // This ensures no old canvas elements are visible when starting new game
+      try {
+        const oldCanvases = appElement.querySelectorAll('canvas');
+        oldCanvases.forEach(canvas => {
+          try {
+            canvas.remove();
+            logger.info('✅ Removed leftover canvas before showing app');
+          } catch (e) {
+            logger.warn('⚠️ Failed to remove leftover canvas:', e);
+          }
+        });
+      } catch (e) {
+        logger.warn('⚠️ Error removing leftover canvas elements:', e);
+      }
+      
       appElement.removeAttribute('hidden');
       appElement.style.display = 'block';
       appElement.style.opacity = '1';
@@ -550,7 +587,7 @@ class UIManager {
       appElement.style.zIndex = '1';
       logger.info('✅ App element shown');
       
-      // Also check canvas visibility
+      // Also check canvas visibility (new canvas will be created by boot())
       const canvas = appElement.querySelector('canvas');
       if (canvas) {
         canvas.style.display = 'block';
@@ -560,7 +597,8 @@ class UIManager {
         canvas.style.height = '100%';
         logger.info('✅ Canvas shown and styled');
       } else {
-        logger.warn('⚠️ Canvas not found in app element');
+        // Canvas will be created by boot() - this is normal
+        logger.info('ℹ️ Canvas not found yet - will be created by boot()');
       }
     } else {
       logger.error('❌ App element not found!');
@@ -594,9 +632,119 @@ class UIManager {
     if (appElement) {
       appElement.setAttribute('hidden', 'true');
       appElement.style.display = 'none';
+      appElement.style.opacity = '0';
+      appElement.style.visibility = 'hidden';
+      // 🔥 USER BUG FIX: Set z-index to very low to ensure it's behind everything
+      appElement.style.zIndex = '-1';
+      appElement.style.position = 'fixed';
+      appElement.style.top = '0';
+      appElement.style.left = '0';
+      appElement.style.width = '100%';
+      appElement.style.height = '100%';
       logger.info('✅ App element hidden');
     }
     
+    // 🔥 CRITICAL FIX: Hide ALL canvas elements explicitly
+    // This prevents canvas from showing on top of homepage/slider
+    try {
+      // Hide canvas in app element
+      const canvas = document.querySelector('#app canvas');
+      if (canvas && canvas instanceof HTMLElement) {
+        canvas.style.display = 'none';
+        canvas.style.visibility = 'hidden';
+        canvas.style.opacity = '0';
+        canvas.style.zIndex = '-1';
+        canvas.style.pointerEvents = 'none';
+        logger.info('✅ Canvas element hidden and disabled');
+      }
+      
+      // Also hide any canvas elements in body (stray canvases)
+      const bodyCanvases = document.body.querySelectorAll('canvas');
+      bodyCanvases.forEach(canvas => {
+        if (canvas instanceof HTMLElement) {
+          canvas.style.display = 'none';
+          canvas.style.visibility = 'hidden';
+          canvas.style.opacity = '0';
+          canvas.style.zIndex = '-1';
+          canvas.style.pointerEvents = 'none';
+        }
+      });
+      if (bodyCanvases.length > 0) {
+        logger.info(`✅ Hidden ${bodyCanvases.length} stray canvas element(s)`);
+      }
+    } catch (error) {
+      logger.warn('⚠️ Failed to hide canvas element:', error);
+    }
+    
+    // 🔥 CRITICAL FIX: Also hide HUD container and board indicator
+    try {
+      const hudContainer = document.getElementById('hud-container');
+      if (hudContainer) {
+        hudContainer.style.display = 'none';
+        hudContainer.style.visibility = 'hidden';
+        hudContainer.style.opacity = '0';
+        hudContainer.style.zIndex = '-1';
+        hudContainer.style.pointerEvents = 'none';
+        logger.info('✅ HUD container hidden');
+      }
+      
+      const boardIndicator = document.getElementById('hud-board');
+      if (boardIndicator) {
+        boardIndicator.style.display = 'none';
+        boardIndicator.style.visibility = 'hidden';
+        boardIndicator.style.opacity = '0';
+        boardIndicator.style.zIndex = '-1';
+        boardIndicator.style.pointerEvents = 'none';
+        logger.info('✅ Board indicator hidden');
+      }
+    } catch (error) {
+      logger.warn('⚠️ Failed to hide HUD elements:', error);
+    }
+    
+    // 🔥 USER BUG FIX: Stop any pending endgame checks when app is hidden
+    // This prevents clean board modal from appearing when user navigates away from game
+    try {
+      // Kill checkLevelEnd timer if it exists
+      if ((window as any).checkLevelEndTimer) {
+        try {
+          (window as any).checkLevelEndTimer?.kill?.();
+          (window as any).checkLevelEndTimer = null;
+          logger.info('✅ checkLevelEnd timer killed when app is hidden');
+        } catch (e) {
+          logger.warn('⚠️ Failed to kill checkLevelEnd timer:', e);
+        }
+      }
+    } catch (error) {
+      logger.warn('⚠️ Failed to stop checkLevelEnd timer:', error);
+    }
+    
+    // 🔥 USER BUG FIX: Also ensure board and HUD are hidden when app is hidden
+    // This prevents board parts from showing over homepage/journey screen
+    try {
+      if (typeof (window as any).drawBoardBG === 'function') {
+        (window as any).drawBoardBG('none');
+      }
+      
+      // Hide PIXI board and HUD if they exist
+      // Use window.STATE instead of require to avoid module loading issues
+      const STATE = (window as any).STATE || (window as any).CC?.STATE;
+      if (STATE?.board) {
+        STATE.board.visible = false;
+      }
+      if (STATE?.hud) {
+        STATE.hud.visible = false;
+      }
+      
+      // Also try to hide via app if it exists
+      const app = (window as any).app || STATE?.app;
+      if (app && app.stage) {
+        app.stage.visible = false;
+      }
+      
+      logger.info('✅ Board and HUD hidden when app is hidden');
+    } catch (error) {
+      logger.warn('⚠️ Failed to hide board/HUD when app is hidden:', error);
+    }
   }
   
   // Show homepage with animation

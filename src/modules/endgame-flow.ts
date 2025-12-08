@@ -39,6 +39,18 @@ interface CleanBoardModalOptions {
 }
 
 export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
+  // 🔥 USER BUG FIX: Don't run endgame flow if game is hidden (user is on homepage/other screens)
+  // This prevents clean board modal from appearing when user navigates away from game
+  const appElement = document.getElementById('app');
+  const homeElement = document.getElementById('home');
+  const isGameHidden = appElement && appElement.hasAttribute('hidden');
+  const isHomepageVisible = homeElement && !homeElement.hidden;
+  
+  if (isGameHidden || isHomepageVisible) {
+    console.log('⏳ runEndgameFlow skipped - game is hidden or homepage is visible (user navigated away from game)');
+    return;
+  }
+  
   // 🔥 CRITICAL: Guard against multiple simultaneous calls
   if ((window as any).CC?._endgameFlowRunning) {
     console.warn('⚠️ runEndgameFlow: Already running, skipping duplicate call');
@@ -107,6 +119,16 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     }
 
     const { showCleanBoardModal } = await import('./clean-board-modal.js');
+    
+    // 🗺️ JOURNEY PROGRESSION: Unlock journey board when board is completed (won)
+    // This is called when clean board modal appears (board is successfully completed)
+    try {
+      const { journeyBoardsManager } = await import('./journey-boards-manager.js');
+      journeyBoardsManager.unlockBoardOnCompletion(boardNumber);
+      logger.info(`🗺️ Journey board ${boardNumber} unlocked on completion`);
+    } catch (error) {
+      logger.warn('⚠️ Failed to unlock journey board on completion:', error);
+    }
     const nextLevel = (level | 0) + 1;
     const currentScore = ctx.getScore ? (ctx.getScore() | 0) : 0;
     const finalScoreForecast = Math.min(999999, Math.max(0, currentScore) + Math.max(0, bonus));

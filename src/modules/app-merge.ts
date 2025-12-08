@@ -1761,14 +1761,16 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   console.log('🧲 Respawn complete - letting pulled tiles merge with merge 6 before endgame check');
   
-  // 🔥 CRITICAL FIX: Wait for spawn animations to complete before checking endgame
+  // 🔥 USER BUG FIX: Wait LONGER for spawn animations to complete before checking endgame
+  // Problem: User had 5 tiles spawn after magnet, started merging 3+3, got fail screen
+  // Root cause: Spawn animations and tile bindings weren't complete when user tried to merge
   // Spawn bounce animation with timeScale 2.0 takes ~0.24s (240ms) per tile
-  // With cascading delays (0ms, 30ms, 60ms, 90ms), last tile finishes at ~330ms
-  // Plus unlock/bind takes ~50ms per tile, so last tile is fully ready at ~380ms
-  // Total safe delay: 800ms (same as v78) - enough for spawn animations to complete
-  // This ensures spawn animations are complete before endgame check
-  console.log('⏳ Waiting 800ms for spawn animations to complete before endgame check...');
-  await new Promise(resolve => setTimeout(resolve, 800));
+  // With cascading delays (0ms, 30ms, 60ms, 90ms, 120ms for 5 tiles), last tile finishes at ~450ms
+  // Plus unlock/bind/eventMode setup takes ~100ms per tile, so last tile is fully ready at ~550ms
+  // Plus safety margin for user to see tiles: Total safe delay: 1200ms (increased from 800ms)
+  // This ensures ALL spawn animations, unlocks, and bindings are complete before endgame check
+  console.log('⏳ Waiting 1200ms for spawn animations to complete before endgame check (increased from 800ms for better safety)...');
+  await new Promise(resolve => setTimeout(resolve, 1200));
   
   // 🔥 CRITICAL: Check if ALL tiles can be merged together (simulate all possible merges)
   // If all tiles can be merged and the final merge is merge 6, trigger clean board flow
@@ -1779,12 +1781,28 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     // This is handled in the merge function when board becomes clean
   }
   
-  // 🔥 CRITICAL FIX: Before calling checkLevelEnd, verify that spawn animations are complete
+  // 🔥 USER BUG FIX: Before calling checkLevelEnd, verify that spawn animations AND tile bindings are complete
   // Check if there are any locked tiles that are still animating (spawn in progress)
+  // Also check if tiles have eventMode='static' (are interactive)
   const lockedActiveTiles = STATE.tiles.filter((t: any) => {
     if (!t || t.destroyed) return false;
     if (!t.locked) return false; // Only check locked tiles
     return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet';
+  });
+  
+  // 🔥 USER BUG FIX: Also check for tiles that are still being spawned or not yet interactive
+  const tilesStillSpawning = STATE.tiles.filter((t: any) => {
+    if (!t || t.destroyed) return false;
+    if (t.locked) return true; // Locked tiles are still spawning
+    // Check if tile is still being spawned (animation in progress)
+    if (t._isBeingSpawned === true) return true;
+    // Check if tile doesn't have eventMode='static' yet (not interactive) - critical for user merges
+    if (t.eventMode !== 'static' && (t.value|0) > 0) {
+      const isWildTile = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer';
+      // Only consider it as "still spawning" if it's a regular tile without eventMode
+      if (!isWildTile) return true;
+    }
+    return false;
   });
   
   // Count active tiles to verify spawn completed
@@ -1792,22 +1810,36 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const expectedTileCount = spawnCount + 1; // Spawned tiles + merge 6
   const actualTileCount = activeTilesAfterSpawn.length;
   
-  console.log('🧲 Spawn verification:', {
+  console.log('🧲 Spawn verification (enhanced):', {
     lockedTilesStillAnimating: lockedActiveTiles.length,
+    tilesStillSpawning: tilesStillSpawning.length,
     expectedTileCount: expectedTileCount,
     actualTileCount: actualTileCount,
     spawnCount: spawnCount,
     merge6ShouldBeVisible: true,
-    activeTiles: activeTilesAfterSpawn.map((t: any) => ({ value: t.value, special: t.special }))
+    activeTiles: activeTilesAfterSpawn.map((t: any) => ({ 
+      value: t.value, 
+      special: t.special,
+      eventMode: t.eventMode,
+      locked: t.locked
+    }))
   });
   
-  if (lockedActiveTiles.length > 0) {
-    console.log('⏳ Delaying endgame check - spawn animations still in progress:', {
+  // Wait if ANY tiles are still locked or spawning
+  if (lockedActiveTiles.length > 0 || tilesStillSpawning.length > 0) {
+    console.log('⏳ Delaying endgame check - spawn animations/bindings still in progress:', {
       lockedCount: lockedActiveTiles.length,
-      lockedTiles: lockedActiveTiles.map((t: any) => ({ value: t.value, special: t.special }))
+      stillSpawningCount: tilesStillSpawning.length,
+      lockedTiles: lockedActiveTiles.map((t: any) => ({ value: t.value, special: t.special })),
+      spawningTiles: tilesStillSpawning.map((t: any) => ({ 
+        value: t.value, 
+        special: t.special,
+        eventMode: t.eventMode,
+        isBeingSpawned: t._isBeingSpawned
+      }))
     });
-    // Wait additional 500ms for spawn animations to complete
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Wait additional 600ms (increased from 500ms) for spawn animations and bindings to complete
+    await new Promise(resolve => setTimeout(resolve, 600));
   }
   
   // 🔥 CRITICAL FIX: Verify spawn completed correctly

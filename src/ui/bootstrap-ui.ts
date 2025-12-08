@@ -69,17 +69,32 @@ function bootstrapUI() {
   
   // Initialize badge count on load from localStorage
   try {
+    // Initialize collectibles badge
     const raw = localStorage.getItem('pending_collectible_flips_v1');
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
         (window as any).__pendingCollectibleFlips = parsed;
-        updateNavBadge(parsed.length);
-        console.log('✅ Badge initialized with', parsed.length, 'pending collectibles');
+        updateNavBadge(parsed.length, 2); // slideIndex 2 = Collectibles
+        console.log('✅ Collectibles badge initialized with', parsed.length, 'pending collectibles');
       }
     }
+    
+    // 🗺️ Initialize journey badge from journey_last_viewed_count
+    // This ensures badge is correctly restored after hard exit
+    import('../modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+      try {
+        const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
+        updateNavBadge(newlyUnlockedCount, 1); // slideIndex 1 = Journey
+        console.log('✅ Journey badge initialized with', newlyUnlockedCount, 'newly unlocked boards');
+      } catch (error) {
+        console.warn('⚠️ Failed to initialize journey badge on startup:', error);
+      }
+    }).catch((error) => {
+      console.warn('⚠️ Failed to import journey boards manager on startup:', error);
+    });
   } catch (error) {
-    console.warn('Failed to load pending collectible flips:', error);
+    console.warn('Failed to load badge counts from localStorage:', error);
   }
 
   windowRef[BOOTSTRAP_FLAG] = true;

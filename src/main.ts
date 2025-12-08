@@ -408,26 +408,75 @@ initializeApp().catch((error: Error) => {
       
       // Use static import for instant response
       try {
-        // Boot the game first
+        // 🔥 CRITICAL FIX: Read saved game state BEFORE booting to get the correct boardNumber
+        // This ensures boot() starts at the correct level, not always level 1
+        const savedGame = localStorage.getItem('cc_saved_game');
+        let savedBoardNumber = 1; // Default to board 1 if no saved game
+        
+        if (savedGame) {
+          try {
+            const gameState = JSON.parse(savedGame);
+            savedBoardNumber = Number.isFinite(gameState.boardNumber) 
+              ? gameState.boardNumber 
+              : (Number.isFinite(gameState.level) ? gameState.level : 1);
+            console.log('📊 Found saved game at board', savedBoardNumber);
+          } catch (error) {
+            console.warn('⚠️ Failed to parse saved game state before boot:', error);
+          }
+        }
+        
+        // 🔥 CRITICAL FIX: Set flag so boot() starts at the correct board number
+        // This prevents boot() from always starting at board 1
+        (window as any).__ccStartAtLevel = savedBoardNumber;
+        console.log('🎯 Setting __ccStartAtLevel to', savedBoardNumber, 'before boot');
+        
+        // 🔥 CRITICAL FIX: Also set a flag to skip rebuildBoard in startLevel
+        // This prevents creating a new empty board before loading saved state
+        (window as any).__ccSkipRebuildBoard = true;
+        console.log('🎯 Setting __ccSkipRebuildBoard flag to prevent empty board creation');
+        
+        // Boot the game first (will start at savedBoardNumber instead of always 1)
         await bootGame();
         await layoutGame();
         
-        // Load saved game state
+        // 🔥 CRITICAL FIX: Load saved game state IMMEDIATELY after boot
+        // This must happen before any other operations to restore tiles properly
         const loadGameState = (window as any).loadGameState;
         if (typeof loadGameState === 'function') {
+          console.log('🔄 Calling loadGameState() to restore saved game...');
           const loaded = await loadGameState();
           if (!loaded) {
-            logger.warn('⚠️ Failed to load saved game, starting new game');
-            // Fallback - this shouldn't happen, but start boot anyway
-            console.warn('⚠️ No saved game found, starting fresh');
+            logger.error('❌ CRITICAL: Failed to load saved game state!');
+            console.error('❌ loadGameState returned false - saved game could not be loaded');
+            // 🔥 CRITICAL FIX: If loadGameState fails, we need to rebuild the board
+            // Otherwise we'll have an empty board with only ghost placeholders
+            console.log('🔄 Rebuilding board since loadGameState failed...');
+            const rebuildBoard = (window as any).rebuildBoard;
+            if (typeof rebuildBoard === 'function') {
+              try {
+                rebuildBoard();
+                console.log('✅ Board rebuilt after loadGameState failure');
+              } catch (error) {
+                console.error('❌ Failed to rebuild board:', error);
+              }
+            }
+          } else {
+            console.log('✅ loadGameState() completed successfully - saved game restored');
+            console.log('📊 Restored boardNumber:', savedBoardNumber);
           }
         } else {
           logger.error('❌ loadGameState function not found');
-          console.warn('⚠️ Starting fresh game');
+          console.error('❌ CRITICAL: loadGameState function not available!');
         }
+        
+        // Clear the flags after boot (they were consumed by boot/startLevel)
+        delete (window as any).__ccStartAtLevel;
+        delete (window as any).__ccSkipRebuildBoard;
       } catch (error) {
         logger.error('❌ Failed to load saved game:', error);
         console.warn('⚠️ Starting fresh game');
+        // Clean up flag on error
+        delete (window as any).__ccStartAtLevel;
       }
     }, 770); // 120ms delay + 650ms animation = 770ms total (was 420ms, increased by 350ms)
     
@@ -467,12 +516,31 @@ initializeApp().catch((error: Error) => {
   try {
     console.log('🔥 Starting complete game cleanup...');
     
-    // CRITICAL: Save game state BEFORE animations
+    // CRITICAL: Save game state BEFORE animations and cleanup
+    // This ensures game state is saved even if cleanup fails
     try {
       if (typeof window.saveGameState === 'function') {
         console.log('💾 Saving game state before exit...');
         window.saveGameState();
         console.log('✅ Game state saved before exit');
+        
+        // 🔥 USER BUG FIX: Double-check that state was saved correctly
+        const savedGame = localStorage.getItem('cc_saved_game');
+        if (savedGame) {
+          try {
+            const gameState = JSON.parse(savedGame);
+            console.log('✅ Verified saved game state:', {
+              boardNumber: gameState.boardNumber,
+              level: gameState.level,
+              score: gameState.score,
+              timestamp: gameState.timestamp
+            });
+          } catch (e) {
+            console.warn('⚠️ Failed to verify saved game state:', e);
+          }
+        } else {
+          console.warn('⚠️ WARNING: Game state was not saved!');
+        }
       }
     } catch (error) {
       console.warn('⚠️ Failed to save game state during exit:', error);
@@ -528,16 +596,22 @@ initializeApp().catch((error: Error) => {
       gsap.killTweensOf('p');
       gsap.killTweensOf('progress');
       
-      // CRITICAL: Kill PIXI object tweens (tiles and HUD)
-      // Kill all tile tweens
+      // CRITICAL: Kill PIXI object tweens (tiles and HUD) - MUST be done before cleanupGame
+      // Kill all tile tweens with null checks to prevent "Cannot read properties of null (reading 'y')" errors
       if (STATE && STATE.tiles && STATE.tiles.length > 0) {
         STATE.tiles.forEach(tile => {
           try {
-            if (tile && tile.scale) {
-              gsap.killTweensOf(tile.scale);
-            }
-            if (tile) {
+            // Check if tile exists and is not destroyed before killing tweens
+            if (tile && !tile.destroyed) {
+              if (tile.scale && !tile.scale.destroyed) {
+                gsap.killTweensOf(tile.scale);
+              }
+              // Kill tweens on tile itself (x, y, alpha, etc.)
               gsap.killTweensOf(tile);
+              // Also kill tweens on tile properties that might be animated
+              if (tile.hover && !tile.hover.destroyed) {
+                gsap.killTweensOf(tile.hover);
+              }
             }
           } catch (e) {
             // Ignore errors for already destroyed tiles
@@ -545,15 +619,43 @@ initializeApp().catch((error: Error) => {
         });
       }
       
-      // Kill HUD tweens
-      if (STATE && STATE.hud) {
+      // Kill HUD tweens with null checks
+      if (STATE) {
         try {
-          gsap.killTweensOf(STATE.hud);
-          gsap.killTweensOf(STATE.board);
-          gsap.killTweensOf(STATE.stage);
+          if (STATE.hud && !STATE.hud.destroyed) {
+            gsap.killTweensOf(STATE.hud);
+          }
+          if (STATE.board && !STATE.board.destroyed) {
+            gsap.killTweensOf(STATE.board);
+          }
+          if (STATE.stage && !STATE.stage.destroyed) {
+            gsap.killTweensOf(STATE.stage);
+          }
+          // Kill tweens on background layer if it exists
+          if (STATE.backgroundLayer && !STATE.backgroundLayer.destroyed) {
+            gsap.killTweensOf(STATE.backgroundLayer);
+          }
         } catch (e) {
           // Ignore errors
         }
+      }
+      
+      // CRITICAL: Kill all GSAP timelines that might reference destroyed objects
+      try {
+        // Get all active tweens and kill them if their target is destroyed
+        const allTweens = gsap.globalTimeline.getChildren();
+        allTweens.forEach((tween: any) => {
+          try {
+            const target = tween.targets?.[0];
+            if (target && (target.destroyed || target === null || target === undefined)) {
+              tween.kill();
+            }
+          } catch (e) {
+            // Ignore errors
+          }
+        });
+      } catch (e) {
+        // Ignore errors
       }
       
       console.log('✅ All GSAP tweens killed');
@@ -581,8 +683,89 @@ initializeApp().catch((error: Error) => {
     // NOTE: Saved game state is now handled in end-run-modal.ts
     // Only clear if user made no moves; otherwise keep state for resume
     
-    // Hide app element
+    // 🔥 CRITICAL FIX: Hide app element and canvas BEFORE showing homepage
+    // This ensures board element doesn't show on top of homepage/slider
     uiManager.hideApp();
+    
+    // 🔥 CRITICAL FIX: Remove ALL canvas elements from DOM to prevent them from showing
+    // This ensures no leftover canvas elements are visible when returning to homepage
+    try {
+      const appElement = document.getElementById('app');
+      if (appElement) {
+        // Remove all canvas elements from app container
+        const canvases = appElement.querySelectorAll('canvas');
+        canvases.forEach(canvas => {
+          try {
+            canvas.remove();
+            console.log('✅ Removed canvas element from DOM');
+          } catch (e) {
+            console.warn('⚠️ Failed to remove canvas:', e);
+          }
+        });
+        
+        // Also check body for any stray canvas elements
+        const bodyCanvases = document.body.querySelectorAll('canvas');
+        bodyCanvases.forEach(canvas => {
+          // Only remove if it's not part of another system
+          if (canvas.parentElement === appElement || canvas.parentElement === document.body) {
+            try {
+              canvas.remove();
+              console.log('✅ Removed stray canvas element from body');
+            } catch (e) {
+              console.warn('⚠️ Failed to remove stray canvas:', e);
+            }
+          }
+        });
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to remove canvas elements:', error);
+    }
+    
+    // 🔥 CRITICAL FIX: Double-check that canvas is hidden after cleanupGame
+    // Sometimes canvas can reappear after cleanup, so we hide it again
+    try {
+      const canvas = document.querySelector('#app canvas');
+      if (canvas && canvas instanceof HTMLElement) {
+        canvas.style.display = 'none';
+        canvas.style.visibility = 'hidden';
+        canvas.style.opacity = '0';
+        canvas.style.zIndex = '-1';
+        canvas.style.pointerEvents = 'none';
+        console.log('✅ Canvas double-checked and hidden after cleanupGame');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to double-check canvas hiding:', error);
+    }
+    
+    // 🔥 CRITICAL FIX: Also hide HUD container if it exists
+    try {
+      const hudContainer = document.getElementById('hud-container');
+      if (hudContainer) {
+        hudContainer.style.display = 'none';
+        hudContainer.style.visibility = 'hidden';
+        hudContainer.style.opacity = '0';
+        hudContainer.style.zIndex = '-1';
+        hudContainer.style.pointerEvents = 'none';
+        console.log('✅ HUD container hidden');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to hide HUD container:', error);
+    }
+    
+    // 🔥 CRITICAL FIX: Also hide board indicator if it exists
+    try {
+      const boardIndicator = document.getElementById('hud-board');
+      if (boardIndicator) {
+        boardIndicator.style.display = 'none';
+        boardIndicator.style.visibility = 'hidden';
+        boardIndicator.style.opacity = '0';
+        boardIndicator.style.zIndex = '-1';
+        boardIndicator.style.pointerEvents = 'none';
+        console.log('✅ Board indicator hidden');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to hide board indicator:', error);
+    }
     
     
     // Show navigation

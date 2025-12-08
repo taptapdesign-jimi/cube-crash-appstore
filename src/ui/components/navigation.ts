@@ -100,11 +100,15 @@ export function renderNavigation(container: HTMLElement, config: NavigationConfi
   container.appendChild(element);
 }
 
-export function updateNavBadge(count: number): void {
-  console.log('🎁 updateNavBadge called with count:', count);
-  const navButton = document.querySelector('.independent-nav-button[data-slide="2"]') as HTMLElement;
+export function updateNavBadge(count: number, slideIndex: number = 2): void {
+  // slideIndex 1 = Journey, slideIndex 2 = Collectibles (default for backward compatibility)
+  const slideName = slideIndex === 1 ? 'Journey' : 'Collectibles';
+  const ariaLabel = slideIndex === 1 ? `${count} new journey boards` : `${count} new collectibles`;
+  
+  console.log(`🎁 updateNavBadge called with count: ${count}, slideIndex: ${slideIndex} (${slideName})`);
+  const navButton = document.querySelector(`.independent-nav-button[data-slide="${slideIndex}"]`) as HTMLElement;
   if (!navButton) {
-    console.warn('⚠️ Nav button not found for slide 2');
+    console.warn(`⚠️ Nav button not found for slide ${slideIndex}`);
     return;
   }
   
@@ -115,24 +119,25 @@ export function updateNavBadge(count: number): void {
     if (existingBadge) {
       const badgeText = existingBadge.querySelector('.nav-badge-text');
       if (badgeText) badgeText.textContent = count.toString();
-      console.log('✅ Badge updated to', count);
+      existingBadge.setAttribute('aria-label', ariaLabel);
+      console.log(`✅ ${slideName} badge updated to`, count);
     } else {
       // Create new badge
       const badge = document.createElement('div');
       badge.className = 'nav-badge';
-      badge.setAttribute('aria-label', `${count} new collectibles`);
+      badge.setAttribute('aria-label', ariaLabel);
       const badgeText = document.createElement('span');
       badgeText.className = 'nav-badge-text';
       badgeText.textContent = count.toString();
       badge.appendChild(badgeText);
       navButton.appendChild(badge);
-      console.log('✅ Badge created with', count);
+      console.log(`✅ ${slideName} badge created with`, count);
     }
   } else {
     // Remove badge if count is 0 or less
     if (existingBadge) {
       existingBadge.remove();
-      console.log('✅ Badge removed');
+      console.log(`✅ ${slideName} badge removed`);
     }
   }
 }

@@ -159,6 +159,21 @@ function getReactiveActiveTiles(): any[] {
 async function triggerCleanBoardFlow(reason: string): Promise<void> {
   console.log('🚨🚨🚨 triggerCleanBoardFlow invoked:', reason);
 
+  // 🔥 USER BUG FIX: Don't trigger clean board flow if game is hidden (user is on homepage/other screens)
+  // This prevents clean board modal from appearing when user navigates away from game
+  const appElement = document.getElementById('app');
+  if (appElement && appElement.hasAttribute('hidden')) {
+    console.log('⏳ triggerCleanBoardFlow skipped - app is hidden (user on homepage/other screens)');
+    return;
+  }
+  
+  // Also check if homepage is visible (game should not be active)
+  const homeElement = document.getElementById('home');
+  if (homeElement && !homeElement.hidden) {
+    console.log('⏳ triggerCleanBoardFlow skipped - homepage is visible (game not active)');
+    return;
+  }
+
   if (busyEnding) {
     console.log('⏳ triggerCleanBoardFlow skipped - busyEnding already true');
     return;
@@ -570,7 +585,7 @@ export async function boot(){
     }
   }, 2000);
   
-  // DESTROY existing app if it exists
+  // 🔥 CRITICAL FIX: DESTROY existing app if it exists
   if (app && app.canvas) {
     console.log('🧹 Destroying existing PIXI app');
     try {
@@ -581,11 +596,36 @@ export async function boot(){
     app = null;
   }
   
-  // Clear any existing canvas
+  // 🔥 CRITICAL FIX: Clear ALL existing canvas elements from DOM
+  // This prevents leftover canvas elements from showing when starting new game
   const host = document.getElementById('app') || document.body;
-  const existingCanvas = host.querySelector('canvas');
-  if (existingCanvas) {
-    existingCanvas.remove();
+  try {
+    // Remove all canvas elements from app container
+    const existingCanvases = host.querySelectorAll('canvas');
+    existingCanvases.forEach(canvas => {
+      try {
+        canvas.remove();
+        console.log('✅ Removed existing canvas from DOM');
+      } catch (e) {
+        console.warn('⚠️ Failed to remove canvas:', e);
+      }
+    });
+    
+    // Also check body for any stray canvas elements
+    const bodyCanvases = document.body.querySelectorAll('canvas');
+    bodyCanvases.forEach(canvas => {
+      // Only remove if it's part of app container
+      if (canvas.parentElement === host || canvas.parentElement === document.body) {
+        try {
+          canvas.remove();
+          console.log('✅ Removed stray canvas from body');
+        } catch (e) {
+          console.warn('⚠️ Failed to remove stray canvas:', e);
+        }
+      }
+    });
+  } catch (e) {
+    console.warn('⚠️ Error removing existing canvas elements:', e);
   }
   
   console.log('🎮 Creating fresh PIXI app');
@@ -1732,6 +1772,27 @@ function startLevel(n){
     console.error('❌ Failed to update highest board:', error);
   }
   
+  // 🗺️ JOURNEY PROGRESSION: Unlock journey boards based on boardNumber
+  // Unlock all boards up to and including the current boardNumber
+  import('./journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+    try {
+      journeyBoardsManager.syncWithGameProgress(n);
+      
+      // Update journey badge count (slideIndex 1 = Journey)
+      // Show NEWLY unlocked boards count (excluding board 1 and already viewed boards) as badge
+      // This ensures badge only shows boards that haven't been viewed yet
+      const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
+      if (typeof (window as any).updateNavBadge === 'function') {
+        (window as any).updateNavBadge(newlyUnlockedCount, 1); // Pass slideIndex 1 for Journey
+        console.log(`🗺️ Journey badge updated: ${newlyUnlockedCount} newly unlocked boards (not yet viewed)`);
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to sync journey boards with game progress:', error);
+    }
+  }).catch((error) => {
+    console.warn('⚠️ Failed to import journey boards manager:', error);
+  });
+  
   moves = MOVES_MAX;
   // 🔥 CRITICAL: Don't reset busyEnding here - let runEndgameFlow handle it in finally block
   // busyEnding = false; // REMOVED - runEndgameFlow resets it in finally block
@@ -1748,8 +1809,16 @@ wildMeter = 0;
   // Clear end game cache when starting new level
   clearEndGameCache();
   
-  // Start animation immediately - no delay
-  rebuildBoard();
+  // 🔥 CRITICAL FIX: Skip rebuildBoard if loading saved state
+  // This prevents creating an empty board before loadGameState restores tiles
+  const skipRebuild = (window as any).__ccSkipRebuildBoard;
+  if (skipRebuild) {
+    console.log('🎯 Skipping rebuildBoard() - will load saved state instead');
+    delete (window as any).__ccSkipRebuildBoard;
+  } else {
+    // Start animation immediately - no delay
+    rebuildBoard();
+  }
   
   // CRITICAL: Save game state immediately after starting Board 2+ to enable resume
   // This ensures that if user exits without making moves, they can still continue
@@ -2947,11 +3016,24 @@ function merge(src, dst, helpers){
           const dstInTiles = tiles.includes(dst);
           const dstIsActive = dst && !dst.locked && (dst.value|0) > 0;
           
+          // 🔥 CRITICAL FIX: Check if there are 2+ active tiles that can still merge BEFORE checking stuck
+          // This prevents false "stuck" detection when 2 tiles (e.g., 3 and 2) can still stack
+          const visibleTilesBeforeCheck = activeTilesBeforeCheck.length;
+          if (visibleTilesBeforeCheck >= 2) {
+            // Check if anyMergePossible returns true (tiles can still merge/stack)
+            const canStillMerge = makeBoard?.anyMergePossible?.(activeTilesBeforeCheck);
+            if (canStillMerge) {
+              console.log('✅ Post-merge check: 2+ tiles remain and can still merge/stack - NOT checking stuck, game continues');
+              console.log('✅ Active tiles:', activeTilesBeforeCheck.map(t => ({ value: t.value, special: t.special })));
+              // Don't check stuck - tiles can still merge
+              return; // Exit early, don't check stuck
+            }
+          }
+          
           // 🔥 USER REQUEST: If this was last 2 regular tiles that stacked (not merge 6), trigger fail screen immediately
           // 🔥 CRITICAL: Only trigger if this is TRULY the last move (no other tiles on board, no locked tiles)
           // This prevents blocking normal gameplay when stacking in the middle of the game
           // 🔥 CRITICAL FIX: Use visible tiles count (not stackDepth sum) for accurate "last 2 tiles" detection
-          const visibleTilesBeforeCheck = activeTilesBeforeCheck.length; // Count visible tiles, not stackDepth sum
           const hasOtherActiveTilesForTwo = activeTilesBeforeCheck.some(t => t !== dst);
           const hasLockedTilesForTwo = tiles.some((t: any) => t && !t.destroyed && t.locked && (t.value|0) > 0);
           const isTrulyLastMoveForTwo = !hasOtherActiveTilesForTwo && !hasLockedTilesForTwo && visibleTilesBeforeCheck === 1 && activeTilesBeforeCheck[0] === dst;
@@ -5524,12 +5606,43 @@ function checkLevelEnd(){
       return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet';
     });
     
-    if (lockedActiveTiles.length > 0 && !skipWindowExceeded) {
+    // 🔥 USER BUG FIX: Also check for tiles that are still being spawned (not yet interactive)
+    // This prevents fail screen when user tries to merge tiles that just spawned after magnet
+    // Tiles that are still spawning may not have eventMode='static' yet or may have _isBeingSpawned flag
+    const tilesStillSpawning = tiles.filter((t: any) => {
+      if (!t || t.destroyed) return false;
+      if (t.locked) return true; // Locked tiles are still spawning
+      // Check if tile is still being spawned (animation in progress)
+      if (t._isBeingSpawned === true) return true;
+      // Check if tile doesn't have eventMode='static' yet (not interactive)
+      if (t.eventMode !== 'static' && (t.value|0) > 0) {
+        // Wild tiles might not have eventMode set immediately, so check if tile is actually active
+        const isWildTile = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer';
+        // Only consider it as "still spawning" if it's a regular tile without eventMode
+        if (!isWildTile) return true;
+      }
+      return false;
+    });
+    
+    // Combine both checks - if any tiles are locked or still spawning, wait
+    const tilesNotReady = lockedActiveTiles.length > 0 || tilesStillSpawning.length > 0;
+    
+    if (tilesNotReady && !skipWindowExceeded) {
       if (checkLevelEndSkipStartedAt === null) checkLevelEndSkipStartedAt = now;
       checkLevelEndRetryCount++;
-      console.log('⏳ checkLevelEnd skipped - locked active tiles still animating (retry', checkLevelEndRetryCount, '/', MAX_CHECK_LEVEL_END_RETRIES, '):', {
+      console.log('⏳ checkLevelEnd skipped - tiles still spawning/animating (retry', checkLevelEndRetryCount, '/', MAX_CHECK_LEVEL_END_RETRIES, '):', {
         lockedCount: lockedActiveTiles.length,
-        lockedTiles: lockedActiveTiles.map(t => ({ value: t.value, special: t.special, gridX: t.gridX, gridY: t.gridY }))
+        stillSpawningCount: tilesStillSpawning.length,
+        lockedTiles: lockedActiveTiles.map(t => ({ value: t.value, special: t.special, gridX: t.gridX, gridY: t.gridY })),
+        spawningTiles: tilesStillSpawning.map(t => ({ 
+          value: t.value, 
+          special: t.special, 
+          gridX: t.gridX, 
+          gridY: t.gridY, 
+          locked: t.locked,
+          eventMode: t.eventMode,
+          isBeingSpawned: t._isBeingSpawned
+        }))
       });
       
       // 🔥 v38: Check max retries to prevent infinite loop
@@ -5548,8 +5661,12 @@ function checkLevelEnd(){
         return;
       }
     }
-    if (lockedActiveTiles.length > 0 && skipWindowExceeded) {
-      console.warn('⏱️ checkLevelEnd: Skip window exceeded for locked tiles - forcing check despite locks');
+    if (tilesNotReady && skipWindowExceeded) {
+      console.warn('⏱️ checkLevelEnd: Skip window exceeded for locked/spawning tiles - forcing check despite locks/spawns');
+      console.warn('⏱️ WARNING: Some tiles may still be spawning:', {
+        lockedCount: lockedActiveTiles.length,
+        stillSpawningCount: tilesStillSpawning.length
+      });
       checkLevelEndRetryCount = 0;
       checkLevelEndSkipStartedAt = null;
     }
@@ -5576,6 +5693,18 @@ function checkLevelEnd(){
     
     // 🔥 CRITICAL: Use forceRefresh because delay might have caused cache staleness
     const checkLevelEndResult = checkEndGame(checkLevelEndContext, true);
+    
+    // 🔥 USER BUG FIX: Don't trigger clean board flow if game is hidden (user is on homepage/other screens)
+    // This prevents clean board modal from appearing when user navigates away from game
+    const appElement = document.getElementById('app');
+    const homeElement = document.getElementById('home');
+    const isGameHidden = appElement && appElement.hasAttribute('hidden');
+    const isHomepageVisible = homeElement && !homeElement.hidden;
+    
+    if (isGameHidden || isHomepageVisible) {
+      console.log('⏳ checkLevelEnd skipped - game is hidden or homepage is visible (user navigated away from game)');
+      return;
+    }
     
     if (checkLevelEndResult.type === 'clean') {
       const wildReady = wildMeter >= 1 || wildSpawnInProgress || wildSpawnRetryTimer !== null;
@@ -6319,14 +6448,90 @@ export function cleanupGame() {
     console.warn('⚠️ Failed to update high score during cleanup:', error);
   }
   
-  // CRITICAL: Reset GSAP timeline first - but don't kill slider animations
+  // 🔥 CRITICAL FIX: Kill all GSAP tweens BEFORE destroying objects
+  // This prevents "Cannot read properties of null (reading 'y')" errors
   try {
-    // Kill only game-related animations, not slider animations
+    // Kill UI element tweens
     gsap.killTweensOf("[data-wild-loader]");
     gsap.killTweensOf(".wild-loader");
     gsap.killTweensOf("p");
     gsap.killTweensOf("progress");
     gsap.killTweensOf("ratio");
+    
+    // CRITICAL: Kill PIXI object tweens (tiles and HUD) with null checks
+    // Kill all tile tweens BEFORE destroying tiles
+    if (tiles && tiles.length > 0) {
+      tiles.forEach(tile => {
+        try {
+          // Check if tile exists and is not destroyed before killing tweens
+          if (tile && !tile.destroyed) {
+            if (tile.scale && !tile.scale.destroyed) {
+              gsap.killTweensOf(tile.scale);
+            }
+            // Kill tweens on tile itself (x, y, alpha, etc.)
+            gsap.killTweensOf(tile);
+            // Also kill tweens on tile properties that might be animated
+            if (tile.hover && !tile.hover.destroyed) {
+              gsap.killTweensOf(tile.hover);
+            }
+          }
+        } catch (e) {
+          // Ignore errors for already destroyed tiles
+        }
+      });
+    }
+    
+    // Kill HUD tweens with null checks
+    if (HUD && !HUD.destroyed) {
+      try {
+        gsap.killTweensOf(HUD);
+      } catch (e) {
+        // Ignore errors
+      }
+    }
+    if (board && !board.destroyed) {
+      try {
+        gsap.killTweensOf(board);
+      } catch (e) {
+        // Ignore errors
+      }
+    }
+    if (app && app.stage && !app.stage.destroyed) {
+      try {
+        gsap.killTweensOf(app.stage);
+      } catch (e) {
+        // Ignore errors
+      }
+    }
+    if (backgroundLayer && !backgroundLayer.destroyed) {
+      try {
+        gsap.killTweensOf(backgroundLayer);
+      } catch (e) {
+        // Ignore errors
+      }
+    }
+    
+    // CRITICAL: Kill all GSAP timelines that might reference destroyed objects
+    try {
+      // Get all active tweens and kill them if their target is destroyed
+      const allTweens = gsap.globalTimeline.getChildren();
+      allTweens.forEach((tween: any) => {
+        try {
+          const targets = tween.targets || [];
+          if (targets.length > 0) {
+            const target = targets[0];
+            if (target && (target.destroyed || target === null || target === undefined)) {
+              tween.kill();
+            }
+          }
+        } catch (e) {
+          // Ignore errors
+        }
+      });
+    } catch (e) {
+      // Ignore errors
+    }
+    
     gsap.globalTimeline.resume(); // CRITICAL: Resume timeline
     console.log('✅ GSAP timeline reset and cleared (slider animations preserved)');
   } catch (e) {
@@ -6610,6 +6815,7 @@ function saveGameState() {
       gridCols: currentState.grid[0]?.length || 0,
       score: currentState.score,
       level: currentState.level,
+      boardNumber: currentState.boardNumber, // 🔥 USER BUG FIX: Log boardNumber in save
       moves: currentState.moves,
       wildMeter: currentState.wildMeter,
     });
@@ -6646,7 +6852,13 @@ async function loadGameState() {
       return false;
     }
 
-    console.log('📊 Game state:', { score: gameState.score, level: gameState.level, moves: gameState.moves });
+    // 🔥 USER BUG FIX: Log boardNumber from saved state
+    console.log('📊 Game state:', { 
+      score: gameState.score, 
+      level: gameState.level, 
+      boardNumber: gameState.boardNumber,
+      moves: gameState.moves 
+    });
 
     const timestamp = Number(gameState.timestamp) || 0;
     const saveAge = Date.now() - timestamp;
@@ -6811,15 +7023,32 @@ async function loadGameState() {
       });
     } catch {}
 
-    // Ghost placeholders are now fixed and always visible
+    // 🔥 CRITICAL FIX: Update ghost visibility AFTER loading all tiles
+    // This ensures ghost placeholders are hidden where tiles exist
+    try {
+      if (typeof window.updateGhostVisibility === 'function') {
+        window.updateGhostVisibility();
+        console.log('✅ loadGameState: Ghost visibility updated after loading tiles');
+      } else {
+        updateGhostVisibility();
+        console.log('✅ loadGameState: Ghost visibility updated (fallback)');
+      }
+    } catch (e) {
+      console.warn('⚠️ loadGameState: Failed to update ghost visibility:', e);
+    }
 
     board?.sortChildren?.();
 
     score = Number.isFinite(gameState.score) ? gameState.score : 0;
     level = Number.isFinite(gameState.level) ? gameState.level : 1;
-    boardNumber = Number.isFinite(gameState.boardNumber) ? gameState.boardNumber : level;
+    // 🔥 USER BUG FIX: Prioritize boardNumber from saved state, fallback to level
+    // This ensures boardNumber is correctly restored from saved game state
+    boardNumber = Number.isFinite(gameState.boardNumber) ? gameState.boardNumber : (Number.isFinite(gameState.level) ? gameState.level : 1);
     moves = Number.isFinite(gameState.moves) ? gameState.moves : MOVES_MAX;
     wildMeter = Number.isFinite(gameState.wildMeter) ? gameState.wildMeter : 0;
+    
+    // 🔥 USER BUG FIX: Log restored boardNumber for debugging
+    console.log('📊 loadGameState: Restored state - boardNumber:', boardNumber, 'level:', level, 'score:', score, 'moves:', moves);
 
     if (Number.isFinite(gameState.bestScore)) {
       STATE.bestScore = gameState.bestScore;
@@ -6829,7 +7058,16 @@ async function loadGameState() {
     const savedStarsCount = Number.isFinite(gameState.starsCount) ? gameState.starsCount : 0;
     console.log('💾 Will restore stars count after HUD initialization:', savedStarsCount);
 
+    // 🔥 CRITICAL FIX: Sync state BEFORE updating HUD to ensure boardNumber is set correctly
     syncSharedState();
+    
+    // 🔥 CRITICAL FIX: Update board-specific rules with the restored board number
+    // This ensures board-specific logic uses the correct board number
+    if (typeof boardSpecificRules !== 'undefined' && boardSpecificRules.setCurrentBoard) {
+      boardSpecificRules.setCurrentBoard(boardNumber);
+      console.log('🎯 loadGameState: Set board-specific rules to board', boardNumber);
+    }
+    
     // CRITICAL: Draw ghost placeholders BEFORE HUD update
     drawBoardBG('active+empty');
     
@@ -6863,26 +7101,90 @@ async function loadGameState() {
       console.log('🔍 HUD check: visible?', hud.visible, 'alpha:', hud.alpha, 'children:', hud.children.length, 'parent:', hud.parent?.constructor.name);
     }
     
-    // CRITICAL: Recreate DOM-based HUD if it was destroyed
-    const existingHUD = document.querySelector('[data-unified-hud]');
-    console.log('🔍 DOM HUD exists?', !!existingHUD);
-    if (!existingHUD && typeof HUD.createUnifiedHudContainer === 'function') {
-      console.log('⚠️ DOM HUD missing, recreating...');
-      try {
-        HUD.createUnifiedHudContainer();
-        console.log('✅ DOM HUD recreated');
-        
-        // Play HUD drop animation after recreation
+    // 🔥 CRITICAL FIX: Always trigger HUD drop animation when loading saved state
+    // This ensures HUD is visible and animated properly after continue
+    try {
+      // Check if HUD drop is pending (should be true after cleanup)
+      if (_hudDropPending) {
+        console.log('🎯 HUD drop pending - triggering drop animation');
         if (typeof HUD.playHudDrop === 'function') {
           HUD.playHudDrop({});
           console.log('✅ HUD drop animation triggered');
+          _hudDropPending = false;
         }
-      } catch (error) {
-        console.error('❌ Failed to recreate DOM HUD:', error);
+      } else {
+        // If not pending, still ensure HUD is visible and positioned correctly
+        console.log('🎯 HUD drop not pending - ensuring HUD is visible');
+        if (HUD_ROOT) {
+          const top = HUD_ROOT._dropTop ?? 44;
+          HUD_ROOT.y = top;
+          HUD_ROOT.alpha = 1;
+          HUD_ROOT.visible = true;
+          HUD_ROOT._dropped = true;
+          console.log('✅ HUD positioned and made visible');
+        }
       }
+      
+      // CRITICAL: Recreate DOM-based HUD if it was destroyed
+      const existingHUD = document.querySelector('[data-unified-hud]');
+      console.log('🔍 DOM HUD exists?', !!existingHUD);
+      if (!existingHUD && typeof HUD.createUnifiedHudContainer === 'function') {
+        console.log('⚠️ DOM HUD missing, recreating...');
+        try {
+          HUD.createUnifiedHudContainer();
+          console.log('✅ DOM HUD recreated');
+          
+          // Play HUD drop animation after recreation
+          if (typeof HUD.playHudDrop === 'function') {
+            HUD.playHudDrop({});
+            console.log('✅ HUD drop animation triggered after recreation');
+          }
+        } catch (error) {
+          console.error('❌ Failed to recreate DOM HUD:', error);
+        }
+      }
+      
+      // 🔥 CRITICAL FIX: Ensure HUD_ROOT is visible and positioned correctly
+      // This is a fallback in case HUD drop animation doesn't work
+      // HUD_ROOT is a local variable in hud-helpers.js, not on window
+      // We need to access it via HUD object or check if it exists in the module
+      try {
+        // Try to get HUD_ROOT from HUD object if it's exported
+        const hudRoot = (HUD && HUD.HUD_ROOT) || (typeof window.HUD_ROOT !== 'undefined' ? window.HUD_ROOT : null);
+        if (hudRoot) {
+          const top = hudRoot._dropTop ?? 44;
+          hudRoot.y = top;
+          hudRoot.alpha = 1;
+          hudRoot.visible = true;
+          console.log('✅ HUD_ROOT positioned and made visible (fallback)');
+        } else {
+          console.warn('⚠️ HUD_ROOT not found - HUD may not be initialized yet');
+        }
+      } catch (e) {
+        console.warn('⚠️ Failed to access HUD_ROOT:', e);
+      }
+      
+      // 🔥 CRITICAL FIX: Board indicator animation is automatically triggered by playHudDrop
+      // But we also need to ensure board indicator is visible
+      try {
+        const boardIndicator = document.getElementById('hud-board');
+        if (boardIndicator) {
+          boardIndicator.style.display = 'flex';
+          boardIndicator.style.opacity = '1';
+          boardIndicator.setAttribute('data-state', 'visible');
+          console.log('✅ Board indicator made visible');
+        }
+      } catch (e) {
+        console.warn('⚠️ Failed to show board indicator:', e);
+      }
+    } catch (error) {
+      console.error('❌ Failed to trigger HUD animations:', error);
     }
     
+    // 🔥 CRITICAL FIX: Update HUD AFTER boardNumber is restored and state is synced
+    // This ensures HUD displays the correct board number
     updateHUD();
+    console.log('✅ HUD updated with boardNumber:', boardNumber);
     resetWildProgress(wildMeter, true);
     
     // CRITICAL: Set _userMadeMove flag to true after loading saved game
@@ -6921,10 +7223,33 @@ async function loadGameState() {
     // Play same sweetPopIn animation as new game
     sweetPopIn(tiles, {
       onHalf: () => {
-        // No HUD drop needed here - already triggered above
+        // 🔥 CRITICAL FIX: Ensure HUD drop is triggered even if it wasn't triggered above
+        // This is a fallback in case HUD drop wasn't triggered earlier
+        if (_hudDropPending) {
+          console.log('🎯 HUD drop still pending in onHalf - triggering now');
+          try { 
+            if (typeof HUD.playHudDrop === 'function') {
+              HUD.playHudDrop({});
+              console.log('✅ HUD drop animation triggered in onHalf callback');
+            }
+          } catch (e) {
+            console.warn('⚠️ Failed to trigger HUD drop in onHalf:', e);
+          }
+          _hudDropPending = false;
+        }
       }
     }).then(() => {
       console.log('✅ Continue animation completed');
+      
+      // 🔥 CRITICAL FIX: Final check - ensure HUD is visible and positioned after animation
+      if (HUD_ROOT) {
+        const top = HUD_ROOT._dropTop ?? 44;
+        HUD_ROOT.y = top;
+        HUD_ROOT.alpha = 1;
+        HUD_ROOT.visible = true;
+        HUD_ROOT._dropped = true;
+        console.log('✅ HUD final position set after animation');
+      }
     });
     
     lastSavedState = localStorage.getItem('cc_saved_game');

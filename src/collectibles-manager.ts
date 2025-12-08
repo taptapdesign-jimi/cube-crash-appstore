@@ -354,6 +354,13 @@ class CollectiblesManager {
       journeyBoardsManager.updateCounter();
       logger.info('🗺️ Journey boards rendered');
       
+      // 🗺️ JOURNEY BADGE: Mark boards as viewed and reset badge when journey screen is opened
+      journeyBoardsManager.markAsViewed();
+      if (typeof (window as any).updateNavBadge === 'function') {
+        (window as any).updateNavBadge(0, 1); // Reset journey badge (slideIndex 1)
+        logger.info('🗺️ Journey badge reset after opening journey screen');
+      }
+      
       // 🔥 PREMIUM FIX: Position is already set synchronously in renderBoards()
       // No need to refresh - CSS custom properties handle positioning without visible movement
     } else {

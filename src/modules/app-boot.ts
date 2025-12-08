@@ -170,7 +170,15 @@ export async function startLevel(n: number): Promise<void> {
     }
   }
   
-  rebuildBoard();       // builds + ring deal-in
+  // 🔥 CRITICAL FIX: Skip rebuildBoard if loading saved state
+  // This prevents creating an empty board before loadGameState restores tiles
+  const skipRebuild = (window as any).__ccSkipRebuildBoard;
+  if (skipRebuild) {
+    console.log('🎯 Skipping rebuildBoard() in app-boot - will load saved state instead');
+    delete (window as any).__ccSkipRebuildBoard;
+  } else {
+    rebuildBoard();       // builds + ring deal-in
+  }
   layoutBoot();
   
   // 🔥 REMOVED: checkGameOver() call after startLevel - DEPRECATED
