@@ -65,6 +65,15 @@ export function stopTileIdleBounce(): void {
   console.log('⏹️ Tile idle bounce stopped');
 }
 
+// 🔥 CRITICAL FIX: Reset function for complete cleanup
+export function resetTileIdleBounce(): void {
+  stopTileIdleBounce();
+  state.tiles = [];
+  state.board = null;
+  state.lastInteractionTime = 0;
+  console.log('🔄 Tile idle bounce state reset');
+}
+
 export function notifyBoardInteraction(): void {
   state.lastInteractionTime = Date.now();
   
@@ -235,6 +244,7 @@ export const TILE_IDLE_BOUNCE = {
   ENABLE: ENABLE_TILE_IDLE_BOUNCE,
   start: startTileIdleBounce,
   stop: stopTileIdleBounce,
+  reset: resetTileIdleBounce, // 🔥 CRITICAL FIX: Export reset function
   notifyInteraction: notifyBoardInteraction,
   updateTileList
 };

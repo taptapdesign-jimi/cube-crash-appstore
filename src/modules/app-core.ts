@@ -6430,12 +6430,15 @@ export function restart() {
 export function cleanupGame() {
   console.log('🧹 Cleaning up game state');
   
-  // Stop tile idle bounce animations
+  // 🔥 CRITICAL FIX: Stop and reset tile idle bounce animations
   try {
     TILE_IDLE_BOUNCE.stop();
-    console.log('✅ Tile idle bounce stopped');
+    if (TILE_IDLE_BOUNCE.reset) {
+      TILE_IDLE_BOUNCE.reset();
+    }
+    console.log('✅ Tile idle bounce stopped and reset');
   } catch (error) {
-    console.warn('⚠️ Failed to stop tile idle bounce:', error);
+    console.warn('⚠️ Failed to stop/reset tile idle bounce:', error);
   }
   
   // CRITICAL: Update high score before cleanup using statsService
@@ -6566,8 +6569,20 @@ export function cleanupGame() {
   try { comboIdleTimer?.kill?.(); } catch {}
   comboIdleTimer = null;
   
-  // Remove global listeners to avoid duplicated layout calls on re-entry
-  try { window.removeEventListener('resize', layout); } catch {}
+  // 🔥 CRITICAL FIX: Clear all tracked timeouts
+  clearAllAppTimeouts();
+  
+  // 🔥 CRITICAL FIX: Remove event listeners properly
+  try { 
+    window.removeEventListener('resize', layoutBoard); 
+  } catch (e) {
+    console.warn('⚠️ Failed to remove resize listener:', e);
+  }
+  try { 
+    window.removeEventListener('resize', layout); 
+  } catch (e) {
+    console.warn('⚠️ Failed to remove layout listener:', e);
+  }
   
   // Reset wild progress (with safety check for HUD)
   try {
@@ -6595,6 +6610,32 @@ export function cleanupGame() {
     createEmptyGrid();
   }
   
+  // 🔥 CRITICAL FIX: Cleanup background layer BEFORE clearing board
+  if (backgroundLayer) {
+    try {
+      if (board && board.children.includes(backgroundLayer)) {
+        board.removeChild(backgroundLayer);
+        console.log('✅ Background layer removed from board');
+      }
+      backgroundLayer.destroy({ children: true });
+      console.log('✅ Background layer destroyed');
+    } catch (e) {
+      console.warn('⚠️ Error destroying background layer:', e);
+    }
+    backgroundLayer = null; // 🔥 CRITICAL: Nullify reference to prevent memory leak
+    console.log('✅ Background layer reference nullified');
+  }
+  
+  // 🔥 CRITICAL FIX: Clear window global variables to prevent memory leaks
+  try {
+    window._ghostPlaceholders = null;
+    window._userMadeMove = false;
+    window._gameHasEnded = false;
+    console.log('✅ Window global variables cleared');
+  } catch (e) {
+    console.warn('⚠️ Failed to clear window globals:', e);
+  }
+  
   // Clear board
   if (board) {
     board.removeChildren();
@@ -6603,6 +6644,14 @@ export function cleanupGame() {
       boardBG.zIndex = -1000;
       boardBG.eventMode = 'none';
     }
+  }
+  
+  // 🔥 CRITICAL FIX: Stop memory manager interval before destroying app
+  try {
+    memoryManager.stop();
+    console.log('✅ Memory manager stopped');
+  } catch (e) {
+    console.warn('⚠️ Failed to stop memory manager:', e);
   }
   
   // CRITICAL: Destroy and nullify app so boot() can create a new one
@@ -6616,6 +6665,25 @@ export function cleanupGame() {
     }
     app = null;
     console.log('✅ app set to null');
+  }
+  
+  // 🔥 CRITICAL FIX: Clear HUD_ROOT reference if it exists
+  try {
+    const hudRoot = (window as any).HUD_ROOT;
+    if (hudRoot) {
+      try {
+        if (hudRoot.parent) {
+          hudRoot.parent.removeChild(hudRoot);
+        }
+        if (typeof hudRoot.destroy === 'function') {
+          hudRoot.destroy({ children: true });
+        }
+      } catch {}
+      (window as any).HUD_ROOT = null;
+      console.log('✅ HUD_ROOT reference cleared');
+    }
+  } catch (e) {
+    console.warn('⚠️ Failed to clear HUD_ROOT:', e);
   }
   
   console.log('✅ Game cleanup completed');

@@ -294,14 +294,93 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         console.log('🔥 VERY LONG SESSION: Performing extra cleanup for board', nextLevel);
         try {
           // Clear PIXI texture cache
-          if (window.PIXI && window.PIXI.utils && window.PIXI.utils.destroyTextureCache) {
-            window.PIXI.utils.destroyTextureCache();
+          if (window.PIXI && window.PIXI.utils) {
+            if (typeof window.PIXI.utils.destroyTextureCache === 'function') {
+              window.PIXI.utils.destroyTextureCache();
+            } else if (typeof window.PIXI.utils.clearTextureCache === 'function') {
+              window.PIXI.utils.clearTextureCache();
+            }
+            
+            // 🔥 CRITICAL FIX: Force clear ALL base textures for very long sessions
+            const baseTextureCache = (window.PIXI.utils as any).BaseTextureCache;
+            if (baseTextureCache) {
+              Object.keys(baseTextureCache).forEach((key: string) => {
+                try {
+                  const baseTexture = baseTextureCache[key];
+                  if (baseTexture && typeof baseTexture.destroy === 'function') {
+                    baseTexture.destroy();
+                  }
+                  delete baseTextureCache[key];
+                } catch (e) {
+                  console.warn('⚠️ Failed to destroy base texture:', key, e);
+                }
+              });
+              console.log('✅ All base textures cleared for very long session');
+            }
           }
+          
+          // 🔥 CRITICAL FIX: Force clear all GSAP timelines for very long sessions
+          try {
+            gsap.globalTimeline.clear();
+            console.log('✅ All GSAP timelines cleared for very long session');
+          } catch (e) {
+            console.warn('⚠️ Failed to clear GSAP timelines:', e);
+          }
+          
           // Force garbage collection if available
           if (window.gc) {
             window.gc();
+            console.log('✅ Garbage collection forced');
           }
-        } catch {}
+        } catch (e) {
+          console.warn('⚠️ Very long session cleanup error:', e);
+        }
+      }
+      
+      // 🔥 LONG-TERM: Aggressive cleanup for board 10+ (not just 20+)
+      if (isLongGameSession) {
+        console.log('🔥 LONG SESSION: Performing aggressive cleanup for board', nextLevel);
+        try {
+          // Clear PIXI texture cache more aggressively
+          if (window.PIXI && window.PIXI.utils) {
+            if (typeof window.PIXI.utils.clearTextureCache === 'function') {
+              window.PIXI.utils.clearTextureCache();
+            } else if (typeof window.PIXI.utils.destroyTextureCache === 'function') {
+              window.PIXI.utils.destroyTextureCache();
+            }
+            
+            // Clear unused base textures
+            const baseTextureCache = (window.PIXI.utils as any).BaseTextureCache;
+            if (baseTextureCache) {
+              const toRemove: string[] = [];
+              for (const [key, baseTexture] of Object.entries(baseTextureCache)) {
+                try {
+                  const bt = baseTexture as any;
+                  if (bt && (!bt.textureCacheIds || bt.textureCacheIds.length === 0)) {
+                    if (typeof bt.destroy === 'function') {
+                      bt.destroy();
+                    }
+                    toRemove.push(key as string);
+                  }
+                } catch (e) {
+                  // Ignore errors
+                }
+              }
+              toRemove.forEach(key => {
+                try {
+                  delete baseTextureCache[key];
+                } catch (e) {
+                  // Ignore errors
+                }
+              });
+              if (toRemove.length > 0) {
+                console.log(`✅ Cleared ${toRemove.length} unused base textures for long session`);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ Long session cleanup error:', e);
+        }
       }
       
       console.log(`✅ endgame-flow: ${isVeryLongSession ? 'VERY AGGRESSIVE' : isLongGameSession ? 'AGGRESSIVE' : 'Standard'} cleanup completed`);
