@@ -46,7 +46,7 @@
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --pad: 40px;
+  --pad: 24px; /* 🔥 FIX: Reduced from 40px to 24px for journey navigation */
   --pad-left: calc(var(--pad) + var(--safe-left));
   --pad-right: calc(var(--pad) + var(--safe-right));
 
@@ -101,7 +101,7 @@
   overflow: hidden;
   z-index: 9999 !important; /* 🔥 CRITICAL: Always on top, always clickable */
   pointer-events: auto !important; /* 🔥 CRITICAL: Always receives clicks */
-  margin-left: 40px;
+  margin-left: 24px; /* 🔥 FIX: Reduced from 40px to 24px to match new padding */
   flex-shrink: 0;
 }
 
@@ -162,7 +162,7 @@
   width: 40px;
   height: 40px;
   flex-shrink: 0;
-  margin-right: 40px;
+  margin-right: 24px; /* 🔥 FIX: Reduced from 40px to 24px to match new padding */
 }
 
 .collectibles-title-underline {
@@ -170,8 +170,8 @@
   height: 2px;
   background: var(--collectibles-brown);
   opacity: 0.20;
-  width: calc(100% - 80px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
-  margin: 0 calc(40px + env(safe-area-inset-right, 0px)) 0 calc(40px + env(safe-area-inset-left, 0px));
+  width: calc(100% - 48px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); /* 🔥 FIX: 24px * 2 = 48px instead of 80px */
+  margin: 0 calc(24px + env(safe-area-inset-right, 0px)) 0 calc(24px + env(safe-area-inset-left, 0px)); /* 🔥 FIX: Reduced from 40px to 24px */
 }
 
 /* Home shadow direktno ispod collectibles dividera - isti kao stats */
@@ -179,9 +179,9 @@
 .collectibles-shadow-image {
   position: absolute;
   top: calc(100% + 0px); /* Točno na donjoj liniji dividera */
-  left: calc(-40px - env(safe-area-inset-left, 0px)); /* Kompenzira padding parenta */
-  right: calc(-40px - env(safe-area-inset-right, 0px)); /* Kompenzira padding parenta */
-  width: calc(100% + 80px + env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px)); /* Full width ekrana */
+  left: calc(-24px - env(safe-area-inset-left, 0px)); /* 🔥 FIX: Reduced from 40px to 24px to match new padding */
+  right: calc(-24px - env(safe-area-inset-right, 0px)); /* 🔥 FIX: Reduced from 40px to 24px to match new padding */
+  width: calc(100% + 48px + env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px)); /* 🔥 FIX: 24px * 2 = 48px instead of 80px */
   height: 49px;
   object-fit: contain;
   object-position: center;
@@ -253,9 +253,9 @@
   margin-bottom: 0 !important; /* 🔥 PREMIUM FIX: No margin - content goes to shadow */
   padding-bottom: 0 !important; /* 🔥 PREMIUM FIX: No padding - content goes to shadow */
   /* Remove horizontal padding to allow cards to extend to edges */
-  margin-left: calc(-1 * var(--pad-left, 40px)) !important; /* 🔥 PREMIUM FIX: Compensate for parent padding */
-  margin-right: calc(-1 * var(--pad-right, 40px)) !important; /* 🔥 PREMIUM FIX: Compensate for parent padding */
-  width: calc(100% + var(--pad-left, 40px) + var(--pad-right, 40px)) !important; /* 🔥 PREMIUM FIX: Extend to full width */
+  margin-left: calc(-1 * var(--pad-left, 24px)) !important; /* 🔥 FIX: Updated fallback from 40px to 24px */
+  margin-right: calc(-1 * var(--pad-right, 24px)) !important; /* 🔥 FIX: Updated fallback from 40px to 24px */
+  width: calc(100% + var(--pad-left, 24px) + var(--pad-right, 24px)) !important; /* 🔥 FIX: Updated fallback from 40px to 24px */
 }
 
 /* Remove gap after journey section */
@@ -1286,9 +1286,9 @@
   /* 🔥 SCROLLABLE FIX: Absolute positioning within scrollable container */
   position: absolute;
   /* 🔥 EDGE-TO-EDGE: Extend beyond parent padding using negative margins */
-  left: calc(-1 * var(--pad-left, 40px));
-  right: calc(-1 * var(--pad-right, 40px));
-  width: calc(100% + var(--pad-left, 40px) + var(--pad-right, 40px));
+  left: calc(-1 * var(--pad-left, 24px)); /* 🔥 FIX: Updated fallback from 40px to 24px */
+  right: calc(-1 * var(--pad-right, 24px)); /* 🔥 FIX: Updated fallback from 40px to 24px */
+  width: calc(100% + var(--pad-left, 24px) + var(--pad-right, 24px)); /* 🔥 FIX: Updated fallback from 40px to 24px */
   /* Dynamic values (top, height) set inline in JavaScript - fallback values here */
   min-height: 500px; /* Fallback minimum height */
   margin: 0;

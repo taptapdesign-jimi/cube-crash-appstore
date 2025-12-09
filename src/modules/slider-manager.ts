@@ -395,60 +395,78 @@ class SliderManager {
       dot.classList.toggle('active', index === this.currentSlide);
     });
     
-    // Update independent navigation buttons with premium GSAP animation
-    const navButtons = document.querySelectorAll('.independent-nav-button');
-    navButtons.forEach((button, index) => {
-      const isActive = index === this.currentSlide;
-      const navButton = button as HTMLElement;
-      const navImage = navButton.querySelector('img') as HTMLElement;
-      
-      // Kill any existing animations
-      gsap.killTweensOf(navButton);
-      if (navImage) {
-        gsap.killTweensOf(navImage);
-      }
-      
-      if (isActive) {
-        // Animate to active state with premium ease-in-out
-        button.classList.add('active');
-        gsap.to(navButton, {
-          width: 80,
-          height: 80,
-          marginTop: 0,
-          scale: 1.0,
-          duration: 0.1,
-          ease: 'power2.inOut', // Premium smooth ease-in-out
-          force3D: true
-        });
+    // Update independent navigation buttons with smooth ease-in ease-out animations
+    // Use requestAnimationFrame to ensure animations start after layout is stable
+    requestAnimationFrame(() => {
+      const navButtons = document.querySelectorAll('.independent-nav-button');
+      navButtons.forEach((button, index) => {
+        const isActive = index === this.currentSlide;
+        const navButton = button as HTMLElement;
+        const navImage = navButton.querySelector('img') as HTMLElement;
+        
+        // Kill any existing animations first
+        gsap.killTweensOf(navButton);
         if (navImage) {
-          gsap.to(navImage, {
-            y: -12,
+          gsap.killTweensOf(navImage);
+        }
+        
+        // Get current GSAP values (if animated) or computed style values
+        // Use GSAP getProperty first to get animated values, fallback to computed style
+        const currentWidth = (gsap.getProperty(navButton, 'width') as number) || parseFloat(getComputedStyle(navButton).width) || 48;
+        const currentHeight = (gsap.getProperty(navButton, 'height') as number) || parseFloat(getComputedStyle(navButton).height) || 48;
+        const currentImageY = navImage ? ((gsap.getProperty(navImage, 'y') as number) || 0) : 0;
+        
+        // Set class immediately - CSS will handle marginTop positioning (no inline styles)
+        if (isActive) {
+          button.classList.add('active');
+        } else {
+          button.classList.remove('active');
+        }
+        
+        // Clear any existing inline marginTop to let CSS take control
+        gsap.set(navButton, {
+          clearProps: 'marginTop' // Clear inline marginTop, let CSS handle it
+        });
+        
+        // Animate only width and height - CSS handles marginTop positioning
+        if (isActive) {
+          // Animate to active state - smooth ease-in ease-out from current position
+          gsap.to(navButton, {
+            width: 72, // 🔥 FIX: Active size reduced from 80px to 72px
+            height: 72, // 🔥 FIX: Active size reduced from 80px to 72px
+            // marginTop is handled by CSS (.independent-nav-button.active)
             duration: 0.1,
             ease: 'power2.inOut',
             force3D: true
           });
-        }
-      } else {
-        // Animate to inactive state with premium ease-in-out
-        button.classList.remove('active');
-        gsap.to(navButton, {
-          width: 56,
-          height: 56,
-          marginTop: 24,
-          scale: 1.0,
-          duration: 0.1,
-          ease: 'power2.inOut', // Premium smooth ease-in-out
-          force3D: true
-        });
-        if (navImage) {
-          gsap.to(navImage, {
-            y: 0,
+          if (navImage) {
+            gsap.to(navImage, {
+              y: -12,
+              duration: 0.1,
+              ease: 'power2.inOut',
+              force3D: true
+            });
+          }
+        } else {
+          // Animate to inactive state - smooth ease-in ease-out from current position
+          gsap.to(navButton, {
+            width: 48,
+            height: 48,
+            // marginTop is handled by CSS (.independent-nav-button)
             duration: 0.1,
             ease: 'power2.inOut',
             force3D: true
           });
+          if (navImage) {
+            gsap.to(navImage, {
+              y: 0,
+              duration: 0.1,
+              ease: 'power2.inOut',
+              force3D: true
+            });
+          }
         }
-      }
+      });
     });
     
     // Update slides

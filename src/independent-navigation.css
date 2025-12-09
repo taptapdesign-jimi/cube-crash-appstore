@@ -68,7 +68,7 @@
 
 .independent-nav-buttons {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-end !important; /* 🔥 FIX: Use flex-end to prevent vertical jump when icons change size - GSAP controls exact positioning */
   justify-content: space-between;
   gap: 0;
   width: 100%;
@@ -78,6 +78,8 @@
   pointer-events: auto;
   margin: 0;
   box-sizing: border-box;
+  transform: translateY(-8px); /* 🔥 FIX: Move all navigation icons up by 8px (was -16px, now -8px = 8px more down) - works better than margin-top */
+  -webkit-transform: translateY(-8px);
   background: none !important; /* Force no background */
   background-color: transparent !important; /* Force transparent */
   overflow: visible !important;
@@ -102,27 +104,31 @@
     gap: 0;
     padding: 0 12px;
     justify-content: space-between;
+    align-items: flex-end !important; /* 🔥 FIX: Use flex-end to prevent vertical jump when icons change size - GSAP controls exact positioning */
+    transform: translateY(-8px) !important; /* 🔥 FIX: Move all navigation icons up by 8px on iPhone (was -16px, now -8px = 8px more down) - works better than margin-top */
+    -webkit-transform: translateY(-8px) !important;
   }
-}
   
   .independent-nav-button {
-    width: 56px; /* Same size on iPhone */
-    height: 56px;
+    width: 48px; /* Default inactive size on iPhone - GSAP controls animation */
+    height: 48px;
     transform: scale(1.0);
+    margin-top: -107px; /* 🔥 FIX: Moved up 24px (from -83px to -107px) on iPhone - CSS only, no inline styles */
   }
   
   .independent-nav-button.active {
-    width: 80px; /* Same size on iPhone */
-    height: 80px;
+    width: 72px; /* 🔥 FIX: Active size reduced from 80px to 72px on iPhone - GSAP controls animation */
+    height: 72px; /* 🔥 FIX: Active size reduced from 80px to 72px on iPhone - GSAP controls animation */
     transform: scale(1.0);
+    margin-top: -72px; /* 🔥 FIX: Moved up 24px (from -48px to -72px) on iPhone - CSS only, no inline styles */
   }
 }
 
 .independent-nav-button {
   all: unset;
-  width: 56px; /* Inactive size */
-  height: 56px; /* Inactive size */
-  margin-top: 24px; /* Moved up 4px from 28px */
+  width: 48px; /* Default inactive size - GSAP controls animation */
+  height: 48px; /* Default inactive size - GSAP controls animation */
+  margin-top: -107px; /* 🔥 FIX: Moved up 24px (from -83px to -107px) - CSS only, no inline styles */
   border: none !important; /* Force remove any borders */
   border-radius: 0 !important; /* Force remove border radius */
   background: none !important; /* Force no background */
@@ -183,14 +189,14 @@
 }
 
 .independent-nav-button.active {
-  width: 80px; /* Active size */
-  height: 80px; /* Active size */
-  margin-top: 0;
+  width: 72px; /* 🔥 FIX: Active size reduced from 80px to 72px - GSAP controls animation */
+  height: 72px; /* 🔥 FIX: Active size reduced from 80px to 72px - GSAP controls animation */
+  margin-top: -72px; /* 🔥 FIX: Moved up 24px (from -48px to -72px) - CSS only, no inline styles */
   background: none !important; /* Force no background */
   background-color: transparent !important; /* Force transparent */
   border: none !important; /* Force no borders */
   outline: none !important; /* Force no outline */
-  transform: scale(1.0); /* Full size - 80px */
+  transform: scale(1.0); /* Full size - 72px */
   -webkit-transform: translateZ(0) scale(1.0);
   /* Remove box shadow - we'll use elliptical shadow instead */
   box-shadow: none !important;
@@ -232,7 +238,7 @@
 }
 
 .independent-nav-button.active img {
-  transform: translateY(-12px); /* Move up 12px when active (4px more) */
+  transform: translateY(-12px); /* 🔥 FIX: Restored original -12px (was changed to -4px, but should stay -12px) */
   animation: idleFloat 3s ease-in-out infinite; /* Gentle up-down idle animation */
   /* Remove drop shadow - we'll use elliptical shadow instead */
   filter: none;
@@ -260,10 +266,10 @@
 /* Idle floating animation for active icons */
 @keyframes idleFloat {
   0%, 100% {
-    transform: translateY(-12px); /* Base position */
+    transform: translateY(-12px); /* 🔥 FIX: Restored original -12px base position */
   }
   50% {
-    transform: translateY(-16px); /* Move up 4px more */
+    transform: translateY(-16px); /* 🔥 FIX: Restored original -16px peak position */
   }
 }
 
