@@ -352,6 +352,25 @@ class UIManager {
           console.log('⏱️ Time tracking started');
         }
         
+        // 🔥 CRITICAL FIX: Ensure canvas is visible before showing app element
+        // Canvas should already be in DOM from boot(), but we need to ensure it's visible
+        try {
+          const appElement = document.getElementById('app');
+          if (appElement) {
+            const canvas = appElement.querySelector('canvas');
+            if (canvas) {
+              canvas.style.display = 'block';
+              canvas.style.visibility = 'visible';
+              canvas.style.opacity = '1';
+              console.log('✅ Canvas made visible before showApp()');
+            } else {
+              console.warn('⚠️ Canvas not found in app element before showApp()');
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ Failed to ensure canvas visibility before showApp():', e);
+        }
+        
         // Show app element
         console.log('📱 Showing app element...');
         this.showApp();
@@ -559,21 +578,9 @@ class UIManager {
   showApp(): void {
     const appElement = document.getElementById('app');
     if (appElement) {
-      // 🔥 CRITICAL FIX: Remove any leftover canvas elements before showing app
-      // This ensures no old canvas elements are visible when starting new game
-      try {
-        const oldCanvases = appElement.querySelectorAll('canvas');
-        oldCanvases.forEach(canvas => {
-          try {
-            canvas.remove();
-            logger.info('✅ Removed leftover canvas before showing app');
-          } catch (e) {
-            logger.warn('⚠️ Failed to remove leftover canvas:', e);
-          }
-        });
-      } catch (e) {
-        logger.warn('⚠️ Error removing leftover canvas elements:', e);
-      }
+      // 🔥 CRITICAL FIX: DO NOT remove canvas elements here - boot() already added the canvas
+      // Removing canvas here would remove the canvas that boot() just added!
+      // Only remove canvas if app is not booted yet (which shouldn't happen)
       
       appElement.removeAttribute('hidden');
       appElement.style.display = 'block';
@@ -587,21 +594,73 @@ class UIManager {
       appElement.style.zIndex = '1';
       logger.info('✅ App element shown');
       
-      // Also check canvas visibility (new canvas will be created by boot())
-      const canvas = appElement.querySelector('canvas');
+      // 🔥 CRITICAL FIX: Ensure canvas is visible and properly styled
+      // Canvas should already exist from boot(), but we need to ensure it's visible
+      let canvas = appElement.querySelector('canvas');
+      if (!canvas) {
+        // 🔥 CRITICAL: If canvas doesn't exist, try to get it from window.CC.app
+        logger.warn('⚠️ Canvas not found in app element, trying to get from window.CC.app...');
+        try {
+          const gameState = (window as any).CC;
+          if (gameState && gameState.app && gameState.app.canvas) {
+            const appCanvas = gameState.app.canvas;
+            if (!appCanvas.parentElement) {
+              appElement.appendChild(appCanvas);
+              logger.info('✅ Canvas added to app element from window.CC.app');
+            }
+            canvas = appCanvas;
+          }
+        } catch (e) {
+          logger.error('❌ Failed to get canvas from window.CC.app:', e);
+        }
+      }
+      
       if (canvas) {
         canvas.style.display = 'block';
         canvas.style.visibility = 'visible';
         canvas.style.opacity = '1';
         canvas.style.width = '100%';
         canvas.style.height = '100%';
+        canvas.style.position = 'absolute';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.zIndex = '1';
+        canvas.style.pointerEvents = 'auto';
         logger.info('✅ Canvas shown and styled');
+        logger.info('✅ Canvas in DOM:', !!canvas.parentElement, 'visible:', canvas.style.visibility, 'display:', canvas.style.display);
       } else {
-        // Canvas will be created by boot() - this is normal
-        logger.info('ℹ️ Canvas not found yet - will be created by boot()');
+        logger.error('❌ Canvas not found and could not be retrieved from window.CC.app!');
       }
     } else {
       logger.error('❌ App element not found!');
+    }
+    
+    // 🔥 CRITICAL FIX: Ensure board and HUD are visible when showing app
+    // This fixes the issue where board is hidden after cleanup and not restored
+    try {
+      // Access board and hud from window.CC if available
+      const gameState = (window as any).CC;
+      if (gameState) {
+        if (gameState.board) {
+          gameState.board.visible = true;
+          gameState.board.alpha = 1;
+          gameState.board.renderable = true;
+          logger.info('✅ Board made visible in showApp()');
+        }
+        if (gameState.hud) {
+          gameState.hud.visible = true;
+          gameState.hud.alpha = 1;
+          gameState.hud.renderable = true;
+          logger.info('✅ HUD made visible in showApp()');
+        }
+        // Also call showGameUI if available
+        if (typeof gameState.showGameUI === 'function') {
+          gameState.showGameUI();
+          logger.info('✅ showGameUI() called in showApp()');
+        }
+      }
+    } catch (e) {
+      logger.warn('⚠️ Failed to ensure board/HUD visibility in showApp():', e);
     }
     
     // Hide navigation when entering game

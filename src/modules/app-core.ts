@@ -639,6 +639,12 @@ export async function boot(){
     powerPreference: "high-performance" // Optimize for performance
   });
   
+  // 🔥 CRITICAL FIX: Ensure app is rendering
+  console.log('✅ PIXI app initialized');
+  console.log('✅ App renderer width:', app.renderer.width, 'height:', app.renderer.height);
+  console.log('✅ App canvas width:', app.canvas.width, 'height:', app.canvas.height);
+  console.log('✅ App canvas in DOM:', !!app.canvas.parentElement);
+  
   // Add fade in animation for background transition
   app.canvas.style.opacity = '0';
   app.canvas.style.transition = 'opacity 0.6s ease';
@@ -661,9 +667,37 @@ export async function boot(){
     // Start with gradient - will change to solid color only when entering game
     canvasElement.style.background = 'var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%))';
   }
+  // 🔥 CRITICAL FIX: Ensure host element exists and is visible before adding canvas
+  if (!host) {
+    console.error('❌ Host element not found! Cannot add canvas to DOM');
+    return;
+  }
+  
+  // Ensure host element is visible
+  if (host instanceof HTMLElement) {
+    host.style.display = 'block';
+    host.style.visibility = 'visible';
+    host.style.opacity = '1';
+    console.log('✅ Host element made visible before adding canvas');
+  }
+  
   host.appendChild(app.canvas);
   app.canvas.style.touchAction = 'none';
   app.canvas.style.zIndex = '10'; /* Above background, below sliders */
+  
+  // 🔥 CRITICAL FIX: Ensure canvas is visible and properly styled
+  app.canvas.style.display = 'block';
+  app.canvas.style.visibility = 'visible';
+  app.canvas.style.opacity = '1';
+  app.canvas.style.width = '100%';
+  app.canvas.style.height = '100%';
+  app.canvas.style.position = 'absolute';
+  app.canvas.style.top = '0';
+  app.canvas.style.left = '0';
+  app.canvas.style.pointerEvents = 'auto';
+  console.log('✅ Canvas added to DOM and styled');
+  console.log('✅ Canvas in DOM:', !!app.canvas.parentElement);
+  console.log('✅ Canvas visible:', app.canvas.style.visibility, 'display:', app.canvas.style.display, 'opacity:', app.canvas.style.opacity);
   
   // Optimize canvas for pixel-perfect rendering
   app.canvas.style.imageRendering = 'pixelated';
@@ -678,14 +712,28 @@ export async function boot(){
   // 🔥 CRITICAL: Ensure board and hud are visible
   board.visible = true;
   board.alpha = 1;
+  board.renderable = true;
   hud.visible = true;
   hud.alpha = 1;
+  hud.renderable = true;
 
   board.zIndex = 100; hud.zIndex = 10000;
   stage.addChild(board, hud);
   board.addChildAt(boardBG, 0); boardBG.zIndex = -1000; board.sortChildren();
   
   console.log('✅ Board and HUD containers created and added to stage');
+  console.log('✅ Board visible:', board.visible, 'alpha:', board.alpha, 'renderable:', board.renderable, 'in stage:', !!board.parent);
+  console.log('✅ HUD visible:', hud.visible, 'alpha:', hud.alpha, 'renderable:', hud.renderable, 'in stage:', !!hud.parent);
+  console.log('✅ Stage children count:', stage.children.length);
+  console.log('✅ Stage visible:', stage.visible, 'renderable:', stage.renderable);
+  
+  // 🔥 CRITICAL FIX: Force render to ensure everything is visible
+  try {
+    app.renderer.render(stage);
+    console.log('✅ Initial render completed');
+  } catch (e) {
+    console.warn('⚠️ Failed to perform initial render:', e);
+  }
   
   // Initialize fixed background layer AFTER layout is set
   // (will be called from startGame after layout())
@@ -841,8 +889,37 @@ export async function boot(){
   } else {
     boardNumber = 1;
     moves = MOVES_MAX;
+    // 🔥 CRITICAL FIX: Ensure board and hud are visible before starting level
+    if (board) {
+      board.visible = true;
+      board.alpha = 1;
+      board.renderable = true;
+      console.log('✅ Board made visible in boot() before startLevel');
+    }
+    if (hud) {
+      hud.visible = true;
+      hud.alpha = 1;
+      hud.renderable = true;
+      console.log('✅ HUD made visible in boot() before startLevel');
+    }
     startLevel(1);
   }
+  
+  // 🔥 CRITICAL FIX: Final check - ensure board and hud are visible after startLevel
+  setTimeout(() => {
+    if (board) {
+      board.visible = true;
+      board.alpha = 1;
+      board.renderable = true;
+      console.log('✅ Board visibility confirmed after startLevel (delayed check)');
+    }
+    if (hud) {
+      hud.visible = true;
+      hud.alpha = 1;
+      hud.renderable = true;
+      console.log('✅ HUD visibility confirmed after startLevel (delayed check)');
+    }
+  }, 100);
   
   // Force HUD reinit after board numbering changes
   _hudInitDone = false;
@@ -1102,6 +1179,23 @@ export function layoutBoard(){
         _hudInitDone = true;
         console.log('✅ HUD initialized successfully');
         
+        // 🔥 CRITICAL FIX: If HUD was initialized with initialHide=false, ensure it's visible
+        // This handles the case where _hudDropPending is false but HUD still needs to be visible
+        // HUD_ROOT is not directly accessible, we need to get it from HUD module or window
+        try {
+          const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+          if (!_hudDropPending && hudRoot) {
+            const top = hudRoot._dropTop ?? safeTop;
+            hudRoot.y = top;
+            hudRoot.alpha = 1;
+            hudRoot.visible = true;
+            hudRoot._dropped = true;
+            console.log('✅ HUD made visible immediately (no drop pending)');
+          }
+        } catch (e) {
+          console.warn('⚠️ Failed to access HUD_ROOT:', e);
+        }
+        
         // hook za wild meter prema HUD-u
         hudUpdateProgress = (ratio, animate)=>{
           console.log('🎯 hudUpdateProgress called with:', { ratio, animate });
@@ -1218,14 +1312,25 @@ function initializeBackgroundLayer(){
   // CRITICAL: Always create new background layer for each game
   const PAD=5, RADIUS=Math.round(TILE*0.26), WIDTH=8, COLOR=0xEBE6E2, ALPHA=0.64;
   
-  // Remove existing background layer if it exists
+  // 🔥 CRITICAL FIX: Remove existing background layer if it exists
   if (backgroundLayer) {
     try {
-      board.removeChild(backgroundLayer);
+      if (board && board.children.includes(backgroundLayer)) {
+        board.removeChild(backgroundLayer);
+        console.log('✅ Removed existing background layer from board');
+      }
       backgroundLayer.destroy({ children: true });
+      console.log('✅ Destroyed existing background layer');
     } catch (e) {
       console.warn('⚠️ Error removing existing background layer:', e);
     }
+    backgroundLayer = null; // Clear reference
+  }
+  
+  // 🔥 CRITICAL FIX: Ensure board exists before creating background layer
+  if (!board) {
+    console.error('❌ initializeBackgroundLayer: board is null, cannot create background layer');
+    return;
   }
   
   // Create a new dedicated container for background elements
@@ -1233,9 +1338,17 @@ function initializeBackgroundLayer(){
   backgroundLayer.zIndex = -10000; // Always at the very bottom
   backgroundLayer.eventMode = 'none'; // Non-interactive
   backgroundLayer.label = 'BackgroundLayer'; // For debugging
+  backgroundLayer.visible = true; // 🔥 CRITICAL: Ensure it's visible
   
-  // Add to board
-  board.addChildAt(backgroundLayer, 0);
+  // Add to board at index 0 (bottom)
+  try {
+    board.addChildAt(backgroundLayer, 0);
+    console.log('✅ Background layer added to board at index 0');
+  } catch (e) {
+    console.error('❌ Failed to add background layer to board:', e);
+    backgroundLayer = null;
+    return;
+  }
   
   console.log('🎯 Creating FIXED background layer with all ghost placeholders');
   
@@ -1264,14 +1377,21 @@ function initializeBackgroundLayer(){
   console.log('✅ FIXED background layer created with', ROWS * COLS, 'ghost placeholders');
   console.log('✅ This layer will NEVER be modified or destroyed');
   console.log('🔍 Background layer zIndex:', backgroundLayer.zIndex);
+  console.log('🔍 Background layer visible:', backgroundLayer.visible);
+  console.log('🔍 Background layer in board:', board.children.includes(backgroundLayer));
   
   // 🔥 v70 STYLE: Update ghost visibility immediately after creation
   // Show ghosts for empty cells (where grid[r][c] === null)
-  if (typeof window.updateGhostVisibility === 'function') {
-    window.updateGhostVisibility();
-  } else {
-    // Fallback: Show all ghosts initially (will be hidden by updateGhostVisibility later)
-    updateGhostVisibility();
+  try {
+    if (typeof window.updateGhostVisibility === 'function') {
+      window.updateGhostVisibility();
+    } else {
+      // Fallback: Show all ghosts initially (will be hidden by updateGhostVisibility later)
+      updateGhostVisibility();
+    }
+    console.log('✅ Ghost visibility updated after background layer creation');
+  } catch (e) {
+    console.error('❌ Failed to update ghost visibility:', e);
   }
 }
 
@@ -1450,19 +1570,37 @@ function resetBoardContainer(){
   console.log('🔄 resetBoardContainer (app.js): Board children count:', board.children.length);
   console.log('🔄 resetBoardContainer (app.js): Board children labels:', board.children.map(c => c.label || c.constructor.name));
   
-  // Get backgroundLayer before removing children
+  // 🔥 CRITICAL FIX: Get backgroundLayer reference BEFORE removing children
+  // Also check the global backgroundLayer variable
   const bgLayer = board.children.find(c => c.label === 'BackgroundLayer');
-  console.log('🔄 resetBoardContainer (app.js): Found backgroundLayer:', !!bgLayer);
+  const bgLayerRef = backgroundLayer; // Keep reference to global variable
+  console.log('🔄 resetBoardContainer (app.js): Found backgroundLayer in board:', !!bgLayer);
+  console.log('🔄 resetBoardContainer (app.js): Global backgroundLayer exists:', !!bgLayerRef);
   
   board.removeChildren();
   
   // Re-add persistent layers
   board.addChildAt(boardBG, 0);
-  if (bgLayer) {
-    board.addChildAt(bgLayer, 0); // Always at index 0 (bottom)
-    console.log('✅ resetBoardContainer (app.js): Background layer preserved');
+  
+  // 🔥 CRITICAL FIX: Re-add backgroundLayer if it exists (either from board or global reference)
+  const layerToAdd = bgLayer || bgLayerRef;
+  if (layerToAdd) {
+    try {
+      board.addChildAt(layerToAdd, 0); // Always at index 0 (bottom)
+      layerToAdd.visible = true;
+      layerToAdd.zIndex = -10000;
+      console.log('✅ resetBoardContainer (app.js): Background layer preserved and re-added');
+    } catch (e) {
+      console.warn('⚠️ resetBoardContainer (app.js): Failed to re-add background layer:', e);
+      // If re-adding fails, ensure global reference is cleared so it gets recreated
+      if (bgLayerRef === backgroundLayer) {
+        backgroundLayer = null;
+      }
+    }
   } else {
     console.warn('⚠️ resetBoardContainer (app.js): Background layer NOT found - will need reinit');
+    // Ensure global reference is null so it gets recreated
+    backgroundLayer = null;
   }
   
   boardBG.zIndex = -1000;
@@ -1471,6 +1609,7 @@ function resetBoardContainer(){
   board.sortChildren();
   
   console.log('🔄 resetBoardContainer (app.js): Final children count:', board.children.length);
+  console.log('🔄 resetBoardContainer (app.js): Background layer in board after reset:', !!board.children.find(c => c.label === 'BackgroundLayer'));
 }
 function rebuildBoard(){
   // 🔥 CRITICAL: Stop tile idle bounce before rebuild
@@ -1581,30 +1720,124 @@ function rebuildBoard(){
   try { tiles.forEach(t => t.visible = false); } catch {}
   drawBoardBG('active+empty');
   
-  // 🔥 v70 STYLE: Ghost placeholders stay visible during animation
-  // (No need to hide them - they show empty cells)
+  // 🔥 CRITICAL FIX: Ensure background layer exists and is visible
+  // If backgroundLayer was destroyed in cleanupGame(), it will be null
+  // initializeBackgroundLayer() is called in startLevel() after rebuildBoard()
+  // But we need to ensure it's visible here if it exists
   if (backgroundLayer) {
     backgroundLayer.visible = true; // Keep visible - v70 style
+    // Ensure it's at the bottom of board children
+    try {
+      if (board.children.includes(backgroundLayer)) {
+        const currentIndex = board.getChildIndex(backgroundLayer);
+        if (currentIndex !== 0) {
+          board.removeChild(backgroundLayer);
+          board.addChildAt(backgroundLayer, 0);
+          board.sortChildren();
+          console.log('✅ Background layer repositioned to bottom in rebuildBoard()');
+        }
+      } else {
+        // Background layer not in board - add it
+        board.addChildAt(backgroundLayer, 0);
+        board.sortChildren();
+        console.log('✅ Background layer added to board in rebuildBoard()');
+      }
+    } catch (e) {
+      console.warn('⚠️ rebuildBoard: Failed to ensure background layer in board:', e);
+    }
     console.log('✅ Ghost placeholders visible (v70 style)');
+  } else {
+    console.warn('⚠️ rebuildBoard: backgroundLayer is null - will be created in startLevel()');
   }
   
   // 🔥 v70 STYLE: Update ghost visibility before animation starts
-  updateGhostVisibility();
+  // Only if backgroundLayer exists, otherwise it will be updated after initializeBackgroundLayer()
+  if (backgroundLayer) {
+    try {
+      updateGhostVisibility();
+      console.log('✅ Ghost visibility updated in rebuildBoard()');
+    } catch (e) {
+      console.warn('⚠️ rebuildBoard: Failed to update ghost visibility:', e);
+    }
+  }
   
   // Start animation immediately - NO WAITING
   console.log('🎯 Starting sweetPopIn from app.js with', tiles.length, 'tiles');
   sweetPopIn(tiles, {
     onHalf: () => {
+      // 🔥 CRITICAL FIX: Ensure HUD drop is triggered for new games
       if (_hudDropPending){
-        try { HUD.playHudDrop?.({}); } catch {}
+        console.log('🎯 HUD drop pending in sweetPopIn onHalf - triggering drop animation');
+        try { 
+          if (typeof HUD.playHudDrop === 'function') {
+            HUD.playHudDrop({});
+            console.log('✅ HUD drop animation triggered in sweetPopIn onHalf');
+          } else {
+            console.warn('⚠️ HUD.playHudDrop is not a function');
+          }
+        } catch (e) {
+          console.error('❌ Failed to trigger HUD drop in sweetPopIn onHalf:', e);
+        }
         _hudDropPending = false;
+      } else {
+        // 🔥 CRITICAL FIX: Even if not pending, ensure HUD is visible and positioned
+        console.log('🎯 HUD drop not pending - ensuring HUD is visible');
+        try {
+          // 🔥 CRITICAL FIX: Get HUD_ROOT from HUD module or window
+          try {
+            const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+            if (hudRoot) {
+              const top = hudRoot._dropTop ?? 44;
+              hudRoot.y = top;
+              hudRoot.alpha = 1;
+              hudRoot.visible = true;
+              hudRoot._dropped = true;
+              console.log('✅ HUD positioned and made visible in sweetPopIn onHalf');
+            }
+          } catch (e) {
+            console.warn('⚠️ Failed to access HUD_ROOT in sweetPopIn onHalf:', e);
+          }
+        } catch (e) {
+          console.error('❌ Failed to ensure HUD visibility:', e);
+        }
       }
     }
   }).then(() => {
     // 🔥 v70 STYLE: Update ghost visibility after animation completes
     // Show ghosts for empty cells (where grid[r][c] === null)
-    updateGhostVisibility();
-    console.log('✅ Ghost placeholders updated after sweetPopIn (v70 style)');
+    if (backgroundLayer) {
+      updateGhostVisibility();
+      console.log('✅ Ghost placeholders updated after sweetPopIn (v70 style)');
+    }
+    
+    // 🔥 CRITICAL FIX: Final check - ensure HUD is visible and positioned after animation
+    if (_hudDropPending) {
+      console.log('🎯 HUD drop still pending after sweetPopIn - triggering now');
+      try {
+        if (typeof HUD.playHudDrop === 'function') {
+          HUD.playHudDrop({});
+          console.log('✅ HUD drop animation triggered after sweetPopIn');
+        }
+      } catch (e) {
+        console.error('❌ Failed to trigger HUD drop after sweetPopIn:', e);
+      }
+      _hudDropPending = false;
+    }
+    
+    // 🔥 CRITICAL FIX: Ensure HUD is visible even if animation didn't trigger
+    try {
+      const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+      if (hudRoot) {
+        const top = hudRoot._dropTop ?? 44;
+        hudRoot.y = top;
+        hudRoot.alpha = 1;
+        hudRoot.visible = true;
+        hudRoot._dropped = true;
+        console.log('✅ HUD final position set after sweetPopIn');
+      }
+    } catch (e) {
+      console.error('❌ Failed to ensure HUD visibility after sweetPopIn:', e);
+    }
   });
   console.log('✅ sweetPopIn started immediately - no waiting');
 
@@ -1712,6 +1945,41 @@ function randVal(){ return [1,1,1,2,2,3,3,4,5][(Math.random()*9)|0]; }
 function startLevel(n){
   console.log('🎯 startLevel called with:', n, 'current level:', level, 'current boardNumber:', boardNumber, 'current score:', score);
   
+  // 🔥 CRITICAL FIX: Ensure board and hud are visible BEFORE anything else
+  // This fixes the issue where board is hidden after cleanup and not restored
+  if (board) {
+    board.visible = true;
+    board.alpha = 1;
+    board.renderable = true;
+    // Ensure board is in stage
+    if (!board.parent) {
+      console.warn('⚠️ Board not in stage, adding it...');
+      if (stage) {
+        stage.addChild(board);
+        console.log('✅ Board added to stage');
+      }
+    }
+    console.log('✅ Board made visible in startLevel - visible:', board.visible, 'alpha:', board.alpha, 'renderable:', board.renderable, 'in stage:', !!board.parent);
+  } else {
+    console.error('❌ Board is null in startLevel!');
+  }
+  if (hud) {
+    hud.visible = true;
+    hud.alpha = 1;
+    hud.renderable = true;
+    // Ensure hud is in stage
+    if (!hud.parent) {
+      console.warn('⚠️ HUD not in stage, adding it...');
+      if (stage) {
+        stage.addChild(hud);
+        console.log('✅ HUD added to stage');
+      }
+    }
+    console.log('✅ HUD made visible in startLevel - visible:', hud.visible, 'alpha:', hud.alpha, 'renderable:', hud.renderable, 'in stage:', !!hud.parent);
+  } else {
+    console.error('❌ HUD is null in startLevel!');
+  }
+  
   // 🔥 CRITICAL FIX: Cleanup all animations before starting new level
   // This prevents memory leaks and conflicts that could cause crashes
   try {
@@ -1816,8 +2084,35 @@ wildMeter = 0;
     console.log('🎯 Skipping rebuildBoard() - will load saved state instead');
     delete (window as any).__ccSkipRebuildBoard;
   } else {
+    // 🔥 CRITICAL FIX: Ensure background layer exists BEFORE rebuildBoard()
+    // rebuildBoard() calls resetBoardContainer() which removes all children
+    // If backgroundLayer doesn't exist, it won't be preserved
+    if (!backgroundLayer) {
+      console.log('🎯 Background layer is null before rebuildBoard() - initializing...');
+      initializeBackgroundLayer();
+      console.log('✅ Background layer initialized before rebuildBoard()');
+    }
+    
+    // 🔥 CRITICAL FIX: Ensure board is visible before rebuildBoard
+    if (board) {
+      board.visible = true;
+      board.alpha = 1;
+      board.renderable = true;
+      console.log('✅ Board made visible before rebuildBoard()');
+    }
+    
     // Start animation immediately - no delay
     rebuildBoard();
+    
+    // 🔥 CRITICAL FIX: Final check - ensure board is visible after rebuildBoard
+    setTimeout(() => {
+      if (board) {
+        board.visible = true;
+        board.alpha = 1;
+        board.renderable = true;
+        console.log('✅ Board visibility confirmed after rebuildBoard (delayed check)');
+      }
+    }, 50);
   }
   
   // CRITICAL: Save game state immediately after starting Board 2+ to enable resume
@@ -1836,7 +2131,89 @@ wildMeter = 0;
   
   // Initialize background layer after first layout
   layoutBoard();
-  initializeBackgroundLayer();
+  
+  // 🔥 CRITICAL FIX: Always initialize background layer for new games
+  // Even if it was destroyed in cleanupGame(), it needs to be recreated
+  // This MUST happen BEFORE rebuildBoard() creates tiles, otherwise tiles won't be visible
+  if (!backgroundLayer) {
+    console.log('🎯 Background layer is null - initializing...');
+    initializeBackgroundLayer();
+    console.log('✅ Background layer initialized in startLevel');
+  } else {
+    // If backgroundLayer exists, ensure it's visible and in board
+    const bgInBoard = board.children.find(c => c.label === 'BackgroundLayer');
+    if (!bgInBoard) {
+      console.log('⚠️ Background layer exists but not in board - reinitializing...');
+      try {
+        if (board.children.includes(backgroundLayer)) {
+          board.removeChild(backgroundLayer);
+        }
+        backgroundLayer.destroy({ children: true });
+      } catch (e) {
+        console.warn('⚠️ Error removing existing background layer:', e);
+      }
+      backgroundLayer = null;
+      initializeBackgroundLayer();
+      console.log('✅ Background layer reinitialized');
+    } else {
+      // Ensure background layer is visible
+      backgroundLayer.visible = true;
+      try {
+        updateGhostVisibility();
+        console.log('✅ Background layer already exists and is visible');
+      } catch (e) {
+        console.warn('⚠️ Failed to update ghost visibility:', e);
+      }
+    }
+  }
+  
+  // 🔥 CRITICAL FIX: Ensure background layer is visible and has correct zIndex
+  if (backgroundLayer) {
+    backgroundLayer.visible = true;
+    backgroundLayer.zIndex = -10000;
+    // Ensure it's at the bottom of board children
+    try {
+      if (board.children.includes(backgroundLayer)) {
+        board.removeChild(backgroundLayer);
+        board.addChildAt(backgroundLayer, 0);
+        board.sortChildren();
+        console.log('✅ Background layer repositioned to bottom of board');
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to reposition background layer:', e);
+    }
+  }
+  
+  // 🔥 CRITICAL FIX: Ensure HUD is visible and positioned correctly after startLevel
+  // This is especially important for new games after cleanup
+  try {
+      // 🔥 CRITICAL FIX: Get HUD_ROOT from HUD module or window
+      try {
+        const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+        if (hudRoot) {
+          // If HUD drop is pending, it will be triggered in sweetPopIn onHalf callback
+          // But we should ensure HUD is at least visible
+          if (!_hudDropPending) {
+            const top = hudRoot._dropTop ?? 44;
+            hudRoot.y = top;
+            hudRoot.alpha = 1;
+            hudRoot.visible = true;
+            hudRoot._dropped = true;
+            console.log('✅ HUD positioned and made visible in startLevel (no drop pending)');
+          } else {
+            // If drop is pending, ensure HUD is at least visible (even if above screen)
+            hudRoot.visible = true;
+            console.log('✅ HUD made visible (drop pending, will animate in sweetPopIn onHalf)');
+          }
+        } else {
+          console.warn('⚠️ HUD_ROOT is null in startLevel - HUD may not be initialized yet');
+        }
+      } catch (e) {
+        console.warn('⚠️ Failed to access HUD_ROOT in startLevel:', e);
+      }
+  } catch (e) {
+    console.warn('⚠️ Failed to ensure HUD visibility in startLevel:', e);
+  }
   
   // Call layout only for initial game start, not for restart
   if (n === 1) {
@@ -7217,13 +7594,14 @@ async function loadGameState() {
       // HUD_ROOT is a local variable in hud-helpers.js, not on window
       // We need to access it via HUD object or check if it exists in the module
       try {
-        // Try to get HUD_ROOT from HUD object if it's exported
-        const hudRoot = (HUD && HUD.HUD_ROOT) || (typeof window.HUD_ROOT !== 'undefined' ? window.HUD_ROOT : null);
+        // Try to get HUD_ROOT from window (exported from hud-helpers.js)
+        const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
         if (hudRoot) {
           const top = hudRoot._dropTop ?? 44;
           hudRoot.y = top;
           hudRoot.alpha = 1;
           hudRoot.visible = true;
+          hudRoot._dropped = true;
           console.log('✅ HUD_ROOT positioned and made visible (fallback)');
         } else {
           console.warn('⚠️ HUD_ROOT not found - HUD may not be initialized yet');
@@ -7310,13 +7688,18 @@ async function loadGameState() {
       console.log('✅ Continue animation completed');
       
       // 🔥 CRITICAL FIX: Final check - ensure HUD is visible and positioned after animation
-      if (HUD_ROOT) {
-        const top = HUD_ROOT._dropTop ?? 44;
-        HUD_ROOT.y = top;
-        HUD_ROOT.alpha = 1;
-        HUD_ROOT.visible = true;
-        HUD_ROOT._dropped = true;
-        console.log('✅ HUD final position set after animation');
+      try {
+        const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+        if (hudRoot) {
+          const top = hudRoot._dropTop ?? 44;
+          hudRoot.y = top;
+          hudRoot.alpha = 1;
+          hudRoot.visible = true;
+          hudRoot._dropped = true;
+          console.log('✅ HUD final position set after animation');
+        }
+      } catch (e) {
+        console.warn('⚠️ Failed to access HUD_ROOT in loadGameState:', e);
       }
     });
     

@@ -1343,9 +1343,13 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     window.HUD.getStarHudPosition = getStarHudPosition;
     window.HUD.setStarsCount = setStarsCount;
     window.HUD.cleanupComboAnimations = cleanupComboAnimations; // 🔥 Export cleanup function
+    // 🔥 CRITICAL FIX: Export HUD_ROOT to window for access from app-core.ts
+    // This allows app-core.ts to access HUD_ROOT even though it's a local variable in this module
+    window.HUD_ROOT = HUD_ROOT;
     console.log('✅ HUD functions exported to window.HUD');
+    console.log('✅ HUD_ROOT exported to window.HUD_ROOT');
   }
-
+  
   // Create PIXI wild meter
   console.log('🎯 Creating PIXI wild meter...');
   wild = makeWildLoader();
@@ -1373,6 +1377,13 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     HUD_ROOT.alpha = 1;
     HUD_ROOT.y = top;
     HUD_ROOT._dropped = true;
+  }
+  
+  // 🔥 CRITICAL FIX: Always export HUD_ROOT to window after initialization
+  // This ensures app-core.ts can access it even if initHUD is called multiple times
+  if (typeof window !== 'undefined') {
+    window.HUD_ROOT = HUD_ROOT;
+    console.log('✅ HUD_ROOT exported to window.HUD_ROOT after initialization');
   }
 
   // Add pause modal on HUD click - only HUD area (moves, score, combo, wild preloader)
@@ -1445,10 +1456,26 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
 
 // Play the deferred drop once (used on first Play when board is ~50% populated)
 export function playHudDrop({ duration = 0.8 } = {}){
-  if (!HUD_ROOT) return;
-  if (HUD_ROOT._dropped) return;
-  const top = HUD_ROOT._dropTop ?? HUD_ROOT.y ?? 0;
+  if (!HUD_ROOT) {
+    console.warn('⚠️ playHudDrop: HUD_ROOT is null, cannot play drop animation');
+    return;
+  }
+  
+  // 🔥 CRITICAL FIX: If HUD is already dropped, ensure it's visible and positioned correctly
+  if (HUD_ROOT._dropped) {
+    const top = HUD_ROOT._dropTop ?? HUD_ROOT.y ?? 44;
+    HUD_ROOT.y = top;
+    HUD_ROOT.alpha = 1;
+    HUD_ROOT.visible = true;
+    console.log('✅ HUD already dropped - ensuring visibility');
+    return;
+  }
+  
+  const top = HUD_ROOT._dropTop ?? 44;
   try { gsap.killTweensOf(HUD_ROOT); } catch {}
+  
+  // 🔥 CRITICAL FIX: Ensure HUD is visible before animation
+  HUD_ROOT.visible = true;
   
   // Animate PIXI HUD drop
   gsap.to(HUD_ROOT, {
@@ -1456,11 +1483,32 @@ export function playHudDrop({ duration = 0.8 } = {}){
     y: top,
     duration: duration,
     ease: 'elastic.out(1, 0.6)',
-    onComplete: () => { HUD_ROOT._dropped = true; HUD_ROOT.y = top; }
+    onComplete: () => { 
+      if (HUD_ROOT) {
+        HUD_ROOT._dropped = true; 
+        HUD_ROOT.y = top;
+        HUD_ROOT.alpha = 1;
+        HUD_ROOT.visible = true;
+        console.log('✅ HUD drop animation completed');
+      }
+    },
+    onUpdate: function() {
+      // Safety check during animation
+      if (!HUD_ROOT || !HUD_ROOT.parent) {
+        console.warn('⚠️ playHudDrop: HUD_ROOT destroyed during animation, killing tween');
+        this.kill();
+      }
+    }
   });
   
   console.log('✅ PIXI HUD drop animation started');
-  animateBoardIndicatorEnter(duration);
+  
+  // 🔥 CRITICAL FIX: Ensure board indicator animation is triggered
+  try {
+    animateBoardIndicatorEnter(duration);
+  } catch (e) {
+    console.warn('⚠️ Failed to trigger board indicator animation:', e);
+  }
 }
 
 // Helper function to cleanup all smoke bubbles before exit

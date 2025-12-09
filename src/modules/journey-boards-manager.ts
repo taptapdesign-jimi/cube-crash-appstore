@@ -129,6 +129,7 @@ const CARD_POSITIONS = [
 class JourneyBoardsManager {
   private boards: JourneyBoard[] = [];
   private container: HTMLElement | null = null;
+  private renderDisposed = false; // Guard async work when screen is torn down
 
   constructor() {
     this.initializeBoards();
@@ -146,6 +147,7 @@ class JourneyBoardsManager {
    * Clean up journey board elements when screen is hidden
    */
   public cleanup(): void {
+    this.renderDisposed = true;
     // Remove background and cards containers from journey screen
     const journeyScreen = document.getElementById('collectibles-screen');
     if (journeyScreen) {
@@ -169,6 +171,12 @@ class JourneyBoardsManager {
     }
     if (cardsFromBody && cardsFromBody.parentNode) {
       cardsFromBody.parentNode.removeChild(cardsFromBody);
+    }
+
+    // Remove any open card picker overlay to avoid leaking DOM/listeners
+    const overlay = document.querySelector('.card-picker-overlay');
+    if (overlay && overlay.parentNode) {
+      overlay.parentNode.removeChild(overlay);
     }
   }
 
@@ -304,6 +312,7 @@ class JourneyBoardsManager {
     }
 
     this.container = container;
+    this.renderDisposed = false;
     
     // 🔥 CRITICAL FIX: Clean up previous observer if exists
     if ((container as any)._positionObserver) {
@@ -350,6 +359,7 @@ class JourneyBoardsManager {
     
     // Load image and calculate dimensions
     img.onload = () => {
+      if (this.renderDisposed || !document.body.contains(container)) return;
       const imageAspectRatio = img.height / img.width;
       const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
       const bgHeightPx = viewportWidth * imageAspectRatio; // Calculate height in pixels based on viewport width
@@ -378,8 +388,9 @@ class JourneyBoardsManager {
         cardsContainer.style.height = `${bgHeightPx}px`; // Match background height
       }
     };
-    
+
     img.onerror = () => {
+      if (this.renderDisposed || !document.body.contains(container)) return;
       // Fallback to known aspect ratio if image fails to load
       const imageAspectRatio = KNOWN_ASPECT_RATIO;
       const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
@@ -453,6 +464,7 @@ class JourneyBoardsManager {
     
     // Debug: Verify edge-to-edge positioning (with delay to ensure styles are applied)
     setTimeout(() => {
+      if (this.renderDisposed || !document.body.contains(container)) return;
       const computed = window.getComputedStyle(bgContainer);
       const containerRect = container.getBoundingClientRect();
       const bgRect = bgContainer.getBoundingClientRect();
