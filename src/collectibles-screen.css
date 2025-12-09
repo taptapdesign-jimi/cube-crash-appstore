@@ -195,7 +195,7 @@
 .collectibles-scrollable {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: hidden !important; /* 🔥 iOS FIX: Force hidden to prevent horizontal scroll */
   /* 🔥 FIX: Enable smooth swipeable scrolling on iOS */
   -webkit-overflow-scrolling: touch;
   display: flex;
@@ -206,8 +206,17 @@
   padding-top: 24px;
   padding-bottom: calc(40px + var(--safe-bottom) + 80px); /* Extra space for floating buttons */
   align-items: center;
-  /* 🔥 FIX: Ensure scrollable area is swipeable */
-  touch-action: pan-y;
+  /* 🔥 iOS OPTIMIZATION: Optimize touch-action for better scroll performance */
+  /* pan-y: Allow vertical scrolling (primary), pan-x: Allow horizontal (for edge cases), pinch-zoom: Allow zoom */
+  touch-action: pan-y; /* Only vertical panning - most performant for vertical scroll */
+  /* 🔥 iOS FIX: Prevent scroll chaining and horizontal momentum, but allow fast vertical scroll */
+  overscroll-behavior: contain; /* Prevent scroll chaining */
+  overscroll-behavior-x: none !important; /* 🔥 iOS FIX: Force no horizontal overscroll */
+  overscroll-behavior-y: auto; /* Allow vertical overscroll for smooth fast scrolling */
+  /* 🔥 PREMIUM FIX: Prevent horizontal scrolling */
+  width: 100%;
+  max-width: 100%;
+  /* 🔥 FIX: Removed contain: layout style - it can slow down fast scrolling */
   /* 🔥 FIX: Allow content to scroll under header */
   position: relative;
   z-index: 1;
@@ -237,14 +246,30 @@
   position: relative;
   display: block; /* Change from flex to block for absolute positioning */
   min-height: 500px; /* Ensure enough space */
-  overflow: visible !important; /* Allow background image to extend fully without clipping */
-  overflow-x: visible !important; /* Specifically allow horizontal overflow for full background image width */
-  overflow-y: visible !important; /* Allow vertical overflow for full background image height */
+  width: 100%; /* Fixed width */
+  max-width: 100%; /* Prevent overflow */
+  overflow-x: visible !important; /* 🔥 PREMIUM FIX: Allow cards to extend beyond edges (visible) */
+  overflow-y: visible; /* Allow vertical overflow for background image height */
+  margin-bottom: 0 !important; /* 🔥 PREMIUM FIX: No margin - content goes to shadow */
+  padding-bottom: 0 !important; /* 🔥 PREMIUM FIX: No padding - content goes to shadow */
+  /* Remove horizontal padding to allow cards to extend to edges */
+  margin-left: calc(-1 * var(--pad-left, 40px)) !important; /* 🔥 PREMIUM FIX: Compensate for parent padding */
+  margin-right: calc(-1 * var(--pad-right, 40px)) !important; /* 🔥 PREMIUM FIX: Compensate for parent padding */
+  width: calc(100% + var(--pad-left, 40px) + var(--pad-right, 40px)) !important; /* 🔥 PREMIUM FIX: Extend to full width */
 }
 
-/* Allow overflow-x: visible for journey section within scrollable container */
+/* Remove gap after journey section */
+.collectibles-scrollable > .collectibles-section:has(#journey-boards-container) {
+  margin-bottom: -24px !important; /* 🔥 PREMIUM FIX: Compensate for parent gap */
+}
+
+/* Prevent horizontal scrolling in scrollable container but allow visible overflow */
 .collectibles-scrollable:has(#journey-boards-container) {
-  overflow-x: visible !important; /* Allow horizontal overflow for journey background image */
+  overflow-x: visible !important; /* 🔥 PREMIUM FIX: Allow cards to extend beyond edges (visible) */
+  width: 100%; /* Fixed width */
+  max-width: 100%; /* Prevent overflow */
+  padding-bottom: 0 !important; /* 🔥 PREMIUM FIX: Remove padding - content goes to shadow */
+  /* Horizontal scrolling prevented by touch-action: pan-y (only vertical panning) */
 }
 
 .collectibles-section .collectibles-divider {
@@ -1134,12 +1159,17 @@
   /* No transform - cards positioned directly using percentages */
   z-index: 2; /* Cards container z-index - lower than floating buttons */
   pointer-events: none; /* Allow clicks to pass through to cards */
+  /* 🔥 iOS FIX: Prevent horizontal scroll from smoke containers extending beyond */
+  contain: layout style; /* CSS containment to prevent layout shifts */
+  max-width: 100%; /* Ensure container doesn't exceed viewport */
 }
 
 .journey-board-card-wrapper {
   position: absolute;
   /* Width and height are set inline per card - no fixed dimensions */
   overflow: visible; /* Allow shadow to be visible */
+  /* 🔥 iOS FIX: Allow normal touch behavior when not animating */
+  touch-action: auto; /* Default touch behavior - will be overridden during animation */
 }
 
 .journey-board-card {
@@ -1246,6 +1276,10 @@
   padding: 0;
   margin-left: 0;
   margin-right: 0;
+  margin-bottom: 0; /* 🔥 PREMIUM FIX: No margin - content goes to shadow */
+  width: 100%; /* 🔥 PREMIUM FIX: Fixed width - no horizontal scrolling */
+  max-width: 100%; /* Prevent overflow */
+  overflow: visible; /* Allow background to extend, but parent prevents scrolling */
 }
 
 .journey-bg-container {
