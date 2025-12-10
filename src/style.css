@@ -1429,7 +1429,7 @@ body{
 
 .menu-title {
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
-  font-size: 40px;
+  font-size: 28px;
   font-weight: 800;
   color: #AD8775;
   margin: 0;
@@ -1860,7 +1860,7 @@ body{
 
 .stats-title {
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
-  font-size: 40px;
+  font-size: 28px;
   font-weight: 800;
   color: #AD8775;
   margin: 0;
@@ -1967,7 +1967,7 @@ body{
 
 /* Sakrij shadow kada je screen hidden */
 #stats-screen[hidden] .stats-title-underline::after,
-#collectibles-screen[hidden] .collectibles-title-underline::after,
+#journey-screen[hidden] .collectibles-title-underline::after,
 .journey-screen[hidden] .collectibles-title-underline::after,
 #settings-screen[hidden] .settings-title-underline::after {
   display: none;
@@ -3565,7 +3565,7 @@ html.collectible-reward-open body {
   }
   
   .stats-title {
-    font-size: 36px;
+    font-size: 28px;
   }
   
   .stat-value {

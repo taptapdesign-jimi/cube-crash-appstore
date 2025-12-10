@@ -66,7 +66,19 @@ function removeExisting(): void {
 }
 
 export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModalParams = {}): Promise<BoardFailModalResult> {
-  return new Promise(resolve => {
+  return new Promise(async (resolve) => {
+    // 🔥 JOURNEY PROGRESSION: Handle board failure
+    try {
+      const { journeyProgressionState } = await import('./journey-progression-state.js');
+      // Keep lastOpenedBoardId (don't reset it) - user should be able to retry same board
+      journeyProgressionState.setLastOpenedBoardId(boardNumber);
+      // Clear currentRunState (run finished, but failed)
+      journeyProgressionState.clearCurrentRunState();
+      logger.info(`🗺️ Journey: Board ${boardNumber} failed - lastOpenedBoardId kept at ${boardNumber}, currentRunState cleared`);
+    } catch (error) {
+      logger.warn('⚠️ Failed to update Journey progression state on failure:', error);
+    }
+    
     // CRITICAL FIX: Clear saved game state immediately when fail screen is shown
     // This prevents the user from being able to "continue" a failed game
     try {

@@ -208,7 +208,7 @@ class UIManager {
   // Handle stats button click
   private handleStatsClick(event: Event): void {
     event.preventDefault();
-    logger.info('🗺️ Journey button clicked (opens Journey/Collectibles screen)');
+    logger.info('🗺️ Journey button clicked (opens Journey screen)');
     
     // Light haptic for Stats button
     if (typeof (window as any).triggerHapticImpact === 'function') {
@@ -306,13 +306,24 @@ class UIManager {
     }
   }
   
-  // Start new game (public method)
+  // Start new game (public method) - ALWAYS starts from Board 1
   async startNewGame(): Promise<void> {
+    // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
+    // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
+    (window as any).__ccCameFromHomepage = true;
+    (window as any).__ccCameFromJourney = false;
+    logger.info('🏠 Marked as coming from homepage (startNewGame)');
     try {
       console.log('🎮 ====================================');
-      console.log('🎮 START NEW GAME CALLED');
+      console.log('🎮 START NEW GAME CALLED (Board 1)');
       console.log('🎮 ====================================');
-      logger.info('🎮 Starting new game...');
+      logger.info('🎮 Starting new game from Board 1...');
+      
+      // 🔥 JOURNEY PROGRESSION: Reset Journey progression state for New Game
+      const { journeyProgressionState } = await import('./journey-progression-state.js');
+      journeyProgressionState.reset(); // Clear lastOpened and currentRun
+      journeyProgressionState.setLastOpenedBoardId(1); // Set to Board 1
+      journeyProgressionState.setCurrentRunState(1, 0); // Start new run for Board 1
       
       // Set game state
       gameState.setState({
@@ -678,9 +689,16 @@ class UIManager {
   
   // Show navigation
   showNavigation(): void {
-    const navElement = document.querySelector('nav');
+    const navElement = document.getElementById('independent-nav');
     if (navElement) {
-      navElement.style.display = '';
+      // Remove !important styles that might have been set
+      navElement.style.removeProperty('display');
+      navElement.style.removeProperty('visibility');
+      navElement.style.removeProperty('opacity');
+      navElement.style.display = 'block';
+      navElement.style.visibility = 'visible';
+      navElement.style.opacity = '1';
+      navElement.setAttribute('aria-hidden', 'false');
       logger.info('✅ Navigation shown');
     }
   }
@@ -1171,12 +1189,12 @@ class UIManager {
     // The animation should continue running for its full duration
   }
   
-  // Show collectibles screen with exit animation
+  // Show Journey screen with exit animation
   private showCollectiblesScreenWithAnimation(): void {
-    logger.info('🎁 Showing collectibles screen - with exit animation');
+    logger.info('🗺️ Showing Journey screen - with exit animation');
     
     // CRITICAL: Switch to Journey slide (index 1) BEFORE animation so its elements animate out
-    // (CTA, text, hero). We still open the collectibles screen after the animation.
+    // (CTA, text, hero). We still open the Journey screen after the animation.
     const slides = document.querySelectorAll('.slider-slide');
     const navButtons = document.querySelectorAll('.independent-nav-button');
     slides.forEach((slide, index) => {
@@ -1275,21 +1293,21 @@ class UIManager {
       animateSliderExit();
     }, 10);
     
-    // Step 2: Wait for exit animation AND fade animation to complete, then show collectibles screen
+    // Step 2: Wait for exit animation AND fade animation to complete, then show Journey screen
     // Exit animation: 770ms, Fade animation: 800ms - wait for the longer one
     const waitTime = Math.max(770, fadeDuration * 1000);
     setTimeout(() => {
-      console.log('🎁 Step 2: Showing collectibles screen after animations complete');
+      console.log('🗺️ Step 2: Showing Journey screen after animations complete');
       
-      // Show collectibles screen after both animations complete
+      // Show Journey screen after both animations complete
       // CRITICAL: Do NOT set background here - it's already set by GSAP animation
       this.showCollectiblesScreen();
     }, waitTime);
   }
   
-  // Hide collectibles screen with enter animation
+  // Hide Journey screen with enter animation
   async hideCollectiblesScreenWithAnimation(): Promise<void> {
-    logger.info('🎁 Hiding collectibles screen - with exit animation');
+    logger.info('🗺️ Hiding Journey screen - with exit animation');
     
     // 🔥 CRITICAL FIX: Start exit animation IMMEDIATELY (no delay)
     // This ensures the screen responds instantly to back button click
@@ -1369,14 +1387,23 @@ class UIManager {
       console.log('✅ [Collectibles EXIT] App element background fade animation started from:', currentAppBg);
     }
     
-    // CRITICAL: Switch to Journey slide (index 1) so Journey slide animates back in after exiting Journey screen
+    // 🔥 USER REQUEST: Switch to Journey slide (index 1) and ensure all slides are visible
+    // This prevents empty slides when user goes back from Journey screen
     const slides = document.querySelectorAll('.slider-slide');
     const navButtons = document.querySelectorAll('.independent-nav-button');
     slides.forEach((slide, index) => {
       if (index === 1) {
+        // Journey slide (index 1) should be active
         slide.classList.add('active');
+        (slide as HTMLElement).style.display = 'block';
+        (slide as HTMLElement).style.visibility = 'visible';
+        (slide as HTMLElement).style.opacity = '1';
       } else {
+        // Other slides should be visible but not active
         slide.classList.remove('active');
+        (slide as HTMLElement).style.display = 'block';
+        (slide as HTMLElement).style.visibility = 'visible';
+        (slide as HTMLElement).style.opacity = '1';
       }
     });
     navButtons.forEach((button, index) => {
@@ -1386,6 +1413,7 @@ class UIManager {
         button.classList.remove('active');
       }
     });
+    console.log('✅ All slides made visible for Journey screen back button');
     
     // 🔥 CRITICAL FIX: Wait for exit animation to complete (it started immediately above)
     if (exitAnimationPromise) {
@@ -1403,9 +1431,9 @@ class UIManager {
     animateSliderEnter();
   }
   
-  // Show collectibles screen
+  // Show Journey screen
   showCollectiblesScreen(): void {
-    logger.info('🎁 Showing collectibles screen');
+    logger.info('🗺️ Showing Journey screen');
     try {
       const promise =
         window.showCollectiblesScreen?.() ??

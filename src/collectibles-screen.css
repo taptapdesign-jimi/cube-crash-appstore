@@ -1,4 +1,4 @@
-/* Collectibles Screen Styles - Based on Figma Design */
+/* Journey Screen Styles - Based on Figma Design */
 
 /* Fonts are loaded from src/styles/fonts.css - LTCrow family */
 
@@ -23,7 +23,7 @@
 }
 
 /* Root screen */
-#collectibles-screen,
+#journey-screen,
 .journey-screen {
   position: fixed;
   inset: 0;
@@ -36,7 +36,7 @@
   /* will-change removed for better performance - only use during active animations */
 }
 
-#collectibles-screen[hidden],
+#journey-screen[hidden],
 .journey-screen[hidden] {
   display: none !important;
 }
@@ -142,7 +142,7 @@
 
 .collectibles-title {
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
-  font-size: 40px;
+  font-size: 28px;
   font-weight: 800;
   color: var(--collectibles-brown);
   margin: 0;
@@ -753,6 +753,10 @@
   padding-bottom: 0;
   background: var(--collectibles-surface);
   flex-shrink: 0;
+  position: relative;
+  z-index: 100; /* 🔥 CRITICAL: Header always above scrollable content */
+  pointer-events: auto !important; /* 🔥 CRITICAL: Header always receives clicks */
+  /* 🔥 FIX: Allow content to scroll under header - header stays fixed but content scrolls behind */
 }
 
 #collectibles-detail-modal .detail-header-top {
@@ -811,7 +815,7 @@
 
 #collectibles-detail-modal .detail-title {
   font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 40px;
+  font-size: 28px;
   font-weight: 800;
   color: #AD8775;
   margin: 0;
@@ -827,6 +831,7 @@
 }
 
 #collectibles-detail-modal .detail-title-underline {
+  position: relative; /* Potrebno za absolute positioning shadow-a */
   height: 2px;
   background: #9A8B7A;
   opacity: 0.20;
@@ -834,19 +839,42 @@
   margin: 0 calc(40px + env(safe-area-inset-right, 0px)) 0 calc(40px + env(safe-area-inset-left, 0px));
 }
 
+/* Detail shadow direktno ispod detail dividera - isti kao journey */
+#collectibles-detail-modal .detail-shadow-image {
+  position: absolute;
+  top: calc(100% + 0px); /* Točno na donjoj liniji dividera */
+  left: calc(-40px - env(safe-area-inset-left, 0px));
+  right: calc(-40px - env(safe-area-inset-right, 0px));
+  width: calc(100% + 80px + env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px));
+  height: 49px;
+  object-fit: contain;
+  object-position: center;
+  opacity: 1.0;
+  pointer-events: none;
+  z-index: 99;
+  display: block;
+}
+
 #collectibles-detail-modal .detail-scrollable {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
-  padding: 16px calc(env(safe-area-inset-right, 0px) + 40px) calc(env(safe-area-inset-bottom, 0px) + 2vh) calc(env(safe-area-inset-left, 0px) + 40px);
+  overflow-x: hidden !important; /* 🔥 iOS FIX: Force hidden to prevent horizontal scroll */
+  /* 🔥 FIX: Enable smooth swipeable scrolling on iOS */
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
   touch-action: pan-y; /* Allow vertical scrolling only */
   overscroll-behavior: contain; /* Prevent scroll chaining */
+  overscroll-behavior-x: none !important; /* 🔥 iOS FIX: Force no horizontal overscroll */
+  overscroll-behavior-y: auto; /* Allow vertical overscroll for smooth fast scrolling */
   display: flex;
   flex-direction: column;
   gap: 0;
+  padding: 24px calc(env(safe-area-inset-right, 0px) + 40px) calc(env(safe-area-inset-bottom, 0px) + 40px) calc(env(safe-area-inset-left, 0px) + 40px);
+  /* 🔥 FIX: Allow content to scroll under header */
+  position: relative;
+  z-index: 1;
+  align-items: stretch; /* 🔥 FIX: Ensure children (like detail-image) maintain their width */
 }
 
 #collectibles-detail-modal .detail-scrollable::-webkit-scrollbar {
@@ -883,8 +911,11 @@
 #collectibles-detail-modal .detail-image {
   width: 100%;
   margin: 16px 0 0 0;
-  min-height: 458px;
+  /* 🔥 FIX: Ensure constant aspect ratio - use height based on aspect-ratio, not min-height */
   aspect-ratio: 310 / 458;
+  height: auto; /* Let aspect-ratio control height */
+  min-height: 458px; /* Fallback for older browsers */
+  flex-shrink: 0; /* 🔥 CRITICAL: Prevent flexbox from compressing the image */
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
@@ -985,6 +1016,53 @@
   line-height: 28px;
   margin: 0;
   text-align: center;
+  white-space: pre-line; /* 🔥 Allow line breaks in text (for Board 9 custom text) */
+}
+
+/* Play Board button for Journey boards */
+#collectibles-detail-modal .detail-play-board-button,
+#collectibles-detail-modal .detail-continue-board-button {
+  background: #E9744A;
+  color: white;
+  border: none;
+  border-radius: 40px;
+  padding: 0 56px;
+  font-size: 24px;
+  font-weight: bold;
+  font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
+  cursor: pointer;
+  width: 100%;
+  max-width: 250px;
+  height: 64px;
+  text-align: center;
+  pointer-events: auto;
+  position: relative;
+  z-index: 10;
+  box-shadow: 0 8px 0 0 #C24921;
+  transition: transform 0.35s ease;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  margin: 32px auto 0;
+  display: none !important; /* 🔥 CRITICAL: Hidden by default, shown only when needed via inline styles */
+}
+
+#collectibles-detail-modal .detail-play-board-button:hover {
+  background: #E9744A;
+  color: white;
+  transform: scale(1);
+  box-shadow: 0 8px 0 0 #C24921;
+}
+
+#collectibles-detail-modal .detail-play-board-button:active,
+#collectibles-detail-modal .detail-play-board-button:focus,
+#collectibles-detail-modal .detail-play-board-button:focus-visible {
+  background: #E9744A;
+  color: white;
+  transform: scale(0.95);
+  box-shadow: 0 4px 0 0 #C24921;
+  transition: transform 0.35s ease;
 }
 
 @media (max-width: 768px) {
@@ -993,7 +1071,7 @@
   }
 
   .collectibles-title {
-    font-size: 34px;
+    font-size: 28px;
   }
 
   .collectibles-section-title,
@@ -1055,7 +1133,10 @@
   }
 
   #collectibles-detail-modal .detail-image {
-    min-height: 260px;
+    /* 🔥 FIX: Maintain aspect ratio on mobile - aspect-ratio will control height */
+    min-height: 260px; /* Fallback for older browsers */
+    /* aspect-ratio: 310 / 458 is inherited from main rule */
+    flex-shrink: 0; /* 🔥 CRITICAL: Prevent flexbox compression on mobile */
   }
 }
 

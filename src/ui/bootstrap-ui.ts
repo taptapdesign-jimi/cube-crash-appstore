@@ -268,7 +268,7 @@ function renderStats(root: HTMLElement): void {
 }
 
 function renderCollectibles(root: HTMLElement): void {
-  if (document.getElementById('collectibles-screen')) return;
+  if (document.getElementById('journey-screen')) return;
   renderCollectiblesScreen(root, { showDebugControls: true });
 }
 

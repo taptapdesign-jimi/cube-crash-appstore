@@ -8,6 +8,7 @@
 // - Cards can be positioned individually anywhere you want
 
 import { logger } from '../core/logger.js';
+import { JOURNEY_CARD_IDLE_BOUNCE } from './journey-card-idle-bounce.js';
 
 export interface JourneyBoard {
   id: number;
@@ -148,8 +149,33 @@ class JourneyBoardsManager {
    */
   public cleanup(): void {
     this.renderDisposed = true;
+    
+    // Remove interaction listeners
+    const scrollable = document.querySelector('.collectibles-scrollable') as HTMLElement;
+    if (scrollable && (scrollable as any)._journeyIdleScrollHandler) {
+      scrollable.removeEventListener('scroll', (scrollable as any)._journeyIdleScrollHandler);
+      (scrollable as any)._journeyIdleScrollHandler = null;
+    }
+    
+    const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement;
+    if (cardsContainer && (cardsContainer as any)._journeyIdleTouchHandler) {
+      cardsContainer.removeEventListener('touchstart', (cardsContainer as any)._journeyIdleTouchHandler);
+      cardsContainer.removeEventListener('touchmove', (cardsContainer as any)._journeyIdleTouchHandler);
+      (cardsContainer as any)._journeyIdleTouchHandler = null;
+    }
+    
+    // Stop idle bounce animations
+    if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
+      try {
+        JOURNEY_CARD_IDLE_BOUNCE.stop();
+        logger.info('✅ Journey card idle bounce stopped in cleanup');
+      } catch (e) {
+        logger.warn('⚠️ Error stopping journey card idle bounce:', e instanceof Error ? e.message : String(e));
+      }
+    }
+    
     // Remove background and cards containers from journey screen
-    const journeyScreen = document.getElementById('collectibles-screen');
+    const journeyScreen = document.getElementById('journey-screen');
     if (journeyScreen) {
       const bgContainer = journeyScreen.querySelector('.journey-bg-container');
       const cardsContainer = journeyScreen.querySelector('.journey-cards-container');
@@ -186,8 +212,8 @@ class JourneyBoardsManager {
     this.boards = [
       {
         id: 1,
-        unlocked: true, // First board is always unlocked
-        interim: false, // 🔥 USER FIX: Board 1 is NOT interim by default - only becomes interim when user actually starts playing
+        unlocked: false, // 🔥 USER REQUEST: Board 1 starts as interim (not unlocked)
+        interim: true, // 🔥 USER REQUEST: Board 1 is interim by default - shows "Continue" CTA
         imagePath: this.getBoardImagePath(1),
         name: this.getBoardName(1),
       },
@@ -500,6 +526,57 @@ class JourneyBoardsManager {
       const cardElement = this.createBoardCardFixed(board, index);
       cardsContainer.appendChild(cardElement);
     });
+    
+    // Start idle bounce animations for unlocked cards
+    if (JOURNEY_CARD_IDLE_BOUNCE.ENABLE) {
+      try {
+        // Use requestAnimationFrame to ensure DOM is ready
+        requestAnimationFrame(() => {
+          JOURNEY_CARD_IDLE_BOUNCE.start(cardsContainer);
+          logger.info('✅ Journey card idle bounce started');
+          
+          // Add scroll and touch listeners to notify interactions
+          this.setupIdleInteractionListeners();
+        });
+      } catch (error) {
+        logger.warn('⚠️ Failed to start journey card idle bounce:', error instanceof Error ? error.message : String(error));
+      }
+    }
+  }
+  
+  private setupIdleInteractionListeners(): void {
+    // Find scrollable container
+    const scrollable = document.querySelector('.collectibles-scrollable') as HTMLElement;
+    if (!scrollable) return;
+    
+    // Throttle function to limit notification frequency
+    let throttleTimer: number | null = null;
+    const notifyThrottled = () => {
+      if (throttleTimer) return;
+      throttleTimer = window.setTimeout(() => {
+        throttleTimer = null;
+        if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction === 'function') {
+          JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction();
+        }
+      }, 100); // Throttle to max once per 100ms
+    };
+    
+    // Scroll listener
+    const scrollHandler = () => notifyThrottled();
+    scrollable.addEventListener('scroll', scrollHandler, { passive: true });
+    
+    // Touch/click listeners on cards container
+    const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement;
+    if (cardsContainer) {
+      const touchHandler = () => notifyThrottled();
+      cardsContainer.addEventListener('touchstart', touchHandler, { passive: true });
+      cardsContainer.addEventListener('touchmove', touchHandler, { passive: true });
+      // Store handler for cleanup
+      (cardsContainer as any)._journeyIdleTouchHandler = touchHandler;
+    }
+    
+    // Store scroll handler for cleanup
+    (scrollable as any)._journeyIdleScrollHandler = scrollHandler;
   }
 
   private createBoardCardFixed(board: JourneyBoard, index: number): HTMLElement {
@@ -570,21 +647,33 @@ class JourneyBoardsManager {
       image.className = 'journey-board-image';
       card.appendChild(image);
       
-      // Add click handler to open details screen
+      // Add click handler to open detail modal (not start game directly)
       card.addEventListener('click', () => {
+        // Notify interaction to stop idle animations
+        if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction === 'function') {
+          JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction();
+        }
+        // Open detail modal for this board
         this.openBoardDetails(board);
       });
     } else if (isInterim) {
-      // Interim card - show common back.png, cannot click for details
+      // Interim card - show common back.png, clicking directly continues game (no detail modal)
       const image = document.createElement('img');
       image.src = './assets/colelctibles/common back.png';
       image.alt = `Board ${board.id} (interim)`;
       image.className = 'journey-board-image';
       card.appendChild(image);
       
-      // NO click handler - interim cards cannot be clicked for details
-      card.style.cursor = 'default';
-      card.style.pointerEvents = 'none';
+      // 🔥 USER REQUEST: Interim cards directly continue game (no detail modal)
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', async () => {
+        // Notify interaction to stop idle animations
+        if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction === 'function') {
+          JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction();
+        }
+        // Directly continue game from interim board (no detail modal)
+        await this.continueFromInterimBoard(board);
+      });
     } else {
       // Locked card placeholder
       const lockedContainer = document.createElement('div');
@@ -602,32 +691,329 @@ class JourneyBoardsManager {
     return cardWrapper;
   }
 
+  /**
+   * 🔥 JOURNEY PROGRESSION: Handle Journey board tap - start game from this board
+   */
+  private async onJourneyBoardTap(boardId: number): Promise<void> {
+    logger.info(`🗺️ Journey board ${boardId} tapped - starting game`);
+    
+    try {
+      // Import journey progression state
+      const { journeyProgressionState } = await import('./journey-progression-state.js');
+      
+      // Set lastOpenedBoardId to this board
+      journeyProgressionState.setLastOpenedBoardId(boardId);
+      
+      // Start new run for this board
+      if (typeof (window as any).startNewRun === 'function') {
+        await (window as any).startNewRun(boardId);
+      } else {
+        logger.error('❌ startNewRun function not found');
+      }
+    } catch (error) {
+      logger.error(`❌ Failed to start game from Journey board ${boardId}:`, error);
+    }
+  }
+
+  /**
+   * Close detail modal with exit animation
+   * Returns Promise that resolves when animation completes
+   */
+  private closeDetailModalWithExitAnimation(modal: HTMLElement): Promise<void> {
+    return new Promise((resolve) => {
+      logger.info('🎬 Starting detail modal exit animation');
+      
+      // Find modal elements
+      const detailImage = modal.querySelector('#detail-card-image');
+      const detailDescription = modal.querySelector('#detail-card-description');
+      const detailRarityBadge = modal.querySelector('#detail-rarity-badge');
+      const detailCloseBtn = modal.querySelector('#detail-close-btn');
+      const detailTitle = modal.querySelector('#detail-title');
+      const playBoardBtn = modal.querySelector('#detail-play-board-btn');
+      
+      // Animate out with staggered delays (reverse order of enter)
+      const elements = [
+        { el: playBoardBtn, delay: 0 },
+        { el: detailCloseBtn, delay: 30 },
+        { el: detailRarityBadge, delay: 60 },
+        { el: detailDescription, delay: 90 },
+        { el: detailImage, delay: 120 },
+        { el: detailTitle, delay: 150 }
+      ];
+      
+      elements.forEach(({ el, delay }) => {
+        if (el) {
+          setTimeout(() => {
+            (el as HTMLElement).classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
+            (el as HTMLElement).classList.add('animate-exit');
+          }, delay);
+        }
+      });
+      
+      // Wait for animation to complete (650ms for exit animation), then hide modal
+      setTimeout(() => {
+        // Remove animation classes
+        elements.forEach(({ el }) => {
+          if (el) {
+            (el as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+          }
+        });
+        
+        // Hide modal
+        modal.hidden = true;
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+        
+        logger.info('✅ Detail modal exit animation completed');
+        resolve();
+      }, 650); // Exit animation duration
+    });
+  }
+
+  /**
+   * 🔥 USER REQUEST: Continue game directly from interim board (no detail modal)
+   * This is called when user clicks an interim card
+   */
+  private async continueFromInterimBoard(board: JourneyBoard): Promise<void> {
+    logger.info(`🔄 Continue from interim board ${board.id} - starting cleanup and game`);
+    
+    try {
+      // Step 1: Stop Journey card idle bounce animations immediately
+      if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
+        JOURNEY_CARD_IDLE_BOUNCE.stop();
+        logger.info('✅ Journey card idle bounce stopped');
+      }
+      
+      // Step 2: Close Journey screen with exit animation
+      const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
+      const journeyExitPromise = animateCollectiblesScreenExit();
+      
+      // Step 3: Wait for exit animation to complete
+      await journeyExitPromise;
+      logger.info('✅ Journey exit animation completed');
+      
+      // Step 4: Cleanup Journey boards manager
+      this.cleanup();
+      
+      // Step 5: Hide Journey screen completely (ensure it's not visible during game start)
+      const journeyScreen = document.getElementById('journey-screen');
+      if (journeyScreen) {
+        journeyScreen.classList.add('hidden');
+        journeyScreen.style.display = 'none';
+        journeyScreen.style.visibility = 'hidden';
+        journeyScreen.style.opacity = '0';
+        // 🔥 CRITICAL: Set z-index to ensure it's behind app element
+        (journeyScreen as HTMLElement).style.zIndex = '-1';
+        logger.info('✅ Journey screen completely hidden');
+      }
+      
+      // Step 6: Also call hideCollectibles to ensure proper cleanup
+      const collectiblesManager = (window as any).collectiblesManager;
+      if (collectiblesManager && typeof collectiblesManager.hideCollectibles === 'function') {
+        await collectiblesManager.hideCollectibles();
+      }
+      
+      // Step 6: Set Journey progression state
+      const { journeyProgressionState } = await import('./journey-progression-state.js');
+      journeyProgressionState.setLastOpenedBoardId(board.id);
+      
+      // 🔥 USER REQUEST: Mark that we came from Journey screen
+      // This ensures exitToMenu returns to Journey (slide 1) instead of homepage (slide 0)
+      (window as any).__ccCameFromJourney = true;
+      (window as any).__ccCameFromHomepage = false;
+      // 🔥 FIX: Also store in localStorage for persistence across game sessions
+      localStorage.setItem('__ccCameFromJourney', 'true');
+      localStorage.removeItem('__ccCameFromHomepage');
+      logger.info('🗺️ Marked as coming from Journey screen (interim card click) - stored in localStorage');
+      
+      // Step 7: Continue game with saved state (resume interim game)
+      if (typeof (window as any).continueGameWithSavedState === 'function') {
+        await (window as any).continueGameWithSavedState();
+      } else {
+        logger.error('❌ continueGameWithSavedState function not found');
+      }
+    } catch (error) {
+      logger.error(`❌ Failed to continue game from interim board ${board.id}:`, error);
+    }
+  }
+
   private openBoardDetails(board: JourneyBoard): void {
-    // Use collectibles manager to show card detail (same as collectibles screen)
-    if (typeof (window as any).showCollectibleDetail === 'function') {
-      (window as any).showCollectibleDetail('common-1', 'common');
-    } else {
-      // Fallback: Open collectibles detail modal directly
-      const detailModal = document.getElementById('collectibles-detail-modal');
-      if (detailModal) {
-        // Set card image
-        const imageEl = detailModal.querySelector('#detail-card-image');
-        if (imageEl && board.imagePath) {
+    // Open collectibles detail modal directly for Journey board
+    const detailModal = document.getElementById('collectibles-detail-modal');
+    if (detailModal) {
+      // Store board ID in modal for Play Board button
+      detailModal.setAttribute('data-journey-board-id', board.id.toString());
+      
+      // Set card image
+      const imageEl = detailModal.querySelector('#detail-card-image');
+      if (imageEl) {
+        // For interim boards, show common back.png; for unlocked boards, show board.imagePath
+        if (board.interim) {
+          imageEl.innerHTML = `<img src="./assets/colelctibles/common back.png" alt="Board ${board.id} (interim)" style="width: 100%; height: 100%; object-fit: contain;" />`;
+        } else if (board.imagePath) {
           imageEl.innerHTML = `<img src="${board.imagePath}" alt="${board.name}" style="width: 100%; height: 100%; object-fit: contain;" />`;
         }
+      }
 
-        // Set card description
-        const descEl = detailModal.querySelector('#detail-card-description');
-        if (descEl) {
+      // Set title in header (Board 01, Board 02, etc.)
+      const titleEl = detailModal.querySelector('#detail-title');
+      if (titleEl) {
+        const boardNumberStr = board.id.toString().padStart(2, '0');
+        titleEl.textContent = `Board ${boardNumberStr}`;
+        logger.info(`✅ Detail modal title set to: Board ${boardNumberStr}`);
+      }
+
+      // Set card description
+      const descEl = detailModal.querySelector('#detail-card-description');
+      if (descEl) {
+        // 🔥 SPECIAL CASE: Board 9 has custom text
+        if (board.id === 9) {
+          descEl.textContent = "I spent seven years in a company where everything felt stable and good. I worked hard, I grew, I felt safe. And then, out of nowhere, the company declared bankruptcy. In one day my world cracked open and I suddenly stood at a crossroads, unsure what to do or how to start again.\n\nIt was one of the hardest moments in my life. I felt lost, scared, disappointed, like the ground had been pulled away beneath me. But that moment became my Big Bang. When everything fell apart, space opened for something new to grow. And slowly, step by step, I realized that this collapse was not the end. It was the beginning of the next version of me.";
+        } else {
           descEl.textContent = board.name || `Board ${board.id}`;
         }
-
-        // Show modal
-        detailModal.hidden = false;
-        detailModal.style.display = 'block';
-      } else {
-        logger.warn('⚠️ Collectibles detail modal not found');
       }
+
+      // 🔥 USER REQUEST: Show/hide buttons based on board state
+      // ONLY interim board shows "Continue" CTA
+      // ALL other boards (including last unlocked) have NO CTA buttons
+      const isInterim = board.interim === true;
+      const playBoardBtn = detailModal.querySelector('#detail-play-board-btn');
+      const continueBoardBtn = detailModal.querySelector('#detail-continue-board-btn');
+      
+      // 🔥 CRITICAL: Always hide BOTH buttons first (default state) - use !important to override CSS
+      if (playBoardBtn) {
+        (playBoardBtn as HTMLElement).style.setProperty('display', 'none', 'important');
+      }
+      if (continueBoardBtn) {
+        (continueBoardBtn as HTMLElement).style.setProperty('display', 'none', 'important');
+      }
+      
+      // 🔥 ONLY CASE: Interim board shows "Continue" button, all others have NO CTA
+      if (isInterim) {
+        if (continueBoardBtn) {
+          // Remove existing listeners to prevent duplicates
+          const newContinueBtn = continueBoardBtn.cloneNode(true) as HTMLElement;
+          continueBoardBtn.parentNode?.replaceChild(newContinueBtn, continueBoardBtn);
+          
+          // Set display on cloned element
+          newContinueBtn.style.setProperty('display', 'block', 'important');
+          
+          // Add click listener for Continue Board
+          (newContinueBtn as HTMLElement).addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            logger.info(`🔄 Continue Board button clicked for board ${board.id}`);
+            
+            // 🔥 COMPREHENSIVE CLEANUP & EXIT ANIMATION SEQUENCE
+            try {
+              // Step 1: Stop Journey card idle bounce animations immediately
+              if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
+                JOURNEY_CARD_IDLE_BOUNCE.stop();
+                logger.info('✅ Journey card idle bounce stopped');
+              }
+              
+              // Step 2: Close detail modal with exit animation
+              const detailModalExitPromise = this.closeDetailModalWithExitAnimation(detailModal);
+              
+              // Step 3: Close Journey screen with exit animation (runs in parallel with modal exit)
+              const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
+              const journeyExitPromise = animateCollectiblesScreenExit();
+              
+              // Step 4: Wait for both exit animations to complete
+              await Promise.all([detailModalExitPromise, journeyExitPromise]);
+              logger.info('✅ All exit animations completed');
+              
+              // Step 5: Cleanup Journey boards manager
+              this.cleanup();
+              
+              // Step 6: Hide collectibles screen
+              const collectiblesManager = (window as any).collectiblesManager;
+              if (collectiblesManager && typeof collectiblesManager.hideCollectibles === 'function') {
+                await collectiblesManager.hideCollectibles();
+              }
+              
+              // Step 7: Set Journey progression state
+              const { journeyProgressionState } = await import('./journey-progression-state.js');
+              journeyProgressionState.setLastOpenedBoardId(board.id);
+              
+              // Step 8: Continue game with saved state (resume interim game)
+              if (typeof (window as any).continueGameWithSavedState === 'function') {
+                await (window as any).continueGameWithSavedState();
+              } else {
+                logger.error('❌ continueGameWithSavedState function not found');
+              }
+            } catch (error) {
+              logger.error(`❌ Failed to continue game from Journey board ${board.id}:`, error);
+            }
+          });
+          
+          // Add touch listener for mobile
+          (newContinueBtn as HTMLElement).addEventListener('touchend', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            logger.info(`🔄 Continue Board button touched (touchend) for board ${board.id}`);
+            
+            // 🔥 COMPREHENSIVE CLEANUP & EXIT ANIMATION SEQUENCE (same as click)
+            try {
+              // Step 1: Stop Journey card idle bounce animations immediately
+              if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
+                JOURNEY_CARD_IDLE_BOUNCE.stop();
+                logger.info('✅ Journey card idle bounce stopped');
+              }
+              
+              // Step 2: Close detail modal with exit animation
+              const detailModalExitPromise = this.closeDetailModalWithExitAnimation(detailModal);
+              
+              // Step 3: Close Journey screen with exit animation (runs in parallel with modal exit)
+              const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
+              const journeyExitPromise = animateCollectiblesScreenExit();
+              
+              // Step 4: Wait for both exit animations to complete
+              await Promise.all([detailModalExitPromise, journeyExitPromise]);
+              logger.info('✅ All exit animations completed');
+              
+              // Step 5: Cleanup Journey boards manager
+              this.cleanup();
+              
+              // Step 6: Hide collectibles screen
+              const collectiblesManager = (window as any).collectiblesManager;
+              if (collectiblesManager && typeof collectiblesManager.hideCollectibles === 'function') {
+                await collectiblesManager.hideCollectibles();
+              }
+              
+              // Step 7: Set Journey progression state
+              const { journeyProgressionState } = await import('./journey-progression-state.js');
+              journeyProgressionState.setLastOpenedBoardId(board.id);
+              
+              // 🔥 USER REQUEST: Mark that we came from Journey screen
+              // This ensures exitToMenu returns to Journey (slide 1) instead of homepage (slide 0)
+              (window as any).__ccCameFromJourney = true;
+              (window as any).__ccCameFromHomepage = false;
+              logger.info('🗺️ Marked as coming from Journey screen (interim Continue button)');
+              
+              // Step 8: Continue game with saved state (resume interim game)
+              if (typeof (window as any).continueGameWithSavedState === 'function') {
+                await (window as any).continueGameWithSavedState();
+              } else {
+                logger.error('❌ continueGameWithSavedState function not found');
+              }
+            } catch (error) {
+              logger.error(`❌ Failed to continue game from Journey board ${board.id}:`, error);
+            }
+          }, { capture: true, passive: false });
+          
+          logger.info(`✅ Continue Board button listener attached for board ${board.id}`);
+        }
+      }
+      // 🔥 NEW LOGIC: All other boards (including last unlocked) have NO CTA buttons
+      // Both buttons remain hidden (already hidden above)
+
+      // Show modal
+      detailModal.hidden = false;
+      detailModal.style.display = 'block';
+    } else {
+      logger.warn('⚠️ Collectibles detail modal not found');
     }
   }
 
@@ -838,6 +1224,14 @@ class JourneyBoardsManager {
             board.interim = savedBoard.interim || false;
           }
         });
+      } else {
+        // 🔥 USER REQUEST: If no saved state, ensure Board 1 is interim (not unlocked)
+        const board1 = this.boards.find(b => b.id === 1);
+        if (board1) {
+          board1.unlocked = false;
+          board1.interim = true;
+          logger.info('🗺️ No saved state - Board 1 set to interim (default state)');
+        }
       }
       
       // 🔥 CRITICAL: Also sync with game progress (boardNumber from localStorage or game state)
@@ -898,27 +1292,19 @@ class JourneyBoardsManager {
         hasStartedGame = false;
       }
       
-      // 🔥 USER FIX: Board 1 should NOT be interim if user hasn't started playing
-      // Board 1 stays unlocked (clickable) until user actually starts the game
+      // 🔥 USER REQUEST: Board 1 starts as interim (not unlocked)
+      // When user completes a board, next board becomes interim
       const targetBoard = boardNumber ?? 1;
       const currentBoard = this.boards.find(b => b.id === targetBoard);
       
-      // Only set interim if:
-      // 1. User has actually started the game (hasStartedGame = true)
-      // 2. Board is not already unlocked
-      // 3. For Board 1 specifically: also check if game is actually in progress
+      // Set interim if:
+      // 1. Board is not already unlocked
+      // 2. Board matches current boardNumber (user is playing this board)
       if (currentBoard && !currentBoard.unlocked) {
-        // Special handling for Board 1 - don't set interim if user hasn't started
-        if (targetBoard === 1 && !hasStartedGame) {
-          // Board 1 stays unlocked (not interim, not locked) until user starts playing
-          currentBoard.interim = false;
-          logger.info('🗺️ Board 1 stays unlocked (not interim) - user hasn\'t started game yet');
-        } else if (hasStartedGame) {
-          // User has started game - set current board to interim if not already unlocked
-          currentBoard.interim = true;
-          this.saveBoardsState();
-          logger.info(`🗺️ Board ${targetBoard} set to interim (currently playing, not yet won)`);
-        }
+        // Set current board to interim if not already unlocked
+        currentBoard.interim = true;
+        this.saveBoardsState();
+        logger.info(`🗺️ Board ${targetBoard} set to interim (currently playing, not yet won)`);
       }
       
       // Note: Next board is set to interim when current board is completed (in unlockBoardOnCompletion)
@@ -953,14 +1339,31 @@ class JourneyBoardsManager {
       this.updateCounter();
       logger.info(`🗺️ Board ${boardNumber.toString().padStart(2, '0')} unlocked on completion (won) - was already unlocked: ${wasAlreadyUnlocked}`);
       
-      // Set next board to interim (if exists and not already unlocked)
+      // 🔥 USER REQUEST: Set next board to interim (if exists and not already unlocked)
+      // This ensures that after completing a board, the next board becomes interim with "Continue" CTA
       if (boardNumber < 16) {
         const nextBoard = this.boards.find(b => b.id === boardNumber + 1);
-        if (nextBoard && !nextBoard.unlocked && !nextBoard.interim) {
+        if (nextBoard && !nextBoard.unlocked) {
+          // Always set next board to interim (even if it was already interim, ensure it stays interim)
           nextBoard.interim = true;
           this.saveBoardsState();
           logger.info(`🗺️ Board ${boardNumber + 1} set to interim (accessible after winning board ${boardNumber})`);
         }
+      }
+      
+      // 🔥 JOURNEY PROGRESSION: Update highestUnlockedBoardId
+      try {
+        import('./journey-progression-state.js').then(({ journeyProgressionState }) => {
+          const nextLevel = boardNumber + 1;
+          const currentHighest = journeyProgressionState.getHighestUnlockedBoardId() || 1;
+          const newHighest = Math.max(currentHighest, nextLevel);
+          journeyProgressionState.setHighestUnlockedBoardId(newHighest);
+          logger.info(`🗺️ Journey: Highest unlocked board updated to ${newHighest} after completing board ${boardNumber}`);
+        }).catch((error) => {
+          logger.warn('⚠️ Failed to update highest unlocked board ID:', error);
+        });
+      } catch (error) {
+        logger.warn('⚠️ Failed to update highest unlocked board ID:', error);
       }
       
       // 🔥 USER BUG FIX: Update navigation badge immediately after unlocking board

@@ -302,7 +302,7 @@ class CollectiblesManager {
 
   async showCollectibles(options?: CollectiblesShowOptions): Promise<void> {
     logger.info('🎁 showCollectibles method called');
-    const screen = document.getElementById('collectibles-screen');
+    const screen = document.getElementById('journey-screen');
     if (!screen) {
       logger.error('❌ collectibles-screen element not found');
       return;
@@ -373,9 +373,9 @@ class CollectiblesManager {
     
     // Only scroll to top if no specific card is requested
     if (!options?.scrollToCard) {
-      const scrollable = document.querySelector('#collectibles-screen .collectibles-scrollable') as HTMLElement;
+      const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement;
       if (scrollable) {
-        console.log('🎁 Scrolling collectibles screen to top on open');
+        console.log('🎁 Scrolling Journey screen to top on open');
         scrollable.scrollTo({ top: 0, behavior: 'auto' }); // Use 'auto' for instant, or 'smooth' for animated
       }
     }
@@ -388,7 +388,7 @@ class CollectiblesManager {
       this.initDevButtons();
     }, 100);
     
-    // 🎬 CRITICAL: Trigger collectibles screen enter animation (pop-in) using GSAP
+    // 🎬 CRITICAL: Trigger Journey screen enter animation (pop-in) using GSAP
     try {
       const { animateCollectiblesScreenEnter } = await import('./ui/collectibles-animations.js');
       console.log('🎬 About to call animateCollectiblesScreenEnter()...');
@@ -415,9 +415,9 @@ class CollectiblesManager {
   }
 
   async hideCollectibles(): Promise<void> {
-    const screen = document.getElementById('collectibles-screen');
+    const screen = document.getElementById('journey-screen');
     if (screen) {
-      // 🎬 CRITICAL: Trigger collectibles screen exit animation (pop-out) BEFORE hiding
+      // 🎬 CRITICAL: Trigger Journey screen exit animation (pop-out) BEFORE hiding
       try {
         const { animateCollectiblesScreenExit } = await import('./ui/collectibles-animations.js');
         console.log('🎬 About to call animateCollectiblesScreenExit()...');
@@ -691,6 +691,27 @@ class CollectiblesManager {
     const modal = document.getElementById('collectibles-detail-modal');
     console.log('🎁 Modal found:', !!modal);
     
+    // Hide Play Board button for regular collectibles (only show for Journey boards)
+    // Also clear/hide title for regular collectibles (title is only for Journey boards)
+    if (modal) {
+      const playBoardBtn = modal.querySelector('#detail-play-board-btn');
+      const continueBoardBtn = modal.querySelector('#detail-continue-board-btn');
+      if (playBoardBtn) {
+        (playBoardBtn as HTMLElement).style.setProperty('display', 'none', 'important');
+      }
+      if (continueBoardBtn) {
+        (continueBoardBtn as HTMLElement).style.setProperty('display', 'none', 'important');
+      }
+      // Remove Journey board ID attribute if present
+      modal.removeAttribute('data-journey-board-id');
+      
+      // Clear title for regular collectibles (title is only shown for Journey boards)
+      const titleEl = modal.querySelector('#detail-title');
+      if (titleEl) {
+        titleEl.textContent = '';
+      }
+    }
+    
     const numberStr = (index + 1).toString().padStart(2, '0');
     const frontImagePath = this.getCardImagePath(category as keyof CollectiblesData, index + 1);
     const backImagePath = this.getPlaceholderPath(category as keyof CollectiblesData);
@@ -809,6 +830,19 @@ class CollectiblesManager {
       } else {
         console.warn('⚠️ Close button not found when showing modal');
       }
+      
+      // 🔥 JOURNEY PROGRESSION: Hide both buttons for regular collectibles (Journey boards handle their own buttons)
+      const playBoardBtn = modal.querySelector('#detail-play-board-btn');
+      const continueBoardBtn = modal.querySelector('#detail-continue-board-btn');
+      if (playBoardBtn) {
+        (playBoardBtn as HTMLElement).style.setProperty('display', 'none', 'important');
+      }
+      if (continueBoardBtn) {
+        (continueBoardBtn as HTMLElement).style.setProperty('display', 'none', 'important');
+      }
+      
+      // 🔥 REMOVED: Journey boards now handle their own button logic in journey-boards-manager.ts
+      // This code was causing buttons to show when they shouldn't - Journey boards handle buttons in openBoardDetails()
       
       // CRITICAL: Ensure background click also works to close modal
       const handleBackgroundClick = (e: MouseEvent | TouchEvent) => {

@@ -324,171 +324,360 @@ initializeApp().catch((error: Error) => {
   uiManager.startNewGame(); // Same as startNewGame for now
 };
 
-// Continue game with saved state
-// SIMPLE: If board was completed (hard exit during clean board), start next board directly with saved score
+// 🔥 JOURNEY PROGRESSION: Helper function to start a new run for a specific board
+async function startNewRun(boardId: number): Promise<void> {
+  logger.info(`🎮 startNewRun called for board ${boardId}`);
+  
+  // Import journey progression state
+  const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
+  
+  // Set lastOpenedBoardId and currentRunState
+  journeyProgressionState.setLastOpenedBoardId(boardId);
+  journeyProgressionState.setCurrentRunState(boardId, 0);
+  
+  // Clear any saved game state (starting fresh)
+  localStorage.removeItem('cc_saved_game');
+  localStorage.removeItem('cc_board_completed');
+  localStorage.removeItem('cubeCrash_gameState');
+  
+  // Play exit animation
+  animateSliderExit();
+  
+  // Wait for exit animation, then start game
+  setTimeout(async () => {
+    uiManager.hideHomepage();
+    uiManager.showApp();
+    
+    try {
+      // Set flag so boot() starts at the correct board
+      (window as any).__ccStartAtLevel = boardId;
+      console.log(`🎯 Setting __ccStartAtLevel to ${boardId} for new run`);
+      
+      // Boot the game
+      await bootGame();
+      await layoutGame();
+      
+      // Clear flag after boot
+      delete (window as any).__ccStartAtLevel;
+      
+      logger.info(`✅ New run started for board ${boardId}`);
+    } catch (error) {
+      logger.error(`❌ Failed to start new run for board ${boardId}:`, error);
+      delete (window as any).__ccStartAtLevel;
+    }
+  }, 770);
+}
+
+// Continue game with saved state - NOW TIED TO JOURNEY PROGRESSION
 (window as any).continueGameWithSavedState = async () => {
   logger.info('🔄 continueGameWithSavedState called - loading saved game');
   
+  // Import journey progression state
+  const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
+  
   try {
-    // CRITICAL: Always prefer clean-board resume over generic saved state
-    const completedState = localStorage.getItem('cc_board_completed');
-    if (completedState) {
-      try {
-        const state = JSON.parse(completedState);
-        const ageMs = Date.now() - (Number(state.timestamp) || 0);
-        const resumeLevel = Number(state.nextLevel) || 2;
-        // Fallback: if finalScore missing, add bonus to base score
-        const baseScore = Number(state.score) || 0;
-        const bonusScore = Number(state.bonus) || 0;
-        const resumeScore = Number(state.finalScore ?? (baseScore + bonusScore)) || 0;
-        if (Number.isFinite(ageMs) && ageMs < 60 * 60 * 1000) {
-          logger.info('🎮 Board was completed - starting next board (level', resumeLevel, ', score:', resumeScore, ')');
-          
-          // Play exit animation
-          animateSliderExit();
-          
-          // Wait for exit animation, then start next board with saved score
-          setTimeout(async () => {
-            // Hide homepage and show app
-            uiManager.hideHomepage();
-            uiManager.showApp();
-            
-            try {
-              // Set flags so boot() and startLevel start at correct level with correct score
-              (window as any).__ccStartAtLevel = resumeLevel;
-              (window as any).__ccResumeScore = resumeScore;
-              
-              // Boot the game (boot() will use __ccStartAtLevel to start at resumeLevel)
-              await bootGame();
-              await layoutGame();
-              
-              // Clear completion state AFTER boot
-              localStorage.removeItem('cc_board_completed');
-              localStorage.removeItem('cc_saved_game');
-              localStorage.removeItem('cubeCrash_gameState');
-              
-              logger.info('✅ Next board started with score:', resumeScore);
-              delete (window as any).__ccStartAtLevel;
-              delete (window as any).__ccResumeScore;
-            } catch (error) {
-              logger.error('❌ Failed to start next board:', error);
-              console.warn('⚠️ Starting fresh game');
-              // Clear completed state on error
-              localStorage.removeItem('cc_board_completed');
-              // Clear flags on error
-              delete (window as any).__ccStartAtLevel;
-              delete (window as any).__ccResumeScore;
-            }
-          }, 770);
-          
-          return; // Exit early - don't load old game state
-        } else {
-          localStorage.removeItem('cc_board_completed');
-        }
-      } catch (error) {
-        logger.warn('⚠️ Failed to parse completed board state:', error);
-        localStorage.removeItem('cc_board_completed');
+    // 🔥 JOURNEY PROGRESSION: Check if there's an active in-progress run
+    const currentRunState = journeyProgressionState.getCurrentRunState();
+    const savedGame = localStorage.getItem('cc_saved_game');
+    
+    // Case A: Active in-progress run - resume exactly where they left off
+    if (currentRunState && currentRunState.inProgress && savedGame) {
+      logger.info(`🎮 Case A: Resuming active run for board ${currentRunState.boardId}`);
+      
+      // 🔥 USER REQUEST: Check if we came from Journey screen - skip slider exit animation
+      const cameFromJourney = (window as any).__ccCameFromJourney === true;
+      
+      if (!cameFromJourney) {
+        // Only play slider exit animation if we came from homepage
+        animateSliderExit();
+      } else {
+        // Journey screen exit animation already played - just hide homepage and show app immediately
+        logger.info('🗺️ Skipping slider exit animation - already came from Journey screen');
+        uiManager.hideHomepage();
+        uiManager.showApp();
       }
-    }
-    
-    // Normal flow: load saved game state
-    // Step 1: Play exit animation
-    console.log('🎬 Step 1: Playing exit animation');
-    animateSliderExit();
-    
-    // Step 2: Wait for exit animation, then start game with saved state
-    setTimeout(async () => {
-      console.log('🔄 Step 2: Loading saved game');
       
-      // Hide homepage
-      uiManager.hideHomepage();
-      
-      // Show app element
-      uiManager.showApp();
-      
-      // Use static import for instant response
-      try {
-        // 🔥 CRITICAL FIX: Read saved game state BEFORE booting to get the correct boardNumber
-        // This ensures boot() starts at the correct level, not always level 1
-        const savedGame = localStorage.getItem('cc_saved_game');
-        let savedBoardNumber = 1; // Default to board 1 if no saved game
-        
-        if (savedGame) {
-          try {
-            const gameState = JSON.parse(savedGame);
-            savedBoardNumber = Number.isFinite(gameState.boardNumber) 
-              ? gameState.boardNumber 
-              : (Number.isFinite(gameState.level) ? gameState.level : 1);
-            console.log('📊 Found saved game at board', savedBoardNumber);
-          } catch (error) {
-            console.warn('⚠️ Failed to parse saved game state before boot:', error);
-          }
+      // 🔥 USER REQUEST: If came from Journey, start immediately (no delay)
+      // Journey exit animation already completed, so we can start game right away
+      if (cameFromJourney) {
+        // 🔥 CRITICAL: Hide Journey screen and homepage BEFORE starting game
+        // This ensures clean transition and that animations are visible
+        const journeyScreen = document.getElementById('journey-screen');
+        if (journeyScreen) {
+          journeyScreen.classList.add('hidden');
+          journeyScreen.style.display = 'none';
+          journeyScreen.style.visibility = 'hidden';
+          journeyScreen.style.opacity = '0';
+          console.log('✅ Journey screen hidden before game start');
         }
         
-        // 🔥 CRITICAL FIX: Set flag so boot() starts at the correct board number
-        // This prevents boot() from always starting at board 1
-        (window as any).__ccStartAtLevel = savedBoardNumber;
-        console.log('🎯 Setting __ccStartAtLevel to', savedBoardNumber, 'before boot');
+        // Hide homepage
+        uiManager.hideHomepage();
         
-        // 🔥 CRITICAL FIX: Also set a flag to skip rebuildBoard in startLevel
-        // This prevents creating a new empty board before loading saved state
-        (window as any).__ccSkipRebuildBoard = true;
-        console.log('🎯 Setting __ccSkipRebuildBoard flag to prevent empty board creation');
+        // Show app element BEFORE booting game (so animations are visible)
+        uiManager.showApp();
+        console.log('✅ App element shown before game boot');
         
-        // Boot the game first (will start at savedBoardNumber instead of always 1)
-        await bootGame();
-        await layoutGame();
-        
-        // 🔥 CRITICAL FIX: Load saved game state IMMEDIATELY after boot
-        // This must happen before any other operations to restore tiles properly
-        const loadGameState = (window as any).loadGameState;
-        if (typeof loadGameState === 'function') {
-          console.log('🔄 Calling loadGameState() to restore saved game...');
-          const loaded = await loadGameState();
-          if (!loaded) {
-            logger.error('❌ CRITICAL: Failed to load saved game state!');
-            console.error('❌ loadGameState returned false - saved game could not be loaded');
-            // 🔥 CRITICAL FIX: If loadGameState fails, we need to rebuild the board
-            // Otherwise we'll have an empty board with only ghost placeholders
-            console.log('🔄 Rebuilding board since loadGameState failed...');
-            const rebuildBoard = (window as any).rebuildBoard;
-            if (typeof rebuildBoard === 'function') {
-              try {
+        // Start immediately - no delay needed
+        try {
+          const gameState = JSON.parse(savedGame);
+          const savedBoardNumber = Number.isFinite(gameState.boardNumber) 
+            ? gameState.boardNumber 
+            : (Number.isFinite(gameState.level) ? gameState.level : 1);
+          
+          // Set flags to resume at correct board
+          (window as any).__ccStartAtLevel = savedBoardNumber;
+          (window as any).__ccSkipRebuildBoard = true;
+          // 🔥 USER REQUEST: Trigger HUD drop animation when resuming from Journey
+          (window as any).__ccTriggerHudDrop = true;
+          
+          await bootGame();
+          await layoutGame();
+          
+          // Load saved game state
+          const loadGameState = (window as any).loadGameState;
+          if (typeof loadGameState === 'function') {
+            const loaded = await loadGameState();
+            if (!loaded) {
+              logger.error('❌ Failed to load saved game state');
+              const rebuildBoard = (window as any).rebuildBoard;
+              if (typeof rebuildBoard === 'function') {
                 rebuildBoard();
-                console.log('✅ Board rebuilt after loadGameState failure');
-              } catch (error) {
-                console.error('❌ Failed to rebuild board:', error);
               }
             }
-          } else {
-            console.log('✅ loadGameState() completed successfully - saved game restored');
-            console.log('📊 Restored boardNumber:', savedBoardNumber);
           }
-        } else {
-          logger.error('❌ loadGameState function not found');
-          console.error('❌ CRITICAL: loadGameState function not available!');
+          
+          delete (window as any).__ccStartAtLevel;
+          delete (window as any).__ccSkipRebuildBoard;
+          delete (window as any).__ccTriggerHudDrop;
+        } catch (error) {
+          logger.error('❌ Failed to resume active run:', error);
+          delete (window as any).__ccStartAtLevel;
+          delete (window as any).__ccTriggerHudDrop;
         }
-        
-        // Clear the flags after boot (they were consumed by boot/startLevel)
-        delete (window as any).__ccStartAtLevel;
-        delete (window as any).__ccSkipRebuildBoard;
-      } catch (error) {
-        logger.error('❌ Failed to load saved game:', error);
-        console.warn('⚠️ Starting fresh game');
-        // Clean up flag on error
-        delete (window as any).__ccStartAtLevel;
+      } else {
+        // Wait for exit animation (770ms), then load saved game
+        setTimeout(async () => {
+          uiManager.hideHomepage();
+          uiManager.showApp();
+          
+          try {
+            const gameState = JSON.parse(savedGame);
+            const savedBoardNumber = Number.isFinite(gameState.boardNumber) 
+              ? gameState.boardNumber 
+              : (Number.isFinite(gameState.level) ? gameState.level : 1);
+            
+            // Set flags to resume at correct board
+            (window as any).__ccStartAtLevel = savedBoardNumber;
+            (window as any).__ccSkipRebuildBoard = true;
+            
+            await bootGame();
+            await layoutGame();
+            
+            // Load saved game state
+            const loadGameState = (window as any).loadGameState;
+            if (typeof loadGameState === 'function') {
+              const loaded = await loadGameState();
+              if (!loaded) {
+                logger.error('❌ Failed to load saved game state');
+                const rebuildBoard = (window as any).rebuildBoard;
+                if (typeof rebuildBoard === 'function') {
+                  rebuildBoard();
+                }
+              }
+            }
+            
+            delete (window as any).__ccStartAtLevel;
+            delete (window as any).__ccSkipRebuildBoard;
+          } catch (error) {
+            logger.error('❌ Failed to resume active run:', error);
+            delete (window as any).__ccStartAtLevel;
+          }
+        }, 770);
       }
-    }, 770); // 120ms delay + 650ms animation = 770ms total (was 420ms, increased by 350ms)
+      
+      return; // Exit early
+    }
+    
+    // Case B: No active run, but we know the last board from Journey
+    const lastOpenedBoardId = journeyProgressionState.getLastOpenedBoardId();
+    if (lastOpenedBoardId !== null) {
+      logger.info(`🎮 Case B: Starting fresh run for last opened board ${lastOpenedBoardId}`);
+      await startNewRun(lastOpenedBoardId);
+      return; // Exit early
+    }
+    
+    // Case C: Safety fallback - start from highest unlocked board
+    const highestUnlockedBoardId = journeyProgressionState.getHighestUnlockedBoardId();
+    if (highestUnlockedBoardId !== null) {
+      logger.info(`🎮 Case C: Starting fresh run for highest unlocked board ${highestUnlockedBoardId}`);
+      journeyProgressionState.setLastOpenedBoardId(highestUnlockedBoardId);
+      await startNewRun(highestUnlockedBoardId);
+      return; // Exit early
+    }
+    
+    // Case D: Very first time ever - hide Continue or start from Board 1
+    logger.warn('⚠️ No Journey progression state found - starting from Board 1');
+    journeyProgressionState.setLastOpenedBoardId(1);
+    await startNewRun(1);
     
   } catch (error) {
     logger.error('❌ Failed to continue game:', error);
-    console.warn('⚠️ Starting fresh game');
+    console.warn('⚠️ Starting fresh game from Board 1');
+    await startNewRun(1);
   }
+};
+
+// 🔥 JOURNEY PROGRESSION: Export startNewRun function globally (for Continue button)
+(window as any).startNewRun = async (boardId: number) => {
+  logger.info(`🎮 startNewRun called for board ${boardId}`);
+  
+  // Import journey progression state
+  const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
+  
+  // Set lastOpenedBoardId and currentRunState
+  journeyProgressionState.setLastOpenedBoardId(boardId);
+  journeyProgressionState.setCurrentRunState(boardId, 0);
+  
+  // Clear any saved game state (starting fresh)
+  localStorage.removeItem('cc_saved_game');
+  localStorage.removeItem('cc_board_completed');
+  localStorage.removeItem('cubeCrash_gameState');
+  
+  // 🔥 USER REQUEST: Check if we came from Journey screen - skip slider exit animation
+  const cameFromJourney = (window as any).__ccCameFromJourney === true;
+  
+  if (!cameFromJourney) {
+    // Only play slider exit animation if we came from homepage
+    animateSliderExit();
+  } else {
+    // Journey screen exit animation already played - just hide homepage and show app immediately
+    logger.info('🗺️ Skipping slider exit animation - already came from Journey screen');
+    uiManager.hideHomepage();
+    uiManager.showApp();
+  }
+  
+  // 🔥 USER REQUEST: If came from Journey, start immediately (no delay)
+  // Journey exit animation already completed, so we can start game right away
+  if (cameFromJourney) {
+    // 🔥 CRITICAL: Hide Journey screen and homepage BEFORE starting game
+    // This ensures clean transition and that animations are visible
+    const journeyScreen = document.getElementById('journey-screen');
+    if (journeyScreen) {
+      journeyScreen.classList.add('hidden');
+      journeyScreen.style.display = 'none';
+      journeyScreen.style.visibility = 'hidden';
+      journeyScreen.style.opacity = '0';
+      console.log('✅ Journey screen hidden before game start');
+    }
+    
+    // Hide homepage
+    uiManager.hideHomepage();
+    
+    // Show app element BEFORE booting game (so animations are visible)
+    uiManager.showApp();
+    console.log('✅ App element shown before game boot');
+    
+    // Start immediately - no delay needed
+    try {
+      // Set flag so boot() starts at the correct board
+      (window as any).__ccStartAtLevel = boardId;
+      // 🔥 USER REQUEST: Trigger HUD drop animation when starting new run from Journey
+      (window as any).__ccTriggerHudDrop = true;
+      console.log(`🎯 Setting __ccStartAtLevel to ${boardId} and __ccTriggerHudDrop for new run from Journey`);
+      
+      // Boot the game
+      await bootGame();
+      await layoutGame();
+      
+      // Clear flag after boot
+      delete (window as any).__ccStartAtLevel;
+      delete (window as any).__ccTriggerHudDrop;
+      
+      logger.info(`✅ New run started for board ${boardId} from Journey`);
+    } catch (error) {
+      logger.error(`❌ Failed to start new run for board ${boardId}:`, error);
+      delete (window as any).__ccStartAtLevel;
+      delete (window as any).__ccTriggerHudDrop;
+    }
+  } else {
+    // Wait for exit animation (770ms), then start game
+    setTimeout(async () => {
+      uiManager.hideHomepage();
+      uiManager.showApp();
+      
+      try {
+        // Set flag so boot() starts at the correct board
+        (window as any).__ccStartAtLevel = boardId;
+        console.log(`🎯 Setting __ccStartAtLevel to ${boardId} for new run`);
+        
+        // Boot the game
+        await bootGame();
+        await layoutGame();
+        
+        // Clear flag after boot
+        delete (window as any).__ccStartAtLevel;
+        
+        logger.info(`✅ New run started for board ${boardId}`);
+      } catch (error) {
+        logger.error(`❌ Failed to start new run for board ${boardId}:`, error);
+        delete (window as any).__ccStartAtLevel;
+      }
+    }, 770);
+  }
+};
+
+// 🔥 JOURNEY PROGRESSION: Export startNewRunFromJourney function (with board enter animation)
+(window as any).startNewRunFromJourney = async (boardId: number) => {
+  logger.info(`🎮 startNewRunFromJourney called for board ${boardId}`);
+  
+  // Import journey progression state
+  const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
+  
+  // Set lastOpenedBoardId and currentRunState
+  journeyProgressionState.setLastOpenedBoardId(boardId);
+  journeyProgressionState.setCurrentRunState(boardId, 0);
+  
+  // Clear any saved game state (starting fresh)
+  localStorage.removeItem('cc_saved_game');
+  localStorage.removeItem('cc_board_completed');
+  localStorage.removeItem('cubeCrash_gameState');
+  
+  // Hide homepage and show app (no slider exit animation - already done)
+  uiManager.hideHomepage();
+  uiManager.showApp();
+  
+  try {
+    // Set flag so boot() starts at the correct board
+    (window as any).__ccStartAtLevel = boardId;
+    // Set flag to trigger HUD drop animation (sweetPopIn will check this)
+    (window as any).__ccTriggerHudDrop = true;
+    console.log(`🎯 Setting __ccStartAtLevel to ${boardId} and __ccTriggerHudDrop for new run from Journey`);
+    
+    // Boot the game
+    await bootGame();
+    await layoutGame();
+    
+    // Clear flags after boot
+    delete (window as any).__ccStartAtLevel;
+    delete (window as any).__ccTriggerHudDrop;
+    
+    logger.info(`✅ New run started for board ${boardId} with enter animation`);
+  } catch (error) {
+      logger.error(`❌ Failed to start new run for board ${boardId}:`, error);
+      delete (window as any).__ccStartAtLevel;
+    }
 };
 
 // New sequence handler: bottom sheet close → exit anim → game start
 (window as any).triggerGameStartSequence = async () => {
   logger.info('🎬 Starting game start sequence...');
+  
+  // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
+  // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
+  (window as any).__ccCameFromHomepage = true;
+  (window as any).__ccCameFromJourney = false;
+  console.log('🏠 Marked as coming from homepage');
   
   // Step 1: Play exit animation FIRST
   console.log('🎬 Step 1: Playing exit animation');
@@ -498,7 +687,7 @@ initializeApp().catch((error: Error) => {
   setTimeout(() => {
     console.log('🎮 Step 2: Starting game after exit animation');
     uiManager.hideHomepage(); // Hide homepage AFTER animation
-    uiManager.startNewGame(); // Start game boot
+    uiManager.startNewGame(); // Start game boot (always Board 1 for New Game)
   }, 770); // 120ms delay + 650ms animation = 770ms total
 };
 
@@ -768,11 +957,111 @@ initializeApp().catch((error: Error) => {
     }
     
     
-    // Show navigation
-    uiManager.showNavigation();
+    // 🔥 JOURNEY PROGRESSION: Check if user came from Journey screen
+    // 🔥 USER REQUEST: Determine target slide based on where user came from
+    // 1. If came from homepage Play button → return to homepage (slide 0)
+    // 2. If came from Journey Continue button → return to Journey (slide 1)
+    let targetSlide = 0; // Default to homepage
+    try {
+      // 🔥 CRITICAL: Check localStorage FIRST (before clearing) - most reliable for persistence
+      const cameFromJourneyStorage = localStorage.getItem('__ccCameFromJourney') === 'true';
+      const cameFromHomepageStorage = localStorage.getItem('__ccCameFromHomepage') === 'true';
+      
+      // Also check window flags (for current session)
+      const cameFromJourneyWindow = (window as any).__ccCameFromJourney === true;
+      const cameFromHomepageWindow = (window as any).__ccCameFromHomepage === true;
+      
+      // Combine both sources
+      let cameFromJourney = cameFromJourneyWindow || cameFromJourneyStorage;
+      const cameFromHomepage = cameFromHomepageWindow || cameFromHomepageStorage;
+      
+      // 🔥 USER REQUEST: If flag is not set, check lastOpenedBoardId as primary indicator
+      // If user has lastOpenedBoardId, they came from Journey screen (especially for interim cards)
+      if (!cameFromJourney && !cameFromHomepage) {
+        const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
+        const lastOpenedBoardId = journeyProgressionState.getLastOpenedBoardId();
+        if (lastOpenedBoardId !== null && lastOpenedBoardId >= 1) {
+          cameFromJourney = true;
+          console.log(`🗺️ No flag found, but lastOpenedBoardId is ${lastOpenedBoardId} - user came from Journey`);
+        }
+      }
+      
+      console.log('🔍 Exit context check:', {
+        cameFromJourneyWindow,
+        cameFromJourneyStorage,
+        cameFromJourney,
+        cameFromHomepageWindow,
+        cameFromHomepageStorage,
+        cameFromHomepage
+      });
+      
+      if (cameFromJourney) {
+        // User came from Journey screen → return to Journey slide
+        targetSlide = 1;
+        console.log('🎯 User came from Journey screen - returning to Journey slide');
+        
+        // 🔥 CRITICAL: Hide detail modal if it's open (but NOT Journey screen - we'll show it)
+        const detailModal = document.getElementById('collectibles-detail-modal');
+        if (detailModal) {
+          detailModal.hidden = true;
+          detailModal.style.display = 'none';
+          console.log('✅ Detail modal hidden');
+        }
+      } else if (cameFromHomepage) {
+        // User came from homepage → return to homepage
+        targetSlide = 0;
+        console.log('🏠 User came from homepage - returning to homepage slide');
+      } else {
+        // No flags set → default to homepage
+        targetSlide = 0;
+        console.log('🏠 No Journey context found - defaulting to homepage slide');
+      }
+      
+      // Clear flags AFTER determining target slide
+      delete (window as any).__ccCameFromHomepage;
+      delete (window as any).__ccCameFromJourney;
+      // 🔥 FIX: Also clear from localStorage AFTER use
+      localStorage.removeItem('__ccCameFromJourney');
+      localStorage.removeItem('__ccCameFromHomepage');
+    } catch (error) {
+      console.warn('⚠️ Failed to determine target slide:', error);
+    }
     
-    // Show homepage QUIETLY (ready for entry animation)
-    uiManager.showHomepageQuietly();
+    // 🔥 USER REQUEST: Show navigation and homepage ONLY if returning to homepage (slide 0)
+    // If returning to Journey screen (slide 1), hide homepage and navigation
+    if (targetSlide === 0) {
+      // Show navigation and homepage for homepage slider
+      uiManager.showNavigation();
+      uiManager.showHomepageQuietly();
+      console.log('✅ Navigation and homepage shown - returning to homepage slider');
+    } else {
+      // 🔥 CRITICAL: Hide homepage COMPLETELY when returning to Journey screen
+      // This ensures Journey screen is visible, not homepage slider
+      uiManager.hideHomepage();
+      
+      // 🔥 CRITICAL: Also ensure homepage element is completely hidden
+      const homeElement = document.getElementById('home');
+      if (homeElement) {
+        homeElement.style.display = 'none';
+        homeElement.setAttribute('hidden', 'true');
+        homeElement.style.visibility = 'hidden';
+        homeElement.style.opacity = '0';
+        homeElement.style.zIndex = '-1';
+        console.log('✅ Homepage element completely hidden - Journey screen will be visible');
+      }
+      
+      // 🔥 CRITICAL: Hide navigation when returning to Journey screen
+      // Navigation will be hidden by MutationObserver in navigation-control.ts
+      // But we set it here to ensure it's hidden immediately
+      const navElement = document.getElementById('independent-nav');
+      if (navElement) {
+        navElement.style.display = 'none';
+        navElement.style.visibility = 'hidden';
+        navElement.style.opacity = '0';
+        navElement.setAttribute('aria-hidden', 'true');
+        console.log('✅ Navigation hidden - returning to Journey screen');
+      }
+    }
     
     // Reset game state
     gameState.setState({
@@ -781,21 +1070,138 @@ initializeApp().catch((error: Error) => {
       isPaused: false
     });
     
-    // CRITICAL: Reset slider to slide 0 (first slide) before entry animation
-    console.log('🎯 Resetting slider to slide 0...');
+    // CRITICAL: Reset slider to target slide (Journey or homepage) before entry animation
+    console.log(`🎯 Resetting slider to slide ${targetSlide}...`);
     if (sliderManager) {
-      sliderManager.setCurrentSlide(0);
-      console.log('✅ Slider reset to slide 0');
+      sliderManager.setCurrentSlide(targetSlide);
+      console.log(`✅ Slider reset to slide ${targetSlide}`);
+      
+      // 🔥 CRITICAL: Force immediate update of slider position (no animation)
+      // This ensures Journey slide is visible immediately
+      if (targetSlide === 1) {
+        // Use requestAnimationFrame to ensure DOM is ready
+        requestAnimationFrame(() => {
+          const sliderWrapper = document.getElementById('slider-wrapper') as HTMLElement;
+          if (sliderWrapper) {
+            const sliderContainer = document.getElementById('slider-container') as HTMLElement;
+            const slideWidth = sliderContainer?.offsetWidth || window.innerWidth;
+            const offset = -targetSlide * slideWidth;
+            // Use GSAP to set position immediately (no animation)
+            if (typeof gsap !== 'undefined') {
+              gsap.set(sliderWrapper, { x: offset, immediateRender: true });
+            } else {
+              sliderWrapper.style.transform = `translateX(${offset}px)`;
+            }
+            console.log(`✅ Slider wrapper forced to Journey slide position: ${offset}px`);
+          }
+          
+        });
+      }
     } else {
       console.warn('⚠️ SliderManager not found, trying gameState...');
-      gameState.setState({ currentSlide: 0 });
+      gameState.setState({ currentSlide: targetSlide });
+    }
+    
+    // 🔥 USER REQUEST: Only update slider slides if returning to homepage (slide 0)
+    // If returning to Journey (slide 1), don't touch slider - Journey screen is shown directly
+    if (targetSlide === 0) {
+      // Also update slide classes and nav buttons to match target slide
+      const slides = document.querySelectorAll('.slider-slide');
+      const navButtons = document.querySelectorAll('.independent-nav-button');
+      slides.forEach((slide, index) => {
+        if (index === targetSlide) {
+          slide.classList.add('active');
+          // 🔥 CRITICAL: Ensure target slide is visible
+          (slide as HTMLElement).style.display = 'block';
+          (slide as HTMLElement).style.visibility = 'visible';
+          (slide as HTMLElement).style.opacity = '1';
+          console.log(`✅ Slide ${index} set to active and visible`);
+        } else {
+          slide.classList.remove('active');
+          // 🔥 FIX: Hide other slides to prevent conflicts
+          if (index !== targetSlide) {
+            (slide as HTMLElement).style.display = 'none';
+          }
+        }
+      });
+      navButtons.forEach((button, index) => {
+        if (index === targetSlide) {
+          button.classList.add('active');
+        } else {
+          button.classList.remove('active');
+        }
+      });
+    } else {
+      // 🔥 USER REQUEST: When returning to Journey screen, ensure all slides are visible
+      // This prevents empty slides when user goes back from Journey screen
+      const slides = document.querySelectorAll('.slider-slide');
+      slides.forEach((slide, index) => {
+        if (index === 1) {
+          // Journey slide (index 1) should be active
+          slide.classList.add('active');
+          (slide as HTMLElement).style.display = 'block';
+          (slide as HTMLElement).style.visibility = 'visible';
+          (slide as HTMLElement).style.opacity = '1';
+        } else {
+          // Other slides should be visible but not active
+          slide.classList.remove('active');
+          (slide as HTMLElement).style.display = 'block';
+          (slide as HTMLElement).style.visibility = 'visible';
+          (slide as HTMLElement).style.opacity = '1';
+        }
+      });
+      console.log('✅ All slides made visible for Journey screen return');
     }
     
     console.log('✅ Game state reset - homepage should be visible now');
     
-    // Step 3: Play homepage entry animation
-    console.log('🎬 Playing homepage entry animation...');
-    animateSliderEnter();
+    // Step 3: Play entry animation and show appropriate screen
+    if (targetSlide === 1) {
+      // 🔥 USER REQUEST: Show Journey screen when returning to Journey slide
+      // Use requestAnimationFrame to ensure homepage is hidden and DOM is ready
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          console.log('🗺️ Showing Journey screen...');
+          const collectiblesManager = (window as any).collectiblesManager;
+          if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
+            collectiblesManager.showCollectibles();
+            console.log('✅ Journey screen shown');
+            
+            // 🔥 CRITICAL: Ensure Journey screen is visible and on top
+            const journeyScreen = document.getElementById('journey-screen');
+            if (journeyScreen) {
+              journeyScreen.classList.remove('hidden');
+              journeyScreen.style.display = 'flex';
+              journeyScreen.style.visibility = 'visible';
+              journeyScreen.style.opacity = '1';
+              journeyScreen.style.zIndex = '999999';
+              console.log('✅ Journey screen forced to visible with correct z-index');
+            }
+            
+            // 🔥 CRITICAL: Ensure navigation is hidden when Journey screen is shown
+            // MutationObserver in navigation-control.ts will handle this, but we set it here too
+            const navElement = document.getElementById('independent-nav');
+            if (navElement) {
+              navElement.style.display = 'none';
+              navElement.style.visibility = 'hidden';
+              navElement.style.opacity = '0';
+              navElement.setAttribute('aria-hidden', 'true');
+              console.log('✅ Navigation hidden after Journey screen shown');
+            }
+          } else {
+            console.warn('⚠️ CollectiblesManager not found - cannot show Journey screen');
+          }
+        }, 100);
+      });
+      
+      // Play slider enter animation for Journey slide
+      console.log('🎬 Playing Journey slide entry animation...');
+      animateSliderEnter();
+    } else {
+      // Play homepage entry animation
+      console.log('🎬 Playing homepage entry animation...');
+      animateSliderEnter();
+    }
     console.log('✅ Exit complete - Play button should work');
     
     logger.info('✅ Exited to menu successfully - next play will start fresh without resume sheet');

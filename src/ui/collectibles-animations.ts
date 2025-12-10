@@ -9,19 +9,19 @@ export function animateCollectiblesScreenEnter(): void {
   console.log('🎬🎬🎬 animateCollectiblesScreenEnter CALLED!');
   console.log('🔍 GSAP available?', typeof gsap !== 'undefined');
   
-  // Get collectible elements
-  const collectiblesScreen = document.getElementById('collectibles-screen');
-  const collectiblesHeader = collectiblesScreen?.querySelector('.collectibles-header') as HTMLElement;
-  const collectiblesScrollable = collectiblesScreen?.querySelector('.collectibles-scrollable') as HTMLElement;
+  // Get Journey screen elements
+  const journeyScreen = document.getElementById('journey-screen');
+  const collectiblesHeader = journeyScreen?.querySelector('.collectibles-header') as HTMLElement;
+  const collectiblesScrollable = journeyScreen?.querySelector('.collectibles-scrollable') as HTMLElement;
   
   console.log('🔍 Found elements:', {
-    collectiblesScreen: !!collectiblesScreen,
+    journeyScreen: !!journeyScreen,
     collectiblesHeader: !!collectiblesHeader,
     collectiblesScrollable: !!collectiblesScrollable
   });
   
-  if (!collectiblesScreen) {
-    console.error('❌ No collectibles screen found to animate!');
+  if (!journeyScreen) {
+    console.error('❌ No Journey screen found to animate!');
     return;
   }
   
@@ -71,7 +71,7 @@ export function animateCollectiblesScreenEnter(): void {
   
   // STEP 3: Animate first 8 cards in grid (scale from 0.3 to 1.0)
   // 🔥 FAST INDIVIDUAL ANIMATION: Only first 8 cards, start from 30% scale, faster timing
-  const cardWrappers = collectiblesScreen?.querySelectorAll('.collectible-card-wrapper') as NodeListOf<HTMLElement>;
+  const cardWrappers = journeyScreen?.querySelectorAll('.collectible-card-wrapper') as NodeListOf<HTMLElement>;
   if (cardWrappers && cardWrappers.length > 0) {
     console.log(`🎴 Step 3: Animating first 8 cards from ${cardWrappers.length} total (scale from 0.3 to 1.0)`);
 
@@ -109,11 +109,11 @@ export function animateCollectiblesScreenEnter(): void {
     console.log('✅ First 8 cards fast animation started');
   }
   
-  console.log('✅ Collectibles screen enter animation started');
+  console.log('✅ Journey screen enter animation started');
 }
 
 /**
- * Animate collectibles screen EXIT with pop-out effects
+ * Animate Journey screen EXIT with pop-out effects
  * Elements pop out in reverse order: all cards first (fast individual), then scrollable, then header
  * Returns Promise that resolves when animation completes
  */
@@ -121,12 +121,12 @@ export function animateCollectiblesScreenExit(): Promise<void> {
   return new Promise((resolve) => {
     console.log('🎬 animateCollectiblesScreenExit CALLED!');
     
-    const collectiblesScreen = document.getElementById('collectibles-screen');
-    const collectiblesHeader = collectiblesScreen?.querySelector('.collectibles-header') as HTMLElement;
-    const collectiblesScrollable = collectiblesScreen?.querySelector('.collectibles-scrollable') as HTMLElement;
+    const journeyScreen = document.getElementById('journey-screen');
+    const collectiblesHeader = journeyScreen?.querySelector('.collectibles-header') as HTMLElement;
+    const collectiblesScrollable = journeyScreen?.querySelector('.collectibles-scrollable') as HTMLElement;
     
-    if (!collectiblesScreen) {
-      console.error('❌ No collectibles screen found to animate!');
+    if (!journeyScreen) {
+      console.error('❌ No Journey screen found to animate!');
       resolve();
       return;
     }
@@ -139,7 +139,7 @@ export function animateCollectiblesScreenExit(): Promise<void> {
     
     // STEP 1: Animate all cards out first (scale from 1.0 to 0)
     // 🔥 FAST INDIVIDUAL ANIMATION: All cards animate individually with fixed fast stagger
-    const cardWrappers = collectiblesScreen?.querySelectorAll('.collectible-card-wrapper') as NodeListOf<HTMLElement>;
+    const cardWrappers = journeyScreen?.querySelectorAll('.collectible-card-wrapper') as NodeListOf<HTMLElement>;
     let maxCardDelay = 0;
 
     if (cardWrappers && cardWrappers.length > 0) {
@@ -209,11 +209,11 @@ export function animateCollectiblesScreenExit(): Promise<void> {
     // Calculate total animation duration (longest animation)
     const totalDuration = Math.max(maxCardDelay, scrollableEnd, headerEnd) + 0.1; // Add 0.1s buffer
     
-    console.log(`✅ Collectibles screen exit animation started - will complete in ${totalDuration.toFixed(2)}s`);
+    console.log(`✅ Journey screen exit animation started - will complete in ${totalDuration.toFixed(2)}s`);
     
     // Resolve promise after animation completes
     setTimeout(() => {
-      console.log('✅ Collectibles screen exit animation completed');
+      console.log('✅ Journey screen exit animation completed');
       resolve();
     }, totalDuration * 1000);
   });

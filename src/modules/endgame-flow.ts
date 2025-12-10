@@ -126,6 +126,18 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       const { journeyBoardsManager } = await import('./journey-boards-manager.js');
       journeyBoardsManager.unlockBoardOnCompletion(boardNumber);
       logger.info(`🗺️ Journey board ${boardNumber} unlocked on completion`);
+      
+      // 🔥 JOURNEY PROGRESSION: Update highestUnlockedBoardId and lastOpenedBoardId
+      const { journeyProgressionState } = await import('./journey-progression-state.js');
+      const nextLevel = (level | 0) + 1;
+      const highestUnlocked = Math.max(
+        journeyProgressionState.getHighestUnlockedBoardId() || 1,
+        nextLevel
+      );
+      journeyProgressionState.setHighestUnlockedBoardId(highestUnlocked);
+      journeyProgressionState.setLastOpenedBoardId(highestUnlocked); // Move to new highest unlocked
+      journeyProgressionState.clearCurrentRunState(); // Run finished successfully
+      logger.info(`🗺️ Journey: Board ${boardNumber} completed - highestUnlocked: ${highestUnlocked}, lastOpened: ${highestUnlocked}`);
     } catch (error) {
       logger.warn('⚠️ Failed to unlock journey board on completion:', error);
     }

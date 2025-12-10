@@ -410,9 +410,9 @@ function animateCard(card: HTMLElement): void {
   // Activate smoke bubbles at 0.1s (peak of animation)
   tl.call(() => {
     if (card && card.parentElement) {
-      // 🔥 FIX: Generate random alpha value between 0.5 and 1.0 for each animation
+      // 🔥 FIX: Generate random alpha value between 0.7 and 1.0 for each animation
       // This adds randomness and variety to smoke effects
-      const randomAlpha = 0.5 + Math.random() * 0.5; // Random between 0.5 and 1.0
+      const randomAlpha = 0.7 + Math.random() * 0.3; // Random between 0.7 and 1.0
       
       smokeBubblesAtCard(card, {
         sizeScale: 0.18, // ~80% manje od 0.9
@@ -672,7 +672,7 @@ function smokeBubblesAtCard(
       const rx = r0;
       const ry = r0 * aspectRatio;
       
-      // 🔥 FIX: Use baseAlpha from options (random between 0.3 and 1.0 per animation)
+      // 🔥 FIX: Use baseAlpha from options (random between 0.7 and 1.0 per animation)
       // Each particle gets the baseAlpha value, with slight random variation for natural look
       const particleAlpha = baseAlpha * (0.85 + Math.random() * 0.15); // Slight variation: 85-100% of baseAlpha
       

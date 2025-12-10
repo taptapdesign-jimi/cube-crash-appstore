@@ -1085,11 +1085,11 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   boardText.visible = false;
   boardText.renderable = false;
 
-  // 🔥 NEW HUD DESIGN: Create HUD elements with icons (star-hud, coin-hud, combo-hud)
+  // 🔥 NEW HUD DESIGN: Create HUD elements with icons (star-hud, score-hud, combo-hud)
   // Layout based on SwiftUI design:
-  // - Left (offset -112): coin-hud.png + score number
-  // - Right (offset 108): star-hud.png + currency number (or energy "X0")
-  // - Left (offset -4.50): combo-hud.png + combo number
+  // - Left (offset -112): score-hud.png + score number (from assets/hud/)
+  // - Right (offset 108): star-hud.png + currency number (or energy "X0") (from assets/hud/)
+  // - Left (offset -4.50): combo-hud.png + combo number (from assets/hud/)
   
   // Create containers for each HUD element
   const createHudElement = (iconPath, textValue, textStyle) => {
@@ -1105,7 +1105,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
         iconSprite.anchor.set(0.5, 0.5);
         
         // 🔥 USER REQUEST: star-hud.png should have height 28px with aspect ratio preserved
-        if (iconPath.includes('star-hud.png')) {
+        if (iconPath.includes('star-hud.png') || iconPath.includes('hud/star-hud.png')) {
           const targetHeight = 28;
           if (iconSprite.width > 0 && iconSprite.height > 0) {
             // Scale based on height to maintain aspect ratio
@@ -1132,7 +1132,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
           iconSprite.anchor.set(0.5, 0.5);
           
           // 🔥 USER REQUEST: star-hud.png should have height 28px with aspect ratio preserved
-          if (iconPath.includes('star-hud.png')) {
+          if (iconPath.includes('star-hud.png') || iconPath.includes('hud/star-hud.png')) {
             const targetHeight = 28;
             if (iconSprite.width > 0 && iconSprite.height > 0) {
               // Scale based on height to maintain aspect ratio
@@ -1160,11 +1160,13 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     // Create text
     const text = new Text({ text: textValue, style: textStyle });
     text.anchor.set(0, 0.5); // Left-align text (anchor at left center for proper positioning)
-    // Position text to the right of icon (spacing: 4px as per SwiftUI HStack spacing)
+    // Position text to the right of icon (spacing: 6px for better visibility, same as other HUD icons)
+    // 🔥 FIX: Ensure score-hud has same spacing as other HUD icons (star-hud, combo-hud)
+    const spacing = 6; // Standard spacing for all HUD icons (increased from 4px for better visibility)
     if (iconSprite) {
-      text.x = (iconSprite.width * iconSprite.scale.x) / 2 + 4;
+      text.x = (iconSprite.width * iconSprite.scale.x) / 2 + spacing;
     } else {
-      text.x = 14 + 4; // Half of 28px + spacing
+      text.x = 14 + spacing; // Half of 28px + spacing
     }
     text.y = 0;
     container.addChild(text);
@@ -1175,7 +1177,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // Create HUD elements
   // 🔥 NEW ORDER: Close → Star → Coin → Combo
   // 1. Star (currency) - second (after close)
-  const starHud = createHudElement('./assets/star-hud.png', '0', {
+  const starHud = createHudElement('./assets/hud/star-hud.png', '0', {
     fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
     fontSize: 18,
     fill: 0xB58573, // Color(red: 0.71, green: 0.52, blue: 0.45)
@@ -1183,8 +1185,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     fontStyle: 'normal'
   });
   
-  // 2. Coin (score) - third
-  const coinHud = createHudElement('./assets/coin-hud.png', '0', {
+  // 2. Coin (score) - third - using score-hud.png instead of coin-hud.png
+  const coinHud = createHudElement('./assets/hud/score-hud.png', '0', {
     fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif',
     fontSize: 18, // Changed from 20 to 18
     fill: 0xB58573, // Color(red: 0.71, green: 0.52, blue: 0.45)
@@ -1200,7 +1202,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // Load combo icon sprite
   let comboIconSprite = null;
   try {
-    const comboIconTexture = Assets.get('./assets/combo-hud.png');
+    const comboIconTexture = Assets.get('./assets/hud/combo-hud.png');
     if (comboIconTexture) {
       comboIconSprite = new Sprite(comboIconTexture);
       comboIconSprite.anchor.set(0.5, 0.5);
@@ -1213,7 +1215,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     }
   } catch (e) {
     console.warn('⚠️ Failed to load combo icon, will try async:', e);
-    Assets.load('./assets/combo-hud.png').then((tex) => {
+    Assets.load('./assets/hud/combo-hud.png').then((tex) => {
       if (tex && comboContainer && !comboContainer.destroyed) {
         comboIconSprite = new Sprite(tex);
         comboIconSprite.anchor.set(0.5, 0.5);
@@ -1271,9 +1273,9 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     text: comboNumberText, // Store number text as main text reference (18px)
     xText: comboXTextLocal, // Store "x" text separately (14px)
     iconSprite: comboIconSprite,
-    originalIconPath: './assets/combo-hud.png', // Store original icon path (0-4)
-    extraIconPath: './assets/extra-combo-hud.png', // Store extra icon path (5-9)
-    megaIconPath: './assets/mega-combo-hud.png', // Store mega icon path (10+)
+    originalIconPath: './assets/hud/combo-hud.png', // Store original icon path (0-4)
+    extraIconPath: './assets/hud/extra-combo-hud.png', // Store extra icon path (5-9)
+    megaIconPath: './assets/hud/mega-combo-hud.png', // Store mega icon path (10+)
     currentIconType: 'normal' // Track current icon: 'normal', 'extra', or 'mega'
   };
   
@@ -1796,17 +1798,17 @@ function updateComboIcon(comboValue) {
   
   // Determine which icon to use based on combo value
   let targetIconType = 'normal';
-  let targetIconPath = './assets/combo-hud.png';
+  let targetIconPath = './assets/hud/combo-hud.png';
   
   if (comboValue >= 10) {
     targetIconType = 'mega';
-    targetIconPath = './assets/mega-combo-hud.png';
+    targetIconPath = './assets/hud/mega-combo-hud.png';
   } else if (comboValue >= 5) {
     targetIconType = 'extra';
     targetIconPath = './assets/extra-combo-hud.png';
   } else {
     targetIconType = 'normal';
-    targetIconPath = './assets/combo-hud.png';
+    targetIconPath = './assets/hud/combo-hud.png';
   }
   
   const currentIconType = combo.currentIconType || 'normal';

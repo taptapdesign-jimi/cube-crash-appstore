@@ -1,4 +1,4 @@
-// Collectibles Screen Component
+// Journey Screen Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 
 export interface CollectiblesScreenConfig {
@@ -13,7 +13,7 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
 
   return {
     tag: 'div',
-    id: 'collectibles-screen',
+    id: 'journey-screen',
     className: 'hidden journey-screen',
     children: [
       {
@@ -167,26 +167,51 @@ export function createCollectiblesDetailModal(): HTMLElementConfig {
                 tag: 'div',
                 className: 'detail-header-top',
                 children: [
-              {
-                tag: 'button',
-                id: 'detail-close-btn',
+                  {
+                    tag: 'button',
+                    id: 'detail-close-btn',
                     className: 'detail-close-button tap-scale',
-                attributes: {
-                  type: 'button',
-                  'aria-label': 'Close collectible details',
-                },
+                    attributes: {
+                      type: 'button',
+                      'aria-label': 'Close collectible details',
+                    },
+                    children: [
+                      {
+                        tag: 'img',
+                        attributes: {
+                          src: './assets/close-icon.png',
+                          alt: '',
+                          'aria-hidden': 'true',
+                        },
+                      },
+                    ],
+                  },
+                  {
+                    tag: 'h1',
+                    id: 'detail-title',
+                    className: 'detail-title',
+                    text: '',
+                  },
+                  {
+                    tag: 'div',
+                    className: 'detail-header-spacer',
+                  },
+                ],
+              },
+              {
+                tag: 'div',
+                className: 'detail-title-underline',
                 children: [
                   {
                     tag: 'img',
+                    className: 'detail-shadow-image',
                     attributes: {
-                          src: './assets/close-icon.png',
+                      src: './assets/divider-shadow.png',
                       alt: '',
                       'aria-hidden': 'true',
                     },
                   },
                 ],
-              },
-            ],
               },
             ],
           },
@@ -224,6 +249,26 @@ export function createCollectiblesDetailModal(): HTMLElementConfig {
                 id: 'detail-card-description',
                 className: 'detail-description',
                 text: 'Clean a board in less than 2 minutes',
+              },
+              {
+                tag: 'button',
+                id: 'detail-play-board-btn',
+                className: 'detail-play-board-button primary-button',
+                attributes: {
+                  type: 'button',
+                  style: 'display: none;', // Hidden by default, shown for interim Journey boards
+                },
+                text: 'Play',
+              },
+              {
+                tag: 'button',
+                id: 'detail-continue-board-btn',
+                className: 'detail-continue-board-button primary-button',
+                attributes: {
+                  type: 'button',
+                  style: 'display: none;', // Hidden by default, shown for interim Journey boards
+                },
+                text: 'Continue',
               },
             ],
           },

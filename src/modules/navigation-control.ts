@@ -67,6 +67,23 @@ function updateNavigationVisibility(): void {
     return;
   }
 
+  // 🔥 USER REQUEST: Hide navigation if Journey screen is visible
+  // Journey screen has its own back button, doesn't need navigation icons
+  const journeyScreen = document.getElementById('journey-screen');
+  const journeyScreenVisible = journeyScreen && (
+    !journeyScreen.hidden && 
+    journeyScreen.style.display !== 'none' && 
+    journeyScreen.style.display !== '' &&
+    journeyScreen.classList.contains('show')
+  );
+  
+  if (journeyScreenVisible) {
+    navElement.style.display = 'none';
+    navElement.style.visibility = 'hidden';
+    logger.debug('📱 Navigation hidden: Journey screen active');
+    return;
+  }
+
   // Show navigation if home is visible
   // Check both display style and hidden attribute
   const homeVisible = home && (

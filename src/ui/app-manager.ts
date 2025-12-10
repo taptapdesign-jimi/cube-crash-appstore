@@ -31,7 +31,7 @@ class AppManager {
       'home': 'home',
       'game': 'app',
       'stats': 'stats-screen',
-      'collectibles': 'collectibles-screen',
+      'collectibles': 'journey-screen', // 🔥 FIX: Updated to journey-screen (renamed from collectibles-screen)
       'menu': 'menu-screen',
       'settings': 'settings-screen'
     };
@@ -127,9 +127,9 @@ class AppManager {
           // This prevents error handler from triggering loading screen reload
         }
       } else if (screen === 'collectibles') {
-        // 🔥 CRITICAL FIX: Add error handling for collectibles screen initialization
+        // 🔥 CRITICAL FIX: Add error handling for Journey screen initialization
         try {
-          // Initialize collectibles screen if needed
+          // Initialize Journey screen if needed
           const collectiblesManager = (window as any).collectiblesManager;
           if (collectiblesManager && typeof collectiblesManager.init === 'function') {
             try {
@@ -138,7 +138,7 @@ class AppManager {
             } catch (initError) {
               console.error('❌ Error initializing collectibles manager:', initError);
               logger.warn('⚠️ Error initializing collectibles manager, continuing:', initError);
-              // Don't throw - collectibles screen should still be shown even if init fails
+              // Don't throw - Journey screen should still be shown even if init fails
             }
           }
         } catch (error) {
@@ -265,19 +265,19 @@ class AppManager {
           logger.warn('⚠️ Failed to cleanup collectibles event listeners:', error);
         }
         
-        // 🔥 MEMORY LEAK FIX: Kill all GSAP animations on collectibles screen
+        // 🔥 MEMORY LEAK FIX: Kill all GSAP animations on Journey screen
         try {
           const gsap = (window as any).gsap || require('gsap');
-          const collectiblesScreen = document.getElementById('collectibles-screen');
-          if (collectiblesScreen && gsap) {
-            gsap.killTweensOf(collectiblesScreen.querySelectorAll('*'));
+          const journeyScreen = document.getElementById('journey-screen');
+          if (journeyScreen && gsap) {
+            gsap.killTweensOf(journeyScreen.querySelectorAll('*'));
             logger.info('🧹 Collectibles screen GSAP animations killed');
           }
         } catch (error) {
           logger.warn('⚠️ Failed to cleanup collectibles GSAP animations:', error);
         }
         
-        // Use fade-out for collectibles screen
+        // Use fade-out for Journey screen
         element.style.opacity = '0';
         
         // Hide after transition

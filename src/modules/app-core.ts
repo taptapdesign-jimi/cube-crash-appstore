@@ -2031,6 +2031,19 @@ function startLevel(n){
   level = n; // Set level to the board number
   boardNumber = n; // Set board number to the level number
   
+  // 🔥 JOURNEY PROGRESSION: Update currentRunState when starting a level
+  try {
+    import('./journey-progression-state.js').then(({ journeyProgressionState }) => {
+      const currentScore = score || 0;
+      journeyProgressionState.setCurrentRunState(n, currentScore);
+      console.log(`🗺️ Journey: Current run state set for board ${n} with score ${currentScore}`);
+    }).catch((error) => {
+      console.warn('⚠️ Failed to update Journey progression state in startLevel:', error);
+    });
+  } catch (error) {
+    console.warn('⚠️ Failed to update Journey progression state in startLevel:', error);
+  }
+  
   // STATS TRACKING: Update highest board reached
   console.log('🎯 Updating highest board to:', n);
   try {
@@ -2079,6 +2092,13 @@ wildMeter = 0;
   
   // 🔥 CRITICAL FIX: Skip rebuildBoard if loading saved state
   // This prevents creating an empty board before loadGameState restores tiles
+  // 🔥 JOURNEY PROGRESSION: Check if HUD drop should be triggered (from Journey Play Board)
+  if ((window as any).__ccTriggerHudDrop) {
+    _hudDropPending = true;
+    console.log('✅ HUD drop pending set to true (from Journey Play Board)');
+    delete (window as any).__ccTriggerHudDrop;
+  }
+  
   const skipRebuild = (window as any).__ccSkipRebuildBoard;
   if (skipRebuild) {
     console.log('🎯 Skipping rebuildBoard() - will load saved state instead');
@@ -6350,9 +6370,9 @@ async function showFinalScreen(){
   if (result?.action === 'menu') {
     try {
       // Navigation will be shown by markHomepageVisible() after slide animation
-      
+      // exitToMenu will handle returning to correct slide (Journey or homepage)
       await window.exitToMenu?.();
-      window.goToSlide?.(0, { animate: true });
+      // Don't call goToSlide here - exitToMenu handles it
     } catch {}
   } else {
     // 'retry' action - functions are called directly from board-fail-modal now
@@ -6651,6 +6671,21 @@ export function resumeGame() {
 
 export function restart() {
   console.log('🔄 RESTART: Starting restart function');
+  
+  // 🔥 JOURNEY PROGRESSION: Update state when restarting (retry after failure)
+  // Keep lastOpenedBoardId and set currentRunState for the same board
+  try {
+    import('./journey-progression-state.js').then(({ journeyProgressionState }) => {
+      const currentBoardId = boardNumber || 1;
+      journeyProgressionState.setLastOpenedBoardId(currentBoardId);
+      journeyProgressionState.setCurrentRunState(currentBoardId, 0);
+      console.log(`🗺️ Journey: Restarting board ${currentBoardId} - lastOpenedBoardId and currentRunState updated`);
+    }).catch((error) => {
+      console.warn('⚠️ Failed to update Journey progression state on restart:', error);
+    });
+  } catch (error) {
+    console.warn('⚠️ Failed to update Journey progression state on restart:', error);
+  }
   
   // 🔥 OPTIMIZATION: Clear all tracked timeouts before restart
   clearAllAppTimeouts();
