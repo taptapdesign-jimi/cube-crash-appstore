@@ -1422,9 +1422,34 @@ class UIManager {
       logger.info('✅ Collectibles exit animation completed');
     }
     
+    // 🔥 CRITICAL: Ensure Journey screen is completely hidden before showing homepage
+    const journeyScreen = document.getElementById('journey-screen');
+    if (journeyScreen) {
+      journeyScreen.classList.remove('show');
+      journeyScreen.classList.add('hidden');
+      journeyScreen.style.display = 'none';
+      journeyScreen.style.visibility = 'hidden';
+      journeyScreen.style.opacity = '0';
+      logger.info('✅ Journey screen completely hidden');
+    }
+    
     // Show homepage QUIETLY after exit animation completes
     this.showHomepageQuietly();
     this.setNavigationVisibility(true);
+    
+    // 🔥 CRITICAL: Force navigation visibility update after journey screen is hidden
+    // This ensures MutationObserver in navigation-control.ts detects the change
+    requestAnimationFrame(async () => {
+      try {
+        const { updateNavigationVisibility } = await import('./navigation-control.js');
+        if (typeof updateNavigationVisibility === 'function') {
+          updateNavigationVisibility();
+          logger.info('✅ Navigation visibility updated after journey screen hidden');
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to update navigation visibility:', error);
+      }
+    });
     
     // Step 2: Play enter animation for Journey slide AFTER exit animation completes
     console.log('🎬 Playing enter animation for Journey slide');
@@ -1804,8 +1829,19 @@ class UIManager {
 
   private setNavigationVisibility(visible: boolean): void {
     if (!this.elements.independentNav) return;
-    this.elements.independentNav.style.display = visible ? '' : 'none';
-    this.elements.independentNav.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    if (visible) {
+      // 🔥 CRITICAL: Explicitly set all properties to ensure visibility
+      this.elements.independentNav.style.display = 'block';
+      this.elements.independentNav.style.visibility = 'visible';
+      this.elements.independentNav.style.opacity = '1';
+      this.elements.independentNav.removeAttribute('hidden');
+      this.elements.independentNav.setAttribute('aria-hidden', 'false');
+    } else {
+      this.elements.independentNav.style.display = 'none';
+      this.elements.independentNav.style.visibility = 'hidden';
+      this.elements.independentNav.style.opacity = '0';
+      this.elements.independentNav.setAttribute('aria-hidden', 'true');
+    }
   }
   
   // Update loading progress

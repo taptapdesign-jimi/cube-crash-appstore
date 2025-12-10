@@ -43,7 +43,7 @@ export function initNavigationControl(): void {
 /**
  * Update navigation visibility based on current UI state
  */
-function updateNavigationVisibility(): void {
+export function updateNavigationVisibility(): void {
   const navElement = document.getElementById('independent-nav');
   if (!navElement) return;
 
@@ -74,12 +74,15 @@ function updateNavigationVisibility(): void {
     !journeyScreen.hidden && 
     journeyScreen.style.display !== 'none' && 
     journeyScreen.style.display !== '' &&
+    journeyScreen.style.visibility !== 'hidden' &&
+    journeyScreen.style.opacity !== '0' &&
     journeyScreen.classList.contains('show')
   );
   
   if (journeyScreenVisible) {
     navElement.style.display = 'none';
     navElement.style.visibility = 'hidden';
+    navElement.style.opacity = '0';
     logger.debug('📱 Navigation hidden: Journey screen active');
     return;
   }
