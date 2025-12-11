@@ -308,6 +308,37 @@ class CollectiblesManager {
       return;
     }
 
+    // 🔥 USER REQUEST: COMPLETELY hide homepage and slider container BEFORE showing Journey screen
+    // This ensures homepage slideri are NEAKTIVNI and NEVIDLJIVI when Journey is active
+    const homeElement = document.getElementById('home');
+    if (homeElement) {
+      homeElement.style.display = 'none';
+      homeElement.setAttribute('hidden', 'true');
+      homeElement.style.visibility = 'hidden';
+      homeElement.style.opacity = '0';
+      homeElement.style.zIndex = '-1';
+      logger.info('✅ Homepage completely hidden before showing Journey screen');
+    }
+    
+    // 🔥 CRITICAL: Hide slider container to prevent any homepage slides from showing
+    const sliderContainer = document.getElementById('slider-container');
+    if (sliderContainer) {
+      sliderContainer.style.display = 'none';
+      sliderContainer.style.visibility = 'hidden';
+      sliderContainer.style.opacity = '0';
+      sliderContainer.style.zIndex = '-1';
+      logger.info('✅ Slider container hidden - homepage slideri are now inactive');
+    }
+    
+    // Hide navigation (Journey has its own back button)
+    const navElement = document.getElementById('independent-nav');
+    if (navElement) {
+      navElement.style.display = 'none';
+      navElement.style.visibility = 'hidden';
+      navElement.style.opacity = '0';
+      logger.info('✅ Navigation hidden - Journey has own back button');
+    }
+
     // Preload already happens in constructor, skip await to show screen immediately
     // Images will load progressively in the background
     
@@ -349,7 +380,7 @@ class CollectiblesManager {
     
     // 🔥 CRITICAL: Set opacity to 0 FIRST so screen is invisible while GSAP sets initial state
     (screen as HTMLElement).style.opacity = '0';
-    logger.info('🎁 Removed hidden class and inline styles');
+    logger.info('🎁 Removed hidden class and inline styles from Journey screen');
     
     // Render cards BEFORE animation so GSAP can find them
     // Check if this is Journey screen (has journey-boards-container)
@@ -433,14 +464,25 @@ class CollectiblesManager {
   async hideCollectibles(): Promise<void> {
     const screen = document.getElementById('journey-screen');
     if (screen) {
-      // 🎬 CRITICAL: Trigger Journey screen exit animation (pop-out) BEFORE hiding
-      try {
-        const { animateCollectiblesScreenExit } = await import('./ui/collectibles-animations.js');
-        console.log('🎬 About to call animateCollectiblesScreenExit()...');
-        await animateCollectiblesScreenExit();
-        console.log('✅ Exit animation completed');
-      } catch (error) {
-        console.error('❌ Failed to trigger collectibles exit animation:', error);
+      // 🔥 APP STORE FIX: Check if this is back button (return to homepage) or interim card (go to game)
+      const cameFromJourney = (window as any).__ccCameFromJourney === true;
+      const isBackButton = !cameFromJourney; // Back button = return to homepage slide 2
+      
+      if (isBackButton) {
+        // 🎬 BACK BUTTON pathway: Journey → Homepage Slide 2 (Journey slide)
+        // Step 1: Play Journey screen exit animation
+        try {
+          const { animateCollectiblesScreenExit } = await import('./ui/collectibles-animations.js');
+          console.log('🎬 Step 1: Journey exit animation starting...');
+          await animateCollectiblesScreenExit();
+          console.log('✅ Step 1: Journey exit animation completed');
+        } catch (error) {
+          console.error('❌ Failed to trigger Journey exit animation:', error);
+        }
+      } else {
+        // 🎮 INTERIM CARD pathway: Journey → Game
+        // Skip exit animation - already played in continueFromInterimBoard
+        console.log('🎮 Interim card pathway: Skipping exit animation (already played)');
       }
       
       // 🔥 FIX: Clean up journey board elements before hiding screen
@@ -451,9 +493,147 @@ class CollectiblesManager {
       }
       
       screen.classList.remove('show');
-      
-      // Hide after animation completes
       screen.classList.add('hidden');
+      
+      // 🔥 USER REQUEST: Only show homepage if this is back button pathway
+      if (!isBackButton) {
+        // Interim card pathway - don't show homepage
+        console.log('🎮 Interim card pathway: Not showing homepage');
+        return; // Exit early
+      }
+      
+      // 🔥 BACK BUTTON PATHWAY: Journey exit → Homepage slide 2 enter
+      console.log('🏠 Step 2: Showing homepage slide 2 after Journey exit animation');
+      
+      // Step 2a: Show homepage element
+      const homeElement = document.getElementById('home');
+      if (homeElement) {
+        homeElement.removeAttribute('hidden');
+        homeElement.style.removeProperty('display');
+        homeElement.style.removeProperty('visibility');
+        homeElement.style.removeProperty('opacity');
+        homeElement.style.removeProperty('z-index');
+        logger.info('✅ Homepage element shown');
+      }
+      
+      // Step 2b: Show slider container
+      const sliderContainerEl = document.getElementById('slider-container');
+      if (sliderContainerEl) {
+        sliderContainerEl.style.removeProperty('display');
+        sliderContainerEl.style.removeProperty('visibility');
+        sliderContainerEl.style.removeProperty('opacity');
+        sliderContainerEl.style.removeProperty('z-index');
+        logger.info('✅ Slider container shown');
+      }
+      
+      // Step 2c: Ensure ALL slides are visible (slider uses translateX)
+      const allSlides = document.querySelectorAll('.slider-slide');
+      allSlides.forEach((slide, index) => {
+        (slide as HTMLElement).style.display = 'block';
+        (slide as HTMLElement).style.visibility = 'visible';
+        (slide as HTMLElement).style.opacity = '1';
+        
+        // Ensure ALL content within each slide is visible
+        const slideContent = slide.querySelector('.slide-content');
+        const heroImage = slide.querySelector('.hero-image');
+        const slideText = slide.querySelector('.slide-text');
+        const slideTagline = slide.querySelector('.slide-tagline');
+        const slideButton = slide.querySelector('.slide-button');
+        
+        if (slideContent) (slideContent as HTMLElement).style.display = 'flex';
+        if (heroImage) (heroImage as HTMLElement).style.display = 'block';
+        if (slideText) (slideText as HTMLElement).style.display = 'block';
+        if (slideTagline) (slideTagline as HTMLElement).style.display = 'block';
+        if (slideButton) (slideButton as HTMLElement).style.display = 'flex';
+      });
+      logger.info('✅ All slides and content made visible');
+      
+      // Step 2d: Position slider on Journey slide (index 1) BEFORE enter animation
+      const sliderWrapper = document.getElementById('slider-wrapper') as HTMLElement;
+      if (sliderWrapper && sliderContainerEl) {
+        const slideWidth = sliderContainerEl.offsetWidth || window.innerWidth;
+        const targetOffset = -1 * slideWidth; // Slide 2 (index 1)
+        
+        // Set position immediately using GSAP
+        if (typeof gsap !== 'undefined') {
+          gsap.set(sliderWrapper, { x: targetOffset, immediateRender: true });
+        } else {
+          sliderWrapper.style.transform = `translateX(${targetOffset}px)`;
+        }
+        console.log(`✅ Slider positioned at slide 2 (index 1), offset: ${targetOffset}px`);
+      }
+      
+      // Step 2e: Set slide 2 as active
+      allSlides.forEach((slide, index) => {
+        if (index === 1) {
+          slide.classList.add('active');
+        } else {
+          slide.classList.remove('active');
+        }
+      });
+      
+      // Step 2f: Set nav button 2 as active
+      const navButtons = document.querySelectorAll('.independent-nav-button');
+      navButtons.forEach((button, index) => {
+        if (index === 1) {
+          button.classList.add('active');
+        } else {
+          button.classList.remove('active');
+        }
+      });
+      console.log('✅ Slide 2 and nav button 2 marked as active');
+      
+      // Step 2g: Update sliderManager state
+      const sliderManager = (window as any).sliderManager;
+      if (sliderManager) {
+        sliderManager.currentSlide = 1;
+        console.log('✅ SliderManager state updated to slide 2 (index 1)');
+      }
+      
+      // Step 2h: Show navigation
+      const navElement = document.getElementById('independent-nav');
+      if (navElement) {
+        navElement.style.removeProperty('display');
+        navElement.style.removeProperty('visibility');
+        navElement.style.removeProperty('opacity');
+        logger.info('✅ Navigation shown');
+      }
+      
+      // Step 2i: Force DOM reflow to ensure .active class is applied
+      const activeSlideCheck = document.querySelector('.slider-slide.active');
+      if (activeSlideCheck) {
+        void (activeSlideCheck as HTMLElement).offsetHeight; // Force reflow
+        const slideIndex = Array.from(allSlides).indexOf(activeSlideCheck);
+        console.log(`✅ Active slide verified: index ${slideIndex} (should be 1 for Journey slide)`);
+        if (slideIndex !== 1) {
+          console.warn(`⚠️ WARNING: Active slide is ${slideIndex}, expected 1! Fixing...`);
+          // Fix: Set slide 2 as active again
+          allSlides.forEach((slide, idx) => {
+            if (idx === 1) slide.classList.add('active');
+            else slide.classList.remove('active');
+          });
+        }
+      }
+      
+      // Step 3: Trigger homepage slide 2 ENTER animation
+      // 🔥 USER REQUEST: Journey exit → Slide 2 enter animacija
+      // Use requestAnimationFrame to ensure DOM is fully updated before animation
+      await new Promise(resolve => requestAnimationFrame(() => {
+        requestAnimationFrame(async () => {
+          // Final verification before animation
+          const finalActiveSlide = document.querySelector('.slider-slide.active');
+          const finalSlideIndex = finalActiveSlide ? Array.from(allSlides).indexOf(finalActiveSlide) : -1;
+          if (finalSlideIndex === 1) {
+            console.log('🎬 Step 3: Triggering slide 2 enter animation...');
+            const { animateSliderEnter } = await import('./utils/animations.js');
+            animateSliderEnter();
+            logger.info('✅ Homepage slide 2 enter animation triggered - Final destination: Slide 2');
+          } else {
+            console.error(`❌ CRITICAL: Active slide is ${finalSlideIndex}, not 1! Cannot animate slide 2.`);
+          }
+          resolve(undefined);
+        });
+      }));
     }
   }
 

@@ -174,8 +174,31 @@ class JourneyBoardsManager {
       }
     }
     
-    // Remove background and cards containers from journey screen
+    // 🔥 APP STORE FIX: Kill all GSAP animations on Journey cards and smoke particles
     const journeyScreen = document.getElementById('journey-screen');
+    if (journeyScreen) {
+      const cards = journeyScreen.querySelectorAll('.collectible-card-wrapper');
+      const smokeParticles = journeyScreen.querySelectorAll('.smoke-particle');
+      
+      // Kill card animations
+      cards.forEach(card => {
+        if (typeof gsap !== 'undefined') {
+          gsap.killTweensOf(card);
+        }
+      });
+      
+      // Kill smoke particle animations
+      smokeParticles.forEach(particle => {
+        if (typeof gsap !== 'undefined') {
+          gsap.killTweensOf(particle);
+        }
+        particle.remove();
+      });
+      
+      logger.info(`✅ Killed GSAP tweens for ${cards.length} cards and removed ${smokeParticles.length} smoke particles`);
+    }
+    
+    // Remove background and cards containers from journey screen
     if (journeyScreen) {
       const bgContainer = journeyScreen.querySelector('.journey-bg-container');
       const cardsContainer = journeyScreen.querySelector('.journey-cards-container');
@@ -784,18 +807,55 @@ class JourneyBoardsManager {
         logger.info('✅ Journey card idle bounce stopped');
       }
       
-      // Step 2: Close Journey screen with exit animation
+      // Step 2: Set Journey progression state BEFORE exit animation
+      const { journeyProgressionState } = await import('./journey-progression-state.js');
+      journeyProgressionState.setLastOpenedBoardId(board.id);
+      
+      // 🔥 USER REQUEST: Mark that we came from Journey screen BEFORE exit animation
+      // This ensures exitToMenu returns to Journey (slide 1) instead of homepage (slide 0)
+      (window as any).__ccCameFromJourney = true;
+      (window as any).__ccCameFromHomepage = false;
+      // 🔥 FIX: Also store in localStorage for persistence across game sessions
+      localStorage.setItem('__ccCameFromJourney', 'true');
+      localStorage.removeItem('__ccCameFromHomepage');
+      logger.info('🗺️ Marked as coming from Journey screen (interim card click) - stored in localStorage');
+      
+      // 🔥 APP STORE FIX: Hide homepage IMMEDIATELY before Journey exit animation
+      // This prevents homepage leftover elements from showing during transition
+      const homeElement = document.getElementById('home');
+      const sliderContainer = document.getElementById('slider-container');
+      
+      if (homeElement) {
+        homeElement.style.display = 'none';
+        homeElement.style.visibility = 'hidden';
+        homeElement.style.opacity = '0';
+        homeElement.style.zIndex = '-9999';
+        homeElement.setAttribute('hidden', 'true');
+        logger.info('✅ Homepage hidden BEFORE Journey exit animation');
+      }
+      
+      if (sliderContainer) {
+        sliderContainer.style.display = 'none';
+        sliderContainer.style.visibility = 'hidden';
+        sliderContainer.style.opacity = '0';
+        sliderContainer.style.zIndex = '-9999';
+        logger.info('✅ Slider container hidden BEFORE Journey exit animation');
+      }
+      
+      logger.info('✅ Homepage completely hidden before Journey exit - no leftovers possible');
+      
+      // Step 3: Close Journey screen with exit animation (ONLY Journey exit, NO slider exit)
       const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
       const journeyExitPromise = animateCollectiblesScreenExit();
       
-      // Step 3: Wait for exit animation to complete
+      // Step 4: Wait for exit animation to complete
       await journeyExitPromise;
       logger.info('✅ Journey exit animation completed');
       
-      // Step 4: Cleanup Journey boards manager
+      // Step 5: Cleanup Journey boards manager (memory leak prevention)
       this.cleanup();
       
-      // Step 5: Hide Journey screen completely (ensure it's not visible during game start)
+      // Step 6: Hide Journey screen completely (ensure it's not visible during game start)
       const journeyScreen = document.getElementById('journey-screen');
       if (journeyScreen) {
         journeyScreen.classList.add('hidden');
@@ -807,30 +867,20 @@ class JourneyBoardsManager {
         logger.info('✅ Journey screen completely hidden');
       }
       
-      // Step 6: Also call hideCollectibles to ensure proper cleanup
+      // Step 7: Also call hideCollectibles to ensure proper cleanup (memory leak prevention)
       const collectiblesManager = (window as any).collectiblesManager;
       if (collectiblesManager && typeof collectiblesManager.hideCollectibles === 'function') {
         await collectiblesManager.hideCollectibles();
       }
       
-      // Step 6: Set Journey progression state
-      const { journeyProgressionState } = await import('./journey-progression-state.js');
-      journeyProgressionState.setLastOpenedBoardId(board.id);
-      
-      // 🔥 USER REQUEST: Mark that we came from Journey screen
-      // This ensures exitToMenu returns to Journey (slide 1) instead of homepage (slide 0)
-      (window as any).__ccCameFromJourney = true;
-      (window as any).__ccCameFromHomepage = false;
-      // 🔥 FIX: Also store in localStorage for persistence across game sessions
-      localStorage.setItem('__ccCameFromJourney', 'true');
-      localStorage.removeItem('__ccCameFromHomepage');
-      logger.info('🗺️ Marked as coming from Journey screen (interim card click) - stored in localStorage');
-      
-      // Step 7: Continue game with saved state (resume interim game)
-      if (typeof (window as any).continueGameWithSavedState === 'function') {
-        await (window as any).continueGameWithSavedState();
+      // Step 8: Start NEW game IMMEDIATELY (not continue) - interim card should start fresh like "New Game"
+      // 🔥 USER REQUEST: Use startNewRun() NOT continueGameWithSavedState()
+      // This ensures HUD drop animation is visible (same as New Game from homepage)
+      if (typeof (window as any).startNewRun === 'function') {
+        logger.info(`🎮 Starting NEW run for board ${board.id} with HUD drop animation`);
+        await (window as any).startNewRun(board.id);
       } else {
-        logger.error('❌ continueGameWithSavedState function not found');
+        logger.error('❌ startNewRun function not found');
       }
     } catch (error) {
       logger.error(`❌ Failed to continue game from interim board ${board.id}:`, error);

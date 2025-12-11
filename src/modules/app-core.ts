@@ -6536,9 +6536,14 @@ function restartGame(){
     console.warn('⚠️ RESTART GAME: Error killing GSAP animations:', e);
   }
   
-  // Reset game state WITHOUT touching HUD positioning
+  // 🔥 USER REQUEST: Keep current boardNumber (don't reset to 1)
+  // This ensures Play Again restarts the same board, not board 1
+  const currentBoard = boardNumber || 1;
+  console.log(`🔄 RESTART: Keeping current board ${currentBoard} (not resetting to 1)`);
+  
+  // Reset game state WITHOUT touching HUD positioning or boardNumber
   score = 0;
-  boardNumber = 1;
+  // boardNumber stays the same - don't reset to 1!
   moves = MOVES_MAX;
   hudResetCombo();
   try { comboIdleTimer?.kill?.(); } catch {}
@@ -6610,15 +6615,11 @@ function restartGame(){
     console.error('❌ EDGE CASE: Error in force reset:', error);
   }
   
-  // Rebuild board
-  console.log('🔄 RESTART: About to call rebuildBoard()...');
-  rebuildBoard();
-  console.log('✅ RESTART: rebuildBoard() completed');
-  
-  // CRITICAL: Call layout to restart idle bounce and position everything
-  console.log('🔄 RESTART: Calling layoutBoard() to restart idle bounce...');
-  layoutBoard();
-  console.log('✅ RESTART: layoutBoard() completed');
+  // 🔥 USER REQUEST: Call startLevel() with current boardNumber instead of just rebuildBoard()
+  // This ensures board-specific rules are applied and the correct board is restarted
+  console.log(`🔄 RESTART: Calling startLevel(${currentBoard}) to restart board ${currentBoard}...`);
+  startLevel(currentBoard);
+  console.log(`✅ RESTART: startLevel(${currentBoard}) completed`);
   
   // Reinitialize background layer if it was lost
   if (!backgroundLayer) {

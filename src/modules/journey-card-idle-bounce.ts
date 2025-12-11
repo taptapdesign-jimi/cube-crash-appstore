@@ -47,9 +47,12 @@ export function startJourneyCardIdleBounce(container: HTMLElement | null): void 
   if (!ENABLE_JOURNEY_CARD_IDLE_BOUNCE) return;
   if (!container) return;
   
-  // Get all unlocked cards (cards with 'unlocked' class)
-  const allCards = container.querySelectorAll('.journey-board-card.unlocked') as NodeListOf<HTMLElement>;
-  state.cards = Array.from(allCards).filter(card => card && card.parentElement);
+  // 🔥 USER REQUEST: Get all unlocked AND interim cards (cards with 'unlocked' or 'interim' class)
+  // Interim cards should also have idle bounce and smoke animations
+  const unlockedCards = container.querySelectorAll('.journey-board-card.unlocked') as NodeListOf<HTMLElement>;
+  const interimCards = container.querySelectorAll('.journey-board-card.interim') as NodeListOf<HTMLElement>;
+  const allCards = Array.from(unlockedCards).concat(Array.from(interimCards));
+  state.cards = allCards.filter(card => card && card.parentElement);
   state.container = container;
   state.isActive = true;
   state.lastInteractionTime = 0; // No idle tracking needed
@@ -58,7 +61,7 @@ export function startJourneyCardIdleBounce(container: HTMLElement | null): void 
   // Start immediately - no idle wait
   animateRandomCard();
   
-  console.log('✅ Journey card bounce started (continuous):', state.cards.length, 'cards');
+  console.log('✅ Journey card bounce started (continuous):', state.cards.length, 'cards (unlocked + interim)');
 }
 
 export function stopJourneyCardIdleBounce(): void {
@@ -171,9 +174,12 @@ export function notifyJourneyInteraction(): void {
 function animateRandomCard(): void {
   if (!state.isActive || !state.container) return;
   
-  // Refresh card list (in case cards were added/removed)
-  const allCards = state.container.querySelectorAll('.journey-board-card.unlocked') as NodeListOf<HTMLElement>;
-  state.cards = Array.from(allCards).filter(card => 
+  // 🔥 USER REQUEST: Refresh card list (in case cards were added/removed)
+  // Include both unlocked AND interim cards
+  const unlockedCards = state.container.querySelectorAll('.journey-board-card.unlocked') as NodeListOf<HTMLElement>;
+  const interimCards = state.container.querySelectorAll('.journey-board-card.interim') as NodeListOf<HTMLElement>;
+  const allCards = Array.from(unlockedCards).concat(Array.from(interimCards));
+  state.cards = allCards.filter(card => 
     card && 
     card.parentElement && 
     !state.activeAnimations.has(card) &&
@@ -871,9 +877,12 @@ function smokeBubblesAtCard(
 
 export function updateJourneyCardList(container: HTMLElement | null): void {
   if (!container) return;
-  const allCards = container.querySelectorAll('.journey-board-card.unlocked') as NodeListOf<HTMLElement>;
-  state.cards = Array.from(allCards).filter(card => card && card.parentElement);
-  console.log('🔄 Updated journey card list:', state.cards.length, 'cards');
+  // 🔥 USER REQUEST: Include both unlocked AND interim cards
+  const unlockedCards = container.querySelectorAll('.journey-board-card.unlocked') as NodeListOf<HTMLElement>;
+  const interimCards = container.querySelectorAll('.journey-board-card.interim') as NodeListOf<HTMLElement>;
+  const allCards = Array.from(unlockedCards).concat(Array.from(interimCards));
+  state.cards = allCards.filter(card => card && card.parentElement);
+  console.log('🔄 Updated journey card list:', state.cards.length, 'cards (unlocked + interim)');
 }
 
 // Exports for easy access

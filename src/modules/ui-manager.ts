@@ -1193,6 +1193,23 @@ class UIManager {
   private showCollectiblesScreenWithAnimation(): void {
     logger.info('🗺️ Showing Journey screen - with exit animation');
     
+    // 🔥 APP STORE FIX: Check if we're coming from game exit (Journey pathway)
+    // If yes, DON'T play homepage slider animation or background gradient animation
+    const cameFromJourney = (window as any).__ccCameFromJourney === true || 
+                            localStorage.getItem('__ccCameFromJourney') === 'true';
+    const isGameExitFlow = cameFromJourney;
+    
+    if (isGameExitFlow) {
+      logger.info('🗺️ Journey pathway (from game exit) - SKIPPING homepage slider and background animations');
+      // Just show Journey screen directly without homepage slider involvement
+      const collectiblesManager = (window as any).collectiblesManager;
+      if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
+        collectiblesManager.showCollectibles();
+        logger.info('✅ Journey screen shown directly (game exit pathway)');
+      }
+      return; // Exit early - no homepage slider or background animations
+    }
+    
     // CRITICAL: Switch to Journey slide (index 1) BEFORE animation so its elements animate out
     // (CTA, text, hero). We still open the Journey screen after the animation.
     const slides = document.querySelectorAll('.slider-slide');
@@ -1216,7 +1233,7 @@ class UIManager {
     void document.querySelector('.slider-slide.active')?.offsetHeight;
     
     // 🎨 PREMIUM FADE: Animate background color from gradient to solid color (SMOOTH FADE)
-    // This creates a premium transition effect when entering individual screens
+    // This creates a premium transition effect when entering from HOMEPAGE CTA only
     const body = document.body;
     const globalBg = document.getElementById('global-bg');
     const appElement = document.getElementById('app');
@@ -1387,33 +1404,16 @@ class UIManager {
       console.log('✅ [Collectibles EXIT] App element background fade animation started from:', currentAppBg);
     }
     
-    // 🔥 USER REQUEST: Switch to Journey slide (index 1) and ensure all slides are visible
-    // This prevents empty slides when user goes back from Journey screen
+    // 🔥 USER REQUEST: Ensure all slides are visible (slider position controlled by collectibles-manager.ts)
+    // Back button returns to Journey slide (index 1), NOT homepage slide (index 0)
     const slides = document.querySelectorAll('.slider-slide');
-    const navButtons = document.querySelectorAll('.independent-nav-button');
-    slides.forEach((slide, index) => {
-      if (index === 1) {
-        // Journey slide (index 1) should be active
-        slide.classList.add('active');
-        (slide as HTMLElement).style.display = 'block';
-        (slide as HTMLElement).style.visibility = 'visible';
-        (slide as HTMLElement).style.opacity = '1';
-      } else {
-        // Other slides should be visible but not active
-        slide.classList.remove('active');
-        (slide as HTMLElement).style.display = 'block';
-        (slide as HTMLElement).style.visibility = 'visible';
-        (slide as HTMLElement).style.opacity = '1';
-      }
+    slides.forEach((slide) => {
+      // All slides should be visible (slider uses translateX for positioning)
+      (slide as HTMLElement).style.display = 'block';
+      (slide as HTMLElement).style.visibility = 'visible';
+      (slide as HTMLElement).style.opacity = '1';
     });
-    navButtons.forEach((button, index) => {
-      if (index === 1) {
-        button.classList.add('active');
-      } else {
-        button.classList.remove('active');
-      }
-    });
-    console.log('✅ All slides made visible for Journey screen back button');
+    console.log('✅ All slides made visible - slider position controlled by collectibles-manager.ts');
     
     // 🔥 CRITICAL FIX: Wait for exit animation to complete (it started immediately above)
     if (exitAnimationPromise) {
@@ -1451,9 +1451,10 @@ class UIManager {
       }
     });
     
-    // Step 2: Play enter animation for Journey slide AFTER exit animation completes
-    console.log('🎬 Playing enter animation for Journey slide');
-    animateSliderEnter();
+    // 🔥 USER REQUEST: Slider position and enter animation controlled by collectibles-manager.ts
+    // Back button returns to Journey slide (index 1), NOT homepage slide (index 0)
+    // collectibles-manager.ts will handle slider positioning and animateSliderEnter() call
+    console.log('✅ Slider position and enter animation delegated to collectibles-manager.ts');
   }
   
   // Show Journey screen

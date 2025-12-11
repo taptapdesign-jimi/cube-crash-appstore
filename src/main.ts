@@ -340,32 +340,88 @@ async function startNewRun(boardId: number): Promise<void> {
   localStorage.removeItem('cc_board_completed');
   localStorage.removeItem('cubeCrash_gameState');
   
-  // Play exit animation
-  animateSliderExit();
+  // 🔥 USER REQUEST: Check if we came from Journey screen - skip slider exit animation
+  const cameFromJourney = (window as any).__ccCameFromJourney === true;
   
-  // Wait for exit animation, then start game
-  setTimeout(async () => {
+  // 🔥 USER REQUEST: If NOT from Journey, mark as coming from homepage
+  // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
+  if (!cameFromJourney) {
+    (window as any).__ccCameFromHomepage = true;
+    (window as any).__ccCameFromJourney = false;
+    localStorage.setItem('__ccCameFromHomepage', 'true');
+    localStorage.removeItem('__ccCameFromJourney');
+    console.log('🏠 Marked as coming from homepage (startNewRun from bottom sheet)');
+    // Only play slider exit animation if we came from homepage
+    animateSliderExit();
+  } else {
+    // 🔥 USER REQUEST: Journey screen exit animation already played in continueFromInterimBoard
+    // DO NOT play slider exit animation - just hide homepage and show app immediately
+    logger.info('🗺️ Skipping slider exit animation - Journey screen exit already completed');
+    // Hide homepage immediately (no animation)
     uiManager.hideHomepage();
+    // Show app element immediately
     uiManager.showApp();
-    
+  }
+  
+  // 🔥 APP STORE FIX: Event-driven approach for canvas visibility
+  if (cameFromJourney) {
     try {
-      // Set flag so boot() starts at the correct board
+      // Set flags BEFORE booting game
       (window as any).__ccStartAtLevel = boardId;
-      console.log(`🎯 Setting __ccStartAtLevel to ${boardId} for new run`);
+      (window as any).__ccTriggerHudDrop = true;
+      logger.info(`🎯 Starting board ${boardId} from Journey with HUD drop animation`);
       
-      // Boot the game
+      // Boot game and wait for canvas to be created
       await bootGame();
+      
+      // 🔥 APP STORE FIX: Wait for canvas to be added to DOM (event-driven)
+      const appElement = document.getElementById('app');
+      if (appElement) {
+        // Wait for next paint cycle to ensure canvas is rendered
+        await new Promise(resolve => requestAnimationFrame(() => {
+          requestAnimationFrame(resolve);
+        }));
+        logger.info('✅ Canvas rendered and visible');
+      }
+      
+      // Layout game (this triggers sweetPopIn which triggers HUD drop)
       await layoutGame();
       
-      // Clear flag after boot
+      // Clear flags after boot
       delete (window as any).__ccStartAtLevel;
+      delete (window as any).__ccTriggerHudDrop;
       
-      logger.info(`✅ New run started for board ${boardId}`);
+      logger.info(`✅ New run started for board ${boardId} from Journey with visible animations`);
     } catch (error) {
       logger.error(`❌ Failed to start new run for board ${boardId}:`, error);
       delete (window as any).__ccStartAtLevel;
+      delete (window as any).__ccTriggerHudDrop;
     }
-  }, 770);
+  } else {
+    // Wait for exit animation (770ms), then start game
+    setTimeout(async () => {
+      uiManager.hideHomepage();
+      uiManager.showApp();
+      
+      try {
+        // Set flag so boot() starts at the correct board
+        (window as any).__ccStartAtLevel = boardId;
+        console.log(`🎯 Setting __ccStartAtLevel to ${boardId} for new run`);
+        
+        // Boot the game
+        await bootGame();
+        await layoutGame();
+        
+        // Clear flag after boot
+        delete (window as any).__ccStartAtLevel;
+        
+        logger.info(`✅ New run started for board ${boardId}`);
+      } catch (error) {
+        logger.error(`❌ Failed to start new run for board ${boardId}:`, error);
+        delete (window as any).__ccStartAtLevel;
+      }
+    }, 770);
+  }
 }
 
 // Continue game with saved state - NOW TIED TO JOURNEY PROGRESSION
@@ -380,22 +436,32 @@ async function startNewRun(boardId: number): Promise<void> {
     const currentRunState = journeyProgressionState.getCurrentRunState();
     const savedGame = localStorage.getItem('cc_saved_game');
     
-    // Case A: Active in-progress run - resume exactly where they left off
-    if (currentRunState && currentRunState.inProgress && savedGame) {
-      logger.info(`🎮 Case A: Resuming active run for board ${currentRunState.boardId}`);
-      
-      // 🔥 USER REQUEST: Check if we came from Journey screen - skip slider exit animation
-      const cameFromJourney = (window as any).__ccCameFromJourney === true;
-      
-      if (!cameFromJourney) {
-        // Only play slider exit animation if we came from homepage
-        animateSliderExit();
-      } else {
-        // Journey screen exit animation already played - just hide homepage and show app immediately
-        logger.info('🗺️ Skipping slider exit animation - already came from Journey screen');
-        uiManager.hideHomepage();
-        uiManager.showApp();
-      }
+      // Case A: Active in-progress run - resume exactly where they left off
+      if (currentRunState && currentRunState.inProgress && savedGame) {
+        logger.info(`🎮 Case A: Resuming active run for board ${currentRunState.boardId}`);
+        
+        // 🔥 USER REQUEST: Check if we came from Journey screen - skip slider exit animation
+        const cameFromJourney = (window as any).__ccCameFromJourney === true;
+        
+        // 🔥 USER REQUEST: If NOT from Journey, mark as coming from homepage
+        // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
+        if (!cameFromJourney) {
+          (window as any).__ccCameFromHomepage = true;
+          (window as any).__ccCameFromJourney = false;
+          localStorage.setItem('__ccCameFromHomepage', 'true');
+          localStorage.removeItem('__ccCameFromJourney');
+          console.log('🏠 Marked as coming from homepage (Continue from bottom sheet)');
+          // Only play slider exit animation if we came from homepage
+          animateSliderExit();
+        } else {
+          // 🔥 USER REQUEST: Journey screen exit animation already played in continueFromInterimBoard
+          // DO NOT play slider exit animation - just hide homepage and show app immediately
+          logger.info('🗺️ Skipping slider exit animation - Journey screen exit already completed');
+          // Hide homepage immediately (no animation)
+          uiManager.hideHomepage();
+          // Show app element immediately
+          uiManager.showApp();
+        }
       
       // 🔥 USER REQUEST: If came from Journey, start immediately (no delay)
       // Journey exit animation already completed, so we can start game right away
@@ -529,103 +595,8 @@ async function startNewRun(boardId: number): Promise<void> {
 };
 
 // 🔥 JOURNEY PROGRESSION: Export startNewRun function globally (for Continue button)
-(window as any).startNewRun = async (boardId: number) => {
-  logger.info(`🎮 startNewRun called for board ${boardId}`);
-  
-  // Import journey progression state
-  const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
-  
-  // Set lastOpenedBoardId and currentRunState
-  journeyProgressionState.setLastOpenedBoardId(boardId);
-  journeyProgressionState.setCurrentRunState(boardId, 0);
-  
-  // Clear any saved game state (starting fresh)
-  localStorage.removeItem('cc_saved_game');
-  localStorage.removeItem('cc_board_completed');
-  localStorage.removeItem('cubeCrash_gameState');
-  
-  // 🔥 USER REQUEST: Check if we came from Journey screen - skip slider exit animation
-  const cameFromJourney = (window as any).__ccCameFromJourney === true;
-  
-  if (!cameFromJourney) {
-    // Only play slider exit animation if we came from homepage
-    animateSliderExit();
-  } else {
-    // Journey screen exit animation already played - just hide homepage and show app immediately
-    logger.info('🗺️ Skipping slider exit animation - already came from Journey screen');
-    uiManager.hideHomepage();
-    uiManager.showApp();
-  }
-  
-  // 🔥 USER REQUEST: If came from Journey, start immediately (no delay)
-  // Journey exit animation already completed, so we can start game right away
-  if (cameFromJourney) {
-    // 🔥 CRITICAL: Hide Journey screen and homepage BEFORE starting game
-    // This ensures clean transition and that animations are visible
-    const journeyScreen = document.getElementById('journey-screen');
-    if (journeyScreen) {
-      journeyScreen.classList.add('hidden');
-      journeyScreen.style.display = 'none';
-      journeyScreen.style.visibility = 'hidden';
-      journeyScreen.style.opacity = '0';
-      console.log('✅ Journey screen hidden before game start');
-    }
-    
-    // Hide homepage
-    uiManager.hideHomepage();
-    
-    // Show app element BEFORE booting game (so animations are visible)
-    uiManager.showApp();
-    console.log('✅ App element shown before game boot');
-    
-    // Start immediately - no delay needed
-    try {
-      // Set flag so boot() starts at the correct board
-      (window as any).__ccStartAtLevel = boardId;
-      // 🔥 USER REQUEST: Trigger HUD drop animation when starting new run from Journey
-      (window as any).__ccTriggerHudDrop = true;
-      console.log(`🎯 Setting __ccStartAtLevel to ${boardId} and __ccTriggerHudDrop for new run from Journey`);
-      
-      // Boot the game
-      await bootGame();
-      await layoutGame();
-      
-      // Clear flag after boot
-      delete (window as any).__ccStartAtLevel;
-      delete (window as any).__ccTriggerHudDrop;
-      
-      logger.info(`✅ New run started for board ${boardId} from Journey`);
-    } catch (error) {
-      logger.error(`❌ Failed to start new run for board ${boardId}:`, error);
-      delete (window as any).__ccStartAtLevel;
-      delete (window as any).__ccTriggerHudDrop;
-    }
-  } else {
-    // Wait for exit animation (770ms), then start game
-    setTimeout(async () => {
-      uiManager.hideHomepage();
-      uiManager.showApp();
-      
-      try {
-        // Set flag so boot() starts at the correct board
-        (window as any).__ccStartAtLevel = boardId;
-        console.log(`🎯 Setting __ccStartAtLevel to ${boardId} for new run`);
-        
-        // Boot the game
-        await bootGame();
-        await layoutGame();
-        
-        // Clear flag after boot
-        delete (window as any).__ccStartAtLevel;
-        
-        logger.info(`✅ New run started for board ${boardId}`);
-      } catch (error) {
-        logger.error(`❌ Failed to start new run for board ${boardId}:`, error);
-        delete (window as any).__ccStartAtLevel;
-      }
-    }, 770);
-  }
-};
+// Simply reference the local startNewRun function to avoid code duplication
+(window as any).startNewRun = startNewRun;
 
 // 🔥 JOURNEY PROGRESSION: Export startNewRunFromJourney function (with board enter animation)
 (window as any).startNewRunFromJourney = async (boardId: number) => {
@@ -1028,18 +999,18 @@ async function startNewRun(boardId: number): Promise<void> {
     }
     
     // 🔥 USER REQUEST: Show navigation and homepage ONLY if returning to homepage (slide 0)
-    // If returning to Journey screen (slide 1), hide homepage and navigation
+    // If returning to Journey screen (slide 1), hide homepage and navigation IMMEDIATELY
     if (targetSlide === 0) {
       // Show navigation and homepage for homepage slider
       uiManager.showNavigation();
       uiManager.showHomepageQuietly();
       console.log('✅ Navigation and homepage shown - returning to homepage slider');
     } else {
-      // 🔥 CRITICAL: Hide homepage COMPLETELY when returning to Journey screen
-      // This ensures Journey screen is visible, not homepage slider
-      uiManager.hideHomepage();
+      // 🔥 CRITICAL: Hide homepage and slider container IMMEDIATELY when returning to Journey screen
+      // This prevents homepage slider (especially slide 2) from being visible in background
+      // Do this BEFORE resetting slider position to avoid visual glitches
       
-      // 🔥 CRITICAL: Also ensure homepage element is completely hidden
+      // Hide homepage element completely
       const homeElement = document.getElementById('home');
       if (homeElement) {
         homeElement.style.display = 'none';
@@ -1049,6 +1020,19 @@ async function startNewRun(boardId: number): Promise<void> {
         homeElement.style.zIndex = '-1';
         console.log('✅ Homepage element completely hidden - Journey screen will be visible');
       }
+      
+      // 🔥 CRITICAL: Hide slider container to prevent slide 2 from showing in background
+      const sliderContainer = document.getElementById('slider-container');
+      if (sliderContainer) {
+        sliderContainer.style.display = 'none';
+        sliderContainer.style.visibility = 'hidden';
+        sliderContainer.style.opacity = '0';
+        sliderContainer.style.zIndex = '-1';
+        console.log('✅ Slider container hidden - preventing homepage slides from showing');
+      }
+      
+      // Hide homepage via uiManager
+      uiManager.hideHomepage();
       
       // 🔥 CRITICAL: Hide navigation when returning to Journey screen
       // Navigation will be hidden by MutationObserver in navigation-control.ts
@@ -1070,36 +1054,21 @@ async function startNewRun(boardId: number): Promise<void> {
       isPaused: false
     });
     
-    // CRITICAL: Reset slider to target slide (Journey or homepage) before entry animation
-    console.log(`🎯 Resetting slider to slide ${targetSlide}...`);
-    if (sliderManager) {
+    // 🔥 USER REQUEST: Only reset slider if returning to homepage (slide 0)
+    // Journey screen (slide 1) is NOT part of homepage slider, so don't reset slider
+    if (targetSlide === 0 && sliderManager) {
+      console.log(`🎯 Resetting slider to slide ${targetSlide} (homepage)...`);
       sliderManager.setCurrentSlide(targetSlide);
       console.log(`✅ Slider reset to slide ${targetSlide}`);
-      
-      // 🔥 CRITICAL: Force immediate update of slider position (no animation)
-      // This ensures Journey slide is visible immediately
-      if (targetSlide === 1) {
-        // Use requestAnimationFrame to ensure DOM is ready
-        requestAnimationFrame(() => {
-          const sliderWrapper = document.getElementById('slider-wrapper') as HTMLElement;
-          if (sliderWrapper) {
-            const sliderContainer = document.getElementById('slider-container') as HTMLElement;
-            const slideWidth = sliderContainer?.offsetWidth || window.innerWidth;
-            const offset = -targetSlide * slideWidth;
-            // Use GSAP to set position immediately (no animation)
-            if (typeof gsap !== 'undefined') {
-              gsap.set(sliderWrapper, { x: offset, immediateRender: true });
-            } else {
-              sliderWrapper.style.transform = `translateX(${offset}px)`;
-            }
-            console.log(`✅ Slider wrapper forced to Journey slide position: ${offset}px`);
-          }
-          
-        });
-      }
+    } else if (targetSlide === 1) {
+      // 🔥 CRITICAL: Don't reset slider when returning to Journey screen
+      // Journey screen is separate from homepage slider, so slider should remain hidden
+      console.log('✅ Skipping slider reset - Journey screen is not part of homepage slider');
     } else {
       console.warn('⚠️ SliderManager not found, trying gameState...');
-      gameState.setState({ currentSlide: targetSlide });
+      if (targetSlide === 0) {
+        gameState.setState({ currentSlide: targetSlide });
+      }
     }
     
     // 🔥 USER REQUEST: Only update slider slides if returning to homepage (slide 0)
@@ -1118,10 +1087,45 @@ async function startNewRun(boardId: number): Promise<void> {
           console.log(`✅ Slide ${index} set to active and visible`);
         } else {
           slide.classList.remove('active');
-          // 🔥 FIX: Hide other slides to prevent conflicts
-          if (index !== targetSlide) {
-            (slide as HTMLElement).style.display = 'none';
-          }
+          // 🔥 FIX: ALL slides must be visible for slider to work (slider uses translateX)
+          // Only the active class determines which slide is shown
+          (slide as HTMLElement).style.display = 'block';
+          (slide as HTMLElement).style.visibility = 'visible';
+          (slide as HTMLElement).style.opacity = '1';
+        }
+        
+        // 🔥 USER REQUEST: Ensure ALL slide content elements are visible (images, text, CTAs)
+        // This prevents content from being hidden when returning from Journey screen
+        const slideContent = slide.querySelector('.slide-content');
+        const heroImage = slide.querySelector('.hero-image');
+        const slideText = slide.querySelector('.slide-text');
+        const slideTagline = slide.querySelector('.slide-tagline');
+        const slideButton = slide.querySelector('.slide-button');
+        
+        if (slideContent) {
+          (slideContent as HTMLElement).style.display = 'flex';
+          (slideContent as HTMLElement).style.visibility = 'visible';
+          (slideContent as HTMLElement).style.opacity = '1';
+        }
+        if (heroImage) {
+          (heroImage as HTMLElement).style.display = 'block';
+          (heroImage as HTMLElement).style.visibility = 'visible';
+          (heroImage as HTMLElement).style.opacity = '1';
+        }
+        if (slideText) {
+          (slideText as HTMLElement).style.display = 'block';
+          (slideText as HTMLElement).style.visibility = 'visible';
+          (slideText as HTMLElement).style.opacity = '1';
+        }
+        if (slideTagline) {
+          (slideTagline as HTMLElement).style.display = 'block';
+          (slideTagline as HTMLElement).style.visibility = 'visible';
+          (slideTagline as HTMLElement).style.opacity = '1';
+        }
+        if (slideButton) {
+          (slideButton as HTMLElement).style.display = 'flex';
+          (slideButton as HTMLElement).style.visibility = 'visible';
+          (slideButton as HTMLElement).style.opacity = '1';
         }
       });
       navButtons.forEach((button, index) => {
@@ -1131,6 +1135,7 @@ async function startNewRun(boardId: number): Promise<void> {
           button.classList.remove('active');
         }
       });
+      console.log('✅ All slides and content elements made visible for homepage return');
     } else {
       // 🔥 USER REQUEST: When returning to Journey screen, ensure all slides are visible
       // This prevents empty slides when user goes back from Journey screen
@@ -1155,54 +1160,38 @@ async function startNewRun(boardId: number): Promise<void> {
     
     console.log('✅ Game state reset - homepage should be visible now');
     
-    // Step 3: Play entry animation and show appropriate screen
+    // 🔥 APP STORE FIX: Complete separation of Journey and Homepage pathways
+    // Step 3: Show appropriate screen WITHOUT mixing pathways
     if (targetSlide === 1) {
-      // 🔥 USER REQUEST: Show Journey screen when returning to Journey slide
-      // Use requestAnimationFrame to ensure homepage is hidden and DOM is ready
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          console.log('🗺️ Showing Journey screen...');
-          const collectiblesManager = (window as any).collectiblesManager;
-          if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
-            collectiblesManager.showCollectibles();
-            console.log('✅ Journey screen shown');
-            
-            // 🔥 CRITICAL: Ensure Journey screen is visible and on top
-            const journeyScreen = document.getElementById('journey-screen');
-            if (journeyScreen) {
-              journeyScreen.classList.remove('hidden');
-              journeyScreen.style.display = 'flex';
-              journeyScreen.style.visibility = 'visible';
-              journeyScreen.style.opacity = '1';
-              journeyScreen.style.zIndex = '999999';
-              console.log('✅ Journey screen forced to visible with correct z-index');
-            }
-            
-            // 🔥 CRITICAL: Ensure navigation is hidden when Journey screen is shown
-            // MutationObserver in navigation-control.ts will handle this, but we set it here too
-            const navElement = document.getElementById('independent-nav');
-            if (navElement) {
-              navElement.style.display = 'none';
-              navElement.style.visibility = 'hidden';
-              navElement.style.opacity = '0';
-              navElement.setAttribute('aria-hidden', 'true');
-              console.log('✅ Navigation hidden after Journey screen shown');
-            }
-          } else {
-            console.warn('⚠️ CollectiblesManager not found - cannot show Journey screen');
-          }
-        }, 100);
-      });
+      // 🔥 Journey pathway - NO homepage slider involvement
+      console.log('🗺️ Journey pathway - showing Journey screen directly...');
       
-      // Play slider enter animation for Journey slide
-      console.log('🎬 Playing Journey slide entry animation...');
-      animateSliderEnter();
+      // Show Journey screen immediately (no delays, no RAF hacks)
+      const collectiblesManager = (window as any).collectiblesManager;
+      if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
+        // This will handle Journey screen enter animation internally
+        collectiblesManager.showCollectibles();
+        console.log('✅ Journey screen shown with enter animation');
+      } else {
+        console.warn('⚠️ CollectiblesManager not found');
+      }
+      
+      // Ensure navigation stays hidden (Journey has its own back button)
+      const navElement = document.getElementById('independent-nav');
+      if (navElement) {
+        navElement.style.display = 'none';
+        navElement.style.visibility = 'hidden';
+        navElement.style.opacity = '0';
+        navElement.setAttribute('aria-hidden', 'true');
+      }
+      
+      console.log('✅ Journey pathway complete - NO homepage slider or background gradient');
     } else {
-      // Play homepage entry animation
-      console.log('🎬 Playing homepage entry animation...');
+      // 🔥 Homepage pathway - normal slider animation
+      console.log('🏠 Homepage pathway - playing slider enter animation...');
       animateSliderEnter();
     }
-    console.log('✅ Exit complete - Play button should work');
+    console.log('✅ Exit complete - pathways separated');
     
     logger.info('✅ Exited to menu successfully - next play will start fresh without resume sheet');
     
