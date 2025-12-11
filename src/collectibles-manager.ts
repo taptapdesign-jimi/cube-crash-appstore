@@ -339,10 +339,17 @@ class CollectiblesManager {
       backBtn.setAttribute('data-listener-attached', 'true');
     }
     
+    // 🔥 CRITICAL: Remove all inline styles that might hide the screen
+    // This ensures journey screen is visible when shown again after being hidden
+    (screen as HTMLElement).style.removeProperty('display');
+    (screen as HTMLElement).style.removeProperty('visibility');
+    (screen as HTMLElement).style.removeProperty('z-index');
+    screen.removeAttribute('hidden');
+    screen.classList.remove('hidden');
+    
     // 🔥 CRITICAL: Set opacity to 0 FIRST so screen is invisible while GSAP sets initial state
     (screen as HTMLElement).style.opacity = '0';
-    screen.classList.remove('hidden');
-    logger.info('🎁 Removed hidden class');
+    logger.info('🎁 Removed hidden class and inline styles');
     
     // Render cards BEFORE animation so GSAP can find them
     // Check if this is Journey screen (has journey-boards-container)
@@ -394,9 +401,13 @@ class CollectiblesManager {
       console.log('🎬 About to call animateCollectiblesScreenEnter()...');
       // Small delay to ensure DOM is ready, then make screen visible and start animation
       setTimeout(() => {
-        // Make screen visible so GSAP can animate individual elements
+        // 🔥 CRITICAL: Explicitly set all styles to ensure journey screen is visible
+        (screen as HTMLElement).style.display = 'flex';
+        (screen as HTMLElement).style.visibility = 'visible';
         (screen as HTMLElement).style.opacity = '1';
+        (screen as HTMLElement).style.zIndex = '999999';
         screen.classList.add('show');
+        screen.removeAttribute('hidden');
         console.log('🎬 Calling animateCollectiblesScreenEnter() after 50ms delay...');
         animateCollectiblesScreenEnter();
       }, 50);
@@ -406,8 +417,13 @@ class CollectiblesManager {
     } catch (error) {
       console.error('❌ Failed to trigger collectibles enter animation:', error);
       // Fallback: just show the screen normally
+      // 🔥 CRITICAL: Explicitly set all styles to ensure journey screen is visible
+      (screen as HTMLElement).style.display = 'flex';
+      (screen as HTMLElement).style.visibility = 'visible';
       (screen as HTMLElement).style.opacity = '1';
+      (screen as HTMLElement).style.zIndex = '999999';
       screen.classList.add('show');
+      screen.removeAttribute('hidden');
       
       // 🔥 PREMIUM FIX: Position is already set synchronously in renderBoards()
       // No need to refresh - CSS custom properties handle positioning without visible movement
