@@ -490,6 +490,12 @@ async function startNewRun(boardId: number): Promise<void> {
           const savedBoardNumber = Number.isFinite(gameState.boardNumber) 
             ? gameState.boardNumber 
             : (Number.isFinite(gameState.level) ? gameState.level : 1);
+          const savedScore = Number.isFinite(gameState.score) ? gameState.score : 0;
+          
+          // 🔥 CRITICAL FIX: Update currentRunState to ensure it's marked as in-progress
+          // This ensures continueGameWithSavedState() can find the active run
+          journeyProgressionState.setCurrentRunState(savedBoardNumber, savedScore);
+          logger.info(`🗺️ Updated currentRunState: board ${savedBoardNumber}, score ${savedScore}, inProgress: true`);
           
           // Set flags to resume at correct board
           (window as any).__ccStartAtLevel = savedBoardNumber;
@@ -695,6 +701,17 @@ async function startNewRun(boardId: number): Promise<void> {
               score: gameState.score,
               timestamp: gameState.timestamp
             });
+            
+            // 🔥 CRITICAL FIX: Update currentRunState with saved game state
+            // This ensures currentRunState.inProgress remains true and score is updated
+            const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
+            const savedBoardNumber = Number.isFinite(gameState.boardNumber) 
+              ? gameState.boardNumber 
+              : (Number.isFinite(gameState.level) ? gameState.level : 1);
+            const savedScore = Number.isFinite(gameState.score) ? gameState.score : 0;
+            
+            journeyProgressionState.setCurrentRunState(savedBoardNumber, savedScore);
+            console.log(`🗺️ Updated currentRunState on exit: board ${savedBoardNumber}, score ${savedScore}, inProgress: true`);
           } catch (e) {
             console.warn('⚠️ Failed to verify saved game state:', e);
           }

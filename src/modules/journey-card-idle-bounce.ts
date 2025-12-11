@@ -13,6 +13,7 @@ const ENABLE_JOURNEY_CARD_IDLE_BOUNCE = true;
 const IDLE_WAIT_TIME = 0;  // No idle wait - start immediately
 const MIN_ANIMATION_INTERVAL = 300; // Minimum interval: 300ms
 const MAX_ANIMATION_INTERVAL = 2000; // Maximum interval: 2000ms (2 seconds)
+const MAX_CONCURRENT_ANIMATIONS = 3; // 🔥 iOS OPTIMIZATION: Max 3 concurrent animations to prevent frame drops
 
 // Card dimensions (from journey-boards-manager.ts)
 const STANDARD_CARD_WIDTH = 109.82;
@@ -188,6 +189,15 @@ function animateRandomCard(): void {
   
   if (state.cards.length === 0) {
     // Retry after random interval if no cards available
+    const retryDelay = MIN_ANIMATION_INTERVAL + Math.random() * (MAX_ANIMATION_INTERVAL - MIN_ANIMATION_INTERVAL);
+    state.animationTimer = setTimeout(animateRandomCard, retryDelay);
+    return;
+  }
+  
+  // 🔥 iOS OPTIMIZATION: Limit concurrent animations to prevent frame drops
+  // If we already have max concurrent animations, wait before starting new one
+  if (state.activeAnimations.size >= MAX_CONCURRENT_ANIMATIONS) {
+    // Wait a bit longer before retrying (to allow current animations to finish)
     const retryDelay = MIN_ANIMATION_INTERVAL + Math.random() * (MAX_ANIMATION_INTERVAL - MIN_ANIMATION_INTERVAL);
     state.animationTimer = setTimeout(animateRandomCard, retryDelay);
     return;
@@ -627,7 +637,10 @@ function smokeBubblesAtCard(
   
   // Calculate particle properties
   const baseStrength = Math.max(0.4, strength);
-  const COUNT = Math.max(6, Math.round((44 + Math.random() * 14) * baseStrength * countScale));
+  // 🔥 iOS OPTIMIZATION: Reduced particle count from 44-58 to 30-40 for better performance
+  // Original: (44 + random(14)) = 44-58 particles
+  // Optimized: (30 + random(10)) = 30-40 particles (30-35% reduction)
+  const COUNT = Math.max(6, Math.round((30 + Math.random() * 10) * baseStrength * countScale));
   const BASE_R = Math.max(6, Math.round(cardSize * 0.051 * sizeScale));
   const MAX_R = Math.max(18, Math.round(cardSize * 0.24 * sizeScale));
   const INSET = cardSize * 0.02;

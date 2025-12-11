@@ -873,14 +873,15 @@ class JourneyBoardsManager {
         await collectiblesManager.hideCollectibles();
       }
       
-      // Step 8: Start NEW game IMMEDIATELY (not continue) - interim card should start fresh like "New Game"
-      // 🔥 USER REQUEST: Use startNewRun() NOT continueGameWithSavedState()
-      // This ensures HUD drop animation is visible (same as New Game from homepage)
-      if (typeof (window as any).startNewRun === 'function') {
-        logger.info(`🎮 Starting NEW run for board ${board.id} with HUD drop animation`);
-        await (window as any).startNewRun(board.id);
+      // Step 8: Continue game with saved state (resume interim game)
+      // 🔥 CRITICAL FIX: Use continueGameWithSavedState() to preserve progress and score
+      // This will load saved game state and continue from where user left off
+      // HUD drop animation is already handled in continueGameWithSavedState() for Journey pathway
+      if (typeof (window as any).continueGameWithSavedState === 'function') {
+        logger.info(`🎮 Continuing saved game for board ${board.id} - preserving progress and score`);
+        await (window as any).continueGameWithSavedState();
       } else {
-        logger.error('❌ startNewRun function not found');
+        logger.error('❌ continueGameWithSavedState function not found');
       }
     } catch (error) {
       logger.error(`❌ Failed to continue game from interim board ${board.id}:`, error);
