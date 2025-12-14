@@ -75,6 +75,21 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       // Clear currentRunState (run finished, but failed)
       journeyProgressionState.clearCurrentRunState();
       logger.info(`🗺️ Journey: Board ${boardNumber} failed - lastOpenedBoardId kept at ${boardNumber}, currentRunState cleared`);
+      
+      // 🔥 CRITICAL FIX: Ensure interim status is saved for this board when user fails
+      // This ensures interim card persists after hard exit
+      try {
+        const { journeyBoardsManager } = await import('./journey-boards-manager.js');
+        // Set board to interim if not already unlocked (user can retry)
+        const board = journeyBoardsManager.getBoardById(boardNumber);
+        if (board && !board.unlocked) {
+          board.interim = true;
+          journeyBoardsManager.saveBoardsStatePublic();
+          logger.info(`🗺️ Board ${boardNumber} set to interim after failure - interim card will persist`);
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to set interim status on board failure:', error);
+      }
     } catch (error) {
       logger.warn('⚠️ Failed to update Journey progression state on failure:', error);
     }

@@ -661,6 +661,23 @@ class JourneyBoardsManager {
     card.className = `journey-board-card ${isUnlocked ? 'unlocked' : isInterim ? 'interim' : 'locked'}`;
     card.dataset.boardId = board.id.toString();
     card.dataset.boardNumber = board.id.toString().padStart(2, '0');
+    
+    // 🔥 USER REQUEST: Check if this board was already viewed (from localStorage)
+    // Mark it as viewed so animations don't start for it
+    if (isUnlocked && !isInterim) {
+      try {
+        const viewedBoardsJson = localStorage.getItem('journey_viewed_boards');
+        if (viewedBoardsJson) {
+          const viewedBoardIds: Set<string> = new Set(JSON.parse(viewedBoardsJson));
+          if (viewedBoardIds.has(board.id.toString())) {
+            card.setAttribute('data-journey-card-viewed', 'true');
+            logger.info(`✅ Board ${board.id} marked as viewed from localStorage - animations disabled`);
+          }
+        }
+      } catch (e) {
+        logger.warn('⚠️ Error checking viewed boards in localStorage:', e);
+      }
+    }
 
     if (isUnlocked) {
       // Unlocked card - show image and can click for details
@@ -668,7 +685,59 @@ class JourneyBoardsManager {
       image.src = board.imagePath || '';
       image.alt = board.name || `Board ${board.id}`;
       image.className = 'journey-board-image';
+      // 🔥 iOS FIX: Prevent deep touch (long press) and image dragging
+      image.draggable = false; // Prevent HTML5 drag
+      image.setAttribute('draggable', 'false'); // Ensure draggable is false
       card.appendChild(image);
+      
+      // 🔥 iOS FIX: Prevent long press and context menu
+      let longPressTimer: number | null = null;
+      const preventLongPress = (e: TouchEvent) => {
+        // Clear any existing timer
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+        // Set timer for long press detection (iOS long press is ~500ms)
+        longPressTimer = window.setTimeout(() => {
+          e.preventDefault();
+          e.stopPropagation();
+          longPressTimer = null;
+        }, 300); // Prevent after 300ms (before iOS long press triggers)
+      };
+      
+      const cancelLongPress = () => {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+      };
+      
+      // Prevent context menu (right click or long press menu)
+      card.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      });
+      
+      // Prevent drag start
+      card.addEventListener('dragstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      });
+      
+      image.addEventListener('dragstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      });
+      
+      // Prevent long press on touch devices
+      card.addEventListener('touchstart', preventLongPress, { passive: false });
+      card.addEventListener('touchend', cancelLongPress, { passive: true });
+      card.addEventListener('touchcancel', cancelLongPress, { passive: true });
+      card.addEventListener('touchmove', cancelLongPress, { passive: true });
       
       // Add click handler to open detail modal (not start game directly)
       card.addEventListener('click', () => {
@@ -685,7 +754,57 @@ class JourneyBoardsManager {
       image.src = './assets/colelctibles/common back.png';
       image.alt = `Board ${board.id} (interim)`;
       image.className = 'journey-board-image';
+      // 🔥 iOS FIX: Prevent deep touch (long press) and image dragging
+      image.draggable = false;
+      image.setAttribute('draggable', 'false');
       card.appendChild(image);
+      
+      // 🔥 iOS FIX: Prevent long press and context menu
+      let longPressTimer: number | null = null;
+      const preventLongPress = (e: TouchEvent) => {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+        longPressTimer = window.setTimeout(() => {
+          e.preventDefault();
+          e.stopPropagation();
+          longPressTimer = null;
+        }, 300);
+      };
+      
+      const cancelLongPress = () => {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+      };
+      
+      // Prevent context menu
+      card.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      });
+      
+      // Prevent drag start
+      card.addEventListener('dragstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      });
+      
+      image.addEventListener('dragstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      });
+      
+      // Prevent long press on touch devices
+      card.addEventListener('touchstart', preventLongPress, { passive: false });
+      card.addEventListener('touchend', cancelLongPress, { passive: true });
+      card.addEventListener('touchcancel', cancelLongPress, { passive: true });
+      card.addEventListener('touchmove', cancelLongPress, { passive: true });
       
       // 🔥 USER REQUEST: Interim cards directly continue game (no detail modal)
       card.style.cursor = 'pointer';
@@ -698,15 +817,73 @@ class JourneyBoardsManager {
         await this.continueFromInterimBoard(board);
       });
     } else {
-      // Locked card placeholder
+      // Locked card - show journey-card-empty.png image with number overlay
       const lockedContainer = document.createElement('div');
       lockedContainer.className = 'journey-board-locked-container';
       
+      // Add empty card image
+      const image = document.createElement('img');
+      image.src = './assets/colelctibles/journey-card-empty.png';
+      image.alt = `Board ${board.id} (locked)`;
+      image.className = 'journey-board-empty-image';
+      // 🔥 iOS FIX: Prevent deep touch (long press) and image dragging
+      image.draggable = false;
+      image.setAttribute('draggable', 'false');
+      lockedContainer.appendChild(image);
+      
+      // Add number overlay on top of image
       const number = document.createElement('div');
       number.className = 'journey-board-number';
       number.textContent = board.id.toString().padStart(2, '0');
-      
       lockedContainer.appendChild(number);
+      
+      // 🔥 iOS FIX: Prevent long press and context menu on locked cards
+      let longPressTimer: number | null = null;
+      const preventLongPress = (e: TouchEvent) => {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+        longPressTimer = window.setTimeout(() => {
+          e.preventDefault();
+          e.stopPropagation();
+          longPressTimer = null;
+        }, 300);
+      };
+      
+      const cancelLongPress = () => {
+        if (longPressTimer) {
+          clearTimeout(longPressTimer);
+          longPressTimer = null;
+        }
+      };
+      
+      // Prevent context menu
+      card.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      });
+      
+      // Prevent drag start
+      card.addEventListener('dragstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      });
+      
+      image.addEventListener('dragstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      });
+      
+      // Prevent long press on touch devices
+      card.addEventListener('touchstart', preventLongPress, { passive: false });
+      card.addEventListener('touchend', cancelLongPress, { passive: true });
+      card.addEventListener('touchcancel', cancelLongPress, { passive: true });
+      card.addEventListener('touchmove', cancelLongPress, { passive: true });
+      
       card.appendChild(lockedContainer);
     }
 
@@ -892,6 +1069,17 @@ class JourneyBoardsManager {
     // Open collectibles detail modal directly for Journey board
     const detailModal = document.getElementById('collectibles-detail-modal');
     if (detailModal) {
+      // 🔥 USER REQUEST: Mark card as viewed - stop animations forever for this card
+      // Only mark unlocked cards (interim cards don't have detail modal, so they keep animating)
+      if (!board.interim) {
+        // Find the card element by board ID
+        const cardElement = document.querySelector(`.journey-board-card[data-board-id="${board.id}"]`) as HTMLElement;
+        if (cardElement && JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.markCardAsViewed === 'function') {
+          JOURNEY_CARD_IDLE_BOUNCE.markCardAsViewed(cardElement);
+          logger.info(`✅ Card for board ${board.id} marked as viewed - animations stopped forever`);
+        }
+      }
+      
       // Store board ID in modal for Play Board button
       detailModal.setAttribute('data-journey-board-id', board.id.toString());
       
@@ -1225,6 +1413,14 @@ class JourneyBoardsManager {
           logger.warn('⚠️ DEV RESET: Failed to reset game progress:', error instanceof Error ? error.message : String(error));
         }
         
+        // 🔥 USER REQUEST: Also reset viewed boards when resetting game progress
+        try {
+          localStorage.removeItem('journey_viewed_boards');
+          logger.info('✅ DEV RESET: Viewed boards reset');
+        } catch (error) {
+          logger.warn('⚠️ DEV RESET: Failed to reset viewed boards:', error instanceof Error ? error.message : String(error));
+        }
+        
         // Reset boardNumber in saved game state
         try {
           const savedGame = localStorage.getItem('cc_saved_game');
@@ -1256,11 +1452,32 @@ class JourneyBoardsManager {
 
   private saveBoardsState(): void {
     try {
-      const state = this.boards.map(b => ({ id: b.id, unlocked: b.unlocked }));
+      // 🔥 CRITICAL FIX: Save both unlocked AND interim status
+      // This ensures interim cards persist after hard exit
+      const state = this.boards.map(b => ({ 
+        id: b.id, 
+        unlocked: b.unlocked,
+        interim: b.interim || false // 🔥 CRITICAL: Save interim status
+      }));
       localStorage.setItem('journey_boards_state', JSON.stringify(state));
+      logger.info('✅ Journey boards state saved (including interim status)');
     } catch (error) {
       logger.warn('Failed to save journey boards state:', error instanceof Error ? error.message : String(error));
     }
+  }
+  
+  /**
+   * 🔥 CRITICAL FIX: Public method to get board by ID (for external access)
+   */
+  public getBoardById(boardId: number): JourneyBoard | undefined {
+    return this.boards.find(b => b.id === boardId);
+  }
+  
+  /**
+   * 🔥 CRITICAL FIX: Public method to save boards state (for external access)
+   */
+  public saveBoardsStatePublic(): void {
+    this.saveBoardsState();
   }
 
   private loadBoardsState(): void {
@@ -1287,7 +1504,16 @@ class JourneyBoardsManager {
       
       // 🔥 CRITICAL: Also sync with game progress (boardNumber from localStorage or game state)
       // This ensures journey boards are unlocked based on actual game progress
-      this.syncWithGameProgress();
+      // 🔥 CRITICAL FIX: Only sync if we have a saved game state
+      // If no saved game (hard exit after fail), preserve interim status from localStorage
+      const savedGame = localStorage.getItem('cc_saved_game');
+      if (savedGame) {
+        this.syncWithGameProgress();
+      } else {
+        // No saved game - preserve interim status from localStorage (user failed and exited)
+        // Don't call syncWithGameProgress() as it might overwrite interim status
+        logger.info('🗺️ No saved game state - preserving interim status from localStorage');
+      }
     } catch (error) {
       logger.warn('Failed to load journey boards state:', error instanceof Error ? error.message : String(error));
     }
@@ -1351,11 +1577,17 @@ class JourneyBoardsManager {
       // Set interim if:
       // 1. Board is not already unlocked
       // 2. Board matches current boardNumber (user is playing this board)
+      // 🔥 CRITICAL FIX: Don't overwrite interim status if it's already set from localStorage
+      // This ensures interim cards persist after hard exit
       if (currentBoard && !currentBoard.unlocked) {
-        // Set current board to interim if not already unlocked
-        currentBoard.interim = true;
-        this.saveBoardsState();
-        logger.info(`🗺️ Board ${targetBoard} set to interim (currently playing, not yet won)`);
+        // Only set interim if it's not already set (preserve existing interim status from localStorage)
+        if (!currentBoard.interim) {
+          currentBoard.interim = true;
+          this.saveBoardsState();
+          logger.info(`🗺️ Board ${targetBoard} set to interim (currently playing, not yet won)`);
+        } else {
+          logger.info(`🗺️ Board ${targetBoard} already has interim status (preserved from localStorage)`);
+        }
       }
       
       // Note: Next board is set to interim when current board is completed (in unlockBoardOnCompletion)

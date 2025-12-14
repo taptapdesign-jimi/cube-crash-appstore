@@ -1263,6 +1263,12 @@
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   box-sizing: border-box;
   cursor: pointer;
+  /* 🔥 iOS FIX: Prevent deep touch (long press) and image dragging */
+  -webkit-touch-callout: none; /* Disable iOS callout menu (long press menu) */
+  -webkit-user-select: none; /* Prevent text/image selection */
+  user-select: none; /* Standard */
+  -webkit-user-drag: none; /* Prevent dragging on iOS */
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight */
 }
 
 .journey-board-card.unlocked {
@@ -1272,17 +1278,36 @@
   overflow: visible !important; /* Allow shadow to be visible */
 }
 
+.journey-board-card.interim {
+  background: transparent;
+  border: none;
+  box-shadow: none !important; /* 🔥 USER REQUEST: Remove glow/shadow from interim cards */
+  overflow: visible !important;
+}
+
 .journey-board-card.unlocked .journey-board-image {
   width: 100%;
   height: 100%;
   object-fit: contain; /* No cut-off, show full image */
   display: block;
   border-radius: 12px;
+  /* 🔥 iOS FIX: Prevent deep touch (long press) and image dragging */
+  -webkit-touch-callout: none; /* Disable iOS callout menu */
+  -webkit-user-select: none; /* Prevent selection */
+  user-select: none; /* Standard */
+  -webkit-user-drag: none; /* Prevent dragging */
+  pointer-events: none; /* Prevent image from intercepting touch events */
 }
 
 .journey-board-card.interim .journey-board-image {
   width: 100%;
   height: 100%;
+  /* 🔥 iOS FIX: Prevent deep touch (long press) and image dragging */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: none; /* Prevent image from intercepting touch events */
   object-fit: contain; /* No cut-off, show full image */
   display: block;
   border-radius: 12px;
@@ -1297,10 +1322,9 @@
 .journey-board-card.locked .journey-board-locked-container {
   width: 100%;
   height: 100%;
-  background: #f3eee8;
+  background: transparent;
   border: none;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   display: block;
   position: relative;
   overflow: hidden;
@@ -1311,23 +1335,24 @@
   flex-shrink: 0;
 }
 
-.journey-board-card.locked .journey-board-locked-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+.journey-board-card.locked .journey-board-empty-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
   border-radius: 12px;
-  box-shadow: inset 0 0 0 2px #BC8A76;
+  /* 🔥 iOS FIX: Prevent deep touch (long press) and image dragging */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
   pointer-events: none;
-  box-sizing: border-box;
 }
 
 .journey-board-card.locked .journey-board-number {
   font-size: 32px;
   font-weight: 700;
-  color: var(--collectibles-brown);
+  color: #C5A799;
   letter-spacing: 0;
   margin: 0;
   padding: 0;

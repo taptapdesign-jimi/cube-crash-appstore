@@ -30,6 +30,7 @@ interface JourneyCardIdleState {
   smokeContainers: Set<HTMLElement>; // 🔥 MEMORY FIX: Track all smoke containers for cleanup
   isBlockingHorizontal: boolean; // 🔥 iOS FIX: Flag to block horizontal scrolling during animations
   horizontalScrollPreventer: ((e: TouchEvent) => void) | null; // 🔥 iOS FIX: Global preventer function
+  viewedCards: Set<HTMLElement>; // 🔥 USER REQUEST: Track cards that have been viewed in detail modal (stop animations forever)
 }
 
 let state: JourneyCardIdleState = {
@@ -41,7 +42,8 @@ let state: JourneyCardIdleState = {
   activeAnimations: new Set(),
   smokeContainers: new Set(), // 🔥 MEMORY FIX: Track smoke containers
   isBlockingHorizontal: false, // 🔥 iOS FIX: Block horizontal scrolling during animations
-  horizontalScrollPreventer: null // 🔥 iOS FIX: Global preventer function
+  horizontalScrollPreventer: null, // 🔥 iOS FIX: Global preventer function
+  viewedCards: new Set() // 🔥 USER REQUEST: Track viewed cards
 };
 
 export function startJourneyCardIdleBounce(container: HTMLElement | null): void {
@@ -53,7 +55,41 @@ export function startJourneyCardIdleBounce(container: HTMLElement | null): void 
   const unlockedCards = container.querySelectorAll('.journey-board-card.unlocked') as NodeListOf<HTMLElement>;
   const interimCards = container.querySelectorAll('.journey-board-card.interim') as NodeListOf<HTMLElement>;
   const allCards = Array.from(unlockedCards).concat(Array.from(interimCards));
-  state.cards = allCards.filter(card => card && card.parentElement);
+  
+  // 🔥 USER REQUEST: Restore viewed boards from localStorage (persistence across game sessions)
+  let viewedBoardIds: Set<string> = new Set();
+  try {
+    const viewedBoardsJson = localStorage.getItem('journey_viewed_boards');
+    if (viewedBoardsJson) {
+      viewedBoardIds = new Set(JSON.parse(viewedBoardsJson));
+      console.log('✅ Restored viewed boards from localStorage:', Array.from(viewedBoardIds));
+    }
+  } catch (e) {
+    console.warn('⚠️ Error reading viewed boards from localStorage:', e);
+  }
+  
+  // 🔥 USER REQUEST: Mark cards as viewed based on localStorage and data attributes
+  // Cards that have been viewed should not animate
+  allCards.forEach(card => {
+    const boardId = card.getAttribute('data-board-id');
+    const hasDataAttribute = card.getAttribute('data-journey-card-viewed') === 'true';
+    const isInLocalStorage = boardId && viewedBoardIds.has(boardId);
+    
+    if (hasDataAttribute || isInLocalStorage) {
+      state.viewedCards.add(card);
+      // Ensure data attribute is set for consistency
+      card.setAttribute('data-journey-card-viewed', 'true');
+    }
+  });
+  
+  // Filter out viewed cards (interim cards are always included)
+  state.cards = allCards.filter(card => {
+    if (!card || !card.parentElement) return false;
+    const isInterim = card.classList.contains('interim');
+    if (isInterim) return true; // Always include interim cards
+    return !state.viewedCards.has(card); // Exclude viewed unlocked cards
+  });
+  
   state.container = container;
   state.isActive = true;
   state.lastInteractionTime = 0; // No idle tracking needed
@@ -62,7 +98,7 @@ export function startJourneyCardIdleBounce(container: HTMLElement | null): void 
   // Start immediately - no idle wait
   animateRandomCard();
   
-  console.log('✅ Journey card bounce started (continuous):', state.cards.length, 'cards (unlocked + interim)');
+  console.log('✅ Journey card bounce started (continuous):', state.cards.length, 'cards (unlocked + interim, excluding viewed)');
 }
 
 export function stopJourneyCardIdleBounce(): void {
@@ -157,6 +193,7 @@ export function resetJourneyCardIdleBounce(): void {
   state.cards = [];
   state.container = null;
   state.lastInteractionTime = 0;
+  state.viewedCards.clear(); // 🔥 USER REQUEST: Clear viewed cards on reset
   // smokeContainers already cleared in stopJourneyCardIdleBounce
   
   // 🔥 PERFORMANCE: Clear DOM element pool on reset (optional - pool can persist)
@@ -164,6 +201,40 @@ export function resetJourneyCardIdleBounce(): void {
   // domElementPool.clear();
   
   console.log('🔄 Journey card idle bounce state reset');
+}
+
+/**
+ * 🔥 USER REQUEST: Mark a card as viewed (details modal was opened)
+ * This will stop animations for this card forever
+ * @param card - The card element that was viewed
+ */
+export function markCardAsViewed(card: HTMLElement | null): void {
+  if (!card) return;
+  
+  // Stop any active animation on this card immediately
+  stopCardAnimation(card);
+  
+  // Mark card as viewed (will be excluded from future animations)
+  state.viewedCards.add(card);
+  
+  // Add data attribute for persistence (optional - can be used for page reload)
+  card.setAttribute('data-journey-card-viewed', 'true');
+  
+  // 🔥 USER REQUEST: Save board ID to localStorage for persistence across game sessions
+  const boardId = card.getAttribute('data-board-id');
+  if (boardId) {
+    try {
+      const viewedBoardsJson = localStorage.getItem('journey_viewed_boards');
+      const viewedBoards: Set<string> = viewedBoardsJson ? new Set(JSON.parse(viewedBoardsJson)) : new Set();
+      viewedBoards.add(boardId);
+      localStorage.setItem('journey_viewed_boards', JSON.stringify(Array.from(viewedBoards)));
+      console.log('✅ Board ID saved to localStorage:', boardId);
+    } catch (e) {
+      console.warn('⚠️ Error saving viewed board to localStorage:', e);
+    }
+  }
+  
+  console.log('✅ Card marked as viewed - animations stopped forever:', card);
 }
 
 export function notifyJourneyInteraction(): void {
@@ -180,12 +251,43 @@ function animateRandomCard(): void {
   const unlockedCards = state.container.querySelectorAll('.journey-board-card.unlocked') as NodeListOf<HTMLElement>;
   const interimCards = state.container.querySelectorAll('.journey-board-card.interim') as NodeListOf<HTMLElement>;
   const allCards = Array.from(unlockedCards).concat(Array.from(interimCards));
-  state.cards = allCards.filter(card => 
-    card && 
-    card.parentElement && 
-    !state.activeAnimations.has(card) &&
-    card.offsetParent !== null // Card is visible
-  );
+  
+  // 🔥 USER REQUEST: Restore viewed boards from localStorage (in case cards were re-rendered)
+  let viewedBoardIds: Set<string> = new Set();
+  try {
+    const viewedBoardsJson = localStorage.getItem('journey_viewed_boards');
+    if (viewedBoardsJson) {
+      viewedBoardIds = new Set(JSON.parse(viewedBoardsJson));
+    }
+  } catch (e) {
+    console.warn('⚠️ Error reading viewed boards from localStorage:', e);
+  }
+  
+  // 🔥 USER REQUEST: Update viewedCards set with cards that are in localStorage
+  allCards.forEach(card => {
+    const boardId = card.getAttribute('data-board-id');
+    const isInLocalStorage = boardId && viewedBoardIds.has(boardId);
+    if (isInLocalStorage && !state.viewedCards.has(card)) {
+      state.viewedCards.add(card);
+      card.setAttribute('data-journey-card-viewed', 'true');
+    }
+  });
+  
+  // 🔥 USER REQUEST: Filter out cards that have been viewed in detail modal
+  // Interim cards should ALWAYS animate (they don't have detail modal)
+  state.cards = allCards.filter(card => {
+    if (!card || !card.parentElement || card.offsetParent === null) return false;
+    if (state.activeAnimations.has(card)) return false;
+    
+    // 🔥 USER REQUEST: Interim cards always animate (no detail modal)
+    const isInterim = card.classList.contains('interim');
+    if (isInterim) return true; // Always include interim cards
+    
+    // 🔥 USER REQUEST: Exclude unlocked cards that have been viewed in detail modal
+    if (state.viewedCards.has(card)) return false; // Exclude viewed cards
+    
+    return true;
+  });
   
   if (state.cards.length === 0) {
     // Retry after random interval if no cards available
@@ -905,5 +1007,6 @@ export const JOURNEY_CARD_IDLE_BOUNCE = {
   stop: stopJourneyCardIdleBounce,
   reset: resetJourneyCardIdleBounce,
   notifyInteraction: notifyJourneyInteraction,
-  updateCardList: updateJourneyCardList
+  updateCardList: updateJourneyCardList,
+  markCardAsViewed: markCardAsViewed // 🔥 USER REQUEST: Export function to mark cards as viewed
 };
