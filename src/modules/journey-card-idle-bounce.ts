@@ -11,8 +11,8 @@ import { domElementPool } from './dom-element-pool.js';
 const ENABLE_JOURNEY_CARD_IDLE_BOUNCE = true;
 
 const IDLE_WAIT_TIME = 0;  // No idle wait - start immediately
-const MIN_ANIMATION_INTERVAL = 300; // Minimum interval: 300ms
-const MAX_ANIMATION_INTERVAL = 2000; // Maximum interval: 2000ms (2 seconds)
+const MIN_ANIMATION_INTERVAL = 100; // Minimum interval: 0.1s
+const MAX_ANIMATION_INTERVAL = 300; // Maximum interval: 0.3s
 const MAX_CONCURRENT_ANIMATIONS = 3; // 🔥 iOS OPTIMIZATION: Max 3 concurrent animations to prevent frame drops
 
 // Card dimensions (from journey-boards-manager.ts)
@@ -31,6 +31,7 @@ interface JourneyCardIdleState {
   isBlockingHorizontal: boolean; // 🔥 iOS FIX: Flag to block horizontal scrolling during animations
   horizontalScrollPreventer: ((e: TouchEvent) => void) | null; // 🔥 iOS FIX: Global preventer function
   viewedCards: Set<HTMLElement>; // 🔥 USER REQUEST: Track cards that have been viewed in detail modal (stop animations forever)
+  shimmerTimers: Map<HTMLElement, number>; // Idle shimmer timers per card
 }
 
 let state: JourneyCardIdleState = {
@@ -43,7 +44,8 @@ let state: JourneyCardIdleState = {
   smokeContainers: new Set(), // 🔥 MEMORY FIX: Track smoke containers
   isBlockingHorizontal: false, // 🔥 iOS FIX: Block horizontal scrolling during animations
   horizontalScrollPreventer: null, // 🔥 iOS FIX: Global preventer function
-  viewedCards: new Set() // 🔥 USER REQUEST: Track viewed cards
+  viewedCards: new Set(), // 🔥 USER REQUEST: Track viewed cards
+  shimmerTimers: new Map()
 };
 
 export function startJourneyCardIdleBounce(container: HTMLElement | null): void {
@@ -82,11 +84,12 @@ export function startJourneyCardIdleBounce(container: HTMLElement | null): void 
     }
   });
   
-  // Filter out viewed cards (interim cards are always included)
+  // 🔥 USER REQUEST: Filter out viewed cards AND interim cards (interim cards have independent animation)
+  // Interim cards are now handled separately in journey-boards-manager.ts
   state.cards = allCards.filter(card => {
     if (!card || !card.parentElement) return false;
     const isInterim = card.classList.contains('interim');
-    if (isInterim) return true; // Always include interim cards
+    if (isInterim) return false; // 🔥 USER REQUEST: Exclude interim cards (they have independent animation)
     return !state.viewedCards.has(card); // Exclude viewed unlocked cards
   });
   
@@ -184,6 +187,15 @@ export function stopJourneyCardIdleBounce(): void {
     }
   });
   state.smokeContainers.clear();
+
+  // Stop shimmer timers and remove shimmer class from all tracked cards
+  state.shimmerTimers.forEach((timeoutId, card) => {
+    try {
+      clearTimeout(timeoutId);
+      card.classList.remove('idle-shimmer-trigger');
+    } catch {}
+  });
+  state.shimmerTimers.clear();
   
   console.log('⏹️ Journey card idle bounce stopped');
 }
@@ -194,6 +206,7 @@ export function resetJourneyCardIdleBounce(): void {
   state.container = null;
   state.lastInteractionTime = 0;
   state.viewedCards.clear(); // 🔥 USER REQUEST: Clear viewed cards on reset
+  state.shimmerTimers.clear();
   // smokeContainers already cleared in stopJourneyCardIdleBounce
   
   // 🔥 PERFORMANCE: Clear DOM element pool on reset (optional - pool can persist)
@@ -213,6 +226,14 @@ export function markCardAsViewed(card: HTMLElement | null): void {
   
   // Stop any active animation on this card immediately
   stopCardAnimation(card);
+
+  // Stop shimmer timer for this card
+  const shimmerTimeout = state.shimmerTimers.get(card);
+  if (shimmerTimeout) {
+    clearTimeout(shimmerTimeout);
+    state.shimmerTimers.delete(card);
+  }
+  card.classList.remove('idle-shimmer-trigger');
   
   // Mark card as viewed (will be excluded from future animations)
   state.viewedCards.add(card);
@@ -241,6 +262,81 @@ export function notifyJourneyInteraction(): void {
   // No need to stop animations on interaction - they continue regardless
   // Just update last interaction time (not used anymore but kept for compatibility)
   state.lastInteractionTime = Date.now();
+}
+
+function syncIdleShimmers(): void {
+  // Eligible: unlocked, not viewed, not interim, visible, and currently tracked in state.cards
+  const eligible = state.cards.filter(card => {
+    if (!card || !card.parentElement || card.offsetParent === null) return false;
+    if (card.classList.contains('interim')) return false;
+    if (state.viewedCards.has(card)) return false;
+    return card.classList.contains('journey-board-card');
+  });
+  const eligibleSet = new Set(eligible);
+  
+  // Stop timers for cards no longer eligible
+  state.shimmerTimers.forEach((_timeoutId, card) => {
+    if (!eligibleSet.has(card)) {
+      stopIdleShimmerForCard(card);
+    }
+  });
+  
+  // Start timers for new eligible cards
+  eligible.forEach(card => {
+    if (!state.shimmerTimers.has(card)) {
+      startIdleShimmerForCard(card);
+    }
+  });
+}
+
+function startIdleShimmerForCard(card: HTMLElement): void {
+  // Randomize initial start so cards don't sync
+  const initialDelay = 200 + Math.random() * 1200; // 0.2s - 1.4s
+  
+  const scheduleNext = (delay: number) => {
+    const timeoutId = window.setTimeout(() => {
+      // If card became ineligible, stop scheduling
+      if (!state.isActive || !card.parentElement || card.offsetParent === null || state.viewedCards.has(card) || card.classList.contains('interim')) {
+        stopIdleShimmerForCard(card);
+        return;
+      }
+      
+      triggerIdleShimmer(card);
+      
+      // Fixed 2s cadence after first random start
+      scheduleNext(2000);
+    }, delay);
+    
+    state.shimmerTimers.set(card, timeoutId);
+  };
+  
+  scheduleNext(initialDelay);
+}
+
+function stopIdleShimmerForCard(card: HTMLElement): void {
+  const timeoutId = state.shimmerTimers.get(card);
+  if (timeoutId) {
+    clearTimeout(timeoutId);
+    state.shimmerTimers.delete(card);
+  }
+  try {
+    card.classList.remove('idle-shimmer-trigger');
+  } catch {}
+}
+
+function triggerIdleShimmer(card: HTMLElement): void {
+  // Reset class to restart CSS animation
+  card.classList.remove('idle-shimmer-trigger');
+  void card.offsetHeight; // force reflow
+  
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (!state.isActive || !card.parentElement || card.offsetParent === null || state.viewedCards.has(card) || card.classList.contains('interim')) {
+        return;
+      }
+      card.classList.add('idle-shimmer-trigger');
+    });
+  });
 }
 
 function animateRandomCard(): void {
@@ -274,20 +370,23 @@ function animateRandomCard(): void {
   });
   
   // 🔥 USER REQUEST: Filter out cards that have been viewed in detail modal
-  // Interim cards should ALWAYS animate (they don't have detail modal)
+  // 🔥 CRITICAL FIX: Exclude interim cards - they have independent animation in journey-boards-manager.ts
   state.cards = allCards.filter(card => {
     if (!card || !card.parentElement || card.offsetParent === null) return false;
     if (state.activeAnimations.has(card)) return false;
     
-    // 🔥 USER REQUEST: Interim cards always animate (no detail modal)
+    // 🔥 CRITICAL FIX: Exclude interim cards - they have independent animation in journey-boards-manager.ts
     const isInterim = card.classList.contains('interim');
-    if (isInterim) return true; // Always include interim cards
+    if (isInterim) return false; // Exclude interim cards (they have independent animation)
     
     // 🔥 USER REQUEST: Exclude unlocked cards that have been viewed in detail modal
     if (state.viewedCards.has(card)) return false; // Exclude viewed cards
     
     return true;
   });
+
+  // 🔥 NEW: Start/stop idle shimmer per card (unlocked only, non-viewed, non-interim)
+  syncIdleShimmers();
   
   if (state.cards.length === 0) {
     // Retry after random interval if no cards available
@@ -320,6 +419,12 @@ function animateRandomCard(): void {
 
 function animateCard(card: HTMLElement): void {
   if (!card || !card.parentElement) return;
+  
+  // 🔥 CRITICAL FIX: Don't animate interim cards - they have independent animation in journey-boards-manager.ts
+  if (card.classList.contains('interim')) {
+    console.log('⚠️ Skipping animateCard for interim card (has independent animation)');
+    return;
+  }
   
   state.activeAnimations.add(card);
   
@@ -526,20 +631,27 @@ function animateCard(card: HTMLElement): void {
   });
   
   // Activate smoke bubbles at 0.1s (peak of animation)
+  // 🔥 CRITICAL FIX: Skip smoke for interim cards (they have independent animation in journey-boards-manager.ts)
   tl.call(() => {
     if (card && card.parentElement) {
+      // 🔥 CRITICAL FIX: Don't generate smoke for interim cards - they have their own bounce animation
+      if (card.classList.contains('interim')) {
+        console.log('⚠️ Skipping smoke for interim card in animateCard (has independent animation)');
+        return;
+      }
+      
       // 🔥 FIX: Generate random alpha value between 0.7 and 1.0 for each animation
       // This adds randomness and variety to smoke effects
       const randomAlpha = 0.7 + Math.random() * 0.3; // Random between 0.7 and 1.0
       
       smokeBubblesAtCard(card, {
-        sizeScale: 0.18, // ~80% manje od 0.9
-        distanceScale: 0.18,
-        countScale: 0.2,
-        haloScale: 0.18,
+        sizeScale: 0.55, // 🔥 USER REQUEST: Increased from 0.18 to 0.55 for better quality (similar to tiles)
+        distanceScale: 0.55, // 🔥 USER REQUEST: Increased from 0.18 to 0.55 for better quality (similar to tiles)
+        countScale: 0.45, // 🔥 USER REQUEST: Increased from 0.2 to 0.45 for more particles (better quality)
+        haloScale: 0.55, // 🔥 USER REQUEST: Increased from 0.18 to 0.55 for better halo
         strength: 1.8 + Math.random() * 0.7, // ~100% jače
-        trailAlpha: randomAlpha, // Random alpha for trail/plume
-        baseAlpha: randomAlpha // Random alpha for base smoke particles
+        trailAlpha: randomAlpha, // Random alpha for trail/plume (0.8-1.0)
+        baseAlpha: randomAlpha // Random alpha for base smoke particles (0.8-1.0)
       });
     }
   }, null, 0.1);
@@ -600,8 +712,9 @@ function stopCardAnimation(card: HTMLElement): void {
 /**
  * Smoke bubbles effect for HTML card elements
  * Adapted from smokeBubblesAtTile but for DOM elements
+ * 🔥 USER REQUEST: Exported for independent interim card animation
  */
-function smokeBubblesAtCard(
+export function smokeBubblesAtCard(
   card: HTMLElement,
   options: {
     sizeScale?: number;
@@ -760,8 +873,10 @@ function smokeBubblesAtCard(
     const alongHeight = (Math.random() * (cardHeight - INSET * 2)) - (cardHeight / 2 - INSET);
     
     if (side === 0) return { sx: alongWidth, sy: -halfHeight + INSET }; // top
-    if (side === 1) return { sx: halfWidth - INSET, sy: alongHeight }; // right
-    if (side === 2) return { sx: alongWidth, sy: halfHeight - INSET }; // bottom
+    // 🔥 USER REQUEST: Move right side spawn 40% closer to card (applies to all cards)
+    if (side === 1) return { sx: halfWidth * 0.6 - INSET, sy: alongHeight }; // right (40% closer)
+    // 🔥 USER REQUEST: Move bottom spawn up by 40% (applies to all cards)
+    if (side === 2) return { sx: alongWidth, sy: halfHeight * 0.6 - INSET }; // bottom (40% higher)
     return { sx: -halfWidth + INSET, sy: alongHeight }; // left
   };
   
@@ -793,9 +908,10 @@ function smokeBubblesAtCard(
       const rx = r0;
       const ry = r0 * aspectRatio;
       
-      // 🔥 FIX: Use baseAlpha from options (random between 0.7 and 1.0 per animation)
+      // 🔥 USER REQUEST: Use baseAlpha from options (0.8-1.0 range)
       // Each particle gets the baseAlpha value, with slight random variation for natural look
-      const particleAlpha = baseAlpha * (0.85 + Math.random() * 0.15); // Slight variation: 85-100% of baseAlpha
+      // Similar to tiles: 70-130% variation for more natural look
+      const particleAlpha = baseAlpha * (0.7 + Math.random() * 0.3); // Variation: 70-100% of baseAlpha (0.8-1.0 range)
       
       // 🔥 PERFORMANCE: Use will-change for better rendering performance
       smoke.style.willChange = 'transform, opacity';
@@ -806,7 +922,9 @@ function smokeBubblesAtCard(
       smoke.style.position = 'absolute';
       smoke.style.left = '0';
       smoke.style.top = '0';
-      smoke.style.mixBlendMode = 'normal'; // Avoid wash-out on bright backgrounds
+      // 🔥 USER REQUEST: Better blend mode for quality (similar to tiles additive blending)
+      // 'screen' is closest to additive blending in CSS (brightens background)
+      smoke.style.mixBlendMode = 'screen'; // Better quality - similar to additive blending on tiles
       smoke.style.opacity = '0';
       smoke.style.filter = 'none'; // Remove dark halos/lines
       smoke.style.transformOrigin = 'center center';
@@ -853,7 +971,10 @@ function smokeBubblesAtCard(
       const tHold = 0.02 + Math.random() * 0.03;
       const tOut = 0.08 + Math.random() * 0.06;
       
-      const startScale = 0.65 + Math.random() * 0.25;
+      // 🔥 USER REQUEST: Better start scale (similar to tiles for quality)
+      // Tiles use: (0.65 + random(0.25)) * max(0.7, sizeScale)
+      // We'll use similar range but adjusted for our sizeScale
+      const startScale = (0.65 + Math.random() * 0.25) * Math.max(0.7, sizeScale);
       // Position relative to container center (container is already centered and rotated)
       // Container center is at (containerWidth/2, containerHeight/2) in container coordinates
       const containerCenterX = containerWidth / 2;
@@ -903,13 +1024,14 @@ function smokeBubblesAtCard(
     }
   }
   
-  // Add halo effect (centered on card)
+  // 🔥 USER REQUEST: Better quality halo effect (similar to tiles)
   const halo = document.createElement('div');
   const haloPad = cardSize * (0.22 + 0.05 * baseStrength) * haloScale;
   const haloWidth = cardWidth + haloPad * 2;
   const haloHeight = cardHeight + haloPad * 2;
   halo.style.width = `${haloWidth}px`;
   halo.style.height = `${haloHeight}px`;
+  // 🔥 USER REQUEST: Better halo alpha (similar to tiles: 0.10-0.22 range)
   halo.style.backgroundColor = `rgba(255, 255, 255, 0.10)`;
   halo.style.borderRadius = '16px';
   halo.style.position = 'absolute';
@@ -918,6 +1040,8 @@ function smokeBubblesAtCard(
   halo.style.top = `${(containerHeight - haloHeight) / 2}px`;
   halo.style.opacity = '0';
   halo.style.pointerEvents = 'none';
+  // 🔥 USER REQUEST: Better blend mode for halo (similar to tiles)
+  halo.style.mixBlendMode = 'screen'; // Better quality - similar to additive blending
   // 🔥 PERFORMANCE: Enable hardware acceleration
   halo.style.willChange = 'opacity';
   halo.style.transform = 'translateZ(0)';
@@ -926,6 +1050,7 @@ function smokeBubblesAtCard(
   halo.style.webkitBackfaceVisibility = 'hidden';
   smokeContainer.appendChild(halo);
   
+  // 🔥 USER REQUEST: Better halo animation (similar to tiles: 0.22 alpha peak)
   gsap.to(halo, { 
     opacity: 0.22, 
     duration: 0.08, 
@@ -948,41 +1073,62 @@ function smokeBubblesAtCard(
   
   // 🔥 MEMORY FIX: Cleanup container after all animations complete
   // Particles take ~0.4-0.5s, halo takes ~0.5s, so cleanup after 2.5s to be safe
+  // 🔥 CRITICAL FIX: Check if cleanup timer already exists to prevent duplicates
+  if ((smokeContainer as any)._cleanupTimer) {
+    console.warn('⚠️ Smoke container already has cleanup timer, killing old one');
+    (smokeContainer as any)._cleanupTimer.kill();
+    (smokeContainer as any)._cleanupTimer = null;
+  }
+  
   const cleanupTimer = gsap.delayedCall(2.5, () => {
     try {
-      if (smokeContainer && smokeContainer.parentNode) {
-        // Kill any remaining GSAP animations on container
-        gsap.killTweensOf(smokeContainer);
-        
-        // Kill animations on all children and release smoke particles to pool
-        const children = smokeContainer.querySelectorAll('*');
-        children.forEach(child => {
-          gsap.killTweensOf(child);
-          // 🔥 MEMORY FIX: Release smoke particles back to pool
-          // Halo elements will be removed by DOM removal below
-          if (child.parentNode === smokeContainer) {
-            // Only release if it's a direct child (smoke particles)
-            // Halo is also a direct child but we'll let DOM removal handle it
-            try {
-              // Try to release to pool (will fail silently if not a pooled element)
-              if ((child as HTMLElement).style && (child as HTMLElement).style.borderRadius === '50%') {
-                // Likely a smoke particle (has border-radius: 50%)
-                domElementPool.release(child as HTMLElement);
-              }
-            } catch {}
-          }
-        });
-        
-        // Remove from DOM (this removes halo and any remaining elements)
-        smokeContainer.parentNode.removeChild(smokeContainer);
-        // Remove from tracking set
-        state.smokeContainers.delete(smokeContainer);
-        console.log('🧹 Smoke container cleaned up');
+      // 🔥 CRITICAL FIX: Check if container was already cleaned up
+      if (!smokeContainer || !smokeContainer.parentNode) {
+        console.warn('⚠️ Smoke container already removed, skipping cleanup');
+        return;
       }
+      
+      // 🔥 CRITICAL FIX: Mark as cleaned up to prevent duplicate cleanup
+      if ((smokeContainer as any)._cleanedUp) {
+        console.warn('⚠️ Smoke container already cleaned up, skipping duplicate');
+        return;
+      }
+      (smokeContainer as any)._cleanedUp = true;
+      
+      // Kill any remaining GSAP animations on container
+      gsap.killTweensOf(smokeContainer);
+      
+      // Kill animations on all children and release smoke particles to pool
+      const children = smokeContainer.querySelectorAll('*');
+      children.forEach(child => {
+        gsap.killTweensOf(child);
+        // 🔥 MEMORY FIX: Release smoke particles back to pool
+        // Halo elements will be removed by DOM removal below
+        if (child.parentNode === smokeContainer) {
+          // Only release if it's a direct child (smoke particles)
+          // Halo is also a direct child but we'll let DOM removal handle it
+          try {
+            // Try to release to pool (will fail silently if not a pooled element)
+            if ((child as HTMLElement).style && (child as HTMLElement).style.borderRadius === '50%') {
+              // Likely a smoke particle (has border-radius: 50%)
+              domElementPool.release(child as HTMLElement);
+            }
+          } catch {}
+        }
+      });
+      
+      // Remove from DOM (this removes halo and any remaining elements)
+      smokeContainer.parentNode.removeChild(smokeContainer);
+      // Remove from tracking set
+      state.smokeContainers.delete(smokeContainer);
+      console.log('🧹 Smoke container cleaned up');
     } catch (e) {
       console.warn('⚠️ Error cleaning up smoke container:', e);
       // Ensure it's removed from tracking even if cleanup fails
       state.smokeContainers.delete(smokeContainer);
+    } finally {
+      // Clear cleanup timer reference
+      (smokeContainer as any)._cleanupTimer = null;
     }
   });
   

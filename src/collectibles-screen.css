@@ -60,10 +60,16 @@
 
 /* Header mirrors stats screen */
 .collectibles-header {
+  /* 🔥 FIX: Inherit padding variables from shell for consistent spacing */
+  --safe-right: env(safe-area-inset-right, 0px);
+  --pad-right: calc(24px + var(--safe-right));
+  --safe-left: env(safe-area-inset-left, 0px);
+  --pad-left: calc(24px + var(--safe-left));
+  
   display: flex;
   flex-direction: column;
   width: 100%;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 2vh);
+  padding-top: max(0px, calc(env(safe-area-inset-top, 0px) + 2vh - 16px)); /* Lift nav 16px toward top */
   padding-bottom: 0;
   /* background removed - parent screen has background, this prevents visual artifacts during scale animation */
   flex-shrink: 0;
@@ -101,7 +107,7 @@
   overflow: hidden;
   z-index: 9999 !important; /* 🔥 CRITICAL: Always on top, always clickable */
   pointer-events: auto !important; /* 🔥 CRITICAL: Always receives clicks */
-  margin-left: 24px; /* 🔥 FIX: Reduced from 40px to 24px to match new padding */
+  margin-left: var(--pad-left, 24px); /* 🔥 FIX: Use --pad-left to account for safe-area-inset-left */
   flex-shrink: 0;
 }
 
@@ -162,7 +168,37 @@
   width: 40px;
   height: 40px;
   flex-shrink: 0;
-  margin-right: 24px; /* 🔥 FIX: Reduced from 40px to 24px to match new padding */
+  margin-right: var(--pad-right, 24px); /* 🔥 FIX: Use --pad-right to account for safe-area-inset-right */
+}
+
+/* 🔥 NEW: Lives counter in journey header (heart icon + number) */
+.journey-lives-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-right: var(--pad-right, 24px); /* 🔥 FIX: Use --pad-right to account for safe-area-inset-right */
+  padding: 4px 8px;
+  border-radius: 8px;
+  /* Similar to HUD design - icon + number */
+}
+
+.journey-lives-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
+}
+
+.journey-lives-count {
+  font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--collectibles-brown); /* #ad8775 - same as title */
+  line-height: 1;
+  min-width: 20px;
+  text-align: left;
 }
 
 .collectibles-title-underline {
@@ -203,7 +239,7 @@
   gap: 24px;
   padding-left: var(--pad-left);
   padding-right: var(--pad-right);
-  padding-top: 24px;
+  padding-top: 20px; /* Net lift: 4px lower than previous, still 4px above original 24px */
   padding-bottom: calc(40px + var(--safe-bottom) + 80px); /* Extra space for floating buttons */
   align-items: center;
   /* 🔥 iOS OPTIMIZATION: Optimize touch-action for better scroll performance */
@@ -1189,48 +1225,111 @@
 }
 
 /* 🔥 USER REQUEST: Shimmer animation for journey interim cards (same as detail screen) */
+/* Triggered by JS class 'interim-shimmer-trigger' - appears 100ms before glow */
+/* 🔥 USER REQUEST: Shimmer animation for journey interim cards (same as detail screen) */
+/* Using infinite animation like detail screen - controlled by JS class to start/stop */
+.journey-board-card.interim::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.00) 0%,
+    rgba(255,255,255,0.52) 50%,
+    rgba(255,255,255,0.00) 100%
+  );
+  transform: translateX(-160%) skewX(-12deg) translateZ(0);
+  opacity: 0;
+  display: block;
+  visibility: visible;
+  filter: blur(0.56px);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  pointer-events: none;
+  z-index: 999 !important;
+  border-radius: 12px;
+  /* 🔥 CRITICAL: No animation by default - paused */
+  animation: none;
+}
+
+/* 🔥 CRITICAL: When trigger class is added, start single-run animation (JS restarts each cycle) */
+.journey-board-card.interim.interim-shimmer-trigger::after {
+  /* 🔥 USER REQUEST: Single-run animation so JS can restart it every interval */
+  /* 🔥 FIX: Animacija skraćena na 1.7s da se završi pre intervala (2.9s) */
+  animation: journey-interim-shimmer 1.7s linear !important;
+  /* 🔥 USER REQUEST: Start immediately (0s delay) so shimmer is visible before glow (glow starts 150ms later) */
+  animation-delay: 0s !important;
+}
+
 @keyframes journey-interim-shimmer {
-  0%, 10%{
+  0%{
     transform: translateX(-160%) skewX(-12deg);
     opacity: 0;
   }
-  11%{
-    transform: translateX(-160%) skewX(-12deg);
-    opacity: 0;
+  0.5%{
+    transform: translateX(-159%) skewX(-12deg);
+    opacity: 0.05;
+  }
+  1%{
+    transform: translateX(-158%) skewX(-12deg);
+    opacity: 0.125;
+  }
+  1.5%{
+    transform: translateX(-156%) skewX(-12deg);
+    opacity: 0.2;
+  }
+  2%{
+    transform: translateX(-154%) skewX(-12deg);
+    opacity: 0.25;
+  }
+  3%{
+    transform: translateX(-150%) skewX(-12deg);
+    opacity: 0.325;
+  }
+  5%{
+    transform: translateX(-140%) skewX(-12deg);
+    opacity: 0.375;
+  }
+  8%{
+    transform: translateX(-130%) skewX(-12deg);
+    opacity: 0.425;
+  }
+  12%{
+    transform: translateX(-120%) skewX(-12deg);
+    opacity: 0.45;
   }
   15%{
-    transform: translateX(-120%) skewX(-12deg);
-    opacity: 0.5;
+    transform: translateX(-110%) skewX(-12deg);
+    opacity: 0.475;
   }
   20%{
     transform: translateX(-80%) skewX(-12deg);
-    opacity: 1;
+    opacity: 0.5;
   }
   25%{
     transform: translateX(-40%) skewX(-12deg);
-    opacity: 1;
+    opacity: 0.5;
   }
   30%{
     transform: translateX(0%) skewX(-12deg);
-    opacity: 1;
+    opacity: 0.5;
   }
   35%{
     transform: translateX(40%) skewX(-12deg);
-    opacity: 1;
+    opacity: 0.5;
   }
   40%{
     transform: translateX(80%) skewX(-12deg);
-    opacity: 1;
+    opacity: 0.5;
   }
   45%{
     transform: translateX(120%) skewX(-12deg);
-    opacity: 0.5;
+    opacity: 0.25;
   }
   50%{
-    transform: translateX(160%) skewX(-12deg);
-    opacity: 0;
-  }
-  51%, 100%{
     transform: translateX(160%) skewX(-12deg);
     opacity: 0;
   }
@@ -1327,17 +1426,56 @@
   background: transparent;
   border: none;
   box-shadow: 0 12px 13px var(--collectibles-card-shadow) !important;
-  overflow: visible !important; /* Allow shadow to be visible */
+  overflow: hidden !important; /* 🔥 FIX: Clip shimmer to card boundaries (shadow still visible via box-shadow) */
+}
+
+.journey-board-card.unlocked::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.00) 0%,
+    rgba(255,255,255,0.52) 50%,
+    rgba(255,255,255,0.00) 100%
+  );
+  transform: translateX(-160%) skewX(-12deg) translateZ(0);
+  opacity: 0;
+  display: block;
+  visibility: visible;
+  filter: blur(0.56px);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  pointer-events: none;
+  z-index: 999 !important;
+  border-radius: 12px;
+  animation: none;
+}
+
+.journey-board-card.unlocked.idle-shimmer-trigger::after {
+  animation: journey-interim-shimmer 2s linear !important;
+  animation-delay: 0s !important;
+}
+
+/* 🔥 USER REQUEST: Remove shadow from viewed cards (cards that have been clicked in details) */
+.journey-board-card[data-journey-card-viewed="true"] {
+  box-shadow: none !important;
 }
 
 .journey-board-card.interim {
   background: transparent;
   border: none;
-  box-shadow: none !important; /* 🔥 USER REQUEST: Remove glow/shadow from interim cards */
+  box-shadow: 0 12px 13px var(--collectibles-card-shadow) !important; /* 🔥 USER REQUEST: Add shadow like other cards */
   overflow: hidden !important; /* 🔥 CRITICAL: Clip shimmer effect to card boundaries */
   position: relative; /* 🔥 CRITICAL: Required for ::after positioning */
   transition: filter 0.3s ease-out; /* For glow pulse animation */
 }
+
+/* 🔥 USER REQUEST: Ensure shimmer is visible on interim cards */
+/* 🔥 USER REQUEST: Duplicate .journey-board-card.interim::after removed - styles are in definition above */
 
 /* Glow pulse animation for interim card during scroll focus */
 .journey-board-card.interim.interim-glow-pulse {
@@ -1404,35 +1542,8 @@
   }
 }
 
-/* Note: Using .journey-board-card.interim::after because img elements cannot have ::after */
-.journey-board-card.interim::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    rgba(255,255,255,0.00) 0%,
-    rgba(255,255,255,0.52) 50%,
-    rgba(255,255,255,0.00) 100%
-  );
-  transform: translateX(-160%) skewX(-12deg) translateZ(0); /* 🔥 PERFORMANCE: GPU acceleration without will-change overhead */
-  opacity: 0;
-  /* 🔥 PERFORMANCE: Removed will-change - CSS animations are already GPU-accelerated */
-  /* will-change causes memory overhead on infinite animations */
-  filter: blur(0.56px);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden; /* iOS Safari */
-  pointer-events: none;
-  z-index: 1; /* Above image */
-  border-radius: 12px; /* Match parent border-radius to clip shimmer properly */
-  animation: journey-interim-shimmer 3s linear infinite;
-  animation-delay: 0.5s;
-  /* 🔥 PERFORMANCE: CSS animations auto-cleanup when element is removed from DOM */
-  /* No memory leak - browser handles cleanup automatically */
-}
+/* 🔥 USER REQUEST: Base ::after element styles moved to .journey-board-card.interim::after above */
+/* This ensures proper reset when trigger class is removed */
 
 .journey-board-card.locked {
   background: transparent;

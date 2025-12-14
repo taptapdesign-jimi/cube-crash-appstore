@@ -8,7 +8,7 @@
 // - Cards can be positioned individually anywhere you want
 
 import { logger } from '../core/logger.js';
-import { JOURNEY_CARD_IDLE_BOUNCE } from './journey-card-idle-bounce.js';
+import { JOURNEY_CARD_IDLE_BOUNCE, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
 import { gsap } from 'gsap';
 
 export interface JourneyBoard {
@@ -133,6 +133,8 @@ class JourneyBoardsManager {
   private container: HTMLElement | null = null;
   private renderDisposed = false; // Guard async work when screen is torn down
   private glowPulseInterval: number | null = null; // Interval for continuous glow pulse
+  // 🔥 USER REQUEST: Shimmer is now triggered together with glow (not independent interval)
+  // 🔥 USER REQUEST: Smoke bubbles are now triggered DURING bounce animation (not independent interval)
 
   constructor() {
     this.initializeBoards();
@@ -147,12 +149,174 @@ class JourneyBoardsManager {
   }
 
   /**
-   * 🔥 USER REQUEST: Start continuous glow pulse on interim card (every 3 seconds)
+   * 🔥 USER REQUEST: Start independent bounce animation on interim card
+   * This is a continuous animation that runs independently from other cards
+   */
+  private startInterimBounce(card: HTMLElement): void {
+    // Get card wrapper (has the transform/rotation)
+    const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement | null;
+    if (!cardWrapper) return;
+    
+    // 🔥 CRITICAL FIX: Check if bounce animation is already active to prevent duplicates
+    if ((cardWrapper as any)._interimBounceActive) {
+      logger.warn('⚠️ Interim bounce animation already active, skipping duplicate start');
+      return;
+    }
+    
+    // Stop any existing bounce animation (safety check)
+    this.stopInterimBounce(card);
+    
+    // Get current rotation from transform
+    const transform = cardWrapper.style.transform || '';
+    const rotationMatch = transform.match(/rotate\(([^)]+)\)/);
+    const originalRotation = rotationMatch ? parseFloat(rotationMatch[1]) : 0;
+    
+    // Animation parameters (similar to journey-card-idle-bounce.ts)
+    const baseScale = 1;
+    const scaleUp = 1.05;
+    const tiltDegrees = 2.5;
+    const tiltDirection = Math.random() > 0.5 ? 1 : -1;
+    
+    // Store original transform
+    (cardWrapper as any)._originalTransform = transform || '';
+    
+    // Create continuous bounce animation
+    const animateBounce = () => {
+      if (this.renderDisposed || !card.parentElement) {
+        this.stopInterimBounce(card);
+        return;
+      }
+      
+      // 🔥 CRITICAL FIX: Double-check that bounce is still active (prevent race conditions)
+      if (!(cardWrapper as any)._interimBounceActive) {
+        logger.warn('⚠️ Bounce animation stopped externally, aborting animateBounce');
+        return;
+      }
+      
+      // Kill any existing animation
+      gsap.killTweensOf(cardWrapper, 'scale,rotation');
+      
+      logger.info('💚 Starting bounce animation: scale up (0.1s) -> smoke at peak -> scale down (0.1s) -> wait 1.5-2.5s');
+      
+      // Phase 1: Scale up with rotation - fast 0.1s (original speed)
+      gsap.to(cardWrapper, {
+        scale: scaleUp,
+        rotation: originalRotation + tiltDegrees * tiltDirection,
+        duration: 0.1, // 🔥 USER REQUEST: Fast bounce (original speed)
+        ease: 'power2.out',
+        transformOrigin: 'center center',
+        onComplete: () => {
+          // 🔥 USER REQUEST: Trigger smoke bubbles at peak of bounce animation (at 0.1s peak)
+          if (card && card.parentElement) {
+            // 🔥 CRITICAL FIX: Check if bounce is still active before triggering smoke
+            if (!(cardWrapper as any)._interimBounceActive) {
+              logger.warn('⚠️ Bounce stopped before smoke trigger, skipping smoke');
+              return;
+            }
+            
+            logger.info('💨 Triggering smoke bubbles at bounce peak (0.1s)');
+            const randomAlpha = 0.8 + Math.random() * 0.2; // Random between 0.8 and 1.0
+            smokeBubblesAtCard(card, {
+              sizeScale: 0.55, // Better quality (similar to tiles)
+              distanceScale: 0.55, // Better quality (similar to tiles)
+              countScale: 0.45, // More particles (better quality)
+              haloScale: 0.55, // Better halo
+              strength: 1.8 + Math.random() * 0.7, // ~100% jače
+              trailAlpha: randomAlpha, // Random alpha for trail/plume (0.8-1.0)
+              baseAlpha: randomAlpha // Random alpha for base smoke particles (0.8-1.0)
+            });
+          }
+          
+          // Phase 2: Return to scale and rotation - fast 0.1s (original speed)
+          gsap.to(cardWrapper, {
+            scale: baseScale,
+            rotation: originalRotation,
+            duration: 0.1, // 🔥 USER REQUEST: Fast bounce (original speed)
+            ease: 'power2.in',
+            transformOrigin: 'center center',
+            onComplete: () => {
+              // 🔥 CRITICAL FIX: Check if bounce is still active before scheduling next bounce
+              if (!(cardWrapper as any)._interimBounceActive || this.renderDisposed || !card.parentElement) {
+                logger.warn('⚠️ Bounce stopped during animation, not scheduling next bounce');
+                return;
+              }
+              
+              // Restore original transform
+              const storedTransform = (cardWrapper as any)._originalTransform;
+              if (storedTransform) {
+                cardWrapper.style.transform = storedTransform;
+              }
+              
+              // 🔥 CRITICAL FIX: Clear any existing timeout before setting new one
+              if ((cardWrapper as any)._bounceTimeout) {
+                clearTimeout((cardWrapper as any)._bounceTimeout);
+                (cardWrapper as any)._bounceTimeout = null;
+              }
+              
+              // 🔥 USER REQUEST: Faster interval between bounces (1.5-2.5 seconds - double speed)
+              const nextBounceDelay = 1500 + Math.random() * 1000; // 1.5-2.5 seconds (was 3-5s)
+              logger.info(`💚 Bounce complete, scheduling next bounce in ${nextBounceDelay}ms`);
+              (cardWrapper as any)._bounceTimeout = setTimeout(animateBounce, nextBounceDelay);
+            }
+          });
+        }
+      });
+    };
+    
+    // 🔥 CRITICAL FIX: Clear any existing timeout before setting new one
+    if ((cardWrapper as any)._bounceTimeout) {
+      clearTimeout((cardWrapper as any)._bounceTimeout);
+      (cardWrapper as any)._bounceTimeout = null;
+    }
+    
+    // 🔥 USER REQUEST: Start first bounce after shorter delay (0.75s - double speed)
+    (cardWrapper as any)._bounceTimeout = setTimeout(animateBounce, 750);
+    
+    // Store reference for cleanup
+    (cardWrapper as any)._interimBounceActive = true;
+    
+    logger.info('💚 Started interim bounce animation on card');
+  }
+  
+  /**
+   * 🔥 USER REQUEST: Stop bounce animation on interim card
+   */
+  private stopInterimBounce(card: HTMLElement): void {
+    const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement | null;
+    if (!cardWrapper) return;
+    
+    // Kill GSAP animations
+    gsap.killTweensOf(cardWrapper, 'scale,rotation');
+    
+    // Clear timeout
+    if ((cardWrapper as any)._bounceTimeout) {
+      clearTimeout((cardWrapper as any)._bounceTimeout);
+      delete (cardWrapper as any)._bounceTimeout;
+    }
+    
+    // Restore original transform
+    const storedTransform = (cardWrapper as any)._originalTransform;
+    if (storedTransform) {
+      cardWrapper.style.transform = storedTransform;
+    }
+    
+    delete (cardWrapper as any)._interimBounceActive;
+  }
+
+  /**
+   * 🔥 USER REQUEST: Start independent animations on interim card
+   * - Bounce animation: continuous (independent from other cards)
+   * - Smoke bubbles: every 2.7 seconds
+   * - Shimmer: every 2.0 seconds
+   * - Glow: every 3.0 seconds
    * With proper cleanup to prevent memory leaks
    */
   private startGlowPulse(): void {
-    // Stop any existing interval first
-    this.stopGlowPulse();
+    // 🔥 CRITICAL FIX: Stop any existing intervals first to prevent duplicates
+    if (this.glowPulseInterval !== null) {
+      logger.warn('⚠️ Glow pulse already active, stopping before restart');
+      this.stopGlowPulse();
+    }
     
     // Find interim card
     const interimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
@@ -160,26 +324,83 @@ class JourneyBoardsManager {
       return; // No interim card found
     }
     
-    // Trigger initial glow pulse
-    this.triggerGlowPulse(interimCard);
+    // 🔥 CRITICAL FIX: Check if bounce is already active on this card before starting
+    const cardWrapper = interimCard.closest('.journey-board-card-wrapper') as HTMLElement | null;
+    if (cardWrapper && (cardWrapper as any)._interimBounceActive) {
+      logger.warn('⚠️ Interim bounce already active on card, skipping duplicate start');
+    } else {
+      // 🔥 USER REQUEST: Start independent bounce animation (continuous, independent from other cards)
+      // Smoke bubbles are triggered DURING bounce animation (at 0.3s peak), not independently
+      this.startInterimBounce(interimCard);
+    }
     
-    // Set up interval to repeat every 3 seconds
-    this.glowPulseInterval = window.setInterval(() => {
-      if (this.renderDisposed) {
+    // 🔥 USER REQUEST: Simple interval that triggers shimmer and glow together every 2.9 seconds
+    // CSS animation is single-run; JS forcibly restarts it each tick
+    const triggerShimmerAndGlow = () => {
+      const currentInterimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
+      if (!currentInterimCard || this.renderDisposed) {
         this.stopGlowPulse();
         return;
       }
       
-      const currentInterimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
-      if (currentInterimCard) {
-        this.triggerGlowPulse(currentInterimCard);
-      } else {
-        // Interim card removed, stop interval
-        this.stopGlowPulse();
+      // Clear any pending timeouts from a previous tick to avoid mid-animation removals
+      const existingRemove = (currentInterimCard as any)._interimShimmerRemoveTimeout;
+      if (existingRemove) {
+        clearTimeout(existingRemove);
+        (currentInterimCard as any)._interimShimmerRemoveTimeout = null;
       }
-    }, 3000); // 3 seconds
+      const existingGlow = (currentInterimCard as any)._interimGlowTimeout;
+      if (existingGlow) {
+        clearTimeout(existingGlow);
+        (currentInterimCard as any)._interimGlowTimeout = null;
+      }
+      
+      // 1) Remove class to reset animation state
+      currentInterimCard.classList.remove('interim-shimmer-trigger');
+      
+      // 2) Force reflow so the browser sees the removal
+      void currentInterimCard.offsetHeight;
+      
+      // 3) Single rAF to ensure styles are flushed before re-adding the class (faster than double rAF)
+      requestAnimationFrame(() => {
+        if (this.renderDisposed || !currentInterimCard.parentElement) {
+          return;
+        }
+        
+        // 4) Re-add class to restart animation - shimmer starts immediately
+        currentInterimCard.classList.add('interim-shimmer-trigger');
+        logger.info('✨ Shimmer triggered on interim card');
+        
+        // 5) Glow 150ms later so shimmer is clearly visible BEFORE glow
+        // Shimmer becomes visible at ~1-2% = 30-60ms, so 150ms ensures shimmer is well visible
+        (currentInterimCard as any)._interimGlowTimeout = window.setTimeout(() => {
+          if (!this.renderDisposed && currentInterimCard.parentElement) {
+            this.triggerGlowPulse(currentInterimCard);
+          }
+        }, 150);
+        
+        // 6) Remove class BEFORE next cycle (1.7s animation + 300ms buffer = 2.0s total)
+        // 🔥 FIX: Ukloniti klasu pre sledećeg ciklusa (2.9s) da se animacija pravilno restartuje
+        (currentInterimCard as any)._interimShimmerRemoveTimeout = window.setTimeout(() => {
+          if (!this.renderDisposed && currentInterimCard.parentElement) {
+            currentInterimCard.classList.remove('interim-shimmer-trigger');
+            // Force reflow so next add restarts cleanly
+            void currentInterimCard.offsetHeight;
+            logger.info('✨ Shimmer stopped on interim card');
+          }
+          (currentInterimCard as any)._interimShimmerRemoveTimeout = null;
+        }, 2000); // Remove before next cycle (1.7s animation + 300ms buffer, next cycle at 2.9s)
+      });
+    };
     
-    logger.info('✅ Started continuous glow pulse on interim card');
+    // Trigger immediately and then every 2.9s; shimmer always starts the cycle and glow follows 150ms later
+    const runCycle = () => {
+      triggerShimmerAndGlow();
+      this.glowPulseInterval = window.setTimeout(runCycle, 2900);
+    };
+    runCycle();
+    
+    logger.info('✅ Started independent bounce (with smoke bubbles at peak), shimmer (150ms before glow) + glow (2.9s interval) on interim card');
   }
   
   /**
@@ -196,20 +417,47 @@ class JourneyBoardsManager {
     card.classList.add('interim-glow-pulse');
   }
   
+  // 🔥 USER REQUEST: triggerShimmer removed - shimmer is now handled directly in interval
+  // 🔥 USER REQUEST: triggerSmokeBubbles removed - smoke bubbles are now triggered DURING bounce animation
+  
   /**
-   * 🔥 MEMORY LEAK FIX: Stop glow pulse interval and cleanup
+   * 🔥 MEMORY LEAK FIX: Stop glow pulse, shimmer, smoke bubbles, and bounce intervals and cleanup
    */
   private stopGlowPulse(): void {
+    // Stop glow pulse interval
     if (this.glowPulseInterval !== null) {
-      clearInterval(this.glowPulseInterval);
+      clearTimeout(this.glowPulseInterval);
       this.glowPulseInterval = null;
       logger.info('✅ Stopped glow pulse interval');
     }
     
-    // Remove glow pulse class from all interim cards
+    // 🔥 USER REQUEST: Shimmer is now part of glow animation (no separate interval needed)
+    // 🔥 USER REQUEST: Smoke bubbles are now part of bounce animation (no separate interval needed)
+    
+    // 🔥 USER REQUEST: Stop bounce animation
     const interimCards = document.querySelectorAll('.journey-board-card.interim');
     interimCards.forEach(card => {
-      (card as HTMLElement).classList.remove('interim-glow-pulse');
+      this.stopInterimBounce(card as HTMLElement);
+    });
+    
+    // Remove glow pulse and shimmer classes from all interim cards
+    interimCards.forEach(card => {
+      const cardEl = card as HTMLElement;
+      
+      // Clear pending shimmer/glow timeouts so they don't fire after stop
+      const pendingRemove = (cardEl as any)._interimShimmerRemoveTimeout;
+      if (pendingRemove) {
+        clearTimeout(pendingRemove);
+        (cardEl as any)._interimShimmerRemoveTimeout = null;
+      }
+      const pendingGlow = (cardEl as any)._interimGlowTimeout;
+      if (pendingGlow) {
+        clearTimeout(pendingGlow);
+        (cardEl as any)._interimGlowTimeout = null;
+      }
+      
+      cardEl.classList.remove('interim-glow-pulse');
+      cardEl.classList.remove('interim-shimmer-trigger');
     });
   }
 
@@ -1636,7 +1884,8 @@ class JourneyBoardsManager {
     const counter = document.getElementById('boards-counter');
     if (counter) {
       const unlockedCount = this.boards.filter(b => b.unlocked).length;
-      counter.textContent = `${unlockedCount.toString().padStart(2, '0')}/25`;
+      // 🔥 USER REQUEST: Show "0/25" instead of "00/25" when count is 0
+      counter.textContent = `${unlockedCount}/25`;
     }
   }
 

@@ -425,6 +425,14 @@ class CollectiblesManager {
     // 🎬 CRITICAL: Trigger Journey screen enter animation (pop-in) using GSAP
     try {
       const { animateCollectiblesScreenEnter } = await import('./ui/collectibles-animations.js');
+      
+      // 🔥 NEW: Initialize lives manager and update UI
+      try {
+        const { livesManager } = await import('./modules/lives-manager.js');
+        livesManager.refreshUI();
+      } catch (error) {
+        logger.warn('⚠️ Failed to initialize lives manager:', error);
+      }
       console.log('🎬 About to call animateCollectiblesScreenEnter()...');
       // Small delay to ensure DOM is ready, then make screen visible and start animation
       setTimeout(() => {

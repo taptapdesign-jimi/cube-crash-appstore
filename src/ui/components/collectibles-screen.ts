@@ -57,7 +57,29 @@ export function createCollectiblesScreen(config: CollectiblesScreenConfig = {}):
                   },
                   {
                     tag: 'div',
-                    className: 'collectibles-header-spacer',
+                    className: 'journey-lives-container',
+                    id: 'journey-lives-container',
+                    children: [
+                      {
+                        tag: 'img',
+                        className: 'journey-lives-icon',
+                        id: 'journey-lives-icon',
+                        attributes: {
+                          src: './assets/journey assets/heart-nav.png',
+                          alt: 'Lives',
+                          'aria-hidden': 'true',
+                        },
+                      },
+                      {
+                        tag: 'span',
+                        className: 'journey-lives-count',
+                        id: 'journey-lives-count',
+                        text: '0',
+                        attributes: {
+                          'aria-label': 'Lives count',
+                        },
+                      },
+                    ],
                   },
                 ],
               },

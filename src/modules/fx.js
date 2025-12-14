@@ -2962,7 +2962,9 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
     const perBurst   = Math.ceil(COUNT / BURSTS);
 
     for (let i=0; i<perBurst; i++){
-      const puff = new Graphics();
+      // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics
+      const puff = graphicsPool.acquire();
+      
       let r0 = BASE_R + Math.random() * (MAX_R - BASE_R);
       if (Math.random() < 0.22) r0 *= (1.35 + Math.random()*0.9);
       // Cap max radius to prevent oversized bubbles (especially for merge 6)
@@ -3029,7 +3031,15 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       const stg = burstDelay + Math.random()*0.018;
       const tl = gsap.timeline({
         defaults: { overwrite: false },
-        onComplete: ()=>{ try{ if(puff && puff.parent){ puff.parent.removeChild(puff); puff.destroy(); } }catch{} }
+        // 🔥 OBJECT POOLING: Release back to pool instead of destroying
+        onComplete: ()=>{ 
+          try{ 
+            if(puff && puff.parent){ 
+              puff.parent.removeChild(puff); 
+              graphicsPool.release(puff); 
+            } 
+          }catch{} 
+        }
       });
 
       const targetAlpha = options.trailAlpha ?? 0.95;
@@ -3040,7 +3050,8 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
     }
   }
 
-  const halo = new Graphics();
+  // 🔥 OBJECT POOLING: Use pool for halo Graphics object
+  const halo = graphicsPool.acquire();
   const haloScale = options.haloScale ?? 1;
   const rr = size * (0.22 + 0.05*baseStrength) * haloScale;
   halo.circle(0, 0, rr).fill({ color: 0xFFFFFF, alpha: 0.10 * (options.haloAlpha ?? 1) });
@@ -3048,7 +3059,15 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   layer.addChildAt(halo, 0);
   gsap.to(halo, { alpha: 0.22, duration: 0.08, ease: 'power2.out' });
   gsap.to(halo, { alpha: 0, duration: 0.28, delay: 0.18, ease: 'power2.in',
-    onComplete: ()=>{ try{ layer.removeChild(halo); halo.destroy(); }catch{} }
+    // 🔥 OBJECT POOLING: Release back to pool instead of destroying
+    onComplete: ()=>{ 
+      try{ 
+        if(halo && halo.parent){ 
+          halo.parent.removeChild(halo); 
+          graphicsPool.release(halo); 
+        } 
+      }catch{} 
+    }
   });
 }
 
@@ -4115,6 +4134,33 @@ export function startHeroImageParticles(heroImageElement) {
     console.log('🔍 After increment, tap count is:', newTapCount);
     checkEasterEgg();
     
+    // 🔥 USER REQUEST: Add gentle bounce animation on tap
+    if (heroImageElement && heroImageElement.parentElement) {
+      // Kill any existing GSAP animations on scale
+      gsap.killTweensOf(heroImageElement, 'scale');
+      
+      // Gentle bounce: scale down slightly, then back up with slight overshoot
+      // Use transform: scale() which will combine with existing CSS animations (like cubesFloat)
+      gsap.to(heroImageElement, {
+        scale: 0.95,
+        duration: 0.1,
+        ease: 'power2.out',
+        transformOrigin: 'center center',
+        onComplete: () => {
+          gsap.to(heroImageElement, {
+            scale: 1.0,
+            duration: 0.2,
+            ease: 'back.out(1.5)', // Slight overshoot for bounce effect
+            transformOrigin: 'center center',
+            onComplete: () => {
+              // Clear GSAP scale after animation completes to let CSS animation (cubesFloat) continue
+              gsap.set(heroImageElement, { clearProps: 'scale' });
+            }
+          });
+        }
+      });
+    }
+    
     // Generate particles
     console.log('🔥 Generating particles...');
     generateParticles();
@@ -4140,6 +4186,33 @@ export function startHeroImageParticles(heroImageElement) {
     const newTapCount = incrementTapCount();
     console.log('🔍 After increment, tap count is:', newTapCount);
     checkEasterEgg();
+    
+    // 🔥 USER REQUEST: Add gentle bounce animation on tap
+    if (heroImageElement && heroImageElement.parentElement) {
+      // Kill any existing GSAP animations on scale
+      gsap.killTweensOf(heroImageElement, 'scale');
+      
+      // Gentle bounce: scale down slightly, then back up with slight overshoot
+      // Use transform: scale() which will combine with existing CSS animations (like cubesFloat)
+      gsap.to(heroImageElement, {
+        scale: 0.95,
+        duration: 0.1,
+        ease: 'power2.out',
+        transformOrigin: 'center center',
+        onComplete: () => {
+          gsap.to(heroImageElement, {
+            scale: 1.0,
+            duration: 0.2,
+            ease: 'back.out(1.5)', // Slight overshoot for bounce effect
+            transformOrigin: 'center center',
+            onComplete: () => {
+              // Clear GSAP scale after animation completes to let CSS animation (cubesFloat) continue
+              gsap.set(heroImageElement, { clearProps: 'scale' });
+            }
+          });
+        }
+      });
+    }
     
     // Generate particles
     console.log('🔥 Generating particles...');
