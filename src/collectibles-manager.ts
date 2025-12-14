@@ -392,6 +392,8 @@ class CollectiblesManager {
       journeyBoardsManager.updateCounter();
       logger.info('🗺️ Journey boards rendered');
       
+      // 🔥 USER REQUEST: Scroll to interim card will be handled in renderBoards after cards are positioned
+      
       // 🗺️ JOURNEY BADGE: Mark boards as viewed and reset badge when journey screen is opened
       journeyBoardsManager.markAsViewed();
       if (typeof (window as any).updateNavBadge === 'function') {
@@ -409,14 +411,8 @@ class CollectiblesManager {
     }
     this.triggerPendingFlipAnimations();
     
-    // Only scroll to top if no specific card is requested
-    if (!options?.scrollToCard) {
-      const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement;
-      if (scrollable) {
-        console.log('🎁 Scrolling Journey screen to top on open');
-        scrollable.scrollTo({ top: 0, behavior: 'auto' }); // Use 'auto' for instant, or 'smooth' for animated
-      }
-    }
+    // 🔥 USER REQUEST: Scroll to interim card is handled in journey-boards-manager.ts
+    // after boards are rendered and positioned
     
     this.focusTargetCollectible(options);
     

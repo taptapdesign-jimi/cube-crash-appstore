@@ -1188,6 +1188,58 @@
   }
 }
 
+/* 🔥 USER REQUEST: Shimmer animation for journey interim cards (same as detail screen) */
+@keyframes journey-interim-shimmer {
+  0%, 10%{
+    transform: translateX(-160%) skewX(-12deg);
+    opacity: 0;
+  }
+  11%{
+    transform: translateX(-160%) skewX(-12deg);
+    opacity: 0;
+  }
+  15%{
+    transform: translateX(-120%) skewX(-12deg);
+    opacity: 0.5;
+  }
+  20%{
+    transform: translateX(-80%) skewX(-12deg);
+    opacity: 1;
+  }
+  25%{
+    transform: translateX(-40%) skewX(-12deg);
+    opacity: 1;
+  }
+  30%{
+    transform: translateX(0%) skewX(-12deg);
+    opacity: 1;
+  }
+  35%{
+    transform: translateX(40%) skewX(-12deg);
+    opacity: 1;
+  }
+  40%{
+    transform: translateX(80%) skewX(-12deg);
+    opacity: 1;
+  }
+  45%{
+    transform: translateX(120%) skewX(-12deg);
+    opacity: 0.5;
+  }
+  50%{
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0;
+  }
+  51%, 100%{
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0;
+  }
+  51%, 100%{
+    transform: translateX(160%) skewX(-12deg);
+    opacity: 0;
+  }
+}
+
 /* Idle animation for detail card image - similar to slide 1 main image */
 @keyframes detailImageIdle {
   0%, 100% {
@@ -1282,7 +1334,26 @@
   background: transparent;
   border: none;
   box-shadow: none !important; /* 🔥 USER REQUEST: Remove glow/shadow from interim cards */
-  overflow: visible !important;
+  overflow: hidden !important; /* 🔥 CRITICAL: Clip shimmer effect to card boundaries */
+  position: relative; /* 🔥 CRITICAL: Required for ::after positioning */
+  transition: filter 0.3s ease-out; /* For glow pulse animation */
+}
+
+/* Glow pulse animation for interim card during scroll focus */
+.journey-board-card.interim.interim-glow-pulse {
+  animation: interim-glow-pulse 0.5s ease-out;
+}
+
+@keyframes interim-glow-pulse {
+  0% {
+    filter: brightness(1) drop-shadow(0 0 0px rgba(233, 116, 74, 0));
+  }
+  50% {
+    filter: brightness(1.2) drop-shadow(0 0 8px rgba(233, 116, 74, 0.4));
+  }
+  100% {
+    filter: brightness(1.05) drop-shadow(0 0 4px rgba(233, 116, 74, 0.2));
+  }
 }
 
 .journey-board-card.unlocked .journey-board-image {
@@ -1311,6 +1382,56 @@
   object-fit: contain; /* No cut-off, show full image */
   display: block;
   border-radius: 12px;
+  position: relative;
+  z-index: 0; /* Behind shimmer */
+}
+
+/* 🔥 USER REQUEST: Shimmer effect for interim cards (same as detail screen) */
+/* Glow pulse animation for interim card during scroll focus */
+.journey-board-card.interim.interim-glow-pulse {
+  animation: interim-glow-pulse 0.5s ease-out;
+}
+
+@keyframes interim-glow-pulse {
+  0% {
+    filter: brightness(1) drop-shadow(0 0 0px rgba(233, 116, 74, 0));
+  }
+  50% {
+    filter: brightness(1.2) drop-shadow(0 0 8px rgba(233, 116, 74, 0.4));
+  }
+  100% {
+    filter: brightness(1.05) drop-shadow(0 0 4px rgba(233, 116, 74, 0.2));
+  }
+}
+
+/* Note: Using .journey-board-card.interim::after because img elements cannot have ::after */
+.journey-board-card.interim::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.00) 0%,
+    rgba(255,255,255,0.52) 50%,
+    rgba(255,255,255,0.00) 100%
+  );
+  transform: translateX(-160%) skewX(-12deg) translateZ(0); /* 🔥 PERFORMANCE: GPU acceleration without will-change overhead */
+  opacity: 0;
+  /* 🔥 PERFORMANCE: Removed will-change - CSS animations are already GPU-accelerated */
+  /* will-change causes memory overhead on infinite animations */
+  filter: blur(0.56px);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden; /* iOS Safari */
+  pointer-events: none;
+  z-index: 1; /* Above image */
+  border-radius: 12px; /* Match parent border-radius to clip shimmer properly */
+  animation: journey-interim-shimmer 3s linear infinite;
+  animation-delay: 0.5s;
+  /* 🔥 PERFORMANCE: CSS animations auto-cleanup when element is removed from DOM */
+  /* No memory leak - browser handles cleanup automatically */
 }
 
 .journey-board-card.locked {

@@ -9,6 +9,7 @@
 
 import { logger } from '../core/logger.js';
 import { JOURNEY_CARD_IDLE_BOUNCE } from './journey-card-idle-bounce.js';
+import { gsap } from 'gsap';
 
 export interface JourneyBoard {
   id: number;
@@ -131,6 +132,7 @@ class JourneyBoardsManager {
   private boards: JourneyBoard[] = [];
   private container: HTMLElement | null = null;
   private renderDisposed = false; // Guard async work when screen is torn down
+  private glowPulseInterval: number | null = null; // Interval for continuous glow pulse
 
   constructor() {
     this.initializeBoards();
@@ -145,10 +147,80 @@ class JourneyBoardsManager {
   }
 
   /**
+   * 🔥 USER REQUEST: Start continuous glow pulse on interim card (every 3 seconds)
+   * With proper cleanup to prevent memory leaks
+   */
+  private startGlowPulse(): void {
+    // Stop any existing interval first
+    this.stopGlowPulse();
+    
+    // Find interim card
+    const interimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
+    if (!interimCard) {
+      return; // No interim card found
+    }
+    
+    // Trigger initial glow pulse
+    this.triggerGlowPulse(interimCard);
+    
+    // Set up interval to repeat every 3 seconds
+    this.glowPulseInterval = window.setInterval(() => {
+      if (this.renderDisposed) {
+        this.stopGlowPulse();
+        return;
+      }
+      
+      const currentInterimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
+      if (currentInterimCard) {
+        this.triggerGlowPulse(currentInterimCard);
+      } else {
+        // Interim card removed, stop interval
+        this.stopGlowPulse();
+      }
+    }, 3000); // 3 seconds
+    
+    logger.info('✅ Started continuous glow pulse on interim card');
+  }
+  
+  /**
+   * Trigger single glow pulse animation on interim card
+   */
+  private triggerGlowPulse(card: HTMLElement): void {
+    // Remove class first to reset animation
+    card.classList.remove('interim-glow-pulse');
+    
+    // Force reflow to ensure class removal is processed
+    void card.offsetHeight;
+    
+    // Add class to trigger animation
+    card.classList.add('interim-glow-pulse');
+  }
+  
+  /**
+   * 🔥 MEMORY LEAK FIX: Stop glow pulse interval and cleanup
+   */
+  private stopGlowPulse(): void {
+    if (this.glowPulseInterval !== null) {
+      clearInterval(this.glowPulseInterval);
+      this.glowPulseInterval = null;
+      logger.info('✅ Stopped glow pulse interval');
+    }
+    
+    // Remove glow pulse class from all interim cards
+    const interimCards = document.querySelectorAll('.journey-board-card.interim');
+    interimCards.forEach(card => {
+      (card as HTMLElement).classList.remove('interim-glow-pulse');
+    });
+  }
+
+  /**
    * Clean up journey board elements when screen is hidden
    */
   public cleanup(): void {
     this.renderDisposed = true;
+    
+    // 🔥 MEMORY LEAK FIX: Stop glow pulse interval
+    this.stopGlowPulse();
     
     // Remove interaction listeners
     const scrollable = document.querySelector('.collectibles-scrollable') as HTMLElement;
@@ -179,12 +251,28 @@ class JourneyBoardsManager {
     if (journeyScreen) {
       const cards = journeyScreen.querySelectorAll('.collectible-card-wrapper');
       const smokeParticles = journeyScreen.querySelectorAll('.smoke-particle');
+      const interimCards = journeyScreen.querySelectorAll('.journey-board-card.interim');
       
       // Kill card animations
       cards.forEach(card => {
         if (typeof gsap !== 'undefined') {
           gsap.killTweensOf(card);
         }
+      });
+      
+      // 🔥 USER REQUEST: Stop shimmer animations on interim cards
+      interimCards.forEach(card => {
+        const cardElement = card as HTMLElement;
+        // Stop CSS animation by removing animation property
+        if (cardElement.style) {
+          cardElement.style.animation = 'none';
+        }
+        // Kill any GSAP animations
+        if (typeof gsap !== 'undefined') {
+          gsap.killTweensOf(cardElement);
+        }
+        // Remove ::after pseudo-element animation by removing class or setting animation to none
+        // Note: CSS animations stop automatically when element is removed from DOM
       });
       
       // Kill smoke particle animations
@@ -195,13 +283,25 @@ class JourneyBoardsManager {
         particle.remove();
       });
       
-      logger.info(`✅ Killed GSAP tweens for ${cards.length} cards and removed ${smokeParticles.length} smoke particles`);
+      logger.info(`✅ Killed GSAP tweens for ${cards.length} cards, stopped shimmer on ${interimCards.length} interim cards, and removed ${smokeParticles.length} smoke particles`);
     }
     
     // Remove background and cards containers from journey screen
     if (journeyScreen) {
       const bgContainer = journeyScreen.querySelector('.journey-bg-container');
       const cardsContainer = journeyScreen.querySelector('.journey-cards-container');
+      
+      // 🔥 USER REQUEST: Stop shimmer animations before removing containers
+      if (cardsContainer) {
+        const interimCards = cardsContainer.querySelectorAll('.journey-board-card.interim');
+        interimCards.forEach(card => {
+          const cardElement = card as HTMLElement;
+          // Stop CSS animation by setting animation to none
+          cardElement.style.animation = 'none';
+          // Also stop ::after pseudo-element animation by removing class temporarily
+          // (CSS animations stop automatically when element is removed from DOM)
+        });
+      }
       
       if (bgContainer && bgContainer.parentNode) {
         bgContainer.parentNode.removeChild(bgContainer);
@@ -351,6 +451,197 @@ class JourneyBoardsManager {
       'PEACEFUL',
     ];
     return names[(boardNumber - 1) % names.length] || `Board ${boardNumber}`;
+  }
+
+  /**
+   * 🔥 USER REQUEST: Precise scroll to interim card with "zaletava" animation
+   * Exact specification: anticipation → main travel → overshoot + settle
+   * Card must be perfectly centered in viewport (50% width, 50% height)
+   */
+  private scrollToInterimCard(): void {
+    try {
+      const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement;
+      if (!scrollable) {
+        logger.warn('⚠️ Scrollable container not found for interim card scroll');
+        return;
+      }
+
+      // Find interim card
+      const interimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
+      if (!interimCard) {
+        logger.info('🗺️ No interim card found - skipping scroll');
+        return;
+      }
+
+      const cardWrapper = interimCard.closest('.journey-board-card-wrapper') as HTMLElement;
+      if (!cardWrapper) {
+        logger.warn('⚠️ Interim card wrapper not found');
+        return;
+      }
+
+      // Wait for layout to settle and ensure screen is fully visible
+      // Use multiple RAF calls to ensure DOM is ready and screen enter animation has started
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            // Get viewport dimensions
+            const viewportW = window.innerWidth;
+            const viewportH = window.innerHeight;
+            const viewportCenterX = viewportW / 2;
+            const viewportCenterY = viewportH / 2;
+            
+            // Get positions
+            const scrollableRect = scrollable.getBoundingClientRect();
+            const cardRect = cardWrapper.getBoundingClientRect();
+            
+            // 🔥 USER REQUEST: Check if card is actually visible (not hidden by screen animation)
+            // If card rect is empty or invalid, wait a bit more
+            if (cardRect.width === 0 || cardRect.height === 0) {
+              logger.warn('⚠️ Interim card not yet visible, retrying scroll in 200ms...');
+              setTimeout(() => {
+                this.scrollToInterimCard();
+              }, 200);
+              return;
+            }
+            
+            // Calculate card center in content coordinates
+            const cardCenterX = cardRect.left + cardRect.width / 2;
+            const cardCenterY = cardRect.top + cardRect.height / 2;
+            
+            // Calculate final scroll position to center card in viewport
+            // targetScreenPos == viewportCenter
+            // finalScrollY = target.y - viewportH/2
+            const cardTop = cardRect.top - scrollableRect.top + scrollable.scrollTop;
+            const cardCenterYContent = cardTop + cardRect.height / 2;
+            const finalScrollY = cardCenterYContent - viewportCenterY;
+            
+            // Clamp to content bounds
+            const contentHeight = scrollable.scrollHeight;
+            const finalScrollPosition = Math.max(0, Math.min(finalScrollY, contentHeight - scrollable.clientHeight));
+            
+            // Get current scroll position
+            const startScrollPosition = scrollable.scrollTop;
+            
+            // Calculate scroll distance
+            const scrollDistance = finalScrollPosition - startScrollPosition;
+            
+          // 🔥 USER REQUEST: Always animate scroll when returning from game
+          // Check if we're coming from game (journey screen was just shown)
+          const cameFromGame = (window as any).__ccCameFromJourney === true || 
+                               localStorage.getItem('__ccCameFromJourney') === 'true';
+          
+          // If coming from game, always animate (even if close to target)
+          // This ensures animation plays when returning from game
+          if (!cameFromGame && Math.abs(scrollDistance) < 0.5) {
+            logger.info('🗺️ Already at exact interim card position - skipping scroll');
+            return;
+          }
+          
+          // If coming from game and distance is very small, force a minimum scroll distance
+          // This ensures animation is visible even if scroll position is similar
+          if (cameFromGame && Math.abs(scrollDistance) < 10) {
+            // Force a small scroll to ensure animation is visible
+            const forcedDistance = scrollDistance >= 0 ? 20 : -20;
+            logger.info(`🎁 Forcing scroll animation (came from game, distance was ${scrollDistance}px, forcing ${forcedDistance}px)`);
+          }
+          
+          logger.info(`🎁 Scrolling to interim card. From: ${startScrollPosition}, To: ${finalScrollPosition}, Distance: ${scrollDistance}`);
+          
+          // Kill any existing scroll animations
+          gsap.killTweensOf(scrollable, 'scrollTop');
+          gsap.killTweensOf(cardWrapper, 'scale');
+          
+          // Disable user scroll during animation
+          const originalTouchAction = scrollable.style.touchAction || '';
+          const originalPointerEvents = scrollable.style.pointerEvents || '';
+          scrollable.style.touchAction = 'none';
+          scrollable.style.pointerEvents = 'none';
+          
+          // Calculate deltas
+          const anticipationDelta = Math.max(-80, Math.min(-40, scrollDistance * 0.06)); // 4-8% or 40-80px
+          const overshootDelta = Math.max(12, Math.min(24, Math.abs(scrollDistance) * 0.015)); // 1-2% or 12-24px
+          
+          // Timeline with 3 phases
+          const tl = gsap.timeline({
+            onComplete: () => {
+              // Hard correction: ensure exact final position
+              scrollable.scrollTop = finalScrollPosition;
+              
+              // Verify position is correct
+              requestAnimationFrame(() => {
+                const finalCardRect = cardWrapper.getBoundingClientRect();
+                const finalCardCenterY = finalCardRect.top + finalCardRect.height / 2;
+                const error = Math.abs(finalCardCenterY - viewportCenterY);
+                
+                if (error > 1) {
+                  logger.warn(`⚠️ Position error: ${error}px, correcting...`);
+                  scrollable.scrollTop = finalScrollPosition;
+                }
+                
+                // Re-enable user scroll
+                scrollable.style.touchAction = originalTouchAction || 'pan-y';
+                scrollable.style.pointerEvents = originalPointerEvents || '';
+                
+                logger.info('✅ Scroll to interim card animation completed');
+              });
+            }
+          });
+          
+          // Phase 1: Anticipation (0.20s) - move slightly opposite direction
+          // Increased to 0.20s with 4-8% pullback
+          const anticipationPosition = startScrollPosition + anticipationDelta;
+          const anticipationDuration = 0.20;
+          tl.to(scrollable, {
+            scrollTop: anticipationPosition,
+            duration: anticipationDuration,
+            ease: 'power2.out' // easeOutQuad
+          });
+          
+          // Phase 2: Main travel (1.19s) - fast accelerate then smooth decelerate
+          // Slowed down by 40%: 0.85s × 1.4 = 1.19s
+          const overshootPosition = finalScrollPosition + overshootDelta;
+          const mainTravelDuration = 1.19; // 0.85s × 1.4
+          tl.to(scrollable, {
+            scrollTop: overshootPosition,
+            duration: mainTravelDuration,
+            ease: 'power2.inOut' // easeInOutCubic
+          });
+          
+          // Phase 3: Settle (0.42s) - come back and stop perfectly centered
+          // Slowed down by 40%: 0.30s × 1.4 = 0.42s
+          const settleDuration = 0.42; // 0.30s × 1.4
+          tl.to(scrollable, {
+            scrollTop: finalScrollPosition,
+            duration: settleDuration,
+            ease: 'power2.out' // easeOutCubic (or easeOutBack with low overshoot)
+          });
+          
+          // Extra polish: Scale-up card during last 35% of main travel
+          // Scale: 1.00 → 1.06 → 1.04
+          // Start at 65% of main travel (last 35%)
+          const scaleStartTime = anticipationDuration + (mainTravelDuration * 0.65);
+          const scaleEndTime = anticipationDuration + mainTravelDuration;
+          
+          // Ensure card starts at scale 1.0
+          gsap.set(cardWrapper, { scale: 1.0 });
+          
+          tl.to(cardWrapper, {
+            scale: 1.06,
+            duration: (scaleEndTime - scaleStartTime),
+            ease: 'power2.out'
+          }, scaleStartTime);
+          
+          tl.to(cardWrapper, {
+            scale: 1.04,
+            duration: settleDuration, // Use same duration as settle phase
+            ease: 'power2.out'
+          }, scaleEndTime);
+          });
+        });
+      });
+    } catch (error) {
+      logger.warn('⚠️ Failed to scroll to interim card:', error);
+    }
   }
 
   public renderBoards(): void {
@@ -560,10 +851,29 @@ class JourneyBoardsManager {
           
           // Add scroll and touch listeners to notify interactions
           this.setupIdleInteractionListeners();
+          
+          // 🔥 USER REQUEST: Start continuous glow pulse on interim card
+          this.startGlowPulse();
+          
+          // 🔥 USER REQUEST: Scroll to interim card after boards are rendered
+          // Wait a bit longer to ensure all cards are positioned and screen enter animation completes
+          setTimeout(() => {
+            this.scrollToInterimCard();
+          }, 800); // Increased delay to ensure screen enter animation completes and layout is stable
         });
       } catch (error) {
         logger.warn('⚠️ Failed to start journey card idle bounce:', error instanceof Error ? error.message : String(error));
       }
+    } else {
+      // Even if idle bounce is disabled, start glow pulse
+      requestAnimationFrame(() => {
+        this.startGlowPulse();
+        
+        // Scroll to interim card
+        setTimeout(() => {
+          this.scrollToInterimCard();
+        }, 800); // Increased delay to ensure screen enter animation completes and layout is stable
+      });
     }
   }
   
@@ -1050,7 +1360,72 @@ class JourneyBoardsManager {
         await collectiblesManager.hideCollectibles();
       }
       
-      // Step 8: Continue game with saved state (resume interim game)
+      // Step 8: Ensure saved game state exists with correct boardNumber
+      // 🔥 CRITICAL FIX: Create or update saved game state with interim board ID
+      const savedGame = localStorage.getItem('cc_saved_game');
+      let gameState: any;
+      
+      if (savedGame) {
+        try {
+          gameState = JSON.parse(savedGame);
+          // Update boardNumber to interim board ID
+          gameState.boardNumber = board.id;
+          gameState.level = board.id;
+          gameState.timestamp = Date.now();
+          // 🔥 CRITICAL: If there's no tiles array, this is a new board - don't try to load old state
+          if (!gameState.tiles || !Array.isArray(gameState.tiles) || gameState.tiles.length === 0) {
+            // New board - clear tiles so rebuildBoard creates fresh board
+            delete gameState.tiles;
+            logger.info(`🎮 New board ${board.id} - will create fresh board`);
+          }
+          localStorage.setItem('cc_saved_game', JSON.stringify(gameState));
+          logger.info(`🎮 Updated saved game state: boardNumber=${board.id}, level=${board.id}`);
+        } catch (e) {
+          logger.warn('⚠️ Failed to parse saved game, creating new one:', e);
+          gameState = {
+            boardNumber: board.id,
+            level: board.id,
+            score: 0,
+            timestamp: Date.now()
+          };
+          localStorage.setItem('cc_saved_game', JSON.stringify(gameState));
+        }
+      } else {
+        // Create new saved game state for interim board
+        gameState = {
+          boardNumber: board.id,
+          level: board.id,
+          score: 0,
+          timestamp: Date.now()
+        };
+        localStorage.setItem('cc_saved_game', JSON.stringify(gameState));
+        logger.info(`🎮 Created new saved game state: boardNumber=${board.id}, level=${board.id}`);
+      }
+      
+      // 🔥 CRITICAL FIX: Set currentRunState BEFORE calling continueGameWithSavedState
+      // This ensures continueGameWithSavedState can find the active run
+      const savedScore = Number.isFinite(gameState.score) ? gameState.score : 0;
+      journeyProgressionState.setCurrentRunState(board.id, savedScore);
+      logger.info(`🎮 Set currentRunState: board ${board.id}, score ${savedScore}, inProgress: true`);
+      
+      // 🔥 CRITICAL FIX: Set __ccStartAtLevel BEFORE calling continueGameWithSavedState
+      // This ensures startLevel is called with correct board number
+      (window as any).__ccStartAtLevel = board.id;
+      logger.info(`🎮 Set __ccStartAtLevel: ${board.id}`);
+      
+      // 🔥 CRITICAL FIX: If no tiles in saved state, don't skip rebuildBoard
+      // This ensures fresh board is created with proper tile animations
+      if (!gameState.tiles || !Array.isArray(gameState.tiles) || gameState.tiles.length === 0) {
+        // Clear __ccSkipRebuildBoard flag so rebuildBoard creates fresh board
+        delete (window as any).__ccSkipRebuildBoard;
+        logger.info(`🎮 No tiles in saved state - will create fresh board ${board.id} with animations`);
+      } else {
+        // Has tiles - skip rebuildBoard and load saved state
+        (window as any).__ccSkipRebuildBoard = true;
+        logger.info(`🎮 Has tiles in saved state - will load saved board ${board.id}`);
+      }
+      
+      // Step 9: Continue game with saved state (resume interim game)
       // 🔥 CRITICAL FIX: Use continueGameWithSavedState() to preserve progress and score
       // This will load saved game state and continue from where user left off
       // HUD drop animation is already handled in continueGameWithSavedState() for Journey pathway
@@ -1343,6 +1718,40 @@ class JourneyBoardsManager {
     }
   }
 
+  /**
+   * 🔥 USER REQUEST: Ensure only ONE interim card exists at a time
+   * Clears all interim statuses and sets only the correct one
+   */
+  private ensureSingleInterimCard(): void {
+    // Clear ALL interim statuses first
+    this.boards.forEach(b => {
+      b.interim = false;
+    });
+    
+    // Find highest unlocked board
+    const unlockedBoards = this.boards.filter(b => b.unlocked);
+    if (unlockedBoards.length > 0) {
+      const highestUnlocked = unlockedBoards.reduce((max, b) => b.id > max.id ? b : max);
+      const nextBoardNumber = highestUnlocked.id + 1;
+      
+      // Set ONLY the next board after highest unlocked to interim
+      if (nextBoardNumber <= 16) {
+        const nextBoard = this.boards.find(b => b.id === nextBoardNumber);
+        if (nextBoard && !nextBoard.unlocked) {
+          nextBoard.interim = true;
+          logger.info(`🗺️ Ensured single interim card: board ${nextBoardNumber} (next after highest unlocked ${highestUnlocked.id})`);
+        }
+      }
+    } else {
+      // No unlocked boards - set board 1 to interim
+      const board1 = this.boards.find(b => b.id === 1);
+      if (board1) {
+        board1.interim = true;
+        logger.info(`🗺️ Ensured single interim card: board 1 (no unlocked boards)`);
+      }
+    }
+  }
+
   public unlockBoardByNumber(boardNumber: number): boolean {
     if (boardNumber < 1 || boardNumber > 16) return false;
     
@@ -1352,6 +1761,10 @@ class JourneyBoardsManager {
     if (!board.unlocked) {
       board.unlocked = true;
       board.interim = false; // Remove interim status when unlocking
+      
+      // 🔥 USER REQUEST: Ensure only ONE interim card exists
+      this.ensureSingleInterimCard();
+      
       this.saveBoardsState();
       this.renderBoards();
       this.updateCounter();
@@ -1370,6 +1783,10 @@ class JourneyBoardsManager {
     if (board.unlocked || board.interim) {
       board.unlocked = false;
       board.interim = false; // Also remove interim status when locking
+      
+      // 🔥 USER REQUEST: Ensure only ONE interim card exists
+      this.ensureSingleInterimCard();
+      
       this.saveBoardsState();
       this.renderBoards();
       this.updateCounter();
@@ -1525,6 +1942,9 @@ class JourneyBoardsManager {
    * Only unlocks boards that have been completed (won)
    */
   public syncWithGameProgress(boardNumber?: number): void {
+    // 🔥 USER REQUEST: Ensure only ONE interim card before syncing
+    // This prevents multiple interim cards from existing
+    this.ensureSingleInterimCard();
     try {
       // Get boardNumber from game state if not provided
       if (boardNumber === undefined) {
@@ -1595,6 +2015,10 @@ class JourneyBoardsManager {
       
       // Note: Boards are unlocked (unlocked=true, interim=false) only when they are completed (won)
       // This is done in unlockBoardByNumber() which is called when board is completed
+      
+      // 🔥 USER REQUEST: Ensure only ONE interim card exists after syncing
+      this.ensureSingleInterimCard();
+      this.saveBoardsState();
     } catch (error) {
       logger.warn('Failed to sync journey boards with game progress:', error instanceof Error ? error.message : String(error));
     }
@@ -1622,17 +2046,10 @@ class JourneyBoardsManager {
       this.updateCounter();
       logger.info(`🗺️ Board ${boardNumber.toString().padStart(2, '0')} unlocked on completion (won) - was already unlocked: ${wasAlreadyUnlocked}`);
       
-      // 🔥 USER REQUEST: Set next board to interim (if exists and not already unlocked)
-      // This ensures that after completing a board, the next board becomes interim with "Continue" CTA
-      if (boardNumber < 16) {
-        const nextBoard = this.boards.find(b => b.id === boardNumber + 1);
-        if (nextBoard && !nextBoard.unlocked) {
-          // Always set next board to interim (even if it was already interim, ensure it stays interim)
-          nextBoard.interim = true;
-          this.saveBoardsState();
-          logger.info(`🗺️ Board ${boardNumber + 1} set to interim (accessible after winning board ${boardNumber})`);
-        }
-      }
+      // 🔥 USER REQUEST: Ensure only ONE interim card exists after unlocking
+      // This will set the next board to interim (if exists and not already unlocked)
+      this.ensureSingleInterimCard();
+      this.saveBoardsState();
       
       // 🔥 JOURNEY PROGRESSION: Update highestUnlockedBoardId
       try {
