@@ -403,6 +403,24 @@ class CollectiblesManager {
       
       // 🔥 PREMIUM FIX: Position is already set synchronously in renderBoards()
       // No need to refresh - CSS custom properties handle positioning without visible movement
+      
+      // 🔥 CRITICAL FIX: Ensure scroll is enabled when journey screen is shown
+      // This fixes broken scroll when returning from game
+      setTimeout(() => {
+        const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement;
+        if (scrollable) {
+          // Force enable scrolling
+          scrollable.style.touchAction = 'pan-y';
+          scrollable.style.pointerEvents = '';
+          if (scrollable.style.overflow === 'hidden') {
+            scrollable.style.overflow = 'auto';
+          }
+          if (scrollable.style.overflowY === 'hidden') {
+            scrollable.style.overflowY = 'auto';
+          }
+          logger.info('✅ Journey screen scroll enabled');
+        }
+      }, 100);
     } else {
       // This is Collectibles screen - render collectibles
       this.renderCards();

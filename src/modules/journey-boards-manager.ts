@@ -702,6 +702,82 @@ class JourneyBoardsManager {
   }
 
   /**
+   * 🔥 FINALNA VERZIJA: Pametna logika za scroll do interim kartice
+   * 
+   * PRAVILA (točno prema zahtjevu):
+   * 1) Kad uđem u Journey (s homepage-a) → scrollaj do interim kartice
+   * 2) Kad uđem u igru preko interim kartice i izađem (Exit) → vrati me gdje sam bio:
+   *    - ako je interim kartica ostala u vidokrugu → NE radi ništa
+   *    - ako je izašla iz viewporta → scrollaj do nje (bilo gore ili dolje)
+   * 3) Kad izađem iz Journey screena i vratim se → 
+   *    - ako je interim bila u viewportu → ne treba scroll
+   *    - ako nije → animiraj scroll
+   */
+  private restoreOrScrollToInterimCard(): void {
+    try {
+      const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement;
+      if (!scrollable) {
+        logger.warn('⚠️ Scrollable container not found');
+        return;
+      }
+
+      // Provjeri je li interim kartica trenutno u viewportu
+      const interimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
+      if (!interimCard) {
+        logger.info('🗺️ No interim card found - skipping scroll');
+        return;
+      }
+
+      const cardWrapper = interimCard.closest('.journey-board-card-wrapper') as HTMLElement;
+      if (!cardWrapper) {
+        logger.warn('⚠️ Interim card wrapper not found');
+        return;
+      }
+
+      // Čekaj da se layout stabilizira
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // Provjeri je li kartica u viewportu
+          const viewportH = window.innerHeight;
+          const cardRect = cardWrapper.getBoundingClientRect();
+          
+          // Jednostavna provjera: je li kartica vidljiva na ekranu?
+          const cardTop = cardRect.top;
+          const cardBottom = cardRect.bottom;
+          const isCardVisible = cardTop < viewportH && cardBottom > 0;
+          
+          // Provjeri je li kartica u "razumnom" dijelu viewporta (ne samo rub ekrana)
+          // Kartica treba biti barem 50% u viewportu da se smatra "u vidokrugu"
+          const cardHeight = cardRect.height;
+          const visibleTop = Math.max(0, cardTop);
+          const visibleBottom = Math.min(viewportH, cardBottom);
+          const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+          const visibilityRatio = visibleHeight / cardHeight;
+          const isReasonablyVisible = visibilityRatio > 0.5; // Barem 50% kartice je vidljivo
+          
+          if (isCardVisible && isReasonablyVisible) {
+            // Kartica JE u viewportu → NE radi scroll
+            logger.info(`🗺️ Interim card is in viewport (${(visibilityRatio * 100).toFixed(0)}% visible) - no scroll needed`);
+            
+            // Osiguraj da je scroll enabled
+            scrollable.style.touchAction = 'pan-y';
+            scrollable.style.pointerEvents = '';
+            return;
+          }
+          
+          // Kartica NIJE u viewportu → scrollaj do nje
+          logger.info(`🗺️ Interim card NOT in viewport (${(visibilityRatio * 100).toFixed(0)}% visible) - will scroll to it`);
+          this.scrollToInterimCard();
+        });
+      });
+    } catch (error) {
+      logger.warn('⚠️ Failed to check interim card viewport:', error);
+      // Fallback: pokušaj scroll do interim
+      this.scrollToInterimCard();
+    }
+  }
+
+  /**
    * 🔥 USER REQUEST: Precise scroll to interim card with "zaletava" animation
    * Exact specification: anticipation → main travel → overshoot + settle
    * Card must be perfectly centered in viewport (50% width, 50% height)
@@ -724,24 +800,6 @@ class JourneyBoardsManager {
       const cardWrapper = interimCard.closest('.journey-board-card-wrapper') as HTMLElement;
       if (!cardWrapper) {
         logger.warn('⚠️ Interim card wrapper not found');
-        return;
-      }
-
-      // 🔥 USER REQUEST: Check if card was previously in viewport BEFORE waiting for RAF
-      // This allows us to skip scroll animation immediately if card was in viewport
-      const wasInViewport = localStorage.getItem('__ccInterimCardInViewport') === 'true';
-      const cameFromGame = (window as any).__ccCameFromJourney === true || 
-                           localStorage.getItem('__ccCameFromJourney') === 'true';
-      
-      // If card was in viewport and we're not coming from game, skip scroll immediately
-      if (wasInViewport && !cameFromGame) {
-        logger.info('🗺️ Interim card was previously in viewport - skipping scroll animation (early check)');
-        // Clear the flag so it doesn't persist forever
-        try {
-          localStorage.removeItem('__ccInterimCardInViewport');
-        } catch (e) {
-          // Ignore errors
-        }
         return;
       }
 
@@ -770,91 +828,10 @@ class JourneyBoardsManager {
               return;
             }
             
-            // 🔥 USER REQUEST: Check if interim card is already in viewport (visible)
-            // If card is already visible in viewport, skip scroll animation
-            const cardTop = cardRect.top;
-            const cardBottom = cardRect.bottom;
-            const cardLeft = cardRect.left;
-            const cardRight = cardRect.right;
+            // 🔥 JEDNOSTAVNO: Uvijek izračunaj scroll distance i odradi animaciju
+            // Nema više skipova - svaki poziv scrollToInterimCard() će pokrenuti animaciju do centra
             
-            // Check if card is visible in viewport (with some tolerance)
-            // Card is in viewport if any part of it is visible
-            const tolerance = 100; // 100px tolerance for "close enough"
-            const isCardInViewport = 
-              cardTop < viewportH + tolerance && 
-              cardBottom > -tolerance &&
-              cardLeft < viewportW + tolerance &&
-              cardRight > -tolerance;
-            
-            // Also check if card center is reasonably close to viewport center (not necessarily perfectly centered)
-            const cardCenterX = cardRect.left + cardRect.width / 2;
-            const cardCenterY = cardRect.top + cardRect.height / 2;
-            const centerDistanceX = Math.abs(cardCenterX - viewportCenterX);
-            const centerDistanceY = Math.abs(cardCenterY - viewportCenterY);
-            const isCardReasonablyCentered = centerDistanceX < 150 && centerDistanceY < 150; // 150px tolerance for "reasonably centered"
-            
-            // 🔥 USER REQUEST: Check if card was previously in viewport FIRST (before checking current position)
-            // This allows us to skip scroll animation when returning to journey screen
-            const wasInViewport = localStorage.getItem('__ccInterimCardInViewport') === 'true';
-            const cameFromGame = (window as any).__ccCameFromJourney === true || 
-                               localStorage.getItem('__ccCameFromJourney') === 'true';
-            
-            // 🔥 USER REQUEST: If coming from game and card is currently in viewport, restore scroll position WITHOUT animation
-            if (cameFromGame && isCardInViewport && isCardReasonablyCentered) {
-              // Calculate scroll position to center card (same as animation would do)
-              const cardTopContent = cardRect.top - scrollableRect.top + scrollable.scrollTop;
-              const cardCenterYContent = cardTopContent + cardRect.height / 2;
-              const finalScrollY = cardCenterYContent - viewportCenterY;
-              const contentHeight = scrollable.scrollHeight;
-              const finalScrollPosition = Math.max(0, Math.min(finalScrollY, contentHeight - scrollable.clientHeight));
-              
-              // Set scroll position directly (no animation)
-              scrollable.scrollTop = finalScrollPosition;
-              
-              // Save state that card is in viewport
-              try {
-                localStorage.setItem('__ccInterimCardInViewport', 'true');
-                logger.info('🗺️ Coming from game - card in viewport, restored scroll position without animation');
-              } catch (e) {
-                logger.warn('⚠️ Failed to save interim card viewport state:', e);
-              }
-              return;
-            }
-            
-            // If card was previously in viewport and we're not coming from game, skip scroll
-            // This is the main check - if user scrolled to card and then went back, don't scroll again
-            if (wasInViewport && !cameFromGame) {
-              logger.info('🗺️ Interim card was previously in viewport - skipping scroll animation');
-              // Clear the flag so it doesn't persist forever
-              try {
-                localStorage.removeItem('__ccInterimCardInViewport');
-              } catch (e) {
-                // Ignore errors
-              }
-              return;
-            }
-            
-            // 🔥 USER REQUEST: If card is currently in viewport and reasonably centered, save state and skip scroll
-            if (isCardInViewport && isCardReasonablyCentered) {
-              try {
-                localStorage.setItem('__ccInterimCardInViewport', 'true');
-                logger.info('🗺️ Interim card currently in viewport - saved state, skipping scroll animation');
-              } catch (e) {
-                logger.warn('⚠️ Failed to save interim card viewport state:', e);
-              }
-              return;
-            }
-            
-            // Clear the flag if we're going to scroll (card is not in viewport)
-            try {
-              localStorage.removeItem('__ccInterimCardInViewport');
-            } catch (e) {
-              // Ignore errors
-            }
-            
-            // Calculate final scroll position to center card in viewport
-            // targetScreenPos == viewportCenter
-            // finalScrollY = target.y - viewportH/2
+            // Izračunaj finalnu scroll poziciju da kartica bude centrirana u viewportu
             const cardTopContent = cardRect.top - scrollableRect.top + scrollable.scrollTop;
             const cardCenterYContent = cardTopContent + cardRect.height / 2;
             const finalScrollY = cardCenterYContent - viewportCenterY;
@@ -869,26 +846,8 @@ class JourneyBoardsManager {
             // Calculate scroll distance
             const scrollDistance = finalScrollPosition - startScrollPosition;
             
-          // 🔥 USER REQUEST: Always animate scroll when returning from game
-          // Check if we're coming from game (journey screen was just shown)
-          // Note: cameFromGame was already checked above
-          
-          // If coming from game, always animate (even if close to target)
-          // This ensures animation plays when returning from game
-          if (!cameFromGame && Math.abs(scrollDistance) < 0.5) {
-            logger.info('🗺️ Already at exact interim card position - skipping scroll');
-            return;
-          }
-          
-          // If coming from game and distance is very small, force a minimum scroll distance
-          // This ensures animation is visible even if scroll position is similar
-          if (cameFromGame && Math.abs(scrollDistance) < 10) {
-            // Force a small scroll to ensure animation is visible
-            const forcedDistance = scrollDistance >= 0 ? 20 : -20;
-            logger.info(`🎁 Forcing scroll animation (came from game, distance was ${scrollDistance}px, forcing ${forcedDistance}px)`);
-          }
-          
-          logger.info(`🎁 Scrolling to interim card. From: ${startScrollPosition}, To: ${finalScrollPosition}, Distance: ${scrollDistance}`);
+            // Scroll distance je >= 20px, pokreni animaciju
+            logger.info(`🎁 Starting scroll animation to interim card. From: ${startScrollPosition}, To: ${finalScrollPosition}, Distance: ${scrollDistance}`);
           
           // Kill any existing scroll animations
           gsap.killTweensOf(scrollable, 'scrollTop');
@@ -921,18 +880,34 @@ class JourneyBoardsManager {
                   scrollable.scrollTop = finalScrollPosition;
                 }
                 
-                // Re-enable user scroll
-                scrollable.style.touchAction = originalTouchAction || 'pan-y';
+                // 🔥 CRITICAL FIX: Re-enable user scroll - ensure it's always enabled
+                scrollable.style.touchAction = 'pan-y'; // Always use pan-y for vertical scrolling
                 scrollable.style.pointerEvents = originalPointerEvents || '';
                 
-                // 🔥 USER REQUEST: Save state that card is now in viewport (after scroll animation)
-                try {
-                  localStorage.setItem('__ccInterimCardInViewport', 'true');
-                  logger.info('🗺️ Interim card scrolled to viewport - saved state');
-                } catch (e) {
-                  // Ignore errors
+                // 🔥 CRITICAL FIX: Ensure scroll is not blocked by any other styles
+                if (scrollable.style.overflow === 'hidden') {
+                  scrollable.style.overflow = 'auto';
+                }
+                if (scrollable.style.overflowY === 'hidden') {
+                  scrollable.style.overflowY = 'auto';
                 }
                 
+                // 🔥 CRITICAL FIX: Force enable scrolling by removing any inline styles that might block it
+                scrollable.style.userSelect = ''; // Allow text selection (doesn't block scroll but good practice)
+                
+                // 🔥 CRITICAL FIX: Verify scroll is enabled after a short delay
+                setTimeout(() => {
+                  const computedTouchAction = window.getComputedStyle(scrollable).touchAction;
+                  if (computedTouchAction === 'none' || computedTouchAction === 'auto') {
+                    logger.warn(`⚠️ Scroll touchAction is ${computedTouchAction}, forcing pan-y`);
+                    scrollable.style.touchAction = 'pan-y';
+                  }
+                  const computedPointerEvents = window.getComputedStyle(scrollable).pointerEvents;
+                  if (computedPointerEvents === 'none') {
+                    logger.warn(`⚠️ Scroll pointerEvents is none, enabling`);
+                    scrollable.style.pointerEvents = '';
+                  }
+                }, 50);
                 logger.info('✅ Scroll to interim card animation completed');
               });
             }
@@ -1206,10 +1181,10 @@ class JourneyBoardsManager {
           // 🔥 USER REQUEST: Start continuous glow pulse on interim card
           this.startGlowPulse();
           
-          // 🔥 USER REQUEST: Scroll to interim card after boards are rendered
+          // 🔥 USER REQUEST: Restore scroll position or scroll to interim card after boards are rendered
           // Wait a bit longer to ensure all cards are positioned and screen enter animation completes
           setTimeout(() => {
-            this.scrollToInterimCard();
+            this.restoreOrScrollToInterimCard();
           }, 800); // Increased delay to ensure screen enter animation completes and layout is stable
         });
       } catch (error) {
@@ -1220,9 +1195,12 @@ class JourneyBoardsManager {
       requestAnimationFrame(() => {
         this.startGlowPulse();
         
-        // Scroll to interim card
+        // Add scroll and touch listeners even if idle bounce is disabled
+        this.setupIdleInteractionListeners();
+        
+        // Restore scroll position or scroll to interim card
         setTimeout(() => {
-          this.scrollToInterimCard();
+          this.restoreOrScrollToInterimCard();
         }, 800); // Increased delay to ensure screen enter animation completes and layout is stable
       });
     }
