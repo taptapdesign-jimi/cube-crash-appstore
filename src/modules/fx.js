@@ -3273,8 +3273,21 @@ export function screenShake(app, opts = {}){
     // kill any ongoing shake
     try { gsap.killTweensOf(target); } catch {}
 
+    // 🔥 USER REQUEST: Also shake board indicator element (Board #2, etc.)
+    const boardIndicator = document.getElementById('hud-board-indicator');
+    if (boardIndicator) {
+      try { gsap.killTweensOf(boardIndicator); } catch {}
+      console.log('💥 SCREEN SHAKE: Also shaking board indicator element');
+    }
+
     const tl = gsap.timeline({
-      onComplete: () => { try { gsap.set(target, { x: 0, y: 0 }); } catch {} }
+      onComplete: () => { 
+        try { gsap.set(target, { x: 0, y: 0 }); } catch {}
+        // Reset board indicator position
+        if (boardIndicator) {
+          try { gsap.set(boardIndicator, { x: 0, y: 0 }); } catch {}
+        }
+      }
     });
     const dt = Math.max(0.01, duration / Math.max(1, steps));
     for (let i = 0; i < steps; i++){
@@ -3296,10 +3309,22 @@ export function screenShake(app, opts = {}){
       }
       
       tl.to(target, { x: dx, y: dy, scaleX: zoom, scaleY: zoom, duration: dt, ease }, 0 + i * dt);
+      
+      // 🔥 USER REQUEST: Apply same shake to board indicator element
+      if (boardIndicator) {
+        // Use slightly reduced strength for board indicator (80% of main shake)
+        const indicatorAmp = amp * 0.8;
+        tl.to(boardIndicator, { x: dx * 0.8, y: dy * 0.8, duration: dt, ease }, 0 + i * dt);
+      }
     }
     // Use the same ease for the return animation, or power2.out for normal shake
     const returnEase = ease === 'elastic.out(1, 0.3)' ? 'elastic.out(1, 0.5)' : 'power2.out';
     tl.to(target, { x: 0, y: 0, scaleX: 1, scaleY: 1, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
+    
+    // 🔥 USER REQUEST: Return board indicator to original position
+    if (boardIndicator) {
+      tl.to(boardIndicator, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
+    }
   } catch {}
 }
 
