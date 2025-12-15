@@ -400,6 +400,13 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       console.warn('⚠️ endgame-flow: Cleanup error (non-fatal):', cleanupError);
     }
     
+    // 🔥 USER BUG FIX: Clear __ccSkipRebuildBoard flag before starting next level
+    // This ensures board is rebuilt properly for each new level (prevents ghost placeholders)
+    // The flag may have been set by previous game state loading, but for clean board continuation
+    // we always want to rebuild the board with new tiles
+    delete (window as any).__ccSkipRebuildBoard;
+    console.log('✅ endgame-flow: Cleared __ccSkipRebuildBoard flag - board will be rebuilt for next level');
+    
     // 🔥 CRITICAL FIX: Wrap startLevel in try-catch to prevent unhandled errors
     try {
       startLevel(nextLevel);

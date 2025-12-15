@@ -69,23 +69,24 @@ function bootstrapUI() {
   
   // Initialize badge count on load from localStorage
   try {
-    // Initialize collectibles badge
+    // 🔥 USER REQUEST: Badge ONLY on Journey icon (stats-nav.png), not on Collectibles
+    // Initialize pending collectibles list but don't show badge
     const raw = localStorage.getItem('pending_collectible_flips_v1');
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
         (window as any).__pendingCollectibleFlips = parsed;
-        updateNavBadge(parsed.length, 2); // slideIndex 2 = Collectibles
-        console.log('✅ Collectibles badge initialized with', parsed.length, 'pending collectibles');
+        // No badge for Collectibles - badge only on Journey icon
       }
     }
     
     // 🗺️ Initialize journey badge from journey_last_viewed_count
     // This ensures badge is correctly restored after hard exit
+    // Badge shows on Journey icon (stats-nav.png, slideIndex 1) ONLY
     import('../modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
       try {
         const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
-        updateNavBadge(newlyUnlockedCount, 1); // slideIndex 1 = Journey
+        updateNavBadge(newlyUnlockedCount, 1); // slideIndex 1 = Journey (stats-nav.png)
         console.log('✅ Journey badge initialized with', newlyUnlockedCount, 'newly unlocked boards');
       } catch (error) {
         console.warn('⚠️ Failed to initialize journey badge on startup:', error);

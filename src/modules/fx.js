@@ -4034,17 +4034,10 @@ export function startHeroImageParticles(heroImageElement) {
                       if (legendary05 && legendary05.unlocked) {
                         console.log('✅ Card 25 verified as unlocked in localStorage');
                         
-                        // Check pending flips for badge count
+                        // 🔥 USER REQUEST: Badge ONLY on Journey icon (stats-nav.png), not on Collectibles
+                        // No badge update needed here - badge only shows on Journey icon
                         const pendingFlips = win.__pendingCollectibleFlips || [];
-                        console.log('🔍 Pending flips:', pendingFlips.length);
-                        
-                        // Force badge update
-                        if (win && typeof win.updateNavBadge === 'function') {
-                          win.updateNavBadge(pendingFlips.length);
-                          console.log('✅ Badge updated to', pendingFlips.length, 'pending collectibles');
-                        } else {
-                          console.warn('⚠️ updateNavBadge function not available');
-                        }
+                        console.log('🔍 Pending flips:', pendingFlips.length, '(badge only on Journey icon)');
                       } else {
                         console.error('❌ Card 25 NOT found in localStorage or NOT unlocked!');
                       }

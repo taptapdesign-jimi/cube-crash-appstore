@@ -527,7 +527,7 @@ class UIManager {
       this.elements.home.removeAttribute('hidden');
       fadeInHome();
     }
-    
+
     // 🔥 CRITICAL: Reset background to gradient when showing homepage
     // This ensures homepage always has gradient background, not solid color
     const body = document.body;
@@ -535,7 +535,7 @@ class UIManager {
     const appElement = document.getElementById('app');
     const targetGradient = 'linear-gradient(180deg, #f3eee8 0%, #fcecdf 100%)';
     const targetGlobalBgGradient = 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)';
-    
+
     if (gsap && body) {
       gsap.killTweensOf(body);
       body.style.transition = 'none';
@@ -866,6 +866,27 @@ class UIManager {
       this.elements.home.style.display = 'block';
       this.elements.home.removeAttribute('hidden');
       
+      // 🔥 USER BUG FIX: Update Journey badge when showing homepage quietly
+      // This ensures badge is always up-to-date when homepage is displayed (e.g., after Journey screen)
+      setTimeout(() => {
+        import('./journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+          try {
+            // Sync journey boards with current game progress first
+            journeyBoardsManager.syncWithGameProgress();
+            
+            const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
+            if (typeof (window as any).updateNavBadge === 'function') {
+              (window as any).updateNavBadge(newlyUnlockedCount, 1); // Pass slideIndex 1 for Journey
+              logger.info(`🗺️ Journey badge updated in showHomepageQuietly: ${newlyUnlockedCount} newly unlocked boards (not yet viewed)`);
+            }
+          } catch (error) {
+            logger.warn('⚠️ Failed to update journey badge in showHomepageQuietly:', error);
+          }
+        }).catch((error) => {
+          logger.warn('⚠️ Failed to import journey boards manager in showHomepageQuietly:', error);
+        });
+      }, 150); // Slightly longer delay to ensure navigation is fully rendered
+
       // 🔥 CRITICAL: Reset background to gradient when showing homepage quietly
       // This ensures homepage always has gradient background, not solid color
       const body = document.body;
@@ -873,7 +894,7 @@ class UIManager {
       const appElement = document.getElementById('app');
       const targetGradient = 'linear-gradient(180deg, #f3eee8 0%, #fcecdf 100%)';
       const targetGlobalBgGradient = 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)';
-      
+
       if (gsap && body) {
         gsap.killTweensOf(body);
         body.style.transition = 'none';
@@ -1436,6 +1457,28 @@ class UIManager {
     // Show homepage QUIETLY after exit animation completes
     this.showHomepageQuietly();
     this.setNavigationVisibility(true);
+    
+    // 🔥 USER BUG FIX: Update Journey badge when returning to homepage from Journey screen
+    // This ensures badge is visible immediately after returning, showing newly unlocked boards
+    // Wait for navigation to be rendered before updating badge
+    setTimeout(() => {
+      import('./journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+        try {
+          // Sync journey boards with current game progress first
+          journeyBoardsManager.syncWithGameProgress();
+          
+          const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
+          if (typeof (window as any).updateNavBadge === 'function') {
+            (window as any).updateNavBadge(newlyUnlockedCount, 1); // Pass slideIndex 1 for Journey
+            logger.info(`🗺️ Journey badge updated when returning to homepage: ${newlyUnlockedCount} newly unlocked boards (not yet viewed)`);
+          }
+        } catch (error) {
+          logger.warn('⚠️ Failed to update journey badge when returning to homepage:', error);
+        }
+      }).catch((error) => {
+        logger.warn('⚠️ Failed to import journey boards manager when returning to homepage:', error);
+      });
+    }, 100);
     
     // 🔥 CRITICAL: Force navigation visibility update after journey screen is hidden
     // This ensures MutationObserver in navigation-control.ts detects the change

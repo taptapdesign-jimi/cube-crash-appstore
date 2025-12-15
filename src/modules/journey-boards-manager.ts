@@ -1855,6 +1855,10 @@ class JourneyBoardsManager {
           JOURNEY_CARD_IDLE_BOUNCE.markCardAsViewed(cardElement);
           logger.info(`✅ Card for board ${board.id} marked as viewed - animations stopped forever`);
         }
+        
+        // 🔥 USER REQUEST: Mark board as viewed for badge counting
+        // Badge count decreases by 1 when details screen is opened
+        this.markBoardAsViewed(board.id);
       }
       
       // Store board ID in modal for Play Board button
@@ -2504,18 +2508,10 @@ class JourneyBoardsManager {
    */
   public getNewlyUnlockedCount(): number {
     try {
-      // Get last viewed board ID from localStorage
-      // This represents the highest unlocked board ID that user has viewed in journey screen
-      // Default to 0 if not set (user hasn't viewed any boards yet)
-      let lastViewedBoardId = parseInt(localStorage.getItem('journey_last_viewed_board_id') || '0', 10);
-      
-      // 🔥 USER BUG FIX: If key doesn't exist, initialize it to 0
-      // This ensures badge works correctly from the start
-      if (!localStorage.getItem('journey_last_viewed_board_id')) {
-        localStorage.setItem('journey_last_viewed_board_id', '0');
-        lastViewedBoardId = 0;
-        logger.info('🗺️ Initialized journey_last_viewed_board_id to 0 (first time)');
-      }
+      // 🔥 USER REQUEST: Get list of viewed boards (individual tracking)
+      // Each board is marked as viewed when user opens its details screen
+      const viewedBoardsStr = localStorage.getItem('journey_viewed_boards') || '[]';
+      const viewedBoards: number[] = JSON.parse(viewedBoardsStr);
       
       // Count ONLY unlocked boards (completed/won boards)
       // Interim boards are NOT counted - they are accessible but not won yet
@@ -2523,12 +2519,12 @@ class JourneyBoardsManager {
       const unlockedCount = unlockedBoards.length;
       
       // Count how many unlocked boards user has NOT viewed yet
-      // A board is "viewed" if its ID is <= lastViewedBoardId
+      // A board is "viewed" if its ID is in the viewedBoards list
       // Only unlocked boards count towards badge
-      const newUnlockedBoards = unlockedBoards.filter(b => b.id > lastViewedBoardId);
+      const newUnlockedBoards = unlockedBoards.filter(b => !viewedBoards.includes(b.id));
       const newCount = newUnlockedBoards.length;
       
-      logger.info(`🗺️ Badge count: ${unlockedCount} unlocked boards total, last viewed board ID: ${lastViewedBoardId}, new boards: [${newUnlockedBoards.map(b => b.id).join(', ')}], ${newCount} new unlocked boards not viewed yet (interim boards NOT counted)`);
+      logger.info(`🗺️ Badge count: ${unlockedCount} unlocked boards total, viewed boards: [${viewedBoards.join(', ')}], new boards: [${newUnlockedBoards.map(b => b.id).join(', ')}], ${newCount} new unlocked boards not viewed yet (interim boards NOT counted)`);
       
       return newCount;
     } catch (error) {
@@ -2554,6 +2550,39 @@ class JourneyBoardsManager {
   }
 
   /**
+   * 🔥 USER REQUEST: Mark a specific board as viewed (when details screen is opened)
+   * Badge count decreases by 1 each time a board details screen is opened
+   * 
+   * @param boardId - The ID of the board to mark as viewed
+   */
+  public markBoardAsViewed(boardId: number): void {
+    try {
+      // Get current list of viewed boards
+      const viewedBoardsStr = localStorage.getItem('journey_viewed_boards') || '[]';
+      const viewedBoards: number[] = JSON.parse(viewedBoardsStr);
+      
+      // Add board ID to list if not already there
+      if (!viewedBoards.includes(boardId)) {
+        viewedBoards.push(boardId);
+        localStorage.setItem('journey_viewed_boards', JSON.stringify(viewedBoards));
+        logger.info(`🗺️ Board ${boardId} marked as viewed (total viewed: ${viewedBoards.length})`);
+        
+        // Update badge count in UI
+        const newBadgeCount = this.getNewlyUnlockedCount();
+        if (typeof (window as any).updateNavBadge === 'function') {
+          (window as any).updateNavBadge(newBadgeCount, 1); // Update journey badge (slideIndex 1)
+          logger.info(`🗺️ Journey badge updated to ${newBadgeCount} after viewing board ${boardId}`);
+        }
+      } else {
+        logger.info(`🗺️ Board ${boardId} already marked as viewed - no action needed`);
+      }
+    } catch (error) {
+      logger.warn('Failed to mark board as viewed:', error instanceof Error ? error.message : String(error));
+    }
+  }
+  
+  /**
+   * @deprecated Use markBoardAsViewed(boardId) instead for individual tracking
    * Mark all currently unlocked (completed/won) boards as viewed (reset badge count)
    * This is called when user visits journey screen
    * 
@@ -2562,24 +2591,10 @@ class JourneyBoardsManager {
    */
   public markAsViewed(): void {
     try {
-      // Find the highest board ID that is unlocked (completed/won)
-      // Only unlocked boards count - interim boards are not marked as viewed
-      const unlockedBoards = this.boards.filter(b => b.unlocked);
-      if (unlockedBoards.length > 0) {
-        const highestUnlockedId = Math.max(...unlockedBoards.map(b => b.id));
-        localStorage.setItem('journey_last_viewed_board_id', highestUnlockedId.toString());
-        logger.info(`🗺️ Marked all unlocked boards up to Board ${highestUnlockedId} as viewed (${unlockedBoards.length} unlocked boards, interim boards NOT counted)`);
-      } else {
-        // No unlocked boards - reset to 0
-        localStorage.setItem('journey_last_viewed_board_id', '0');
-        logger.info('🗺️ No unlocked boards - reset viewed board ID to 0');
-      }
-      
-      // Reset badge in UI to 0 (user has viewed all unlocked boards)
-      if (typeof (window as any).updateNavBadge === 'function') {
-        (window as any).updateNavBadge(0, 1); // Reset journey badge (slideIndex 1)
-        logger.info('🗺️ Journey badge reset to 0 in UI after marking unlocked boards as viewed');
-      }
+      // 🔥 USER REQUEST: Don't reset badge when opening journey screen
+      // Badge should only decrease when individual board details are opened
+      // Keep this method for backward compatibility but don't reset badge
+      logger.info('🗺️ markAsViewed() called - badge will NOT be reset (use markBoardAsViewed() instead)');
     } catch (error) {
       logger.warn('Failed to mark journey boards as viewed:', error instanceof Error ? error.message : String(error));
     }

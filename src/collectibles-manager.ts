@@ -691,10 +691,8 @@ class CollectiblesManager {
     try { localStorage.removeItem(storageKey); } catch {}
     window.__pendingCollectibleFlips = [];
 
-    // Clear navigation badge
-    if (typeof (window as any).updateNavBadge === 'function') {
-      (window as any).updateNavBadge(0);
-    }
+    // 🔥 USER REQUEST: Badge ONLY on Journey icon (stats-nav.png), not on Collectibles
+    // No badge update needed here - badge only shows on Journey icon
 
     // Add bounce animation to newly unlocked cards
     // Cards are already rendered as unlocked, just add bounce animation
@@ -1537,13 +1535,8 @@ class CollectiblesManager {
         localStorage.setItem(storageKey, JSON.stringify(list));
         window.__pendingCollectibleFlips = list;
         
-        // Update navigation badge
-        if (typeof (window as any).updateNavBadge === 'function') {
-          (window as any).updateNavBadge(list.length);
-          console.log('✅ Badge updated to', list.length, 'pending collectibles');
-        } else {
-          console.warn('⚠️ updateNavBadge function not available');
-        }
+        // 🔥 USER REQUEST: Badge ONLY on Journey icon (stats-nav.png), not on Collectibles
+        // No badge update needed here - badge only shows on Journey icon
       }
     } catch (error) {
       logger.warn('Failed to queue collectible flip animation:', error);
@@ -1575,10 +1568,8 @@ class CollectiblesManager {
           (item: any) => item && item.cardId !== card.id
         );
         
-        // Update badge count
-        if (typeof (window as any).updateNavBadge === 'function') {
-          (window as any).updateNavBadge((window as any).__pendingCollectibleFlips.length);
-        }
+        // 🔥 USER REQUEST: Badge ONLY on Journey icon (stats-nav.png), not on Collectibles
+        // No badge update needed here - badge only shows on Journey icon
       }
     }
 
