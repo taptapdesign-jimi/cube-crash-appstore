@@ -2102,7 +2102,9 @@ wildMeter = 0;
   const skipRebuild = (window as any).__ccSkipRebuildBoard;
   if (skipRebuild) {
     console.log('🎯 Skipping rebuildBoard() - will load saved state instead');
-    delete (window as any).__ccSkipRebuildBoard;
+    // 🔥 CRITICAL FIX: Don't delete __ccSkipRebuildBoard here - let main.ts handle it after loadGameState()
+    // This ensures loadGameState() can be called after bootGame() completes
+    // (window as any).__ccSkipRebuildBoard will be deleted in main.ts after loadGameState()
   } else {
     // 🔥 CRITICAL FIX: Ensure background layer exists BEFORE rebuildBoard()
     // rebuildBoard() calls resetBoardContainer() which removes all children
@@ -7740,7 +7742,21 @@ async function loadGameState() {
     });
     
     lastSavedState = localStorage.getItem('cc_saved_game');
-    console.log('✅ Game state loaded successfully.');
+    
+    // 🔥 CRITICAL FIX: Check if tiles were actually loaded
+    // If no tiles were restored, this means saved state was invalid/empty
+    const tilesLoaded = tiles.length > 0;
+    const hasActiveTiles = tiles.some(t => t && !t.locked && t.value > 0);
+    
+    if (!tilesLoaded || !hasActiveTiles) {
+      console.warn('⚠️ loadGameState: No tiles loaded or no active tiles - saved state was invalid/empty');
+      console.warn('⚠️ loadGameState: tiles.length =', tiles.length, 'hasActiveTiles =', hasActiveTiles);
+      // Clear invalid saved state
+      localStorage.removeItem('cc_saved_game');
+      return false; // Return false so rebuildBoard() is called
+    }
+    
+    console.log('✅ Game state loaded successfully with', tiles.length, 'tiles (', tiles.filter(t => t && !t.locked && t.value > 0).length, 'active)');
     return true;
   } catch (error) {
     console.error('❌ Failed to load game state:', error);

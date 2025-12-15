@@ -253,8 +253,8 @@ class JourneyBoardsManager {
                 (cardWrapper as any)._bounceTimeout = null;
               }
               
-              // 🔥 USER REQUEST: Faster interval between bounces (1.5-2.5 seconds - double speed)
-              const nextBounceDelay = 1500 + Math.random() * 1000; // 1.5-2.5 seconds (was 3-5s)
+              // 🔥 USER REQUEST: Very fast interval between bounces (0.5-0.8 seconds)
+              const nextBounceDelay = 500 + Math.random() * 300; // 0.5-0.8 seconds (was 1.5-2.5s)
               logger.info(`💚 Bounce complete, scheduling next bounce in ${nextBounceDelay}ms`);
               (cardWrapper as any)._bounceTimeout = setTimeout(animateBounce, nextBounceDelay);
             }
@@ -269,8 +269,8 @@ class JourneyBoardsManager {
       (cardWrapper as any)._bounceTimeout = null;
     }
     
-    // 🔥 USER REQUEST: Start first bounce after shorter delay (0.75s - double speed)
-    (cardWrapper as any)._bounceTimeout = setTimeout(animateBounce, 750);
+    // 🔥 USER REQUEST: Start first bounce after very short delay (0.25s)
+    (cardWrapper as any)._bounceTimeout = setTimeout(animateBounce, 250);
     
     // Store reference for cleanup
     (cardWrapper as any)._interimBounceActive = true;
@@ -727,6 +727,24 @@ class JourneyBoardsManager {
         return;
       }
 
+      // 🔥 USER REQUEST: Check if card was previously in viewport BEFORE waiting for RAF
+      // This allows us to skip scroll animation immediately if card was in viewport
+      const wasInViewport = localStorage.getItem('__ccInterimCardInViewport') === 'true';
+      const cameFromGame = (window as any).__ccCameFromJourney === true || 
+                           localStorage.getItem('__ccCameFromJourney') === 'true';
+      
+      // If card was in viewport and we're not coming from game, skip scroll immediately
+      if (wasInViewport && !cameFromGame) {
+        logger.info('🗺️ Interim card was previously in viewport - skipping scroll animation (early check)');
+        // Clear the flag so it doesn't persist forever
+        try {
+          localStorage.removeItem('__ccInterimCardInViewport');
+        } catch (e) {
+          // Ignore errors
+        }
+        return;
+      }
+
       // Wait for layout to settle and ensure screen is fully visible
       // Use multiple RAF calls to ensure DOM is ready and screen enter animation has started
       requestAnimationFrame(() => {
@@ -752,15 +770,93 @@ class JourneyBoardsManager {
               return;
             }
             
-            // Calculate card center in content coordinates
+            // 🔥 USER REQUEST: Check if interim card is already in viewport (visible)
+            // If card is already visible in viewport, skip scroll animation
+            const cardTop = cardRect.top;
+            const cardBottom = cardRect.bottom;
+            const cardLeft = cardRect.left;
+            const cardRight = cardRect.right;
+            
+            // Check if card is visible in viewport (with some tolerance)
+            // Card is in viewport if any part of it is visible
+            const tolerance = 100; // 100px tolerance for "close enough"
+            const isCardInViewport = 
+              cardTop < viewportH + tolerance && 
+              cardBottom > -tolerance &&
+              cardLeft < viewportW + tolerance &&
+              cardRight > -tolerance;
+            
+            // Also check if card center is reasonably close to viewport center (not necessarily perfectly centered)
             const cardCenterX = cardRect.left + cardRect.width / 2;
             const cardCenterY = cardRect.top + cardRect.height / 2;
+            const centerDistanceX = Math.abs(cardCenterX - viewportCenterX);
+            const centerDistanceY = Math.abs(cardCenterY - viewportCenterY);
+            const isCardReasonablyCentered = centerDistanceX < 150 && centerDistanceY < 150; // 150px tolerance for "reasonably centered"
+            
+            // 🔥 USER REQUEST: Check if card was previously in viewport FIRST (before checking current position)
+            // This allows us to skip scroll animation when returning to journey screen
+            const wasInViewport = localStorage.getItem('__ccInterimCardInViewport') === 'true';
+            const cameFromGame = (window as any).__ccCameFromJourney === true || 
+                               localStorage.getItem('__ccCameFromJourney') === 'true';
+            
+            // 🔥 USER REQUEST: If coming from game and card is currently in viewport, restore scroll position WITHOUT animation
+            if (cameFromGame && isCardInViewport && isCardReasonablyCentered) {
+              // Calculate scroll position to center card (same as animation would do)
+              const cardTopContent = cardRect.top - scrollableRect.top + scrollable.scrollTop;
+              const cardCenterYContent = cardTopContent + cardRect.height / 2;
+              const finalScrollY = cardCenterYContent - viewportCenterY;
+              const contentHeight = scrollable.scrollHeight;
+              const finalScrollPosition = Math.max(0, Math.min(finalScrollY, contentHeight - scrollable.clientHeight));
+              
+              // Set scroll position directly (no animation)
+              scrollable.scrollTop = finalScrollPosition;
+              
+              // Save state that card is in viewport
+              try {
+                localStorage.setItem('__ccInterimCardInViewport', 'true');
+                logger.info('🗺️ Coming from game - card in viewport, restored scroll position without animation');
+              } catch (e) {
+                logger.warn('⚠️ Failed to save interim card viewport state:', e);
+              }
+              return;
+            }
+            
+            // If card was previously in viewport and we're not coming from game, skip scroll
+            // This is the main check - if user scrolled to card and then went back, don't scroll again
+            if (wasInViewport && !cameFromGame) {
+              logger.info('🗺️ Interim card was previously in viewport - skipping scroll animation');
+              // Clear the flag so it doesn't persist forever
+              try {
+                localStorage.removeItem('__ccInterimCardInViewport');
+              } catch (e) {
+                // Ignore errors
+              }
+              return;
+            }
+            
+            // 🔥 USER REQUEST: If card is currently in viewport and reasonably centered, save state and skip scroll
+            if (isCardInViewport && isCardReasonablyCentered) {
+              try {
+                localStorage.setItem('__ccInterimCardInViewport', 'true');
+                logger.info('🗺️ Interim card currently in viewport - saved state, skipping scroll animation');
+              } catch (e) {
+                logger.warn('⚠️ Failed to save interim card viewport state:', e);
+              }
+              return;
+            }
+            
+            // Clear the flag if we're going to scroll (card is not in viewport)
+            try {
+              localStorage.removeItem('__ccInterimCardInViewport');
+            } catch (e) {
+              // Ignore errors
+            }
             
             // Calculate final scroll position to center card in viewport
             // targetScreenPos == viewportCenter
             // finalScrollY = target.y - viewportH/2
-            const cardTop = cardRect.top - scrollableRect.top + scrollable.scrollTop;
-            const cardCenterYContent = cardTop + cardRect.height / 2;
+            const cardTopContent = cardRect.top - scrollableRect.top + scrollable.scrollTop;
+            const cardCenterYContent = cardTopContent + cardRect.height / 2;
             const finalScrollY = cardCenterYContent - viewportCenterY;
             
             // Clamp to content bounds
@@ -775,8 +871,7 @@ class JourneyBoardsManager {
             
           // 🔥 USER REQUEST: Always animate scroll when returning from game
           // Check if we're coming from game (journey screen was just shown)
-          const cameFromGame = (window as any).__ccCameFromJourney === true || 
-                               localStorage.getItem('__ccCameFromJourney') === 'true';
+          // Note: cameFromGame was already checked above
           
           // If coming from game, always animate (even if close to target)
           // This ensures animation plays when returning from game
@@ -829,6 +924,14 @@ class JourneyBoardsManager {
                 // Re-enable user scroll
                 scrollable.style.touchAction = originalTouchAction || 'pan-y';
                 scrollable.style.pointerEvents = originalPointerEvents || '';
+                
+                // 🔥 USER REQUEST: Save state that card is now in viewport (after scroll animation)
+                try {
+                  localStorage.setItem('__ccInterimCardInViewport', 'true');
+                  logger.info('🗺️ Interim card scrolled to viewport - saved state');
+                } catch (e) {
+                  // Ignore errors
+                }
                 
                 logger.info('✅ Scroll to interim card animation completed');
               });
@@ -1143,7 +1246,48 @@ class JourneyBoardsManager {
     };
     
     // Scroll listener
-    const scrollHandler = () => notifyThrottled();
+    const scrollHandler = () => {
+      notifyThrottled();
+      
+      // 🔥 USER REQUEST: Check if interim card is in viewport during scroll
+      // If user manually scrolls to interim card, save state to skip auto-scroll later
+      const interimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
+      if (interimCard) {
+        const cardWrapper = interimCard.closest('.journey-board-card-wrapper') as HTMLElement;
+        if (cardWrapper) {
+          const cardRect = cardWrapper.getBoundingClientRect();
+          const viewportH = window.innerHeight;
+          const viewportW = window.innerWidth;
+          const viewportCenterX = viewportW / 2;
+          const viewportCenterY = viewportH / 2;
+          
+          // Check if card is visible in viewport
+          const tolerance = 100;
+          const isCardInViewport = 
+            cardRect.top < viewportH + tolerance && 
+            cardRect.bottom > -tolerance &&
+            cardRect.left < viewportW + tolerance &&
+            cardRect.right > -tolerance;
+          
+          // Check if card center is reasonably close to viewport center
+          const cardCenterX = cardRect.left + cardRect.width / 2;
+          const cardCenterY = cardRect.top + cardRect.height / 2;
+          const centerDistanceX = Math.abs(cardCenterX - viewportCenterX);
+          const centerDistanceY = Math.abs(cardCenterY - viewportCenterY);
+          const isCardReasonablyCentered = centerDistanceX < 150 && centerDistanceY < 150;
+          
+          // If card is in viewport and reasonably centered, save state
+          if (isCardInViewport && isCardReasonablyCentered) {
+            try {
+              localStorage.setItem('__ccInterimCardInViewport', 'true');
+              logger.info('🗺️ Interim card scrolled into viewport - saved state');
+            } catch (e) {
+              // Ignore errors
+            }
+          }
+        }
+      }
+    };
     scrollable.addEventListener('scroll', scrollHandler, { passive: true });
     
     // Touch/click listeners on cards container
@@ -1609,50 +1753,89 @@ class JourneyBoardsManager {
       }
       
       // Step 8: Ensure saved game state exists with correct boardNumber
-      // 🔥 CRITICAL FIX: Create or update saved game state with interim board ID
+      // 🔥 USER REQUEST: Load score from journey progression state (preserves score from failed board)
+      // This creates a unique journey experience with accumulated score
+      const currentRunState = journeyProgressionState.getCurrentRunState();
+      let savedScore = 0;
+      
+      // If there's a current run state for this board, use its score
+      if (currentRunState && currentRunState.boardId === board.id) {
+        savedScore = Number.isFinite(currentRunState.score) ? currentRunState.score : 0;
+        logger.info(`🎮 Found journey progression state for board ${board.id} with score ${savedScore}`);
+      } else {
+        // Check if there's a saved game state with score
+        const savedGame = localStorage.getItem('cc_saved_game');
+        if (savedGame) {
+          try {
+            const gameState = JSON.parse(savedGame);
+            savedScore = Number.isFinite(gameState.score) ? gameState.score : 0;
+            logger.info(`🎮 Found saved game state with score ${savedScore}`);
+          } catch (e) {
+            logger.warn('⚠️ Failed to parse saved game:', e);
+          }
+        }
+      }
+      
+      // 🔥 USER REQUEST: Check if we have valid tiles/grid in saved game
+      // If we have tiles, we can continue (resume). If not, we create fresh board.
       const savedGame = localStorage.getItem('cc_saved_game');
-      let gameState: any;
+      let hasValidTiles = false;
+      let gameState: any = null;
       
       if (savedGame) {
         try {
           gameState = JSON.parse(savedGame);
-          // Update boardNumber to interim board ID
-          gameState.boardNumber = board.id;
-          gameState.level = board.id;
-          gameState.timestamp = Date.now();
-          // 🔥 CRITICAL: If there's no tiles array, this is a new board - don't try to load old state
-          if (!gameState.tiles || !Array.isArray(gameState.tiles) || gameState.tiles.length === 0) {
-            // New board - clear tiles so rebuildBoard creates fresh board
-            delete gameState.tiles;
-            logger.info(`🎮 New board ${board.id} - will create fresh board`);
+          // Check if we have tiles array with valid tiles
+          const hasTiles = gameState.tiles && Array.isArray(gameState.tiles) && gameState.tiles.length > 0;
+          // Check if we have grid array with valid data
+          const hasGrid = gameState.grid && Array.isArray(gameState.grid) && gameState.grid.length > 0;
+          hasValidTiles = hasTiles || hasGrid;
+          
+          if (hasValidTiles) {
+            logger.info(`🎮 Found valid saved game with tiles/grid for board ${board.id} - will continue (resume)`);
+          } else {
+            logger.info(`🎮 Saved game exists but has no tiles/grid for board ${board.id} - will create fresh board`);
           }
-          localStorage.setItem('cc_saved_game', JSON.stringify(gameState));
-          logger.info(`🎮 Updated saved game state: boardNumber=${board.id}, level=${board.id}`);
         } catch (e) {
-          logger.warn('⚠️ Failed to parse saved game, creating new one:', e);
-          gameState = {
-            boardNumber: board.id,
-            level: board.id,
-            score: 0,
-            timestamp: Date.now()
-          };
-          localStorage.setItem('cc_saved_game', JSON.stringify(gameState));
+          logger.warn('⚠️ Failed to parse saved game:', e);
+          gameState = null;
         }
+      }
+      
+      // 🔥 USER REQUEST: Logic for continue vs fresh start
+      if (hasValidTiles && gameState) {
+        // CASE 1: We have valid saved game with tiles - CONTINUE (resume)
+        gameState.boardNumber = board.id;
+        gameState.level = board.id;
+        gameState.score = savedScore; // Preserve score
+        gameState.timestamp = Date.now();
+        localStorage.setItem('cc_saved_game', JSON.stringify(gameState));
+        logger.info(`🎮 Updated saved game state for CONTINUE: boardNumber=${board.id}, score=${savedScore}, hasTiles=true`);
+        
+        // Set flag to skip rebuildBoard and load saved state
+        (window as any).__ccSkipRebuildBoard = true;
+        logger.info(`🎮 Will CONTINUE saved game with tiles for board ${board.id}`);
       } else {
-        // Create new saved game state for interim board
+        // CASE 2: No valid tiles - CREATE FRESH BOARD (new start)
         gameState = {
           boardNumber: board.id,
           level: board.id,
-          score: 0,
+          score: savedScore, // 🔥 USER REQUEST: Preserve score even for fresh board
           timestamp: Date.now()
         };
+        // 🔥 CRITICAL: Explicitly remove tiles/grid to ensure fresh board creation
+        delete gameState.tiles;
+        delete gameState.grid;
         localStorage.setItem('cc_saved_game', JSON.stringify(gameState));
-        logger.info(`🎮 Created new saved game state: boardNumber=${board.id}, level=${board.id}`);
+        logger.info(`🎮 Created new saved game state for FRESH BOARD: boardNumber=${board.id}, score=${savedScore}, no tiles`);
+        
+        // Clear flag so rebuildBoard creates fresh board with tile animations
+        delete (window as any).__ccSkipRebuildBoard;
+        logger.info(`🎮 Will CREATE FRESH BOARD with tile animations for board ${board.id}`);
       }
       
       // 🔥 CRITICAL FIX: Set currentRunState BEFORE calling continueGameWithSavedState
       // This ensures continueGameWithSavedState can find the active run
-      const savedScore = Number.isFinite(gameState.score) ? gameState.score : 0;
       journeyProgressionState.setCurrentRunState(board.id, savedScore);
       logger.info(`🎮 Set currentRunState: board ${board.id}, score ${savedScore}, inProgress: true`);
       
@@ -1661,17 +1844,10 @@ class JourneyBoardsManager {
       (window as any).__ccStartAtLevel = board.id;
       logger.info(`🎮 Set __ccStartAtLevel: ${board.id}`);
       
-      // 🔥 CRITICAL FIX: If no tiles in saved state, don't skip rebuildBoard
-      // This ensures fresh board is created with proper tile animations
-      if (!gameState.tiles || !Array.isArray(gameState.tiles) || gameState.tiles.length === 0) {
-        // Clear __ccSkipRebuildBoard flag so rebuildBoard creates fresh board
-        delete (window as any).__ccSkipRebuildBoard;
-        logger.info(`🎮 No tiles in saved state - will create fresh board ${board.id} with animations`);
-      } else {
-        // Has tiles - skip rebuildBoard and load saved state
-        (window as any).__ccSkipRebuildBoard = true;
-        logger.info(`🎮 Has tiles in saved state - will load saved board ${board.id}`);
-      }
+      // 🔥 USER REQUEST: Set preserved score so startLevel can use it
+      // This ensures score is preserved even when creating fresh board
+      (window as any).__ccPreserveScore = savedScore;
+      logger.info(`🎮 Set __ccPreserveScore: ${savedScore} for board ${board.id}`);
       
       // Step 9: Continue game with saved state (resume interim game)
       // 🔥 CRITICAL FIX: Use continueGameWithSavedState() to preserve progress and score

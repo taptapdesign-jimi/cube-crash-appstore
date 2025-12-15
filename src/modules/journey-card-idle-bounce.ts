@@ -11,8 +11,8 @@ import { domElementPool } from './dom-element-pool.js';
 const ENABLE_JOURNEY_CARD_IDLE_BOUNCE = true;
 
 const IDLE_WAIT_TIME = 0;  // No idle wait - start immediately
-const MIN_ANIMATION_INTERVAL = 100; // Minimum interval: 0.1s
-const MAX_ANIMATION_INTERVAL = 300; // Maximum interval: 0.3s
+const MIN_ANIMATION_INTERVAL = 450; // 🔥 USER REQUEST: Fixed interval 0.45s for active cards
+const MAX_ANIMATION_INTERVAL = 450; // 🔥 USER REQUEST: Fixed interval 0.45s for active cards
 const MAX_CONCURRENT_ANIMATIONS = 3; // 🔥 iOS OPTIMIZATION: Max 3 concurrent animations to prevent frame drops
 
 // Card dimensions (from journey-boards-manager.ts)

@@ -72,9 +72,40 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       const { journeyProgressionState } = await import('./journey-progression-state.js');
       // Keep lastOpenedBoardId (don't reset it) - user should be able to retry same board
       journeyProgressionState.setLastOpenedBoardId(boardNumber);
-      // Clear currentRunState (run finished, but failed)
-      journeyProgressionState.clearCurrentRunState();
-      logger.info(`🗺️ Journey: Board ${boardNumber} failed - lastOpenedBoardId kept at ${boardNumber}, currentRunState cleared`);
+      
+      // 🔥 USER REQUEST: Save score in journey progression state BEFORE clearing currentRunState
+      // This allows us to preserve score when resuming from interim card
+      // Get current score from saved game state or use provided score
+      let currentScore = score;
+      try {
+        const savedGame = localStorage.getItem('cc_saved_game');
+        if (savedGame) {
+          const gameState = JSON.parse(savedGame);
+          if (Number.isFinite(gameState.score) && gameState.score > 0) {
+            currentScore = gameState.score;
+            logger.info(`🗺️ Journey: Board ${boardNumber} failed - preserving score ${currentScore} from saved game`);
+          }
+        }
+      } catch (e) {
+        logger.warn('⚠️ Failed to read score from saved game:', e);
+      }
+      
+      // Also try to get score from current run state if available
+      try {
+        const currentRunState = journeyProgressionState.getCurrentRunState();
+        if (currentRunState && currentRunState.boardId === boardNumber && currentRunState.score > currentScore) {
+          currentScore = currentRunState.score;
+          logger.info(`🗺️ Journey: Board ${boardNumber} failed - using score ${currentScore} from currentRunState`);
+        }
+      } catch (e) {
+        logger.warn('⚠️ Failed to read score from currentRunState:', e);
+      }
+      
+      // 🔥 USER REQUEST: Save score in journey progression state (with inProgress: true so it can be resumed)
+      // This preserves the score for when user resumes from interim card
+      // We set inProgress: true so continueGameWithSavedState can find it
+      journeyProgressionState.setCurrentRunState(boardNumber, currentScore);
+      logger.info(`🗺️ Journey: Board ${boardNumber} failed - score ${currentScore} saved in journey state (inProgress: true for resume)`);
       
       // 🔥 CRITICAL FIX: Ensure interim status is saved for this board when user fails
       // This ensures interim card persists after hard exit
@@ -94,15 +125,16 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       logger.warn('⚠️ Failed to update Journey progression state on failure:', error);
     }
     
-    // CRITICAL FIX: Clear saved game state immediately when fail screen is shown
-    // This prevents the user from being able to "continue" a failed game
+    // 🔥 USER REQUEST: Clear saved game state (tiles) but preserve score in journey progression state
+    // This prevents loading failed board state, but preserves score for journey continuation
     try {
       // Set flag to prevent future saves
       (window as WindowWithCC)._gameHasEnded = true;
       
+      // Clear tiles/board state but score is already saved in journey progression state
       localStorage.removeItem('cc_saved_game');
       localStorage.removeItem('cubeCrash_gameState');
-      logger.info('✅ board-fail-modal: Cleared both saved game states and set gameHasEnded flag');
+      logger.info('✅ board-fail-modal: Cleared board state (tiles), score preserved in journey progression state');
     } catch (error) {
       logger.warn('⚠️ board-fail-modal: Failed to clear saved game state:', error);
     }

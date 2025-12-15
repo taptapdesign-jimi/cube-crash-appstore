@@ -497,30 +497,74 @@ async function startNewRun(boardId: number): Promise<void> {
           journeyProgressionState.setCurrentRunState(savedBoardNumber, savedScore);
           logger.info(`🗺️ Updated currentRunState: board ${savedBoardNumber}, score ${savedScore}, inProgress: true`);
           
+          // 🔥 USER REQUEST: Check if saved state has tiles before skipping rebuildBoard
+          // If no tiles (e.g., after board failure), we need to rebuild board with fresh tiles
+          const hasTiles = gameState.tiles && Array.isArray(gameState.tiles) && gameState.tiles.length > 0;
+          const hasGrid = gameState.grid && Array.isArray(gameState.grid) && gameState.grid.length > 0;
+          const canLoadState = hasTiles || hasGrid;
+          
           // Set flags to resume at correct board
           (window as any).__ccStartAtLevel = savedBoardNumber;
-          (window as any).__ccSkipRebuildBoard = true;
+          // 🔥 USER REQUEST: Only skip rebuildBoard if we have tiles/grid to load
+          // If __ccSkipRebuildBoard was already set by continueFromInterimBoard, respect it
+          const skipRebuildWasSet = (window as any).__ccSkipRebuildBoard !== undefined;
+          if (canLoadState && skipRebuildWasSet) {
+            // Keep the flag set by continueFromInterimBoard
+            logger.info(`🎮 Saved state has tiles/grid - will CONTINUE saved board ${savedBoardNumber}`);
+          } else if (canLoadState && !skipRebuildWasSet) {
+            // Set flag if we have tiles but it wasn't set yet
+            (window as any).__ccSkipRebuildBoard = true;
+            logger.info(`🎮 Saved state has tiles/grid - will CONTINUE saved board ${savedBoardNumber}`);
+          } else {
+            // No tiles/grid - clear flag to force rebuildBoard
+            delete (window as any).__ccSkipRebuildBoard;
+            logger.info(`🎮 Saved state has no tiles/grid - will CREATE FRESH board ${savedBoardNumber} with tile animations`);
+          }
           // 🔥 USER REQUEST: Trigger HUD drop animation when resuming from Journey
           (window as any).__ccTriggerHudDrop = true;
           
           await bootGame();
-          await layoutGame();
           
-          // Load saved game state
-          const loadGameState = (window as any).loadGameState;
-          if (typeof loadGameState === 'function') {
-            const loaded = await loadGameState();
-            if (!loaded) {
-              logger.error('❌ Failed to load saved game state');
+          // 🔥 CRITICAL FIX: Load saved game state BEFORE layoutGame()
+          // This ensures tiles are loaded before layout is calculated
+          if (canLoadState && (window as any).__ccSkipRebuildBoard) {
+            const loadGameState = (window as any).loadGameState;
+            if (typeof loadGameState === 'function') {
+              logger.info(`🎮 Loading saved game state for board ${savedBoardNumber}...`);
+              const loaded = await loadGameState();
+              if (!loaded) {
+                logger.error('❌ Failed to load saved game state - will rebuild board');
+                delete (window as any).__ccSkipRebuildBoard;
+                // Force rebuildBoard by calling startLevel again or rebuildBoard directly
+                const rebuildBoard = (window as any).rebuildBoard;
+                if (typeof rebuildBoard === 'function') {
+                  logger.info(`🎮 Calling rebuildBoard() for board ${savedBoardNumber}...`);
+                  rebuildBoard();
+                }
+              } else {
+                logger.info(`✅ Successfully loaded saved game state for board ${savedBoardNumber}`);
+              }
+            } else {
+              logger.error('❌ loadGameState function not found');
+              delete (window as any).__ccSkipRebuildBoard;
               const rebuildBoard = (window as any).rebuildBoard;
               if (typeof rebuildBoard === 'function') {
+                logger.info(`🎮 Calling rebuildBoard() for board ${savedBoardNumber} (loadGameState not found)...`);
                 rebuildBoard();
               }
             }
+          } else if (!canLoadState) {
+            // No tiles/grid - startLevel() should have already called rebuildBoard()
+            logger.info(`🎮 No tiles/grid - rebuildBoard() should have been called by startLevel() for board ${savedBoardNumber}`);
           }
           
+          await layoutGame();
+          
+          // If no tiles/grid, startLevel() will handle rebuildBoard() automatically
+          // 🔥 CRITICAL: Don't delete __ccSkipRebuildBoard here - let startLevel() handle it
+          
           delete (window as any).__ccStartAtLevel;
-          delete (window as any).__ccSkipRebuildBoard;
+          // __ccSkipRebuildBoard will be deleted by startLevel() after it's used
           delete (window as any).__ccTriggerHudDrop;
         } catch (error) {
           logger.error('❌ Failed to resume active run:', error);
@@ -539,28 +583,63 @@ async function startNewRun(boardId: number): Promise<void> {
               ? gameState.boardNumber 
               : (Number.isFinite(gameState.level) ? gameState.level : 1);
             
+            // 🔥 USER REQUEST: Check if saved state has tiles before skipping rebuildBoard
+            const hasTiles = gameState.tiles && Array.isArray(gameState.tiles) && gameState.tiles.length > 0;
+            const hasGrid = gameState.grid && Array.isArray(gameState.grid) && gameState.grid.length > 0;
+            const canLoadState = hasTiles || hasGrid;
+            
             // Set flags to resume at correct board
             (window as any).__ccStartAtLevel = savedBoardNumber;
-            (window as any).__ccSkipRebuildBoard = true;
+            // 🔥 USER REQUEST: Only skip rebuildBoard if we have tiles/grid to load
+            if (canLoadState) {
+              (window as any).__ccSkipRebuildBoard = true;
+              logger.info(`🎮 Saved state has tiles/grid - will CONTINUE saved board ${savedBoardNumber}`);
+            } else {
+              delete (window as any).__ccSkipRebuildBoard;
+              logger.info(`🎮 Saved state has no tiles/grid - startLevel() will CREATE FRESH board ${savedBoardNumber} with tile animations`);
+            }
             
             await bootGame();
-            await layoutGame();
             
-            // Load saved game state
-            const loadGameState = (window as any).loadGameState;
-            if (typeof loadGameState === 'function') {
-              const loaded = await loadGameState();
-              if (!loaded) {
-                logger.error('❌ Failed to load saved game state');
+            // 🔥 CRITICAL FIX: Load saved game state BEFORE layoutGame()
+            // This ensures tiles are loaded before layout is calculated
+            if (canLoadState && (window as any).__ccSkipRebuildBoard) {
+              const loadGameState = (window as any).loadGameState;
+              if (typeof loadGameState === 'function') {
+                logger.info(`🎮 Loading saved game state for board ${savedBoardNumber}...`);
+                const loaded = await loadGameState();
+                if (!loaded) {
+                  logger.error('❌ Failed to load saved game state - will rebuild board');
+                  delete (window as any).__ccSkipRebuildBoard;
+                  const rebuildBoard = (window as any).rebuildBoard;
+                  if (typeof rebuildBoard === 'function') {
+                    logger.info(`🎮 Calling rebuildBoard() for board ${savedBoardNumber}...`);
+                    rebuildBoard();
+                  }
+                } else {
+                  logger.info(`✅ Successfully loaded saved game state for board ${savedBoardNumber}`);
+                }
+              } else {
+                logger.error('❌ loadGameState function not found');
+                delete (window as any).__ccSkipRebuildBoard;
                 const rebuildBoard = (window as any).rebuildBoard;
                 if (typeof rebuildBoard === 'function') {
+                  logger.info(`🎮 Calling rebuildBoard() for board ${savedBoardNumber} (loadGameState not found)...`);
                   rebuildBoard();
                 }
               }
+            } else if (!canLoadState) {
+              // No tiles/grid - startLevel() should have already called rebuildBoard()
+              logger.info(`🎮 No tiles/grid - rebuildBoard() should have been called by startLevel() for board ${savedBoardNumber}`);
             }
             
+            await layoutGame();
+            
+            // If no tiles/grid, startLevel() will handle rebuildBoard() automatically
+            // 🔥 CRITICAL: Don't delete __ccSkipRebuildBoard here - let startLevel() handle it
+            
             delete (window as any).__ccStartAtLevel;
-            delete (window as any).__ccSkipRebuildBoard;
+            // __ccSkipRebuildBoard will be deleted by startLevel() after it's used
           } catch (error) {
             logger.error('❌ Failed to resume active run:', error);
             delete (window as any).__ccStartAtLevel;
@@ -710,6 +789,8 @@ async function startNewRun(boardId: number): Promise<void> {
               : (Number.isFinite(gameState.level) ? gameState.level : 1);
             const savedScore = Number.isFinite(gameState.score) ? gameState.score : 0;
             
+            // 🔥 USER REQUEST: Preserve score in journey progression state when exiting
+            // This allows score to persist even if cc_saved_game is cleared (e.g., after board failure)
             journeyProgressionState.setCurrentRunState(savedBoardNumber, savedScore);
             console.log(`🗺️ Updated currentRunState on exit: board ${savedBoardNumber}, score ${savedScore}, inProgress: true`);
           } catch (e) {
