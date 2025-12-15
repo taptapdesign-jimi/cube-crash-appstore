@@ -1475,63 +1475,73 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   }
   spawnTargets.push(...replacementTargets.slice(0, replacementSpawnCount));
 
-  // 🎯 Bias: Ako magnet povuče točno 2 tilea (regular ili wild, bez magneta), daj ~55% šanse
-  // da replacement spawnovi budu par koji zbraja u 6 (1+5, 2+4 ili 3+3).
-  // Primjenjuje se samo na replacement slotove (ne na obavezni slot ispod merge 6).
+  // 🔥 USER REQUEST: Always spawn mergeable pairs after magnet pull
+  // Guarantee at least one pair that can merge to 6 (1+5, 2+4, 3+3, 2+2+2, 1+1+4, etc.)
+  // Apply to ALL replacement spawns (not just endgame), ensure mergeable combinations
   const forcedSpawnValues = new Map<string, number>();
-  const endgameTileCount = activeAfterRemoval.length + (dstIsActive ? 1 : 0);
-  const isEndgameLowTiles = endgameTileCount <= 3; // fokus samo na endgame (<=3 tilea na boardu)
-  const pulledTwoNonMagnet = isEndgameLowTiles &&
-    replacementSpawnCount === 2 &&
-    validTiles.length === 2 &&
-    validTiles.every(t => t && t.special !== 'wild-magnet');
-  if (pulledTwoNonMagnet) {
-    const roll = Math.random();
-    if (roll < 0.55) {
-      const pairs: [number, number][] = [[1, 5], [2, 4], [3, 3]];
-      const chosenPair = pairs[Math.floor(Math.random() * pairs.length)];
-      const replacementSlots = spawnTargets
-        .filter(cell => !obligatoryCell || !(cell.c === obligatoryCell.c && cell.r === obligatoryCell.r))
-        .slice(0, 2);
-      if (replacementSlots.length === 2) {
-        forcedSpawnValues.set(`${replacementSlots[0].c},${replacementSlots[0].r}`, chosenPair[0]);
-        forcedSpawnValues.set(`${replacementSlots[1].c},${replacementSlots[1].r}`, chosenPair[1]);
-        console.log('🎯 Magnet bias: Forcing merge-6-friendly spawn values', chosenPair, 'on slots', replacementSlots);
-      }
-    }
-  }
+  const replacementSlots = spawnTargets
+    .filter(cell => !obligatoryCell || !(cell.c === obligatoryCell.c && cell.r === obligatoryCell.r))
+    .slice(0, replacementSpawnCount);
   
-  // 🎯 NEW: Ako magnet povuče 4 tilea, spawnuj 4 replacement kockice kao mergable parove
-  // Parovi koji zbrajaju 6: (1,5), (2,4), (3,3)
-  // Moguće kombinacije za 4 kockice: [1,5,2,4], [1,5,3,3], [2,4,3,3]
-  if (replacementSpawnCount === 4) {
-    const replacementSlots = spawnTargets
-      .filter(cell => !obligatoryCell || !(cell.c === obligatoryCell.c && cell.r === obligatoryCell.r))
-      .slice(0, 4);
+  if (replacementSlots.length > 0) {
+    // Mergeable pairs that sum to 6: (1,5), (2,4), (3,3)
+    // Also smaller pairs: (1,1), (2,2), (1,2), (2,1) - can combine to make 6
+    const mergeablePairs: [number, number][] = [[1, 5], [2, 4], [3, 3], [1, 1], [2, 2], [1, 2], [2, 1]];
     
-    if (replacementSlots.length === 4) {
-      // Generiši 2 para koji zbrajaju 6
-      const pairCombinations: number[][] = [
-        [1, 5, 2, 4], // par (1,5) i par (2,4)
-        [1, 5, 3, 3], // par (1,5) i par (3,3)
-        [2, 4, 3, 3]  // par (2,4) i par (3,3)
+    if (replacementSpawnCount === 1) {
+      // Single tile: spawn random 1-3 (can merge with existing tiles or future spawns)
+      const values = [1, 2, 3];
+      const chosenValue = values[Math.floor(Math.random() * values.length)];
+      forcedSpawnValues.set(`${replacementSlots[0].c},${replacementSlots[0].r}`, chosenValue);
+      console.log('🎯 Magnet 1-tile spawn: Forcing mergeable value', chosenValue, 'on slot', replacementSlots[0]);
+    } else if (replacementSpawnCount === 2) {
+      // Two tiles: ALWAYS spawn a mergeable pair (1+5, 2+4, or 3+3)
+      const chosenPair = mergeablePairs.slice(0, 3)[Math.floor(Math.random() * 3)]; // Only (1,5), (2,4), (3,3)
+      forcedSpawnValues.set(`${replacementSlots[0].c},${replacementSlots[0].r}`, chosenPair[0]);
+      forcedSpawnValues.set(`${replacementSlots[1].c},${replacementSlots[1].r}`, chosenPair[1]);
+      console.log('🎯 Magnet 2-tile spawn: Forcing merge-6 pair', chosenPair, 'on slots', replacementSlots);
+    } else if (replacementSpawnCount === 3) {
+      // Three tiles: Spawn one mergeable pair + one random mergeable value
+      // Options: (1,5,1), (2,4,2), (3,3,3), (1,1,4), (2,2,2)
+      const combinations: number[][] = [
+        [1, 5, 1], [2, 4, 2], [3, 3, 3], [1, 1, 4], [2, 2, 2],
+        [1, 2, 3], [2, 1, 3], [1, 3, 2] // Can combine to make 6
       ];
+      const chosenValues = combinations[Math.floor(Math.random() * combinations.length)];
       
-      // Odaberi random kombinaciju
-      const chosenValues = pairCombinations[Math.floor(Math.random() * pairCombinations.length)];
-      
-      // Shuffle vrednosti pre dodele (da parovi ne budu uvek na istim pozicijama)
+      // Shuffle values before assigning
       const shuffledValues = [...chosenValues];
       for (let i = shuffledValues.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffledValues[i], shuffledValues[j]] = [shuffledValues[j], shuffledValues[i]];
       }
       
-      // Dodeli vrednosti slotovima
       replacementSlots.forEach((cell, index) => {
         forcedSpawnValues.set(`${cell.c},${cell.r}`, shuffledValues[index]);
       });
+      console.log('🎯 Magnet 3-tile spawn: Forcing mergeable combination', chosenValues, 'shuffled to', shuffledValues, 'on slots', replacementSlots);
+    } else if (replacementSpawnCount === 4) {
+      // Four tiles: Spawn 2 mergeable pairs (1+5, 2+4, or 3+3)
+      const pairCombinations: number[][] = [
+        [1, 5, 2, 4], // par (1,5) i par (2,4)
+        [1, 5, 3, 3], // par (1,5) i par (3,3)
+        [2, 4, 3, 3], // par (2,4) i par (3,3)
+        [1, 1, 2, 2], // par (1,1) i par (2,2) - can combine
+        [1, 2, 2, 1]  // multiple mergeable combinations
+      ];
       
+      const chosenValues = pairCombinations[Math.floor(Math.random() * pairCombinations.length)];
+      
+      // Shuffle values before assigning
+      const shuffledValues = [...chosenValues];
+      for (let i = shuffledValues.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledValues[i], shuffledValues[j]] = [shuffledValues[j], shuffledValues[i]];
+      }
+      
+      replacementSlots.forEach((cell, index) => {
+        forcedSpawnValues.set(`${cell.c},${cell.r}`, shuffledValues[index]);
+      });
       console.log('🎯 Magnet 4-tile spawn: Forcing merge-6-friendly pairs', chosenValues, 'shuffled to', shuffledValues, 'on slots', replacementSlots);
     }
   }
@@ -1699,14 +1709,33 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     if (successfulSpawns < spawnCount && spawnCount > 0) {
       console.warn(`⚠️ Only ${successfulSpawns}/${spawnCount} tiles spawned successfully, attempting to spawn remaining tiles...`);
       
+      // 🔥 USER REQUEST: When spawning additional tiles, ensure they are mergeable
       // Try to find additional empty cells for remaining spawns
       const remainingCount = spawnCount - successfulSpawns;
       const additionalTargets = findRandomEmptyCells(remainingCount);
       
+      // Generate mergeable values for remaining spawns
+      const mergeableValues = [1, 2, 3, 4, 5]; // All can potentially merge
+      const additionalForcedValues = new Map<string, number>();
+      
+      // For remaining spawns, try to create mergeable pairs if possible
+      if (remainingCount >= 2) {
+        const pairs: [number, number][] = [[1, 5], [2, 4], [3, 3], [1, 1], [2, 2]];
+        const chosenPair = pairs[Math.floor(Math.random() * pairs.length)];
+        if (additionalTargets.length >= 2) {
+          additionalForcedValues.set(`${additionalTargets[0].c},${additionalTargets[0].r}`, chosenPair[0]);
+          additionalForcedValues.set(`${additionalTargets[1].c},${additionalTargets[1].r}`, chosenPair[1]);
+          console.log('🎯 Additional spawns: Forcing mergeable pair', chosenPair, 'for remaining tiles');
+        }
+      }
+      
       for (let i = 0; i < additionalTargets.length && successfulSpawns < spawnCount; i++) {
         const { c, r } = additionalTargets[i];
+        const key = `${c},${r}`;
+        const forcedValue = additionalForcedValues.get(key) || mergeableValues[Math.floor(Math.random() * mergeableValues.length)];
+        
         try {
-          await openAtCell(c, r, { skipBind: false });
+          await openAtCell(c, r, { skipBind: false, value: forcedValue });
           setTimeout(() => {
             const tile = STATE.grid?.[r]?.[c];
             if (tile && !tile.locked && (tile.value|0) > 0) {
@@ -1717,7 +1746,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
               if (drag && typeof drag.bindToTile === 'function') {
                 drag.bindToTile(tile);
               }
-              console.log(`✅ Successfully spawned additional tile at (${c}, ${r}), total successful: ${successfulSpawns}/${spawnCount}`);
+              console.log(`✅ Successfully spawned additional tile (value: ${forcedValue}) at (${c}, ${r}), total successful: ${successfulSpawns}/${spawnCount}`);
             }
           }, 50);
         } catch (err) {
