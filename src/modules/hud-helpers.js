@@ -880,22 +880,33 @@ export function layout({ app, top }) {
 }
 
 export function initHUD({ stage, app, top = 8, initialHide = false }) { 
+  // Store stage visibility for later restoration
+  const stageWasVisible = stage?.visible ?? true;
+  
   // očisti stari root ako postoji i skini stari resize listener
   try { if (HUD_ROOT && HUD_ROOT._onResize) window.removeEventListener('resize', HUD_ROOT._onResize); } catch {}
   // 🔥 CRITICAL: DESTROY old HUD_ROOT completely (MEMORY LEAK FIX)
   try { 
-    if (HUD_ROOT) {
-      console.log('🧹 Destroying old HUD_ROOT with', HUD_ROOT.children.length, 'children');
+    if (HUD_ROOT && !HUD_ROOT.destroyed) {
+      console.log('🧹 Destroying old HUD_ROOT with', HUD_ROOT.children?.length ?? 0, 'children');
+      // 🔥 CRITICAL: Hide old HUD immediately to prevent 1-frame flash
+      try { HUD_ROOT.alpha = 0; } catch {}
+      try { HUD_ROOT.visible = false; } catch {}
       // Remove from parent first
-      if (HUD_ROOT.parent) HUD_ROOT.parent.removeChild(HUD_ROOT);
+      if (HUD_ROOT.parent) {
+        try { HUD_ROOT.parent.removeChild(HUD_ROOT); } catch {}
+      }
       // Kill any active tweens on HUD_ROOT
       try { gsap.killTweensOf(HUD_ROOT); } catch {}
       // Destroy HUD_ROOT and all its children (Graphics, Sprites, etc.)
-      HUD_ROOT.destroy({ children: true, texture: false, textureSource: false });
+      try { HUD_ROOT.destroy({ children: true, texture: false, textureSource: false }); } catch {}
       console.log('✅ Old HUD_ROOT destroyed');
     }
+    // 🔥 CRITICAL: Always clear HUD_ROOT reference
+    HUD_ROOT = null;
   } catch (error) {
     console.warn('⚠️ Failed to destroy old HUD_ROOT:', error);
+    HUD_ROOT = null; // Clear reference anyway
   }
   // 🔥 CRITICAL: Clear smoke interval if it exists (MEMORY LEAK FIX)
   if (wild?.view?._smokeInterval) {
@@ -924,12 +935,34 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   HUD_ROOT.zIndex = 10_000;
   HUD_ROOT.sortableChildren = true;
   HUD_ROOT.visible = true; // 🔥 CRITICAL: Ensure HUD is visible
-  HUD_ROOT.alpha = 1; // 🔥 CRITICAL: Ensure HUD is fully opaque
   
-  // 🔥 CRITICAL: Add HUD_ROOT directly to stage (hud container is just a wrapper)
-  // The hud container in app-core.ts is separate from HUD_ROOT
-  stage.addChild(HUD_ROOT);
-  console.log('✅ HUD_ROOT created and added to stage');
+  // 🔥 CRITICAL: Apply initialHide IMMEDIATELY to prevent 1-frame "HUD residue" flash on entry
+  // (iPhone often paints once before the later initialHide block runs)
+  HUD_ROOT._dropTop = top;
+  if (initialHide) {
+    HUD_ROOT.alpha = 0;
+    HUD_ROOT.y = top - 140;
+    HUD_ROOT._dropped = false;
+  } else {
+    HUD_ROOT.alpha = 1;
+    HUD_ROOT.y = top;
+    HUD_ROOT._dropped = true;
+  }
+  
+  // 🔥 CRITICAL FIX: Do NOT add HUD_ROOT to stage if initialHide is true!
+  // This prevents ANY possibility of flash - HUD will be added in playHudDrop()
+  if (initialHide) {
+    // Store stage reference for later - will add to stage in playHudDrop()
+    HUD_ROOT._stage = stage;
+    HUD_ROOT._stageWasVisible = stageWasVisible;
+    // Restore stage visibility NOW since HUD is not on stage yet
+    stage.visible = stageWasVisible;
+    console.log('🎯 HUD_ROOT created but NOT added to stage - will add in playHudDrop()');
+  } else {
+    // Normal path: add to stage immediately
+    stage.addChild(HUD_ROOT);
+    console.log('✅ HUD_ROOT created and added to stage');
+  }
 
   // vrijednosti - Use system font stack for better App Store compatibility
   const valMain  = { fontFamily: 'LTCrow, system-ui, -apple-system, sans-serif', fontSize: 24, fill: 0xAD8775, fontWeight: '700', fontStyle: 'normal' };
@@ -1370,16 +1403,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   window.addEventListener('resize', onResize);
 
   // Defer drop animation control to caller
-  HUD_ROOT._dropTop = top;
-  if (initialHide) {
-    HUD_ROOT.alpha = 0;
-    HUD_ROOT.y = top - 140; // start well above for visible drop-in
-    HUD_ROOT._dropped = false;
-  } else {
-    HUD_ROOT.alpha = 1;
-    HUD_ROOT.y = top;
-    HUD_ROOT._dropped = true;
-  }
+  // (initialHide state already applied above to avoid first-frame flash)
   
   // 🔥 CRITICAL FIX: Always export HUD_ROOT to window after initialization
   // This ensures app-core.ts can access it even if initHUD is called multiple times
@@ -1457,14 +1481,38 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
 }
 
 // Play the deferred drop once (used on first Play when board is ~50% populated)
-export function playHudDrop({ duration = 0.8 } = {}){
+export function playHudDrop({ duration = 0.8, forceRestart = false } = {}){
   if (!HUD_ROOT) {
     console.warn('⚠️ playHudDrop: HUD_ROOT is null, cannot play drop animation');
     return;
   }
   
+  // 🔥 CRITICAL FIX: Add HUD_ROOT to stage NOW if it wasn't added yet (initialHide path)
+  if (!HUD_ROOT.parent && HUD_ROOT._stage) {
+    HUD_ROOT._stage.addChild(HUD_ROOT);
+    console.log('✅ HUD_ROOT added to stage (was deferred from initHUD)');
+  }
+  
+  // 🔥 CRITICAL FIX: Restore stage visibility NOW that HUD is ready to drop
+  // Stage was hidden in initHUD() to prevent flash
+  if (HUD_ROOT.parent && !HUD_ROOT.parent.visible) {
+    HUD_ROOT.parent.visible = true;
+    console.log('🎯 Stage visibility restored for HUD drop');
+  }
+  
+  const top = HUD_ROOT._dropTop ?? 44;
+  
+  // 🔥 NEW: Force restart drop animation (used for interim entry so it always replays)
+  if (forceRestart) {
+    try { gsap.killTweensOf(HUD_ROOT); } catch {}
+    HUD_ROOT._dropped = false;
+    HUD_ROOT.visible = true;
+    HUD_ROOT.alpha = 0;
+    HUD_ROOT.y = top - 140;
+  }
+  
   // 🔥 CRITICAL FIX: If HUD is already dropped, ensure it's visible and positioned correctly
-  if (HUD_ROOT._dropped) {
+  if (!forceRestart && HUD_ROOT._dropped) {
     const top = HUD_ROOT._dropTop ?? HUD_ROOT.y ?? 44;
     HUD_ROOT.y = top;
     HUD_ROOT.alpha = 1;
@@ -1473,7 +1521,6 @@ export function playHudDrop({ duration = 0.8 } = {}){
     return;
   }
   
-  const top = HUD_ROOT._dropTop ?? 44;
   try { gsap.killTweensOf(HUD_ROOT); } catch {}
   
   // 🔥 CRITICAL FIX: Ensure HUD is visible before animation
@@ -2144,10 +2191,16 @@ export function bumpCombo(opts = {}){
   __shakeTl = gsap.timeline({ onUpdate: () => { __shakeMul = sh.k; } });
   // If combo >= 10, double the shake strength for stronger impact
   const shakeExtra = (cv >= 10) ? 2.0 : 1.0;
+  // For merge6: reduced shake strength (0.65 = 50% of 1.3) and faster animation (40% faster = 60% duration)
+  const isMerge6 = (kind === 'merge6');
+  const shakeStrength = isMerge6 ? 0.65 : 2.0;
+  const shakeDuration = isMerge6 ? upDur * 0.54 : upDur * 0.9; // 40% faster for merge6
+  const relaxDuration1 = isMerge6 ? 0.60 : 1.00; // 40% faster
+  const relaxDuration2 = isMerge6 ? 0.54 : 0.90; // 40% faster
   __shakeTl
-    .to(sh, { k: ((kind === 'merge6') ? 2.6 : 2.0) * shakeExtra, duration: upDur * 0.9, ease: 'power2.out' }, 0)
-    .to(sh, { k: 1.4, duration: 1.00, ease: 'sine.out' }, '>-0.02')
-    .to(sh, { k: 1.1, duration: 0.90, ease: 'sine.out' }, '>');
+    .to(sh, { k: shakeStrength * shakeExtra, duration: shakeDuration, ease: 'power2.out' }, 0)
+    .to(sh, { k: 1.4, duration: relaxDuration1, ease: 'sine.out' }, '>-0.02')
+    .to(sh, { k: 1.1, duration: relaxDuration2, ease: 'sine.out' }, '>');
 }
 
 /* COMPLETELY NEW LOGIC: Simple DOM-based wild meter positioned in HUD */

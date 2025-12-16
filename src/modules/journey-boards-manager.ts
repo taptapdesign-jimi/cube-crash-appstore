@@ -771,7 +771,7 @@ class JourneyBoardsManager {
         });
       });
     } catch (error) {
-      logger.warn('⚠️ Failed to check interim card viewport:', error);
+      logger.warn('⚠️ Failed to check interim card viewport:', error instanceof Error ? error.message : String(error));
       // Fallback: pokušaj scroll do interim
       this.scrollToInterimCard();
     }
@@ -966,7 +966,7 @@ class JourneyBoardsManager {
         });
       });
     } catch (error) {
-      logger.warn('⚠️ Failed to scroll to interim card:', error);
+      logger.warn('⚠️ Failed to scroll to interim card:', error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -1355,7 +1355,7 @@ class JourneyBoardsManager {
           }
         }
       } catch (e) {
-        logger.warn('⚠️ Error checking viewed boards in localStorage:', e);
+        logger.warn('⚠️ Error checking viewed boards in localStorage:', e instanceof Error ? e.message : String(e));
       }
     }
 
@@ -1578,20 +1578,73 @@ class JourneyBoardsManager {
     logger.info(`🗺️ Journey board ${boardId} tapped - starting game`);
     
     try {
+      // 🔥 CRITICAL FIX: Stop Journey card idle bounce animations BEFORE exit animation
+      if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
+        JOURNEY_CARD_IDLE_BOUNCE.stop();
+        logger.info('✅ Journey card idle bounce stopped');
+      }
+      
+      // 🔥 CRITICAL FIX: Play Journey screen exit animation BEFORE starting game
+      // This ensures user sees smooth transition and board game animations have proper timing
+      logger.info('🎬 Starting Journey screen exit animation...');
+      const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
+      await animateCollectiblesScreenExit();
+      logger.info('✅ Journey screen exit animation completed');
+      
+      // 🔥 CRITICAL FIX: Hide homepage and slider BEFORE starting game (cleanup)
+      const homeElement = document.getElementById('home');
+      const sliderContainer = document.getElementById('slider-container');
+      if (homeElement) {
+        homeElement.style.display = 'none';
+        homeElement.style.visibility = 'hidden';
+        homeElement.style.opacity = '0';
+        homeElement.style.zIndex = '-9999';
+        homeElement.setAttribute('hidden', 'true');
+        logger.info('✅ Homepage hidden BEFORE game start');
+      }
+      if (sliderContainer) {
+        sliderContainer.style.display = 'none';
+        sliderContainer.style.visibility = 'hidden';
+        sliderContainer.style.opacity = '0';
+        sliderContainer.style.zIndex = '-9999';
+        logger.info('✅ Slider container hidden BEFORE game start');
+      }
+      
+      // Cleanup Journey boards manager (memory leak prevention)
+      this.cleanup();
+      logger.info('✅ Journey boards manager cleaned up');
+      
+      // Hide Journey screen completely
+      const journeyScreen = document.getElementById('journey-screen');
+      if (journeyScreen) {
+        journeyScreen.classList.add('hidden');
+        journeyScreen.style.display = 'none';
+        journeyScreen.style.visibility = 'hidden';
+        journeyScreen.style.opacity = '0';
+        logger.info('✅ Journey screen hidden completely');
+      }
+      
       // Import journey progression state
       const { journeyProgressionState } = await import('./journey-progression-state.js');
       
       // Set lastOpenedBoardId to this board
       journeyProgressionState.setLastOpenedBoardId(boardId);
       
-      // Start new run for this board
+      // 🔥 CRITICAL FIX: Set Journey flag so startNewRun knows we came from Journey
+      (window as any).__ccCameFromJourney = true;
+      (window as any).__ccCameFromHomepage = false;
+      localStorage.setItem('__ccCameFromJourney', 'true');
+      localStorage.removeItem('__ccCameFromHomepage');
+      logger.info('✅ Journey flags set for proper game start sequence');
+      
+      // Start new run for this board (exit animation already completed)
       if (typeof (window as any).startNewRun === 'function') {
         await (window as any).startNewRun(boardId);
       } else {
         logger.error('❌ startNewRun function not found');
       }
     } catch (error) {
-      logger.error(`❌ Failed to start game from Journey board ${boardId}:`, error);
+      logger.error(`❌ Failed to start game from Journey board ${boardId}:`, error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -1727,6 +1780,8 @@ class JourneyBoardsManager {
       // Step 7: Also call hideCollectibles to ensure proper cleanup (memory leak prevention)
       const collectiblesManager = (window as any).collectiblesManager;
       if (collectiblesManager && typeof collectiblesManager.hideCollectibles === 'function') {
+        // Ensure hideCollectibles does NOT try to return to homepage (this is a transition into game)
+        (window as any).__ccJourneyExitMode = 'toGame';
         await collectiblesManager.hideCollectibles();
       }
       
@@ -1749,7 +1804,7 @@ class JourneyBoardsManager {
             savedScore = Number.isFinite(gameState.score) ? gameState.score : 0;
             logger.info(`🎮 Found saved game state with score ${savedScore}`);
           } catch (e) {
-            logger.warn('⚠️ Failed to parse saved game:', e);
+            logger.warn('⚠️ Failed to parse saved game:', e instanceof Error ? e.message : String(e));
           }
         }
       }
@@ -1775,7 +1830,7 @@ class JourneyBoardsManager {
             logger.info(`🎮 Saved game exists but has no tiles/grid for board ${board.id} - will create fresh board`);
           }
         } catch (e) {
-          logger.warn('⚠️ Failed to parse saved game:', e);
+        logger.warn('⚠️ Failed to parse saved game:', e instanceof Error ? e.message : String(e));
           gameState = null;
         }
       }
@@ -1832,13 +1887,16 @@ class JourneyBoardsManager {
       // This will load saved game state and continue from where user left off
       // HUD drop animation is already handled in continueGameWithSavedState() for Journey pathway
       if (typeof (window as any).continueGameWithSavedState === 'function') {
+        // 🔥 CRITICAL: Always trigger HUD drop on entry from interim card (every time)
+        // This ensures _hudDropPending is set even if other flags/state were cleared.
+        (window as any).__ccTriggerHudDrop = true;
         logger.info(`🎮 Continuing saved game for board ${board.id} - preserving progress and score`);
         await (window as any).continueGameWithSavedState();
       } else {
         logger.error('❌ continueGameWithSavedState function not found');
       }
     } catch (error) {
-      logger.error(`❌ Failed to continue game from interim board ${board.id}:`, error);
+      logger.error(`❌ Failed to continue game from interim board ${board.id}:`, error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -1950,6 +2008,7 @@ class JourneyBoardsManager {
               // Step 6: Hide collectibles screen
               const collectiblesManager = (window as any).collectiblesManager;
               if (collectiblesManager && typeof collectiblesManager.hideCollectibles === 'function') {
+                (window as any).__ccJourneyExitMode = 'toGame';
                 await collectiblesManager.hideCollectibles();
               }
               
@@ -1959,12 +2018,13 @@ class JourneyBoardsManager {
               
               // Step 8: Continue game with saved state (resume interim game)
               if (typeof (window as any).continueGameWithSavedState === 'function') {
+                (window as any).__ccTriggerHudDrop = true;
                 await (window as any).continueGameWithSavedState();
               } else {
                 logger.error('❌ continueGameWithSavedState function not found');
               }
             } catch (error) {
-              logger.error(`❌ Failed to continue game from Journey board ${board.id}:`, error);
+              logger.error(`❌ Failed to continue game from Journey board ${board.id}:`, error instanceof Error ? error.message : String(error));
             }
           });
           
@@ -1999,6 +2059,7 @@ class JourneyBoardsManager {
               // Step 6: Hide collectibles screen
               const collectiblesManager = (window as any).collectiblesManager;
               if (collectiblesManager && typeof collectiblesManager.hideCollectibles === 'function') {
+                (window as any).__ccJourneyExitMode = 'toGame';
                 await collectiblesManager.hideCollectibles();
               }
               
@@ -2014,12 +2075,13 @@ class JourneyBoardsManager {
               
               // Step 8: Continue game with saved state (resume interim game)
               if (typeof (window as any).continueGameWithSavedState === 'function') {
+                (window as any).__ccTriggerHudDrop = true;
                 await (window as any).continueGameWithSavedState();
               } else {
                 logger.error('❌ continueGameWithSavedState function not found');
               }
             } catch (error) {
-              logger.error(`❌ Failed to continue game from Journey board ${board.id}:`, error);
+              logger.error(`❌ Failed to continue game from Journey board ${board.id}:`, error instanceof Error ? error.message : String(error));
             }
           }, { capture: true, passive: false });
           
@@ -2148,6 +2210,10 @@ class JourneyBoardsManager {
           nextBoard.interim = true;
           logger.info(`🗺️ Ensured single interim card: board ${nextBoardNumber} (next after highest unlocked ${highestUnlocked.id})`);
         }
+      } else {
+        // All boards unlocked (or highest is last) — keep an interim card on the last board for consistency
+        highestUnlocked.interim = true;
+        logger.info(`🗺️ All boards unlocked; keeping interim on board ${highestUnlocked.id} to ensure presence`);
       }
     } else {
       // No unlocked boards - set board 1 to interim
@@ -2337,6 +2403,9 @@ class JourneyBoardsManager {
         // No saved game - preserve interim status from localStorage (user failed and exited)
         // Don't call syncWithGameProgress() as it might overwrite interim status
         logger.info('🗺️ No saved game state - preserving interim status from localStorage');
+        // 🔥 Ensure we still have EXACTLY ONE interim after load (e.g., after full unlock)
+        this.ensureSingleInterimCard();
+        this.saveBoardsState();
       }
     } catch (error) {
       logger.warn('Failed to load journey boards state:', error instanceof Error ? error.message : String(error));
@@ -2467,10 +2536,10 @@ class JourneyBoardsManager {
           journeyProgressionState.setHighestUnlockedBoardId(newHighest);
           logger.info(`🗺️ Journey: Highest unlocked board updated to ${newHighest} after completing board ${boardNumber}`);
         }).catch((error) => {
-          logger.warn('⚠️ Failed to update highest unlocked board ID:', error);
+          logger.warn('⚠️ Failed to update highest unlocked board ID:', error instanceof Error ? error.message : String(error));
         });
       } catch (error) {
-        logger.warn('⚠️ Failed to update highest unlocked board ID:', error);
+        logger.warn('⚠️ Failed to update highest unlocked board ID:', error instanceof Error ? error.message : String(error));
       }
       
       // 🔥 USER BUG FIX: Update navigation badge immediately after unlocking board

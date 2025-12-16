@@ -1214,22 +1214,12 @@ class UIManager {
   private showCollectiblesScreenWithAnimation(): void {
     logger.info('🗺️ Showing Journey screen - with exit animation');
     
-    // 🔥 APP STORE FIX: Check if we're coming from game exit (Journey pathway)
-    // If yes, DON'T play homepage slider animation or background gradient animation
-    const cameFromJourney = (window as any).__ccCameFromJourney === true || 
-                            localStorage.getItem('__ccCameFromJourney') === 'true';
-    const isGameExitFlow = cameFromJourney;
-    
-    if (isGameExitFlow) {
-      logger.info('🗺️ Journey pathway (from game exit) - SKIPPING homepage slider and background animations');
-      // Just show Journey screen directly without homepage slider involvement
-      const collectiblesManager = (window as any).collectiblesManager;
-      if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
-        collectiblesManager.showCollectibles();
-        logger.info('✅ Journey screen shown directly (game exit pathway)');
-      }
-      return; // Exit early - no homepage slider or background animations
+    // 🔥 CRITICAL: Serialize CTA transitions to avoid double-click / overlapping animations
+    if ((window as any).__ccUiJourneyTransitioning) {
+      logger.warn('⚠️ Journey CTA transition already running - ignoring duplicate trigger');
+      return;
     }
+    (window as any).__ccUiJourneyTransitioning = true;
     
     // CRITICAL: Switch to Journey slide (index 1) BEFORE animation so its elements animate out
     // (CTA, text, hero). We still open the Journey screen after the animation.
@@ -1312,6 +1302,18 @@ class UIManager {
       console.log('✅ [Journey EXIT] App element background fade animation started from gradient to', targetSolidColor);
     }
     
+    // 🔥 CRITICAL FIX: Start loading Journey boards IMMEDIATELY in background (before exit animation)
+    // This ensures boards are rendered while exit animation plays, reducing perceived load time
+    console.log('🗺️ Step 0: Starting Journey boards rendering in background...');
+    const collectiblesManager = (window as any).collectiblesManager;
+    let boardsReadyPromise: Promise<void> | null = null;
+    
+    if (collectiblesManager && typeof collectiblesManager.prepareJourneyScreen === 'function') {
+      // Use prepareJourneyScreen to render boards without showing screen
+      boardsReadyPromise = collectiblesManager.prepareJourneyScreen();
+      console.log('✅ Journey boards rendering started in background');
+    }
+    
     // Step 1: Play exit animation for Journey slide (background fade is running in parallel)
     // 🔥 CRITICAL: Small delay to ensure DOM is updated and slide is marked as active
     setTimeout(() => {
@@ -1334,12 +1336,19 @@ class UIManager {
     // Step 2: Wait for exit animation AND fade animation to complete, then show Journey screen
     // Exit animation: 770ms, Fade animation: 800ms - wait for the longer one
     const waitTime = Math.max(770, fadeDuration * 1000);
-    setTimeout(() => {
+    setTimeout(async () => {
       console.log('🗺️ Step 2: Showing Journey screen after animations complete');
+      
+      // Wait for boards to finish rendering (if not already done)
+      if (boardsReadyPromise) {
+        await boardsReadyPromise;
+        console.log('✅ Journey boards rendering completed');
+      }
       
       // Show Journey screen after both animations complete
       // CRITICAL: Do NOT set background here - it's already set by GSAP animation
       this.showCollectiblesScreen();
+      (window as any).__ccUiJourneyTransitioning = false;
     }, waitTime);
   }
   

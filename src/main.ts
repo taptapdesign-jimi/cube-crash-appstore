@@ -525,6 +525,23 @@ async function startNewRun(boardId: number): Promise<void> {
           
           await bootGame();
           
+          // 🔥 CRITICAL FIX: Keep canvas hidden until HUD is ready to drop
+          // This prevents seeing old HUD residue before drop animation starts
+          try {
+            const gameState = (window as any).CC;
+            if (gameState && gameState.app && gameState.app.canvas) {
+              gameState.app.canvas.style.opacity = '0';
+              gameState.app.canvas.style.transition = 'none';
+              console.log('✅ Canvas hidden - will show when HUD drop starts');
+            }
+          } catch {}
+          
+          // 🔥 iPhone FIX: wait for canvas/app to paint before starting layout + animations
+          // Without this, HUD drop/tile pop can happen before first visible frame.
+          try {
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          } catch {}
+          
           // 🔥 CRITICAL FIX: Load saved game state BEFORE layoutGame()
           // This ensures tiles are loaded before layout is calculated
           if (canLoadState && (window as any).__ccSkipRebuildBoard) {

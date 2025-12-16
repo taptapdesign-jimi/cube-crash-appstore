@@ -300,6 +300,33 @@ class CollectiblesManager {
     console.log('✅ Collectibles event listeners cleaned up');
   }
 
+  // 🔥 NEW: Prepare Journey screen by rendering boards in background (without showing screen)
+  // This allows boards to render while slider exit animation plays
+  async prepareJourneyScreen(): Promise<void> {
+    logger.info('🗺️ prepareJourneyScreen - rendering boards in background');
+    const screen = document.getElementById('journey-screen');
+    if (!screen) {
+      logger.error('❌ journey-screen element not found');
+      return;
+    }
+    
+    // Render boards in background
+    const journeyContainer = document.getElementById('journey-boards-container');
+    if (journeyContainer) {
+      const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+      journeyBoardsManager.renderBoards();
+      journeyBoardsManager.updateCounter();
+      logger.info('🗺️ Journey boards rendered in background');
+      
+      // Mark as viewed and reset badge
+      journeyBoardsManager.markAsViewed();
+      if (typeof (window as any).updateNavBadge === 'function') {
+        (window as any).updateNavBadge(0, 1);
+        logger.info('🗺️ Journey badge reset');
+      }
+    }
+  }
+
   async showCollectibles(options?: CollectiblesShowOptions): Promise<void> {
     logger.info('🎁 showCollectibles method called');
     const screen = document.getElementById('journey-screen');
@@ -348,6 +375,8 @@ class CollectiblesManager {
       console.log('🔌 Attaching back button listener in showCollectibles');
       backBtn.addEventListener('click', () => {
         logger.info('🎁 Collectibles back button clicked');
+        // Explicitly mark this hide as "toHome" so hideCollectibles doesn't get confused by __ccCameFromJourney flags
+        (window as any).__ccJourneyExitMode = 'toHome';
         
         // Try to use animated version first, fallback to non-animated
         if (typeof (window as any).hideCollectiblesScreenWithAnimation === 'function') {
@@ -382,27 +411,28 @@ class CollectiblesManager {
     (screen as HTMLElement).style.opacity = '0';
     logger.info('🎁 Removed hidden class and inline styles from Journey screen');
     
-    // Render cards BEFORE animation so GSAP can find them
-    // Check if this is Journey screen (has journey-boards-container)
+    // 🔥 OPTIMIZATION: Check if boards are already rendered (by prepareJourneyScreen)
+    // If not, render them now
     const journeyContainer = document.getElementById('journey-boards-container');
     if (journeyContainer) {
-      // This is Journey screen - render boards instead of collectibles
-      const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-      journeyBoardsManager.renderBoards();
-      journeyBoardsManager.updateCounter();
-      logger.info('🗺️ Journey boards rendered');
-      
-      // 🔥 USER REQUEST: Scroll to interim card will be handled in renderBoards after cards are positioned
-      
-      // 🗺️ JOURNEY BADGE: Mark boards as viewed and reset badge when journey screen is opened
-      journeyBoardsManager.markAsViewed();
-      if (typeof (window as any).updateNavBadge === 'function') {
-        (window as any).updateNavBadge(0, 1); // Reset journey badge (slideIndex 1)
-        logger.info('🗺️ Journey badge reset after opening journey screen');
+      const hasBoards = journeyContainer.querySelector('.journey-board-card');
+      if (!hasBoards) {
+        // Boards not yet rendered - render now
+        logger.info('🗺️ Boards not yet rendered - rendering now');
+        const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+        journeyBoardsManager.renderBoards();
+        journeyBoardsManager.updateCounter();
+        logger.info('🗺️ Journey boards rendered');
+        
+        // Mark as viewed and reset badge
+        journeyBoardsManager.markAsViewed();
+        if (typeof (window as any).updateNavBadge === 'function') {
+          (window as any).updateNavBadge(0, 1);
+          logger.info('🗺️ Journey badge reset after opening journey screen');
+        }
+      } else {
+        logger.info('🗺️ Boards already rendered - skipping render');
       }
-      
-      // 🔥 PREMIUM FIX: Position is already set synchronously in renderBoards()
-      // No need to refresh - CSS custom properties handle positioning without visible movement
       
       // 🔥 CRITICAL FIX: Ensure scroll is enabled when journey screen is shown
       // This fixes broken scroll when returning from game
@@ -486,9 +516,10 @@ class CollectiblesManager {
   async hideCollectibles(): Promise<void> {
     const screen = document.getElementById('journey-screen');
     if (screen) {
-      // 🔥 APP STORE FIX: Check if this is back button (return to homepage) or interim card (go to game)
-      const cameFromJourney = (window as any).__ccCameFromJourney === true;
-      const isBackButton = !cameFromJourney; // Back button = return to homepage slide 2
+      // Determine hide mode explicitly (prevents stale __ccCameFromJourney from breaking back button)
+      const exitMode = (window as any).__ccJourneyExitMode;
+      const isBackButton = exitMode !== 'toGame'; // default to back-to-home
+      delete (window as any).__ccJourneyExitMode;
       
       if (isBackButton) {
         // 🎬 BACK BUTTON pathway: Journey → Homepage Slide 2 (Journey slide)

@@ -588,12 +588,29 @@ export async function boot(){
   // 🔥 CRITICAL FIX: DESTROY existing app if it exists
   if (app && app.canvas) {
     console.log('🧹 Destroying existing PIXI app');
+    // 🔥 CRITICAL: Hide canvas IMMEDIATELY before destroy to prevent flash
+    app.canvas.style.opacity = '0';
+    app.canvas.style.visibility = 'hidden';
     try {
       app.destroy(true, { children: true, texture: true, baseTexture: true });
     } catch (e) {
       console.log('⚠️ Error destroying app:', e);
     }
     app = null;
+  }
+  
+  // 🔥 CRITICAL FIX: Clear global HUD_ROOT reference before creating new app
+  // This prevents stale HUD from flashing during reinit
+  try {
+    if ((window as any).HUD_ROOT) {
+      const oldHud = (window as any).HUD_ROOT;
+      oldHud.alpha = 0;
+      oldHud.visible = false;
+      (window as any).HUD_ROOT = null;
+      console.log('✅ Cleared stale HUD_ROOT reference');
+    }
+  } catch (e) {
+    console.log('⚠️ Error clearing HUD_ROOT:', e);
   }
   
   // 🔥 CRITICAL FIX: Clear ALL existing canvas elements from DOM
@@ -646,11 +663,18 @@ export async function boot(){
   console.log('✅ App canvas in DOM:', !!app.canvas.parentElement);
   
   // Add fade in animation for background transition
+  // 🔥 CRITICAL FIX: Only auto-show canvas if NOT coming from Journey (saved game)
+  // When coming from Journey, canvas stays hidden until HUD drop starts
   app.canvas.style.opacity = '0';
   app.canvas.style.transition = 'opacity 0.6s ease';
-  setTimeout(() => {
-    app.canvas.style.opacity = '1';
-  }, 50);
+  const cameFromJourney = (window as any).__ccCameFromJourney;
+  if (!cameFromJourney) {
+    setTimeout(() => {
+      app.canvas.style.opacity = '1';
+    }, 50);
+  } else {
+    console.log('🎯 Canvas kept hidden - will show when HUD drop starts');
+  }
   
   // 🔥 CRITICAL: Keep background as gradient initially (not solid color)
   // Background will change to solid color only when entering game or individual screens
@@ -1194,6 +1218,35 @@ export function layoutBoard(){
           }
         } catch (e) {
           console.warn('⚠️ Failed to access HUD_ROOT:', e);
+        }
+        
+        // 🔥 CRITICAL: Fallback to trigger HUD drop shortly after init (for slow devices)
+        if (_hudDropPending) {
+          setTimeout(() => {
+            if (!_hudDropPending) return; // already handled by sweetPopIn
+            try {
+              const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+              if (!hudRoot || !hudRoot.parent) {
+                console.warn('⚠️ HUD drop fallback: HUD_ROOT not ready');
+                return;
+              }
+              if (!hudRoot._dropped && typeof HUD.playHudDrop === 'function') {
+                // Start on next paint so user definitely sees the drop (especially iPhone)
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                  // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
+                  if (app && app.canvas) {
+                    app.canvas.style.opacity = '1';
+                    app.canvas.style.transition = 'opacity 0.3s ease';
+                  }
+                  HUD.playHudDrop({ forceRestart: true });
+                }));
+                console.log('✅ HUD drop fallback triggered after initHUD');
+              }
+              _hudDropPending = false;
+            } catch (err) {
+              console.warn('⚠️ HUD drop fallback failed:', err);
+            }
+          }, 120);
         }
         
         // hook za wild meter prema HUD-u
@@ -1761,24 +1814,39 @@ function rebuildBoard(){
     }
   }
   
-  // Start animation immediately - NO WAITING
-  console.log('🎯 Starting sweetPopIn from app.js with', tiles.length, 'tiles');
-  sweetPopIn(tiles, {
+  // Start animation (optionally wait a frame if HUD is not ready so drop can be visible)
+  const hudReady = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+  const sweetPopInRunner = () => {
+    console.log('🎯 Starting sweetPopIn from app.js with', tiles.length, 'tiles');
+    return sweetPopIn(tiles, {
     onHalf: () => {
       // 🔥 CRITICAL FIX: Ensure HUD drop is triggered for new games
       if (_hudDropPending){
         console.log('🎯 HUD drop pending in sweetPopIn onHalf - triggering drop animation');
         try { 
+          const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+          if (!hudRoot) {
+            console.warn('⚠️ HUD_ROOT not ready during sweetPopIn onHalf - keeping drop pending');
+            return; // keep _hudDropPending so a later fallback can run
+          }
           if (typeof HUD.playHudDrop === 'function') {
-            HUD.playHudDrop({});
+            // Start on next paint so user definitely sees the drop (especially iPhone)
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+              // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
+              if (app && app.canvas) {
+                app.canvas.style.opacity = '1';
+                app.canvas.style.transition = 'opacity 0.3s ease';
+              }
+              HUD.playHudDrop({ forceRestart: true });
+            }));
             console.log('✅ HUD drop animation triggered in sweetPopIn onHalf');
+            _hudDropPending = false;
           } else {
             console.warn('⚠️ HUD.playHudDrop is not a function');
           }
         } catch (e) {
           console.error('❌ Failed to trigger HUD drop in sweetPopIn onHalf:', e);
         }
-        _hudDropPending = false;
       } else {
         // 🔥 CRITICAL FIX: Even if not pending, ensure HUD is visible and positioned
         console.log('🎯 HUD drop not pending - ensuring HUD is visible');
@@ -1802,7 +1870,15 @@ function rebuildBoard(){
         }
       }
     }
-  }).then(() => {
+    });
+  };
+  
+  const shouldDelayForHUD = _hudDropPending && !hudReady;
+  const sweetPopPromise = shouldDelayForHUD
+    ? new Promise(resolve => setTimeout(() => resolve(sweetPopInRunner()), 120))
+    : sweetPopInRunner();
+  
+  sweetPopPromise.then(() => {
     // 🔥 v70 STYLE: Update ghost visibility after animation completes
     // Show ghosts for empty cells (where grid[r][c] === null)
     if (backgroundLayer) {
@@ -1815,7 +1891,14 @@ function rebuildBoard(){
       console.log('🎯 HUD drop still pending after sweetPopIn - triggering now');
       try {
         if (typeof HUD.playHudDrop === 'function') {
-          HUD.playHudDrop({});
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
+            if (app && app.canvas) {
+              app.canvas.style.opacity = '1';
+              app.canvas.style.transition = 'opacity 0.3s ease';
+            }
+            HUD.playHudDrop({ forceRestart: true });
+          }));
           console.log('✅ HUD drop animation triggered after sweetPopIn');
         }
       } catch (e) {
@@ -2097,6 +2180,23 @@ wildMeter = 0;
     _hudDropPending = true;
     console.log('✅ HUD drop pending set to true (from Journey Play Board)');
     delete (window as any).__ccTriggerHudDrop;
+    
+    // 🔥 CRITICAL: Force HUD to re-init / re-drop on next layout so animation is always visible
+    _hudInitDone = false;
+    try {
+      const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+      if (hudRoot) {
+        const top = hudRoot._dropTop ?? 44;
+        try { gsap.killTweensOf(hudRoot); } catch {}
+        hudRoot._dropped = false;
+        hudRoot.alpha = 0;
+        hudRoot.y = top - 140;
+        hudRoot.visible = true;
+        console.log('✅ HUD reset to pre-drop state (will animate drop)');
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to reset HUD for re-drop:', e);
+    }
   }
   
   const skipRebuild = (window as any).__ccSkipRebuildBoard;
@@ -2223,9 +2323,13 @@ wildMeter = 0;
             hudRoot._dropped = true;
             console.log('✅ HUD positioned and made visible in startLevel (no drop pending)');
           } else {
-            // If drop is pending, ensure HUD is at least visible (even if above screen)
+            // If drop is pending, keep HUD hidden offscreen so first frame doesn't flash
+            const top = hudRoot._dropTop ?? 44;
             hudRoot.visible = true;
-            console.log('✅ HUD made visible (drop pending, will animate in sweetPopIn onHalf)');
+            hudRoot.alpha = 0;
+            hudRoot.y = top - 140; // pre-drop position
+            hudRoot._dropped = false;
+            console.log('✅ HUD kept hidden offscreen (drop pending, will animate in sweetPopIn onHalf)');
           }
         } else {
           console.warn('⚠️ HUD_ROOT is null in startLevel - HUD may not be initialized yet');
@@ -7584,16 +7688,24 @@ async function loadGameState() {
       console.log('🔍 HUD check: visible?', hud.visible, 'alpha:', hud.alpha, 'children:', hud.children.length, 'parent:', hud.parent?.constructor.name);
     }
     
-    // 🔥 CRITICAL FIX: Always trigger HUD drop animation when loading saved state
-    // This ensures HUD is visible and animated properly after continue
+      // 🔥 CRITICAL FIX: Always trigger HUD drop animation when loading saved state
+      // Use next-paint + forceRestart so it is actually visible on iPhone (otherwise it can run before first frame)
     try {
       // Check if HUD drop is pending (should be true after cleanup)
       if (_hudDropPending) {
         console.log('🎯 HUD drop pending - triggering drop animation');
         if (typeof HUD.playHudDrop === 'function') {
-          HUD.playHudDrop({});
-          console.log('✅ HUD drop animation triggered');
-          _hudDropPending = false;
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+              // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
+              if (app && app.canvas) {
+                app.canvas.style.opacity = '1';
+                app.canvas.style.transition = 'opacity 0.3s ease';
+                console.log('✅ Canvas shown - HUD drop starting');
+              }
+              HUD.playHudDrop({ forceRestart: true });
+              _hudDropPending = false; // clear only once drop actually starts (prevents 1-frame "already dropped" flash)
+              console.log('✅ HUD drop started (next paint, forceRestart)');
+            }));
         }
       } else {
         // If not pending, still ensure HUD is visible and positioned correctly
@@ -7619,8 +7731,15 @@ async function loadGameState() {
           
           // Play HUD drop animation after recreation
           if (typeof HUD.playHudDrop === 'function') {
-            HUD.playHudDrop({});
-            console.log('✅ HUD drop animation triggered after recreation');
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+              // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
+              if (app && app.canvas) {
+                app.canvas.style.opacity = '1';
+                app.canvas.style.transition = 'opacity 0.3s ease';
+              }
+              HUD.playHudDrop({ forceRestart: true });
+            }));
+            console.log('✅ HUD drop animation scheduled after recreation (next paint, forceRestart)');
           }
         } catch (error) {
           console.error('❌ Failed to recreate DOM HUD:', error);
@@ -7713,8 +7832,15 @@ async function loadGameState() {
           console.log('🎯 HUD drop still pending in onHalf - triggering now');
           try { 
             if (typeof HUD.playHudDrop === 'function') {
-              HUD.playHudDrop({});
-              console.log('✅ HUD drop animation triggered in onHalf callback');
+              requestAnimationFrame(() => requestAnimationFrame(() => {
+                // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
+                if (app && app.canvas) {
+                  app.canvas.style.opacity = '1';
+                  app.canvas.style.transition = 'opacity 0.3s ease';
+                }
+                HUD.playHudDrop({ forceRestart: true });
+              }));
+              console.log('✅ HUD drop animation scheduled in onHalf callback (next paint, forceRestart)');
             }
           } catch (e) {
             console.warn('⚠️ Failed to trigger HUD drop in onHalf:', e);
