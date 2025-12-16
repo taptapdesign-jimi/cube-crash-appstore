@@ -3601,6 +3601,150 @@ html.collectible-reward-open body {
   }
 }
 
+/* ===== HEARTS BOTTOM SHEET ===== */
+.hearts-bottom-sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: url('../assets/modals/paper.png');
+  background-size: cover;
+  background-position: center;
+  border-radius: 40px 40px 0 0;
+  box-shadow: 0 -12px 48px rgba(233, 210, 200, 0.5);
+  max-height: 60vh;
+  z-index: 999999999;
+  transition: transform 0.3s ease-out;
+  padding: 40px 32px;
+  
+  /* RESPONSIVE WIDTH */
+  width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
+  
+  transform: translateY(100%);
+  
+  /* iOS touch optimizations */
+  -webkit-overflow-scrolling: touch;
+  -webkit-transform: translateY(100%);
+  will-change: transform;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+}
+
+.hearts-bottom-sheet.visible {
+  transform: translateY(0);
+}
+
+.hearts-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 310px;
+}
+
+.hearts-header {
+  text-align: center;
+}
+
+.hearts-title {
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 0;
+  text-align: center;
+}
+
+.hearts-title-text {
+  color: #AD8675;
+}
+
+.hearts-title-accent {
+  color: #E77449;
+}
+
+.hearts-display {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: center;
+}
+
+.heart-icon {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+.hearts-timer {
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.hearts-timer-text {
+  color: #AD8675;
+}
+
+.hearts-timer-value {
+  color: #E77449;
+}
+
+.hearts-description {
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: #AD8675;
+  text-align: center;
+  margin: 0;
+}
+
+.hearts-cta {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.get-heart-btn {
+  width: 100%;
+  max-width: 265px;
+}
+
+/* Mobile adjustments */
+@media screen and (max-width: 768px) {
+  .hearts-bottom-sheet {
+    padding: 40px 24px;
+  }
+  
+  .hearts-content {
+    gap: 20px;
+  }
+  
+  .hearts-title {
+    font-size: 36px;
+  }
+  
+  .heart-icon {
+    width: 56px;
+    height: 56px;
+  }
+  
+  .hearts-display {
+    gap: 20px;
+  }
+}
+
 /* ===== 3D BOARD EFFECTS ===== */
 #app {
   perspective: var(--board-perspective);

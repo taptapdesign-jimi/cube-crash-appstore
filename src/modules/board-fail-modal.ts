@@ -120,6 +120,19 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       delete (window as any).__ccSkipRebuildBoard;
       logger.info('✅ Cleared __ccSkipRebuildBoard flag - will rebuild fresh board on retry');
       
+      // 💚 Lose one heart when failing to clean a board
+      try {
+        const { heartsSystem } = await import('./hearts-system.js');
+        const heartLost = heartsSystem.loseHeart();
+        if (heartLost) {
+          logger.info('💔 Lost 1 heart due to board failure, remaining:', heartsSystem.getCurrentHearts());
+        } else {
+          logger.warn('⚠️ No hearts available to lose - player has 0 hearts');
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to lose heart on board failure:', error);
+      }
+      
       // 🔥 CRITICAL FIX: Ensure interim status is saved for this board when user fails
       // This ensures interim card persists after hard exit
       try {

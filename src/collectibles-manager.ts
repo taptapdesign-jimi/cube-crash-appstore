@@ -470,6 +470,30 @@ class CollectiblesManager {
       this.initDevButtons();
     }, 100);
     
+    // 💚 Initialize hearts system and attach click handler
+    setTimeout(async () => {
+      try {
+        const { heartsSystem } = await import('./modules/hearts-system.js');
+        heartsSystem.init();
+        heartsSystem.refreshUI();
+        
+        // Attach click handler to hearts container
+        const heartsContainer = document.getElementById('journey-lives-container');
+        if (heartsContainer && !heartsContainer.hasAttribute('data-hearts-listener-attached')) {
+          heartsContainer.style.cursor = 'pointer';
+          heartsContainer.addEventListener('click', async () => {
+            logger.info('💚 Hearts container clicked - showing hearts bottom sheet');
+            const { showHeartsModal } = await import('./modules/hearts-bottom-sheet.js');
+            showHeartsModal();
+          });
+          heartsContainer.setAttribute('data-hearts-listener-attached', 'true');
+          logger.info('💚 Hearts click handler attached');
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to initialize hearts system:', error);
+      }
+    }, 150);
+    
     // 🎬 CRITICAL: Trigger Journey screen enter animation (pop-in) using GSAP
     try {
       const { animateCollectiblesScreenEnter } = await import('./ui/collectibles-animations.js');
