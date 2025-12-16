@@ -2358,7 +2358,7 @@ body{
   right: 0;
   background: url('../assets/modals/paper.png');
   background-size: cover;
-  background-position: center;
+  background-position: top center;
   border-radius: 40px 40px 0 0; /* .cornerRadius(40) from Figma */
   box-shadow: 0 -12px 48px rgba(233, 210, 200, 0.5); /* Updated with 50% opacity */
   max-height: 60vh;
@@ -2601,7 +2601,7 @@ body{
   right: 0;
   background: url('../assets/modals/paper.png');
   background-size: cover;
-  background-position: center;
+  background-position: top center;
   border-radius: 40px 40px 0 0; /* .cornerRadius(40) from Figma */
   box-shadow: 0 -12px 48px rgba(233, 210, 200, 0.5); /* Updated with 50% opacity */
   max-height: 60vh;
@@ -2692,7 +2692,7 @@ body{
   max-width: 390px;
   background: url('../assets/modals/paper.png');
   background-size: cover;
-  background-position: center;
+  background-position: top center;
   border-radius: 40px 40px 0 0;
   box-shadow: 0 -12px 48px rgba(233, 210, 200, 0.5);
   padding: 32px 32px 40px;

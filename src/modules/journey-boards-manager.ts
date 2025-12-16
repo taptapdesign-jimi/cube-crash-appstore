@@ -2690,7 +2690,7 @@ class JourneyBoardsManager {
     modal.style.cssText = `
       background: url('../../assets/modals/paper.png');
       background-size: cover;
-      background-position: center;
+      background-position: top center;
       border-radius: 24px;
       padding: 24px;
       max-width: 90vw;

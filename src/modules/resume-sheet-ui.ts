@@ -36,7 +36,7 @@ export function addBottomSheetStyles(): void {
       right: 0 !important;
       background: url('../../assets/modals/paper.png') !important;
       background-size: cover !important;
-      background-position: center !important;
+      background-position: top center !important;
       border-radius: 20px 20px 0 0 !important;
       padding: 30px 20px 40px 20px !important;
       box-shadow: 0 -10px 30px rgba(233, 210, 200, 1) !important;
