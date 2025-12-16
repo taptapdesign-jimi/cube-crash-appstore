@@ -2412,8 +2412,16 @@ class JourneyBoardsManager {
         // No saved game - preserve interim status from localStorage (user failed and exited)
         // Don't call syncWithGameProgress() as it might overwrite interim status
         logger.info('🗺️ No saved game state - preserving interim status from localStorage');
-        // 🔥 Ensure we still have EXACTLY ONE interim after load (e.g., after full unlock)
-        this.ensureSingleInterimCard();
+        // 🔥 CRITICAL FIX: Ensure we have EXACTLY ONE interim card (but don't overwrite if already exists)
+        // Check if we have any interim card first
+        const hasInterim = this.boards.some(b => b.interim === true);
+        if (!hasInterim) {
+          // No interim card found - ensure we have one
+          this.ensureSingleInterimCard();
+          logger.info('🗺️ No interim card found after load - ensured single interim card');
+        } else {
+          logger.info('🗺️ Interim card already exists - preserving it');
+        }
         this.saveBoardsState();
       }
     } catch (error) {

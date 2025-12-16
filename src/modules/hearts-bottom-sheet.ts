@@ -9,6 +9,7 @@
 
 import { logger } from '../core/logger.js';
 import { heartsSystem } from './hearts-system.js';
+import { gsap } from 'gsap';
 
 let heartsModal: HTMLElement | null = null;
 let timerInterval: NodeJS.Timeout | null = null;
@@ -133,13 +134,69 @@ function addBackdropClickListener(modalEl: HTMLElement, registerCleanup: (fn: ()
   });
 }
 
+let previousHeartsCount = 0; // Track previous hearts count for animation
+
+function animateHeartRefill(heartIndex: number): void {
+  if (!heartsModal) return;
+  
+  const heartIcons = heartsModal.querySelectorAll('.heart-icon');
+  if (heartIndex < heartIcons.length) {
+    const heartIcon = heartIcons[heartIndex] as HTMLImageElement;
+    
+    // Change from empty to filled
+    heartIcon.src = '../../assets/modals/heart-life.png';
+    heartIcon.alt = 'Filled heart';
+    
+    // Bouncy animation
+    gsap.fromTo(heartIcon, 
+      { scale: 0.3, opacity: 0 },
+      { 
+        scale: 1.2, 
+        opacity: 1,
+        duration: 0.3,
+        ease: 'back.out(1.7)',
+        onComplete: () => {
+          gsap.to(heartIcon, {
+            scale: 1,
+            duration: 0.2,
+            ease: 'power2.out'
+          });
+        }
+      }
+    );
+    
+    logger.info(`💚 Animated heart refill for heart ${heartIndex + 1}`);
+  }
+}
+
 function updateTimer(): void {
   if (!heartsModal) return;
+  
+  const currentHearts = heartsSystem.getCurrentHearts();
+  const maxHearts = heartsSystem.getMaxHearts();
+  
+  // 🔥 USER REQUEST: Stop counter at 00:00 when all hearts are full
+  if (currentHearts >= maxHearts) {
+    const timerElement = heartsModal.querySelector('.hearts-timer-value');
+    if (timerElement) {
+      timerElement.textContent = '00:00';
+    }
+    return; // Don't update timer when all hearts are full
+  }
   
   const timerElement = heartsModal.querySelector('.hearts-timer-value');
   if (timerElement) {
     const timeString = heartsSystem.getNextRefillTimeString();
     timerElement.textContent = timeString;
+  }
+  
+  // 🔥 USER REQUEST: Animate heart refill when hearts increase
+  if (currentHearts > previousHeartsCount) {
+    // Find which heart was refilled (first empty heart that became filled)
+    for (let i = previousHeartsCount; i < currentHearts; i++) {
+      animateHeartRefill(i);
+    }
+    previousHeartsCount = currentHearts;
   }
 }
 
@@ -175,6 +232,9 @@ function createHeartsModal(): HTMLElement {
   const currentHearts = heartsSystem.getCurrentHearts();
   const maxHearts = heartsSystem.getMaxHearts();
   const timeString = heartsSystem.getNextRefillTimeString();
+  
+  // Initialize previous hearts count for animation tracking
+  previousHeartsCount = currentHearts;
   
   // Create hearts HTML
   const heartsHTML = Array.from({ length: maxHearts }, (_, i) => {
@@ -244,14 +304,11 @@ function createHeartsModal(): HTMLElement {
   
   // Start timer update interval (update every second)
   timerInterval = setInterval(() => {
-    updateTimer();
+    // Refresh hearts system to check for refills
+    heartsSystem.refreshUI();
     
-    // Check if refill happened
-    const newHearts = heartsSystem.getCurrentHearts();
-    if (newHearts > currentHearts) {
-      // Hearts refilled, update display
-      showHeartsModal(); // Recreate modal with new hearts count
-    }
+    // Update timer (will also animate heart refills if needed)
+    updateTimer();
   }, 1000);
   
   registerCleanup(() => {
