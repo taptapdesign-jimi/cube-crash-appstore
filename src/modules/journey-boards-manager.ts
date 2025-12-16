@@ -1711,6 +1711,15 @@ class JourneyBoardsManager {
     logger.info(`🔄 Continue from interim board ${board.id} - starting cleanup and game`);
     
     try {
+      // Step 0: Check if player has hearts available
+      const { heartsSystem } = await import('./hearts-system.js');
+      if (!heartsSystem.hasHearts()) {
+        logger.info('💔 No hearts available - showing hearts bottom sheet instead of starting game');
+        const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
+        showHeartsModal();
+        return; // Don't continue to game
+      }
+      
       // Step 1: Stop Journey card idle bounce animations immediately
       if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
         JOURNEY_CARD_IDLE_BOUNCE.stop();
