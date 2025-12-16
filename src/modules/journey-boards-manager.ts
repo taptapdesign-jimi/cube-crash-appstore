@@ -2688,8 +2688,7 @@ class JourneyBoardsManager {
     const modal = document.createElement('div');
     modal.className = 'card-picker-modal';
     modal.style.cssText = `
-      background-color: #F5F0EB; /* Fallback color matching paper texture */
-      background-image: url('../../assets/modals/paper.png');
+      background: url('../../assets/modals/paper.png');
       background-size: cover;
       background-position: top center;
       border-radius: 24px;

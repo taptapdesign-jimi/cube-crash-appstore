@@ -2356,8 +2356,7 @@ body{
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: #F5F0EB; /* Fallback color matching paper texture */
-  background-image: url('../assets/modals/paper.png');
+  background: url('../assets/modals/paper.png');
   background-size: cover;
   background-position: top center;
   border-radius: 40px 40px 0 0; /* .cornerRadius(40) from Figma */
@@ -2600,8 +2599,7 @@ body{
   bottom: 0;
   left: 0;
   right: 0;
-  background-color: #F5F0EB; /* Fallback color matching paper texture */
-  background-image: url('../assets/modals/paper.png');
+  background: url('../assets/modals/paper.png');
   background-size: cover;
   background-position: top center;
   border-radius: 40px 40px 0 0; /* .cornerRadius(40) from Figma */
@@ -2692,8 +2690,7 @@ body{
   position: relative;
   width: 100%;
   max-width: 390px;
-  background-color: #F5F0EB; /* Fallback color matching paper texture */
-  background-image: url('../assets/modals/paper.png');
+  background: url('../assets/modals/paper.png');
   background-size: cover;
   background-position: top center;
   border-radius: 40px 40px 0 0;

@@ -34,8 +34,7 @@ export function addBottomSheetStyles(): void {
       bottom: 0 !important;
       left: 0 !important;
       right: 0 !important;
-      background-color: #F5F0EB !important; /* Fallback color matching paper texture */
-      background-image: url('../../assets/modals/paper.png') !important;
+      background: url('../../assets/modals/paper.png') !important;
       background-size: cover !important;
       background-position: top center !important;
       border-radius: 20px 20px 0 0 !important;
