@@ -1419,7 +1419,8 @@
 .journey-board-card-wrapper {
   position: absolute;
   /* Width and height are set inline per card - no fixed dimensions */
-  overflow: visible; /* Allow shadow to be visible */
+  overflow: visible; /* Allow shadow to be visible - shadow is part of card design */
+  background: transparent !important; /* 🔥 USER REQUEST: Force transparent - no white background */
   /* 🔥 iOS FIX: Allow normal touch behavior when not animating */
   touch-action: auto; /* Default touch behavior - will be overridden during animation */
 }
@@ -1434,6 +1435,9 @@
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   box-sizing: border-box;
   cursor: pointer;
+  margin: 0;
+  padding: 0; /* 🔥 USER REQUEST: Ensure no padding that could cause overflow */
+  background: transparent; /* 🔥 USER REQUEST: Ensure no white background */
   /* 🔥 iOS FIX: Prevent deep touch (long press) and image dragging */
   -webkit-touch-callout: none; /* Disable iOS callout menu (long press menu) */
   -webkit-user-select: none; /* Prevent text/image selection */
@@ -1528,6 +1532,36 @@
   pointer-events: none; /* Prevent image from intercepting touch events */
 }
 
+/* 🔥 USER REQUEST: Ribbon for newly unlocked (not viewed) cards */
+.journey-card-ribbon {
+  position: absolute;
+  top: -2px; /* Slight overlap at top */
+  right: 4px; /* Offset from right edge to show card border */
+  width: 60px; /* Base size - will scale with card */
+  height: auto;
+  max-width: 45%; /* Prevent ribbon from being too large */
+  max-height: 45%; /* Prevent ribbon from being too large */
+  object-fit: contain;
+  pointer-events: none; /* Don't interfere with card clicks */
+  z-index: 20; /* Above card image */
+  /* 🔥 iOS FIX: Prevent deep touch (long press) and image dragging */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  transform-origin: top right; /* Scale from top-right corner */
+}
+
+/* Responsive ribbon sizing for smaller cards */
+@media (max-width: 768px) {
+  .journey-card-ribbon {
+    width: 50px;
+    max-width: 40%;
+    max-height: 40%;
+    right: 3px; /* Slightly less offset on smaller screens */
+  }
+}
+
 .journey-board-card.interim .journey-board-image {
   width: 100%;
   height: 100%;
@@ -1566,15 +1600,17 @@
 /* This ensures proper reset when trigger class is removed */
 
 .journey-board-card.locked {
-  background: transparent;
+  background: transparent !important; /* 🔥 USER REQUEST: Force transparent - no white background */
   border: none;
   box-shadow: none;
+  margin: 0;
+  padding: 0; /* 🔥 USER REQUEST: Ensure no padding that could cause overflow */
 }
 
 .journey-board-card.locked .journey-board-locked-container {
   width: 100%;
   height: 100%;
-  background: transparent;
+  background: transparent !important; /* 🔥 USER REQUEST: Force transparent background */
   border: none;
   border-radius: 12px;
   display: block;
@@ -1585,14 +1621,22 @@
   max-width: 100%;
   contain: layout;
   flex-shrink: 0;
+  margin: 0;
+  padding: 0; /* 🔥 USER REQUEST: Ensure no padding that could cause overflow */
+  /* 🔥 USER REQUEST: Ensure no white background bleeds through */
+  isolation: isolate; /* Create new stacking context to prevent background bleed */
 }
 
 .journey-board-card.locked .journey-board-empty-image {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: contain; /* Keep original - image should fit within card */
+  object-position: center;
   display: block;
   border-radius: 12px;
+  margin: 0;
+  padding: 0;
+  background: transparent; /* 🔥 USER REQUEST: Ensure transparent background, no white */
   /* 🔥 iOS FIX: Prevent deep touch (long press) and image dragging */
   -webkit-touch-callout: none;
   -webkit-user-select: none;

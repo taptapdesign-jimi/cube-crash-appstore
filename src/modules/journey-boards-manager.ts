@@ -1344,6 +1344,7 @@ class JourneyBoardsManager {
     
     // 🔥 USER REQUEST: Check if this board was already viewed (from localStorage)
     // Mark it as viewed so animations don't start for it
+    let isViewed = false;
     if (isUnlocked && !isInterim) {
       try {
         const viewedBoardsJson = localStorage.getItem('journey_viewed_boards');
@@ -1351,6 +1352,7 @@ class JourneyBoardsManager {
           const viewedBoardIds: Set<string> = new Set(JSON.parse(viewedBoardsJson));
           if (viewedBoardIds.has(board.id.toString())) {
             card.setAttribute('data-journey-card-viewed', 'true');
+            isViewed = true;
             logger.info(`✅ Board ${board.id} marked as viewed from localStorage - animations disabled`);
           }
         }
@@ -1369,6 +1371,18 @@ class JourneyBoardsManager {
       image.draggable = false; // Prevent HTML5 drag
       image.setAttribute('draggable', 'false'); // Ensure draggable is false
       card.appendChild(image);
+      
+      // 🔥 USER REQUEST: Add ribbon for newly unlocked (not viewed) cards
+      if (!isInterim && !isViewed) {
+        const ribbon = document.createElement('img');
+        ribbon.src = './assets/journey assets/orange-ribbon.png';
+        ribbon.alt = 'New';
+        ribbon.className = 'journey-card-ribbon';
+        ribbon.draggable = false;
+        ribbon.setAttribute('draggable', 'false');
+        card.appendChild(ribbon);
+        logger.info(`🎀 Added orange ribbon to newly unlocked board ${board.id}`);
+      }
       
       // 🔥 iOS FIX: Prevent long press and context menu
       let longPressTimer: number | null = null;
@@ -1921,6 +1935,15 @@ class JourneyBoardsManager {
         if (cardElement && JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.markCardAsViewed === 'function') {
           JOURNEY_CARD_IDLE_BOUNCE.markCardAsViewed(cardElement);
           logger.info(`✅ Card for board ${board.id} marked as viewed - animations stopped forever`);
+        }
+        
+        // 🔥 USER REQUEST: Remove ribbon when card is viewed
+        if (cardElement) {
+          const ribbon = cardElement.querySelector('.journey-card-ribbon');
+          if (ribbon) {
+            ribbon.remove();
+            logger.info(`🎀 Removed ribbon from board ${board.id} (now viewed)`);
+          }
         }
         
         // 🔥 USER REQUEST: Mark board as viewed for badge counting
