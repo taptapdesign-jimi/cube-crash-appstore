@@ -3642,7 +3642,7 @@ html.collectible-reward-open body {
   gap: 24px;
   width: 100%;
   max-width: 310px;
-  margin: 0 auto;
+  margin: 20px auto 0 auto; /* 20px top margin (same as resume game modal) */
 }
 
 .hearts-title {
