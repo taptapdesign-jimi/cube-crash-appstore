@@ -176,6 +176,12 @@
   gap: 6px;
   padding: 4px 0; /* 🔥 FIX: Remove horizontal padding to maintain exact 24px spacing from edge */
   border-radius: 8px;
+  /* 🔥 FIX: Remove iOS dark tap-highlight residue when tapping hearts */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
   /* 🔥 FIX: Grid positioning - align to end of third column */
   grid-column: 3;
   justify-self: end;
