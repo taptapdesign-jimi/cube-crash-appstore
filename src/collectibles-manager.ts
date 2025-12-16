@@ -482,6 +482,15 @@ class CollectiblesManager {
         if (heartsContainer && !heartsContainer.hasAttribute('data-hearts-listener-attached')) {
           heartsContainer.style.cursor = 'pointer';
           heartsContainer.addEventListener('click', async () => {
+            // Sweet fast tap bounce (visual feedback)
+            try {
+              heartsContainer.classList.remove('tap-bounce');
+              // Force reflow so the animation can retrigger on rapid taps
+              void (heartsContainer as HTMLElement).offsetHeight;
+              heartsContainer.classList.add('tap-bounce');
+              window.setTimeout(() => heartsContainer.classList.remove('tap-bounce'), 260);
+            } catch {}
+
             logger.info('💚 Hearts container clicked - showing hearts bottom sheet');
             const { showHeartsModal } = await import('./modules/hearts-bottom-sheet.js');
             showHeartsModal();
