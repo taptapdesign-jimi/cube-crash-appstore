@@ -4,7 +4,7 @@
  * Features:
  * - Max 3 hearts
  * - Lose 1 heart when failing to clean a board
- * - Auto-refill every 60 minutes
+ * - Auto-refill every 30 seconds (TESTING - will revert to 60 minutes)
  * - Internal counter for refill timer
  */
 
@@ -13,7 +13,7 @@ import { logger } from '../core/logger.js';
 const HEARTS_STORAGE_KEY = 'cc_journey_hearts';
 const HEARTS_REFILL_TIME_KEY = 'cc_journey_hearts_refill_time';
 const MAX_HEARTS = 3;
-const REFILL_INTERVAL_MS = 60 * 60 * 1000; // 60 minutes in milliseconds
+const REFILL_INTERVAL_MS = 30 * 1000; // 🔥 TESTING: 30 seconds (will revert to 60 minutes later)
 
 interface HeartsState {
   currentHearts: number;
