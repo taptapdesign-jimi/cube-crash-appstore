@@ -4452,7 +4452,7 @@ body:has(:root) .tile.wild-3d-glow {
 
 .settings-title {
   font-family: "LTCrow", system-ui, -apple-system, sans-serif;
-  font-size: 40px;
+  font-size: 28px; /* 🔥 FIX: Match Journey title size (was 40px) */
   font-weight: 800;
   color: #AD8775;
   margin: 0;
