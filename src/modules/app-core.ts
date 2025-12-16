@@ -6721,6 +6721,19 @@ function restartGame(){
     console.error('❌ EDGE CASE: Error in force reset:', error);
   }
   
+  // 🔥 CRITICAL FIX: Clear saved game state from localStorage before restarting
+  // This ensures we get a FRESH board, not the stuck/failed state
+  try {
+    localStorage.removeItem('cc_saved_game');
+    console.log('✅ RESTART: Cleared stuck game state from localStorage');
+  } catch (e) {
+    console.warn('⚠️ RESTART: Failed to clear localStorage:', e);
+  }
+  
+  // 🔥 CRITICAL FIX: Clear __ccSkipRebuildBoard flag to force fresh board
+  delete (window as any).__ccSkipRebuildBoard;
+  console.log('✅ RESTART: Cleared __ccSkipRebuildBoard flag - will rebuild fresh board');
+  
   // 🔥 USER REQUEST: Call startLevel() with current boardNumber instead of just rebuildBoard()
   // This ensures board-specific rules are applied and the correct board is restarted
   console.log(`🔄 RESTART: Calling startLevel(${currentBoard}) to restart board ${currentBoard}...`);

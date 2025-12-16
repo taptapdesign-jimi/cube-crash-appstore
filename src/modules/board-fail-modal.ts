@@ -107,6 +107,19 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       journeyProgressionState.setCurrentRunState(boardNumber, currentScore);
       logger.info(`🗺️ Journey: Board ${boardNumber} failed - score ${currentScore} saved in journey state (inProgress: true for resume)`);
       
+      // 🔥 CRITICAL FIX: Clear stuck game state from localStorage AFTER saving score
+      // This prevents "Play Again" and interim card from loading the stuck board position
+      try {
+        localStorage.removeItem('cc_saved_game');
+        logger.info('✅ Cleared stuck game state from localStorage - fresh board on retry');
+      } catch (e) {
+        logger.warn('⚠️ Failed to clear stuck game state:', e);
+      }
+      
+      // 🔥 CRITICAL FIX: Clear __ccSkipRebuildBoard flag to force fresh board on retry
+      delete (window as any).__ccSkipRebuildBoard;
+      logger.info('✅ Cleared __ccSkipRebuildBoard flag - will rebuild fresh board on retry');
+      
       // 🔥 CRITICAL FIX: Ensure interim status is saved for this board when user fails
       // This ensures interim card persists after hard exit
       try {
