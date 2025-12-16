@@ -5340,8 +5340,10 @@ function merge(src, dst, helpers){
 
         if (!wasWild) {
           try {
+            // 🔥 USER REQUEST: Reduce regular merge 6 shake by 55% for more contained movement
             const base = Math.min(24, 10 + Math.max(1, mult) * 3);
-            screenShake(app, { strength: base, duration: 0.32, steps: 18, ease: 'power2.out' });
+            const reducedStrength = Math.round(base * 0.45); // 55% reduction = 45% of original
+            screenShake(app, { strength: reducedStrength, duration: 0.32, steps: 18, ease: 'power2.out' });
           } catch {}
         }
 
