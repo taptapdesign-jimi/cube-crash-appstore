@@ -3615,7 +3615,7 @@ html.collectible-reward-open body {
   max-height: 60vh;
   z-index: 999999999;
   transition: transform 0.3s ease-out;
-  padding: 40px 32px;
+  padding: 28px 10% 40px 10%;
   
   /* RESPONSIVE WIDTH */
   width: 100%;
@@ -3628,10 +3628,6 @@ html.collectible-reward-open body {
   -webkit-overflow-scrolling: touch;
   -webkit-transform: translateY(100%);
   will-change: transform;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 40px;
 }
 
 .hearts-bottom-sheet.visible {
@@ -3642,13 +3638,11 @@ html.collectible-reward-open body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 24px;
   width: 100%;
   max-width: 310px;
-}
-
-.hearts-header {
-  text-align: center;
+  margin: 0 auto;
 }
 
 .hearts-title {
@@ -3724,7 +3718,7 @@ html.collectible-reward-open body {
 /* Mobile adjustments */
 @media screen and (max-width: 768px) {
   .hearts-bottom-sheet {
-    padding: 40px 24px;
+    padding: 28px 8% 40px 8%;
   }
   
   .hearts-content {

@@ -21,6 +21,118 @@ function createCleanupRegistry(modalEl: HTMLElement): (fn: () => void) => void {
   };
 }
 
+function addDragFunctionality(modalEl: HTMLElement, registerCleanup: (fn: () => void) => void): void {
+  logger.debug('💚 Adding drag functionality to hearts bottom sheet');
+
+  let startY = 0;
+  let currentY = 0;
+  let isDragging = false;
+  
+  // Clear any existing handlers first
+  modalEl.ontouchstart = null;
+  modalEl.ontouchmove = null;
+  modalEl.ontouchend = null;
+  modalEl.onmousedown = null;
+
+  // Touch events on entire modal
+  modalEl.ontouchstart = (e: TouchEvent) => {
+    // Don't start drag if clicking on buttons
+    if (e.target && (e.target as HTMLElement).closest('.get-heart-btn')) {
+      return;
+    }
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    startY = e.touches[0].clientY;
+    currentY = startY;
+    isDragging = true;
+    
+    // Clear any existing transform
+    (modalEl.style as any).transform = '';
+    (modalEl.style as any).transition = 'none';
+  };
+
+  modalEl.ontouchmove = (e: TouchEvent) => {
+    if (!isDragging) return;
+    
+    // Don't move if on button
+    if (e.target && (e.target as HTMLElement).closest('.get-heart-btn')) {
+      return;
+    }
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const touchY = e.touches[0].clientY;
+    currentY = touchY;
+    const deltaY = touchY - startY;
+    
+    // Only allow dragging down
+    if (deltaY > 0) {
+      (modalEl.style as any).transform = `translateY(${deltaY}px)`;
+    } else {
+      (modalEl.style as any).transform = 'translateY(0)';
+    }
+  };
+
+  modalEl.ontouchend = (e: TouchEvent) => {
+    if (!isDragging) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    isDragging = false;
+    
+    const deltaY = currentY - startY;
+    const threshold = 100;
+    
+    if (deltaY > threshold) {
+      // Close modal
+      logger.info('💚 Swipe down detected - closing hearts bottom sheet');
+      hideHeartsModal();
+    } else {
+      // Snap back
+      (modalEl.style as any).transition = 'transform 0.3s ease-out';
+      (modalEl.style as any).transform = 'translateY(0)';
+    }
+  };
+
+  registerCleanup(() => {
+    modalEl.ontouchstart = null;
+    modalEl.ontouchmove = null;
+    modalEl.ontouchend = null;
+    modalEl.onmousedown = null;
+  });
+}
+
+function addBackdropClickListener(modalEl: HTMLElement, registerCleanup: (fn: () => void) => void): void {
+  const handleDocumentClick = (e: MouseEvent) => {
+    // Check if click is outside modal AND not on a button
+    if (modalEl && !modalEl.contains(e.target as Node)) {
+      hideHeartsModal();
+    }
+  };
+  
+  const handleDocumentTouchEnd = (e: TouchEvent) => {
+    // Check if touch is outside modal AND not on a button
+    if (modalEl && !modalEl.contains(e.target as Node)) {
+      hideHeartsModal();
+    }
+  };
+  
+  // Attach with small delay to avoid capturing the click that opened the modal
+  setTimeout(() => {
+    document.addEventListener('click', handleDocumentClick);
+    document.addEventListener('touchend', handleDocumentTouchEnd);
+  }, 100);
+  
+  registerCleanup(() => {
+    document.removeEventListener('click', handleDocumentClick);
+    document.removeEventListener('touchend', handleDocumentTouchEnd);
+  });
+}
+
 function updateTimer(): void {
   if (!heartsModal) return;
   
@@ -76,12 +188,10 @@ function createHeartsModal(): HTMLElement {
   heartsModal.innerHTML = `
     <div class="modal-handle"></div>
     <div class="hearts-content">
-      <div class="hearts-header">
-        <h2 class="hearts-title">
-          <span class="hearts-title-text">Your </span>
-          <span class="hearts-title-accent">hearts</span>
-        </h2>
-      </div>
+      <h2 class="hearts-title">
+        <span class="hearts-title-text">Your </span>
+        <span class="hearts-title-accent">hearts</span>
+      </h2>
       
       <div class="hearts-display">
         ${heartsHTML}
@@ -102,6 +212,12 @@ function createHeartsModal(): HTMLElement {
       </div>
     </div>
   `;
+  
+  // Add drag functionality (swipe down to close)
+  addDragFunctionality(heartsModal, registerCleanup);
+  
+  // Add backdrop click listener (click outside to close)
+  addBackdropClickListener(heartsModal, registerCleanup);
   
   // Add click handler for CTA button
   const getHeartBtn = heartsModal.querySelector('.get-heart-btn');
@@ -177,7 +293,10 @@ export function showHeartsModal(): void {
  * Hide hearts bottom sheet
  */
 export function hideHeartsModal(): void {
-  if (!heartsModal) return;
+  const modalEl = heartsModal;
+  if (!modalEl || (modalEl as any)._closing) return;
+
+  (modalEl as any)._closing = true;
   
   try {
     // Clear timer
@@ -186,15 +305,41 @@ export function hideHeartsModal(): void {
       timerInterval = null;
     }
     
-    heartsModal.classList.remove('visible');
+    // Animate out
+    modalEl.style.transition = 'transform 0.3s ease-in-out';
+    modalEl.style.transform = 'translateY(100%)';
+    
+    // Cleanup
+    try {
+      const cleanups = Array.isArray((modalEl as any)._cleanupFns) ? [...(modalEl as any)._cleanupFns] : [];
+      (modalEl as any)._cleanupFns = [];
+      cleanups.forEach(fn => {
+        try { fn(); } catch (error) {
+          logger.warn('⚠️ Cleanup failed:', error instanceof Error ? error.message : String(error));
+        }
+      });
+    } catch (e) {
+      // Ignore cleanup errors
+    }
     
     setTimeout(() => {
-      if (heartsModal) {
-        heartsModal.remove();
-        heartsModal = null;
-        logger.info('💚 Hearts bottom sheet hidden');
+      modalEl.classList.remove('visible');
+      
+      // Force hide
+      modalEl.style.display = 'none';
+      modalEl.style.visibility = 'hidden';
+      modalEl.style.zIndex = '-999999999';
+      modalEl.style.transform = 'translateY(100vh)';
+      modalEl.style.transition = 'none';
+      
+      try { modalEl.remove(); } catch (error) {
+        logger.warn('⚠️ Failed to remove modal:', error instanceof Error ? error.message : String(error));
       }
-    }, 300); // Match transition duration
+      if (heartsModal === modalEl) {
+        heartsModal = null;
+      }
+      logger.info('💚 Hearts bottom sheet hidden');
+    }, 300);
   } catch (error) {
     logger.error('❌ Failed to hide hearts bottom sheet:', error instanceof Error ? error.message : String(error));
   }
