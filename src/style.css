@@ -2356,7 +2356,7 @@ body{
   bottom: 0;
   left: 0;
   right: 0;
-  background: url('./assets/modals/paper.png');
+  background: url('../assets/modals/paper.png');
   background-size: cover;
   background-position: center;
   border-radius: 40px 40px 0 0; /* .cornerRadius(40) from Figma */
@@ -2599,7 +2599,7 @@ body{
   bottom: 0;
   left: 0;
   right: 0;
-  background: url('./assets/modals/paper.png');
+  background: url('../assets/modals/paper.png');
   background-size: cover;
   background-position: center;
   border-radius: 40px 40px 0 0; /* .cornerRadius(40) from Figma */
@@ -2690,7 +2690,7 @@ body{
   position: relative;
   width: 100%;
   max-width: 390px;
-  background: url('./assets/modals/paper.png');
+  background: url('../assets/modals/paper.png');
   background-size: cover;
   background-position: center;
   border-radius: 40px 40px 0 0;

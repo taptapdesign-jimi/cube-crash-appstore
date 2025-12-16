@@ -7925,7 +7925,7 @@ async function showResumeGameModal() {
 
     const modal = document.createElement('div');
     modal.style.cssText = [
-      'background: url(\'./assets/modals/paper.png\')',
+      'background: url(\'../../assets/modals/paper.png\')',
       'background-size: cover',
       'background-position: center',
       'border-radius: 32px',
