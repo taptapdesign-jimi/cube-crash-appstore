@@ -374,6 +374,14 @@ class CollectiblesManager {
     if (backBtn && !backBtn.hasAttribute('data-listener-attached')) {
       console.log('🔌 Attaching back button listener in showCollectibles');
       backBtn.addEventListener('click', () => {
+        // Sweet bounce tap feedback (match hearts tap style)
+        try {
+          backBtn.classList.remove('sweet-bounce');
+          void (backBtn as HTMLElement).offsetHeight; // force reflow to retrigger
+          backBtn.classList.add('sweet-bounce');
+          window.setTimeout(() => backBtn.classList.remove('sweet-bounce'), 260);
+        } catch {}
+
         logger.info('🎁 Collectibles back button clicked');
         // Explicitly mark this hide as "toHome" so hideCollectibles doesn't get confused by __ccCameFromJourney flags
         (window as any).__ccJourneyExitMode = 'toHome';

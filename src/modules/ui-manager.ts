@@ -1800,6 +1800,16 @@ class UIManager {
     logger.info('⚙️ Settings back button clicked');
     
     // 🔥 USER REQUEST: Haptic feedback removed from settings back button
+    // Sweet bounce tap feedback (visual only)
+    try {
+      const btn = this.elements.settingsBackButton;
+      if (btn) {
+        btn.classList.remove('sweet-bounce');
+        void btn.offsetHeight; // force reflow to retrigger
+        btn.classList.add('sweet-bounce');
+        window.setTimeout(() => btn.classList.remove('sweet-bounce'), 260);
+      }
+    } catch {}
     
     this.hideSettingsScreenWithAnimation();
   }
