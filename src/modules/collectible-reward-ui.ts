@@ -56,7 +56,7 @@ export function createBottomSheet(detail: CollectibleDetail): HTMLElement {
   sheet.style.cssText = `
     background: url('../../assets/modals/paper.png');
     background-size: cover;
-    background-position: top center;
+    background-position: center;
     border-radius: 20px 20px 0 0;
     max-width: 500px;
     width: 100%;

@@ -7927,7 +7927,7 @@ async function showResumeGameModal() {
     modal.style.cssText = [
       'background: url(\'../../assets/modals/paper.png\')',
       'background-size: cover',
-      'background-position: top center',
+      'background-position: center',
       'border-radius: 32px',
       'padding: 48px 42px 44px',
       'text-align: center',
