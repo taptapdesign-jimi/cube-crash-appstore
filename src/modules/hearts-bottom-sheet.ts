@@ -198,6 +198,18 @@ function updateTimer(): void {
     }
     previousHeartsCount = currentHearts;
   }
+  
+  // 🔥 USER REQUEST: Hide/show CTA button based on hearts count
+  const heartsCTA = heartsModal.querySelector('.hearts-cta');
+  if (heartsCTA) {
+    if (currentHearts >= maxHearts) {
+      // All hearts full - hide CTA
+      (heartsCTA as HTMLElement).style.display = 'none';
+    } else {
+      // Not all hearts full - show CTA
+      (heartsCTA as HTMLElement).style.display = 'flex';
+    }
+  }
 }
 
 function createHeartsModal(): HTMLElement {
@@ -245,6 +257,14 @@ function createHeartsModal(): HTMLElement {
     return `<img src="${heartImage}" alt="${isFilled ? 'Filled heart' : 'Empty heart'}" class="heart-icon" />`;
   }).join('');
   
+  // 🔥 USER REQUEST: Hide CTA button when all 3 hearts are full
+  const showCTA = currentHearts < maxHearts; // Only show when 0, 1, or 2 hearts
+  const ctaHTML = showCTA 
+    ? `<div class="hearts-cta">
+        <button class="get-heart-btn primary-button">Get a heart</button>
+      </div>`
+    : ''; // No CTA when all hearts are full
+  
   heartsModal.innerHTML = `
     <div class="modal-handle"></div>
     <div class="hearts-content">
@@ -267,9 +287,7 @@ function createHeartsModal(): HTMLElement {
         Fail a board and lose a heart
       </p>
       
-      <div class="hearts-cta">
-        <button class="get-heart-btn primary-button">Get a heart</button>
-      </div>
+      ${ctaHTML}
     </div>
   `;
   
