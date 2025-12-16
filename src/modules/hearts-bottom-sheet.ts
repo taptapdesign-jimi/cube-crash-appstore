@@ -174,20 +174,16 @@ function updateTimer(): void {
   
   const currentHearts = heartsSystem.getCurrentHearts();
   const maxHearts = heartsSystem.getMaxHearts();
-  
-  // 🔥 USER REQUEST: Stop counter at 00:00 when all hearts are full
-  if (currentHearts >= maxHearts) {
-    const timerElement = heartsModal.querySelector('.hearts-timer-value');
-    if (timerElement) {
-      timerElement.textContent = '00:00';
-    }
-    return; // Don't update timer when all hearts are full
-  }
-  
+
   const timerElement = heartsModal.querySelector('.hearts-timer-value');
   if (timerElement) {
-    const timeString = heartsSystem.getNextRefillTimeString();
-    timerElement.textContent = timeString;
+    // 🔥 USER REQUEST: Stop counter at 00:00 when all hearts are full
+    if (currentHearts >= maxHearts) {
+      timerElement.textContent = '00:00';
+    } else {
+      const timeString = heartsSystem.getNextRefillTimeString();
+      timerElement.textContent = timeString;
+    }
   }
   
   // 🔥 USER REQUEST: Animate heart refill when hearts increase
@@ -196,6 +192,9 @@ function updateTimer(): void {
     for (let i = previousHeartsCount; i < currentHearts; i++) {
       animateHeartRefill(i);
     }
+    previousHeartsCount = currentHearts;
+  } else if (currentHearts < previousHeartsCount) {
+    // Hearts decreased while sheet is open (rare, but keep state consistent)
     previousHeartsCount = currentHearts;
   }
   
@@ -209,6 +208,12 @@ function updateTimer(): void {
       // Not all hearts full - show CTA
       (heartsCTA as HTMLElement).style.display = 'flex';
     }
+  }
+
+  // If all hearts are full, stop ticking (keeps UI stable at 00:00)
+  if (currentHearts >= maxHearts && timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
   }
 }
 

@@ -35,7 +35,7 @@ class HeartsSystem {
     this.checkRefill();
     this.startRefillTimer();
     this.updateUI();
-    logger.info('💚 Hearts system initialized with', this.currentHearts, 'hearts');
+    logger.info(`💚 Hearts system initialized`, undefined, { hearts: this.currentHearts });
   }
 
   /**
@@ -66,7 +66,9 @@ class HeartsSystem {
         }
       }
     } catch (error) {
-      logger.warn('⚠️ Failed to load hearts state, using defaults:', error);
+      logger.warn('⚠️ Failed to load hearts state, using defaults', undefined, {
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.currentHearts = MAX_HEARTS;
       this.lastRefillTime = Date.now();
       this.nextRefillTime = Date.now() + REFILL_INTERVAL_MS;
@@ -86,7 +88,9 @@ class HeartsSystem {
       localStorage.setItem(HEARTS_STORAGE_KEY, JSON.stringify(state));
       localStorage.setItem(HEARTS_REFILL_TIME_KEY, String(this.nextRefillTime));
     } catch (error) {
-      logger.warn('⚠️ Failed to save hearts state:', error);
+      logger.warn('⚠️ Failed to save hearts state', undefined, {
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   }
 
@@ -111,7 +115,7 @@ class HeartsSystem {
       
       this.saveHeartsState();
       this.updateUI();
-      logger.info('💚 Hearts refilled:', heartsToAdd, 'hearts, total:', this.currentHearts);
+      logger.info('💚 Hearts refilled', undefined, { added: heartsToAdd, total: this.currentHearts });
     } else if (this.currentHearts < MAX_HEARTS) {
       // Update next refill time even if not refilling yet
       this.nextRefillTime = this.lastRefillTime + REFILL_INTERVAL_MS;
@@ -136,7 +140,7 @@ class HeartsSystem {
         this.startRefillTimer(); // Restart timer for next refill
       }, timeUntilRefill);
       
-      logger.debug('💚 Refill timer set for', Math.floor(timeUntilRefill / 1000), 'seconds');
+      logger.debug('💚 Refill timer set', undefined, { seconds: Math.floor(timeUntilRefill / 1000) });
     }
   }
 
@@ -179,7 +183,7 @@ class HeartsSystem {
         this.startRefillTimer();
       }
       
-      logger.info('💔 Lost 1 heart, remaining:', this.currentHearts);
+      logger.info('💔 Lost 1 heart', undefined, { remaining: this.currentHearts });
       return true;
     }
     
@@ -200,9 +204,12 @@ class HeartsSystem {
    * Get formatted time string for next refill (MM:SS)
    */
   getNextRefillTimeString(): string {
+    // IMPORTANT: Use CEIL so we never show 00:00 while there is still <1s remaining.
+    // This prevents the bottom sheet from appearing "stuck" at 00:00 before the refill is actually due.
     const timeUntilRefill = this.getTimeUntilNextRefill();
-    const minutes = Math.floor(timeUntilRefill / (60 * 1000));
-    const seconds = Math.floor((timeUntilRefill % (60 * 1000)) / 1000);
+    const totalSeconds = Math.max(0, Math.ceil(timeUntilRefill / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   }
 
@@ -213,7 +220,7 @@ class HeartsSystem {
     const countElement = document.getElementById('journey-lives-count');
     if (countElement) {
       countElement.textContent = String(this.currentHearts);
-      logger.debug('💚 Updated hearts UI:', this.currentHearts);
+      logger.debug('💚 Updated hearts UI', undefined, { hearts: this.currentHearts });
     }
   }
 
