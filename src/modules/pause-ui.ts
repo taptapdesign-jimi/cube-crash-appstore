@@ -41,7 +41,9 @@ export function createPauseModalContent(): HTMLElement {
   const modal = document.createElement('div');
   modal.id = generateId();
   modal.style.cssText = `
-    background: white !important;
+    background: url('./assets/modals/paper.png') !important;
+    background-size: cover !important;
+    background-position: center !important;
     border-radius: 20px !important;
     padding: 40px !important;
     max-width: 400px !important;
