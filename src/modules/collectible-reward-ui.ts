@@ -54,7 +54,8 @@ export function createBottomSheet(detail: CollectibleDetail): HTMLElement {
   sheet.innerHTML = markup;
   sheet.className = 'collectible-reward-sheet';
   sheet.style.cssText = `
-    background: url('../../assets/modals/paper.png');
+    background-color: #F5F0EB; /* Fallback color matching paper texture */
+    background-image: url('../../assets/modals/paper.png');
     background-size: cover;
     background-position: top center;
     border-radius: 20px 20px 0 0;
