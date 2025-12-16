@@ -91,6 +91,7 @@
   margin-bottom: 16px;
   padding-left: 0;
   padding-right: 0;
+  min-height: 40px; /* 🔥 FIX: Ensure consistent height for absolute positioned title */
 }
 
 .collectibles-back-button {
@@ -154,14 +155,14 @@
   margin: 0;
   line-height: 1;
   text-align: center;
-  /* Flex center - positioned between back button and spacer */
-  position: relative;
+  /* 🔥 FIX: Use absolute positioning for perfect centering */
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 1;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  white-space: nowrap;
 }
 
 .collectibles-header-spacer {
@@ -178,7 +179,7 @@
   gap: 6px;
   flex-shrink: 0;
   margin-right: var(--pad-right, 24px); /* 🔥 FIX: Use --pad-right to account for safe-area-inset-right */
-  padding: 4px 8px;
+  padding: 4px 0; /* 🔥 FIX: Remove horizontal padding to maintain exact 24px spacing from edge */
   border-radius: 8px;
   /* Similar to HUD design - icon + number */
 }

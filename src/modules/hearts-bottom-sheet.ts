@@ -265,6 +265,33 @@ function createHeartsModal(): HTMLElement {
 }
 
 /**
+ * Animate hearts bottom sheet entrance (same as resume game modal)
+ */
+function animateHeartsEntrance(modal: HTMLElement): Promise<void> {
+  return new Promise((resolve) => {
+    logger.debug('💚 Starting hearts entrance animation');
+    
+    // Step 1: Set initial state
+    modal.style.display = 'block';
+    modal.style.transform = 'translateY(100%)';
+    modal.style.transition = 'transform 0.4s ease-in-out';
+    
+    // Step 2: Force reflow
+    void modal.offsetHeight;
+    
+    // Step 3: Trigger animation immediately
+    modal.style.transform = 'translateY(0)';
+    
+    // Step 4: Wait for completion
+    setTimeout(() => {
+      modal.classList.add('visible');
+      logger.info('💚 Hearts bottom sheet shown');
+      resolve();
+    }, 400);
+  });
+}
+
+/**
  * Show hearts bottom sheet
  */
 export function showHeartsModal(): void {
@@ -272,17 +299,12 @@ export function showHeartsModal(): void {
     const modal = createHeartsModal();
     document.body.appendChild(modal);
     
-    // Trigger animation
+    // Trigger animation (same timing as resume game modal)
     requestAnimationFrame(() => {
-      if (modal) {
-        modal.style.display = 'block';
-        requestAnimationFrame(() => {
-          if (modal) {
-            modal.classList.add('visible');
-            logger.info('💚 Hearts bottom sheet shown');
-          }
-        });
-      }
+      animateHeartsEntrance(modal).catch((error) => {
+        logger.error('❌ Animation failed:', error instanceof Error ? error.message : String(error));
+        modal.classList.add('visible');
+      });
     });
   } catch (error) {
     logger.error('❌ Failed to show hearts bottom sheet:', error instanceof Error ? error.message : String(error));
