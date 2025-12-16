@@ -2534,15 +2534,18 @@ class JourneyBoardsManager {
       // Unlock the board (remove interim status, set unlocked)
       board.unlocked = true;
       board.interim = false;
-      this.saveBoardsState();
-      this.renderBoards();
-      this.updateCounter();
-      logger.info(`🗺️ Board ${boardNumber.toString().padStart(2, '0')} unlocked on completion (won) - was already unlocked: ${wasAlreadyUnlocked}`);
       
       // 🔥 USER REQUEST: Ensure only ONE interim card exists after unlocking
       // This will set the next board to interim (if exists and not already unlocked)
       this.ensureSingleInterimCard();
+      
+      // 🔥 CRITICAL FIX: Save + render AFTER interim is ensured.
+      // Otherwise the Journey screen can keep a stale render (it often skips re-render if boards already exist),
+      // leading to "missing interim card" even though state is correct.
       this.saveBoardsState();
+      this.renderBoards();
+      this.updateCounter();
+      logger.info(`🗺️ Board ${boardNumber.toString().padStart(2, '0')} unlocked on completion (won) - was already unlocked: ${wasAlreadyUnlocked}`);
       
       // 🔥 JOURNEY PROGRESSION: Update highestUnlockedBoardId
       try {
