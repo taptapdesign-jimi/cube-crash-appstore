@@ -8,7 +8,7 @@ import { gsap } from 'gsap';
 import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from './wild-stars.js';
 import { TILE } from './constants.js';
 import { graphicsPool } from './object-pool.js';
-import { selectPattern, getColor, getParams } from './templates/template-manager.js';
+import { selectPattern, getColor, getParams, getActiveTemplate } from './templates/template-manager.js';
 
 try {
   preloadWildStarTexture();
@@ -1722,6 +1722,495 @@ export function wildMerge6ShardsTemplated(board, tile, opts = {}) {
   gsap.delayedCall(ttl, () => {
     console.log(`🎨 wildMerge6ShardsTemplated: Cleaning up ${shardsInLayer.length} shards after TTL ${ttl}s`);
     
+    // Return all shards to pool
+    shardsInLayer.forEach((shard, idx) => {
+      try {
+        gsap.killTweensOf(shard);
+        gsap.killTweensOf(shard.x);
+        gsap.killTweensOf(shard.y);
+        gsap.killTweensOf(shard.alpha);
+        gsap.killTweensOf(shard.scale);
+        gsap.killTweensOf(shard.rotation);
+        
+        if (shard.parent === layer) {
+          layer.removeChild(shard);
+        }
+        pool.release(shard);
+      } catch (e) {
+        console.warn(`⚠️ Error cleaning up shard ${idx}:`, e);
+      }
+    });
+    
+    // Destroy layer
+    try {
+      layer.destroy({ children: false });
+    } catch (e) {
+      console.warn('⚠️ Error destroying layer:', e);
+    }
+  });
+}
+
+/**
+ * ⭐ Template-Based Wild Star Merge 6 Shards
+ * 
+ * Uses predefined patterns from the active template for wild star merges.
+ * ORIGINAL COLOR: Yellow (#FFCB47)
+ * 
+ * @param {Container} board - Game board container
+ * @param {object} tile - Tile object or snapshot with x/y coordinates
+ * @param {object} opts - Options (zIndex, skipStars, etc.)
+ */
+export function wildStarMerge6ShardsTemplated(board, tile, opts = {}) {
+  if (!board || !tile) {
+    console.warn('⚠️ wildStarMerge6ShardsTemplated: Missing board or tile', { board: !!board, tile: !!tile });
+    return;
+  }
+
+  console.log('⭐ wildStarMerge6ShardsTemplated: Called', { board: !!board, tile: !!tile, opts });
+
+  // Select pattern from template
+  const patternInfo = selectPattern('wildStar');
+  
+  if (!patternInfo) {
+    console.error('❌ wildStarMerge6ShardsTemplated: No pattern selected - template manager may not be initialized');
+    console.error('❌ Debug info:', {
+      activeTemplate: getActiveTemplate()?.name,
+      patternMap: getActiveTemplate()?.patternMap,
+      wildStarPatterns: getActiveTemplate()?.patternMap?.wildStar
+    });
+    // 🔥 FALLBACK: Use woodShardsAtTile for reliability
+    console.log('🔄 Falling back to woodShardsAtTile');
+    woodShardsAtTile(board, tile, {
+      enhanced: true,
+      wild: true,
+      wildMagnet: false,
+      isWildBeer: false,
+      skipStars: opts.skipStars,
+      count: 18,
+      intensity: 1.35,
+      spread: 0.7,
+      size: 1.3,
+      speed: 1.0,
+      vanishDelay: 0.0,
+      vanishJitter: 0.02
+    });
+    return;
+  }
+  
+  const { patternName, patternData, pool, template } = patternInfo;
+  const params = getParams('wildStar');
+  const yellowColor = getColor('wildStar'); // 🔥 ORIGINAL COLOR: Yellow (#FFCB47)
+  
+  console.log(`⭐ wildStarMerge6ShardsTemplated: Using pattern: ${patternName} (${patternData.length} shards)`, {
+    yellowColor: `0x${yellowColor.toString(16)}`,
+    poolSize: pool.getStats?.()?.poolSize || 'unknown',
+    boardVisible: board.visible,
+    boardAlpha: board.alpha,
+    params: params,
+    patternDataLength: patternData.length,
+    spread: params.spread,
+    baseTile: params.baseTile || 96,
+    maxDistance: Math.max(...patternData.map(s => s.distance)) * (params.baseTile || 96) * (params.spread || 1.0)
+  });
+  
+  // Get position
+  let x, y;
+  if (tile.x !== undefined && tile.y !== undefined) {
+    x = tile.x;
+    y = tile.y;
+  } else {
+    const pos = centerInBoard(board, tile, params.tileSize || 96);
+    x = pos.x;
+    y = pos.y;
+  }
+  
+  // Create layer
+  const layer = new Container();
+  layer.x = x;
+  layer.y = y;
+  layer.visible = true;
+  layer.alpha = 1.0;
+  layer.zIndex = opts.zIndex ?? 9993;
+  
+  // 🔥 CRITICAL: Add layer to board BEFORE creating shards
+  board.addChild(layer);
+  
+  // 🔥 CRITICAL: Force sort to ensure zIndex is respected
+  try {
+    board.sortableChildren = true;
+    board.sortChildren?.();
+  } catch (e) {
+    console.warn('⚠️ Failed to sort board children:', e);
+  }
+  
+  // Track shards for cleanup
+  const shardsInLayer = [];
+  const baseTile = params.baseTile || 96;
+  
+  // Spawn each shard according to pattern
+  patternData.forEach((shardDef, index) => {
+    // 🔥 POOLING: Acquire Graphics from pattern-specific pool
+    const shard = pool.acquire();
+    
+    // Only set pattern-specific alpha (reset() already set it to 1.0)
+    shard.alpha = shardDef.alpha || 1.0;
+    
+    // Draw shard (filled polygon shape)
+    const baseSize = (6 + Math.random() * 8) * (shardDef.size || 1.0) * 2.4;
+    const width = baseSize;
+    const height = width * (0.8 + Math.random() * 1.4);
+    
+    // Create irregular polygon shape
+    const points = [];
+    const numPoints = 4 + Math.floor(Math.random() * 4); // 4-7 points
+    
+    for (let j = 0; j < numPoints; j++) {
+      const angle = (j / numPoints) * Math.PI * 2 + (Math.random() - 0.5) * 0.8;
+      const radius = (0.3 + Math.random() * 0.7) * Math.min(width, height) / 2;
+      const px = Math.cos(angle) * radius;
+      const py = Math.sin(angle) * radius;
+      points.push(px, py);
+    }
+    
+    // Draw filled polygon using PixiJS v8 API - 🔥 ORIGINAL COLOR: Yellow
+    try {
+      shard.poly(points).fill({ color: yellowColor, alpha: params.lineAlpha || 0.9 });
+    } catch (e) {
+      // Fallback to rect if poly fails
+      console.warn('⚠️ Failed to draw poly, using rect fallback:', e);
+      shard.clear();
+      const size = Math.max(4, Math.max(...points.map((p, i) => Math.abs(p))) * 2);
+      shard.rect(-size/2, -size/2, size, size).fill({ color: yellowColor, alpha: params.lineAlpha || 0.9 });
+    }
+    
+    // 🔥 CRITICAL: Force bounds update AFTER drawing
+    try {
+      if (typeof shard.updateBounds === 'function') {
+        shard.updateBounds();
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to update shard bounds:', e);
+    }
+    
+    // 🔥 CRITICAL: Ensure shard is visible and properly positioned
+    shard.visible = true;
+    shard.alpha = shardDef.alpha || 1.0;
+    shard.x = 0;
+    shard.y = 0;
+    
+    // 🔥 CRITICAL: Set rotation BEFORE adding to layer
+    shard.rotation = Math.random() * Math.PI;
+    
+    // 🔥 CRITICAL: Add to layer BEFORE animation (ensures shard is in render tree)
+    layer.addChild(shard);
+    shardsInLayer.push(shard);
+    
+    // 🔥 CRITICAL: Force render update (ensures shard is drawn before animation starts)
+    try {
+      if (layer.parent) {
+        layer.parent.sortableChildren = true;
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to set sortableChildren:', e);
+    }
+    
+    // Calculate travel distance (pattern distance is normalized 0-1)
+    // 🔥 FIX: Add stagger delay for organic feel
+    const staggerDelay = Math.random() * 0.08; // 0-80ms stagger for organic feel
+    const angle = (shardDef.angle * Math.PI) / 180;
+    const distance = shardDef.distance * baseTile * (params.spread || 1.0);
+    const targetX = Math.cos(angle) * distance;
+    const targetY = Math.sin(angle) * distance;
+    
+    // 🔥 DEBUG: Log first shard animation details
+    if (index === 0) {
+      console.log(`⭐ wildStarMerge6ShardsTemplated: First shard animation`, {
+        shardDefDistance: shardDef.distance,
+        baseTile: baseTile,
+        spread: params.spread || 1.0,
+        calculatedDistance: distance,
+        targetX: targetX,
+        targetY: targetY,
+        angle: shardDef.angle,
+        travelDur: (params.travelDuration || 0.4) * shardDef.speed * (params.speed || 1.0),
+        shardVisible: shard.visible,
+        shardAlpha: shard.alpha,
+        shardInLayer: layer.children.includes(shard)
+      });
+    }
+    
+    // Animate shard
+    const travelDur = (params.travelDuration || 0.4) * shardDef.speed * (params.speed || 1.0);
+    const fadeDelay = (params.fadeDelay ?? 0.15) + (params.fadeDelayMultiplier ?? 0.1) * Math.random();
+    const fadeDur = params.fadeDuration ?? 0.25;
+    
+    gsap.to(shard, {
+      delay: staggerDelay, // 🔥 Organic stagger
+      x: targetX,
+      y: targetY,
+      duration: travelDur,
+      ease: 'power2.out'
+    });
+    
+    gsap.to(shard, {
+      alpha: 0,
+      delay: fadeDelay,
+      duration: fadeDur,
+      ease: 'power2.in'
+    });
+  });
+  
+  console.log(`⭐ wildStarMerge6ShardsTemplated: Created ${shardsInLayer.length} shards in layer`, {
+    layerX: layer.x,
+    layerY: layer.y,
+    layerVisible: layer.visible,
+    layerAlpha: layer.alpha,
+    layerZIndex: layer.zIndex,
+    layerInBoard: board.children.includes(layer),
+    layerChildrenCount: layer.children.length,
+    firstShardVisible: shardsInLayer[0]?.visible,
+    firstShardAlpha: shardsInLayer[0]?.alpha,
+    firstShardInLayer: shardsInLayer[0] ? layer.children.includes(shardsInLayer[0]) : false
+  });
+  
+  // Cleanup layer after TTL
+  const ttl = params.ttl || 1.2;
+  gsap.delayedCall(ttl, () => {
+    // Return all shards to pool
+    shardsInLayer.forEach((shard, idx) => {
+      try {
+        gsap.killTweensOf(shard);
+        gsap.killTweensOf(shard.x);
+        gsap.killTweensOf(shard.y);
+        gsap.killTweensOf(shard.alpha);
+        gsap.killTweensOf(shard.scale);
+        gsap.killTweensOf(shard.rotation);
+        
+        if (shard.parent === layer) {
+          layer.removeChild(shard);
+        }
+        pool.release(shard);
+      } catch (e) {
+        console.warn(`⚠️ Error cleaning up shard ${idx}:`, e);
+      }
+    });
+    
+    // Destroy layer
+    try {
+      layer.destroy({ children: false });
+    } catch (e) {
+      console.warn('⚠️ Error destroying layer:', e);
+    }
+  });
+}
+
+/**
+ * 🍺 Template-Based Wild Beer Merge 6 Shards
+ * 
+ * Uses predefined patterns from the active template for wild beer merges.
+ * ORIGINAL COLOR: Orange (#F99D77)
+ * 
+ * @param {Container} board - Game board container
+ * @param {object} tile - Tile object or snapshot with x/y coordinates
+ * @param {object} opts - Options (zIndex, etc.)
+ */
+export function wildBeerMerge6ShardsTemplated(board, tile, opts = {}) {
+  if (!board || !tile) {
+    console.warn('⚠️ wildBeerMerge6ShardsTemplated: Missing board or tile', { board: !!board, tile: !!tile });
+    return;
+  }
+
+  console.log('🍺 wildBeerMerge6ShardsTemplated: Called', { board: !!board, tile: !!tile, opts });
+
+  // Select pattern from template
+  const patternInfo = selectPattern('wildBeer');
+  
+  if (!patternInfo) {
+    console.error('❌ wildBeerMerge6ShardsTemplated: No pattern selected - template manager may not be initialized');
+    console.error('❌ Debug info:', {
+      activeTemplate: getActiveTemplate()?.name,
+      patternMap: getActiveTemplate()?.patternMap,
+      wildBeerPatterns: getActiveTemplate()?.patternMap?.wildBeer
+    });
+    // 🔥 FALLBACK: Use woodShardsAtTile for reliability
+    console.log('🔄 Falling back to woodShardsAtTile');
+    woodShardsAtTile(board, tile, {
+      enhanced: true,
+      wild: true,
+      wildMagnet: false,
+      isWildBeer: true,
+      count: 18,
+      intensity: 1.35,
+      spread: 0.7,
+      size: 1.3,
+      speed: 1.0,
+      vanishDelay: 0.0,
+      vanishJitter: 0.02
+    });
+    return;
+  }
+  
+  const { patternName, patternData, pool, template } = patternInfo;
+  const params = getParams('wildBeer');
+  const orangeColor = getColor('wildBeer'); // 🔥 ORIGINAL COLOR: Orange (#F99D77)
+  
+  console.log(`🍺 wildBeerMerge6ShardsTemplated: Using pattern: ${patternName} (${patternData.length} shards)`, {
+    orangeColor: `0x${orangeColor.toString(16)}`,
+    poolSize: pool.getStats?.()?.poolSize || 'unknown',
+    boardVisible: board.visible,
+    boardAlpha: board.alpha,
+    params: params,
+    patternDataLength: patternData.length,
+    spread: params.spread,
+    baseTile: params.baseTile || 96,
+    maxDistance: Math.max(...patternData.map(s => s.distance)) * (params.baseTile || 96) * (params.spread || 1.0)
+  });
+  
+  // Get position
+  let x, y;
+  if (tile.x !== undefined && tile.y !== undefined) {
+    x = tile.x;
+    y = tile.y;
+  } else {
+    const pos = centerInBoard(board, tile, params.tileSize || 96);
+    x = pos.x;
+    y = pos.y;
+  }
+  
+  // Create layer
+  const layer = new Container();
+  layer.x = x;
+  layer.y = y;
+  layer.visible = true;
+  layer.alpha = 1.0;
+  layer.zIndex = opts.zIndex ?? 9993;
+  
+  // 🔥 CRITICAL: Add layer to board BEFORE creating shards
+  board.addChild(layer);
+  
+  // 🔥 CRITICAL: Force sort to ensure zIndex is respected
+  try {
+    board.sortableChildren = true;
+    board.sortChildren?.();
+  } catch (e) {
+    console.warn('⚠️ Failed to sort board children:', e);
+  }
+  
+  // Track shards for cleanup
+  const shardsInLayer = [];
+  const baseTile = params.baseTile || 96;
+  
+  // Spawn each shard according to pattern
+  patternData.forEach((shardDef, index) => {
+    // 🔥 POOLING: Acquire Graphics from pattern-specific pool
+    const shard = pool.acquire();
+    
+    // Only set pattern-specific alpha (reset() already set it to 1.0)
+    shard.alpha = shardDef.alpha || 1.0;
+    
+    // Draw shard (filled polygon shape)
+    const baseSize = (6 + Math.random() * 8) * (shardDef.size || 1.0) * 2.4;
+    const width = baseSize;
+    const height = width * (0.8 + Math.random() * 1.4);
+    
+    // Create irregular polygon shape
+    const points = [];
+    const numPoints = 4 + Math.floor(Math.random() * 4); // 4-7 points
+    
+    for (let j = 0; j < numPoints; j++) {
+      const angle = (j / numPoints) * Math.PI * 2 + (Math.random() - 0.5) * 0.8;
+      const radius = (0.3 + Math.random() * 0.7) * Math.min(width, height) / 2;
+      const px = Math.cos(angle) * radius;
+      const py = Math.sin(angle) * radius;
+      points.push(px, py);
+    }
+    
+    // Draw filled polygon using PixiJS v8 API - 🔥 ORIGINAL COLOR: Orange
+    try {
+      shard.poly(points).fill({ color: orangeColor, alpha: params.lineAlpha || 0.9 });
+      // 🔥 DEBUG: Log first shard drawing
+      if (index === 0) {
+        console.log(`🍺 wildBeerMerge6ShardsTemplated: First shard drawn`, {
+          pointsCount: points.length / 2,
+          orangeColor: `0x${orangeColor.toString(16)}`,
+          alpha: params.lineAlpha || 0.9,
+          shardVisible: shard.visible,
+          shardAlpha: shard.alpha
+        });
+      }
+    } catch (e) {
+      // Fallback to rect if poly fails
+      console.warn('⚠️ Failed to draw poly, using rect fallback:', e);
+      shard.clear();
+      const size = Math.max(4, Math.max(...points.map((p, i) => Math.abs(p))) * 2);
+      shard.rect(-size/2, -size/2, size, size).fill({ color: orangeColor, alpha: params.lineAlpha || 0.9 });
+    }
+    
+    // 🔥 CRITICAL: Force bounds update AFTER drawing
+    try {
+      if (typeof shard.updateBounds === 'function') {
+        shard.updateBounds();
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to update shard bounds:', e);
+    }
+    
+    // 🔥 CRITICAL: Ensure shard is visible and properly positioned
+    shard.visible = true;
+    shard.alpha = shardDef.alpha || 1.0;
+    shard.x = 0;
+    shard.y = 0;
+    
+    // 🔥 CRITICAL: Set rotation BEFORE adding to layer
+    shard.rotation = Math.random() * Math.PI;
+    
+    // 🔥 CRITICAL: Add to layer BEFORE animation (ensures shard is in render tree)
+    layer.addChild(shard);
+    shardsInLayer.push(shard);
+    
+    // 🔥 CRITICAL: Force render update (ensures shard is drawn before animation starts)
+    try {
+      if (layer.parent) {
+        layer.parent.sortableChildren = true;
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to set sortableChildren:', e);
+    }
+    
+    // Calculate travel distance (pattern distance is normalized 0-1)
+    // 🔥 FIX: Add stagger delay for organic feel
+    const staggerDelay = Math.random() * 0.08; // 0-80ms stagger for organic feel
+    const angle = (shardDef.angle * Math.PI) / 180;
+    const distance = shardDef.distance * baseTile * (params.spread || 1.0);
+    const targetX = Math.cos(angle) * distance;
+    const targetY = Math.sin(angle) * distance;
+    
+    // Animate shard
+    const travelDur = (params.travelDuration || 0.4) * shardDef.speed * (params.speed || 1.0);
+    const fadeDelay = (params.fadeDelay ?? 0.15) + (params.fadeDelayMultiplier ?? 0.1) * Math.random();
+    const fadeDur = params.fadeDuration ?? 0.25;
+    
+    gsap.to(shard, {
+      delay: staggerDelay, // 🔥 Organic stagger
+      x: targetX,
+      y: targetY,
+      duration: travelDur,
+      ease: 'power2.out'
+    });
+    
+    gsap.to(shard, {
+      alpha: 0,
+      delay: fadeDelay,
+      duration: fadeDur,
+      ease: 'power2.in'
+    });
+  });
+  
+  console.log(`🍺 wildBeerMerge6ShardsTemplated: Created ${shardsInLayer.length} shards in layer`);
+  
+  // Cleanup layer after TTL
+  const ttl = params.ttl || 1.2;
+  gsap.delayedCall(ttl, () => {
     // Return all shards to pool
     shardsInLayer.forEach((shard, idx) => {
       try {

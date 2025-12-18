@@ -8,7 +8,9 @@
 // 🎨 Wooden Colors
 export const woodenColors = {
   regular: 0xD4A584,     // Brown - for regular tile merges
-  wild: 0xFFCB47,        // Yellow (#FFCB47) - for wild star merges
+  wild: 0xFFCB47,        // Yellow (#FFCB47) - for wild star merges (ORIGINAL COLOR)
+  wildStar: 0xFFCB47,    // Yellow (#FFCB47) - for wild star merges (ORIGINAL COLOR)
+  wildBeer: 0xF99D77,    // Orange (#F99D77) - for wild beer/juice merges (ORIGINAL COLOR)
   wildMagnet: 0xF26034,  // Red (#F26034) - for wild magnet merges
   smoke: 0xFFFFFF        // White smoke for wild effects
 };
@@ -235,6 +237,297 @@ export const woodenPatternWildMagnetPull3 = [
 ];
 
 /**
+ * ⭐ WILD STAR ORGANIC PATTERN 1: "Stellar Explosion" - For wild star merges
+ * Perfect for: Wild star merge 6 (wild + ordinary)
+ * Shards: 18 shards with stellar, organic distribution
+ * Style: Star-like spread, oscillating distances, natural feel
+ */
+export const woodenPatternWildStarOrganic1 = [
+  // Stellar explosion - oscillating distances (40%+ increase, far ones 20% closer)
+  { angle: 15,  distance: 0.059, size: 1.800, speed: 0.88, alpha: 1.0 },   // 🔥 Close
+  { angle: 45,  distance: 0.212, size: 1.320, speed: 1.02, alpha: 1.0 },  // 🔥 Far (20% closer)
+  { angle: 75,  distance: 0.108, size: 1.680, speed: 0.92, alpha: 0.98 }, // 🔥 Close
+  { angle: 105, distance: 0.235, size: 1.200, speed: 1.08, alpha: 1.0 },  // 🔥 Far (20% closer)
+  { angle: 135, distance: 0.078, size: 1.560, speed: 0.95, alpha: 0.99 }, // 🔥 Close
+  { angle: 165, distance: 0.196, size: 1.440, speed: 1.05, alpha: 0.97 }, // 🔥 Far (20% closer)
+  { angle: 195, distance: 0.243, size: 1.800, speed: 0.98, alpha: 0.92 }, // 🔥 Far (20% closer)
+  { angle: 225, distance: 0.069, size: 1.320, speed: 1.12, alpha: 1.0 },  // 🔥 Close
+  { angle: 255, distance: 0.186, size: 1.500, speed: 1.0, alpha: 0.96 }, // 🔥 Mid-far
+  { angle: 285, distance: 0.251, size: 1.140, speed: 1.18, alpha: 0.88 }, // 🔥 Very far (20% closer)
+  { angle: 315, distance: 0.049, size: 1.260, speed: 0.92, alpha: 0.97 }, // 🔥 Very close
+  { angle: 345, distance: 0.204, size: 1.380, speed: 1.25, alpha: 0.87 }, // 🔥 Far (20% closer)
+  { angle: 30,  distance: 0.118, size: 1.176, speed: 1.03, alpha: 0.96 }, // 🔥 Close
+  { angle: 60,  distance: 0.227, size: 1.296, speed: 1.15, alpha: 0.89 }, // 🔥 Far (20% closer)
+  { angle: 90,  distance: 0.098, size: 1.464, speed: 0.96, alpha: 0.98 }, // 🔥 Close
+  { angle: 120, distance: 0.274, size: 1.344, speed: 1.08, alpha: 0.93 }, // 🔥 Very far (20% closer)
+  { angle: 150, distance: 0.078, size: 1.260, speed: 1.12, alpha: 0.91 }, // 🔥 Close
+  { angle: 180, distance: 0.188, size: 1.416, speed: 0.99, alpha: 0.97 }  // 🔥 Far (20% closer)
+];
+
+/**
+ * ⭐ WILD STAR ORGANIC PATTERN 2: "Radiant Burst" - For wild star merges
+ * Perfect for: Wild star merge 6 (wild + ordinary)
+ * Shards: 20 shards with radiant, organic distribution
+ * Style: Radiant spread, random angles, oscillating distances
+ */
+export const woodenPatternWildStarOrganic2 = [
+  // Radiant burst - random angles, oscillating distances (40%+ increase, far ones 20% closer)
+  { angle: 12,  distance: 0.059, size: 1.680, speed: 0.93, alpha: 1.0 },   // 🔥 Close
+  { angle: 51,  distance: 0.212, size: 1.380, speed: 1.08, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 89,  distance: 0.108, size: 1.740, speed: 0.97, alpha: 0.96 }, // 🔥 Close
+  { angle: 127, distance: 0.235, size: 1.260, speed: 1.15, alpha: 0.91 }, // 🔥 Far (20% closer)
+  { angle: 165, distance: 0.078, size: 1.500, speed: 0.88, alpha: 1.0 },  // 🔥 Close
+  { angle: 203, distance: 0.225, size: 1.560, speed: 1.02, alpha: 0.98 },  // 🔥 Mid-far
+  { angle: 241, distance: 0.196, size: 1.416, speed: 0.96, alpha: 1.0 },  // 🔥 Far (20% closer)
+  { angle: 279, distance: 0.078, size: 1.584, speed: 1.02, alpha: 0.94 }, // 🔥 Close
+  { angle: 317, distance: 0.258, size: 1.296, speed: 1.11, alpha: 0.89 }, // 🔥 Far (20% closer)
+  { angle: 355, distance: 0.049, size: 1.464, speed: 0.94, alpha: 1.0 },  // 🔥 Very close
+  { angle: 33,  distance: 0.196, size: 1.380, speed: 1.05, alpha: 0.95 }, // 🔥 Far (20% closer)
+  { angle: 71,  distance: 0.069, size: 1.344, speed: 1.05, alpha: 1.0 },  // 🔥 Close
+  { angle: 109, distance: 0.243, size: 1.500, speed: 0.92, alpha: 0.97 }, // 🔥 Far (20% closer)
+  { angle: 147, distance: 0.088, size: 1.260, speed: 1.18, alpha: 1.0 },   // 🔥 Close
+  { angle: 185, distance: 0.204, size: 1.440, speed: 0.98, alpha: 0.99 },  // 🔥 Far (20% closer)
+  { angle: 223, distance: 0.118, size: 1.620, speed: 0.99, alpha: 1.0 },  // 🔥 Close
+  { angle: 261, distance: 0.266, size: 1.296, speed: 1.22, alpha: 0.88 }, // 🔥 Far (20% closer)
+  { angle: 299, distance: 0.059, size: 1.416, speed: 1.03, alpha: 0.95 }, // 🔥 Close
+  { angle: 337, distance: 0.227, size: 1.536, speed: 0.91, alpha: 1.0 },  // 🔥 Far (20% closer)
+  { angle: 18,  distance: 0.098, size: 1.464, speed: 1.08, alpha: 0.93 }  // 🔥 Close
+];
+
+/**
+ * ⭐ WILD STAR ORGANIC PATTERN 3: "Cosmic Spread" - For wild star merges
+ * Perfect for: Wild star merge 6 (wild + ordinary)
+ * Shards: 19 shards with cosmic, organic distribution
+ * Style: Cosmic spread, varied angles, natural feel
+ */
+export const woodenPatternWildStarOrganic3 = [
+  // Cosmic spread - varied angles, oscillating distances (40%+ increase, far ones 20% closer)
+  { angle: 8,   distance: 0.049, size: 1.620, speed: 0.87, alpha: 1.0 },  // 🔥 Very close
+  { angle: 38,  distance: 0.251, size: 1.296, speed: 1.12, alpha: 0.96 }, // 🔥 Far (20% closer)
+  { angle: 68,  distance: 0.078, size: 1.776, speed: 0.94, alpha: 1.0 },  // 🔥 Close
+  { angle: 98,  distance: 0.219, size: 1.416, speed: 1.22, alpha: 0.87 }, // 🔥 Far (20% closer)
+  { angle: 128, distance: 0.059, size: 1.260, speed: 0.91, alpha: 1.0 },  // 🔥 Close
+  { angle: 158, distance: 0.235, size: 1.500, speed: 1.08, alpha: 0.98 }, // 🔥 Far (20% closer)
+  { angle: 188, distance: 0.108, size: 1.584, speed: 1.19, alpha: 0.89 }, // 🔥 Close
+  { angle: 218, distance: 0.274, size: 1.344, speed: 1.03, alpha: 1.0 },  // 🔥 Very far (20% closer)
+  { angle: 248, distance: 0.069, size: 1.704, speed: 0.96, alpha: 0.94 }, // 🔥 Close
+  { angle: 278, distance: 0.212, size: 1.224, speed: 1.28, alpha: 0.88 }, // 🔥 Far (20% closer)
+  { angle: 308, distance: 0.088, size: 1.464, speed: 0.99, alpha: 1.0 }, // 🔥 Close
+  { angle: 338, distance: 0.258, size: 1.656, speed: 1.14, alpha: 0.97 }, // 🔥 Far (20% closer)
+  { angle: 23,  distance: 0.039, size: 1.296, speed: 0.89, alpha: 1.0 },   // 🔥 Very close
+  { angle: 53,  distance: 0.204, size: 1.536, speed: 1.07, alpha: 0.95 }, // 🔥 Far (20% closer)
+  { angle: 83,  distance: 0.118, size: 1.380, speed: 1.25, alpha: 0.86 }, // 🔥 Close
+  { angle: 113, distance: 0.243, size: 1.536, speed: 0.93, alpha: 0.99 }, // 🔥 Far (20% closer)
+  { angle: 143, distance: 0.078, size: 1.380, speed: 1.16, alpha: 0.92 }, // 🔥 Close
+  { angle: 173, distance: 0.227, size: 1.584, speed: 1.01, alpha: 0.97 }, // 🔥 Far (20% closer)
+  { angle: 203, distance: 0.059, size: 1.296, speed: 1.09, alpha: 0.94 }  // 🔥 Close
+];
+
+/**
+ * 🍺 WILD BEER ORGANIC PATTERN 1: "Juice Explosion" - For wild beer merges
+ * Perfect for: Wild beer merge 6 (wild-beer + ordinary)
+ * Shards: 18 shards with juice-like, organic distribution
+ * Style: Juice explosion, oscillating distances, natural feel
+ */
+export const woodenPatternWildBeerOrganic1 = [
+  // Juice explosion - oscillating distances (40%+ increase, far ones 20% closer)
+  { angle: 22,  distance: 0.059, size: 1.800, speed: 0.88, alpha: 1.0 },   // 🔥 Close
+  { angle: 56,  distance: 0.212, size: 1.320, speed: 1.02, alpha: 1.0 },  // 🔥 Far (20% closer)
+  { angle: 90,  distance: 0.108, size: 1.680, speed: 0.92, alpha: 0.98 }, // 🔥 Close
+  { angle: 124, distance: 0.235, size: 1.200, speed: 1.08, alpha: 1.0 },  // 🔥 Far (20% closer)
+  { angle: 158, distance: 0.078, size: 1.560, speed: 0.95, alpha: 0.99 }, // 🔥 Close
+  { angle: 192, distance: 0.196, size: 1.440, speed: 1.05, alpha: 0.97 }, // 🔥 Far (20% closer)
+  { angle: 226, distance: 0.243, size: 1.800, speed: 0.98, alpha: 0.92 }, // 🔥 Far (20% closer)
+  { angle: 260, distance: 0.069, size: 1.320, speed: 1.12, alpha: 1.0 },  // 🔥 Close
+  { angle: 294, distance: 0.186, size: 1.500, speed: 1.0, alpha: 0.96 }, // 🔥 Mid-far
+  { angle: 328, distance: 0.251, size: 1.140, speed: 1.18, alpha: 0.88 }, // 🔥 Very far (20% closer)
+  { angle: 2,   distance: 0.049, size: 1.260, speed: 0.92, alpha: 0.97 }, // 🔥 Very close
+  { angle: 36,  distance: 0.204, size: 1.380, speed: 1.25, alpha: 0.87 }, // 🔥 Far (20% closer)
+  { angle: 70,  distance: 0.118, size: 1.176, speed: 1.03, alpha: 0.96 }, // 🔥 Close
+  { angle: 104, distance: 0.227, size: 1.296, speed: 1.15, alpha: 0.89 }, // 🔥 Far (20% closer)
+  { angle: 138, distance: 0.098, size: 1.464, speed: 0.96, alpha: 0.98 }, // 🔥 Close
+  { angle: 172, distance: 0.274, size: 1.344, speed: 1.08, alpha: 0.93 }, // 🔥 Very far (20% closer)
+  { angle: 206, distance: 0.078, size: 1.260, speed: 1.12, alpha: 0.91 }, // 🔥 Close
+  { angle: 240, distance: 0.188, size: 1.416, speed: 0.99, alpha: 0.97 }  // 🔥 Far (20% closer)
+];
+
+/**
+ * 🍺 WILD BEER ORGANIC PATTERN 2: "Bubbly Burst" - For wild beer merges
+ * Perfect for: Wild beer merge 6 (wild-beer + ordinary)
+ * Shards: 20 shards with bubbly, organic distribution
+ * Style: Bubbly spread, random angles, oscillating distances
+ */
+export const woodenPatternWildBeerOrganic2 = [
+  // Bubbly burst - random angles, oscillating distances (40%+ increase, far ones 20% closer)
+  { angle: 14,  distance: 0.059, size: 1.680, speed: 0.93, alpha: 1.0 },   // 🔥 Close
+  { angle: 48,  distance: 0.212, size: 1.380, speed: 1.08, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 82,  distance: 0.108, size: 1.740, speed: 0.97, alpha: 0.96 }, // 🔥 Close
+  { angle: 116, distance: 0.235, size: 1.260, speed: 1.15, alpha: 0.91 }, // 🔥 Far (20% closer)
+  { angle: 150, distance: 0.078, size: 1.500, speed: 0.88, alpha: 1.0 },  // 🔥 Close
+  { angle: 184, distance: 0.225, size: 1.560, speed: 1.02, alpha: 0.98 },  // 🔥 Mid-far
+  { angle: 218, distance: 0.196, size: 1.416, speed: 0.96, alpha: 1.0 },  // 🔥 Far (20% closer)
+  { angle: 252, distance: 0.078, size: 1.584, speed: 1.02, alpha: 0.94 }, // 🔥 Close
+  { angle: 286, distance: 0.258, size: 1.296, speed: 1.11, alpha: 0.89 }, // 🔥 Far (20% closer)
+  { angle: 320, distance: 0.049, size: 1.464, speed: 0.94, alpha: 1.0 },  // 🔥 Very close
+  { angle: 354, distance: 0.196, size: 1.380, speed: 1.05, alpha: 0.95 }, // 🔥 Far (20% closer)
+  { angle: 28,  distance: 0.069, size: 1.344, speed: 1.05, alpha: 1.0 },  // 🔥 Close
+  { angle: 62,  distance: 0.243, size: 1.500, speed: 0.92, alpha: 0.97 }, // 🔥 Far (20% closer)
+  { angle: 96,  distance: 0.088, size: 1.260, speed: 1.18, alpha: 1.0 },   // 🔥 Close
+  { angle: 130, distance: 0.204, size: 1.440, speed: 0.98, alpha: 0.99 },  // 🔥 Far (20% closer)
+  { angle: 164, distance: 0.118, size: 1.620, speed: 0.99, alpha: 1.0 },  // 🔥 Close
+  { angle: 198, distance: 0.266, size: 1.296, speed: 1.22, alpha: 0.88 }, // 🔥 Far (20% closer)
+  { angle: 232, distance: 0.059, size: 1.416, speed: 1.03, alpha: 0.95 }, // 🔥 Close
+  { angle: 266, distance: 0.227, size: 1.536, speed: 0.91, alpha: 1.0 }  // 🔥 Far (20% closer)
+];
+
+/**
+ * 🍺 WILD BEER ORGANIC PATTERN 3: "Fizzy Spread" - For wild beer merges
+ * Perfect for: Wild beer merge 6 (wild-beer + ordinary)
+ * Shards: 19 shards with fizzy, organic distribution
+ * Style: Fizzy spread, varied angles, natural feel
+ */
+export const woodenPatternWildBeerOrganic3 = [
+  // Fizzy spread - varied angles, oscillating distances (40%+ increase, far ones 20% closer)
+  { angle: 11,  distance: 0.049, size: 1.620, speed: 0.87, alpha: 1.0 },  // 🔥 Very close
+  { angle: 41,  distance: 0.251, size: 1.296, speed: 1.12, alpha: 0.96 }, // 🔥 Far (20% closer)
+  { angle: 71,  distance: 0.078, size: 1.776, speed: 0.94, alpha: 1.0 },  // 🔥 Close
+  { angle: 101, distance: 0.219, size: 1.416, speed: 1.22, alpha: 0.87 }, // 🔥 Far (20% closer)
+  { angle: 131, distance: 0.059, size: 1.260, speed: 0.91, alpha: 1.0 },  // 🔥 Close
+  { angle: 161, distance: 0.235, size: 1.500, speed: 1.08, alpha: 0.98 }, // 🔥 Far (20% closer)
+  { angle: 191, distance: 0.108, size: 1.584, speed: 1.19, alpha: 0.89 }, // 🔥 Close
+  { angle: 221, distance: 0.274, size: 1.344, speed: 1.03, alpha: 1.0 },  // 🔥 Very far (20% closer)
+  { angle: 251, distance: 0.069, size: 1.704, speed: 0.96, alpha: 0.94 }, // 🔥 Close
+  { angle: 281, distance: 0.212, size: 1.224, speed: 1.28, alpha: 0.88 }, // 🔥 Far (20% closer)
+  { angle: 311, distance: 0.088, size: 1.464, speed: 0.99, alpha: 1.0 }, // 🔥 Close
+  { angle: 341, distance: 0.258, size: 1.656, speed: 1.14, alpha: 0.97 }, // 🔥 Far (20% closer)
+  { angle: 26,  distance: 0.039, size: 1.296, speed: 0.89, alpha: 1.0 },   // 🔥 Very close
+  { angle: 56,  distance: 0.204, size: 1.536, speed: 1.07, alpha: 0.95 }, // 🔥 Far (20% closer)
+  { angle: 86,  distance: 0.118, size: 1.380, speed: 1.25, alpha: 0.86 }, // 🔥 Close
+  { angle: 116, distance: 0.243, size: 1.536, speed: 0.93, alpha: 0.99 }, // 🔥 Far (20% closer)
+  { angle: 146, distance: 0.078, size: 1.380, speed: 1.16, alpha: 0.92 }, // 🔥 Close
+  { angle: 176, distance: 0.227, size: 1.584, speed: 1.01, alpha: 0.97 }, // 🔥 Far (20% closer)
+  { angle: 206, distance: 0.059, size: 1.296, speed: 1.09, alpha: 0.94 }  // 🔥 Close
+];
+
+/**
+ * ⭐ WILD STAR ORGANIC PATTERN 4: "Nova Burst" - For wild star merges
+ * Perfect for: Wild star merge 6 (wild + ordinary)
+ * Shards: 20 shards with nova-like, organic distribution
+ * Style: Nova explosion, varied distances, natural feel
+ */
+export const woodenPatternWildStarOrganic4 = [
+  // Nova burst - varied angles, oscillating distances (40%+ increase, far ones 20% closer) - 🔥 USER REQUEST: 20% larger shards
+  { angle: 5,   distance: 0.071, size: 1.62, speed: 0.85, alpha: 1.0 },  // 🔥 Close
+  { angle: 35,  distance: 0.254, size: 1.296, speed: 1.15, alpha: 0.95 }, // 🔥 Far
+  { angle: 65,  distance: 0.130, size: 1.776, speed: 0.90, alpha: 1.0 },  // 🔥 Close
+  { angle: 95,  distance: 0.263, size: 1.416, speed: 1.25, alpha: 0.88 }, // 🔥 Far
+  { angle: 125, distance: 0.071, size: 1.26, speed: 0.88, alpha: 1.0 },  // 🔥 Close
+  { angle: 155, distance: 0.282, size: 1.5, speed: 1.10, alpha: 0.98 }, // 🔥 Far
+  { angle: 185, distance: 0.130, size: 1.584, speed: 1.22, alpha: 0.91 }, // 🔥 Close
+  { angle: 215, distance: 0.329, size: 1.344, speed: 1.05, alpha: 1.0 },  // 🔥 Very far
+  { angle: 245, distance: 0.083, size: 1.704, speed: 0.93, alpha: 0.95 }, // 🔥 Close
+  { angle: 275, distance: 0.254, size: 1.224, speed: 1.30, alpha: 0.89 }, // 🔥 Far
+  { angle: 305, distance: 0.106, size: 1.464, speed: 0.97, alpha: 1.0 }, // 🔥 Close
+  { angle: 335, distance: 0.310, size: 1.656, speed: 1.17, alpha: 0.98 }, // 🔥 Far
+  { angle: 20,  distance: 0.047, size: 1.296, speed: 0.87, alpha: 1.0 },   // 🔥 Very close
+  { angle: 50,  distance: 0.245, size: 1.536, speed: 1.08, alpha: 0.96 }, // 🔥 Far
+  { angle: 80,  distance: 0.142, size: 1.38, speed: 1.28, alpha: 0.87 }, // 🔥 Close
+  { angle: 110, distance: 0.292, size: 1.536, speed: 0.95, alpha: 1.0 }, // 🔥 Far
+  { angle: 140, distance: 0.094, size: 1.38, speed: 1.19, alpha: 0.93 }, // 🔥 Close
+  { angle: 170, distance: 0.272, size: 1.584, speed: 1.02, alpha: 0.98 }, // 🔥 Far
+  { angle: 200, distance: 0.071, size: 1.296, speed: 1.11, alpha: 0.95 }, // 🔥 Close
+  { angle: 230, distance: 0.245, size: 1.44, speed: 0.99, alpha: 0.97 }  // 🔥 Far
+];
+
+/**
+ * ⭐ WILD STAR ORGANIC PATTERN 5: "Galactic Spread" - For wild star merges
+ * Perfect for: Wild star merge 6 (wild + ordinary)
+ * Shards: 19 shards with galactic, organic distribution
+ * Style: Galactic spread, varied angles, natural feel
+ */
+export const woodenPatternWildStarOrganic5 = [
+  // Galactic spread - varied angles, oscillating distances (40%+ increase, far ones 20% closer) - 🔥 USER REQUEST: 20% larger shards
+  { angle: 7,   distance: 0.059, size: 1.62, speed: 0.84, alpha: 1.0 },  // 🔥 Very close
+  { angle: 37,  distance: 0.301, size: 1.296, speed: 1.13, alpha: 0.97 }, // 🔥 Far
+  { angle: 67,  distance: 0.094, size: 1.776, speed: 0.91, alpha: 1.0 },  // 🔥 Close
+  { angle: 97,  distance: 0.263, size: 1.416, speed: 1.23, alpha: 0.88 }, // 🔥 Far
+  { angle: 127, distance: 0.071, size: 1.26, speed: 0.89, alpha: 1.0 },  // 🔥 Close
+  { angle: 157, distance: 0.282, size: 1.5, speed: 1.09, alpha: 0.99 }, // 🔥 Far
+  { angle: 187, distance: 0.130, size: 1.584, speed: 1.21, alpha: 0.90 }, // 🔥 Close
+  { angle: 217, distance: 0.329, size: 1.344, speed: 1.04, alpha: 1.0 },  // 🔥 Very far
+  { angle: 247, distance: 0.083, size: 1.704, speed: 0.94, alpha: 0.95 }, // 🔥 Close
+  { angle: 277, distance: 0.254, size: 1.224, speed: 1.29, alpha: 0.89 }, // 🔥 Far
+  { angle: 307, distance: 0.106, size: 1.464, speed: 0.98, alpha: 1.0 }, // 🔥 Close
+  { angle: 337, distance: 0.310, size: 1.656, speed: 1.16, alpha: 0.98 }, // 🔥 Far
+  { angle: 25,  distance: 0.047, size: 1.296, speed: 0.88, alpha: 1.0 },   // 🔥 Very close
+  { angle: 55,  distance: 0.245, size: 1.536, speed: 1.09, alpha: 0.96 }, // 🔥 Far
+  { angle: 85,  distance: 0.142, size: 1.38, speed: 1.27, alpha: 0.87 }, // 🔥 Close
+  { angle: 115, distance: 0.292, size: 1.536, speed: 0.94, alpha: 1.0 }, // 🔥 Far
+  { angle: 145, distance: 0.094, size: 1.38, speed: 1.18, alpha: 0.93 }, // 🔥 Close
+  { angle: 175, distance: 0.272, size: 1.584, speed: 1.03, alpha: 0.98 }, // 🔥 Far
+  { angle: 205, distance: 0.071, size: 1.296, speed: 1.10, alpha: 0.95 }  // 🔥 Close
+];
+
+/**
+ * 🍺 WILD BEER ORGANIC PATTERN 4: "Splash Burst" - For wild beer merges
+ * Perfect for: Wild beer merge 6 (wild-beer + ordinary)
+ * Shards: 20 shards with splash-like, organic distribution
+ * Style: Splash explosion, varied distances, natural feel
+ */
+export const woodenPatternWildBeerOrganic4 = [
+  // Splash burst - varied angles, oscillating distances (40%+ increase, far ones 20% closer) - 🔥 USER REQUEST: 20% larger shards
+  { angle: 6,   distance: 0.071, size: 1.62, speed: 0.86, alpha: 1.0 },  // 🔥 Close
+  { angle: 36,  distance: 0.254, size: 1.296, speed: 1.14, alpha: 0.95 }, // 🔥 Far
+  { angle: 66,  distance: 0.130, size: 1.776, speed: 0.91, alpha: 1.0 },  // 🔥 Close
+  { angle: 96,  distance: 0.263, size: 1.416, speed: 1.24, alpha: 0.87 }, // 🔥 Far
+  { angle: 126, distance: 0.071, size: 1.26, speed: 0.90, alpha: 1.0 },  // 🔥 Close
+  { angle: 156, distance: 0.282, size: 1.5, speed: 1.11, alpha: 0.99 }, // 🔥 Far
+  { angle: 186, distance: 0.130, size: 1.584, speed: 1.20, alpha: 0.90 }, // 🔥 Close
+  { angle: 216, distance: 0.329, size: 1.344, speed: 1.06, alpha: 1.0 },  // 🔥 Very far
+  { angle: 246, distance: 0.083, size: 1.704, speed: 0.92, alpha: 0.95 }, // 🔥 Close
+  { angle: 276, distance: 0.254, size: 1.224, speed: 1.31, alpha: 0.89 }, // 🔥 Far
+  { angle: 306, distance: 0.106, size: 1.464, speed: 0.96, alpha: 1.0 }, // 🔥 Close
+  { angle: 336, distance: 0.310, size: 1.656, speed: 1.18, alpha: 0.98 }, // 🔥 Far
+  { angle: 21,  distance: 0.047, size: 1.296, speed: 0.85, alpha: 1.0 },   // 🔥 Very close
+  { angle: 51,  distance: 0.245, size: 1.536, speed: 1.07, alpha: 0.96 }, // 🔥 Far
+  { angle: 81,  distance: 0.142, size: 1.38, speed: 1.26, alpha: 0.87 }, // 🔥 Close
+  { angle: 111, distance: 0.292, size: 1.536, speed: 0.93, alpha: 1.0 }, // 🔥 Far
+  { angle: 141, distance: 0.094, size: 1.38, speed: 1.17, alpha: 0.92 }, // 🔥 Close
+  { angle: 171, distance: 0.272, size: 1.584, speed: 1.04, alpha: 0.98 }, // 🔥 Far
+  { angle: 201, distance: 0.071, size: 1.296, speed: 1.12, alpha: 0.95 }, // 🔥 Close
+  { angle: 231, distance: 0.245, size: 1.44, speed: 1.00, alpha: 0.97 }  // 🔥 Far
+];
+
+/**
+ * 🍺 WILD BEER ORGANIC PATTERN 5: "Foam Explosion" - For wild beer merges
+ * Perfect for: Wild beer merge 6 (wild-beer + ordinary)
+ * Shards: 19 shards with foam-like, organic distribution
+ * Style: Foam explosion, varied angles, natural feel
+ */
+export const woodenPatternWildBeerOrganic5 = [
+  // Foam explosion - varied angles, oscillating distances (40%+ increase, far ones 20% closer) - 🔥 USER REQUEST: 20% larger shards
+  { angle: 9,   distance: 0.059, size: 1.62, speed: 0.83, alpha: 1.0 },  // 🔥 Very close
+  { angle: 39,  distance: 0.301, size: 1.296, speed: 1.12, alpha: 0.97 }, // 🔥 Far
+  { angle: 69,  distance: 0.094, size: 1.776, speed: 0.92, alpha: 1.0 },  // 🔥 Close
+  { angle: 99,  distance: 0.263, size: 1.416, speed: 1.22, alpha: 0.88 }, // 🔥 Far
+  { angle: 129, distance: 0.071, size: 1.26, speed: 0.91, alpha: 1.0 },  // 🔥 Close
+  { angle: 159, distance: 0.282, size: 1.5, speed: 1.10, alpha: 0.99 }, // 🔥 Far
+  { angle: 189, distance: 0.130, size: 1.584, speed: 1.19, alpha: 0.91 }, // 🔥 Close
+  { angle: 219, distance: 0.329, size: 1.344, speed: 1.05, alpha: 1.0 },  // 🔥 Very far
+  { angle: 249, distance: 0.083, size: 1.704, speed: 0.95, alpha: 0.95 }, // 🔥 Close
+  { angle: 279, distance: 0.254, size: 1.224, speed: 1.30, alpha: 0.90 }, // 🔥 Far
+  { angle: 309, distance: 0.106, size: 1.464, speed: 0.99, alpha: 1.0 }, // 🔥 Close
+  { angle: 339, distance: 0.310, size: 1.656, speed: 1.15, alpha: 0.99 }, // 🔥 Far
+  { angle: 24,  distance: 0.047, size: 1.296, speed: 0.86, alpha: 1.0 },   // 🔥 Very close
+  { angle: 54,  distance: 0.245, size: 1.536, speed: 1.08, alpha: 0.97 }, // 🔥 Far
+  { angle: 84,  distance: 0.142, size: 1.38, speed: 1.25, alpha: 0.88 }, // 🔥 Close
+  { angle: 114, distance: 0.292, size: 1.536, speed: 0.96, alpha: 1.0 }, // 🔥 Far
+  { angle: 144, distance: 0.094, size: 1.38, speed: 1.16, alpha: 0.94 }, // 🔥 Close
+  { angle: 174, distance: 0.272, size: 1.584, speed: 1.02, alpha: 0.99 }, // 🔥 Far
+  { angle: 204, distance: 0.071, size: 1.296, speed: 1.11, alpha: 0.96 }  // 🔥 Close
+];
+
+/**
  * Pattern 2: "BURST" - Vertical emphasis, upward burst
  * Perfect for: Regular merge 6 (alternative pattern)
  * Shards: 12 shards with vertical emphasis
@@ -354,7 +647,13 @@ export const woodenPatternMap = {
   wildMagnet: ['wildMagnetOrganic1', 'wildMagnetOrganic2', 'wildMagnetOrganic3'],
   
   // Wild-magnet pull merge 6 (after tiles are pulled) - use 3 pull-specific patterns (no overlap, organic variety)
-  wildMagnetPull: ['wildMagnetPull1', 'wildMagnetPull2', 'wildMagnetPull3']
+  wildMagnetPull: ['wildMagnetPull1', 'wildMagnetPull2', 'wildMagnetPull3'],
+  
+  // Wild star merge 6 (wild + ordinary) - use 5 organic patterns (stellar, radiant, cosmic, nova, galactic)
+  wildStar: ['wildStarOrganic1', 'wildStarOrganic2', 'wildStarOrganic3', 'wildStarOrganic4', 'wildStarOrganic5'],
+  
+  // Wild beer merge 6 (wild-beer + ordinary) - use 5 organic patterns (juice, bubbly, fizzy, splash, foam)
+  wildBeer: ['wildBeerOrganic1', 'wildBeerOrganic2', 'wildBeerOrganic3', 'wildBeerOrganic4', 'wildBeerOrganic5']
 };
 
 // ⚙️ Wooden Parameters - Base parameters for different merge types
@@ -435,6 +734,62 @@ export const woodenParams = {
     // Visual effects
     enhanced: true,
     intensity: 1.9
+  },
+  
+  wildStar: {
+    // Visual
+    lineWidth: 3.0,
+    lineAlpha: 0.9,
+    
+    // Animation timing
+    travelDuration: 0.4,
+    travelDurMultiplier: 0.5,
+    fadeDelay: 0.15,
+    fadeDelayMultiplier: 0.1,
+    fadeDuration: 0.25,
+    speed: 1.0,
+    vanishDelay: 0.0,
+    vanishJitter: 0.02,
+    ttl: 1.2,
+    
+    // Physics
+    tileSize: 96,
+    baseTile: 96,
+    spread: 6.72,              // 🔥 USER REQUEST: 20% more spread than regular (5.6 * 1.2 = 6.72) for better organic dispersion
+    radiusBoost: 1.0,
+    distanceMultiplier: 1.0,
+    
+    // Visual effects
+    enhanced: true,
+    intensity: 1.35
+  },
+  
+  wildBeer: {
+    // Visual
+    lineWidth: 3.0,
+    lineAlpha: 0.9,
+    
+    // Animation timing
+    travelDuration: 0.4,
+    travelDurMultiplier: 0.5,
+    fadeDelay: 0.15,
+    fadeDelayMultiplier: 0.1,
+    fadeDuration: 0.25,
+    speed: 1.0,
+    vanishDelay: 0.0,
+    vanishJitter: 0.02,
+    ttl: 1.2,
+    
+    // Physics
+    tileSize: 96,
+    baseTile: 96,
+    spread: 6.72,              // 🔥 USER REQUEST: 20% more spread than regular (5.6 * 1.2 = 6.72) for better organic dispersion
+    radiusBoost: 1.0,
+    distanceMultiplier: 1.0,
+    
+    // Visual effects
+    enhanced: true,
+    intensity: 1.35
   }
 };
 
@@ -454,7 +809,17 @@ export const woodenTemplate = {
     wildMagnetOrganic3: woodenPatternWildMagnetOrganic3,
     wildMagnetPull1: woodenPatternWildMagnetPull1,
     wildMagnetPull2: woodenPatternWildMagnetPull2,
-    wildMagnetPull3: woodenPatternWildMagnetPull3
+    wildMagnetPull3: woodenPatternWildMagnetPull3,
+    wildStarOrganic1: woodenPatternWildStarOrganic1,
+    wildStarOrganic2: woodenPatternWildStarOrganic2,
+    wildStarOrganic3: woodenPatternWildStarOrganic3,
+    wildStarOrganic4: woodenPatternWildStarOrganic4,
+    wildStarOrganic5: woodenPatternWildStarOrganic5,
+    wildBeerOrganic1: woodenPatternWildBeerOrganic1,
+    wildBeerOrganic2: woodenPatternWildBeerOrganic2,
+    wildBeerOrganic3: woodenPatternWildBeerOrganic3,
+    wildBeerOrganic4: woodenPatternWildBeerOrganic4,
+    wildBeerOrganic5: woodenPatternWildBeerOrganic5
   },
   patternMap: woodenPatternMap,
   params: woodenParams

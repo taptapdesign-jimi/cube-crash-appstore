@@ -14,7 +14,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning, cleanupWildBeerExplosion, waitForBubblesAnimationToComplete } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning, cleanupWildBeerExplosion, waitForBubblesAnimationToComplete } from './fx.js';
 import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
 // import { showStarsModal } from './stars-modal.js';
@@ -5175,21 +5175,37 @@ function merge(src, dst, helpers){
               zIndex: dstZIndex
             });
           } else if (isMainWildOnlyMerge) {
-            // Wild-only merge (wild on ordinary or ordinary on wild): yellow/brown shards (50/50 random)
+            // Wild-only merge (wild on ordinary or ordinary on wild): yellow shards for wild star, orange for wild beer
             // 🔥 USER REQUEST: Skip star particles - orbiting stars will be animated to HUD instead
-            console.log('🔥 Wild-only merge 6 - using yellow/brown shards (srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, ')');
-            // 🔥 WILD-BEER: Pass wild-beer info to woodShardsAtTile
+            console.log('🔥 Wild-only merge 6 - using template-based pooling (srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, ')');
+            // 🔥 WILD-BEER: Check if this is wild-beer merge
             const isWildBeerMerge = srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
             // 🔥 USER REQUEST: Check if this is pure wild star (not wild-beer, not wild-magnet)
             const isPureWildStarMerge = (srcSpecial === 'wild' || dstSpecial === 'wild') && !isWildBeerMerge;
             
             console.log('💧 Merge 6 check - isWildBeerMerge:', isWildBeerMerge, 'isPureWildStarMerge:', isPureWildStarMerge, 'srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, 'srcValue:', src?.value, 'dstValue:', dst?.value);
             
-            // 🎨 TEMPLATE-BASED: Use new template system for wild merges
-            wildMerge6ShardsTemplated(board, dst, { 
-              skipStars: isPureWildStarMerge,  // 🔥 USER REQUEST: Skip star particles for pure wild star merge 6
-              zIndex: 9993
-            });
+            // 🎨 TEMPLATE-BASED: Use new template system with ORIGINAL COLORS
+            if (isWildBeerMerge) {
+              // 🍺 Wild-beer merge: orange shards using template-based pooling (ORIGINAL COLOR)
+              console.log('🍺 Wild-beer merge 6 - using template-based pooling with orange shards (ORIGINAL COLOR)');
+              wildBeerMerge6ShardsTemplated(board, dst, { 
+                zIndex: 9993
+              });
+            } else if (isPureWildStarMerge) {
+              // ⭐ Wild star merge: yellow shards using template-based pooling (ORIGINAL COLOR)
+              console.log('⭐ Wild star merge 6 - using template-based pooling with yellow shards (ORIGINAL COLOR)');
+              wildStarMerge6ShardsTemplated(board, dst, { 
+                skipStars: true,  // 🔥 USER REQUEST: Skip star particles for pure wild star merge 6
+                zIndex: 9993
+              });
+            } else {
+              // Fallback to generic wild merge
+              wildMerge6ShardsTemplated(board, dst, { 
+                skipStars: isPureWildStarMerge,
+                zIndex: 9993
+              });
+            }
             
             // 🔥 FPS DROP FIX: Stagger animacije umjesto istovremenog pokretanja
             // Trigger only the main bubbles explosion (skip smaller fizz to avoid double-wave)
