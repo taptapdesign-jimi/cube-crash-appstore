@@ -305,21 +305,39 @@ export function initDrag(cfg) {
       }
     }
 
+    // 🔥 CRITICAL FIX: Stop magnet idle particles when dragging starts (prevents white particles mixing with red drag particles)
+    if (t.special === 'wild-magnet') {
+      try {
+        // Import stopMagnetIdleParticles dynamically to avoid circular dependency
+        import('./fx.js').then(fxModule => {
+          if (fxModule && typeof fxModule.stopMagnetIdleParticles === 'function') {
+            fxModule.stopMagnetIdleParticles(t);
+            console.log('🧹 Stopped magnet idle particles on drag start');
+          }
+        }).catch(err => {
+          console.warn('⚠️ Failed to stop magnet idle particles on drag start:', err);
+        });
+      } catch (err) {
+        console.warn('⚠️ Error stopping magnet idle particles on drag start:', err);
+      }
+    }
+
     // Start sparkles immediately when wild cube is picked up
-    if (t.special === 'wild' || t.special === 'wild-beer') {
+    // 🔥 CRITICAL: All wild tiles (wild star, wild beer, wild magnet) get sparkles with their original colors
+    if (t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-magnet') {
       try {
         // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
         // This ensures particles appear behind the wild tile when dragging
         const tileZ = t?.zIndex ?? 0;
         const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
-        // 🔥 USER REQUEST: Wild beer uses same intensity as wild star (1.0) for consistent smoke trail
+        // 🔥 USER REQUEST: All wild tiles use same intensity (1.0) for consistent smoke trail
         magicSparklesAtTile(board, t, { intensity: 1.0, zIndex: particlesZ });
         drag._lastSparkleTime = drag.lastTime;
         
         // 🔥 FPS DROP FIX: Optimize drag particles interval based on drag speed (prevent comet trails)
         // Use velocity-based throttling to reduce particles when dragging fast
         drag._sparkleInterval = setInterval(() => {
-          if (drag.t && (drag.t.special === 'wild' || drag.t.special === 'wild-beer') && !drag.t.destroyed) {
+          if (drag.t && (drag.t.special === 'wild' || drag.t.special === 'wild-beer' || drag.t.special === 'wild-magnet') && !drag.t.destroyed) {
             try {
               // 🔥 FPS DROP FIX: Calculate drag speed and reduce particles if dragging fast
               const dragSpeed = Math.hypot(drag.vx || 0, drag.vy || 0);
@@ -446,23 +464,10 @@ export function initDrag(cfg) {
         }
       }
     } else if (t.special === 'wild-magnet') {
-      // Wild-magnet sparkles effect (same as wild)
+      // 🔥 Wild-magnet now uses interval-based sparkles (same as wild and wild-beer)
+      // Sparkles are handled by the interval set in onDown function, no need for duplicate here
       t._lastVelX = drag.vx;
       t._lastVelY = drag.vy;
-      
-      // Continuous sparkles when wild-magnet is picked up
-      if (!drag._lastSparkleTime || (now - drag._lastSparkleTime) > 100) {
-        try {
-          // 🔥 CRITICAL: Set z-index to be BELOW dragged tile (tile is at 9999, particles should be at 9998)
-          // This ensures particles appear behind the magnet when dragging
-          const tileZ = t?.zIndex ?? 0;
-          const particlesZ = tileZ > 9000 ? tileZ - 1 : tileZ - 0.001; // Behind dragged tile
-          magicSparklesAtTile(board, t, { intensity: 1.0, zIndex: particlesZ });
-          drag._lastSparkleTime = now;
-        } catch (err) {
-          console.warn('Wild-magnet sparkles error:', err);
-        }
-      }
       
       // 🧲 MAGNETIC REACTION: Use same gentle pull as wild tile (via updateMagnet)
       // The updateMagnet function is already called below for the target tile
@@ -826,13 +831,47 @@ export function initDrag(cfg) {
     }
 
     if (!t || t.destroyed) { clearHover(); return; }
-    if (!drag.moved) { snapBack(t); clearHover(); return; }
+    if (!drag.moved) { 
+      snapBack(t); 
+      clearHover();
+      // 🔥 USER REQUEST: Restart idle particles after snapBack for wild-magnet
+      if (t?.special === 'wild-magnet' && !t.destroyed) {
+        try {
+          import('./fx.js').then(fxModule => {
+            if (fxModule && typeof fxModule.startMagnetIdleParticles === 'function') {
+              fxModule.startMagnetIdleParticles(t);
+              console.log('🔄 Restarted magnet idle particles after snapBack');
+            }
+          }).catch(err => {
+            console.warn('⚠️ Failed to restart magnet idle particles after snapBack:', err);
+          });
+        } catch (err) {
+          console.warn('⚠️ Error restarting magnet idle particles after snapBack:', err);
+        }
+      }
+      return; 
+    }
 
     const target = pickDropTarget(t);
     
     if (!target) {
       snapBack(t);
       clearHover();
+      // 🔥 USER REQUEST: Restart idle particles after snapBack for wild-magnet
+      if (t?.special === 'wild-magnet' && !t.destroyed) {
+        try {
+          import('./fx.js').then(fxModule => {
+            if (fxModule && typeof fxModule.startMagnetIdleParticles === 'function') {
+              fxModule.startMagnetIdleParticles(t);
+              console.log('🔄 Restarted magnet idle particles after snapBack (no target)');
+            }
+          }).catch(err => {
+            console.warn('⚠️ Failed to restart magnet idle particles after snapBack:', err);
+          });
+        } catch (err) {
+          console.warn('⚠️ Error restarting magnet idle particles after snapBack:', err);
+        }
+      }
       return;
     }
     
@@ -851,6 +890,22 @@ export function initDrag(cfg) {
     if (!canMerge) {
       snapBack(t);
       clearHover();
+      
+      // 🔥 USER REQUEST: Restart idle particles after snapBack for wild-magnet
+      if (t?.special === 'wild-magnet' && !t.destroyed) {
+        try {
+          import('./fx.js').then(fxModule => {
+            if (fxModule && typeof fxModule.startMagnetIdleParticles === 'function') {
+              fxModule.startMagnetIdleParticles(t);
+              console.log('🔄 Restarted magnet idle particles after snapBack (canMerge=false)');
+            }
+          }).catch(err => {
+            console.warn('⚠️ Failed to restart magnet idle particles after snapBack:', err);
+          });
+        } catch (err) {
+          console.warn('⚠️ Error restarting magnet idle particles after snapBack:', err);
+        }
+      }
       
       // 🔥 CRITICAL: Check stuck state after failed merge attempt
       // This catches cases where user tries to merge but can't (e.g., 3+2=5 which is invalid)

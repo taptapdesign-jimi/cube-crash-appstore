@@ -8,7 +8,7 @@ import { gsap } from 'gsap';
 import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from './wild-stars.js';
 import { TILE } from './constants.js';
 import { graphicsPool } from './object-pool.js';
-import { selectPattern, getColor, getParams, getActiveTemplate } from './templates/template-manager.js';
+import { selectPattern, getColor, getParams, getActiveTemplate, getDragParticleColors } from './templates/template-manager.js';
 
 try {
   preloadWildStarTexture();
@@ -529,8 +529,301 @@ export function glassCrackAtTile(board, tile, tileSize = 96, strength = 1){
   }
 }
 
+/**
+ * 🎨 Template-Based Drag Particles for Wild-Magnet
+ * 
+ * Uses template-based pooling and colors for reliable, optimized drag particles.
+ * This replaces magicSparklesAtTile for wild-magnet tiles.
+ * 
+ * @param {Container} board - Game board container
+ * @param {object} tile - Tile object
+ * @param {object} opts - Options (intensity, zIndex, etc.)
+ */
+export function wildMagnetDragParticlesTemplated(board, tile, opts = {}) {
+  if (!board || !tile) {
+    console.warn('⚠️ wildMagnetDragParticlesTemplated: Missing board or tile', { board: !!board, tile: !!tile });
+    return;
+  }
+  
+  // 🔥 CRITICAL: Ensure tile.special is set to 'wild-magnet' for correct color retrieval
+  if (!tile.special || tile.special !== 'wild-magnet') {
+    console.warn('⚠️ wildMagnetDragParticlesTemplated: tile.special is not "wild-magnet", setting it now');
+    tile.special = 'wild-magnet';
+  }
+
+  // 🔥 TEMPLATE-BASED: Select pattern from template (uses round-robin selection)
+  const patternInfo = selectPattern('wildMagnetDrag');
+  
+  console.log('🧲 wildMagnetDragParticlesTemplated: Called', { 
+    hasPatternInfo: !!patternInfo, 
+    intensity: opts.intensity ?? 1.0,
+    tileSpecial: tile?.special 
+  });
+  
+  if (!patternInfo) {
+    console.error('❌ wildMagnetDragParticlesTemplated: No pattern selected - template manager may not be initialized');
+    // Fallback: Use generic graphicsPool with red colors
+    console.log('🔄 Falling back to generic graphicsPool');
+    let colors = getDragParticleColors('wild-magnet');
+    if (!colors || !Array.isArray(colors) || colors.length === 0) {
+      colors = [0xF26034, 0xF57A5A, 0xF89480, 0xFBAEA6, 0xFDC8CC];
+    }
+    const intensity = opts.intensity ?? 1.0;
+    const particleCount = Math.max(1, Math.round(20 * intensity));
+    
+    const center = centerInBoard(board, tile, 96);
+    
+    for (let i = 0; i < particleCount; i++) {
+      const particle = graphicsPool.acquire();
+      particle.clear();
+      __globalGraphicsObjects.add(particle);
+      
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      // 🔥 USER REQUEST: For idle particles (intensity < 0.5), use original size; for drag, use 50% smaller
+      const isIdle = intensity < 0.5;
+      const sizeMultiplier = isIdle ? 1.0 : 0.5;
+      const width = (12 + Math.random() * 12) * sizeMultiplier;
+      const height = (16 + Math.random() * 16) * sizeMultiplier;
+      
+      particle.rect(-width/2, -height/2, width, height).fill({ color, alpha: intensity });
+      particle.visible = true;
+      particle.alpha = 1.0;
+      
+      const angle = Math.random() * Math.PI * 2;
+      // 🔥 USER REQUEST: 60% more spread from center (multiply distance by 1.6)
+      const distance = 96 * (0.1 + Math.random() * 0.6) * 1.6;
+      particle.x = center.x + Math.cos(angle) * distance;
+      particle.y = center.y + Math.sin(angle) * distance;
+      particle.rotation = Math.random() * Math.PI * 2;
+      particle.zIndex = (tile?.zIndex ?? 0) + 0.001;
+      
+      board.addChild(particle);
+      
+      // 🔥 USER REQUEST: For idle particles, use longer duration and slower fade
+      const baseDuration = 0.3 + Math.random() * 0.3;
+      const duration = isIdle ? 2.5 : baseDuration;  // 2.5 seconds for idle
+      const targetAlpha = isIdle ? 0.1 : 0;  // Idle particles fade to 10% opacity
+      
+      const endAngle = angle + (Math.random() - 0.5) * 1.0;
+      const endDistance = distance * (1.5 + Math.random() * 0.5);
+      const endX = center.x + Math.cos(endAngle) * endDistance;
+      const endY = center.y + Math.sin(endAngle) * endDistance;
+      
+      gsap.to(particle, {
+        x: endX,
+        y: endY,
+        rotation: particle.rotation + (Math.random() - 0.5) * Math.PI * 2,
+        duration: duration,
+        ease: 'power1.out',
+        onComplete: () => {
+          try {
+            if (particle?.parent) particle.parent.removeChild(particle);
+            __globalGraphicsObjects.delete(particle);
+            graphicsPool.release(particle);
+          } catch {}
+        }
+      });
+      
+      // 🔥 USER REQUEST: Separate fade animation for idle particles (slower fade)
+      if (isIdle) {
+        gsap.to(particle, {
+          alpha: targetAlpha,
+          duration: duration * 0.4,  // Fade over last 40% of animation
+          delay: duration * 0.6,
+          ease: 'power1.out'
+        });
+      } else {
+        // Drag particles fade immediately
+        gsap.to(particle, {
+          alpha: 0,
+          duration: duration,
+          ease: 'power1.out'
+        });
+      }
+    }
+    return;
+  }
+  
+  const { patternName, patternData, pool, template } = patternInfo;
+  const params = getParams('wildMagnetDrag');
+  let colors = getDragParticleColors('wild-magnet'); // 🔥 RED palette for wild-magnet
+  
+  if (!colors || !Array.isArray(colors) || colors.length === 0) {
+    console.error('❌ wildMagnetDragParticlesTemplated: Invalid colors array, using red fallback');
+    colors = [0xF26034, 0xF57A5A, 0xF89480, 0xFBAEA6, 0xFDC8CC];
+  }
+  
+  const intensity = opts.intensity ?? 1.0;
+  const baseTile = params.baseTile || 96;
+  
+  // Use custom position if provided, otherwise use tile center
+  let x, y;
+  if (opts.customPosition) {
+    x = opts.customPosition.x;
+    y = opts.customPosition.y;
+  } else {
+    const center = centerInBoard(board, tile, baseTile);
+    x = center.x;
+    y = center.y;
+  }
+  
+  // Track particles for cleanup
+  const particlesInBatch = [];
+  
+  // 🔥 USER REQUEST: Spawn same number of particles as before (20 particles at intensity 1.0)
+  // Use pattern data for properties but spawn consistent number of particles
+  const baseParticleCount = 20; // Same as original (before template system)
+  const particleCount = Math.max(1, Math.round(baseParticleCount * intensity));
+  
+  console.log('🧲 wildMagnetDragParticlesTemplated: Spawning particles', {
+    baseParticleCount,
+    intensity,
+    particleCount,
+    patternName: patternInfo.patternName,
+    patternDataLength: patternData.length,
+    colorsCount: colors.length
+  });
+  
+  for (let i = 0; i < particleCount; i++) {
+    // Select a random particle definition from the pattern (for variety)
+    const particleDef = patternData[Math.floor(Math.random() * patternData.length)];
+    
+    // 🔥 POOLING: Acquire Graphics from pattern-specific pool
+    const particle = pool.acquire();
+    
+    // Clear and reset
+    particle.clear();
+    __globalGraphicsObjects.add(particle);
+    
+    // Get color from palette
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    
+    // 🔥 USER REQUEST: Detect if this is idle particles (intensity < 0.5)
+    const isIdle = intensity < 0.5;
+    
+    // Use pattern-defined size (with some randomization for variety)
+    // 🔥 USER REQUEST: For idle particles (intensity < 0.5), use original size; for drag, use 50% smaller
+    const sizeMultiplier = isIdle ? (particleDef.size || 1.0) : (particleDef.size || 1.0) * 0.5;
+    const baseWidth = (12 + Math.random() * 12) * sizeMultiplier;
+    const baseHeight = (16 + Math.random() * 16) * sizeMultiplier;
+    
+    // Draw rectangular particle (wild-magnet style)
+    particle.rect(-baseWidth/2, -baseHeight/2, baseWidth, baseHeight)
+           .fill({ color, alpha: particleDef.alpha || intensity });
+    
+    // 🔥 CRITICAL: Ensure particle is visible
+    particle.visible = true;
+    particle.alpha = particleDef.alpha || intensity;
+    particle.eventMode = 'none';
+    particle.cursor = 'default';
+    try { particle.interactiveChildren = false; } catch {}
+    
+    // Use pattern-defined angle and distance (with spread multiplier)
+    const angle = (particleDef.angle * Math.PI) / 180;
+    const distance = particleDef.distance * baseTile * (params.spread || 0.7);
+    
+    particle.x = x + Math.cos(angle) * distance;
+    particle.y = y + Math.sin(angle) * distance;
+    particle.rotation = Math.random() * Math.PI * 2;
+    
+    // Z-INDEX handling
+    if (opts.zIndex != null) {
+      particle.zIndex = opts.zIndex;
+    } else {
+      const tileZ = tile?.zIndex ?? 0;
+      particle.zIndex = tileZ + 0.001;
+    }
+    
+    board.addChild(particle);
+    particlesInBatch.push(particle);
+    
+    // Sort children to ensure correct zIndex order
+    try {
+      board.sortChildren?.();
+    } catch {}
+    
+    // Animate particle (use pattern-defined speed)
+    // 🔥 USER REQUEST: For idle particles, use longer duration and slower fade
+    const baseTravelDur = params.travelDuration || 0.3;
+    const travelDur = isIdle 
+      ? 2.5 * (particleDef.speed || 1.0)  // 2.5 seconds for idle particles
+      : baseTravelDur * (particleDef.speed || 1.0);  // Original duration for drag
+    
+    const endAngle = angle + (Math.random() - 0.5) * 1.0;
+    const endDistance = distance * (1.5 + Math.random() * 0.5);
+    const endX = x + Math.cos(endAngle) * endDistance;
+    const endY = y + Math.sin(endAngle) * endDistance;
+    
+    // 🔥 USER REQUEST: For idle particles, fade slower and don't fade to 0 completely
+    const targetAlpha = isIdle ? 0.1 : 0;  // Idle particles fade to 10% opacity, not 0
+    const fadeStartDelay = isIdle ? travelDur * 0.6 : 0;  // Start fading later for idle
+    
+    gsap.to(particle, {
+      x: endX,
+      y: endY,
+      rotation: particle.rotation + (Math.random() - 0.5) * Math.PI * 2,
+      duration: travelDur,
+      ease: 'power1.out',
+      onComplete: () => {
+        try {
+          if (particle?.parent) {
+            particle.parent.removeChild(particle);
+          }
+          __globalGraphicsObjects.delete(particle);
+          pool.release(particle); // 🔥 CRITICAL: Release to pattern-specific pool
+        } catch (err) {
+          console.warn('⚠️ Error cleaning up drag particle:', err);
+        }
+      }
+    });
+    
+      // 🔥 USER REQUEST: Separate fade animation for idle particles (slower fade)
+      if (isIdleFallback) {
+      gsap.to(particle, {
+        alpha: targetAlpha,
+        duration: travelDur * 0.4,  // Fade over last 40% of animation
+        delay: fadeStartDelay,
+        ease: 'power1.out'
+      });
+    } else {
+      // Drag particles fade immediately
+      gsap.to(particle, {
+        alpha: 0,
+        duration: travelDur,
+        ease: 'power1.out'
+      });
+    }
+  }
+  
+  // Cleanup after TTL (longer for idle particles)
+  const baseTtl = params.ttl || 0.6;
+  const ttl = (intensity < 0.5) ? 3.5 : baseTtl;  // 🔥 USER REQUEST: 3.5 seconds for idle, original for drag
+  gsap.delayedCall(ttl, () => {
+    particlesInBatch.forEach((particle) => {
+      try {
+        gsap.killTweensOf(particle);
+        gsap.killTweensOf(particle.x);
+        gsap.killTweensOf(particle.y);
+        gsap.killTweensOf(particle.alpha);
+        gsap.killTweensOf(particle.rotation);
+        
+        if (particle?.parent) {
+          particle.parent.removeChild(particle);
+        }
+        __globalGraphicsObjects.delete(particle);
+        pool.release(particle); // 🔥 CRITICAL: Release to pattern-specific pool
+      } catch (err) {
+        console.warn('⚠️ Error cleaning up drag particle in delayed cleanup:', err);
+      }
+    });
+  });
+}
+
 export function magicSparklesAtTile(board, tile, opts = {}){
-  if (!board || !tile) return;
+  if (!board || !tile) {
+    console.warn('⚠️ magicSparklesAtTile: Missing board or tile', { board: !!board, tile: !!tile });
+    return;
+  }
 
   // Use custom position if provided (for hero image on slide), otherwise use tile center
   let x, y;
@@ -549,55 +842,122 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   const shardCount = Math.max(1, Math.round(baseShardCount * intensity)); // Scale shard count by intensity (50% = 10 shards, 100% = 20 shards)
   const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
   
-  // 🔥 CRITICAL: For wild-magnet, add red color #F26034 to sparkles
-  // 🔥 USER REQUEST: For wild-beer, use new smoke colors: FBD295 / F9BE9C / F6E6C8 / F99D77
-  const isWildMagnet = tile?.special === 'wild-magnet';
-  const isWildBeer = tile?.special === 'wild-beer';
-  const baseColors = [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0];
+  // 🔥 TEMPLATE-BASED: Get drag particle colors from active template (wooden style)
+  // This ensures consistent colors across all effects and allows easy theming
+  // Wild star (wild): Yellow colors (#FFCB47 and yellow shades) - ORIGINAL COLOR
+  // Wild beer: Orange colors (FBD295 / F9BE9C / F6E6C8 / F99D77) - ORIGINAL COLOR
+  // Wild magnet: Red colors (#F26034 and red shades) - ORIGINAL COLOR
+  // Default: Beige/cream colors for regular tiles
   let colors;
-  if (isWildMagnet) {
-    colors = [...baseColors, 0xF26034]; // Add red color for wild-magnet
-  } else if (isWildBeer) {
-    colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; // 🔥 USER REQUEST: New smoke colors for wild-beer drag
-  } else {
-    colors = baseColors; // Default colors for other tiles
+  const tileSpecial = tile?.special || null;
+  
+  // 🔥 DEBUG: Log particle creation for wild tiles
+  if (tileSpecial === 'wild' || tileSpecial === 'wild-beer' || tileSpecial === 'wild-magnet') {
+    console.log(`✨ magicSparklesAtTile: Creating ${shardCount} particles for ${tileSpecial} at (${x.toFixed(1)}, ${y.toFixed(1)}), intensity=${intensity}`);
+  }
+  
+  try {
+    colors = getDragParticleColors(tileSpecial);
+    if (!colors || !Array.isArray(colors) || colors.length === 0) {
+      console.error(`❌ getDragParticleColors returned empty/invalid array for ${tileSpecial}`);
+      // 🔥 CRITICAL FIX: Use correct fallback based on tile type, NOT white!
+      if (tileSpecial === 'wild-beer') {
+        colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; // Orange palette for beer
+        console.warn(`⚠️ Using hardcoded orange fallback for wild-beer`);
+      } else if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {
+        colors = [0xFFCB47, 0xFFD966, 0xFFE699, 0xFFF0B3, 0xFFF5CC]; // Yellow palette for wild star
+        console.warn(`⚠️ Using hardcoded yellow fallback for wild`);
+      } else if (tileSpecial === 'wild-magnet') {
+        colors = [0xF26034, 0xF57A5A, 0xF89480, 0xFBAEA6, 0xFDC8CC]; // Red palette for magnet
+        console.warn(`⚠️ Using hardcoded red fallback for wild-magnet`);
+      } else {
+        colors = [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0]; // Beige/cream for regular
+        console.warn(`⚠️ Using beige/cream fallback for ${tileSpecial || 'regular'}`);
+      }
+    }
+  } catch (err) {
+    console.error('❌ Failed to get drag particle colors from template:', err);
+    // 🔥 CRITICAL FIX: Use correct fallback based on tile type, NOT white!
+    if (tileSpecial === 'wild-beer') {
+      colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; // Orange palette for beer
+    } else if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {
+      colors = [0xFFCB47, 0xFFD966, 0xFFE699, 0xFFF0B3, 0xFFF5CC]; // Yellow palette for wild star
+    } else if (tileSpecial === 'wild-magnet') {
+      colors = [0xF26034, 0xF57A5A, 0xF89480, 0xFBAEA6, 0xFDC8CC]; // Red palette for magnet
+    } else {
+      colors = [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0]; // Beige/cream for regular
+    }
+  }
+  
+  // 🔥 CRITICAL: Ensure colors array is valid and not empty - NEVER use white fallback!
+  if (!colors || !Array.isArray(colors) || colors.length === 0) {
+    console.error(`❌ CRITICAL: Invalid colors array for ${tileSpecial}, using appropriate fallback`);
+    if (tileSpecial === 'wild-beer') {
+      colors = [0xF99D77]; // At least use orange for beer
+    } else if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {
+      colors = [0xFFCB47]; // At least use yellow for wild star
+    } else if (tileSpecial === 'wild-magnet') {
+      colors = [0xF26034]; // At least use red for magnet
+    } else {
+      colors = [0xF4EEE7]; // At least use beige for regular
+    }
   }
   
   for (let i = 0; i < shardCount; i++) {
     // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics
     const shard = graphicsPool.acquire();
     
+    // 🔥 CRITICAL: Clear any previous drawing commands before reuse
+    shard.clear();
+    
+    // 🔥 CRITICAL: Reset all properties to ensure clean state (no blend mode, no tint, etc.)
+    shard.tint = 0xFFFFFF; // Reset tint to white (no color modification)
+    shard.blendMode = 'normal'; // Ensure normal blend mode
+    shard.alpha = 1.0; // Reset alpha before drawing
+    
     // 🔥 MEMORY LEAK FIX: Track Graphics object
     __globalGraphicsObjects.add(shard);
     
-    // Wild cube shard colors (with red for wild-magnet)
+    // Wild cube shard colors
     const color = colors[Math.floor(Math.random() * colors.length)];
     
-    // Size multiplier support (200x for magnet particles)
+    // 🔥 DEBUG: Log first few particles for wild-magnet to verify colors
+    const isWildMagnet = tile?.special === 'wild-magnet';
+    if (isWildMagnet && i < 3) {
+      console.log(`🧲 Particle ${i}: color=0x${color.toString(16).toUpperCase()}, intensity=${intensity}, tile.special=${tile?.special}`);
+    }
+    
+    // Size multiplier support
     const sizeMultiplier = opts.sizeMultiplier ?? 1;
     
     // 🔥 USER REQUEST: Wild beer uses circles instead of rectangles for smoke trail
     const isWildBeer = tile?.special === 'wild-beer';
     
+    // 🔥 CRITICAL: Calculate alpha BEFORE drawing (intensity controls opacity)
+    const fillAlpha = intensity; // Direct opacity value for fill
+    
     if (isWildBeer) {
       // Wild beer: use circles (bubbles-like particles)
       const baseRadius = 8 + Math.random() * 8; // 8-16px base radius
       const radius = baseRadius * sizeMultiplier; // Scale by multiplier
-      const alpha = intensity; // Direct opacity value
       
       shard.circle(0, 0, radius)
-           .fill({ color: color, alpha: alpha });
+           .fill({ color: color, alpha: fillAlpha });
     } else {
       // Other tiles: use rectangular shards (original behavior)
-    const baseWidth = 12 + Math.random() * 12; // 12-24px base
-    const baseHeight = 16 + Math.random() * 16; // 16-32px base
-    const width = baseWidth * sizeMultiplier; // Scale by multiplier (200x for magnet)
-    const height = baseHeight * sizeMultiplier; // Scale by multiplier (200x for magnet)
-      const alpha = intensity; // Direct opacity value
+      const baseWidth = 12 + Math.random() * 12; // 12-24px base
+      const baseHeight = 16 + Math.random() * 16; // 16-32px base
+      const width = baseWidth * sizeMultiplier; // Scale by multiplier
+      const height = baseHeight * sizeMultiplier; // Scale by multiplier
     
-    shard.rect(-width/2, -height/2, width, height)
-         .fill({ color: color, alpha: alpha }); // Scale opacity by intensity
+      shard.rect(-width/2, -height/2, width, height)
+           .fill({ color: color, alpha: fillAlpha }); // Use fillAlpha, not intensity directly
     }
+    
+    // 🔥 CRITICAL: Ensure shard is visible and has correct properties
+    shard.visible = true;
+    // 🔥 CRITICAL: Don't override fill alpha - let GSAP animate it from fillAlpha to 0
+    shard.alpha = fillAlpha; // Start at fillAlpha (not 1.0), so intensity is respected
     
     // 🔥 CRITICAL: Set eventMode to 'none' to prevent particles from blocking touch events
     // This is especially important for wild-magnet idle particles that spawn continuously
@@ -4478,7 +4838,19 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
   const { x, y } = centerInBoard(board, tile, tileSize);
   
   for (let i = 0; i < count; i++) {
-    const puff = new Graphics();
+    // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics (same as wild tiles)
+    const puff = graphicsPool.acquire();
+    
+    // 🔥 CRITICAL: Clear any previous drawing commands before reuse
+    puff.clear();
+    
+    // 🔥 CRITICAL: Reset all properties to ensure clean state (no blend mode, no tint, etc.)
+    puff.tint = 0xFFFFFF; // Reset tint to white (no color modification)
+    puff.blendMode = 'normal'; // Ensure normal blend mode
+    puff.alpha = 1.0; // Reset alpha before drawing
+    
+    // 🔥 MEMORY LEAK FIX: Track Graphics object
+    __globalGraphicsObjects.add(puff);
     
     // Mix of small (3-6px), medium (4-10px), and large (5-13px) particles
     const rand = Math.random();
@@ -4490,8 +4862,25 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
     } else {
       radius = 5 + Math.random() * 8; // Large: 5-13px
     }
-    // Mix of white and cream colors
-    const colors = [0xFFFFFF, 0xECD7C2];
+    // 🔥 TEMPLATE-BASED: Get drag particle colors from active template (wooden style)
+    // Regular tiles use beige/cream palette from template
+    let colors;
+    try {
+      colors = getDragParticleColors(null); // null = regular tiles
+      if (!colors || !Array.isArray(colors) || colors.length === 0) {
+        console.warn('⚠️ getDragParticleColors returned empty/invalid array for regular, using fallback');
+        colors = [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0]; // Beige/cream fallback
+      }
+    } catch (err) {
+      console.error('❌ Failed to get drag particle colors from template:', err);
+      colors = [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0]; // Beige/cream fallback
+    }
+    
+    // 🔥 CRITICAL: Ensure colors array is valid
+    if (!colors || !Array.isArray(colors) || colors.length === 0) {
+      colors = [0xF4EEE7]; // At least use beige
+    }
+    
     const color = colors[Math.floor(Math.random() * colors.length)];
     puff.circle(0, 0, radius).fill({ color: color, alpha: 0.8 });
     puff.alpha = 0.8; // Set initial alpha to 0.8
@@ -4531,8 +4920,11 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
         try {
           if (puff && puff.parent) {
             puff.parent.removeChild(puff);
-            puff.destroy();
           }
+          // 🔥 MEMORY LEAK FIX: Remove from tracker
+          __globalGraphicsObjects.delete(puff);
+          // 🔥 OBJECT POOLING: Release back to pool instead of destroying
+          graphicsPool.release(puff);
         } catch {}
       }
     });
@@ -5077,9 +5469,16 @@ export function startMagnetIdleParticles(tile) {
   const generateParticles = () => {
     if (!tile || tile.destroyed) return;
     try {
-      // Use normal size particles (no sizeMultiplier) - same as drag smoke effect
+      // 🔥 CRITICAL: Ensure tile.special is set to 'wild-magnet' for correct color retrieval
+      if (!tile.special || tile.special !== 'wild-magnet') {
+        console.warn('⚠️ startMagnetIdleParticles: tile.special is not "wild-magnet", setting it now');
+        tile.special = 'wild-magnet';
+      }
+      
+      // Use normal size particles (no sizeMultiplier) - same as drag smoke effect (v78 style)
+      // 🔥 USER REQUEST: Increased alpha for idle particles to make them more visible
       magicSparklesAtTile(board, tile, { 
-        intensity: 0.24 // 24% intensity (normal size, like drag smoke)
+        intensity: 0.45 // 45% intensity (increased from 24% for better visibility)
       });
     } catch (err) {
       console.warn('Magnet idle particles error:', err);

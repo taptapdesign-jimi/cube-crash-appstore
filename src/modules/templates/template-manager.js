@@ -184,6 +184,47 @@ export function getColor(colorType) {
 }
 
 /**
+ * Get drag particle colors for a tile type
+ * @param {string} tileSpecial - 'wild', 'wild-beer', 'wild-magnet', or null for regular
+ * @returns {number[]} Array of color hex values
+ */
+export function getDragParticleColors(tileSpecial) {
+  if (!activeTemplate) {
+    console.error('❌ getDragParticleColors: No active template set');
+    return [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0]; // Default beige/cream
+  }
+  
+  // Map tile special to template color key
+  let colorKey = 'regular'; // Default
+  if (tileSpecial === 'wild') {
+    colorKey = 'wild';
+  } else if (tileSpecial === 'wild-beer') {
+    colorKey = 'wildBeer';
+  } else if (tileSpecial === 'wild-magnet') {
+    colorKey = 'wildMagnet';
+  }
+  
+  // Get colors from template's dragParticleColors
+  const colors = activeTemplate.dragParticleColors?.[colorKey];
+  
+  if (!colors || !Array.isArray(colors) || colors.length === 0) {
+    console.warn(`⚠️ getDragParticleColors: No drag particle colors found for ${colorKey} (tileSpecial: ${tileSpecial}), using default`);
+    return [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0]; // Default beige/cream
+  }
+  
+  // 🔥 DEBUG: Log color retrieval (only first time per tile type to avoid spam)
+  if (!globalThis.__dragParticleColorLogs) {
+    globalThis.__dragParticleColorLogs = new Set();
+  }
+  if (!globalThis.__dragParticleColorLogs.has(colorKey)) {
+    console.log(`✅ getDragParticleColors: Loaded ${colors.length} colors for ${colorKey} (${tileSpecial}):`, colors.map(c => `0x${c.toString(16).toUpperCase()}`).join(', '));
+    globalThis.__dragParticleColorLogs.add(colorKey);
+  }
+  
+  return colors;
+}
+
+/**
  * Get parameters for a merge type
  * @param {string} mergeType - 'regular' or 'wild'
  * @returns {object} Parameters object

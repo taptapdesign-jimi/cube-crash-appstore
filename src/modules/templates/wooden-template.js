@@ -15,6 +15,23 @@ export const woodenColors = {
   smoke: 0xFFFFFF        // White smoke for wild effects
 };
 
+// 🎨 Wooden Drag Particle Colors (for drag smoke trail)
+// Each wild tile type has its own color palette for drag particles
+export const woodenDragParticleColors = {
+  // Regular tiles: Beige/cream palette (default)
+  regular: [0xF4EEE7, 0xFBE3C5, 0xECD7C2, 0xE5C7AD, 0xFADEC0],
+  
+  // Wild star (wild): Yellow palette - ORIGINAL COLOR
+  wild: [0xFFCB47, 0xFFD966, 0xFFE699, 0xFFF0B3, 0xFFF5CC],
+  wildStar: [0xFFCB47, 0xFFD966, 0xFFE699, 0xFFF0B3, 0xFFF5CC], // Alias for wild
+  
+  // Wild beer: Orange palette - ORIGINAL COLOR
+  wildBeer: [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77],
+  
+  // Wild magnet: Red palette - ORIGINAL COLOR
+  wildMagnet: [0xF26034, 0xF57A5A, 0xF89480, 0xFBAEA6, 0xFDC8CC]
+};
+
 // 📐 Wooden Shard Patterns
 // Each pattern defines exact positions, angles, and properties for shards
 // This allows for reliable pooling and consistent visual quality
@@ -528,6 +545,90 @@ export const woodenPatternWildBeerOrganic5 = [
 ];
 
 /**
+ * 🧲 WILD MAGNET DRAG PATTERN 1: "Organic Trail" - For wild magnet drag particles
+ * Perfect for: Wild magnet drag and idle particles
+ * Particles: 20 particles with organic, varied distribution
+ */
+export const woodenPatternWildMagnetDrag1 = [
+  { angle: 0,   distance: 0.10, size: 1.0, speed: 1.0, alpha: 1.0 },
+  { angle: 18,  distance: 0.12, size: 0.9, speed: 1.1, alpha: 1.0 },
+  { angle: 36,  distance: 0.11, size: 1.1, speed: 0.9, alpha: 1.0 },
+  { angle: 54,  distance: 0.13, size: 0.8, speed: 1.2, alpha: 1.0 },
+  { angle: 72,  distance: 0.09, size: 1.2, speed: 1.05, alpha: 1.0 },
+  { angle: 90,  distance: 0.14, size: 0.95, speed: 0.95, alpha: 1.0 },
+  { angle: 108, distance: 0.08, size: 1.15, speed: 1.15, alpha: 1.0 },
+  { angle: 126, distance: 0.15, size: 0.85, speed: 1.0, alpha: 1.0 },
+  { angle: 144, distance: 0.10, size: 1.05, speed: 1.1, alpha: 1.0 },
+  { angle: 162, distance: 0.12, size: 0.9, speed: 0.9, alpha: 1.0 },
+  { angle: 180, distance: 0.11, size: 1.1, speed: 1.2, alpha: 1.0 },
+  { angle: 198, distance: 0.13, size: 0.8, speed: 1.0, alpha: 1.0 },
+  { angle: 216, distance: 0.09, size: 1.2, speed: 1.05, alpha: 1.0 },
+  { angle: 234, distance: 0.14, size: 0.95, speed: 0.95, alpha: 1.0 },
+  { angle: 252, distance: 0.08, size: 1.15, speed: 1.15, alpha: 1.0 },
+  { angle: 270, distance: 0.15, size: 0.85, speed: 1.0, alpha: 1.0 },
+  { angle: 288, distance: 0.10, size: 1.05, speed: 1.1, alpha: 1.0 },
+  { angle: 306, distance: 0.12, size: 0.9, speed: 0.9, alpha: 1.0 },
+  { angle: 324, distance: 0.11, size: 1.1, speed: 1.2, alpha: 1.0 },
+  { angle: 342, distance: 0.13, size: 0.8, speed: 1.0, alpha: 1.0 }
+];
+
+/**
+ * 🧲 WILD MAGNET DRAG PATTERN 2: "Scattered Burst" - For wild magnet drag particles
+ * Perfect for: Wild magnet drag and idle particles (alternative pattern)
+ * Particles: 18 particles with scattered, chaotic distribution
+ */
+export const woodenPatternWildMagnetDrag2 = [
+  { angle: 15,  distance: 0.12, size: 1.1, speed: 1.1, alpha: 1.0 },
+  { angle: 45,  distance: 0.08, size: 0.9, speed: 0.95, alpha: 1.0 },
+  { angle: 75,  distance: 0.15, size: 1.2, speed: 1.2, alpha: 1.0 },
+  { angle: 105, distance: 0.10, size: 1.0, speed: 1.0, alpha: 1.0 },
+  { angle: 135, distance: 0.13, size: 0.85, speed: 1.15, alpha: 1.0 },
+  { angle: 165, distance: 0.09, size: 1.15, speed: 0.9, alpha: 1.0 },
+  { angle: 195, distance: 0.14, size: 1.05, speed: 1.1, alpha: 1.0 },
+  { angle: 225, distance: 0.11, size: 0.95, speed: 1.05, alpha: 1.0 },
+  { angle: 255, distance: 0.12, size: 1.1, speed: 0.95, alpha: 1.0 },
+  { angle: 285, distance: 0.08, size: 0.9, speed: 1.2, alpha: 1.0 },
+  { angle: 315, distance: 0.15, size: 1.2, speed: 1.0, alpha: 1.0 },
+  { angle: 345, distance: 0.10, size: 1.0, speed: 1.1, alpha: 1.0 },
+  { angle: 30,  distance: 0.13, size: 0.85, speed: 1.15, alpha: 1.0 },
+  { angle: 60,  distance: 0.09, size: 1.15, speed: 0.9, alpha: 1.0 },
+  { angle: 120, distance: 0.14, size: 1.05, speed: 1.1, alpha: 1.0 },
+  { angle: 150, distance: 0.11, size: 0.95, speed: 1.05, alpha: 1.0 },
+  { angle: 240, distance: 0.12, size: 1.1, speed: 0.95, alpha: 1.0 },
+  { angle: 300, distance: 0.08, size: 0.9, speed: 1.2, alpha: 1.0 }
+];
+
+/**
+ * 🧲 WILD MAGNET DRAG PATTERN 3: "Radial Flow" - For wild magnet drag particles
+ * Perfect for: Wild magnet drag and idle particles (alternative pattern)
+ * Particles: 22 particles with radial, flowing distribution
+ */
+export const woodenPatternWildMagnetDrag3 = [
+  { angle: 0,   distance: 0.10, size: 1.0, speed: 1.0, alpha: 1.0 },
+  { angle: 16,  distance: 0.12, size: 0.95, speed: 1.05, alpha: 1.0 },
+  { angle: 32,  distance: 0.11, size: 1.05, speed: 0.95, alpha: 1.0 },
+  { angle: 48,  distance: 0.13, size: 0.9, speed: 1.1, alpha: 1.0 },
+  { angle: 64,  distance: 0.09, size: 1.1, speed: 1.0, alpha: 1.0 },
+  { angle: 80,  distance: 0.14, size: 0.85, speed: 1.15, alpha: 1.0 },
+  { angle: 96,  distance: 0.08, size: 1.15, speed: 0.9, alpha: 1.0 },
+  { angle: 112, distance: 0.15, size: 1.0, speed: 1.2, alpha: 1.0 },
+  { angle: 128, distance: 0.10, size: 0.9, speed: 1.05, alpha: 1.0 },
+  { angle: 144, distance: 0.12, size: 1.1, speed: 0.95, alpha: 1.0 },
+  { angle: 160, distance: 0.11, size: 0.95, speed: 1.1, alpha: 1.0 },
+  { angle: 176, distance: 0.13, size: 1.05, speed: 1.0, alpha: 1.0 },
+  { angle: 192, distance: 0.09, size: 0.9, speed: 1.15, alpha: 1.0 },
+  { angle: 208, distance: 0.14, size: 1.1, speed: 0.9, alpha: 1.0 },
+  { angle: 224, distance: 0.08, size: 0.95, speed: 1.2, alpha: 1.0 },
+  { angle: 240, distance: 0.15, size: 1.0, speed: 1.05, alpha: 1.0 },
+  { angle: 256, distance: 0.10, size: 0.9, speed: 0.95, alpha: 1.0 },
+  { angle: 272, distance: 0.12, size: 1.1, speed: 1.1, alpha: 1.0 },
+  { angle: 288, distance: 0.11, size: 0.85, speed: 1.0, alpha: 1.0 },
+  { angle: 304, distance: 0.13, size: 1.15, speed: 1.15, alpha: 1.0 },
+  { angle: 320, distance: 0.09, size: 0.95, speed: 0.9, alpha: 1.0 },
+  { angle: 336, distance: 0.14, size: 1.05, speed: 1.2, alpha: 1.0 }
+];
+
+/**
  * Pattern 2: "BURST" - Vertical emphasis, upward burst
  * Perfect for: Regular merge 6 (alternative pattern)
  * Shards: 12 shards with vertical emphasis
@@ -653,7 +754,10 @@ export const woodenPatternMap = {
   wildStar: ['wildStarOrganic1', 'wildStarOrganic2', 'wildStarOrganic3', 'wildStarOrganic4', 'wildStarOrganic5'],
   
   // Wild beer merge 6 (wild-beer + ordinary) - use 5 organic patterns (juice, bubbly, fizzy, splash, foam)
-  wildBeer: ['wildBeerOrganic1', 'wildBeerOrganic2', 'wildBeerOrganic3', 'wildBeerOrganic4', 'wildBeerOrganic5']
+  wildBeer: ['wildBeerOrganic1', 'wildBeerOrganic2', 'wildBeerOrganic3', 'wildBeerOrganic4', 'wildBeerOrganic5'],
+  
+  // Wild-magnet drag particles (during drag and idle) - use 3 organic patterns for variety
+  wildMagnetDrag: ['wildMagnetDrag1', 'wildMagnetDrag2', 'wildMagnetDrag3']
 };
 
 // ⚙️ Wooden Parameters - Base parameters for different merge types
@@ -790,6 +894,30 @@ export const woodenParams = {
     // Visual effects
     enhanced: true,
     intensity: 1.35
+  },
+  
+  wildMagnetDrag: {
+    // Visual
+    lineWidth: 2.5,
+    lineAlpha: 1.0,              // 100% opacity
+    
+    // Animation timing
+    travelDuration: 0.3,
+    speed: 1.0,
+    vanishDelay: 0.0,
+    vanishJitter: 0.02,
+    ttl: 0.6,                    // Shorter TTL for drag particles (they fade quickly)
+    
+    // Physics
+    tileSize: 96,
+    baseTile: 96,
+    spread: 1.12,                 // 🔥 USER REQUEST: 60% more spread (0.7 * 1.6 = 1.12) - particles more spread out from center
+    radiusBoost: 1.0,
+    distanceMultiplier: 1.0,
+    
+    // Visual effects
+    enhanced: true,
+    intensity: 1.0
   }
 };
 
@@ -798,6 +926,7 @@ export const woodenTemplate = {
   name: 'wooden',
   displayName: '🪵 Wooden (Original)',
   colors: woodenColors,
+  dragParticleColors: woodenDragParticleColors, // 🔥 NEW: Drag particle color palettes
   patterns: {
     explosion: woodenPatternExplosion,
     burst: woodenPatternBurst,
@@ -819,7 +948,10 @@ export const woodenTemplate = {
     wildBeerOrganic2: woodenPatternWildBeerOrganic2,
     wildBeerOrganic3: woodenPatternWildBeerOrganic3,
     wildBeerOrganic4: woodenPatternWildBeerOrganic4,
-    wildBeerOrganic5: woodenPatternWildBeerOrganic5
+    wildBeerOrganic5: woodenPatternWildBeerOrganic5,
+    wildMagnetDrag1: woodenPatternWildMagnetDrag1,
+    wildMagnetDrag2: woodenPatternWildMagnetDrag2,
+    wildMagnetDrag3: woodenPatternWildMagnetDrag3
   },
   patternMap: woodenPatternMap,
   params: woodenParams
