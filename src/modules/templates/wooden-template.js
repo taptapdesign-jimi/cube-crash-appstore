@@ -34,12 +34,12 @@ export const woodenPatternExplosion = [
   { angle: 300, distance: 0.08, size: 1.2, speed: 0.95, alpha: 1.0 },
   
   // Ring 2: Outer circle (6 shards) - 🔥 FIX: Increased distances to match non-templated maxDistance
-  { angle: 30,  distance: 0.20, size: 1.0, speed: 1.1, alpha: 0.95 },
-  { angle: 90,  distance: 0.24, size: 1.1, speed: 1.15, alpha: 0.9 },
-  { angle: 150, distance: 0.18, size: 0.9, speed: 1.0, alpha: 0.95 },
-  { angle: 210, distance: 0.22, size: 1.0, speed: 1.1, alpha: 0.9 },
-  { angle: 270, distance: 0.20, size: 1.1, speed: 1.05, alpha: 0.95 },
-  { angle: 330, distance: 0.23, size: 0.95, speed: 1.1, alpha: 0.9 }
+  { angle: 30,  distance: 0.20, size: 1.0, speed: 1.1, alpha: 1.0 },
+  { angle: 90,  distance: 0.24, size: 1.1, speed: 1.15, alpha: 1.0 },
+  { angle: 150, distance: 0.18, size: 0.9, speed: 1.0, alpha: 1.0 },
+  { angle: 210, distance: 0.22, size: 1.0, speed: 1.1, alpha: 1.0 },
+  { angle: 270, distance: 0.20, size: 1.1, speed: 1.05, alpha: 1.0 },
+  { angle: 330, distance: 0.23, size: 0.95, speed: 1.1, alpha: 1.0 }
 ];
 
 /**
@@ -54,27 +54,27 @@ export const woodenPatternWildMagnetOrganic1 = [
   // Top-right cluster (dense, organic variation) - OSCILLATING distances (40%+ increase)
   { angle: 22,  distance: 0.059, size: 1.5, speed: 0.88, alpha: 1.0 },  // 🔥 Close (0.042 * 1.4 = 0.059)
   { angle: 33,  distance: 0.216, size: 1.1, speed: 1.02, alpha: 1.0 },  // 🔥 Far (0.154 * 1.4 = 0.216)
-  { angle: 47,  distance: 0.108, size: 1.4, speed: 0.92, alpha: 0.98 }, // 🔥 Close (0.077 * 1.4 = 0.108)
+  { angle: 47,  distance: 0.108, size: 1.4, speed: 0.92, alpha: 1.0 }, // 🔥 Close (0.077 * 1.4 = 0.108)
   { angle: 58,  distance: 0.219, size: 1.0, speed: 1.08, alpha: 1.0 },  // 🔥 Far (0.274 * 0.8 = 0.219, 20% closer)
-  { angle: 28,  distance: 0.078, size: 1.3, speed: 0.95, alpha: 0.99 }, // 🔥 Close (0.056 * 1.4 = 0.078)
+  { angle: 28,  distance: 0.078, size: 1.3, speed: 0.95, alpha: 1.0 }, // 🔥 Close (0.056 * 1.4 = 0.078)
   
   // Bottom-left cluster (dense, organic variation) - OSCILLATING distances (40%+ increase, far ones 20% closer)
   { angle: 202, distance: 0.196, size: 1.3, speed: 0.95, alpha: 1.0 },  // 🔥 Far (0.245 * 0.8 = 0.196, 20% closer)
-  { angle: 213, distance: 0.088, size: 1.2, speed: 1.05, alpha: 0.97 }, // 🔥 Close (0.063 * 1.4 = 0.088)
-  { angle: 228, distance: 0.243, size: 1.5, speed: 0.98, alpha: 0.92 }, // 🔥 Far (0.304 * 0.8 = 0.243, 20% closer)
+  { angle: 213, distance: 0.088, size: 1.2, speed: 1.05, alpha: 1.0 }, // 🔥 Close (0.063 * 1.4 = 0.088)
+  { angle: 228, distance: 0.243, size: 1.5, speed: 0.98, alpha: 1.0 }, // 🔥 Far (0.304 * 0.8 = 0.243, 20% closer)
   { angle: 238, distance: 0.069, size: 1.1, speed: 1.12, alpha: 1.0 },  // 🔥 Close (0.049 * 1.4 = 0.069)
-  { angle: 208, distance: 0.186, size: 1.25, speed: 1.0, alpha: 0.96 }, // 🔥 Mid-far (0.133 * 1.4 = 0.186)
+  { angle: 208, distance: 0.186, size: 1.25, speed: 1.0, alpha: 1.0 }, // 🔥 Mid-far (0.133 * 1.4 = 0.186)
   
   // Sparse scattered shards (organic gaps, OSCILLATING distances) - wide range (40%+ increase, far ones 20% closer)
-  { angle: 97,  distance: 0.251, size: 0.95, speed: 1.18, alpha: 0.88 }, // 🔥 Very far (0.314 * 0.8 = 0.251, 20% closer)
-  { angle: 157, distance: 0.049, size: 1.05, speed: 0.92, alpha: 0.97 }, // 🔥 Very close (0.035 * 1.4 = 0.049)
-  { angle: 277, distance: 0.204, size: 1.15, speed: 1.25, alpha: 0.87 }, // 🔥 Far (0.255 * 0.8 = 0.204, 20% closer)
-  { angle: 318, distance: 0.118, size: 0.98, speed: 1.03, alpha: 0.96 }, // 🔥 Close (0.084 * 1.4 = 0.118)
-  { angle: 8,   distance: 0.227, size: 1.08, speed: 1.15, alpha: 0.89 }, // 🔥 Far (0.284 * 0.8 = 0.227, 20% closer)
-  { angle: 347, distance: 0.098, size: 1.22, speed: 0.96, alpha: 0.98 }, // 🔥 Close (0.070 * 1.4 = 0.098)
-  { angle: 125, distance: 0.274, size: 1.12, speed: 1.08, alpha: 0.93 }, // 🔥 Very far (0.343 * 0.8 = 0.274, 20% closer)
-  { angle: 265, distance: 0.078, size: 1.05, speed: 1.12, alpha: 0.91 }, // 🔥 Close (0.056 * 1.4 = 0.078)
-  { angle: 42,  distance: 0.188, size: 1.18, speed: 0.99, alpha: 0.97 }  // 🔥 Far (0.235 * 0.8 = 0.188, 20% closer)
+  { angle: 97,  distance: 0.251, size: 0.95, speed: 1.18, alpha: 1.0 }, // 🔥 Very far (0.314 * 0.8 = 0.251, 20% closer)
+  { angle: 157, distance: 0.049, size: 1.05, speed: 0.92, alpha: 1.0 }, // 🔥 Very close (0.035 * 1.4 = 0.049)
+  { angle: 277, distance: 0.204, size: 1.15, speed: 1.25, alpha: 1.0 }, // 🔥 Far (0.255 * 0.8 = 0.204, 20% closer)
+  { angle: 318, distance: 0.118, size: 0.98, speed: 1.03, alpha: 1.0 }, // 🔥 Close (0.084 * 1.4 = 0.118)
+  { angle: 8,   distance: 0.227, size: 1.08, speed: 1.15, alpha: 1.0 }, // 🔥 Far (0.284 * 0.8 = 0.227, 20% closer)
+  { angle: 347, distance: 0.098, size: 1.22, speed: 0.96, alpha: 1.0 }, // 🔥 Close (0.070 * 1.4 = 0.098)
+  { angle: 125, distance: 0.274, size: 1.12, speed: 1.08, alpha: 1.0 }, // 🔥 Very far (0.343 * 0.8 = 0.274, 20% closer)
+  { angle: 265, distance: 0.078, size: 1.05, speed: 1.12, alpha: 1.0 }, // 🔥 Close (0.056 * 1.4 = 0.078)
+  { angle: 42,  distance: 0.188, size: 1.18, speed: 0.99, alpha: 1.0 }  // 🔥 Far (0.235 * 0.8 = 0.188, 20% closer)
 ];
 
 /**
@@ -89,30 +89,30 @@ export const woodenPatternWildMagnetOrganic2 = [
   // Random angles (not in clusters) with oscillating distances (40%+ increase)
   { angle: 17,  distance: 0.059, size: 1.4, speed: 0.93, alpha: 1.0 },   // 🔥 Random angle, close (0.042 * 1.4 = 0.059)
   { angle: 73,  distance: 0.212, size: 1.15, speed: 1.08, alpha: 1.0 }, // 🔥 Random angle, far (0.265 * 0.8 = 0.212, 20% closer)
-  { angle: 134, distance: 0.108, size: 1.45, speed: 0.97, alpha: 0.96 }, // 🔥 Random angle, close (0.077 * 1.4 = 0.108)
-  { angle: 201, distance: 0.235, size: 1.05, speed: 1.15, alpha: 0.91 }, // 🔥 Random angle, far (0.294 * 0.8 = 0.235, 20% closer)
+  { angle: 134, distance: 0.108, size: 1.45, speed: 0.97, alpha: 1.0 }, // 🔥 Random angle, close (0.077 * 1.4 = 0.108)
+  { angle: 201, distance: 0.235, size: 1.05, speed: 1.15, alpha: 1.0 }, // 🔥 Random angle, far (0.294 * 0.8 = 0.235, 20% closer)
   { angle: 256, distance: 0.078, size: 1.25, speed: 0.88, alpha: 1.0 },  // 🔥 Random angle, close (0.056 * 1.4 = 0.078)
-  { angle: 312, distance: 0.225, size: 1.3, speed: 1.02, alpha: 0.98 },  // 🔥 Random angle, mid-far (0.161 * 1.4 = 0.225)
+  { angle: 312, distance: 0.225, size: 1.3, speed: 1.02, alpha: 1.0 },  // 🔥 Random angle, mid-far (0.161 * 1.4 = 0.225)
   
   // More random angles - organic spread (40%+ increase, far ones 20% closer)
   { angle: 48,  distance: 0.219, size: 1.18, speed: 0.96, alpha: 1.0 },  // 🔥 Random angle, far (0.274 * 0.8 = 0.219, 20% closer)
-  { angle: 89,  distance: 0.078, size: 1.32, speed: 1.02, alpha: 0.94 }, // 🔥 Random angle, close (0.056 * 1.4 = 0.078)
-  { angle: 156, distance: 0.258, size: 1.08, speed: 1.11, alpha: 0.89 }, // 🔥 Random angle, far (0.323 * 0.8 = 0.258, 20% closer)
+  { angle: 89,  distance: 0.078, size: 1.32, speed: 1.02, alpha: 1.0 }, // 🔥 Random angle, close (0.056 * 1.4 = 0.078)
+  { angle: 156, distance: 0.258, size: 1.08, speed: 1.11, alpha: 1.0 }, // 🔥 Random angle, far (0.323 * 0.8 = 0.258, 20% closer)
   { angle: 223, distance: 0.049, size: 1.22, speed: 0.94, alpha: 1.0 },  // 🔥 Random angle, very close (0.035 * 1.4 = 0.049)
-  { angle: 278, distance: 0.196, size: 1.15, speed: 1.05, alpha: 0.95 }, // 🔥 Random angle, far (0.245 * 0.8 = 0.196, 20% closer)
+  { angle: 278, distance: 0.196, size: 1.15, speed: 1.05, alpha: 1.0 }, // 🔥 Random angle, far (0.245 * 0.8 = 0.196, 20% closer)
   
   // More random angles - continued organic chaos (40%+ increase, far ones 20% closer)
   { angle: 34,  distance: 0.069, size: 1.12, speed: 1.05, alpha: 1.0 },  // 🔥 Random angle, close (0.049 * 1.4 = 0.069)
-  { angle: 107, distance: 0.243, size: 1.25, speed: 0.92, alpha: 0.97 }, // 🔥 Random angle, far (0.304 * 0.8 = 0.243, 20% closer)
+  { angle: 107, distance: 0.243, size: 1.25, speed: 0.92, alpha: 1.0 }, // 🔥 Random angle, far (0.304 * 0.8 = 0.243, 20% closer)
   { angle: 181, distance: 0.088, size: 1.05, speed: 1.18, alpha: 1.0 },  // 🔥 Random angle, close (0.063 * 1.4 = 0.088)
-  { angle: 245, distance: 0.204, size: 1.2, speed: 0.98, alpha: 0.99 },  // 🔥 Random angle, far (0.255 * 0.8 = 0.204, 20% closer)
+  { angle: 245, distance: 0.204, size: 1.2, speed: 0.98, alpha: 1.0 },  // 🔥 Random angle, far (0.255 * 0.8 = 0.204, 20% closer)
   
   // Final random angles - complete organic spread (40%+ increase, far ones 20% closer)
   { angle: 62,  distance: 0.118, size: 1.35, speed: 0.99, alpha: 1.0 },  // 🔥 Random angle, close (0.084 * 1.4 = 0.118)
-  { angle: 129, distance: 0.266, size: 1.08, speed: 1.22, alpha: 0.88 }, // 🔥 Random angle, far (0.333 * 0.8 = 0.266, 20% closer)
-  { angle: 197, distance: 0.059, size: 1.18, speed: 1.03, alpha: 0.95 }, // 🔥 Random angle, close (0.042 * 1.4 = 0.059)
+  { angle: 129, distance: 0.266, size: 1.08, speed: 1.22, alpha: 1.0 }, // 🔥 Random angle, far (0.333 * 0.8 = 0.266, 20% closer)
+  { angle: 197, distance: 0.059, size: 1.18, speed: 1.03, alpha: 1.0 }, // 🔥 Random angle, close (0.042 * 1.4 = 0.059)
   { angle: 264, distance: 0.227, size: 1.28, speed: 0.91, alpha: 1.0 },  // 🔥 Random angle, far (0.284 * 0.8 = 0.227, 20% closer)
-  { angle: 331, distance: 0.098, size: 1.22, speed: 1.08, alpha: 0.93 }  // 🔥 Random angle, close (0.070 * 1.4 = 0.098)
+  { angle: 331, distance: 0.098, size: 1.22, speed: 1.08, alpha: 1.0 }  // 🔥 Random angle, close (0.070 * 1.4 = 0.098)
 ];
 
 /**
@@ -125,24 +125,24 @@ export const woodenPatternWildMagnetOrganic3 = [
   // 🔥 FIX: All distances increased by 40%+ to ensure shards exit multiplier circle
   // Irregular angles and OSCILLATING distances - maximum organic chaos, wide distance range (40%+ increase)
   { angle: 9,   distance: 0.049, size: 1.35, speed: 0.87, alpha: 1.0 },  // 🔥 Very close (0.035 * 1.4 = 0.049)
-  { angle: 35,  distance: 0.251, size: 1.08, speed: 1.12, alpha: 0.96 }, // 🔥 Far (0.314 * 0.8 = 0.251, 20% closer)
+  { angle: 35,  distance: 0.251, size: 1.08, speed: 1.12, alpha: 1.0 }, // 🔥 Far (0.314 * 0.8 = 0.251, 20% closer)
   { angle: 64,  distance: 0.078, size: 1.48, speed: 0.94, alpha: 1.0 },  // 🔥 Close (0.056 * 1.4 = 0.078)
-  { angle: 91,  distance: 0.219, size: 1.18, speed: 1.22, alpha: 0.87 }, // 🔥 Far (0.274 * 0.8 = 0.219, 20% closer)
+  { angle: 91,  distance: 0.219, size: 1.18, speed: 1.22, alpha: 1.0 }, // 🔥 Far (0.274 * 0.8 = 0.219, 20% closer)
   { angle: 115, distance: 0.059, size: 1.05, speed: 0.91, alpha: 1.0 },  // 🔥 Close (0.042 * 1.4 = 0.059)
-  { angle: 144, distance: 0.235, size: 1.25, speed: 1.08, alpha: 0.98 }, // 🔥 Far (0.294 * 0.8 = 0.235, 20% closer)
-  { angle: 171, distance: 0.108, size: 1.32, speed: 1.19, alpha: 0.89 }, // 🔥 Close (0.077 * 1.4 = 0.108)
+  { angle: 144, distance: 0.235, size: 1.25, speed: 1.08, alpha: 1.0 }, // 🔥 Far (0.294 * 0.8 = 0.235, 20% closer)
+  { angle: 171, distance: 0.108, size: 1.32, speed: 1.19, alpha: 1.0 }, // 🔥 Close (0.077 * 1.4 = 0.108)
   { angle: 195, distance: 0.274, size: 1.12, speed: 1.03, alpha: 1.0 },  // 🔥 Very far (0.343 * 0.8 = 0.274, 20% closer)
-  { angle: 224, distance: 0.069, size: 1.42, speed: 0.96, alpha: 0.94 }, // 🔥 Close (0.049 * 1.4 = 0.069)
-  { angle: 248, distance: 0.212, size: 1.02, speed: 1.28, alpha: 0.88 }, // 🔥 Far (0.265 * 0.8 = 0.212, 20% closer)
+  { angle: 224, distance: 0.069, size: 1.42, speed: 0.96, alpha: 1.0 }, // 🔥 Close (0.049 * 1.4 = 0.069)
+  { angle: 248, distance: 0.212, size: 1.02, speed: 1.28, alpha: 1.0 }, // 🔥 Far (0.265 * 0.8 = 0.212, 20% closer)
   { angle: 275, distance: 0.088, size: 1.22, speed: 0.99, alpha: 1.0 }, // 🔥 Close (0.063 * 1.4 = 0.088)
-  { angle: 301, distance: 0.258, size: 1.38, speed: 1.14, alpha: 0.97 }, // 🔥 Far (0.323 * 0.8 = 0.258, 20% closer)
+  { angle: 301, distance: 0.258, size: 1.38, speed: 1.14, alpha: 1.0 }, // 🔥 Far (0.323 * 0.8 = 0.258, 20% closer)
   { angle: 329, distance: 0.039, size: 1.08, speed: 0.89, alpha: 1.0 },   // 🔥 Very close (0.028 * 1.4 = 0.039)
-  { angle: 353, distance: 0.204, size: 1.28, speed: 1.07, alpha: 0.95 }, // 🔥 Far (0.255 * 0.8 = 0.204, 20% closer)
-  { angle: 49,  distance: 0.118, size: 1.15, speed: 1.25, alpha: 0.86 }, // 🔥 Close (0.084 * 1.4 = 0.118)
-  { angle: 19,  distance: 0.243, size: 1.28, speed: 0.93, alpha: 0.99 }, // 🔥 Far (0.304 * 0.8 = 0.243, 20% closer)
-  { angle: 76,  distance: 0.078, size: 1.15, speed: 1.16, alpha: 0.92 }, // 🔥 Close (0.056 * 1.4 = 0.078)
-  { angle: 133, distance: 0.227, size: 1.32, speed: 1.01, alpha: 0.97 }, // 🔥 Far (0.284 * 0.8 = 0.227, 20% closer)
-  { angle: 189, distance: 0.059, size: 1.08, speed: 1.09, alpha: 0.94 }, // 🔥 Close (0.042 * 1.4 = 0.059)
+  { angle: 353, distance: 0.204, size: 1.28, speed: 1.07, alpha: 1.0 }, // 🔥 Far (0.255 * 0.8 = 0.204, 20% closer)
+  { angle: 49,  distance: 0.118, size: 1.15, speed: 1.25, alpha: 1.0 }, // 🔥 Close (0.084 * 1.4 = 0.118)
+  { angle: 19,  distance: 0.243, size: 1.28, speed: 0.93, alpha: 1.0 }, // 🔥 Far (0.304 * 0.8 = 0.243, 20% closer)
+  { angle: 76,  distance: 0.078, size: 1.15, speed: 1.16, alpha: 1.0 }, // 🔥 Close (0.056 * 1.4 = 0.078)
+  { angle: 133, distance: 0.227, size: 1.32, speed: 1.01, alpha: 1.0 }, // 🔥 Far (0.284 * 0.8 = 0.227, 20% closer)
+  { angle: 189, distance: 0.059, size: 1.08, speed: 1.09, alpha: 1.0 }, // 🔥 Close (0.042 * 1.4 = 0.059)
   { angle: 259, distance: 0.266, size: 1.25, speed: 0.96, alpha: 1.0 }   // 🔥 Very far (0.333 * 0.8 = 0.266, 20% closer)
 ];
 
@@ -157,22 +157,22 @@ export const woodenPatternWildMagnetPull1 = [
   // Random angles with oscillating distances (40%+ increase, far ones 20% closer)
   { angle: 14,  distance: 0.049, size: 1.4, speed: 0.93, alpha: 1.0 },   // 🔥 Very close (0.035 * 1.4 = 0.049)
   { angle: 67,  distance: 0.212, size: 1.15, speed: 1.08, alpha: 1.0 },  // 🔥 Far (0.265 * 0.8 = 0.212, 20% closer)
-  { angle: 123, distance: 0.108, size: 1.45, speed: 0.97, alpha: 0.96 }, // 🔥 Close (0.077 * 1.4 = 0.108)
-  { angle: 198, distance: 0.235, size: 1.05, speed: 1.15, alpha: 0.91 },  // 🔥 Far (0.294 * 0.8 = 0.235, 20% closer)
+  { angle: 123, distance: 0.108, size: 1.45, speed: 0.97, alpha: 1.0 }, // 🔥 Close (0.077 * 1.4 = 0.108)
+  { angle: 198, distance: 0.235, size: 1.05, speed: 1.15, alpha: 1.0 },  // 🔥 Far (0.294 * 0.8 = 0.235, 20% closer)
   { angle: 251, distance: 0.078, size: 1.25, speed: 0.88, alpha: 1.0 },  // 🔥 Close (0.056 * 1.4 = 0.078)
-  { angle: 309, distance: 0.225, size: 1.3, speed: 1.02, alpha: 0.98 },  // 🔥 Mid-far (0.161 * 1.4 = 0.225)
+  { angle: 309, distance: 0.225, size: 1.3, speed: 1.02, alpha: 1.0 },  // 🔥 Mid-far (0.161 * 1.4 = 0.225)
   { angle: 45,  distance: 0.196, size: 1.18, speed: 0.96, alpha: 1.0 },  // 🔥 Far (0.274 * 0.8 = 0.196, 20% closer)
-  { angle: 88,  distance: 0.078, size: 1.32, speed: 1.02, alpha: 0.94 }, // 🔥 Close (0.056 * 1.4 = 0.078)
-  { angle: 152, distance: 0.258, size: 1.08, speed: 1.11, alpha: 0.89 }, // 🔥 Far (0.323 * 0.8 = 0.258, 20% closer)
+  { angle: 88,  distance: 0.078, size: 1.32, speed: 1.02, alpha: 1.0 }, // 🔥 Close (0.056 * 1.4 = 0.078)
+  { angle: 152, distance: 0.258, size: 1.08, speed: 1.11, alpha: 1.0 }, // 🔥 Far (0.323 * 0.8 = 0.258, 20% closer)
   { angle: 221, distance: 0.049, size: 1.22, speed: 0.94, alpha: 1.0 },  // 🔥 Very close (0.035 * 1.4 = 0.049)
-  { angle: 275, distance: 0.196, size: 1.15, speed: 1.05, alpha: 0.95 }, // 🔥 Far (0.245 * 0.8 = 0.196, 20% closer)
+  { angle: 275, distance: 0.196, size: 1.15, speed: 1.05, alpha: 1.0 }, // 🔥 Far (0.245 * 0.8 = 0.196, 20% closer)
   { angle: 32,  distance: 0.069, size: 1.12, speed: 1.05, alpha: 1.0 },   // 🔥 Close (0.049 * 1.4 = 0.069)
-  { angle: 104, distance: 0.243, size: 1.25, speed: 0.92, alpha: 0.97 }, // 🔥 Far (0.304 * 0.8 = 0.243, 20% closer)
+  { angle: 104, distance: 0.243, size: 1.25, speed: 0.92, alpha: 1.0 }, // 🔥 Far (0.304 * 0.8 = 0.243, 20% closer)
   { angle: 179, distance: 0.088, size: 1.05, speed: 1.18, alpha: 1.0 },   // 🔥 Close (0.063 * 1.4 = 0.088)
-  { angle: 243, distance: 0.204, size: 1.2, speed: 0.98, alpha: 0.99 },  // 🔥 Far (0.255 * 0.8 = 0.204, 20% closer)
+  { angle: 243, distance: 0.204, size: 1.2, speed: 0.98, alpha: 1.0 },  // 🔥 Far (0.255 * 0.8 = 0.204, 20% closer)
   { angle: 59,  distance: 0.118, size: 1.35, speed: 0.99, alpha: 1.0 },  // 🔥 Close (0.084 * 1.4 = 0.118)
-  { angle: 127, distance: 0.266, size: 1.08, speed: 1.22, alpha: 0.88 }, // 🔥 Far (0.333 * 0.8 = 0.266, 20% closer)
-  { angle: 195, distance: 0.059, size: 1.18, speed: 1.03, alpha: 0.95 }  // 🔥 Close (0.042 * 1.4 = 0.059)
+  { angle: 127, distance: 0.266, size: 1.08, speed: 1.22, alpha: 1.0 }, // 🔥 Far (0.333 * 0.8 = 0.266, 20% closer)
+  { angle: 195, distance: 0.059, size: 1.18, speed: 1.03, alpha: 1.0 }  // 🔥 Close (0.042 * 1.4 = 0.059)
 ];
 
 /**
@@ -185,24 +185,24 @@ export const woodenPatternWildMagnetPull2 = [
   // 🔥 FIX: All distances increased by 40%+ to ensure shards exit multiplier circle
   // Maximum chaos - random angles, oscillating distances (40%+ increase)
   { angle: 7,   distance: 0.039, size: 1.35, speed: 0.87, alpha: 1.0 },   // 🔥 Very close (0.028 * 1.4 = 0.039)
-  { angle: 41,  distance: 0.251, size: 1.08, speed: 1.12, alpha: 0.96 },  // 🔥 Far (0.314 * 0.8 = 0.251, 20% closer)
+  { angle: 41,  distance: 0.251, size: 1.08, speed: 1.12, alpha: 1.0 },  // 🔥 Far (0.314 * 0.8 = 0.251, 20% closer)
   { angle: 78,  distance: 0.078, size: 1.48, speed: 0.94, alpha: 1.0 },   // 🔥 Close (0.056 * 1.4 = 0.078)
-  { angle: 112, distance: 0.219, size: 1.18, speed: 1.22, alpha: 0.87 },  // 🔥 Far (0.274 * 0.8 = 0.219, 20% closer)
+  { angle: 112, distance: 0.219, size: 1.18, speed: 1.22, alpha: 1.0 },  // 🔥 Far (0.274 * 0.8 = 0.219, 20% closer)
   { angle: 146, distance: 0.059, size: 1.05, speed: 0.91, alpha: 1.0 },  // 🔥 Close (0.042 * 1.4 = 0.059)
-  { angle: 183, distance: 0.235, size: 1.25, speed: 1.08, alpha: 0.98 }, // 🔥 Far (0.294 * 0.8 = 0.235, 20% closer)
-  { angle: 217, distance: 0.108, size: 1.32, speed: 1.19, alpha: 0.89 }, // 🔥 Close (0.077 * 1.4 = 0.108)
+  { angle: 183, distance: 0.235, size: 1.25, speed: 1.08, alpha: 1.0 }, // 🔥 Far (0.294 * 0.8 = 0.235, 20% closer)
+  { angle: 217, distance: 0.108, size: 1.32, speed: 1.19, alpha: 1.0 }, // 🔥 Close (0.077 * 1.4 = 0.108)
   { angle: 254, distance: 0.274, size: 1.12, speed: 1.03, alpha: 1.0 },  // 🔥 Very far (0.343 * 0.8 = 0.274, 20% closer)
-  { angle: 289, distance: 0.069, size: 1.42, speed: 0.96, alpha: 0.94 }, // 🔥 Close (0.049 * 1.4 = 0.069)
-  { angle: 326, distance: 0.212, size: 1.02, speed: 1.28, alpha: 0.88 }, // 🔥 Far (0.265 * 0.8 = 0.212, 20% closer)
+  { angle: 289, distance: 0.069, size: 1.42, speed: 0.96, alpha: 1.0 }, // 🔥 Close (0.049 * 1.4 = 0.069)
+  { angle: 326, distance: 0.212, size: 1.02, speed: 1.28, alpha: 1.0 }, // 🔥 Far (0.265 * 0.8 = 0.212, 20% closer)
   { angle: 23,  distance: 0.088, size: 1.22, speed: 0.99, alpha: 1.0 },  // 🔥 Close (0.063 * 1.4 = 0.088)
-  { angle: 56,  distance: 0.258, size: 1.38, speed: 1.14, alpha: 0.97 }, // 🔥 Far (0.323 * 0.8 = 0.258, 20% closer)
+  { angle: 56,  distance: 0.258, size: 1.38, speed: 1.14, alpha: 1.0 }, // 🔥 Far (0.323 * 0.8 = 0.258, 20% closer)
   { angle: 94,  distance: 0.049, size: 1.08, speed: 0.89, alpha: 1.0 },   // 🔥 Very close (0.035 * 1.4 = 0.049)
-  { angle: 131, distance: 0.204, size: 1.28, speed: 1.07, alpha: 0.95 }, // 🔥 Far (0.255 * 0.8 = 0.204, 20% closer)
-  { angle: 168, distance: 0.118, size: 1.15, speed: 1.25, alpha: 0.86 }, // 🔥 Close (0.084 * 1.4 = 0.118)
-  { angle: 205, distance: 0.243, size: 1.28, speed: 0.93, alpha: 0.99 }, // 🔥 Far (0.304 * 0.8 = 0.243, 20% closer)
-  { angle: 242, distance: 0.078, size: 1.15, speed: 1.16, alpha: 0.92 }, // 🔥 Close (0.056 * 1.4 = 0.078)
-  { angle: 278, distance: 0.227, size: 1.32, speed: 1.01, alpha: 0.97 }, // 🔥 Far (0.284 * 0.8 = 0.227, 20% closer)
-  { angle: 315, distance: 0.059, size: 1.08, speed: 1.09, alpha: 0.94 }, // 🔥 Close (0.042 * 1.4 = 0.059)
+  { angle: 131, distance: 0.204, size: 1.28, speed: 1.07, alpha: 1.0 }, // 🔥 Far (0.255 * 0.8 = 0.204, 20% closer)
+  { angle: 168, distance: 0.118, size: 1.15, speed: 1.25, alpha: 1.0 }, // 🔥 Close (0.084 * 1.4 = 0.118)
+  { angle: 205, distance: 0.243, size: 1.28, speed: 0.93, alpha: 1.0 }, // 🔥 Far (0.304 * 0.8 = 0.243, 20% closer)
+  { angle: 242, distance: 0.078, size: 1.15, speed: 1.16, alpha: 1.0 }, // 🔥 Close (0.056 * 1.4 = 0.078)
+  { angle: 278, distance: 0.227, size: 1.32, speed: 1.01, alpha: 1.0 }, // 🔥 Far (0.284 * 0.8 = 0.227, 20% closer)
+  { angle: 315, distance: 0.059, size: 1.08, speed: 1.09, alpha: 1.0 }, // 🔥 Close (0.042 * 1.4 = 0.059)
   { angle: 352, distance: 0.266, size: 1.25, speed: 0.96, alpha: 1.0 }   // 🔥 Very far (0.333 * 0.8 = 0.266, 20% closer)
 ];
 
@@ -217,22 +217,22 @@ export const woodenPatternWildMagnetPull3 = [
   // Scattered organic debris - varied angles and distances (40%+ increase)
   { angle: 19,  distance: 0.059, size: 1.4, speed: 0.93, alpha: 1.0 },   // 🔥 Close (0.042 * 1.4 = 0.059)
   { angle: 61,  distance: 0.212, size: 1.15, speed: 1.08, alpha: 1.0 },  // 🔥 Far (0.265 * 0.8 = 0.212, 20% closer)
-  { angle: 103, distance: 0.108, size: 1.45, speed: 0.97, alpha: 0.96 }, // 🔥 Close (0.077 * 1.4 = 0.108)
-  { angle: 145, distance: 0.235, size: 1.05, speed: 1.15, alpha: 0.91 }, // 🔥 Far (0.294 * 0.8 = 0.235, 20% closer)
+  { angle: 103, distance: 0.108, size: 1.45, speed: 0.97, alpha: 1.0 }, // 🔥 Close (0.077 * 1.4 = 0.108)
+  { angle: 145, distance: 0.235, size: 1.05, speed: 1.15, alpha: 1.0 }, // 🔥 Far (0.294 * 0.8 = 0.235, 20% closer)
   { angle: 187, distance: 0.078, size: 1.25, speed: 0.88, alpha: 1.0 },  // 🔥 Close (0.056 * 1.4 = 0.078)
-  { angle: 229, distance: 0.225, size: 1.3, speed: 1.02, alpha: 0.98 },  // 🔥 Mid-far (0.161 * 1.4 = 0.225)
+  { angle: 229, distance: 0.225, size: 1.3, speed: 1.02, alpha: 1.0 },  // 🔥 Mid-far (0.161 * 1.4 = 0.225)
   { angle: 271, distance: 0.219, size: 1.18, speed: 0.96, alpha: 1.0 },  // 🔥 Far (0.274 * 0.8 = 0.219, 20% closer)
-  { angle: 313, distance: 0.078, size: 1.32, speed: 1.02, alpha: 0.94 }, // 🔥 Close (0.056 * 1.4 = 0.078)
-  { angle: 355, distance: 0.258, size: 1.08, speed: 1.11, alpha: 0.89 }, // 🔥 Far (0.323 * 0.8 = 0.258, 20% closer)
+  { angle: 313, distance: 0.078, size: 1.32, speed: 1.02, alpha: 1.0 }, // 🔥 Close (0.056 * 1.4 = 0.078)
+  { angle: 355, distance: 0.258, size: 1.08, speed: 1.11, alpha: 1.0 }, // 🔥 Far (0.323 * 0.8 = 0.258, 20% closer)
   { angle: 37,  distance: 0.049, size: 1.22, speed: 0.94, alpha: 1.0 },   // 🔥 Very close (0.035 * 1.4 = 0.049)
-  { angle: 79,  distance: 0.196, size: 1.15, speed: 1.05, alpha: 0.95 },  // 🔥 Far (0.245 * 0.8 = 0.196, 20% closer)
+  { angle: 79,  distance: 0.196, size: 1.15, speed: 1.05, alpha: 1.0 },  // 🔥 Far (0.245 * 0.8 = 0.196, 20% closer)
   { angle: 121, distance: 0.069, size: 1.12, speed: 1.05, alpha: 1.0 },  // 🔥 Close (0.049 * 1.4 = 0.069)
-  { angle: 163, distance: 0.243, size: 1.25, speed: 0.92, alpha: 0.97 },  // 🔥 Far (0.304 * 0.8 = 0.243, 20% closer)
+  { angle: 163, distance: 0.243, size: 1.25, speed: 0.92, alpha: 1.0 },  // 🔥 Far (0.304 * 0.8 = 0.243, 20% closer)
   { angle: 205, distance: 0.088, size: 1.05, speed: 1.18, alpha: 1.0 },   // 🔥 Close (0.063 * 1.4 = 0.088)
-  { angle: 247, distance: 0.204, size: 1.2, speed: 0.98, alpha: 0.99 },   // 🔥 Far (0.255 * 0.8 = 0.204, 20% closer)
+  { angle: 247, distance: 0.204, size: 1.2, speed: 0.98, alpha: 1.0 },   // 🔥 Far (0.255 * 0.8 = 0.204, 20% closer)
   { angle: 289, distance: 0.118, size: 1.35, speed: 0.99, alpha: 1.0 },   // 🔥 Close (0.084 * 1.4 = 0.118)
-  { angle: 331, distance: 0.266, size: 1.08, speed: 1.22, alpha: 0.88 }, // 🔥 Far (0.333 * 0.8 = 0.266, 20% closer)
-  { angle: 13,  distance: 0.059, size: 1.18, speed: 1.03, alpha: 0.95 },  // 🔥 Close (0.042 * 1.4 = 0.059)
+  { angle: 331, distance: 0.266, size: 1.08, speed: 1.22, alpha: 1.0 }, // 🔥 Far (0.333 * 0.8 = 0.266, 20% closer)
+  { angle: 13,  distance: 0.059, size: 1.18, speed: 1.03, alpha: 1.0 },  // 🔥 Close (0.042 * 1.4 = 0.059)
   { angle: 55,  distance: 0.227, size: 1.28, speed: 0.91, alpha: 1.0 }    // 🔥 Far (0.284 * 0.8 = 0.227, 20% closer)
 ];
 
@@ -246,22 +246,22 @@ export const woodenPatternWildStarOrganic1 = [
   // Stellar explosion - oscillating distances (40%+ increase, far ones 20% closer)
   { angle: 15,  distance: 0.059, size: 1.800, speed: 0.88, alpha: 1.0 },   // 🔥 Close
   { angle: 45,  distance: 0.212, size: 1.320, speed: 1.02, alpha: 1.0 },  // 🔥 Far (20% closer)
-  { angle: 75,  distance: 0.108, size: 1.680, speed: 0.92, alpha: 0.98 }, // 🔥 Close
+  { angle: 75,  distance: 0.108, size: 1.680, speed: 0.92, alpha: 1.0 }, // 🔥 Close
   { angle: 105, distance: 0.235, size: 1.200, speed: 1.08, alpha: 1.0 },  // 🔥 Far (20% closer)
-  { angle: 135, distance: 0.078, size: 1.560, speed: 0.95, alpha: 0.99 }, // 🔥 Close
-  { angle: 165, distance: 0.196, size: 1.440, speed: 1.05, alpha: 0.97 }, // 🔥 Far (20% closer)
-  { angle: 195, distance: 0.243, size: 1.800, speed: 0.98, alpha: 0.92 }, // 🔥 Far (20% closer)
+  { angle: 135, distance: 0.078, size: 1.560, speed: 0.95, alpha: 1.0 }, // 🔥 Close
+  { angle: 165, distance: 0.196, size: 1.440, speed: 1.05, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 195, distance: 0.243, size: 1.800, speed: 0.98, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 225, distance: 0.069, size: 1.320, speed: 1.12, alpha: 1.0 },  // 🔥 Close
-  { angle: 255, distance: 0.186, size: 1.500, speed: 1.0, alpha: 0.96 }, // 🔥 Mid-far
-  { angle: 285, distance: 0.251, size: 1.140, speed: 1.18, alpha: 0.88 }, // 🔥 Very far (20% closer)
-  { angle: 315, distance: 0.049, size: 1.260, speed: 0.92, alpha: 0.97 }, // 🔥 Very close
-  { angle: 345, distance: 0.204, size: 1.380, speed: 1.25, alpha: 0.87 }, // 🔥 Far (20% closer)
-  { angle: 30,  distance: 0.118, size: 1.176, speed: 1.03, alpha: 0.96 }, // 🔥 Close
-  { angle: 60,  distance: 0.227, size: 1.296, speed: 1.15, alpha: 0.89 }, // 🔥 Far (20% closer)
-  { angle: 90,  distance: 0.098, size: 1.464, speed: 0.96, alpha: 0.98 }, // 🔥 Close
-  { angle: 120, distance: 0.274, size: 1.344, speed: 1.08, alpha: 0.93 }, // 🔥 Very far (20% closer)
-  { angle: 150, distance: 0.078, size: 1.260, speed: 1.12, alpha: 0.91 }, // 🔥 Close
-  { angle: 180, distance: 0.188, size: 1.416, speed: 0.99, alpha: 0.97 }  // 🔥 Far (20% closer)
+  { angle: 255, distance: 0.186, size: 1.500, speed: 1.0, alpha: 1.0 }, // 🔥 Mid-far
+  { angle: 285, distance: 0.251, size: 1.140, speed: 1.18, alpha: 1.0 }, // 🔥 Very far (20% closer)
+  { angle: 315, distance: 0.049, size: 1.260, speed: 0.92, alpha: 1.0 }, // 🔥 Very close
+  { angle: 345, distance: 0.204, size: 1.380, speed: 1.25, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 30,  distance: 0.118, size: 1.176, speed: 1.03, alpha: 1.0 }, // 🔥 Close
+  { angle: 60,  distance: 0.227, size: 1.296, speed: 1.15, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 90,  distance: 0.098, size: 1.464, speed: 0.96, alpha: 1.0 }, // 🔥 Close
+  { angle: 120, distance: 0.274, size: 1.344, speed: 1.08, alpha: 1.0 }, // 🔥 Very far (20% closer)
+  { angle: 150, distance: 0.078, size: 1.260, speed: 1.12, alpha: 1.0 }, // 🔥 Close
+  { angle: 180, distance: 0.188, size: 1.416, speed: 0.99, alpha: 1.0 }  // 🔥 Far (20% closer)
 ];
 
 /**
@@ -274,24 +274,24 @@ export const woodenPatternWildStarOrganic2 = [
   // Radiant burst - random angles, oscillating distances (40%+ increase, far ones 20% closer)
   { angle: 12,  distance: 0.059, size: 1.680, speed: 0.93, alpha: 1.0 },   // 🔥 Close
   { angle: 51,  distance: 0.212, size: 1.380, speed: 1.08, alpha: 1.0 }, // 🔥 Far (20% closer)
-  { angle: 89,  distance: 0.108, size: 1.740, speed: 0.97, alpha: 0.96 }, // 🔥 Close
-  { angle: 127, distance: 0.235, size: 1.260, speed: 1.15, alpha: 0.91 }, // 🔥 Far (20% closer)
+  { angle: 89,  distance: 0.108, size: 1.740, speed: 0.97, alpha: 1.0 }, // 🔥 Close
+  { angle: 127, distance: 0.235, size: 1.260, speed: 1.15, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 165, distance: 0.078, size: 1.500, speed: 0.88, alpha: 1.0 },  // 🔥 Close
-  { angle: 203, distance: 0.225, size: 1.560, speed: 1.02, alpha: 0.98 },  // 🔥 Mid-far
+  { angle: 203, distance: 0.225, size: 1.560, speed: 1.02, alpha: 1.0 },  // 🔥 Mid-far
   { angle: 241, distance: 0.196, size: 1.416, speed: 0.96, alpha: 1.0 },  // 🔥 Far (20% closer)
-  { angle: 279, distance: 0.078, size: 1.584, speed: 1.02, alpha: 0.94 }, // 🔥 Close
-  { angle: 317, distance: 0.258, size: 1.296, speed: 1.11, alpha: 0.89 }, // 🔥 Far (20% closer)
+  { angle: 279, distance: 0.078, size: 1.584, speed: 1.02, alpha: 1.0 }, // 🔥 Close
+  { angle: 317, distance: 0.258, size: 1.296, speed: 1.11, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 355, distance: 0.049, size: 1.464, speed: 0.94, alpha: 1.0 },  // 🔥 Very close
-  { angle: 33,  distance: 0.196, size: 1.380, speed: 1.05, alpha: 0.95 }, // 🔥 Far (20% closer)
+  { angle: 33,  distance: 0.196, size: 1.380, speed: 1.05, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 71,  distance: 0.069, size: 1.344, speed: 1.05, alpha: 1.0 },  // 🔥 Close
-  { angle: 109, distance: 0.243, size: 1.500, speed: 0.92, alpha: 0.97 }, // 🔥 Far (20% closer)
+  { angle: 109, distance: 0.243, size: 1.500, speed: 0.92, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 147, distance: 0.088, size: 1.260, speed: 1.18, alpha: 1.0 },   // 🔥 Close
-  { angle: 185, distance: 0.204, size: 1.440, speed: 0.98, alpha: 0.99 },  // 🔥 Far (20% closer)
+  { angle: 185, distance: 0.204, size: 1.440, speed: 0.98, alpha: 1.0 },  // 🔥 Far (20% closer)
   { angle: 223, distance: 0.118, size: 1.620, speed: 0.99, alpha: 1.0 },  // 🔥 Close
-  { angle: 261, distance: 0.266, size: 1.296, speed: 1.22, alpha: 0.88 }, // 🔥 Far (20% closer)
-  { angle: 299, distance: 0.059, size: 1.416, speed: 1.03, alpha: 0.95 }, // 🔥 Close
+  { angle: 261, distance: 0.266, size: 1.296, speed: 1.22, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 299, distance: 0.059, size: 1.416, speed: 1.03, alpha: 1.0 }, // 🔥 Close
   { angle: 337, distance: 0.227, size: 1.536, speed: 0.91, alpha: 1.0 },  // 🔥 Far (20% closer)
-  { angle: 18,  distance: 0.098, size: 1.464, speed: 1.08, alpha: 0.93 }  // 🔥 Close
+  { angle: 18,  distance: 0.098, size: 1.464, speed: 1.08, alpha: 1.0 }  // 🔥 Close
 ];
 
 /**
@@ -303,24 +303,24 @@ export const woodenPatternWildStarOrganic2 = [
 export const woodenPatternWildStarOrganic3 = [
   // Cosmic spread - varied angles, oscillating distances (40%+ increase, far ones 20% closer)
   { angle: 8,   distance: 0.049, size: 1.620, speed: 0.87, alpha: 1.0 },  // 🔥 Very close
-  { angle: 38,  distance: 0.251, size: 1.296, speed: 1.12, alpha: 0.96 }, // 🔥 Far (20% closer)
+  { angle: 38,  distance: 0.251, size: 1.296, speed: 1.12, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 68,  distance: 0.078, size: 1.776, speed: 0.94, alpha: 1.0 },  // 🔥 Close
-  { angle: 98,  distance: 0.219, size: 1.416, speed: 1.22, alpha: 0.87 }, // 🔥 Far (20% closer)
+  { angle: 98,  distance: 0.219, size: 1.416, speed: 1.22, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 128, distance: 0.059, size: 1.260, speed: 0.91, alpha: 1.0 },  // 🔥 Close
-  { angle: 158, distance: 0.235, size: 1.500, speed: 1.08, alpha: 0.98 }, // 🔥 Far (20% closer)
-  { angle: 188, distance: 0.108, size: 1.584, speed: 1.19, alpha: 0.89 }, // 🔥 Close
+  { angle: 158, distance: 0.235, size: 1.500, speed: 1.08, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 188, distance: 0.108, size: 1.584, speed: 1.19, alpha: 1.0 }, // 🔥 Close
   { angle: 218, distance: 0.274, size: 1.344, speed: 1.03, alpha: 1.0 },  // 🔥 Very far (20% closer)
-  { angle: 248, distance: 0.069, size: 1.704, speed: 0.96, alpha: 0.94 }, // 🔥 Close
-  { angle: 278, distance: 0.212, size: 1.224, speed: 1.28, alpha: 0.88 }, // 🔥 Far (20% closer)
+  { angle: 248, distance: 0.069, size: 1.704, speed: 0.96, alpha: 1.0 }, // 🔥 Close
+  { angle: 278, distance: 0.212, size: 1.224, speed: 1.28, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 308, distance: 0.088, size: 1.464, speed: 0.99, alpha: 1.0 }, // 🔥 Close
-  { angle: 338, distance: 0.258, size: 1.656, speed: 1.14, alpha: 0.97 }, // 🔥 Far (20% closer)
+  { angle: 338, distance: 0.258, size: 1.656, speed: 1.14, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 23,  distance: 0.039, size: 1.296, speed: 0.89, alpha: 1.0 },   // 🔥 Very close
-  { angle: 53,  distance: 0.204, size: 1.536, speed: 1.07, alpha: 0.95 }, // 🔥 Far (20% closer)
-  { angle: 83,  distance: 0.118, size: 1.380, speed: 1.25, alpha: 0.86 }, // 🔥 Close
-  { angle: 113, distance: 0.243, size: 1.536, speed: 0.93, alpha: 0.99 }, // 🔥 Far (20% closer)
-  { angle: 143, distance: 0.078, size: 1.380, speed: 1.16, alpha: 0.92 }, // 🔥 Close
-  { angle: 173, distance: 0.227, size: 1.584, speed: 1.01, alpha: 0.97 }, // 🔥 Far (20% closer)
-  { angle: 203, distance: 0.059, size: 1.296, speed: 1.09, alpha: 0.94 }  // 🔥 Close
+  { angle: 53,  distance: 0.204, size: 1.536, speed: 1.07, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 83,  distance: 0.118, size: 1.380, speed: 1.25, alpha: 1.0 }, // 🔥 Close
+  { angle: 113, distance: 0.243, size: 1.536, speed: 0.93, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 143, distance: 0.078, size: 1.380, speed: 1.16, alpha: 1.0 }, // 🔥 Close
+  { angle: 173, distance: 0.227, size: 1.584, speed: 1.01, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 203, distance: 0.059, size: 1.296, speed: 1.09, alpha: 1.0 }  // 🔥 Close
 ];
 
 /**
@@ -333,22 +333,22 @@ export const woodenPatternWildBeerOrganic1 = [
   // Juice explosion - oscillating distances (40%+ increase, far ones 20% closer)
   { angle: 22,  distance: 0.059, size: 1.800, speed: 0.88, alpha: 1.0 },   // 🔥 Close
   { angle: 56,  distance: 0.212, size: 1.320, speed: 1.02, alpha: 1.0 },  // 🔥 Far (20% closer)
-  { angle: 90,  distance: 0.108, size: 1.680, speed: 0.92, alpha: 0.98 }, // 🔥 Close
+  { angle: 90,  distance: 0.108, size: 1.680, speed: 0.92, alpha: 1.0 }, // 🔥 Close
   { angle: 124, distance: 0.235, size: 1.200, speed: 1.08, alpha: 1.0 },  // 🔥 Far (20% closer)
-  { angle: 158, distance: 0.078, size: 1.560, speed: 0.95, alpha: 0.99 }, // 🔥 Close
-  { angle: 192, distance: 0.196, size: 1.440, speed: 1.05, alpha: 0.97 }, // 🔥 Far (20% closer)
-  { angle: 226, distance: 0.243, size: 1.800, speed: 0.98, alpha: 0.92 }, // 🔥 Far (20% closer)
+  { angle: 158, distance: 0.078, size: 1.560, speed: 0.95, alpha: 1.0 }, // 🔥 Close
+  { angle: 192, distance: 0.196, size: 1.440, speed: 1.05, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 226, distance: 0.243, size: 1.800, speed: 0.98, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 260, distance: 0.069, size: 1.320, speed: 1.12, alpha: 1.0 },  // 🔥 Close
-  { angle: 294, distance: 0.186, size: 1.500, speed: 1.0, alpha: 0.96 }, // 🔥 Mid-far
-  { angle: 328, distance: 0.251, size: 1.140, speed: 1.18, alpha: 0.88 }, // 🔥 Very far (20% closer)
-  { angle: 2,   distance: 0.049, size: 1.260, speed: 0.92, alpha: 0.97 }, // 🔥 Very close
-  { angle: 36,  distance: 0.204, size: 1.380, speed: 1.25, alpha: 0.87 }, // 🔥 Far (20% closer)
-  { angle: 70,  distance: 0.118, size: 1.176, speed: 1.03, alpha: 0.96 }, // 🔥 Close
-  { angle: 104, distance: 0.227, size: 1.296, speed: 1.15, alpha: 0.89 }, // 🔥 Far (20% closer)
-  { angle: 138, distance: 0.098, size: 1.464, speed: 0.96, alpha: 0.98 }, // 🔥 Close
-  { angle: 172, distance: 0.274, size: 1.344, speed: 1.08, alpha: 0.93 }, // 🔥 Very far (20% closer)
-  { angle: 206, distance: 0.078, size: 1.260, speed: 1.12, alpha: 0.91 }, // 🔥 Close
-  { angle: 240, distance: 0.188, size: 1.416, speed: 0.99, alpha: 0.97 }  // 🔥 Far (20% closer)
+  { angle: 294, distance: 0.186, size: 1.500, speed: 1.0, alpha: 1.0 }, // 🔥 Mid-far
+  { angle: 328, distance: 0.251, size: 1.140, speed: 1.18, alpha: 1.0 }, // 🔥 Very far (20% closer)
+  { angle: 2,   distance: 0.049, size: 1.260, speed: 0.92, alpha: 1.0 }, // 🔥 Very close
+  { angle: 36,  distance: 0.204, size: 1.380, speed: 1.25, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 70,  distance: 0.118, size: 1.176, speed: 1.03, alpha: 1.0 }, // 🔥 Close
+  { angle: 104, distance: 0.227, size: 1.296, speed: 1.15, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 138, distance: 0.098, size: 1.464, speed: 0.96, alpha: 1.0 }, // 🔥 Close
+  { angle: 172, distance: 0.274, size: 1.344, speed: 1.08, alpha: 1.0 }, // 🔥 Very far (20% closer)
+  { angle: 206, distance: 0.078, size: 1.260, speed: 1.12, alpha: 1.0 }, // 🔥 Close
+  { angle: 240, distance: 0.188, size: 1.416, speed: 0.99, alpha: 1.0 }  // 🔥 Far (20% closer)
 ];
 
 /**
@@ -361,22 +361,22 @@ export const woodenPatternWildBeerOrganic2 = [
   // Bubbly burst - random angles, oscillating distances (40%+ increase, far ones 20% closer)
   { angle: 14,  distance: 0.059, size: 1.680, speed: 0.93, alpha: 1.0 },   // 🔥 Close
   { angle: 48,  distance: 0.212, size: 1.380, speed: 1.08, alpha: 1.0 }, // 🔥 Far (20% closer)
-  { angle: 82,  distance: 0.108, size: 1.740, speed: 0.97, alpha: 0.96 }, // 🔥 Close
-  { angle: 116, distance: 0.235, size: 1.260, speed: 1.15, alpha: 0.91 }, // 🔥 Far (20% closer)
+  { angle: 82,  distance: 0.108, size: 1.740, speed: 0.97, alpha: 1.0 }, // 🔥 Close
+  { angle: 116, distance: 0.235, size: 1.260, speed: 1.15, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 150, distance: 0.078, size: 1.500, speed: 0.88, alpha: 1.0 },  // 🔥 Close
-  { angle: 184, distance: 0.225, size: 1.560, speed: 1.02, alpha: 0.98 },  // 🔥 Mid-far
+  { angle: 184, distance: 0.225, size: 1.560, speed: 1.02, alpha: 1.0 },  // 🔥 Mid-far
   { angle: 218, distance: 0.196, size: 1.416, speed: 0.96, alpha: 1.0 },  // 🔥 Far (20% closer)
-  { angle: 252, distance: 0.078, size: 1.584, speed: 1.02, alpha: 0.94 }, // 🔥 Close
-  { angle: 286, distance: 0.258, size: 1.296, speed: 1.11, alpha: 0.89 }, // 🔥 Far (20% closer)
+  { angle: 252, distance: 0.078, size: 1.584, speed: 1.02, alpha: 1.0 }, // 🔥 Close
+  { angle: 286, distance: 0.258, size: 1.296, speed: 1.11, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 320, distance: 0.049, size: 1.464, speed: 0.94, alpha: 1.0 },  // 🔥 Very close
-  { angle: 354, distance: 0.196, size: 1.380, speed: 1.05, alpha: 0.95 }, // 🔥 Far (20% closer)
+  { angle: 354, distance: 0.196, size: 1.380, speed: 1.05, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 28,  distance: 0.069, size: 1.344, speed: 1.05, alpha: 1.0 },  // 🔥 Close
-  { angle: 62,  distance: 0.243, size: 1.500, speed: 0.92, alpha: 0.97 }, // 🔥 Far (20% closer)
+  { angle: 62,  distance: 0.243, size: 1.500, speed: 0.92, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 96,  distance: 0.088, size: 1.260, speed: 1.18, alpha: 1.0 },   // 🔥 Close
-  { angle: 130, distance: 0.204, size: 1.440, speed: 0.98, alpha: 0.99 },  // 🔥 Far (20% closer)
+  { angle: 130, distance: 0.204, size: 1.440, speed: 0.98, alpha: 1.0 },  // 🔥 Far (20% closer)
   { angle: 164, distance: 0.118, size: 1.620, speed: 0.99, alpha: 1.0 },  // 🔥 Close
-  { angle: 198, distance: 0.266, size: 1.296, speed: 1.22, alpha: 0.88 }, // 🔥 Far (20% closer)
-  { angle: 232, distance: 0.059, size: 1.416, speed: 1.03, alpha: 0.95 }, // 🔥 Close
+  { angle: 198, distance: 0.266, size: 1.296, speed: 1.22, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 232, distance: 0.059, size: 1.416, speed: 1.03, alpha: 1.0 }, // 🔥 Close
   { angle: 266, distance: 0.227, size: 1.536, speed: 0.91, alpha: 1.0 }  // 🔥 Far (20% closer)
 ];
 
@@ -389,24 +389,24 @@ export const woodenPatternWildBeerOrganic2 = [
 export const woodenPatternWildBeerOrganic3 = [
   // Fizzy spread - varied angles, oscillating distances (40%+ increase, far ones 20% closer)
   { angle: 11,  distance: 0.049, size: 1.620, speed: 0.87, alpha: 1.0 },  // 🔥 Very close
-  { angle: 41,  distance: 0.251, size: 1.296, speed: 1.12, alpha: 0.96 }, // 🔥 Far (20% closer)
+  { angle: 41,  distance: 0.251, size: 1.296, speed: 1.12, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 71,  distance: 0.078, size: 1.776, speed: 0.94, alpha: 1.0 },  // 🔥 Close
-  { angle: 101, distance: 0.219, size: 1.416, speed: 1.22, alpha: 0.87 }, // 🔥 Far (20% closer)
+  { angle: 101, distance: 0.219, size: 1.416, speed: 1.22, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 131, distance: 0.059, size: 1.260, speed: 0.91, alpha: 1.0 },  // 🔥 Close
-  { angle: 161, distance: 0.235, size: 1.500, speed: 1.08, alpha: 0.98 }, // 🔥 Far (20% closer)
-  { angle: 191, distance: 0.108, size: 1.584, speed: 1.19, alpha: 0.89 }, // 🔥 Close
+  { angle: 161, distance: 0.235, size: 1.500, speed: 1.08, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 191, distance: 0.108, size: 1.584, speed: 1.19, alpha: 1.0 }, // 🔥 Close
   { angle: 221, distance: 0.274, size: 1.344, speed: 1.03, alpha: 1.0 },  // 🔥 Very far (20% closer)
-  { angle: 251, distance: 0.069, size: 1.704, speed: 0.96, alpha: 0.94 }, // 🔥 Close
-  { angle: 281, distance: 0.212, size: 1.224, speed: 1.28, alpha: 0.88 }, // 🔥 Far (20% closer)
+  { angle: 251, distance: 0.069, size: 1.704, speed: 0.96, alpha: 1.0 }, // 🔥 Close
+  { angle: 281, distance: 0.212, size: 1.224, speed: 1.28, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 311, distance: 0.088, size: 1.464, speed: 0.99, alpha: 1.0 }, // 🔥 Close
-  { angle: 341, distance: 0.258, size: 1.656, speed: 1.14, alpha: 0.97 }, // 🔥 Far (20% closer)
+  { angle: 341, distance: 0.258, size: 1.656, speed: 1.14, alpha: 1.0 }, // 🔥 Far (20% closer)
   { angle: 26,  distance: 0.039, size: 1.296, speed: 0.89, alpha: 1.0 },   // 🔥 Very close
-  { angle: 56,  distance: 0.204, size: 1.536, speed: 1.07, alpha: 0.95 }, // 🔥 Far (20% closer)
-  { angle: 86,  distance: 0.118, size: 1.380, speed: 1.25, alpha: 0.86 }, // 🔥 Close
-  { angle: 116, distance: 0.243, size: 1.536, speed: 0.93, alpha: 0.99 }, // 🔥 Far (20% closer)
-  { angle: 146, distance: 0.078, size: 1.380, speed: 1.16, alpha: 0.92 }, // 🔥 Close
-  { angle: 176, distance: 0.227, size: 1.584, speed: 1.01, alpha: 0.97 }, // 🔥 Far (20% closer)
-  { angle: 206, distance: 0.059, size: 1.296, speed: 1.09, alpha: 0.94 }  // 🔥 Close
+  { angle: 56,  distance: 0.204, size: 1.536, speed: 1.07, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 86,  distance: 0.118, size: 1.380, speed: 1.25, alpha: 1.0 }, // 🔥 Close
+  { angle: 116, distance: 0.243, size: 1.536, speed: 0.93, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 146, distance: 0.078, size: 1.380, speed: 1.16, alpha: 1.0 }, // 🔥 Close
+  { angle: 176, distance: 0.227, size: 1.584, speed: 1.01, alpha: 1.0 }, // 🔥 Far (20% closer)
+  { angle: 206, distance: 0.059, size: 1.296, speed: 1.09, alpha: 1.0 }  // 🔥 Close
 ];
 
 /**
@@ -418,25 +418,25 @@ export const woodenPatternWildBeerOrganic3 = [
 export const woodenPatternWildStarOrganic4 = [
   // Nova burst - varied angles, oscillating distances (40%+ increase, far ones 20% closer) - 🔥 USER REQUEST: 20% larger shards
   { angle: 5,   distance: 0.071, size: 1.62, speed: 0.85, alpha: 1.0 },  // 🔥 Close
-  { angle: 35,  distance: 0.254, size: 1.296, speed: 1.15, alpha: 0.95 }, // 🔥 Far
+  { angle: 35,  distance: 0.254, size: 1.296, speed: 1.15, alpha: 1.0 }, // 🔥 Far
   { angle: 65,  distance: 0.130, size: 1.776, speed: 0.90, alpha: 1.0 },  // 🔥 Close
-  { angle: 95,  distance: 0.263, size: 1.416, speed: 1.25, alpha: 0.88 }, // 🔥 Far
+  { angle: 95,  distance: 0.263, size: 1.416, speed: 1.25, alpha: 1.0 }, // 🔥 Far
   { angle: 125, distance: 0.071, size: 1.26, speed: 0.88, alpha: 1.0 },  // 🔥 Close
-  { angle: 155, distance: 0.282, size: 1.5, speed: 1.10, alpha: 0.98 }, // 🔥 Far
-  { angle: 185, distance: 0.130, size: 1.584, speed: 1.22, alpha: 0.91 }, // 🔥 Close
+  { angle: 155, distance: 0.282, size: 1.5, speed: 1.10, alpha: 1.0 }, // 🔥 Far
+  { angle: 185, distance: 0.130, size: 1.584, speed: 1.22, alpha: 1.0 }, // 🔥 Close
   { angle: 215, distance: 0.329, size: 1.344, speed: 1.05, alpha: 1.0 },  // 🔥 Very far
-  { angle: 245, distance: 0.083, size: 1.704, speed: 0.93, alpha: 0.95 }, // 🔥 Close
-  { angle: 275, distance: 0.254, size: 1.224, speed: 1.30, alpha: 0.89 }, // 🔥 Far
+  { angle: 245, distance: 0.083, size: 1.704, speed: 0.93, alpha: 1.0 }, // 🔥 Close
+  { angle: 275, distance: 0.254, size: 1.224, speed: 1.30, alpha: 1.0 }, // 🔥 Far
   { angle: 305, distance: 0.106, size: 1.464, speed: 0.97, alpha: 1.0 }, // 🔥 Close
-  { angle: 335, distance: 0.310, size: 1.656, speed: 1.17, alpha: 0.98 }, // 🔥 Far
+  { angle: 335, distance: 0.310, size: 1.656, speed: 1.17, alpha: 1.0 }, // 🔥 Far
   { angle: 20,  distance: 0.047, size: 1.296, speed: 0.87, alpha: 1.0 },   // 🔥 Very close
-  { angle: 50,  distance: 0.245, size: 1.536, speed: 1.08, alpha: 0.96 }, // 🔥 Far
-  { angle: 80,  distance: 0.142, size: 1.38, speed: 1.28, alpha: 0.87 }, // 🔥 Close
+  { angle: 50,  distance: 0.245, size: 1.536, speed: 1.08, alpha: 1.0 }, // 🔥 Far
+  { angle: 80,  distance: 0.142, size: 1.38, speed: 1.28, alpha: 1.0 }, // 🔥 Close
   { angle: 110, distance: 0.292, size: 1.536, speed: 0.95, alpha: 1.0 }, // 🔥 Far
-  { angle: 140, distance: 0.094, size: 1.38, speed: 1.19, alpha: 0.93 }, // 🔥 Close
-  { angle: 170, distance: 0.272, size: 1.584, speed: 1.02, alpha: 0.98 }, // 🔥 Far
-  { angle: 200, distance: 0.071, size: 1.296, speed: 1.11, alpha: 0.95 }, // 🔥 Close
-  { angle: 230, distance: 0.245, size: 1.44, speed: 0.99, alpha: 0.97 }  // 🔥 Far
+  { angle: 140, distance: 0.094, size: 1.38, speed: 1.19, alpha: 1.0 }, // 🔥 Close
+  { angle: 170, distance: 0.272, size: 1.584, speed: 1.02, alpha: 1.0 }, // 🔥 Far
+  { angle: 200, distance: 0.071, size: 1.296, speed: 1.11, alpha: 1.0 }, // 🔥 Close
+  { angle: 230, distance: 0.245, size: 1.44, speed: 0.99, alpha: 1.0 }  // 🔥 Far
 ];
 
 /**
@@ -448,24 +448,24 @@ export const woodenPatternWildStarOrganic4 = [
 export const woodenPatternWildStarOrganic5 = [
   // Galactic spread - varied angles, oscillating distances (40%+ increase, far ones 20% closer) - 🔥 USER REQUEST: 20% larger shards
   { angle: 7,   distance: 0.059, size: 1.62, speed: 0.84, alpha: 1.0 },  // 🔥 Very close
-  { angle: 37,  distance: 0.301, size: 1.296, speed: 1.13, alpha: 0.97 }, // 🔥 Far
+  { angle: 37,  distance: 0.301, size: 1.296, speed: 1.13, alpha: 1.0 }, // 🔥 Far
   { angle: 67,  distance: 0.094, size: 1.776, speed: 0.91, alpha: 1.0 },  // 🔥 Close
-  { angle: 97,  distance: 0.263, size: 1.416, speed: 1.23, alpha: 0.88 }, // 🔥 Far
+  { angle: 97,  distance: 0.263, size: 1.416, speed: 1.23, alpha: 1.0 }, // 🔥 Far
   { angle: 127, distance: 0.071, size: 1.26, speed: 0.89, alpha: 1.0 },  // 🔥 Close
-  { angle: 157, distance: 0.282, size: 1.5, speed: 1.09, alpha: 0.99 }, // 🔥 Far
-  { angle: 187, distance: 0.130, size: 1.584, speed: 1.21, alpha: 0.90 }, // 🔥 Close
+  { angle: 157, distance: 0.282, size: 1.5, speed: 1.09, alpha: 1.0 }, // 🔥 Far
+  { angle: 187, distance: 0.130, size: 1.584, speed: 1.21, alpha: 1.0 }, // 🔥 Close
   { angle: 217, distance: 0.329, size: 1.344, speed: 1.04, alpha: 1.0 },  // 🔥 Very far
-  { angle: 247, distance: 0.083, size: 1.704, speed: 0.94, alpha: 0.95 }, // 🔥 Close
-  { angle: 277, distance: 0.254, size: 1.224, speed: 1.29, alpha: 0.89 }, // 🔥 Far
+  { angle: 247, distance: 0.083, size: 1.704, speed: 0.94, alpha: 1.0 }, // 🔥 Close
+  { angle: 277, distance: 0.254, size: 1.224, speed: 1.29, alpha: 1.0 }, // 🔥 Far
   { angle: 307, distance: 0.106, size: 1.464, speed: 0.98, alpha: 1.0 }, // 🔥 Close
-  { angle: 337, distance: 0.310, size: 1.656, speed: 1.16, alpha: 0.98 }, // 🔥 Far
+  { angle: 337, distance: 0.310, size: 1.656, speed: 1.16, alpha: 1.0 }, // 🔥 Far
   { angle: 25,  distance: 0.047, size: 1.296, speed: 0.88, alpha: 1.0 },   // 🔥 Very close
-  { angle: 55,  distance: 0.245, size: 1.536, speed: 1.09, alpha: 0.96 }, // 🔥 Far
-  { angle: 85,  distance: 0.142, size: 1.38, speed: 1.27, alpha: 0.87 }, // 🔥 Close
+  { angle: 55,  distance: 0.245, size: 1.536, speed: 1.09, alpha: 1.0 }, // 🔥 Far
+  { angle: 85,  distance: 0.142, size: 1.38, speed: 1.27, alpha: 1.0 }, // 🔥 Close
   { angle: 115, distance: 0.292, size: 1.536, speed: 0.94, alpha: 1.0 }, // 🔥 Far
-  { angle: 145, distance: 0.094, size: 1.38, speed: 1.18, alpha: 0.93 }, // 🔥 Close
-  { angle: 175, distance: 0.272, size: 1.584, speed: 1.03, alpha: 0.98 }, // 🔥 Far
-  { angle: 205, distance: 0.071, size: 1.296, speed: 1.10, alpha: 0.95 }  // 🔥 Close
+  { angle: 145, distance: 0.094, size: 1.38, speed: 1.18, alpha: 1.0 }, // 🔥 Close
+  { angle: 175, distance: 0.272, size: 1.584, speed: 1.03, alpha: 1.0 }, // 🔥 Far
+  { angle: 205, distance: 0.071, size: 1.296, speed: 1.10, alpha: 1.0 }  // 🔥 Close
 ];
 
 /**
@@ -477,25 +477,25 @@ export const woodenPatternWildStarOrganic5 = [
 export const woodenPatternWildBeerOrganic4 = [
   // Splash burst - varied angles, oscillating distances (40%+ increase, far ones 20% closer) - 🔥 USER REQUEST: 20% larger shards
   { angle: 6,   distance: 0.071, size: 1.62, speed: 0.86, alpha: 1.0 },  // 🔥 Close
-  { angle: 36,  distance: 0.254, size: 1.296, speed: 1.14, alpha: 0.95 }, // 🔥 Far
+  { angle: 36,  distance: 0.254, size: 1.296, speed: 1.14, alpha: 1.0 }, // 🔥 Far
   { angle: 66,  distance: 0.130, size: 1.776, speed: 0.91, alpha: 1.0 },  // 🔥 Close
-  { angle: 96,  distance: 0.263, size: 1.416, speed: 1.24, alpha: 0.87 }, // 🔥 Far
+  { angle: 96,  distance: 0.263, size: 1.416, speed: 1.24, alpha: 1.0 }, // 🔥 Far
   { angle: 126, distance: 0.071, size: 1.26, speed: 0.90, alpha: 1.0 },  // 🔥 Close
-  { angle: 156, distance: 0.282, size: 1.5, speed: 1.11, alpha: 0.99 }, // 🔥 Far
-  { angle: 186, distance: 0.130, size: 1.584, speed: 1.20, alpha: 0.90 }, // 🔥 Close
+  { angle: 156, distance: 0.282, size: 1.5, speed: 1.11, alpha: 1.0 }, // 🔥 Far
+  { angle: 186, distance: 0.130, size: 1.584, speed: 1.20, alpha: 1.0 }, // 🔥 Close
   { angle: 216, distance: 0.329, size: 1.344, speed: 1.06, alpha: 1.0 },  // 🔥 Very far
-  { angle: 246, distance: 0.083, size: 1.704, speed: 0.92, alpha: 0.95 }, // 🔥 Close
-  { angle: 276, distance: 0.254, size: 1.224, speed: 1.31, alpha: 0.89 }, // 🔥 Far
+  { angle: 246, distance: 0.083, size: 1.704, speed: 0.92, alpha: 1.0 }, // 🔥 Close
+  { angle: 276, distance: 0.254, size: 1.224, speed: 1.31, alpha: 1.0 }, // 🔥 Far
   { angle: 306, distance: 0.106, size: 1.464, speed: 0.96, alpha: 1.0 }, // 🔥 Close
-  { angle: 336, distance: 0.310, size: 1.656, speed: 1.18, alpha: 0.98 }, // 🔥 Far
+  { angle: 336, distance: 0.310, size: 1.656, speed: 1.18, alpha: 1.0 }, // 🔥 Far
   { angle: 21,  distance: 0.047, size: 1.296, speed: 0.85, alpha: 1.0 },   // 🔥 Very close
-  { angle: 51,  distance: 0.245, size: 1.536, speed: 1.07, alpha: 0.96 }, // 🔥 Far
-  { angle: 81,  distance: 0.142, size: 1.38, speed: 1.26, alpha: 0.87 }, // 🔥 Close
+  { angle: 51,  distance: 0.245, size: 1.536, speed: 1.07, alpha: 1.0 }, // 🔥 Far
+  { angle: 81,  distance: 0.142, size: 1.38, speed: 1.26, alpha: 1.0 }, // 🔥 Close
   { angle: 111, distance: 0.292, size: 1.536, speed: 0.93, alpha: 1.0 }, // 🔥 Far
-  { angle: 141, distance: 0.094, size: 1.38, speed: 1.17, alpha: 0.92 }, // 🔥 Close
-  { angle: 171, distance: 0.272, size: 1.584, speed: 1.04, alpha: 0.98 }, // 🔥 Far
-  { angle: 201, distance: 0.071, size: 1.296, speed: 1.12, alpha: 0.95 }, // 🔥 Close
-  { angle: 231, distance: 0.245, size: 1.44, speed: 1.00, alpha: 0.97 }  // 🔥 Far
+  { angle: 141, distance: 0.094, size: 1.38, speed: 1.17, alpha: 1.0 }, // 🔥 Close
+  { angle: 171, distance: 0.272, size: 1.584, speed: 1.04, alpha: 1.0 }, // 🔥 Far
+  { angle: 201, distance: 0.071, size: 1.296, speed: 1.12, alpha: 1.0 }, // 🔥 Close
+  { angle: 231, distance: 0.245, size: 1.44, speed: 1.00, alpha: 1.0 }  // 🔥 Far
 ];
 
 /**
@@ -507,24 +507,24 @@ export const woodenPatternWildBeerOrganic4 = [
 export const woodenPatternWildBeerOrganic5 = [
   // Foam explosion - varied angles, oscillating distances (40%+ increase, far ones 20% closer) - 🔥 USER REQUEST: 20% larger shards
   { angle: 9,   distance: 0.059, size: 1.62, speed: 0.83, alpha: 1.0 },  // 🔥 Very close
-  { angle: 39,  distance: 0.301, size: 1.296, speed: 1.12, alpha: 0.97 }, // 🔥 Far
+  { angle: 39,  distance: 0.301, size: 1.296, speed: 1.12, alpha: 1.0 }, // 🔥 Far
   { angle: 69,  distance: 0.094, size: 1.776, speed: 0.92, alpha: 1.0 },  // 🔥 Close
-  { angle: 99,  distance: 0.263, size: 1.416, speed: 1.22, alpha: 0.88 }, // 🔥 Far
+  { angle: 99,  distance: 0.263, size: 1.416, speed: 1.22, alpha: 1.0 }, // 🔥 Far
   { angle: 129, distance: 0.071, size: 1.26, speed: 0.91, alpha: 1.0 },  // 🔥 Close
-  { angle: 159, distance: 0.282, size: 1.5, speed: 1.10, alpha: 0.99 }, // 🔥 Far
-  { angle: 189, distance: 0.130, size: 1.584, speed: 1.19, alpha: 0.91 }, // 🔥 Close
+  { angle: 159, distance: 0.282, size: 1.5, speed: 1.10, alpha: 1.0 }, // 🔥 Far
+  { angle: 189, distance: 0.130, size: 1.584, speed: 1.19, alpha: 1.0 }, // 🔥 Close
   { angle: 219, distance: 0.329, size: 1.344, speed: 1.05, alpha: 1.0 },  // 🔥 Very far
-  { angle: 249, distance: 0.083, size: 1.704, speed: 0.95, alpha: 0.95 }, // 🔥 Close
-  { angle: 279, distance: 0.254, size: 1.224, speed: 1.30, alpha: 0.90 }, // 🔥 Far
+  { angle: 249, distance: 0.083, size: 1.704, speed: 0.95, alpha: 1.0 }, // 🔥 Close
+  { angle: 279, distance: 0.254, size: 1.224, speed: 1.30, alpha: 1.0 }, // 🔥 Far
   { angle: 309, distance: 0.106, size: 1.464, speed: 0.99, alpha: 1.0 }, // 🔥 Close
-  { angle: 339, distance: 0.310, size: 1.656, speed: 1.15, alpha: 0.99 }, // 🔥 Far
+  { angle: 339, distance: 0.310, size: 1.656, speed: 1.15, alpha: 1.0 }, // 🔥 Far
   { angle: 24,  distance: 0.047, size: 1.296, speed: 0.86, alpha: 1.0 },   // 🔥 Very close
-  { angle: 54,  distance: 0.245, size: 1.536, speed: 1.08, alpha: 0.97 }, // 🔥 Far
-  { angle: 84,  distance: 0.142, size: 1.38, speed: 1.25, alpha: 0.88 }, // 🔥 Close
+  { angle: 54,  distance: 0.245, size: 1.536, speed: 1.08, alpha: 1.0 }, // 🔥 Far
+  { angle: 84,  distance: 0.142, size: 1.38, speed: 1.25, alpha: 1.0 }, // 🔥 Close
   { angle: 114, distance: 0.292, size: 1.536, speed: 0.96, alpha: 1.0 }, // 🔥 Far
-  { angle: 144, distance: 0.094, size: 1.38, speed: 1.16, alpha: 0.94 }, // 🔥 Close
-  { angle: 174, distance: 0.272, size: 1.584, speed: 1.02, alpha: 0.99 }, // 🔥 Far
-  { angle: 204, distance: 0.071, size: 1.296, speed: 1.11, alpha: 0.96 }  // 🔥 Close
+  { angle: 144, distance: 0.094, size: 1.38, speed: 1.16, alpha: 1.0 }, // 🔥 Close
+  { angle: 174, distance: 0.272, size: 1.584, speed: 1.02, alpha: 1.0 }, // 🔥 Far
+  { angle: 204, distance: 0.071, size: 1.296, speed: 1.11, alpha: 1.0 }  // 🔥 Close
 ];
 
 /**
@@ -540,15 +540,15 @@ export const woodenPatternBurst = [
   { angle: 90,  distance: 0.10, size: 1.2, speed: 1.0, alpha: 1.0 },
   
   // Side clusters (4 shards) - 🔥 FIX: Increased distances
-  { angle: 30,  distance: 0.15, size: 1.1, speed: 1.0, alpha: 0.95 },
-  { angle: 150, distance: 0.15, size: 1.1, speed: 1.0, alpha: 0.95 },
-  { angle: 330, distance: 0.18, size: 1.0, speed: 1.1, alpha: 0.9 },
-  { angle: 210, distance: 0.18, size: 1.0, speed: 1.1, alpha: 0.9 },
+  { angle: 30,  distance: 0.15, size: 1.1, speed: 1.0, alpha: 1.0 },
+  { angle: 150, distance: 0.15, size: 1.1, speed: 1.0, alpha: 1.0 },
+  { angle: 330, distance: 0.18, size: 1.0, speed: 1.1, alpha: 1.0 },
+  { angle: 210, distance: 0.18, size: 1.0, speed: 1.1, alpha: 1.0 },
   
   // Bottom cluster (4 shards) - 🔥 FIX: Increased distances
-  { angle: 255, distance: 0.12, size: 1.0, speed: 0.9, alpha: 0.95 },
-  { angle: 270, distance: 0.18, size: 1.1, speed: 1.0, alpha: 0.9 },
-  { angle: 285, distance: 0.12, size: 1.0, speed: 0.9, alpha: 0.95 },
+  { angle: 255, distance: 0.12, size: 1.0, speed: 0.9, alpha: 1.0 },
+  { angle: 270, distance: 0.18, size: 1.1, speed: 1.0, alpha: 1.0 },
+  { angle: 285, distance: 0.12, size: 1.0, speed: 0.9, alpha: 1.0 },
   { angle: 270, distance: 0.10, size: 0.9, speed: 0.85, alpha: 1.0 }
 ];
 
@@ -561,16 +561,16 @@ export const woodenPatternSpiral = [
   // 🔥 FIX: Increased distances to match non-templated spread
   { angle: 0,   distance: 0.08, size: 1.4, speed: 1.0, alpha: 1.0 },
   { angle: 30,  distance: 0.12, size: 1.3, speed: 1.05, alpha: 1.0 },
-  { angle: 60,  distance: 0.16, size: 1.2, speed: 1.1, alpha: 0.95 },
-  { angle: 90,  distance: 0.20, size: 1.1, speed: 1.15, alpha: 0.95 },
-  { angle: 120, distance: 0.22, size: 1.0, speed: 1.2, alpha: 0.9 },
-  { angle: 150, distance: 0.24, size: 0.95, speed: 1.25, alpha: 0.9 },
+  { angle: 60,  distance: 0.16, size: 1.2, speed: 1.1, alpha: 1.0 },
+  { angle: 90,  distance: 0.20, size: 1.1, speed: 1.15, alpha: 1.0 },
+  { angle: 120, distance: 0.22, size: 1.0, speed: 1.2, alpha: 1.0 },
+  { angle: 150, distance: 0.24, size: 0.95, speed: 1.25, alpha: 1.0 },
   { angle: 180, distance: 0.08, size: 1.3, speed: 1.0, alpha: 1.0 },
   { angle: 210, distance: 0.12, size: 1.2, speed: 1.05, alpha: 1.0 },
-  { angle: 240, distance: 0.16, size: 1.1, speed: 1.1, alpha: 0.95 },
-  { angle: 270, distance: 0.20, size: 1.0, speed: 1.15, alpha: 0.95 },
-  { angle: 300, distance: 0.22, size: 0.95, speed: 1.2, alpha: 0.9 },
-  { angle: 330, distance: 0.24, size: 0.9, speed: 1.25, alpha: 0.9 }
+  { angle: 240, distance: 0.16, size: 1.1, speed: 1.1, alpha: 1.0 },
+  { angle: 270, distance: 0.20, size: 1.0, speed: 1.15, alpha: 1.0 },
+  { angle: 300, distance: 0.22, size: 0.95, speed: 1.2, alpha: 1.0 },
+  { angle: 330, distance: 0.24, size: 0.9, speed: 1.25, alpha: 1.0 }
 ];
 
 /**
@@ -590,18 +590,18 @@ export const woodenPatternStar = [
   { angle: 315, distance: 0.15, size: 1.4, speed: 0.95, alpha: 1.0 },
   
   // Mid star points (6 shards)
-  { angle: 30,  distance: 0.30, size: 1.3, speed: 1.1, alpha: 0.95 },
-  { angle: 90,  distance: 0.32, size: 1.2, speed: 1.15, alpha: 0.95 },
-  { angle: 150, distance: 0.30, size: 1.3, speed: 1.1, alpha: 0.95 },
-  { angle: 210, distance: 0.32, size: 1.2, speed: 1.15, alpha: 0.95 },
-  { angle: 270, distance: 0.30, size: 1.3, speed: 1.1, alpha: 0.95 },
-  { angle: 330, distance: 0.32, size: 1.2, speed: 1.15, alpha: 0.95 },
+  { angle: 30,  distance: 0.30, size: 1.3, speed: 1.1, alpha: 1.0 },
+  { angle: 90,  distance: 0.32, size: 1.2, speed: 1.15, alpha: 1.0 },
+  { angle: 150, distance: 0.30, size: 1.3, speed: 1.1, alpha: 1.0 },
+  { angle: 210, distance: 0.32, size: 1.2, speed: 1.15, alpha: 1.0 },
+  { angle: 270, distance: 0.30, size: 1.3, speed: 1.1, alpha: 1.0 },
+  { angle: 330, distance: 0.32, size: 1.2, speed: 1.15, alpha: 1.0 },
   
   // Outer star points (4 shards)
-  { angle: 0,   distance: 0.45, size: 1.0, speed: 1.2, alpha: 0.9 },
-  { angle: 90,  distance: 0.48, size: 1.1, speed: 1.25, alpha: 0.9 },
-  { angle: 180, distance: 0.45, size: 1.0, speed: 1.2, alpha: 0.9 },
-  { angle: 270, distance: 0.48, size: 1.1, speed: 1.25, alpha: 0.9 }
+  { angle: 0,   distance: 0.45, size: 1.0, speed: 1.2, alpha: 1.0 },
+  { angle: 90,  distance: 0.48, size: 1.1, speed: 1.25, alpha: 1.0 },
+  { angle: 180, distance: 0.45, size: 1.0, speed: 1.2, alpha: 1.0 },
+  { angle: 270, distance: 0.48, size: 1.1, speed: 1.25, alpha: 1.0 }
 ];
 
 /**
@@ -621,18 +621,18 @@ export const woodenPatternContained = [
   { angle: 315, distance: 0.09, size: 1.3, speed: 0.85, alpha: 1.0 },
   
   // Mid ring (6 shards) - moderately close
-  { angle: 30,  distance: 0.18, size: 1.2, speed: 1.0, alpha: 0.95 },
-  { angle: 90,  distance: 0.20, size: 1.1, speed: 1.05, alpha: 0.95 },
-  { angle: 150, distance: 0.18, size: 1.2, speed: 1.0, alpha: 0.95 },
-  { angle: 210, distance: 0.20, size: 1.1, speed: 1.05, alpha: 0.95 },
-  { angle: 270, distance: 0.18, size: 1.2, speed: 1.0, alpha: 0.95 },
-  { angle: 330, distance: 0.20, size: 1.1, speed: 1.05, alpha: 0.95 },
+  { angle: 30,  distance: 0.18, size: 1.2, speed: 1.0, alpha: 1.0 },
+  { angle: 90,  distance: 0.20, size: 1.1, speed: 1.05, alpha: 1.0 },
+  { angle: 150, distance: 0.18, size: 1.2, speed: 1.0, alpha: 1.0 },
+  { angle: 210, distance: 0.20, size: 1.1, speed: 1.05, alpha: 1.0 },
+  { angle: 270, distance: 0.18, size: 1.2, speed: 1.0, alpha: 1.0 },
+  { angle: 330, distance: 0.20, size: 1.1, speed: 1.05, alpha: 1.0 },
   
   // Outer ring (4 shards) - still contained
-  { angle: 0,   distance: 0.28, size: 1.0, speed: 1.1, alpha: 0.9 },
-  { angle: 90,  distance: 0.30, size: 1.0, speed: 1.15, alpha: 0.9 },
-  { angle: 180, distance: 0.28, size: 1.0, speed: 1.1, alpha: 0.9 },
-  { angle: 270, distance: 0.30, size: 1.0, speed: 1.15, alpha: 0.9 }
+  { angle: 0,   distance: 0.28, size: 1.0, speed: 1.1, alpha: 1.0 },
+  { angle: 90,  distance: 0.30, size: 1.0, speed: 1.15, alpha: 1.0 },
+  { angle: 180, distance: 0.28, size: 1.0, speed: 1.1, alpha: 1.0 },
+  { angle: 270, distance: 0.30, size: 1.0, speed: 1.15, alpha: 1.0 }
 ];
 
 // 🎯 Pattern Selection - Map merge types to preferred patterns
@@ -661,7 +661,7 @@ export const woodenParams = {
   regular: {
     // Visual
     lineWidth: 2.5,
-    lineAlpha: 0.85,
+    lineAlpha: 1.0,              // 🔥 USER REQUEST: 100% opacity
     
     // Animation timing
     travelDuration: 0.35,      // Base travel duration
@@ -711,7 +711,7 @@ export const woodenParams = {
   wildMagnet: {
     // Visual
     lineWidth: 2.5,
-    lineAlpha: 0.85,
+    lineAlpha: 1.0,              // 🔥 USER REQUEST: 100% opacity
     
     // Animation timing
     travelDuration: 0.35,
@@ -739,7 +739,7 @@ export const woodenParams = {
   wildStar: {
     // Visual
     lineWidth: 3.0,
-    lineAlpha: 0.9,
+    lineAlpha: 1.0,              // 🔥 USER REQUEST: 100% opacity
     
     // Animation timing
     travelDuration: 0.4,
@@ -767,7 +767,7 @@ export const woodenParams = {
   wildBeer: {
     // Visual
     lineWidth: 3.0,
-    lineAlpha: 0.9,
+    lineAlpha: 1.0,              // 🔥 USER REQUEST: 100% opacity
     
     // Animation timing
     travelDuration: 0.4,

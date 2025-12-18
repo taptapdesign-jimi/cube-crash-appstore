@@ -765,7 +765,10 @@ export function layout({ app, top }) {
   const hudY = yValue + (valueRowH - hudHeight) / 2; // Center vertically in value row
   const comboToCoinSpacing = 80; // 80px spacing from combo icon to coin element
   const coinToStarSpacing = 64; // 64px spacing from coin icon to star element
-  const comboRightPadding = 24; // 24px from right edge for combo
+  // 🔥 USER REQUEST: 24px padding from right edge (calculated as percentage of screen width)
+  // For iPhone 13 (390px width): 24px = 6.15% of screen width
+  // We'll use fixed 24px but calculate it relative to screen width for consistency
+  const comboRightPadding = 24; // 24px from right edge (like journey hearts margin-right)
   
   // Position close icon (left, existing position) - aligned with other HUD elements
   boardText.x = leftCenter;
@@ -780,27 +783,50 @@ export function layout({ app, top }) {
   if (HUD_ROOT._hudElements) {
     const { star, coin, combo } = HUD_ROOT._hudElements;
     
-    // Start from right edge (with side padding)
-    const rightEdge = vw - SIDE;
+    // 🔥 USER REQUEST: 24px padding from right edge (like journey hearts)
+    // Journey hearts use: margin-right: var(--pad-right, 24px) which accounts for safe-area-inset-right
+    // We'll use the same approach: rightEdge = vw - 24px padding
+    const rightEdge = vw - comboRightPadding; // 24px padding from right edge
     
-    // 🔥 FIXED POSITIONS: All elements (Combo, Coin, Star) have fixed positions with 64px spacing
+    // 🔥 FIXED POSITIONS: All elements (Combo, Coin, Star) have fixed positions with same spacing
     // Positions are calculated from right edge, not based on text width (non-responsive)
     
-    // Combo - 24px from right edge (fixed position)
+    // Combo - 12px left of wild preloader right edge (perfect alignment with offset)
     if (comboWrap && combo && combo.container) {
-      // Use fixed center position - combo container anchor is at center
-      // Position combo center at: rightEdge - 24px - (estimated combo width / 2)
-      // Estimated combo width: icon (28px) + spacing (4px) + "x" text (~10px) + number text (~20px) = ~62px
-      const estimatedComboWidth = 62;
-      comboWrap.x = rightEdge - comboRightPadding - estimatedComboWidth / 2;
+      // 🔥 USER REQUEST: Position combo 12px left of wild preloader right edge
+      // Wild preloader: x = 24px, width = vw - 48px, so right edge = 24 + (vw - 48) = vw - 24px
+      // Combo should be 12px left of wild preloader right edge = vw - 24px - 12px = vw - 36px
+      // Combo container anchor is at center, so we need to calculate actual total width
+      const iconWidth = combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28;
+      const xTextWidth = combo.xText ? combo.xText.width : 0;
+      const numberTextWidth = combo.text ? combo.text.width : 0;
+      const spacing = 4;
+      const totalWidth = iconWidth + spacing + xTextWidth + numberTextWidth;
+      
+      // Wild preloader right edge: vw - 24px (SIDE = 24px, barW = vw - 48px, so right = 24 + (vw - 48) = vw - 24)
+      const wildPreloaderRightEdge = vw - 24;
+      // Combo right edge should be 12px left of wild preloader right edge
+      const comboRightEdge = wildPreloaderRightEdge - 12; // vw - 36px
+      
+      // Position combo so its right edge is 8px left of wild preloader right edge
+      // comboWrap.x is center, so: comboWrap.x + totalWidth/2 = comboRightEdge
+      comboWrap.x = comboRightEdge - totalWidth / 2;
       comboWrap.y = yValue;
+      
+      console.log('🎯 Combo positioned 12px left of wild preloader:', { 
+        wildRightEdge: wildPreloaderRightEdge, 
+        comboRightEdge: comboRightEdge,
+        comboCenter: comboWrap.x, 
+        actualComboRightEdge: comboWrap.x + totalWidth / 2,
+        totalWidth 
+      });
     }
     
-    // Coin - 80px left of Combo ICON (not center) - fixed position
+    // Coin - 80px left of Combo ICON (not center) - fixed position (same spacing as before)
     if (coin && coin.container) {
       // Calculate combo center position
       const estimatedComboWidth = 62;
-      const comboCenterX = rightEdge - comboRightPadding - estimatedComboWidth / 2;
+      const comboCenterX = rightEdge - estimatedComboWidth / 2;
       
       // Combo icon is at: comboCenterX - (estimatedComboWidth / 2) + (iconWidth / 2)
       // Icon width is 28px, so icon left edge is at comboCenterX - estimatedComboWidth/2
@@ -813,11 +839,11 @@ export function layout({ app, top }) {
       coin.container.y = yValue;
     }
     
-    // Star - 64px left of Coin ICON (not center) - fixed position
+    // Star - 64px left of Coin ICON (not center) - fixed position (same spacing as before)
     if (star && star.container) {
       // Calculate combo and coin positions
       const estimatedComboWidth = 62;
-      const comboCenterX = rightEdge - comboRightPadding - estimatedComboWidth / 2;
+      const comboCenterX = rightEdge - estimatedComboWidth / 2;
       const comboIconLeftEdge = comboCenterX - estimatedComboWidth / 2;
       const coinCenterX = comboIconLeftEdge - comboToCoinSpacing;
       
@@ -1721,9 +1747,11 @@ export function updateHUD({ score, board, moves, combo }) {
         // Get screen width from app renderer or window
         const app = comboContainer.parent.parent?.app || (typeof window !== 'undefined' && window.STATE?.app);
         const screenWidth = app?.renderer?.width || (typeof window !== 'undefined' ? window.innerWidth : 800);
-        const SIDE = 24; // Side padding
-        const rightEdge = screenWidth - SIDE;
-        const comboRightPadding = 24;
+        // 🔥 USER REQUEST: 24px padding from right edge (like journey hearts)
+        // Journey hearts use: margin-right: var(--pad-right, 24px) which accounts for safe-area-inset-right
+        // We'll use the same approach: rightEdge = screenWidth - 24px padding
+        const comboRightPadding = 24; // 24px from right edge
+        const rightEdge = screenWidth - comboRightPadding; // 24px padding from right edge
         
         // Calculate total combo width (icon + spacing + "x" + number)
         const iconWidth = comboEl.iconSprite ? comboEl.iconSprite.width * comboEl.iconSprite.scale.x : 28;
@@ -1732,23 +1760,19 @@ export function updateHUD({ score, board, moves, combo }) {
         const spacing = 4;
         const totalWidth = iconWidth + spacing + xTextWidth + numberTextWidth;
         
-        // Calculate combo right edge position (from comboWrap center)
-        const estimatedComboWidth = 62; // Base estimated width
-        const comboCenterX = rightEdge - comboRightPadding - estimatedComboWidth / 2;
-        const comboRightEdge = comboCenterX + totalWidth / 2;
+        // 🔥 USER REQUEST: Position combo 12px left of wild preloader right edge
+        // Wild preloader: x = 24px (SIDE), width = screenWidth - 48px, so right edge = 24 + (screenWidth - 48) = screenWidth - 24px
+        const SIDE = 24;
+        const wildPreloaderRightEdge = screenWidth - SIDE; // vw - 24px
+        // Combo right edge should be 12px left of wild preloader right edge
+        const comboRightEdge = wildPreloaderRightEdge - 12; // vw - 36px
         
-        // Check if combo goes beyond right edge
-        if (comboRightEdge > rightEdge - comboRightPadding) {
-          // Move combo left by 12px (or more if needed) to keep it within viewport
-          const overflow = comboRightEdge - (rightEdge - comboRightPadding);
-          comboWrap.x = comboCenterX - Math.max(12, overflow);
-        } else {
-          // Reset to original position if it fits
-          comboWrap.x = rightEdge - comboRightPadding - estimatedComboWidth / 2;
-        }
+        // Position combo so its right edge is 8px left of wild preloader right edge
+        // comboWrap.x is center, so: comboWrap.x + totalWidth/2 = comboRightEdge
+        comboWrap.x = comboRightEdge - totalWidth / 2;
         
         // Also scale down if still too wide after moving
-        const maxAllowedWidth = screenWidth - SIDE - SIDE - 40;
+        const maxAllowedWidth = screenWidth - 40; // No padding, just 40px margin for safety
         if (totalWidth > maxAllowedWidth && maxAllowedWidth > 0) {
           const scale = maxAllowedWidth / totalWidth;
           comboContainer.scale.set(Math.min(1, scale));
@@ -2083,9 +2107,11 @@ export function setCombo(v){
       // Get screen width from app renderer or window
       const app = comboContainer.parent.parent?.app || (typeof window !== 'undefined' && window.STATE?.app);
       const screenWidth = app?.renderer?.width || (typeof window !== 'undefined' ? window.innerWidth : 800);
-      const SIDE = 24; // Side padding
-      const rightEdge = screenWidth - SIDE;
-      const comboRightPadding = 24;
+      // 🔥 USER REQUEST: 24px padding from right edge (like journey hearts)
+      // Journey hearts use: margin-right: var(--pad-right, 24px) which accounts for safe-area-inset-right
+      // We'll use the same approach: rightEdge = screenWidth - 24px padding
+      const comboRightPadding = 24; // 24px from right edge
+      const rightEdge = screenWidth - comboRightPadding; // 24px padding from right edge
       
       // Calculate total combo width (icon + spacing + "x" + number)
       const iconWidth = combo.iconSprite ? combo.iconSprite.width * combo.iconSprite.scale.x : 28;
@@ -2094,25 +2120,27 @@ export function setCombo(v){
       const spacing = 4;
       const totalWidth = iconWidth + spacing + xTextWidth + numberTextWidth;
       
-      // Calculate combo right edge position (from comboWrap center)
-      const estimatedComboWidth = 62; // Base estimated width
-      const comboCenterX = rightEdge - comboRightPadding - estimatedComboWidth / 2;
-      const comboRightEdge = comboCenterX + totalWidth / 2;
+      // 🔥 USER REQUEST: Position combo 12px left of wild preloader right edge
+      // Wild preloader: x = 24px (SIDE), width = screenWidth - 48px, so right edge = 24 + (screenWidth - 48) = screenWidth - 24px
+      const SIDE = 24;
+      const wildPreloaderRightEdge = screenWidth - SIDE; // vw - 24px
+      // Combo right edge should be 12px left of wild preloader right edge
+      const comboRightEdge = wildPreloaderRightEdge - 12; // vw - 36px
       
-      // Check if combo goes beyond right edge
-      if (comboRightEdge > rightEdge - comboRightPadding) {
-        // Move combo left by 12px to keep it within viewport
-        const overflow = comboRightEdge - (rightEdge - comboRightPadding);
-        comboWrap.x = comboCenterX - Math.max(12, overflow);
-        console.log(`💧 Combo moved left by ${Math.max(12, overflow).toFixed(1)}px to fit on screen (overflow: ${overflow.toFixed(1)}px)`);
-      } else {
-        // Reset to original position if it fits
-        const estimatedComboWidth = 62;
-        comboWrap.x = rightEdge - comboRightPadding - estimatedComboWidth / 2;
-      }
+      // Position combo so its right edge is 12px left of wild preloader right edge
+      // comboWrap.x is center, so: comboWrap.x + totalWidth/2 = comboRightEdge
+      comboWrap.x = comboRightEdge - totalWidth / 2;
+      
+      console.log('🎯 Combo positioned 12px left of wild preloader:', { 
+        wildRightEdge: wildPreloaderRightEdge, 
+        comboRightEdge: comboRightEdge,
+        comboCenter: comboWrap.x, 
+        actualComboRightEdge: comboWrap.x + totalWidth / 2,
+        totalWidth 
+      });
       
       // Also scale down if still too wide after moving
-      const maxAllowedWidth = screenWidth - SIDE - SIDE - 40;
+      const maxAllowedWidth = screenWidth - 40; // No padding, just 40px margin for safety
       if (totalWidth > maxAllowedWidth && maxAllowedWidth > 0) {
         const scale = maxAllowedWidth / totalWidth;
         comboContainer.scale.set(Math.min(1, scale));
