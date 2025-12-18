@@ -14,7 +14,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning, cleanupWildBeerExplosion, waitForBubblesAnimationToComplete } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning, cleanupWildBeerExplosion, waitForBubblesAnimationToComplete } from './fx.js';
 import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
 // import { showStarsModal } from './stars-modal.js';
@@ -4201,6 +4201,15 @@ function merge(src, dst, helpers){
     // Works for BOTH: magnet on tile AND tile on magnet
     // 🔥 CRITICAL: Only pull if hasTilesToPull is true (magnet behaves like wild if false)
     if (isWildMagnet && hasTilesToPull && dst && !dst.destroyed && !dst.locked && (dst.value | 0) > 0) {
+      // 🔥 CRITICAL FIX: Reset flag if previous pull completed but flag wasn't reset
+      // This fixes the bug where newly spawned magnet can't pull because flag is still true
+      // Check if there are any active pull animations - if not, reset flag
+      const hasActivePullAnimations = STATE.tiles.some((t: any) => t && !t.destroyed && t._wildMagnetAffected === true);
+      if (wildMagnetPullInProgress && !hasActivePullAnimations) {
+        console.log('🧲 Resetting wildMagnetPullInProgress flag - no active pull animations found');
+        wildMagnetPullInProgress = false;
+      }
+      
       // 🔥 CRITICAL: Prevent overlapping wild-magnet pull animations
       if (wildMagnetPullInProgress) {
         console.warn('⚠️ Wild-magnet pull already in progress, skipping new pull animation');
@@ -4425,7 +4434,8 @@ function merge(src, dst, helpers){
         };
         
         // 🔥 CRITICAL: Cleanup ALL timelines and pulled tiles (MEMORY LEAK FIX)
-        const cleanupAllPullAnimations = () => {
+        // 🔥 FIX: Define as function declaration (hoisted) to ensure it's available in setTimeout
+        function cleanupAllPullAnimations() {
           console.log('🧹 Cleaning up all wild-magnet pull animations - killing', activeTimelines.length, 'timelines');
           
           // Kill all active timelines
@@ -4450,7 +4460,7 @@ function merge(src, dst, helpers){
             wildMagnetPullInProgress = false;
             console.log('✅ wildMagnetPullInProgress reset to false after cleanup');
           }
-        };
+        }
         
         // Function to merge pulled tiles when both conditions are met
         const tryMergePulledTiles = async () => {
@@ -5157,20 +5167,12 @@ function merge(src, dst, helpers){
           // 🔥 NEW SYSTEM: Direct call to woodShardsAtTile with explicit flags
           // This bypasses getMerge6ShardConfig and ensures correct shard colors
           if (isMainWildMagnetMerge) {
-            // Wild-magnet merge: red/brown shards (50/50 random)
+            // Wild-magnet merge: red shards using template-based pooling
             // NO STARS for wild-magnet merge
-            console.log('🔥 Wild-magnet merge 6 - using red/brown shards (NO STARS)');
-            woodShardsAtTile(board, dst, { 
-              enhanced: true, 
-              wild: true, 
-              wildMagnet: true,  // Explicitly set wildMagnet flag - this will prevent stars
-              count: 30, 
-              intensity: 1.9, 
-              spread: 0.3,  // Dramatically reduced from 1.2 to keep shards very close to tile
-              size: 1.5, 
-              speed: 0.85, 
-              vanishDelay: 0.0, 
-              vanishJitter: 0.02 
+            console.log('🔥 Wild-magnet merge 6 - using template-based pooling with red shards (NO STARS)');
+            const mergePos = centerInBoard(board, dst, TILE);
+            wildMagnetMerge6ShardsTemplated(board, { x: mergePos.x, y: mergePos.y, gridX: dstGridX, gridY: dstGridY, zIndex: dstZIndex } as any, { 
+              zIndex: dstZIndex
             });
           } else if (isMainWildOnlyMerge) {
             // Wild-only merge (wild on ordinary or ordinary on wild): yellow/brown shards (50/50 random)
@@ -5183,19 +5185,10 @@ function merge(src, dst, helpers){
             
             console.log('💧 Merge 6 check - isWildBeerMerge:', isWildBeerMerge, 'isPureWildStarMerge:', isPureWildStarMerge, 'srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, 'srcValue:', src?.value, 'dstValue:', dst?.value);
             
-            woodShardsAtTile(board, dst, { 
-              enhanced: true, 
-              wild: true,  // Explicitly set wild flag (not wild-magnet) - this will allow stars check
-              wildMagnet: false,  // Explicitly NOT wild-magnet - this will allow stars
-              isWildBeer: isWildBeerMerge,  // 🔥 Pass wild-beer flag
+            // 🎨 TEMPLATE-BASED: Use new template system for wild merges
+            wildMerge6ShardsTemplated(board, dst, { 
               skipStars: isPureWildStarMerge,  // 🔥 USER REQUEST: Skip star particles for pure wild star merge 6
-              count: 30, 
-              intensity: 1.9, 
-              spread: 0.3,  // Dramatically reduced from 1.2 to keep shards very close to tile
-              size: 1.5,     // Same size as magnet merge 6
-              speed: 0.85, 
-              vanishDelay: 0.0, 
-              vanishJitter: 0.02 
+              zIndex: 9993
             });
             
             // 🔥 FPS DROP FIX: Stagger animacije umjesto istovremenog pokretanja
@@ -5281,12 +5274,15 @@ function merge(src, dst, helpers){
           // This ensures shards animation starts before tile "dies off"
           // 🔥 SPEED UP: Instant procedural fade-out + animation duration exactly 1s
           const mergePos = centerInBoard(board, dst, TILE);
-          regularMerge6Shards(board, { x: mergePos.x, y: mergePos.y, gridX: dstGridX, gridY: dstGridY, zIndex: dstZIndex } as any, { 
-            count: 16 + Math.floor(Math.random() * 9), // Random between 16-24
-            ttl: 1.0,        // Time to live (exactly 1 second)
-            fastFadeOut: true,  // Enable instant procedural fade-out
-            travelDurMultiplier: 0.5,  // 50% faster travel duration
-            fadeDelayMultiplier: 0.1   // 90% faster fade delay (instant)
+          // 🔥 CRITICAL: Check if this is wild merge to pass isWildOnly flag for yellow shards
+          const isWildMerge = srcSpecial === 'wild' || dstSpecial === 'wild';
+          const isWildBeerMerge = srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
+          const isWildMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
+          const isWildOnlyMerge = isWildMerge && !isWildBeerMerge && !isWildMagnetMerge;
+          
+          // 🎨 TEMPLATE-BASED: Use new template system for reliable pooling
+          regularMerge6ShardsTemplated(board, { x: mergePos.x, y: mergePos.y, gridX: dstGridX, gridY: dstGridY, zIndex: dstZIndex } as any, { 
+            zIndex: dstZIndex
           });
           
           // Impact effect (50% of wild: squash 0.24->0.12, stretch 0.20->0.10, tilt 0.14->0.07, bounce 1.18->1.09)

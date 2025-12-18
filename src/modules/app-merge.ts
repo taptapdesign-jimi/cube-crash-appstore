@@ -2,7 +2,7 @@
 import { gsap } from 'gsap';
 import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';
 import * as makeBoard from './board.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle, stopWildBeerBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles } from './fx.js';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle, stopWildBeerBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles, wildMagnetMerge6ShardsTemplated } from './fx.js';
 import { COLS, ROWS, TILE, GAP } from './constants.js';
 import * as HUD from './hud-helpers.js';
 import { openAtCell, openEmpties, spawnBounce } from './app-spawn.ts';
@@ -762,24 +762,12 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         dst.targetY = shardY;
       }
       
-      // 🔥 CRITICAL: Trigger shards animation immediately using dst tile directly
-      // This ensures shards appear at the correct position (centerInBoard will use dst.x/y or gridX/gridY)
-      woodShardsAtTile(STATE.board, dst, { 
-        enhanced: true, 
-        wild: false,  // Not wild-only, this is wild-magnet merge
-        wildMagnet: true,  // Red-brown shards (wild-magnet style)
-        count: 12,  // 60% fewer shards (was 30, now 12 = 30 * 0.4)
-        intensity: 1.9,  // Same as magnet merge 6
-        spread: 1.08,  // 40% smaller spread (was 1.8, now 1.08 = 1.8 * 0.6)
-        size: 1.8,  // Size for shards
-        speed: 0.85, 
-        vanishDelay: 0.0, 
-        vanishJitter: 0.02,
-        ttl: 1.0,  // Time to live (exactly 1 second, same as regular merge 6)
-        fastFadeOut: true,  // Enable instant procedural fade-out
-        travelDurMultiplier: 0.5,  // 50% faster travel duration
-        fadeDelayMultiplier: 0.1,  // 90% faster fade delay (instant)
-        behind: false  // Ensure shards are visible (not behind tile)
+      // 🔥 CRITICAL: Use template-based pooling for magnet pull shards (optimized, pull-specific patterns)
+      // This uses object pooling with pull-specific patterns for better variety and no overlap
+      const mergePos = { x: shardX, y: shardY, gridX: dst.gridX, gridY: dst.gridY, zIndex: dst.zIndex || 9993 };
+      wildMagnetMerge6ShardsTemplated(STATE.board, mergePos as any, { 
+        zIndex: dst.zIndex || 9993,
+        isPullAnimation: true  // 🔥 Use pull-specific patterns
       });
       
       console.log('🧲 Shards animation triggered at position:', shardX, shardY, 'grid:', dst.gridX, dst.gridY, 'dst.x:', dst.x, 'dst.y:', dst.y);
@@ -2460,21 +2448,12 @@ export function merge(src, dst, helpers){
             glassCrackAtTile(STATE.board, dst, 200, 2.6);
             innerFlashAtTile(STATE.board, dst, 220, 2.2);
             
-            // 🔥 Use woodShardsAtTile with same parameters as magnet merge 6 (brown shards only)
-            // 🔥 SIZE: 300x larger for pulled tiles merge 6 (1.5 * 300 = 450)
-            // 🔥 CRITICAL: Add explicit flag to ensure pulled tiles merge 6 shards are properly generated
-            woodShardsAtTile(STATE.board, dst, { 
-              enhanced: true, 
-              wild: false,  // Not wild, just magnet-affected
-              wildMagnet: false,  // Not wild-magnet itself, just affected tiles
-              pulledTilesMerge: true,  // 🔥 EXPLICIT FLAG for pulled tiles merge 6
-              count: 30,  // Same as magnet merge 6
-              intensity: 1.9,  // Same as magnet merge 6
-              spread: 1.8,  // Same as magnet merge 6
-              size: 450,  // 300x larger than magnet merge 6 (1.5 * 300 = 450)
-              speed: 0.85,  // Same as magnet merge 6
-              vanishDelay: 0.0, 
-              vanishJitter: 0.02 
+            // 🔥 CRITICAL: Use template-based pooling for pulled tiles merge 6 shards (optimized, pull-specific patterns)
+            // This uses object pooling with pull-specific patterns for better variety and no overlap
+            const mergePos = { x: dst.x || 0, y: dst.y || 0, gridX: dst.gridX || 0, gridY: dst.gridY || 0, zIndex: dst.zIndex || 9993 };
+            wildMagnetMerge6ShardsTemplated(STATE.board, mergePos as any, { 
+              zIndex: dst.zIndex || 9993,
+              isPullAnimation: true  // 🔥 Use pull-specific patterns
             });
 
             // Enhanced multiplier

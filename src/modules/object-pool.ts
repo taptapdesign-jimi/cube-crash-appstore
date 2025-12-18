@@ -41,7 +41,8 @@ class GraphicsPool {
 
   /**
    * Release a Graphics object back to the pool
-   * Cleans up GSAP animations and resets the object
+   * 🔥 AGGRESSIVE CLEANUP: Based on pooling best practices
+   * Cleans up GSAP animations, stops all animations, and resets the object
    * @param {Graphics} g - Graphics object to release
    */
   release(g: Graphics): void {
@@ -49,7 +50,7 @@ class GraphicsPool {
       return; // Already destroyed, skip
     }
 
-    // 🔥 CRITICAL: Kill all GSAP animations before releasing
+    // 🔥 CRITICAL: Kill ALL GSAP animations FIRST (before any property changes)
     // This prevents "zombie" animations and memory leaks
     try {
       gsap.killTweensOf(g);
@@ -60,9 +61,17 @@ class GraphicsPool {
       gsap.killTweensOf(g.scale);
       gsap.killTweensOf(g.scale.x);
       gsap.killTweensOf(g.scale.y);
+      gsap.killTweensOf(g.pivot);
+      gsap.killTweensOf(g.skew);
     } catch (err) {
       // Ignore GSAP cleanup errors
     }
+
+    // 🔥 CRITICAL: Hide object BEFORE removing from parent (prevents visual glitches)
+    try {
+      g.visible = false;
+      g.alpha = 0;
+    } catch {}
 
     // Remove from parent if still attached
     try {
@@ -73,7 +82,7 @@ class GraphicsPool {
       // Ignore parent removal errors
     }
 
-    // Reset Graphics object
+    // Reset Graphics object (will set visible = true, alpha = 1 for next use)
     this.reset(g);
 
     // Return to pool if we haven't reached max size
@@ -91,21 +100,68 @@ class GraphicsPool {
 
   /**
    * Reset a Graphics object to default state
+   * 🔥 AGGRESSIVE RESET: Based on pooling best practices to prevent "invisible particle" bugs
    * @param {Graphics} g - Graphics object to reset
    */
   private reset(g: Graphics): void {
     if (!g || g.destroyed) return;
 
     try {
-      // Clear all drawing commands
+      // 🔥 CRITICAL: Kill ALL GSAP tweens FIRST (before any property changes)
+      // This prevents "zombie" animations that can interfere with new animations
+      gsap.killTweensOf(g);
+      gsap.killTweensOf(g.x);
+      gsap.killTweensOf(g.y);
+      gsap.killTweensOf(g.alpha);
+      gsap.killTweensOf(g.rotation);
+      gsap.killTweensOf(g.scale);
+      gsap.killTweensOf(g.scale.x);
+      gsap.killTweensOf(g.scale.y);
+      gsap.killTweensOf(g.pivot);
+      gsap.killTweensOf(g.skew);
+      
+      // Clear all drawing commands (geometry)
       g.clear();
+      
+      // 🔥 CRITICAL: Clear geometry and bounds cache (prevents rendering issues)
+      try {
+        if (g.geometry && typeof g.geometry.clear === 'function') {
+          g.geometry.clear();
+        }
+        if (g.bounds && typeof g.bounds.clear === 'function') {
+          g.bounds.clear();
+        }
+      } catch {}
+      
+      // 🔥 CRITICAL: Reset visibility FIRST (must be visible to be seen!)
+      g.visible = true;
+      g.alpha = 1.0;
       
       // Reset transform properties
       g.x = 0;
       g.y = 0;
-      g.alpha = 1;
       g.rotation = 0;
-      g.scale.set(1);
+      g.scale.set(1, 1);
+      
+      // 🔥 CRITICAL: Reset pivot and skew (can cause rendering issues if not reset)
+      try {
+        if (g.pivot) {
+          g.pivot.set(0, 0);
+        }
+        if (g.skew) {
+          g.skew.set(0, 0);
+        }
+      } catch {}
+      
+      // Reset cache (can cause rendering issues if cached)
+      // 🔥 FIX: cacheAsBitmap is deprecated, use cacheAsTexture instead
+      try {
+        if ('cacheAsTexture' in g) {
+          g.cacheAsTexture = false;
+        } else if ('cacheAsBitmap' in g) {
+          (g as any).cacheAsBitmap = false;
+        }
+      } catch {}
       
       // Reset event mode (will be set by caller if needed)
       g.eventMode = 'auto';
@@ -118,8 +174,16 @@ class GraphicsPool {
       try {
         g.interactiveChildren = true;
       } catch {}
+      
+      // 🔥 CRITICAL: Force update bounds (ensures proper rendering)
+      try {
+        if (typeof g.updateBounds === 'function') {
+          g.updateBounds();
+        }
+      } catch {}
     } catch (err) {
       // Ignore reset errors
+      console.warn('⚠️ GraphicsPool.reset() error:', err);
     }
   }
 
