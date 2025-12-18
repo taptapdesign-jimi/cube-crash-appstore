@@ -225,6 +225,38 @@ export function getDragParticleColors(tileSpecial) {
 }
 
 /**
+ * Get bubble colors for a tile type (for full-screen bubbles explosion)
+ * @param {string} tileSpecial - 'wild', 'wild-beer', 'wild-magnet', or null for regular
+ * @returns {number[]} Array of color hex values
+ */
+export function getBubbleColors(tileSpecial) {
+  if (!activeTemplate) {
+    console.error('❌ getBubbleColors: No active template set');
+    return [0xFFFFFF, 0xFEF9F5, 0xFDF5ED, 0xFCF0E5]; // Default white/cream bubbles
+  }
+  
+  // Map tile special to template color key
+  let colorKey = 'regular'; // Default
+  if (tileSpecial === 'wild') {
+    colorKey = 'wild';
+  } else if (tileSpecial === 'wild-beer') {
+    colorKey = 'wildBeer';
+  } else if (tileSpecial === 'wild-magnet') {
+    colorKey = 'wildMagnet';
+  }
+  
+  // Get colors from template's bubbleColors
+  const colors = activeTemplate.bubbleColors?.[colorKey];
+  
+  if (!colors || !Array.isArray(colors) || colors.length === 0) {
+    console.warn(`⚠️ getBubbleColors: No bubble colors found for ${colorKey} (tileSpecial: ${tileSpecial}), using default white`);
+    return [0xFFFFFF, 0xFEF9F5, 0xFDF5ED, 0xFCF0E5]; // Default white/cream bubbles
+  }
+  
+  return colors;
+}
+
+/**
  * Get parameters for a merge type
  * @param {string} mergeType - 'regular' or 'wild'
  * @returns {object} Parameters object

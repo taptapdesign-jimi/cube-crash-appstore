@@ -8,7 +8,7 @@ import { gsap } from 'gsap';
 import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from './wild-stars.js';
 import { TILE } from './constants.js';
 import { graphicsPool } from './object-pool.js';
-import { selectPattern, getColor, getParams, getActiveTemplate, getDragParticleColors } from './templates/template-manager.js';
+import { selectPattern, getColor, getParams, getActiveTemplate, getDragParticleColors, getBubbleColors } from './templates/template-manager.js';
 
 try {
   preloadWildStarTexture();
@@ -3605,22 +3605,40 @@ export function createWildBeerBubblesExplosion(board, tile) {
   let lastTick = startTime;
   let acc = 0;
 
+  // 🔥 TEMPLATE-BASED: Get bubble colors from active template (wooden style)
+  // Wild beer bubbles use light orange/white palette from template
+  let bubbleColors;
+  try {
+    bubbleColors = getBubbleColors('wild-beer');
+    if (!bubbleColors || !Array.isArray(bubbleColors) || bubbleColors.length === 0) {
+      console.warn('⚠️ getBubbleColors returned empty/invalid array for wild-beer, using default white');
+      bubbleColors = [0xFFFFFF, 0xFFF5E6, 0xFFE8D1, 0xFFDCC2]; // Default light orange/white
+    }
+  } catch (err) {
+    console.error('❌ Failed to get bubble colors from template:', err);
+    bubbleColors = [0xFFFFFF, 0xFFF5E6, 0xFFE8D1, 0xFFDCC2]; // Default light orange/white
+  }
+  
+  // Select base bubble color from palette for texture (use first color as base)
+  const bubbleColorForTexture = bubbleColors[0] || 0xFFFFFF;
+
   // 🔥 FAZA 1: Create bubble texture once (max size 48px) - cached globally with better fallback
+  // 🔥 TEMPLATE-BASED: Use bubble color from template instead of hardcoded white
   if (!_cachedBubbleTexture && app && app.renderer) {
     const maxSize = 48; // Max bubble size
     const maxRadius = maxSize / 2;
     const tempGraphics = new Graphics();
     
     try {
-      // White bubble with highlight effect (same as v74 style)
+      // Bubble with highlight effect using template color
       tempGraphics.circle(0, 0, maxRadius);
-      tempGraphics.fill({ color: 0xFFFFFF, alpha: 1.0 }); // White fill
-      // Highlight circle (top-left)
+      tempGraphics.fill({ color: bubbleColorForTexture, alpha: 1.0 }); // Template color fill
+      // Highlight circle (top-left) - slightly brighter
       tempGraphics.circle(-maxRadius * 0.25, -maxRadius * 0.25, maxRadius * 0.32);
-      tempGraphics.fill({ color: 0xFFFFFF, alpha: 1.0 }); // Brighter highlight
+      tempGraphics.fill({ color: bubbleColorForTexture, alpha: 1.0 }); // Brighter highlight
       // Stroke
       tempGraphics.circle(0, 0, maxRadius);
-      tempGraphics.stroke({ color: 0xFFFFFF, alpha: 0.65, width: 1 });
+      tempGraphics.stroke({ color: bubbleColorForTexture, alpha: 0.65, width: 1 });
       
       // 🔥 IMPROVED: Better texture generation with multiple fallback strategies
       // Try high resolution first
@@ -3719,13 +3737,15 @@ export function createWildBeerBubblesExplosion(board, tile) {
         bubble = graphicsPool.acquire();
         bubble.eventMode = 'none';
         bubble.cursor = 'default';
-    bubble.clear();
-    bubble.circle(0, 0, radius);
-        bubble.fill({ color: 0xFFFFFF, alpha });
-        bubble.circle(-radius * 0.25, -radius * 0.25, radius * 0.32);
-        bubble.fill({ color: 0xFFFFFF, alpha: Math.min(1, alpha + 0.2) });
+        bubble.clear();
+        // 🔥 TEMPLATE-BASED: Use bubble color from template (random from palette)
+        const bubbleColorForGraphics = bubbleColors[Math.floor(Math.random() * bubbleColors.length)];
         bubble.circle(0, 0, radius);
-        bubble.stroke({ color: 0xFFFFFF, alpha: alpha * 0.65, width: 1 });
+        bubble.fill({ color: bubbleColorForGraphics, alpha });
+        bubble.circle(-radius * 0.25, -radius * 0.25, radius * 0.32);
+        bubble.fill({ color: bubbleColorForGraphics, alpha: Math.min(1, alpha + 0.2) });
+        bubble.circle(0, 0, radius);
+        bubble.stroke({ color: bubbleColorForGraphics, alpha: alpha * 0.65, width: 1 });
         isSprite = false;
       }
     } else {
@@ -3734,12 +3754,14 @@ export function createWildBeerBubblesExplosion(board, tile) {
       bubble.eventMode = 'none';
       bubble.cursor = 'default';
       bubble.clear();
+      // 🔥 TEMPLATE-BASED: Use bubble color from template (random from palette)
+      const bubbleColorForGraphics = bubbleColors[Math.floor(Math.random() * bubbleColors.length)];
       bubble.circle(0, 0, radius);
-      bubble.fill({ color: 0xFFFFFF, alpha });
+      bubble.fill({ color: bubbleColorForGraphics, alpha });
       bubble.circle(-radius * 0.25, -radius * 0.25, radius * 0.32);
-      bubble.fill({ color: 0xFFFFFF, alpha: Math.min(1, alpha + 0.2) });
+      bubble.fill({ color: bubbleColorForGraphics, alpha: Math.min(1, alpha + 0.2) });
       bubble.circle(0, 0, radius);
-      bubble.stroke({ color: 0xFFFFFF, alpha: alpha * 0.65, width: 1 });
+      bubble.stroke({ color: bubbleColorForGraphics, alpha: alpha * 0.65, width: 1 });
       isSprite = false;
     }
     

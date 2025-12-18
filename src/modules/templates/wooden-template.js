@@ -32,6 +32,23 @@ export const woodenDragParticleColors = {
   wildMagnet: [0xF26034, 0xF57A5A, 0xF89480, 0xFBAEA6, 0xFDC8CC]
 };
 
+// 🎨 Wooden Bubble Colors (for full-screen bubbles explosion)
+// Bubbles use lighter, more transparent variations of drag particle colors
+export const woodenBubbleColors = {
+  // Regular tiles: Light beige/cream bubbles
+  regular: [0xFFFFFF, 0xFEF9F5, 0xFDF5ED, 0xFCF0E5],
+  
+  // Wild star (wild): Light yellow/white bubbles
+  wild: [0xFFFFFF, 0xFFF8E1, 0xFFF3C4, 0xFFEEB3],
+  wildStar: [0xFFFFFF, 0xFFF8E1, 0xFFF3C4, 0xFFEEB3], // Alias for wild
+  
+  // Wild beer: Light orange/white bubbles - ORIGINAL COLOR (white with orange tint)
+  wildBeer: [0xFFFFFF, 0xFFF5E6, 0xFFE8D1, 0xFFDCC2],
+  
+  // Wild magnet: Light red/white bubbles
+  wildMagnet: [0xFFFFFF, 0xFFE8E0, 0xFFD4C8, 0xFFC0B0]
+};
+
 // 📐 Wooden Shard Patterns
 // Each pattern defines exact positions, angles, and properties for shards
 // This allows for reliable pooling and consistent visual quality
