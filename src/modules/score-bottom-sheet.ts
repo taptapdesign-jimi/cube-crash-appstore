@@ -220,23 +220,39 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
 
 // 🔥 SAME LOGIC AS END RUN MODAL: Export function to check if modal is visible
 export function isScoreBottomSheetVisible(): boolean {
-  // 🔥 CRITICAL: Check isVisible flag first (most reliable)
-  if (isVisible) return true;
-  
-  // 🔥 CRITICAL: If modal is closing, it's not visible
-  if (modal && (modal as any)._closing) {
-    return false;
-  }
-  
-  // 🔥 CRITICAL: Check if modal exists and is actually visible (has 'visible' class)
-  if (modal && modal.parentNode) {
-    // Check if modal has 'visible' class (actually shown)
-    if (modal.classList.contains('visible')) {
+  const result = (() => {
+    // 🔥 CRITICAL: Check isVisible flag first (most reliable)
+    if (isVisible) {
+      console.log('🔍 isScoreBottomSheetVisible: isVisible=true');
       return true;
     }
-  }
+    
+    // 🔥 CRITICAL: If modal is closing, it's not visible
+    if (modal && (modal as any)._closing) {
+      console.log('🔍 isScoreBottomSheetVisible: modal is closing');
+      return false;
+    }
+    
+    // 🔥 CRITICAL: Check if modal exists and is actually visible (has 'visible' class)
+    if (modal && modal.parentNode) {
+      // Check if modal has 'visible' class (actually shown)
+      if (modal.classList.contains('visible')) {
+        console.log('🔍 isScoreBottomSheetVisible: modal has visible class');
+        return true;
+      }
+    }
+    
+    console.log('🔍 isScoreBottomSheetVisible: returning false', { 
+      isVisible, 
+      hasModal: !!modal, 
+      hasParent: modal ? !!modal.parentNode : false,
+      hasVisibleClass: modal ? modal.classList.contains('visible') : false,
+      _closing: modal ? (modal as any)._closing : 'N/A'
+    });
+    return false;
+  })();
   
-  return false;
+  return result;
 }
 
 // Export to window for HUD click handler (same as end-run-modal)
@@ -288,15 +304,30 @@ export function showScoreBottomSheet(): void {
 }
 
 export function hideScoreBottomSheet(): void {
+  console.log('🔍 hideScoreBottomSheet() called', { 
+    modal: !!modal, 
+    modalEl: !!modal, 
+    _closing: modal ? (modal as any)._closing : 'N/A',
+    isVisible: isVisible 
+  });
+  
   const modalEl = modal;
-  if (!modalEl || (modalEl as any)._closing) return;
+  if (!modalEl) {
+    console.warn('⚠️ hideScoreBottomSheet: No modal element');
+    return;
+  }
+  
+  if ((modalEl as any)._closing) {
+    console.warn('⚠️ hideScoreBottomSheet: Modal already closing');
+    return;
+  }
 
   (modalEl as any)._closing = true;
   // 🔥 CRITICAL: Reset isVisible IMMEDIATELY when closing starts
   // This ensures isScoreBottomSheetVisible() returns false right away
   isVisible = false;
 
-  console.log('📊 Closing score bottom sheet - isVisible reset to false');
+  console.log('📊 Closing score bottom sheet - isVisible reset to false', { isVisible });
 
   // Medium haptic for closing
   if (typeof (window as any).triggerHapticImpact === 'function') {
