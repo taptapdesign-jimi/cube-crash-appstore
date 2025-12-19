@@ -1760,34 +1760,35 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
           }
 
       // 🔥 USER REQUEST: Tap bounce animation on X button (entire container with border)
-      // Same approach as score icon - animate container scale
-      if (xButton && !xButton.destroyed) {
+      // Get xButton from parent or stored reference to ensure it's available
+      const buttonToAnimate = xButton || (HUD_ROOT && HUD_ROOT._xButton);
+      if (buttonToAnimate && !buttonToAnimate.destroyed) {
         try {
           // Kill any existing animation
           if (typeof gsap !== 'undefined') {
             // 🔥 CRITICAL: Ensure scale exists and is initialized (PIXI Container has scale by default, but ensure it's set)
-            if (!xButton.scale || xButton.scale.x === undefined || xButton.scale.y === undefined) {
-              xButton.scale.set(1, 1);
+            if (!buttonToAnimate.scale || buttonToAnimate.scale.x === undefined || buttonToAnimate.scale.y === undefined) {
+              buttonToAnimate.scale.set(1, 1);
             }
             
-            gsap.killTweensOf(xButton.scale);
+            gsap.killTweensOf(buttonToAnimate.scale);
             
             // Tap bounce: scale down → scale up → back to normal
             // Animates entire container (X icon + dashed border)
             // Same timing as journey hearts tap-bounce (220ms total)
-            gsap.to(xButton.scale, {
+            gsap.to(buttonToAnimate.scale, {
               x: 0.92,
               y: 0.92,
               duration: 0.077, // 35% of 220ms
               ease: 'power2.out',
               onComplete: () => {
-                gsap.to(xButton.scale, {
+                gsap.to(buttonToAnimate.scale, {
                   x: 1.06,
                   y: 1.06,
                   duration: 0.077, // 35% of 220ms (70% - 35%)
                   ease: 'power2.out',
                   onComplete: () => {
-                    gsap.to(xButton.scale, {
+                    gsap.to(buttonToAnimate.scale, {
                       x: 1,
                       y: 1,
                       duration: 0.066, // 30% of 220ms (100% - 70%)
