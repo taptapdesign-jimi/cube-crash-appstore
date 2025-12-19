@@ -1596,7 +1596,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // Original: 44x44px, New: 56x60px (56px width, 44+16 height)
   const touchAreaWidth = 56; // 56px width (user requested)
   const touchAreaHeight = 44 + 16; // 60px height (8px top + 8px bottom)
-  const centerX = touchAreaWidth / 2; // 38px - center X within container
+  const centerX = touchAreaWidth / 2; // 28px - center X within container (56/2)
   const centerY = touchAreaHeight / 2; // 30px - center Y within container
   
   // 🔥 USER REQUEST: Red rectangle from left edge, 24px over X button on right
