@@ -1453,13 +1453,36 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   HUD_ROOT.interactive = false;
   HUD_ROOT.cursor = 'default';
   
-  // 🔥 USER REQUEST: Add X button (top left) for end run modal with touch area
+  // 🔥 USER REQUEST: Add X button (top left) for end run modal with rounded dotted area
   const xButton = new Container();
   xButton.interactive = true;
   xButton.cursor = 'pointer';
   xButton.eventMode = 'static';
   
-  // Create X icon using Graphics (simple X shape)
+  // Create rounded dotted circle background (visual feedback for touch area)
+  const touchAreaSize = 44; // 44px touch area (iOS standard)
+  const circleBg = new Graphics();
+  const radius = touchAreaSize / 2; // 22px radius
+  
+  // Draw dotted circle border (dashed effect using multiple small arcs)
+  circleBg.lineStyle(2, 0xB58573, 0.5); // Brown color, 50% opacity, 2px thick
+  const numDots = 16; // Number of dots in circle
+  const dotAngle = (Math.PI * 2) / numDots;
+  
+  // Draw dots around circle
+  for (let i = 0; i < numDots; i++) {
+    const angle = i * dotAngle;
+    const x1 = Math.cos(angle) * radius;
+    const y1 = Math.sin(angle) * radius;
+    const x2 = Math.cos(angle + dotAngle * 0.6) * radius;
+    const y2 = Math.sin(angle + dotAngle * 0.6) * radius;
+    // Draw small line segment for each dot
+    circleBg.moveTo(x1, y1);
+    circleBg.lineTo(x2, y2);
+  }
+  xButton.addChild(circleBg);
+  
+  // Create X icon using Graphics (simple X shape) - centered in circle
   const xGraphics = new Graphics();
   xGraphics.lineStyle(3, 0xB58573, 1); // Brown color, 3px thick
   const xSize = 20;
@@ -1469,8 +1492,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   xGraphics.lineTo(-xSize/2, xSize/2);
   xButton.addChild(xGraphics);
   
-  // 🔥 USER REQUEST: Add touch area (larger hit area for easier clicking)
-  const touchAreaSize = 44; // 44px touch area (iOS standard)
+  // 🔥 USER REQUEST: Touch area must be exactly where X is (centered on button)
+  // hitArea is relative to container's local coordinates (0,0 is center)
   xButton.hitArea = new Rectangle(-touchAreaSize/2, -touchAreaSize/2, touchAreaSize, touchAreaSize);
   
   // Position X button (top left, will be positioned in layout())
