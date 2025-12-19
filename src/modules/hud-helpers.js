@@ -908,7 +908,7 @@ export function layout({ app, top }) {
     
     // 🔥 VERIFY: Calculate actual screen position
     // Red rectangle left edge = HUD_ROOT.x + container.x + debugRectX = hudRootX + 24 + (-24) = 0px (left edge) ✓
-    // Red rectangle right edge = 0 + 124 = 124px (24px over X button) ✓
+    // Red rectangle right edge = 0 + 116 = 116px (16px over X button, reduced by 8px) ✓
     // Button's top edge = HUD_ROOT.y + container.y = hudRootY + (yValue - 22) ✓
     const actualScreenX = hudRootX + xButton.x;
     const actualScreenY = hudRootY + xButton.y;
