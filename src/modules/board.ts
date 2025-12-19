@@ -707,14 +707,25 @@ function tileIsActive(tile: Tile | null | undefined): boolean {
   if (!tile || tile.destroyed) return false;
   if (tile.visible === false) return false;
   
-  // 🔥 CRITICAL: Locked tiles with value > 0 are still active (e.g. during magnet pull)
+  // 🔥 CRITICAL FIX: Exclude locked tiles from active tiles
+  // User CANNOT drag or merge locked tiles, so they should NOT be counted as "active" for anyMergePossible
+  // Exception: Wild-magnet affected tiles are locked during pull animation but will unlock after merge
+  // These are handled separately in endgame-checker.ts
+  const isWildMagnetAffected = (tile as any)?._wildMagnetAffected === true;
+  
+  if (tile.locked && !isWildMagnetAffected) {
+    // Locked tiles (except wild-magnet affected) are NOT active for gameplay
+    // User cannot drag or merge them, so they should not be counted in anyMergePossible
+    return false;
+  }
+  
   // Only exclude locked tiles with value 0 (ghost placeholders)
   const value = (tile.value | 0);
   if (value > 0) {
-    return true; // Active regardless of locked status
+    return true; // Active if unlocked (or wild-magnet affected)
   }
   
-  // Wild tiles are active even if locked temporarily
+  // Wild tiles are active even if locked temporarily (wild-magnet affected case)
   return tileIsWild(tile);
 }
 
