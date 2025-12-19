@@ -292,9 +292,11 @@ export function hideScoreBottomSheet(): void {
   if (!modalEl || (modalEl as any)._closing) return;
 
   (modalEl as any)._closing = true;
+  // 🔥 CRITICAL: Reset isVisible IMMEDIATELY when closing starts
+  // This ensures isScoreBottomSheetVisible() returns false right away
   isVisible = false;
 
-  console.log('📊 Closing score bottom sheet');
+  console.log('📊 Closing score bottom sheet - isVisible reset to false');
 
   // Medium haptic for closing
   if (typeof (window as any).triggerHapticImpact === 'function') {
