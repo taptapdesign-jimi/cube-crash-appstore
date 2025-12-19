@@ -227,6 +227,20 @@ const CRITICAL_ASSETS: string[] = [
   './assets/close-icon.png',
   './assets/stop.png',
   
+  // Bottom sheet icons (preload to prevent blurry loading when modals open)
+  './assets/highscore-icon.png',
+  './assets/highscore-icon@2x.png',
+  './assets/highscore-icon@3x.png',
+  './assets/cubes-cracked.png',
+  './assets/cubes-cracked@2x.png',
+  './assets/cubes-cracked@3x.png',
+  './assets/modals/heart-life.png',
+  './assets/modals/heart-life@2x.png',
+  './assets/modals/heart-life@3x.png',
+  './assets/modals/heart-life-empty.png',
+  './assets/modals/heart-life-empty@2x.png',
+  './assets/modals/heart-life-empty@3x.png',
+  
   // One font only
   './assets/fonts/LTCrow-Regular.ttf',
   
