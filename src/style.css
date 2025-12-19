@@ -2626,6 +2626,44 @@ body{
   transform: translateY(0);
 }
 
+/* Score bottom sheet specific styles */
+.score-bottom-sheet .score-stats-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.score-bottom-sheet .bottom-sheet-title {
+  font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
+  font-size: 24px;
+  font-weight: bold;
+  color: #6B4D3E;
+  text-align: center;
+  margin: 16px 0 0 0;
+}
+
+.score-bottom-sheet .bottom-sheet-handle {
+  width: 24px;
+  height: 4px;
+  background: #EFE7E3;
+  border-radius: 40px;
+  margin: 4px auto 0;
+  cursor: grab;
+}
+
+#score-sheet-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999999998;
+  transition: opacity 0.3s ease-out;
+  opacity: 0;
+}
+
 .modal-handle {
   width: 24px; /* Updated to 24px */
   height: 4px;

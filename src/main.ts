@@ -75,6 +75,7 @@ import { AppStoreCompliance } from './utils/app-store-compliance.js';
 import { appManager } from './ui/app-manager.js';
 import { initNavigationControl } from './modules/navigation-control.js';
 import { showEndRunModalFromGame } from './modules/end-run-modal.js';
+import './modules/score-bottom-sheet.js'; // Score bottom sheet for HUD clicks
 import { animateSliderExit, animateSliderEnter } from './utils/animations.js';
 import { STATE } from './modules/app-state.js';
 

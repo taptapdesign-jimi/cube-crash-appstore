@@ -887,6 +887,16 @@ export function layout({ app, top }) {
     console.log('🎯 PIXI Wild meter positioned:', { x: SIDE, y: wild.view.y, width: barW });
   }
   
+  // 🔥 USER REQUEST: Position X button (top right corner)
+  if (HUD_ROOT._xButton) {
+    const xButton = HUD_ROOT._xButton;
+    const xPadding = 24; // 24px from right edge (same as combo padding)
+    const xTopPadding = 8; // 8px from top (aligned with other HUD elements)
+    xButton.x = vw - xPadding;
+    xButton.y = yValue + xTopPadding;
+    console.log('🎯 X button positioned:', { x: xButton.x, y: xButton.y });
+  }
+  
   // Ensure HUD is properly positioned
   if (HUD_ROOT) {
     HUD_ROOT.zIndex = 10_000;
@@ -1438,72 +1448,73 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     console.log('✅ HUD_ROOT exported to window.HUD_ROOT after initialization');
   }
 
-  // Add pause modal on HUD click - only HUD area (moves, score, combo, wild preloader)
-  HUD_ROOT.interactive = true;
-  HUD_ROOT.cursor = 'pointer';
-  // HUD clickable area covers moves, score, combo, and wild preloader (approximately 80px height)
-  HUD_ROOT.hitArea = new Rectangle(0, 0, 1000, 80); // Clickable area covers entire HUD area
-        HUD_ROOT.on('pointerdown', (e) => {
-          e.stopPropagation();
-          console.log('🎯 HUD CLICKED!');
-
-          // 🔥 CRITICAL FIX: Check if modal is already visible before opening new one
-          // Prevent opening modal if it's already open or closing
-          let isModalOpen = false;
-          try {
-            // Try to check if modal is visible via window function
-            if (typeof window.isEndRunModalVisible === 'function') {
-              isModalOpen = window.isEndRunModalVisible();
-            }
-            
-            // Also check if modal element exists in DOM and is visible
-            const modalExists = document.querySelector('.simple-bottom-sheet');
-            if (modalExists) {
-              const modalEl = modalExists;
-              // Check if modal is visible (not closing, in DOM, and not hidden)
-              const isVisible = modalEl.parentNode !== null && 
-                               !modalEl.hasAttribute('hidden') &&
-                               (!modalEl.style || modalEl.style.display !== 'none');
-              const isClosing = modalEl._closing === true;
-              
-              if (isVisible && !isClosing) {
-                isModalOpen = true;
-              }
-            }
-          } catch (err) {
-            console.warn('⚠️ Error checking modal visibility:', err);
-          }
-          
-          if (isModalOpen) {
-            console.log('⚠️ End Run modal already open - ignoring HUD click to prevent conflicts');
-            return; // Prevent opening multiple modals
-          }
-          
-          // 🔥 CRITICAL FIX: Also check if overlay exists (indicates modal is open)
-          const overlay = document.getElementById('end-run-overlay');
-          if (overlay && overlay.parentNode) {
-            console.log('⚠️ End Run overlay exists - modal is likely open - ignoring HUD click');
-            return;
-          }
-
-          // Show End This Run modal instead of pause menu
-          if (typeof window.showEndRunModalFromGame === 'function') {
-            console.log('🎯 Calling showEndRunModalFromGame...');
-            window.showEndRunModalFromGame();
-          } else {
-            console.log('🎯 showEndRunModalFromGame not available, using fallback');
-            // Fallback to old behavior
-            console.log('Calling pauseGame...');
-            pauseGame();
-            console.log('Calling showMenuScreen...');
-            if (typeof window.showMenuScreen === 'function') {
-              window.showMenuScreen();
-              // Homepage image is static - no randomization needed
-            } else {
-              console.warn('showMenuScreen function not available');
-            }
-          }
-        });
+  // 🔥 USER REQUEST: Remove HUD-wide click event - only X button and score area should be clickable
+  // HUD_ROOT no longer has global click handler
+  HUD_ROOT.interactive = false;
+  HUD_ROOT.cursor = 'default';
+  
+  // 🔥 USER REQUEST: Add X button (top right) for end run modal
+  const xButton = new Container();
+  xButton.interactive = true;
+  xButton.cursor = 'pointer';
+  xButton.eventMode = 'static';
+  
+  // Create X icon using Graphics (simple X shape)
+  const xGraphics = new Graphics();
+  xGraphics.lineStyle(3, 0xB58573, 1); // Brown color, 3px thick
+  const xSize = 20;
+  xGraphics.moveTo(-xSize/2, -xSize/2);
+  xGraphics.lineTo(xSize/2, xSize/2);
+  xGraphics.moveTo(xSize/2, -xSize/2);
+  xGraphics.lineTo(-xSize/2, xSize/2);
+  xButton.addChild(xGraphics);
+  
+  // Position X button (top right, will be positioned in layout())
+  xButton.x = 0; // Will be set in layout()
+  xButton.y = 0; // Will be set in layout()
+  xButton._isXButton = true; // Mark for layout positioning
+  HUD_ROOT.addChild(xButton);
+  
+  // X button click handler - show end run modal
+  xButton.on('pointerdown', (e) => {
+    e.stopPropagation();
+    console.log('🎯 X BUTTON CLICKED - Opening End Run modal');
+    
+    // Light haptic
+    if (typeof window.triggerHapticImpact === 'function') {
+      window.triggerHapticImpact('light');
+    }
+    
+    // Show End This Run modal
+    if (typeof window.showEndRunModalFromGame === 'function') {
+      window.showEndRunModalFromGame();
+    }
+  });
+  
+  // 🔥 USER REQUEST: Add click handler to score area (coinHud) for score bottom sheet
+  if (coinHud && coinHud.container) {
+    coinHud.container.interactive = true;
+    coinHud.container.cursor = 'pointer';
+    coinHud.container.eventMode = 'static';
+    
+    coinHud.container.on('pointerdown', (e) => {
+      e.stopPropagation();
+      console.log('📊 SCORE AREA CLICKED - Opening score bottom sheet');
+      
+      // Light haptic
+      if (typeof window.triggerHapticImpact === 'function') {
+        window.triggerHapticImpact('light');
+      }
+      
+      // Show score bottom sheet
+      if (typeof window.showScoreBottomSheet === 'function') {
+        window.showScoreBottomSheet();
+      }
+    });
+  }
+  
+  // Store X button reference for layout
+  HUD_ROOT._xButton = xButton;
 }
 
 // Play the deferred drop once (used on first Play when board is ~50% populated)
