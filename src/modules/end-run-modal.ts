@@ -400,9 +400,19 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     console.log('🎯 DRAG END ON MODAL:', { deltaY, threshold: 80 });
     
     if (deltaY > 80) {
-      console.log('🎯 CLOSING MODAL');
+      console.log('🎯 CLOSING MODAL - resetting visibility immediately');
       modalEl.style.transition = 'transform 0.4s ease-in-out';
       modalEl.style.transform = 'translateY(100vh)';
+      // 🔥 CRITICAL: Reset visibility IMMEDIATELY when drag closes (before animation)
+      // This makes modal instantly available for reopening - same as score bottom sheet
+      setModalVisible(false);
+      try {
+        if (typeof window.setEndRunModalVisible === 'function') {
+          window.setEndRunModalVisible(false);
+        }
+      } catch (err) {
+        console.warn('⚠️ Error resetting modal visibility state:', err);
+      }
       setTimeout(() => hideModal(), 400);
     } else {
       console.log('🎯 SNAPPING BACK');
@@ -464,9 +474,19 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     console.log('🎯 MOUSE UP:', { deltaY, threshold: 80 });
     
     if (deltaY > 80) {
-      console.log('🎯 CLOSING MODAL (mouse)');
+      console.log('🎯 CLOSING MODAL (mouse) - resetting visibility immediately');
       modalEl.style.transition = 'transform 0.4s ease-in-out';
       modalEl.style.transform = 'translateY(100vh)';
+      // 🔥 CRITICAL: Reset visibility IMMEDIATELY when drag closes (before animation)
+      // This makes modal instantly available for reopening - same as score bottom sheet
+      setModalVisible(false);
+      try {
+        if (typeof window.setEndRunModalVisible === 'function') {
+          window.setEndRunModalVisible(false);
+        }
+      } catch (err) {
+        console.warn('⚠️ Error resetting modal visibility state:', err);
+      }
       setTimeout(() => hideModal(), 400);
     } else {
       console.log('🎯 SNAPPING BACK (mouse)');
