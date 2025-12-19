@@ -1754,10 +1754,45 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       return;
     }
     
-    // Haptic feedback
-    if (typeof window.triggerHapticImpact === 'function') {
-      window.triggerHapticImpact('light');
+      // Haptic feedback
+      if (typeof window.triggerHapticImpact === 'function') {
+        window.triggerHapticImpact('light');
           }
+
+      // 🔥 USER REQUEST: Tap bounce animation on X icon
+      if (xGraphics && !xGraphics.destroyed) {
+        try {
+          // Kill any existing animation
+          if (typeof gsap !== 'undefined') {
+            gsap.killTweensOf(xGraphics.scale);
+            // Tap bounce: scale down → scale up → back to normal
+            gsap.to(xGraphics.scale, {
+              x: 0.92,
+              y: 0.92,
+              duration: 0.077, // 35% of 220ms
+              ease: 'power2.out',
+              onComplete: () => {
+                gsap.to(xGraphics.scale, {
+                  x: 1.06,
+                  y: 1.06,
+                  duration: 0.077, // 35% of 220ms (70% - 35%)
+                  ease: 'power2.out',
+                  onComplete: () => {
+                    gsap.to(xGraphics.scale, {
+                      x: 1,
+                      y: 1,
+                      duration: 0.066, // 30% of 220ms (100% - 70%)
+                      ease: 'power2.out'
+                    });
+                  }
+                });
+              }
+            });
+          }
+        } catch (err) {
+          console.warn('⚠️ Error animating X icon:', err);
+        }
+      }
 
     // Open bottom sheet - function will handle duplicate checks
           if (typeof window.showEndRunModalFromGame === 'function') {
@@ -1834,6 +1869,41 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       // Haptic feedback
       if (typeof window.triggerHapticImpact === 'function') {
         window.triggerHapticImpact('light');
+      }
+      
+      // 🔥 USER REQUEST: Tap bounce animation on score icon
+      if (coinHud && coinHud.iconSprite && !coinHud.iconSprite.destroyed) {
+        try {
+          // Kill any existing animation
+          if (typeof gsap !== 'undefined') {
+            gsap.killTweensOf(coinHud.iconSprite.scale);
+            // Tap bounce: scale down → scale up → back to normal
+            gsap.to(coinHud.iconSprite.scale, {
+              x: 0.92,
+              y: 0.92,
+              duration: 0.077, // 35% of 220ms
+              ease: 'power2.out',
+              onComplete: () => {
+                gsap.to(coinHud.iconSprite.scale, {
+                  x: 1.06,
+                  y: 1.06,
+                  duration: 0.077, // 35% of 220ms (70% - 35%)
+                  ease: 'power2.out',
+                  onComplete: () => {
+                    gsap.to(coinHud.iconSprite.scale, {
+                      x: 1,
+                      y: 1,
+                      duration: 0.066, // 30% of 220ms (100% - 70%)
+                      ease: 'power2.out'
+                    });
+                  }
+                });
+              }
+            });
+          }
+        } catch (err) {
+          console.warn('⚠️ Error animating score icon:', err);
+        }
       }
       
       // Open score bottom sheet - function will handle duplicate checks
