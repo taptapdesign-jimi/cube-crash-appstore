@@ -1514,29 +1514,32 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   const debugRectHeight = touchAreaHeight; // 60px height (same as button)
   const debugRectX = -24; // Start 24px to the left (so it starts at screen edge when button is at 24px)
   
-  // 🔥 DEBUG: Red RECTANGLE container with 60% opacity to visualize clickable area
-  // LONG RECTANGLE: From left edge (0px) to 24px over X button on right (124px total)
-  const debugBg = new Graphics();
-  debugBg.clear();
-  debugBg.roundRect(debugRectX, 0, debugRectWidth, debugRectHeight, 8); // Long rectangle, 8px radius
-  debugBg.fill({ color: 0xFF0000, alpha: 0.6 });
-  // 🔥 CRITICAL: Prevent Graphics from blocking pointer events
-  debugBg.eventMode = 'none';
-  debugBg.cursor = 'default';
-  xButton.addChild(debugBg);
+  // Create X icon FIRST (so it's BELOW red rectangle)
+  // 🔥 CRITICAL: X icon must be BELOW red rectangle so it's visible
+  const xGraphics = new Graphics();
+  xGraphics.clear();
+  xGraphics.setStrokeStyle({ width: 3, color: 0xB58573, alpha: 1 });
+  const xSize = 20;
+  xGraphics.moveTo(centerX - xSize/2, centerY - xSize/2);
+  xGraphics.lineTo(centerX + xSize/2, centerY + xSize/2);
+  xGraphics.moveTo(centerX + xSize/2, centerY - xSize/2);
+  xGraphics.lineTo(centerX - xSize/2, centerY + xSize/2);
+  // 🔥 CRITICAL: Prevent X icon Graphics from blocking pointer events
+  xGraphics.eventMode = 'none';
+  xGraphics.cursor = 'default';
+  try { xGraphics.interactiveChildren = false; } catch {}
+  xButton.addChild(xGraphics); // Added FIRST = BELOW
   
-  // Draw dotted border around square
+  // Draw dotted border around X button area
   const borderBg = new Graphics();
   borderBg.clear();
   borderBg.setStrokeStyle({ width: 2, color: 0xB58573, alpha: 0.5 });
-  // Draw dashed border around rounded rectangle
+  // Draw dashed border around X button area (not the full long rectangle)
   const dashLength = 6;
   const gapLength = 6;
-  const perimeter = 2 * (touchAreaWidth + touchAreaHeight);
-  let currentLength = 0;
   let isDash = true;
   
-  // Top edge
+  // Top edge (only around X button area, not full rectangle)
   for (let x = 0; x < touchAreaWidth; x += (dashLength + gapLength)) {
     if (isDash) {
       borderBg.moveTo(x, 0);
@@ -1571,23 +1574,19 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // 🔥 CRITICAL: Prevent Graphics from blocking pointer events
   borderBg.eventMode = 'none';
   borderBg.cursor = 'default';
-  xButton.addChild(borderBg);
+  xButton.addChild(borderBg); // Added SECOND = MIDDLE
   
-  // Create X icon - centered at (38, 30)
-  const xGraphics = new Graphics();
-  xGraphics.clear();
-  xGraphics.setStrokeStyle({ width: 3, color: 0xB58573, alpha: 1 });
-  const xSize = 20;
-  xGraphics.moveTo(centerX - xSize/2, centerY - xSize/2);
-  xGraphics.lineTo(centerX + xSize/2, centerY + xSize/2);
-  xGraphics.moveTo(centerX + xSize/2, centerY - xSize/2);
-  xGraphics.lineTo(centerX - xSize/2, centerY + xSize/2);
-  // 🔥 CRITICAL: Prevent X icon Graphics from blocking pointer events
-  // This is the key fix - X icon was blocking events when tapped directly
-  xGraphics.eventMode = 'none';
-  xGraphics.cursor = 'default';
-  try { xGraphics.interactiveChildren = false; } catch {}
-  xButton.addChild(xGraphics);
+  // 🔥 DEBUG: Red RECTANGLE container with 60% opacity to visualize clickable area
+  // LONG RECTANGLE: From left edge (0px) to 24px over X button on right (124px total)
+  // 🔥 CRITICAL: Added LAST so it's ABOVE X icon (but still doesn't block events due to eventMode='none')
+  const debugBg = new Graphics();
+  debugBg.clear();
+  debugBg.roundRect(debugRectX, 0, debugRectWidth, debugRectHeight, 8); // Long rectangle, 8px radius
+  debugBg.fill({ color: 0xFF0000, alpha: 0.6 });
+  // 🔥 CRITICAL: Prevent Graphics from blocking pointer events
+  debugBg.eventMode = 'none';
+  debugBg.cursor = 'default';
+  xButton.addChild(debugBg); // Added LAST = ABOVE (but transparent, so X icon visible)
   
   // 🔥 CRITICAL: hitArea matches the red rectangle - from (-24, 0) to (100, 60)
   // This covers from left edge (0px screen) to 24px over X button on right
