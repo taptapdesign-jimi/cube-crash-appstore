@@ -837,6 +837,15 @@ export function layout({ app, top }) {
       // Since coin container anchor is at center, we need to position it correctly
       coin.container.x = comboIconLeftEdge - comboToCoinSpacing;
       coin.container.y = yValue;
+      
+      // 🔥 USER REQUEST: Position score touch area (red rectangle) over coinHud
+      if (HUD_ROOT._scoreTouchArea) {
+        const scoreTouchArea = HUD_ROOT._scoreTouchArea;
+        // Position red rectangle centered on coinHud container
+        // coinHud.container.x is the center, so we need to offset by half the touch area width
+        scoreTouchArea.x = coin.container.x - 40; // 40px = half of 80px width
+        scoreTouchArea.y = coin.container.y - 30; // 30px = half of 60px height (centered vertically)
+      }
     }
     
     // Star - 64px left of Coin ICON (not center) - fixed position (same spacing as before)
