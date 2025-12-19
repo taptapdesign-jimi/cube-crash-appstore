@@ -1576,19 +1576,19 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   borderBg.cursor = 'default';
   xButton.addChild(borderBg); // Added SECOND = MIDDLE
   
-  // 🔥 DEBUG: Red RECTANGLE container with 60% opacity to visualize clickable area
+  // 🔥 SIMPLE: Red RECTANGLE = HIT AREA = Opens bottom sheet when clicked
   // LONG RECTANGLE: From left edge (0px) to 24px over X button on right (124px total)
-  // 🔥 CRITICAL: Added LAST so it's ABOVE X icon (but still doesn't block events due to eventMode='none')
   const debugBg = new Graphics();
   debugBg.clear();
   debugBg.roundRect(debugRectX, 0, debugRectWidth, debugRectHeight, 8); // Long rectangle, 8px radius
   debugBg.fill({ color: 0xFF0000, alpha: 0.6 });
-  // 🔥 CRITICAL: Prevent Graphics from blocking pointer events
-  debugBg.eventMode = 'none';
-  debugBg.cursor = 'default';
-  xButton.addChild(debugBg); // Added LAST = ABOVE (but transparent, so X icon visible)
+  // 🔥 CRITICAL: Red rectangle is INTERACTIVE - it receives all clicks
+  debugBg.eventMode = 'static';
+  debugBg.cursor = 'pointer';
+  debugBg.interactive = true;
+  xButton.addChild(debugBg); // Added LAST = ABOVE
   
-  // 🔥 CRITICAL: hitArea matches the red rectangle - from (-24, 0) to (100, 60)
+  // 🔥 CRITICAL: hitArea matches the red rectangle - from (-24, 0) to (124, 60)
   // This covers from left edge (0px screen) to 24px over X button on right
   xButton.hitArea = new Rectangle(debugRectX, 0, debugRectWidth, debugRectHeight);
   
@@ -1623,120 +1623,43 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   xButton._isXButton = true; // Mark for layout positioning
   HUD_ROOT.addChild(xButton);
   
-  // X button click handler - show end run modal
-  // 🔥 DEEP FIX: Separate bounce animation from click handler to prevent blocking
-  const handleXButtonClick = (e) => {
-    // 🔥 CRITICAL: Stop propagation FIRST before any other logic
+  // 🔥 SIMPLE: Red rectangle (debugBg) = HIT AREA = Opens bottom sheet when clicked
+  // No animations, no complications - just click red rectangle → open modal
+  debugBg.on('pointerdown', (e) => {
     e.stopPropagation();
     e.stopImmediatePropagation();
     
-    console.log('🎯 X BUTTON CLICKED - Event type:', e.type, 'Target:', e.target);
+    console.log('🎯 RED RECTANGLE CLICKED - Opening End Run bottom sheet');
     
-    // 🔥 DEEP FIX: Add GSAP bounce animation (sweet bounce effect)
-    // This is done FIRST so animation starts immediately, but doesn't block the click
-    try {
-      // Kill any existing animations to prevent conflicts
-      if (typeof gsap !== 'undefined') {
-        gsap.killTweensOf(xButton.scale);
-        
-        // Sweet bounce: scale down to 0.92, then up to 1.06, then back to 1.0
-        const tl = gsap.timeline();
-        tl.to(xButton.scale, { 
-          x: 0.92, 
-          y: 0.92, 
-          duration: 0.077, // 35% of 220ms = 77ms
-          ease: 'power2.out' 
-        })
-        .to(xButton.scale, { 
-          x: 1.06, 
-          y: 1.06, 
-          duration: 0.077, // 35% of 220ms = 77ms
-          ease: 'power2.out' 
-        })
-        .to(xButton.scale, { 
-          x: 1.0, 
-          y: 1.0, 
-          duration: 0.066, // 30% of 220ms = 66ms
-          ease: 'power2.out' 
-        });
-      }
-    } catch (err) {
-      console.warn('⚠️ Error adding bounce animation:', err);
-    }
-    
-    // 🔥 v100 APPROACH: Check if modal is already visible before opening
-    // Prevent opening modal if it's already open or closing
+    // Check if modal is already open
     let isModalOpen = false;
     try {
-      // Try to check if modal is visible via window function
       if (typeof window.isEndRunModalVisible === 'function') {
         isModalOpen = window.isEndRunModalVisible();
       }
-      
-      // Also check if modal element exists in DOM and is visible
       const modalExists = document.querySelector('.simple-bottom-sheet');
-      if (modalExists) {
-        const modalEl = modalExists;
-        // Check if modal is visible (not closing, in DOM, and not hidden)
-        const isVisible = modalEl.parentNode !== null && 
-                         !modalEl.hasAttribute('hidden') &&
-                         (!modalEl.style || modalEl.style.display !== 'none');
-        const isClosing = modalEl._closing === true;
-        
-        if (isVisible && !isClosing) {
-          isModalOpen = true;
-        }
+      if (modalExists && modalExists.parentNode) {
+        isModalOpen = true;
       }
     } catch (err) {
       console.warn('⚠️ Error checking modal visibility:', err);
     }
     
     if (isModalOpen) {
-      console.log('⚠️ End Run modal already open - ignoring X button click');
-      return; // Prevent opening multiple modals
-    }
-    
-    // 🔥 v100 APPROACH: Also check if overlay exists (indicates modal is open)
-    const overlay = document.getElementById('end-run-overlay');
-    if (overlay && overlay.parentNode) {
-      console.log('⚠️ End Run overlay exists - modal is likely open - ignoring X button click');
+      console.log('⚠️ End Run modal already open - ignoring click');
       return;
     }
     
-    // Light haptic feedback
+    // Haptic feedback
     if (typeof window.triggerHapticImpact === 'function') {
       window.triggerHapticImpact('light');
     }
     
-    // 🔥 CRITICAL: Call modal opening function DIRECTLY (no setTimeout)
-    // GSAP animation is non-blocking, so we can call this immediately
-    // Show End This Run modal
+    // Open bottom sheet
     if (typeof window.showEndRunModalFromGame === 'function') {
-      console.log('✅ Calling showEndRunModalFromGame()');
       window.showEndRunModalFromGame();
     } else {
       console.error('❌ showEndRunModalFromGame function not available!');
-    }
-  };
-  
-  // 🔥 CRITICAL FIX: Use pointerdown ONLY (most reliable for touch)
-  // pointerdown fires immediately on touch start, before any animations
-  // This is the PRIMARY event handler - it should always work
-  xButton.on('pointerdown', handleXButtonClick);
-  
-  // 🔥 BACKUP: Also listen to pointertap as fallback (fires on complete tap)
-  // This ensures button works even if pointerdown is somehow blocked
-  // Only trigger if this is a complete tap (not a drag)
-  xButton.on('pointertap', (e) => {
-    // Check if pointerdown already handled this (prevent double-trigger)
-    // We use a timestamp to track recent clicks
-    const now = Date.now();
-    if (!xButton._lastClickTime || (now - xButton._lastClickTime) > 100) {
-      xButton._lastClickTime = now;
-      console.log('🎯 X BUTTON TAP (backup) - Opening End Run bottom sheet');
-      handleXButtonClick(e);
-    } else {
-      console.log('⚠️ X BUTTON TAP ignored (too soon after pointerdown)');
     }
   });
   
