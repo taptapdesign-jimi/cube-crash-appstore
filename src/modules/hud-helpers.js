@@ -1614,8 +1614,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // 🔥 USER REQUEST: Red rectangle from left edge, 24px over X button on right
   // X button is 56px wide, positioned at 24px from left edge
   // So red rectangle should be: 0px (left edge) to 24+56+16=96px (16px over X button on right)
-  const debugRectWidth = 24 + touchAreaWidth + 16; // 96px total (24px left + 56px button + 16px right)
-  const debugRectHeight = touchAreaHeight; // 60px height (same as button)
+  const debugRectWidth = 24 + touchAreaWidth + 16 + 4; // 100px total (24px left + 56px button + 16px right + 4px more right)
+  const debugRectHeight = touchAreaHeight + 8; // 68px height (60px + 8px user requested)
   const debugRectX = -24; // Start 24px to the left (so it starts at screen edge when button is at 24px)
   
   // Create X icon FIRST (so it's BELOW red rectangle)
@@ -1685,7 +1685,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   const debugBg = new Graphics();
   debugBg.clear();
   debugBg.roundRect(debugRectX, 0, debugRectWidth, debugRectHeight, 8); // Long rectangle, 8px radius
-  debugBg.fill({ color: 0xFF0000, alpha: 0 }); // Transparent - touch area still works
+  debugBg.fill({ color: 0xFF0000, alpha: 0.6 }); // Red - visible touch area
   // 🔥 CRITICAL: Red rectangle is INTERACTIVE - it receives all clicks
   debugBg.eventMode = 'static';
   debugBg.cursor = 'pointer';
