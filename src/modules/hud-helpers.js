@@ -1537,14 +1537,20 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // Rectangle from (-22, -22) to (22, 22) = 44x44px centered at (0,0)
   xButton.hitArea = new Rectangle(-touchAreaSize/2, -touchAreaSize/2, touchAreaSize, touchAreaSize);
   
-  // 🔥 CRITICAL: Set pivot point to center (0,0) to ensure all children are centered
-  xButton.pivot.set(0, 0);
+  // 🔥 CRITICAL: All elements are centered at (0,0) within xButton container
+  // debugBg: circle(0, 0, radius) - centered ✓
+  // circleBg: dots around (0, 0) - centered ✓
+  // xGraphics: lines centered at (0,0) - centered ✓
+  // hitArea: Rectangle(-22, -22, 44, 44) - centered at (0,0) ✓
+  // NO PIVOT - pivot can cause positioning issues
   
   console.log('🎯 X Button created:', {
     touchAreaSize,
     hitArea: { x: -touchAreaSize/2, y: -touchAreaSize/2, width: touchAreaSize, height: touchAreaSize },
     interactive: xButton.interactive,
-    eventMode: xButton.eventMode
+    eventMode: xButton.eventMode,
+    debugBgCenter: 'circle(0, 0, 22)',
+    xGraphicsCenter: 'lines from (-10, -10) to (10, 10)'
   });
   
   // Position X button (top left, will be positioned in layout())
