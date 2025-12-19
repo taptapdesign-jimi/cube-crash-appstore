@@ -841,9 +841,10 @@ export function layout({ app, top }) {
       // 🔥 USER REQUEST: Position score touch area (red rectangle) over coinHud
       if (HUD_ROOT._scoreTouchArea) {
         const scoreTouchArea = HUD_ROOT._scoreTouchArea;
-        // Position red rectangle centered on coinHud container
+        // Position red rectangle centered on coinHud container, then shift 8px right
         // coinHud.container.x is the center, so we need to offset by half the touch area width
-        scoreTouchArea.x = coin.container.x - 40; // 40px = half of 80px width
+        // User requested: 70px width, shifted 8px right
+        scoreTouchArea.x = coin.container.x - 35 + 8; // 35px = half of 70px width, +8px right
         scoreTouchArea.y = coin.container.y - 30; // 30px = half of 60px height (centered vertically)
       }
     }
@@ -1772,7 +1773,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     // Get coinHud container dimensions (icon + text)
     // Icon is 28px, text is ~40-50px, so total width is ~70-80px
     // Height is same as other HUD elements (~44px)
-    const scoreTouchAreaWidth = 80; // Approximate width of coinHud (icon + text + spacing)
+    const scoreTouchAreaWidth = 70; // User requested: 70px width
     const scoreTouchAreaHeight = 60; // Same height as X button touch area
     
     // Create container for red touch area
