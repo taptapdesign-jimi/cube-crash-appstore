@@ -904,15 +904,13 @@ export function layout({ app, top }) {
     // To place button's LEFT EDGE at screen x=24, we need:
     // Button center should be at: screenX + radius = 24 + 22 = 46
     // Container position = desired center - HUD_ROOT position + pivot offset
-    const pivotX = 22; // radius of button
-    const pivotY = 22; // radius of button
+    const pivotX = 22; // radius of button (44px / 2)
+    const pivotY = 22; // radius of button (44px / 2)
     xButton.x = (screenLeftPadding + pivotX) - hudRootX;
     xButton.y = (yValue + xTopPadding + pivotY);
     
     // 🔥 VERIFY: Calculate actual screen position (accounting for pivot)
     // Actual screen position = HUD_ROOT position + button position - pivot offset
-    const pivotX = 22; // radius of button (44px / 2)
-    const pivotY = 22; // radius of button (44px / 2)
     const actualScreenX = hudRootX + xButton.x - pivotX;
     const actualScreenY = hudRootY + xButton.y - pivotY;
     
