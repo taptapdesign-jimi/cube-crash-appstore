@@ -1495,40 +1495,67 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   xButton.cursor = 'pointer';
   xButton.eventMode = 'static';
   
-  // Create rounded dotted circle background (visual feedback for touch area)
-  const touchAreaSize = 44; // 44px touch area (iOS standard)
-  const radius = touchAreaSize / 2; // 22px radius
-  const centerX = radius; // 22px - center X within container
-  const centerY = radius; // 22px - center Y within container
+  // Create touch area - LARGER for better reliability
+  // Original: 44x44px, New: 76x60px (44+32 width, 44+16 height)
+  const touchAreaWidth = 44 + 32; // 76px width (16px left + 16px right)
+  const touchAreaHeight = 44 + 16; // 60px height (8px top + 8px bottom)
+  const centerX = touchAreaWidth / 2; // 38px - center X within container
+  const centerY = touchAreaHeight / 2; // 30px - center Y within container
   
-  // 🔥 DEBUG: Red container with 60% opacity to visualize clickable area
-  // SIMPLE: Draw circle centered at (22, 22) within container
+  // 🔥 DEBUG: Red SQUARE container with 60% opacity to visualize clickable area
+  // SIMPLE: Draw rounded rectangle (square-like) centered at (38, 30) within container
   const debugBg = new Graphics();
   debugBg.clear();
-  debugBg.circle(centerX, centerY, radius);
+  debugBg.roundRect(0, 0, touchAreaWidth, touchAreaHeight, 8); // Rounded square, 8px radius
   debugBg.fill({ color: 0xFF0000, alpha: 0.6 });
   xButton.addChild(debugBg);
   
-  // Draw dotted circle border
-  const circleBg = new Graphics();
-  circleBg.clear();
-  circleBg.setStrokeStyle({ width: 2, color: 0xB58573, alpha: 0.5 });
-  const numDots = 16;
-  const dotAngle = (Math.PI * 2) / numDots;
+  // Draw dotted border around square
+  const borderBg = new Graphics();
+  borderBg.clear();
+  borderBg.setStrokeStyle({ width: 2, color: 0xB58573, alpha: 0.5 });
+  // Draw dashed border around rounded rectangle
+  const dashLength = 6;
+  const gapLength = 6;
+  const perimeter = 2 * (touchAreaWidth + touchAreaHeight);
+  let currentLength = 0;
+  let isDash = true;
   
-  // Draw dots around circle - all centered at (22, 22)
-  for (let i = 0; i < numDots; i++) {
-    const angle = i * dotAngle;
-    const x1 = centerX + Math.cos(angle) * radius;
-    const y1 = centerY + Math.sin(angle) * radius;
-    const x2 = centerX + Math.cos(angle + dotAngle * 0.6) * radius;
-    const y2 = centerY + Math.sin(angle + dotAngle * 0.6) * radius;
-    circleBg.moveTo(x1, y1);
-    circleBg.lineTo(x2, y2);
+  // Top edge
+  for (let x = 0; x < touchAreaWidth; x += (dashLength + gapLength)) {
+    if (isDash) {
+      borderBg.moveTo(x, 0);
+      borderBg.lineTo(Math.min(x + dashLength, touchAreaWidth), 0);
+    }
+    isDash = !isDash;
   }
-  xButton.addChild(circleBg);
+  // Right edge
+  for (let y = 0; y < touchAreaHeight; y += (dashLength + gapLength)) {
+    if (isDash) {
+      borderBg.moveTo(touchAreaWidth, y);
+      borderBg.lineTo(touchAreaWidth, Math.min(y + dashLength, touchAreaHeight));
+    }
+    isDash = !isDash;
+  }
+  // Bottom edge
+  for (let x = touchAreaWidth; x > 0; x -= (dashLength + gapLength)) {
+    if (isDash) {
+      borderBg.moveTo(x, touchAreaHeight);
+      borderBg.lineTo(Math.max(x - dashLength, 0), touchAreaHeight);
+    }
+    isDash = !isDash;
+  }
+  // Left edge
+  for (let y = touchAreaHeight; y > 0; y -= (dashLength + gapLength)) {
+    if (isDash) {
+      borderBg.moveTo(0, y);
+      borderBg.lineTo(0, Math.max(y - dashLength, 0));
+    }
+    isDash = !isDash;
+  }
+  xButton.addChild(borderBg);
   
-  // Create X icon - centered at (22, 22)
+  // Create X icon - centered at (38, 30)
   const xGraphics = new Graphics();
   xGraphics.clear();
   xGraphics.setStrokeStyle({ width: 3, color: 0xB58573, alpha: 1 });
@@ -1539,31 +1566,31 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   xGraphics.lineTo(centerX - xSize/2, centerY + xSize/2);
   xButton.addChild(xGraphics);
   
-  // 🔥 CRITICAL: hitArea is simple - from (0, 0) to (44, 44) - covers entire button
-  xButton.hitArea = new Rectangle(0, 0, touchAreaSize, touchAreaSize);
+  // 🔥 CRITICAL: hitArea is simple - from (0, 0) to (76, 60) - covers entire button
+  xButton.hitArea = new Rectangle(0, 0, touchAreaWidth, touchAreaHeight);
   
-  // 🔥 VERIFY: All elements are centered at (22, 22) within container
+  // 🔥 VERIFY: All elements are centered at (38, 30) within container
   console.log('🎯 X Button elements created (simple positioning):', {
     center: { x: centerX, y: centerY },
-    debugBg: { type: 'circle', position: `(${centerX}, ${centerY})`, radius: radius },
-    circleBg: { type: 'dotted circle', position: `(${centerX}, ${centerY})`, radius: radius },
+    debugBg: { type: 'rounded square', position: `(0, 0)`, size: `${touchAreaWidth}x${touchAreaHeight}` },
+    borderBg: { type: 'dashed border', size: `${touchAreaWidth}x${touchAreaHeight}` },
     xGraphics: { type: 'X lines', position: `(${centerX}, ${centerY})`, size: xSize },
-    hitArea: { x: 0, y: 0, width: touchAreaSize, height: touchAreaSize }
+    hitArea: { x: 0, y: 0, width: touchAreaWidth, height: touchAreaHeight }
   });
   
-  // 🔥 CRITICAL: All elements are drawn at (22, 22) = center of 44x44px button
-  // debugBg: circle(22, 22, 22) - centered ✓
-  // circleBg: dots around (22, 22) - centered ✓
-  // xGraphics: lines at (22, 22) - centered ✓
-  // hitArea: Rectangle(0, 0, 44, 44) - covers entire button ✓
+  // 🔥 CRITICAL: All elements are drawn within 76x60px button
+  // debugBg: roundedRect(0, 0, 76, 60) - covers entire button ✓
+  // borderBg: dashed border around (0, 0) to (76, 60) ✓
+  // xGraphics: lines at (38, 30) - centered ✓
+  // hitArea: Rectangle(0, 0, 76, 60) - covers entire button ✓
   
   console.log('🎯 X Button created (simple positioning):', {
-    touchAreaSize,
+    touchArea: { width: touchAreaWidth, height: touchAreaHeight },
     center: { x: centerX, y: centerY },
-    hitArea: { x: 0, y: 0, width: touchAreaSize, height: touchAreaSize },
+    hitArea: { x: 0, y: 0, width: touchAreaWidth, height: touchAreaHeight },
     interactive: xButton.interactive,
     eventMode: xButton.eventMode,
-    note: 'All elements centered at (22,22) within container'
+    note: 'All elements within 76x60px container, X icon centered at (38,30)'
   });
   
   // Position X button (top left, will be positioned in layout())
@@ -1574,7 +1601,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   
   // X button click handler - show end run modal
   // 🔥 v100 APPROACH: Simple, direct, no flags - just check if modal is open
-  xButton.on('pointerdown', (e) => {
+  // 🔥 FIX: Use pointertap for better reliability (fires on complete tap, not just down)
+  xButton.on('pointertap', (e) => {
     e.stopPropagation();
     console.log('🎯 X BUTTON CLICKED - Opening End Run bottom sheet');
     
