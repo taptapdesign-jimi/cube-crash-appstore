@@ -323,14 +323,22 @@ export function hideScoreBottomSheet(): void {
 
   // Remove modal after animation
   setTimeout(() => {
+    // 🔥 CRITICAL: Remove 'visible' class and hide modal before removing from DOM
+    if (modalEl) {
+      modalEl.classList.remove('visible');
+      modalEl.style.display = 'none';
+      modalEl.style.visibility = 'hidden';
+    }
+    
     if (modalEl && modalEl.parentNode) {
       modalEl.parentNode.removeChild(modalEl);
     }
+    
     // 🔥 CRITICAL: Reset all state AFTER modal is removed from DOM
     (modalEl as any)._closing = false;
     modal = null;
     isVisible = false;
-    console.log('✅ Score bottom sheet fully closed and reset');
+    console.log('✅ Score bottom sheet fully closed and reset - modal removed, isVisible=false');
   }, 400);
 }
 
