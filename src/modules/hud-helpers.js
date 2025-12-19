@@ -1574,14 +1574,34 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   
   // X button click handler - show end run modal
   // 🔥 USER REQUEST: X button (far left) opens end game bottom sheet when tapped
-  // 🔥 FIX: Use only pointertap to avoid double-firing
+  // 🔥 FIX: Check if modal is already open before setting flag, and reset flag when modal closes
   let xButtonClicked = false;
+  
+  // Reset flag when modal closes (called from end-run-modal.ts)
+  if (typeof window.resetXButtonClickFlag === 'undefined') {
+    window.resetXButtonClickFlag = () => {
+      xButtonClicked = false;
+      console.log('🔄 X button click flag reset (modal closed)');
+    };
+  }
+  
   xButton.on('pointertap', (e) => {
-    if (xButtonClicked) return; // Prevent double-firing
-    xButtonClicked = true;
-    
     e.stopPropagation();
     e.stopImmediatePropagation();
+    
+    // 🔥 CRITICAL: Check if modal is already open BEFORE setting flag
+    // This prevents flag from being set if modal is already open
+    if (typeof window.isEndRunModalVisible === 'function' && window.isEndRunModalVisible()) {
+      console.log('⚠️ End Run modal already visible - ignoring X button click');
+      return;
+    }
+    
+    if (xButtonClicked) {
+      console.log('⚠️ X button already clicked - ignoring duplicate click');
+      return; // Prevent double-firing
+    }
+    
+    xButtonClicked = true;
     console.log('🎯 X BUTTON CLICKED - Opening End Run bottom sheet');
     
     // Light haptic feedback
@@ -1593,12 +1613,19 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     if (typeof window.showEndRunModalFromGame === 'function') {
       console.log('✅ Calling showEndRunModalFromGame()');
       window.showEndRunModalFromGame();
+      
+      // Reset flag after modal closes (500ms should be enough for modal to open)
+      // Also, flag will be reset by resetXButtonClickFlag when modal closes
+      setTimeout(() => { 
+        if (xButtonClicked) {
+          xButtonClicked = false;
+          console.log('🔄 X button click flag reset (timeout fallback)');
+        }
+      }, 500);
     } else {
       console.error('❌ showEndRunModalFromGame function not available!');
+      xButtonClicked = false; // Reset immediately if function not available
     }
-    
-    // Reset flag after short delay
-    setTimeout(() => { xButtonClicked = false; }, 300);
   });
   
   // 🔥 USER REQUEST: Add click handler to score area (coinHud) for score bottom sheet
