@@ -899,26 +899,22 @@ export function layout({ app, top }) {
     const hudRootX = HUD_ROOT.x || 0;
     const hudRootY = HUD_ROOT.y || top;
     
-    // 🔥 CRITICAL FIX: Account for pivot when positioning
-    // Pivot is at (22, 22) = center of 44x44px button
-    // To place button's LEFT EDGE at screen x=24, we need:
-    // Button center should be at: screenX + radius = 24 + 22 = 46
-    // Container position = desired center - HUD_ROOT position + pivot offset
-    const pivotX = 22; // radius of button (44px / 2)
-    const pivotY = 22; // radius of button (44px / 2)
-    xButton.x = (screenLeftPadding + pivotX) - hudRootX;
-    xButton.y = (yValue + xTopPadding + pivotY);
+    // 🔥 SIMPLE POSITIONING: Container at (24, yValue + 2)
+    // Elements are already centered at (22, 22) within container
+    // So button's left edge will be at: container.x = 24
+    // Button's top edge will be at: container.y = yValue + 2
+    xButton.x = screenLeftPadding - hudRootX;
+    xButton.y = yValue + xTopPadding;
     
-    // 🔥 VERIFY: Calculate actual screen position (accounting for pivot)
-    // Actual screen position = HUD_ROOT position + button position - pivot offset
-    const actualScreenX = hudRootX + xButton.x - pivotX;
-    const actualScreenY = hudRootY + xButton.y - pivotY;
+    // 🔥 VERIFY: Calculate actual screen position
+    // Button's left edge = HUD_ROOT.x + container.x = hudRootX + (24 - hudRootX) = 24 ✓
+    // Button's top edge = HUD_ROOT.y + container.y = hudRootY + (yValue + 2) ✓
+    const actualScreenX = hudRootX + xButton.x;
+    const actualScreenY = hudRootY + xButton.y;
     
-    console.log('🎯 X button positioned (24px from screen left, with pivot):', { 
+    console.log('🎯 X button positioned (24px from screen left, simple):', { 
       xButtonX: xButton.x, 
       xButtonY: xButton.y,
-      pivotX: pivotX,
-      pivotY: pivotY,
       hudRootX: hudRootX,
       hudRootY: hudRootY,
       screenX: screenLeftPadding,
@@ -926,7 +922,8 @@ export function layout({ app, top }) {
       actualScreenY: actualScreenY,
       yValue: yValue,
       expectedScreenX: 24,
-      isCorrect: Math.abs(actualScreenX - 24) < 1
+      isCorrect: Math.abs(actualScreenX - 24) < 1,
+      note: 'Button left edge at screen x=24, elements centered at (22,22) within container'
     });
     
     // 🔥 WARNING: If position is wrong, log error
@@ -1492,6 +1489,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   HUD_ROOT.cursor = 'default';
   
   // 🔥 USER REQUEST: Add X button (top left) for end run modal with rounded dotted area
+  // 🔥 SIMPLE APPROACH: No pivot, direct positioning - elements at (22, 22) within container
   const xButton = new Container();
   xButton.interactive = true;
   xButton.cursor = 'pointer';
@@ -1500,18 +1498,14 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // Create rounded dotted circle background (visual feedback for touch area)
   const touchAreaSize = 44; // 44px touch area (iOS standard)
   const radius = touchAreaSize / 2; // 22px radius
-  
-  // 🔥 CRITICAL FIX: Use pivot to center all elements properly
-  // Set pivot to center of button (22, 22) so all elements are centered
-  // Then position the container at (24 + 22, yValue + 2 + 22) to account for pivot
-  xButton.pivot.set(radius, radius); // Pivot at center (22, 22)
+  const centerX = radius; // 22px - center X within container
+  const centerY = radius; // 22px - center Y within container
   
   // 🔥 DEBUG: Red container with 60% opacity to visualize clickable area
-  // CRITICAL: Draw all elements at (0,0) - they will be centered by pivot
+  // SIMPLE: Draw circle centered at (22, 22) within container
   const debugBg = new Graphics();
   debugBg.clear();
-  // Draw circle at (0,0) - will be centered by container's pivot
-  debugBg.circle(0, 0, radius);
+  debugBg.circle(centerX, centerY, radius);
   debugBg.fill({ color: 0xFF0000, alpha: 0.6 });
   xButton.addChild(debugBg);
   
@@ -1522,57 +1516,54 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   const numDots = 16;
   const dotAngle = (Math.PI * 2) / numDots;
   
-  // Draw dots around circle - all at (0,0) relative to container
+  // Draw dots around circle - all centered at (22, 22)
   for (let i = 0; i < numDots; i++) {
     const angle = i * dotAngle;
-    const x1 = Math.cos(angle) * radius;
-    const y1 = Math.sin(angle) * radius;
-    const x2 = Math.cos(angle + dotAngle * 0.6) * radius;
-    const y2 = Math.sin(angle + dotAngle * 0.6) * radius;
+    const x1 = centerX + Math.cos(angle) * radius;
+    const y1 = centerY + Math.sin(angle) * radius;
+    const x2 = centerX + Math.cos(angle + dotAngle * 0.6) * radius;
+    const y2 = centerY + Math.sin(angle + dotAngle * 0.6) * radius;
     circleBg.moveTo(x1, y1);
     circleBg.lineTo(x2, y2);
   }
   xButton.addChild(circleBg);
   
-  // Create X icon - centered at (0,0) relative to container
+  // Create X icon - centered at (22, 22)
   const xGraphics = new Graphics();
   xGraphics.clear();
   xGraphics.setStrokeStyle({ width: 3, color: 0xB58573, alpha: 1 });
   const xSize = 20;
-  xGraphics.moveTo(-xSize/2, -xSize/2);
-  xGraphics.lineTo(xSize/2, xSize/2);
-  xGraphics.moveTo(xSize/2, -xSize/2);
-  xGraphics.lineTo(-xSize/2, xSize/2);
+  xGraphics.moveTo(centerX - xSize/2, centerY - xSize/2);
+  xGraphics.lineTo(centerX + xSize/2, centerY + xSize/2);
+  xGraphics.moveTo(centerX + xSize/2, centerY - xSize/2);
+  xGraphics.lineTo(centerX - xSize/2, centerY + xSize/2);
   xButton.addChild(xGraphics);
   
-  // 🔥 CRITICAL: hitArea must account for pivot offset
-  // Since pivot is at (22, 22), hitArea should be from (-22, -22) to (22, 22) relative to pivot
-  // But hitArea is relative to container's local coordinates, so we need to offset by pivot
-  xButton.hitArea = new Rectangle(-radius, -radius, touchAreaSize, touchAreaSize);
+  // 🔥 CRITICAL: hitArea is simple - from (0, 0) to (44, 44) - covers entire button
+  xButton.hitArea = new Rectangle(0, 0, touchAreaSize, touchAreaSize);
   
-  // 🔥 VERIFY: All elements are at (0,0) relative to container, centered by pivot
-  console.log('🎯 X Button elements created (with pivot centering):', {
-    pivot: { x: xButton.pivot.x, y: xButton.pivot.y },
-    debugBg: { type: 'circle', position: '(0, 0)', radius: radius, center: 'via pivot' },
-    circleBg: { type: 'dotted circle', position: '(0, 0)', radius: radius, center: 'via pivot' },
-    xGraphics: { type: 'X lines', position: '(0, 0)', size: xSize, center: 'via pivot' },
-    hitArea: { x: -radius, y: -radius, width: touchAreaSize, height: touchAreaSize, center: 'via pivot' }
+  // 🔥 VERIFY: All elements are centered at (22, 22) within container
+  console.log('🎯 X Button elements created (simple positioning):', {
+    center: { x: centerX, y: centerY },
+    debugBg: { type: 'circle', position: `(${centerX}, ${centerY})`, radius: radius },
+    circleBg: { type: 'dotted circle', position: `(${centerX}, ${centerY})`, radius: radius },
+    xGraphics: { type: 'X lines', position: `(${centerX}, ${centerY})`, size: xSize },
+    hitArea: { x: 0, y: 0, width: touchAreaSize, height: touchAreaSize }
   });
   
-  // 🔥 CRITICAL: All elements are drawn at (0,0) and centered by container's pivot
-  // Pivot is at (22, 22) = center of 44x44px button
-  // debugBg: circle(0, 0, 22) - centered by pivot ✓
-  // circleBg: dots around (0, 0) - centered by pivot ✓
-  // xGraphics: lines at (0,0) - centered by pivot ✓
-  // hitArea: Rectangle(-22, -22, 44, 44) - centered by pivot ✓
+  // 🔥 CRITICAL: All elements are drawn at (22, 22) = center of 44x44px button
+  // debugBg: circle(22, 22, 22) - centered ✓
+  // circleBg: dots around (22, 22) - centered ✓
+  // xGraphics: lines at (22, 22) - centered ✓
+  // hitArea: Rectangle(0, 0, 44, 44) - covers entire button ✓
   
-  console.log('🎯 X Button created (pivot-based centering):', {
+  console.log('🎯 X Button created (simple positioning):', {
     touchAreaSize,
-    pivot: { x: radius, y: radius },
-    hitArea: { x: -radius, y: -radius, width: touchAreaSize, height: touchAreaSize },
+    center: { x: centerX, y: centerY },
+    hitArea: { x: 0, y: 0, width: touchAreaSize, height: touchAreaSize },
     interactive: xButton.interactive,
     eventMode: xButton.eventMode,
-    note: 'All elements at (0,0), centered by pivot at (22,22)'
+    note: 'All elements centered at (22,22) within container'
   });
   
   // Position X button (top left, will be positioned in layout())
