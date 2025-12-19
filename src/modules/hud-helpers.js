@@ -902,7 +902,7 @@ export function layout({ app, top }) {
     // 🔥 SIMPLE POSITIONING: Container at (24, yValue - 22)
     // Red rectangle starts at debugRectX = -24 within container
     // So when container.x = 24, red rectangle starts at screen x = 24 + (-24) = 0px (left edge) ✓
-    // Red rectangle extends to: 24 + (-24) + 124 = 124px (24px over X button on right) ✓
+    // Red rectangle extends to: 24 + (-24) + 116 = 116px (16px over X button on right, reduced by 8px) ✓
     xButton.x = screenLeftPadding - hudRootX;
     xButton.y = yValue + xTopPadding;
     
@@ -913,7 +913,7 @@ export function layout({ app, top }) {
     const actualScreenX = hudRootX + xButton.x;
     const actualScreenY = hudRootY + xButton.y;
     const redRectLeftEdge = actualScreenX + (-24); // Should be 0px (left edge)
-    const redRectRightEdge = redRectLeftEdge + 124; // Should be 124px (24px over X button)
+    const redRectRightEdge = redRectLeftEdge + 116; // Should be 116px (16px over X button, reduced by 8px)
     
     console.log('🎯 X button positioned (long rectangle from left edge):', { 
       xButtonX: xButton.x, 
@@ -1601,8 +1601,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   
   // 🔥 USER REQUEST: Red rectangle from left edge, 24px over X button on right
   // X button is 76px wide, positioned at 24px from left edge
-  // So red rectangle should be: 0px (left edge) to 24+76+24=124px (24px over X button)
-  const debugRectWidth = 24 + touchAreaWidth + 24; // 124px total (24px left + 76px button + 24px right)
+  // So red rectangle should be: 0px (left edge) to 24+76+16=116px (16px over X button on right, reduced by 8px)
+  const debugRectWidth = 24 + touchAreaWidth + 16; // 116px total (24px left + 76px button + 16px right, reduced by 8px)
   const debugRectHeight = touchAreaHeight; // 60px height (same as button)
   const debugRectX = -24; // Start 24px to the left (so it starts at screen edge when button is at 24px)
   
