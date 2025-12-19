@@ -1731,24 +1731,24 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // 🔥 SIMPLE: Red rectangle (debugBg) = HIT AREA = Opens bottom sheet when clicked
   // No animations, no complications - just click red rectangle → open modal
   debugBg.on('pointerdown', (e) => {
-    e.stopPropagation();
+          e.stopPropagation();
     e.stopImmediatePropagation();
 
     console.log('🎯 RED RECTANGLE CLICKED - Opening End Run bottom sheet');
-    
+
     // 🔥 FIX: Simplified modal check - only use window function, don't check DOM
     // DOM check can be unreliable if modal is closing/animating
-    let isModalOpen = false;
-    try {
-      if (typeof window.isEndRunModalVisible === 'function') {
-        isModalOpen = window.isEndRunModalVisible();
-      }
-    } catch (err) {
-      console.warn('⚠️ Error checking modal visibility:', err);
-    }
-    
+          let isModalOpen = false;
+          try {
+            if (typeof window.isEndRunModalVisible === 'function') {
+              isModalOpen = window.isEndRunModalVisible();
+            }
+          } catch (err) {
+            console.warn('⚠️ Error checking modal visibility:', err);
+          }
+          
     // 🔥 FIX: Don't block if modal check fails - let showEndRunModalFromGame handle it
-    if (isModalOpen) {
+          if (isModalOpen) {
       console.log('⚠️ End Run modal already open - ignoring click');
       return;
     }
@@ -1756,12 +1756,12 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     // Haptic feedback
     if (typeof window.triggerHapticImpact === 'function') {
       window.triggerHapticImpact('light');
-    }
-    
+          }
+
     // Open bottom sheet - function will handle duplicate checks
-    if (typeof window.showEndRunModalFromGame === 'function') {
-      window.showEndRunModalFromGame();
-    } else {
+          if (typeof window.showEndRunModalFromGame === 'function') {
+            window.showEndRunModalFromGame();
+          } else {
       console.error('❌ showEndRunModalFromGame function not available!');
     }
   });
@@ -1838,9 +1838,9 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       // Open score bottom sheet - function will handle duplicate checks
       if (typeof window.showScoreBottomSheet === 'function') {
         window.showScoreBottomSheet();
-      } else {
+            } else {
         console.error('❌ showScoreBottomSheet function not available!');
-      }
+            }
     });
     
     // Remove old event handler from coinHud.container (replaced by red touch area)

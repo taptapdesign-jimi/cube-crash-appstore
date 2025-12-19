@@ -256,7 +256,7 @@ export function showEndRunModal(): void {
     console.log('🔒 Board frozen - ALL events disabled');
   }
   
-  // 2. Freeze HUD elements
+  // 2. Freeze HUD elements (DOM only - PIXI elements handled separately)
   const hudElements = document.querySelectorAll('#hud-container, #score-text, #level-text, #combo-text, .wild-meter, #hud');
   hudElements.forEach(el => {
     if (el instanceof HTMLElement) {
@@ -265,6 +265,21 @@ export function showEndRunModal(): void {
       el.style.touchAction = 'none';
     }
   });
+  
+  // 🔥 CRITICAL: Freeze PIXI HUD elements (X button, score touch area)
+  // These are PIXI Graphics elements, not DOM, so they need special handling
+  try {
+    const hudRoot = (window as any).HUD_ROOT;
+    if (hudRoot && !hudRoot.destroyed) {
+      // Disable interaction on entire HUD_ROOT
+      hudRoot.eventMode = 'none';
+      hudRoot.interactive = false;
+      console.log('🔒 PIXI HUD frozen - ALL events disabled');
+    }
+  } catch (err) {
+    console.warn('⚠️ Error freezing PIXI HUD:', err);
+  }
+  
   console.log('🔒 HUD frozen - ALL events disabled');
   
   // 3. Freeze entire app container as final safety
@@ -614,6 +629,47 @@ export function hideModal(): void {
       el.style.touchAction = '';
     }
   });
+  
+  // 🔥 CRITICAL: Unfreeze PIXI HUD elements (X button, score touch area)
+  // These are PIXI Graphics elements, not DOM, so they need special handling
+  try {
+    const hudRoot = (window as any).HUD_ROOT;
+    if (hudRoot && !hudRoot.destroyed) {
+      // Re-enable interaction on entire HUD_ROOT
+      hudRoot.eventMode = 'static';
+      hudRoot.interactive = true;
+      
+      // 🔥 CRITICAL: Re-enable X button and score touch area specifically
+      const xButton = hudRoot._xButton;
+      if (xButton && !xButton.destroyed) {
+        xButton.eventMode = 'static';
+        xButton.interactive = true;
+        const debugBg = xButton.children.find((child: any) => child.zIndex === 1000);
+        if (debugBg && !debugBg.destroyed) {
+          debugBg.eventMode = 'static';
+          debugBg.interactive = true;
+          console.log('🔓 X button unfrozen - events enabled');
+        }
+      }
+      
+      const scoreTouchArea = hudRoot._scoreTouchArea;
+      if (scoreTouchArea && !scoreTouchArea.destroyed) {
+        scoreTouchArea.eventMode = 'static';
+        scoreTouchArea.interactive = true;
+        const scoreDebugBg = scoreTouchArea.children.find((child: any) => child.zIndex === 1000);
+        if (scoreDebugBg && !scoreDebugBg.destroyed) {
+          scoreDebugBg.eventMode = 'static';
+          scoreDebugBg.interactive = true;
+          console.log('🔓 Score touch area unfrozen - events enabled');
+        }
+      }
+      
+      console.log('🔓 PIXI HUD unfrozen - ALL events enabled');
+    }
+  } catch (err) {
+    console.warn('⚠️ Error unfreezing PIXI HUD:', err);
+  }
+  
   console.log('🔓 HUD unfrozen - ALL events enabled');
   
   // WAIT for animation to complete before resuming game
