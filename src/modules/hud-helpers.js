@@ -1508,6 +1508,9 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   debugBg.clear();
   debugBg.roundRect(0, 0, touchAreaWidth, touchAreaHeight, 8); // Rounded square, 8px radius
   debugBg.fill({ color: 0xFF0000, alpha: 0.6 });
+  // 🔥 CRITICAL: Prevent Graphics from blocking pointer events
+  debugBg.eventMode = 'none';
+  debugBg.cursor = 'default';
   xButton.addChild(debugBg);
   
   // Draw dotted border around square
@@ -1553,6 +1556,9 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     }
     isDash = !isDash;
   }
+  // 🔥 CRITICAL: Prevent Graphics from blocking pointer events
+  borderBg.eventMode = 'none';
+  borderBg.cursor = 'default';
   xButton.addChild(borderBg);
   
   // Create X icon - centered at (38, 30)
@@ -1564,6 +1570,11 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   xGraphics.lineTo(centerX + xSize/2, centerY + xSize/2);
   xGraphics.moveTo(centerX + xSize/2, centerY - xSize/2);
   xGraphics.lineTo(centerX - xSize/2, centerY + xSize/2);
+  // 🔥 CRITICAL: Prevent X icon Graphics from blocking pointer events
+  // This is the key fix - X icon was blocking events when tapped directly
+  xGraphics.eventMode = 'none';
+  xGraphics.cursor = 'default';
+  try { xGraphics.interactiveChildren = false; } catch {}
   xButton.addChild(xGraphics);
   
   // 🔥 CRITICAL: hitArea is simple - from (0, 0) to (76, 60) - covers entire button
@@ -1601,9 +1612,10 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   
   // X button click handler - show end run modal
   // 🔥 v100 APPROACH: Simple, direct, no flags - just check if modal is open
-  // 🔥 FIX: Use pointertap for better reliability (fires on complete tap, not just down)
-  xButton.on('pointertap', (e) => {
+  // 🔥 FIX: Use both pointerdown and pointertap for maximum reliability
+  const handleXButtonClick = (e) => {
     e.stopPropagation();
+    e.stopImmediatePropagation();
     console.log('🎯 X BUTTON CLICKED - Opening End Run bottom sheet');
     
     // 🔥 v100 APPROACH: Check if modal is already visible before opening
@@ -1657,7 +1669,13 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     } else {
       console.error('❌ showEndRunModalFromGame function not available!');
     }
-  });
+  };
+  
+  // 🔥 CRITICAL: Use both pointerdown and pointertap for maximum reliability
+  // pointerdown fires immediately, pointertap fires on complete tap
+  // This ensures button works even if one event is blocked
+  xButton.on('pointerdown', handleXButtonClick);
+  xButton.on('pointertap', handleXButtonClick);
   
   // 🔥 USER REQUEST: Add click handler to score area (coinHud) for score bottom sheet
   if (coinHud && coinHud.container) {
