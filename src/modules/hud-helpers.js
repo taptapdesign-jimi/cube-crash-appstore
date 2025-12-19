@@ -899,17 +899,20 @@ export function layout({ app, top }) {
     const hudRootX = HUD_ROOT.x || 0;
     const hudRootY = HUD_ROOT.y || top;
     
-    // Calculate X position: screen position - HUD_ROOT position = relative position
-    // We want X button at screen x=24, so: xButton.x = 24 - HUD_ROOT.x
-    xButton.x = screenLeftPadding - hudRootX;
-    
-    // Y position: yValue is local to HUD_ROOT (starts at 0), add padding
-    xButton.y = yValue + xTopPadding;
+    // 🔥 CRITICAL FIX: Account for pivot when positioning
+    // Pivot is at (22, 22) = center of 44x44px button
+    // To place button's LEFT EDGE at screen x=24, we need:
+    // Button center should be at: screenX + radius = 24 + 22 = 46
+    // Container position = desired center - HUD_ROOT position + pivot offset
+    const pivotX = 22; // radius of button
+    const pivotY = 22; // radius of button
+    xButton.x = (screenLeftPadding + pivotX) - hudRootX;
+    xButton.y = (yValue + xTopPadding + pivotY);
     
     // 🔥 VERIFY: Calculate actual screen position (accounting for pivot)
     // Actual screen position = HUD_ROOT position + button position - pivot offset
-    const pivotX = radius; // 22px
-    const pivotY = radius; // 22px
+    const pivotX = 22; // radius of button (44px / 2)
+    const pivotY = 22; // radius of button (44px / 2)
     const actualScreenX = hudRootX + xButton.x - pivotX;
     const actualScreenY = hudRootY + xButton.y - pivotY;
     
