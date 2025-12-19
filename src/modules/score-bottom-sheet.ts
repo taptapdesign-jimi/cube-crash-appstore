@@ -220,10 +220,22 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
 
 // 🔥 SAME LOGIC AS END RUN MODAL: Export function to check if modal is visible
 export function isScoreBottomSheetVisible(): boolean {
+  // 🔥 CRITICAL: Check isVisible flag first (most reliable)
   if (isVisible) return true;
-  if (modal && modal.parentNode && !(modal as any)._closing) {
-    return true;
+  
+  // 🔥 CRITICAL: If modal is closing, it's not visible
+  if (modal && (modal as any)._closing) {
+    return false;
   }
+  
+  // 🔥 CRITICAL: Check if modal exists and is actually visible (has 'visible' class)
+  if (modal && modal.parentNode) {
+    // Check if modal has 'visible' class (actually shown)
+    if (modal.classList.contains('visible')) {
+      return true;
+    }
+  }
+  
   return false;
 }
 
@@ -312,9 +324,9 @@ export function hideScoreBottomSheet(): void {
     if (modalEl && modalEl.parentNode) {
       modalEl.parentNode.removeChild(modalEl);
     }
+    // 🔥 CRITICAL: Reset all state AFTER modal is removed from DOM
     (modalEl as any)._closing = false;
     modal = null;
-    // 🔥 CRITICAL: Ensure isVisible is reset after modal is removed
     isVisible = false;
     console.log('✅ Score bottom sheet fully closed and reset');
   }, 400);
