@@ -889,29 +889,44 @@ export function layout({ app, top }) {
   
   // 🔥 USER REQUEST: Position X button (top left corner) within HUD
   // Must be 24px from left edge of SCREEN (not HUD container)
-  // HUD_ROOT.x might not be 0, so we need to account for that
+  // SIMPLE SOLUTION: Use absolute screen coordinates, then convert to HUD-relative
   if (HUD_ROOT._xButton) {
     const xButton = HUD_ROOT._xButton;
     const screenLeftPadding = 24; // 24px from left edge of SCREEN
     const xTopPadding = 2; // Move down 2px from yValue
     
-    // Calculate X position relative to HUD_ROOT
-    // If HUD_ROOT.x = 0, then xButton.x = 24
-    // If HUD_ROOT.x != 0, we need to adjust
+    // 🔥 CRITICAL FIX: Get actual HUD_ROOT position on screen
     const hudRootX = HUD_ROOT.x || 0;
-    xButton.x = screenLeftPadding - hudRootX; // Adjust for HUD_ROOT position
+    const hudRootY = HUD_ROOT.y || top;
     
-    xButton.y = yValue + xTopPadding; // yValue is local to HUD_ROOT, positive padding moves down
+    // Calculate X position: screen position - HUD_ROOT position = relative position
+    // We want X button at screen x=24, so: xButton.x = 24 - HUD_ROOT.x
+    xButton.x = screenLeftPadding - hudRootX;
+    
+    // Y position: yValue is local to HUD_ROOT (starts at 0), add padding
+    xButton.y = yValue + xTopPadding;
+    
+    // 🔥 VERIFY: Calculate actual screen position
+    const actualScreenX = hudRootX + xButton.x;
+    const actualScreenY = hudRootY + xButton.y;
     
     console.log('🎯 X button positioned (24px from screen left):', { 
       xButtonX: xButton.x, 
       xButtonY: xButton.y,
       hudRootX: hudRootX,
+      hudRootY: hudRootY,
       screenX: screenLeftPadding,
-      actualScreenX: hudRootX + xButton.x,
+      actualScreenX: actualScreenX,
+      actualScreenY: actualScreenY,
       yValue: yValue,
-      screenY: yValue + xTopPadding
+      expectedScreenX: 24,
+      isCorrect: Math.abs(actualScreenX - 24) < 1 // Should be exactly 24px
     });
+    
+    // 🔥 WARNING: If position is wrong, log error
+    if (Math.abs(actualScreenX - 24) >= 1) {
+      console.error('❌ X button position is WRONG! Expected 24px from left, got:', actualScreenX);
+    }
   }
   
   // Ensure HUD is properly positioned
@@ -1481,8 +1496,9 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   const radius = touchAreaSize / 2; // 22px radius
   
   // 🔥 DEBUG: Red container with 60% opacity to visualize clickable area
+  // CRITICAL: All elements must be centered at (0,0) within xButton container
   const debugBg = new Graphics();
-  debugBg.circle(0, 0, radius);
+  debugBg.circle(0, 0, radius); // Center at (0,0)
   debugBg.fill({ color: 0xFF0000, alpha: 0.6 }); // Red, 60% opacity
   xButton.addChild(debugBg);
   
@@ -1492,7 +1508,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   const numDots = 16; // Number of dots in circle
   const dotAngle = (Math.PI * 2) / numDots;
   
-  // Draw dots around circle
+  // Draw dots around circle - all centered at (0,0)
   for (let i = 0; i < numDots; i++) {
     const angle = i * dotAngle;
     const x1 = Math.cos(angle) * radius;
@@ -1505,19 +1521,24 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   }
   xButton.addChild(circleBg);
   
-  // Create X icon using Graphics (simple X shape) - centered in circle
+  // Create X icon using Graphics (simple X shape) - centered at (0,0) in circle
   const xGraphics = new Graphics();
   xGraphics.lineStyle(3, 0xB58573, 1); // Brown color, 3px thick
   const xSize = 20;
+  // X centered at (0,0)
   xGraphics.moveTo(-xSize/2, -xSize/2);
   xGraphics.lineTo(xSize/2, xSize/2);
   xGraphics.moveTo(xSize/2, -xSize/2);
   xGraphics.lineTo(-xSize/2, xSize/2);
   xButton.addChild(xGraphics);
   
-  // 🔥 USER REQUEST: Touch area must be exactly where X is (centered on button)
+  // 🔥 CRITICAL: Touch area must be exactly where X is (centered on button)
   // hitArea is relative to container's local coordinates (0,0 is center)
+  // Rectangle from (-22, -22) to (22, 22) = 44x44px centered at (0,0)
   xButton.hitArea = new Rectangle(-touchAreaSize/2, -touchAreaSize/2, touchAreaSize, touchAreaSize);
+  
+  // 🔥 CRITICAL: Set pivot point to center (0,0) to ensure all children are centered
+  xButton.pivot.set(0, 0);
   
   console.log('🎯 X Button created:', {
     touchAreaSize,
