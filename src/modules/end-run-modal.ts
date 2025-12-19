@@ -569,14 +569,21 @@ export function hideModal(): void {
   // 🔥 CRITICAL FIX: Clear document.onclick if it was set (legacy cleanup)
   document.onclick = null;
   
-  // 🔥 CRITICAL FIX: Update modal visibility state immediately
-  setModalVisible(false);
-  try {
-    if (typeof window.setEndRunModalVisible === 'function') {
-      window.setEndRunModalVisible(false);
+  // 🔥 SAME AS SCORE BOTTOM SHEET: Visibility already reset in drag handler
+  // Only reset here if called directly (not from drag handler)
+  // Check if visibility is still true (means hideModal was called directly, not from drag)
+  if (isModalVisible()) {
+    console.log('📊 hideModal called directly (not from drag) - resetting visibility');
+    setModalVisible(false);
+    try {
+      if (typeof window.setEndRunModalVisible === 'function') {
+        window.setEndRunModalVisible(false);
+      }
+    } catch (err) {
+      console.warn('⚠️ Error updating modal visibility state:', err);
     }
-  } catch (err) {
-    console.warn('⚠️ Error updating modal visibility state:', err);
+  } else {
+    console.log('📊 hideModal called - visibility already reset (from drag handler)');
   }
   
   // Animate out with 0.4s duration (same as resume modal)
