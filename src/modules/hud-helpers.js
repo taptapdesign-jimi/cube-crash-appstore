@@ -1084,6 +1084,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
         circle.arc(0, 0, radius, startAngle, endAngle);
       }
       circle.stroke({ width: 2, color: 0xE8D4C7 }); // 2px stroke, light beige color
+      // 🔥 CRITICAL: Prevent Graphics from blocking pointer events
+      circle.eventMode = 'none';
       closeButtonContainer.addChild(circle);
       
       // Create icon sprite (24px) centered in the circle
@@ -1095,15 +1097,59 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
         iconSprite.scale.set(scale);
       }
       iconSprite.alpha = 0.8;
+      // 🔥 CRITICAL: Prevent Sprite from blocking pointer events
+      iconSprite.eventMode = 'none';
       closeButtonContainer.addChild(iconSprite);
+      
+      // 🔥 CRITICAL: Set hitArea on container so clicks work even on Graphics/Sprite
+      closeButtonContainer.hitArea = new Rectangle(-radius, -radius, radius * 2, radius * 2);
       
       // Store reference to container (not just sprite)
       closeIconSprite = closeButtonContainer;
       
+      // 🔥 FIX: Change to open End Run modal instead of going to homepage
+      const handleCloseClick = (e) => {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        
+        console.log('🎯 CLOSE BUTTON (circle) CLICKED - Opening End Run bottom sheet');
+        
+        // Check if modal is already open
+        let isModalOpen = false;
+        try {
+          if (typeof window.isEndRunModalVisible === 'function') {
+            isModalOpen = window.isEndRunModalVisible();
+          }
+          const modalExists = document.querySelector('.simple-bottom-sheet');
+          if (modalExists && modalExists.parentNode) {
+            isModalOpen = true;
+          }
+        } catch (err) {
+          console.warn('⚠️ Error checking modal visibility:', err);
+        }
+        
+        if (isModalOpen) {
+          console.log('⚠️ End Run modal already open - ignoring click');
+          return;
+        }
+        
+        // Haptic feedback
+        if (typeof window.triggerHapticImpact === 'function') {
+          window.triggerHapticImpact('light');
+        }
+        
+        // Open bottom sheet
+        if (typeof window.showEndRunModalFromGame === 'function') {
+          window.showEndRunModalFromGame();
+        } else {
+          console.error('❌ showEndRunModalFromGame function not available!');
+        }
+      };
+      
       // Add interactive behavior
-      closeButtonContainer.on('pointertap', () => handleHUDClose());
-      closeButtonContainer.on('pointerdown', () => {
+      closeButtonContainer.on('pointerdown', (e) => {
         closeButtonContainer.scale.set(0.92);
+        handleCloseClick(e);
       });
       closeButtonContainer.on('pointerup', () => {
         closeButtonContainer.scale.set(1);
@@ -1149,6 +1195,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
             circle.arc(0, 0, radius, startAngle, endAngle);
           }
           circle.stroke({ width: 2, color: 0xE8D4C7 }); // 2px stroke, light beige color
+          // 🔥 CRITICAL: Prevent Graphics from blocking pointer events
+          circle.eventMode = 'none';
           closeButtonContainer.addChild(circle);
           
           // Create icon sprite (24px) centered in the circle
@@ -1160,15 +1208,59 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
             iconSprite.scale.set(scale);
           }
           iconSprite.alpha = 0.8;
+          // 🔥 CRITICAL: Prevent Sprite from blocking pointer events
+          iconSprite.eventMode = 'none';
           closeButtonContainer.addChild(iconSprite);
   
+          // 🔥 CRITICAL: Set hitArea on container so clicks work even on Graphics/Sprite
+          closeButtonContainer.hitArea = new Rectangle(-radius, -radius, radius * 2, radius * 2);
+          
           // Store reference
           closeIconSprite = closeButtonContainer;
           
+          // 🔥 FIX: Change to open End Run modal instead of going to homepage
+          const handleCloseClick = (e) => {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            
+            console.log('🎯 CLOSE BUTTON (circle) CLICKED - Opening End Run bottom sheet');
+            
+            // Check if modal is already open
+            let isModalOpen = false;
+            try {
+              if (typeof window.isEndRunModalVisible === 'function') {
+                isModalOpen = window.isEndRunModalVisible();
+              }
+              const modalExists = document.querySelector('.simple-bottom-sheet');
+              if (modalExists && modalExists.parentNode) {
+                isModalOpen = true;
+              }
+            } catch (err) {
+              console.warn('⚠️ Error checking modal visibility:', err);
+            }
+            
+            if (isModalOpen) {
+              console.log('⚠️ End Run modal already open - ignoring click');
+              return;
+            }
+            
+            // Haptic feedback
+            if (typeof window.triggerHapticImpact === 'function') {
+              window.triggerHapticImpact('light');
+            }
+            
+            // Open bottom sheet
+            if (typeof window.showEndRunModalFromGame === 'function') {
+              window.showEndRunModalFromGame();
+            } else {
+              console.error('❌ showEndRunModalFromGame function not available!');
+            }
+          };
+          
           // Add interactive behavior
-          closeButtonContainer.on('pointertap', () => handleHUDClose());
-          closeButtonContainer.on('pointerdown', () => {
+          closeButtonContainer.on('pointerdown', (e) => {
             closeButtonContainer.scale.set(0.92);
+            handleCloseClick(e);
           });
           closeButtonContainer.on('pointerup', () => {
             closeButtonContainer.scale.set(1);
