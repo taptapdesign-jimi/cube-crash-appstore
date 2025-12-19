@@ -887,14 +887,21 @@ export function layout({ app, top }) {
     console.log('🎯 PIXI Wild meter positioned:', { x: SIDE, y: wild.view.y, width: barW });
   }
   
-  // 🔥 USER REQUEST: Position X button (top left corner) with touch area
+  // 🔥 USER REQUEST: Position X button (top left corner) within HUD
+  // Must be 24px from left edge of screen, moved right, and raised up a few pixels
   if (HUD_ROOT._xButton) {
     const xButton = HUD_ROOT._xButton;
-    const xPadding = 24; // 24px from left edge
-    const xTopPadding = 8; // 8px from top (aligned with other HUD elements)
+    const xPadding = 24; // 24px from left edge of screen
+    const xTopPadding = -4; // Raise up 4px from yValue (negative = up)
     xButton.x = xPadding;
-    xButton.y = yValue + xTopPadding;
-    console.log('🎯 X button positioned (top left):', { x: xButton.x, y: xButton.y });
+    xButton.y = yValue + xTopPadding; // yValue is local to HUD_ROOT, negative padding raises it
+    console.log('🎯 X button positioned (top left, within HUD):', { 
+      x: xButton.x, 
+      y: xButton.y, 
+      yValue: yValue,
+      screenX: xPadding,
+      screenY: yValue + xTopPadding
+    });
   }
   
   // Ensure HUD is properly positioned
