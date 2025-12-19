@@ -1761,15 +1761,16 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
 
       // 🔥 USER REQUEST: Tap bounce animation on X button (entire container with border)
       // Same approach as score icon - animate container scale
-      if (xButton && !xButton.destroyed && xButton.scale) {
+      if (xButton && !xButton.destroyed) {
         try {
           // Kill any existing animation
           if (typeof gsap !== 'undefined') {
-            gsap.killTweensOf(xButton.scale);
+            // 🔥 CRITICAL: Ensure scale exists and is initialized (PIXI Container has scale by default, but ensure it's set)
+            if (!xButton.scale || xButton.scale.x === undefined || xButton.scale.y === undefined) {
+              xButton.scale.set(1, 1);
+            }
             
-            // 🔥 CRITICAL: Ensure scale starts at 1,1 (same as score icon)
-            const currentScaleX = xButton.scale.x ?? 1;
-            const currentScaleY = xButton.scale.y ?? 1;
+            gsap.killTweensOf(xButton.scale);
             
             // Tap bounce: scale down → scale up → back to normal
             // Animates entire container (X icon + dashed border)
