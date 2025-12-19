@@ -39,7 +39,7 @@ export function addBottomSheetStyles(): void {
       background-position: center !important;
       border-radius: 20px 20px 0 0 !important;
       padding: 30px 20px 40px 20px !important;
-      box-shadow: 0 -10px 30px rgba(233, 210, 200, 1) !important;
+      box-shadow: 0 -20px 30px rgba(233, 210, 200, 1) !important;
       z-index: 10000 !important;
       transform: translateY(100%) !important;
       transition: transform 0.3s ease !important;

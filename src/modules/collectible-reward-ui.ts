@@ -64,7 +64,7 @@ export function createBottomSheet(detail: CollectibleDetail): HTMLElement {
     overflow: hidden;
     transform: translateY(100%);
     transition: transform 0.3s ease;
-    box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 -20px 30px rgba(0, 0, 0, 0.42);
   `;
   
   return sheet;
@@ -109,7 +109,7 @@ export function addStyles(): void {
       overflow: hidden;
       transform: translateY(100%);
       transition: transform 0.3s ease;
-      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 -20px 30px rgba(0, 0, 0, 0.42);
     }
     
     .collectible-reward-sheet.show {

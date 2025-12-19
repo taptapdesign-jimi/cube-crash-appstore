@@ -1755,26 +1755,80 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     }
   });
   
-  // 🔥 USER REQUEST: Add click handler to score area (coinHud) for score bottom sheet
+  // 🔥 USER REQUEST: Add red touch area on score area (coinHud) for score bottom sheet
+  // Same approach as X button - red rectangle = hit area = opens score stats bottom sheet
   if (coinHud && coinHud.container) {
-    coinHud.container.interactive = true;
-    coinHud.container.cursor = 'pointer';
-    coinHud.container.eventMode = 'static';
+    // Get coinHud container dimensions (icon + text)
+    // Icon is 28px, text is ~40-50px, so total width is ~70-80px
+    // Height is same as other HUD elements (~44px)
+    const scoreTouchAreaWidth = 80; // Approximate width of coinHud (icon + text + spacing)
+    const scoreTouchAreaHeight = 60; // Same height as X button touch area
     
-    coinHud.container.on('pointerdown', (e) => {
+    // Create container for red touch area
+    const scoreTouchArea = new Container();
+    scoreTouchArea.interactive = true;
+    scoreTouchArea.cursor = 'pointer';
+    scoreTouchArea.eventMode = 'static';
+    
+    // Create red rectangle (same style as X button)
+    const scoreDebugBg = new Graphics();
+    scoreDebugBg.clear();
+    scoreDebugBg.roundRect(0, 0, scoreTouchAreaWidth, scoreTouchAreaHeight, 8); // Rounded rectangle
+    scoreDebugBg.fill({ color: 0xFF0000, alpha: 0.6 });
+    scoreDebugBg.eventMode = 'static';
+    scoreDebugBg.cursor = 'pointer';
+    scoreDebugBg.interactive = true;
+    scoreTouchArea.addChild(scoreDebugBg);
+    
+    // Set hitArea to match red rectangle
+    scoreTouchArea.hitArea = new Rectangle(0, 0, scoreTouchAreaWidth, scoreTouchAreaHeight);
+    
+    // Position will be set in layout() function
+    scoreTouchArea._isScoreTouchArea = true;
+    HUD_ROOT.addChild(scoreTouchArea);
+    
+    // Store reference for layout
+    HUD_ROOT._scoreTouchArea = scoreTouchArea;
+    
+    // Event handler - opens score stats bottom sheet
+    scoreDebugBg.on('pointerdown', (e) => {
       e.stopPropagation();
-      console.log('📊 SCORE AREA CLICKED - Opening score bottom sheet');
+      e.stopImmediatePropagation();
       
-      // Light haptic
+      console.log('📊 SCORE RED AREA CLICKED - Opening score stats bottom sheet');
+      
+      // Check if modal is already open
+      let isModalOpen = false;
+      try {
+        const modalExists = document.querySelector('.score-bottom-sheet');
+        if (modalExists && modalExists.parentNode) {
+          isModalOpen = true;
+        }
+      } catch (err) {
+        console.warn('⚠️ Error checking score modal visibility:', err);
+      }
+      
+      if (isModalOpen) {
+        console.log('⚠️ Score modal already open - ignoring click');
+        return;
+      }
+      
+      // Haptic feedback
       if (typeof window.triggerHapticImpact === 'function') {
         window.triggerHapticImpact('light');
       }
       
-      // Show score bottom sheet
+      // Open score bottom sheet
       if (typeof window.showScoreBottomSheet === 'function') {
         window.showScoreBottomSheet();
+      } else {
+        console.error('❌ showScoreBottomSheet function not available!');
       }
     });
+    
+    // Remove old event handler from coinHud.container (replaced by red touch area)
+    coinHud.container.interactive = false;
+    coinHud.container.eventMode = 'none';
   }
   
   // Store X button reference for layout
