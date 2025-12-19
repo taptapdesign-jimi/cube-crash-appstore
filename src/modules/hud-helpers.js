@@ -893,22 +893,22 @@ export function layout({ app, top }) {
   if (HUD_ROOT._xButton) {
     const xButton = HUD_ROOT._xButton;
     const screenLeftPadding = 24; // 24px from left edge of SCREEN
-    const xTopPadding = 2 - 16; // Move up 16px from yValue (was 2px down, now 14px up)
+    const xTopPadding = 2 - 16 - 8; // Move up 24px from yValue (was 2px down, now 22px up)
     
     // 🔥 CRITICAL FIX: Get actual HUD_ROOT position on screen
     const hudRootX = HUD_ROOT.x || 0;
     const hudRootY = HUD_ROOT.y || top;
     
-    // 🔥 SIMPLE POSITIONING: Container at (24, yValue - 14)
+    // 🔥 SIMPLE POSITIONING: Container at (24, yValue - 22)
     // Elements are already centered at (22, 22) within container
     // So button's left edge will be at: container.x = 24
-    // Button's top edge will be at: container.y = yValue - 14 (16px higher than before)
+    // Button's top edge will be at: container.y = yValue - 22 (24px higher than original)
     xButton.x = screenLeftPadding - hudRootX;
     xButton.y = yValue + xTopPadding;
     
     // 🔥 VERIFY: Calculate actual screen position
     // Button's left edge = HUD_ROOT.x + container.x = hudRootX + (24 - hudRootX) = 24 ✓
-    // Button's top edge = HUD_ROOT.y + container.y = hudRootY + (yValue - 14) ✓ (16px higher)
+    // Button's top edge = HUD_ROOT.y + container.y = hudRootY + (yValue - 22) ✓ (24px higher)
     const actualScreenX = hudRootX + xButton.x;
     const actualScreenY = hudRootY + xButton.y;
     
