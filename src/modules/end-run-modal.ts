@@ -429,6 +429,43 @@ function addDragFunctionality(modalEl: HTMLElement): void {
         console.warn('⚠️ Error resetting modal visibility state:', err);
       }
       console.log('📊 End run modal drag close - visibility reset immediately');
+      
+      // 🔥 CRITICAL: Unfreeze PIXI HUD IMMEDIATELY (before setTimeout)
+      // This ensures event handlers are restored right away
+      try {
+        const hudRoot = (window as any).HUD_ROOT;
+        if (hudRoot && !hudRoot.destroyed) {
+          hudRoot.eventMode = 'static';
+          hudRoot.interactive = true;
+          
+          const xButton = hudRoot._xButton;
+          if (xButton && !xButton.destroyed) {
+            xButton.eventMode = 'static';
+            xButton.interactive = true;
+            const debugBg = xButton.children.find((child: any) => child.zIndex === 1000);
+            if (debugBg && !debugBg.destroyed) {
+              debugBg.eventMode = 'static';
+              debugBg.interactive = true;
+            }
+          }
+          
+          const scoreTouchArea = hudRoot._scoreTouchArea;
+          if (scoreTouchArea && !scoreTouchArea.destroyed) {
+            scoreTouchArea.eventMode = 'static';
+            scoreTouchArea.interactive = true;
+            const scoreDebugBg = scoreTouchArea.children.find((child: any) => child.zIndex === 1000);
+            if (scoreDebugBg && !scoreDebugBg.destroyed) {
+              scoreDebugBg.eventMode = 'static';
+              scoreDebugBg.interactive = true;
+            }
+          }
+          
+          console.log('🔓 PIXI HUD unfrozen IMMEDIATELY - events enabled');
+        }
+      } catch (err) {
+        console.warn('⚠️ Error unfreezing PIXI HUD:', err);
+      }
+      
       setTimeout(() => hideModal(), 400);
     } else {
       console.log('🎯 SNAPPING BACK');
@@ -504,6 +541,43 @@ function addDragFunctionality(modalEl: HTMLElement): void {
         console.warn('⚠️ Error resetting modal visibility state:', err);
       }
       console.log('📊 End run modal drag close (mouse) - visibility reset immediately');
+      
+      // 🔥 CRITICAL: Unfreeze PIXI HUD IMMEDIATELY (before setTimeout)
+      // This ensures event handlers are restored right away
+      try {
+        const hudRoot = (window as any).HUD_ROOT;
+        if (hudRoot && !hudRoot.destroyed) {
+          hudRoot.eventMode = 'static';
+          hudRoot.interactive = true;
+          
+          const xButton = hudRoot._xButton;
+          if (xButton && !xButton.destroyed) {
+            xButton.eventMode = 'static';
+            xButton.interactive = true;
+            const debugBg = xButton.children.find((child: any) => child.zIndex === 1000);
+            if (debugBg && !debugBg.destroyed) {
+              debugBg.eventMode = 'static';
+              debugBg.interactive = true;
+            }
+          }
+          
+          const scoreTouchArea = hudRoot._scoreTouchArea;
+          if (scoreTouchArea && !scoreTouchArea.destroyed) {
+            scoreTouchArea.eventMode = 'static';
+            scoreTouchArea.interactive = true;
+            const scoreDebugBg = scoreTouchArea.children.find((child: any) => child.zIndex === 1000);
+            if (scoreDebugBg && !scoreDebugBg.destroyed) {
+              scoreDebugBg.eventMode = 'static';
+              scoreDebugBg.interactive = true;
+            }
+          }
+          
+          console.log('🔓 PIXI HUD unfrozen IMMEDIATELY (mouse) - events enabled');
+        }
+      } catch (err) {
+        console.warn('⚠️ Error unfreezing PIXI HUD:', err);
+      }
+      
       setTimeout(() => hideModal(), 400);
     } else {
       console.log('🎯 SNAPPING BACK (mouse)');
@@ -630,16 +704,15 @@ export function hideModal(): void {
     }
   });
   
-  // 🔥 CRITICAL: Unfreeze PIXI HUD elements (X button, score touch area)
-  // These are PIXI Graphics elements, not DOM, so they need special handling
+  // 🔥 NOTE: PIXI HUD already unfrozen in drag handler (immediately)
+  // This is just a safety check in case hideModal() was called directly (not from drag)
   try {
     const hudRoot = (window as any).HUD_ROOT;
-    if (hudRoot && !hudRoot.destroyed) {
-      // Re-enable interaction on entire HUD_ROOT
+    if (hudRoot && !hudRoot.destroyed && hudRoot.eventMode === 'none') {
+      // Only unfreeze if still frozen (safety check)
       hudRoot.eventMode = 'static';
       hudRoot.interactive = true;
       
-      // 🔥 CRITICAL: Re-enable X button and score touch area specifically
       const xButton = hudRoot._xButton;
       if (xButton && !xButton.destroyed) {
         xButton.eventMode = 'static';
@@ -648,7 +721,6 @@ export function hideModal(): void {
         if (debugBg && !debugBg.destroyed) {
           debugBg.eventMode = 'static';
           debugBg.interactive = true;
-          console.log('🔓 X button unfrozen - events enabled');
         }
       }
       
@@ -660,11 +732,10 @@ export function hideModal(): void {
         if (scoreDebugBg && !scoreDebugBg.destroyed) {
           scoreDebugBg.eventMode = 'static';
           scoreDebugBg.interactive = true;
-          console.log('🔓 Score touch area unfrozen - events enabled');
         }
       }
       
-      console.log('🔓 PIXI HUD unfrozen - ALL events enabled');
+      console.log('🔓 PIXI HUD unfrozen (safety check) - events enabled');
     }
   } catch (err) {
     console.warn('⚠️ Error unfreezing PIXI HUD:', err);
