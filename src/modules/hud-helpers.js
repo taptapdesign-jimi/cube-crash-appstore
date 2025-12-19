@@ -1807,15 +1807,28 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     HUD_ROOT._scoreTouchArea = scoreTouchArea;
     
     // Event handler - opens score stats bottom sheet
+    // 🔥 SAME LOGIC AS X BUTTON: Use window function to check visibility
     scoreDebugBg.on('pointerdown', (e) => {
       e.stopPropagation();
       e.stopImmediatePropagation();
       
       console.log('📊 SCORE RED AREA CLICKED - Opening score stats bottom sheet');
       
-      // 🔥 FIX: Simplified modal check - don't check DOM, let showScoreBottomSheet handle it
-      // DOM check can be unreliable if modal is closing/animating
-      // The function itself will check if modal is already open
+      // 🔥 SAME LOGIC AS X BUTTON: Check if modal is already open using window function
+      let isModalOpen = false;
+      try {
+        if (typeof window.isScoreBottomSheetVisible === 'function') {
+          isModalOpen = window.isScoreBottomSheetVisible();
+        }
+      } catch (err) {
+        console.warn('⚠️ Error checking score modal visibility:', err);
+      }
+      
+      // 🔥 SAME LOGIC AS X BUTTON: Don't block if modal check fails - let showScoreBottomSheet handle it
+      if (isModalOpen) {
+        console.log('⚠️ Score bottom sheet already open - ignoring click');
+        return;
+      }
       
       // Haptic feedback
       if (typeof window.triggerHapticImpact === 'function') {

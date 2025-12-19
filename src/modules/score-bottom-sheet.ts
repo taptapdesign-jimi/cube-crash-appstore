@@ -218,8 +218,23 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
   }, 200);
 }
 
+// 🔥 SAME LOGIC AS END RUN MODAL: Export function to check if modal is visible
+export function isScoreBottomSheetVisible(): boolean {
+  if (isVisible) return true;
+  if (modal && modal.parentNode && !(modal as any)._closing) {
+    return true;
+  }
+  return false;
+}
+
+// Export to window for HUD click handler (same as end-run-modal)
+if (typeof window !== 'undefined') {
+  (window as any).isScoreBottomSheetVisible = isScoreBottomSheetVisible;
+}
+
 export function showScoreBottomSheet(): void {
-  if (isVisible || (modal && modal.parentNode && !(modal as any)._closing)) {
+  // 🔥 SAME LOGIC AS END RUN MODAL: Check if already visible
+  if (isScoreBottomSheetVisible()) {
     console.warn('⚠️ Score bottom sheet already open');
     return;
   }
