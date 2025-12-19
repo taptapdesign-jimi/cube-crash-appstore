@@ -1461,10 +1461,16 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   
   // Create rounded dotted circle background (visual feedback for touch area)
   const touchAreaSize = 44; // 44px touch area (iOS standard)
-  const circleBg = new Graphics();
   const radius = touchAreaSize / 2; // 22px radius
   
+  // 🔥 DEBUG: Red container with 60% opacity to visualize clickable area
+  const debugBg = new Graphics();
+  debugBg.circle(0, 0, radius);
+  debugBg.fill({ color: 0xFF0000, alpha: 0.6 }); // Red, 60% opacity
+  xButton.addChild(debugBg);
+  
   // Draw dotted circle border (dashed effect using multiple small arcs)
+  const circleBg = new Graphics();
   circleBg.lineStyle(2, 0xB58573, 0.5); // Brown color, 50% opacity, 2px thick
   const numDots = 16; // Number of dots in circle
   const dotAngle = (Math.PI * 2) / numDots;
@@ -1495,6 +1501,13 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // 🔥 USER REQUEST: Touch area must be exactly where X is (centered on button)
   // hitArea is relative to container's local coordinates (0,0 is center)
   xButton.hitArea = new Rectangle(-touchAreaSize/2, -touchAreaSize/2, touchAreaSize, touchAreaSize);
+  
+  console.log('🎯 X Button created:', {
+    touchAreaSize,
+    hitArea: { x: -touchAreaSize/2, y: -touchAreaSize/2, width: touchAreaSize, height: touchAreaSize },
+    interactive: xButton.interactive,
+    eventMode: xButton.eventMode
+  });
   
   // Position X button (top left, will be positioned in layout())
   xButton.x = 0; // Will be set in layout()
