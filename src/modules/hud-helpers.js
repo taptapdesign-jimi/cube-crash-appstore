@@ -887,14 +887,14 @@ export function layout({ app, top }) {
     console.log('🎯 PIXI Wild meter positioned:', { x: SIDE, y: wild.view.y, width: barW });
   }
   
-  // 🔥 USER REQUEST: Position X button (top right corner)
+  // 🔥 USER REQUEST: Position X button (top left corner) with touch area
   if (HUD_ROOT._xButton) {
     const xButton = HUD_ROOT._xButton;
-    const xPadding = 24; // 24px from right edge (same as combo padding)
+    const xPadding = 24; // 24px from left edge
     const xTopPadding = 8; // 8px from top (aligned with other HUD elements)
-    xButton.x = vw - xPadding;
+    xButton.x = xPadding;
     xButton.y = yValue + xTopPadding;
-    console.log('🎯 X button positioned:', { x: xButton.x, y: xButton.y });
+    console.log('🎯 X button positioned (top left):', { x: xButton.x, y: xButton.y });
   }
   
   // Ensure HUD is properly positioned
@@ -1453,7 +1453,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   HUD_ROOT.interactive = false;
   HUD_ROOT.cursor = 'default';
   
-  // 🔥 USER REQUEST: Add X button (top right) for end run modal
+  // 🔥 USER REQUEST: Add X button (top left) for end run modal with touch area
   const xButton = new Container();
   xButton.interactive = true;
   xButton.cursor = 'pointer';
@@ -1469,7 +1469,11 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   xGraphics.lineTo(-xSize/2, xSize/2);
   xButton.addChild(xGraphics);
   
-  // Position X button (top right, will be positioned in layout())
+  // 🔥 USER REQUEST: Add touch area (larger hit area for easier clicking)
+  const touchAreaSize = 44; // 44px touch area (iOS standard)
+  xButton.hitArea = new Rectangle(-touchAreaSize/2, -touchAreaSize/2, touchAreaSize, touchAreaSize);
+  
+  // Position X button (top left, will be positioned in layout())
   xButton.x = 0; // Will be set in layout()
   xButton.y = 0; // Will be set in layout()
   xButton._isXButton = true; // Mark for layout positioning
