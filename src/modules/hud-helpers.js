@@ -1685,7 +1685,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   const debugBg = new Graphics();
   debugBg.clear();
   debugBg.roundRect(debugRectX, 0, debugRectWidth, debugRectHeight, 8); // Long rectangle, 8px radius
-  debugBg.fill({ color: 0xFF0000, alpha: 0.6 }); // Red - visible touch area
+  debugBg.fill({ color: 0xFF0000, alpha: 0 }); // Transparent - touch area still works
   // 🔥 CRITICAL: Red rectangle is INTERACTIVE - it receives all clicks
   debugBg.eventMode = 'static';
   debugBg.cursor = 'pointer';
