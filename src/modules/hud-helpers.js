@@ -1502,11 +1502,18 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   const centerX = touchAreaWidth / 2; // 38px - center X within container
   const centerY = touchAreaHeight / 2; // 30px - center Y within container
   
-  // 🔥 DEBUG: Red SQUARE container with 60% opacity to visualize clickable area
-  // SIMPLE: Draw rounded rectangle (square-like) centered at (38, 30) within container
+  // 🔥 USER REQUEST: Red rectangle from left edge, 24px over X button on right
+  // X button is 76px wide, positioned at 24px from left edge
+  // So red rectangle should be: 0px (left edge) to 24+76+24=124px (24px over X button)
+  const debugRectWidth = 24 + touchAreaWidth + 24; // 124px total (24px left + 76px button + 24px right)
+  const debugRectHeight = touchAreaHeight; // 60px height (same as button)
+  const debugRectX = -24; // Start 24px to the left (so it starts at screen edge when button is at 24px)
+  
+  // 🔥 DEBUG: Red RECTANGLE container with 60% opacity to visualize clickable area
+  // LONG RECTANGLE: From left edge (0px) to 24px over X button on right (124px total)
   const debugBg = new Graphics();
   debugBg.clear();
-  debugBg.roundRect(0, 0, touchAreaWidth, touchAreaHeight, 8); // Rounded square, 8px radius
+  debugBg.roundRect(debugRectX, 0, debugRectWidth, debugRectHeight, 8); // Long rectangle, 8px radius
   debugBg.fill({ color: 0xFF0000, alpha: 0.6 });
   // 🔥 CRITICAL: Prevent Graphics from blocking pointer events
   debugBg.eventMode = 'none';
@@ -1577,31 +1584,33 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   try { xGraphics.interactiveChildren = false; } catch {}
   xButton.addChild(xGraphics);
   
-  // 🔥 CRITICAL: hitArea is simple - from (0, 0) to (76, 60) - covers entire button
-  xButton.hitArea = new Rectangle(0, 0, touchAreaWidth, touchAreaHeight);
+  // 🔥 CRITICAL: hitArea matches the red rectangle - from (-24, 0) to (100, 60)
+  // This covers from left edge (0px screen) to 24px over X button on right
+  xButton.hitArea = new Rectangle(debugRectX, 0, debugRectWidth, debugRectHeight);
   
-  // 🔥 VERIFY: All elements are centered at (38, 30) within container
-  console.log('🎯 X Button elements created (simple positioning):', {
+  // 🔥 VERIFY: Red rectangle from left edge, 24px over X button on right
+  console.log('🎯 X Button elements created (long rectangle):', {
     center: { x: centerX, y: centerY },
-    debugBg: { type: 'rounded square', position: `(0, 0)`, size: `${touchAreaWidth}x${touchAreaHeight}` },
+    debugBg: { type: 'long rectangle', position: `(${debugRectX}, 0)`, size: `${debugRectWidth}x${debugRectHeight}`, note: 'From left edge to 24px over X button' },
     borderBg: { type: 'dashed border', size: `${touchAreaWidth}x${touchAreaHeight}` },
     xGraphics: { type: 'X lines', position: `(${centerX}, ${centerY})`, size: xSize },
-    hitArea: { x: 0, y: 0, width: touchAreaWidth, height: touchAreaHeight }
+    hitArea: { x: debugRectX, y: 0, width: debugRectWidth, height: debugRectHeight }
   });
   
-  // 🔥 CRITICAL: All elements are drawn within 76x60px button
-  // debugBg: roundedRect(0, 0, 76, 60) - covers entire button ✓
-  // borderBg: dashed border around (0, 0) to (76, 60) ✓
-  // xGraphics: lines at (38, 30) - centered ✓
-  // hitArea: Rectangle(0, 0, 76, 60) - covers entire button ✓
+  // 🔥 CRITICAL: Red rectangle is LONG - from left edge to 24px over X button
+  // debugBg: roundedRect(-24, 0, 124, 60) - long rectangle from left edge ✓
+  // borderBg: dashed border around X button area (0, 0) to (76, 60) ✓
+  // xGraphics: lines at (38, 30) - centered in X button area ✓
+  // hitArea: Rectangle(-24, 0, 124, 60) - matches red rectangle ✓
   
-  console.log('🎯 X Button created (simple positioning):', {
+  console.log('🎯 X Button created (long rectangle):', {
     touchArea: { width: touchAreaWidth, height: touchAreaHeight },
+    debugRect: { x: debugRectX, width: debugRectWidth, height: debugRectHeight },
     center: { x: centerX, y: centerY },
-    hitArea: { x: 0, y: 0, width: touchAreaWidth, height: touchAreaHeight },
+    hitArea: { x: debugRectX, y: 0, width: debugRectWidth, height: debugRectHeight },
     interactive: xButton.interactive,
     eventMode: xButton.eventMode,
-    note: 'All elements within 76x60px container, X icon centered at (38,30)'
+    note: 'Long rectangle from left edge (0px screen) to 24px over X button on right'
   });
   
   // Position X button (top left, will be positioned in layout())
