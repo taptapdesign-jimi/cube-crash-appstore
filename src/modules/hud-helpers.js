@@ -1775,28 +1775,32 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
             
             // Tap bounce: scale down → scale up → back to normal
             // Animates entire container (X icon + dashed border)
-            // Same timing as journey hearts tap-bounce (220ms total)
-            gsap.to(buttonToAnimate.scale, {
+            // Same timing and easing as journey hearts tap-bounce (220ms total, cubic-bezier(0.34, 1.56, 0.64, 1))
+            // Use 'back.out' for bounce effect similar to CSS cubic-bezier
+            const tl = gsap.timeline();
+            
+            // Phase 1: Scale down (0-35% = 77ms)
+            tl.to(buttonToAnimate.scale, {
               x: 0.92,
               y: 0.92,
               duration: 0.077, // 35% of 220ms
-              ease: 'power2.out',
-              onComplete: () => {
-                gsap.to(buttonToAnimate.scale, {
-                  x: 1.06,
-                  y: 1.06,
-                  duration: 0.077, // 35% of 220ms (70% - 35%)
-                  ease: 'power2.out',
-                  onComplete: () => {
-                    gsap.to(buttonToAnimate.scale, {
-                      x: 1,
-                      y: 1,
-                      duration: 0.066, // 30% of 220ms (100% - 70%)
-                      ease: 'power2.out'
-                    });
-                  }
-                });
-              }
+              ease: 'power2.out'
+            });
+            
+            // Phase 2: Scale up (35-70% = 77ms)
+            tl.to(buttonToAnimate.scale, {
+              x: 1.06,
+              y: 1.06,
+              duration: 0.077, // 35% of 220ms (70% - 35%)
+              ease: 'back.out(1.7)' // Bounce effect similar to journey hearts
+            });
+            
+            // Phase 3: Return to normal (70-100% = 66ms)
+            tl.to(buttonToAnimate.scale, {
+              x: 1,
+              y: 1,
+              duration: 0.066, // 30% of 220ms (100% - 70%)
+              ease: 'power2.out'
             });
           }
         } catch (err) {
