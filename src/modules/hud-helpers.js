@@ -1727,26 +1727,24 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // 🔥 SIMPLE: Red rectangle (debugBg) = HIT AREA = Opens bottom sheet when clicked
   // No animations, no complications - just click red rectangle → open modal
   debugBg.on('pointerdown', (e) => {
-          e.stopPropagation();
+    e.stopPropagation();
     e.stopImmediatePropagation();
 
     console.log('🎯 RED RECTANGLE CLICKED - Opening End Run bottom sheet');
     
-    // Check if modal is already open
-          let isModalOpen = false;
-          try {
-            if (typeof window.isEndRunModalVisible === 'function') {
-              isModalOpen = window.isEndRunModalVisible();
-            }
-            const modalExists = document.querySelector('.simple-bottom-sheet');
-      if (modalExists && modalExists.parentNode) {
-                isModalOpen = true;
-            }
-          } catch (err) {
-            console.warn('⚠️ Error checking modal visibility:', err);
-          }
-          
-          if (isModalOpen) {
+    // 🔥 FIX: Simplified modal check - only use window function, don't check DOM
+    // DOM check can be unreliable if modal is closing/animating
+    let isModalOpen = false;
+    try {
+      if (typeof window.isEndRunModalVisible === 'function') {
+        isModalOpen = window.isEndRunModalVisible();
+      }
+    } catch (err) {
+      console.warn('⚠️ Error checking modal visibility:', err);
+    }
+    
+    // 🔥 FIX: Don't block if modal check fails - let showEndRunModalFromGame handle it
+    if (isModalOpen) {
       console.log('⚠️ End Run modal already open - ignoring click');
       return;
     }
@@ -1756,10 +1754,10 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       window.triggerHapticImpact('light');
     }
     
-    // Open bottom sheet
-          if (typeof window.showEndRunModalFromGame === 'function') {
-            window.showEndRunModalFromGame();
-          } else {
+    // Open bottom sheet - function will handle duplicate checks
+    if (typeof window.showEndRunModalFromGame === 'function') {
+      window.showEndRunModalFromGame();
+    } else {
       console.error('❌ showEndRunModalFromGame function not available!');
     }
   });
@@ -1806,28 +1804,16 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       
       console.log('📊 SCORE RED AREA CLICKED - Opening score stats bottom sheet');
       
-      // Check if modal is already open
-      let isModalOpen = false;
-      try {
-        const modalExists = document.querySelector('.score-bottom-sheet');
-        if (modalExists && modalExists.parentNode) {
-          isModalOpen = true;
-        }
-      } catch (err) {
-        console.warn('⚠️ Error checking score modal visibility:', err);
-      }
-      
-      if (isModalOpen) {
-        console.log('⚠️ Score modal already open - ignoring click');
-        return;
-      }
+      // 🔥 FIX: Simplified modal check - don't check DOM, let showScoreBottomSheet handle it
+      // DOM check can be unreliable if modal is closing/animating
+      // The function itself will check if modal is already open
       
       // Haptic feedback
       if (typeof window.triggerHapticImpact === 'function') {
         window.triggerHapticImpact('light');
       }
       
-      // Open score bottom sheet
+      // Open score bottom sheet - function will handle duplicate checks
       if (typeof window.showScoreBottomSheet === 'function') {
         window.showScoreBottomSheet();
       } else {
