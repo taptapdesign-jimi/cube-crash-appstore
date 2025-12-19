@@ -400,19 +400,13 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     console.log('🎯 DRAG END ON MODAL:', { deltaY, threshold: 80 });
     
     if (deltaY > 80) {
-      console.log('🎯 CLOSING MODAL - resetting visibility immediately');
+      console.log('🎯 CLOSING MODAL');
       modalEl.style.transition = 'transform 0.4s ease-in-out';
       modalEl.style.transform = 'translateY(100vh)';
-      // 🔥 CRITICAL: Reset visibility IMMEDIATELY when drag closes (before animation)
-      // This makes modal instantly available for reopening - same as score bottom sheet
+      // 🔥 SAME AS SCORE BOTTOM SHEET: Reset visibility IMMEDIATELY when drag closes
+      // This makes modal instantly available for reopening
       setModalVisible(false);
-      try {
-        if (typeof window.setEndRunModalVisible === 'function') {
-          window.setEndRunModalVisible(false);
-        }
-      } catch (err) {
-        console.warn('⚠️ Error resetting modal visibility state:', err);
-      }
+      console.log('📊 End run modal drag close - visibility reset immediately');
       setTimeout(() => hideModal(), 400);
     } else {
       console.log('🎯 SNAPPING BACK');
@@ -474,19 +468,13 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     console.log('🎯 MOUSE UP:', { deltaY, threshold: 80 });
     
     if (deltaY > 80) {
-      console.log('🎯 CLOSING MODAL (mouse) - resetting visibility immediately');
+      console.log('🎯 CLOSING MODAL (mouse)');
       modalEl.style.transition = 'transform 0.4s ease-in-out';
       modalEl.style.transform = 'translateY(100vh)';
-      // 🔥 CRITICAL: Reset visibility IMMEDIATELY when drag closes (before animation)
-      // This makes modal instantly available for reopening - same as score bottom sheet
+      // 🔥 SAME AS SCORE BOTTOM SHEET: Reset visibility IMMEDIATELY when drag closes
+      // This makes modal instantly available for reopening
       setModalVisible(false);
-      try {
-        if (typeof window.setEndRunModalVisible === 'function') {
-          window.setEndRunModalVisible(false);
-        }
-      } catch (err) {
-        console.warn('⚠️ Error resetting modal visibility state:', err);
-      }
+      console.log('📊 End run modal drag close (mouse) - visibility reset immediately');
       setTimeout(() => hideModal(), 400);
     } else {
       console.log('🎯 SNAPPING BACK (mouse)');
