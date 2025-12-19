@@ -1600,6 +1600,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   xButton.interactive = true;
   xButton.cursor = 'pointer';
   xButton.eventMode = 'static';
+  // 🔥 CRITICAL: Set zIndex to ensure it's above other HUD elements
+  xButton.zIndex = 1000;
   
   // Create touch area - USER REQUEST: 56px width
   // Original: 44x44px, New: 56x60px (56px width, 44+16 height)
@@ -1687,6 +1689,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   debugBg.eventMode = 'static';
   debugBg.cursor = 'pointer';
   debugBg.interactive = true;
+  // 🔥 CRITICAL: Set zIndex to ensure it's above other elements
+  debugBg.zIndex = 1000;
   xButton.addChild(debugBg); // Added LAST = ABOVE
   
   // 🔥 CRITICAL: hitArea matches the red rectangle - from (-24, 0) to (124, 60)
