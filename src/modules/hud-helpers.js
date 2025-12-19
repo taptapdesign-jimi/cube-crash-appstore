@@ -900,19 +900,22 @@ export function layout({ app, top }) {
     const hudRootY = HUD_ROOT.y || top;
     
     // 🔥 SIMPLE POSITIONING: Container at (24, yValue - 22)
-    // Elements are already centered at (22, 22) within container
-    // So button's left edge will be at: container.x = 24
-    // Button's top edge will be at: container.y = yValue - 22 (24px higher than original)
+    // Red rectangle starts at debugRectX = -24 within container
+    // So when container.x = 24, red rectangle starts at screen x = 24 + (-24) = 0px (left edge) ✓
+    // Red rectangle extends to: 24 + (-24) + 124 = 124px (24px over X button on right) ✓
     xButton.x = screenLeftPadding - hudRootX;
     xButton.y = yValue + xTopPadding;
     
     // 🔥 VERIFY: Calculate actual screen position
-    // Button's left edge = HUD_ROOT.x + container.x = hudRootX + (24 - hudRootX) = 24 ✓
-    // Button's top edge = HUD_ROOT.y + container.y = hudRootY + (yValue - 22) ✓ (24px higher)
+    // Red rectangle left edge = HUD_ROOT.x + container.x + debugRectX = hudRootX + 24 + (-24) = 0px (left edge) ✓
+    // Red rectangle right edge = 0 + 124 = 124px (24px over X button) ✓
+    // Button's top edge = HUD_ROOT.y + container.y = hudRootY + (yValue - 22) ✓
     const actualScreenX = hudRootX + xButton.x;
     const actualScreenY = hudRootY + xButton.y;
+    const redRectLeftEdge = actualScreenX + (-24); // Should be 0px (left edge)
+    const redRectRightEdge = redRectLeftEdge + 124; // Should be 124px (24px over X button)
     
-    console.log('🎯 X button positioned (24px from screen left, simple):', { 
+    console.log('🎯 X button positioned (long rectangle from left edge):', { 
       xButtonX: xButton.x, 
       xButtonY: xButton.y,
       hudRootX: hudRootX,
@@ -920,10 +923,12 @@ export function layout({ app, top }) {
       screenX: screenLeftPadding,
       actualScreenX: actualScreenX,
       actualScreenY: actualScreenY,
+      redRectLeftEdge: redRectLeftEdge,
+      redRectRightEdge: redRectRightEdge,
       yValue: yValue,
       expectedScreenX: 24,
       isCorrect: Math.abs(actualScreenX - 24) < 1,
-      note: 'Button left edge at screen x=24, elements centered at (22,22) within container'
+      note: 'Red rectangle from left edge (0px) to 24px over X button on right (124px)'
     });
     
     // 🔥 WARNING: If position is wrong, log error
