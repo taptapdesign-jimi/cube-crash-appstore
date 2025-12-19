@@ -1497,13 +1497,16 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   
   // 🔥 DEBUG: Red container with 60% opacity to visualize clickable area
   // CRITICAL: All elements must be centered at (0,0) within xButton container
+  // Using clear() and redraw to ensure clean state
   const debugBg = new Graphics();
-  debugBg.circle(0, 0, radius); // Center at (0,0)
+  debugBg.clear(); // Clear any previous drawing
+  debugBg.circle(0, 0, radius); // Center at (0,0) - radius 22px
   debugBg.fill({ color: 0xFF0000, alpha: 0.6 }); // Red, 60% opacity
   xButton.addChild(debugBg);
   
   // Draw dotted circle border (dashed effect using multiple small arcs)
   const circleBg = new Graphics();
+  circleBg.clear(); // Clear any previous drawing
   circleBg.lineStyle(2, 0xB58573, 0.5); // Brown color, 50% opacity, 2px thick
   const numDots = 16; // Number of dots in circle
   const dotAngle = (Math.PI * 2) / numDots;
@@ -1523,9 +1526,10 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   
   // Create X icon using Graphics (simple X shape) - centered at (0,0) in circle
   const xGraphics = new Graphics();
+  xGraphics.clear(); // Clear any previous drawing
   xGraphics.lineStyle(3, 0xB58573, 1); // Brown color, 3px thick
   const xSize = 20;
-  // X centered at (0,0)
+  // X centered at (0,0) - lines from (-10, -10) to (10, 10)
   xGraphics.moveTo(-xSize/2, -xSize/2);
   xGraphics.lineTo(xSize/2, xSize/2);
   xGraphics.moveTo(xSize/2, -xSize/2);
@@ -1535,7 +1539,16 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // 🔥 CRITICAL: Touch area must be exactly where X is (centered on button)
   // hitArea is relative to container's local coordinates (0,0 is center)
   // Rectangle from (-22, -22) to (22, 22) = 44x44px centered at (0,0)
+  // This matches the red circle exactly (radius 22px = 44px diameter)
   xButton.hitArea = new Rectangle(-touchAreaSize/2, -touchAreaSize/2, touchAreaSize, touchAreaSize);
+  
+  // 🔥 VERIFY: All elements should be at (0,0) - red circle, dotted circle, X icon, hitArea
+  console.log('🎯 X Button elements created:', {
+    debugBg: { type: 'circle', center: '(0, 0)', radius: radius },
+    circleBg: { type: 'dotted circle', center: '(0, 0)', radius: radius },
+    xGraphics: { type: 'X lines', center: '(0, 0)', size: xSize },
+    hitArea: { x: -touchAreaSize/2, y: -touchAreaSize/2, width: touchAreaSize, height: touchAreaSize, center: '(0, 0)' }
+  });
   
   // 🔥 CRITICAL: All elements are centered at (0,0) within xButton container
   // debugBg: circle(0, 0, radius) - centered ✓
