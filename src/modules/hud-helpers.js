@@ -888,18 +888,28 @@ export function layout({ app, top }) {
   }
   
   // 🔥 USER REQUEST: Position X button (top left corner) within HUD
-  // Must be 24px from left edge of screen, moved down 2px
+  // Must be 24px from left edge of SCREEN (not HUD container)
+  // HUD_ROOT.x might not be 0, so we need to account for that
   if (HUD_ROOT._xButton) {
     const xButton = HUD_ROOT._xButton;
-    const xPadding = 24; // 24px from left edge of screen
+    const screenLeftPadding = 24; // 24px from left edge of SCREEN
     const xTopPadding = 2; // Move down 2px from yValue
-    xButton.x = xPadding;
+    
+    // Calculate X position relative to HUD_ROOT
+    // If HUD_ROOT.x = 0, then xButton.x = 24
+    // If HUD_ROOT.x != 0, we need to adjust
+    const hudRootX = HUD_ROOT.x || 0;
+    xButton.x = screenLeftPadding - hudRootX; // Adjust for HUD_ROOT position
+    
     xButton.y = yValue + xTopPadding; // yValue is local to HUD_ROOT, positive padding moves down
-    console.log('🎯 X button positioned (top left, within HUD):', { 
-      x: xButton.x, 
-      y: xButton.y, 
+    
+    console.log('🎯 X button positioned (24px from screen left):', { 
+      xButtonX: xButton.x, 
+      xButtonY: xButton.y,
+      hudRootX: hudRootX,
+      screenX: screenLeftPadding,
+      actualScreenX: hudRootX + xButton.x,
       yValue: yValue,
-      screenX: xPadding,
       screenY: yValue + xTopPadding
     });
   }
