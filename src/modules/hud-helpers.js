@@ -1773,7 +1773,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     // Get coinHud container dimensions (icon + text)
     // Icon is 28px, text is ~40-50px, so total width is ~70-80px
     // Height is same as other HUD elements (~44px)
-    const scoreTouchAreaWidth = 70; // User requested: 70px width
+    const scoreTouchAreaWidth = 94; // User requested: 70px + 24px = 94px width
     const scoreTouchAreaHeight = 60; // Same height as X button touch area
     
     // Create container for red touch area
