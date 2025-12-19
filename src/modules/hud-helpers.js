@@ -1685,7 +1685,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   const debugBg = new Graphics();
   debugBg.clear();
   debugBg.roundRect(debugRectX, 0, debugRectWidth, debugRectHeight, 8); // Long rectangle, 8px radius
-  debugBg.fill({ color: 0xFF0000, alpha: 0.6 });
+  debugBg.fill({ color: 0xFF0000, alpha: 0 }); // Transparent - touch area still works
   // 🔥 CRITICAL: Red rectangle is INTERACTIVE - it receives all clicks
   debugBg.eventMode = 'static';
   debugBg.cursor = 'pointer';
@@ -1788,7 +1788,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     const scoreDebugBg = new Graphics();
     scoreDebugBg.clear();
     scoreDebugBg.roundRect(0, 0, scoreTouchAreaWidth, scoreTouchAreaHeight, 8); // Rounded rectangle
-    scoreDebugBg.fill({ color: 0xFF0000, alpha: 0.6 });
+    scoreDebugBg.fill({ color: 0xFF0000, alpha: 0 }); // Transparent - touch area still works
     // 🔥 CRITICAL: Graphics must be interactive to receive events
     scoreDebugBg.eventMode = 'static';
     scoreDebugBg.cursor = 'pointer';
