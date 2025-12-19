@@ -1573,58 +1573,61 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   HUD_ROOT.addChild(xButton);
   
   // X button click handler - show end run modal
-  // 🔥 USER REQUEST: X button (far left) opens end game bottom sheet when tapped
-  // 🔥 FIX: Check if modal is already open before setting flag, and reset flag when modal closes
-  let xButtonClicked = false;
-  
-  // Reset flag when modal closes (called from end-run-modal.ts)
-  if (typeof window.resetXButtonClickFlag === 'undefined') {
-    window.resetXButtonClickFlag = () => {
-      xButtonClicked = false;
-      console.log('🔄 X button click flag reset (modal closed)');
-    };
-  }
-  
-  xButton.on('pointertap', (e) => {
+  // 🔥 v100 APPROACH: Simple, direct, no flags - just check if modal is open
+  xButton.on('pointerdown', (e) => {
     e.stopPropagation();
-    e.stopImmediatePropagation();
+    console.log('🎯 X BUTTON CLICKED - Opening End Run bottom sheet');
     
-    // 🔥 CRITICAL: Check if modal is already open BEFORE setting flag
-    // This prevents flag from being set if modal is already open
-    if (typeof window.isEndRunModalVisible === 'function' && window.isEndRunModalVisible()) {
-      console.log('⚠️ End Run modal already visible - ignoring X button click');
+    // 🔥 v100 APPROACH: Check if modal is already visible before opening
+    // Prevent opening modal if it's already open or closing
+    let isModalOpen = false;
+    try {
+      // Try to check if modal is visible via window function
+      if (typeof window.isEndRunModalVisible === 'function') {
+        isModalOpen = window.isEndRunModalVisible();
+      }
+      
+      // Also check if modal element exists in DOM and is visible
+      const modalExists = document.querySelector('.simple-bottom-sheet');
+      if (modalExists) {
+        const modalEl = modalExists;
+        // Check if modal is visible (not closing, in DOM, and not hidden)
+        const isVisible = modalEl.parentNode !== null && 
+                         !modalEl.hasAttribute('hidden') &&
+                         (!modalEl.style || modalEl.style.display !== 'none');
+        const isClosing = modalEl._closing === true;
+        
+        if (isVisible && !isClosing) {
+          isModalOpen = true;
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ Error checking modal visibility:', err);
+    }
+    
+    if (isModalOpen) {
+      console.log('⚠️ End Run modal already open - ignoring X button click');
+      return; // Prevent opening multiple modals
+    }
+    
+    // 🔥 v100 APPROACH: Also check if overlay exists (indicates modal is open)
+    const overlay = document.getElementById('end-run-overlay');
+    if (overlay && overlay.parentNode) {
+      console.log('⚠️ End Run overlay exists - modal is likely open - ignoring X button click');
       return;
     }
-    
-    if (xButtonClicked) {
-      console.log('⚠️ X button already clicked - ignoring duplicate click');
-      return; // Prevent double-firing
-    }
-    
-    xButtonClicked = true;
-    console.log('🎯 X BUTTON CLICKED - Opening End Run bottom sheet');
     
     // Light haptic feedback
     if (typeof window.triggerHapticImpact === 'function') {
       window.triggerHapticImpact('light');
     }
     
-    // Show End This Run bottom sheet
+    // Show End This Run modal
     if (typeof window.showEndRunModalFromGame === 'function') {
       console.log('✅ Calling showEndRunModalFromGame()');
       window.showEndRunModalFromGame();
-      
-      // Reset flag after modal closes (500ms should be enough for modal to open)
-      // Also, flag will be reset by resetXButtonClickFlag when modal closes
-      setTimeout(() => { 
-        if (xButtonClicked) {
-          xButtonClicked = false;
-          console.log('🔄 X button click flag reset (timeout fallback)');
-        }
-      }, 500);
     } else {
       console.error('❌ showEndRunModalFromGame function not available!');
-      xButtonClicked = false; // Reset immediately if function not available
     }
   });
   

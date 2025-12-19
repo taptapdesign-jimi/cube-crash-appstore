@@ -621,11 +621,6 @@ export function hideModal(): void {
     // Unlock slider
     safeUnlockSlider();
     
-    // 🔥 CRITICAL FIX: Reset X button click flag when modal closes
-    if (typeof (window as any).resetXButtonClickFlag === 'function') {
-      (window as any).resetXButtonClickFlag();
-    }
-    
     console.log('✅ End Run modal cleanup complete - game resumed');
   }, 400);
 }
