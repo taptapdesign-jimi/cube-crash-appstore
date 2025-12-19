@@ -314,6 +314,9 @@ export function hideScoreBottomSheet(): void {
     }
     (modalEl as any)._closing = false;
     modal = null;
+    // 🔥 CRITICAL: Ensure isVisible is reset after modal is removed
+    isVisible = false;
+    console.log('✅ Score bottom sheet fully closed and reset');
   }, 400);
 }
 
