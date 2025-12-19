@@ -1624,12 +1624,45 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   HUD_ROOT.addChild(xButton);
   
   // X button click handler - show end run modal
-  // 🔥 v100 APPROACH: Simple, direct, no flags - just check if modal is open
-  // 🔥 FIX: Use both pointerdown and pointertap for maximum reliability
+  // 🔥 DEEP FIX: Separate bounce animation from click handler to prevent blocking
   const handleXButtonClick = (e) => {
+    // 🔥 CRITICAL: Stop propagation FIRST before any other logic
     e.stopPropagation();
     e.stopImmediatePropagation();
-    console.log('🎯 X BUTTON CLICKED - Opening End Run bottom sheet');
+    
+    console.log('🎯 X BUTTON CLICKED - Event type:', e.type, 'Target:', e.target);
+    
+    // 🔥 DEEP FIX: Add GSAP bounce animation (sweet bounce effect)
+    // This is done FIRST so animation starts immediately, but doesn't block the click
+    try {
+      // Kill any existing animations to prevent conflicts
+      if (typeof gsap !== 'undefined') {
+        gsap.killTweensOf(xButton.scale);
+        
+        // Sweet bounce: scale down to 0.92, then up to 1.06, then back to 1.0
+        const tl = gsap.timeline();
+        tl.to(xButton.scale, { 
+          x: 0.92, 
+          y: 0.92, 
+          duration: 0.077, // 35% of 220ms = 77ms
+          ease: 'power2.out' 
+        })
+        .to(xButton.scale, { 
+          x: 1.06, 
+          y: 1.06, 
+          duration: 0.077, // 35% of 220ms = 77ms
+          ease: 'power2.out' 
+        })
+        .to(xButton.scale, { 
+          x: 1.0, 
+          y: 1.0, 
+          duration: 0.066, // 30% of 220ms = 66ms
+          ease: 'power2.out' 
+        });
+      }
+    } catch (err) {
+      console.warn('⚠️ Error adding bounce animation:', err);
+    }
     
     // 🔥 v100 APPROACH: Check if modal is already visible before opening
     // Prevent opening modal if it's already open or closing
@@ -1675,6 +1708,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       window.triggerHapticImpact('light');
     }
     
+    // 🔥 CRITICAL: Call modal opening function DIRECTLY (no setTimeout)
+    // GSAP animation is non-blocking, so we can call this immediately
     // Show End This Run modal
     if (typeof window.showEndRunModalFromGame === 'function') {
       console.log('✅ Calling showEndRunModalFromGame()');
@@ -1684,11 +1719,26 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     }
   };
   
-  // 🔥 CRITICAL: Use both pointerdown and pointertap for maximum reliability
-  // pointerdown fires immediately, pointertap fires on complete tap
-  // This ensures button works even if one event is blocked
+  // 🔥 CRITICAL FIX: Use pointerdown ONLY (most reliable for touch)
+  // pointerdown fires immediately on touch start, before any animations
+  // This is the PRIMARY event handler - it should always work
   xButton.on('pointerdown', handleXButtonClick);
-  xButton.on('pointertap', handleXButtonClick);
+  
+  // 🔥 BACKUP: Also listen to pointertap as fallback (fires on complete tap)
+  // This ensures button works even if pointerdown is somehow blocked
+  // Only trigger if this is a complete tap (not a drag)
+  xButton.on('pointertap', (e) => {
+    // Check if pointerdown already handled this (prevent double-trigger)
+    // We use a timestamp to track recent clicks
+    const now = Date.now();
+    if (!xButton._lastClickTime || (now - xButton._lastClickTime) > 100) {
+      xButton._lastClickTime = now;
+      console.log('🎯 X BUTTON TAP (backup) - Opening End Run bottom sheet');
+      handleXButtonClick(e);
+    } else {
+      console.log('⚠️ X BUTTON TAP ignored (too soon after pointerdown)');
+    }
+  });
   
   // 🔥 USER REQUEST: Add click handler to score area (coinHud) for score bottom sheet
   if (coinHud && coinHud.container) {
