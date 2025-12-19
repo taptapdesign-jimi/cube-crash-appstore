@@ -406,6 +406,13 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       // 🔥 SAME AS SCORE BOTTOM SHEET: Reset visibility IMMEDIATELY when drag closes
       // This makes modal instantly available for reopening
       setModalVisible(false);
+      try {
+        if (typeof window.setEndRunModalVisible === 'function') {
+          window.setEndRunModalVisible(false);
+        }
+      } catch (err) {
+        console.warn('⚠️ Error resetting modal visibility state:', err);
+      }
       console.log('📊 End run modal drag close - visibility reset immediately');
       setTimeout(() => hideModal(), 400);
     } else {
@@ -474,6 +481,13 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       // 🔥 SAME AS SCORE BOTTOM SHEET: Reset visibility IMMEDIATELY when drag closes
       // This makes modal instantly available for reopening
       setModalVisible(false);
+      try {
+        if (typeof window.setEndRunModalVisible === 'function') {
+          window.setEndRunModalVisible(false);
+        }
+      } catch (err) {
+        console.warn('⚠️ Error resetting modal visibility state:', err);
+      }
       console.log('📊 End run modal drag close (mouse) - visibility reset immediately');
       setTimeout(() => hideModal(), 400);
     } else {
