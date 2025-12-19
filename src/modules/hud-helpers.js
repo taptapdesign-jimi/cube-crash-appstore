@@ -1760,61 +1760,46 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
           }
 
       // 🔥 USER REQUEST: Tap bounce animation on X button (entire container with border)
-      if (xButton && !xButton.destroyed) {
+      // Same approach as score icon - animate container scale
+      if (xButton && !xButton.destroyed && xButton.scale) {
         try {
-          // 🔥 CRITICAL: Ensure scale is initialized (PIXI Container might not have scale by default)
-          if (!xButton.scale) {
-            xButton.scale = { x: 1, y: 1 };
-          }
-          
           // Kill any existing animation
           if (typeof gsap !== 'undefined') {
             gsap.killTweensOf(xButton.scale);
-            console.log('🎯 Starting X button tap-bounce animation', { 
-              scaleExists: !!xButton.scale, 
-              currentScale: xButton.scale ? { x: xButton.scale.x, y: xButton.scale.y } : 'N/A' 
-            });
+            
+            // 🔥 CRITICAL: Ensure scale starts at 1,1 (same as score icon)
+            const currentScaleX = xButton.scale.x ?? 1;
+            const currentScaleY = xButton.scale.y ?? 1;
             
             // Tap bounce: scale down → scale up → back to normal
             // Animates entire container (X icon + dashed border)
+            // Same timing as journey hearts tap-bounce (220ms total)
             gsap.to(xButton.scale, {
               x: 0.92,
               y: 0.92,
               duration: 0.077, // 35% of 220ms
               ease: 'power2.out',
               onComplete: () => {
-                console.log('🎯 X button bounce phase 1 complete (0.92)');
                 gsap.to(xButton.scale, {
                   x: 1.06,
                   y: 1.06,
                   duration: 0.077, // 35% of 220ms (70% - 35%)
                   ease: 'power2.out',
                   onComplete: () => {
-                    console.log('🎯 X button bounce phase 2 complete (1.06)');
                     gsap.to(xButton.scale, {
                       x: 1,
                       y: 1,
                       duration: 0.066, // 30% of 220ms (100% - 70%)
-                      ease: 'power2.out',
-                      onComplete: () => {
-                        console.log('🎯 X button bounce complete (1.0)');
-                      }
+                      ease: 'power2.out'
                     });
                   }
                 });
               }
             });
-          } else {
-            console.warn('⚠️ GSAP not available for X button animation');
           }
         } catch (err) {
-          console.error('❌ Error animating X button:', err);
+          console.warn('⚠️ Error animating X button:', err);
         }
-      } else {
-        console.warn('⚠️ X button not available for animation', { 
-          xButton: !!xButton, 
-          destroyed: xButton ? xButton.destroyed : 'N/A' 
-        });
       }
 
     // Open bottom sheet - function will handle duplicate checks
