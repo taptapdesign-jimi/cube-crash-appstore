@@ -663,10 +663,26 @@ export function showEndRunModalFromGame(): void {
 
 // 🔥 CRITICAL FIX: Export function to check if modal is visible (for HUD click guard)
 export function isEndRunModalVisible(): boolean {
-  if (modal && modal.parentNode && !(modal as any)._closing) {
-    return true;
+  // 🔥 CRITICAL: Check utility function first (most reliable - checks isModalVisibleState flag)
+  const utilityVisible = isModalVisible();
+  if (!utilityVisible) {
+    return false;
   }
-  return isModalVisible(); // Also check via utility function
+  
+  // 🔥 CRITICAL: If modal is closing, it's not visible
+  if (modal && (modal as any)._closing) {
+    return false;
+  }
+  
+  // 🔥 CRITICAL: Check if modal exists and is actually visible (has 'visible' class)
+  if (modal && modal.parentNode) {
+    // Check if modal has 'visible' class (actually shown)
+    if (modal.classList.contains('visible')) {
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 // Export to window for HUD click handler
