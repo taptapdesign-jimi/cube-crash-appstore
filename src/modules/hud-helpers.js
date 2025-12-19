@@ -902,7 +902,7 @@ export function layout({ app, top }) {
     // 🔥 SIMPLE POSITIONING: Container at (24, yValue - 22)
     // Red rectangle starts at debugRectX = -24 within container
     // So when container.x = 24, red rectangle starts at screen x = 24 + (-24) = 0px (left edge) ✓
-    // Red rectangle extends to: 24 + (-24) + 116 = 116px (16px over X button on right, reduced by 8px) ✓
+    // Red rectangle extends to: 24 + (-24) + 96 = 96px (16px over X button on right) ✓
     xButton.x = screenLeftPadding - hudRootX;
     xButton.y = yValue + xTopPadding;
     
@@ -913,7 +913,7 @@ export function layout({ app, top }) {
     const actualScreenX = hudRootX + xButton.x;
     const actualScreenY = hudRootY + xButton.y;
     const redRectLeftEdge = actualScreenX + (-24); // Should be 0px (left edge)
-    const redRectRightEdge = redRectLeftEdge + 116; // Should be 116px (16px over X button, reduced by 8px)
+    const redRectRightEdge = redRectLeftEdge + 96; // Should be 96px (16px over X button)
     
     console.log('🎯 X button positioned (long rectangle from left edge):', { 
       xButtonX: xButton.x, 
@@ -1036,8 +1036,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     console.log('🎯 HUD_ROOT created but NOT added to stage - will add in playHudDrop()');
   } else {
     // Normal path: add to stage immediately
-    stage.addChild(HUD_ROOT);
-    console.log('✅ HUD_ROOT created and added to stage');
+  stage.addChild(HUD_ROOT);
+  console.log('✅ HUD_ROOT created and added to stage');
   }
 
   // vrijednosti - Use system font stack for better App Store compatibility
@@ -1214,7 +1214,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   
           // 🔥 CRITICAL: Set hitArea on container so clicks work even on Graphics/Sprite
           closeButtonContainer.hitArea = new Rectangle(-radius, -radius, radius * 2, radius * 2);
-          
+  
           // Store reference
           closeIconSprite = closeButtonContainer;
           
@@ -1592,17 +1592,17 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   xButton.cursor = 'pointer';
   xButton.eventMode = 'static';
   
-  // Create touch area - LARGER for better reliability
-  // Original: 44x44px, New: 76x60px (44+32 width, 44+16 height)
-  const touchAreaWidth = 44 + 32; // 76px width (16px left + 16px right)
+  // Create touch area - USER REQUEST: 56px width
+  // Original: 44x44px, New: 56x60px (56px width, 44+16 height)
+  const touchAreaWidth = 56; // 56px width (user requested)
   const touchAreaHeight = 44 + 16; // 60px height (8px top + 8px bottom)
   const centerX = touchAreaWidth / 2; // 38px - center X within container
   const centerY = touchAreaHeight / 2; // 30px - center Y within container
   
   // 🔥 USER REQUEST: Red rectangle from left edge, 24px over X button on right
-  // X button is 76px wide, positioned at 24px from left edge
-  // So red rectangle should be: 0px (left edge) to 24+76+16=116px (16px over X button on right, reduced by 8px)
-  const debugRectWidth = 24 + touchAreaWidth + 16; // 116px total (24px left + 76px button + 16px right, reduced by 8px)
+  // X button is 56px wide, positioned at 24px from left edge
+  // So red rectangle should be: 0px (left edge) to 24+56+16=96px (16px over X button on right)
+  const debugRectWidth = 24 + touchAreaWidth + 16; // 96px total (24px left + 56px button + 16px right)
   const debugRectHeight = touchAreaHeight; // 60px height (same as button)
   const debugRectX = -24; // Start 24px to the left (so it starts at screen edge when button is at 24px)
   
@@ -1718,26 +1718,26 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   // 🔥 SIMPLE: Red rectangle (debugBg) = HIT AREA = Opens bottom sheet when clicked
   // No animations, no complications - just click red rectangle → open modal
   debugBg.on('pointerdown', (e) => {
-    e.stopPropagation();
+          e.stopPropagation();
     e.stopImmediatePropagation();
-    
+
     console.log('🎯 RED RECTANGLE CLICKED - Opening End Run bottom sheet');
     
     // Check if modal is already open
-    let isModalOpen = false;
-    try {
-      if (typeof window.isEndRunModalVisible === 'function') {
-        isModalOpen = window.isEndRunModalVisible();
-      }
-      const modalExists = document.querySelector('.simple-bottom-sheet');
+          let isModalOpen = false;
+          try {
+            if (typeof window.isEndRunModalVisible === 'function') {
+              isModalOpen = window.isEndRunModalVisible();
+            }
+            const modalExists = document.querySelector('.simple-bottom-sheet');
       if (modalExists && modalExists.parentNode) {
-        isModalOpen = true;
-      }
-    } catch (err) {
-      console.warn('⚠️ Error checking modal visibility:', err);
-    }
-    
-    if (isModalOpen) {
+                isModalOpen = true;
+            }
+          } catch (err) {
+            console.warn('⚠️ Error checking modal visibility:', err);
+          }
+          
+          if (isModalOpen) {
       console.log('⚠️ End Run modal already open - ignoring click');
       return;
     }
@@ -1748,9 +1748,9 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     }
     
     // Open bottom sheet
-    if (typeof window.showEndRunModalFromGame === 'function') {
-      window.showEndRunModalFromGame();
-    } else {
+          if (typeof window.showEndRunModalFromGame === 'function') {
+            window.showEndRunModalFromGame();
+          } else {
       console.error('❌ showEndRunModalFromGame function not available!');
     }
   });
@@ -1787,7 +1787,7 @@ export function playHudDrop({ duration = 0.8, forceRestart = false } = {}){
     console.warn('⚠️ playHudDrop: HUD_ROOT is null, cannot play drop animation');
     return;
   }
-  
+
   // 🔥 CRITICAL FIX: Add HUD_ROOT to stage NOW if it wasn't added yet (initialHide path)
   if (!HUD_ROOT.parent && HUD_ROOT._stage) {
     HUD_ROOT._stage.addChild(HUD_ROOT);
