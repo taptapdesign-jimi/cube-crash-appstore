@@ -5,6 +5,100 @@ import { setModalVisible, isModalVisible } from './end-run-utils.js';
 
 let modal: HTMLElement | null = null;
 
+function removeEndRunOverlay(): void {
+  const existing = document.getElementById('end-run-overlay');
+  if (existing) {
+    existing.remove();
+    console.log('🔓 Overlay protection removed (early cleanup)');
+  }
+}
+
+// Ensure PIXI HUD hit areas (X + score) always stay interactive after modal closes
+function restoreHudInteractivity(context: string): void {
+  try {
+    const hudRoot = (window as any).HUD_ROOT;
+    if (!hudRoot || hudRoot.destroyed) return;
+
+    hudRoot.eventMode = 'static';
+    hudRoot.interactive = true;
+    hudRoot.interactiveChildren = true;
+
+    const xButton = hudRoot._xButton;
+    if (xButton && !xButton.destroyed) {
+      xButton.eventMode = 'static';
+      xButton.interactive = true;
+      xButton.interactiveChildren = true;
+      const debugBg = xButton.children.find((child: any) => child.zIndex === 1000);
+      if (debugBg && !debugBg.destroyed) {
+        debugBg.eventMode = 'static';
+        debugBg.interactive = true;
+        debugBg.interactiveChildren = true;
+      }
+    }
+
+    const scoreTouchArea = hudRoot._scoreTouchArea;
+    if (scoreTouchArea && !scoreTouchArea.destroyed) {
+      scoreTouchArea.eventMode = 'static';
+      scoreTouchArea.interactive = true;
+      scoreTouchArea.interactiveChildren = true;
+      const scoreDebugBg = scoreTouchArea.children.find((child: any) => child.zIndex === 1000);
+      if (scoreDebugBg && !scoreDebugBg.destroyed) {
+        scoreDebugBg.eventMode = 'static';
+        scoreDebugBg.interactive = true;
+        scoreDebugBg.interactiveChildren = true;
+      }
+    }
+
+    console.log(`🔓 PIXI HUD restored (${context}) - events enabled`);
+  } catch (err) {
+    console.warn('⚠️ Error restoring PIXI HUD interactivity:', err);
+  }
+}
+
+function unfreezeGameAndHud(context: string): void {
+  const boardContainer = document.getElementById('board-container');
+  if (boardContainer) {
+    boardContainer.style.pointerEvents = 'auto';
+    boardContainer.style.userSelect = '';
+    boardContainer.style.touchAction = '';
+    console.log(`🔓 Board unfrozen (${context})`);
+  }
+
+  const hudElements = document.querySelectorAll('#hud-container, #score-text, #level-text, #combo-text, .wild-meter, #hud');
+  hudElements.forEach(el => {
+    if (el instanceof HTMLElement) {
+      el.style.pointerEvents = 'auto';
+      el.style.userSelect = '';
+      el.style.touchAction = '';
+    }
+  });
+
+  restoreHudInteractivity(context);
+}
+
+function forceCompleteClosing(reason: string): void {
+  // Clear overlay first so clicks are never blocked
+  removeEndRunOverlay();
+  // Unfreeze DOM + PIXI
+  unfreezeGameAndHud(`force-close:${reason}`);
+
+  if (modal) {
+    try {
+      modal.remove();
+    } catch {}
+    modal = null;
+  }
+
+  setModalVisible(false);
+  try {
+    if (typeof (window as any).setEndRunModalVisible === 'function') {
+      (window as any).setEndRunModalVisible(false);
+    }
+  } catch (err) {
+    console.warn('⚠️ Error resetting modal visibility during force close:', err);
+  }
+}
+
 function createModal(): HTMLElement {
   if (modal) {
     modal.remove();
@@ -233,8 +327,8 @@ export function showEndRunModal(): void {
   
   // 🔥 CRITICAL FIX: Check if modal is in closing state
   if (modal && (modal as any)._closing) {
-    console.warn('⚠️ End Run modal is closing - ignoring show call');
-    return;
+    console.warn('⚠️ End Run modal is closing - forcing cleanup so we can reopen');
+    forceCompleteClosing('reopen');
   }
   
   console.log('🎯 Pausing game for End This Run modal');
@@ -285,6 +379,9 @@ export function showEndRunModal(): void {
   // 3. Freeze entire app container as final safety
   const appContainer = document.getElementById('app');
   if (appContainer) {
+    // Remove any stale overlay from previous run to avoid blocking clicks
+    removeEndRunOverlay();
+    
     // Don't set pointer-events: none on entire app, just add overlay protection
     const overlay = document.createElement('div');
     overlay.id = 'end-run-overlay';
@@ -414,13 +511,15 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     const deltaY = currentY - startY;
     console.log('🎯 DRAG END ON MODAL:', { deltaY, threshold: 80 });
     
-    if (deltaY > 80) {
-      console.log('🎯 CLOSING MODAL');
-      modalEl.style.transition = 'transform 0.4s ease-in-out';
-      modalEl.style.transform = 'translateY(100vh)';
-      // 🔥 SAME AS SCORE BOTTOM SHEET: Reset visibility IMMEDIATELY when drag closes
-      // This makes modal instantly available for reopening
-      setModalVisible(false);
+      if (deltaY > 80) {
+        console.log('🎯 CLOSING MODAL');
+        modalEl.style.transition = 'transform 0.4s ease-in-out';
+        modalEl.style.transform = 'translateY(100vh)';
+        // Remove overlay immediately so HUD clicks aren't blocked while waiting for hideModal
+        removeEndRunOverlay();
+        // 🔥 SAME AS SCORE BOTTOM SHEET: Reset visibility IMMEDIATELY when drag closes
+        // This makes modal instantly available for reopening
+        setModalVisible(false);
       try {
         if (typeof window.setEndRunModalVisible === 'function') {
           window.setEndRunModalVisible(false);
@@ -430,41 +529,8 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       }
       console.log('📊 End run modal drag close - visibility reset immediately');
       
-      // 🔥 CRITICAL: Unfreeze PIXI HUD IMMEDIATELY (before setTimeout)
-      // This ensures event handlers are restored right away
-      try {
-        const hudRoot = (window as any).HUD_ROOT;
-        if (hudRoot && !hudRoot.destroyed) {
-          hudRoot.eventMode = 'static';
-          hudRoot.interactive = true;
-          
-          const xButton = hudRoot._xButton;
-          if (xButton && !xButton.destroyed) {
-            xButton.eventMode = 'static';
-            xButton.interactive = true;
-            const debugBg = xButton.children.find((child: any) => child.zIndex === 1000);
-            if (debugBg && !debugBg.destroyed) {
-              debugBg.eventMode = 'static';
-              debugBg.interactive = true;
-            }
-          }
-          
-          const scoreTouchArea = hudRoot._scoreTouchArea;
-          if (scoreTouchArea && !scoreTouchArea.destroyed) {
-            scoreTouchArea.eventMode = 'static';
-            scoreTouchArea.interactive = true;
-            const scoreDebugBg = scoreTouchArea.children.find((child: any) => child.zIndex === 1000);
-            if (scoreDebugBg && !scoreDebugBg.destroyed) {
-              scoreDebugBg.eventMode = 'static';
-              scoreDebugBg.interactive = true;
-            }
-          }
-          
-          console.log('🔓 PIXI HUD unfrozen IMMEDIATELY - events enabled');
-        }
-      } catch (err) {
-        console.warn('⚠️ Error unfreezing PIXI HUD:', err);
-      }
+      // 🔓 Restore HUD interactivity immediately so hit areas keep working
+      restoreHudInteractivity('drag close (touch)');
       
       setTimeout(() => hideModal(), 400);
     } else {
@@ -526,13 +592,15 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     const deltaY = currentY - startY;
     console.log('🎯 MOUSE UP:', { deltaY, threshold: 80 });
     
-    if (deltaY > 80) {
-      console.log('🎯 CLOSING MODAL (mouse)');
-      modalEl.style.transition = 'transform 0.4s ease-in-out';
-      modalEl.style.transform = 'translateY(100vh)';
-      // 🔥 SAME AS SCORE BOTTOM SHEET: Reset visibility IMMEDIATELY when drag closes
-      // This makes modal instantly available for reopening
-      setModalVisible(false);
+      if (deltaY > 80) {
+        console.log('🎯 CLOSING MODAL (mouse)');
+        modalEl.style.transition = 'transform 0.4s ease-in-out';
+        modalEl.style.transform = 'translateY(100vh)';
+        // Remove overlay immediately so HUD clicks aren't blocked while waiting for hideModal
+        removeEndRunOverlay();
+        // 🔥 SAME AS SCORE BOTTOM SHEET: Reset visibility IMMEDIATELY when drag closes
+        // This makes modal instantly available for reopening
+        setModalVisible(false);
       try {
         if (typeof window.setEndRunModalVisible === 'function') {
           window.setEndRunModalVisible(false);
@@ -542,41 +610,8 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       }
       console.log('📊 End run modal drag close (mouse) - visibility reset immediately');
       
-      // 🔥 CRITICAL: Unfreeze PIXI HUD IMMEDIATELY (before setTimeout)
-      // This ensures event handlers are restored right away
-      try {
-        const hudRoot = (window as any).HUD_ROOT;
-        if (hudRoot && !hudRoot.destroyed) {
-          hudRoot.eventMode = 'static';
-          hudRoot.interactive = true;
-          
-          const xButton = hudRoot._xButton;
-          if (xButton && !xButton.destroyed) {
-            xButton.eventMode = 'static';
-            xButton.interactive = true;
-            const debugBg = xButton.children.find((child: any) => child.zIndex === 1000);
-            if (debugBg && !debugBg.destroyed) {
-              debugBg.eventMode = 'static';
-              debugBg.interactive = true;
-            }
-          }
-          
-          const scoreTouchArea = hudRoot._scoreTouchArea;
-          if (scoreTouchArea && !scoreTouchArea.destroyed) {
-            scoreTouchArea.eventMode = 'static';
-            scoreTouchArea.interactive = true;
-            const scoreDebugBg = scoreTouchArea.children.find((child: any) => child.zIndex === 1000);
-            if (scoreDebugBg && !scoreDebugBg.destroyed) {
-              scoreDebugBg.eventMode = 'static';
-              scoreDebugBg.interactive = true;
-            }
-          }
-          
-          console.log('🔓 PIXI HUD unfrozen IMMEDIATELY (mouse) - events enabled');
-        }
-      } catch (err) {
-        console.warn('⚠️ Error unfreezing PIXI HUD:', err);
-      }
+      // 🔓 Restore HUD interactivity immediately so hit areas keep working
+      restoreHudInteractivity('drag close (mouse)');
       
       setTimeout(() => hideModal(), 400);
     } else {
@@ -680,66 +715,10 @@ export function hideModal(): void {
   modalEl.style.transform = 'translateY(100%)';
   
   // CRITICAL: Remove overlay protection first
-  const overlay = document.getElementById('end-run-overlay');
-  if (overlay) {
-    overlay.remove();
-    console.log('🔓 Overlay protection removed');
-  }
+  removeEndRunOverlay();
   
   // Unfreeze game board and HUD - re-enable interactions
-  const boardContainer = document.getElementById('board-container');
-  if (boardContainer) {
-    boardContainer.style.pointerEvents = 'auto';
-    boardContainer.style.userSelect = '';
-    boardContainer.style.touchAction = '';
-    console.log('🔓 Board unfrozen - ALL events enabled');
-  }
-  
-  const hudElements = document.querySelectorAll('#hud-container, #score-text, #level-text, #combo-text, .wild-meter, #hud');
-  hudElements.forEach(el => {
-    if (el instanceof HTMLElement) {
-      el.style.pointerEvents = 'auto';
-      el.style.userSelect = '';
-      el.style.touchAction = '';
-    }
-  });
-  
-  // 🔥 NOTE: PIXI HUD already unfrozen in drag handler (immediately)
-  // This is just a safety check in case hideModal() was called directly (not from drag)
-  try {
-    const hudRoot = (window as any).HUD_ROOT;
-    if (hudRoot && !hudRoot.destroyed && hudRoot.eventMode === 'none') {
-      // Only unfreeze if still frozen (safety check)
-      hudRoot.eventMode = 'static';
-      hudRoot.interactive = true;
-      
-      const xButton = hudRoot._xButton;
-      if (xButton && !xButton.destroyed) {
-        xButton.eventMode = 'static';
-        xButton.interactive = true;
-        const debugBg = xButton.children.find((child: any) => child.zIndex === 1000);
-        if (debugBg && !debugBg.destroyed) {
-          debugBg.eventMode = 'static';
-          debugBg.interactive = true;
-        }
-      }
-      
-      const scoreTouchArea = hudRoot._scoreTouchArea;
-      if (scoreTouchArea && !scoreTouchArea.destroyed) {
-        scoreTouchArea.eventMode = 'static';
-        scoreTouchArea.interactive = true;
-        const scoreDebugBg = scoreTouchArea.children.find((child: any) => child.zIndex === 1000);
-        if (scoreDebugBg && !scoreDebugBg.destroyed) {
-          scoreDebugBg.eventMode = 'static';
-          scoreDebugBg.interactive = true;
-        }
-      }
-      
-      console.log('🔓 PIXI HUD unfrozen (safety check) - events enabled');
-    }
-  } catch (err) {
-    console.warn('⚠️ Error unfreezing PIXI HUD:', err);
-  }
+  unfreezeGameAndHud('hideModal');
   
   console.log('🔓 HUD unfrozen - ALL events enabled');
   

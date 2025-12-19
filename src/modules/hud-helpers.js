@@ -902,7 +902,7 @@ export function layout({ app, top }) {
   if (HUD_ROOT._xButton) {
     const xButton = HUD_ROOT._xButton;
     const screenLeftPadding = 24; // 24px from left edge of SCREEN
-    const xTopPadding = 2 - 16 - 8 - 4; // Move up 28px from yValue (4px higher than before)
+    const xTopPadding = 2 - 16 - 8 - 4 - 2; // Move up 30px from yValue (2px higher - user requested)
     
     // 🔥 CRITICAL FIX: Get actual HUD_ROOT position on screen
     const hudRootX = HUD_ROOT.x || 0;
