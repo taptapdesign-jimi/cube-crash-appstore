@@ -1759,26 +1759,27 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
         window.triggerHapticImpact('light');
           }
 
-      // 🔥 USER REQUEST: Tap bounce animation on X icon
-      if (xGraphics && !xGraphics.destroyed) {
+      // 🔥 USER REQUEST: Tap bounce animation on X button (entire container with border)
+      if (xButton && !xButton.destroyed) {
         try {
           // Kill any existing animation
           if (typeof gsap !== 'undefined') {
-            gsap.killTweensOf(xGraphics.scale);
+            gsap.killTweensOf(xButton.scale);
             // Tap bounce: scale down → scale up → back to normal
-            gsap.to(xGraphics.scale, {
+            // Animates entire container (X icon + dashed border)
+            gsap.to(xButton.scale, {
               x: 0.92,
               y: 0.92,
               duration: 0.077, // 35% of 220ms
               ease: 'power2.out',
               onComplete: () => {
-                gsap.to(xGraphics.scale, {
+                gsap.to(xButton.scale, {
                   x: 1.06,
                   y: 1.06,
                   duration: 0.077, // 35% of 220ms (70% - 35%)
                   ease: 'power2.out',
                   onComplete: () => {
-                    gsap.to(xGraphics.scale, {
+                    gsap.to(xButton.scale, {
                       x: 1,
                       y: 1,
                       duration: 0.066, // 30% of 220ms (100% - 70%)
@@ -1790,7 +1791,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
             });
           }
         } catch (err) {
-          console.warn('⚠️ Error animating X icon:', err);
+          console.warn('⚠️ Error animating X button:', err);
         }
       }
 
