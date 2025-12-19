@@ -633,14 +633,20 @@ export function hideModal(): void {
       modal = null;
     }
     
-    // 🔥 CRITICAL FIX: Ensure modal state is cleared
-    setModalVisible(false);
-    try {
-      if (typeof window.setEndRunModalVisible === 'function') {
-        window.setEndRunModalVisible(false);
+    // 🔥 SAME AS SCORE BOTTOM SHEET: Visibility already reset in drag handler
+    // Only ensure it's still false (safety check)
+    if (isModalVisible()) {
+      console.log('📊 setTimeout callback - visibility still true, resetting');
+      setModalVisible(false);
+      try {
+        if (typeof window.setEndRunModalVisible === 'function') {
+          window.setEndRunModalVisible(false);
+        }
+      } catch (err) {
+        console.warn('⚠️ Error clearing modal visibility state:', err);
       }
-    } catch (err) {
-      console.warn('⚠️ Error clearing modal visibility state:', err);
+    } else {
+      console.log('📊 setTimeout callback - visibility already false (from drag handler)');
     }
     
     // CRITICAL: Resume game AFTER modal is completely removed
