@@ -1776,15 +1776,20 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
     scoreTouchArea.interactive = true;
     scoreTouchArea.cursor = 'pointer';
     scoreTouchArea.eventMode = 'static';
+    // 🔥 CRITICAL: Set zIndex to ensure it's above other HUD elements
+    scoreTouchArea.zIndex = 1000;
     
     // Create red rectangle (same style as X button)
     const scoreDebugBg = new Graphics();
     scoreDebugBg.clear();
     scoreDebugBg.roundRect(0, 0, scoreTouchAreaWidth, scoreTouchAreaHeight, 8); // Rounded rectangle
     scoreDebugBg.fill({ color: 0xFF0000, alpha: 0.6 });
+    // 🔥 CRITICAL: Graphics must be interactive to receive events
     scoreDebugBg.eventMode = 'static';
     scoreDebugBg.cursor = 'pointer';
     scoreDebugBg.interactive = true;
+    // 🔥 CRITICAL: Set zIndex to ensure it's above other elements
+    scoreDebugBg.zIndex = 1000;
     scoreTouchArea.addChild(scoreDebugBg);
     
     // Set hitArea to match red rectangle
