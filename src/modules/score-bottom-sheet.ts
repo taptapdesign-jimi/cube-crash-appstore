@@ -121,10 +121,16 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     const deltaY = currentY - startY;
     
     if (deltaY > 80) {
-      console.log('🎯 CLOSING SCORE SHEET');
+      console.log('🎯 CLOSING SCORE SHEET - calling hideScoreBottomSheet in 400ms');
       modalEl.style.transition = 'transform 0.4s ease-in-out';
       modalEl.style.transform = 'translateY(100vh)';
-      setTimeout(() => hideScoreBottomSheet(), 400);
+      // 🔥 CRITICAL: Reset isVisible IMMEDIATELY when drag closes (before animation)
+      isVisible = false;
+      console.log('📊 Score sheet drag close - isVisible reset to false immediately');
+      setTimeout(() => {
+        console.log('📊 setTimeout callback - calling hideScoreBottomSheet()');
+        hideScoreBottomSheet();
+      }, 400);
     } else {
       console.log('🎯 SNAPPING BACK');
       modalEl.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
@@ -169,10 +175,16 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     const deltaY = currentY - startY;
     
     if (deltaY > 80) {
-      console.log('🎯 CLOSING SCORE SHEET (mouse)');
+      console.log('🎯 CLOSING SCORE SHEET (mouse) - calling hideScoreBottomSheet in 400ms');
       modalEl.style.transition = 'transform 0.4s ease-in-out';
       modalEl.style.transform = 'translateY(100vh)';
-      setTimeout(() => hideScoreBottomSheet(), 400);
+      // 🔥 CRITICAL: Reset isVisible IMMEDIATELY when drag closes (before animation)
+      isVisible = false;
+      console.log('📊 Score sheet drag close (mouse) - isVisible reset to false immediately');
+      setTimeout(() => {
+        console.log('📊 setTimeout callback (mouse) - calling hideScoreBottomSheet()');
+        hideScoreBottomSheet();
+      }, 400);
     } else {
       console.log('🎯 SNAPPING BACK (mouse)');
       modalEl.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
