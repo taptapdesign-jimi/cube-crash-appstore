@@ -1503,16 +1503,44 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   HUD_ROOT.addChild(xButton);
   
   // X button click handler - show end run modal
+  // 🔥 USER REQUEST: X button (far left) opens end game bottom sheet when tapped
   xButton.on('pointerdown', (e) => {
     e.stopPropagation();
-    console.log('🎯 X BUTTON CLICKED - Opening End Run modal');
+    e.stopImmediatePropagation();
+    console.log('🎯 X BUTTON CLICKED - Opening End Run bottom sheet');
     
-    // Light haptic
+    // Light haptic feedback
     if (typeof window.triggerHapticImpact === 'function') {
       window.triggerHapticImpact('light');
     }
     
-    // Show End This Run modal
+    // Show End This Run bottom sheet
+    if (typeof window.showEndRunModalFromGame === 'function') {
+      console.log('✅ Calling showEndRunModalFromGame()');
+      window.showEndRunModalFromGame();
+    } else {
+      console.error('❌ showEndRunModalFromGame function not available!');
+    }
+  });
+  
+  // Also handle pointerup for better touch support
+  xButton.on('pointerup', (e) => {
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+  });
+  
+  // Handle pointertap (combination of pointerdown + pointerup)
+  xButton.on('pointertap', (e) => {
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    console.log('🎯 X BUTTON TAPPED - Opening End Run bottom sheet');
+    
+    // Light haptic feedback
+    if (typeof window.triggerHapticImpact === 'function') {
+      window.triggerHapticImpact('light');
+    }
+    
+    // Show End This Run bottom sheet
     if (typeof window.showEndRunModalFromGame === 'function') {
       window.showEndRunModalFromGame();
     }
