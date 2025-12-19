@@ -243,6 +243,9 @@ const CRITICAL_ASSETS: string[] = [
   './assets/modals/heart-life-empty.png',
   './assets/modals/heart-life-empty@2x.png',
   './assets/modals/heart-life-empty@3x.png',
+  './assets/modals/paper.png',
+  './assets/modals/paper@2x.png',
+  './assets/modals/paper@3x.png',
   
   // One font only
   './assets/fonts/LTCrow-Regular.ttf',
