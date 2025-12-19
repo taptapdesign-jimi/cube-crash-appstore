@@ -844,7 +844,7 @@ export function layout({ app, top }) {
         // Position red rectangle centered on coinHud container, then shift 8px right
         // coinHud.container.x is the center, so we need to offset by half the touch area width
         // User requested: 70px width, shifted 8px right
-        scoreTouchArea.x = coin.container.x - 47 + 8; // 47px = half of 94px width, +8px right
+        scoreTouchArea.x = coin.container.x - 47 + 24; // 47px = half of 94px width, +24px right (8px + 16px)
         scoreTouchArea.y = coin.container.y - 30; // 30px = half of 60px height (centered vertically)
       }
     }
