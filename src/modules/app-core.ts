@@ -2073,11 +2073,12 @@ function startLevel(n){
       console.log('🧹 startLevel: Cleaned up bubbles animation');
     }
     
-    // Cleanup confetti animations
+    // 🔥 GRACEFUL CLEANUP: Stop new confetti spawns but let existing animations finish
+    // This allows confetti to continue animating when new board starts
     import('./confetti-system.js').then(confettiModule => {
-      if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
-        confettiModule.cleanupConfetti();
-        console.log('🧹 startLevel: Cleaned up confetti animations');
+      if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
+        confettiModule.stopConfettiSpawns();
+        console.log('🎉 startLevel: Stopped new confetti spawns (existing animations will finish gracefully)');
       }
     }).catch(() => {
       // Ignore import errors

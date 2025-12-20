@@ -297,22 +297,14 @@ export function stopConfettiSpawns(): void {
   });
   activeTimeouts.clear();
   
-  // Clear all animProgress intervals (stops fade-out checks, but elements will cleanup on anim finish)
-  let animProgressCleared = 0;
-  activeAnimProgressIntervals.forEach(interval => {
-    try {
-      clearInterval(interval);
-      animProgressCleared++;
-    } catch (e) {
-      console.warn('⚠️ stopConfettiSpawns: Failed to clear animProgress interval:', e);
-    }
-  });
-  activeAnimProgressIntervals.clear();
+  // 🔥 CRITICAL: DO NOT clear animProgress intervals - they're needed for fade-out animation
+  // animProgress intervals check when confetti should fade out, which is part of the animation
+  // They will cleanup themselves when animation finishes
   
   // 🔥 CRITICAL: DO NOT remove DOM elements - let them finish their animations
   // DOM elements will cleanup themselves via onfinish callback when animation completes
   
-  console.log(`🎉 stopConfettiSpawns: Stopped new spawns - ${intervalsCleared} intervals, ${timeoutsCleared} timeouts, ${animProgressCleared} animProgress intervals cleared. Existing ${activeConfettiElements.size} DOM elements will cleanup when animations finish.`);
+  console.log(`🎉 stopConfettiSpawns: Stopped new spawns - ${intervalsCleared} intervals, ${timeoutsCleared} timeouts cleared. Existing ${activeConfettiElements.size} DOM elements (with ${activeAnimProgressIntervals.size} fade-out checks) will continue animating and cleanup when animations finish.`);
 }
 
 // 🔥 MEMORY LEAK FIX: Full cleanup function to clear all confetti animations (for restart/exit)
