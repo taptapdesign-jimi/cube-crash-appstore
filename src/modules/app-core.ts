@@ -2078,7 +2078,6 @@ function startLevel(n){
     import('./confetti-system.js').then(confettiModule => {
       if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
         confettiModule.stopConfettiSpawns();
-        console.log('🎉 startLevel: Stopped new confetti spawns (existing animations will finish gracefully)');
       }
     }).catch(() => {
       // Ignore import errors
@@ -6673,13 +6672,12 @@ function restartGame(){
       import('./confetti-system.js').then(confettiModule => {
         if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
           confettiModule.cleanupConfetti();
-          console.log('✅ RESTART GAME: Confetti animations cleaned up');
         }
       }).catch(() => {
         // Ignore import errors
       });
     } catch (e) {
-      console.warn('⚠️ RESTART GAME: Error cleaning up confetti animations:', e);
+      // Ignore errors
     }
   } catch (e) {
     console.warn('⚠️ RESTART GAME: Error killing GSAP animations:', e);
@@ -6801,13 +6799,12 @@ function restartGame(){
     import('./confetti-system.js').then(confettiModule => {
       if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
         confettiModule.cleanupConfetti();
-        console.log('✅ RESTART GAME: Confetti animations cleaned up (all timeouts/intervals/DOM)');
       }
     }).catch(() => {
       // Ignore import errors
     });
   } catch (e) {
-    console.warn('⚠️ RESTART GAME: Error cleaning up confetti animations:', e);
+    // Ignore errors
   }
   
   // 🔥 OPTIMIZATION: Kill all GSAP delayed calls before restart

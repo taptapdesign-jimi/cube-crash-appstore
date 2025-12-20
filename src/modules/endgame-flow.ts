@@ -266,10 +266,9 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         const confettiSystem = await import('./confetti-system.js');
         if (confettiSystem && typeof confettiSystem.cleanupConfetti === 'function') {
           confettiSystem.cleanupConfetti();
-          console.log('🧹 endgame-flow: Cleaned up confetti animations');
         }
       } catch (e) {
-        console.warn('⚠️ endgame-flow: Failed to cleanup confetti animations:', e);
+        // Ignore errors
       }
       
       // 🔥 CRITICAL FIX: Cleanup bubbles animation again (in case it was restarted)

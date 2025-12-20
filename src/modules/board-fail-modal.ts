@@ -318,13 +318,12 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         import('./confetti-system.js').then(confettiModule => {
           if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
             confettiModule.cleanupConfetti();
-            logger.info('✅ board-fail-modal: Confetti animations cleaned up');
           }
         }).catch(() => {
           // Ignore import errors
         });
       } catch (e) {
-        logger.warn('⚠️ board-fail-modal: Error cleaning up confetti animations:', e);
+        // Ignore errors
       }
       
       // DIRECT FUNCTION CALLS like bottom sheet

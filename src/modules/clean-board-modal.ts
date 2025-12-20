@@ -73,62 +73,6 @@ export function clearAllModalAnimationFrames() {
   _modalAnimationFrames.clear();
 }
 
-// Confetti explosion effect from center of element (fallback - not used)
-function createConfettiExplosionFallback(element: HTMLElement): void {
-  const rect = element.getBoundingClientRect();
-  const centerX = rect.left + rect.width / 2;
-  const centerY = rect.top + rect.height / 2;
-  
-  const colors = ['#FBE3C5', '#FA8C00', '#E5C7AD', '#ECD7C2', '#FDBA00'];
-  const confettiCount = 84; // +40% from 60: 60 * 1.4 = 84
-  
-  // DELAY: Wait 500ms before starting explosion
-  setTimeout(() => {
-    for (let i = 0; i < confettiCount; i++) {
-      const confetti = document.createElement('div');
-      const color = colors[Math.floor(Math.random() * colors.length)];
-      const angle = (Math.PI * 2 * i) / confettiCount;
-      const velocity = 200 + Math.random() * 300;
-      
-      // RANDOMIZER SIZE: Random width (6-12px) and height (8-16px) for rectangular confetti
-      const width = 6 + Math.random() * 6; // 6-12px
-      const height = 8 + Math.random() * 8; // 8-16px
-      
-      confetti.style.cssText = `
-        position: fixed;
-        left: ${centerX}px;
-        top: ${centerY}px;
-        width: ${width}px;
-        height: ${height}px;
-        background: ${color};
-        border-radius: 1px;
-        pointer-events: none;
-        z-index: 9999999999999;
-        transform: rotate(${Math.random() * 360}deg);
-      `;
-      
-      document.body.appendChild(confetti);
-      
-      // DURATION: 2 seconds (2000ms)
-      const duration = 2000;
-      confetti.animate([
-        { 
-          transform: `translate(0, 0) rotate(${Math.random() * 360}deg)`,
-          opacity: 1
-        },
-        {
-          transform: `translate(${Math.cos(angle) * velocity}px, ${Math.sin(angle) * velocity + 300}px) rotate(${Math.random() * 720}deg)`,
-          opacity: 0
-        }
-      ], {
-        duration: duration,
-        easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-        fill: 'forwards'
-      }).onfinish = () => confetti.remove();
-    }
-  }, 500); // 500ms delay
-}
-
 export async function showCleanBoardModal({
   app, 
   stage, 
@@ -810,13 +754,12 @@ export async function showCleanBoardModal({
           import('./confetti-system.js').then(confettiModule => {
             if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
               confettiModule.stopConfettiSpawns();
-              console.log('🎉 clean-board-modal: Stopped new confetti spawns (existing animations will finish gracefully)');
             }
           }).catch(() => {
             // Ignore import errors
           });
         } catch (e) {
-          console.warn('⚠️ clean-board-modal: Failed to stop confetti spawns:', e);
+          // Ignore errors
         }
         
         resolve({ action: 'continue' }); 
