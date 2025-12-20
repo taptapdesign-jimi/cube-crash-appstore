@@ -6653,6 +6653,20 @@ function restartGame(){
       console.warn('⚠️ RESTART GAME: Error cleaning up smoke bubbles:', e);
     }
     
+    // 🔥 CRITICAL: Cleanup all effects (bubbles, explosions, etc.) before restart
+    try {
+      import('./fx.js').then(fxModule => {
+        if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
+          fxModule.cleanupAllEffects();
+          console.log('✅ RESTART GAME: All effects cleaned up (bubbles, explosions, etc.)');
+        }
+      }).catch(() => {
+        // Ignore import errors
+      });
+    } catch (e) {
+      console.warn('⚠️ RESTART GAME: Error cleaning up all effects:', e);
+    }
+    
     // 🔥 CRITICAL: Cleanup confetti animations before restart (MEMORY LEAK FIX)
     try {
       import('./confetti-system.js').then(confettiModule => {
