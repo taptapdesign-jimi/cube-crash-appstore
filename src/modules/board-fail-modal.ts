@@ -313,6 +313,20 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         }
       }
       
+      // 🔥 CRITICAL: Cleanup confetti animations before restart/exit (MEMORY LEAK FIX)
+      try {
+        import('./confetti-system.js').then(confettiModule => {
+          if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
+            confettiModule.cleanupConfetti();
+            logger.info('✅ board-fail-modal: Confetti animations cleaned up');
+          }
+        }).catch(() => {
+          // Ignore import errors
+        });
+      } catch (e) {
+        logger.warn('⚠️ board-fail-modal: Error cleaning up confetti animations:', e);
+      }
+      
       // DIRECT FUNCTION CALLS like bottom sheet
       if (action === 'retry') {
         logger.info('🎮 Play Again clicked - calling window.CC.restart directly');

@@ -6652,6 +6652,20 @@ function restartGame(){
     } catch (e) {
       console.warn('⚠️ RESTART GAME: Error cleaning up smoke bubbles:', e);
     }
+    
+    // 🔥 CRITICAL: Cleanup confetti animations before restart (MEMORY LEAK FIX)
+    try {
+      import('./confetti-system.js').then(confettiModule => {
+        if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
+          confettiModule.cleanupConfetti();
+          console.log('✅ RESTART GAME: Confetti animations cleaned up');
+        }
+      }).catch(() => {
+        // Ignore import errors
+      });
+    } catch (e) {
+      console.warn('⚠️ RESTART GAME: Error cleaning up confetti animations:', e);
+    }
   } catch (e) {
     console.warn('⚠️ RESTART GAME: Error killing GSAP animations:', e);
   }
@@ -6765,6 +6779,21 @@ function restartGame(){
   
   // 🔥 OPTIMIZATION: Clear all tracked timeouts before restart
   clearAllAppTimeouts();
+  
+  // 🔥 CRITICAL: Cleanup confetti animations (cleanup all timeouts/intervals/DOM elements)
+  // This must be called BEFORE killAllDelayedCalls to ensure all confetti timeouts are cleared
+  try {
+    import('./confetti-system.js').then(confettiModule => {
+      if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
+        confettiModule.cleanupConfetti();
+        console.log('✅ RESTART GAME: Confetti animations cleaned up (all timeouts/intervals/DOM)');
+      }
+    }).catch(() => {
+      // Ignore import errors
+    });
+  } catch (e) {
+    console.warn('⚠️ RESTART GAME: Error cleaning up confetti animations:', e);
+  }
   
   // 🔥 OPTIMIZATION: Kill all GSAP delayed calls before restart
   try {

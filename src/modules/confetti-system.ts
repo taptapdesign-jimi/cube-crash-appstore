@@ -4,8 +4,9 @@
 let activeAnimations = 0;
 const MAX_ANIMATIONS = 800; // Increased for continuous spawn
 
-// 🔥 MEMORY LEAK FIX: Track all active intervals and DOM elements for cleanup
+// 🔥 MEMORY LEAK FIX: Track all active intervals, timeouts, and DOM elements for cleanup
 const activeIntervals: Set<NodeJS.Timeout> = new Set();
+const activeTimeouts: Set<NodeJS.Timeout> = new Set(); // 🔥 NEW: Track all setTimeout calls
 const activeConfettiElements: Set<HTMLElement> = new Set();
 const activeAnimProgressIntervals: Set<NodeJS.Timeout> = new Set();
 
@@ -36,11 +37,30 @@ function createConfettiExplosion(element: HTMLElement): void {
     // For subsequent batches, use small random delays
     const delay = isFirstBatch ? 0 : Math.random() * 200;
     
-    // Spawn from 4 top positions
-    setTimeout(() => createSpawn(colors, confettiPerSpawn, -(screenW * 0.3), -(screenH * 0.3), Math.PI / 4, 'left', 'down'), delay);
-    setTimeout(() => createSpawn(colors, confettiPerSpawn, screenW * 1.3, -(screenH * 0.3), 3 * Math.PI / 4, 'right', 'down'), delay);
-    setTimeout(() => createSpawn(colors, confettiPerSpawn, screenW * 0.25, -(screenH * 0.3), Math.PI / 2 - 0.3, 'left', 'down'), delay);
-    setTimeout(() => createSpawn(colors, confettiPerSpawn, screenW * 0.75, -(screenH * 0.3), Math.PI / 2 + 0.3, 'right', 'down'), delay);
+    // Spawn from 4 top positions - 🔥 MEMORY LEAK FIX: Track all setTimeout calls
+    const timeout1 = setTimeout(() => {
+      activeTimeouts.delete(timeout1);
+      createSpawn(colors, confettiPerSpawn, -(screenW * 0.3), -(screenH * 0.3), Math.PI / 4, 'left', 'down');
+    }, delay);
+    activeTimeouts.add(timeout1);
+    
+    const timeout2 = setTimeout(() => {
+      activeTimeouts.delete(timeout2);
+      createSpawn(colors, confettiPerSpawn, screenW * 1.3, -(screenH * 0.3), 3 * Math.PI / 4, 'right', 'down');
+    }, delay);
+    activeTimeouts.add(timeout2);
+    
+    const timeout3 = setTimeout(() => {
+      activeTimeouts.delete(timeout3);
+      createSpawn(colors, confettiPerSpawn, screenW * 0.25, -(screenH * 0.3), Math.PI / 2 - 0.3, 'left', 'down');
+    }, delay);
+    activeTimeouts.add(timeout3);
+    
+    const timeout4 = setTimeout(() => {
+      activeTimeouts.delete(timeout4);
+      createSpawn(colors, confettiPerSpawn, screenW * 0.75, -(screenH * 0.3), Math.PI / 2 + 0.3, 'right', 'down');
+    }, delay);
+    activeTimeouts.add(timeout4);
     
     spawnCount++;
   };
@@ -77,7 +97,9 @@ function createSpawn(
   for (let i = 0; i < count && activeAnimations < MAX_ANIMATIONS; i++) {
     const spawnDelay = Math.max(0, Math.random() * 3000 - 400); // Start 400ms earlier
     
-    setTimeout(() => {
+    // 🔥 MEMORY LEAK FIX: Track setTimeout for cleanup
+    const spawnTimeout = setTimeout(() => {
+      activeTimeouts.delete(spawnTimeout); // Remove from tracking when executed
       const color = colors[i % colors.length];
       const angleVariant = (Math.random() - 0.5) * 0.25;
       const angle = baseAngle + angleVariant;
@@ -242,6 +264,7 @@ function createSpawn(
       };
     }
     }, spawnDelay);
+    activeTimeouts.add(spawnTimeout); // 🔥 MEMORY LEAK FIX: Track timeout for cleanup
   }
 }
 
@@ -260,6 +283,18 @@ export function cleanupConfetti(): void {
     }
   });
   activeIntervals.clear();
+  
+  // 🔥 CRITICAL: Clear all pending setTimeout calls (MEMORY LEAK FIX)
+  let timeoutsCleared = 0;
+  activeTimeouts.forEach(timeout => {
+    try {
+      clearTimeout(timeout);
+      timeoutsCleared++;
+    } catch (e) {
+      console.warn('⚠️ cleanupConfetti: Failed to clear timeout:', e);
+    }
+  });
+  activeTimeouts.clear();
   
   // Clear all animProgress intervals
   let animProgressCleared = 0;
@@ -290,7 +325,7 @@ export function cleanupConfetti(): void {
   // Reset counter
   activeAnimations = 0;
   
-  console.log(`🧹 cleanupConfetti: Cleanup completed - ${intervalsCleared} intervals, ${animProgressCleared} animProgress intervals, ${elementsRemoved} DOM elements removed`);
+  console.log(`🧹 cleanupConfetti: Cleanup completed - ${intervalsCleared} intervals, ${timeoutsCleared} timeouts, ${animProgressCleared} animProgress intervals, ${elementsRemoved} DOM elements removed`);
 }
 
 export { createConfettiExplosion };
