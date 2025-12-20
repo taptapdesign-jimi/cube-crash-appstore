@@ -804,18 +804,19 @@ export async function showCleanBoardModal({
         clearAllModalTimeouts(); // 🔥 Cleanup all remaining timeouts (double-check)
         clearAllModalAnimationFrames(); // 🔥 Cleanup all remaining animation frames (double-check)
         
-        // 🔥 MEMORY LEAK FIX: Cleanup confetti animations when modal closes
+        // 🔥 GRACEFUL CLEANUP: Stop new confetti spawns but let existing animations finish
+        // This allows confetti to continue animating after Continue is clicked
         try {
           import('./confetti-system.js').then(confettiModule => {
-            if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
-              confettiModule.cleanupConfetti();
-              console.log('🧹 clean-board-modal: Cleaned up confetti animations on modal close');
+            if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
+              confettiModule.stopConfettiSpawns();
+              console.log('🎉 clean-board-modal: Stopped new confetti spawns (existing animations will finish gracefully)');
             }
           }).catch(() => {
             // Ignore import errors
           });
         } catch (e) {
-          console.warn('⚠️ clean-board-modal: Failed to cleanup confetti animations:', e);
+          console.warn('⚠️ clean-board-modal: Failed to stop confetti spawns:', e);
         }
         
         resolve({ action: 'continue' }); 

@@ -268,47 +268,61 @@ function createSpawn(
   }
 }
 
-// 🔥 MEMORY LEAK FIX: Cleanup function to clear all confetti animations
-export function cleanupConfetti(): void {
-  console.log('🧹 cleanupConfetti: Starting cleanup...');
+// 🔥 GRACEFUL CLEANUP: Stop new spawns but let existing animations finish
+// This allows confetti to continue animating after Continue is clicked
+export function stopConfettiSpawns(): void {
+  console.log('🎉 stopConfettiSpawns: Stopping new spawns (letting existing animations finish)...');
   
-  // Clear all spawn intervals
+  // Clear all spawn intervals (stops new batches from spawning)
   let intervalsCleared = 0;
   activeIntervals.forEach(interval => {
     try {
       clearInterval(interval);
       intervalsCleared++;
     } catch (e) {
-      console.warn('⚠️ cleanupConfetti: Failed to clear interval:', e);
+      console.warn('⚠️ stopConfettiSpawns: Failed to clear interval:', e);
     }
   });
   activeIntervals.clear();
   
-  // 🔥 CRITICAL: Clear all pending setTimeout calls (MEMORY LEAK FIX)
+  // Clear all pending setTimeout calls (stops new confetti from spawning)
   let timeoutsCleared = 0;
   activeTimeouts.forEach(timeout => {
     try {
       clearTimeout(timeout);
       timeoutsCleared++;
     } catch (e) {
-      console.warn('⚠️ cleanupConfetti: Failed to clear timeout:', e);
+      console.warn('⚠️ stopConfettiSpawns: Failed to clear timeout:', e);
     }
   });
   activeTimeouts.clear();
   
-  // Clear all animProgress intervals
+  // Clear all animProgress intervals (stops fade-out checks, but elements will cleanup on anim finish)
   let animProgressCleared = 0;
   activeAnimProgressIntervals.forEach(interval => {
     try {
       clearInterval(interval);
       animProgressCleared++;
     } catch (e) {
-      console.warn('⚠️ cleanupConfetti: Failed to clear animProgress interval:', e);
+      console.warn('⚠️ stopConfettiSpawns: Failed to clear animProgress interval:', e);
     }
   });
   activeAnimProgressIntervals.clear();
   
-  // Remove all DOM elements
+  // 🔥 CRITICAL: DO NOT remove DOM elements - let them finish their animations
+  // DOM elements will cleanup themselves via onfinish callback when animation completes
+  
+  console.log(`🎉 stopConfettiSpawns: Stopped new spawns - ${intervalsCleared} intervals, ${timeoutsCleared} timeouts, ${animProgressCleared} animProgress intervals cleared. Existing ${activeConfettiElements.size} DOM elements will cleanup when animations finish.`);
+}
+
+// 🔥 MEMORY LEAK FIX: Full cleanup function to clear all confetti animations (for restart/exit)
+export function cleanupConfetti(): void {
+  console.log('🧹 cleanupConfetti: Starting FULL cleanup...');
+  
+  // First stop all new spawns
+  stopConfettiSpawns();
+  
+  // Then remove all DOM elements (force cleanup)
   let elementsRemoved = 0;
   activeConfettiElements.forEach(element => {
     try {
@@ -325,7 +339,7 @@ export function cleanupConfetti(): void {
   // Reset counter
   activeAnimations = 0;
   
-  console.log(`🧹 cleanupConfetti: Cleanup completed - ${intervalsCleared} intervals, ${timeoutsCleared} timeouts, ${animProgressCleared} animProgress intervals, ${elementsRemoved} DOM elements removed`);
+  console.log(`🧹 cleanupConfetti: FULL cleanup completed - ${elementsRemoved} DOM elements force-removed`);
 }
 
 export { createConfettiExplosion };
