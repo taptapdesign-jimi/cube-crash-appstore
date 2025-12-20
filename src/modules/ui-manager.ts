@@ -94,63 +94,197 @@ class UIManager {
   }
   
   // Setup event listeners
+  // 🔥 Helper method to reattach homepage button listeners (called after cleanup)
+  private reattachHomepageButtonListeners(): void {
+    // Also refresh element references to ensure we're using the latest DOM elements
+    try {
+      // Refresh element references
+      this.elements.playButton = document.getElementById('btn-home') as HTMLButtonElement;
+      this.elements.journeyButton = (document.getElementById('btn-journey') || document.getElementById('btn-stats')) as HTMLButtonElement;
+      this.elements.collectiblesButton = document.getElementById('btn-collectibles') as HTMLButtonElement;
+      this.elements.settingsButton = document.getElementById('btn-settings') as HTMLButtonElement;
+      this.elements.statsBackButton = document.getElementById('stats-back-btn') as HTMLButtonElement;
+      
+      // Helper to add listener and track it (same as in setupEventListeners)
+      const addTrackedListener = (element: HTMLElement, event: string, handler: EventListener) => {
+        element.addEventListener(event, handler);
+        if (!this.boundEventHandlers.has(element)) {
+          this.boundEventHandlers.set(element, []);
+        }
+        this.boundEventHandlers.get(element)!.push({ event, handler });
+      };
+      
+      // Always reattach - buttons might have been recreated or listeners cleared
+      if (this.elements.playButton) {
+        // Remove old listeners first if any
+        if (this.boundEventHandlers.has(this.elements.playButton)) {
+          const oldHandlers = this.boundEventHandlers.get(this.elements.playButton)!;
+          oldHandlers.forEach(({ event, handler }) => {
+            this.elements.playButton!.removeEventListener(event, handler);
+          });
+          this.boundEventHandlers.delete(this.elements.playButton);
+        }
+        const handler = this.handlePlayClick.bind(this);
+        addTrackedListener(this.elements.playButton, 'click', handler);
+        logger.info('✅ Play button event listener reattached');
+      }
+      
+      if (this.elements.journeyButton) {
+        if (this.boundEventHandlers.has(this.elements.journeyButton)) {
+          const oldHandlers = this.boundEventHandlers.get(this.elements.journeyButton)!;
+          oldHandlers.forEach(({ event, handler }) => {
+            this.elements.journeyButton!.removeEventListener(event, handler);
+          });
+          this.boundEventHandlers.delete(this.elements.journeyButton);
+        }
+        const handler = this.handleStatsClick.bind(this);
+        addTrackedListener(this.elements.journeyButton, 'click', handler);
+        logger.info('✅ Journey button event listener reattached');
+      }
+      
+      if (this.elements.collectiblesButton) {
+        if (this.boundEventHandlers.has(this.elements.collectiblesButton)) {
+          const oldHandlers = this.boundEventHandlers.get(this.elements.collectiblesButton)!;
+          oldHandlers.forEach(({ event, handler }) => {
+            this.elements.collectiblesButton!.removeEventListener(event, handler);
+          });
+          this.boundEventHandlers.delete(this.elements.collectiblesButton);
+        }
+        const handler = this.handleCollectiblesClick.bind(this);
+        addTrackedListener(this.elements.collectiblesButton, 'click', handler);
+        logger.info('✅ Collectibles button event listener reattached');
+      }
+      
+      if (this.elements.settingsButton) {
+        if (this.boundEventHandlers.has(this.elements.settingsButton)) {
+          const oldHandlers = this.boundEventHandlers.get(this.elements.settingsButton)!;
+          oldHandlers.forEach(({ event, handler }) => {
+            this.elements.settingsButton!.removeEventListener(event, handler);
+          });
+          this.boundEventHandlers.delete(this.elements.settingsButton);
+        }
+        const handler = this.handleSettingsClick.bind(this);
+        addTrackedListener(this.elements.settingsButton, 'click', handler);
+        logger.info('✅ Settings button event listener reattached');
+      }
+      
+      // Also reattach stats back button if needed
+      if (this.elements.statsBackButton) {
+        if (this.boundEventHandlers.has(this.elements.statsBackButton)) {
+          const oldHandlers = this.boundEventHandlers.get(this.elements.statsBackButton)!;
+          oldHandlers.forEach(({ event, handler }) => {
+            this.elements.statsBackButton!.removeEventListener(event, handler);
+          });
+          this.boundEventHandlers.delete(this.elements.statsBackButton);
+        }
+        const handler = this.handleStatsBackClick.bind(this);
+        addTrackedListener(this.elements.statsBackButton, 'click', handler);
+        logger.info('✅ Stats back button event listener reattached');
+      }
+      
+    } catch (error) {
+      logger.warn('⚠️ Failed to reattach homepage button event listeners:', error);
+    }
+  }
+
   private setupEventListeners(): void {
+    // 🔥 MEMORY LEAK FIX: Store bound handlers for cleanup
+    // Helper to add listener and track it
+    const addTrackedListener = (element: HTMLElement, event: string, handler: EventListener) => {
+      element.addEventListener(event, handler);
+      if (!this.boundEventHandlers.has(element)) {
+        this.boundEventHandlers.set(element, []);
+      }
+      this.boundEventHandlers.get(element)!.push({ event, handler });
+    };
+    
     // Play button
     if (this.elements.playButton) {
-      this.elements.playButton.addEventListener('click', this.handlePlayClick.bind(this));
+      const handler = this.handlePlayClick.bind(this);
+      addTrackedListener(this.elements.playButton, 'click', handler);
     }
     
     // Journey button (was stats)
     if (this.elements.journeyButton) {
-      this.elements.journeyButton.addEventListener('click', this.handleStatsClick.bind(this));
+      const handler = this.handleStatsClick.bind(this);
+      addTrackedListener(this.elements.journeyButton, 'click', handler);
     }
     
     // Collectibles button
     if (this.elements.collectiblesButton) {
-      this.elements.collectiblesButton.addEventListener('click', this.handleCollectiblesClick.bind(this));
+      const handler = this.handleCollectiblesClick.bind(this);
+      addTrackedListener(this.elements.collectiblesButton, 'click', handler);
     } else {
       console.warn('⚠️ Collectibles button not found! btn-collectibles element missing');
     }
     
     // Settings button
     if (this.elements.settingsButton) {
-      this.elements.settingsButton.addEventListener('click', this.handleSettingsClick.bind(this));
+      const handler = this.handleSettingsClick.bind(this);
+      addTrackedListener(this.elements.settingsButton, 'click', handler);
     }
     
     if (this.elements.statsBackButton) {
-      this.elements.statsBackButton.addEventListener('click', this.handleStatsBackClick.bind(this));
+      const handler = this.handleStatsBackClick.bind(this);
+      addTrackedListener(this.elements.statsBackButton, 'click', handler);
     }
     
-    if (this.elements.settingsBackButton) {
-      this.elements.settingsBackButton.addEventListener('click', this.handleSettingsBackClick.bind(this));
+    // 🔥 DIFFERENT APPROACH: Use event delegation on settings screen container
+    // This ensures back button works even if element is recreated or not found during init
+    if (this.elements.settingsScreen) {
+      const handler = (e: Event) => {
+        const target = e.target as HTMLElement;
+        const backBtn = target.closest('#settings-back-btn, .settings-back-button');
+        if (backBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.handleSettingsBackClick(e);
+        }
+      };
+      addTrackedListener(this.elements.settingsScreen, 'click', handler);
+      logger.info('✅ Settings back button handler attached via event delegation');
+    } else {
+      // Fallback: try to attach directly if button exists
+      if (this.elements.settingsBackButton) {
+        const handler = this.handleSettingsBackClick.bind(this);
+        addTrackedListener(this.elements.settingsBackButton, 'click', handler);
+      }
     }
     
     // Setup settings toggles
     this.setupSettingsToggles();
   }
   
+  // 🔥 MEMORY LEAK FIX: Store unsubscribe functions for cleanup
+  private unsubscribeFunctions: (() => void)[] = [];
+  private boundEventHandlers: Map<HTMLElement, Array<{ event: string; handler: EventListener }>> = new Map();
+  
   // Setup state subscriptions
   private setupStateSubscriptions(): void {
+    // 🔥 MEMORY LEAK FIX: Store unsubscribe functions
     // Homepage visibility
-    gameState.subscribe('homepageReady', (isReady: boolean) => {
+    const unsubscribeHomepageReady = gameState.subscribe('homepageReady', (isReady: boolean) => {
       if (isReady) {
         this.showHomepage();
       }
     });
+    this.unsubscribeFunctions.push(unsubscribeHomepageReady);
     
     // Game active state
-    gameState.subscribe('isGameActive', (isActive: boolean) => {
+    const unsubscribeGameActive = gameState.subscribe('isGameActive', (isActive: boolean) => {
       if (isActive) {
         this.hideHomepage();
       } else {
         this.showHomepage();
       }
     });
+    this.unsubscribeFunctions.push(unsubscribeGameActive);
     
     // Slider locked state
-    gameState.subscribe('sliderLocked', (isLocked: boolean) => {
+    const unsubscribeSliderLocked = gameState.subscribe('sliderLocked', (isLocked: boolean) => {
       this.updateSliderLockState(isLocked);
     });
+    this.unsubscribeFunctions.push(unsubscribeSliderLocked);
   }
   
   // Handle play button click
@@ -577,6 +711,144 @@ class UIManager {
   
   // Hide homepage
   hideHomepage(): void {
+    // 🔥 MEMORY LEAK FIX: Cleanup all animations before hiding homepage
+    (async () => {
+      // 1. Cleanup animation timeouts
+      try {
+        const { cleanupAnimations } = await import('../utils/animations.js');
+        if (cleanupAnimations) {
+          cleanupAnimations();
+          logger.info('🧹 Homepage animation timeouts cleaned up');
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to cleanup homepage animation timeouts:', error);
+      }
+      
+      // 2. Kill GSAP animations on homepage elements
+      try {
+        const gsap = (window as any).gsap;
+        if (gsap && this.elements.home) {
+          // Kill animations on all homepage elements
+          const homepageElements = this.elements.home.querySelectorAll('*');
+          homepageElements.forEach((el: Element) => {
+            try {
+              gsap.killTweensOf(el);
+            } catch {}
+          });
+          
+          // Kill animations on slider elements
+          const sliderWrapper = document.getElementById('slider-wrapper');
+          const sliderContainer = document.getElementById('slider-container');
+          if (sliderWrapper) gsap.killTweensOf(sliderWrapper);
+          if (sliderContainer) gsap.killTweensOf(sliderContainer);
+          
+          // Kill animations on navigation elements
+          const navButtons = document.querySelectorAll('.independent-nav-button');
+          navButtons.forEach(btn => {
+            gsap.killTweensOf(btn);
+            const img = btn.querySelector('img');
+            if (img) gsap.killTweensOf(img);
+          });
+          
+          logger.info('🧹 Homepage GSAP animations killed');
+        }
+      } catch (gsapError) {
+        logger.warn('⚠️ Failed to cleanup homepage GSAP animations:', gsapError);
+      }
+      
+      // 3. Stop CSS infinite animations (working-shimmer, cta-shimmer)
+      if (this.elements.home) {
+        const shimmerElements = this.elements.home.querySelectorAll('[class*="::after"], .slide-button, .continue-btn, .new-game-btn, .restart-btn, .exit-btn, .menu-btn-primary');
+        shimmerElements.forEach((el: Element) => {
+          const htmlEl = el as HTMLElement;
+          if (htmlEl.style) {
+            // Stop CSS animations by removing animation property
+            htmlEl.style.animation = 'none';
+            htmlEl.style.animationPlayState = 'paused';
+          }
+        });
+        
+        // Also stop shimmer on buttons with ::after pseudo-elements
+        const buttons = this.elements.home.querySelectorAll('button, .slide-button, .continue-btn, .new-game-btn, .restart-btn, .exit-btn');
+        buttons.forEach((btn: Element) => {
+          const htmlBtn = btn as HTMLElement;
+          if (htmlBtn.style) {
+            htmlBtn.style.animation = 'none';
+            htmlBtn.style.animationPlayState = 'paused';
+          }
+        });
+        
+        logger.info('🧹 Homepage CSS infinite animations stopped');
+      }
+      
+      // 4. Destroy slider manager (cleanup event listeners and animations)
+      try {
+        const { default: sliderManager } = await import('./slider-manager.js');
+        if (sliderManager && typeof sliderManager.destroy === 'function') {
+          sliderManager.destroy();
+          logger.info('🧹 Slider manager destroyed');
+        }
+      } catch (sliderError) {
+        logger.warn('⚠️ Failed to destroy slider manager:', sliderError);
+      }
+      
+      // 5. Unsubscribe from gameState subscriptions
+      try {
+        this.unsubscribeFunctions.forEach(unsubscribe => {
+          try {
+            unsubscribe();
+          } catch (e) {}
+        });
+        this.unsubscribeFunctions = [];
+        logger.info('🧹 GameState subscriptions unsubscribed');
+      } catch (error) {
+        logger.warn('⚠️ Failed to unsubscribe from gameState:', error);
+      }
+      
+      // 6. Remove event listeners
+      try {
+        this.boundEventHandlers.forEach((handlers, element) => {
+          handlers.forEach(({ event, handler }) => {
+            try {
+              element.removeEventListener(event, handler);
+            } catch (e) {}
+          });
+        });
+        this.boundEventHandlers.clear();
+        logger.info('🧹 Event listeners removed');
+      } catch (error) {
+        logger.warn('⚠️ Failed to remove event listeners:', error);
+      }
+      
+      // 6b. Remove settings toggle handlers
+      try {
+        this.settingsToggleHandlers.forEach((handlers, element) => {
+          handlers.forEach(({ event, handler }) => {
+            try {
+              element.removeEventListener(event, handler);
+            } catch (e) {}
+          });
+        });
+        this.settingsToggleHandlers.clear();
+        logger.info('🧹 Settings toggle handlers removed');
+      } catch (error) {
+        logger.warn('⚠️ Failed to remove settings toggle handlers:', error);
+      }
+      
+      // 7. Cleanup animation manager
+      try {
+        const { default: animationManager } = await import('./animation-manager.js');
+        if (animationManager && typeof animationManager.destroy === 'function') {
+          animationManager.destroy();
+          logger.info('🧹 Animation manager destroyed');
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to destroy animation manager:', error);
+      }
+    })().catch((error) => {
+      logger.warn('⚠️ Failed to execute homepage cleanup:', error);
+    });
+    
     if (this.elements.home) {
       // NO OPACITY FADE - just hide immediately after scale animation completes
       this.elements.home.style.display = 'none';
@@ -865,6 +1137,25 @@ class UIManager {
     if (this.elements.home) {
       this.elements.home.style.display = 'block';
       this.elements.home.removeAttribute('hidden');
+      
+      // 🔥 CRITICAL FIX: Reinitialize slider manager if it was destroyed
+      // This ensures slider controls (swipe, nav buttons, dots) work after returning to homepage
+      try {
+        if (sliderManager && typeof sliderManager.init === 'function') {
+          // Check if slider manager needs reinitialization (it was destroyed in hideHomepage)
+          sliderManager.init();
+          logger.info('✅ Slider manager reinitialized in showHomepageQuietly');
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to reinitialize slider manager:', error);
+      }
+      
+      // 🔥 CRITICAL FIX: Reattach event listeners to homepage buttons
+      // Event listeners were removed in hideHomepage(), so we need to reattach them
+      // Use requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        this.reattachHomepageButtonListeners();
+      });
       
       // 🔥 USER BUG FIX: Update Journey badge when showing homepage quietly
       // This ensures badge is always up-to-date when homepage is displayed (e.g., after Journey screen)
@@ -1622,6 +1913,21 @@ class UIManager {
       this.hideHomepage();
       this.setNavigationVisibility(false);
       
+      // 🔥 CRITICAL: Refresh back button reference and ensure handler is attached
+      const backButton = settingsScreen.querySelector('#settings-back-btn') as HTMLButtonElement | null;
+      if (backButton) {
+        this.elements.settingsBackButton = backButton;
+        // Ensure handler is attached (in case element wasn't available during init)
+        if (!this.boundEventHandlers.has(backButton)) {
+          const handler = this.handleSettingsBackClick.bind(this);
+          backButton.addEventListener('click', handler);
+          this.boundEventHandlers.set(backButton, [{ event: 'click', handler }]);
+          logger.info('✅ Settings back button handler attached');
+        }
+      } else {
+        logger.warn('⚠️ Settings back button not found in DOM');
+      }
+      
       // 🔥 CRITICAL: Set opacity to 0 FIRST so screen is invisible while GSAP sets initial state
       settingsScreen.style.opacity = '0';
       settingsScreen.style.display = 'flex';
@@ -1735,7 +2041,8 @@ class UIManager {
         this.setNavigationVisibility(true);
       }
       
-      // CRITICAL: Switch to Settings slide (index 3) to show Settings slide after exiting Settings screen
+      // 🔥 CRITICAL: Switch to Settings slide (index 3) FIRST, then show homepage
+      // This ensures we return to the Settings slide in the slider, not homepage slide
       const slides = document.querySelectorAll('.slider-slide');
       const navButtons = document.querySelectorAll('.independent-nav-button');
       slides.forEach((slide, index) => {
@@ -1753,13 +2060,21 @@ class UIManager {
         }
       });
       
-      // Show homepage QUIETLY after fade animation completes
-      // CRITICAL: Do NOT override background animation - it's already completed
+      // Show homepage QUIETLY after slider positioning
+      // This ensures homepage is visible and slider is on correct slide
       this.showHomepageQuietly();
       
-      // Step 2: Play enter animation for Settings slide
-      console.log('🎬 Playing enter animation for Settings slide');
-      animateSliderEnter();
+      // Force reflow to ensure DOM is updated before animation
+      void slides[3]?.offsetHeight;
+      
+      // Step 2: Play enter animation for Settings slide (index 3)
+      // Use requestAnimationFrame to ensure DOM is fully updated
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          console.log('🎬 Playing enter animation for Settings slide (index 3)');
+          animateSliderEnter();
+        });
+      });
     }, fadeDurationMs);
   }
   
@@ -1797,22 +2112,35 @@ class UIManager {
   // Handle settings back button click
   private handleSettingsBackClick(event: Event): void {
     event.preventDefault();
+    event.stopPropagation();
     logger.info('⚙️ Settings back button clicked');
     
-    // 🔥 USER REQUEST: Haptic feedback removed from settings back button
-    // Sweet bounce tap feedback (visual only)
-    try {
-      const btn = this.elements.settingsBackButton;
-      if (btn) {
-        btn.classList.remove('sweet-bounce');
-        void btn.offsetHeight; // force reflow to retrigger
-        btn.classList.add('sweet-bounce');
-        window.setTimeout(() => btn.classList.remove('sweet-bounce'), 260);
-      }
-    } catch {}
+    // 🔥 CRITICAL: Refresh button reference in case it changed
+    const btn = document.getElementById('settings-back-btn') as HTMLButtonElement | null;
+    if (btn) {
+      this.elements.settingsBackButton = btn;
+    }
     
+    // 🔥 USER REQUEST: Sweet bounce tap feedback (visual only)
+    try {
+      const buttonToAnimate = this.elements.settingsBackButton || btn;
+      if (buttonToAnimate) {
+        buttonToAnimate.classList.remove('sweet-bounce');
+        void buttonToAnimate.offsetHeight; // force reflow to retrigger
+        buttonToAnimate.classList.add('sweet-bounce');
+        window.setTimeout(() => buttonToAnimate.classList.remove('sweet-bounce'), 260);
+      }
+    } catch (err) {
+      logger.warn('⚠️ Error adding bounce animation to settings back button:', err);
+    }
+    
+    // 🔥 CRITICAL: Call hide function
+    logger.info('⚙️ Calling hideSettingsScreenWithAnimation()...');
     this.hideSettingsScreenWithAnimation();
   }
+  
+  // 🔥 MEMORY LEAK FIX: Store settings toggle handlers
+  private settingsToggleHandlers: Map<HTMLElement, { event: string; handler: EventListener }[]> = new Map();
   
   // Setup settings toggles
   private setupSettingsToggles(): void {
@@ -1820,11 +2148,21 @@ class UIManager {
     const vibrationToggle = document.getElementById('toggle-vibration');
     
     if (gameSoundsToggle) {
-      gameSoundsToggle.addEventListener('change', this.handleGameSoundsToggle.bind(this));
+      const handler = this.handleGameSoundsToggle.bind(this);
+      gameSoundsToggle.addEventListener('change', handler);
+      if (!this.settingsToggleHandlers.has(gameSoundsToggle)) {
+        this.settingsToggleHandlers.set(gameSoundsToggle, []);
+      }
+      this.settingsToggleHandlers.get(gameSoundsToggle)!.push({ event: 'change', handler });
     }
     
     if (vibrationToggle) {
-      vibrationToggle.addEventListener('change', this.handleVibrationToggle.bind(this));
+      const handler = this.handleVibrationToggle.bind(this);
+      vibrationToggle.addEventListener('change', handler);
+      if (!this.settingsToggleHandlers.has(vibrationToggle)) {
+        this.settingsToggleHandlers.set(vibrationToggle, []);
+      }
+      this.settingsToggleHandlers.get(vibrationToggle)!.push({ event: 'change', handler });
     }
   }
   
@@ -1963,6 +2301,14 @@ class UIManager {
 const uiManager = new UIManager();
 
 // Export for use in other modules
+// 🔥 CRITICAL: Expose hideSettingsScreenWithAnimation to window for direct access
+(window as any).hideSettingsScreenWithAnimation = () => {
+  uiManager.hideSettingsScreenWithAnimation();
+};
+
+// Also expose uiManager instance to window
+(window as any).uiManager = uiManager;
+
 export default uiManager;
 
 // Export class for testing

@@ -500,6 +500,18 @@ class SliderManager {
       this.slideAnimation = null;
     }
     
+    // 🔥 MEMORY LEAK FIX: Cleanup GSAP quickSetter
+    if (this.quickSetX && this.elements.wrapper) {
+      try {
+        // GSAP quickSetter doesn't have explicit cleanup, but killing animations on wrapper should be enough
+        gsap.killTweensOf(this.elements.wrapper);
+        this.quickSetX = null;
+        logger.info('🧹 GSAP quickSetter cleaned up');
+      } catch (e) {
+        logger.warn('⚠️ Failed to cleanup quickSetter:', e);
+      }
+    }
+    
     // 🔥 MEMORY LEAK FIX: Remove all event listeners
     if (this.elements.container) {
       // Remove touch events

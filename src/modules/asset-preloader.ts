@@ -354,6 +354,11 @@ export class AssetPreloader {
       './assets/settings-slider.png',
       './assets/settings-slider@2x.png',
       './assets/settings-slider@3x.png',
+      // 🔥 USER REQUEST: Paper texture for bottom sheets (used in CSS background)
+      // Must be preloaded as HTML Image to ensure browser cache before bottom sheets open
+      './assets/modals/paper.png',
+      './assets/modals/paper@2x.png',
+      './assets/modals/paper@3x.png',
     ];
     
     logger.info(`🖼️ Preloading ${htmlImages.length} HTML images for homepage slider...`);

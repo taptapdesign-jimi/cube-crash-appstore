@@ -5630,7 +5630,7 @@ export function startHeroImageParticles(heroImageElement) {
   }
   
   // Generate stars on click/tap (1-4 stars per spawn)
-  const generateParticles = () => {
+  const generateParticles = async () => {
     if (!heroImageElement || !heroImageElement.parentElement) {
       console.warn('⚠️ generateParticles: Hero image element not in DOM');
       return;
@@ -5642,6 +5642,9 @@ export function startHeroImageParticles(heroImageElement) {
     }
     
     try {
+      // 🔥 OBJECT POOLING: Import domElementPool for img elements
+      const { domElementPool } = await import('./dom-element-pool.js');
+      
       const rect = heroImageElement.getBoundingClientRect();
       const containerRect = overlayContainer.getBoundingClientRect();
       
@@ -5657,7 +5660,8 @@ export function startHeroImageParticles(heroImageElement) {
       
       // Helper function to create and animate particle
       const createParticle = (src, size, isWildMagnet = false) => {
-        const particle = document.createElement('img');
+        // 🔥 OBJECT POOLING: Use pool instead of creating new img element
+        const particle = domElementPool.acquire('img');
         particle.src = src;
         
         // Wild-magnet is 50% smaller
@@ -5705,9 +5709,12 @@ export function startHeroImageParticles(heroImageElement) {
             ease: 'power1.out',
             onComplete: () => {
               try {
+                // 🔥 OBJECT POOLING: Release particle back to pool instead of removing
                 if (particle && particle.parentNode) {
                   particle.parentNode.removeChild(particle);
                 }
+                // Release to pool after removing from DOM
+                domElementPool.release(particle);
               } catch (err) {
                 // Ignore cleanup errors
               }

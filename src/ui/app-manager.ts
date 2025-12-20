@@ -192,8 +192,9 @@ class AppManager {
   }
 
   async hideScreen(screen: ScreenType): Promise<void> {
-    // Stop hero image particles and logo shimmer when home screen is hidden
+    // 🔥 MEMORY LEAK FIX: Comprehensive cleanup when home screen is hidden
     if (screen === 'home') {
+      // Stop hero image particles and logo shimmer
       const heroImage = document.querySelector('.slider-slide[data-slide="0"] .hero-image');
       if (heroImage) {
         try {
@@ -203,6 +204,53 @@ class AppManager {
         }
       }
       
+      // Cleanup homepage animations
+      try {
+        const { cleanupAnimations } = await import('../utils/animations.js');
+        if (cleanupAnimations) {
+          cleanupAnimations();
+          logger.info('🧹 Homepage animation timeouts cleaned up in hideScreen');
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to cleanup homepage animations:', error);
+      }
+      
+      // Kill GSAP animations on homepage
+      try {
+        const gsap = (window as any).gsap;
+        if (gsap) {
+          const homeElement = document.getElementById('home');
+          if (homeElement) {
+            const allElements = homeElement.querySelectorAll('*');
+            allElements.forEach((el: Element) => {
+              try {
+                gsap.killTweensOf(el);
+              } catch {}
+            });
+            logger.info('🧹 Homepage GSAP animations killed in hideScreen');
+          }
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to kill homepage GSAP animations:', error);
+      }
+      
+      // Stop CSS infinite animations
+      try {
+        const homeElement = document.getElementById('home');
+        if (homeElement) {
+          const shimmerElements = homeElement.querySelectorAll('button, .slide-button, .continue-btn, .new-game-btn');
+          shimmerElements.forEach((el: Element) => {
+            const htmlEl = el as HTMLElement;
+            if (htmlEl.style) {
+              htmlEl.style.animation = 'none';
+              htmlEl.style.animationPlayState = 'paused';
+            }
+          });
+          logger.info('🧹 Homepage CSS infinite animations stopped in hideScreen');
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to stop homepage CSS animations:', error);
+      }
     }
     const element = this.screenElements.get(screen);
     if (element && !element.hidden) {

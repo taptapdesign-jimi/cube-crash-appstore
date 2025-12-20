@@ -1,6 +1,7 @@
 // Settings Screen Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 import { gsap } from 'gsap';
+import { domElementPool } from '../../modules/dom-element-pool.js';
 
 export interface SettingsScreenConfig {
   onBack?: () => void;
@@ -211,6 +212,47 @@ export function renderSettingsScreen(
   const element = HTMLBuilder.createElement(settingsConfig);
   container.appendChild(element);
   
+  // 🔥 DIFFERENT APPROACH: Use event delegation on settings screen container
+  // This ensures back button works even if element is recreated or not found during init
+  element.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    const backBtn = target.closest('#settings-back-btn, .settings-back-button');
+    if (backBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      console.log('🔙 Settings back button clicked via event delegation');
+      
+      // Call config.onBack if provided
+      if (config.onBack) {
+        config.onBack();
+        return;
+      }
+      
+      // Otherwise, find UIManager instance and call method directly
+      // Try multiple ways to access UIManager
+      let uiManager = (window as any).uiManager;
+      if (!uiManager) {
+        // Try importing UIManager module
+        import('../../modules/ui-manager.js').then((module) => {
+          uiManager = module.default || module.uiManager;
+          if (uiManager && typeof uiManager.hideSettingsScreenWithAnimation === 'function') {
+            console.log('✅ Calling uiManager.hideSettingsScreenWithAnimation() via import');
+            uiManager.hideSettingsScreenWithAnimation();
+          }
+        }).catch(() => {
+          console.warn('⚠️ Failed to import UIManager');
+        });
+      } else if (typeof uiManager.hideSettingsScreenWithAnimation === 'function') {
+        console.log('✅ Calling uiManager.hideSettingsScreenWithAnimation() from window');
+        uiManager.hideSettingsScreenWithAnimation();
+      } else {
+        console.warn('⚠️ UIManager found but hideSettingsScreenWithAnimation method not available');
+      }
+    }
+  });
+  console.log('✅ Settings back button handler attached via event delegation on container');
+  
   // Setup footer explosion animation after render
   const footerText = element.querySelector('.settings-footer-text') as HTMLElement;
   if (footerText) {
@@ -299,8 +341,12 @@ function triggerFooterExplosion(element: HTMLElement): void {
   const spreadMultiplier = 1.512;
   const maxDistance = baseDistance * spreadMultiplier;
   
+  // 🔥 MEMORY LEAK FIX: Track shards for cleanup
+  const shards: HTMLElement[] = [];
+  
   for (let i = 0; i < shardCount; i++) {
-    const shard = document.createElement('div');
+    // 🔥 OBJECT POOLING: Use pool instead of creating new div
+    const shard = domElementPool.acquire();
     shard.className = 'footer-shard';
     
     // Random size (similar to game's base size calculation, 50% + 30% + 50% smaller = 82.5% smaller total)
@@ -326,6 +372,7 @@ function triggerFooterExplosion(element: HTMLElement): void {
     shard.style.rotate = `${Math.random() * 360}deg`; // Random rotation
     
     shardsContainer.appendChild(shard);
+    shards.push(shard);
     
     // Animate shard (similar to game's animation)
     const targetX = Math.cos(angle) * distance;
@@ -350,22 +397,17 @@ function triggerFooterExplosion(element: HTMLElement): void {
     });
   }
   
-  // Cleanup shards container after animation
-  gsap.delayedCall(1.2, () => {
-    try {
-      shardsContainer.remove();
-    } catch (e) {
-      console.warn('Cleanup error:', e);
-    }
-  });
-  
   console.log('🔥 Wild-magnet shards animation triggered at footer position');
   
   // Create smoke bubbles (white, like in game - smokeBubblesAtTile style)
   // Based on smokeBubblesAtTile: white circles/ellipses, no blur, blend mode 'add'
   const smokeCount = 20;
+  // 🔥 MEMORY LEAK FIX: Track smoke particles for cleanup
+  const smokeParticles: HTMLElement[] = [];
+  
   for (let i = 0; i < smokeCount; i++) {
-    const smoke = document.createElement('div');
+    // 🔥 OBJECT POOLING: Use pool instead of creating new div
+    const smoke = domElementPool.acquire();
     smoke.className = 'footer-smoke';
     
     // Random size: 12-36px (similar to game's BASE_R to MAX_R range)
@@ -401,6 +443,7 @@ function triggerFooterExplosion(element: HTMLElement): void {
     }
     
     smokeContainer.appendChild(smoke);
+    smokeParticles.push(smoke);
     
     // Animate smoke (fade in, move out, fade out - like game)
     const tIn = 0.02 + Math.random() * 0.02;
@@ -435,7 +478,8 @@ function triggerFooterExplosion(element: HTMLElement): void {
   }
   
   // Add halo effect (white circle, like in game)
-  const halo = document.createElement('div');
+  // 🔥 OBJECT POOLING: Use pool for halo as well
+  const halo = domElementPool.acquire();
   halo.className = 'footer-smoke-halo';
   const haloSize = 60;
   halo.style.width = `${haloSize}px`;
@@ -494,13 +538,48 @@ function triggerFooterExplosion(element: HTMLElement): void {
     });
   }
   
-  // Cleanup
+  // 🔥 MEMORY LEAK FIX: Comprehensive cleanup - release all particles to pool after animation
   gsap.delayedCall(1.2, () => {
     try {
+      // Kill GSAP animations on all shards and release them to pool
+      shards.forEach(shard => {
+        try {
+          gsap.killTweensOf(shard);
+          domElementPool.release(shard);
+        } catch (e) {
+          console.warn('⚠️ Error releasing shard to pool:', e);
+        }
+      });
+      shards.length = 0; // Clear array
+      
+      // Kill GSAP animations on all smoke particles and release them to pool
+      smokeParticles.forEach(smoke => {
+        try {
+          gsap.killTweensOf(smoke);
+          domElementPool.release(smoke);
+        } catch (e) {
+          console.warn('⚠️ Error releasing smoke particle to pool:', e);
+        }
+      });
+      smokeParticles.length = 0; // Clear array
+      
+      // Kill GSAP animations on halo and release it to pool
+      if (halo) {
+        try {
+          gsap.killTweensOf(halo);
+          domElementPool.release(halo);
+        } catch (e) {
+          console.warn('⚠️ Error releasing halo to pool:', e);
+        }
+      }
+      
+      // Remove containers
       shardsContainer.remove();
       smokeContainer.remove();
+      
+      console.log('🧹 Footer explosion particles cleaned up and released to pool');
     } catch (e) {
-      console.warn('Cleanup error:', e);
+      console.warn('⚠️ Cleanup error:', e);
     }
   });
   

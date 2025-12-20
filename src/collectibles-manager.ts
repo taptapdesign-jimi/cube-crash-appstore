@@ -1244,9 +1244,35 @@ class CollectiblesManager {
 
     console.log('✅ Modal found, starting exit animation');
     
+    // 🔥 MEMORY LEAK FIX: Stop CSS infinite animations before exit animation
+    const detailImage = modal.querySelector('#detail-card-image') as HTMLElement;
+    if (detailImage) {
+      // Stop detailImageIdle animation (3s ease-in-out infinite)
+      detailImage.style.animation = 'none';
+      detailImage.style.animationPlayState = 'paused';
+      // Stop shimmer animation on ::after pseudo-element by removing the class or stopping parent animation
+      // Note: We can't directly access ::after, but stopping parent animation prevents it from running
+      console.log('🧹 Detail image CSS animations stopped');
+    }
+    
+    // 🔥 MEMORY LEAK FIX: Kill GSAP animations on modal elements
+    try {
+      const gsap = (window as any).gsap;
+      if (gsap) {
+        const modalElements = modal.querySelectorAll('*');
+        modalElements.forEach((el: Element) => {
+          try {
+            gsap.killTweensOf(el);
+          } catch {}
+        });
+        console.log('🧹 Detail modal GSAP animations killed');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to kill GSAP animations on detail modal:', error);
+    }
+    
     // Exit animation: pop out (same style as slider)
     // Find modal elements
-    const detailImage = modal.querySelector('#detail-card-image');
     const detailDescription = modal.querySelector('#detail-card-description');
     const detailRarityBadge = modal.querySelector('#detail-rarity-badge');
     const detailCloseBtn = modal.querySelector('#detail-close-btn');
@@ -1288,6 +1314,13 @@ class CollectiblesManager {
           (el as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
         }
       });
+      
+      // 🔥 MEMORY LEAK FIX: Ensure CSS animations are stopped
+      const detailImageEl = modal.querySelector('#detail-card-image') as HTMLElement;
+      if (detailImageEl) {
+        detailImageEl.style.animation = 'none';
+        detailImageEl.style.animationPlayState = 'paused';
+      }
       
       modal.setAttribute('hidden', 'true');
       modal.setAttribute('aria-hidden', 'true');

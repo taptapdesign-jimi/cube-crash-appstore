@@ -7,8 +7,8 @@
 import { gsap } from 'gsap';
 
 /**
- * DOMElementPool - Object pool for HTML div elements (smoke particles)
- * Reuses div elements instead of creating/destroying them
+ * DOMElementPool - Object pool for HTML elements (div, img, etc.)
+ * Reuses DOM elements instead of creating/destroying them
  */
 class DOMElementPool {
   private pool: HTMLElement[] = [];
@@ -19,14 +19,15 @@ class DOMElementPool {
   /**
    * Acquire a DOM element from the pool
    * If pool is empty, creates a new one
-   * @returns {HTMLElement} Ready-to-use div element
+   * @param {string} tagName - Tag name of element to create ('div', 'img', etc.). Defaults to 'div'
+   * @returns {HTMLElement} Ready-to-use element
    */
-  acquire(): HTMLElement {
+  acquire(tagName: string = 'div'): HTMLElement {
     let el = this.pool.pop();
     
-    if (!el) {
-      // Pool is empty, create new div element
-      el = document.createElement('div');
+    if (!el || el.tagName.toLowerCase() !== tagName.toLowerCase()) {
+      // Pool is empty or element type doesn't match, create new element
+      el = document.createElement(tagName) as HTMLElement;
       this.created++;
     } else {
       // Reusing from pool
@@ -102,6 +103,12 @@ class DOMElementPool {
       (el as any).scale = 1;
       (el as any).rotation = 0;
       (el as any).opacity = 1;
+      
+      // Reset img-specific properties
+      if (el.tagName.toLowerCase() === 'img') {
+        (el as HTMLImageElement).src = '';
+        (el as HTMLImageElement).alt = '';
+      }
     } catch (err) {
       // Ignore reset errors
     }

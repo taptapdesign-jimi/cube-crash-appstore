@@ -467,8 +467,20 @@ class JourneyBoardsManager {
   public cleanup(): void {
     this.renderDisposed = true;
     
-    // 🔥 MEMORY LEAK FIX: Stop glow pulse interval
+    // 🔥 MEMORY LEAK FIX: Stop glow pulse interval (this also stops interim bounce animations)
     this.stopGlowPulse();
+    
+    // 🔥 MEMORY FIX: Ensure all interim bounce animations are stopped
+    // stopGlowPulse() should handle this, but double-check for safety
+    const allInterimCards = document.querySelectorAll('.journey-board-card.interim');
+    allInterimCards.forEach(card => {
+      this.stopInterimBounce(card as HTMLElement);
+      // Kill any remaining GSAP animations on card wrapper
+      const cardWrapper = (card as HTMLElement).closest('.journey-board-card-wrapper') as HTMLElement | null;
+      if (cardWrapper && typeof gsap !== 'undefined') {
+        gsap.killTweensOf(cardWrapper);
+      }
+    });
     
     // Remove interaction listeners
     const scrollable = document.querySelector('.collectibles-scrollable') as HTMLElement;
@@ -501,6 +513,35 @@ class JourneyBoardsManager {
       const smokeParticles = journeyScreen.querySelectorAll('.smoke-particle');
       const interimCards = journeyScreen.querySelectorAll('.journey-board-card.interim');
       
+      // 🔥 MEMORY FIX: Cleanup smoke containers (they don't have .smoke-particle class)
+      // Smoke containers are tracked in JOURNEY_CARD_IDLE_BOUNCE state, but we also need to
+      // cleanup any that might be in DOM from interim card bounce animations
+      const cardsContainer = journeyScreen.querySelector('.journey-cards-container');
+      if (cardsContainer) {
+        // Find all smoke containers (they are direct children of cards container)
+        // Smoke containers don't have a specific class, but they contain smoke particles
+        const allDivs = cardsContainer.querySelectorAll('div');
+        allDivs.forEach(div => {
+          const divEl = div as HTMLElement;
+          // Check if this is a smoke container (has smoke particles as children)
+          const hasSmokeParticles = divEl.querySelectorAll('div[style*="border-radius: 50%"]').length > 0;
+          if (hasSmokeParticles && divEl.style.position === 'absolute') {
+            // This is likely a smoke container - kill animations and remove
+            if (typeof gsap !== 'undefined') {
+              gsap.killTweensOf(divEl);
+              // Kill animations on all children (smoke particles)
+              const children = divEl.querySelectorAll('*');
+              children.forEach(child => {
+                gsap.killTweensOf(child);
+              });
+            }
+            if (divEl.parentNode) {
+              divEl.parentNode.removeChild(divEl);
+            }
+          }
+        });
+      }
+      
       // Kill card animations
       cards.forEach(card => {
         if (typeof gsap !== 'undefined') {
@@ -515,20 +556,23 @@ class JourneyBoardsManager {
         if (cardElement.style) {
           cardElement.style.animation = 'none';
         }
-        // Kill any GSAP animations
-        if (typeof gsap !== 'undefined') {
-          gsap.killTweensOf(cardElement);
+        // Kill any GSAP animations on card wrapper
+        const cardWrapper = cardElement.closest('.journey-board-card-wrapper') as HTMLElement | null;
+        if (cardWrapper && typeof gsap !== 'undefined') {
+          gsap.killTweensOf(cardWrapper);
         }
         // Remove ::after pseudo-element animation by removing class or setting animation to none
         // Note: CSS animations stop automatically when element is removed from DOM
       });
       
-      // Kill smoke particle animations
+      // Kill smoke particle animations (if any remain)
       smokeParticles.forEach(particle => {
         if (typeof gsap !== 'undefined') {
           gsap.killTweensOf(particle);
         }
-        particle.remove();
+        if (particle.parentNode) {
+          particle.parentNode.removeChild(particle);
+        }
       });
       
       logger.info(`✅ Killed GSAP tweens for ${cards.length} cards, stopped shimmer on ${interimCards.length} interim cards, and removed ${smokeParticles.length} smoke particles`);
@@ -1670,8 +1714,33 @@ class JourneyBoardsManager {
     return new Promise((resolve) => {
       logger.info('🎬 Starting detail modal exit animation');
       
+      // 🔥 MEMORY LEAK FIX: Stop CSS infinite animations before exit animation
+      const detailImage = modal.querySelector('#detail-card-image') as HTMLElement;
+      if (detailImage) {
+        // Stop detailImageIdle animation (3s ease-in-out infinite)
+        detailImage.style.animation = 'none';
+        detailImage.style.animationPlayState = 'paused';
+        // Stop shimmer animation on ::after pseudo-element by stopping parent animation
+        logger.info('🧹 Detail image CSS animations stopped');
+      }
+      
+      // 🔥 MEMORY LEAK FIX: Kill GSAP animations on modal elements
+      try {
+        const gsap = (window as any).gsap;
+        if (gsap) {
+          const modalElements = modal.querySelectorAll('*');
+          modalElements.forEach((el: Element) => {
+            try {
+              gsap.killTweensOf(el);
+            } catch {}
+          });
+          logger.info('🧹 Detail modal GSAP animations killed');
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to kill GSAP animations on detail modal:', error);
+      }
+      
       // Find modal elements
-      const detailImage = modal.querySelector('#detail-card-image');
       const detailDescription = modal.querySelector('#detail-card-description');
       const detailRarityBadge = modal.querySelector('#detail-rarity-badge');
       const detailCloseBtn = modal.querySelector('#detail-close-btn');
@@ -1705,6 +1774,13 @@ class JourneyBoardsManager {
             (el as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
           }
         });
+        
+        // 🔥 MEMORY LEAK FIX: Ensure CSS animations are stopped
+        const detailImageEl = modal.querySelector('#detail-card-image') as HTMLElement;
+        if (detailImageEl) {
+          detailImageEl.style.animation = 'none';
+          detailImageEl.style.animationPlayState = 'paused';
+        }
         
         // Hide modal
         modal.hidden = true;
