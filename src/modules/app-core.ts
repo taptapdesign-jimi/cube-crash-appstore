@@ -8144,6 +8144,8 @@ export { drawBoardBG, animateBoardExit };
 
 
 // Mobile-specific save events
+// 🔥 MEMORY LEAK FIX: Store reference to saveGameState for cleanup
+(window as any)._saveGameStateRef = saveGameState;
 window.addEventListener('pagehide', saveGameState);
 window.addEventListener('visibilitychange', () => {
   if (document.hidden) {
@@ -8154,6 +8156,8 @@ window.addEventListener('visibilitychange', () => {
 // iOS/Android specific events
 window.addEventListener('beforeunload', saveGameState);
 document.addEventListener('pause', saveGameState, false); // Android
+// 🔥 MEMORY LEAK FIX: Store reference for cleanup (same function)
+(window as any)._saveGameStateResumeRef = saveGameState;
 document.addEventListener('resume', () => {
   // Reload game state when app resumes
   if (typeof window.loadGameState === 'function') {
