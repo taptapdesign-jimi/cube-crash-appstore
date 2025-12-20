@@ -3344,6 +3344,9 @@ export function cleanupAllEffects() {
   });
   wildBeerBubbleSystems.clear();
 
+  // 🔥 PERFORMANCE FIX: Cleanup active star animations (prevents lag)
+  cleanupExistingStarAnimations();
+
   // Kill all global delayed calls
   killAllDelayedCalls();
 
@@ -4076,6 +4079,48 @@ function createMerge6Stars(board, layer, centerX, centerY) {
   }
 }
 
+// Track active star animations for cleanup (prevents lag when merging multiple wild stars quickly)
+let activeStarAnimationContainers = new Set();
+
+/**
+ * Cleanup any existing star animations before starting new one (prevents lag)
+ */
+function cleanupExistingStarAnimations() {
+  activeStarAnimationContainers.forEach(container => {
+    try {
+      if (container && !container.destroyed) {
+        // Kill all GSAP animations
+        gsap.killTweensOf(container);
+        gsap.killTweensOf(container.scale);
+        gsap.killTweensOf(container.alpha);
+        
+        // Kill animations on all children
+        if (container.children) {
+          container.children.forEach(child => {
+            try {
+              gsap.killTweensOf(child);
+              gsap.killTweensOf(child.scale);
+              gsap.killTweensOf(child.rotation);
+              gsap.killTweensOf(child.alpha);
+            } catch {}
+          });
+        }
+        
+        // Remove from parent
+        if (container.parent) {
+          container.parent.removeChild(container);
+        }
+        
+        // Destroy container
+        if (!container.destroyed) {
+          container.destroy({ children: true });
+        }
+      }
+    } catch {}
+  });
+  activeStarAnimationContainers.clear();
+}
+
 /**
  * 🔥 USER REQUEST: Animate 3 orbiting stars from wild tile to HUD star icon
  * Similar to createMerge6Stars but animates stars TO HUD icon instead of away
@@ -4097,7 +4142,8 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     return;
   }
   
-  console.log('⭐ animateStarsToHudIcon: Using', savedStarPositions.length, 'saved star positions');
+  // 🔥 PERFORMANCE FIX: Cleanup existing animations before starting new one (prevents lag)
+  cleanupExistingStarAnimations();
   
   // Use saved wild tile position or fallback to merge6CenterPos
   const wildTileScreenX = savedWildTileScreenPos?.x ?? merge6CenterPos?.x ?? 0;
@@ -4126,12 +4172,13 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   
   stage.addChild(animationContainer);
   
+  // Track this container for cleanup
+  activeStarAnimationContainers.add(animationContainer);
+  
   // Force sort to ensure z-index is respected
   try {
     stage.sortChildren();
   } catch {}
-  
-  console.log('⭐ Star animation container created with PROTECTED flag (z-index: 30000)');
   
   // Store references for cleanup
   const starSprites = [];
@@ -4218,7 +4265,7 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     const initialScale = randomSize / textureSize;
     
     // 🔥 PERFORMANCE: Use shared texture instead of individual textures
-    // Create animated star sprite with shared texture
+    // Create animated star sprite with shared texture (no pooling needed - sprites are lightweight)
     const animatedStar = new Sprite(sharedStarTexture);
     animatedStar.anchor.set(0.5);
     animatedStar.scale.set(initialScale, initialScale);
@@ -4500,6 +4547,9 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
       // Remove container if still exists
       if (animationContainer) {
         try {
+          // Remove from tracking set
+          activeStarAnimationContainers.delete(animationContainer);
+          
           // Kill any tweens on container
           gsap.killTweensOf(animationContainer);
           gsap.killTweensOf(animationContainer.scale);
@@ -4516,8 +4566,6 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
           }
         } catch {}
       }
-      
-      console.log('✅ Stars to HUD animation cleanup completed (memory leak prevention)');
     } catch (err) {
       console.warn('⚠️ Error during animation cleanup:', err);
     }
