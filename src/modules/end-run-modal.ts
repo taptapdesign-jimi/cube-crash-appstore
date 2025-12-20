@@ -2,6 +2,8 @@
 import { showCleanBoardModal } from './clean-board-modal.js';
 import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animations.js';
 import { setModalVisible, isModalVisible } from './end-run-utils.js';
+import { pauseGame, resumeGame } from './pause-utils.js';
+import { forceHideScoreBottomSheet, isScoreBottomSheetVisible, resetScoreBottomSheetState } from './score-bottom-sheet.js';
 
 let modal: HTMLElement | null = null;
 
@@ -340,6 +342,14 @@ export function showEndRunModal(): void {
   
   safePauseGame();
   
+  // 🔥 USER REQUEST: Pause game to prevent tile interactions
+  try {
+    pauseGame();
+    console.log('🔒 Game paused (end-run modal)');
+  } catch (error) {
+    console.warn('⚠️ Failed to pause game:', error);
+  }
+  
   // CRITICAL: Freeze entire game - disable ALL interactions
   // 1. Freeze board container
   const boardContainer = document.getElementById('board-container');
@@ -360,21 +370,49 @@ export function showEndRunModal(): void {
     }
   });
   
-  // 🔥 CRITICAL: Freeze PIXI HUD elements (X button, score touch area)
+  // 🔥 CRITICAL: Freeze PIXI HUD elements BUT keep X button and score button interactive
   // These are PIXI Graphics elements, not DOM, so they need special handling
+  // 🔥 USER REQUEST: Keep X button and score button interactive so they can close the modal
   try {
     const hudRoot = (window as any).HUD_ROOT;
     if (hudRoot && !hudRoot.destroyed) {
-      // Disable interaction on entire HUD_ROOT
-      hudRoot.eventMode = 'none';
+      // Disable interaction on HUD_ROOT but allow children to be interactive
+      hudRoot.eventMode = 'passive'; // Allow children to receive events
       hudRoot.interactive = false;
-      console.log('🔒 PIXI HUD frozen - ALL events disabled');
+      
+      // 🔥 CRITICAL: Keep X button interactive so it can close the modal
+      const xButton = hudRoot._xButton;
+      if (xButton && !xButton.destroyed) {
+        xButton.eventMode = 'static';
+        xButton.interactive = true;
+        xButton.interactiveChildren = true;
+        const debugBg = xButton.children.find((child: any) => child.zIndex === 1000);
+        if (debugBg && !debugBg.destroyed) {
+          debugBg.eventMode = 'static';
+          debugBg.interactive = true;
+        }
+      }
+      
+      // 🔥 CRITICAL: Keep score touch area interactive so it can close the modal
+      const scoreTouchArea = hudRoot._scoreTouchArea;
+      if (scoreTouchArea && !scoreTouchArea.destroyed) {
+        scoreTouchArea.eventMode = 'static';
+        scoreTouchArea.interactive = true;
+        scoreTouchArea.interactiveChildren = true;
+        const scoreDebugBg = scoreTouchArea.children.find((child: any) => child.zIndex === 1000);
+        if (scoreDebugBg && !scoreDebugBg.destroyed) {
+          scoreDebugBg.eventMode = 'static';
+          scoreDebugBg.interactive = true;
+        }
+      }
+      
+      console.log('🔒 PIXI HUD frozen - X button and score button remain interactive');
     }
   } catch (err) {
     console.warn('⚠️ Error freezing PIXI HUD:', err);
   }
   
-  console.log('🔒 HUD frozen - ALL events disabled');
+  console.log('🔒 HUD frozen - X button and score button remain interactive');
   
   // 3. Freeze entire app container as final safety
   const appContainer = document.getElementById('app');
@@ -383,6 +421,8 @@ export function showEndRunModal(): void {
     removeEndRunOverlay();
     
     // Don't set pointer-events: none on entire app, just add overlay protection
+    // 🔥 USER REQUEST: Overlay should not block clicks on HUD buttons (X and score)
+    // HUD is at top of screen, so we'll use pointer-events: none and handle clicks manually
     const overlay = document.createElement('div');
     overlay.id = 'end-run-overlay';
     overlay.style.cssText = `
@@ -392,13 +432,13 @@ export function showEndRunModal(): void {
       width: 100%;
       height: 100%;
       background: transparent;
-      z-index: 999999;
-      pointer-events: all;
+      z-index: 999998;
+      pointer-events: none;
       touch-action: none;
       user-select: none;
     `;
     document.body.appendChild(overlay);
-    console.log('🔒 Overlay protection added');
+    console.log('🔒 Overlay protection added (pointer-events: none to allow HUD clicks)');
   }
   
   const el = createModal();
@@ -675,8 +715,45 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
 }
 
 export function hideModal(): void {
-  const modalEl = modal;
-  if (!modalEl || (modalEl as any)._closing) return;
+  let modalEl = modal;
+  
+  // 🔥 CRITICAL: If modal reference is null, try to find it in DOM
+  if (!modalEl) {
+    const domElements = document.querySelectorAll('.simple-bottom-sheet');
+    for (let i = 0; i < domElements.length; i++) {
+      const el = domElements[i] as HTMLElement;
+      if (!el.classList.contains('score-bottom-sheet')) {
+        modalEl = el;
+        // Update modal reference
+        modal = modalEl;
+        break;
+      }
+    }
+    
+    // If still no modal, just reset state
+    if (!modalEl) {
+      console.warn('⚠️ hideModal: No modal element in reference or DOM - resetting state');
+      setModalVisible(false);
+      modal = null;
+      // Clean up handlers anyway
+      if (outsideClickHandler) {
+        document.removeEventListener('click', outsideClickHandler);
+        outsideClickHandler = null;
+      }
+      if (outsideTouchEndHandler) {
+        document.removeEventListener('touchend', outsideTouchEndHandler);
+        outsideTouchEndHandler = null;
+      }
+      document.onclick = null;
+      removeEndRunOverlay();
+      unfreezeGameAndHud('hideModal');
+      return;
+    }
+  }
+  
+  if ((modalEl as any)._closing) {
+    return;
+  }
 
   (modalEl as any)._closing = true;
   
@@ -759,6 +836,14 @@ export function hideModal(): void {
     console.log('🎯 Resuming game after End This Run modal closed');
     safeResumeGame();
     
+    // 🔥 USER REQUEST: Resume game to allow tile interactions
+    try {
+      resumeGame();
+      console.log('🔓 Game resumed (end-run modal closed)');
+    } catch (error) {
+      console.warn('⚠️ Failed to resume game:', error);
+    }
+    
     // Unlock slider
     safeUnlockSlider();
     
@@ -779,14 +864,69 @@ export function showEndRunModalFromGame(): void {
     return;
   }
   
+  // 🔥 USER REQUEST: If score bottom sheet is open, force hide it immediately before opening end-run modal
+  // This prevents the end-run modal from appearing over the score bottom sheet
+  // Check both via function AND directly in DOM to be absolutely sure
+  const scoreSheetInDOM = document.querySelector('.score-bottom-sheet');
+  const scoreSheetVisible = isScoreBottomSheetVisible();
+  
+  if (scoreSheetVisible || scoreSheetInDOM) {
+    console.log('📊 Score bottom sheet is open - force hiding it immediately before opening end-run modal', {
+      scoreSheetVisible,
+      scoreSheetInDOM: !!scoreSheetInDOM
+    });
+    
+    // Force hide via function
+    forceHideScoreBottomSheet();
+    
+    // 🔥 CRITICAL: Also directly remove from DOM if it still exists (double safety)
+    if (scoreSheetInDOM && scoreSheetInDOM.parentNode) {
+      console.log('📊 Force removing score bottom sheet directly from DOM');
+      scoreSheetInDOM.remove();
+      // 🔥 CRITICAL: Reset state after direct DOM removal
+      resetScoreBottomSheetState();
+    }
+    
+    // Wait a bit to ensure DOM is fully cleaned up before opening new modal
+    setTimeout(() => {
+      // Final check - if still exists, remove it
+      const stillExists = document.querySelector('.score-bottom-sheet');
+      if (stillExists) {
+        console.warn('⚠️ Score bottom sheet still exists after cleanup - force removing');
+        stillExists.remove();
+        // 🔥 CRITICAL: Reset state after final cleanup
+        resetScoreBottomSheetState();
+      }
+      showEndRunModal();
+    }, 50); // Small delay to ensure DOM cleanup
+    return;
+  }
+  
   showEndRunModal();
 }
 
 // 🔥 CRITICAL FIX: Export function to check if modal is visible (for HUD click guard)
 export function isEndRunModalVisible(): boolean {
-  // 🔥 CRITICAL: Check utility function first (most reliable - checks isModalVisibleState flag)
+  // 🔥 CRITICAL: First check if modal exists in DOM (most reliable check)
+  // Look for .simple-bottom-sheet but NOT .score-bottom-sheet
+  const domElements = document.querySelectorAll('.simple-bottom-sheet');
+  let endRunModalInDOM: HTMLElement | null = null;
+  for (let i = 0; i < domElements.length; i++) {
+    const el = domElements[i] as HTMLElement;
+    if (!el.classList.contains('score-bottom-sheet')) {
+      endRunModalInDOM = el;
+      break;
+    }
+  }
+  const hasDomElement = endRunModalInDOM && endRunModalInDOM.parentNode;
+  
+  // 🔥 CRITICAL: Check utility function (checks isModalVisibleState flag)
   const utilityVisible = isModalVisible();
-  if (!utilityVisible) {
+  
+  // 🔥 CRITICAL: If utility says visible but no modal in DOM, reset state
+  if (utilityVisible && !modal && !hasDomElement) {
+    console.log('🔍 isEndRunModalVisible: utilityVisible=true but no modal or DOM element - resetting state');
+    setModalVisible(false);
     return false;
   }
   
@@ -803,12 +943,23 @@ export function isEndRunModalVisible(): boolean {
     }
   }
   
+  // 🔥 CRITICAL: Also check DOM directly as fallback
+  if (hasDomElement && endRunModalInDOM.classList.contains('visible')) {
+    return true;
+  }
+  
+  // 🔥 CRITICAL: Check utility flag last (can be stale if modal was removed)
+  if (utilityVisible && (modal || hasDomElement)) {
+    return true;
+  }
+  
   return false;
 }
 
 // Export to window for HUD click handler
 if (typeof window !== 'undefined') {
   (window as any).isEndRunModalVisible = isEndRunModalVisible;
+  (window as any).hideEndRunModal = hideModal;
   (window as any).setEndRunModalVisible = (visible: boolean) => {
     // Update visibility state via utility function
     setModalVisible(visible);

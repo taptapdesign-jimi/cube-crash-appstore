@@ -1124,22 +1124,93 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
         
         console.log('🎯 CLOSE BUTTON (circle) CLICKED - Opening End Run bottom sheet');
         
-        // Check if modal is already open
-        let isModalOpen = false;
+        // 🔥 USER REQUEST: Check if end-run modal is already open (toggle behavior)
+        let isEndRunModalOpen = false;
         try {
           if (typeof window.isEndRunModalVisible === 'function') {
-            isModalOpen = window.isEndRunModalVisible();
+            isEndRunModalOpen = window.isEndRunModalVisible();
           }
-          const modalExists = document.querySelector('.simple-bottom-sheet');
-          if (modalExists && modalExists.parentNode) {
-            isModalOpen = true;
+          // Also check DOM as fallback
+          if (!isEndRunModalOpen) {
+            const modalExists = document.querySelector('.simple-bottom-sheet');
+            if (modalExists && modalExists.parentNode && !modalExists.classList.contains('score-bottom-sheet')) {
+              isEndRunModalOpen = true;
+            }
           }
         } catch (err) {
           console.warn('⚠️ Error checking modal visibility:', err);
         }
         
-        if (isModalOpen) {
-          console.log('⚠️ End Run modal already open - ignoring click');
+        // 🔥 USER REQUEST: If end-run modal already open, close it (toggle behavior)
+        if (isEndRunModalOpen) {
+          console.log('🎯 End Run modal already open - closing it');
+          
+          // Haptic feedback for closing
+          if (typeof window.triggerHapticImpact === 'function') {
+            window.triggerHapticImpact('light');
+          }
+          
+          // 🔥 USER REQUEST: Tap bounce animation on X button when closing
+          const buttonToAnimate = xButton || (HUD_ROOT && HUD_ROOT._xButton);
+          if (buttonToAnimate && !buttonToAnimate.destroyed) {
+            try {
+              if (typeof gsap !== 'undefined') {
+                if (!buttonToAnimate.scale || buttonToAnimate.scale.x === undefined || buttonToAnimate.scale.y === undefined) {
+                  buttonToAnimate.scale.set(1, 1);
+                }
+                gsap.killTweensOf(buttonToAnimate.scale);
+                const tl = gsap.timeline();
+                tl.to(buttonToAnimate.scale, {
+                  x: 0.92,
+                  y: 0.92,
+                  duration: 0.077,
+                  ease: 'power2.out'
+                });
+                tl.to(buttonToAnimate.scale, {
+                  x: 1.06,
+                  y: 1.06,
+                  duration: 0.077,
+                  ease: 'back.out(1.7)'
+                });
+                tl.to(buttonToAnimate.scale, {
+                  x: 1,
+                  y: 1,
+                  duration: 0.066,
+                  ease: 'power2.out'
+                });
+              }
+            } catch (err) {
+              console.warn('⚠️ Error animating X button:', err);
+            }
+          }
+          
+          if (typeof window.hideEndRunModal === 'function') {
+            window.hideEndRunModal();
+          }
+          return;
+        }
+        
+        // 🔥 USER REQUEST: If score bottom sheet is open, close it first, then open end-run modal
+        let isScoreSheetOpen = false;
+        try {
+          if (typeof window.isScoreBottomSheetVisible === 'function') {
+            isScoreSheetOpen = window.isScoreBottomSheetVisible();
+          }
+        } catch (err) {
+          console.warn('⚠️ Error checking score bottom sheet visibility:', err);
+        }
+        
+        if (isScoreSheetOpen) {
+          console.log('🎯 Score bottom sheet is open - closing it and opening end-run modal');
+          if (typeof window.hideScoreBottomSheet === 'function') {
+            window.hideScoreBottomSheet();
+          }
+          // Wait a bit for score bottom sheet to close, then open end-run modal
+          setTimeout(() => {
+            if (typeof window.showEndRunModalFromGame === 'function') {
+              window.showEndRunModalFromGame();
+            }
+          }, 450); // Wait for score bottom sheet animation (400ms) + small buffer
           return;
         }
         
@@ -1235,22 +1306,93 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
             
             console.log('🎯 CLOSE BUTTON (circle) CLICKED - Opening End Run bottom sheet');
             
-            // Check if modal is already open
-            let isModalOpen = false;
+            // 🔥 USER REQUEST: Check if end-run modal is already open (toggle behavior)
+            let isEndRunModalOpen = false;
             try {
               if (typeof window.isEndRunModalVisible === 'function') {
-                isModalOpen = window.isEndRunModalVisible();
+                isEndRunModalOpen = window.isEndRunModalVisible();
               }
-              const modalExists = document.querySelector('.simple-bottom-sheet');
-              if (modalExists && modalExists.parentNode) {
-                isModalOpen = true;
+              // Also check DOM as fallback
+              if (!isEndRunModalOpen) {
+                const modalExists = document.querySelector('.simple-bottom-sheet');
+                if (modalExists && modalExists.parentNode && !modalExists.classList.contains('score-bottom-sheet')) {
+                  isEndRunModalOpen = true;
+                }
               }
             } catch (err) {
               console.warn('⚠️ Error checking modal visibility:', err);
             }
             
-            if (isModalOpen) {
-              console.log('⚠️ End Run modal already open - ignoring click');
+            // 🔥 USER REQUEST: If end-run modal already open, close it (toggle behavior)
+            if (isEndRunModalOpen) {
+              console.log('🎯 End Run modal already open - closing it');
+              
+              // Haptic feedback for closing
+              if (typeof window.triggerHapticImpact === 'function') {
+                window.triggerHapticImpact('light');
+              }
+              
+              // 🔥 USER REQUEST: Tap bounce animation on X button when closing
+              const buttonToAnimate = closeButtonContainer || xButton || (HUD_ROOT && HUD_ROOT._xButton);
+              if (buttonToAnimate && !buttonToAnimate.destroyed) {
+                try {
+                  if (typeof gsap !== 'undefined') {
+                    if (!buttonToAnimate.scale || buttonToAnimate.scale.x === undefined || buttonToAnimate.scale.y === undefined) {
+                      buttonToAnimate.scale.set(1, 1);
+                    }
+                    gsap.killTweensOf(buttonToAnimate.scale);
+                    const tl = gsap.timeline();
+                    tl.to(buttonToAnimate.scale, {
+                      x: 0.92,
+                      y: 0.92,
+                      duration: 0.077,
+                      ease: 'power2.out'
+                    });
+                    tl.to(buttonToAnimate.scale, {
+                      x: 1.06,
+                      y: 1.06,
+                      duration: 0.077,
+                      ease: 'back.out(1.7)'
+                    });
+                    tl.to(buttonToAnimate.scale, {
+                      x: 1,
+                      y: 1,
+                      duration: 0.066,
+                      ease: 'power2.out'
+                    });
+                  }
+                } catch (err) {
+                  console.warn('⚠️ Error animating X button:', err);
+                }
+              }
+              
+              if (typeof window.hideEndRunModal === 'function') {
+                window.hideEndRunModal();
+              }
+              return;
+            }
+            
+            // 🔥 USER REQUEST: If score bottom sheet is open, close it first, then open end-run modal
+            let isScoreSheetOpen = false;
+            try {
+              if (typeof window.isScoreBottomSheetVisible === 'function') {
+                isScoreSheetOpen = window.isScoreBottomSheetVisible();
+              }
+            } catch (err) {
+              console.warn('⚠️ Error checking score bottom sheet visibility:', err);
+            }
+            
+            if (isScoreSheetOpen) {
+              console.log('🎯 Score bottom sheet is open - closing it and opening end-run modal');
+              if (typeof window.hideScoreBottomSheet === 'function') {
+                window.hideScoreBottomSheet();
+              }
+              // Wait a bit for score bottom sheet to close, then open end-run modal
+              setTimeout(() => {
+                if (typeof window.showEndRunModalFromGame === 'function') {
+                  window.showEndRunModalFromGame();
+                }
+              }, 450); // Wait for score bottom sheet animation (400ms) + small buffer
               return;
             }
             
@@ -1737,20 +1879,86 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
 
     console.log('🎯 RED RECTANGLE CLICKED - Opening End Run bottom sheet');
 
-    // 🔥 FIX: Simplified modal check - only use window function, don't check DOM
-    // DOM check can be unreliable if modal is closing/animating
-          let isModalOpen = false;
+    // 🔥 USER REQUEST: Check if end-run modal is already open (toggle behavior)
+          let isEndRunModalOpen = false;
           try {
             if (typeof window.isEndRunModalVisible === 'function') {
-              isModalOpen = window.isEndRunModalVisible();
+              isEndRunModalOpen = window.isEndRunModalVisible();
             }
           } catch (err) {
             console.warn('⚠️ Error checking modal visibility:', err);
           }
           
-    // 🔥 FIX: Don't block if modal check fails - let showEndRunModalFromGame handle it
-          if (isModalOpen) {
-      console.log('⚠️ End Run modal already open - ignoring click');
+    // 🔥 USER REQUEST: If end-run modal already open, close it (toggle behavior)
+          if (isEndRunModalOpen) {
+      console.log('🎯 End Run modal already open - closing it');
+      
+      // Haptic feedback for closing
+      if (typeof window.triggerHapticImpact === 'function') {
+        window.triggerHapticImpact('light');
+      }
+      
+      // 🔥 USER REQUEST: Tap bounce animation on X button when closing
+      const buttonToAnimate = xButton || (HUD_ROOT && HUD_ROOT._xButton);
+      if (buttonToAnimate && !buttonToAnimate.destroyed) {
+        try {
+          if (typeof gsap !== 'undefined') {
+            if (!buttonToAnimate.scale || buttonToAnimate.scale.x === undefined || buttonToAnimate.scale.y === undefined) {
+              buttonToAnimate.scale.set(1, 1);
+            }
+            gsap.killTweensOf(buttonToAnimate.scale);
+            const tl = gsap.timeline();
+            tl.to(buttonToAnimate.scale, {
+              x: 0.92,
+              y: 0.92,
+              duration: 0.077,
+              ease: 'power2.out'
+            });
+            tl.to(buttonToAnimate.scale, {
+              x: 1.06,
+              y: 1.06,
+              duration: 0.077,
+              ease: 'back.out(1.7)'
+            });
+            tl.to(buttonToAnimate.scale, {
+              x: 1,
+              y: 1,
+              duration: 0.066,
+              ease: 'power2.out'
+            });
+          }
+        } catch (err) {
+          console.warn('⚠️ Error animating X button:', err);
+        }
+      }
+      
+      if (typeof window.hideEndRunModal === 'function') {
+        window.hideEndRunModal();
+      }
+      return;
+    }
+    
+    // 🔥 USER REQUEST: If score bottom sheet is open, close it first, then open end-run modal
+    let isScoreSheetOpen = false;
+    try {
+      if (typeof window.isScoreBottomSheetVisible === 'function') {
+        isScoreSheetOpen = window.isScoreBottomSheetVisible();
+      }
+    } catch (err) {
+      console.warn('⚠️ Error checking score bottom sheet visibility:', err);
+    }
+    
+    if (isScoreSheetOpen) {
+      console.log('🎯 Score bottom sheet is open - closing it and opening end-run modal');
+      if (typeof window.hideScoreBottomSheet === 'function') {
+        window.hideScoreBottomSheet();
+      }
+      // Wait a bit for score bottom sheet to close, then open end-run modal
+      setTimeout(() => {
+        if (typeof window.showEndRunModalFromGame === 'function') {
+          window.showEndRunModalFromGame();
+        }
+      }, 450); // Wait for score bottom sheet animation (400ms) + small buffer
       return;
     }
     
@@ -1864,19 +2072,85 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
       
       console.log('📊 SCORE RED AREA CLICKED - Opening score stats bottom sheet');
       
-      // 🔥 SAME LOGIC AS X BUTTON: Check if modal is already open using window function
-      let isModalOpen = false;
+      // 🔥 USER REQUEST: Check if score bottom sheet is already open (toggle behavior)
+      let isScoreSheetOpen = false;
       try {
         if (typeof window.isScoreBottomSheetVisible === 'function') {
-          isModalOpen = window.isScoreBottomSheetVisible();
+          isScoreSheetOpen = window.isScoreBottomSheetVisible();
         }
       } catch (err) {
         console.warn('⚠️ Error checking score modal visibility:', err);
       }
       
-      // 🔥 SAME LOGIC AS X BUTTON: Don't block if modal check fails - let showScoreBottomSheet handle it
-      if (isModalOpen) {
-        console.log('⚠️ Score bottom sheet already open - ignoring click');
+      // 🔥 USER REQUEST: If score bottom sheet already open, close it (toggle behavior)
+      if (isScoreSheetOpen) {
+        console.log('📊 Score bottom sheet already open - closing it');
+        
+        // Haptic feedback for closing
+        if (typeof window.triggerHapticImpact === 'function') {
+          window.triggerHapticImpact('light');
+        }
+        
+        // 🔥 USER REQUEST: Tap bounce animation on score icon when closing
+        if (coinHud && coinHud.iconSprite && !coinHud.iconSprite.destroyed) {
+          try {
+            if (typeof gsap !== 'undefined') {
+              gsap.killTweensOf(coinHud.iconSprite.scale);
+              gsap.to(coinHud.iconSprite.scale, {
+                x: 0.92,
+                y: 0.92,
+                duration: 0.077,
+                ease: 'power2.out',
+                onComplete: () => {
+                  gsap.to(coinHud.iconSprite.scale, {
+                    x: 1.06,
+                    y: 1.06,
+                    duration: 0.077,
+                    ease: 'power2.out',
+                    onComplete: () => {
+                      gsap.to(coinHud.iconSprite.scale, {
+                        x: 1,
+                        y: 1,
+                        duration: 0.066,
+                        ease: 'power2.out'
+                      });
+                    }
+                  });
+                }
+              });
+            }
+          } catch (err) {
+            console.warn('⚠️ Error animating score icon:', err);
+          }
+        }
+        
+        if (typeof window.hideScoreBottomSheet === 'function') {
+          window.hideScoreBottomSheet();
+        }
+        return;
+      }
+      
+      // 🔥 USER REQUEST: If end-run modal is open, close it first, then open score bottom sheet
+      let isEndRunModalOpen = false;
+      try {
+        if (typeof window.isEndRunModalVisible === 'function') {
+          isEndRunModalOpen = window.isEndRunModalVisible();
+        }
+      } catch (err) {
+        console.warn('⚠️ Error checking end-run modal visibility:', err);
+      }
+      
+      if (isEndRunModalOpen) {
+        console.log('📊 End-run modal is open - closing it and opening score bottom sheet');
+        if (typeof window.hideEndRunModal === 'function') {
+          window.hideEndRunModal();
+        }
+        // Wait a bit for end-run modal to close, then open score bottom sheet
+        setTimeout(() => {
+          if (typeof window.showScoreBottomSheet === 'function') {
+            window.showScoreBottomSheet();
+          }
+        }, 450); // Wait for end-run modal animation (400ms) + small buffer
         return;
       }
       

@@ -178,6 +178,26 @@ export function initDrag(cfg) {
   }
 
   function onDown(e, t) {
+    // 🔥 USER REQUEST: Block drag if game is paused (bottom sheet is open)
+    try {
+      const { container } = require('../core/dependency-injection.js');
+      const gamePaused = container.get('gamePaused') as boolean;
+      if (gamePaused) {
+        console.log('🛡️ DRAG BLOCKED: Game is paused (bottom sheet is open)');
+        return;
+      }
+    } catch (error) {
+      // If container doesn't exist, continue (game might not be initialized yet)
+    }
+    
+    // 🔥 USER REQUEST: Also check if any bottom sheet is open in DOM
+    const scoreSheetOpen = document.querySelector('.score-bottom-sheet.visible');
+    const endRunModalOpen = document.querySelector('.simple-bottom-sheet.visible:not(.score-bottom-sheet)');
+    if (scoreSheetOpen || endRunModalOpen) {
+      console.log('🛡️ DRAG BLOCKED: Bottom sheet is open', { scoreSheetOpen: !!scoreSheetOpen, endRunModalOpen: !!endRunModalOpen });
+      return;
+    }
+    
     // 🛡️ CRITICAL: Block drag for tiles that are being pulled by magnet
     // These tiles are protected and cannot be dragged or merged with other tiles
     if ((t as any)?._wildMagnetAffected === true) {

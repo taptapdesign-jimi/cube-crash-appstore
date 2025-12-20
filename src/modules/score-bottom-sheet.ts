@@ -5,6 +5,7 @@
  */
 
 import { statsService } from '../services/stats-service';
+import { pauseGame, resumeGame } from './pause-utils.js';
 
 let modal: HTMLElement | null = null;
 let isVisible = false;
@@ -208,13 +209,21 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
   
   // Create named handlers for proper cleanup
   outsideClickHandler = (e: Event) => {
-    if (modalEl && modalEl.parentNode && e.target && !modalEl.contains(e.target as Node)) {
+    // 🔥 CRITICAL: Check if modal still exists and is visible before trying to close
+    if (!modal || !modalEl || !modalEl.parentNode) {
+      return;
+    }
+    if (e.target && !modalEl.contains(e.target as Node)) {
       hideScoreBottomSheet();
     }
   };
   
   outsideTouchEndHandler = (e: TouchEvent) => {
-    if (modalEl && modalEl.parentNode && e.target && !modalEl.contains(e.target as Node)) {
+    // 🔥 CRITICAL: Check if modal still exists and is visible before trying to close
+    if (!modal || !modalEl || !modalEl.parentNode) {
+      return;
+    }
+    if (e.target && !modalEl.contains(e.target as Node)) {
       hideScoreBottomSheet();
     }
   };
@@ -233,10 +242,15 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
 // 🔥 SAME LOGIC AS END RUN MODAL: Export function to check if modal is visible
 export function isScoreBottomSheetVisible(): boolean {
   const result = (() => {
-    // 🔥 CRITICAL: Check isVisible flag first (most reliable)
-    if (isVisible) {
-      console.log('🔍 isScoreBottomSheetVisible: isVisible=true');
-      return true;
+    // 🔥 CRITICAL: First check if modal exists in DOM (most reliable check)
+    const domElement = document.querySelector('.score-bottom-sheet');
+    const hasDomElement = domElement && domElement.parentNode;
+    
+    // 🔥 CRITICAL: If isVisible is true but modal is null and no DOM element, reset state
+    if (isVisible && !modal && !hasDomElement) {
+      console.log('🔍 isScoreBottomSheetVisible: isVisible=true but no modal or DOM element - resetting state');
+      isVisible = false;
+      return false;
     }
     
     // 🔥 CRITICAL: If modal is closing, it's not visible
@@ -254,11 +268,24 @@ export function isScoreBottomSheetVisible(): boolean {
       }
     }
     
+    // 🔥 CRITICAL: Also check DOM directly as fallback
+    if (hasDomElement && domElement.classList.contains('visible')) {
+      console.log('🔍 isScoreBottomSheetVisible: DOM element has visible class');
+      return true;
+    }
+    
+    // 🔥 CRITICAL: Check isVisible flag last (can be stale if modal was removed)
+    if (isVisible && (modal || hasDomElement)) {
+      console.log('🔍 isScoreBottomSheetVisible: isVisible=true and modal/DOM exists');
+      return true;
+    }
+    
     console.log('🔍 isScoreBottomSheetVisible: returning false', { 
       isVisible, 
       hasModal: !!modal, 
       hasParent: modal ? !!modal.parentNode : false,
       hasVisibleClass: modal ? modal.classList.contains('visible') : false,
+      hasDomElement: !!hasDomElement,
       _closing: modal ? (modal as any)._closing : 'N/A'
     });
     return false;
@@ -284,6 +311,23 @@ export function showScoreBottomSheet(): void {
   // Light haptic for opening bottom sheet
   if (typeof (window as any).triggerHapticImpact === 'function') {
     (window as any).triggerHapticImpact('light');
+  }
+
+  // 🔥 USER REQUEST: Freeze board to prevent tile dragging when score bottom sheet is open
+  const boardContainer = document.getElementById('board-container');
+  if (boardContainer) {
+    boardContainer.style.pointerEvents = 'none';
+    boardContainer.style.userSelect = 'none';
+    boardContainer.style.touchAction = 'none';
+    console.log('🔒 Board frozen - ALL events disabled (score bottom sheet)');
+  }
+  
+  // 🔥 USER REQUEST: Pause game to prevent tile interactions
+  try {
+    pauseGame();
+    console.log('🔒 Game paused (score bottom sheet)');
+  } catch (error) {
+    console.warn('⚠️ Failed to pause game:', error);
   }
 
   const el = createModal();
@@ -323,10 +367,33 @@ export function hideScoreBottomSheet(): void {
     isVisible: isVisible 
   });
   
-  const modalEl = modal;
+  let modalEl = modal;
+  
+  // 🔥 CRITICAL: If modal reference is null, try to find it in DOM
   if (!modalEl) {
-    console.warn('⚠️ hideScoreBottomSheet: No modal element');
-    return;
+    const domElement = document.querySelector('.score-bottom-sheet');
+    if (domElement && domElement.parentNode) {
+      console.log('📊 Found score bottom sheet in DOM - using it to close');
+      modalEl = domElement as HTMLElement;
+      // Update modal reference
+      modal = modalEl;
+    } else {
+      // No modal in DOM either - just reset state
+      console.warn('⚠️ hideScoreBottomSheet: No modal element in reference or DOM - resetting state');
+      isVisible = false;
+      modal = null;
+      // Clean up handlers anyway
+      if (outsideClickHandler) {
+        document.removeEventListener('click', outsideClickHandler);
+        outsideClickHandler = null;
+      }
+      if (outsideTouchEndHandler) {
+        document.removeEventListener('touchend', outsideTouchEndHandler);
+        outsideTouchEndHandler = null;
+      }
+      document.onclick = null;
+      return;
+    }
   }
   
   if ((modalEl as any)._closing) {
@@ -381,12 +448,127 @@ export function hideScoreBottomSheet(): void {
     (modalEl as any)._closing = false;
     modal = null;
     isVisible = false;
+    
+    // 🔥 USER REQUEST: Unfreeze board when score bottom sheet closes
+    // Only unfreeze if end-run modal is not open (end-run modal also freezes board)
+    const endRunModalExists = document.querySelector('.simple-bottom-sheet:not(.score-bottom-sheet)');
+    if (!endRunModalExists) {
+      const boardContainer = document.getElementById('board-container');
+      if (boardContainer) {
+        boardContainer.style.pointerEvents = 'auto';
+        boardContainer.style.userSelect = '';
+        boardContainer.style.touchAction = '';
+        console.log('🔓 Board unfrozen - ALL events enabled (score bottom sheet closed)');
+      }
+      
+      // 🔥 USER REQUEST: Resume game when score bottom sheet closes
+      try {
+        resumeGame();
+        console.log('🔓 Game resumed (score bottom sheet closed)');
+      } catch (error) {
+        console.warn('⚠️ Failed to resume game:', error);
+      }
+    }
+    
     console.log('✅ Score bottom sheet fully closed and reset - modal removed, isVisible=false');
   }, 400);
+}
+
+// 🔥 USER REQUEST: Force hide score bottom sheet immediately (no animation)
+// Used when opening end-run modal to prevent overlapping bottom sheets
+export function forceHideScoreBottomSheet(): void {
+  console.log('📊 Force hiding score bottom sheet immediately (no animation)');
+  
+  const modalEl = modal;
+  if (!modalEl) {
+    console.log('📊 No score bottom sheet modal reference, but checking DOM...');
+    // Even if modal reference is null, check DOM and reset state
+    const domElement = document.querySelector('.score-bottom-sheet');
+    if (domElement) {
+      console.log('📊 Found score bottom sheet in DOM - removing it');
+      domElement.remove();
+    }
+    // 🔥 CRITICAL: Always reset state even if modal reference is null
+    isVisible = false;
+    modal = null;
+    return;
+  }
+  
+  // 🔥 CRITICAL: Clean up outside click handlers FIRST (before removing modal)
+  // This prevents event handlers from trying to access removed modal
+  if (outsideClickHandler) {
+    document.removeEventListener('click', outsideClickHandler);
+    outsideClickHandler = null;
+  }
+  if (outsideTouchEndHandler) {
+    document.removeEventListener('touchend', outsideTouchEndHandler);
+    outsideTouchEndHandler = null;
+  }
+  document.onclick = null;
+  
+  // Reset visibility state immediately
+  isVisible = false;
+  (modalEl as any)._closing = false;
+  
+  // Immediately hide and remove from DOM (no animation)
+  modalEl.classList.remove('visible');
+  modalEl.style.display = 'none';
+  modalEl.style.visibility = 'hidden';
+  modalEl.style.transform = 'translateY(100%)';
+  modalEl.style.transition = 'none';
+  
+  // Remove from DOM immediately
+  if (modalEl.parentNode) {
+    modalEl.parentNode.removeChild(modalEl);
+  }
+  
+  // Reset state AFTER removing from DOM
+  modal = null;
+  
+  // 🔥 USER REQUEST: Unfreeze board when score bottom sheet is force hidden
+  // Only unfreeze if end-run modal is not open (end-run modal also freezes board)
+  const endRunModalExists = document.querySelector('.simple-bottom-sheet:not(.score-bottom-sheet)');
+  if (!endRunModalExists) {
+    const boardContainer = document.getElementById('board-container');
+    if (boardContainer) {
+      boardContainer.style.pointerEvents = 'auto';
+      boardContainer.style.userSelect = '';
+      boardContainer.style.touchAction = '';
+      console.log('🔓 Board unfrozen - ALL events enabled (score bottom sheet force hidden)');
+    }
+    
+    // 🔥 USER REQUEST: Resume game when score bottom sheet is force hidden
+    try {
+      resumeGame();
+      console.log('🔓 Game resumed (score bottom sheet force hidden)');
+    } catch (error) {
+      console.warn('⚠️ Failed to resume game:', error);
+    }
+  }
+  
+  console.log('✅ Score bottom sheet force hidden and removed - isVisible=false, modal=null');
+}
+
+// 🔥 Helper function to reset score bottom sheet state (used when element is removed directly from DOM)
+export function resetScoreBottomSheetState(): void {
+  console.log('📊 Resetting score bottom sheet state');
+  isVisible = false;
+  modal = null;
+  if (outsideClickHandler) {
+    document.removeEventListener('click', outsideClickHandler);
+    outsideClickHandler = null;
+  }
+  if (outsideTouchEndHandler) {
+    document.removeEventListener('touchend', outsideTouchEndHandler);
+    outsideTouchEndHandler = null;
+  }
+  document.onclick = null;
+  console.log('✅ Score bottom sheet state reset');
 }
 
 // Export to window for HUD access
 if (typeof window !== 'undefined') {
   (window as any).showScoreBottomSheet = showScoreBottomSheet;
   (window as any).hideScoreBottomSheet = hideScoreBottomSheet;
+  (window as any).forceHideScoreBottomSheet = forceHideScoreBottomSheet;
 }
