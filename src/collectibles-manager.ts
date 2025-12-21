@@ -412,11 +412,9 @@ class CollectiblesManager {
     (screen as HTMLElement).style.removeProperty('display');
     (screen as HTMLElement).style.removeProperty('visibility');
     (screen as HTMLElement).style.removeProperty('z-index');
+    (screen as HTMLElement).style.removeProperty('opacity'); // Remove inline opacity - GSAP will handle it
     screen.removeAttribute('hidden');
     screen.classList.remove('hidden');
-    
-    // 🔥 CRITICAL: Set opacity to 0 FIRST so screen is invisible while GSAP sets initial state
-    (screen as HTMLElement).style.opacity = '0';
     logger.info('🎁 Removed hidden class and inline styles from Journey screen');
     
     // 🔥 OPTIMIZATION: Check if boards are already rendered (by prepareJourneyScreen)
@@ -467,10 +465,13 @@ class CollectiblesManager {
     }
     this.triggerPendingFlipAnimations();
     
-    // 🔥 USER REQUEST: Scroll to interim card is handled in journey-boards-manager.ts
-    // after boards are rendered and positioned
+    // 🔥 USER REQUEST: Scroll to interim card is handled AFTER enter animation completes
+    // (moved to after animateCollectiblesScreenEnter call to prevent scroll during animation)
     
-    this.focusTargetCollectible(options);
+    // Only focus target collectible if it's not journey screen (collectibles screen only)
+    if (!journeyContainer) {
+      this.focusTargetCollectible(options);
+    }
     
     // 🔥 CRITICAL: Initialize dev buttons after screen is shown (buttons might not exist when constructor runs)
     // Use setTimeout to ensure buttons are in DOM after screen is rendered
@@ -512,6 +513,7 @@ class CollectiblesManager {
     }, 150);
     
     // 🎬 CRITICAL: Trigger Journey screen enter animation (pop-in) using GSAP
+    // Screen is now visible with opacity 0, ready for animation
     try {
       const { animateCollectiblesScreenEnter } = await import('./ui/collectibles-animations.js');
       
@@ -522,19 +524,40 @@ class CollectiblesManager {
       } catch (error) {
         logger.warn('⚠️ Failed to initialize lives manager:', error);
       }
+      
       console.log('🎬 About to call animateCollectiblesScreenEnter()...');
-      // Small delay to ensure DOM is ready, then make screen visible and start animation
-      setTimeout(() => {
-        // 🔥 CRITICAL: Explicitly set all styles to ensure journey screen is visible
-        (screen as HTMLElement).style.display = 'flex';
-        (screen as HTMLElement).style.visibility = 'visible';
-        (screen as HTMLElement).style.opacity = '1';
-        (screen as HTMLElement).style.zIndex = '999999';
-        screen.classList.add('show');
-        screen.removeAttribute('hidden');
-        console.log('🎬 Calling animateCollectiblesScreenEnter() after 50ms delay...');
-        animateCollectiblesScreenEnter();
-      }, 50);
+      // 🔥 CRITICAL: Set display and visibility - GSAP will handle opacity via autoAlpha
+      (screen as HTMLElement).style.display = 'flex';
+      (screen as HTMLElement).style.zIndex = '999999';
+      screen.classList.add('show');
+      screen.removeAttribute('hidden');
+      // DO NOT set visibility or opacity here - GSAP autoAlpha will handle it
+      
+      // 🔥 MOBILE FIX: Use requestAnimationFrame for better mobile performance
+      // This ensures DOM is fully ready before starting animation
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          console.log('🎬 Calling animateCollectiblesScreenEnter() after RAF...');
+          animateCollectiblesScreenEnter();
+          
+          // 🔥 CRITICAL: Delay scroll to interim card until AFTER enter animation completes
+          // Enter animation takes ~0.7s (header 0.5s + delay 0.1s + cards 0.4s)
+          // Wait a bit longer to ensure all animations are visible
+          if (journeyContainer) {
+            setTimeout(async () => {
+              try {
+                const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+                if (journeyBoardsManager && typeof journeyBoardsManager.restoreOrScrollToInterimCard === 'function') {
+                  console.log('🗺️ Starting scroll to interim card after enter animation...');
+                  journeyBoardsManager.restoreOrScrollToInterimCard();
+                }
+              } catch (error) {
+                console.warn('⚠️ Failed to scroll to interim card:', error);
+              }
+            }, 900); // Wait for enter animation to complete (~700ms) + buffer
+          }
+        });
+      });
       
       // 🔥 PREMIUM FIX: Position is set synchronously in renderBoards() via CSS custom properties
       // No need to refresh after animation - this would cause visible movement

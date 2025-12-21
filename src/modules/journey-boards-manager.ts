@@ -1225,11 +1225,9 @@ class JourneyBoardsManager {
           // 🔥 USER REQUEST: Start continuous glow pulse on interim card
           this.startGlowPulse();
           
-          // 🔥 USER REQUEST: Restore scroll position or scroll to interim card after boards are rendered
-          // Wait a bit longer to ensure all cards are positioned and screen enter animation completes
-          setTimeout(() => {
-            this.restoreOrScrollToInterimCard();
-          }, 800); // Increased delay to ensure screen enter animation completes and layout is stable
+          // 🔥 CRITICAL FIX: Scroll to interim card is now handled AFTER enter animation completes
+          // (moved to collectibles-manager.ts after animateCollectiblesScreenEnter call)
+          // DO NOT scroll here - it will cause scroll during enter animation
         });
       } catch (error) {
         logger.warn('⚠️ Failed to start journey card idle bounce:', error instanceof Error ? error.message : String(error));
@@ -1242,10 +1240,9 @@ class JourneyBoardsManager {
         // Add scroll and touch listeners even if idle bounce is disabled
         this.setupIdleInteractionListeners();
         
-        // Restore scroll position or scroll to interim card
-        setTimeout(() => {
-          this.restoreOrScrollToInterimCard();
-        }, 800); // Increased delay to ensure screen enter animation completes and layout is stable
+        // 🔥 CRITICAL FIX: Scroll to interim card is now handled AFTER enter animation completes
+        // (moved to collectibles-manager.ts after animateCollectiblesScreenEnter call)
+        // DO NOT scroll here - it will cause scroll during enter animation
       });
     }
   }
