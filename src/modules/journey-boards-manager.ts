@@ -422,8 +422,9 @@ class JourneyBoardsManager {
   
   /**
    * 🔥 MEMORY LEAK FIX: Stop glow pulse, shimmer, smoke bubbles, and bounce intervals and cleanup
+   * Made public so it can be called from ui-manager.ts during exit animation
    */
-  private stopGlowPulse(): void {
+  public stopGlowPulse(): void {
     // Stop glow pulse interval
     if (this.glowPulseInterval !== null) {
       clearTimeout(this.glowPulseInterval);
@@ -1211,40 +1212,23 @@ class JourneyBoardsManager {
       cardsContainer.appendChild(cardElement);
     });
     
-    // Start idle bounce animations for unlocked cards
-    if (JOURNEY_CARD_IDLE_BOUNCE.ENABLE) {
-      try {
-        // Use requestAnimationFrame to ensure DOM is ready
-        requestAnimationFrame(() => {
-          JOURNEY_CARD_IDLE_BOUNCE.start(cardsContainer);
-          logger.info('✅ Journey card idle bounce started');
-          
-          // Add scroll and touch listeners to notify interactions
-          this.setupIdleInteractionListeners();
-          
-          // 🔥 USER REQUEST: Start continuous glow pulse on interim card
-          this.startGlowPulse();
-          
-          // 🔥 CRITICAL FIX: Scroll to interim card is now handled AFTER enter animation completes
-          // (moved to collectibles-manager.ts after animateCollectiblesScreenEnter call)
-          // DO NOT scroll here - it will cause scroll during enter animation
-        });
-      } catch (error) {
-        logger.warn('⚠️ Failed to start journey card idle bounce:', error instanceof Error ? error.message : String(error));
-      }
-    } else {
-      // Even if idle bounce is disabled, start glow pulse
-      requestAnimationFrame(() => {
-        this.startGlowPulse();
-        
-        // Add scroll and touch listeners even if idle bounce is disabled
-        this.setupIdleInteractionListeners();
-        
-        // 🔥 CRITICAL FIX: Scroll to interim card is now handled AFTER enter animation completes
-        // (moved to collectibles-manager.ts after animateCollectiblesScreenEnter call)
-        // DO NOT scroll here - it will cause scroll during enter animation
-      });
-    }
+    // 🔥 CRITICAL: DO NOT start idle bounce animations here - they will interfere with enter animation
+    // Idle bounce animations will be started AFTER enter animation completes
+    // (moved to collectibles-manager.ts after animateCollectiblesScreenEnter completes)
+    // This prevents jerky/laggy behavior on mobile when 16 cards try to animate during enter animation
+    
+    // Only setup listeners and glow pulse (non-animated effects)
+    requestAnimationFrame(() => {
+      // Add scroll and touch listeners (these don't interfere with enter animation)
+      this.setupIdleInteractionListeners();
+      
+      // 🔥 USER REQUEST: Start continuous glow pulse on interim card (non-animated, doesn't interfere)
+      this.startGlowPulse();
+      
+      // 🔥 CRITICAL FIX: Scroll to interim card is now handled AFTER enter animation completes
+      // (moved to collectibles-manager.ts after animateCollectiblesScreenEnter call)
+      // DO NOT scroll here - it will cause scroll during enter animation
+    });
   }
   
   private setupIdleInteractionListeners(): void {

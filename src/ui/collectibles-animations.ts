@@ -29,23 +29,24 @@ export function animateCollectiblesScreenEnter(): void {
   console.log('🎯 Setting initial state for elements...');
 
   try {
-    // 🔥 CRITICAL: Set initial opacity to 0 inline FIRST (before GSAP takes control)
-    // This ensures screen is invisible until GSAP animates it
-    (journeyScreen as HTMLElement).style.opacity = '0';
-    
-    // Journey screen: use autoAlpha (controls both opacity and visibility)
-    // Don't use clearProps - we want GSAP to take control of the inline style
+    // 🔥 CRITICAL MOBILE FIX: Use explicit opacity and visibility instead of autoAlpha
+    // autoAlpha can have timing issues on mobile - explicit values are more reliable
+    // Set initial state IMMEDIATELY with immediateRender: true
     gsap.set(journeyScreen, { 
-      autoAlpha: 0,
-      force3D: true
+      opacity: 0,
+      visibility: 'hidden',
+      force3D: true,
+      immediateRender: true // 🔥 CRITICAL: Render immediately on mobile
     });
     
     // Header: scale from 0 (pop-in)
     if (collectiblesHeader) {
       gsap.set(collectiblesHeader, { 
         scale: 0, 
-        autoAlpha: 0,
-        force3D: true
+        opacity: 0,
+        visibility: 'hidden',
+        force3D: true,
+        immediateRender: true
       });
     }
 
@@ -53,53 +54,63 @@ export function animateCollectiblesScreenEnter(): void {
     if (collectiblesScrollable) {
       gsap.set(collectiblesScrollable, { 
         scale: 0, 
-        autoAlpha: 0,
-        force3D: true
+        opacity: 0,
+        visibility: 'hidden',
+        force3D: true,
+        immediateRender: true
       });
     }
 
-    console.log('✅ Initial state set successfully');
+    console.log('✅ Initial state set successfully (explicit opacity/visibility)');
   } catch (error) {
     console.error('❌ Failed to set initial state:', error);
     return;
   }
   
-  // 🔥 CRITICAL: Fade in journey screen FIRST (before other animations)
-  // Use autoAlpha for better control (handles both opacity and visibility)
-  // Use force3d for better mobile performance
+  // 🔥 CRITICAL MOBILE FIX: Fade in journey screen FIRST with explicit opacity/visibility
+  // Use explicit values instead of autoAlpha for better mobile compatibility
+  // Set visibility: visible immediately, then animate opacity
+  gsap.set(journeyScreen, { visibility: 'visible', immediateRender: true });
   gsap.to(journeyScreen, {
-    autoAlpha: 1,
+    opacity: 1,
     duration: 0.3,
     ease: 'power2.out',
     delay: 0,
-    force3D: true // Better performance on mobile
+    force3D: true, // Better performance on mobile
+    immediateRender: false // Don't render initial state (already set above)
   });
-  console.log('🌅 Journey screen fade-in started');
+  console.log('🌅 Journey screen fade-in started (explicit opacity)');
 
   // STEP 1: Header FIRST (0ms delay) - pop-in with scale
   if (collectiblesHeader) {
+    // Set visibility first, then animate
+    gsap.set(collectiblesHeader, { visibility: 'visible', immediateRender: true });
     gsap.to(collectiblesHeader, {
       scale: 1,
-      autoAlpha: 1,
+      opacity: 1,
       duration: 0.5,
       ease: 'back.out(1.7)',
       delay: 0,
-      force3D: true // Better performance on mobile
+      force3D: true, // Better performance on mobile
+      immediateRender: false
     });
-    console.log('📊 Step 1: Header pop-in started');
+    console.log('📊 Step 1: Header pop-in started (explicit opacity)');
   }
 
   // STEP 2: Scrollable area pop-in (full scale range: 0 → 1.0)
   if (collectiblesScrollable) {
+    // Set visibility first, then animate
+    gsap.set(collectiblesScrollable, { visibility: 'visible', immediateRender: true });
     gsap.to(collectiblesScrollable, {
       scale: 1,
-      autoAlpha: 1,
+      opacity: 1,
       duration: 0.5,
       ease: 'back.out(1.7)',
       delay: 0.1, // Start shortly after header
-      force3D: true // Better performance on mobile
+      force3D: true, // Better performance on mobile
+      immediateRender: false
     });
-    console.log('🎴 Step 2: Cards area pop-in started (full scale range)');
+    console.log('🎴 Step 2: Cards area pop-in started (explicit opacity)');
   }
   
   // STEP 3: Animate first 8 cards in grid (scale from 0.3 to 1.0)
@@ -115,12 +126,24 @@ export function animateCollectiblesScreenEnter(): void {
     const cardsToAnimate = cardsArray.slice(0, 8);
 
     // Set initial state for animated cards (scale 0.3, opacity 0)
-    gsap.set(cardsToAnimate, { scale: 0.3, autoAlpha: 0, force3D: true });
+    gsap.set(cardsToAnimate, { 
+      scale: 0.3, 
+      opacity: 0,
+      visibility: 'hidden',
+      force3D: true,
+      immediateRender: true
+    });
 
     // Set initial state for remaining cards (scale 1, opacity 1 - already visible)
     if (cardsArray.length > 8) {
       const remainingCards = cardsArray.slice(8);
-      gsap.set(remainingCards, { scale: 1, autoAlpha: 1, force3D: true });
+      gsap.set(remainingCards, { 
+        scale: 1, 
+        opacity: 1,
+        visibility: 'visible',
+        force3D: true,
+        immediateRender: true
+      });
     }
 
     // Animate first 8 cards with fast stagger
@@ -129,13 +152,16 @@ export function animateCollectiblesScreenEnter(): void {
       const stagger = 0.03; // Fixed fast stagger between cards
       const delay = baseDelay + (index * stagger);
 
+      // Set visibility first, then animate
+      gsap.set(card, { visibility: 'visible', immediateRender: true });
       gsap.to(card, {
         scale: 1,
-        autoAlpha: 1,
+        opacity: 1,
         duration: 0.4, // Faster animation
         ease: 'back.out(1.7)',
         delay: delay,
-        force3D: true // Better performance on mobile
+        force3D: true, // Better performance on mobile
+        immediateRender: false
       });
       console.log(`🎴 Card ${index + 1}/8 pop-in - delay ${(delay * 1000).toFixed(0)}ms`);
     });

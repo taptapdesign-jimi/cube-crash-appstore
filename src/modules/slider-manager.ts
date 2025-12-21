@@ -325,6 +325,22 @@ class SliderManager {
   goToSlide(slideIndex: number): void {
     if (gameState.get('sliderLocked')) return;
     
+    // 🔥 CRITICAL MOBILE FIX: Prevent instant slide change if enter animation is still running
+    // This prevents slider from jumping instantly when user clicks nav button too quickly after preload
+    if ((window as any).__ccIsAnimatingSliderEnter === true) {
+      logger.info(`⏳ Slider enter animation still running, queuing slide change to ${slideIndex}...`);
+      // Queue the slide change to happen after animation completes
+      setTimeout(() => {
+        if (slideIndex >= 0 && slideIndex < this.totalSlides) {
+          this.currentSlide = slideIndex;
+          gameState.set('currentSlide', slideIndex);
+          this.updateSlider();
+          logger.info(`✅ Queued slide change to ${slideIndex} completed`);
+        }
+      }, 650); // Wait for enter animation to complete (650ms duration)
+      return;
+    }
+    
     if (slideIndex >= 0 && slideIndex < this.totalSlides) {
       this.currentSlide = slideIndex;
       gameState.set('currentSlide', slideIndex);

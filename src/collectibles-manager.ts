@@ -318,12 +318,11 @@ class CollectiblesManager {
       journeyBoardsManager.updateCounter();
       logger.info('🗺️ Journey boards rendered in background');
       
-      // Mark as viewed and reset badge
+      // Mark as viewed (badge will be reset by exit animation, not here)
       journeyBoardsManager.markAsViewed();
-      if (typeof (window as any).updateNavBadge === 'function') {
-        (window as any).updateNavBadge(0, 1);
-        logger.info('🗺️ Journey badge reset');
-      }
+      // 🔥 CRITICAL: Don't reset badge here - exit animation will handle it
+      // Badge will be animated out together with navigation in exit animation
+      logger.info('🗺️ Journey boards marked as viewed (badge will be reset by exit animation)');
     }
   }
 
@@ -412,30 +411,40 @@ class CollectiblesManager {
     (screen as HTMLElement).style.removeProperty('display');
     (screen as HTMLElement).style.removeProperty('visibility');
     (screen as HTMLElement).style.removeProperty('z-index');
-    (screen as HTMLElement).style.removeProperty('opacity'); // Remove inline opacity - GSAP will handle it
     screen.removeAttribute('hidden');
     screen.classList.remove('hidden');
-    logger.info('🎁 Removed hidden class and inline styles from Journey screen');
+    
+    // 🔥 CRITICAL MOBILE FIX: Set opacity 0 and visibility hidden IMMEDIATELY to prevent flash
+    // This must be done BEFORE display:flex to prevent any visible frame
+    // Use inline styles that GSAP will override - this ensures screen is invisible until animation starts
+    (screen as HTMLElement).style.opacity = '0';
+    (screen as HTMLElement).style.visibility = 'hidden';
+    // 🔥 CRITICAL: Also set will-change for better mobile performance
+    (screen as HTMLElement).style.willChange = 'opacity, transform';
+    
+    logger.info('🎁 Removed hidden class and inline styles from Journey screen - set opacity 0 to prevent flash');
     
     // 🔥 OPTIMIZATION: Check if boards are already rendered (by prepareJourneyScreen)
-    // If not, render them now
+    // If not, render them now (non-blocking - don't await)
     const journeyContainer = document.getElementById('journey-boards-container');
     if (journeyContainer) {
       const hasBoards = journeyContainer.querySelector('.journey-board-card');
       if (!hasBoards) {
-        // Boards not yet rendered - render now
-        logger.info('🗺️ Boards not yet rendered - rendering now');
-        const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-        journeyBoardsManager.renderBoards();
-        journeyBoardsManager.updateCounter();
-        logger.info('🗺️ Journey boards rendered');
-        
-        // Mark as viewed and reset badge
-        journeyBoardsManager.markAsViewed();
-        if (typeof (window as any).updateNavBadge === 'function') {
-          (window as any).updateNavBadge(0, 1);
-          logger.info('🗺️ Journey badge reset after opening journey screen');
-        }
+        // Boards not yet rendered - render now (non-blocking)
+        logger.info('🗺️ Boards not yet rendered - rendering now (non-blocking)');
+        import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+          journeyBoardsManager.renderBoards();
+          journeyBoardsManager.updateCounter();
+          logger.info('🗺️ Journey boards rendered');
+          
+          // Mark as viewed (badge will be reset by exit animation, not here)
+          journeyBoardsManager.markAsViewed();
+          // 🔥 CRITICAL: Don't reset badge here - exit animation will handle it
+          // Badge will be animated out together with navigation in exit animation
+          logger.info('🗺️ Journey boards marked as viewed (badge will be reset by exit animation)');
+        }).catch((error) => {
+          logger.error('❌ Failed to render journey boards:', error);
+        });
       } else {
         logger.info('🗺️ Boards already rendered - skipping render');
       }
@@ -514,33 +523,41 @@ class CollectiblesManager {
     
     // 🎬 CRITICAL: Trigger Journey screen enter animation (pop-in) using GSAP
     // Screen is now visible with opacity 0, ready for animation
+    // 🔥 CRITICAL: Set display FIRST, then animate immediately (no delays)
+    (screen as HTMLElement).style.display = 'flex';
+    (screen as HTMLElement).style.zIndex = '999999';
+    screen.classList.add('show');
+    screen.removeAttribute('hidden');
+    // Opacity and visibility are already set to 0/hidden above - GSAP will animate them
+    
     try {
-      const { animateCollectiblesScreenEnter } = await import('./ui/collectibles-animations.js');
-      
-      // 🔥 NEW: Initialize lives manager and update UI
-      try {
-        const { livesManager } = await import('./modules/lives-manager.js');
-        livesManager.refreshUI();
-      } catch (error) {
-        logger.warn('⚠️ Failed to initialize lives manager:', error);
-      }
-      
-      console.log('🎬 About to call animateCollectiblesScreenEnter()...');
-      // 🔥 CRITICAL: Set display and visibility - GSAP will handle opacity via autoAlpha
-      (screen as HTMLElement).style.display = 'flex';
-      (screen as HTMLElement).style.zIndex = '999999';
-      screen.classList.add('show');
-      screen.removeAttribute('hidden');
-      // DO NOT set visibility or opacity here - GSAP autoAlpha will handle it
-      
-      // 🔥 MOBILE FIX: Use requestAnimationFrame for better mobile performance
-      // This ensures DOM is fully ready before starting animation
+      // 🔥 CRITICAL MOBILE FIX: Use requestAnimationFrame to ensure DOM is ready on mobile
+      // Then import and start animation immediately
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          console.log('🎬 Calling animateCollectiblesScreenEnter() after RAF...');
-          animateCollectiblesScreenEnter();
-          
-          // 🔥 CRITICAL: Delay scroll to interim card until AFTER enter animation completes
+        import('./ui/collectibles-animations.js').then(({ animateCollectiblesScreenEnter }) => {
+          console.log('🎬 Starting Journey enter animation IMMEDIATELY...');
+          // 🔥 CRITICAL: Start animation immediately - screen is already prepared with opacity 0
+          // Use RAF to ensure browser is ready to render animation on mobile
+          requestAnimationFrame(() => {
+            animateCollectiblesScreenEnter();
+          });
+        }).catch((error) => {
+          console.error('❌ Failed to load collectibles animations:', error);
+          // Fallback: just show screen normally
+          (screen as HTMLElement).style.opacity = '1';
+          (screen as HTMLElement).style.visibility = 'visible';
+          (screen as HTMLElement).style.willChange = 'auto';
+        });
+      });
+      
+      // 🔥 NEW: Initialize lives manager and update UI (non-blocking)
+      import('./modules/lives-manager.js').then(({ livesManager }) => {
+        livesManager.refreshUI();
+      }).catch((error) => {
+        logger.warn('⚠️ Failed to initialize lives manager:', error);
+      });
+      
+          // 🔥 CRITICAL: Delay scroll to interim card AND start idle bounce animations AFTER enter animation completes
           // Enter animation takes ~0.7s (header 0.5s + delay 0.1s + cards 0.4s)
           // Wait a bit longer to ensure all animations are visible
           if (journeyContainer) {
@@ -551,13 +568,21 @@ class CollectiblesManager {
                   console.log('🗺️ Starting scroll to interim card after enter animation...');
                   journeyBoardsManager.restoreOrScrollToInterimCard();
                 }
+                
+                // 🔥 CRITICAL: Start idle bounce animations AFTER enter animation completes
+                // This prevents jerky/laggy behavior on mobile when cards try to animate during enter animation
+                const { JOURNEY_CARD_IDLE_BOUNCE } = await import('./modules/journey-card-idle-bounce.js');
+                const cardsContainer = document.querySelector('.journey-cards-container') as HTMLElement;
+                if (JOURNEY_CARD_IDLE_BOUNCE && JOURNEY_CARD_IDLE_BOUNCE.ENABLE && cardsContainer) {
+                  console.log('🎬 Starting journey card idle bounce AFTER enter animation...');
+                  JOURNEY_CARD_IDLE_BOUNCE.start(cardsContainer);
+                  logger.info('✅ Journey card idle bounce started after enter animation');
+                }
               } catch (error) {
-                console.warn('⚠️ Failed to scroll to interim card:', error);
+                console.warn('⚠️ Failed to scroll to interim card or start idle bounce:', error);
               }
             }, 900); // Wait for enter animation to complete (~700ms) + buffer
           }
-        });
-      });
       
       // 🔥 PREMIUM FIX: Position is set synchronously in renderBoards() via CSS custom properties
       // No need to refresh after animation - this would cause visible movement
@@ -587,7 +612,52 @@ class CollectiblesManager {
       
       if (isBackButton) {
         // 🎬 BACK BUTTON pathway: Journey → Homepage Slide 2 (Journey slide)
-        // Step 1: Play Journey screen exit animation
+        // 🔥 CRITICAL: Stop ALL Journey animations BEFORE exit animation to prevent frame drops and lag
+        console.log('🛑 Stopping all Journey animations before exit...');
+        
+        // Step 0: Stop Journey card idle bounce animations
+        try {
+          const { JOURNEY_CARD_IDLE_BOUNCE } = await import('./modules/journey-card-idle-bounce.js');
+          if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
+            JOURNEY_CARD_IDLE_BOUNCE.stop();
+            console.log('✅ Journey card idle bounce stopped');
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to stop journey card idle bounce:', error);
+        }
+        
+        // Step 0b: Stop glow pulse and interim bounce animations
+        try {
+          const journeyContainer = document.getElementById('journey-boards-container');
+          if (journeyContainer) {
+            const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+            if (journeyBoardsManager && typeof journeyBoardsManager.stopGlowPulse === 'function') {
+              journeyBoardsManager.stopGlowPulse();
+              console.log('✅ Glow pulse and interim bounce stopped');
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to stop glow pulse:', error);
+        }
+        
+        // Step 0c: Kill all GSAP animations on Journey cards to prevent interference
+        try {
+          const journeyScreen = document.getElementById('journey-screen');
+          if (journeyScreen) {
+            const cards = journeyScreen.querySelectorAll('.journey-board-card, .journey-board-card-wrapper');
+            if (cards.length > 0) {
+              const { gsap } = await import('gsap');
+              gsap.killTweensOf(cards);
+              console.log(`✅ Killed GSAP animations on ${cards.length} journey cards`);
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to kill GSAP animations:', error);
+        }
+        
+        console.log('✅ All Journey animations stopped - starting exit animation...');
+        
+        // Step 1: Play Journey screen exit animation (now without interference)
         try {
           const { animateCollectiblesScreenExit } = await import('./ui/collectibles-animations.js');
           console.log('🎬 Step 1: Journey exit animation starting...');
@@ -732,25 +802,16 @@ class CollectiblesManager {
         }
       }
       
-      // Step 3: Trigger homepage slide 2 ENTER animation
-      // 🔥 USER REQUEST: Journey exit → Slide 2 enter animacija
-      // Use requestAnimationFrame to ensure DOM is fully updated before animation
-      await new Promise(resolve => requestAnimationFrame(() => {
-        requestAnimationFrame(async () => {
-          // Final verification before animation
-          const finalActiveSlide = document.querySelector('.slider-slide.active');
-          const finalSlideIndex = finalActiveSlide ? Array.from(allSlides).indexOf(finalActiveSlide) : -1;
-          if (finalSlideIndex === 1) {
-            console.log('🎬 Step 3: Triggering slide 2 enter animation...');
-            const { animateSliderEnter } = await import('./utils/animations.js');
-            animateSliderEnter();
-            logger.info('✅ Homepage slide 2 enter animation triggered - Final destination: Slide 2');
-          } else {
-            console.error(`❌ CRITICAL: Active slide is ${finalSlideIndex}, not 1! Cannot animate slide 2.`);
-          }
-          resolve(undefined);
-        });
-      }));
+      // Step 3: Trigger homepage slide 2 ENTER animation EARLIER for smoother transition
+      // 🔥 USER REQUEST: Start enter animation 300ms after exit animation starts for fluid overlap
+      // Exit animation takes ~0.8s, but we start enter animation at 300ms for very fluid transition
+      const exitAnimationDuration = 300; // 300ms - start enter animation very early for smoother transition
+      setTimeout(async () => {
+        console.log('🎬 Step 3: Triggering slide 2 enter animation EARLY (300ms) for fluid transition...');
+        const { animateSliderEnter } = await import('./utils/animations.js');
+        animateSliderEnter();
+        logger.info('✅ Homepage slide 2 enter animation triggered EARLY (300ms) - Final destination: Slide 2');
+      }, exitAnimationDuration);
     }
   }
 

@@ -1624,20 +1624,24 @@ class UIManager {
       animateSliderExit();
     }, 10);
     
-    // Step 2: Wait for exit animation AND fade animation to complete, then show Journey screen
+    // Step 2: Wait for exit animation to complete, then show Journey screen IMMEDIATELY
     // Exit animation: 770ms, Fade animation: 800ms - wait for the longer one
     const waitTime = Math.max(770, fadeDuration * 1000);
     setTimeout(async () => {
-      console.log('🗺️ Step 2: Showing Journey screen after animations complete');
+      console.log('🗺️ Step 2: Exit animation complete - showing Journey screen IMMEDIATELY');
       
-      // Wait for boards to finish rendering (if not already done)
+      // Wait for boards to finish rendering (if not already done) - but don't block if taking too long
       if (boardsReadyPromise) {
-        await boardsReadyPromise;
-        console.log('✅ Journey boards rendering completed');
+        // Use Promise.race to timeout after 100ms - don't wait forever
+        await Promise.race([
+          boardsReadyPromise,
+          new Promise(resolve => setTimeout(resolve, 100))
+        ]);
+        console.log('✅ Journey boards ready (or timeout)');
       }
       
-      // Show Journey screen after both animations complete
-      // CRITICAL: Do NOT set background here - it's already set by GSAP animation
+      // Show Journey screen IMMEDIATELY after exit animation - no blank screen
+      // Journey screen is already prepared with opacity 0, animation will start immediately
       this.showCollectiblesScreen();
       (window as any).__ccUiJourneyTransitioning = false;
     }, waitTime);
@@ -1646,6 +1650,96 @@ class UIManager {
   // Hide Journey screen with enter animation
   async hideCollectiblesScreenWithAnimation(): Promise<void> {
     logger.info('🗺️ Hiding Journey screen - with exit animation');
+    
+    // 🔥 CRITICAL: Stop ALL Journey animations BEFORE exit animation to prevent frame drops and lag
+    logger.info('🛑 Stopping all Journey animations before exit...');
+    
+    // Stop Journey card idle bounce animations
+    try {
+      const { JOURNEY_CARD_IDLE_BOUNCE } = await import('../modules/journey-card-idle-bounce.js');
+      if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
+        JOURNEY_CARD_IDLE_BOUNCE.stop();
+        logger.info('✅ Journey card idle bounce stopped');
+      }
+    } catch (error) {
+      logger.warn('⚠️ Failed to stop journey card idle bounce:', error);
+    }
+    
+    // Stop glow pulse and interim bounce animations
+    try {
+      const journeyContainer = document.getElementById('journey-boards-container');
+      if (journeyContainer) {
+        const collectiblesManager = (window as any).collectiblesManager;
+        if (collectiblesManager) {
+          const { journeyBoardsManager } = await import('../modules/journey-boards-manager.js');
+          if (journeyBoardsManager && typeof journeyBoardsManager.stopGlowPulse === 'function') {
+            journeyBoardsManager.stopGlowPulse();
+            logger.info('✅ Glow pulse and interim bounce stopped');
+          }
+        }
+      }
+    } catch (error) {
+      logger.warn('⚠️ Failed to stop glow pulse:', error);
+    }
+    
+    // Kill all GSAP animations on Journey cards
+    try {
+      const journeyScreen = document.getElementById('journey-screen');
+      if (journeyScreen) {
+        const cards = journeyScreen.querySelectorAll('.journey-board-card, .journey-board-card-wrapper');
+        if (cards.length > 0) {
+          const { gsap } = await import('gsap');
+          gsap.killTweensOf(cards);
+          logger.info(`✅ Killed GSAP animations on ${cards.length} journey cards`);
+        }
+        
+        // 🔥 CRITICAL: Stop ALL CSS animations (shimmer, glow, etc.) on Journey cards
+        const interimCards = journeyScreen.querySelectorAll('.journey-board-card.interim');
+        const { gsap: gsapForWrappers } = await import('gsap');
+        interimCards.forEach((card) => {
+          const cardEl = card as HTMLElement;
+          // Stop CSS animations by removing animation property
+          cardEl.style.animation = 'none';
+          cardEl.style.animationPlayState = 'paused';
+          // Remove shimmer/glow classes
+          cardEl.classList.remove('interim-shimmer-trigger', 'interim-glow-pulse');
+          // Kill any GSAP animations on card wrapper
+          const cardWrapper = cardEl.closest('.journey-board-card-wrapper') as HTMLElement | null;
+          if (cardWrapper) {
+            gsapForWrappers.killTweensOf(cardWrapper);
+          }
+        });
+        logger.info(`✅ Stopped CSS animations (shimmer, glow) on ${interimCards.length} interim cards`);
+        
+        // Stop any CSS animations on collectible cards
+        const collectibleCards = journeyScreen.querySelectorAll('.collectible-card-wrapper');
+        collectibleCards.forEach((card) => {
+          const cardEl = card as HTMLElement;
+          cardEl.style.animation = 'none';
+          cardEl.style.animationPlayState = 'paused';
+        });
+        logger.info(`✅ Stopped CSS animations on ${collectibleCards.length} collectible cards`);
+      }
+    } catch (error) {
+      logger.warn('⚠️ Failed to kill GSAP animations:', error);
+    }
+    
+    // 🔥 CRITICAL: Disable scroll and touch events on Journey screen during exit animation
+    // This prevents any user interaction from interfering with exit animation
+    try {
+      const journeyScreen = document.getElementById('journey-screen');
+      const scrollable = journeyScreen?.querySelector('.collectibles-scrollable') as HTMLElement;
+      if (scrollable) {
+        scrollable.style.pointerEvents = 'none';
+        scrollable.style.touchAction = 'none';
+        scrollable.style.overflow = 'hidden';
+        logger.info('✅ Disabled scroll and touch events on Journey screen');
+      }
+    } catch (error) {
+      logger.warn('⚠️ Failed to disable scroll/touch events:', error);
+    }
+    
+    logger.info('✅ All Journey animations stopped - starting exit animation...');
     
     // 🔥 CRITICAL FIX: Start exit animation IMMEDIATELY (no delay)
     // This ensures the screen responds instantly to back button click
@@ -1737,10 +1831,16 @@ class UIManager {
     console.log('✅ All slides made visible - slider position controlled by collectibles-manager.ts');
     
     // 🔥 CRITICAL FIX: Wait for exit animation to complete (it started immediately above)
+    // Exit animation takes ~0.8s (totalDuration from collectibles-animations.ts)
+    // Match timing with reverse direction: Math.max(770, fadeDuration * 1000) = 800ms
     if (exitAnimationPromise) {
       logger.info('🎁 Waiting for collectibles exit animation to complete...');
       await exitAnimationPromise;
       logger.info('✅ Collectibles exit animation completed');
+    } else {
+      // If no promise, wait for estimated duration anyway (800ms to match reverse direction)
+      await new Promise(resolve => setTimeout(resolve, 800)); // 800ms exit
+      logger.info('✅ Waited for estimated exit animation duration');
     }
     
     // 🔥 CRITICAL: Ensure Journey screen is completely hidden before showing homepage

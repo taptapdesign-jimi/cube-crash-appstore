@@ -290,6 +290,27 @@ function startExitAnimationSequence(): void {
       logger.warn('⚠️ Navigation not found');
     }
     
+    // 🔥 CRITICAL: Animate Journey badge together with navigation (120ms delay)
+    // This ensures badge disappears smoothly during exit animation instead of instantly
+    const journeyNavButton = document.querySelector('.independent-nav-button[data-slide="1"]') as HTMLElement;
+    if (journeyNavButton) {
+      const journeyBadge = journeyNavButton.querySelector('.nav-badge') as HTMLElement;
+      if (journeyBadge) {
+        cartoonishBounce(journeyBadge, 120);
+        logger.info('🎯 Step 5: Journey badge cartoonish bounce - LAST (with navigation)');
+        
+        // Remove badge after animation completes (650ms animation + 120ms delay = 770ms total)
+        const badgeRemoveTimeout = setTimeout(() => {
+          activeTimeouts.delete(badgeRemoveTimeout);
+          if (typeof (window as any).updateNavBadge === 'function') {
+            (window as any).updateNavBadge(0, 1);
+            logger.info('✅ Journey badge removed after exit animation');
+          }
+        }, 770); // Match exit animation duration
+        activeTimeouts.add(badgeRemoveTimeout);
+      }
+    }
+    
     // Shadow animates together with navigation
     const fixedShadowBottom = document.getElementById('home-fixed-shadow-bottom');
     if (fixedShadowBottom) {
@@ -385,6 +406,9 @@ export const animateSliderEnter = (): void => {
     }
     
     isAnimatingEnter = true;
+    // 🔥 CRITICAL MOBILE FIX: Set global flag so slider-manager can check if animation is running
+    // This prevents instant slide changes when user clicks nav button too quickly after preload
+    (window as any).__ccIsAnimatingSliderEnter = true;
     logger.info('🎬 Starting CARTOONISH PROCEDURAL enter animation...');
     
     // Start the actual enter animation sequence
@@ -394,12 +418,15 @@ export const animateSliderEnter = (): void => {
     const timeout = setTimeout(() => {
       activeTimeouts.delete(timeout);
       isAnimatingEnter = false;
+      // 🔥 CRITICAL: Reset global flag so slider navigation can work normally
+      (window as any).__ccIsAnimatingSliderEnter = false;
       logger.info('✅ Enter animation guard reset');
     }, 770); // 120ms delay + 650ms animation = 770ms total (matches exit animation)
     activeTimeouts.add(timeout);
     
   } catch (error) {
     isAnimatingEnter = false;
+    (window as any).__ccIsAnimatingSliderEnter = false;
     logger.error('❌ Failed to animate slider enter:', error);
   }
 };

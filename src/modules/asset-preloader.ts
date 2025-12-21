@@ -359,6 +359,16 @@ export class AssetPreloader {
       './assets/modals/paper.png',
       './assets/modals/paper@2x.png',
       './assets/modals/paper@3x.png',
+      // 🔥 CRITICAL: Journey screen assets (must be preloaded for instant Journey screen load)
+      './assets/journey assets/1-17bg.png',
+      './assets/journey assets/orange-ribbon.png',
+      './assets/journey assets/orange-ribbon@2x.png',
+      './assets/journey assets/orange-ribbon@3x.png',
+      './assets/journey assets/heart-nav.png',
+      './assets/journey assets/heart-nav@2x.png',
+      './assets/journey assets/heart-nav@3x.png',
+      './assets/colelctibles/journey-card-empty.png',
+      './assets/colelctibles/common back.png',
     ];
     
     logger.info(`🖼️ Preloading ${htmlImages.length} HTML images for homepage slider...`);
@@ -424,6 +434,53 @@ export class AssetPreloader {
     
     await Promise.allSettled(loadPromises);
     logger.info(`✅ All ${collectiblesImages.length} collectibles images preloaded (browser cache ready)`);
+  }
+
+  // 🔥 CRITICAL: Preload Journey screen assets for instant load
+  // This ensures Journey screen loads instantly when opened (no delay, no blank screen)
+  async preloadJourneyAssets(): Promise<void> {
+    const journeyImages: string[] = [];
+    
+    // Journey background and UI elements
+    journeyImages.push('./assets/journey assets/1-17bg.png');
+    journeyImages.push('./assets/journey assets/orange-ribbon.png');
+    journeyImages.push('./assets/journey assets/orange-ribbon@2x.png');
+    journeyImages.push('./assets/journey assets/orange-ribbon@3x.png');
+    journeyImages.push('./assets/journey assets/heart-nav.png');
+    journeyImages.push('./assets/journey assets/heart-nav@2x.png');
+    journeyImages.push('./assets/journey assets/heart-nav@3x.png');
+    
+    // Journey card images (all 16 boards use common collectibles 01-16)
+    for (let i = 1; i <= 16; i++) {
+      const id = String(i).padStart(2, '0');
+      journeyImages.push(`./assets/colelctibles/common/${id}.png`);
+    }
+    
+    // Journey placeholder images
+    journeyImages.push('./assets/colelctibles/journey-card-empty.png');
+    journeyImages.push('./assets/colelctibles/common back.png');
+    
+    logger.info(`🗺️ Preloading ${journeyImages.length} Journey screen images for instant load...`);
+    
+    // Load all images in parallel for fastest loading
+    const loadPromises = journeyImages.map((src: string) => {
+      return new Promise<void>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          // Image loaded successfully, now in browser cache
+          resolve();
+        };
+        img.onerror = () => {
+          // Don't block on errors, but log them
+          logger.warn(`⚠️ Journey image failed: ${src}`);
+          resolve();
+        };
+        img.src = src;
+      });
+    });
+    
+    await Promise.allSettled(loadPromises);
+    logger.info(`✅ All ${journeyImages.length} Journey screen images preloaded (browser cache ready)`);
   }
 
   async preloadAll(): Promise<void> {
@@ -501,6 +558,12 @@ export class AssetPreloader {
         // 🔥 CRITICAL: Preload HTML img tag images (homepage slider) to ensure they're in browser cache
         // This prevents images from disappearing on mobile after preload screen hides
         await this.preloadHTMLImages();
+        
+        // 🔥 CRITICAL: Preload Journey screen assets (non-blocking but high priority)
+        // This ensures Journey screen loads instantly when opened, no delay or blank screen
+        this.preloadJourneyAssets().catch(err => {
+          logger.warn('⚠️ Journey assets preload failed (non-critical):', err);
+        });
         
         // Start collectibles preload in background (non-blocking) - don't wait for it
         // This ensures collectibles screen loads instantly when opened, but doesn't delay initial load

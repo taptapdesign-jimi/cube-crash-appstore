@@ -199,6 +199,20 @@ async function startAssetPreloading(): Promise<void> {
     clearTimeout(forceHideTimeout);
     await appManager.showScreen('home');
     
+    // 🔥 CRITICAL: Prepare Journey screen in background (non-blocking)
+    // This ensures Journey boards are rendered and ready before user clicks Journey CTA
+    // This prevents any loading delay when Journey screen opens
+    import('./collectibles-manager.js').then(({ collectiblesManager }) => {
+      if (collectiblesManager && typeof collectiblesManager.prepareJourneyScreen === 'function') {
+        logger.info('🗺️ Preparing Journey screen in background (non-blocking)...');
+        collectiblesManager.prepareJourneyScreen().catch(err => {
+          logger.warn('⚠️ Journey screen preparation failed (non-critical):', err);
+        });
+      }
+    }).catch(err => {
+      logger.warn('⚠️ Failed to import collectiblesManager for Journey preparation:', err);
+    });
+    
     // Play enter animation for Slide 1 after homepage is shown
     console.log('🎬 Playing initial enter animation for Slide 1');
     animateSliderEnter();
