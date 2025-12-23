@@ -33,8 +33,8 @@ export function getGridDimensions(): GridDimensions {
       (navigator.maxTouchPoints > 1 && width >= 768 && width <= 1400);
     
     if (isIPad) {
-      // iPad: 6 columns x 7 rows
-      return { COLS: 6, ROWS: 7 };
+      // iPad: 7 columns x 9 rows (extra width and height for larger layout)
+      return { COLS: 7, ROWS: 9 };
     }
     
     // Mobile and Desktop: 5x9 board (standard gameplay)
@@ -111,4 +111,3 @@ export const POWERUP_WILD_CHANCE: number = 0.00;
 // Wild konfiguracija
 export const WILD_GUARANTEE_AFTER_FIRST_SIX: boolean = true; // prvu 6-icu prati garantirani Wild u refill-u
 export const WILD_GUARANTEE_COUNT: number = 1;              // broj garantirano Wild pločica nakon prve 6-ice
-

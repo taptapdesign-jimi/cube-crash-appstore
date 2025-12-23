@@ -307,13 +307,25 @@ class UIManager {
     // Get both old .slide-button AND new .primary-button elements
     const sliderButtons = document.querySelectorAll('.slider-slide .slide-button, .slider-slide .primary-button');
     console.log('🔧 DEBUG: Found', sliderButtons.length, 'slider buttons');
+    
+    // 🔥 iPad FIX: Detect iPad to preserve translateY positioning
+    const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
+    
     sliderButtons.forEach((button, index) => {
       const btn = button as HTMLElement;
       console.log(`🔧 DEBUG: Resetting button ${index}:`, btn.id, 'classes:', btn.className);
       
-      // Force button to stay at default scale(1) - no animations
-      btn.style.transform = 'scale(1) !important';
+      // 🔥 iPad FIX: Preserve translateY on iPad, only reset scale
+      if (isIPad) {
+        // On iPad, preserve translateY(4px) and only reset scale
+        btn.style.transform = 'translateY(4px) scale(1)';
+        btn.style.webkitTransform = 'translateY(4px) scale(1)';
+      } else {
+        // On iPhone, use original behavior
+        btn.style.transform = 'scale(1) !important';
+      }
       btn.style.transition = 'none !important';
+      btn.style.webkitTransition = 'none !important';
       
       // Temporarily disable pointer events for very short time
       btn.style.pointerEvents = 'none';
@@ -329,9 +341,15 @@ class UIManager {
         btn.classList.remove('button-reset');
         btn.style.pointerEvents = '';
         
-        // Ensure button stays at scale(1) - no automatic scaling
-        btn.style.transform = 'scale(1) !important';
+        // 🔥 iPad FIX: Preserve translateY on iPad, only reset scale
+        if (isIPad) {
+          btn.style.transform = 'translateY(4px) scale(1)';
+          btn.style.webkitTransform = 'translateY(4px) scale(1)';
+        } else {
+          btn.style.transform = 'scale(1) !important';
+        }
         btn.style.transition = 'none !important';
+        btn.style.webkitTransition = 'none !important';
         
         console.log(`🔧 DEBUG: Reset complete for button ${index}:`, btn.id);
       }, 50);
@@ -1505,6 +1523,11 @@ class UIManager {
   private showCollectiblesScreenWithAnimation(): void {
     logger.info('🗺️ Showing Journey screen - with exit animation');
     
+    // 🔥 CRITICAL: Set exit animation flag IMMEDIATELY to prevent badge removal
+    // This must be done BEFORE anything else to protect badge from being removed
+    (window as any).__ccIsAnimatingSliderExit = () => true;
+    logger.info('🔒 Exit animation flag set - badge is now protected');
+    
     // 🔥 CRITICAL: Serialize CTA transitions to avoid double-click / overlapping animations
     if ((window as any).__ccUiJourneyTransitioning) {
       logger.warn('⚠️ Journey CTA transition already running - ignoring duplicate trigger');
@@ -1593,17 +1616,9 @@ class UIManager {
       console.log('✅ [Journey EXIT] App element background fade animation started from gradient to', targetSolidColor);
     }
     
-    // 🔥 CRITICAL FIX: Start loading Journey boards IMMEDIATELY in background (before exit animation)
-    // This ensures boards are rendered while exit animation plays, reducing perceived load time
-    console.log('🗺️ Step 0: Starting Journey boards rendering in background...');
-    const collectiblesManager = (window as any).collectiblesManager;
-    let boardsReadyPromise: Promise<void> | null = null;
-    
-    if (collectiblesManager && typeof collectiblesManager.prepareJourneyScreen === 'function') {
-      // Use prepareJourneyScreen to render boards without showing screen
-      boardsReadyPromise = collectiblesManager.prepareJourneyScreen();
-      console.log('✅ Journey boards rendering started in background');
-    }
+    // 🔥 CRITICAL: Play exit animation FIRST, then start loading Journey boards
+    // This ensures badge animates out BEFORE any badge reset logic runs
+    console.log('🎬 Step 1: Playing exit animation for Journey slide FIRST (before board rendering)');
     
     // Step 1: Play exit animation for Journey slide (background fade is running in parallel)
     // 🔥 CRITICAL: Small delay to ensure DOM is updated and slide is marked as active
@@ -1622,23 +1637,26 @@ class UIManager {
         });
       }
       animateSliderExit();
+      
+      // 🔥 CRITICAL FIX: Start loading Journey boards AFTER exit animation starts
+      // This ensures badge animates out BEFORE any badge reset logic runs
+      console.log('🗺️ Step 0: Starting Journey boards rendering in background (after exit animation started)...');
+      const collectiblesManager = (window as any).collectiblesManager;
+      if (collectiblesManager && typeof collectiblesManager.prepareJourneyScreen === 'function') {
+        // Use prepareJourneyScreen to render boards without showing screen
+        // Don't await - let it run in background
+        collectiblesManager.prepareJourneyScreen().catch((error: Error) => {
+          logger.warn('⚠️ Failed to prepare Journey screen:', error);
+        });
+        console.log('✅ Journey boards rendering started in background');
+      }
     }, 10);
     
     // Step 2: Wait for exit animation to complete, then show Journey screen IMMEDIATELY
     // Exit animation: 770ms, Fade animation: 800ms - wait for the longer one
     const waitTime = Math.max(770, fadeDuration * 1000);
-    setTimeout(async () => {
+    setTimeout(() => {
       console.log('🗺️ Step 2: Exit animation complete - showing Journey screen IMMEDIATELY');
-      
-      // Wait for boards to finish rendering (if not already done) - but don't block if taking too long
-      if (boardsReadyPromise) {
-        // Use Promise.race to timeout after 100ms - don't wait forever
-        await Promise.race([
-          boardsReadyPromise,
-          new Promise(resolve => setTimeout(resolve, 100))
-        ]);
-        console.log('✅ Journey boards ready (or timeout)');
-      }
       
       // Show Journey screen IMMEDIATELY after exit animation - no blank screen
       // Journey screen is already prepared with opacity 0, animation will start immediately

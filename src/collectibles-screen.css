@@ -65,6 +65,7 @@
   --pad-right: calc(24px + var(--safe-right));
   --safe-left: env(safe-area-inset-left, 0px);
   --pad-left: calc(24px + var(--safe-left));
+  -webkit-tap-highlight-color: transparent; /* Remove grey overlay on tap */
   
   display: flex;
   flex-direction: column;
@@ -88,6 +89,7 @@
   width: 100%;
   box-sizing: border-box;
   margin-bottom: 16px;
+  -webkit-tap-highlight-color: transparent; /* Remove grey overlay on tap */
   padding-left: 0;
   padding-right: 0;
   min-height: 40px;
@@ -160,6 +162,7 @@
   pointer-events: none;
   z-index: 1;
   white-space: nowrap;
+  -webkit-tap-highlight-color: transparent; /* Remove grey overlay on tap */
 }
 
 .collectibles-header-spacer {
@@ -326,6 +329,27 @@
   max-width: 100%; /* Prevent overflow */
   padding-bottom: 0 !important; /* 🔥 PREMIUM FIX: Remove padding - content goes to shadow */
   /* Horizontal scrolling prevented by touch-action: pan-y (only vertical panning) */
+}
+
+/* iPad: hard clamp horizontal scrolling while keeping cards visible */
+@media screen and (min-width: 768px) and (max-width: 1024px) {
+  /* Keep layout width at 100% to avoid extra horizontal scroll while letting content stay visible */
+  .collectibles-section:has(#journey-boards-container) {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: visible !important;
+  }
+
+  /* Disable horizontal scrolling on scroll container without clipping content */
+  .collectibles-scrollable,
+  .collectibles-scrollable:has(#journey-boards-container) {
+    overflow-x: hidden !important;
+    overscroll-behavior-x: none !important;
+    max-width: 100%;
+    width: 100%;
+  }
 }
 
 .collectibles-section .collectibles-divider {
@@ -975,8 +999,10 @@
   background-size: cover;
   background-repeat: no-repeat;
   background-position: center;
-  border-radius: 34px;
-  box-shadow: 0 12px 26px var(--collectibles-card-shadow);
+  border-radius: 40px; /* Match card rounded corners */
+  /* Shadow follows the exact card shape */
+  box-shadow: none;
+  filter: drop-shadow(0 12px 26px var(--collectibles-card-shadow));
   background-color: transparent;
   position: relative;
   overflow: hidden; /* Clip shimmer effect to card boundaries */
@@ -1013,7 +1039,7 @@
   backface-visibility: hidden;
   pointer-events: none;
   z-index: 1;
-  border-radius: 34px; /* Match parent border-radius to clip shimmer properly */
+  border-radius: 40px; /* Match parent border-radius to clip shimmer properly */
   animation: card-detail-shimmer 3s linear infinite;
   animation-delay: 0.5s;
 }
@@ -1155,6 +1181,21 @@
   .collectibles-section {
     max-width: none;
     width: 100%;
+  }
+  
+  /* 🔥 iPad FIX: Dodaj padding od 24px lijevo i desno za journey boards sekciju */
+  .collectibles-section:has(#journey-boards-container) {
+    margin-left: 0 !important; /* Ukloni negativni margin */
+    margin-right: 0 !important; /* Ukloni negativni margin */
+    width: 100% !important; /* Vrati normalnu širinu */
+    padding-left: 24px !important; /* Dodaj padding lijevo */
+    padding-right: 24px !important; /* Dodaj padding desno */
+  }
+  
+  /* 🔥 iPad FIX: Dodaj padding i za header (Boards 0/25) */
+  .collectibles-section:has(#journey-boards-container) .collectibles-section-header {
+    padding-left: 0; /* Header je unutar sekcije koja već ima padding */
+    padding-right: 0;
   }
   
   .collectibles-grid {
@@ -1429,7 +1470,9 @@
   width: 100%;
   height: 100%;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  /* Shadow follows exact card silhouette (no extra container bleed) */
+  box-shadow: none;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
   overflow: hidden;
   position: relative;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -1449,7 +1492,8 @@
 .journey-board-card.unlocked {
   background: transparent;
   border: none;
-  box-shadow: 0 12px 13px var(--collectibles-card-shadow) !important;
+  box-shadow: none !important;
+  filter: drop-shadow(0 12px 13px var(--collectibles-card-shadow)) !important;
   overflow: hidden !important; /* 🔥 FIX: Clip shimmer to card boundaries (shadow still visible via box-shadow) */
 }
 
@@ -1487,15 +1531,18 @@
 /* 🔥 USER REQUEST: Remove shadow from viewed cards (cards that have been clicked in details) */
 .journey-board-card[data-journey-card-viewed="true"] {
   box-shadow: none !important;
+  filter: none !important;
 }
 
 .journey-board-card.interim {
   background: transparent;
   border: none;
-  box-shadow: 0 12px 13px var(--collectibles-card-shadow) !important; /* 🔥 USER REQUEST: Add shadow like other cards */
+  /* 🔥 FIX: Use only filter: drop-shadow (not box-shadow) to avoid duplicate shadows */
+  filter: drop-shadow(0 12px 13px var(--collectibles-card-shadow)); /* 🔥 USER REQUEST: Shadow like other cards - removed !important to allow glow animation */
   overflow: hidden !important; /* 🔥 CRITICAL: Clip shimmer effect to card boundaries */
   position: relative; /* 🔥 CRITICAL: Required for ::after positioning */
-  transition: filter 0.3s ease-out; /* For glow pulse animation */
+  /* 🔥 MOBILE FIX: Remove transition on base state - it interferes with animation on mobile */
+  /* transition: filter 0.3s ease-out; */
 }
 
 /* 🔥 USER REQUEST: Ensure shimmer is visible on interim cards */
@@ -1504,17 +1551,66 @@
 /* Glow pulse animation for interim card during scroll focus */
 .journey-board-card.interim.interim-glow-pulse {
   animation: interim-glow-pulse 0.5s ease-out;
+  /* 🔥 CRITICAL: Remove transition during animation to prevent interference */
+  transition: none !important;
+  /* 🔥 CRITICAL: Ensure z-index is set for visibility */
+  position: relative;
+  z-index: 1;
 }
 
 @keyframes interim-glow-pulse {
   0% {
-    filter: brightness(1) drop-shadow(0 0 0px rgba(233, 116, 74, 0));
+    filter: brightness(1) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 0px rgba(233, 116, 74, 0));
+    -webkit-filter: brightness(1) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 0px rgba(233, 116, 74, 0));
+    /* 🔥 FIX: Removed box-shadow to avoid duplicate shadows */
   }
   50% {
-    filter: brightness(1.2) drop-shadow(0 0 8px rgba(233, 116, 74, 0.4));
+    filter: brightness(1.2) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 12px rgba(233, 116, 74, 0.6));
+    -webkit-filter: brightness(1.2) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 12px rgba(233, 116, 74, 0.6));
+    /* 🔥 FIX: Removed box-shadow to avoid duplicate shadows */
   }
   100% {
-    filter: brightness(1.05) drop-shadow(0 0 4px rgba(233, 116, 74, 0.2));
+    filter: brightness(1.05) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 6px rgba(233, 116, 74, 0.3));
+    -webkit-filter: brightness(1.05) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 6px rgba(233, 116, 74, 0.3));
+    /* 🔥 FIX: Removed box-shadow to avoid duplicate shadows */
+  }
+}
+
+/* 🔥 MOBILE FIX: Ensure glow works on mobile devices - use stronger filter values for visibility */
+@media (max-width: 768px) {
+  .journey-board-card.interim.interim-glow-pulse {
+    /* Force animation to run on mobile */
+    animation: interim-glow-pulse-mobile 0.5s ease-out !important;
+    /* Ensure filter is applied */
+    will-change: filter !important;
+    /* Force hardware acceleration */
+    transform: translateZ(0) !important;
+    -webkit-transform: translateZ(0) !important;
+    /* Remove any transition that might interfere */
+    transition: none !important;
+    /* 🔥 CRITICAL: Ensure z-index is high enough */
+    z-index: 10 !important;
+    position: relative !important;
+    /* 🔥 MOBILE FIX: Force filter to be applied immediately */
+    filter: brightness(1.05) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 8px rgba(233, 116, 74, 0.4)) !important;
+    -webkit-filter: brightness(1.05) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 8px rgba(233, 116, 74, 0.4)) !important;
+  }
+  
+  /* 🔥 MOBILE FIX: Stronger animation values for better visibility on mobile */
+  @keyframes interim-glow-pulse-mobile {
+    0% {
+      filter: brightness(1) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 0px rgba(233, 116, 74, 0)) !important;
+      -webkit-filter: brightness(1) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 0px rgba(233, 116, 74, 0)) !important;
+    }
+    50% {
+      /* 🔥 MOBILE FIX: Much stronger glow values for mobile visibility */
+      filter: brightness(1.3) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 24px rgba(233, 116, 74, 1)) drop-shadow(0 0 32px rgba(233, 116, 74, 0.6)) !important;
+      -webkit-filter: brightness(1.3) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 24px rgba(233, 116, 74, 1)) drop-shadow(0 0 32px rgba(233, 116, 74, 0.6)) !important;
+    }
+    100% {
+      filter: brightness(1.1) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 12px rgba(233, 116, 74, 0.6)) !important;
+      -webkit-filter: brightness(1.1) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 12px rgba(233, 116, 74, 0.6)) !important;
+    }
   }
 }
 
@@ -1562,6 +1658,30 @@
   }
 }
 
+/* iPad specific: Ensure journey cards scale from center for proper positioning */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .journey-board-card-wrapper {
+    transform-origin: center center;
+  }
+  
+  /* 🔥 iPad FIX: Osiguraj da unlocked kartice (kliknute i nekliknute) budu iste veličine kao interim kartice */
+  /* Scale se postavlja inline u JavaScript-u, ali osiguravamo da unlocked kartice nemaju dodatne transformacije koje bi ih smanjile */
+  .journey-board-card-wrapper .journey-board-card.unlocked {
+    /* Nema dodatnih transformacija - scale se postavlja na wrapper-u */
+    /* Osiguravamo da unlocked kartice imaju istu veličinu kao interim */
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+  
+  .journey-board-card-wrapper .journey-board-card[data-journey-card-viewed="true"] {
+    /* Viewed kartice također trebaju biti iste veličine */
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+}
+
 .journey-board-card.interim .journey-board-image {
   width: 100%;
   height: 100%;
@@ -1579,22 +1699,7 @@
 }
 
 /* 🔥 USER REQUEST: Shimmer effect for interim cards (same as detail screen) */
-/* Glow pulse animation for interim card during scroll focus */
-.journey-board-card.interim.interim-glow-pulse {
-  animation: interim-glow-pulse 0.5s ease-out;
-}
-
-@keyframes interim-glow-pulse {
-  0% {
-    filter: brightness(1) drop-shadow(0 0 0px rgba(233, 116, 74, 0));
-  }
-  50% {
-    filter: brightness(1.2) drop-shadow(0 0 8px rgba(233, 116, 74, 0.4));
-  }
-  100% {
-    filter: brightness(1.05) drop-shadow(0 0 4px rgba(233, 116, 74, 0.2));
-  }
-}
+/* Glow pulse animation is defined above - removed duplicate */
 
 /* 🔥 USER REQUEST: Base ::after element styles moved to .journey-board-card.interim::after above */
 /* This ensures proper reset when trigger class is removed */
@@ -1681,7 +1786,7 @@
   margin-bottom: 0; /* 🔥 PREMIUM FIX: No margin - content goes to shadow */
   width: 100%; /* 🔥 PREMIUM FIX: Fixed width - no horizontal scrolling */
   max-width: 100%; /* Prevent overflow */
-  overflow: visible; /* Allow background to extend, but parent prevents scrolling */
+  overflow: hidden; /* Clip smoke/FX so nothing bleeds above subtitle/header */
 }
 
 .journey-bg-container {
@@ -1696,7 +1801,7 @@
   margin: 0;
   padding: 0;
   z-index: 1;
-  overflow: visible;
+  overflow: hidden; /* Clip any smoke/background bleed outside the cards zone */
   /* 🔥 APP STORE FIX: No transitions to prevent visible movement */
   transition: none;
   will-change: auto;
@@ -1816,6 +1921,8 @@
   pointer-events: auto !important;
   /* 🔥 DEV TOOLS: Ensure it's above all stacking contexts */
   isolation: isolate !important;
+  /* 🔥 iPad FIX: Enable touch events */
+  touch-action: manipulation !important;
 }
 
 /* Floating buttons - orange, hug content */
@@ -1838,6 +1945,11 @@
   position: relative !important;
   z-index: 999999999 !important;
   pointer-events: auto !important;
+  /* 🔥 iPad FIX: Enable touch events */
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: rgba(232, 115, 74, 0.3) !important;
+  -webkit-touch-callout: none !important;
+  user-select: none !important;
 }
 
 .journey-floating-btn:hover {

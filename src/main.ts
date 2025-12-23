@@ -199,19 +199,8 @@ async function startAssetPreloading(): Promise<void> {
     clearTimeout(forceHideTimeout);
     await appManager.showScreen('home');
     
-    // 🔥 CRITICAL: Prepare Journey screen in background (non-blocking)
-    // This ensures Journey boards are rendered and ready before user clicks Journey CTA
-    // This prevents any loading delay when Journey screen opens
-    import('./collectibles-manager.js').then(({ collectiblesManager }) => {
-      if (collectiblesManager && typeof collectiblesManager.prepareJourneyScreen === 'function') {
-        logger.info('🗺️ Preparing Journey screen in background (non-blocking)...');
-        collectiblesManager.prepareJourneyScreen().catch(err => {
-          logger.warn('⚠️ Journey screen preparation failed (non-critical):', err);
-        });
-      }
-    }).catch(err => {
-      logger.warn('⚠️ Failed to import collectiblesManager for Journey preparation:', err);
-    });
+    // 🔥 NOTE: Journey screen boards are already prepared in preloadAll() (blocking)
+    // No need to prepare again here - boards are ready before homepage is shown
     
     // Play enter animation for Slide 1 after homepage is shown
     console.log('🎬 Playing initial enter animation for Slide 1');
@@ -1246,16 +1235,50 @@ async function startNewRun(boardId: number): Promise<void> {
           (slideText as HTMLElement).style.display = 'block';
           (slideText as HTMLElement).style.visibility = 'visible';
           (slideText as HTMLElement).style.opacity = '1';
+          
+          // 🔥 iPad FIX: Preserve transform position on iPad after navigation
+          const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
+          if (isIPad) {
+            // Don't override transform - let CSS handle it
+            const currentTransform = (slideText as HTMLElement).style.transform;
+            if (!currentTransform || !currentTransform.includes('translateY(120px)')) {
+              (slideText as HTMLElement).style.transform = 'translateY(120px)';
+              (slideText as HTMLElement).style.webkitTransform = 'translateY(120px)';
+            }
+          }
         }
         if (slideTagline) {
           (slideTagline as HTMLElement).style.display = 'block';
           (slideTagline as HTMLElement).style.visibility = 'visible';
           (slideTagline as HTMLElement).style.opacity = '1';
+          
+          // 🔥 iPad FIX: Preserve transform position on iPad after navigation
+          const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
+          if (isIPad) {
+            // Don't override transform - let CSS handle it
+            const currentTransform = (slideTagline as HTMLElement).style.transform;
+            if (!currentTransform || !currentTransform.includes('translateY(-12px)')) {
+              (slideTagline as HTMLElement).style.transform = 'translateY(-12px)';
+              (slideTagline as HTMLElement).style.webkitTransform = 'translateY(-12px)';
+            }
+          }
         }
         if (slideButton) {
           (slideButton as HTMLElement).style.display = 'flex';
           (slideButton as HTMLElement).style.visibility = 'visible';
           (slideButton as HTMLElement).style.opacity = '1';
+          
+          // 🔥 iPad FIX: Preserve transform position on iPad after navigation
+          const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
+          if (isIPad) {
+            // Don't override transform - let CSS handle it
+            // Just ensure it's not cleared by inline styles
+            const currentTransform = (slideButton as HTMLElement).style.transform;
+            if (!currentTransform || !currentTransform.includes('translateY(4px)')) {
+              (slideButton as HTMLElement).style.transform = 'translateY(4px) scale(1)';
+              (slideButton as HTMLElement).style.webkitTransform = 'translateY(4px) scale(1)';
+            }
+          }
         }
       });
       navButtons.forEach((button, index) => {

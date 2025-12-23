@@ -149,9 +149,48 @@ export function updateNavBadge(count: number, slideIndex: number = 1): void {
     }
   } else {
     // Remove badge if count is 0 or less
+    // 🔥 CRITICAL: Don't remove badge if exit animation is in progress OR badge has animate-exit class
+    // This allows the exit animation to complete before badge is removed
     if (existingBadge) {
-      existingBadge.remove();
-      console.log(`✅ ${slideName} badge removed`);
+      // Check if exit animation is in progress (global flag)
+      const isExitAnimating = typeof (window as any).__ccIsAnimatingSliderExit === 'function' 
+        ? (window as any).__ccIsAnimatingSliderExit() 
+        : false;
+      
+      // Check if badge has animate-exit class
+      const hasAnimateExitClass = existingBadge.classList.contains('animate-exit');
+      
+      if (isExitAnimating || hasAnimateExitClass) {
+        console.log(`⏳ ${slideName} badge is animating (exit animation: ${isExitAnimating}, has class: ${hasAnimateExitClass}) - will be removed after animation completes`);
+        // Badge will be removed after animation completes (handled in animations.ts)
+        return;
+      }
+
+      // If exit flag isn't set yet, give the CTA click a brief moment to start exit animation
+      // (so the global flag can flip) before we animate/remove locally.
+      setTimeout(() => {
+        const exitNow = typeof (window as any).__ccIsAnimatingSliderExit === 'function'
+          ? (window as any).__ccIsAnimatingSliderExit()
+          : false;
+        if (exitNow) {
+          console.log(`⏳ ${slideName} badge removal deferred - exit animation now active`);
+          return;
+        }
+
+        // Trigger a graceful exit on the badge itself (scale-out) instead of instant removal.
+        existingBadge.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        void existingBadge.offsetHeight; // force reflow so transition fires
+        existingBadge.classList.add('animate-exit');
+
+        setTimeout(() => {
+          // Only remove if it still exists and has the exit class (wasn't refreshed)
+          const badgeNow = navButton.querySelector('.nav-badge');
+          if (badgeNow && badgeNow.classList.contains('animate-exit')) {
+            badgeNow.remove();
+            console.log(`✅ ${slideName} badge removed after self-triggered exit`);
+          }
+        }, 820); // matches exit animation duration (~770ms) with small buffer
+      }, 60); // small delay to let CTA exit animation set the global flag
     }
   }
 }

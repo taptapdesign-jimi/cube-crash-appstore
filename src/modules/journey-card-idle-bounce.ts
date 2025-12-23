@@ -9,6 +9,8 @@ import { gsap } from 'gsap';
 import { domElementPool } from './dom-element-pool.js';
 
 const ENABLE_JOURNEY_CARD_IDLE_BOUNCE = true;
+// 🔒 Toggle for smoke on Journey cards (keep enabled with guards to avoid ghost puff)
+const ENABLE_JOURNEY_CARD_SMOKE = true;
 
 const IDLE_WAIT_TIME = 0;  // No idle wait - start immediately
 const MIN_ANIMATION_INTERVAL = 450; // 🔥 USER REQUEST: Fixed interval 0.45s for active cards
@@ -224,6 +226,18 @@ export function resetJourneyCardIdleBounce(): void {
 export function markCardAsViewed(card: HTMLElement | null): void {
   if (!card) return;
   
+  // 🔥 iPad FIX: Store original transform BEFORE stopping animation
+  // This ensures scale is preserved even if card wasn't animating
+  const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement;
+  if (cardWrapper) {
+    const currentTransform = cardWrapper.style.transform || '';
+    // Only store if not already stored (to avoid overwriting)
+    if (!(cardWrapper as any)._originalTransform && currentTransform) {
+      (cardWrapper as any)._originalTransform = currentTransform;
+      console.log('✅ Stored original transform for viewed card:', currentTransform);
+    }
+  }
+  
   // Stop any active animation on this card immediately
   stopCardAnimation(card);
 
@@ -432,17 +446,26 @@ function animateCard(card: HTMLElement): void {
   const cardWrapper = card.closest('.journey-board-card-wrapper') as HTMLElement;
   if (!cardWrapper) return;
   
+  // 🔥 iPad FIX: Detect iPad screen size
+  const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1024;
+  
   // 🔥 FIX: Store original transform COMPLETELY (including translateX if present)
   // This is needed to restore the card to its exact original position after animation
   const originalTransform = cardWrapper.style.transform || '';
   
-  // Parse original rotation from transform string
-  // Format can be: "rotate(Xdeg)" or "translateX(-50%) rotate(Xdeg)"
+  // Parse original rotation and scale from transform string
+  // Format can be: "rotate(Xdeg)" or "translateX(-50%) rotate(Xdeg) scale(2)"
   let originalRotation = 0;
+  let originalScale = isIPad ? 1.76 : 1; // Default scale based on device (1.76 for iPad, 1 for others)
   const rotationMatch = originalTransform.match(/rotate\(([^)]+)\)/);
   if (rotationMatch && rotationMatch[1]) {
     const rotationValue = rotationMatch[1].trim().replace('deg', '');
     originalRotation = parseFloat(rotationValue) || 0;
+  }
+  // Extract existing scale if present
+  const scaleMatch = originalTransform.match(/scale\(([^)]+)\)/);
+  if (scaleMatch && scaleMatch[1]) {
+    originalScale = parseFloat(scaleMatch[1]) || originalScale;
   }
   
   // Fallback: try computed style if inline style doesn't have rotation
@@ -563,8 +586,9 @@ function animateCard(card: HTMLElement): void {
   
   // Phase 1: Scale up with rotation - fast 0.1s
   // Use transform-origin: center to scale from center
-  const baseScale = 1;
-  const scaleUp = 1.05;
+  // 🔥 iPad FIX: Use detected originalScale as base, then scale up by 5%
+  const baseScale = originalScale; // Use detected scale (2 for iPad, 1 for others)
+  const scaleUp = originalScale * 1.05; // Scale up by 5% from base (2 -> 2.1 for iPad, 1 -> 1.05 for others)
   
   // 🔥 iOS FIX: Disable touch actions during animation to prevent horizontal scrolling
   const originalTouchAction = cardWrapper.style.touchAction || '';
@@ -599,23 +623,26 @@ function animateCard(card: HTMLElement): void {
     ease: 'power2.in',
     transformOrigin: 'center center',
     onComplete: () => {
-      // 🔥 FIX: Restore original transform completely (including translateX if present)
+      // 🔥 FIX: Restore original transform completely (including translateX if present and scale)
       // GSAP may have modified the transform, so we need to restore it exactly
       const storedTransform = (cardWrapper as any)._originalTransform;
       if (storedTransform) {
-        // Remove GSAP's scale and rotation, restore original
+        // Restore original transform (includes scale(2) for iPad)
         cardWrapper.style.transform = storedTransform;
-      } else {
-        // Fallback: just remove scale, keep rotation
-        const currentTransform = cardWrapper.style.transform || '';
-        const cleanedTransform = currentTransform
-          .replace(/scale\([^)]+\)/g, '')
-          .replace(/\s+/g, ' ')
-          .trim();
-        if (cleanedTransform) {
-          cardWrapper.style.transform = cleanedTransform;
-        }
-      }
+              } else {
+                // Fallback: rebuild transform with original scale and rotation
+                let restoredTransform = '';
+                if (originalTransform.includes('translateX(-50%)')) {
+                  restoredTransform = `translateX(-50%) rotate(${originalRotation}deg)`;
+                } else {
+                  restoredTransform = `rotate(${originalRotation}deg)`;
+                }
+                // Add scale if it was in original transform
+                if (originalScale !== 1) {
+                  restoredTransform += ` scale(${originalScale})`;
+                }
+                cardWrapper.style.transform = restoredTransform;
+              }
       
       // Restore original touch action after animation
       if (originalTouchAction) {
@@ -694,17 +721,40 @@ function stopCardAnimation(card: HTMLElement): void {
     const storedTransform = (cardWrapper as any)._originalTransform;
     if (storedTransform) {
       cardWrapper.style.transform = storedTransform;
-      delete (cardWrapper as any)._originalTransform;
+      // 🔥 iPad FIX: DON'T delete _originalTransform - keep it for future reference
+      // This ensures scale is preserved even if card is re-rendered or re-animated
+      // delete (cardWrapper as any)._originalTransform;
     } else {
-      // Fallback: remove scale, keep rotation
+      // 🔥 iPad FIX: Fallback - preserve scale for iPad, keep rotation
       const currentTransform = cardWrapper.style.transform || '';
-      const cleanedTransform = currentTransform
-        .replace(/scale\([^)]+\)/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-      if (cleanedTransform) {
-        cardWrapper.style.transform = cleanedTransform;
+      const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1024;
+      const expectedScale = isIPad ? 1.76 : 1; // Use the same scale as in createBoardCardFixed
+      
+      // Parse current rotation and scale
+      let currentRotation = 0;
+      let currentScale = expectedScale;
+      const rotationMatch = currentTransform.match(/rotate\(([^)]+)\)/);
+      if (rotationMatch && rotationMatch[1]) {
+        const rotationValue = rotationMatch[1].trim().replace('deg', '');
+        currentRotation = parseFloat(rotationValue) || 0;
       }
+      const scaleMatch = currentTransform.match(/scale\(([^)]+)\)/);
+      if (scaleMatch && scaleMatch[1]) {
+        currentScale = parseFloat(scaleMatch[1]) || currentScale;
+      }
+      
+      // Rebuild transform preserving scale and rotation
+      let restoredTransform = '';
+      if (currentTransform.includes('translateX(-50%)')) {
+        restoredTransform = `translateX(-50%) rotate(${currentRotation}deg)`;
+      } else {
+        restoredTransform = `rotate(${currentRotation}deg)`;
+      }
+      // Always add scale if it's not 1 (iPad) or if it was in original transform
+      if (currentScale !== 1 || isIPad) {
+        restoredTransform += ` scale(${currentScale})`;
+      }
+      cardWrapper.style.transform = restoredTransform;
     }
   }
 }
@@ -726,6 +776,16 @@ export function smokeBubblesAtCard(
     baseAlpha?: number;
   } = {}
 ): void {
+  // 🔥 CRITICAL FIX: Prevent duplicate smoke animations on the same card
+  // Check if smoke is already active on this card
+  if ((card as any)._smokeActive) {
+    console.warn('⚠️ Smoke already active on card, skipping duplicate');
+    return;
+  }
+  
+  if (!ENABLE_JOURNEY_CARD_SMOKE) {
+    return;
+  }
   if (!card || !card.parentElement) return;
   
   const sizeScale = options.sizeScale ?? 1;
@@ -744,6 +804,12 @@ export function smokeBubblesAtCard(
   const wrapperRect = cardWrapper.getBoundingClientRect();
   const cardWidth = wrapperRect.width || STANDARD_CARD_WIDTH;
   const cardHeight = wrapperRect.height || STANDARD_CARD_HEIGHT;
+
+  // 🚧 SAFETY: Skip smoke if layout data is bogus (prevents ghost smoke at 0,0)
+  if (!isFinite(cardWidth) || !isFinite(cardHeight) || cardWidth < 20 || cardHeight < 20) {
+    console.warn('⚠️ smokeBubblesAtCard skipped – invalid card dimensions', { cardWidth, cardHeight });
+    return;
+  }
   // Use average dimension for size calculations (accounting for aspect ratio)
   const cardSize = Math.max(cardWidth, cardHeight);
   const padding = Math.max(cardWidth, cardHeight) * 0.4; // Extra pad so smoke is clearly outside edges
@@ -817,6 +883,17 @@ export function smokeBubblesAtCard(
   // This position is FIXED and should not move - it's the exact center of the card
   const centerX = containerLeft - cardsRect.left;
   const centerY = containerTop - cardsRect.top;
+
+  // 🚧 SAFETY: Skip if center is outside the cards container (prevents ghost smoke near header/back arrow)
+  if (centerX < 0 || centerY < 0 || centerX > cardsRect.width || centerY > cardsRect.height) {
+    console.warn('⚠️ smokeBubblesAtCard skipped – center outside container', {
+      centerX,
+      centerY,
+      containerWidth: cardsRect.width,
+      containerHeight: cardsRect.height
+    });
+    return;
+  }
   
   // 🔥 FIX: Set fixed position - container should NOT move
   smokeContainer.style.position = 'absolute';
@@ -846,6 +923,9 @@ export function smokeBubblesAtCard(
   
   // Append to cards container (same stacking context = z-index works on iOS)
   cardsContainer.appendChild(smokeContainer);
+  
+  // 🔥 CRITICAL FIX: Mark smoke as active ONLY after container is created and appended
+  (card as any)._smokeActive = true;
   
   // 🔥 MEMORY FIX: Track smoke container for cleanup
   state.smokeContainers.add(smokeContainer);
@@ -1121,11 +1201,22 @@ export function smokeBubblesAtCard(
       smokeContainer.parentNode.removeChild(smokeContainer);
       // Remove from tracking set
       state.smokeContainers.delete(smokeContainer);
+      
+      // 🔥 CRITICAL FIX: Clear smoke active flag when cleanup completes
+      if (card && (card as any)._smokeActive) {
+        (card as any)._smokeActive = false;
+      }
+      
       console.log('🧹 Smoke container cleaned up');
     } catch (e) {
       console.warn('⚠️ Error cleaning up smoke container:', e);
       // Ensure it's removed from tracking even if cleanup fails
       state.smokeContainers.delete(smokeContainer);
+      
+      // 🔥 CRITICAL FIX: Clear smoke active flag even on error
+      if (card && (card as any)._smokeActive) {
+        (card as any)._smokeActive = false;
+      }
     } finally {
       // Clear cleanup timer reference
       (smokeContainer as any)._cleanupTimer = null;
@@ -1134,6 +1225,14 @@ export function smokeBubblesAtCard(
   
   // 🔥 MEMORY FIX: Store cleanup timer on container so it can be killed if needed
   (smokeContainer as any)._cleanupTimer = cleanupTimer;
+  
+  // 🔥 CRITICAL FIX: Clear smoke active flag after a delay (in case cleanup fails)
+  // This ensures the flag is cleared even if cleanup doesn't run
+  setTimeout(() => {
+    if (card && (card as any)._smokeActive) {
+      (card as any)._smokeActive = false;
+    }
+  }, 3000); // Clear after 3s (longer than cleanup delay of 2.5s)
 }
 
 export function updateJourneyCardList(container: HTMLElement | null): void {

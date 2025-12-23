@@ -394,7 +394,23 @@ export class AssetPreloader {
 
   // 🔥 CRITICAL: Preload collectibles card images through native Image objects for browser cache
   // This ensures collectibles screen loads instantly when opened (no delay)
+  // Uses browser cache - if images are already cached, they load instantly
   async preloadCollectiblesImages(): Promise<void> {
+    // Check if already preloaded (browser cache will handle subsequent loads)
+    const cacheKey = 'collectibles_images_preloaded';
+    const wasPreloaded = localStorage.getItem(cacheKey) === 'true';
+    
+    if (wasPreloaded) {
+      logger.info('🎁 Collectibles images already preloaded (using browser cache)');
+      // Still verify critical images are in cache (fast check)
+      const criticalImages = [
+        './assets/colelctibles/common/01.png',
+        './assets/colelctibles/common back.png'
+      ];
+      await Promise.allSettled(criticalImages.map(src => this.verifyImageInCache(src)));
+      return;
+    }
+    
     const collectiblesImages: string[] = [];
     
     // Add all common card images (1-20)
@@ -433,12 +449,44 @@ export class AssetPreloader {
     });
     
     await Promise.allSettled(loadPromises);
+    localStorage.setItem(cacheKey, 'true');
     logger.info(`✅ All ${collectiblesImages.length} collectibles images preloaded (browser cache ready)`);
+  }
+  
+  // Helper: Verify image is in browser cache (fast check)
+  // Browser cache automatically handles this - if image is cached, it loads instantly
+  private async verifyImageInCache(src: string): Promise<void> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      // If image is already in browser cache, onload fires immediately (no network request)
+      img.onload = () => resolve();
+      img.onerror = () => resolve(); // Don't block on errors
+      img.src = src;
+      // Timeout after 100ms - if cached, should load instantly
+      setTimeout(() => resolve(), 100);
+    });
   }
 
   // 🔥 CRITICAL: Preload Journey screen assets for instant load
   // This ensures Journey screen loads instantly when opened (no delay, no blank screen)
+  // Uses browser cache - if images are already cached, they load instantly
   async preloadJourneyAssets(): Promise<void> {
+    // Check if already preloaded (browser cache will handle subsequent loads)
+    const cacheKey = 'journey_assets_preloaded';
+    const wasPreloaded = localStorage.getItem(cacheKey) === 'true';
+    
+    if (wasPreloaded) {
+      logger.info('🗺️ Journey assets already preloaded (using browser cache)');
+      // Still verify critical images are in cache (fast check)
+      const criticalImages = [
+        './assets/journey assets/1-17bg.png',
+        './assets/colelctibles/common/01.png',
+        './assets/colelctibles/journey-card-empty.png'
+      ];
+      await Promise.allSettled(criticalImages.map(src => this.verifyImageInCache(src)));
+      return;
+    }
+    
     const journeyImages: string[] = [];
     
     // Journey background and UI elements
@@ -480,6 +528,7 @@ export class AssetPreloader {
     });
     
     await Promise.allSettled(loadPromises);
+    localStorage.setItem(cacheKey, 'true');
     logger.info(`✅ All ${journeyImages.length} Journey screen images preloaded (browser cache ready)`);
   }
 
@@ -559,17 +608,33 @@ export class AssetPreloader {
         // This prevents images from disappearing on mobile after preload screen hides
         await this.preloadHTMLImages();
         
-        // 🔥 CRITICAL: Preload Journey screen assets (non-blocking but high priority)
+        // 🔥 CRITICAL: Preload Journey screen assets (BLOCKING - must complete before preload screen closes)
         // This ensures Journey screen loads instantly when opened, no delay or blank screen
-        this.preloadJourneyAssets().catch(err => {
-          logger.warn('⚠️ Journey assets preload failed (non-critical):', err);
-        });
+        logger.info('🗺️ Preloading Journey screen assets (blocking)...');
+        await this.preloadJourneyAssets();
+        logger.info('✅ Journey screen assets preloaded');
         
-        // Start collectibles preload in background (non-blocking) - don't wait for it
+        // 🔥 CRITICAL: Preload collectibles images (BLOCKING - must complete before preload screen closes)
         // This ensures collectibles screen loads instantly when opened, but doesn't delay initial load
-        this.preloadCollectiblesImages().catch(err => {
-          logger.warn('⚠️ Collectibles preload failed (non-critical):', err);
-        });
+        logger.info('🎁 Preloading collectibles images (blocking)...');
+        await this.preloadCollectiblesImages();
+        logger.info('✅ Collectibles images preloaded');
+        
+        // 🔥 CRITICAL: Prepare Journey screen boards (BLOCKING - must complete before preload screen closes)
+        // This ensures Journey boards are rendered and ready before user clicks Journey CTA
+        logger.info('🗺️ Preparing Journey screen boards (blocking)...');
+        try {
+          const { ensureCollectiblesManager } = await import('../collectibles-manager.js');
+          const manager = await ensureCollectiblesManager();
+          if (manager && typeof manager.prepareJourneyScreen === 'function') {
+            await manager.prepareJourneyScreen();
+            logger.info('✅ Journey screen boards prepared');
+          } else {
+            logger.warn('⚠️ prepareJourneyScreen function not found in collectibles-manager');
+          }
+        } catch (err) {
+          logger.warn('⚠️ Journey screen preparation failed (non-critical):', err);
+        }
         
         // Load deferred assets in background (non-blocking)
         this.preloadDeferredAssets().catch(err => {

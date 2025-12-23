@@ -166,14 +166,23 @@ class JourneyBoardsManager {
     // Stop any existing bounce animation (safety check)
     this.stopInterimBounce(card);
     
-    // Get current rotation from transform
+    // Get current rotation and scale from transform
     const transform = cardWrapper.style.transform || '';
     const rotationMatch = transform.match(/rotate\(([^)]+)\)/);
     const originalRotation = rotationMatch ? parseFloat(rotationMatch[1]) : 0;
     
+    // 🔥 iPad FIX: Detect iPad and adjust scale values to account for existing scale(1.76)
+    const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1024;
+    let originalScale = isIPad ? 1.76 : 1; // Default scale based on device (1.76 for iPad, 1 for others)
+    // Extract existing scale if present
+    const scaleMatch = transform.match(/scale\(([^)]+)\)/);
+    if (scaleMatch && scaleMatch[1]) {
+      originalScale = parseFloat(scaleMatch[1]) || originalScale;
+    }
+    
     // Animation parameters (similar to journey-card-idle-bounce.ts)
-    const baseScale = 1;
-    const scaleUp = 1.05;
+    const baseScale = originalScale; // Use detected scale (1.76 for iPad, 1 for others)
+    const scaleUp = originalScale * 1.05; // Scale up by 5% from base (2 -> 2.1 for iPad, 1 -> 1.05 for others)
     const tiltDegrees = 2.5;
     const tiltDirection = Math.random() > 0.5 ? 1 : -1;
     
@@ -241,10 +250,23 @@ class JourneyBoardsManager {
                 return;
               }
               
-              // Restore original transform
+              // Restore original transform (includes scale(1.76) for iPad)
               const storedTransform = (cardWrapper as any)._originalTransform;
               if (storedTransform) {
                 cardWrapper.style.transform = storedTransform;
+              } else {
+                // Fallback: rebuild transform with original rotation and scale
+                let restoredTransform = '';
+                if (transform.includes('translateX(-50%)')) {
+                  restoredTransform = `translateX(-50%) rotate(${originalRotation}deg)`;
+                } else {
+                  restoredTransform = `rotate(${originalRotation}deg)`;
+                }
+                // 🔥 iPad FIX: Add scale using originalScale (1.76 for iPad, 1 for others)
+                if (originalScale !== 1) {
+                  restoredTransform += ` scale(${originalScale})`;
+                }
+                cardWrapper.style.transform = restoredTransform;
               }
               
               // 🔥 CRITICAL FIX: Clear any existing timeout before setting new one
@@ -294,10 +316,36 @@ class JourneyBoardsManager {
       delete (cardWrapper as any)._bounceTimeout;
     }
     
-    // Restore original transform
+    // Restore original transform (includes scale(1.76) for iPad)
     const storedTransform = (cardWrapper as any)._originalTransform;
     if (storedTransform) {
       cardWrapper.style.transform = storedTransform;
+    } else {
+      // Fallback: rebuild transform with original rotation and scale
+      const currentTransform = cardWrapper.style.transform || '';
+      const rotationMatch = currentTransform.match(/rotate\(([^)]+)\)/);
+      const originalRotation = rotationMatch ? parseFloat(rotationMatch[1]) : 0;
+      
+      // 🔥 iPad FIX: Detect iPad and restore scale (1.76 for iPad, 1 for others)
+      const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1024;
+      let originalScale = isIPad ? 1.76 : 1; // Default scale based on device
+      // Extract existing scale if present
+      const scaleMatch = currentTransform.match(/scale\(([^)]+)\)/);
+      if (scaleMatch && scaleMatch[1]) {
+        originalScale = parseFloat(scaleMatch[1]) || originalScale;
+      }
+      
+      let restoredTransform = '';
+      if (currentTransform.includes('translateX(-50%)')) {
+        restoredTransform = `translateX(-50%) rotate(${originalRotation}deg)`;
+      } else {
+        restoredTransform = `rotate(${originalRotation}deg)`;
+      }
+      // 🔥 iPad FIX: Add scale using originalScale (1.76 for iPad, 1 for others)
+      if (originalScale !== 1) {
+        restoredTransform += ` scale(${originalScale})`;
+      }
+      cardWrapper.style.transform = restoredTransform;
     }
     
     delete (cardWrapper as any)._interimBounceActive;
@@ -321,6 +369,7 @@ class JourneyBoardsManager {
     // Find interim card
     const interimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
     if (!interimCard) {
+      logger.warn('⚠️ No interim card found for glow pulse');
       return; // No interim card found
     }
     
@@ -334,16 +383,16 @@ class JourneyBoardsManager {
       this.startInterimBounce(interimCard);
     }
     
-    // 🔥 USER REQUEST: Simple interval that triggers shimmer and glow together every 2.9 seconds
-    // CSS animation is single-run; JS forcibly restarts it each tick
+    // 🔥 FIXED: Simplified interval that reliably triggers shimmer and glow every 3 seconds
     const triggerShimmerAndGlow = () => {
       const currentInterimCard = document.querySelector('.journey-board-card.interim') as HTMLElement;
       if (!currentInterimCard || this.renderDisposed) {
+        logger.warn('⚠️ Interim card not found or disposed, stopping glow pulse');
         this.stopGlowPulse();
         return;
       }
       
-      // Clear any pending timeouts from a previous tick to avoid mid-animation removals
+      // Clear any pending timeouts from a previous tick
       const existingRemove = (currentInterimCard as any)._interimShimmerRemoveTimeout;
       if (existingRemove) {
         clearTimeout(existingRemove);
@@ -354,33 +403,37 @@ class JourneyBoardsManager {
         clearTimeout(existingGlow);
         (currentInterimCard as any)._interimGlowTimeout = null;
       }
+      const existingGlowCleanup = (currentInterimCard as any)._interimGlowCleanup;
+      if (existingGlowCleanup) {
+        clearTimeout(existingGlowCleanup);
+        (currentInterimCard as any)._interimGlowCleanup = null;
+      }
       
-      // 1) Remove class to reset animation state
+      // 1) Remove classes to reset animation state
       currentInterimCard.classList.remove('interim-shimmer-trigger');
+      currentInterimCard.classList.remove('interim-glow-pulse');
       
       // 2) Force reflow so the browser sees the removal
       void currentInterimCard.offsetHeight;
       
-      // 3) Single rAF to ensure styles are flushed before re-adding the class (faster than double rAF)
+      // 3) Use requestAnimationFrame to ensure styles are flushed
       requestAnimationFrame(() => {
         if (this.renderDisposed || !currentInterimCard.parentElement) {
           return;
         }
         
-        // 4) Re-add class to restart animation - shimmer starts immediately
+        // 4) Re-add shimmer class to restart animation - shimmer starts immediately
         currentInterimCard.classList.add('interim-shimmer-trigger');
         logger.info('✨ Shimmer triggered on interim card');
         
         // 5) Glow 150ms later so shimmer is clearly visible BEFORE glow
-        // Shimmer becomes visible at ~1-2% = 30-60ms, so 150ms ensures shimmer is well visible
         (currentInterimCard as any)._interimGlowTimeout = window.setTimeout(() => {
           if (!this.renderDisposed && currentInterimCard.parentElement) {
             this.triggerGlowPulse(currentInterimCard);
           }
         }, 150);
         
-        // 6) Remove class BEFORE next cycle (1.7s animation + 300ms buffer = 2.0s total)
-        // 🔥 FIX: Ukloniti klasu pre sledećeg ciklusa (2.9s) da se animacija pravilno restartuje
+        // 6) Remove shimmer class AFTER animation completes (1.7s animation)
         (currentInterimCard as any)._interimShimmerRemoveTimeout = window.setTimeout(() => {
           if (!this.renderDisposed && currentInterimCard.parentElement) {
             currentInterimCard.classList.remove('interim-shimmer-trigger');
@@ -389,32 +442,98 @@ class JourneyBoardsManager {
             logger.info('✨ Shimmer stopped on interim card');
           }
           (currentInterimCard as any)._interimShimmerRemoveTimeout = null;
-        }, 2000); // Remove before next cycle (1.7s animation + 300ms buffer, next cycle at 2.9s)
+        }, 1700); // Remove after animation completes (1.7s)
       });
     };
     
-    // Trigger immediately and then every 2.9s; shimmer always starts the cycle and glow follows 150ms later
-    const runCycle = () => {
-      triggerShimmerAndGlow();
-      this.glowPulseInterval = window.setTimeout(runCycle, 2900);
-    };
-    runCycle();
+    // 🔥 FIXED: Use setInterval for reliable timing (every 3 seconds)
+    // Trigger immediately first
+    triggerShimmerAndGlow();
     
-    logger.info('✅ Started independent bounce (with smoke bubbles at peak), shimmer (150ms before glow) + glow (2.9s interval) on interim card');
+    // Then set up interval for subsequent triggers
+    this.glowPulseInterval = window.setInterval(() => {
+      triggerShimmerAndGlow();
+    }, 3000) as any; // Convert to number for compatibility
+    
+    logger.info('✅ Started independent bounce (with smoke bubbles at peak), shimmer (150ms before glow) + glow (3s interval) on interim card');
   }
   
   /**
    * Trigger single glow pulse animation on interim card
+   * 🔥 FIXED: Simplified to ensure glow always triggers reliably on both mobile and iPad
    */
   private triggerGlowPulse(card: HTMLElement): void {
+    if (!card || this.renderDisposed || !card.parentElement) {
+      logger.warn('⚠️ Cannot trigger glow pulse - card invalid or disposed');
+      return;
+    }
+    
+    const isMobile = window.innerWidth < 768;
+    logger.info(`✨ Triggering glow pulse on ${isMobile ? 'mobile' : 'iPad'} (width: ${window.innerWidth}px)`);
+    
     // Remove class first to reset animation
     card.classList.remove('interim-glow-pulse');
     
     // Force reflow to ensure class removal is processed
     void card.offsetHeight;
     
-    // Add class to trigger animation
-    card.classList.add('interim-glow-pulse');
+    // 🔥 MOBILE FIX: Use double requestAnimationFrame on mobile for better reliability
+    const addGlowClass = () => {
+      if (this.renderDisposed || !card.parentElement) {
+        logger.warn('⚠️ Card disposed or removed from DOM during glow trigger');
+        return;
+      }
+      
+      // Add class to trigger animation
+      card.classList.add('interim-glow-pulse');
+      
+      // 🔥 MOBILE FIX: Force style recalculation and verify on mobile
+      if (isMobile) {
+        // Force browser to recalculate styles immediately
+        void card.offsetHeight;
+        const computedStyle = window.getComputedStyle(card);
+        const filterValue = computedStyle.filter;
+        const hasClass = card.classList.contains('interim-glow-pulse');
+        const animationName = computedStyle.animationName;
+        
+        logger.info(`✨ Mobile glow: class=${hasClass}, filter=${filterValue}, animation=${animationName}`);
+        
+        // If class wasn't added or animation isn't running, retry
+        if (!hasClass || animationName === 'none') {
+          logger.warn('⚠️ Mobile glow: Class or animation not applied, retrying...');
+          card.classList.remove('interim-glow-pulse');
+          void card.offsetHeight;
+          requestAnimationFrame(() => {
+            card.classList.add('interim-glow-pulse');
+            void card.offsetHeight; // Force reflow again
+          });
+        }
+      }
+      
+      logger.info('✨ Glow pulse triggered on interim card');
+
+      // Auto-remove after animation completes (0.5s animation + 100ms buffer)
+      const existing = (card as any)._interimGlowCleanup;
+      if (existing) {
+        clearTimeout(existing);
+      }
+      (card as any)._interimGlowCleanup = window.setTimeout(() => {
+        if (!this.renderDisposed && card.parentElement) {
+          card.classList.remove('interim-glow-pulse');
+          logger.info('✨ Glow pulse removed from interim card');
+        }
+        (card as any)._interimGlowCleanup = null;
+      }, 600); // 0.5s animation + 100ms buffer
+    };
+    
+    // Use requestAnimationFrame (double on mobile for better reliability)
+    if (isMobile) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(addGlowClass);
+      });
+    } else {
+      requestAnimationFrame(addGlowClass);
+    }
   }
   
   // 🔥 USER REQUEST: triggerShimmer removed - shimmer is now handled directly in interval
@@ -427,7 +546,7 @@ class JourneyBoardsManager {
   public stopGlowPulse(): void {
     // Stop glow pulse interval
     if (this.glowPulseInterval !== null) {
-      clearTimeout(this.glowPulseInterval);
+      clearInterval(this.glowPulseInterval);
       this.glowPulseInterval = null;
       logger.info('✅ Stopped glow pulse interval');
     }
@@ -455,6 +574,11 @@ class JourneyBoardsManager {
       if (pendingGlow) {
         clearTimeout(pendingGlow);
         (cardEl as any)._interimGlowTimeout = null;
+      }
+      const pendingGlowCleanup = (cardEl as any)._interimGlowCleanup;
+      if (pendingGlowCleanup) {
+        clearTimeout(pendingGlowCleanup);
+        (cardEl as any)._interimGlowCleanup = null;
       }
       
       cardEl.classList.remove('interim-glow-pulse');
@@ -1021,6 +1145,11 @@ class JourneyBoardsManager {
       logger.warn('⚠️ Journey boards container not found');
       return;
     }
+    
+    // 🔥 FIX: Stop glow pulse before re-rendering to prevent duplicates
+    if (this.glowPulseInterval !== null) {
+      this.stopGlowPulse();
+    }
 
     this.container = container;
     this.renderDisposed = false;
@@ -1338,20 +1467,117 @@ class JourneyBoardsManager {
     // Convert top position to pixels (relative to background start)
     const topPercent = typeof position.top === 'number' ? position.top : parseFloat(String(position.top || 0));
     // topPercent is percentage of background height
-    const topPx = FIXED_BG_TOP_PX + (topPercent / 100) * bgHeightPx;
+    let topPx = FIXED_BG_TOP_PX + (topPercent / 100) * bgHeightPx;
+    
+    // Detect iPad screen size (769px - 1024px width)
+    const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1024;
+    
+    // 🔥 iPad FIX: Spusti sve kartice za 10% visine kontejnera prema dole
+    if (isIPad) {
+      topPx += bgHeightPx * 0.1; // Dodaj 10% visine kontejnera
+    }
+    
+    // 🔥 iPad FIX: Specifične prilagodbe pozicija za pojedinačne kartice
+    if (isIPad) {
+      const cardNumber = index + 1; // Card numbers are 1-indexed
+      
+      if (cardNumber === 1) {
+        // Kartica 1: 40px od lijevog ruba, 16px gore
+        leftPx = 40;
+        topPx -= 16;
+      } else if (cardNumber === 2) {
+        // Kartica 2: 24px gore i desno za 20px
+        topPx -= 24;
+        leftPx += 20; // Pomjerena desno za 20px
+      } else if (cardNumber === 3) {
+        // Kartica 3: 24px od desnog ruba, 48px gore (28px + 20px), pomjerena 128px lijevo (40px + 48px + 24px + 16px)
+        leftPx = viewportWidth - STANDARD_CARD_WIDTH - 24 - 40 - 48 - 24 - 16;
+        topPx -= 48; // 28px + 20px gore
+      } else if (cardNumber === 4) {
+        // Kartica 4: Centrirana u sredinu ekrana iPad, pomjerena 16px desno (4px lijevo + 20px desno), zatim lijevo za 10px i gore za 20px
+        // Na iPad-u su kartice 1.76x veće (scale 1.76), tako da trebamo koristiti skaliranu širinu
+        const scaledCardWidth = STANDARD_CARD_WIDTH * 1.76;
+        leftPx = (viewportWidth / 2) - (scaledCardWidth / 2) + 16 - 10; // Pomjerena lijevo za 10px
+        topPx -= 20; // Podignuta gore za 20px
+      } else if (cardNumber === 5) {
+        // Kartica 5: 30px od lijevog ruba iPad ekrana, 16px gore, zatim gore za 10px i desno za 10px
+        leftPx = 30 + 10; // Pomjerena desno za 10px
+        topPx -= 16 + 10; // Podignuta gore za 10px (ukupno 26px gore)
+      } else if (cardNumber === 6) {
+        // Kartica 6: Koristi istu logiku kao kartica 4 - centrirana sa offsetom
+        // Na iPad-u su kartice 1.76x veće (scale 1.76), tako da trebamo koristiti skaliranu širinu
+        const scaledCardWidth = STANDARD_CARD_WIDTH * 1.76;
+        // Centrirana, pomjerena desno (110px od desnog ruba + 16px + 20px + 20px + 20px desno = 76px desno)
+        // Izračunaj offset od centra: (viewportWidth - scaledCardWidth - 110 + 76) - (viewportWidth/2 - scaledCardWidth/2)
+        const targetLeft = viewportWidth - scaledCardWidth - 110 + 76;
+        const centerLeft = (viewportWidth / 2) - (scaledCardWidth / 2);
+        const offset = targetLeft - centerLeft;
+        leftPx = centerLeft + offset - 40; // Pomjerena lijevo za 40px
+      } else if (cardNumber === 7) {
+        // Kartica 7: Koristi istu logiku kao kartica 4 - centrirana sa offsetom lijevo
+        // Na iPad-u su kartice 1.76x veće (scale 1.76), tako da trebamo koristiti skaliranu širinu
+        const scaledCardWidth = STANDARD_CARD_WIDTH * 1.76;
+        // Centrirana, pomjerena 120px lijevo (60px + 60px lijevo = -104px)
+        leftPx = (viewportWidth / 2) - (scaledCardWidth / 2) - 104;
+      } else if (cardNumber === 8) {
+        // Kartica 8: Pomjerena desno za 40px i gore za 10px
+        leftPx += 40; // Pomjerena desno za 40px
+        topPx -= 10; // Podignuta gore za 10px
+      } else if (cardNumber === 9) {
+        // Kartica 9: Pomjerena desno za 50px + 40px = 90px i gore za 20px
+        leftPx += 50 + 40; // Pomjerena desno za ukupno 90px
+        topPx -= 20; // Podignuta gore za 20px
+      } else if (cardNumber === 10) {
+        // Kartica 10: Pomjerena gore za 90px, desno za 40px + 24px = 64px, zatim dole za 10px i lijevo za 8px, zatim dole za 0px (bez promjene)
+        leftPx += 40 + 24 - 8; // Pomjerena desno za ukupno 64px, zatim lijevo za 8px = 56px desno
+        topPx -= 90 - 10; // Podignuta gore za 90px, zatim spuštena za 10px = 80px gore (bez dodatne promjene)
+      } else if (cardNumber === 11) {
+        // Kartica 11: Pomjerena desno za 80px, zatim lijevo za 8px i gore za 8px + 20px = 28px
+        leftPx += 80 - 8; // Pomjerena desno za 80px, zatim lijevo za 8px = 72px desno
+        topPx -= 8 + 20; // Podignuta gore za ukupno 28px
+      } else if (cardNumber === 12) {
+        // Kartica 12: Pomjerena desno za 20px + 20px = 40px i gore za 40px
+        leftPx += 20 + 20; // Pomjerena desno za ukupno 40px
+        topPx -= 40; // Podignuta gore za 40px
+      } else if (cardNumber === 13) {
+        // Kartica 13: Pomjerena gore za 25px + 20px = 45px i desno za 8px, zatim desno za 20px i gore za 10px
+        leftPx += 8 + 20; // Pomjerena desno za ukupno 28px
+        topPx -= 25 + 20 + 10; // Podignuta gore za ukupno 55px
+      } else if (cardNumber === 14) {
+        // Kartica 14: Pomjerena desno za 80px i gore za 20px
+        leftPx += 80; // Pomjerena desno za 80px
+        topPx -= 20; // Podignuta gore za 20px
+      } else if (cardNumber === 15) {
+        // Kartica 15: Pomjerena desno za 60px i gore za 30px + 20px = 50px
+        leftPx += 60; // Pomjerena desno za 60px
+        topPx -= 30 + 20; // Podignuta gore za ukupno 50px
+      } else if (cardNumber === 16) {
+        // Kartica 16: Pomjerena desno za 50px + 20px = 70px i gore za 20px
+        leftPx += 50 + 20; // Pomjerena desno za ukupno 70px
+        topPx -= 20; // Podignuta gore za 20px
+      }
+    }
+    
+    // 🔥 iPad FIX: Unlocked kartice (kliknute i nekliknute) su iste veličine kao interim kartice
+    const baseScaleFactor = isIPad ? 1.76 : 1; // 176% base scale for iPad
+    // Unlocked kartice (kliknute i nekliknute) trebaju biti iste veličine kao interim kartice
+    // Interim kartice su već na 1.76, tako da unlocked kartice također trebaju biti na 1.76
+    const scaleFactor = isIPad ? 1.76 : 1; // 176% scale for all cards on iPad (unlocked, locked, interim)
     
     // Set absolute position using pixels
     cardWrapper.style.position = 'absolute';
-    if (position.x === 50) {
+    if (position.x === 50 && !(isIPad && (index + 1 === 1 || index + 1 === 3 || index + 1 === 4 || index + 1 === 5 || index + 1 === 6 || index + 1 === 7))) {
+      // Centered only if not overridden by iPad-specific positioning
       cardWrapper.style.left = '50%';
-      cardWrapper.style.transform = `translateX(-50%) rotate(${position.rotation}deg)`;
+      cardWrapper.style.transform = `translateX(-50%) rotate(${position.rotation}deg) scale(${scaleFactor})`;
     } else {
+      // 🔥 iPad FIX: Use direct leftPx positioning for iPad-specific cards
       cardWrapper.style.left = `${leftPx}px`;
-      cardWrapper.style.transform = `rotate(${position.rotation}deg)`;
+      cardWrapper.style.transform = `rotate(${position.rotation}deg) scale(${scaleFactor})`;
     }
     cardWrapper.style.top = `${topPx}px`;
     
-    // Set card dimensions in pixels
+    // Set card dimensions in pixels (keep original size, scale is applied via transform)
     const cardWidth = position.width || STANDARD_CARD_WIDTH;
     const cardHeight = position.height || 150;
     cardWrapper.style.width = `${cardWidth}px`;
@@ -1388,6 +1614,13 @@ class JourneyBoardsManager {
 
     if (isUnlocked) {
       // Unlocked card - show image and can click for details
+      // 🔥 iPad FIX: Osiguraj da unlocked kartice imaju istu veličinu kao interim kartice
+      if (isIPad) {
+        card.style.width = '100%';
+        card.style.height = '100%';
+        card.style.boxSizing = 'border-box';
+      }
+      
       const image = document.createElement('img');
       image.src = board.imagePath || '';
       image.alt = board.name || `Board ${board.id}`;
@@ -1607,6 +1840,17 @@ class JourneyBoardsManager {
     }
 
     cardWrapper.appendChild(card);
+    
+    // 🔥 iPad FIX: Store original transform for interim cards immediately after rendering
+    // This ensures scale is preserved even if animation hasn't started yet
+    if (isInterim) {
+      const currentTransform = cardWrapper.style.transform || '';
+      if (currentTransform && !(cardWrapper as any)._originalTransform) {
+        (cardWrapper as any)._originalTransform = currentTransform;
+        logger.info('✅ Stored original transform for interim card:', currentTransform);
+      }
+    }
+    
     return cardWrapper;
   }
 
@@ -2770,18 +3014,26 @@ class JourneyBoardsManager {
   }
 
   public showBoardPickerModal(action: 'show' | 'hide'): void {
+    console.log('🗺️ showBoardPickerModal called with action:', action);
+    
     // Create modal overlay
     const overlay = document.createElement('div');
     overlay.className = 'card-picker-overlay';
     overlay.style.cssText = `
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100001;
-      backdrop-filter: blur(4px);
+      position: fixed !important;
+      inset: 0 !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      background: rgba(0, 0, 0, 0.5) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      z-index: 9999999999 !important;
+      backdrop-filter: blur(4px) !important;
+      pointer-events: auto !important;
+      touch-action: manipulation !important;
     `;
 
     // Create modal container
@@ -2946,11 +3198,25 @@ class JourneyBoardsManager {
     buttonContainer.appendChild(closeBtn);
     modal.appendChild(buttonContainer);
     overlay.appendChild(modal);
+    
+    // 🔥 iPad FIX: Ensure modal is added to body and visible
     document.body.appendChild(overlay);
+    console.log('✅ Modal overlay added to body, z-index:', overlay.style.zIndex);
+    
+    // Force reflow to ensure modal is rendered
+    void overlay.offsetHeight;
 
     // Close on overlay click
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
+        document.body.removeChild(overlay);
+      }
+    });
+    
+    // 🔥 iPad FIX: Also add touch event for overlay
+    overlay.addEventListener('touchend', (e) => {
+      if (e.target === overlay) {
+        e.preventDefault();
         document.body.removeChild(overlay);
       }
     });
@@ -2962,10 +3228,16 @@ class JourneyBoardsManager {
       // Remove existing listener if any to prevent duplicates
       const newUnlockBtn = unlockBtn.cloneNode(true);
       unlockBtn.parentNode?.replaceChild(newUnlockBtn, unlockBtn);
-      (newUnlockBtn as HTMLElement).addEventListener('click', () => {
-        console.log('🗺️ Journey Show Card button clicked');
+      
+      // 🔥 iPad FIX: Add both click and touchend events for better iPad compatibility
+      const handleUnlock = (e: Event) => {
+        e.stopPropagation();
+        console.log('🗺️ Journey Show Card button clicked/touched', e.type);
         this.showBoardPickerModal('show');
-      });
+      };
+      
+      (newUnlockBtn as HTMLElement).addEventListener('click', handleUnlock);
+      (newUnlockBtn as HTMLElement).addEventListener('touchend', handleUnlock, { passive: true });
       console.log('✅ Journey Show Card button listener attached');
     } else {
       console.warn('⚠️ journey-unlock-btn not found');
@@ -2976,10 +3248,16 @@ class JourneyBoardsManager {
       // Remove existing listener if any to prevent duplicates
       const newHideBtn = hideBtn.cloneNode(true);
       hideBtn.parentNode?.replaceChild(newHideBtn, hideBtn);
-      (newHideBtn as HTMLElement).addEventListener('click', () => {
-        console.log('🗺️ Journey Hide Card button clicked');
+      
+      // 🔥 iPad FIX: Add both click and touchend events for better iPad compatibility
+      const handleHide = (e: Event) => {
+        e.stopPropagation();
+        console.log('🗺️ Journey Hide Card button clicked/touched', e.type);
         this.showBoardPickerModal('hide');
-      });
+      };
+      
+      (newHideBtn as HTMLElement).addEventListener('click', handleHide);
+      (newHideBtn as HTMLElement).addEventListener('touchend', handleHide, { passive: true });
       console.log('✅ Journey Hide Card button listener attached');
     } else {
       console.warn('⚠️ journey-hide-btn not found');

@@ -13,6 +13,7 @@ import { gsap } from 'gsap';
 
 let heartsModal: HTMLElement | null = null;
 let timerInterval: NodeJS.Timeout | null = null;
+let heartsOverlay: HTMLElement | null = null;
 
 function createCleanupRegistry(modalEl: HTMLElement): (fn: () => void) => void {
   const list: (() => void)[] = [];
@@ -376,6 +377,26 @@ function animateHeartsEntrance(modal: HTMLElement): Promise<void> {
  */
 export function showHeartsModal(): void {
   try {
+    // Add overlay to block background interactions
+    if (!heartsOverlay) {
+      heartsOverlay = document.createElement('div');
+      heartsOverlay.id = 'hearts-overlay';
+      heartsOverlay.style.cssText = `
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 999999998;
+        background: transparent;
+        pointer-events: auto;
+        touch-action: none;
+      `;
+      // Close on overlay click/tap
+      heartsOverlay.addEventListener('click', hideHeartsModal, { passive: true });
+      heartsOverlay.addEventListener('touchend', hideHeartsModal, { passive: true });
+      document.body.appendChild(heartsOverlay);
+    }
+
     const modal = createHeartsModal();
     document.body.appendChild(modal);
     
@@ -440,10 +461,19 @@ export function hideHeartsModal(): void {
       if (heartsModal === modalEl) {
         heartsModal = null;
       }
+
+      // Remove overlay
+      if (heartsOverlay) {
+        try {
+          heartsOverlay.removeEventListener('click', hideHeartsModal);
+          heartsOverlay.removeEventListener('touchend', hideHeartsModal);
+          heartsOverlay.remove();
+        } catch (e) {}
+        heartsOverlay = null;
+      }
       logger.info('💚 Hearts bottom sheet hidden');
     }, 300);
   } catch (error) {
     logger.error('❌ Failed to hide hearts bottom sheet:', error instanceof Error ? error.message : String(error));
   }
 }
-

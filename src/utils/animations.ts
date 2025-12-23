@@ -131,6 +131,9 @@ const reverseBounce = (element: HTMLElement, delay: number) => {
 let isAnimatingExit = false;
 let isAnimatingEnter = false;
 
+// 🔥 CRITICAL: Export isAnimatingExit globally so updateNavBadge can check it
+(window as any).__ccIsAnimatingSliderExit = () => isAnimatingExit;
+
 // Track active animation timeouts for cleanup
 let activeTimeouts: Set<NodeJS.Timeout> = new Set();
 
@@ -160,7 +163,30 @@ export const animateSliderExit = (): void => {
     }
     
     isAnimatingExit = true;
+    // 🔥 CRITICAL: Flag should already be set in showCollectiblesScreenWithAnimation, but ensure it's set here too
+    if (typeof (window as any).__ccIsAnimatingSliderExit !== 'function' || !(window as any).__ccIsAnimatingSliderExit()) {
+      (window as any).__ccIsAnimatingSliderExit = () => true;
+      logger.info('🔒 Exit animation flag set in animateSliderExit');
+    }
     logger.info('🎬 Starting CARTOONISH PROCEDURAL exit animation...');
+    
+    // 🔥 CRITICAL: Ensure badge is visible and ready BEFORE starting animation
+    // This prevents badge from being removed before animation starts
+    const journeyNavButton = document.querySelector('.independent-nav-button[data-slide="1"]') as HTMLElement;
+    if (journeyNavButton) {
+      const journeyBadge = journeyNavButton.querySelector('.nav-badge') as HTMLElement;
+      if (journeyBadge && journeyBadge.isConnected) {
+        // Ensure badge is visible and ready for animation
+        journeyBadge.style.display = 'flex';
+        journeyBadge.style.visibility = 'visible';
+        journeyBadge.style.opacity = '1';
+        logger.info('🎯 Badge found and prepared for exit animation');
+      } else {
+        logger.warn('⚠️ Journey badge not found or not connected to DOM');
+      }
+    } else {
+      logger.warn('⚠️ Journey navigation button not found');
+    }
     
     // Start the actual exit animation sequence immediately
     // REMOVED: requestAnimationFrame delay - no longer needed
@@ -170,12 +196,15 @@ export const animateSliderExit = (): void => {
     const timeout = setTimeout(() => {
       activeTimeouts.delete(timeout);
       isAnimatingExit = false;
+      // 🔥 CRITICAL: Update global flag after animation completes
+      (window as any).__ccIsAnimatingSliderExit = () => false;
       logger.info('✅ Exit animation guard reset');
     }, 770); // 120ms delay + 650ms animation = 770ms total (was 420ms, increased by 350ms)
     activeTimeouts.add(timeout);
     
   } catch (error) {
     isAnimatingExit = false;
+    (window as any).__ccIsAnimatingSliderExit = () => false;
     logger.error('❌ Failed to animate slider exit:', error);
   }
 };
@@ -233,10 +262,23 @@ function startExitAnimationSequence(): void {
     // Note: slideTagline is already defined above
     const timeout = setTimeout(() => {
       activeTimeouts.delete(timeout);
+      
+      // 🔥 iPad FIX: Detect iPad to preserve transform positions during exit animation
+      const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
+      
     if (slideButton) {
         slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
         void slideButton.offsetHeight;
         slideButton.classList.add('animate-exit');
+        
+        // 🔥 iPad FIX: Set transform position immediately when adding animate-exit class
+        if (isIPad) {
+          (slideButton as HTMLElement).style.transform = 'translateY(4px) scale(0)';
+          (slideButton as HTMLElement).style.webkitTransform = 'translateY(4px) scale(0)';
+          (slideButton as HTMLElement).style.transition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+          (slideButton as HTMLElement).style.webkitTransition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+        }
+        
       logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND');
     } else {
       logger.warn('⚠️ CTA button not found in active slide');
@@ -246,6 +288,15 @@ function startExitAnimationSequence(): void {
         slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
         void slideText.offsetHeight;
         slideText.classList.add('animate-exit');
+        
+        // 🔥 iPad FIX: Set transform position immediately when adding animate-exit class
+        if (isIPad) {
+          (slideText as HTMLElement).style.transform = 'translateY(120px) scale(0)';
+          (slideText as HTMLElement).style.webkitTransform = 'translateY(120px) scale(0)';
+          (slideText as HTMLElement).style.transition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+          (slideText as HTMLElement).style.webkitTransition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+        }
+        
         logger.info('📝 Step 2: Slide text cartoonish bounce - TOGETHER with CTA');
     } else {
       logger.warn('⚠️ Slide text not found in active slide');
@@ -256,6 +307,15 @@ function startExitAnimationSequence(): void {
         (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
         void (slideTagline as HTMLElement).offsetHeight;
         (slideTagline as HTMLElement).classList.add('animate-exit');
+        
+        // 🔥 iPad FIX: Set transform position immediately when adding animate-exit class
+        if (isIPad) {
+          (slideTagline as HTMLElement).style.transform = 'translateY(-12px) scale(0)';
+          (slideTagline as HTMLElement).style.webkitTransform = 'translateY(-12px) scale(0)';
+          (slideTagline as HTMLElement).style.transition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+          (slideTagline as HTMLElement).style.webkitTransition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+        }
+        
         logger.info('📝 Step 2: Slide tagline cartoonish bounce - TOGETHER with text and CTA');
       }
     }, 30);
@@ -283,32 +343,52 @@ function startExitAnimationSequence(): void {
     
     
     // STEP 5: Navigation and Shadow LAST (120ms delay - finishes at 420ms, close to 400ms)
+    // 🔥 CRITICAL: Find badge FIRST and ensure it's protected before animating navigation
+    // Badge is child of navigation button, so it will animate with navigation via CSS
+    const journeyNavButton = document.querySelector('.independent-nav-button[data-slide="1"]') as HTMLElement;
+    let journeyBadge: HTMLElement | null = null;
+    if (journeyNavButton) {
+      journeyBadge = journeyNavButton.querySelector('.nav-badge') as HTMLElement;
+      if (journeyBadge && journeyBadge.isConnected) {
+        // 🔥 CRITICAL: Ensure badge is visible and protected BEFORE navigation animation starts
+        journeyBadge.style.display = 'flex';
+        journeyBadge.style.visibility = 'visible';
+        journeyBadge.style.opacity = '1';
+        // Add animate-exit class IMMEDIATELY to protect badge from removal
+        journeyBadge.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
+        journeyBadge.classList.add('animate-exit');
+        logger.info('🎯 Badge found and protected - ready for exit animation');
+      } else {
+        logger.warn('⚠️ Journey badge not found in navigation button or not connected to DOM');
+      }
+    } else {
+      logger.warn('⚠️ Journey navigation button not found');
+    }
+    
+    // Now animate navigation - badge will animate as child via CSS (#independent-nav.animate-exit .nav-badge)
     if (independentNav) {
       cartoonishBounce(independentNav as HTMLElement, 120);
-      logger.info('🎯 Step 5: Navigation cartoonish bounce - LAST');
+      logger.info('🎯 Step 5: Navigation cartoonish bounce - LAST (badge animates as child)');
     } else {
       logger.warn('⚠️ Navigation not found');
     }
     
-    // 🔥 CRITICAL: Animate Journey badge together with navigation (120ms delay)
-    // This ensures badge disappears smoothly during exit animation instead of instantly
-    const journeyNavButton = document.querySelector('.independent-nav-button[data-slide="1"]') as HTMLElement;
-    if (journeyNavButton) {
-      const journeyBadge = journeyNavButton.querySelector('.nav-badge') as HTMLElement;
-      if (journeyBadge) {
-        cartoonishBounce(journeyBadge, 120);
-        logger.info('🎯 Step 5: Journey badge cartoonish bounce - LAST (with navigation)');
-        
-        // Remove badge after animation completes (650ms animation + 120ms delay = 770ms total)
-        const badgeRemoveTimeout = setTimeout(() => {
-          activeTimeouts.delete(badgeRemoveTimeout);
+    // Remove badge after animation completes (650ms animation + 120ms delay = 770ms total)
+    if (journeyBadge) {
+      const badgeRemoveTimeout = setTimeout(() => {
+        activeTimeouts.delete(badgeRemoveTimeout);
+        // Double-check that badge still exists and has animate-exit class
+        const stillExists = document.querySelector('.independent-nav-button[data-slide="1"] .nav-badge') as HTMLElement;
+        if (stillExists && stillExists.classList.contains('animate-exit')) {
           if (typeof (window as any).updateNavBadge === 'function') {
             (window as any).updateNavBadge(0, 1);
             logger.info('✅ Journey badge removed after exit animation');
           }
-        }, 770); // Match exit animation duration
-        activeTimeouts.add(badgeRemoveTimeout);
-      }
+        } else {
+          logger.warn('⚠️ Journey badge was already removed or animation was interrupted');
+        }
+      }, 770); // Match exit animation duration
+      activeTimeouts.add(badgeRemoveTimeout);
     }
     
     // Shadow animates together with navigation
@@ -339,12 +419,24 @@ function startExitAnimationSequenceLegacy(): void {
   const slideText = document.querySelector('.slide-text');
   const slideTagline = document.querySelector('.slide-tagline');
   
+  // 🔥 iPad FIX: Detect iPad to preserve transform positions during exit animation (legacy)
+  const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
+  
   const timeout = setTimeout(() => {
     activeTimeouts.delete(timeout);
   if (slideButton) {
       slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
       void slideButton.offsetHeight;
       slideButton.classList.add('animate-exit');
+      
+      // 🔥 iPad FIX: Set transform position immediately when adding animate-exit class
+      if (isIPad) {
+        (slideButton as HTMLElement).style.transform = 'translateY(4px) scale(0)';
+        (slideButton as HTMLElement).style.webkitTransform = 'translateY(4px) scale(0)';
+        (slideButton as HTMLElement).style.transition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+        (slideButton as HTMLElement).style.webkitTransition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+      }
+      
     logger.info('🔘 Step 2: CTA button cartoonish bounce - SECOND (legacy)');
   }
   
@@ -352,6 +444,15 @@ function startExitAnimationSequenceLegacy(): void {
       slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
       void slideText.offsetHeight;
       slideText.classList.add('animate-exit');
+      
+      // 🔥 iPad FIX: Set transform position immediately when adding animate-exit class
+      if (isIPad) {
+        (slideText as HTMLElement).style.transform = 'translateY(120px) scale(0)';
+        (slideText as HTMLElement).style.webkitTransform = 'translateY(120px) scale(0)';
+        (slideText as HTMLElement).style.transition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+        (slideText as HTMLElement).style.webkitTransition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+      }
+      
       logger.info('📝 Step 2: Slide text cartoonish bounce - TOGETHER with CTA (legacy)');
     }
     
@@ -360,6 +461,15 @@ function startExitAnimationSequenceLegacy(): void {
       (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
       void (slideTagline as HTMLElement).offsetHeight;
       (slideTagline as HTMLElement).classList.add('animate-exit');
+      
+      // 🔥 iPad FIX: Set transform position immediately when adding animate-exit class
+      if (isIPad) {
+        (slideTagline as HTMLElement).style.transform = 'translateY(-12px) scale(0)';
+        (slideTagline as HTMLElement).style.webkitTransform = 'translateY(-12px) scale(0)';
+        (slideTagline as HTMLElement).style.transition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+        (slideTagline as HTMLElement).style.webkitTransition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+      }
+      
       logger.info('📝 Step 2: Slide tagline cartoonish bounce - TOGETHER with text and CTA (legacy)');
   }
   }, 30);
@@ -500,19 +610,72 @@ function startEnterAnimationSequence(): void {
     // STEP 3: Slide text, CTA button, and Tagline TOGETHER (60ms delay)
     // Animate all at exactly the same time using the same timeout
     const slideTagline = activeSlide.querySelector('.slide-tagline');
+    
+    // 🔥 iPad FIX: Detect iPad to preserve transform positions (moved before any element manipulation)
+    const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
+    
     if (slideText) {
       slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
       slideText.classList.add('animate-enter-initial');
+      
+      // 🔥 iPad FIX: Set transform position immediately when adding animate-enter-initial class
+      if (isIPad) {
+        (slideText as HTMLElement).style.transform = 'translateY(120px) scale(0)';
+        (slideText as HTMLElement).style.webkitTransform = 'translateY(120px) scale(0)';
+        (slideText as HTMLElement).style.transition = 'none';
+        (slideText as HTMLElement).style.webkitTransition = 'none';
+      }
+      
       void slideText.offsetHeight;
     }
+    
     if (slideButton) {
       slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
       slideButton.classList.add('animate-enter-initial');
+      
+      // 🔥 MOBILE FIX: On mobile, ensure scale(0) for enter animation
+      // 🔥 iPad FIX: On iPad, set transform position immediately when adding animate-enter-initial class
+      if (isIPad) {
+        (slideButton as HTMLElement).style.transform = 'translateY(4px) scale(1)';
+        (slideButton as HTMLElement).style.webkitTransform = 'translateY(4px) scale(1)';
+        (slideButton as HTMLElement).style.transition = 'none';
+        (slideButton as HTMLElement).style.webkitTransition = 'none';
+      } else {
+        // 🔥 MOBILE FIX: On mobile, ensure scale(0) for enter animation to work
+        (slideButton as HTMLElement).style.transform = 'scale(0)';
+        (slideButton as HTMLElement).style.webkitTransform = 'scale(0)';
+        (slideButton as HTMLElement).style.transition = 'none';
+        (slideButton as HTMLElement).style.webkitTransition = 'none';
+      }
+      
       void slideButton.offsetHeight;
+    }
+    if (slideText) {
+      slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+      slideText.classList.add('animate-enter-initial');
+      
+      // 🔥 iPad FIX: Set transform position immediately when adding animate-enter-initial class
+      if (isIPad) {
+        (slideText as HTMLElement).style.transform = 'translateY(120px) scale(0)';
+        (slideText as HTMLElement).style.webkitTransform = 'translateY(120px) scale(0)';
+        (slideText as HTMLElement).style.transition = 'none';
+        (slideText as HTMLElement).style.webkitTransition = 'none';
+      }
+      
+      void slideText.offsetHeight;
     }
     if (slideTagline) {
       (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
       (slideTagline as HTMLElement).classList.add('animate-enter-initial');
+      
+      // 🔥 iPad FIX: Set transform position immediately when adding animate-enter-initial class
+      if (isIPad) {
+        (slideTagline as HTMLElement).style.transform = 'translateY(-12px) scale(0)';
+        (slideTagline as HTMLElement).style.webkitTransform = 'translateY(-12px) scale(0)';
+        (slideTagline as HTMLElement).style.transition = 'none';
+        (slideTagline as HTMLElement).style.webkitTransition = 'none';
+      }
+      
       void (slideTagline as HTMLElement).offsetHeight;
     }
     
@@ -521,15 +684,42 @@ function startEnterAnimationSequence(): void {
       if (slideText) {
         slideText.classList.remove('animate-enter-initial');
         slideText.classList.add('animate-enter');
+        
+        // 🔥 iPad FIX: Set transform position immediately when adding animate-enter class
+        if (isIPad) {
+          (slideText as HTMLElement).style.transform = 'translateY(120px) scale(1)';
+          (slideText as HTMLElement).style.webkitTransform = 'translateY(120px) scale(1)';
+          (slideText as HTMLElement).style.transition = 'none';
+          (slideText as HTMLElement).style.webkitTransition = 'none';
+        }
+        
         logger.info('📝 Step 3: Slide text cartoonish bounce - TOGETHER with CTA');
     } else {
       logger.warn('⚠️ Slide text not found in active slide');
     }
     
     if (slideButton) {
-        slideButton.classList.remove('animate-enter-initial');
-        slideButton.classList.add('animate-enter');
-        logger.info('🔘 Step 3: CTA button cartoonish bounce - TOGETHER with text');
+        // 🔥 MOBILE FIX: On mobile, always play enter animation
+        // 🔥 iPad FIX: Na iPad-u CTA button ne mijenja poziciju nakon preloada - zadržati animate-enter-initial
+        if (!isIPad) {
+          // 🔥 MOBILE FIX: Remove inline styles to allow CSS animation to work
+          (slideButton as HTMLElement).style.transform = '';
+          (slideButton as HTMLElement).style.webkitTransform = '';
+          (slideButton as HTMLElement).style.transition = '';
+          (slideButton as HTMLElement).style.webkitTransition = '';
+          
+          slideButton.classList.remove('animate-enter-initial');
+          slideButton.classList.add('animate-enter');
+          logger.info('🔘 Step 3: CTA button cartoonish bounce - TOGETHER with text (MOBILE)');
+        } else {
+          // Na iPad-u zadržati animate-enter-initial - CTA je već na finalnoj poziciji
+          // 🔥 iPad FIX: Ensure transform is set even if we keep animate-enter-initial
+          (slideButton as HTMLElement).style.transform = 'translateY(4px) scale(1)';
+          (slideButton as HTMLElement).style.webkitTransform = 'translateY(4px) scale(1)';
+          (slideButton as HTMLElement).style.transition = 'none';
+          (slideButton as HTMLElement).style.webkitTransition = 'none';
+          logger.info('🔘 Step 3: CTA button na iPad-u - zadržana finalna pozicija bez animacije');
+        }
     } else {
       logger.warn('⚠️ CTA button not found in active slide');
     }
@@ -538,6 +728,15 @@ function startEnterAnimationSequence(): void {
       if (slideTagline) {
         (slideTagline as HTMLElement).classList.remove('animate-enter-initial');
         (slideTagline as HTMLElement).classList.add('animate-enter');
+        
+        // 🔥 iPad FIX: Set transform position immediately when adding animate-enter class
+        if (isIPad) {
+          (slideTagline as HTMLElement).style.transform = 'translateY(-12px) scale(1)';
+          (slideTagline as HTMLElement).style.webkitTransform = 'translateY(-12px) scale(1)';
+          (slideTagline as HTMLElement).style.transition = 'none';
+          (slideTagline as HTMLElement).style.webkitTransition = 'none';
+        }
+        
         logger.info('📝 Step 3: Slide tagline cartoonish bounce - TOGETHER with text and CTA');
       }
     }, 60);
@@ -564,10 +763,39 @@ function startEnterAnimationSequence(): void {
           activeSlide.querySelector('.slide-tagline')
         ];
         
+        // 🔥 iPad FIX: Preserve transform positions after removing animation classes
+        const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
+        
         slideElements.forEach(element => {
           if (element) {
             const el = element as HTMLElement;
+            
+            // 🔥 iPad FIX: Determine preserved transform based on element tag/class/id, not just class
+            let preservedTransform = '';
+            if (isIPad) {
+              // Check by class name, tag name, or id
+              const isButton = el.classList.contains('slide-button') || el.tagName === 'BUTTON' || el.id?.includes('btn-');
+              const isText = el.classList.contains('slide-text') || el.tagName === 'P' || el.classList.contains('slide-tagline');
+              const isTagline = el.classList.contains('slide-tagline');
+              
+              if (isButton) {
+                preservedTransform = 'translateY(4px) scale(1)';
+              } else if (isTagline) {
+                preservedTransform = 'translateY(-12px)';
+              } else if (isText) {
+                preservedTransform = 'translateY(120px)';
+              }
+            }
+            
             el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+            
+            // 🔥 iPad FIX: Restore transform position after removing classes - ALWAYS set on iPad
+            if (isIPad && preservedTransform) {
+              el.style.transform = preservedTransform;
+              el.style.webkitTransform = preservedTransform;
+              el.style.transition = 'none';
+              el.style.webkitTransition = 'none';
+            }
           }
         });
       }

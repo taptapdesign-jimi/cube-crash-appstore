@@ -480,8 +480,15 @@ function addWildProgress(amount){
   const fillRate = getWildMeterFillRate(boardNumber);
   // 🔥 USER REQUEST: Reduce wild meter fill rate by 20% for all boards (80% of original = 20% slower)
   const globalSlowdown = 0.8; // 20% slower = 80% of original speed (was 0.6 = 40% slower)
-  const adjustedInc = inc * fillRate * globalSlowdown;
-  console.log(`🎯 Board ${boardNumber}: Wild meter fill rate: ${fillRate}x, global slowdown: ${globalSlowdown}x, adjusted increment: ${adjustedInc} (from ${inc})`);
+  
+  // 🔥 iPad BALANCE FIX: Usporiti wild meter punjenje na iPad-u za 28.6% (faktor 0.714)
+  // Razlog: iPad ima 63 kockice (vs 45 na mobitelu = 40% više), što znači 40% brže punjenje u praksi
+  // Da bi igra bila fer, trebamo usporiti punjenje za 1/1.4 = 0.714 (28.6% sporije)
+  const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
+  const iPadSlowdown = isIPad ? 0.714 : 1.0; // 28.6% usporavanje na iPad-u (71.4% brzine)
+  
+  const adjustedInc = inc * fillRate * globalSlowdown * iPadSlowdown;
+  console.log(`🎯 Board ${boardNumber}: Wild meter fill rate: ${fillRate}x, global slowdown: ${globalSlowdown}x, iPad slowdown: ${iPadSlowdown}x, adjusted increment: ${adjustedInc} (from ${inc})`);
 
   const target = wildMeter + adjustedInc;
   console.log('🔥 NEW LOGIC: Direct wild meter update to raw value:', target);

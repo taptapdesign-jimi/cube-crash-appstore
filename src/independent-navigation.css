@@ -330,7 +330,7 @@
 .nav-badge {
   position: absolute;
   top: -8px;
-  right: -8px;
+  right: -12px; /* 🔥 USER REQUEST: Pomaknuto za 4px prema desnom rubu ekrana (-8px - 4px = -12px) */
   width: 40px;
   height: 40px;
   background: #E97A55; /* Orange background */
@@ -340,7 +340,16 @@
   justify-content: center;
   z-index: 10000000000; /* Super high to be above everything */
   pointer-events: none;
-  transform: translate(0, 0); /* No additional offset, we're using top/right */
+  transform: translate(0, 0) scale(1) !important; /* 🔥 CRITICAL: Fixed size - no scaling */
+  -webkit-transform: translate(0, 0) scale(1) !important;
+  /* 🔥 CRITICAL: Ensure badge maintains fixed size during animations */
+  will-change: opacity;
+  box-sizing: border-box; /* Ensure fixed size */
+}
+
+/* 🔥 USER REQUEST: Badge prati bounce animaciju aktivne navigacijske ikone */
+.independent-nav-button.active .nav-badge {
+  animation: idleFloat 3s ease-in-out infinite; /* Ista animacija kao img element */
 }
 
 .nav-badge-text {

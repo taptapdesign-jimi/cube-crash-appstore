@@ -729,9 +729,40 @@ class CollectiblesManager {
         
         if (slideContent) (slideContent as HTMLElement).style.display = 'flex';
         if (heroImage) (heroImage as HTMLElement).style.display = 'block';
-        if (slideText) (slideText as HTMLElement).style.display = 'block';
-        if (slideTagline) (slideTagline as HTMLElement).style.display = 'block';
-        if (slideButton) (slideButton as HTMLElement).style.display = 'flex';
+        
+        // 🔥 iPad FIX: Preserve transform positions on iPad after navigation
+        const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
+        
+        if (slideText) {
+          (slideText as HTMLElement).style.display = 'block';
+          if (isIPad) {
+            const currentTransform = (slideText as HTMLElement).style.transform;
+            if (!currentTransform || !currentTransform.includes('translateY(120px)')) {
+              (slideText as HTMLElement).style.transform = 'translateY(120px)';
+              (slideText as HTMLElement).style.webkitTransform = 'translateY(120px)';
+            }
+          }
+        }
+        if (slideTagline) {
+          (slideTagline as HTMLElement).style.display = 'block';
+          if (isIPad) {
+            const currentTransform = (slideTagline as HTMLElement).style.transform;
+            if (!currentTransform || !currentTransform.includes('translateY(-12px)')) {
+              (slideTagline as HTMLElement).style.transform = 'translateY(-12px)';
+              (slideTagline as HTMLElement).style.webkitTransform = 'translateY(-12px)';
+            }
+          }
+        }
+        if (slideButton) {
+          (slideButton as HTMLElement).style.display = 'flex';
+          if (isIPad) {
+            const currentTransform = (slideButton as HTMLElement).style.transform;
+            if (!currentTransform || !currentTransform.includes('translateY(4px)')) {
+              (slideButton as HTMLElement).style.transform = 'translateY(4px) scale(1)';
+              (slideButton as HTMLElement).style.webkitTransform = 'translateY(4px) scale(1)';
+            }
+          }
+        }
       });
       logger.info('✅ All slides and content made visible');
       
