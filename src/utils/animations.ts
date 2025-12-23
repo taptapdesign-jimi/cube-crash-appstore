@@ -273,8 +273,8 @@ function startExitAnimationSequence(): void {
         
         // 🔥 iPad FIX: Set transform position immediately when adding animate-exit class
         if (isIPad) {
-          (slideButton as HTMLElement).style.transform = 'translateY(4px) scale(0)';
-          (slideButton as HTMLElement).style.webkitTransform = 'translateY(4px) scale(0)';
+          (slideButton as HTMLElement).style.transform = 'translateY(0px) scale(0)';
+          (slideButton as HTMLElement).style.webkitTransform = 'translateY(0px) scale(0)';
           (slideButton as HTMLElement).style.transition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
           (slideButton as HTMLElement).style.webkitTransition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
         }
@@ -291,8 +291,8 @@ function startExitAnimationSequence(): void {
         
         // 🔥 iPad FIX: Set transform position immediately when adding animate-exit class
         if (isIPad) {
-          (slideText as HTMLElement).style.transform = 'translateY(120px) scale(0)';
-          (slideText as HTMLElement).style.webkitTransform = 'translateY(120px) scale(0)';
+          (slideText as HTMLElement).style.transform = 'translateY(64px) scale(0)';
+          (slideText as HTMLElement).style.webkitTransform = 'translateY(64px) scale(0)';
           (slideText as HTMLElement).style.transition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
           (slideText as HTMLElement).style.webkitTransition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
         }
@@ -467,8 +467,8 @@ function startExitAnimationSequenceLegacy(): void {
       
       // 🔥 iPad FIX: Set transform position immediately when adding animate-exit class
       if (isIPad) {
-        (slideButton as HTMLElement).style.transform = 'translateY(4px) scale(0)';
-        (slideButton as HTMLElement).style.webkitTransform = 'translateY(4px) scale(0)';
+        (slideButton as HTMLElement).style.transform = 'translateY(0px) scale(0)';
+        (slideButton as HTMLElement).style.webkitTransform = 'translateY(0px) scale(0)';
         (slideButton as HTMLElement).style.transition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
         (slideButton as HTMLElement).style.webkitTransition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
       }
@@ -483,8 +483,8 @@ function startExitAnimationSequenceLegacy(): void {
       
       // 🔥 iPad FIX: Set transform position immediately when adding animate-exit class
       if (isIPad) {
-        (slideText as HTMLElement).style.transform = 'translateY(120px) scale(0)';
-        (slideText as HTMLElement).style.webkitTransform = 'translateY(120px) scale(0)';
+        (slideText as HTMLElement).style.transform = 'translateY(64px) scale(0)';
+        (slideText as HTMLElement).style.webkitTransform = 'translateY(64px) scale(0)';
         (slideText as HTMLElement).style.transition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
         (slideText as HTMLElement).style.webkitTransition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
       }
@@ -848,11 +848,11 @@ function startEnterAnimationSequence(): void {
               if (isButton) {
                 // 🔥 FIX: Don't set scale(1) - let CSS animation handle it
                 // Only set translateY for positioning, scale will be handled by CSS classes
-                preservedTransform = 'translateY(4px)';
+                preservedTransform = 'translateY(0px)';
               } else if (isTagline) {
                 preservedTransform = 'translateY(-12px)';
               } else if (isText) {
-                preservedTransform = 'translateY(120px)';
+                preservedTransform = 'translateY(64px)';
               }
             }
             

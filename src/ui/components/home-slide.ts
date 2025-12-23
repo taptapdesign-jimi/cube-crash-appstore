@@ -93,8 +93,8 @@ export function renderHomeSlide(
     const slideButton = element.querySelector('.slide-button') as HTMLElement;
     
     if (slideText) {
-      slideText.style.transform = 'translateY(120px)';
-      slideText.style.webkitTransform = 'translateY(120px)';
+      slideText.style.transform = 'translateY(64px)';
+      slideText.style.webkitTransform = 'translateY(64px)';
       slideText.style.transition = 'none';
       slideText.style.webkitTransition = 'none';
     }

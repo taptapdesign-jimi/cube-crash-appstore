@@ -750,9 +750,9 @@ class CollectiblesManager {
           
           if (isIPad) {
             const currentTransform = (slideText as HTMLElement).style.transform;
-            if (!currentTransform || !currentTransform.includes('translateY(120px)')) {
-              (slideText as HTMLElement).style.transform = 'translateY(120px)';
-              (slideText as HTMLElement).style.webkitTransform = 'translateY(120px)';
+            if (!currentTransform || !currentTransform.includes('translateY(64px)')) {
+              (slideText as HTMLElement).style.transform = 'translateY(64px)';
+              (slideText as HTMLElement).style.webkitTransform = 'translateY(64px)';
             }
             
             // 🔥 FIX: Za neaktivne slide-ove na iPadu, ukloniti animate-enter-initial
@@ -786,8 +786,8 @@ class CollectiblesManager {
             (slideButton as HTMLElement).style.visibility = 'visible';
             (slideButton as HTMLElement).style.opacity = '1';
             // 🔥 CRITICAL: Postaviti transform: scale(1) jer animate-enter-initial postavlja scale(0)
-            (slideButton as HTMLElement).style.transform = 'translateY(4px) scale(1)';
-            (slideButton as HTMLElement).style.webkitTransform = 'translateY(4px) scale(1)';
+            (slideButton as HTMLElement).style.transform = 'translateY(0px) scale(1)';
+            (slideButton as HTMLElement).style.webkitTransform = 'translateY(0px) scale(1)';
           }
           // Za aktivni slide, animate-enter-initial će biti uklonjen u startEnterAnimationSequence
         }

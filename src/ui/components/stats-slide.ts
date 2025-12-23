@@ -82,8 +82,8 @@ export function renderStatsSlide(
     const slideButton = element.querySelector('.slide-button') as HTMLElement;
     
     if (slideText) {
-      slideText.style.transform = 'translateY(120px)';
-      slideText.style.webkitTransform = 'translateY(120px)';
+      slideText.style.transform = 'translateY(64px)';
+      slideText.style.webkitTransform = 'translateY(64px)';
       slideText.style.transition = 'none';
       slideText.style.webkitTransition = 'none';
     }
@@ -119,8 +119,8 @@ export function renderStatsSlide(
       slideButton.style.display = 'flex';
       slideButton.style.visibility = 'visible';
       slideButton.style.opacity = '1';
-      slideButton.style.transform = 'translateY(4px) scale(1)';
-      slideButton.style.webkitTransform = 'translateY(4px) scale(1)';
+      slideButton.style.transform = 'translateY(0px) scale(1)';
+      slideButton.style.webkitTransform = 'translateY(0px) scale(1)';
     } else {
       // Za aktivni slide ili ne-iPad, dodati animate-enter-initial klasu
       slideButton.classList.add('animate-enter-initial');

@@ -317,9 +317,9 @@ class UIManager {
       
       // 🔥 iPad FIX: Preserve translateY on iPad, only reset scale
       if (isIPad) {
-        // On iPad, preserve translateY(4px) and only reset scale
-        btn.style.transform = 'translateY(4px) scale(1)';
-        btn.style.webkitTransform = 'translateY(4px) scale(1)';
+        // On iPad, preserve translateY(0px) and only reset scale
+        btn.style.transform = 'translateY(0px) scale(1)';
+        btn.style.webkitTransform = 'translateY(0px) scale(1)';
       } else {
         // On iPhone, use original behavior
         btn.style.transform = 'scale(1) !important';
@@ -343,8 +343,8 @@ class UIManager {
         
         // 🔥 iPad FIX: Preserve translateY on iPad, only reset scale
         if (isIPad) {
-          btn.style.transform = 'translateY(4px) scale(1)';
-          btn.style.webkitTransform = 'translateY(4px) scale(1)';
+          btn.style.transform = 'translateY(0px) scale(1)';
+          btn.style.webkitTransform = 'translateY(0px) scale(1)';
         } else {
           btn.style.transform = 'scale(1) !important';
         }
