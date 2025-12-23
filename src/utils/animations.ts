@@ -389,11 +389,19 @@ function startExitAnimationSequence(): void {
         // 🔥 CRITICAL: Ensure badge is visible and protected BEFORE navigation animation starts
         journeyBadge.style.display = 'flex';
         journeyBadge.style.visibility = 'visible';
-        journeyBadge.style.opacity = '1';
+        journeyBadge.style.opacity = '1'; // 🔥 FIX: Stay visible - no fade out
+        // 🔥 FIX: Reset transform to ensure badge animates with parent navigation (no separate translateY)
+        // Badge must maintain translate(0, 0) to prevent Y-axis movement
+        journeyBadge.style.transform = 'translate(0, 0) scale(1)';
+        journeyBadge.style.webkitTransform = 'translate(0, 0) scale(1)';
+        journeyBadge.style.transition = 'none'; // 🔥 FIX: No transition - scales with parent
+        journeyBadge.style.webkitTransition = 'none';
+        journeyBadge.style.animation = 'none'; // Stop idleFloat animation
+        journeyBadge.style.webkitAnimation = 'none';
         // Add animate-exit class IMMEDIATELY to protect badge from removal
         journeyBadge.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
         journeyBadge.classList.add('animate-exit');
-        logger.info('🎯 Badge found and protected - ready for exit animation');
+        logger.info('🎯 Badge found and protected - ready for exit animation (will scale with navigation, no fade)');
       } else {
         logger.warn('⚠️ Journey badge not found in navigation button or not connected to DOM');
       }
@@ -409,16 +417,47 @@ function startExitAnimationSequence(): void {
       logger.warn('⚠️ Navigation not found');
     }
     
-    // Remove badge after animation completes (650ms animation + 120ms delay = 770ms total)
+    // Update badge after animation completes (650ms animation + 120ms delay = 770ms total)
+    // 🔥 FIX: Check if there are still unopened cards before removing badge
     if (journeyBadge) {
-      const badgeRemoveTimeout = setTimeout(() => {
+      const badgeRemoveTimeout = setTimeout(async () => {
         activeTimeouts.delete(badgeRemoveTimeout);
         // Double-check that badge still exists and has animate-exit class
         const stillExists = document.querySelector('.independent-nav-button[data-slide="1"] .nav-badge') as HTMLElement;
         if (stillExists && stillExists.classList.contains('animate-exit')) {
           if (typeof (window as any).updateNavBadge === 'function') {
-            (window as any).updateNavBadge(0, 1);
-            logger.info('✅ Journey badge removed after exit animation');
+            try {
+              // 🔥 FIX: Check if there are still unopened cards before removing badge
+              const { journeyBoardsManager } = await import('../modules/journey-boards-manager.js');
+              journeyBoardsManager.syncWithGameProgress();
+              const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
+              
+              // 🔥 FIX: Remove animate-exit class before updating badge to allow enter animation
+              if (stillExists) {
+                stillExists.classList.remove('animate-exit');
+                stillExists.style.opacity = '';
+                stillExists.style.display = '';
+                stillExists.style.visibility = '';
+              }
+              
+              // Update badge with correct count (0 if no unopened cards, otherwise show count)
+              (window as any).updateNavBadge(newlyUnlockedCount, 1);
+              if (newlyUnlockedCount > 0) {
+                logger.info(`✅ Journey badge updated after exit animation: ${newlyUnlockedCount} unopened cards remaining`);
+              } else {
+                logger.info('✅ Journey badge removed after exit animation (no unopened cards)');
+              }
+            } catch (error) {
+              logger.warn('⚠️ Failed to check unopened cards count, removing badge:', error);
+              // Fallback: remove badge if we can't check the count
+              if (stillExists) {
+                stillExists.classList.remove('animate-exit');
+                stillExists.style.opacity = '';
+                stillExists.style.display = '';
+                stillExists.style.visibility = '';
+              }
+              (window as any).updateNavBadge(0, 1);
+            }
           }
         } else {
           logger.warn('⚠️ Journey badge was already removed or animation was interrupted');
@@ -654,8 +693,40 @@ function startEnterAnimationSequence(): void {
     
     // STEP 1: Navigation and Shadow FIRST (0ms delay) - was last to exit
     if (independentNav) {
+      // 🔥 FIX: Ensure badge animates with navigation on enter
+      const journeyNavButton = document.querySelector('.independent-nav-button[data-slide="1"]') as HTMLElement;
+      if (journeyNavButton) {
+        const journeyBadge = journeyNavButton.querySelector('.nav-badge') as HTMLElement;
+        if (journeyBadge && journeyBadge.isConnected) {
+          // Reset badge state for enter animation
+          journeyBadge.style.opacity = '0';
+          journeyBadge.style.display = 'flex';
+          journeyBadge.style.visibility = 'visible';
+          journeyBadge.style.transform = 'translate(0, 0) scale(1)'; // Fixed position - no Y movement
+          journeyBadge.style.webkitTransform = 'translate(0, 0) scale(1)';
+          journeyBadge.style.animation = 'none'; // Stop idleFloat animation
+          journeyBadge.style.webkitAnimation = 'none';
+          journeyBadge.classList.remove('animate-exit', 'animate-enter', 'animate-reset');
+          journeyBadge.classList.add('animate-enter-initial');
+          logger.info('🎯 Badge prepared for enter animation (will animate with navigation)');
+        }
+      }
+      
       reverseBounce(independentNav as HTMLElement, 0);
       logger.info('🎯 Step 1: Navigation cartoonish bounce - FIRST (reverse of exit)');
+      
+      // 🔥 FIX: Trigger badge enter animation together with navigation
+      if (journeyNavButton) {
+        const journeyBadge = journeyNavButton.querySelector('.nav-badge') as HTMLElement;
+        if (journeyBadge && journeyBadge.isConnected) {
+          const badgeTimeout = setTimeout(() => {
+            activeTimeouts.delete(badgeTimeout);
+            journeyBadge.classList.remove('animate-enter-initial');
+            journeyBadge.classList.add('animate-enter');
+          }, 0); // Same delay as navigation
+          activeTimeouts.add(badgeTimeout);
+        }
+      }
     } else {
       logger.warn('⚠️ Navigation not found');
     }

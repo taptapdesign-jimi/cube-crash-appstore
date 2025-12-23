@@ -340,16 +340,30 @@
   justify-content: center;
   z-index: 10000000000; /* Super high to be above everything */
   pointer-events: none;
-  transform: translate(0, 0) scale(1) !important; /* 🔥 CRITICAL: Fixed size - no scaling */
+  transform: translate(0, 0) scale(1) !important; /* 🔥 CRITICAL: Fixed position and size - no movement */
   -webkit-transform: translate(0, 0) scale(1) !important;
-  /* 🔥 CRITICAL: Ensure badge maintains fixed size during animations */
+  /* 🔥 CRITICAL: Ensure badge maintains fixed position and size during animations */
   will-change: opacity;
   box-sizing: border-box; /* Ensure fixed size */
+  /* 🔥 FIX: Prevent any position changes during animations */
+  left: auto !important;
+  bottom: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* 🔥 USER REQUEST: Badge prati bounce animaciju aktivne navigacijske ikone */
-.independent-nav-button.active .nav-badge {
+/* 🔥 FIX: Stop idleFloat animation during exit/enter animations */
+.independent-nav-button.active .nav-badge:not(.animate-exit):not(.animate-enter):not(.animate-enter-initial) {
   animation: idleFloat 3s ease-in-out infinite; /* Ista animacija kao img element */
+}
+
+/* 🔥 FIX: Stop idleFloat animation during exit/enter animations */
+.nav-badge.animate-exit,
+.nav-badge.animate-enter,
+.nav-badge.animate-enter-initial {
+  animation: none !important;
+  -webkit-animation: none !important;
 }
 
 .nav-badge-text {

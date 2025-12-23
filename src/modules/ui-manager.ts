@@ -1885,7 +1885,8 @@ class UIManager {
     
     // 🔥 USER BUG FIX: Update Journey badge when returning to homepage from Journey screen
     // This ensures badge is visible immediately after returning, showing newly unlocked boards
-    // Wait for navigation to be rendered before updating badge
+    // Wait for navigation to be rendered and exit animation to complete before updating badge
+    // Exit animation takes 770ms (650ms animation + 120ms delay), so we wait 800ms to be safe
     setTimeout(() => {
       import('./journey-boards-manager.js').then(({ journeyBoardsManager }) => {
         try {
@@ -1903,7 +1904,7 @@ class UIManager {
       }).catch((error) => {
         logger.warn('⚠️ Failed to import journey boards manager when returning to homepage:', error);
       });
-    }, 100);
+    }, 800); // Wait for exit animation to complete (770ms) + small buffer
     
     // 🔥 CRITICAL: Force navigation visibility update after journey screen is hidden
     // This ensures MutationObserver in navigation-control.ts detects the change

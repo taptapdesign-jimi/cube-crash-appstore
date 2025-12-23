@@ -941,23 +941,66 @@ body{
 }
 
 /* 🔥 CRITICAL: Ensure badge animates together with navigation icon in exit animation */
-/* Badge should NOT scale - it should maintain fixed size and only fade out */
+/* Badge should animate as child of navigation - no fade out, just scale with parent until it disappears */
+/* 🔥 FIX: Badge must maintain fixed position (translate(0, 0)) and stay visible until parent scales to 0 */
 #independent-nav.animate-exit .nav-badge,
 .independent-nav-button.animate-exit .nav-badge {
-  will-change: opacity !important;
-  transition: opacity 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-  -webkit-transition: opacity 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-  transform: scale(1) !important; /* 🔥 CRITICAL: Keep badge at fixed size - no scaling */
-  -webkit-transform: scale(1) !important;
+  will-change: transform !important;
+  transition: none !important; /* 🔥 FIX: No transition - badge scales with parent navigation */
+  -webkit-transition: none !important;
+  transform: translate(0, 0) scale(1) !important; /* 🔥 FIX: Fixed position - scales with parent navigation */
+  -webkit-transform: translate(0, 0) scale(1) !important;
+  opacity: 1 !important; /* 🔥 FIX: Stay visible - no fade out, disappears when parent scales to 0 */
+  animation: none !important; /* 🔥 FIX: Stop idleFloat animation during exit */
+  -webkit-animation: none !important;
 }
 
 .nav-badge.animate-exit {
+  will-change: transform !important;
+  transition: none !important; /* 🔥 FIX: No transition - badge scales with parent navigation */
+  -webkit-transition: none !important;
+  transform: translate(0, 0) scale(1) !important; /* 🔥 FIX: Fixed position - scales with parent navigation */
+  -webkit-transform: translate(0, 0) scale(1) !important;
+  opacity: 1 !important; /* 🔥 FIX: Stay visible - no fade out, disappears when parent scales to 0 */
+  animation: none !important; /* 🔥 FIX: Stop idleFloat animation during exit */
+  -webkit-animation: none !important;
+}
+
+/* 🔥 FIX: Enter animation for badge - fade in together with navigation */
+/* Badge animates as child of navigation - no separate transform, just fade in with parent */
+/* 🔥 FIX: Badge must maintain fixed position (translate(0, 0)) to prevent Y-axis movement */
+#independent-nav.animate-enter .nav-badge,
+.independent-nav-button.animate-enter .nav-badge {
   will-change: opacity !important;
   transition: opacity 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   -webkit-transition: opacity 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-  transform: scale(1) !important; /* 🔥 CRITICAL: Keep badge at fixed size - no scaling */
-  -webkit-transform: scale(1) !important;
-  opacity: 0 !important; /* Fade out instead of scaling */
+  transform: translate(0, 0) scale(1) !important; /* 🔥 FIX: Fixed position - no Y movement, scale with parent */
+  -webkit-transform: translate(0, 0) scale(1) !important;
+  opacity: 1 !important; /* Fade in together with navigation */
+  animation: none !important; /* 🔥 FIX: Stop idleFloat animation during enter */
+  -webkit-animation: none !important;
+}
+
+.nav-badge.animate-enter-initial {
+  will-change: opacity !important;
+  transition: none !important;
+  -webkit-transition: none !important;
+  transform: translate(0, 0) scale(1) !important; /* 🔥 FIX: Fixed position - no Y movement */
+  -webkit-transform: translate(0, 0) scale(1) !important;
+  opacity: 0 !important;
+  animation: none !important; /* 🔥 FIX: Stop idleFloat animation during enter */
+  -webkit-animation: none !important;
+}
+
+.nav-badge.animate-enter {
+  will-change: opacity !important;
+  transition: opacity 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  -webkit-transition: opacity 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  transform: translate(0, 0) scale(1) !important; /* 🔥 FIX: Fixed position - no Y movement, scale with parent */
+  -webkit-transform: translate(0, 0) scale(1) !important;
+  opacity: 1 !important; /* Fade in together with navigation */
+  animation: none !important; /* 🔥 FIX: Stop idleFloat animation during enter */
+  -webkit-animation: none !important;
 }
 
 /* Slide-text needs to preserve translateY during scale animation */

@@ -131,6 +131,26 @@ export function updateNavBadge(count: number, slideIndex: number = 1): void {
   if (count > 0) {
     // Update or create badge
     if (existingBadge) {
+      const badgeEl = existingBadge as HTMLElement;
+      // 🔥 FIX: Remove exit animation classes and ensure badge is visible
+      badgeEl.classList.remove('animate-exit', 'animate-enter-initial', 'animate-reset');
+      badgeEl.style.opacity = '1';
+      badgeEl.style.display = 'flex';
+      badgeEl.style.visibility = 'visible';
+      // 🔥 FIX: Ensure fixed position - no Y movement
+      badgeEl.style.transform = 'translate(0, 0) scale(1)';
+      badgeEl.style.webkitTransform = 'translate(0, 0) scale(1)';
+      badgeEl.style.animation = 'none'; // Stop idleFloat if running
+      badgeEl.style.webkitAnimation = 'none';
+      
+      // 🔥 FIX: Add enter animation if badge was just created or was hidden
+      if (!badgeEl.classList.contains('animate-enter')) {
+        badgeEl.classList.add('animate-enter-initial');
+        void badgeEl.offsetHeight; // Force reflow
+        badgeEl.classList.remove('animate-enter-initial');
+        badgeEl.classList.add('animate-enter');
+      }
+      
       const badgeText = existingBadge.querySelector('.nav-badge-text');
       if (badgeText) badgeText.textContent = count.toString();
       existingBadge.setAttribute('aria-label', ariaLabel);
@@ -138,13 +158,29 @@ export function updateNavBadge(count: number, slideIndex: number = 1): void {
     } else {
       // Create new badge
       const badge = document.createElement('div');
-      badge.className = 'nav-badge';
+      badge.className = 'nav-badge animate-enter-initial';
       badge.setAttribute('aria-label', ariaLabel);
+      badge.style.opacity = '0';
+      badge.style.display = 'flex';
+      badge.style.visibility = 'visible';
+      // 🔥 FIX: Ensure fixed position - no Y movement
+      badge.style.transform = 'translate(0, 0) scale(1)';
+      badge.style.webkitTransform = 'translate(0, 0) scale(1)';
+      badge.style.animation = 'none';
+      badge.style.webkitAnimation = 'none';
+      
       const badgeText = document.createElement('span');
       badgeText.className = 'nav-badge-text';
       badgeText.textContent = count.toString();
       badge.appendChild(badgeText);
       navButton.appendChild(badge);
+      
+      // 🔥 FIX: Trigger enter animation after badge is added to DOM
+      requestAnimationFrame(() => {
+        badge.classList.remove('animate-enter-initial');
+        badge.classList.add('animate-enter');
+      });
+      
       console.log(`✅ ${slideName} badge created with`, count);
     }
   } else {
@@ -178,9 +214,10 @@ export function updateNavBadge(count: number, slideIndex: number = 1): void {
         }
 
         // Trigger a graceful exit on the badge itself (scale-out) instead of instant removal.
-        existingBadge.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-        void existingBadge.offsetHeight; // force reflow so transition fires
-        existingBadge.classList.add('animate-exit');
+        const badgeEl = existingBadge as HTMLElement;
+        badgeEl.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        void badgeEl.offsetHeight; // force reflow so transition fires
+        badgeEl.classList.add('animate-exit');
 
         setTimeout(() => {
           // Only remove if it still exists and has the exit class (wasn't refreshed)
