@@ -1460,10 +1460,17 @@
 .journey-board-card-wrapper {
   position: absolute;
   /* Width and height are set inline per card - no fixed dimensions */
+  /* 🔥 FIX: Dimensions are reduced by 8px (4px each side) in JavaScript to prevent ghost container */
   overflow: visible; /* Allow shadow to be visible - shadow is part of card design */
   background: transparent !important; /* 🔥 USER REQUEST: Force transparent - no white background */
   /* 🔥 iOS FIX: Allow normal touch behavior when not animating */
   touch-action: auto; /* Default touch behavior - will be overridden during animation */
+  /* 🔥 FIX: Ensure wrapper has no padding/margin/border that could cause larger container */
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  outline: none !important;
+  box-sizing: border-box !important;
 }
 
 .journey-board-card {
@@ -1536,13 +1543,24 @@
 
 .journey-board-card.interim {
   background: transparent;
-  border: none;
-  /* 🔥 FIX: Use only filter: drop-shadow (not box-shadow) to avoid duplicate shadows */
-  filter: drop-shadow(0 12px 13px var(--collectibles-card-shadow)); /* 🔥 USER REQUEST: Shadow like other cards - removed !important to allow glow animation */
+  border: none !important;
+  outline: none !important;
+  /* 🔥 v102 approach: box-shadow for base shadow (glow animates filter separately) - GLOW WORKS */
+  box-shadow: 0 12px 13px var(--collectibles-card-shadow) !important; /* Base shadow */
   overflow: hidden !important; /* 🔥 CRITICAL: Clip shimmer effect to card boundaries */
   position: relative; /* 🔥 CRITICAL: Required for ::after positioning */
-  /* 🔥 MOBILE FIX: Remove transition on base state - it interferes with animation on mobile */
-  /* transition: filter 0.3s ease-out; */
+  transition: filter 0.3s ease-out; /* For glow pulse animation */
+  /* 🔥 FIX: Ensure card exactly matches wrapper dimensions */
+  width: 100% !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  /* 🔥 FIX: Remove any potential border/outline */
+  border-width: 0 !important;
+  outline-width: 0 !important;
+  /* 🔥 FIX: Contain layout to prevent bounding box expansion from box-shadow */
+  contain: layout style;
 }
 
 /* 🔥 USER REQUEST: Ensure shimmer is visible on interim cards */
@@ -1551,68 +1569,47 @@
 /* Glow pulse animation for interim card during scroll focus */
 .journey-board-card.interim.interim-glow-pulse {
   animation: interim-glow-pulse 0.5s ease-out;
-  /* 🔥 CRITICAL: Remove transition during animation to prevent interference */
-  transition: none !important;
-  /* 🔥 CRITICAL: Ensure z-index is set for visibility */
-  position: relative;
-  z-index: 1;
 }
 
 @keyframes interim-glow-pulse {
   0% {
-    filter: brightness(1) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 0px rgba(233, 116, 74, 0));
-    -webkit-filter: brightness(1) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 0px rgba(233, 116, 74, 0));
-    /* 🔥 FIX: Removed box-shadow to avoid duplicate shadows */
+    /* 🔥 v102 approach: Only glow effect - base shadow is box-shadow on card */
+    filter: brightness(1) drop-shadow(0 0 0px rgba(233, 116, 74, 0));
   }
   50% {
-    filter: brightness(1.2) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 12px rgba(233, 116, 74, 0.6));
-    -webkit-filter: brightness(1.2) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 12px rgba(233, 116, 74, 0.6));
-    /* 🔥 FIX: Removed box-shadow to avoid duplicate shadows */
+    /* 🔥 v102 approach: Glow effect only - base shadow combines automatically */
+    filter: brightness(1.2) drop-shadow(0 0 8px rgba(233, 116, 74, 0.4));
   }
   100% {
-    filter: brightness(1.05) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 6px rgba(233, 116, 74, 0.3));
-    -webkit-filter: brightness(1.05) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 6px rgba(233, 116, 74, 0.3));
-    /* 🔥 FIX: Removed box-shadow to avoid duplicate shadows */
+    /* 🔥 v102 approach: Glow effect only - base shadow combines automatically */
+    filter: brightness(1.05) drop-shadow(0 0 4px rgba(233, 116, 74, 0.2));
   }
 }
 
-/* 🔥 MOBILE FIX: Ensure glow works on mobile devices - use stronger filter values for visibility */
+/* 🔥 MOBILE FIX: Enhanced glow for iPhone compatibility */
 @media (max-width: 768px) {
   .journey-board-card.interim.interim-glow-pulse {
     /* Force animation to run on mobile */
-    animation: interim-glow-pulse-mobile 0.5s ease-out !important;
-    /* Ensure filter is applied */
+    animation: interim-glow-pulse 0.5s ease-out !important;
+    /* 🔥 iPhone FIX: Higher z-index for visibility */
+    z-index: 100 !important;
+    position: relative !important;
+    /* 🔥 iPhone FIX: Ensure filter is applied with will-change */
     will-change: filter !important;
-    /* Force hardware acceleration */
+    /* 🔥 iPhone FIX: Force hardware acceleration */
     transform: translateZ(0) !important;
     -webkit-transform: translateZ(0) !important;
-    /* Remove any transition that might interfere */
+    /* 🔥 iPhone FIX: Remove transition during animation */
     transition: none !important;
-    /* 🔥 CRITICAL: Ensure z-index is high enough */
-    z-index: 10 !important;
-    position: relative !important;
-    /* 🔥 MOBILE FIX: Force filter to be applied immediately */
-    filter: brightness(1.05) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 8px rgba(233, 116, 74, 0.4)) !important;
-    -webkit-filter: brightness(1.05) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 8px rgba(233, 116, 74, 0.4)) !important;
-  }
-  
-  /* 🔥 MOBILE FIX: Stronger animation values for better visibility on mobile */
-  @keyframes interim-glow-pulse-mobile {
-    0% {
-      filter: brightness(1) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 0px rgba(233, 116, 74, 0)) !important;
-      -webkit-filter: brightness(1) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 0px rgba(233, 116, 74, 0)) !important;
-    }
-    50% {
-      /* 🔥 MOBILE FIX: Much stronger glow values for mobile visibility */
-      filter: brightness(1.3) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 24px rgba(233, 116, 74, 1)) drop-shadow(0 0 32px rgba(233, 116, 74, 0.6)) !important;
-      -webkit-filter: brightness(1.3) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 24px rgba(233, 116, 74, 1)) drop-shadow(0 0 32px rgba(233, 116, 74, 0.6)) !important;
-    }
-    100% {
-      filter: brightness(1.1) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 12px rgba(233, 116, 74, 0.6)) !important;
-      -webkit-filter: brightness(1.1) drop-shadow(0 12px 13px var(--collectibles-card-shadow)) drop-shadow(0 0 12px rgba(233, 116, 74, 0.6)) !important;
-    }
+    /* 🔥 iPhone FIX: Isolation for better rendering */
+    isolation: isolate !important;
+    /* 🔥 iPhone FIX: Backface visibility for performance */
+    backface-visibility: hidden !important;
+    -webkit-backface-visibility: hidden !important;
   }
 }
+
+
 
 .journey-board-card.unlocked .journey-board-image {
   width: 100%;
@@ -1683,8 +1680,12 @@
 }
 
 .journey-board-card.interim .journey-board-image {
-  width: 100%;
-  height: 100%;
+  width: 100% !important;
+  height: 100% !important;
+  /* 🔥 FIX: Ensure image exactly matches card dimensions - no padding/margin */
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
   /* 🔥 iOS FIX: Prevent deep touch (long press) and image dragging */
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -1820,13 +1821,15 @@
 .journey-board-card-wrapper {
   /* 🔥 APP STORE FIX: Fixed positioning using viewport units (vw/vh) */
   position: absolute; /* Absolute within fixed cards container */
-  margin: 0;
-  padding: 0;
+  margin: 0 !important; /* 🔥 FIX: Ensure no margin that could cause larger container */
+  padding: 0 !important; /* 🔥 FIX: Ensure no padding that could cause larger container */
   display: block;
   flex: none;
-  box-sizing: border-box;
+  box-sizing: border-box !important; /* 🔥 FIX: Ensure box-sizing is border-box */
   z-index: 10;
   will-change: transform;
+  /* 🔥 FIX: Ensure wrapper has no background that could be visible */
+  background: transparent !important;
 }
 
 .journey-environment-element {

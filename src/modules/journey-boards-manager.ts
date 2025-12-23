@@ -446,16 +446,16 @@ class JourneyBoardsManager {
       });
     };
     
-    // 🔥 FIXED: Use setInterval for reliable timing (every 3 seconds)
+    // 🔥 FIXED: Use setInterval for reliable timing (every 2.9 seconds - same as v102)
     // Trigger immediately first
     triggerShimmerAndGlow();
     
     // Then set up interval for subsequent triggers
     this.glowPulseInterval = window.setInterval(() => {
       triggerShimmerAndGlow();
-    }, 3000) as any; // Convert to number for compatibility
+    }, 2900) as any; // Convert to number for compatibility (2.9s like v102)
     
-    logger.info('✅ Started independent bounce (with smoke bubbles at peak), shimmer (150ms before glow) + glow (3s interval) on interim card');
+    logger.info('✅ Started independent bounce (with smoke bubbles at peak), shimmer (150ms before glow) + glow (2.9s interval) on interim card');
   }
   
   /**
@@ -463,77 +463,22 @@ class JourneyBoardsManager {
    * 🔥 FIXED: Simplified to ensure glow always triggers reliably on both mobile and iPad
    */
   private triggerGlowPulse(card: HTMLElement): void {
-    if (!card || this.renderDisposed || !card.parentElement) {
-      logger.warn('⚠️ Cannot trigger glow pulse - card invalid or disposed');
-      return;
-    }
-    
-    const isMobile = window.innerWidth < 768;
-    logger.info(`✨ Triggering glow pulse on ${isMobile ? 'mobile' : 'iPad'} (width: ${window.innerWidth}px)`);
-    
     // Remove class first to reset animation
     card.classList.remove('interim-glow-pulse');
     
     // Force reflow to ensure class removal is processed
     void card.offsetHeight;
     
-    // 🔥 MOBILE FIX: Use double requestAnimationFrame on mobile for better reliability
-    const addGlowClass = () => {
-      if (this.renderDisposed || !card.parentElement) {
-        logger.warn('⚠️ Card disposed or removed from DOM during glow trigger');
-        return;
-      }
-      
-      // Add class to trigger animation
-      card.classList.add('interim-glow-pulse');
-      
-      // 🔥 MOBILE FIX: Force style recalculation and verify on mobile
-      if (isMobile) {
-        // Force browser to recalculate styles immediately
-        void card.offsetHeight;
-        const computedStyle = window.getComputedStyle(card);
-        const filterValue = computedStyle.filter;
-        const hasClass = card.classList.contains('interim-glow-pulse');
-        const animationName = computedStyle.animationName;
-        
-        logger.info(`✨ Mobile glow: class=${hasClass}, filter=${filterValue}, animation=${animationName}`);
-        
-        // If class wasn't added or animation isn't running, retry
-        if (!hasClass || animationName === 'none') {
-          logger.warn('⚠️ Mobile glow: Class or animation not applied, retrying...');
-          card.classList.remove('interim-glow-pulse');
-          void card.offsetHeight;
-          requestAnimationFrame(() => {
-            card.classList.add('interim-glow-pulse');
-            void card.offsetHeight; // Force reflow again
-          });
-        }
-      }
-      
-      logger.info('✨ Glow pulse triggered on interim card');
-
-      // Auto-remove after animation completes (0.5s animation + 100ms buffer)
-      const existing = (card as any)._interimGlowCleanup;
-      if (existing) {
-        clearTimeout(existing);
-      }
-      (card as any)._interimGlowCleanup = window.setTimeout(() => {
-        if (!this.renderDisposed && card.parentElement) {
-          card.classList.remove('interim-glow-pulse');
-          logger.info('✨ Glow pulse removed from interim card');
-        }
-        (card as any)._interimGlowCleanup = null;
-      }, 600); // 0.5s animation + 100ms buffer
-    };
-    
-    // Use requestAnimationFrame (double on mobile for better reliability)
-    if (isMobile) {
+    // 🔥 MOBILE FIX: Use double requestAnimationFrame for more reliable class application on mobile
+    requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        requestAnimationFrame(addGlowClass);
+        // Add class to trigger animation
+        card.classList.add('interim-glow-pulse');
+        
+        // Force style recalculation to ensure animation starts
+        void card.offsetHeight;
       });
-    } else {
-      requestAnimationFrame(addGlowClass);
-    }
+    });
   }
   
   // 🔥 USER REQUEST: triggerShimmer removed - shimmer is now handled directly in interval
@@ -1566,22 +1511,37 @@ class JourneyBoardsManager {
     
     // Set absolute position using pixels
     cardWrapper.style.position = 'absolute';
-    if (position.x === 50 && !(isIPad && (index + 1 === 1 || index + 1 === 3 || index + 1 === 4 || index + 1 === 5 || index + 1 === 6 || index + 1 === 7))) {
-      // Centered only if not overridden by iPad-specific positioning
-      cardWrapper.style.left = '50%';
-      cardWrapper.style.transform = `translateX(-50%) rotate(${position.rotation}deg) scale(${scaleFactor})`;
-    } else {
-      // 🔥 iPad FIX: Use direct leftPx positioning for iPad-specific cards
-      cardWrapper.style.left = `${leftPx}px`;
-      cardWrapper.style.transform = `rotate(${position.rotation}deg) scale(${scaleFactor})`;
-    }
-    cardWrapper.style.top = `${topPx}px`;
     
     // Set card dimensions in pixels (keep original size, scale is applied via transform)
     const cardWidth = position.width || STANDARD_CARD_WIDTH;
     const cardHeight = position.height || 150;
-    cardWrapper.style.width = `${cardWidth}px`;
-    cardWrapper.style.height = `${cardHeight}px`;
+    
+    // 🔥 FIX: Reduce wrapper dimensions consistently by 8px on each side to prevent ghost container
+    // This maintains aspect ratio and prevents visual issues
+    // Shadow is still visible because it extends from the card inside
+    const wrapperWidth = cardWidth - 16; // 8px sa svake strane (lijeva i desna)
+    const wrapperHeight = cardHeight - 16; // 8px sa svake strane (gore i dolje)
+    const wrapperLeftOffset = 8; // 8px offset za lijevu stranu
+    const wrapperTopOffset = 8; // 8px offset za gornju stranu
+    
+    if (position.x === 50 && !(isIPad && (index + 1 === 1 || index + 1 === 3 || index + 1 === 4 || index + 1 === 5 || index + 1 === 6 || index + 1 === 7))) {
+      // Centered only if not overridden by iPad-specific positioning
+      cardWrapper.style.left = `calc(50% + ${wrapperLeftOffset}px)`;
+      cardWrapper.style.transform = `translateX(calc(-50% - ${wrapperLeftOffset}px)) rotate(${position.rotation}deg) scale(${scaleFactor})`;
+    } else {
+      // 🔥 iPad FIX: Use direct leftPx positioning for iPad-specific cards
+      cardWrapper.style.left = `${leftPx + wrapperLeftOffset}px`;
+      cardWrapper.style.transform = `rotate(${position.rotation}deg) scale(${scaleFactor})`;
+    }
+    cardWrapper.style.top = `${topPx + wrapperTopOffset}px`;
+    cardWrapper.style.width = `${wrapperWidth}px`;
+    cardWrapper.style.height = `${wrapperHeight}px`;
+    // 🔥 FIX: Ensure wrapper has no border/outline that could cause 2px difference
+    cardWrapper.style.border = 'none';
+    cardWrapper.style.outline = 'none';
+    cardWrapper.style.padding = '0';
+    cardWrapper.style.margin = '0';
+    cardWrapper.style.boxSizing = 'border-box';
     cardWrapper.style.pointerEvents = 'auto'; // Enable clicks on cards
     cardWrapper.style.zIndex = '10';
     
@@ -1612,14 +1572,19 @@ class JourneyBoardsManager {
       }
     }
 
+    // 🔥 FIX: Ensure all cards (unlocked, interim, locked) exactly match wrapper dimensions
+    // This prevents shadow container from being larger than the card
+    card.style.width = '100%';
+    card.style.height = '100%';
+    card.style.boxSizing = 'border-box';
+    card.style.margin = '0';
+    card.style.padding = '0';
+    // 🔥 FIX: Remove any border/outline that could cause 2px difference
+    card.style.border = 'none';
+    card.style.outline = 'none';
+    
     if (isUnlocked) {
       // Unlocked card - show image and can click for details
-      // 🔥 iPad FIX: Osiguraj da unlocked kartice imaju istu veličinu kao interim kartice
-      if (isIPad) {
-        card.style.width = '100%';
-        card.style.height = '100%';
-        card.style.boxSizing = 'border-box';
-      }
       
       const image = document.createElement('img');
       image.src = board.imagePath || '';
