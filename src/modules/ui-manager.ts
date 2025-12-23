@@ -1667,6 +1667,13 @@ class UIManager {
   
   // Hide Journey screen with enter animation
   async hideCollectiblesScreenWithAnimation(): Promise<void> {
+    // 🔥 FIX: Prevent duplicate calls (iOS optimization)
+    if ((window as any).__ccIsHidingCollectibles) {
+      logger.warn('⚠️ hideCollectiblesScreenWithAnimation already in progress, ignoring duplicate call');
+      return;
+    }
+    (window as any).__ccIsHidingCollectibles = true;
+    
     logger.info('🗺️ Hiding Journey screen - with exit animation');
     
     // 🔥 CRITICAL: Stop ALL Journey animations BEFORE exit animation to prevent frame drops and lag
@@ -1916,6 +1923,11 @@ class UIManager {
     // Back button returns to Journey slide (index 1), NOT homepage slide (index 0)
     // collectibles-manager.ts will handle slider positioning and animateSliderEnter() call
     console.log('✅ Slider position and enter animation delegated to collectibles-manager.ts');
+    
+    // 🔥 FIX: Reset guard after animation completes (iOS optimization)
+    setTimeout(() => {
+      (window as any).__ccIsHidingCollectibles = false;
+    }, 2000);
   }
   
   // Show Journey screen

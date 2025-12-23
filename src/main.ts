@@ -1264,21 +1264,11 @@ async function startNewRun(boardId: number): Promise<void> {
           }
         }
         if (slideButton) {
-          (slideButton as HTMLElement).style.display = 'flex';
-          (slideButton as HTMLElement).style.visibility = 'visible';
-          (slideButton as HTMLElement).style.opacity = '1';
-          
-          // 🔥 iPad FIX: Preserve transform position on iPad after navigation
-          const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
-          if (isIPad) {
-            // Don't override transform - let CSS handle it
-            // Just ensure it's not cleared by inline styles
-            const currentTransform = (slideButton as HTMLElement).style.transform;
-            if (!currentTransform || !currentTransform.includes('translateY(4px)')) {
-              (slideButton as HTMLElement).style.transform = 'translateY(4px) scale(1)';
-              (slideButton as HTMLElement).style.webkitTransform = 'translateY(4px) scale(1)';
-            }
-          }
+          // 🔥 FIX: Ne postavljati display, visibility, opacity - CTA button već ima animate-enter-initial klasu
+          // Display, visibility i opacity će biti postavljeni kada se animacija pokrene
+          // (slideButton as HTMLElement).style.display = 'flex'; // REMOVED - causes flash
+          // (slideButton as HTMLElement).style.visibility = 'visible'; // REMOVED - causes flash
+          // (slideButton as HTMLElement).style.opacity = '1'; // REMOVED - causes flash
         }
       });
       navButtons.forEach((button, index) => {

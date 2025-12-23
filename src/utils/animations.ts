@@ -607,139 +607,88 @@ function startEnterAnimationSequence(): void {
     });
     
     
-    // STEP 3: Slide text, CTA button, and Tagline TOGETHER (60ms delay)
-    // Animate all at exactly the same time using the same timeout
+    // STEP 3: Slide text, CTA button, and Tagline TOGETHER (0ms delay - ZAJEDNO sa slider enter animacijom)
+    // 🔥 USER REQUEST: CTA animacija se treba pojaviti ZAJEDNO sa slider enter animacijom
     const slideTagline = activeSlide.querySelector('.slide-tagline');
     
-    // 🔥 iPad FIX: Detect iPad to preserve transform positions (moved before any element manipulation)
-    const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
-    
+    // 🔥 FIX: Provjeri da li elementi već imaju animate-enter-initial klasu (postavljenu pri kreiranju slide-a)
+    // Ako imaju, samo ukloni animate-enter i animate-exit klase, ne dodavaj animate-enter-initial ponovno
     if (slideText) {
-      slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-      slideText.classList.add('animate-enter-initial');
-      
-      // 🔥 iPad FIX: Set transform position immediately when adding animate-enter-initial class
-      if (isIPad) {
-        (slideText as HTMLElement).style.transform = 'translateY(120px) scale(0)';
-        (slideText as HTMLElement).style.webkitTransform = 'translateY(120px) scale(0)';
-        (slideText as HTMLElement).style.transition = 'none';
-        (slideText as HTMLElement).style.webkitTransition = 'none';
+      // 🔥 FIX: Provjeri da li element već ima animate-enter-initial klasu
+      // Ako ima, samo ukloni animate-enter i animate-exit klase, NE uklanjaj animate-enter-initial
+      const hasInitial = slideText.classList.contains('animate-enter-initial');
+      if (hasInitial) {
+        // Element već ima animate-enter-initial, samo ukloni ostale klase
+        slideText.classList.remove('animate-exit', 'animate-enter', 'animate-reset');
+      } else {
+        // Element nema animate-enter-initial, postavi ga
+        slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        slideText.classList.add('animate-enter-initial');
       }
-      
-      void slideText.offsetHeight;
+      void slideText.offsetHeight; // Force reflow
     }
     
     if (slideButton) {
-      slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-      slideButton.classList.add('animate-enter-initial');
-      
-      // 🔥 MOBILE FIX: On mobile, ensure scale(0) for enter animation
-      // 🔥 iPad FIX: On iPad, set transform position immediately when adding animate-enter-initial class
-      if (isIPad) {
-        (slideButton as HTMLElement).style.transform = 'translateY(4px) scale(1)';
-        (slideButton as HTMLElement).style.webkitTransform = 'translateY(4px) scale(1)';
-        (slideButton as HTMLElement).style.transition = 'none';
-        (slideButton as HTMLElement).style.webkitTransition = 'none';
+      // 🔥 FIX: Provjeri da li element već ima animate-enter-initial klasu
+      // Ako ima, samo ukloni animate-enter i animate-exit klase, NE uklanjaj animate-enter-initial
+      const hasInitial = slideButton.classList.contains('animate-enter-initial');
+      if (hasInitial) {
+        // Element već ima animate-enter-initial, samo ukloni ostale klase
+        slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-reset');
       } else {
-        // 🔥 MOBILE FIX: On mobile, ensure scale(0) for enter animation to work
-        (slideButton as HTMLElement).style.transform = 'scale(0)';
-        (slideButton as HTMLElement).style.webkitTransform = 'scale(0)';
-        (slideButton as HTMLElement).style.transition = 'none';
-        (slideButton as HTMLElement).style.webkitTransition = 'none';
+        // Element nema animate-enter-initial, postavi ga
+        slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        slideButton.classList.add('animate-enter-initial');
       }
-      
-      void slideButton.offsetHeight;
-    }
-    if (slideText) {
-      slideText.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-      slideText.classList.add('animate-enter-initial');
-      
-      // 🔥 iPad FIX: Set transform position immediately when adding animate-enter-initial class
-      if (isIPad) {
-        (slideText as HTMLElement).style.transform = 'translateY(120px) scale(0)';
-        (slideText as HTMLElement).style.webkitTransform = 'translateY(120px) scale(0)';
-        (slideText as HTMLElement).style.transition = 'none';
-        (slideText as HTMLElement).style.webkitTransition = 'none';
-      }
-      
-      void slideText.offsetHeight;
-    }
-    if (slideTagline) {
-      (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-      (slideTagline as HTMLElement).classList.add('animate-enter-initial');
-      
-      // 🔥 iPad FIX: Set transform position immediately when adding animate-enter-initial class
-      if (isIPad) {
-        (slideTagline as HTMLElement).style.transform = 'translateY(-12px) scale(0)';
-        (slideTagline as HTMLElement).style.webkitTransform = 'translateY(-12px) scale(0)';
-        (slideTagline as HTMLElement).style.transition = 'none';
-        (slideTagline as HTMLElement).style.webkitTransition = 'none';
-      }
-      
-      void (slideTagline as HTMLElement).offsetHeight;
+      void slideButton.offsetHeight; // Force reflow
     }
     
+    if (slideTagline) {
+      // 🔥 FIX: Provjeri da li element već ima animate-enter-initial klasu
+      // Ako ima, samo ukloni animate-enter i animate-exit klase, NE uklanjaj animate-enter-initial
+      const hasInitial = (slideTagline as HTMLElement).classList.contains('animate-enter-initial');
+      if (hasInitial) {
+        // Element već ima animate-enter-initial, samo ukloni ostale klase
+        (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-reset');
+      } else {
+        // Element nema animate-enter-initial, postavi ga
+        (slideTagline as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        (slideTagline as HTMLElement).classList.add('animate-enter-initial');
+      }
+      void (slideTagline as HTMLElement).offsetHeight; // Force reflow
+    }
+    
+    // 🔥 FIX: Pokreni animaciju ZAJEDNO sa slider enter animacijom (0ms delay)
+    // Koristi setTimeout sa 0ms za immediate execution, bez double requestAnimationFrame
     const enterTimeout = setTimeout(() => {
       activeTimeouts.delete(enterTimeout);
       if (slideText) {
         slideText.classList.remove('animate-enter-initial');
         slideText.classList.add('animate-enter');
-        
-        // 🔥 iPad FIX: Set transform position immediately when adding animate-enter class
-        if (isIPad) {
-          (slideText as HTMLElement).style.transform = 'translateY(120px) scale(1)';
-          (slideText as HTMLElement).style.webkitTransform = 'translateY(120px) scale(1)';
-          (slideText as HTMLElement).style.transition = 'none';
-          (slideText as HTMLElement).style.webkitTransition = 'none';
-        }
-        
         logger.info('📝 Step 3: Slide text cartoonish bounce - TOGETHER with CTA');
-    } else {
-      logger.warn('⚠️ Slide text not found in active slide');
-    }
-    
-    if (slideButton) {
-        // 🔥 MOBILE FIX: On mobile, always play enter animation
-        // 🔥 iPad FIX: Na iPad-u CTA button ne mijenja poziciju nakon preloada - zadržati animate-enter-initial
-        if (!isIPad) {
-          // 🔥 MOBILE FIX: Remove inline styles to allow CSS animation to work
-          (slideButton as HTMLElement).style.transform = '';
-          (slideButton as HTMLElement).style.webkitTransform = '';
-          (slideButton as HTMLElement).style.transition = '';
-          (slideButton as HTMLElement).style.webkitTransition = '';
-          
-          slideButton.classList.remove('animate-enter-initial');
-          slideButton.classList.add('animate-enter');
-          logger.info('🔘 Step 3: CTA button cartoonish bounce - TOGETHER with text (MOBILE)');
-        } else {
-          // Na iPad-u zadržati animate-enter-initial - CTA je već na finalnoj poziciji
-          // 🔥 iPad FIX: Ensure transform is set even if we keep animate-enter-initial
-          (slideButton as HTMLElement).style.transform = 'translateY(4px) scale(1)';
-          (slideButton as HTMLElement).style.webkitTransform = 'translateY(4px) scale(1)';
-          (slideButton as HTMLElement).style.transition = 'none';
-          (slideButton as HTMLElement).style.webkitTransition = 'none';
-          logger.info('🔘 Step 3: CTA button na iPad-u - zadržana finalna pozicija bez animacije');
-        }
-    } else {
-      logger.warn('⚠️ CTA button not found in active slide');
-    }
+      } else {
+        logger.warn('⚠️ Slide text not found in active slide');
+      }
+      
+      if (slideButton) {
+        slideButton.classList.remove('animate-enter-initial');
+        slideButton.classList.add('animate-enter');
+        logger.info('🔘 Step 3: CTA button cartoonish bounce - TOGETHER with text');
+      } else {
+        logger.warn('⚠️ CTA button not found in active slide');
+      }
       
       // Animate tagline together with text and CTA
       if (slideTagline) {
         (slideTagline as HTMLElement).classList.remove('animate-enter-initial');
         (slideTagline as HTMLElement).classList.add('animate-enter');
-        
-        // 🔥 iPad FIX: Set transform position immediately when adding animate-enter class
-        if (isIPad) {
-          (slideTagline as HTMLElement).style.transform = 'translateY(-12px) scale(1)';
-          (slideTagline as HTMLElement).style.webkitTransform = 'translateY(-12px) scale(1)';
-          (slideTagline as HTMLElement).style.transition = 'none';
-          (slideTagline as HTMLElement).style.webkitTransition = 'none';
-        }
-        
+        // 🔥 FIX: Osigurati da je tagline vidljiv nakon animacije
+        (slideTagline as HTMLElement).style.display = 'block';
+        (slideTagline as HTMLElement).style.visibility = 'visible';
+        (slideTagline as HTMLElement).style.opacity = '1';
         logger.info('📝 Step 3: Slide tagline cartoonish bounce - TOGETHER with text and CTA');
       }
-    }, 60);
+    }, 0);
     activeTimeouts.add(enterTimeout);
     
     // STEP 5: Hero image LAST (120ms delay) - was first to exit
@@ -779,7 +728,9 @@ function startEnterAnimationSequence(): void {
               const isTagline = el.classList.contains('slide-tagline');
               
               if (isButton) {
-                preservedTransform = 'translateY(4px) scale(1)';
+                // 🔥 FIX: Don't set scale(1) - let CSS animation handle it
+                // Only set translateY for positioning, scale will be handled by CSS classes
+                preservedTransform = 'translateY(4px)';
               } else if (isTagline) {
                 preservedTransform = 'translateY(-12px)';
               } else if (isText) {
@@ -787,7 +738,9 @@ function startEnterAnimationSequence(): void {
               }
             }
             
-            el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+            // 🔥 FIX: Ne uklanjati animate-enter-initial klasu - ona osigurava da se elementi ne vide prije animacije
+            // Samo ukloni animate-enter i animate-exit klase, animate-enter-initial ostaje
+            el.classList.remove('animate-exit', 'animate-enter', 'animate-reset');
             
             // 🔥 iPad FIX: Restore transform position after removing classes - ALWAYS set on iPad
             if (isIPad && preservedTransform) {
@@ -812,7 +765,9 @@ function startEnterAnimationSequence(): void {
       sharedElements.forEach(element => {
         if (element) {
           const el = element as HTMLElement;
-          el.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+          // 🔥 FIX: Ne uklanjati animate-enter-initial klasu za shared elements
+          // Samo ukloni animate-enter i animate-exit klase
+          el.classList.remove('animate-exit', 'animate-enter', 'animate-reset');
         }
       });
       
@@ -903,6 +858,10 @@ function startEnterAnimationSequenceLegacy(): void {
     if (slideTagline) {
       (slideTagline as HTMLElement).classList.remove('animate-enter-initial');
       (slideTagline as HTMLElement).classList.add('animate-enter');
+      // 🔥 FIX: Osigurati da je tagline vidljiv nakon animacije
+      (slideTagline as HTMLElement).style.display = 'block';
+      (slideTagline as HTMLElement).style.visibility = 'visible';
+      (slideTagline as HTMLElement).style.opacity = '1';
       logger.info('📝 Step 3: Slide tagline cartoonish bounce - TOGETHER with text and CTA (legacy)');
   }
   }, 60);

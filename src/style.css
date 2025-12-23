@@ -323,24 +323,7 @@ body{
   transform: translateY(28px) !important; /* 🔥 USER REQUEST: Spušteno za 16px (12px + 16px = 28px) */
 }
 
-/* 🔥 iPad FIX: Override slide-text transform on iPad */
-@media only screen and (min-device-width: 768px) and (max-device-width: 1024px),
-       only screen and (min-device-width: 1024px) and (max-device-width: 1366px),
-       screen and (min-width: 768px) and (max-width: 1024px) {
-  .slider-slide .slide-text,
-  .slider-slide .slide-content .slide-text {
-    transform: translateY(120px) !important; /* iPad pozicija */
-    -webkit-transform: translateY(120px) !important;
-  }
-  
-  .slider-slide[data-slide="0"] .slide-text,
-  .slider-slide[data-slide="1"] .slide-text,
-  .slider-slide[data-slide="2"] .slide-text,
-  .slider-slide[data-slide="3"] .slide-text {
-    transform: translateY(120px) !important; /* Override slide-specific pozicije na iPad-u */
-    -webkit-transform: translateY(120px) !important;
-  }
-}
+/* 🔥 REMOVED: iPad-specific slide-text positioning - let CSS handle it via classes */
 
 /* CRITICAL: Override .slide-text transform when animate-exit is active */
 .slide-text.animate-exit {
@@ -1001,16 +984,7 @@ body{
   -webkit-transform: translateY(20px) scale(0) !important; /* 🔥 USER REQUEST: Spušteno za 8px (12px + 8px = 20px) - samo CTA */
 }
 
-/* 🔥 iPad FIX: Override slide-button.animate-exit on iPad */
-@media only screen and (min-device-width: 768px) and (max-device-width: 1024px),
-       only screen and (min-device-width: 1024px) and (max-device-width: 1366px),
-       screen and (min-width: 768px) and (max-width: 1024px) {
-  .slider-slide .slide-button.animate-exit,
-  .slider-slide .slide-content .slide-button.animate-exit {
-    transform: translateY(4px) scale(0) !important; /* iPad pozicija */
-    -webkit-transform: translateY(4px) scale(0) !important;
-  }
-}
+/* 🔥 REMOVED: iPad-specific CTA exit positioning - let CSS handle it via classes */
 
 /* Slide-tagline animates together with slide-text */
 .slide-tagline.animate-exit {
@@ -1043,16 +1017,7 @@ body{
   transform: translateY(12px) scale(1) !important;
 }
 
-/* 🔥 iPad FIX: Override slide-text.animate-enter on iPad */
-@media only screen and (min-device-width: 768px) and (max-device-width: 1024px),
-       only screen and (min-device-width: 1024px) and (max-device-width: 1366px),
-       screen and (min-width: 768px) and (max-width: 1024px) {
-  .slider-slide .slide-text.animate-enter,
-  .slider-slide .slide-content .slide-text.animate-enter {
-    transform: translateY(120px) scale(1) !important; /* iPad pozicija */
-    -webkit-transform: translateY(120px) scale(1) !important;
-  }
-}
+/* 🔥 REMOVED: iPad-specific slide-text enter positioning - let CSS handle it via classes */
 
 /* Slide-button needs to preserve translateY during scale animation - no translateY in enter, stays in position */
 .slide-button.animate-enter {
@@ -1061,18 +1026,7 @@ body{
   transform: scale(1) !important;
 }
 
-/* 🔥 iPad FIX: Override slide-button.animate-enter on iPad */
-@media only screen and (min-device-width: 768px) and (max-device-width: 1024px),
-       only screen and (min-device-width: 1024px) and (max-device-width: 1366px),
-       screen and (min-width: 768px) and (max-width: 1024px) {
-  .slider-slide .slide-button.animate-enter,
-  .slider-slide .slide-content .slide-button.animate-enter {
-    transform: translateY(4px) scale(1) !important; /* iPad pozicija */
-    -webkit-transform: translateY(4px) scale(1) !important;
-    transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-    -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-  }
-}
+/* 🔥 REMOVED: iPad-specific CTA button positioning - let CSS handle it via classes */
 
 /* Slide-tagline animates together with slide-text */
 .slide-tagline.animate-enter {
@@ -1081,16 +1035,7 @@ body{
   transform: scale(1) !important;
 }
 
-/* 🔥 iPad FIX: Override slide-tagline.animate-enter on iPad */
-@media only screen and (min-device-width: 768px) and (max-device-width: 1024px),
-       only screen and (min-device-width: 1024px) and (max-device-width: 1366px),
-       screen and (min-width: 768px) and (max-width: 1024px) {
-  .slider-slide .slide-tagline.animate-enter,
-  .slider-slide .slide-content .slide-tagline.animate-enter {
-    transform: translateY(-12px) scale(1) !important; /* iPad pozicija */
-    -webkit-transform: translateY(-12px) scale(1) !important;
-  }
-}
+/* 🔥 REMOVED: iPad-specific tagline positioning - let CSS handle it via classes */
 
 /* Initial state for enter animation - scale 0, no transition */
 .animate-enter-initial {
@@ -1114,16 +1059,7 @@ body{
   transform: translateY(12px) scale(0) !important;
 }
 
-/* 🔥 iPad FIX: Override slide-text.animate-enter-initial on iPad */
-@media only screen and (min-device-width: 768px) and (max-device-width: 1024px),
-       only screen and (min-device-width: 1024px) and (max-device-width: 1366px),
-       screen and (min-width: 768px) and (max-width: 1024px) {
-  .slider-slide .slide-text.animate-enter-initial,
-  .slider-slide .slide-content .slide-text.animate-enter-initial {
-    transform: translateY(120px) scale(0) !important; /* iPad pozicija */
-    -webkit-transform: translateY(120px) scale(0) !important;
-  }
-}
+/* 🔥 REMOVED: iPad-specific slide-text positioning - let CSS handle it via classes */
 
 /* Slide-button needs to preserve translateY during initial state - no translateY, stays in position */
 .slide-button.animate-enter-initial {
@@ -1131,16 +1067,7 @@ body{
   transform: scale(0) !important;
 }
 
-/* 🔥 iPad FIX: Override slide-button.animate-enter-initial on iPad */
-@media only screen and (min-device-width: 768px) and (max-device-width: 1024px),
-       only screen and (min-device-width: 1024px) and (max-device-width: 1366px),
-       screen and (min-width: 768px) and (max-width: 1024px) {
-  .slider-slide .slide-button.animate-enter-initial,
-  .slider-slide .slide-content .slide-button.animate-enter-initial {
-    transform: translateY(4px) scale(0) !important; /* start scaled down for enter */
-    -webkit-transform: translateY(4px) scale(0) !important;
-  }
-}
+/* 🔥 REMOVED: iPad-specific CTA button initial positioning - let CSS handle it via classes */
 
 /* Slide-tagline animates together with slide-text */
 .slide-tagline.animate-enter-initial {
@@ -1148,16 +1075,7 @@ body{
   transform: scale(0) !important;
 }
 
-/* 🔥 iPad FIX: Override slide-tagline.animate-enter-initial on iPad */
-@media only screen and (min-device-width: 768px) and (max-device-width: 1024px),
-       only screen and (min-device-width: 1024px) and (max-device-width: 1366px),
-       screen and (min-width: 768px) and (max-width: 1024px) {
-  .slider-slide .slide-tagline.animate-enter-initial,
-  .slider-slide .slide-content .slide-tagline.animate-enter-initial {
-    transform: translateY(-12px) scale(0) !important; /* iPad pozicija */
-    -webkit-transform: translateY(-12px) scale(0) !important;
-  }
-}
+/* 🔥 REMOVED: iPad-specific tagline initial positioning - let CSS handle it via classes */
 
 /* Reset state - remove all animation classes */
 .animate-reset {
@@ -1171,16 +1089,7 @@ body{
   transform: translateY(12px) scale(1);
 }
 
-/* 🔥 iPad FIX: Override slide-text.animate-reset on iPad */
-@media only screen and (min-device-width: 768px) and (max-device-width: 1024px),
-       only screen and (min-device-width: 1024px) and (max-device-width: 1366px),
-       screen and (min-width: 768px) and (max-width: 1024px) {
-  .slider-slide .slide-text.animate-reset,
-  .slider-slide .slide-content .slide-text.animate-reset {
-    transform: translateY(120px) scale(1) !important; /* iPad pozicija */
-    -webkit-transform: translateY(120px) scale(1) !important;
-  }
-}
+/* 🔥 REMOVED: iPad-specific slide-text reset positioning - let CSS handle it via classes */
 
 /* Slide-tagline reset state */
 .slide-tagline.animate-reset {

@@ -444,20 +444,7 @@
     margin-bottom: 8px !important;
   }
   
-  /* 🔥 CRITICAL FIX: CTA button na iPad-u odmah na finalnoj poziciji - primjenjuje se PRIJE bilo koje animacijske klase */
-  /* Ovo osigurava da se CTA button ne pomiče sa dna ekrana na finalnu poziciju */
-  .slider-slide .slide-button,
-  .slider-slide .slide-content .slide-button,
-  .slider-slide .slide-button.slide-button,
-  .slider-slide .slide-content .slide-button.slide-button,
-  .slider-slide .slide-button:not(.animate-exit):not(.animate-enter):not(.animate-enter-initial):not(.animate-reset),
-  .slider-slide .slide-content .slide-button:not(.animate-exit):not(.animate-enter):not(.animate-enter-initial):not(.animate-reset) {
-    margin-top: 0 !important;
-    transform: translateY(4px) scale(1) !important; /* 🔥 CRITICAL: Odmah na finalnoj poziciji sa scale(1) - bez pomjeranja */
-    -webkit-transform: translateY(4px) scale(1) !important;
-    transition: none !important; /* Bez transition-a - odmah na finalnoj poziciji */
-    -webkit-transition: none !important;
-  }
+  /* 🔥 REMOVED: All iPad-specific CTA button positioning - let CSS handle it via classes */
   
   /* Povećati hero-image za 16% scale na iPad-u (20% - 4% = 16%), zatim smanjiti za 10% */
   .hero-image {
@@ -479,70 +466,7 @@
     margin-bottom: 24px !important; /* 24px gap ispod slike */
   }
   
-  /* Override za animacijske klase - osigurati da se iPad pozicije koriste i tijekom animacije */
-  /* Koristimo veću specifičnost da override-amo sve animacijske klase */
-  .slider-slide .slide-text.animate-exit,
-  .slider-slide .slide-content .slide-text.animate-exit,
-  .slider-slide .slide-text.animate-enter,
-  .slider-slide .slide-content .slide-text.animate-enter,
-  .slider-slide .slide-text.animate-enter-initial,
-  .slider-slide .slide-content .slide-text.animate-enter-initial,
-  .slider-slide .slide-text.animate-reset,
-  .slider-slide .slide-content .slide-text.animate-reset {
-    transform: translateY(120px) scale(1) !important; /* keep Y offset */
-    -webkit-transform: translateY(120px) scale(1) !important;
-    margin-top: 0 !important;
-    margin-bottom: 8px !important;
-  }
-
-  /* Initial state for text: scaled down so enter animates in */
-  .slider-slide .slide-text.animate-enter-initial,
-  .slider-slide .slide-content .slide-text.animate-enter-initial {
-    transform: translateY(120px) scale(0) !important;
-    -webkit-transform: translateY(120px) scale(0) !important;
-    transition: none !important;
-  }
-
-  .slider-slide .slide-text.animate-enter,
-  .slider-slide .slide-content .slide-text.animate-enter {
-    transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-  }
-  
-  /* Slide tagline (merge dice clear boards subtitle) - podignuto za 8px gore + dodatnih 8px = 16px gore + dodatnih 24px = -8px + dodatnih 4px = -12px */
-  /* Ne primjenjivati na animacijske klase - omogućiti animacije */
-  .slider-slide .slide-tagline:not(.animate-exit):not(.animate-enter):not(.animate-enter-initial) {
-    transform: translateY(-12px) !important; /* 🔥 USER REQUEST: Podignuto za dodatnih 4px gore (-8px - 4px = -12px) */
-    -webkit-transform: translateY(-12px) !important;
-    margin-top: -40px !important; /* 🔥 USER REQUEST: Podignuto za dodatnih 4px gore (-36px - 4px = -40px) */
-  }
-  
-  /* Override za animacijske klase - osigurati da se iPad pozicije koriste i tijekom animacije */
-  /* Koristimo veću specifičnost da override-amo sve animacijske klase */
-  .slider-slide .slide-button.animate-enter,
-  .slider-slide .slide-content .slide-button.animate-enter,
-  .slider-slide .slide-button.animate-enter-initial,
-  .slider-slide .slide-content .slide-button.animate-enter-initial {
-    margin-top: 0 !important;
-    /* Allow CTA to animate: start at scale(0), end at scale(1) */
-    transform: translateY(4px) scale(1) !important;
-    -webkit-transform: translateY(4px) scale(1) !important;
-    transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-  }
-
-  /* Initial state for CTA on iPad: scaled down */
-  .slider-slide .slide-button.animate-enter-initial,
-  .slider-slide .slide-content .slide-button.animate-enter-initial {
-    transform: translateY(4px) scale(0) !important;
-    -webkit-transform: translateY(4px) scale(0) !important;
-    transition: none !important;
-  }
-  
-  .slider-slide .slide-button.animate-reset,
-  .slider-slide .slide-content .slide-button.animate-reset {
-    margin-top: 0 !important;
-    transform: translateY(4px) !important; /* 🔥 USER REQUEST: Podignuto za dodatnih 4px gore (8px - 4px = 4px) - samo CTA */
-    -webkit-transform: translateY(4px) !important;
-  }
+  /* 🔥 REMOVED: All iPad-specific CTA and subtitle positioning - let CSS handle it via classes */
   
   /* CRITICAL: Exit animation must override iPad positioning */
   .slider-slide .slide-button.animate-exit,
@@ -616,41 +540,7 @@
     -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   }
   
-  /* Override iPhone stilove iz style.css s većom specifičnošću */
-  /* 🔥 iPad FIX: CTA button na iPad-u ne mijenja poziciju nakon preloada - animate-enter ima istu poziciju kao animate-enter-initial */
-  .slider-slide .slide-button.animate-enter,
-  .slider-slide .slide-content .slide-button.animate-enter {
-    transform: translateY(4px) scale(1) !important; /* Final position */
-    -webkit-transform: translateY(4px) scale(1) !important;
-    transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-    -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-  }
-  
-  /* iPhone stilovi - zadržati originalne vrijednosti */
-  .slide-button.animate-enter {
-    transform: translateY(64px) scale(1) !important; /* 🔥 USER REQUEST: Spušteno za 8px prema donjem rubu (56px + 8px = 64px) - samo CTA */
-    -webkit-transform: translateY(64px) scale(1) !important;
-    transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-    -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-  }
-  
-  /* 🔥 iPad FIX: animate-enter-initial na iPad-u ima istu poziciju kao default - bez pomjeranja */
-  .slider-slide .slide-button.animate-enter-initial,
-  .slider-slide .slide-content .slide-button.animate-enter-initial {
-    transform: translateY(4px) scale(0) !important; /* Start scaled down for enter */
-    -webkit-transform: translateY(4px) scale(0) !important;
-    transition: none !important;
-    -webkit-transition: none !important;
-  }
-  
-  /* iPhone stilovi - zadržati originalne vrijednosti */
-  .slide-button.animate-enter-initial {
-    /* Start scaled down so enter animation plays */
-    transform: translateY(64px) scale(0) !important;
-    -webkit-transform: translateY(64px) scale(0) !important;
-    transition: none !important;
-    -webkit-transition: none !important;
-  }
+  /* 🔥 REMOVED: All iPad-specific CTA button animation rules - let base CSS handle it */
   
   .slide-tagline.animate-exit {
     transform: translateY(-12px) scale(0) !important; /* 🔥 USER REQUEST: Podignuto za dodatnih 4px gore (-8px - 4px = -12px) */
@@ -831,15 +721,7 @@
     -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   }
   
-  .slide-button.animate-enter-initial,
-  .slider-slide .slide-button.animate-enter-initial,
-  .slider-slide .slide-content .slide-button.animate-enter-initial {
-    /* 🔥 USER REQUEST: CTA button odmah na finalnoj poziciji bez animacije pri učitavanju */
-    transform: translateY(2.25vh) scale(1) !important; /* Odmah scale(1) umjesto scale(0) */
-    -webkit-transform: translateY(2.25vh) scale(1) !important;
-    transition: none !important;
-    -webkit-transition: none !important;
-  }
+  /* 🔥 REMOVED: iPhone-specific CTA enter-initial rule that blocked animation - let base CSS handle it */
   
   .slide-button.animate-reset,
   .slider-slide .slide-button.animate-reset,

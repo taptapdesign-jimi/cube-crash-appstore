@@ -173,6 +173,14 @@ class CollectiblesManager {
       const target = e.target as HTMLElement;
       const backBtn = target.closest('#collectibles-back');
       if (backBtn) {
+        // 🔥 FIX: Prevent duplicate calls (iOS optimization)
+        if ((window as any).__ccIsHidingCollectibles) {
+          logger.warn('⚠️ hideCollectiblesScreenWithAnimation already in progress, ignoring duplicate click');
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        
         logger.info('🎁 Collectibles back button clicked');
         e.preventDefault();
         e.stopPropagation();
@@ -182,6 +190,7 @@ class CollectiblesManager {
           logger.info('🎁 Calling window.hideCollectiblesScreenWithAnimation()');
           (window as any).hideCollectiblesScreenWithAnimation().catch((err: any) => {
             logger.error('❌ Error in hideCollectiblesScreenWithAnimation:', err);
+            (window as any).__ccIsHidingCollectibles = false; // Reset on error
           });
         } else if (typeof window.hideCollectiblesScreen === 'function') {
           logger.info('🎁 Calling window.hideCollectiblesScreen()');
@@ -735,6 +744,8 @@ class CollectiblesManager {
         
         if (slideText) {
           (slideText as HTMLElement).style.display = 'block';
+          (slideText as HTMLElement).style.visibility = 'visible';
+          (slideText as HTMLElement).style.opacity = '1';
           if (isIPad) {
             const currentTransform = (slideText as HTMLElement).style.transform;
             if (!currentTransform || !currentTransform.includes('translateY(120px)')) {
@@ -745,6 +756,8 @@ class CollectiblesManager {
         }
         if (slideTagline) {
           (slideTagline as HTMLElement).style.display = 'block';
+          (slideTagline as HTMLElement).style.visibility = 'visible';
+          (slideTagline as HTMLElement).style.opacity = '1';
           if (isIPad) {
             const currentTransform = (slideTagline as HTMLElement).style.transform;
             if (!currentTransform || !currentTransform.includes('translateY(-12px)')) {
@@ -754,14 +767,9 @@ class CollectiblesManager {
           }
         }
         if (slideButton) {
-          (slideButton as HTMLElement).style.display = 'flex';
-          if (isIPad) {
-            const currentTransform = (slideButton as HTMLElement).style.transform;
-            if (!currentTransform || !currentTransform.includes('translateY(4px)')) {
-              (slideButton as HTMLElement).style.transform = 'translateY(4px) scale(1)';
-              (slideButton as HTMLElement).style.webkitTransform = 'translateY(4px) scale(1)';
-            }
-          }
+          // 🔥 FIX: Ne postavljati display - CTA button već ima animate-enter-initial klasu
+          // Display će biti postavljen kada se animacija pokrene
+          // (slideButton as HTMLElement).style.display = 'flex'; // REMOVED - causes flash
         }
       });
       logger.info('✅ All slides and content made visible');
@@ -833,16 +841,25 @@ class CollectiblesManager {
         }
       }
       
-      // Step 3: Trigger homepage slide 2 ENTER animation EARLIER for smoother transition
-      // 🔥 USER REQUEST: Start enter animation 300ms after exit animation starts for fluid overlap
-      // Exit animation takes ~0.8s, but we start enter animation at 300ms for very fluid transition
-      const exitAnimationDuration = 300; // 300ms - start enter animation very early for smoother transition
-      setTimeout(async () => {
-        console.log('🎬 Step 3: Triggering slide 2 enter animation EARLY (300ms) for fluid transition...');
-        const { animateSliderEnter } = await import('./utils/animations.js');
-        animateSliderEnter();
-        logger.info('✅ Homepage slide 2 enter animation triggered EARLY (300ms) - Final destination: Slide 2');
-      }, exitAnimationDuration);
+      // Step 3: Trigger homepage slide 2 ENTER animation
+      // 🔥 USER REQUEST: Journey exit → Slide 2 enter animacija
+      // Use requestAnimationFrame to ensure DOM is fully updated before animation
+      await new Promise(resolve => requestAnimationFrame(() => {
+        requestAnimationFrame(async () => {
+          // Final verification before animation
+          const finalActiveSlide = document.querySelector('.slider-slide.active');
+          const finalSlideIndex = finalActiveSlide ? Array.from(allSlides).indexOf(finalActiveSlide) : -1;
+          if (finalSlideIndex === 1) {
+            console.log('🎬 Step 3: Triggering slide 2 enter animation...');
+            const { animateSliderEnter } = await import('./utils/animations.js');
+            animateSliderEnter();
+            logger.info('✅ Homepage slide 2 enter animation triggered - Final destination: Slide 2');
+          } else {
+            console.error(`❌ CRITICAL: Active slide is ${finalSlideIndex}, not 1! Cannot animate slide 2.`);
+          }
+          resolve(undefined);
+        });
+      }));
     }
   }
 

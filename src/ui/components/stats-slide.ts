@@ -96,12 +96,32 @@ export function renderStatsSlide(
     }
     
     if (slideButton) {
-      slideButton.style.transform = 'translateY(4px) scale(1)';
-      slideButton.style.webkitTransform = 'translateY(4px) scale(1)';
-      slideButton.style.transition = 'none';
-      slideButton.style.webkitTransition = 'none';
+      // 🔥 v103 approach: Don't set ANY inline styles on iPad - let CSS handle everything
+      // CSS will set the correct transform via animate-enter-initial/animate-enter classes
       slideButton.style.marginTop = '0';
+      // Don't clear transform - let CSS handle it completely
     }
+  }
+  
+  // 🔥 FIX: Postavi CTA button u animate-enter-initial stanje PRIJE dodavanja u DOM
+  // Ovo osigurava da se CTA button ne vidi prije nego što se animacija pokrene
+  const slideButton = element.querySelector('.slide-button') as HTMLElement;
+  const slideText = element.querySelector('.slide-text') as HTMLElement;
+  const slideTagline = element.querySelector('.slide-tagline') as HTMLElement;
+  
+  if (slideButton) {
+    slideButton.classList.add('animate-enter-initial');
+  }
+  if (slideText) {
+    slideText.classList.add('animate-enter-initial');
+  }
+  // 🔥 FIX: Tagline NE treba animate-enter-initial klasu - treba biti vidljiv odmah
+  // Animacija će se pokrenuti samo za aktivni slide u startEnterAnimationSequence
+  if (slideTagline) {
+    // Ne dodavati animate-enter-initial - tagline treba biti vidljiv odmah
+    (slideTagline as HTMLElement).style.display = 'block';
+    (slideTagline as HTMLElement).style.visibility = 'visible';
+    (slideTagline as HTMLElement).style.opacity = '1';
   }
   
   container.appendChild(element);
