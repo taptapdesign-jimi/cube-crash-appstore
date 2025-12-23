@@ -746,11 +746,18 @@ class CollectiblesManager {
           (slideText as HTMLElement).style.display = 'block';
           (slideText as HTMLElement).style.visibility = 'visible';
           (slideText as HTMLElement).style.opacity = '1';
+          const isActiveSlide = slide.classList.contains('active');
+          
           if (isIPad) {
             const currentTransform = (slideText as HTMLElement).style.transform;
             if (!currentTransform || !currentTransform.includes('translateY(120px)')) {
               (slideText as HTMLElement).style.transform = 'translateY(120px)';
               (slideText as HTMLElement).style.webkitTransform = 'translateY(120px)';
+            }
+            
+            // 🔥 FIX: Za neaktivne slide-ove na iPadu, ukloniti animate-enter-initial
+            if (!isActiveSlide) {
+              (slideText as HTMLElement).classList.remove('animate-enter-initial');
             }
           }
         }
@@ -767,9 +774,22 @@ class CollectiblesManager {
           }
         }
         if (slideButton) {
-          // 🔥 FIX: Ne postavljati display - CTA button već ima animate-enter-initial klasu
-          // Display će biti postavljen kada se animacija pokrene
-          // (slideButton as HTMLElement).style.display = 'flex'; // REMOVED - causes flash
+          // 🔥 FIX: Za iPad, osigurati da je CTA button vidljiv na neaktivnim slide-ovima
+          // Animacija će se pokrenuti samo za aktivni slide
+          const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
+          const isActiveSlide = slide.classList.contains('active');
+          
+          if (isIPad && !isActiveSlide) {
+            // Za neaktivne slide-ove na iPadu, ukloniti animate-enter-initial i postaviti display
+            (slideButton as HTMLElement).classList.remove('animate-enter-initial');
+            (slideButton as HTMLElement).style.display = 'flex';
+            (slideButton as HTMLElement).style.visibility = 'visible';
+            (slideButton as HTMLElement).style.opacity = '1';
+            // 🔥 CRITICAL: Postaviti transform: scale(1) jer animate-enter-initial postavlja scale(0)
+            (slideButton as HTMLElement).style.transform = 'translateY(4px) scale(1)';
+            (slideButton as HTMLElement).style.webkitTransform = 'translateY(4px) scale(1)';
+          }
+          // Za aktivni slide, animate-enter-initial će biti uklonjen u startEnterAnimationSequence
         }
       });
       logger.info('✅ All slides and content made visible');

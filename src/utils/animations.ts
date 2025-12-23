@@ -334,9 +334,45 @@ function startExitAnimationSequence(): void {
       document.getElementById('logo-shards-gore-ljevo'),
       document.getElementById('logo-shards-gore-desno')
     ];
+    
+    // 🔥 iPad FIX: Detect iPad to preserve transform positions during exit animation
+    const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
+    
     logoAddons.forEach((addon, index) => {
       if (addon) {
-        cartoonishBounce(addon as HTMLElement, 90); // Same delay as logo - no stagger
+        const addonEl = addon as HTMLElement;
+        
+        // 🔥 iPad FIX: For iPad, use custom timeout to set transform after adding animate-exit class
+        if (isIPad) {
+          const timeout = setTimeout(() => {
+            activeTimeouts.delete(timeout);
+            // Remove any existing animation classes
+            addonEl.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+            
+            // Force reflow
+            void addonEl.offsetHeight;
+            
+            // NOW animate with CSS class
+            addonEl.classList.add('animate-exit');
+            
+            // 🔥 iPad FIX: Use requestAnimationFrame to ensure CSS class is applied before setting inline styles
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                // 🔥 iPad FIX: Set transform position with !important via inline style to override CSS
+                // Preserve translateY(-24px) and add scale(0) for exit animation
+                addonEl.style.setProperty('transform', 'translateY(-24px) scale(0)', 'important');
+                addonEl.style.setProperty('-webkit-transform', 'translateY(-24px) scale(0)', 'important');
+                addonEl.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+                addonEl.style.setProperty('-webkit-transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+                addonEl.style.setProperty('will-change', 'transform', 'important');
+              });
+            });
+          }, 90);
+          activeTimeouts.add(timeout);
+        } else {
+          cartoonishBounce(addonEl, 90); // Same delay as logo - no stagger
+        }
+        
         logger.info(`✨ Step 4: Logo addon ${index + 1} cartoonish bounce - with logo (same time)`);
       }
     });
@@ -475,12 +511,57 @@ function startExitAnimationSequenceLegacy(): void {
   }, 30);
   activeTimeouts.add(timeout);
   
-  // STEP 4: Home logo FOURTH (90ms delay)
+  // STEP 4: Home logo and shards FOURTH (90ms delay)
   const homeLogo = document.querySelector('#home-logo');
   if (homeLogo) {
     cartoonishBounce(homeLogo as HTMLElement, 90);
     logger.info('🎨 Step 4: Home logo cartoonish bounce - FOURTH (legacy)');
   }
+  
+  // Animate shards together with logo - ALL at the same time as logo (90ms delay)
+  const logoAddons = [
+    document.getElementById('logo-shards-gore-ljevo'),
+    document.getElementById('logo-shards-gore-desno')
+  ];
+  
+  logoAddons.forEach((addon, index) => {
+    if (addon) {
+      const addonEl = addon as HTMLElement;
+      
+      // 🔥 iPad FIX: For iPad, use custom timeout to set transform after adding animate-exit class
+      if (isIPad) {
+        const timeout = setTimeout(() => {
+          activeTimeouts.delete(timeout);
+          // Remove any existing animation classes
+          addonEl.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+          
+          // Force reflow
+          void addonEl.offsetHeight;
+          
+          // NOW animate with CSS class
+          addonEl.classList.add('animate-exit');
+          
+          // 🔥 iPad FIX: Use requestAnimationFrame to ensure CSS class is applied before setting inline styles
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              // 🔥 iPad FIX: Set transform position with !important via inline style to override CSS
+              // Preserve translateY(-24px) and add scale(0) for exit animation
+              addonEl.style.setProperty('transform', 'translateY(-24px) scale(0)', 'important');
+              addonEl.style.setProperty('-webkit-transform', 'translateY(-24px) scale(0)', 'important');
+              addonEl.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+              addonEl.style.setProperty('-webkit-transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+              addonEl.style.setProperty('will-change', 'transform', 'important');
+            });
+          });
+        }, 90);
+        activeTimeouts.add(timeout);
+      } else {
+        cartoonishBounce(addonEl, 90); // Same delay as logo - no stagger
+      }
+      
+      logger.info(`✨ Step 4: Logo addon ${index + 1} cartoonish bounce - with logo (same time, legacy)`);
+    }
+  });
   
   // STEP 5: Navigation and Shadow LAST (120ms delay)
   const independentNav = document.getElementById('independent-nav');
@@ -599,9 +680,46 @@ function startEnterAnimationSequence(): void {
       document.getElementById('logo-shards-gore-ljevo'),
       document.getElementById('logo-shards-gore-desno')
     ];
+    
+    // 🔥 iPad FIX: Detect iPad to preserve transform positions during enter animation
+    const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
+    
     logoAddons.forEach((addon, index) => {
       if (addon) {
-        reverseBounce(addon as HTMLElement, 30); // Same delay as logo - no stagger
+        const addonEl = addon as HTMLElement;
+        
+        // 🔥 iPad FIX: For iPad, use custom timeout to set transform after adding animate-enter class
+        if (isIPad) {
+          // Set initial state (from scale 0) - NO TRANSITION YET
+          addonEl.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+          addonEl.classList.add('animate-enter-initial');
+          
+          // Force reflow to apply initial state
+          void addonEl.offsetHeight;
+          
+          const timeout = setTimeout(() => {
+            activeTimeouts.delete(timeout);
+            addonEl.classList.remove('animate-enter-initial');
+            addonEl.classList.add('animate-enter');
+            
+            // 🔥 iPad FIX: Use requestAnimationFrame to ensure CSS class is applied before setting inline styles
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                // 🔥 iPad FIX: Set transform position with !important via inline style to override CSS
+                // Preserve translateY(-24px) and add scale(1) for enter animation
+                addonEl.style.setProperty('transform', 'translateY(-24px) scale(1)', 'important');
+                addonEl.style.setProperty('-webkit-transform', 'translateY(-24px) scale(1)', 'important');
+                addonEl.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+                addonEl.style.setProperty('-webkit-transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+                addonEl.style.setProperty('will-change', 'transform', 'important');
+              });
+            });
+          }, 30);
+          activeTimeouts.add(timeout);
+        } else {
+          reverseBounce(addonEl, 30); // Same delay as logo - no stagger
+        }
+        
         logger.info(`✨ Step 2: Logo addon ${index + 1} cartoonish bounce - with logo (same time)`);
       }
     });
@@ -811,9 +929,46 @@ function startEnterAnimationSequenceLegacy(): void {
     document.getElementById('logo-shards-gore-ljevo'),
     document.getElementById('logo-shards-gore-desno')
   ];
+  
+  // 🔥 iPad FIX: Detect iPad to preserve transform positions during enter animation
+  const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
+  
   logoAddons.forEach((addon, index) => {
     if (addon) {
-      reverseBounce(addon as HTMLElement, 30 + (index * 5)); // Slight stagger for visual effect
+      const addonEl = addon as HTMLElement;
+      
+      // 🔥 iPad FIX: For iPad, use custom timeout to set transform after adding animate-enter class
+      if (isIPad) {
+        // Set initial state (from scale 0) - NO TRANSITION YET
+        addonEl.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+        addonEl.classList.add('animate-enter-initial');
+        
+        // Force reflow to apply initial state
+        void addonEl.offsetHeight;
+        
+        const timeout = setTimeout(() => {
+          activeTimeouts.delete(timeout);
+          addonEl.classList.remove('animate-enter-initial');
+          addonEl.classList.add('animate-enter');
+          
+          // 🔥 iPad FIX: Use requestAnimationFrame to ensure CSS class is applied before setting inline styles
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              // 🔥 iPad FIX: Set transform position with !important via inline style to override CSS
+              // Preserve translateY(-24px) and add scale(1) for enter animation
+              addonEl.style.setProperty('transform', 'translateY(-24px) scale(1)', 'important');
+              addonEl.style.setProperty('-webkit-transform', 'translateY(-24px) scale(1)', 'important');
+              addonEl.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+              addonEl.style.setProperty('-webkit-transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+              addonEl.style.setProperty('will-change', 'transform', 'important');
+            });
+          });
+        }, 30 + (index * 5)); // Slight stagger for visual effect
+        activeTimeouts.add(timeout);
+      } else {
+        reverseBounce(addonEl, 30 + (index * 5)); // Slight stagger for visual effect
+      }
+      
       logger.info(`✨ Step 2: Logo addon ${index + 1} cartoonish bounce - with logo (legacy)`);
     }
   });
