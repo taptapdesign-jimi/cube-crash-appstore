@@ -2572,59 +2572,71 @@ class JourneyBoardsManager {
       // 🔥 NEW LOGIC: All other boards (including last unlocked) have NO CTA buttons
       // Both buttons remain hidden (already hidden above)
 
-      // Show modal
+      // 🔥 CRITICAL: Set initial state FIRST (before showing modal) to prevent flash
+      if (!gsap) {
+        logger.warn('⚠️ GSAP not available for detail modal enter animation');
+        // Show modal without animation
+        detailModal.hidden = false;
+        detailModal.removeAttribute('hidden');
+        detailModal.setAttribute('aria-hidden', 'false');
+        detailModal.style.display = 'flex';
+        return;
+      }
+
+      // Find modal elements (header as group, then content elements) - BEFORE showing modal
+      const detailHeader = detailModal.querySelector('.detail-header') as HTMLElement;
+      const detailCloseBtn = detailModal.querySelector('#detail-close-btn') as HTMLElement;
+      const detailTitle = detailModal.querySelector('#detail-title') as HTMLElement;
+      const detailImage = detailModal.querySelector('#detail-card-image') as HTMLElement;
+      const detailRarityBadgeContainer = detailModal.querySelector('.detail-rarity-badge-container') as HTMLElement;
+      const detailDescription = detailModal.querySelector('#detail-card-description') as HTMLElement;
+      const boardStatsContainer = detailModal.querySelector('.board-stats-container') as HTMLElement;
+      const playButton = detailModal.querySelector('#board-detail-play-button') as HTMLElement;
+
+      // Content elements array (excluding header - header is animated as group)
+      const contentElements = [
+        detailImage,
+        detailRarityBadgeContainer,
+        detailDescription,
+        boardStatsContainer,
+        playButton
+      ].filter(el => el !== null) as HTMLElement[];
+
+      // 🔥 CRITICAL: Set initial state IMMEDIATELY (before showing modal) to prevent flash
+      if (detailHeader) {
+        gsap.set(detailHeader, {
+          scale: 0,
+          opacity: 0,
+          visibility: 'hidden',
+          force3D: true,
+          immediateRender: true
+        });
+      }
+
+      // Set initial state for content elements
+      gsap.set(contentElements, {
+        scale: 0,
+        opacity: 0,
+        visibility: 'hidden',
+        force3D: true,
+        immediateRender: true
+      });
+
+      // NOW show modal (after initial state is set)
       detailModal.hidden = false;
       detailModal.removeAttribute('hidden');
       detailModal.setAttribute('aria-hidden', 'false');
       detailModal.style.display = 'flex';
-      
-      // 🔥 USER REQUEST: Enter animation for detail modal (same pattern as collectibles-animations.ts)
-      // Use double requestAnimationFrame to ensure DOM is ready
+      // 🔥 CRITICAL: Keep modal invisible until animations start
+      detailModal.style.opacity = '0';
+      detailModal.style.visibility = 'hidden';
+
+      // Now make modal visible and start animations
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          if (!gsap) {
-            logger.warn('⚠️ GSAP not available for detail modal enter animation');
-            return;
-          }
-
-          // Find modal elements (header as group, then content elements)
-          const detailHeader = detailModal.querySelector('.detail-header') as HTMLElement;
-          const detailCloseBtn = detailModal.querySelector('#detail-close-btn') as HTMLElement;
-          const detailTitle = detailModal.querySelector('#detail-title') as HTMLElement;
-          const detailImage = detailModal.querySelector('#detail-card-image') as HTMLElement;
-          const detailRarityBadgeContainer = detailModal.querySelector('.detail-rarity-badge-container') as HTMLElement;
-          const detailDescription = detailModal.querySelector('#detail-card-description') as HTMLElement;
-          const boardStatsContainer = detailModal.querySelector('.board-stats-container') as HTMLElement;
-          const playButton = detailModal.querySelector('#board-detail-play-button') as HTMLElement;
-
-          // Content elements array (excluding header - header is animated as group)
-          const contentElements = [
-            detailImage,
-            detailRarityBadgeContainer,
-            detailDescription,
-            boardStatsContainer,
-            playButton
-          ].filter(el => el !== null) as HTMLElement[];
-
-          // Set initial state for header (as group - divider and shadow are part of header)
-          if (detailHeader) {
-            gsap.set(detailHeader, {
-              scale: 0,
-              opacity: 0,
-              visibility: 'hidden',
-              force3D: true,
-              immediateRender: true
-            });
-          }
-
-          // Set initial state for content elements
-          gsap.set(contentElements, {
-            scale: 0,
-            opacity: 0,
-            visibility: 'hidden',
-            force3D: true,
-            immediateRender: true
-          });
+          // Make modal visible
+          detailModal.style.opacity = '1';
+          detailModal.style.visibility = 'visible';
 
           // STEP 1: Header FIRST (0ms delay) - animates as group (includes divider and shadow)
           if (detailHeader) {
