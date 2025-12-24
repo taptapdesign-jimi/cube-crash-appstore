@@ -1608,11 +1608,27 @@ class CollectiblesManager {
       modal.setAttribute('hidden', 'true');
       modal.setAttribute('aria-hidden', 'true');
       
-    this.detailFocusTrap?.destroy();
-    this.detailFocusTrap = null;
+      this.detailFocusTrap?.destroy();
+      this.detailFocusTrap = null;
 
-    const trigger = this.detailTrigger;
-    this.detailTrigger = null;
+      const trigger = this.detailTrigger;
+      this.detailTrigger = null;
+      
+      // 🔥 USER REQUEST: If Journey screen is hidden (came from detail modal), show it with enter animation
+      const journeyScreen = document.getElementById('journey-screen');
+      if (journeyScreen && journeyScreen.style.opacity === '0' && journeyScreen.style.visibility === 'hidden') {
+        console.log('🎯 Journey screen is hidden - showing it with enter animation after detail modal exit');
+        
+        // Show Journey screen with enter animation
+        const collectiblesManager = (window as any).collectiblesManager;
+        if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
+          // Small delay to ensure detail modal exit animation completes
+          setTimeout(() => {
+            collectiblesManager.showCollectibles();
+            console.log('✅ Journey screen shown with enter animation after detail modal closed');
+          }, 100); // Small delay after exit animation
+        }
+      }
 
       // Remove bounce animation from the card that was viewed
       if (this.currentDetailCardId) {

@@ -2001,6 +2001,23 @@ class JourneyBoardsManager {
         modal.setAttribute('aria-hidden', 'true');
         
         logger.info('✅ Detail modal exit animation completed');
+        
+        // 🔥 USER REQUEST: If Journey screen is hidden (came from detail modal), show it with enter animation
+        const journeyScreen = document.getElementById('journey-screen');
+        if (journeyScreen && journeyScreen.style.opacity === '0' && journeyScreen.style.visibility === 'hidden') {
+          logger.info('🎯 Journey screen is hidden - showing it with enter animation after detail modal exit');
+          
+          // Show Journey screen with enter animation
+          const collectiblesManager = (window as any).collectiblesManager;
+          if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
+            // Small delay to ensure detail modal exit animation completes
+            setTimeout(() => {
+              collectiblesManager.showCollectibles();
+              logger.info('✅ Journey screen shown with enter animation after detail modal closed');
+            }, 100); // Small delay after exit animation
+          }
+        }
+        
         resolve();
       }, 650); // Exit animation duration
     });
@@ -2532,7 +2549,75 @@ class JourneyBoardsManager {
 
       // Show modal
       detailModal.hidden = false;
-      detailModal.style.display = 'block';
+      detailModal.removeAttribute('hidden');
+      detailModal.setAttribute('aria-hidden', 'false');
+      detailModal.style.display = 'flex';
+      
+      // 🔥 USER REQUEST: Enter animation for detail modal (same as showCardDetail)
+      requestAnimationFrame(() => {
+        // Find modal elements
+        const detailImage = detailModal.querySelector('#detail-card-image');
+        const detailDescription = detailModal.querySelector('#detail-card-description');
+        const detailRarityBadge = detailModal.querySelector('#detail-card-rarity');
+        const detailCloseBtn = detailModal.querySelector('#detail-close-btn');
+        const detailTitle = detailModal.querySelector('#detail-title');
+        const playButton = detailModal.querySelector('#board-detail-play-button');
+        
+        // Set initial state (scale 0) for all elements
+        [detailImage, detailDescription, detailRarityBadge, detailCloseBtn, detailTitle, playButton].forEach(el => {
+          if (el) {
+            (el as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-reset');
+            (el as HTMLElement).classList.add('animate-enter-initial');
+            void (el as HTMLElement).offsetHeight; // Force reflow
+          }
+        });
+        
+        // Animate in with staggered delays (same as slider)
+        if (detailImage) {
+          setTimeout(() => {
+            (detailImage as HTMLElement).classList.remove('animate-enter-initial');
+            (detailImage as HTMLElement).classList.add('animate-enter');
+            logger.info('✅ Detail image enter animation started');
+          }, 0);
+        }
+        if (detailDescription) {
+          setTimeout(() => {
+            (detailDescription as HTMLElement).classList.remove('animate-enter-initial');
+            (detailDescription as HTMLElement).classList.add('animate-enter');
+            logger.info('✅ Detail description enter animation started');
+          }, 30);
+        }
+        if (detailRarityBadge) {
+          setTimeout(() => {
+            (detailRarityBadge as HTMLElement).classList.remove('animate-enter-initial');
+            (detailRarityBadge as HTMLElement).classList.add('animate-enter');
+            logger.info('✅ Detail rarity badge enter animation started');
+          }, 60);
+        }
+        if (detailCloseBtn) {
+          setTimeout(() => {
+            (detailCloseBtn as HTMLElement).classList.remove('animate-enter-initial');
+            (detailCloseBtn as HTMLElement).classList.add('animate-enter');
+            logger.info('✅ Detail close button enter animation started');
+          }, 90);
+        }
+        if (detailTitle) {
+          setTimeout(() => {
+            (detailTitle as HTMLElement).classList.remove('animate-enter-initial');
+            (detailTitle as HTMLElement).classList.add('animate-enter');
+            logger.info('✅ Detail title enter animation started');
+          }, 120);
+        }
+        if (playButton) {
+          setTimeout(() => {
+            (playButton as HTMLElement).classList.remove('animate-enter-initial');
+            (playButton as HTMLElement).classList.add('animate-enter');
+            logger.info('✅ Play button enter animation started');
+          }, 150);
+        }
+      });
+      
+      logger.info('✅ Detail modal shown with enter animation');
     } else {
       logger.warn('⚠️ Collectibles detail modal not found');
     }

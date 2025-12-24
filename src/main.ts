@@ -1387,27 +1387,34 @@ async function startNewRun(boardId: number): Promise<void> {
     // 🔥 APP STORE FIX: Complete separation of Journey and Homepage pathways
     // Step 3: Show appropriate screen WITHOUT mixing pathways
     if (returnToDetailModal && detailModalBoardId !== null) {
-      // 🔥 USER REQUEST: Return to detail modal for specific board
-      console.log(`🎯 Detail modal pathway - showing Journey screen and detail modal for board ${detailModalBoardId}...`);
+      // 🔥 USER REQUEST: Return directly to detail modal (Journey screen hidden, no enter animation)
+      console.log(`🎯 Detail modal pathway - opening detail modal directly for board ${detailModalBoardId}...`);
       
-      // Show Journey screen first
+      // Prepare Journey screen in background (hidden, no animation)
       const collectiblesManager = (window as any).collectiblesManager;
-      if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
-        collectiblesManager.showCollectibles();
-        console.log('✅ Journey screen shown');
+      if (collectiblesManager) {
+        // Prepare Journey screen but don't show it yet (no enter animation)
+        const journeyScreen = document.getElementById('journey-screen');
+        if (journeyScreen) {
+          journeyScreen.removeAttribute('hidden');
+          journeyScreen.style.display = 'flex';
+          journeyScreen.style.opacity = '0';
+          journeyScreen.style.visibility = 'hidden';
+          console.log('✅ Journey screen prepared in background (hidden)');
+        }
       }
       
-      // Then open detail modal for the board
+      // Open detail modal directly with enter animation
       import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
-        // Wait a bit for Journey screen to appear, then open detail modal
-        setTimeout(() => {
+        // Small delay to ensure DOM is ready
+        requestAnimationFrame(() => {
           if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
             journeyBoardsManager.openBoardDetailsById(detailModalBoardId);
-            console.log(`✅ Detail modal opened for board ${detailModalBoardId}`);
+            console.log(`✅ Detail modal opened directly for board ${detailModalBoardId} with enter animation`);
           } else {
             console.warn('⚠️ openBoardDetailsById method not found');
           }
-        }, 300); // Small delay to ensure Journey screen is visible
+        });
       }).catch((error) => {
         console.warn('⚠️ Failed to import journeyBoardsManager:', error);
       });
@@ -1421,7 +1428,7 @@ async function startNewRun(boardId: number): Promise<void> {
         navElement.setAttribute('aria-hidden', 'true');
       }
       
-      console.log('✅ Detail modal pathway complete');
+      console.log('✅ Detail modal pathway complete - Journey screen hidden, detail modal shown');
     } else if (targetSlide === 1) {
       // 🔥 Journey pathway - NO homepage slider involvement
       console.log('🗺️ Journey pathway - showing Journey screen directly...');
