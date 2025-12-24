@@ -2423,15 +2423,37 @@ class JourneyBoardsManager {
           e.stopPropagation();
         });
         
-        // Add to modal (append to detail-scrollable or detailModal)
+        // Add to modal - insert AFTER rarity badge container (in flow, not fixed)
+        // Button should be immediately after "COMMON" badge, before description
         const detailScrollable = detailModal.querySelector('.detail-scrollable');
-        if (detailScrollable) {
+        const rarityBadgeContainer = detailModal.querySelector('.detail-rarity-badge-container');
+        const descriptionEl = detailModal.querySelector('#detail-card-description');
+        
+        if (rarityBadgeContainer && rarityBadgeContainer.parentElement) {
+          // Insert right after rarity badge container (before description)
+          if (descriptionEl && descriptionEl.parentElement === rarityBadgeContainer.parentElement) {
+            // Description exists, insert before it
+            rarityBadgeContainer.parentElement.insertBefore(floatingPlayButton, descriptionEl);
+          } else {
+            // No description, insert after rarity badge container
+            rarityBadgeContainer.parentElement.insertBefore(floatingPlayButton, rarityBadgeContainer.nextSibling);
+          }
+        } else if (detailScrollable) {
+          // Fallback: append to scrollable
           detailScrollable.appendChild(floatingPlayButton);
         } else {
           detailModal.appendChild(floatingPlayButton);
         }
         
-        // Set display (button is fixed positioned, so it will be visible)
+        // Remove fixed positioning - button should be in flow, not fixed
+        // Override CSS fixed positioning with inline styles
+        floatingPlayButton.style.setProperty('position', 'relative', 'important');
+        floatingPlayButton.style.setProperty('bottom', 'auto', 'important');
+        floatingPlayButton.style.setProperty('left', 'auto', 'important');
+        floatingPlayButton.style.setProperty('transform', 'none', 'important');
+        floatingPlayButton.style.setProperty('width', '249px', 'important');
+        floatingPlayButton.style.setProperty('max-width', '249px', 'important');
+        floatingPlayButton.style.setProperty('margin', '32px auto 0', 'important');
         floatingPlayButton.style.setProperty('display', 'block', 'important');
 
         // Add click handler
