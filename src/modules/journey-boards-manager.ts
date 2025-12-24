@@ -1955,190 +1955,65 @@ class JourneyBoardsManager {
         logger.warn('⚠️ Failed to kill GSAP animations on detail modal:', error);
       }
       
-      // 🔥 USER REQUEST: Exit animation for ALL detail modal elements using GSAP
+      // 🔥 USER REQUEST: Exit animation for detail modal (same pattern as collectibles-animations.ts)
       if (!gsap) {
         logger.warn('⚠️ GSAP not available for detail modal exit animation');
         resolve();
         return;
       }
 
-      // Find ALL modal elements
-      const detailCloseBtn = modal.querySelector('#detail-close-btn') as HTMLElement;
-      const detailTitle = modal.querySelector('#detail-title') as HTMLElement;
-      const detailTitleUnderline = modal.querySelector('.detail-title-underline') as HTMLElement;
-      const detailShadowImage = modal.querySelector('.detail-shadow-image') as HTMLElement;
+      // Find modal elements (header as group, then content elements)
+      const detailHeader = modal.querySelector('.detail-header') as HTMLElement;
+      const detailImage = modal.querySelector('#detail-card-image') as HTMLElement;
       const detailRarityBadgeContainer = modal.querySelector('.detail-rarity-badge-container') as HTMLElement;
-      const detailRarityBadge = modal.querySelector('#detail-card-rarity') || modal.querySelector('#detail-rarity-badge') as HTMLElement;
-      const detailDividerLeft = modal.querySelector('.detail-divider-left') as HTMLElement;
-      const detailDividerRight = modal.querySelector('.detail-divider-right') as HTMLElement;
       const detailDescription = modal.querySelector('#detail-card-description') as HTMLElement;
       const boardStatsContainer = modal.querySelector('.board-stats-container') as HTMLElement;
       const playBoardBtn = modal.querySelector('#detail-play-board-btn') || modal.querySelector('#board-detail-play-button') as HTMLElement;
 
-      // Animate out with staggered delays (reverse order of enter - bottom to top)
-      const staggerDelay = 0.03; // 30ms between each element (faster exit)
-      let currentDelay = 0;
-      let maxDelay = 0;
+      // Content elements array (reverse order for exit - bottom to top)
+      const contentElements = [
+        playBoardBtn,
+        boardStatsContainer,
+        detailDescription,
+        detailRarityBadgeContainer,
+        detailImage
+      ].filter(el => el !== null) as HTMLElement[];
 
-      // Bottom elements first (reverse order)
-      if (playBoardBtn) {
-        gsap.to(playBoardBtn, {
+      // STEP 1: Content elements FIRST (reverse order - bottom to top)
+      contentElements.forEach((element, index) => {
+        const baseDelay = 0;
+        const stagger = 0.05; // Faster stagger for exit
+        const delay = baseDelay + (index * stagger);
+
+        gsap.to(element, {
           scale: 0,
           opacity: 0,
-          duration: 0.25,
+          duration: 0.4,
           ease: 'back.in(1.7)',
-          delay: currentDelay,
+          delay: delay,
           force3D: true
         });
-        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
-        currentDelay += staggerDelay;
-      }
+        logger.info(`🎴 Step ${index + 1}: Content element ${index + 1} pop-out - delay ${(delay * 1000).toFixed(0)}ms`);
+      });
 
-      if (boardStatsContainer) {
-        gsap.to(boardStatsContainer, {
+      // STEP 2: Header LAST (includes divider and shadow - animated as group)
+      const lastDelay = contentElements.length > 0 ? (contentElements.length * 0.05) : 0;
+      if (detailHeader) {
+        gsap.to(detailHeader, {
           scale: 0,
           opacity: 0,
-          duration: 0.25,
+          duration: 0.4,
           ease: 'back.in(1.7)',
-          delay: currentDelay,
+          delay: lastDelay + 0.05,
           force3D: true
         });
-        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
-        currentDelay += staggerDelay;
+        logger.info('📊 Header pop-out - LAST');
       }
 
-      if (detailDescription) {
-        gsap.to(detailDescription, {
-          scale: 0,
-          opacity: 0,
-          duration: 0.25,
-          ease: 'back.in(1.7)',
-          delay: currentDelay,
-          force3D: true
-        });
-        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
-        currentDelay += staggerDelay;
-      }
-
-      if (detailDividerRight) {
-        gsap.to(detailDividerRight, {
-          scale: 0,
-          opacity: 0,
-          duration: 0.25,
-          ease: 'back.in(1.7)',
-          delay: currentDelay,
-          force3D: true
-        });
-        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
-        currentDelay += staggerDelay;
-      }
-
-      if (detailDividerLeft) {
-        gsap.to(detailDividerLeft, {
-          scale: 0,
-          opacity: 0,
-          duration: 0.25,
-          ease: 'back.in(1.7)',
-          delay: currentDelay,
-          force3D: true
-        });
-        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
-        currentDelay += staggerDelay;
-      }
-
-      if (detailRarityBadge) {
-        gsap.to(detailRarityBadge, {
-          scale: 0,
-          opacity: 0,
-          duration: 0.25,
-          ease: 'back.in(1.7)',
-          delay: currentDelay,
-          force3D: true
-        });
-        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
-        currentDelay += staggerDelay;
-      }
-
-      if (detailRarityBadgeContainer) {
-        gsap.to(detailRarityBadgeContainer, {
-          scale: 0,
-          opacity: 0,
-          duration: 0.25,
-          ease: 'back.in(1.7)',
-          delay: currentDelay,
-          force3D: true
-        });
-        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
-        currentDelay += staggerDelay;
-      }
-
-      if (detailImage) {
-        gsap.to(detailImage, {
-          scale: 0,
-          opacity: 0,
-          duration: 0.25,
-          ease: 'back.in(1.7)',
-          delay: currentDelay,
-          force3D: true
-        });
-        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
-        currentDelay += staggerDelay;
-      }
-
-      if (detailShadowImage) {
-        gsap.to(detailShadowImage, {
-          scale: 0,
-          opacity: 0,
-          duration: 0.25,
-          ease: 'back.in(1.7)',
-          delay: currentDelay,
-          force3D: true
-        });
-        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
-        currentDelay += staggerDelay;
-      }
-
-      if (detailTitleUnderline) {
-        gsap.to(detailTitleUnderline, {
-          scale: 0,
-          opacity: 0,
-          duration: 0.25,
-          ease: 'back.in(1.7)',
-          delay: currentDelay,
-          force3D: true
-        });
-        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
-        currentDelay += staggerDelay;
-      }
-
-      if (detailTitle) {
-        gsap.to(detailTitle, {
-          scale: 0,
-          opacity: 0,
-          duration: 0.25,
-          ease: 'back.in(1.7)',
-          delay: currentDelay,
-          force3D: true
-        });
-        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
-        currentDelay += staggerDelay;
-      }
-
-      if (detailCloseBtn) {
-        gsap.to(detailCloseBtn, {
-          scale: 0,
-          opacity: 0,
-          duration: 0.25,
-          ease: 'back.in(1.7)',
-          delay: currentDelay,
-          force3D: true
-        });
-        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
-        currentDelay += staggerDelay;
-      }
+      // Calculate total animation duration
+      const totalDuration = (lastDelay + 0.05 + 0.4 + 0.1) * 1000; // Add 100ms buffer
 
       // Wait for exit animation to complete
-      const totalDuration = (maxDelay + 0.1) * 1000; // Add 100ms buffer
       setTimeout(() => {
         // 🔥 MEMORY LEAK FIX: Ensure CSS animations are stopped
         const detailImageEl = modal.querySelector('#detail-card-image') as HTMLElement;
@@ -2152,7 +2027,7 @@ class JourneyBoardsManager {
         modal.style.display = 'none';
         modal.setAttribute('aria-hidden', 'true');
         
-        logger.info(`✅ Detail modal exit animation completed for all elements (${totalDuration}ms)`);
+        logger.info(`✅ Detail modal exit animation completed (${totalDuration}ms)`);
         resolve();
       }, totalDuration);
     });
@@ -2703,7 +2578,7 @@ class JourneyBoardsManager {
       detailModal.setAttribute('aria-hidden', 'false');
       detailModal.style.display = 'flex';
       
-      // 🔥 USER REQUEST: Enter animation for ALL detail modal elements using GSAP
+      // 🔥 USER REQUEST: Enter animation for detail modal (same pattern as collectibles-animations.ts)
       // Use double requestAnimationFrame to ensure DOM is ready
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -2712,196 +2587,80 @@ class JourneyBoardsManager {
             return;
           }
 
-          // Find ALL modal elements
-        const detailCloseBtn = detailModal.querySelector('#detail-close-btn') as HTMLElement;
-        const detailTitle = detailModal.querySelector('#detail-title') as HTMLElement;
-        const detailTitleUnderline = detailModal.querySelector('.detail-title-underline') as HTMLElement;
-        const detailShadowImage = detailModal.querySelector('.detail-shadow-image') as HTMLElement;
-        const detailImage = detailModal.querySelector('#detail-card-image') as HTMLElement;
-        const detailRarityBadgeContainer = detailModal.querySelector('.detail-rarity-badge-container') as HTMLElement;
-        const detailRarityBadge = detailModal.querySelector('#detail-card-rarity') || detailModal.querySelector('#detail-rarity-badge') as HTMLElement;
-        const detailDividerLeft = detailModal.querySelector('.detail-divider-left') as HTMLElement;
-        const detailDividerRight = detailModal.querySelector('.detail-divider-right') as HTMLElement;
-        const detailDescription = detailModal.querySelector('#detail-card-description') as HTMLElement;
-        const boardStatsContainer = detailModal.querySelector('.board-stats-container') as HTMLElement;
-        const playButton = detailModal.querySelector('#board-detail-play-button') as HTMLElement;
+          // Find modal elements (header as group, then content elements)
+          const detailHeader = detailModal.querySelector('.detail-header') as HTMLElement;
+          const detailCloseBtn = detailModal.querySelector('#detail-close-btn') as HTMLElement;
+          const detailTitle = detailModal.querySelector('#detail-title') as HTMLElement;
+          const detailImage = detailModal.querySelector('#detail-card-image') as HTMLElement;
+          const detailRarityBadgeContainer = detailModal.querySelector('.detail-rarity-badge-container') as HTMLElement;
+          const detailDescription = detailModal.querySelector('#detail-card-description') as HTMLElement;
+          const boardStatsContainer = detailModal.querySelector('.board-stats-container') as HTMLElement;
+          const playButton = detailModal.querySelector('#board-detail-play-button') as HTMLElement;
 
-        // Set initial state (scale: 0, opacity: 0) for all elements
-        const allElements = [
-          detailCloseBtn,
-          detailTitle,
-          detailTitleUnderline,
-          detailShadowImage,
-          detailImage,
-          detailRarityBadgeContainer,
-          detailRarityBadge,
-          detailDividerLeft,
-          detailDividerRight,
-          detailDescription,
-          boardStatsContainer,
-          playButton
-        ].filter(el => el !== null);
+          // Content elements array (excluding header - header is animated as group)
+          const contentElements = [
+            detailImage,
+            detailRarityBadgeContainer,
+            detailDescription,
+            boardStatsContainer,
+            playButton
+          ].filter(el => el !== null) as HTMLElement[];
 
-        allElements.forEach(el => {
-          gsap.set(el, {
+          // Set initial state for header (as group - divider and shadow are part of header)
+          if (detailHeader) {
+            gsap.set(detailHeader, {
+              scale: 0,
+              opacity: 0,
+              visibility: 'hidden',
+              force3D: true,
+              immediateRender: true
+            });
+          }
+
+          // Set initial state for content elements
+          gsap.set(contentElements, {
             scale: 0,
             opacity: 0,
+            visibility: 'hidden',
             force3D: true,
             immediateRender: true
           });
-        });
 
-        // Animate in with staggered delays (top to bottom order)
-        const staggerDelay = 0.05; // 50ms between each element
-        let currentDelay = 0;
+          // STEP 1: Header FIRST (0ms delay) - animates as group (includes divider and shadow)
+          if (detailHeader) {
+            gsap.set(detailHeader, { visibility: 'visible', immediateRender: true });
+            gsap.to(detailHeader, {
+              scale: 1,
+              opacity: 1,
+              duration: 0.5,
+              ease: 'back.out(1.7)',
+              delay: 0,
+              force3D: true,
+              immediateRender: false
+            });
+            logger.info('📊 Step 1: Detail header pop-in - FIRST');
+          }
 
-        // Header elements first
-        if (detailCloseBtn) {
-          gsap.to(detailCloseBtn, {
-            scale: 1,
-            opacity: 1,
-            duration: 0.3,
-            ease: 'back.out(1.7)',
-            delay: currentDelay,
-            force3D: true
+          // STEP 2: Content elements sequentially (staggered)
+          contentElements.forEach((element, index) => {
+            const baseDelay = 0.1; // Start after header
+            const stagger = 0.08; // Sequential delay between items
+            const delay = baseDelay + (index * stagger);
+
+            gsap.set(element, { visibility: 'visible', immediateRender: true });
+            gsap.to(element, {
+              scale: 1,
+              opacity: 1,
+              duration: 0.5,
+              ease: 'back.out(1.7)',
+              delay: delay,
+              force3D: true,
+              immediateRender: false
+            });
+            logger.info(`🎴 Step ${index + 2}: Content element ${index + 1} pop-in - delay ${(delay * 1000).toFixed(0)}ms`);
           });
-          currentDelay += staggerDelay;
-        }
 
-        if (detailTitle) {
-          gsap.to(detailTitle, {
-            scale: 1,
-            opacity: 1,
-            duration: 0.3,
-            ease: 'back.out(1.7)',
-            delay: currentDelay,
-            force3D: true
-          });
-          currentDelay += staggerDelay;
-        }
-
-        if (detailTitleUnderline) {
-          gsap.to(detailTitleUnderline, {
-            scale: 1,
-            opacity: 1,
-            duration: 0.3,
-            ease: 'back.out(1.7)',
-            delay: currentDelay,
-            force3D: true
-          });
-          currentDelay += staggerDelay;
-        }
-
-        if (detailShadowImage) {
-          gsap.to(detailShadowImage, {
-            scale: 1,
-            opacity: 1,
-            duration: 0.3,
-            ease: 'back.out(1.7)',
-            delay: currentDelay,
-            force3D: true
-          });
-          currentDelay += staggerDelay;
-        }
-
-        // Content elements
-        if (detailImage) {
-          gsap.to(detailImage, {
-            scale: 1,
-            opacity: 1,
-            duration: 0.3,
-            ease: 'back.out(1.7)',
-            delay: currentDelay,
-            force3D: true
-          });
-          currentDelay += staggerDelay;
-        }
-
-        if (detailRarityBadgeContainer) {
-          gsap.to(detailRarityBadgeContainer, {
-            scale: 1,
-            opacity: 1,
-            duration: 0.3,
-            ease: 'back.out(1.7)',
-            delay: currentDelay,
-            force3D: true
-          });
-          currentDelay += staggerDelay;
-        }
-
-        if (detailRarityBadge) {
-          gsap.to(detailRarityBadge, {
-            scale: 1,
-            opacity: 1,
-            duration: 0.3,
-            ease: 'back.out(1.7)',
-            delay: currentDelay,
-            force3D: true
-          });
-          currentDelay += staggerDelay;
-        }
-
-        if (detailDividerLeft) {
-          gsap.to(detailDividerLeft, {
-            scale: 1,
-            opacity: 1,
-            duration: 0.3,
-            ease: 'back.out(1.7)',
-            delay: currentDelay,
-            force3D: true
-          });
-          currentDelay += staggerDelay;
-        }
-
-        if (detailDividerRight) {
-          gsap.to(detailDividerRight, {
-            scale: 1,
-            opacity: 1,
-            duration: 0.3,
-            ease: 'back.out(1.7)',
-            delay: currentDelay,
-            force3D: true
-          });
-          currentDelay += staggerDelay;
-        }
-
-        if (detailDescription) {
-          gsap.to(detailDescription, {
-            scale: 1,
-            opacity: 1,
-            duration: 0.3,
-            ease: 'back.out(1.7)',
-            delay: currentDelay,
-            force3D: true
-          });
-          currentDelay += staggerDelay;
-        }
-
-        if (boardStatsContainer) {
-          gsap.to(boardStatsContainer, {
-            scale: 1,
-            opacity: 1,
-            duration: 0.3,
-            ease: 'back.out(1.7)',
-            delay: currentDelay,
-            force3D: true
-          });
-          currentDelay += staggerDelay;
-        }
-
-        if (playButton) {
-          gsap.to(playButton, {
-            scale: 1,
-            opacity: 1,
-            duration: 0.3,
-            ease: 'back.out(1.7)',
-            delay: currentDelay,
-            force3D: true
-          });
-          currentDelay += staggerDelay;
-        }
-
-          logger.info(`✅ Detail modal enter animation started for ${allElements.length} elements`);
+          logger.info(`✅ Detail modal enter animation started (header + ${contentElements.length} content elements)`);
         });
       });
       
