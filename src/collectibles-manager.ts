@@ -1359,14 +1359,14 @@ class CollectiblesManager {
           e.preventDefault();
           e.stopPropagation();
           
+          console.log(`🎮🎮🎮 PLAY BUTTON CLICKED! Board ID: ${boardId}`);
+          
           // Play haptic feedback
           try {
             if ((window as any).playHaptic) {
               (window as any).playHaptic('light');
             }
           } catch {}
-          
-          console.log(`🎮 Play button clicked for board ${boardId}`);
           
           // Close detail modal with exit animation
           await this.hideCardDetail();
@@ -1379,11 +1379,13 @@ class CollectiblesManager {
           await this.hideCollectibles();
           
           // Start board from Journey
+          console.log(`🎮 About to call startNewRunFromJourney with board ID: ${boardId}`);
           if (typeof (window as any).startNewRunFromJourney === 'function') {
-            console.log(`🎮 Calling startNewRunFromJourney for board ${boardId}`);
+            console.log(`✅ startNewRunFromJourney function exists, calling with board ${boardId}`);
             await (window as any).startNewRunFromJourney(boardId);
+            console.log(`✅ startNewRunFromJourney call completed for board ${boardId}`);
           } else {
-            console.error('❌ startNewRunFromJourney function not found!');
+            console.error('❌ startNewRunFromJourney function NOT FOUND!');
           }
         });
         

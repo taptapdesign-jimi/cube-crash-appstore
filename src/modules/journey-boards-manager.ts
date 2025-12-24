@@ -2373,14 +2373,15 @@ class JourneyBoardsManager {
           e.preventDefault();
           e.stopPropagation();
           
+          console.log(`🎮🎮🎮 PLAY BUTTON CLICKED! Board ID: ${board.id}, Board Name: ${board.name}`);
+          logger.info(`🎮 Floating Play button clicked for board ${board.id}`);
+          
           // Play haptic feedback
           try {
             if ((window as any).playHaptic) {
               (window as any).playHaptic('light');
             }
           } catch {}
-          
-          logger.info(`🎮 Floating Play button clicked for board ${board.id}`);
           
           // Step 1: Stop Journey card idle bounce animations immediately
           if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
@@ -2410,10 +2411,14 @@ class JourneyBoardsManager {
           }
           
           // Step 7: Start board from Journey
+          console.log(`🎮 About to call startNewRunFromJourney with board ID: ${board.id}`);
           if (typeof (window as any).startNewRunFromJourney === 'function') {
             logger.info(`🎮 Calling startNewRunFromJourney for board ${board.id}`);
+            console.log(`✅ startNewRunFromJourney function exists, calling with board ${board.id}`);
             await (window as any).startNewRunFromJourney(board.id);
+            console.log(`✅ startNewRunFromJourney call completed for board ${board.id}`);
           } else {
+            console.error('❌ startNewRunFromJourney function NOT FOUND!');
             logger.error('❌ startNewRunFromJourney function not found!');
           }
         });
