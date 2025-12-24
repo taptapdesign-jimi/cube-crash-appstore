@@ -2350,11 +2350,13 @@ class JourneyBoardsManager {
           existingPlayBtn.remove();
         }
         
-        // Create new floating play button - same style as homepage slider CTA with shimmer
+        // Create new floating play button - EXACT same style as homepage slider CTA with shimmer
         const floatingPlayButton = document.createElement('button');
         floatingPlayButton.id = 'board-detail-play-button';
-        floatingPlayButton.className = 'board-detail-play-button cta-btn tap-scale menu-btn-primary';
+        floatingPlayButton.className = 'slide-button tap-scale menu-btn-primary';
         floatingPlayButton.textContent = 'Play';
+        floatingPlayButton.setAttribute('type', 'button');
+        floatingPlayButton.setAttribute('aria-label', 'Play Board');
         
         // Prevent dragging/moving the button
         floatingPlayButton.addEventListener('mousedown', (e) => {
@@ -2409,7 +2411,10 @@ class JourneyBoardsManager {
           
           // Step 7: Start board from Journey
           if (typeof (window as any).startNewRunFromJourney === 'function') {
-            await (window as any).startNewRunFromJourney(board.id, true);
+            logger.info(`🎮 Calling startNewRunFromJourney for board ${board.id}`);
+            await (window as any).startNewRunFromJourney(board.id);
+          } else {
+            logger.error('❌ startNewRunFromJourney function not found!');
           }
         });
         

@@ -2057,84 +2057,39 @@
   }
 }
 
-/* 🔥 JOURNEY BOARDS: Floating Play Button in Detail Modal - Same style as homepage slider CTA with shimmer */
-.board-detail-play-button {
-  /* Fixed positioning - same as homepage CTA */
+/* 🔥 JOURNEY BOARDS: Floating Play Button in Detail Modal - EXACT same style as homepage slider CTA */
+/* Uses .slide-button.tap-scale.menu-btn-primary classes - shimmer is automatic via ::after */
+#board-detail-play-button {
+  /* Fixed positioning at bottom */
   position: fixed !important;
   bottom: calc(40px + env(safe-area-inset-bottom, 0px)) !important;
   left: 50% !important;
-  transform: translateX(-50%) translateY(0) !important;
+  transform: translateX(-50%) !important;
   
   /* Same width as homepage slider CTA */
   width: 249px !important;
   max-width: 249px !important;
   
-  /* Inherits all .cta-btn styles from style.css (gradient, shadow, border-radius, etc.) */
-  /* Also inherits .tap-scale and .menu-btn-primary styles */
+  /* Inherits all .slide-button.tap-scale.menu-btn-primary styles from style.css */
+  /* Shimmer is automatic via ::after pseudo-element (defined in style.css) */
   z-index: 1001 !important;
   
-  /* Prevent dragging/moving */
-  touch-action: none !important;
-  user-select: none !important;
-  -webkit-user-select: none !important;
+  /* Ensure clicks work */
   pointer-events: auto !important;
-  
-  /* Fixed positioning - cannot be moved */
-  will-change: transform !important;
-  
-  /* Clip shimmer */
-  overflow: hidden !important;
-}
-
-/* Shimmer effect - same as slider buttons */
-.board-detail-play-button::after {
-  content: "" !important;
-  position: absolute !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  background: linear-gradient(
-    90deg,
-    rgba(255,255,255,0.00) 0%,
-    rgba(255,255,255,0.28) 50%,
-    rgba(255,255,255,0.00) 100%
-  ) !important;
-  transform: translateX(-160%) skewX(-12deg) !important;
-  opacity: 0 !important;
-  will-change: transform, opacity !important;
-  pointer-events: none !important;
-  border-radius: inherit !important;
-  animation: working-shimmer 5s linear infinite !important;
-  animation-delay: 0.5s !important; /* Start shimmer after button appears */
-}
-
-/* Override cta-btn hover to maintain fixed position */
-.board-detail-play-button:hover {
-  transform: translateX(-50%) translateY(-2px) !important;
-}
-
-/* Override cta-btn active to maintain fixed position */
-.board-detail-play-button:active {
-  transform: translateX(-50%) translateY(2px) !important;
+  cursor: pointer !important;
 }
 
 /* Responsive - same as mobile homepage CTA */
 @media (max-width: 768px) {
-  .board-detail-play-button {
+  #board-detail-play-button {
     width: 220px !important;
     max-width: 220px !important;
-  }
-  
-  /* Slower shimmer on mobile for better performance */
-  .board-detail-play-button::after {
-    animation-duration: 8s !important;
   }
 }
 
 /* iOS Safe Area Adjustment */
 @supports (padding: max(0px)) {
-  .board-detail-play-button {
+  #board-detail-play-button {
     bottom: max(40px, calc(40px + env(safe-area-inset-bottom, 0px))) !important;
   }
 }

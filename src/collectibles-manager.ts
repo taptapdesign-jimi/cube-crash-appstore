@@ -1336,11 +1336,13 @@ class CollectiblesManager {
           existingPlayBtn.remove();
         }
         
-        // Create new floating play button - same style as homepage slider CTA with shimmer
+        // Create new floating play button - EXACT same style as homepage slider CTA with shimmer
         const playButton = document.createElement('button');
         playButton.id = 'board-detail-play-button';
-        playButton.className = 'board-detail-play-button cta-btn tap-scale menu-btn-primary';
+        playButton.className = 'slide-button tap-scale menu-btn-primary';
         playButton.textContent = 'Play';
+        playButton.setAttribute('type', 'button');
+        playButton.setAttribute('aria-label', 'Play Board');
         
         // Prevent dragging/moving the button
         playButton.addEventListener('mousedown', (e) => {
@@ -1378,7 +1380,10 @@ class CollectiblesManager {
           
           // Start board from Journey
           if (typeof (window as any).startNewRunFromJourney === 'function') {
-            await (window as any).startNewRunFromJourney(boardId, true);
+            console.log(`🎮 Calling startNewRunFromJourney for board ${boardId}`);
+            await (window as any).startNewRunFromJourney(boardId);
+          } else {
+            console.error('❌ startNewRunFromJourney function not found!');
           }
         });
         
