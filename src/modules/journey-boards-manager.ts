@@ -1955,36 +1955,195 @@ class JourneyBoardsManager {
         logger.warn('⚠️ Failed to kill GSAP animations on detail modal:', error);
       }
       
-      // Find modal elements
-      const detailDescription = modal.querySelector('#detail-card-description');
-      const detailRarityBadge = modal.querySelector('#detail-rarity-badge');
-      const detailCloseBtn = modal.querySelector('#detail-close-btn');
-      const detailTitle = modal.querySelector('#detail-title');
-      const playBoardBtn = modal.querySelector('#detail-play-board-btn');
-      
-      // Animate out with staggered delays (reverse order of enter)
-      const elements = [
-        { el: playBoardBtn, delay: 0 },
-        { el: detailCloseBtn, delay: 30 },
-        { el: detailRarityBadge, delay: 60 },
-        { el: detailDescription, delay: 90 },
-        { el: detailImage, delay: 120 },
-        { el: detailTitle, delay: 150 }
-      ];
-      
-      elements.forEach(({ el, delay }) => {
-        if (el) {
-          setTimeout(() => {
-            (el as HTMLElement).classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
-            (el as HTMLElement).classList.add('animate-exit');
-          }, delay);
-        }
-      });
-      
-      // Wait for animation to complete (650ms for exit animation), then hide modal
+      // 🔥 USER REQUEST: Exit animation for ALL detail modal elements using GSAP
+      const gsap = (window as any).gsap;
+      if (!gsap) {
+        logger.warn('⚠️ GSAP not available for detail modal exit animation');
+        resolve();
+        return;
+      }
+
+      // Find ALL modal elements
+      const detailCloseBtn = modal.querySelector('#detail-close-btn') as HTMLElement;
+      const detailTitle = modal.querySelector('#detail-title') as HTMLElement;
+      const detailTitleUnderline = modal.querySelector('.detail-title-underline') as HTMLElement;
+      const detailShadowImage = modal.querySelector('.detail-shadow-image') as HTMLElement;
+      const detailRarityBadgeContainer = modal.querySelector('.detail-rarity-badge-container') as HTMLElement;
+      const detailRarityBadge = modal.querySelector('#detail-card-rarity') || modal.querySelector('#detail-rarity-badge') as HTMLElement;
+      const detailDividerLeft = modal.querySelector('.detail-divider-left') as HTMLElement;
+      const detailDividerRight = modal.querySelector('.detail-divider-right') as HTMLElement;
+      const detailDescription = modal.querySelector('#detail-card-description') as HTMLElement;
+      const boardStatsContainer = modal.querySelector('.board-stats-container') as HTMLElement;
+      const playBoardBtn = modal.querySelector('#detail-play-board-btn') || modal.querySelector('#board-detail-play-button') as HTMLElement;
+
+      // Animate out with staggered delays (reverse order of enter - bottom to top)
+      const staggerDelay = 0.03; // 30ms between each element (faster exit)
+      let currentDelay = 0;
+      let maxDelay = 0;
+
+      // Bottom elements first (reverse order)
+      if (playBoardBtn) {
+        gsap.to(playBoardBtn, {
+          scale: 0,
+          opacity: 0,
+          duration: 0.25,
+          ease: 'back.in(1.7)',
+          delay: currentDelay,
+          force3D: true
+        });
+        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
+        currentDelay += staggerDelay;
+      }
+
+      if (boardStatsContainer) {
+        gsap.to(boardStatsContainer, {
+          scale: 0,
+          opacity: 0,
+          duration: 0.25,
+          ease: 'back.in(1.7)',
+          delay: currentDelay,
+          force3D: true
+        });
+        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
+        currentDelay += staggerDelay;
+      }
+
+      if (detailDescription) {
+        gsap.to(detailDescription, {
+          scale: 0,
+          opacity: 0,
+          duration: 0.25,
+          ease: 'back.in(1.7)',
+          delay: currentDelay,
+          force3D: true
+        });
+        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
+        currentDelay += staggerDelay;
+      }
+
+      if (detailDividerRight) {
+        gsap.to(detailDividerRight, {
+          scale: 0,
+          opacity: 0,
+          duration: 0.25,
+          ease: 'back.in(1.7)',
+          delay: currentDelay,
+          force3D: true
+        });
+        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
+        currentDelay += staggerDelay;
+      }
+
+      if (detailDividerLeft) {
+        gsap.to(detailDividerLeft, {
+          scale: 0,
+          opacity: 0,
+          duration: 0.25,
+          ease: 'back.in(1.7)',
+          delay: currentDelay,
+          force3D: true
+        });
+        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
+        currentDelay += staggerDelay;
+      }
+
+      if (detailRarityBadge) {
+        gsap.to(detailRarityBadge, {
+          scale: 0,
+          opacity: 0,
+          duration: 0.25,
+          ease: 'back.in(1.7)',
+          delay: currentDelay,
+          force3D: true
+        });
+        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
+        currentDelay += staggerDelay;
+      }
+
+      if (detailRarityBadgeContainer) {
+        gsap.to(detailRarityBadgeContainer, {
+          scale: 0,
+          opacity: 0,
+          duration: 0.25,
+          ease: 'back.in(1.7)',
+          delay: currentDelay,
+          force3D: true
+        });
+        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
+        currentDelay += staggerDelay;
+      }
+
+      if (detailImage) {
+        gsap.to(detailImage, {
+          scale: 0,
+          opacity: 0,
+          duration: 0.25,
+          ease: 'back.in(1.7)',
+          delay: currentDelay,
+          force3D: true
+        });
+        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
+        currentDelay += staggerDelay;
+      }
+
+      if (detailShadowImage) {
+        gsap.to(detailShadowImage, {
+          scale: 0,
+          opacity: 0,
+          duration: 0.25,
+          ease: 'back.in(1.7)',
+          delay: currentDelay,
+          force3D: true
+        });
+        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
+        currentDelay += staggerDelay;
+      }
+
+      if (detailTitleUnderline) {
+        gsap.to(detailTitleUnderline, {
+          scale: 0,
+          opacity: 0,
+          duration: 0.25,
+          ease: 'back.in(1.7)',
+          delay: currentDelay,
+          force3D: true
+        });
+        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
+        currentDelay += staggerDelay;
+      }
+
+      if (detailTitle) {
+        gsap.to(detailTitle, {
+          scale: 0,
+          opacity: 0,
+          duration: 0.25,
+          ease: 'back.in(1.7)',
+          delay: currentDelay,
+          force3D: true
+        });
+        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
+        currentDelay += staggerDelay;
+      }
+
+      if (detailCloseBtn) {
+        gsap.to(detailCloseBtn, {
+          scale: 0,
+          opacity: 0,
+          duration: 0.25,
+          ease: 'back.in(1.7)',
+          delay: currentDelay,
+          force3D: true
+        });
+        maxDelay = Math.max(maxDelay, currentDelay + 0.25);
+        currentDelay += staggerDelay;
+      }
+
+      // Wait for exit animation to complete
+      const totalDuration = (maxDelay + 0.1) * 1000; // Add 100ms buffer
       setTimeout(() => {
-        // Remove animation classes
-        elements.forEach(({ el }) => {
+        logger.info(`✅ Detail modal exit animation completed for all elements (${totalDuration}ms)`);
+        resolve();
+      }, totalDuration);
           if (el) {
             (el as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
           }
@@ -2553,68 +2712,204 @@ class JourneyBoardsManager {
       detailModal.setAttribute('aria-hidden', 'false');
       detailModal.style.display = 'flex';
       
-      // 🔥 USER REQUEST: Enter animation for detail modal (same as showCardDetail)
-      requestAnimationFrame(() => {
-        // Find modal elements
-        const detailImage = detailModal.querySelector('#detail-card-image');
-        const detailDescription = detailModal.querySelector('#detail-card-description');
-        const detailRarityBadge = detailModal.querySelector('#detail-card-rarity');
-        const detailCloseBtn = detailModal.querySelector('#detail-close-btn');
-        const detailTitle = detailModal.querySelector('#detail-title');
-        const playButton = detailModal.querySelector('#board-detail-play-button');
-        
-        // Set initial state (scale 0) for all elements
-        [detailImage, detailDescription, detailRarityBadge, detailCloseBtn, detailTitle, playButton].forEach(el => {
-          if (el) {
-            (el as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-reset');
-            (el as HTMLElement).classList.add('animate-enter-initial');
-            void (el as HTMLElement).offsetHeight; // Force reflow
-          }
+      // 🔥 USER REQUEST: Enter animation for ALL detail modal elements using GSAP
+      requestAnimationFrame(async () => {
+        const gsap = (window as any).gsap;
+        if (!gsap) {
+          logger.warn('⚠️ GSAP not available for detail modal enter animation');
+          return;
+        }
+
+        // Find ALL modal elements
+        const detailCloseBtn = detailModal.querySelector('#detail-close-btn') as HTMLElement;
+        const detailTitle = detailModal.querySelector('#detail-title') as HTMLElement;
+        const detailTitleUnderline = detailModal.querySelector('.detail-title-underline') as HTMLElement;
+        const detailShadowImage = detailModal.querySelector('.detail-shadow-image') as HTMLElement;
+        const detailImage = detailModal.querySelector('#detail-card-image') as HTMLElement;
+        const detailRarityBadgeContainer = detailModal.querySelector('.detail-rarity-badge-container') as HTMLElement;
+        const detailRarityBadge = detailModal.querySelector('#detail-card-rarity') || detailModal.querySelector('#detail-rarity-badge') as HTMLElement;
+        const detailDividerLeft = detailModal.querySelector('.detail-divider-left') as HTMLElement;
+        const detailDividerRight = detailModal.querySelector('.detail-divider-right') as HTMLElement;
+        const detailDescription = detailModal.querySelector('#detail-card-description') as HTMLElement;
+        const boardStatsContainer = detailModal.querySelector('.board-stats-container') as HTMLElement;
+        const playButton = detailModal.querySelector('#board-detail-play-button') as HTMLElement;
+
+        // Set initial state (scale: 0, opacity: 0) for all elements
+        const allElements = [
+          detailCloseBtn,
+          detailTitle,
+          detailTitleUnderline,
+          detailShadowImage,
+          detailImage,
+          detailRarityBadgeContainer,
+          detailRarityBadge,
+          detailDividerLeft,
+          detailDividerRight,
+          detailDescription,
+          boardStatsContainer,
+          playButton
+        ].filter(el => el !== null);
+
+        allElements.forEach(el => {
+          gsap.set(el, {
+            scale: 0,
+            opacity: 0,
+            force3D: true,
+            immediateRender: true
+          });
         });
-        
-        // Animate in with staggered delays (same as slider)
-        if (detailImage) {
-          setTimeout(() => {
-            (detailImage as HTMLElement).classList.remove('animate-enter-initial');
-            (detailImage as HTMLElement).classList.add('animate-enter');
-            logger.info('✅ Detail image enter animation started');
-          }, 0);
-        }
-        if (detailDescription) {
-          setTimeout(() => {
-            (detailDescription as HTMLElement).classList.remove('animate-enter-initial');
-            (detailDescription as HTMLElement).classList.add('animate-enter');
-            logger.info('✅ Detail description enter animation started');
-          }, 30);
-        }
-        if (detailRarityBadge) {
-          setTimeout(() => {
-            (detailRarityBadge as HTMLElement).classList.remove('animate-enter-initial');
-            (detailRarityBadge as HTMLElement).classList.add('animate-enter');
-            logger.info('✅ Detail rarity badge enter animation started');
-          }, 60);
-        }
+
+        // Animate in with staggered delays (top to bottom order)
+        const staggerDelay = 0.05; // 50ms between each element
+        let currentDelay = 0;
+
+        // Header elements first
         if (detailCloseBtn) {
-          setTimeout(() => {
-            (detailCloseBtn as HTMLElement).classList.remove('animate-enter-initial');
-            (detailCloseBtn as HTMLElement).classList.add('animate-enter');
-            logger.info('✅ Detail close button enter animation started');
-          }, 90);
+          gsap.to(detailCloseBtn, {
+            scale: 1,
+            opacity: 1,
+            duration: 0.3,
+            ease: 'back.out(1.7)',
+            delay: currentDelay,
+            force3D: true
+          });
+          currentDelay += staggerDelay;
         }
+
         if (detailTitle) {
-          setTimeout(() => {
-            (detailTitle as HTMLElement).classList.remove('animate-enter-initial');
-            (detailTitle as HTMLElement).classList.add('animate-enter');
-            logger.info('✅ Detail title enter animation started');
-          }, 120);
+          gsap.to(detailTitle, {
+            scale: 1,
+            opacity: 1,
+            duration: 0.3,
+            ease: 'back.out(1.7)',
+            delay: currentDelay,
+            force3D: true
+          });
+          currentDelay += staggerDelay;
         }
+
+        if (detailTitleUnderline) {
+          gsap.to(detailTitleUnderline, {
+            scale: 1,
+            opacity: 1,
+            duration: 0.3,
+            ease: 'back.out(1.7)',
+            delay: currentDelay,
+            force3D: true
+          });
+          currentDelay += staggerDelay;
+        }
+
+        if (detailShadowImage) {
+          gsap.to(detailShadowImage, {
+            scale: 1,
+            opacity: 1,
+            duration: 0.3,
+            ease: 'back.out(1.7)',
+            delay: currentDelay,
+            force3D: true
+          });
+          currentDelay += staggerDelay;
+        }
+
+        // Content elements
+        if (detailImage) {
+          gsap.to(detailImage, {
+            scale: 1,
+            opacity: 1,
+            duration: 0.3,
+            ease: 'back.out(1.7)',
+            delay: currentDelay,
+            force3D: true
+          });
+          currentDelay += staggerDelay;
+        }
+
+        if (detailRarityBadgeContainer) {
+          gsap.to(detailRarityBadgeContainer, {
+            scale: 1,
+            opacity: 1,
+            duration: 0.3,
+            ease: 'back.out(1.7)',
+            delay: currentDelay,
+            force3D: true
+          });
+          currentDelay += staggerDelay;
+        }
+
+        if (detailRarityBadge) {
+          gsap.to(detailRarityBadge, {
+            scale: 1,
+            opacity: 1,
+            duration: 0.3,
+            ease: 'back.out(1.7)',
+            delay: currentDelay,
+            force3D: true
+          });
+          currentDelay += staggerDelay;
+        }
+
+        if (detailDividerLeft) {
+          gsap.to(detailDividerLeft, {
+            scale: 1,
+            opacity: 1,
+            duration: 0.3,
+            ease: 'back.out(1.7)',
+            delay: currentDelay,
+            force3D: true
+          });
+          currentDelay += staggerDelay;
+        }
+
+        if (detailDividerRight) {
+          gsap.to(detailDividerRight, {
+            scale: 1,
+            opacity: 1,
+            duration: 0.3,
+            ease: 'back.out(1.7)',
+            delay: currentDelay,
+            force3D: true
+          });
+          currentDelay += staggerDelay;
+        }
+
+        if (detailDescription) {
+          gsap.to(detailDescription, {
+            scale: 1,
+            opacity: 1,
+            duration: 0.3,
+            ease: 'back.out(1.7)',
+            delay: currentDelay,
+            force3D: true
+          });
+          currentDelay += staggerDelay;
+        }
+
+        if (boardStatsContainer) {
+          gsap.to(boardStatsContainer, {
+            scale: 1,
+            opacity: 1,
+            duration: 0.3,
+            ease: 'back.out(1.7)',
+            delay: currentDelay,
+            force3D: true
+          });
+          currentDelay += staggerDelay;
+        }
+
         if (playButton) {
-          setTimeout(() => {
-            (playButton as HTMLElement).classList.remove('animate-enter-initial');
-            (playButton as HTMLElement).classList.add('animate-enter');
-            logger.info('✅ Play button enter animation started');
-          }, 150);
+          gsap.to(playButton, {
+            scale: 1,
+            opacity: 1,
+            duration: 0.3,
+            ease: 'back.out(1.7)',
+            delay: currentDelay,
+            force3D: true
+          });
+          currentDelay += staggerDelay;
         }
+
+        logger.info(`✅ Detail modal enter animation started for ${allElements.length} elements`);
       });
       
       logger.info('✅ Detail modal shown with enter animation');
