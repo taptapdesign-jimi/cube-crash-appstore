@@ -850,6 +850,27 @@ async function startNewRun(boardId: number): Promise<void> {
       console.warn('⚠️ Failed to save high score during exit:', error);
     }
     
+    // 🔥 BUG FIX: Stop all magnet idle particles IMMEDIATELY before exit animations
+    // This prevents particles from being visible during exit animation and journey screen enter
+    try {
+      const { STATE } = await import('./modules/app-state.js');
+      const { stopMagnetIdleParticles } = await import('./modules/fx.js');
+      if (STATE && STATE.tiles && STATE.tiles.length > 0 && typeof stopMagnetIdleParticles === 'function') {
+        STATE.tiles.forEach((tile: any) => {
+          try {
+            if (tile && !tile.destroyed && tile.special === 'wild-magnet') {
+              stopMagnetIdleParticles(tile);
+            }
+          } catch (err) {
+            // Ignore errors for individual tiles
+          }
+        });
+        console.log('✅ Exit: All magnet idle particles stopped before exit animation');
+      }
+    } catch (error) {
+      console.warn('⚠️ Exit: Error stopping magnet idle particles:', error);
+    }
+    
     // Step 1: Play board exit animations (tiles + HUD)
     console.log('🎬 Playing board exit animations...');
     try {

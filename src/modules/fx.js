@@ -903,6 +903,10 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     }
   }
   
+  // 🔥 MEMORY LEAK FIX: Track particles for idle animations (for immediate cleanup when tile is destroyed)
+  const isIdleParticles = opts.trackForIdle === true; // Only track if explicitly requested (for idle particles)
+  const particlesToTrack = isIdleParticles ? [] : null; // Only create array if tracking is needed
+  
   for (let i = 0; i < shardCount; i++) {
     // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics
     const shard = graphicsPool.acquire();
@@ -917,6 +921,11 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     
     // 🔥 MEMORY LEAK FIX: Track Graphics object
     __globalGraphicsObjects.add(shard);
+    
+    // 🔥 MEMORY LEAK FIX: Track particle for idle animations cleanup
+    if (isIdleParticles && particlesToTrack) {
+      particlesToTrack.push(shard);
+    }
     
     // Wild cube shard colors
     const color = colors[Math.floor(Math.random() * colors.length)];
@@ -1012,6 +1021,13 @@ export function magicSparklesAtTile(board, tile, opts = {}){
           }
           // 🔥 MEMORY LEAK FIX: Remove from tracker
           __globalGraphicsObjects.delete(shard);
+          // 🔥 MEMORY LEAK FIX: Remove from idle particles tracking if tracked
+          if (isIdleParticles && particlesToTrack) {
+            const idx = particlesToTrack.indexOf(shard);
+            if (idx !== -1) {
+              particlesToTrack.splice(idx, 1);
+            }
+          }
           // 🔥 OBJECT POOLING: Release back to pool instead of destroying
           graphicsPool.release(shard);
         } catch (err) {
@@ -1019,6 +1035,14 @@ export function magicSparklesAtTile(board, tile, opts = {}){
         }
       }
     });
+  }
+  
+  // 🔥 MEMORY LEAK FIX: Store tracked particles on tile for immediate cleanup
+  if (isIdleParticles && particlesToTrack && particlesToTrack.length > 0) {
+    if (!tile._magnetIdleParticles) {
+      tile._magnetIdleParticles = [];
+    }
+    tile._magnetIdleParticles.push(...particlesToTrack);
   }
 }
 
@@ -5547,8 +5571,10 @@ export function startMagnetIdleParticles(tile) {
       
       // Use normal size particles (no sizeMultiplier) - same as drag smoke effect (v78 style)
       // 🔥 USER REQUEST: Increased alpha for idle particles to make them more visible
+      // 🔥 MEMORY LEAK FIX: Track particles for immediate cleanup when tile is destroyed
       magicSparklesAtTile(board, tile, { 
-        intensity: 0.45 // 45% intensity (increased from 24% for better visibility)
+        intensity: 0.45, // 45% intensity (increased from 24% for better visibility)
+        trackForIdle: true // 🔥 CRITICAL: Track particles for cleanup
       });
     } catch (err) {
       console.warn('Magnet idle particles error:', err);
@@ -5573,13 +5599,46 @@ export function startMagnetIdleParticles(tile) {
 
 /**
  * Stop magnet idle particles animation
+ * 🔥 MEMORY LEAK FIX: Also kills all active particles immediately
  */
 export function stopMagnetIdleParticles(tile) {
   if (!tile) return;
   
+  // 🔥 CRITICAL: Clear interval first to stop generating new particles
   if (tile._magnetIdleParticlesInterval) {
     clearInterval(tile._magnetIdleParticlesInterval);
     tile._magnetIdleParticlesInterval = null;
+  }
+  
+  // 🔥 MEMORY LEAK FIX: Kill all active particles immediately (don't wait for GSAP animations to complete)
+  if (tile._magnetIdleParticles && Array.isArray(tile._magnetIdleParticles)) {
+    const particles = tile._magnetIdleParticles.slice(); // Copy array to avoid modification during iteration
+    particles.forEach((particle) => {
+      try {
+        // Kill GSAP animations on particle
+        gsap.killTweensOf(particle);
+        gsap.killTweensOf(particle.x);
+        gsap.killTweensOf(particle.y);
+        gsap.killTweensOf(particle.alpha);
+        gsap.killTweensOf(particle.rotation);
+        
+        // Remove from board
+        if (particle?.parent) {
+          particle.parent.removeChild(particle);
+        }
+        
+        // Remove from global tracker
+        __globalGraphicsObjects.delete(particle);
+        
+        // Release back to pool
+        graphicsPool.release(particle);
+      } catch (err) {
+        console.warn('⚠️ Error cleaning up magnet idle particle:', err);
+      }
+    });
+    
+    // Clear the tracking array
+    tile._magnetIdleParticles = null;
   }
 }
 

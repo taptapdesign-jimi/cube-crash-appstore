@@ -1958,6 +1958,28 @@ async function animateBoardExit(){
     console.warn('⚠️ Board exit: Error stopping tile idle bounce:', e);
   }
   
+  // 🔥 BUG FIX: Stop magnet idle particles IMMEDIATELY before exit animation
+  // This prevents particles from being visible during exit animation and journey screen enter
+  try {
+    if (STATE && STATE.tiles && STATE.tiles.length > 0) {
+      STATE.tiles.forEach((tile: any) => {
+        try {
+          if (tile && !tile.destroyed && tile.special === 'wild-magnet') {
+            if (typeof stopMagnetIdleParticles === 'function') {
+              stopMagnetIdleParticles(tile);
+              console.log('✅ Board exit: Magnet idle particles stopped for tile');
+            }
+          }
+        } catch (err) {
+          console.warn('⚠️ Board exit: Error stopping magnet idle particles:', err);
+        }
+      });
+      console.log('✅ Board exit: All magnet idle particles stopped');
+    }
+  } catch (e) {
+    console.warn('⚠️ Board exit: Error stopping magnet idle particles:', e);
+  }
+  
   // CRITICAL: Cleanup smoke bubbles immediately before exit animation
   try {
     if (typeof HUD.cleanupSmokeBubbles === 'function') {
