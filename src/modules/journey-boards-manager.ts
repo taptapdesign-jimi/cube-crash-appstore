@@ -2141,14 +2141,6 @@ class JourneyBoardsManager {
       // Wait for exit animation to complete
       const totalDuration = (maxDelay + 0.1) * 1000; // Add 100ms buffer
       setTimeout(() => {
-        logger.info(`✅ Detail modal exit animation completed for all elements (${totalDuration}ms)`);
-        resolve();
-      }, totalDuration);
-          if (el) {
-            (el as HTMLElement).classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-          }
-        });
-        
         // 🔥 MEMORY LEAK FIX: Ensure CSS animations are stopped
         const detailImageEl = modal.querySelector('#detail-card-image') as HTMLElement;
         if (detailImageEl) {
@@ -2161,9 +2153,9 @@ class JourneyBoardsManager {
         modal.style.display = 'none';
         modal.setAttribute('aria-hidden', 'true');
         
-        logger.info('✅ Detail modal exit animation completed');
+        logger.info(`✅ Detail modal exit animation completed for all elements (${totalDuration}ms)`);
         resolve();
-      }, 650); // Exit animation duration
+      }, totalDuration);
     });
   }
 
