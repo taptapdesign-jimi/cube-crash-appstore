@@ -1930,11 +1930,11 @@ class JourneyBoardsManager {
       logger.info('🎬 Starting detail modal exit animation');
       
       // 🔥 MEMORY LEAK FIX: Stop CSS infinite animations before exit animation
-      const detailImage = modal.querySelector('#detail-card-image') as HTMLElement;
-      if (detailImage) {
+      const detailImageEl = modal.querySelector('#detail-card-image') as HTMLElement;
+      if (detailImageEl) {
         // Stop detailImageIdle animation (3s ease-in-out infinite)
-        detailImage.style.animation = 'none';
-        detailImage.style.animationPlayState = 'paused';
+        detailImageEl.style.animation = 'none';
+        detailImageEl.style.animationPlayState = 'paused';
         // Stop shimmer animation on ::after pseudo-element by stopping parent animation
         logger.info('🧹 Detail image CSS animations stopped');
       }
