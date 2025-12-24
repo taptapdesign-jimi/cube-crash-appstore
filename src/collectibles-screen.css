@@ -2057,7 +2057,7 @@
   }
 }
 
-/* 🔥 JOURNEY BOARDS: Floating Play Button in Detail Modal - Same style as homepage slider CTA */
+/* 🔥 JOURNEY BOARDS: Floating Play Button in Detail Modal - Same style as homepage slider CTA with shimmer */
 .board-detail-play-button {
   /* Fixed positioning - same as homepage CTA */
   position: fixed !important;
@@ -2070,6 +2070,7 @@
   max-width: 249px !important;
   
   /* Inherits all .cta-btn styles from style.css (gradient, shadow, border-radius, etc.) */
+  /* Also inherits .tap-scale and .menu-btn-primary styles */
   z-index: 1001 !important;
   
   /* Prevent dragging/moving */
@@ -2080,6 +2081,32 @@
   
   /* Fixed positioning - cannot be moved */
   will-change: transform !important;
+  
+  /* Clip shimmer */
+  overflow: hidden !important;
+}
+
+/* Shimmer effect - same as slider buttons */
+.board-detail-play-button::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.00) 0%,
+    rgba(255,255,255,0.28) 50%,
+    rgba(255,255,255,0.00) 100%
+  ) !important;
+  transform: translateX(-160%) skewX(-12deg) !important;
+  opacity: 0 !important;
+  will-change: transform, opacity !important;
+  pointer-events: none !important;
+  border-radius: inherit !important;
+  animation: working-shimmer 5s linear infinite !important;
+  animation-delay: 0.5s !important; /* Start shimmer after button appears */
 }
 
 /* Override cta-btn hover to maintain fixed position */
@@ -2097,6 +2124,11 @@
   .board-detail-play-button {
     width: 220px !important;
     max-width: 220px !important;
+  }
+  
+  /* Slower shimmer on mobile for better performance */
+  .board-detail-play-button::after {
+    animation-duration: 8s !important;
   }
 }
 

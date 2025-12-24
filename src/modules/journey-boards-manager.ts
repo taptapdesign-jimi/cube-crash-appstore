@@ -2350,10 +2350,10 @@ class JourneyBoardsManager {
           existingPlayBtn.remove();
         }
         
-        // Create new floating play button - same style as homepage slider CTA
+        // Create new floating play button - same style as homepage slider CTA with shimmer
         const floatingPlayButton = document.createElement('button');
         floatingPlayButton.id = 'board-detail-play-button';
-        floatingPlayButton.className = 'board-detail-play-button cta-btn';
+        floatingPlayButton.className = 'board-detail-play-button cta-btn tap-scale menu-btn-primary';
         floatingPlayButton.textContent = 'Play';
         
         // Prevent dragging/moving the button

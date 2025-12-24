@@ -1336,10 +1336,10 @@ class CollectiblesManager {
           existingPlayBtn.remove();
         }
         
-        // Create new floating play button - same style as homepage slider CTA
+        // Create new floating play button - same style as homepage slider CTA with shimmer
         const playButton = document.createElement('button');
         playButton.id = 'board-detail-play-button';
-        playButton.className = 'board-detail-play-button cta-btn';
+        playButton.className = 'board-detail-play-button cta-btn tap-scale menu-btn-primary';
         playButton.textContent = 'Play';
         
         // Prevent dragging/moving the button
