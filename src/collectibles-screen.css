@@ -2077,6 +2077,14 @@
   /* Ensure clicks work */
   pointer-events: auto !important;
   cursor: pointer !important;
+  
+  /* Clip shimmer */
+  overflow: hidden !important;
+}
+
+/* Shimmer delay for detail modal button */
+#board-detail-play-button::after {
+  animation-delay: 0.5s !important; /* Start shimmer after button appears */
 }
 
 /* Responsive - same as mobile homepage CTA */
