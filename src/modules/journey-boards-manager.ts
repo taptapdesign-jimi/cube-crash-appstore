@@ -1956,7 +1956,6 @@ class JourneyBoardsManager {
       }
       
       // 🔥 USER REQUEST: Exit animation for ALL detail modal elements using GSAP
-      const gsap = (window as any).gsap;
       if (!gsap) {
         logger.warn('⚠️ GSAP not available for detail modal exit animation');
         resolve();
@@ -2705,14 +2704,15 @@ class JourneyBoardsManager {
       detailModal.style.display = 'flex';
       
       // 🔥 USER REQUEST: Enter animation for ALL detail modal elements using GSAP
-      requestAnimationFrame(async () => {
-        const gsap = (window as any).gsap;
-        if (!gsap) {
-          logger.warn('⚠️ GSAP not available for detail modal enter animation');
-          return;
-        }
+      // Use double requestAnimationFrame to ensure DOM is ready
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (!gsap) {
+            logger.warn('⚠️ GSAP not available for detail modal enter animation');
+            return;
+          }
 
-        // Find ALL modal elements
+          // Find ALL modal elements
         const detailCloseBtn = detailModal.querySelector('#detail-close-btn') as HTMLElement;
         const detailTitle = detailModal.querySelector('#detail-title') as HTMLElement;
         const detailTitleUnderline = detailModal.querySelector('.detail-title-underline') as HTMLElement;
@@ -2901,7 +2901,8 @@ class JourneyBoardsManager {
           currentDelay += staggerDelay;
         }
 
-        logger.info(`✅ Detail modal enter animation started for ${allElements.length} elements`);
+          logger.info(`✅ Detail modal enter animation started for ${allElements.length} elements`);
+        });
       });
       
       logger.info('✅ Detail modal shown with enter animation');
