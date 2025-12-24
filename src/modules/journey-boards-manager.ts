@@ -2214,6 +2214,16 @@ class JourneyBoardsManager {
     }
   }
 
+  // Public method to open board details by ID
+  public openBoardDetailsById(boardId: number): void {
+    const board = this.boards.find(b => b.id === boardId);
+    if (board) {
+      this.openBoardDetails(board);
+    } else {
+      logger.warn(`⚠️ Board ${boardId} not found`);
+    }
+  }
+
   private openBoardDetails(board: JourneyBoard): void {
     // Open collectibles detail modal directly for Journey board
     const detailModal = document.getElementById('collectibles-detail-modal');
@@ -2342,79 +2352,51 @@ class JourneyBoardsManager {
         (continueBoardBtn as HTMLElement).style.setProperty('display', 'none', 'important');
       }
       
-      // 🔥 JOURNEY BOARDS: Create floating Play button (for non-interim boards)
-      if (!isInterim) {
-        // Remove existing play button if any
-        const existingPlayBtn = document.getElementById('board-detail-play-button');
-        if (existingPlayBtn) {
-          existingPlayBtn.remove();
-        }
-        
-        // Create new floating play button - EXACT same style as homepage slider CTA with shimmer
-        const floatingPlayButton = document.createElement('button');
-        floatingPlayButton.id = 'board-detail-play-button';
-        floatingPlayButton.className = 'slide-button tap-scale menu-btn-primary';
-        floatingPlayButton.textContent = 'Play';
-        floatingPlayButton.setAttribute('type', 'button');
-        floatingPlayButton.setAttribute('aria-label', 'Play Board');
-        
-        // Prevent dragging/moving the button
-        floatingPlayButton.addEventListener('mousedown', (e) => {
+      // 🔥 JOURNEY BOARDS: Use built-in Play button (non-interim)
+      if (!isInterim && playBoardBtn) {
+        // Replace to remove any stale listeners
+        const freshPlayBtn = playBoardBtn.cloneNode(true) as HTMLElement;
+        playBoardBtn.parentNode?.replaceChild(freshPlayBtn, playBoardBtn);
+        freshPlayBtn.style.setProperty('display', 'block', 'important');
+        freshPlayBtn.textContent = 'Play';
+        freshPlayBtn.setAttribute('aria-label', 'Play Board');
+
+        freshPlayBtn.addEventListener('click', async (e) => {
           e.preventDefault();
           e.stopPropagation();
-        });
-        floatingPlayButton.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        });
-        
-        // Add click handler
-        floatingPlayButton.addEventListener('click', async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          
+
           console.log(`🎮🎮🎮 PLAY BUTTON CLICKED! Board ID: ${board.id}, Board Name: ${board.name}`);
-          logger.info(`🎮 Floating Play button clicked for board ${board.id}`);
-          
-          // Play haptic feedback
-          try {
-            if ((window as any).playHaptic) {
-              (window as any).playHaptic('light');
-            }
-          } catch {}
-          
-          // Step 1: Stop Journey card idle bounce animations immediately
+          logger.info(`🎮 Play button clicked for board ${board.id}`);
+
+          try { (window as any).playHaptic?.('light'); } catch {}
+
           if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
             JOURNEY_CARD_IDLE_BOUNCE.stop();
             logger.info('✅ Journey card idle bounce stopped');
           }
-          
-          // Step 2: Close detail modal with exit animation
+
           const detailModalExitPromise = this.closeDetailModalWithExitAnimation(detailModal);
-          
-          // Step 3: Close Journey screen with exit animation (runs in parallel with modal exit)
           const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
           const journeyExitPromise = animateCollectiblesScreenExit();
-          
-          // Step 4: Wait for both exit animations to complete
+
           await Promise.all([detailModalExitPromise, journeyExitPromise]);
           logger.info('✅ All exit animations completed');
-          
-          // Step 5: Cleanup Journey boards manager
+
           this.cleanup();
-          
-          // Step 6: Hide collectibles screen
+
           const collectiblesManager = (window as any).collectiblesManager;
           if (collectiblesManager && typeof collectiblesManager.hideCollectibles === 'function') {
             (window as any).__ccJourneyExitMode = 'toGame';
             await collectiblesManager.hideCollectibles();
           }
+
+          // Mark that we came from detail modal (for return on exit)
+          (window as any).__ccCameFromDetailModal = true;
+          (window as any).__ccDetailModalBoardId = board.id;
+          console.log(`🎯 Marked as coming from detail modal for board ${board.id}`);
           
-          // Step 7: Start board from Journey
-          console.log(`🎮 About to call startNewRunFromJourney with board ID: ${board.id}`);
           if (typeof (window as any).startNewRunFromJourney === 'function') {
             logger.info(`🎮 Calling startNewRunFromJourney for board ${board.id}`);
-            console.log(`✅ startNewRunFromJourney function exists, calling with board ${board.id}`);
             await (window as any).startNewRunFromJourney(board.id);
             console.log(`✅ startNewRunFromJourney call completed for board ${board.id}`);
           } else {
@@ -2422,16 +2404,6 @@ class JourneyBoardsManager {
             logger.error('❌ startNewRunFromJourney function not found!');
           }
         });
-        
-        // Append to modal
-        detailModal.appendChild(floatingPlayButton);
-        logger.info(`✅ Floating Play button created for board ${board.id}`);
-      } else {
-        // Remove play button for interim boards
-        const existingPlayBtn = document.getElementById('board-detail-play-button');
-        if (existingPlayBtn) {
-          existingPlayBtn.remove();
-        }
       }
       
       // 🔥 ONLY CASE: Interim board shows "Continue" button, all others have NO old CTA

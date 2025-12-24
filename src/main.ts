@@ -1093,74 +1093,92 @@ async function startNewRun(boardId: number): Promise<void> {
     
     
     // 🔥 JOURNEY PROGRESSION: Check if user came from Journey screen
-    // 🔥 USER REQUEST: Determine target slide based on where user came from
-    // 1. If came from homepage Play button → return to homepage (slide 0)
-    // 2. If came from Journey Continue button → return to Journey (slide 1)
-    let targetSlide = 0; // Default to homepage
-    try {
-      // 🔥 CRITICAL: Check localStorage FIRST (before clearing) - most reliable for persistence
-      const cameFromJourneyStorage = localStorage.getItem('__ccCameFromJourney') === 'true';
-      const cameFromHomepageStorage = localStorage.getItem('__ccCameFromHomepage') === 'true';
+      // 🔥 USER REQUEST: Determine target slide based on where user came from
+      // 1. If came from detail modal Play button → return to detail modal for that board
+      // 2. If came from homepage Play button → return to homepage (slide 0)
+      // 3. If came from Journey Continue button → return to Journey (slide 1)
+      let targetSlide = 0; // Default to homepage
+      let returnToDetailModal = false;
+      let detailModalBoardId: number | null = null;
       
-      // Also check window flags (for current session)
-      const cameFromJourneyWindow = (window as any).__ccCameFromJourney === true;
-      const cameFromHomepageWindow = (window as any).__ccCameFromHomepage === true;
-      
-      // Combine both sources
-      let cameFromJourney = cameFromJourneyWindow || cameFromJourneyStorage;
-      const cameFromHomepage = cameFromHomepageWindow || cameFromHomepageStorage;
-      
-      // 🔥 USER REQUEST: If flag is not set, check lastOpenedBoardId as primary indicator
-      // If user has lastOpenedBoardId, they came from Journey screen (especially for interim cards)
-      if (!cameFromJourney && !cameFromHomepage) {
-        const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
-        const lastOpenedBoardId = journeyProgressionState.getLastOpenedBoardId();
-        if (lastOpenedBoardId !== null && lastOpenedBoardId >= 1) {
-          cameFromJourney = true;
-          console.log(`🗺️ No flag found, but lastOpenedBoardId is ${lastOpenedBoardId} - user came from Journey`);
-        }
-      }
-      
-      console.log('🔍 Exit context check:', {
-        cameFromJourneyWindow,
-        cameFromJourneyStorage,
-        cameFromJourney,
-        cameFromHomepageWindow,
-        cameFromHomepageStorage,
-        cameFromHomepage
-      });
-      
-      if (cameFromJourney) {
-        // User came from Journey screen → return to Journey slide
-        targetSlide = 1;
-        console.log('🎯 User came from Journey screen - returning to Journey slide');
+      try {
+        // 🔥 USER REQUEST: Check if user came from detail modal FIRST
+        const cameFromDetailModal = (window as any).__ccCameFromDetailModal === true;
+        const detailModalBoardIdWindow = (window as any).__ccDetailModalBoardId;
         
-        // 🔥 CRITICAL: Hide detail modal if it's open (but NOT Journey screen - we'll show it)
-        const detailModal = document.getElementById('collectibles-detail-modal');
-        if (detailModal) {
-          detailModal.hidden = true;
-          detailModal.style.display = 'none';
-          console.log('✅ Detail modal hidden');
+        if (cameFromDetailModal && detailModalBoardIdWindow) {
+          returnToDetailModal = true;
+          detailModalBoardId = Number(detailModalBoardIdWindow);
+          console.log(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal`);
+          
+          // Clear flag
+          delete (window as any).__ccCameFromDetailModal;
+          delete (window as any).__ccDetailModalBoardId;
+        } else {
+          // 🔥 CRITICAL: Check localStorage FIRST (before clearing) - most reliable for persistence
+          const cameFromJourneyStorage = localStorage.getItem('__ccCameFromJourney') === 'true';
+          const cameFromHomepageStorage = localStorage.getItem('__ccCameFromHomepage') === 'true';
+          
+          // Also check window flags (for current session)
+          const cameFromJourneyWindow = (window as any).__ccCameFromJourney === true;
+          const cameFromHomepageWindow = (window as any).__ccCameFromHomepage === true;
+          
+          // Combine both sources
+          let cameFromJourney = cameFromJourneyWindow || cameFromJourneyStorage;
+          const cameFromHomepage = cameFromHomepageWindow || cameFromHomepageStorage;
+          
+          // 🔥 USER REQUEST: If flag is not set, check lastOpenedBoardId as primary indicator
+          // If user has lastOpenedBoardId, they came from Journey screen (especially for interim cards)
+          if (!cameFromJourney && !cameFromHomepage) {
+            const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
+            const lastOpenedBoardId = journeyProgressionState.getLastOpenedBoardId();
+            if (lastOpenedBoardId !== null && lastOpenedBoardId >= 1) {
+              cameFromJourney = true;
+              console.log(`🗺️ No flag found, but lastOpenedBoardId is ${lastOpenedBoardId} - user came from Journey`);
+            }
+          }
+          
+          console.log('🔍 Exit context check:', {
+            cameFromJourneyWindow,
+            cameFromJourneyStorage,
+            cameFromJourney,
+            cameFromHomepageWindow,
+            cameFromHomepageStorage,
+            cameFromHomepage
+          });
+          
+          if (cameFromJourney) {
+            // User came from Journey screen → return to Journey slide
+            targetSlide = 1;
+            console.log('🎯 User came from Journey screen - returning to Journey slide');
+            
+            // 🔥 CRITICAL: Hide detail modal if it's open (but NOT Journey screen - we'll show it)
+            const detailModal = document.getElementById('collectibles-detail-modal');
+            if (detailModal) {
+              detailModal.hidden = true;
+              detailModal.style.display = 'none';
+              console.log('✅ Detail modal hidden');
+            }
+          } else if (cameFromHomepage) {
+            // User came from homepage → return to homepage
+            targetSlide = 0;
+            console.log('🏠 User came from homepage - returning to homepage slide');
+          } else {
+            // No flags set → default to homepage
+            targetSlide = 0;
+            console.log('🏠 No Journey context found - defaulting to homepage slide');
+          }
+          
+          // Clear flags AFTER determining target slide
+          delete (window as any).__ccCameFromHomepage;
+          delete (window as any).__ccCameFromJourney;
+          // 🔥 FIX: Also clear from localStorage AFTER use
+          localStorage.removeItem('__ccCameFromJourney');
+          localStorage.removeItem('__ccCameFromHomepage');
         }
-      } else if (cameFromHomepage) {
-        // User came from homepage → return to homepage
-        targetSlide = 0;
-        console.log('🏠 User came from homepage - returning to homepage slide');
-      } else {
-        // No flags set → default to homepage
-        targetSlide = 0;
-        console.log('🏠 No Journey context found - defaulting to homepage slide');
+      } catch (error) {
+        console.warn('⚠️ Failed to determine target slide:', error);
       }
-      
-      // Clear flags AFTER determining target slide
-      delete (window as any).__ccCameFromHomepage;
-      delete (window as any).__ccCameFromJourney;
-      // 🔥 FIX: Also clear from localStorage AFTER use
-      localStorage.removeItem('__ccCameFromJourney');
-      localStorage.removeItem('__ccCameFromHomepage');
-    } catch (error) {
-      console.warn('⚠️ Failed to determine target slide:', error);
-    }
     
     // 🔥 USER REQUEST: Show navigation and homepage ONLY if returning to homepage (slide 0)
     // If returning to Journey screen (slide 1), hide homepage and navigation IMMEDIATELY
@@ -1368,7 +1386,43 @@ async function startNewRun(boardId: number): Promise<void> {
     
     // 🔥 APP STORE FIX: Complete separation of Journey and Homepage pathways
     // Step 3: Show appropriate screen WITHOUT mixing pathways
-    if (targetSlide === 1) {
+    if (returnToDetailModal && detailModalBoardId !== null) {
+      // 🔥 USER REQUEST: Return to detail modal for specific board
+      console.log(`🎯 Detail modal pathway - showing Journey screen and detail modal for board ${detailModalBoardId}...`);
+      
+      // Show Journey screen first
+      const collectiblesManager = (window as any).collectiblesManager;
+      if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
+        collectiblesManager.showCollectibles();
+        console.log('✅ Journey screen shown');
+      }
+      
+      // Then open detail modal for the board
+      import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+        // Wait a bit for Journey screen to appear, then open detail modal
+        setTimeout(() => {
+          if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
+            journeyBoardsManager.openBoardDetailsById(detailModalBoardId);
+            console.log(`✅ Detail modal opened for board ${detailModalBoardId}`);
+          } else {
+            console.warn('⚠️ openBoardDetailsById method not found');
+          }
+        }, 300); // Small delay to ensure Journey screen is visible
+      }).catch((error) => {
+        console.warn('⚠️ Failed to import journeyBoardsManager:', error);
+      });
+      
+      // Ensure navigation stays hidden (Journey has its own back button)
+      const navElement = document.getElementById('independent-nav');
+      if (navElement) {
+        navElement.style.display = 'none';
+        navElement.style.visibility = 'hidden';
+        navElement.style.opacity = '0';
+        navElement.setAttribute('aria-hidden', 'true');
+      }
+      
+      console.log('✅ Detail modal pathway complete');
+    } else if (targetSlide === 1) {
       // 🔥 Journey pathway - NO homepage slider involvement
       console.log('🗺️ Journey pathway - showing Journey screen directly...');
       

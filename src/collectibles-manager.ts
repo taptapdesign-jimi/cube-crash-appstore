@@ -1378,6 +1378,11 @@ class CollectiblesManager {
           // Hide Journey screen
           await this.hideCollectibles();
           
+          // Mark that we came from detail modal (for return on exit)
+          (window as any).__ccCameFromDetailModal = true;
+          (window as any).__ccDetailModalBoardId = boardId;
+          console.log(`🎯 Marked as coming from detail modal for board ${boardId}`);
+          
           // Start board from Journey
           console.log(`🎮 About to call startNewRunFromJourney with board ID: ${boardId}`);
           if (typeof (window as any).startNewRunFromJourney === 'function') {
