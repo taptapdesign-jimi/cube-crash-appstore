@@ -1685,8 +1685,10 @@ class JourneyBoardsManager {
         if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction === 'function') {
           JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction();
         }
-        // Open detail modal for this board
-        this.openBoardDetails(board);
+        // Open detail modal for this board (with exit animation on Journey screen first)
+        this.openBoardDetails(board).catch((error) => {
+          logger.error('❌ Failed to open board details:', error);
+        });
       });
     } else if (isInterim) {
       // Interim card - show common back.png, clicking directly continues game (no detail modal)
@@ -2001,23 +2003,6 @@ class JourneyBoardsManager {
         modal.setAttribute('aria-hidden', 'true');
         
         logger.info('✅ Detail modal exit animation completed');
-        
-        // 🔥 USER REQUEST: If Journey screen is hidden (came from detail modal), show it with enter animation
-        const journeyScreen = document.getElementById('journey-screen');
-        if (journeyScreen && journeyScreen.style.opacity === '0' && journeyScreen.style.visibility === 'hidden') {
-          logger.info('🎯 Journey screen is hidden - showing it with enter animation after detail modal exit');
-          
-          // Show Journey screen with enter animation
-          const collectiblesManager = (window as any).collectiblesManager;
-          if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
-            // Small delay to ensure detail modal exit animation completes
-            setTimeout(() => {
-              collectiblesManager.showCollectibles();
-              logger.info('✅ Journey screen shown with enter animation after detail modal closed');
-            }, 100); // Small delay after exit animation
-          }
-        }
-        
         resolve();
       }, 650); // Exit animation duration
     });
@@ -2232,17 +2217,34 @@ class JourneyBoardsManager {
   }
 
   // Public method to open board details by ID
-  public openBoardDetailsById(boardId: number): void {
+  public async openBoardDetailsById(boardId: number, skipJourneyExit: boolean = false): Promise<void> {
     const board = this.boards.find(b => b.id === boardId);
     if (board) {
-      this.openBoardDetails(board);
+      await this.openBoardDetails(board, skipJourneyExit);
     } else {
       logger.warn(`⚠️ Board ${boardId} not found`);
     }
   }
 
-  private openBoardDetails(board: JourneyBoard): void {
-    // Open collectibles detail modal directly for Journey board
+  private async openBoardDetails(board: JourneyBoard, skipJourneyExit: boolean = false): Promise<void> {
+    // 🔥 USER REQUEST: First exit animation on Journey screen (if visible), then enter animation on detail modal
+    logger.info(`🎬 Opening board details for board ${board.id}${skipJourneyExit ? ' (skipping Journey exit)' : ' - exit Journey screen first'}`);
+    
+    // Step 1: Exit animation on Journey screen (only if it's visible and not already hidden)
+    if (!skipJourneyExit) {
+      const journeyScreen = document.getElementById('journey-screen');
+      if (journeyScreen && journeyScreen.style.opacity !== '0' && journeyScreen.style.visibility !== 'hidden') {
+        const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
+        await animateCollectiblesScreenExit();
+        logger.info('✅ Journey screen exit animation completed');
+      } else {
+        logger.info('✅ Journey screen already hidden - skipping exit animation');
+      }
+    } else {
+      logger.info('✅ Skipping Journey screen exit animation (already hidden)');
+    }
+    
+    // Step 2: Now open detail modal with enter animation
     const detailModal = document.getElementById('collectibles-detail-modal');
     if (detailModal) {
       // 🔥 USER REQUEST: Mark card as viewed - stop animations forever for this card
@@ -2392,12 +2394,10 @@ class JourneyBoardsManager {
             logger.info('✅ Journey card idle bounce stopped');
           }
 
+          // 🔥 USER REQUEST: Exit animation on detail modal only (no Journey screen exit - already hidden)
           const detailModalExitPromise = this.closeDetailModalWithExitAnimation(detailModal);
-          const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
-          const journeyExitPromise = animateCollectiblesScreenExit();
-
-          await Promise.all([detailModalExitPromise, journeyExitPromise]);
-          logger.info('✅ All exit animations completed');
+          await detailModalExitPromise;
+          logger.info('✅ Detail modal exit animation completed');
 
           this.cleanup();
 

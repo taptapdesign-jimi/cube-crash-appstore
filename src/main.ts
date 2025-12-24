@@ -1404,17 +1404,19 @@ async function startNewRun(boardId: number): Promise<void> {
         }
       }
       
-      // Open detail modal directly with enter animation
-      import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+      // Open detail modal directly with enter animation (no Journey screen exit - already hidden)
+      import('./modules/journey-boards-manager.js').then(async ({ journeyBoardsManager }) => {
         // Small delay to ensure DOM is ready
-        requestAnimationFrame(() => {
-          if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
-            journeyBoardsManager.openBoardDetailsById(detailModalBoardId);
-            console.log(`✅ Detail modal opened directly for board ${detailModalBoardId} with enter animation`);
-          } else {
-            console.warn('⚠️ openBoardDetailsById method not found');
-          }
-        });
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        
+        if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
+          // openBoardDetailsById will handle enter animation for detail modal
+          // Skip Journey exit animation because Journey screen is already hidden
+          await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
+          console.log(`✅ Detail modal opened directly for board ${detailModalBoardId} with enter animation`);
+        } else {
+          console.warn('⚠️ openBoardDetailsById method not found');
+        }
       }).catch((error) => {
         console.warn('⚠️ Failed to import journeyBoardsManager:', error);
       });
