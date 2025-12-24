@@ -2423,37 +2423,21 @@ class JourneyBoardsManager {
           e.stopPropagation();
         });
         
-        // Add to modal - insert AFTER rarity badge container (in flow, not fixed)
-        // Button should be immediately after "COMMON" badge, before description
-        const detailScrollable = detailModal.querySelector('.detail-scrollable');
-        const rarityBadgeContainer = detailModal.querySelector('.detail-rarity-badge-container');
-        const descriptionEl = detailModal.querySelector('#detail-card-description');
+        // Add to modal - append to modal (fixed positioning, not in flow)
+        // Same as collectibles-manager.ts - button is fixed at bottom, centered
+        detailModal.appendChild(floatingPlayButton);
         
-        if (rarityBadgeContainer && rarityBadgeContainer.parentElement) {
-          // Insert right after rarity badge container (before description)
-          if (descriptionEl && descriptionEl.parentElement === rarityBadgeContainer.parentElement) {
-            // Description exists, insert before it
-            rarityBadgeContainer.parentElement.insertBefore(floatingPlayButton, descriptionEl);
-          } else {
-            // No description, insert after rarity badge container
-            rarityBadgeContainer.parentElement.insertBefore(floatingPlayButton, rarityBadgeContainer.nextSibling);
-          }
-        } else if (detailScrollable) {
-          // Fallback: append to scrollable
-          detailScrollable.appendChild(floatingPlayButton);
-        } else {
-          detailModal.appendChild(floatingPlayButton);
-        }
-        
-        // Remove fixed positioning - button should be in flow, not fixed
-        // Override CSS fixed positioning with inline styles
-        floatingPlayButton.style.setProperty('position', 'relative', 'important');
-        floatingPlayButton.style.setProperty('bottom', 'auto', 'important');
-        floatingPlayButton.style.setProperty('left', 'auto', 'important');
-        floatingPlayButton.style.setProperty('transform', 'none', 'important');
+        // Fixed positioning at bottom, centered (same as collectibles-manager.ts)
+        floatingPlayButton.style.setProperty('position', 'fixed', 'important');
+        floatingPlayButton.style.setProperty('bottom', 'calc(40px + env(safe-area-inset-bottom, 0px))', 'important');
+        floatingPlayButton.style.setProperty('left', '50%', 'important');
+        floatingPlayButton.style.setProperty('transform', 'translateX(-50%)', 'important');
         floatingPlayButton.style.setProperty('width', '249px', 'important');
         floatingPlayButton.style.setProperty('max-width', '249px', 'important');
-        floatingPlayButton.style.setProperty('margin', '32px auto 0', 'important');
+        floatingPlayButton.style.setProperty('z-index', '1001', 'important');
+        floatingPlayButton.style.setProperty('pointer-events', 'auto', 'important');
+        floatingPlayButton.style.setProperty('cursor', 'pointer', 'important');
+        floatingPlayButton.style.setProperty('overflow', 'hidden', 'important');
         floatingPlayButton.style.setProperty('display', 'block', 'important');
 
         // Add click handler
