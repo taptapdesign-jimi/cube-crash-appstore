@@ -1965,3 +1965,114 @@
   transform: translateY(0) !important;
   box-shadow: 0 2px 8px rgba(232, 115, 74, 0.3) !important;
 }
+
+/* 🔥 JOURNEY BOARDS: Board Stats Display in Detail Modal */
+.board-stats-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(154, 139, 122, 0.2);
+}
+
+.board-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.board-stat-label {
+  font-family: 'Red Hat Display', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #9A8B7A;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.board-stat-value {
+  font-family: 'Red Hat Display', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #2C1810;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .board-stats-container {
+    gap: 12px;
+    margin-top: 20px;
+    padding: 16px;
+  }
+  
+  .board-stat-label {
+    font-size: 14px;
+  }
+  
+  .board-stat-value {
+    font-size: 20px;
+  }
+}
+
+/* 🔥 JOURNEY BOARDS: Floating Play Button in Detail Modal */
+.board-detail-play-button {
+  position: fixed;
+  bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 80px);
+  max-width: 400px;
+  height: 56px;
+  
+  /* Primary CTA Style (Orange) - matching homepage slider CTA */
+  background: linear-gradient(180deg, #FF8C42 0%, #FF6B35 100%);
+  border: none;
+  border-radius: 28px;
+  box-shadow: 0px 4px 12px rgba(255, 107, 53, 0.4);
+  
+  font-family: 'Red Hat Display', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #FFFFFF;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  
+  cursor: pointer;
+  z-index: 1001;
+  
+  transition: all 0.2s ease;
+}
+
+.board-detail-play-button:hover {
+  transform: translateX(-50%) scale(1.02);
+  box-shadow: 0px 6px 16px rgba(255, 107, 53, 0.5);
+}
+
+.board-detail-play-button:active {
+  transform: translateX(-50%) scale(0.98);
+  box-shadow: 0px 2px 8px rgba(255, 107, 53, 0.3);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .board-detail-play-button {
+    width: calc(100% - 48px);
+    height: 52px;
+    font-size: 16px;
+  }
+}
+
+/* iOS Safe Area Adjustment */
+@supports (padding: max(0px)) {
+  .board-detail-play-button {
+    bottom: max(40px, calc(40px + env(safe-area-inset-bottom, 0px)));
+  }
+}
+
+/* Add padding to detail content to prevent overlap with floating button */
+#collectibles-detail-content {
+  padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+}

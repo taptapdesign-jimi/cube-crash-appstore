@@ -846,6 +846,18 @@ async function startNewRun(boardId: number): Promise<void> {
       const { statsService } = await import('./services/stats-service.js');
       statsService.updateHighScore(currentScore);
       console.log('✅ High score updated via statsService:', currentScore);
+      
+      // 🔥 JOURNEY BOARDS: Update board-specific high score
+      try {
+        const boardNumber = STATE.boardNumber || STATE.level || 1;
+        const { boardStatsService } = await import('./services/board-stats-service.js');
+        const isNewHighScore = boardStatsService.updateBoardHighScore(boardNumber, currentScore);
+        if (isNewHighScore) {
+          console.log(`🏆 New high score for board ${boardNumber}: ${currentScore}`);
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to update board high score:', error);
+      }
     } catch (error) {
       console.warn('⚠️ Failed to save high score during exit:', error);
     }

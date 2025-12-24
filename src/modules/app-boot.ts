@@ -109,35 +109,21 @@ STATE.stage!.hitArea   = new Rectangle(0, 0, STATE.app!.renderer.width, STATE.ap
 export async function startLevel(n: number): Promise<void> {
   STATE.level = n; 
   
-  // 🔥 CRITICAL: Preserve score if continuing from previous board (not a fresh start)
-  // Check if score should be preserved (set by clean board modal when continuing)
-  const resumeScore = Number((window as any).__ccResumeScore);
-  const preservedScore = (window as any).__ccPreserveScore;
-  if (Number.isFinite(resumeScore)) {
-    STATE.score = Math.max(0, resumeScore | 0);
-    if (typeof (window as any).syncScoreToCore === 'function') {
-      (window as any).syncScoreToCore(STATE.score);
-    }
-    delete (window as any).__ccResumeScore;
-    console.log('🎯 startLevel (app-boot): Using resume score', STATE.score);
-  } else if (typeof preservedScore === 'number' && preservedScore > 0) {
-    STATE.score = preservedScore;
-    // CRITICAL: Also sync to app-core.ts local score variable
-    // This ensures both STATE.score and local score are in sync
-    if (typeof (window as any).syncScoreToCore === 'function') {
-      (window as any).syncScoreToCore(preservedScore);
-    }
-    console.log('💾 Preserved score from previous board:', preservedScore);
-    // Clear the flag so it doesn't affect future starts
-    delete (window as any).__ccPreserveScore;
-  } else {
-    // Fresh start - reset score to 0
-    STATE.score = 0;
-    // CRITICAL: Also sync to app-core.ts local score variable
-    if (typeof (window as any).syncScoreToCore === 'function') {
-      (window as any).syncScoreToCore(0);
-    }
+  // 🔥 JOURNEY BOARDS: Always reset score to 0 for each board (no accumulation)
+  // Each board is independent with its own score tracking
+  STATE.score = 0;
+  
+  // CRITICAL: Also sync to app-core.ts local score variable
+  // This ensures both STATE.score and local score are in sync
+  if (typeof (window as any).syncScoreToCore === 'function') {
+    (window as any).syncScoreToCore(0);
   }
+  
+  console.log(`🎯 startLevel (app-boot): Reset score to 0 for board ${n} (no accumulation between boards)`);
+  
+  // Clear any preserved score flags
+  delete (window as any).__ccResumeScore;
+  delete (window as any).__ccPreserveScore;
   
   STATE.moves = 0; 
   STATE.busyEnding = false;

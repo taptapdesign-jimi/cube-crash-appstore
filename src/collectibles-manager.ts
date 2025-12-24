@@ -1223,6 +1223,51 @@ class CollectiblesManager {
     } else {
       console.warn('⚠️ Card description element not found');
     }
+    
+    // 🔥 JOURNEY BOARDS: Display board stats (High Score, Longest Combo) for common boards
+    if (category === 'common') {
+      const boardId = number; // Card number = Board number
+      
+      // Import and get board stats
+      import('./services/board-stats-service.js').then(({ boardStatsService }) => {
+        const boardStats = boardStatsService.getBoardStats(boardId);
+        
+        // Find or create stats container
+        let statsContainer = document.getElementById('board-stats-container');
+        if (!statsContainer) {
+          statsContainer = document.createElement('div');
+          statsContainer.id = 'board-stats-container';
+          statsContainer.className = 'board-stats-container';
+          
+          // Insert after description element
+          if (cardDescriptionEl && cardDescriptionEl.parentElement) {
+            cardDescriptionEl.parentElement.insertBefore(statsContainer, cardDescriptionEl.nextSibling);
+          }
+        }
+        
+        // Update stats content
+        statsContainer.innerHTML = `
+          <div class="board-stat">
+            <span class="board-stat-label">High Score</span>
+            <span class="board-stat-value">${boardStats.highScore.toLocaleString()}</span>
+          </div>
+          <div class="board-stat">
+            <span class="board-stat-label">Longest Combo</span>
+            <span class="board-stat-value">${boardStats.longestCombo}</span>
+          </div>
+        `;
+        
+        console.log(`✅ Board stats displayed for board ${boardId}:`, boardStats);
+      }).catch((error) => {
+        console.warn('⚠️ Failed to load board stats:', error);
+      });
+    } else {
+      // Remove stats container for legendary cards
+      const statsContainer = document.getElementById('board-stats-container');
+      if (statsContainer) {
+        statsContainer.remove();
+      }
+    }
 
     if (modal) {
       console.log('✅ Modal exists, showing...');
@@ -1271,7 +1316,64 @@ class CollectiblesManager {
         console.warn('⚠️ Close button not found when showing modal');
       }
       
-      // 🔥 JOURNEY PROGRESSION: Hide both buttons for regular collectibles (Journey boards handle their own buttons)
+      // 🔥 JOURNEY BOARDS: Create floating Play button for common boards
+      if (category === 'common') {
+        const boardId = number;
+        
+        // Remove existing play button if any
+        const existingPlayBtn = document.getElementById('board-detail-play-button');
+        if (existingPlayBtn) {
+          existingPlayBtn.remove();
+        }
+        
+        // Create new floating play button
+        const playButton = document.createElement('button');
+        playButton.id = 'board-detail-play-button';
+        playButton.className = 'board-detail-play-button';
+        playButton.innerHTML = `<span>Play Board ${boardId}</span>`;
+        
+        // Add click handler
+        playButton.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Play haptic feedback
+          try {
+            if ((window as any).playHaptic) {
+              (window as any).playHaptic('light');
+            }
+          } catch {}
+          
+          console.log(`🎮 Play button clicked for board ${boardId}`);
+          
+          // Close detail modal with exit animation
+          await this.hideCardDetail();
+          
+          // Close Journey screen with exit animation
+          const { animateCollectiblesScreenExit } = await import('./ui/collectibles-animations.js');
+          await animateCollectiblesScreenExit();
+          
+          // Hide Journey screen
+          await this.hideCollectibles();
+          
+          // Start board from Journey
+          if (typeof (window as any).startNewRunFromJourney === 'function') {
+            await (window as any).startNewRunFromJourney(boardId, true);
+          }
+        });
+        
+        // Append to modal
+        modal.appendChild(playButton);
+        console.log(`✅ Floating Play button created for board ${boardId}`);
+      } else {
+        // Remove play button for legendary cards
+        const existingPlayBtn = document.getElementById('board-detail-play-button');
+        if (existingPlayBtn) {
+          existingPlayBtn.remove();
+        }
+      }
+      
+      // Hide old buttons (not used anymore)
       const playBoardBtn = modal.querySelector('#detail-play-board-btn');
       const continueBoardBtn = modal.querySelector('#detail-continue-board-btn');
       if (playBoardBtn) {
@@ -1280,9 +1382,6 @@ class CollectiblesManager {
       if (continueBoardBtn) {
         (continueBoardBtn as HTMLElement).style.setProperty('display', 'none', 'important');
       }
-      
-      // 🔥 REMOVED: Journey boards now handle their own button logic in journey-boards-manager.ts
-      // This code was causing buttons to show when they shouldn't - Journey boards handle buttons in openBoardDetails()
       
       // CRITICAL: Ensure background click also works to close modal
       const handleBackgroundClick = (e: MouseEvent | TouchEvent) => {

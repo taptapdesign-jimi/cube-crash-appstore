@@ -2147,15 +2147,17 @@ class JourneyBoardsManager {
         }
       }
       
-      // 🔥 USER REQUEST: Logic for continue vs fresh start
+      // 🔥 JOURNEY BOARDS: Always start from score 0 (no accumulation between boards)
+      const resetScore = 0;
+      
       if (hasValidTiles && gameState) {
         // CASE 1: We have valid saved game with tiles - CONTINUE (resume)
         gameState.boardNumber = board.id;
         gameState.level = board.id;
-        gameState.score = savedScore; // Preserve score
+        gameState.score = resetScore; // 🔥 JOURNEY BOARDS: Always start from 0
         gameState.timestamp = Date.now();
         localStorage.setItem('cc_saved_game', JSON.stringify(gameState));
-        logger.info(`🎮 Updated saved game state for CONTINUE: boardNumber=${board.id}, score=${savedScore}, hasTiles=true`);
+        logger.info(`🎮 Updated saved game state for CONTINUE: boardNumber=${board.id}, score=${resetScore}, hasTiles=true`);
         
         // Set flag to skip rebuildBoard and load saved state
         (window as any).__ccSkipRebuildBoard = true;
@@ -2165,14 +2167,14 @@ class JourneyBoardsManager {
         gameState = {
           boardNumber: board.id,
           level: board.id,
-          score: savedScore, // 🔥 USER REQUEST: Preserve score even for fresh board
+          score: resetScore, // 🔥 JOURNEY BOARDS: Always start from 0
           timestamp: Date.now()
         };
         // 🔥 CRITICAL: Explicitly remove tiles/grid to ensure fresh board creation
         delete gameState.tiles;
         delete gameState.grid;
         localStorage.setItem('cc_saved_game', JSON.stringify(gameState));
-        logger.info(`🎮 Created new saved game state for FRESH BOARD: boardNumber=${board.id}, score=${savedScore}, no tiles`);
+        logger.info(`🎮 Created new saved game state for FRESH BOARD: boardNumber=${board.id}, score=${resetScore}, no tiles`);
         
         // Clear flag so rebuildBoard creates fresh board with tile animations
         delete (window as any).__ccSkipRebuildBoard;
@@ -2181,8 +2183,8 @@ class JourneyBoardsManager {
       
       // 🔥 CRITICAL FIX: Set currentRunState BEFORE calling continueGameWithSavedState
       // This ensures continueGameWithSavedState can find the active run
-      journeyProgressionState.setCurrentRunState(board.id, savedScore);
-      logger.info(`🎮 Set currentRunState: board ${board.id}, score ${savedScore}, inProgress: true`);
+      journeyProgressionState.setCurrentRunState(board.id, resetScore);
+      logger.info(`🎮 Set currentRunState: board ${board.id}, score ${resetScore}, inProgress: true`);
       
       // 🔥 CRITICAL FIX: Set __ccStartAtLevel BEFORE calling continueGameWithSavedState
       // This ensures startLevel is called with correct board number

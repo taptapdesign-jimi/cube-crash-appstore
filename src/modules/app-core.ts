@@ -2120,25 +2120,15 @@ function startLevel(n){
   boardSpecificRules.setCurrentBoard(boardNumber);
   console.log(`🎯 Board-specific rules: Set to board ${boardNumber}`);
   
-  // Resume score priority:
-  // 1) Explicit resumeScore (hard-exit recovery)
-  // 2) Preserved score from normal clean-board continue
-  // 3) Fresh start resets on level 1
-  const resumeScore = Number((window as any).__ccResumeScore);
-  const preservedScore = (window as any).__ccPreserveScore;
-  if (Number.isFinite(resumeScore)) {
-    score = Math.max(0, resumeScore | 0);
-    STATE.score = score;
-    delete (window as any).__ccResumeScore;
-    console.log('🎯 startLevel: Using resume score', score);
-  } else if (typeof preservedScore === 'number' && preservedScore > 0) {
-    score = preservedScore;
-    console.log('💾 Preserved score from previous board:', preservedScore);
-    delete (window as any).__ccPreserveScore;
-  } else if (n === 1) {
-    score = 0;
-  }
-  // If n > 1 and no overrides, keep current score (continuing game)
+  // 🔥 JOURNEY BOARDS: Always reset score to 0 for each board (no accumulation)
+  // Each board is independent with its own score tracking
+  score = 0;
+  STATE.score = 0;
+  console.log(`🎯 startLevel: Reset score to 0 for board ${n} (no accumulation between boards)`);
+  
+  // Clear any preserved score flags
+  delete (window as any).__ccResumeScore;
+  delete (window as any).__ccPreserveScore;
   
   level = n; // Set level to the board number
   boardNumber = n; // Set board number to the level number
@@ -2164,6 +2154,16 @@ function startLevel(n){
   } catch (error) {
     console.error('❌ Failed to update highest board:', error);
   }
+  
+  // 🔥 JOURNEY BOARDS: Increment times played for this board
+  try {
+    import('../services/board-stats-service.js').then(({ boardStatsService }) => {
+      boardStatsService.incrementBoardTimesPlayed(n);
+      console.log(`🎮 Board ${n} times played incremented`);
+    }).catch(() => {
+      // Ignore import errors
+    });
+  } catch {}
   
   // 🗺️ JOURNEY PROGRESSION: Unlock journey boards based on boardNumber
   // Unlock all boards up to and including the current boardNumber
@@ -3273,8 +3273,17 @@ function merge(src, dst, helpers){
       // DO NOT schedule decay here - magnet pull will set up its own timer after updating combo
     }
 
-    // Stats: track longest combo
+    // Stats: track longest combo (global and per-board)
     statsService.updateLongestCombo(combo);
+    
+    // 🔥 JOURNEY BOARDS: Track longest combo per board
+    try {
+      import('../services/board-stats-service.js').then(({ boardStatsService }) => {
+        boardStatsService.updateBoardLongestCombo(boardNumber, combo);
+      }).catch(() => {
+        // Ignore import errors
+      });
+    } catch {}
 
     // 🔥 CRITICAL FIX: Check if this is last merge BEFORE adding wild progress
     // This prevents wild meter from filling and triggering wild spawn on last merge
