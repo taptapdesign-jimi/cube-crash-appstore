@@ -2396,16 +2396,46 @@ class JourneyBoardsManager {
         (continueBoardBtn as HTMLElement).style.setProperty('display', 'none', 'important');
       }
       
-      // 🔥 JOURNEY BOARDS: Use built-in Play button (non-interim)
-      if (!isInterim && playBoardBtn) {
-        // Replace to remove any stale listeners
-        const freshPlayBtn = playBoardBtn.cloneNode(true) as HTMLElement;
-        playBoardBtn.parentNode?.replaceChild(freshPlayBtn, playBoardBtn);
-        freshPlayBtn.style.setProperty('display', 'block', 'important');
-        freshPlayBtn.textContent = 'Play';
-        freshPlayBtn.setAttribute('aria-label', 'Play Board');
+      // 🔥 JOURNEY BOARDS: Create/update floating Play button (non-interim)
+      // Use #board-detail-play-button (same as collectibles-manager.ts) for consistency
+      if (!isInterim) {
+        // Remove existing floating play button if any
+        const existingFloatingBtn = document.getElementById('board-detail-play-button');
+        if (existingFloatingBtn) {
+          existingFloatingBtn.remove();
+        }
+        
+        // Create new floating play button - EXACT same style as homepage slider CTA with shimmer
+        const floatingPlayButton = document.createElement('button');
+        floatingPlayButton.id = 'board-detail-play-button';
+        floatingPlayButton.className = 'slide-button tap-scale menu-btn-primary';
+        floatingPlayButton.textContent = 'Play';
+        floatingPlayButton.setAttribute('type', 'button');
+        floatingPlayButton.setAttribute('aria-label', 'Play Board');
+        
+        // Prevent dragging/moving the button
+        floatingPlayButton.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
+        floatingPlayButton.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
+        
+        // Add to modal (append to detail-scrollable or detailModal)
+        const detailScrollable = detailModal.querySelector('.detail-scrollable');
+        if (detailScrollable) {
+          detailScrollable.appendChild(floatingPlayButton);
+        } else {
+          detailModal.appendChild(floatingPlayButton);
+        }
+        
+        // Set display (button is fixed positioned, so it will be visible)
+        floatingPlayButton.style.setProperty('display', 'block', 'important');
 
-        freshPlayBtn.addEventListener('click', async (e) => {
+        // Add click handler
+        floatingPlayButton.addEventListener('click', async (e) => {
           e.preventDefault();
           e.stopPropagation();
 
