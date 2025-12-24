@@ -706,23 +706,28 @@ async function startNewRun(boardId: number): Promise<void> {
 
 // 🔥 JOURNEY PROGRESSION: Export startNewRunFromJourney function (with board enter animation)
 (window as any).startNewRunFromJourney = async (boardId: number) => {
+  console.log(`🎮🎮🎮 startNewRunFromJourney CALLED with boardId: ${boardId}`);
   logger.info(`🎮 startNewRunFromJourney called for board ${boardId}`);
   
   // Import journey progression state
   const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
+  console.log(`✅ Journey progression state imported`);
   
   // Set lastOpenedBoardId and currentRunState
   journeyProgressionState.setLastOpenedBoardId(boardId);
   journeyProgressionState.setCurrentRunState(boardId, 0);
+  console.log(`✅ Journey progression state set for board ${boardId}`);
   
   // Clear any saved game state (starting fresh)
   localStorage.removeItem('cc_saved_game');
   localStorage.removeItem('cc_board_completed');
   localStorage.removeItem('cubeCrash_gameState');
+  console.log(`✅ Cleared saved game state`);
   
   // Hide homepage and show app (no slider exit animation - already done)
   uiManager.hideHomepage();
   uiManager.showApp();
+  console.log(`✅ Homepage hidden, app shown`);
   
   try {
     // Set flag so boot() starts at the correct board
@@ -732,15 +737,22 @@ async function startNewRun(boardId: number): Promise<void> {
     console.log(`🎯 Setting __ccStartAtLevel to ${boardId} and __ccTriggerHudDrop for new run from Journey`);
     
     // Boot the game
+    console.log(`🎮 About to call bootGame() for board ${boardId}...`);
     await bootGame();
+    console.log(`✅ bootGame() completed`);
+    
+    console.log(`🎮 About to call layoutGame() for board ${boardId}...`);
     await layoutGame();
+    console.log(`✅ layoutGame() completed`);
     
     // Clear flags after boot
     delete (window as any).__ccStartAtLevel;
     delete (window as any).__ccTriggerHudDrop;
     
+    console.log(`✅✅✅ New run started successfully for board ${boardId} with enter animation`);
     logger.info(`✅ New run started for board ${boardId} with enter animation`);
   } catch (error) {
+      console.error(`❌❌❌ Failed to start new run for board ${boardId}:`, error);
       logger.error(`❌ Failed to start new run for board ${boardId}:`, error);
       delete (window as any).__ccStartAtLevel;
     }
