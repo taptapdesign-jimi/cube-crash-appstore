@@ -2354,7 +2354,7 @@ class JourneyBoardsManager {
         const floatingPlayButton = document.createElement('button');
         floatingPlayButton.id = 'board-detail-play-button';
         floatingPlayButton.className = 'board-detail-play-button cta-btn';
-        floatingPlayButton.textContent = 'BOARD';
+        floatingPlayButton.textContent = 'Play';
         
         // Prevent dragging/moving the button
         floatingPlayButton.addEventListener('mousedown', (e) => {

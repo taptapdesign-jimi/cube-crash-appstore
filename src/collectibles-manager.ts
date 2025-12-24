@@ -1340,7 +1340,7 @@ class CollectiblesManager {
         const playButton = document.createElement('button');
         playButton.id = 'board-detail-play-button';
         playButton.className = 'board-detail-play-button cta-btn';
-        playButton.textContent = 'BOARD';
+        playButton.textContent = 'Play';
         
         // Prevent dragging/moving the button
         playButton.addEventListener('mousedown', (e) => {

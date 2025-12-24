@@ -2059,15 +2059,17 @@
 
 /* 🔥 JOURNEY BOARDS: Floating Play Button in Detail Modal - Same style as homepage slider CTA */
 .board-detail-play-button {
+  /* Fixed positioning - same as homepage CTA */
   position: fixed !important;
   bottom: calc(40px + env(safe-area-inset-bottom, 0px)) !important;
   left: 50% !important;
-  transform: translateX(-50%) !important;
-  width: 249px !important; /* Same width as homepage slider CTA */
+  transform: translateX(-50%) translateY(0) !important;
+  
+  /* Same width as homepage slider CTA */
+  width: 249px !important;
   max-width: 249px !important;
   
-  /* Use cta-btn styles from style.css */
-  /* Inherits from .cta-btn: gradient, shadow, border-radius, etc. */
+  /* Inherits all .cta-btn styles from style.css (gradient, shadow, border-radius, etc.) */
   z-index: 1001 !important;
   
   /* Prevent dragging/moving */
@@ -2080,19 +2082,20 @@
   will-change: transform !important;
 }
 
-/* Override cta-btn transform on hover/active to maintain fixed position */
+/* Override cta-btn hover to maintain fixed position */
 .board-detail-play-button:hover {
   transform: translateX(-50%) translateY(-2px) !important;
 }
 
+/* Override cta-btn active to maintain fixed position */
 .board-detail-play-button:active {
   transform: translateX(-50%) translateY(2px) !important;
 }
 
-/* Responsive */
+/* Responsive - same as mobile homepage CTA */
 @media (max-width: 768px) {
   .board-detail-play-button {
-    width: 220px !important; /* Same as mobile homepage CTA */
+    width: 220px !important;
     max-width: 220px !important;
   }
 }
