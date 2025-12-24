@@ -1245,15 +1245,25 @@ class CollectiblesManager {
           }
         }
         
-        // Update stats content
+        // Update stats content - same layout as score bottom sheet (icon left, text right)
         statsContainer.innerHTML = `
-          <div class="board-stat">
-            <span class="board-stat-label">High Score</span>
-            <span class="board-stat-value">${boardStats.highScore.toLocaleString()}</span>
+          <div class="stat-item">
+            <div class="stat-icon">
+              <img src="./assets/highscore-icon.png" alt="" aria-hidden="true">
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">${boardStats.highScore.toLocaleString()}</div>
+              <div class="stat-label">High score</div>
+            </div>
           </div>
-          <div class="board-stat">
-            <span class="board-stat-label">Longest Combo</span>
-            <span class="board-stat-value">${boardStats.longestCombo}</span>
+          <div class="stat-item">
+            <div class="stat-icon">
+              <img src="./assets/combo-icon.png" alt="" aria-hidden="true">
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">${boardStats.longestCombo}</div>
+              <div class="stat-label">Longest combo</div>
+            </div>
           </div>
         `;
         
@@ -1326,11 +1336,21 @@ class CollectiblesManager {
           existingPlayBtn.remove();
         }
         
-        // Create new floating play button
+        // Create new floating play button - same style as homepage slider CTA
         const playButton = document.createElement('button');
         playButton.id = 'board-detail-play-button';
-        playButton.className = 'board-detail-play-button';
-        playButton.innerHTML = `<span>Play Board ${boardId}</span>`;
+        playButton.className = 'board-detail-play-button cta-btn';
+        playButton.textContent = 'BOARD';
+        
+        // Prevent dragging/moving the button
+        playButton.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
+        playButton.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
         
         // Add click handler
         playButton.addEventListener('click', async (e) => {

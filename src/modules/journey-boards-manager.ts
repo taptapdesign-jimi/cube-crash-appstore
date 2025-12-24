@@ -2300,15 +2300,25 @@ class JourneyBoardsManager {
           }
         }
         
-        // Update stats content
+        // Update stats content - same layout as score bottom sheet (icon left, text right)
         statsContainer.innerHTML = `
-          <div class="board-stat">
-            <span class="board-stat-label">High Score</span>
-            <span class="board-stat-value">${boardStats.highScore.toLocaleString()}</span>
+          <div class="stat-item">
+            <div class="stat-icon">
+              <img src="./assets/highscore-icon.png" alt="" aria-hidden="true">
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">${boardStats.highScore.toLocaleString()}</div>
+              <div class="stat-label">High score</div>
+            </div>
           </div>
-          <div class="board-stat">
-            <span class="board-stat-label">Longest Combo</span>
-            <span class="board-stat-value">${boardStats.longestCombo}</span>
+          <div class="stat-item">
+            <div class="stat-icon">
+              <img src="./assets/combo-icon.png" alt="" aria-hidden="true">
+            </div>
+            <div class="stat-content">
+              <div class="stat-value">${boardStats.longestCombo}</div>
+              <div class="stat-label">Longest combo</div>
+            </div>
           </div>
         `;
         
@@ -2340,11 +2350,21 @@ class JourneyBoardsManager {
           existingPlayBtn.remove();
         }
         
-        // Create new floating play button
+        // Create new floating play button - same style as homepage slider CTA
         const floatingPlayButton = document.createElement('button');
         floatingPlayButton.id = 'board-detail-play-button';
-        floatingPlayButton.className = 'board-detail-play-button';
-        floatingPlayButton.innerHTML = `<span>Play Board ${board.id.toString().padStart(2, '0')}</span>`;
+        floatingPlayButton.className = 'board-detail-play-button cta-btn';
+        floatingPlayButton.textContent = 'BOARD';
+        
+        // Prevent dragging/moving the button
+        floatingPlayButton.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
+        floatingPlayButton.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
         
         // Add click handler
         floatingPlayButton.addEventListener('click', async (e) => {
