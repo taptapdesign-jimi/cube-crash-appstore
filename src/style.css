@@ -4476,10 +4476,10 @@ body:has(:root) .tile.wild-3d-glow {
 }
 
 .settings-content {
-  /* Safe paddings: 40px + device insets */
+  /* Safe paddings: 24px + device insets (matching Journey screen) */
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
-  --pad: 40px;
+  --pad: 24px; /* 🔥 FIX: Reduced from 40px to 24px to match Journey screen */
   --pad-left: calc(var(--pad) + var(--safe-left));
   --pad-right: calc(var(--pad) + var(--safe-right));
   position: relative;
@@ -4494,7 +4494,7 @@ body:has(:root) .tile.wild-3d-glow {
   display: flex;
   flex-direction: column;
   width: 100%;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 2vh);
+  padding-top: max(0px, calc(env(safe-area-inset-top, 0px) + 2vh - 16px)); /* 🔥 FIX: Match Journey screen - lift nav 16px toward top */
   padding-bottom: 0;
   background: #f3eee8;
   flex-shrink: 0;
@@ -4524,7 +4524,7 @@ body:has(:root) .tile.wild-3d-glow {
   position: relative;
   overflow: hidden;
   z-index: 2;
-  margin-left: 40px;
+  margin-left: var(--pad-left, 24px); /* 🔥 FIX: Use --pad-left to match Journey screen (was 40px) */
   flex-shrink: 0;
 }
 
@@ -4548,7 +4548,7 @@ body:has(:root) .tile.wild-3d-glow {
   width: 40px;
   height: 40px;
   flex-shrink: 0;
-  margin-right: 40px;
+  margin-right: var(--pad-right, 24px); /* 🔥 FIX: Use --pad-right to match Journey screen (was 40px) */
 }
 
 .settings-title {
@@ -4573,8 +4573,8 @@ body:has(:root) .tile.wild-3d-glow {
   height: 2px;
   background: #9A8B7A;
   opacity: 0.20;
-  width: calc(100% - 80px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
-  margin: 0 calc(40px + env(safe-area-inset-right, 0px)) 0 calc(40px + env(safe-area-inset-left, 0px));
+  width: calc(100% - 48px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); /* 🔥 FIX: 24px * 2 = 48px instead of 80px */
+  margin: 0 calc(24px + env(safe-area-inset-right, 0px)) 0 calc(24px + env(safe-area-inset-left, 0px)); /* 🔥 FIX: Reduced from 40px to 24px to match Journey screen */
 }
 
 /* Home shadow direktno ispod settings dividera - isti kao stats i collectibles */
@@ -4582,9 +4582,9 @@ body:has(:root) .tile.wild-3d-glow {
 .settings-shadow-image {
   position: absolute;
   top: calc(100% + 0px); /* Točno na donjoj liniji dividera */
-  left: calc(-40px - env(safe-area-inset-left, 0px)); /* Kompenzira padding parenta */
-  right: calc(-40px - env(safe-area-inset-right, 0px)); /* Kompenzira padding parenta */
-  width: calc(100% + 80px + env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px)); /* Full width ekrana */
+  left: calc(-24px - env(safe-area-inset-left, 0px)); /* 🔥 FIX: Reduced from 40px to 24px to match Journey screen */
+  right: calc(-24px - env(safe-area-inset-right, 0px)); /* 🔥 FIX: Reduced from 40px to 24px to match Journey screen */
+  width: calc(100% + 48px + env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px)); /* 🔥 FIX: 24px * 2 = 48px instead of 80px */
   height: 49px;
   object-fit: contain;
   object-position: center;
@@ -4606,7 +4606,7 @@ body:has(:root) .tile.wild-3d-glow {
   -ms-overflow-style: none;
   touch-action: pan-y;
   overscroll-behavior: contain;
-  padding-top: 24px;
+  padding-top: 20px; /* 🔥 FIX: Match Journey screen padding-top (was 24px) */
 }
 
 .settings-scrollable::-webkit-scrollbar {

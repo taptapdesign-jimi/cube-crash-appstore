@@ -95,7 +95,7 @@ const STANDARD_CARD_WIDTH = 109.82; // Use consistent width for all cards
 const CARD_POSITIONS = [
   // Card 01 - FIRST DAY (moved 8px left from left edge, moved up additional 48px from current position) - total moved up 72px from original, lowered by 8px
   { x: pxToPercent(-8), top: pxToPercentTop(24 - 24 - 24 - 48 + 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: 4 },
-  // Card 02 - SO SPECIAL (centered horizontally 50%, 89px - 24px = 65px from top, rotated -3° counter-clockwise - reversed) - moved up 24px
+  // Card 02 - SO SPECIAL (centered horizontally 50%, 89px - 24px = 65px from top, rotated -3° counter-clockwise - reversed) - moved up 24px, moved right 40px (applied in code)
   { x: 50, top: pxToPercentTop(89 - 24 - 24), width: STANDARD_CARD_WIDTH, height: 150, rotation: -3 },
   // Card 03 - ALL STAR (moved left 40px from right edge - 24px + 16px, 154px + 8px - 120px + 80px - 8px = 114px from top, rotated +6° clockwise - reversed) - moved up 24px, lowered by 32px total
   { x: 100 - pxToPercent(STANDARD_CARD_WIDTH + 24 + 16), top: pxToPercentTop(154 + 8 - 120 + 80 - 8 - 24 + 16 + 8 + 8), width: STANDARD_CARD_WIDTH, height: 150, rotation: 6 },
@@ -1397,6 +1397,7 @@ class JourneyBoardsManager {
     
     // Convert card position to pixels
     let leftPx: number;
+    const cardNumber = index + 1; // Card numbers are 1-indexed
     if (position.x === 50) {
       // Centered: 50% of container width
       leftPx = 50; // Will use percentage in CSS
@@ -1409,13 +1410,26 @@ class JourneyBoardsManager {
       leftPx = (xValue / 100) * viewportWidth;
     }
     
+    // Detect iPad screen size (769px - 1024px width) - must be before any device-specific logic
+    const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1024;
+    
+    // 🔥 USER REQUEST: Card 02 - iPhone: move left by 80px from center (was -96px, now -80px after +16px)
+    // This applies BEFORE iPad-specific adjustments
+    if (cardNumber === 2 && !isIPad) {
+      // iPhone only: move left by 80px from center
+      if (typeof leftPx === 'number' && leftPx === 50) {
+        // If centered (50%), convert to pixels first, then subtract 80px (move left)
+        leftPx = (50 / 100) * viewportWidth - 80;
+      } else {
+        // Already in pixels, subtract 80px (move left)
+        leftPx -= 80;
+      }
+    }
+    
     // Convert top position to pixels (relative to background start)
     const topPercent = typeof position.top === 'number' ? position.top : parseFloat(String(position.top || 0));
     // topPercent is percentage of background height
     let topPx = FIXED_BG_TOP_PX + (topPercent / 100) * bgHeightPx;
-    
-    // Detect iPad screen size (769px - 1024px width)
-    const isIPad = window.innerWidth >= 769 && window.innerWidth <= 1024;
     
     // 🔥 iPad FIX: Spusti sve kartice za 10% visine kontejnera prema dole
     if (isIPad) {
@@ -1424,16 +1438,21 @@ class JourneyBoardsManager {
     
     // 🔥 iPad FIX: Specifične prilagodbe pozicija za pojedinačne kartice
     if (isIPad) {
-      const cardNumber = index + 1; // Card numbers are 1-indexed
+      // cardNumber is already defined above
       
       if (cardNumber === 1) {
         // Kartica 1: 40px od lijevog ruba, 16px gore
         leftPx = 40;
         topPx -= 16;
       } else if (cardNumber === 2) {
-        // Kartica 2: 24px gore i desno za 20px
+        // Kartica 2: 24px gore i desno za 56px (20px + 12px + 24px) - iPad ONLY
+        // iPhone keeps original centered position (50%)
         topPx -= 24;
-        leftPx += 20; // Pomjerena desno za 20px
+        // Ensure leftPx is in pixels (not percentage) before adding iPad offset
+        if (typeof leftPx === 'number' && leftPx === 50) {
+          leftPx = (50 / 100) * viewportWidth;
+        }
+        leftPx += 56; // Pomjerena desno za 56px na iPad-u (iPhone ostaje centrirana)
       } else if (cardNumber === 3) {
         // Kartica 3: 24px od desnog ruba, 48px gore (28px + 20px), pomjerena 128px lijevo (40px + 48px + 24px + 16px)
         leftPx = viewportWidth - STANDARD_CARD_WIDTH - 24 - 40 - 48 - 24 - 16;
@@ -1524,12 +1543,16 @@ class JourneyBoardsManager {
     const wrapperLeftOffset = 8; // 8px offset za lijevu stranu
     const wrapperTopOffset = 8; // 8px offset za gornju stranu
     
-    if (position.x === 50 && !(isIPad && (index + 1 === 1 || index + 1 === 3 || index + 1 === 4 || index + 1 === 5 || index + 1 === 6 || index + 1 === 7))) {
-      // Centered only if not overridden by iPad-specific positioning
+    // 🔥 USER REQUEST: Card 02 - ensure 40px right offset is applied on all devices
+    // For card 2, always use pixel positioning (not centered) to ensure 40px offset is applied
+    const isCard2 = (index + 1) === 2;
+    if (position.x === 50 && !(isIPad && (index + 1 === 1 || index + 1 === 3 || index + 1 === 4 || index + 1 === 5 || index + 1 === 6 || index + 1 === 7)) && !isCard2) {
+      // Centered only if not overridden by iPad-specific positioning AND not card 2
       cardWrapper.style.left = `calc(50% + ${wrapperLeftOffset}px)`;
       cardWrapper.style.transform = `translateX(calc(-50% - ${wrapperLeftOffset}px)) rotate(${position.rotation}deg) scale(${scaleFactor})`;
     } else {
-      // 🔥 iPad FIX: Use direct leftPx positioning for iPad-specific cards
+      // 🔥 iPad FIX: Use direct leftPx positioning for iPad-specific cards and card 2
+      // For card 2, leftPx already includes 40px offset (and 56px more on iPad)
       cardWrapper.style.left = `${leftPx + wrapperLeftOffset}px`;
       cardWrapper.style.transform = `rotate(${position.rotation}deg) scale(${scaleFactor})`;
     }

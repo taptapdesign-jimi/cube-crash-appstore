@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Interim Card Debug Helper</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; }
+    pre { background: #2a2a2a; padding: 15px; border-radius: 5px; overflow-x: auto; }
+    .section { margin: 20px 0; padding: 15px; background: #2a2a2a; border-radius: 5px; }
+    button { padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+    button:hover { background: #45a049; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Interim Card Debug Helper</h1>
+  <p>Run this in iPad Safari Web Inspector Console</p>
+  
+  <div class="section">
+    <h2>Step 1: Find Interim Card</h2>
+    <button onclick="findInterimCard()">Find Interim Card</button>
+    <pre id="card-info"></pre>
+  </div>
+  
+  <div class="section">
+    <h2>Step 2: Dump All Measurements</h2>
+    <button onclick="dumpAllMeasurements()">Dump All Measurements</button>
+    <pre id="measurements"></pre>
+  </div>
+  
+  <div class="section">
+    <h2>Step 3: Check Computed Styles</h2>
+    <button onclick="dumpComputedStyles()">Dump Computed Styles</button>
+    <pre id="computed-styles"></pre>
+  </div>
+  
+  <div class="section">
+    <h2>Step 4: Check Children & Pseudo-elements</h2>
+    <button onclick="dumpChildren()">Dump Children & Pseudo</button>
+    <pre id="children"></pre>
+  </div>
+
+  <script>
+    function findInterimCard() {
+      const interimCard = document.querySelector('.journey-board-card.interim');
+      const wrapper = interimCard?.closest('.journey-board-card-wrapper');
+      
+      if (!interimCard) {
+        document.getElementById('card-info').textContent = '❌ No interim card found';
+        return null;
+      }
+      
+      const info = {
+        card: {
+          element: interimCard,
+          classes: interimCard.className,
+          id: interimCard.id || 'none',
+          dataset: { ...interimCard.dataset }
+        },
+        wrapper: {
+          element: wrapper,
+          classes: wrapper?.className || 'none',
+          id: wrapper?.id || 'none'
+        }
+      };
+      
+      document.getElementById('card-info').textContent = JSON.stringify(info, null, 2);
+      return { card: interimCard, wrapper };
+    }
+    
+    function dumpAllMeasurements() {
+      const { card, wrapper } = findInterimCard() || {};
+      if (!card || !wrapper) {
+        document.getElementById('measurements').textContent = '❌ Card or wrapper not found';
+        return;
+      }
+      
+      const cardRect = card.getBoundingClientRect();
+      const wrapperRect = wrapper.getBoundingClientRect();
+      
+      const measurements = {
+        wrapper: {
+          rect: {
+            x: wrapperRect.x,
+            y: wrapperRect.y,
+            width: wrapperRect.width,
+            height: wrapperRect.height,
+            left: wrapperRect.left,
+            right: wrapperRect.right,
+            top: wrapperRect.top,
+            bottom: wrapperRect.bottom
+          },
+          style: {
+            width: wrapper.style.width,
+            height: wrapper.style.height,
+            padding: wrapper.style.padding,
+            paddingLeft: wrapper.style.paddingLeft,
+            paddingRight: wrapper.style.paddingRight,
+            margin: wrapper.style.margin,
+            position: wrapper.style.position,
+            transform: wrapper.style.transform
+          }
+        },
+        card: {
+          rect: {
+            x: cardRect.x,
+            y: cardRect.y,
+            width: cardRect.width,
+            height: cardRect.height,
+            left: cardRect.left,
+            right: cardRect.right,
+            top: cardRect.top,
+            bottom: cardRect.bottom
+          },
+          style: {
+            width: card.style.width,
+            height: card.style.height,
+            margin: card.style.margin,
+            marginLeft: card.style.marginLeft,
+            marginRight: card.style.marginRight,
+            position: card.style.position,
+            transform: card.style.transform
+          }
+        },
+        difference: {
+          widthDiff: cardRect.width - wrapperRect.width,
+          leftDiff: cardRect.left - wrapperRect.left,
+          rightDiff: wrapperRect.right - cardRect.right
+        }
+      };
+      
+      document.getElementById('measurements').textContent = JSON.stringify(measurements, null, 2);
+    }
+    
+    function dumpComputedStyles() {
+      const { card, wrapper } = findInterimCard() || {};
+      if (!card || !wrapper) {
+        document.getElementById('computed-styles').textContent = '❌ Card or wrapper not found';
+        return;
+      }
+      
+      const computed = window.getComputedStyle(card);
+      const wrapperComputed = window.getComputedStyle(wrapper);
+      
+      const styles = {
+        wrapper: {
+          background: wrapperComputed.background,
+          backgroundColor: wrapperComputed.backgroundColor,
+          border: wrapperComputed.border,
+          borderWidth: wrapperComputed.borderWidth,
+          outline: wrapperComputed.outline,
+          outlineWidth: wrapperComputed.outlineWidth,
+          boxShadow: wrapperComputed.boxShadow,
+          filter: wrapperComputed.filter,
+          paddingLeft: wrapperComputed.paddingLeft,
+          paddingRight: wrapperComputed.paddingRight,
+          width: wrapperComputed.width,
+          height: wrapperComputed.height,
+          position: wrapperComputed.position,
+          overflow: wrapperComputed.overflow
+        },
+        card: {
+          width: computed.width,
+          height: computed.height,
+          marginLeft: computed.marginLeft,
+          marginRight: computed.marginRight,
+          marginTop: computed.marginTop,
+          marginBottom: computed.marginBottom,
+          position: computed.position,
+          transform: computed.transform,
+          boxShadow: computed.boxShadow,
+          filter: computed.filter,
+          background: computed.background,
+          backgroundColor: computed.backgroundColor
+        }
+      };
+      
+      document.getElementById('computed-styles').textContent = JSON.stringify(styles, null, 2);
+    }
+    
+    function dumpChildren() {
+      const { card, wrapper } = findInterimCard() || {};
+      if (!card || !wrapper) {
+        document.getElementById('children').textContent = '❌ Card or wrapper not found';
+        return;
+      }
+      
+      const children = {
+        wrapperChildren: Array.from(wrapper.children).map((child, i) => ({
+          index: i,
+          tagName: child.tagName,
+          className: child.className,
+          rect: child.getBoundingClientRect(),
+          computed: {
+            background: window.getComputedStyle(child).background,
+            backgroundColor: window.getComputedStyle(child).backgroundColor,
+            boxShadow: window.getComputedStyle(child).boxShadow,
+            filter: window.getComputedStyle(child).filter,
+            position: window.getComputedStyle(child).position,
+            width: window.getComputedStyle(child).width,
+            height: window.getComputedStyle(child).height
+          }
+        })),
+        cardChildren: Array.from(card.children).map((child, i) => ({
+          index: i,
+          tagName: child.tagName,
+          className: child.className,
+          rect: child.getBoundingClientRect(),
+          computed: {
+            background: window.getComputedStyle(child).background,
+            backgroundColor: window.getComputedStyle(child).backgroundColor,
+            boxShadow: window.getComputedStyle(child).boxShadow,
+            filter: window.getComputedStyle(child).filter,
+            position: window.getComputedStyle(child).position,
+            width: window.getComputedStyle(child).width,
+            height: window.getComputedStyle(child).height
+          }
+        })),
+        pseudoElements: {
+          cardAfter: window.getComputedStyle(card, '::after'),
+          cardBefore: window.getComputedStyle(card, '::before'),
+          wrapperAfter: window.getComputedStyle(wrapper, '::after'),
+          wrapperBefore: window.getComputedStyle(wrapper, '::before')
+        }
+      };
+      
+      document.getElementById('children').textContent = JSON.stringify(children, null, 2);
+    }
+    
+    // Auto-run on load
+    window.addEventListener('load', () => {
+      console.log('🔍 Interim Card Debug Helper loaded');
+      console.log('Run findInterimCard() first, then other functions');
+    });
+  </script>
+</body>
+</html>
+
