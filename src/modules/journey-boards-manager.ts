@@ -2264,6 +2264,14 @@ class JourneyBoardsManager {
         logger.info(`✅ Detail modal title set to: Board ${boardNumberStr}`);
       }
 
+      // Set rarity badge to "COMMON"
+      const rarityBadge = detailModal.querySelector('#detail-card-rarity');
+      if (rarityBadge) {
+        rarityBadge.textContent = 'COMMON';
+        rarityBadge.classList.remove('legendary');
+        logger.info(`✅ Rarity badge set to COMMON for board ${board.id}`);
+      }
+      
       // Set card description
       const descEl = detailModal.querySelector('#detail-card-description');
       if (descEl) {
@@ -2274,6 +2282,40 @@ class JourneyBoardsManager {
           descEl.textContent = board.name || `Board ${board.id}`;
         }
       }
+      
+      // 🔥 JOURNEY BOARDS: Display board stats (High Score, Longest Combo)
+      import('../services/board-stats-service.js').then(({ boardStatsService }) => {
+        const boardStats = boardStatsService.getBoardStats(board.id);
+        
+        // Find or create stats container
+        let statsContainer = document.getElementById('board-stats-container');
+        if (!statsContainer) {
+          statsContainer = document.createElement('div');
+          statsContainer.id = 'board-stats-container';
+          statsContainer.className = 'board-stats-container';
+          
+          // Insert after description element
+          if (descEl && descEl.parentElement) {
+            descEl.parentElement.insertBefore(statsContainer, descEl.nextSibling);
+          }
+        }
+        
+        // Update stats content
+        statsContainer.innerHTML = `
+          <div class="board-stat">
+            <span class="board-stat-label">High Score</span>
+            <span class="board-stat-value">${boardStats.highScore.toLocaleString()}</span>
+          </div>
+          <div class="board-stat">
+            <span class="board-stat-label">Longest Combo</span>
+            <span class="board-stat-value">${boardStats.longestCombo}</span>
+          </div>
+        `;
+        
+        logger.info(`✅ Board stats displayed for board ${board.id}:`, boardStats);
+      }).catch((error) => {
+        logger.warn('⚠️ Failed to load board stats:', error);
+      });
 
       // 🔥 USER REQUEST: Show/hide buttons based on board state
       // ONLY interim board shows "Continue" CTA
@@ -2282,7 +2324,7 @@ class JourneyBoardsManager {
       const playBoardBtn = detailModal.querySelector('#detail-play-board-btn');
       const continueBoardBtn = detailModal.querySelector('#detail-continue-board-btn');
       
-      // 🔥 CRITICAL: Always hide BOTH buttons first (default state) - use !important to override CSS
+      // 🔥 CRITICAL: Always hide BOTH old buttons first (default state) - use !important to override CSS
       if (playBoardBtn) {
         (playBoardBtn as HTMLElement).style.setProperty('display', 'none', 'important');
       }
@@ -2290,7 +2332,79 @@ class JourneyBoardsManager {
         (continueBoardBtn as HTMLElement).style.setProperty('display', 'none', 'important');
       }
       
-      // 🔥 ONLY CASE: Interim board shows "Continue" button, all others have NO CTA
+      // 🔥 JOURNEY BOARDS: Create floating Play button (for non-interim boards)
+      if (!isInterim) {
+        // Remove existing play button if any
+        const existingPlayBtn = document.getElementById('board-detail-play-button');
+        if (existingPlayBtn) {
+          existingPlayBtn.remove();
+        }
+        
+        // Create new floating play button
+        const floatingPlayButton = document.createElement('button');
+        floatingPlayButton.id = 'board-detail-play-button';
+        floatingPlayButton.className = 'board-detail-play-button';
+        floatingPlayButton.innerHTML = `<span>Play Board ${board.id.toString().padStart(2, '0')}</span>`;
+        
+        // Add click handler
+        floatingPlayButton.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Play haptic feedback
+          try {
+            if ((window as any).playHaptic) {
+              (window as any).playHaptic('light');
+            }
+          } catch {}
+          
+          logger.info(`🎮 Floating Play button clicked for board ${board.id}`);
+          
+          // Step 1: Stop Journey card idle bounce animations immediately
+          if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
+            JOURNEY_CARD_IDLE_BOUNCE.stop();
+            logger.info('✅ Journey card idle bounce stopped');
+          }
+          
+          // Step 2: Close detail modal with exit animation
+          const detailModalExitPromise = this.closeDetailModalWithExitAnimation(detailModal);
+          
+          // Step 3: Close Journey screen with exit animation (runs in parallel with modal exit)
+          const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
+          const journeyExitPromise = animateCollectiblesScreenExit();
+          
+          // Step 4: Wait for both exit animations to complete
+          await Promise.all([detailModalExitPromise, journeyExitPromise]);
+          logger.info('✅ All exit animations completed');
+          
+          // Step 5: Cleanup Journey boards manager
+          this.cleanup();
+          
+          // Step 6: Hide collectibles screen
+          const collectiblesManager = (window as any).collectiblesManager;
+          if (collectiblesManager && typeof collectiblesManager.hideCollectibles === 'function') {
+            (window as any).__ccJourneyExitMode = 'toGame';
+            await collectiblesManager.hideCollectibles();
+          }
+          
+          // Step 7: Start board from Journey
+          if (typeof (window as any).startNewRunFromJourney === 'function') {
+            await (window as any).startNewRunFromJourney(board.id, true);
+          }
+        });
+        
+        // Append to modal
+        detailModal.appendChild(floatingPlayButton);
+        logger.info(`✅ Floating Play button created for board ${board.id}`);
+      } else {
+        // Remove play button for interim boards
+        const existingPlayBtn = document.getElementById('board-detail-play-button');
+        if (existingPlayBtn) {
+          existingPlayBtn.remove();
+        }
+      }
+      
+      // 🔥 ONLY CASE: Interim board shows "Continue" button, all others have NO old CTA
       if (isInterim) {
         if (continueBoardBtn) {
           // Remove existing listeners to prevent duplicates

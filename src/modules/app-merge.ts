@@ -1300,6 +1300,9 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const activeAfterRemoval = STATE.tiles.filter(tileIsActive);
   const onlyDstRemains = activeAfterRemoval.length === 1 && activeAfterRemoval[0] === dst;
   const hasTilesToRespawn = pulledCells.length > 0;
+  const merge6Coords = dst && Number.isFinite(dst.gridX) && Number.isFinite(dst.gridY)
+    ? { c: dst.gridX | 0, r: dst.gridY | 0 }
+    : null;
 
   // 🔥 CRITICAL: Only skip respawn if explicitly marked as last merge
   // OR if only dst remains AND there are no tiles to respawn
@@ -1368,6 +1371,18 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     expectedTotalTiles: spawnCount + 1, // Spawned tiles + merge 6
     note: 'Spawn = pulled tiles count + 1 obligatory tile below merge 6. Merge 6 stays on board.'
   });
+
+  // 🔒 SAFETY: If merge-6 tile unexpectedly survives into respawn flow, remove it so we don't leave a stray value 6 on board
+  if (dst && !dst.destroyed && (dst.value | 0) === 6 && !dst.special && merge6Coords) {
+    try {
+      const { c, r } = merge6Coords;
+      if (STATE.grid?.[r]) STATE.grid[r][c] = null;
+      removeTile(dst);
+      console.warn('🧲 SAFETY: Removed stray merge-6 tile before respawn to prevent stuck value 6 on board');
+    } catch (err) {
+      console.warn('⚠️ Failed to remove stray merge-6 tile before respawn:', err);
+    }
+  }
   
   // 🔥 CRITICAL FIX: Find position for OBLIGATORY tile below merge 6
   // This tile should be positioned below merge 6 (or near center if merge 6 is at edge)
