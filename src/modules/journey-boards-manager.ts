@@ -2440,13 +2440,17 @@ class JourneyBoardsManager {
         
         playButtonForAnimation = floatingPlayButton;
 
-        // Add click handler
-        floatingPlayButton.addEventListener('click', async (e) => {
+        // 🔥 CRITICAL: Add click handler IMMEDIATELY after button is created and added to DOM
+        // Store board.id in closure to ensure it's captured correctly
+        const boardIdForPlay = board.id;
+        const boardNameForPlay = board.name;
+        
+        const handlePlayClick = async (e: Event) => {
           e.preventDefault();
           e.stopPropagation();
 
-          console.log(`🎮🎮🎮 PLAY BUTTON CLICKED! Board ID: ${board.id}, Board Name: ${board.name}`);
-          logger.info(`🎮 Play button clicked for board ${board.id}`);
+          console.log(`🎮🎮🎮 PLAY BUTTON CLICKED! Board ID: ${boardIdForPlay}, Board Name: ${boardNameForPlay}`);
+          logger.info(`🎮 Play button clicked for board ${boardIdForPlay}`);
 
           try { (window as any).playHaptic?.('light'); } catch {}
 
@@ -2470,18 +2474,34 @@ class JourneyBoardsManager {
 
           // Mark that we came from detail modal (for return on exit)
           (window as any).__ccCameFromDetailModal = true;
-          (window as any).__ccDetailModalBoardId = board.id;
-          console.log(`🎯 Marked as coming from detail modal for board ${board.id}`);
+          (window as any).__ccDetailModalBoardId = boardIdForPlay;
+          console.log(`🎯 Marked as coming from detail modal for board ${boardIdForPlay}`);
 
+          // 🔥 CRITICAL: Check if function exists and call it
           if (typeof (window as any).startNewRunFromJourney === 'function') {
-            logger.info(`🎮 Calling startNewRunFromJourney for board ${board.id}`);
-            await (window as any).startNewRunFromJourney(board.id);
-            console.log(`✅ startNewRunFromJourney call completed for board ${board.id}`);
+            console.log(`🎮 About to call startNewRunFromJourney with boardId: ${boardIdForPlay}`);
+            logger.info(`🎮 Calling startNewRunFromJourney for board ${boardIdForPlay}`);
+            try {
+              await (window as any).startNewRunFromJourney(boardIdForPlay);
+              console.log(`✅ startNewRunFromJourney call completed for board ${boardIdForPlay}`);
+            } catch (error) {
+              console.error(`❌ Error calling startNewRunFromJourney:`, error);
+              logger.error(`❌ Error calling startNewRunFromJourney:`, error);
+            }
           } else {
-            console.error('❌ startNewRunFromJourney function NOT FOUND!');
-            logger.error('❌ startNewRunFromJourney function not found!');
+            console.error('❌ startNewRunFromJourney function NOT FOUND on window object!');
+            logger.error('❌ startNewRunFromJourney function not found on window object!');
+            // Try to find it
+            console.log('🔍 Available window functions:', Object.keys(window).filter(k => k.includes('start') || k.includes('journey')));
           }
-        });
+        };
+        
+        // Add both click and touchend for better mobile support
+        floatingPlayButton.addEventListener('click', handlePlayClick, { capture: false });
+        floatingPlayButton.addEventListener('touchend', handlePlayClick, { capture: false, passive: false });
+        
+        console.log(`✅ Play button event listener attached for board ${boardIdForPlay}`);
+        logger.info(`✅ Play button event listener attached for board ${boardIdForPlay}`);
       }
       
       // 🔥 ONLY CASE: Interim board shows "Continue" button, all others have NO old CTA
