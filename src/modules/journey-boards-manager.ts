@@ -2397,14 +2397,13 @@ class JourneyBoardsManager {
       }
       
       // 🔥 JOURNEY BOARDS: Create/update floating Play button (non-interim)
-      // Use #board-detail-play-button (same as collectibles-manager.ts) for consistency
+      // Remove any floating play button remnants
+      const floatingPlay = document.getElementById('board-detail-play-button');
+      if (floatingPlay) floatingPlay.remove();
+
+      let playButtonForAnimation: HTMLElement | null = null;
+      
       if (!isInterim) {
-        // Remove existing floating play button if any
-        const existingFloatingBtn = document.getElementById('board-detail-play-button');
-        if (existingFloatingBtn) {
-          existingFloatingBtn.remove();
-        }
-        
         // Create new floating play button - EXACT same style as homepage slider CTA with shimmer
         const floatingPlayButton = document.createElement('button');
         floatingPlayButton.id = 'board-detail-play-button';
@@ -2423,8 +2422,7 @@ class JourneyBoardsManager {
           e.stopPropagation();
         });
         
-        // Add to modal - append to modal (fixed positioning, not in flow)
-        // Same as collectibles-manager.ts - button is fixed at bottom, centered
+        // Add to modal - append to modal (fixed positioning)
         detailModal.appendChild(floatingPlayButton);
         
         // Fixed positioning at bottom, centered (same as collectibles-manager.ts)
@@ -2439,6 +2437,8 @@ class JourneyBoardsManager {
         floatingPlayButton.style.setProperty('cursor', 'pointer', 'important');
         floatingPlayButton.style.setProperty('overflow', 'hidden', 'important');
         floatingPlayButton.style.setProperty('display', 'block', 'important');
+        
+        playButtonForAnimation = floatingPlayButton;
 
         // Add click handler
         floatingPlayButton.addEventListener('click', async (e) => {
@@ -2472,7 +2472,7 @@ class JourneyBoardsManager {
           (window as any).__ccCameFromDetailModal = true;
           (window as any).__ccDetailModalBoardId = board.id;
           console.log(`🎯 Marked as coming from detail modal for board ${board.id}`);
-          
+
           if (typeof (window as any).startNewRunFromJourney === 'function') {
             logger.info(`🎮 Calling startNewRunFromJourney for board ${board.id}`);
             await (window as any).startNewRunFromJourney(board.id);
@@ -2627,7 +2627,22 @@ class JourneyBoardsManager {
       const detailRarityBadgeContainer = detailModal.querySelector('.detail-rarity-badge-container') as HTMLElement;
       const detailDescription = detailModal.querySelector('#detail-card-description') as HTMLElement;
       const boardStatsContainer = detailModal.querySelector('.board-stats-container') as HTMLElement;
+      // 🔥 CRITICAL: Use #board-detail-play-button (floating button created above) instead of #detail-play-board-btn
       const playButton = detailModal.querySelector('#board-detail-play-button') as HTMLElement;
+      
+      // 🔥 DEBUG: Log button state
+      if (playButton) {
+        logger.info(`✅ Play button found in DOM: ${playButton.id}, display: ${playButton.style.display}, visibility: ${playButton.style.visibility}`);
+      } else {
+        logger.warn(`⚠️ Play button NOT found in DOM! Looking for #board-detail-play-button`);
+        // Try to find it again
+        const playButtonRetry = document.getElementById('board-detail-play-button');
+        if (playButtonRetry) {
+          logger.info(`✅ Play button found via getElementById: ${playButtonRetry.id}`);
+        } else {
+          logger.error(`❌ Play button NOT found via getElementById either!`);
+        }
+      }
 
       // Content elements array (excluding header - header is animated as group)
       const contentElements = [
@@ -2637,6 +2652,8 @@ class JourneyBoardsManager {
         boardStatsContainer,
         playButton
       ].filter(el => el !== null) as HTMLElement[];
+      
+      logger.info(`📊 Content elements for animation: ${contentElements.length} elements, playButton included: ${playButton !== null}`);
 
       // 🔥 CRITICAL: Set initial state IMMEDIATELY (before showing modal) to prevent flash
       if (detailHeader) {
