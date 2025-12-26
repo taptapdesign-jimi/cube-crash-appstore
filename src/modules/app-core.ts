@@ -5993,15 +5993,27 @@ function merge(src, dst, helpers){
         
         // 🔥 CRITICAL: Wait for spawn to complete BEFORE removing dst tile
         // This ensures locked tiles are still valid when spawn happens
-        // Wait a bit to ensure spawn animations have started
-        setTimeout(() => {
+        // 🔥 CRITICAL FIX: Remove merge 6 tile IMMEDIATELY, not after delay
+        // Delay was causing merge 6 tile to remain on board and become "stuck"
+        // Grid position is already cleared (line 5539), so we can safely remove tile now
         if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-          console.log('🗑️ Removing dst tile AFTER spawn (delayed from earlier)');
-          // Note: grid[gy][gx] was already set to null when placeholder was created
+          console.log('🗑️ Removing dst tile IMMEDIATELY (grid already cleared)');
+          
+          // 🔥 CRITICAL FIX: Ensure grid position is null before removing tile
+          // This prevents openAtCell from seeing merge 6 tile and not spawning
+          if (grid && grid[gy] && grid[gy][gx] === dst) {
+            grid[gy][gx] = null;
+            console.log('🧹 Explicitly cleared grid position before removeTile');
+          }
+          
+          // 🔥 CRITICAL FIX: Hide tile before removing to prevent visual glitches
+          dst.visible = false;
+          dst.alpha = 0;
+          dst.eventMode = 'none';
+          
           removeTile(dst); // Remove from tiles array
           console.log('✅ Dst tile removed successfully');
         }
-        }, 100); // Small delay to ensure spawn has started
         
         // Clean up pulled cells flag after spawn
         if ((dst as any)?._wildMagnetPulledCells) {
