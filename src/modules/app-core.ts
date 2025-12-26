@@ -895,6 +895,19 @@ export async function boot(){
       // NORMAL LOGIC: Regular merge rules
       if (!Number.isFinite(sv) || !Number.isFinite(dv)) return false;
       if (sv === dv) return true;         // allow stacking equal values (e.g., 3+3)
+      
+      // 🔥 CRITICAL FIX: Allow merge 6 tile (value 6) to merge with any tile (value 1-5)
+      // This allows user to merge spawned tiles with merge 6 tile that remained after magnet pull
+      // Merge 6 tile should be removable by merging with any spawned tile
+      if (dv === 6 && sv > 0 && sv < 6) {
+        console.log('🔥 canDrop (app-core): Merge 6 tile can merge with tile value', sv);
+        return true; // Allow merge 6 to merge with any tile (1-5)
+      }
+      if (sv === 6 && dv > 0 && dv < 6) {
+        console.log('🔥 canDrop (app-core): Tile value', sv, 'can merge with merge 6 tile');
+        return true; // Allow any tile (1-5) to merge with merge 6
+      }
+      
       const canMerge = (sv + dv) <= 6;    // allow different values that sum to 6 (e.g., 4+2, 2+4, 3+2=5)
       return canMerge;
     },
