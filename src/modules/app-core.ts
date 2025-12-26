@@ -6031,7 +6031,65 @@ function merge(src, dst, helpers){
                                        (dst as any)?._wildMagnetMergeCallback ||
                                        isMagnetPullMerge;
         
-        if (!isMagnetPullMergeFinal && dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+        // 🔥 CRITICAL FIX: Check if magnet merge had NO tiles to pull
+        // In this case, merge 6 tile should be removed and clean board flow should be triggered
+        const magnetMergeNoTilesToPull = (dst as any)?._magnetMergeNoTilesToPull === true;
+        
+        if (magnetMergeNoTilesToPull && dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+          console.log('🚨🚨🚨 MAGNET MERGE WITH NO TILES TO PULL - Removing merge 6 tile and triggering clean board flow');
+          
+          // 🔥 CRITICAL FIX: Ensure grid position is null before removing tile
+          if (grid && grid[gy] && grid[gy][gx] === dst) {
+            grid[gy][gx] = null;
+            console.log('🧹 Explicitly cleared grid position before removeTile');
+          }
+          
+          // 🔥 CRITICAL FIX: Hide tile before removing to prevent visual glitches
+          dst.visible = false;
+          dst.alpha = 0;
+          dst.eventMode = 'none';
+          
+          removeTile(dst); // Remove from tiles array
+          console.log('✅ Merge 6 tile removed successfully (magnet merge with no tiles to pull)');
+          
+          // Trigger clean board flow
+          const { runEndgameFlow } = await import('./endgame-flow.js');
+          
+          // Get app context from STATE and helpers
+          const app = STATE.app;
+          const stage = STATE.stage;
+          const board = STATE.board;
+          const boardBG = STATE.boardBG;
+          const level = STATE.level || 1;
+          const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
+          const boardNumber = STATE.boardNumber || 1;
+          
+          if (!app || !stage || !board || !startLevel) {
+            console.error('❌ Missing required context for clean board flow:', { app: !!app, stage: !!stage, board: !!board, startLevel: !!startLevel });
+          } else {
+            // Reset wild meter
+            if (typeof (window as any).CC?.resetWildProgress === 'function') {
+              (window as any).CC.resetWildProgress(0, false);
+            } else if (typeof (window as any).resetWildProgress === 'function') {
+              (window as any).resetWildProgress(0, false);
+            }
+            if (typeof HUD.resetWildMeter === 'function') {
+              HUD.resetWildMeter(true);
+            }
+            
+            await runEndgameFlow({
+              app,
+              stage,
+              board,
+              boardBG,
+              level,
+              startLevel,
+              boardNumber
+            });
+            
+            console.log('✅ Clean board flow completed for magnet merge with no tiles to pull');
+          }
+        } else if (!isMagnetPullMergeFinal && dst && !dst.destroyed && STATE.tiles.includes(dst)) {
           console.log('🗑️ Removing dst tile IMMEDIATELY (regular merge 6, not magnet pull)');
           
           // 🔥 CRITICAL FIX: Ensure grid position is null before removing tile
