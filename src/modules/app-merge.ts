@@ -500,8 +500,58 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const pulledTileCount = validTiles.length;
   const pulledCells: { c: number; r: number }[] = [];
   
-  if (validTiles.length === 0 || !dst || dst.destroyed) {
-    console.warn('⚠️ No valid tiles or dst destroyed');
+  // 🔥 CRITICAL FIX: If NO tiles were pulled (validTiles.length === 0), merge 6 tile is the ONLY tile left
+  // This happens when magnet merges with a tile but there are NO other tiles on board to pull
+  // In this case, merge 6 tile should be removed and clean board flow should be triggered
+  if (validTiles.length === 0 && dst && !dst.destroyed) {
+    console.log('🚨🚨🚨 EDGE CASE: Magnet merge but NO tiles to pull - Only merge 6 remains, triggering clean board flow');
+    
+    // Remove merge 6 tile
+    removeTile(dst);
+    
+    // Trigger clean board flow
+    const { runEndgameFlow } = await import('./endgame-flow.js');
+    
+    // Get app context from STATE and helpers
+    const app = STATE.app;
+    const stage = STATE.stage;
+    const board = STATE.board;
+    const boardBG = STATE.boardBG;
+    const level = STATE.level || 1;
+    const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
+    const boardNumber = STATE.boardNumber || 1;
+    
+    if (!app || !stage || !board || !startLevel) {
+      console.error('❌ Missing required context for clean board flow:', { app: !!app, stage: !!stage, board: !!board, startLevel: !!startLevel });
+      return;
+    }
+    
+    // Reset wild meter
+    if (typeof (window as any).CC?.resetWildProgress === 'function') {
+      (window as any).CC.resetWildProgress(0, false);
+    } else if (typeof (window as any).resetWildProgress === 'function') {
+      (window as any).resetWildProgress(0, false);
+    }
+    if (typeof HUD.resetWildMeter === 'function') {
+      HUD.resetWildMeter(true);
+    }
+    
+    await runEndgameFlow({
+      app,
+      stage,
+      board,
+      boardBG,
+      level,
+      startLevel,
+      boardNumber
+    });
+    
+    console.log('✅ Clean board flow completed for magnet merge with no pulled tiles');
+    return;
+  }
+  
+  if (!dst || dst.destroyed) {
+    console.warn('⚠️ dst destroyed');
     return;
   }
   
