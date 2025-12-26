@@ -2665,6 +2665,9 @@ function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWild
     delete holder._wildMagnetOriginalY;
     delete holder._mergeTriggered75;
     delete holder._skipIdleScaleReset;
+    delete holder._wildMagnetMergeCallback;
+    delete holder._wildMagnetPulledTilesMerge;
+    delete holder._wildMagnetPulledTilesScoring;
 
     if (isWild || isWildMagnet || isWildBeer){
       // 🔥 CRITICAL: Set special BEFORE setValue to ensure correct texture is applied

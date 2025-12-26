@@ -273,6 +273,9 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false,
     delete (holder as any)._wildMagnetOriginalY;
     delete (holder as any)._mergeTriggered75;
     delete (holder as any)._skipIdleScaleReset;
+    delete (holder as any)._wildMagnetMergeCallback;
+    delete (holder as any)._wildMagnetPulledTilesMerge;
+    delete (holder as any)._wildMagnetPulledTilesScoring;
 
     // 🔥 CRITICAL: Spawn guard - NEVER spawn a tile with value <= 0!
     let v = (value == null) ? [1,2,3,4,5][(Math.random()*5)|0] : value;

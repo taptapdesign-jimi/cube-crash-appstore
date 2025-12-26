@@ -1383,7 +1383,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     delete (dst as any)._wildMagnetAffected;
     delete (dst as any)._wildMagnetOriginalX;
     delete (dst as any)._wildMagnetOriginalY;
-    console.log('🧲 Cleared _wildMagnetAffected flag from merge 6 tile before spawning');
+    delete (dst as any)._wildMagnetMergeCallback;
+    delete (dst as any)._wildMagnetPulledTilesMerge;
+    delete (dst as any)._wildMagnetPulledTilesScoring;
+    console.log('🧲 Cleared all magnet flags from merge 6 tile before spawning');
   }
   
   // 🔥 CRITICAL FIX: Find position for OBLIGATORY tile below merge 6
