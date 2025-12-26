@@ -108,6 +108,15 @@ function removeTile(t){
     if ((t as any)._destroyTween) { (t as any)._destroyTween.kill(); (t as any)._destroyTween = null; }
   }catch{}
   
+  // 🔥 CRITICAL FIX: Clear grid position BEFORE removing from board
+  // This ensures grid is clean and openAtCell can spawn new tiles properly
+  if (t.gridX !== undefined && t.gridY !== undefined && STATE.grid && STATE.grid[t.gridY]) {
+    if (STATE.grid[t.gridY][t.gridX] === t) {
+      STATE.grid[t.gridY][t.gridX] = null;
+      console.log(`🧹 removeTile: Cleared grid[${t.gridY}][${t.gridX}]`);
+    }
+  }
+  
   if (STATE.board) STATE.board.removeChild(t);
   STATE.tiles = STATE.tiles.filter(x=>x!==t);
   t.destroy?.({children:true, texture:false, textureSource:false});
