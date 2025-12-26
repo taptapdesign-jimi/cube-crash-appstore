@@ -5993,11 +5993,19 @@ function merge(src, dst, helpers){
         
         // 🔥 CRITICAL: Wait for spawn to complete BEFORE removing dst tile
         // This ensures locked tiles are still valid when spawn happens
-        // 🔥 CRITICAL FIX: Remove merge 6 tile IMMEDIATELY, not after delay
-        // Delay was causing merge 6 tile to remain on board and become "stuck"
-        // Grid position is already cleared (line 5539), so we can safely remove tile now
-        if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-          console.log('🗑️ Removing dst tile IMMEDIATELY (grid already cleared)');
+        // 🔥 CRITICAL FIX: Remove merge 6 tile IMMEDIATELY, but ONLY for regular merge 6 (not magnet pull merge)
+        // For magnet pull merge, merge 6 tile MUST remain on board because pulled tiles merge into it
+        // Delay was causing merge 6 tile to remain on board and become "stuck" for regular merge 6
+        // Grid position is already cleared (line 5539) for regular merge 6, so we can safely remove tile now
+        // But for magnet pull merge, grid position should NOT be cleared and tile should NOT be removed
+        
+        // 🔥 CRITICAL: Re-check if this is magnet pull merge (flag might have been set during merge)
+        const isMagnetPullMergeFinal = (dst as any)?._wildMagnetPulledTilesMerge === true || 
+                                       (dst as any)?._wildMagnetMergeCallback ||
+                                       isMagnetPullMerge;
+        
+        if (!isMagnetPullMergeFinal && dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+          console.log('🗑️ Removing dst tile IMMEDIATELY (regular merge 6, not magnet pull)');
           
           // 🔥 CRITICAL FIX: Ensure grid position is null before removing tile
           // This prevents openAtCell from seeing merge 6 tile and not spawning
@@ -6013,6 +6021,15 @@ function merge(src, dst, helpers){
           
           removeTile(dst); // Remove from tiles array
           console.log('✅ Dst tile removed successfully');
+        } else if (isMagnetPullMergeFinal) {
+          console.log('🧲 Magnet pull merge detected - keeping merge 6 tile on board (will be used by pulled tiles)');
+          console.log('🧲 Merge 6 tile will remain visible and active:', {
+            value: dst?.value,
+            gridX: dst?.gridX,
+            gridY: dst?.gridY,
+            hasCallback: !!(dst as any)?._wildMagnetMergeCallback,
+            hasFlag: !!(dst as any)?._wildMagnetPulledTilesMerge
+          });
         }
         
         // Clean up pulled cells flag after spawn
