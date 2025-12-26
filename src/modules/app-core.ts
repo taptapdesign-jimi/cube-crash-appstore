@@ -6445,6 +6445,15 @@ function removeTile(t){
     clearEndGameCache(); // Clear cache BEFORE splice
   }
   
+  // 🔥 CRITICAL FIX: Clear grid position BEFORE removing tile
+  // This ensures grid is clean and prevents merge 6 tile from becoming "stuck"
+  if (t.gridX !== undefined && t.gridY !== undefined && grid && grid[t.gridY]) {
+    if (grid[t.gridY][t.gridX] === t) {
+      grid[t.gridY][t.gridX] = null;
+      console.log(`🧹 removeTile (app-core): Cleared grid[${t.gridY}][${t.gridX}]`);
+    }
+  }
+  
   try { if (t.hover && typeof t.hover.clear === 'function') t.hover.clear(); } catch {}
   t.eventMode='none'; if (t.removeAllListeners) t.removeAllListeners();
   if (t.hover && typeof t.hover.clear === 'function') t.hover.clear();
