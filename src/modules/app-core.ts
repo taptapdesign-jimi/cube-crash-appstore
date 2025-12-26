@@ -6032,10 +6032,10 @@ function merge(src, dst, helpers){
         
         // 🔥 CRITICAL: Re-check if this is magnet pull merge (flag might have been set during merge)
         // ONLY keep merge 6 tile if pulled tiles merge is ACTUALLY happening
-        // Check both the flag (set later) AND wasWildMagnet + _wildMagnetMergeCallback (set earlier)
-        const isMagnetPullMergeFlag = (dst as any)?._wildMagnetPulledTilesMerge === true;
-        const isMagnetPullMergeEarly = wasWildMagnet && (dst as any)?._wildMagnetMergeCallback;
-        const isMagnetPullMergeFinal = isMagnetPullMergeFlag || isMagnetPullMergeEarly;
+        // Use isMagnetPullMerge from earlier in the function (already defined above)
+        const isMagnetPullMergeFinal = (dst as any)?._wildMagnetPulledTilesMerge === true || 
+                                       (dst as any)?._wildMagnetMergeCallback ||
+                                       (wasWildMagnet && (dst as any)?._wildMagnetMergeCallback);
         
         // 🔥 POJEDNOSTAVLJENO: Ako je magnet merge i NEMA pulled tiles merge, obriši merge 6 tile
         // Ovo pokriva SVE scenarije: hasTilesToPull=false, nearestTiles.length=0, validTiles.length=0
