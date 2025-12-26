@@ -6055,7 +6055,8 @@ function merge(src, dst, helpers){
         
         // 🔥 CRITICAL FIX: Check if magnet merge had hasTilesToPull = false (magnet behaves like wild)
         // In this case, merge 6 tile should be removed normally (like regular merge 6)
-        const magnetBehavesLikeWild = isWildMagnet && (dst as any)?._hasTilesToPull === false;
+        // Use wasWildMagnet from closure (isWildMagnet might not be available in onComplete callback)
+        const magnetBehavesLikeWild = wasWildMagnet && (dst as any)?._hasTilesToPull === false;
         
         if (magnetMergeNoTilesToPull && dst && !dst.destroyed && STATE.tiles.includes(dst)) {
           console.log('🚨🚨🚨 MAGNET MERGE WITH NO TILES TO PULL - Removing merge 6 tile and triggering clean board flow');
