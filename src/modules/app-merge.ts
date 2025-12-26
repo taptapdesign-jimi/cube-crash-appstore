@@ -2572,6 +2572,9 @@ export function merge(src, dst, helpers){
         // 🔥 CRITICAL FIX: Check if this is a merge with merge 6 tile that was created by magnet pull
         // If dst is merge 6 tile that was created by magnet pull, it should be removed normally
         // But we need to check if it's a regular merge 6 (not pulled tiles merge) to avoid double removal
+        // NOTE: Flag-ovi su već obrisani u mergePulledTilesIntoMerge6 (linija 1923-1936), 
+        // pa provjera isMagnetPullMerge6 neće raditi za merge 6 tile koji je ostao od magnet pull merge-a
+        // Ali to je OK - merge 6 tile koji je ostao od magnet pull merge-a TREBA biti obrisan kada user merge-uje spawned tile s njim
         const isMagnetPullMerge6 = (dst as any)?._wildMagnetPulledTilesMerge === true || (dst as any)?._wildMagnetMergeCallback;
         const isRegularMerge6WithSpawnedTiles = !isPulledTilesMerge && dst.value === 6;
         
@@ -2579,6 +2582,7 @@ export function merge(src, dst, helpers){
         
         // 🔥 CRITICAL FIX: Remove merge 6 tile from grid BEFORE removing tile
         // This ensures grid is clean before spawning new tiles
+        // This applies to ALL merge 6 scenarios (regular, wild, magnet pull merge 6 that user merges with spawned tile)
         STATE.grid[gy][gx] = null;
         dst.visible = false;
         removeTile(dst);
