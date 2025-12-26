@@ -227,17 +227,24 @@ function isLastMergeScenario(context: EndGameContext): boolean {
   // Check if merge 6 has _hasTilesToPull flag or _wildMagnetMergeCallback
   const merge6FromMagnet = (srcTile?.special === 'wild-magnet' || (dstTile as any)?._isWildMagnetMerge) && dstTile.value === MAX_MERGE_VALUE;
   if (merge6FromMagnet) {
-    const hasTilesToPull = (dstTile as any)?._hasTilesToPull !== false; // undefined or true means tiles might be pulled
+    const hasTilesToPull = (dstTile as any)?._hasTilesToPull === true; // Only true means tiles will be pulled
     const hasMagnetCallback = !!(dstTile as any)?._wildMagnetMergeCallback;
     
-    // If there are no tiles to pull (hasTilesToPull is false), this IS a last merge
-    // If hasTilesToPull is undefined/true or callback exists, magnet will pull tiles, so NOT a last merge
-    if (hasTilesToPull === false && !hasMagnetCallback) {
-      console.log('🧲 isLastMergeScenario: Merge 6 from magnet + last tile, no tiles to pull - THIS IS A LAST MERGE');
-      // Continue to check if only merge 6 remains
-    } else {
+    console.log('🧲 isLastMergeScenario: Merge 6 from magnet detected', {
+      hasTilesToPull,
+      hasMagnetCallback,
+      _hasTilesToPull: (dstTile as any)?._hasTilesToPull,
+      _wildMagnetMergeCallback: (dstTile as any)?._wildMagnetMergeCallback
+    });
+    
+    // If magnet will pull tiles or has callback, NOT a last merge
+    // If no tiles to pull and no callback, continue to check if only merge 6 remains
+    if (hasTilesToPull || hasMagnetCallback) {
       console.log('🧲 isLastMergeScenario: Merge 6 from magnet will pull tiles - NOT a last merge');
       return false;
+    } else {
+      console.log('🧲 isLastMergeScenario: Merge 6 from magnet + last tile, no tiles to pull - continuing to check if last merge');
+      // Continue to check if only merge 6 remains
     }
   }
 
