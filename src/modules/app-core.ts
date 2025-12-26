@@ -6083,6 +6083,14 @@ function merge(src, dst, helpers){
             hasCallback: !!(dst as any)?._wildMagnetMergeCallback,
             hasFlag: !!(dst as any)?._wildMagnetPulledTilesMerge
           });
+          
+          // 🔥 CRITICAL: Clean up flags AFTER confirming merge 6 tile stays on board
+          // This ensures flags are available for the check above, but cleaned up after
+          if (dst && !dst.destroyed) {
+            delete (dst as any)?._wildMagnetPulledTilesMerge;
+            delete (dst as any)?._wildMagnetMergeCallback;
+            console.log('🧹 Cleaned up magnet flags after confirming merge 6 tile stays on board');
+          }
         }
         
         // Clean up pulled cells flag after spawn
