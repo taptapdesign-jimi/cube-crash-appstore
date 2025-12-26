@@ -1372,17 +1372,10 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     note: 'Spawn = pulled tiles count + 1 obligatory tile below merge 6. Merge 6 stays on board.'
   });
 
-  // 🔒 SAFETY: If merge-6 tile unexpectedly survives into respawn flow, remove it so we don't leave a stray value 6 on board
-  if (dst && !dst.destroyed && (dst.value | 0) === 6 && !dst.special && merge6Coords) {
-    try {
-      const { c, r } = merge6Coords;
-      if (STATE.grid?.[r]) STATE.grid[r][c] = null;
-      removeTile(dst);
-      console.warn('🧲 SAFETY: Removed stray merge-6 tile before respawn to prevent stuck value 6 on board');
-    } catch (err) {
-      console.warn('⚠️ Failed to remove stray merge-6 tile before respawn:', err);
-    }
-  }
+  // 🔒 SAFETY: Merge 6 tile should STAY on board after magnet pull
+  // DO NOT remove it here - it's the intended behavior for magnet pull
+  // The merge 6 tile will be removed later when user merges it with spawned tiles
+  // Removing it here causes "stuck merge 6" bug where spawned tiles can't merge with anything
   
   // 🔥 CRITICAL FIX: Clear _wildMagnetAffected flag from merge 6 tile BEFORE spawning
   // This prevents spawned tiles from inheriting the flag and being unable to merge
