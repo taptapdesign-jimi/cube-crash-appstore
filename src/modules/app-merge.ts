@@ -2567,12 +2567,32 @@ export function merge(src, dst, helpers){
         const isRegularMerge6WithSpawnedTiles = !isPulledTilesMerge && dst.value === 6;
         
         const gx = dst.gridX, gy = dst.gridY;
+        
+        // 🔥 CRITICAL FIX: Remove merge 6 tile from grid BEFORE removing tile
+        // This ensures grid is clean before spawning new tiles
         STATE.grid[gy][gx] = null;
         dst.visible = false;
         removeTile(dst);
+        
+        // 🔥 CRITICAL FIX: Ensure grid position is null after removeTile
+        // removeTile might not always clear grid position, so we do it explicitly
+        if (STATE.grid[gy] && STATE.grid[gy][gx] === dst) {
+          STATE.grid[gy][gx] = null;
+          console.log('🧹 Explicitly cleared grid position after removeTile');
+        }
 
+        // 🔥 CRITICAL FIX: Create holder placeholder AFTER ensuring grid is null
+        // This ensures openAtCell will see the cell as empty and spawn properly
         const holder = makeBoard.createTile({ board: STATE.board, grid: STATE.grid, tiles: STATE.tiles, c: gx, r: gy, val: 0, locked: true });
         holder.alpha = 0.35; holder.eventMode = 'none';
+        
+        // 🔥 CRITICAL FIX: Ensure holder is properly set in grid
+        // createTile should do this, but we verify it's set correctly
+        if (STATE.grid[gy] && STATE.grid[gy][gx] !== holder) {
+          STATE.grid[gy][gx] = holder;
+          console.log('🔧 Explicitly set holder in grid after createTile');
+        }
+        
         drawBoardBG(); // Re-enabled for dynamic ghost placeholders
 
         // Update ghost visibility after tile removal
