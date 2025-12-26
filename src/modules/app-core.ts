@@ -875,24 +875,21 @@ export async function boot(){
         }
       }
       
-      // 🔥 FIX: Allow merge if one tile is wild-magnet affected BUT the other is a regular tile
-      // This fixes the bug where pulled tiles can't merge with regular tiles after being pulled
-      // Only block merge if BOTH are wild-magnet affected AND they're being pulled together
-      // BUT: Allow merge if one is wild-magnet affected and the other is a regular tile (not being pulled)
+      // 🔥 CRITICAL: If one tile is wild-magnet affected, it can merge with the other
       const srcIsWildMagnetAffected = (s as any)?._wildMagnetAffected === true;
       const dstIsWildMagnetAffected = (d as any)?._wildMagnetAffected === true;
       
+      // 🔥 CRITICAL: Only allow merge if BOTH tiles are wild-magnet affected (pulled tiles merging together)
+      // If only one is affected, block the merge (protected tile cannot merge with other tiles)
       if (srcIsWildMagnetAffected && dstIsWildMagnetAffected) {
-        // Both are being pulled - this is a pulled tiles merge (allowed)
         console.log('🧲 canDrop (app-core): Both tiles are wild-magnet affected (pulled tiles) - can merge');
         return true;
       }
       
-      // 🔥 FIX: Allow merge if one is being pulled and the other is not (normal merge)
-      // The flag will be cleared in merge() function
+      // 🔥 CRITICAL: Block merge if only one tile is wild-magnet affected (protected tile)
       if (srcIsWildMagnetAffected || dstIsWildMagnetAffected) {
-        console.log('🧲 canDrop (app-core): One tile is wild-magnet affected, other is regular - allowing merge (flag will be cleared)');
-        // Continue with normal merge logic below
+        console.log('🛡️ canDrop (app-core): One tile is wild-magnet affected (protected) - blocking merge with other tiles');
+        return false;
       }
       
       // NORMAL LOGIC: Regular merge rules
@@ -2969,29 +2966,14 @@ function merge(src, dst, helpers){
   const dstIsWildMagnetAffected = (dst as any)?._wildMagnetAffected === true;
   const isPulledTilesMerge = srcIsWildMagnetAffected && dstIsWildMagnetAffected;
   
-  // 🔥 FIX: Allow merge if one tile is wild-magnet affected BUT the other is a regular tile
-  // This fixes the bug where pulled tiles can't merge with regular tiles after being pulled
-  // Only block merge if BOTH are wild-magnet affected (they're being pulled together)
-  // OR if one is wild-magnet affected and the other is ALSO being pulled (both have flag)
-  // BUT: Allow merge if one is wild-magnet affected and the other is a regular tile (not being pulled)
-  if (srcIsWildMagnetAffected && dstIsWildMagnetAffected) {
-    // Both are being pulled - this is a pulled tiles merge (allowed)
-    console.log('🧲 MERGE: Both tiles are wild-magnet affected (pulled tiles merge) - allowed');
-  } else if ((srcIsWildMagnetAffected && !dstIsWildMagnetAffected) || (!srcIsWildMagnetAffected && dstIsWildMagnetAffected)) {
-    // One is being pulled, the other is not - this is normal merge (allowed)
-    // Clear the flag from the pulled tile so it can merge normally
-    if (srcIsWildMagnetAffected) {
-      delete (src as any)._wildMagnetAffected;
-      delete (src as any)._wildMagnetOriginalX;
-      delete (src as any)._wildMagnetOriginalY;
-      console.log('🧲 MERGE: Cleared _wildMagnetAffected flag from src tile - allowing normal merge');
-    }
-    if (dstIsWildMagnetAffected) {
-      delete (dst as any)._wildMagnetAffected;
-      delete (dst as any)._wildMagnetOriginalX;
-      delete (dst as any)._wildMagnetOriginalY;
-      console.log('🧲 MERGE: Cleared _wildMagnetAffected flag from dst tile - allowing normal merge');
-    }
+  // 🛡️ CRITICAL: Block merge if only ONE tile is wild-magnet affected (protected tile cannot merge with others)
+  // Protected tiles can only merge with other protected tiles (pulled tiles merge)
+  if ((srcIsWildMagnetAffected && !dstIsWildMagnetAffected) || (!srcIsWildMagnetAffected && dstIsWildMagnetAffected)) {
+    console.warn('🛡️ MERGE BLOCKED: Only one tile is wild-magnet affected (protected tile cannot merge with others)');
+    console.warn('⚠️ Source protected:', srcIsWildMagnetAffected, 'Destination protected:', dstIsWildMagnetAffected);
+    console.warn('⚠️ Protected tiles can only merge with other protected tiles (pulled tiles merge)');
+    helpers.snapBack?.(src);
+    return;
   }
   
   // CRITICAL: If destination is locked or has value 0, this is not a valid merge (ghost placeholder)
