@@ -5535,8 +5535,12 @@ function merge(src, dst, helpers){
         // Create locked placeholder at dst position for spawn logic
         let placeholderHolder: any = null; // 🔥 v40.1: Store reference to placeholder for cleanup
         if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-          // Clear grid position FIRST (before hiding dst)
-        grid[gy][gx] = null;
+          // 🔥 CRITICAL FIX: For magnet pull merge, DON'T clear grid position - merge 6 tile must stay on board!
+          // Only clear grid position for regular merge 6 (not magnet pull merge)
+          if (!isMagnetPullMerge) {
+            // Clear grid position FIRST (before hiding dst) - only for regular merge 6
+            grid[gy][gx] = null;
+          }
           
           // 🔥 CRITICAL FIX: For magnet pull merge, DON'T hide dst tile - it should remain visible!
           // Only hide dst tile for regular merge 6 (not magnet pull merge)
