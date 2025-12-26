@@ -2657,6 +2657,14 @@ function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWild
     holder.eventMode = 'static';
     holder.cursor = 'pointer';
     bindTileWithFallback(holder, skipBind);
+    
+    // 🔥 CRITICAL FIX: Clear magnet flags from holder before spawning
+    // This prevents spawned tiles from inheriting flags from previous magnet pull
+    delete holder._wildMagnetAffected;
+    delete holder._wildMagnetOriginalX;
+    delete holder._wildMagnetOriginalY;
+    delete holder._mergeTriggered75;
+    delete holder._skipIdleScaleReset;
 
     if (isWild || isWildMagnet || isWildBeer){
       // 🔥 CRITICAL: Set special BEFORE setValue to ensure correct texture is applied
