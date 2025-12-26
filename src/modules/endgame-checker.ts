@@ -260,8 +260,11 @@ function isLastMergeScenario(context: EndGameContext): boolean {
       const srcIsWild = srcTile.special === 'wild' || srcTile.special === 'wild-beer' || srcTile.special === 'wild-magnet';
       const srcIsRegular = !srcTile.special && (srcTile.value|0) > 0;
       const dstIsRegular = !dstTile.special && (dstTile.value|0) > 0;
+      const dstIsMerge6 = dstTile.value === MAX_MERGE_VALUE;
 
-      if (srcIsWild && dstIsRegular) {
+      if (srcIsWild && dstIsMerge6) {
+        mergeType = 'magnet/wild + merge 6';
+      } else if (srcIsWild && dstIsRegular) {
         mergeType = 'wild + regular';
       } else if (srcIsRegular && dstIsRegular && (srcTile.value|0) + (dstTile.value|0) === MAX_MERGE_VALUE) {
         mergeType = 'regular + regular';
