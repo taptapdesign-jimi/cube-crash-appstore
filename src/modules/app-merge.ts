@@ -2549,6 +2549,12 @@ export function merge(src, dst, helpers){
             spawnMerge6Shards(STATE.board, srcSnapshot, dst, dstSnapshot, { intensity: 0.7, count: 12, spread: 1.1, size: 0.85, vanishDelay: 0.03, behind: true });
           }
 
+        // 🔥 CRITICAL FIX: Check if this is a merge with merge 6 tile that was created by magnet pull
+        // If dst is merge 6 tile that was created by magnet pull, it should be removed normally
+        // But we need to check if it's a regular merge 6 (not pulled tiles merge) to avoid double removal
+        const isMagnetPullMerge6 = (dst as any)?._wildMagnetPulledTilesMerge === true || (dst as any)?._wildMagnetMergeCallback;
+        const isRegularMerge6WithSpawnedTiles = !isPulledTilesMerge && dst.value === 6;
+        
         const gx = dst.gridX, gy = dst.gridY;
         STATE.grid[gy][gx] = null;
         dst.visible = false;
