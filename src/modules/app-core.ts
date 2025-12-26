@@ -4366,15 +4366,8 @@ function merge(src, dst, helpers){
         wildMagnetPullInProgress = false;
         console.log('✅ wildMagnetPullInProgress reset to false (no tiles to pull)');
         
-        // 🔥 CRITICAL FIX: If NO tiles can be pulled, merge 6 tile is the ONLY tile left
-        // This happens when magnet merges with a tile but there are NO other tiles on board to pull
-        // In this case, merge 6 tile should be removed and clean board flow should be triggered
-        // BUT: We need to wait for merge animation to complete first (onComplete callback)
-        // So we set a flag that will be checked in onComplete callback
-        if (dst && !dst.destroyed) {
-          (dst as any)._magnetMergeNoTilesToPull = true;
-          console.log('🚨🚨🚨 MAGNET MERGE WITH NO TILES TO PULL - Flag set, merge 6 tile will be removed in onComplete callback');
-        }
+        // 🔥 POJEDNOSTAVLJENO: Flag više nije potreban - logika u onComplete callback-u provjerava isMagnetPullMergeFinal
+        // Ako isMagnetPullMergeFinal === false, merge 6 tile će biti obrisan
       }
       
       // Update multiplier based on number of pulled tiles (max 4x)
@@ -4645,15 +4638,8 @@ function merge(src, dst, helpers){
                 // Cleanup all timelines (MEMORY LEAK FIX)
                 cleanupAllPullAnimations();
                 
-                // 🔥 CRITICAL FIX: If NO tiles can be pulled, merge 6 tile is the ONLY tile left
-                // This happens when magnet merges with a tile but there are NO other tiles on board to pull
-                // In this case, merge 6 tile should be removed and clean board flow should be triggered
-                // BUT: We need to wait for merge animation to complete first (onComplete callback)
-                // So we set a flag that will be checked in onComplete callback
-                if (dst && !dst.destroyed) {
-                  (dst as any)._magnetMergeNoTilesToPull = true;
-                  console.log('🚨🚨🚨 MAGNET MERGE WITH NO TILES TO PULL (from else block) - Flag set, merge 6 tile will be removed in onComplete callback');
-                }
+                // 🔥 POJEDNOSTAVLJENO: Flag više nije potreban - logika u onComplete callback-u provjerava isMagnetPullMergeFinal
+                // Ako isMagnetPullMergeFinal === false, merge 6 tile će biti obrisan
                 
                 // Cleanup all pulled tiles since merge failed
                 nearestTiles.forEach((t: any, idx: number) => {
