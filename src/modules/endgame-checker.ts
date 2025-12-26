@@ -214,12 +214,31 @@ function isLastMergeScenario(context: EndGameContext): boolean {
 
   console.log('🔍 isLastMergeScenario: Active tiles excluding dst:', activeTiles.map(t => ({ value: t.value, special: t.special })));
 
-  // 🔥 CRITICAL FIX: If magnet exists on board, it's NOT a last merge
+  // 🔥 CRITICAL FIX: If magnet exists on board as separate tile, it's NOT a last merge
   // User can still merge magnet with merge 6 to create final merge
   const hasMagnet = activeTiles.some(t => t.special === 'wild-magnet');
   if (hasMagnet) {
     console.log('🧲 isLastMergeScenario: Magnet detected on board - NOT a last merge');
     return false;
+  }
+  
+  // 🔥 CRITICAL FIX: If merge 6 was created from magnet + last tile, check if it will pull tiles
+  // If merge 6 was created from magnet and there are no tiles to pull, it IS a last merge
+  // Check if merge 6 has _hasTilesToPull flag or _wildMagnetMergeCallback
+  const merge6FromMagnet = (srcTile?.special === 'wild-magnet' || (dstTile as any)?._isWildMagnetMerge) && dstTile.value === MAX_MERGE_VALUE;
+  if (merge6FromMagnet) {
+    const hasTilesToPull = (dstTile as any)?._hasTilesToPull !== false; // undefined or true means tiles might be pulled
+    const hasMagnetCallback = !!(dstTile as any)?._wildMagnetMergeCallback;
+    
+    // If there are no tiles to pull (hasTilesToPull is false), this IS a last merge
+    // If hasTilesToPull is undefined/true or callback exists, magnet will pull tiles, so NOT a last merge
+    if (hasTilesToPull === false && !hasMagnetCallback) {
+      console.log('🧲 isLastMergeScenario: Merge 6 from magnet + last tile, no tiles to pull - THIS IS A LAST MERGE');
+      // Continue to check if only merge 6 remains
+    } else {
+      console.log('🧲 isLastMergeScenario: Merge 6 from magnet will pull tiles - NOT a last merge');
+      return false;
+    }
   }
 
   // If no other active tiles remain, this is the last merge
