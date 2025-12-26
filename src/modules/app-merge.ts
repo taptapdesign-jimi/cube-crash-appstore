@@ -1384,6 +1384,15 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     }
   }
   
+  // 🔥 CRITICAL FIX: Clear _wildMagnetAffected flag from merge 6 tile BEFORE spawning
+  // This prevents spawned tiles from inheriting the flag and being unable to merge
+  if (dst && !dst.destroyed) {
+    delete (dst as any)._wildMagnetAffected;
+    delete (dst as any)._wildMagnetOriginalX;
+    delete (dst as any)._wildMagnetOriginalY;
+    console.log('🧲 Cleared _wildMagnetAffected flag from merge 6 tile before spawning');
+  }
+  
   // 🔥 CRITICAL FIX: Find position for OBLIGATORY tile below merge 6
   // This tile should be positioned below merge 6 (or near center if merge 6 is at edge)
   let obligatoryCell: { c: number; r: number } | null = null;
