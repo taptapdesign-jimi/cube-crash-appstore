@@ -6045,21 +6045,17 @@ function merge(src, dst, helpers){
         // But for magnet pull merge, grid position should NOT be cleared and tile should NOT be removed
         
         // 🔥 CRITICAL: Re-check if this is magnet pull merge (flag might have been set during merge)
+        // ONLY keep merge 6 tile if pulled tiles merge is ACTUALLY happening
         const isMagnetPullMergeFinal = (dst as any)?._wildMagnetPulledTilesMerge === true || 
                                        (dst as any)?._wildMagnetMergeCallback ||
                                        isMagnetPullMerge;
         
-        // 🔥 CRITICAL FIX: Check if magnet merge had NO tiles to pull
-        // In this case, merge 6 tile should be removed and clean board flow should be triggered
-        const magnetMergeNoTilesToPull = (dst as any)?._magnetMergeNoTilesToPull === true;
+        // 🔥 POJEDNOSTAVLJENO: Ako je magnet merge i NEMA pulled tiles merge, obriši merge 6 tile
+        // Ovo pokriva SVE scenarije: hasTilesToPull=false, nearestTiles.length=0, validTiles.length=0
+        const isMagnetMergeWithoutPull = wasWildMagnet && !isMagnetPullMergeFinal;
         
-        // 🔥 CRITICAL FIX: Check if magnet merge had hasTilesToPull = false (magnet behaves like wild)
-        // In this case, merge 6 tile should be removed normally (like regular merge 6)
-        // Use wasWildMagnet from closure (isWildMagnet might not be available in onComplete callback)
-        const magnetBehavesLikeWild = wasWildMagnet && (dst as any)?._hasTilesToPull === false;
-        
-        if (magnetMergeNoTilesToPull && dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-          console.log('🚨🚨🚨 MAGNET MERGE WITH NO TILES TO PULL - Removing merge 6 tile and triggering clean board flow');
+        if (isMagnetMergeWithoutPull && dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+          console.log('🧲🧲🧲 MAGNET MERGE WITHOUT PULL - Removing merge 6 tile (simplified logic)');
           
           // 🔥 CRITICAL FIX: Ensure grid position is null before removing tile
           if (grid && grid[gy] && grid[gy][gx] === dst) {
@@ -6073,62 +6069,7 @@ function merge(src, dst, helpers){
           dst.eventMode = 'none';
           
           removeTile(dst); // Remove from tiles array
-          console.log('✅ Merge 6 tile removed successfully (magnet merge with no tiles to pull)');
-          
-          // Trigger clean board flow
-          const { runEndgameFlow } = await import('./endgame-flow.js');
-          
-          // Get app context from STATE and helpers
-          const app = STATE.app;
-          const stage = STATE.stage;
-          const board = STATE.board;
-          const boardBG = STATE.boardBG;
-          const level = STATE.level || 1;
-          const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
-          const boardNumber = STATE.boardNumber || 1;
-          
-          if (!app || !stage || !board || !startLevel) {
-            console.error('❌ Missing required context for clean board flow:', { app: !!app, stage: !!stage, board: !!board, startLevel: !!startLevel });
-          } else {
-            // Reset wild meter
-            if (typeof (window as any).CC?.resetWildProgress === 'function') {
-              (window as any).CC.resetWildProgress(0, false);
-            } else if (typeof (window as any).resetWildProgress === 'function') {
-              (window as any).resetWildProgress(0, false);
-            }
-            if (typeof HUD.resetWildMeter === 'function') {
-              HUD.resetWildMeter(true);
-            }
-            
-            await runEndgameFlow({
-              app,
-              stage,
-              board,
-              boardBG,
-              level,
-              startLevel,
-              boardNumber
-            });
-            
-            console.log('✅ Clean board flow completed for magnet merge with no tiles to pull');
-          }
-        } else if (magnetBehavesLikeWild && dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-          // 🔥 CRITICAL FIX: Magnet behaves like wild (hasTilesToPull = false) - remove merge 6 tile normally
-          console.log('🧲 Magnet behaves like wild (hasTilesToPull=false) - Removing merge 6 tile normally');
-          
-          // 🔥 CRITICAL FIX: Ensure grid position is null before removing tile
-          if (grid && grid[gy] && grid[gy][gx] === dst) {
-            grid[gy][gx] = null;
-            console.log('🧹 Explicitly cleared grid position before removeTile');
-          }
-          
-          // 🔥 CRITICAL FIX: Hide tile before removing to prevent visual glitches
-          dst.visible = false;
-          dst.alpha = 0;
-          dst.eventMode = 'none';
-          
-          removeTile(dst); // Remove from tiles array
-          console.log('✅ Merge 6 tile removed successfully (magnet behaves like wild)');
+          console.log('✅ Merge 6 tile removed successfully (magnet merge without pull)');
         } else if (!isMagnetPullMergeFinal && dst && !dst.destroyed && STATE.tiles.includes(dst)) {
           console.log('🗑️ Removing dst tile IMMEDIATELY (regular merge 6, not magnet pull)');
           
