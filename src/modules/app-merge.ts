@@ -1911,6 +1911,21 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     console.warn('⚠️ Failed to check bubbles animation status:', err);
   }
   
+  // 🔥 CRITICAL FIX: Clear all magnet flags from merge 6 tile AFTER spawning
+  // This ensures the merge 6 tile can be merged normally with other tiles in the next merge
+  // Without this, the flags remain and cause inconsistent behavior (2nd magnet merge fails)
+  if (dst && !dst.destroyed) {
+    delete (dst as any)._wildMagnetAffected;
+    delete (dst as any)._wildMagnetOriginalX;
+    delete (dst as any)._wildMagnetOriginalY;
+    delete (dst as any)._wildMagnetMergeCallback;
+    delete (dst as any)._wildMagnetPulledTilesMerge;
+    delete (dst as any)._wildMagnetPulledTilesScoring;
+    delete (dst as any)._hasTilesToPull;
+    delete (dst as any)._isWildMagnetMerge;
+    console.log('🧲 Cleared all magnet flags from merge 6 tile after spawning (for next merge)');
+  }
+  
   // 🔥 CRITICAL FIX: Check if board is clean BEFORE calling checkLevelEnd
   // If new tiles can be merged, don't trigger clean board flow yet - wait for player to merge them
   // 🔥 CRITICAL FIX: Check if _isLastMerge flag is set - if so, this was marked as last merge BEFORE pulled tiles merged
