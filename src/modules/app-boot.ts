@@ -5,7 +5,7 @@ import { STATE, ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET
 // layout function is now in app.js
 import { installDrag } from './install-drag.js';
 import { rebuildBoard } from './app-board.js';
-import { merge, checkGameOver } from './app-merge.ts';
+import { merge } from './app-merge.ts';
 import { logger } from '../core/logger.js';
 import memoryManager from './memory-manager.ts';
 

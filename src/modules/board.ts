@@ -1,5 +1,6 @@
 // src/modules/board.ts
 import { Container, Sprite, Assets, Graphics, SCALE_MODES, Texture } from 'pixi.js';
+import { logger } from '../core/logger.js';
 import {
   TILE, COLS, ROWS, GAP,
   PIPS_INNER_FACTOR, PIP_COLOR, PIP_ALPHA, PIP_RADIUS, PIP_SQUARE,
@@ -748,13 +749,18 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
   });
 
   // 🔥 OPTIMIZED: Reduced logging - only log summary
-  console.log('🔍 anyMergePossible:', open.length, 'active tiles (', wildStars.length, 'wild,', magnets.length, 'magnets,', mergeableNonWildTiles.length, 'regular)');
+  logger.debug('🔍 anyMergePossible', 'board', { 
+    activeTiles: open.length, 
+    wild: wildStars.length, 
+    magnets: magnets.length, 
+    regular: mergeableNonWildTiles.length 
+  });
 
   // 🔥 CRITICAL FIX: If we have wild stars and any mergeable non-wild tiles, we can merge
   // Wild stars can merge with regular tiles
   // 🚨 NOTE: Wild + wild merges are BLOCKED in app-core.ts (line 1680)
   if (wildStars.length > 0 && mergeableNonWildTiles.length > 0) {
-    console.log('✅ anyMergePossible: Wild + regular = TRUE');
+    logger.debug('✅ anyMergePossible: Wild + regular = TRUE', 'board');
     return true;
   }
   
@@ -768,7 +774,7 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
   // 🔥 CRITICAL FIX: If we have magnets and ANY other tiles (including wild stars), we can merge
   // Magnets can pull tiles together to create merges
   if (magnets.length > 0 && (mergeableNonWildTiles.length > 0 || wildStars.length > 0)) {
-    console.log('✅ anyMergePossible: Magnet + other tiles = TRUE');
+    logger.debug('✅ anyMergePossible: Magnet + other tiles = TRUE', 'board');
     return true;
   }
   
@@ -784,7 +790,7 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
     return sum + depth;
   }, 0);
   
-  console.log('🔍 anyMergePossible: Total tiles (with stackDepth):', totalTiles, 'Visible tiles:', open.length);
+  logger.debug('🔍 anyMergePossible: Total tiles (with stackDepth)', 'board', { totalTiles, visibleTiles: open.length });
   
   // If less than 2 TOTAL tiles, no merges possible
   if (totalTiles < 2) {
@@ -801,7 +807,7 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
     const value = (singleTile.value || 0);
     const stackDepth = (singleTile as any).stackDepth || 1;
     
-    console.log('🔍 anyMergePossible: Single visible tile is a stack:', { value, stackDepth, totalTiles });
+    logger.debug('🔍 anyMergePossible: Single visible tile is a stack', 'board', { value, stackDepth, totalTiles });
     
     // 🔥 CRITICAL FIX v39: Check if stack CAN actually merge with itself
     // Stack can merge with itself ONLY if: value + value <= 6
@@ -815,7 +821,7 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
     const canMergeSelf = (value + value) <= 6;
     
     if (canMergeSelf && stackDepth >= 2) {
-      console.log('✅ anyMergePossible: Single stack can merge with itself (', value, '+', value, '=', value + value, '<= 6) = TRUE');
+      logger.debug(`✅ anyMergePossible: Single stack can merge with itself (${value}+${value}=${value + value}<=6) = TRUE`, 'board');
       return true;
     } else {
       console.log('❌ anyMergePossible: Single stack CANNOT merge with itself (', value, '+', value, '=', value + value, '> 6) = FALSE');
@@ -826,9 +832,10 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
   // Check regular tile combinations
   // 🔥 CRITICAL: Log all tiles being checked for debugging
   if (open.length > 0) {
-    console.log('🔍 anyMergePossible: Checking', open.length, 'tiles for valid merge pairs:', 
-      open.map(t => ({ value: t.value, special: t.special, locked: t.locked, destroyed: t.destroyed, visible: t.visible }))
-    );
+    logger.debug('🔍 anyMergePossible: Checking tiles for valid merge pairs', 'board', { 
+      tileCount: open.length,
+      tiles: open.map(t => ({ value: t.value, special: t.special, locked: t.locked, destroyed: t.destroyed, visible: t.visible }))
+    });
   }
   
   for (let i = 0; i < open.length; i++) {
@@ -858,7 +865,7 @@ export function anyMergePossible(allTiles: (Container | Tile)[]): boolean {
       }
       
       if (isValid) {
-        console.log(`✅ anyMergePossible: ${val1}+${val2}=${s} = TRUE`);
+        logger.debug(`✅ anyMergePossible: ${val1}+${val2}=${s} = TRUE`, 'board');
         return true;
       }
     }

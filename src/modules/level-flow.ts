@@ -47,28 +47,6 @@ interface OpenLockedBounceParallelParams {
   excludeCells?: Set<string>; // 🔥 CRITICAL: Set of cell keys (format: "c,r") to exclude from spawning
 }
 
-interface CheckGameOverParams {
-  makeBoard?: MakeBoard;
-  tiles?: Tile[];
-  hasWildOnBoard?: () => boolean;
-  getScore?: () => number;
-  setScore?: (score: number) => void;
-  bestScore?: number;
-  updateBest?: (score: number) => void;
-  updateHUD?: () => void;
-  ENDLESS?: boolean;
-  showStarsModal?: (params: any) => Promise<{ pass: boolean }>;
-  app?: any;
-  stage?: any;
-  board?: any;
-  level?: number;
-  startLevel?: (level: number) => void;
-  animateScore?: (score: number) => void;
-  wildAPI?: any;
-  openEmpties?: () => void;
-  // 🔥 REMOVED: isBoardClean - deprecated, use checkEndGame() from endgame-checker.ts
-  gsap?: any;
-}
 
 interface WindowWithUpdateHighScore extends Window {
   updateHighScore?: (score: number) => void;
@@ -193,24 +171,3 @@ export async function openLockedBounceParallel({
   try { drawBoardBG?.(); } catch {}
 }
 
-// 🔥 REMOVED: checkGameOver function - DEPRECATED, use checkEndGame() from endgame-checker.ts instead
-// This old function showed the "Level Complete" overlay which is no longer used.
-// All end game logic now goes through the centralized endgame-checker.ts system.
-// If this function is still being called somewhere, it means there's dead code that needs to be removed.
-export async function checkGameOver({
-  makeBoard, tiles, hasWildOnBoard,
-  getScore, setScore, bestScore, updateBest, updateHUD, ENDLESS,
-  showStarsModal, app, stage, board,
-  level, startLevel,
-  animateScore,
-  wildAPI, openEmpties, gsap
-}: CheckGameOverParams = {}): Promise<void> {
-  // 🔥 DEPRECATED: This function is no longer used and should not be called.
-  // All end game checks now use checkEndGame() from endgame-checker.ts.
-  // This function used to show the old "Level Complete" overlay (showStarsModal),
-  // which has been replaced with board-fail-modal.ts and clean-board-modal.ts.
-  console.warn('⚠️ DEPRECATED: checkGameOver from level-flow.ts was called. This is dead code and should be removed. Use checkEndGame() from endgame-checker.ts instead.');
-  
-  // Do nothing - this prevents the old "Level Complete" overlay from appearing
-  return;
-}

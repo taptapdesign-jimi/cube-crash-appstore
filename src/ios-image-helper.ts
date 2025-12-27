@@ -62,7 +62,7 @@ class IOSImageOptimizer {
       if (exists) {
         img.src = optimizedSrc;
         img.dataset.iosOptimized = 'true';
-        logger.info(`📱 iOS optimized: ${baseSrc} → ${optimizedSrc}`);
+        logger.debug(`📱 iOS optimized: ${baseSrc} → ${optimizedSrc}`);
       } else {
         // Fallback to original
         img.src = baseSrc;

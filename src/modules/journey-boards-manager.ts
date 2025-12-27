@@ -321,7 +321,7 @@ class JourneyBoardsManager {
               
               // 🔥 USER REQUEST: Very fast interval between bounces (0.5-0.8 seconds)
               const nextBounceDelay = 500 + Math.random() * 300; // 0.5-0.8 seconds (was 1.5-2.5s)
-              logger.info(`💚 Bounce complete, scheduling next bounce in ${nextBounceDelay}ms`);
+              logger.debug(`💚 Bounce complete, scheduling next bounce in ${nextBounceDelay}ms`);
               (cardWrapper as any)._bounceTimeout = setTimeout(animateBounce, nextBounceDelay);
             }
           });
@@ -341,7 +341,7 @@ class JourneyBoardsManager {
     // Store reference for cleanup
     (cardWrapper as any)._interimBounceActive = true;
     
-    logger.info('💚 Started interim bounce animation on card');
+    logger.debug('💚 Started interim bounce animation on card');
   }
   
   /**
@@ -2908,7 +2908,7 @@ class JourneyBoardsManager {
         const nextBoard = this.boards.find(b => b.id === nextBoardNumber);
         if (nextBoard && !nextBoard.unlocked) {
           nextBoard.interim = true;
-          logger.info(`🗺️ Ensured single interim card: board ${nextBoardNumber} (next after highest unlocked ${highestUnlocked.id})`);
+          logger.debug(`🗺️ Ensured single interim card: board ${nextBoardNumber} (next after highest unlocked ${highestUnlocked.id})`);
         }
       } else {
         // All boards unlocked (or highest is last) — keep an interim card on the last board for consistency
@@ -2920,7 +2920,7 @@ class JourneyBoardsManager {
       const board1 = this.boards.find(b => b.id === 1);
       if (board1) {
         board1.interim = true;
-        logger.info(`🗺️ Ensured single interim card: board 1 (no unlocked boards)`);
+        logger.debug(`🗺️ Ensured single interim card: board 1 (no unlocked boards)`);
       }
     }
   }
@@ -3257,11 +3257,11 @@ class JourneyBoardsManager {
       // This ensures badge shows newly unlocked board count even when user is still in game
       // Even if board was already unlocked (like Board 1), we still need to check badge count
       const newlyUnlockedCount = this.getNewlyUnlockedCount();
-      logger.info(`🗺️ unlockBoardOnCompletion: Badge count calculated: ${newlyUnlockedCount} for board ${boardNumber} (was already unlocked: ${wasAlreadyUnlocked})`);
+      logger.debug(`🗺️ unlockBoardOnCompletion: Badge count calculated: ${newlyUnlockedCount} for board ${boardNumber} (was already unlocked: ${wasAlreadyUnlocked})`);
       
       if (typeof (window as any).updateNavBadge === 'function') {
         (window as any).updateNavBadge(newlyUnlockedCount, 1); // Pass slideIndex 1 for Journey
-        logger.info(`🗺️ Journey badge updated after unlocking board ${boardNumber}: ${newlyUnlockedCount} newly unlocked boards (was already unlocked: ${wasAlreadyUnlocked})`);
+        logger.debug(`🗺️ Journey badge updated after unlocking board ${boardNumber}: ${newlyUnlockedCount} newly unlocked boards (was already unlocked: ${wasAlreadyUnlocked})`);
       } else {
         logger.warn(`⚠️ updateNavBadge function not found! Badge will not be updated for board ${boardNumber}`);
       }
@@ -3351,7 +3351,7 @@ class JourneyBoardsManager {
         const newBadgeCount = this.getNewlyUnlockedCount();
         if (typeof (window as any).updateNavBadge === 'function') {
           (window as any).updateNavBadge(newBadgeCount, 1, { forceReset: true }); // Update journey badge (slideIndex 1)
-          logger.info(`🗺️ Journey badge updated to ${newBadgeCount} after viewing board ${boardId}`);
+          logger.debug(`🗺️ Journey badge updated to ${newBadgeCount} after viewing board ${boardId}`);
         }
       } else {
         logger.info(`🗺️ Board ${boardId} already marked as viewed - no action needed`);

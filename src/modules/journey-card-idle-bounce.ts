@@ -436,7 +436,7 @@ function animateCard(card: HTMLElement): void {
   
   // 🔥 CRITICAL FIX: Don't animate interim cards - they have independent animation in journey-boards-manager.ts
   if (card.classList.contains('interim')) {
-    console.log('⚠️ Skipping animateCard for interim card (has independent animation)');
+    // Skipping animateCard for interim card (has independent animation)
     return;
   }
   
@@ -711,7 +711,7 @@ function stopCardAnimation(card: HTMLElement): void {
       } catch {}
     }
   } catch (e) {
-    console.warn('⚠️ Error stopping card animation:', e);
+    // Error stopping card animation (debug only)
   }
   
   // Reset transform
@@ -779,7 +779,7 @@ export function smokeBubblesAtCard(
   // 🔥 CRITICAL FIX: Prevent duplicate smoke animations on the same card
   // Check if smoke is already active on this card
   if ((card as any)._smokeActive) {
-    console.warn('⚠️ Smoke already active on card, skipping duplicate');
+    // Smoke already active, skipping duplicate (debug only)
     return;
   }
   
@@ -1207,7 +1207,7 @@ export function smokeBubblesAtCard(
         (card as any)._smokeActive = false;
       }
       
-      console.log('🧹 Smoke container cleaned up');
+      // Smoke container cleaned up (debug only)
     } catch (e) {
       console.warn('⚠️ Error cleaning up smoke container:', e);
       // Ensure it's removed from tracking even if cleanup fails

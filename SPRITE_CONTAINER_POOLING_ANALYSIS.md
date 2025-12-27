@@ -115,3 +115,4 @@
 **Pooling za Sprite i Container NIJE potreban.** Trenutno rješenje (cleanup prije novih animacija) je dovoljno i donosi veće poboljšanje (+50-80% u smanjenju lag-a) nego što bi pooling donio (+2-5% u performance-u).
 
 
+

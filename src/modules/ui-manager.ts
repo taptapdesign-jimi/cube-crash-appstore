@@ -720,7 +720,7 @@ class UIManager {
         const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
         if (typeof (window as any).updateNavBadge === 'function') {
           (window as any).updateNavBadge(effectiveCount, 1); // Pass slideIndex 1 for Journey
-          logger.info(`🗺️ Journey badge updated on homepage: ${effectiveCount} newly unlocked boards (not yet viewed, raw=${newlyUnlockedCount}, last=${lastBadge})`);
+          logger.debug(`🗺️ Journey badge updated on homepage: ${effectiveCount} newly unlocked boards (not yet viewed, raw=${newlyUnlockedCount}, last=${lastBadge})`);
         }
       } catch (error) {
         logger.warn('⚠️ Failed to update journey badge on homepage:', error);

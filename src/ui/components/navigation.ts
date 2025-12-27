@@ -144,9 +144,26 @@ type UpdateNavBadgeOptions = {
   forceReset?: boolean; // when true, allow overwriting an existing badge with 0
 };
 
+// ✅ SIMPLIFIED: Helper to get current badge count from all sources
+function getCurrentBadgeCount(slideIndex: number): number {
+  const navButton = document.querySelector(`.independent-nav-button[data-slide="${slideIndex}"]`) as HTMLElement;
+  const domBadgeCount = navButton
+    ? parseInt(navButton.querySelector('.nav-badge-text')?.textContent || '0', 10)
+    : 0;
+  const storedBadge = (window as any).__ccJourneyBadgeCount ?? lastJourneyBadgeCount ?? 0;
+  const persistedBadge = readPersistedBadge();
+  return Math.max(storedBadge, persistedBadge, domBadgeCount);
+}
+
+// ✅ SIMPLIFIED: Helper to check if exit animation is active
+function isExitAnimationActive(): boolean {
+  return typeof (window as any).__ccIsAnimatingSliderExit === 'function' 
+    ? (window as any).__ccIsAnimatingSliderExit() 
+    : false;
+}
+
 export function updateNavBadge(count: number, slideIndex: number = 1, opts: UpdateNavBadgeOptions = {}): void {
   // 🔥 USER REQUEST: Badge ONLY on Journey icon (slideIndex 1, stats-nav.png), nowhere else
-  // Ignore all other slideIndex values
   if (slideIndex !== 1) {
     console.log(`⚠️ updateNavBadge called with slideIndex ${slideIndex} - ignoring (badge only on Journey/slideIndex 1)`);
     return;
@@ -154,67 +171,47 @@ export function updateNavBadge(count: number, slideIndex: number = 1, opts: Upda
   
   const slideName = 'Journey';
   const ariaLabel = `${count} new journey boards`;
-  
-  console.log(`🎁 updateNavBadge called with count: ${count}, slideIndex: ${slideIndex} (${slideName})`);
-
-  const storedBadge = (window as any).__ccJourneyBadgeCount ?? lastJourneyBadgeCount ?? 0;
-  const persistedBadge = readPersistedBadge();
   const forceReset = opts.forceReset === true;
-
-  // If a positive badge is already cached and this call tries to clear it without force,
-  // keep the existing badge to avoid accidental drops during transitions.
-  // If a positive badge already exists (in cache or DOM) and this call tries to clear it without force,
-  // keep the existing badge to avoid accidental drops during transitions.
-  const navButtonForCheck = document.querySelector(`.independent-nav-button[data-slide="${slideIndex}"]`) as HTMLElement;
-  const domBadgeCount = navButtonForCheck
-    ? parseInt(navButtonForCheck.querySelector('.nav-badge-text')?.textContent || '0', 10)
-    : 0;
-  const effectiveExisting = Math.max(storedBadge, persistedBadge, domBadgeCount);
-  if (count <= 0 && effectiveExisting > 0 && !forceReset) {
-    // Refresh cache so future rebuilds keep the badge
-    lastJourneyBadgeCount = effectiveExisting;
-    (window as any).__ccJourneyBadgeCount = effectiveExisting;
-    writePersistedBadge(effectiveExisting);
-    console.log(`⏳ Preserving existing Journey badge (${effectiveExisting}) - skip reset (forceReset=false)`);
+  
+  // ✅ SIMPLIFIED: Get current badge count from all sources
+  const currentCount = getCurrentBadgeCount(slideIndex);
+  
+  // ✅ SIMPLIFIED: Preserve existing badge if trying to clear without force
+  if (count <= 0 && currentCount > 0 && !forceReset) {
+    lastJourneyBadgeCount = currentCount;
+    (window as any).__ccJourneyBadgeCount = currentCount;
+    writePersistedBadge(currentCount);
+    console.log(`⏳ Preserving existing Journey badge (${currentCount}) - skip reset (forceReset=false)`);
     return;
   }
 
-  // Remember latest badge count so it can be restored after nav is rebuilt or hidden/showed
+  // ✅ SIMPLIFIED: Update stored values
   lastJourneyBadgeCount = count;
   (window as any).__ccJourneyBadgeCount = count;
-  if (forceReset && count <= 0) {
-    writePersistedBadge(0);
-  } else {
-    writePersistedBadge(count);
-  }
+  writePersistedBadge(count > 0 || forceReset ? count : 0);
   
-  // 🔥 FIX: If nav button doesn't exist yet, retry after a short delay
-  // This handles cases where updateNavBadge is called before navigation is fully rendered
-  const navButton = navButtonForCheck || (document.querySelector(`.independent-nav-button[data-slide="${slideIndex}"]`) as HTMLElement);
+  // ✅ SIMPLIFIED: Get nav button (with single retry if not found)
+  const navButton = document.querySelector(`.independent-nav-button[data-slide="${slideIndex}"]`) as HTMLElement;
   if (!navButton) {
     console.warn(`⚠️ Nav button not found for slide ${slideIndex} - retrying in 100ms...`);
-    setTimeout(() => {
-      updateNavBadge(count, slideIndex);
-    }, 100);
+    setTimeout(() => updateNavBadge(count, slideIndex, opts), 100);
     return;
   }
   
   const existingBadge = navButton.querySelector('.nav-badge');
   
   if (count > 0) {
-    // Update or create badge
+    // ✅ SIMPLIFIED: Update or create badge
     if (existingBadge) {
       const badgeText = existingBadge.querySelector('.nav-badge-text');
       if (badgeText) badgeText.textContent = count.toString();
       existingBadge.setAttribute('aria-label', ariaLabel);
-      // Reset any exit animation state so badge is visible again
       existingBadge.classList.remove('animate-exit', 'animate-reset');
       existingBadge.style.display = 'flex';
       existingBadge.style.visibility = 'visible';
       existingBadge.style.opacity = '1';
       console.log(`✅ ${slideName} badge updated to`, count);
     } else {
-      // Create new badge
       const badge = document.createElement('div');
       badge.className = 'nav-badge';
       badge.setAttribute('aria-label', ariaLabel);
@@ -223,56 +220,44 @@ export function updateNavBadge(count: number, slideIndex: number = 1, opts: Upda
       badgeText.textContent = count.toString();
       badge.appendChild(badgeText);
       navButton.appendChild(badge);
-      // Ensure it starts visible
       badge.style.display = 'flex';
       badge.style.visibility = 'visible';
       badge.style.opacity = '1';
       console.log(`✅ ${slideName} badge created with`, count);
     }
   } else {
-    // Remove badge if count is 0 or less
-    // 🔥 CRITICAL: Don't remove badge if exit animation is in progress OR badge has animate-exit class
-    // This allows the exit animation to complete before badge is removed
-    if (existingBadge) {
-      // Check if exit animation is in progress (global flag)
-      const isExitAnimating = typeof (window as any).__ccIsAnimatingSliderExit === 'function' 
-        ? (window as any).__ccIsAnimatingSliderExit() 
-        : false;
-      
-      // Check if badge has animate-exit class
-      const hasAnimateExitClass = existingBadge.classList.contains('animate-exit');
-      
-      if (isExitAnimating || hasAnimateExitClass) {
-        console.log(`⏳ ${slideName} badge is animating (exit animation: ${isExitAnimating}, has class: ${hasAnimateExitClass}) - will be removed after animation completes`);
-        // Badge will be removed after animation completes (handled in animations.ts)
+    // ✅ SIMPLIFIED: Remove badge with animation check
+    if (!existingBadge) return;
+    
+    // Check if exit animation is active
+    if (isExitAnimationActive() || existingBadge.classList.contains('animate-exit')) {
+      console.log(`⏳ ${slideName} badge is animating - will be removed after animation completes`);
+      return;
+    }
+
+    // ✅ SIMPLIFIED: Single timeout for exit animation check and removal
+    setTimeout(() => {
+      if (isExitAnimationActive()) {
+        console.log(`⏳ ${slideName} badge removal deferred - exit animation now active`);
         return;
       }
 
-      // If exit flag isn't set yet, give the CTA click a brief moment to start exit animation
-      // (so the global flag can flip) before we animate/remove locally.
+      const badgeNow = navButton.querySelector('.nav-badge');
+      if (!badgeNow) return;
+
+      // Trigger exit animation
+      badgeNow.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
+      void badgeNow.offsetHeight; // force reflow
+      badgeNow.classList.add('animate-exit');
+
+      // Remove after animation completes
       setTimeout(() => {
-        const exitNow = typeof (window as any).__ccIsAnimatingSliderExit === 'function'
-          ? (window as any).__ccIsAnimatingSliderExit()
-          : false;
-        if (exitNow) {
-          console.log(`⏳ ${slideName} badge removal deferred - exit animation now active`);
-          return;
+        const finalBadge = navButton.querySelector('.nav-badge');
+        if (finalBadge && finalBadge.classList.contains('animate-exit')) {
+          finalBadge.remove();
+          console.log(`✅ ${slideName} badge removed after exit animation`);
         }
-
-        // Trigger a graceful exit on the badge itself (scale-out) instead of instant removal.
-        existingBadge.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-        void existingBadge.offsetHeight; // force reflow so transition fires
-        existingBadge.classList.add('animate-exit');
-
-        setTimeout(() => {
-          // Only remove if it still exists and has the exit class (wasn't refreshed)
-          const badgeNow = navButton.querySelector('.nav-badge');
-          if (badgeNow && badgeNow.classList.contains('animate-exit')) {
-            badgeNow.remove();
-            console.log(`✅ ${slideName} badge removed after self-triggered exit`);
-          }
-        }, 820); // matches exit animation duration (~770ms) with small buffer
-      }, 60); // small delay to let CTA exit animation set the global flag
-    }
+      }, 820); // matches exit animation duration
+    }, 60); // small delay to check exit animation
   }
 }

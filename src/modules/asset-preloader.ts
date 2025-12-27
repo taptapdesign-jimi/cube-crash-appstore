@@ -308,7 +308,7 @@ export class AssetPreloader {
     }
     // Also log for debugging
     if (this.loadedCount % 5 === 0 || this.loadedCount === this.totalCount) {
-      logger.info(`📊 Progress: ${percentage}% (${this.loadedCount}/${this.totalCount})`);
+      logger.debug(`📊 Progress: ${percentage}% (${this.loadedCount}/${this.totalCount})`);
     }
   }
 
@@ -377,7 +377,7 @@ export class AssetPreloader {
       return new Promise<void>((resolve) => {
         const img = new Image();
         img.onload = () => {
-          logger.info(`✅ HTML image loaded: ${src}`);
+          logger.debug(`✅ HTML image loaded: ${src}`);
           resolve();
         };
         img.onerror = () => {
@@ -389,7 +389,7 @@ export class AssetPreloader {
     });
     
     await Promise.allSettled(loadPromises);
-    logger.info('✅ All HTML images preloaded');
+    logger.debug('✅ All HTML images preloaded');
   }
 
   // 🔥 CRITICAL: Preload collectibles card images through native Image objects for browser cache
@@ -544,7 +544,7 @@ export class AssetPreloader {
         this.totalCount = CRITICAL_ASSETS.length;
         this.loadedCount = 0;
         
-        logger.info(`📦 Loading ${CRITICAL_ASSETS.length} critical assets (deferring ${DEFERRED_ASSETS.length} assets)`);
+        logger.debug(`📦 Loading ${CRITICAL_ASSETS.length} critical assets (deferring ${DEFERRED_ASSETS.length} assets)`);
         
         // 🔥 CRITICAL: Register assets with Assets.add() BEFORE loading
         // This ensures Assets.get() can find them later by the same path
@@ -564,7 +564,7 @@ export class AssetPreloader {
         // Use smaller batches for better progress tracking and faster perceived loading
         const batchSize = isIOS ? 8 : (isMobile ? 6 : 10);
         
-        logger.info(`📦 Loading ${CRITICAL_ASSETS.length} critical assets in batches of ${batchSize} (mobile: ${isMobile}, iOS: ${isIOS})`);
+        logger.debug(`📦 Loading ${CRITICAL_ASSETS.length} critical assets in batches of ${batchSize} (mobile: ${isMobile}, iOS: ${isIOS})`);
         
         // Initial progress update
         this.updateProgress();
@@ -578,7 +578,7 @@ export class AssetPreloader {
             totalLoaded += batch.length;
             this.loadedCount = totalLoaded;
             this.updateProgress(); // Update progress after each batch
-            logger.info(`✅ Loaded batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(CRITICAL_ASSETS.length / batchSize)}: ${batch.length} assets (${totalLoaded}/${this.totalCount})`);
+            logger.debug(`✅ Loaded batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(CRITICAL_ASSETS.length / batchSize)}: ${batch.length} assets (${totalLoaded}/${this.totalCount})`);
           } catch (error) {
             // If batch fails, try loading individually
             logger.warn(`⚠️ Batch ${Math.floor(i / batchSize) + 1} failed, trying individual loading...`, error);
@@ -686,13 +686,13 @@ export class AssetPreloader {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       const batchSize = isMobile ? 5 : 10; // Smaller batches on mobile
       
-      logger.info(`📦 Loading ${DEFERRED_ASSETS.length} deferred assets in batches of ${batchSize} (mobile: ${isMobile})`);
+      logger.debug(`📦 Loading ${DEFERRED_ASSETS.length} deferred assets in batches of ${batchSize} (mobile: ${isMobile})`);
       
       for (let i = 0; i < DEFERRED_ASSETS.length; i += batchSize) {
         const batch = DEFERRED_ASSETS.slice(i, i + batchSize);
         try {
           await Assets.load(batch);
-          logger.info(`✅ Loaded batch ${Math.floor(i / batchSize) + 1} (${Math.min(i + batchSize, DEFERRED_ASSETS.length)}/${DEFERRED_ASSETS.length})`);
+          logger.debug(`✅ Loaded batch ${Math.floor(i / batchSize) + 1} (${Math.min(i + batchSize, DEFERRED_ASSETS.length)}/${DEFERRED_ASSETS.length})`);
         } catch (error) {
           // If batch fails, try loading individually as fallback
           logger.warn(`⚠️ Batch ${Math.floor(i / batchSize) + 1} failed, trying individual loading...`, error);

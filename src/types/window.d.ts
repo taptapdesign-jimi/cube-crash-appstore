@@ -94,6 +94,25 @@ declare global {
     
     // Analytics
     gtag?: (command: string, action: string, parameters: any) => void;
+    
+    // CubeCrash Internal Flags (__cc*)
+    // See docs/WINDOW_CC_FLAGS.md for full documentation
+    __ccCameFromDetailModal?: boolean;
+    __ccCameFromHomepage?: boolean;
+    __ccCameFromJourney?: boolean;
+    __ccDetailModalBoardId?: number;
+    __ccInterimCardInViewport?: boolean;
+    __ccIsAnimatingSliderEnter?: () => boolean;
+    __ccIsAnimatingSliderExit?: () => boolean;
+    __ccIsHidingCollectibles?: boolean;
+    __ccJourneyBadgeCount?: number;
+    __ccJourneyExitMode?: string;
+    __ccPreserveScore?: boolean;
+    __ccResumeScore?: number;
+    __ccSkipRebuildBoard?: boolean;
+    __ccStartAtLevel?: number;
+    __ccTriggerHudDrop?: boolean;
+    __ccUiJourneyTransitioning?: boolean;
   }
 }
 

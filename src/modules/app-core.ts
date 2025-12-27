@@ -31,6 +31,8 @@ import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import { checkEndGame, needsEmergencyRescue, clearEndGameCache, tileIsActive, getActiveTiles, type EndGameContext } from './endgame-checker.ts';
 import memoryManager from './memory-manager.ts';
 import { boardSpecificRules, isWildSpawnEnabled, isWildMeterEnabled, filterWildType, getWildMeterFillRate } from './board-specific-rules.ts';
+import { logger } from '../core/logger.js';
+import type { Tile, Board, Grid, HUD, Stage, Drag, MakeBoard } from '../types/game-types.js';
 
 // HUD functions from hud-helpers.js
 
@@ -47,6 +49,7 @@ let checkLevelEndRetryCount = 0; // 🔥 v38: Track reschedule attempts
 const MAX_CHECK_LEVEL_END_RETRIES = 10; // 🔥 v38: Prevent infinite reschedule loops
 
 // 🔒 SAFETY: Remove any lingering magnet merge-6 tiles (value 6 with magnet flags) to prevent stuck boards
+// ✅ OPTIMIZED: O(n) complexity instead of O(n²) by using direct grid coordinates
 const forceRemoveMagnetMergeResidues = (reason: string) => {
   try {
     const candidates = tiles.filter((t: any) => {
@@ -62,28 +65,36 @@ const forceRemoveMagnetMergeResidues = (reason: string) => {
     });
     if (!candidates.length) return;
 
-    const clearTileFromGridSafe = (tile: any) => {
+    // ✅ OPTIMIZED: O(1) grid clearing using direct coordinates
+    // Only fallback to O(n²) search if coordinates are invalid
+    const clearTileFromGridSafe = (tile: any): boolean => {
       if (!tile || !grid) return false;
-      let cleared = false;
+      
       const gx = tile.gridX;
       const gy = tile.gridY;
-      if (gy !== undefined && gx !== undefined && grid[gy] && grid[gy][gx] === tile) {
+      
+      // ✅ Fast path: Use direct coordinates (O(1))
+      if (typeof gy === 'number' && typeof gx === 'number' && 
+          gy >= 0 && gx >= 0 && 
+          grid[gy] && grid[gy][gx] === tile) {
         grid[gy][gx] = null;
-        cleared = true;
+        return true;
       }
-      if (!cleared) {
-        for (let r = 0; r < grid.length; r++) {
-          for (let c = 0; c < grid[r].length; c++) {
-            if (grid[r][c] === tile) {
-              grid[r][c] = null;
-              cleared = true;
-              break;
-            }
+      
+      // ⚠️ Fallback: Linear search only if coordinates are invalid (should be rare)
+      // This is O(n) where n = total tiles, but only runs if coordinates are wrong
+      for (let r = 0; r < grid.length; r++) {
+        const row = grid[r];
+        if (!row) continue;
+        for (let c = 0; c < row.length; c++) {
+          if (row[c] === tile) {
+            row[c] = null;
+            return true;
           }
-          if (cleared) break;
         }
       }
-      return cleared;
+      
+      return false;
     };
 
     candidates.forEach((t: any) => {
@@ -102,10 +113,10 @@ const forceRemoveMagnetMergeResidues = (reason: string) => {
     });
 
     if (candidates.length) {
-      console.warn(`🧲 SAFETY: Removed ${candidates.length} lingering magnet merge-6 residues (${reason})`);
+      logger.warn(`🧲 SAFETY: Removed ${candidates.length} lingering magnet merge-6 residues (${reason})`, 'app-core');
     }
   } catch (error) {
-    console.warn('⚠️ SAFETY: Failed to remove magnet merge residues:', error);
+    logger.warn('⚠️ SAFETY: Failed to remove magnet merge residues', 'app-core', error);
   }
 };
 
@@ -122,9 +133,44 @@ function trackAppTimeout(callback: () => void, delay: number): NodeJS.Timeout {
 }
 
 function clearAllAppTimeouts() {
-  console.log(`🧹 Clearing ${_appTimeouts.size} pending timeouts from app-core`);
+  logger.debug(`🧹 Clearing ${_appTimeouts.size} pending timeouts from app-core`, 'app-core');
   _appTimeouts.forEach(timeout => clearTimeout(timeout));
   _appTimeouts.clear();
+}
+
+// 🔥 MEMORY LEAK FIX: Track all requestAnimationFrame callbacks for cleanup
+const _appAnimationFrames: Set<number> = new Set();
+
+function trackAppAnimationFrame(callback: FrameRequestCallback): number {
+  const rafId = requestAnimationFrame((now: number) => {
+    callback(now);
+    _appAnimationFrames.delete(rafId);
+  });
+  _appAnimationFrames.add(rafId);
+  return rafId;
+}
+
+function clearAllAppAnimationFrames() {
+  logger.debug(`🧹 Clearing ${_appAnimationFrames.size} pending requestAnimationFrame callbacks from app-core`, 'app-core');
+  _appAnimationFrames.forEach(rafId => cancelAnimationFrame(rafId));
+  _appAnimationFrames.clear();
+}
+
+// 🔥 MEMORY LEAK FIX: Track all intervals for cleanup
+const _appIntervals: Set<NodeJS.Timeout> = new Set();
+
+function trackAppInterval(callback: () => void, delay: number): NodeJS.Timeout {
+  const interval = setInterval(() => {
+    callback();
+  }, delay);
+  _appIntervals.add(interval);
+  return interval;
+}
+
+function clearAllAppIntervals() {
+  logger.debug(`🧹 Clearing ${_appIntervals.size} pending intervals from app-core`, 'app-core');
+  _appIntervals.forEach(interval => clearInterval(interval));
+  _appIntervals.clear();
 }
 // 🔥 CRITICAL: Increased from 500ms to 1200ms to allow all animations to complete
 // - Wild spawn bounce: ~580ms
@@ -220,25 +266,25 @@ function getReactiveActiveTiles(): any[] {
 // This function was a duplicate of isBoardCleanCheck() and could cause conflicts
 
 async function triggerCleanBoardFlow(reason: string): Promise<void> {
-  console.log('🚨🚨🚨 triggerCleanBoardFlow invoked:', reason);
+  logger.info('🚨🚨🚨 triggerCleanBoardFlow invoked', 'app-core', { reason });
 
   // 🔥 USER BUG FIX: Don't trigger clean board flow if game is hidden (user is on homepage/other screens)
   // This prevents clean board modal from appearing when user navigates away from game
   const appElement = document.getElementById('app');
   if (appElement && appElement.hasAttribute('hidden')) {
-    console.log('⏳ triggerCleanBoardFlow skipped - app is hidden (user on homepage/other screens)');
+    logger.debug('⏳ triggerCleanBoardFlow skipped - app is hidden (user on homepage/other screens)', 'app-core');
     return;
   }
   
   // Also check if homepage is visible (game should not be active)
   const homeElement = document.getElementById('home');
   if (homeElement && !homeElement.hidden) {
-    console.log('⏳ triggerCleanBoardFlow skipped - homepage is visible (game not active)');
+    logger.debug('⏳ triggerCleanBoardFlow skipped - homepage is visible (game not active)', 'app-core');
     return;
   }
 
   if (busyEnding) {
-    console.log('⏳ triggerCleanBoardFlow skipped - busyEnding already true');
+    logger.debug('⏳ triggerCleanBoardFlow skipped - busyEnding already true', 'app-core');
     return;
   }
   busyEnding = true;
@@ -246,19 +292,19 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   // If we explicitly requested a clean-board skip (e.g., resuming straight into next board after hard-exit),
   // consume the flag and bail before any modal/animation starts.
   if ((window as any).__skipCleanBoardOnce) {
-    console.log('⏭️ Skipping clean-board flow once due to resume jump flag');
+    logger.debug('⏭️ Skipping clean-board flow once due to resume jump flag', 'app-core');
     delete (window as any).__skipCleanBoardOnce;
     busyEnding = false;
     return;
   }
   
   // 🔥 CRITICAL: Perform memory cleanup before board transition (MEMORY LEAK FIX)
-  console.log('🧹 Performing memory cleanup before board transition...');
+  logger.debug('🧹 Performing memory cleanup before board transition...', 'app-core');
   try {
     memoryManager.performCleanup();
-    console.log('✅ Memory cleanup completed');
+    logger.debug('✅ Memory cleanup completed', 'app-core');
   } catch (error) {
-    console.warn('⚠️ Memory cleanup failed:', error);
+    logger.warn('⚠️ Memory cleanup failed', 'app-core', error);
   }
 
   // Reset wild meter immediately (legacy behavior)
@@ -276,13 +322,13 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
       HUD.updateProgressBar?.(0, false);
     }
   } catch (error) {
-    console.warn('⚠️ triggerCleanBoardFlow: Failed to reset wild meter:', error);
+    logger.warn('⚠️ triggerCleanBoardFlow: Failed to reset wild meter', 'app-core', error);
   }
 
   try {
     // 🔥 USER REQUEST: 1.5 seconds delay before showing clean board overlay
     // This gives player time to see the board and all calculations to complete
-    console.log('⏳ Waiting 1.5 seconds before showing clean board overlay...');
+    logger.debug('⏳ Waiting 1.5 seconds before showing clean board overlay...', 'app-core');
     try { await new Promise((res) => setTimeout(res, 1500)); } catch {}
     await runEndgameFlow({
       app,
@@ -330,12 +376,12 @@ function ensureNonWildTile(reason: string = 'unknown'): boolean {
   const candidate = activeTiles[Math.floor(Math.random() * activeTiles.length)];
   if (!candidate) return false;
   
-  console.log('🛟 Emergency downgrade: Converting wild tile to normal value', { reason, gridX: candidate.gridX, gridY: candidate.gridY });
+    logger.warn('🛟 Emergency downgrade: Converting wild tile to normal value', 'app-core', { reason, gridX: candidate.gridX, gridY: candidate.gridY });
   
   try {
     clearWildState(candidate);
   } catch (error) {
-    console.warn('⚠️ ensureNonWildTile: clearWildState failed', error);
+    logger.warn('⚠️ ensureNonWildTile: clearWildState failed', 'app-core', error);
   }
   
   candidate.special = null;
@@ -422,7 +468,7 @@ function queueWildSpawnIfNeeded(){
   }
 })
     .catch((error) => {
-      console.error('❌ Wild spawn error:', error);
+      logger.error('❌ Wild spawn error', 'app-core', error);
     })
     .finally(() => {
       wildSpawnInProgress = false;
@@ -441,7 +487,7 @@ function scheduleWildRescue(reason = 'unknown', requested = 2) {
     return;
   }
   if (typeof openEmpties !== 'function') {
-    console.warn('🛟 Wild rescue requested but openEmpties is unavailable:', reason);
+    logger.warn('🛟 Wild rescue requested but openEmpties is unavailable', 'app-core', { reason });
     return;
   }
 
@@ -451,7 +497,7 @@ function scheduleWildRescue(reason = 'unknown', requested = 2) {
 
   openEmpties(count)
     .catch(error => {
-      console.warn('🛟 Wild rescue spawn failed:', error);
+      logger.warn('🛟 Wild rescue spawn failed', 'app-core', error);
     })
     .finally(() => {
       const downgraded = ensureNonWildTile('wild_rescue');
@@ -460,7 +506,7 @@ function scheduleWildRescue(reason = 'unknown', requested = 2) {
       }
       wildRescueScheduled = false;
       gsap.delayedCall(0.05, () => {
-        try { checkLevelEnd(); } catch (err) { console.warn('🛟 Post-rescue checkLevelEnd failed:', err); }
+        try { checkLevelEnd(); } catch (err) { logger.warn('🛟 Post-rescue checkLevelEnd failed', 'app-core', err); }
       });
       
       // Save game state after rescue spawn completes
@@ -482,7 +528,7 @@ function setWildProgress(ratio, animate=false){
     HUD.updateProgressBar?.(displayRatio, !!animate);
     console.log('✅ DRAMATIC: HUD.updateProgressBar called successfully');
   } catch (error) {
-    console.error('❌ DRAMATIC: Error calling HUD.updateProgressBar:', error);
+    logger.error('❌ DRAMATIC: Error calling HUD.updateProgressBar', 'app-core', error);
   }
 
   if (wildMeter >= 1) {
@@ -491,7 +537,7 @@ function setWildProgress(ratio, animate=false){
 }
 let updateProgressBar = (ratio, animate=false) => setWildProgress(ratio, animate);
 function addWildProgress(amount){
-  console.log('🔥🔥🔥 addWildProgress CALLED! Amount:', amount, 'Current wildMeter:', wildMeter, 'Board:', boardNumber);
+  logger.debug('🔥🔥🔥 addWildProgress CALLED', 'app-core', { amount, wildMeter, boardNumber });
   
   // 🎯 BOARD-SPECIFIC RULES: Check if wild meter is enabled for current board
   if (!isWildMeterEnabled(boardNumber)) {
@@ -515,7 +561,7 @@ function addWildProgress(amount){
         console.log('✅ LAST MERGE (addWildProgress): Wild meter reset in HUD');
       }
     } catch (error) {
-      console.warn('⚠️ LAST MERGE (addWildProgress): Failed to reset wild meter in HUD:', error);
+      logger.warn('⚠️ LAST MERGE (addWildProgress): Failed to reset wild meter in HUD', 'app-core', error);
     }
     return;
   }
@@ -530,7 +576,7 @@ function addWildProgress(amount){
     }
     console.log('🔥 addWildProgress: Previous animations killed');
   } catch (e) {
-    console.warn('⚠️ addWildProgress: Error killing animations:', e);
+    logger.warn('⚠️ addWildProgress: Error killing animations', 'app-core', e);
   }
   
   const inc = Number.isFinite(amount) ? amount : 0;
@@ -737,7 +783,7 @@ export async function boot(){
   // When coming from Journey, canvas stays hidden until HUD drop starts
   app.canvas.style.opacity = '0';
   app.canvas.style.transition = 'opacity 0.6s ease';
-  const cameFromJourney = (window as any).__ccCameFromJourney;
+  const cameFromJourney = window.__ccCameFromJourney;
   if (!cameFromJourney) {
     setTimeout(() => {
       app.canvas.style.opacity = '1';
@@ -986,9 +1032,9 @@ export async function boot(){
 
   // Start game
   // Allow callers (e.g., resume flow after clean-board exit) to request a specific starting board
-  const forcedStartLevel = Number((window as any).__ccStartAtLevel);
+  const forcedStartLevel = Number(window.__ccStartAtLevel);
   if (Number.isFinite(forcedStartLevel) && forcedStartLevel >= 1) {
-    delete (window as any).__ccStartAtLevel;
+    delete window.__ccStartAtLevel;
     boardNumber = forcedStartLevel | 0;
     moves = MOVES_MAX;
     console.log('🎯 boot(): Starting at requested board', boardNumber);
@@ -1650,13 +1696,13 @@ const updateHUD = () => {
   // Sync local combo variable with actual combo value
   combo = actualCombo;
   
-  console.log('🎯 updateHUD called with:', { score, board: boardNumber, moves, combo: actualCombo });
+  logger.debug('🎯 updateHUD called', 'app-core', { score, board: boardNumber, moves, combo: actualCombo });
   syncSharedState();
   
   try {
     // First try to use HUD from hud-helpers.js
     if (typeof HUD.updateHUD === 'function') { 
-      console.log('🎯 Calling HUD.updateHUD from hud-helpers.js');
+      logger.debug('🎯 Calling HUD.updateHUD from hud-helpers.js', 'app-core');
       HUD.updateHUD({ score, board: boardNumber, moves, combo: actualCombo }); 
       return; 
     } else {
@@ -2203,8 +2249,8 @@ function startLevel(n){
   console.log(`🎯 startLevel: Reset score to 0 for board ${n} (no accumulation between boards)`);
   
   // Clear any preserved score flags
-  delete (window as any).__ccResumeScore;
-  delete (window as any).__ccPreserveScore;
+  delete window.__ccResumeScore;
+  delete window.__ccPreserveScore;
   
   level = n; // Set level to the board number
   boardNumber = n; // Set board number to the level number
@@ -2281,10 +2327,10 @@ wildMeter = 0;
   // 🔥 CRITICAL FIX: Skip rebuildBoard if loading saved state
   // This prevents creating an empty board before loadGameState restores tiles
   // 🔥 JOURNEY PROGRESSION: Check if HUD drop should be triggered (from Journey Play Board)
-  if ((window as any).__ccTriggerHudDrop) {
+  if (window.__ccTriggerHudDrop) {
     _hudDropPending = true;
-    console.log('✅ HUD drop pending set to true (from Journey Play Board)');
-    delete (window as any).__ccTriggerHudDrop;
+    logger.debug('✅ HUD drop pending set to true (from Journey Play Board)', 'app-core');
+    delete window.__ccTriggerHudDrop;
     
     // 🔥 CRITICAL: Force HUD to re-init / re-drop on next layout so animation is always visible
     _hudInitDone = false;
@@ -2304,12 +2350,12 @@ wildMeter = 0;
     }
   }
   
-  const skipRebuild = (window as any).__ccSkipRebuildBoard;
+  const skipRebuild = window.__ccSkipRebuildBoard;
   if (skipRebuild) {
-    console.log('🎯 Skipping rebuildBoard() - will load saved state instead');
+    logger.debug('🎯 Skipping rebuildBoard() - will load saved state instead', 'app-core');
     // 🔥 CRITICAL FIX: Don't delete __ccSkipRebuildBoard here - let main.ts handle it after loadGameState()
     // This ensures loadGameState() can be called after bootGame() completes
-    // (window as any).__ccSkipRebuildBoard will be deleted in main.ts after loadGameState()
+    // window.__ccSkipRebuildBoard will be deleted in main.ts after loadGameState()
   } else {
     // 🔥 CRITICAL FIX: Ensure background layer exists BEFORE rebuildBoard()
     // rebuildBoard() calls resetBoardContainer() which removes all children
@@ -3027,8 +3073,8 @@ function pickWildValue(dstValue) {
   return result;
 }
 function merge(src, dst, helpers){
-  console.log('🔥🔥🔥 MERGE FUNCTION CALLED! src:', src?.value, 'dst:', dst?.value);
-  console.log('🔥🔥🔥 MERGE DESTINATION CHECK:', {
+  logger.debug('🔥🔥🔥 MERGE FUNCTION CALLED', 'app-core', { srcValue: src?.value, dstValue: dst?.value });
+  logger.debug('🔥🔥🔥 MERGE DESTINATION CHECK', 'app-core', {
     hasDst: !!dst,
     dstValue: dst?.value,
     dstLocked: dst?.locked,
@@ -3936,7 +3982,7 @@ function merge(src, dst, helpers){
       return sum + depth;
     }, 0);
     
-    console.log('🔍 ACTIVE TILES COUNT (including stackDepth):', {
+    logger.debug('🔍 ACTIVE TILES COUNT (including stackDepth)', 'app-core', {
       visibleTiles: activeTilesBeforeMerge.length,
       totalTilesWithStackDepth: activeTilesCount,
       tilesDetails: activeTilesBeforeMerge.map(t => ({
@@ -4019,7 +4065,7 @@ function merge(src, dst, helpers){
     // This works for ANY number of tiles: 2, 3, 4, 5, 6... as long as they're all involved
     
     // 🔥 ENHANCED LOGGING: Log all details for debugging
-    console.log('🔍 LAST MERGE CHECK (BEFORE merge 6):', {
+    logger.debug('🔍 LAST MERGE CHECK (BEFORE merge 6)', 'app-core', {
       activeTilesCount,
       combinedCount,
       srcValue: src.value,
@@ -4140,7 +4186,7 @@ function merge(src, dst, helpers){
                                           activeTilesBeforeMerge.includes(dst) &&
                                           (src.value|0) + (dst.value|0) === 6; // Must be merge 6
     
-    console.log('🔍 LAST MERGE CHECK DETAILS (with regular + regular support):', {
+    logger.debug('🔍 LAST MERGE CHECK DETAILS (with regular + regular support)', 'app-core', {
       activeTilesCount,
       wildActive,
       isRegularWildLastTwo,
@@ -5195,7 +5241,7 @@ function merge(src, dst, helpers){
           });
         }
         
-        console.log('🔍 LAST MERGE CHECK in onComplete:', {
+        logger.debug('🔍 LAST MERGE CHECK in onComplete', 'app-core', {
           isLastMergeInOnComplete,
           wasWildRegularLastTwo,
           wasRegularRegularLastTwo,
@@ -5730,7 +5776,7 @@ function merge(src, dst, helpers){
         const bubbleMult = mult || 1;
         const comboMult  = combo > 0 ? combo : 1;
         const scoreDelta = 6 * bubbleMult * comboMult;
-        console.log('🎯 Score calculation: mult=', mult, 'bubbleMult=', bubbleMult, 'comboMult=', comboMult, 'scoreDelta=', scoreDelta);
+        logger.debug('🎯 Score calculation', 'app-core', { mult, bubbleMult, comboMult, scoreDelta });
         
         score = Math.min(SCORE_CAP, score + scoreDelta);
         // CRITICAL: Sync STATE.score with local score after adding
@@ -6456,7 +6502,7 @@ function checkLevelEnd(){
       return;
     }
     
-    console.log('🎯 checkLevelEnd called - using centralized end game checker...');
+    logger.debug('🎯 checkLevelEnd called - using centralized end game checker', 'app-core');
     const now = Date.now();
     const skipWindowExceeded = checkLevelEndSkipStartedAt !== null && (now - checkLevelEndSkipStartedAt) > MAX_CHECK_LEVEL_END_SKIP_MS;
     
@@ -6531,7 +6577,8 @@ function checkLevelEnd(){
     if (tilesNotReady && !skipWindowExceeded) {
       if (checkLevelEndSkipStartedAt === null) checkLevelEndSkipStartedAt = now;
       checkLevelEndRetryCount++;
-      console.log('⏳ checkLevelEnd skipped - tiles still spawning/animating (retry', checkLevelEndRetryCount, '/', MAX_CHECK_LEVEL_END_RETRIES, '):', {
+      logger.debug('⏳ checkLevelEnd skipped - tiles still spawning/animating', 'app-core', {
+        retry: `${checkLevelEndRetryCount}/${MAX_CHECK_LEVEL_END_RETRIES}`,
         lockedCount: lockedActiveTiles.length,
         stillSpawningCount: tilesStillSpawning.length,
         lockedTiles: lockedActiveTiles.map(t => ({ value: t.value, special: t.special, gridX: t.gridX, gridY: t.gridY })),
@@ -7168,8 +7215,8 @@ function restartGame(){
   }
   
   // 🔥 CRITICAL FIX: Clear __ccSkipRebuildBoard flag to force fresh board
-  delete (window as any).__ccSkipRebuildBoard;
-  console.log('✅ RESTART: Cleared __ccSkipRebuildBoard flag - will rebuild fresh board');
+  delete window.__ccSkipRebuildBoard;
+  logger.debug('✅ RESTART: Cleared __ccSkipRebuildBoard flag - will rebuild fresh board', 'app-core');
   
   // 🔥 USER REQUEST: Call startLevel() with current boardNumber instead of just rebuildBoard()
   // This ensures board-specific rules are applied and the correct board is restarted
@@ -7555,6 +7602,12 @@ export function cleanupGame() {
   // 🔥 CRITICAL FIX: Clear all tracked timeouts
   clearAllAppTimeouts();
   
+  // 🔥 CRITICAL FIX: Clear all tracked requestAnimationFrame callbacks
+  clearAllAppAnimationFrames();
+  
+  // 🔥 CRITICAL FIX: Clear all tracked intervals
+  clearAllAppIntervals();
+  
   // 🔥 CRITICAL FIX: Remove event listeners properly
   try { 
     window.removeEventListener('resize', layoutBoard); 
@@ -7621,6 +7674,19 @@ export function cleanupGame() {
   
   // Clear board
   if (board) {
+    // 🔥 CRITICAL FIX: Cleanup background layer BEFORE removeChildren
+    if (backgroundLayer) {
+      try {
+        if (board.children.includes(backgroundLayer)) {
+          board.removeChild(backgroundLayer);
+        }
+        backgroundLayer.destroy({ children: true });
+      } catch (e) {
+        console.warn('⚠️ Error destroying background layer in cleanupGame:', e);
+      }
+      backgroundLayer = null; // 🔥 CRITICAL: Nullify reference to prevent memory leak
+    }
+    
     board.removeChildren();
     if (boardBG) {
       board.addChildAt(boardBG, 0);

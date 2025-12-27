@@ -140,8 +140,29 @@ class Logger {
 }
 
 // Create default logger instance
+// 🔥 OPTIMIZATION: Default to WARN level to reduce console noise
+// Set LOG_LEVEL environment variable to override (DEBUG, INFO, WARN, ERROR, FATAL)
+const getLogLevel = (): LogLevel => {
+  const envLevel = typeof window !== 'undefined' 
+    ? (window as any).__ccLogLevel 
+    : process.env.LOG_LEVEL;
+  
+  if (envLevel) {
+    const upper = String(envLevel).toUpperCase();
+    if (upper === 'DEBUG') return LogLevel.DEBUG;
+    if (upper === 'INFO') return LogLevel.INFO;
+    if (upper === 'WARN') return LogLevel.WARN;
+    if (upper === 'ERROR') return LogLevel.ERROR;
+    if (upper === 'FATAL') return LogLevel.FATAL;
+  }
+  
+  // Default: WARN (only warnings and errors)
+  // Change to INFO for development debugging
+  return LogLevel.WARN;
+};
+
 const defaultLogger = new Logger({
-  level: LogLevel.INFO,
+  level: getLogLevel(),
   enableConsole: true,
   enableStorage: false,
   maxEntries: 1000,
@@ -151,3 +172,80 @@ const defaultLogger = new Logger({
 // Export logger and types
 export { defaultLogger as logger };
 export type { Logger };
+
+// 🔧 DEBUG HELPER: Expose logger control to window for easy debugging
+if (typeof window !== 'undefined') {
+  (window as any).__ccLogger = {
+    // Set log level dynamically
+    setLevel: (level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL') => {
+      const levelMap: Record<string, LogLevel> = {
+        'DEBUG': LogLevel.DEBUG,
+        'INFO': LogLevel.INFO,
+        'WARN': LogLevel.WARN,
+        'ERROR': LogLevel.ERROR,
+        'FATAL': LogLevel.FATAL
+      };
+      (defaultLogger as any).config.level = levelMap[level] || LogLevel.WARN;
+      console.log(`✅ Logger level set to: ${level}`);
+    },
+    // Get current log level
+    getLevel: () => {
+      const level = (defaultLogger as any).config.level;
+      const levelNames = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'];
+      return levelNames[level] || 'WARN';
+    },
+    // Show all logs (DEBUG level)
+    showAll: () => {
+      (defaultLogger as any).config.level = LogLevel.DEBUG;
+      console.log('✅ Logger: Showing all logs (DEBUG level)');
+    },
+    // Show only warnings and errors (default)
+    showWarnings: () => {
+      (defaultLogger as any).config.level = LogLevel.WARN;
+      console.log('✅ Logger: Showing only warnings and errors (WARN level)');
+    },
+    // Export logs to clipboard-friendly format
+    exportLogs: () => {
+      const entries = (defaultLogger as any).entries || [];
+      const logText = entries.map((entry: LogEntry) => {
+        const level = LogLevel[entry.level];
+        const time = entry.timestamp;
+        const context = entry.context ? ` [${entry.context}]` : '';
+        const data = entry.data ? ` ${JSON.stringify(entry.data)}` : '';
+        return `[${level}] ${time}${context} ${entry.message}${data}`;
+      }).join('\n');
+      
+      // Copy to clipboard
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(logText).then(() => {
+          console.log('✅ Logs copied to clipboard!');
+        }).catch(() => {
+          console.log('⚠️ Failed to copy to clipboard, showing in console:');
+          console.log(logText);
+        });
+      } else {
+        console.log('⚠️ Clipboard API not available, showing logs:');
+        console.log(logText);
+      }
+      return logText;
+    },
+    // Get logs as array
+    getLogs: () => {
+      return (defaultLogger as any).entries || [];
+    },
+    // Clear logs
+    clear: () => {
+      defaultLogger.clear();
+      console.log('✅ Logs cleared');
+    }
+  };
+  
+  // Also expose LogLevel enum for convenience
+  (window as any).__ccLogLevels = {
+    DEBUG: LogLevel.DEBUG,
+    INFO: LogLevel.INFO,
+    WARN: LogLevel.WARN,
+    ERROR: LogLevel.ERROR,
+    FATAL: LogLevel.FATAL
+  };
+}

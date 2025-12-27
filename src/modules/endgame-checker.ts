@@ -15,6 +15,8 @@
  * OPTIMIZED: Includes debouncing to prevent race conditions
  */
 
+import { logger } from '../core/logger.js';
+
 export type EndGameResult = 
   | { type: 'clean'; reason: string }
   | { type: 'stuck'; reason: string }
@@ -143,12 +145,12 @@ export function getActiveTiles(tiles: any[]): any[] {
       cachedTilesHash = currentHash;
       cachedTilesLength = tiles.length;
       cachedActiveTiles = tiles.filter(tileIsActive);
-      console.log('🔄 EndGameChecker: Active tiles cache refreshed', {
+      logger.debug('🔄 EndGameChecker: Active tiles cache refreshed', 'endgame-checker', {
         count: cachedActiveTiles.length,
         hash: currentHash.substring(0, 50) + '...'
       });
     } else {
-      console.log('💾 EndGameChecker DIAGNOSTIC: Cache HIT - using cached active tiles', {
+      logger.debug('💾 EndGameChecker DIAGNOSTIC: Cache HIT - using cached active tiles', 'endgame-checker', {
         count: cachedActiveTiles.length,
         hash: currentHash.substring(0, 20) + '...'
       });
@@ -205,14 +207,14 @@ function isLastMergeScenario(context: EndGameContext): boolean {
 
   // Only check if we just removed src tile and dst is merge 6
   if (!justRemovedSrc || !dstTile || dstTile.value !== MAX_MERGE_VALUE) {
-    console.log('🔍 isLastMergeScenario: Conditions not met for last merge check');
+    logger.debug('🔍 isLastMergeScenario: Conditions not met for last merge check', 'endgame-checker');
     return false;
   }
 
   // Get active tiles excluding dst (after src was removed)
   const activeTiles = getActiveTiles(tiles).filter(t => t !== dstTile);
 
-  console.log('🔍 isLastMergeScenario: Active tiles excluding dst:', activeTiles.map(t => ({ value: t.value, special: t.special })));
+  logger.debug('🔍 isLastMergeScenario: Active tiles excluding dst', 'endgame-checker', { tiles: activeTiles.map(t => ({ value: t.value, special: t.special })) });
 
   // 🔥 CRITICAL FIX: If magnet exists on board as separate tile, it's NOT a last merge
   // User can still merge magnet with merge 6 to create final merge
@@ -279,7 +281,7 @@ function isLastMergeScenario(context: EndGameContext): boolean {
     return true;
   }
 
-  console.log('🔍 isLastMergeScenario: Not a last merge - active tiles remaining or conditions not met');
+  logger.debug('🔍 isLastMergeScenario: Not a last merge - active tiles remaining or conditions not met', 'endgame-checker');
   return false;
 }
 
@@ -297,7 +299,7 @@ function isBoardCleanCheck(tiles: any[]): boolean {
 function checkAnyMergePossible(context: EndGameContext): boolean {
   const { makeBoard, tiles } = context;
   const canMerge = makeBoard.anyMergePossible(tiles);
-  console.log('🔍 isGameStuck: anyMergePossible returned:', canMerge);
+  logger.debug('🔍 isGameStuck: anyMergePossible returned', 'endgame-checker', { canMerge });
   return canMerge;
 }
 
@@ -410,7 +412,7 @@ function isGameStuck(context: EndGameContext): boolean {
 
   // First check: anyMergePossible
   if (checkAnyMergePossible(context)) {
-    console.log('✅ isGameStuck: Merges possible, game is NOT stuck');
+    logger.debug('✅ isGameStuck: Merges possible, game is NOT stuck', 'endgame-checker');
     return false;
   }
 
@@ -498,12 +500,12 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
       });
     }
   } else {
-    console.log('🔥 EndGameChecker: Force refresh requested - bypassing cache');
+    logger.debug('🔥 EndGameChecker: Force refresh requested - bypassing cache', 'endgame-checker');
   }
   
   const { tiles, moves, makeBoard } = context;
   
-  console.log('🎯 EndGameChecker: Starting comprehensive end game check...');
+  logger.debug('🎯 EndGameChecker: Starting comprehensive end game check', 'endgame-checker');
   
   // 1. Check for last merge scenario (highest priority)
   if (isLastMergeScenario(context)) {
@@ -532,7 +534,7 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
 
   // 🔥 DIAGNOSTIC LOG: Check anyMergePossible result vs additional conditions
   const anyMergePossibleResult = makeBoard.anyMergePossible(tiles);
-  console.log('🔍 EndGameChecker DIAGNOSTIC: anyMergePossible result:', anyMergePossibleResult, 'hasMagnet:', hasMagnet, 'hasWild:', hasWild, 'hasMerge6:', hasMerge6);
+  logger.debug('🔍 EndGameChecker DIAGNOSTIC: anyMergePossible result', 'endgame-checker', { anyMergePossibleResult, hasMagnet, hasWild, hasMerge6 });
 
   // 🔥 CRITICAL: If magnet + merge6 exists, game can continue (magnet can merge with merge6)
   if (hasMagnet && hasMerge6) {
@@ -596,7 +598,7 @@ if (isGameStuck(context)) {
 }
   
   // 5. Game continues
-  console.log('✅ EndGameChecker: Game continues - merges possible');
+  logger.debug('✅ EndGameChecker: Game continues - merges possible', 'endgame-checker');
   lastCheckResult = { type: 'continue', reason: 'merges_possible' };
   lastCheckTime = now;
   lastCheckContextHash = contextHash;
@@ -615,7 +617,7 @@ export function clearEndGameCache(): void {
   cachedCategoriesHash = '';
   lastCheckResult = null;
   lastCheckContextHash = '';
-  console.log('🔄 EndGameChecker: All caches cleared (active tiles, tile categories, result cache, hash cache)');
+  logger.debug('🔄 EndGameChecker: All caches cleared', 'endgame-checker');
 }
 
 /**

@@ -6,7 +6,6 @@ import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile
 import { COLS, ROWS, TILE, GAP } from './constants.js';
 import * as HUD from './hud-helpers.js';
 import { openAtCell, openEmpties, spawnBounce } from './app-spawn.ts';
-import { showStarsModal } from './stars-modal.js';
 import { showBoardFailModal } from './board-fail-modal.js';
 import { rebuildBoard } from './app-board.js';
 import { drawBoardBG } from './app-core.js';
