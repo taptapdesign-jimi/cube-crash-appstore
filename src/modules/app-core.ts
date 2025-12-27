@@ -8,7 +8,7 @@ import {
   COLS, ROWS, TILE, GAP, HUD_H,
   ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_BEER
 } from './constants.js';
-import { sweetPopIn, sweetPopOut } from './app-board.js';
+import { sweetPopIn, sweetPopOut } from './app-board.ts';
 import * as CONSTS from './constants.js';
 import { STATE } from './app-state.ts';
 

@@ -4,7 +4,7 @@ import { gsap } from 'gsap';
 import { STATE, ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4, ASSET_WILD, ASSET_WILD_BEER, TILE } from './app-state.js';
 // layout function is now in app.js
 import { installDrag } from './install-drag.ts';
-import { rebuildBoard } from './app-board.js';
+import { rebuildBoard } from './app-board.ts';
 import { merge } from './app-merge.ts';
 import { logger } from '../core/logger.js';
 import memoryManager from './memory-manager.ts';
