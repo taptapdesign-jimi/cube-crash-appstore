@@ -1,31 +1,52 @@
 import { Container, Graphics } from 'pixi.js';
 import { gsap } from 'gsap';
 
+interface LandBounceOptions {
+  amp?: number;      // 0..1  koliki squash/stretch (default 0.18)
+  tilt?: number;     // radijani nagiba za playful feel (default 0.07)
+  leadIn?: number;   // s trajanje inicijalnog "udarca" (default 0.12)
+  settle?: number;   // trajanje glavnog elastic settle-a (default 0.42)
+  secondary?: boolean;  // hoćemo li mali sekundarni povrat (default true)
+}
+
+interface CreateWildLoaderFXOptions {
+  width?: number;
+  color?: number;
+  trackColor?: number;
+  bubbleRate?: number;    // ↑ denser per second
+}
+
+interface WildLoaderController {
+  view: Container;
+  start: () => void;
+  stop: () => void;
+  setProgress: (ratio: number, animate?: boolean) => void;
+  destroy: () => void;
+}
+
 /**
  * Stronger, juicier elastic "boing" when tile se spusti/stacka na drugu.
  * Ovo NE dira merge-6 efekte; koristi se kod standardnog spajanja (<6) i
  * kad pločica "sjedne" na mjesto.
  *
- * @param {PIXI.DisplayObject} tile - tile container; koristimo tile.rotG ako postoji
- * @param {Object} [opts]
- *   amp:     0..1  koliki squash/stretch (default 0.18)
- *   tilt:    radijani nagiba za playful feel (default 0.07)
- *   leadIn:  s trajanje inicijalnog "udarca" (default 0.12)
- *   settle:  trajanje glavnog elastic settle-a (default 0.42)
- *   secondary:  hoćemo li mali sekundarni povrat (default true)
+ * @param tile - tile container; koristimo tile.rotG ako postoji
+ * @param opts - animation options
  */
-export function landBounce(tile, opts = {}) {
+export function landBounce(tile: any, opts: LandBounceOptions = {}): void {
   if (!tile) return;
 
   // Pulsiraj CIJELI tile (ne rotG), da puls bude ravnomjeran oko centra
   const host = tile;
 
   // kraći, elastični puls (uniformno), bez rotacije
-  const A       = opts.amp     ?? 0.16;  // squash/stretch
-  const leadIn  = opts.leadIn  ?? 0.07;  // mrvicu duži udar
-  const settle  = opts.settle  ?? 0.26;  // nježnije, duže smirivanje
+  const A = opts.amp ?? 0.16;  // squash/stretch
+  const leadIn = opts.leadIn ?? 0.07;  // mrvicu duži udar
+  const settle = opts.settle ?? 0.26;  // nježnije, duže smirivanje
 
-  try { gsap.killTweensOf(host); gsap.killTweensOf(host.scale); } catch {}
+  try {
+    gsap.killTweensOf(host);
+    gsap.killTweensOf(host.scale);
+  } catch {}
 
   const sx = (host.scale && host.scale.x) || 1;
   const sy = (host.scale && host.scale.y) || 1;
@@ -59,19 +80,19 @@ export function createWildLoaderFX({
   color = 0xD59477,
   trackColor = 0xEBE2D8,
   bubbleRate = 42,    // ↑ denser per second
-} = {}) {
+}: CreateWildLoaderFXOptions = {}): WildLoaderController {
   const view = new Container();
   view.label = 'wild-loader-fx';
 
   // Track (8px height)
   const H = 8;
   const track = new Graphics();
-  track.roundRect(0, 0, width, H, H/2).fill(trackColor);
+  track.roundRect(0, 0, width, H, H / 2).fill(trackColor);
   view.addChild(track);
 
   // Fill + mask (wavy top)
   const fill = new Graphics();
-  fill.roundRect(0, 0, width, H, H/2).fill(color);
+  fill.roundRect(0, 0, width, H, H / 2).fill(color);
   view.addChild(fill);
 
   const mask = new Graphics();
@@ -79,30 +100,30 @@ export function createWildLoaderFX({
   fill.mask = mask;
 
   // Bubble layer (above fill)
-  const bubbles = new Container(); 
+  const bubbles = new Container();
   view.addChild(bubbles);
 
   let progress = 0;   // 0..1
   let running = false;
 
-  function redrawMask() {
+  function redrawMask(): void {
     const w = width;
     mask.clear();
 
     const waveY = (H * (1 - progress));
 
-    // Build a flat polygon mask (no sine wave) 
-    mask.beginFill(0xFFFFFF, 1); 
+    // Build a flat polygon mask (no sine wave)
+    mask.beginFill(0xFFFFFF, 1);
     mask.moveTo(0, 0);
     mask.lineTo(w, 0);
     mask.lineTo(w, H);
     mask.lineTo(0, H);
     mask.lineTo(0, 0);
     mask.endFill();
-  } 
+  }
 
   // Simple bubble sprite as Graphics circle
-  function spawnBubble() {
+  function spawnBubble(): void {
     const g = new Graphics();
     const r = 2.2 + Math.random() * 5.2; // bigger range, chunkier comic bubbles
     g.circle(0, 0, r).fill(0xFFFFFF, 1.0);
@@ -119,21 +140,21 @@ export function createWildLoaderFX({
     bubbles.addChild(g);
 
     // Stronger motion but still contained inside the 8px bar
-    const rise  = 3 + Math.random() * 7;          // rise inside the bar
+    const rise = 3 + Math.random() * 7;          // rise inside the bar
     const drift = (Math.random() - 0.5) * 10;      // lateral sway
-    const life  = 0.65 + Math.random() * 0.45;     // a bit longer on screen
+    const life = 0.65 + Math.random() * 0.45;     // a bit longer on screen
     const scaleUp = 1.25 + Math.random() * 0.45;   // punchier pop size
 
     const tl = gsap.timeline({
-      onComplete: () => { 
-        try { 
+      onComplete: () => {
+        try {
           // 🔥 CRITICAL: Kill all tweens before removing
           gsap.killTweensOf(g);
           gsap.killTweensOf(g.scale);
           gsap.killTweensOf(g.rotation);
-          bubbles.removeChild(g); 
-          g.destroy(); 
-        } catch {} 
+          bubbles.removeChild(g);
+          g.destroy();
+        } catch {}
       }
     });
 
@@ -145,17 +166,30 @@ export function createWildLoaderFX({
 
     // micro "shimmy" to feel more lively (scale + slight rotation)
     // 🔥 CRITICAL: Store tween references for cleanup
-    const shimmyScaleTween = gsap.to(g.scale, { x: '+=0.10', y: '+=0.10', duration: 0.18, repeat: Math.ceil(life / 0.18), yoyo: true, ease: 'sine.inOut' });
-    const shimmyRotTween = gsap.to(g, { rotation: (Math.random() * 0.18) - 0.09, duration: 0.22, repeat: Math.ceil(life / 0.22), yoyo: true, ease: 'sine.inOut' });
-    
+    const shimmyScaleTween = gsap.to(g.scale, {
+      x: '+=0.10',
+      y: '+=0.10',
+      duration: 0.18,
+      repeat: Math.ceil(life / 0.18),
+      yoyo: true,
+      ease: 'sine.inOut'
+    });
+    const shimmyRotTween = gsap.to(g, {
+      rotation: (Math.random() * 0.18) - 0.09,
+      duration: 0.22,
+      repeat: Math.ceil(life / 0.22),
+      yoyo: true,
+      ease: 'sine.inOut'
+    });
+
     // Store tweens on graphics object for cleanup
-    g._shimmyScaleTween = shimmyScaleTween;
-    g._shimmyRotTween = shimmyRotTween;
+    (g as any)._shimmyScaleTween = shimmyScaleTween;
+    (g as any)._shimmyRotTween = shimmyRotTween;
   }
 
-  let bubbleAccumulator = 0; 
+  let bubbleAccumulator = 0;
 
-  const tick = (dt) => {
+  const tick = (dt: number): void => {
     // dt is in seconds on gsap.ticker
     if (!running) return;
 
@@ -171,20 +205,22 @@ export function createWildLoaderFX({
     }
   };
 
-  function start() {
+  function start(): void {
     if (running) return;
     running = true;
     gsap.ticker.add(tick);
   }
-  function stop() {
+
+  function stop(): void {
     if (!running) return;
     running = false;
     gsap.ticker.remove(tick);
   }
-  let progressAnimation = null;
-  
-  function setProgress(ratio, animate = false) {
-    const target = Math.max(0, Math.min(1, ratio || 0)); 
+
+  let progressAnimation: gsap.core.Tween | null = null;
+
+  function setProgress(ratio: number, animate: boolean = false): void {
+    const target = Math.max(0, Math.min(1, ratio || 0));
     if (!animate) {
       // 🔥 CRITICAL: Kill existing animation if switching to instant
       if (progressAnimation) {
@@ -197,24 +233,32 @@ export function createWildLoaderFX({
       redrawMask();
       return;
     }
-    
+
     // 🔥 CRITICAL: Kill existing animation before starting new one
     if (progressAnimation) {
       try {
         progressAnimation.kill();
       } catch {}
     }
-    
+
     const obj = { p: progress };
     progressAnimation = gsap.to(obj, {
-      p: target, duration: 0.25, ease: 'power2.out',
-      onUpdate: () => { progress = obj.p; redrawMask(); },
-      onComplete: () => { progressAnimation = null; }
+      p: target,
+      duration: 0.25,
+      ease: 'power2.out',
+      onUpdate: () => {
+        progress = obj.p;
+        redrawMask();
+      },
+      onComplete: () => {
+        progressAnimation = null;
+      }
     });
   }
-  function destroy() {
+
+  function destroy(): void {
     stop();
-    
+
     // 🔥 CRITICAL: Kill progress animation before destroy
     if (progressAnimation) {
       try {
@@ -222,19 +266,25 @@ export function createWildLoaderFX({
         progressAnimation = null;
       } catch {}
     }
-    
+
     // 🔥 CRITICAL: Kill all GSAP tweens on bubbles
     try {
       bubbles.children.forEach(child => {
         gsap.killTweensOf(child);
-        gsap.killTweensOf(child.scale);
-        gsap.killTweensOf(child.rotation);
+        gsap.killTweensOf((child as any).scale);
+        gsap.killTweensOf((child as any).rotation);
       });
     } catch {}
-    
-    try { bubbles.removeChildren(); } catch {}
-    try { view.removeChildren(); } catch {}
-    try { view.destroy({ children: true }); } catch {}
+
+    try {
+      bubbles.removeChildren();
+    } catch {}
+    try {
+      view.removeChildren();
+    } catch {}
+    try {
+      view.destroy({ children: true });
+    } catch {}
   }
 
   // initial draw
@@ -247,3 +297,4 @@ export function createWildLoaderFX({
 export default {
   landBounce,
 };
+

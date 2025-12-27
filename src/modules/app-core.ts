@@ -13,14 +13,14 @@ import * as CONSTS from './constants.js';
 import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
-import { installDrag } from './install-drag.js';
+import { installDrag } from './install-drag.ts';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning, cleanupWildBeerExplosion, waitForBubblesAnimationToComplete } from './fx.js';
 import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
 // import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
-import FX from './fx-helpers.js';
-import * as SPAWN from './spawn-helpers.js';
+import FX from './fx-helpers.ts';
+import * as SPAWN from './spawn-helpers.ts';
 import * as HUD   from './hud-helpers.js';
 import { wild } from './hud-helpers.js';
 import * as FLOW  from './level-flow.js';
