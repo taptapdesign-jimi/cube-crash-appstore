@@ -4,7 +4,7 @@ import { gsap } from 'gsap';
 import { STATE, TILE, ASSET_WILD } from './app-state.js';
 import { ASSET_WILD_MAGNET, ASSET_WILD_BEER } from './constants.js';
 import * as makeBoard from './board.js';
-import { startWildIdle, wildImpactEffect, startWildShimmer, startWildStars, startWildBeerBubbles } from './fx.js';
+import { startWildIdle, wildImpactEffect, startWildShimmer, startWildStars, startWildBeerBubbles } from "./fx.ts"';
 import { logger } from '../core/logger.js';
 import { resetTileToNormalState } from './tile-state-utils.ts';
 // drawBoardBG function is now in app.js

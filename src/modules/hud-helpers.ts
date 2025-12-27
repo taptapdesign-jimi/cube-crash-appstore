@@ -5,7 +5,7 @@ import { pauseGame, resumeGame, restart } from './app-core.ts';
 // import { showPauseModal } from './pause-modal.js'; // Replaced with menu screen
 import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
 import uiManager from './ui-manager.ts';
-import { smokeBubblesAtTile } from './fx.js';
+import { smokeBubblesAtTile } from './fx.ts';
 
 interface GraphicsPool {
   acquire: () => Graphics;

@@ -1,14 +1,14 @@
-// @ts-nocheck
-// src/modules/fx.js
+// src/modules/fx.ts
 // Minimal FX surface used by app.js (stable named exports).
 
-import { Container, Graphics, Text, Texture, Sprite } from 'pixi.js';
+import { Container, Graphics, Text, Texture, Sprite, Board } from 'pixi.js';
 import { gsap } from 'gsap';
+import type { Tile } from '../types/game-types.js';
 
-import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from './wild-stars.js';
+import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from './wild-stars.ts';
 import { TILE } from './constants.js';
-import { graphicsPool } from './object-pool.js';
-import { selectPattern, getColor, getParams, getActiveTemplate, getDragParticleColors, getBubbleColors } from './templates/template-manager.js';
+import { graphicsPool } from './object-pool.ts';
+import { selectPattern, getColor, getParams, getActiveTemplate, getDragParticleColors, getBubbleColors } from './templates/template-manager.ts';
 
 try {
   preloadWildStarTexture();
@@ -16,39 +16,39 @@ try {
 
 // Lightweight FX throttling to reduce particle load during rapid back-to-back merges.
 const FX_HOT_WINDOW_MS = 320;
-let lastFxBurstTs = 0;
-const nowTs = ()=> (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
-function getFxHotFactor(){
+let lastFxBurstTs: number = 0;
+const nowTs = (): number => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
+function getFxHotFactor(): number {
   const now = nowTs();
   const delta = now - lastFxBurstTs;
   lastFxBurstTs = now;
   if (delta >= FX_HOT_WINDOW_MS) return 1;
   // Blend from 0.55 → 1 based on elapsed time inside the window.
-  return 0.55 + (delta/FX_HOT_WINDOW_MS)*0.45;
+  return 0.55 + (delta / FX_HOT_WINDOW_MS) * 0.45;
 }
 
-export function startWildStars(tile){
+export function startWildStars(tile: Tile): void {
   attachWildStarHalo(tile);
 }
 
-export function stopWildStars(tile){
+export function stopWildStars(tile: Tile): void {
   detachWildStarHalo(tile);
 }
 
 // 🔥 WILD-BEER: Continuous bubble animation system
-const wildBeerBubbleSystems = new Map();
+const wildBeerBubbleSystems = new Map<any, any>();
 
 // FPS monitoring for dynamic quality reduction
-let fpsMonitorActive = false;
-let fpsFrameCount = 0;
-let fpsStartTime = 0;
-let currentFps = 60;
-let lastFpsCheck = 0;
+let fpsMonitorActive: boolean = false;
+let fpsFrameCount: number = 0;
+let fpsStartTime: number = 0;
+let currentFps: number = 60;
+let lastFpsCheck: number = 0;
 
 /**
  * Start FPS monitoring
  */
-function startFpsMonitoring() {
+function startFpsMonitoring(): void {
   if (fpsMonitorActive) return;
   fpsMonitorActive = true;
   fpsFrameCount = 0;
@@ -60,7 +60,7 @@ function startFpsMonitoring() {
 /**
  * Stop FPS monitoring and return current FPS
  */
-function stopFpsMonitoring() {
+function stopFpsMonitoring(): number {
   if (!fpsMonitorActive) return currentFps;
   fpsMonitorActive = false;
   const elapsed = performance.now() - fpsStartTime;
@@ -75,8 +75,8 @@ function stopFpsMonitoring() {
  * Update FPS counter (call this each frame)
  * 🔥 PERFORMANCE FIX: Throttled to every 2nd frame to reduce overhead
  */
-let fpsUpdateCounter = 0;
-function updateFpsCounter() {
+let fpsUpdateCounter: number = 0;
+function updateFpsCounter(): void {
   // 🔥 PERFORMANCE FIX: Throttle to every 2nd frame (50% reduction in overhead)
   fpsUpdateCounter++;
   if (fpsUpdateCounter % 2 !== 0) return; // Skip every other frame
@@ -96,7 +96,7 @@ function updateFpsCounter() {
 /**
  * Get dynamic bubble count based on current FPS (simplified version)
  */
-function getDynamicBubbleCount(baseCount) {
+function getDynamicBubbleCount(baseCount: number): number {
   if (currentFps >= 40) return baseCount; // Full quality
   if (currentFps >= 25) return Math.max(20, Math.floor(baseCount * 0.7)); // 70% quality
   if (currentFps >= 15) return Math.max(15, Math.floor(baseCount * 0.5)); // 50% quality

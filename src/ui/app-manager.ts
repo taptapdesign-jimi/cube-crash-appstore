@@ -1,6 +1,6 @@
 // App Manager - Handles lazy loading and dynamic component rendering
 import { logger } from '../core/logger.js';
-import { startHeroImageParticles, stopHeroImageParticles } from '../modules/fx.js';
+import { startHeroImageParticles, stopHeroImageParticles } from "./fx.ts"';
 
 export type ScreenType = 'loading' | 'home' | 'game' | 'stats' | 'collectibles' | 'menu' | 'settings';
 
