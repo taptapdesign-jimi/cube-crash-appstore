@@ -1,14 +1,19 @@
-// public/src/modules/hud-helpers.js
-import { Container, Graphics, Text, Rectangle, Sprite, Assets } from 'pixi.js';
+// public/src/modules/hud-helpers.ts
+import { Container, Graphics, Text, Rectangle, Sprite, Assets, Application, Stage } from 'pixi.js';
 import { gsap } from 'gsap';
-import { pauseGame, resumeGame, restart } from './app-core.js';
+import { pauseGame, resumeGame, restart } from './app-core.ts';
 // import { showPauseModal } from './pause-modal.js'; // Replaced with menu screen
 import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
-import uiManager from './ui-manager.js';
+import uiManager from './ui-manager.ts';
 import { smokeBubblesAtTile } from './fx.js';
 
-let graphicsPool = null;
-let __globalGraphicsObjects = null;
+interface GraphicsPool {
+  acquire: () => Graphics;
+  release: (g: Graphics) => void;
+}
+
+let graphicsPool: GraphicsPool | null = null;
+let __globalGraphicsObjects: Set<Graphics> | null = null;
 
 // Lazy load graphics pool to avoid circular dependency
 function getGraphicsPool() {
@@ -22,7 +27,7 @@ function getGraphicsPool() {
     
     // Try to load object pool dynamically (if available)
     try {
-      import('./object-pool.js').then((poolModule) => {
+      import('./object-pool.ts').then((poolModule: any) => {
         if (poolModule && poolModule.graphicsPool) {
           graphicsPool = poolModule.graphicsPool;
           __globalGraphicsObjects = poolModule.__globalGraphicsObjects || new Set();
@@ -39,21 +44,26 @@ function getGraphicsPool() {
 }
 
 // Local boardSize function (same as in app.js)
-function boardSize(){ return { w: COLS*TILE + (COLS-1)*GAP, h: ROWS*TILE + (ROWS-1)*GAP }; }
+function boardSize(): { w: number; h: number } {
+  return { w: COLS * TILE + (COLS - 1) * GAP, h: ROWS * TILE + (ROWS - 1) * GAP };
+}
 
 // Old makeWildLoader function removed - using new PIXI implementation below
 
 /* ---------------- Minimal HUD the app.js expects ---------------- */
-let HUD_ROOT = null;
-let boardText, scoreText, comboText, starText;
-let comboXText = null; // "x" text reference for combo (14px)
-let closeIconSprite = null; // Close icon sprite (replaces boardText)
-let comboWrap; // wrapper for jitter
-let wild;
-let hudCloseButton = null;
-let boardIndicator = null;
-let boardIndicatorLabel = null;
-let comboWobbleTween = null; // GSAP tween for combo icon wobble animation
+let HUD_ROOT: Container | null = null;
+let boardText: Text | null = null;
+let scoreText: Text | null = null;
+let comboText: Text | null = null;
+let starText: Text | null = null;
+let comboXText: Text | null = null; // "x" text reference for combo (14px)
+let closeIconSprite: Sprite | null = null; // Close icon sprite (replaces boardText)
+let comboWrap: Container | null = null; // wrapper for jitter
+let wild: any = null;
+let hudCloseButton: HTMLElement | null = null;
+let boardIndicator: HTMLElement | null = null;
+let boardIndicatorLabel: HTMLElement | null = null;
+let comboWobbleTween: gsap.core.Tween | null = null; // GSAP tween for combo icon wobble animation
 
 // 🔥 CLEANUP: Function to kill all combo animations and prevent memory leaks
 export function cleanupComboAnimations() {
@@ -371,7 +381,7 @@ export function animateBoardIndicatorExit(duration = 0.3) {
 }
 
 // Unified container for PIXI HUD + DOM wild preloader
-let unifiedHudContainer = null;
+let unifiedHudContainer: Container | null = null;
 
 export function createUnifiedHudContainer() {
   console.log('🎯 Creating unified HUD container...');
@@ -641,12 +651,12 @@ function makeWildLoader() {
 // wild is declared at line 17, no need to redeclare
 
 export { wild };
-let __comboJitterTl = null;
-let __comboBumpTl = null;
-let __shakeTl = null;        // drives shake amplitude during bump/deflate
-let __lastComboVal = 0;
-let __shakeMul = 1.0;        // global multiplier sampled by jitter
-let __scoreTweening = false;
+let __comboJitterTl: gsap.core.Timeline | null = null;
+let __comboBumpTl: gsap.core.Timeline | null = null;
+let __shakeTl: gsap.core.Timeline | null = null;        // drives shake amplitude during bump/deflate
+let __lastComboVal: number = 0;
+let __shakeMul: number = 1.0;        // global multiplier sampled by jitter
+let __scoreTweening: boolean = false;
 let __boardTweening = false;
 let __prevScore = 0;
 let __prevBoard = 0;
@@ -692,7 +702,7 @@ function stopComboFX(){
   } catch {}
 }
 
-export function layout({ app, top }) { 
+export function layout({ app, top }: { app: Application; top?: number }): void { 
   if (!HUD_ROOT) return;
   const vw = app.renderer.width;
   const vh = app.renderer.height;
