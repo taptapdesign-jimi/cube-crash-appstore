@@ -33,6 +33,19 @@ import memoryManager from './memory-manager.ts';
 import { boardSpecificRules, isWildSpawnEnabled, isWildMeterEnabled, filterWildType, getWildMeterFillRate } from './board-specific-rules.ts';
 import { logger } from '../core/logger.js';
 import type { Tile, Board, Grid, HUD, Stage, Drag, MakeBoard } from '../types/game-types.js';
+import { 
+  boardSize, 
+  cellXY, 
+  randVal, 
+  sleep, 
+  pickWildValue,
+  trackAppTimeout,
+  clearAllAppTimeouts,
+  trackAppAnimationFrame,
+  clearAllAppAnimationFrames,
+  trackAppInterval,
+  clearAllAppIntervals
+} from './app-core-utils.js';
 
 // HUD functions from hud-helpers.js
 
@@ -120,58 +133,8 @@ const forceRemoveMagnetMergeResidues = (reason: string) => {
   }
 };
 
-// 🔥 MEMORY LEAK FIX: Track all timeouts for cleanup (optimization)
-const _appTimeouts: Set<NodeJS.Timeout> = new Set();
-
-function trackAppTimeout(callback: () => void, delay: number): NodeJS.Timeout {
-  const timeout = setTimeout(() => {
-    callback();
-    _appTimeouts.delete(timeout);
-  }, delay);
-  _appTimeouts.add(timeout);
-  return timeout;
-}
-
-function clearAllAppTimeouts() {
-  logger.debug(`🧹 Clearing ${_appTimeouts.size} pending timeouts from app-core`, 'app-core');
-  _appTimeouts.forEach(timeout => clearTimeout(timeout));
-  _appTimeouts.clear();
-}
-
-// 🔥 MEMORY LEAK FIX: Track all requestAnimationFrame callbacks for cleanup
-const _appAnimationFrames: Set<number> = new Set();
-
-function trackAppAnimationFrame(callback: FrameRequestCallback): number {
-  const rafId = requestAnimationFrame((now: number) => {
-    callback(now);
-    _appAnimationFrames.delete(rafId);
-  });
-  _appAnimationFrames.add(rafId);
-  return rafId;
-}
-
-function clearAllAppAnimationFrames() {
-  logger.debug(`🧹 Clearing ${_appAnimationFrames.size} pending requestAnimationFrame callbacks from app-core`, 'app-core');
-  _appAnimationFrames.forEach(rafId => cancelAnimationFrame(rafId));
-  _appAnimationFrames.clear();
-}
-
-// 🔥 MEMORY LEAK FIX: Track all intervals for cleanup
-const _appIntervals: Set<NodeJS.Timeout> = new Set();
-
-function trackAppInterval(callback: () => void, delay: number): NodeJS.Timeout {
-  const interval = setInterval(() => {
-    callback();
-  }, delay);
-  _appIntervals.add(interval);
-  return interval;
-}
-
-function clearAllAppIntervals() {
-  logger.debug(`🧹 Clearing ${_appIntervals.size} pending intervals from app-core`, 'app-core');
-  _appIntervals.forEach(interval => clearInterval(interval));
-  _appIntervals.clear();
-}
+// 🔥 v112: Memory management functions moved to app-core-utils.ts
+// Imported: trackAppTimeout, clearAllAppTimeouts, trackAppAnimationFrame, clearAllAppAnimationFrames, trackAppInterval, clearAllAppIntervals
 // 🔥 CRITICAL: Increased from 500ms to 1200ms to allow all animations to complete
 // - Wild spawn bounce: ~580ms
 // - Magnet pull + respawn: ~1000ms
@@ -1482,9 +1445,8 @@ export function layoutBoard(){
   }
 }
 
-function boardSize(){ return { w: COLS*TILE + (COLS-1)*GAP, h: ROWS*TILE + (ROWS-1)*GAP }; }
-
-function cellXY(c, r){ return { x: c*(TILE+GAP), y: r*(TILE+GAP) }; }
+// 🔥 v112: Utility functions moved to app-core-utils.ts
+// Imported: boardSize, cellXY
 
 // PROFESSIONAL SOLUTION: Fixed background layer with all ghost placeholders
 // Created once, never destroyed, always visible
@@ -2175,7 +2137,8 @@ async function animateBoardExit(){
 }
 
 function tintLocked(t){ try{ gsap.to(t, { alpha:0.35, duration:0.10, ease:'power1.out' }); }catch{} }
-function randVal(){ return [1,1,1,2,2,3,3,4,5][(Math.random()*9)|0]; }
+// 🔥 v112: randVal moved to app-core-utils.ts
+// Imported: randVal
 function startLevel(n){
   console.log('🎯 startLevel called with:', n, 'current level:', level, 'current boardNumber:', boardNumber, 'current score:', score);
   
@@ -3038,40 +3001,8 @@ async function spawnWildFromMeter(){
 
 // -------------------- merge --------------------
 
-function pickWildValue(dstValue) {
-  // Always exclude the target value to avoid spawning same number
-  let candidates = [1,2,3,4,5].filter(v => v !== dstValue);
-  
-  console.log('🎯 pickWildValue: target was', dstValue, 'candidates:', candidates);
-
-  // Smart logic: if target is high (4-5), prefer lower numbers (1-3)
-  // if target is low (1-2), prefer higher numbers (3-5)
-  if (dstValue >= 4) {
-    // Target is high, prefer lower numbers
-    const lowCandidates = candidates.filter(v => v <= 3);
-    if (lowCandidates.length > 0) {
-      candidates = lowCandidates;
-      console.log('🎯 Preferring lower numbers:', candidates);
-    }
-  } else if (dstValue <= 2) {
-    // Target is low, prefer higher numbers
-    const highCandidates = candidates.filter(v => v >= 3);
-    if (highCandidates.length > 0) {
-      candidates = highCandidates;
-      console.log('🎯 Preferring higher numbers:', candidates);
-    }
-  }
-
-  // Fallback: if no candidates, use all except target
-  if (candidates.length === 0) {
-    candidates = [1,2,3,4,5].filter(v => v !== dstValue);
-    console.log('🎯 Fallback to all except target:', candidates);
-  }
-
-  const result = candidates[(Math.random() * candidates.length) | 0];
-  console.log('🎯 Final wild spawn value:', result);
-  return result;
-}
+// 🔥 v112: pickWildValue moved to app-core-utils.ts
+// Imported: pickWildValue
 function merge(src, dst, helpers){
   logger.debug('🔥🔥🔥 MERGE FUNCTION CALLED', 'app-core', { srcValue: src?.value, dstValue: dst?.value });
   logger.debug('🔥🔥🔥 MERGE DESTINATION CHECK', 'app-core', {
@@ -6812,7 +6743,8 @@ async function openLockedBounceParallel(k){
 }
 
 // -------------------- helpers --------------------
-function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+// 🔥 v112: sleep moved to app-core-utils.ts
+// Imported: sleep
 
 function removeTile(t){
   if(!t) return;
