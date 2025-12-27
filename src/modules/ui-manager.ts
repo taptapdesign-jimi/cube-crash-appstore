@@ -1912,8 +1912,8 @@ class UIManager {
     } else if (cameFromHomepage) {
       // 🔥 USER REQUEST: Homepage PLAY games → return to homepage slide (slide 0)
       logger.info('🏠 Returning to homepage slide (slide 0) - showing homepage');
-      this.showHomepageQuietly();
-      this.setNavigationVisibility(true);
+    this.showHomepageQuietly();
+    this.setNavigationVisibility(true);
     } else {
       // Default: show homepage (for backward compatibility)
       logger.info('🏠 No context found - defaulting to homepage slide (slide 0)');

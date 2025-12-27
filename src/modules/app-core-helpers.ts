@@ -80,9 +80,19 @@ export async function loadFirstTexture(paths: string[]): Promise<string> {
  */
 export function killComboTimer(comboIdleTimer: any): any {
   try {
-    comboIdleTimer?.kill?.();
-    comboIdleTimer = null;
-    console.log('🔥 Combo timer killed');
+    if (comboIdleTimer) {
+      // Check if it's a GSAP delayedCall (has kill method)
+      if (typeof comboIdleTimer.kill === 'function') {
+        comboIdleTimer.kill();
+        console.log('🔥 Combo timer killed (GSAP delayedCall)');
+      } 
+      // Check if it's a setTimeout (number type)
+      else if (typeof comboIdleTimer === 'number') {
+        clearTimeout(comboIdleTimer);
+        console.log('🔥 Combo timer killed (setTimeout)');
+      }
+      comboIdleTimer = null;
+    }
   } catch (e) {
     console.warn('⚠️ Failed to kill combo timer:', e);
   }
@@ -100,13 +110,34 @@ export function scheduleComboDecay(
   updateHUD: () => void
 ): any {
   try {
-    comboIdleTimer?.kill?.();
+    // Kill existing timer (supports both GSAP delayedCall and setTimeout)
+    if (comboIdleTimer) {
+      if (typeof comboIdleTimer.kill === 'function') {
+        comboIdleTimer.kill();
+      } else if (typeof comboIdleTimer === 'number') {
+        clearTimeout(comboIdleTimer);
+      }
+    }
   } catch {}
   
-  comboIdleTimer = gsap.delayedCall(COMBO_IDLE_RESET_MS / 1000, () => {
+  // 🔥 CRITICAL: Use setTimeout instead of gsap.delayedCall
+  // This ensures combo timer works independently of gsap.globalTimeline.pause()
+  // Combo timer should continue running even when bottom sheet is open
+  const currentComboValue = combo;
+  
+  console.log(`🔥 scheduleComboDecay: Setting timer for ${COMBO_IDLE_RESET_MS}ms, combo=${combo}`);
+  
+  const timerId = setTimeout(() => {
+    console.log(`🔥 COMBO TIMER EXECUTED: Timer fired after ${COMBO_IDLE_RESET_MS}ms`);
+    // 🔥 CRITICAL: Get current combo value at execution time (not from closure)
+    // This ensures we use the actual combo value when timer executes, not the value when timer was created
+    const comboAtExecution = typeof (window as any).CC?.getCombo === 'function' 
+      ? (window as any).CC.getCombo() 
+      : currentComboValue;
+    
     // COMBO DEFLATE ANIMATION: Deflate like balloon when combo is lost
-    if (combo > 0) {
-      console.log('💨 COMBO DEFLATE: Starting deflate animation for combo loss');
+    if (comboAtExecution > 0) {
+      console.log(`💨 COMBO DEFLATE: Starting deflate animation for combo loss (combo: ${comboAtExecution})`);
       try {
         // Animate combo text deflate
         if ((window as any).comboText) {
@@ -126,9 +157,23 @@ export function scheduleComboDecay(
       }
     }
     
-    hudResetCombo();
-    updateHUD();
-  });
+    // 🔥 CRITICAL: Only reset combo if it's still the same value (not incremented during timer)
+    // This prevents resetting combo if user made a merge while timer was running
+    const finalCombo = typeof (window as any).CC?.getCombo === 'function' 
+      ? (window as any).CC.getCombo() 
+      : currentComboValue;
+    
+    if (finalCombo === comboAtExecution && finalCombo > 0) {
+      console.log(`💨 COMBO DEFLATE: Resetting combo from ${finalCombo} to 0`);
+      hudResetCombo();
+      updateHUD();
+    } else {
+      console.log(`💨 COMBO DEFLATE: Skipping reset - combo changed from ${comboAtExecution} to ${finalCombo} (user made merge during timer)`);
+    }
+  }, COMBO_IDLE_RESET_MS);
+  
+  console.log(`🔥 scheduleComboDecay: Timer created with ID=${timerId}, type=${typeof timerId}`);
+  comboIdleTimer = timerId;
   
   return comboIdleTimer;
 }

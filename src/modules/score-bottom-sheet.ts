@@ -322,6 +322,9 @@ export function showScoreBottomSheet(): void {
     console.log('🔒 Board frozen - ALL events disabled (score bottom sheet)');
   }
   
+  // 🔥 NOTE: Combo timer now uses setTimeout and works independently
+  // No need to kill/restart combo timer when bottom sheet opens/closes
+  
   // 🔥 USER REQUEST: Pause game to prevent tile interactions
   try {
     pauseGame();
@@ -468,6 +471,9 @@ export function hideScoreBottomSheet(): void {
       } catch (error) {
         console.warn('⚠️ Failed to resume game:', error);
       }
+      
+      // 🔥 NOTE: Combo timer now uses setTimeout and works independently
+      // No need to kill/restart combo timer when bottom sheet closes
     }
     
     console.log('✅ Score bottom sheet fully closed and reset - modal removed, isVisible=false');

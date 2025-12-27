@@ -157,6 +157,7 @@ function killComboTimer(){
 }
 
 function scheduleComboDecay(){
+  console.log(`🔥 scheduleComboDecay called: combo=${combo}, currentTimer=${comboIdleTimer}`);
   comboIdleTimer = scheduleComboDecayHelper(
     comboIdleTimer,
     COMBO_IDLE_RESET_MS,
@@ -164,6 +165,7 @@ function scheduleComboDecay(){
     hudResetCombo,
     updateHUD
   );
+  console.log(`🔥 scheduleComboDecay completed: newTimer=${comboIdleTimer}, type=${typeof comboIdleTimer}`);
 }
 
 // --- Wild tuning ---
@@ -187,6 +189,7 @@ function hudSetCombo(v){
   combo = hudSetComboHelper(v, COMBO_CAP, HUD.setCombo);
 }
 function hudResetCombo(){ 
+  combo = 0; // 🔥 CRITICAL: Reset combo variable first
   hudResetComboHelper(HUD.resetCombo);
 }
 
@@ -2246,7 +2249,15 @@ function startLevel(n){
   // busyEnding = false; // REMOVED - runEndgameFlow resets it in finally block
   hudResetCombo();
   console.log('🎯 startLevel updated - level:', level, 'boardNumber:', boardNumber, 'score preserved:', score);
-  try { comboIdleTimer?.kill?.(); } catch {}
+  try { 
+    if (comboIdleTimer) {
+      if (typeof comboIdleTimer.kill === 'function') {
+        comboIdleTimer.kill();
+      } else if (typeof comboIdleTimer === 'number') {
+        clearTimeout(comboIdleTimer);
+      }
+    }
+  } catch {}
   
 wildMeter = 0;
   resetWildProgress(0, false);
@@ -6898,7 +6909,13 @@ function restartGame(){
     
     // 🔥 CRITICAL: Kill combo idle timer
     try { 
-      comboIdleTimer?.kill?.(); 
+      if (comboIdleTimer) {
+        if (typeof comboIdleTimer.kill === 'function') {
+          comboIdleTimer.kill();
+        } else if (typeof comboIdleTimer === 'number') {
+          clearTimeout(comboIdleTimer);
+        }
+      }
       comboIdleTimer = null;
       console.log('✅ RESTART GAME: Combo idle timer killed');
     } catch (e) {
@@ -7047,7 +7064,15 @@ function restartGame(){
   // boardNumber stays the same - don't reset to 1!
   moves = MOVES_MAX;
   hudResetCombo();
-  try { comboIdleTimer?.kill?.(); } catch {}
+  try { 
+    if (comboIdleTimer) {
+      if (typeof comboIdleTimer.kill === 'function') {
+        comboIdleTimer.kill();
+      } else if (typeof comboIdleTimer === 'number') {
+        clearTimeout(comboIdleTimer);
+      }
+    }
+  } catch {}
   wildMeter = 0;
   resetWildProgress(0, false);
   
@@ -7507,7 +7532,15 @@ export function cleanupGame() {
   busyEnding = false;
   
   // Clear timers
-  try { comboIdleTimer?.kill?.(); } catch {}
+  try { 
+    if (comboIdleTimer) {
+      if (typeof comboIdleTimer.kill === 'function') {
+        comboIdleTimer.kill();
+      } else if (typeof comboIdleTimer === 'number') {
+        clearTimeout(comboIdleTimer);
+      }
+    }
+  } catch {}
   comboIdleTimer = null;
   
   // 🔥 CRITICAL FIX: Clear all tracked timeouts

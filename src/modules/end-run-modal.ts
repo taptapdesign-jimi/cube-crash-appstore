@@ -350,6 +350,9 @@ export function showEndRunModal(): void {
     console.warn('⚠️ Failed to pause game:', error);
   }
   
+  // 🔥 NOTE: Combo timer now uses setTimeout and works independently
+  // No need to kill/restart combo timer when bottom sheet opens/closes
+  
   // CRITICAL: Freeze entire game - disable ALL interactions
   // 1. Freeze board container
   const boardContainer = document.getElementById('board-container');
@@ -855,6 +858,9 @@ export function hideModal(): void {
     } catch (error) {
       console.warn('⚠️ Failed to resume game:', error);
     }
+    
+    // 🔥 NOTE: Combo timer now uses setTimeout and works independently
+    // No need to kill/restart combo timer when bottom sheet closes
     
     // Unlock slider
     safeUnlockSlider();
