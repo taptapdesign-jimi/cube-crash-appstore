@@ -46,6 +46,16 @@ import {
   trackAppInterval,
   clearAllAppIntervals
 } from './app-core-utils.js';
+import {
+  tintLocked,
+  fixHoverAnchor,
+  ensureFonts,
+  loadFirstTexture,
+  killComboTimer as killComboTimerHelper,
+  scheduleComboDecay as scheduleComboDecayHelper,
+  hudSetCombo as hudSetComboHelper,
+  hudResetCombo as hudResetComboHelper
+} from './app-core-helpers.js';
 
 // HUD functions from hud-helpers.js
 
@@ -141,45 +151,19 @@ const forceRemoveMagnetMergeResidues = (reason: string) => {
 // - Regular merge animations: ~600-800ms
 // This prevents premature endgame checks while animations are still running
 const CHECK_LEVEL_END_DELAY_MS = 500; // 🔥 REDUCED: From 1200ms to 500ms for faster fail screen detection
+// 🔥 v112: Combo functions refactored to use helpers
 function killComboTimer(){
-  try { 
-    comboIdleTimer?.kill?.(); 
-    comboIdleTimer = null;
-    console.log('🔥 Combo timer killed');
-  } catch (e) {
-    console.warn('⚠️ Failed to kill combo timer:', e);
-  }
+  comboIdleTimer = killComboTimerHelper(comboIdleTimer);
 }
 
 function scheduleComboDecay(){
-  try { comboIdleTimer?.kill?.(); } catch {}
-  comboIdleTimer = gsap.delayedCall(COMBO_IDLE_RESET_MS/1000, () => {
-    // COMBO DEFLATE ANIMATION: Deflate like balloon when combo is lost
-    if (combo > 0) {
-      console.log('💨 COMBO DEFLATE: Starting deflate animation for combo loss');
-      try {
-        // Animate combo text deflate
-        if (window.comboText) {
-          gsap.to(window.comboText.scale, {
-            x: 0.1, // Deflate to 10%
-            y: 0.1,
-            duration: 0.3,
-            ease: 'power2.in',
-            onComplete: () => {
-              // Reset scale after deflate
-              gsap.set(window.comboText.scale, { x: 1.0, y: 1.0 });
-            }
-          });
-        }
-      } catch (e) {
-        console.warn('💨 COMBO DEFLATE: Animation failed:', e);
-      }
-    }
-    
-    combo = 0;
-    hudResetCombo();
-    updateHUD();
-  });
+  comboIdleTimer = scheduleComboDecayHelper(
+    comboIdleTimer,
+    COMBO_IDLE_RESET_MS,
+    combo,
+    hudResetCombo,
+    updateHUD
+  );
 }
 
 // --- Wild tuning ---
@@ -199,8 +183,12 @@ const MAX_CHECK_LEVEL_END_SKIP_MS = 3000; // Hard stop for skip gates to avoid p
 
 // Combo (UI driven)
 let combo = 0; // default x0
-function hudSetCombo(v){ combo = Math.max(0, Math.min(COMBO_CAP, v)); try{ _setCombo?.(combo); }catch{} }
-function hudResetCombo(){ combo = 0; try{ _resetCombo?.(); }catch{} }
+function hudSetCombo(v){ 
+  combo = hudSetComboHelper(v, COMBO_CAP, _setCombo);
+}
+function hudResetCombo(){ 
+  hudResetComboHelper(_resetCombo);
+}
 
 // HUD legacy refs (fallback)
 let scoreNumText = null, boardNumText = null, comboNumText = null;
@@ -584,13 +572,8 @@ function resetWildProgress(value=0, animate=false){
   allowWildDecrease = false;
 }
 
-// -------------------- fonts --------------------
-async function ensureFonts() {
-  if (ensureFonts._done) return;
-  const weights = [400, 500, 600, 700, 800];
-  try { await Promise.all(weights.map(w => document.fonts.load(`${w} 16px "LTCrow"`))); } catch {}
-  ensureFonts._done = true;
-}
+// 🔥 v112: ensureFonts moved to app-core-helpers.ts
+// Imported: ensureFonts
 
 // --- asset fallbacks & runtime-resolved paths ---
 const MYSTERY_CANDIDATES = [
@@ -611,23 +594,8 @@ const COIN_CANDIDATES = [
 let MYSTERY_PATH = null;
 let COIN_PATH = null;
 
-// Try to load the first working texture from a list of candidates, with cache-busting attempts.
-async function loadFirstTexture(paths){
-  const attempts = [];
-  const bust = Date.now();
-  for (const p of paths){
-    if (!p) continue;
-    attempts.push(p);
-    if (!/\?/.test(p)) attempts.push(`${p}?bust=${bust}`);
-  }
-  for (const url of attempts){
-    try {
-      const tex = await Assets.load(url);
-      if (tex) return url;
-    } catch {}
-  }
-  throw new Error('None of the asset candidates could be loaded: ' + attempts.join(', '));
-}
+// 🔥 v112: loadFirstTexture moved to app-core-helpers.ts
+// Imported: loadFirstTexture
 
 // Cache-busted celebration import
 async function showCleanBoardCelebrationFresh(args){
@@ -1707,7 +1675,8 @@ function animateBoardHUD(toValue, duration=0.45){
     boardNumber = toValue|0; updateHUD();
   }
 }
-function fixHoverAnchor(t){ try { if (t && t.hover) { t.hover.x=TILE/2; t.hover.y=TILE/2; } } catch {} }
+// 🔥 v112: fixHoverAnchor moved to app-core-helpers.ts
+// Imported: fixHoverAnchor
 
 // -------------------- board build --------------------
 function resetBoardContainer(){
@@ -2136,7 +2105,8 @@ async function animateBoardExit(){
   });
 }
 
-function tintLocked(t){ try{ gsap.to(t, { alpha:0.35, duration:0.10, ease:'power1.out' }); }catch{} }
+// 🔥 v112: tintLocked moved to app-core-helpers.ts
+// Imported: tintLocked
 // 🔥 v112: randVal moved to app-core-utils.ts
 // Imported: randVal
 function startLevel(n){
