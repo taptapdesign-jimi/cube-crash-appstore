@@ -100,9 +100,51 @@ export function renderNavigation(container: HTMLElement, config: NavigationConfi
   const navConfig = createNavigation(config);
   const element = HTMLBuilder.createElement(navConfig);
   container.appendChild(element);
+
+  // 🔒 Restore Journey badge if it existed before navigation was rebuilt
+  const lastJourneyBadge = (window as any).__ccJourneyBadgeCount;
+  const persistedBadge = readPersistedBadge();
+  const restoreCount = Math.max(
+    Number.isFinite(lastJourneyBadge) ? lastJourneyBadge : 0,
+    persistedBadge
+  );
+  if (restoreCount > 0) {
+    updateNavBadge(restoreCount, 1);
+  }
 }
 
-export function updateNavBadge(count: number, slideIndex: number = 1): void {
+// Persist last badge count so we can restore after nav transitions/rebuilds
+let lastJourneyBadgeCount = 0;
+const BADGE_STORAGE_KEY = 'journey_badge_count_v109';
+
+const readPersistedBadge = (): number => {
+  try {
+    const raw = localStorage.getItem(BADGE_STORAGE_KEY);
+    const parsed = raw ? parseInt(raw, 10) : 0;
+    return Number.isFinite(parsed) ? parsed : 0;
+  } catch {
+    return 0;
+  }
+};
+
+const writePersistedBadge = (count: number): void => {
+  try {
+    if (count > 0) {
+      localStorage.setItem(BADGE_STORAGE_KEY, String(count));
+    } else {
+      localStorage.removeItem(BADGE_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore storage errors (private browsing, etc.)
+  }
+};
+
+// Options to control badge overwrite behaviour
+type UpdateNavBadgeOptions = {
+  forceReset?: boolean; // when true, allow overwriting an existing badge with 0
+};
+
+export function updateNavBadge(count: number, slideIndex: number = 1, opts: UpdateNavBadgeOptions = {}): void {
   // 🔥 USER REQUEST: Badge ONLY on Journey icon (slideIndex 1, stats-nav.png), nowhere else
   // Ignore all other slideIndex values
   if (slideIndex !== 1) {
@@ -114,10 +156,41 @@ export function updateNavBadge(count: number, slideIndex: number = 1): void {
   const ariaLabel = `${count} new journey boards`;
   
   console.log(`🎁 updateNavBadge called with count: ${count}, slideIndex: ${slideIndex} (${slideName})`);
+
+  const storedBadge = (window as any).__ccJourneyBadgeCount ?? lastJourneyBadgeCount ?? 0;
+  const persistedBadge = readPersistedBadge();
+  const forceReset = opts.forceReset === true;
+
+  // If a positive badge is already cached and this call tries to clear it without force,
+  // keep the existing badge to avoid accidental drops during transitions.
+  // If a positive badge already exists (in cache or DOM) and this call tries to clear it without force,
+  // keep the existing badge to avoid accidental drops during transitions.
+  const navButtonForCheck = document.querySelector(`.independent-nav-button[data-slide="${slideIndex}"]`) as HTMLElement;
+  const domBadgeCount = navButtonForCheck
+    ? parseInt(navButtonForCheck.querySelector('.nav-badge-text')?.textContent || '0', 10)
+    : 0;
+  const effectiveExisting = Math.max(storedBadge, persistedBadge, domBadgeCount);
+  if (count <= 0 && effectiveExisting > 0 && !forceReset) {
+    // Refresh cache so future rebuilds keep the badge
+    lastJourneyBadgeCount = effectiveExisting;
+    (window as any).__ccJourneyBadgeCount = effectiveExisting;
+    writePersistedBadge(effectiveExisting);
+    console.log(`⏳ Preserving existing Journey badge (${effectiveExisting}) - skip reset (forceReset=false)`);
+    return;
+  }
+
+  // Remember latest badge count so it can be restored after nav is rebuilt or hidden/showed
+  lastJourneyBadgeCount = count;
+  (window as any).__ccJourneyBadgeCount = count;
+  if (forceReset && count <= 0) {
+    writePersistedBadge(0);
+  } else {
+    writePersistedBadge(count);
+  }
   
   // 🔥 FIX: If nav button doesn't exist yet, retry after a short delay
   // This handles cases where updateNavBadge is called before navigation is fully rendered
-  const navButton = document.querySelector(`.independent-nav-button[data-slide="${slideIndex}"]`) as HTMLElement;
+  const navButton = navButtonForCheck || (document.querySelector(`.independent-nav-button[data-slide="${slideIndex}"]`) as HTMLElement);
   if (!navButton) {
     console.warn(`⚠️ Nav button not found for slide ${slideIndex} - retrying in 100ms...`);
     setTimeout(() => {
@@ -134,6 +207,11 @@ export function updateNavBadge(count: number, slideIndex: number = 1): void {
       const badgeText = existingBadge.querySelector('.nav-badge-text');
       if (badgeText) badgeText.textContent = count.toString();
       existingBadge.setAttribute('aria-label', ariaLabel);
+      // Reset any exit animation state so badge is visible again
+      existingBadge.classList.remove('animate-exit', 'animate-reset');
+      existingBadge.style.display = 'flex';
+      existingBadge.style.visibility = 'visible';
+      existingBadge.style.opacity = '1';
       console.log(`✅ ${slideName} badge updated to`, count);
     } else {
       // Create new badge
@@ -145,6 +223,10 @@ export function updateNavBadge(count: number, slideIndex: number = 1): void {
       badgeText.textContent = count.toString();
       badge.appendChild(badgeText);
       navButton.appendChild(badge);
+      // Ensure it starts visible
+      badge.style.display = 'flex';
+      badge.style.visibility = 'visible';
+      badge.style.opacity = '1';
       console.log(`✅ ${slideName} badge created with`, count);
     }
   } else {

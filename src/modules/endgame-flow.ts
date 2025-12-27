@@ -180,6 +180,20 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     // Get final score AFTER modal has updated it (modal adds bonus and sets final score)
     const finalScore = ctx.getScore ? ctx.getScore() : 0;
     logger.info(`🎯 endgame-flow: current level: ${level}, next level: ${nextLevel}, final score: ${finalScore}`);
+
+    // 🏆 BOARD-SPECIFIC HIGH SCORE (clean board)
+    try {
+      const { boardStatsService } = await import('../services/board-stats-service.js');
+      const isNewHigh = boardStatsService.updateBoardHighScore(boardNumber, finalScore);
+      if (isNewHigh) {
+        logger.info(`🏆 New board ${boardNumber} high score after clean board: ${finalScore}`);
+        window.dispatchEvent(new CustomEvent('cc-board-highscore-updated', {
+          detail: { boardId: boardNumber, highScore: finalScore }
+        }));
+      }
+    } catch (error) {
+      logger.warn('⚠️ Failed to update board high score after clean board:', error);
+    }
     
     // Preserve final score before starting next board
     (window as any).__ccPreserveScore = finalScore;

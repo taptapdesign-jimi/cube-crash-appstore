@@ -8,6 +8,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="screen-orientation" content="portrait">
   <meta name="orientation" content="portrait">
+  <!-- Force initial paint to match loader background (prevents white flash) -->
+  <script>
+    document.documentElement.style.background = '#f3eee8';
+    document.documentElement.style.colorScheme = 'light';
+    document.body && (document.body.style.background = '#f3eee8');
+  </script>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./favicon.ico">
   

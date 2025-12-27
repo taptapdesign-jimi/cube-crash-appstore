@@ -146,6 +146,50 @@ class JourneyBoardsManager {
       localStorage.setItem('journey_last_viewed_board_id', '0');
       logger.info('🗺️ Initialized journey_last_viewed_board_id to 0 in constructor');
     }
+
+    // 🏆 LIVE UPDATE: Refresh open detail modal stats when high score changes
+    window.addEventListener('cc-board-highscore-updated', async (event: any) => {
+      try {
+        const detail = event?.detail || {};
+        const boardId = detail.boardId;
+        if (!Number.isFinite(boardId)) return;
+        
+        const modal = document.getElementById('collectibles-detail-modal');
+        if (!modal) return;
+        const currentId = Number(modal.getAttribute('data-journey-board-id')) || 0;
+        if (currentId !== boardId) return; // Only update if this modal is showing the same board
+
+        const { boardStatsService } = await import('../services/board-stats-service.js');
+        const stats = boardStatsService.getBoardStats(boardId);
+
+        const statsContainer = document.getElementById('board-stats-container');
+        if (statsContainer) {
+          statsContainer.innerHTML = `
+            <div class="stat-item">
+              <div class="stat-icon">
+                <img src="./assets/highscore-icon.png" alt="" aria-hidden="true">
+              </div>
+              <div class="stat-content">
+                <div class="stat-value">${stats.highScore.toLocaleString()}</div>
+                <div class="stat-label">High score</div>
+              </div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-icon">
+                <img src="./assets/combo-icon.png" alt="" aria-hidden="true">
+              </div>
+              <div class="stat-content">
+                <div class="stat-value">${stats.longestCombo}</div>
+                <div class="stat-label">Longest combo</div>
+              </div>
+            </div>
+          `;
+          logger.info(`🏆 Detail modal stats refreshed for board ${boardId}:`, stats);
+        }
+      } catch (error) {
+        logger.warn('⚠️ Failed to refresh detail modal stats after high score update:', error);
+      }
+    });
   }
 
   /**
@@ -205,7 +249,7 @@ class JourneyBoardsManager {
       // Kill any existing animation
       gsap.killTweensOf(cardWrapper, 'scale,rotation');
       
-      logger.info('💚 Starting bounce animation: scale up (0.1s) -> smoke at peak -> scale down (0.1s) -> wait 1.5-2.5s');
+      // logger.info('💚 Starting bounce animation: scale up (0.1s) -> smoke at peak -> scale down (0.1s) -> wait 1.5-2.5s');
       
       // Phase 1: Scale up with rotation - fast 0.1s (original speed)
       gsap.to(cardWrapper, {
@@ -223,7 +267,7 @@ class JourneyBoardsManager {
               return;
             }
             
-            logger.info('💨 Triggering smoke bubbles at bounce peak (0.1s)');
+            // logger.info('💨 Triggering smoke bubbles at bounce peak (0.1s)');
             const randomAlpha = 0.8 + Math.random() * 0.2; // Random between 0.8 and 1.0
             smokeBubblesAtCard(card, {
               sizeScale: 0.55, // Better quality (similar to tiles)
@@ -424,7 +468,7 @@ class JourneyBoardsManager {
         
         // 4) Re-add shimmer class to restart animation - shimmer starts immediately
         currentInterimCard.classList.add('interim-shimmer-trigger');
-        logger.info('✨ Shimmer triggered on interim card');
+        // logger.info('✨ Shimmer triggered on interim card');
         
         // 5) Glow 150ms later so shimmer is clearly visible BEFORE glow
         (currentInterimCard as any)._interimGlowTimeout = window.setTimeout(() => {
@@ -439,7 +483,7 @@ class JourneyBoardsManager {
             currentInterimCard.classList.remove('interim-shimmer-trigger');
             // Force reflow so next add restarts cleanly
             void currentInterimCard.offsetHeight;
-            logger.info('✨ Shimmer stopped on interim card');
+        // logger.info('✨ Shimmer stopped on interim card');
           }
           (currentInterimCard as any)._interimShimmerRemoveTimeout = null;
         }, 1700); // Remove after animation completes (1.7s)
@@ -2987,7 +3031,7 @@ class JourneyBoardsManager {
         
         // Reset badge in UI
         if (typeof (window as any).updateNavBadge === 'function') {
-          (window as any).updateNavBadge(0, 1); // Reset journey badge (slideIndex 1)
+          (window as any).updateNavBadge(0, 1, { forceReset: true }); // Reset journey badge (slideIndex 1)
           logger.info('✅ DEV RESET: Journey badge reset in UI');
         }
       }
@@ -3306,7 +3350,7 @@ class JourneyBoardsManager {
         // Update badge count in UI
         const newBadgeCount = this.getNewlyUnlockedCount();
         if (typeof (window as any).updateNavBadge === 'function') {
-          (window as any).updateNavBadge(newBadgeCount, 1); // Update journey badge (slideIndex 1)
+          (window as any).updateNavBadge(newBadgeCount, 1, { forceReset: true }); // Update journey badge (slideIndex 1)
           logger.info(`🗺️ Journey badge updated to ${newBadgeCount} after viewing board ${boardId}`);
         }
       } else {

@@ -528,6 +528,13 @@
     transition: none !important;
     -webkit-transition: none !important;
   }
+
+  /* Keep CTA hidden before enter animation starts */
+  .slide-button.animate-enter-initial,
+  .slider-slide .slide-button.animate-enter-initial {
+    transform: scale(0) !important;
+    -webkit-transform: scale(0) !important;
+  }
   
   /* Override animacijske klase - osigurati da se iPad pozicije koriste i tijekom animacije */
   /* Koristimo veću specifičnost da override-amo iPhone stilove iz style.css */
@@ -720,6 +727,14 @@
     -webkit-transform: translateY(2.25vh) !important;
     transition: transform 0.15s ease-in-out !important; /* 🔥 CRITICAL: Vratiti tap animacije */
     -webkit-transition: transform 0.15s ease-in-out !important;
+  }
+
+  /* Keep HOME CTA hidden before enter animation (scope to slide 0 only) */
+  .slider-slide[data-slide="0"] .slide-button.animate-enter-initial,
+  .slider-slide[data-slide="0"] .slide-content .slide-button.animate-enter-initial {
+    transform: translateY(2.25vh) scale(0) !important;
+    -webkit-transform: translateY(2.25vh) scale(0) !important;
+    visibility: hidden;
   }
   
   /* 🔥 CRITICAL: Vratiti tap bounce animacije na CTA gumbove */

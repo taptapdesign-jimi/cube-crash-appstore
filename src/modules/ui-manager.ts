@@ -715,9 +715,12 @@ class UIManager {
         journeyBoardsManager.syncWithGameProgress();
         
         const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
+        // Keep badge persistent if previously higher (e.g., after navigation rebuild)
+        const lastBadge = (window as any).__ccJourneyBadgeCount || 0;
+        const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
         if (typeof (window as any).updateNavBadge === 'function') {
-          (window as any).updateNavBadge(newlyUnlockedCount, 1); // Pass slideIndex 1 for Journey
-          logger.info(`🗺️ Journey badge updated on homepage: ${newlyUnlockedCount} newly unlocked boards (not yet viewed)`);
+          (window as any).updateNavBadge(effectiveCount, 1); // Pass slideIndex 1 for Journey
+          logger.info(`🗺️ Journey badge updated on homepage: ${effectiveCount} newly unlocked boards (not yet viewed, raw=${newlyUnlockedCount}, last=${lastBadge})`);
         }
       } catch (error) {
         logger.warn('⚠️ Failed to update journey badge on homepage:', error);
@@ -1184,9 +1187,13 @@ class UIManager {
             journeyBoardsManager.syncWithGameProgress();
             
             const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
+            // 🔒 Preserve any pending badge count already cached so we don't accidentally wipe it
+            // (exit animations or intermediate calls can briefly compute 0 while animations are running)
+            const lastBadge = (window as any).__ccJourneyBadgeCount || 0;
+            const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
             if (typeof (window as any).updateNavBadge === 'function') {
-              (window as any).updateNavBadge(newlyUnlockedCount, 1); // Pass slideIndex 1 for Journey
-              logger.info(`🗺️ Journey badge updated in showHomepageQuietly: ${newlyUnlockedCount} newly unlocked boards (not yet viewed)`);
+              (window as any).updateNavBadge(effectiveCount, 1); // Pass slideIndex 1 for Journey
+              logger.info(`🗺️ Journey badge updated in showHomepageQuietly: ${effectiveCount} newly unlocked boards (raw=${newlyUnlockedCount}, last=${lastBadge})`);
             }
           } catch (error) {
             logger.warn('⚠️ Failed to update journey badge in showHomepageQuietly:', error);
@@ -1893,9 +1900,11 @@ class UIManager {
           journeyBoardsManager.syncWithGameProgress();
           
           const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
+          const lastBadge = (window as any).__ccJourneyBadgeCount || 0;
+          const effectiveCount = Math.max(lastBadge, newlyUnlockedCount);
           if (typeof (window as any).updateNavBadge === 'function') {
-            (window as any).updateNavBadge(newlyUnlockedCount, 1); // Pass slideIndex 1 for Journey
-            logger.info(`🗺️ Journey badge updated when returning to homepage: ${newlyUnlockedCount} newly unlocked boards (not yet viewed)`);
+            (window as any).updateNavBadge(effectiveCount, 1); // Pass slideIndex 1 for Journey
+            logger.info(`🗺️ Journey badge updated when returning to homepage: ${effectiveCount} newly unlocked boards (raw=${newlyUnlockedCount}, last=${lastBadge})`);
           }
         } catch (error) {
           logger.warn('⚠️ Failed to update journey badge when returning to homepage:', error);

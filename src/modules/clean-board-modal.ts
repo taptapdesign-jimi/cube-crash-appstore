@@ -6,6 +6,7 @@
 import { gsap } from 'gsap';
 import { createConfettiExplosion } from './confetti-system.js';
 import { statsService } from '../services/stats-service.ts';
+import { boardStatsService } from '../services/board-stats-service.ts';
 import { pickRandom } from './clean-board-utils.js';
 import { formatScoreSimple } from './hud-utils.ts';
 
@@ -91,8 +92,18 @@ export async function showCleanBoardModal({
     const currentScore = Math.max(0, rawCurrent);
     const finalScore = Math.min(scoreCap, currentScore + safeBonus);
     
-    // Get previous best score from centralized stats service (fallback to legacy storage)
+    // Get previous best score (board-specific first, then legacy/global fallback)
     const getBestScore = (): number => {
+      try {
+        const boardStats = boardStatsService?.getBoardStats?.(boardNumber);
+        const boardHighScore = boardStats?.highScore;
+        if (Number.isFinite(boardHighScore)) {
+          return boardHighScore | 0;
+        }
+      } catch (boardError) {
+        console.warn('⚠️ Failed to read board high score:', boardError);
+      }
+
       try {
         if (statsService && typeof statsService.getStats === 'function') {
           const stats = statsService.getStats();
@@ -116,11 +127,10 @@ export async function showCleanBoardModal({
     };
     const previousBestScore = getBestScore();
     const highScoreJustUpdated = typeof statsService?.wasHighScoreJustUpdated === 'function'
-      ? statsService.wasHighScoreJustUpdated(currentScore)
+      ? statsService.wasHighScoreJustUpdated(finalScore)
       : false;
-    // 🔥 CRITICAL FIX: Check if CURRENT score (without bonus) is higher than previous best
-    // Bonus should not be included in high score check - it's added AFTER the check
-    const isNewHighScore = currentScore > previousBestScore || highScoreJustUpdated;
+    // Use final score (includes bonus) against board-specific high score
+    const isNewHighScore = finalScore > previousBestScore || highScoreJustUpdated;
     
     console.log('🏆 High score check:', {
       currentScore,

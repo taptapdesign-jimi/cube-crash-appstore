@@ -1272,8 +1272,23 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       }
       
       return; // Don't spawn new tiles
-    }
   }
+
+  // 🛡️ FAILSAFE: Ensure merge-6 tile does not linger after magnet pull sequence
+  try {
+    if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+      if (Number.isFinite(dst.gridX) && Number.isFinite(dst.gridY) && STATE.grid?.[dst.gridY]) {
+        if (STATE.grid[dst.gridY][dst.gridX] === dst) {
+          STATE.grid[dst.gridY][dst.gridX] = null;
+        }
+      }
+      removeTile(dst);
+      console.warn('🧲 FAILSAFE: Removed merge-6 tile after magnet pull merge to prevent stuck value 6');
+    }
+  } catch (err) {
+    console.warn('⚠️ FAILSAFE: Unable to remove merge-6 tile after magnet pull merge:', err);
+  }
+}
 
   // Find random empty cells on the board for spawning new tiles
   const findRandomEmptyCells = (count: number): { c: number; r: number }[] => {
@@ -2620,22 +2635,40 @@ export function merge(src, dst, helpers){
             spawnMerge6Shards(STATE.board, srcSnapshot, dst, dstSnapshot, { intensity: 0.7, count: 12, spread: 1.1, size: 0.85, vanishDelay: 0.03, behind: true });
           }
 
-        // 🔥 CRITICAL FIX: Check if this is a merge with merge 6 tile that was created by magnet pull
-        // If dst is merge 6 tile that was created by magnet pull, it should be removed normally
-        // But we need to check if it's a regular merge 6 (not pulled tiles merge) to avoid double removal
-        const isMagnetPullMerge6 = (dst as any)?._wildMagnetPulledTilesMerge === true || (dst as any)?._wildMagnetMergeCallback;
+        // 🔥 CRITICAL FIX: Check if this is a merge with merge 6 tile created by magnet pull
+        // Use _willPullTiles (set BEFORE onComplete) or _wildMagnetPulledTilesMerge (set AFTER callback).
+        // _wildMagnetMergeCallback exists even when no tiles are pulled, so don't use it here.
+        const willPullTilesFlag = (dst as any)?._noTilesPulled === true ? false : (dst as any)?._willPullTiles === true;
+        const isMagnetPullMerge6 = willPullTilesFlag || (dst as any)?._wildMagnetPulledTilesMerge === true;
         const isRegularMerge6WithSpawnedTiles = !isPulledTilesMerge && dst.value === 6;
         
         const gx = dst.gridX, gy = dst.gridY;
         
+        // 🔥 CRITICAL FIX: If this is a pulled tiles merge (pulled tile merging into merge 6 tile),
+        // the merge 6 tile MUST be removed because it's a regular merge 6 scenario (pulled tile + merge 6 = merge 6)
+        // This is different from the initial magnet pull merge 6 where merge 6 tile stays to receive pulled tiles
+        // Check if src is pulled tile (has _wildMagnetAffected) and dst is merge 6 tile
+        const isPulledTileMergingIntoMerge6 = srcIsWildMagnetAffected && dst.value === 6;
+        
         // 🔥 CRITICAL FIX: Remove merge 6 tile from grid BEFORE removing tile
         // This ensures grid is clean before spawning new tiles
-        // BUT: Only remove if it's NOT a magnet pull merge 6 (magnet pull merge 6 is handled in app-core.ts)
-        // This applies to regular merge 6 scenarios (regular, wild) when user merges spawned tile with merge 6
-        if (!isMagnetPullMerge6) {
+        // Remove if:
+        // 1. It's NOT a magnet pull merge 6 (magnet pull merge 6 is handled in app-core.ts)
+        // 2. OR it's a pulled tile merging into merge 6 (pulled tile + merge 6 = merge 6, regular merge 6 scenario)
+        //    In this case, merge 6 tile should be removed regardless of isMagnetPullMerge6 flag
+        if (!isMagnetPullMerge6 || isPulledTileMergingIntoMerge6) {
           STATE.grid[gy][gx] = null;
           dst.visible = false;
           removeTile(dst);
+          
+          if (isPulledTileMergingIntoMerge6) {
+            console.log('🧲🧲🧲 PULLED TILE MERGING INTO MERGE 6 - Removing merge 6 tile (regular merge 6 scenario)');
+            // Clean up flag since merge 6 tile is being removed
+            if (dst && !dst.destroyed) {
+              delete (dst as any)?._wildMagnetPulledTilesMerge;
+              delete (dst as any)?._willPullTiles;
+            }
+          }
         } else {
           console.log('🧲 Skipping merge 6 tile removal in app-merge.ts - magnet pull merge 6 will be handled in app-core.ts onComplete callback');
         }

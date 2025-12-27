@@ -137,6 +137,19 @@ let isAnimatingEnter = false;
 // Track active animation timeouts for cleanup
 let activeTimeouts: Set<NodeJS.Timeout> = new Set();
 
+// Persisted badge key (matches navigation.ts)
+const BADGE_STORAGE_KEY = 'journey_badge_count_v109';
+
+const readPersistedJourneyBadge = (): number => {
+  try {
+    const raw = localStorage.getItem(BADGE_STORAGE_KEY);
+    const parsed = raw ? parseInt(raw, 10) : 0;
+    return Number.isFinite(parsed) ? parsed : 0;
+  } catch {
+    return 0;
+  }
+};
+
 // Cache DOM elements for performance (prevent repeated querySelector calls on first click)
 let cachedElements: {
   homeLogo?: HTMLElement | null;
@@ -180,6 +193,13 @@ export const animateSliderExit = (): void => {
         journeyBadge.style.display = 'flex';
         journeyBadge.style.visibility = 'visible';
         journeyBadge.style.opacity = '1';
+        // 🔒 Persist badge count so exit animation can't accidentally drop it
+        const badgeNum = parseInt(journeyBadge.querySelector('.nav-badge-text')?.textContent || '0', 10);
+        if (badgeNum > 0) {
+          const existing = (window as any).__ccJourneyBadgeCount || 0;
+          (window as any).__ccJourneyBadgeCount = Math.max(existing, badgeNum);
+          logger.info('🎯 Badge count cached before exit animation:', (window as any).__ccJourneyBadgeCount);
+        }
         logger.info('🎯 Badge found and prepared for exit animation');
       } else {
         logger.warn('⚠️ Journey badge not found or not connected to DOM');
@@ -390,6 +410,8 @@ function startExitAnimationSequence(): void {
         journeyBadge.style.display = 'flex';
         journeyBadge.style.visibility = 'visible';
         journeyBadge.style.opacity = '1';
+        // Prevent fade-out during exit; keep opacity solid while nav scales
+        journeyBadge.style.setProperty('opacity', '1', 'important');
         // Add animate-exit class IMMEDIATELY to protect badge from removal
         journeyBadge.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
         journeyBadge.classList.add('animate-exit');
@@ -416,6 +438,21 @@ function startExitAnimationSequence(): void {
         // Double-check that badge still exists and has animate-exit class
         const stillExists = document.querySelector('.independent-nav-button[data-slide="1"] .nav-badge') as HTMLElement;
         if (stillExists && stillExists.classList.contains('animate-exit')) {
+          const storedBadgeCount = (window as any).__ccJourneyBadgeCount;
+          const persistedBadgeCount = readPersistedJourneyBadge();
+          const domCount = parseInt(stillExists.querySelector('.nav-badge-text')?.textContent || '0', 10);
+          const effectiveCount = Math.max(
+            Number.isFinite(storedBadgeCount) ? storedBadgeCount : 0,
+            domCount,
+            persistedBadgeCount
+          );
+          // Keep the badge if we already know there are unseen boards (or DOM shows a number)
+          if (effectiveCount > 0) {
+            // Ensure global cache is populated so rebuilds keep the badge
+            (window as any).__ccJourneyBadgeCount = effectiveCount;
+            logger.info('🎯 Journey badge removal skipped - preserving pending badge count');
+            return;
+          }
           if (typeof (window as any).updateNavBadge === 'function') {
             (window as any).updateNavBadge(0, 1);
             logger.info('✅ Journey badge removed after exit animation');
@@ -747,17 +784,14 @@ function startEnterAnimationSequence(): void {
     }
     
     if (slideButton) {
-      // 🔥 FIX: Provjeri da li element već ima animate-enter-initial klasu
-      // Ako ima, samo ukloni animate-enter i animate-exit klase, NE uklanjaj animate-enter-initial
-      const hasInitial = slideButton.classList.contains('animate-enter-initial');
-      if (hasInitial) {
-        // Element već ima animate-enter-initial, samo ukloni ostale klase
-        slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-reset');
-      } else {
-        // Element nema animate-enter-initial, postavi ga
-        slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-enter-initial', 'animate-reset');
-        slideButton.classList.add('animate-enter-initial');
-      }
+      // Reset CTA animation classes to ensure scale pop-in (not fade)
+      slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-reset', 'animate-enter-initial');
+      slideButton.classList.add('animate-enter-initial');
+      // Clear inline overrides so CSS drive the bounce
+      slideButton.style.removeProperty('transform');
+      slideButton.style.removeProperty('transition');
+      // Hide until enter starts to avoid flash
+      slideButton.style.visibility = 'hidden';
       void slideButton.offsetHeight; // Force reflow
     }
     
@@ -789,8 +823,14 @@ function startEnterAnimationSequence(): void {
       }
       
       if (slideButton) {
+        // Make sure CTA truly starts hidden even if another flow touched it
+        slideButton.classList.add('animate-enter-initial');
+        slideButton.style.visibility = 'hidden';
+        // Force reflow so CSS transform reset applies before we remove the class
+        void slideButton.offsetHeight;
         slideButton.classList.remove('animate-enter-initial');
         slideButton.classList.add('animate-enter');
+        slideButton.style.visibility = 'visible';
         logger.info('🔘 Step 3: CTA button cartoonish bounce - TOGETHER with text');
       } else {
         logger.warn('⚠️ CTA button not found in active slide');
@@ -859,6 +899,9 @@ function startEnterAnimationSequence(): void {
             // 🔥 FIX: Ne uklanjati animate-enter-initial klasu - ona osigurava da se elementi ne vide prije animacije
             // Samo ukloni animate-enter i animate-exit klase, animate-enter-initial ostaje
             el.classList.remove('animate-exit', 'animate-enter', 'animate-reset');
+
+            // Clear temporary visibility overrides after animation completes
+            el.style.visibility = '';
             
             // 🔥 iPad FIX: Restore transform position after removing classes - ALWAYS set on iPad
             if (isIPad && preservedTransform) {

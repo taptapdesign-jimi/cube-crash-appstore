@@ -46,6 +46,69 @@ let checkLevelEndTimer = null;
 let checkLevelEndRetryCount = 0; // 🔥 v38: Track reschedule attempts
 const MAX_CHECK_LEVEL_END_RETRIES = 10; // 🔥 v38: Prevent infinite reschedule loops
 
+// 🔒 SAFETY: Remove any lingering magnet merge-6 tiles (value 6 with magnet flags) to prevent stuck boards
+const forceRemoveMagnetMergeResidues = (reason: string) => {
+  try {
+    const candidates = tiles.filter((t: any) => {
+      if (!t || t.destroyed) return false;
+      if ((t.value | 0) !== 6) return false;
+      return (t as any)._wildMagnetPulledTilesMerge === true ||
+             (t as any)._wildMagnetMergeCallback ||
+             (t as any)._willPullTiles === true ||
+             (t as any)._hasTilesToPull === true ||
+             (t as any)._wildMagnetPulledTilesScoring === true ||
+             (t as any)._noTilesPulled === true ||
+             (t as any)._wasWildMagnetMerge6 === true;
+    });
+    if (!candidates.length) return;
+
+    const clearTileFromGridSafe = (tile: any) => {
+      if (!tile || !grid) return false;
+      let cleared = false;
+      const gx = tile.gridX;
+      const gy = tile.gridY;
+      if (gy !== undefined && gx !== undefined && grid[gy] && grid[gy][gx] === tile) {
+        grid[gy][gx] = null;
+        cleared = true;
+      }
+      if (!cleared) {
+        for (let r = 0; r < grid.length; r++) {
+          for (let c = 0; c < grid[r].length; c++) {
+            if (grid[r][c] === tile) {
+              grid[r][c] = null;
+              cleared = true;
+              break;
+            }
+          }
+          if (cleared) break;
+        }
+      }
+      return cleared;
+    };
+
+    candidates.forEach((t: any) => {
+      clearTileFromGridSafe(t);
+      t.visible = false;
+      t.alpha = 0;
+      t.eventMode = 'none';
+      removeTile(t);
+      delete (t as any)._wildMagnetPulledTilesMerge;
+      delete (t as any)._wildMagnetMergeCallback;
+      delete (t as any)._willPullTiles;
+      delete (t as any)._hasTilesToPull;
+      delete (t as any)._wildMagnetPulledTilesScoring;
+      delete (t as any)._noTilesPulled;
+      delete (t as any)._wasWildMagnetMerge6;
+    });
+
+    if (candidates.length) {
+      console.warn(`🧲 SAFETY: Removed ${candidates.length} lingering magnet merge-6 residues (${reason})`);
+    }
+  } catch (error) {
+    console.warn('⚠️ SAFETY: Failed to remove magnet merge residues:', error);
+  }
+};
+
 // 🔥 MEMORY LEAK FIX: Track all timeouts for cleanup (optimization)
 const _appTimeouts: Set<NodeJS.Timeout> = new Set();
 
@@ -3684,6 +3747,22 @@ function merge(src, dst, helpers){
               console.log('✅ Stack CAN reach merge 6 by merging with itself (', finalValue, '+', finalValue, '=', finalValue + finalValue, '<= 6, depth:', finalStackDepth, ') - NOT triggering fail screen');
             }
           }
+
+          // 🔥 SAFETY NET: If exactly 1 active regular tile remains and it cannot self-merge to 6, trigger fail
+          const activeTileCount = activeTilesBeforeCheck.length;
+          if (activeTileCount === 1) {
+            const onlyTile = activeTilesBeforeCheck[0];
+            const onlyValue = onlyTile?.value | 0;
+            const onlyDepth = onlyTile?.stackDepth || 1;
+            const isWild = onlyTile?.special === 'wild' || onlyTile?.special === 'wild-beer' || onlyTile?.special === 'wild-magnet';
+            const canSelfMergeToSix = !isWild && onlyDepth >= 2 && (onlyValue + onlyValue) <= 6;
+            if (!isWild && !canSelfMergeToSix && !busyEnding) {
+              console.log('🚨 SAFETY NET: Single regular tile left that cannot reach merge 6 - showing fail screen');
+              await new Promise(resolve => setTimeout(resolve, 500));
+              showFinalScreen();
+              return;
+            }
+          }
           
           console.log('🔍 Post-merge stuck check - DETAILED STATE:', {
             totalTiles: tiles.length,
@@ -4257,6 +4336,12 @@ function merge(src, dst, helpers){
     
     // Store isWildMagnet for use in onComplete callback
     const wasWildMagnet = isWildMagnet;
+    if (dst && !dst.destroyed) {
+      // Mark that this merge-6 originated from a wild magnet so lingering tiles can be scrubbed safely later
+      (dst as any)._wasWildMagnetMerge6 = wasWildMagnet;
+    }
+    // SAFETY: prepare cleanup reference for magnet pulls (assigned inside block)
+    let cleanupAllPullAnimations: () => void = () => {};
 
     // 🧲 WILD-MAGNET: Find and pull up to 4 nearest tiles IMMEDIATELY when merge 6 starts
     // This happens BEFORE the merge animation completes
@@ -4353,6 +4438,14 @@ function merge(src, dst, helpers){
       const nearestTiles = withDistance.slice(0, 4).map(item => item.tile); // Max 4 tiles
       
       console.log('🧲 Found', nearestTiles.length, 'nearest tiles to pull immediately (max 4)');
+      
+        // 🔥 CRITICAL FIX: Store whether tiles will be pulled on dst tile BEFORE onComplete callback
+        // This allows onComplete to correctly determine if merge 6 tile should remain or be removed
+        if (dst && !dst.destroyed) {
+          (dst as any)._willPullTiles = nearestTiles.length > 0;
+          (dst as any)._noTilesPulled = nearestTiles.length === 0; // default assumption if none are valid later
+          console.log('🧲 Stored _willPullTiles flag on dst:', nearestTiles.length > 0, '(nearestTiles.length:', nearestTiles.length, ')');
+        }
       
       // 🔥 CRITICAL FIX v37: Log if no tiles can be pulled AND reset wildMagnetPullInProgress
       // Without this reset, subsequent pulls would be blocked!
@@ -4506,8 +4599,8 @@ function merge(src, dst, helpers){
         };
         
         // 🔥 CRITICAL: Cleanup ALL timelines and pulled tiles (MEMORY LEAK FIX)
-        // 🔥 FIX: Define as function declaration (hoisted) to ensure it's available in setTimeout
-        function cleanupAllPullAnimations() {
+        // Use const binding to avoid block-function scoping quirks (keeps reference for timeouts)
+        cleanupAllPullAnimations = () => {
           console.log('🧹 Cleaning up all wild-magnet pull animations - killing', activeTimelines.length, 'timelines');
           
           // Kill all active timelines
@@ -4532,7 +4625,7 @@ function merge(src, dst, helpers){
             wildMagnetPullInProgress = false;
             console.log('✅ wildMagnetPullInProgress reset to false after cleanup');
           }
-        }
+        };
         
         // Function to merge pulled tiles when both conditions are met
         const tryMergePulledTiles = async () => {
@@ -4561,6 +4654,18 @@ function merge(src, dst, helpers){
                   locked: t?.locked
                 }))
               });
+              
+              // 🔥 CRITICAL FIX: If validTiles.length === 0, mark that NO tiles were actually pulled
+              // This overrides _willPullTiles flag and ensures merge 6 tile is removed
+              if (validTiles.length === 0 && dst && !dst.destroyed) {
+                (dst as any)._willPullTiles = false; // Override: no tiles were actually pulled
+                (dst as any)._noTilesPulled = true; // Mark explicitly that no tiles were pulled
+                console.log('🧲🧲🧲 CRITICAL: nearestTiles.length > 0 but validTiles.length === 0 - marking as NO pull');
+              } else if (validTiles.length > 0 && dst && !dst.destroyed) {
+                // At least one tile will merge: clear no-pull flag and mark intent
+                (dst as any)._noTilesPulled = false;
+                (dst as any)._willPullTiles = true;
+              }
               
               if (validTiles.length >= 1) { // Changed: need at least 1 tile (can be less than 4)
                 // 🔥 CRITICAL: Mark that pulled tiles merge is happening - skip normal spawn AND scoring
@@ -4971,6 +5076,14 @@ function merge(src, dst, helpers){
       onComplete: async () => {
         // 🔥 CRITICAL: srcSpecial i dstSpecial su već snimljeni PRIJE setValue i clearWildState!
         // Koristimo ih iz closure-a, ne snimamo ih ponovo (jer bi mogli biti već promijenjeni)
+        
+        // 🔥 CRITICAL FIX: Store magnet pull merge flag EARLY, before any code clears it
+        // This ensures we can correctly identify magnet pull merges even if flags are cleared later
+        // Check _willPullTiles first (set BEFORE onComplete) OR _wildMagnetPulledTilesMerge (set AFTER callback executes)
+        // Do NOT check _wildMagnetMergeCallback - it exists even when no tiles are pulled!
+        // 🔥 CRITICAL: If _noTilesPulled is set, override _willPullTiles (tiles became invalid before merging)
+        const willPullTilesFlag = (dst as any)?._noTilesPulled === true ? false : (dst as any)?._willPullTiles === true;
+        const isMagnetPullMergeStored = willPullTilesFlag || (dst as any)?._wildMagnetPulledTilesMerge === true;
         
         // 🔥 CRITICAL: Use EARLY saved star data (saved before any transformations)
         // This ensures data is available even if dst tile became merge 6 and lost _wildStarSystem
@@ -5554,10 +5667,12 @@ function merge(src, dst, helpers){
         
         // 🔥 CRITICAL: Check if this is magnet pull merge BEFORE hiding dst tile
         // For magnet pull merge, dst (merge 6) should remain visible on the board
-        // Check both the flag (set later) AND wasWildMagnet + _wildMagnetMergeCallback (set earlier)
+        // 🔥 CRITICAL FIX: Use _willPullTiles (set BEFORE onComplete) OR _wildMagnetPulledTilesMerge (set AFTER callback)
+        // Do NOT check _wildMagnetMergeCallback - it exists even when no tiles are pulled!
         const isMagnetPullMergeFlag = (dst as any)?._wildMagnetPulledTilesMerge === true;
-        const isMagnetPullMergeEarly = wasWildMagnet && (dst as any)?._wildMagnetMergeCallback;
-        const isMagnetPullMerge = isMagnetPullMergeFlag || isMagnetPullMergeEarly;
+        const willPullEarly = (dst as any)?._noTilesPulled === true ? false : (dst as any)?._willPullTiles === true;
+        const isMagnetPullMergeEarly = willPullEarly || isMagnetPullMergeFlag;
+        const isMagnetPullMerge = isMagnetPullMergeFlag || willPullEarly;
         
         // Create locked placeholder at dst position for spawn logic
         let placeholderHolder: any = null; // 🔥 v40.1: Store reference to placeholder for cleanup
@@ -6030,12 +6145,35 @@ function merge(src, dst, helpers){
         // Grid position is already cleared (line 5539) for regular merge 6, so we can safely remove tile now
         // But for magnet pull merge, grid position should NOT be cleared and tile should NOT be removed
         
-        // 🔥 CRITICAL: Re-check if this is magnet pull merge (flag might have been set during merge)
-        // ONLY keep merge 6 tile if pulled tiles merge is ACTUALLY happening
-        // Use isMagnetPullMerge from earlier in the function (already defined above)
-        const isMagnetPullMergeFinal = (dst as any)?._wildMagnetPulledTilesMerge === true || 
-                                       (dst as any)?._wildMagnetMergeCallback ||
-                                       (wasWildMagnet && (dst as any)?._wildMagnetMergeCallback);
+        // 🔥 CRITICAL: Use the EARLY stored flag value (saved before any code cleared it)
+        // This ensures we correctly identify magnet pull merges even if flags were cleared
+        // The flag was stored at the beginning of onComplete callback (line ~4975)
+        const isMagnetPullMergeFinal = isMagnetPullMergeStored;
+
+        // Utility: aggressively clear a tile reference from the grid even if gridX/gridY are missing or stale
+        const clearTileFromGridSafe = (tile: any) => {
+          if (!tile || !grid) return false;
+          let cleared = false;
+          const gxCandidate = tile.gridX;
+          const gyCandidate = tile.gridY;
+          if (gyCandidate !== undefined && gxCandidate !== undefined && grid[gyCandidate] && grid[gyCandidate][gxCandidate] === tile) {
+            grid[gyCandidate][gxCandidate] = null;
+            cleared = true;
+          }
+          if (!cleared) {
+            for (let r = 0; r < grid.length; r++) {
+              for (let c = 0; c < grid[r].length; c++) {
+                if (grid[r][c] === tile) {
+                  grid[r][c] = null;
+                  cleared = true;
+                  break;
+                }
+              }
+              if (cleared) break;
+            }
+          }
+          return cleared;
+        };
         
         // 🔥 POJEDNOSTAVLJENO: Ako je magnet merge i NEMA pulled tiles merge, obriši merge 6 tile
         // Ovo pokriva SVE scenarije: hasTilesToPull=false, nearestTiles.length=0, validTiles.length=0
@@ -6045,8 +6183,7 @@ function merge(src, dst, helpers){
           console.log('🧲🧲🧲 MAGNET MERGE WITHOUT PULL - Removing merge 6 tile (simplified logic)');
           
           // 🔥 CRITICAL FIX: Ensure grid position is null before removing tile
-          if (grid && grid[gy] && grid[gy][gx] === dst) {
-            grid[gy][gx] = null;
+          if (clearTileFromGridSafe(dst)) {
             console.log('🧹 Explicitly cleared grid position before removeTile');
           }
           
@@ -6057,13 +6194,19 @@ function merge(src, dst, helpers){
           
           removeTile(dst); // Remove from tiles array
           console.log('✅ Merge 6 tile removed successfully (magnet merge without pull)');
+          
+          // Clean up flags
+          if (dst && !dst.destroyed) {
+            delete (dst as any)?._willPullTiles;
+            delete (dst as any)?._noTilesPulled;
+            delete (dst as any)?._wasWildMagnetMerge6;
+          }
         } else if (!isMagnetPullMergeFinal && dst && !dst.destroyed && STATE.tiles.includes(dst)) {
           console.log('🗑️ Removing dst tile IMMEDIATELY (regular merge 6, not magnet pull)');
           
           // 🔥 CRITICAL FIX: Ensure grid position is null before removing tile
           // This prevents openAtCell from seeing merge 6 tile and not spawning
-          if (grid && grid[gy] && grid[gy][gx] === dst) {
-            grid[gy][gx] = null;
+          if (clearTileFromGridSafe(dst)) {
             console.log('🧹 Explicitly cleared grid position before removeTile');
           }
           
@@ -6074,28 +6217,71 @@ function merge(src, dst, helpers){
           
           removeTile(dst); // Remove from tiles array
           console.log('✅ Dst tile removed successfully');
-        } else if (isMagnetPullMergeFinal) {
-          console.log('🧲 Magnet pull merge detected - keeping merge 6 tile on board (will be used by pulled tiles)');
-          console.log('🧲 Merge 6 tile will remain visible and active:', {
-            value: dst?.value,
-            gridX: dst?.gridX,
-            gridY: dst?.gridY,
-            hasCallback: !!(dst as any)?._wildMagnetMergeCallback,
-            hasFlag: !!(dst as any)?._wildMagnetPulledTilesMerge
-          });
           
-          // 🔥 CRITICAL: Clean up flags AFTER confirming merge 6 tile stays on board
-          // This ensures flags are available for the check above, but cleaned up after
+          // Clean up flags
           if (dst && !dst.destroyed) {
+            delete (dst as any)?._willPullTiles;
+            delete (dst as any)?._noTilesPulled;
+            delete (dst as any)?._wasWildMagnetMerge6;
+          }
+        } else if (isMagnetPullMergeFinal) {
+          console.log('🧲 Magnet pull merge detected - removing merge 6 tile to prevent stuck value 6');
+          
+          // Remove merge-6 tile even for magnet pulls (after pulled merge is done)
+          if (dst && !dst.destroyed) {
+            if (clearTileFromGridSafe(dst)) {
+              console.log('🧹 Cleared grid position for magnet pull merge dst');
+            }
+            dst.visible = false;
+            dst.alpha = 0;
+            dst.eventMode = 'none';
+            removeTile(dst);
+            console.log('✅ Magnet pull merge dst removed successfully');
+          }
+          
+          // Clean up flags
+          if (dst) {
             delete (dst as any)?._wildMagnetPulledTilesMerge;
             delete (dst as any)?._wildMagnetMergeCallback;
-            console.log('🧹 Cleaned up magnet flags after confirming merge 6 tile stays on board');
+            delete (dst as any)?._willPullTiles;
+            delete (dst as any)?._noTilesPulled;
+            delete (dst as any)?._wasWildMagnetMerge6;
           }
+        }
+
+        // 🛡️ FAILSAFE: If a wild-magnet merge6 tile is still lingering, force-remove it
+        if (wasWildMagnet && dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+          clearTileFromGridSafe(dst);
+          dst.visible = false;
+          dst.alpha = 0;
+          dst.eventMode = 'none';
+          removeTile(dst);
+          console.warn('🧲 FAILSAFE: Forced removal of lingering magnet merge-6 tile to prevent stuck value 6');
         }
         
         // Clean up pulled cells flag after spawn
         if ((dst as any)?._wildMagnetPulledCells) {
           (dst as any)._wildMagnetPulledCells = undefined;
+        }
+
+        // 🔒 SAFETY: If only a plain merge-6 remains, remove it to prevent a stuck board
+        try {
+          const activeTiles = tiles.filter((t: any) => t && !t.destroyed && (t.value | 0) > 0);
+          if (activeTiles.length === 1) {
+            const onlyTile = activeTiles[0];
+            const isPlainMerge6 = (onlyTile.value | 0) === 6 && !onlyTile.special;
+            if (isPlainMerge6) {
+              const gxOnly = onlyTile.gridX | 0;
+              const gyOnly = onlyTile.gridY | 0;
+              if (grid && grid[gyOnly] && grid[gyOnly][gxOnly] === onlyTile) {
+                grid[gyOnly][gxOnly] = null;
+              }
+              removeTile(onlyTile);
+              console.warn('🧲 SAFETY: Removed lone plain merge-6 tile to prevent stuck board after magnet pull');
+            }
+          }
+        } catch (err) {
+          console.warn('⚠️ SAFETY check for lone merge-6 failed:', err);
         }
         
         // Update idle bounce tile list with newly spawned tiles
@@ -6196,10 +6382,69 @@ function checkLevelEnd(){
 
     checkLevelEndTimer = gsap.delayedCall(CHECK_LEVEL_END_DELAY_MS / 1000, async () => {
       checkLevelEndTimer = null;
+      // Safety sweep before any decision
+      forceRemoveMagnetMergeResidues('checkLevelEnd');
       if (busyEnding) {
         console.log('⏳ checkLevelEnd skipped - busyEnding is true');
         checkLevelEndRetryCount = 0; // Reset on exit
       return;
+    }
+
+    // 🛡️ SAFETY helpers
+    const clearTileFromGridSafe = (tile: any) => {
+      if (!tile || !grid) return false;
+      let cleared = false;
+      const gxCandidate = tile.gridX;
+      const gyCandidate = tile.gridY;
+      if (gyCandidate !== undefined && gxCandidate !== undefined && grid[gyCandidate] && grid[gyCandidate][gxCandidate] === tile) {
+        grid[gyCandidate][gxCandidate] = null;
+        cleared = true;
+      }
+      if (!cleared) {
+        for (let r = 0; r < grid.length; r++) {
+          for (let c = 0; c < grid[r].length; c++) {
+            if (grid[r][c] === tile) {
+              grid[r][c] = null;
+              cleared = true;
+              break;
+            }
+          }
+          if (cleared) break;
+        }
+      }
+      return cleared;
+    };
+
+    // 🛡️ SAFETY: Remove any lingering merge-6 tiles that still carry magnet flags
+    try {
+      const lingeringMagnet6 = tiles.filter((t: any) => {
+        if (!t || t.destroyed) return false;
+        if ((t.value | 0) !== 6) return false;
+        return (t as any)._wildMagnetPulledTilesMerge === true ||
+               (t as any)._wildMagnetMergeCallback ||
+               (t as any)._willPullTiles === true ||
+               (t as any)._hasTilesToPull === true ||
+               (t as any)._wildMagnetPulledTilesScoring === true ||
+               (t as any)._noTilesPulled === true ||
+               (t as any)._wasWildMagnetMerge6 === true;
+      });
+      lingeringMagnet6.forEach((t: any) => {
+        clearTileFromGridSafe(t);
+        t.visible = false;
+        t.alpha = 0;
+        t.eventMode = 'none';
+        removeTile(t);
+        delete (t as any)._wildMagnetPulledTilesMerge;
+        delete (t as any)._wildMagnetMergeCallback;
+        delete (t as any)._willPullTiles;
+        delete (t as any)._hasTilesToPull;
+        delete (t as any)._wildMagnetPulledTilesScoring;
+        delete (t as any)._noTilesPulled;
+        delete (t as any)._wasWildMagnetMerge6;
+        console.warn('🧲 SAFETY: Removed lingering magnet merge-6 tile during checkLevelEnd');
+      });
+    } catch (err) {
+      console.warn('⚠️ SAFETY: Failed to sweep lingering magnet merge-6 tiles:', err);
     }
     
     // 🔥 CRITICAL FIX: Skip check if _isLastMerge flag is set on any merge-6 tile (clean board flow in progress)
@@ -6601,6 +6846,9 @@ async function showFinalScreen(){
   }
   
   busyEnding = true;
+
+  // Extra safety: scrub any lingering magnet merge-6 residues before showing fail/clean flows
+  forceRemoveMagnetMergeResidues('showFinalScreen');
   
   // 🔥 CRITICAL: Perform memory cleanup on game over (MEMORY LEAK FIX)
   console.log('🧹 Performing memory cleanup on game over...');

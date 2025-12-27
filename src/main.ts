@@ -78,6 +78,7 @@ import { showEndRunModalFromGame } from './modules/end-run-modal.js';
 import './modules/score-bottom-sheet.js'; // Score bottom sheet for HUD clicks
 import { animateSliderExit, animateSliderEnter } from './utils/animations.js';
 import { STATE } from './modules/app-state.js';
+import { hideNativeSplash } from './utils/native-splash.js';
 
 // Type definitions
 interface GameState {
@@ -89,6 +90,25 @@ interface GameState {
 // Window interface is now defined in src/types/window.d.ts
 
   // Game starting
+
+// Ensure the homepage CTA starts hidden and ready for the enter animation (prevents preload flash)
+function primeHomeCtaForEnter(): void {
+  try {
+    const firstSlide = document.querySelector('.slider-slide[data-slide="0"]');
+    const slideButton = firstSlide?.querySelector('.slide-button') as HTMLElement | null;
+    if (!slideButton) return;
+
+    slideButton.classList.remove('animate-exit', 'animate-enter', 'animate-reset');
+    if (!slideButton.classList.contains('animate-enter-initial')) {
+      slideButton.classList.add('animate-enter-initial');
+    }
+    slideButton.style.visibility = 'hidden';
+    slideButton.style.removeProperty('transform');
+    slideButton.style.removeProperty('transition');
+  } catch (error) {
+    logger.warn('⚠️ Failed to prime home CTA for enter animation:', error);
+  }
+}
 
 // Initialize core systems
 async function initializeApp(): Promise<void> {
@@ -172,6 +192,13 @@ async function startAssetPreloading(): Promise<void> {
     
     // Show loading screen
     uiManager.showLoadingScreen();
+    // Wait a frame so loader paints before hiding native splash
+    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+    const splashHidden = await hideNativeSplash({ fadeOutDuration: 200 });
+    if (!splashHidden) {
+      logger.info('ℹ️ Native splash hide skipped (web/dev environment)');
+    }
 
     // Fallback: force-hide loader if something stalls (safety net)
     const forceHideTimeout = setTimeout(() => {
@@ -198,7 +225,10 @@ async function startAssetPreloading(): Promise<void> {
     uiManager.hideLoadingScreen();
     clearTimeout(forceHideTimeout);
     await appManager.showScreen('home');
-    
+
+    // Make sure the Play CTA is hidden and in its initial state before the enter animation starts
+    primeHomeCtaForEnter();
+
     // 🔥 NOTE: Journey screen boards are already prepared in preloadAll() (blocking)
     // No need to prepare again here - boards are ready before homepage is shown
     

@@ -14,6 +14,19 @@ try {
   preloadWildStarTexture();
 } catch {}
 
+// Lightweight FX throttling to reduce particle load during rapid back-to-back merges.
+const FX_HOT_WINDOW_MS = 320;
+let lastFxBurstTs = 0;
+const nowTs = ()=> (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
+function getFxHotFactor(){
+  const now = nowTs();
+  const delta = now - lastFxBurstTs;
+  lastFxBurstTs = now;
+  if (delta >= FX_HOT_WINDOW_MS) return 1;
+  // Blend from 0.55 → 1 based on elapsed time inside the window.
+  return 0.55 + (delta/FX_HOT_WINDOW_MS)*0.45;
+}
+
 export function startWildStars(tile){
   attachWildStarHalo(tile);
 }
@@ -852,9 +865,9 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   const tileSpecial = tile?.special || null;
   
   // 🔥 DEBUG: Log particle creation for wild tiles
-  if (tileSpecial === 'wild' || tileSpecial === 'wild-beer' || tileSpecial === 'wild-magnet') {
-    console.log(`✨ magicSparklesAtTile: Creating ${shardCount} particles for ${tileSpecial} at (${x.toFixed(1)}, ${y.toFixed(1)}), intensity=${intensity}`);
-  }
+  // if (tileSpecial === 'wild' || tileSpecial === 'wild-beer' || tileSpecial === 'wild-magnet') {
+  //   console.log(`✨ magicSparklesAtTile: Creating ${shardCount} particles for ${tileSpecial} at (${x.toFixed(1)}, ${y.toFixed(1)}), intensity=${intensity}`);
+  // }
   
   try {
     colors = getDragParticleColors(tileSpecial);
@@ -910,6 +923,10 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   for (let i = 0; i < shardCount; i++) {
     // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics
     const shard = graphicsPool.acquire();
+    if (!shard || shard.destroyed || typeof shard.clear !== 'function') {
+      console.warn('⚠️ magicSparklesAtTile: Skipping invalid shard from pool', shard);
+      continue;
+    }
     
     // 🔥 CRITICAL: Clear any previous drawing commands before reuse
     shard.clear();
@@ -932,9 +949,9 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     
     // 🔥 DEBUG: Log first few particles for wild-magnet to verify colors
     const isWildMagnet = tile?.special === 'wild-magnet';
-    if (isWildMagnet && i < 3) {
-      console.log(`🧲 Particle ${i}: color=0x${color.toString(16).toUpperCase()}, intensity=${intensity}, tile.special=${tile?.special}`);
-    }
+    // if (isWildMagnet && i < 3) {
+    //   console.log(`🧲 Particle ${i}: color=0x${color.toString(16).toUpperCase()}, intensity=${intensity}, tile.special=${tile?.special}`);
+    // }
     
     // Size multiplier support
     const sizeMultiplier = opts.sizeMultiplier ?? 1;
@@ -4756,6 +4773,9 @@ export function showMultiplierTile(board, tile, mult = 2, tileSize = 96, life = 
 
 /* ---------- “book‑thud” cartoony dust burst for merge‑6 ---------- */
 export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, maybeOpts = null){
+  // Bail out fast if board/tile are missing or already destroyed; avoids null Graphics errors during teardown.
+  if (!board || board.destroyed || !tile) return;
+
   let options = {};
   let size = tileSize ?? 96;
   let power = strength ?? 1;
@@ -4791,14 +4811,17 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   layer.zIndex = behind ? tileZ - 0.001 : (options.zIndex ?? 9990);
   autoAdd(board, layer, ttl, behind ? { before: tile } : undefined);
 
+  // Rapid-merge throttling: reduce particle load if previous FX fired recently.
+  const hotFactor = getFxHotFactor();
+
   const baseStrength = Math.max(0.4, power);
-  const COUNT     = Math.max(6, Math.round((44 + Math.random()*14) * baseStrength * countScale));
+  const COUNT     = Math.max(6, Math.round((44 + Math.random()*14) * baseStrength * countScale * hotFactor));
   const BASE_R    = Math.max(6, Math.round(size * 0.051 * sizeScale)); // +50% larger base size
   const MAX_R     = Math.max(18, Math.round(size * 0.24 * sizeScale)); // +50% larger max size
   const INSET     = size * 0.02 * insetScale;
   const OUT_MIN   = size * 0.15 * distanceScale;
   const OUT_MAX   = size * 0.34 * distanceScale;
-  const BURSTS    = options.bursts ?? 5;
+  const BURSTS    = Math.max(3, Math.round((options.bursts ?? 5) * hotFactor));
   const BURST_GAP = options.burstGap ?? 0.035;
 
   const spawnOnSide = (side)=>{
@@ -4817,6 +4840,17 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
     for (let i=0; i<perBurst; i++){
       // 🔥 OBJECT POOLING: Use pool instead of creating new Graphics
       const puff = graphicsPool.acquire();
+      if (!puff || puff.destroyed || typeof puff.clear !== 'function' || typeof puff.circle !== 'function' || typeof puff.ellipse !== 'function') {
+        continue; // Skip invalid pooled graphic
+      }
+
+      // Defensive cleanup of recycled graphic; if clear throws, release and skip.
+      try {
+        puff.clear();
+      } catch {
+        try { graphicsPool.release(puff); } catch {}
+        continue;
+      }
       
       let r0 = BASE_R + Math.random() * (MAX_R - BASE_R);
       if (Math.random() < 0.22) r0 *= (1.35 + Math.random()*0.9);
@@ -4905,6 +4939,10 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
 
   // 🔥 OBJECT POOLING: Use pool for halo Graphics object
   const halo = graphicsPool.acquire();
+  if (!halo || halo.destroyed || typeof halo.clear !== 'function' || typeof halo.circle !== 'function') {
+    return;
+  }
+  halo.clear();
   const haloScale = options.haloScale ?? 1;
   const rr = size * (0.22 + 0.05*baseStrength) * haloScale;
   halo.circle(0, 0, rr).fill({ color: 0xFFFFFF, alpha: 0.10 * (options.haloAlpha ?? 1) });
@@ -5614,6 +5652,7 @@ export function stopMagnetIdleParticles(tile) {
   if (tile._magnetIdleParticles && Array.isArray(tile._magnetIdleParticles)) {
     const particles = tile._magnetIdleParticles.slice(); // Copy array to avoid modification during iteration
     particles.forEach((particle) => {
+      if (!particle || particle.destroyed) return;
       try {
         // Kill GSAP animations on particle
         gsap.killTweensOf(particle);
