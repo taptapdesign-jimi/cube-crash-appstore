@@ -6,7 +6,7 @@
 
 import { gsap } from 'gsap';
 import type { Tile } from '../types';
-import { smokeBubblesAtTile } from "./fx.ts"';
+import { smokeBubblesAtTile } from "./fx.ts";
 import { TILE } from './constants.js';
 
 const ENABLE_TILE_IDLE_BOUNCE = true;

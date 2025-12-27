@@ -184,10 +184,10 @@ const MAX_CHECK_LEVEL_END_SKIP_MS = 3000; // Hard stop for skip gates to avoid p
 // Combo (UI driven)
 let combo = 0; // default x0
 function hudSetCombo(v){ 
-  combo = hudSetComboHelper(v, COMBO_CAP, _setCombo);
+  combo = hudSetComboHelper(v, COMBO_CAP, HUD.setCombo);
 }
 function hudResetCombo(){ 
-  hudResetComboHelper(_resetCombo);
+  hudResetComboHelper(HUD.resetCombo);
 }
 
 // HUD legacy refs (fallback)

@@ -1268,7 +1268,12 @@ async function startNewRun(boardId: number): Promise<void> {
     
     // 🔥 USER REQUEST: Only reset slider if returning to homepage (slide 0)
     // Journey screen (slide 1) is NOT part of homepage slider, so don't reset slider
-    if (targetSlide === 0 && sliderManager) {
+    // 🔥 CRITICAL: If __ccJourneyExitMode is 'toHome', collectibles-manager.ts will handle slide positioning
+    // DO NOT reset slider here as it will interfere with collectibles-manager.ts positioning
+    const journeyExitMode = (window as any).__ccJourneyExitMode;
+    if (journeyExitMode === 'toHome') {
+      console.log('🗺️ Journey exit mode is "toHome" - skipping slider reset (collectibles-manager.ts will handle)');
+    } else if (targetSlide === 0 && sliderManager) {
       console.log(`🎯 Resetting slider to slide ${targetSlide} (homepage)...`);
       sliderManager.setCurrentSlide(targetSlide);
       console.log(`✅ Slider reset to slide ${targetSlide}`);
@@ -1285,7 +1290,12 @@ async function startNewRun(boardId: number): Promise<void> {
     
     // 🔥 USER REQUEST: Only update slider slides if returning to homepage (slide 0)
     // If returning to Journey (slide 1), don't touch slider - Journey screen is shown directly
-    if (targetSlide === 0) {
+    // 🔥 CRITICAL: If __ccJourneyExitMode is 'toHome', collectibles-manager.ts will handle slide positioning
+    // DO NOT update slides here as it will interfere with collectibles-manager.ts positioning
+    // Note: journeyExitMode is already declared above, reuse it
+    if (journeyExitMode === 'toHome') {
+      console.log('🗺️ Journey exit mode is "toHome" - skipping slide update (collectibles-manager.ts will handle)');
+    } else if (targetSlide === 0) {
       // Also update slide classes and nav buttons to match target slide
       const slides = document.querySelectorAll('.slider-slide');
       const navButtons = document.querySelectorAll('.independent-nav-button');

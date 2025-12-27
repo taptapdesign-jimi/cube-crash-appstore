@@ -1886,9 +1886,40 @@ class UIManager {
       logger.info('✅ Journey screen completely hidden');
     }
     
-    // Show homepage QUIETLY after exit animation completes
-    this.showHomepageQuietly();
-    this.setNavigationVisibility(true);
+    // 🔥 USER REQUEST: Check if we're returning to Journey slide (slide 1) or homepage slide (slide 0)
+    // Journey games should ALWAYS return to slide 1 (Journey slide), NOT slide 0 (homepage PLAY slide)
+    const cameFromJourney = (window as any).__ccCameFromJourney === true || 
+                            localStorage.getItem('__ccCameFromJourney') === 'true';
+    const cameFromHomepage = (window as any).__ccCameFromHomepage === true || 
+                             localStorage.getItem('__ccCameFromHomepage') === 'true';
+    const journeyExitMode = (window as any).__ccJourneyExitMode;
+    
+    logger.info('🔍 Checking exit context:', { cameFromJourney, cameFromHomepage, journeyExitMode });
+    
+    // 🔥 CRITICAL: If __ccJourneyExitMode is 'toHome', collectibles-manager.ts will handle showing slide 2
+    // DO NOT call showHomepageQuietly() as it will reset slider to slide 0
+    if (journeyExitMode === 'toHome') {
+      logger.info('🗺️ Journey exit mode is "toHome" - collectibles-manager.ts will handle slide 2 positioning');
+      // Don't call showHomepageQuietly() - collectibles-manager.ts will position slider on slide 2
+      return; // Exit early - collectibles-manager.ts will handle everything
+    }
+    
+    if (cameFromJourney) {
+      // 🔥 USER REQUEST: Journey games → return to Journey slide (slide 1), NOT homepage slide (slide 0)
+      // DO NOT show homepage - Journey screen will be shown directly by exitToMenu
+      logger.info('🗺️ Returning to Journey slide (slide 1) - skipping showHomepageQuietly');
+      // Don't call showHomepageQuietly() - exitToMenu will handle showing Journey screen
+    } else if (cameFromHomepage) {
+      // 🔥 USER REQUEST: Homepage PLAY games → return to homepage slide (slide 0)
+      logger.info('🏠 Returning to homepage slide (slide 0) - showing homepage');
+      this.showHomepageQuietly();
+      this.setNavigationVisibility(true);
+    } else {
+      // Default: show homepage (for backward compatibility)
+      logger.info('🏠 No context found - defaulting to homepage slide (slide 0)');
+      this.showHomepageQuietly();
+      this.setNavigationVisibility(true);
+    }
     
     // 🔥 USER BUG FIX: Update Journey badge when returning to homepage from Journey screen
     // This ensures badge is visible immediately after returning, showing newly unlocked boards

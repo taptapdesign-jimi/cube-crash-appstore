@@ -559,6 +559,10 @@ function addDragFunctionality(modalEl: HTMLElement): void {
         removeEndRunOverlay();
         // 🔥 SAME AS SCORE BOTTOM SHEET: Reset visibility IMMEDIATELY when drag closes
         // This makes modal instantly available for reopening
+        // 🔥 CRITICAL: Remove 'visible' class IMMEDIATELY so drag-core.ts doesn't block drag
+        if (modalEl) {
+          modalEl.classList.remove('visible');
+        }
         setModalVisible(false);
       try {
         if (typeof window.setEndRunModalVisible === 'function') {
@@ -640,6 +644,10 @@ function addDragFunctionality(modalEl: HTMLElement): void {
         removeEndRunOverlay();
         // 🔥 SAME AS SCORE BOTTOM SHEET: Reset visibility IMMEDIATELY when drag closes
         // This makes modal instantly available for reopening
+        // 🔥 CRITICAL: Remove 'visible' class IMMEDIATELY so drag-core.ts doesn't block drag
+        if (modalEl) {
+          modalEl.classList.remove('visible');
+        }
         setModalVisible(false);
       try {
         if (typeof window.setEndRunModalVisible === 'function') {
@@ -773,6 +781,10 @@ export function hideModal(): void {
   // 🔥 SAME AS SCORE BOTTOM SHEET: Visibility already reset in drag handler
   // Only reset here if called directly (not from drag handler)
   // Check if visibility is still true (means hideModal was called directly, not from drag)
+  // 🔥 CRITICAL: Remove 'visible' class IMMEDIATELY so drag-core.ts doesn't block drag
+  if (modalEl) {
+    modalEl.classList.remove('visible');
+  }
   if (isModalVisible()) {
     console.log('📊 hideModal called directly (not from drag) - resetting visibility');
     setModalVisible(false);

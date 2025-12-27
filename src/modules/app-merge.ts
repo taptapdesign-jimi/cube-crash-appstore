@@ -2,12 +2,12 @@
 import { gsap } from 'gsap';
 import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';
 import * as makeBoard from './board.js';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle, stopWildBeerBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles, wildMagnetMerge6ShardsTemplated } from "./fx.ts"';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle, stopWildBeerBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles, wildMagnetMerge6ShardsTemplated } from "./fx.ts";
 import { COLS, ROWS, TILE, GAP } from './constants.js';
-import * as HUD from './hud-helpers.js';
+import * as HUD from './hud-helpers.ts';
 import { openAtCell, openEmpties, spawnBounce } from './app-spawn.ts';
 import { showBoardFailModal } from './board-fail-modal.js';
-import { rebuildBoard } from './app-board.js';
+import { rebuildBoard } from './app-board.ts';
 import { drawBoardBG } from './app-core.js';
 import { statsService } from '../services/stats-service.js';
 
