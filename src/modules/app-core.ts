@@ -3692,13 +3692,20 @@ function merge(src, dst, helpers){
           
           // 🔥 CRITICAL FIX: Check if there are 2+ active tiles that can still merge BEFORE checking stuck
           // This prevents false "stuck" detection when 2 tiles (e.g., 3 and 2) can still stack
+          // 🔥 v112: Using centralized checkEndGame() instead of direct anyMergePossible() call
           const visibleTilesBeforeCheck = activeTilesBeforeCheck.length;
           if (visibleTilesBeforeCheck >= 2) {
-            // Check if anyMergePossible returns true (tiles can still merge/stack)
-            const canStillMerge = makeBoard?.anyMergePossible?.(activeTilesBeforeCheck);
-            if (canStillMerge) {
-              console.log('✅ Post-merge check: 2+ tiles remain and can still merge/stack - NOT checking stuck, game continues');
-              console.log('✅ Active tiles:', activeTilesBeforeCheck.map(t => ({ value: t.value, special: t.special })));
+            // Use centralized end game checker to determine if game can continue
+            const quickCheckContext: EndGameContext = {
+              tiles: activeTilesBeforeCheck,
+              moves,
+              makeBoard
+            };
+            const quickCheckResult = checkEndGame(quickCheckContext, true);
+            if (quickCheckResult.type === 'continue') {
+              logger.debug('✅ Post-merge check: 2+ tiles remain and can still merge/stack - NOT checking stuck, game continues', 'app-core', {
+                activeTiles: activeTilesBeforeCheck.map(t => ({ value: t.value, special: t.special }))
+              });
               // Don't check stuck - tiles can still merge
               return; // Exit early, don't check stuck
             }
@@ -6677,6 +6684,8 @@ function checkLevelEnd(){
       // If anyMergePossible returns true → game continues (don't trigger clean board)
       // If anyMergePossible returns false → trigger clean board or fail screen
       // This ensures clean board is only triggered when no merges/stack are possible
+      // 🔥 v112 NOTE: This is a specific check for UNLOCKED tiles only (different from standard checkEndGame)
+      // Keeping direct anyMergePossible() call here because we need to check only unlocked tiles, not all tiles
       let hasMergeOrStackPotential = false;
       if (unlockedActiveTiles.length > 0 && makeBoard?.anyMergePossible) {
         // Check only with unlocked tiles (available for player to use)
