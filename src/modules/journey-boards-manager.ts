@@ -2023,10 +2023,11 @@ class JourneyBoardsManager {
         detailImage
       ].filter(el => el !== null) as HTMLElement[];
 
+      // 🔥 USER REQUEST: Exit animation matches settings screen - content elements FIRST, header LAST
       // STEP 1: Content elements FIRST (reverse order - bottom to top)
       contentElements.forEach((element, index) => {
         const baseDelay = 0;
-        const stagger = 0.05; // Faster stagger for exit
+        const stagger = 0.05; // Faster stagger for exit (same as settings screen)
         const delay = baseDelay + (index * stagger);
 
         gsap.to(element, {
@@ -2040,9 +2041,31 @@ class JourneyBoardsManager {
         logger.info(`🎴 Step ${index + 1}: Content element ${index + 1} pop-out - delay ${(delay * 1000).toFixed(0)}ms`);
       });
 
-      // STEP 2: Header LAST (includes divider and shadow - animated as group)
+      // STEP 2: Header LAST (includes X, title, divider - animated as group, same as settings screen)
+      // 🔥 CRITICAL: Animate header EXACTLY like enter animation - as parent element, not child elements
+      // This ensures all child elements (X, title, divider) animate together as a group
       const lastDelay = contentElements.length > 0 ? (contentElements.length * 0.05) : 0;
       if (detailHeader) {
+        // 🔥 CRITICAL: Remove CSS transition classes and disable transitions on header child elements
+        // This ensures GSAP animation controls all header elements (X, title, divider) as a group
+        const detailCloseBtn = modal.querySelector('#detail-close-btn') as HTMLElement;
+        if (detailCloseBtn) {
+          detailCloseBtn.classList.remove('animate-enter', 'animate-exit', 'animate-enter-initial', 'animate-reset');
+          detailCloseBtn.style.setProperty('transition', 'none', 'important');
+          detailCloseBtn.style.setProperty('transform', 'none', 'important');
+        }
+        
+        // Disable transitions on all nested header child elements to ensure GSAP controls everything
+        const headerChildren = detailHeader.querySelectorAll('*');
+        headerChildren.forEach((child: Element) => {
+          const childEl = child as HTMLElement;
+          childEl.style.setProperty('transition', 'none', 'important');
+          childEl.style.setProperty('transform', 'none', 'important');
+        });
+        
+        // 🔥 CRITICAL: Animate header parent element EXACTLY like enter animation
+        // All child elements (X, title, divider) will animate together as a group
+        // This matches the enter animation pattern where header is animated as parent
         gsap.to(detailHeader, {
           scale: 0,
           opacity: 0,
@@ -2051,10 +2074,10 @@ class JourneyBoardsManager {
           delay: lastDelay + 0.05,
           force3D: true
         });
-        logger.info('📊 Header pop-out - LAST');
+        logger.info(`📊 Header pop-out - LAST (X, title, divider animate together as group at ${((lastDelay + 0.05) * 1000).toFixed(0)}ms)`);
       }
 
-      // Calculate total animation duration
+      // Calculate total animation duration (content elements + header)
       const totalDuration = (lastDelay + 0.05 + 0.4 + 0.1) * 1000; // Add 100ms buffer
 
       // Wait for exit animation to complete
@@ -2792,6 +2815,59 @@ class JourneyBoardsManager {
           logger.info(`✅ Detail modal enter animation started (header + ${contentElements.length} content elements)`);
         });
       });
+      
+      // 🔥 CRITICAL: Replace collectibles-manager event listener with journey boards exit animation
+      // This ensures X button uses GSAP exit animation (header as group) instead of CSS animation (child elements separately)
+      if (detailCloseBtn) {
+        // Remove any existing event listeners by cloning the button
+        const newCloseBtn = detailCloseBtn.cloneNode(true) as HTMLElement;
+        detailCloseBtn.parentNode?.replaceChild(newCloseBtn, detailCloseBtn);
+        
+        // Set pointer events explicitly to ensure it's always clickable
+        newCloseBtn.style.pointerEvents = 'auto';
+        newCloseBtn.style.zIndex = '2000000';
+        newCloseBtn.style.position = 'relative';
+        newCloseBtn.style.cursor = 'pointer';
+        
+        // Add click listener that uses journey boards exit animation (GSAP, header as group)
+        const handleCloseClick = async (e: Event) => {
+          e.preventDefault();
+          e.stopPropagation();
+          logger.info('🎁 Journey boards detail modal close button clicked - using GSAP exit animation');
+          
+          // Use journey boards exit animation (header animates as group)
+          await this.closeDetailModalWithExitAnimation(detailModal);
+          
+          // Show Journey screen after modal closes
+          const collectiblesManager = (window as any).collectiblesManager;
+          if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
+            collectiblesManager.showCollectibles();
+          }
+        };
+        
+        // Multiple ways to attach listener for maximum compatibility
+        newCloseBtn.addEventListener('click', handleCloseClick, { capture: true });
+        newCloseBtn.addEventListener('click', handleCloseClick, { capture: false });
+        newCloseBtn.onclick = handleCloseClick;
+        
+        // Also handle touch events for mobile
+        newCloseBtn.addEventListener('touchend', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          logger.info('🎁 Journey boards detail modal close button touched - using GSAP exit animation');
+          
+          // Use journey boards exit animation (header animates as group)
+          await this.closeDetailModalWithExitAnimation(detailModal);
+          
+          // Show Journey screen after modal closes
+          const collectiblesManager = (window as any).collectiblesManager;
+          if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
+            collectiblesManager.showCollectibles();
+          }
+        }, { capture: true, passive: false });
+        
+        logger.info('✅ Journey boards detail modal close button listener attached (GSAP exit animation)');
+      }
       
       logger.info('✅ Detail modal shown with enter animation');
     } else {

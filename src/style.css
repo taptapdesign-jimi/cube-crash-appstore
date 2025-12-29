@@ -49,7 +49,7 @@ body{
   justify-content: center;
   z-index: 10000;
   transition: opacity 0.5s ease, visibility 0.5s ease;
-  background: linear-gradient(180deg, #f3eee8 0%, #fcecdf 100%); /* Same gradient as homepage body */
+  background: #fafafa; /* 🔥 PREMIUM: Start with #fafafa, GSAP will handle smooth fade to gradient */
 }
 
 /* Removed gradient-fade-out rules - gradient stays visible */
@@ -106,8 +106,9 @@ body{
   height: auto;
   margin-bottom: 0;
   margin-top: -24px; /* 🔥 Dignuto 24px gore */
-  /* Static - no animations, always visible */
-  opacity: 1;
+  /* 🔥 PREMIUM: Start faded out, fade-in synced with progress bar */
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .loading-progress {
@@ -195,7 +196,7 @@ body{
   --cta-1:#FF8C3A;   /* top orange */
   --cta-2:#F57A31;   /* mid */
   --cta-3:#DE6224;   /* bottom rim */
-  --cta-text:#fff;
+  --cta-text:#FFFBF2; /* 🔥 PREMIUM: Light beige font color for orange buttons */
   --cta-shadow:#A64315; /* hard base shadow */
 }
 
@@ -583,7 +584,7 @@ body{
 }
 .squishy-cc::before{
   content: attr(data-front);
-  color: #ffffff !important;
+  color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
   background: #E97A55 !important; /* Simple orange like bottom sheet buttons */
   background-size: 100% 100% !important;
   /* Shimmer animation enabled for performance */
@@ -790,7 +791,7 @@ body{
 
 .pause-modal-btn-orange {
   background: #D87A53;
-  color: white;
+  color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
   border: none;
   box-shadow: 0 8px 0 0 #C24921;
   overflow: hidden; /* clip shimmer */
@@ -870,7 +871,7 @@ body{
 .slide-button.tap-scale.menu-btn-primary::before,
 .slider-slide .slide-button.tap-scale.menu-btn-primary::before {
   content: attr(data-front) !important;
-  color: #ffffff !important;
+  color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
   background: transparent !important; /* Make background transparent so main button shows */
   background-size: 100% 100% !important;
   /* Shimmer animation enabled for performance */
@@ -1106,7 +1107,7 @@ body{
   transform-style: flat !important;
   perspective: none !important;
   background: #E97A55 !important;
-  color: white !important;
+  color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
   border: none !important;
   border-radius: 40px !important;
   height: 64px !important;
@@ -1141,7 +1142,7 @@ body{
   transform: scale(1) !important;
   box-shadow: 0 8px 0 0 #C24921 !important;
   background: #E97A55 !important;
-  color: white !important;
+  color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
 }
 
 .continue-btn:active,
@@ -2155,6 +2156,7 @@ body{
   font-weight: 700;
   align-self: center;
   background: linear-gradient(180deg, #F89058 0%, #E36D37 100%);
+  color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
   box-shadow: 0 8px 0 0 #C24921;
   overflow: hidden;
   position: relative;
@@ -4324,7 +4326,7 @@ body:has(:root) .tile.wild-3d-glow {
   transform-style: flat !important;
   perspective: none !important;
   background: #E97A55 !important;
-  color: white !important;
+  color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
   border: none !important;
   border-radius: 40px !important;
   height: 64px !important;
@@ -4372,7 +4374,7 @@ body:has(:root) .tile.wild-3d-glow {
   /* transform: scale(1) !important; REMOVED - conflicts with animations */
   box-shadow: 0 8px 0 0 #C24921 !important;
   background: #E97A55 !important;
-  color: white !important;
+  color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
 }
 
 .primary-button:active:not(:disabled),

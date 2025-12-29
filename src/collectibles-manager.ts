@@ -1523,6 +1523,15 @@ class CollectiblesManager {
       return;
     }
 
+    // 🔥 CRITICAL: Check if this is a journey boards detail modal (has data-journey-board-id)
+    // If so, don't use collectibles exit animation - journey boards manager handles it
+    const journeyBoardId = modal.getAttribute('data-journey-board-id');
+    if (journeyBoardId) {
+      console.log(`🎁 Journey boards detail modal detected (board ${journeyBoardId}) - skipping collectibles exit animation`);
+      // Journey boards manager will handle exit animation via its own event listener
+      return;
+    }
+
     this.currentDetailCategory = null;
 
     console.log('✅ Modal found, starting exit animation');

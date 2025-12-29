@@ -428,7 +428,7 @@
   align-items: center !important;
   justify-content: center !important;
   background: var(--collectibles-orange) !important;
-  color: white !important;
+  color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
   border: none !important;
   padding: 12px 24px !important;
   border-radius: 20px !important;
@@ -1105,7 +1105,7 @@
 #collectibles-detail-modal .detail-play-board-button,
 #collectibles-detail-modal .detail-continue-board-button {
   background: #E9744A;
-  color: white;
+  color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
   border: none;
   border-radius: 40px;
   padding: 0 56px;
@@ -1132,7 +1132,7 @@
 
 #collectibles-detail-modal .detail-play-board-button:hover {
   background: #E9744A;
-  color: white;
+  color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
   transform: scale(1);
   box-shadow: 0 8px 0 0 #C24921;
 }
@@ -1141,7 +1141,7 @@
 #collectibles-detail-modal .detail-play-board-button:focus,
 #collectibles-detail-modal .detail-play-board-button:focus-visible {
   background: #E9744A;
-  color: white;
+  color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
   transform: scale(0.95);
   box-shadow: 0 4px 0 0 #C24921;
   transition: transform 0.35s ease;
@@ -1870,7 +1870,7 @@
   align-items: center !important;
   justify-content: center !important;
   background: var(--collectibles-orange) !important;
-  color: white !important;
+  color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
   border: none !important;
   padding: 10px 20px !important;
   border-radius: 16px !important;
@@ -1931,7 +1931,7 @@
 /* Floating buttons - orange, hug content */
 .journey-floating-btn {
   background: var(--collectibles-orange, #e8734a) !important;
-  color: white !important;
+  color: #FFFBF2 !important; /* 🔥 PREMIUM: Light beige font color for orange buttons */
   border: none !important;
   border-radius: 12px !important;
   padding: 12px 20px !important;
