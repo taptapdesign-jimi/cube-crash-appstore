@@ -37,11 +37,13 @@ class UIManager {
   private elements: UIManagerElements;
   private animations: Map<string, any>;
   private isInitialized: boolean;
+  private logoFadeInStarted: boolean; // 🔥 PREMIUM: Track if logo fade-in has started
 
   constructor() {
     this.elements = {} as UIManagerElements;
     this.animations = new Map();
     this.isInitialized = false;
+    this.logoFadeInStarted = false;
   }
   
   // Initialize UI elements
@@ -674,36 +676,94 @@ class UIManager {
   
   // Show homepage
   showHomepage(): void {
+    logger.info('🏠 showHomepage() called');
     if (this.elements.home) {
       this.elements.home.style.display = 'block';
       this.elements.home.removeAttribute('hidden');
       fadeInHome();
     }
 
-    // 🔥 CRITICAL: Reset background to gradient when showing homepage
+    // 🔥 CRITICAL: Always set gradient background when showing homepage (v101 approach)
     // This ensures homepage always has gradient background, not solid color
     const body = document.body;
-    const globalBg = document.getElementById('global-bg');
+    const html = document.documentElement;
+    let globalBg = document.getElementById('global-bg');
     const appElement = document.getElementById('app');
-    const targetGradient = 'linear-gradient(180deg, #f3eee8 0%, #fcecdf 100%)';
+    const targetGradient = 'linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%)';
     const targetGlobalBgGradient = 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)';
 
-    if (gsap && body) {
-      gsap.killTweensOf(body);
-      body.style.transition = 'none';
-      gsap.set(body, { background: targetGradient });
+    // 🔥 CRITICAL: Create #global-bg element if it doesn't exist
+    if (!globalBg) {
+      logger.info('🔧 Creating #global-bg element (not found in DOM)');
+      globalBg = document.createElement('div');
+      globalBg.id = 'global-bg';
+      globalBg.style.position = 'fixed';
+      globalBg.style.top = 'calc(-1 * env(safe-area-inset-top, 0px))';
+      globalBg.style.bottom = 'calc(-1 * env(safe-area-inset-bottom, 0px))';
+      globalBg.style.left = '-12vw';
+      globalBg.style.right = '-12vw';
+      globalBg.style.pointerEvents = 'none';
+      globalBg.style.zIndex = '-1'; // 🔥 CRITICAL: Behind content, not in front
+      // Insert at the beginning of body
+      if (document.body.firstChild) {
+        document.body.insertBefore(globalBg, document.body.firstChild);
+      } else {
+        document.body.appendChild(globalBg);
+      }
+      logger.info('✅ #global-bg element created and inserted into DOM');
     }
-    if (gsap && globalBg) {
-      gsap.killTweensOf(globalBg);
-      (globalBg as HTMLElement).style.transition = 'none';
-      gsap.set(globalBg, { background: targetGlobalBgGradient });
+
+    logger.info('🎨 Setting gradient background:', {
+      body: !!body,
+      html: !!html,
+      globalBg: !!globalBg,
+      appElement: !!appElement,
+      gsap: !!gsap,
+      targetGradient: targetGradient.substring(0, 50) + '...'
+    });
+
+    // 🔥 CRITICAL: Set gradient directly on body with !important to override CSS
+    if (body) {
+      body.style.setProperty('background', targetGradient, 'important');
+      body.style.setProperty('background-color', 'transparent', 'important');
+      body.style.setProperty('background-image', targetGradient, 'important');
+      logger.info('✅ Body gradient set directly with !important');
     }
-    if (gsap && appElement) {
-      gsap.killTweensOf(appElement);
-      appElement.style.transition = 'none';
-      // Keep app element with gradient for homepage (will change to solid when entering game)
-      gsap.set(appElement, { background: 'var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%))' });
+    
+    // 🔥 CRITICAL: Set gradient directly on html with !important to override CSS
+    if (html) {
+      html.style.setProperty('background', targetGradient, 'important');
+      html.style.setProperty('background-color', 'transparent', 'important');
+      html.style.setProperty('background-image', targetGradient, 'important');
+      logger.info('✅ HTML gradient set directly with !important');
     }
+    
+    // 🔥 CRITICAL: Set gradient on #global-bg
+    if (globalBg) {
+      (globalBg as HTMLElement).style.setProperty('background', targetGlobalBgGradient, 'important');
+      (globalBg as HTMLElement).style.setProperty('background-color', 'transparent', 'important');
+      (globalBg as HTMLElement).style.setProperty('background-image', targetGlobalBgGradient, 'important');
+      logger.info('✅ #global-bg gradient set directly with !important');
+    }
+    
+    if (appElement) {
+      appElement.style.setProperty('background', 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)', 'important');
+      logger.info('✅ #app gradient set directly with !important');
+    }
+    
+    // 🔥 DEBUG: Check actual background values after setting
+    setTimeout(() => {
+      const bodyBg = body ? window.getComputedStyle(body).background : 'N/A';
+      const htmlBg = html ? window.getComputedStyle(html).background : 'N/A';
+      const globalBgComputed = globalBg ? window.getComputedStyle(globalBg as HTMLElement).background : 'N/A';
+      const bodyBgColor = body ? window.getComputedStyle(body).backgroundColor : 'N/A';
+      logger.info('🔍 Computed backgrounds after setting:', {
+        body: bodyBg.substring(0, 100),
+        html: htmlBg.substring(0, 100),
+        globalBg: globalBgComputed.substring(0, 100),
+        bodyBgColor: bodyBgColor
+      });
+    }, 100);
     
     // 🗺️ JOURNEY BADGE: Update badge when returning to homepage
     // Show NEWLY unlocked boards count (excluding board 1 and already viewed boards) as badge
@@ -2415,43 +2475,25 @@ class UIManager {
     }
   }
   
-  // Update loading progress
+  // Update loading progress (deprecated - launch screen handles its own animations)
   updateLoadingProgress(progress: number): void {
-    if (this.elements.loadingFill) {
-      this.elements.loadingFill.style.width = `${progress}%`;
-    }
-    
-    // Only show number, CSS ::after adds the % symbol
-    if (this.elements.loadingPercentage) {
-      this.elements.loadingPercentage.textContent = `${Math.round(progress)}`;
-    }
-    
-    // Update ARIA attributes for accessibility
-    const progressBar = document.querySelector('.loading-bar-container');
-    if (progressBar) {
-      progressBar.setAttribute('aria-valuenow', Math.round(progress).toString());
-    }
+    // 🔥 DEPRECATED: Launch screen module handles its own animations
+    // This method is kept for backward compatibility but does nothing
+    logger.debug(`📦 Loading progress: ${progress}% (handled by launch-screen module)`);
   }
   
-  // Show loading screen
+  // Show loading screen (deprecated - use launch-screen module instead)
   showLoadingScreen(): void {
-    if (this.elements.loadingScreen) {
-      this.elements.loadingScreen.style.display = 'flex';
-      this.elements.loadingScreen.classList.remove('hidden');
-    }
+    // 🔥 DEPRECATED: Launch screen module handles its own display
+    // This method is kept for backward compatibility but does nothing
+    logger.debug('⚠️ showLoadingScreen() is deprecated - use launch-screen module instead');
   }
   
-  // Hide loading screen
+  // Hide loading screen (deprecated - use launch-screen module instead)
   hideLoadingScreen(): void {
-    if (this.elements.loadingScreen) {
-      this.elements.loadingScreen.style.display = 'none';
-      this.elements.loadingScreen.classList.add('hidden');
-      // Remove from DOM to avoid any pointer interception after boot
-      try {
-        this.elements.loadingScreen.parentElement?.removeChild(this.elements.loadingScreen);
-        this.elements.loadingScreen = null;
-      } catch {}
-    }
+    // 🔥 DEPRECATED: Launch screen module handles its own hiding
+    // This method is kept for backward compatibility but does nothing
+    logger.debug('⚠️ hideLoadingScreen() is deprecated - use launch-screen module instead');
   }
   
   // Get element by ID

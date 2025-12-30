@@ -7,66 +7,59 @@ export function createLoadingScreen(): HTMLElementConfig {
     id: 'loading-screen',
     className: 'loading-screen',
     attributes: {
-      style: 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10000; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, #f3eee8 0%, #fcecdf 100%);'
+      style: 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10000; display: flex; align-items: center; justify-content: center; background: #FAFAFA;'
     },
     children: [
       {
         tag: 'div',
         className: 'loading-content',
         children: [
+          // 🔥 PREMIUM: Phase 1 - White background with taptapdesign logo (shown first, 2 seconds)
           {
             tag: 'div',
-            className: 'loading-logo',
+            className: 'loading-logo-taptap',
             children: [
               {
                 tag: 'img',
+                id: 'loading-logo-taptap',
                 attributes: {
-                  src: './assets/logo-cube-crash.png',
-                  alt: 'CubeCrash',
+                  src: './assets/taptapdesign.png',
+                  alt: 'TapTap Design',
                   loading: 'eager',
                   fetchpriority: 'high',
                 },
               },
             ],
           },
+          // 🔥 PREMIUM: Phase 2 - Gradient background with stack to six logo + smokeandshards background
           {
             tag: 'div',
-            className: 'loading-text',
-            text: 'Loading...',
-          },
-          {
-            tag: 'div',
-            className: 'loading-progress',
+            className: 'loading-logo-stack',
+            style: 'display: none;',
             children: [
-              // Percentage counter (commented out for cleaner look)
-              // {
-              //   tag: 'div',
-              //   id: 'loading-percentage',
-              //   className: 'loading-percentage',
-              //   text: '0',
-              //   attributes: {
-              //     role: 'status',
-              //     'aria-live': 'polite',
-              //     'aria-atomic': 'true',
-              //   },
-              // },
+              // Smoke and shards background image (behind logo)
               {
-                tag: 'div',
-                className: 'loading-bar-container',
+                tag: 'img',
+                id: 'loading-smoke-shards',
+                className: 'loading-smoke-shards',
                 attributes: {
-                  role: 'progressbar',
-                  'aria-valuemin': '0',
-                  'aria-valuemax': '100',
-                  'aria-valuenow': '0',
-                  'aria-label': 'Loading progress',
+                  src: './assets/logo addons/smokeandshards.png',
+                  alt: '',
+                  loading: 'eager',
+                  fetchpriority: 'high',
                 },
-                children: [
-                  {
-                    tag: 'div',
-                    id: 'loading-fill',
-                    className: 'loading-bar',
-                  },
-                ],
+              },
+              // Stack to six logo (in front)
+              {
+                tag: 'img',
+                id: 'loading-logo-stack',
+                className: 'loading-logo-stack-img',
+                attributes: {
+                  src: './assets/logo-cube-crash.png',
+                  alt: 'CubeCrash',
+                  loading: 'eager',
+                  fetchpriority: 'high',
+                },
               },
             ],
           },

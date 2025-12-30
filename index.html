@@ -8,12 +8,15 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="screen-orientation" content="portrait">
   <meta name="orientation" content="portrait">
-  <!-- Force initial paint to match loader background (prevents white flash) -->
-  <script>
-    document.documentElement.style.background = '#f3eee8';
-    document.documentElement.style.colorScheme = 'light';
-    document.body && (document.body.style.background = '#f3eee8');
-  </script>
+  <!-- 🔥 CRITICAL: Set #FAFAFA background IMMEDIATELY in inline style (before CSS loads) -->
+  <!-- This prevents gradient from showing before launch screen sets white background -->
+  <style>
+    html, body {
+      background: #FAFAFA !important;
+      background-color: #FAFAFA !important;
+      background-image: none !important;
+    }
+  </style>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./favicon.ico">
   
@@ -83,7 +86,10 @@
     }
     
     body {
-      background: linear-gradient(180deg, #f3eee8 0%, #fcecdf 100%);
+      /* 🔥 CRITICAL: Start with #FAFAFA background for logo screen, matches launch screen */
+      /* Background will be changed to gradient by launch-screen.ts and ui-manager.ts */
+      background: #FAFAFA; /* Removed !important - JavaScript will override with gradient */
+      background-color: #FAFAFA;
       background-attachment: fixed;
       background-repeat: no-repeat;
       font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
@@ -93,6 +99,9 @@
       min-height: 100vh;
       min-height: 100dvh;
     }
+    
+    /* 🔥 CRITICAL: No gradient here - launch-screen.ts handles all background changes */
+    /* Background stays #FAFAFA until Phase 2, then gradient is set by JavaScript */
     
     #ui-root {
       position: relative;
@@ -168,7 +177,7 @@
     /* No extra margin needed - navigation is separate */
   </style>
 </head>
-<body style="background: #F3EEE8; overflow: hidden;">
+<body style="overflow: hidden;">
   <!-- Inline critical loader with production styling -->
   <style>
     /* Inline critical loader styling matching production CSS */
@@ -183,7 +192,7 @@
       justify-content: center;
       z-index: 10000;
       transition: opacity 0.5s ease, visibility 0.5s ease;
-      background: linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%);
+      background: #FAFAFA; /* 🔥 CRITICAL: #FAFAFA matches launch screen */
     }
     #loading-screen .loading-content {
       text-align: center;
@@ -195,52 +204,57 @@
       gap: 18px;
       position: relative;
     }
-    #loading-screen .loading-logo img {
-      width: 204px;
+    /* 🔥 PREMIUM: Phase 1 - taptapdesign logo */
+    #loading-screen .loading-logo-taptap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+    }
+    #loading-screen .loading-logo-taptap img {
+      width: 344px; /* 🔥 30% larger than 265px: 265px * 1.3 = 344.5px */
       height: auto;
-      margin-bottom: 0;
-      margin-top: -24px;
-      opacity: 1;
       display: block;
+      margin: 0 auto; /* Center logo */
     }
-    #loading-screen .loading-text {
-      font-size: 20px;
-      font-weight: bold;
-      color: #DB9C77;
-      margin-bottom: 0;
-      font-family: "LTCrow", ui-rounded, system-ui, -apple-system, "SF Pro Rounded", Inter, Roboto, "Helvetica Neue", Arial;
-      opacity: 1;
+    /* 🔥 PREMIUM: Phase 2 - stack to six logo + smokeandshards */
+    #loading-screen .loading-logo-stack {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
     }
+    #loading-screen .loading-logo-stack-img {
+      width: 344px; /* 🔥 30% larger than 265px: 265px * 1.3 = 344.5px */
+      height: auto;
+      display: block;
+      position: relative;
+      z-index: 2;
+      margin: 0 auto; /* Center logo */
+    }
+    #loading-screen .loading-smoke-shards {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 400px;
+      height: auto;
+      opacity: 0.3;
+      z-index: 1;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    /* Hide old loading elements */
+    #loading-screen .loading-text,
+    #loading-screen .loading-progress,
     #loading-screen .loading-bar-container {
-      width: 280px;
-      height: 6px;
-      background: rgba(219, 156, 119, 0.2);
-      border-radius: 6px;
-      overflow: hidden;
-      margin-top: 16px;
-    }
-    #loading-screen .loading-bar {
-      height: 100%;
-      background: #DB9C77;
-      border-radius: 6px;
-      width: 0%;
-      transition: width 0.3s ease;
-      box-shadow: 0 0 12px rgba(219, 156, 119, 0.6);
+      display: none !important;
     }
   </style>
-  <div id="loading-screen">
-    <div class="loading-content">
-      <div class="loading-logo">
-        <img src="./assets/logo-cube-crash.png" alt="CubeCrash" loading="eager" fetchpriority="high">
-      </div>
-      <div class="loading-text">Loading...</div>
-      <div class="loading-progress">
-        <div class="loading-bar-container" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Loading progress">
-          <div id="loading-fill" class="loading-bar"></div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Loading screen will be created dynamically by loading-screen.ts component -->
+  <!-- Empty div removed - loading screen is created in bootstrap-ui.ts -->
 
   <div id="ui-root"></div>
   <div id="nav-root"></div>

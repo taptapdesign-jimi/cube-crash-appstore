@@ -17,8 +17,8 @@
 
 body{
   position: relative;
-  background: var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%));
-  /* Background transition removed - GSAP now handles smooth fade animations */
+  /* 🔥 CRITICAL: No background here - launch-screen.ts sets #FAFAFA, then gradient after stack to six logo */
+  /* Background will be set by launch-screen.ts and ui-manager.ts */
 }
 
 /* Removed gradient-fade-out rules - gradient stays visible */
@@ -29,9 +29,10 @@ body{
   bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
   left: -12vw;
   right: -12vw;
-  background: var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%));
+  /* 🔥 CRITICAL: Start with #FAFAFA, gradient will be set by launch-screen.ts in Phase 2 */
+  background: #FAFAFA;
   pointer-events: none;
-  z-index: 1; /* Above body, below sliders */
+  z-index: -1; /* 🔥 CRITICAL: Behind content, not in front */
   /* Transition removed - GSAP now handles background animations */
 }
 
@@ -49,7 +50,7 @@ body{
   justify-content: center;
   z-index: 10000;
   transition: opacity 0.5s ease, visibility 0.5s ease;
-  background: #fafafa; /* 🔥 PREMIUM: Start with #fafafa, GSAP will handle smooth fade to gradient */
+  background: #FAFAFA; /* 🔥 CRITICAL: #FAFAFA matches launch screen */
 }
 
 /* Removed gradient-fade-out rules - gradient stays visible */
@@ -101,14 +102,88 @@ body{
   position: relative;
 }
 
-.loading-logo img {
-  width: 204px; /* 🔥 Further 20% smaller from 256px: 256 * 0.8 = 204.8 */
-  height: auto;
-  margin-bottom: 0;
-  margin-top: -24px; /* 🔥 Dignuto 24px gore */
-  /* 🔥 PREMIUM: Start faded out, fade-in synced with progress bar */
+/* 🔥 PREMIUM: Launch Screen Styles */
+#launch-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FAFAFA;
+  opacity: 1;
+  visibility: visible;
+}
+
+#launch-screen .launch-content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Phase 1: Taptapdesign logo */
+#launch-screen .launch-logo-taptap {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   opacity: 0;
-  transition: opacity 0.3s ease;
+}
+
+#launch-screen .launch-logo-taptap img {
+  width: 275px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Phase 2: Stack to six logo + smokeandshards */
+#launch-screen .launch-logo-stack {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+}
+
+#launch-screen .launch-logo-stack img#launch-logo-stack {
+  width: 248px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+  opacity: 0;
+}
+
+#launch-screen .launch-logo-stack img#launch-smoke-shards {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.6);
+  width: 400px;
+  height: auto;
+  opacity: 1.0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Hide old loading elements */
+.loading-text,
+.loading-progress,
+.loading-bar-container,
+.loading-percentage {
+  display: none !important;
 }
 
 .loading-progress {
@@ -401,7 +476,7 @@ body{
   z-index: 10; /* Above background, below sliders */
   background: #f3eee8; /* Game background color */
 }
-html,body{height:100%;margin:0;background:var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%));font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+html,body{height:100%;margin:0;background:#FAFAFA;background-color:#FAFAFA;background-image:none;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
 
 /* Optimize canvas for pixel-perfect rendering */
 canvas {

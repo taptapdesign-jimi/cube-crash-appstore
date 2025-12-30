@@ -767,6 +767,43 @@ export async function boot(){
   app.canvas.style.height = '100%';
   app.canvas.style.position = 'absolute';
   app.canvas.style.top = '0';
+  
+  // 🔥 CRITICAL: Wait for Pixi to render first frame
+  // Note: Boot class is already removed in launch-screen.ts after launch sequence completes
+  // This is just a safety check in case boot() is called before launch screen completes
+  let firstFrameRendered = false;
+  const onFirstFrame = () => {
+    if (firstFrameRendered) return;
+    firstFrameRendered = true;
+    
+    // 🔥 CRITICAL: Remove boot class if it still exists (safety check)
+    // This should already be removed by launch-screen.ts, but we do it here as fallback
+    try {
+      if (document.documentElement && document.documentElement.classList.contains('boot')) {
+        document.documentElement.classList.remove('boot');
+        document.documentElement.style.background = '';
+        document.documentElement.style.backgroundColor = '';
+        console.log('✅ Boot class removed after first frame (fallback)');
+      }
+      if (document.body && document.body.classList.contains('boot')) {
+        document.body.classList.remove('boot');
+        document.body.style.background = '';
+        document.body.style.backgroundColor = '';
+      }
+    } catch(e) {
+      console.warn('⚠️ Failed to remove boot class:', e);
+    }
+    
+    // 🔥 CRITICAL: Native splash is already hidden in main.ts when loading screen is shown
+    // No need to hide it again here - it's already hidden
+    console.log('✅ First Pixi frame rendered - native splash already hidden');
+    
+    // Remove ticker listener after first frame
+    app.ticker.remove(onFirstFrame);
+  };
+  
+  // Listen for first frame render
+  app.ticker.add(onFirstFrame);
   app.canvas.style.left = '0';
   app.canvas.style.pointerEvents = 'auto';
   console.log('✅ Canvas added to DOM and styled');

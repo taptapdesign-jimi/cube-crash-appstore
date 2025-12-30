@@ -190,42 +190,68 @@ async function startAssetPreloading(): Promise<void> {
   try {
     logger.info('📦 Starting asset preloading...');
     
-    // Show loading screen
-    uiManager.showLoadingScreen();
-    // Wait a frame so loader paints before hiding native splash
-    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
-    await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
-    const splashHidden = await hideNativeSplash({ fadeOutDuration: 200 });
-    if (!splashHidden) {
-      logger.info('ℹ️ Native splash hide skipped (web/dev environment)');
+    // 🔥 CRITICAL: Initialize launch screen FIRST and IMMEDIATELY
+    // This sets #FAFAFA background before any other code can set gradient
+    const { launchScreen } = await import('./modules/launch-screen.js');
+    launchScreen.init(); // Sets #FAFAFA background synchronously and immediately
+    
+    // 🔥 CRITICAL: Hide native splash immediately
+    try {
+      const { hideNativeSplash } = await import('./utils/native-splash.js');
+      await hideNativeSplash({ fadeOutDuration: 200 });
+      logger.info('✅ Native splash hidden');
+    } catch (error) {
+      logger.warn('⚠️ Failed to hide native splash:', error);
     }
 
     // Fallback: force-hide loader if something stalls (safety net)
     const forceHideTimeout = setTimeout(() => {
       logger.warn('⚠️ Loader safety timeout reached - forcing hide');
-      uiManager.hideLoadingScreen();
+      launchScreen.hide();
     }, 12000);
     
-    // Setup progress callback
+    // Setup progress callback (for future use if needed)
     assetPreloader.setProgressCallback((percentage: number, loadedCount: number, totalCount: number) => {
-      uiManager.updateLoadingProgress(percentage);
       logger.info(`📦 Loading progress: ${percentage}% (${loadedCount}/${totalCount})`);
     });
     
-    // Start preloading
-    await assetPreloader.preloadAll();
+    // 🔥 CRITICAL: Start preloading immediately in background (non-blocking)
+    // This runs in parallel with the launch screen animations
+    const preloadPromise = assetPreloader.preloadAll().catch((error) => {
+      logger.error('❌ Asset preloading failed:', error);
+      throw error;
+    });
     
-    // Set to 100% before hiding
-    uiManager.updateLoadingProgress(100);
+    // Start launch screen sequence (runs in parallel with preloading)
+    const launchPromise = launchScreen.start(() => {
+      logger.info('✅ Launch screen sequence completed');
+    });
     
-    // Small delay to show 100% + pause before transitioning to home
-    await new Promise(resolve => setTimeout(resolve, 800));
+    // Wait for both to complete
+    await Promise.all([preloadPromise, launchPromise]);
     
-    // Hide loading screen and show home
-    uiManager.hideLoadingScreen();
+    logger.info('✅ Launch screen and preloading completed');
+    
+    // Remove launch screen from DOM
+    launchScreen.hide();
+    launchScreen.remove();
+    
+    // 🔥 CRITICAL: Launch screen already handled background transition
+    // No need to set background here - launch-screen.ts already set gradient after Phase 2
+    
     clearTimeout(forceHideTimeout);
+    
+    // 🔥 CRITICAL: Wait one frame before showing homepage to ensure smooth transition
+    // This ensures the gradient background is rendered before homepage appears
+    await new Promise(resolve => requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve(undefined)); // Double RAF for smoother transition
+    }));
+    
     await appManager.showScreen('home');
-
+    
+    // Set gradient background for homepage
+    uiManager.showHomepage();
+    
     // Make sure the Play CTA is hidden and in its initial state before the enter animation starts
     primeHomeCtaForEnter();
 
@@ -240,8 +266,11 @@ async function startAssetPreloading(): Promise<void> {
     
   } catch (error) {
     logger.error('❌ Asset preloading failed:', String(error));
-    // Ensure loader doesn’t block UI if preload fails
-    try { uiManager.hideLoadingScreen(); } catch {}
+    // Ensure loader doesn't block UI if preload fails
+    try { 
+      const { launchScreen } = await import('./modules/launch-screen.js');
+      launchScreen.hide();
+    } catch {}
     throw error;
   }
 }

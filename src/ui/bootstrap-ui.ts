@@ -13,7 +13,8 @@ import {
 import { renderSettingsScreen } from './components/settings-screen.js';
 import { renderMenuModal } from './components/menu-modal.js';
 import { renderNavigation, updateNavBadge } from './components/navigation.js';
-import { createLoadingScreen } from './components/loading-screen.js';
+// 🔥 DEPRECATED: Loading screen is now handled by launch-screen module
+// import { createLoadingScreen } from './components/loading-screen.js';
 import { HTMLBuilder } from './components/html-builder.js';
 import { logger } from '../core/logger.js';
 // Note: preloadCriticalAssets removed - assetPreloader.preloadAll() handles all preloading
@@ -47,7 +48,8 @@ function bootstrapUI() {
   uiRoot.innerHTML = '';
   navRoot.innerHTML = '';
 
-  renderLoading(uiRoot);
+  // 🔥 DEPRECATED: Loading screen is now handled by launch-screen module
+  // renderLoading(uiRoot);
   renderHome(uiRoot);
   renderGameContainer(uiRoot);
   renderStats(uiRoot);
@@ -149,20 +151,10 @@ function ensureRoot(id: string): HTMLElement {
   return element;
 }
 
-function renderLoading(root: HTMLElement): void {
-  if (document.getElementById('loading-screen')) {
-    console.log('⚠️ Loading screen already exists');
-    return;
-  }
-  console.log('🔧 Creating loading screen...');
-  const loadingElement = HTMLBuilder.createElement(createLoadingScreen());
-  root.appendChild(loadingElement);
-  console.log('✅ Loading screen created and appended to root');
-  console.log('Loading screen element:', loadingElement);
-  console.log('Loading screen hidden?', loadingElement.hidden);
-  console.log('Loading screen display:', loadingElement.style.display);
-  console.log('Loading screen getComputedStyle:', window.getComputedStyle(loadingElement).display);
-}
+// 🔥 DEPRECATED: Loading screen is now handled by launch-screen module
+// function renderLoading(root: HTMLElement): void {
+//   // This function is no longer used - launch-screen.ts handles everything
+// }
 
 function renderHome(root: HTMLElement): void {
   if (document.getElementById('home')) return;

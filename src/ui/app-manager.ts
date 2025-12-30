@@ -69,6 +69,11 @@ class AppManager {
         // Set opacity to 1 immediately (no transition) so GSAP can control individual elements
         element.style.opacity = '1';
         element.style.transition = 'none';
+      } else if (screen === 'home') {
+        // Homepage - set opacity immediately (no fade-in needed)
+        element.style.opacity = '1';
+        element.style.visibility = 'visible';
+        element.style.transition = 'none';
       } else {
         // Add fade-in animation for other screens
         element.style.opacity = '0';
