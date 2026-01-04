@@ -800,7 +800,7 @@
   flex-direction: column;
   background: var(--collectibles-surface);
   z-index: 1000000;
-  overflow: hidden;
+  overflow: visible; /* 🔥 USER REQUEST: Allow card to be visible when swiping (not clipped) */
   font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   visibility: visible !important;
 }
@@ -935,26 +935,173 @@
   display: block;
 }
 
-#collectibles-detail-modal .detail-scrollable {
+/* 🔥 NEW: Swipeable container for detail modal */
+#collectibles-detail-modal .detail-swipeable-container {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden !important; /* 🔥 iOS FIX: Force hidden to prevent horizontal scroll */
-  /* 🔥 FIX: Enable smooth swipeable scrolling on iOS */
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
-  touch-action: pan-y; /* Allow vertical scrolling only */
-  overscroll-behavior: contain; /* Prevent scroll chaining */
-  overscroll-behavior-x: none !important; /* 🔥 iOS FIX: Force no horizontal overscroll */
-  overscroll-behavior-y: auto; /* Allow vertical overscroll for smooth fast scrolling */
+  position: relative;
+  overflow: visible; /* 🔥 USER REQUEST: Allow card to be visible (not clipped) */
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  touch-action: none; /* 🔥 APPLE STYLE: Disable native scroll - GSAP handles it */
+  scrollbar-width: none; /* Hide scrollbar */
+  -ms-overflow-style: none; /* Hide scrollbar */
+  will-change: transform; /* 🔥 APPLE STYLE: GPU acceleration for GSAP transform */
+  transform: translateZ(0); /* 🔥 APPLE STYLE: Force GPU acceleration */
+  backface-visibility: hidden; /* 🔥 APPLE STYLE: Optimize rendering */
+  -webkit-font-smoothing: antialiased; /* 🔥 APPLE STYLE: Better text rendering */
+  padding: 0;
+  margin: 0;
+}
+
+#collectibles-detail-modal .detail-swipeable-container::-webkit-scrollbar {
+  display: none; /* Hide scrollbar */
+}
+
+/* 🔥 FIGMA DESIGN: Stats + Card in same section (horizontal), Description in separate section */
+#collectibles-detail-modal .detail-section {
+  flex: 0 0 auto; /* Don't force 100% - use actual width from JS */
+  width: auto; /* Width set by JS */
+  min-width: auto; /* Min width set by JS */
+  height: 100%;
+  overflow-y: auto; /* Allow vertical scroll within section */
+  overflow-x: visible; /* Allow horizontal overflow for content */
+  padding: 0; /* Padding handled by child sections */
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 24px calc(env(safe-area-inset-right, 0px) + 40px) calc(env(safe-area-inset-bottom, 0px) + 40px) calc(env(safe-area-inset-left, 0px) + 40px);
-  /* 🔥 FIX: Allow content to scroll under header */
   position: relative;
-  z-index: 1;
-  align-items: stretch; /* 🔥 FIX: Ensure children (like detail-image) maintain their width */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y; /* Allow vertical scrolling within section */
+  flex-shrink: 0; /* Prevent sections from shrinking */
+  box-sizing: border-box;
+}
+
+/* 🔥 FIGMA: First section contains stats + card + text horizontally */
+#collectibles-detail-modal .detail-section-stats-card {
+  flex-direction: row !important; /* Horizontal layout */
+  align-items: center;
+  justify-content: flex-start;
+  gap: 48px; /* 48px gap between elements */
+  padding: 0 0 24px 24px; /* Left: 24px, Right: 0px (container reduced by 200px) */
+  padding-top: 0;
+  margin-top: calc(-40px + env(safe-area-inset-top, 0px)); /* -40px moves content up (north) by 40px */
+  margin-bottom: 0;
+  transform: translateY(-80px); /* Move content 80px up (north) on Y-axis (64px + 16px) */
+  overflow-x: visible;
+  overflow-y: visible;
+}
+
+/* 🔥 SIMPLE: Ensure all sections are visible and scrollable */
+#collectibles-detail-modal .detail-section {
+  box-sizing: border-box;
+}
+
+#collectibles-detail-modal .detail-section::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* 🔥 FIGMA: Stats section (inside stats-card section) */
+#collectibles-detail-modal .detail-section-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 40px;
+  width: 246px; /* 🔥 USER REQUEST: Increased by 16px (230 + 16 = 246) so "longest combo" fits in 1 line */
+  flex-shrink: 0;
+}
+
+#collectibles-detail-modal .detail-stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  width: 100%;
+  max-width: 246px; /* 🔥 USER REQUEST: Increased by 16px (230 + 16 = 246) so "longest combo" fits in 1 line */
+}
+
+#collectibles-detail-modal .detail-stat-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+#collectibles-detail-modal .detail-stat-icon {
+  width: 72px; /* 🔥 USER REQUEST: Reduced from 80px to 72px */
+  height: 72px; /* 🔥 USER REQUEST: Reduced from 80px to 72px */
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+#collectibles-detail-modal .detail-stat-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+#collectibles-detail-modal .detail-stat-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  flex: 1;
+}
+
+#collectibles-detail-modal .detail-stat-value {
+  font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
+  font-size: 24px;
+  font-weight: 700; /* Bold */
+  color: #E77449; /* Orange color from Figma */
+  line-height: 1;
+  margin-bottom: 0;
+}
+
+#collectibles-detail-modal .detail-stat-label {
+  font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
+  font-size: 18px; /* 🔥 USER REQUEST: Reduced from 20px to 18px */
+  font-weight: 400; /* Regular */
+  color: #AD8675; /* Brown color from Figma */
+  line-height: 1.8;
+  margin-top: 0;
+}
+
+#collectibles-detail-modal .detail-stat-divider {
+  width: 100%;
+  height: 2px;
+  background: #E0D8D6; /* Light brown divider from Figma */
+  flex-shrink: 0;
+}
+
+/* 🔥 FIGMA: Card section (inside stats-card section) */
+#collectibles-detail-modal .detail-section-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+
+/* 🔥 IMPERATIVE: Description section - simple */
+#collectibles-detail-modal .detail-section-description {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  padding: 40px !important;
+}
+
+/* Legacy scrollable (kept for backward compatibility, but hidden) */
+#collectibles-detail-modal .detail-scrollable {
+  display: none; /* 🔥 HIDDEN: Replaced by swipeable container */
 }
 
 #collectibles-detail-modal .detail-scrollable::-webkit-scrollbar {
@@ -962,56 +1109,51 @@
 }
 
 /* Detail modal animation classes - same style as slider (pop in/pop out) */
-#collectibles-detail-modal #detail-card-image.animate-exit,
-#collectibles-detail-modal #detail-card-description.animate-exit,
-#collectibles-detail-modal #detail-rarity-badge.animate-exit,
-#collectibles-detail-modal #detail-close-btn.animate-exit {
-  will-change: transform !important;
-  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-  transform: scale(0) !important;
-}
-
-#collectibles-detail-modal #detail-card-image.animate-enter,
-#collectibles-detail-modal #detail-card-description.animate-enter,
-#collectibles-detail-modal #detail-rarity-badge.animate-enter,
-#collectibles-detail-modal #detail-close-btn.animate-enter {
-  will-change: transform !important;
-  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
-  transform: scale(1) !important;
-}
-
-#collectibles-detail-modal #detail-card-image.animate-enter-initial,
-#collectibles-detail-modal #detail-card-description.animate-enter-initial,
-#collectibles-detail-modal #detail-rarity-badge.animate-enter-initial,
-#collectibles-detail-modal #detail-close-btn.animate-enter-initial {
-  transition: none !important;
-  transform: scale(0) !important;
-}
+/* 🔥 REMOVED: Animation classes that were hiding the card image with scale(0) */
 
 #collectibles-detail-modal .detail-image {
-  width: 100%;
-  margin: 16px 0 0 0;
+  width: 310px !important; /* Fixed width to match card original size from Figma */
+  max-width: 310px !important; /* Match card original width from Figma */
+  min-width: 310px !important; /* Ensure minimum width */
+  margin: 16px 0 0 0; /* 🔥 USER REQUEST: No auto margin, card is 40px closer to left */
   /* 🔥 FIX: Ensure constant aspect ratio - use height based on aspect-ratio, not min-height */
   aspect-ratio: 310 / 458;
-  height: auto; /* Let aspect-ratio control height */
-  min-height: 458px; /* Fallback for older browsers */
-  flex-shrink: 0; /* 🔥 CRITICAL: Prevent flexbox from compressing the image */
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-position: center;
+  height: auto !important; /* Let aspect-ratio control height */
+  min-height: 458px !important; /* Fallback for older browsers */
+  flex-shrink: 0 !important; /* 🔥 CRITICAL: Prevent flexbox from compressing the image */
   border-radius: 40px; /* Match card rounded corners */
   /* Shadow follows the exact card shape */
   box-shadow: none;
   filter: drop-shadow(0 12px 26px var(--collectibles-card-shadow));
   background-color: transparent;
   position: relative;
-  overflow: hidden; /* Clip shimmer effect to card boundaries */
+  overflow: hidden !important; /* 🔥 CRITICAL: Clip shimmer to card boundaries only */
   will-change: transform;
-  cursor: grab;
+  cursor: default; /* 🔥 USER REQUEST: Remove grab cursor - no automatic drag on tap */
   -webkit-user-select: none;
   user-select: none;
+  pointer-events: none; /* 🔥 USER REQUEST: Prevent card from intercepting touch events - let container handle drag */
+  display: flex !important; /* Use flex to display img element */
+  align-items: center;
+  justify-content: center;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 10 !important; /* 🔥 CRITICAL: Ensure card is above other elements */
   /* Idle animation - continuous forever like slide 1 main image */
   animation: detailImageIdle 3s ease-in-out infinite;
+}
+
+/* 🔥 CRITICAL: Style img element inside detail-image */
+#collectibles-detail-modal .detail-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  border-radius: 40px;
+  position: relative;
+  z-index: 1;
 }
 
 #collectibles-detail-modal .detail-image:active {
@@ -1038,14 +1180,14 @@
   filter: blur(0.56px);
   backface-visibility: hidden;
   pointer-events: none;
-  z-index: 1;
+  z-index: 2; /* 🔥 CRITICAL: Shimmer must be above card image (img has z-index: 1) */
   border-radius: 40px; /* Match parent border-radius to clip shimmer properly */
   animation: card-detail-shimmer 3s linear infinite;
   animation-delay: 0.5s;
 }
 
 #collectibles-detail-modal .detail-rarity-badge-container {
-  display: flex;
+  display: none !important; /* 🔥 USER REQUEST: Hide common area rounded part (rarity badge) */
   flex-direction: row;
   align-items: center;
   justify-content: center;
@@ -1094,11 +1236,18 @@
   font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 20px;
   font-weight: 400;
-  color: #AD8775;
-  line-height: 28px;
-  margin: 0;
-  text-align: center;
-  white-space: pre-line; /* 🔥 Allow line breaks in text (for Board 9 custom text) */
+  color: #AD8775 !important;
+  line-height: 1.4;
+  margin-left: 80px !important; /* 80px right from card */
+  padding: 0;
+  text-align: center !important; /* 🔥 USER REQUEST: Center text */
+  white-space: pre-line; /* Each sentence on its own line */
+  width: 220px !important; /* 🔥 USER REQUEST: Increased from 180px to 220px */
+  max-width: 220px !important; /* Max width 220px */
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  flex-shrink: 0 !important;
 }
 
 /* Play Board button for Journey boards */
@@ -2080,6 +2229,19 @@
   
   /* Clip shimmer */
   overflow: hidden !important;
+}
+
+/* 🔥 BUG FIX: Preserve translateX(-50%) during animate-enter-initial and animate-enter */
+#board-detail-play-button.animate-enter-initial {
+  transform: translateX(-50%) scale(0) !important;
+}
+
+#board-detail-play-button.animate-enter {
+  transform: translateX(-50%) scale(1) !important;
+}
+
+#board-detail-play-button.animate-exit {
+  transform: translateX(-50%) translateY(20px) scale(0) !important;
 }
 
 /* Shimmer delay for detail modal button */

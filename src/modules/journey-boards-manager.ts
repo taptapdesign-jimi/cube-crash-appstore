@@ -1725,11 +1725,20 @@ class JourneyBoardsManager {
       
       // Add click handler to open detail modal (not start game directly)
       card.addEventListener('click', () => {
+        logger.info(`🖱️🖱️🖱️ CARD CLICKED FOR BOARD ${board.id}`);
+        logger.info(`🔍 Board data on click:`, {
+          id: board.id,
+          name: board.name,
+          imagePath: board.imagePath,
+          interim: board.interim,
+          unlocked: board.unlocked
+        });
         // Notify interaction to stop idle animations
         if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction === 'function') {
           JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction();
         }
         // Open detail modal for this board (with exit animation on Journey screen first)
+        logger.info(`🚀🚀🚀 CALLING openBoardDetails FOR BOARD ${board.id}`);
         this.openBoardDetails(board).catch((error) => {
           logger.error('❌ Failed to open board details:', error);
         });
@@ -1973,6 +1982,30 @@ class JourneyBoardsManager {
     return new Promise((resolve) => {
       logger.info('🎬 Starting detail modal exit animation');
       
+      // 🔥 MEMORY LEAK FIX: Cleanup swipe handlers
+      const swipeableContainer = modal.querySelector('.detail-swipeable-container') as HTMLElement;
+      if (swipeableContainer && (swipeableContainer as any).__detailSwipeHandlers) {
+        const handlers = (swipeableContainer as any).__detailSwipeHandlers;
+        
+        // Remove event listeners
+        swipeableContainer.removeEventListener('touchstart', handlers.touchStart);
+        swipeableContainer.removeEventListener('touchmove', handlers.touchMove);
+        swipeableContainer.removeEventListener('touchend', handlers.touchEnd);
+        swipeableContainer.removeEventListener('mousedown', handlers.mouseDown);
+        swipeableContainer.removeEventListener('mousemove', handlers.mouseMove);
+        swipeableContainer.removeEventListener('mouseup', handlers.mouseUp);
+        swipeableContainer.removeEventListener('mouseleave', handlers.mouseUp);
+        
+        // Kill GSAP animations
+        if (handlers.quickSetX) {
+          gsap.killTweensOf(swipeableContainer);
+        }
+        
+        // Clear handlers
+        delete (swipeableContainer as any).__detailSwipeHandlers;
+        logger.info('✅ Swipe handlers cleaned up');
+      }
+      
       // 🔥 MEMORY LEAK FIX: Stop CSS infinite animations before exit animation
       const detailImageEl = modal.querySelector('#detail-card-image') as HTMLElement;
       if (detailImageEl) {
@@ -2013,12 +2046,20 @@ class JourneyBoardsManager {
       const detailDescription = modal.querySelector('#detail-card-description') as HTMLElement;
       const boardStatsContainer = modal.querySelector('.board-stats-container') as HTMLElement;
       const playBoardBtn = modal.querySelector('#detail-play-board-btn') || modal.querySelector('#board-detail-play-button') as HTMLElement;
+      
+      // 🔥 USER REQUEST: Add animations for stats section, icons, and description text
+      const detailStatsSection = modal.querySelector('.detail-section-stats') as HTMLElement;
+      const detailStatIcons = modal.querySelectorAll('.detail-stat-icon') as NodeListOf<HTMLElement>;
+      const detailStatIconsArray = Array.from(detailStatIcons);
 
-      // Content elements array (reverse order for exit - bottom to top)
+      // 🔥 USER REQUEST: Content elements array (reverse order for exit - bottom to top)
+      // Include stats section, icons, and description in exit animation
       const contentElements = [
         playBoardBtn,
         boardStatsContainer,
         detailDescription,
+        ...detailStatIconsArray,
+        detailStatsSection,
         detailRarityBadgeContainer,
         detailImage
       ].filter(el => el !== null) as HTMLElement[];
@@ -2029,16 +2070,34 @@ class JourneyBoardsManager {
         const baseDelay = 0;
         const stagger = 0.05; // Faster stagger for exit (same as settings screen)
         const delay = baseDelay + (index * stagger);
+        
+        // 🔥 BUG FIX: Use CSS animate-exit class for PLAY button (same as homepage CTA)
+        if (element && element.id === 'board-detail-play-button') {
+          element.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
+          element.style.removeProperty('transform');
+          element.style.removeProperty('transition');
+          void element.offsetHeight; // Force reflow
+          
+          // Add animate-exit class for CSS transition (preserves translateX(-50%))
+          setTimeout(() => {
+            element.classList.add('animate-exit');
+          }, delay * 1000);
+        } else {
+          // 🔥 BUG FIX: Ensure CSS transitions are disabled for GSAP scale animation
+          if (element) {
+            element.style.transition = 'none';
+          }
 
-        gsap.to(element, {
-          scale: 0,
-          opacity: 0,
-          duration: 0.4,
-          ease: 'back.in(1.7)',
-          delay: delay,
-          force3D: true
-        });
-        logger.info(`🎴 Step ${index + 1}: Content element ${index + 1} pop-out - delay ${(delay * 1000).toFixed(0)}ms`);
+          gsap.to(element, {
+            scale: 0,
+            opacity: 0,
+            duration: 0.4,
+            ease: 'back.in(1.7)',
+            delay: delay,
+            force3D: true
+          });
+          logger.info(`🎴 Step ${index + 1}: Content element ${index + 1} pop-out - delay ${(delay * 1000).toFixed(0)}ms`);
+        }
       });
 
       // STEP 2: Header LAST (includes X, title, divider - animated as group, same as settings screen)
@@ -2318,9 +2377,358 @@ class JourneyBoardsManager {
     }
   }
 
+  // 🔥 FIGMA DESIGN: Simple swipe - stats+card+text visible, swipe to buttons
+  public initDetailModalSwipe(container: HTMLElement): void {
+    if (!container) return;
+    
+    // 🔥 CRITICAL: Calculate actual content width (not viewport width)
+    // Content: 24px (left padding) + 246px (stats) + 48px (gap) + 310px (card) + 48px (gap) + 80px (text margin) + text width + right padding
+    // Text "The board waits. A single move appears. Everything begins." needs ~220px width (increased from 180px)
+    // Container width reduced by 200px from right side (as requested), now additional 100px reduction
+    const textWidth = 220; // 🔥 USER REQUEST: Text width increased from 180px to 220px
+    const rightPadding = 0; // No right padding (reduced from 80px)
+    const baseContentWidth = 24 + 246 + 48 + 310 + 48 + 80 + textWidth + rightPadding; // ~936px
+    const actualContentWidth = baseContentWidth - 200 - 100; // 🔥 USER REQUEST: Reduce by 200px + 100px from right side = ~620px
+    const sectionWidth = actualContentWidth; // Use reduced content width
+    const totalWidth = sectionWidth * 2; // stats+card+text section + buttons section
+    const maxScroll = sectionWidth; // Can scroll one section width (to buttons)
+    
+    container.style.width = `${totalWidth}px`;
+    
+    // 🔥 CRITICAL: Explicitly set section widths to actual content width
+    const statsCardSection = container.querySelector('#detail-section-stats-card') as HTMLElement;
+    const buttonsSection = container.querySelector('#detail-section-description') as HTMLElement;
+    
+    if (statsCardSection) {
+      statsCardSection.style.width = `${sectionWidth}px`;
+      statsCardSection.style.minWidth = `${sectionWidth}px`;
+      statsCardSection.style.maxWidth = `${sectionWidth}px`;
+      statsCardSection.style.flexShrink = '0';
+      // 🔥 CRITICAL: Ensure consistent padding (no right padding, container reduced by 200px)
+      statsCardSection.style.padding = '0 0 24px 24px'; // No right padding (container reduced by 200px)
+      statsCardSection.style.paddingTop = '0';
+    }
+    
+    if (buttonsSection) {
+      buttonsSection.style.width = `${sectionWidth}px`;
+      buttonsSection.style.minWidth = `${sectionWidth}px`;
+      buttonsSection.style.maxWidth = `${sectionWidth}px`;
+      buttonsSection.style.flexShrink = '0';
+      buttonsSection.style.display = 'flex';
+      buttonsSection.style.visibility = 'visible';
+      buttonsSection.style.opacity = '1';
+    }
+    
+    // 🔥 USER REQUEST: Calculate card focus position (card centered in viewport when swiping left)
+    const viewportWidth = container.parentElement?.offsetWidth || container.offsetWidth || 390; // Viewport width
+    const leftPadding = 24;
+    const statsWidth = 246; // 🔥 USER REQUEST: Increased by 16px (230 + 16 = 246) so "longest combo" fits in 1 line
+    const gap1 = 48;
+    const cardStartX = leftPadding + statsWidth + gap1; // Position where card starts: 24 + 246 + 48 = 318px
+    const cardWidth = 310;
+    const cardCenterX = cardStartX + (cardWidth / 2); // Card center: 302 + 155 = 457px
+    const viewportCenterX = viewportWidth / 2; // Viewport center: 390 / 2 = 195px
+    // To center card in viewport, move container left by: cardCenterX - viewportCenterX
+    const cardFocusX = -(cardCenterX - viewportCenterX); // Negative translateX to move container left
+    
+    const quickSetX = gsap.quickSetter(container, 'x', 'px');
+    let currentX = 0;
+    let isDragging = false;
+    let startX = 0;
+    let startTranslateX = 0;
+    let lastX = 0;
+    let lastTime = 0;
+    let velocity = 0;
+    let momentumAnimation: gsap.core.Tween | null = null;
+    
+    quickSetX(0);
+    container.style.willChange = 'transform';
+    container.style.cursor = 'grab';
+    
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        // 🔥 USER REQUEST: Don't start dragging immediately - wait for actual movement
+        // Just store initial position, don't set isDragging = true yet
+        startX = e.touches[0].clientX;
+        lastX = startX;
+        startTranslateX = currentX;
+        lastTime = performance.now();
+        velocity = 0;
+        // Don't set isDragging = true here - wait for touchmove
+        // Don't preventDefault here - allow normal touch behavior
+      }
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 0) return;
+      
+      // 🔥 USER REQUEST: Start dragging only when user actually moves finger (not on tap)
+      if (!isDragging) {
+        const currentTouchX = e.touches[0].clientX;
+        const deltaX = Math.abs(currentTouchX - startX);
+        // Only start dragging if moved more than 5px (prevents accidental drag on tap)
+        if (deltaX < 5) return;
+        
+        // Now start dragging
+        isDragging = true;
+        // Kill any ongoing momentum animation
+        if (momentumAnimation) {
+          momentumAnimation.kill();
+          momentumAnimation = null;
+        }
+        container.style.cursor = 'grabbing';
+      }
+      
+      const currentTouchX = e.touches[0].clientX;
+      const currentTime = performance.now();
+      // 🔥 FIX: Natural swipe logic - swipe left (prst ide lijevo) = content ide lijevo
+      // deltaX = startX - currentTouchX
+      // Swipe left: currentTouchX < startX → deltaX pozitivno → container ide lijevo (negativan translateX)
+      // Swipe right: currentTouchX > startX → deltaX negativno → container ide desno (pozitivan translateX)
+      const deltaX = startX - currentTouchX; // Positive = swiped left, Negative = swiped right
+      const timeDelta = currentTime - lastTime;
+      
+      // Calculate velocity for momentum (positive = left swipe, negative = right swipe)
+      if (timeDelta > 0) {
+        velocity = (lastX - currentTouchX) / timeDelta; // Positive = left, Negative = right
+      }
+      
+      // 🔥 APPLE STYLE: Update position with elastic bounds
+      // Swipe left (positive deltaX) → move container left (negative translateX)
+      // Swipe right (negative deltaX) → move container right (positive translateX)
+      let newX = startTranslateX - deltaX; // Subtract deltaX: left swipe (positive) → negative translateX
+      
+      // Elastic resistance at edges
+      if (newX > 0) {
+        // Over-scroll right (beyond stats section)
+        newX = newX * 0.3; // 70% resistance
+      } else if (newX < -maxScroll) {
+        // Over-scroll left (beyond description section)
+        const overScroll = newX + maxScroll;
+        newX = -maxScroll + (overScroll * 0.3); // 70% resistance
+      }
+      
+      quickSetX(newX);
+      currentX = newX;
+      
+      lastX = currentTouchX;
+      lastTime = currentTime;
+      e.preventDefault();
+    };
+    
+    const handleTouchEnd = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      container.style.cursor = 'grab';
+      
+      // 🔥 APPLE STYLE: Apply momentum with smooth deceleration
+      // Velocity: positive = left swipe, negative = right swipe
+      if (Math.abs(velocity) > 0.05) {
+        const momentum = velocity * 300; // Momentum multiplier
+        // Velocity is positive for left swipe → negative translateX
+        // Velocity is negative for right swipe → positive translateX
+        let targetX = currentX - momentum; // Subtract momentum: left swipe (positive velocity) → negative translateX
+        
+        // Clamp to bounds
+        targetX = Math.max(-maxScroll, Math.min(0, targetX));
+        
+        // Smooth deceleration animation
+        momentumAnimation = gsap.to(container, {
+          x: targetX,
+          duration: 0.6,
+          ease: 'power2.out', // Smooth deceleration
+          force3D: true,
+          onUpdate: () => {
+            currentX = gsap.getProperty(container, 'x') as number;
+          },
+          onComplete: () => {
+            momentumAnimation = null;
+          }
+        });
+      } else {
+        // No momentum - snap to nearest focus point
+        let targetX = currentX;
+        
+        // 🔥 USER REQUEST: Snap logic - prioritize card focus when swiping left
+        // If swiping left (positive velocity or negative currentX), snap to card focus
+        // Otherwise snap to section boundaries
+        if (velocity > 0 || currentX < -50) {
+          // Swiping left - snap to card focus position
+          targetX = Math.max(cardFocusX, -maxScroll); // Don't go beyond maxScroll
+        } else if (currentX > -50 && currentX < 0) {
+          // Close to start - snap to beginning (stats+card section)
+          targetX = 0;
+        } else {
+          // Otherwise - snap to description section
+          targetX = -maxScroll;
+        }
+        
+        momentumAnimation = gsap.to(container, {
+          x: targetX,
+          duration: 0.3,
+          ease: 'power2.out',
+          force3D: true,
+          onUpdate: () => {
+            currentX = gsap.getProperty(container, 'x') as number;
+          },
+          onComplete: () => {
+            momentumAnimation = null;
+          }
+        });
+      }
+    };
+    
+    // Mouse handlers for desktop
+    const handleMouseDown = (e: MouseEvent) => {
+      // 🔥 USER REQUEST: Don't start dragging immediately - wait for actual movement
+      // Just store initial position, don't set isDragging = true yet
+      startX = e.clientX;
+      lastX = startX;
+      startTranslateX = currentX;
+      lastTime = performance.now();
+      velocity = 0;
+      // Don't set isDragging = true here - wait for mousemove
+      // Don't preventDefault here - allow normal mouse behavior
+    };
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      // 🔥 USER REQUEST: Start dragging only when user actually moves mouse (not on click)
+      if (!isDragging) {
+        const deltaX = Math.abs(e.clientX - startX);
+        // Only start dragging if moved more than 5px (prevents accidental drag on click)
+        if (deltaX < 5) return;
+        
+        // Now start dragging
+        isDragging = true;
+        // Kill any ongoing momentum animation
+        if (momentumAnimation) {
+          momentumAnimation.kill();
+          momentumAnimation = null;
+        }
+        container.style.cursor = 'grabbing';
+      }
+      
+      const currentMouseX = e.clientX;
+      const currentTime = performance.now();
+      // 🔥 FIX: Natural swipe logic - swipe left (prst ide lijevo) = content ide lijevo
+      const deltaX = startX - currentMouseX; // Positive = swiped left, Negative = swiped right
+      const timeDelta = currentTime - lastTime;
+      
+      if (timeDelta > 0) {
+        velocity = (lastX - currentMouseX) / timeDelta; // Positive = left, Negative = right
+      }
+      
+      // Swipe left (positive deltaX) → move container left (negative translateX)
+      let newX = startTranslateX - deltaX;
+      
+      if (newX > 0) {
+        newX = newX * 0.3;
+      } else if (newX < -maxScroll) {
+        const overScroll = newX + maxScroll;
+        newX = -maxScroll + (overScroll * 0.3);
+      }
+      
+      quickSetX(newX);
+      currentX = newX;
+      
+      lastX = currentMouseX;
+      lastTime = currentTime;
+      e.preventDefault();
+    };
+    
+    const handleMouseUp = () => {
+      if (!isDragging) return;
+      isDragging = false;
+      container.style.cursor = 'grab';
+      
+      if (Math.abs(velocity) > 0.05) {
+        const momentum = velocity * 300;
+        // Velocity: positive = left swipe → negative translateX
+        let targetX = currentX - momentum;
+        targetX = Math.max(-maxScroll, Math.min(0, targetX));
+        
+        momentumAnimation = gsap.to(container, {
+          x: targetX,
+          duration: 0.6,
+          ease: 'power2.out',
+          force3D: true,
+          onUpdate: () => {
+            currentX = gsap.getProperty(container, 'x') as number;
+          },
+          onComplete: () => {
+            momentumAnimation = null;
+          }
+        });
+      } else {
+        // 🔥 USER REQUEST: Snap logic - prioritize card focus when swiping left
+        let targetX = currentX;
+        if (velocity > 0 || currentX < -50) {
+          // Swiping left - snap to card focus position
+          targetX = Math.max(cardFocusX, -maxScroll);
+        } else if (currentX > -50 && currentX < 0) {
+          // Close to start - snap to beginning
+          targetX = 0;
+        } else {
+          // Otherwise - snap to description section
+          targetX = -maxScroll;
+        }
+        
+        momentumAnimation = gsap.to(container, {
+          x: targetX,
+          duration: 0.3,
+          ease: 'power2.out',
+          force3D: true,
+          onUpdate: () => {
+            currentX = gsap.getProperty(container, 'x') as number;
+          },
+          onComplete: () => {
+            momentumAnimation = null;
+          }
+        });
+      }
+    };
+    
+    // Attach event listeners
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    container.addEventListener('mousedown', handleMouseDown);
+    container.addEventListener('mousemove', handleMouseMove);
+    container.addEventListener('mouseup', handleMouseUp);
+    container.addEventListener('mouseleave', handleMouseUp);
+    
+    // Store handlers for cleanup
+    (container as any).__detailSwipeHandlers = {
+      touchStart: handleTouchStart,
+      touchMove: handleTouchMove,
+      touchEnd: handleTouchEnd,
+      mouseDown: handleMouseDown,
+      mouseMove: handleMouseMove,
+      mouseUp: handleMouseUp,
+      quickSetX: quickSetX
+    };
+    
+    logger.info('✅ Apple style GSAP smooth swipe initialized');
+  }
+
   private async openBoardDetails(board: JourneyBoard, skipJourneyExit: boolean = false): Promise<void> {
     // 🔥 USER REQUEST: First exit animation on Journey screen (if visible), then enter animation on detail modal
-    logger.info(`🎬 Opening board details for board ${board.id}${skipJourneyExit ? ' (skipping Journey exit)' : ' - exit Journey screen first'}`);
+    console.log(`🎬🎬🎬 OPENING BOARD DETAILS FOR BOARD ${board.id}${skipJourneyExit ? ' (skipping Journey exit)' : ' - exit Journey screen first'}`);
+    logger.info(`🎬🎬🎬 OPENING BOARD DETAILS FOR BOARD ${board.id}${skipJourneyExit ? ' (skipping Journey exit)' : ' - exit Journey screen first'}`);
+    console.log(`🔍 Board data:`, {
+      id: board.id,
+      name: board.name,
+      imagePath: board.imagePath,
+      interim: board.interim,
+      unlocked: board.unlocked
+    });
+    logger.info(`🔍 Board data:`, {
+      id: board.id,
+      name: board.name,
+      imagePath: board.imagePath,
+      interim: board.interim,
+      unlocked: board.unlocked
+    });
     
     // Step 1: Exit animation on Journey screen (only if it's visible and not already hidden)
     if (!skipJourneyExit) {
@@ -2339,6 +2747,10 @@ class JourneyBoardsManager {
     // Step 2: Now open detail modal with enter animation
     const detailModal = document.getElementById('collectibles-detail-modal');
     if (detailModal) {
+      detailModal.removeAttribute('hidden');
+      (detailModal as HTMLElement).style.display = 'flex';
+      (detailModal as HTMLElement).style.visibility = 'visible';
+      (detailModal as HTMLElement).style.opacity = '1';
       // 🔥 USER REQUEST: Mark card as viewed - stop animations forever for this card
       // Only mark unlocked cards (interim cards don't have detail modal, so they keep animating)
       if (!board.interim) {
@@ -2366,15 +2778,25 @@ class JourneyBoardsManager {
       // Store board ID in modal for Play Board button
       detailModal.setAttribute('data-journey-board-id', board.id.toString());
       
-      // Set card image
-      const imageEl = detailModal.querySelector('#detail-card-image');
+      // 🔥 BUG FIX: Set card image - prepare for animation (will be animated, not always visible)
+      const imageEl = detailModal.querySelector('#detail-card-image') as HTMLElement;
       if (imageEl) {
-        // For interim boards, show common back.png; for unlocked boards, show board.imagePath
-        if (board.interim) {
-          imageEl.innerHTML = `<img src="./assets/colelctibles/common back.png" alt="Board ${board.id} (interim)" style="width: 100%; height: 100%; object-fit: contain;" />`;
-        } else if (board.imagePath) {
-          imageEl.innerHTML = `<img src="${board.imagePath}" alt="${board.name}" style="width: 100%; height: 100%; object-fit: contain;" />`;
-        }
+        imageEl.innerHTML = '';
+        const img = document.createElement('img');
+        img.src = board.interim ? './assets/colelctibles/common back.png' : (board.imagePath || '');
+        img.alt = board.name || `Board ${board.id}`;
+        imageEl.appendChild(img);
+        
+        // 🔥 BUG FIX: Set initial state for animation (will be set to scale: 0 later)
+        imageEl.style.display = 'flex';
+        imageEl.style.transition = 'none';
+        imageEl.classList.remove('animate-enter-initial', 'animate-enter', 'animate-exit', 'animate-reset');
+        
+        img.style.display = 'block';
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.objectFit = 'contain';
+        // 🔥 BUG FIX: Don't set opacity/visibility/transform here - will be set by GSAP
       }
 
       // Set title in header (Board 01, Board 02, etc.)
@@ -2393,60 +2815,94 @@ class JourneyBoardsManager {
         logger.info(`✅ Rarity badge set to COMMON for board ${board.id}`);
       }
       
-      // Set card description
-      const descEl = detailModal.querySelector('#detail-card-description');
-      if (descEl) {
-        // 🔥 SPECIAL CASE: Board 9 has custom text
-        if (board.id === 9) {
-          descEl.textContent = "I spent seven years in a company where everything felt stable and good. I worked hard, I grew, I felt safe. And then, out of nowhere, the company declared bankruptcy. In one day my world cracked open and I suddenly stood at a crossroads, unsure what to do or how to start again.\n\nIt was one of the hardest moments in my life. I felt lost, scared, disappointed, like the ground had been pulled away beneath me. But that moment became my Big Bang. When everything fell apart, space opened for something new to grow. And slowly, step by step, I realized that this collapse was not the end. It was the beginning of the next version of me.";
-        } else {
-          descEl.textContent = board.name || `Board ${board.id}`;
-        }
+      // 🔥 IMPERATIVE: Text 80px right from card - inside stats+card container
+      const descEl = detailModal.querySelector('#detail-card-description') as HTMLElement;
+      const statsCardSection = detailModal.querySelector('#detail-section-stats-card') as HTMLElement;
+      
+      // 🔥 CRITICAL: Ensure consistent padding on stats-card section (no right padding, container reduced by 200px)
+      if (statsCardSection) {
+        statsCardSection.style.padding = '0 0 24px 24px'; // No right padding (container reduced by 200px)
+        statsCardSection.style.paddingTop = '0';
       }
       
-      // 🔥 JOURNEY BOARDS: Display board stats (High Score, Longest Combo)
-      import('../services/board-stats-service.js').then(({ boardStatsService }) => {
+      if (descEl) {
+        descEl.textContent = "The board waits.\nA single move appears.\nEverything begins.";
+        descEl.style.cssText = `
+          display: block !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          color: #AD8775 !important;
+          font-size: 20px !important;
+          text-align: center !important;
+          white-space: pre-line !important;
+          margin-left: 80px !important;
+          width: 220px !important;
+          max-width: 220px !important;
+          padding: 0 !important;
+          line-height: 1.4 !important;
+          flex-shrink: 0 !important;
+        `;
+      }
+      
+      // 🔥 JOURNEY BOARDS: Display board stats (High Score, Longest Combo, Cubes Cracked)
+      // Load both board stats and global stats
+      Promise.all([
+        import('../services/board-stats-service.js'),
+        import('../services/stats-service.js')
+      ]).then(([{ boardStatsService }, { statsService }]) => {
         const boardStats = boardStatsService.getBoardStats(board.id);
+        const globalStats = statsService.getStats();
         
-        // Find or create stats container
-        let statsContainer = document.getElementById('board-stats-container');
-        if (!statsContainer) {
-          statsContainer = document.createElement('div');
-          statsContainer.id = 'board-stats-container';
-          statsContainer.className = 'board-stats-container';
-          
-          // Insert after description element
-          if (descEl && descEl.parentElement) {
-            descEl.parentElement.insertBefore(statsContainer, descEl.nextSibling);
-          }
+        // Update stats values in new swipeable format
+        const highScoreEl = document.getElementById('detail-stat-highscore-value');
+        const comboEl = document.getElementById('detail-stat-combo-value');
+        const cubesEl = document.getElementById('detail-stat-cubes-value');
+        
+        if (highScoreEl) {
+          highScoreEl.textContent = boardStats.highScore.toLocaleString();
+        }
+        if (comboEl) {
+          comboEl.textContent = boardStats.longestCombo.toString();
+        }
+        if (cubesEl) {
+          cubesEl.textContent = globalStats.cubesCracked.toLocaleString();
         }
         
-        // Update stats content - same layout as score bottom sheet (icon left, text right)
-        statsContainer.innerHTML = `
-          <div class="stat-item">
-            <div class="stat-icon">
-              <img src="./assets/highscore-icon.png" alt="" aria-hidden="true">
-            </div>
-            <div class="stat-content">
-              <div class="stat-value">${boardStats.highScore.toLocaleString()}</div>
-              <div class="stat-label">High score</div>
-            </div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-icon">
-              <img src="./assets/combo-icon.png" alt="" aria-hidden="true">
-            </div>
-            <div class="stat-content">
-              <div class="stat-value">${boardStats.longestCombo}</div>
-              <div class="stat-label">Longest combo</div>
-            </div>
-          </div>
-        `;
-        
-        logger.info(`✅ Board stats displayed for board ${board.id}:`, boardStats);
+        logger.info(`✅ Board stats displayed for board ${board.id}:`, {
+          highScore: boardStats.highScore,
+          longestCombo: boardStats.longestCombo,
+          cubesCracked: globalStats.cubesCracked
+        });
       }).catch((error) => {
         logger.warn('⚠️ Failed to load board stats:', error);
       });
+      
+      // 🔥 CLEAN START: Initialize simple swipe
+      const swipeableContainer = detailModal.querySelector('.detail-swipeable-container') as HTMLElement;
+      if (swipeableContainer) {
+        gsap.set(swipeableContainer, { x: 0 });
+        setTimeout(() => {
+          this.initDetailModalSwipe(swipeableContainer);
+          
+          // 🔥 IMPERATIVE: Re-apply 80px margin and 140px width after swipe init
+          const descElAfterInit = detailModal.querySelector('#detail-card-description') as HTMLElement;
+          
+          if (descElAfterInit) {
+            if (!descElAfterInit.textContent || descElAfterInit.textContent.trim() === '') {
+              descElAfterInit.textContent = "The board waits.\nA single move appears.\nEverything begins.";
+            }
+            descElAfterInit.style.marginLeft = '80px';
+            descElAfterInit.style.width = '220px';
+            descElAfterInit.style.maxWidth = '220px';
+            descElAfterInit.style.textAlign = 'center'; /* 🔥 USER REQUEST: Center text */
+            descElAfterInit.style.whiteSpace = 'pre-line'; /* Each sentence on its own line */
+            descElAfterInit.style.display = 'block';
+            descElAfterInit.style.visibility = 'visible';
+            descElAfterInit.style.opacity = '1';
+            descElAfterInit.style.flexShrink = '0';
+          }
+        }, 100);
+      }
 
       // 🔥 USER REQUEST: Show/hide buttons based on board state
       // ONLY interim board shows "Continue" CTA
@@ -2496,7 +2952,6 @@ class JourneyBoardsManager {
         floatingPlayButton.style.setProperty('position', 'fixed', 'important');
         floatingPlayButton.style.setProperty('bottom', 'calc(40px + env(safe-area-inset-bottom, 0px))', 'important');
         floatingPlayButton.style.setProperty('left', '50%', 'important');
-        floatingPlayButton.style.setProperty('transform', 'translateX(-50%)', 'important');
         floatingPlayButton.style.setProperty('width', '249px', 'important');
         floatingPlayButton.style.setProperty('max-width', '249px', 'important');
         floatingPlayButton.style.setProperty('z-index', '1001', 'important');
@@ -2504,6 +2959,7 @@ class JourneyBoardsManager {
         floatingPlayButton.style.setProperty('cursor', 'pointer', 'important');
         floatingPlayButton.style.setProperty('overflow', 'hidden', 'important');
         floatingPlayButton.style.setProperty('display', 'block', 'important');
+        // 🔥 USER REQUEST: Transform will be set by GSAP (xPercent: -50 for centering)
         
         playButtonForAnimation = floatingPlayButton;
 
@@ -2731,16 +3187,47 @@ class JourneyBoardsManager {
         }
       }
 
-      // Content elements array (excluding header - header is animated as group)
+      // 🔥 USER REQUEST: Add animations for stats section, icons, and description text
+      // Find stats section and stat icons
+      const detailStatsSection = detailModal.querySelector('.detail-section-stats') as HTMLElement;
+      const detailStatIcons = detailModal.querySelectorAll('.detail-stat-icon') as NodeListOf<HTMLElement>;
+      const detailStatIconsArray = Array.from(detailStatIcons);
+      
+      // Content elements array (excluding header and card image - card is already animated separately)
       const contentElements = [
-        detailImage,
         detailRarityBadgeContainer,
+        detailStatsSection,
+        ...detailStatIconsArray,
         detailDescription,
         boardStatsContainer,
         playButton
       ].filter(el => el !== null) as HTMLElement[];
       
-      logger.info(`📊 Content elements for animation: ${contentElements.length} elements, playButton included: ${playButton !== null}`);
+      // 🔥 CRITICAL: Set initial state for description (will be animated, not always visible)
+      if (detailDescription) {
+        gsap.set(detailDescription, {
+          scale: 0,
+          opacity: 0,
+          visibility: 'hidden',
+          force3D: true,
+          immediateRender: true
+        });
+        // Keep text styling
+        detailDescription.style.cssText = `
+          display: block !important;
+          color: #AD8775 !important;
+          font-size: 20px !important;
+          text-align: center !important;
+          white-space: pre-line !important;
+          width: 220px !important;
+          max-width: 220px !important;
+          margin-left: 80px !important;
+          padding: 0 !important;
+          position: relative !important;
+          z-index: 10 !important;
+          line-height: 1.4 !important;
+        `;
+      }
 
       // 🔥 CRITICAL: Set initial state IMMEDIATELY (before showing modal) to prevent flash
       if (detailHeader) {
@@ -2753,14 +3240,57 @@ class JourneyBoardsManager {
         });
       }
 
-      // Set initial state for content elements
-      gsap.set(contentElements, {
+      // Set initial state for content elements (NOT card image - card is always visible)
+      // 🔥 BUG FIX: Separate PLAY button (CSS classes) from other elements (GSAP)
+      const playButtonForInit = contentElements.find(el => el && el.id === 'board-detail-play-button');
+      const otherElements = contentElements.filter(el => el && el.id !== 'board-detail-play-button');
+      
+      // PLAY button: use CSS classes (same as homepage CTA)
+      if (playButtonForInit) {
+        playButtonForInit.classList.remove('animate-enter', 'animate-exit', 'animate-reset');
+        playButtonForInit.style.removeProperty('transform');
+        playButtonForInit.style.removeProperty('transition');
+      }
+      
+      // Other elements: use GSAP
+      otherElements.forEach(el => {
+        if (el) {
+          gsap.killTweensOf(el); // 🔥 BUG FIX: Kill existing animations to prevent conflicts
+          el.classList.remove('animate-enter-initial', 'animate-enter', 'animate-exit', 'animate-reset');
+          el.style.transform = 'none';
+          el.style.transition = 'none'; // 🔥 BUG FIX: Remove CSS transitions to prevent fade conflicts
+        }
+      });
+      
+      gsap.set(otherElements, {
         scale: 0,
         opacity: 0,
         visibility: 'hidden',
         force3D: true,
         immediateRender: true
       });
+      
+      // 🔥 USER REQUEST: Set initial state for card image (will be animated)
+      if (detailImage) {
+        // 🔥 BUG FIX: Kill any existing GSAP animations first to prevent conflicts
+        gsap.killTweensOf(detailImage);
+        detailImage.classList.remove('animate-enter-initial', 'animate-enter', 'animate-exit', 'animate-reset');
+        detailImage.style.transform = 'none';
+        detailImage.style.transition = 'none';
+        gsap.set(detailImage, {
+          scale: 0,
+          opacity: 0,
+          visibility: 'hidden',
+          display: 'flex',
+          force3D: true,
+          immediateRender: true
+        });
+        detailImage.style.display = 'flex';
+        const img = detailImage.querySelector('img');
+        if (img) {
+          img.style.display = 'block';
+        }
+      }
 
       // NOW show modal (after initial state is set)
       detailModal.hidden = false;
@@ -2793,26 +3323,61 @@ class JourneyBoardsManager {
             logger.info('📊 Step 1: Detail header pop-in - FIRST');
           }
 
-          // STEP 2: Content elements sequentially (staggered)
-          contentElements.forEach((element, index) => {
-            const baseDelay = 0.1; // Start after header
-            const stagger = 0.08; // Sequential delay between items
-            const delay = baseDelay + (index * stagger);
-
-            gsap.set(element, { visibility: 'visible', immediateRender: true });
-            gsap.to(element, {
+          // STEP 2: Card image animation (after header, before content elements)
+          if (detailImage) {
+            gsap.set(detailImage, { visibility: 'visible', immediateRender: true });
+            gsap.to(detailImage, {
               scale: 1,
               opacity: 1,
               duration: 0.5,
               ease: 'back.out(1.7)',
-              delay: delay,
+              delay: 0.1,
               force3D: true,
               immediateRender: false
             });
-            logger.info(`🎴 Step ${index + 2}: Content element ${index + 1} pop-in - delay ${(delay * 1000).toFixed(0)}ms`);
-          });
+            logger.info('🃏 Step 2: Card image pop-in');
+          }
 
-          logger.info(`✅ Detail modal enter animation started (header + ${contentElements.length} content elements)`);
+          // STEP 3: Content elements sequentially (staggered)
+          contentElements.forEach((element, index) => {
+            const baseDelay = 0.18; // Start after card image (0.1 + 0.08)
+            const stagger = 0.08;
+            const delay = baseDelay + (index * stagger);
+            
+            // 🔥 BUG FIX: Use CSS animate-enter class for PLAY button (same as homepage CTA)
+            if (element && element.id === 'board-detail-play-button') {
+              element.classList.remove('animate-exit', 'animate-reset', 'animate-enter');
+              element.style.removeProperty('transition');
+              element.style.visibility = 'hidden';
+              void element.offsetHeight; // Force reflow
+              
+              // Add animate-enter-initial class for initial state (preserves translateX(-50%))
+              element.classList.add('animate-enter-initial');
+              void element.offsetHeight; // Force reflow
+              
+              // Animate using CSS class (same as homepage CTA) - preserves translateX(-50%)
+              setTimeout(() => {
+                element.classList.remove('animate-enter-initial');
+                element.classList.add('animate-enter');
+                element.style.visibility = 'visible';
+              }, delay * 1000);
+            } else {
+              // 🔥 BUG FIX: Ensure CSS transitions are disabled for GSAP scale animation
+              if (element) {
+                element.style.transition = 'none';
+              }
+              gsap.set(element, { visibility: 'visible', immediateRender: true });
+              gsap.to(element, {
+                scale: 1,
+                opacity: 1,
+                duration: 0.5,
+                ease: 'back.out(1.7)',
+                delay: delay,
+                force3D: true,
+                immediateRender: false
+              });
+            }
+          });
         });
       });
       
