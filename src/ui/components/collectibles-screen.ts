@@ -239,58 +239,195 @@ export function createCollectiblesDetailModal(): HTMLElementConfig {
           },
           {
             tag: 'div',
-            className: 'detail-scrollable',
-                children: [
-                  {
-                    tag: 'div',
-                    id: 'detail-card-image',
-                className: 'detail-image',
-              },
+            className: 'detail-swipeable-container',
+            children: [
+              // Section 1: Stats + Card (both visible, horizontal layout)
               {
                 tag: 'div',
-                className: 'detail-rarity-badge-container',
+                className: 'detail-section detail-section-stats-card',
+                id: 'detail-section-stats-card',
                 children: [
+                  // Stats (left)
                   {
                     tag: 'div',
-                    className: 'detail-divider-left',
+                    className: 'detail-section-stats',
+                    children: [
+                      {
+                        tag: 'div',
+                        className: 'detail-stats-list',
+                        children: [
+                          {
+                            tag: 'div',
+                            className: 'detail-stat-item',
+                            children: [
+                          {
+                            tag: 'div',
+                            className: 'detail-stat-icon',
+                            children: [
+                              {
+                                tag: 'img',
+                                attributes: {
+                                  src: './assets/stats-trophy.png',
+                                  alt: 'High score',
+                                  'aria-hidden': 'true',
+                                },
+                              },
+                            ],
+                          },
+                          {
+                            tag: 'div',
+                            className: 'detail-stat-content',
+                            children: [
+                              {
+                                tag: 'div',
+                                id: 'detail-stat-highscore-value',
+                                className: 'detail-stat-value',
+                                text: '0',
+                              },
+                              {
+                                tag: 'div',
+                                className: 'detail-stat-label',
+                                text: 'High score',
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                      {
+                        tag: 'div',
+                        className: 'detail-stat-divider',
+                      },
+                      {
+                        tag: 'div',
+                        className: 'detail-stat-item',
+                        children: [
+                          {
+                            tag: 'div',
+                            className: 'detail-stat-icon',
+                            children: [
+                              {
+                                tag: 'img',
+                                attributes: {
+                                  src: './assets/combo-stats.png',
+                                  alt: 'Longest combo',
+                                  'aria-hidden': 'true',
+                                },
+                              },
+                            ],
+                          },
+                          {
+                            tag: 'div',
+                            className: 'detail-stat-content',
+                            children: [
+                              {
+                                tag: 'div',
+                                id: 'detail-stat-combo-value',
+                                className: 'detail-stat-value',
+                                text: '0',
+                              },
+                              {
+                                tag: 'div',
+                                className: 'detail-stat-label',
+                                text: 'Longest combo',
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                      {
+                        tag: 'div',
+                        className: 'detail-stat-divider',
+                      },
+                      {
+                        tag: 'div',
+                        className: 'detail-stat-item',
+                        children: [
+                              {
+                                tag: 'div',
+                                className: 'detail-stat-icon',
+                                children: [
+                                  {
+                                    tag: 'img',
+                                    attributes: {
+                                      src: './assets/cubes-cracked.png',
+                                      alt: 'Cubes cracked',
+                                      'aria-hidden': 'true',
+                                    },
+                                  },
+                                ],
+                              },
+                              {
+                                tag: 'div',
+                                className: 'detail-stat-content',
+                                children: [
+                                  {
+                                    tag: 'div',
+                                    id: 'detail-stat-cubes-value',
+                                    className: 'detail-stat-value',
+                                    text: '0',
+                                  },
+                                  {
+                                    tag: 'div',
+                                    className: 'detail-stat-label',
+                                    text: 'Cubes cracked',
+                                  },
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
                   },
+                  // Card (middle)
                   {
                     tag: 'div',
-                    id: 'detail-rarity-badge',
-                    className: 'detail-rarity-badge',
-                    text: 'COMMON',
+                    className: 'detail-section-card',
+                    id: 'detail-section-card',
+                    children: [
+                      {
+                        tag: 'div',
+                        id: 'detail-card-image',
+                        className: 'detail-image',
+                      },
+                    ],
                   },
+                  // Text (right, 200px from card)
                   {
-                    tag: 'div',
-                    className: 'detail-divider-right',
+                    tag: 'p',
+                    id: 'detail-card-description',
+                    className: 'detail-description',
+                    text: 'Clean a board in less than 2 minutes',
                   },
                 ],
               },
+              // Section 2: Buttons (swipe to see)
               {
-                tag: 'p',
-                id: 'detail-card-description',
-                className: 'detail-description',
-                text: 'Clean a board in less than 2 minutes',
-              },
-              {
-                tag: 'button',
-                id: 'detail-play-board-btn',
-                className: 'detail-play-board-button primary-button',
-                attributes: {
-                  type: 'button',
-                  style: 'display: none;', // Hidden by default, shown for interim Journey boards
-                },
-                text: 'Play',
-              },
-              {
-                tag: 'button',
-                id: 'detail-continue-board-btn',
-                className: 'detail-continue-board-button primary-button',
-                attributes: {
-                  type: 'button',
-                  style: 'display: none;', // Hidden by default, shown for interim Journey boards
-                },
-                text: 'Continue',
+                tag: 'div',
+                className: 'detail-section detail-section-description',
+                id: 'detail-section-description',
+                children: [
+                  {
+                    tag: 'button',
+                    id: 'detail-play-board-btn',
+                    className: 'detail-play-board-button primary-button',
+                    attributes: {
+                      type: 'button',
+                      style: 'display: none;', // Hidden by default, shown for interim Journey boards
+                    },
+                    text: 'Play',
+                  },
+                  {
+                    tag: 'button',
+                    id: 'detail-continue-board-btn',
+                    className: 'detail-continue-board-button primary-button',
+                    attributes: {
+                      type: 'button',
+                      style: 'display: none;', // Hidden by default, shown for interim Journey boards
+                    },
+                    text: 'Continue',
+                  },
+                ],
               },
             ],
           },

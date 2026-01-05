@@ -5,13 +5,13 @@ const config: CapacitorConfig = {
   appName: 'CubeCrash',
   webDir: 'dist',
   // Keep native splash visible until we explicitly hide it (prevents white flash before loader)
-  backgroundColor: '#FAFAFA', // 🔥 CRITICAL: #FAFAFA matches launch screen
+  backgroundColor: '#F9F9F9', // 🔥 CRITICAL: #F9F9F9 matches launch screen
   plugins: {
     SplashScreen: {
       launchAutoHide: false,
       launchFadeOutDuration: 300, // 🔥 SMOOTHER: Longer fade for premium feel
       launchShowDuration: 1200,
-      backgroundColor: '#FAFAFA', // 🔥 CRITICAL: #FAFAFA matches launch screen
+      backgroundColor: '#F9F9F9', // 🔥 CRITICAL: #F9F9F9 matches launch screen
       showSpinner: false
     }
   },

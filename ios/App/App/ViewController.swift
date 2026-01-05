@@ -16,18 +16,18 @@ class ViewController: CAPBridgeViewController {
         return .portrait
     }
     
-    // #FAFAFA background for logo screen (matches launch screen)
-    private let launchBackgroundColor = UIColor(red: 250/255.0, green: 250/255.0, blue: 250/255.0, alpha: 1.0) // #FAFAFA
+    // #F9F9F9 background for logo screen (matches launch screen)
+    private let launchBackgroundColor = UIColor(red: 249/255.0, green: 249/255.0, blue: 249/255.0, alpha: 1.0) // #F9F9F9
     private var backgroundView: UIView?
     
     // 🔥 CRITICAL: Override loadView to set background BEFORE WebView is created
     override func loadView() {
         super.loadView()
         
-        // Set view background to #FAFAFA - this will be visible behind transparent WebView
+        // Set view background to #F9F9F9 - this will be visible behind transparent WebView
         self.view.backgroundColor = launchBackgroundColor
         
-        // 🔥 CRITICAL: Create background view with #FAFAFA color BEFORE WebView is initialized
+        // 🔥 CRITICAL: Create background view with #F9F9F9 color BEFORE WebView is initialized
         // This ensures consistent background during WKWebView initialization (for logo screen)
         let bgView = UIView(frame: self.view.bounds)
         bgView.backgroundColor = launchBackgroundColor
@@ -57,7 +57,7 @@ class ViewController: CAPBridgeViewController {
             self.backgroundView = bgView
         }
         
-        // Set view background to #F9F9F9 - visible behind transparent WebView
+        // Set view background to #F9F9F9 - visible behind transparent WebView (matches launch screen)
         self.view.backgroundColor = launchBackgroundColor
         
         // 🔥 CRITICAL: Set WebView to transparent SYNCHRONOUSLY (not async) for immediate effect

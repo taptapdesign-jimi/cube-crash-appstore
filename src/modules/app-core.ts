@@ -726,20 +726,20 @@ export async function boot(){
     console.log('🎯 Canvas kept hidden - will show when HUD drop starts');
   }
   
-  // 🔥 CRITICAL: Keep background as gradient initially (not solid color)
-  // Background will change to solid color only when entering game or individual screens
-  app.renderer.backgroundColor = 0xf3eee8; // PIXI renderer background (for game canvas)
+  // 🔥 CRITICAL: Set background to #F9F9F9 during launch (matches launch screen)
+  // Gradient will be set by launch-screen.ts in Phase 2, or by ui-manager.ts after launch
+  app.renderer.backgroundColor = 0xf9f9f9; // PIXI renderer background (for game canvas) - #F9F9F9
   
-  // Keep CSS background as gradient for homepage
+  // 🔥 CRITICAL: Start with #F9F9F9 to match launch screen - gradient will be set later
   const appElement = document.getElementById('app');
   const canvasElement = app.canvas;
   if (appElement) {
-    // Start with gradient - will change to solid color only when entering game
-    appElement.style.background = 'var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%))';
+    // Start with #F9F9F9 - gradient will be set by launch-screen.ts in Phase 2 or ui-manager.ts after launch
+    appElement.style.background = '#F9F9F9';
   }
   if (canvasElement) {
-    // Start with gradient - will change to solid color only when entering game
-    canvasElement.style.background = 'var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%))';
+    // Start with #F9F9F9 - gradient will be set by launch-screen.ts in Phase 2 or ui-manager.ts after launch
+    canvasElement.style.background = '#F9F9F9';
   }
   // 🔥 CRITICAL FIX: Ensure host element exists and is visible before adding canvas
   if (!host) {

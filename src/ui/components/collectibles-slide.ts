@@ -110,19 +110,22 @@ export function renderCollectiblesSlide(
   const slideTagline = element.querySelector('.slide-tagline') as HTMLElement;
   
   if (slideButton) {
-    // 🔥 FIX: Za iPad, osigurati da je CTA button vidljiv na neaktivnim slide-ovima
-    const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
+    // 🔥 CHROME FIX: Osigurati da je CTA button vidljiv na Chrome-u (ne samo iPad)
+    // Na Chrome-u, neaktivni slide-ovi također trebaju imati vidljive CTA button-e
     const isActiveSlide = config.isActive || config.slideIndex === 0; // Slide 0 (home) je defaultno aktivni
     
-    if (isIPad && !isActiveSlide) {
-      // Za neaktivne slide-ove na iPadu, NE dodavati animate-enter-initial, već odmah postaviti display
+    if (!isActiveSlide) {
+      // Za neaktivne slide-ove, NE dodavati animate-enter-initial, već odmah postaviti display
+      // Ovo osigurava da su CTA buttoni vidljivi na Chrome-u kada se slide aktivira
       slideButton.style.display = 'flex';
       slideButton.style.visibility = 'visible';
       slideButton.style.opacity = '1';
       slideButton.style.transform = 'translateY(0px) scale(1)';
       slideButton.style.webkitTransform = 'translateY(0px) scale(1)';
+      slideButton.style.transition = 'none';
+      slideButton.style.webkitTransition = 'none';
     } else {
-      // Za aktivni slide ili ne-iPad, dodati animate-enter-initial klasu
+      // Za aktivni slide, dodati animate-enter-initial klasu (animacija će se pokrenuti)
       slideButton.classList.add('animate-enter-initial');
     }
   }

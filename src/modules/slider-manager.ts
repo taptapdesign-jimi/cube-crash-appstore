@@ -29,7 +29,7 @@ class SliderManager {
   private isDragging: boolean = false;
   private startX: number = 0;
   private currentX: number = 0;
-  private threshold: number = 50;
+  private threshold: number = 100; // 🔥 FIX: Increased threshold to ensure full slide movement (was 50px, now 100px)
   private isInitialized: boolean = false;
   private slideAnimation: gsap.core.Tween | null = null;
   private quickSetX: ((value: number) => void) | null = null;
@@ -312,11 +312,13 @@ class SliderManager {
       currentOffset = baseOffset + (deltaX * 0.1);
     }
     
-    // Use GSAP quickSetter for smooth drag updates (better performance and sync)
+    // 🔥 SMOOTH: Use GSAP quickSetter for smooth drag updates (already optimized for 60fps)
+    // quickSetter internally uses requestAnimationFrame for smooth updates
     if (this.quickSetX) {
       this.quickSetX(currentOffset);
     } else {
-      // Fallback to direct transform
+      // Fallback to direct transform with will-change for GPU acceleration
+      this.elements.wrapper.style.willChange = 'transform';
       this.elements.wrapper.style.transform = `translateX(${currentOffset}px)`;
     }
   }
@@ -374,8 +376,11 @@ class SliderManager {
   private updateSlider(): void {
     if (!this.elements.wrapper || !this.elements.container) return;
     
-    const slideWidth = this.elements.container.offsetWidth;
+    // 🔥 FIX: Calculate slide width correctly - each slide is 25% of 400% = 100vw
+    const slideWidth = this.elements.container.offsetWidth; // This should be viewport width
     const offset = -this.currentSlide * slideWidth;
+    
+    logger.debug(`🎯 updateSlider: currentSlide=${this.currentSlide}, slideWidth=${slideWidth}, offset=${offset}`);
     
     // Kill previous animation if exists
     if (this.slideAnimation) {
@@ -389,14 +394,39 @@ class SliderManager {
       // Get current position from GSAP (quickSetter keeps it in sync)
       const currentX = gsap.getProperty(this.elements.wrapper, 'x') as number || 0;
       
-      // Use GSAP for smooth transition from current position
-      this.slideAnimation = gsap.to(this.elements.wrapper, {
-        x: offset,
-        duration: 0.5,
-        ease: 'back.out(1.2)', // Blagi bounce efekt
-        force3D: true, // Better performance
-        overwrite: true
-      });
+      logger.debug(`🎯 updateSlider: currentX=${currentX}, target offset=${offset}, difference=${Math.abs(currentX - offset)}`);
+      
+      // 🔥 FIX: Only animate if there's a significant difference (avoid micro-movements)
+      if (Math.abs(currentX - offset) > 1) {
+        // 🔥 SMOOTH: Use smooth easing instead of bounce for fluid, non-jerky animation
+        this.slideAnimation = gsap.to(this.elements.wrapper, {
+          x: offset,
+          duration: 0.4, // Slightly faster for responsiveness
+          ease: 'power2.out', // Smooth, fluid easing (no bounce/jerk)
+          force3D: true, // GPU acceleration
+          overwrite: true,
+          onUpdate: () => {
+            // 🔥 SMOOTH: Force GPU layer update for smooth 60fps
+            if (this.elements.wrapper) {
+              this.elements.wrapper.style.willChange = 'transform';
+            }
+          },
+          onComplete: () => {
+            // 🔥 SMOOTH: Reset will-change after animation for performance
+            if (this.elements.wrapper) {
+              this.elements.wrapper.style.willChange = 'auto';
+            }
+            logger.debug(`✅ updateSlider: Animation completed, final x=${gsap.getProperty(this.elements.wrapper, 'x')}`);
+          }
+        });
+      } else {
+        // Already at target position, just set it directly
+        if (this.quickSetX) {
+          this.quickSetX(offset);
+        } else {
+          this.elements.wrapper.style.transform = `translateX(${offset}px)`;
+        }
+      }
     } else {
       // During drag, use quickSetter (already handled in updateSliderPosition)
       if (this.quickSetX) {

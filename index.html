@@ -8,12 +8,12 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="screen-orientation" content="portrait">
   <meta name="orientation" content="portrait">
-  <!-- 🔥 CRITICAL: Set #FAFAFA background IMMEDIATELY in inline style (before CSS loads) -->
+  <!-- 🔥 CRITICAL: Set #F9F9F9 background IMMEDIATELY in inline style (before CSS loads) -->
   <!-- This prevents gradient from showing before launch screen sets white background -->
   <style>
     html, body {
-      background: #FAFAFA !important;
-      background-color: #FAFAFA !important;
+      background: #F9F9F9 !important;
+      background-color: #F9F9F9 !important;
       background-image: none !important;
     }
   </style>
@@ -86,10 +86,10 @@
     }
     
     body {
-      /* 🔥 CRITICAL: Start with #FAFAFA background for logo screen, matches launch screen */
+      /* 🔥 CRITICAL: Start with #F9F9F9 background for logo screen, matches launch screen */
       /* Background will be changed to gradient by launch-screen.ts and ui-manager.ts */
-      background: #FAFAFA; /* Removed !important - JavaScript will override with gradient */
-      background-color: #FAFAFA;
+      background: #F9F9F9; /* Removed !important - JavaScript will override with gradient */
+      background-color: #F9F9F9;
       background-attachment: fixed;
       background-repeat: no-repeat;
       font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
@@ -101,7 +101,7 @@
     }
     
     /* 🔥 CRITICAL: No gradient here - launch-screen.ts handles all background changes */
-    /* Background stays #FAFAFA until Phase 2, then gradient is set by JavaScript */
+    /* Background stays #F9F9F9 until Phase 2, then gradient is set by JavaScript */
     
     #ui-root {
       position: relative;
@@ -192,7 +192,7 @@
       justify-content: center;
       z-index: 10000;
       transition: opacity 0.5s ease, visibility 0.5s ease;
-      background: #FAFAFA; /* 🔥 CRITICAL: #FAFAFA matches launch screen */
+      background: #F9F9F9; /* 🔥 CRITICAL: #F9F9F9 matches launch screen */
     }
     #loading-screen .loading-content {
       text-align: center;

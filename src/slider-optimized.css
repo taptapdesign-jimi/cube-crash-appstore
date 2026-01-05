@@ -30,6 +30,13 @@
   will-change: transform;
   position: relative;
   z-index: 3;
+  /* 🔥 SMOOTH: GPU acceleration for smooth, non-jerky animations */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .slider-slide {
@@ -41,6 +48,11 @@
   min-height: 100vh;
   position: relative;
   padding-top: 8vh;
+  /* 🔥 SMOOTH: GPU acceleration for smooth animations */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .slide-content {

@@ -1224,53 +1224,57 @@ class CollectiblesManager {
       console.warn('⚠️ Card description element not found');
     }
     
-    // 🔥 JOURNEY BOARDS: Display board stats (High Score, Longest Combo) for common boards
+    // 🔥 JOURNEY BOARDS: Display board stats (High Score, Longest Combo, Cubes Cracked) for common boards
     if (category === 'common') {
       const boardId = number; // Card number = Board number
       
-      // Import and get board stats
-      import('./services/board-stats-service.js').then(({ boardStatsService }) => {
+      // Import and get board stats + global stats
+      Promise.all([
+        import('./services/board-stats-service.js'),
+        import('./services/stats-service.js')
+      ]).then(([{ boardStatsService }, { statsService }]) => {
         const boardStats = boardStatsService.getBoardStats(boardId);
+        const globalStats = statsService.getStats();
         
-        // Find or create stats container
-        let statsContainer = document.getElementById('board-stats-container');
-        if (!statsContainer) {
-          statsContainer = document.createElement('div');
-          statsContainer.id = 'board-stats-container';
-          statsContainer.className = 'board-stats-container';
-          
-          // Insert after description element
-          if (cardDescriptionEl && cardDescriptionEl.parentElement) {
-            cardDescriptionEl.parentElement.insertBefore(statsContainer, cardDescriptionEl.nextSibling);
-          }
+        // Update stats values in new swipeable format
+        const highScoreEl = document.getElementById('detail-stat-highscore-value');
+        const comboEl = document.getElementById('detail-stat-combo-value');
+        const cubesEl = document.getElementById('detail-stat-cubes-value');
+        
+        if (highScoreEl) {
+          highScoreEl.textContent = boardStats.highScore.toLocaleString();
+        }
+        if (comboEl) {
+          comboEl.textContent = boardStats.longestCombo.toString();
+        }
+        if (cubesEl) {
+          cubesEl.textContent = globalStats.cubesCracked.toLocaleString();
         }
         
-        // Update stats content - same layout as score bottom sheet (icon left, text right)
-        statsContainer.innerHTML = `
-          <div class="stat-item">
-            <div class="stat-icon">
-              <img src="./assets/highscore-icon.png" alt="" aria-hidden="true">
-            </div>
-            <div class="stat-content">
-              <div class="stat-value">${boardStats.highScore.toLocaleString()}</div>
-              <div class="stat-label">High score</div>
-            </div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-icon">
-              <img src="./assets/combo-icon.png" alt="" aria-hidden="true">
-            </div>
-            <div class="stat-content">
-              <div class="stat-value">${boardStats.longestCombo}</div>
-              <div class="stat-label">Longest combo</div>
-            </div>
-          </div>
-        `;
-        
-        console.log(`✅ Board stats displayed for board ${boardId}:`, boardStats);
+        console.log(`✅ Board stats displayed for board ${boardId}:`, {
+          highScore: boardStats.highScore,
+          longestCombo: boardStats.longestCombo,
+          cubesCracked: globalStats.cubesCracked
+        });
       }).catch((error) => {
         console.warn('⚠️ Failed to load board stats:', error);
       });
+      
+      // 🔥 NEW: Initialize swipeable container - start at stats section (index 0)
+      const swipeableContainer = modal?.querySelector('.detail-swipeable-container');
+      if (swipeableContainer) {
+        // Reset to first section (stats) - using pixels for peek effect
+        (swipeableContainer as HTMLElement).style.transform = 'translateX(0px)';
+        // Import journey boards manager to use swipe initialization
+        import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+          if (typeof (journeyBoardsManager as any).initDetailModalSwipe === 'function') {
+            (journeyBoardsManager as any).initDetailModalSwipe(swipeableContainer as HTMLElement);
+            console.log('✅ Swipeable container initialized for regular collectibles - starting at stats section (card visible on right)');
+          }
+        }).catch((error) => {
+          console.warn('⚠️ Failed to initialize swipeable container:', error);
+        });
+      }
     } else {
       // Remove stats container for legendary cards
       const statsContainer = document.getElementById('board-stats-container');

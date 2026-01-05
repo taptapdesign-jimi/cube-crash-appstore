@@ -191,9 +191,9 @@ async function startAssetPreloading(): Promise<void> {
     logger.info('📦 Starting asset preloading...');
     
     // 🔥 CRITICAL: Initialize launch screen FIRST and IMMEDIATELY
-    // This sets #FAFAFA background before any other code can set gradient
+    // This sets #F9F9F9 background before any other code can set gradient
     const { launchScreen } = await import('./modules/launch-screen.js');
-    launchScreen.init(); // Sets #FAFAFA background synchronously and immediately
+    launchScreen.init(); // Sets #F9F9F9 background synchronously and immediately
     
     // 🔥 CRITICAL: Hide native splash immediately
     try {

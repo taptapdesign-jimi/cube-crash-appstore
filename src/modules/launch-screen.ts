@@ -38,9 +38,9 @@ class LaunchScreen {
     }
 
     // 🔥 SENIOR PRINCIPAL: Single source of truth for background
-    // Set #FAFAFA immediately and synchronously - this is the ONLY place that sets initial background
-    // CSS already has #FAFAFA as fallback, but we enforce it here to prevent any race conditions
-    this.setBackground('#FAFAFA');
+    // Set #F9F9F9 immediately and synchronously - this is the ONLY place that sets initial background
+    // CSS already has #F9F9F9 as fallback, but we enforce it here to prevent any race conditions
+    this.setBackground('#F9F9F9');
 
     // Create launch screen container
     const container = document.createElement('div');
@@ -56,7 +56,7 @@ class LaunchScreen {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #FAFAFA;
+      background: #F9F9F9;
       opacity: 1;
       visibility: visible;
     `;
@@ -263,6 +263,31 @@ class LaunchScreen {
 
     // PHASE 3: Scale down all images to 0% and fade out
     logger.info('🎬 Phase 3: Scaling down all images to 0%');
+    
+    // 🔥 CRITICAL: Set container background to gradient BEFORE fade out to prevent white flash
+    // Container currently has #F9F9F9, but we need gradient to match body/html
+    const preservedGradient = 'linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%)';
+    container.style.background = preservedGradient;
+    logger.info('✅ Phase 3: Container background set to gradient before fade out');
+    
+    // 🔥 CRITICAL: Ensure gradient background stays visible on body, html, and #global-bg
+    // Do this BEFORE fade out to prevent any white flash
+    if (document.body) {
+      document.body.style.setProperty('background', preservedGradient, 'important');
+      document.body.style.setProperty('background-color', 'transparent', 'important');
+      document.body.style.setProperty('background-image', preservedGradient, 'important');
+    }
+    if (document.documentElement) {
+      document.documentElement.style.setProperty('background', preservedGradient, 'important');
+      document.documentElement.style.setProperty('background-color', 'transparent', 'important');
+      document.documentElement.style.setProperty('background-image', preservedGradient, 'important');
+    }
+    const globalBg = document.getElementById('global-bg');
+    if (globalBg) {
+      (globalBg as HTMLElement).style.setProperty('background', 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)', 'important');
+    }
+    logger.info('✅ Phase 3: Gradient background explicitly set on body/html/#global-bg BEFORE fade out');
+    
     await new Promise<void>((resolve) => {
       gsap.to([stackLogo, smokeShards, stackContainer], {
         scale: 0,
@@ -287,13 +312,17 @@ class LaunchScreen {
         }
       });
 
-      // Also fade out container
+      // Also fade out container (but NOT the background - gradient stays!)
+      // Only fade out the container's opacity, don't touch background
+      // 🔥 CRITICAL: Container background is already set to gradient above
       gsap.to(container, {
         opacity: 0,
         duration: 0.5,
         ease: 'power2.in',
         onComplete: () => {
-          logger.info('✅ Phase 3: Launch screen faded out');
+          // 🔥 CRITICAL: Ensure container background stays as gradient (don't reset to white)
+          container.style.background = preservedGradient;
+          logger.info('✅ Phase 3: Launch screen faded out (gradient background preserved on container)');
         }
       });
     });
@@ -329,8 +358,14 @@ class LaunchScreen {
    */
   hide(): void {
     if (this.elements.container) {
+      // 🔥 CRITICAL: Don't reset background when hiding - gradient must stay!
+      // Only hide the container, but preserve its gradient background
       this.elements.container.style.display = 'none';
       this.elements.container.style.visibility = 'hidden';
+      // Ensure background is still gradient (not white)
+      const preservedGradient = 'linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%)';
+      this.elements.container.style.background = preservedGradient;
+      logger.info('✅ Launch screen hidden (gradient background preserved)');
     }
   }
 

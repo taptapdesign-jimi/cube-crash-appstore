@@ -17,7 +17,7 @@
 
 body{
   position: relative;
-  /* 🔥 CRITICAL: No background here - launch-screen.ts sets #FAFAFA, then gradient after stack to six logo */
+  /* 🔥 CRITICAL: No background here - launch-screen.ts sets #F9F9F9, then gradient after stack to six logo */
   /* Background will be set by launch-screen.ts and ui-manager.ts */
 }
 
@@ -29,8 +29,8 @@ body{
   bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
   left: -12vw;
   right: -12vw;
-  /* 🔥 CRITICAL: Start with #FAFAFA, gradient will be set by launch-screen.ts in Phase 2 */
-  background: #FAFAFA;
+  /* 🔥 CRITICAL: Start with #F9F9F9, gradient will be set by launch-screen.ts in Phase 2 */
+  background: #F9F9F9;
   pointer-events: none;
   z-index: -1; /* 🔥 CRITICAL: Behind content, not in front */
   /* Transition removed - GSAP now handles background animations */
@@ -50,7 +50,7 @@ body{
   justify-content: center;
   z-index: 10000;
   transition: opacity 0.5s ease, visibility 0.5s ease;
-  background: #FAFAFA; /* 🔥 CRITICAL: #FAFAFA matches launch screen */
+  background: #F9F9F9; /* 🔥 CRITICAL: #F9F9F9 matches launch screen */
 }
 
 /* Removed gradient-fade-out rules - gradient stays visible */
@@ -113,7 +113,7 @@ body{
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #FAFAFA;
+  background: #F9F9F9;
   opacity: 1;
   visibility: visible;
 }
@@ -476,7 +476,7 @@ body{
   z-index: 10; /* Above background, below sliders */
   background: #f3eee8; /* Game background color */
 }
-html,body{height:100%;margin:0;background:#FAFAFA;background-color:#FAFAFA;background-image:none;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+html,body{height:100%;margin:0;background:#F9F9F9;background-color:#F9F9F9;background-image:none;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
 
 /* Optimize canvas for pixel-perfect rendering */
 canvas {

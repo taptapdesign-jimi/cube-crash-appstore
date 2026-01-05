@@ -2045,17 +2045,18 @@ class JourneyBoardsManager {
       const detailRarityBadgeContainer = modal.querySelector('.detail-rarity-badge-container') as HTMLElement;
       const detailDescription = modal.querySelector('#detail-card-description') as HTMLElement;
       const boardStatsContainer = modal.querySelector('.board-stats-container') as HTMLElement;
-      const playBoardBtn = modal.querySelector('#detail-play-board-btn') || modal.querySelector('#board-detail-play-button') as HTMLElement;
+      // 🔥 CRITICAL: Find PLAY button directly (not from contentElements array)
+      // PLAY button is created dynamically and added to modal, so find it directly
+      const playButton = modal.querySelector('#board-detail-play-button') as HTMLElement || document.getElementById('board-detail-play-button') as HTMLElement;
       
       // 🔥 USER REQUEST: Add animations for stats section, icons, and description text
       const detailStatsSection = modal.querySelector('.detail-section-stats') as HTMLElement;
       const detailStatIcons = modal.querySelectorAll('.detail-stat-icon') as NodeListOf<HTMLElement>;
       const detailStatIconsArray = Array.from(detailStatIcons);
 
-      // 🔥 USER REQUEST: Content elements array (reverse order for exit - bottom to top)
+      // 🔥 USER REQUEST: Content elements array (EXCLUDE PLAY button - it's handled separately)
       // Include stats section, icons, and description in exit animation
-      const contentElements = [
-        playBoardBtn,
+      const otherContentElements = [
         boardStatsContainer,
         detailDescription,
         ...detailStatIconsArray,
@@ -2063,47 +2064,78 @@ class JourneyBoardsManager {
         detailRarityBadgeContainer,
         detailImage
       ].filter(el => el !== null) as HTMLElement[];
-
-      // 🔥 USER REQUEST: Exit animation matches settings screen - content elements FIRST, header LAST
-      // STEP 1: Content elements FIRST (reverse order - bottom to top)
-      contentElements.forEach((element, index) => {
-        const baseDelay = 0;
+      
+      // 🔥 DEBUG: Log PLAY button state
+      if (playButton) {
+        logger.info(`✅ PLAY button found for exit animation: id=${playButton.id}, parent=${playButton.parentNode?.nodeName}`);
+      } else {
+        logger.warn(`⚠️ PLAY button NOT found for exit animation!`);
+      }
+      
+      // STEP 1: Other content elements FIRST (container with stats + card)
+      otherContentElements.forEach((element, index) => {
+        const baseDelay = 0; // Start immediately
         const stagger = 0.05; // Faster stagger for exit (same as settings screen)
         const delay = baseDelay + (index * stagger);
         
-        // 🔥 BUG FIX: Use CSS animate-exit class for PLAY button (same as homepage CTA)
-        if (element && element.id === 'board-detail-play-button') {
-          element.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
-          element.style.removeProperty('transform');
-          element.style.removeProperty('transition');
-          void element.offsetHeight; // Force reflow
-          
-          // Add animate-exit class for CSS transition (preserves translateX(-50%))
-          setTimeout(() => {
-            element.classList.add('animate-exit');
-          }, delay * 1000);
-        } else {
-          // 🔥 BUG FIX: Ensure CSS transitions are disabled for GSAP scale animation
-          if (element) {
-            element.style.transition = 'none';
-          }
-
-          gsap.to(element, {
-            scale: 0,
-            opacity: 0,
-            duration: 0.4,
-            ease: 'back.in(1.7)',
-            delay: delay,
-            force3D: true
-          });
-          logger.info(`🎴 Step ${index + 1}: Content element ${index + 1} pop-out - delay ${(delay * 1000).toFixed(0)}ms`);
+        // 🔥 BUG FIX: Ensure CSS transitions are disabled for GSAP scale animation
+        if (element) {
+          element.style.transition = 'none';
         }
-      });
 
-      // STEP 2: Header LAST (includes X, title, divider - animated as group, same as settings screen)
+        gsap.to(element, {
+          scale: 0,
+          opacity: 0,
+          duration: 0.4,
+          ease: 'back.in(1.7)',
+          delay: delay,
+          force3D: true,
+          overwrite: true // 🔥 CRITICAL: Prevent duplicate animations
+        });
+        logger.info(`🎴 Step ${index + 1}: Content element ${index + 1} pop-out - delay ${(delay * 1000).toFixed(0)}ms`);
+      });
+      
+      // STEP 2: PLAY button AFTER container finishes (stats + card duration is 0.4s, so start at 0.4s + buffer)
+      // 🔥 USER REQUEST: PLAY button exits AFTER container (stats + card) animation completes
+      let playButtonExitDelay = 0;
+      let playButtonExitDuration = 0;
+      
+      if (playButton) {
+        playButton.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
+        playButton.style.removeProperty('transform');
+        playButton.style.removeProperty('transition');
+        void playButton.offsetHeight; // Force reflow
+        
+        // Calculate delay: container elements start at 0ms, last element starts at (otherContentElements.length - 1) * 0.05
+        // Container animation duration is 0.4s, so wait for that + small buffer
+        const lastElementDelay = otherContentElements.length > 0 ? ((otherContentElements.length - 1) * 0.05) : 0;
+        const containerAnimationDuration = 0.4; // Duration of container exit animation
+        playButtonExitDelay = lastElementDelay + containerAnimationDuration + 0.05; // Wait for container to finish + 50ms buffer
+        playButtonExitDuration = 0.65; // CSS animation duration (from collectibles-screen.css)
+        
+        // 🔥 CRITICAL: Move PLAY button to body BEFORE starting exit animation
+        // This ensures it remains visible when modal is hidden
+        if (playButton.parentNode === modal) {
+          document.body.appendChild(playButton);
+          logger.info('🎮 PLAY button moved to body before exit animation');
+        }
+        
+        // Start exit animation AFTER container finishes
+        setTimeout(() => {
+          if (playButton && playButton.parentNode) {
+            playButton.classList.add('animate-exit');
+            logger.info(`🎮 PLAY button exit animation started at ${(playButtonExitDelay * 1000).toFixed(0)}ms`);
+          } else {
+            logger.warn('⚠️ PLAY button not found when trying to start exit animation!');
+          }
+        }, playButtonExitDelay * 1000);
+      }
+
+      // STEP 3: Header LAST (includes X, title, divider - animated as group, same as settings screen)
       // 🔥 CRITICAL: Animate header EXACTLY like enter animation - as parent element, not child elements
       // This ensures all child elements (X, title, divider) animate together as a group
-      const lastDelay = contentElements.length > 0 ? (contentElements.length * 0.05) : 0;
+      // 🔥 BUG FIX: Use otherContentElements.length (not contentElements.length) since PLAY button is separate
+      const lastDelay = otherContentElements.length > 0 ? (otherContentElements.length * 0.05) : 0;
       if (detailHeader) {
         // 🔥 CRITICAL: Remove CSS transition classes and disable transitions on header child elements
         // This ensures GSAP animation controls all header elements (X, title, divider) as a group
@@ -2136,8 +2168,11 @@ class JourneyBoardsManager {
         logger.info(`📊 Header pop-out - LAST (X, title, divider animate together as group at ${((lastDelay + 0.05) * 1000).toFixed(0)}ms)`);
       }
 
-      // Calculate total animation duration (content elements + header)
-      const totalDuration = (lastDelay + 0.05 + 0.4 + 0.1) * 1000; // Add 100ms buffer
+      // Calculate total animation duration (content elements + PLAY button + header)
+      // 🔥 CRITICAL: Include PLAY button exit animation in total duration
+      const playButtonEndTime = playButtonExitDelay + playButtonExitDuration; // When PLAY button animation ends
+      const headerEndTime = lastDelay + 0.05 + 0.4; // When header animation ends
+      const totalDuration = Math.max(playButtonEndTime, headerEndTime) * 1000 + 100; // Use the longer one + 100ms buffer
 
       // Wait for exit animation to complete
       setTimeout(() => {
@@ -2148,12 +2183,25 @@ class JourneyBoardsManager {
           detailImageEl.style.animationPlayState = 'paused';
         }
         
-        // Hide modal
+        // Hide modal (PLAY button is now in body, so it remains visible)
         modal.hidden = true;
         modal.style.display = 'none';
         modal.setAttribute('aria-hidden', 'true');
         
+        // 🔥 CRITICAL: Remove PLAY button AFTER its animation completes
+        // PLAY button exit animation duration is 0.65s, so wait for that
+        if (playButton && playButtonExitDelay > 0) {
+          const playButtonRemoveDelay = (playButtonExitDelay + playButtonExitDuration) * 1000;
+          setTimeout(() => {
+            if (playButton && playButton.parentNode) {
+              playButton.remove();
+              logger.info('🎮 PLAY button removed after exit animation completed');
+            }
+          }, playButtonRemoveDelay);
+        }
+        
         logger.info(`✅ Detail modal exit animation completed (${totalDuration}ms)`);
+        logger.info(`🎮 PLAY button exit: delay=${(playButtonExitDelay * 1000).toFixed(0)}ms, duration=${(playButtonExitDuration * 1000).toFixed(0)}ms, ends at=${((playButtonExitDelay + playButtonExitDuration) * 1000).toFixed(0)}ms`);
         resolve();
       }, totalDuration);
     });
@@ -2749,8 +2797,9 @@ class JourneyBoardsManager {
     if (detailModal) {
       detailModal.removeAttribute('hidden');
       (detailModal as HTMLElement).style.display = 'flex';
-      (detailModal as HTMLElement).style.visibility = 'visible';
-      (detailModal as HTMLElement).style.opacity = '1';
+      // Keep modal invisible until enter animation kicks in (prevents flash)
+      (detailModal as HTMLElement).style.visibility = 'hidden';
+      (detailModal as HTMLElement).style.opacity = '0';
       // 🔥 USER REQUEST: Mark card as viewed - stop animations forever for this card
       // Only mark unlocked cards (interim cards don't have detail modal, so they keep animating)
       if (!board.interim) {
@@ -2787,16 +2836,25 @@ class JourneyBoardsManager {
         img.alt = board.name || `Board ${board.id}`;
         imageEl.appendChild(img);
         
-        // 🔥 BUG FIX: Set initial state for animation (will be set to scale: 0 later)
+        // 🔥 BUG FIX: Set initial hidden state to avoid flash before GSAP enter
         imageEl.style.display = 'flex';
         imageEl.style.transition = 'none';
+        imageEl.style.opacity = '0';
+        imageEl.style.visibility = 'hidden';
+        imageEl.style.transform = 'scale(0)';
+        imageEl.style.transformOrigin = 'center center';
+        imageEl.style.animation = 'none';
+        imageEl.style.animationPlayState = 'paused';
         imageEl.classList.remove('animate-enter-initial', 'animate-enter', 'animate-exit', 'animate-reset');
         
         img.style.display = 'block';
         img.style.width = '100%';
         img.style.height = '100%';
         img.style.objectFit = 'contain';
-        // 🔥 BUG FIX: Don't set opacity/visibility/transform here - will be set by GSAP
+        img.style.opacity = '0';
+        img.style.visibility = 'hidden';
+        img.style.animation = 'none';
+        img.style.animationPlayState = 'paused';
       }
 
       // Set title in header (Board 01, Board 02, etc.)
@@ -3275,21 +3333,31 @@ class JourneyBoardsManager {
         // 🔥 BUG FIX: Kill any existing GSAP animations first to prevent conflicts
         gsap.killTweensOf(detailImage);
         detailImage.classList.remove('animate-enter-initial', 'animate-enter', 'animate-exit', 'animate-reset');
-        detailImage.style.transform = 'none';
+        
+        // 🔥 CRITICAL: Set display and transition, but let GSAP control opacity/visibility/transform
+        detailImage.style.display = 'flex';
         detailImage.style.transition = 'none';
+        // 🔥 CRITICAL: Remove any inline styles that might interfere with GSAP
+        detailImage.style.removeProperty('opacity');
+        detailImage.style.removeProperty('visibility');
+        detailImage.style.removeProperty('transform');
+        
+        const img = detailImage.querySelector('img');
+        if (img) {
+          img.style.display = 'block';
+          // 🔥 CRITICAL: Don't set opacity/visibility on img - GSAP controls parent
+          img.style.removeProperty('opacity');
+          img.style.removeProperty('visibility');
+        }
+        
+        // 🔥 CRITICAL: Use GSAP to set initial state - this ensures proper animation
         gsap.set(detailImage, {
           scale: 0,
           opacity: 0,
           visibility: 'hidden',
-          display: 'flex',
           force3D: true,
           immediateRender: true
         });
-        detailImage.style.display = 'flex';
-        const img = detailImage.querySelector('img');
-        if (img) {
-          img.style.display = 'block';
-        }
       }
 
       // NOW show modal (after initial state is set)
@@ -3300,6 +3368,14 @@ class JourneyBoardsManager {
       // 🔥 CRITICAL: Keep modal invisible until animations start
       detailModal.style.opacity = '0';
       detailModal.style.visibility = 'hidden';
+      // Also hide card container immediately to prevent first-frame flash
+      if (detailImage) {
+        detailImage.style.opacity = '0';
+        detailImage.style.visibility = 'hidden';
+        detailImage.style.transform = 'scale(0)';
+        detailImage.style.transformOrigin = 'center center';
+        detailImage.style.willChange = 'transform, opacity';
+      }
 
       // Now make modal visible and start animations
       requestAnimationFrame(() => {
@@ -3323,60 +3399,119 @@ class JourneyBoardsManager {
             logger.info('📊 Step 1: Detail header pop-in - FIRST');
           }
 
-          // STEP 2: Card image animation (after header, before content elements)
-          if (detailImage) {
-            gsap.set(detailImage, { visibility: 'visible', immediateRender: true });
-            gsap.to(detailImage, {
-              scale: 1,
-              opacity: 1,
-              duration: 0.5,
-              ease: 'back.out(1.7)',
-              delay: 0.1,
-              force3D: true,
-              immediateRender: false
-            });
-            logger.info('🃏 Step 2: Card image pop-in');
+          // STEP 2: PLAY button SECOND (0ms delay, immediately after header, BEFORE card and content)
+          // 🔥 USER REQUEST: PLAY button appears BEFORE container with card and stats
+          const playButtonForEnter = contentElements.find(el => el && el.id === 'board-detail-play-button');
+          const otherContentElements = contentElements.filter(el => el && el.id !== 'board-detail-play-button');
+          
+          if (playButtonForEnter) {
+            playButtonForEnter.classList.remove('animate-exit', 'animate-reset', 'animate-enter');
+            playButtonForEnter.style.removeProperty('transition');
+            playButtonForEnter.style.visibility = 'hidden';
+            void playButtonForEnter.offsetHeight; // Force reflow
+            
+            // Add animate-enter-initial class for initial state (preserves translateX(-50%))
+            playButtonForEnter.classList.add('animate-enter-initial');
+            void playButtonForEnter.offsetHeight; // Force reflow
+            
+            // Animate using CSS class (same as homepage CTA) - preserves translateX(-50%)
+            // Start immediately after header (0ms delay)
+            setTimeout(() => {
+              playButtonForEnter.classList.remove('animate-enter-initial');
+              playButtonForEnter.classList.add('animate-enter');
+              playButtonForEnter.style.visibility = 'visible';
+            }, 0);
           }
 
-          // STEP 3: Content elements sequentially (staggered)
-          contentElements.forEach((element, index) => {
+          // STEP 3: Card image animation (after PLAY button, before other content elements)
+          if (detailImage) {
+            // 🔥 CRITICAL: Ensure card is hidden before animation starts and no stale tweens exist
+            gsap.killTweensOf(detailImage);
+            const detailImgEl = detailImage.querySelector('img') as HTMLElement | null;
+            if (detailImgEl) {
+              gsap.killTweensOf(detailImgEl);
+            }
+            detailImage.style.opacity = '0';
+            detailImage.style.visibility = 'hidden';
+            detailImage.style.transform = 'scale(0)';
+            detailImage.style.transformOrigin = 'center center';
+            detailImage.style.transition = 'none';
+            detailImage.style.willChange = 'transform, opacity';
+            if (detailImgEl) {
+              detailImgEl.style.transition = 'none';
+              detailImgEl.style.opacity = '0';
+              detailImgEl.style.visibility = 'hidden';
+              detailImgEl.style.willChange = 'transform, opacity';
+            }
+            
+            // Hard-set start state then pop to visible (avoids fade-only on first frame)
+            gsap.fromTo(
+              detailImage,
+              {
+                scale: 0.65,
+                opacity: 0,
+                visibility: 'hidden',
+                force3D: true,
+                transformOrigin: 'center center'
+              },
+              {
+                scale: 1,
+                opacity: 1,
+                visibility: 'visible',
+                duration: 0.5,
+                ease: 'back.out(1.8)',
+                delay: 0.05,
+                force3D: true,
+                overwrite: true,
+                onStart: () => {
+                  detailImage.style.visibility = 'visible';
+                  if (detailImgEl) {
+                    detailImgEl.style.visibility = 'visible';
+                    detailImgEl.style.opacity = '0';
+                  }
+                },
+                onUpdate: () => {
+                  if (detailImgEl) {
+                    // Keep img in sync with wrapper opacity to avoid flicker
+                    const currentOpacity = gsap.getProperty(detailImage, 'opacity') as number;
+                    detailImgEl.style.opacity = currentOpacity.toString();
+                  }
+                },
+                onComplete: () => {
+                  // 🔥 CRITICAL: Ensure card remains visible after animation
+                  detailImage.style.visibility = 'visible';
+                  detailImage.style.opacity = '1';
+                  if (detailImgEl) {
+                    detailImgEl.style.visibility = 'visible';
+                    detailImgEl.style.opacity = '1';
+                  }
+                  logger.info('🃏 Card image animation completed - card is now visible');
+                }
+              }
+            );
+            logger.info('🃏 Step 3: Card image pop-in');
+          }
+
+          // STEP 4: Other content elements sequentially (staggered, after card)
+          otherContentElements.forEach((element, index) => {
             const baseDelay = 0.18; // Start after card image (0.1 + 0.08)
             const stagger = 0.08;
             const delay = baseDelay + (index * stagger);
             
-            // 🔥 BUG FIX: Use CSS animate-enter class for PLAY button (same as homepage CTA)
-            if (element && element.id === 'board-detail-play-button') {
-              element.classList.remove('animate-exit', 'animate-reset', 'animate-enter');
-              element.style.removeProperty('transition');
-              element.style.visibility = 'hidden';
-              void element.offsetHeight; // Force reflow
-              
-              // Add animate-enter-initial class for initial state (preserves translateX(-50%))
-              element.classList.add('animate-enter-initial');
-              void element.offsetHeight; // Force reflow
-              
-              // Animate using CSS class (same as homepage CTA) - preserves translateX(-50%)
-              setTimeout(() => {
-                element.classList.remove('animate-enter-initial');
-                element.classList.add('animate-enter');
-                element.style.visibility = 'visible';
-              }, delay * 1000);
-            } else {
-              // 🔥 BUG FIX: Ensure CSS transitions are disabled for GSAP scale animation
-              if (element) {
-                element.style.transition = 'none';
-              }
-              gsap.set(element, { visibility: 'visible', immediateRender: true });
-              gsap.to(element, {
-                scale: 1,
-                opacity: 1,
-                duration: 0.5,
-                ease: 'back.out(1.7)',
-                delay: delay,
-                force3D: true,
-                immediateRender: false
-              });
+            // 🔥 BUG FIX: Ensure CSS transitions are disabled for GSAP scale animation
+            if (element) {
+              element.style.transition = 'none';
             }
+            gsap.set(element, { visibility: 'visible', immediateRender: true });
+            gsap.to(element, {
+              scale: 1,
+              opacity: 1,
+              duration: 0.5,
+              ease: 'back.out(1.7)',
+              delay: delay,
+              force3D: true,
+              immediateRender: false
+            });
           });
         });
       });

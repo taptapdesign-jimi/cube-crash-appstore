@@ -12,9 +12,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // 🔥 CRITICAL: Set window background to #FAFAFA (matches launch screen)
+        // 🔥 CRITICAL: Set window background to #F9F9F9 (matches launch screen)
         if let window = self.window {
-            window.backgroundColor = UIColor(red: 250/255.0, green: 250/255.0, blue: 250/255.0, alpha: 1.0) // #FAFAFA
+            window.backgroundColor = UIColor(red: 249/255.0, green: 249/255.0, blue: 249/255.0, alpha: 1.0) // #F9F9F9
         }
         
         // Override point for customization after application launch.

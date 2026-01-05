@@ -7,7 +7,7 @@ export function createLoadingScreen(): HTMLElementConfig {
     id: 'loading-screen',
     className: 'loading-screen',
     attributes: {
-      style: 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10000; display: flex; align-items: center; justify-content: center; background: #FAFAFA;'
+      style: 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10000; display: flex; align-items: center; justify-content: center; background: #F9F9F9;'
     },
     children: [
       {

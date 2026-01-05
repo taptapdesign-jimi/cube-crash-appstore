@@ -1136,8 +1136,9 @@
   display: flex !important; /* Use flex to display img element */
   align-items: center;
   justify-content: center;
-  visibility: visible !important;
-  opacity: 1 !important;
+  /* 🔥 BUG FIX: Remove !important from visibility and opacity - GSAP will control these for animation */
+  /* visibility: visible !important; REMOVED - GSAP controls visibility for enter animation */
+  /* opacity: 1 !important; REMOVED - GSAP controls opacity for enter animation */
   z-index: 10 !important; /* 🔥 CRITICAL: Ensure card is above other elements */
   /* Idle animation - continuous forever like slide 1 main image */
   animation: detailImageIdle 3s ease-in-out infinite;
@@ -1149,8 +1150,9 @@
   height: 100%;
   object-fit: contain;
   display: block;
-  visibility: visible;
-  opacity: 1;
+  /* 🔥 BUG FIX: Remove visibility and opacity - GSAP will control these for animation */
+  /* visibility: visible; REMOVED - GSAP controls visibility for enter animation */
+  /* opacity: 1; REMOVED - GSAP controls opacity for enter animation */
   border-radius: 40px;
   position: relative;
   z-index: 1;
@@ -2231,16 +2233,22 @@
   overflow: hidden !important;
 }
 
-/* 🔥 BUG FIX: Preserve translateX(-50%) during animate-enter-initial and animate-enter */
+/* 🔥 USER REQUEST: Preserve translateX(-50%) during animate-enter-initial and animate-enter */
+/* Same animation timing as homepage CTA: 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) */
 #board-detail-play-button.animate-enter-initial {
+  transition: none !important;
   transform: translateX(-50%) scale(0) !important;
 }
 
 #board-detail-play-button.animate-enter {
+  will-change: transform !important;
+  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   transform: translateX(-50%) scale(1) !important;
 }
 
 #board-detail-play-button.animate-exit {
+  will-change: transform !important;
+  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   transform: translateX(-50%) translateY(20px) scale(0) !important;
 }
 
