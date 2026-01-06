@@ -1982,6 +1982,9 @@ class JourneyBoardsManager {
     return new Promise((resolve) => {
       logger.info('🎬 Starting detail modal exit animation');
       
+      // 🔥 CRITICAL: Mark modal as exiting to prevent openBoardDetails from resetting stats during exit
+      (modal as any).__detailModalExiting = true;
+      
       // 🔥 MEMORY LEAK FIX: Cleanup swipe handlers
       const swipeableContainer = modal.querySelector('.detail-swipeable-container') as HTMLElement;
       if (swipeableContainer && (swipeableContainer as any).__detailSwipeHandlers) {
@@ -2045,6 +2048,7 @@ class JourneyBoardsManager {
       const detailRarityBadgeContainer = modal.querySelector('.detail-rarity-badge-container') as HTMLElement;
       const detailDescription = modal.querySelector('#detail-card-description') as HTMLElement;
       const boardStatsContainer = modal.querySelector('.board-stats-container') as HTMLElement;
+      const detailStatsListExit = modal.querySelector('.detail-stats-list') as HTMLElement | null;
       // 🔥 CRITICAL: Find PLAY button directly (not from contentElements array)
       // PLAY button is created dynamically and added to modal, so find it directly
       const playButton = modal.querySelector('#board-detail-play-button') as HTMLElement || document.getElementById('board-detail-play-button') as HTMLElement;
@@ -2055,12 +2059,12 @@ class JourneyBoardsManager {
       const detailStatIconsArray = Array.from(detailStatIcons);
 
       // 🔥 USER REQUEST: Content elements array (EXCLUDE PLAY button - it's handled separately)
-      // Include stats section, icons, and description in exit animation
+      // 🔥 CRITICAL: EXCLUDE detailStatsSection - it contains stat items that animate individually
+      // If we animate detailStatsSection, it will hide before stat items finish their exit animations
       const otherContentElements = [
-        boardStatsContainer,
         detailDescription,
         ...detailStatIconsArray,
-        detailStatsSection,
+        // detailStatsSection, // 🔥 REMOVED: Stats section is NOT animated here - stat items animate individually
         detailRarityBadgeContainer,
         detailImage
       ].filter(el => el !== null) as HTMLElement[];
@@ -2080,6 +2084,10 @@ class JourneyBoardsManager {
         
         // 🔥 BUG FIX: Ensure CSS transitions are disabled for GSAP scale animation
         if (element) {
+          gsap.killTweensOf(element);
+          element.style.opacity = '1';
+          element.style.visibility = 'visible';
+          element.style.transform = 'none';
           element.style.transition = 'none';
         }
 
@@ -2094,6 +2102,133 @@ class JourneyBoardsManager {
         });
         logger.info(`🎴 Step ${index + 1}: Content element ${index + 1} pop-out - delay ${(delay * 1000).toFixed(0)}ms`);
       });
+      
+      // STEP 1B: Stat items exit individually with pop-out animation (one by one)
+      // 🔥 CRITICAL: Use EXACT same pattern as other content elements (like card)
+      let statsExitEndTime = 0; // Track when stats exit animations end
+      
+      // 🔥 CRITICAL: Ensure detailStatsSection stays visible during stat items exit animation
+      // Don't animate detailStatsSection itself - let stat items animate individually
+      // This prevents the stats area from disappearing before stat items finish their exit animations
+      if (detailStatsSection) {
+        gsap.killTweensOf(detailStatsSection);
+        detailStatsSection.style.opacity = '1';
+        detailStatsSection.style.visibility = 'visible';
+        detailStatsSection.style.display = 'flex';
+        detailStatsSection.style.transform = 'none';
+        detailStatsSection.style.transition = 'none';
+        logger.info('📊 detailStatsSection kept visible during stat items exit animation');
+      }
+      
+      if (detailStatsListExit) {
+        const statChildren = Array.from(detailStatsListExit.querySelectorAll('.detail-stat-item, .detail-stat-divider')) as HTMLElement[];
+        // 🔥 CRITICAL: Calculate when stats exit animations will end
+        if (statChildren.length > 0) {
+          const lastStatDelay = 0.05 + (statChildren.length - 1) * 0.05;
+          const statsExitDuration = 0.4; // Duration of each stat exit animation
+          statsExitEndTime = lastStatDelay + statsExitDuration;
+        }
+        
+        statChildren.forEach((child, i) => {
+          // 🔥 BUG FIX: Ensure CSS transitions are disabled for GSAP scale animation (same as other elements)
+          if (child) {
+            gsap.killTweensOf(child);
+            
+            // 🔥 CRITICAL: Reset children (icons, values, labels) before exit animation
+            const childIcon = child.querySelector('.detail-stat-icon, .stat-icon') as HTMLElement | null;
+            const childValue = child.querySelector('.detail-stat-value, .stat-value') as HTMLElement | null;
+            const childLabel = child.querySelector('.detail-stat-label, .stat-label') as HTMLElement | null;
+            const childContent = child.querySelector('.detail-stat-content, .stat-content') as HTMLElement | null;
+            
+            if (childIcon) {
+              gsap.killTweensOf(childIcon);
+              childIcon.style.transition = 'none';
+              childIcon.style.opacity = '1';
+              childIcon.style.visibility = 'visible';
+            }
+            if (childValue) {
+              gsap.killTweensOf(childValue);
+              childValue.style.transition = 'none';
+              childValue.style.opacity = '1';
+              childValue.style.visibility = 'visible';
+            }
+            if (childLabel) {
+              gsap.killTweensOf(childLabel);
+              childLabel.style.transition = 'none';
+              childLabel.style.opacity = '1';
+              childLabel.style.visibility = 'visible';
+            }
+            if (childContent) {
+              gsap.killTweensOf(childContent);
+              childContent.style.transition = 'none';
+              childContent.style.opacity = '1';
+              childContent.style.visibility = 'visible';
+            }
+            
+            // 🔥 CRITICAL: Ensure parent is visible and ready for animation
+            child.style.opacity = '1';
+            child.style.visibility = 'visible';
+            child.style.transform = 'none';
+            child.style.transition = 'none';
+          }
+
+          // 🔥 CRITICAL: Animate parent with onUpdate to sync children (same pattern as enter)
+          gsap.to(child, {
+            scale: 0,
+            opacity: 0,
+            duration: 0.4,
+            ease: 'back.in(1.7)',
+            delay: 0.05 + i * 0.05,
+            force3D: true,
+            overwrite: true, // 🔥 CRITICAL: Prevent duplicate animations
+            onUpdate: () => {
+              // 🔥 CRITICAL: Sync children opacity with parent during exit animation
+              const currentOpacity = gsap.getProperty(child, 'opacity') as number;
+              const childIcon = child.querySelector('.detail-stat-icon, .stat-icon') as HTMLElement | null;
+              const childValue = child.querySelector('.detail-stat-value, .stat-value') as HTMLElement | null;
+              const childLabel = child.querySelector('.detail-stat-label, .stat-label') as HTMLElement | null;
+              const childContent = child.querySelector('.detail-stat-content, .stat-content') as HTMLElement | null;
+              
+              if (childIcon) {
+                childIcon.style.opacity = currentOpacity.toString();
+              }
+              if (childValue) {
+                childValue.style.opacity = currentOpacity.toString();
+              }
+              if (childLabel) {
+                childLabel.style.opacity = currentOpacity.toString();
+              }
+              if (childContent) {
+                childContent.style.opacity = currentOpacity.toString();
+              }
+            },
+            onComplete: () => {
+              // 🔥 CRITICAL: Ensure children are hidden after animation
+              const childIcon = child.querySelector('.detail-stat-icon, .stat-icon') as HTMLElement | null;
+              const childValue = child.querySelector('.detail-stat-value, .stat-value') as HTMLElement | null;
+              const childLabel = child.querySelector('.detail-stat-label, .stat-label') as HTMLElement | null;
+              const childContent = child.querySelector('.detail-stat-content, .stat-content') as HTMLElement | null;
+              
+              if (childIcon) {
+                childIcon.style.opacity = '0';
+                childIcon.style.visibility = 'hidden';
+              }
+              if (childValue) {
+                childValue.style.opacity = '0';
+                childValue.style.visibility = 'hidden';
+              }
+              if (childLabel) {
+                childLabel.style.opacity = '0';
+                childLabel.style.visibility = 'hidden';
+              }
+              if (childContent) {
+                childContent.style.opacity = '0';
+                childContent.style.visibility = 'hidden';
+              }
+            }
+          });
+        });
+      }
       
       // STEP 2: PLAY button AFTER container finishes (stats + card duration is 0.4s, so start at 0.4s + buffer)
       // 🔥 USER REQUEST: PLAY button exits AFTER container (stats + card) animation completes
@@ -2168,11 +2303,13 @@ class JourneyBoardsManager {
         logger.info(`📊 Header pop-out - LAST (X, title, divider animate together as group at ${((lastDelay + 0.05) * 1000).toFixed(0)}ms)`);
       }
 
-      // Calculate total animation duration (content elements + PLAY button + header)
-      // 🔥 CRITICAL: Include PLAY button exit animation in total duration
+      // Calculate total animation duration (content elements + stats + PLAY button + header)
+      // 🔥 CRITICAL: Include ALL exit animations in total duration (stats, PLAY button, header)
       const playButtonEndTime = playButtonExitDelay + playButtonExitDuration; // When PLAY button animation ends
       const headerEndTime = lastDelay + 0.05 + 0.4; // When header animation ends
-      const totalDuration = Math.max(playButtonEndTime, headerEndTime) * 1000 + 100; // Use the longer one + 100ms buffer
+      // 🔥 BUG FIX: Include stats exit animations in total duration calculation
+      const totalDuration = Math.max(playButtonEndTime, headerEndTime, statsExitEndTime) * 1000 + 100; // Use the longest one + 100ms buffer
+      logger.info(`⏱️ Exit animation durations - Stats: ${(statsExitEndTime * 1000).toFixed(0)}ms, PLAY: ${(playButtonEndTime * 1000).toFixed(0)}ms, Header: ${(headerEndTime * 1000).toFixed(0)}ms, Total: ${totalDuration.toFixed(0)}ms`);
 
       // Wait for exit animation to complete
       setTimeout(() => {
@@ -2188,6 +2325,45 @@ class JourneyBoardsManager {
         modal.style.display = 'none';
         modal.setAttribute('aria-hidden', 'true');
         
+        // 🔥 CRITICAL: Reset ALL stat elements to clean state after exit animation
+        // This ensures they're ready for next enter animation
+        if (detailStatsListExit) {
+          const statChildren = Array.from(detailStatsListExit.querySelectorAll('.detail-stat-item, .detail-stat-divider')) as HTMLElement[];
+          statChildren.forEach((child) => {
+            // Kill any remaining animations
+            gsap.killTweensOf(child);
+            
+            // Reset GSAP values to clean state (scale: 1, opacity: 1) for next open
+            gsap.set(child, {
+              scale: 1,
+              opacity: 1,
+              visibility: 'hidden', // Keep hidden until next enter
+              force3D: true,
+              immediateRender: true
+            });
+            
+            // Clear inline styles
+            child.style.removeProperty('transform');
+            child.style.removeProperty('opacity');
+            child.style.removeProperty('visibility');
+            child.style.removeProperty('will-change');
+            
+            // Reset children (icons, values, labels) to ensure they're visible next time
+            const icon = child.querySelector('.detail-stat-icon, .stat-icon');
+            const value = child.querySelector('.detail-stat-value, .stat-value');
+            const label = child.querySelector('.detail-stat-label, .stat-label');
+            const content = child.querySelector('.detail-stat-content, .stat-content');
+            [icon, value, label, content].forEach((el) => {
+              if (el) {
+                gsap.killTweensOf(el);
+                (el as HTMLElement).style.removeProperty('opacity');
+                (el as HTMLElement).style.removeProperty('visibility');
+                (el as HTMLElement).style.removeProperty('transform');
+              }
+            });
+          });
+        }
+        
         // 🔥 CRITICAL: Remove PLAY button AFTER its animation completes
         // PLAY button exit animation duration is 0.65s, so wait for that
         if (playButton && playButtonExitDelay > 0) {
@@ -2199,6 +2375,9 @@ class JourneyBoardsManager {
             }
           }, playButtonRemoveDelay);
         }
+        
+        // 🔥 CRITICAL: Clear exiting flag after exit animation completes
+        (modal as any).__detailModalExiting = false;
         
         logger.info(`✅ Detail modal exit animation completed (${totalDuration}ms)`);
         logger.info(`🎮 PLAY button exit: delay=${(playButtonExitDelay * 1000).toFixed(0)}ms, duration=${(playButtonExitDuration * 1000).toFixed(0)}ms, ends at=${((playButtonExitDelay + playButtonExitDuration) * 1000).toFixed(0)}ms`);
@@ -3246,16 +3425,96 @@ class JourneyBoardsManager {
       }
 
       // 🔥 USER REQUEST: Add animations for stats section, icons, and description text
-      // Find stats section and stat icons
+      // Find stats section (container) - stat items themselves are animated separately later
       const detailStatsSection = detailModal.querySelector('.detail-section-stats') as HTMLElement;
-      const detailStatIcons = detailModal.querySelectorAll('.detail-stat-icon') as NodeListOf<HTMLElement>;
-      const detailStatIconsArray = Array.from(detailStatIcons);
+      const detailStatsList = detailModal.querySelector('.detail-stats-list') as HTMLElement | null;
+      const statElementsForInit = detailStatsList ? Array.from(detailStatsList.querySelectorAll('.detail-stat-item, .detail-stat-divider')) as HTMLElement[] : [];
+      // Pre-hide stat elements to prevent first-frame flash
+      // 🔥 CRITICAL: Reset ALL stat elements to clean state (same pattern as card image)
+      statElementsForInit.forEach((el) => {
+        // 🔥 BUG FIX: Kill any existing GSAP animations first to prevent conflicts (same as card)
+        gsap.killTweensOf(el);
+        el.classList.remove('animate-enter-initial', 'animate-enter', 'animate-exit', 'animate-reset');
+        
+        // Store original display
+        const defaultDisplay = el.classList.contains('detail-stat-divider') ? 'block' : 'flex';
+        const recordedDisplay = el.dataset.statOriginalDisplay || el.style.display || '';
+        el.dataset.statOriginalDisplay = recordedDisplay;
+        
+        // 🔥 CRITICAL: Set display and transition, but let GSAP control opacity/visibility/transform (same as card)
+        el.style.display = defaultDisplay;
+        el.style.transition = 'none';
+        // 🔥 CRITICAL: Remove any inline styles that might interfere with GSAP (same as card)
+        el.style.removeProperty('opacity');
+        el.style.removeProperty('visibility');
+        el.style.removeProperty('transform');
+        el.style.transformOrigin = 'center center';
+        el.style.willChange = 'transform, opacity';
+        
+        // 🔥 CRITICAL: Reset children (icons, values, labels) - ensure they're ready and visible
+        const icon = el.querySelector('.detail-stat-icon, .stat-icon');
+        const value = el.querySelector('.detail-stat-value, .stat-value');
+        const label = el.querySelector('.detail-stat-label, .stat-label');
+        const content = el.querySelector('.detail-stat-content, .stat-content');
+        [icon, value, label, content].forEach((child) => {
+          if (child) {
+            gsap.killTweensOf(child);
+            // 🔥 CRITICAL: Clear all inline styles from children so they're visible when parent animates
+            (child as HTMLElement).style.removeProperty('opacity');
+            (child as HTMLElement).style.removeProperty('visibility');
+            (child as HTMLElement).style.removeProperty('transform');
+            (child as HTMLElement).style.removeProperty('display');
+          }
+        });
+        
+        // 🔥 CRITICAL: Use GSAP to set initial state - this ensures proper animation (same as card)
+        gsap.set(el, {
+          scale: 0,
+          opacity: 0,
+          visibility: 'hidden',
+          force3D: true,
+          immediateRender: true
+        });
+      });
+      // Reset containers so previous exit animation doesn't leave them scaled/hidden
+      // 🔥 CRITICAL: Only reset if modal is not currently animating exit (prevent race condition)
+      // Check if modal is currently exiting - if so, don't reset stats (they're still animating)
+      const isModalExiting = (detailModal as any).__detailModalExiting === true;
+      if (!isModalExiting) {
+        // Use requestAnimationFrame to ensure exit animations have completed
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (boardStatsContainer) {
+              gsap.killTweensOf(boardStatsContainer);
+              boardStatsContainer.style.transform = 'none';
+              boardStatsContainer.style.opacity = '1';
+              boardStatsContainer.style.visibility = 'visible';
+              boardStatsContainer.style.display = 'flex';
+            }
+            if (detailStatsSection) {
+              gsap.killTweensOf(detailStatsSection);
+              detailStatsSection.style.transform = 'none';
+              detailStatsSection.style.opacity = '1';
+              detailStatsSection.style.visibility = 'visible';
+              detailStatsSection.style.display = 'flex';
+            }
+            if (detailStatsList) {
+              gsap.killTweensOf(detailStatsList);
+              detailStatsList.style.transform = 'none';
+              detailStatsList.style.opacity = '1';
+              detailStatsList.style.visibility = 'visible';
+              detailStatsList.style.display = detailStatsList.dataset.statOriginalDisplay || 'flex';
+            }
+          });
+        });
+      } else {
+        logger.info('⏸️ Modal is currently exiting - skipping stats container reset to prevent animation interruption');
+      }
       
       // Content elements array (excluding header and card image - card is already animated separately)
+      // 🔥 OPTIMIZATION: Exclude stat icons/items here; they get their own staggered GSAP later
       const contentElements = [
         detailRarityBadgeContainer,
-        detailStatsSection,
-        ...detailStatIconsArray,
         detailDescription,
         boardStatsContainer,
         playButton
@@ -3311,7 +3570,10 @@ class JourneyBoardsManager {
       }
       
       // Other elements: use GSAP
-      otherElements.forEach(el => {
+      // 🔥 CRITICAL: Exclude detailStatsSection from initial hide - we'll animate stat-items individually
+      const elementsToHide = otherElements.filter(el => el !== detailStatsSection);
+      
+      elementsToHide.forEach(el => {
         if (el) {
           gsap.killTweensOf(el); // 🔥 BUG FIX: Kill existing animations to prevent conflicts
           el.classList.remove('animate-enter-initial', 'animate-enter', 'animate-exit', 'animate-reset');
@@ -3320,7 +3582,14 @@ class JourneyBoardsManager {
         }
       });
       
-      gsap.set(otherElements, {
+      // 🔥 CRITICAL: Keep detailStatsSection visible (it contains the stats list)
+      if (detailStatsSection) {
+        detailStatsSection.style.display = 'flex';
+        detailStatsSection.style.visibility = 'visible';
+        detailStatsSection.style.opacity = '1';
+      }
+      
+      gsap.set(elementsToHide, {
         scale: 0,
         opacity: 0,
         visibility: 'hidden',
@@ -3493,26 +3762,328 @@ class JourneyBoardsManager {
           }
 
           // STEP 4: Other content elements sequentially (staggered, after card)
-          otherContentElements.forEach((element, index) => {
-            const baseDelay = 0.18; // Start after card image (0.1 + 0.08)
-            const stagger = 0.08;
-            const delay = baseDelay + (index * stagger);
-            
-            // 🔥 BUG FIX: Ensure CSS transitions are disabled for GSAP scale animation
-            if (element) {
-              element.style.transition = 'none';
-            }
-            gsap.set(element, { visibility: 'visible', immediateRender: true });
-            gsap.to(element, {
-              scale: 1,
-              opacity: 1,
-              duration: 0.5,
-              ease: 'back.out(1.7)',
-              delay: delay,
-              force3D: true,
-              immediateRender: false
-            });
+          // 🔥 USER REQUEST: Start at 0.2s and animate stat-items one by one with better stagger
+          const baseDelay = 0.2; // Start after card image begins animating
+          const regularStagger = 0.08; // Stagger for non-stat elements
+          
+          // 🔥 OPTIMIZATION: Find stat-items for individual animation
+          // 🔥 CRITICAL: Use correct class names - HTML uses .detail-stat-item, not .stat-item
+          const detailStatsListFromContainer = boardStatsContainer ? boardStatsContainer.querySelector('.detail-stats-list') as HTMLElement : null;
+          const detailStatsListResolved = detailStatsList || detailStatsListFromContainer;
+          
+          // 🔥 DEBUG: Log found elements
+          if (!detailStatsListResolved) {
+            logger.warn(`⚠️ detail-stats-list NOT found in boardStatsContainer!`);
+          } else {
+            logger.info(`✅ detail-stats-list found with ${detailStatsListResolved.children.length} children`);
+          }
+          
+          const statItems = detailStatsListResolved ? Array.from(detailStatsListResolved.querySelectorAll('.detail-stat-item')) as HTMLElement[] : [];
+          const statDividers = detailStatsListResolved ? Array.from(detailStatsListResolved.querySelectorAll('.detail-stat-divider')) as HTMLElement[] : [];
+          
+          logger.info(`🔍 Found ${statItems.length} stat-items and ${statDividers.length} dividers for animation`);
+          
+          // 🔥 RESET: Clear any CSS animation classes on stats container to prevent group fade
+          if (boardStatsContainer) {
+            gsap.killTweensOf(boardStatsContainer);
+            boardStatsContainer.classList.remove('animate-enter', 'animate-exit', 'animate-reset', 'animate-enter-initial');
+            boardStatsContainer.style.transition = 'none';
+            boardStatsContainer.style.opacity = '1';
+            boardStatsContainer.style.visibility = 'visible';
+          }
+          
+          if (detailStatsSection) {
+            gsap.killTweensOf(detailStatsSection);
+            detailStatsSection.classList.remove('animate-enter', 'animate-exit', 'animate-reset', 'animate-enter-initial');
+            detailStatsSection.style.transition = 'none';
+            detailStatsSection.style.opacity = '1';
+            detailStatsSection.style.visibility = 'visible';
+          }
+          
+          // 🔥 CRITICAL: Ensure detailStatsSection is visible (it contains the stats list)
+          if (detailStatsSection) {
+            detailStatsSection.style.display = 'flex';
+            detailStatsSection.style.visibility = 'visible';
+            detailStatsSection.style.opacity = '1';
+          }
+          
+          // 🔥 CRITICAL: Ensure detailStatsList is visible
+          if (detailStatsListResolved) {
+            detailStatsListResolved.style.display = 'flex';
+            detailStatsListResolved.style.visibility = 'visible';
+            detailStatsListResolved.style.opacity = '1';
+          }
+          
+          const nonStatElements = otherContentElements.filter(el => {
+            if (!el) return false;
+            // Exclude boardStatsContainer and detailStatsSection from regular animation (we'll animate stat-items individually)
+            return el !== boardStatsContainer && el !== detailStatsSection;
           });
+          
+          // Animate non-stat elements first
+          let currentIndex = 0;
+          nonStatElements.forEach((element) => {
+            if (!element) return;
+            
+            const delay = baseDelay + (currentIndex * regularStagger);
+            currentIndex++;
+            
+            // 🔥 OPTIMIZATION: Kill any existing animations first
+            gsap.killTweensOf(element);
+            
+            // 🔥 OPTIMIZATION: Set initial state BEFORE animation to prevent "trzanje"
+            element.style.transition = 'none';
+            element.style.opacity = '0';
+            element.style.visibility = 'hidden';
+            element.style.transform = 'scale(0)';
+            element.style.transformOrigin = 'center center';
+            element.style.willChange = 'transform, opacity';
+            
+            // 🔥 OPTIMIZATION: Use fromTo for smoother animation (avoids initial flash)
+            gsap.fromTo(
+              element,
+              {
+                scale: 0,
+                opacity: 0,
+                visibility: 'hidden',
+                force3D: true,
+                transformOrigin: 'center center',
+                immediateRender: true
+              },
+              {
+                scale: 1,
+                opacity: 1,
+                visibility: 'visible',
+                duration: 0.5,
+                ease: 'back.out(1.7)',
+                delay: delay,
+                force3D: true,
+                immediateRender: false,
+                overwrite: true,
+                onStart: () => {
+                  // Ensure element is visible when animation starts
+                  element.style.visibility = 'visible';
+                },
+                onComplete: () => {
+                  // Ensure element remains visible after animation
+                  element.style.visibility = 'visible';
+                  element.style.opacity = '1';
+                  element.style.willChange = 'auto'; // Remove will-change after animation
+                }
+              }
+            );
+          });
+          
+          // 🔥 USER REQUEST: Animate stat-items and dividers one by one individually
+          // Each stat-item contains: icon, value (number), and label (text) - animate as whole
+          // 🔥 CRITICAL: Get all children of detail-stats-list in order (stat-items and dividers alternate)
+          const statElements: HTMLElement[] = [];
+          if (detailStatsListResolved) {
+            // Get all direct children in order (they alternate: stat-item, divider, stat-item, divider, stat-item)
+            const allChildren = Array.from(detailStatsListResolved.children) as HTMLElement[];
+            allChildren.forEach((child) => {
+              if (child.classList.contains('detail-stat-item') || child.classList.contains('detail-stat-divider')) {
+                statElements.push(child);
+              }
+            });
+          }
+          
+          // 🔥 CRITICAL: If no stat elements found, try alternative selector
+          if (statElements.length === 0 && boardStatsContainer) {
+            logger.warn(`⚠️ No stat elements found with .detail-stat-item/.detail-stat-divider, trying .stat-item`);
+            const fallbackItems = Array.from(boardStatsContainer.querySelectorAll('.stat-item')) as HTMLElement[];
+            statElements.push(...fallbackItems);
+            logger.info(`🔍 Found ${fallbackItems.length} fallback stat-items`);
+          }
+          
+          logger.info(`🔍 Created statElements array with ${statElements.length} elements (stat-items + dividers)`);
+          
+          // 🔥 OPTIMIZATION: Animate each stat element (stat-item or divider) one by one
+          // 🔥 USER REQUEST: Better stagger for fluid enter animation (more time between elements)
+          const statStagger = 0.08; // Better stagger for fluidity (0.08s between each element - more visible than 0.05s)
+          const statBaseDelay = baseDelay + (currentIndex * regularStagger); // Start after other elements
+          
+          const restoreStatsVisibility = () => {
+            if (boardStatsContainer) {
+              boardStatsContainer.style.opacity = '1';
+              boardStatsContainer.style.visibility = 'visible';
+              boardStatsContainer.style.display = 'flex';
+            }
+            if (detailStatsSection) {
+              detailStatsSection.style.opacity = '1';
+              detailStatsSection.style.visibility = 'visible';
+              detailStatsSection.style.display = 'flex';
+            }
+            if (detailStatsListResolved) {
+              const defaultDisplay = detailStatsListResolved.classList.contains('detail-stat-divider') ? 'block' : 'flex';
+              detailStatsListResolved.style.display = detailStatsListResolved.dataset.statOriginalDisplay || defaultDisplay || 'flex';
+              detailStatsListResolved.style.opacity = '1';
+              detailStatsListResolved.style.visibility = 'visible';
+            }
+            statElements.forEach((el) => {
+              const defaultDisplay = el.classList.contains('detail-stat-divider') ? 'block' : 'flex';
+              el.style.display = el.dataset.statOriginalDisplay || defaultDisplay;
+              el.style.opacity = '1';
+              el.style.visibility = 'visible';
+              el.style.transform = 'none';
+              el.style.willChange = 'auto';
+            });
+          };
+          
+          if (statElements.length > 0) {
+            statElements.forEach((element, elementIndex) => {
+              if (!element) return;
+              
+              // 🔥 USER REQUEST: First stat element needs more time to show bounce animation
+              // Other elements use better stagger (0.08s) for fluidity
+              const isFirstElement = elementIndex === 0;
+              const delay = statBaseDelay + (elementIndex * statStagger); // Use consistent stagger for all elements
+              
+              // 🔥 USER REQUEST: First element needs longer duration to see bounce animation
+              // All elements use same duration and ease for consistency and fluidity
+              const duration = 0.5; // All elements: 0.5s for better bounce visibility
+              const ease = 'back.out(1.8)'; // All elements: back.out(1.8) for consistent bounce
+              
+              // 🔥 CRITICAL: Use EXACT same pattern as card image enter animation
+              // 🔥 CRITICAL: Ensure element is hidden before animation starts and no stale tweens exist
+              gsap.killTweensOf(element);
+              const elementIcon = element.querySelector('.detail-stat-icon, .stat-icon') as HTMLElement | null;
+              const elementValue = element.querySelector('.detail-stat-value, .stat-value') as HTMLElement | null;
+              const elementLabel = element.querySelector('.detail-stat-label, .stat-label') as HTMLElement | null;
+              const elementContent = element.querySelector('.detail-stat-content, .stat-content') as HTMLElement | null;
+              
+              if (elementIcon) gsap.killTweensOf(elementIcon);
+              if (elementValue) gsap.killTweensOf(elementValue);
+              if (elementLabel) gsap.killTweensOf(elementLabel);
+              if (elementContent) gsap.killTweensOf(elementContent);
+              
+              element.style.opacity = '0';
+              element.style.visibility = 'hidden';
+              element.style.transform = 'scale(0)';
+              element.style.transformOrigin = 'center center';
+              element.style.transition = 'none';
+              element.style.willChange = 'transform, opacity';
+              
+              // 🔥 CRITICAL: Reset children (icons, values, labels) - ensure they're visible
+              if (elementIcon) {
+                elementIcon.style.transition = 'none';
+                elementIcon.style.opacity = '0';
+                elementIcon.style.visibility = 'hidden';
+                elementIcon.style.willChange = 'transform, opacity';
+              }
+              if (elementValue) {
+                elementValue.style.transition = 'none';
+                elementValue.style.opacity = '0';
+                elementValue.style.visibility = 'hidden';
+              }
+              if (elementLabel) {
+                elementLabel.style.transition = 'none';
+                elementLabel.style.opacity = '0';
+                elementLabel.style.visibility = 'hidden';
+              }
+              if (elementContent) {
+                elementContent.style.transition = 'none';
+                elementContent.style.opacity = '0';
+                elementContent.style.visibility = 'hidden';
+              }
+              
+              // Hard-set start state then pop to visible (first element has longer duration for better bounce visibility)
+              gsap.fromTo(
+                element,
+                {
+                  scale: 0.65,
+                  opacity: 0,
+                  visibility: 'hidden',
+                  force3D: true,
+                  transformOrigin: 'center center'
+                },
+                {
+                  scale: 1,
+                  opacity: 1,
+                  visibility: 'visible',
+                  duration: duration, // First: 0.5s for better bounce visibility, others: 0.4s for fluidity
+                  ease: ease, // First: back.out(1.8) for more bounce, others: back.out(1.7) for speed
+                  delay: delay,
+                  force3D: true,
+                  overwrite: true,
+                  onStart: () => {
+                    element.style.visibility = 'visible';
+                    // 🔥 CRITICAL: Make children visible when animation starts (same as card)
+                    if (elementIcon) {
+                      elementIcon.style.visibility = 'visible';
+                      elementIcon.style.opacity = '0';
+                    }
+                    if (elementValue) elementValue.style.visibility = 'visible';
+                    if (elementLabel) elementLabel.style.visibility = 'visible';
+                    if (elementContent) elementContent.style.visibility = 'visible';
+                  },
+                  onUpdate: () => {
+                    // 🔥 CRITICAL: Sync children opacity with parent during animation (same as card)
+                    if (elementIcon) {
+                      const currentOpacity = gsap.getProperty(element, 'opacity') as number;
+                      elementIcon.style.opacity = currentOpacity.toString();
+                    }
+                    if (elementValue) {
+                      const currentOpacity = gsap.getProperty(element, 'opacity') as number;
+                      elementValue.style.opacity = currentOpacity.toString();
+                    }
+                    if (elementLabel) {
+                      const currentOpacity = gsap.getProperty(element, 'opacity') as number;
+                      elementLabel.style.opacity = currentOpacity.toString();
+                    }
+                    if (elementContent) {
+                      const currentOpacity = gsap.getProperty(element, 'opacity') as number;
+                      elementContent.style.opacity = currentOpacity.toString();
+                    }
+                  },
+                  onComplete: () => {
+                    // 🔥 CRITICAL: Ensure element and children remain visible after animation (same as card)
+                    element.style.visibility = 'visible';
+                    element.style.opacity = '1';
+                    if (elementIcon) {
+                      elementIcon.style.visibility = 'visible';
+                      elementIcon.style.opacity = '1';
+                    }
+                    if (elementValue) {
+                      elementValue.style.visibility = 'visible';
+                      elementValue.style.opacity = '1';
+                    }
+                    if (elementLabel) {
+                      elementLabel.style.visibility = 'visible';
+                      elementLabel.style.opacity = '1';
+                    }
+                    if (elementContent) {
+                      elementContent.style.visibility = 'visible';
+                      elementContent.style.opacity = '1';
+                    }
+                  }
+                }
+              );
+            });
+            
+            // 🔒 Safety net: after animations finish, force stats visible in final state
+            const totalDelay = statBaseDelay + (statElements.length * statStagger) + 0.6;
+            window.setTimeout(restoreStatsVisibility, totalDelay * 1000);
+          } else {
+            logger.error(`❌ No stat elements found to animate!`);
+            // Fallback: show stats container so content is visible even without animation
+            if (boardStatsContainer) {
+              boardStatsContainer.style.opacity = '1';
+              boardStatsContainer.style.visibility = 'visible';
+            }
+            if (detailStatsSection) {
+              detailStatsSection.style.opacity = '1';
+              detailStatsSection.style.visibility = 'visible';
+            }
+            if (detailStatsListResolved) {
+              detailStatsListResolved.style.opacity = '1';
+              detailStatsListResolved.style.visibility = 'visible';
+              const defaultDisplay = detailStatsListResolved.classList.contains('detail-stat-divider') ? 'block' : 'flex';
+              detailStatsListResolved.style.display = detailStatsListResolved.dataset.statOriginalDisplay || defaultDisplay || 'flex';
+            }
+            // Also ensure any stat elements we pre-hid are restored
+            restoreStatsVisibility();
+          }
         });
       });
       
