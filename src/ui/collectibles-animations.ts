@@ -98,8 +98,23 @@ export function animateCollectiblesScreenEnter(): void {
   }
 
   // STEP 2: Scrollable area pop-in (full scale range: 0 → 1.0)
+  // 🔥 USER REQUEST: Background image (1-17bg) should be visible immediately without animation
   if (collectiblesScrollable) {
-    // Set visibility first, then animate
+    // Find background container and make it visible immediately (no animation)
+    const bgContainer = collectiblesScrollable.querySelector('.journey-bg-container') as HTMLElement;
+    if (bgContainer) {
+      // Kill any animations on background container
+      gsap.killTweensOf(bgContainer);
+      // Set background container to be visible immediately (no animation)
+      // Use inline styles to ensure it's visible even when parent animates
+      bgContainer.style.opacity = '1';
+      bgContainer.style.visibility = 'visible';
+      bgContainer.style.transform = 'scale(1)';
+      bgContainer.style.display = 'block';
+      console.log('🖼️ Background image (1-17bg) set to visible immediately (no animation)');
+    }
+    
+    // Set visibility first, then animate scrollable container
     gsap.set(collectiblesScrollable, { visibility: 'visible', immediateRender: true });
     gsap.to(collectiblesScrollable, {
       scale: 1,
@@ -110,7 +125,7 @@ export function animateCollectiblesScreenEnter(): void {
       force3D: true, // Better performance on mobile
       immediateRender: false
     });
-    console.log('🎴 Step 2: Cards area pop-in started (explicit opacity)');
+    console.log('🎴 Step 2: Cards area pop-in started');
   }
   
   // STEP 3: Animate first 8 cards in grid (scale from 0.3 to 1.0)

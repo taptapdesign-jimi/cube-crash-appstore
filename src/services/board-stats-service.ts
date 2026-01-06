@@ -4,6 +4,7 @@
 interface BoardStats {
   highScore: number;
   longestCombo: number;
+  cubesCracked: number; // 🔥 USER REQUEST: Per-board cubes cracked (accumulates)
   timesPlayed: number;
   lastPlayed: number; // timestamp
 }
@@ -50,6 +51,7 @@ class BoardStatsService {
     return this.stats[boardId] || {
       highScore: 0,
       longestCombo: 0,
+      cubesCracked: 0, // 🔥 USER REQUEST: Per-board cubes cracked
       timesPlayed: 0,
       lastPlayed: 0
     };
@@ -114,6 +116,26 @@ class BoardStatsService {
     };
     this.saveStats();
     console.log(`🎮 Board ${boardId} played ${this.stats[boardId].timesPlayed} times`);
+  }
+
+  // 🔥 USER REQUEST: Add cubes cracked to board (accumulates - adds to existing total)
+  // Returns the new total cubes cracked for this board
+  public addBoardCubesCracked(boardId: number, cubes: number): number {
+    if (!Number.isFinite(cubes) || cubes < 0) {
+      console.warn(`⚠️ Invalid cubes count for board ${boardId}:`, cubes);
+      return this.getBoardStats(boardId).cubesCracked;
+    }
+
+    const current = this.getBoardStats(boardId);
+    const newTotal = current.cubesCracked + cubes;
+    this.stats[boardId] = {
+      ...current,
+      cubesCracked: newTotal,
+      lastPlayed: Date.now()
+    };
+    this.saveStats();
+    console.log(`🧊 Board ${boardId} cubes cracked: ${current.cubesCracked} + ${cubes} = ${newTotal}`);
+    return newTotal;
   }
 
   // Reset stats for specific board (for testing/debugging)

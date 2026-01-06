@@ -961,6 +961,25 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   console.log('🔥 MAGNET COMBO: About to call updateHUD() with combo=', newCombo);
   updateHUD();
   
+  // 🔥 USER REQUEST: Track longest combo after magnet pull (get actual current combo value)
+  // Get actual current combo value after magnet pull to track the correct longest combo
+  const currentComboAfterMagnet = typeof (window as any).CC?.getCombo === 'function'
+    ? (window as any).CC.getCombo()
+    : newCombo;
+  
+  // Stats: track longest combo (global and per-board) - use ACTUAL current combo value after magnet pull
+  statsService.updateLongestCombo(currentComboAfterMagnet);
+  
+  // 🔥 JOURNEY BOARDS: Track longest combo per board - use ACTUAL current combo value after magnet pull
+  try {
+    const boardNumber = STATE?.boardNumber || STATE?.level || 1;
+    import('../services/board-stats-service.js').then(({ boardStatsService }) => {
+      boardStatsService.updateBoardLongestCombo(boardNumber, currentComboAfterMagnet);
+    }).catch(() => {
+      // Ignore import errors
+    });
+  } catch {}
+  
   // 🔥 USER REQUEST: Animate stars to HUD if magnet pulled wild star
   if (wildStarTileForAnimation && savedStarSystemEarly && savedStarPositionsEarly.length > 0) {
     console.log('⭐ MAGNET PULL: Animating stars to HUD from pulled wild star');
@@ -1032,9 +1051,20 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   
   animateScore(newScore, 0.45);
   
-  // Stats
+  // Stats - track cubes cracked for magnet pull merge
   statsService.incrementCubesCracked(1);
   statsService.incrementHelpersUsed(1);
+  
+  // 🔥 USER REQUEST: Track cubes cracked per-board for magnet pull merge
+  try {
+    const boardNumber = STATE?.boardNumber || STATE?.level || 1;
+    if (typeof window.trackCubesCracked === 'function') {
+      window.trackCubesCracked(1);
+      console.log(`🧊 Magnet pull merge: Tracked cubes cracked for board ${boardNumber}`);
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to track board-specific cubes cracked for magnet pull:', error);
+  }
   
   console.log('✅ mergePulledTilesIntoMerge6 completed - score updated to', newScore, 'combo updated to', newCombo);
 

@@ -918,16 +918,32 @@ async function startNewRun(boardId: number): Promise<void> {
       statsService.updateHighScore(currentScore);
       console.log('✅ High score updated via statsService:', currentScore);
       
-      // 🔥 JOURNEY BOARDS: Update board-specific high score
+      // 🔥 JOURNEY BOARDS: Update board-specific stats (high score, longest combo, cubes cracked)
       try {
         const boardNumber = STATE.boardNumber || STATE.level || 1;
         const { boardStatsService } = await import('./services/board-stats-service.js');
+        
+        // Update high score (only if higher)
         const isNewHighScore = boardStatsService.updateBoardHighScore(boardNumber, currentScore);
         if (isNewHighScore) {
           console.log(`🏆 New high score for board ${boardNumber}: ${currentScore}`);
         }
+        
+        // 🔥 USER REQUEST: Longest combo is already tracked during gameplay in app-core.ts merge function
+        // No need to update it here - it's already tracked in real-time during each merge
+        // The boardStatsService.updateBoardLongestCombo() is called in merge function with actual combo value
+        
+        // 🔥 USER REQUEST: Cubes cracked is already tracked in real-time during gameplay
+        // via trackCubesCracked() which calls addBoardCubesCracked() for each cube
+        // No need to add it here - it's already accumulated per-board
+        const boardStats = boardStatsService.getBoardStats(boardNumber);
+        console.log(`📊 Board ${boardNumber} final stats:`, {
+          highScore: boardStats.highScore,
+          longestCombo: boardStats.longestCombo,
+          cubesCracked: boardStats.cubesCracked
+        });
       } catch (error) {
-        console.warn('⚠️ Failed to update board high score:', error);
+        console.warn('⚠️ Failed to update board stats:', error);
       }
     } catch (error) {
       console.warn('⚠️ Failed to save high score during exit:', error);
@@ -1618,12 +1634,29 @@ let gameStartTime: number | null = null;
   }
 };
 
-// Track cubes cracked
+// Track cubes cracked (global and per-board)
 (window as any).trackCubesCracked = async (count: number = 1) => {
   try {
+    // Update global stats
     const { statsService } = await import('./services/stats-service.js');
     statsService.incrementCubesCracked(count);
-    console.log('✅ Cubes cracked tracked:', count);
+    
+    // 🔥 USER REQUEST: Also track cubes cracked per-board (accumulates)
+    try {
+      const { STATE } = await import('./modules/app-state.js');
+      // 🔥 CRITICAL: Get board number from STATE - ensure it's correct
+      const boardNumber = STATE?.boardNumber || STATE?.level || 1;
+      console.log(`🧊 trackCubesCracked: boardNumber=${boardNumber}, count=${count}, STATE.boardNumber=${STATE?.boardNumber}, STATE.level=${STATE?.level}`);
+      
+      const { boardStatsService } = await import('./services/board-stats-service.js');
+      const previousTotal = boardStatsService.getBoardStats(boardNumber).cubesCracked;
+      const newTotal = boardStatsService.addBoardCubesCracked(boardNumber, count);
+      console.log(`🧊 Board ${boardNumber} cubes cracked: ${previousTotal} + ${count} = ${newTotal} (accumulated)`);
+    } catch (error) {
+      console.warn('⚠️ Failed to track board-specific cubes cracked:', error);
+    }
+    
+    console.log('✅ Cubes cracked tracked (global and per-board):', count);
   } catch (error) {
     console.error('❌ Failed to track cubes cracked:', error);
   }

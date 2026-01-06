@@ -377,6 +377,12 @@ function syncSharedState() {
   STATE.moves = moves;
   STATE.boardNumber = boardNumber;
   STATE.wildMeter = wildMeter;
+  // 🔥 CRITICAL: Ensure STATE.boardNumber is always synced with local boardNumber
+  // This ensures trackCubesCracked and other functions can access the correct board number
+  if (STATE.boardNumber !== boardNumber) {
+    STATE.boardNumber = boardNumber;
+    console.log(`🔄 Synced STATE.boardNumber to ${boardNumber}`);
+  }
   return STATE;
 }
 
@@ -3344,9 +3350,11 @@ function merge(src, dst, helpers){
     // Magnet pull will increase combo by correct amount (currentCombo + 1 + pulledTileCount) and set new timer
     // NOTE: willPullTiles will be calculated later in the last merge check section
     const willPullTilesForCombo = isWildMagnetMerge && effSum === 6; // Preliminary check for combo logic
+    const newComboValue = combo + 1; // Calculate new combo value BEFORE setting it
+    
     if (!willPullTilesForCombo) {
-      hudSetCombo(combo + 1);
-      try { HUD.bumpCombo?.({ kind: 'stack', combo }); } catch {}
+      hudSetCombo(newComboValue);
+      try { HUD.bumpCombo?.({ kind: 'stack', combo: newComboValue }); } catch {}
       scheduleComboDecay();
     } else {
       // Wild-magnet merge that will pull tiles - don't increment combo or start timer here
@@ -3355,17 +3363,23 @@ function merge(src, dst, helpers){
       // DO NOT schedule decay here - magnet pull will set up its own timer after updating combo
     }
 
-    // Stats: track longest combo (global and per-board)
-    statsService.updateLongestCombo(combo);
-    
-    // 🔥 JOURNEY BOARDS: Track longest combo per board
-    try {
-      import('../services/board-stats-service.js').then(({ boardStatsService }) => {
-        boardStatsService.updateBoardLongestCombo(boardNumber, combo);
-      }).catch(() => {
-        // Ignore import errors
-      });
-    } catch {}
+    // 🔥 USER REQUEST: Track longest combo AFTER combo is incremented (use the NEW combo value we just set)
+    // Use newComboValue (combo + 1) directly since that's the actual combo after this merge
+    // Only track if combo was actually incremented (not for magnet pull merges)
+    if (!willPullTilesForCombo) {
+      // Stats: track longest combo (global and per-board) - use NEW combo value
+      statsService.updateLongestCombo(newComboValue);
+      
+      // 🔥 JOURNEY BOARDS: Track longest combo per board - use NEW combo value
+      try {
+        import('../services/board-stats-service.js').then(({ boardStatsService }) => {
+          boardStatsService.updateBoardLongestCombo(boardNumber, newComboValue);
+          console.log(`🎯 Tracked longest combo for board ${boardNumber}: ${newComboValue}`);
+        }).catch(() => {
+          // Ignore import errors
+        });
+      } catch {}
+    }
 
     // 🔥 CRITICAL FIX: Check if this is last merge BEFORE adding wild progress
     // This prevents wild meter from filling and triggering wild spawn on last merge
@@ -5745,13 +5759,38 @@ function merge(src, dst, helpers){
 
         // Stats: count merge-6 as "cubes cracked"
         statsService.incrementCubesCracked(1);
+        
+        // 🔥 USER REQUEST: Track cubes cracked per-board for merge-6
+        try {
+          if (typeof window.trackCubesCracked === 'function') {
+            window.trackCubesCracked(1);
+            console.log(`🧊 Merge-6: Tracked cubes cracked for board ${boardNumber}`);
+          }
+        } catch (error) {
+          console.warn('⚠️ Failed to track board-specific cubes cracked for merge-6:', error);
+        }
+        
         if (wasWild) {
           statsService.incrementHelpersUsed(1);
         }
         
-        // Stats: Track longest combo
-        if (combo > 0) {
-          statsService.updateLongestCombo(combo);
+        // Stats: Track longest combo - use actual combo value after merge-6
+        // For merge-6, combo is already incremented in the merge function above
+        const currentComboForMerge6 = typeof (window as any).CC?.getCombo === 'function'
+          ? (window as any).CC.getCombo()
+          : combo;
+        if (currentComboForMerge6 > 0) {
+          statsService.updateLongestCombo(currentComboForMerge6);
+          
+          // 🔥 JOURNEY BOARDS: Track longest combo per board for merge-6
+          try {
+            import('../services/board-stats-service.js').then(({ boardStatsService }) => {
+              boardStatsService.updateBoardLongestCombo(boardNumber, currentComboForMerge6);
+              console.log(`🎯 Merge-6: Tracked longest combo for board ${boardNumber}: ${currentComboForMerge6}`);
+            }).catch(() => {
+              // Ignore import errors
+            });
+          } catch {}
         }
         
         // Stats: Update high score for every merge

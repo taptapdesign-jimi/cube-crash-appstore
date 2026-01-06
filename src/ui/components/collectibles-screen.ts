@@ -215,8 +215,15 @@ export function createCollectiblesDetailModal(): HTMLElementConfig {
                     text: '',
                   },
                   {
-                    tag: 'div',
-                    className: 'detail-header-spacer',
+                    tag: 'button',
+                    id: 'detail-reset-stats-btn',
+                    className: 'detail-reset-stats-button tap-scale',
+                    attributes: {
+                      type: 'button',
+                      'aria-label': 'Reset board stats (dev)',
+                      title: 'Reset all stats for this board (dev)',
+                    },
+                    text: 'Reset',
                   },
                 ],
               },

@@ -1291,6 +1291,13 @@ class CollectiblesManager {
       modal.removeAttribute('hidden');
       modal.setAttribute('aria-hidden', 'false');
       
+      // 🔥 USER REQUEST: Hide reset stats button for regular collectibles (only show for journey boards)
+      const resetStatsBtn = modal.querySelector('#detail-reset-stats-btn') as HTMLElement;
+      if (resetStatsBtn) {
+        resetStatsBtn.style.display = 'none';
+        resetStatsBtn.style.visibility = 'hidden';
+      }
+      
       // CRITICAL: Ensure close button is always clickable
       const closeBtn = document.getElementById('detail-close-btn');
       if (closeBtn) {

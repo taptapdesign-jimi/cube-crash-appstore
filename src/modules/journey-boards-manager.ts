@@ -3006,6 +3006,56 @@ class JourneyBoardsManager {
       // Store board ID in modal for Play Board button
       detailModal.setAttribute('data-journey-board-id', board.id.toString());
       
+      // 🔥 USER REQUEST: Setup reset stats button (dev tool) - only for journey boards
+      const resetStatsBtn = detailModal.querySelector('#detail-reset-stats-btn') as HTMLElement;
+      if (resetStatsBtn) {
+        // Show reset button for journey boards
+        resetStatsBtn.style.display = 'flex';
+        resetStatsBtn.style.visibility = 'visible';
+        
+        // Remove existing listener if any to prevent duplicates
+        const newResetBtn = resetStatsBtn.cloneNode(true);
+        resetStatsBtn.parentNode?.replaceChild(newResetBtn, resetStatsBtn);
+        
+        const handleResetStats = async (e: Event) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log(`🔄 Reset stats button clicked for board ${board.id}`);
+          
+          try {
+            const { boardStatsService } = await import('../services/board-stats-service.js');
+            boardStatsService.resetBoardStats(board.id);
+            logger.info(`🧹 Board ${board.id} stats reset (high score, longest combo, cubes cracked)`);
+            
+            // Refresh stats display in modal
+            const highScoreEl = document.getElementById('detail-stat-highscore-value');
+            const comboEl = document.getElementById('detail-stat-combo-value');
+            const cubesEl = document.getElementById('detail-stat-cubes-value');
+            
+            const boardStats = boardStatsService.getBoardStats(board.id);
+            if (highScoreEl) {
+              highScoreEl.textContent = boardStats.highScore.toLocaleString();
+            }
+            if (comboEl) {
+              comboEl.textContent = boardStats.longestCombo.toString();
+            }
+            if (cubesEl) {
+              cubesEl.textContent = boardStats.cubesCracked.toLocaleString();
+            }
+            
+            // Show feedback
+            alert(`Board ${board.id} stats reset to 0`);
+          } catch (error) {
+            logger.error(`❌ Failed to reset board ${board.id} stats:`, error);
+            alert('Error resetting stats');
+          }
+        };
+        
+        (newResetBtn as HTMLElement).addEventListener('click', handleResetStats);
+        (newResetBtn as HTMLElement).addEventListener('touchend', handleResetStats, { passive: true });
+        console.log('✅ Reset stats button listener attached');
+      }
+      
       // 🔥 BUG FIX: Set card image - prepare for animation (will be animated, not always visible)
       const imageEl = detailModal.querySelector('#detail-card-image') as HTMLElement;
       if (imageEl) {
@@ -3102,13 +3152,14 @@ class JourneyBoardsManager {
           comboEl.textContent = boardStats.longestCombo.toString();
         }
         if (cubesEl) {
-          cubesEl.textContent = globalStats.cubesCracked.toLocaleString();
+          // 🔥 USER REQUEST: Use per-board cubes cracked instead of global
+          cubesEl.textContent = boardStats.cubesCracked.toLocaleString();
         }
         
         logger.info(`✅ Board stats displayed for board ${board.id}:`, {
           highScore: boardStats.highScore,
           longestCombo: boardStats.longestCombo,
-          cubesCracked: globalStats.cubesCracked
+          cubesCracked: boardStats.cubesCracked // 🔥 USER REQUEST: Per-board cubes cracked
         });
       }).catch((error) => {
         logger.warn('⚠️ Failed to load board stats:', error);
@@ -4303,6 +4354,18 @@ class JourneyBoardsManager {
     if (board.unlocked || board.interim) {
       board.unlocked = false;
       board.interim = false; // Also remove interim status when locking
+      
+      // 🔥 USER REQUEST: Reset all stats for this board when hiding card
+      try {
+        import('../services/board-stats-service.js').then(({ boardStatsService }) => {
+          boardStatsService.resetBoardStats(boardNumber);
+          logger.info(`🧹 Board ${boardNumber} stats reset (high score, longest combo, cubes cracked)`);
+        }).catch((error) => {
+          logger.warn(`⚠️ Failed to reset board ${boardNumber} stats:`, error);
+        });
+      } catch (error) {
+        logger.warn(`⚠️ Failed to import board stats service:`, error);
+      }
       
       // 🔥 USER REQUEST: Ensure only ONE interim card exists
       this.ensureSingleInterimCard();
