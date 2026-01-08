@@ -23,6 +23,11 @@
   <!-- Load LTCrow font first -->
   <link rel="stylesheet" href="./src/styles/fonts.css">
   
+  <!-- 🔥 CRITICAL: Preload launch screen logos FIRST (before anything else) -->
+  <link rel="preload" as="image" href="./assets/taptapdesign.png" fetchpriority="high">
+  <link rel="preload" as="image" href="./assets/logo-cube-crash.png" fetchpriority="high">
+  <link rel="preload" as="image" href="./assets/logo addons/smokeandshards.png" fetchpriority="high">
+  
   <!-- Preload navigation icons for instant display -->
   <link rel="preload" as="image" href="./assets/nav/cube-nav.png" fetchpriority="high">
   <link rel="preload" as="image" href="./assets/nav/stats-nav.png" fetchpriority="high">
@@ -145,7 +150,6 @@
       visibility: visible !important;
     }
     
-    /* Ensure slider is visible when home is shown */
     #home:not([hidden]) {
       display: block !important;
       visibility: visible !important;
@@ -178,6 +182,21 @@
   </style>
 </head>
 <body style="overflow: hidden;">
+  <!-- 🔥 CRITICAL: Launch screen INLINE in HTML (no JavaScript delay) -->
+  <div id="launch-screen" class="launch-screen" style="position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 10000 !important; display: flex !important; align-items: center !important; justify-content: center !important; background: #F9F9F9 !important; opacity: 1 !important; visibility: visible !important;">
+    <div class="launch-content" style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+      <!-- Phase 1: Taptapdesign logo (VISIBLE IMMEDIATELY) -->
+      <div class="launch-logo-taptap" style="position: absolute !important; width: 100% !important; height: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important; opacity: 1 !important; visibility: visible !important;">
+        <img id="launch-logo-taptap" src="./assets/taptapdesign.png" alt="TapTap Design" loading="eager" fetchpriority="high" style="width: 344px; height: auto; display: block; margin: 0 auto;">
+      </div>
+      <!-- Phase 2: Stack to six logo (hidden initially, will be shown by launch-screen.ts) -->
+      <div class="launch-logo-stack" style="position: absolute !important; width: 100% !important; height: 100% !important; display: none !important; align-items: center !important; justify-content: center !important; opacity: 0 !important;">
+        <img id="launch-smoke-shards" src="./assets/logo addons/smokeandshards.png" alt="" loading="eager" fetchpriority="high" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.6); width: 400px; height: auto; opacity: 1.0; z-index: 1; pointer-events: none;">
+        <img id="launch-logo-stack" src="./assets/logo-cube-crash.png" alt="CubeCrash" loading="eager" fetchpriority="high" style="width: 248px; height: auto; display: block; margin: 0 auto; position: relative; z-index: 2; opacity: 0;">
+      </div>
+    </div>
+  </div>
+  
   <!-- Inline critical loader with production styling -->
   <style>
     /* Inline critical loader styling matching production CSS */
@@ -434,6 +453,39 @@
         console.log('⚠️ Landscape orientation detected - please rotate to portrait');
       }
     });
+  </script>
+  
+  <!-- 🔥 CRITICAL: Start launch screen sequence IMMEDIATELY (DOM already exists in HTML) -->
+  <script>
+    (function startLaunchScreenSequence() {
+      // Only run if DOM is ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', startLaunchScreenSequence);
+        return;
+      }
+      
+      // Launch screen DOM already exists in HTML - just start the sequence
+      import('./src/modules/launch-screen.js').then(function(module) {
+        const launchScreen = module.launchScreen;
+        console.log('🔍 About to initialize launch screen...');
+        // Initialize to cache elements (DOM already exists in HTML)
+        launchScreen.init();
+        console.log('✅ Launch screen initialized (DOM already in HTML)');
+        
+        console.log('🔍 About to start launch screen sequence...');
+        // Start launch screen sequence immediately
+        launchScreen.start(function() {
+          console.log('✅ Launch screen sequence completed');
+        }).catch(function(error) {
+          console.error('❌ Launch screen sequence error:', error);
+          console.error('Error details:', error.stack);
+        });
+        console.log('🔍 launchScreen.start() called (async)');
+      }).catch(function(error) {
+        console.error('❌ Failed to initialize launch screen:', error);
+        console.error('Error details:', error.stack);
+      });
+    })();
   </script>
   
   <script type="module" src="./src/main.ts"></script>

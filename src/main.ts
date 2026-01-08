@@ -190,10 +190,27 @@ async function startAssetPreloading(): Promise<void> {
   try {
     logger.info('📦 Starting asset preloading...');
     
-    // 🔥 CRITICAL: Initialize launch screen FIRST and IMMEDIATELY
-    // This sets #F9F9F9 background before any other code can set gradient
+    // 🔥 CRITICAL: Launch screen is already initialized and STARTED in launch-screen-init.ts
+    // Don't start it again here - just wait for it to complete
     const { launchScreen } = await import('./modules/launch-screen.js');
-    launchScreen.init(); // Sets #F9F9F9 background synchronously and immediately
+    
+    // Check if launch screen is already running (started in index.html inline script)
+    const launchContainer = document.getElementById('launch-screen');
+    if (!launchContainer) {
+      // Fallback: initialize and start if not already done (shouldn't happen)
+      launchScreen.init();
+      logger.info('✅ Launch screen initialized (fallback - not initialized early)');
+      
+      // Start launch screen sequence immediately
+      launchScreen.start(() => {
+        logger.info('✅ Launch screen sequence completed');
+      }).catch((error) => {
+        logger.error('❌ Launch screen start error:', error);
+      });
+    } else {
+      logger.info('✅ Launch screen container found - waiting for sequence to complete (started in index.html)');
+      // Launch screen is already started in index.html - just wait for it to complete
+    }
     
     // 🔥 CRITICAL: Hide native splash immediately
     try {
@@ -215,42 +232,118 @@ async function startAssetPreloading(): Promise<void> {
       logger.info(`📦 Loading progress: ${percentage}% (${loadedCount}/${totalCount})`);
     });
     
-    // 🔥 CRITICAL: Start preloading immediately in background (non-blocking)
-    // This runs in parallel with the launch screen animations
-    const preloadPromise = assetPreloader.preloadAll().catch((error) => {
+    // 🔥 CRITICAL: Ensure homepage is HIDDEN while launch screen is active
+    // Homepage is created in bootstrapUI() but should stay hidden until launch screen is gone
+    const homeElementInitial = document.getElementById('home');
+    if (homeElementInitial) {
+      // Ensure homepage is completely hidden (bootstrapUI sets hidden: true, but double-check)
+      homeElementInitial.setAttribute('hidden', 'true');
+      homeElementInitial.style.display = 'none';
+      homeElementInitial.style.opacity = '0';
+      homeElementInitial.style.visibility = 'hidden';
+      homeElementInitial.style.zIndex = '-1';
+      logger.info('✅ Homepage hidden while launch screen is active');
+    }
+    
+    // 🔥 CRITICAL: Start preloading in background (non-blocking, don't wait for it)
+    // Homepage should appear IMMEDIATELY after launch screen, not after preloading
+    assetPreloader.preloadAll().catch((error) => {
       logger.error('❌ Asset preloading failed:', error);
-      throw error;
     });
     
-    // Start launch screen sequence (runs in parallel with preloading)
-    const launchPromise = launchScreen.start(() => {
-      logger.info('✅ Launch screen sequence completed');
+    // 🔥 CRITICAL: Wait ONLY for launch screen to complete (don't wait for preloading)
+    // Homepage appears IMMEDIATELY after launch screen finishes (after stack to six scale down)
+    const launchPromise = new Promise<void>((resolve) => {
+      // 🔥 CRITICAL: Always wait for launch screen to complete, even if it's not active yet
+      // The launch screen is started in index.html, so we need to wait for it to finish
+      logger.info('⏳ Waiting for launch screen to complete...');
+      console.log('⏳ Waiting for launch screen to complete...', {
+        isActive: launchScreen.active,
+        hasContainer: !!document.getElementById('launch-screen')
+      });
+      
+      // Wait for it to complete - we'll check periodically
+      const checkInterval = setInterval(() => {
+        const isActive = launchScreen.active;
+        const hasContainer = !!document.getElementById('launch-screen');
+        console.log('🔍 Checking launch screen status:', { isActive, hasContainer });
+        
+        // Launch screen is complete when:
+        // 1. isActive is false (launch screen has finished)
+        // 2. AND container is removed from DOM (launch screen has been cleaned up)
+        if (!isActive && !hasContainer) {
+          clearInterval(checkInterval);
+          console.log('✅ Launch screen sequence completed (active: false, container removed)');
+          logger.info('✅ Launch screen sequence completed (active: false, container removed)');
+          resolve();
+        }
+      }, 50); // Check every 50ms for faster response
+      
+      // Safety timeout (shouldn't be needed, but just in case)
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        console.warn('⚠️ Launch screen timeout - forcing resolve');
+        logger.warn('⚠️ Launch screen timeout - forcing resolve');
+        resolve();
+      }, 15000); // Increased timeout to 15 seconds
     });
     
-    // Wait for both to complete
-    await Promise.all([preloadPromise, launchPromise]);
+    // Wait ONLY for launch screen (not preloading)
+    logger.info('⏳ Waiting for launch screen to complete...');
+    await launchPromise;
     
-    logger.info('✅ Launch screen and preloading completed');
+    console.log('✅ Launch screen completed - showing homepage and starting enter animation');
+    logger.info('✅ Launch screen completed - showing homepage and starting enter animation');
+    console.log('🔍 Launch screen active status:', launchScreen.active);
+    logger.info('🔍 Launch screen active status:', launchScreen.active);
     
-    // Remove launch screen from DOM
-    launchScreen.hide();
-    launchScreen.remove();
+    // 🔥 CRITICAL: Launch screen container should already be removed by launch-screen.ts
+    // Just verify it's gone, and force remove if it's still there (safety check)
+    const launchScreenElement = document.getElementById('launch-screen');
+    if (launchScreenElement) {
+      console.warn('⚠️ Launch screen still in DOM - forcing removal');
+      logger.warn('⚠️ Launch screen still in DOM - forcing removal');
+      launchScreenElement.remove();
+    } else {
+      console.log('✅ Launch screen container already removed from DOM');
+      logger.info('✅ Launch screen container already removed from DOM');
+    }
     
     // 🔥 CRITICAL: Launch screen already handled background transition
     // No need to set background here - launch-screen.ts already set gradient after Phase 2
     
     clearTimeout(forceHideTimeout);
     
-    // 🔥 CRITICAL: Wait one frame before showing homepage to ensure smooth transition
-    // This ensures the gradient background is rendered before homepage appears
-    await new Promise(resolve => requestAnimationFrame(() => {
-      requestAnimationFrame(() => resolve(undefined)); // Double RAF for smoother transition
-    }));
+    // 🔥 CRITICAL: Ensure homepage is HIDDEN until launch screen completely finishes
+    // Homepage is created in bootstrapUI() but should stay hidden until launch screen is gone
+    const homeElement = document.getElementById('home');
+    if (homeElement) {
+      logger.info('🔍 Homepage element found, ensuring it is hidden...');
+      // Ensure homepage is completely hidden (bootstrapUI sets hidden: true, but double-check)
+      homeElement.setAttribute('hidden', 'true');
+      homeElement.style.display = 'none';
+      homeElement.style.opacity = '0';
+      homeElement.style.visibility = 'hidden';
+      homeElement.style.zIndex = '-1';
+      logger.info('✅ Homepage hidden - will be shown only after launch screen is completely gone');
+    } else {
+      logger.error('❌ Homepage element not found!');
+    }
     
-    await appManager.showScreen('home');
+    // Set gradient background (already set by launch screen, but ensure it's there)
+    const body = document.body;
+    const html = document.documentElement;
+    const hasGradient = body && html && (
+      window.getComputedStyle(body).background.includes('gradient') || 
+      window.getComputedStyle(html).background.includes('gradient')
+    );
     
-    // Set gradient background for homepage
-    uiManager.showHomepage();
+    if (!hasGradient) {
+      // Gradient not set yet, set it now
+      const targetGradient = 'linear-gradient(180deg, #f3eee8 0%, #fcecdf 60%, #fcecdf 100%)';
+      if (body) body.style.background = targetGradient;
+      if (html) html.style.background = targetGradient;
+    }
     
     // Make sure the Play CTA is hidden and in its initial state before the enter animation starts
     primeHomeCtaForEnter();
@@ -258,9 +351,149 @@ async function startAssetPreloading(): Promise<void> {
     // 🔥 NOTE: Journey screen boards are already prepared in preloadAll() (blocking)
     // No need to prepare again here - boards are ready before homepage is shown
     
-    // Play enter animation for Slide 1 after homepage is shown
-    console.log('🎬 Playing initial enter animation for Slide 1');
-    animateSliderEnter();
+    // 🔥 CRITICAL: Show homepage and play enter animation ONLY AFTER launch screen completely finishes
+    // This ensures homepage appears only after stack to six logo scale down is complete
+    console.log('🎬 Launch screen completed - now showing homepage and starting enter animation');
+    
+    // 🔥 CRITICAL: Get homepage element and show it DIRECTLY without calling showScreen('home')
+    // This prevents the "blink" effect where showScreen('home') briefly shows homepage before we hide it
+    const homeElementAfter = document.getElementById('home');
+    if (!homeElementAfter) {
+      console.error('❌ Homepage element not found!');
+      return;
+    }
+    
+    // 🔥 CRITICAL: Ensure homepage is HIDDEN before showing it
+    // This prevents any brief flash where homepage might be visible
+    homeElementAfter.setAttribute('hidden', 'true');
+    homeElementAfter.style.display = 'none';
+    homeElementAfter.style.opacity = '0';
+    homeElementAfter.style.visibility = 'hidden';
+    homeElementAfter.style.zIndex = '-1';
+    
+    // 🔥 CRITICAL: Update appManager's currentScreen state without actually calling showScreen
+    // This ensures appManager knows homepage is active, but we control visibility directly
+    (appManager as any).currentScreen = 'home';
+    (appManager as any).loadedScreens.add('home');
+    
+    // 🔥 CRITICAL: Launch screen container is already removed by launch-screen.ts
+    // No need to wait - launch screen is completely gone, so show homepage immediately
+    console.log('🎬 Launch screen completely removed - showing homepage and starting enter animation');
+    
+    // 🔥 CRITICAL: Set opacity to 0 FIRST to prevent any visual flash
+    // This ensures homepage is invisible even if CSS rules try to show it
+    homeElementAfter.style.opacity = '0';
+    homeElementAfter.style.transition = 'none'; // No transition - enter animation will handle it
+    
+    // 🔥 CRITICAL: Set display and visibility BEFORE removing hidden attribute
+    // This prevents CSS rule #home:not([hidden]) from causing a blink
+    // CSS rule in index.html sets display: block !important when hidden is removed
+    // So we set all styles first, then remove hidden in the same frame
+    homeElementAfter.style.display = 'block';
+    homeElementAfter.style.visibility = 'visible';
+    homeElementAfter.style.zIndex = '1';
+    
+    // 🔥 CRITICAL: Use requestAnimationFrame to batch the hidden removal with style changes
+    // This ensures browser applies all changes in the same frame, preventing blink
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    
+    // 🔥 CRITICAL: NOW remove hidden attribute - all styles are already set
+    // CSS rule #home:not([hidden]) will match, but opacity is 0 so it won't be visible
+    homeElementAfter.removeAttribute('hidden');
+    
+    // 🔥 CRITICAL: Hide ALL homepage elements BEFORE making homepage visible
+    // This prevents blink effect where elements are visible before animation starts
+    const homeLogo = document.querySelector('#home-logo');
+    const independentNav = document.getElementById('independent-nav');
+    const fixedShadowBottom = document.getElementById('home-fixed-shadow-bottom');
+    const logoShardsLeft = document.getElementById('logo-shards-gore-ljevo');
+    const logoShardsRight = document.getElementById('logo-shards-gore-desno');
+    const allSlides = document.querySelectorAll('.slider-slide');
+    
+    // Hide all animated elements
+    const elementsToHide = [homeLogo, independentNav, fixedShadowBottom, logoShardsLeft, logoShardsRight];
+    elementsToHide.forEach(el => {
+      if (el) {
+        (el as HTMLElement).style.opacity = '0';
+        (el as HTMLElement).style.visibility = 'hidden';
+      }
+    });
+    
+    // Hide only active slide elements (others will be visible but not animated)
+    // Only hide elements from the active slide - other slides should remain visible
+    let activeSlide = document.querySelector('.slider-slide.active') || document.querySelector('.slider-slide[data-slide="0"]');
+    if (activeSlide) {
+      const heroContainer = activeSlide.querySelector('.hero-container');
+      const slideButton = activeSlide.querySelector('.slide-button');
+      const slideText = activeSlide.querySelector('.slide-text');
+      const slideTagline = activeSlide.querySelector('.slide-tagline');
+      
+      [heroContainer, slideButton, slideText, slideTagline].forEach(el => {
+        if (el) {
+          (el as HTMLElement).style.opacity = '0';
+          (el as HTMLElement).style.visibility = 'hidden';
+        }
+      });
+    }
+    
+    // 🔥 CRITICAL: Ensure all slides are visible (slider uses translateX for positioning)
+    allSlides.forEach(slide => {
+      (slide as HTMLElement).style.removeProperty('display');
+      (slide as HTMLElement).style.removeProperty('visibility');
+      (slide as HTMLElement).style.removeProperty('opacity');
+    });
+    
+    // Force reflow to apply hidden states
+    void document.body.offsetHeight;
+    
+    // 🔥 CRITICAL: Use another requestAnimationFrame to set opacity to 1
+    // This ensures opacity change happens in a separate frame after hidden is removed
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    
+    // 🔥 CRITICAL: NOW set opacity to 1 - homepage is ready to be visible
+    // But all elements inside are hidden, so homepage will be invisible
+    homeElementAfter.style.opacity = '1';
+    console.log('✅ Homepage made visible directly - all elements hidden, ready for enter animation');
+    
+    // 🔥 CRITICAL: Verify slider elements exist before starting animation
+    const sliderWrapper = document.getElementById('slider-wrapper');
+    
+    console.log('🔍 Checking slider elements:', {
+      sliderWrapper: !!sliderWrapper,
+      activeSlide: !!activeSlide,
+      homeLogo: !!homeLogo,
+      independentNav: !!independentNav
+    });
+    
+    if (!sliderWrapper) {
+      console.error('❌ Slider wrapper not found!');
+      return;
+    }
+    
+    // 🔥 CRITICAL: Ensure first slide is active if no active slide found
+    if (!activeSlide) {
+      console.warn('⚠️ No active slide found - activating first slide');
+      const firstSlide = document.querySelector('.slider-slide[data-slide="0"]');
+      if (firstSlide) {
+        firstSlide.classList.add('active');
+        activeSlide = firstSlide;
+        console.log('✅ First slide activated');
+      } else {
+        console.error('❌ First slide not found!');
+        return;
+      }
+    }
+    
+    // 🔥 CRITICAL: Start enter animation IMMEDIATELY in the same frame
+    // No delay - animation will make elements visible
+    console.log('🎬 Starting homepage enter animation...');
+    try {
+      animateSliderEnter();
+      console.log('✅ Homepage enter animation started');
+    } catch (error) {
+      console.error('❌ Error starting homepage enter animation:', error);
+      logger.error('❌ Error starting homepage enter animation:', String(error));
+    }
     
     logger.info('✅ Assets preloaded successfully');
     

@@ -16,6 +16,11 @@ interface LaunchScreenElements {
 class LaunchScreen {
   private elements: LaunchScreenElements;
   private isActive: boolean = false;
+  
+  // Public getter for isActive
+  get active(): boolean {
+    return this.isActive;
+  }
 
   constructor() {
     this.elements = {
@@ -32,6 +37,20 @@ class LaunchScreen {
    * Initialize launch screen - creates DOM structure
    */
   init(): void {
+    // 🔥 CRITICAL: If container already exists (created in launch-screen-init.ts), just cache it
+    const existingContainer = document.getElementById('launch-screen');
+    if (existingContainer) {
+      // Container already exists - just cache the elements
+      this.elements.container = existingContainer as HTMLElement;
+      this.elements.taptapContainer = existingContainer.querySelector('.launch-logo-taptap') as HTMLElement;
+      this.elements.taptapLogo = existingContainer.querySelector('#launch-logo-taptap') as HTMLImageElement;
+      this.elements.stackContainer = existingContainer.querySelector('.launch-logo-stack') as HTMLElement;
+      this.elements.stackLogo = existingContainer.querySelector('#launch-logo-stack') as HTMLImageElement;
+      this.elements.smokeShards = existingContainer.querySelector('#launch-smoke-shards') as HTMLImageElement;
+      logger.info('✅ Launch screen elements cached from existing DOM');
+      return;
+    }
+    
     if (this.elements.container) {
       logger.warn('⚠️ Launch screen already initialized');
       return;
@@ -83,7 +102,8 @@ class LaunchScreen {
       display: flex;
       align-items: center;
       justify-content: center;
-      opacity: 0;
+      opacity: 1;
+      visibility: visible;
     `;
 
     const taptapLogo = document.createElement('img');
@@ -171,52 +191,96 @@ class LaunchScreen {
    * @param onComplete Callback when launch sequence completes
    */
   async start(onComplete?: () => void): Promise<void> {
+    console.log('🔍 launchScreen.start() called', {
+      isActive: this.isActive,
+      hasContainer: !!this.elements.container,
+      hasOnComplete: !!onComplete
+    });
+    logger.info('🔍 launchScreen.start() called', {
+      isActive: this.isActive,
+      hasContainer: !!this.elements.container,
+      hasOnComplete: !!onComplete
+    });
+    
     if (this.isActive) {
-      logger.warn('⚠️ Launch screen already active');
+      console.warn('⚠️ Launch screen already active - returning early');
+      logger.warn('⚠️ Launch screen already active - returning early');
       return;
     }
 
     if (!this.elements.container) {
-      logger.error('❌ Launch screen not initialized');
+      console.error('❌ Launch screen not initialized - container missing');
+      logger.error('❌ Launch screen not initialized - container missing');
       return;
     }
 
     this.isActive = true;
+    console.log('🚀 Starting launch sequence...');
     logger.info('🚀 Starting launch sequence...');
 
     const { container, taptapContainer, taptapLogo, stackContainer, stackLogo, smokeShards } = this.elements;
 
+    // 🔥 CRITICAL: Log all elements to debug
+    console.log('🔍 Launch screen elements check:', {
+      container: !!container,
+      taptapContainer: !!taptapContainer,
+      taptapLogo: !!taptapLogo,
+      stackContainer: !!stackContainer,
+      stackLogo: !!stackLogo,
+      smokeShards: !!smokeShards
+    });
+    logger.info('🔍 Launch screen elements check:', {
+      container: !!container,
+      taptapContainer: !!taptapContainer,
+      taptapLogo: !!taptapLogo,
+      stackContainer: !!stackContainer,
+      stackLogo: !!stackLogo,
+      smokeShards: !!smokeShards
+    });
+
     if (!taptapContainer || !taptapLogo || !stackContainer || !stackLogo || !smokeShards) {
-      logger.error('❌ Launch screen elements missing');
+      console.error('❌ Launch screen elements missing:', {
+        taptapContainer: !taptapContainer,
+        taptapLogo: !taptapLogo,
+        stackContainer: !stackContainer,
+        stackLogo: !stackLogo,
+        smokeShards: !smokeShards
+      });
+      logger.error('❌ Launch screen elements missing:', {
+        taptapContainer: !taptapContainer,
+        taptapLogo: !taptapLogo,
+        stackContainer: !stackContainer,
+        stackLogo: !stackLogo,
+        smokeShards: !smokeShards
+      });
+      this.isActive = false;
       return;
     }
 
-    // Wait for images to load
-    await this.waitForImages([taptapLogo, stackLogo, smokeShards]);
-
-    // PHASE 1: Fade in taptapdesign logo (300ms) → show for 2 seconds → fade out (300ms)
-    logger.info('🎬 Phase 1: Fading in taptapdesign logo');
-    await new Promise<void>((resolve) => {
-      gsap.to(taptapContainer, {
-        opacity: 1,
-        duration: 0.3,
-        ease: 'power2.out',
-        onComplete: () => {
-          logger.info('✅ Phase 1: Taptapdesign logo faded in');
-          resolve();
-        }
-      });
+    // 🔥 OPTIMIZATION: Show taptap logo IMMEDIATELY (don't wait for image load)
+    // Set opacity to 1 immediately so user sees it right away
+    taptapContainer.style.opacity = '1';
+    taptapContainer.style.visibility = 'visible';
+    console.log('🎬 Phase 1: Taptapdesign logo shown immediately');
+    logger.info('🎬 Phase 1: Taptapdesign logo shown immediately');
+    
+    // Wait for image in background (non-blocking)
+    this.waitForImages([taptapLogo], 1000).catch(() => {
+      logger.warn('⚠️ Taptap logo image load timeout - continuing anyway');
     });
 
-    // Wait 2 seconds
+    // PHASE 1: Show taptap logo for 2 seconds max (user requested 2 seconds for taptap)
+    // Logo is already visible, just wait
+    logger.info('⏳ Phase 1: Waiting 2 seconds for taptap logo...');
     await new Promise(resolve => setTimeout(resolve, 2000));
+    logger.info('✅ Phase 1: 2 seconds elapsed, starting fade out');
 
-    // Fade out taptapdesign
+    // Fade out taptapdesign (fast fade out)
     logger.info('🎬 Phase 1: Fading out taptapdesign logo');
     await new Promise<void>((resolve) => {
       gsap.to(taptapContainer, {
         opacity: 0,
-        duration: 0.3,
+        duration: 0.2,
         ease: 'power2.in',
         onComplete: () => {
           // 🔥 CRITICAL: Hide and remove from DOM to prevent ghost images
@@ -233,33 +297,79 @@ class LaunchScreen {
       });
     });
 
-    // PHASE 2: Fade in gradient background + stack to six logo + smokeclouds (300ms) → show for 2 seconds
-    logger.info('🎬 Phase 2: Fading in gradient + stack to six logo + smokeclouds');
+    // PHASE 2: Fade in gradient background + stack to six logo + smokeclouds
+    logger.info('🎬 Phase 2: Starting - Fading in gradient + stack to six logo + smokeclouds');
     
     // 🔥 SENIOR PRINCIPAL: Single source of truth - set gradient ONLY here, in Phase 2
     // This is the ONLY place gradient is set - no CSS, no other JavaScript
-    const gradientBg = 'linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%)';
+    // 🔥 CRITICAL: Use 100% opacity (no rgba with alpha < 1) to prevent seeing elements behind
+    const gradientBg = 'linear-gradient(180deg, #f3eee8 0%, #fcecdf 60%, #fcecdf 100%)';
     this.setBackground(gradientBg);
     
-    // Show stack container
-    stackContainer.style.display = 'flex';
-    smokeShards.style.opacity = '1.0';
-
-    // Fade in stack logo and smoke shards
-    await new Promise<void>((resolve) => {
-      gsap.to([stackLogo, stackContainer], {
-        opacity: 1,
-        duration: 0.3,
-        ease: 'power2.out',
-        onComplete: () => {
-          logger.info('✅ Phase 2: Stack to six logo and smokeclouds faded in');
-          resolve();
-        }
-      });
+    // 🔥 CRITICAL: Ensure container has 100% opacity and high z-index to cover everything
+    if (container) {
+      container.style.opacity = '1';
+      container.style.visibility = 'visible';
+      container.style.zIndex = '10000';
+      container.style.background = gradientBg; // Set directly on container too
+    }
+    
+    // Show stack container IMMEDIATELY (don't wait for images)
+    // 🔥 CRITICAL: Override any inline styles that might hide the stack container
+    // Use setProperty with !important to override inline styles from index.html
+    if (!stackContainer) {
+      logger.error('❌ Stack container not found!');
+      return;
+    }
+    
+    if (!stackLogo) {
+      logger.error('❌ Stack logo not found!');
+      return;
+    }
+    
+    if (!smokeShards) {
+      logger.error('❌ Smoke shards not found!');
+      return;
+    }
+    
+    // 🔥 CRITICAL: Use setProperty with !important to override inline styles
+    stackContainer.style.setProperty('display', 'flex', 'important');
+    stackContainer.style.setProperty('opacity', '1', 'important');
+    stackContainer.style.setProperty('visibility', 'visible', 'important');
+    stackContainer.style.setProperty('position', 'absolute', 'important');
+    stackContainer.style.setProperty('width', '100%', 'important');
+    stackContainer.style.setProperty('height', '100%', 'important');
+    stackContainer.style.setProperty('align-items', 'center', 'important');
+    stackContainer.style.setProperty('justify-content', 'center', 'important');
+    stackContainer.style.setProperty('z-index', '1', 'important');
+    
+    smokeShards.style.setProperty('opacity', '1.0', 'important');
+    smokeShards.style.setProperty('visibility', 'visible', 'important');
+    smokeShards.style.setProperty('display', 'block', 'important');
+    
+    stackLogo.style.setProperty('opacity', '1', 'important');
+    stackLogo.style.setProperty('visibility', 'visible', 'important');
+    stackLogo.style.setProperty('display', 'block', 'important');
+    
+    logger.info('🎬 Phase 2: Stack to six logo shown immediately');
+    logger.info('🔍 Stack container verification:', {
+      containerExists: !!stackContainer,
+      logoExists: !!stackLogo,
+      smokeShardsExists: !!smokeShards,
+      display: window.getComputedStyle(stackContainer).display,
+      opacity: window.getComputedStyle(stackContainer).opacity,
+      visibility: window.getComputedStyle(stackContainer).visibility,
+      stackLogoOpacity: window.getComputedStyle(stackLogo).opacity,
+      smokeShardsOpacity: window.getComputedStyle(smokeShards).opacity
+    });
+    
+    // Wait for images in background (non-blocking)
+    this.waitForImages([stackLogo, smokeShards], 1000).catch(() => {
+      logger.warn('⚠️ Stack logo images load timeout - continuing anyway');
     });
 
-    // Wait 2 seconds
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Show for 2.5 seconds (user requested 2.5 seconds for stack to six)
+    await new Promise(resolve => setTimeout(resolve, 2500));
 
     // PHASE 3: Scale down all images to 0% and fade out
     logger.info('🎬 Phase 3: Scaling down all images to 0%');
@@ -323,12 +433,33 @@ class LaunchScreen {
           // 🔥 CRITICAL: Ensure container background stays as gradient (don't reset to white)
           container.style.background = preservedGradient;
           logger.info('✅ Phase 3: Launch screen faded out (gradient background preserved on container)');
+          
+          // 🔥 CRITICAL: Hide launch screen container completely
+          this.hide();
+          
+          // 🔥 CRITICAL: Remove container from DOM completely so main.ts can detect it's gone
+          this.remove();
+          console.log('✅ Launch screen container removed from DOM');
+          logger.info('✅ Launch screen container removed from DOM');
+          
+          // 🔥 CRITICAL: Set isActive to false FIRST, before calling onComplete
+          // This ensures main.ts can detect that launch screen is complete
+          this.isActive = false;
+          console.log('✅ Launch sequence completed - isActive set to false, ready for homepage enter animation');
+          logger.info('✅ Launch sequence completed - isActive set to false, ready for homepage enter animation');
+          
+          // 🔥 CRITICAL: Call completion callback AFTER everything is done (including scale down and fade out)
+          // This ensures homepage enter animation starts only after launch screen is completely gone
+          if (onComplete) {
+            logger.info('✅ Calling onComplete callback...');
+            onComplete();
+            logger.info('✅ onComplete callback executed');
+          } else {
+            logger.warn('⚠️ No onComplete callback provided');
+          }
         }
       });
     });
-
-    // Hide launch screen
-    this.hide();
 
     // 🔥 CRITICAL: Gradient is already set in Phase 2, no need to set it again here
     // Just remove boot class if it exists
@@ -343,14 +474,6 @@ class LaunchScreen {
     } catch(e) {
       logger.warn('⚠️ Failed to remove boot class:', e);
     }
-
-    // Call completion callback
-    if (onComplete) {
-      onComplete();
-    }
-
-    this.isActive = false;
-    logger.info('✅ Launch sequence completed');
   }
 
   /**
@@ -387,10 +510,13 @@ class LaunchScreen {
     try {
       logger.info('🎨 launch-screen.setBackground() called:', colorOrGradient.substring(0, 50) + '...');
       
-      // Set on container
+      // Set on container with 100% opacity
       if (this.elements.container) {
         this.elements.container.style.background = colorOrGradient;
-        logger.info('✅ Launch screen container background set');
+        this.elements.container.style.opacity = '1';
+        this.elements.container.style.visibility = 'visible';
+        this.elements.container.style.zIndex = '10000';
+        logger.info('✅ Launch screen container background set with 100% opacity');
       }
       
       // Set on body and html using GSAP (no !important to avoid conflicts)
@@ -462,12 +588,15 @@ class LaunchScreen {
   }
 
   /**
-   * Wait for images to load
+   * Wait for images to load (with optional timeout)
+   * @param images Array of image elements to wait for
+   * @param timeoutMs Maximum time to wait in milliseconds (default: no timeout)
    */
-  private waitForImages(images: HTMLImageElement[]): Promise<void> {
+  private waitForImages(images: HTMLImageElement[], timeoutMs?: number): Promise<void> {
     return new Promise((resolve) => {
       let loadedCount = 0;
       const total = images.length;
+      let resolved = false;
 
       if (total === 0) {
         resolve();
@@ -475,21 +604,39 @@ class LaunchScreen {
       }
 
       const checkComplete = () => {
+        if (resolved) return;
         loadedCount++;
         if (loadedCount === total) {
+          resolved = true;
           logger.info(`✅ All ${total} launch images loaded`);
           resolve();
         }
       };
 
+      // Set timeout if provided
+      let timeoutId: NodeJS.Timeout | null = null;
+      if (timeoutMs && timeoutMs > 0) {
+        timeoutId = setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            logger.warn(`⚠️ Image loading timeout after ${timeoutMs}ms - continuing anyway`);
+            resolve();
+          }
+        }, timeoutMs);
+      }
+
       images.forEach((img) => {
         if (img.complete) {
           checkComplete();
         } else {
-          img.onload = checkComplete;
+          img.onload = () => {
+            checkComplete();
+            if (timeoutId) clearTimeout(timeoutId);
+          };
           img.onerror = () => {
             logger.warn(`⚠️ Failed to load image: ${img.src}`);
             checkComplete(); // Continue even if image fails
+            if (timeoutId) clearTimeout(timeoutId);
           };
         }
       });

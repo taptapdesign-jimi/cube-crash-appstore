@@ -115,6 +115,10 @@ export const bootstrapReady = new Promise<void>((resolve) => {
     // Start as soon as DOM is parsed (interactive) to avoid waiting for full window load
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
       console.log('✅ Document ready/interactive, calling bootstrapUI immediately');
+      
+      // 🔥 OPTIMIZATION: Launch screen is already initialized in launch-screen-init.ts
+      // No need to initialize it here - it's already running
+      
       bootstrapUI();
       resolve();
       return;

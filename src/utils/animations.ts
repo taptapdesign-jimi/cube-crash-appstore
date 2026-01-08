@@ -120,9 +120,15 @@ const reverseBounce = (element: HTMLElement, delay: number) => {
   
   const timeout = setTimeout(() => {
     activeTimeouts.delete(timeout);
+    // 🔥 CRITICAL: Make element visible when animation starts
+    // Element might be hidden by inline styles from main.ts
+    element.style.removeProperty('opacity');
+    element.style.removeProperty('visibility');
+    element.style.removeProperty('transition');
+    
     element.classList.remove('animate-enter-initial');
     element.classList.add('animate-enter');
-    // NO OPACITY
+    // NO OPACITY - scale only
   }, delay);
   activeTimeouts.add(timeout);
 };
@@ -662,18 +668,55 @@ export const animateSliderEnter = (): void => {
 // Separate function for the actual enter animation sequence
 function startEnterAnimationSequence(): void {
   try {
+    // 🔥 CRITICAL: Verify homepage is visible before starting animation
+    const homeElement = document.getElementById('home');
+    if (!homeElement) {
+      logger.error('❌ Homepage element not found - cannot start enter animation');
+      return;
+    }
+    
+    const homeComputedStyle = window.getComputedStyle(homeElement);
+    const isHomeVisible = homeComputedStyle.display !== 'none' && 
+                         homeComputedStyle.visibility !== 'hidden' && 
+                         homeComputedStyle.opacity !== '0';
+    
+    if (!isHomeVisible) {
+      logger.warn('⚠️ Homepage is not visible - making it visible before animation');
+      homeElement.removeAttribute('hidden');
+      homeElement.style.display = 'block';
+      homeElement.style.opacity = '1';
+      homeElement.style.visibility = 'visible';
+    }
+    
     // Find the currently active slide (slide with .active class)
     const activeSlide = document.querySelector('.slider-slide.active');
     if (!activeSlide) {
       logger.warn('⚠️ No active slide found, animating from first slide');
-      startEnterAnimationSequenceLegacy();
-      return;
+      // 🔥 CRITICAL: Try to activate first slide if none is active
+      const firstSlide = document.querySelector('.slider-slide[data-slide="0"]');
+      if (firstSlide) {
+        firstSlide.classList.add('active');
+        logger.info('✅ Activated first slide (slide 0)');
+        // Retry with first slide
+        const retryActiveSlide = document.querySelector('.slider-slide.active');
+        if (retryActiveSlide) {
+          logger.info('✅ Found active slide after activation');
+          // Continue with normal flow below
+        } else {
+          startEnterAnimationSequenceLegacy();
+          return;
+        }
+      } else {
+        startEnterAnimationSequenceLegacy();
+        return;
+      }
     }
     
     // Find elements within the active slide ONLY
     const heroContainer = activeSlide.querySelector('.hero-container');
     const slideButton = activeSlide.querySelector('.slide-button');
     const slideText = activeSlide.querySelector('.slide-text');
+    
     
     // Use cached elements or query them once and cache
     if (!cachedElements.homeLogo) {
@@ -685,6 +728,37 @@ function startEnterAnimationSequence(): void {
       cachedElements.independentNav = document.getElementById('independent-nav');
     }
     const independentNav = cachedElements.independentNav;
+    
+    // 🔥 CRITICAL: Elements are already hidden by main.ts before homepage is visible
+    // We need to make them visible when animation starts, but keep them hidden until then
+    // Animation will animate them in
+    
+    const fixedShadowBottom = document.getElementById('home-fixed-shadow-bottom');
+    const logoAddons = [
+      document.getElementById('logo-shards-gore-ljevo'),
+      document.getElementById('logo-shards-gore-desno')
+    ];
+    
+    // 🔥 CRITICAL: Prepare elements for animation - they're already hidden
+    // We'll make them visible when animation starts (in reverseBounce timeout)
+    const elementsToAnimate: HTMLElement[] = [];
+    
+    if (independentNav) {
+      elementsToAnimate.push(independentNav as HTMLElement);
+    }
+    if (fixedShadowBottom) {
+      elementsToAnimate.push(fixedShadowBottom as HTMLElement);
+    }
+    if (homeLogo) {
+      elementsToAnimate.push(homeLogo as HTMLElement);
+    }
+    logoAddons.forEach(addon => {
+      if (addon) {
+        elementsToAnimate.push(addon as HTMLElement);
+      }
+    });
+    
+    // Elements are already hidden - animation will make them visible when it starts
     
     // COMIC POP-IN PROCEDURAL SEQUENCE (REVERSE of exit): Nav → Logo → Text → CTA → Hero
     // Last element that exits is first to enter!
@@ -698,7 +772,6 @@ function startEnterAnimationSequence(): void {
     }
     
     // Shadow animates together with navigation
-    const fixedShadowBottom = document.getElementById('home-fixed-shadow-bottom');
     if (fixedShadowBottom) {
       reverseBounce(fixedShadowBottom as HTMLElement, 0);
       logger.info('🌑 Step 1: Shadow cartoonish bounce - FIRST (with navigation)');
@@ -713,17 +786,18 @@ function startEnterAnimationSequence(): void {
     }
     
     // Animate shards together with logo - ALL at the same time as logo (30ms delay)
-    const logoAddons = [
-      document.getElementById('logo-shards-gore-ljevo'),
-      document.getElementById('logo-shards-gore-desno')
-    ];
-    
     // 🔥 iPad FIX: Detect iPad to preserve transform positions during enter animation
     const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
     
     logoAddons.forEach((addon, index) => {
       if (addon) {
         const addonEl = addon as HTMLElement;
+        
+        // 🔥 CRITICAL: Clear any inline styles that might hide shards
+        addonEl.style.removeProperty('opacity');
+        addonEl.style.removeProperty('visibility');
+        addonEl.style.removeProperty('transition');
+        addonEl.style.removeProperty('display');
         
         // 🔥 iPad FIX: For iPad, use custom timeout to set transform after adding animate-enter class
         if (isIPad) {
@@ -790,8 +864,8 @@ function startEnterAnimationSequence(): void {
       // Clear inline overrides so CSS drive the bounce
       slideButton.style.removeProperty('transform');
       slideButton.style.removeProperty('transition');
-      // Hide until enter starts to avoid flash
-      slideButton.style.visibility = 'hidden';
+      // 🔥 CRITICAL: Keep button hidden until animation starts (from main.ts)
+      // Don't remove opacity/visibility here - animation will make it visible
       void slideButton.offsetHeight; // Force reflow
     }
     
@@ -817,6 +891,11 @@ function startEnterAnimationSequence(): void {
       if (slideText) {
         slideText.classList.remove('animate-enter-initial');
         slideText.classList.add('animate-enter');
+        // 🔥 CRITICAL: Make text visible when animation starts
+        // Text was hidden by main.ts, now make it visible for animation
+        (slideText as HTMLElement).style.removeProperty('opacity');
+        (slideText as HTMLElement).style.removeProperty('visibility');
+        (slideText as HTMLElement).style.removeProperty('display');
         logger.info('📝 Step 3: Slide text cartoonish bounce - TOGETHER with CTA');
       } else {
         logger.warn('⚠️ Slide text not found in active slide');
@@ -825,12 +904,15 @@ function startEnterAnimationSequence(): void {
       if (slideButton) {
         // Make sure CTA truly starts hidden even if another flow touched it
         slideButton.classList.add('animate-enter-initial');
-        slideButton.style.visibility = 'hidden';
         // Force reflow so CSS transform reset applies before we remove the class
         void slideButton.offsetHeight;
         slideButton.classList.remove('animate-enter-initial');
         slideButton.classList.add('animate-enter');
-        slideButton.style.visibility = 'visible';
+        // 🔥 CRITICAL: Make button visible when animation starts
+        // Button was hidden by main.ts, now make it visible for animation
+        slideButton.style.removeProperty('opacity');
+        slideButton.style.removeProperty('visibility');
+        slideButton.style.removeProperty('display');
         logger.info('🔘 Step 3: CTA button cartoonish bounce - TOGETHER with text');
       } else {
         logger.warn('⚠️ CTA button not found in active slide');
@@ -840,10 +922,11 @@ function startEnterAnimationSequence(): void {
       if (slideTagline) {
         (slideTagline as HTMLElement).classList.remove('animate-enter-initial');
         (slideTagline as HTMLElement).classList.add('animate-enter');
-        // 🔥 FIX: Osigurati da je tagline vidljiv nakon animacije
-        (slideTagline as HTMLElement).style.display = 'block';
-        (slideTagline as HTMLElement).style.visibility = 'visible';
-        (slideTagline as HTMLElement).style.opacity = '1';
+        // 🔥 CRITICAL: Make tagline visible when animation starts
+        // Tagline was hidden by main.ts, now make it visible for animation
+        (slideTagline as HTMLElement).style.removeProperty('opacity');
+        (slideTagline as HTMLElement).style.removeProperty('visibility');
+        (slideTagline as HTMLElement).style.removeProperty('display');
         logger.info('📝 Step 3: Slide tagline cartoonish bounce - TOGETHER with text and CTA');
       }
     }, 0);
@@ -851,6 +934,11 @@ function startEnterAnimationSequence(): void {
     
     // STEP 5: Hero image LAST (120ms delay) - was first to exit
     if (heroContainer) {
+      // 🔥 CRITICAL: Make hero visible when animation starts
+      // Hero was hidden by main.ts, now make it visible for animation
+      (heroContainer as HTMLElement).style.removeProperty('opacity');
+      (heroContainer as HTMLElement).style.removeProperty('visibility');
+      (heroContainer as HTMLElement).style.removeProperty('display');
       reverseBounce(heroContainer as HTMLElement, 120);
       logger.info('🖼️ Step 5: Hero image cartoonish bounce - LAST (reverse of exit)');
     } else {

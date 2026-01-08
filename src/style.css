@@ -135,7 +135,8 @@ body{
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;
+  opacity: 1; /* 🔥 CRITICAL: Start visible (inline HTML sets this, but CSS should match) */
+  visibility: visible;
 }
 
 #launch-screen .launch-logo-taptap img {
