@@ -59,11 +59,30 @@ export function updateNavigationVisibility(): void {
     return;
   }
 
-  // Hide navigation if game is active
-  if (app && !app.hidden && app.style.display !== 'none') {
+  // 🔥 USER BUG FIX: Check if board fail modal is visible - if so, show navigation
+  // Board fail modal should have X button visible even when app element is visible
+  const boardFailModal = document.getElementById('cc-board-fail-overlay');
+  const boardFailModalVisible = boardFailModal && (
+    boardFailModal.style.display !== 'none' &&
+    boardFailModal.style.opacity !== '0' &&
+    !boardFailModal.hidden
+  );
+  
+  // Hide navigation if game is active BUT NOT if board fail modal is visible
+  if (app && !app.hidden && app.style.display !== 'none' && !boardFailModalVisible) {
     navElement.style.display = 'none';
     navElement.style.visibility = 'hidden';
     logger.debug('📱 Navigation hidden: Game active');
+    return;
+  }
+  
+  // 🔥 USER BUG FIX: Show navigation if board fail modal is visible
+  if (boardFailModalVisible) {
+    navElement.style.display = 'block';
+    navElement.style.visibility = 'visible';
+    navElement.style.opacity = '1';
+    navElement.style.zIndex = '10000000000001'; // Higher than board fail modal (10000000000000)
+    logger.debug('📱 Navigation visible: Board fail modal active');
     return;
   }
 

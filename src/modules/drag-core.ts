@@ -869,6 +869,21 @@ export function initDrag(cfg) {
           console.warn('⚠️ Error restarting magnet idle particles after snapBack:', err);
         }
       }
+      // 🔥 USER REQUEST: Restart idle bubbles after snapBack for wild-beer
+      if (t?.special === 'wild-beer' && !t.destroyed) {
+        try {
+          import('./fx.js').then(fxModule => {
+            if (fxModule && typeof fxModule.startWildBeerBubbles === 'function') {
+              fxModule.startWildBeerBubbles(t);
+              console.log('🔄 Restarted wild-beer idle bubbles after snapBack');
+            }
+          }).catch(err => {
+            console.warn('⚠️ Failed to restart wild-beer bubbles after snapBack:', err);
+          });
+        } catch (err) {
+          console.warn('⚠️ Error restarting wild-beer bubbles after snapBack:', err);
+        }
+      }
       return; 
     }
 
@@ -890,6 +905,21 @@ export function initDrag(cfg) {
           });
         } catch (err) {
           console.warn('⚠️ Error restarting magnet idle particles after snapBack:', err);
+        }
+      }
+      // 🔥 USER REQUEST: Restart idle bubbles after snapBack for wild-beer
+      if (t?.special === 'wild-beer' && !t.destroyed) {
+        try {
+          import('./fx.js').then(fxModule => {
+            if (fxModule && typeof fxModule.startWildBeerBubbles === 'function') {
+              fxModule.startWildBeerBubbles(t);
+              console.log('🔄 Restarted wild-beer idle bubbles after snapBack (no target)');
+            }
+          }).catch(err => {
+            console.warn('⚠️ Failed to restart wild-beer bubbles after snapBack:', err);
+          });
+        } catch (err) {
+          console.warn('⚠️ Error restarting wild-beer bubbles after snapBack:', err);
         }
       }
       return;
@@ -924,6 +954,21 @@ export function initDrag(cfg) {
           });
         } catch (err) {
           console.warn('⚠️ Error restarting magnet idle particles after snapBack:', err);
+        }
+      }
+      // 🔥 USER REQUEST: Restart idle bubbles after snapBack for wild-beer
+      if (t?.special === 'wild-beer' && !t.destroyed) {
+        try {
+          import('./fx.js').then(fxModule => {
+            if (fxModule && typeof fxModule.startWildBeerBubbles === 'function') {
+              fxModule.startWildBeerBubbles(t);
+              console.log('🔄 Restarted wild-beer idle bubbles after snapBack (canMerge=false)');
+            }
+          }).catch(err => {
+            console.warn('⚠️ Failed to restart wild-beer bubbles after snapBack:', err);
+          });
+        } catch (err) {
+          console.warn('⚠️ Error restarting wild-beer bubbles after snapBack:', err);
         }
       }
       

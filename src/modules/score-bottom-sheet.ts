@@ -29,13 +29,37 @@ function createModal(): HTMLElement {
   // CRITICAL: Start with display: none to prevent flash
   modalEl.style.display = 'none';
 
+  // 🔥 USER REQUEST: Get current board number for subtitle
+  let currentBoardNumber = 1;
+  try {
+    const STATE = (window as any).STATE;
+    if (STATE && Number.isFinite(STATE.boardNumber)) {
+      currentBoardNumber = STATE.boardNumber;
+    } else {
+      // Fallback: try to get from saved game state
+      const savedGame = localStorage.getItem('cc_saved_game');
+      if (savedGame) {
+        const gameState = JSON.parse(savedGame);
+        if (Number.isFinite(gameState.boardNumber)) {
+          currentBoardNumber = gameState.boardNumber;
+        } else if (Number.isFinite(gameState.level)) {
+          currentBoardNumber = gameState.level;
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to get board number for score bottom sheet:', error);
+  }
+  
+  const boardNumberStr = currentBoardNumber.toString().padStart(2, '0');
+  
   modalEl.innerHTML = `
     <div class="modal-handle"></div>
     <div class="simple-content">
       <div class="simple-header">
         <div class="simple-title-section">
           <h2 id="score-sheet-title">Score Stats</h2>
-          <p>Your personal trophy.<br>Beat it to earn a new one.</p>
+          <p id="score-sheet-subtitle">Your board ${boardNumberStr} trophy.<br>Beat it to earn a new one.</p>
         </div>
         <div class="score-stats-container">
           <!-- High Score -->
@@ -350,6 +374,34 @@ export function showScoreBottomSheet(): void {
 
   // Get fresh stats from service
   const stats = statsService.getStats();
+  
+  // 🔥 USER REQUEST: Update subtitle with current board number
+  let currentBoardNumber = 1;
+  try {
+    const STATE = (window as any).STATE;
+    if (STATE && Number.isFinite(STATE.boardNumber)) {
+      currentBoardNumber = STATE.boardNumber;
+    } else {
+      // Fallback: try to get from saved game state
+      const savedGame = localStorage.getItem('cc_saved_game');
+      if (savedGame) {
+        const gameState = JSON.parse(savedGame);
+        if (Number.isFinite(gameState.boardNumber)) {
+          currentBoardNumber = gameState.boardNumber;
+        } else if (Number.isFinite(gameState.level)) {
+          currentBoardNumber = gameState.level;
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to get board number for score bottom sheet:', error);
+  }
+  
+  const boardNumberStr = currentBoardNumber.toString().padStart(2, '0');
+  const subtitleEl = document.getElementById('score-sheet-subtitle');
+  if (subtitleEl) {
+    subtitleEl.innerHTML = `Your board ${boardNumberStr} trophy.<br>Beat it to earn a new one.`;
+  }
   
   // Update values
   const highScoreEl = document.getElementById('score-sheet-high-score');

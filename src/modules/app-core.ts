@@ -867,6 +867,19 @@ export async function boot(){
     loadFirstTexture(COIN_CANDIDATES).then(path => { COIN_PATH = path; }).catch(() => {});
   }, 0);
 
+  // 🔥 CRITICAL: Load HUD icons into PIXI Assets cache BEFORE any other assets
+  // This MUST be done before layoutBoard() initializes HUD
+  // HUD icons MUST be available when HUD.initHUD() is called
+  try {
+    const { loadHudIconsIntoPixiCache } = await import('../utils/comprehensive-image-preloader.js');
+    console.log('🎮 Loading HUD icons into PIXI Assets cache (BLOCKING)...');
+    await loadHudIconsIntoPixiCache();
+    console.log('✅ HUD icons loaded into PIXI Assets cache');
+  } catch (error) {
+    console.error('❌ CRITICAL: Failed to load HUD icons into PIXI Assets cache:', error);
+    // Continue anyway - HUD will try to load icons asynchronously
+  }
+  
   // Load ONLY critical game assets for instant start
   // tile_numbers2/3/4 are deferrable - can load in background
   // 🔥 CRITICAL: ASSET_WILD_BEER MUST be loaded for wild-beer tiles to display correctly
@@ -981,6 +994,15 @@ export async function boot(){
       // NORMAL LOGIC: Regular merge rules
       if (!Number.isFinite(sv) || !Number.isFinite(dv)) return false;
       if (sv === dv) return true;         // allow stacking equal values (e.g., 3+3)
+      
+      // 🔥 NEW: Allow wild star to merge with merge 6 tile (value 6)
+      // Wild star (special='wild') can merge with merge 6 tile to create new merge 6
+      const sIsWild = s?.special === 'wild' || s?.special === 'wild-beer';
+      const dIsWild = d?.special === 'wild' || d?.special === 'wild-beer';
+      if ((sIsWild && dv === 6 && !d?.special) || (dIsWild && sv === 6 && !s?.special)) {
+        console.log('⭐ canDrop (app-core): Wild star can merge with merge 6 tile');
+        return true; // Allow wild star to merge with merge 6
+      }
       
       // 🔥 CRITICAL FIX: Allow merge 6 tile (value 6) to merge with any tile (value 1-5)
       // This allows user to merge spawned tiles with merge 6 tile that remained after magnet pull
@@ -1142,9 +1164,13 @@ export async function boot(){
 
   // Run layout after viewport/meta/styles are in place to get correct safe-area values
   try {
-    requestAnimationFrame(() => layoutBoard());
+    requestAnimationFrame(async () => {
+      await layoutBoard();
+    });
   } catch {
-    layoutBoard();
+    layoutBoard().catch(err => {
+      console.error('❌ Error in layoutBoard():', err);
+    });
   }
 
   syncSharedState();
@@ -1152,7 +1178,7 @@ export async function boot(){
 
 // -------------------- layout + HUD --------------------
 // 🔥 REFACTORED: Preimenovano za jasnoću - ovo je board layout, ne HUD layout
-export function layoutBoard(){
+export async function layoutBoard(){
   const { w, h} = boardSize();
   const vw = app.renderer.width, vh = app.renderer.height;
   stage.hitArea = new Rectangle(0, 0, vw, vh);
@@ -1308,32 +1334,51 @@ export function layoutBoard(){
         
         // 🔥 CRITICAL: Ensure HUD icons are loaded into PIXI Assets cache before initializing HUD
         // This prevents missing icons after hard exit/restart
-        // Use IIFE to handle async loading without blocking HUD initialization
-        (async () => {
-          try {
-            const { Assets } = await import('pixi.js');
-            const hudIcons = [
-              './assets/hud/star-hud.png',
-              './assets/hud/score-hud.png',
-              './assets/hud/combo-hud.png',
-              './assets/hud/extra-combo-hud.png',
-              './assets/hud/mega-combo-hud.png',
-              './assets/close-icon.png',
-            ];
-            for (const iconPath of hudIcons) {
+        // Icons should already be loaded in boot(), but double-check here as safety
+        try {
+          const { Assets } = await import('pixi.js');
+          const hudIcons = [
+            './assets/hud/star-hud.png',
+            './assets/hud/score-hud.png',
+            './assets/hud/combo-hud.png',
+            './assets/hud/extra-combo-hud.png',
+            './assets/hud/mega-combo-hud.png',
+            './assets/close-icon.png',
+          ];
+          
+          // Check which icons are missing and load them
+          const missingIcons: string[] = [];
+          for (const iconPath of hudIcons) {
+            if (!Assets.get(iconPath)) {
+              missingIcons.push(iconPath);
+            }
+          }
+          
+          // If any icons are missing, load them BLOCKING
+          if (missingIcons.length > 0) {
+            console.warn(`⚠️ ${missingIcons.length} HUD icons missing, loading now (BLOCKING)...`);
+            for (const iconPath of missingIcons) {
               try {
-                if (!Assets.get(iconPath)) {
-                  await Assets.load(iconPath);
-                  console.log(`✅ Loaded ${iconPath} into PIXI Assets cache before HUD init`);
-                }
+                await Assets.load(iconPath);
+                console.log(`✅ Loaded ${iconPath} into PIXI Assets cache before HUD init`);
               } catch (err) {
-                console.warn(`⚠️ Failed to load ${iconPath} before HUD init:`, err);
+                console.error(`❌ CRITICAL: Failed to load ${iconPath} before HUD init:`, err);
               }
             }
-          } catch (err) {
-            console.warn('⚠️ Failed to ensure HUD icons are loaded before HUD init:', err);
+          } else {
+            console.log('✅ All HUD icons already loaded in PIXI Assets cache');
           }
-        })();
+        } catch (err) {
+          console.error('❌ CRITICAL: Failed to ensure HUD icons are loaded before HUD init:', err);
+          // Try to load via comprehensive preloader as fallback
+          try {
+            const { loadHudIconsIntoPixiCache } = await import('../utils/comprehensive-image-preloader.js');
+            await loadHudIconsIntoPixiCache();
+            console.log('✅ HUD icons loaded via comprehensive preloader fallback');
+          } catch (fallbackErr) {
+            console.error('❌ CRITICAL: Fallback HUD icon loading also failed:', fallbackErr);
+          }
+        }
         
         HUD.initHUD({ stage, app, top: safeTop, initialHide: _hudDropPending });
         _hudInitDone = true;
@@ -2420,7 +2465,9 @@ wildMeter = 0;
   updateHUD();
   
   // Initialize background layer after first layout
-  layoutBoard();
+  layoutBoard().catch(err => {
+    console.error('❌ Error in layoutBoard() during startGame:', err);
+  });
   
   // 🔥 CRITICAL FIX: Always initialize background layer for new games
   // Even if it was destroyed in cleanupGame(), it needs to be recreated
@@ -2511,7 +2558,9 @@ wildMeter = 0;
   
   // Call layout only for initial game start, not for restart
   if (n === 1) {
-    layoutBoard();
+    layoutBoard().catch(err => {
+      console.error('❌ Error in layoutBoard() during startLevel:', err);
+    });
     console.log('🎯 Layout called for initial game start');
   }
   
@@ -3108,10 +3157,18 @@ function merge(src, dst, helpers){
   }
   
   // Block wild/wild, wild/magnet, magnet/magnet, wild-beer/wild-beer, wild-beer/wild, wild-beer/magnet merges
+  // BUT: Allow wild star to merge with merge 6 tile (value 6 without special)
   // BUT: If BOTH tiles are wild-magnet affected (pulled tiles), allow merge regardless of wild status
   const srcIsWild = src?.special === 'wild' || src?.special === 'wild-beer';
   const dstIsWild = dst?.special === 'wild' || dst?.special === 'wild-beer';
-  if ((srcIsWild && dstIsWild) || 
+  const srcIsMerge6 = (src.value|0) === 6 && !src.special;
+  const dstIsMerge6 = (dst.value|0) === 6 && !dst.special;
+  
+  // 🔥 NEW: Allow wild star to merge with merge 6 tile
+  if ((srcIsWild && dstIsMerge6) || (dstIsWild && srcIsMerge6)) {
+    console.log('⭐ MERGE ALLOWED: Wild star merging with merge 6 tile');
+    // Allow this merge - it will create a new merge 6
+  } else if ((srcIsWild && dstIsWild) || 
       (src?.special === 'wild-magnet' && dst?.special === 'wild-magnet') ||
       (srcIsWild && dst?.special === 'wild-magnet') ||
       (src?.special === 'wild-magnet' && dstIsWild)){ 
@@ -3264,6 +3321,18 @@ function merge(src, dst, helpers){
     dst.value = effSum;
     makeBoard.setValue(dst, effSum, srcDepth);
     if (wildActive) clearWildState(dst);
+
+    // 🔥 USER REQUEST: Show smoke effect below stacked tiles (2 tiles that don't result in merge 6)
+    // Smoke with 70% opacity, behind tiles, using object pooling
+    smokeBubblesAtTile(board, dst, TILE, 0.6, {
+      behind: true,
+      baseAlpha: 0.7, // 70% opacity
+      sizeScale: 0.8,
+      distanceScale: 0.6,
+      countScale: 0.6,
+      ttl: 0.8,
+      blendMode: 'add'
+    });
 
     // 🔥 COMBINED MERGE ANIMATION: Impact bump + single strong bounce
     playMergeImpactAndAbsorbAnimation(dst);
@@ -6939,6 +7008,16 @@ async function showFinalScreen(){
     (window as any).triggerHapticNotification('error');
   }
   
+  // 🔥 USER BUG FIX: Show navigation BEFORE showing board fail modal
+  // This ensures X button is visible when fail modal appears
+  try {
+    const { updateNavigationVisibility } = await import('./navigation-control.js');
+    updateNavigationVisibility();
+    console.log('✅ Navigation visibility updated before showing board fail modal');
+  } catch (error) {
+    console.warn('⚠️ Failed to update navigation visibility:', error);
+  }
+  
   let result = null;
   try {
     const { showBoardFailModal } = await import('./board-fail-modal.js');
@@ -6965,6 +7044,10 @@ async function showFinalScreen(){
       await window.exitToMenu?.();
       // Don't call goToSlide here - exitToMenu handles it
     } catch {}
+  } else if (result?.action === 'no-hearts') {
+    // 🔥 USER REQUEST: No hearts - hearts bottom sheet is shown, don't return to game
+    console.log('💔 No hearts action - hearts bottom sheet shown, staying out of game');
+    // App element is already hidden in board-fail-modal
   } else {
     // 'retry' action - functions are called directly from board-fail-modal now
     console.log('🎮 Play Again action received - functions called directly from modal');
@@ -7259,6 +7342,11 @@ function restartGame(){
   // 🔥 CRITICAL FIX: Clear __ccSkipRebuildBoard flag to force fresh board
   delete window.__ccSkipRebuildBoard;
   logger.debug('✅ RESTART: Cleared __ccSkipRebuildBoard flag - will rebuild fresh board', 'app-core');
+  
+  // 🔥 NOTE: cleanupGame() is NOT called here because it destroys the PIXI app
+  // cleanupGame() is only for complete game exit (exit to menu), not for restart
+  // restartGame() already has comprehensive cleanup (GSAP animations, confetti, effects, etc.)
+  // without destroying the app, which allows startLevel() to work properly
   
   // 🔥 USER REQUEST: Call startLevel() with current boardNumber instead of just rebuildBoard()
   // This ensures board-specific rules are applied and the correct board is restarted
@@ -8045,7 +8133,7 @@ async function loadGameState() {
       console.log('✅ Boot completed, app:', !!app, 'board:', !!board);
       
       // Initialize background layer after boot
-      layoutBoard();
+      await layoutBoard();
       console.log('✅ Layout completed');
       
       initializeBackgroundLayer();
@@ -8068,7 +8156,7 @@ async function loadGameState() {
       if (!backgroundLayer || !bgInBoard) {
         console.log('⚠️ backgroundLayer missing or not in board, reinitializing...');
         backgroundLayer = null; // Force recreation
-        layoutBoard();
+        await layoutBoard();
         initializeBackgroundLayer();
         console.log('✅ Background layer reinitialized');
       }
@@ -8239,7 +8327,7 @@ async function loadGameState() {
     drawBoardBG('active+empty');
     
     // CRITICAL: Call layout to position HUD correctly (this initializes stars collector)
-    layoutBoard();
+    await layoutBoard();
     console.log('✅ Layout called for saved game - HUD should be positioned');
     
     // 🔥 CRITICAL FIX: Restore stars count AFTER layoutBoard (which initializes stars collector)

@@ -3036,6 +3036,46 @@ class JourneyBoardsManager {
     // Step 2: Now open detail modal with enter animation
     const detailModal = document.getElementById('collectibles-detail-modal');
     if (detailModal) {
+      // 🔥 USER BUG FIX: Ensure X button exists and is visible IMMEDIATELY when modal is opened
+      // This fixes issue where X button is missing after hard exit
+      const detailCloseBtnEarly = detailModal.querySelector('#detail-close-btn') as HTMLElement;
+      if (detailCloseBtnEarly) {
+        // Force X button to be visible immediately
+        detailCloseBtnEarly.style.display = 'flex';
+        detailCloseBtnEarly.style.visibility = 'visible';
+        detailCloseBtnEarly.style.opacity = '1';
+        detailCloseBtnEarly.style.pointerEvents = 'auto';
+        detailCloseBtnEarly.style.zIndex = '2000000';
+        detailCloseBtnEarly.style.position = 'relative';
+        detailCloseBtnEarly.style.cursor = 'pointer';
+        
+        // Ensure img element exists and is visible
+        let closeBtnImgEarly = detailCloseBtnEarly.querySelector('img') as HTMLImageElement;
+        if (!closeBtnImgEarly) {
+          // If img doesn't exist, create it
+          closeBtnImgEarly = document.createElement('img');
+          closeBtnImgEarly.src = './assets/close-icon.png';
+          closeBtnImgEarly.alt = '';
+          closeBtnImgEarly.setAttribute('aria-hidden', 'true');
+          detailCloseBtnEarly.appendChild(closeBtnImgEarly);
+          logger.info('✅ X button img element created (was missing)');
+        }
+        
+        // Ensure img is visible
+        closeBtnImgEarly.style.display = 'block';
+        closeBtnImgEarly.style.visibility = 'visible';
+        closeBtnImgEarly.style.opacity = '1';
+        closeBtnImgEarly.style.width = '24px';
+        closeBtnImgEarly.style.height = '24px';
+        if (!closeBtnImgEarly.src || closeBtnImgEarly.src.includes('undefined') || closeBtnImgEarly.src.includes('null')) {
+          closeBtnImgEarly.src = './assets/close-icon.png';
+        }
+        
+        logger.info('✅ X button made visible IMMEDIATELY when modal opened');
+      } else {
+        logger.error('❌ CRITICAL: X button (#detail-close-btn) NOT FOUND in modal! Modal may not be rendered correctly.');
+      }
+      
       detailModal.removeAttribute('hidden');
       (detailModal as HTMLElement).style.display = 'flex';
       // Keep modal invisible until enter animation kicks in (prevents flash)
@@ -3327,6 +3367,21 @@ class JourneyBoardsManager {
 
           try { (window as any).playHaptic?.('light'); } catch {}
 
+          // 🔥 USER REQUEST: Check hearts BEFORE starting game (same as interim board)
+          // If no hearts, show hearts bottom sheet instead of starting game
+          try {
+            const { heartsSystem } = await import('./hearts-system.js');
+            if (!heartsSystem.hasHearts()) {
+              logger.info('💔 No hearts available - showing hearts bottom sheet instead of starting game');
+              const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
+              showHeartsModal();
+              return; // Don't start game - show hearts modal instead
+            }
+          } catch (error) {
+            logger.warn('⚠️ Failed to check hearts, continuing anyway:', error);
+            // Continue if hearts check fails (fallback behavior)
+          }
+
           if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
             JOURNEY_CARD_IDLE_BOUNCE.stop();
             logger.info('✅ Journey card idle bounce stopped');
@@ -3348,7 +3403,13 @@ class JourneyBoardsManager {
           // Mark that we came from detail modal (for return on exit)
           (window as any).__ccCameFromDetailModal = true;
           (window as any).__ccDetailModalBoardId = boardIdForPlay;
-          console.log(`🎯 Marked as coming from detail modal for board ${boardIdForPlay}`);
+          // 🔥 CRITICAL FIX: Also mark as coming from Journey so exitToMenu returns to Journey slide (slide 1)
+          // This ensures proper navigation when exiting game - returns to Journey with enter animation
+          (window as any).__ccCameFromJourney = true;
+          (window as any).__ccCameFromHomepage = false;
+          localStorage.setItem('__ccCameFromJourney', 'true');
+          localStorage.removeItem('__ccCameFromHomepage');
+          console.log(`🎯 Marked as coming from detail modal AND Journey for board ${boardIdForPlay}`);
 
           // 🔥 CRITICAL: Check if function exists and call it
           if (typeof (window as any).startNewRunFromJourney === 'function') {
@@ -3515,6 +3576,42 @@ class JourneyBoardsManager {
       // Find modal elements (header as group, then content elements) - BEFORE showing modal
       const detailHeader = detailModal.querySelector('.detail-header') as HTMLElement;
       const detailCloseBtn = detailModal.querySelector('#detail-close-btn') as HTMLElement;
+      
+      // 🔥 USER BUG FIX: Ensure X button is visible and clickable BEFORE any animations
+      if (detailCloseBtn) {
+        detailCloseBtn.style.display = 'flex';
+        detailCloseBtn.style.visibility = 'visible';
+        detailCloseBtn.style.opacity = '1';
+        detailCloseBtn.style.pointerEvents = 'auto';
+        detailCloseBtn.style.zIndex = '2000000';
+        detailCloseBtn.style.position = 'relative';
+        detailCloseBtn.style.cursor = 'pointer';
+        // Remove any classes that might hide it
+        detailCloseBtn.classList.remove('animate-enter-initial', 'animate-enter', 'animate-exit', 'animate-reset');
+        
+        // 🔥 USER BUG FIX: Ensure img element inside X button is also visible
+        const closeBtnImg = detailCloseBtn.querySelector('img') as HTMLImageElement;
+        if (closeBtnImg) {
+          closeBtnImg.style.display = 'block';
+          closeBtnImg.style.visibility = 'visible';
+          closeBtnImg.style.opacity = '1';
+          closeBtnImg.style.width = '24px';
+          closeBtnImg.style.height = '24px';
+          // Ensure image src is set
+          if (!closeBtnImg.src || closeBtnImg.src.includes('undefined') || closeBtnImg.src.includes('null')) {
+            closeBtnImg.src = './assets/close-icon.png';
+            logger.info('✅ X button image src set to ./assets/close-icon.png');
+          }
+          logger.info('✅ X button img element made visible');
+        } else {
+          logger.warn('⚠️ X button img element not found!');
+        }
+        
+        logger.info('✅ X button made visible and clickable before modal animations');
+      } else {
+        logger.warn('⚠️ X button (#detail-close-btn) not found in detail modal!');
+      }
+      
       const detailTitle = detailModal.querySelector('#detail-title') as HTMLElement;
       const detailImage = detailModal.querySelector('#detail-card-image') as HTMLElement;
       const detailRarityBadgeContainer = detailModal.querySelector('.detail-rarity-badge-container') as HTMLElement;
@@ -3768,6 +3865,29 @@ class JourneyBoardsManager {
 
           // STEP 1: Header FIRST (0ms delay) - animates as group (includes divider and shadow)
           if (detailHeader) {
+            // 🔥 USER BUG FIX: Ensure X button is visible before animating header
+            if (detailCloseBtn) {
+              detailCloseBtn.style.display = 'flex';
+              detailCloseBtn.style.visibility = 'visible';
+              detailCloseBtn.style.opacity = '1';
+              detailCloseBtn.style.pointerEvents = 'auto';
+              
+              // 🔥 CRITICAL: Ensure img element is visible
+              const closeBtnImg = detailCloseBtn.querySelector('img') as HTMLImageElement;
+              if (closeBtnImg) {
+                closeBtnImg.style.display = 'block';
+                closeBtnImg.style.visibility = 'visible';
+                closeBtnImg.style.opacity = '1';
+                closeBtnImg.style.width = '24px';
+                closeBtnImg.style.height = '24px';
+                if (!closeBtnImg.src || closeBtnImg.src.includes('undefined') || closeBtnImg.src.includes('null')) {
+                  closeBtnImg.src = './assets/close-icon.png';
+                }
+              }
+              
+              logger.info('✅ X button made visible before header animation');
+            }
+            
             gsap.set(detailHeader, { visibility: 'visible', immediateRender: true });
             gsap.to(detailHeader, {
               scale: 1,
@@ -3776,7 +3896,28 @@ class JourneyBoardsManager {
               ease: 'back.out(1.7)',
               delay: 0,
               force3D: true,
-              immediateRender: false
+              immediateRender: false,
+              onComplete: () => {
+                // 🔥 USER BUG FIX: Ensure X button is still visible after header animation completes
+                if (detailCloseBtn) {
+                  detailCloseBtn.style.display = 'flex';
+                  detailCloseBtn.style.visibility = 'visible';
+                  detailCloseBtn.style.opacity = '1';
+                  detailCloseBtn.style.pointerEvents = 'auto';
+                  
+                  const closeBtnImg = detailCloseBtn.querySelector('img') as HTMLImageElement;
+                  if (closeBtnImg) {
+                    closeBtnImg.style.display = 'block';
+                    closeBtnImg.style.visibility = 'visible';
+                    closeBtnImg.style.opacity = '1';
+                    if (!closeBtnImg.src || closeBtnImg.src.includes('undefined') || closeBtnImg.src.includes('null')) {
+                      closeBtnImg.src = './assets/close-icon.png';
+                    }
+                  }
+                  
+                  logger.info('✅ X button verified visible after header animation completes');
+                }
+              }
             });
             logger.info('📊 Step 1: Detail header pop-in - FIRST');
           }
@@ -4207,11 +4348,36 @@ class JourneyBoardsManager {
         const newCloseBtn = detailCloseBtn.cloneNode(true) as HTMLElement;
         detailCloseBtn.parentNode?.replaceChild(newCloseBtn, detailCloseBtn);
         
-        // Set pointer events explicitly to ensure it's always clickable
+        // 🔥 USER BUG FIX: Ensure X button is visible and clickable after cloning
+        newCloseBtn.style.display = 'flex';
+        newCloseBtn.style.visibility = 'visible';
+        newCloseBtn.style.opacity = '1';
         newCloseBtn.style.pointerEvents = 'auto';
         newCloseBtn.style.zIndex = '2000000';
         newCloseBtn.style.position = 'relative';
         newCloseBtn.style.cursor = 'pointer';
+        // Remove any classes that might hide it
+        newCloseBtn.classList.remove('animate-enter-initial', 'animate-enter', 'animate-exit', 'animate-reset');
+        
+        // 🔥 USER BUG FIX: Ensure img element inside X button is also visible after cloning
+        const newCloseBtnImg = newCloseBtn.querySelector('img') as HTMLImageElement;
+        if (newCloseBtnImg) {
+          newCloseBtnImg.style.display = 'block';
+          newCloseBtnImg.style.visibility = 'visible';
+          newCloseBtnImg.style.opacity = '1';
+          newCloseBtnImg.style.width = '24px';
+          newCloseBtnImg.style.height = '24px';
+          // Ensure image src is set
+          if (!newCloseBtnImg.src || newCloseBtnImg.src.includes('undefined') || newCloseBtnImg.src.includes('null')) {
+            newCloseBtnImg.src = './assets/close-icon.png';
+            logger.info('✅ X button image src set to ./assets/close-icon.png after cloning');
+          }
+          logger.info('✅ X button img element made visible after cloning');
+        } else {
+          logger.warn('⚠️ X button img element not found after cloning!');
+        }
+        
+        logger.info('✅ X button made visible and clickable after cloning');
         
         // Add click listener that uses journey boards exit animation (GSAP, header as group)
         const handleCloseClick = async (e: Event) => {

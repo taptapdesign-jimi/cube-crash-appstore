@@ -1760,6 +1760,27 @@ async function startNewRun(boardId: number): Promise<void> {
       // 🔥 Journey pathway - NO homepage slider involvement
       console.log('🗺️ Journey pathway - showing Journey screen directly...');
       
+      // 🔥 CRITICAL FIX: Ensure homepage and slider are hidden BEFORE showing Journey screen
+      // This prevents homepage slider from showing and sliding to slide 2
+      const homeElement = document.getElementById('home');
+      if (homeElement) {
+        homeElement.style.display = 'none';
+        homeElement.setAttribute('hidden', 'true');
+        homeElement.style.visibility = 'hidden';
+        homeElement.style.opacity = '0';
+        homeElement.style.zIndex = '-1';
+        console.log('✅ Homepage hidden before showing Journey screen');
+      }
+      
+      const sliderContainer = document.getElementById('slider-container');
+      if (sliderContainer) {
+        sliderContainer.style.display = 'none';
+        sliderContainer.style.visibility = 'hidden';
+        sliderContainer.style.opacity = '0';
+        sliderContainer.style.zIndex = '-1';
+        console.log('✅ Slider container hidden before showing Journey screen');
+      }
+      
       // Show Journey screen immediately (no delays, no RAF hacks)
       const collectiblesManager = (window as any).collectiblesManager;
       if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {

@@ -1379,6 +1379,21 @@ class CollectiblesManager {
             }
           } catch {}
           
+          // 🔥 USER REQUEST: Check hearts BEFORE starting game (same as interim board)
+          // If no hearts, show hearts bottom sheet instead of starting game
+          try {
+            const { heartsSystem } = await import('./modules/hearts-system.js');
+            if (!heartsSystem.hasHearts()) {
+              console.log('💔 No hearts available - showing hearts bottom sheet instead of starting game');
+              const { showHeartsModal } = await import('./modules/hearts-bottom-sheet.js');
+              showHeartsModal();
+              return; // Don't start game - show hearts modal instead
+            }
+          } catch (error) {
+            console.warn('⚠️ Failed to check hearts, continuing anyway:', error);
+            // Continue if hearts check fails (fallback behavior)
+          }
+          
           // Close detail modal with exit animation
           await this.hideCardDetail();
           

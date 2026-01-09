@@ -328,15 +328,54 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       
       // DIRECT FUNCTION CALLS like bottom sheet
       if (action === 'retry') {
-        logger.info('🎮 Play Again clicked - calling window.CC.restart directly');
-        if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
+        // 🔥 USER REQUEST: Check hearts BEFORE restarting - if 0 hearts, show hearts bottom sheet
+        (async () => {
           try {
-            (window as WindowWithCC).CC!.restart!();
-            logger.info('✅ window.CC.restart called from board-fail-modal');
+            const { heartsSystem } = await import('./hearts-system.js');
+            if (!heartsSystem.hasHearts()) {
+              logger.info('💔 No hearts available - showing hearts bottom sheet OVER fail screen');
+              // 🔥 USER REQUEST: Show hearts bottom sheet OVER fail screen (don't close fail modal)
+              // Fail modal stays visible in background, user can still click Exit after closing bottom sheet
+              const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
+              showHeartsModal();
+              // Don't resolve or close modal - just show bottom sheet over it
+              return; // Don't continue to restart
+            }
+            
+            // Has hearts - proceed with restart
+            logger.info('🎮 Play Again clicked - calling window.CC.restart directly');
+            if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
+              try {
+                (window as WindowWithCC).CC!.restart!();
+                logger.info('✅ window.CC.restart called from board-fail-modal');
+              } catch (error) {
+                logger.warn('⚠️ window.CC.restart failed:', error);
+              }
+            }
+            
+            // Close modal and resolve
+            overlay.style.opacity = '0';
+            card.style.transform = 'scale(0.88)';
+            card.style.opacity = '0';
+            setTimeout(() => { try { overlay.remove(); } catch {}; resolve({ action }); }, 220);
           } catch (error) {
-            logger.warn('⚠️ window.CC.restart failed:', error);
+            logger.warn('⚠️ Failed to check hearts, proceeding with restart anyway:', error);
+            // Fallback: proceed with restart if hearts check fails
+            if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
+              try {
+                (window as WindowWithCC).CC!.restart!();
+                logger.info('✅ window.CC.restart called from board-fail-modal (fallback)');
+              } catch (err) {
+                logger.warn('⚠️ window.CC.restart failed:', err);
+              }
+            }
+            overlay.style.opacity = '0';
+            card.style.transform = 'scale(0.88)';
+            card.style.opacity = '0';
+            setTimeout(() => { try { overlay.remove(); } catch {}; resolve({ action }); }, 220);
           }
-        }
+        })();
+        return; // Exit early - modal closing is handled above
       } else if (action === 'menu') {
         logger.info('🚪 Exit clicked - calling window.exitToMenu directly');
         if ((window as WindowWithCC).exitToMenu) {
@@ -349,10 +388,13 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         }
       }
       
-      overlay.style.opacity = '0';
-      card.style.transform = 'scale(0.88)';
-      card.style.opacity = '0';
-      setTimeout(() => { try { overlay.remove(); } catch {}; resolve({ action }); }, 220);
+      // Only close modal if action is not 'retry' (retry handles its own modal closing)
+      if (action !== 'retry') {
+        overlay.style.opacity = '0';
+        card.style.transform = 'scale(0.88)';
+        card.style.opacity = '0';
+        setTimeout(() => { try { overlay.remove(); } catch {}; resolve({ action }); }, 220);
+      }
     };
 
     const onKey = (event: KeyboardEvent): void => {

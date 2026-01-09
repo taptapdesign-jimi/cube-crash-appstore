@@ -200,15 +200,16 @@ async function checkCacheVersion(): Promise<boolean> {
 /**
  * Load critical HUD icons into PIXI Assets cache
  * This ensures Assets.get() can find them immediately when HUD is initialized
+ * 🔥 CRITICAL: This MUST be called BEFORE HUD initialization in boot()
  */
-async function loadHudIconsIntoPixiCache(): Promise<void> {
+export async function loadHudIconsIntoPixiCache(): Promise<void> {
   try {
     // Dynamically import PIXI Assets to avoid circular dependencies
     const { Assets } = await import('pixi.js');
     
     logger.info(`🎮 Loading ${CRITICAL_HUD_ICONS.length} HUD icons into PIXI Assets cache...`);
     
-    // Register all HUD icons with PIXI Assets
+    // Register all HUD icons with PIXI Assets FIRST
     for (const iconPath of CRITICAL_HUD_ICONS) {
       try {
         // Check if already loaded
@@ -217,7 +218,7 @@ async function loadHudIconsIntoPixiCache(): Promise<void> {
           continue; // Already in cache
         }
         
-        // Register and load into PIXI Assets cache
+        // Register with PIXI Assets
         try {
           Assets.add({ alias: iconPath, src: iconPath });
         } catch (err) {
@@ -228,9 +229,11 @@ async function loadHudIconsIntoPixiCache(): Promise<void> {
       }
     }
     
-    // Load all HUD icons into PIXI Assets cache in parallel
-    await Promise.allSettled(
-      CRITICAL_HUD_ICONS.map(async (iconPath) => {
+    // 🔥 CRITICAL: Load all HUD icons into PIXI Assets cache BLOCKING (wait for all)
+    // Use Promise.all instead of Promise.allSettled to ensure ALL icons load
+    // If any icon fails, we retry it up to 3 times
+    const loadIconWithRetry = async (iconPath: string, retries = 3): Promise<void> => {
+      for (let attempt = 1; attempt <= retries; attempt++) {
         try {
           // Check if already loaded
           const existing = Assets.get(iconPath);
@@ -240,14 +243,30 @@ async function loadHudIconsIntoPixiCache(): Promise<void> {
           
           // Load into PIXI Assets cache
           await Assets.load(iconPath);
-          logger.debug(`✅ Loaded ${iconPath} into PIXI Assets cache`);
+          logger.info(`✅ Loaded ${iconPath} into PIXI Assets cache (attempt ${attempt})`);
+          return; // Success
         } catch (err) {
-          logger.warn(`⚠️ Failed to load ${iconPath} into PIXI Assets cache:`, err);
+          if (attempt === retries) {
+            logger.error(`❌ CRITICAL: Failed to load ${iconPath} after ${retries} attempts:`, err);
+            throw err; // Throw on final attempt
+          } else {
+            logger.warn(`⚠️ Failed to load ${iconPath} (attempt ${attempt}/${retries}), retrying...`, err);
+            await new Promise(resolve => setTimeout(resolve, 100 * attempt)); // Exponential backoff
+          }
         }
-      })
-    );
+      }
+    };
     
-    logger.info(`✅ All ${CRITICAL_HUD_ICONS.length} HUD icons loaded into PIXI Assets cache`);
+    // Load all icons BLOCKING - wait for ALL to complete
+    try {
+      await Promise.all(
+        CRITICAL_HUD_ICONS.map(iconPath => loadIconWithRetry(iconPath))
+      );
+      logger.info(`✅ ALL ${CRITICAL_HUD_ICONS.length} HUD icons loaded into PIXI Assets cache (BLOCKING)`);
+    } catch (error) {
+      logger.error('❌ CRITICAL: Some HUD icons failed to load:', error);
+      // Don't throw - we'll try again in boot() as fallback
+    }
   } catch (error) {
     logger.error('❌ Error loading HUD icons into PIXI Assets cache:', error);
     // Don't throw - this is non-critical, HUD will load icons asynchronously if needed
@@ -349,6 +368,13 @@ export async function preloadAllStartupImages(): Promise<void> {
       // Check if cache is valid
       const cacheValid = await checkCacheVersion();
       
+      // 🔥 CRITICAL: Load HUD icons into PIXI Assets cache FIRST (HIGHEST PRIORITY)
+      // HUD icons MUST be available before boot() initializes HUD
+      // This runs BEFORE any other preloading
+      logger.info('🎮 Loading HUD icons into PIXI Assets cache (HIGHEST PRIORITY - BLOCKING)...');
+      await loadHudIconsIntoPixiCache();
+      logger.info('✅ HUD icons loaded into PIXI Assets cache (completed)');
+      
       if (cacheValid) {
         logger.info('✅ Image cache is valid - loading critical images into browser cache...');
         // 🔥 CRITICAL: Even if Cache API is valid, we MUST load images into browser cache
@@ -365,16 +391,12 @@ export async function preloadAllStartupImages(): Promise<void> {
           './assets/journey assets/1-17bg.png',
         ];
         
-        // Load critical images FIRST (priority)
+        // Load critical images SECOND (after HUD icons)
         await Promise.allSettled(
           criticalImages.map(url => cacheAndDecodeImage(url))
         );
         
         logger.info('✅ Critical images loaded into browser cache');
-        
-        // 🔥 CRITICAL: Load HUD icons into PIXI Assets cache even if Cache API is valid
-        // PIXI Assets cache is separate and must be populated for Assets.get() to work
-        await loadHudIconsIntoPixiCache();
         
         // Continue loading remaining images in background (non-blocking)
         const remainingImages = ALL_STARTUP_IMAGES.filter(url => !criticalImages.includes(url));
@@ -425,9 +447,7 @@ export async function preloadAllStartupImages(): Promise<void> {
       
       logger.info(`✅ All ${ALL_STARTUP_IMAGES.length} startup images preloaded and cached`);
       
-      // 🔥 CRITICAL: Load HUD icons into PIXI Assets cache after Cache API preloading
-      // This ensures Assets.get() can find them immediately when HUD is initialized
-      await loadHudIconsIntoPixiCache();
+      // 🔥 NOTE: HUD icons are already loaded at the start of this function (HIGHEST PRIORITY)
       
       isPreloading = false;
     } catch (error) {

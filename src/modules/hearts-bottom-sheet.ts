@@ -242,6 +242,9 @@ function createHeartsModal(): HTMLElement {
   heartsModal = document.createElement('div');
   heartsModal.className = 'hearts-bottom-sheet';
   
+  // 🔥 CRITICAL: Set z-index higher than fail modal (10000000000000) to appear on top
+  heartsModal.style.zIndex = '10000000000001';
+  
   // CRITICAL: Start with display: none to prevent flash
   heartsModal.style.display = 'none';
   
@@ -386,7 +389,7 @@ export function showHeartsModal(): void {
         inset: 0;
         width: 100vw;
         height: 100vh;
-        z-index: 999999998;
+        z-index: 10000000000001;
         background: transparent;
         pointer-events: auto;
         touch-action: none;

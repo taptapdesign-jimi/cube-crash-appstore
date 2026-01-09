@@ -3793,7 +3793,7 @@ html.collectible-reward-open body {
   border-radius: 40px 40px 0 0;
   box-shadow: 0 -24px 48px rgba(233, 210, 200, 0.7);
   max-height: 60vh;
-  z-index: 999999999;
+  z-index: 10000000000001;
   transition: transform 0.3s ease-out;
   padding: 28px 10% 40px 10%;
   

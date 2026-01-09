@@ -864,7 +864,7 @@
   position: relative;
   overflow: hidden;
   z-index: 2000000 !important;
-  margin-left: 40px;
+  margin-left: 24px;
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
   outline: none;
@@ -890,7 +890,7 @@
   width: 40px;
   height: 40px;
   flex-shrink: 0;
-  margin-right: 40px;
+  margin-right: 24px;
 }
 
 /* 🔥 USER REQUEST: Reset stats button (dev tool) - similar to stats screen */
@@ -906,7 +906,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   flex-shrink: 0;
-  margin-right: 40px;
+  margin-right: 24px;
   -webkit-tap-highlight-color: transparent;
   outline: none;
   user-select: none;
@@ -948,8 +948,8 @@
   height: 2px;
   background: #9A8B7A;
   opacity: 0.20;
-  width: calc(100% - 80px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
-  margin: 0 calc(40px + env(safe-area-inset-right, 0px)) 0 calc(40px + env(safe-area-inset-left, 0px));
+  width: calc(100% - 48px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+  margin: 0 calc(24px + env(safe-area-inset-right, 0px)) 0 calc(24px + env(safe-area-inset-left, 0px));
 }
 
 /* Detail shadow direktno ispod detail dividera - isti kao journey */
