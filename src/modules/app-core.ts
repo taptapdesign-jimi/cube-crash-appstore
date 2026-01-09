@@ -3755,6 +3755,10 @@ function merge(src, dst, helpers){
           // 🔥 CRITICAL FIX: Check if there are 2+ active tiles that can still merge BEFORE checking stuck
           // This prevents false "stuck" detection when 2 tiles (e.g., 3 and 2) can still stack
           // 🔥 v112: Using centralized checkEndGame() instead of direct anyMergePossible() call
+          // 🔥 BUG FIX: DO NOT return early - always continue to full stuck check below
+          // Previous bug: If visibleTilesBeforeCheck >= 2 and quickCheckResult.type === 'continue',
+          // we would return early and never check stuck state. But after merge completes (e.g., 1+1=2),
+          // there might be only 1 tile left that can't merge, and we need to detect that!
           const visibleTilesBeforeCheck = activeTilesBeforeCheck.length;
           if (visibleTilesBeforeCheck >= 2) {
             // Use centralized end game checker to determine if game can continue
@@ -3765,11 +3769,11 @@ function merge(src, dst, helpers){
             };
             const quickCheckResult = checkEndGame(quickCheckContext, true);
             if (quickCheckResult.type === 'continue') {
-              logger.debug('✅ Post-merge check: 2+ tiles remain and can still merge/stack - NOT checking stuck, game continues', 'app-core', {
+              logger.debug('✅ Post-merge check: 2+ tiles remain and can still merge/stack - will check full stuck state below', 'app-core', {
                 activeTiles: activeTilesBeforeCheck.map(t => ({ value: t.value, special: t.special }))
               });
-              // Don't check stuck - tiles can still merge
-              return; // Exit early, don't check stuck
+              // Don't return early - continue to full stuck check below to catch edge cases
+              // (e.g., after merge completes, there might be only 1 tile left)
             }
           }
           
@@ -3996,7 +4000,11 @@ function merge(src, dst, helpers){
         // checkLevelEnd() već provjerava sve potrebne scenarije kroz checkEndGame()
         // Nema potrebe za dodatnim timerom koji stvara race conditions
         
-        // Za non-merge-6, provjeri nakon delay za animaciju
+        // 🔥 CRITICAL BUG FIX: Always call checkLevelEnd() after merge completes (even if post-merge check passed)
+        // This ensures stuck state is detected even when player merges tiles spawned by magnet
+        // Example: Magnet spawns 2 tiles (1+1), player merges them (1+1=2), now stuck with 1 tile that can't merge
+        // Previous bug: Post-merge check might return early if visibleTilesBeforeCheck >= 2, but after merge completes
+        // there might be only 1 tile left that can't merge, and checkLevelEnd() wouldn't be called
         if (effSum !== 6) {
           // 🔥 CRITICAL FIX: Increase delay to ensure merge animation completes before endgame check
           // This prevents stuck detection from being blocked by merge animations

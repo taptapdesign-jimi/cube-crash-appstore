@@ -2143,6 +2143,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // - We have unlocked tiles (normal stuck case), OR
   // - We have locked tiles but no merge potential (all tiles locked after spawn, stuck state)
   // In both cases, we should call checkLevelEnd to check stuck and show fail screen
+  // 🔥 CRITICAL FIX: Also check for single tile that can't merge (e.g., after player merges spawned tiles)
   if (!hasMergeOrStackPotential) {
     // No merge/stack potential - check if we have any active tiles (locked or unlocked)
     const hasAnyActiveTiles = activeTilesFinal.length > 0;
@@ -2154,10 +2155,12 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         (window as any).CC.checkLevelEnd();
       }
       return; // Exit early after triggering fail screen check
-    } else if (hasAnyActiveTiles && activeTilesFinal.length > 1) {
-      // No merge/stack potential, all tiles are locked, but we have multiple active tiles → stuck state
+    } else if (hasAnyActiveTiles && activeTilesFinal.length >= 1) {
+      // 🔥 CRITICAL FIX: Changed from > 1 to >= 1 to catch single tile stuck state
+      // No merge/stack potential, all tiles are locked OR only 1 tile remains → stuck state
       // This handles Bug 2: all tiles remain locked after spawn, no merge potential
-      console.log('🚨 No merge/stack potential, all tiles are locked - calling checkLevelEnd to check stuck and show fail screen');
+      // AND Bug: after player merges spawned tiles (1+1=2), only 1 tile remains that can't merge
+      console.log('🚨 No merge/stack potential, tiles are locked OR only 1 tile remains - calling checkLevelEnd to check stuck and show fail screen');
       if (typeof (window as any).CC?.checkLevelEnd === 'function') {
         (window as any).CC.checkLevelEnd();
       }

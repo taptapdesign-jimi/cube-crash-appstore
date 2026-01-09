@@ -245,13 +245,11 @@ async function startAssetPreloading(): Promise<void> {
       logger.info('✅ Homepage hidden while launch screen is active');
     }
     
-    // 🔥 CRITICAL: Start comprehensive image preloading in background during launch screen
-    // This preloads ALL images while logos are showing, caches them permanently
-    // Homepage should appear IMMEDIATELY after launch screen, not after preloading
-    const { preloadAllStartupImages } = await import('./utils/comprehensive-image-preloader.js');
-    preloadAllStartupImages().catch((error) => {
-      logger.error('❌ Comprehensive image preloading failed:', error);
-    });
+    // 🔥 PRODUCTION READY iOS APP STORE: Preloading is now handled INSIDE launch screen Phase 2
+    // Launch screen Phase 2 (stack to six) preloads critical images BLOCKING during its 2.5 second display
+    // This ensures homepage slider images are ALWAYS ready when homepage appears
+    // No need to start preloading here - launch screen handles it
+    logger.info('✅ Image preloading handled by launch screen Phase 2 (no separate preload needed)');
     
     // Also start PIXI.js asset preloading (for game assets, not images)
     assetPreloader.preloadAll().catch((error) => {

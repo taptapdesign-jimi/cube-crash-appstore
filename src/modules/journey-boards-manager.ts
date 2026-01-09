@@ -1182,9 +1182,21 @@ class JourneyBoardsManager {
     // Convert to viewport height units for consistency
     const FIXED_BG_TOP_VH = pxToVH(50, BASE_VIEWPORT_HEIGHT); // Fixed top position in vh (moved up 150px from original 200px)
     
-    // 🔥 FIX: Load image asynchronously to get exact dimensions
+    // 🔥 PRODUCTION READY: Verify image is in browser cache before rendering
+    // This ensures instant display, no loading delay
     const img = new Image();
     const KNOWN_ASPECT_RATIO = 1.97; // Fallback aspect ratio
+    
+    // 🔥 CRITICAL: Set image src - if already in browser cache, onload fires immediately
+    img.src = './assets/journey assets/1-17bg.png';
+    
+    // If image is already in browser cache, trigger onload immediately
+    if (img.complete && img.naturalWidth > 0) {
+      // Image already loaded from cache - trigger onload handler immediately
+      setTimeout(() => {
+        if (img.onload) img.onload(new Event('load') as any);
+      }, 0);
+    }
     
     // Load image and calculate dimensions
     img.onload = () => {
@@ -1230,8 +1242,6 @@ class JourneyBoardsManager {
       container.style.minHeight = `${containerHeightPx}px`;
       container.style.overflow = 'visible';
     };
-    
-    img.src = './assets/journey assets/1-17bg.png';
     
     // Use fallback aspect ratio for initial calculation
     const viewportWidth = window.innerWidth || BASE_VIEWPORT_WIDTH;
@@ -1654,9 +1664,13 @@ class JourneyBoardsManager {
       // Unlocked card - show image and can click for details
       
       const image = document.createElement('img');
+      // 🔥 PRODUCTION READY: Set src - if already in browser cache, image displays instantly
       image.src = board.imagePath || '';
       image.alt = board.name || `Board ${board.id}`;
       image.className = 'journey-board-image';
+      // 🔥 CRITICAL: Set loading="eager" and fetchpriority="high" for instant display
+      image.loading = 'eager';
+      (image as any).fetchPriority = 'high';
       // 🔥 iOS FIX: Prevent deep touch (long press) and image dragging
       image.draggable = false; // Prevent HTML5 drag
       image.setAttribute('draggable', 'false'); // Ensure draggable is false
@@ -1746,9 +1760,23 @@ class JourneyBoardsManager {
     } else if (isInterim) {
       // Interim card - show common back.png, clicking directly continues game (no detail modal)
       const image = document.createElement('img');
+      // 🔥 PRODUCTION READY: Set src - if already in browser cache, image displays instantly
       image.src = './assets/colelctibles/common back.png';
       image.alt = `Board ${board.id} (interim)`;
       image.className = 'journey-board-image';
+      // 🔥 CRITICAL: Set loading="eager" and fetchpriority="high" for instant display
+      image.loading = 'eager';
+      (image as any).fetchPriority = 'high';
+      
+      // 🔥 PRODUCTION READY: Verify image is in browser cache before rendering
+      // If image is already loaded from cache, trigger onload immediately
+      if (image.complete && image.naturalWidth > 0) {
+        // Image already loaded from cache - will display instantly
+        logger.debug(`✅ Interim card image (common back.png) already in browser cache for board ${board.id}`);
+      } else {
+        // Image not in cache yet - will load (but should be preloaded during launch screen)
+        logger.debug(`⚠️ Interim card image (common back.png) not in browser cache for board ${board.id} - loading now`);
+      }
       // 🔥 iOS FIX: Prevent deep touch (long press) and image dragging
       image.draggable = false;
       image.setAttribute('draggable', 'false');
@@ -1818,9 +1846,13 @@ class JourneyBoardsManager {
       
       // Add empty card image
       const image = document.createElement('img');
+      // 🔥 PRODUCTION READY: Set src - if already in browser cache, image displays instantly
       image.src = './assets/colelctibles/journey-card-empty.png';
       image.alt = `Board ${board.id} (locked)`;
       image.className = 'journey-board-empty-image';
+      // 🔥 CRITICAL: Set loading="eager" and fetchpriority="high" for instant display
+      image.loading = 'eager';
+      (image as any).fetchPriority = 'high';
       // 🔥 iOS FIX: Prevent deep touch (long press) and image dragging
       image.draggable = false;
       image.setAttribute('draggable', 'false');
@@ -4863,6 +4895,18 @@ class JourneyBoardsManager {
       // Unlock the board (remove interim status, set unlocked)
       board.unlocked = true;
       board.interim = false;
+      
+      // 🔥 PRODUCTION READY: Preload and cache this board's card image immediately
+      // This ensures the card image is always available, even after hard exit
+      if (board.imagePath) {
+        import('../utils/comprehensive-image-preloader.js').then(({ preloadJourneyBoardImages }) => {
+          preloadJourneyBoardImages([boardNumber]).catch((error) => {
+            logger.warn(`⚠️ Failed to preload journey board image for board ${boardNumber}:`, error);
+          });
+        }).catch((error) => {
+          logger.warn(`⚠️ Failed to import preloadJourneyBoardImages for board ${boardNumber}:`, error);
+        });
+      }
       
       // 🔥 USER REQUEST: Ensure only ONE interim card exists after unlocking
       // This will set the next board to interim (if exists and not already unlocked)

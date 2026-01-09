@@ -319,6 +319,11 @@ class CollectiblesManager {
       return;
     }
     
+    // 🔥 PRODUCTION READY: Don't wait for preloading - render boards immediately
+    // Images will load from Cache API or browser cache as needed (non-blocking)
+    // This ensures Journey screen appears instantly, images load in background
+    logger.info('🗺️ Rendering Journey boards immediately (images will load from cache as needed)');
+    
     // Render boards in background
     const journeyContainer = document.getElementById('journey-boards-container');
     if (journeyContainer) {

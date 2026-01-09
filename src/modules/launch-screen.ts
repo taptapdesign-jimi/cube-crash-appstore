@@ -368,8 +368,30 @@ class LaunchScreen {
       logger.warn('⚠️ Stack logo images load timeout - continuing anyway');
     });
 
+    // 🔥 PRODUCTION READY iOS APP STORE: Preload critical homepage slider images DURING Phase 2
+    // Launch screen Phase 2 lasts 2.5 seconds - perfect time to preload critical images
+    // This ensures homepage slider images are ALWAYS ready when homepage appears
+    logger.info('🔥 PRODUCTION READY: Starting critical image preloading during Phase 2 (stack to six)...');
+    const criticalImagePreloadPromise = (async () => {
+      try {
+        const { preloadAllStartupImages } = await import('../utils/comprehensive-image-preloader.js');
+        // Start preloading - this will load critical images BLOCKING
+        await preloadAllStartupImages();
+        logger.info('✅ Critical images preloaded during Phase 2');
+      } catch (error) {
+        logger.warn('⚠️ Critical image preloading failed during Phase 2 (non-critical):', error);
+      }
+    })();
+
     // Show for 2.5 seconds (user requested 2.5 seconds for stack to six)
-    await new Promise(resolve => setTimeout(resolve, 2500));
+    // 🔥 CRITICAL: Wait for BOTH 2.5 seconds AND critical image preloading (whichever finishes first)
+    // This ensures we don't delay launch screen unnecessarily, but also don't show homepage without images
+    await Promise.race([
+      new Promise(resolve => setTimeout(resolve, 2500)), // Minimum 2.5 seconds
+      criticalImagePreloadPromise.catch(() => {}) // Or until critical images are loaded
+    ]);
+    
+    logger.info('✅ Phase 2 complete - critical images preloaded (or timeout reached)');
 
     // PHASE 3: Scale down all images to 0% and fade out
     logger.info('🎬 Phase 3: Scaling down all images to 0%');

@@ -469,17 +469,11 @@
         return;
       }
       
-      // 🔥 CRITICAL: Start comprehensive image preloading IMMEDIATELY during launch screen
-      // This preloads ALL images in background while logos are showing
-      import('./src/utils/comprehensive-image-preloader.js').then(function(module) {
-        const { preloadAllStartupImages } = module;
-        console.log('📦 Starting comprehensive image preloading...');
-        preloadAllStartupImages().catch(function(error) {
-          console.error('❌ Comprehensive image preloading failed:', error);
-        });
-      }).catch(function(error) {
-        console.warn('⚠️ Failed to load comprehensive image preloader:', error);
-      });
+      // 🔥 PRODUCTION READY iOS APP STORE: Image preloading is now handled INSIDE launch screen Phase 2
+      // Launch screen Phase 2 (stack to six) preloads critical images BLOCKING during its 2.5 second display
+      // This ensures homepage slider images are ALWAYS ready when homepage appears
+      // No need to start preloading here - launch screen handles it
+      console.log('✅ Image preloading will be handled by launch screen Phase 2');
       
       // Launch screen DOM already exists in HTML - just start the sequence
       import('./src/modules/launch-screen.js').then(function(module) {

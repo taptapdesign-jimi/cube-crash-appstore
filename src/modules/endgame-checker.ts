@@ -315,6 +315,7 @@ function getTotalTileCount(activeTiles: any[]): number {
 
 /**
  * Check if a single stack tile can merge with itself
+ * 🔥 CRITICAL FIX: Also handle case where single tile has depth 1 (can't self-merge, is stuck)
  */
 function canSingleStackMerge(activeTiles: any[], totalTilesCount: number): boolean | null {
   if (activeTiles.length !== 1 || totalTilesCount < MIN_TILES_FOR_MERGE) {
@@ -324,8 +325,16 @@ function canSingleStackMerge(activeTiles: any[], totalTilesCount: number): boole
   const singleTile = activeTiles[0];
   const value = (singleTile.value | 0);
   const stackDepth = (singleTile as any).stackDepth || 1;
+  const isWild = singleTile.special === 'wild' || singleTile.special === 'wild-beer' || singleTile.special === 'wild-magnet';
 
-  console.log('🔍 isGameStuck: Single visible tile is a stack:', { value, stackDepth, totalTilesCount });
+  console.log('🔍 isGameStuck: Single visible tile is a stack:', { value, stackDepth, totalTilesCount, isWild });
+
+  // 🔥 CRITICAL FIX: Wild tiles can always merge with other tiles, so if it's wild, it's NOT stuck
+  // (Emergency rescue will spawn tiles for wild cubes)
+  if (isWild) {
+    console.log('✅ isGameStuck: Single tile is wild - can merge with spawned tiles (NOT stuck)');
+    return null; // Let wild combination check handle this
+  }
 
   // Special case: merge 6 with depth 1 cannot merge (already max)
   if (value === MAX_MERGE_VALUE && stackDepth === 1) {
@@ -333,14 +342,22 @@ function canSingleStackMerge(activeTiles: any[], totalTilesCount: number): boole
     return false;
   }
 
-  // Check if stack can merge with itself (2 tiles from stack)
+  // 🔥 CRITICAL BUG FIX: Single tile with depth 1 CANNOT self-merge (needs at least 2 tiles)
+  // This fixes the bug where player merges spawned tiles (1+1=2) and gets stuck with 1 tile (value 2, depth 1)
+  if (stackDepth === 1) {
+    console.log('🚨 isGameStuck: Single tile with depth 1 - CANNOT self-merge, IS STUCK');
+    console.log('🚨 Details: value =', value, ', depth =', stackDepth, ', cannot merge with itself (needs depth >= 2)');
+    return false; // Stuck - can't self-merge with depth 1
+  }
+
+  // Check if stack can merge with itself (2 tiles from stack, depth >= 2)
   const canMergeSelf = (value + value) <= MAX_MERGE_VALUE;
 
   if (canMergeSelf && stackDepth >= 2) {
-    console.log('✅ isGameStuck: Stack can merge with itself (', value, '+', value, '=', value + value, '<= 6) - NOT stuck');
+    console.log('✅ isGameStuck: Stack can merge with itself (', value, '+', value, '=', value + value, '<= 6, depth:', stackDepth, ') - NOT stuck');
     return true;
   } else {
-    console.log('🚨 isGameStuck: Stack CANNOT merge with itself (', value, '+', value, '=', value + value, '> 6) - IS STUCK');
+    console.log('🚨 isGameStuck: Stack CANNOT merge with itself (', value, '+', value, '=', value + value, '> 6 OR depth < 2) - IS STUCK');
     return false;
   }
 }
