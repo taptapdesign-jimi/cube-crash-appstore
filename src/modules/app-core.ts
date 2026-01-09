@@ -1305,6 +1305,36 @@ export function layoutBoard(){
     if (typeof HUD.initHUD === 'function') {
       if (!_hudInitDone) {
         console.log('🎯 Initializing HUD...');
+        
+        // 🔥 CRITICAL: Ensure HUD icons are loaded into PIXI Assets cache before initializing HUD
+        // This prevents missing icons after hard exit/restart
+        // Use IIFE to handle async loading without blocking HUD initialization
+        (async () => {
+          try {
+            const { Assets } = await import('pixi.js');
+            const hudIcons = [
+              './assets/hud/star-hud.png',
+              './assets/hud/score-hud.png',
+              './assets/hud/combo-hud.png',
+              './assets/hud/extra-combo-hud.png',
+              './assets/hud/mega-combo-hud.png',
+              './assets/close-icon.png',
+            ];
+            for (const iconPath of hudIcons) {
+              try {
+                if (!Assets.get(iconPath)) {
+                  await Assets.load(iconPath);
+                  console.log(`✅ Loaded ${iconPath} into PIXI Assets cache before HUD init`);
+                }
+              } catch (err) {
+                console.warn(`⚠️ Failed to load ${iconPath} before HUD init:`, err);
+              }
+            }
+          } catch (err) {
+            console.warn('⚠️ Failed to ensure HUD icons are loaded before HUD init:', err);
+          }
+        })();
+        
         HUD.initHUD({ stage, app, top: safeTop, initialHide: _hudDropPending });
         _hudInitDone = true;
         console.log('✅ HUD initialized successfully');

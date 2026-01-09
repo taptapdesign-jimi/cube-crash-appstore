@@ -182,7 +182,8 @@ function renderHome(root: HTMLElement): void {
   shardsGoreLjevo.className = 'logo-addon logo-shards-gore-ljevo';
   shardsGoreLjevo.src = './assets/logo addons/gore ljevo shards.png';
   shardsGoreLjevo.alt = '';
-  shardsGoreLjevo.loading = 'lazy';
+  shardsGoreLjevo.loading = 'eager'; // 🔥 OPTIMIZATION: Changed from 'lazy' to 'eager' - shards are preloaded
+  shardsGoreLjevo.setAttribute('fetchpriority', 'high');
   logoWrapper.appendChild(shardsGoreLjevo);
 
   // Shards gore desno - above logo, top right, close to logo
@@ -191,7 +192,8 @@ function renderHome(root: HTMLElement): void {
   shardsGoreDesno.className = 'logo-addon logo-shards-gore-desno';
   shardsGoreDesno.src = './assets/logo addons/shards gore desno.png';
   shardsGoreDesno.alt = '';
-  shardsGoreDesno.loading = 'lazy';
+  shardsGoreDesno.loading = 'eager'; // 🔥 OPTIMIZATION: Changed from 'lazy' to 'eager' - shards are preloaded
+  shardsGoreDesno.setAttribute('fetchpriority', 'high');
   logoWrapper.appendChild(shardsGoreDesno);
 
   // Main logo

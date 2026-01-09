@@ -27,6 +27,11 @@
   <link rel="preload" as="image" href="./assets/taptapdesign.png" fetchpriority="high">
   <link rel="preload" as="image" href="./assets/logo-cube-crash.png" fetchpriority="high">
   <link rel="preload" as="image" href="./assets/logo addons/smokeandshards.png" fetchpriority="high">
+  <link rel="preload" as="image" href="./assets/logo addons/smokeandshards@2x.png">
+  <link rel="preload" as="image" href="./assets/logo addons/smokeandshards@3x.png">
+  <!-- Preload homepage shards for instant display -->
+  <link rel="preload" as="image" href="./assets/logo addons/gore ljevo shards.png" fetchpriority="high">
+  <link rel="preload" as="image" href="./assets/logo addons/shards gore desno.png" fetchpriority="high">
   
   <!-- Preload navigation icons for instant display -->
   <link rel="preload" as="image" href="./assets/nav/cube-nav.png" fetchpriority="high">
@@ -463,6 +468,18 @@
         document.addEventListener('DOMContentLoaded', startLaunchScreenSequence);
         return;
       }
+      
+      // 🔥 CRITICAL: Start comprehensive image preloading IMMEDIATELY during launch screen
+      // This preloads ALL images in background while logos are showing
+      import('./src/utils/comprehensive-image-preloader.js').then(function(module) {
+        const { preloadAllStartupImages } = module;
+        console.log('📦 Starting comprehensive image preloading...');
+        preloadAllStartupImages().catch(function(error) {
+          console.error('❌ Comprehensive image preloading failed:', error);
+        });
+      }).catch(function(error) {
+        console.warn('⚠️ Failed to load comprehensive image preloader:', error);
+      });
       
       // Launch screen DOM already exists in HTML - just start the sequence
       import('./src/modules/launch-screen.js').then(function(module) {

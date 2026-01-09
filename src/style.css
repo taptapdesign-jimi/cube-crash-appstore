@@ -2753,20 +2753,39 @@ body{
 }
 
 /* Score bottom sheet specific styles */
+.score-bottom-sheet .simple-title-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px; /* Same gap as End This Run - subtitle is 8px from title */
+}
+
+.score-bottom-sheet .simple-title-section h2 {
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 40px;
+  font-weight: 900; /* heavy weight - same as End This Run */
+  color: #AD8775; /* Same color as End This Run */
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* Score bottom sheet subtitle - same styling as End This Run subtitle */
+.score-bottom-sheet .simple-title-section p {
+  font-family: "LTCrow", system-ui, -apple-system, sans-serif;
+  font-size: 20px;
+  color: #C4A896; /* Same color as End This Run subtitle (slider subtitle color) */
+  margin: 0; /* No margin - uses gap from parent (.simple-title-section has gap: 8px) */
+  line-height: 1.3; /* Same line-height as End This Run subtitle */
+  text-align: center;
+}
+
 .score-bottom-sheet .score-stats-container {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-top: 20px;
-}
-
-.score-bottom-sheet .bottom-sheet-title {
-  font-family: 'LTCrow', system-ui, -apple-system, sans-serif;
-  font-size: 24px;
-  font-weight: bold;
-  color: #6B4D3E;
-  text-align: center;
-  margin: 16px 0 0 0;
+  width: 100%;
+  margin-top: -16px; /* Približiti stats prema subtitle za 16px (gap iz simple-header je 40px, sada je efektivno 24px) */
 }
 
 /* Score bottom sheet uses modal-handle (same as end-run-modal) */
@@ -3751,6 +3770,14 @@ html.collectible-reward-open body {
     font-size: 22px;
     padding: 14px 48px;
     width: 240px; /* Slightly smaller on mobile */
+  }
+  
+  .score-bottom-sheet .simple-title-section h2 {
+    font-size: 32px;
+  }
+  
+  .score-bottom-sheet .simple-title-section p {
+    font-size: 20px; /* Same as End This Run subtitle on mobile */
   }
 }
 

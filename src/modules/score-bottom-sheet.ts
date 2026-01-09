@@ -32,27 +32,32 @@ function createModal(): HTMLElement {
   modalEl.innerHTML = `
     <div class="modal-handle"></div>
     <div class="simple-content">
-      <h2 id="score-sheet-title" class="bottom-sheet-title">Score Stats</h2>
-      <div class="score-stats-container">
-        <!-- High Score -->
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="./assets/highscore-icon.png" alt="" aria-hidden="true">
-          </div>
-          <div class="stat-content">
-            <div id="score-sheet-high-score" class="stat-value">0</div>
-            <div class="stat-label">High score</div>
-          </div>
+      <div class="simple-header">
+        <div class="simple-title-section">
+          <h2 id="score-sheet-title">Score Stats</h2>
+          <p>Your personal trophy.<br>Beat it to earn a new one.</p>
         </div>
-        
-        <!-- Cubes Cracked -->
-        <div class="stat-item">
-          <div class="stat-icon">
-            <img src="./assets/cubes-cracked.png" alt="" aria-hidden="true">
+        <div class="score-stats-container">
+          <!-- High Score -->
+          <div class="stat-item">
+            <div class="stat-icon">
+              <img src="./assets/highscore-icon.png" alt="" aria-hidden="true">
+            </div>
+            <div class="stat-content">
+              <div id="score-sheet-high-score" class="stat-value">0</div>
+              <div class="stat-label">High score</div>
+            </div>
           </div>
-          <div class="stat-content">
-            <div id="score-sheet-cubes-cracked" class="stat-value">0</div>
-            <div class="stat-label">Cubes cracked</div>
+          
+          <!-- Cubes Cracked -->
+          <div class="stat-item">
+            <div class="stat-icon">
+              <img src="./assets/cubes-cracked.png" alt="" aria-hidden="true">
+            </div>
+            <div class="stat-content">
+              <div id="score-sheet-cubes-cracked" class="stat-value">0</div>
+              <div class="stat-label">Cubes cracked</div>
+            </div>
           </div>
         </div>
       </div>
@@ -209,32 +214,36 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
   
   // Create named handlers for proper cleanup
   outsideClickHandler = (e: Event) => {
-    // 🔥 CRITICAL: Check if modal still exists and is visible before trying to close
-    if (!modal || !modalEl || !modalEl.parentNode) {
-      return;
-    }
-    if (e.target && !modalEl.contains(e.target as Node)) {
-      hideScoreBottomSheet();
+    // Check if click is outside modal AND modal is still open
+    if (modalEl && modalEl.parentNode && e.target && !modalEl.contains(e.target as Node)) {
+      // Check if modal is visible (has 'visible' class or isVisible flag is true)
+      if (modalEl.classList.contains('visible') || isVisible) {
+        console.log('📊 Outside click detected - closing score bottom sheet');
+        hideScoreBottomSheet();
+      }
     }
   };
   
   outsideTouchEndHandler = (e: TouchEvent) => {
-    // 🔥 CRITICAL: Check if modal still exists and is visible before trying to close
-    if (!modal || !modalEl || !modalEl.parentNode) {
-      return;
-    }
-    if (e.target && !modalEl.contains(e.target as Node)) {
-      hideScoreBottomSheet();
+    // Check if touch is outside modal AND modal is still open
+    if (modalEl && modalEl.parentNode && e.target && !modalEl.contains(e.target as Node)) {
+      // Check if modal is visible (has 'visible' class or isVisible flag is true)
+      if (modalEl.classList.contains('visible') || isVisible) {
+        console.log('📊 Outside touch detected - closing score bottom sheet');
+        hideScoreBottomSheet();
+      }
     }
   };
   
   // Attach with small delay to avoid capturing the click that opened the modal
   setTimeout(() => {
-    if (outsideClickHandler) {
-      document.addEventListener('click', outsideClickHandler);
+    if (outsideClickHandler && modalEl && modalEl.parentNode) {
+      document.addEventListener('click', outsideClickHandler, { passive: false });
+      console.log('📊 Outside click handler attached for score bottom sheet');
     }
-    if (outsideTouchEndHandler) {
-      document.addEventListener('touchend', outsideTouchEndHandler);
+    if (outsideTouchEndHandler && modalEl && modalEl.parentNode) {
+      document.addEventListener('touchend', outsideTouchEndHandler, { passive: false });
+      console.log('📊 Outside touch handler attached for score bottom sheet');
     }
   }, 200);
 }

@@ -245,8 +245,15 @@ async function startAssetPreloading(): Promise<void> {
       logger.info('✅ Homepage hidden while launch screen is active');
     }
     
-    // 🔥 CRITICAL: Start preloading in background (non-blocking, don't wait for it)
+    // 🔥 CRITICAL: Start comprehensive image preloading in background during launch screen
+    // This preloads ALL images while logos are showing, caches them permanently
     // Homepage should appear IMMEDIATELY after launch screen, not after preloading
+    const { preloadAllStartupImages } = await import('./utils/comprehensive-image-preloader.js');
+    preloadAllStartupImages().catch((error) => {
+      logger.error('❌ Comprehensive image preloading failed:', error);
+    });
+    
+    // Also start PIXI.js asset preloading (for game assets, not images)
     assetPreloader.preloadAll().catch((error) => {
       logger.error('❌ Asset preloading failed:', error);
     });

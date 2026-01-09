@@ -2939,6 +2939,68 @@ class JourneyBoardsManager {
   }
 
   private async openBoardDetails(board: JourneyBoard, skipJourneyExit: boolean = false): Promise<void> {
+    // 🔥 CRITICAL: Preload journey board images for this board (on-demand)
+    try {
+      const { preloadJourneyBoardImages } = await import('../utils/comprehensive-image-preloader.js');
+      await preloadJourneyBoardImages([board.id]);
+    } catch (error) {
+      logger.warn('⚠️ Failed to preload journey board images:', error);
+    }
+    
+    // 🔥 CRITICAL: Preload game assets BEFORE Play button is clicked
+    // This prevents 20-second delay when starting board game
+    try {
+      const { Assets } = await import('pixi.js');
+      const gameAssets = [
+        './assets/tile.png',
+        './assets/tile_numbers.png',
+        './assets/tile_numbers2.png',
+        './assets/tile_numbers3.png',
+        './assets/tile_numbers4.png',
+        './assets/wild.png',
+        './assets/wild@2x.png',
+        './assets/wild@3x.png',
+        './assets/wild-magnet.png',
+        './assets/wild-beer.png',
+        './assets/wild-beer@2x.png',
+        './assets/wild-beer@3x.png',
+      ];
+      
+      logger.info(`🎮 Preloading ${gameAssets.length} game assets for board ${board.id}...`);
+      
+      // Preload in background (non-blocking)
+      Promise.allSettled(
+        gameAssets.map(async (assetPath) => {
+          try {
+            // Check if already loaded
+            const existing = Assets.get(assetPath);
+            if (existing) {
+              return; // Already loaded
+            }
+            
+            // Register and load into PIXI Assets cache
+            try {
+              Assets.add({ alias: assetPath, src: assetPath });
+            } catch (err) {
+              // Already registered, ignore
+            }
+            
+            await Assets.load(assetPath);
+            logger.debug(`✅ Loaded ${assetPath} into PIXI Assets cache`);
+          } catch (err) {
+            logger.warn(`⚠️ Failed to preload ${assetPath}:`, err);
+          }
+        })
+      ).then(() => {
+        logger.info(`✅ All ${gameAssets.length} game assets preloaded for board ${board.id}`);
+      }).catch((error) => {
+        logger.warn('⚠️ Error preloading game assets:', error);
+      });
+    } catch (error) {
+      logger.warn('⚠️ Failed to preload game assets:', error);
+      // Don't block - game will load assets when needed
+    }
+    
     // 🔥 USER REQUEST: First exit animation on Journey screen (if visible), then enter animation on detail modal
     console.log(`🎬🎬🎬 OPENING BOARD DETAILS FOR BOARD ${board.id}${skipJourneyExit ? ' (skipping Journey exit)' : ' - exit Journey screen first'}`);
     logger.info(`🎬🎬🎬 OPENING BOARD DETAILS FOR BOARD ${board.id}${skipJourneyExit ? ' (skipping Journey exit)' : ' - exit Journey screen first'}`);
