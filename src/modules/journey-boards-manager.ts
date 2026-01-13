@@ -3177,6 +3177,23 @@ class JourneyBoardsManager {
               cubesEl.textContent = boardStats.cubesCracked.toLocaleString();
             }
             
+            // 🔥 CRITICAL FIX: Refresh score bottom sheet if it's currently open
+            // This ensures score bottom sheet shows updated stats after reset
+            try {
+              const scoreBottomSheetModule = await import('../modules/score-bottom-sheet.js');
+              if (scoreBottomSheetModule && typeof scoreBottomSheetModule.isScoreBottomSheetVisible === 'function') {
+                if (scoreBottomSheetModule.isScoreBottomSheetVisible()) {
+                  console.log('📊 Score bottom sheet is open - refreshing stats after reset');
+                  // showScoreBottomSheet will refresh stats if already visible
+                  if (typeof scoreBottomSheetModule.showScoreBottomSheet === 'function') {
+                    scoreBottomSheetModule.showScoreBottomSheet();
+                  }
+                }
+              }
+            } catch (error) {
+              logger.warn('⚠️ Failed to refresh score bottom sheet after reset:', error);
+            }
+            
             // Show feedback
             alert(`Board ${board.id} stats reset to 0`);
           } catch (error) {

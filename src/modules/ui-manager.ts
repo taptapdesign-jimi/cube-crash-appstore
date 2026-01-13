@@ -8,6 +8,8 @@ import { logger } from '../core/logger.js';
 import { boot as bootGame, layoutBoard as layoutGame } from './app-core.js';
 import sliderManager from './slider-manager.js';
 import { gsap } from 'gsap';
+// 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
+import { animateSettingsScreenEnter, animateSettingsScreenExit } from '../ui/settings-animations.js';
 
 // Extend Window interface for haptic feedback
 
@@ -2497,104 +2499,19 @@ class UIManager {
     console.log('🎬 Step 1: Playing exit animation for Settings slide (gradient preserved with !important)');
     animateSliderExit();
     
-    // Step 2: Wait for exit animation to complete, then fade background to solid color
+    // Step 2: Wait for exit animation to complete, then show Settings screen IMMEDIATELY (optimized)
     // Exit animation: 770ms
+    // 🔥 OPTIMIZATION: Show Settings screen immediately after exit animation, don't wait for fade
+    // Fade animation can happen in parallel - no need to block Settings screen display
     setTimeout(() => {
-      console.log('⚙️ Step 2: Exit animation complete, now fading background to solid color');
+      console.log('⚙️ Step 2: Exit animation complete, showing Settings screen IMMEDIATELY');
       
-      // 🔥 CRITICAL: NOW animate background from gradient to solid color (AFTER exit animation)
-      // Remove !important flags temporarily to allow GSAP animation
-      if (body) {
-        body.style.removeProperty('background');
-        body.style.removeProperty('background-color');
-        body.style.removeProperty('background-image');
-      }
-      if (html) {
-        html.style.removeProperty('background');
-        html.style.removeProperty('background-color');
-        html.style.removeProperty('background-image');
-      }
-      if (globalBg) {
-        (globalBg as HTMLElement).style.removeProperty('background');
-        (globalBg as HTMLElement).style.removeProperty('background-color');
-        (globalBg as HTMLElement).style.removeProperty('background-image');
-      }
-      if (appElement) {
-        appElement.style.removeProperty('background');
-      }
+      const settingsScreen = this.elements.settingsScreen;
+      if (!settingsScreen) return;
       
-      // Now animate with GSAP
-      if (gsap && body) {
-        gsap.killTweensOf(body);
-        body.style.transition = 'none';
-        gsap.set(body, { background: currentGradient });
-        gsap.to(body, {
-          background: targetSolidColor,
-          duration: fadeDuration,
-          ease: 'power2.inOut',
-          overwrite: 'auto',
-          immediateRender: false
-        });
-        console.log('✅ [Settings ENTER] Body background fade animation started from gradient to', targetSolidColor);
-      }
-      if (gsap && globalBg) {
-        gsap.killTweensOf(globalBg);
-        (globalBg as HTMLElement).style.transition = 'none';
-        gsap.set(globalBg, { background: currentGlobalBgGradient });
-        gsap.to(globalBg, {
-          background: targetSolidColor,
-          duration: fadeDuration,
-          ease: 'power2.inOut',
-          overwrite: 'auto',
-          immediateRender: false
-        });
-        console.log('✅ [Settings ENTER] Global-bg background fade animation started from gradient to', targetSolidColor);
-      }
-      if (gsap && appElement) {
-        gsap.killTweensOf(appElement);
-        appElement.style.transition = 'none';
-        gsap.set(appElement, { background: currentGradient });
-        gsap.to(appElement, {
-          background: targetSolidColor,
-          duration: fadeDuration,
-          ease: 'power2.inOut',
-          overwrite: 'auto',
-          immediateRender: false
-        });
-        console.log('✅ [Settings ENTER] App element background fade animation started from gradient to', targetSolidColor);
-      }
-      
-      // Step 3: Wait for fade animation to complete, then show settings screen
-      setTimeout(() => {
-        console.log('⚙️ Step 3: Showing settings screen after fade animation complete');
-        
-        const settingsScreen = this.elements.settingsScreen;
-        if (!settingsScreen) return;
-        
-        // 🔥 CRITICAL: Ensure gradient is still set before hiding homepage
-        // hideHomepage() might change background, so we re-apply gradient
-        if (body) {
-          body.style.setProperty('background', currentGradient, 'important');
-          body.style.setProperty('background-color', 'transparent', 'important');
-          body.style.setProperty('background-image', currentGradient, 'important');
-        }
-        if (html) {
-          html.style.setProperty('background', currentGradient, 'important');
-          html.style.setProperty('background-color', 'transparent', 'important');
-          html.style.setProperty('background-image', currentGradient, 'important');
-        }
-        if (globalBg) {
-          (globalBg as HTMLElement).style.setProperty('background', currentGlobalBgGradient, 'important');
-          (globalBg as HTMLElement).style.setProperty('background-color', 'transparent', 'important');
-          (globalBg as HTMLElement).style.setProperty('background-image', currentGlobalBgGradient, 'important');
-        }
-        if (appElement) {
-          appElement.style.setProperty('background', currentGlobalBgGradient, 'important');
-        }
-        
-        // Show settings screen after animation
-        this.hideHomepage();
-        this.setNavigationVisibility(false);
+      // Show settings screen IMMEDIATELY after exit animation (don't wait for fade)
+      this.hideHomepage();
+      this.setNavigationVisibility(false);
       
       // 🔥 CRITICAL: Refresh back button reference and ensure handler is attached
       const backButton = settingsScreen.querySelector('#settings-back-btn') as HTMLButtonElement | null;
@@ -2622,17 +2539,16 @@ class UIManager {
       this.setupSettingsToggles();
       
       // 🎬 CRITICAL: Trigger settings screen enter animation (pop-in) using GSAP
+      // 🔥 OPTIMIZATION: Use static import (already imported at top) to avoid 15s delay
       try {
-        import('../ui/settings-animations.js').then(({ animateSettingsScreenEnter }) => {
-          console.log('🎬 About to call animateSettingsScreenEnter()...');
-          // Small delay to ensure DOM is ready, then make screen visible and start animation
-          setTimeout(() => {
-            // Make screen visible so GSAP can animate individual elements
-            settingsScreen.style.opacity = '1';
-            console.log('🎬 Calling animateSettingsScreenEnter() after 50ms delay...');
-            animateSettingsScreenEnter();
-          }, 50);
-        });
+        // Small delay to ensure DOM is ready, then make screen visible and start animation
+        setTimeout(() => {
+          // Make screen visible so GSAP can animate individual elements
+          settingsScreen.style.opacity = '1';
+          console.log('🎬 Calling animateSettingsScreenEnter()...');
+          // Use statically imported function - no dynamic import delay!
+          animateSettingsScreenEnter();
+        }, 50);
       } catch (error) {
         console.error('❌ Failed to trigger settings enter animation:', error);
         // Fallback: just show the screen normally
@@ -2644,8 +2560,69 @@ class UIManager {
         const focusTarget = settingsScreen.querySelector('.settings-back-button') as HTMLElement | null;
         focusTarget?.focus();
       }, 100);
-      }, fadeDuration * 1000); // Close inner setTimeout (fade animation delay)
-    }, 770); // Close outer setTimeout (exit animation delay)
+      
+      // Step 3: Fade background to solid color IN PARALLEL (non-blocking)
+      // This happens while Settings screen is already visible, so no delay
+      console.log('⚙️ Step 3: Fading background to solid color (non-blocking, in parallel)');
+      
+      // Remove !important flags temporarily to allow GSAP animation
+      if (body) {
+        body.style.removeProperty('background');
+        body.style.removeProperty('background-color');
+        body.style.removeProperty('background-image');
+      }
+      if (html) {
+        html.style.removeProperty('background');
+        html.style.removeProperty('background-color');
+        html.style.removeProperty('background-image');
+      }
+      if (globalBg) {
+        (globalBg as HTMLElement).style.removeProperty('background');
+        (globalBg as HTMLElement).style.removeProperty('background-color');
+        (globalBg as HTMLElement).style.removeProperty('background-image');
+      }
+      if (appElement) {
+        appElement.style.removeProperty('background');
+      }
+      
+      // Now animate with GSAP (non-blocking, in parallel)
+      if (gsap && body) {
+        gsap.killTweensOf(body);
+        body.style.transition = 'none';
+        gsap.set(body, { background: currentGradient });
+        gsap.to(body, {
+          background: targetSolidColor,
+          duration: fadeDuration,
+          ease: 'power2.inOut',
+          overwrite: 'auto',
+          immediateRender: false
+        });
+      }
+      if (gsap && globalBg) {
+        gsap.killTweensOf(globalBg);
+        (globalBg as HTMLElement).style.transition = 'none';
+        gsap.set(globalBg, { background: currentGlobalBgGradient });
+        gsap.to(globalBg, {
+          background: targetSolidColor,
+          duration: fadeDuration,
+          ease: 'power2.inOut',
+          overwrite: 'auto',
+          immediateRender: false
+        });
+      }
+      if (gsap && appElement) {
+        gsap.killTweensOf(appElement);
+        appElement.style.transition = 'none';
+        gsap.set(appElement, { background: currentGradient });
+        gsap.to(appElement, {
+          background: targetSolidColor,
+          duration: fadeDuration,
+          ease: 'power2.inOut',
+          overwrite: 'auto',
+          immediateRender: false
+        });
+      }
+    }, 770); // Exit animation delay only - Settings screen shows immediately after
   }
   
   // Hide settings screen with enter animation
@@ -2772,11 +2749,11 @@ class UIManager {
     this.showHomepageQuietly();
     
     // 🎬 CRITICAL: Trigger settings screen exit animation (pop-out) AFTER showing homepage
+    // 🔥 OPTIMIZATION: Use static import (already imported at top) to avoid delay
     try {
-      import('../ui/settings-animations.js').then(({ animateSettingsScreenExit }) => {
-        console.log('🎬 About to call animateSettingsScreenExit()...');
-        animateSettingsScreenExit();
-      });
+      console.log('🎬 About to call animateSettingsScreenExit()...');
+      // Use statically imported function - no dynamic import delay!
+      animateSettingsScreenExit();
     } catch (error) {
       console.error('❌ Failed to trigger settings exit animation:', error);
     }

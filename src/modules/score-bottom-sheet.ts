@@ -5,6 +5,7 @@
  */
 
 import { statsService } from '../services/stats-service';
+import { boardStatsService } from '../services/board-stats-service.js';
 import { pauseGame, resumeGame } from './pause-utils.js';
 
 let modal: HTMLElement | null = null;
@@ -334,9 +335,48 @@ if (typeof window !== 'undefined') {
 
 export function showScoreBottomSheet(): void {
   // 🔥 SAME LOGIC AS END RUN MODAL: Check if already visible
-  if (isScoreBottomSheetVisible()) {
-    console.warn('⚠️ Score bottom sheet already open');
-    return;
+  // 🔥 CRITICAL FIX: If already visible, refresh stats instead of returning
+  // This ensures stats are updated when reset is clicked on detail card modal
+  if (isScoreBottomSheetVisible() && modal) {
+    console.log('📊 Score bottom sheet already open - refreshing stats');
+    
+    // Get current board number
+    let currentBoardNumber = 1;
+    try {
+      const STATE = (window as any).STATE;
+      if (STATE && Number.isFinite(STATE.boardNumber)) {
+        currentBoardNumber = STATE.boardNumber;
+      } else {
+        const savedGame = localStorage.getItem('cc_saved_game');
+        if (savedGame) {
+          const gameState = JSON.parse(savedGame);
+          if (Number.isFinite(gameState.boardNumber)) {
+            currentBoardNumber = gameState.boardNumber;
+          } else if (Number.isFinite(gameState.level)) {
+            currentBoardNumber = gameState.level;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to get board number for score bottom sheet refresh:', error);
+    }
+    
+    // Get fresh board-specific stats
+    const boardStats = boardStatsService.getBoardStats(currentBoardNumber);
+    
+    // Update values with fresh stats
+    const highScoreEl = document.getElementById('score-sheet-high-score');
+    const cubesCrackedEl = document.getElementById('score-sheet-cubes-cracked');
+    
+    if (highScoreEl) highScoreEl.textContent = boardStats.highScore.toLocaleString();
+    if (cubesCrackedEl) cubesCrackedEl.textContent = boardStats.cubesCracked.toLocaleString();
+    
+    console.log(`📊 Score bottom sheet stats refreshed for board ${currentBoardNumber}:`, {
+      highScore: boardStats.highScore,
+      cubesCracked: boardStats.cubesCracked
+    });
+    
+    return; // Don't recreate modal, just refresh stats
   }
 
   console.log('📊 Opening score bottom sheet');
@@ -372,9 +412,6 @@ export function showScoreBottomSheet(): void {
   // Mark modal as visible and set closing flag to false
   (el as any)._closing = false;
 
-  // Get fresh stats from service
-  const stats = statsService.getStats();
-  
   // 🔥 USER REQUEST: Update subtitle with current board number
   let currentBoardNumber = 1;
   try {
@@ -403,12 +440,22 @@ export function showScoreBottomSheet(): void {
     subtitleEl.innerHTML = `Your board ${boardNumberStr} trophy.<br>Beat it to earn a new one.`;
   }
   
-  // Update values
+  // 🔥 CRITICAL FIX: Use board-specific stats instead of global stats
+  // This ensures score bottom sheet shows correct stats for current board
+  // and updates correctly when reset is clicked on detail card modal
+  const boardStats = boardStatsService.getBoardStats(currentBoardNumber);
+  
+  // Update values with board-specific stats
   const highScoreEl = document.getElementById('score-sheet-high-score');
   const cubesCrackedEl = document.getElementById('score-sheet-cubes-cracked');
   
-  if (highScoreEl) highScoreEl.textContent = stats.highScore.toString();
-  if (cubesCrackedEl) cubesCrackedEl.textContent = stats.cubesCracked.toString();
+  if (highScoreEl) highScoreEl.textContent = boardStats.highScore.toLocaleString();
+  if (cubesCrackedEl) cubesCrackedEl.textContent = boardStats.cubesCracked.toLocaleString();
+  
+  console.log(`📊 Score bottom sheet showing board ${currentBoardNumber} stats:`, {
+    highScore: boardStats.highScore,
+    cubesCracked: boardStats.cubesCracked
+  });
 
   // Show modal with animation (same as end-run-modal)
   el.style.display = 'block';
