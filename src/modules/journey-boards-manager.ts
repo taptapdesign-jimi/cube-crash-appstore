@@ -1737,8 +1737,20 @@ class JourneyBoardsManager {
       card.addEventListener('touchcancel', cancelLongPress, { passive: true });
       card.addEventListener('touchmove', cancelLongPress, { passive: true });
       
-      // Add click handler to open detail modal (not start game directly)
-      card.addEventListener('click', () => {
+      // Add tap handler to open detail modal (not start game directly)
+      const handleCardTap = (e: Event) => {
+        try {
+          e.preventDefault();
+          e.stopPropagation();
+        } catch {}
+
+        // Avoid duplicate trigger: ignore click right after touchend
+        const now = Date.now();
+        if ((card as any)._lastTapTs && now - (card as any)._lastTapTs < 350) {
+          return;
+        }
+        (card as any)._lastTapTs = now;
+
         logger.info(`🖱️🖱️🖱️ CARD CLICKED FOR BOARD ${board.id}`);
         logger.info(`🔍 Board data on click:`, {
           id: board.id,
@@ -1751,11 +1763,118 @@ class JourneyBoardsManager {
         if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction === 'function') {
           JOURNEY_CARD_IDLE_BOUNCE.notifyInteraction();
         }
-        // Open detail modal for this board (with exit animation on Journey screen first)
-        logger.info(`🚀🚀🚀 CALLING openBoardDetails FOR BOARD ${board.id}`);
-        this.openBoardDetails(board).catch((error) => {
-          logger.error('❌ Failed to open board details:', error);
-        });
+
+        const cardEl = card as HTMLElement;
+        if (!cardEl) {
+          this.openBoardDetails(board).catch((error) => {
+            logger.error('❌ Failed to open board details:', error);
+          });
+          return;
+        }
+
+        // Prevent double-tap re-entry while animation is running
+        if ((cardEl as any)._openingDetail === true) {
+          return;
+        }
+        (cardEl as any)._openingDetail = true;
+
+        // 🔥 USER REQUEST: Tap feedback animation (pop out + pop in), screen shake, haptic
+        // Total duration: 300ms, immediate on tap
+        const totalMs = 300;
+        const downMs = 90;
+        const upMs = 120;
+        const settleMs = totalMs - downMs - upMs; // 90ms
+        const rotationDeg = (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 6); // up to 8deg
+
+        try {
+          // Haptic feedback
+          if (typeof (window as any).triggerHapticImpact === 'function') {
+            (window as any).triggerHapticImpact('medium');
+          }
+
+          // Screen shake on Journey screen (like explosion feel)
+          const shakeTarget =
+            document.getElementById('journey-screen') ||
+            document.getElementById('home') ||
+            document.body;
+          if (shakeTarget) {
+            try { gsap.killTweensOf(shakeTarget); } catch {}
+            const shakeTl = gsap.timeline({
+              onComplete: () => {
+                try { gsap.set(shakeTarget, { x: 0, y: 0 }); } catch {}
+              }
+            });
+            const strength = 10;
+            const steps = 6;
+            const dt = 0.18 / steps;
+            for (let i = 0; i < steps; i++) {
+              const p = 1 - (i / steps);
+              const amp = strength * p;
+              const dx = (Math.random() * 2 - 1) * amp;
+              const dy = (Math.random() * 2 - 1) * amp;
+              shakeTl.to(shakeTarget, { x: dx, y: dy, duration: dt, ease: 'sine.inOut' }, i * dt);
+            }
+          }
+
+          // Card pop animation (scale down, pop up, settle)
+          cardEl.style.transformOrigin = '50% 50%';
+          try { gsap.killTweensOf(cardEl); } catch {}
+          const tl = gsap.timeline({
+            onComplete: () => {
+              (cardEl as any)._openingDetail = false;
+              logger.info(`🚀🚀🚀 CALLING openBoardDetails FOR BOARD ${board.id}`);
+              this.openBoardDetails(board).catch((error) => {
+                logger.error('❌ Failed to open board details:', error);
+              });
+            }
+          });
+          tl.to(cardEl, { scale: 0.7, rotation: 0, duration: downMs / 1000, ease: 'power2.out' })
+            .to(cardEl, { scale: 1.69, rotation: rotationDeg, duration: upMs / 1000, ease: 'power2.out' })
+            .to(cardEl, { scale: 1.0, rotation: 0, duration: settleMs / 1000, ease: 'power2.inOut' });
+        } catch (error) {
+          (cardEl as any)._openingDetail = false;
+          logger.warn('⚠️ Tap animation failed, opening detail modal immediately:', error);
+          this.openBoardDetails(board).catch((err) => {
+            logger.error('❌ Failed to open board details:', err);
+          });
+        }
+      };
+
+      // Only treat as tap if finger didn't move (drag threshold)
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchMoved = false;
+      const TAP_MOVE_THRESHOLD = 10; // px
+
+      card.addEventListener('touchstart', (e: TouchEvent) => {
+        if (!e.touches || e.touches.length === 0) return;
+        const t = e.touches[0];
+        touchStartX = t.clientX;
+        touchStartY = t.clientY;
+        touchMoved = false;
+      }, { passive: true });
+
+      card.addEventListener('touchmove', (e: TouchEvent) => {
+        if (!e.touches || e.touches.length === 0) return;
+        const t = e.touches[0];
+        const dx = t.clientX - touchStartX;
+        const dy = t.clientY - touchStartY;
+        if ((dx * dx + dy * dy) > (TAP_MOVE_THRESHOLD * TAP_MOVE_THRESHOLD)) {
+          touchMoved = true;
+        }
+      }, { passive: true });
+
+      card.addEventListener('touchend', (e: TouchEvent) => {
+        if (touchMoved) {
+          return; // drag/scroll - do not trigger tap
+        }
+        handleCardTap(e);
+      }, { passive: false });
+
+      card.addEventListener('click', (e) => {
+        // If touch already handled or user was dragging, ignore click
+        if (touchMoved) return;
+        handleCardTap(e);
       });
     } else if (isInterim) {
       // Interim card - show common back.png, clicking directly continues game (no detail modal)
