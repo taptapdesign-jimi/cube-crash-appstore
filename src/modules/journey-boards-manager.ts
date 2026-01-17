@@ -2808,12 +2808,65 @@ class JourneyBoardsManager {
     const viewportCenterX = viewportWidth / 2; // Viewport center: 390 / 2 = 195px
     // To center card in viewport, move container left by: cardCenterX - viewportCenterX
     const cardFocusX = -(cardCenterX - viewportCenterX); // Negative translateX to move container left
+    const clampedCardFocusX = Math.max(-maxScroll, Math.min(0, cardFocusX));
+    const snapPoints = [0, clampedCardFocusX, -maxScroll];
+    const getNearestSnapIndex = (x: number) => {
+      let bestIndex = 0;
+      let bestDist = Infinity;
+      for (let i = 0; i < snapPoints.length; i++) {
+        const d = Math.abs(x - snapPoints[i]);
+        if (d < bestDist) {
+          bestDist = d;
+          bestIndex = i;
+        }
+      }
+      return bestIndex;
+    };
+    
+    // 🔥 USER REQUEST: Center text in viewport when on step 3 (position -maxScroll)
+    const descEl = container.parentElement?.querySelector('#detail-card-description') as HTMLElement;
+    let lastTextSnapIndex: number | null = null;
+    const updateTextMarginForPosition = (snapIndex: number) => {
+      if (!descEl) return;
+      if (lastTextSnapIndex === snapIndex) return;
+      lastTextSnapIndex = snapIndex;
+      
+      if (snapIndex === 2) {
+        // Step 3: Center text in viewport using getBoundingClientRect for precise measurement
+        // Only run after snap completes to avoid jitter during animation
+        requestAnimationFrame(() => {
+          const textRect = descEl.getBoundingClientRect();
+          const textCenterX = textRect.left + (textRect.width / 2);
+          const viewportCenterX = window.innerWidth / 2;
+          const offsetX = viewportCenterX - textCenterX;
+          descEl.style.transform = `translateX(${offsetX}px)`;
+          logger.info(`📐 Step 3: Text centered - text center: ${textCenterX.toFixed(1)}px, viewport center: ${viewportCenterX.toFixed(1)}px, offset: ${offsetX.toFixed(1)}px`);
+        });
+      } else {
+        // Step 0 or 1: Reset transform and use default 80px margin
+        descEl.style.transform = 'none';
+        descEl.style.marginLeft = '80px';
+      }
+    };
+    const getSnapIndexByVelocity = (startIndex: number, deltaX: number, v: number) => {
+      // Require a meaningful swipe before changing positions
+      const MIN_SWIPE_DISTANCE = 40; // px
+      const MIN_SWIPE_VELOCITY = 0.25;
+      if (Math.abs(deltaX) < MIN_SWIPE_DISTANCE && Math.abs(v) < MIN_SWIPE_VELOCITY) {
+        return startIndex; // treat as tap / micro-move
+      }
+      // Positive velocity or deltaX => swipe left -> next position
+      if (v > 0 || deltaX > 0) return Math.min(snapPoints.length - 1, startIndex + 1);
+      // Negative velocity or deltaX => swipe right -> previous position
+      return Math.max(0, startIndex - 1);
+    };
     
     const quickSetX = gsap.quickSetter(container, 'x', 'px');
     let currentX = 0;
     let isDragging = false;
     let startX = 0;
     let startTranslateX = 0;
+    let dragStartSnapIndex = 0;
     let lastX = 0;
     let lastTime = 0;
     let velocity = 0;
@@ -2823,6 +2876,9 @@ class JourneyBoardsManager {
     container.style.willChange = 'transform';
     container.style.cursor = 'grab';
     
+    // 🔥 USER REQUEST: Initialize text margin for starting position (step 0)
+    updateTextMarginForPosition(0);
+    
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length > 0) {
         // 🔥 USER REQUEST: Don't start dragging immediately - wait for actual movement
@@ -2830,6 +2886,7 @@ class JourneyBoardsManager {
         startX = e.touches[0].clientX;
         lastX = startX;
         startTranslateX = currentX;
+        dragStartSnapIndex = getNearestSnapIndex(startTranslateX);
         lastTime = performance.now();
         velocity = 0;
         // Don't set isDragging = true here - wait for touchmove
@@ -2894,66 +2951,32 @@ class JourneyBoardsManager {
       e.preventDefault();
     };
     
-    const handleTouchEnd = () => {
+      const handleTouchEnd = () => {
       if (!isDragging) return;
       isDragging = false;
       container.style.cursor = 'grab';
-      
-      // 🔥 APPLE STYLE: Apply momentum with smooth deceleration
-      // Velocity: positive = left swipe, negative = right swipe
-      if (Math.abs(velocity) > 0.05) {
-        const momentum = velocity * 300; // Momentum multiplier
-        // Velocity is positive for left swipe → negative translateX
-        // Velocity is negative for right swipe → positive translateX
-        let targetX = currentX - momentum; // Subtract momentum: left swipe (positive velocity) → negative translateX
-        
-        // Clamp to bounds
-        targetX = Math.max(-maxScroll, Math.min(0, targetX));
-        
-        // Smooth deceleration animation
-        momentumAnimation = gsap.to(container, {
-          x: targetX,
-          duration: 0.6,
-          ease: 'power2.out', // Smooth deceleration
-          force3D: true,
-          onUpdate: () => {
-            currentX = gsap.getProperty(container, 'x') as number;
-          },
-          onComplete: () => {
-            momentumAnimation = null;
-          }
-        });
-      } else {
-        // No momentum - snap to nearest focus point
-        let targetX = currentX;
-        
-        // 🔥 USER REQUEST: Snap logic - prioritize card focus when swiping left
-        // If swiping left (positive velocity or negative currentX), snap to card focus
-        // Otherwise snap to section boundaries
-        if (velocity > 0 || currentX < -50) {
-          // Swiping left - snap to card focus position
-          targetX = Math.max(cardFocusX, -maxScroll); // Don't go beyond maxScroll
-        } else if (currentX > -50 && currentX < 0) {
-          // Close to start - snap to beginning (stats+card section)
-          targetX = 0;
-        } else {
-          // Otherwise - snap to description section
-          targetX = -maxScroll;
-        }
-        
-        momentumAnimation = gsap.to(container, {
-          x: targetX,
-          duration: 0.3,
-          ease: 'power2.out',
-          force3D: true,
-          onUpdate: () => {
-            currentX = gsap.getProperty(container, 'x') as number;
-          },
-          onComplete: () => {
-            momentumAnimation = null;
-          }
-        });
+      const totalDelta = startTranslateX - currentX; // Positive = swiped left
+      const targetIndex = getSnapIndexByVelocity(dragStartSnapIndex, totalDelta, velocity);
+      let targetX = snapPoints[targetIndex];
+      // Deadzone near start to prevent accidental snap to center on tap
+      if (Math.abs(currentX) < 30) {
+        targetX = snapPoints[0];
       }
+      momentumAnimation = gsap.to(container, {
+        x: targetX,
+        duration: 0.5,
+        ease: 'back.out(1.15)',
+        force3D: true,
+        onUpdate: () => {
+          currentX = gsap.getProperty(container, 'x') as number;
+        },
+        onComplete: () => {
+          momentumAnimation = null;
+          // Final position update
+          const finalIndex = getNearestSnapIndex(currentX);
+          updateTextMarginForPosition(finalIndex);
+        }
+      });
     };
     
     // Mouse handlers for desktop
@@ -2963,6 +2986,7 @@ class JourneyBoardsManager {
       startX = e.clientX;
       lastX = startX;
       startTranslateX = currentX;
+      dragStartSnapIndex = getNearestSnapIndex(startTranslateX);
       lastTime = performance.now();
       velocity = 0;
       // Don't set isDragging = true here - wait for mousemove
@@ -3018,52 +3042,24 @@ class JourneyBoardsManager {
       if (!isDragging) return;
       isDragging = false;
       container.style.cursor = 'grab';
-      
-      if (Math.abs(velocity) > 0.05) {
-        const momentum = velocity * 300;
-        // Velocity: positive = left swipe → negative translateX
-        let targetX = currentX - momentum;
-        targetX = Math.max(-maxScroll, Math.min(0, targetX));
-        
-        momentumAnimation = gsap.to(container, {
-          x: targetX,
-          duration: 0.6,
-          ease: 'power2.out',
-          force3D: true,
-          onUpdate: () => {
-            currentX = gsap.getProperty(container, 'x') as number;
-          },
-          onComplete: () => {
-            momentumAnimation = null;
-          }
-        });
-      } else {
-        // 🔥 USER REQUEST: Snap logic - prioritize card focus when swiping left
-        let targetX = currentX;
-        if (velocity > 0 || currentX < -50) {
-          // Swiping left - snap to card focus position
-          targetX = Math.max(cardFocusX, -maxScroll);
-        } else if (currentX > -50 && currentX < 0) {
-          // Close to start - snap to beginning
-          targetX = 0;
-        } else {
-          // Otherwise - snap to description section
-          targetX = -maxScroll;
-        }
-        
-        momentumAnimation = gsap.to(container, {
-          x: targetX,
-          duration: 0.3,
-          ease: 'power2.out',
-          force3D: true,
-          onUpdate: () => {
-            currentX = gsap.getProperty(container, 'x') as number;
-          },
-          onComplete: () => {
-            momentumAnimation = null;
-          }
-        });
+      const totalDelta = startTranslateX - currentX; // Positive = swiped left
+      const targetIndex = getSnapIndexByVelocity(dragStartSnapIndex, totalDelta, velocity);
+      let targetX = snapPoints[targetIndex];
+      if (Math.abs(currentX) < 30) {
+        targetX = snapPoints[0];
       }
+      momentumAnimation = gsap.to(container, {
+        x: targetX,
+        duration: 0.5,
+        ease: 'back.out(1.15)',
+        force3D: true,
+        onUpdate: () => {
+          currentX = gsap.getProperty(container, 'x') as number;
+        },
+        onComplete: () => {
+          momentumAnimation = null;
+        }
+      });
     };
     
     // Attach event listeners
@@ -3090,6 +3086,16 @@ class JourneyBoardsManager {
   }
 
   private async openBoardDetails(board: JourneyBoard, skipJourneyExit: boolean = false): Promise<void> {
+    // 🔥 MEMORY LEAK FIX: Stop any existing detail image idle animation from previous modal
+    const existingModal = document.getElementById('journey-board-detail-modal') as HTMLElement;
+    if (existingModal) {
+      const existingImage = existingModal.querySelector('#detail-card-image') as HTMLElement;
+      if (existingImage) {
+        existingImage.style.animation = 'none';
+        existingImage.style.animationPlayState = 'paused';
+        logger.info('🧹 Stopped existing detail image idle animation before opening new modal');
+      }
+    }
     // 🔥 CRITICAL: Preload journey board images for this board (on-demand)
     try {
       const { preloadJourneyBoardImages } = await import('../utils/comprehensive-image-preloader.js');
@@ -4169,6 +4175,12 @@ class JourneyBoardsManager {
                   }
                 },
                 onComplete: () => {
+                  // 🔥 MEMORY LEAK FIX: Only start idle animation if modal is still active and visible
+                  if (!detailModal || detailModal.hidden || detailModal.style.display === 'none') {
+                    logger.warn('⚠️ Modal is closed - skipping idle animation start');
+                    return;
+                  }
+                  
                   // 🔥 CRITICAL: Ensure card remains visible after animation
                   detailImage.style.visibility = 'visible';
                   detailImage.style.opacity = '1';
@@ -4176,7 +4188,16 @@ class JourneyBoardsManager {
                     detailImgEl.style.visibility = 'visible';
                     detailImgEl.style.opacity = '1';
                   }
-                  logger.info('🃏 Card image animation completed - card is now visible');
+                  
+                  // 🔥 USER REQUEST: Restore idle animation on detail card image
+                  // Only if modal is still active (prevents memory leak if modal closed during animation)
+                  if (detailModal && !detailModal.hidden && detailModal.style.display !== 'none') {
+                    detailImage.style.animation = 'detailImageIdle 3s ease-in-out infinite';
+                    detailImage.style.animationPlayState = 'running';
+                    logger.info('🃏 Card image idle animation started - modal is active');
+                  } else {
+                    logger.warn('⚠️ Modal is not active - idle animation not started');
+                  }
                 }
               }
             );
