@@ -2170,20 +2170,13 @@ class JourneyBoardsManager {
         logger.info('🧹 Detail image CSS animations stopped');
       }
       
-      // 🔥 USER REQUEST: Cleanup peekaboo overlay
-      if ((modal as any).__peekabooOverlay) {
-        const overlayData = (modal as any).__peekabooOverlay;
-        const overlay = overlayData.element;
-        const handlers = overlayData.handlers;
-        
-        if (overlay && handlers) {
-          overlay.removeEventListener('touchstart', handlers.touchStart);
-          overlay.removeEventListener('touchend', handlers.touchEnd);
-          overlay.removeEventListener('click', handlers.click);
-          overlay.remove();
-          delete (modal as any).__peekabooOverlay;
-          logger.info('✅ Peekaboo overlay cleaned up');
-        }
+      // 🔥 USER REQUEST: Cleanup peekaboo tap handlers
+      if (swipeableContainer && (swipeableContainer as any).__peekabooTapHandlers) {
+        const handlers = (swipeableContainer as any).__peekabooTapHandlers;
+        swipeableContainer.removeEventListener('touchstart', handlers.touchStart, { capture: true } as any);
+        swipeableContainer.removeEventListener('touchend', handlers.touchEnd, { capture: true } as any);
+        delete (swipeableContainer as any).__peekabooTapHandlers;
+        logger.info('✅ Peekaboo tap handlers cleaned up');
       }
       
       // 🔥 MEMORY LEAK FIX: Kill GSAP animations on modal elements
@@ -2863,20 +2856,6 @@ class JourneyBoardsManager {
         descEl.style.transform = 'none';
         descEl.style.marginLeft = '80px';
       }
-      
-      // 🔥 USER REQUEST: Update peekaboo overlay visibility based on position
-      updateOverlayVisibility(snapIndex);
-    };
-    
-    // 🔥 USER REQUEST: Function to show/hide peekaboo overlay based on snap position
-    const updateOverlayVisibility = (snapIndex: number) => {
-      const modal = container.parentElement?.closest('#journey-board-detail-modal') as HTMLElement;
-      if (modal && (modal as any).__peekabooOverlay) {
-        const overlayData = (modal as any).__peekabooOverlay;
-        if (overlayData.updateVisibility) {
-          overlayData.updateVisibility(snapIndex);
-        }
-      }
     };
     const getSnapIndexByVelocity = (startIndex: number, deltaX: number, v: number) => {
       // Require a meaningful swipe before changing positions
@@ -3088,9 +3067,9 @@ class JourneyBoardsManager {
         },
         onComplete: () => {
           momentumAnimation = null;
-          // 🔥 USER REQUEST: Update text margin AND overlay visibility after mouse swipe completes
+          // 🔥 USER REQUEST: Update text margin after mouse swipe completes
           const finalIndex = getNearestSnapIndex(currentX);
-          updateTextMarginForPosition(finalIndex); // This also calls updateOverlayVisibility
+          updateTextMarginForPosition(finalIndex);
         }
       });
     };
@@ -3128,9 +3107,9 @@ class JourneyBoardsManager {
         },
         onComplete: () => {
           momentumAnimation = null;
-          // 🔥 USER REQUEST: Update text margin AND overlay visibility after slide completes
+          // 🔥 USER REQUEST: Update text margin after slide completes
           const finalIndex = getNearestSnapIndex(currentX);
-          updateTextMarginForPosition(finalIndex); // This also calls updateOverlayVisibility
+          updateTextMarginForPosition(finalIndex);
         }
       });
     };
@@ -3515,156 +3494,52 @@ class JourneyBoardsManager {
         setTimeout(() => {
           this.initDetailModalSwipe(swipeableContainer);
           
-          // 🔥 USER REQUEST: Add transparent overlay on peekaboo card area for tap detection
-          // This overlay sits OUTSIDE swipeable container so swipe logic doesn't interfere
-          const detailCardImage = detailModal.querySelector('#detail-card-image') as HTMLElement;
-          if (detailCardImage && (swipeableContainer as any).__detailSwipeHandlers) {
+          // 🔥 USER REQUEST: Add peekaboo tap detection directly on swipeable container
+          // Detect taps on right edge (peekaboo area) when at position 0
+          if ((swipeableContainer as any).__detailSwipeHandlers) {
             const handlers = (swipeableContainer as any).__detailSwipeHandlers;
             const slideToPosition = handlers.slideToPosition;
             const snapPoints = handlers.snapPoints;
             
             if (slideToPosition && snapPoints && snapPoints.length >= 2) {
-              // Create transparent overlay over peekaboo card area
-              const peekabooOverlay = document.createElement('div');
-              peekabooOverlay.id = 'peekaboo-tap-overlay';
-              peekabooOverlay.style.position = 'fixed';
-              peekabooOverlay.style.zIndex = '1000'; // Above card, below header
-              peekabooOverlay.style.pointerEvents = 'none'; // 🔥 DEFAULT: Don't block swipe events
-              peekabooOverlay.style.cursor = 'pointer';
-              peekabooOverlay.style.backgroundColor = 'transparent';
-              // Debug: uncomment to see overlay area
-              // peekabooOverlay.style.backgroundColor = 'rgba(255, 0, 0, 0.2)';
+              let peekabooTapStartX = 0;
+              let peekabooTapStartY = 0;
+              let peekabooTapStartTime = 0;
+              const PEEKABOO_TAP_THRESHOLD = 10;
+              const PEEKABOO_TAP_TIME_THRESHOLD = 300;
               
-              // Position overlay to cover visible peekaboo part of card
-              // Card is in stats section which is left-padded 24px
-              // Visible peekaboo part is approximately 80-100px from right edge of screen
-              const updateOverlayPosition = () => {
-                const cardRect = detailCardImage.getBoundingClientRect();
-                const viewportWidth = window.innerWidth;
-                // Peekaboo visible area: from (viewportWidth - 100px) to viewportWidth
-                const peekabooLeft = viewportWidth - 100;
-                const peekabooWidth = 100;
-                peekabooOverlay.style.left = `${peekabooLeft}px`;
-                peekabooOverlay.style.top = `${cardRect.top}px`;
-                peekabooOverlay.style.width = `${peekabooWidth}px`;
-                peekabooOverlay.style.height = `${cardRect.height}px`;
-                console.log('🎯 Peekaboo overlay positioned:', { 
-                  left: peekabooLeft, 
-                  top: cardRect.top, 
-                  width: peekabooWidth, 
-                  height: cardRect.height 
-                });
-              };
-              
-              updateOverlayPosition();
-              detailModal.appendChild(peekabooOverlay);
-              
-              // Track tap vs swipe
-              let tapStartX = 0;
-              let tapStartY = 0;
-              let tapStartTime = 0;
-              const TAP_THRESHOLD = 10; // px movement threshold
-              const TAP_TIME_THRESHOLD = 300; // ms time threshold
-              
-              const handleTouchStart = (e: TouchEvent) => {
-                // Only handle if overlay is visible (position 0)
-                if (peekabooOverlay.style.display !== 'block') {
-                  console.log('🎯 Peekaboo overlay touchstart ignored - overlay hidden');
-                  return;
-                }
+              // Listen for taps on swipeable container
+              const handlePeekabooTap = (e: TouchEvent) => {
+                // Only handle touchend events
+                if (e.type !== 'touchend') return;
                 
-                if (e.touches.length > 0) {
-                  tapStartX = e.touches[0].clientX;
-                  tapStartY = e.touches[0].clientY;
-                  tapStartTime = performance.now();
-                  console.log('🎯 Peekaboo overlay touchstart:', { x: tapStartX, y: tapStartY });
-                  
-                  // 🔥 CRITICAL: Enable pointer events only during touch to detect tap
-                  // This allows swipe to work through overlay when not tapping
-                  peekabooOverlay.style.pointerEvents = 'auto';
-                }
-              };
-              
-              const handleTouchEnd = (e: TouchEvent) => {
-                // 🔥 CRITICAL: Disable pointer events immediately after touch ends
-                // This allows swipe to work through overlay
-                peekabooOverlay.style.pointerEvents = 'none';
-                
-                // Only handle if overlay is visible (position 0)
-                if (peekabooOverlay.style.display !== 'block') {
-                  console.log('🎯 Peekaboo overlay touchend ignored - overlay hidden');
-                  return;
-                }
-                
-                const tapEndTime = performance.now();
-                const tapDuration = tapEndTime - tapStartTime;
-                
-                // Get touch end position from changedTouches
-                const endX = e.changedTouches[0].clientX;
-                const endY = e.changedTouches[0].clientY;
-                const moveDistance = Math.sqrt(Math.pow(endX - tapStartX, 2) + Math.pow(endY - tapStartY, 2));
-                
-                console.log('🎯 Peekaboo overlay touchend:', { 
-                  startX: tapStartX, 
-                  startY: tapStartY, 
-                  endX, 
-                  endY, 
-                  moveDistance, 
-                  tapDuration 
-                });
-                
-                // Check if it was a tap (not a swipe)
-                const isTap = moveDistance < TAP_THRESHOLD && tapDuration < TAP_TIME_THRESHOLD;
-                
-                if (!isTap) {
-                  console.log('🎯 Peekaboo tap ignored - was a swipe/drag');
-                  return;
-                }
-                
-                // Check current position - only slide if at position 0
-                const currentX = gsap.getProperty(swipeableContainer, 'x') as number;
-                const isAtPosition0 = Math.abs(currentX - snapPoints[0]) < 10; // Within 10px of position 0
-                
-                console.log('🎯 Peekaboo tap detected - current position:', { currentX, isAtPosition0 });
-                
-                if (isAtPosition0) {
-                  console.log('🎯 Peekaboo card tapped - sliding to full card view (position 1)');
-                  logger.info('🎯 Peekaboo card tapped - sliding to full card view (position 1)');
-                  
-                  e.preventDefault();
-                  e.stopPropagation();
-                  
-                  slideToPosition(1); // Slide to position 1 (full card centered)
-                  
-                  // Haptic feedback
-                  if (typeof (window as any).triggerHapticImpact === 'function') {
-                    (window as any).triggerHapticImpact('light');
-                  }
-                } else {
-                  console.log('🎯 Peekaboo tap ignored - not at position 0');
-                }
-              };
-              
-              // Also handle click for desktop
-              const handleClick = (e: MouseEvent) => {
-                // Only handle if overlay is visible (position 0)
-                if (peekabooOverlay.style.display !== 'block') {
-                  console.log('🎯 Peekaboo overlay click ignored - overlay hidden');
-                  return;
-                }
-                
-                console.log('🎯 Peekaboo overlay click');
-                
-                // Check current position
+                // Check if we're at position 0
                 const currentX = gsap.getProperty(swipeableContainer, 'x') as number;
                 const isAtPosition0 = Math.abs(currentX - snapPoints[0]) < 10;
+                if (!isAtPosition0) return;
                 
-                if (isAtPosition0) {
-                  console.log('🎯 Peekaboo card clicked - sliding to full card view (position 1)');
-                  logger.info('🎯 Peekaboo card clicked - sliding to full card view (position 1)');
-                  
-                  e.preventDefault();
-                  e.stopPropagation();
+                // Check if touch was in peekaboo area (right 100px of screen)
+                const endX = e.changedTouches[0].clientX;
+                const endY = e.changedTouches[0].clientY;
+                const viewportWidth = window.innerWidth;
+                const peekabooLeft = viewportWidth - 100;
+                
+                if (endX < peekabooLeft) {
+                  // Not in peekaboo area
+                  return;
+                }
+                
+                // Check if it was a tap (not a swipe)
+                const moveDistance = Math.sqrt(
+                  Math.pow(endX - peekabooTapStartX, 2) + 
+                  Math.pow(endY - peekabooTapStartY, 2)
+                );
+                const tapDuration = performance.now() - peekabooTapStartTime;
+                const isTap = moveDistance < PEEKABOO_TAP_THRESHOLD && tapDuration < PEEKABOO_TAP_TIME_THRESHOLD;
+                
+                if (isTap) {
+                  console.log('🎯 Peekaboo area tapped - sliding to full card view');
+                  logger.info('🎯 Peekaboo area tapped - sliding to full card view');
                   
                   slideToPosition(1);
                   
@@ -3674,41 +3549,26 @@ class JourneyBoardsManager {
                 }
               };
               
-              // Add event listeners
-              peekabooOverlay.addEventListener('touchstart', handleTouchStart, { passive: true });
-              peekabooOverlay.addEventListener('touchend', handleTouchEnd, { passive: false });
-              peekabooOverlay.addEventListener('click', handleClick);
-              
-              // Store overlay and handlers for cleanup + function to show/hide based on position
-              (detailModal as any).__peekabooOverlay = {
-                element: peekabooOverlay,
-                handlers: {
-                  touchStart: handleTouchStart,
-                  touchEnd: handleTouchEnd,
-                  click: handleClick
-                },
-                updateVisibility: (snapIndex: number) => {
-                  if (snapIndex === 0) {
-                    // Position 0: stats + peekaboo - show overlay
-                    peekabooOverlay.style.display = 'block';
-                    peekabooOverlay.style.pointerEvents = 'none'; // 🔥 Start with none, enable only during touch
-                    peekabooOverlay.style.zIndex = '1000'; // Above card, below header
-                    console.log('🎯 Peekaboo overlay shown (position 0)');
-                  } else {
-                    // Position 1 or 2: full card or text - hide overlay completely
-                    peekabooOverlay.style.display = 'none';
-                    peekabooOverlay.style.pointerEvents = 'none';
-                    peekabooOverlay.style.zIndex = '-1'; // Behind everything to prevent any interference
-                    console.log('🎯 Peekaboo overlay hidden (position ' + snapIndex + ')');
-                  }
+              const handlePeekabooTouchStart = (e: TouchEvent) => {
+                if (e.touches.length > 0) {
+                  peekabooTapStartX = e.touches[0].clientX;
+                  peekabooTapStartY = e.touches[0].clientY;
+                  peekabooTapStartTime = performance.now();
                 }
               };
               
-              // Store reference to overlay in swipe handlers so we can update visibility
-              (swipeableContainer as any).__detailSwipeHandlers.peekabooOverlay = peekabooOverlay;
+              // Add listeners with capture to catch before swipe logic
+              swipeableContainer.addEventListener('touchstart', handlePeekabooTouchStart, { passive: true, capture: true });
+              swipeableContainer.addEventListener('touchend', handlePeekabooTap, { passive: true, capture: true });
               
-              console.log('✅ Peekaboo overlay created and listeners added');
-              logger.info('✅ Peekaboo overlay created and listeners added');
+              // Store handlers for cleanup
+              (swipeableContainer as any).__peekabooTapHandlers = {
+                touchStart: handlePeekabooTouchStart,
+                touchEnd: handlePeekabooTap
+              };
+              
+              console.log('✅ Peekaboo tap detection added to swipeable container');
+              logger.info('✅ Peekaboo tap detection added to swipeable container');
             }
           }
           
