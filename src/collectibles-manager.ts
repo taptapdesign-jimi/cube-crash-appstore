@@ -437,6 +437,29 @@ class CollectiblesManager {
     (screen as HTMLElement).style.willChange = 'opacity, transform';
     
     logger.info('🎁 Removed hidden class and inline styles from Journey screen - set opacity 0 to prevent flash');
+
+    // 🔥 USER REQUEST: Restore scroll position ASAP when returning from interim board
+    const returningFromInterimBoardEarly =
+      (window as any).__ccReturningFromInterimBoard ||
+      localStorage.getItem('__ccReturningFromInterimBoard') === 'true';
+    if (returningFromInterimBoardEarly) {
+      try {
+        const scrollableEarly = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+        const savedScrollTopEarly =
+          (window as any).__ccJourneyScrollTop ??
+          Number(localStorage.getItem('__ccJourneyScrollTop'));
+        if (scrollableEarly && typeof savedScrollTopEarly === 'number') {
+          // Apply multiple times to beat any layout/animation resets
+          scrollableEarly.scrollTop = savedScrollTopEarly;
+          requestAnimationFrame(() => {
+            scrollableEarly.scrollTop = savedScrollTopEarly;
+            setTimeout(() => {
+              scrollableEarly.scrollTop = savedScrollTopEarly;
+            }, 120);
+          });
+        }
+      } catch {}
+    }
     
     // 🔥 OPTIMIZATION: Check if boards are already rendered (by prepareJourneyScreen)
     // If not, render them now (non-blocking - don't await)

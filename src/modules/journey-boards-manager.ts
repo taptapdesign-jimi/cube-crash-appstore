@@ -2069,7 +2069,7 @@ class JourneyBoardsManager {
             force3D: true 
           })
           .to(animTarget, { 
-            scale: 1.35, 
+            scale: 1.28, 
             rotation: rotationDeg, 
             duration: upMs / 1000, 
             ease: 'power2.out',
