@@ -33,6 +33,7 @@ import memoryManager from './memory-manager.ts';
 import { boardSpecificRules, isWildSpawnEnabled, isWildMeterEnabled, filterWildType, getWildMeterFillRate } from './board-specific-rules.ts';
 import { logger } from '../core/logger.js';
 import type { Tile, Board, Grid, HUD, Stage, Drag, MakeBoard } from '../types/game-types.js';
+import { getBoardSaveKey, migrateGlobalSaveToBoard } from '../utils/board-save-utils.js';
 import { 
   boardSize, 
   cellXY, 
@@ -7131,8 +7132,10 @@ async function showFinalScreen(){
     // Don't show old stars modal - it's deprecated and shows wrong UI
   }
 
-  // CRITICAL: Update high score using statsService
-  statsService.updateHighScore(score);
+  // 🔥 USER REQUEST: DO NOT update high score on fail!
+  // High score is ONLY updated after successful clean board (in endgame-flow.ts)
+  // Fail = ne updateamo high score
+  console.log(`📊 Board ${boardNumber} failed - high score NOT updated (only on clean board success)`);
   updateHUD();
 
   if (result?.action === 'menu') {
@@ -8175,11 +8178,14 @@ function saveGameState() {
 
     const serialized = JSON.stringify(currentState);
     if (serialized !== lastSavedState) {
-      localStorage.setItem('cc_saved_game', serialized);
+      // 🔥 USER REQUEST: Board-specific save state - each board has its own save
+      // This prevents conflicts when switching between boards (e.g., Board 07 → Board 03)
+      const saveKey = getBoardSaveKey(boardNumber);
+      localStorage.setItem(saveKey, serialized);
       lastSavedState = serialized;
-      console.log('💾 Game state saved successfully (state changed).');
+      console.log(`💾 Game state saved successfully for board ${boardNumber} (${saveKey}) - state changed.`);
     } else {
-      console.log('💾 Game state unchanged, skipping save.');
+      console.log(`💾 Game state unchanged for board ${boardNumber}, skipping save.`);
     }
   } catch (error) {
     console.warn('⚠️ Failed to save game state:', error);
@@ -8190,9 +8196,14 @@ async function loadGameState() {
   console.log('🔄 loadGameState called...');
   
   try {
-    const savedGame = localStorage.getItem('cc_saved_game');
+    // 🔥 USER REQUEST: Board-specific save state - load from correct board save
+    // Each board has its own save: 'cc_saved_game_board_01', 'cc_saved_game_board_02', etc.
+    const currentBoardNumber = Number.isFinite(boardNumber) ? boardNumber : 1;
+    const saveKey = getBoardSaveKey(currentBoardNumber);
+    const savedGame = localStorage.getItem(saveKey);
+    
     if (!savedGame) {
-      console.log('⚠️ No saved game found in localStorage');
+      console.log(`⚠️ No saved game found for board ${currentBoardNumber} (${saveKey})`);
       return false;
     }
 
@@ -8200,8 +8211,8 @@ async function loadGameState() {
     try {
       gameState = JSON.parse(savedGame);
     } catch (error) {
-      console.warn('⚠️ Corrupted save file, removing...', error);
-      localStorage.removeItem('cc_saved_game');
+      console.warn(`⚠️ Corrupted save file for board ${currentBoardNumber}, removing...`, error);
+      localStorage.removeItem(saveKey);
       return false;
     }
 
@@ -8217,8 +8228,8 @@ async function loadGameState() {
     const saveAge = Date.now() - timestamp;
     console.log('⏰ Save age:', Math.round(saveAge / 1000), 'seconds');
     if (!Number.isFinite(timestamp) || saveAge > 24 * 60 * 60 * 1000) {
-      console.log('⚠️ Saved game is too old, starting fresh');
-      localStorage.removeItem('cc_saved_game');
+      console.log(`⚠️ Saved game for board ${currentBoardNumber} is too old, starting fresh`);
+      localStorage.removeItem(saveKey);
       return false;
     }
 

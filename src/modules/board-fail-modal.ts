@@ -1,6 +1,7 @@
 import { logger } from '../core/logger.js';
 import { statsService } from '../services/stats-service.ts';
 import { pickRandom } from './clean-board-utils.js';
+import { getBoardSaveKey } from '../utils/board-save-utils.js';
 // public/src/modules/board-fail-modal.ts
 // Game-over overlay when the board isn't fully cleared
 
@@ -75,19 +76,20 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       
       // 🔥 USER REQUEST: Save score in journey progression state BEFORE clearing currentRunState
       // This allows us to preserve score when resuming from interim card
-      // Get current score from saved game state or use provided score
+      // Get current score from saved game state or use provided score (board-specific)
       let currentScore = score;
       try {
-        const savedGame = localStorage.getItem('cc_saved_game');
+        const saveKey = getBoardSaveKey(boardNumber);
+        const savedGame = localStorage.getItem(saveKey);
         if (savedGame) {
           const gameState = JSON.parse(savedGame);
           if (Number.isFinite(gameState.score) && gameState.score > 0) {
             currentScore = gameState.score;
-            logger.info(`🗺️ Journey: Board ${boardNumber} failed - preserving score ${currentScore} from saved game`);
+            logger.info(`🗺️ Journey: Board ${boardNumber} failed - preserving score ${currentScore} from saved game (${saveKey})`);
           }
         }
       } catch (e) {
-        logger.warn('⚠️ Failed to read score from saved game:', e);
+        logger.warn(`⚠️ Failed to read score from saved game for board ${boardNumber}:`, e);
       }
       
       // Also try to get score from current run state if available
@@ -107,13 +109,14 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       journeyProgressionState.setCurrentRunState(boardNumber, currentScore);
       logger.info(`🗺️ Journey: Board ${boardNumber} failed - score ${currentScore} saved in journey state (inProgress: true for resume)`);
       
-      // 🔥 CRITICAL FIX: Clear stuck game state from localStorage AFTER saving score
+      // 🔥 CRITICAL FIX: Clear stuck game state from localStorage AFTER saving score (board-specific)
       // This prevents "Play Again" and interim card from loading the stuck board position
       try {
-        localStorage.removeItem('cc_saved_game');
-        logger.info('✅ Cleared stuck game state from localStorage - fresh board on retry');
+        const saveKey = getBoardSaveKey(boardNumber);
+        localStorage.removeItem(saveKey);
+        logger.info(`✅ Cleared stuck game state for board ${boardNumber} (${saveKey}) - fresh board on retry`);
       } catch (e) {
-        logger.warn('⚠️ Failed to clear stuck game state:', e);
+        logger.warn(`⚠️ Failed to clear stuck game state for board ${boardNumber}:`, e);
       }
       
       // 🔥 CRITICAL FIX: Clear __ccSkipRebuildBoard flag to force fresh board on retry
@@ -157,12 +160,14 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       // Set flag to prevent future saves
       (window as WindowWithCC)._gameHasEnded = true;
       
-      // Clear tiles/board state but score is already saved in journey progression state
-      localStorage.removeItem('cc_saved_game');
+      // 🔥 USER REQUEST: Clear tiles/board state for THIS specific board (board-specific)
+      // Score is already saved in journey progression state
+      const saveKey = getBoardSaveKey(boardNumber);
+      localStorage.removeItem(saveKey);
       localStorage.removeItem('cubeCrash_gameState');
-      logger.info('✅ board-fail-modal: Cleared board state (tiles), score preserved in journey progression state');
+      logger.info(`✅ board-fail-modal: Cleared board state for board ${boardNumber} (${saveKey}), score preserved in journey progression state`);
     } catch (error) {
-      logger.warn('⚠️ board-fail-modal: Failed to clear saved game state:', error);
+      logger.warn(`⚠️ board-fail-modal: Failed to clear saved game state for board ${boardNumber}:`, error);
     }
     
     removeExisting();

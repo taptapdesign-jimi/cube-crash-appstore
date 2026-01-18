@@ -30,6 +30,7 @@ import iosOptimizer from './modules/ios-optimizer.js';
 import { initializeServices, cleanupServices } from './core/service-registry.js';
 import { getGameState, getUIManager, getBoardService, getEventBus } from './core/service-registry.js';
 import { container } from './core/dependency-injection.js';
+import { getBoardSaveKey, migrateGlobalSaveToBoard } from './utils/board-save-utils.js';
 
 // Import refactored modules
 import { 
@@ -115,6 +116,18 @@ async function initializeApp(): Promise<void> {
   try {
     // Wait for bootstrap to complete (DOM elements must exist first)
     await bootstrapReady;
+    
+    // 🔥 USER REQUEST: Migrate old global 'cc_saved_game' to board-specific saves
+    // This runs ONCE on app startup to convert existing saves to new format
+    // Each board will have its own save: cc_saved_game_board_01, cc_saved_game_board_02, etc.
+    try {
+      const migrated = migrateGlobalSaveToBoard();
+      if (migrated) {
+        console.log('✅ Migrated old global save to board-specific save');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to migrate global save:', error);
+    }
     
     // Initialize pending collectibles flip list
     if (!Array.isArray((window as any).__pendingCollectibleFlips)) {
@@ -735,11 +748,19 @@ async function startNewRun(boardId: number): Promise<void> {
   try {
     // 🔥 JOURNEY PROGRESSION: Check if there's an active in-progress run
     const currentRunState = journeyProgressionState.getCurrentRunState();
-    const savedGame = localStorage.getItem('cc_saved_game');
+    
+    // 🔥 USER REQUEST: Determine which board to load (board-specific save)
+    // Priority: __ccStartAtLevel > currentRunState.boardId > default to 1
+    const boardToLoad = (window as any).__ccStartAtLevel || currentRunState?.boardId || 1;
+    const saveKey = getBoardSaveKey(boardToLoad);
+    const savedGame = localStorage.getItem(saveKey);
+    
+    console.log(`🔄 Attempting to load board ${boardToLoad} from ${saveKey}`);
+    logger.info(`🔄 Loading board ${boardToLoad} save state (${saveKey})`);
     
       // Case A: Active in-progress run - resume exactly where they left off
       if (currentRunState && currentRunState.inProgress && savedGame) {
-        logger.info(`🎮 Case A: Resuming active run for board ${currentRunState.boardId}`);
+        logger.info(`🎮 Case A: Resuming active run for board ${currentRunState.boardId} from ${saveKey}`);
         
         // 🔥 USER REQUEST: Check if we came from Journey screen - skip slider exit animation
         const cameFromJourney = (window as any).__ccCameFromJourney === true;
@@ -878,12 +899,13 @@ async function startNewRun(boardId: number): Promise<void> {
           
           await layoutGame();
           
-          // If no tiles/grid, startLevel() will handle rebuildBoard() automatically
-          // 🔥 CRITICAL: Don't delete __ccSkipRebuildBoard here - let startLevel() handle it
-          
+          // 🔥 CRITICAL FIX: Clear ALL flags after layout to prevent pollution for next board
+          // This ensures fresh boards don't inherit flags from previous boards
           delete (window as any).__ccStartAtLevel;
-          // __ccSkipRebuildBoard will be deleted by startLevel() after it's used
+          delete (window as any).__ccSkipRebuildBoard;
           delete (window as any).__ccTriggerHudDrop;
+          delete (window as any).__ccPreserveScore;
+          console.log(`✅ Cleared all flags after layout for board ${savedBoardNumber}`);
         } catch (error) {
           logger.error('❌ Failed to resume active run:', error);
           delete (window as any).__ccStartAtLevel;
@@ -1015,11 +1037,13 @@ async function startNewRun(boardId: number): Promise<void> {
   journeyProgressionState.setCurrentRunState(boardId, 0);
   console.log(`✅ Journey progression state set for board ${boardId}`);
   
-  // Clear any saved game state (starting fresh)
-  localStorage.removeItem('cc_saved_game');
+  // 🔥 USER REQUEST: Clear saved game state for THIS specific board only (board-specific save)
+  // Don't clear other boards' saves - each board has its own memory
+  const saveKey = getBoardSaveKey(boardId);
+  localStorage.removeItem(saveKey);
   localStorage.removeItem('cc_board_completed');
   localStorage.removeItem('cubeCrash_gameState');
-  console.log(`✅ Cleared saved game state`);
+  console.log(`✅ Cleared saved game state for board ${boardId} (${saveKey})`);
   
   // Hide homepage and show app (no slider exit animation - already done)
   uiManager.hideHomepage();
@@ -1027,6 +1051,12 @@ async function startNewRun(boardId: number): Promise<void> {
   console.log(`✅ Homepage hidden, app shown`);
   
   try {
+    // 🔥 CRITICAL FIX: Clear ALL flags before starting fresh board
+    // This prevents leftover flags from previous boards (e.g., __ccSkipRebuildBoard)
+    delete (window as any).__ccSkipRebuildBoard;
+    delete (window as any).__ccPreserveScore;
+    console.log(`✅ Cleared leftover flags for fresh board ${boardId}`);
+    
     // Set flag so boot() starts at the correct board
     (window as any).__ccStartAtLevel = boardId;
     // Set flag to trigger HUD drop animation (sweetPopIn will check this)
@@ -1099,12 +1129,16 @@ async function startNewRun(boardId: number): Promise<void> {
         window.saveGameState();
         console.log('✅ Game state saved before exit');
         
-        // 🔥 USER BUG FIX: Double-check that state was saved correctly
-        const savedGame = localStorage.getItem('cc_saved_game');
+        // 🔥 USER BUG FIX: Double-check that state was saved correctly (board-specific)
+        // Determine which board we're exiting from
+        const exitingBoardNumber = (window as any).__ccStartAtLevel || (window as any).STATE?.boardNumber || 1;
+        const saveKey = getBoardSaveKey(exitingBoardNumber);
+        const savedGame = localStorage.getItem(saveKey);
+        
         if (savedGame) {
           try {
             const gameState = JSON.parse(savedGame);
-            console.log('✅ Verified saved game state:', {
+            console.log(`✅ Verified saved game state for board ${exitingBoardNumber} (${saveKey}):`, {
               boardNumber: gameState.boardNumber,
               level: gameState.level,
               score: gameState.score,
@@ -1120,14 +1154,14 @@ async function startNewRun(boardId: number): Promise<void> {
             const savedScore = Number.isFinite(gameState.score) ? gameState.score : 0;
             
             // 🔥 USER REQUEST: Preserve score in journey progression state when exiting
-            // This allows score to persist even if cc_saved_game is cleared (e.g., after board failure)
+            // This allows score to persist even if board-specific save is cleared (e.g., after board failure)
             journeyProgressionState.setCurrentRunState(savedBoardNumber, savedScore);
             console.log(`🗺️ Updated currentRunState on exit: board ${savedBoardNumber}, score ${savedScore}, inProgress: true`);
           } catch (e) {
-            console.warn('⚠️ Failed to verify saved game state:', e);
+            console.warn(`⚠️ Failed to verify saved game state for board ${exitingBoardNumber}:`, e);
           }
         } else {
-          console.warn('⚠️ WARNING: Game state was not saved!');
+          console.warn(`⚠️ WARNING: Game state was not saved for board ${exitingBoardNumber}!`);
         }
       }
     } catch (error) {
@@ -1161,11 +1195,10 @@ async function startNewRun(boardId: number): Promise<void> {
         const boardNumber = STATE.boardNumber || STATE.level || 1;
         const { boardStatsService } = await import('./services/board-stats-service.js');
         
-        // Update high score (only if higher)
-        const isNewHighScore = boardStatsService.updateBoardHighScore(boardNumber, currentScore);
-        if (isNewHighScore) {
-          console.log(`🏆 New high score for board ${boardNumber}: ${currentScore}`);
-        }
+        // 🔥 USER REQUEST: DO NOT update high score on exit!
+        // High score is ONLY updated after successful clean board (in endgame-flow.ts)
+        // Exit usred igre = ne updateamo high score
+        console.log(`📊 Exit from board ${boardNumber} - high score NOT updated (only on clean board success)`);
         
         // 🔥 USER REQUEST: Longest combo is already tracked during gameplay in app-core.ts merge function
         // No need to update it here - it's already tracked in real-time during each merge
@@ -1175,13 +1208,13 @@ async function startNewRun(boardId: number): Promise<void> {
         // via trackCubesCracked() which calls addBoardCubesCracked() for each cube
         // No need to add it here - it's already accumulated per-board
         const boardStats = boardStatsService.getBoardStats(boardNumber);
-        console.log(`📊 Board ${boardNumber} final stats:`, {
+        console.log(`📊 Board ${boardNumber} current stats:`, {
           highScore: boardStats.highScore,
           longestCombo: boardStats.longestCombo,
           cubesCracked: boardStats.cubesCracked
         });
       } catch (error) {
-        console.warn('⚠️ Failed to update board stats:', error);
+        console.warn('⚠️ Failed to read board stats:', error);
       }
     } catch (error) {
       console.warn('⚠️ Failed to save high score during exit:', error);

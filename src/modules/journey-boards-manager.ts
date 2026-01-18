@@ -10,6 +10,7 @@
 import { logger } from '../core/logger.js';
 import { JOURNEY_CARD_IDLE_BOUNCE, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
 import { gsap } from 'gsap';
+import { getBoardSaveKey, hasSavedStateForBoard } from '../utils/board-save-utils.js';
 
 export interface JourneyBoard {
   id: number;
@@ -133,6 +134,7 @@ class JourneyBoardsManager {
   private container: HTMLElement | null = null;
   private renderDisposed = false; // Guard async work when screen is torn down
   private glowPulseInterval: number | null = null; // Interval for continuous glow pulse
+  private journeyExitPromise: Promise<void> | null = null;
   // 🔥 USER REQUEST: Shimmer is now triggered together with glow (not independent interval)
   // 🔥 USER REQUEST: Smoke bubbles are now triggered DURING bounce animation (not independent interval)
 
@@ -190,6 +192,39 @@ class JourneyBoardsManager {
         logger.warn('⚠️ Failed to refresh detail modal stats after high score update:', error);
       }
     });
+  }
+
+  // Start Journey screen exit animation immediately (safe to call multiple times)
+  private startJourneyExitAnimation(): Promise<void> {
+    if (this.journeyExitPromise) {
+      return this.journeyExitPromise;
+    }
+
+    const journeyScreen = document.getElementById('journey-screen');
+    const isVisible = !!(
+      journeyScreen &&
+      journeyScreen.style.display !== 'none' &&
+      journeyScreen.style.visibility !== 'hidden' &&
+      journeyScreen.style.opacity !== '0'
+    );
+
+    if (!isVisible) {
+      return Promise.resolve();
+    }
+
+    this.journeyExitPromise = (async () => {
+      try {
+        const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
+        await animateCollectiblesScreenExit();
+        logger.info('✅ Journey screen exit animation completed (early start)');
+      } catch (error) {
+        logger.warn('⚠️ Failed to start Journey exit animation early:', error);
+      } finally {
+        this.journeyExitPromise = null;
+      }
+    })();
+
+    return this.journeyExitPromise;
   }
 
   /**
@@ -1778,6 +1813,8 @@ class JourneyBoardsManager {
         }
         (cardEl as any)._openingDetail = true;
 
+        const journeyExitPromise = this.startJourneyExitAnimation();
+
         // 🔥 USER REQUEST: Tap feedback animation (pop out + pop in), screen shake, haptic
         // Total duration: 300ms, immediate on tap
         const totalMs = 300;
@@ -1823,7 +1860,7 @@ class JourneyBoardsManager {
             onComplete: () => {
               (cardEl as any)._openingDetail = false;
               logger.info(`🚀🚀🚀 CALLING openBoardDetails FOR BOARD ${board.id}`);
-              this.openBoardDetails(board).catch((error) => {
+              this.openBoardDetails(board, true, journeyExitPromise).catch((error) => {
                 logger.error('❌ Failed to open board details:', error);
               });
             }
@@ -1834,7 +1871,7 @@ class JourneyBoardsManager {
         } catch (error) {
           (cardEl as any)._openingDetail = false;
           logger.warn('⚠️ Tap animation failed, opening detail modal immediately:', error);
-          this.openBoardDetails(board).catch((err) => {
+          this.openBoardDetails(board, true, journeyExitPromise).catch((err) => {
             logger.error('❌ Failed to open board details:', err);
           });
         }
@@ -1995,6 +2032,8 @@ class JourneyBoardsManager {
         }
         (cardEl as any)._openingGame = true;
 
+        const journeyExitPromise = this.startJourneyExitAnimation();
+
         // 🔥 USER REQUEST: Tap feedback animation (pop out + pop in), screen shake, haptic
         // Total duration: 300ms, immediate on tap
         const totalMs = 300;
@@ -2056,7 +2095,7 @@ class JourneyBoardsManager {
               // Reset will-change
               animTarget.style.willChange = 'auto';
               logger.info(`🚀🚀🚀 CALLING continueFromInterimBoard FOR BOARD ${board.id}`);
-              this.continueFromInterimBoard(board).catch((error) => {
+              this.continueFromInterimBoard(board, journeyExitPromise).catch((error) => {
                 logger.error('❌ Failed to continue from interim board:', error);
               });
             }
@@ -2085,7 +2124,7 @@ class JourneyBoardsManager {
         } catch (error) {
           (cardEl as any)._openingGame = false;
           logger.warn('⚠️ Interim card tap animation failed, continuing game immediately:', error);
-          this.continueFromInterimBoard(board).catch((err) => {
+          this.continueFromInterimBoard(board, journeyExitPromise).catch((err) => {
             logger.error('❌ Failed to continue from interim board:', err);
           });
         }
@@ -2405,11 +2444,48 @@ class JourneyBoardsManager {
         logger.warn(`⚠️ PLAY button NOT found for exit animation!`);
       }
       
-      // STEP 1: Other content elements FIRST (container with stats + card)
+      // 🔥 USER REQUEST: STEP 1: PLAY button exits FIRST (immediately, no delay)
+      // This gives instant feedback when user clicks Play
+      // 🔥 USER REQUEST: Use EXACT SAME animation as homepage slider CTA button
+      let playButtonExitDelay = 0; // Start immediately (FIRST)
+      let playButtonExitDuration = 0.65; // CSS animation duration (same as homepage)
+      
+      if (playButton) {
+        // 🔥 CRITICAL: Move PLAY button to body BEFORE starting exit animation
+        // This ensures it remains visible when modal is hidden
+        if (playButton.parentNode === modal) {
+          document.body.appendChild(playButton);
+          logger.info('🎮 PLAY button moved to body before exit animation');
+        }
+        
+        // 🔥 USER REQUEST: Copy EXACT animation from homepage slider CTA button
+        // Homepage uses CSS: .animate-exit { transform: translateY(20px) scale(0); transition: 0.65s cubic-bezier(...); }
+        // We use same CSS class for consistency!
+        playButton.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
+        playButton.style.removeProperty('transform');
+        playButton.style.removeProperty('transition');
+        void playButton.offsetHeight; // Force reflow
+        
+        // Add animate-exit class (same as homepage slider CTA)
+        playButton.classList.add('animate-exit');
+        
+        // Remove button after animation completes (0.65s)
+        setTimeout(() => {
+          if (playButton && playButton.parentNode) {
+            playButton.remove();
+            logger.info('🎮 PLAY button removed after CSS exit animation');
+          }
+        }, 650); // 0.65s animation duration
+        
+        logger.info(`🎮 PLAY button CSS exit animation started at 0ms (FIRST, duration: 0.65s, EXACT same as homepage CTA)`);
+      }
+      
+      // STEP 2: Other content elements AFTER Play button starts (container with stats + card)
+      // Wait for play button animation to start, then stagger content elements
+      const contentStartDelay = 0.1; // Start 100ms after play button (gives it a head start)
       otherContentElements.forEach((element, index) => {
-        const baseDelay = 0; // Start immediately
         const stagger = 0.05; // Faster stagger for exit (same as settings screen)
-        const delay = baseDelay + (index * stagger);
+        const delay = contentStartDelay + (index * stagger);
         
         // 🔥 BUG FIX: Ensure CSS transitions are disabled for GSAP scale animation
         if (element) {
@@ -2432,7 +2508,7 @@ class JourneyBoardsManager {
         logger.info(`🎴 Step ${index + 1}: Content element ${index + 1} pop-out - delay ${(delay * 1000).toFixed(0)}ms`);
       });
       
-      // STEP 1B: Stat items exit individually with pop-out animation (one by one)
+      // STEP 2B: Stat items exit individually with pop-out animation (one by one)
       // 🔥 CRITICAL: Use EXACT same pattern as other content elements (like card)
       let statsExitEndTime = 0; // Track when stats exit animations end
       
@@ -2453,7 +2529,7 @@ class JourneyBoardsManager {
         const statChildren = Array.from(detailStatsListExit.querySelectorAll('.detail-stat-item, .detail-stat-divider')) as HTMLElement[];
         // 🔥 CRITICAL: Calculate when stats exit animations will end
         if (statChildren.length > 0) {
-          const lastStatDelay = 0.05 + (statChildren.length - 1) * 0.05;
+          const lastStatDelay = contentStartDelay + 0.05 + (statChildren.length - 1) * 0.05;
           const statsExitDuration = 0.4; // Duration of each stat exit animation
           statsExitEndTime = lastStatDelay + statsExitDuration;
         }
@@ -2507,7 +2583,7 @@ class JourneyBoardsManager {
             opacity: 0,
             duration: 0.4,
             ease: 'back.in(1.7)',
-            delay: 0.05 + i * 0.05,
+            delay: contentStartDelay + 0.05 + i * 0.05,
             force3D: true,
             overwrite: true, // 🔥 CRITICAL: Prevent duplicate animations
             onUpdate: () => {
@@ -2559,47 +2635,11 @@ class JourneyBoardsManager {
         });
       }
       
-      // STEP 2: PLAY button AFTER container finishes (stats + card duration is 0.4s, so start at 0.4s + buffer)
-      // 🔥 USER REQUEST: PLAY button exits AFTER container (stats + card) animation completes
-      let playButtonExitDelay = 0;
-      let playButtonExitDuration = 0;
-      
-      if (playButton) {
-        playButton.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
-        playButton.style.removeProperty('transform');
-        playButton.style.removeProperty('transition');
-        void playButton.offsetHeight; // Force reflow
-        
-        // Calculate delay: container elements start at 0ms, last element starts at (otherContentElements.length - 1) * 0.05
-        // Container animation duration is 0.4s, so wait for that + small buffer
-        const lastElementDelay = otherContentElements.length > 0 ? ((otherContentElements.length - 1) * 0.05) : 0;
-        const containerAnimationDuration = 0.4; // Duration of container exit animation
-        playButtonExitDelay = lastElementDelay + containerAnimationDuration + 0.05; // Wait for container to finish + 50ms buffer
-        playButtonExitDuration = 0.65; // CSS animation duration (from collectibles-screen.css)
-        
-        // 🔥 CRITICAL: Move PLAY button to body BEFORE starting exit animation
-        // This ensures it remains visible when modal is hidden
-        if (playButton.parentNode === modal) {
-          document.body.appendChild(playButton);
-          logger.info('🎮 PLAY button moved to body before exit animation');
-        }
-        
-        // Start exit animation AFTER container finishes
-        setTimeout(() => {
-          if (playButton && playButton.parentNode) {
-            playButton.classList.add('animate-exit');
-            logger.info(`🎮 PLAY button exit animation started at ${(playButtonExitDelay * 1000).toFixed(0)}ms`);
-          } else {
-            logger.warn('⚠️ PLAY button not found when trying to start exit animation!');
-          }
-        }, playButtonExitDelay * 1000);
-      }
-
       // STEP 3: Header LAST (includes X, title, divider - animated as group, same as settings screen)
       // 🔥 CRITICAL: Animate header EXACTLY like enter animation - as parent element, not child elements
       // This ensures all child elements (X, title, divider) animate together as a group
       // 🔥 BUG FIX: Use otherContentElements.length (not contentElements.length) since PLAY button is separate
-      const lastDelay = otherContentElements.length > 0 ? (otherContentElements.length * 0.05) : 0;
+      const lastDelay = contentStartDelay + (otherContentElements.length > 0 ? (otherContentElements.length * 0.05) : 0);
       if (detailHeader) {
         // 🔥 CRITICAL: Remove CSS transition classes and disable transitions on header child elements
         // This ensures GSAP animation controls all header elements (X, title, divider) as a group
@@ -2693,17 +2733,8 @@ class JourneyBoardsManager {
           });
         }
         
-        // 🔥 CRITICAL: Remove PLAY button AFTER its animation completes
-        // PLAY button exit animation duration is 0.65s, so wait for that
-        if (playButton && playButtonExitDelay > 0) {
-          const playButtonRemoveDelay = (playButtonExitDelay + playButtonExitDuration) * 1000;
-          setTimeout(() => {
-            if (playButton && playButton.parentNode) {
-              playButton.remove();
-              logger.info('🎮 PLAY button removed after exit animation completed');
-            }
-          }, playButtonRemoveDelay);
-        }
+        // 🔥 NOTE: PLAY button is removed by GSAP animation's onComplete callback
+        // No need for setTimeout - GSAP handles cleanup automatically
         
         // 🔥 CRITICAL: Clear exiting flag after exit animation completes
         (modal as any).__detailModalExiting = false;
@@ -2719,7 +2750,10 @@ class JourneyBoardsManager {
    * 🔥 USER REQUEST: Continue game directly from interim board (no detail modal)
    * This is called when user clicks an interim card
    */
-  private async continueFromInterimBoard(board: JourneyBoard): Promise<void> {
+  private async continueFromInterimBoard(
+    board: JourneyBoard,
+    journeyExitPromise?: Promise<void>
+  ): Promise<void> {
     logger.info(`🔄 Continue from interim board ${board.id} - starting cleanup and game`);
     
     try {
@@ -2779,11 +2813,10 @@ class JourneyBoardsManager {
       logger.info('✅ Homepage completely hidden before Journey exit - no leftovers possible');
       
       // Step 3: Close Journey screen with exit animation (ONLY Journey exit, NO slider exit)
-      const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
-      const journeyExitPromise = animateCollectiblesScreenExit();
+      const exitPromise = journeyExitPromise ?? this.startJourneyExitAnimation();
       
       // Step 4: Wait for exit animation to complete
-      await journeyExitPromise;
+      await exitPromise;
       logger.info('✅ Journey exit animation completed');
       
       // Step 5: Cleanup Journey boards manager (memory leak prevention)
@@ -2820,22 +2853,24 @@ class JourneyBoardsManager {
         savedScore = Number.isFinite(currentRunState.score) ? currentRunState.score : 0;
         logger.info(`🎮 Found journey progression state for board ${board.id} with score ${savedScore}`);
       } else {
-        // Check if there's a saved game state with score
-        const savedGame = localStorage.getItem('cc_saved_game');
+        // 🔥 USER REQUEST: Check if there's a saved game state for THIS specific board
+        const saveKey = getBoardSaveKey(board.id);
+        const savedGame = localStorage.getItem(saveKey);
         if (savedGame) {
           try {
             const gameState = JSON.parse(savedGame);
             savedScore = Number.isFinite(gameState.score) ? gameState.score : 0;
-            logger.info(`🎮 Found saved game state with score ${savedScore}`);
+            logger.info(`🎮 Found saved game state for board ${board.id} (${saveKey}) with score ${savedScore}`);
           } catch (e) {
-            logger.warn('⚠️ Failed to parse saved game:', e instanceof Error ? e.message : String(e));
+            logger.warn(`⚠️ Failed to parse saved game for board ${board.id}:`, e instanceof Error ? e.message : String(e));
           }
         }
       }
       
-      // 🔥 USER REQUEST: Check if we have valid tiles/grid in saved game
+      // 🔥 USER REQUEST: Check if we have valid tiles/grid in saved game for THIS specific board
       // If we have tiles, we can continue (resume). If not, we create fresh board.
-      const savedGame = localStorage.getItem('cc_saved_game');
+      const saveKey = getBoardSaveKey(board.id);
+      const savedGame = localStorage.getItem(saveKey);
       let hasValidTiles = false;
       let gameState: any = null;
       
@@ -2849,12 +2884,12 @@ class JourneyBoardsManager {
           hasValidTiles = hasTiles || hasGrid;
           
           if (hasValidTiles) {
-            logger.info(`🎮 Found valid saved game with tiles/grid for board ${board.id} - will continue (resume)`);
+            logger.info(`🎮 Found valid saved game with tiles/grid for board ${board.id} (${saveKey}) - will continue (resume)`);
           } else {
-            logger.info(`🎮 Saved game exists but has no tiles/grid for board ${board.id} - will create fresh board`);
+            logger.info(`🎮 Saved game exists but has no tiles/grid for board ${board.id} (${saveKey}) - will create fresh board`);
           }
         } catch (e) {
-        logger.warn('⚠️ Failed to parse saved game:', e instanceof Error ? e.message : String(e));
+        logger.warn(`⚠️ Failed to parse saved game for board ${board.id}:`, e instanceof Error ? e.message : String(e));
           gameState = null;
         }
       }
@@ -3303,7 +3338,11 @@ class JourneyBoardsManager {
     logger.info('✅ Apple style GSAP smooth swipe initialized');
   }
 
-  private async openBoardDetails(board: JourneyBoard, skipJourneyExit: boolean = false): Promise<void> {
+  private async openBoardDetails(
+    board: JourneyBoard,
+    skipJourneyExit: boolean = false,
+    journeyExitPromise?: Promise<void>
+  ): Promise<void> {
     // 🔥 MEMORY LEAK FIX: Stop any existing detail image idle animation from previous modal
     const existingModal = document.getElementById('journey-board-detail-modal') as HTMLElement;
     if (existingModal) {
@@ -3396,16 +3435,9 @@ class JourneyBoardsManager {
     
     // Step 1: Exit animation on Journey screen (only if it's visible and not already hidden)
     if (!skipJourneyExit) {
-      const journeyScreen = document.getElementById('journey-screen');
-      if (journeyScreen && journeyScreen.style.opacity !== '0' && journeyScreen.style.visibility !== 'hidden') {
-        const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
-        await animateCollectiblesScreenExit();
-        logger.info('✅ Journey screen exit animation completed');
-      } else {
-        logger.info('✅ Journey screen already hidden - skipping exit animation');
-      }
-    } else {
-      logger.info('✅ Skipping Journey screen exit animation (already hidden)');
+      await this.startJourneyExitAnimation();
+    } else if (journeyExitPromise) {
+      await journeyExitPromise;
     }
     
     // Step 2: Now open detail modal with enter animation
@@ -3878,22 +3910,48 @@ class JourneyBoardsManager {
           localStorage.removeItem('__ccCameFromHomepage');
           console.log(`🎯 Marked as coming from detail modal AND Journey for board ${boardIdForPlay}`);
 
-          // 🔥 CRITICAL: Check if function exists and call it
-          if (typeof (window as any).startNewRunFromJourney === 'function') {
-            console.log(`🎮 About to call startNewRunFromJourney with boardId: ${boardIdForPlay}`);
-            logger.info(`🎮 Calling startNewRunFromJourney for board ${boardIdForPlay}`);
-            try {
-              await (window as any).startNewRunFromJourney(boardIdForPlay);
-              console.log(`✅ startNewRunFromJourney call completed for board ${boardIdForPlay}`);
-            } catch (error) {
-              console.error(`❌ Error calling startNewRunFromJourney:`, error);
-              logger.error(`❌ Error calling startNewRunFromJourney:`, error);
+          // 🔥 USER REQUEST: Check if this board has a saved state (board-specific)
+          // If YES → continue saved game (resume)
+          // If NO → start fresh board (new game)
+          const hasSavedState = hasSavedStateForBoard(boardIdForPlay);
+          console.log(`🎮 Board ${boardIdForPlay} has saved state: ${hasSavedState}`);
+          logger.info(`🎮 Board ${boardIdForPlay} saved state exists: ${hasSavedState}`);
+          
+          try {
+            if (hasSavedState) {
+              // Case A: Board has save state → CONTINUE (resume where left off)
+              console.log(`🎮 Board ${boardIdForPlay} has saved state - will CONTINUE (resume)`);
+              logger.info(`🎮 Resuming saved game for board ${boardIdForPlay}`);
+              
+              // Set flag to resume at correct board
+              (window as any).__ccStartAtLevel = boardIdForPlay;
+              (window as any).__ccTriggerHudDrop = true;
+              
+              // Call continueGameWithSavedState to resume
+              if (typeof (window as any).continueGameWithSavedState === 'function') {
+                await (window as any).continueGameWithSavedState();
+                console.log(`✅ continueGameWithSavedState call completed for board ${boardIdForPlay}`);
+              } else {
+                console.error('❌ continueGameWithSavedState function NOT FOUND on window object!');
+                logger.error('❌ continueGameWithSavedState function not found');
+              }
+            } else {
+              // Case B: Board has NO save state → START FRESH (new game)
+              console.log(`🎮 Board ${boardIdForPlay} has NO saved state - will START FRESH (new game)`);
+              logger.info(`🎮 Starting fresh game for board ${boardIdForPlay}`);
+              
+              // Call startNewRunFromJourney to create fresh board
+              if (typeof (window as any).startNewRunFromJourney === 'function') {
+                await (window as any).startNewRunFromJourney(boardIdForPlay);
+                console.log(`✅ startNewRunFromJourney call completed for board ${boardIdForPlay}`);
+              } else {
+                console.error('❌ startNewRunFromJourney function NOT FOUND on window object!');
+                logger.error('❌ startNewRunFromJourney function not found');
+              }
             }
-          } else {
-            console.error('❌ startNewRunFromJourney function NOT FOUND on window object!');
-            logger.error('❌ startNewRunFromJourney function not found on window object!');
-            // Try to find it
-            console.log('🔍 Available window functions:', Object.keys(window).filter(k => k.includes('start') || k.includes('journey')));
+          } catch (error) {
+            console.error(`❌ Error starting/continuing game for board ${boardIdForPlay}:`, error);
+            logger.error(`❌ Error starting/continuing game for board ${boardIdForPlay}:`, error);
           }
         };
         

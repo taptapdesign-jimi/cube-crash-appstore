@@ -4,6 +4,7 @@ import { safePauseGame, safeResumeGame, safeUnlockSlider } from '../utils/animat
 import { setModalVisible, isModalVisible } from './end-run-utils.js';
 import { pauseGame, resumeGame } from './pause-utils.js';
 import { forceHideScoreBottomSheet, isScoreBottomSheetVisible, resetScoreBottomSheetState } from './score-bottom-sheet.js';
+import { getBoardSaveKey } from '../utils/board-save-utils.js';
 
 let modal: HTMLElement | null = null;
 
@@ -153,11 +154,13 @@ function createModal(): HTMLElement {
       // 🔥 MEMORY LEAK FIX: Store timeout ID for cleanup
       const timeout = setTimeout(() => {
         console.log('🎯 Modal hidden, calling restart');
-        // Clear saved game state when restarting
+        // 🔥 USER REQUEST: Clear saved game state for current board (board-specific)
         try {
-          localStorage.removeItem('cc_saved_game');
+          const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
+          const saveKey = getBoardSaveKey(currentBoardNumber);
+          localStorage.removeItem(saveKey);
           localStorage.removeItem('cubeCrash_gameState');
-          console.log('✅ end-run-modal: Cleared both saved game states on restart');
+          console.log(`✅ end-run-modal: Cleared saved game state for board ${currentBoardNumber} (${saveKey}) on restart`);
         } catch (error) {
           console.warn('⚠️ end-run-modal: Failed to clear saved game state on restart:', error);
         }
@@ -294,10 +297,12 @@ function createModal(): HTMLElement {
         try {
         const userMadeMove = (window as any)._userMadeMove;
         if (!userMadeMove) {
-          console.log('💾 User made no moves - clearing saved game state');
-          localStorage.removeItem('cc_saved_game');
+          console.log('💾 User made no moves - clearing saved game state (board-specific)');
+          const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
+          const saveKey = getBoardSaveKey(currentBoardNumber);
+          localStorage.removeItem(saveKey);
           localStorage.removeItem('cubeCrash_gameState');
-          console.log('✅ end-run-modal: Cleared both saved game states on exit (no moves made)');
+          console.log(`✅ end-run-modal: Cleared saved game state for board ${currentBoardNumber} (${saveKey}) on exit (no moves made)`);
         } else {
           console.log('💾 User made moves - keeping saved game state for resume');
         }
