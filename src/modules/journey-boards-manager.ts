@@ -1985,6 +1985,7 @@ class JourneyBoardsManager {
           const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
           if (scrollable) {
             (window as any).__ccJourneyScrollTop = scrollable.scrollTop;
+            try { localStorage.setItem('__ccJourneyScrollTop', String(scrollable.scrollTop)); } catch {}
           }
         } catch {}
 
@@ -2068,7 +2069,7 @@ class JourneyBoardsManager {
             force3D: true 
           })
           .to(animTarget, { 
-            scale: 1.69, 
+            scale: 1.35, 
             rotation: rotationDeg, 
             duration: upMs / 1000, 
             ease: 'power2.out',
@@ -2747,6 +2748,7 @@ class JourneyBoardsManager {
       (window as any).__ccCameFromHomepage = false;
       // 🔥 USER REQUEST: Mark that we're returning from interim board to prevent auto-scroll
       (window as any).__ccReturningFromInterimBoard = true;
+      try { localStorage.setItem('__ccReturningFromInterimBoard', 'true'); } catch {}
       // 🔥 FIX: Also store in localStorage for persistence across game sessions
       localStorage.setItem('__ccCameFromJourney', 'true');
       localStorage.removeItem('__ccCameFromHomepage');

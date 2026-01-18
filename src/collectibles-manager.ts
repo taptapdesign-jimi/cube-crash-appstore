@@ -580,17 +580,25 @@ class CollectiblesManager {
                 // 🔥 USER REQUEST: Skip auto-scroll if returning from detail modal or interim board
                 // Auto-scroll should ONLY happen when entering Journey from homepage slider
                 const returningFromDetailModal = (window as any).__ccReturningFromDetailModal;
-                const returningFromInterimBoard = (window as any).__ccReturningFromInterimBoard;
+                const returningFromInterimBoard =
+                  (window as any).__ccReturningFromInterimBoard ||
+                  localStorage.getItem('__ccReturningFromInterimBoard') === 'true';
                 if (returningFromDetailModal || returningFromInterimBoard) {
                   console.log('🗺️ Skipping auto-scroll (returning from detail modal or interim board)');
                   // 🔥 USER REQUEST: Restore previous scroll position when returning from interim board
                   if (returningFromInterimBoard) {
                     try {
                       const scrollable = journeyContainer.querySelector('.collectibles-scrollable') as HTMLElement | null;
-                      const savedScrollTop = (window as any).__ccJourneyScrollTop;
+                      const savedScrollTop =
+                        (window as any).__ccJourneyScrollTop ??
+                        Number(localStorage.getItem('__ccJourneyScrollTop'));
                       if (scrollable && typeof savedScrollTop === 'number') {
                         requestAnimationFrame(() => {
                           scrollable.scrollTop = savedScrollTop;
+                          // Apply again after layout settles (prevents reset to top)
+                          setTimeout(() => {
+                            scrollable.scrollTop = savedScrollTop;
+                          }, 50);
                         });
                       }
                     } catch {}
@@ -598,6 +606,8 @@ class CollectiblesManager {
                   // Clear flags after checking
                   delete (window as any).__ccReturningFromDetailModal;
                   delete (window as any).__ccReturningFromInterimBoard;
+                  localStorage.removeItem('__ccReturningFromInterimBoard');
+                  localStorage.removeItem('__ccJourneyScrollTop');
                 } else {
                   // Only auto-scroll when entering from homepage slider
                   const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
