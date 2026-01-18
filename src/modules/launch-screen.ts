@@ -300,18 +300,19 @@ class LaunchScreen {
     // PHASE 2: Fade in gradient background + stack to six logo + smokeclouds
     logger.info('🎬 Phase 2: Starting - Fading in gradient + stack to six logo + smokeclouds');
     
-    // 🔥 SENIOR PRINCIPAL: Single source of truth - set gradient ONLY here, in Phase 2
-    // This is the ONLY place gradient is set - no CSS, no other JavaScript
-    // 🔥 CRITICAL: Use 100% opacity (no rgba with alpha < 1) to prevent seeing elements behind
+    // 🔥 SENIOR PRINCIPAL: Single source of truth - set background ONLY here, in Phase 2
+    // Keep the original stack-to-six gradient, then overlay paper texture at 60% opacity
     const gradientBg = 'linear-gradient(180deg, #f3eee8 0%, #fcecdf 60%, #fcecdf 100%)';
-    this.setBackground(gradientBg);
+    const paperOverlayAlpha = 0.4; // 1 - 0.6
+    const paperBg = `linear-gradient(rgba(243,238,232,${paperOverlayAlpha}), rgba(243,238,232,${paperOverlayAlpha})), url('./assets/paper-bg.png') center/100% 100% no-repeat, ${gradientBg}`;
+    this.setBackground(paperBg);
     
     // 🔥 CRITICAL: Ensure container has 100% opacity and high z-index to cover everything
     if (container) {
       container.style.opacity = '1';
       container.style.visibility = 'visible';
       container.style.zIndex = '10000';
-      container.style.background = gradientBg; // Set directly on container too
+      container.style.background = paperBg; // Set directly on container too
     }
     
     // Show stack container IMMEDIATELY (don't wait for images)
@@ -398,27 +399,28 @@ class LaunchScreen {
     
     // 🔥 CRITICAL: Set container background to gradient BEFORE fade out to prevent white flash
     // Container currently has #F9F9F9, but we need gradient to match body/html
-    const preservedGradient = 'linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%)';
-    container.style.background = preservedGradient;
-    logger.info('✅ Phase 3: Container background set to gradient before fade out');
+    const preservedGradient = 'linear-gradient(180deg, #f3eee8 0%, #fcecdf 60%, #fcecdf 100%)';
+    const preservedPaperBg = `linear-gradient(rgba(243,238,232,0.4), rgba(243,238,232,0.4)), url('./assets/paper-bg.png') center/100% 100% no-repeat, ${preservedGradient}`;
+    container.style.background = preservedPaperBg;
+    logger.info('✅ Phase 3: Container background set to paper + gradient before fade out');
     
     // 🔥 CRITICAL: Ensure gradient background stays visible on body, html, and #global-bg
     // Do this BEFORE fade out to prevent any white flash
     if (document.body) {
-      document.body.style.setProperty('background', preservedGradient, 'important');
-      document.body.style.setProperty('background-color', 'transparent', 'important');
-      document.body.style.setProperty('background-image', preservedGradient, 'important');
+      document.body.style.setProperty('background', preservedPaperBg, 'important');
+      document.body.style.setProperty('background-color', '#f3eee8', 'important');
+      document.body.style.setProperty('background-image', preservedPaperBg, 'important');
     }
     if (document.documentElement) {
-      document.documentElement.style.setProperty('background', preservedGradient, 'important');
-      document.documentElement.style.setProperty('background-color', 'transparent', 'important');
-      document.documentElement.style.setProperty('background-image', preservedGradient, 'important');
+      document.documentElement.style.setProperty('background', preservedPaperBg, 'important');
+      document.documentElement.style.setProperty('background-color', '#f3eee8', 'important');
+      document.documentElement.style.setProperty('background-image', preservedPaperBg, 'important');
     }
     const globalBg = document.getElementById('global-bg');
     if (globalBg) {
-      (globalBg as HTMLElement).style.setProperty('background', 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)', 'important');
+      (globalBg as HTMLElement).style.setProperty('background', preservedPaperBg, 'important');
     }
-    logger.info('✅ Phase 3: Gradient background explicitly set on body/html/#global-bg BEFORE fade out');
+    logger.info('✅ Phase 3: Paper+gradient background explicitly set on body/html/#global-bg BEFORE fade out');
     
     await new Promise<void>((resolve) => {
       gsap.to([stackLogo, smokeShards, stackContainer], {
@@ -452,9 +454,9 @@ class LaunchScreen {
         duration: 0.5,
         ease: 'power2.in',
         onComplete: () => {
-          // 🔥 CRITICAL: Ensure container background stays as gradient (don't reset to white)
-          container.style.background = preservedGradient;
-          logger.info('✅ Phase 3: Launch screen faded out (gradient background preserved on container)');
+      // 🔥 CRITICAL: Ensure container background stays as paper+gradient
+      container.style.background = preservedPaperBg;
+      logger.info('✅ Phase 3: Launch screen faded out (paper+gradient preserved on container)');
           
           // 🔥 CRITICAL: Hide launch screen container completely
           this.hide();

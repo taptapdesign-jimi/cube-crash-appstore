@@ -705,7 +705,7 @@ export async function boot(){
   app = new Application();
   await app.init({
     resizeTo: window,
-    background: 0xf3eee8, // Game background color
+    backgroundAlpha: 0, // Transparent so paper BG shows behind board + HUD
     antialias: false, // Disable antialiasing for pixel-perfect rendering
     // Use full device pixel ratio for maximum crispness
     resolution: window.devicePixelRatio || 1,
@@ -734,19 +734,60 @@ export async function boot(){
   
   // 🔥 CRITICAL: Set background to #F9F9F9 during launch (matches launch screen)
   // Gradient will be set by launch-screen.ts in Phase 2, or by ui-manager.ts after launch
-  app.renderer.backgroundColor = 0xf9f9f9; // PIXI renderer background (for game canvas) - #F9F9F9
+  app.renderer.backgroundColor = 0x000000;
+  app.renderer.backgroundAlpha = 0; // Transparent so paper BG shows behind board + HUD
   
   // 🔥 CRITICAL: Start with #F9F9F9 to match launch screen - gradient will be set later
   const appElement = document.getElementById('app');
   const canvasElement = app.canvas;
+  // Set paper strength for board game only (global background stays the same)
+  // 35% opacity for board game paper texture
+  const paperAlpha = 0.35;
+  document.documentElement?.style.setProperty('--paper-alpha', paperAlpha.toString());
+  
+  // Apply paper background with 30% opacity to body/html/global-bg
+  const overlayAlpha = 1 - paperAlpha; // 0.7 overlay = 30% paper visible
+  const backgroundLayers = overlayAlpha > 0.01
+    ? `linear-gradient(rgba(243,238,232,${overlayAlpha}), rgba(243,238,232,${overlayAlpha})), url('./assets/paper-bg.png')`
+    : `url('./assets/paper-bg.png')`;
+  
+  const body = document.body;
+  const html = document.documentElement;
+  const globalBg = document.getElementById('global-bg');
+  
+  if (body) {
+    body.style.setProperty('background-color', '#f3eee8', 'important');
+    body.style.setProperty('background-image', backgroundLayers, 'important');
+    body.style.setProperty('background-size', '100% 100%', 'important');
+    body.style.setProperty('background-repeat', 'no-repeat', 'important');
+    body.style.setProperty('background-position', 'center', 'important');
+  }
+  if (html) {
+    html.style.setProperty('background-color', '#f3eee8', 'important');
+    html.style.setProperty('background-image', backgroundLayers, 'important');
+    html.style.setProperty('background-size', '100% 100%', 'important');
+    html.style.setProperty('background-repeat', 'no-repeat', 'important');
+    html.style.setProperty('background-position', 'center', 'important');
+  }
+  if (globalBg) {
+    (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
+    (globalBg as HTMLElement).style.setProperty('background-image', backgroundLayers, 'important');
+    (globalBg as HTMLElement).style.setProperty('background-size', '100% 100%', 'important');
+    (globalBg as HTMLElement).style.setProperty('background-repeat', 'no-repeat', 'important');
+    (globalBg as HTMLElement).style.setProperty('background-position', 'center', 'important');
+  }
+  
+  // Keep app and canvas transparent to show paper background behind
   if (appElement) {
-    // Start with #F9F9F9 - gradient will be set by launch-screen.ts in Phase 2 or ui-manager.ts after launch
-    appElement.style.background = '#F9F9F9';
+    appElement.style.removeProperty('background');
+    appElement.style.removeProperty('background-image');
   }
   if (canvasElement) {
-    // Start with #F9F9F9 - gradient will be set by launch-screen.ts in Phase 2 or ui-manager.ts after launch
-    canvasElement.style.background = '#F9F9F9';
+    canvasElement.style.removeProperty('background');
+    canvasElement.style.removeProperty('background-image');
   }
+  
+  console.log(`📄 Board game paper background: alpha=${paperAlpha}, overlayAlpha=${overlayAlpha}, visible=${paperAlpha * 100}%`);
   // 🔥 CRITICAL FIX: Ensure host element exists and is visible before adding canvas
   if (!host) {
     console.error('❌ Host element not found! Cannot add canvas to DOM');
@@ -1174,6 +1215,47 @@ export async function boot(){
   }
 
   syncSharedState();
+  
+  // 🔥 CRITICAL: Set paper background to 35% opacity for board game
+  // This must be at the end of boot() to override any other background changes
+  // Use setTimeout to ensure it runs after all other code
+  setTimeout(() => {
+    const paperAlpha = 0.35;
+    document.documentElement?.style.setProperty('--paper-alpha', paperAlpha.toString());
+    
+    const overlayAlpha = 1 - paperAlpha; // 0.7 overlay = 30% paper visible
+    const backgroundLayers = overlayAlpha > 0.01
+      ? `linear-gradient(rgba(243,238,232,${overlayAlpha}), rgba(243,238,232,${overlayAlpha})), url('./assets/paper-bg.png')`
+      : `url('./assets/paper-bg.png')`;
+    
+    const body = document.body;
+    const html = document.documentElement;
+    const globalBg = document.getElementById('global-bg');
+    
+    if (body) {
+      body.style.setProperty('background-color', '#f3eee8', 'important');
+      body.style.setProperty('background-image', backgroundLayers, 'important');
+      body.style.setProperty('background-size', '100% 100%', 'important');
+      body.style.setProperty('background-repeat', 'no-repeat', 'important');
+      body.style.setProperty('background-position', 'center', 'important');
+    }
+    if (html) {
+      html.style.setProperty('background-color', '#f3eee8', 'important');
+      html.style.setProperty('background-image', backgroundLayers, 'important');
+      html.style.setProperty('background-size', '100% 100%', 'important');
+      html.style.setProperty('background-repeat', 'no-repeat', 'important');
+      html.style.setProperty('background-position', 'center', 'important');
+    }
+    if (globalBg) {
+      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
+      (globalBg as HTMLElement).style.setProperty('background-image', backgroundLayers, 'important');
+      (globalBg as HTMLElement).style.setProperty('background-size', '100% 100%', 'important');
+      (globalBg as HTMLElement).style.setProperty('background-repeat', 'no-repeat', 'important');
+      (globalBg as HTMLElement).style.setProperty('background-position', 'center', 'important');
+    }
+    
+    console.log(`📄 Board game paper background set to 30% opacity (alpha=${paperAlpha}, overlayAlpha=${overlayAlpha})`);
+  }, 100); // 100ms delay to ensure it runs after all other code
 }
 
 // -------------------- layout + HUD --------------------

@@ -11,6 +11,87 @@ import { gsap } from 'gsap';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit } from '../ui/settings-animations.js';
 
+// 🔥 FIXED: Paper texture opacity should work correctly:
+// --paper-alpha: 1 → paper fully visible
+// --paper-alpha: 0.5 → paper 50% visible
+// We achieve this by setting the paper texture opacity directly, with a solid base color underneath
+const PAPER_BG_IMAGE = "url('./assets/paper-bg.png')";
+const PAPER_BG_STYLE = "#f3eee8 url('./assets/paper-bg.png') center/100% 100% no-repeat";
+
+function clearSliderBackgrounds(): void {
+  const homeContainer = document.getElementById('home');
+  const sliderContainer = document.getElementById('slider-container');
+  const sliderWrapper = document.getElementById('slider-wrapper');
+
+  if (homeContainer) {
+    (homeContainer as HTMLElement).style.setProperty('background', 'transparent', 'important');
+    (homeContainer as HTMLElement).style.setProperty('background-image', 'none', 'important');
+  }
+  if (sliderContainer) {
+    (sliderContainer as HTMLElement).style.setProperty('background', 'transparent', 'important');
+    (sliderContainer as HTMLElement).style.setProperty('background-image', 'none', 'important');
+  }
+  if (sliderWrapper) {
+    (sliderWrapper as HTMLElement).style.setProperty('background', 'transparent', 'important');
+    (sliderWrapper as HTMLElement).style.setProperty('background-image', 'none', 'important');
+  }
+
+  const slides = document.querySelectorAll('.slider-slide');
+  slides.forEach((slide) => {
+    (slide as HTMLElement).style.setProperty('background', 'transparent', 'important');
+    (slide as HTMLElement).style.setProperty('background-image', 'none', 'important');
+  });
+}
+
+function applyPaperBackground(alpha: string): void {
+  document.documentElement?.style.setProperty('--paper-alpha', alpha);
+  const body = document.body;
+  const html = document.documentElement;
+  const globalBg = document.getElementById('global-bg');
+  const appElement = document.getElementById('app');
+
+  // Parse alpha to create the proper background layering
+  const alphaNum = parseFloat(alpha);
+  const baseColor = '#f3eee8';
+  
+  // Create a semi-transparent overlay to control paper visibility
+  // When alpha = 1, no overlay (paper fully visible)
+  // When alpha = 0.5, 50% white overlay (paper 50% visible)
+  const overlayAlpha = 1 - alphaNum;
+  const backgroundLayers = overlayAlpha > 0.01
+    ? `linear-gradient(rgba(243,238,232,${overlayAlpha}), rgba(243,238,232,${overlayAlpha})), url('./assets/paper-bg.png')`
+    : `url('./assets/paper-bg.png')`;
+
+  if (body) {
+    body.style.setProperty('background-color', baseColor, 'important');
+    body.style.setProperty('background-image', backgroundLayers, 'important');
+    body.style.setProperty('background-size', '100% 100%', 'important');
+    body.style.setProperty('background-repeat', 'no-repeat', 'important');
+    body.style.setProperty('background-position', 'center', 'important');
+  }
+  if (html) {
+    html.style.setProperty('background-color', baseColor, 'important');
+    html.style.setProperty('background-image', backgroundLayers, 'important');
+    html.style.setProperty('background-size', '100% 100%', 'important');
+    html.style.setProperty('background-repeat', 'no-repeat', 'important');
+    html.style.setProperty('background-position', 'center', 'important');
+  }
+  if (globalBg) {
+    (globalBg as HTMLElement).style.setProperty('background-color', baseColor, 'important');
+    (globalBg as HTMLElement).style.setProperty('background-image', backgroundLayers, 'important');
+    (globalBg as HTMLElement).style.setProperty('background-size', '100% 100%', 'important');
+    (globalBg as HTMLElement).style.setProperty('background-repeat', 'no-repeat', 'important');
+    (globalBg as HTMLElement).style.setProperty('background-position', 'center', 'important');
+  }
+  if (appElement) {
+    // Keep app container transparent so it never overrides global paper opacity
+    appElement.style.setProperty('background', 'transparent', 'important');
+    appElement.style.setProperty('background-image', 'none', 'important');
+  }
+
+  console.log(`📄 Paper background applied with alpha=${alpha}, overlayAlpha=${overlayAlpha}, visible=${alphaNum * 100}%`);
+}
+
 // Extend Window interface for haptic feedback
 
 export interface UIManagerElements {
@@ -679,56 +760,20 @@ class UIManager {
   // Show homepage
   showHomepage(): void {
     logger.info('🏠 showHomepage() called');
+    
+    // 🔥 CRITICAL: ALWAYS set paper background to 60% opacity when showing homepage
+    // This ensures paper bg is visible on homepage, even if it was set to 45% in board game
+    applyPaperBackground('0.6');
+    this.elements.home?.style.setProperty('--paper-alpha', '0.6');
+    
     if (this.elements.home) {
       this.elements.home.style.display = 'block';
       this.elements.home.removeAttribute('hidden');
       fadeInHome();
     }
 
-    // 🔥 CRITICAL: Check if gradient is already set (from launch screen Phase 2)
-    // If gradient is already set, don't reset it to avoid flash/transition
-    const body = document.body;
-    const html = document.documentElement;
-    const bodyBg = body ? window.getComputedStyle(body).background : '';
-    const htmlBg = html ? window.getComputedStyle(html).background : '';
-    const hasGradient = bodyBg.includes('gradient') || htmlBg.includes('gradient');
-    
-    if (hasGradient) {
-      logger.info('✅ Gradient already set (from launch screen), preserving it');
-      // Just ensure #global-bg exists and has gradient, but don't reset body/html
-      let globalBg = document.getElementById('global-bg');
-      if (!globalBg) {
-        logger.info('🔧 Creating #global-bg element (not found in DOM)');
-        globalBg = document.createElement('div');
-        globalBg.id = 'global-bg';
-        globalBg.style.position = 'fixed';
-        globalBg.style.top = 'calc(-1 * env(safe-area-inset-top, 0px))';
-        globalBg.style.bottom = 'calc(-1 * env(safe-area-inset-bottom, 0px))';
-        globalBg.style.left = '-12vw';
-        globalBg.style.right = '-12vw';
-        globalBg.style.pointerEvents = 'none';
-        globalBg.style.zIndex = '-1';
-        if (document.body.firstChild) {
-          document.body.insertBefore(globalBg, document.body.firstChild);
-        } else {
-          document.body.appendChild(globalBg);
-        }
-        // Set gradient on newly created #global-bg
-        const targetGlobalBgGradient = 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)';
-        (globalBg as HTMLElement).style.setProperty('background', targetGlobalBgGradient, 'important');
-        logger.info('✅ #global-bg created and gradient set');
-      }
-      return; // Exit early - gradient already set, no need to reset
-    }
-
-    // 🔥 CRITICAL: Gradient not set yet, set it now (v101 approach)
-    // This ensures homepage always has gradient background, not solid color
+    // 🔥 CRITICAL: Ensure #global-bg exists (create if missing)
     let globalBg = document.getElementById('global-bg');
-    const appElement = document.getElementById('app');
-    const targetGradient = 'linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%)';
-    const targetGlobalBgGradient = 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)';
-
-    // 🔥 CRITICAL: Create #global-bg element if it doesn't exist
     if (!globalBg) {
       logger.info('🔧 Creating #global-bg element (not found in DOM)');
       globalBg = document.createElement('div');
@@ -739,67 +784,23 @@ class UIManager {
       globalBg.style.left = '-12vw';
       globalBg.style.right = '-12vw';
       globalBg.style.pointerEvents = 'none';
-      globalBg.style.zIndex = '-1'; // 🔥 CRITICAL: Behind content, not in front
-      // Insert at the beginning of body
+      globalBg.style.zIndex = '-1';
       if (document.body.firstChild) {
         document.body.insertBefore(globalBg, document.body.firstChild);
       } else {
         document.body.appendChild(globalBg);
       }
-      logger.info('✅ #global-bg element created and inserted into DOM');
-    }
-
-    logger.info('🎨 Setting gradient background:', {
-      body: !!body,
-      html: !!html,
-      globalBg: !!globalBg,
-      appElement: !!appElement,
-      gsap: !!gsap,
-      targetGradient: targetGradient.substring(0, 50) + '...'
-    });
-
-    // 🔥 CRITICAL: Set gradient directly on body with !important to override CSS
-    if (body) {
-      body.style.setProperty('background', targetGradient, 'important');
-      body.style.setProperty('background-color', 'transparent', 'important');
-      body.style.setProperty('background-image', targetGradient, 'important');
-      logger.info('✅ Body gradient set directly with !important');
+      // applyPaperBackground() already set the background, but ensure it's set here too
+      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
+      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
+      (globalBg as HTMLElement).style.setProperty('background-size', '100% 100%', 'important');
+      (globalBg as HTMLElement).style.setProperty('background-repeat', 'no-repeat', 'important');
+      (globalBg as HTMLElement).style.setProperty('background-position', 'center', 'important');
+      logger.info('✅ #global-bg created and paper background set');
     }
     
-    // 🔥 CRITICAL: Set gradient directly on html with !important to override CSS
-    if (html) {
-      html.style.setProperty('background', targetGradient, 'important');
-      html.style.setProperty('background-color', 'transparent', 'important');
-      html.style.setProperty('background-image', targetGradient, 'important');
-      logger.info('✅ HTML gradient set directly with !important');
-    }
-    
-    // 🔥 CRITICAL: Set gradient on #global-bg
-    if (globalBg) {
-      (globalBg as HTMLElement).style.setProperty('background', targetGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', 'transparent', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', targetGlobalBgGradient, 'important');
-      logger.info('✅ #global-bg gradient set directly with !important');
-    }
-    
-    if (appElement) {
-      appElement.style.setProperty('background', 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)', 'important');
-      logger.info('✅ #app gradient set directly with !important');
-    }
-    
-    // 🔥 DEBUG: Check actual background values after setting
-    setTimeout(() => {
-      const bodyBg = body ? window.getComputedStyle(body).background : 'N/A';
-      const htmlBg = html ? window.getComputedStyle(html).background : 'N/A';
-      const globalBgComputed = globalBg ? window.getComputedStyle(globalBg as HTMLElement).background : 'N/A';
-      const bodyBgColor = body ? window.getComputedStyle(body).backgroundColor : 'N/A';
-      logger.info('🔍 Computed backgrounds after setting:', {
-        body: bodyBg.substring(0, 100),
-        html: htmlBg.substring(0, 100),
-        globalBg: globalBgComputed.substring(0, 100),
-        bodyBgColor: bodyBgColor
-      });
-    }, 100);
+    // 🔥 CRITICAL: applyPaperBackground('0.6') already set paper bg to 60% opacity
+    // No need to set it again - the function handles everything with !important flags
     
     // 🗺️ JOURNEY BADGE: Update badge when returning to homepage
     // Show NEWLY unlocked boards count (excluding board 1 and already viewed boards) as badge
@@ -978,6 +979,8 @@ class UIManager {
   showApp(): void {
     const appElement = document.getElementById('app');
     if (appElement) {
+      // 🔥 CRITICAL: Ensure board game uses 35% paper opacity
+      applyPaperBackground('0.35');
       // 🔥 CRITICAL FIX: DO NOT remove canvas elements here - boot() already added the canvas
       // Removing canvas here would remove the canvas that boot() just added!
       // Only remove canvas if app is not booted yet (which shouldn't happen)
@@ -1229,8 +1232,8 @@ class UIManager {
     const body = document.body;
     const globalBg = document.getElementById('global-bg');
     const appElement = document.getElementById('app');
-    const targetGradient = 'linear-gradient(180deg, #f3eee8 0%, #fcecdf 100%)';
-    const targetGlobalBgGradient = 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)';
+    const targetGradient = PAPER_BG_STYLE;
+    const targetGlobalBgGradient = PAPER_BG_STYLE;
     
     if (gsap && body) {
       gsap.killTweensOf(body);
@@ -1245,12 +1248,14 @@ class UIManager {
     if (gsap && appElement) {
       gsap.killTweensOf(appElement);
       appElement.style.transition = 'none';
-      gsap.set(appElement, { background: 'var(--app-gradient, linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%))' });
+      gsap.set(appElement, { background: PAPER_BG_STYLE });
     }
   }
   
   // Show homepage QUIETLY - no animations, just show it (for exit flow)
   showHomepageQuietly(): void {
+    applyPaperBackground('0.6');
+    this.elements.home?.style.setProperty('--paper-alpha', '0.6');
     if (this.elements.home) {
       this.elements.home.style.display = 'block';
       this.elements.home.removeAttribute('hidden');
@@ -1299,68 +1304,8 @@ class UIManager {
         });
       }, 150); // Slightly longer delay to ensure navigation is fully rendered
 
-      // 🔥 CRITICAL: Reset background to gradient when showing homepage quietly
-      // This ensures gradient is always visible when returning to homepage
-      const body = document.body;
-      const html = document.documentElement;
-      let globalBg = document.getElementById('global-bg');
-      const appElement = document.getElementById('app');
-      const targetGradient = 'linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%)';
-      const targetGlobalBgGradient = 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)';
-      
-      // 🔥 CRITICAL: Set gradient IMMEDIATELY with !important flags
-      if (body) {
-        body.style.setProperty('background', targetGradient, 'important');
-        body.style.setProperty('background-color', 'transparent', 'important');
-        body.style.setProperty('background-image', targetGradient, 'important');
-      }
-      if (html) {
-        html.style.setProperty('background', targetGradient, 'important');
-        html.style.setProperty('background-color', 'transparent', 'important');
-        html.style.setProperty('background-image', targetGradient, 'important');
-      }
-      if (!globalBg) {
-        globalBg = document.createElement('div');
-        globalBg.id = 'global-bg';
-        globalBg.style.position = 'fixed';
-        globalBg.style.top = 'calc(-1 * env(safe-area-inset-top, 0px))';
-        globalBg.style.bottom = 'calc(-1 * env(safe-area-inset-bottom, 0px))';
-        globalBg.style.left = '-12vw';
-        globalBg.style.right = '-12vw';
-        globalBg.style.pointerEvents = 'none';
-        globalBg.style.zIndex = '-1';
-        if (document.body.firstChild) {
-          document.body.insertBefore(globalBg, document.body.firstChild);
-        } else {
-          document.body.appendChild(globalBg);
-        }
-      }
-      if (globalBg) {
-        (globalBg as HTMLElement).style.setProperty('background', targetGlobalBgGradient, 'important');
-        (globalBg as HTMLElement).style.setProperty('background-color', 'transparent', 'important');
-        (globalBg as HTMLElement).style.setProperty('background-image', targetGlobalBgGradient, 'important');
-      }
-      if (appElement) {
-        appElement.style.setProperty('background', targetGlobalBgGradient, 'important');
-      }
-      logger.info('✅ [showHomepageQuietly] Gradient background set with !important flags');
-      
-      // Also set via GSAP for smooth transitions (but !important flags take precedence)
-      if (gsap && body) {
-        gsap.killTweensOf(body);
-        body.style.transition = 'none';
-        gsap.set(body, { background: targetGradient });
-      }
-      if (gsap && globalBg) {
-        gsap.killTweensOf(globalBg);
-        (globalBg as HTMLElement).style.transition = 'none';
-        gsap.set(globalBg, { background: targetGlobalBgGradient });
-      }
-      if (gsap && appElement) {
-        gsap.killTweensOf(appElement);
-        appElement.style.transition = 'none';
-        gsap.set(appElement, { background: targetGlobalBgGradient });
-      }
+      // 🔥 CRITICAL: applyPaperBackground('0.6') already set paper bg to 60% opacity
+      // No need to set it again - the function handles everything with !important flags
       // NO TRANSITIONS, NO OPACITY - elements will be animated by animateSliderEnter
       // DO NOT set opacity 0 here - it will break animation visibility
       logger.info('✅ Homepage shown QUIETLY - ready for animateSliderEnter to control animations');
@@ -1405,34 +1350,9 @@ class UIManager {
   private showStatsScreenWithAnimation(): void {
     logger.info('📊 Showing stats screen - with exit animation');
     
-    // 🔥 CRITICAL: Set gradient IMMEDIATELY at the very start of function
+    // 🔥 CRITICAL: Set paper background to 60% opacity IMMEDIATELY
     // This prevents gray color from showing during slider exit animation
-    const body = document.body;
-    const html = document.documentElement;
-    const globalBg = document.getElementById('global-bg');
-    const appElement = document.getElementById('app');
-    const currentGradient = 'linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%)';
-    const currentGlobalBgGradient = 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)';
-    
-    // Set gradient FIRST, before any slider positioning or animations
-    if (body) {
-      body.style.setProperty('background', currentGradient, 'important');
-      body.style.setProperty('background-color', 'transparent', 'important');
-      body.style.setProperty('background-image', currentGradient, 'important');
-    }
-    if (html) {
-      html.style.setProperty('background', currentGradient, 'important');
-      html.style.setProperty('background-color', 'transparent', 'important');
-      html.style.setProperty('background-image', currentGradient, 'important');
-    }
-    if (globalBg) {
-      (globalBg as HTMLElement).style.setProperty('background', currentGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', 'transparent', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', currentGlobalBgGradient, 'important');
-    }
-    if (appElement) {
-      appElement.style.setProperty('background', currentGlobalBgGradient, 'important');
-    }
+    applyPaperBackground('0.6');
     logger.info('✅ [Stats ENTER] Gradient background set with !important flags IMMEDIATELY (at function start)');
     
     // CRITICAL: Switch to Stats slide (index 1) BEFORE animation so it animates the correct slide
@@ -1455,7 +1375,7 @@ class UIManager {
     
     // 🎨 PREMIUM FADE: Animate background color from gradient to solid color (SMOOTH FADE)
     // This creates a premium transition effect when entering individual screens
-    const targetSolidColor = '#f3eee8';
+    const targetSolidColor = PAPER_BG_STYLE;
     
     console.log('🎨 [Stats ENTER] Starting premium fade from gradient to solid color - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
     
@@ -1577,8 +1497,8 @@ class UIManager {
     const body = document.body;
     const globalBg = document.getElementById('global-bg');
     const appElement = document.getElementById('app');
-    const targetGradient = 'linear-gradient(180deg, #f3eee8 0%, #fcecdf 100%)';
-    const targetGlobalBgGradient = 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)';
+    const targetGradient = PAPER_BG_STYLE;
+    const targetGlobalBgGradient = PAPER_BG_STYLE;
     
     console.log('🎨 [Stats EXIT] Starting smooth background fade to gradient - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
     
@@ -1688,57 +1608,19 @@ class UIManager {
   
   // Show Journey screen with exit animation
   private showCollectiblesScreenWithAnimation(): void {
-    // 🔥 CRITICAL: Set gradient IMMEDIATELY at the VERY FIRST line of function
+    // 🔥 CRITICAL: Set paper background to 100% opacity IMMEDIATELY at the VERY FIRST line
     // This MUST happen before ANY other code, including logger calls
     // This prevents gray color from showing during slider exit animation
-    const currentGradient = 'linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%)';
-    const currentGlobalBgGradient = 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)';
-    
-    // Set gradient SYNCHRONOUSLY on all elements - NO async, NO delays
+    applyPaperBackground('0.6');
     const body = document.body;
     const html = document.documentElement;
     const globalBg = document.getElementById('global-bg');
     const appElement = document.getElementById('app');
+    const currentGradient = PAPER_BG_STYLE;
+    const currentGlobalBgGradient = PAPER_BG_STYLE;
     
-    if (body) {
-      body.style.setProperty('background', currentGradient, 'important');
-      body.style.setProperty('background-color', 'transparent', 'important');
-      body.style.setProperty('background-image', currentGradient, 'important');
-    }
-    if (html) {
-      html.style.setProperty('background', currentGradient, 'important');
-      html.style.setProperty('background-color', 'transparent', 'important');
-      html.style.setProperty('background-image', currentGradient, 'important');
-    }
-    if (globalBg) {
-      (globalBg as HTMLElement).style.setProperty('background', currentGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', 'transparent', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', currentGlobalBgGradient, 'important');
-    }
-    if (appElement) {
-      appElement.style.setProperty('background', currentGlobalBgGradient, 'important');
-    }
-    
-    // 🔥 CRITICAL: Also set gradient on ALL containers and slider slides to prevent gray flash
-    const homeContainer = document.getElementById('home');
-    const sliderContainer = document.getElementById('slider-container');
-    const sliderWrapper = document.getElementById('slider-wrapper');
-    
-    if (homeContainer) {
-      (homeContainer as HTMLElement).style.setProperty('background', currentGradient, 'important');
-    }
-    if (sliderContainer) {
-      (sliderContainer as HTMLElement).style.setProperty('background', currentGradient, 'important');
-    }
-    if (sliderWrapper) {
-      (sliderWrapper as HTMLElement).style.setProperty('background', currentGradient, 'important');
-    }
-    
-    // 🔥 CRITICAL: Set gradient on ALL slider slides (not just active one) to prevent gray flash
-    const slides = document.querySelectorAll('.slider-slide');
-    slides.forEach((slide) => {
-      (slide as HTMLElement).style.setProperty('background', currentGradient, 'important');
-    });
+    // 🔥 IMPORTANT: Keep slider containers transparent to avoid cropped paper texture
+    clearSliderBackgrounds();
     
     // NOW log and continue with rest of function
     logger.info('🗺️ Showing Journey screen - with exit animation');
@@ -1758,6 +1640,7 @@ class UIManager {
     
     // CRITICAL: Switch to Journey slide (index 1) BEFORE animation so its elements animate out
     // (CTA, text, hero). We still open the Journey screen after the animation.
+    const slides = document.querySelectorAll('.slider-slide');
     const navButtons = document.querySelectorAll('.independent-nav-button');
     slides.forEach((slide, index) => {
       if (index === 1) {
@@ -1778,21 +1661,22 @@ class UIManager {
     // This ensures gradient is set even if something changed it during slider positioning
     if (body) {
       body.style.setProperty('background', currentGradient, 'important');
-      body.style.setProperty('background-color', 'transparent', 'important');
-      body.style.setProperty('background-image', currentGradient, 'important');
+      body.style.setProperty('background-color', '#f3eee8', 'important');
+      body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (html) {
       html.style.setProperty('background', currentGradient, 'important');
-      html.style.setProperty('background-color', 'transparent', 'important');
-      html.style.setProperty('background-image', currentGradient, 'important');
+      html.style.setProperty('background-color', '#f3eee8', 'important');
+      html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (globalBg) {
       (globalBg as HTMLElement).style.setProperty('background', currentGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', 'transparent', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', currentGlobalBgGradient, 'important');
+      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
+      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (appElement) {
-      appElement.style.setProperty('background', currentGlobalBgGradient, 'important');
+      appElement.style.setProperty('background', 'transparent', 'important');
+      appElement.style.setProperty('background-image', 'none', 'important');
     }
     
     // 🔥 CRITICAL: Force reflow to ensure DOM is updated before animation
@@ -1813,21 +1697,22 @@ class UIManager {
     // Ensure gradient stays with !important during exit animation
     if (body) {
       body.style.setProperty('background', currentGradient, 'important');
-      body.style.setProperty('background-color', 'transparent', 'important');
-      body.style.setProperty('background-image', currentGradient, 'important');
+      body.style.setProperty('background-color', '#f3eee8', 'important');
+      body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (html) {
       html.style.setProperty('background', currentGradient, 'important');
-      html.style.setProperty('background-color', 'transparent', 'important');
-      html.style.setProperty('background-image', currentGradient, 'important');
+      html.style.setProperty('background-color', '#f3eee8', 'important');
+      html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (globalBg) {
       (globalBg as HTMLElement).style.setProperty('background', currentGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', 'transparent', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', currentGlobalBgGradient, 'important');
+      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
+      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (appElement) {
-      appElement.style.setProperty('background', currentGlobalBgGradient, 'important');
+      appElement.style.setProperty('background', 'transparent', 'important');
+      appElement.style.setProperty('background-image', 'none', 'important');
     }
     
     // 🔥 CRITICAL: Play exit animation FIRST (gradient stays with !important during exit)
@@ -1875,20 +1760,21 @@ class UIManager {
       if (body) {
         body.style.setProperty('background', targetSolidColor, 'important');
         body.style.setProperty('background-color', targetSolidColor, 'important');
-        body.style.setProperty('background-image', 'none', 'important');
+        body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
       }
       if (html) {
         html.style.setProperty('background', targetSolidColor, 'important');
         html.style.setProperty('background-color', targetSolidColor, 'important');
-        html.style.setProperty('background-image', 'none', 'important');
+        html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
       }
       if (globalBg) {
         (globalBg as HTMLElement).style.setProperty('background', targetSolidColor, 'important');
         (globalBg as HTMLElement).style.setProperty('background-color', targetSolidColor, 'important');
-        (globalBg as HTMLElement).style.setProperty('background-image', 'none', 'important');
+        (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
       }
       if (appElement) {
-        appElement.style.setProperty('background', targetSolidColor, 'important');
+        appElement.style.setProperty('background', 'transparent', 'important');
+        appElement.style.setProperty('background-image', 'none', 'important');
       }
       console.log('✅ [Journey ENTER] Solid color set with !important IMMEDIATELY (prevents gray flash)');
       
@@ -1940,18 +1826,9 @@ class UIManager {
         });
         console.log('✅ [Journey ENTER] Global-bg background fade animation started from gradient to', targetSolidColor);
       }
-      if (gsap && appElement) {
-        gsap.killTweensOf(appElement);
-        appElement.style.transition = 'none';
-        gsap.set(appElement, { background: currentGradient });
-        gsap.to(appElement, {
-          background: targetSolidColor,
-          duration: fadeDuration,
-          ease: 'power2.inOut',
-          overwrite: 'auto',
-          immediateRender: false
-        });
-        console.log('✅ [Journey ENTER] App element background fade animation started from gradient to', targetSolidColor);
+      if (appElement) {
+        appElement.style.setProperty('background', 'transparent', 'important');
+        appElement.style.setProperty('background-image', 'none', 'important');
       }
       
       // Step 3: Wait for fade animation to complete, then show Journey screen
@@ -1963,20 +1840,21 @@ class UIManager {
         if (body) {
           body.style.setProperty('background', targetSolidColor, 'important');
           body.style.setProperty('background-color', targetSolidColor, 'important');
-          body.style.setProperty('background-image', 'none', 'important');
+          body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
         }
         if (html) {
           html.style.setProperty('background', targetSolidColor, 'important');
           html.style.setProperty('background-color', targetSolidColor, 'important');
-          html.style.setProperty('background-image', 'none', 'important');
+          html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
         }
         if (globalBg) {
           (globalBg as HTMLElement).style.setProperty('background', targetSolidColor, 'important');
           (globalBg as HTMLElement).style.setProperty('background-color', targetSolidColor, 'important');
-          (globalBg as HTMLElement).style.setProperty('background-image', 'none', 'important');
+          (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
         }
         if (appElement) {
-          appElement.style.setProperty('background', targetSolidColor, 'important');
+          appElement.style.setProperty('background', 'transparent', 'important');
+          appElement.style.setProperty('background-image', 'none', 'important');
         }
         console.log('✅ [Journey ENTER] Solid color set with !important before showing Journey screen');
         
@@ -2117,8 +1995,8 @@ class UIManager {
     const html = document.documentElement;
     const globalBg = document.getElementById('global-bg');
     const appElement = document.getElementById('app');
-    const targetGradient = 'linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%)';
-    const targetGlobalBgGradient = 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)';
+    const targetGradient = PAPER_BG_STYLE;
+    const targetGlobalBgGradient = PAPER_BG_STYLE;
     
     console.log('🎨 [Collectibles EXIT] Starting smooth background fade to gradient - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
     
@@ -2126,23 +2004,27 @@ class UIManager {
     // This prevents gray color from showing during transition
     if (body) {
       body.style.setProperty('background', targetGradient, 'important');
-      body.style.setProperty('background-color', 'transparent', 'important');
-      body.style.setProperty('background-image', targetGradient, 'important');
+      body.style.setProperty('background-color', '#f3eee8', 'important');
+      body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (html) {
       html.style.setProperty('background', targetGradient, 'important');
-      html.style.setProperty('background-color', 'transparent', 'important');
-      html.style.setProperty('background-image', targetGradient, 'important');
+      html.style.setProperty('background-color', '#f3eee8', 'important');
+      html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (globalBg) {
       (globalBg as HTMLElement).style.setProperty('background', targetGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', 'transparent', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', targetGlobalBgGradient, 'important');
+      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
+      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (appElement) {
-      appElement.style.setProperty('background', targetGlobalBgGradient, 'important');
+      appElement.style.setProperty('background', 'transparent', 'important');
+      appElement.style.setProperty('background-image', 'none', 'important');
     }
     logger.info('✅ [Collectibles EXIT] Gradient background set with !important flags IMMEDIATELY (before animation)');
+
+    // 🔥 IMPORTANT: Keep slider containers transparent to avoid cropped paper texture on return
+    clearSliderBackgrounds();
     
     // 🔥 CRITICAL: Fade duration for premium transition
     const fadeDuration = 0.8;
@@ -2200,16 +2082,17 @@ class UIManager {
     // This prevents gray color from showing during transition
     if (body) {
       body.style.setProperty('background', targetGradient, 'important');
-      body.style.setProperty('background-color', 'transparent', 'important');
-      body.style.setProperty('background-image', targetGradient, 'important');
+      body.style.setProperty('background-color', '#f3eee8', 'important');
+      body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (globalBg) {
       (globalBg as HTMLElement).style.setProperty('background', targetGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', 'transparent', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', targetGlobalBgGradient, 'important');
+      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
+      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (appElement) {
-      appElement.style.setProperty('background', targetGlobalBgGradient, 'important');
+      appElement.style.setProperty('background', 'transparent', 'important');
+      appElement.style.setProperty('background-image', 'none', 'important');
     }
     logger.info('✅ [Collectibles EXIT] Gradient background set with !important flags IMMEDIATELY');
     
@@ -2362,61 +2245,23 @@ class UIManager {
   
   // Show settings screen
   private showSettingsScreenWithAnimation(): void {
-    // 🔥 CRITICAL: Set gradient IMMEDIATELY at the VERY FIRST line of function
+    // 🔥 CRITICAL: Set paper background to 100% opacity IMMEDIATELY at the VERY FIRST line
     // This MUST happen before ANY other code, including logger calls
     // This prevents gray color from showing during slider exit animation
-    const currentGradient = 'linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%)';
-    const currentGlobalBgGradient = 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)';
-    
-    // Set gradient SYNCHRONOUSLY on all elements - NO async, NO delays
+    applyPaperBackground('0.6');
     const body = document.body;
     const html = document.documentElement;
     const globalBg = document.getElementById('global-bg');
     const appElement = document.getElementById('app');
+    const currentGradient = PAPER_BG_STYLE;
+    const currentGlobalBgGradient = PAPER_BG_STYLE;
     
-    if (body) {
-      body.style.setProperty('background', currentGradient, 'important');
-      body.style.setProperty('background-color', 'transparent', 'important');
-      body.style.setProperty('background-image', currentGradient, 'important');
-    }
-    if (html) {
-      html.style.setProperty('background', currentGradient, 'important');
-      html.style.setProperty('background-color', 'transparent', 'important');
-      html.style.setProperty('background-image', currentGradient, 'important');
-    }
-    if (globalBg) {
-      (globalBg as HTMLElement).style.setProperty('background', currentGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', 'transparent', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', currentGlobalBgGradient, 'important');
-    }
+    // 🔥 IMPORTANT: Keep slider containers transparent to avoid cropped/tiled paper background
+    clearSliderBackgrounds();
     if (appElement) {
-      appElement.style.setProperty('background', currentGlobalBgGradient, 'important');
+      appElement.style.setProperty('background', 'transparent', 'important');
+      appElement.style.setProperty('background-image', 'none', 'important');
     }
-    
-    // 🔥 CRITICAL: Also set gradient on ALL containers and slider slides to prevent gray flash
-    const homeContainer = document.getElementById('home');
-    const sliderContainer = document.getElementById('slider-container');
-    const sliderWrapper = document.getElementById('slider-wrapper');
-    // appElement already declared above, don't redeclare
-    
-    if (homeContainer) {
-      (homeContainer as HTMLElement).style.setProperty('background', currentGradient, 'important');
-    }
-    if (sliderContainer) {
-      (sliderContainer as HTMLElement).style.setProperty('background', currentGradient, 'important');
-    }
-    if (sliderWrapper) {
-      (sliderWrapper as HTMLElement).style.setProperty('background', currentGradient, 'important');
-    }
-    if (appElement) {
-      appElement.style.setProperty('background', currentGlobalBgGradient, 'important');
-    }
-    
-    // 🔥 CRITICAL: Set gradient on ALL slider slides (not just active one) to prevent gray flash
-    const slides = document.querySelectorAll('.slider-slide');
-    slides.forEach((slide) => {
-      (slide as HTMLElement).style.setProperty('background', currentGradient, 'important');
-    });
     
     // NOW log and continue with rest of function
     logger.info('⚙️ Showing settings screen - with exit animation');
@@ -2424,6 +2269,7 @@ class UIManager {
     
     // CRITICAL: Switch to Settings slide (index 3) BEFORE animation so it animates the correct slide
     const navButtons = document.querySelectorAll('.independent-nav-button');
+    const slides = document.querySelectorAll('.slider-slide');
     slides.forEach((slide, index) => {
       if (index === 3) {
         slide.classList.add('active');
@@ -2457,21 +2303,22 @@ class UIManager {
     // Ensure gradient stays with !important during exit animation
     if (body) {
       body.style.setProperty('background', currentGradient, 'important');
-      body.style.setProperty('background-color', 'transparent', 'important');
-      body.style.setProperty('background-image', currentGradient, 'important');
+      body.style.setProperty('background-color', '#f3eee8', 'important');
+      body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (html) {
       html.style.setProperty('background', currentGradient, 'important');
-      html.style.setProperty('background-color', 'transparent', 'important');
-      html.style.setProperty('background-image', currentGradient, 'important');
+      html.style.setProperty('background-color', '#f3eee8', 'important');
+      html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (globalBg) {
       (globalBg as HTMLElement).style.setProperty('background', currentGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', 'transparent', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', currentGlobalBgGradient, 'important');
+      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
+      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (appElement) {
-      appElement.style.setProperty('background', currentGlobalBgGradient, 'important');
+      appElement.style.setProperty('background', 'transparent', 'important');
+      appElement.style.setProperty('background-image', 'none', 'important');
     }
     
     // Step 1: Play exit animation for Settings slide (gradient stays with !important during exit)
@@ -2479,21 +2326,22 @@ class UIManager {
     // This ensures gradient is set even if something changed it during slider positioning
     if (body) {
       body.style.setProperty('background', currentGradient, 'important');
-      body.style.setProperty('background-color', 'transparent', 'important');
-      body.style.setProperty('background-image', currentGradient, 'important');
+      body.style.setProperty('background-color', '#f3eee8', 'important');
+      body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (html) {
       html.style.setProperty('background', currentGradient, 'important');
-      html.style.setProperty('background-color', 'transparent', 'important');
-      html.style.setProperty('background-image', currentGradient, 'important');
+      html.style.setProperty('background-color', '#f3eee8', 'important');
+      html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (globalBg) {
       (globalBg as HTMLElement).style.setProperty('background', currentGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', 'transparent', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', currentGlobalBgGradient, 'important');
+      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
+      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (appElement) {
-      appElement.style.setProperty('background', currentGlobalBgGradient, 'important');
+      appElement.style.setProperty('background', 'transparent', 'important');
+      appElement.style.setProperty('background-image', 'none', 'important');
     }
     
     console.log('🎬 Step 1: Playing exit animation for Settings slide (gradient preserved with !important)');
@@ -2635,8 +2483,8 @@ class UIManager {
     const html = document.documentElement;
     const globalBg = document.getElementById('global-bg');
     const appElement = document.getElementById('app');
-    const targetGradient = 'linear-gradient(180deg, #f3eee8 0%, rgba(252, 236, 223, 0.92) 60%, #fcecdf 100%)';
-    const targetGlobalBgGradient = 'linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%)';
+    const targetGradient = PAPER_BG_STYLE;
+    const targetGlobalBgGradient = PAPER_BG_STYLE;
     
     console.log('🎨 [Settings EXIT] Starting smooth background fade to gradient - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
     
@@ -2644,21 +2492,22 @@ class UIManager {
     // This prevents gray color from showing during transition
     if (body) {
       body.style.setProperty('background', targetGradient, 'important');
-      body.style.setProperty('background-color', 'transparent', 'important');
-      body.style.setProperty('background-image', targetGradient, 'important');
+      body.style.setProperty('background-color', '#f3eee8', 'important');
+      body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (html) {
       html.style.setProperty('background', targetGradient, 'important');
-      html.style.setProperty('background-color', 'transparent', 'important');
-      html.style.setProperty('background-image', targetGradient, 'important');
+      html.style.setProperty('background-color', '#f3eee8', 'important');
+      html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (globalBg) {
       (globalBg as HTMLElement).style.setProperty('background', targetGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', 'transparent', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', targetGlobalBgGradient, 'important');
+      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
+      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (appElement) {
-      appElement.style.setProperty('background', targetGlobalBgGradient, 'important');
+      appElement.style.setProperty('background', 'transparent', 'important');
+      appElement.style.setProperty('background-image', 'none', 'important');
     }
     logger.info('✅ [Settings EXIT] Gradient background set with !important flags IMMEDIATELY (before animation)');
     
@@ -2723,7 +2572,8 @@ class UIManager {
         (globalBg as HTMLElement).style.setProperty('background', targetGlobalBgGradient, 'important');
       }
       if (appElement) {
-        appElement.style.setProperty('background', targetGlobalBgGradient, 'important');
+        appElement.style.setProperty('background', 'transparent', 'important');
+        appElement.style.setProperty('background-image', 'none', 'important');
       }
     }, fadeDuration * 1000);
     

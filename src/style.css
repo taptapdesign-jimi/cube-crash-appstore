@@ -8,7 +8,9 @@
 }
 
 :root{
-  --app-gradient: linear-gradient(180deg, #f3eee8 0%, #FBE3C5 100%);
+  --app-gradient: #f3eee8 url('./assets/paper-bg.png') center/100% 100% no-repeat;
+  --paper-alpha: 1;
+  --paper-overlay-alpha: 0; /* Inverse of paper-alpha: 0 = fully visible, 1 = hidden */
   --board-perspective: 1200px;
   --tile-3d-depth: 20px;
   --board-tilt: 20deg;
@@ -29,8 +31,12 @@ body{
   bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
   left: -12vw;
   right: -12vw;
-  /* 🔥 CRITICAL: Start with #F9F9F9, gradient will be set by launch-screen.ts in Phase 2 */
-  background: #F9F9F9;
+  /* 🔥 FIXED: Paper overlay logic - paper-alpha 1 = fully visible, 0.5 = 50% visible */
+  background-color: #f3eee8;
+  background-image: url('./assets/paper-bg.png');
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  background-position: center;
   pointer-events: none;
   z-index: -1; /* 🔥 CRITICAL: Behind content, not in front */
   /* Transition removed - GSAP now handles background animations */
@@ -475,9 +481,10 @@ body{
 #app {
   /* Transition removed - GSAP now handles background animations */
   z-index: 10; /* Above background, below sliders */
-  background: #f3eee8; /* Game background color */
+  background: transparent !important;
+  background-image: none !important;
 }
-html,body{height:100%;margin:0;background:#F9F9F9;background-color:#F9F9F9;background-image:none;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+html,body{height:100%;margin:0;background:#f3eee8 linear-gradient(rgba(243,238,232,var(--paper-alpha, 1)), rgba(243,238,232,var(--paper-alpha, 1))), url('./assets/paper-bg.png') center/100% 100% no-repeat;background-color:#f3eee8;background-image:linear-gradient(rgba(243,238,232,var(--paper-alpha, 1)), rgba(243,238,232,var(--paper-alpha, 1))), url('./assets/paper-bg.png');background-size:100% 100%;background-repeat:no-repeat;background-position:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
 
 /* Optimize canvas for pixel-perfect rendering */
 canvas {
@@ -485,7 +492,8 @@ canvas {
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
   z-index: 10; /* Above background, below sliders */
-  background: #f3eee8; /* Game background color */
+  background: transparent !important;
+  background-image: none !important;
 }
 html{height:100dvh;height:100vh}
 html{

@@ -40,6 +40,7 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/crash-cubes-homepage.png',
   './assets/crash-cubes-homepage@2x.png',
   './assets/crash-cubes-homepage@3x.png',
+  './assets/paper-bg.png',
   './assets/journey-map-homepage.png',
   './assets/journey-map-homepage@2x.png',
   './assets/journey-map-homepage@3x.png',
