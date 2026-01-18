@@ -761,10 +761,10 @@ class UIManager {
   showHomepage(): void {
     logger.info('🏠 showHomepage() called');
     
-    // 🔥 CRITICAL: ALWAYS set paper background to 50% opacity when showing homepage
+    // 🔥 CRITICAL: ALWAYS set paper background to 60% opacity when showing homepage
     // This ensures paper bg is visible on homepage, even if it was set to 35% in board game
-    applyPaperBackground('0.5');
-    this.elements.home?.style.setProperty('--paper-alpha', '0.5');
+    applyPaperBackground('0.6');
+    this.elements.home?.style.setProperty('--paper-alpha', '0.6');
     
     if (this.elements.home) {
       this.elements.home.style.display = 'block';
@@ -773,23 +773,23 @@ class UIManager {
     }
 
     // 🔥 CRITICAL: Ensure #global-bg exists (create if missing)
-    let globalBg = document.getElementById('global-bg');
-    if (!globalBg) {
-      logger.info('🔧 Creating #global-bg element (not found in DOM)');
-      globalBg = document.createElement('div');
-      globalBg.id = 'global-bg';
-      globalBg.style.position = 'fixed';
-      globalBg.style.top = 'calc(-1 * env(safe-area-inset-top, 0px))';
-      globalBg.style.bottom = 'calc(-1 * env(safe-area-inset-bottom, 0px))';
-      globalBg.style.left = '-12vw';
-      globalBg.style.right = '-12vw';
-      globalBg.style.pointerEvents = 'none';
-      globalBg.style.zIndex = '-1';
-      if (document.body.firstChild) {
-        document.body.insertBefore(globalBg, document.body.firstChild);
-      } else {
-        document.body.appendChild(globalBg);
-      }
+      let globalBg = document.getElementById('global-bg');
+      if (!globalBg) {
+        logger.info('🔧 Creating #global-bg element (not found in DOM)');
+        globalBg = document.createElement('div');
+        globalBg.id = 'global-bg';
+        globalBg.style.position = 'fixed';
+        globalBg.style.top = 'calc(-1 * env(safe-area-inset-top, 0px))';
+        globalBg.style.bottom = 'calc(-1 * env(safe-area-inset-bottom, 0px))';
+        globalBg.style.left = '-12vw';
+        globalBg.style.right = '-12vw';
+        globalBg.style.pointerEvents = 'none';
+        globalBg.style.zIndex = '-1';
+        if (document.body.firstChild) {
+          document.body.insertBefore(globalBg, document.body.firstChild);
+        } else {
+          document.body.appendChild(globalBg);
+        }
       // applyPaperBackground() already set the background, but ensure it's set here too
       (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
       (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
@@ -799,7 +799,7 @@ class UIManager {
       logger.info('✅ #global-bg created and paper background set');
     }
     
-    // 🔥 CRITICAL: applyPaperBackground('0.5') already set paper bg to 50% opacity
+    // 🔥 CRITICAL: applyPaperBackground('0.6') already set paper bg to 60% opacity
     // No need to set it again - the function handles everything with !important flags
     
     // 🗺️ JOURNEY BADGE: Update badge when returning to homepage
@@ -1254,8 +1254,8 @@ class UIManager {
   
   // Show homepage QUIETLY - no animations, just show it (for exit flow)
   showHomepageQuietly(): void {
-    applyPaperBackground('0.5');
-    this.elements.home?.style.setProperty('--paper-alpha', '0.5');
+    applyPaperBackground('0.6');
+    this.elements.home?.style.setProperty('--paper-alpha', '0.6');
     if (this.elements.home) {
       this.elements.home.style.display = 'block';
       this.elements.home.removeAttribute('hidden');
@@ -1726,9 +1726,9 @@ class UIManager {
       console.log('✅ [Journey ENTER] Paper background with 60% opacity already set - no changes needed');
       
       // Show Journey screen IMMEDIATELY - no blank screen, no fade animation
-      // Journey screen is already prepared with opacity 0, animation will start immediately
-      this.showCollectiblesScreen();
-      (window as any).__ccUiJourneyTransitioning = false;
+        // Journey screen is already prepared with opacity 0, animation will start immediately
+        this.showCollectiblesScreen();
+        (window as any).__ccUiJourneyTransitioning = false;
     }, 770);
   }
   
@@ -1858,7 +1858,7 @@ class UIManager {
     // 🎨 CRITICAL: Set paper background to 50% opacity IMMEDIATELY when exiting Journey screen
     // This ensures paper bg is visible on homepage with correct opacity, preventing gray flash
     // This runs IMMEDIATELY (not after animation) to prevent gray background during transition
-    applyPaperBackground('0.5');
+    applyPaperBackground('0.6');
     
     const body = document.body;
     const html = document.documentElement;
@@ -1937,15 +1937,15 @@ class UIManager {
     } else if (cameFromHomepage) {
       // 🔥 USER REQUEST: Homepage PLAY games → return to homepage slide (slide 0)
       logger.info('🏠 Returning to homepage slide (slide 0) - showing homepage');
-      // 🔥 CRITICAL: Paper bg with 50% opacity already set by applyPaperBackground('0.5') above
-      // No need to set it again - showHomepageQuietly() will ensure it stays at 50%
-      this.showHomepageQuietly();
-      this.setNavigationVisibility(true);
+      // 🔥 CRITICAL: Paper bg with 60% opacity already set by applyPaperBackground('0.6') above
+      // No need to set it again - showHomepageQuietly() will ensure it stays at 60%
+    this.showHomepageQuietly();
+    this.setNavigationVisibility(true);
     } else {
       // Default: show homepage (for backward compatibility)
       logger.info('🏠 No context found - defaulting to homepage slide (slide 0)');
-      // 🔥 CRITICAL: Paper bg with 50% opacity already set by applyPaperBackground('0.5') above
-      // No need to set it again - showHomepageQuietly() will ensure it stays at 50%
+      // 🔥 CRITICAL: Paper bg with 60% opacity already set by applyPaperBackground('0.6') above
+      // No need to set it again - showHomepageQuietly() will ensure it stays at 60%
       this.showHomepageQuietly();
       this.setNavigationVisibility(true);
     }
@@ -2018,16 +2018,16 @@ class UIManager {
   
   // Show settings screen
   private showSettingsScreenWithAnimation(): void {
-    // 🔥 CRITICAL: Set paper background to 50% opacity IMMEDIATELY at the VERY FIRST line
+    // 🔥 CRITICAL: Set paper background to 60% opacity IMMEDIATELY at the VERY FIRST line
     // This MUST happen before ANY other code, including logger calls
     // This prevents gray color from showing during slider exit animation
-    applyPaperBackground('0.5');
+    applyPaperBackground('0.6');
     const body = document.body;
     const html = document.documentElement;
     const globalBg = document.getElementById('global-bg');
     const appElement = document.getElementById('app');
-    // Keep Settings background at the same 50% paper opacity as homepage
-    const paperOverlayAlpha = 0.5; // 1 - 0.5 = 50% paper visible
+    // Keep Settings background at the same 60% paper opacity as homepage
+    const paperOverlayAlpha = 0.4; // 1 - 0.6 = 60% paper visible
     const targetPaperBg = `linear-gradient(rgba(243,238,232,${paperOverlayAlpha}), rgba(243,238,232,${paperOverlayAlpha})), url('./assets/paper-bg.png') center/100% 100% no-repeat, #f3eee8`;
     const currentGradient = targetPaperBg;
     const currentGlobalBgGradient = targetPaperBg;
@@ -2041,7 +2041,7 @@ class UIManager {
     
     // NOW log and continue with rest of function
     logger.info('⚙️ Showing settings screen - with exit animation');
-    logger.info('✅ [Settings ENTER] Paper background set to 50% opacity IMMEDIATELY (at function start)');
+    logger.info('✅ [Settings ENTER] Paper background set to 60% opacity IMMEDIATELY (at function start)');
     
     // CRITICAL: Switch to Settings slide (index 3) BEFORE animation so it animates the correct slide
     const navButtons = document.querySelectorAll('.independent-nav-button');
@@ -2061,7 +2061,7 @@ class UIManager {
       }
     });
     
-    // 🎨 PREMIUM FADE: Keep paper background at 50% opacity for Settings screen
+    // 🎨 PREMIUM FADE: Keep paper background at 60% opacity for Settings screen
     const targetSolidColor = targetPaperBg;
     
     console.log('🎨 [Settings ENTER] Starting premium fade from gradient to solid color - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
@@ -2122,13 +2122,13 @@ class UIManager {
     // Fade animation can happen in parallel - no need to block Settings screen display
     setTimeout(() => {
       console.log('⚙️ Step 2: Exit animation complete, showing Settings screen IMMEDIATELY');
-      
-      const settingsScreen = this.elements.settingsScreen;
-      if (!settingsScreen) return;
-      
+        
+        const settingsScreen = this.elements.settingsScreen;
+        if (!settingsScreen) return;
+        
       // Show settings screen IMMEDIATELY after exit animation (don't wait for fade)
-      this.hideHomepage();
-      this.setNavigationVisibility(false);
+        this.hideHomepage();
+        this.setNavigationVisibility(false);
       
       // 🔥 CRITICAL: Refresh back button reference and ensure handler is attached
       const backButton = settingsScreen.querySelector('#settings-back-btn') as HTMLButtonElement | null;
@@ -2158,14 +2158,14 @@ class UIManager {
       // 🎬 CRITICAL: Trigger settings screen enter animation (pop-in) using GSAP
       // 🔥 OPTIMIZATION: Use static import (already imported at top) to avoid 15s delay
       try {
-        // Small delay to ensure DOM is ready, then make screen visible and start animation
-        setTimeout(() => {
-          // Make screen visible so GSAP can animate individual elements
-          settingsScreen.style.opacity = '1';
+          // Small delay to ensure DOM is ready, then make screen visible and start animation
+          setTimeout(() => {
+            // Make screen visible so GSAP can animate individual elements
+            settingsScreen.style.opacity = '1';
           console.log('🎬 Calling animateSettingsScreenEnter()...');
           // Use statically imported function - no dynamic import delay!
-          animateSettingsScreenEnter();
-        }, 50);
+            animateSettingsScreenEnter();
+          }, 50);
       } catch (error) {
         console.error('❌ Failed to trigger settings enter animation:', error);
         // Fallback: just show the screen normally
@@ -2178,9 +2178,9 @@ class UIManager {
         focusTarget?.focus();
       }, 100);
       
-    // Step 3: Ensure paper background remains at 50% opacity (no fade needed)
-    console.log('⚙️ Step 3: Paper background already at 50% opacity - no fade needed');
-    applyPaperBackground('0.5');
+    // Step 3: Ensure paper background remains at 60% opacity (no fade needed)
+    console.log('⚙️ Step 3: Paper background already at 60% opacity - no fade needed');
+    applyPaperBackground('0.6');
     if (appElement) {
       appElement.style.setProperty('background', 'transparent', 'important');
       appElement.style.setProperty('background-image', 'none', 'important');
@@ -2192,15 +2192,15 @@ class UIManager {
   private hideSettingsScreenWithAnimation(): void {
     logger.info('⚙️ Hiding settings screen - with enter animation');
     
-    // 🎨 CRITICAL: Keep paper background at 50% opacity during Settings exit
+    // 🎨 CRITICAL: Keep paper background at 60% opacity during Settings exit
     // This must happen IMMEDIATELY when back button is clicked, BEFORE anything else
-    applyPaperBackground('0.5');
+    applyPaperBackground('0.6');
     const appElement = document.getElementById('app');
     if (appElement) {
       appElement.style.setProperty('background', 'transparent', 'important');
       appElement.style.setProperty('background-image', 'none', 'important');
     }
-    logger.info('✅ [Settings EXIT] Paper background set to 50% opacity IMMEDIATELY');
+    logger.info('✅ [Settings EXIT] Paper background set to 60% opacity IMMEDIATELY');
     
     // 🔥 CRITICAL: Fade duration for Settings exit animation timing
     const fadeDuration = 0.8;
@@ -2229,9 +2229,9 @@ class UIManager {
     // 🎬 CRITICAL: Trigger settings screen exit animation (pop-out) AFTER showing homepage
     // 🔥 OPTIMIZATION: Use static import (already imported at top) to avoid delay
     try {
-      console.log('🎬 About to call animateSettingsScreenExit()...');
+        console.log('🎬 About to call animateSettingsScreenExit()...');
       // Use statically imported function - no dynamic import delay!
-      animateSettingsScreenExit();
+        animateSettingsScreenExit();
     } catch (error) {
       console.error('❌ Failed to trigger settings exit animation:', error);
     }

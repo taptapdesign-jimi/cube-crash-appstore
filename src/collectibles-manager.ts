@@ -711,8 +711,8 @@ class CollectiblesManager {
       try {
         const { applyPaperBackground } = await import('./modules/ui-manager.js');
         if (typeof applyPaperBackground === 'function') {
-          applyPaperBackground('0.5');
-          console.log('✅ Paper background set to 50% opacity on Journey exit');
+          applyPaperBackground('0.6');
+          console.log('✅ Paper background set to 60% opacity on Journey exit');
         }
       } catch (error) {
         console.warn('⚠️ Failed to set paper background on Journey exit:', error);

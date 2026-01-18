@@ -4573,7 +4573,8 @@ body:has(:root) .tile.wild-3d-glow {
 #settings-screen {
   position: fixed;
   inset: 0;
-  background: #f3eee8;
+  background: transparent;
+  background-image: none;
   z-index: 10000;
   display: none;
   visibility: hidden;

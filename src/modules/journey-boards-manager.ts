@@ -3499,31 +3499,31 @@ class JourneyBoardsManager {
         floatingPlayButton.setAttribute('type', 'button');
         floatingPlayButton.setAttribute('aria-label', 'Play Board');
         
-        // Prevent dragging/moving the button
+        // Prevent dragging/moving the button (but keep :active working for tap-scale)
         floatingPlayButton.addEventListener('mousedown', (e) => {
-          e.preventDefault();
           e.stopPropagation();
         });
         floatingPlayButton.addEventListener('touchstart', (e) => {
-          e.preventDefault();
           e.stopPropagation();
         });
         
         // Add to modal - append to modal (fixed positioning)
         detailModal.appendChild(floatingPlayButton);
         
-        // Fixed positioning at bottom, centered (same as collectibles-manager.ts)
-        floatingPlayButton.style.setProperty('position', 'fixed', 'important');
-        floatingPlayButton.style.setProperty('bottom', 'calc(40px + env(safe-area-inset-bottom, 0px))', 'important');
-        floatingPlayButton.style.setProperty('left', '50%', 'important');
-        floatingPlayButton.style.setProperty('width', '249px', 'important');
-        floatingPlayButton.style.setProperty('max-width', '249px', 'important');
-        floatingPlayButton.style.setProperty('z-index', '1001', 'important');
-        floatingPlayButton.style.setProperty('pointer-events', 'auto', 'important');
-        floatingPlayButton.style.setProperty('cursor', 'pointer', 'important');
-        floatingPlayButton.style.setProperty('overflow', 'hidden', 'important');
-        floatingPlayButton.style.setProperty('display', 'block', 'important');
-        // 🔥 USER REQUEST: Transform will be set by GSAP (xPercent: -50 for centering)
+        // Fixed positioning at bottom, centered (same as homepage slider CTA)
+        // 🔥 CRITICAL: NO inline transform/opacity/visibility - let CSS handle EVERYTHING
+        // This allows tap-scale :active and animate-enter classes to work correctly
+        floatingPlayButton.style.position = 'fixed';
+        floatingPlayButton.style.bottom = 'calc(40px + env(safe-area-inset-bottom, 0px))';
+        floatingPlayButton.style.left = '50%';
+        floatingPlayButton.style.width = '249px';
+        floatingPlayButton.style.maxWidth = '249px';
+        floatingPlayButton.style.zIndex = '1001';
+        floatingPlayButton.style.pointerEvents = 'auto';
+        floatingPlayButton.style.cursor = 'pointer';
+        floatingPlayButton.style.overflow = 'hidden';
+        floatingPlayButton.style.display = 'block';
+        // 🔥 CRITICAL: Don't set transform/opacity/visibility inline - CSS will handle via classes
         
         playButtonForAnimation = floatingPlayButton;
 
@@ -3539,7 +3539,8 @@ class JourneyBoardsManager {
           console.log(`🎮🎮🎮 PLAY BUTTON CLICKED! Board ID: ${boardIdForPlay}, Board Name: ${boardNameForPlay}`);
           logger.info(`🎮 Play button clicked for board ${boardIdForPlay}`);
 
-          try { (window as any).playHaptic?.('light'); } catch {}
+          // Haptic feedback (match homepage slider CTA)
+          try { (window as any).triggerHapticImpact?.('light'); } catch {}
 
           // 🔥 USER REQUEST: Check hearts BEFORE starting game (same as interim board)
           // If no hearts, show hearts bottom sheet instead of starting game
@@ -3948,9 +3949,13 @@ class JourneyBoardsManager {
       
       // PLAY button: use CSS classes (same as homepage CTA)
       if (playButtonForInit) {
-        playButtonForInit.classList.remove('animate-enter', 'animate-exit', 'animate-reset');
+        playButtonForInit.classList.remove('animate-enter', 'animate-exit', 'animate-reset', 'animate-enter-initial');
+        // 🔥 CRITICAL: Remove ALL inline transform/transition/opacity to let CSS handle everything
         playButtonForInit.style.removeProperty('transform');
         playButtonForInit.style.removeProperty('transition');
+        playButtonForInit.style.removeProperty('opacity');
+        playButtonForInit.style.removeProperty('visibility');
+        // 🔥 CSS will handle base transform (translateX(-50%)) and all animations
       }
       
       // Other elements: use GSAP
@@ -4102,21 +4107,22 @@ class JourneyBoardsManager {
           const otherContentElements = contentElements.filter(el => el && el.id !== 'board-detail-play-button');
           
           if (playButtonForEnter) {
+            // 🔥 CRITICAL: Use CSS animate-enter class (same as homepage slider)
+            // Remove all inline styles that could conflict with CSS
             playButtonForEnter.classList.remove('animate-exit', 'animate-reset', 'animate-enter');
             playButtonForEnter.style.removeProperty('transition');
-            playButtonForEnter.style.visibility = 'hidden';
-            void playButtonForEnter.offsetHeight; // Force reflow
+            playButtonForEnter.style.removeProperty('opacity');
+            playButtonForEnter.style.removeProperty('visibility');
+            playButtonForEnter.style.removeProperty('transform'); // 🔥 Let CSS handle transform completely
             
-            // Add animate-enter-initial class for initial state (preserves translateX(-50%))
+            // Add CSS class for enter animation (same as homepage)
             playButtonForEnter.classList.add('animate-enter-initial');
             void playButtonForEnter.offsetHeight; // Force reflow
             
-            // Animate using CSS class (same as homepage CTA) - preserves translateX(-50%)
-            // Start immediately after header (0ms delay)
+            // Trigger animation by adding animate-enter class
             setTimeout(() => {
               playButtonForEnter.classList.remove('animate-enter-initial');
               playButtonForEnter.classList.add('animate-enter');
-              playButtonForEnter.style.visibility = 'visible';
             }, 0);
           }
 

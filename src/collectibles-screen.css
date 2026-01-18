@@ -2248,6 +2248,7 @@
   position: fixed !important;
   bottom: calc(40px + env(safe-area-inset-bottom, 0px)) !important;
   left: 50% !important;
+  /* 🔥 CRITICAL: Base transform for centering - !important so it persists unless overridden by animation classes */
   transform: translateX(-50%) !important;
   
   /* Same width as homepage slider CTA */
@@ -2266,17 +2267,28 @@
   overflow: hidden !important;
 }
 
+/* 🔥 CRITICAL: Tap scale animation - MOST SPECIFIC, overrides everything */
+#board-detail-play-button.tap-scale:active,
+#board-detail-play-button:active {
+  transform: translateX(-50%) scale(0.95) !important;
+  transition: transform 0.15s ease-in-out !important;
+}
+
 /* 🔥 USER REQUEST: Preserve translateX(-50%) during animate-enter-initial and animate-enter */
 /* Same animation timing as homepage CTA: 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) */
 #board-detail-play-button.animate-enter-initial {
   transition: none !important;
   transform: translateX(-50%) scale(0) !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
 }
 
 #board-detail-play-button.animate-enter {
-  will-change: transform !important;
-  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  will-change: transform, opacity !important;
+  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6), opacity 0.3s ease, visibility 0.3s ease !important;
   transform: translateX(-50%) scale(1) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 #board-detail-play-button.animate-exit {
