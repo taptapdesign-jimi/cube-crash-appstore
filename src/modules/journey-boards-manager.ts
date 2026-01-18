@@ -2025,20 +2025,45 @@ class JourneyBoardsManager {
           }
 
           // Card pop animation (scale down, pop up, settle)
+          // 🔥 CRITICAL: Reset any existing transform and set transformOrigin
+          cardEl.style.transform = 'none';
           cardEl.style.transformOrigin = '50% 50%';
+          cardEl.style.willChange = 'transform';
           try { gsap.killTweensOf(cardEl); } catch {}
+          
+          // 🔥 USER REQUEST: Match exact animation from regular cards (0.7 -> 1.69 -> 1.0)
           const tl = gsap.timeline({
             onComplete: () => {
               (cardEl as any)._openingGame = false;
+              // Reset will-change
+              cardEl.style.willChange = 'auto';
               logger.info(`🚀🚀🚀 CALLING continueFromInterimBoard FOR BOARD ${board.id}`);
               this.continueFromInterimBoard(board).catch((error) => {
                 logger.error('❌ Failed to continue from interim board:', error);
               });
             }
           });
-          tl.to(cardEl, { scale: 0.7, rotation: 0, duration: downMs / 1000, ease: 'power2.out' })
-            .to(cardEl, { scale: 1.69, rotation: rotationDeg, duration: upMs / 1000, ease: 'power2.out' })
-            .to(cardEl, { scale: 1.0, rotation: 0, duration: settleMs / 1000, ease: 'power2.inOut' });
+          tl.to(cardEl, { 
+            scale: 0.7, 
+            rotation: 0, 
+            duration: downMs / 1000, 
+            ease: 'power2.out',
+            force3D: true 
+          })
+          .to(cardEl, { 
+            scale: 1.69, 
+            rotation: rotationDeg, 
+            duration: upMs / 1000, 
+            ease: 'power2.out',
+            force3D: true 
+          })
+          .to(cardEl, { 
+            scale: 1.0, 
+            rotation: 0, 
+            duration: settleMs / 1000, 
+            ease: 'power2.inOut',
+            force3D: true 
+          });
         } catch (error) {
           (cardEl as any)._openingGame = false;
           logger.warn('⚠️ Interim card tap animation failed, continuing game immediately:', error);
@@ -2703,6 +2728,8 @@ class JourneyBoardsManager {
       // This ensures exitToMenu returns to Journey (slide 1) instead of homepage (slide 0)
       (window as any).__ccCameFromJourney = true;
       (window as any).__ccCameFromHomepage = false;
+      // 🔥 USER REQUEST: Mark that we're returning from interim board to prevent auto-scroll
+      (window as any).__ccReturningFromInterimBoard = true;
       // 🔥 FIX: Also store in localStorage for persistence across game sessions
       localStorage.setItem('__ccCameFromJourney', 'true');
       localStorage.removeItem('__ccCameFromHomepage');

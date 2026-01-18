@@ -577,13 +577,15 @@ class CollectiblesManager {
           if (journeyContainer) {
             setTimeout(async () => {
               try {
-                // 🔥 USER REQUEST: Skip auto-scroll if returning from detail modal
+                // 🔥 USER REQUEST: Skip auto-scroll if returning from detail modal or interim board
                 // Auto-scroll should ONLY happen when entering Journey from homepage slider
                 const returningFromDetailModal = (window as any).__ccReturningFromDetailModal;
-                if (returningFromDetailModal) {
-                  console.log('🗺️ Skipping auto-scroll (returning from detail modal)');
-                  // Clear flag after checking
+                const returningFromInterimBoard = (window as any).__ccReturningFromInterimBoard;
+                if (returningFromDetailModal || returningFromInterimBoard) {
+                  console.log('🗺️ Skipping auto-scroll (returning from detail modal or interim board)');
+                  // Clear flags after checking
                   delete (window as any).__ccReturningFromDetailModal;
+                  delete (window as any).__ccReturningFromInterimBoard;
                 } else {
                   // Only auto-scroll when entering from homepage slider
                   const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
