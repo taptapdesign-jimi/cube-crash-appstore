@@ -577,10 +577,20 @@ class CollectiblesManager {
           if (journeyContainer) {
             setTimeout(async () => {
               try {
-                const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-                if (journeyBoardsManager && typeof journeyBoardsManager.restoreOrScrollToInterimCard === 'function') {
-                  console.log('🗺️ Starting scroll to interim card after enter animation...');
-                  journeyBoardsManager.restoreOrScrollToInterimCard();
+                // 🔥 USER REQUEST: Skip auto-scroll if returning from detail modal
+                // Auto-scroll should ONLY happen when entering Journey from homepage slider
+                const returningFromDetailModal = (window as any).__ccReturningFromDetailModal;
+                if (returningFromDetailModal) {
+                  console.log('🗺️ Skipping auto-scroll (returning from detail modal)');
+                  // Clear flag after checking
+                  delete (window as any).__ccReturningFromDetailModal;
+                } else {
+                  // Only auto-scroll when entering from homepage slider
+                  const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+                  if (journeyBoardsManager && typeof journeyBoardsManager.restoreOrScrollToInterimCard === 'function') {
+                    console.log('🗺️ Starting scroll to interim card after enter animation...');
+                    journeyBoardsManager.restoreOrScrollToInterimCard();
+                  }
                 }
                 
                 // 🔥 CRITICAL: Start idle bounce animations AFTER enter animation completes

@@ -304,17 +304,7 @@ function triggerFooterExplosion(element: HTMLElement): void {
   const centerX = rect.left + rect.width / 2;
   const centerY = rect.top + rect.height / 2;
   
-  // Create smoke container (keep existing smoke animation)
-  const smokeContainer = document.createElement('div');
-  smokeContainer.className = 'footer-explosion-smoke';
-  smokeContainer.style.position = 'fixed';
-  smokeContainer.style.left = `${centerX}px`;
-  smokeContainer.style.top = `${centerY}px`;
-  smokeContainer.style.width = '0';
-  smokeContainer.style.height = '0';
-  smokeContainer.style.pointerEvents = 'none';
-  smokeContainer.style.zIndex = '10000';
-  document.body.appendChild(smokeContainer);
+  // 🔥 USER REQUEST: Removed smoke animation, keeping only shards
   
   // 🔥 CRITICAL: Create HTML/CSS wild-magnet shards animation (rendered above settings screen)
   // Wild-magnet shards use red (#F26034) and brown (#D4A584) colors (50/50 mix)
@@ -399,114 +389,7 @@ function triggerFooterExplosion(element: HTMLElement): void {
   
   console.log('🔥 Wild-magnet shards animation triggered at footer position');
   
-  // Create smoke bubbles (white, like in game - smokeBubblesAtTile style)
-  // Based on smokeBubblesAtTile: white circles/ellipses, no blur, blend mode 'add'
-  const smokeCount = 20;
-  // 🔥 MEMORY LEAK FIX: Track smoke particles for cleanup
-  const smokeParticles: HTMLElement[] = [];
-  
-  for (let i = 0; i < smokeCount; i++) {
-    // 🔥 OBJECT POOLING: Use pool instead of creating new div
-    const smoke = domElementPool.acquire();
-    smoke.className = 'footer-smoke';
-    
-    // Random size: 12-36px (similar to game's BASE_R to MAX_R range)
-    const baseSize = 12 + Math.random() * 24;
-    const size = baseSize;
-    
-    // Random shape: circle or ellipse (like in game)
-    const isEllipse = Math.random() > 0.5;
-    const aspectRatio = isEllipse ? (0.6 + Math.random() * 0.8) : 1; // 0.6-1.4 for ellipse
-    const width = size;
-    const height = size * aspectRatio;
-    
-    // Random angle and distance
-    const angle = Math.random() * Math.PI * 2;
-    const distance = 30 + Math.random() * 70;
-    
-    // White color with random alpha (0.7-1.0 range, like game's bubbleAlpha variation)
-    const randomAlpha = 0.7 + Math.random() * 0.3;
-    
-    smoke.style.width = `${width}px`;
-    smoke.style.height = `${height}px`;
-    smoke.style.backgroundColor = `rgba(255, 255, 255, ${randomAlpha})`;
-    smoke.style.borderRadius = '50%';
-    smoke.style.position = 'absolute';
-    smoke.style.left = '0';
-    smoke.style.top = '0';
-    smoke.style.mixBlendMode = 'screen'; // Similar to 'add' blend mode
-    smoke.style.opacity = '0';
-    
-    // Random rotation for ellipses
-    if (isEllipse) {
-      smoke.style.transform = `rotate(${Math.random() * 360}deg)`;
-    }
-    
-    smokeContainer.appendChild(smoke);
-    smokeParticles.push(smoke);
-    
-    // Animate smoke (fade in, move out, fade out - like game)
-    const tIn = 0.02 + Math.random() * 0.02;
-    const tRun = 0.16 + Math.random() * 0.12;
-    const tHold = 0.02 + Math.random() * 0.03;
-    const tOut = 0.08 + Math.random() * 0.06;
-    
-    const startScale = 0.65 + Math.random() * 0.25;
-    gsap.set(smoke, { scale: startScale });
-    
-    gsap.to(smoke, {
-      opacity: randomAlpha,
-      duration: tIn,
-      ease: 'power2.out',
-    });
-    
-    gsap.to(smoke, {
-      x: Math.cos(angle) * distance,
-      y: Math.sin(angle) * distance - 20,
-      scale: 1.0 + Math.random() * 0.3,
-      duration: tRun,
-      ease: 'sine.out',
-    });
-    
-    gsap.to(smoke, {
-      opacity: 0,
-      scale: 1.2 + Math.random() * 0.4,
-      duration: tOut,
-      delay: tHold,
-      ease: 'power1.in',
-    });
-  }
-  
-  // Add halo effect (white circle, like in game)
-  // 🔥 OBJECT POOLING: Use pool for halo as well
-  const halo = domElementPool.acquire();
-  halo.className = 'footer-smoke-halo';
-  const haloSize = 60;
-  halo.style.width = `${haloSize}px`;
-  halo.style.height = `${haloSize}px`;
-  halo.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-  halo.style.borderRadius = '50%';
-  halo.style.position = 'absolute';
-  halo.style.left = '0';
-  halo.style.top = '0';
-  halo.style.transform = 'translate(-50%, -50%)';
-  halo.style.opacity = '0';
-  smokeContainer.appendChild(halo);
-  
-  gsap.to(halo, {
-    opacity: 0.22,
-    scale: 1.2,
-    duration: 0.08,
-    ease: 'power2.out',
-  });
-  
-  gsap.to(halo, {
-    opacity: 0,
-    scale: 1.5,
-    duration: 0.28,
-    delay: 0.18,
-    ease: 'power2.in',
-  });
+  // 🔥 USER REQUEST: Removed smoke bubbles and halo effect, keeping only shards
   
   // Screen shake - shake the settings screen (50% reduced)
   const settingsScreen = document.getElementById('settings-screen');
@@ -552,32 +435,12 @@ function triggerFooterExplosion(element: HTMLElement): void {
       });
       shards.length = 0; // Clear array
       
-      // Kill GSAP animations on all smoke particles and release them to pool
-      smokeParticles.forEach(smoke => {
-        try {
-          gsap.killTweensOf(smoke);
-          domElementPool.release(smoke);
-        } catch (e) {
-          console.warn('⚠️ Error releasing smoke particle to pool:', e);
-        }
-      });
-      smokeParticles.length = 0; // Clear array
-      
-      // Kill GSAP animations on halo and release it to pool
-      if (halo) {
-        try {
-          gsap.killTweensOf(halo);
-          domElementPool.release(halo);
-        } catch (e) {
-          console.warn('⚠️ Error releasing halo to pool:', e);
-        }
-      }
+      // 🔥 USER REQUEST: Removed smoke cleanup (smoke animation disabled)
       
       // Remove containers
       shardsContainer.remove();
-      smokeContainer.remove();
       
-      console.log('🧹 Footer explosion particles cleaned up and released to pool');
+      console.log('🧹 Footer explosion shards cleaned up and released to pool');
     } catch (e) {
       console.warn('⚠️ Cleanup error:', e);
     }
