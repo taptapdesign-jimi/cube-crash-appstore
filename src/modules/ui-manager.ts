@@ -43,7 +43,7 @@ function clearSliderBackgrounds(): void {
   });
 }
 
-function applyPaperBackground(alpha: string): void {
+export function applyPaperBackground(alpha: string): void {
   document.documentElement?.style.setProperty('--paper-alpha', alpha);
   const body = document.body;
   const html = document.documentElement;
@@ -761,10 +761,10 @@ class UIManager {
   showHomepage(): void {
     logger.info('🏠 showHomepage() called');
     
-    // 🔥 CRITICAL: ALWAYS set paper background to 60% opacity when showing homepage
-    // This ensures paper bg is visible on homepage, even if it was set to 45% in board game
-    applyPaperBackground('0.6');
-    this.elements.home?.style.setProperty('--paper-alpha', '0.6');
+    // 🔥 CRITICAL: ALWAYS set paper background to 50% opacity when showing homepage
+    // This ensures paper bg is visible on homepage, even if it was set to 35% in board game
+    applyPaperBackground('0.5');
+    this.elements.home?.style.setProperty('--paper-alpha', '0.5');
     
     if (this.elements.home) {
       this.elements.home.style.display = 'block';
@@ -799,7 +799,7 @@ class UIManager {
       logger.info('✅ #global-bg created and paper background set');
     }
     
-    // 🔥 CRITICAL: applyPaperBackground('0.6') already set paper bg to 60% opacity
+    // 🔥 CRITICAL: applyPaperBackground('0.5') already set paper bg to 50% opacity
     // No need to set it again - the function handles everything with !important flags
     
     // 🗺️ JOURNEY BADGE: Update badge when returning to homepage
@@ -1254,8 +1254,8 @@ class UIManager {
   
   // Show homepage QUIETLY - no animations, just show it (for exit flow)
   showHomepageQuietly(): void {
-    applyPaperBackground('0.6');
-    this.elements.home?.style.setProperty('--paper-alpha', '0.6');
+    applyPaperBackground('0.5');
+    this.elements.home?.style.setProperty('--paper-alpha', '0.5');
     if (this.elements.home) {
       this.elements.home.style.display = 'block';
       this.elements.home.removeAttribute('hidden');
@@ -1608,7 +1608,7 @@ class UIManager {
   
   // Show Journey screen with exit animation
   private showCollectiblesScreenWithAnimation(): void {
-    // 🔥 CRITICAL: Set paper background to 100% opacity IMMEDIATELY at the VERY FIRST line
+    // 🔥 CRITICAL: Set paper background to 60% opacity IMMEDIATELY at the VERY FIRST line
     // This MUST happen before ANY other code, including logger calls
     // This prevents gray color from showing during slider exit animation
     applyPaperBackground('0.6');
@@ -1616,8 +1616,13 @@ class UIManager {
     const html = document.documentElement;
     const globalBg = document.getElementById('global-bg');
     const appElement = document.getElementById('app');
-    const currentGradient = PAPER_BG_STYLE;
-    const currentGlobalBgGradient = PAPER_BG_STYLE;
+    
+    // 🎨 PREMIUM FADE: Use paper background with 60% opacity for Journey screen
+    // This creates a premium transition effect when entering from HOMEPAGE CTA only
+    const paperOverlayAlpha = 0.4; // 1 - 0.6 = 60% paper visible
+    const targetSolidColor = `linear-gradient(rgba(243,238,232,${paperOverlayAlpha}), rgba(243,238,232,${paperOverlayAlpha})), url('./assets/paper-bg.png') center/100% 100% no-repeat, #f3eee8`;
+    const currentGradient = targetSolidColor; // Use 60% opacity from the start
+    const currentGlobalBgGradient = targetSolidColor; // Use 60% opacity from the start
     
     // 🔥 IMPORTANT: Keep slider containers transparent to avoid cropped paper texture
     clearSliderBackgrounds();
@@ -1657,23 +1662,8 @@ class UIManager {
       }
     });
     
-    // 🔥 CRITICAL: Re-apply gradient ONE MORE TIME right before exit animation
-    // This ensures gradient is set even if something changed it during slider positioning
-    if (body) {
-      body.style.setProperty('background', currentGradient, 'important');
-      body.style.setProperty('background-color', '#f3eee8', 'important');
-      body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-    }
-    if (html) {
-      html.style.setProperty('background', currentGradient, 'important');
-      html.style.setProperty('background-color', '#f3eee8', 'important');
-      html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-    }
-    if (globalBg) {
-      (globalBg as HTMLElement).style.setProperty('background', currentGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-    }
+    // 🔥 CRITICAL: Paper background with 60% opacity is already set by applyPaperBackground('0.6')
+    // No need to override it - it will stay at 60% throughout the entire transition
     if (appElement) {
       appElement.style.setProperty('background', 'transparent', 'important');
       appElement.style.setProperty('background-image', 'none', 'important');
@@ -1682,38 +1672,9 @@ class UIManager {
     // 🔥 CRITICAL: Force reflow to ensure DOM is updated before animation
     void document.querySelector('.slider-slide.active')?.offsetHeight;
     
-    // 🎨 PREMIUM FADE: Animate background color from gradient to solid color (SMOOTH FADE)
-    // This creates a premium transition effect when entering from HOMEPAGE CTA only
-    const targetSolidColor = '#f3eee8';
     const fadeDuration = 0.8;
     
-    console.log('🎨 [Journey EXIT] Starting premium fade from gradient to solid color - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
-    
-    // 🔥 CRITICAL: Don't use GSAP for background animation - it can override !important flags
-    // Keep gradient with !important flags during exit animation
-    // Animate to solid color AFTER exit animation completes
-    console.log('⚠️ [DEBUG] Keeping gradient with !important during exit animation, will fade to solid AFTER');
-    
-    // Ensure gradient stays with !important during exit animation
-    if (body) {
-      body.style.setProperty('background', currentGradient, 'important');
-      body.style.setProperty('background-color', '#f3eee8', 'important');
-      body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-    }
-    if (html) {
-      html.style.setProperty('background', currentGradient, 'important');
-      html.style.setProperty('background-color', '#f3eee8', 'important');
-      html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-    }
-    if (globalBg) {
-      (globalBg as HTMLElement).style.setProperty('background', currentGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-    }
-    if (appElement) {
-      appElement.style.setProperty('background', 'transparent', 'important');
-      appElement.style.setProperty('background-image', 'none', 'important');
-    }
+    console.log('🎨 [Journey EXIT] Paper background with 60% opacity already set - no fade needed');
     
     // 🔥 CRITICAL: Play exit animation FIRST (gradient stays with !important during exit)
     console.log('🎬 Step 1: Playing exit animation for Journey slide (gradient preserved with !important)');
@@ -1750,119 +1711,24 @@ class UIManager {
       }
     }, 10);
     
-    // Step 2: Wait for exit animation to complete, then fade background to solid color
+    // Step 2: Wait for exit animation to complete, then show Journey screen
     // Exit animation: 770ms
     setTimeout(() => {
-      console.log('🗺️ Step 2: Exit animation complete, now fading background to solid color');
+      console.log('🗺️ Step 2: Exit animation complete, showing Journey screen');
       
-      // 🔥 CRITICAL: Set solid color IMMEDIATELY with !important FIRST
-      // This prevents gray flash when we remove !important flags for GSAP animation
-      if (body) {
-        body.style.setProperty('background', targetSolidColor, 'important');
-        body.style.setProperty('background-color', targetSolidColor, 'important');
-        body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-      }
-      if (html) {
-        html.style.setProperty('background', targetSolidColor, 'important');
-        html.style.setProperty('background-color', targetSolidColor, 'important');
-        html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-      }
-      if (globalBg) {
-        (globalBg as HTMLElement).style.setProperty('background', targetSolidColor, 'important');
-        (globalBg as HTMLElement).style.setProperty('background-color', targetSolidColor, 'important');
-        (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-      }
+      // 🔥 CRITICAL: Paper background with 60% opacity is already set by applyPaperBackground('0.6')
+      // No need to change it - it stays at 60% throughout
+      // Just ensure app element is transparent
       if (appElement) {
         appElement.style.setProperty('background', 'transparent', 'important');
         appElement.style.setProperty('background-image', 'none', 'important');
       }
-      console.log('✅ [Journey ENTER] Solid color set with !important IMMEDIATELY (prevents gray flash)');
+      console.log('✅ [Journey ENTER] Paper background with 60% opacity already set - no changes needed');
       
-      // Now remove !important flags and animate with GSAP (for smooth transition)
-      // But solid color is already set, so no gray flash will occur
-      if (body) {
-        body.style.removeProperty('background');
-        body.style.removeProperty('background-color');
-        body.style.removeProperty('background-image');
-      }
-      if (html) {
-        html.style.removeProperty('background');
-        html.style.removeProperty('background-color');
-        html.style.removeProperty('background-image');
-      }
-      if (globalBg) {
-        (globalBg as HTMLElement).style.removeProperty('background');
-        (globalBg as HTMLElement).style.removeProperty('background-color');
-        (globalBg as HTMLElement).style.removeProperty('background-image');
-      }
-      if (appElement) {
-        appElement.style.removeProperty('background');
-      }
-      
-      // Now animate with GSAP (from gradient to solid, but solid is already set)
-      if (gsap && body) {
-        gsap.killTweensOf(body);
-        body.style.transition = 'none';
-        gsap.set(body, { background: currentGradient });
-        gsap.to(body, {
-          background: targetSolidColor,
-          duration: fadeDuration,
-          ease: 'power2.inOut',
-          overwrite: 'auto',
-          immediateRender: false
-        });
-        console.log('✅ [Journey ENTER] Body background fade animation started from gradient to', targetSolidColor);
-      }
-      if (gsap && globalBg) {
-        gsap.killTweensOf(globalBg);
-        (globalBg as HTMLElement).style.transition = 'none';
-        gsap.set(globalBg, { background: currentGlobalBgGradient });
-        gsap.to(globalBg, {
-          background: targetSolidColor,
-          duration: fadeDuration,
-          ease: 'power2.inOut',
-          overwrite: 'auto',
-          immediateRender: false
-        });
-        console.log('✅ [Journey ENTER] Global-bg background fade animation started from gradient to', targetSolidColor);
-      }
-      if (appElement) {
-        appElement.style.setProperty('background', 'transparent', 'important');
-        appElement.style.setProperty('background-image', 'none', 'important');
-      }
-      
-      // Step 3: Wait for fade animation to complete, then show Journey screen
-      setTimeout(() => {
-        console.log('🗺️ Step 3: Showing Journey screen after fade animation complete');
-        
-        // 🔥 CRITICAL: Ensure solid color is set with !important BEFORE showing Journey screen
-        // This prevents any gray flash when Journey screen appears
-        if (body) {
-          body.style.setProperty('background', targetSolidColor, 'important');
-          body.style.setProperty('background-color', targetSolidColor, 'important');
-          body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-        }
-        if (html) {
-          html.style.setProperty('background', targetSolidColor, 'important');
-          html.style.setProperty('background-color', targetSolidColor, 'important');
-          html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-        }
-        if (globalBg) {
-          (globalBg as HTMLElement).style.setProperty('background', targetSolidColor, 'important');
-          (globalBg as HTMLElement).style.setProperty('background-color', targetSolidColor, 'important');
-          (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-        }
-        if (appElement) {
-          appElement.style.setProperty('background', 'transparent', 'important');
-          appElement.style.setProperty('background-image', 'none', 'important');
-        }
-        console.log('✅ [Journey ENTER] Solid color set with !important before showing Journey screen');
-        
-        // Show Journey screen IMMEDIATELY after fade animation - no blank screen
-        // Journey screen is already prepared with opacity 0, animation will start immediately
-        this.showCollectiblesScreen();
-        (window as any).__ccUiJourneyTransitioning = false;
-      }, fadeDuration * 1000);
+      // Show Journey screen IMMEDIATELY - no blank screen, no fade animation
+      // Journey screen is already prepared with opacity 0, animation will start immediately
+      this.showCollectiblesScreen();
+      (window as any).__ccUiJourneyTransitioning = false;
     }, 770);
   }
   
@@ -1989,125 +1855,26 @@ class UIManager {
       }
     }
     
-    // 🎨 CRITICAL: Animate background color from solid color back to gradient (SMOOTH FADE)
-    // This runs PARALLEL with exit animation (not blocking it)
+    // 🎨 CRITICAL: Set paper background to 50% opacity IMMEDIATELY when exiting Journey screen
+    // This ensures paper bg is visible on homepage with correct opacity, preventing gray flash
+    // This runs IMMEDIATELY (not after animation) to prevent gray background during transition
+    applyPaperBackground('0.5');
+    
     const body = document.body;
     const html = document.documentElement;
     const globalBg = document.getElementById('global-bg');
     const appElement = document.getElementById('app');
-    const targetGradient = PAPER_BG_STYLE;
-    const targetGlobalBgGradient = PAPER_BG_STYLE;
     
-    console.log('🎨 [Collectibles EXIT] Starting smooth background fade to gradient - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
+    console.log('🎨 [Collectibles EXIT] Paper background with 50% opacity set IMMEDIATELY to prevent gray flash');
     
-    // 🔥 CRITICAL: Set gradient IMMEDIATELY with !important flags BEFORE any animation
-    // This prevents gray color from showing during transition
-    if (body) {
-      body.style.setProperty('background', targetGradient, 'important');
-      body.style.setProperty('background-color', '#f3eee8', 'important');
-      body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-    }
-    if (html) {
-      html.style.setProperty('background', targetGradient, 'important');
-      html.style.setProperty('background-color', '#f3eee8', 'important');
-      html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-    }
-    if (globalBg) {
-      (globalBg as HTMLElement).style.setProperty('background', targetGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-    }
+    // 🔥 CRITICAL: Ensure app element is transparent
     if (appElement) {
       appElement.style.setProperty('background', 'transparent', 'important');
       appElement.style.setProperty('background-image', 'none', 'important');
     }
-    logger.info('✅ [Collectibles EXIT] Gradient background set with !important flags IMMEDIATELY (before animation)');
 
     // 🔥 IMPORTANT: Keep slider containers transparent to avoid cropped paper texture on return
     clearSliderBackgrounds();
-    
-    // 🔥 CRITICAL: Fade duration for premium transition
-    const fadeDuration = 0.8;
-    
-    // 🔥 CRITICAL: Use explicit solid color as starting point, not getComputedStyle
-    // getComputedStyle can return gray color instead of solid color, causing flash
-    const currentSolidColor = '#f3eee8';
-    
-    // Note: GSAP animation is now optional since gradient is already set with !important
-    // But we keep it for smooth visual transition
-    if (gsap && body) {
-      gsap.killTweensOf(body);
-      body.style.transition = 'none';
-      // 🔥 CRITICAL: Always use explicit solid color, never getComputedStyle
-      gsap.set(body, { background: currentSolidColor });
-      gsap.to(body, {
-        background: targetGradient,
-        duration: fadeDuration,
-        ease: 'power2.inOut',
-        overwrite: 'auto',
-        immediateRender: false
-      });
-      console.log('✅ [Collectibles EXIT] Body background fade animation started from solid color to gradient');
-    }
-    if (gsap && globalBg) {
-      gsap.killTweensOf(globalBg);
-      (globalBg as HTMLElement).style.transition = 'none';
-      // 🔥 CRITICAL: Always use explicit solid color, never getComputedStyle
-      gsap.set(globalBg, { background: currentSolidColor });
-      gsap.to(globalBg, {
-        background: targetGlobalBgGradient,
-        duration: fadeDuration,
-        ease: 'power2.inOut',
-        overwrite: 'auto',
-        immediateRender: false
-      });
-      console.log('✅ [Collectibles EXIT] Global-bg background fade animation started from solid color to gradient');
-    }
-    if (gsap && appElement) {
-      gsap.killTweensOf(appElement);
-      appElement.style.transition = 'none';
-      // 🔥 CRITICAL: Always use explicit solid color, never getComputedStyle
-      gsap.set(appElement, { background: currentSolidColor });
-      gsap.to(appElement, {
-        background: targetGlobalBgGradient,
-        duration: fadeDuration,
-        ease: 'power2.inOut',
-        overwrite: 'auto',
-        immediateRender: false
-      });
-      console.log('✅ [Collectibles EXIT] App element background fade animation started from solid color to gradient');
-    }
-    
-    // 🔥 CRITICAL: Set gradient IMMEDIATELY with !important flags (don't wait for animation)
-    // This prevents gray color from showing during transition
-    if (body) {
-      body.style.setProperty('background', targetGradient, 'important');
-      body.style.setProperty('background-color', '#f3eee8', 'important');
-      body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-    }
-    if (globalBg) {
-      (globalBg as HTMLElement).style.setProperty('background', targetGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-    }
-    if (appElement) {
-      appElement.style.setProperty('background', 'transparent', 'important');
-      appElement.style.setProperty('background-image', 'none', 'important');
-    }
-    logger.info('✅ [Collectibles EXIT] Gradient background set with !important flags IMMEDIATELY');
-    
-    // Also ensure gradient is set after animation completes (backup)
-    setTimeout(() => {
-      if (body) {
-        body.style.setProperty('background', targetGradient, 'important');
-      }
-      if (globalBg) {
-        (globalBg as HTMLElement).style.setProperty('background', targetGlobalBgGradient, 'important');
-      }
-      if (appElement) {
-        appElement.style.setProperty('background', targetGlobalBgGradient, 'important');
-      }
-    }, fadeDuration * 1000);
     
     // 🔥 USER REQUEST: Ensure all slides are visible (slider position controlled by collectibles-manager.ts)
     // Back button returns to Journey slide (index 1), NOT homepage slide (index 0)
@@ -2170,11 +1937,15 @@ class UIManager {
     } else if (cameFromHomepage) {
       // 🔥 USER REQUEST: Homepage PLAY games → return to homepage slide (slide 0)
       logger.info('🏠 Returning to homepage slide (slide 0) - showing homepage');
-    this.showHomepageQuietly();
-    this.setNavigationVisibility(true);
+      // 🔥 CRITICAL: Paper bg with 50% opacity already set by applyPaperBackground('0.5') above
+      // No need to set it again - showHomepageQuietly() will ensure it stays at 50%
+      this.showHomepageQuietly();
+      this.setNavigationVisibility(true);
     } else {
       // Default: show homepage (for backward compatibility)
       logger.info('🏠 No context found - defaulting to homepage slide (slide 0)');
+      // 🔥 CRITICAL: Paper bg with 50% opacity already set by applyPaperBackground('0.5') above
+      // No need to set it again - showHomepageQuietly() will ensure it stays at 50%
       this.showHomepageQuietly();
       this.setNavigationVisibility(true);
     }
@@ -2231,6 +2002,8 @@ class UIManager {
   // Show Journey screen
   showCollectiblesScreen(): void {
     logger.info('🗺️ Showing Journey screen');
+    // 🔥 CRITICAL: Set paper background to 60% opacity for Journey screen
+    applyPaperBackground('0.6');
     try {
       const promise =
         window.showCollectiblesScreen?.() ??
@@ -2245,16 +2018,19 @@ class UIManager {
   
   // Show settings screen
   private showSettingsScreenWithAnimation(): void {
-    // 🔥 CRITICAL: Set paper background to 100% opacity IMMEDIATELY at the VERY FIRST line
+    // 🔥 CRITICAL: Set paper background to 50% opacity IMMEDIATELY at the VERY FIRST line
     // This MUST happen before ANY other code, including logger calls
     // This prevents gray color from showing during slider exit animation
-    applyPaperBackground('0.6');
+    applyPaperBackground('0.5');
     const body = document.body;
     const html = document.documentElement;
     const globalBg = document.getElementById('global-bg');
     const appElement = document.getElementById('app');
-    const currentGradient = PAPER_BG_STYLE;
-    const currentGlobalBgGradient = PAPER_BG_STYLE;
+    // Keep Settings background at the same 50% paper opacity as homepage
+    const paperOverlayAlpha = 0.5; // 1 - 0.5 = 50% paper visible
+    const targetPaperBg = `linear-gradient(rgba(243,238,232,${paperOverlayAlpha}), rgba(243,238,232,${paperOverlayAlpha})), url('./assets/paper-bg.png') center/100% 100% no-repeat, #f3eee8`;
+    const currentGradient = targetPaperBg;
+    const currentGlobalBgGradient = targetPaperBg;
     
     // 🔥 IMPORTANT: Keep slider containers transparent to avoid cropped/tiled paper background
     clearSliderBackgrounds();
@@ -2265,7 +2041,7 @@ class UIManager {
     
     // NOW log and continue with rest of function
     logger.info('⚙️ Showing settings screen - with exit animation');
-    logger.info('✅ [Settings ENTER] Gradient background set with !important flags IMMEDIATELY (at function start)');
+    logger.info('✅ [Settings ENTER] Paper background set to 50% opacity IMMEDIATELY (at function start)');
     
     // CRITICAL: Switch to Settings slide (index 3) BEFORE animation so it animates the correct slide
     const navButtons = document.querySelectorAll('.independent-nav-button');
@@ -2285,9 +2061,8 @@ class UIManager {
       }
     });
     
-    // 🎨 PREMIUM FADE: Animate background color from gradient to solid color (SMOOTH FADE)
-    // This creates a premium transition effect when entering individual screens
-    const targetSolidColor = '#f3eee8';
+    // 🎨 PREMIUM FADE: Keep paper background at 50% opacity for Settings screen
+    const targetSolidColor = targetPaperBg;
     
     console.log('🎨 [Settings ENTER] Starting premium fade from gradient to solid color - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
     
@@ -2300,21 +2075,18 @@ class UIManager {
     // Animate to solid color AFTER exit animation completes
     console.log('⚠️ [DEBUG] Keeping gradient with !important during exit animation, will fade to solid AFTER');
     
-    // Ensure gradient stays with !important during exit animation
+    // Ensure paper background stays with !important during exit animation
     if (body) {
       body.style.setProperty('background', currentGradient, 'important');
       body.style.setProperty('background-color', '#f3eee8', 'important');
-      body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (html) {
       html.style.setProperty('background', currentGradient, 'important');
       html.style.setProperty('background-color', '#f3eee8', 'important');
-      html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (globalBg) {
       (globalBg as HTMLElement).style.setProperty('background', currentGlobalBgGradient, 'important');
       (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (appElement) {
       appElement.style.setProperty('background', 'transparent', 'important');
@@ -2322,22 +2094,19 @@ class UIManager {
     }
     
     // Step 1: Play exit animation for Settings slide (gradient stays with !important during exit)
-    // 🔥 CRITICAL: Re-apply gradient ONE MORE TIME right before exit animation
-    // This ensures gradient is set even if something changed it during slider positioning
+    // 🔥 CRITICAL: Re-apply paper background ONE MORE TIME right before exit animation
+    // This ensures 50% paper opacity is preserved if something changed it during slider positioning
     if (body) {
       body.style.setProperty('background', currentGradient, 'important');
       body.style.setProperty('background-color', '#f3eee8', 'important');
-      body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (html) {
       html.style.setProperty('background', currentGradient, 'important');
       html.style.setProperty('background-color', '#f3eee8', 'important');
-      html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (globalBg) {
       (globalBg as HTMLElement).style.setProperty('background', currentGlobalBgGradient, 'important');
       (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
     }
     if (appElement) {
       appElement.style.setProperty('background', 'transparent', 'important');
@@ -2409,67 +2178,13 @@ class UIManager {
         focusTarget?.focus();
       }, 100);
       
-      // Step 3: Fade background to solid color IN PARALLEL (non-blocking)
-      // This happens while Settings screen is already visible, so no delay
-      console.log('⚙️ Step 3: Fading background to solid color (non-blocking, in parallel)');
-      
-      // Remove !important flags temporarily to allow GSAP animation
-      if (body) {
-        body.style.removeProperty('background');
-        body.style.removeProperty('background-color');
-        body.style.removeProperty('background-image');
-      }
-      if (html) {
-        html.style.removeProperty('background');
-        html.style.removeProperty('background-color');
-        html.style.removeProperty('background-image');
-      }
-      if (globalBg) {
-        (globalBg as HTMLElement).style.removeProperty('background');
-        (globalBg as HTMLElement).style.removeProperty('background-color');
-        (globalBg as HTMLElement).style.removeProperty('background-image');
-      }
-      if (appElement) {
-        appElement.style.removeProperty('background');
-      }
-      
-      // Now animate with GSAP (non-blocking, in parallel)
-      if (gsap && body) {
-        gsap.killTweensOf(body);
-        body.style.transition = 'none';
-        gsap.set(body, { background: currentGradient });
-        gsap.to(body, {
-          background: targetSolidColor,
-          duration: fadeDuration,
-          ease: 'power2.inOut',
-          overwrite: 'auto',
-          immediateRender: false
-        });
-      }
-      if (gsap && globalBg) {
-        gsap.killTweensOf(globalBg);
-        (globalBg as HTMLElement).style.transition = 'none';
-        gsap.set(globalBg, { background: currentGlobalBgGradient });
-        gsap.to(globalBg, {
-          background: targetSolidColor,
-          duration: fadeDuration,
-          ease: 'power2.inOut',
-          overwrite: 'auto',
-          immediateRender: false
-        });
-      }
-      if (gsap && appElement) {
-        gsap.killTweensOf(appElement);
-        appElement.style.transition = 'none';
-        gsap.set(appElement, { background: currentGradient });
-        gsap.to(appElement, {
-          background: targetSolidColor,
-          duration: fadeDuration,
-          ease: 'power2.inOut',
-          overwrite: 'auto',
-          immediateRender: false
-        });
-      }
+    // Step 3: Ensure paper background remains at 50% opacity (no fade needed)
+    console.log('⚙️ Step 3: Paper background already at 50% opacity - no fade needed');
+    applyPaperBackground('0.5');
+    if (appElement) {
+      appElement.style.setProperty('background', 'transparent', 'important');
+      appElement.style.setProperty('background-image', 'none', 'important');
+    }
     }, 770); // Exit animation delay only - Settings screen shows immediately after
   }
   
@@ -2477,105 +2192,18 @@ class UIManager {
   private hideSettingsScreenWithAnimation(): void {
     logger.info('⚙️ Hiding settings screen - with enter animation');
     
-    // 🎨 CRITICAL: Animate background color from solid color back to gradient (SMOOTH FADE)
+    // 🎨 CRITICAL: Keep paper background at 50% opacity during Settings exit
     // This must happen IMMEDIATELY when back button is clicked, BEFORE anything else
-    const body = document.body;
-    const html = document.documentElement;
-    const globalBg = document.getElementById('global-bg');
+    applyPaperBackground('0.5');
     const appElement = document.getElementById('app');
-    const targetGradient = PAPER_BG_STYLE;
-    const targetGlobalBgGradient = PAPER_BG_STYLE;
-    
-    console.log('🎨 [Settings EXIT] Starting smooth background fade to gradient - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
-    
-    // 🔥 CRITICAL: Set gradient IMMEDIATELY with !important flags BEFORE any animation
-    // This prevents gray color from showing during transition
-    if (body) {
-      body.style.setProperty('background', targetGradient, 'important');
-      body.style.setProperty('background-color', '#f3eee8', 'important');
-      body.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-    }
-    if (html) {
-      html.style.setProperty('background', targetGradient, 'important');
-      html.style.setProperty('background-color', '#f3eee8', 'important');
-      html.style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-    }
-    if (globalBg) {
-      (globalBg as HTMLElement).style.setProperty('background', targetGlobalBgGradient, 'important');
-      (globalBg as HTMLElement).style.setProperty('background-color', '#f3eee8', 'important');
-      (globalBg as HTMLElement).style.setProperty('background-image', PAPER_BG_IMAGE, 'important');
-    }
     if (appElement) {
       appElement.style.setProperty('background', 'transparent', 'important');
       appElement.style.setProperty('background-image', 'none', 'important');
     }
-    logger.info('✅ [Settings EXIT] Gradient background set with !important flags IMMEDIATELY (before animation)');
+    logger.info('✅ [Settings EXIT] Paper background set to 50% opacity IMMEDIATELY');
     
-    // 🔥 CRITICAL: Fade duration for premium transition
+    // 🔥 CRITICAL: Fade duration for Settings exit animation timing
     const fadeDuration = 0.8;
-    
-    // 🔥 CRITICAL: Use explicit solid color as starting point, not getComputedStyle
-    // getComputedStyle can return gray color instead of solid color, causing flash
-    const currentSolidColor = '#f3eee8';
-    
-    // Note: GSAP animation is now optional since gradient is already set with !important
-    // But we keep it for smooth visual transition
-    if (gsap && body) {
-      gsap.killTweensOf(body);
-      body.style.transition = 'none';
-      // 🔥 CRITICAL: Always use explicit solid color, never getComputedStyle
-      gsap.set(body, { background: currentSolidColor });
-      gsap.to(body, {
-        background: targetGradient,
-        duration: fadeDuration,
-        ease: 'power2.inOut',
-        overwrite: 'auto',
-        immediateRender: false
-      });
-      console.log('✅ [Settings EXIT] Body background fade animation started from solid color to gradient');
-    }
-    if (gsap && globalBg) {
-      gsap.killTweensOf(globalBg);
-      (globalBg as HTMLElement).style.transition = 'none';
-      // 🔥 CRITICAL: Always use explicit solid color, never getComputedStyle
-      gsap.set(globalBg, { background: currentSolidColor });
-      gsap.to(globalBg, {
-        background: targetGlobalBgGradient,
-        duration: fadeDuration,
-        ease: 'power2.inOut',
-        overwrite: 'auto',
-        immediateRender: false
-      });
-      console.log('✅ [Settings EXIT] Global-bg background fade animation started from solid color to gradient');
-    }
-    if (gsap && appElement) {
-      gsap.killTweensOf(appElement);
-      appElement.style.transition = 'none';
-      // 🔥 CRITICAL: Always use explicit solid color, never getComputedStyle
-      gsap.set(appElement, { background: currentSolidColor });
-      gsap.to(appElement, {
-        background: targetGlobalBgGradient,
-        duration: fadeDuration,
-        ease: 'power2.inOut',
-        overwrite: 'auto',
-        immediateRender: false
-      });
-      console.log('✅ [Settings EXIT] App element background fade animation started from solid color to gradient');
-    }
-    
-    // Also ensure gradient is set after animation completes (backup)
-    setTimeout(() => {
-      if (body) {
-        body.style.setProperty('background', targetGradient, 'important');
-      }
-      if (globalBg) {
-        (globalBg as HTMLElement).style.setProperty('background', targetGlobalBgGradient, 'important');
-      }
-      if (appElement) {
-        appElement.style.setProperty('background', 'transparent', 'important');
-        appElement.style.setProperty('background-image', 'none', 'important');
-      }
-    }, fadeDuration * 1000);
     
     // 🔥 CRITICAL: Show homepage QUIETLY IMMEDIATELY (before animation completes)
     // This ensures gradient is visible right away, preventing gray color flash

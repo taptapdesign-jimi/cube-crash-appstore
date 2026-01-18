@@ -29,7 +29,7 @@
   inset: 0;
   display: flex;
   flex-direction: column;
-  background: var(--collectibles-surface);
+  background: transparent; /* 🔥 FIX: Transparent to show paper bg behind */
   z-index: 999999;
   overflow: hidden;
   font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;

@@ -706,6 +706,18 @@ class CollectiblesManager {
       // 🔥 BACK BUTTON PATHWAY: Journey exit → Homepage slide 2 enter
       console.log('🏠 Step 2: Showing homepage slide 2 after Journey exit animation');
       
+      // 🔥 CRITICAL: Set paper background to 50% opacity IMMEDIATELY when returning to homepage
+      // This prevents gray background during transition and ensures correct opacity
+      try {
+        const { applyPaperBackground } = await import('./modules/ui-manager.js');
+        if (typeof applyPaperBackground === 'function') {
+          applyPaperBackground('0.5');
+          console.log('✅ Paper background set to 50% opacity on Journey exit');
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to set paper background on Journey exit:', error);
+      }
+      
       // Step 2a: Show homepage element
       const homeElement = document.getElementById('home');
       if (homeElement) {

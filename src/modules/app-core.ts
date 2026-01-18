@@ -737,7 +737,8 @@ export async function boot(){
   app.renderer.backgroundColor = 0x000000;
   app.renderer.backgroundAlpha = 0; // Transparent so paper BG shows behind board + HUD
   
-  // 🔥 CRITICAL: Start with #F9F9F9 to match launch screen - gradient will be set later
+  // 🔥 CRITICAL: Set paper background to 35% opacity IMMEDIATELY when booting game
+  // This MUST happen BEFORE any other code that might override it
   const appElement = document.getElementById('app');
   const canvasElement = app.canvas;
   // Set paper strength for board game only (global background stays the same)
@@ -745,8 +746,8 @@ export async function boot(){
   const paperAlpha = 0.35;
   document.documentElement?.style.setProperty('--paper-alpha', paperAlpha.toString());
   
-  // Apply paper background with 30% opacity to body/html/global-bg
-  const overlayAlpha = 1 - paperAlpha; // 0.7 overlay = 30% paper visible
+  // Apply paper background with 35% opacity to body/html/global-bg
+  const overlayAlpha = 1 - paperAlpha; // 0.65 overlay = 35% paper visible
   const backgroundLayers = overlayAlpha > 0.01
     ? `linear-gradient(rgba(243,238,232,${overlayAlpha}), rgba(243,238,232,${overlayAlpha})), url('./assets/paper-bg.png')`
     : `url('./assets/paper-bg.png')`;
@@ -755,6 +756,7 @@ export async function boot(){
   const html = document.documentElement;
   const globalBg = document.getElementById('global-bg');
   
+  // 🔥 CRITICAL: Set paper bg with !important IMMEDIATELY to prevent override
   if (body) {
     body.style.setProperty('background-color', '#f3eee8', 'important');
     body.style.setProperty('background-image', backgroundLayers, 'important');
@@ -779,15 +781,15 @@ export async function boot(){
   
   // Keep app and canvas transparent to show paper background behind
   if (appElement) {
-    appElement.style.removeProperty('background');
-    appElement.style.removeProperty('background-image');
+    appElement.style.setProperty('background', 'transparent', 'important');
+    appElement.style.setProperty('background-image', 'none', 'important');
   }
   if (canvasElement) {
-    canvasElement.style.removeProperty('background');
-    canvasElement.style.removeProperty('background-image');
+    canvasElement.style.setProperty('background', 'transparent', 'important');
+    canvasElement.style.setProperty('background-image', 'none', 'important');
   }
   
-  console.log(`📄 Board game paper background: alpha=${paperAlpha}, overlayAlpha=${overlayAlpha}, visible=${paperAlpha * 100}%`);
+  console.log(`📄 Board game paper background set IMMEDIATELY: alpha=${paperAlpha}, overlayAlpha=${overlayAlpha}, visible=${paperAlpha * 100}%`);
   // 🔥 CRITICAL FIX: Ensure host element exists and is visible before adding canvas
   if (!host) {
     console.error('❌ Host element not found! Cannot add canvas to DOM');
@@ -1216,14 +1218,14 @@ export async function boot(){
 
   syncSharedState();
   
-  // 🔥 CRITICAL: Set paper background to 35% opacity for board game
-  // This must be at the end of boot() to override any other background changes
+  // 🔥 CRITICAL: Re-apply paper background to 35% opacity at the end of boot() as fallback
+  // This ensures it's set even if something overrides it during boot process
   // Use setTimeout to ensure it runs after all other code
   setTimeout(() => {
     const paperAlpha = 0.35;
     document.documentElement?.style.setProperty('--paper-alpha', paperAlpha.toString());
     
-    const overlayAlpha = 1 - paperAlpha; // 0.7 overlay = 30% paper visible
+    const overlayAlpha = 1 - paperAlpha; // 0.65 overlay = 35% paper visible
     const backgroundLayers = overlayAlpha > 0.01
       ? `linear-gradient(rgba(243,238,232,${overlayAlpha}), rgba(243,238,232,${overlayAlpha})), url('./assets/paper-bg.png')`
       : `url('./assets/paper-bg.png')`;
@@ -1231,7 +1233,9 @@ export async function boot(){
     const body = document.body;
     const html = document.documentElement;
     const globalBg = document.getElementById('global-bg');
+    const appElement = document.getElementById('app');
     
+    // 🔥 CRITICAL: Re-apply paper bg with !important as fallback to prevent override
     if (body) {
       body.style.setProperty('background-color', '#f3eee8', 'important');
       body.style.setProperty('background-image', backgroundLayers, 'important');
@@ -1253,8 +1257,12 @@ export async function boot(){
       (globalBg as HTMLElement).style.setProperty('background-repeat', 'no-repeat', 'important');
       (globalBg as HTMLElement).style.setProperty('background-position', 'center', 'important');
     }
+    if (appElement) {
+      appElement.style.setProperty('background', 'transparent', 'important');
+      appElement.style.setProperty('background-image', 'none', 'important');
+    }
     
-    console.log(`📄 Board game paper background set to 30% opacity (alpha=${paperAlpha}, overlayAlpha=${overlayAlpha})`);
+    console.log(`📄 Board game paper background RE-APPLIED as fallback: alpha=${paperAlpha}, overlayAlpha=${overlayAlpha}, visible=${paperAlpha * 100}%`);
   }, 100); // 100ms delay to ensure it runs after all other code
 }
 
