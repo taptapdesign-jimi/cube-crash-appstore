@@ -308,6 +308,36 @@ class CollectiblesManager {
     
     console.log('✅ Collectibles event listeners cleaned up');
   }
+  
+  // 🔥 CRITICAL FIX: Master cleanup method - calls ALL cleanup functions
+  // This is the MAIN cleanup entry point called from main.ts exitToMenu()
+  public cleanup(): void {
+    console.log('🧹🧹🧹 collectiblesManager.cleanup() - FULL CLEANUP STARTING...');
+    
+    // 1. Cleanup event listeners (document-level, element-level)
+    try {
+      this.cleanupEventListeners();
+      console.log('✅ collectiblesManager event listeners cleaned up');
+    } catch (error) {
+      console.warn('⚠️ Failed to cleanup collectibles event listeners:', error);
+    }
+    
+    // 2. Cleanup journey boards manager (cards, animations, scroll listeners)
+    try {
+      import('./modules/journey-boards-manager.js').then(({ journeyBoardsManager }) => {
+        if (journeyBoardsManager && typeof journeyBoardsManager.cleanup === 'function') {
+          journeyBoardsManager.cleanup();
+          console.log('✅ journeyBoardsManager.cleanup() completed');
+        }
+      }).catch((error) => {
+        console.warn('⚠️ Failed to import/cleanup journeyBoardsManager:', error);
+      });
+    } catch (error) {
+      console.warn('⚠️ Failed to cleanup journey boards manager:', error);
+    }
+    
+    console.log('✅✅✅ collectiblesManager.cleanup() - FULL CLEANUP COMPLETED');
+  }
 
   // 🔥 NEW: Prepare Journey screen by rendering boards in background (without showing screen)
   // This allows boards to render while slider exit animation plays
@@ -596,7 +626,7 @@ class CollectiblesManager {
       
           // 🔥 CRITICAL: Delay scroll to interim card AND start idle bounce animations AFTER enter animation completes
           // Enter animation takes ~0.7s (header 0.5s + delay 0.1s + cards 0.4s)
-          // Wait a bit longer to ensure all animations are visible
+          // 🔥 USER REQUEST: Reduced wait time by 50% for faster auto-scroll (450ms vs 900ms)
           if (journeyContainer) {
             setTimeout(async () => {
               try {
@@ -652,7 +682,7 @@ class CollectiblesManager {
               } catch (error) {
                 console.warn('⚠️ Failed to scroll to interim card or start idle bounce:', error);
               }
-            }, 900); // Wait for enter animation to complete (~700ms) + buffer
+            }, 450); // 🔥 USER REQUEST: Sped up by 50% (was 900ms, now 450ms) - faster auto-scroll to interim card
           }
       
       // 🔥 PREMIUM FIX: Position is set synchronously in renderBoards() via CSS custom properties

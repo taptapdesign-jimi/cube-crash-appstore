@@ -562,7 +562,8 @@ window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => 
 });
 
 // iOS HARD CLOSE: Save high score and time when app goes to background or closes
-document.addEventListener('visibilitychange', async () => {
+// 🍎 iOS CRITICAL FIX: Store reference for proper cleanup (prevents memory leak on iOS!)
+const iosHardCloseHandler = async () => {
   if (document.hidden) {
     // App is going to background or closing (hard close on iOS)
     console.log('📱 App hidden - saving high score and time before close');
@@ -599,7 +600,11 @@ document.addEventListener('visibilitychange', async () => {
       console.error('❌ Failed to save data before app hidden:', error);
     }
   }
-});
+};
+
+// 🍎 Store handler reference for cleanup in exitToMenu()
+(window as any)._iosHardCloseHandler = iosHardCloseHandler;
+document.addEventListener('visibilitychange', iosHardCloseHandler);
 
 // Start the app
 initializeApp().catch((error: Error) => {
@@ -1333,7 +1338,31 @@ async function startNewRun(boardId: number): Promise<void> {
       console.warn('⚠️ Error killing GSAP tweens:', gsapError);
     }
     
-    // Step 3: Clean up game state AFTER killing all tweens
+    // Step 3: Clean up all effects (bubbles, explosions, particles, confetti) FIRST
+    try {
+      const { cleanupAllEffects } = await import('./modules/fx.js');
+      if (typeof cleanupAllEffects === 'function') {
+        console.log('🧹 Calling cleanupAllEffects() to clean up particles, bubbles, explosions...');
+        cleanupAllEffects();
+        console.log('✅ cleanupAllEffects() completed - all particles and effects cleared');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to run cleanupAllEffects:', error);
+    }
+    
+    // Step 3b: Clean up confetti system (DOM elements, intervals, timeouts)
+    try {
+      const { cleanupConfetti } = await import('./modules/confetti-system.js');
+      if (typeof cleanupConfetti === 'function') {
+        console.log('🧹 Calling cleanupConfetti() to clean up confetti DOM elements and intervals...');
+        cleanupConfetti();
+        console.log('✅ cleanupConfetti() completed - all confetti cleaned up');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to run cleanupConfetti:', error);
+    }
+    
+    // Step 4: Clean up game state AFTER killing all tweens
     try {
       if (typeof cleanupGame === 'function') {
         console.log('🧹 Calling cleanupGame() to clean up all game resources...');
@@ -1342,6 +1371,79 @@ async function startNewRun(boardId: number): Promise<void> {
       }
     } catch (error) {
       console.warn('⚠️ Failed to run cleanupGame:', error);
+    }
+    
+    // Step 5: Clean up Journey Boards Manager (event listeners, animations)
+    try {
+      const collectiblesManager = (window as any).collectiblesManager;
+      if (collectiblesManager && typeof collectiblesManager.cleanup === 'function') {
+        console.log('🧹 Calling collectiblesManager.cleanup() to clean up Journey screen...');
+        collectiblesManager.cleanup();
+        console.log('✅ collectiblesManager.cleanup() completed - Journey screen cleaned up');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to run collectiblesManager.cleanup:', error);
+    }
+    
+    // Step 6: Clean up Homepage/Slider event listeners and animations (CRITICAL!)
+    // This is the MAIN MEMORY LEAK - slider/homepage event listeners are never removed when returning from game!
+    try {
+      console.log('🧹 Cleaning up homepage/slider event listeners and animations...');
+      
+      // 6a. Destroy slider manager (removes touch/mouse event listeners)
+      const { default: sliderManager } = await import('./modules/slider-manager.js');
+      if (sliderManager && typeof sliderManager.destroy === 'function') {
+        sliderManager.destroy();
+        console.log('✅ Slider manager destroyed - event listeners removed');
+      }
+      
+      // 6b. Kill all GSAP animations on homepage elements
+      const homeElement = document.getElementById('home');
+      if (homeElement && gsap) {
+        const homepageElements = homeElement.querySelectorAll('*');
+        homepageElements.forEach((el: Element) => {
+          try { gsap.killTweensOf(el); } catch {}
+        });
+        
+        const sliderWrapper = document.getElementById('slider-wrapper');
+        const sliderContainer = document.getElementById('slider-container');
+        if (sliderWrapper) gsap.killTweensOf(sliderWrapper);
+        if (sliderContainer) gsap.killTweensOf(sliderContainer);
+        console.log('✅ Homepage GSAP animations killed');
+      }
+      
+      // 6c. Remove UI Manager event listeners (buttons, etc.)
+      if (uiManager && (uiManager as any).boundEventHandlers) {
+        const boundHandlers = (uiManager as any).boundEventHandlers;
+        if (boundHandlers && boundHandlers.forEach) {
+          boundHandlers.forEach((handlers: any[], element: HTMLElement) => {
+            handlers.forEach(({ event, handler }: { event: string, handler: EventListener }) => {
+              try {
+                element.removeEventListener(event, handler);
+              } catch (e) {}
+            });
+          });
+          boundHandlers.clear();
+          console.log('✅ UI Manager event listeners removed');
+        }
+      }
+      
+      console.log('✅ Homepage/slider cleanup completed');
+    } catch (error) {
+      console.warn('⚠️ Failed to cleanup homepage/slider:', error);
+    }
+    
+    // Step 7: Remove iOS hard close lifecycle listener (main.ts)
+    // 🍎 iOS CRITICAL: This listener accumulates on EVERY page load and causes memory leaks!
+    try {
+      const iosHardCloseHandler = (window as any)._iosHardCloseHandler;
+      if (iosHardCloseHandler) {
+        document.removeEventListener('visibilitychange', iosHardCloseHandler);
+        (window as any)._iosHardCloseHandler = null;
+        console.log('✅ iOS hard close listener removed (main.ts)');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to remove iOS hard close listener:', error);
     }
     
     // Stop time tracking
@@ -1744,32 +1846,30 @@ async function startNewRun(boardId: number): Promise<void> {
     // Step 3: Show appropriate screen WITHOUT mixing pathways
     if (returnToDetailModal && detailModalBoardId !== null) {
       // 🔥 USER REQUEST: Return directly to detail modal (Journey screen hidden, no enter animation)
-      console.log(`🎯 Detail modal pathway - opening detail modal directly for board ${detailModalBoardId}...`);
+      console.log(`🎯 Detail modal pathway - opening detail modal INSTANTLY for board ${detailModalBoardId}...`);
       
-      // Prepare Journey screen in background (hidden, no animation)
-      const collectiblesManager = (window as any).collectiblesManager;
-      if (collectiblesManager) {
-        // Prepare Journey screen but don't show it yet (no enter animation)
-        const journeyScreen = document.getElementById('journey-screen');
-        if (journeyScreen) {
-          journeyScreen.removeAttribute('hidden');
-          journeyScreen.style.display = 'flex';
-          journeyScreen.style.opacity = '0';
-          journeyScreen.style.visibility = 'hidden';
-          console.log('✅ Journey screen prepared in background (hidden)');
-        }
+      // 🔥 USER REQUEST: Prepare Journey screen in background INSTANTLY (no delay)
+      // This must be IMMEDIATE to prevent blank screen
+      const journeyScreen = document.getElementById('journey-screen');
+      if (journeyScreen) {
+        journeyScreen.removeAttribute('hidden');
+        journeyScreen.style.display = 'flex';
+        journeyScreen.style.opacity = '0';
+        journeyScreen.style.visibility = 'hidden';
+        console.log('✅ Journey screen prepared INSTANTLY in background (hidden)');
       }
       
-      // Open detail modal directly with enter animation (no Journey screen exit - already hidden)
+      // 🔥 USER REQUEST: Open detail modal IMMEDIATELY (no delay)
+      // Enter animation should start instantly after board exit
       import('./modules/journey-boards-manager.js').then(async ({ journeyBoardsManager }) => {
-        // Small delay to ensure DOM is ready
-        await new Promise(resolve => requestAnimationFrame(resolve));
+        // 🔥 REMOVED: requestAnimationFrame delay - start detail modal enter animation IMMEDIATELY
+        // This prevents 1 second blank screen between board exit and detail modal enter
         
         if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
           // openBoardDetailsById will handle enter animation for detail modal
           // Skip Journey exit animation because Journey screen is already hidden
           await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
-          console.log(`✅ Detail modal opened directly for board ${detailModalBoardId} with enter animation`);
+          console.log(`✅ Detail modal opened IMMEDIATELY for board ${detailModalBoardId} with enter animation`);
         } else {
           console.warn('⚠️ openBoardDetailsById method not found');
         }

@@ -3908,7 +3908,43 @@ function merge(src, dst, helpers){
               }
               return;
             } else {
-              console.log('✅ Stack CAN reach merge 6 by merging with itself (', finalValue, '+', finalValue, '=', finalValue + finalValue, '<= 6, depth:', finalStackDepth, ') - NOT triggering fail screen');
+              // 🔥 USER REQUEST FIX: Stack CAN reach merge 6, but check what remains AFTER self-merge
+              // Example: value 3 (depth 2) can self-merge to 6, but then it's merge 6 (depth 1) = DEAD END!
+              const afterSelfMergeDepth = finalStackDepth - 1; // Depth decreases by 1 after self-merge
+              const afterSelfMergeValue = finalValue + finalValue; // New value after self-merge
+              
+              console.log('🔍 Stack can reach merge 6 - checking what remains after self-merge:', {
+                beforeSelfMerge: { value: finalValue, depth: finalStackDepth },
+                afterSelfMerge: { value: afterSelfMergeValue, depth: afterSelfMergeDepth },
+                isDeadEnd: afterSelfMergeValue === 6 && afterSelfMergeDepth === 1
+              });
+              
+              // If self-merge results in merge 6 (depth 1) → that's a DEAD END (last move)
+              if (afterSelfMergeValue === 6 && afterSelfMergeDepth === 1) {
+                console.log('🚨🚨🚨 LAST MOVE DETECTED - Stack can self-merge to merge 6 BUT will result in merge 6 (depth 1) = DEAD END, triggering fail screen');
+                console.log('🚨 Details:', {
+                  srcValue: src.value,
+                  dstValue: dst.value,
+                  effSum,
+                  finalTileValue: finalValue,
+                  finalTileStackDepth: finalStackDepth,
+                  afterSelfMergeValue,
+                  afterSelfMergeDepth,
+                  explanation: `${finalValue}+${finalValue}=${afterSelfMergeValue} (depth ${finalStackDepth} → ${afterSelfMergeDepth}) = merge 6 with depth 1 = DEAD END`
+                });
+                
+                if (!busyEnding) {
+                  // 🔥 USER REQUEST: 1.5 seconds delay before showing fail screen
+                  console.log('⏳ Waiting 1.5 seconds before showing fail screen (last move - self-merge leads to dead end)...');
+                  await new Promise(resolve => setTimeout(resolve, 1500));
+                  console.log('🚨 Showing fail screen NOW (last move - self-merge leads to dead end)');
+                  showFinalScreen();
+                }
+                return;
+              }
+              
+              // If after self-merge there's still room to continue (e.g., value 2, depth 3 → 4, depth 2 → can continue)
+              console.log('✅ Stack CAN reach merge 6 and can continue after (', finalValue, '+', finalValue, '=', afterSelfMergeValue, ', depth:', finalStackDepth, '→', afterSelfMergeDepth, ') - NOT triggering fail screen');
             }
           }
           
@@ -3954,7 +3990,31 @@ function merge(src, dst, helpers){
               }
               return;
             } else {
-              console.log('✅ Stack CAN reach merge 6 by merging with itself (', finalValue, '+', finalValue, '=', finalValue + finalValue, '<= 6, depth:', finalStackDepth, ') - NOT triggering fail screen');
+              // 🔥 USER REQUEST FIX: Stack CAN reach merge 6, but check what remains AFTER self-merge
+              // Same logic as wasLastTwoRegularStack case above
+              const afterSelfMergeDepth = finalStackDepth - 1;
+              const afterSelfMergeValue = finalValue + finalValue;
+              
+              console.log('🔍 Stack (3+) can reach merge 6 - checking what remains after self-merge:', {
+                beforeSelfMerge: { value: finalValue, depth: finalStackDepth },
+                afterSelfMerge: { value: afterSelfMergeValue, depth: afterSelfMergeDepth },
+                isDeadEnd: afterSelfMergeValue === 6 && afterSelfMergeDepth === 1
+              });
+              
+              // If self-merge results in merge 6 (depth 1) → that's a DEAD END (last move)
+              if (afterSelfMergeValue === 6 && afterSelfMergeDepth === 1) {
+                console.log('🚨🚨🚨 LAST MOVE DETECTED - Stack (3+) can self-merge to merge 6 BUT will result in merge 6 (depth 1) = DEAD END, triggering fail screen');
+                
+                if (!busyEnding) {
+                  console.log('⏳ Waiting 1.5 seconds before showing fail screen (last move - 3+ stack self-merge leads to dead end)...');
+                  await new Promise(resolve => setTimeout(resolve, 1500));
+                  console.log('🚨 Showing fail screen NOW (last move - 3+ stack self-merge leads to dead end)');
+                  showFinalScreen();
+                }
+                return;
+              }
+              
+              console.log('✅ Stack (3+) CAN reach merge 6 and can continue after (', finalValue, '+', finalValue, '=', afterSelfMergeValue, ', depth:', finalStackDepth, '→', afterSelfMergeDepth, ') - NOT triggering fail screen');
             }
           }
 
@@ -7848,6 +7908,7 @@ export function cleanupGame() {
   clearAllAppIntervals();
   
   // 🔥 CRITICAL FIX: Remove event listeners properly
+  // Remove resize listeners for layoutBoard and layout
   try { 
     window.removeEventListener('resize', layoutBoard); 
   } catch (e) {
@@ -7857,6 +7918,19 @@ export function cleanupGame() {
     window.removeEventListener('resize', layout); 
   } catch (e) {
     console.warn('⚠️ Failed to remove layout listener:', e);
+  }
+  
+  // 🔥 CRITICAL FIX: Remove HUD resize listener (stored in HUD_ROOT._onResize)
+  // This is the MAIN MEMORY LEAK - HUD_ROOT._onResize listener is never removed!
+  try {
+    const hudRoot = (window as any).HUD_ROOT;
+    if (hudRoot && hudRoot._onResize) {
+      window.removeEventListener('resize', hudRoot._onResize);
+      console.log('✅ HUD resize listener removed (HUD_ROOT._onResize)');
+      hudRoot._onResize = null; // Clear reference
+    }
+  } catch (e) {
+    console.warn('⚠️ Failed to remove HUD resize listener:', e);
   }
   
   // Reset wild progress (with safety check for HUD)
@@ -7875,10 +7949,22 @@ export function cleanupGame() {
       // 🔥 MEMORY LEAK FIX: Cleanup all tile animations and intervals before destroy
       try { stopWildIdle?.(t); } catch {}
       try { stopWildShimmer?.(t); } catch {}
+      try { stopWildStars?.(t); } catch {}
+      try { stopWildBeerBubbles?.(t); } catch {}
       try { stopMagnetIdleParticles?.(t); } catch {}
       try { t.destroy?.({children: true, texture: false, textureSource: false}); } catch {}
     });
     tiles.length = 0;
+  }
+  
+  // 🔥 CRITICAL FIX: Cleanup wild beer explosion (GSAP ticker + PIXI containers)
+  try {
+    if (isWildBeerExplosionRunning && isWildBeerExplosionRunning()) {
+      cleanupWildBeerExplosion();
+      console.log('✅ Wild beer explosion cleaned up in cleanupGame()');
+    }
+  } catch (e) {
+    console.warn('⚠️ Failed to cleanup wild beer explosion:', e);
   }
   
   if (grid) {
@@ -7972,6 +8058,28 @@ export function cleanupGame() {
     }
   } catch (e) {
     console.warn('⚠️ Failed to clear HUD_ROOT:', e);
+  }
+  
+  // 🍎 iOS CRITICAL FIX: Remove iOS lifecycle event listeners (pagehide, visibilitychange)
+  // These listeners accumulate on every game restart and cause MASSIVE memory leaks on iOS!
+  // iOS WKWebView has strict memory limits (~200MB) - every listener leak brings us closer to crash!
+  try {
+    const saveGameStateRef = (window as any)._saveGameStateRef;
+    const iosVisibilityHandler = (window as any)._iosVisibilityHandler;
+    
+    if (saveGameStateRef) {
+      window.removeEventListener('pagehide', saveGameStateRef);
+      console.log('✅ iOS pagehide listener removed (app-core.ts)');
+      (window as any)._saveGameStateRef = null;
+    }
+    
+    if (iosVisibilityHandler) {
+      window.removeEventListener('visibilitychange', iosVisibilityHandler);
+      console.log('✅ iOS visibilitychange listener removed (app-core.ts)');
+      (window as any)._iosVisibilityHandler = null;
+    }
+  } catch (e) {
+    console.warn('⚠️ Failed to remove iOS lifecycle listeners:', e);
   }
   
   console.log('✅ Game cleanup completed');
@@ -8851,14 +8959,19 @@ export { drawBoardBG, animateBoardExit };
 
 
 // Mobile-specific save events
-// 🔥 MEMORY LEAK FIX: Store reference to saveGameState for cleanup
-(window as any)._saveGameStateRef = saveGameState;
-window.addEventListener('pagehide', saveGameState);
-window.addEventListener('visibilitychange', () => {
+// 🍎 iOS CRITICAL FIX: Store ALL event listener references for proper cleanup
+// iOS accumulates these listeners on every game restart - MUST be removed in cleanupGame()!
+const iosVisibilityHandler = () => {
   if (document.hidden) {
     saveGameState();
   }
-});
+};
+
+(window as any)._saveGameStateRef = saveGameState;
+(window as any)._iosVisibilityHandler = iosVisibilityHandler; // 🍎 Store for cleanup!
+
+window.addEventListener('pagehide', saveGameState);
+window.addEventListener('visibilitychange', iosVisibilityHandler);
 
 // iOS/Android specific events
 window.addEventListener('beforeunload', saveGameState);

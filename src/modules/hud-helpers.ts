@@ -219,7 +219,7 @@ function ensureBoardIndicator() {
     min-width: 135px;
     padding: 4px 12px;
     border-radius: 24px;
-    background: transparent;
+    background: #f3eee8;
     border: 1px solid #E8D3C8;
     color: #AD8775;
     font-size: 14px;

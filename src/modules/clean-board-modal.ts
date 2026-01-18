@@ -671,7 +671,7 @@ export async function showCleanBoardModal({
     };
 
     // Continue
-    addButtonPressHandling(btn, () => {
+    addButtonPressHandling(btn, async () => {
       // Haptic for Continue button
       if (typeof (window as any).triggerHapticSelection === 'function') {
         (window as any).triggerHapticSelection();
@@ -746,6 +746,17 @@ export async function showCleanBoardModal({
         
         // SIMPLE: Clear completed board state (user clicked Continue, normal flow)
         localStorage.removeItem('cc_board_completed');
+        
+        // 🔥 USER REQUEST FIX: Clear board-specific saved state when continuing to next board
+        // This ensures "Play" button shows instead of "Continue" when returning to completed board
+        // Without this, user sees "Continue" + ghost placeholders on completed boards
+        try {
+          const { clearBoardSaveState } = await import('../utils/board-save-utils.js');
+          clearBoardSaveState(boardNumber);
+          console.log(`✅ clean-board-modal: Cleared board-specific saved state for board ${boardNumber} on Continue`);
+        } catch (clearError) {
+          console.warn(`⚠️ clean-board-modal: Failed to clear board saved state:`, clearError);
+        }
       } catch {}
       
       

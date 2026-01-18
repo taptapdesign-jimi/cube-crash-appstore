@@ -354,7 +354,28 @@ function canSingleStackMerge(activeTiles: any[], totalTilesCount: number): boole
   const canMergeSelf = (value + value) <= MAX_MERGE_VALUE;
 
   if (canMergeSelf && stackDepth >= 2) {
-    console.log('✅ isGameStuck: Stack can merge with itself (', value, '+', value, '=', value + value, '<= 6, depth:', stackDepth, ') - NOT stuck');
+    // 🔥 USER REQUEST FIX: Stack CAN reach merge 6, but check what remains AFTER self-merge
+    // Example: value 3 (depth 2) can self-merge to 6, but then it's merge 6 (depth 1) = DEAD END!
+    const afterSelfMergeValue = value + value;
+    const afterSelfMergeDepth = stackDepth - 1; // Depth decreases by 1 after self-merge
+    
+    console.log('🔍 canSingleStackMerge: Stack can self-merge - checking what remains after:', {
+      beforeSelfMerge: { value, depth: stackDepth },
+      afterSelfMerge: { value: afterSelfMergeValue, depth: afterSelfMergeDepth },
+      isDeadEnd: afterSelfMergeValue === MAX_MERGE_VALUE && afterSelfMergeDepth === 1
+    });
+    
+    // If self-merge results in merge 6 (depth 1) → that's a DEAD END (stuck!)
+    if (afterSelfMergeValue === MAX_MERGE_VALUE && afterSelfMergeDepth === 1) {
+      console.log('🚨 isGameStuck: Stack can self-merge to merge 6 BUT will result in merge 6 (depth 1) = DEAD END - IS STUCK');
+      console.log('🚨 Details:', {
+        explanation: `${value}+${value}=${afterSelfMergeValue} (depth ${stackDepth} → ${afterSelfMergeDepth}) = merge 6 with depth 1 = DEAD END`
+      });
+      return false; // STUCK - self-merge leads to dead end
+    }
+    
+    // If after self-merge there's still room to continue (e.g., value 2, depth 3 → 4, depth 2 → can continue)
+    console.log('✅ isGameStuck: Stack can self-merge and continue after (', value, '+', value, '=', afterSelfMergeValue, ', depth:', stackDepth, '→', afterSelfMergeDepth, ') - NOT stuck');
     return true;
   } else {
     console.log('🚨 isGameStuck: Stack CANNOT merge with itself (', value, '+', value, '=', value + value, '> 6 OR depth < 2) - IS STUCK');

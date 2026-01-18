@@ -332,12 +332,15 @@ class SliderManager {
     if ((window as any).__ccIsAnimatingSliderEnter === true) {
       logger.info(`⏳ Slider enter animation still running, queuing slide change to ${slideIndex}...`);
       // Queue the slide change to happen after animation completes
+      // 🔥 USER REQUEST FIX: Force animation even when queued (don't use quickSetX fallback)
       setTimeout(() => {
         if (slideIndex >= 0 && slideIndex < this.totalSlides) {
           this.currentSlide = slideIndex;
           gameState.set('currentSlide', slideIndex);
-          this.updateSlider();
-          logger.info(`✅ Queued slide change to ${slideIndex} completed`);
+          // 🔥 CRITICAL: Call updateSlider with forceAnimate=true for smooth GSAP transition
+          // This ensures queued slides animate smoothly instead of instant jump
+          this.updateSlider(true); // forceAnimate = true
+          logger.info(`✅ Queued slide change to ${slideIndex} completed with smooth animation`);
         }
       }, 650); // Wait for enter animation to complete (650ms duration)
       return;
@@ -346,7 +349,9 @@ class SliderManager {
     if (slideIndex >= 0 && slideIndex < this.totalSlides) {
       this.currentSlide = slideIndex;
       gameState.set('currentSlide', slideIndex);
-      this.updateSlider();
+      // 🔥 USER REQUEST FIX: Force animation when going to slide via dot/button click
+      // This prevents instant jumps and ensures smooth GSAP animation ALWAYS plays
+      this.updateSlider(true); // forceAnimate = true
     }
   }
   
@@ -373,14 +378,14 @@ class SliderManager {
   }
   
   // Update slider display
-  private updateSlider(): void {
+  private updateSlider(forceAnimate: boolean = false): void {
     if (!this.elements.wrapper || !this.elements.container) return;
     
     // 🔥 FIX: Calculate slide width correctly - each slide is 25% of 400% = 100vw
     const slideWidth = this.elements.container.offsetWidth; // This should be viewport width
     const offset = -this.currentSlide * slideWidth;
     
-    logger.debug(`🎯 updateSlider: currentSlide=${this.currentSlide}, slideWidth=${slideWidth}, offset=${offset}`);
+    logger.debug(`🎯 updateSlider: currentSlide=${this.currentSlide}, slideWidth=${slideWidth}, offset=${offset}, forceAnimate=${forceAnimate}`);
     
     // Kill previous animation if exists
     if (this.slideAnimation) {
@@ -396,8 +401,9 @@ class SliderManager {
       
       logger.debug(`🎯 updateSlider: currentX=${currentX}, target offset=${offset}, difference=${Math.abs(currentX - offset)}`);
       
-      // 🔥 FIX: Only animate if there's a significant difference (avoid micro-movements)
-      if (Math.abs(currentX - offset) > 1) {
+      // 🔥 USER REQUEST FIX: Reduced threshold to 0.5px and added forceAnimate flag
+      // This ensures slider ALWAYS animates when user clicks dots/buttons (no instant jumps)
+      if (forceAnimate || Math.abs(currentX - offset) > 0.5) {
         // 🔥 SMOOTH: Use smooth easing instead of bounce for fluid, non-jerky animation
         this.slideAnimation = gsap.to(this.elements.wrapper, {
           x: offset,

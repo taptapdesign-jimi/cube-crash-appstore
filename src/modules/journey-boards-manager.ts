@@ -3353,12 +3353,18 @@ class JourneyBoardsManager {
         logger.info('🧹 Stopped existing detail image idle animation before opening new modal');
       }
     }
-    // 🔥 CRITICAL: Preload journey board images for this board (on-demand)
+    // 🔥 USER REQUEST: Preload journey board images in background (NON-BLOCKING)
+    // This must NOT delay detail modal enter animation
     try {
       const { preloadJourneyBoardImages } = await import('../utils/comprehensive-image-preloader.js');
-      await preloadJourneyBoardImages([board.id]);
+      // Fire and forget - don't await, let it load in background
+      preloadJourneyBoardImages([board.id]).then(() => {
+        logger.info(`✅ Journey board ${board.id} image preloaded in background`);
+      }).catch((error) => {
+        logger.warn('⚠️ Failed to preload journey board images:', error);
+      });
     } catch (error) {
-      logger.warn('⚠️ Failed to preload journey board images:', error);
+      logger.warn('⚠️ Failed to import preloadJourneyBoardImages:', error);
     }
     
     // 🔥 CRITICAL: Preload game assets BEFORE Play button is clicked
@@ -3815,13 +3821,22 @@ class JourneyBoardsManager {
       let playButtonForAnimation: HTMLElement | null = null;
       
       if (!isInterim) {
+        // 🔥 USER REQUEST: Check if board has saved state to show "Continue" or "Play"
+        // This helps user distinguish between continuing an existing game vs starting fresh
+        const boardHasSavedState = hasSavedStateForBoard(board.id);
+        const buttonText = boardHasSavedState ? 'Continue' : 'Play';
+        const ariaLabel = boardHasSavedState ? 'Continue Board' : 'Play Board';
+        
+        console.log(`🎮 Board ${board.id} CTA button text: "${buttonText}" (hasSavedState: ${boardHasSavedState})`);
+        logger.info(`🎮 Board ${board.id} button will show: "${buttonText}"`);
+        
         // Create new floating play button - EXACT same style as homepage slider CTA with shimmer
         const floatingPlayButton = document.createElement('button');
         floatingPlayButton.id = 'board-detail-play-button';
         floatingPlayButton.className = 'slide-button tap-scale menu-btn-primary';
-        floatingPlayButton.textContent = 'Play';
+        floatingPlayButton.textContent = buttonText; // "Continue" or "Play"
         floatingPlayButton.setAttribute('type', 'button');
-        floatingPlayButton.setAttribute('aria-label', 'Play Board');
+        floatingPlayButton.setAttribute('aria-label', ariaLabel);
         
         // Prevent dragging/moving the button (but keep :active working for tap-scale)
         floatingPlayButton.addEventListener('mousedown', (e) => {

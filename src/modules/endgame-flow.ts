@@ -199,19 +199,13 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     (window as any).__ccPreserveScore = finalScore;
     console.log('💾 endgame-flow: Preserving final score for next board:', finalScore);
     
-    // 🔥 CRITICAL FIX: Save game state AFTER clean board modal closes and score is finalized
-    // This ensures the final score (with bonus) is saved before starting next board
-    try {
-      const saveGameState = (window as any).saveGameState;
-      if (typeof saveGameState === 'function') {
-        saveGameState();
-        console.log('💾 endgame-flow: Game state saved after clean board flow (final score:', finalScore, ')');
-      } else {
-        console.warn('⚠️ endgame-flow: saveGameState function not found');
-      }
-    } catch (error) {
-      console.warn('⚠️ endgame-flow: Failed to save game state after clean board flow:', error);
-    }
+    // 🔥 USER REQUEST FIX: DO NOT save game state after clean board!
+    // Board is COMPLETED, no need to save state (would create "Continue" button on completed board)
+    // Board save state was already cleared in clean-board-modal.ts when Continue was clicked
+    console.log('✅ endgame-flow: Skipping saveGameState() after clean board (board is completed, no save needed)');
+    
+    // 🔥 REMOVED: saveGameState() call - board is completed, save state should NOT exist
+    // This prevents "Continue" button from appearing on completed boards when user returns
     
     // 🔥 CRITICAL FIX: Cleanup all animations and memory BEFORE starting next level
     // This prevents memory overflow and errors that could trigger restart

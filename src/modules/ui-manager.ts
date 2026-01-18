@@ -1260,6 +1260,12 @@ class UIManager {
       this.elements.home.style.display = 'block';
       this.elements.home.removeAttribute('hidden');
       
+      // 🔥 USER REQUEST FIX: Reset slider enter animation flag BEFORE reinitializing
+      // This prevents instant slide changes (no animation) when clicking dots after returning to homepage
+      // Without this, __ccIsAnimatingSliderEnter might be true from previous animation, causing instant jumps
+      (window as any).__ccIsAnimatingSliderEnter = false;
+      logger.info('✅ Reset __ccIsAnimatingSliderEnter flag before slider reinit');
+      
       // 🔥 CRITICAL FIX: Reinitialize slider manager if it was destroyed
       // This ensures slider controls (swipe, nav buttons, dots) work after returning to homepage
       try {
