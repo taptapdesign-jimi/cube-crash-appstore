@@ -3542,10 +3542,6 @@ class JourneyBoardsManager {
                   logger.info('🎯 Peekaboo area tapped - sliding to full card view');
                   
                   slideToPosition(1);
-                  
-                  if (typeof (window as any).triggerHapticImpact === 'function') {
-                    (window as any).triggerHapticImpact('light');
-                  }
                 }
               };
               
