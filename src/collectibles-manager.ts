@@ -583,6 +583,18 @@ class CollectiblesManager {
                 const returningFromInterimBoard = (window as any).__ccReturningFromInterimBoard;
                 if (returningFromDetailModal || returningFromInterimBoard) {
                   console.log('🗺️ Skipping auto-scroll (returning from detail modal or interim board)');
+                  // 🔥 USER REQUEST: Restore previous scroll position when returning from interim board
+                  if (returningFromInterimBoard) {
+                    try {
+                      const scrollable = journeyContainer.querySelector('.collectibles-scrollable') as HTMLElement | null;
+                      const savedScrollTop = (window as any).__ccJourneyScrollTop;
+                      if (scrollable && typeof savedScrollTop === 'number') {
+                        requestAnimationFrame(() => {
+                          scrollable.scrollTop = savedScrollTop;
+                        });
+                      }
+                    } catch {}
+                  }
                   // Clear flags after checking
                   delete (window as any).__ccReturningFromDetailModal;
                   delete (window as any).__ccReturningFromInterimBoard;

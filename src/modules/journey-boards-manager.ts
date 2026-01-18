@@ -1980,6 +1980,14 @@ class JourneyBoardsManager {
           return;
         }
 
+        // 🔥 USER REQUEST: Save current Journey scroll position before entering game
+        try {
+          const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+          if (scrollable) {
+            (window as any).__ccJourneyScrollTop = scrollable.scrollTop;
+          }
+        } catch {}
+
         // Prevent double-tap re-entry while animation is running
         if ((cardEl as any)._openingGame === true) {
           return;
@@ -2025,39 +2033,48 @@ class JourneyBoardsManager {
           }
 
           // Card pop animation (scale down, pop up, settle)
-          // 🔥 CRITICAL: Reset any existing transform and set transformOrigin
-          cardEl.style.transform = 'none';
-          cardEl.style.transformOrigin = '50% 50%';
-          cardEl.style.willChange = 'transform';
-          try { gsap.killTweensOf(cardEl); } catch {}
+          // 🔥 CRITICAL: Animate the same target as the interim bounce (wrapper), for visible effect
+          const cardWrapper = cardEl.closest('.journey-board-card-wrapper') as HTMLElement | null;
+          const animTarget = cardWrapper || cardEl;
+
+          // Stop interim bounce so it doesn't fight with tap animation
+          try { this.stopInterimBounce(cardEl); } catch {}
+
+          // 🔥 CRITICAL: Preserve wrapper transforms; only reset transform on card itself
+          if (animTarget === cardEl) {
+            animTarget.style.transform = 'none';
+          }
+          animTarget.style.transformOrigin = '50% 50%';
+          animTarget.style.willChange = 'transform';
+          try { gsap.killTweensOf(animTarget); } catch {}
           
           // 🔥 USER REQUEST: Match exact animation from regular cards (0.7 -> 1.69 -> 1.0)
           const tl = gsap.timeline({
             onComplete: () => {
               (cardEl as any)._openingGame = false;
               // Reset will-change
-              cardEl.style.willChange = 'auto';
+              animTarget.style.willChange = 'auto';
               logger.info(`🚀🚀🚀 CALLING continueFromInterimBoard FOR BOARD ${board.id}`);
               this.continueFromInterimBoard(board).catch((error) => {
                 logger.error('❌ Failed to continue from interim board:', error);
               });
             }
           });
-          tl.to(cardEl, { 
+          tl.to(animTarget, { 
             scale: 0.7, 
             rotation: 0, 
             duration: downMs / 1000, 
             ease: 'power2.out',
             force3D: true 
           })
-          .to(cardEl, { 
+          .to(animTarget, { 
             scale: 1.69, 
             rotation: rotationDeg, 
             duration: upMs / 1000, 
             ease: 'power2.out',
             force3D: true 
           })
-          .to(cardEl, { 
+          .to(animTarget, { 
             scale: 1.0, 
             rotation: 0, 
             duration: settleMs / 1000, 
