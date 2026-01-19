@@ -530,17 +530,15 @@ export async function showCleanBoardModal({
       
       // 🔥 ULTIMATE FIX: Use GSAP instead of CSS - ZERO conflicts, FULL control
       // GSAP overrides ALL CSS, inline styles, and transitions
+      // Only animate scale to 0 - NO opacity/visibility changes until scale reaches 0
       const tween = gsap.to(button, {
         y: 20,
         scale: 0,
         duration: 0.4,
         ease: 'cubic-bezier(0.68, -0.6, 0.32, 1.6)',
         overwrite: 'auto', // Kill any existing tweens
-        force3D: true, // Hardware acceleration
-        onComplete: () => {
-          // Clean up after animation
-          button.style.opacity = '0';
-        }
+        force3D: true // Hardware acceleration
+        // NO onComplete - let scale(0) do the work, no opacity/visibility changes
       });
       
       // Track tween for cleanup
@@ -1119,14 +1117,15 @@ export async function showCleanBoardModal({
         nodes.forEach((node) => { node.style.transition = exitTrans; });
  
         // 🎯 BUTTONS: Animate INDIVIDUALLY (not as container)
-        // Play Again exits FIRST (immediately)
+        // 🔥 USER REQUEST: Animate clicked button FIRST, then other button with 300ms delay
+        // Primary button (Play Again/Continue) was clicked - animate it FIRST
         animateButtonExit(primaryBtn);
         
-        // Exit button exits 50ms LATER (sekvencijalno, EXACT SAME LOGIC as Play Again)
+        // Exit button animates 300ms LATER (sekvencijalno)
         if (secondaryBtn) {
           setTimeout(() => {
-            animateButtonExit(secondaryBtn); // 🔥 EXACT same function as Play Again
-          }, 50); // 🔥 50ms delay between Play Again and Exit (vrlo brzo, skoro zajedno)
+            animateButtonExit(secondaryBtn);
+          }, 300); // 🔥 300ms delay (user request)
         }
  
         requestAnimationFrame(() => {
@@ -1147,9 +1146,10 @@ export async function showCleanBoardModal({
       // Give EXTRA time to ensure button animation completes BEFORE card fadeout
       const buttonExitDuration = 400; // 🔥 FASTER: Button animation duration (was 650ms, now 400ms)
       const extraBuffer = 200; // Reduced buffer since animation is faster
+      const buttonDelay = 300; // 🔥 USER REQUEST: 300ms delay between clicked button and other button
       const collapseDuration = secondaryBtn 
-        ? nodes.length * 60 + 50 + buttonExitDuration + extraBuffer  // With Exit button: 360 + 50 + 400 + 200 = 1010ms
-        : nodes.length * 60 + buttonExitDuration + extraBuffer;      // Without Exit button: 360 + 400 + 200 = 960ms
+        ? nodes.length * 60 + buttonDelay + buttonExitDuration + extraBuffer  // With Exit button: 360 + 300 + 400 + 200 = 1260ms
+        : nodes.length * 60 + buttonExitDuration + extraBuffer;               // Without Exit button: 360 + 400 + 200 = 960ms
       setTimeout(() => {
         card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
         card.style.opacity = '0';
@@ -1288,15 +1288,14 @@ export async function showCleanBoardModal({
         nodes.forEach((node) => { node.style.transition = exitTrans; });
  
         // 🎯 BUTTONS: Animate INDIVIDUALLY (not as container)
-        // Play Again exits FIRST (immediately)
-        animateButtonExit(primaryBtn);
+        // 🔥 USER REQUEST: Animate clicked button FIRST, then other button with 300ms delay
+        // Exit button was clicked - animate it FIRST
+        animateButtonExit(secondaryBtn);
         
-        // Exit button exits 50ms LATER (sekvencijalno, EXACT SAME LOGIC as Play Again)
-        if (secondaryBtn) {
-          setTimeout(() => {
-            animateButtonExit(secondaryBtn); // 🔥 EXACT same function as Play Again
-          }, 50); // 🔥 50ms delay between Play Again and Exit (consistent with Play Again handler)
-        }
+        // Play Again button animates 300ms LATER (sekvencijalno)
+        setTimeout(() => {
+          animateButtonExit(primaryBtn);
+        }, 300); // 🔥 300ms delay (user request)
 
         requestAnimationFrame(() => {
           nodes.forEach((node, idx) => {
@@ -1316,9 +1315,10 @@ export async function showCleanBoardModal({
         // Give EXTRA time to ensure button animation completes BEFORE card fadeout
         const buttonExitDuration = 400; // 🔥 FASTER: Button animation duration (was 650ms, now 400ms)
         const extraBuffer = 200; // Reduced buffer since animation is faster
+        const buttonDelay = 300; // 🔥 USER REQUEST: 300ms delay between clicked button and other button
         const collapseDuration = secondaryBtn 
-          ? nodes.length * 60 + 300 + buttonExitDuration + extraBuffer  // With Exit button: 360 + 300 + 400 + 200 = 1260ms
-          : nodes.length * 60 + buttonExitDuration + extraBuffer;        // Without Exit button: 360 + 400 + 200 = 960ms
+          ? nodes.length * 60 + buttonDelay + buttonExitDuration + extraBuffer  // With Exit button: 360 + 300 + 400 + 200 = 1260ms
+          : nodes.length * 60 + buttonExitDuration + extraBuffer;               // Without Exit button: 360 + 400 + 200 = 960ms
         setTimeout(() => {
           card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
           card.style.opacity = '0';
