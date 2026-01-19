@@ -481,6 +481,12 @@ function createModal(): HTMLElement {
           console.log('✅ HUD updated');
         };
         
+        // 🔥 FIX: Use comboBonus + efficiencyBonus (SAME as real clean board)
+        // This ensures dev tool has IDENTICAL animations as real clean board
+        const bonus = 500;
+        const comboBonus = Math.floor(bonus * 0.5); // 50% combo
+        const efficiencyBonus = bonus - comboBonus; // 50% efficiency
+        
         await showCleanBoardModal({
           app: (window as any).app,
           stage: (window as any).stage,
@@ -488,7 +494,8 @@ function createModal(): HTMLElement {
           setScore,
           animateScore,
           updateHUD,
-          bonus: 500,
+          comboBonus, // 🔥 NEW: Same as real clean board
+          efficiencyBonus, // 🔥 NEW: Same as real clean board
           scoreCap: 999999,
           boardNumber: 1,
           forcedStars: starsOverride

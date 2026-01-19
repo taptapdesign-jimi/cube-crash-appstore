@@ -101,6 +101,11 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     // Clean Board modal (bonus starting at 500, +200 per board) → immediately start next level on Continue
     const effectiveBoard = Math.max(1, boardNumber | 0);
     const bonus = 500 + (effectiveBoard - 1) * 200; // Board 1: 500, Board 2: 700, Board 3: 900, Board 4: 1100
+    
+    // 🔥 NEW: Calculate comboBonus and efficiencyBonus (SAME as dev clean board logic)
+    // This ensures consistent bonus animation timing between dev and real clean boards
+    const comboBonus = Math.floor(bonus * 0.5); // 50% for combo
+    const efficiencyBonus = bonus - comboBonus; // 50% for efficiency
 
     // 🔥 CRITICAL FIX: Cleanup bubbles animaciju PRIJE clean board flow-a
     // This prevents conflicts with stage/board objects during clean board flow
@@ -170,7 +175,8 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         }
       }) : undefined,
       updateHUD: ctx.updateHUD,
-      bonus,
+      comboBonus, // 🔥 NEW: Explicit combo bonus for consistent animations
+      efficiencyBonus, // 🔥 NEW: Explicit efficiency bonus for consistent animations
       scoreCap: 999999,
       boardNumber,
     });
