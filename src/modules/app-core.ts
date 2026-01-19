@@ -6372,13 +6372,22 @@ function merge(src, dst, helpers){
         
         // 🔥 BUG FIX: For wild merges (wild star, wild beer) in end game, spawn only 1 tile
         // Wild merge normally spawns 2 tiles (mult=2), but in end game should spawn only 1
-        // End game = no locked tiles available (all tiles are opened)
+        // End game = no locked tiles available (all tiles are opened) AND no stacked tiles
         const isWildMergeForMultFix = srcSpecial === 'wild' || dstSpecial === 'wild' || 
                                       srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
         const lockedTilesForMultCheck = tiles.filter(t => t && !t.destroyed && t.locked).length;
         
-        if (isWildMergeForMultFix && lockedTilesForMultCheck === 0 && spawnMult > 1) {
-          console.log('🔥 END-GAME FIX: Wild merge + no locked tiles → reducing spawnMult from', spawnMult, 'to 1');
+        // 🔥 CRITICAL FIX: Also check for stacked tiles (stackDepth > 1)
+        // If there are stacked tiles, it's NOT end game yet - there are still "hidden" tiles in stacks
+        // Bug: Wild star on stack(vdepth=2) was spawning 2 tiles instead of 1 (thought it was end game)
+        const stackedTilesForMultCheck = tiles.filter(t => {
+          if (!t || t.destroyed) return false;
+          const stackDepth = (t as any).stackDepth || 1;
+          return stackDepth > 1;
+        }).length;
+        
+        if (isWildMergeForMultFix && lockedTilesForMultCheck === 0 && stackedTilesForMultCheck === 0 && spawnMult > 1) {
+          console.log('🔥 END-GAME FIX: Wild merge + no locked tiles + no stacked tiles → reducing spawnMult from', spawnMult, 'to 1');
           spawnMult = 1; // Spawn only 1 tile in end game scenario
         }
         
