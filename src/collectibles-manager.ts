@@ -913,11 +913,19 @@ class CollectiblesManager {
       });
       logger.info('✅ All slides and content made visible');
       
-      // Step 2d: Position slider on Journey slide (index 1) BEFORE enter animation
+      // Step 2d: Determine which slide to return to based on journey origin
+      // 🔥 BUG FIX: Check if user came from board → detail modal → journey pathway
+      // If so, return to slide 0 (Homepage Play button), not slide 1 (Journey)
+      const cameFromHomepage = (window as any).__ccCameFromHomepage === true || 
+                                localStorage.getItem('__ccCameFromHomepage') === 'true';
+      const targetSlideIndex = cameFromHomepage ? 0 : 1;
+      console.log(`🔍 Journey origin check: cameFromHomepage=${cameFromHomepage}, returning to slide ${targetSlideIndex}`);
+      
+      // Step 2d: Position slider on target slide BEFORE enter animation
       const sliderWrapper = document.getElementById('slider-wrapper') as HTMLElement;
       if (sliderWrapper && sliderContainerEl) {
         const slideWidth = sliderContainerEl.offsetWidth || window.innerWidth;
-        const targetOffset = -1 * slideWidth; // Slide 2 (index 1)
+        const targetOffset = -targetSlideIndex * slideWidth;
         
         // Set position immediately using GSAP
         if (typeof gsap !== 'undefined') {
@@ -925,41 +933,41 @@ class CollectiblesManager {
         } else {
           sliderWrapper.style.transform = `translateX(${targetOffset}px)`;
         }
-        console.log(`✅ Slider positioned at slide 2 (index 1), offset: ${targetOffset}px`);
+        console.log(`✅ Slider positioned at slide ${targetSlideIndex}, offset: ${targetOffset}px`);
       }
       
-      // Step 2e: Set slide 2 as active
+      // Step 2e: Set target slide as active
       allSlides.forEach((slide, index) => {
-        if (index === 1) {
+        if (index === targetSlideIndex) {
           slide.classList.add('active');
         } else {
           slide.classList.remove('active');
         }
       });
       
-      // Step 2f: Set nav button 2 as active
+      // Step 2f: Set target nav button as active
       const navButtons = document.querySelectorAll('.independent-nav-button');
       navButtons.forEach((button, index) => {
-        if (index === 1) {
+        if (index === targetSlideIndex) {
           button.classList.add('active');
         } else {
           button.classList.remove('active');
         }
       });
-      console.log('✅ Slide 2 and nav button 2 marked as active');
+      console.log(`✅ Slide ${targetSlideIndex} and nav button ${targetSlideIndex} marked as active`);
       
       // Step 2g: Update sliderManager state and gameState
       const sliderManager = (window as any).sliderManager;
       if (sliderManager) {
-        sliderManager.currentSlide = 1;
-        console.log('✅ SliderManager internal state updated to slide 2 (index 1)');
+        sliderManager.currentSlide = targetSlideIndex;
+        console.log(`✅ SliderManager internal state updated to slide ${targetSlideIndex}`);
       }
       
       // 🔥 BUG FIX: Also update gameState to keep everything in sync
       // This ensures slider-manager knows the correct position when user clicks nav buttons
       if (typeof (window as any).gameState !== 'undefined' && (window as any).gameState.set) {
-        (window as any).gameState.set('currentSlide', 1);
-        console.log('✅ gameState.currentSlide updated to slide 2 (index 1)');
+        (window as any).gameState.set('currentSlide', targetSlideIndex);
+        console.log(`✅ gameState.currentSlide updated to slide ${targetSlideIndex}`);
       }
       
       // Step 2h: Show navigation
@@ -976,32 +984,32 @@ class CollectiblesManager {
       if (activeSlideCheck) {
         void (activeSlideCheck as HTMLElement).offsetHeight; // Force reflow
         const slideIndex = Array.from(allSlides).indexOf(activeSlideCheck);
-        console.log(`✅ Active slide verified: index ${slideIndex} (should be 1 for Journey slide)`);
-        if (slideIndex !== 1) {
-          console.warn(`⚠️ WARNING: Active slide is ${slideIndex}, expected 1! Fixing...`);
-          // Fix: Set slide 2 as active again
+        console.log(`✅ Active slide verified: index ${slideIndex} (should be ${targetSlideIndex})`);
+        if (slideIndex !== targetSlideIndex) {
+          console.warn(`⚠️ WARNING: Active slide is ${slideIndex}, expected ${targetSlideIndex}! Fixing...`);
+          // Fix: Set target slide as active again
           allSlides.forEach((slide, idx) => {
-            if (idx === 1) slide.classList.add('active');
+            if (idx === targetSlideIndex) slide.classList.add('active');
             else slide.classList.remove('active');
           });
         }
       }
       
-      // Step 3: Trigger homepage slide 2 ENTER animation
-      // 🔥 USER REQUEST: Journey exit → Slide 2 enter animacija
+      // Step 3: Trigger homepage slide ENTER animation
+      // 🔥 BUG FIX: Trigger enter animation for the ACTUAL target slide, not hardcoded slide 1
       // Use requestAnimationFrame to ensure DOM is fully updated before animation
       await new Promise(resolve => requestAnimationFrame(() => {
         requestAnimationFrame(async () => {
           // Final verification before animation
           const finalActiveSlide = document.querySelector('.slider-slide.active');
           const finalSlideIndex = finalActiveSlide ? Array.from(allSlides).indexOf(finalActiveSlide) : -1;
-          if (finalSlideIndex === 1) {
-            console.log('🎬 Step 3: Triggering slide 2 enter animation...');
+          if (finalSlideIndex === targetSlideIndex) {
+            console.log(`🎬 Step 3: Triggering slide ${targetSlideIndex} enter animation...`);
             const { animateSliderEnter } = await import('./utils/animations.js');
             animateSliderEnter();
-            logger.info('✅ Homepage slide 2 enter animation triggered - Final destination: Slide 2');
+            logger.info(`✅ Homepage slide ${targetSlideIndex} enter animation triggered - Final destination: Slide ${targetSlideIndex}`);
           } else {
-            console.error(`❌ CRITICAL: Active slide is ${finalSlideIndex}, not 1! Cannot animate slide 2.`);
+            console.error(`❌ CRITICAL: Active slide is ${finalSlideIndex}, not ${targetSlideIndex}! Cannot animate slide ${targetSlideIndex}.`);
           }
           resolve(undefined);
         });

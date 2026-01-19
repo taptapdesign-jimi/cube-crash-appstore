@@ -1959,16 +1959,6 @@ async function startNewRun(boardId: number): Promise<void> {
         }
       });
       console.log('✅ All slides and content elements made visible for homepage return');
-      
-      // 🔥 BUG FIX: Update gameState and sliderManager to match targetSlide
-      if (gameState && gameState.set) {
-        gameState.set('currentSlide', targetSlide);
-        console.log(`✅ gameState.currentSlide set to ${targetSlide}`);
-      }
-      if ((window as any).sliderManager) {
-        (window as any).sliderManager.currentSlide = targetSlide;
-        console.log(`✅ sliderManager.currentSlide set to ${targetSlide}`);
-      }
     } else {
       // 🔥 USER REQUEST: When returning to Journey screen, ensure all slides are visible
       // This prevents empty slides when user goes back from Journey screen
@@ -2001,16 +1991,6 @@ async function startNewRun(boardId: number): Promise<void> {
         }
       });
       console.log('✅ All slides made visible for Journey screen return');
-      
-      // 🔥 BUG FIX: Update gameState and sliderManager to match Journey slide (index 1)
-      if (gameState && gameState.set) {
-        gameState.set('currentSlide', 1);
-        console.log('✅ gameState.currentSlide set to 1 (Journey)');
-      }
-      if ((window as any).sliderManager) {
-        (window as any).sliderManager.currentSlide = 1;
-        console.log('✅ sliderManager.currentSlide set to 1 (Journey)');
-      }
     }
     
     console.log('✅ Game state reset - homepage should be visible now');
