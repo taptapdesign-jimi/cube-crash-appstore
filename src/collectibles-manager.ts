@@ -195,8 +195,8 @@ class CollectiblesManager {
         } else if (typeof window.hideCollectiblesScreen === 'function') {
           logger.info('🎁 Calling window.hideCollectiblesScreen()');
           try {
-            const result = window.hideCollectiblesScreen();
-            if (result && typeof (result as any).catch === 'function') {
+            const result: any = window.hideCollectiblesScreen();
+            if (result && typeof result.catch === 'function') {
               (result as Promise<void>).catch((err: any) => {
                 logger.error('❌ Error in hideCollectiblesScreen:', err);
               });
@@ -445,8 +445,8 @@ class CollectiblesManager {
         } else if (typeof window.hideCollectiblesScreen === 'function') {
           logger.info('🎁 Calling window.hideCollectiblesScreen()');
           try {
-            const result = window.hideCollectiblesScreen();
-            if (result && typeof (result as any).catch === 'function') {
+            const result: any = window.hideCollectiblesScreen();
+            if (result && typeof result.catch === 'function') {
               (result as Promise<void>).catch((err: any) => {
                 logger.error('❌ Error in hideCollectiblesScreen:', err);
               });
@@ -1457,7 +1457,7 @@ class CollectiblesManager {
       
       // 🔥 JOURNEY BOARDS: Create floating Play button for common boards
       if (category === 'common') {
-        const boardId = number;
+        const boardId = Number(number);
         
         // Remove existing play button if any
         const existingPlayBtn = document.getElementById('board-detail-play-button');
@@ -2000,7 +2000,7 @@ class CollectiblesManager {
       //   }
       // }
       
-      logger.info('📊 Daily visit count:', data.count, 'for date:', data.date);
+      logger.info(`📊 Daily visit count: ${data.count} for date: ${data.date}`);
     } catch (error) {
       logger.warn('Failed to process daily visit tracking:', String(error));
     }
