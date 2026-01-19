@@ -135,7 +135,7 @@ class CollectiblesManager {
         this.ensureDefaultUnlocked();
       }
     } catch (error) {
-      logger.warn('Failed to load collectibles state:', error);
+      logger.warn('Failed to load collectibles state:', String(error));
     }
   }
 
@@ -143,7 +143,7 @@ class CollectiblesManager {
     try {
       localStorage.setItem('collectibles_state', JSON.stringify(this.collectiblesData));
     } catch (error) {
-      logger.warn('Failed to save collectibles state:', error);
+      logger.warn('Failed to save collectibles state:', String(error));
     }
   }
 
@@ -194,9 +194,16 @@ class CollectiblesManager {
           });
         } else if (typeof window.hideCollectiblesScreen === 'function') {
           logger.info('🎁 Calling window.hideCollectiblesScreen()');
-          window.hideCollectiblesScreen().catch((err: any) => {
-            logger.error('❌ Error in hideCollectiblesScreen:', err);
-          });
+          try {
+            const result = window.hideCollectiblesScreen();
+            if (result && typeof (result as any).catch === 'function') {
+              (result as Promise<void>).catch((err: any) => {
+                logger.error('❌ Error in hideCollectiblesScreen:', err);
+              });
+            }
+          } catch (err: any) {
+            logger.error('❌ Error calling hideCollectiblesScreen:', err);
+          }
         } else {
           logger.warn('⚠️ window.hideCollectiblesScreen not available, using fallback');
           this.hideCollectibles().catch((err: any) => {
@@ -437,9 +444,16 @@ class CollectiblesManager {
           });
         } else if (typeof window.hideCollectiblesScreen === 'function') {
           logger.info('🎁 Calling window.hideCollectiblesScreen()');
-          window.hideCollectiblesScreen().catch((err: any) => {
-            logger.error('❌ Error in hideCollectiblesScreen:', err);
-          });
+          try {
+            const result = window.hideCollectiblesScreen();
+            if (result && typeof (result as any).catch === 'function') {
+              (result as Promise<void>).catch((err: any) => {
+                logger.error('❌ Error in hideCollectiblesScreen:', err);
+              });
+            }
+          } catch (err: any) {
+            logger.error('❌ Error calling hideCollectiblesScreen:', err);
+          }
         } else {
           logger.warn('⚠️ window.hideCollectiblesScreen not available, using fallback');
           this.hideCollectibles().catch((err: any) => {
@@ -510,7 +524,7 @@ class CollectiblesManager {
           // Badge will be animated out together with navigation in exit animation
           logger.info('🗺️ Journey boards marked as viewed (badge will be reset by exit animation)');
         }).catch((error) => {
-          logger.error('❌ Failed to render journey boards:', error);
+          logger.error('❌ Failed to render journey boards:', String(error));
         });
       } else {
         logger.info('🗺️ Boards already rendered - skipping render');
@@ -584,7 +598,7 @@ class CollectiblesManager {
           logger.info('💚 Hearts click handler attached');
         }
       } catch (error) {
-        logger.warn('⚠️ Failed to initialize hearts system:', error);
+        logger.warn('⚠️ Failed to initialize hearts system:', String(error));
       }
     }, 150);
     
@@ -621,7 +635,7 @@ class CollectiblesManager {
       import('./modules/lives-manager.js').then(({ livesManager }) => {
         livesManager.refreshUI();
       }).catch((error) => {
-        logger.warn('⚠️ Failed to initialize lives manager:', error);
+        logger.warn('⚠️ Failed to initialize lives manager:', String(error));
       });
       
           // 🔥 CRITICAL: Delay scroll to interim card AND start idle bounce animations AFTER enter animation completes
@@ -664,9 +678,9 @@ class CollectiblesManager {
                 } else {
                   // Only auto-scroll when entering from homepage slider
                 const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-                if (journeyBoardsManager && typeof journeyBoardsManager.restoreOrScrollToInterimCard === 'function') {
+                if (journeyBoardsManager && typeof (journeyBoardsManager as any).restoreOrScrollToInterimCard === 'function') {
                   console.log('🗺️ Starting scroll to interim card after enter animation...');
-                  journeyBoardsManager.restoreOrScrollToInterimCard();
+                  (journeyBoardsManager as any).restoreOrScrollToInterimCard();
                   }
                 }
                 
@@ -1004,7 +1018,7 @@ class CollectiblesManager {
         }
       }
     } catch (error) {
-      logger.warn('Failed to read pending flip list:', error);
+      logger.warn('Failed to read pending flip list:', String(error));
     }
 
     if (!pending.length && Array.isArray(window.__pendingCollectibleFlips)) {
@@ -1203,7 +1217,7 @@ class CollectiblesManager {
         return results;
       })
       .catch(error => {
-        logger.warn('⚠️ Collectibles preload failed:', error);
+        logger.warn('⚠️ Collectibles preload failed:', String(error));
         throw error;
       });
 
@@ -1330,7 +1344,7 @@ class CollectiblesManager {
     
     // 🔥 JOURNEY BOARDS: Display board stats (High Score, Longest Combo, Cubes Cracked) for common boards
     if (category === 'common') {
-      const boardId = number; // Card number = Board number
+      const boardId = Number(number); // Card number = Board number
       
       // Import and get board stats + global stats
       Promise.all([
@@ -1429,7 +1443,7 @@ class CollectiblesManager {
         newCloseBtn.onclick = handleCloseClick;
         
         // Also handle touch events for mobile
-        newCloseBtn.addEventListener('touchend', (e) => {
+        newCloseBtn.addEventListener('touchend', (e: Event) => {
           e.preventDefault();
           e.stopPropagation();
           console.log('🎁 Close button touched (touchend)!');
@@ -1932,7 +1946,7 @@ class CollectiblesManager {
       try {
         localStorage.setItem('collectibles_state', JSON.stringify(this.collectiblesData));
       } catch (error) {
-        logger.warn('Failed to lock initial common collectibles:', error);
+        logger.warn('Failed to lock initial common collectibles:', String(error));
       }
     }
 
@@ -1949,7 +1963,7 @@ class CollectiblesManager {
         window.showCollectiblesScreen();
       }
     } catch (error) {
-      logger.warn('Failed to show collectibles screen from settings:', error);
+      logger.warn('Failed to show collectibles screen from settings:', String(error));
     }
   }
 
@@ -1988,7 +2002,7 @@ class CollectiblesManager {
       
       logger.info('📊 Daily visit count:', data.count, 'for date:', data.date);
     } catch (error) {
-      logger.warn('Failed to process daily visit tracking:', error);
+      logger.warn('Failed to process daily visit tracking:', String(error));
     }
   }
 
@@ -2044,7 +2058,7 @@ class CollectiblesManager {
       window.dispatchEvent(new CustomEvent('collectible:unlocked', { detail }));
       this.queuePendingFlip(detail);
     } catch (error) {
-      logger.warn('Failed to dispatch collectible unlocked event:', error);
+      logger.warn('Failed to dispatch collectible unlocked event:', String(error));
     }
   }
 
@@ -2079,7 +2093,7 @@ class CollectiblesManager {
         // No badge update needed here - badge only shows on Journey icon
       }
     } catch (error) {
-      logger.warn('Failed to queue collectible flip animation:', error);
+      logger.warn('Failed to queue collectible flip animation:', String(error));
     }
   }
 
