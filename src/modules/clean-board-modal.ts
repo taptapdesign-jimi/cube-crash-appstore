@@ -522,10 +522,10 @@ export async function showCleanBoardModal({
       button.classList.add('clean-board-button-visible');
     };
 
-    const buttonExitDurationMs = 650;
+    const buttonExitDurationMs = 500; // 150ms inflate + 350ms deflate
 
     // Animate button out (scale to 0 exit)
-    // 🔥 Keep styling, use GSAP for animation (like Journey detail CTA)
+    // 🔥 USER REQUEST: napuhne → ispuhne u 0 (inflate then deflate to 0)
     const animateButtonExit = (button: HTMLButtonElement) => {
       // 🔥 STEP 1: Disable interactions
       button.disabled = true;
@@ -548,22 +548,25 @@ export async function showCleanBoardModal({
       button.removeAttribute('data-clean-board-entering');
       button.removeAttribute('data-clean-board-exiting');
       
-      // 🔥 STEP 4: Force inline transform to override :active bounce
-      button.style.setProperty('transform', 'scale(1)', 'important');
-      button.style.setProperty('transition', 'none', 'important');
-      void button.offsetHeight; // Force reflow
+      // 🔥 STEP 4: Clear ALL inline styles so GSAP has full control
+      button.style.cssText = '';
+      button.style.pointerEvents = 'none'; // Re-apply only this
       
-      // 🔥 STEP 5: Use GSAP for animation (like Journey detail CTA)
-      button.style.removeProperty('transform');
-      button.style.removeProperty('transition');
-      
-      gsap.to(button, {
-        scale: 0,
-        duration: 0.4,
-        ease: 'back.in(1.7)',
-        force3D: true,
-        overwrite: 'auto'
-      });
+      // 🔥 STEP 5: GSAP animation - inflate (1.12) then deflate to 0
+      // This is the animation user wants: "napuhne pa ispuhne u sebe"
+      gsap.timeline()
+        .to(button, {
+          scale: 1.12,           // Inflate (napuhne)
+          duration: 0.15,
+          ease: 'power2.out',
+          force3D: true
+        })
+        .to(button, {
+          scale: 0,              // Deflate to 0 (ispuhne u sebe)
+          duration: 0.35,
+          ease: 'back.in(1.7)',
+          force3D: true
+        });
     };
 
 
