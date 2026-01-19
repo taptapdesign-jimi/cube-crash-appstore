@@ -4482,8 +4482,29 @@ function merge(src, dst, helpers){
     // 🔥 SIMPLIFIED: Use isAnyWildLastTwo as PRIMARY check for wild + regular (covers all wild types)
     const isLastMerge = isRegularRegularLastTwoMerge6 || isAnyWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge;
     
-    if (isLastMerge) {
-      const mergeType = isRegularRegularLastTwoMerge6 ? 'Regular + regular' : (isAnyWildLastTwo ? 'Any wild + regular' : 'Wild + regular');
+    // 🔥 CRITICAL FIX: If wild magnet + regular tile (only 2 tiles total), ALWAYS mark as last merge
+    // This prevents spawn logic from running when it shouldn't
+    const isWildMagnetLastTwo = isWildMagnetMerge && 
+                                visibleTilesCount === 2 &&
+                                magnetsOnBoard === 1 &&
+                                regularTilesOnBoard === 1 &&
+                                !hasTilesToPull;
+    
+    console.log('🔍 isWildMagnetLastTwo CHECK:', {
+      isWildMagnetMerge,
+      visibleTilesCount,
+      magnetsOnBoard,
+      regularTilesOnBoard,
+      hasTilesToPull,
+      isWildMagnetLastTwo
+    });
+    
+    const isLastMergeFinal = isLastMerge || isWildMagnetLastTwo;
+    
+    if (isLastMergeFinal) {
+      const mergeType = isRegularRegularLastTwoMerge6 ? 'Regular + regular' : 
+                       (isAnyWildLastTwo ? 'Any wild + regular' : 
+                       (isWildMagnetLastTwo ? 'Wild magnet + regular' : 'Wild + regular'));
       console.log(`🚨🚨🚨 LAST MERGE DETECTED (BEFORE merge 6 animation) - ${mergeType} → merge 6, only 2 tiles`);
       console.log('🚨🚨🚨 Detected by:', {
         isRegularRegularLastTwoMerge6,
@@ -4491,6 +4512,7 @@ function merge(src, dst, helpers){
         isWildRegularLastTwo,
         isLastMergeableTiles,
         isWildLastTileMerge,
+        isWildMagnetLastTwo,
         srcIsWild,
         dstIsWild,
         srcSpecial,
