@@ -4967,3 +4967,31 @@ body:has(:root) .tile.wild-3d-glow {
   /* Let the animation class handle transform, not :active */
   transform: inherit !important;
 }
+
+/* 🔥 ULTIMATE OVERRIDE: data-attribute based exit animation */
+/* HIGHEST PRIORITY - overrides EVERYTHING including all :active/:focus/:hover states */
+/* This is the FINAL solution - no CSS class can override this */
+button[data-clean-board-exiting="true"],
+button[data-clean-board-exiting="true"]:active,
+button[data-clean-board-exiting="true"]:focus,
+button[data-clean-board-exiting="true"]:focus-visible,
+button[data-clean-board-exiting="true"]:hover,
+.restart-btn[data-clean-board-exiting="true"],
+.restart-btn[data-clean-board-exiting="true"]:active,
+.restart-btn[data-clean-board-exiting="true"]:focus,
+.exit-btn[data-clean-board-exiting="true"],
+.exit-btn[data-clean-board-exiting="true"]:active,
+.exit-btn[data-clean-board-exiting="true"]:focus,
+.primary-button[data-clean-board-exiting="true"],
+.primary-button[data-clean-board-exiting="true"]:active,
+.primary-button[data-clean-board-exiting="true"]:focus {
+  opacity: 1 !important;
+  transform: translateY(20px) scale(0) !important;
+  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6), 
+              opacity 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  pointer-events: none !important;
+  will-change: transform, opacity !important;
+  -webkit-transform: translateY(20px) scale(0) !important;
+  -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6), 
+                      opacity 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+}

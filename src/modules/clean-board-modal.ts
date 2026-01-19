@@ -506,7 +506,8 @@ export async function showCleanBoardModal({
 
     // Animate button in (bounce entrance)
     const animateButtonIn = (button: HTMLButtonElement) => {
-      button.classList.remove('clean-board-button-hidden', 'clean-board-button-exit');
+      button.removeAttribute('data-clean-board-exiting');
+      button.classList.remove('clean-board-button-hidden');
       button.classList.add('clean-board-button-visible');
     };
 
@@ -514,8 +515,10 @@ export async function showCleanBoardModal({
     const animateButtonExit = (button: HTMLButtonElement) => {
       button.disabled = true;
       button.blur();
-      button.classList.remove('clean-board-button-hidden', 'clean-board-button-visible');
-      button.classList.add('clean-board-button-exit');
+      // 🔥 ULTIMATE FIX: Use data-attribute instead of CSS class
+      // This has MAXIMUM CSS priority and overrides ALL :active/:focus/:hover states
+      button.removeAttribute('data-clean-board-entering');
+      button.setAttribute('data-clean-board-exiting', 'true');
     };
 
     infoStack.appendChild(hero);
