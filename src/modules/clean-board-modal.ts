@@ -522,51 +522,31 @@ export async function showCleanBoardModal({
       button.classList.add('clean-board-button-visible');
     };
 
-    const buttonExitDurationMs = 500; // 150ms inflate + 350ms deflate
+    const buttonExitDurationMs = 650; // CSS animate-exit duration
 
     // Animate button out (scale to 0 exit)
-    // 🔥 USER REQUEST: napuhne → ispuhne u 0 (inflate then deflate to 0)
     const animateButtonExit = (button: HTMLButtonElement) => {
-      // 🔥 STEP 1: Disable interactions
       button.disabled = true;
-      button.style.pointerEvents = 'none';
       button.blur();
       
-      // 🔥 STEP 2: Kill ALL GSAP tweens on this button
-      gsap.killTweensOf(button);
-      
-      // 🔥 STEP 3: Remove ONLY animation classes (keep exit-btn/restart-btn for styling)
+      // Remove animation classes
       button.classList.remove(
         'clean-board-button-hidden',
         'clean-board-button-visible',
-        'clean-board-button-exit',
-        'animate-enter',
-        'animate-enter-initial',
-        'animate-reset',
-        'animate-exit'
+        'clean-board-button-exit'
       );
-      button.removeAttribute('data-clean-board-entering');
-      button.removeAttribute('data-clean-board-exiting');
       
-      // 🔥 STEP 4: Clear ALL inline styles so GSAP has full control
-      button.style.cssText = '';
-      button.style.pointerEvents = 'none'; // Re-apply only this
+      // Force reflow with clean state
+      button.style.transition = 'none';
+      button.style.transform = 'scale(1)';
+      void button.offsetHeight;
       
-      // 🔥 STEP 5: GSAP animation - inflate (1.12) then deflate to 0
-      // This is the animation user wants: "napuhne pa ispuhne u sebe"
-      gsap.timeline()
-        .to(button, {
-          scale: 1.12,           // Inflate (napuhne)
-          duration: 0.15,
-          ease: 'power2.out',
-          force3D: true
-        })
-        .to(button, {
-          scale: 0,              // Deflate to 0 (ispuhne u sebe)
-          duration: 0.35,
-          ease: 'back.in(1.7)',
-          force3D: true
-        });
+      // Apply CSS exit animation
+      requestAnimationFrame(() => {
+        button.style.transition = '';
+        button.style.transform = '';
+        button.classList.add('animate-exit');
+      });
     };
 
 
