@@ -516,29 +516,35 @@ export async function showCleanBoardModal({
       button.disabled = true;
       button.blur();
       
-      // 🔥 NUCLEAR OPTION 1: Kill ALL existing GSAP tweens on this button
+      // 🔥 STEP 1: Kill ALL existing GSAP tweens on this button
       gsap.killTweensOf(button);
       
-      // 🔥 NUCLEAR OPTION 2: Remove ALL CSS classes and attributes that could interfere
+      // 🔥 STEP 2: Remove ALL CSS classes and attributes that could interfere
       button.classList.remove('clean-board-button-hidden', 'clean-board-button-visible', 'clean-board-button-exit');
       button.removeAttribute('data-clean-board-entering');
       button.removeAttribute('data-clean-board-exiting');
       
-      // 🔥 NUCLEAR OPTION 3: Remove ALL inline styles that could conflict
-      button.style.cssText = '';
-      button.style.pointerEvents = 'none';
+      // 🔥 STEP 3: Use GSAP to RESET button to scale(1) FIRST (clear all CSS)
+      gsap.set(button, {
+        scale: 1,
+        x: 0,
+        y: 0,
+        rotation: 0,
+        clearProps: 'transform', // Clear ALL transform CSS properties
+        force3D: true
+      });
       
-      // 🔥 ULTIMATE FIX: Use GSAP instead of CSS - ZERO conflicts, FULL control
-      // GSAP overrides ALL CSS, inline styles, and transitions
-      // Only animate scale to 0 - NO opacity/visibility changes until scale reaches 0
+      button.style.pointerEvents = 'none';
+      button.style.opacity = '1'; // Keep visible during scale animation
+      
+      // 🔥 STEP 4: Animate ONLY scale to 0 (EXACT like homepage slider)
+      // NO y translation, NO opacity change - ONLY scale
       const tween = gsap.to(button, {
-        y: 20,
         scale: 0,
         duration: 0.4,
-        ease: 'cubic-bezier(0.68, -0.6, 0.32, 1.6)',
-        overwrite: 'auto', // Kill any existing tweens
-        force3D: true // Hardware acceleration
-        // NO onComplete - let scale(0) do the work, no opacity/visibility changes
+        ease: 'back.in(1.7)', // Homepage slider easing (bounce back)
+        overwrite: 'auto',
+        force3D: true
       });
       
       // Track tween for cleanup
