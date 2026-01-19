@@ -772,6 +772,12 @@ class UIManager {
       this.elements.home.removeAttribute('hidden');
       fadeInHome();
     }
+    
+    // 🔥 BUG FIX: Reset slider pointer events (in case it was disabled during Journey transition)
+    const sliderContainer = document.getElementById('slider-container');
+    if (sliderContainer) {
+      sliderContainer.style.pointerEvents = '';
+    }
 
     // 🔥 CRITICAL: Ensure #global-bg exists (create if missing)
       let globalBg = document.getElementById('global-bg');
@@ -1652,22 +1658,38 @@ class UIManager {
     
     // CRITICAL: Switch to Journey slide (index 1) BEFORE animation so its elements animate out
     // (CTA, text, hero). We still open the Journey screen after the animation.
+    // 🔥 BUG FIX: Only switch slides if NOT already on Journey slide (prevents unwanted swipe visual)
     const slides = document.querySelectorAll('.slider-slide');
     const navButtons = document.querySelectorAll('.independent-nav-button');
-    slides.forEach((slide, index) => {
-      if (index === 1) {
-        slide.classList.add('active');
-      } else {
-        slide.classList.remove('active');
-      }
-    });
-    navButtons.forEach((button, index) => {
-      if (index === 1) {
-        button.classList.add('active');
-      } else {
-        button.classList.remove('active');
-      }
-    });
+    const currentSlide = document.querySelector('.slider-slide.active');
+    const currentSlideIndex = currentSlide ? parseInt(currentSlide.getAttribute('data-slide') || '0') : 0;
+    
+    if (currentSlideIndex !== 1) {
+      console.log('🔄 Switching from slide', currentSlideIndex, 'to Journey slide (1)');
+      slides.forEach((slide, index) => {
+        if (index === 1) {
+          slide.classList.add('active');
+        } else {
+          slide.classList.remove('active');
+        }
+      });
+      navButtons.forEach((button, index) => {
+        if (index === 1) {
+          button.classList.add('active');
+        } else {
+          button.classList.remove('active');
+        }
+      });
+    } else {
+      console.log('✅ Already on Journey slide (1) - no slide switch needed');
+    }
+    
+    // 🔥 BUG FIX: Hide slider container immediately to prevent any visual glitches
+    // Slider will be properly hidden during exit animation, but this prevents flash/swipe visibility
+    const sliderContainer = document.getElementById('slider-container');
+    if (sliderContainer) {
+      sliderContainer.style.pointerEvents = 'none'; // Prevent any interactions during transition
+    }
     
     // 🔥 CRITICAL: Paper background with 60% opacity is already set by applyPaperBackground('0.6')
     // No need to override it - it will stay at 60% throughout the entire transition

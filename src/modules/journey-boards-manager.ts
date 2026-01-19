@@ -4457,18 +4457,18 @@ class JourneyBoardsManager {
       }
 
       // Now make modal visible and start animations
+      // ⚡ SPEED FIX: Use single rAF instead of double (reduce 1 frame delay ~16ms)
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // 🔥 SCREEN ARTIFACTS FIX: Double-check divideri are hidden BEFORE making modal visible
-          const dividersBeforeVisible = detailModal.querySelectorAll('.detail-stat-divider') as NodeListOf<HTMLElement>;
-          dividersBeforeVisible.forEach((div) => {
-            div.style.setProperty('opacity', '0', 'important');
-            div.style.setProperty('visibility', 'hidden', 'important');
-          });
-          
-          // Make modal visible
-          detailModal.style.opacity = '1';
-          detailModal.style.visibility = 'visible';
+        // 🔥 SCREEN ARTIFACTS FIX: Double-check divideri are hidden BEFORE making modal visible
+        const dividersBeforeVisible = detailModal.querySelectorAll('.detail-stat-divider') as NodeListOf<HTMLElement>;
+        dividersBeforeVisible.forEach((div) => {
+          div.style.setProperty('opacity', '0', 'important');
+          div.style.setProperty('visibility', 'hidden', 'important');
+        });
+        
+        // Make modal visible
+        detailModal.style.opacity = '1';
+        detailModal.style.visibility = 'visible';
 
           // STEP 1: Header FIRST (0ms delay) - animates as group (includes divider and shadow)
           if (detailHeader) {
@@ -4981,7 +4981,6 @@ class JourneyBoardsManager {
             restoreStatsVisibility();
           }
         });
-      });
       
       // 🔥 CRITICAL: Replace collectibles-manager event listener with journey boards exit animation
       // This ensures X button uses GSAP exit animation (header as group) instead of CSS animation (child elements separately)

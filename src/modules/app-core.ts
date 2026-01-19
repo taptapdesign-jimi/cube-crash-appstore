@@ -6382,19 +6382,6 @@ function merge(src, dst, helpers){
                                       srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
         const lockedTilesForMultCheck = tiles.filter(t => t && !t.destroyed && t.locked).length;
         
-        console.log('🐛 DEBUG END-GAME CHECK:', {
-          srcSpecial,
-          dstSpecial,
-          isWildMergeForMultFix,
-          lockedTilesForMultCheck,
-          spawnMult,
-          mult,
-          srcValue: src?.value,
-          dstValue: dst?.value,
-          srcStackDepth: (src as any)?.stackDepth || 1,
-          dstStackDepth: (dst as any)?.stackDepth || 1
-        });
-        
         if (isWildMergeForMultFix && lockedTilesForMultCheck === 0 && spawnMult > 1) {
           console.log('🔥 END-GAME FIX: Wild merge + no locked tiles → reducing spawnMult from', spawnMult, 'to 1');
           spawnMult = 1; // Spawn only 1 tile in end game scenario
@@ -6475,15 +6462,6 @@ function merge(src, dst, helpers){
                                     srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
         const shouldSpawnAtDst = (availableLockedTiles.length === 0 && spawnMult > 0) ||
                                  (isWildMergeForSpawn && availableLockedTiles.length < spawnMult && spawnMult > 0);
-        
-        console.log('🐛 DEBUG SPAWN DECISION:', {
-          availableLockedTilesLength: availableLockedTiles.length,
-          spawnMult,
-          isWildMergeForSpawn,
-          shouldSpawnAtDst,
-          firstCondition: availableLockedTiles.length === 0 && spawnMult > 0,
-          secondCondition: isWildMergeForSpawn && availableLockedTiles.length < spawnMult && spawnMult > 0
-        });
         
         if (shouldSpawnAtDst) {
           console.log('🎯🎯🎯 END-GAME SPAWN: No/few locked tiles available - spawning 1 tile directly at dst position (', gx, ',', gy, ')');

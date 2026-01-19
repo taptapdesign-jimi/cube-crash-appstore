@@ -1334,48 +1334,45 @@ async function startNewRun(boardId: number): Promise<void> {
           const boardExitPromise = animateBoardExit();
           console.log('🎬 Board exit animation started (non-blocking)');
           
-          // ⚡ PARALLEL: Start detail modal enter IMMEDIATELY with board exit (fully parallel animations)
-          // This creates perfectly synchronized transition
-          setTimeout(async () => {
-            console.log('⚡ PARALLEL: Starting detail modal enter NOW (at same time as board exit - fully parallel!)');
-            
-            // Minimal cleanup
-            try {
-              if (STATE && STATE.tiles && STATE.tiles.length > 0) {
-                STATE.tiles.forEach(tile => {
-                  try {
-                    if (tile && !tile.destroyed) {
-                      gsap.killTweensOf(tile);
-                      if (tile.scale) gsap.killTweensOf(tile.scale);
-                    }
-                  } catch (e) { /* ignore */ }
-                });
-              }
-            } catch (e) { /* ignore */ }
-            
-            // Prepare Journey screen
-            const journeyScreen = document.getElementById('journey-screen');
-            if (journeyScreen) {
-              journeyScreen.removeAttribute('hidden');
-              journeyScreen.style.display = 'flex';
-              journeyScreen.style.opacity = '0';
-              journeyScreen.style.visibility = 'hidden';
+          // ⚡ INSTANT PARALLEL: Start detail modal IMMEDIATELY (no setTimeout, no delay!)
+          console.log('⚡ INSTANT: Starting detail modal enter NOW (truly instant - no setTimeout!)');
+          
+          // Minimal cleanup
+          try {
+            if (STATE && STATE.tiles && STATE.tiles.length > 0) {
+              STATE.tiles.forEach(tile => {
+                try {
+                  if (tile && !tile.destroyed) {
+                    gsap.killTweensOf(tile);
+                    if (tile.scale) gsap.killTweensOf(tile.scale);
+                  }
+                } catch (e) { /* ignore */ }
+              });
             }
-            
-            // Open detail modal (parallel with board exit)
-            journeyManagerPromise.then(async ({ journeyBoardsManager }) => {
-              console.log('⚡ PARALLEL: Detail modal enter starting NOW (board exit also playing in parallel)');
-              if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
-                await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
-                console.log(`✅ PARALLEL: Detail modal opened simultaneously with board exit for board ${detailModalBoardId}`);
-              }
-            }).catch((error) => {
-              console.warn('⚠️ Failed to import journeyBoardsManager:', error);
-            });
-            
-            // Clear fast path flag
-            delete (window as any).__ccFastExitToDetailModal;
-          }, 0); // Start detail modal IMMEDIATELY (0ms = parallel with board exit start)
+          } catch (e) { /* ignore */ }
+          
+          // Prepare Journey screen
+          const journeyScreen = document.getElementById('journey-screen');
+          if (journeyScreen) {
+            journeyScreen.removeAttribute('hidden');
+            journeyScreen.style.display = 'flex';
+            journeyScreen.style.opacity = '0';
+            journeyScreen.style.visibility = 'hidden';
+          }
+          
+          // Open detail modal INSTANTLY (no setTimeout - truly parallel!)
+          journeyManagerPromise.then(async ({ journeyBoardsManager }) => {
+            console.log('⚡ INSTANT: Detail modal enter starting NOW (board exit also playing)');
+            if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
+              await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
+              console.log(`✅ INSTANT: Detail modal opened instantly with board exit for board ${detailModalBoardId}`);
+            }
+          }).catch((error) => {
+            console.warn('⚠️ Failed to import journeyBoardsManager:', error);
+          });
+          
+          // Clear fast path flag
+          delete (window as any).__ccFastExitToDetailModal;
           
           // Wait for board exit to complete (but don't block detail modal)
           await boardExitPromise;
