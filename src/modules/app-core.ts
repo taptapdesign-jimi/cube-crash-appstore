@@ -6355,7 +6355,19 @@ function merge(src, dst, helpers){
         }
         
         // Use multiplier for spawning new tiles
-        const spawnMult = mult;
+        let spawnMult = mult;
+        
+        // 🔥 BUG FIX: For wild merges (wild star, wild beer) in end game, spawn only 1 tile
+        // Wild merge normally spawns 2 tiles (mult=2), but in end game should spawn only 1
+        // End game = no locked tiles available (all tiles are opened)
+        const isWildMergeForMultFix = srcSpecial === 'wild' || dstSpecial === 'wild' || 
+                                      srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
+        const lockedTilesForMultCheck = tiles.filter(t => t && !t.destroyed && t.locked).length;
+        
+        if (isWildMergeForMultFix && lockedTilesForMultCheck === 0 && spawnMult > 1) {
+          console.log('🔥 END-GAME FIX: Wild merge + no locked tiles → reducing spawnMult from', spawnMult, 'to 1');
+          spawnMult = 1; // Spawn only 1 tile in end game scenario
+        }
         
         // 🔥 CRITICAL: Check if spawnMult is valid before proceeding
         if (!spawnMult || spawnMult <= 0) {

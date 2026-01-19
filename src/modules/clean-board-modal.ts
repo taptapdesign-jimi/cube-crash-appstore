@@ -511,6 +511,8 @@ export async function showCleanBoardModal({
       button.classList.add('clean-board-button-visible');
     };
 
+    const buttonExitDurationMs = 650;
+
     // Animate button out (scale to 0 exit)
     // 🔥 Match Journey detail modal CTA exit animation (same as homepage CTA)
     const animateButtonExit = (button: HTMLButtonElement) => {
@@ -531,14 +533,21 @@ export async function showCleanBoardModal({
       button.removeAttribute('data-clean-board-entering');
       button.removeAttribute('data-clean-board-exiting');
       
-      // 🔥 STEP 3: Clear inline transforms/transitions so CSS class can control animation
-      button.style.removeProperty('transform');
-      button.style.removeProperty('transition');
+      // 🔥 STEP 3: Force reset transform for one frame to kill :active scaling
+      button.style.transition = 'none';
+      button.style.transform = 'scale(1)';
+      button.style.webkitTransform = 'scale(1)';
       void button.offsetHeight; // Force reflow
-      
+
       // 🔥 STEP 4: Add the same class used by Journey detail CTA / homepage CTA
+      // Two rAFs ensures the reset frame is applied before animation starts
       requestAnimationFrame(() => {
-        button.classList.add('animate-exit');
+        requestAnimationFrame(() => {
+          button.style.removeProperty('transform');
+          button.style.removeProperty('transition');
+          button.style.removeProperty('-webkit-transform');
+          button.classList.add('animate-exit');
+        });
       });
     };
 
@@ -1133,11 +1142,11 @@ export async function showCleanBoardModal({
         // Primary button (Play Again/Continue) was clicked - animate it FIRST
         animateButtonExit(primaryBtn);
         
-        // Exit button animates 300ms LATER (sekvencijalno)
+        // Exit button animates AFTER Play Again finishes
         if (secondaryBtn) {
           setTimeout(() => {
             animateButtonExit(secondaryBtn);
-          }, 300); // 🔥 300ms delay (user request)
+          }, buttonExitDurationMs + 50);
         }
  
         requestAnimationFrame(() => {
@@ -1160,9 +1169,9 @@ export async function showCleanBoardModal({
       }, 400); // Delay card scale until buttons are mid-animation
       // 🎯 Calculate duration: buttons need FULL 400ms to animate to scale(0) (FASTER exit)
       // Give EXTRA time to ensure button animation completes BEFORE card fadeout
-      const buttonExitDuration = 400; // 🔥 FASTER: Button animation duration (was 650ms, now 400ms)
-      const extraBuffer = 200; // Reduced buffer since animation is faster
-      const buttonDelay = 300; // 🔥 USER REQUEST: 300ms delay between clicked button and other button
+      const buttonExitDuration = buttonExitDurationMs;
+      const extraBuffer = 200;
+      const buttonDelay = buttonExitDurationMs + 50;
       const collapseDuration = secondaryBtn 
         ? nodes.length * 60 + buttonDelay + buttonExitDuration + extraBuffer  // With Exit button: 360 + 300 + 400 + 200 = 1260ms
         : nodes.length * 60 + buttonExitDuration + extraBuffer;               // Without Exit button: 360 + 400 + 200 = 960ms
@@ -1305,10 +1314,10 @@ export async function showCleanBoardModal({
         // Exit button was clicked - animate it FIRST
         animateButtonExit(secondaryBtn);
         
-        // Play Again button animates 300ms LATER (sekvencijalno)
+        // Play Again button animates AFTER Exit finishes
         setTimeout(() => {
           animateButtonExit(primaryBtn);
-        }, 300); // 🔥 300ms delay (user request)
+        }, buttonExitDurationMs + 50);
 
         requestAnimationFrame(() => {
           nodes.forEach((node, idx) => {
@@ -1330,9 +1339,9 @@ export async function showCleanBoardModal({
         }, 400); // Delay card scale until buttons are mid-animation
         // 🎯 Calculate duration: buttons need FULL 400ms to animate to scale(0) (FASTER exit)
         // Give EXTRA time to ensure button animation completes BEFORE card fadeout
-        const buttonExitDuration = 400; // 🔥 FASTER: Button animation duration (was 650ms, now 400ms)
-        const extraBuffer = 200; // Reduced buffer since animation is faster
-        const buttonDelay = 300; // 🔥 USER REQUEST: 300ms delay between clicked button and other button
+        const buttonExitDuration = buttonExitDurationMs;
+        const extraBuffer = 200;
+        const buttonDelay = buttonExitDurationMs + 50;
         const collapseDuration = secondaryBtn 
           ? nodes.length * 60 + buttonDelay + buttonExitDuration + extraBuffer  // With Exit button: 360 + 300 + 400 + 200 = 1260ms
           : nodes.length * 60 + buttonExitDuration + extraBuffer;               // Without Exit button: 360 + 400 + 200 = 960ms
