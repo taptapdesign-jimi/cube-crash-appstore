@@ -516,28 +516,35 @@ export async function showCleanBoardModal({
       button.disabled = true;
       button.blur();
       
-      // 🔥 CRITICAL: Remove ALL animation classes FIRST to prevent conflicts
-      button.classList.remove('clean-board-button-hidden', 'clean-board-button-visible');
+      // 🔥 NUCLEAR OPTION 1: Kill ALL existing GSAP tweens on this button
+      gsap.killTweensOf(button);
+      
+      // 🔥 NUCLEAR OPTION 2: Remove ALL CSS classes and attributes that could interfere
+      button.classList.remove('clean-board-button-hidden', 'clean-board-button-visible', 'clean-board-button-exit');
       button.removeAttribute('data-clean-board-entering');
+      button.removeAttribute('data-clean-board-exiting');
       
-      // 🔥 CRITICAL: Reset transform to current position (scale 1, translateY 0) BEFORE exit animation
-      // This prevents any "bounce" or intermediate states from clean-board-button-visible class
-      button.style.setProperty('transform', 'scale(1) translateY(0)', 'important');
-      button.style.setProperty('transition', 'none', 'important');
-      void button.offsetHeight; // Force reflow
+      // 🔥 NUCLEAR OPTION 3: Remove ALL inline styles that could conflict
+      button.style.cssText = '';
+      button.style.pointerEvents = 'none';
       
-      // 🔥 ULTIMATE FIX: Use data-attribute + inline style for MAXIMUM control
-      button.setAttribute('data-clean-board-exiting', 'true');
-      
-      // 🔥 TRIPLE SAFETY: Force inline style DIRECTLY (overrides EVERYTHING including CSS)
-      // Now animate from scale(1) to scale(0) smoothly
-      requestAnimationFrame(() => {
-        button.style.setProperty('transform', 'translateY(20px) scale(0)', 'important');
-        button.style.setProperty('transition', 'transform 0.4s cubic-bezier(0.68, -0.6, 0.32, 1.6), opacity 0.4s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
-        button.style.setProperty('opacity', '1', 'important');
-        button.style.setProperty('pointer-events', 'none', 'important');
-        button.style.setProperty('will-change', 'transform, opacity', 'important');
+      // 🔥 ULTIMATE FIX: Use GSAP instead of CSS - ZERO conflicts, FULL control
+      // GSAP overrides ALL CSS, inline styles, and transitions
+      const tween = gsap.to(button, {
+        y: 20,
+        scale: 0,
+        duration: 0.4,
+        ease: 'cubic-bezier(0.68, -0.6, 0.32, 1.6)',
+        overwrite: 'auto', // Kill any existing tweens
+        force3D: true, // Hardware acceleration
+        onComplete: () => {
+          // Clean up after animation
+          button.style.opacity = '0';
+        }
       });
+      
+      // Track tween for cleanup
+      activeGSAPTweens.push(tween);
     };
 
     infoStack.appendChild(hero);
