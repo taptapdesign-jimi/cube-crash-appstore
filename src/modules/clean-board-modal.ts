@@ -1047,6 +1047,13 @@ export async function showCleanBoardModal({
       primaryBtn.disabled = true;
       if (secondaryBtn) secondaryBtn.disabled = true;
       
+      // 🔥 CRITICAL: Stop ALL background animations IMMEDIATELY for smooth exit
+      // This prevents choppy exit animation caused by ongoing GSAP tweens and star animations
+      killAllGSAPTweens(); // Kill score/combo/efficiency animations
+      stopAllStarAnimations(); // Stop star bounce and breathing
+      clearAllModalTimeouts(); // Clear all pending timeouts
+      clearAllModalAnimationFrames(); // Clear all animation frames
+      
       // CRITICAL: Reset boardCleared before exit animation - NO transforms at all
       boardCleared.style.transition = 'none';
       boardCleared.style.animation = 'none';
@@ -1161,20 +1168,12 @@ export async function showCleanBoardModal({
       (window as any).__ccBoardJustCompleted = true;
       console.log('🎯 clean-board-modal: Set __ccBoardJustCompleted flag to prevent re-saving after clean board (Continue)');
       
-      // 🔥 MEMORY LEAK FIX: Cleanup all animations, timeouts, and event listeners before resolving
-      killAllGSAPTweens(); // 🔥 NEW: Kill all GSAP score/bonus tweens
-      stopAllStarAnimations(); // Stop all star animations
+      // 🔥 MEMORY LEAK FIX: Final cleanup before resolving (animations already stopped at button click)
       cleanupButtonListeners(); // Remove all button event listeners
-      clearAllModalTimeouts();
-      clearAllModalAnimationFrames();
       
       trackTimeout(() => { 
         try { el.remove(); } catch {}
-        killAllGSAPTweens(); // 🔥 NEW: Double-check GSAP cleanup
-        stopAllStarAnimations(); // Double-check star cleanup
-        removeStyleTag(); // 🔥 NEW: Remove CSS style tag
-        clearAllModalTimeouts(); // 🔥 Cleanup all remaining timeouts (double-check)
-        clearAllModalAnimationFrames(); // 🔥 Cleanup all remaining animation frames (double-check)
+        removeStyleTag(); // Remove CSS style tag
         
         // 🔥 GRACEFUL CLEANUP: Stop new confetti spawns but let existing animations finish
         // This allows confetti to continue animating after primary button is clicked
@@ -1207,6 +1206,13 @@ export async function showCleanBoardModal({
         
         primaryBtn.disabled = true;
         secondaryBtn.disabled = true;
+        
+        // 🔥 CRITICAL: Stop ALL background animations IMMEDIATELY for smooth exit
+        // This prevents choppy exit animation caused by ongoing GSAP tweens and star animations
+        killAllGSAPTweens(); // Kill score/combo/efficiency animations
+        stopAllStarAnimations(); // Stop star bounce and breathing
+        clearAllModalTimeouts(); // Clear all pending timeouts
+        clearAllModalAnimationFrames(); // Clear all animation frames
         
         // Same exit animation as primary button
         // CRITICAL: Reset boardCleared before exit animation - NO transforms at all
@@ -1319,12 +1325,8 @@ export async function showCleanBoardModal({
           console.warn(`⚠️ clean-board-modal: Failed to update global high score on Exit:`, error);
         }
         
-        // 🔥 MEMORY LEAK FIX: Cleanup all animations, timeouts, and event listeners before resolving
-        killAllGSAPTweens(); // 🔥 NEW: Kill all GSAP score/bonus tweens
-        stopAllStarAnimations(); // Stop all star animations
+        // 🔥 MEMORY LEAK FIX: Final cleanup before resolving (animations already stopped at button click)
         cleanupButtonListeners(); // Remove all button event listeners
-        clearAllModalTimeouts();
-        clearAllModalAnimationFrames();
         
         // 🎯 CRITICAL: Set flag to prevent saveGameState() from re-saving after clean board
         // Clean board = completed board, we already cleared save state, don't re-save it!
@@ -1342,11 +1344,7 @@ export async function showCleanBoardModal({
         // 🧹 CLEANUP: Remove modal after full exit animation completes (in background)
         trackTimeout(() => { 
           try { el.remove(); } catch {}
-          killAllGSAPTweens(); // 🔥 NEW: Double-check GSAP cleanup
-          stopAllStarAnimations(); // Double-check star cleanup
-          removeStyleTag(); // 🔥 NEW: Remove CSS style tag
-          clearAllModalTimeouts();
-          clearAllModalAnimationFrames();
+          removeStyleTag(); // Remove CSS style tag
           
           // Stop confetti spawns
           try {
