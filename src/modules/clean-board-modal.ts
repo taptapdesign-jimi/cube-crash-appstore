@@ -515,18 +515,29 @@ export async function showCleanBoardModal({
     const animateButtonExit = (button: HTMLButtonElement) => {
       button.disabled = true;
       button.blur();
-      // 🔥 ULTIMATE FIX: Use data-attribute + inline style for MAXIMUM control
-      // This has MAXIMUM CSS priority and overrides ALL :active/:focus/:hover states
+      
+      // 🔥 CRITICAL: Remove ALL animation classes FIRST to prevent conflicts
+      button.classList.remove('clean-board-button-hidden', 'clean-board-button-visible');
       button.removeAttribute('data-clean-board-entering');
+      
+      // 🔥 CRITICAL: Reset transform to current position (scale 1, translateY 0) BEFORE exit animation
+      // This prevents any "bounce" or intermediate states from clean-board-button-visible class
+      button.style.setProperty('transform', 'scale(1) translateY(0)', 'important');
+      button.style.setProperty('transition', 'none', 'important');
+      void button.offsetHeight; // Force reflow
+      
+      // 🔥 ULTIMATE FIX: Use data-attribute + inline style for MAXIMUM control
       button.setAttribute('data-clean-board-exiting', 'true');
       
       // 🔥 TRIPLE SAFETY: Force inline style DIRECTLY (overrides EVERYTHING including CSS)
-      // This ensures button ALWAYS animates to scale(0) regardless of CSS conflicts
-      button.style.setProperty('transform', 'translateY(20px) scale(0)', 'important');
-      button.style.setProperty('transition', 'transform 0.4s cubic-bezier(0.68, -0.6, 0.32, 1.6), opacity 0.4s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
-      button.style.setProperty('opacity', '1', 'important');
-      button.style.setProperty('pointer-events', 'none', 'important');
-      button.style.setProperty('will-change', 'transform, opacity', 'important');
+      // Now animate from scale(1) to scale(0) smoothly
+      requestAnimationFrame(() => {
+        button.style.setProperty('transform', 'translateY(20px) scale(0)', 'important');
+        button.style.setProperty('transition', 'transform 0.4s cubic-bezier(0.68, -0.6, 0.32, 1.6), opacity 0.4s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+        button.style.setProperty('opacity', '1', 'important');
+        button.style.setProperty('pointer-events', 'none', 'important');
+        button.style.setProperty('will-change', 'transform, opacity', 'important');
+      });
     };
 
     infoStack.appendChild(hero);
@@ -1087,6 +1098,12 @@ export async function showCleanBoardModal({
       void boardCleared.offsetHeight;
       void statusSlot.offsetHeight;
       
+      // 🔥 CRITICAL: Reset buttonContainer to prevent it from animating as a container
+      // Buttons should animate INDIVIDUALLY, not as a container
+      buttonContainer.style.transition = 'none';
+      buttonContainer.style.transform = 'none';
+      buttonContainer.style.opacity = '1';
+      
       const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
       const exitOffsets = [-22, -18, -14, -10, -6, -4, -2];
       const exitScale = [0, 0.08, -0.04, 0.05, -0.02, 0.03, -0.01];
@@ -1094,10 +1111,7 @@ export async function showCleanBoardModal({
         const nodes = [hero, title, scoreLabel, mainScore, statusSlot, boardCleared];
         nodes.forEach((node) => { node.style.transition = exitTrans; });
  
-        // 🎯 BUTTONS: Use EXACT same exit animation as homepage slider CTA (CSS class animate-exit)
-        // This gives premium bounce-out effect: translateY(20px) scale(0) with cubic-bezier(0.68, -0.6, 0.32, 1.6)
-        // Using global animateButtonExit function (defined at line 541)
-        
+        // 🎯 BUTTONS: Animate INDIVIDUALLY (not as container)
         // Play Again exits FIRST (immediately)
         animateButtonExit(primaryBtn);
         
@@ -1253,6 +1267,12 @@ export async function showCleanBoardModal({
         void boardCleared.offsetHeight;
         void statusSlot.offsetHeight;
         
+        // 🔥 CRITICAL: Reset buttonContainer to prevent it from animating as a container
+        // Buttons should animate INDIVIDUALLY, not as a container
+        buttonContainer.style.transition = 'none';
+        buttonContainer.style.transform = 'none';
+        buttonContainer.style.opacity = '1';
+        
         const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
         const exitOffsets = [-22, -18, -14, -10, -6, -4, -2];
         const exitScale = [0, 0.08, -0.04, 0.05, -0.02, 0.03, -0.01];
@@ -1260,18 +1280,15 @@ export async function showCleanBoardModal({
         const nodes = [hero, title, scoreLabel, mainScore, statusSlot, boardCleared];
         nodes.forEach((node) => { node.style.transition = exitTrans; });
  
-        // 🎯 BUTTONS: Use EXACT same exit animation as homepage slider CTA (CSS class animate-exit)
-        // This gives premium bounce-out effect: translateY(20px) scale(0) with cubic-bezier(0.68, -0.6, 0.32, 1.6)
-        // Using global animateButtonExit function (defined at line 541)
-        
+        // 🎯 BUTTONS: Animate INDIVIDUALLY (not as container)
         // Play Again exits FIRST (immediately)
         animateButtonExit(primaryBtn);
         
-        // Exit button exits 300ms LATER (sekvencijalno, EXACT SAME LOGIC as Play Again)
+        // Exit button exits 50ms LATER (sekvencijalno, EXACT SAME LOGIC as Play Again)
         if (secondaryBtn) {
           setTimeout(() => {
             animateButtonExit(secondaryBtn); // 🔥 EXACT same function as Play Again
-          }, 300); // 🔥 300ms delay between Play Again and Exit (sekvencijalno)
+          }, 50); // 🔥 50ms delay between Play Again and Exit (consistent with Play Again handler)
         }
 
         requestAnimationFrame(() => {
