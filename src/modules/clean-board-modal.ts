@@ -526,27 +526,30 @@ export async function showCleanBoardModal({
 
     // Animate button out (scale to 0 exit)
     const animateButtonExit = (button: HTMLButtonElement) => {
+      // 🎯 HOMEPAGE SLIDER APPROACH: Pure CSS, 0 inline styles, 0 GSAP
       button.disabled = true;
-      button.blur();
+      button.blur(); // Remove focus to prevent :active/:focus states
       
-      // Remove animation classes
+      // Step 1: Remove ALL animation classes (clean slate)
       button.classList.remove(
         'clean-board-button-hidden',
         'clean-board-button-visible',
-        'clean-board-button-exit'
+        'clean-board-button-exit',
+        'animate-exit',
+        'animate-enter'
       );
       
-      // Force reflow with clean state
-      button.style.transition = 'none';
-      button.style.transform = 'scale(1)';
+      // Step 2: Clear ALL inline styles (no GSAP, no JavaScript styles)
+      button.style.cssText = '';
+      
+      // Step 3: Force reflow (browser must apply clean state)
       void button.offsetHeight;
       
-      // Apply CSS exit animation
-      requestAnimationFrame(() => {
-        button.style.transition = '';
-        button.style.transform = '';
-        button.classList.add('animate-exit');
-      });
+      // Step 4: Add exit class - CSS does 100% of the work!
+      // This is IDENTICAL to homepage slider CTA button exit
+      button.classList.add('animate-exit');
+      
+      console.log('🚀 Button exit animation started (pure CSS, homepage slider style):', button.textContent);
     };
 
 
@@ -565,17 +568,6 @@ export async function showCleanBoardModal({
     outerStack.appendChild(buttonContainer);
     el.appendChild(outerStack);
     document.body.appendChild(el);
-
-    // 🚀 PERFORMANCE FIX: Hide board IMMEDIATELY to prevent rendering lag during modal animations
-    // With larger grids (5×9 or 7×9), board rendering in background slows down button animations
-    // This improves animation fluidity by stopping board rendering as soon as modal appears
-    if (app?.view?.style) {
-      app.view.style.opacity = '0';
-    }
-    if (stage) {
-      stage.alpha = 0;
-    }
-    console.log('🎭 Clean board modal: Board hidden immediately for performance');
 
     // Score bookkeeping (already calculated above for high score check)
 
@@ -981,7 +973,7 @@ export async function showCleanBoardModal({
         console.warn('⚠️ Failed to remove CSS style tag:', e);
       }
     };
-    
+
     // Add button press handling for proper UX
     const addButtonPressHandling = (button: HTMLButtonElement, action: () => void): void => {
       let touchStarted = false;
@@ -1097,11 +1089,14 @@ export async function showCleanBoardModal({
       el.setAttribute('data-clean-board-exiting', 'true');
 
       // 🔥 CRITICAL: Hide board app/stage IMMEDIATELY to prevent old board flash
+      // 🚀 PERFORMANCE: Use display:none to completely remove from render flow (not just opacity)
       if (app?.view?.style) {
+        app.view.style.display = 'none'; // Browser won't render ANY tiles - huge performance boost!
         app.view.style.opacity = '0';
       }
       if (stage) {
         stage.alpha = 0;
+        stage.visible = false; // PixiJS optimization - skip rendering
       }
 
       // 🔥 CRITICAL: Stop ALL background animations IMMEDIATELY for smooth exit
@@ -1138,7 +1133,7 @@ export async function showCleanBoardModal({
       const exitScale = [0, 0.08, -0.04, 0.05, -0.02, 0.03, -0.01];
         // 🎯 Regular elements (NOT buttons - they use CSS class animate-exit like homepage slider)
         const nodes = [hero, title, scoreLabel, mainScore, statusSlot, boardCleared];
-        nodes.forEach((node) => { node.style.transition = exitTrans; });
+      nodes.forEach((node) => { node.style.transition = exitTrans; });
  
         // 🎯 BUTTONS: Animate INDIVIDUALLY (not as container)
         // 🔥 USER REQUEST: Animate clicked button FIRST, then other button with 300ms delay
@@ -1151,8 +1146,8 @@ export async function showCleanBoardModal({
             animateButtonExit(secondaryBtn);
           }, 200); // 🔥 USER REQUEST: 500ms faster (was 700ms, now 200ms)
         }
- 
-        requestAnimationFrame(() => {
+
+      requestAnimationFrame(() => {
         nodes.forEach((node, idx) => {
           const delay = idx * 60;
           setTimeout(() => {
@@ -1165,10 +1160,10 @@ export async function showCleanBoardModal({
       // 🔥 FIX: Delay card scale animation until AFTER buttons start animating
       // This prevents buttons from moving up with card scale
       setTimeout(() => {
-        card.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-        requestAnimationFrame(() => {
-          card.style.transform = 'scale(0.86)';
-        });
+      card.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+      requestAnimationFrame(() => {
+        card.style.transform = 'scale(0.86)';
+      });
       }, 400); // Delay card scale until buttons are mid-animation
       // 🎯 Calculate duration: buttons need FULL 400ms to animate to scale(0) (FASTER exit)
       // Give EXTRA time to ensure button animation completes BEFORE card fadeout
@@ -1278,11 +1273,14 @@ export async function showCleanBoardModal({
         el.setAttribute('data-clean-board-exiting', 'true');
 
         // 🔥 CRITICAL: Hide board app/stage IMMEDIATELY to prevent old board flash
+        // 🚀 PERFORMANCE: Use display:none to completely remove from render flow (not just opacity)
         if (app?.view?.style) {
+          app.view.style.display = 'none'; // Browser won't render ANY tiles - huge performance boost!
           app.view.style.opacity = '0';
         }
         if (stage) {
           stage.alpha = 0;
+          stage.visible = false; // PixiJS optimization - skip rendering
         }
 
         // 🔥 CRITICAL: Stop ALL background animations IMMEDIATELY for smooth exit

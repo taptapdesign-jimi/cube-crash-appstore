@@ -308,7 +308,7 @@ class CollectiblesManager {
     
     console.log('✅ Collectibles event listeners cleaned up');
   }
-  
+
   // 🔥 CRITICAL FIX: Master cleanup method - calls ALL cleanup functions
   // This is the MAIN cleanup entry point called from main.ts exitToMenu()
   public cleanup(): void {
@@ -663,10 +663,10 @@ class CollectiblesManager {
                   localStorage.removeItem('__ccJourneyScrollTop');
                 } else {
                   // Only auto-scroll when entering from homepage slider
-                  const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-                  if (journeyBoardsManager && typeof journeyBoardsManager.restoreOrScrollToInterimCard === 'function') {
-                    console.log('🗺️ Starting scroll to interim card after enter animation...');
-                    journeyBoardsManager.restoreOrScrollToInterimCard();
+                const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+                if (journeyBoardsManager && typeof journeyBoardsManager.restoreOrScrollToInterimCard === 'function') {
+                  console.log('🗺️ Starting scroll to interim card after enter animation...');
+                  journeyBoardsManager.restoreOrScrollToInterimCard();
                   }
                 }
                 

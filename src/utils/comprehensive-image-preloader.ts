@@ -253,7 +253,7 @@ export async function loadHudIconsIntoPixiCache(): Promise<void> {
           } else {
             logger.warn(`⚠️ Failed to load ${iconPath} (attempt ${attempt}/${retries}), retrying...`, err);
             await new Promise(resolve => setTimeout(resolve, 100 * attempt)); // Exponential backoff
-          }
+        }
         }
       }
     };
@@ -262,7 +262,7 @@ export async function loadHudIconsIntoPixiCache(): Promise<void> {
     try {
       await Promise.all(
         CRITICAL_HUD_ICONS.map(iconPath => loadIconWithRetry(iconPath))
-      );
+    );
       logger.info(`✅ ALL ${CRITICAL_HUD_ICONS.length} HUD icons loaded into PIXI Assets cache (BLOCKING)`);
     } catch (error) {
       logger.error('❌ CRITICAL: Some HUD icons failed to load:', error);
@@ -379,21 +379,21 @@ async function cacheAndDecodeImage(url: string): Promise<void> {
 async function ensureInCacheAPI(url: string): Promise<void> {
   if (typeof caches === 'undefined') return;
   
-  try {
-    const cache = await caches.open(CACHE_NAME);
-    const cached = await cache.match(url);
-    
-    if (!cached) {
+        try {
+          const cache = await caches.open(CACHE_NAME);
+          const cached = await cache.match(url);
+          
+          if (!cached) {
       // Not in Cache API, fetch and cache it
-      const response = await fetch(url, { 
-        cache: 'force-cache',
-        mode: 'cors'
-      });
-      if (response.ok) {
-        await cache.put(url, response.clone());
+              const response = await fetch(url, { 
+                cache: 'force-cache',
+                mode: 'cors'
+              });
+              if (response.ok) {
+                await cache.put(url, response.clone());
         logger.debug(`✅ ${url} cached in Cache API (permanent storage)`);
+        }
       }
-    }
   } catch (error) {
     logger.warn(`⚠️ Failed to ensure ${url} in Cache API:`, error);
   }
@@ -436,12 +436,12 @@ export async function preloadAllStartupImages(): Promise<void> {
       
       // 🔥 CRITICAL: All homepage slider images (must be instant, no loading delay)
       const homepageSliderImages = [
-        './assets/crash-cubes-homepage.png',
-        './assets/crash-cubes-homepage@2x.png',
-        './assets/crash-cubes-homepage@3x.png',
-        './assets/journey-map-homepage.png',
-        './assets/journey-map-homepage@2x.png',
-        './assets/journey-map-homepage@3x.png',
+          './assets/crash-cubes-homepage.png',
+          './assets/crash-cubes-homepage@2x.png',
+          './assets/crash-cubes-homepage@3x.png',
+          './assets/journey-map-homepage.png',
+          './assets/journey-map-homepage@2x.png',
+          './assets/journey-map-homepage@3x.png',
         './assets/collectibles-box.png',
         './assets/collectibles-box@2x.png',
         './assets/collectibles-box@3x.png',
@@ -467,8 +467,8 @@ export async function preloadAllStartupImages(): Promise<void> {
       
       // 🔥 CRITICAL: HUD and other essential images
       const essentialImages = [
-        './assets/hud/star-hud.png',
-        './assets/highscore-icon.png',
+          './assets/hud/star-hud.png',
+          './assets/highscore-icon.png',
       ];
       
       // Combine all critical images
@@ -476,15 +476,15 @@ export async function preloadAllStartupImages(): Promise<void> {
         ...homepageSliderImages,
         ...journeyScreenImages,
         ...essentialImages,
-      ];
-      
+        ];
+        
       logger.info(`🔥 Loading ${criticalImages.length} critical images BLOCKING (homepage slider + Journey screen + essentials)...`);
       
       // 🔥 PRODUCTION READY: Fast path - load critical images in parallel (non-blocking check)
       // Browser cache check is fast (10ms timeout), Cache API is checked inside cacheAndDecodeImage
       // This ensures images load quickly without blocking Journey screen render
       logger.info(`🔥 Loading ${criticalImages.length} critical images in parallel (fast path)...`);
-      
+        
       // Load all critical images in parallel (non-blocking for Journey screen)
       // cacheAndDecodeImage will check browser cache FIRST (fast), then Cache API, then network
       const loadImageWithRetry = async (url: string, retries = 2): Promise<void> => {
@@ -513,7 +513,7 @@ export async function preloadAllStartupImages(): Promise<void> {
       }).catch((error) => {
         logger.warn('⚠️ Some critical images failed to load:', error);
       });
-      
+        
       // Don't wait for images - render Journey screen immediately
       logger.info(`✅ Critical images loading started (non-blocking) - Journey screen can render immediately`);
       

@@ -2451,18 +2451,18 @@ export function merge(src, dst, helpers){
         
         STATE.moves++; updateHUD();
         
-        // CRITICAL FIX: Wild merges should spawn new tiles to prevent wild cubes from getting stuck
-        if (wildActive) {
-          console.log('🎯 Wild merge completed, spawning new tiles to prevent wild cubes from getting stuck');
-          // Spawn 1-2 new tiles after wild merge to ensure board doesn't get stuck
-          const spawnCount = Math.min(2, Math.max(1, Math.floor(Math.random() * 2) + 1));
-          try {
-            await openEmpties(spawnCount);
-            console.log('✅ Spawned', spawnCount, 'new tiles after wild merge');
-          } catch (error) {
-            console.warn('⚠️ Failed to spawn tiles after wild merge:', error);
-          }
-        }
+        // 🔥 DELETED: This spawn logic is MRTVI KOD - never called because app-merge.ts merge is not used
+        // Wild merge spawn is handled in app-core.ts, not here
+        // if (wildActive) {
+        //   console.log('🎯 Wild merge completed, spawning new tiles to prevent wild cubes from getting stuck');
+        //   const spawnCount = Math.min(2, Math.max(1, Math.floor(Math.random() * 2) + 1));
+        //   try {
+        //     await openEmpties(spawnCount);
+        //     console.log('✅ Spawned', spawnCount, 'new tiles after wild merge');
+        //   } catch (error) {
+        //     console.warn('⚠️ Failed to spawn tiles after wild merge:', error);
+        //   }
+        // }
         
         // Check game over after spawning
         ENDLESS ? checkGameOver() : checkGameOver();

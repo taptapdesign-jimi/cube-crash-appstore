@@ -5,7 +5,8 @@ import { STATE, ASSET_TILE, ASSET_NUMBERS, ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET
 // layout function is now in app.js
 import { installDrag } from './install-drag.ts';
 import { rebuildBoard } from './app-board.ts';
-import { merge } from './app-merge.ts';
+// 🔥 MRTVI IMPORT - merge from app-merge.ts is never used, app-core.ts has its own merge function
+// import { merge } from './app-merge.ts';
 import { logger } from '../core/logger.js';
 import memoryManager from './memory-manager.ts';
 

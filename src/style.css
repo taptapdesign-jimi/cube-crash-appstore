@@ -1227,7 +1227,7 @@ body{
 }
 
 .continue-btn:hover,
-.restart-btn:hover,
+.restart-btn:hover:not(.animate-exit),
 .complete-board-btn:hover {
   transform: scale(1) !important;
   box-shadow: 0 8px 0 0 #C24921 !important;
@@ -1238,9 +1238,9 @@ body{
 .continue-btn:active,
 .continue-btn:focus,
 .continue-btn:focus-visible,
-.restart-btn:active,
-.restart-btn:focus,
-.restart-btn:focus-visible,
+.restart-btn:active:not(.animate-exit),
+.restart-btn:focus:not(.animate-exit),
+.restart-btn:focus-visible:not(.animate-exit),
 .complete-board-btn:active,
 .complete-board-btn:focus,
 .complete-board-btn:focus-visible {
@@ -1288,7 +1288,7 @@ body{
 }
 
 .new-game-btn:hover,
-.exit-btn:hover {
+.exit-btn:hover:not(.animate-exit) {
   transform: scale(1) !important; /* No hover scaling */
   -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
 }
@@ -1296,9 +1296,9 @@ body{
 .new-game-btn:active,
 .new-game-btn:focus,
 .new-game-btn:focus-visible,
-.exit-btn:active,
-.exit-btn:focus,
-.exit-btn:focus-visible {
+.exit-btn:active:not(.animate-exit),
+.exit-btn:focus:not(.animate-exit),
+.exit-btn:focus-visible:not(.animate-exit) {
   transform: scale(0.80) !important; /* Scale down much more */
   transition: transform 0.35s ease !important; /* Longer transition */
   -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
@@ -4606,13 +4606,15 @@ body:has(:root) .tile.wild-3d-glow {
   -webkit-transform: translateY(20px) scale(0) !important;
 }
 
-/* ===== CLEAN BOARD: Kill :active bounce during exit ===== */
-#cc-clean-board-overlay[data-clean-board-exiting="true"] .exit-btn:active,
-#cc-clean-board-overlay[data-clean-board-exiting="true"] .exit-btn:focus,
-#cc-clean-board-overlay[data-clean-board-exiting="true"] .exit-btn:focus-visible,
-#cc-clean-board-overlay[data-clean-board-exiting="true"] .restart-btn:active,
-#cc-clean-board-overlay[data-clean-board-exiting="true"] .restart-btn:focus,
-#cc-clean-board-overlay[data-clean-board-exiting="true"] .restart-btn:focus-visible {
+/* ===== CLEAN BOARD: Kill :active bounce during exit - but ALLOW animate-exit to work ===== */
+/* 🔥 CRITICAL: This rule MUST NOT conflict with .animate-exit class */
+/* We only neutralize :active BEFORE animate-exit is added, not DURING exit animation */
+#cc-clean-board-overlay[data-clean-board-exiting="true"] .exit-btn:active:not(.animate-exit),
+#cc-clean-board-overlay[data-clean-board-exiting="true"] .exit-btn:focus:not(.animate-exit),
+#cc-clean-board-overlay[data-clean-board-exiting="true"] .exit-btn:focus-visible:not(.animate-exit),
+#cc-clean-board-overlay[data-clean-board-exiting="true"] .restart-btn:active:not(.animate-exit),
+#cc-clean-board-overlay[data-clean-board-exiting="true"] .restart-btn:focus:not(.animate-exit),
+#cc-clean-board-overlay[data-clean-board-exiting="true"] .restart-btn:focus-visible:not(.animate-exit) {
   transform: scale(1) !important;
   transition: none !important;
 }
