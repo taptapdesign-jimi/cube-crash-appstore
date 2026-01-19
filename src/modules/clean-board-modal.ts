@@ -495,6 +495,17 @@ export async function showCleanBoardModal({
     // Keep reference to primaryBtn for existing code (was "btn")
     const btn = primaryBtn;
 
+    // 🔥 NEW: Outer stack to isolate buttons from card scaling
+    const outerStack = document.createElement('div');
+    outerStack.style.cssText = [
+      'display:flex',
+      'flex-direction:column',
+      'align-items:center',
+      'justify-content:center',
+      'gap:18px',
+      'position:relative'
+    ].join(';');
+
     // 🎯 PURE CSS APPROACH - JavaScript only adds/removes classes
     // All animations handled by CSS classes in style.css
     const buttonStaggerMs = 350; // Delay between Play Again and Exit button appearance
@@ -551,23 +562,6 @@ export async function showCleanBoardModal({
       });
     };
 
-    // 🔥 Detach buttons from card so card scaling doesn't move them
-    const detachButtonsForExit = () => {
-      if (!buttonContainer.isConnected) return;
-
-      const rect = buttonContainer.getBoundingClientRect();
-      // Move container out of the card so card scale doesn't affect it
-      el.appendChild(buttonContainer);
-      buttonContainer.style.position = 'fixed';
-      buttonContainer.style.left = `${rect.left}px`;
-      buttonContainer.style.top = `${rect.top}px`;
-      buttonContainer.style.width = `${rect.width}px`;
-      buttonContainer.style.margin = '0';
-      buttonContainer.style.transform = 'none';
-      buttonContainer.style.transition = 'none';
-      buttonContainer.style.opacity = '1';
-      buttonContainer.style.zIndex = '5';
-    };
 
     infoStack.appendChild(hero);
     textCluster.appendChild(title);
@@ -580,8 +574,9 @@ export async function showCleanBoardModal({
     statusSlot.appendChild(comboWrapper);
     statusSlot.appendChild(efficiencyWrapper);
     statusSlot.appendChild(boardCleared);
-    card.appendChild(buttonContainer); // 🔥 Changed from btn to buttonContainer
-    el.appendChild(card);
+    outerStack.appendChild(card);
+    outerStack.appendChild(buttonContainer);
+    el.appendChild(outerStack);
     document.body.appendChild(el);
 
     // Score bookkeeping (already calculated above for high score check)
@@ -1130,8 +1125,7 @@ export async function showCleanBoardModal({
       void boardCleared.offsetHeight;
       void statusSlot.offsetHeight;
       
-      // 🔥 CRITICAL: Detach buttons so card scale doesn't move them
-      detachButtonsForExit();
+      // Buttons are outside the card, so card scale won't move them
       
       const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
       const exitOffsets = [-22, -18, -14, -10, -6, -4, -2];
@@ -1305,8 +1299,7 @@ export async function showCleanBoardModal({
         void boardCleared.offsetHeight;
         void statusSlot.offsetHeight;
         
-        // 🔥 CRITICAL: Detach buttons so card scale doesn't move them
-        detachButtonsForExit();
+        // Buttons are outside the card, so card scale won't move them
         
         const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
         const exitOffsets = [-22, -18, -14, -10, -6, -4, -2];
