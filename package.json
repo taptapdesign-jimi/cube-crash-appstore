@@ -1,7 +1,7 @@
 {
   "name": "cube-crash",
   "private": true,
-  "version": "0.10.0",
+  "version": "0.13.5",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
