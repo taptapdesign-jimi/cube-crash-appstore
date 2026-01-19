@@ -541,12 +541,21 @@ class EnhancedMemoryManager {
 
   private calculateLeakScore(): number {
     // Calculate leak score (0-100, lower is better)
-    const stats = this.getStats();
+    const timersTotal = this.timeouts.size + this.intervals.size;
+    const listenersCount = this.listeners.size;
+    const tweensCount = this.tweens.size;
+    const memoryUsage = (performance as any).memory 
+      ? Math.round((performance as any).memory.usedJSHeapSize / 1024 / 1024)
+      : 0;
     
-    const timerScore = Math.min(100, (stats.timers.total / this.config.maxTimers) * 100);
-    const listenerScore = Math.min(100, (stats.listeners / this.config.maxListeners) * 100);
-    const tweenScore = Math.min(100, (stats.tweens / this.config.maxTweens) * 100);
-    const memoryScore = Math.min(100, (stats.memoryUsageMB / this.config.memoryThresholdMB) * 100);
+    return this.calculateLeakScoreFromValues(timersTotal, listenersCount, tweensCount, memoryUsage);
+  }
+
+  private calculateLeakScoreFromValues(timersTotal: number, listenersCount: number, tweensCount: number, memoryUsage: number): number {
+    const timerScore = Math.min(100, (timersTotal / this.config.maxTimers) * 100);
+    const listenerScore = Math.min(100, (listenersCount / this.config.maxListeners) * 100);
+    const tweenScore = Math.min(100, (tweensCount / this.config.maxTweens) * 100);
+    const memoryScore = Math.min(100, (memoryUsage / this.config.memoryThresholdMB) * 100);
 
     return Math.round((timerScore + listenerScore + tweenScore + memoryScore) / 4);
   }
