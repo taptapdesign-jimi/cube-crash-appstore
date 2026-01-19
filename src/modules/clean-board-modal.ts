@@ -522,10 +522,13 @@ export async function showCleanBoardModal({
       button.removeAttribute('data-clean-board-entering');
       button.removeAttribute('data-clean-board-exiting');
       
-      // 🔥 PURE CSS: Use EXACT same class as homepage slider
-      // This class is defined in style.css line 4904:
-      // .restart-btn.animate-exit { transform: translateY(20px) scale(0) !important; }
-      button.classList.add('animate-exit');
+      // 🔥 Small delay to let :active state reset before animation starts
+      requestAnimationFrame(() => {
+        // 🔥 PURE CSS: Use EXACT same class as homepage slider
+        // This class is defined in style.css line 4904:
+        // .restart-btn.animate-exit { transform: translateY(20px) scale(0) !important; }
+        button.classList.add('animate-exit');
+      });
     };
 
     infoStack.appendChild(hero);
