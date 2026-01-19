@@ -1728,30 +1728,6 @@ async function startNewRun(boardId: number): Promise<void> {
     // 🔥 USER REQUEST: Show navigation and homepage ONLY if returning to homepage (slide 0)
     // If returning to Journey screen (slide 1), hide homepage and navigation IMMEDIATELY
     if (targetSlide === 0) {
-      // 🔥 BUG FIX: If returnToDetailModal, position slider on slide 1 BEFORE showing homepage
-      // This prevents visual swipe from slide 0 to slide 1 when collectibles-manager.ts takes over
-      if (returnToDetailModal && typeof gsap !== 'undefined') {
-        console.log('🔧 Detail modal pathway: Pre-positioning slider on slide 1 to avoid swipe');
-        const sliderWrapper = document.getElementById('slider-wrapper');
-        const sliderContainer = document.getElementById('slider-container');
-        if (sliderWrapper && sliderContainer) {
-          const slideWidth = sliderContainer.offsetWidth;
-          gsap.set(sliderWrapper, { x: -1 * slideWidth, immediateRender: true });
-          
-          // Also set active classes
-          const slides = document.querySelectorAll('.slider-slide');
-          const navButtons = document.querySelectorAll('.independent-nav-button');
-          slides.forEach((s, i) => i === 1 ? s.classList.add('active') : s.classList.remove('active'));
-          navButtons.forEach((b, i) => i === 1 ? b.classList.add('active') : b.classList.remove('active'));
-          
-          // Sync state
-          if (gameState?.set) gameState.set('currentSlide', 1);
-          if ((window as any).sliderManager) (window as any).sliderManager.currentSlide = 1;
-          
-          console.log('✅ Slider pre-positioned on slide 1 BEFORE showing homepage');
-        }
-      }
-      
       // Show navigation and homepage for homepage slider
       uiManager.showNavigation();
       uiManager.showHomepageQuietly();
@@ -1831,10 +1807,9 @@ async function startNewRun(boardId: number): Promise<void> {
     // If returning to Journey (slide 1), don't touch slider - Journey screen is shown directly
     // 🔥 CRITICAL: If __ccJourneyExitMode is 'toHome', collectibles-manager.ts will handle slide positioning
     // DO NOT update slides here as it will interfere with collectibles-manager.ts positioning
-    // 🔥 BUG FIX: Also skip if returnToDetailModal - collectibles-manager.ts will handle everything
     // Note: journeyExitMode is already declared above, reuse it
-    if (journeyExitMode === 'toHome' || returnToDetailModal) {
-      console.log('🗺️ Journey exit mode is "toHome" OR returnToDetailModal - skipping slide update (collectibles-manager.ts will handle)');
+    if (journeyExitMode === 'toHome') {
+      console.log('🗺️ Journey exit mode is "toHome" - skipping slide update (collectibles-manager.ts will handle)');
     } else if (targetSlide === 0) {
       // Also update slide classes and nav buttons to match target slide
       const slides = document.querySelectorAll('.slider-slide');

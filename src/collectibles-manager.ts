@@ -918,19 +918,27 @@ class CollectiblesManager {
       const targetSlideIndex = 1;
       console.log(`🔍 Journey exit: returning to Journey slide (index ${targetSlideIndex})`);
       
-      // Position slider on Journey slide (index 1) BEFORE enter animation
-      const sliderWrapper = document.getElementById('slider-wrapper') as HTMLElement;
-      if (sliderWrapper && sliderContainerEl) {
-        const slideWidth = sliderContainerEl.offsetWidth || window.innerWidth;
-        const targetOffset = -targetSlideIndex * slideWidth;
-        
-        // Set position immediately using GSAP
-        if (typeof gsap !== 'undefined') {
-          gsap.set(sliderWrapper, { x: targetOffset, immediateRender: true });
-        } else {
-          sliderWrapper.style.transform = `translateX(${targetOffset}px)`;
+      // 🔥 BUG FIX: Check if slider was already positioned from detail modal close
+      // If so, skip positioning to avoid visual swipe/jump
+      const sliderAlreadyPositioned = (window as any).__ccSliderAlreadyPositioned === true;
+      if (sliderAlreadyPositioned) {
+        console.log('✅ Slider already positioned from detail modal close, skipping...');
+        delete (window as any).__ccSliderAlreadyPositioned;
+      } else {
+        // Position slider on Journey slide (index 1) BEFORE enter animation
+        const sliderWrapper = document.getElementById('slider-wrapper') as HTMLElement;
+        if (sliderWrapper && sliderContainerEl) {
+          const slideWidth = sliderContainerEl.offsetWidth || window.innerWidth;
+          const targetOffset = -targetSlideIndex * slideWidth;
+          
+          // Set position immediately using GSAP
+          if (typeof gsap !== 'undefined') {
+            gsap.set(sliderWrapper, { x: targetOffset, immediateRender: true });
+          } else {
+            sliderWrapper.style.transform = `translateX(${targetOffset}px)`;
+          }
+          console.log(`✅ Slider positioned at slide ${targetSlideIndex}, offset: ${targetOffset}px`);
         }
-        console.log(`✅ Slider positioned at slide ${targetSlideIndex}, offset: ${targetOffset}px`);
       }
       
       // Step 2e: Set target slide as active
