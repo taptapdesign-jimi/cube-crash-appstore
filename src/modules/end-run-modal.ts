@@ -511,12 +511,19 @@ function createModal(): HTMLElement {
   
   if (exitBtn) {
     const exitClickHandler = () => {
-      console.log('🚪 Exit button clicked - starting exit sequence');
+      console.log('🚪 Exit button clicked - starting parallel exit sequence (board + detail modal)');
       
       // Haptic for Exit button
       if (typeof (window as any).triggerHapticSelection === 'function') {
         (window as any).triggerHapticSelection();
       }
+      
+      // 🚀 UX FIX: Set flag to play board exit animation + detail modal enter animation IN PARALLEL
+      // Board exit animation plays (user sees beautiful animation)
+      // Detail modal enter animation starts IMMEDIATELY (doesn't wait for board exit to finish)
+      // Result: Smooth transition with NO DELAY
+      (window as any).__playBoardAndModalInParallel = true;
+      console.log('⚡ Parallel animation mode: Board exit + Detail modal enter play SIMULTANEOUSLY');
       
       // Step 1: Animate modal exit (non-blocking)
       hideModal();
