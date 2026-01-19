@@ -499,40 +499,23 @@ export async function showCleanBoardModal({
     const buttonStaggerMs = 350; // 🔥 150ms brže (was 500ms)
     const buttonEnterDelayMs = 100;
 
-    const setButtonVisualState = (
-      button: HTMLButtonElement,
-      options: { opacity: number; scale: number; translateY: number; transition: string }
-    ) => {
-      button.style.setProperty('transform-origin', 'center center', 'important');
-      button.style.setProperty('will-change', 'transform, opacity', 'important');
-      button.style.setProperty('opacity', String(options.opacity), 'important');
-      button.style.setProperty(
-        'transform',
-        `scale(${options.scale}) translateY(${options.translateY}px)`,
-        'important'
-      );
-      button.style.setProperty('transition', options.transition, 'important');
-    };
+    // 🔥 REMOVED: setButtonVisualState - no longer needed, animateButtonIn uses direct styles
 
     const setButtonInitialState = (button: HTMLButtonElement) => {
-      setButtonVisualState(button, {
-        opacity: 0,
-        scale: 0.8,
-        translateY: 12,
-        transition: 'none'
-      });
+      // 🔥 SIMPLIFIED: Direct inline styles for initial state
+      button.style.opacity = '0';
+      button.style.transform = 'scale(0.8) translateY(12px)';
+      button.style.transition = 'none';
     };
 
     const animateButtonIn = (button: HTMLButtonElement) => {
       button.blur();
       button.classList.remove('animate-exit');
       void button.offsetHeight;
-      setButtonVisualState(button, {
-        opacity: 1,
-        scale: 1,
-        translateY: 0,
-        transition: buttonEnterTransition
-      });
+      // 🔥 SIMPLIFIED: Set only necessary inline styles (no excessive properties)
+      button.style.opacity = '1';
+      button.style.transform = 'scale(1) translateY(0)';
+      button.style.transition = buttonEnterTransition;
     };
 
     // 🔥 NEW: Unified button exit animation (used by BOTH Play Again and Exit handlers)
@@ -1000,10 +983,7 @@ export async function showCleanBoardModal({
       const handleTouchStart = (e: TouchEvent) => {
         touchStarted = true;
         touchStartedOnButton = button.contains(e.target as Node);
-        if (touchStartedOnButton) {
-          button.style.transform = 'scale(0.80)';
-          button.style.transition = 'transform 0.35s ease';
-        }
+        // 🔥 REMOVED inline styles - CSS :active handles scale(0.80)
       };
       
       const handleTouchMove = (e: TouchEvent) => {
@@ -1015,10 +995,9 @@ export async function showCleanBoardModal({
                            touch.clientY < rect.top || touch.clientY > rect.bottom;
           
           if (isOutside) {
-            // Cancel the touch - reset button
-            button.style.transform = 'scale(1)';
-            button.style.transition = 'transform 0.35s ease';
+            // Cancel the touch
             touchStartedOnButton = false;
+            // 🔥 REMOVED inline style reset - CSS handles it
           }
         }
       };
@@ -1036,17 +1015,14 @@ export async function showCleanBoardModal({
           }
         }
         
-        // Reset button
-        button.style.transform = 'scale(1)';
-        button.style.transition = 'transform 0.35s ease';
+        // 🔥 REMOVED inline style reset - CSS handles it
         touchStarted = false;
         touchStartedOnButton = false;
       };
       
       const handleMouseDown = () => {
         touchStartedOnButton = true;
-        button.style.transform = 'scale(0.80)';
-        button.style.transition = 'transform 0.35s ease';
+        // 🔥 REMOVED inline styles - CSS :active handles scale(0.80)
       };
       
       const handleMouseUp = (e: MouseEvent) => {
@@ -1054,14 +1030,12 @@ export async function showCleanBoardModal({
           action();
         }
         
-        button.style.transform = 'scale(1)';
-        button.style.transition = 'transform 0.35s ease';
+        // 🔥 REMOVED inline style reset - CSS handles it
         touchStartedOnButton = false;
       };
       
       const handleMouseLeave = () => {
-        button.style.transform = 'scale(1)';
-        button.style.transition = 'transform 0.35s ease';
+        // 🔥 REMOVED inline style reset - CSS handles it
         touchStartedOnButton = false;
       };
       
