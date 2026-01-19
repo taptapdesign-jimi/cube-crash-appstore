@@ -1146,6 +1146,14 @@ async function startNewRun(boardId: number): Promise<void> {
   }
   (window as any).exitingToMenu = true;
   
+  // ⚡ SPEED OPTIMIZATION: Preload journey-boards-manager module IMMEDIATELY
+  // This eliminates ~50-100ms dynamic import delay when showing detail modal
+  const journeyManagerPromise = import('./modules/journey-boards-manager.js');
+  console.log('⚡ Preloading journey-boards-manager module (parallel with board exit)...');
+  
+  // ⚡ SPEED OPTIMIZATION: Check if we should use fast path (Exit from End Run modal)
+  const shouldUseFastPath = (window as any).__ccFastExitToDetailModal === true;
+  
   try {
     console.log('🔥 Starting complete game cleanup...');
     
@@ -1319,6 +1327,53 @@ async function startNewRun(boardId: number): Promise<void> {
       } catch (error) {
         console.warn('⚠️ Board exit animation failed:', error);
       }
+    }
+    
+    // ⚡ FAST PATH: If returning to detail modal after Exit, do minimal cleanup and show modal immediately
+    if (shouldUseFastPath && returnToDetailModal && detailModalBoardId !== null) {
+      console.log('⚡ FAST PATH: Board exit complete → Opening detail modal IMMEDIATELY (minimal cleanup)');
+      
+      // Minimal essential cleanup only
+      try {
+        // Kill only critical tweens (tiles and HUD)
+        if (STATE && STATE.tiles && STATE.tiles.length > 0) {
+          STATE.tiles.forEach(tile => {
+            try {
+              if (tile && !tile.destroyed) {
+                gsap.killTweensOf(tile);
+                if (tile.scale) gsap.killTweensOf(tile.scale);
+              }
+            } catch (e) { /* ignore */ }
+          });
+        }
+        console.log('✅ Fast cleanup: Critical tweens killed');
+      } catch (e) { /* ignore */ }
+      
+      // Prepare Journey screen immediately
+      const journeyScreen = document.getElementById('journey-screen');
+      if (journeyScreen) {
+        journeyScreen.removeAttribute('hidden');
+        journeyScreen.style.display = 'flex';
+        journeyScreen.style.opacity = '0';
+        journeyScreen.style.visibility = 'hidden';
+        console.log('✅ Fast path: Journey screen prepared');
+      }
+      
+      // Open detail modal IMMEDIATELY using preloaded module
+      journeyManagerPromise.then(async ({ journeyBoardsManager }) => {
+        console.log('⚡ Fast path: Opening detail modal NOW (board exit just finished)');
+        if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
+          await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
+          console.log(`✅ Detail modal opened IMMEDIATELY for board ${detailModalBoardId}`);
+        }
+      }).catch((error) => {
+        console.warn('⚠️ Failed to import journeyBoardsManager:', error);
+      });
+      
+      // Continue with full cleanup in background (non-blocking)
+      console.log('🧹 Full cleanup continues in background...');
+      // Clear fast path flag
+      delete (window as any).__ccFastExitToDetailModal;
     }
     
     // Step 2: Kill ALL GSAP tweens immediately after animations complete

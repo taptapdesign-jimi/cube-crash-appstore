@@ -511,12 +511,16 @@ function createModal(): HTMLElement {
   
   if (exitBtn) {
     const exitClickHandler = () => {
-      console.log('🚪 Exit button clicked - starting exit sequence');
+      console.log('🚪 Exit button clicked - starting FAST exit sequence');
       
       // Haptic for Exit button
       if (typeof (window as any).triggerHapticSelection === 'function') {
         (window as any).triggerHapticSelection();
       }
+      
+      // ⚡ SPEED OPTIMIZATION: Set flag for fast path (minimal cleanup, immediate detail modal)
+      (window as any).__ccFastExitToDetailModal = true;
+      console.log('⚡ Fast exit mode: Detail modal will open IMMEDIATELY after board exit');
       
       // Step 1: Animate modal exit (non-blocking)
       hideModal();
