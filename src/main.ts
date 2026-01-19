@@ -756,6 +756,13 @@ async function startNewRun(boardId: number): Promise<void> {
 (window as any).continueGameWithSavedState = async () => {
   logger.info('🔄 continueGameWithSavedState called - loading saved game');
   
+  // 🔥 CRITICAL: Mark that we came from Journey (interim board)
+  // This flag is used by endgame-flow to decide between startLevel() vs startNewRunFromJourney()
+  (window as any).__ccCameFromJourney = true;
+  (window as any).__ccIsInterimBoard = true;
+  localStorage.setItem('__ccCameFromJourney', 'true');
+  console.log('🗺️ Marked as coming from Journey (interim board continue) - clean board will use startNewRunFromJourney');
+  
   // Import journey progression state
   const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
   
@@ -1041,6 +1048,13 @@ async function startNewRun(boardId: number): Promise<void> {
 (window as any).startNewRunFromJourney = async (boardId: number) => {
   console.log(`🎮🎮🎮 startNewRunFromJourney CALLED with boardId: ${boardId}`);
   logger.info(`🎮 startNewRunFromJourney called for board ${boardId}`);
+  
+  // 🔥 CRITICAL: Mark that we came from Journey (interim board)
+  // This flag is used by endgame-flow to decide between startLevel() vs startNewRunFromJourney()
+  (window as any).__ccCameFromJourney = true;
+  (window as any).__ccIsInterimBoard = true;
+  localStorage.setItem('__ccCameFromJourney', 'true');
+  console.log('🗺️ Marked as coming from Journey (interim board) - clean board will use startNewRunFromJourney');
   
   // Import journey progression state
   const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
