@@ -4915,3 +4915,55 @@ body:has(:root) .tile.wild-3d-glow {
   -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   -webkit-transform: translateY(20px) scale(0) !important;
 }
+
+/* ===== CLEAN BOARD BUTTON ANIMATIONS - Pure CSS Approach ===== */
+/* 🎯 These classes handle ALL button animations in clean board modal */
+/* No inline styles needed - JavaScript only adds/removes classes */
+
+/* Initial state - buttons hidden before animation */
+.clean-board-button-hidden {
+  opacity: 0 !important;
+  transform: scale(0.8) translateY(12px) !important;
+  transition: none !important;
+  pointer-events: none !important;
+}
+
+/* Visible state - buttons bounce in (homepage slider CTA style) */
+.clean-board-button-visible {
+  opacity: 1 !important;
+  transform: scale(1) translateY(0) !important;
+  transition: opacity 0.5s cubic-bezier(0.68, -0.8, 0.265, 1.8), 
+              transform 0.5s cubic-bezier(0.68, -0.8, 0.265, 1.8) !important;
+  pointer-events: auto !important;
+}
+
+/* Exit state - buttons scale to 0 and move down (homepage slider CTA style) */
+/* HIGHEST PRIORITY - overrides ALL other button states including :active/:focus/:hover */
+.clean-board-button-exit,
+.clean-board-button-exit:active,
+.clean-board-button-exit:focus,
+.clean-board-button-exit:focus-visible,
+.clean-board-button-exit:hover,
+.clean-board-button-exit:active:not(:disabled),
+.clean-board-button-exit:focus:not(:disabled),
+.clean-board-button-exit:hover:not(:disabled) {
+  opacity: 1 !important;
+  transform: translateY(20px) scale(0) !important;
+  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  pointer-events: none !important;
+  will-change: transform !important;
+  -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  -webkit-transform: translateY(20px) scale(0) !important;
+}
+
+/* 🔥 CRITICAL: Prevent :active state from interfering with button animations */
+/* When button is animating (visible or exit), :active should NOT override transform */
+.restart-btn.clean-board-button-visible:active,
+.restart-btn.clean-board-button-exit:active,
+.exit-btn.clean-board-button-visible:active,
+.exit-btn.clean-board-button-exit:active,
+.primary-button.clean-board-button-visible:active,
+.primary-button.clean-board-button-exit:active {
+  /* Let the animation class handle transform, not :active */
+  transform: inherit !important;
+}

@@ -495,55 +495,27 @@ export async function showCleanBoardModal({
     // Keep reference to primaryBtn for existing code (was "btn")
     const btn = primaryBtn;
 
-    const buttonEnterTransition = 'opacity 0.5s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.5s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-    const buttonStaggerMs = 350; // 🔥 150ms brže (was 500ms)
-    const buttonEnterDelayMs = 100;
+    // 🎯 PURE CSS APPROACH - JavaScript only adds/removes classes
+    // All animations handled by CSS classes in style.css
+    const buttonStaggerMs = 350; // Delay between Play Again and Exit button appearance
 
-    // 🔥 REMOVED: setButtonVisualState - no longer needed, animateButtonIn uses direct styles
-
+    // Set button to hidden state (before animation)
     const setButtonInitialState = (button: HTMLButtonElement) => {
-      // 🔥 SIMPLIFIED: Direct inline styles for initial state
-      button.style.opacity = '0';
-      button.style.transform = 'scale(0.8) translateY(12px)';
-      button.style.transition = 'none';
+      button.classList.add('clean-board-button-hidden');
     };
 
+    // Animate button in (bounce entrance)
     const animateButtonIn = (button: HTMLButtonElement) => {
-      button.blur();
-      button.classList.remove('animate-exit');
-      void button.offsetHeight;
-      // 🔥 SIMPLIFIED: Set only necessary inline styles (no excessive properties)
-      button.style.opacity = '1';
-      button.style.transform = 'scale(1) translateY(0)';
-      button.style.transition = buttonEnterTransition;
+      button.classList.remove('clean-board-button-hidden', 'clean-board-button-exit');
+      button.classList.add('clean-board-button-visible');
     };
 
-    // 🔥 NEW: Unified button exit animation (used by BOTH Play Again and Exit handlers)
+    // Animate button out (scale to 0 exit)
     const animateButtonExit = (button: HTMLButtonElement) => {
-      // 🔥 CRITICAL: Disable button interactions (prevents :active/:hover/:focus from triggering)
       button.disabled = true;
-      button.style.setProperty('pointer-events', 'none', 'important');
-      // 🔥 CRITICAL: Remove focus/active states FIRST (prevents :active/:focus CSS from overriding)
       button.blur();
-      // 🔥 Remove ALL animation classes
-      button.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
-      // 🔥 Remove ALL inline transform/transition styles
-      button.style.removeProperty('transform');
-      button.style.removeProperty('transition');
-      button.style.removeProperty('opacity');
-      button.style.removeProperty('will-change');
-      // 🔥 Force reflow to ensure all changes are applied
-      void button.offsetHeight;
-      // 🔥 Add animate-exit class (CSS will handle transform: translateY(20px) scale(0))
-      button.classList.add('animate-exit');
-      
-      // 🔥 TRIPLE SAFETY: Force inline !important styles to override ANY CSS conflicts
-      // This is necessary because .restart-btn:active has transform: scale(0.80) !important
-      requestAnimationFrame(() => {
-        button.style.setProperty('will-change', 'transform', 'important');
-        button.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
-        button.style.setProperty('transform', 'translateY(20px) scale(0)', 'important');
-      });
+      button.classList.remove('clean-board-button-hidden', 'clean-board-button-visible');
+      button.classList.add('clean-board-button-exit');
     };
 
     infoStack.appendChild(hero);
@@ -590,12 +562,8 @@ export async function showCleanBoardModal({
     // CRITICAL: No initial scale for boardCleared - just opacity
     boardCleared.style.opacity = '0';
     boardCleared.style.transition = 'none';
-    // 🔥 Initialize buttonContainer for animation (like original)
-    buttonContainer.style.opacity = '0';
-    buttonContainer.style.transform = 'scale(0.8) translateY(12px)';
-    buttonContainer.style.transition = 'none';
     
-    // 🔥 NEW: Set BOTH buttons to be invisible AND scaled initially (for sequential bounce in)
+    // 🎯 PURE CSS: Set BOTH buttons to hidden state (CSS handles all animations)
     setButtonInitialState(primaryBtn);
     if (secondaryBtn) {
       setButtonInitialState(secondaryBtn);
@@ -881,26 +849,19 @@ export async function showCleanBoardModal({
           }, 320);
         }, 6100);
 
-        // 🎯 SEQUENCE 8: Button(s) pop-in (container bounce, then buttons bounce in sequentially)
-        // 🔥 TIMING FIX: Buttons appear AFTER "Board cleared" (6100ms + 320ms + 200ms = 6620ms)
+        // 🎯 SEQUENCE 8: Button(s) pop-in (sequential bounce - Play Again first, then Exit)
+        // Buttons appear AFTER "Board cleared" (6100ms + 320ms + 200ms = 6620ms)
         setTimeout(() => {
-          // 1. Animate button CONTAINER with bounce (both buttons invisible inside)
-          buttonContainer.style.transition = 'opacity 0.6s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.6s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          buttonContainer.style.opacity = '1';
-          buttonContainer.style.transform = 'scale(1) translateY(0)';
+          // PRIMARY BUTTON (Play Again) - bounce in immediately
+          animateButtonIn(primaryBtn);
           
-          // 2. PRIMARY BUTTON (Play Again) - bounce in immediately after container starts
-          setTimeout(() => {
-            animateButtonIn(primaryBtn);
-          }, buttonEnterDelayMs); // Small delay after container animation starts
-          
-          // 3. SECONDARY BUTTON (Exit) - bounce in 350ms after Play Again (150ms brže!)
+          // SECONDARY BUTTON (Exit) - bounce in 350ms after Play Again (sekvencijalno)
           if (secondaryBtn) {
             setTimeout(() => {
               animateButtonIn(secondaryBtn);
-            }, buttonEnterDelayMs + buttonStaggerMs); // 100ms + 350ms = 450ms total delay
+            }, buttonStaggerMs); // 350ms delay between buttons
           }
-        }, 6620); // 🔥 FIXED: After boardCleared (6100 + 320 + 200)
+        }, 6620); // After boardCleared (6100 + 320 + 200)
       }
     }); // Close requestAnimationFrame from line 431
 
@@ -1105,11 +1066,6 @@ export async function showCleanBoardModal({
       // Force reflow to apply reset
       void boardCleared.offsetHeight;
       void statusSlot.offsetHeight;
-      
-      // 🔥 CRITICAL: Reset buttonContainer transform so it doesn't interfere with button animations
-      buttonContainer.style.transition = 'none';
-      buttonContainer.style.transform = 'none';
-      buttonContainer.style.opacity = '1';
       
       const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
       const exitOffsets = [-22, -18, -14, -10, -6, -4, -2];
