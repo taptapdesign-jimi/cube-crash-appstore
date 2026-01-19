@@ -44,7 +44,7 @@ export interface GameEvent {
 
 // Global window interface extensions
 declare global {
-  interface Window {
+  interface Window extends globalThis.Window {
     // Game functions
     startGameNow: () => Promise<void>;
     continueGame: () => Promise<void>;
@@ -69,8 +69,8 @@ declare global {
     resetHudDropPending?: () => void;
     
     // Collectibles functions
-    showCollectiblesScreen?: () => void;
-    hideCollectiblesScreen?: () => void;
+    showCollectiblesScreen?: () => Promise<void>;
+    hideCollectiblesScreen?: () => Promise<void>;
     showStatsScreen?: () => void;
     hideStatsScreen?: () => void;
     
@@ -106,7 +106,6 @@ declare global {
     // Game state objects
     STATE?: any;
     score?: number;
-    app?: any;
     
     // Collectibles manager
     collectiblesManager?: any;
