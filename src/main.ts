@@ -1146,11 +1146,6 @@ async function startNewRun(boardId: number): Promise<void> {
   }
   (window as any).exitingToMenu = true;
   
-  // 🚀 SPEED FIX: Preload journey-boards-manager module immediately (parallel with animations)
-  // This eliminates ~50-100ms dynamic import delay when showing detail modal
-  const journeyManagerPromise = import('./modules/journey-boards-manager.js');
-  console.log('⚡ Preloading journey-boards-manager module (parallel with cleanup)...');
-  
   try {
     console.log('🔥 Starting complete game cleanup...');
     
@@ -1283,25 +1278,34 @@ async function startNewRun(boardId: number): Promise<void> {
     }
     
     // Step 1: Play board exit animations (tiles + HUD)
-    // 🚀 UX FIX: Check if we should play board exit + detail modal in parallel (no wait)
-    const shouldPlayInParallel = (window as any).__playBoardAndModalInParallel === true;
-    
-    if (shouldPlayInParallel) {
-      console.log('🎬 Playing board exit animation IN PARALLEL with detail modal (non-blocking)...');
-      // Don't await - let board exit play in background while detail modal starts
-      animateBoardExit().then(() => {
-        console.log('✅ Board exit animation completed (background)');
-      }).catch((error) => {
-        console.warn('⚠️ Board exit animation failed:', error);
-      });
+    // 🎯 NEW: Skip board exit animation if flag is set (clean board scenario - no tiles to animate)
+    const shouldSkipBoardExit = (window as any).__skipBoardExitAnimation === true;
+    if (shouldSkipBoardExit) {
+      console.log('⏭️ Skipping board exit animation (clean board - no tiles)');
+      
+      // Hide board and HUD immediately (no animation)
+      try {
+        const boardContainer = document.getElementById('board-container');
+        if (boardContainer) {
+          boardContainer.style.opacity = '0';
+          boardContainer.style.visibility = 'hidden';
+          console.log('✅ Board container hidden immediately');
+        }
+        
+        // Hide board indicator immediately
+        const { animateBoardIndicatorExit } = await import('./modules/hud-helpers.js');
+        if (typeof animateBoardIndicatorExit === 'function') {
+          animateBoardIndicatorExit(0); // Duration 0 = instant hide
+          console.log('✅ Board indicator hidden immediately');
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to hide board elements:', error);
+      }
       
       // Clear flag after use
-      delete (window as any).__playBoardAndModalInParallel;
-      
-      // Continue immediately without waiting - detail modal will start in parallel
-      console.log('⚡ Board exit playing in background - continuing to detail modal...');
+      delete (window as any).__skipBoardExitAnimation;
     } else {
-      console.log('🎬 Playing board exit animations (blocking)...');
+      console.log('🎬 Playing board exit animations...');
       try {
         // Hide board indicator (board tag) before board exit animation
         const { animateBoardIndicatorExit } = await import('./modules/hud-helpers.js');
@@ -1916,11 +1920,9 @@ async function startNewRun(boardId: number): Promise<void> {
       
       // 🔥 USER REQUEST: Open detail modal IMMEDIATELY (no delay)
       // Enter animation should start instantly after board exit
-      // 🚀 SPEED FIX: Use preloaded module (already loading from start of exitToMenu)
-      journeyManagerPromise.then(async ({ journeyBoardsManager }) => {
+      import('./modules/journey-boards-manager.js').then(async ({ journeyBoardsManager }) => {
         // 🔥 REMOVED: requestAnimationFrame delay - start detail modal enter animation IMMEDIATELY
         // This prevents 1 second blank screen between board exit and detail modal enter
-        console.log('⚡ Journey manager module ready (preloaded) - opening detail modal...');
         
         if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
           // openBoardDetailsById will handle enter animation for detail modal
