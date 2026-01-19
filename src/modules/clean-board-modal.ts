@@ -512,21 +512,27 @@ export async function showCleanBoardModal({
     };
 
     // Animate button out (scale to 0 exit)
-    // 🔥 EXACT SAME as homepage slider CTA - PURE CSS, NO GSAP
+    // 🔥 FIX :active bounce conflict
     const animateButtonExit = (button: HTMLButtonElement) => {
+      // 🔥 STEP 1: Immediately disable interactions (kills :active state)
       button.disabled = true;
+      button.style.pointerEvents = 'none';
       button.blur();
       
-      // 🔥 Remove ALL classes that could interfere
+      // 🔥 STEP 2: Force reset transform to scale(1) - kills any :active bounce
+      button.style.transition = 'none';
+      button.style.transform = 'scale(1)';
+      void button.offsetHeight; // Force reflow
+      
+      // 🔥 STEP 3: Remove all animation classes
       button.classList.remove('clean-board-button-hidden', 'clean-board-button-visible', 'clean-board-button-exit');
       button.removeAttribute('data-clean-board-entering');
       button.removeAttribute('data-clean-board-exiting');
       
-      // 🔥 Small delay to let :active state reset before animation starts
+      // 🔥 STEP 4: Clear inline styles and add animate-exit class
       requestAnimationFrame(() => {
-        // 🔥 PURE CSS: Use EXACT same class as homepage slider
-        // This class is defined in style.css line 4904:
-        // .restart-btn.animate-exit { transform: translateY(20px) scale(0) !important; }
+        button.style.transition = '';
+        button.style.transform = '';
         button.classList.add('animate-exit');
       });
     };

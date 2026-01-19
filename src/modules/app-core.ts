@@ -6426,7 +6426,17 @@ function merge(src, dst, helpers){
         // 🔥 CRITICAL: If no locked tiles available (or only placeholder exists), spawn directly at dst position
         // This happens when all tiles are opened and merge-6 is made
         // Spawn new ACTIVE tile with pips at the exact position of merge-6
-        if (availableLockedTiles.length === 0 && spawnMult > 0) {
+        // 🔥 BUG FIX: Don't spawn for wild merges (wild star, wild beer) - let end game checker handle it
+        // Wild merges should NOT spawn new tiles when no locked tiles available (end game scenario)
+        const isWildMerge = srcSpecial === 'wild' || dstSpecial === 'wild' || 
+                           srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
+        const shouldSkipEndGameSpawn = isWildMerge && availableLockedTiles.length === 0;
+        
+        if (shouldSkipEndGameSpawn) {
+          console.log('🚨 END-GAME FIX: Wild merge (wild/wild-beer) + no locked tiles - SKIPPING spawn, let end game checker handle it');
+          console.log('🚨 This prevents spawning new tiles in end game scenario when wild merges happen');
+          // Don't spawn - let checkLevelEnd handle end game detection
+        } else if (availableLockedTiles.length === 0 && spawnMult > 0) {
           console.log('🎯🎯🎯 END-GAME SPAWN: No locked tiles available - spawning directly at dst position (', gx, ',', gy, ')');
           
           // Remove placeholder if it exists (we'll spawn active tile instead)
