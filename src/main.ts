@@ -205,7 +205,7 @@ async function startAssetPreloading(): Promise<void> {
     
     // 🔥 CRITICAL: Launch screen is already initialized and STARTED in launch-screen-init.ts
     // Don't start it again here - just wait for it to complete
-    const { launchScreen } = await import('./modules/launch-screen.js');
+    const { launchScreen } = await import('./modules/launch-screen.ts');
     
     // Check if launch screen is already running (started in index.html inline script)
     const launchContainer = document.getElementById('launch-screen');
@@ -519,7 +519,7 @@ async function startAssetPreloading(): Promise<void> {
     logger.error('❌ Asset preloading failed:', String(error));
     // Ensure loader doesn't block UI if preload fails
     try { 
-      const { launchScreen } = await import('./modules/launch-screen.js');
+      const { launchScreen } = await import('./modules/launch-screen.ts');
       launchScreen.hide();
     } catch {}
     throw error;

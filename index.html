@@ -476,7 +476,7 @@
       console.log('✅ Image preloading will be handled by launch screen Phase 2');
       
       // Launch screen DOM already exists in HTML - just start the sequence
-      import('./src/modules/launch-screen.js').then(function(module) {
+      import('./src/modules/launch-screen.ts').then(function(module) {
         const launchScreen = module.launchScreen;
         console.log('🔍 About to initialize launch screen...');
         // Initialize to cache elements (DOM already exists in HTML)

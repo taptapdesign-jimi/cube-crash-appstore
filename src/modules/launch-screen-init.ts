@@ -122,7 +122,7 @@
   console.log('✅ Launch screen DOM created IMMEDIATELY (synchronously)');
   
   // Now import and start launch screen sequence (async, but DOM is already visible)
-  import('./launch-screen.js').then(({ launchScreen }) => {
+  import('./launch-screen.ts').then(({ launchScreen }) => {
     // Re-initialize to cache elements (DOM already exists)
     launchScreen.init();
     console.log('✅ Launch screen initialized (launch-screen-init.ts)');
