@@ -4987,11 +4987,11 @@ button[data-clean-board-exiting="true"]:hover,
 .primary-button[data-clean-board-exiting="true"]:focus {
   opacity: 1 !important;
   transform: translateY(20px) scale(0) !important;
-  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6), 
-              opacity 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  transition: transform 0.4s cubic-bezier(0.68, -0.6, 0.32, 1.6), 
+              opacity 0.4s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   pointer-events: none !important;
   will-change: transform, opacity !important;
   -webkit-transform: translateY(20px) scale(0) !important;
-  -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6), 
-                      opacity 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  -webkit-transition: transform 0.4s cubic-bezier(0.68, -0.6, 0.32, 1.6), 
+                      opacity 0.4s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
 }

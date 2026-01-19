@@ -523,7 +523,7 @@ export async function showCleanBoardModal({
       // 🔥 TRIPLE SAFETY: Force inline style DIRECTLY (overrides EVERYTHING including CSS)
       // This ensures button ALWAYS animates to scale(0) regardless of CSS conflicts
       button.style.setProperty('transform', 'translateY(20px) scale(0)', 'important');
-      button.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6), opacity 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+      button.style.setProperty('transition', 'transform 0.4s cubic-bezier(0.68, -0.6, 0.32, 1.6), opacity 0.4s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
       button.style.setProperty('opacity', '1', 'important');
       button.style.setProperty('pointer-events', 'none', 'important');
       button.style.setProperty('will-change', 'transform, opacity', 'important');
@@ -1122,13 +1122,13 @@ export async function showCleanBoardModal({
       requestAnimationFrame(() => {
         card.style.transform = 'scale(0.86)';
       });
-      // 🎯 Calculate duration: buttons need FULL 650ms to animate to scale(0)
+      // 🎯 Calculate duration: buttons need FULL 400ms to animate to scale(0) (FASTER exit)
       // Give EXTRA time to ensure button animation completes BEFORE card fadeout
-      const buttonExitDuration = 650; // Button animation duration
-      const extraBuffer = 400; // 🔥 INCREASED: Extra buffer to ensure smooth completion (was 200ms)
+      const buttonExitDuration = 400; // 🔥 FASTER: Button animation duration (was 650ms, now 400ms)
+      const extraBuffer = 200; // Reduced buffer since animation is faster
       const collapseDuration = secondaryBtn 
-        ? nodes.length * 60 + 50 + buttonExitDuration + extraBuffer  // With Exit button: 360 + 50 + 650 + 400 = 1460ms
-        : nodes.length * 60 + buttonExitDuration + extraBuffer;      // Without Exit button: 360 + 650 + 400 = 1410ms
+        ? nodes.length * 60 + 50 + buttonExitDuration + extraBuffer  // With Exit button: 360 + 50 + 400 + 200 = 1010ms
+        : nodes.length * 60 + buttonExitDuration + extraBuffer;      // Without Exit button: 360 + 400 + 200 = 960ms
       setTimeout(() => {
         card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
         card.style.opacity = '0';
@@ -1288,13 +1288,13 @@ export async function showCleanBoardModal({
         requestAnimationFrame(() => {
           card.style.transform = 'scale(0.86)';
         });
-        // 🎯 Calculate duration: buttons need FULL 650ms to animate to scale(0)
+        // 🎯 Calculate duration: buttons need FULL 400ms to animate to scale(0) (FASTER exit)
         // Give EXTRA time to ensure button animation completes BEFORE card fadeout
-        const buttonExitDuration = 650; // Button animation duration
-        const extraBuffer = 400; // 🔥 INCREASED: Extra buffer to ensure smooth completion (was 200ms)
+        const buttonExitDuration = 400; // 🔥 FASTER: Button animation duration (was 650ms, now 400ms)
+        const extraBuffer = 200; // Reduced buffer since animation is faster
         const collapseDuration = secondaryBtn 
-          ? nodes.length * 60 + 300 + buttonExitDuration + extraBuffer  // With Exit button: 360 + 300 + 650 + 400 = 1710ms
-          : nodes.length * 60 + buttonExitDuration + extraBuffer;        // Without Exit button: 360 + 650 + 400 = 1410ms
+          ? nodes.length * 60 + 300 + buttonExitDuration + extraBuffer  // With Exit button: 360 + 300 + 400 + 200 = 1260ms
+          : nodes.length * 60 + buttonExitDuration + extraBuffer;        // Without Exit button: 360 + 400 + 200 = 960ms
         setTimeout(() => {
           card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
           card.style.opacity = '0';
