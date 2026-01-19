@@ -518,16 +518,16 @@ function createModal(): HTMLElement {
         (window as any).triggerHapticSelection();
       }
       
-      // ⚡ ULTRA INSTANT: Start detail modal prep RIGHT NOW (before board exit!)
-      // This is the KEY - don't wait for exitToMenu, start modal IMMEDIATELY!
+      // ⚡ PERFECTLY TIMED: Wait for board exit animation, THEN start detail modal
+      // Board exit = 550ms (sweetPopOut max), so delay modal by exactly that amount
       const detailModalBoardId = (window as any).__ccDetailModalBoardId;
       if (detailModalBoardId !== null && detailModalBoardId !== undefined) {
-        console.log(`⚡ ULTRA INSTANT: Starting detail modal prep for board ${detailModalBoardId} RIGHT NOW!`);
+        console.log(`⏱️ PERFECTLY TIMED: Detail modal will start AFTER board exit (550ms delay)`);
         
-        // Preload module IMMEDIATELY (parallel with everything else)
+        // Preload module IMMEDIATELY (parallel with board exit, so it's ready when we need it)
         const journeyManagerPromise = import('./journey-boards-manager.js');
         
-        // Prepare Journey screen IMMEDIATELY
+        // Prepare Journey screen IMMEDIATELY (but keep it hidden)
         const journeyScreen = document.getElementById('journey-screen');
         if (journeyScreen) {
           journeyScreen.removeAttribute('hidden');
@@ -536,20 +536,19 @@ function createModal(): HTMLElement {
           journeyScreen.style.visibility = 'hidden';
         }
         
-        // Start detail modal enter IMMEDIATELY (truly parallel with bottom sheet exit)
-        (async () => {
+        // Wait EXACTLY 550ms (board exit duration), THEN start detail modal
+        setTimeout(async () => {
           try {
-            console.log('⚡ ULTRA INSTANT: Awaiting journey manager...');
+            console.log('⏱️ PERFECTLY TIMED: Board exit complete, starting detail modal NOW!');
             const { journeyBoardsManager } = await journeyManagerPromise;
-            console.log('⚡ ULTRA INSTANT: Calling openBoardDetailsById NOW!');
             if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
               await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
-              console.log(`✅ ULTRA INSTANT: Detail modal opened for board ${detailModalBoardId}`);
+              console.log(`✅ PERFECTLY TIMED: Detail modal opened for board ${detailModalBoardId}`);
             }
           } catch (error) {
             console.warn('⚠️ Failed to open detail modal from exit handler:', error);
           }
-        })();
+        }, 550); // Board exit animation duration (sweetPopOut max time)
       }
       
       // ⚡ SPEED OPTIMIZATION: Set flag for fast path (skip redundant modal opening in main.ts)
