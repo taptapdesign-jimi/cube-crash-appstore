@@ -189,3 +189,4 @@
 
 **Optimizacija je savršena!** Svi glavni efekti koriste object pooling, a fallback verzije (koje se rijetko koriste) su namjerno NE optimizovane zbog rendering problema sa kompleksnom geometrijom u pooling sistemu.
 
+

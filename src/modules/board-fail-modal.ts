@@ -59,6 +59,40 @@ const OVERLAY_ID = 'cc-board-fail-overlay';
 
 // 🔥 REFACTORED: Koristimo pickRandom iz clean-board-utils.ts umjesto lokalne verzije
 
+// 🔥 MEMORY LEAK FIX: Track timeouts and animation frames for cleanup
+const _failModalTimeouts = new Set<ReturnType<typeof setTimeout>>();
+const _failModalAnimationFrames = new Set<number>();
+
+function trackFailTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
+  const timeout = setTimeout(() => {
+    callback();
+    _failModalTimeouts.delete(timeout);
+  }, delay);
+  _failModalTimeouts.add(timeout);
+  return timeout;
+}
+
+function trackFailAnimationFrame(callback: (now: number) => void): number {
+  const rafId = requestAnimationFrame((now: number) => {
+    callback(now);
+    _failModalAnimationFrames.delete(rafId);
+  });
+  _failModalAnimationFrames.add(rafId);
+  return rafId;
+}
+
+function clearAllFailTimeouts(): void {
+  console.log(`🧹 Clearing ${_failModalTimeouts.size} pending timeouts from board-fail-modal`);
+  _failModalTimeouts.forEach(timeout => clearTimeout(timeout));
+  _failModalTimeouts.clear();
+}
+
+function clearAllFailAnimationFrames(): void {
+  console.log(`🧹 Clearing ${_failModalAnimationFrames.size} pending animation frames from board-fail-modal`);
+  _failModalAnimationFrames.forEach(rafId => cancelAnimationFrame(rafId));
+  _failModalAnimationFrames.clear();
+}
+
 function removeExisting(): void {
   try {
     const prev = document.getElementById(OVERLAY_ID);
@@ -68,6 +102,18 @@ function removeExisting(): void {
 
 export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModalParams = {}): Promise<BoardFailModalResult> {
   return new Promise(async (resolve) => {
+    // 🔥 MEMORY LEAK FIX: Track all event listeners for cleanup
+    const buttonEventListeners: Array<{
+      button: HTMLElement;
+      handlers: Array<{
+        event: string;
+        handler: EventListener;
+        options?: AddEventListenerOptions;
+      }>;
+    }> = [];
+    
+    // 🔥 MEMORY LEAK FIX: Flag to stop score spin animation
+    let scoreSpinActive = false;
     // 🔥 JOURNEY PROGRESSION: Handle board failure
     try {
       const { journeyProgressionState } = await import('./journey-progression-state.js');
@@ -305,7 +351,30 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 
+    // 🔥 MEMORY LEAK FIX: Cleanup function to remove all event listeners
+    const cleanupButtonListeners = (): void => {
+      buttonEventListeners.forEach(({ button, handlers }) => {
+        handlers.forEach(({ event, handler, options }) => {
+          try {
+            button.removeEventListener(event, handler, options);
+          } catch (e) {
+            console.warn(`⚠️ board-fail-modal: Failed to remove ${event} listener:`, e);
+          }
+        });
+      });
+      buttonEventListeners.length = 0;
+      console.log('✅ board-fail-modal: All button event listeners removed');
+    };
+    
     const resolveAndCleanup = (action: string): void => {
+      // 🔥 MEMORY LEAK FIX: Stop score spin animation
+      scoreSpinActive = false;
+      
+      // 🔥 MEMORY LEAK FIX: Cleanup all animations, timeouts, and event listeners
+      cleanupButtonListeners();
+      clearAllFailTimeouts();
+      clearAllFailAnimationFrames();
+      
       try { window.removeEventListener('keydown', onKey); } catch {}
       
       // CRITICAL FIX: Update high score before resolving
@@ -362,7 +431,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             overlay.style.opacity = '0';
             card.style.transform = 'scale(0.88)';
             card.style.opacity = '0';
-            setTimeout(() => { try { overlay.remove(); } catch {}; resolve({ action }); }, 220);
+            trackFailTimeout(() => { try { overlay.remove(); } catch {}; resolve({ action }); }, 220);
           } catch (error) {
             logger.warn('⚠️ Failed to check hearts, proceeding with restart anyway:', error);
             // Fallback: proceed with restart if hearts check fails
@@ -377,7 +446,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             overlay.style.opacity = '0';
             card.style.transform = 'scale(0.88)';
             card.style.opacity = '0';
-            setTimeout(() => { try { overlay.remove(); } catch {}; resolve({ action }); }, 220);
+            trackFailTimeout(() => { try { overlay.remove(); } catch {}; resolve({ action }); }, 220);
           }
         })();
         return; // Exit early - modal closing is handled above
@@ -398,7 +467,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         overlay.style.opacity = '0';
         card.style.transform = 'scale(0.88)';
         card.style.opacity = '0';
-        setTimeout(() => { try { overlay.remove(); } catch {}; resolve({ action }); }, 220);
+        trackFailTimeout(() => { try { overlay.remove(); } catch {}; resolve({ action }); }, 220);
       }
     };
 
@@ -480,13 +549,22 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         btn.style.transition = 'transform 0.35s ease';
       };
       
-      // Add event listeners
-      btn.addEventListener('touchstart', handleTouchStart, { passive: true });
-      btn.addEventListener('touchmove', handleTouchMove, { passive: true });
-      btn.addEventListener('touchend', handleTouchEnd, { passive: true });
-      btn.addEventListener('mousedown', handleMouseDown);
-      btn.addEventListener('mouseup', handleMouseUp);
-      btn.addEventListener('mouseleave', handleMouseLeave);
+      // 🔥 MEMORY LEAK FIX: Track all event listeners
+      const handlers = [
+        { event: 'touchstart', handler: handleTouchStart as EventListener, options: { passive: true } },
+        { event: 'touchmove', handler: handleTouchMove as EventListener, options: { passive: true } },
+        { event: 'touchend', handler: handleTouchEnd as EventListener, options: { passive: true } },
+        { event: 'mousedown', handler: handleMouseDown as EventListener },
+        { event: 'mouseup', handler: handleMouseUp as EventListener },
+        { event: 'mouseleave', handler: handleMouseLeave as EventListener }
+      ];
+      
+      // Add event listeners and track them
+      handlers.forEach(({ event, handler, options }) => {
+        btn.addEventListener(event, handler, options);
+      });
+      
+      buttonEventListeners.push({ button: btn, handlers });
     };
 
     addButtonPressHandling(continueBtn, () => resolveAndCleanup('retry'));
@@ -519,7 +597,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       });
 
       const schedule = (el: HTMLElement, delay: number): void => {
-        setTimeout(() => {
+        trackFailTimeout(() => {
           el.style.opacity = '1';
           el.style.transform = 'translateY(0) scale(1)';
         }, delay);
@@ -535,29 +613,46 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
 
       const finalScore = Math.max(0, Math.floor(score || 0));
       const runScoreSpin = (): void => {
+        // 🔥 MEMORY LEAK FIX: Set flag to track active animation
+        scoreSpinActive = true;
+        
         const duration = 1100;
         const digits = Math.max(3, finalScore.toString().length);
         const wobbleBase = Math.pow(10, Math.max(digits - 2, 0));
         const start = performance.now();
 
         const tick = (now: number): void => {
+          // 🔥 MEMORY LEAK FIX: Stop if scoreSpinActive is false
+          if (!scoreSpinActive) {
+            console.log('🛑 Score spin animation stopped early (cleanup called)');
+            return;
+          }
+          
           const elapsed = now - start;
           const p = Math.min(elapsed / duration, 1);
           const ease = 1 - Math.pow(1 - p, 3);
           const wobble = Math.floor((Math.random() - 0.5) * wobbleBase * 6 * (1 - ease) * 0.8);
           const value = Math.max(0, finalScore + wobble);
-          scoreValue.textContent = value.toString();
-          if (p < 1) {
-            requestAnimationFrame(tick);
+          
+          // 🔥 MEMORY LEAK FIX: Check if element still exists before updating
+          if (scoreValue && scoreValue.isConnected) {
+            scoreValue.textContent = value.toString();
+          }
+          
+          if (p < 1 && scoreSpinActive) {
+            trackFailAnimationFrame(tick);
           } else {
-            scoreValue.textContent = finalScore.toString();
+            if (scoreValue && scoreValue.isConnected) {
+              scoreValue.textContent = finalScore.toString();
+            }
+            scoreSpinActive = false;
           }
         };
 
-        requestAnimationFrame(tick);
+        trackFailAnimationFrame(tick);
       };
 
-      setTimeout(runScoreSpin, 700);
+      trackFailTimeout(runScoreSpin, 700);
     });
   });
 }

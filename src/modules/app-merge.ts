@@ -1459,8 +1459,9 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 USER BUG REPORT: Magnet + stack (2 tiles) → pulled 1 tile → should spawn 1 replacement + 1 obligatory below merge 6 + merge 6 = 3 total
   // Problem: Only 1 tile spawned instead of 2 (missing obligatory tile below merge 6)
   // Solution: Ensure we spawn pulledCells.length tiles PLUS 1 obligatory tile below merge 6
+  // 🎯 END GAME FIX: If this is last merge (magnet + 1 tile), NO spawns at all!
   const replacementSpawnCount = hasTilesToRespawn ? pulledCells.length : 0; // Spawn = number of pulled tiles (max 4)
-  const obligatorySpawnCount = 1; // ALWAYS spawn 1 tile below merge 6 (even if no tiles were pulled)
+  const obligatorySpawnCount = isLastMergeFlagSet ? 0 : 1; // NO obligatory spawn if last merge!
   const spawnCount = replacementSpawnCount + obligatorySpawnCount;
   
   console.log('🧲 Wild-magnet spawn calculation:', {

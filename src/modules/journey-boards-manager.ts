@@ -1801,9 +1801,9 @@ class JourneyBoardsManager {
 
         const cardEl = card as HTMLElement;
         if (!cardEl) {
-          this.openBoardDetails(board).catch((error) => {
-            logger.error('❌ Failed to open board details:', error);
-          });
+        this.openBoardDetails(board).catch((error) => {
+          logger.error('❌ Failed to open board details:', error);
+        });
           return;
         }
 
@@ -1989,7 +1989,7 @@ class JourneyBoardsManager {
       card.style.cursor = 'pointer';
       
       // 🔥 USER REQUEST: Add same tap animation as other cards (scale, rotation, shake, haptic)
-      const handleInterimCardTap = (e: Event) => {
+      const handleInterimCardTap = async (e: Event) => {
         try {
           e.preventDefault();
           e.stopPropagation();
@@ -2011,6 +2011,19 @@ class JourneyBoardsManager {
 
         const cardEl = card as HTMLElement;
         if (!cardEl) {
+          // 🔥 CRITICAL FIX: Check hearts BEFORE calling continueFromInterimBoard (fallback path)
+          try {
+            const { heartsSystem } = await import('./hearts-system.js');
+            if (!heartsSystem.hasHearts()) {
+              logger.info('💔 No hearts available (fallback path) - showing hearts bottom sheet');
+              const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
+              showHeartsModal();
+              return; // Stay on Journey screen!
+            }
+          } catch (error) {
+            logger.warn('⚠️ Failed to check hearts (fallback), continuing anyway:', error);
+          }
+          
           this.continueFromInterimBoard(board).catch((error) => {
             logger.error('❌ Failed to continue from interim board:', error);
           });
@@ -2031,6 +2044,21 @@ class JourneyBoardsManager {
           return;
         }
         (cardEl as any)._openingGame = true;
+
+        // 🔥 CRITICAL FIX: Check hearts BEFORE starting Journey exit animation!
+        // If no hearts, show hearts bottom sheet and DON'T exit Journey screen
+        try {
+          const { heartsSystem } = await import('./hearts-system.js');
+          if (!heartsSystem.hasHearts()) {
+            (cardEl as any)._openingGame = false; // Reset flag
+            logger.info('💔 No hearts available - showing hearts bottom sheet, NOT exiting Journey screen');
+            const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
+            showHeartsModal();
+            return; // Stay on Journey screen!
+          }
+        } catch (error) {
+          logger.warn('⚠️ Failed to check hearts, continuing anyway:', error);
+        }
 
         const journeyExitPromise = this.startJourneyExitAnimation();
 
@@ -2634,7 +2662,7 @@ class JourneyBoardsManager {
           });
         });
       }
-      
+
       // STEP 3: Header LAST (includes X, title, divider - animated as group, same as settings screen)
       // 🔥 CRITICAL: Animate header EXACTLY like enter animation - as parent element, not child elements
       // This ensures all child elements (X, title, divider) animate together as a group
@@ -2711,10 +2739,16 @@ class JourneyBoardsManager {
               immediateRender: true
             });
             
+            // 🔥 SCREEN ARTIFACTS FIX: FORCE display: none on divideri to prevent ghost artifacts
+            // Divideri ostaju vidljivi jedan frame pri brzom in/out ako display nije none!
+            if (child.classList.contains('detail-stat-divider')) {
+              child.style.setProperty('display', 'none', 'important');
+              child.style.setProperty('opacity', '0', 'important');
+              child.style.setProperty('visibility', 'hidden', 'important');
+            }
+            
             // Clear inline styles
             child.style.removeProperty('transform');
-            child.style.removeProperty('opacity');
-            child.style.removeProperty('visibility');
             child.style.removeProperty('will-change');
             
             // Reset children (icons, values, labels) to ensure they're visible next time
@@ -2757,14 +2791,9 @@ class JourneyBoardsManager {
     logger.info(`🔄 Continue from interim board ${board.id} - starting cleanup and game`);
     
     try {
-      // Step 0: Check if player has hearts available
-      const { heartsSystem } = await import('./hearts-system.js');
-      if (!heartsSystem.hasHearts()) {
-        logger.info('💔 No hearts available - showing hearts bottom sheet instead of starting game');
-        const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
-        showHeartsModal();
-        return; // Don't continue to game
-      }
+      // 🔥 REMOVED: Hearts check moved to BEFORE Journey exit animation (in handleCardTap)
+      // This prevents showing hearts bottom sheet on empty screen with Journey already exited
+      // Hearts are now checked BEFORE startJourneyExitAnimation() is called
       
       // Step 1: Stop Journey card idle bounce animations immediately
       if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
@@ -2786,7 +2815,10 @@ class JourneyBoardsManager {
       // 🔥 FIX: Also store in localStorage for persistence across game sessions
       localStorage.setItem('__ccCameFromJourney', 'true');
       localStorage.removeItem('__ccCameFromHomepage');
-      logger.info('🗺️ Marked as coming from Journey screen (interim card click) - stored in localStorage');
+      // 🔥 NEW: Mark that we came FROM INTERIM BOARD (for clean board modal logic)
+      (window as any).__ccFromInterimBoard = true;
+      try { localStorage.setItem('__ccFromInterimBoard', 'true'); } catch {}
+      logger.info('🗺️ Marked as coming from Journey screen (interim card click) + FROM INTERIM BOARD - stored in localStorage');
       
       // 🔥 APP STORE FIX: Hide homepage IMMEDIATELY before Journey exit animation
       // This prevents homepage leftover elements from showing during transition
@@ -3167,7 +3199,7 @@ class JourneyBoardsManager {
       e.preventDefault();
     };
     
-      const handleTouchEnd = () => {
+    const handleTouchEnd = () => {
       if (!isDragging) return;
       isDragging = false;
       container.style.cursor = 'grab';
@@ -3178,21 +3210,21 @@ class JourneyBoardsManager {
       if (Math.abs(currentX) < 30) {
         targetX = snapPoints[0];
       }
-      momentumAnimation = gsap.to(container, {
-        x: targetX,
+        momentumAnimation = gsap.to(container, {
+          x: targetX,
         duration: 0.5,
         ease: 'back.out(1.15)',
-        force3D: true,
-        onUpdate: () => {
-          currentX = gsap.getProperty(container, 'x') as number;
-        },
-        onComplete: () => {
-          momentumAnimation = null;
+          force3D: true,
+          onUpdate: () => {
+            currentX = gsap.getProperty(container, 'x') as number;
+          },
+          onComplete: () => {
+            momentumAnimation = null;
           // Final position update
           const finalIndex = getNearestSnapIndex(currentX);
           updateTextMarginForPosition(finalIndex);
-        }
-      });
+          }
+        });
     };
     
     // Mouse handlers for desktop
@@ -3264,16 +3296,16 @@ class JourneyBoardsManager {
       if (Math.abs(currentX) < 30) {
         targetX = snapPoints[0];
       }
-      momentumAnimation = gsap.to(container, {
-        x: targetX,
+        momentumAnimation = gsap.to(container, {
+          x: targetX,
         duration: 0.5,
         ease: 'back.out(1.15)',
-        force3D: true,
-        onUpdate: () => {
-          currentX = gsap.getProperty(container, 'x') as number;
-        },
-        onComplete: () => {
-          momentumAnimation = null;
+          force3D: true,
+          onUpdate: () => {
+            currentX = gsap.getProperty(container, 'x') as number;
+          },
+          onComplete: () => {
+            momentumAnimation = null;
           // 🔥 USER REQUEST: Update text margin after mouse swipe completes
           const finalIndex = getNearestSnapIndex(currentX);
           updateTextMarginForPosition(finalIndex);
@@ -3304,16 +3336,16 @@ class JourneyBoardsManager {
         momentumAnimation.kill();
         momentumAnimation = null;
       }
-      momentumAnimation = gsap.to(container, {
-        x: targetX,
+        momentumAnimation = gsap.to(container, {
+          x: targetX,
         duration: 0.5,
         ease: 'back.out(1.15)',
-        force3D: true,
-        onUpdate: () => {
-          currentX = gsap.getProperty(container, 'x') as number;
-        },
-        onComplete: () => {
-          momentumAnimation = null;
+          force3D: true,
+          onUpdate: () => {
+            currentX = gsap.getProperty(container, 'x') as number;
+          },
+          onComplete: () => {
+            momentumAnimation = null;
           // 🔥 USER REQUEST: Update text margin after slide completes
           const finalIndex = getNearestSnapIndex(currentX);
           updateTextMarginForPosition(finalIndex);
@@ -3361,7 +3393,7 @@ class JourneyBoardsManager {
       preloadJourneyBoardImages([board.id]).then(() => {
         logger.info(`✅ Journey board ${board.id} image preloaded in background`);
       }).catch((error) => {
-        logger.warn('⚠️ Failed to preload journey board images:', error);
+      logger.warn('⚠️ Failed to preload journey board images:', error);
       });
     } catch (error) {
       logger.warn('⚠️ Failed to import preloadJourneyBoardImages:', error);
@@ -3494,6 +3526,24 @@ class JourneyBoardsManager {
       // Keep modal invisible until enter animation kicks in (prevents flash)
       (detailModal as HTMLElement).style.visibility = 'hidden';
       (detailModal as HTMLElement).style.opacity = '0';
+      
+      // 🔥 CRITICAL FIX: Prepare divideri for enter animation (display: block, but opacity: 0)
+      // This fixes issue where divideri are missing after Exit → detail modal transition
+      // BUT keeps them invisible until enter animation starts (prevents 1-frame flash)
+      const detailStatsListEarly = detailModal.querySelector('.detail-stats-list') as HTMLElement | null;
+      if (detailStatsListEarly) {
+        const statDividersEarly = Array.from(detailStatsListEarly.querySelectorAll('.detail-stat-divider')) as HTMLElement[];
+        statDividersEarly.forEach((divider) => {
+          // Override exit animation's display: none !important
+          divider.style.setProperty('display', 'block', 'important');
+          // 🔥 SCREEN ARTIFACTS FIX: Keep opacity: 0 and visibility: hidden until enter animation starts
+          divider.style.setProperty('opacity', '0', 'important');
+          divider.style.setProperty('visibility', 'hidden', 'important');
+          divider.style.removeProperty('transform');
+        });
+        logger.info(`✅ Prepared ${statDividersEarly.length} divideri for enter animation (display: block, opacity: 0)`);
+      }
+      
       // 🔥 USER REQUEST: Mark card as viewed - stop animations forever for this card
       // Only mark unlocked cards (interim cards don't have detail modal, so they keep animating)
       if (!board.interim) {
@@ -3923,7 +3973,10 @@ class JourneyBoardsManager {
           (window as any).__ccCameFromHomepage = false;
           localStorage.setItem('__ccCameFromJourney', 'true');
           localStorage.removeItem('__ccCameFromHomepage');
-          console.log(`🎯 Marked as coming from detail modal AND Journey for board ${boardIdForPlay}`);
+          // 🔥 NEW: Mark that we came FROM REGULAR BOARD (NOT interim) for clean board modal logic
+          (window as any).__ccFromInterimBoard = false;
+          try { localStorage.removeItem('__ccFromInterimBoard'); } catch {}
+          console.log(`🎯 Marked as coming from detail modal AND Journey (REGULAR BOARD, not interim) for board ${boardIdForPlay}`);
 
           // 🔥 USER REQUEST: Check if this board has a saved state (board-specific)
           // If YES → continue saved game (resume)
@@ -3957,10 +4010,10 @@ class JourneyBoardsManager {
               
               // Call startNewRunFromJourney to create fresh board
               if (typeof (window as any).startNewRunFromJourney === 'function') {
-                await (window as any).startNewRunFromJourney(boardIdForPlay);
-                console.log(`✅ startNewRunFromJourney call completed for board ${boardIdForPlay}`);
-              } else {
-                console.error('❌ startNewRunFromJourney function NOT FOUND on window object!');
+              await (window as any).startNewRunFromJourney(boardIdForPlay);
+              console.log(`✅ startNewRunFromJourney call completed for board ${boardIdForPlay}`);
+          } else {
+            console.error('❌ startNewRunFromJourney function NOT FOUND on window object!');
                 logger.error('❌ startNewRunFromJourney function not found');
               }
             }
@@ -4192,11 +4245,13 @@ class JourneyBoardsManager {
         el.dataset.statOriginalDisplay = recordedDisplay;
         
         // 🔥 CRITICAL: Set display and transition, but let GSAP control opacity/visibility/transform (same as card)
-        el.style.display = defaultDisplay;
+        // 🔥 SCREEN ARTIFACTS FIX: Force display with !important to override previous exit's display: none !important
+        el.style.setProperty('display', defaultDisplay, 'important');
         el.style.transition = 'none';
-        // 🔥 CRITICAL: Remove any inline styles that might interfere with GSAP (same as card)
-        el.style.removeProperty('opacity');
-        el.style.removeProperty('visibility');
+        // 🔥 SCREEN ARTIFACTS FIX: Set opacity and visibility IMMEDIATELY via inline CSS (not GSAP)
+        // This prevents 1-frame flash between display:block and GSAP initialization
+        el.style.setProperty('opacity', '0', 'important');
+        el.style.setProperty('visibility', 'hidden', 'important');
         el.style.removeProperty('transform');
         el.style.transformOrigin = 'center center';
         el.style.willChange = 'transform, opacity';
@@ -4403,6 +4458,13 @@ class JourneyBoardsManager {
       // Now make modal visible and start animations
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
+          // 🔥 SCREEN ARTIFACTS FIX: Double-check divideri are hidden BEFORE making modal visible
+          const dividersBeforeVisible = detailModal.querySelectorAll('.detail-stat-divider') as NodeListOf<HTMLElement>;
+          dividersBeforeVisible.forEach((div) => {
+            div.style.setProperty('opacity', '0', 'important');
+            div.style.setProperty('visibility', 'hidden', 'important');
+          });
+          
           // Make modal visible
           detailModal.style.opacity = '1';
           detailModal.style.visibility = 'visible';
@@ -4736,9 +4798,12 @@ class JourneyBoardsManager {
             }
             statElements.forEach((el) => {
               const defaultDisplay = el.classList.contains('detail-stat-divider') ? 'block' : 'flex';
-              el.style.display = el.dataset.statOriginalDisplay || defaultDisplay;
-              el.style.opacity = '1';
-              el.style.visibility = 'visible';
+              // 🔥 SCREEN ARTIFACTS FIX: Force display with !important to override exit's display: none !important
+              el.style.setProperty('display', el.dataset.statOriginalDisplay || defaultDisplay, 'important');
+              // 🔥 SCREEN ARTIFACTS FIX: DON'T set visibility/opacity here - let GSAP handle it in animation
+              // This prevents 1-frame flash where divideri are visible before GSAP starts animating
+              // el.style.opacity = '1';
+              // el.style.visibility = 'visible';
               el.style.transform = 'none';
               el.style.willChange = 'auto';
             });
@@ -4771,12 +4836,19 @@ class JourneyBoardsManager {
               if (elementLabel) gsap.killTweensOf(elementLabel);
               if (elementContent) gsap.killTweensOf(elementContent);
               
-              element.style.opacity = '0';
-              element.style.visibility = 'hidden';
-              element.style.transform = 'scale(0)';
-              element.style.transformOrigin = 'center center';
-              element.style.transition = 'none';
-              element.style.willChange = 'transform, opacity';
+              // 🔥 SCREEN ARTIFACTS FIX: CRITICAL - Set ALL properties with !important to prevent 1-frame flash
+              // Inline stilovi sa !important override-uju SVE (čak i GSAP u prvom frame-u)
+              element.style.setProperty('opacity', '0', 'important');
+              element.style.setProperty('visibility', 'hidden', 'important');
+              element.style.setProperty('transform', 'scale(0)', 'important');
+              element.style.setProperty('transform-origin', 'center center', 'important');
+              element.style.setProperty('transition', 'none', 'important');
+              element.style.setProperty('will-change', 'transform, opacity', 'important');
+              
+              // 🔥 SCREEN ARTIFACTS FIX: FORCE display AFTER opacity/visibility to prevent flash
+              // Divideri moraju biti display: block PRIJE nego što GSAP animacija krene, ALI nakon opacity: 0!
+              const elementDefaultDisplay = element.classList.contains('detail-stat-divider') ? 'block' : 'flex';
+              element.style.setProperty('display', elementDefaultDisplay, 'important');
               
               // 🔥 CRITICAL: Reset children (icons, values, labels) - ensure they're visible
               if (elementIcon) {
@@ -4821,6 +4893,15 @@ class JourneyBoardsManager {
                   force3D: true,
                   overwrite: true,
                   onStart: () => {
+                    // 🔥 SCREEN ARTIFACTS FIX: Remove !important flags so GSAP can animate properly
+                    element.style.removeProperty('opacity');
+                    element.style.removeProperty('visibility');
+                    element.style.removeProperty('transform');
+                    element.style.removeProperty('transform-origin');
+                    element.style.removeProperty('transition');
+                    element.style.removeProperty('will-change');
+                    
+                    // Set visibility without !important
                     element.style.visibility = 'visible';
                     // 🔥 CRITICAL: Make children visible when animation starts (same as card)
                     if (elementIcon) {

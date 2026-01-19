@@ -1128,8 +1128,16 @@ async function startNewRun(boardId: number): Promise<void> {
     
     // CRITICAL: Save game state BEFORE animations and cleanup
     // This ensures game state is saved even if cleanup fails
+    // 🎯 CRITICAL FIX: Do NOT save if board was just completed (clean board)
+    // Clean board already cleared save state - we don't want to re-save it!
+    const skipSaveAfterCleanBoard = (window as any).__ccBoardJustCompleted === true;
+    if (skipSaveAfterCleanBoard) {
+      console.log('🎯 exitToMenu: Skipping saveGameState - board was just completed (clean board)');
+      delete (window as any).__ccBoardJustCompleted; // Clear flag
+    }
+    
     try {
-      if (typeof window.saveGameState === 'function') {
+      if (typeof window.saveGameState === 'function' && !skipSaveAfterCleanBoard) {
         console.log('💾 Saving game state before exit...');
         window.saveGameState();
         console.log('✅ Game state saved before exit');
@@ -1247,19 +1255,47 @@ async function startNewRun(boardId: number): Promise<void> {
     }
     
     // Step 1: Play board exit animations (tiles + HUD)
-    console.log('🎬 Playing board exit animations...');
-    try {
-      // Hide board indicator (board tag) before board exit animation
-      const { animateBoardIndicatorExit } = await import('./modules/hud-helpers.js');
-      if (typeof animateBoardIndicatorExit === 'function') {
-        animateBoardIndicatorExit(0.3);
-        console.log('✅ Board indicator exit animation started');
+    // 🎯 NEW: Skip board exit animation if flag is set (clean board scenario - no tiles to animate)
+    const shouldSkipBoardExit = (window as any).__skipBoardExitAnimation === true;
+    if (shouldSkipBoardExit) {
+      console.log('⏭️ Skipping board exit animation (clean board - no tiles)');
+      
+      // Hide board and HUD immediately (no animation)
+      try {
+        const boardContainer = document.getElementById('board-container');
+        if (boardContainer) {
+          boardContainer.style.opacity = '0';
+          boardContainer.style.visibility = 'hidden';
+          console.log('✅ Board container hidden immediately');
+        }
+        
+        // Hide board indicator immediately
+        const { animateBoardIndicatorExit } = await import('./modules/hud-helpers.js');
+        if (typeof animateBoardIndicatorExit === 'function') {
+          animateBoardIndicatorExit(0); // Duration 0 = instant hide
+          console.log('✅ Board indicator hidden immediately');
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to hide board elements:', error);
       }
       
-      await animateBoardExit();
-      console.log('✅ Board exit animations completed');
-    } catch (error) {
-      console.warn('⚠️ Board exit animation failed:', error);
+      // Clear flag after use
+      delete (window as any).__skipBoardExitAnimation;
+    } else {
+      console.log('🎬 Playing board exit animations...');
+      try {
+        // Hide board indicator (board tag) before board exit animation
+        const { animateBoardIndicatorExit } = await import('./modules/hud-helpers.js');
+        if (typeof animateBoardIndicatorExit === 'function') {
+          animateBoardIndicatorExit(0.3);
+          console.log('✅ Board indicator exit animation started');
+        }
+        
+        await animateBoardExit();
+        console.log('✅ Board exit animations completed');
+      } catch (error) {
+        console.warn('⚠️ Board exit animation failed:', error);
+      }
     }
     
     // Step 2: Kill ALL GSAP tweens immediately after animations complete

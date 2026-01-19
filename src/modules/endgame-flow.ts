@@ -160,7 +160,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       console.warn('⚠️ endgame-flow: Failed to save completed board state:', error);
     }
     
-    await showCleanBoardModal({ 
+    const modalResult = await showCleanBoardModal({ 
       app, stage,
       getScore: ctx.getScore,
       setScore: ctx.setScore,
@@ -175,11 +175,132 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       boardNumber,
     });
     
+    console.log(`🎯 endgame-flow: Clean board modal closed with action: ${modalResult?.action}`);
+    logger.info(`🎯 endgame-flow: Clean board modal result: ${modalResult?.action}`);
+    
+    // 🔥 NEW LOGIC: Handle different actions from clean board modal
+    if (modalResult?.action === 'exit') {
+      // User clicked "Exit" → return DIRECTLY to detail modal (not Journey screen)
+      console.log('🚪 endgame-flow: Exit action - returning DIRECTLY to detail modal');
+      logger.info(`🚪 endgame-flow: Exit action - opening detail modal for board ${boardNumber}`);
+      
+      try {
+        // Get final score AFTER modal has updated it (modal adds bonus and sets final score)
+        const finalScore = ctx.getScore ? ctx.getScore() : 0;
+        
+        // 🏆 Update board high score before exiting
+        try {
+          const { boardStatsService } = await import('../services/board-stats-service.js');
+          const isNewHigh = boardStatsService.updateBoardHighScore(boardNumber, finalScore);
+          if (isNewHigh) {
+            logger.info(`🏆 New board ${boardNumber} high score after clean board (Exit): ${finalScore}`);
+            window.dispatchEvent(new CustomEvent('cc-board-highscore-updated', {
+              detail: { boardId: boardNumber, highScore: finalScore }
+            }));
+          }
+        } catch (error) {
+          logger.warn('⚠️ Failed to update board high score before Exit:', error);
+        }
+        
+        // 🔥 CRITICAL: Set flags to return DIRECTLY to detail modal (skip Journey screen)
+        (window as any).__ccCameFromDetailModal = true;
+        (window as any).__ccDetailModalBoardId = boardNumber;
+        console.log(`🎯 Set flags for direct detail modal return: board ${boardNumber}`);
+        
+        // 🎯 CRITICAL: Clear board save state BEFORE opening detail modal
+        // This ensures "Play" button shows instead of "Continue" (board was completed, nothing to continue)
+        try {
+          const { clearBoardSaveState, hasSavedStateForBoard } = await import('../utils/board-save-utils.js');
+          
+          // Check before clearing
+          const hadSavedState = hasSavedStateForBoard(boardNumber);
+          console.log(`🔍 endgame-flow: Board ${boardNumber} has saved state BEFORE clear: ${hadSavedState}`);
+          
+          // Clear board save state
+          clearBoardSaveState(boardNumber);
+          console.log(`✅ endgame-flow: Cleared board save state for board ${boardNumber}`);
+          
+          // Verify it was cleared
+          const stillHasSavedState = hasSavedStateForBoard(boardNumber);
+          console.log(`🔍 endgame-flow: Board ${boardNumber} has saved state AFTER clear: ${stillHasSavedState}`);
+          
+          // Also clear any completion flags that might interfere
+          localStorage.removeItem('cc_board_completed');
+          console.log(`✅ endgame-flow: Cleared cc_board_completed flag`);
+          
+          if (stillHasSavedState) {
+            console.error(`❌ CRITICAL: Failed to clear saved state for board ${boardNumber}!`);
+          }
+        } catch (error) {
+          logger.warn('⚠️ Failed to clear board save state before opening detail modal:', error);
+        }
+        
+        // 🎯 NEW: Skip board exit animation because board is clean (no tiles to animate)
+        // This prevents animating an empty board which looks weird (only HUD moves)
+        (window as any).__skipBoardExitAnimation = true;
+        console.log('🎯 Set flag to skip board exit animation (clean board - no tiles)');
+        
+        // Call exitToMenu which will detect these flags and open detail modal directly
+        if (typeof (window as any).exitToMenu === 'function') {
+          await (window as any).exitToMenu();
+        }
+      } catch (error) {
+        console.error('❌ endgame-flow: Failed to exit to detail modal:', error);
+        logger.error('❌ endgame-flow: Failed to exit to detail modal:', error);
+      }
+      
+      return; // Exit function - don't continue to next board
+    }
+    
+    if (modalResult?.action === 'play-again') {
+      // User clicked "Play Again" → restart current board
+      console.log('🔁 endgame-flow: Play Again action - restarting current board');
+      logger.info(`🔁 endgame-flow: Play Again action - restarting board ${boardNumber}`);
+      
+      try {
+        // Clear board save state for fresh restart
+        const { clearBoardSaveState } = await import('../utils/board-save-utils.js');
+        clearBoardSaveState(boardNumber);
+        console.log(`✅ endgame-flow: Cleared saved state for board ${boardNumber} before Play Again`);
+        
+        // Get final score AFTER modal has updated it (modal adds bonus and sets final score)
+        const finalScore = ctx.getScore ? ctx.getScore() : 0;
+        
+        // 🏆 Update board high score before restarting
+        try {
+          const { boardStatsService } = await import('../services/board-stats-service.js');
+          const isNewHigh = boardStatsService.updateBoardHighScore(boardNumber, finalScore);
+          if (isNewHigh) {
+            logger.info(`🏆 New board ${boardNumber} high score after clean board (Play Again): ${finalScore}`);
+            window.dispatchEvent(new CustomEvent('cc-board-highscore-updated', {
+              detail: { boardId: boardNumber, highScore: finalScore }
+            }));
+          }
+        } catch (error) {
+          logger.warn('⚠️ Failed to update board high score before Play Again:', error);
+        }
+        
+        // Restart current board (fresh start)
+        if (typeof (window as any).startNewRunFromJourney === 'function') {
+          await (window as any).startNewRunFromJourney(boardNumber);
+          console.log(`✅ endgame-flow: Restarted board ${boardNumber} via startNewRunFromJourney`);
+        } else {
+          console.error('❌ endgame-flow: startNewRunFromJourney function not found');
+        }
+      } catch (error) {
+        console.error('❌ endgame-flow: Failed to restart board:', error);
+        logger.error('❌ endgame-flow: Failed to restart board:', error);
+      }
+      
+      return; // Exit function - don't continue to next board
+    }
+    
+    // Default: 'continue' action (interim boards or fallback)
     // CRITICAL: Wait for clean board modal to close (user clicked Continue)
     // Only then start the next board
     // Get final score AFTER modal has updated it (modal adds bonus and sets final score)
     const finalScore = ctx.getScore ? ctx.getScore() : 0;
-    logger.info(`🎯 endgame-flow: current level: ${level}, next level: ${nextLevel}, final score: ${finalScore}`);
+    logger.info(`🎯 endgame-flow: Continue action - current level: ${level}, next level: ${nextLevel}, final score: ${finalScore}`);
 
     // 🏆 BOARD-SPECIFIC HIGH SCORE (clean board)
     try {

@@ -3598,12 +3598,15 @@ function merge(src, dst, helpers){
     
     // 🔥 USER REQUEST: Check for last merge scenarios
     // 1. Wild + regular → merge 6 (only 2 tiles) = clean board
-    // 2. Regular + regular → merge 6 (only 2 tiles, e.g. 4+2=6) = clean board
-    // 3. Regular + regular → stack (only 2 tiles, e.g. 3+2=5) = fail screen (handled in post-merge check)
+    // 2. Wild-magnet + regular → merge 6 (only 2 tiles) = clean board (NO pull, NO spawn)
+    // 3. Wild-beer + regular → merge 6 (only 2 tiles) = clean board
+    // 4. Regular + regular → merge 6 (only 2 tiles, e.g. 4+2=6) = clean board
+    // 5. Regular + regular → stack (only 2 tiles, e.g. 3+2=5) = fail screen (handled in post-merge check)
     const srcSpecialForCheck = src?.special;
     const dstSpecialForCheck = dst?.special;
     const oneIsWildForCheck = (srcSpecialForCheck === 'wild' || dstSpecialForCheck === 'wild' || 
-                              srcSpecialForCheck === 'wild-beer' || dstSpecialForCheck === 'wild-beer');
+                              srcSpecialForCheck === 'wild-beer' || dstSpecialForCheck === 'wild-beer' ||
+                              srcSpecialForCheck === 'wild-magnet' || dstSpecialForCheck === 'wild-magnet'); // 🔥 MAGNET END GAME FIX
     const bothAreRegular = !srcSpecialForCheck && !dstSpecialForCheck && 
                           (src.value|0) > 0 && (dst.value|0) > 0;
     
@@ -3628,14 +3631,19 @@ function merge(src, dst, helpers){
     
     // If this is last merge (wild + regular OR regular + regular → merge 6 with only 2 tiles), reset wild meter and skip addWildProgress
     // 🔥 CRITICAL FIX: Don't mark as last merge if wild-magnet will pull tiles (new tiles will spawn)
-    // Check if hasTilesToPull was already calculated (from merge-6 block) or use preliminary check
+    // 🔥 END GAME FIX: If only 2 tiles on board (magnet + 1 tile), magnet CANNOT pull (nothing to pull!)
+    // So willPullTiles = false even if magnet is involved
+    const cannotPullDueToEndGame = isWildMagnetMerge && visibleTilesCountBeforeWildProgress === 2; // Only 2 tiles = nothing to pull!
+    
+    // 🔥 CRITICAL FIX: Check cannotPullDueToEndGame FIRST before checking hasTilesToPullValue
+    // If cannotPullDueToEndGame is true, willPullTiles = false REGARDLESS of hasTilesToPullValue
+    // This prevents magnet from pulling when it's the last 2 tiles on board
     const hasTilesToPullValue = (dst as any)?._hasTilesToPull;
-    // 🔥 CRITICAL: willPullTiles is calculated here - if hasTilesToPull was already calculated, use it; otherwise use preliminary check
-    const willPullTiles = isWildMagnetMerge && effSum === 6 && (hasTilesToPullValue !== false); // Only merge 6 triggers pull, and only if hasTilesToPull is not false
+    const willPullTiles = !cannotPullDueToEndGame && isWildMagnetMerge && effSum === 6 && (hasTilesToPullValue !== false); // Only merge 6 triggers pull, and only if not end game
     const isActuallyLastMerge = (isWildLastTwoForCheck || isRegularLastTwoMerge6) && !willPullTiles;
     
     if (isActuallyLastMerge) {
-      const mergeType = isWildLastTwoForCheck ? 'Wild + regular' : 'Regular + regular';
+      const mergeType = isWildLastTwoForCheck ? (isWildMagnetMerge ? 'Wild-magnet + regular' : 'Wild + regular') : 'Regular + regular';
       console.log(`🚨🚨🚨 LAST MERGE DETECTED (early check) - ${mergeType} → merge 6, resetting wild meter and skipping addWildProgress`);
       console.log('🚨 Details:', { 
         isWildLastTwoForCheck,
@@ -3647,6 +3655,7 @@ function merge(src, dst, helpers){
         srcValue: src.value,
         dstValue: dst.value,
         isWildMagnetMerge,
+        cannotPullDueToEndGame,
         willPullTiles
       });
       // Reset wild meter to prevent wild spawn
@@ -4225,25 +4234,39 @@ function merge(src, dst, helpers){
     const isWildMagnetMerge = (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet');
     let hasTilesToPull = false;
     if (isWildMagnetMerge) {
-      // 🔥 NEW LOGIC: Count magnets and regular tiles on board
+      // 🎯 CRITICAL FIX: Count magnets INCLUDING their stackDepth!
+      // Example: magnet with depth 1 + regular tile with depth 2 = 3 total tiles (not 2!)
       const magnetsOnBoard = activeTilesBeforeMerge.filter((t: any) => t.special === 'wild-magnet').length;
       const regularTilesOnBoard = activeTilesBeforeMerge.filter((t: any) => 
         t.special !== 'wild-magnet' && t.special !== 'wild' && (t.value|0) > 0
       ).length;
-      const totalActiveTiles = activeTilesBeforeMerge.length;
+      
+      // 🎯 USE activeTilesCount (includes stackDepth) instead of activeTilesBeforeMerge.length
+      const totalActiveTiles = activeTilesCount; // Already calculated above with stackDepth!
       
       console.log('🧲 Magnet pull logic check:', {
         magnetsOnBoard,
         regularTilesOnBoard,
         totalActiveTiles,
+        physicalTiles: activeTilesBeforeMerge.length,
         srcSpecial,
         dstSpecial
       });
       
       // 🔥 CRITICAL: ONLY special case where magnet behaves like wild (NO pull):
-      // 1 magnet + 1 regular tile (last 2 tiles) → NO pull, behaves like wild
+      // 1 magnet + 1 regular tile (last 2 tiles TOTAL including depth) → NO pull, behaves like wild
       // ALL other cases (including 2 magnets + 1 tile) → magnet pulls normally
       const isOneMagnetOneTile = magnetsOnBoard === 1 && regularTilesOnBoard === 1 && totalActiveTiles === 2;
+      
+      console.log('🧲 MAGNET PULL CHECK:', {
+        magnetsOnBoard,
+        regularTilesOnBoard,
+        totalActiveTiles,
+        physicalTiles: activeTilesBeforeMerge.length,
+        isOneMagnetOneTile,
+        srcSpecial,
+        dstSpecial
+      });
       
       if (isOneMagnetOneTile) {
         hasTilesToPull = false;
@@ -4617,6 +4640,62 @@ function merge(src, dst, helpers){
     // SAFETY: prepare cleanup reference for magnet pulls (assigned inside block)
     let cleanupAllPullAnimations: () => void = () => {};
 
+    // 🔥 END GAME FIX: Check if this is the LAST MOVE (only 2 tiles: magnet + 1 tile)
+    // If so, this is merge-6 WITHOUT spawn, WITHOUT pull - automatic clean board!
+    // 🎯 CRITICAL: Must count TOTAL tiles including stackDepth (not just physical tiles!)
+    const activeTilesBeforeMergeMagnet = STATE.tiles.filter((t: any) => 
+      t && !t.destroyed && !t.locked && ((t.value | 0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer')
+    );
+    
+    // 🎯 CRITICAL FIX: Count TOTAL tiles including stackDepth!
+    // Example: magnet (depth 1) + stack(value 3, depth 2) = 2 physical tiles BUT 3 total tiles!
+    // We need EXACTLY 2 TOTAL tiles (not physical) for last move scenario
+    const totalTilesIncludingDepth = activeTilesBeforeMergeMagnet.reduce((sum, t) => {
+      const depth = t.stackDepth || 1;
+      return sum + depth;
+    }, 0);
+    
+    const isLastMoveScenario = totalTilesIncludingDepth === 2 && isWildMagnet;
+    
+    // 🔥 DEBUG: Log detailed info for troubleshooting
+    if (isWildMagnet) {
+      console.log('🧲🧲🧲 MAGNET MERGE DEBUG:', {
+        physicalTiles: activeTilesBeforeMergeMagnet.length,
+        totalTilesIncludingDepth,
+        isLastMoveScenario,
+        srcValue: src.value,
+        srcSpecial: srcSpecial,
+        srcDepth: src.stackDepth || 1,
+        dstValue: dst.value,
+        dstSpecial: dstSpecial,
+        dstDepth: dst.stackDepth || 1,
+        tilesDetails: activeTilesBeforeMergeMagnet.map((t: any) => ({
+          value: t.value,
+          special: t.special,
+          depth: t.stackDepth || 1,
+          locked: t.locked
+        }))
+      });
+    }
+    
+    if (isLastMoveScenario) {
+      console.log('🎯🎯🎯 END GAME: Last 2 tiles (magnet + tile) = MERGE-6 without spawn!');
+      console.log('🎯 Marking as last merge - no pull, no spawn, direct to clean board');
+      
+      // Mark this as last merge (skip all spawns, go to clean board)
+      if (dst && !dst.destroyed) {
+        (dst as any)._isLastMerge = true;
+        (dst as any)._skipMagnetPull = true; // Skip magnet pull animation
+        (dst as any)._noTilesPulled = true; // Mark explicitly that no tiles were pulled
+        (dst as any)._hasTilesToPull = false; // CRITICAL: Override hasTilesToPull for safety
+        console.log('✅ Last merge flag set on dst tile - pull animation will be skipped');
+      }
+      
+      // 🎯 CRITICAL: Set multiplier to 0 (NO spawns for last merge - clean board!)
+      mult = 0;
+      console.log('🎯 Set mult = 0 to prevent ANY spawns (clean board scenario)');
+    }
+    
     // 🧲 WILD-MAGNET: Find and pull up to 4 nearest tiles IMMEDIATELY when merge 6 starts
     // This happens BEFORE the merge animation completes
     // Works for BOTH: magnet on tile AND tile on magnet
@@ -4628,7 +4707,8 @@ function merge(src, dst, helpers){
       console.log('🧲 Magnet behaves like wild (hasTilesToPull=false) - merge 6 tile will be removed normally in onComplete callback');
     }
     
-    if (isWildMagnet && hasTilesToPull && dst && !dst.destroyed && !dst.locked && (dst.value | 0) > 0) {
+    // 🔥 END GAME FIX: Skip pull animation if this is last move scenario
+    if (isWildMagnet && hasTilesToPull && dst && !dst.destroyed && !dst.locked && (dst.value | 0) > 0 && !isLastMoveScenario) {
       // 🔥 CRITICAL FIX: Reset flag if previous pull completed but flag wasn't reset
       // This fixes the bug where newly spawned magnet can't pull because flag is still true
       // Check if there are any active pull animations - if not, reset flag
@@ -4738,9 +4818,12 @@ function merge(src, dst, helpers){
       }
       
       // Update multiplier based on number of pulled tiles (max 4x)
-      if (nearestTiles.length > 0) {
+      // 🎯 CRITICAL: Do NOT override mult if this is last move scenario (mult = 0 for clean board)
+      if (nearestTiles.length > 0 && !isLastMoveScenario) {
         mult = Math.min(4, nearestTiles.length + 1); // +1 for the main merge, max 4x
         console.log('🧲 Updated multiplier to', mult, 'x (based on', nearestTiles.length, 'pulled tiles)');
+      } else if (isLastMoveScenario) {
+        console.log('🎯 KEEPING mult = 0 (last move scenario - clean board, NO spawn override!)');
       }
       
       if (nearestTiles.length > 0) {

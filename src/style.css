@@ -1060,7 +1060,13 @@ body{
 .slide-button.tap-scale.animate-exit,
 .slide-button.menu-btn-primary.animate-exit,
 .cta-btn.animate-exit,
-.slide-button.cta-btn.animate-exit {
+.slide-button.cta-btn.animate-exit,
+.bottom-sheet-cta.animate-exit,
+.restart-btn.animate-exit,
+.exit-btn.animate-exit,
+.exit-btn.animate-exit:active,
+.exit-btn.animate-exit:focus,
+.exit-btn.animate-exit:focus-visible {
   will-change: transform !important;
   transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
   transform: translateY(20px) scale(0) !important; /* 🔥 USER REQUEST: Spušteno za 8px (12px + 8px = 20px) - samo CTA */
@@ -1296,6 +1302,20 @@ body{
   transform: scale(0.80) !important; /* Scale down much more */
   transition: transform 0.35s ease !important; /* Longer transition */
   -webkit-tap-highlight-color: transparent !important; /* Remove mobile tap highlight */
+}
+
+/* 🔥 CRITICAL: Override ALL .exit-btn styles when animate-exit is present */
+/* This MUST come AFTER all other .exit-btn selectors to have highest priority */
+.exit-btn.animate-exit,
+.exit-btn.animate-exit:active,
+.exit-btn.animate-exit:focus,
+.exit-btn.animate-exit:focus-visible,
+.exit-btn.animate-exit:hover {
+  will-change: transform !important;
+  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  transform: translateY(20px) scale(0) !important;
+  -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  -webkit-transform: translateY(20px) scale(0) !important;
 }
 
 /* Bottom sheet shimmer timing - using working-shimmer animation */
@@ -4569,6 +4589,23 @@ body:has(:root) .tile.wild-3d-glow {
   box-shadow: 0 8px 0 0 #E9DCD6;
 }
 
+/* 🔥 FINAL OVERRIDE: Exit button animate-exit - THIS IS THE LAST .exit-btn SELECTOR */
+/* MUST come AFTER ALL other .exit-btn selectors to have highest CSS cascade priority */
+.exit-btn.animate-exit,
+.exit-btn.animate-exit:active,
+.exit-btn.animate-exit:focus,
+.exit-btn.animate-exit:focus-visible,
+.exit-btn.animate-exit:hover,
+.exit-btn.animate-exit:active:not(:disabled),
+.exit-btn.animate-exit:focus:not(:disabled),
+.exit-btn.animate-exit:hover:not(:disabled) {
+  will-change: transform !important;
+  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  transform: translateY(20px) scale(0) !important;
+  -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  -webkit-transform: translateY(20px) scale(0) !important;
+}
+
 /* ===== SETTINGS SCREEN ===== */
 #settings-screen {
   position: fixed;
@@ -4860,4 +4897,21 @@ body:has(:root) .tile.wild-3d-glow {
 
 .settings-toggle-switch input:checked + .settings-toggle-slider:before {
   transform: translateX(20px);
+}
+
+/* 🔥 CRITICAL OVERRIDE: Exit button animate-exit MUST be at the END to override ALL other .exit-btn selectors */
+/* This ensures exit animation works properly without conflicts from :active/:focus/:hover states */
+.exit-btn.animate-exit,
+.exit-btn.animate-exit:active,
+.exit-btn.animate-exit:focus,
+.exit-btn.animate-exit:focus-visible,
+.exit-btn.animate-exit:hover,
+.exit-btn.animate-exit:active:not(:disabled),
+.exit-btn.animate-exit:focus:not(:disabled),
+.exit-btn.animate-exit:hover:not(:disabled) {
+  will-change: transform !important;
+  transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  transform: translateY(20px) scale(0) !important;
+  -webkit-transition: transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6) !important;
+  -webkit-transform: translateY(20px) scale(0) !important;
 }

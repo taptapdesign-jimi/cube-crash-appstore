@@ -5,10 +5,10 @@
 
 import { gsap } from 'gsap';
 import { createConfettiExplosion } from './confetti-system.js';
-import { statsService } from '../services/stats-service.ts';
-import { boardStatsService } from '../services/board-stats-service.ts';
+import { statsService } from '../services/stats-service.js';
+import { boardStatsService } from '../services/board-stats-service.js';
 import { pickRandom } from './clean-board-utils.js';
-import { formatScoreSimple } from './hud-utils.ts';
+import { formatScoreSimple } from './hud-utils.js';
 
 const HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
@@ -32,9 +32,12 @@ interface ShowCleanBoardModalParams {
   setScore?: (score: number) => void;
   animateScore?: (score: number, duration?: number) => void;
   updateHUD?: () => void;
-  bonus?: number;
+  bonus?: number; // Legacy support - if provided, split into combo (50%) and efficiency (50%)
+  comboBonus?: number; // 🎯 NEW: Combo bonus (combo count × 50)
+  efficiencyBonus?: number; // 🎯 NEW: Efficiency bonus (stack + efficiency + special + clean)
   scoreCap?: number;
   boardNumber?: number;
+  forcedStars?: number;
 }
 
 // 🔥 REFACTORED: Koristimo pickRandom iz clean-board-utils.ts umjesto lokalne verzije
@@ -81,16 +84,60 @@ export async function showCleanBoardModal({
   setScore, 
   animateScore, 
   updateHUD, 
-  bonus = 500, 
+  bonus = 500, // Legacy support - if provided, split into combo (50%) and efficiency (50%)
+  comboBonus, // NEW: Combo bonus (combo count × 50)
+  efficiencyBonus, // NEW: Efficiency bonus (stack + efficiency + special + clean)
   scoreCap = 999999, 
-  boardNumber = 1
+  boardNumber = 1,
+  forcedStars
 }: ShowCleanBoardModalParams = {}): Promise<{ action: string }> {
   return new Promise(async resolve => {
-    // Calculate score values early for high score check
+    // 🌟 Add CSS animations for star breathing
+    if (!document.getElementById('clean-board-star-animations')) {
+      const style = document.createElement('style');
+      style.id = 'clean-board-star-animations';
+      style.textContent = `
+        /* 🌟 Breathing animation for filled stars (inhale/exhale like lungs) - 25% stronger! */
+        @keyframes starBreathing {
+          0%, 100% {
+            transform: scale(0.88); /* Shrink by 12% (inhale) */
+          }
+          50% {
+            transform: scale(1.25); /* Expand by 25% (exhale) - much more dramatic! */
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    // 🎯 NEW: Calculate 2-step bonus system
+    // Get longest combo for this board
+    const boardStats = boardStatsService?.getBoardStats?.(boardNumber) || {};
+    const longestCombo = boardStats.longestCombo || 0;
+    
+    // Calculate combo bonus: longestCombo × 50
+    const calculatedComboBonus = longestCombo * 50;
+    
+    // If comboBonus/efficiencyBonus not provided, calculate them
+    // Combo: Always use calculated value (longestCombo × 50)
+    // Efficiency: Use legacy bonus if not provided explicitly
+    const safeComboBonus = Math.max(0, (comboBonus !== undefined ? comboBonus : calculatedComboBonus) | 0);
+    const safeEfficiencyBonus = Math.max(0, (efficiencyBonus !== undefined ? efficiencyBonus : (bonus || 500)) | 0);
+    const totalBonus = safeComboBonus + safeEfficiencyBonus;
+    
+    console.log('🎯 Bonus calculation:', {
+      longestCombo,
+      calculatedComboBonus,
+      finalComboBonus: safeComboBonus,
+      efficiencyBonus: safeEfficiencyBonus,
+      totalBonus
+    });
+    
+    // Calculate score values
     const rawCurrent = typeof getScore === 'function' ? (getScore()|0) : 0;
-    const safeBonus = Math.max(0, bonus | 0);
     const currentScore = Math.max(0, rawCurrent);
-    const finalScore = Math.min(scoreCap, currentScore + safeBonus);
+    const scoreAfterCombo = Math.min(scoreCap, currentScore + safeComboBonus);
+    const finalScore = Math.min(scoreCap, scoreAfterCombo + safeEfficiencyBonus);
     
     // Get previous best score (board-specific first, then legacy/global fallback)
     const getBestScore = (): number => {
@@ -134,9 +181,11 @@ export async function showCleanBoardModal({
     
     console.log('🏆 High score check:', {
       currentScore,
+      comboBonus: safeComboBonus,
+      efficiencyBonus: safeEfficiencyBonus,
+      totalBonus,
       previousBestScore,
       finalScore,
-      bonus: safeBonus,
       isNewHighScore
     });
     
@@ -155,7 +204,8 @@ export async function showCleanBoardModal({
       'background:#f3eee8',
       'z-index:10000000000000',
       'opacity:0',
-      'transition:opacity .2s ease'
+      'transition:opacity .2s ease',
+      'overflow:visible' // Allow particles to float freely
     ].join(';');
 
     // Card
@@ -173,50 +223,105 @@ export async function showCleanBoardModal({
       'display:flex',
       'flex-direction:column',
       'align-items:center',
-      'gap:40px'
+      'gap:40px',
+      'overflow:visible' // Allow particles to float freely
     ].join(';');
 
-    // Hero
-    const hero = document.createElement('img');
-    hero.alt = 'Board cleared';
-    // 🔥 CRITICAL FIX: Remove transform:scale(1) from initial CSS to allow proper animation
-    // transform will be set by setInit() and animation sequence
-    hero.style.cssText = 'width:min(240px,70vw);height:auto;display:block;margin:0 auto 0 auto;';
+    // 🌟 NEW: Stars Container (3 stars: empty + filled on top based on score)
+    const starsContainer = document.createElement('div');
+    starsContainer.style.cssText = [
+      'display:flex',
+      'align-items:center',
+      'justify-content:center',
+      'gap:16px', // 🌟 16px razmak između zvjezdica
+      'width:min(280px,80vw)',
+      'height:auto',
+      'margin:0 auto',
+      'overflow:visible' // Allow particles to float outside container
+    ].join(';');
     
-    // 🔥 CRITICAL FIX v40.8: Wait for image to load AND be in DOM before setting up animation
-    // This ensures the image is rendered in DOM before we apply transform animations
-    let heroImageLoaded = false;
-    const setupHeroAnimation = () => {
-      if (heroImageLoaded) return;
+    // 🌟 NEW: Calculate number of stars based on FINAL score (after BOTH bonuses!)
+    const computedStars = finalScore < 1000 ? 1 : finalScore < 3000 ? 2 : 3;
+    const numStars = Number.isFinite(forcedStars)
+      ? Math.min(3, Math.max(1, forcedStars as number))
+      : computedStars;
+    console.log(`🌟 Base Score: ${currentScore}, Combo: +${safeComboBonus}, Efficiency: +${safeEfficiencyBonus}, Final: ${finalScore}, Stars: ${numStars}`);
+    
+    // Create 3 star containers (each has empty star + filled star on top)
+    const starElements: Array<{ 
+      container: HTMLElement; 
+      emptyImg: HTMLImageElement; 
+      filledImg: HTMLImageElement;
+    }> = [];
+    
+    for (let i = 0; i < 3; i++) {
+      // Star container (holds both empty and filled)
+      const starContainer = document.createElement('div');
       
-      // 🔥 CRITICAL: Only setup animation if hero is in DOM
-      // Transform animations don't work properly on elements not in DOM
-      if (!hero.parentElement) {
-        // Hero not in DOM yet - will be set up after it's added
-        return;
+      // 🌟 NEW: Apply rotation and position based on star index
+      // Left star (i=0): -8° rotation
+      // Middle star (i=1): translateY -16px (16px higher than left/right)
+      // Right star (i=2): +8° rotation
+      let transformStyle = '';
+      if (i === 0) {
+        transformStyle = 'rotate(-8deg)'; // Left: counter-clockwise
+      } else if (i === 1) {
+        transformStyle = 'translateY(-16px)'; // Middle: 16px higher (8 + 8 = 16px)
+      } else if (i === 2) {
+        transformStyle = 'rotate(8deg)'; // Right: clockwise
       }
       
-      heroImageLoaded = true;
+      starContainer.style.cssText = [
+        'position:relative',
+        'width:clamp(60px, 20vw, 90px)',
+        'height:clamp(60px, 20vw, 90px)',
+        'flex-shrink:0',
+        `transform:${transformStyle}`,
+        'overflow:visible' // Allow particles to float outside star bounds
+      ].join(';');
       
-      // Now that image is loaded and in DOM, set initial state for animation
-      setInit(hero, -25, 0);
-    };
+      // Empty star (always visible, background layer)
+      const emptyStar = document.createElement('img');
+      emptyStar.src = './assets/modals/star-empty.png';
+      emptyStar.alt = 'Empty star';
+      emptyStar.style.cssText = [
+        'position:absolute',
+        'inset:0',
+        'width:100%',
+        'height:100%',
+        'object-fit:contain',
+        'z-index:1'
+      ].join(';');
+      
+      // Filled star (on top, hidden initially, will bounce in)
+      const filledStar = document.createElement('img');
+      filledStar.src = './assets/modals/star.png';
+      filledStar.alt = 'Filled star';
+      filledStar.style.cssText = [
+        'position:absolute',
+        'inset:0',
+        'width:100%',
+        'height:100%',
+        'object-fit:contain',
+        'z-index:2',
+        'opacity:0',
+        'transform:scale(0)',
+        'transition:none'
+      ].join(';');
+      
+      starContainer.appendChild(emptyStar); // z:1 - back
+      starContainer.appendChild(filledStar); // z:2 - front
+      starsContainer.appendChild(starContainer);
+      
+      starElements.push({
+        container: starContainer,
+        emptyImg: emptyStar,
+        filledImg: filledStar
+      });
+    }
     
-    hero.onload = () => {
-      setupHeroAnimation();
-    };
-    
-    hero.src = './assets/clean-board.png';
-    
-    // If image is already cached, onload might not fire - check complete property
-    // But only after hero is added to DOM (will be checked later)
-
-    // Add error handling for image
-    hero.onerror = () => {
-      // Fallback to a simple div - also remove transform to allow animation
-      hero.style.cssText = 'width:min(260px,46vw);height:min(260px,46vw);background:#4CAF50;border-radius:20px;display:block;margin:0 auto 24px auto;';
-      setupHeroAnimation(); // Setup animation even for fallback
-    };
+    // Use starsContainer as hero for animation purposes
+    const hero = starsContainer;
 
     // Content stacks replicate design spacing (hero + text)
     const infoStack = document.createElement('div');
@@ -224,8 +329,9 @@ export async function showCleanBoardModal({
       'display:flex',
       'flex-direction:column',
       'align-items:center',
-      'gap:32px',
-      'width:100%'
+      'gap:48px', // 🌟 48px spacing between stars and title (56 - 8 = 48px)
+      'width:100%',
+      'overflow:visible' // Allow particles to float outside
     ].join(';');
 
     const textCluster = document.createElement('div');
@@ -282,8 +388,9 @@ export async function showCleanBoardModal({
       '-webkit-transform: none'
     ].join(';');
 
-    const bonusWrapper = document.createElement('div');
-    bonusWrapper.style.cssText = [
+    // 🎯 NEW: Combo Bonus Wrapper (shows first)
+    const comboWrapper = document.createElement('div');
+    comboWrapper.style.cssText = [
       'position:absolute',
       'display:flex',
       'flex-direction:column',
@@ -294,20 +401,45 @@ export async function showCleanBoardModal({
       'width:100%'
     ].join(';');
 
-    const bonusValue = document.createElement('div');
-    bonusValue.textContent = `+${bonus}`;
-    bonusValue.style.cssText = 'color:#E77449;font-weight:800;font-size:36px;line-height:1;';
+    const comboValue = document.createElement('div');
+    comboValue.textContent = `+${safeComboBonus}`;
+    comboValue.style.cssText = 'color:#E77449;font-weight:800;font-size:36px;line-height:1;';
 
-    const bonusLabel = document.createElement('div');
-    bonusLabel.textContent = 'Bonus score';
-    bonusLabel.style.cssText = 'color:#c48a6d;font-weight:600;font-size:18px;line-height:1;letter-spacing:0.02em;';
+    const comboLabel = document.createElement('div');
+    comboLabel.textContent = longestCombo > 0 ? `Combo x${longestCombo}` : 'Combo bonus';
+    comboLabel.style.cssText = 'color:#c48a6d;font-weight:600;font-size:18px;line-height:1;letter-spacing:0.02em;';
 
-    bonusWrapper.appendChild(bonusValue);
-    bonusWrapper.appendChild(bonusLabel);
+    comboWrapper.appendChild(comboValue);
+    comboWrapper.appendChild(comboLabel);
+
+    // 🎯 NEW: Efficiency Bonus Wrapper (shows second)
+    const efficiencyWrapper = document.createElement('div');
+    efficiencyWrapper.style.cssText = [
+      'position:absolute',
+      'display:flex',
+      'flex-direction:column',
+      'align-items:center',
+      'gap:6px',
+      'opacity:0',
+      'transform:scale(0.75) translateY(-8px)',
+      'width:100%'
+    ].join(';');
+
+    const efficiencyValue = document.createElement('div');
+    efficiencyValue.textContent = `+${safeEfficiencyBonus}`;
+    efficiencyValue.style.cssText = 'color:#E77449;font-weight:800;font-size:36px;line-height:1;';
+
+    const efficiencyLabel = document.createElement('div');
+    efficiencyLabel.textContent = 'Efficiency';
+    efficiencyLabel.style.cssText = 'color:#c48a6d;font-weight:600;font-size:18px;line-height:1;letter-spacing:0.02em;';
+
+    efficiencyWrapper.appendChild(efficiencyValue);
+    efficiencyWrapper.appendChild(efficiencyLabel);
 
     // Board cleared text (initially hidden)
     const boardCleared = document.createElement('div');
-    boardCleared.textContent = `Board #${boardNumber} cleared`;
+    const boardNumberLabel = boardNumber.toString().padStart(2, '0');
+    boardCleared.textContent = `Board ${boardNumberLabel} cleared`;
     // SIMPLE: Just text, no transforms, no animations
     boardCleared.style.position = 'absolute';
     boardCleared.style.color = '#b69077';
@@ -320,26 +452,90 @@ export async function showCleanBoardModal({
     boardCleared.style.width = '100%';
     boardCleared.style.textAlign = 'center';
 
-    // CTA (initially hidden)
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.textContent = 'Continue';
-    btn.className = 'continue-btn bottom-sheet-cta';
+    // 🔥 NEW LOGIC: Check if user came from interim board or regular board (detail modal)
+    const isFromInterimBoard = (window as any).__ccFromInterimBoard === true;
+    console.log(`🎯 Clean board modal: isFromInterimBoard = ${isFromInterimBoard}`);
+    
     // Responsive width logic
     const isMobile = window.innerWidth <= 428;
     const isIPad = window.innerWidth >= 768 && window.innerWidth <= 1024;
     const buttonWidth = (isMobile || isIPad) ? '249px' : '310px';
     
-    btn.style.width = '100%';
-    btn.style.maxWidth = buttonWidth;
-    btn.style.opacity = '0';
-    btn.style.transform = 'scale(0.8)';
-    btn.style.marginTop = '0';
-    // Mobile optimizations
-    btn.style.webkitTapHighlightColor = 'transparent';
-    btn.style.webkitTouchCallout = 'none';
-    btn.style.webkitUserSelect = 'none';
-    btn.style.userSelect = 'none';
+    // 🔥 NEW: Create button container (for 1 or 2 buttons)
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.cssText = `width:${buttonWidth};max-width:80vw;display:flex;flex-direction:column;gap:16px;`;
+    
+    // 🔥 NEW: Primary button (either "Continue" for interim or "Play Again" for regular)
+    const primaryBtn = document.createElement('button');
+    primaryBtn.type = 'button';
+    primaryBtn.textContent = isFromInterimBoard ? 'Continue' : 'Play Again';
+    primaryBtn.className = 'restart-btn primary-button bottom-sheet-cta';
+    primaryBtn.style.width = '100%';
+    primaryBtn.style.maxWidth = buttonWidth;
+    primaryBtn.style.whiteSpace = 'nowrap';
+    
+    // 🔥 NEW: Secondary button (only for regular boards - "Exit")
+    let secondaryBtn: HTMLButtonElement | null = null;
+    if (!isFromInterimBoard) {
+      secondaryBtn = document.createElement('button');
+      secondaryBtn.type = 'button';
+      secondaryBtn.textContent = 'Exit';
+      secondaryBtn.className = 'exit-btn bottom-sheet-cta';
+      secondaryBtn.style.width = '100%';
+      secondaryBtn.style.maxWidth = buttonWidth;
+      secondaryBtn.style.whiteSpace = 'nowrap';
+    }
+    
+    // Add buttons to container
+    buttonContainer.appendChild(primaryBtn);
+    if (secondaryBtn) {
+      buttonContainer.appendChild(secondaryBtn);
+    }
+    
+    // Keep reference to primaryBtn for existing code (was "btn")
+    const btn = primaryBtn;
+
+    const buttonEnterTransition = 'opacity 0.5s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.5s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+    const buttonStaggerMs = 350; // 🔥 150ms brže (was 500ms)
+    const buttonEnterDelayMs = 100;
+
+    const setButtonVisualState = (
+      button: HTMLButtonElement,
+      options: { opacity: number; scale: number; translateY: number; transition: string }
+    ) => {
+      button.style.setProperty('transform-origin', 'center center', 'important');
+      button.style.setProperty('will-change', 'transform, opacity', 'important');
+      button.style.setProperty('opacity', String(options.opacity), 'important');
+      button.style.setProperty(
+        'transform',
+        `scale(${options.scale}) translateY(${options.translateY}px)`,
+        'important'
+      );
+      button.style.setProperty('transition', options.transition, 'important');
+    };
+
+    const setButtonInitialState = (button: HTMLButtonElement) => {
+      setButtonVisualState(button, {
+        opacity: 0,
+        scale: 0.8,
+        translateY: 12,
+        transition: 'none'
+      });
+    };
+
+    const animateButtonIn = (button: HTMLButtonElement) => {
+      button.blur();
+      button.classList.remove('animate-exit');
+      void button.offsetHeight;
+      setButtonVisualState(button, {
+        opacity: 1,
+        scale: 1,
+        translateY: 0,
+        transition: buttonEnterTransition
+      });
+    };
+
+    // 🔥 REMOVED: animateButtonExitLikeSlider - buttons now scale with buttonContainer for clean exit
 
     infoStack.appendChild(hero);
     textCluster.appendChild(title);
@@ -349,9 +545,10 @@ export async function showCleanBoardModal({
     textCluster.appendChild(scoreGroup);
     infoStack.appendChild(textCluster);
     card.appendChild(infoStack);
-    statusSlot.appendChild(bonusWrapper);
+    statusSlot.appendChild(comboWrapper);
+    statusSlot.appendChild(efficiencyWrapper);
     statusSlot.appendChild(boardCleared);
-    card.appendChild(btn);
+    card.appendChild(buttonContainer); // 🔥 Changed from btn to buttonContainer
     el.appendChild(card);
     document.body.appendChild(el);
 
@@ -364,7 +561,8 @@ export async function showCleanBoardModal({
 
     // 🔥 ANIMATION: Start with 0, will animate to currentScore
     mainScore.textContent = '0';
-    bonusValue.textContent = `+${formatScoreSimple(safeBonus)}`;
+    comboValue.textContent = `+${formatScoreSimple(safeComboBonus)}`;
+    efficiencyValue.textContent = `+${formatScoreSimple(safeEfficiencyBonus)}`;
 
     // Prepare initial pop-in states
     const setInit = (element: HTMLElement, dy: number, scale = 0): void => {
@@ -373,32 +571,31 @@ export async function showCleanBoardModal({
       element.style.transition = 'none';
     };
     
-    // 🔥 CRITICAL FIX v40.8: Hero animation setup is now handled in hero.onload/onerror
-    // This ensures image is loaded before we apply transform animations
-    // For other elements, set initial state immediately
+    // 🌟 NEW: Set initial state for all elements (including stars container)
+    setInit(hero, -25, 0); // Stars container
     setInit(title, -20);
     setInit(scoreLabel, -15);
     setInit(mainScore, -10);
-    setInit(bonusWrapper, -6, 0.65);
+    setInit(comboWrapper, -6, 0.65); // First bonus
+    setInit(efficiencyWrapper, -6, 0.65); // Second bonus
     // CRITICAL: No initial scale for boardCleared - just opacity
     boardCleared.style.opacity = '0';
     boardCleared.style.transition = 'none';
-    setInit(btn, 12, 0.7);
+    // 🔥 Initialize buttonContainer for animation (like original)
+    buttonContainer.style.opacity = '0';
+    buttonContainer.style.transform = 'scale(0.8) translateY(12px)';
+    buttonContainer.style.transition = 'none';
+    
+    // 🔥 NEW: Set BOTH buttons to be invisible AND scaled initially (for sequential bounce in)
+    setButtonInitialState(primaryBtn);
+    if (secondaryBtn) {
+      setButtonInitialState(secondaryBtn);
+    }
     
     // Show modal and card immediately
     el.style.opacity = '1';
     card.style.opacity = '1';
     card.style.transform = 'scale(1)';
-    
-    // 🔥 CRITICAL FIX v40.8: Setup hero animation after hero is added to DOM
-    // Check if image is already loaded (cached) and setup animation
-    // This must happen AFTER hero is added to DOM (which happens at line 342: infoStack.appendChild(hero))
-    requestAnimationFrame(() => {
-      // Hero is now in DOM, check if image is loaded
-      if (hero.complete && !heroImageLoaded) {
-        setupHeroAnimation();
-      }
-    });
     
     // Wait for next frame to ensure elements are rendered
     requestAnimationFrame(() => {
@@ -453,7 +650,7 @@ export async function showCleanBoardModal({
           diff 
         });
         
-        gsap.to(scoreProxy, {
+        const scoreTween = gsap.to(scoreProxy, {
           value: targetScore,
           duration: duration,
           ease: 'power2.out',
@@ -468,10 +665,12 @@ export async function showCleanBoardModal({
             console.log('✅ Score animation complete:', targetScore);
           }
         });
+        activeGSAPTweens.push(scoreTween);
       };
 
-      const transferBonus = (): void => {
-        const durationMs = safeBonus > 0 ? 1400 : 800;
+      // 🎯 NEW: Transfer Combo Bonus (Step 1)
+      const transferComboBonus = (): void => {
+        const durationMs = safeComboBonus > 0 ? 1400 : 800;
         const durationSec = durationMs / 1000;
         mainScore.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
         mainScore.style.transform = 'scale(1.08) translateY(0)';
@@ -480,22 +679,53 @@ export async function showCleanBoardModal({
           mainScore.style.transform = 'scale(1) translateY(0)';
         }, 420);
 
-        // 🔥 ANIMATION: Animate score from current to final value (with bonus added)
-        updateScore(finalScore, true);
+        // 🔥 ANIMATION: Animate score from current to scoreAfterCombo
+        updateScore(scoreAfterCombo, true);
 
-        // Animate bonus countdown separately
-        const bonusProxy = { value: safeBonus };
-        gsap.to(bonusProxy, {
+        // Animate combo bonus countdown separately
+        const comboProxy = { value: safeComboBonus };
+        const comboTween = gsap.to(comboProxy, {
           value: 0,
           duration: durationSec,
           ease: 'power2.out',
           onUpdate: () => {
-            bonusValue.textContent = `+${formatScoreSimple(Math.round(bonusProxy.value))}`;
+            comboValue.textContent = `+${formatScoreSimple(Math.round(comboProxy.value))}`;
           },
           onComplete: () => {
-            bonusValue.textContent = '+0';
+            comboValue.textContent = '+0';
           }
         });
+        activeGSAPTweens.push(comboTween);
+      };
+
+      // 🎯 NEW: Transfer Efficiency Bonus (Step 2)
+      const transferEfficiencyBonus = (): void => {
+        const durationMs = safeEfficiencyBonus > 0 ? 1400 : 800;
+        const durationSec = durationMs / 1000;
+        mainScore.style.transition = 'transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        mainScore.style.transform = 'scale(1.08) translateY(0)';
+        setTimeout(() => {
+          mainScore.style.transition = 'transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1)';
+          mainScore.style.transform = 'scale(1) translateY(0)';
+        }, 420);
+
+        // 🔥 ANIMATION: Animate score from scoreAfterCombo to finalScore
+        updateScore(finalScore, true);
+
+        // Animate efficiency bonus countdown separately
+        const efficiencyProxy = { value: safeEfficiencyBonus };
+        const efficiencyTween = gsap.to(efficiencyProxy, {
+          value: 0,
+          duration: durationSec,
+          ease: 'power2.out',
+          onUpdate: () => {
+            efficiencyValue.textContent = `+${formatScoreSimple(Math.round(efficiencyProxy.value))}`;
+          },
+          onComplete: () => {
+            efficiencyValue.textContent = '+0';
+          }
+        });
+        activeGSAPTweens.push(efficiencyTween);
       };
 
       {
@@ -504,27 +734,62 @@ export async function showCleanBoardModal({
         createConfettiExplosion(hero);
         
         setTimeout(() => {
-          // 🔥 CRITICAL FIX v40.8: Ensure hero is properly initialized before animating
-          // Double-check that initial state is set (in case image loaded after setInit was called)
-          if (!heroImageLoaded && hero.complete) {
-            setInit(hero, -25, 0);
-            heroImageLoaded = true;
-          }
-          
-          // Ensure transition is set before animating
+          // 🌟 Hero is now stars container, animate it in
           hero.style.transition = trans;
-          
           hero.style.opacity = '1';
           hero.style.transform = 'scale(1) translateY(0)';
           
-          // 🔥 CRITICAL FIX v40.8: Apply idle bounce animation AFTER transform animation completes
-          // This prevents conflict between CSS animation and transform animation
-          // Wait for transform animation to complete (0.65s) before starting idle animation
+          // 🌟 NEW: Animate stars filling in with bounce effect (like hearts)
+          // Delay 500ms after hero appears, then fill stars one by one (left → middle → right)
           setTimeout(() => {
-            if (hero && hero.parentElement) {
-              hero.style.animation = 'cleanBoardHeroIdle 4.5s ease-in-out infinite';
-            }
-          }, 650); // Wait for transform animation to complete
+            starElements.forEach((star, index) => {
+              // Only fill stars that were earned (numStars)
+              if (index < numStars) {
+                setTimeout(() => {
+                  const { filledImg, emptyImg } = star;
+                  
+                  // 🌟 Hide empty star when filled star appears (no background visibility when pulsing)
+                  emptyImg.style.opacity = '0';
+                  emptyImg.style.transition = 'opacity 0.2s ease';
+                  
+                  // 🌟 Stronger bounce animation using GSAP (scale 0 → 1.4 → 0.88 with springy bounce)
+                  // Set initial state
+                  gsap.set(filledImg, {
+                    scale: 0,
+                    opacity: 1,
+                    transformOrigin: 'center center'
+                  });
+                  
+                  // Create bounce timeline
+                  const bounceTl = gsap.timeline();
+                  
+                  // 🎾 TRAMPOLIN BOUNCE: Scale 0 → 0.88 sa jako elastic/springy easing
+                  // elastic.out(amplitude, period) - manji period = više bounces (trampolin efekt!)
+                  // 🔥 END at scale 0.88 to match breathing animation START (seamless transition!)
+                  bounceTl.to(filledImg, {
+                    scale: 0.88, // 🔥 Match breathing animation start (scale(0.88) at 0%)
+                    duration: 1.2, // Duže trajanje za više bounce-ova (trampolin!)
+                    ease: 'elastic.out(1.5, 0.4)' // Jači elastic za više bouncy "boing boing" efekt!
+                    // amplitude 1.5 = jak overshoot
+                    // period 0.4 = više oscillacija (bouncy trampolin!)
+                  });
+                  
+                  // 🌟 After bounce completes at scale(0.88), SEAMLESSLY start breathing animation
+                  // Breathing starts at scale(0.88) → NO JUMP, perfectly fluid!
+                  bounceTl.call(() => {
+                    // Breathing/pulsating animation (inhale/exhale like lungs)
+                    // Starts at 0.88 (current scale) → 1.25 → 0.88 loop
+                    filledImg.style.animation = 'starBreathing 2.5s ease-in-out infinite';
+                  });
+                  
+                  // Track timeline for cleanup
+                  starBounceTimelines.push(bounceTl);
+                  
+                  console.log(`🌟 Star ${index + 1} filled with TRAMPOLIN BOUNCY bounce! (0 → 0.88 elastic springy → seamless breathing, delay: ${index * 500}ms)`);
+                }, index * 500); // 🌟 500ms delay between each star (left → middle → right)
+              }
+            });
+          }, 500); // 🌟 Start filling stars 500ms after hero appears
         }, 100);
         setTimeout(() => {
           title.style.opacity = '1';
@@ -547,47 +812,160 @@ export async function showCleanBoardModal({
 
         // SEQUENCE 2: Score already displayed (no animation needed)
 
-        // SEQUENCE 3: Bonus stack pop-in
+        // 🎯 SEQUENCE 3: Combo Bonus pop-in
         setTimeout(() => {
-          bonusWrapper.style.transition = 'opacity 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          bonusWrapper.style.opacity = '1';
-          bonusWrapper.style.transform = 'scale(1) translateY(0)';
+          comboWrapper.style.transition = 'opacity 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          comboWrapper.style.opacity = '1';
+          comboWrapper.style.transform = 'scale(1) translateY(0)';
         }, 1350);
 
-        // SEQUENCE 4: Transfer bonus into score while draining to zero
+        // 🎯 SEQUENCE 4: Transfer Combo Bonus into score (draining to zero)
         setTimeout(() => {
-          if (safeBonus <= 0) {
-            bonusValue.textContent = '+0';
-            updateScore(finalScore, true);
-            return;
+          if (safeComboBonus <= 0) {
+            comboValue.textContent = '+0';
+            updateScore(scoreAfterCombo, true);
+          } else {
+            transferComboBonus();
           }
-          transferBonus();
         }, 2150);
 
-        // SEQUENCE 5: Swap bonus stack for "Board cleared" label
+        // 🎯 SEQUENCE 5: Hide Combo, show Efficiency Bonus
         setTimeout(() => {
-          bonusWrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-          bonusWrapper.style.opacity = '0';
-          bonusWrapper.style.transform = 'scale(0.8) translateY(-8px)';
+          // Hide combo bonus
+          comboWrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+          comboWrapper.style.opacity = '0';
+          comboWrapper.style.transform = 'scale(0.8) translateY(-8px)';
 
           setTimeout(() => {
-            bonusWrapper.style.visibility = 'hidden';
-            bonusWrapper.style.display = 'none'; // iOS FIX: Completely remove from layout
+            comboWrapper.style.visibility = 'hidden';
+            comboWrapper.style.display = 'none';
+            
+            // Show efficiency bonus
+            efficiencyWrapper.style.transition = 'opacity 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.55s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+            efficiencyWrapper.style.opacity = '1';
+            efficiencyWrapper.style.transform = 'scale(1) translateY(0)';
+          }, 320);
+        }, 3650);
+
+        // 🎯 SEQUENCE 6: Transfer Efficiency Bonus into score (draining to zero)
+        setTimeout(() => {
+          if (safeEfficiencyBonus <= 0) {
+            efficiencyValue.textContent = '+0';
+            updateScore(finalScore, true);
+          } else {
+            transferEfficiencyBonus();
+          }
+        }, 4600);
+
+        // 🎯 SEQUENCE 7: Hide Efficiency, show "Board cleared" label
+        setTimeout(() => {
+          efficiencyWrapper.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+          efficiencyWrapper.style.opacity = '0';
+          efficiencyWrapper.style.transform = 'scale(0.8) translateY(-8px)';
+
+          setTimeout(() => {
+            efficiencyWrapper.style.visibility = 'hidden';
+            efficiencyWrapper.style.display = 'none';
             // SIMPLE transition - only opacity, NO transforms at all
             boardCleared.style.transition = 'opacity 0.4s ease';
             boardCleared.style.opacity = '1';
           }, 320);
-        }, 3250);
+        }, 6100);
 
-        // SEQUENCE 6: Continue button pop-in
+        // 🎯 SEQUENCE 8: Button(s) pop-in (container bounce, then buttons bounce in sequentially)
+        // 🔥 TIMING FIX: Buttons appear AFTER "Board cleared" (6100ms + 320ms + 200ms = 6620ms)
         setTimeout(() => {
-          btn.style.transition = 'opacity 0.6s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.6s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-          btn.style.opacity = '1';
-          btn.style.transform = 'scale(1) translateY(0)';
-        }, 3840);
+          // 1. Animate button CONTAINER with bounce (both buttons invisible inside)
+          buttonContainer.style.transition = 'opacity 0.6s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.6s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          buttonContainer.style.opacity = '1';
+          buttonContainer.style.transform = 'scale(1) translateY(0)';
+          
+          // 2. PRIMARY BUTTON (Play Again) - bounce in immediately after container starts
+          setTimeout(() => {
+            animateButtonIn(primaryBtn);
+          }, buttonEnterDelayMs); // Small delay after container animation starts
+          
+          // 3. SECONDARY BUTTON (Exit) - bounce in 350ms after Play Again (150ms brže!)
+          if (secondaryBtn) {
+            setTimeout(() => {
+              animateButtonIn(secondaryBtn);
+            }, buttonEnterDelayMs + buttonStaggerMs); // 100ms + 350ms = 450ms total delay
+          }
+        }, 6620); // 🔥 FIXED: After boardCleared (6100 + 320 + 200)
       }
     }); // Close requestAnimationFrame from line 431
 
+    // 🔥 MEMORY LEAK FIX: Track button event listeners for cleanup
+    const buttonEventListeners: Array<{ 
+      button: HTMLButtonElement; 
+      handlers: Array<{ event: string; handler: EventListener; options?: any }> 
+    }> = [];
+    
+    // 🌟 Track star bounce animations for cleanup
+    const starBounceTimelines: Array<gsap.core.Timeline> = [];
+    
+    // 🔥 Track all GSAP tweens for cleanup (score, combo, efficiency animations)
+    const activeGSAPTweens: Array<gsap.core.Tween> = [];
+    
+    // 🔥 CLEANUP: Kill all GSAP tweens (score, combo, efficiency animations)
+    const killAllGSAPTweens = () => {
+      activeGSAPTweens.forEach(tween => {
+        try {
+          tween.kill();
+        } catch (e) {}
+      });
+      activeGSAPTweens.length = 0;
+      
+      // Also kill tweens on all DOM elements
+      try {
+        gsap.killTweensOf([hero, title, scoreLabel, mainScore, statusSlot, boardCleared, card]);
+      } catch (e) {}
+      
+      console.log('✅ All GSAP tweens killed!');
+    };
+    
+    // 🌟 CLEANUP: Stop all star animations and breathing
+    const stopAllStarAnimations = () => {
+      // Kill all star bounce timelines
+      starBounceTimelines.forEach(tl => {
+        try {
+          tl.kill();
+        } catch (e) {}
+      });
+      starBounceTimelines.length = 0;
+      
+      // Stop breathing animations and reset star states
+      starElements.forEach(({ filledImg, emptyImg }) => {
+        if (filledImg) {
+          try {
+            filledImg.style.animation = 'none';
+            gsap.killTweensOf(filledImg);
+          } catch (e) {}
+        }
+        // Reset empty star visibility (in case cleanup happens mid-animation)
+        if (emptyImg) {
+          try {
+            emptyImg.style.opacity = '1';
+          } catch (e) {}
+        }
+      });
+      
+      console.log('✅ All star animations cleaned up!');
+    };
+    
+    // 🔥 CLEANUP: Remove CSS style tag
+    const removeStyleTag = () => {
+      try {
+        const styleTag = document.getElementById('clean-board-star-animations');
+        if (styleTag) {
+          styleTag.remove();
+          console.log('✅ CSS style tag removed!');
+        }
+      } catch (e) {
+        console.warn('⚠️ Failed to remove CSS style tag:', e);
+      }
+    };
+    
     // Add button press handling for proper UX
     const addButtonPressHandling = (button: HTMLButtonElement, action: () => void): void => {
       let touchStarted = false;
@@ -668,16 +1046,45 @@ export async function showCleanBoardModal({
       button.addEventListener('mousedown', handleMouseDown);
       button.addEventListener('mouseup', handleMouseUp);
       button.addEventListener('mouseleave', handleMouseLeave);
+      
+      // 🔥 MEMORY LEAK FIX: Track listeners for cleanup
+      buttonEventListeners.push({
+        button,
+        handlers: [
+          { event: 'touchstart', handler: handleTouchStart as EventListener, options: { passive: true } },
+          { event: 'touchmove', handler: handleTouchMove as EventListener, options: { passive: true } },
+          { event: 'touchend', handler: handleTouchEnd as EventListener, options: { passive: true } },
+          { event: 'mousedown', handler: handleMouseDown as EventListener },
+          { event: 'mouseup', handler: handleMouseUp as EventListener },
+          { event: 'mouseleave', handler: handleMouseLeave as EventListener }
+        ]
+      });
+    };
+    
+    // 🔥 MEMORY LEAK FIX: Cleanup function to remove all event listeners
+    const cleanupButtonListeners = () => {
+      buttonEventListeners.forEach(({ button, handlers }) => {
+        handlers.forEach(({ event, handler, options }) => {
+          try {
+            button.removeEventListener(event, handler, options);
+          } catch (e) {
+            console.warn(`⚠️ Failed to remove ${event} listener:`, e);
+          }
+        });
+      });
+      buttonEventListeners.length = 0;
+      console.log('✅ All button event listeners removed');
     };
 
-    // Continue
-    addButtonPressHandling(btn, async () => {
-      // Haptic for Continue button
+    // 🔥 NEW: Primary button handler (Continue for interim, Play Again for regular)
+    addButtonPressHandling(primaryBtn, async () => {
+      // Haptic for primary button
       if (typeof (window as any).triggerHapticSelection === 'function') {
         (window as any).triggerHapticSelection();
       }
       
-      btn.disabled = true;
+      primaryBtn.disabled = true;
+      if (secondaryBtn) secondaryBtn.disabled = true;
       
       // CRITICAL: Reset boardCleared before exit animation - NO transforms at all
       boardCleared.style.transition = 'none';
@@ -689,21 +1096,60 @@ export async function showCleanBoardModal({
       statusSlot.style.transform = 'none';
       statusSlot.style.webkitTransform = 'none';
       
-      // Also reset bonusWrapper in case it's visible
-      bonusWrapper.style.transition = 'none';
-      bonusWrapper.style.transform = 'scale(1) translateY(0)';
+      // 🎯 Also reset bonus wrappers in case they're visible
+      comboWrapper.style.transition = 'none';
+      comboWrapper.style.transform = 'scale(1) translateY(0)';
+      efficiencyWrapper.style.transition = 'none';
+      efficiencyWrapper.style.transform = 'scale(1) translateY(0)';
       
       // Force reflow to apply reset
       void boardCleared.offsetHeight;
       void statusSlot.offsetHeight;
       
+      // 🔥 CRITICAL: Reset buttonContainer transform so it doesn't interfere with button animations
+      buttonContainer.style.transition = 'none';
+      buttonContainer.style.transform = 'none';
+      buttonContainer.style.opacity = '1';
+      
       const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
       const exitOffsets = [-22, -18, -14, -10, -6, -4, -2];
       const exitScale = [0, 0.08, -0.04, 0.05, -0.02, 0.03, -0.01];
-      const nodes = [hero, title, scoreLabel, mainScore, statusSlot, boardCleared, btn];
-      nodes.forEach((node) => { node.style.transition = exitTrans; });
-
-      requestAnimationFrame(() => {
+        // 🎯 Regular elements (NOT buttons - they use CSS class animate-exit like homepage slider)
+        const nodes = [hero, title, scoreLabel, mainScore, statusSlot, boardCleared];
+        nodes.forEach((node) => { node.style.transition = exitTrans; });
+ 
+        // 🎯 BUTTONS: Use EXACT same exit animation as homepage slider CTA (CSS class animate-exit)
+        // This gives premium bounce-out effect: translateY(20px) scale(0) with cubic-bezier(0.68, -0.6, 0.32, 1.6)
+        
+        // 🔥 FUNCTION: Reset button and add animate-exit (EXACT SAME for BOTH buttons)
+        const animateButtonExit = (button: HTMLButtonElement) => {
+          button.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
+          button.style.removeProperty('transform');
+          button.style.removeProperty('transition');
+          button.style.removeProperty('opacity');
+          button.style.removeProperty('will-change');
+          void button.offsetHeight; // Force reflow
+          button.classList.add('animate-exit'); // 🔥 CSS class handles the animation (same as homepage)
+          
+          // 🔥 DOUBLE SAFETY: Force inline styles with !important to override ANY CSS conflicts
+          requestAnimationFrame(() => {
+            button.style.setProperty('will-change', 'transform', 'important');
+            button.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+            button.style.setProperty('transform', 'translateY(20px) scale(0)', 'important');
+          });
+        };
+        
+        // Play Again exits FIRST (immediately)
+        animateButtonExit(primaryBtn);
+        
+        // Exit button exits 50ms LATER (sekvencijalno, EXACT SAME LOGIC as Play Again)
+        if (secondaryBtn) {
+          setTimeout(() => {
+            animateButtonExit(secondaryBtn); // 🔥 EXACT same function as Play Again
+          }, 50); // 🔥 50ms delay between Play Again and Exit (vrlo brzo, skoro zajedno)
+        }
+ 
+        requestAnimationFrame(() => {
         nodes.forEach((node, idx) => {
           const delay = idx * 60;
           setTimeout(() => {
@@ -713,17 +1159,12 @@ export async function showCleanBoardModal({
           }, delay);
         });
       });
-
-      // bounce CTA collapse end for extra pop
-      setTimeout(() => {
-        btn.style.transition = 'transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        btn.style.transform = 'scale(0.0)';
-      }, nodes.length * 60 + 80);
       card.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
       requestAnimationFrame(() => {
         card.style.transform = 'scale(0.86)';
       });
-      const collapseDuration = nodes.length * 60 + 300;
+      // 🎯 Calculate duration: nodes animation + Play Again (650ms) + Exit delay (50ms) + Exit animation (650ms - same as Play Again)
+      const collapseDuration = secondaryBtn ? nodes.length * 60 + 50 + 650 : nodes.length * 60 + 650;
       setTimeout(() => {
         card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
         card.style.opacity = '0';
@@ -744,6 +1185,22 @@ export async function showCleanBoardModal({
         }
         try { (window as any).updateHighScore?.(next); } catch {}
         
+        // Update high score with FINAL score (including bonuses) in board-stats-service
+        try {
+          boardStatsService.updateBoardHighScore(boardNumber, finalScore);
+          console.log(`✅ clean-board-modal: Updated high score for board ${boardNumber}: ${finalScore} on Continue`);
+        } catch (error) {
+          console.warn(`⚠️ clean-board-modal: Failed to update high score on Continue:`, error);
+        }
+        
+        // Also update global high score
+        try {
+          statsService.updateHighScore(finalScore);
+          console.log(`✅ clean-board-modal: Updated global high score: ${finalScore} on Continue`);
+        } catch (error) {
+          console.warn(`⚠️ clean-board-modal: Failed to update global high score on Continue:`, error);
+        }
+        
         // SIMPLE: Clear completed board state (user clicked Continue, normal flow)
         localStorage.removeItem('cc_board_completed');
         
@@ -760,17 +1217,28 @@ export async function showCleanBoardModal({
       } catch {}
       
       
-      // 🔥 MEMORY LEAK FIX: Cleanup all animations and timeouts before resolving
+      // 🎯 CRITICAL: Set flag to prevent saveGameState() from re-saving after clean board
+      // Clean board = completed board, we already cleared save state, don't re-save it!
+      (window as any).__ccBoardJustCompleted = true;
+      console.log('🎯 clean-board-modal: Set __ccBoardJustCompleted flag to prevent re-saving after clean board (Continue)');
+      
+      // 🔥 MEMORY LEAK FIX: Cleanup all animations, timeouts, and event listeners before resolving
+      killAllGSAPTweens(); // 🔥 NEW: Kill all GSAP score/bonus tweens
+      stopAllStarAnimations(); // Stop all star animations
+      cleanupButtonListeners(); // Remove all button event listeners
       clearAllModalTimeouts();
       clearAllModalAnimationFrames();
       
       trackTimeout(() => { 
         try { el.remove(); } catch {}
+        killAllGSAPTweens(); // 🔥 NEW: Double-check GSAP cleanup
+        stopAllStarAnimations(); // Double-check star cleanup
+        removeStyleTag(); // 🔥 NEW: Remove CSS style tag
         clearAllModalTimeouts(); // 🔥 Cleanup all remaining timeouts (double-check)
         clearAllModalAnimationFrames(); // 🔥 Cleanup all remaining animation frames (double-check)
         
         // 🔥 GRACEFUL CLEANUP: Stop new confetti spawns but let existing animations finish
-        // This allows confetti to continue animating after Continue is clicked
+        // This allows confetti to continue animating after primary button is clicked
         try {
           import('./confetti-system.js').then(confettiModule => {
             if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
@@ -783,8 +1251,189 @@ export async function showCleanBoardModal({
           // Ignore errors
         }
         
-        resolve({ action: 'continue' }); 
+        // 🔥 NEW: Return action based on which button was clicked
+        const action = isFromInterimBoard ? 'continue' : 'play-again';
+        console.log(`✅ clean-board-modal: Resolving with action: ${action}`);
+        resolve({ action }); 
       }, collapseDuration + 220);
     });
+    
+    // 🔥 NEW: Exit button handler (only for regular boards, not interim)
+    if (secondaryBtn) {
+      addButtonPressHandling(secondaryBtn, async () => {
+        // Haptic for exit button
+        if (typeof (window as any).triggerHapticSelection === 'function') {
+          (window as any).triggerHapticSelection();
+        }
+        
+        primaryBtn.disabled = true;
+        secondaryBtn.disabled = true;
+        
+        // Same exit animation as primary button
+        // CRITICAL: Reset boardCleared before exit animation - NO transforms at all
+        boardCleared.style.transition = 'none';
+        boardCleared.style.animation = 'none';
+        boardCleared.style.transform = 'none';
+        boardCleared.style.webkitTransform = 'none';
+        
+        // Also reset parent container
+        statusSlot.style.transform = 'none';
+        statusSlot.style.webkitTransform = 'none';
+        
+        // 🎯 Also reset bonus wrappers in case they're visible
+        comboWrapper.style.transition = 'none';
+        comboWrapper.style.transform = 'scale(1) translateY(0)';
+        efficiencyWrapper.style.transition = 'none';
+        efficiencyWrapper.style.transform = 'scale(1) translateY(0)';
+        
+        // Force reflow to apply reset
+        void boardCleared.offsetHeight;
+        void statusSlot.offsetHeight;
+        
+        const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        const exitOffsets = [-22, -18, -14, -10, -6, -4, -2];
+        const exitScale = [0, 0.08, -0.04, 0.05, -0.02, 0.03, -0.01];
+        // 🎯 Regular elements (NOT buttons - they use CSS class animate-exit like homepage slider)
+        const nodes = [hero, title, scoreLabel, mainScore, statusSlot, boardCleared];
+        nodes.forEach((node) => { node.style.transition = exitTrans; });
+ 
+        // 🎯 BUTTONS: Use EXACT same exit animation as homepage slider CTA (CSS class animate-exit)
+        // This gives premium bounce-out effect: translateY(20px) scale(0) with cubic-bezier(0.68, -0.6, 0.32, 1.6)
+        // Play Again exits FIRST (immediately)
+        primaryBtn.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
+        primaryBtn.style.removeProperty('transform');
+        primaryBtn.style.removeProperty('transition');
+        primaryBtn.style.removeProperty('opacity');
+        void primaryBtn.offsetHeight; // Force reflow
+        primaryBtn.classList.add('animate-exit'); // 🔥 CSS class handles the animation (same as homepage)
+        
+        // Exit button exits 300ms LATER (sekvencijalno, same animation as Play Again)
+        if (secondaryBtn) {
+          setTimeout(() => {
+            // 🔥 CRITICAL: Remove focus/active states first (prevents :active/:focus CSS from overriding animate-exit)
+            secondaryBtn.blur();
+            // 🔥 CRITICAL: Reset ALL styles EXACTLY like Play Again button (for consistency)
+            secondaryBtn.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
+            secondaryBtn.style.removeProperty('transform'); // Remove transform (CSS class will set it with !important)
+            secondaryBtn.style.removeProperty('transition'); // Remove transition (CSS class will set it with !important)
+            secondaryBtn.style.removeProperty('opacity'); // Remove opacity
+            // Note: Keep will-change - CSS class will handle it
+            void secondaryBtn.offsetHeight; // Force reflow
+            // Now add animate-exit - CSS will handle transform: translateY(20px) scale(0) with 0.65s (same as Play Again!)
+            secondaryBtn.classList.add('animate-exit'); // 🔥 CSS class handles the animation (0.65s - same as Play Again!)
+          }, 300); // 🔥 300ms delay between Play Again and Exit (sekvencijalno)
+        }
+ 
+        requestAnimationFrame(() => {
+          nodes.forEach((node, idx) => {
+            const delay = idx * 60;
+            setTimeout(() => {
+              const extra = exitScale[idx] || 0;
+              node.style.opacity = '0';
+              node.style.transform = `scale(${0.0 + extra}) translateY(${exitOffsets[idx]}px)`;
+            }, delay);
+          });
+        });
+        card.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        requestAnimationFrame(() => {
+          card.style.transform = 'scale(0.86)';
+        });
+        // 🎯 Calculate duration: nodes animation + buttons (0ms + 400ms) + transition (650ms) = ~1340ms
+        const collapseDuration = secondaryBtn ? nodes.length * 60 + 400 + 650 : nodes.length * 60 + 650;
+        setTimeout(() => {
+          card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
+          card.style.opacity = '0';
+          el.style.transition = 'opacity 0.30s ease';
+          el.style.opacity = '0';
+        }, collapseDuration);
+        
+        // 🔥 EXIT FIX: Clear board save state to show "Play" instead of "Continue" on next entry
+        // Also update high score in board-stats-service
+        console.log('🚪 clean-board-modal: Exit button clicked - clearing save state and updating high score');
+        
+        try {
+          // Clear board-specific saved state (so "Play" shows instead of "Continue")
+          const { clearBoardSaveState, hasSavedStateForBoard, getBoardSaveKey } = await import('../utils/board-save-utils.js');
+          
+          // 🔍 DEBUG: Check state BEFORE clearing
+          const hadSaveBefore = hasSavedStateForBoard(boardNumber);
+          const saveKey = getBoardSaveKey(boardNumber);
+          console.log(`🔍 clean-board-modal Exit: Board ${boardNumber} saved state BEFORE clear:`, hadSaveBefore, `(key: ${saveKey})`);
+          
+          // Clear board save state
+          clearBoardSaveState(boardNumber);
+          console.log(`✅ clean-board-modal: Cleared board-specific saved state for board ${boardNumber} on Exit`);
+          
+          // 🔍 DEBUG: Verify state AFTER clearing
+          const hasSaveAfter = hasSavedStateForBoard(boardNumber);
+          console.log(`🔍 clean-board-modal Exit: Board ${boardNumber} saved state AFTER clear:`, hasSaveAfter);
+          
+          if (hasSaveAfter) {
+            console.error(`❌ CRITICAL: Board ${boardNumber} STILL has saved state after clearing! Key: ${saveKey}`);
+          } else {
+            console.log(`✅ VERIFIED: Board ${boardNumber} save state successfully cleared`);
+          }
+        } catch (clearError) {
+          console.warn(`⚠️ clean-board-modal: Failed to clear board saved state on Exit:`, clearError);
+        }
+        
+        // Update high score with FINAL score (including bonuses)
+        try {
+          boardStatsService.updateBoardHighScore(boardNumber, finalScore);
+          console.log(`✅ clean-board-modal: Updated high score for board ${boardNumber}: ${finalScore}`);
+        } catch (error) {
+          console.warn(`⚠️ clean-board-modal: Failed to update high score on Exit:`, error);
+        }
+        
+        // Also update global high score
+        try {
+          statsService.updateHighScore(finalScore);
+          console.log(`✅ clean-board-modal: Updated global high score: ${finalScore}`);
+        } catch (error) {
+          console.warn(`⚠️ clean-board-modal: Failed to update global high score on Exit:`, error);
+        }
+        
+        // 🔥 MEMORY LEAK FIX: Cleanup all animations, timeouts, and event listeners before resolving
+        killAllGSAPTweens(); // 🔥 NEW: Kill all GSAP score/bonus tweens
+        stopAllStarAnimations(); // Stop all star animations
+        cleanupButtonListeners(); // Remove all button event listeners
+        clearAllModalTimeouts();
+        clearAllModalAnimationFrames();
+        
+        // 🎯 CRITICAL: Set flag to prevent saveGameState() from re-saving after clean board
+        // Clean board = completed board, we already cleared save state, don't re-save it!
+        (window as any).__ccBoardJustCompleted = true;
+        console.log('🎯 clean-board-modal: Set __ccBoardJustCompleted flag to prevent re-saving after clean board');
+        
+        // 🎯 SEAMLESS EXIT: Resolve immediately after exit animation starts (don't wait for it to finish)
+        // This allows detail modal enter animation to start while clean board is still exiting
+        // Clean board modal will continue exit animation in background and remove itself when done
+        trackTimeout(() => { 
+          console.log(`✅ clean-board-modal: Resolving with action: exit (seamless - exit animation continues in background)`);
+          resolve({ action: 'exit' }); 
+        }, 150); // 🎯 Resolve after 150ms (exit animation starts, detail modal can begin enter animation)
+        
+        // 🧹 CLEANUP: Remove modal after full exit animation completes (in background)
+        trackTimeout(() => { 
+          try { el.remove(); } catch {}
+          killAllGSAPTweens(); // 🔥 NEW: Double-check GSAP cleanup
+          stopAllStarAnimations(); // Double-check star cleanup
+          removeStyleTag(); // 🔥 NEW: Remove CSS style tag
+          clearAllModalTimeouts();
+          clearAllModalAnimationFrames();
+          
+          // Stop confetti spawns
+          try {
+            import('./confetti-system.js').then(confettiModule => {
+              if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
+                confettiModule.stopConfettiSpawns();
+              }
+            }).catch(() => {});
+          } catch (e) {}
+          
+          console.log(`🧹 clean-board-modal: Cleanup complete after exit animation finished`);
+        }, collapseDuration + 110); // Clean up after full exit animation
+      });
+    }
   });
 }

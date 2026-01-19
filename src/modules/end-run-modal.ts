@@ -8,6 +8,138 @@ import { getBoardSaveKey } from '../utils/board-save-utils.js';
 
 let modal: HTMLElement | null = null;
 
+function showCleanBoardStarsPicker(): Promise<number | null> {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = [
+      'position:fixed',
+      'inset:0',
+      'background:rgba(0,0,0,0.35)',
+      'display:flex',
+      'align-items:center',
+      'justify-content:center',
+      'z-index:1000000'
+    ].join(';');
+
+    const panel = document.createElement('div');
+    panel.style.cssText = [
+      'background:#fff7f1',
+      'border-radius:18px',
+      'padding:18px 16px',
+      'width:min(320px,88vw)',
+      'box-shadow:0 16px 40px rgba(0,0,0,0.25)',
+      'display:flex',
+      'flex-direction:column',
+      'gap:12px',
+      'align-items:center'
+    ].join(';');
+
+    const title = document.createElement('div');
+    title.textContent = 'Clean Board (dev)';
+    title.style.cssText = 'font-size:18px;font-weight:700;color:#9a6f5b;';
+
+    const subtitle = document.createElement('div');
+    subtitle.textContent = 'Choose star count';
+    subtitle.style.cssText = 'font-size:14px;font-weight:600;color:#b69077;';
+
+    const buttonRow = document.createElement('div');
+    buttonRow.style.cssText = 'display:flex;gap:10px;justify-content:center;width:100%;';
+
+    let selectedStars = 3;
+
+    const makeStarButton = (count: number) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = `${count}`;
+      btn.style.cssText = [
+        'flex:1',
+        'min-width:0',
+        'padding:12px 0',
+        'border-radius:12px',
+        'border:1px solid #e0cfc3',
+        'background:#fff',
+        'font-size:18px',
+        'font-weight:700',
+        'color:#a46f58'
+      ].join(';');
+      btn.addEventListener('click', () => {
+        selectedStars = count;
+        updateSelection();
+      });
+      return btn;
+    };
+
+    const buttons = [makeStarButton(1), makeStarButton(2), makeStarButton(3)];
+
+    const updateSelection = () => {
+      buttons.forEach((btn, index) => {
+        const count = index + 1;
+        if (count === selectedStars) {
+          btn.style.background = '#f3e0d4';
+          btn.style.borderColor = '#d8b9a8';
+        } else {
+          btn.style.background = '#fff';
+          btn.style.borderColor = '#e0cfc3';
+        }
+      });
+    };
+
+    const okBtn = document.createElement('button');
+    okBtn.type = 'button';
+    okBtn.textContent = 'OK';
+    okBtn.style.cssText = [
+      'width:100%',
+      'padding:12px 0',
+      'border-radius:12px',
+      'border:none',
+      'background:#e97a55',
+      'font-size:16px',
+      'font-weight:800',
+      'color:#fff'
+    ].join(';');
+    okBtn.addEventListener('click', () => {
+      overlay.remove();
+      resolve(selectedStars);
+    });
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.cssText = [
+      'width:100%',
+      'padding:10px 0',
+      'border-radius:12px',
+      'border:none',
+      'background:#f0e3da',
+      'font-size:14px',
+      'font-weight:700',
+      'color:#9a6f5b'
+    ].join(';');
+    cancelBtn.addEventListener('click', () => {
+      overlay.remove();
+      resolve(null);
+    });
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.remove();
+        resolve(null);
+      }
+    });
+
+    buttons.forEach((btn) => buttonRow.appendChild(btn));
+    updateSelection();
+
+    panel.appendChild(title);
+    panel.appendChild(subtitle);
+    panel.appendChild(buttonRow);
+    panel.appendChild(okBtn);
+    panel.appendChild(cancelBtn);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+  });
+}
+
 function removeEndRunOverlay(): void {
   const existing = document.getElementById('end-run-overlay');
   if (existing) {
@@ -194,6 +326,12 @@ function createModal(): HTMLElement {
       
       // Call showCleanBoardModal instantly
       try {
+        const starsOverride = await showCleanBoardStarsPicker();
+        if (!starsOverride) {
+          console.log('🧪 Clean board dev modal cancelled');
+          return;
+        }
+
         const { showCleanBoardModal } = await import('./clean-board-modal.js');
         
         // Get current game context
@@ -261,7 +399,8 @@ function createModal(): HTMLElement {
           updateHUD,
           bonus: 500,
           scoreCap: 999999,
-          boardNumber: 1
+          boardNumber: 1,
+          forcedStars: starsOverride
         });
         
         console.log('✅ Clean board modal shown');
