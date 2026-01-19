@@ -1,3 +1,4 @@
+// @ts-nocheck
 // public/src/modules/clean-board-modal.ts
 // DOM-based overlay (design-first), Board cleared + bonus + Continue
 

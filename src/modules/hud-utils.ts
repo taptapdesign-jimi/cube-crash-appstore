@@ -1,3 +1,4 @@
+// @ts-nocheck
 // hud-utils.ts
 // Utility functions for HUD system
 

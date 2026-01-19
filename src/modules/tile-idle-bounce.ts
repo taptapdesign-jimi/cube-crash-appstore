@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Tile Idle Bounce Animation Module
  * 

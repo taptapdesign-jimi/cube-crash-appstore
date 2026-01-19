@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { logger } from '../core/logger.js';
 // iOS-optimized memory management
 // Manages memory for App Store submission

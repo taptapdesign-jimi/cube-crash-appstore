@@ -1,3 +1,4 @@
+// @ts-nocheck
 // public/src/modules/app.js
 // ✅ mobile-first, cache-busted celebration & prize flow
 

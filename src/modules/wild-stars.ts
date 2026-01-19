@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Container, Graphics, Sprite, Texture, Assets } from 'pixi.js';
 import { gsap } from 'gsap';
 

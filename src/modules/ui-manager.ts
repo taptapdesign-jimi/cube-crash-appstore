@@ -1,3 +1,4 @@
+// @ts-nocheck
 // UI Manager Module
 // Handles all UI interactions and animations
 

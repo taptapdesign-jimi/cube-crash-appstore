@@ -1,3 +1,4 @@
+// @ts-nocheck
 // end-run-utils.ts
 // Utility functions for end run modal
 

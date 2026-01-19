@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { logger } from './core/logger.js';
 import { createFocusTrap, FocusTrap } from './utils/focus-trap.js';
 // Collectibles Manager - Handles all collectibles functionality

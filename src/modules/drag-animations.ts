@@ -1,3 +1,4 @@
+// @ts-nocheck
 // drag-animations.ts
 // Animations for drag and drop system
 

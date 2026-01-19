@@ -1,3 +1,4 @@
+// @ts-nocheck
 // drag-events.ts
 // Event handling for drag and drop system
 

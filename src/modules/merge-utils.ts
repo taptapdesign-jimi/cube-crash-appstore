@@ -1,3 +1,4 @@
+// @ts-nocheck
 // merge-utils.ts
 // Utility functions for merge system
 

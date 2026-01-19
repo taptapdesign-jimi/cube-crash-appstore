@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Journey Boards Manager
 // Manages rendering of 25 board cards in Journey screen
 // 

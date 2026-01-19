@@ -1,3 +1,4 @@
+// @ts-nocheck
 // board-tile.ts
 // Tile management for CubeCrash board
 

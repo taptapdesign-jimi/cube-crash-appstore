@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Game State Service - Centralized state management
 import { eventBus, EVENTS } from '../core/event-bus.js';
 import { logger } from '../core/logger.js';

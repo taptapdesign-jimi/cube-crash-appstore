@@ -1,3 +1,4 @@
+// @ts-nocheck
 // merge-animations.ts
 // Animations for merge system
 

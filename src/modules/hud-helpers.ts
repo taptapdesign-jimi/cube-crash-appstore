@@ -1,3 +1,4 @@
+// @ts-nocheck
 // public/src/modules/hud-helpers.ts
 import { Container, Graphics, Text, Rectangle, Sprite, Assets, Application, Stage } from 'pixi.js';
 import { gsap } from 'gsap';

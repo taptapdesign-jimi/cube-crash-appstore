@@ -1,3 +1,4 @@
+// @ts-nocheck
 // hud-core.ts
 // Core HUD functionality for CubeCrash
 

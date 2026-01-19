@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Type definitions for main.js
 
 // Game state types

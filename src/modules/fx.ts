@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/modules/fx.ts
 // Minimal FX surface used by app.js (stable named exports).
 

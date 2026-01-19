@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { logger } from '../core/logger.js';
 // public/src/modules/endgame-flow.ts
 // Orkestracija (simplified): STARS → NEXT

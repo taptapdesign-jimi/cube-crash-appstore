@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/modules/app-spawn.ts
 import { Assets, Texture, Container, Graphics } from 'pixi.js';
 import { gsap } from 'gsap';

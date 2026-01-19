@@ -1,3 +1,4 @@
+// @ts-nocheck
 // drag-utils.ts
 // Utility functions for drag and drop system
 

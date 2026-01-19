@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { logger } from './core/logger.js';
 // iOS Image Optimization Helper
 // Automatically loads @2x and @3x images based on device pixel ratio

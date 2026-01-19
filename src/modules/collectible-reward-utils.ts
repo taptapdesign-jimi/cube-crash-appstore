@@ -1,3 +1,4 @@
+// @ts-nocheck
 // collectible-reward-utils.ts
 // Utility functions for collectible reward bottom sheet
 

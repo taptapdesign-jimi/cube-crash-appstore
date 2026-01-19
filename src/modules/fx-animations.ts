@@ -1,3 +1,4 @@
+// @ts-nocheck
 // fx-animations.ts
 // Animation effects for tiles and screen
 

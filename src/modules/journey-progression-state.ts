@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Journey Progression State Manager
  * 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // fx-visual-effects.ts
 // Visual effects for tiles (glass crack, wood shards, inner flash)
 

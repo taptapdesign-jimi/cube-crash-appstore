@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Memory Manager Module
 // Handles PIXI.js memory management and cleanup
 

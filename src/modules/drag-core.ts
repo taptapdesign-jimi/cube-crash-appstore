@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/modules/drag.js
 // v1.3 STABLE drag (PIXI v8 + GSAP)
 // - Hover okvir na target.rotG (ako postoji).

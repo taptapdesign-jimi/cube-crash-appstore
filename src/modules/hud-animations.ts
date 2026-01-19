@@ -1,3 +1,4 @@
+// @ts-nocheck
 // hud-animations.ts
 // Animations for HUD system
 

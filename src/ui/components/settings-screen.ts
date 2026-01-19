@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Settings Screen Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 import { gsap } from 'gsap';

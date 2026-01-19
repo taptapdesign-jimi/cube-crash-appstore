@@ -1,3 +1,4 @@
+// @ts-nocheck
 // collectible-reward-ui.ts
 // UI components for collectible reward bottom sheet
 

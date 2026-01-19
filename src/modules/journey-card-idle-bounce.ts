@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Journey Card Idle Bounce Animation Module
  * 

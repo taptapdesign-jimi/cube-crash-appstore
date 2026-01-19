@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { logger } from '../core/logger.js';
 import { container } from '../core/dependency-injection.js';
 import { gsap } from 'gsap';

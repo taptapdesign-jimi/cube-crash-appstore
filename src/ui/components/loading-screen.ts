@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Loading Screen Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 

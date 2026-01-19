@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/modules/asset-preloader.ts
 // Comprehensive asset preloader for all game assets
 

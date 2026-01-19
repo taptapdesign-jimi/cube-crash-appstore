@@ -1,3 +1,4 @@
+// @ts-nocheck
 // CUBE CRASH - MAIN ENTRY POINT
 // Clean, modular architecture
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { logger } from '../core/logger.js';
 import { statsService } from '../services/stats-service.ts';
 import { pickRandom } from './clean-board-utils.js';

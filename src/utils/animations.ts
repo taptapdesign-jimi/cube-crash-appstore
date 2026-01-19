@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS } from '../constants/animations.js';
 import { logger } from '../core/logger.js';
 

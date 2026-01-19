@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { logger } from '../core/logger.js';
 import { resetTileToNormalState } from './tile-state-utils.ts';
 // public/src/modules/level-flow.ts

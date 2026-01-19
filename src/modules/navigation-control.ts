@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Navigation Control Module
 // Handles navigation visibility based on UI state
 

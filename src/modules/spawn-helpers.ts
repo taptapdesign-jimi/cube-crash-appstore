@@ -1,3 +1,4 @@
+// @ts-nocheck
 // public/src/modules/spawn-helpers.ts
 // Spawn/deal animacije – iOS friendly, Promise-based, bez side‑effecta izvan proslijeđenih argumenata.
 

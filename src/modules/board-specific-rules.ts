@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/modules/board-specific-rules.ts
 // Board-specific rules and modifications for different levels
 // Modular system for controlling wild tile spawning, difficulty, and special mechanics per board

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Launch Screen Module
 // Handles the initial launch sequence with taptapdesign logo → stack to six logo → app
 

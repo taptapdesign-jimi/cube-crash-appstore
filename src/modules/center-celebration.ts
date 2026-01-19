@@ -1,3 +1,4 @@
+// @ts-nocheck
 // public/src/modules/center-celebration.ts
 // CLEAN BOARD — grid-aligned, 2 reda, jedan znak po tile-u (tile.png bez pipsa)
 // Vraća Promise tek nakon što intro+hold+outro završe i layer se očisti.

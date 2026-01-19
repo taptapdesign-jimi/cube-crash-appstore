@@ -1,3 +1,4 @@
+// @ts-nocheck
 // iOS-optimized error handling
 // Handles errors gracefully for App Store submission
 

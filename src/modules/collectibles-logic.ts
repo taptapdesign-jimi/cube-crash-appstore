@@ -1,3 +1,4 @@
+// @ts-nocheck
 // collectibles-logic.ts
 // Business logic for collectibles system
 

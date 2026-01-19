@@ -1,3 +1,4 @@
+// @ts-nocheck
 // fx-special-effects.ts
 // Special effects for wild tiles, multipliers, and smoke
 

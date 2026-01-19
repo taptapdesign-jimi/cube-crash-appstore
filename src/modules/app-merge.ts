@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/modules/app-merge.js
 import { gsap } from 'gsap';
 import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';

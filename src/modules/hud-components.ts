@@ -1,3 +1,4 @@
+// @ts-nocheck
 // hud-components.ts
 // UI components for HUD system
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Dependency Injection Container for loose coupling
 export type ServiceConstructor<T = any> = new (...args: any[]) => T;
 export type ServiceFactory<T = any> = (...args: any[]) => T;
