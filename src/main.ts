@@ -1334,10 +1334,10 @@ async function startNewRun(boardId: number): Promise<void> {
           const boardExitPromise = animateBoardExit();
           console.log('🎬 Board exit animation started (non-blocking)');
           
-          // ⚡ SEAMLESS: Start detail modal enter DURING board exit (after 250ms overlap)
-          // This creates smooth transition where animations overlap
+          // ⚡ PARALLEL: Start detail modal enter IMMEDIATELY with board exit (fully parallel animations)
+          // This creates perfectly synchronized transition
           setTimeout(async () => {
-            console.log('⚡ OVERLAP: Starting detail modal enter WHILE board exit still playing (seamless!)');
+            console.log('⚡ PARALLEL: Starting detail modal enter NOW (at same time as board exit - fully parallel!)');
             
             // Minimal cleanup
             try {
@@ -1362,12 +1362,12 @@ async function startNewRun(boardId: number): Promise<void> {
               journeyScreen.style.visibility = 'hidden';
             }
             
-            // Open detail modal (overlapping with board exit tail)
+            // Open detail modal (parallel with board exit)
             journeyManagerPromise.then(async ({ journeyBoardsManager }) => {
-              console.log('⚡ SEAMLESS: Detail modal enter starting NOW (board exit still playing in background)');
+              console.log('⚡ PARALLEL: Detail modal enter starting NOW (board exit also playing in parallel)');
               if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
                 await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
-                console.log(`✅ SEAMLESS: Detail modal opened with overlap for board ${detailModalBoardId}`);
+                console.log(`✅ PARALLEL: Detail modal opened simultaneously with board exit for board ${detailModalBoardId}`);
               }
             }).catch((error) => {
               console.warn('⚠️ Failed to import journeyBoardsManager:', error);
@@ -1375,7 +1375,7 @@ async function startNewRun(boardId: number): Promise<void> {
             
             // Clear fast path flag
             delete (window as any).__ccFastExitToDetailModal;
-          }, 250); // Start detail modal 250ms into board exit (creates seamless overlap)
+          }, 0); // Start detail modal IMMEDIATELY (0ms = parallel with board exit start)
           
           // Wait for board exit to complete (but don't block detail modal)
           await boardExitPromise;
