@@ -1085,6 +1085,14 @@ export async function showCleanBoardModal({
       // 🔥 Mark overlay as exiting to neutralize :active styles
       el.setAttribute('data-clean-board-exiting', 'true');
 
+      // 🔥 CRITICAL: Hide board app/stage IMMEDIATELY to prevent old board flash
+      if (app?.view?.style) {
+        app.view.style.opacity = '0';
+      }
+      if (stage) {
+        stage.alpha = 0;
+      }
+
       // 🔥 CRITICAL: Stop ALL background animations IMMEDIATELY for smooth exit
       // This prevents choppy exit animation caused by ongoing GSAP tweens and star animations
       killAllGSAPTweens(); // Kill score/combo/efficiency animations
@@ -1257,6 +1265,14 @@ export async function showCleanBoardModal({
         
         // 🔥 Mark overlay as exiting to neutralize :active styles
         el.setAttribute('data-clean-board-exiting', 'true');
+
+        // 🔥 CRITICAL: Hide board app/stage IMMEDIATELY to prevent old board flash
+        if (app?.view?.style) {
+          app.view.style.opacity = '0';
+        }
+        if (stage) {
+          stage.alpha = 0;
+        }
 
         // 🔥 CRITICAL: Stop ALL background animations IMMEDIATELY for smooth exit
         // This prevents choppy exit animation caused by ongoing GSAP tweens and star animations
