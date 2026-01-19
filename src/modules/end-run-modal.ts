@@ -8,6 +8,113 @@ import { getBoardSaveKey } from '../utils/board-save-utils.js';
 
 let modal: HTMLElement | null = null;
 
+// 🔥 MEMORY LEAK FIX: Track all timeouts, intervals, rAFs, and event listeners for cleanup
+const _endRunTimeouts = new Set<ReturnType<typeof setTimeout>>();
+const _endRunIntervals = new Set<ReturnType<typeof setInterval>>();
+const _endRunAnimationFrames = new Set<number>();
+const _endRunEventListeners: Array<{
+  element: HTMLElement | Document;
+  event: string;
+  handler: EventListener;
+  options?: AddEventListenerOptions;
+}> = [];
+const _endRunOnEventHandlers: Array<{
+  element: HTMLElement | Document;
+  property: string;
+  oldHandler: any;
+}> = [];
+
+function trackEndRunTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
+  const timeout = setTimeout(() => {
+    callback();
+    _endRunTimeouts.delete(timeout);
+  }, delay);
+  _endRunTimeouts.add(timeout);
+  return timeout;
+}
+
+function trackEndRunInterval(callback: () => void, delay: number): ReturnType<typeof setInterval> {
+  const interval = setInterval(callback, delay);
+  _endRunIntervals.add(interval);
+  return interval;
+}
+
+function trackEndRunAnimationFrame(callback: (now: number) => void): number {
+  const rafId = requestAnimationFrame((now: number) => {
+    callback(now);
+    _endRunAnimationFrames.delete(rafId);
+  });
+  _endRunAnimationFrames.add(rafId);
+  return rafId;
+}
+
+function trackEndRunEventListener(
+  element: HTMLElement | Document,
+  event: string,
+  handler: EventListener,
+  options?: AddEventListenerOptions
+): void {
+  element.addEventListener(event, handler, options);
+  _endRunEventListeners.push({ element, event, handler, options });
+}
+
+function clearAllEndRunTimeouts(): void {
+  console.log(`🧹 end-run-modal: Clearing ${_endRunTimeouts.size} timeouts`);
+  _endRunTimeouts.forEach(timeout => clearTimeout(timeout));
+  _endRunTimeouts.clear();
+}
+
+function clearAllEndRunIntervals(): void {
+  console.log(`🧹 end-run-modal: Clearing ${_endRunIntervals.size} intervals`);
+  _endRunIntervals.forEach(interval => clearInterval(interval));
+  _endRunIntervals.clear();
+}
+
+function clearAllEndRunAnimationFrames(): void {
+  console.log(`🧹 end-run-modal: Clearing ${_endRunAnimationFrames.size} animation frames`);
+  _endRunAnimationFrames.forEach(rafId => cancelAnimationFrame(rafId));
+  _endRunAnimationFrames.clear();
+}
+
+function clearAllEndRunEventListeners(): void {
+  console.log(`🧹 end-run-modal: Clearing ${_endRunEventListeners.length} event listeners`);
+  _endRunEventListeners.forEach(({ element, event, handler, options }) => {
+    try {
+      element.removeEventListener(event, handler, options);
+    } catch (e) {
+      console.warn(`⚠️ end-run-modal: Failed to remove ${event} listener:`, e);
+    }
+  });
+  _endRunEventListeners.length = 0;
+}
+
+function clearAllEndRunOnEventHandlers(): void {
+  console.log(`🧹 end-run-modal: Clearing ${_endRunOnEventHandlers.length} .on* event handlers`);
+  _endRunOnEventHandlers.forEach(({ element, property, oldHandler }) => {
+    try {
+      (element as any)[property] = oldHandler;
+    } catch (e) {
+      console.warn(`⚠️ end-run-modal: Failed to clear ${property} handler:`, e);
+    }
+  });
+  _endRunOnEventHandlers.length = 0;
+}
+
+function trackOnEventHandler(element: HTMLElement | Document, property: string, newHandler: any): void {
+  const oldHandler = (element as any)[property];
+  _endRunOnEventHandlers.push({ element, property, oldHandler });
+  (element as any)[property] = newHandler;
+}
+
+function cleanupAllEndRunResources(): void {
+  clearAllEndRunTimeouts();
+  clearAllEndRunIntervals();
+  clearAllEndRunAnimationFrames();
+  clearAllEndRunEventListeners();
+  clearAllEndRunOnEventHandlers();
+  console.log('✅ end-run-modal: All resources cleaned up!');
+}
+
 function showCleanBoardStarsPicker(): Promise<number | null> {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
@@ -62,10 +169,11 @@ function showCleanBoardStarsPicker(): Promise<number | null> {
         'font-weight:700',
         'color:#a46f58'
       ].join(';');
-      btn.addEventListener('click', () => {
+      const clickHandler = () => {
         selectedStars = count;
         updateSelection();
-      });
+      };
+      trackEndRunEventListener(btn, 'click', clickHandler);
       return btn;
     };
 
@@ -97,10 +205,12 @@ function showCleanBoardStarsPicker(): Promise<number | null> {
       'font-weight:800',
       'color:#fff'
     ].join(';');
-    okBtn.addEventListener('click', () => {
+    const okClickHandler = () => {
+      cleanupAllEndRunResources(); // Cleanup before resolving
       overlay.remove();
       resolve(selectedStars);
-    });
+    };
+    trackEndRunEventListener(okBtn, 'click', okClickHandler);
 
     const cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
@@ -115,17 +225,21 @@ function showCleanBoardStarsPicker(): Promise<number | null> {
       'font-weight:700',
       'color:#9a6f5b'
     ].join(';');
-    cancelBtn.addEventListener('click', () => {
+    const cancelClickHandler = () => {
+      cleanupAllEndRunResources(); // Cleanup before resolving
       overlay.remove();
       resolve(null);
-    });
+    };
+    trackEndRunEventListener(cancelBtn, 'click', cancelClickHandler);
 
-    overlay.addEventListener('click', (e) => {
+    const overlayClickHandler = (e: Event) => {
       if (e.target === overlay) {
+        cleanupAllEndRunResources(); // Cleanup before resolving
         overlay.remove();
         resolve(null);
       }
-    });
+    };
+    trackEndRunEventListener(overlay, 'click', overlayClickHandler);
 
     buttons.forEach((btn) => buttonRow.appendChild(btn));
     updateSelection();
@@ -271,7 +385,7 @@ function createModal(): HTMLElement {
   const exitBtn = modal.querySelector('.exit-btn') as HTMLButtonElement;
   
   if (restartBtn) {
-    restartBtn.addEventListener('click', () => {
+    const restartClickHandler = () => {
       console.log('🔄 Restart button clicked - starting restart sequence');
       
       // Haptic for Restart button
@@ -284,7 +398,7 @@ function createModal(): HTMLElement {
       
       // Step 2: Wait for modal animation to complete (400ms), then restart
       // 🔥 MEMORY LEAK FIX: Store timeout ID for cleanup
-      const timeout = setTimeout(() => {
+      trackEndRunTimeout(() => {
         console.log('🎯 Modal hidden, calling restart');
         // 🔥 USER REQUEST: Clear saved game state for current board (board-specific)
         try {
@@ -299,22 +413,13 @@ function createModal(): HTMLElement {
         if ((window as any).CC && (window as any).CC.restart) {
           (window as any).CC.restart();
         }
-        // 🔥 Remove from global tracker
-        if ((window as any)._activeTimeouts) {
-          (window as any)._activeTimeouts.delete(timeout);
-        }
       }, 400); // Wait for modal close animation to complete
-      
-      // 🔥 MEMORY LEAK FIX: Track timeout globally for cleanup
-      if (!(window as any)._activeTimeouts) {
-        (window as any)._activeTimeouts = new Set();
-      }
-      (window as any)._activeTimeouts.add(timeout);
-    });
+    };
+    trackEndRunEventListener(restartBtn, 'click', restartClickHandler);
   }
   
   if (completeBoardBtn) {
-    completeBoardBtn.addEventListener('click', async () => {
+    const completeBoardClickHandler = async () => {
       console.log('🎯 Complete Board button clicked');
       
       // Haptic for Complete Board button
@@ -362,26 +467,15 @@ function createModal(): HTMLElement {
             let step = 0;
             
             // 🔥 MEMORY LEAK FIX: Store interval ID for cleanup
-            const interval = setInterval(() => {
+            trackEndRunInterval(() => {
               step++;
               current += stepSize;
               if (step >= steps) {
                 scoreEl.textContent = newScore.toLocaleString();
-                clearInterval(interval);
-                // 🔥 Remove from global tracker
-                if ((window as any)._activeIntervals) {
-                  (window as any)._activeIntervals.delete(interval);
-                }
               } else {
                 scoreEl.textContent = Math.round(current).toLocaleString();
               }
             }, duration / steps);
-            
-            // 🔥 MEMORY LEAK FIX: Track interval globally for cleanup
-            if (!(window as any)._activeIntervals) {
-              (window as any)._activeIntervals = new Set();
-            }
-            (window as any)._activeIntervals.add(interval);
           }
         };
         
@@ -407,11 +501,12 @@ function createModal(): HTMLElement {
       } catch (error) {
         console.error('❌ Failed to show clean board modal:', error);
       }
-    });
+    };
+    trackEndRunEventListener(completeBoardBtn, 'click', completeBoardClickHandler);
   }
   
   if (exitBtn) {
-    exitBtn.addEventListener('click', () => {
+    const exitClickHandler = () => {
       console.log('🚪 Exit button clicked - starting exit sequence');
       
       // Haptic for Exit button
@@ -451,7 +546,8 @@ function createModal(): HTMLElement {
         if ((window as any).exitToMenu) {
           (window as any).exitToMenu();
         }
-    });
+    };
+    trackEndRunEventListener(exitBtn, 'click', exitClickHandler);
   }
   
   // Add drag functionality
@@ -605,7 +701,7 @@ export function showEndRunModal(): void {
   }
   
   // Import and run animation - same as resume modal
-  requestAnimationFrame(() => {
+  trackEndRunAnimationFrame(() => {
     import('./resume-sheet-animations.js').then(({ animateBottomSheetEntrance }) => {
       animateBottomSheetEntrance(el).then(() => {
         console.log('✅ End run modal entrance complete');
@@ -640,7 +736,7 @@ function addDragFunctionality(modalEl: HTMLElement): void {
   }
 
   // Touch events on entire modal
-  modalEl.ontouchstart = (e: TouchEvent) => {
+  trackOnEventHandler(modalEl, 'ontouchstart', (e: TouchEvent) => {
     // Don't start drag if clicking on buttons
     if (e.target && ((e.target as HTMLElement).closest('.restart-btn') || 
         (e.target as HTMLElement).closest('.complete-board-btn') ||
@@ -660,9 +756,9 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     if (modalEl.classList.contains('visible')) {
       forceCenterModal();
     }
-  };
+  });
 
-  modalEl.ontouchmove = (e: TouchEvent) => {
+  trackOnEventHandler(modalEl, 'ontouchmove', (e: TouchEvent) => {
     // Handle button touch move for cancel on drag off
     if (e.target && ((e.target as HTMLElement).closest('.restart-btn') || 
         (e.target as HTMLElement).closest('.complete-board-btn') ||
@@ -686,9 +782,9 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       modalEl.style.transform = newTransform;
       console.log('🎯 NEW TRANSFORM:', newTransform);
     }
-  };
+  });
 
-  modalEl.ontouchend = (e: TouchEvent) => {
+  trackOnEventHandler(modalEl, 'ontouchend', (e: TouchEvent) => {
     if (!isDragging) return;
     e.preventDefault();
     isDragging = false;
@@ -723,7 +819,7 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       // 🔓 Restore HUD interactivity immediately so hit areas keep working
       restoreHudInteractivity('drag close (touch)');
       
-      setTimeout(() => hideModal(), 400);
+      trackEndRunTimeout(() => hideModal(), 400);
     } else {
       console.log('🎯 SNAPPING BACK');
       modalEl.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
@@ -731,11 +827,11 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     }
     
     // Force center after drag ends
-    setTimeout(() => forceCenterModal(), 50);
-  };
+    trackEndRunTimeout(() => forceCenterModal(), 50);
+  });
   
   // Mouse events on entire modal
-  modalEl.onmousedown = (e: MouseEvent) => {
+  trackOnEventHandler(modalEl, 'onmousedown', (e: MouseEvent) => {
     // Don't start drag if clicking on buttons
     if (e.target && ((e.target as HTMLElement).closest('.restart-btn') || 
         (e.target as HTMLElement).closest('.complete-board-btn') ||
@@ -755,9 +851,9 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     if (modalEl.classList.contains('visible')) {
       forceCenterModal();
     }
-  };
+  });
   
-  document.onmousemove = (e: MouseEvent) => {
+  trackOnEventHandler(document, 'onmousemove', (e: MouseEvent) => {
     if (!isDragging) return;
     
     currentY = e.clientY;
@@ -772,9 +868,9 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       modalEl.style.transform = newTransform;
       console.log('🎯 NEW TRANSFORM (MOUSE):', newTransform);
     }
-  };
+  });
   
-  document.onmouseup = () => {
+  trackOnEventHandler(document, 'onmouseup', () => {
     if (!isDragging) return;
     isDragging = false;
     
@@ -808,7 +904,7 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       // 🔓 Restore HUD interactivity immediately so hit areas keep working
       restoreHudInteractivity('drag close (mouse)');
       
-      setTimeout(() => hideModal(), 400);
+      trackEndRunTimeout(() => hideModal(), 400);
     } else {
       console.log('🎯 SNAPPING BACK (mouse)');
       modalEl.style.transition = 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
@@ -816,8 +912,8 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     }
     
     // Force center after mouse drag ends
-    setTimeout(() => forceCenterModal(), 50);
-  };
+    trackEndRunTimeout(() => forceCenterModal(), 50);
+  });
 }
 
 // Simple outside click functionality
@@ -859,12 +955,12 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
     };
   
   // Attach with small delay to avoid capturing the click that opened the modal
-  setTimeout(() => {
+  trackEndRunTimeout(() => {
     if (outsideClickHandler) {
-      document.addEventListener('click', outsideClickHandler);
+      trackEndRunEventListener(document, 'click', outsideClickHandler);
     }
     if (outsideTouchEndHandler) {
-      document.addEventListener('touchend', outsideTouchEndHandler);
+      trackEndRunEventListener(document, 'touchend', outsideTouchEndHandler);
     }
   }, 200);
 }
@@ -959,7 +1055,10 @@ export function hideModal(): void {
   console.log('🔓 HUD unfrozen - ALL events enabled');
   
   // WAIT for animation to complete before resuming game
-  setTimeout(() => {
+  trackEndRunTimeout(() => {
+    // 🔥 MEMORY LEAK FIX: Cleanup all resources before removing modal
+    cleanupAllEndRunResources();
+    
     // Remove modal from DOM
     modalEl.classList.remove('visible');
     
@@ -1050,7 +1149,7 @@ export function showEndRunModalFromGame(): void {
     }
     
     // Wait a bit to ensure DOM is fully cleaned up before opening new modal
-    setTimeout(() => {
+    trackEndRunTimeout(() => {
       // Final check - if still exists, remove it
       const stillExists = document.querySelector('.score-bottom-sheet');
       if (stillExists) {

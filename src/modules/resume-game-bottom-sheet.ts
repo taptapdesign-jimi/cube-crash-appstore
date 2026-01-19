@@ -5,6 +5,46 @@ import { logger } from '../core/logger.js';
 
 let resumeModal: HTMLElement | null = null;
 
+// 🔥 MEMORY LEAK FIX: Track all timeouts and rAFs for cleanup
+const _resumeTimeouts = new Set<ReturnType<typeof setTimeout>>();
+const _resumeAnimationFrames = new Set<number>();
+
+function trackResumeTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
+  const timeout = setTimeout(() => {
+    callback();
+    _resumeTimeouts.delete(timeout);
+  }, delay);
+  _resumeTimeouts.add(timeout);
+  return timeout;
+}
+
+function trackResumeAnimationFrame(callback: (now: number) => void): number {
+  const rafId = requestAnimationFrame((now: number) => {
+    callback(now);
+    _resumeAnimationFrames.delete(rafId);
+  });
+  _resumeAnimationFrames.add(rafId);
+  return rafId;
+}
+
+function clearAllResumeTimeouts(): void {
+  console.log(`🧹 resume-game-bottom-sheet: Clearing ${_resumeTimeouts.size} timeouts`);
+  _resumeTimeouts.forEach(timeout => clearTimeout(timeout));
+  _resumeTimeouts.clear();
+}
+
+function clearAllResumeAnimationFrames(): void {
+  console.log(`🧹 resume-game-bottom-sheet: Clearing ${_resumeAnimationFrames.size} animation frames`);
+  _resumeAnimationFrames.forEach(rafId => cancelAnimationFrame(rafId));
+  _resumeAnimationFrames.clear();
+}
+
+function cleanupAllResumeResources(): void {
+  clearAllResumeTimeouts();
+  clearAllResumeAnimationFrames();
+  console.log('✅ resume-game-bottom-sheet: All resources cleaned up!');
+}
+
 function createCleanupRegistry(modalEl: HTMLElement): (fn: () => void) => void {
   const list: (() => void)[] = [];
   (modalEl as any)._cleanupFns = list;
@@ -67,7 +107,7 @@ function createResumeModal(): HTMLElement {
       }
       
       hideResumeModal();
-      setTimeout(() => {
+      trackResumeTimeout(() => {
         if (typeof (window as any).continueGameWithSavedState === 'function') {
           (window as any).continueGameWithSavedState();
         } else {
@@ -97,7 +137,7 @@ function createResumeModal(): HTMLElement {
       hideResumeModal();
       // CRITICAL: Wait for modal to close, then trigger game start sequence with exit animation
       // Same as continue button - uses triggerGameStartSequence which plays exit animation
-      setTimeout(() => {
+      trackResumeTimeout(() => {
         console.log('🎮 Starting game after modal closed (New Game) - with exit animation');
         // Use triggerGameStartSequence to play exit animation (same as continue button)
         if (typeof (window as any).triggerGameStartSequence === 'function') {
@@ -141,7 +181,7 @@ function addOutsideClickFunctionality(modalEl: HTMLElement, registerCleanup: (fn
   };
   
   // Attach with small delay to avoid capturing the click that opened the modal
-  setTimeout(() => {
+  trackResumeTimeout(() => {
     document.addEventListener('click', handleDocumentClick);
     document.addEventListener('touchend', handleDocumentTouchEnd);
   }, 100);
@@ -166,7 +206,7 @@ export function showResumeGameBottomSheet(): void {
   console.log('🎯 RESUME MODAL CREATED');
   
   // INSTANT animation - no delays
-  requestAnimationFrame(() => {
+  trackResumeAnimationFrame(() => {
     // Direct animation call - no async import, instant response
     animateBottomSheetEntrance(el).then(() => {
       console.log('✅ Bottom sheet entrance complete');
@@ -202,7 +242,10 @@ export function hideResumeModal(): void {
     // Ignore cleanup errors
   }
 
-  setTimeout(() => {
+  // 🔥 MEMORY LEAK FIX: Cleanup all resources before removing modal
+  cleanupAllResumeResources();
+
+  trackResumeTimeout(() => {
     modalEl.classList.remove('visible');
     
     // CRITICAL: Force hide bottom sheet to prevent it from blocking animations
@@ -311,7 +354,7 @@ function addDragFunctionality(modalEl: HTMLElement, registerCleanup: (fn: () => 
       (modalEl.style as any).transition = 'transform 0.4s ease-out';
       (modalEl.style as any).transform = 'translateY(100vh)';
       
-      setTimeout(() => hideResumeModal(), 500);
+      trackResumeTimeout(() => hideResumeModal(), 500);
     } else {
       // Snap back
       console.log('🎯 SNAPPING BACK');
@@ -377,7 +420,7 @@ function addDragFunctionality(modalEl: HTMLElement, registerCleanup: (fn: () => 
       (modalEl.style as any).transition = 'transform 0.4s ease-out';
       (modalEl.style as any).transform = 'translateY(100vh)';
       
-      setTimeout(() => hideResumeModal(), 500);
+      trackResumeTimeout(() => hideResumeModal(), 500);
     } else {
       console.log('🎯 SNAPPING BACK (mouse)');
       

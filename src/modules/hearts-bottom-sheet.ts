@@ -15,6 +15,55 @@ let heartsModal: HTMLElement | null = null;
 let timerInterval: NodeJS.Timeout | null = null;
 let heartsOverlay: HTMLElement | null = null;
 
+// 🔥 MEMORY LEAK FIX: Track all timeouts, intervals, and animations for cleanup
+const _heartsTimeouts = new Set<ReturnType<typeof setTimeout>>();
+const _heartsIntervals = new Set<ReturnType<typeof setInterval>>();
+const _heartsGSAPTweens: gsap.core.Tween[] = [];
+
+function trackHeartsTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
+  const timeout = setTimeout(() => {
+    callback();
+    _heartsTimeouts.delete(timeout);
+  }, delay);
+  _heartsTimeouts.add(timeout);
+  return timeout;
+}
+
+function trackHeartsInterval(callback: () => void, delay: number): ReturnType<typeof setInterval> {
+  const interval = setInterval(callback, delay);
+  _heartsIntervals.add(interval);
+  return interval;
+}
+
+function clearAllHeartsTimeouts(): void {
+  console.log(`🧹 hearts-bottom-sheet: Clearing ${_heartsTimeouts.size} timeouts`);
+  _heartsTimeouts.forEach(timeout => clearTimeout(timeout));
+  _heartsTimeouts.clear();
+}
+
+function clearAllHeartsIntervals(): void {
+  console.log(`🧹 hearts-bottom-sheet: Clearing ${_heartsIntervals.size} intervals`);
+  _heartsIntervals.forEach(interval => clearInterval(interval));
+  _heartsIntervals.clear();
+}
+
+function clearAllHeartsGSAPTweens(): void {
+  console.log(`🧹 hearts-bottom-sheet: Killing ${_heartsGSAPTweens.length} GSAP tweens`);
+  _heartsGSAPTweens.forEach(tween => {
+    try {
+      tween.kill();
+    } catch (e) {}
+  });
+  _heartsGSAPTweens.length = 0;
+}
+
+function cleanupAllHeartsResources(): void {
+  clearAllHeartsTimeouts();
+  clearAllHeartsIntervals();
+  clearAllHeartsGSAPTweens();
+  console.log('✅ hearts-bottom-sheet: All resources cleaned up!');
+}
+
 function createCleanupRegistry(modalEl: HTMLElement): (fn: () => void) => void {
   const list: (() => void)[] = [];
   (modalEl as any)._cleanupFns = list;
@@ -124,7 +173,7 @@ function addBackdropClickListener(modalEl: HTMLElement, registerCleanup: (fn: ()
   };
   
   // Attach with small delay to avoid capturing the click that opened the modal
-  setTimeout(() => {
+  trackHeartsTimeout(() => {
     document.addEventListener('click', handleDocumentClick);
     document.addEventListener('touchend', handleDocumentTouchEnd);
   }, 100);
@@ -149,7 +198,7 @@ function animateHeartRefill(heartIndex: number): void {
     heartIcon.alt = 'Filled heart';
     
     // Bouncy animation
-    gsap.fromTo(heartIcon, 
+    const fromTween = gsap.fromTo(heartIcon, 
       { scale: 0.3, opacity: 0 },
       { 
         scale: 1.2, 
@@ -157,14 +206,16 @@ function animateHeartRefill(heartIndex: number): void {
         duration: 0.3,
         ease: 'back.out(1.7)',
         onComplete: () => {
-          gsap.to(heartIcon, {
+          const toTween = gsap.to(heartIcon, {
             scale: 1,
             duration: 0.2,
             ease: 'power2.out'
           });
+          _heartsGSAPTweens.push(toTween);
         }
       }
     );
+    _heartsGSAPTweens.push(fromTween);
     
     logger.info(`💚 Animated heart refill for heart ${heartIndex + 1}`);
   }
@@ -330,7 +381,7 @@ function createHeartsModal(): HTMLElement {
   }
   
   // Start timer update interval (update every second)
-  timerInterval = setInterval(() => {
+  timerInterval = trackHeartsInterval(() => {
     // Refresh hearts system to check for refills
     heartsSystem.refreshUI();
     
@@ -341,6 +392,7 @@ function createHeartsModal(): HTMLElement {
   registerCleanup(() => {
     if (timerInterval) {
       clearInterval(timerInterval);
+      _heartsIntervals.delete(timerInterval);
       timerInterval = null;
     }
   });
@@ -367,7 +419,7 @@ function animateHeartsEntrance(modal: HTMLElement): Promise<void> {
     modal.style.transform = 'translateY(0)';
     
     // Step 4: Wait for completion
-    setTimeout(() => {
+    trackHeartsTimeout(() => {
       modal.classList.add('visible');
       logger.info('💚 Hearts bottom sheet shown');
       resolve();
@@ -448,7 +500,10 @@ export function hideHeartsModal(): void {
       // Ignore cleanup errors
     }
     
-    setTimeout(() => {
+    // 🔥 MEMORY LEAK FIX: Cleanup all resources
+    cleanupAllHeartsResources();
+    
+    trackHeartsTimeout(() => {
       modalEl.classList.remove('visible');
       
       // Force hide

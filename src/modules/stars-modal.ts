@@ -23,6 +23,9 @@ declare let window: WindowWithUpdateHighScore;
 
 export async function showStarsModal({ app, stage, board, score }: StarsModalParams): Promise<StarsModalResult> {
   return new Promise<StarsModalResult>(resolve => {
+    // 🔥 MEMORY LEAK FIX: Track all GSAP tweens for cleanup
+    const activeTweens: gsap.core.Tween[] = [];
+    
     const LAYER_NAME = 'cc-stars-modal';
     let layer = stage.children?.find?.(c => c && c.label === LAYER_NAME) as Container;
     if (!layer || layer.destroyed) {
@@ -33,7 +36,8 @@ export async function showStarsModal({ app, stage, board, score }: StarsModalPar
     }
     gsap.killTweensOf(layer, true);
     layer.removeChildren(); layer.visible = true; layer.alpha = 0;
-    gsap.to(layer, { alpha: 1, duration: 0.25 });
+    const layerTween = gsap.to(layer, { alpha: 1, duration: 0.25 });
+    activeTweens.push(layerTween);
 
     // Title
     const title = new Text({
@@ -81,13 +85,13 @@ export async function showStarsModal({ app, stage, board, score }: StarsModalPar
       let touchStarted = false;
       let touchStartedOnButton = false;
       
-      b.on('pointerover', ()=> gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" }));
-      b.on('pointerout',  ()=> gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" }));
+      b.on('pointerover', ()=> activeTweens.push(gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" })));
+      b.on('pointerout',  ()=> activeTweens.push(gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" })));
       
       b.on('pointerdown', (e: any) => {
         touchStarted = true;
         touchStartedOnButton = true;
-        gsap.to(b.scale, { x:0.80, y:0.80, duration:0.35, ease: "power2.out" });
+        activeTweens.push(gsap.to(b.scale, { x:0.80, y:0.80, duration:0.35, ease: "power2.out" }));
       });
       
       b.on('globalpointermove', (e: any) => {
@@ -99,7 +103,7 @@ export async function showStarsModal({ app, stage, board, score }: StarsModalPar
           
           if (isOutside) {
             // Cancel the touch - reset button
-            gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" });
+            activeTweens.push(gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" }));
             touchStartedOnButton = false;
           }
         }
@@ -127,7 +131,7 @@ export async function showStarsModal({ app, stage, board, score }: StarsModalPar
         }
         
         // Reset button
-        gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" });
+        activeTweens.push(gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" }));
         touchStarted = false;
         touchStartedOnButton = false;
       });
@@ -169,9 +173,24 @@ export async function showStarsModal({ app, stage, board, score }: StarsModalPar
     window.addEventListener('resize', onResize);
 
     function cleanup(): void {
+      // 🔥 MEMORY LEAK FIX: Kill all GSAP tweens
+      activeTweens.forEach(tween => {
+        try {
+          tween.kill();
+        } catch (e) {}
+      });
+      activeTweens.length = 0;
+      
+      // 🔥 MEMORY LEAK FIX: Remove all Pixi event listeners
+      try {
+        btn.removeAllListeners();
+      } catch (e) {}
+      
       try { window.removeEventListener('resize', onResize); } catch {}
       try { layer.removeChildren(); } catch {}
       try { stage.removeChild(layer); } catch {}
+      
+      logger.info('✅ stars-modal: All resources cleaned up!');
     }
   });
 }

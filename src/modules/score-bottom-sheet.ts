@@ -15,6 +15,99 @@ let isVisible = false;
 let outsideClickHandler: ((e: Event) => void) | null = null;
 let outsideTouchEndHandler: ((e: TouchEvent) => void) | null = null;
 
+// 🔥 MEMORY LEAK FIX: Track all timeouts, rAFs, and event listeners for cleanup
+const _scoreSheetTimeouts = new Set<ReturnType<typeof setTimeout>>();
+const _scoreSheetAnimationFrames = new Set<number>();
+const _scoreSheetEventListeners: Array<{
+  element: HTMLElement | Document;
+  event: string;
+  handler: EventListener;
+  options?: AddEventListenerOptions;
+}> = [];
+const _scoreSheetOnEventHandlers: Array<{
+  element: HTMLElement | Document;
+  property: string;
+  oldHandler: any;
+}> = [];
+
+function trackScoreSheetTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
+  const timeout = setTimeout(() => {
+    callback();
+    _scoreSheetTimeouts.delete(timeout);
+  }, delay);
+  _scoreSheetTimeouts.add(timeout);
+  return timeout;
+}
+
+function trackScoreSheetAnimationFrame(callback: (now: number) => void): number {
+  const rafId = requestAnimationFrame((now: number) => {
+    callback(now);
+    _scoreSheetAnimationFrames.delete(rafId);
+  });
+  _scoreSheetAnimationFrames.add(rafId);
+  return rafId;
+}
+
+function trackScoreSheetEventListener(
+  element: HTMLElement | Document,
+  event: string,
+  handler: EventListener,
+  options?: AddEventListenerOptions
+): void {
+  element.addEventListener(event, handler, options);
+  _scoreSheetEventListeners.push({ element, event, handler, options });
+}
+
+function trackScoreSheetOnEventHandler(element: HTMLElement | Document, property: string, newHandler: any): void {
+  const oldHandler = (element as any)[property];
+  _scoreSheetOnEventHandlers.push({ element, property, oldHandler });
+  (element as any)[property] = newHandler;
+}
+
+function clearAllScoreSheetTimeouts(): void {
+  console.log(`🧹 score-bottom-sheet: Clearing ${_scoreSheetTimeouts.size} timeouts`);
+  _scoreSheetTimeouts.forEach(timeout => clearTimeout(timeout));
+  _scoreSheetTimeouts.clear();
+}
+
+function clearAllScoreSheetAnimationFrames(): void {
+  console.log(`🧹 score-bottom-sheet: Clearing ${_scoreSheetAnimationFrames.size} animation frames`);
+  _scoreSheetAnimationFrames.forEach(rafId => cancelAnimationFrame(rafId));
+  _scoreSheetAnimationFrames.clear();
+}
+
+function clearAllScoreSheetEventListeners(): void {
+  console.log(`🧹 score-bottom-sheet: Clearing ${_scoreSheetEventListeners.length} event listeners`);
+  _scoreSheetEventListeners.forEach(({ element, event, handler, options }) => {
+    try {
+      element.removeEventListener(event, handler, options);
+    } catch (e) {
+      console.warn(`⚠️ score-bottom-sheet: Failed to remove ${event} listener:`, e);
+    }
+  });
+  _scoreSheetEventListeners.length = 0;
+}
+
+function clearAllScoreSheetOnEventHandlers(): void {
+  console.log(`🧹 score-bottom-sheet: Clearing ${_scoreSheetOnEventHandlers.length} .on* event handlers`);
+  _scoreSheetOnEventHandlers.forEach(({ element, property, oldHandler }) => {
+    try {
+      (element as any)[property] = oldHandler;
+    } catch (e) {
+      console.warn(`⚠️ score-bottom-sheet: Failed to clear ${property} handler:`, e);
+    }
+  });
+  _scoreSheetOnEventHandlers.length = 0;
+}
+
+function cleanupAllScoreSheetResources(): void {
+  clearAllScoreSheetTimeouts();
+  clearAllScoreSheetAnimationFrames();
+  clearAllScoreSheetEventListeners();
+  clearAllScoreSheetOnEventHandlers();
+  console.log('✅ score-bottom-sheet: All resources cleaned up!');
+}
+
 function createModal(): HTMLElement {
   if (modal) {
     modal.remove();
@@ -116,7 +209,7 @@ function addDragFunctionality(modalEl: HTMLElement): void {
   }
 
   // Touch events on entire modal
-  modalEl.ontouchstart = (e: TouchEvent) => {
+  trackScoreSheetOnEventHandler(modalEl, 'ontouchstart', (e: TouchEvent) => {
     console.log('🎯 DRAG START ON SCORE SHEET:', e.touches[0].clientY);
     e.preventDefault();
     startY = e.touches[0].clientY;
@@ -127,9 +220,9 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     if (modalEl.classList.contains('visible')) {
       forceCenterModal();
     }
-  };
+  });
 
-  modalEl.ontouchmove = (e: TouchEvent) => {
+  trackScoreSheetOnEventHandler(modalEl, 'ontouchmove', (e: TouchEvent) => {
     if (!isDragging) return;
     e.preventDefault();
     
@@ -140,9 +233,9 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       const newTransform = `translateY(${deltaY}px)`;
       modalEl.style.transform = newTransform;
     }
-  };
+  });
 
-  modalEl.ontouchend = (e: TouchEvent) => {
+  trackScoreSheetOnEventHandler(modalEl, 'ontouchend', (e: TouchEvent) => {
     if (!isDragging) return;
     e.preventDefault();
     isDragging = false;
@@ -158,7 +251,7 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       // 🔥 CRITICAL: Reset isVisible IMMEDIATELY when drag closes (before animation)
       isVisible = false;
       console.log('📊 Score sheet drag close - isVisible reset to false immediately');
-      setTimeout(() => {
+      trackScoreSheetTimeout(() => {
         console.log('📊 setTimeout callback - calling hideScoreBottomSheet()');
         hideScoreBottomSheet();
       }, 400);
@@ -168,11 +261,11 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       modalEl.style.transform = 'translateY(0)';
     }
     
-    setTimeout(() => forceCenterModal(), 50);
-  };
+    trackScoreSheetTimeout(() => forceCenterModal(), 50);
+  });
   
   // Mouse events on entire modal
-  modalEl.onmousedown = (e: MouseEvent) => {
+  trackScoreSheetOnEventHandler(modalEl, 'onmousedown', (e: MouseEvent) => {
     console.log('🎯 MOUSE DOWN ON SCORE SHEET:', e.clientY);
     e.preventDefault();
     startY = e.clientY;
@@ -183,9 +276,9 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     if (modalEl.classList.contains('visible')) {
       forceCenterModal();
     }
-  };
+  });
   
-  document.onmousemove = (e: MouseEvent) => {
+  trackScoreSheetOnEventHandler(document, 'onmousemove', (e: MouseEvent) => {
     if (!isDragging) return;
     
     currentY = e.clientY;
@@ -195,9 +288,9 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       const newTransform = `translateY(${deltaY}px)`;
       modalEl.style.transform = newTransform;
     }
-  };
+  });
   
-  document.onmouseup = () => {
+  trackScoreSheetOnEventHandler(document, 'onmouseup', () => {
     if (!isDragging) return;
     isDragging = false;
     
@@ -212,7 +305,7 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       // 🔥 CRITICAL: Reset isVisible IMMEDIATELY when drag closes (before animation)
       isVisible = false;
       console.log('📊 Score sheet drag close (mouse) - isVisible reset to false immediately');
-      setTimeout(() => {
+      trackScoreSheetTimeout(() => {
         console.log('📊 setTimeout callback (mouse) - calling hideScoreBottomSheet()');
         hideScoreBottomSheet();
       }, 400);
@@ -222,8 +315,8 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       modalEl.style.transform = 'translateY(0)';
     }
     
-    setTimeout(() => forceCenterModal(), 50);
-  };
+    trackScoreSheetTimeout(() => forceCenterModal(), 50);
+  });
 }
 
 function addOutsideClickFunctionality(modalEl: HTMLElement): void {
@@ -261,13 +354,13 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
   };
   
   // Attach with small delay to avoid capturing the click that opened the modal
-  setTimeout(() => {
+  trackScoreSheetTimeout(() => {
     if (outsideClickHandler && modalEl && modalEl.parentNode) {
-      document.addEventListener('click', outsideClickHandler, { passive: false });
+      trackScoreSheetEventListener(document, 'click', outsideClickHandler, { passive: false });
       console.log('📊 Outside click handler attached for score bottom sheet');
     }
     if (outsideTouchEndHandler && modalEl && modalEl.parentNode) {
-      document.addEventListener('touchend', outsideTouchEndHandler, { passive: false });
+      trackScoreSheetEventListener(document, 'touchend', outsideTouchEndHandler, { passive: false });
       console.log('📊 Outside touch handler attached for score bottom sheet');
     }
   }, 200);
@@ -461,7 +554,7 @@ export function showScoreBottomSheet(): void {
   el.style.display = 'block';
   el.style.transform = 'translateY(100%)';
   
-  requestAnimationFrame(() => {
+  trackScoreSheetAnimationFrame(() => {
     el.classList.add('visible');
     el.style.transition = 'transform 0.3s ease-out';
     el.style.transform = 'translateY(0)';
@@ -543,7 +636,10 @@ export function hideScoreBottomSheet(): void {
   modalEl.style.transform = 'translateY(100%)';
 
   // Remove modal after animation
-  setTimeout(() => {
+  trackScoreSheetTimeout(() => {
+    // 🔥 MEMORY LEAK FIX: Cleanup all resources before removing modal
+    cleanupAllScoreSheetResources();
+    
     // 🔥 CRITICAL: Remove 'visible' class and hide modal before removing from DOM
     if (modalEl) {
       modalEl.classList.remove('visible');
