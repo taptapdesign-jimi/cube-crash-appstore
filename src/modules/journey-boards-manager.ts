@@ -5041,6 +5041,10 @@ class JourneyBoardsManager {
           // Use journey boards exit animation (header animates as group)
           await this.closeDetailModalWithExitAnimation(detailModal);
           
+          // 🔥 BUG FIX: Mark that slider is already positioned
+          // This prevents collectibles-manager.ts from re-positioning slider and causing swipe
+          (window as any).__ccSliderAlreadyPositioned = true;
+          
           // Show Journey screen after modal closes
           const collectiblesManager = (window as any).collectiblesManager;
           if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
@@ -5064,6 +5068,10 @@ class JourneyBoardsManager {
           
           // Use journey boards exit animation (header animates as group)
           await this.closeDetailModalWithExitAnimation(detailModal);
+          
+          // 🔥 BUG FIX: Mark that slider is already positioned
+          // This prevents collectibles-manager.ts from re-positioning slider and causing swipe
+          (window as any).__ccSliderAlreadyPositioned = true;
           
           // Show Journey screen after modal closes
           const collectiblesManager = (window as any).collectiblesManager;
