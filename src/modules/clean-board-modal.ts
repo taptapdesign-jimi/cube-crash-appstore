@@ -519,21 +519,23 @@ export async function showCleanBoardModal({
       button.style.pointerEvents = 'none';
       button.blur();
       
-      // 🔥 STEP 2: Force reset transform to scale(1) - kills any :active bounce
-      button.style.transition = 'none';
-      button.style.transform = 'scale(1)';
-      void button.offsetHeight; // Force reflow
-      
-      // 🔥 STEP 3: Remove all animation classes
-      button.classList.remove('clean-board-button-hidden', 'clean-board-button-visible', 'clean-board-button-exit');
+      // 🔥 STEP 2: Remove ALL CSS classes (including exit-btn, restart-btn)
+      // This completely isolates button from :active CSS rules
+      const originalClasses = button.className;
+      button.className = ''; // Remove ALL classes
       button.removeAttribute('data-clean-board-entering');
       button.removeAttribute('data-clean-board-exiting');
       
-      // 🔥 STEP 4: Clear inline styles and add animate-exit class
+      // 🔥 STEP 3: Force reset transform to scale(1)
+      button.style.transition = 'none';
+      button.style.transform = 'scale(1)';
+      button.style.opacity = '1';
+      void button.offsetHeight; // Force reflow
+      
+      // 🔥 STEP 4: Apply exit animation with inline styles (no CSS class conflicts)
       requestAnimationFrame(() => {
-        button.style.transition = '';
-        button.style.transform = '';
-        button.classList.add('animate-exit');
+        button.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
+        button.style.transform = 'scale(0)';
       });
     };
 
@@ -1130,10 +1132,14 @@ export async function showCleanBoardModal({
           }, delay);
         });
       });
-      card.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-      requestAnimationFrame(() => {
-        card.style.transform = 'scale(0.86)';
-      });
+      // 🔥 FIX: Delay card scale animation until AFTER buttons start animating
+      // This prevents buttons from moving up with card scale
+      setTimeout(() => {
+        card.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+        requestAnimationFrame(() => {
+          card.style.transform = 'scale(0.86)';
+        });
+      }, 400); // Delay card scale until buttons are mid-animation
       // 🎯 Calculate duration: buttons need FULL 400ms to animate to scale(0) (FASTER exit)
       // Give EXTRA time to ensure button animation completes BEFORE card fadeout
       const buttonExitDuration = 400; // 🔥 FASTER: Button animation duration (was 650ms, now 400ms)
@@ -1299,10 +1305,14 @@ export async function showCleanBoardModal({
             }, delay);
           });
         });
-        card.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-        requestAnimationFrame(() => {
-          card.style.transform = 'scale(0.86)';
-        });
+        // 🔥 FIX: Delay card scale animation until AFTER buttons start animating
+        // This prevents buttons from moving up with card scale
+        setTimeout(() => {
+          card.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
+          requestAnimationFrame(() => {
+            card.style.transform = 'scale(0.86)';
+          });
+        }, 400); // Delay card scale until buttons are mid-animation
         // 🎯 Calculate duration: buttons need FULL 400ms to animate to scale(0) (FASTER exit)
         // Give EXTRA time to ensure button animation completes BEFORE card fadeout
         const buttonExitDuration = 400; // 🔥 FASTER: Button animation duration (was 650ms, now 400ms)
