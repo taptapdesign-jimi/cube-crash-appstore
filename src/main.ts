@@ -1326,58 +1326,68 @@ async function startNewRun(boardId: number): Promise<void> {
           console.log('✅ Board indicator exit animation started');
         }
         
-        await animateBoardExit();
-        console.log('✅ Board exit animations completed');
+        // ⚡ SEAMLESS TRANSITION: If fast path, start detail modal DURING board exit (overlapping animations)
+        if (shouldUseFastPath && returnToDetailModal && detailModalBoardId !== null) {
+          console.log('⚡ SEAMLESS MODE: Board exit + Detail modal enter will OVERLAP for smooth transition');
+          
+          // Start board exit (non-blocking, don't await yet)
+          const boardExitPromise = animateBoardExit();
+          console.log('🎬 Board exit animation started (non-blocking)');
+          
+          // ⚡ SEAMLESS: Start detail modal enter DURING board exit (after 250ms overlap)
+          // This creates smooth transition where animations overlap
+          setTimeout(async () => {
+            console.log('⚡ OVERLAP: Starting detail modal enter WHILE board exit still playing (seamless!)');
+            
+            // Minimal cleanup
+            try {
+              if (STATE && STATE.tiles && STATE.tiles.length > 0) {
+                STATE.tiles.forEach(tile => {
+                  try {
+                    if (tile && !tile.destroyed) {
+                      gsap.killTweensOf(tile);
+                      if (tile.scale) gsap.killTweensOf(tile.scale);
+                    }
+                  } catch (e) { /* ignore */ }
+                });
+              }
+            } catch (e) { /* ignore */ }
+            
+            // Prepare Journey screen
+            const journeyScreen = document.getElementById('journey-screen');
+            if (journeyScreen) {
+              journeyScreen.removeAttribute('hidden');
+              journeyScreen.style.display = 'flex';
+              journeyScreen.style.opacity = '0';
+              journeyScreen.style.visibility = 'hidden';
+            }
+            
+            // Open detail modal (overlapping with board exit tail)
+            journeyManagerPromise.then(async ({ journeyBoardsManager }) => {
+              console.log('⚡ SEAMLESS: Detail modal enter starting NOW (board exit still playing in background)');
+              if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
+                await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
+                console.log(`✅ SEAMLESS: Detail modal opened with overlap for board ${detailModalBoardId}`);
+              }
+            }).catch((error) => {
+              console.warn('⚠️ Failed to import journeyBoardsManager:', error);
+            });
+            
+            // Clear fast path flag
+            delete (window as any).__ccFastExitToDetailModal;
+          }, 250); // Start detail modal 250ms into board exit (creates seamless overlap)
+          
+          // Wait for board exit to complete (but don't block detail modal)
+          await boardExitPromise;
+          console.log('✅ Board exit animations completed (detail modal already started)');
+        } else {
+          // Normal path: wait for board exit to complete
+          await animateBoardExit();
+          console.log('✅ Board exit animations completed');
+        }
       } catch (error) {
         console.warn('⚠️ Board exit animation failed:', error);
       }
-    }
-    
-    // ⚡ FAST PATH: If returning to detail modal after Exit, do minimal cleanup and show modal immediately
-    if (shouldUseFastPath && returnToDetailModal && detailModalBoardId !== null) {
-      console.log('⚡ FAST PATH: Board exit complete → Opening detail modal IMMEDIATELY (minimal cleanup)');
-      
-      // Minimal essential cleanup only
-      try {
-        // Kill only critical tweens (tiles and HUD)
-        if (STATE && STATE.tiles && STATE.tiles.length > 0) {
-          STATE.tiles.forEach(tile => {
-            try {
-              if (tile && !tile.destroyed) {
-                gsap.killTweensOf(tile);
-                if (tile.scale) gsap.killTweensOf(tile.scale);
-              }
-            } catch (e) { /* ignore */ }
-          });
-        }
-        console.log('✅ Fast cleanup: Critical tweens killed');
-      } catch (e) { /* ignore */ }
-      
-      // Prepare Journey screen immediately
-      const journeyScreen = document.getElementById('journey-screen');
-      if (journeyScreen) {
-        journeyScreen.removeAttribute('hidden');
-        journeyScreen.style.display = 'flex';
-        journeyScreen.style.opacity = '0';
-        journeyScreen.style.visibility = 'hidden';
-        console.log('✅ Fast path: Journey screen prepared');
-      }
-      
-      // Open detail modal IMMEDIATELY using preloaded module
-      journeyManagerPromise.then(async ({ journeyBoardsManager }) => {
-        console.log('⚡ Fast path: Opening detail modal NOW (board exit just finished)');
-        if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
-          await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
-          console.log(`✅ Detail modal opened IMMEDIATELY for board ${detailModalBoardId}`);
-        }
-      }).catch((error) => {
-        console.warn('⚠️ Failed to import journeyBoardsManager:', error);
-      });
-      
-      // Continue with full cleanup in background (non-blocking)
-      console.log('🧹 Full cleanup continues in background...');
-      // Clear fast path flag
-      delete (window as any).__ccFastExitToDetailModal;
     }
     
     // Step 2: Kill ALL GSAP tweens immediately after animations complete

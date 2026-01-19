@@ -4639,9 +4639,9 @@ class JourneyBoardsManager {
           }
 
           // STEP 4: Other content elements sequentially (staggered, after card)
-          // ⚡ SPEED OPTIMIZATION: Start at 0.1s and animate stat-items one by one with better stagger (100ms faster)
-          const baseDelay = 0.1; // Start after card image begins animating (was 0.2s, now 0.1s for faster feel)
-          const regularStagger = 0.06; // Stagger for non-stat elements (slightly faster)
+          // 🔥 USER REQUEST: Start at 0.2s and animate stat-items one by one with better stagger
+          const baseDelay = 0.2; // Start after card image begins animating
+          const regularStagger = 0.08; // Stagger for non-stat elements
           
           // 🔥 OPTIMIZATION: Find stat-items for individual animation
           // 🔥 CRITICAL: Use correct class names - HTML uses .detail-stat-item, not .stat-item
