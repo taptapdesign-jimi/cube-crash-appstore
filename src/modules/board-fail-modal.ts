@@ -370,13 +370,6 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       // 🔥 MEMORY LEAK FIX: Stop score spin animation
       scoreSpinActive = false;
       
-      // 🔥 MEMORY LEAK FIX: Cleanup all animations, timeouts, and event listeners
-      cleanupButtonListeners();
-      clearAllFailTimeouts();
-      clearAllFailAnimationFrames();
-      
-      try { window.removeEventListener('keydown', onKey); } catch {}
-      
       // CRITICAL FIX: Update high score before resolving
       if (typeof (window as WindowWithCC).updateHighScore === 'function') {
         try {
@@ -385,19 +378,6 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         } catch (error) {
           logger.warn('⚠️ board-fail-modal: Failed to call window.updateHighScore:', error);
         }
-      }
-      
-      // 🔥 CRITICAL: Cleanup confetti animations before restart/exit (MEMORY LEAK FIX)
-      try {
-        import('./confetti-system.js').then(confettiModule => {
-          if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
-            confettiModule.cleanupConfetti();
-          }
-        }).catch(() => {
-          // Ignore import errors
-        });
-      } catch (e) {
-        // Ignore errors
       }
       
       // DIRECT FUNCTION CALLS like bottom sheet
@@ -410,10 +390,30 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               logger.info('💔 No hearts available - showing hearts bottom sheet OVER fail screen');
               // 🔥 USER REQUEST: Show hearts bottom sheet OVER fail screen (don't close fail modal)
               // Fail modal stays visible in background, user can still click Exit after closing bottom sheet
+              // 🔥 FIX: Don't cleanup button listeners here - modal stays open, buttons must remain active!
               const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
               showHeartsModal();
               // Don't resolve or close modal - just show bottom sheet over it
               return; // Don't continue to restart
+            }
+            
+            // 🔥 MEMORY LEAK FIX: NOW cleanup (modal is closing)
+            cleanupButtonListeners();
+            clearAllFailTimeouts();
+            clearAllFailAnimationFrames();
+            try { window.removeEventListener('keydown', onKey); } catch {}
+            
+            // 🔥 CRITICAL: Cleanup confetti animations before restart (MEMORY LEAK FIX)
+            try {
+              import('./confetti-system.js').then(confettiModule => {
+                if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
+                  confettiModule.cleanupConfetti();
+                }
+              }).catch(() => {
+                // Ignore import errors
+              });
+            } catch (e) {
+              // Ignore errors
             }
             
             // Has hearts - proceed with restart
@@ -434,6 +434,22 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             trackFailTimeout(() => { try { overlay.remove(); } catch {}; resolve({ action }); }, 220);
           } catch (error) {
             logger.warn('⚠️ Failed to check hearts, proceeding with restart anyway:', error);
+            
+            // 🔥 MEMORY LEAK FIX: Cleanup on fallback too
+            cleanupButtonListeners();
+            clearAllFailTimeouts();
+            clearAllFailAnimationFrames();
+            try { window.removeEventListener('keydown', onKey); } catch {}
+            
+            // 🔥 CRITICAL: Cleanup confetti animations (MEMORY LEAK FIX)
+            try {
+              import('./confetti-system.js').then(confettiModule => {
+                if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
+                  confettiModule.cleanupConfetti();
+                }
+              }).catch(() => {});
+            } catch (e) {}
+            
             // Fallback: proceed with restart if hearts check fails
             if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
               try {
@@ -451,6 +467,25 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         })();
         return; // Exit early - modal closing is handled above
       } else if (action === 'menu') {
+        // 🔥 MEMORY LEAK FIX: Cleanup (modal is closing)
+        cleanupButtonListeners();
+        clearAllFailTimeouts();
+        clearAllFailAnimationFrames();
+        try { window.removeEventListener('keydown', onKey); } catch {}
+        
+        // 🔥 CRITICAL: Cleanup confetti animations before exit (MEMORY LEAK FIX)
+        try {
+          import('./confetti-system.js').then(confettiModule => {
+            if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
+              confettiModule.cleanupConfetti();
+            }
+          }).catch(() => {
+            // Ignore import errors
+          });
+        } catch (e) {
+          // Ignore errors
+        }
+        
         logger.info('🚪 Exit clicked - calling window.exitToMenu directly');
         if ((window as WindowWithCC).exitToMenu) {
           try {

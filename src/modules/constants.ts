@@ -32,20 +32,17 @@ export function getGridDimensions(): GridDimensions {
       // Check for touch support and larger screen (tablet-like)
       (navigator.maxTouchPoints > 1 && width >= 768 && width <= 1400);
     
-    // 🔥 TESTING: 5x5 grid for faster testing
-    return { COLS: 5, ROWS: 5 };
+    if (isIPad) {
+      // iPad: 7 columns x 9 rows (extra width and height for larger layout)
+      return { COLS: 7, ROWS: 9 };
+    }
     
-    // if (isIPad) {
-    //   // iPad: 7 columns x 9 rows (extra width and height for larger layout)
-    //   return { COLS: 7, ROWS: 9 };
-    // }
-    
-    // // Mobile and Desktop: 5x9 board (standard gameplay)
-    // return { COLS: 5, ROWS: 9 };
+    // Mobile and Desktop: 5x9 board (standard gameplay)
+    return { COLS: 5, ROWS: 9 };
   }
   
   // Fallback for server-side rendering
-  return { COLS: 5, ROWS: 5 };
+  return { COLS: 5, ROWS: 9 };
 }
 
 const gridDims = getGridDimensions();
