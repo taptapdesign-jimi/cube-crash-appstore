@@ -4641,8 +4641,13 @@ function merge(src, dst, helpers){
     // 🔥 CRITICAL FIX: Use saved srcSpecial and dstSpecial (captured before dst.special was cleared)
     // dst.special was set to null on line 3561, so we must use the saved values
     const isWildMagnet = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
-    // Calculate multiplier: if wild-magnet, will be set after pulling tiles (max 4)
-    let mult = isWildMagnet ? 2 : (combinedCount >= 3 ? 3 : combinedCount); // Temporary, will be updated
+    // 🔥 BUG FIX: Wild star/beer should ALWAYS be mult=2, regardless of stackDepth
+    // Wild-magnet uses mult=2 initially (updated later based on pulled tiles, max 4)
+    // Regular merge 6 uses combinedCount (stackDepth sum) for multiplier
+    const isWildStarOrBeer = srcSpecial === 'wild' || dstSpecial === 'wild' || 
+                             srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
+    // Calculate multiplier: wild-magnet or wild star/beer = 2, regular merge 6 = combinedCount
+    let mult = (isWildMagnet || isWildStarOrBeer) ? 2 : (combinedCount >= 3 ? 3 : combinedCount); // Temporary, will be updated
     
     // Store isWildMagnet for use in onComplete callback
     const wasWildMagnet = isWildMagnet;
@@ -6372,22 +6377,26 @@ function merge(src, dst, helpers){
         
         // 🔥 BUG FIX: For wild merges (wild star, wild beer) in end game, spawn only 1 tile
         // Wild merge normally spawns 2 tiles (mult=2), but in end game should spawn only 1
-        // End game = no locked tiles available (all tiles are opened) AND no stacked tiles
+        // End game = no locked tiles available (all tiles are opened)
         const isWildMergeForMultFix = srcSpecial === 'wild' || dstSpecial === 'wild' || 
                                       srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
         const lockedTilesForMultCheck = tiles.filter(t => t && !t.destroyed && t.locked).length;
         
-        // 🔥 CRITICAL FIX: Also check for stacked tiles (stackDepth > 1)
-        // If there are stacked tiles, it's NOT end game yet - there are still "hidden" tiles in stacks
-        // Bug: Wild star on stack(vdepth=2) was spawning 2 tiles instead of 1 (thought it was end game)
-        const stackedTilesForMultCheck = tiles.filter(t => {
-          if (!t || t.destroyed) return false;
-          const stackDepth = (t as any).stackDepth || 1;
-          return stackDepth > 1;
-        }).length;
+        console.log('🐛 DEBUG END-GAME CHECK:', {
+          srcSpecial,
+          dstSpecial,
+          isWildMergeForMultFix,
+          lockedTilesForMultCheck,
+          spawnMult,
+          mult,
+          srcValue: src?.value,
+          dstValue: dst?.value,
+          srcStackDepth: (src as any)?.stackDepth || 1,
+          dstStackDepth: (dst as any)?.stackDepth || 1
+        });
         
-        if (isWildMergeForMultFix && lockedTilesForMultCheck === 0 && stackedTilesForMultCheck === 0 && spawnMult > 1) {
-          console.log('🔥 END-GAME FIX: Wild merge + no locked tiles + no stacked tiles → reducing spawnMult from', spawnMult, 'to 1');
+        if (isWildMergeForMultFix && lockedTilesForMultCheck === 0 && spawnMult > 1) {
+          console.log('🔥 END-GAME FIX: Wild merge + no locked tiles → reducing spawnMult from', spawnMult, 'to 1');
           spawnMult = 1; // Spawn only 1 tile in end game scenario
         }
         
@@ -6466,6 +6475,15 @@ function merge(src, dst, helpers){
                                     srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
         const shouldSpawnAtDst = (availableLockedTiles.length === 0 && spawnMult > 0) ||
                                  (isWildMergeForSpawn && availableLockedTiles.length < spawnMult && spawnMult > 0);
+        
+        console.log('🐛 DEBUG SPAWN DECISION:', {
+          availableLockedTilesLength: availableLockedTiles.length,
+          spawnMult,
+          isWildMergeForSpawn,
+          shouldSpawnAtDst,
+          firstCondition: availableLockedTiles.length === 0 && spawnMult > 0,
+          secondCondition: isWildMergeForSpawn && availableLockedTiles.length < spawnMult && spawnMult > 0
+        });
         
         if (shouldSpawnAtDst) {
           console.log('🎯🎯🎯 END-GAME SPAWN: No/few locked tiles available - spawning 1 tile directly at dst position (', gx, ',', gy, ')');

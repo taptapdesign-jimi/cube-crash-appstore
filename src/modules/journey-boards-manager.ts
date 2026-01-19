@@ -4499,7 +4499,7 @@ class JourneyBoardsManager {
             gsap.to(detailHeader, {
               scale: 1,
               opacity: 1,
-              duration: 0.3,
+              duration: 0.5,
               ease: 'back.out(1.7)',
               delay: 0,
               force3D: true,
@@ -4589,9 +4589,9 @@ class JourneyBoardsManager {
                 scale: 1,
                 opacity: 1,
                 visibility: 'visible',
-                duration: 0.3,
+                duration: 0.5,
                 ease: 'back.out(1.8)',
-                delay: 0.03,
+                delay: 0.05,
                 force3D: true,
                 overwrite: true,
                 onStart: () => {
