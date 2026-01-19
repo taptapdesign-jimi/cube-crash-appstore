@@ -542,6 +542,24 @@ export async function showCleanBoardModal({
       });
     };
 
+    // 🔥 Detach buttons from card so card scaling doesn't move them
+    const detachButtonsForExit = () => {
+      if (!buttonContainer.isConnected) return;
+
+      const rect = buttonContainer.getBoundingClientRect();
+      // Move container out of the card so card scale doesn't affect it
+      el.appendChild(buttonContainer);
+      buttonContainer.style.position = 'fixed';
+      buttonContainer.style.left = `${rect.left}px`;
+      buttonContainer.style.top = `${rect.top}px`;
+      buttonContainer.style.width = `${rect.width}px`;
+      buttonContainer.style.margin = '0';
+      buttonContainer.style.transform = 'none';
+      buttonContainer.style.transition = 'none';
+      buttonContainer.style.opacity = '1';
+      buttonContainer.style.zIndex = '5';
+    };
+
     infoStack.appendChild(hero);
     textCluster.appendChild(title);
     textCluster.appendChild(scoreLabel);
@@ -1100,11 +1118,8 @@ export async function showCleanBoardModal({
       void boardCleared.offsetHeight;
       void statusSlot.offsetHeight;
       
-      // 🔥 CRITICAL: Reset buttonContainer to prevent it from animating as a container
-      // Buttons should animate INDIVIDUALLY, not as a container
-      buttonContainer.style.transition = 'none';
-      buttonContainer.style.transform = 'none';
-      buttonContainer.style.opacity = '1';
+      // 🔥 CRITICAL: Detach buttons so card scale doesn't move them
+      detachButtonsForExit();
       
       const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
       const exitOffsets = [-22, -18, -14, -10, -6, -4, -2];
@@ -1275,11 +1290,8 @@ export async function showCleanBoardModal({
         void boardCleared.offsetHeight;
         void statusSlot.offsetHeight;
         
-        // 🔥 CRITICAL: Reset buttonContainer to prevent it from animating as a container
-        // Buttons should animate INDIVIDUALLY, not as a container
-        buttonContainer.style.transition = 'none';
-        buttonContainer.style.transform = 'none';
-        buttonContainer.style.opacity = '1';
+        // 🔥 CRITICAL: Detach buttons so card scale doesn't move them
+        detachButtonsForExit();
         
         const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
         const exitOffsets = [-22, -18, -14, -10, -6, -4, -2];
