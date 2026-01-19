@@ -61,6 +61,8 @@ declare global {
   var cleanupPulledTile: any;
   var layout: any;
   var HUD_ROOT: any;
+  var updateHUD: any;
+  var clearTextureCache: any;
 
   // ImportMeta extensions for Vite
   interface ImportMeta {

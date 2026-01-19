@@ -22,5 +22,25 @@ declare module 'pixi.js' {
     // Allow any property access
     [key: string]: any;
   }
+  
+  interface Application {
+    // Allow any property access
+    [key: string]: any;
+  }
+  
+  interface Ticker {
+    // Allow any property access
+    [key: string]: any;
+  }
+  
+  interface ObservablePoint {
+    // Allow any property access
+    [key: string]: any;
+  }
+  
+  interface Texture {
+    // Allow any property access
+    [key: string]: any;
+  }
 }
 

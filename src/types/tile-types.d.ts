@@ -1,14 +1,29 @@
 // Tile type definitions (ultra-permissive)
 
-// Make all tile types compatible with each other
-export type Tile = any;
-export type WildishTile = any;
-export type LetterTile = any;
+import type { Container } from 'pixi.js';
+
+// Make all tile types compatible with each other and extend Container
+export interface Tile extends Container {
+  [key: string]: any;
+  x?: number;
+  y?: number;
+  parent?: any;
+  destroyed?: boolean;
+}
+
+export type WildishTile = Tile;
+export type LetterTile = Tile;
 
 // Global tile types
 declare global {
-  type Tile = any;
-  type WildishTile = any;
-  type LetterTile = any;
+  interface Tile extends Container {
+    [key: string]: any;
+    x?: number;
+    y?: number;
+    parent?: any;
+    destroyed?: boolean;
+  }
+  type WildishTile = Tile;
+  type LetterTile = Tile;
 }
 
