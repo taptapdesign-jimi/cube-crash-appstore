@@ -535,7 +535,33 @@ export async function showCleanBoardModal({
       });
     };
 
-    // 🔥 REMOVED: animateButtonExitLikeSlider - buttons now scale with buttonContainer for clean exit
+    // 🔥 NEW: Unified button exit animation (used by BOTH Play Again and Exit handlers)
+    const animateButtonExit = (button: HTMLButtonElement) => {
+      // 🔥 CRITICAL: Disable button interactions (prevents :active/:hover/:focus from triggering)
+      button.disabled = true;
+      button.style.setProperty('pointer-events', 'none', 'important');
+      // 🔥 CRITICAL: Remove focus/active states FIRST (prevents :active/:focus CSS from overriding)
+      button.blur();
+      // 🔥 Remove ALL animation classes
+      button.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
+      // 🔥 Remove ALL inline transform/transition styles
+      button.style.removeProperty('transform');
+      button.style.removeProperty('transition');
+      button.style.removeProperty('opacity');
+      button.style.removeProperty('will-change');
+      // 🔥 Force reflow to ensure all changes are applied
+      void button.offsetHeight;
+      // 🔥 Add animate-exit class (CSS will handle transform: translateY(20px) scale(0))
+      button.classList.add('animate-exit');
+      
+      // 🔥 TRIPLE SAFETY: Force inline !important styles to override ANY CSS conflicts
+      // This is necessary because .restart-btn:active has transform: scale(0.80) !important
+      requestAnimationFrame(() => {
+        button.style.setProperty('will-change', 'transform', 'important');
+        button.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
+        button.style.setProperty('transform', 'translateY(20px) scale(0)', 'important');
+      });
+    };
 
     infoStack.appendChild(hero);
     textCluster.appendChild(title);
@@ -1120,24 +1146,7 @@ export async function showCleanBoardModal({
  
         // 🎯 BUTTONS: Use EXACT same exit animation as homepage slider CTA (CSS class animate-exit)
         // This gives premium bounce-out effect: translateY(20px) scale(0) with cubic-bezier(0.68, -0.6, 0.32, 1.6)
-        
-        // 🔥 FUNCTION: Reset button and add animate-exit (EXACT SAME for BOTH buttons)
-        const animateButtonExit = (button: HTMLButtonElement) => {
-          button.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
-          button.style.removeProperty('transform');
-          button.style.removeProperty('transition');
-          button.style.removeProperty('opacity');
-          button.style.removeProperty('will-change');
-          void button.offsetHeight; // Force reflow
-          button.classList.add('animate-exit'); // 🔥 CSS class handles the animation (same as homepage)
-          
-          // 🔥 DOUBLE SAFETY: Force inline styles with !important to override ANY CSS conflicts
-          requestAnimationFrame(() => {
-            button.style.setProperty('will-change', 'transform', 'important');
-            button.style.setProperty('transition', 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)', 'important');
-            button.style.setProperty('transform', 'translateY(20px) scale(0)', 'important');
-          });
-        };
+        // Using global animateButtonExit function (defined at line 541)
         
         // Play Again exits FIRST (immediately)
         animateButtonExit(primaryBtn);
@@ -1299,31 +1308,18 @@ export async function showCleanBoardModal({
  
         // 🎯 BUTTONS: Use EXACT same exit animation as homepage slider CTA (CSS class animate-exit)
         // This gives premium bounce-out effect: translateY(20px) scale(0) with cubic-bezier(0.68, -0.6, 0.32, 1.6)
-        // Play Again exits FIRST (immediately)
-        primaryBtn.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
-        primaryBtn.style.removeProperty('transform');
-        primaryBtn.style.removeProperty('transition');
-        primaryBtn.style.removeProperty('opacity');
-        void primaryBtn.offsetHeight; // Force reflow
-        primaryBtn.classList.add('animate-exit'); // 🔥 CSS class handles the animation (same as homepage)
+        // Using global animateButtonExit function (defined at line 541)
         
-        // Exit button exits 300ms LATER (sekvencijalno, same animation as Play Again)
+        // Play Again exits FIRST (immediately)
+        animateButtonExit(primaryBtn);
+        
+        // Exit button exits 300ms LATER (sekvencijalno, EXACT SAME LOGIC as Play Again)
         if (secondaryBtn) {
           setTimeout(() => {
-            // 🔥 CRITICAL: Remove focus/active states first (prevents :active/:focus CSS from overriding animate-exit)
-            secondaryBtn.blur();
-            // 🔥 CRITICAL: Reset ALL styles EXACTLY like Play Again button (for consistency)
-            secondaryBtn.classList.remove('animate-enter', 'animate-enter-initial', 'animate-reset');
-            secondaryBtn.style.removeProperty('transform'); // Remove transform (CSS class will set it with !important)
-            secondaryBtn.style.removeProperty('transition'); // Remove transition (CSS class will set it with !important)
-            secondaryBtn.style.removeProperty('opacity'); // Remove opacity
-            // Note: Keep will-change - CSS class will handle it
-            void secondaryBtn.offsetHeight; // Force reflow
-            // Now add animate-exit - CSS will handle transform: translateY(20px) scale(0) with 0.65s (same as Play Again!)
-            secondaryBtn.classList.add('animate-exit'); // 🔥 CSS class handles the animation (0.65s - same as Play Again!)
+            animateButtonExit(secondaryBtn); // 🔥 EXACT same function as Play Again
           }, 300); // 🔥 300ms delay between Play Again and Exit (sekvencijalno)
         }
- 
+
         requestAnimationFrame(() => {
           nodes.forEach((node, idx) => {
             const delay = idx * 60;
