@@ -512,34 +512,20 @@ export async function showCleanBoardModal({
     };
 
     // Animate button out (scale to 0 exit)
-    // 🔥 BRAND NEW: Isolated animation - NO CSS classes, NO conflicts
+    // 🔥 EXACT SAME as homepage slider CTA - PURE CSS, NO GSAP
     const animateButtonExit = (button: HTMLButtonElement) => {
       button.disabled = true;
       button.blur();
       
-      // 🔥 STEP 1: Strip ALL CSS classes and attributes (total isolation)
-      button.className = ''; // Remove ALL classes
+      // 🔥 Remove ALL classes that could interfere
+      button.classList.remove('clean-board-button-hidden', 'clean-board-button-visible', 'clean-board-button-exit');
       button.removeAttribute('data-clean-board-entering');
       button.removeAttribute('data-clean-board-exiting');
       
-      // 🔥 STEP 2: Set initial state with inline styles (no CSS interference)
-      button.style.cssText = `
-        position: relative;
-        pointer-events: none;
-        transform: scale(1) translateY(0);
-        opacity: 1;
-        transition: none;
-      `;
-      
-      // Force reflow to apply initial state
-      void button.offsetHeight;
-      
-      // 🔥 STEP 3: Start animation with CSS transition (smooth, isolated)
-      requestAnimationFrame(() => {
-        button.style.transition = 'transform 0.5s cubic-bezier(0.68, -0.6, 0.32, 1.6), opacity 0.3s ease-out 0.3s';
-        button.style.transform = 'scale(0) translateY(0)';
-        button.style.opacity = '0';
-      });
+      // 🔥 PURE CSS: Use EXACT same class as homepage slider
+      // This class is defined in style.css line 4904:
+      // .restart-btn.animate-exit { transform: translateY(20px) scale(0) !important; }
+      button.classList.add('animate-exit');
     };
 
     infoStack.appendChild(hero);
