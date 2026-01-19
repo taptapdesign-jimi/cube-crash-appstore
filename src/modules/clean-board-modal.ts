@@ -525,40 +525,36 @@ export async function showCleanBoardModal({
     const buttonExitDurationMs = 650;
 
     // Animate button out (scale to 0 exit)
-    // 🔥 Match Journey detail modal CTA exit animation (same as homepage CTA)
+    // 🔥 NUCLEAR OPTION: Use GSAP (like Journey detail CTA) - zero CSS conflicts
     const animateButtonExit = (button: HTMLButtonElement) => {
-      // 🔥 STEP 1: Immediately disable interactions (kills :active state)
+      // 🔥 STEP 1: Immediately disable interactions
       button.disabled = true;
       button.style.pointerEvents = 'none';
       button.blur();
       
-      // 🔥 STEP 2: Remove clean-board animation classes only (keep base styling classes)
-      button.classList.remove(
-        'clean-board-button-hidden',
-        'clean-board-button-visible',
-        'clean-board-button-exit',
-        'animate-enter',
-        'animate-enter-initial',
-        'animate-reset'
-      );
+      // 🔥 STEP 2: Kill ALL GSAP tweens on this button
+      gsap.killTweensOf(button);
+      
+      // 🔥 STEP 3: Remove ALL classes and attributes to isolate from CSS
+      button.className = ''; // Nuclear: remove ALL classes
       button.removeAttribute('data-clean-board-entering');
       button.removeAttribute('data-clean-board-exiting');
       
-      // 🔥 STEP 3: Force reset transform for one frame to kill :active scaling
-      button.style.transition = 'none';
-      button.style.transform = 'scale(1)';
-      button.style.webkitTransform = 'scale(1)';
-      void button.offsetHeight; // Force reflow
-
-      // 🔥 STEP 4: Add the same class used by Journey detail CTA / homepage CTA
-      // Two rAFs ensures the reset frame is applied before animation starts
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          button.style.removeProperty('transform');
-          button.style.removeProperty('transition');
-          button.style.removeProperty('-webkit-transform');
-          button.classList.add('animate-exit');
-        });
+      // 🔥 STEP 4: Reset to scale(1) with GSAP
+      gsap.set(button, {
+        scale: 1,
+        opacity: 1,
+        clearProps: 'transform', // Clear all CSS transforms
+        force3D: true
+      });
+      
+      // 🔥 STEP 5: Animate to scale(0) with GSAP (back.in easing like Journey detail)
+      gsap.to(button, {
+        scale: 0,
+        duration: 0.4,
+        ease: 'back.in(1.7)',
+        force3D: true,
+        overwrite: 'auto'
       });
     };
 
