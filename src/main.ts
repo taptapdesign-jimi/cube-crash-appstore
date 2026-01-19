@@ -1728,16 +1728,34 @@ async function startNewRun(boardId: number): Promise<void> {
     // 🔥 USER REQUEST: Show navigation and homepage ONLY if returning to homepage (slide 0)
     // If returning to Journey screen (slide 1), hide homepage and navigation IMMEDIATELY
     if (targetSlide === 0) {
-      // 🔥 BUG FIX: If returning to detail modal pathway, DON'T show homepage here
-      // collectibles-manager.ts will handle showing homepage with correct slide after detail modal closes
-      if (!returnToDetailModal) {
-        // Show navigation and homepage for homepage slider
-        uiManager.showNavigation();
-        uiManager.showHomepageQuietly();
-        console.log('✅ Navigation and homepage shown - returning to homepage slider');
-      } else {
-        console.log('🔧 Skipping homepage show - detail modal pathway will handle via collectibles-manager.ts');
+      // 🔥 BUG FIX: If returnToDetailModal, position slider on slide 1 BEFORE showing homepage
+      // This prevents visual swipe from slide 0 to slide 1 when collectibles-manager.ts takes over
+      if (returnToDetailModal && typeof gsap !== 'undefined') {
+        console.log('🔧 Detail modal pathway: Pre-positioning slider on slide 1 to avoid swipe');
+        const sliderWrapper = document.getElementById('slider-wrapper');
+        const sliderContainer = document.getElementById('slider-container');
+        if (sliderWrapper && sliderContainer) {
+          const slideWidth = sliderContainer.offsetWidth;
+          gsap.set(sliderWrapper, { x: -1 * slideWidth, immediateRender: true });
+          
+          // Also set active classes
+          const slides = document.querySelectorAll('.slider-slide');
+          const navButtons = document.querySelectorAll('.independent-nav-button');
+          slides.forEach((s, i) => i === 1 ? s.classList.add('active') : s.classList.remove('active'));
+          navButtons.forEach((b, i) => i === 1 ? b.classList.add('active') : b.classList.remove('active'));
+          
+          // Sync state
+          if (gameState?.set) gameState.set('currentSlide', 1);
+          if ((window as any).sliderManager) (window as any).sliderManager.currentSlide = 1;
+          
+          console.log('✅ Slider pre-positioned on slide 1 BEFORE showing homepage');
+        }
       }
+      
+      // Show navigation and homepage for homepage slider
+      uiManager.showNavigation();
+      uiManager.showHomepageQuietly();
+      console.log('✅ Navigation and homepage shown - returning to homepage slider');
     } else {
       // 🔥 CRITICAL: Hide homepage and slider container IMMEDIATELY when returning to Journey screen
       // This prevents homepage slider (especially slide 2) from being visible in background
@@ -1813,9 +1831,10 @@ async function startNewRun(boardId: number): Promise<void> {
     // If returning to Journey (slide 1), don't touch slider - Journey screen is shown directly
     // 🔥 CRITICAL: If __ccJourneyExitMode is 'toHome', collectibles-manager.ts will handle slide positioning
     // DO NOT update slides here as it will interfere with collectibles-manager.ts positioning
+    // 🔥 BUG FIX: Also skip if returnToDetailModal - collectibles-manager.ts will handle everything
     // Note: journeyExitMode is already declared above, reuse it
-    if (journeyExitMode === 'toHome') {
-      console.log('🗺️ Journey exit mode is "toHome" - skipping slide update (collectibles-manager.ts will handle)');
+    if (journeyExitMode === 'toHome' || returnToDetailModal) {
+      console.log('🗺️ Journey exit mode is "toHome" OR returnToDetailModal - skipping slide update (collectibles-manager.ts will handle)');
     } else if (targetSlide === 0) {
       // Also update slide classes and nav buttons to match target slide
       const slides = document.querySelectorAll('.slider-slide');
@@ -1972,37 +1991,44 @@ async function startNewRun(boardId: number): Promise<void> {
     // 🔥 APP STORE FIX: Complete separation of Journey and Homepage pathways
     // Step 3: Show appropriate screen WITHOUT mixing pathways
     if (returnToDetailModal && detailModalBoardId !== null) {
-      // 🔥 USER REQUEST: Return directly to detail modal (Journey screen hidden, no enter animation)
-      console.log(`🎯 Detail modal pathway - opening detail modal INSTANTLY for board ${detailModalBoardId}...`);
-      
-      // 🔥 USER REQUEST: Prepare Journey screen in background INSTANTLY (no delay)
-      // This must be IMMEDIATE to prevent blank screen
-      const journeyScreen = document.getElementById('journey-screen');
-      if (journeyScreen) {
-        journeyScreen.removeAttribute('hidden');
-        journeyScreen.style.display = 'flex';
-        journeyScreen.style.opacity = '0';
-        journeyScreen.style.visibility = 'hidden';
-        console.log('✅ Journey screen prepared INSTANTLY in background (hidden)');
-      }
-      
-      // 🔥 USER REQUEST: Open detail modal IMMEDIATELY (no delay)
-      // Enter animation should start instantly after board exit
-      import('./modules/journey-boards-manager.js').then(async ({ journeyBoardsManager }) => {
-        // 🔥 REMOVED: requestAnimationFrame delay - start detail modal enter animation IMMEDIATELY
-        // This prevents 1 second blank screen between board exit and detail modal enter
+      // ⚡ SKIP if detail modal already opened from exit button (fast path)
+      const modalAlreadyOpened = (window as any).__ccDetailModalAlreadyOpened === true;
+      if (modalAlreadyOpened) {
+        console.log('⚡ SKIP: Detail modal already opened from exit button, skipping duplicate open');
+        delete (window as any).__ccDetailModalAlreadyOpened; // Clear flag
+      } else {
+        // 🔥 USER REQUEST: Return directly to detail modal (Journey screen hidden, no enter animation)
+        console.log(`🎯 Detail modal pathway - opening detail modal INSTANTLY for board ${detailModalBoardId}...`);
         
-        if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
-          // openBoardDetailsById will handle enter animation for detail modal
-          // Skip Journey exit animation because Journey screen is already hidden
-          await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
-          console.log(`✅ Detail modal opened IMMEDIATELY for board ${detailModalBoardId} with enter animation`);
-        } else {
-          console.warn('⚠️ openBoardDetailsById method not found');
+        // 🔥 USER REQUEST: Prepare Journey screen in background INSTANTLY (no delay)
+        // This must be IMMEDIATE to prevent blank screen
+        const journeyScreen = document.getElementById('journey-screen');
+        if (journeyScreen) {
+          journeyScreen.removeAttribute('hidden');
+          journeyScreen.style.display = 'flex';
+          journeyScreen.style.opacity = '0';
+          journeyScreen.style.visibility = 'hidden';
+          console.log('✅ Journey screen prepared INSTANTLY in background (hidden)');
         }
-      }).catch((error) => {
-        console.warn('⚠️ Failed to import journeyBoardsManager:', error);
-      });
+        
+        // 🔥 USER REQUEST: Open detail modal IMMEDIATELY (no delay)
+        // Enter animation should start instantly after board exit
+        import('./modules/journey-boards-manager.js').then(async ({ journeyBoardsManager }) => {
+          // 🔥 REMOVED: requestAnimationFrame delay - start detail modal enter animation IMMEDIATELY
+          // This prevents 1 second blank screen between board exit and detail modal enter
+          
+          if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
+            // openBoardDetailsById will handle enter animation for detail modal
+            // Skip Journey exit animation because Journey screen is already hidden
+            await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
+            console.log(`✅ Detail modal opened IMMEDIATELY for board ${detailModalBoardId} with enter animation`);
+          } else {
+            console.warn('⚠️ openBoardDetailsById method not found');
+          }
+        }).catch((error) => {
+          console.warn('⚠️ Failed to import journeyBoardsManager:', error);
+        });
+      }
       
       // Ensure navigation stays hidden (Journey has its own back button)
       const navElement = document.getElementById('independent-nav');

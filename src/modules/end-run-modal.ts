@@ -542,6 +542,10 @@ function createModal(): HTMLElement {
             console.log('⏱️ PERFECTLY TIMED: Board exit complete, starting detail modal NOW!');
             const { journeyBoardsManager } = await journeyManagerPromise;
             if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
+              // ⚡ Set flag so main.ts knows to skip duplicate modal open
+              (window as any).__ccDetailModalAlreadyOpened = true;
+              console.log('⚡ Set __ccDetailModalAlreadyOpened flag to prevent duplicate open');
+              
               await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
               console.log(`✅ PERFECTLY TIMED: Detail modal opened for board ${detailModalBoardId}`);
             }
