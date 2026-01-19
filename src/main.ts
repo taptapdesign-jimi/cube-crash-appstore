@@ -107,7 +107,7 @@ function primeHomeCtaForEnter(): void {
     slideButton.style.removeProperty('transform');
     slideButton.style.removeProperty('transition');
   } catch (error) {
-    logger.warn('⚠️ Failed to prime home CTA for enter animation:', error);
+    logger.warn('⚠️ Failed to prime home CTA for enter animation:', String(error));
   }
 }
 
@@ -218,7 +218,7 @@ async function startAssetPreloading(): Promise<void> {
       launchScreen.start(() => {
         logger.info('✅ Launch screen sequence completed');
       }).catch((error) => {
-        logger.error('❌ Launch screen start error:', error);
+        logger.error('❌ Launch screen start error:', String(error));
       });
     } else {
       logger.info('✅ Launch screen container found - waiting for sequence to complete (started in index.html)');
@@ -231,7 +231,7 @@ async function startAssetPreloading(): Promise<void> {
       await hideNativeSplash({ fadeOutDuration: 200 });
       logger.info('✅ Native splash hidden');
     } catch (error) {
-      logger.warn('⚠️ Failed to hide native splash:', error);
+      logger.warn('⚠️ Failed to hide native splash:', String(error));
     }
 
     // Fallback: force-hide loader if something stalls (safety net)
@@ -266,7 +266,7 @@ async function startAssetPreloading(): Promise<void> {
     
     // Also start PIXI.js asset preloading (for game assets, not images)
     assetPreloader.preloadAll().catch((error) => {
-      logger.error('❌ Asset preloading failed:', error);
+      logger.error('❌ Asset preloading failed:', String(error));
     });
     
     // 🔥 CRITICAL: Wait ONLY for launch screen to complete (don't wait for preloading)
@@ -712,7 +712,7 @@ async function startNewRun(boardId: number): Promise<void> {
       
       logger.info(`✅ New run started for board ${boardId} from Journey with visible animations`);
     } catch (error) {
-      logger.error(`❌ Failed to start new run for board ${boardId}:`, error);
+      logger.error(`❌ Failed to start new run for board ${boardId}:`, String(error));
       delete (window as any).__ccStartAtLevel;
       delete (window as any).__ccTriggerHudDrop;
     }
@@ -736,7 +736,7 @@ async function startNewRun(boardId: number): Promise<void> {
         
         logger.info(`✅ New run started for board ${boardId}`);
       } catch (error) {
-        logger.error(`❌ Failed to start new run for board ${boardId}:`, error);
+        logger.error(`❌ Failed to start new run for board ${boardId}:`, String(error));
         delete (window as any).__ccStartAtLevel;
       }
     }, 770);
@@ -912,7 +912,7 @@ async function startNewRun(boardId: number): Promise<void> {
           delete (window as any).__ccPreserveScore;
           console.log(`✅ Cleared all flags after layout for board ${savedBoardNumber}`);
         } catch (error) {
-          logger.error('❌ Failed to resume active run:', error);
+          logger.error('❌ Failed to resume active run:', String(error));
           delete (window as any).__ccStartAtLevel;
           delete (window as any).__ccTriggerHudDrop;
         }
@@ -986,7 +986,7 @@ async function startNewRun(boardId: number): Promise<void> {
             delete (window as any).__ccStartAtLevel;
             // __ccSkipRebuildBoard will be deleted by startLevel() after it's used
           } catch (error) {
-            logger.error('❌ Failed to resume active run:', error);
+            logger.error('❌ Failed to resume active run:', String(error));
             delete (window as any).__ccStartAtLevel;
           }
         }, 770);
@@ -1018,7 +1018,7 @@ async function startNewRun(boardId: number): Promise<void> {
     await startNewRun(1);
     
   } catch (error) {
-    logger.error('❌ Failed to continue game:', error);
+    logger.error('❌ Failed to continue game:', String(error));
     console.warn('⚠️ Starting fresh game from Board 1');
     await startNewRun(1);
   }
@@ -1085,7 +1085,7 @@ async function startNewRun(boardId: number): Promise<void> {
     logger.info(`✅ New run started for board ${boardId} with enter animation`);
   } catch (error) {
       console.error(`❌❌❌ Failed to start new run for board ${boardId}:`, error);
-      logger.error(`❌ Failed to start new run for board ${boardId}:`, error);
+      logger.error(`❌ Failed to start new run for board ${boardId}:`, String(error));
       delete (window as any).__ccStartAtLevel;
     }
 };
@@ -1978,7 +1978,7 @@ async function startNewRun(boardId: number): Promise<void> {
     logger.info('✅ Exited to menu successfully - next play will start fresh without resume sheet');
     
   } catch (error) {
-    logger.error('❌ Failed to exit to menu:', error);
+    logger.error('❌ Failed to exit to menu:', String(error));
   } finally {
     // Reset flag after cleanup
     (window as any).exitingToMenu = false;
