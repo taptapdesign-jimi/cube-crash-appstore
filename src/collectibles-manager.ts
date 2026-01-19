@@ -948,11 +948,18 @@ class CollectiblesManager {
       });
       console.log('✅ Slide 2 and nav button 2 marked as active');
       
-      // Step 2g: Update sliderManager state
+      // Step 2g: Update sliderManager state and gameState
       const sliderManager = (window as any).sliderManager;
       if (sliderManager) {
         sliderManager.currentSlide = 1;
-        console.log('✅ SliderManager state updated to slide 2 (index 1)');
+        console.log('✅ SliderManager internal state updated to slide 2 (index 1)');
+      }
+      
+      // 🔥 BUG FIX: Also update gameState to keep everything in sync
+      // This ensures slider-manager knows the correct position when user clicks nav buttons
+      if (typeof (window as any).gameState !== 'undefined' && (window as any).gameState.set) {
+        (window as any).gameState.set('currentSlide', 1);
+        console.log('✅ gameState.currentSlide updated to slide 2 (index 1)');
       }
       
       // Step 2h: Show navigation

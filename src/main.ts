@@ -1846,6 +1846,18 @@ async function startNewRun(boardId: number): Promise<void> {
       // Also update slide classes and nav buttons to match target slide
       const slides = document.querySelectorAll('.slider-slide');
       const navButtons = document.querySelectorAll('.independent-nav-button');
+      
+      // 🔥 BUG FIX: Sync GSAP wrapper position BEFORE setting active classes
+      // This prevents slider from skipping animation when user clicks nav button
+      const sliderWrapper = document.getElementById('slider-wrapper');
+      const sliderContainer = document.getElementById('slider-container');
+      if (sliderWrapper && sliderContainer && typeof gsap !== 'undefined') {
+        const slideWidth = sliderContainer.offsetWidth;
+        const targetOffset = -targetSlide * slideWidth;
+        console.log(`🔧 Syncing GSAP wrapper to slide ${targetSlide}, offset: ${targetOffset}px`);
+        gsap.set(sliderWrapper, { x: targetOffset });
+      }
+      
       slides.forEach((slide, index) => {
         if (index === targetSlide) {
           slide.classList.add('active');
@@ -1947,10 +1959,32 @@ async function startNewRun(boardId: number): Promise<void> {
         }
       });
       console.log('✅ All slides and content elements made visible for homepage return');
+      
+      // 🔥 BUG FIX: Update gameState and sliderManager to match targetSlide
+      if (gameState && gameState.set) {
+        gameState.set('currentSlide', targetSlide);
+        console.log(`✅ gameState.currentSlide set to ${targetSlide}`);
+      }
+      if ((window as any).sliderManager) {
+        (window as any).sliderManager.currentSlide = targetSlide;
+        console.log(`✅ sliderManager.currentSlide set to ${targetSlide}`);
+      }
     } else {
       // 🔥 USER REQUEST: When returning to Journey screen, ensure all slides are visible
       // This prevents empty slides when user goes back from Journey screen
       const slides = document.querySelectorAll('.slider-slide');
+      
+      // 🔥 BUG FIX: Sync GSAP wrapper position BEFORE setting active classes
+      // This prevents slider from skipping animation when user clicks nav button later
+      const sliderWrapper = document.getElementById('slider-wrapper');
+      const sliderContainer = document.getElementById('slider-container');
+      if (sliderWrapper && sliderContainer && typeof gsap !== 'undefined') {
+        const slideWidth = sliderContainer.offsetWidth;
+        const targetOffset = -1 * slideWidth; // Journey slide is index 1
+        console.log(`🔧 Syncing GSAP wrapper to Journey slide (1), offset: ${targetOffset}px`);
+        gsap.set(sliderWrapper, { x: targetOffset });
+      }
+      
       slides.forEach((slide, index) => {
         if (index === 1) {
           // Journey slide (index 1) should be active
@@ -1967,6 +2001,16 @@ async function startNewRun(boardId: number): Promise<void> {
         }
       });
       console.log('✅ All slides made visible for Journey screen return');
+      
+      // 🔥 BUG FIX: Update gameState and sliderManager to match Journey slide (index 1)
+      if (gameState && gameState.set) {
+        gameState.set('currentSlide', 1);
+        console.log('✅ gameState.currentSlide set to 1 (Journey)');
+      }
+      if ((window as any).sliderManager) {
+        (window as any).sliderManager.currentSlide = 1;
+        console.log('✅ sliderManager.currentSlide set to 1 (Journey)');
+      }
     }
     
     console.log('✅ Game state reset - homepage should be visible now');

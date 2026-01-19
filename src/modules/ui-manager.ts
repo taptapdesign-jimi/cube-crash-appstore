@@ -1666,6 +1666,18 @@ class UIManager {
     
     if (currentSlideIndex !== 1) {
       console.log('🔄 Switching from slide', currentSlideIndex, 'to Journey slide (1)');
+      
+      // 🔥 BUG FIX: Sync GSAP wrapper position BEFORE setting active classes
+      // This prevents slider from skipping animation when user clicks nav button later
+      const sliderWrapper = document.getElementById('slider-wrapper');
+      const sliderContainer = document.getElementById('slider-container');
+      if (sliderWrapper && sliderContainer && typeof (window as any).gsap !== 'undefined') {
+        const slideWidth = sliderContainer.offsetWidth;
+        const targetOffset = -1 * slideWidth; // Journey slide is index 1
+        console.log(`🔧 Syncing GSAP wrapper to Journey slide (1), offset: ${targetOffset}px`);
+        (window as any).gsap.set(sliderWrapper, { x: targetOffset });
+      }
+      
       slides.forEach((slide, index) => {
         if (index === 1) {
           slide.classList.add('active');

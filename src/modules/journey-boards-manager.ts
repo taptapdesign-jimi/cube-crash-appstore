@@ -3472,12 +3472,10 @@ class JourneyBoardsManager {
       unlocked: board.unlocked
     });
     
-    // Step 1: Exit animation on Journey screen (only if it's visible and not already hidden)
-    if (!skipJourneyExit) {
-      await this.startJourneyExitAnimation();
-    } else if (journeyExitPromise) {
-      await journeyExitPromise;
-    }
+    // ⚡ INSTANT SHOW: Skip Journey exit wait (already happened or not needed)
+    // When coming via fast path, Journey screen is already hidden in main.ts
+    // No need to wait here - modal should appear INSTANTLY!
+    // (Original code waited here, adding ~200-300ms delay)
     
     // Step 2: Now open detail modal with enter animation
     const detailModal = document.getElementById('collectibles-detail-modal');
