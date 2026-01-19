@@ -715,9 +715,11 @@ export async function showCleanBoardModal({
         
         setTimeout(() => {
           // 🌟 Hero is now stars container, animate it in
+          console.log('🌟 Animating stars container (hero) to visible');
           hero.style.transition = trans;
           hero.style.opacity = '1';
           hero.style.transform = 'scale(1) translateY(0)';
+          console.log('🌟 Hero styles set:', { opacity: hero.style.opacity, transform: hero.style.transform });
           
           // 🌟 NEW: Animate stars filling in with bounce effect (like hearts)
           // Delay 500ms after hero appears, then fill stars one by one (left → middle → right)
@@ -1112,8 +1114,13 @@ export async function showCleanBoardModal({
       requestAnimationFrame(() => {
         card.style.transform = 'scale(0.86)';
       });
-      // 🎯 Calculate duration: nodes animation + Play Again (650ms) + Exit delay (50ms) + Exit animation (650ms - same as Play Again)
-      const collapseDuration = secondaryBtn ? nodes.length * 60 + 50 + 650 : nodes.length * 60 + 650;
+      // 🎯 Calculate duration: buttons need FULL 650ms to animate to scale(0)
+      // Give extra time to ensure button animation completes BEFORE card fadeout
+      const buttonExitDuration = 650; // Button animation duration
+      const extraBuffer = 200; // Extra buffer to ensure smooth completion
+      const collapseDuration = secondaryBtn 
+        ? nodes.length * 60 + 50 + buttonExitDuration + extraBuffer  // With Exit button
+        : nodes.length * 60 + buttonExitDuration + extraBuffer;      // Without Exit button
       setTimeout(() => {
         card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
         card.style.opacity = '0';
@@ -1273,8 +1280,13 @@ export async function showCleanBoardModal({
         requestAnimationFrame(() => {
           card.style.transform = 'scale(0.86)';
         });
-        // 🎯 Calculate duration: nodes animation + buttons (0ms + 400ms) + transition (650ms) = ~1340ms
-        const collapseDuration = secondaryBtn ? nodes.length * 60 + 400 + 650 : nodes.length * 60 + 650;
+        // 🎯 Calculate duration: buttons need FULL 650ms to animate to scale(0)
+        // Give extra time to ensure button animation completes BEFORE card fadeout
+        const buttonExitDuration = 650; // Button animation duration
+        const extraBuffer = 200; // Extra buffer to ensure smooth completion
+        const collapseDuration = secondaryBtn 
+          ? nodes.length * 60 + 300 + buttonExitDuration + extraBuffer  // With Exit button (300ms stagger)
+          : nodes.length * 60 + buttonExitDuration + extraBuffer;        // Without Exit button
         setTimeout(() => {
           card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
           card.style.opacity = '0';
