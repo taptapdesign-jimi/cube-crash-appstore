@@ -169,11 +169,11 @@ function showCleanBoardStarsPicker(): Promise<number | null> {
         'font-weight:700',
         'color:#a46f58'
       ].join(';');
-      const clickHandler = () => {
+      // 🔥 FIX: Use direct addEventListener - stars picker is independent from end-run modal
+      btn.addEventListener('click', () => {
         selectedStars = count;
         updateSelection();
-      };
-      trackEndRunEventListener(btn, 'click', clickHandler);
+      });
       return btn;
     };
 
@@ -205,12 +205,11 @@ function showCleanBoardStarsPicker(): Promise<number | null> {
       'font-weight:800',
       'color:#fff'
     ].join(';');
-    const okClickHandler = () => {
-      cleanupAllEndRunResources(); // Cleanup before resolving
+    // 🔥 FIX: Use direct addEventListener - stars picker is independent from end-run modal
+    okBtn.addEventListener('click', () => {
       overlay.remove();
       resolve(selectedStars);
-    };
-    trackEndRunEventListener(okBtn, 'click', okClickHandler);
+    });
 
     const cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
@@ -225,21 +224,19 @@ function showCleanBoardStarsPicker(): Promise<number | null> {
       'font-weight:700',
       'color:#9a6f5b'
     ].join(';');
-    const cancelClickHandler = () => {
-      cleanupAllEndRunResources(); // Cleanup before resolving
+    // 🔥 FIX: Use direct addEventListener - stars picker is independent from end-run modal
+    cancelBtn.addEventListener('click', () => {
       overlay.remove();
       resolve(null);
-    };
-    trackEndRunEventListener(cancelBtn, 'click', cancelClickHandler);
+    });
 
-    const overlayClickHandler = (e: Event) => {
+    // 🔥 FIX: Use direct addEventListener - stars picker is independent from end-run modal
+    overlay.addEventListener('click', (e: Event) => {
       if (e.target === overlay) {
-        cleanupAllEndRunResources(); // Cleanup before resolving
         overlay.remove();
         resolve(null);
       }
-    };
-    trackEndRunEventListener(overlay, 'click', overlayClickHandler);
+    });
 
     buttons.forEach((btn) => buttonRow.appendChild(btn));
     updateSelection();
