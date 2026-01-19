@@ -525,40 +525,44 @@ export async function showCleanBoardModal({
     const buttonExitDurationMs = 650;
 
     // Animate button out (scale to 0 exit)
-    // 🔥 Match Journey detail modal CTA exit animation (same as homepage CTA)
+    // 🔥 Keep styling, use GSAP for animation (like Journey detail CTA)
     const animateButtonExit = (button: HTMLButtonElement) => {
-      // 🔥 STEP 1: Immediately disable interactions (kills :active state)
+      // 🔥 STEP 1: Disable interactions
       button.disabled = true;
       button.style.pointerEvents = 'none';
       button.blur();
       
-      // 🔥 STEP 2: Remove clean-board animation classes only (keep base styling classes)
+      // 🔥 STEP 2: Kill ALL GSAP tweens on this button
+      gsap.killTweensOf(button);
+      
+      // 🔥 STEP 3: Remove ONLY animation classes (keep exit-btn/restart-btn for styling)
       button.classList.remove(
         'clean-board-button-hidden',
         'clean-board-button-visible',
         'clean-board-button-exit',
         'animate-enter',
         'animate-enter-initial',
-        'animate-reset'
+        'animate-reset',
+        'animate-exit'
       );
       button.removeAttribute('data-clean-board-entering');
       button.removeAttribute('data-clean-board-exiting');
       
-      // 🔥 STEP 3: Force reset transform for one frame to kill :active scaling
-      button.style.transition = 'none';
-      button.style.transform = 'scale(1)';
-      button.style.webkitTransform = 'scale(1)';
+      // 🔥 STEP 4: Force inline transform to override :active bounce
+      button.style.setProperty('transform', 'scale(1)', 'important');
+      button.style.setProperty('transition', 'none', 'important');
       void button.offsetHeight; // Force reflow
-
-      // 🔥 STEP 4: Add the same class used by Journey detail CTA / homepage CTA
-      // Two rAFs ensures the reset frame is applied before animation starts
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          button.style.removeProperty('transform');
-          button.style.removeProperty('transition');
-          button.style.removeProperty('-webkit-transform');
-          button.classList.add('animate-exit');
-        });
+      
+      // 🔥 STEP 5: Use GSAP for animation (like Journey detail CTA)
+      button.style.removeProperty('transform');
+      button.style.removeProperty('transition');
+      
+      gsap.to(button, {
+        scale: 0,
+        duration: 0.4,
+        ease: 'back.in(1.7)',
+        force3D: true,
+        overwrite: 'auto'
       });
     };
 
