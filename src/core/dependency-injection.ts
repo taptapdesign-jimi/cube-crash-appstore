@@ -89,6 +89,7 @@ export const SERVICES = {
   ERROR_HANDLER: 'errorHandler',
   EVENT_BUS: 'eventBus',
   LOGGER: 'logger',
+  BOARD_SERVICE: 'boardService',
 } as const;
 
 export type ServiceName = typeof SERVICES[keyof typeof SERVICES];

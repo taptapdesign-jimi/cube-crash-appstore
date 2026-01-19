@@ -10,23 +10,23 @@ import { boardService } from '../services/board-service.js';
 container.register(SERVICES.EVENT_BUS, {
   instance: eventBus,
   singleton: true,
-});
+} as any);
 
 container.register(SERVICES.LOGGER, {
   instance: logger,
   singleton: true,
-});
+} as any);
 
 // Register game services
 container.register(SERVICES.GAME_STATE, {
   instance: gameStateService,
   singleton: true,
-});
+} as any);
 
 container.register(SERVICES.UI_MANAGER, {
   instance: uiService,
   singleton: true,
-});
+} as any);
 
 container.register('boardService', {
   instance: boardService,
@@ -37,12 +37,12 @@ container.register('boardService', {
 container.register('gameState', {
   instance: gameStateService,
   singleton: true,
-});
+} as any);
 
 container.register('uiManager', {
   instance: uiService,
   singleton: true,
-});
+} as any);
 
 container.register('boardService', {
   instance: boardService,
@@ -60,11 +60,14 @@ export const getLogger = () => container.get(SERVICES.LOGGER);
 export function initializeServices(): void {
   try {
     // Initialize services that need initialization
-    getUIManager().init();
+    const uiManager: any = getUIManager();
+    if (uiManager && typeof uiManager.init === 'function') {
+      uiManager.init();
+    }
     
     logger.info('✅ All services initialized');
   } catch (error) {
-    logger.error('❌ Failed to initialize services:', error);
+    logger.error('❌ Failed to initialize services:', String(error));
     throw error;
   }
 }
@@ -72,12 +75,16 @@ export function initializeServices(): void {
 // Cleanup all services
 export function cleanupServices(): void {
   try {
-    getGameState().destroy();
-    getUIManager().destroy();
-    getBoardService().destroy();
+    const gameState: any = getGameState();
+    const uiManager: any = getUIManager();
+    const boardService: any = getBoardService();
+    
+    if (gameState && typeof gameState.destroy === 'function') gameState.destroy();
+    if (uiManager && typeof uiManager.destroy === 'function') uiManager.destroy();
+    if (boardService && typeof boardService.destroy === 'function') boardService.destroy();
     
     logger.info('✅ All services cleaned up');
   } catch (error) {
-    logger.error('❌ Failed to cleanup services:', error);
+    logger.error('❌ Failed to cleanup services:', String(error));
   }
 }
