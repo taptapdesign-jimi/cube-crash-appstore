@@ -530,12 +530,18 @@ class EnhancedMemoryManager {
   }
 
   private isHealthy(): boolean {
-    const stats = this.getStats();
+    const timersTotal = this.timeouts.size + this.intervals.size;
+    const listenersCount = this.listeners.size;
+    const tweensCount = this.tweens.size;
+    const memoryUsage = (performance as any).memory 
+      ? Math.round((performance as any).memory.usedJSHeapSize / 1024 / 1024)
+      : 0;
+    
     return (
-      stats.timers.total <= this.config.maxTimers &&
-      stats.listeners <= this.config.maxListeners &&
-      stats.tweens <= this.config.maxTweens &&
-      stats.memoryUsageMB <= this.config.memoryThresholdMB
+      timersTotal <= this.config.maxTimers &&
+      listenersCount <= this.config.maxListeners &&
+      tweensCount <= this.config.maxTweens &&
+      memoryUsage <= this.config.memoryThresholdMB
     );
   }
 
