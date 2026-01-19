@@ -4606,6 +4606,17 @@ body:has(:root) .tile.wild-3d-glow {
   -webkit-transform: translateY(20px) scale(0) !important;
 }
 
+/* ===== CLEAN BOARD: Kill :active bounce during exit ===== */
+#cc-clean-board-overlay[data-clean-board-exiting="true"] .exit-btn:active,
+#cc-clean-board-overlay[data-clean-board-exiting="true"] .exit-btn:focus,
+#cc-clean-board-overlay[data-clean-board-exiting="true"] .exit-btn:focus-visible,
+#cc-clean-board-overlay[data-clean-board-exiting="true"] .restart-btn:active,
+#cc-clean-board-overlay[data-clean-board-exiting="true"] .restart-btn:focus,
+#cc-clean-board-overlay[data-clean-board-exiting="true"] .restart-btn:focus-visible {
+  transform: scale(1) !important;
+  transition: none !important;
+}
+
 /* ===== SETTINGS SCREEN ===== */
 #settings-screen {
   position: fixed;

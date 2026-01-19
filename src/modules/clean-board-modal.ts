@@ -1100,6 +1100,9 @@ export async function showCleanBoardModal({
       primaryBtn.disabled = true;
       if (secondaryBtn) secondaryBtn.disabled = true;
       
+      // 🔥 Mark overlay as exiting to neutralize :active styles
+      el.setAttribute('data-clean-board-exiting', 'true');
+
       // 🔥 CRITICAL: Stop ALL background animations IMMEDIATELY for smooth exit
       // This prevents choppy exit animation caused by ongoing GSAP tweens and star animations
       killAllGSAPTweens(); // Kill score/combo/efficiency animations
@@ -1271,6 +1274,9 @@ export async function showCleanBoardModal({
         primaryBtn.disabled = true;
         secondaryBtn.disabled = true;
         
+        // 🔥 Mark overlay as exiting to neutralize :active styles
+        el.setAttribute('data-clean-board-exiting', 'true');
+
         // 🔥 CRITICAL: Stop ALL background animations IMMEDIATELY for smooth exit
         // This prevents choppy exit animation caused by ongoing GSAP tweens and star animations
         killAllGSAPTweens(); // Kill score/combo/efficiency animations
