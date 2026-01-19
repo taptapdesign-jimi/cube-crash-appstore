@@ -1360,16 +1360,21 @@ async function startNewRun(boardId: number): Promise<void> {
             journeyScreen.style.visibility = 'hidden';
           }
           
-          // Open detail modal INSTANTLY (no setTimeout - truly parallel!)
-          journeyManagerPromise.then(async ({ journeyBoardsManager }) => {
-            console.log('⚡ INSTANT: Detail modal enter starting NOW (board exit also playing)');
-            if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
-              await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
-              console.log(`✅ INSTANT: Detail modal opened instantly with board exit for board ${detailModalBoardId}`);
+          // Open detail modal INSTANTLY with await (no .then() micro-task delay!)
+          // Using await is faster than .then() because it avoids micro-task queue
+          (async () => {
+            try {
+              console.log('⚡ INSTANT: Awaiting journey manager (should be instant if cached)');
+              const { journeyBoardsManager } = await journeyManagerPromise;
+              console.log('⚡ INSTANT: Detail modal enter starting NOW (board exit also playing)');
+              if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
+                await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
+                console.log(`✅ INSTANT: Detail modal opened instantly with board exit for board ${detailModalBoardId}`);
+              }
+            } catch (error) {
+              console.warn('⚠️ Failed to import journeyBoardsManager:', error);
             }
-          }).catch((error) => {
-            console.warn('⚠️ Failed to import journeyBoardsManager:', error);
-          });
+          })();
           
           // Clear fast path flag
           delete (window as any).__ccFastExitToDetailModal;
