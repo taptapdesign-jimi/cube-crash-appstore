@@ -512,30 +512,33 @@ export async function showCleanBoardModal({
     };
 
     // Animate button out (scale to 0 exit)
-    // 🔥 FIX :active bounce conflict
+    // 🔥 Match Journey detail modal CTA exit animation (same as homepage CTA)
     const animateButtonExit = (button: HTMLButtonElement) => {
       // 🔥 STEP 1: Immediately disable interactions (kills :active state)
       button.disabled = true;
       button.style.pointerEvents = 'none';
       button.blur();
       
-      // 🔥 STEP 2: Remove ALL CSS classes (including exit-btn, restart-btn)
-      // This completely isolates button from :active CSS rules
-      const originalClasses = button.className;
-      button.className = ''; // Remove ALL classes
+      // 🔥 STEP 2: Remove clean-board animation classes only (keep base styling classes)
+      button.classList.remove(
+        'clean-board-button-hidden',
+        'clean-board-button-visible',
+        'clean-board-button-exit',
+        'animate-enter',
+        'animate-enter-initial',
+        'animate-reset'
+      );
       button.removeAttribute('data-clean-board-entering');
       button.removeAttribute('data-clean-board-exiting');
       
-      // 🔥 STEP 3: Force reset transform to scale(1)
-      button.style.transition = 'none';
-      button.style.transform = 'scale(1)';
-      button.style.opacity = '1';
+      // 🔥 STEP 3: Clear inline transforms/transitions so CSS class can control animation
+      button.style.removeProperty('transform');
+      button.style.removeProperty('transition');
       void button.offsetHeight; // Force reflow
       
-      // 🔥 STEP 4: Apply exit animation with inline styles (no CSS class conflicts)
+      // 🔥 STEP 4: Add the same class used by Journey detail CTA / homepage CTA
       requestAnimationFrame(() => {
-        button.style.transition = 'transform 0.65s cubic-bezier(0.68, -0.6, 0.32, 1.6)';
-        button.style.transform = 'scale(0)';
+        button.classList.add('animate-exit');
       });
     };
 

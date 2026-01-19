@@ -6425,19 +6425,18 @@ function merge(src, dst, helpers){
         
         // 🔥 CRITICAL: If no locked tiles available (or only placeholder exists), spawn directly at dst position
         // This happens when all tiles are opened and merge-6 is made
-        // Spawn new ACTIVE tile with pips at the exact position of merge-6
-        // 🔥 BUG FIX: Don't spawn for wild merges (wild star, wild beer) - let end game checker handle it
-        // Wild merges should NOT spawn new tiles when no locked tiles available (end game scenario)
-        const isWildMerge = srcSpecial === 'wild' || dstSpecial === 'wild' || 
-                           srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
-        const shouldSkipEndGameSpawn = isWildMerge && availableLockedTiles.length === 0;
+        // Spawn new ACTIVE tile with pips at the exact position of merge-6 (v101 behavior)
+        // 🔥 BUG FIX: For wild merges, if very few locked tiles available (< spawnMult), spawn at dst position
+        // This prevents spawning 2 tiles on random positions when there aren't enough locked tiles
+        const isWildMergeForSpawn = srcSpecial === 'wild' || dstSpecial === 'wild' || 
+                                    srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
+        const shouldSpawnAtDst = (availableLockedTiles.length === 0 && spawnMult > 0) ||
+                                 (isWildMergeForSpawn && availableLockedTiles.length < spawnMult && spawnMult > 0);
         
-        if (shouldSkipEndGameSpawn) {
-          console.log('🚨 END-GAME FIX: Wild merge (wild/wild-beer) + no locked tiles - SKIPPING spawn, let end game checker handle it');
-          console.log('🚨 This prevents spawning new tiles in end game scenario when wild merges happen');
-          // Don't spawn - let checkLevelEnd handle end game detection
-        } else if (availableLockedTiles.length === 0 && spawnMult > 0) {
-          console.log('🎯🎯🎯 END-GAME SPAWN: No locked tiles available - spawning directly at dst position (', gx, ',', gy, ')');
+        if (shouldSpawnAtDst) {
+          console.log('🎯🎯🎯 END-GAME SPAWN: No/few locked tiles available - spawning 1 tile directly at dst position (', gx, ',', gy, ')');
+          console.log('🎯 Reason:', availableLockedTiles.length === 0 ? 'No locked tiles' : `Wild merge + insufficient locked tiles (${availableLockedTiles.length} < ${spawnMult})`);
+          console.log('🎯 Wild merge:', isWildMergeForSpawn, 'srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial);
           
           // Remove placeholder if it exists (we'll spawn active tile instead)
           if (placeholderHolderRef && !placeholderHolderRef.destroyed) {
