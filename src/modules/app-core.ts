@@ -4306,6 +4306,13 @@ function merge(src, dst, helpers){
       if (dst && !dst.destroyed) {
         (dst as any)._hasTilesToPull = hasTilesToPull;
       }
+      
+      // 🔥 CRITICAL FIX: Store isWildMagnetLastTwo flag for last merge check
+      // This is only valid for wild magnet merge, so we calculate it here
+      if (magnetsOnBoard === 1 && regularTilesOnBoard === 1 && totalActiveTiles === 2 && !hasTilesToPull) {
+        (dst as any)._isWildMagnetLastTwo = true;
+        console.log('🧲 Wild magnet + regular (last 2 tiles, no pull) - marked as last merge candidate');
+      }
     }
     
     // Calculate how many tiles are involved in this merge (including stacked tiles)
@@ -4480,28 +4487,11 @@ function merge(src, dst, helpers){
     // 2. ANY wild + regular → merge 6 (only 2 tiles) = clean board
     // This covers ALL wild types: wild, wild-magnet, wild-beer, and any future wild types
     // 🔥 SIMPLIFIED: Use isAnyWildLastTwo as PRIMARY check for wild + regular (covers all wild types)
-    const isLastMerge = isRegularRegularLastTwoMerge6 || isAnyWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge;
+    // 🔥 CRITICAL FIX: Also check if wild magnet was marked as last two (stored on dst tile)
+    const isWildMagnetLastTwo = (dst as any)?._isWildMagnetLastTwo === true;
+    const isLastMerge = isRegularRegularLastTwoMerge6 || isAnyWildLastTwo || isWildRegularLastTwo || isLastMergeableTiles || isWildLastTileMerge || isWildMagnetLastTwo;
     
-    // 🔥 CRITICAL FIX: If wild magnet + regular tile (only 2 tiles total), ALWAYS mark as last merge
-    // This prevents spawn logic from running when it shouldn't
-    const isWildMagnetLastTwo = isWildMagnetMerge && 
-                                visibleTilesCount === 2 &&
-                                magnetsOnBoard === 1 &&
-                                regularTilesOnBoard === 1 &&
-                                !hasTilesToPull;
-    
-    console.log('🔍 isWildMagnetLastTwo CHECK:', {
-      isWildMagnetMerge,
-      visibleTilesCount,
-      magnetsOnBoard,
-      regularTilesOnBoard,
-      hasTilesToPull,
-      isWildMagnetLastTwo
-    });
-    
-    const isLastMergeFinal = isLastMerge || isWildMagnetLastTwo;
-    
-    if (isLastMergeFinal) {
+    if (isLastMerge) {
       const mergeType = isRegularRegularLastTwoMerge6 ? 'Regular + regular' : 
                        (isAnyWildLastTwo ? 'Any wild + regular' : 
                        (isWildMagnetLastTwo ? 'Wild magnet + regular' : 'Wild + regular'));
