@@ -1126,11 +1126,11 @@ export async function showCleanBoardModal({
         // Primary button (Play Again/Continue) was clicked - animate it FIRST
         animateButtonExit(primaryBtn);
         
-        // Exit button animates AFTER Play Again finishes
+        // Exit button animates AFTER Play Again starts (500ms faster than before)
         if (secondaryBtn) {
           setTimeout(() => {
             animateButtonExit(secondaryBtn);
-          }, buttonExitDurationMs + 50);
+          }, 200); // 🔥 USER REQUEST: 500ms faster (was 700ms, now 200ms)
         }
  
         requestAnimationFrame(() => {
@@ -1155,10 +1155,10 @@ export async function showCleanBoardModal({
       // Give EXTRA time to ensure button animation completes BEFORE card fadeout
       const buttonExitDuration = buttonExitDurationMs;
       const extraBuffer = 200;
-      const buttonDelay = buttonExitDurationMs + 50;
+      const buttonDelay = 200; // 🔥 USER REQUEST: 500ms faster (was 700ms, now 200ms)
       const collapseDuration = secondaryBtn 
-        ? nodes.length * 60 + buttonDelay + buttonExitDuration + extraBuffer  // With Exit button: 360 + 300 + 400 + 200 = 1260ms
-        : nodes.length * 60 + buttonExitDuration + extraBuffer;               // Without Exit button: 360 + 400 + 200 = 960ms
+        ? nodes.length * 60 + buttonDelay + buttonExitDuration + extraBuffer  // With Exit button: 360 + 200 + 650 + 200 = 1410ms
+        : nodes.length * 60 + buttonExitDuration + extraBuffer;               // Without Exit button: 360 + 650 + 200 = 1210ms
       setTimeout(() => {
         card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
         card.style.opacity = '0';
@@ -1300,10 +1300,10 @@ export async function showCleanBoardModal({
         // Exit button was clicked - animate it FIRST
         animateButtonExit(secondaryBtn);
         
-        // Play Again button animates AFTER Exit finishes
+        // Play Again button animates AFTER Exit starts (500ms faster than before)
         setTimeout(() => {
           animateButtonExit(primaryBtn);
-        }, buttonExitDurationMs + 50);
+        }, 200); // 🔥 USER REQUEST: 500ms faster (was 700ms, now 200ms)
 
         requestAnimationFrame(() => {
           nodes.forEach((node, idx) => {
@@ -1327,10 +1327,10 @@ export async function showCleanBoardModal({
         // Give EXTRA time to ensure button animation completes BEFORE card fadeout
         const buttonExitDuration = buttonExitDurationMs;
         const extraBuffer = 200;
-        const buttonDelay = buttonExitDurationMs + 50;
+        const buttonDelay = 200; // 🔥 USER REQUEST: 500ms faster (was 700ms, now 200ms)
         const collapseDuration = secondaryBtn 
-          ? nodes.length * 60 + buttonDelay + buttonExitDuration + extraBuffer  // With Exit button: 360 + 300 + 400 + 200 = 1260ms
-          : nodes.length * 60 + buttonExitDuration + extraBuffer;               // Without Exit button: 360 + 400 + 200 = 960ms
+          ? nodes.length * 60 + buttonDelay + buttonExitDuration + extraBuffer  // With Exit button: 360 + 200 + 650 + 200 = 1410ms
+          : nodes.length * 60 + buttonExitDuration + extraBuffer;               // Without Exit button: 360 + 650 + 200 = 1210ms
         setTimeout(() => {
           card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
           card.style.opacity = '0';
