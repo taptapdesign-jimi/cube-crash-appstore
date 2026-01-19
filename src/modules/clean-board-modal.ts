@@ -512,43 +512,20 @@ export async function showCleanBoardModal({
     };
 
     // Animate button out (scale to 0 exit)
+    // 🔥 EXACT SAME as homepage slider CTA - PURE CSS, NO GSAP
     const animateButtonExit = (button: HTMLButtonElement) => {
       button.disabled = true;
       button.blur();
       
-      // 🔥 STEP 1: Kill ALL existing GSAP tweens on this button
-      gsap.killTweensOf(button);
-      
-      // 🔥 STEP 2: Remove ALL CSS classes and attributes that could interfere
+      // 🔥 Remove ALL classes that could interfere
       button.classList.remove('clean-board-button-hidden', 'clean-board-button-visible', 'clean-board-button-exit');
       button.removeAttribute('data-clean-board-entering');
       button.removeAttribute('data-clean-board-exiting');
       
-      // 🔥 STEP 3: Use GSAP to RESET button to scale(1) FIRST (clear all CSS)
-      gsap.set(button, {
-        scale: 1,
-        x: 0,
-        y: 0,
-        rotation: 0,
-        clearProps: 'transform', // Clear ALL transform CSS properties
-        force3D: true
-      });
-      
-      button.style.pointerEvents = 'none';
-      button.style.opacity = '1'; // Keep visible during scale animation
-      
-      // 🔥 STEP 4: Animate ONLY scale to 0 (EXACT like homepage slider)
-      // NO y translation, NO opacity change - ONLY scale
-      const tween = gsap.to(button, {
-        scale: 0,
-        duration: 0.4,
-        ease: 'back.in(1.7)', // Homepage slider easing (bounce back)
-        overwrite: 'auto',
-        force3D: true
-      });
-      
-      // Track tween for cleanup
-      activeGSAPTweens.push(tween);
+      // 🔥 PURE CSS: Use EXACT same class as homepage slider
+      // This class is defined in style.css line 4904:
+      // .restart-btn.animate-exit { transform: translateY(20px) scale(0) !important; }
+      button.classList.add('animate-exit');
     };
 
     infoStack.appendChild(hero);
