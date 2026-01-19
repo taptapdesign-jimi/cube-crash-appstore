@@ -1154,6 +1154,10 @@ async function startNewRun(boardId: number): Promise<void> {
   // ⚡ SPEED OPTIMIZATION: Check if we should use fast path (Exit from End Run modal)
   const shouldUseFastPath = (window as any).__ccFastExitToDetailModal === true;
   
+  // 🔥 CRITICAL: Declare variables BEFORE use in fast path
+  let returnToDetailModal = false;
+  let detailModalBoardId: number | null = null;
+  
   try {
     console.log('🔥 Starting complete game cleanup...');
     
@@ -1660,8 +1664,7 @@ async function startNewRun(boardId: number): Promise<void> {
       // 2. If came from homepage Play button → return to homepage (slide 0)
       // 3. If came from Journey Continue button → return to Journey (slide 1)
       let targetSlide = 0; // Default to homepage
-      let returnToDetailModal = false;
-      let detailModalBoardId: number | null = null;
+      // returnToDetailModal and detailModalBoardId already declared at top of function
       
       try {
         // 🔥 USER REQUEST: Check if user came from detail modal FIRST
