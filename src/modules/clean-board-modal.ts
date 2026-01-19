@@ -566,6 +566,17 @@ export async function showCleanBoardModal({
     el.appendChild(outerStack);
     document.body.appendChild(el);
 
+    // 🚀 PERFORMANCE FIX: Hide board IMMEDIATELY to prevent rendering lag during modal animations
+    // With larger grids (5×9 or 7×9), board rendering in background slows down button animations
+    // This improves animation fluidity by stopping board rendering as soon as modal appears
+    if (app?.view?.style) {
+      app.view.style.opacity = '0';
+    }
+    if (stage) {
+      stage.alpha = 0;
+    }
+    console.log('🎭 Clean board modal: Board hidden immediately for performance');
+
     // Score bookkeeping (already calculated above for high score check)
 
     const formatScore = (value: number): string => {
