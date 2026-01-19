@@ -913,15 +913,12 @@ class CollectiblesManager {
       });
       logger.info('✅ All slides and content made visible');
       
-      // Step 2d: Determine which slide to return to based on journey origin
-      // 🔥 BUG FIX: Check if user came from board → detail modal → journey pathway
-      // If so, return to slide 0 (Homepage Play button), not slide 1 (Journey)
-      const cameFromHomepage = (window as any).__ccCameFromHomepage === true || 
-                                localStorage.getItem('__ccCameFromHomepage') === 'true';
-      const targetSlideIndex = cameFromHomepage ? 0 : 1;
-      console.log(`🔍 Journey origin check: cameFromHomepage=${cameFromHomepage}, returning to slide ${targetSlideIndex}`);
+      // Step 2d: Position slider on Journey slide (index 1) BEFORE enter animation
+      // When exiting Journey screen, ALWAYS return to Journey slide on homepage slider
+      const targetSlideIndex = 1;
+      console.log(`🔍 Journey exit: returning to Journey slide (index ${targetSlideIndex})`);
       
-      // Step 2d: Position slider on target slide BEFORE enter animation
+      // Position slider on Journey slide (index 1) BEFORE enter animation
       const sliderWrapper = document.getElementById('slider-wrapper') as HTMLElement;
       if (sliderWrapper && sliderContainerEl) {
         const slideWidth = sliderContainerEl.offsetWidth || window.innerWidth;

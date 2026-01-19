@@ -1328,14 +1328,7 @@ async function startNewRun(boardId: number): Promise<void> {
         
         // ⚡ SEAMLESS TRANSITION: If fast path, start detail modal DURING board exit (overlapping animations)
         if (shouldUseFastPath && returnToDetailModal && detailModalBoardId !== null) {
-          console.log('⚡ SEAMLESS MODE: Board exit + Detail modal enter will OVERLAP for smooth transition');
-          
-          // Start board exit (non-blocking, don't await yet)
-          const boardExitPromise = animateBoardExit();
-          console.log('🎬 Board exit animation started (non-blocking)');
-          
-          // ⚡ INSTANT PARALLEL: Start detail modal IMMEDIATELY (no setTimeout, no delay!)
-          console.log('⚡ INSTANT: Starting detail modal enter NOW (truly instant - no setTimeout!)');
+          console.log('⚡ SEAMLESS MODE: Detail modal ALREADY STARTED from exit button, just cleaning up board...');
           
           // Minimal cleanup
           try {
@@ -1351,37 +1344,12 @@ async function startNewRun(boardId: number): Promise<void> {
             }
           } catch (e) { /* ignore */ }
           
-          // Prepare Journey screen
-          const journeyScreen = document.getElementById('journey-screen');
-          if (journeyScreen) {
-            journeyScreen.removeAttribute('hidden');
-            journeyScreen.style.display = 'flex';
-            journeyScreen.style.opacity = '0';
-            journeyScreen.style.visibility = 'hidden';
-          }
-          
-          // Open detail modal INSTANTLY with await (no .then() micro-task delay!)
-          // Using await is faster than .then() because it avoids micro-task queue
-          (async () => {
-            try {
-              console.log('⚡ INSTANT: Awaiting journey manager (should be instant if cached)');
-              const { journeyBoardsManager } = await journeyManagerPromise;
-              console.log('⚡ INSTANT: Detail modal enter starting NOW (board exit also playing)');
-              if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
-                await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
-                console.log(`✅ INSTANT: Detail modal opened instantly with board exit for board ${detailModalBoardId}`);
-              }
-            } catch (error) {
-              console.warn('⚠️ Failed to import journeyBoardsManager:', error);
-            }
-          })();
+          // Start board exit (await to ensure cleanup happens after animation)
+          await animateBoardExit();
+          console.log('✅ Board exit animations completed (detail modal already opened from exit button)');
           
           // Clear fast path flag
           delete (window as any).__ccFastExitToDetailModal;
-          
-          // Wait for board exit to complete (but don't block detail modal)
-          await boardExitPromise;
-          console.log('✅ Board exit animations completed (detail modal already started)');
         } else {
           // Normal path: wait for board exit to complete
           await animateBoardExit();
@@ -1760,10 +1728,16 @@ async function startNewRun(boardId: number): Promise<void> {
     // 🔥 USER REQUEST: Show navigation and homepage ONLY if returning to homepage (slide 0)
     // If returning to Journey screen (slide 1), hide homepage and navigation IMMEDIATELY
     if (targetSlide === 0) {
-      // Show navigation and homepage for homepage slider
-      uiManager.showNavigation();
-      uiManager.showHomepageQuietly();
-      console.log('✅ Navigation and homepage shown - returning to homepage slider');
+      // 🔥 BUG FIX: If returning to detail modal pathway, DON'T show homepage here
+      // collectibles-manager.ts will handle showing homepage with correct slide after detail modal closes
+      if (!returnToDetailModal) {
+        // Show navigation and homepage for homepage slider
+        uiManager.showNavigation();
+        uiManager.showHomepageQuietly();
+        console.log('✅ Navigation and homepage shown - returning to homepage slider');
+      } else {
+        console.log('🔧 Skipping homepage show - detail modal pathway will handle via collectibles-manager.ts');
+      }
     } else {
       // 🔥 CRITICAL: Hide homepage and slider container IMMEDIATELY when returning to Journey screen
       // This prevents homepage slider (especially slide 2) from being visible in background

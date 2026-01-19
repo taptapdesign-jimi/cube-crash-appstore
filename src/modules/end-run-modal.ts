@@ -511,18 +511,52 @@ function createModal(): HTMLElement {
   
   if (exitBtn) {
     const exitClickHandler = () => {
-      console.log('🚪 Exit button clicked - starting FAST exit sequence');
+      console.log('🚪 Exit button clicked - starting ULTRA INSTANT exit sequence');
       
       // Haptic for Exit button
       if (typeof (window as any).triggerHapticSelection === 'function') {
         (window as any).triggerHapticSelection();
       }
       
-      // ⚡ SPEED OPTIMIZATION: Set flag for fast path (minimal cleanup, immediate detail modal)
-      (window as any).__ccFastExitToDetailModal = true;
-      console.log('⚡ Fast exit mode: Detail modal will open IMMEDIATELY after board exit');
+      // ⚡ ULTRA INSTANT: Start detail modal prep RIGHT NOW (before board exit!)
+      // This is the KEY - don't wait for exitToMenu, start modal IMMEDIATELY!
+      const detailModalBoardId = (window as any).__ccDetailModalBoardId;
+      if (detailModalBoardId !== null && detailModalBoardId !== undefined) {
+        console.log(`⚡ ULTRA INSTANT: Starting detail modal prep for board ${detailModalBoardId} RIGHT NOW!`);
+        
+        // Preload module IMMEDIATELY (parallel with everything else)
+        const journeyManagerPromise = import('./journey-boards-manager.js');
+        
+        // Prepare Journey screen IMMEDIATELY
+        const journeyScreen = document.getElementById('journey-screen');
+        if (journeyScreen) {
+          journeyScreen.removeAttribute('hidden');
+          journeyScreen.style.display = 'flex';
+          journeyScreen.style.opacity = '0';
+          journeyScreen.style.visibility = 'hidden';
+        }
+        
+        // Start detail modal enter IMMEDIATELY (truly parallel with bottom sheet exit)
+        (async () => {
+          try {
+            console.log('⚡ ULTRA INSTANT: Awaiting journey manager...');
+            const { journeyBoardsManager } = await journeyManagerPromise;
+            console.log('⚡ ULTRA INSTANT: Calling openBoardDetailsById NOW!');
+            if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
+              await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
+              console.log(`✅ ULTRA INSTANT: Detail modal opened for board ${detailModalBoardId}`);
+            }
+          } catch (error) {
+            console.warn('⚠️ Failed to open detail modal from exit handler:', error);
+          }
+        })();
+      }
       
-      // Step 1: Animate modal exit (non-blocking)
+      // ⚡ SPEED OPTIMIZATION: Set flag for fast path (skip redundant modal opening in main.ts)
+      (window as any).__ccFastExitToDetailModal = true;
+      console.log('⚡ Fast exit mode: Detail modal ALREADY STARTED from exit button!');
+      
+      // Step 1: Animate modal exit (non-blocking, parallel with detail modal)
       hideModal();
       
       // Step 2: Start board exit animation IMMEDIATELY (don't wait for modal to finish)
