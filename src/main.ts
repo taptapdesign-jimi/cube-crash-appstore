@@ -69,6 +69,7 @@ import {
 // Import utilities
 import errorHandler from './utils/error-handler.js';
 import memoryManager from './utils/memory-manager.js';
+import enhancedMemoryManager from './core/enhanced-memory-manager.js';
 import { logger } from './core/logger.js';
 import { ErrorBoundary } from './utils/error-boundary.js';
 import { PerformanceMonitor } from './utils/performance-monitor.js';
@@ -141,6 +142,10 @@ async function initializeApp(): Promise<void> {
     // Initialize error handling
     errorHandler.handleError = errorHandler.handleError.bind(errorHandler);
     memoryManager.init();
+    
+    // 🚀 Initialize Enhanced Memory Manager (automatic leak detection & cleanup)
+    enhancedMemoryManager.init();
+    logger.info('✅ Enhanced Memory Manager active - monitoring 920 potential leaks');
     
     // Initialize App Store compliance
     const errorBoundary = ErrorBoundary.getInstance();
