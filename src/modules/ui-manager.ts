@@ -1378,18 +1378,19 @@ class UIManager {
     applyPaperBackground('0.6');
     logger.info('✅ [Stats ENTER] Gradient background set with !important flags IMMEDIATELY (at function start)');
     
-    // CRITICAL: Switch to Stats slide (index 1) BEFORE animation so it animates the correct slide
+    // 🔥 FIX: Switch to Stats slide (index 2) BEFORE animation so it animates the correct slide
+    // Stats is slide 2, NOT slide 1 (slide 1 is Journey)
     const slides = document.querySelectorAll('.slider-slide');
     const navButtons = document.querySelectorAll('.independent-nav-button');
     slides.forEach((slide, index) => {
-      if (index === 1) {
+      if (index === 2) { // ✅ FIXED: Stats is slide 2, not slide 1
         slide.classList.add('active');
       } else {
         slide.classList.remove('active');
       }
     });
     navButtons.forEach((button, index) => {
-      if (index === 1) {
+      if (index === 2) { // ✅ FIXED: Stats nav button is index 2, not index 1
         button.classList.add('active');
       } else {
         button.classList.remove('active');
