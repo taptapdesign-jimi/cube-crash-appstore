@@ -99,6 +99,13 @@ class SliderManager {
       // Initialize GSAP quickSetter for smooth drag updates
       if (this.elements.wrapper) {
         this.quickSetX = gsap.quickSetter(this.elements.wrapper, 'x', 'px') as (value: number) => void;
+        
+        // 🔥 CRITICAL FIX: Explicitly set initial GSAP position to 0
+        // This ensures gsap.getProperty() returns correct value for animation checks
+        const slideWidth = this.elements.container?.offsetWidth || window.innerWidth;
+        const initialOffset = -this.currentSlide * slideWidth;
+        gsap.set(this.elements.wrapper, { x: initialOffset, immediateRender: true });
+        logger.debug(`🎯 Slider init: Set initial GSAP position to ${initialOffset}px (slide ${this.currentSlide})`);
       }
       
       // Initialize slider
@@ -327,6 +334,13 @@ class SliderManager {
   goToSlide(slideIndex: number): void {
     if (gameState.get('sliderLocked')) return;
     
+    // 🔥 CRITICAL FIX: Ensure isDragging is false before slide change
+    // This prevents drag state from blocking nav button animations
+    if (this.isDragging) {
+      logger.warn('⚠️ isDragging was true during goToSlide - resetting to false');
+      this.isDragging = false;
+    }
+    
     // 🔥 CRITICAL MOBILE FIX: Prevent instant slide change if enter animation is still running
     // This prevents slider from jumping instantly when user clicks nav button too quickly after preload
     if ((window as any).__ccIsAnimatingSliderEnter === true) {
@@ -397,13 +411,19 @@ class SliderManager {
     // Only animate if not dragging (during drag, we want instant updates)
     if (!this.isDragging) {
       // Get current position from GSAP (quickSetter keeps it in sync)
-      const currentX = gsap.getProperty(this.elements.wrapper, 'x') as number || 0;
+      // 🔥 CRITICAL FIX: Handle null/undefined from gsap.getProperty() properly
+      const gsapX = gsap.getProperty(this.elements.wrapper, 'x');
+      const currentX = (typeof gsapX === 'number' && !isNaN(gsapX)) ? gsapX : 0;
       
-      logger.debug(`🎯 updateSlider: currentX=${currentX}, target offset=${offset}, difference=${Math.abs(currentX - offset)}`);
+      logger.debug(`🎯 updateSlider: currentX=${currentX}, target offset=${offset}, difference=${Math.abs(currentX - offset)}, forceAnimate=${forceAnimate}`);
       
-      // 🔥 USER REQUEST FIX: Reduced threshold to 0.5px and added forceAnimate flag
-      // This ensures slider ALWAYS animates when user clicks dots/buttons (no instant jumps)
-      if (forceAnimate || Math.abs(currentX - offset) > 0.5) {
+      // 🔥 CRITICAL FIX: If forceAnimate is true, ALWAYS animate (ignore position check)
+      // This ensures nav button clicks ALWAYS trigger smooth animation, even if positions appear identical
+      // Nav buttons should ALWAYS animate for premium UX, never instant jump
+      const shouldAnimate = forceAnimate || Math.abs(currentX - offset) > 0.5;
+      
+      if (shouldAnimate) {
+        logger.debug(`🎬 Animating slider: currentX=${currentX} → offset=${offset}, forceAnimate=${forceAnimate}`);
         // 🔥 SMOOTH: Use smooth easing instead of bounce for fluid, non-jerky animation
         this.slideAnimation = gsap.to(this.elements.wrapper, {
           x: offset,
