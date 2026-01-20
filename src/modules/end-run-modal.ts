@@ -536,10 +536,11 @@ function createModal(): HTMLElement {
           journeyScreen.style.visibility = 'hidden';
         }
         
-        // Wait 600ms (board exit duration + 50ms breathing room), THEN start detail modal
+        // Wait 1600ms (board exit duration + 1050ms breathing room), THEN start detail modal
+        // ⚠️ TEST DELAY: Added 1 second to verify update mechanism works
         setTimeout(async () => {
           try {
-            console.log('⏱️ PERFECTLY TIMED: Board exit complete, starting detail modal NOW!');
+            console.log('⏱️ TEST DELAY (1.6s): Board exit complete, starting detail modal NOW!');
             const { journeyBoardsManager } = await journeyManagerPromise;
             if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
               // ⚡ Set flag so main.ts knows to skip duplicate modal open
@@ -547,12 +548,12 @@ function createModal(): HTMLElement {
               console.log('⚡ Set __ccDetailModalAlreadyOpened flag to prevent duplicate open');
               
               await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
-              console.log(`✅ PERFECTLY TIMED: Detail modal opened for board ${detailModalBoardId}`);
+              console.log(`✅ TEST DELAY (1.6s): Detail modal opened for board ${detailModalBoardId}`);
             }
           } catch (error) {
             console.warn('⚠️ Failed to open detail modal from exit handler:', error);
           }
-        }, 600); // Board exit animation duration (550ms) + 50ms breathing room
+        }, 1600); // TEST: Board exit (550ms) + 1050ms test delay = 1.6s total
       }
       
       // ⚡ SPEED OPTIMIZATION: Set flag for fast path (skip redundant modal opening in main.ts)
