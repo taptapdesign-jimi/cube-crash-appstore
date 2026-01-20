@@ -420,10 +420,11 @@ class SliderManager {
     const slideWidth = this.elements.container.offsetWidth; // This should be viewport width
     const offset = -this.currentSlide * slideWidth;
     
-    logger.debug(`🎯 updateSlider: currentSlide=${this.currentSlide}, slideWidth=${slideWidth}, offset=${offset}, forceAnimate=${forceAnimate}`);
+    logger.info(`🎯 updateSlider: currentSlide=${this.currentSlide}, slideWidth=${slideWidth}, offset=${offset}, forceAnimate=${forceAnimate}`);
     
     // Kill previous animation if exists
     if (this.slideAnimation) {
+      logger.debug(`🛑 Killing previous animation before starting new one`);
       this.slideAnimation.kill();
       this.slideAnimation = null;
     }
@@ -446,13 +447,21 @@ class SliderManager {
       
       if (shouldAnimate) {
         logger.info(`🎬 Animating slider: currentX=${currentX} → offset=${offset}, forceAnimate=${forceAnimate}, difference=${Math.abs(currentX - offset)}`);
-        // 🔥 SMOOTH: Use smooth easing instead of bounce for fluid, non-jerky animation
-        this.slideAnimation = gsap.to(this.elements.wrapper, {
-          x: offset,
-          duration: 0.4, // Slightly faster for responsiveness
-          ease: 'power2.out', // Smooth, fluid easing (no bounce/jerk)
-          force3D: true, // GPU acceleration
-          overwrite: true,
+        // 🔥 CRITICAL FIX: Ensure GSAP wrapper is ready before animating
+        // Sometimes GSAP needs a frame to be ready after init
+        requestAnimationFrame(() => {
+          // 🔥 SMOOTH: Use smooth easing instead of bounce for fluid, non-jerky animation
+          // 🔥 CRITICAL FIX: Use 'auto' overwrite instead of true to prevent killing animations before they start
+          // 'auto' only overwrites conflicting properties, not all animations
+          this.slideAnimation = gsap.to(this.elements.wrapper, {
+            x: offset,
+            duration: 0.4, // Slightly faster for responsiveness
+            ease: 'power2.out', // Smooth, fluid easing (no bounce/jerk)
+            force3D: true, // GPU acceleration
+            overwrite: 'auto', // 🔥 FIX: 'auto' instead of true - prevents killing animation before it starts
+          onStart: () => {
+            logger.info(`🎬 GSAP animation STARTED: ${offset}px`);
+          },
           onUpdate: () => {
             // 🔥 SMOOTH: Force GPU layer update for smooth 60fps
             if (this.elements.wrapper) {
@@ -464,8 +473,10 @@ class SliderManager {
             if (this.elements.wrapper) {
               this.elements.wrapper.style.willChange = 'auto';
             }
-            logger.debug(`✅ updateSlider: Animation completed, final x=${gsap.getProperty(this.elements.wrapper, 'x')}`);
+            logger.info(`✅ updateSlider: Animation completed, final x=${gsap.getProperty(this.elements.wrapper, 'x')}`);
           }
+          });
+          logger.info(`✅ GSAP animation started: ${offset}px`);
         });
       } else {
         // Already at target position, just set it directly
