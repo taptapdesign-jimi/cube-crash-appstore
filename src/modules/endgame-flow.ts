@@ -565,8 +565,8 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       } else {
         // 🔥 REGULAR BOARD: Use startLevel for continuation
         console.log(`🎮 endgame-flow: Calling startLevel(${nextLevel}) for regular board continuation`);
-        startLevel(nextLevel);
-        logger.info(`🎯 endgame-flow: startLevel completed, should now be on Board ${nextLevel}`);
+      startLevel(nextLevel);
+      logger.info(`🎯 endgame-flow: startLevel completed, should now be on Board ${nextLevel}`);
       }
     } catch (startLevelError: any) {
       console.error('❌ endgame-flow: startLevel/startNewRunFromJourney failed:', startLevelError);
@@ -582,7 +582,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
             startLevel(nextLevel);
           }
         } else {
-          startLevel(nextLevel);
+        startLevel(nextLevel);
         }
         logger.info('🎯 endgame-flow: startLevel retry completed');
       } catch (retryError: any) {

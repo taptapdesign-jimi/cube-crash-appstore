@@ -3553,29 +3553,29 @@ class JourneyBoardsManager {
       // ⚡ INSTANT SHOW: Defer non-essential prep to background (runs during animation)
       // This eliminates ~80-120ms of DOM manipulation
       setTimeout(() => {
-        // 🔥 USER REQUEST: Mark card as viewed - stop animations forever for this card
-        // Only mark unlocked cards (interim cards don't have detail modal, so they keep animating)
-        if (!board.interim) {
-          // Find the card element by board ID
-          const cardElement = document.querySelector(`.journey-board-card[data-board-id="${board.id}"]`) as HTMLElement;
-          if (cardElement && JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.markCardAsViewed === 'function') {
-            JOURNEY_CARD_IDLE_BOUNCE.markCardAsViewed(cardElement);
-            logger.info(`✅ Card for board ${board.id} marked as viewed - animations stopped forever`);
-          }
-          
-          // 🔥 USER REQUEST: Remove ribbon when card is viewed
-          if (cardElement) {
-            const ribbon = cardElement.querySelector('.journey-card-ribbon');
-            if (ribbon) {
-              ribbon.remove();
-              logger.info(`🎀 Removed ribbon from board ${board.id} (now viewed)`);
-            }
-          }
-          
-          // 🔥 USER REQUEST: Mark board as viewed for badge counting
-          // Badge count decreases by 1 when details screen is opened
-          this.markBoardAsViewed(board.id);
+      // 🔥 USER REQUEST: Mark card as viewed - stop animations forever for this card
+      // Only mark unlocked cards (interim cards don't have detail modal, so they keep animating)
+      if (!board.interim) {
+        // Find the card element by board ID
+        const cardElement = document.querySelector(`.journey-board-card[data-board-id="${board.id}"]`) as HTMLElement;
+        if (cardElement && JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.markCardAsViewed === 'function') {
+          JOURNEY_CARD_IDLE_BOUNCE.markCardAsViewed(cardElement);
+          logger.info(`✅ Card for board ${board.id} marked as viewed - animations stopped forever`);
         }
+        
+        // 🔥 USER REQUEST: Remove ribbon when card is viewed
+        if (cardElement) {
+          const ribbon = cardElement.querySelector('.journey-card-ribbon');
+          if (ribbon) {
+            ribbon.remove();
+            logger.info(`🎀 Removed ribbon from board ${board.id} (now viewed)`);
+          }
+        }
+        
+        // 🔥 USER REQUEST: Mark board as viewed for badge counting
+        // Badge count decreases by 1 when details screen is opened
+        this.markBoardAsViewed(board.id);
+      }
       }, 0);
       
       // Store board ID in modal for Play Board button
@@ -3583,8 +3583,8 @@ class JourneyBoardsManager {
       
       // ⚡ INSTANT SHOW: Defer reset button setup to background
       setTimeout(() => {
-        // 🔥 USER REQUEST: Setup reset stats button (dev tool) - only for journey boards
-        const resetStatsBtn = detailModal.querySelector('#detail-reset-stats-btn') as HTMLElement;
+      // 🔥 USER REQUEST: Setup reset stats button (dev tool) - only for journey boards
+      const resetStatsBtn = detailModal.querySelector('#detail-reset-stats-btn') as HTMLElement;
       if (resetStatsBtn) {
         // Show reset button for journey boards
         resetStatsBtn.style.display = 'flex';
@@ -3684,84 +3684,84 @@ class JourneyBoardsManager {
 
       // ⚡ INSTANT SHOW: Defer title, badge, description, stats to background (~60ms saved)
       setTimeout(() => {
-        // Set title in header (Board 01, Board 02, etc.)
-        const titleEl = detailModal.querySelector('#detail-title');
-        if (titleEl) {
-          const boardNumberStr = board.id.toString().padStart(2, '0');
-          titleEl.textContent = `Board ${boardNumberStr}`;
-          logger.info(`✅ Detail modal title set to: Board ${boardNumberStr}`);
-        }
+      // Set title in header (Board 01, Board 02, etc.)
+      const titleEl = detailModal.querySelector('#detail-title');
+      if (titleEl) {
+        const boardNumberStr = board.id.toString().padStart(2, '0');
+        titleEl.textContent = `Board ${boardNumberStr}`;
+        logger.info(`✅ Detail modal title set to: Board ${boardNumberStr}`);
+      }
 
-        // Set rarity badge to "COMMON"
-        const rarityBadge = detailModal.querySelector('#detail-card-rarity');
-        if (rarityBadge) {
-          rarityBadge.textContent = 'COMMON';
-          rarityBadge.classList.remove('legendary');
-          logger.info(`✅ Rarity badge set to COMMON for board ${board.id}`);
+      // Set rarity badge to "COMMON"
+      const rarityBadge = detailModal.querySelector('#detail-card-rarity');
+      if (rarityBadge) {
+        rarityBadge.textContent = 'COMMON';
+        rarityBadge.classList.remove('legendary');
+        logger.info(`✅ Rarity badge set to COMMON for board ${board.id}`);
+      }
+      
+      // 🔥 IMPERATIVE: Text 80px right from card - inside stats+card container
+      const descEl = detailModal.querySelector('#detail-card-description') as HTMLElement;
+      const statsCardSection = detailModal.querySelector('#detail-section-stats-card') as HTMLElement;
+      
+      // 🔥 CRITICAL: Ensure consistent padding on stats-card section (no right padding, container reduced by 200px)
+      if (statsCardSection) {
+        statsCardSection.style.padding = '0 0 24px 24px'; // No right padding (container reduced by 200px)
+        statsCardSection.style.paddingTop = '0';
+      }
+      
+      if (descEl) {
+        descEl.textContent = "The board waits.\nA single move appears.\nEverything begins.";
+        descEl.style.cssText = `
+          display: block !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          color: #AD8775 !important;
+          font-size: 20px !important;
+          text-align: center !important;
+          white-space: pre-line !important;
+          margin-left: 80px !important;
+          width: 220px !important;
+          max-width: 220px !important;
+          padding: 0 !important;
+          line-height: 1.4 !important;
+          flex-shrink: 0 !important;
+        `;
+      }
+      
+      // 🔥 JOURNEY BOARDS: Display board stats (High Score, Longest Combo, Cubes Cracked)
+      // Load both board stats and global stats
+      Promise.all([
+        import('../services/board-stats-service.js'),
+        import('../services/stats-service.js')
+      ]).then(([{ boardStatsService }, { statsService }]) => {
+        const boardStats = boardStatsService.getBoardStats(board.id);
+        const globalStats = statsService.getStats();
+        
+        // Update stats values in new swipeable format
+        const highScoreEl = document.getElementById('detail-stat-highscore-value');
+        const comboEl = document.getElementById('detail-stat-combo-value');
+        const cubesEl = document.getElementById('detail-stat-cubes-value');
+        
+        if (highScoreEl) {
+          highScoreEl.textContent = boardStats.highScore.toLocaleString();
+        }
+        if (comboEl) {
+          comboEl.textContent = boardStats.longestCombo.toString();
+        }
+        if (cubesEl) {
+          // 🔥 USER REQUEST: Use per-board cubes cracked instead of global
+          cubesEl.textContent = boardStats.cubesCracked.toLocaleString();
         }
         
-        // 🔥 IMPERATIVE: Text 80px right from card - inside stats+card container
-        const descEl = detailModal.querySelector('#detail-card-description') as HTMLElement;
-        const statsCardSection = detailModal.querySelector('#detail-section-stats-card') as HTMLElement;
-        
-        // 🔥 CRITICAL: Ensure consistent padding on stats-card section (no right padding, container reduced by 200px)
-        if (statsCardSection) {
-          statsCardSection.style.padding = '0 0 24px 24px'; // No right padding (container reduced by 200px)
-          statsCardSection.style.paddingTop = '0';
-        }
-        
-        if (descEl) {
-          descEl.textContent = "The board waits.\nA single move appears.\nEverything begins.";
-          descEl.style.cssText = `
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            color: #AD8775 !important;
-            font-size: 20px !important;
-            text-align: center !important;
-            white-space: pre-line !important;
-            margin-left: 80px !important;
-            width: 220px !important;
-            max-width: 220px !important;
-            padding: 0 !important;
-            line-height: 1.4 !important;
-            flex-shrink: 0 !important;
-          `;
-        }
-        
-        // 🔥 JOURNEY BOARDS: Display board stats (High Score, Longest Combo, Cubes Cracked)
-        // Load both board stats and global stats
-        Promise.all([
-          import('../services/board-stats-service.js'),
-          import('../services/stats-service.js')
-        ]).then(([{ boardStatsService }, { statsService }]) => {
-          const boardStats = boardStatsService.getBoardStats(board.id);
-          const globalStats = statsService.getStats();
-          
-          // Update stats values in new swipeable format
-          const highScoreEl = document.getElementById('detail-stat-highscore-value');
-          const comboEl = document.getElementById('detail-stat-combo-value');
-          const cubesEl = document.getElementById('detail-stat-cubes-value');
-          
-          if (highScoreEl) {
-            highScoreEl.textContent = boardStats.highScore.toLocaleString();
-          }
-          if (comboEl) {
-            comboEl.textContent = boardStats.longestCombo.toString();
-          }
-          if (cubesEl) {
-            // 🔥 USER REQUEST: Use per-board cubes cracked instead of global
-            cubesEl.textContent = boardStats.cubesCracked.toLocaleString();
-          }
-          
-          logger.info(`✅ Board stats displayed for board ${board.id}:`, {
-            highScore: boardStats.highScore,
-            longestCombo: boardStats.longestCombo,
-            cubesCracked: boardStats.cubesCracked // 🔥 USER REQUEST: Per-board cubes cracked
-          });
-        }).catch((error) => {
-          logger.warn('⚠️ Failed to load board stats:', error);
+        logger.info(`✅ Board stats displayed for board ${board.id}:`, {
+          highScore: boardStats.highScore,
+          longestCombo: boardStats.longestCombo,
+          cubesCracked: boardStats.cubesCracked // 🔥 USER REQUEST: Per-board cubes cracked
         });
+      }).catch((error) => {
+        logger.warn('⚠️ Failed to load board stats:', error);
+      });
       }, 0); // End deferred content prep
       
       // 🔥 CLEAN START: Initialize simple swipe
@@ -4474,19 +4474,19 @@ class JourneyBoardsManager {
 
       // Now make modal visible and start animations
       // ⚡ SPEED FIX: Use single rAF (minimal delay ~16ms, but prevents layout thrashing)
-      requestAnimationFrame(() => {
-        // 🔥 SCREEN ARTIFACTS FIX: Double-check divideri are hidden BEFORE making modal visible
-        const dividersBeforeVisible = detailModal.querySelectorAll('.detail-stat-divider') as NodeListOf<HTMLElement>;
-        dividersBeforeVisible.forEach((div) => {
-          div.style.setProperty('opacity', '0', 'important');
-          div.style.setProperty('visibility', 'hidden', 'important');
-        });
-        
-        // Make modal visible
-        detailModal.style.opacity = '1';
-        detailModal.style.visibility = 'visible';
+        requestAnimationFrame(() => {
+          // 🔥 SCREEN ARTIFACTS FIX: Double-check divideri are hidden BEFORE making modal visible
+          const dividersBeforeVisible = detailModal.querySelectorAll('.detail-stat-divider') as NodeListOf<HTMLElement>;
+          dividersBeforeVisible.forEach((div) => {
+            div.style.setProperty('opacity', '0', 'important');
+            div.style.setProperty('visibility', 'hidden', 'important');
+          });
+          
+          // Make modal visible
+          detailModal.style.opacity = '1';
+          detailModal.style.visibility = 'visible';
 
-        // STEP 1: Header FIRST (0ms delay) - animates as group (includes divider and shadow)
+          // STEP 1: Header FIRST (0ms delay) - animates as group (includes divider and shadow)
           if (detailHeader) {
             // 🔥 USER BUG FIX: Ensure X button is visible before animating header
             if (detailCloseBtn) {
