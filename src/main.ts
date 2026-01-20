@@ -1820,33 +1820,37 @@ async function startNewRun(boardId: number): Promise<void> {
       const slides = document.querySelectorAll('.slider-slide');
       const navButtons = document.querySelectorAll('.independent-nav-button');
       
-      // 🔥 BUG FIX: Sync GSAP wrapper position BEFORE setting active classes
-      // This prevents slider from skipping animation when user clicks nav button
-      const sliderWrapper = document.getElementById('slider-wrapper');
-      const sliderContainer = document.getElementById('slider-container');
-      if (sliderWrapper && sliderContainer && typeof gsap !== 'undefined') {
-        const slideWidth = sliderContainer.offsetWidth;
-        const targetOffset = -targetSlide * slideWidth;
-        console.log(`🔧 Syncing GSAP wrapper to slide ${targetSlide}, offset: ${targetOffset}px`);
-        gsap.set(sliderWrapper, { x: targetOffset });
+      // 🔥 NEW API: Use setSlideInstant() to atomically update ALL states
+      // This replaces manual GSAP positioning + class manipulation
+      if (sliderManager && typeof sliderManager.setSlideInstant === 'function') {
+        sliderManager.setSlideInstant(targetSlide);
+        console.log(`✅ Slider positioned at slide ${targetSlide} using setSlideInstant (atomic)`);
+      } else {
+        // Fallback: Manual positioning (if setSlideInstant not available)
+        console.warn('⚠️ SliderManager.setSlideInstant not available, using fallback');
+        const sliderWrapper = document.getElementById('slider-wrapper');
+        const sliderContainer = document.getElementById('slider-container');
+        if (sliderWrapper && sliderContainer && typeof gsap !== 'undefined') {
+          const slideWidth = sliderContainer.offsetWidth;
+          const targetOffset = -targetSlide * slideWidth;
+          gsap.set(sliderWrapper, { x: targetOffset });
+        }
+        
+        slides.forEach((slide, index) => {
+          if (index === targetSlide) {
+            slide.classList.add('active');
+          } else {
+            slide.classList.remove('active');
+          }
+        });
       }
       
+      // 🔥 CRITICAL: Ensure ALL slides are visible for slider to work (slider uses translateX)
       slides.forEach((slide, index) => {
-        if (index === targetSlide) {
-          slide.classList.add('active');
-          // 🔥 CRITICAL: Ensure target slide is visible
-          (slide as HTMLElement).style.display = 'block';
-          (slide as HTMLElement).style.visibility = 'visible';
-          (slide as HTMLElement).style.opacity = '1';
-          console.log(`✅ Slide ${index} set to active and visible`);
-        } else {
-          slide.classList.remove('active');
-          // 🔥 FIX: ALL slides must be visible for slider to work (slider uses translateX)
-          // Only the active class determines which slide is shown
-          (slide as HTMLElement).style.display = 'block';
-          (slide as HTMLElement).style.visibility = 'visible';
-          (slide as HTMLElement).style.opacity = '1';
-        }
+        // ALL slides must be visible for slider positioning to work
+        (slide as HTMLElement).style.display = 'block';
+        (slide as HTMLElement).style.visibility = 'visible';
+        (slide as HTMLElement).style.opacity = '1';
         
         // 🔥 USER REQUEST: Ensure ALL slide content elements are visible (images, text, CTAs)
         // This prevents content from being hidden when returning from Journey screen
@@ -1937,31 +1941,37 @@ async function startNewRun(boardId: number): Promise<void> {
       // This prevents empty slides when user goes back from Journey screen
       const slides = document.querySelectorAll('.slider-slide');
       
-      // 🔥 BUG FIX: Sync GSAP wrapper position BEFORE setting active classes
-      // This prevents slider from skipping animation when user clicks nav button later
-      const sliderWrapper = document.getElementById('slider-wrapper');
-      const sliderContainer = document.getElementById('slider-container');
-      if (sliderWrapper && sliderContainer && typeof gsap !== 'undefined') {
-        const slideWidth = sliderContainer.offsetWidth;
-        const targetOffset = -1 * slideWidth; // Journey slide is index 1
-        console.log(`🔧 Syncing GSAP wrapper to Journey slide (1), offset: ${targetOffset}px`);
-        gsap.set(sliderWrapper, { x: targetOffset });
+      // 🔥 NEW API: Use setSlideInstant() to atomically update ALL states
+      // This replaces manual GSAP positioning + class manipulation
+      if (sliderManager && typeof sliderManager.setSlideInstant === 'function') {
+        sliderManager.setSlideInstant(1); // Journey slide is index 1
+        console.log(`✅ Slider positioned at Journey slide (1) using setSlideInstant (atomic)`);
+      } else {
+        // Fallback: Manual positioning (if setSlideInstant not available)
+        console.warn('⚠️ SliderManager.setSlideInstant not available, using fallback');
+        const sliderWrapper = document.getElementById('slider-wrapper');
+        const sliderContainer = document.getElementById('slider-container');
+        if (sliderWrapper && sliderContainer && typeof gsap !== 'undefined') {
+          const slideWidth = sliderContainer.offsetWidth;
+          const targetOffset = -1 * slideWidth; // Journey slide is index 1
+          gsap.set(sliderWrapper, { x: targetOffset });
+        }
+        
+        slides.forEach((slide, index) => {
+          if (index === 1) {
+            slide.classList.add('active');
+          } else {
+            slide.classList.remove('active');
+          }
+        });
       }
       
+      // 🔥 CRITICAL: Ensure ALL slides are visible for slider to work (slider uses translateX)
       slides.forEach((slide, index) => {
-        if (index === 1) {
-          // Journey slide (index 1) should be active
-          slide.classList.add('active');
-          (slide as HTMLElement).style.display = 'block';
-          (slide as HTMLElement).style.visibility = 'visible';
-          (slide as HTMLElement).style.opacity = '1';
-        } else {
-          // Other slides should be visible but not active
-          slide.classList.remove('active');
-          (slide as HTMLElement).style.display = 'block';
-          (slide as HTMLElement).style.visibility = 'visible';
-          (slide as HTMLElement).style.opacity = '1';
-        }
+        // ALL slides must be visible for slider positioning to work
+        (slide as HTMLElement).style.display = 'block';
+        (slide as HTMLElement).style.visibility = 'visible';
+        (slide as HTMLElement).style.opacity = '1';
       });
       console.log('✅ All slides made visible for Journey screen return');
     }
