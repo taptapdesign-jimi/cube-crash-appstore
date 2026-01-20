@@ -3472,10 +3472,17 @@ class JourneyBoardsManager {
       unlocked: board.unlocked
     });
     
-    // ⚡ INSTANT SHOW: Skip Journey exit wait (already happened or not needed)
-    // When coming via fast path, Journey screen is already hidden in main.ts
-    // No need to wait here - modal should appear INSTANTLY!
-    // (Original code waited here, adding ~200-300ms delay)
+    // 🔥 USER REQUEST: Wait for Journey exit animation to complete BEFORE opening detail modal
+    // This ensures smooth transition: Journey exits → THEN detail modal enters
+    if (!skipJourneyExit) {
+      console.log('⏱️ Waiting for Journey exit animation to complete before opening detail modal...');
+      await this.startJourneyExitAnimation();
+      console.log('✅ Journey exit animation complete, opening detail modal now');
+    } else if (journeyExitPromise) {
+      console.log('⏱️ Waiting for Journey exit promise to complete...');
+      await journeyExitPromise;
+      console.log('✅ Journey exit promise resolved, opening detail modal now');
+    }
     
     // Step 2: Now open detail modal with enter animation
     const detailModal = document.getElementById('collectibles-detail-modal');
@@ -5041,10 +5048,6 @@ class JourneyBoardsManager {
           // Use journey boards exit animation (header animates as group)
           await this.closeDetailModalWithExitAnimation(detailModal);
           
-          // 🔥 BUG FIX: Mark that slider is already positioned
-          // This prevents collectibles-manager.ts from re-positioning slider and causing swipe
-          (window as any).__ccSliderAlreadyPositioned = true;
-          
           // Show Journey screen after modal closes
           const collectiblesManager = (window as any).collectiblesManager;
           if (collectiblesManager && typeof collectiblesManager.showCollectibles === 'function') {
@@ -5068,10 +5071,6 @@ class JourneyBoardsManager {
           
           // Use journey boards exit animation (header animates as group)
           await this.closeDetailModalWithExitAnimation(detailModal);
-          
-          // 🔥 BUG FIX: Mark that slider is already positioned
-          // This prevents collectibles-manager.ts from re-positioning slider and causing swipe
-          (window as any).__ccSliderAlreadyPositioned = true;
           
           // Show Journey screen after modal closes
           const collectiblesManager = (window as any).collectiblesManager;

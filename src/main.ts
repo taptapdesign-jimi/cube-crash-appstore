@@ -1728,6 +1728,11 @@ async function startNewRun(boardId: number): Promise<void> {
     // 🔥 USER REQUEST: Show navigation and homepage ONLY if returning to homepage (slide 0)
     // If returning to Journey screen (slide 1), hide homepage and navigation IMMEDIATELY
     if (targetSlide === 0) {
+      // 🔥 BUG FIX: Ensure slider is unlocked (critical for swipe drag to work)
+      if (gameState && gameState.set) {
+        gameState.set('sliderLocked', false);
+      }
+      
       // Show navigation and homepage for homepage slider
       uiManager.showNavigation();
       uiManager.showHomepageQuietly();

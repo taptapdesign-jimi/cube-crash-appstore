@@ -544,6 +544,102 @@ class SliderManager {
     this.goToSlide(slide);
   }
   
+  /**
+   * 🔥 NEW API: Set slide instantly without animation
+   * Updates ALL 4 states atomically: GSAP wrapper, CSS classes, gameState, internal state
+   * Use this when showing homepage at specific slide to avoid visual glitches
+   */
+  setSlideInstant(slideIndex: number): void {
+    if (slideIndex < 0 || slideIndex >= this.totalSlides) {
+      logger.warn(`⚠️ Invalid slide index: ${slideIndex}`);
+      return;
+    }
+    
+    logger.info(`🎯 setSlideInstant: Setting slide to ${slideIndex} (atomic update)`);
+    
+    // 1. Update internal state
+    this.currentSlide = slideIndex;
+    
+    // 2. Update gameState
+    gameState.set('currentSlide', slideIndex);
+    
+    // 3. Update GSAP wrapper position
+    if (this.elements.wrapper && this.elements.container) {
+      const slideWidth = this.elements.container.offsetWidth;
+      const offset = -slideIndex * slideWidth;
+      gsap.set(this.elements.wrapper, { 
+        x: offset, 
+        immediateRender: true,
+        force3D: true 
+      });
+      logger.debug(`✅ GSAP wrapper positioned at slide ${slideIndex}, offset: ${offset}px`);
+    }
+    
+    // 4. Update CSS .active classes on slides
+    this.elements.slides.forEach((slide, index) => {
+      if (index === slideIndex) {
+        slide.classList.add('active');
+      } else {
+        slide.classList.remove('active');
+      }
+    });
+    
+    // 5. Update dots
+    this.elements.dots.forEach((dot, index) => {
+      dot.classList.toggle('active', index === slideIndex);
+    });
+    
+    // 6. Update navigation buttons
+    const navButtons = document.querySelectorAll('.independent-nav-button');
+    navButtons.forEach((button, index) => {
+      if (index === slideIndex) {
+        button.classList.add('active');
+      } else {
+        button.classList.remove('active');
+      }
+    });
+    
+    logger.info(`✅ setSlideInstant: All states synced to slide ${slideIndex}`);
+  }
+  
+  /**
+   * 🔥 NEW API: Ensure slider is ready for interaction
+   * Reinitializes if needed, unlocks slider, ensures pointer events work
+   */
+  ensureReady(): void {
+    logger.info('🔧 ensureReady: Ensuring slider is ready for interaction');
+    
+    // 1. Reinitialize if not initialized
+    if (!this.isInitialized) {
+      logger.warn('⚠️ Slider not initialized - initializing now');
+      this.init();
+      return; // init() will handle everything
+    }
+    
+    // 2. Refresh element references (in case DOM changed)
+    this.elements.container = document.getElementById('slider-container');
+    this.elements.wrapper = document.getElementById('slider-wrapper');
+    this.elements.slides = document.querySelectorAll('.slider-slide');
+    this.elements.dots = document.querySelectorAll('.slider-dot');
+    
+    // 3. Unlock slider
+    gameState.set('sliderLocked', false);
+    
+    // 4. Ensure pointer events are enabled
+    if (this.elements.container) {
+      this.elements.container.style.pointerEvents = 'auto';
+      logger.debug('✅ Slider container pointer events enabled');
+    }
+    
+    // 5. Ensure quickSetter exists
+    if (!this.quickSetX && this.elements.wrapper) {
+      this.quickSetX = gsap.quickSetter(this.elements.wrapper, 'x', 'px') as (value: number) => void;
+      logger.debug('✅ GSAP quickSetter recreated');
+    }
+    
+    logger.info('✅ ensureReady: Slider ready for interaction');
+  }
+  
   // Cleanup
   destroy(): void {
     // Kill GSAP animation if exists

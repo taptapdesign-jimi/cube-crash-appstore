@@ -913,66 +913,43 @@ class CollectiblesManager {
       });
       logger.info('✅ All slides and content made visible');
       
-      // Step 2d: Position slider on Journey slide (index 1) BEFORE enter animation
+      // Step 2d: Position slider on Journey slide (index 1) using NEW atomic API
       // When exiting Journey screen, ALWAYS return to Journey slide on homepage slider
       const targetSlideIndex = 1;
       console.log(`🔍 Journey exit: returning to Journey slide (index ${targetSlideIndex})`);
       
-      // 🔥 BUG FIX: Check if slider was already positioned from detail modal close
-      // If so, skip positioning to avoid visual swipe/jump
-      const sliderAlreadyPositioned = (window as any).__ccSliderAlreadyPositioned === true;
-      if (sliderAlreadyPositioned) {
-        console.log('✅ Slider already positioned from detail modal close, skipping...');
-        delete (window as any).__ccSliderAlreadyPositioned;
+      // 🔥 NEW API: Use setSlideInstant() to atomically update ALL states
+      // This replaces all manual GSAP positioning + class manipulation
+      const sliderManager = (window as any).sliderManager;
+      if (sliderManager && typeof sliderManager.setSlideInstant === 'function') {
+        sliderManager.setSlideInstant(targetSlideIndex);
+        console.log(`✅ Slider positioned at slide ${targetSlideIndex} using setSlideInstant (atomic)`);
       } else {
-        // Position slider on Journey slide (index 1) BEFORE enter animation
+        // Fallback: Manual positioning (if slider-manager not available)
+        console.warn('⚠️ SliderManager.setSlideInstant not available, using fallback');
         const sliderWrapper = document.getElementById('slider-wrapper') as HTMLElement;
         if (sliderWrapper && sliderContainerEl) {
           const slideWidth = sliderContainerEl.offsetWidth || window.innerWidth;
           const targetOffset = -targetSlideIndex * slideWidth;
           
-          // Set position immediately using GSAP
           if (typeof gsap !== 'undefined') {
             gsap.set(sliderWrapper, { x: targetOffset, immediateRender: true });
           } else {
             sliderWrapper.style.transform = `translateX(${targetOffset}px)`;
           }
-          console.log(`✅ Slider positioned at slide ${targetSlideIndex}, offset: ${targetOffset}px`);
         }
-      }
-      
-      // Step 2e: Set target slide as active
-      allSlides.forEach((slide, index) => {
-        if (index === targetSlideIndex) {
-          slide.classList.add('active');
-        } else {
-          slide.classList.remove('active');
-        }
-      });
-      
-      // Step 2f: Set target nav button as active
-      const navButtons = document.querySelectorAll('.independent-nav-button');
-      navButtons.forEach((button, index) => {
-        if (index === targetSlideIndex) {
-          button.classList.add('active');
-        } else {
-          button.classList.remove('active');
-        }
-      });
-      console.log(`✅ Slide ${targetSlideIndex} and nav button ${targetSlideIndex} marked as active`);
-      
-      // Step 2g: Update sliderManager state and gameState
-      const sliderManager = (window as any).sliderManager;
-      if (sliderManager) {
-        sliderManager.currentSlide = targetSlideIndex;
-        console.log(`✅ SliderManager internal state updated to slide ${targetSlideIndex}`);
-      }
-      
-      // 🔥 BUG FIX: Also update gameState to keep everything in sync
-      // This ensures slider-manager knows the correct position when user clicks nav buttons
-      if (typeof (window as any).gameState !== 'undefined' && (window as any).gameState.set) {
-        (window as any).gameState.set('currentSlide', targetSlideIndex);
-        console.log(`✅ gameState.currentSlide updated to slide ${targetSlideIndex}`);
+        
+        // Set active classes manually
+        allSlides.forEach((slide, index) => {
+          if (index === targetSlideIndex) slide.classList.add('active');
+          else slide.classList.remove('active');
+        });
+        
+        const navButtons = document.querySelectorAll('.independent-nav-button');
+        navButtons.forEach((button, index) => {
+          if (index === targetSlideIndex) button.classList.add('active');
+          else button.classList.remove('active');
+        });
       }
       
       // Step 2h: Show navigation
@@ -982,6 +959,31 @@ class CollectiblesManager {
         navElement.style.removeProperty('visibility');
         navElement.style.removeProperty('opacity');
         logger.info('✅ Navigation shown');
+      }
+      
+      // 🔥 NEW API: Ensure slider is ready for interaction
+      // Unlocks slider, ensures pointer events, refreshes element references
+      try {
+        const sliderManager = (window as any).sliderManager;
+        if (sliderManager && typeof sliderManager.ensureReady === 'function') {
+          sliderManager.ensureReady();
+          console.log('✅ SliderManager.ensureReady() called - slider ready for interaction');
+        } else {
+          // Fallback: Manual unlock
+          console.warn('⚠️ SliderManager.ensureReady not available, using fallback');
+          if (typeof (window as any).unlockSlider === 'function') {
+            (window as any).unlockSlider();
+          }
+        }
+        
+        // Reattach CTA button event listeners (Play, Journey buttons)
+        const uiManager = (window as any).uiManager;
+        if (uiManager && typeof uiManager.reattachEventListeners === 'function') {
+          uiManager.reattachEventListeners();
+          console.log('✅ UI Manager event listeners reattached - CTA buttons ready');
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to ensure slider ready:', error);
       }
       
       // Step 2i: Force DOM reflow to ensure .active class is applied
