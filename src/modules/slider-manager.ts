@@ -346,17 +346,38 @@ class SliderManager {
     if ((window as any).__ccIsAnimatingSliderEnter === true) {
       logger.info(`⏳ Slider enter animation still running, queuing slide change to ${slideIndex}...`);
       // Queue the slide change to happen after animation completes
-      // 🔥 USER REQUEST FIX: Force animation even when queued (don't use quickSetX fallback)
+      // 🔥 CRITICAL FIX: Use polling to wait for enter animation to ACTUALLY complete (770ms total)
+      // Don't use fixed 650ms timeout - wait until flag is actually false
+      const checkInterval = setInterval(() => {
+        if ((window as any).__ccIsAnimatingSliderEnter === false) {
+          clearInterval(checkInterval);
+          // 🔥 CRITICAL: Add small delay to ensure enter animation cleanup is complete
+          setTimeout(() => {
+            if (slideIndex >= 0 && slideIndex < this.totalSlides) {
+              this.currentSlide = slideIndex;
+              gameState.set('currentSlide', slideIndex);
+              // 🔥 CRITICAL: Call updateSlider with forceAnimate=true for smooth GSAP transition
+              // This ensures queued slides animate smoothly instead of instant jump
+              this.updateSlider(true); // forceAnimate = true
+              logger.info(`✅ Queued slide change to ${slideIndex} completed with smooth animation`);
+            }
+          }, 50); // Small delay to ensure enter animation cleanup is complete
+        }
+      }, 50); // Check every 50ms
+      
+      // 🔥 SAFETY: Fallback timeout in case flag never resets (shouldn't happen, but safety first)
       setTimeout(() => {
+        clearInterval(checkInterval);
+        if ((window as any).__ccIsAnimatingSliderEnter === true) {
+          logger.warn('⚠️ Enter animation flag still true after 800ms - forcing slide change');
+        }
         if (slideIndex >= 0 && slideIndex < this.totalSlides) {
           this.currentSlide = slideIndex;
           gameState.set('currentSlide', slideIndex);
-          // 🔥 CRITICAL: Call updateSlider with forceAnimate=true for smooth GSAP transition
-          // This ensures queued slides animate smoothly instead of instant jump
-          this.updateSlider(true); // forceAnimate = true
-          logger.info(`✅ Queued slide change to ${slideIndex} completed with smooth animation`);
+          this.updateSlider(true);
         }
-      }, 650); // Wait for enter animation to complete (650ms duration)
+      }, 800); // Fallback: 800ms (slightly longer than 770ms enter animation)
+      
       return;
     }
     
@@ -420,10 +441,11 @@ class SliderManager {
       // 🔥 CRITICAL FIX: If forceAnimate is true, ALWAYS animate (ignore position check)
       // This ensures nav button clicks ALWAYS trigger smooth animation, even if positions appear identical
       // Nav buttons should ALWAYS animate for premium UX, never instant jump
+      // 🔥 CRITICAL: forceAnimate takes precedence - if true, animate regardless of position difference
       const shouldAnimate = forceAnimate || Math.abs(currentX - offset) > 0.5;
       
       if (shouldAnimate) {
-        logger.debug(`🎬 Animating slider: currentX=${currentX} → offset=${offset}, forceAnimate=${forceAnimate}`);
+        logger.info(`🎬 Animating slider: currentX=${currentX} → offset=${offset}, forceAnimate=${forceAnimate}, difference=${Math.abs(currentX - offset)}`);
         // 🔥 SMOOTH: Use smooth easing instead of bounce for fluid, non-jerky animation
         this.slideAnimation = gsap.to(this.elements.wrapper, {
           x: offset,
