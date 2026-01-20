@@ -536,7 +536,7 @@ function createModal(): HTMLElement {
           journeyScreen.style.visibility = 'hidden';
         }
         
-        // Wait 750ms (board exit duration + 200ms breathing room), THEN start detail modal
+        // Wait 950ms (board exit duration + 400ms breathing room), THEN start detail modal
         setTimeout(async () => {
           try {
             console.log('⏱️ PERFECTLY TIMED: Board exit complete, starting detail modal NOW!');
@@ -552,7 +552,7 @@ function createModal(): HTMLElement {
           } catch (error) {
             console.warn('⚠️ Failed to open detail modal from exit handler:', error);
           }
-        }, 750); // Board exit animation duration (550ms) + 200ms breathing room
+        }, 950); // Board exit animation duration (550ms) + 400ms breathing room
       }
       
       // ⚡ SPEED OPTIMIZATION: Set flag for fast path (skip redundant modal opening in main.ts)

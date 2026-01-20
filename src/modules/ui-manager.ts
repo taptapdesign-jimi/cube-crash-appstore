@@ -773,10 +773,17 @@ class UIManager {
       fadeInHome();
     }
     
-    // 🔥 BUG FIX: Reset slider pointer events (in case it was disabled during Journey transition)
-    const sliderContainer = document.getElementById('slider-container');
-    if (sliderContainer) {
-      sliderContainer.style.pointerEvents = '';
+    // 🔥 NEW API: Ensure slider is ready for interaction
+    const sliderManager = (window as any).sliderManager;
+    if (sliderManager && typeof sliderManager.ensureReady === 'function') {
+      sliderManager.ensureReady();
+      logger.info('✅ Slider ensureReady() called in showHomepage() - slider ready');
+    } else {
+      // Fallback: Reset pointer events manually
+      const sliderContainer = document.getElementById('slider-container');
+      if (sliderContainer) {
+        sliderContainer.style.pointerEvents = '';
+      }
     }
 
     // 🔥 CRITICAL: Ensure #global-bg exists (create if missing)
@@ -1273,16 +1280,19 @@ class UIManager {
       (window as any).__ccIsAnimatingSliderEnter = false;
       logger.info('✅ Reset __ccIsAnimatingSliderEnter flag before slider reinit');
       
-      // 🔥 CRITICAL FIX: Reinitialize slider manager if it was destroyed
-      // This ensures slider controls (swipe, nav buttons, dots) work after returning to homepage
+      // 🔥 NEW API: Ensure slider is ready for interaction
+      // Unlocks slider, ensures pointer events, refreshes element references
       try {
-        if (sliderManager && typeof sliderManager.init === 'function') {
-          // Check if slider manager needs reinitialization (it was destroyed in hideHomepage)
+        if (sliderManager && typeof sliderManager.ensureReady === 'function') {
+          sliderManager.ensureReady();
+          logger.info('✅ Slider ensureReady() called in showHomepageQuietly - slider ready');
+        } else if (sliderManager && typeof sliderManager.init === 'function') {
+          // Fallback: Full reinitialize if ensureReady not available
           sliderManager.init();
-          logger.info('✅ Slider manager reinitialized in showHomepageQuietly');
+          logger.info('✅ Slider manager reinitialized in showHomepageQuietly (fallback)');
         }
       } catch (error) {
-        logger.warn('⚠️ Failed to reinitialize slider manager:', error);
+        logger.warn('⚠️ Failed to ensure slider ready:', error);
       }
       
       // 🔥 CRITICAL FIX: Reattach event listeners to homepage buttons
