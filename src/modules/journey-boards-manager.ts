@@ -1166,6 +1166,24 @@ class JourneyBoardsManager {
 
   public renderBoards(): void {
     const container = document.getElementById('journey-boards-container');
+    
+    // 🔥 USER REQUEST: Ensure all locked cards have 100% opacity after rendering
+    // This fixes any locked cards that might have opacity < 100%
+    setTimeout(() => {
+      const lockedCards = container?.querySelectorAll('.journey-board-card.locked') as NodeListOf<HTMLElement>;
+      if (lockedCards) {
+        lockedCards.forEach((card) => {
+          const currentOpacity = window.getComputedStyle(card).opacity;
+          const opacityValue = parseFloat(currentOpacity);
+          if (isNaN(opacityValue) || opacityValue < 1.0) {
+            card.style.opacity = '1';
+            const boardId = card.getAttribute('data-board-id') || 'unknown';
+            console.log(`✅ Set locked card ${boardId} opacity to 100% (was ${currentOpacity})`);
+            logger.info(`✅ Set locked card ${boardId} opacity to 100% (was ${currentOpacity})`);
+          }
+        });
+      }
+    }, 100); // Small delay to ensure cards are rendered
     if (!container) {
       logger.warn('⚠️ Journey boards container not found');
       return;
@@ -2268,6 +2286,16 @@ class JourneyBoardsManager {
       card.addEventListener('touchmove', cancelLongPress, { passive: true });
       
       card.appendChild(lockedContainer);
+      
+      // 🔥 USER REQUEST: Ensure locked cards have 100% opacity (fully visible)
+      // Check current opacity and set to 100% if less than 100%
+      const currentOpacity = window.getComputedStyle(card).opacity;
+      const opacityValue = parseFloat(currentOpacity);
+      if (isNaN(opacityValue) || opacityValue < 1.0) {
+        card.style.opacity = '1';
+        console.log(`✅ Set locked card ${board.id} opacity to 100% (was ${currentOpacity})`);
+        logger.info(`✅ Set locked card ${board.id} opacity to 100% (was ${currentOpacity})`);
+      }
     }
 
     cardWrapper.appendChild(card);
