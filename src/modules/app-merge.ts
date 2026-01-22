@@ -500,10 +500,15 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const pulledTileCount = validTiles.length;
   const pulledCells: { c: number; r: number }[] = [];
   
+  // 🔥 SOURCE OF TRUTH: Wild Magnet - Mode B — No tiles to attract
+  // Magnet must not invent attraction. If the merge is final Merge-6 → trigger CLEAN BOARD
+  // Otherwise board continues only if allowed by other rules (preload etc.)
   // 🔥 CRITICAL FIX: If NO tiles were pulled (validTiles.length === 0), merge 6 tile is the ONLY tile left
   // This happens when magnet merges with a tile but there are NO other tiles on board to pull
   // In this case, merge 6 tile should be removed and clean board flow should be triggered
   if (validTiles.length === 0 && dst && !dst.destroyed) {
+    console.log('🚨🚨🚨 SOURCE OF TRUTH: Wild Magnet Mode B — No tiles to attract');
+    console.log('🎯 Source of Truth: If the merge is final Merge-6 → trigger CLEAN BOARD');
     console.log('🚨🚨🚨 EDGE CASE: Magnet merge but NO tiles to pull - Only merge 6 remains, triggering clean board flow');
     
     // Remove merge 6 tile
@@ -1452,17 +1457,18 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 🔥 MAGNET-ON-MAGNET FIX: Magnet CAN pull other magnets - this is intentional!
   // When magnets pull other magnets, they get removed and replaced with new ordinary tiles
   
+  // 🔥 SOURCE OF TRUTH: Wild Magnet - Mode A — Tiles exist to attract
+  // Magnet attracts tiles (normal or wild). May spawn exactly as many tiles as attracted.
+  // Must not spawn extra tiles beyond attraction count.
   // 🔥 CRITICAL FIX: Spawn count = pulled tiles count (for replacement) + 1 (OBLIGATORY tile below merge 6)
   // When magnet pulls tiles, we need to:
   // 1. Spawn tiles to replace pulled tiles (pulledCells.length)
   // 2. Spawn ONE OBLIGATORY tile below merge 6 (to anchor it and provide merge target)
   // 3. Merge 6 tile should remain on board at magnet position (it's already there, don't spawn it)
-  // 🔥 USER BUG REPORT: Magnet + stack (2 tiles) → pulled 1 tile → should spawn 1 replacement + 1 obligatory below merge 6 + merge 6 = 3 total
-  // Problem: Only 1 tile spawned instead of 2 (missing obligatory tile below merge 6)
-  // Solution: Ensure we spawn pulledCells.length tiles PLUS 1 obligatory tile below merge 6
+  // 🔥 SOURCE OF TRUTH: If final merge-6 (_isLastMerge flag), NO spawns at all (trigger CLEAN BOARD)
   // 🎯 END GAME FIX: If this is last merge (magnet + 1 tile), NO spawns at all!
   const replacementSpawnCount = hasTilesToRespawn ? pulledCells.length : 0; // Spawn = number of pulled tiles (max 4)
-  const obligatorySpawnCount = isLastMergeFlagSet ? 0 : 1; // NO obligatory spawn if last merge!
+  const obligatorySpawnCount = isLastMergeFlagSet ? 0 : 1; // NO obligatory spawn if last merge! (SOURCE OF TRUTH: Final merge-6 = NO spawn)
   const spawnCount = replacementSpawnCount + obligatorySpawnCount;
   
   console.log('🧲 Wild-magnet spawn calculation:', {

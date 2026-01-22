@@ -405,12 +405,17 @@ function queueWildSpawnIfNeeded(){
     return;
   }
   
-  // 🔥 CRITICAL FIX v40.7: Skip wild spawn if last merge is in progress
+  // 🔥 SOURCE OF TRUTH: Preload Bar Logic
+  // Case B — 2 tiles stack → result = 6 (NO PRELOAD SPAWN)
+  // If stacking the last two tiles results in Merge-6: Trigger CLEAN BOARD immediately
+  // Preload bar must NOT spawn wild, even if the action completes the bar
+  // 🔥 CRITICAL FIX: Skip wild spawn if last merge is in progress
   // Problem: Last merge (2 tiles) → merge6 → wild meter se puni → wild spawn → nova kockica na board prije clean board!
   // Solution: Provjeri da li postoji merge6 tile s _isLastMerge flag-om
   const hasLastMergeTile = STATE.tiles.some((t: any) => t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true);
   if (hasLastMergeTile) {
-    console.log('🚨🚨🚨 LAST MERGE: Skipping wild spawn - prevent wild spawn before clean board');
+    console.log('🚨🚨🚨 SOURCE OF TRUTH: Preload bar blocked (in queueWildSpawnIfNeeded) - last merge detected');
+    console.log('🎯 Source of Truth: Case B — 2 tiles stack → result = 6 (NO PRELOAD SPAWN)');
     console.log('🚨🚨🚨 Wild spawn will NOT be queued, preventing wild spawn on last merge');
     return;
   }
@@ -507,12 +512,17 @@ function addWildProgress(amount){
     return;
   }
   
+  // 🔥 SOURCE OF TRUTH: Preload Bar Logic
+  // Case B — 2 tiles stack → result = 6 (NO PRELOAD SPAWN)
+  // If stacking the last two tiles results in Merge-6: Trigger CLEAN BOARD immediately
+  // Preload bar must NOT spawn wild, even if the action completes the bar
   // 🔥 CRITICAL FIX: Check if this is last merge (only 2 tiles on board) BEFORE adding wild progress
   // This is a safety check to prevent wild meter from filling when last merge happens
   // The flag should be set in merge logic, but this provides double protection
   const hasLastMergeTile = STATE.tiles.some((t: any) => t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true);
   if (hasLastMergeTile) {
-    console.log('🚨🚨🚨 LAST MERGE DETECTED (in addWildProgress) - skipping wild progress to prevent wild spawn before clean board');
+    console.log('🚨🚨🚨 SOURCE OF TRUTH: Preload bar blocked (in addWildProgress) - last merge detected');
+    console.log('🎯 Source of Truth: Case B — 2 tiles stack → result = 6 (NO PRELOAD SPAWN)');
     console.log('🚨🚨🚨 Wild meter will NOT be filled, preventing wild spawn on last merge');
     // Reset wild meter to ensure it's empty
     wildMeter = 0;
@@ -3014,12 +3024,17 @@ async function spawnWildFromMeter(){
     return false;
   }
   
-  // 🔥 CRITICAL FIX v40.7: Skip wild spawn if last merge is in progress
+  // 🔥 SOURCE OF TRUTH: Preload Bar Logic
+  // Case B — 2 tiles stack → result = 6 (NO PRELOAD SPAWN)
+  // If stacking the last two tiles results in Merge-6: Trigger CLEAN BOARD immediately
+  // Preload bar must NOT spawn wild, even if the action completes the bar
+  // 🔥 CRITICAL FIX: Skip wild spawn if last merge is in progress
   // Problem: Last merge (2 tiles) → merge6 → wild meter se puni → wild spawn → nova kockica na board prije clean board!
   // Solution: Provjeri da li postoji merge6 tile s _isLastMerge flag-om
   const hasLastMergeTile = STATE.tiles.some((t: any) => t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true);
   if (hasLastMergeTile) {
-    console.log('🚨🚨🚨 LAST MERGE: Skipping wild spawn - prevent wild spawn before clean board');
+    console.log('🚨🚨🚨 SOURCE OF TRUTH: Preload bar blocked - last merge detected (_isLastMerge flag)');
+    console.log('🎯 Source of Truth: Case B — 2 tiles stack → result = 6 (NO PRELOAD SPAWN)');
     console.log('🚨🚨🚨 Wild spawn will NOT be executed, preventing wild spawn on last merge');
     return false;
   }
@@ -6304,26 +6319,25 @@ function merge(src, dst, helpers){
           return;
         }
         
+        // 🔥 SOURCE OF TRUTH: Final Two Tiles Resolution
+        // Case A — Two tiles merge into 6: This is FINAL MERGE-6, Trigger CLEAN BOARD, No further spawning
         // 🔥 SIMPLIFIED: Only check _isLastMerge flag - this is set ONLY when it's truly the last merge (2 tiles total)
         // All other checks were too aggressive and blocked spawn when it shouldn't be blocked
         // 🔥 CRITICAL FIX: If pulled tiles will merge, this is NOT last merge (new tiles will spawn)
         // Note: willPulledTilesMerge is already declared above (line 4997), so we reuse it here
         const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
         
-        // 🔥 CRITICAL FIX: Don't trigger clean board if pulled tiles will merge (new tiles will spawn)
-        if (willPulledTilesMerge) {
-          console.log('🧲 Pulled tiles will merge - this is NOT last merge (new tiles will spawn), clearing _isLastMerge flag');
-          // Clear the flag since new tiles will spawn
-          (dst as any)._isLastMerge = false;
-          // Don't trigger clean board - pulled tiles merge will handle spawn and endgame check
-        } else if (isLastMergeFlagSet || busyEnding) {
-          console.log('🚨🚨🚨 LAST MERGE: Skipping spawn - _isLastMerge flag is TRUE or busyEnding is true');
+        // 🔥 SOURCE OF TRUTH: If final merge-6 (_isLastMerge flag), trigger CLEAN BOARD, do NOT spawn
+        // This applies to ALL merge types: normal, wild beer, wild star, wild magnet
+        if (isLastMergeFlagSet && !willPulledTilesMerge) {
+          console.log('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 detected (_isLastMerge flag) - triggering CLEAN BOARD, NO spawn');
+          console.log('🎯 Source of Truth: Case A — Two tiles merge into 6: This is FINAL MERGE-6, Trigger CLEAN BOARD, No further spawning');
           
           // 🔥 CRITICAL: If _isLastMerge flag is set, trigger clean board flow
-          if (isLastMergeFlagSet && !busyEnding) {
-            console.log('🚨🚨🚨 _isLastMerge flag is TRUE - triggering clean board flow');
+          if (!busyEnding) {
+            console.log('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 - triggering clean board flow (NO spawn)');
             busyEnding = true;
-          
+            
             // Remove dst tile and trigger clean board flow
             if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
               grid[dst.gridY][dst.gridX] = null;
@@ -6332,59 +6346,73 @@ function merge(src, dst, helpers){
             }
             
             // Reset wild meter
-          wildMeter = 0;
-          STATE.wildMeter = 0;
-          resetWildProgress(0, false);
-          
-          try {
-            if (typeof HUD.resetWildMeter === 'function') {
+            wildMeter = 0;
+            STATE.wildMeter = 0;
+            resetWildProgress(0, false);
+            
+            try {
+              if (typeof HUD.resetWildMeter === 'function') {
                 HUD.resetWildMeter(true);
-            } else {
-              HUD.updateProgressBar?.(0, false);
-            }
-          } catch (error) {
+              } else {
+                HUD.updateProgressBar?.(0, false);
+              }
+            } catch (error) {
               console.warn('⚠️ Failed to reset wild meter:', error);
-          }
+            }
 
-          try {
-            try { await new Promise(res => setTimeout(res, 1000)); } catch {}
-            await runEndgameFlow({
-              app,
-              stage,
-              board,
-              boardBG,
-              level,
-              startLevel,
-              score,
-              getScore: () => score,
-              setScore: (v) => { score = v|0; updateHUD(); },
-              animateScore,
-              updateHUD,
-              boardNumber,
-              hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
-              showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
-            });
-          } finally {
-            busyEnding = false;
-          }
+            try {
+              try { await new Promise(res => setTimeout(res, 1000)); } catch {}
+              await runEndgameFlow({
+                app,
+                stage,
+                board,
+                boardBG,
+                level,
+                startLevel,
+                score,
+                getScore: () => score,
+                setScore: (v) => { score = v|0; updateHUD(); },
+                animateScore,
+                updateHUD,
+                boardNumber,
+                hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
+                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+              });
+            } finally {
+              busyEnding = false;
+            }
           }
           
-          return; // Exit early - don't spawn new tiles
+          return; // Exit early - don't spawn new tiles (SOURCE OF TRUTH: Final merge-6 = NO spawn)
+        }
+        
+        // 🔥 CRITICAL FIX: Don't trigger clean board if pulled tiles will merge (new tiles will spawn)
+        if (willPulledTilesMerge) {
+          console.log('🧲 Pulled tiles will merge - this is NOT last merge (new tiles will spawn), clearing _isLastMerge flag');
+          // Clear the flag since new tiles will spawn
+          (dst as any)._isLastMerge = false;
+          // Don't trigger clean board - pulled tiles merge will handle spawn and endgame check
         }
         
         // Use multiplier for spawning new tiles
         let spawnMult = mult;
         
-        // 🔥 BUG FIX: For wild merges (wild star, wild beer) in end game, spawn only 1 tile
-        // Wild merge normally spawns 2 tiles (mult=2), but in end game should spawn only 1
-        // End game = no locked tiles available (all tiles are opened)
+        // 🔥 SOURCE OF TRUTH: Wild Beer & Wild Star spawn logic
+        // Case A — Board continues: Apply wild effect normally, after Merge-6, respect Single Spawn Rule (1 tile on merge cell)
+        // Case B — Board ends: If Merge-6 is the finishing state, trigger CLEAN BOARD, do NOT spawn a new tile
+        // 🔥 CRITICAL: If final merge-6 (_isLastMerge flag), do NOT spawn (handled above by early return)
+        // 🔥 CRITICAL: If endgame mode (no locked tiles), spawn ONLY 1 tile (handled by shouldSpawnAtDst logic)
+        // This code only handles reducing spawnMult for wild merges in endgame mode (if not final merge-6)
         const isWildMergeForMultFix = srcSpecial === 'wild' || dstSpecial === 'wild' || 
                                       srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
         const lockedTilesForMultCheck = tiles.filter(t => t && !t.destroyed && t.locked).length;
+        const isEndgameForMultCheck = lockedTilesForMultCheck === 0;
         
-        if (isWildMergeForMultFix && lockedTilesForMultCheck === 0 && spawnMult > 1) {
-          console.log('🔥 END-GAME FIX: Wild merge + no locked tiles → reducing spawnMult from', spawnMult, 'to 1');
-          spawnMult = 1; // Spawn only 1 tile in end game scenario
+        // 🔥 SOURCE OF TRUTH: In endgame mode, wild merges spawn only 1 tile (Single Spawn Rule)
+        // BUT: If final merge-6, spawnMult is already 0 (handled by _isLastMerge check above)
+        if (isWildMergeForMultFix && isEndgameForMultCheck && spawnMult > 1 && !isLastMergeFlagSet) {
+          console.log('🔥 SOURCE OF TRUTH: Wild merge in endgame mode → reducing spawnMult from', spawnMult, 'to 1 (Single Spawn Rule)');
+          spawnMult = 1; // Spawn only 1 tile in endgame mode (Single Spawn Rule)
         }
         
         // 🔥 CRITICAL: Check if spawnMult is valid before proceeding
@@ -6433,8 +6461,9 @@ function merge(src, dst, helpers){
           isWild: srcSpecial === 'wild' || dstSpecial === 'wild'
         });
         
+        // 🔥 SOURCE OF TRUTH: Endgame Mode Detection
+        // Endgame mode begins when: There are no available locked / armored slots left for spawning new normal dice
         // 🔥 CRITICAL: Check if there are locked tiles available for spawn (excluding placeholder at dst position)
-        // If no locked tiles (or only placeholder exists), spawn directly at dst position (end-game scenario)
         const lockedTiles = tiles.filter(t => t && !t.destroyed && t.locked && t.scale);
         const placeholderHolderRef = (dst as any)?._placeholderHolder;
         
@@ -6453,20 +6482,24 @@ function merge(src, dst, helpers){
           return true;
         });
         
-        // 🔥 CRITICAL: If no locked tiles available (or only placeholder exists), spawn directly at dst position
-        // This happens when all tiles are opened and merge-6 is made
-        // Spawn new ACTIVE tile with pips at the exact position of merge-6 (v101 behavior)
-        // 🔥 BUG FIX: For wild merges, if very few locked tiles available (< spawnMult), spawn at dst position
-        // This prevents spawning 2 tiles on random positions when there aren't enough locked tiles
-        const isWildMergeForSpawn = srcSpecial === 'wild' || dstSpecial === 'wild' || 
-                                    srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
-        const shouldSpawnAtDst = (availableLockedTiles.length === 0 && spawnMult > 0) ||
-                                 (isWildMergeForSpawn && availableLockedTiles.length < spawnMult && spawnMult > 0);
+        // 🔥 SOURCE OF TRUTH: Endgame Mode = no available locked tiles
+        const isEndgameMode = availableLockedTiles.length === 0;
+        
+        // 🔥 SOURCE OF TRUTH: Single Spawn Rule
+        // In Endgame Mode, after any Merge-6 (normal or wild):
+        // - ONLY ONE tile may spawn
+        // - Spawn location = the Merge-6 cell
+        // - Forbidden: spawning elsewhere, multiple spawns, fallback random spawn logic
+        // 🔥 CRITICAL: If endgame mode AND not final merge-6, spawn ONLY 1 tile at merge-6 cell
+        // 🔥 CRITICAL: If final merge-6 (_isLastMerge flag), do NOT spawn (trigger CLEAN BOARD)
+        const isFinalMerge6 = isLastMergeFlagSet; // Already checked above, but keep for clarity
+        const shouldSpawnAtDst = isEndgameMode && !isFinalMerge6 && spawnMult > 0;
         
         if (shouldSpawnAtDst) {
-          console.log('🎯🎯🎯 END-GAME SPAWN: No/few locked tiles available - spawning 1 tile directly at dst position (', gx, ',', gy, ')');
-          console.log('🎯 Reason:', availableLockedTiles.length === 0 ? 'No locked tiles' : `Wild merge + insufficient locked tiles (${availableLockedTiles.length} < ${spawnMult})`);
-          console.log('🎯 Wild merge:', isWildMergeForSpawn, 'srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial);
+          // 🔥 SOURCE OF TRUTH: Single Spawn Rule - spawn ONLY 1 tile at merge-6 cell in endgame mode
+          console.log('🎯🎯🎯 END-GAME SPAWN (Single Spawn Rule): Endgame mode detected - spawning EXACTLY 1 tile at merge-6 cell (', gx, ',', gy, ')');
+          console.log('🎯 Source of Truth: In Endgame Mode, after any Merge-6, ONLY ONE tile may spawn at Merge-6 cell');
+          console.log('🎯 Endgame mode:', isEndgameMode, 'Available locked tiles:', availableLockedTiles.length, 'Final merge-6:', isFinalMerge6);
           
           // Remove placeholder if it exists (we'll spawn active tile instead)
           if (placeholderHolderRef && !placeholderHolderRef.destroyed) {
@@ -6509,9 +6542,12 @@ function merge(src, dst, helpers){
             });
           }, 50); // Small delay to ensure cleanup is complete
         } else {
+          // 🔥 SOURCE OF TRUTH: Normal spawn (NOT endgame mode)
+          // Spawn tiles on available locked positions (normal game mode)
           // 🔥 CRITICAL: Don't await - spawn tiles in parallel, let animations run concurrently (same as magnet pull)
           // This allows spawn to happen immediately without waiting for animations to complete
-          console.log('🚀 CALLING openLockedBounceParallel with spawnMult:', spawnMult, 'available locked tiles:', availableLockedTiles.length);
+          console.log('🚀 NORMAL SPAWN: Not endgame mode - spawning', spawnMult, 'tiles on', availableLockedTiles.length, 'available locked positions');
+          console.log('🎯 Source of Truth: Normal game mode - spawn on locked tiles (not endgame mode)');
           FLOW.openLockedBounceParallel({ 
           tiles, 
           k: spawnMult, 
