@@ -1675,14 +1675,41 @@ async function startNewRun(boardId: number): Promise<void> {
           : null;
         
         if (cameFromDetailModal && validBoardId) {
-          returnToDetailModal = true;
-          detailModalBoardId = validBoardId;
-          console.log(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (validated)`);
-          logger.info(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (validated)`);
+          // 🔥 CRITICAL FIX: Check if board has detail modal (is unlocked)
+          // If board is still interim (not unlocked), return to Journey screen instead
+          try {
+            const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+            const board = journeyBoardsManager.getBoardById(validBoardId);
+            
+            if (board && board.unlocked) {
+              // Board has detail modal - return to detail modal
+              returnToDetailModal = true;
+              detailModalBoardId = validBoardId;
+              console.log(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (unlocked, has detail modal)`);
+              logger.info(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (unlocked, has detail modal)`);
+            } else {
+              // Board is still interim (not unlocked) - return to Journey screen instead
+              console.log(`⚠️ Board ${validBoardId} is not unlocked (interim) - cannot return to detail modal, will return to Journey screen`);
+              logger.info(`⚠️ Board ${validBoardId} is not unlocked (interim) - cannot return to detail modal, will return to Journey screen`);
+              // Clear flags and fall through to Journey screen logic
+              delete (window as any).__ccCameFromDetailModal;
+              delete (window as any).__ccDetailModalBoardId;
+              // Don't set returnToDetailModal - will fall through to Journey screen logic below
+            }
+          } catch (error) {
+            // If check fails, assume board has detail modal (fallback to original behavior)
+            console.warn(`⚠️ Failed to check board unlock status for ${validBoardId}, assuming unlocked:`, error);
+            returnToDetailModal = true;
+            detailModalBoardId = validBoardId;
+            console.log(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (fallback)`);
+            logger.info(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (fallback)`);
+          }
           
-          // Clear flag
-          delete (window as any).__ccCameFromDetailModal;
-          delete (window as any).__ccDetailModalBoardId;
+          // Clear flags only if we're returning to detail modal
+          if (returnToDetailModal) {
+            delete (window as any).__ccCameFromDetailModal;
+            delete (window as any).__ccDetailModalBoardId;
+          }
         } else if (cameFromDetailModal && !validBoardId) {
           console.error(`❌ CRITICAL: Invalid detailModalBoardId ${detailModalBoardIdWindow} - clearing flags and skipping detail modal!`);
           logger.error(`❌ CRITICAL: Invalid detailModalBoardId ${detailModalBoardIdWindow} - clearing flags and skipping detail modal!`);
