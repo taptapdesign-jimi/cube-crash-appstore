@@ -522,17 +522,34 @@ function createModal(): HTMLElement {
       // This ensures we always have a valid board number to set flags
       const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
       
-      // 🔥 CRITICAL FIX: Set flags to return to detail modal BEFORE calling exitToMenu
-      // This ensures exitToMenu knows to open detail modal instead of homepage/journey
+      // 🔥 CRITICAL FIX: Check if board has detail modal (is unlocked) BEFORE setting flags
+      // If board is still interim (not unlocked), don't set detail modal flags - will return to Journey screen
       // 🔥 BUG FIX: Validate boardNumber before setting flag (must be 1-16)
       const validBoardNumber = Number.isFinite(currentBoardNumber) && currentBoardNumber >= 1 && currentBoardNumber <= 16 
         ? currentBoardNumber 
         : null;
       
       if (validBoardNumber) {
-        (window as any).__ccCameFromDetailModal = true;
-        (window as any).__ccDetailModalBoardId = validBoardNumber;
-        console.log(`🎯 end-run-modal: Set flags for detail modal return: board ${validBoardNumber} (validated)`);
+        // 🔥 CRITICAL FIX: Check if board is unlocked (has detail modal) before setting flags
+        // Only set detail modal flags if board is unlocked, otherwise let exitToMenu return to Journey screen
+        try {
+          const { journeyBoardsManager } = await import('./journey-boards-manager.js');
+          const board = journeyBoardsManager.getBoardById(validBoardNumber);
+          
+          if (board && board.unlocked) {
+            // Board has detail modal - set flags to return to detail modal
+            (window as any).__ccCameFromDetailModal = true;
+            (window as any).__ccDetailModalBoardId = validBoardNumber;
+            console.log(`🎯 end-run-modal: Set flags for detail modal return: board ${validBoardNumber} (unlocked, has detail modal)`);
+          } else {
+            // Board is still interim (not unlocked) - don't set detail modal flags
+            // exitToMenu will detect no detail modal flags and return to Journey screen
+            console.log(`⚠️ end-run-modal: Board ${validBoardNumber} is not unlocked (interim) - will return to Journey screen (no detail modal flags set)`);
+          }
+        } catch (error) {
+          // If check fails, don't set flags - let exitToMenu handle it
+          console.warn(`⚠️ end-run-modal: Failed to check board unlock status for ${validBoardNumber}, not setting detail modal flags:`, error);
+        }
       } else {
         console.warn(`⚠️ end-run-modal: Invalid boardNumber ${currentBoardNumber} - cannot set detail modal flags!`);
       }
@@ -540,7 +557,7 @@ function createModal(): HTMLElement {
       // 🔥 CRITICAL FIX: Let exitToMenu handle detail modal opening (same as board-fail-modal)
       // Don't open detail modal directly - exitToMenu will handle it based on flags
       // This ensures consistent behavior and proper flow
-      console.log(`🎯 end-run-modal: Flags set for detail modal return - exitToMenu will handle opening`);
+      console.log(`🎯 end-run-modal: Flags checked - exitToMenu will handle opening (detail modal or Journey screen)`);
       
       // Step 1: Animate modal exit (non-blocking, parallel with detail modal)
       hideModal();

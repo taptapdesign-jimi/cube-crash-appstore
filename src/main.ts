@@ -1067,9 +1067,12 @@ async function startNewRun(boardId: number): Promise<void> {
   
   // 🔥 CRITICAL: Mark that we came from Journey (interim board)
   // This flag is used by endgame-flow to decide between startLevel() vs startNewRunFromJourney()
+  // 🔥 CRITICAL FIX: Also set __ccCameFromHomepage = false to ensure exitToMenu returns to Journey
   (window as any).__ccCameFromJourney = true;
+  (window as any).__ccCameFromHomepage = false;
   (window as any).__ccIsInterimBoard = true;
   localStorage.setItem('__ccCameFromJourney', 'true');
+  localStorage.removeItem('__ccCameFromHomepage');
   console.log('🗺️ Marked as coming from Journey (interim board) - clean board will use startNewRunFromJourney');
   
   // Import journey progression state
