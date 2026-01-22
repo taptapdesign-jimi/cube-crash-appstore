@@ -64,6 +64,9 @@ const OVERLAY_ID = 'cc-board-fail-overlay';
 const _failModalTimeouts = new Set<ReturnType<typeof setTimeout>>();
 const _failModalAnimationFrames = new Set<number>();
 
+// 🔥 BUG FIX: Track if modal is currently open to prevent duplicate calls
+let _isModalOpen = false;
+
 function trackFailTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
   const timeout = setTimeout(() => {
     callback();
@@ -102,6 +105,14 @@ function removeExisting(): void {
 }
 
 export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModalParams = {}): Promise<BoardFailModalResult> {
+  // 🔥 BUG FIX: Prevent duplicate calls - if modal is already open, return existing promise
+  if (_isModalOpen) {
+    logger.warn('⚠️ board-fail-modal: Modal already open - ignoring duplicate show call');
+    return Promise.resolve({ action: 'menu' }); // Return default action
+  }
+  
+  _isModalOpen = true;
+  
   return new Promise(async (resolve) => {
     // 🔥 MEMORY LEAK FIX: Track all event listeners for cleanup
     const buttonEventListeners: Array<{
@@ -401,6 +412,8 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               // 🔥 USER REQUEST: Show hearts bottom sheet OVER fail screen (don't close fail modal)
               // Fail modal stays visible in background, user can still click Exit after closing bottom sheet
               // 🔥 FIX: Don't cleanup button listeners here - modal stays open, buttons must remain active!
+              // 🔥 CRITICAL FIX: Reset isResolving flag so user can click Play Again again after closing hearts bottom sheet
+              isResolving = false;
               const { showHeartsModal } = await import('./hearts-bottom-sheet.js');
               showHeartsModal();
               // Don't resolve or close modal - just show bottom sheet over it
@@ -441,7 +454,11 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             overlay.style.opacity = '0';
             card.style.transform = 'scale(0.88)';
             card.style.opacity = '0';
-            trackFailTimeout(() => { try { overlay.remove(); } catch {}; resolve({ action }); }, 220);
+            trackFailTimeout(() => { 
+              try { overlay.remove(); } catch {} 
+              _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
+              resolve({ action }); 
+            }, 220);
           } catch (error) {
             logger.warn('⚠️ Failed to check hearts, proceeding with restart anyway:', error);
             
@@ -500,7 +517,17 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         // 🔥 BUG FIX: Check guard to prevent duplicate calls
         if ((window as any).exitingToMenu) {
           logger.warn('⚠️ exitToMenu already in progress, skipping duplicate call');
-          return; // Don't proceed if exitToMenu is already running
+          // 🔥 CRITICAL FIX: Still close modal even if exitToMenu is already running
+          // This prevents modal from staying open if user clicks Exit multiple times
+          overlay.style.opacity = '0';
+          card.style.transform = 'scale(0.88)';
+          card.style.opacity = '0';
+          trackFailTimeout(() => { 
+            try { overlay.remove(); } catch {} 
+            _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
+            resolve({ action }); 
+          }, 220);
+          return; // Don't proceed with exitToMenu call
         }
         
         // 🔥 CRITICAL FIX: Set flags to return to detail modal BEFORE calling exitToMenu
@@ -547,6 +574,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         // Remove modal and resolve after fade animation completes
         trackFailTimeout(() => { 
           try { overlay.remove(); } catch {} 
+          _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
           resolve({ action }); 
         }, 220);
         return; // Exit early - modal closing is handled above
@@ -554,10 +582,20 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       
       // Only close modal if action is not 'retry' (retry handles its own modal closing)
       if (action !== 'retry') {
+        // 🔥 MEMORY LEAK FIX: Cleanup event listeners for fallback actions
+        cleanupButtonListeners();
+        clearAllFailTimeouts();
+        clearAllFailAnimationFrames();
+        try { window.removeEventListener('keydown', onKey); } catch {}
+        
         overlay.style.opacity = '0';
         card.style.transform = 'scale(0.88)';
         card.style.opacity = '0';
-        trackFailTimeout(() => { try { overlay.remove(); } catch {}; resolve({ action }); }, 220);
+        trackFailTimeout(() => { 
+          try { overlay.remove(); } catch {} 
+          _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
+          resolve({ action }); 
+        }, 220);
       }
     };
 
