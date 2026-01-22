@@ -39,6 +39,7 @@ interface ShowCleanBoardModalParams {
   scoreCap?: number;
   boardNumber?: number;
   forcedStars?: number;
+  devMode?: boolean; // 🧪 DEV: Enable dev mode for testing board transition screen
 }
 
 // 🔥 REFACTORED: Koristimo pickRandom iz clean-board-utils.ts umjesto lokalne verzije
@@ -90,7 +91,8 @@ export async function showCleanBoardModal({
   efficiencyBonus, // NEW: Efficiency bonus (stack + efficiency + special + clean)
   scoreCap = 999999, 
   boardNumber = 1,
-  forcedStars
+  forcedStars,
+  devMode = false // 🧪 DEV: Enable dev mode for testing board transition screen
 }: ShowCleanBoardModalParams = {}): Promise<{ action: string }> {
   return new Promise(async resolve => {
     // 🌟 Add CSS animations for star breathing
@@ -1225,6 +1227,53 @@ export async function showCleanBoardModal({
         }
       } catch {}
       
+      // 🧪 DEV MODE: If dev mode is enabled, show board transition screen instead of normal flow
+      if (devMode) {
+        console.log('🧪 DEV MODE: Showing board transition screen');
+        
+        // Cleanup modal first
+        cleanupButtonListeners();
+        trackTimeout(() => { 
+          try { el.remove(); } catch {}
+          removeStyleTag();
+        }, collapseDuration + 220);
+        
+        // Show board transition screen with next board number
+        const nextBoardNumber = (boardNumber || 1) + 1;
+        try {
+          const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
+          await showBoardTransitionScreen({
+            boardNumber: nextBoardNumber,
+            onComplete: async () => {
+              console.log('🧪 DEV MODE: Board transition complete, starting new board');
+              
+              // Start new board (use startNewRunFromJourney for proper initialization)
+              try {
+                if (typeof (window as any).startNewRunFromJourney === 'function') {
+                  // Set Journey flags for proper initialization
+                  (window as any).__ccCameFromJourney = true;
+                  (window as any).__ccIsInterimBoard = true;
+                  await (window as any).startNewRunFromJourney(nextBoardNumber);
+                  console.log(`✅ DEV MODE: Started board ${nextBoardNumber} via startNewRunFromJourney`);
+                } else if (typeof (window as any).startLevel === 'function') {
+                  (window as any).startLevel(nextBoardNumber);
+                  console.log(`✅ DEV MODE: Started board ${nextBoardNumber} via startLevel`);
+                } else {
+                  console.error('❌ DEV MODE: No start function found');
+                }
+              } catch (error) {
+                console.error('❌ DEV MODE: Failed to start new board:', error);
+              }
+              
+              resolve({ action: 'continue' });
+            }
+          });
+        } catch (error) {
+          console.error('❌ DEV MODE: Failed to show board transition screen:', error);
+          resolve({ action: 'continue' });
+        }
+        return; // Exit early - don't continue with normal flow
+      }
       
       // 🎯 CRITICAL: Set flag to prevent saveGameState() from re-saving after clean board
       // Clean board = completed board, we already cleared save state, don't re-save it!

@@ -498,7 +498,8 @@ function createModal(): HTMLElement {
           efficiencyBonus, // 🔥 NEW: Same as real clean board
           scoreCap: 999999,
           boardNumber: 1,
-          forcedStars: starsOverride
+          forcedStars: starsOverride,
+          devMode: true // 🧪 DEV: Enable dev mode to test board transition screen
         });
         
         console.log('✅ Clean board modal shown');
