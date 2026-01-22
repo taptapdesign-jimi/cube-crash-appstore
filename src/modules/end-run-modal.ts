@@ -518,57 +518,29 @@ function createModal(): HTMLElement {
         (window as any).triggerHapticSelection();
       }
       
-      // ⚡ PERFECTLY TIMED: Wait for board exit animation, THEN start detail modal
-      // Board exit = 550ms (sweetPopOut max), so delay modal by exactly that amount
-      const detailModalBoardIdRaw = (window as any).__ccDetailModalBoardId;
+      // 🔥 CRITICAL FIX: Get current board number FIRST (before checking existing flag)
+      // This ensures we always have a valid board number to set flags
+      const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
       
-      // 🔥 BUG FIX: Validate board ID before using (must be 1-16, not null/undefined)
-      const detailModalBoardId = Number.isFinite(detailModalBoardIdRaw) && 
-                                  detailModalBoardIdRaw >= 1 && 
-                                  detailModalBoardIdRaw <= 16
-        ? Number(detailModalBoardIdRaw)
+      // 🔥 CRITICAL FIX: Set flags to return to detail modal BEFORE calling exitToMenu
+      // This ensures exitToMenu knows to open detail modal instead of homepage/journey
+      // 🔥 BUG FIX: Validate boardNumber before setting flag (must be 1-16)
+      const validBoardNumber = Number.isFinite(currentBoardNumber) && currentBoardNumber >= 1 && currentBoardNumber <= 16 
+        ? currentBoardNumber 
         : null;
       
-      if (detailModalBoardId !== null) {
-        console.log(`⏱️ PERFECTLY TIMED: Detail modal will start for board ${detailModalBoardId} (validated)`);
-        console.log(`⏱️ PERFECTLY TIMED: Detail modal will start AFTER board exit (550ms delay)`);
-        
-        // Preload module IMMEDIATELY (parallel with board exit, so it's ready when we need it)
-        const journeyManagerPromise = import('./journey-boards-manager.js');
-        
-        // Prepare Journey screen IMMEDIATELY (but keep it hidden)
-        const journeyScreen = document.getElementById('journey-screen');
-        if (journeyScreen) {
-          journeyScreen.removeAttribute('hidden');
-          journeyScreen.style.display = 'flex';
-          journeyScreen.style.opacity = '0';
-          journeyScreen.style.visibility = 'hidden';
-        }
-        
-        // Wait 1000ms (board exit duration + 450ms breathing room), THEN start detail modal
-        setTimeout(async () => {
-          try {
-            console.log('⏱️ PERFECTLY TIMED (1.0s): Board exit complete, starting detail modal NOW!');
-            const { journeyBoardsManager } = await journeyManagerPromise;
-            if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
-              // ⚡ Set flag so main.ts knows to skip duplicate modal open
-              (window as any).__ccDetailModalAlreadyOpened = true;
-              console.log('⚡ Set __ccDetailModalAlreadyOpened flag to prevent duplicate open');
-              
-              await journeyBoardsManager.openBoardDetailsById(detailModalBoardId, true);
-              console.log(`✅ PERFECTLY TIMED (1.0s): Detail modal opened for board ${detailModalBoardId}`);
-            }
-          } catch (error) {
-            console.warn('⚠️ Failed to open detail modal from exit handler:', error);
-          }
-        }, 1000); // Board exit (550ms) + 450ms breathing room = 1.0s total
+      if (validBoardNumber) {
+        (window as any).__ccCameFromDetailModal = true;
+        (window as any).__ccDetailModalBoardId = validBoardNumber;
+        console.log(`🎯 end-run-modal: Set flags for detail modal return: board ${validBoardNumber} (validated)`);
       } else {
-        console.warn(`⚠️ Invalid or missing detailModalBoardId: ${detailModalBoardIdRaw} - skipping detail modal open`);
+        console.warn(`⚠️ end-run-modal: Invalid boardNumber ${currentBoardNumber} - cannot set detail modal flags!`);
       }
       
-      // ⚡ SPEED OPTIMIZATION: Set flag for fast path (skip redundant modal opening in main.ts)
-      (window as any).__ccFastExitToDetailModal = true;
-      console.log('⚡ Fast exit mode: Detail modal ALREADY STARTED from exit button!');
+      // 🔥 CRITICAL FIX: Let exitToMenu handle detail modal opening (same as board-fail-modal)
+      // Don't open detail modal directly - exitToMenu will handle it based on flags
+      // This ensures consistent behavior and proper flow
+      console.log(`🎯 end-run-modal: Flags set for detail modal return - exitToMenu will handle opening`);
       
       // Step 1: Animate modal exit (non-blocking, parallel with detail modal)
       hideModal();
