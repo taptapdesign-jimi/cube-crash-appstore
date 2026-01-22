@@ -520,8 +520,17 @@ function createModal(): HTMLElement {
       
       // ⚡ PERFECTLY TIMED: Wait for board exit animation, THEN start detail modal
       // Board exit = 550ms (sweetPopOut max), so delay modal by exactly that amount
-      const detailModalBoardId = (window as any).__ccDetailModalBoardId;
-      if (detailModalBoardId !== null && detailModalBoardId !== undefined) {
+      const detailModalBoardIdRaw = (window as any).__ccDetailModalBoardId;
+      
+      // 🔥 BUG FIX: Validate board ID before using (must be 1-16, not null/undefined)
+      const detailModalBoardId = Number.isFinite(detailModalBoardIdRaw) && 
+                                  detailModalBoardIdRaw >= 1 && 
+                                  detailModalBoardIdRaw <= 16
+        ? Number(detailModalBoardIdRaw)
+        : null;
+      
+      if (detailModalBoardId !== null) {
+        console.log(`⏱️ PERFECTLY TIMED: Detail modal will start for board ${detailModalBoardId} (validated)`);
         console.log(`⏱️ PERFECTLY TIMED: Detail modal will start AFTER board exit (550ms delay)`);
         
         // Preload module IMMEDIATELY (parallel with board exit, so it's ready when we need it)
@@ -553,6 +562,8 @@ function createModal(): HTMLElement {
             console.warn('⚠️ Failed to open detail modal from exit handler:', error);
           }
         }, 1000); // Board exit (550ms) + 450ms breathing room = 1.0s total
+      } else {
+        console.warn(`⚠️ Invalid or missing detailModalBoardId: ${detailModalBoardIdRaw} - skipping detail modal open`);
       }
       
       // ⚡ SPEED OPTIMIZATION: Set flag for fast path (skip redundant modal opening in main.ts)

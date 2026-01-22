@@ -210,9 +210,22 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         }
         
         // 🔥 CRITICAL: Set flags to return DIRECTLY to detail modal (skip Journey screen)
+        // 🔥 BUG FIX: Validate boardNumber before setting flag (must be 1-16)
+        const validBoardNumber = Number.isFinite(boardNumber) && boardNumber >= 1 && boardNumber <= 16 
+          ? boardNumber 
+          : null;
+        
+        if (!validBoardNumber) {
+          console.error(`❌ CRITICAL: Invalid boardNumber ${boardNumber} - cannot set detail modal flag!`);
+          logger.error(`❌ CRITICAL: Invalid boardNumber ${boardNumber} - cannot set detail modal flag!`);
+          // Don't set flag if boardNumber is invalid - this prevents opening wrong board
+          return;
+        }
+        
         (window as any).__ccCameFromDetailModal = true;
-        (window as any).__ccDetailModalBoardId = boardNumber;
-        console.log(`🎯 Set flags for direct detail modal return: board ${boardNumber}`);
+        (window as any).__ccDetailModalBoardId = validBoardNumber;
+        console.log(`🎯 Set flags for direct detail modal return: board ${validBoardNumber} (validated)`);
+        logger.info(`🎯 Set flags for direct detail modal return: board ${validBoardNumber} (validated)`);
         
         // 🎯 CRITICAL: Clear board save state BEFORE opening detail modal
         // This ensures "Play" button shows instead of "Continue" (board was completed, nothing to continue)

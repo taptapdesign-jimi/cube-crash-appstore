@@ -656,6 +656,14 @@ initializeApp().catch((error: Error) => {
 async function startNewRun(boardId: number): Promise<void> {
   logger.info(`🎮 startNewRun called for board ${boardId}`);
   
+  // 🔥 BUG FIX: Clear stale detail modal flags when starting new game
+  // This prevents wrong board from opening when exiting
+  delete (window as any).__ccCameFromDetailModal;
+  delete (window as any).__ccDetailModalBoardId;
+  delete (window as any).__ccDetailModalAlreadyOpened;
+  console.log(`🧹 Cleared stale detail modal flags before starting board ${boardId}`);
+  logger.info(`🧹 Cleared stale detail modal flags before starting board ${boardId}`);
+  
   // Import journey progression state
   const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
   
@@ -1048,6 +1056,14 @@ async function startNewRun(boardId: number): Promise<void> {
 (window as any).startNewRunFromJourney = async (boardId: number) => {
   console.log(`🎮🎮🎮 startNewRunFromJourney CALLED with boardId: ${boardId}`);
   logger.info(`🎮 startNewRunFromJourney called for board ${boardId}`);
+  
+  // 🔥 BUG FIX: Clear stale detail modal flags when starting new game
+  // This prevents wrong board from opening when exiting
+  delete (window as any).__ccCameFromDetailModal;
+  delete (window as any).__ccDetailModalBoardId;
+  delete (window as any).__ccDetailModalAlreadyOpened;
+  console.log(`🧹 Cleared stale detail modal flags before starting board ${boardId} from Journey`);
+  logger.info(`🧹 Cleared stale detail modal flags before starting board ${boardId} from Journey`);
   
   // 🔥 CRITICAL: Mark that we came from Journey (interim board)
   // This flag is used by endgame-flow to decide between startLevel() vs startNewRunFromJourney()
@@ -1651,12 +1667,26 @@ async function startNewRun(boardId: number): Promise<void> {
         const cameFromDetailModal = (window as any).__ccCameFromDetailModal === true;
         const detailModalBoardIdWindow = (window as any).__ccDetailModalBoardId;
         
-        if (cameFromDetailModal && detailModalBoardIdWindow) {
+        // 🔥 BUG FIX: Validate board ID before using (must be 1-16)
+        const validBoardId = Number.isFinite(detailModalBoardIdWindow) && 
+                             detailModalBoardIdWindow >= 1 && 
+                             detailModalBoardIdWindow <= 16
+          ? Number(detailModalBoardIdWindow)
+          : null;
+        
+        if (cameFromDetailModal && validBoardId) {
           returnToDetailModal = true;
-          detailModalBoardId = Number(detailModalBoardIdWindow);
-          console.log(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal`);
+          detailModalBoardId = validBoardId;
+          console.log(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (validated)`);
+          logger.info(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (validated)`);
           
           // Clear flag
+          delete (window as any).__ccCameFromDetailModal;
+          delete (window as any).__ccDetailModalBoardId;
+        } else if (cameFromDetailModal && !validBoardId) {
+          console.error(`❌ CRITICAL: Invalid detailModalBoardId ${detailModalBoardIdWindow} - clearing flags and skipping detail modal!`);
+          logger.error(`❌ CRITICAL: Invalid detailModalBoardId ${detailModalBoardIdWindow} - clearing flags and skipping detail modal!`);
+          // Clear invalid flags
           delete (window as any).__ccCameFromDetailModal;
           delete (window as any).__ccDetailModalBoardId;
         } else {
