@@ -510,7 +510,7 @@ function createModal(): HTMLElement {
   }
   
   if (exitBtn) {
-    const exitClickHandler = () => {
+    const exitClickHandler = async () => {
       console.log('🚪 Exit button clicked - starting ULTRA INSTANT exit sequence');
       
       // Haptic for Exit button
