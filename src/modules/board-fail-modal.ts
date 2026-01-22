@@ -503,30 +503,36 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
           return; // Don't proceed if exitToMenu is already running
         }
         
-        // 🔥 BUG FIX: Wait for exitToMenu to complete BEFORE closing modal
-        // This prevents blank screen - modal stays visible until exitToMenu finishes
+        // 🔥 BUG FIX: Close modal FIRST (fade out), then call exitToMenu
+        // This prevents blank screen - modal fades out while exitToMenu runs in background
+        overlay.style.opacity = '0';
+        card.style.transform = 'scale(0.88)';
+        card.style.opacity = '0';
+        
+        // Start exitToMenu immediately (don't wait for modal fade to complete)
+        // This allows exitToMenu to start showing homepage/journey while modal fades out
         (async () => {
           try {
             if ((window as WindowWithCC).exitToMenu) {
-              await (window as WindowWithCC).exitToMenu!();
-              logger.info('✅ window.exitToMenu completed from board-fail-modal');
+              // Don't await - let it run in parallel with modal fade
+              (window as WindowWithCC).exitToMenu!().catch((error) => {
+                logger.warn('⚠️ window.exitToMenu failed:', error);
+              });
+              logger.info('✅ window.exitToMenu started from board-fail-modal (running in parallel with modal fade)');
             } else {
               logger.warn('⚠️ window.exitToMenu not found');
             }
           } catch (error) {
             logger.warn('⚠️ window.exitToMenu failed:', error);
-          } finally {
-            // 🔥 BUG FIX: Close modal AFTER exitToMenu completes (prevents blank screen)
-            overlay.style.opacity = '0';
-            card.style.transform = 'scale(0.88)';
-            card.style.opacity = '0';
-            trackFailTimeout(() => { 
-              try { overlay.remove(); } catch {} 
-              resolve({ action }); 
-            }, 220);
           }
         })();
-        return; // Exit early - modal closing is handled in async block above
+        
+        // Remove modal and resolve after fade animation completes
+        trackFailTimeout(() => { 
+          try { overlay.remove(); } catch {} 
+          resolve({ action }); 
+        }, 220);
+        return; // Exit early - modal closing is handled above
       }
       
       // Only close modal if action is not 'retry' (retry handles its own modal closing)

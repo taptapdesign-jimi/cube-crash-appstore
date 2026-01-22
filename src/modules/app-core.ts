@@ -7357,12 +7357,10 @@ async function showFinalScreen(){
   updateHUD();
 
   if (result?.action === 'menu') {
-    try {
-      // Navigation will be shown by markHomepageVisible() after slide animation
-      // exitToMenu will handle returning to correct slide (Journey or homepage)
-      await window.exitToMenu?.();
-      // Don't call goToSlide here - exitToMenu handles it
-    } catch {}
+    // 🔥 BUG FIX: exitToMenu is already called in board-fail-modal.ts when Exit button is clicked
+    // Don't call it again here - it causes duplicate calls and blank screen
+    // The modal already handles exitToMenu and waits for it to complete before resolving
+    console.log('🚪 Exit action received - exitToMenu already called from board-fail-modal, skipping duplicate call');
   } else if (result?.action === 'no-hearts') {
     // 🔥 USER REQUEST: No hearts - hearts bottom sheet is shown, don't return to game
     console.log('💔 No hearts action - hearts bottom sheet shown, staying out of game');
