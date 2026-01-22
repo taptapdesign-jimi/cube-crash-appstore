@@ -503,6 +503,23 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
           return; // Don't proceed if exitToMenu is already running
         }
         
+        // 🔥 CRITICAL FIX: Set flags to return to detail modal BEFORE calling exitToMenu
+        // This ensures exitToMenu knows to open detail modal instead of homepage/journey
+        // 🔥 BUG FIX: Validate boardNumber before setting flag (must be 1-16)
+        const validBoardNumber = Number.isFinite(boardNumber) && boardNumber >= 1 && boardNumber <= 16 
+          ? boardNumber 
+          : null;
+        
+        if (validBoardNumber) {
+          (window as any).__ccCameFromDetailModal = true;
+          (window as any).__ccDetailModalBoardId = validBoardNumber;
+          logger.info(`🎯 board-fail-modal: Set flags for detail modal return: board ${validBoardNumber} (validated)`);
+          console.log(`🎯 board-fail-modal: Set flags for detail modal return: board ${validBoardNumber} (validated)`);
+        } else {
+          logger.warn(`⚠️ board-fail-modal: Invalid boardNumber ${boardNumber} - cannot set detail modal flags!`);
+          console.warn(`⚠️ board-fail-modal: Invalid boardNumber ${boardNumber} - cannot set detail modal flags!`);
+        }
+        
         // 🔥 BUG FIX: Close modal FIRST (fade out), then call exitToMenu
         // This prevents blank screen - modal fades out while exitToMenu runs in background
         overlay.style.opacity = '0';
