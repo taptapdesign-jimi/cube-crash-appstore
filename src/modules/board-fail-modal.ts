@@ -169,16 +169,6 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       journeyProgressionState.setCurrentRunState(boardNumber, currentScore);
       logger.info(`🗺️ Journey: Board ${boardNumber} failed - score ${currentScore} saved in journey state (inProgress: true for resume)`);
       
-      // 🔥 CRITICAL FIX: Clear stuck game state from localStorage AFTER saving score (board-specific)
-      // This prevents "Play Again" and interim card from loading the stuck board position
-      try {
-        const saveKey = getBoardSaveKey(boardNumber);
-        localStorage.removeItem(saveKey);
-        logger.info(`✅ Cleared stuck game state for board ${boardNumber} (${saveKey}) - fresh board on retry`);
-      } catch (e) {
-        logger.warn(`⚠️ Failed to clear stuck game state for board ${boardNumber}:`, e);
-      }
-      
       // 🔥 CRITICAL FIX: Clear __ccSkipRebuildBoard flag to force fresh board on retry
       delete (window as any).__ccSkipRebuildBoard;
       logger.info('✅ Cleared __ccSkipRebuildBoard flag - will rebuild fresh board on retry');
@@ -216,6 +206,8 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     
     // 🔥 USER REQUEST: Clear saved game state (tiles) but preserve score in journey progression state
     // This prevents loading failed board state, but preserves score for journey continuation
+    // 🔥 CRITICAL FIX: Clear stuck game state from localStorage AFTER saving score (board-specific)
+    // This prevents "Play Again" and interim card from loading the stuck board position
     try {
       // Set flag to prevent future saves
       (window as WindowWithCC)._gameHasEnded = true;
@@ -225,7 +217,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       const saveKey = getBoardSaveKey(boardNumber);
       localStorage.removeItem(saveKey);
       localStorage.removeItem('cubeCrash_gameState');
-      logger.info(`✅ board-fail-modal: Cleared board state for board ${boardNumber} (${saveKey}), score preserved in journey progression state`);
+      logger.info(`✅ board-fail-modal: Cleared board state for board ${boardNumber} (${saveKey}) - fresh board on retry, score preserved in journey progression state`);
     } catch (error) {
       logger.warn(`⚠️ board-fail-modal: Failed to clear saved game state for board ${boardNumber}:`, error);
     }
