@@ -563,44 +563,100 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     
     console.log(`🎯 endgame-flow: Continue action detected - cameFromJourney: ${cameFromJourney}, isInterimBoard: ${isInterimBoard}`);
     
-    // 🔥 CRITICAL FIX: Wrap startLevel/startNewRunFromJourney in try-catch to prevent unhandled errors
+    // 🔥 USER REQUEST: Show board transition screen before starting next board
+    // This screen shows the board number with beautiful animations
     try {
-      if (cameFromJourney || isInterimBoard) {
-        // 🔥 INTERIM BOARD FIX: Use startNewRunFromJourney for proper initialization
-        console.log(`🎮 endgame-flow: Calling startNewRunFromJourney(${nextLevel}) because we came from Journey/interim board`);
-        if (typeof (window as any).startNewRunFromJourney === 'function') {
-          await (window as any).startNewRunFromJourney(nextLevel);
-          logger.info(`🎯 endgame-flow: startNewRunFromJourney completed for board ${nextLevel}`);
-        } else {
-          console.error('❌ endgame-flow: startNewRunFromJourney function not found, falling back to startLevel');
-          startLevel(nextLevel);
+      const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
+      await showBoardTransitionScreen({
+        boardNumber: nextLevel,
+        onComplete: async () => {
+          // After transition screen completes, start the next board
+          // 🔥 CRITICAL FIX: Wrap startLevel/startNewRunFromJourney in try-catch to prevent unhandled errors
+          try {
+            if (cameFromJourney || isInterimBoard) {
+              // 🔥 INTERIM BOARD FIX: Use startNewRunFromJourney for proper initialization
+              console.log(`🎮 endgame-flow: Calling startNewRunFromJourney(${nextLevel}) because we came from Journey/interim board`);
+              if (typeof (window as any).startNewRunFromJourney === 'function') {
+                await (window as any).startNewRunFromJourney(nextLevel);
+                logger.info(`🎯 endgame-flow: startNewRunFromJourney completed for board ${nextLevel}`);
+              } else {
+                console.error('❌ endgame-flow: startNewRunFromJourney function not found, falling back to startLevel');
+                startLevel(nextLevel);
+              }
+            } else {
+              // 🔥 REGULAR BOARD: Use startLevel for continuation
+              console.log(`🎮 endgame-flow: Calling startLevel(${nextLevel}) for regular board continuation`);
+              startLevel(nextLevel);
+              logger.info(`🎯 endgame-flow: startLevel completed, should now be on Board ${nextLevel}`);
+            }
+          } catch (startLevelError: any) {
+            console.error('❌ endgame-flow: startLevel/startNewRunFromJourney failed:', startLevelError);
+            logger.error('❌ endgame-flow: startLevel error:', String(startLevelError?.message || startLevelError));
+            // Don't rethrow - prevent unhandled error that could trigger reload
+            // Instead, try to recover by waiting and retrying
+            try {
+              await new Promise(resolve => setTimeout(resolve, 500));
+              if (cameFromJourney || isInterimBoard) {
+                if (typeof (window as any).startNewRunFromJourney === 'function') {
+                  await (window as any).startNewRunFromJourney(nextLevel);
+                } else {
+                  startLevel(nextLevel);
+                }
+              } else {
+                startLevel(nextLevel);
+              }
+              logger.info('🎯 endgame-flow: startLevel retry completed');
+            } catch (retryError: any) {
+              console.error('❌ endgame-flow: startLevel retry also failed:', retryError);
+              // Last resort: don't crash, just log - prevent unhandled error
+            }
+          }
         }
-      } else {
-        // 🔥 REGULAR BOARD: Use startLevel for continuation
-        console.log(`🎮 endgame-flow: Calling startLevel(${nextLevel}) for regular board continuation`);
-      startLevel(nextLevel);
-      logger.info(`🎯 endgame-flow: startLevel completed, should now be on Board ${nextLevel}`);
-      }
-    } catch (startLevelError: any) {
-      console.error('❌ endgame-flow: startLevel/startNewRunFromJourney failed:', startLevelError);
-      logger.error('❌ endgame-flow: startLevel error:', String(startLevelError?.message || startLevelError));
-      // Don't rethrow - prevent unhandled error that could trigger reload
-      // Instead, try to recover by waiting and retrying
+      });
+    } catch (transitionError: any) {
+      // If transition screen fails, fall back to direct board start
+      console.warn('⚠️ endgame-flow: Board transition screen failed, starting board directly:', transitionError);
+      logger.warn('⚠️ endgame-flow: Board transition screen failed, starting board directly:', transitionError);
+      
+      // 🔥 CRITICAL FIX: Wrap startLevel/startNewRunFromJourney in try-catch to prevent unhandled errors
       try {
-        await new Promise(resolve => setTimeout(resolve, 500));
         if (cameFromJourney || isInterimBoard) {
+          // 🔥 INTERIM BOARD FIX: Use startNewRunFromJourney for proper initialization
+          console.log(`🎮 endgame-flow: Calling startNewRunFromJourney(${nextLevel}) because we came from Journey/interim board`);
           if (typeof (window as any).startNewRunFromJourney === 'function') {
             await (window as any).startNewRunFromJourney(nextLevel);
+            logger.info(`🎯 endgame-flow: startNewRunFromJourney completed for board ${nextLevel}`);
           } else {
+            console.error('❌ endgame-flow: startNewRunFromJourney function not found, falling back to startLevel');
             startLevel(nextLevel);
           }
         } else {
-        startLevel(nextLevel);
+          // 🔥 REGULAR BOARD: Use startLevel for continuation
+          console.log(`🎮 endgame-flow: Calling startLevel(${nextLevel}) for regular board continuation`);
+          startLevel(nextLevel);
+          logger.info(`🎯 endgame-flow: startLevel completed, should now be on Board ${nextLevel}`);
         }
-        logger.info('🎯 endgame-flow: startLevel retry completed');
-      } catch (retryError: any) {
-        console.error('❌ endgame-flow: startLevel retry also failed:', retryError);
-        // Last resort: don't crash, just log - prevent unhandled error
+      } catch (startLevelError: any) {
+        console.error('❌ endgame-flow: startLevel/startNewRunFromJourney failed:', startLevelError);
+        logger.error('❌ endgame-flow: startLevel error:', String(startLevelError?.message || startLevelError));
+        // Don't rethrow - prevent unhandled error that could trigger reload
+        // Instead, try to recover by waiting and retrying
+        try {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          if (cameFromJourney || isInterimBoard) {
+            if (typeof (window as any).startNewRunFromJourney === 'function') {
+              await (window as any).startNewRunFromJourney(nextLevel);
+            } else {
+              startLevel(nextLevel);
+            }
+          } else {
+            startLevel(nextLevel);
+          }
+          logger.info('🎯 endgame-flow: startLevel retry completed');
+        } catch (retryError: any) {
+          console.error('❌ endgame-flow: startLevel retry also failed:', retryError);
+          // Last resort: don't crash, just log - prevent unhandled error
+        }
       }
     }
     
