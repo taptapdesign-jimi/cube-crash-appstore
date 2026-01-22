@@ -115,6 +115,8 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     
     // 🔥 MEMORY LEAK FIX: Flag to stop score spin animation
     let scoreSpinActive = false;
+    // 🔥 BUG FIX: Flag to prevent multiple resolveAndCleanup calls
+    let isResolving = false;
     // 🔥 JOURNEY PROGRESSION: Handle board failure
     try {
       const { journeyProgressionState } = await import('./journey-progression-state.js');
@@ -368,6 +370,13 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
     };
     
     const resolveAndCleanup = (action: string): void => {
+      // 🔥 BUG FIX: Prevent multiple calls (double-click protection)
+      if (isResolving) {
+        logger.warn('⚠️ resolveAndCleanup already in progress, ignoring duplicate call');
+        return;
+      }
+      isResolving = true;
+      
       // 🔥 MEMORY LEAK FIX: Stop score spin animation
       scoreSpinActive = false;
       
@@ -488,14 +497,36 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         }
         
         logger.info('🚪 Exit clicked - calling window.exitToMenu directly');
-        if ((window as WindowWithCC).exitToMenu) {
+        // 🔥 BUG FIX: Check guard to prevent duplicate calls
+        if ((window as any).exitingToMenu) {
+          logger.warn('⚠️ exitToMenu already in progress, skipping duplicate call');
+          return; // Don't proceed if exitToMenu is already running
+        }
+        
+        // 🔥 BUG FIX: Wait for exitToMenu to complete BEFORE closing modal
+        // This prevents blank screen - modal stays visible until exitToMenu finishes
+        (async () => {
           try {
-            (window as WindowWithCC).exitToMenu!();
-            logger.info('✅ window.exitToMenu called from board-fail-modal');
+            if ((window as WindowWithCC).exitToMenu) {
+              await (window as WindowWithCC).exitToMenu!();
+              logger.info('✅ window.exitToMenu completed from board-fail-modal');
+            } else {
+              logger.warn('⚠️ window.exitToMenu not found');
+            }
           } catch (error) {
             logger.warn('⚠️ window.exitToMenu failed:', error);
+          } finally {
+            // 🔥 BUG FIX: Close modal AFTER exitToMenu completes (prevents blank screen)
+            overlay.style.opacity = '0';
+            card.style.transform = 'scale(0.88)';
+            card.style.opacity = '0';
+            trackFailTimeout(() => { 
+              try { overlay.remove(); } catch {} 
+              resolve({ action }); 
+            }, 220);
           }
-        }
+        })();
+        return; // Exit early - modal closing is handled in async block above
       }
       
       // Only close modal if action is not 'retry' (retry handles its own modal closing)
