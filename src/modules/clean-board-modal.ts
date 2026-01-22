@@ -471,7 +471,8 @@ export async function showCleanBoardModal({
     // 🔥 NEW: Primary button (either "Continue" for interim or "Play Again" for regular)
     const primaryBtn = document.createElement('button');
     primaryBtn.type = 'button';
-    primaryBtn.textContent = isFromInterimBoard ? 'Continue' : 'Play Again';
+    // 🧪 DEV: In dev mode, always show "Continue" to test board transition screen
+    primaryBtn.textContent = (devMode || isFromInterimBoard) ? 'Continue' : 'Play Again';
     primaryBtn.className = 'restart-btn primary-button bottom-sheet-cta';
     primaryBtn.style.width = '100%';
     primaryBtn.style.maxWidth = buttonWidth;
