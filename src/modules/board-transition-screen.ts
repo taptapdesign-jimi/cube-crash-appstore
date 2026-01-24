@@ -5,6 +5,7 @@
 import { gsap } from 'gsap';
 import { logger } from '../core/logger.js';
 import { applyPaperBackground } from './ui-manager.js';
+import { domElementPool } from './dom-element-pool.js';
 
 interface BoardTransitionOptions {
   boardNumber: number;
@@ -17,6 +18,9 @@ let activeTweens: gsap.core.Tween[] = [];
 let enterTimeline: gsap.core.Timeline | null = null;
 let exitTimeline: gsap.core.Timeline | null = null;
 let pauseTimeline: gsap.core.Timeline | null = null;
+let activeCloudImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track cloud image elements for cleanup
+let cloudTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track all cloud timelines (bounce, enter, exit)
+let cloudDelayedCalls: gsap.core.Tween[] = []; // 🔥 MEMORY LEAK FIX: Track all delayedCall instances for cleanup
 // 🔥 USER REQUEST: Smoke removal - no more smoke container tracking
 
 /**
@@ -93,7 +97,9 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       'gap: 0',
       // 🔥 USER REQUEST: 3D perspective for container
       'perspective: 1000px',
-      'transform-style: preserve-3d'
+      'transform-style: preserve-3d',
+      'position: relative',
+      'z-index: 2' // 🔥 CRITICAL FIX: Ensure container (text and numbers) is above clouds (z-index: -1)
     ].join(';');
 
     // Create "board" label with 3D shadow effect
@@ -104,7 +110,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     label.style.cssText = [
       'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
       'font-weight: 700',
-      'font-size: 20px',
+      'font-size: 23px', // 🔥 USER REQUEST: Increased by 15% (20px * 1.15 = 23px)
       'line-height: 1.8',
       'color: #ad8675',
       'text-align: center',
@@ -186,7 +192,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       digitEl.style.cssText = [
         'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
         'font-weight: 800',
-        'font-size: 144px', // 🔥 USER REQUEST: Increased by 20% (120px * 1.2 = 144px)
+        'font-size: 166px', // 🔥 USER REQUEST: Increased by 15% (144px * 1.15 = 165.6px ≈ 166px)
         'line-height: 1',
         'color: #e77449',
         'text-align: center',
@@ -231,6 +237,238 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       onComplete();
       return;
     }
+
+    // 🔥 USER REQUEST: Create clouds background with cartoony bounce animation
+    const cloudContainer = document.createElement('div');
+    cloudContainer.style.cssText = [
+      'position: absolute',
+      'inset: 0',
+      'pointer-events: none',
+      'z-index: -1', // 🔥 CRITICAL FIX: Negative z-index to ensure clouds are behind text and numbers (z-index: 10)
+      'overflow: hidden'
+    ].join(';');
+    
+    // Cloud image paths
+    // 🔥 USER REQUEST: Assets now in assets/board transition/ folder
+    const cloudImages = [
+      './assets/board transition/oblak+srednji.png', // 🔥 USER REQUEST: Updated from Layer 2.png
+      './assets/board transition/oblak mali desno.png',
+      './assets/board transition/oblak mali ljevo.png',
+      './assets/board transition/oblak veliki ljevo dole.png'
+    ];
+    
+    // Total screen duration: ~2.3s (enter + pause + exit) - 🔥 USER REQUEST: Reduced by 800ms (from 3.1s)
+    const totalScreenDuration = 2.3;
+    const moveAndScaleDuration = totalScreenDuration / 2; // Half time for move and scale
+    const exitDuration = totalScreenDuration / 2; // Half time for exit
+    
+    // 🔥 USER REQUEST: 30% more clouds (16 * 1.3 = 20.8 ≈ 21) + 10 more for top/bottom = 31 total
+    const totalClouds = 31;
+    
+    // 🔥 USER REQUEST: Distribution: 30% top, 30% middle, 30% bottom, 10% random fill
+    const topCloudsCount = Math.floor(totalClouds * 0.3); // 30% top (≈9 clouds)
+    const middleCloudsCount = Math.floor(totalClouds * 0.3); // 30% middle (≈9 clouds)
+    const bottomCloudsCount = Math.floor(totalClouds * 0.3); // 30% bottom (≈9 clouds)
+    const randomFillCount = totalClouds - topCloudsCount - middleCloudsCount - bottomCloudsCount; // 10% random (≈4 clouds)
+    
+    for (let i = 0; i < totalClouds; i++) {
+      // 🔥 IMAGE POOLING: Use domElementPool instead of creating new img elements
+      const cloudImg = domElementPool.acquire('img') as HTMLImageElement;
+      const cloudImageIndex = i % cloudImages.length;
+      cloudImg.src = cloudImages[cloudImageIndex];
+      
+      // 🔥 IMAGE POOLING: Track cloud image element for cleanup
+      activeCloudImages.push(cloudImg);
+      
+      // 🔥 USER REQUEST: 50% of clouds 40% smaller
+      const isSmaller = i < Math.floor(totalClouds / 2); // First half are smaller
+      
+      let baseSize;
+      if (isSmaller) {
+        baseSize = (0.25 + Math.random() * 0.45) * 0.6; // 40% smaller (0.15 to 0.42x)
+      } else {
+        baseSize = 0.25 + Math.random() * 0.45; // Normal size (0.25 to 0.7x)
+      }
+      const randomSize = baseSize;
+      
+      // 🔥 USER REQUEST: Distribution: 30% top, 30% middle, 30% bottom, 10% random
+      let baseTop;
+      if (i < topCloudsCount) {
+        // 30% top clouds
+        baseTop = Math.random() * 25; // Top 0-25% of screen
+      } else if (i < topCloudsCount + middleCloudsCount) {
+        // 30% middle clouds
+        baseTop = 35 + Math.random() * 30; // Middle 35-65% of screen
+      } else if (i < topCloudsCount + middleCloudsCount + bottomCloudsCount) {
+        // 30% bottom clouds
+        baseTop = 75 + Math.random() * 25; // Bottom 75-100% of screen
+      } else {
+        // 10% random fill clouds
+        baseTop = Math.random() * 100; // Random anywhere on screen
+      }
+      
+      // 🔥 USER REQUEST: Even more vertical spacing between clouds
+      const spacingOffset = (Math.random() - 0.5) * 50; // -25% to +25% offset (50% total range)
+      const spawnTop = baseTop + spacingOffset;
+      
+      // 🔥 USER REQUEST: Random horizontal spawn position - some left, some right, some center
+      const randomLeft = Math.random() * 100; // 0-100% random horizontal position
+      
+      cloudImg.style.cssText = [
+        'position: absolute',
+        'pointer-events: none',
+        'opacity: 0',
+        'will-change: transform, opacity',
+        `top: ${spawnTop}%`, // 🔥 USER REQUEST: Random vertical position
+        `left: ${randomLeft}%`, // 🔥 USER REQUEST: Random horizontal position (not all in center)
+        'transform-origin: center center',
+        'transform-style: preserve-3d' // 🔥 CRITICAL FIX: Enable 3D transforms for bounce out exit animation
+      ].join(';');
+      
+      // Calculate initial x position (centered on spawn position)
+      const initialXPercent = -50; // Center on spawn position (left: X% + transform -50% = center of element)
+      
+      // 🔥 USER REQUEST: 50% go right, 50% go left (split evenly)
+      const goesLeft = i >= Math.floor(totalClouds / 2); // Second half go left, first half go right
+      
+      // 🔥 USER REQUEST: Random distances and timeframes for natural sky look
+      const randomDistance = 60 + Math.random() * 40; // 60-100% distance (random)
+      // Calculate end position relative to spawn position
+      // If spawn is at randomLeft%, we move from center (-50%) to end position
+      const endXPercent = goesLeft 
+        ? initialXPercent - randomDistance // Move left from spawn position
+        : initialXPercent + randomDistance; // Move right from spawn position
+      
+      // 🔥 USER REQUEST: Random timeframe for each cloud
+      // 🔥 USER REQUEST: 50% slower movement (duration * 2)
+      const randomMoveDuration = (moveAndScaleDuration - 0.3) * (0.7 + Math.random() * 0.6) * 2; // 50% slower (duration doubled)
+      
+      cloudContainer.appendChild(cloudImg);
+      
+      // Random rotation for fluffy effect
+      const randomRotation = (Math.random() - 0.5) * 20; // -10 to +10 degrees
+      
+      // Set initial state (spawn at center of viewport with spacing offset)
+      gsap.set(cloudImg, {
+        x: `${initialXPercent}%`, // 🔥 USER REQUEST: Center horizontally with spacing offset
+        y: '-50%', // 🔥 USER REQUEST: Center vertically (50% top + -50% transform = center)
+        scale: 0,
+        opacity: 0,
+        rotation: randomRotation
+      });
+      
+      // 🔥 USER REQUEST: Continuous idle bounce animation (always active, starts immediately)
+      const bounceAmount = 8 + Math.random() * 12; // 8-20px bounce
+      const bounceSpeed = 0.4 + Math.random() * 0.3; // 0.4-0.7s per bounce
+      const bounceRotation = 2 + Math.random() * 3; // Random rotation amount
+      const bounceTimeline = gsap.timeline({ repeat: -1 }); // Infinite repeat
+      
+      // 🔥 MEMORY LEAK FIX: Track bounce timeline for cleanup
+      cloudTimelines.push(bounceTimeline);
+      
+      bounceTimeline.to(cloudImg, {
+        y: `+=${bounceAmount}px`,
+        rotation: `+=${bounceRotation}`,
+        duration: bounceSpeed / 2,
+        ease: 'sine.out'
+      }).to(cloudImg, {
+        y: `-=${bounceAmount}px`,
+        rotation: `-=${bounceRotation}`,
+        duration: bounceSpeed / 2,
+        ease: 'sine.in'
+      });
+      
+      // 🔥 USER REQUEST: Enter animation with stagger like digits
+      // Each cloud has its own enter animation with delay (staggered)
+      const enterDelay = 0.1 + (i * 0.05); // Stagger by 50ms per cloud (similar to digits but faster)
+      
+      // Create cloud animation timeline with stagger delay
+      const cloudTimeline = gsap.timeline({ delay: enterDelay });
+      
+      // 🔥 MEMORY LEAK FIX: Track cloud timeline for cleanup
+      cloudTimelines.push(cloudTimeline);
+      
+      // 🔥 USER REQUEST: Enter animation - opacity and scale with bounce (like digits)
+      cloudTimeline.to(cloudImg, {
+        opacity: 1,
+        scale: randomSize * 1.2, // Slight overshoot like digits
+        duration: 0.4,
+        ease: 'back.out(2.0)'
+      });
+      
+      // Settle: scale back to final size
+      cloudTimeline.to(cloudImg, {
+        scale: randomSize,
+        duration: 0.15,
+        ease: 'power2.out'
+      }, '>0');
+      
+      // 🔥 USER REQUEST: Immediately start moving (bounce animation) - some left, some right
+      // 🔥 USER REQUEST: Random timeframe for natural sky look
+      cloudTimeline.to(cloudImg, {
+        x: `${endXPercent}%`,
+        duration: randomMoveDuration, // 🔥 USER REQUEST: Random duration for each cloud
+        ease: 'sine.inOut' // Bouncy movement
+      }, '>0');
+      
+      // 🔥 CRITICAL FIX: Exit animation with bounce out (EXACTLY like digits) - random timing before end
+      // Exit starts at random point during movement (60-85% through movement) - not all at same time
+      const exitStartPercent = 0.6 + Math.random() * 0.25; // 60-85% through movement
+      const exitStartTime = enterDelay + 0.55 + (randomMoveDuration * exitStartPercent); // Absolute time when to start exit
+      
+      // 🔥 CRITICAL FIX: Use gsap.delayedCall to ensure exit animacija se pokreće ispravno
+      // This ensures the exit animation runs independently and at the right time
+      const delayedCall = gsap.delayedCall(exitStartTime, () => {
+        // 🔥 MEMORY LEAK FIX: Check if cloudImg is still valid (not released to pool)
+        if (!activeCloudImages.includes(cloudImg)) {
+          return; // Cloud already cleaned up, skip exit animation
+        }
+        
+        // 🔥 CRITICAL FIX: Kill all existing animations on cloud element before exit (like digits)
+        bounceTimeline.kill();
+        cloudTimeline.kill();
+        gsap.killTweensOf(cloudImg);
+        
+        // 🔥 CRITICAL FIX: Get current scale value (not randomSize, but actual current scale)
+        const currentScale = gsap.getProperty(cloudImg, 'scale') as number;
+        
+        // 🔥 USER REQUEST: Bounce out scale calculation
+        // Original oblak = 100%, bounce out = 120% (currentScale * 1.2)
+        const bounceOutScale = currentScale * 1.2; // 120% od trenutne veličine
+        
+        // Reset transform origin for exit animation
+        gsap.set(cloudImg, { transformOrigin: 'center center' });
+        
+        // 🔥 CRITICAL FIX: Create exit timeline EXACTLY like digits - no delay, starts immediately
+        const cloudExitTimeline = gsap.timeline();
+        
+        // 🔥 MEMORY LEAK FIX: Track exit timeline for cleanup
+        cloudTimelines.push(cloudExitTimeline);
+        
+        // First: scale current → 120% (bounce out overshoot) with 3D depth
+        // Primjer: ako je oblak 0.5x, bounce out = 0.5 * 1.2 = 0.6x (120% od trenutne)
+        cloudExitTimeline.to(cloudImg, {
+          scale: bounceOutScale, // 120% od trenutne veličine (ne apsolutno 1.03!)
+          z: 30, // Push forward in 3D (same as digits)
+          duration: 0.15,
+          ease: 'power2.out'
+        });
+        
+        // Then: scale 120% → 0 with depth fade - NO rotation (user request)
+        cloudExitTimeline.to(cloudImg, {
+          opacity: 0,
+          scale: 0,
+          z: -100, // Pull back in 3D space (same as digits)
+          duration: 0.3,
+          ease: 'power2.in'
+        });
+      });
+      
+      // 🔥 MEMORY LEAK FIX: Track delayedCall for cleanup
+      cloudDelayedCalls.push(delayedCall);
+    }
+    
+    overlay.appendChild(cloudContainer);
 
     // Assemble DOM
     container.appendChild(label);
@@ -537,7 +775,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             });
             
             pauseTimeline.to({}, {
-              duration: 0.5, // 500ms pause to let user see the complete board number
+              duration: 0.7, // 🔥 USER REQUEST: 0.7s pause (reduced by 800ms from 1.5s) to shorten screen duration
       ease: 'none'
             });
           }
@@ -713,6 +951,41 @@ function cleanup(): void {
     }
     pauseTimeline = null;
   }
+  
+  // 🔥 MEMORY LEAK FIX: Kill all delayedCall instances first (prevents callbacks from executing)
+  cloudDelayedCalls.forEach(delayedCall => {
+    try {
+      if (delayedCall && typeof delayedCall.kill === 'function') {
+        delayedCall.kill();
+      }
+    } catch (error) {
+      logger.warn('⚠️ Error killing cloud delayedCall in cleanup:', error);
+    }
+  });
+  cloudDelayedCalls = [];
+  
+  // 🔥 MEMORY LEAK FIX: Kill all cloud timelines (bounce, enter, exit)
+  cloudTimelines.forEach(timeline => {
+    try {
+      if (timeline && typeof timeline.kill === 'function') {
+        timeline.kill();
+      }
+    } catch (error) {
+      logger.warn('⚠️ Error killing cloud timeline in cleanup:', error);
+    }
+  });
+  cloudTimelines = [];
+  
+  // 🔥 IMAGE POOLING: Release all cloud images back to pool
+  activeCloudImages.forEach(cloudImg => {
+    try {
+      gsap.killTweensOf(cloudImg);
+      domElementPool.release(cloudImg);
+    } catch (error) {
+      logger.warn('⚠️ Error releasing cloud image to pool:', error);
+    }
+  });
+  activeCloudImages = [];
 
   // 🔥 APP STORE: Clear any digit element references
   try {

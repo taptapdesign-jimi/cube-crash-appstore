@@ -165,6 +165,12 @@ const ALL_STARTUP_IMAGES: string[] = [
   
   // FX assets (boom animation frames)
   ...Array.from({ length: 16 }, (_, i) => `./assets/fx/boom/boom_${String(i + 1).padStart(4, '0')}.png`),
+  
+  // 🔥 IMAGE POOLING: Board transition cloud images (preload for instant display)
+  './assets/board transition/oblak+srednji.png',
+  './assets/board transition/oblak mali desno.png',
+  './assets/board transition/oblak mali ljevo.png',
+  './assets/board transition/oblak veliki ljevo dole.png',
 ];
 
 // Journey board images (preloaded on-demand when boards are opened)
