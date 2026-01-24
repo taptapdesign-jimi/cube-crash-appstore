@@ -575,9 +575,14 @@ class SliderManager {
     });
     
     // Update slides
-    this.elements.slides.forEach((slide, index) => {
-      slide.classList.toggle('active', index === this.currentSlide);
-    });
+    // 🔥 CRITICAL FIX: Check if slides is NodeList/Array before calling forEach
+    if (this.elements.slides && typeof this.elements.slides.forEach === 'function') {
+      this.elements.slides.forEach((slide, index) => {
+        slide.classList.toggle('active', index === this.currentSlide);
+      });
+    } else {
+      logger.warn('⚠️ this.elements.slides is not iterable in updateSlider - cannot update slide classes');
+    }
   }
   
   // Update slider lock state
@@ -608,13 +613,21 @@ class SliderManager {
       return;
     }
     
+    // 🔥 CRITICAL FIX: Check if elements are initialized before using forEach
+    if (!this.elements || !this.elements.slides) {
+      logger.warn('⚠️ Slider elements not initialized - cannot set slide instant');
+      return;
+    }
+    
     logger.info(`🎯 setSlideInstant: Setting slide to ${slideIndex} (atomic update)`);
     
     // 1. Update internal state
     this.currentSlide = slideIndex;
     
     // 2. Update gameState
-    gameState.set('currentSlide', slideIndex);
+    if (gameState && gameState.set) {
+      gameState.set('currentSlide', slideIndex);
+    }
     
     // 3. Update GSAP wrapper position
     if (this.elements.wrapper && this.elements.container) {
@@ -629,18 +642,28 @@ class SliderManager {
     }
     
     // 4. Update CSS .active classes on slides
-    this.elements.slides.forEach((slide, index) => {
-      if (index === slideIndex) {
-        slide.classList.add('active');
-      } else {
-        slide.classList.remove('active');
-      }
-    });
+    // 🔥 CRITICAL FIX: Check if slides is NodeList/Array before calling forEach
+    if (this.elements.slides && typeof this.elements.slides.forEach === 'function') {
+      this.elements.slides.forEach((slide, index) => {
+        if (index === slideIndex) {
+          slide.classList.add('active');
+        } else {
+          slide.classList.remove('active');
+        }
+      });
+    } else {
+      logger.warn('⚠️ this.elements.slides is not iterable - cannot update slide classes');
+    }
     
     // 5. Update dots
-    this.elements.dots.forEach((dot, index) => {
-      dot.classList.toggle('active', index === slideIndex);
-    });
+    // 🔥 CRITICAL FIX: Check if dots is NodeList/Array before calling forEach
+    if (this.elements.dots && typeof this.elements.dots.forEach === 'function') {
+      this.elements.dots.forEach((dot, index) => {
+        dot.classList.toggle('active', index === slideIndex);
+      });
+    } else {
+      logger.warn('⚠️ this.elements.dots is not iterable - cannot update dot classes');
+    }
     
     // 6. Update navigation buttons
     const navButtons = document.querySelectorAll('.independent-nav-button');

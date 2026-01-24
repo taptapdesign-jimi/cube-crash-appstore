@@ -65,8 +65,16 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     app, stage, board, boardBG,
     level, startLevel,
     hideGrid, showGrid,
-    boardNumber = 1,
+    boardNumber: ctxBoardNumber = 1,
   } = ctx;
+  
+  // 🔥 CRITICAL FIX: Use STATE.boardNumber if available, fallback to ctx.boardNumber
+  // This ensures we use the most up-to-date board number (STATE is synced in startLevel)
+  const STATE = (window as any).STATE;
+  const boardNumber = (STATE?.boardNumber && Number.isFinite(STATE.boardNumber)) 
+    ? STATE.boardNumber 
+    : ctxBoardNumber;
+  console.log(`🎯 endgame-flow: Using boardNumber ${boardNumber} (STATE.boardNumber: ${STATE?.boardNumber}, ctx.boardNumber: ${ctxBoardNumber})`);
 
   // 🔥 CRITICAL FIX: Save score BEFORE clearing saved game state
   // This allows us to show the correct score when resuming from clean board screen
@@ -147,7 +155,10 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     } catch (error) {
       logger.warn('⚠️ Failed to unlock journey board on completion:', error);
     }
-    const nextLevel = (level | 0) + 1;
+    // 🔥 CRITICAL FIX: Calculate nextLevel from boardNumber, not level
+    // boardNumber is always accurate (set in startLevel), while level might be stale
+    // This ensures correct next board number when coming from interim board
+    const nextLevel = (boardNumber | 0) + 1;
     const currentScore = ctx.getScore ? (ctx.getScore() | 0) : 0;
     const finalScoreForecast = Math.min(999999, Math.max(0, currentScore) + Math.max(0, bonus));
 
@@ -164,6 +175,19 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       console.log('💾 endgame-flow: Saved completed board state', { level, nextLevel, currentScore, bonus, finalScoreForecast });
     } catch (error) {
       console.warn('⚠️ endgame-flow: Failed to save completed board state:', error);
+    }
+    
+    // 🔥 CRITICAL FIX: Hide board indicator IMMEDIATELY when clean board modal appears
+    // This prevents persistent "BOARD 07" element from showing during clean board modal and transition
+    try {
+      const { animateBoardIndicatorExit } = await import('./hud-helpers.js');
+      if (typeof animateBoardIndicatorExit === 'function') {
+        animateBoardIndicatorExit(0.3); // Exit animation
+        console.log('✅ endgame-flow: Board indicator exit animation started (before clean board modal)');
+        logger.info('✅ endgame-flow: Board indicator exit animation started (before clean board modal)');
+      }
+    } catch (indicatorError) {
+      console.warn('⚠️ endgame-flow: Failed to hide board indicator (non-fatal):', indicatorError);
     }
     
     const modalResult = await showCleanBoardModal({ 
@@ -316,11 +340,23 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     }
     
     // Default: 'continue' action (interim boards or fallback)
-    // CRITICAL: Wait for clean board modal to close (user clicked Continue)
-    // Only then start the next board
+    // 🔥 CRITICAL FIX: Don't wait for clean board modal to fully close - show transition screen immediately
+    // The modal will clean up in background while transition screen is showing
     // Get final score AFTER modal has updated it (modal adds bonus and sets final score)
     const finalScore = ctx.getScore ? ctx.getScore() : 0;
     logger.info(`🎯 endgame-flow: Continue action - current level: ${level}, next level: ${nextLevel}, final score: ${finalScore}`);
+    
+    // 🔥 CRITICAL FIX: Hide board indicator immediately before showing transition screen
+    // This prevents persistent "BOARD 07" element from showing during transition
+    try {
+      const { animateBoardIndicatorExit } = await import('./hud-helpers.js');
+      if (typeof animateBoardIndicatorExit === 'function') {
+        animateBoardIndicatorExit(0.2); // Fast exit animation
+        console.log('✅ endgame-flow: Board indicator exit animation started (before transition screen)');
+      }
+    } catch (indicatorError) {
+      console.warn('⚠️ endgame-flow: Failed to hide board indicator (non-fatal):', indicatorError);
+    }
 
     // 🏆 BOARD-SPECIFIC HIGH SCORE (clean board)
     try {
@@ -563,14 +599,41 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     
     console.log(`🎯 endgame-flow: Continue action detected - cameFromJourney: ${cameFromJourney}, isInterimBoard: ${isInterimBoard}`);
     
+    // 🔥 CRITICAL FIX: Hide board indicator before showing transition screen
+    // This prevents persistent "BOARD 07" element from showing during transition
+    try {
+      const { animateBoardIndicatorExit } = await import('./hud-helpers.js');
+      if (typeof animateBoardIndicatorExit === 'function') {
+        animateBoardIndicatorExit(0.2); // Fast exit animation
+        console.log('✅ endgame-flow: Board indicator exit animation started');
+      }
+    } catch (indicatorError) {
+      console.warn('⚠️ endgame-flow: Failed to hide board indicator (non-fatal):', indicatorError);
+    }
+    
     // 🔥 USER REQUEST: Show board transition screen before starting next board
     // This screen shows the board number with beautiful animations
+    // 🔥 CRITICAL FIX: Show transition screen immediately without delay
     try {
       const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
+      // 🔥 CRITICAL FIX: Use nextLevel for transition screen (next board, not current)
+      // nextLevel is calculated from boardNumber + 1, which is the correct next board
+      // This ensures correct board number is shown when coming from interim board
+      console.log(`🎯 endgame-flow: Showing transition screen for board ${nextLevel} (current boardNumber: ${boardNumber}, nextLevel: ${nextLevel})`);
       await showBoardTransitionScreen({
         boardNumber: nextLevel,
         onComplete: async () => {
           // After transition screen completes, start the next board
+          // 🔥 CRITICAL FIX: Hide app first to cleanup previous board before starting new one
+          // This prevents blank screen with old board visible in background
+          try {
+            const { uiManager } = await import('./ui-manager.js');
+            uiManager.hideApp();
+            console.log('✅ endgame-flow: Hidden app before starting new board');
+          } catch (hideError) {
+            console.warn('⚠️ endgame-flow: Failed to hide app (non-fatal):', hideError);
+          }
+          
           // 🔥 CRITICAL FIX: Wrap startLevel/startNewRunFromJourney in try-catch to prevent unhandled errors
           try {
             if (cameFromJourney || isInterimBoard) {

@@ -3004,18 +3004,34 @@ class JourneyBoardsManager {
       (window as any).__ccPreserveScore = savedScore;
       logger.info(`🎮 Set __ccPreserveScore: ${savedScore} for board ${board.id}`);
       
-      // Step 9: Continue game with saved state (resume interim game)
-      // 🔥 CRITICAL FIX: Use continueGameWithSavedState() to preserve progress and score
+      // Step 9: Show board transition screen, then continue game with saved state (resume interim game)
       // This will load saved game state and continue from where user left off
       // HUD drop animation is already handled in continueGameWithSavedState() for Journey pathway
-      if (typeof (window as any).continueGameWithSavedState === 'function') {
-        // 🔥 CRITICAL: Always trigger HUD drop on entry from interim card (every time)
-        // This ensures _hudDropPending is set even if other flags/state were cleared.
-        (window as any).__ccTriggerHudDrop = true;
-        logger.info(`🎮 Continuing saved game for board ${board.id} - preserving progress and score`);
-        await (window as any).continueGameWithSavedState();
-      } else {
-        logger.error('❌ continueGameWithSavedState function not found');
+      try {
+        const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
+        await showBoardTransitionScreen({
+          boardNumber: board.id,
+          onComplete: async () => {
+            if (typeof (window as any).continueGameWithSavedState === 'function') {
+              // 🔥 CRITICAL: Always trigger HUD drop on entry from interim card (every time)
+              // This ensures _hudDropPending is set even if other flags/state were cleared.
+              (window as any).__ccTriggerHudDrop = true;
+              logger.info(`🎮 Continuing saved game for board ${board.id} - preserving progress and score`);
+              await (window as any).continueGameWithSavedState();
+            } else {
+              logger.error('❌ continueGameWithSavedState function not found');
+            }
+          }
+        });
+      } catch (transitionError) {
+        logger.warn('⚠️ Failed to show board transition screen for interim board, continuing directly:', transitionError);
+        if (typeof (window as any).continueGameWithSavedState === 'function') {
+          (window as any).__ccTriggerHudDrop = true;
+          logger.info(`🎮 Continuing saved game for board ${board.id} - preserving progress and score`);
+          await (window as any).continueGameWithSavedState();
+        } else {
+          logger.error('❌ continueGameWithSavedState function not found');
+        }
       }
     } catch (error) {
       logger.error(`❌ Failed to continue game from interim board ${board.id}:`, error instanceof Error ? error.message : String(error));

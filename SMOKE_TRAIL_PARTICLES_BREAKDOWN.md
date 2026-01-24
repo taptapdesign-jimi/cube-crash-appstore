@@ -45,4 +45,3 @@
 - **Wild tiles** (beer, star, magnet): ✅ Ima pooling - koristi `graphicsPool.acquire()`
 
 **✅ SVI efekti su sada optimizovani sa object pooling-om!**
-

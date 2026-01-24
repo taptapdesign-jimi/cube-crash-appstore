@@ -367,9 +367,10 @@ function createModal(): HTMLElement {
         </div>
         <div class="simple-buttons">
           <div class="simple-button-row">
-            <button class="restart-btn">Restart</button>
-            <button class="complete-board-btn">Clean Board</button>
-            <button class="exit-btn">Exit</button>
+            <button type="button" class="restart-btn">Restart</button>
+            <button type="button" class="complete-board-btn">Clean Board</button>
+            <button type="button" class="transition-screen-btn">Transition</button>
+            <button type="button" class="exit-btn">Exit</button>
           </div>
         </div>
       </div>
@@ -380,6 +381,7 @@ function createModal(): HTMLElement {
   const restartBtn = modal.querySelector('.restart-btn') as HTMLButtonElement;
   const completeBoardBtn = modal.querySelector('.complete-board-btn') as HTMLButtonElement;
   const exitBtn = modal.querySelector('.exit-btn') as HTMLButtonElement;
+  const transitionScreenBtn = modal.querySelector('.transition-screen-btn') as HTMLButtonElement;
   
   if (restartBtn) {
     const restartClickHandler = () => {
@@ -394,8 +396,7 @@ function createModal(): HTMLElement {
       hideModal();
       
       // Step 2: Wait for modal animation to complete (400ms), then restart
-      // 🔥 MEMORY LEAK FIX: Store timeout ID for cleanup
-      trackEndRunTimeout(() => {
+      setTimeout(() => {
         console.log('🎯 Modal hidden, calling restart');
         // 🔥 USER REQUEST: Clear saved game state for current board (board-specific)
         try {
@@ -413,6 +414,12 @@ function createModal(): HTMLElement {
       }, 400); // Wait for modal close animation to complete
     };
     trackEndRunEventListener(restartBtn, 'click', restartClickHandler);
+    const restartTouchHandler = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      restartClickHandler();
+    };
+    trackEndRunEventListener(restartBtn, 'touchend', restartTouchHandler, { passive: false });
   }
   
   if (completeBoardBtn) {
@@ -543,15 +550,51 @@ function createModal(): HTMLElement {
             (window as any).__ccDetailModalBoardId = validBoardNumber;
             console.log(`🎯 end-run-modal: Set flags for detail modal return: board ${validBoardNumber} (unlocked, has detail modal)`);
           } else {
-            // Board is still interim (not unlocked) - don't set detail modal flags
-            // exitToMenu will detect no detail modal flags and return to Journey screen
+            // Board is still interim (not unlocked) - ensure Journey flags are set
+            // 🔥 CRITICAL FIX: Explicitly set Journey flags for interim boards to prevent blank screen
+            const cameFromJourney = (window as any).__ccCameFromJourney === true || 
+                                   localStorage.getItem('__ccCameFromJourney') === 'true' ||
+                                   (window as any).__ccFromInterimBoard === true ||
+                                   localStorage.getItem('__ccFromInterimBoard') === 'true';
+            
+            if (!cameFromJourney) {
+              // If Journey flag is not set, set it now (interim boards always come from Journey)
+              (window as any).__ccCameFromJourney = true;
+              localStorage.setItem('__ccCameFromJourney', 'true');
+              console.log(`🗺️ end-run-modal: Set Journey flag for interim board ${validBoardNumber} (no detail modal flags set)`);
+            }
+            
+            // Don't set detail modal flags - exitToMenu will return to Journey screen
             console.log(`⚠️ end-run-modal: Board ${validBoardNumber} is not unlocked (interim) - will return to Journey screen (no detail modal flags set)`);
           }
         } catch (error) {
-          // If check fails, don't set flags - let exitToMenu handle it
+          // If check fails, ensure Journey flags are set as fallback
+          const cameFromJourney = (window as any).__ccCameFromJourney === true || 
+                                 localStorage.getItem('__ccCameFromJourney') === 'true' ||
+                                 (window as any).__ccFromInterimBoard === true ||
+                                 localStorage.getItem('__ccFromInterimBoard') === 'true';
+          
+          if (!cameFromJourney) {
+            (window as any).__ccCameFromJourney = true;
+            localStorage.setItem('__ccCameFromJourney', 'true');
+            console.log(`🗺️ end-run-modal: Set Journey flag as fallback (check failed)`);
+          }
+          
           console.warn(`⚠️ end-run-modal: Failed to check board unlock status for ${validBoardNumber}, not setting detail modal flags:`, error);
         }
       } else {
+        // 🔥 CRITICAL FIX: Even if boardNumber is invalid, check if we came from Journey/interim
+        const cameFromJourney = (window as any).__ccCameFromJourney === true || 
+                               localStorage.getItem('__ccCameFromJourney') === 'true' ||
+                               (window as any).__ccFromInterimBoard === true ||
+                               localStorage.getItem('__ccFromInterimBoard') === 'true';
+        
+        if (!cameFromJourney) {
+          (window as any).__ccCameFromJourney = true;
+          localStorage.setItem('__ccCameFromJourney', 'true');
+          console.log(`🗺️ end-run-modal: Set Journey flag as fallback (invalid boardNumber)`);
+        }
+        
         console.warn(`⚠️ end-run-modal: Invalid boardNumber ${currentBoardNumber} - cannot set detail modal flags!`);
       }
       
@@ -563,8 +606,10 @@ function createModal(): HTMLElement {
       // Step 1: Animate modal exit (non-blocking, parallel with detail modal)
       hideModal();
       
-      // Step 2: Start board exit animation IMMEDIATELY (don't wait for modal to finish)
-      console.log('🎯 Starting board exit immediately - modal exits in parallel');
+      // Step 2: Wait for modal animation to complete, then start board exit
+      // 🔥 CRITICAL FIX: Wait for modal to close before calling exitToMenu to prevent blank screen
+      setTimeout(() => {
+        console.log('🎯 Modal hidden, starting board exit...');
         
         // Guard: Prevent multiple calls
         if ((window as any).exitingToMenu) {
@@ -572,28 +617,102 @@ function createModal(): HTMLElement {
           return;
         }
         
-      // Clear saved game state ONLY if user hasn't made any moves
-      // If user made moves (stack/merge), the state is already saved and should be kept
+        // Clear saved game state ONLY if user hasn't made any moves
+        // If user made moves (stack/merge), the state is already saved and should be kept
         try {
-        const userMadeMove = (window as any)._userMadeMove;
-        if (!userMadeMove) {
-          console.log('💾 User made no moves - clearing saved game state (board-specific)');
-          const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
-          const saveKey = getBoardSaveKey(currentBoardNumber);
-          localStorage.removeItem(saveKey);
-          localStorage.removeItem('cubeCrash_gameState');
-          console.log(`✅ end-run-modal: Cleared saved game state for board ${currentBoardNumber} (${saveKey}) on exit (no moves made)`);
-        } else {
-          console.log('💾 User made moves - keeping saved game state for resume');
-        }
+          const userMadeMove = (window as any)._userMadeMove;
+          if (!userMadeMove) {
+            console.log('💾 User made no moves - clearing saved game state (board-specific)');
+            const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
+            const saveKey = getBoardSaveKey(currentBoardNumber);
+            localStorage.removeItem(saveKey);
+            localStorage.removeItem('cubeCrash_gameState');
+            console.log(`✅ end-run-modal: Cleared saved game state for board ${currentBoardNumber} (${saveKey}) on exit (no moves made)`);
+          } else {
+            console.log('💾 User made moves - keeping saved game state for resume');
+          }
         } catch (error) {
-        console.warn('⚠️ end-run-modal: Failed to check/clear saved game state on exit:', error);
+          console.warn('⚠️ end-run-modal: Failed to check/clear saved game state on exit:', error);
         }
+        
         if ((window as any).exitToMenu) {
+          console.log('🎯 Calling exitToMenu...');
           (window as any).exitToMenu();
+        } else {
+          console.error('❌ exitToMenu function not found!');
         }
+      }, 400); // Wait for modal close animation to complete
     };
     trackEndRunEventListener(exitBtn, 'click', exitClickHandler);
+    const exitTouchHandler = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      exitClickHandler();
+    };
+    trackEndRunEventListener(exitBtn, 'touchend', exitTouchHandler, { passive: false });
+  }
+  
+  if (transitionScreenBtn) {
+    console.log('✅ Transition Screen button found in DOM:', transitionScreenBtn);
+    const transitionScreenClickHandler = async (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('🎬🎬🎬 Transition Screen button clicked - handler called!');
+      
+      // Haptic for Transition Screen button
+      if (typeof (window as any).triggerHapticSelection === 'function') {
+        (window as any).triggerHapticSelection();
+      }
+      
+      // Get current board number
+      const currentBoardNumber = (window as any).STATE?.boardNumber || (window as any).__ccStartAtLevel || 1;
+      console.log(`🎬 Showing transition screen for board ${currentBoardNumber}`);
+      
+      // 🔥 CRITICAL: Import and call showBoardTransitionScreen IMMEDIATELY (don't wait for hideModal)
+      try {
+        console.log('🎬 About to import showBoardTransitionScreen...');
+        const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
+        console.log('✅ showBoardTransitionScreen imported successfully');
+        
+        hideModal();
+        console.log(`🎬 Calling showBoardTransitionScreen with boardNumber: ${currentBoardNumber}`);
+        try {
+          await showBoardTransitionScreen({
+            boardNumber: currentBoardNumber,
+            onComplete: () => {
+              console.log('✅ Transition screen completed');
+            }
+          });
+          console.log('✅ showBoardTransitionScreen call completed');
+        } catch (error) {
+          console.error('❌ Failed to call showBoardTransitionScreen:', error);
+          console.error('❌ Error details:', error);
+          console.error('❌ Error stack:', (error as Error)?.stack);
+        }
+      } catch (error) {
+        console.error('❌ Failed to import showBoardTransitionScreen:', error);
+        console.error('❌ Error details:', error);
+        console.error('❌ Error stack:', (error as Error)?.stack);
+        // Still hide modal even if import fails
+        hideModal();
+      }
+    };
+    
+    // Add both click and touchend for better mobile support
+    // Use capture: false to ensure it's not blocked by other handlers
+    trackEndRunEventListener(transitionScreenBtn, 'click', transitionScreenClickHandler, { capture: false });
+    trackEndRunEventListener(transitionScreenBtn, 'touchend', transitionScreenClickHandler, { passive: false, capture: false });
+    console.log('✅ Transition Screen button event listeners attached (click + touchend)');
+    
+    // 🔥 DEBUG: Test if button is clickable
+    transitionScreenBtn.style.pointerEvents = 'auto';
+    transitionScreenBtn.style.cursor = 'pointer';
+    console.log('✅ Transition Screen button styles set (pointer-events: auto, cursor: pointer)');
+  } else {
+    console.error('❌ Transition Screen button NOT FOUND in DOM!');
+    console.error('❌ Modal:', modal);
+    console.error('❌ Modal HTML:', modal?.innerHTML);
+    console.error('❌ Query result:', modal?.querySelector('.transition-screen-btn'));
   }
   
   // Add drag functionality
@@ -786,7 +905,8 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     // Don't start drag if clicking on buttons
     if (e.target && ((e.target as HTMLElement).closest('.restart-btn') || 
         (e.target as HTMLElement).closest('.complete-board-btn') ||
-        (e.target as HTMLElement).closest('.exit-btn'))) {
+        (e.target as HTMLElement).closest('.exit-btn') ||
+        (e.target as HTMLElement).closest('.transition-screen-btn'))) {
       console.log('🎯 CLICK ON BUTTON - NO DRAG');
       return;
     }
@@ -808,7 +928,8 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     // Handle button touch move for cancel on drag off
     if (e.target && ((e.target as HTMLElement).closest('.restart-btn') || 
         (e.target as HTMLElement).closest('.complete-board-btn') ||
-        (e.target as HTMLElement).closest('.exit-btn'))) {
+        (e.target as HTMLElement).closest('.exit-btn') ||
+        (e.target as HTMLElement).closest('.transition-screen-btn'))) {
       // Let button handle its own touch move
       return;
     }
@@ -881,7 +1002,8 @@ function addDragFunctionality(modalEl: HTMLElement): void {
     // Don't start drag if clicking on buttons
     if (e.target && ((e.target as HTMLElement).closest('.restart-btn') || 
         (e.target as HTMLElement).closest('.complete-board-btn') ||
-        (e.target as HTMLElement).closest('.exit-btn'))) {
+        (e.target as HTMLElement).closest('.exit-btn') ||
+        (e.target as HTMLElement).closest('.transition-screen-btn'))) {
       console.log('🎯 MOUSE CLICK ON BUTTON - NO DRAG');
       return;
     }

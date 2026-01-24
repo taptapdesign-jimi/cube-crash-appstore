@@ -1232,18 +1232,20 @@ export async function showCleanBoardModal({
       if (devMode) {
         console.log('🧪 DEV MODE: Showing board transition screen');
         
-        // Cleanup modal first
+        // Cleanup modal first (non-blocking - cleanup happens in background)
         cleanupButtonListeners();
         trackTimeout(() => { 
           try { el.remove(); } catch {}
           removeStyleTag();
         }, collapseDuration + 220);
         
-        // Show board transition screen with next board number
+        // 🔥 CRITICAL FIX: Show board transition screen IMMEDIATELY without waiting for modal cleanup
+        // This removes delay between exit animation and transition screen
         const nextBoardNumber = (boardNumber || 1) + 1;
         try {
           const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
-          await showBoardTransitionScreen({
+          // Don't await - show immediately, resolve promise in background
+          showBoardTransitionScreen({
             boardNumber: nextBoardNumber,
             onComplete: async () => {
               console.log('🧪 DEV MODE: Board transition complete, starting new board');
@@ -1268,9 +1270,12 @@ export async function showCleanBoardModal({
               
               resolve({ action: 'continue' });
             }
+          }).catch((error) => {
+            console.error('❌ DEV MODE: Failed to show board transition screen:', error);
+            resolve({ action: 'continue' });
           });
         } catch (error) {
-          console.error('❌ DEV MODE: Failed to show board transition screen:', error);
+          console.error('❌ DEV MODE: Failed to import board transition screen:', error);
           resolve({ action: 'continue' });
         }
         return; // Exit early - don't continue with normal flow

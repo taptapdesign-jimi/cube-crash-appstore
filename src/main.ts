@@ -1677,59 +1677,22 @@ async function startNewRun(boardId: number): Promise<void> {
           ? Number(detailModalBoardIdWindow)
           : null;
         
-        if (cameFromDetailModal && validBoardId) {
-          // 🔥 CRITICAL FIX: Check if board has detail modal (is unlocked)
-          // If board is still interim (not unlocked), return to Journey screen instead
-          try {
-            const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
-            const board = journeyBoardsManager.getBoardById(validBoardId);
-            
-            if (board && board.unlocked) {
-              // Board has detail modal - return to detail modal
-              returnToDetailModal = true;
-              detailModalBoardId = validBoardId;
-              console.log(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (unlocked, has detail modal)`);
-              logger.info(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (unlocked, has detail modal)`);
-            } else {
-              // Board is still interim (not unlocked) - return to Journey screen instead
-              console.log(`⚠️ Board ${validBoardId} is not unlocked (interim) - cannot return to detail modal, will return to Journey screen`);
-              logger.info(`⚠️ Board ${validBoardId} is not unlocked (interim) - cannot return to detail modal, will return to Journey screen`);
-              // Clear flags and fall through to Journey screen logic
-              delete (window as any).__ccCameFromDetailModal;
-              delete (window as any).__ccDetailModalBoardId;
-              // Don't set returnToDetailModal - will fall through to Journey screen logic below
-            }
-          } catch (error) {
-            // If check fails, assume board has detail modal (fallback to original behavior)
-            console.warn(`⚠️ Failed to check board unlock status for ${validBoardId}, assuming unlocked:`, error);
-            returnToDetailModal = true;
-            detailModalBoardId = validBoardId;
-            console.log(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (fallback)`);
-            logger.info(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (fallback)`);
-          }
-          
-          // Clear flags only if we're returning to detail modal
-          if (returnToDetailModal) {
-            delete (window as any).__ccCameFromDetailModal;
-            delete (window as any).__ccDetailModalBoardId;
-          }
-        } else if (cameFromDetailModal && !validBoardId) {
-          console.error(`❌ CRITICAL: Invalid detailModalBoardId ${detailModalBoardIdWindow} - clearing flags and skipping detail modal!`);
-          logger.error(`❌ CRITICAL: Invalid detailModalBoardId ${detailModalBoardIdWindow} - clearing flags and skipping detail modal!`);
-          // Clear invalid flags
-          delete (window as any).__ccCameFromDetailModal;
-          delete (window as any).__ccDetailModalBoardId;
-        } else {
+        const resolveExitContext = async () => {
           // 🔥 CRITICAL: Check localStorage FIRST (before clearing) - most reliable for persistence
           const cameFromJourneyStorage = localStorage.getItem('__ccCameFromJourney') === 'true';
           const cameFromHomepageStorage = localStorage.getItem('__ccCameFromHomepage') === 'true';
+          const fromInterimBoardStorage = localStorage.getItem('__ccFromInterimBoard') === 'true';
           
           // Also check window flags (for current session)
           const cameFromJourneyWindow = (window as any).__ccCameFromJourney === true;
           const cameFromHomepageWindow = (window as any).__ccCameFromHomepage === true;
+          const fromInterimBoardWindow = (window as any).__ccFromInterimBoard === true;
+          
+          // 🔥 CRITICAL FIX: Check interim board flag - if set, user definitely came from Journey
+          const fromInterimBoard = fromInterimBoardWindow || fromInterimBoardStorage;
           
           // Combine both sources
-          let cameFromJourney = cameFromJourneyWindow || cameFromJourneyStorage;
+          let cameFromJourney = cameFromJourneyWindow || cameFromJourneyStorage || fromInterimBoard;
           const cameFromHomepage = cameFromHomepageWindow || cameFromHomepageStorage;
           
           // 🔥 USER REQUEST: If flag is not set, check lastOpenedBoardId as primary indicator
@@ -1746,6 +1709,9 @@ async function startNewRun(boardId: number): Promise<void> {
           console.log('🔍 Exit context check:', {
             cameFromJourneyWindow,
             cameFromJourneyStorage,
+            fromInterimBoardWindow,
+            fromInterimBoardStorage,
+            fromInterimBoard,
             cameFromJourney,
             cameFromHomepageWindow,
             cameFromHomepageStorage,
@@ -1780,6 +1746,53 @@ async function startNewRun(boardId: number): Promise<void> {
           // 🔥 FIX: Also clear from localStorage AFTER use
           localStorage.removeItem('__ccCameFromJourney');
           localStorage.removeItem('__ccCameFromHomepage');
+        };
+
+        if (cameFromDetailModal && validBoardId) {
+          // 🔥 CRITICAL FIX: Check if board has detail modal (is unlocked)
+          // If board is still interim (not unlocked), return to Journey screen instead
+          try {
+            const { journeyBoardsManager } = await import('./modules/journey-boards-manager.js');
+            const board = journeyBoardsManager.getBoardById(validBoardId);
+            
+            if (board && board.unlocked) {
+              // Board has detail modal - return to detail modal
+              returnToDetailModal = true;
+              detailModalBoardId = validBoardId;
+              console.log(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (unlocked, has detail modal)`);
+              logger.info(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (unlocked, has detail modal)`);
+            } else {
+              // Board is still interim (not unlocked) - return to Journey screen instead
+              console.log(`⚠️ Board ${validBoardId} is not unlocked (interim) - cannot return to detail modal, will return to Journey screen`);
+              logger.info(`⚠️ Board ${validBoardId} is not unlocked (interim) - cannot return to detail modal, will return to Journey screen`);
+              // Clear flags and fall through to Journey screen logic
+              delete (window as any).__ccCameFromDetailModal;
+              delete (window as any).__ccDetailModalBoardId;
+              await resolveExitContext();
+            }
+          } catch (error) {
+            // If check fails, assume board has detail modal (fallback to original behavior)
+            console.warn(`⚠️ Failed to check board unlock status for ${validBoardId}, assuming unlocked:`, error);
+            returnToDetailModal = true;
+            detailModalBoardId = validBoardId;
+            console.log(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (fallback)`);
+            logger.info(`🎯 User came from detail modal for board ${detailModalBoardId} - will return to detail modal (fallback)`);
+          }
+          
+          // Clear flags only if we're returning to detail modal
+          if (returnToDetailModal) {
+            delete (window as any).__ccCameFromDetailModal;
+            delete (window as any).__ccDetailModalBoardId;
+          }
+        } else if (cameFromDetailModal && !validBoardId) {
+          console.error(`❌ CRITICAL: Invalid detailModalBoardId ${detailModalBoardIdWindow} - clearing flags and skipping detail modal!`);
+          logger.error(`❌ CRITICAL: Invalid detailModalBoardId ${detailModalBoardIdWindow} - clearing flags and skipping detail modal!`);
+          // Clear invalid flags
+          delete (window as any).__ccCameFromDetailModal;
+          delete (window as any).__ccDetailModalBoardId;
+          await resolveExitContext();
+        } else {
+          await resolveExitContext();
         }
       } catch (error) {
         console.warn('⚠️ Failed to determine target slide:', error);
@@ -1882,9 +1895,15 @@ async function startNewRun(boardId: number): Promise<void> {
       
       // 🔥 NEW API: Use setSlideInstant() to atomically update ALL states
       // This replaces manual GSAP positioning + class manipulation
-      if (sliderManager && typeof sliderManager.setSlideInstant === 'function') {
-        sliderManager.setSlideInstant(targetSlide);
-        console.log(`✅ Slider positioned at slide ${targetSlide} using setSlideInstant (atomic)`);
+      // 🔥 CRITICAL FIX: Check if sliderManager is initialized before calling setSlideInstant
+      if (sliderManager && typeof sliderManager.setSlideInstant === 'function' && sliderManager.isInitialized) {
+        try {
+          sliderManager.setSlideInstant(targetSlide);
+          console.log(`✅ Slider positioned at slide ${targetSlide} using setSlideInstant (atomic)`);
+        } catch (error) {
+          console.warn('⚠️ Error calling setSlideInstant, using fallback:', error);
+          // Fall through to fallback
+        }
       } else {
         // Fallback: Manual positioning (if setSlideInstant not available)
         console.warn('⚠️ SliderManager.setSlideInstant not available, using fallback');
@@ -2003,9 +2022,15 @@ async function startNewRun(boardId: number): Promise<void> {
       
       // 🔥 NEW API: Use setSlideInstant() to atomically update ALL states
       // This replaces manual GSAP positioning + class manipulation
+      // 🔥 CRITICAL FIX: Wrap in try-catch to prevent forEach error
       if (sliderManager && typeof sliderManager.setSlideInstant === 'function') {
-        sliderManager.setSlideInstant(1); // Journey slide is index 1
-        console.log(`✅ Slider positioned at Journey slide (1) using setSlideInstant (atomic)`);
+        try {
+          sliderManager.setSlideInstant(1); // Journey slide is index 1
+          console.log(`✅ Slider positioned at Journey slide (1) using setSlideInstant (atomic)`);
+        } catch (error) {
+          console.warn('⚠️ Error calling setSlideInstant for Journey slide, using fallback:', error);
+          // Fall through to fallback
+        }
       } else {
         // Fallback: Manual positioning (if setSlideInstant not available)
         console.warn('⚠️ SliderManager.setSlideInstant not available, using fallback');
@@ -2122,7 +2147,21 @@ async function startNewRun(boardId: number): Promise<void> {
         collectiblesManager.showCollectibles();
         console.log('✅ Journey screen shown with enter animation');
       } else {
-        console.warn('⚠️ CollectiblesManager not found');
+        try {
+          const { ensureCollectiblesManager, showCollectiblesScreen } = await import('./collectibles-manager.js');
+          await ensureCollectiblesManager();
+          await showCollectiblesScreen();
+          console.log('✅ Journey screen shown with enter animation (fallback import)');
+        } catch (error) {
+          console.warn('⚠️ CollectiblesManager not found and fallback import failed:', error);
+          const journeyScreenFallback = document.getElementById('journey-screen');
+          if (journeyScreenFallback) {
+            journeyScreenFallback.removeAttribute('hidden');
+            journeyScreenFallback.style.display = 'flex';
+            journeyScreenFallback.style.visibility = 'visible';
+            journeyScreenFallback.style.opacity = '1';
+          }
+        }
       }
       
       // Ensure navigation stays hidden (Journey has its own back button)

@@ -70,28 +70,55 @@ function loadTextureFromSource(source: string): Texture | null {
     // Prvo pokušaj Assets.get() - ako je već učitano
     let texture = Assets.get(source);
     if (texture && texture instanceof Texture) {
-      console.log('✅ Got texture from Assets.get():', texture, 'width:', texture.width, 'height:', texture.height);
-      return texture;
+      // Proveri da li je tekstura validna pre pristupa width/height
+      if (texture.baseTexture) {
+        if (texture.baseTexture.valid) {
+          // Sigurno pristupamo width/height samo ako je tekstura validna
+          const width = texture.baseTexture.width || 0;
+          const height = texture.baseTexture.height || 0;
+          console.log('✅ Got texture from Assets.get():', texture, 'width:', width, 'height:', height);
+          return texture;
+        } else {
+          console.log('⏳ Texture from Assets.get() not yet valid, but returning anyway - will load async');
+          return texture;
+        }
+      } else {
+        console.warn('⚠️ Texture from Assets.get() has no baseTexture');
+        return texture; // Vratimo iako nema baseTexture, možda će se učitati kasnije
+      }
     }
     
     // Fallback na Texture.from() - direktno učitavanje
-    texture = Texture.from(source);
-    console.log('✅ Got texture from Texture.from():', texture, 'width:', texture.width, 'height:', texture.height);
+    try {
+      texture = Texture.from(source);
+    } catch (fromError) {
+      console.error('❌ Texture.from() failed:', fromError);
+      return null;
+    }
     
-    // Čekaj da se tekstura učita ako nije spremna
-    if (texture && texture.baseTexture) {
+    // Proveri da li je tekstura validna pre pristupa width/height
+    if (!texture) {
+      console.warn('⚠️ Texture.from() returned null/undefined');
+      return null;
+    }
+    
+    // Proveri da li postoji baseTexture pre pristupa width/height
+    if (texture.baseTexture) {
       if (texture.baseTexture.valid) {
-        console.log('✅ Texture is valid and ready!');
+        // Sigurno pristupamo width/height samo ako je tekstura validna
+        const width = texture.baseTexture.width || 0;
+        const height = texture.baseTexture.height || 0;
+        console.log('✅ Got texture from Texture.from():', texture, 'width:', width, 'height:', height);
         return texture;
       } else {
         console.log('⏳ Texture not yet valid, but returning anyway - will load async');
         // Vratimo teksturu iako još nije valid - PIXI će je učitati asinkrono
         return texture;
       }
+    } else {
+      console.warn('⚠️ Texture.from() created texture but has no baseTexture');
+      return texture; // Vratimo iako nema baseTexture, možda će se učitati kasnije
     }
-    
-    console.warn('⚠️ Could not create texture from:', source);
-    return null;
   } catch (err) {
     console.error('❌ Failed to load texture from:', source, err);
     return null;
@@ -101,14 +128,39 @@ function loadTextureFromSource(source: string): Texture | null {
 function ensureTexture(): Texture | null {
   if (cachedTexture) {
     console.log('✅ Using cached texture');
-    return cachedTexture;
+    // Proveri da li je keširana tekstura još uvek validna
+    if (cachedTexture.baseTexture && cachedTexture.baseTexture.valid) {
+      return cachedTexture;
+    } else {
+      // Tekstura više nije validna, resetuj keš
+      console.warn('⚠️ Cached texture is no longer valid, clearing cache');
+      cachedTexture = null;
+    }
   }
 
   console.log('🔄 Starting texture load from sources:', STAR_TEXTURE_SOURCES);
   for (let i = 0; i < STAR_TEXTURE_SOURCES.length; i++) {
     const source = STAR_TEXTURE_SOURCES[i];
     console.log(`🔄 Trying source ${i + 1}/${STAR_TEXTURE_SOURCES.length}:`, source);
-    const texture = loadTextureFromSource(source);
+    
+    // Prvo pokušaj da dobiješ već učitano iz Assets cache-a
+    let texture = Assets.get(source);
+    if (texture && texture instanceof Texture) {
+      // Proveri da li je tekstura validna
+      if (texture.baseTexture && texture.baseTexture.valid) {
+        console.log('✅ Got valid texture from Assets.get():', source);
+        cachedTexture = texture;
+        return texture;
+      } else {
+        console.log('⏳ Texture from Assets.get() exists but not yet valid:', source);
+        // Vratimo teksturu iako još nije valid - PIXI će je učitati asinkrono
+        cachedTexture = texture;
+        return texture;
+      }
+    }
+    
+    // Ako nije u cache-u, pokušaj direktno učitavanje
+    texture = loadTextureFromSource(source);
     if (texture) {
       console.log('✅ Texture loaded and cached successfully!', texture);
       cachedTexture = texture;
@@ -311,7 +363,10 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined): void {
   
   if (texture) {
     console.log('✅ Texture loaded successfully!', texture);
-    console.log('✅ Texture dimensions:', texture.width, 'x', texture.height);
+    // Sigurno pristupamo dimenzijama tek ako postoji baseTexture
+    const width = texture.baseTexture?.width || texture.width || 0;
+    const height = texture.baseTexture?.height || texture.height || 0;
+    console.log('✅ Texture dimensions:', width, 'x', height);
     console.log('✅ Texture valid:', texture.baseTexture?.valid);
     
     // Tekstura je spremna, sada kreiramo zvijezdice SA TEKSTUROM

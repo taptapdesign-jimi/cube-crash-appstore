@@ -1570,9 +1570,13 @@ export async function layoutBoard(){
       }
       
       // Update HUD with current values
+      // 🔥 CRITICAL FIX: Use STATE.boardNumber if available (most up-to-date)
+      const currentBoardNumber = (STATE?.boardNumber && Number.isFinite(STATE.boardNumber)) 
+        ? STATE.boardNumber 
+        : boardNumber;
       if (typeof HUD.updateHUD === 'function') {
-        HUD.updateHUD({ score, board: boardNumber, moves, combo });
-        console.log('✅ HUD updated with:', { score, board: boardNumber, moves, combo });
+        HUD.updateHUD({ score, board: currentBoardNumber, moves, combo });
+        console.log('✅ HUD updated with:', { score, board: currentBoardNumber, moves, combo, 'STATE.boardNumber': STATE?.boardNumber, 'local boardNumber': boardNumber });
       }
       
       // CRITICAL: Call HUD.layout to update HUD positioning
@@ -2410,6 +2414,10 @@ function startLevel(n){
   
   level = n; // Set level to the board number
   boardNumber = n; // Set board number to the level number
+  
+  // 🔥 CRITICAL FIX: Update STATE.boardNumber immediately so layoutBoard() uses correct board number
+  STATE.boardNumber = boardNumber;
+  console.log(`🎯 startLevel: Set boardNumber to ${boardNumber} and synced STATE.boardNumber`);
   
   // 🔥 JOURNEY PROGRESSION: Update currentRunState when starting a level
   try {
@@ -4826,6 +4834,15 @@ function merge(src, dst, helpers){
       
       console.log('🧲 Found', nearestTiles.length, 'nearest tiles to pull immediately (max 4)');
       
+      // 🔥 CRITICAL FIX: Check if this is last merge (magnet + 1 tile = 2 tiles total, no tiles to pull)
+      // If allTiles.length === 2 (only src and dst) and nearestTiles.length === 0, this is last merge
+      const isLastMergeEarly = allTiles.length === 2 && nearestTiles.length === 0;
+      if (isLastMergeEarly && dst && !dst.destroyed) {
+        (dst as any)._isLastMerge = true;
+        console.log('🚨🚨🚨 LAST MERGE DETECTED EARLY (magnet + 1 tile, no tiles to pull) - Setting _isLastMerge flag NOW');
+        console.log('🎯 This is the final merge - should trigger clean board, NOT pull tiles or spawn anything');
+      }
+      
         // 🔥 CRITICAL FIX: Store whether tiles will be pulled on dst tile BEFORE onComplete callback
         // This allows onComplete to correctly determine if merge 6 tile should remain or be removed
         if (dst && !dst.destroyed) {
@@ -5044,6 +5061,26 @@ function merge(src, dst, helpers){
                   locked: t?.locked
                 }))
               });
+              
+              // 🔥 CRITICAL FIX: Check _isLastMerge flag FIRST - if set, this is final merge-6, NO spawns!
+              const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
+              if (isLastMergeFlagSet) {
+                console.log('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 detected (_isLastMerge flag set) - magnet + 1 tile = 2 tiles total');
+                console.log('🎯 This is the final merge - should trigger clean board, NOT pull tiles or spawn anything');
+                console.log('🧲 Skipping handleWildMagnetMergedPulledTiles - clean board will be triggered in mergePulledTilesIntoMerge6');
+                
+                // Still call handleWildMagnetMergedPulledTiles with empty array - it will check _isLastMerge and trigger clean board
+                // This ensures clean board flow is triggered properly
+                const { handleWildMagnetMergedPulledTiles } = await import('./app-merge');
+                const helpersWithMerge = {
+                  ...helpers,
+                  merge: merge,
+                  startLevel: startLevel
+                };
+                await handleWildMagnetMergedPulledTiles(dst, [], helpersWithMerge);
+                console.log('✅ Clean board triggered for final magnet merge-6');
+                return; // Exit early - no further processing needed
+              }
               
               // 🔥 CRITICAL FIX: If validTiles.length === 0, mark that NO tiles were actually pulled
               // This overrides _willPullTiles flag and ensures merge 6 tile is removed
@@ -5571,12 +5608,17 @@ function merge(src, dst, helpers){
                                          (src.value|0) > 0 && (dst.value|0) > 0 &&
                                          onlyMerge6Remains;
         
-        // 🔥 CRITICAL: If this was last 2 tiles (wild + regular OR regular + regular), set flag NOW
-        if ((wasWildRegularLastTwo || wasRegularRegularLastTwo) && !isLastMergeInOnComplete) {
+        // 🔥 CRITICAL FIX: Also check if src was magnet and dst was regular (magnet + 1 tile = last merge)
+        const wasMagnetRegularLastTwo = (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet') && 
+                                        onlyMerge6Remains;
+        
+        // 🔥 CRITICAL: If this was last 2 tiles (wild + regular OR regular + regular OR magnet + regular), set flag NOW
+        if ((wasWildRegularLastTwo || wasRegularRegularLastTwo || wasMagnetRegularLastTwo) && !isLastMergeInOnComplete) {
           (dst as any)._isLastMerge = true;
           console.log('🚨🚨🚨 LAST MERGE DETECTED (AFTER src removal) - Only merge-6 remains:', {
             wasWildRegularLastTwo,
             wasRegularRegularLastTwo,
+            wasMagnetRegularLastTwo,
             srcSpecial: srcSpecial,
             dstSpecial: dstSpecial,
             srcValue: src.value,
@@ -6516,9 +6558,14 @@ function merge(src, dst, helpers){
           const spawnR = gy;
           
           // 🔥 CRITICAL: Ensure grid position is clear before spawning
+          // Clear grid position to ensure openAtCell doesn't see merge 6 tile
           if (grid && grid[spawnR] && grid[spawnR][spawnC]) {
-            console.log('🧹 Clearing grid position before spawning active tile');
-            grid[spawnR][spawnC] = null;
+            // Only clear if it's the dst tile (merge 6), not if it's a placeholder
+            const tileAtPos = grid[spawnR][spawnC];
+            if (tileAtPos === dst || (tileAtPos && tileAtPos.value === 6)) {
+              console.log('🧹 END-GAME SPAWN: Clearing merge 6 tile from grid position before spawn');
+              grid[spawnR][spawnC] = null;
+            }
           }
           
           // Spawn new ACTIVE tile with pips at dst position
@@ -6659,21 +6706,41 @@ function merge(src, dst, helpers){
             delete (dst as any)?._wasWildMagnetMerge6;
           }
         } else if (!isMagnetPullMergeFinal && dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-          console.log('🗑️ Removing dst tile IMMEDIATELY (regular merge 6, not magnet pull)');
-          
-          // 🔥 CRITICAL FIX: Ensure grid position is null before removing tile
-          // This prevents openAtCell from seeing merge 6 tile and not spawning
-          if (clearTileFromGridSafe(dst)) {
-            console.log('🧹 Explicitly cleared grid position before removeTile');
+          // 🔥 CRITICAL FIX: For end game spawn, remove dst tile AFTER spawn is scheduled (not before)
+          // This ensures spawn can happen properly, but dst tile is still removed to prevent conflicts
+          if (shouldSpawnAtDst) {
+            // In end game mode, remove dst tile after a short delay to allow spawn to happen first
+            trackAppTimeout(() => {
+              if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+                console.log('🗑️ END-GAME: Removing dst tile after spawn is scheduled');
+                if (clearTileFromGridSafe(dst)) {
+                  console.log('🧹 Cleared grid position before removing dst tile');
+                }
+                dst.visible = false;
+                dst.alpha = 0;
+                dst.eventMode = 'none';
+                removeTile(dst);
+                console.log('✅ Dst tile removed after end game spawn');
+              }
+            }, 100); // Delay to allow spawn to happen first
+          } else {
+            // Normal mode: remove dst tile immediately
+            console.log('🗑️ Removing dst tile IMMEDIATELY (regular merge 6, not magnet pull)');
+            
+            // 🔥 CRITICAL FIX: Ensure grid position is null before removing tile
+            // This prevents openAtCell from seeing merge 6 tile and not spawning
+            if (clearTileFromGridSafe(dst)) {
+              console.log('🧹 Explicitly cleared grid position before removeTile');
+            }
+            
+            // 🔥 CRITICAL FIX: Hide tile before removing to prevent visual glitches
+            dst.visible = false;
+            dst.alpha = 0;
+            dst.eventMode = 'none';
+            
+            removeTile(dst); // Remove from tiles array
+            console.log('✅ Dst tile removed successfully');
           }
-          
-          // 🔥 CRITICAL FIX: Hide tile before removing to prevent visual glitches
-          dst.visible = false;
-          dst.alpha = 0;
-          dst.eventMode = 'none';
-          
-          removeTile(dst); // Remove from tiles array
-          console.log('✅ Dst tile removed successfully');
           
           // Clean up flags
           if (dst && !dst.destroyed) {

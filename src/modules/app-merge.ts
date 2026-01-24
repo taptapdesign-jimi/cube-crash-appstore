@@ -1467,8 +1467,59 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // 3. Merge 6 tile should remain on board at magnet position (it's already there, don't spawn it)
   // 🔥 SOURCE OF TRUTH: If final merge-6 (_isLastMerge flag), NO spawns at all (trigger CLEAN BOARD)
   // 🎯 END GAME FIX: If this is last merge (magnet + 1 tile), NO spawns at all!
+  // 🔥 CRITICAL: Check _isLastMerge flag FIRST - if set, skip ALL spawn logic and trigger clean board
+  if (isLastMergeFlagSet) {
+    console.log('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 detected (_isLastMerge flag set) - NO spawns, triggering CLEAN BOARD');
+    console.log('🎯 This is the final merge (magnet + 1 tile = 2 tiles total) - should trigger clean board, NOT spawn tiles');
+    
+    // Remove merge 6 tile
+    if (dst && !dst.destroyed) {
+      removeTile(dst);
+    }
+    
+    // Trigger clean board flow
+    const { runEndgameFlow } = await import('./endgame-flow.js');
+    
+    // Get app context from STATE and helpers
+    const app = STATE.app;
+    const stage = STATE.stage;
+    const board = STATE.board;
+    const boardBG = STATE.boardBG;
+    const level = STATE.level || 1;
+    const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
+    const boardNumber = STATE.boardNumber || 1;
+    
+    if (!app || !stage || !board || !startLevel) {
+      console.error('❌ Missing required context for clean board flow:', { app: !!app, stage: !!stage, board: !!board, startLevel: !!startLevel });
+      return;
+    }
+    
+    // Reset wild meter
+    if (typeof (window as any).CC?.resetWildProgress === 'function') {
+      (window as any).CC.resetWildProgress(0, false);
+    } else if (typeof (window as any).resetWildProgress === 'function') {
+      (window as any).resetWildProgress(0, false);
+    }
+    if (typeof HUD.resetWildMeter === 'function') {
+      HUD.resetWildMeter(true);
+    }
+    
+    await runEndgameFlow({
+      app,
+      stage,
+      board,
+      boardBG,
+      level,
+      startLevel,
+      boardNumber
+    });
+    
+    console.log('✅ Clean board flow completed for magnet final merge-6');
+    return; // 🔥 CRITICAL: Exit early - NO spawns for final merge-6!
+  }
+  
   const replacementSpawnCount = hasTilesToRespawn ? pulledCells.length : 0; // Spawn = number of pulled tiles (max 4)
-  const obligatorySpawnCount = isLastMergeFlagSet ? 0 : 1; // NO obligatory spawn if last merge! (SOURCE OF TRUTH: Final merge-6 = NO spawn)
+  const obligatorySpawnCount = 1; // Always spawn 1 obligatory tile below merge 6 (unless final merge-6, which is handled above)
   const spawnCount = replacementSpawnCount + obligatorySpawnCount;
   
   console.log('🧲 Wild-magnet spawn calculation:', {
@@ -2202,9 +2253,17 @@ export async function handleWildMagnetMergedPulledTiles(dst: any, pulledTiles: a
   // Filter valid tiles
   const validTiles = (pulledTiles || []).filter((t: any) => t && !t.destroyed);
   
-  if (validTiles.length < 1) {
-    console.warn('⚠️ Not enough pulled tiles (need at least 1, got', validTiles.length, ')');
+  // 🔥 CRITICAL FIX: Allow empty array if _isLastMerge flag is set (final merge-6 scenario)
+  // This allows clean board flow to be triggered when magnet + 1 tile = final merge-6
+  const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
+  
+  if (validTiles.length < 1 && !isLastMergeFlagSet) {
+    console.warn('⚠️ Not enough pulled tiles (need at least 1, got', validTiles.length, ') and NOT final merge-6');
     return false;
+  }
+  
+  if (isLastMergeFlagSet && validTiles.length === 0) {
+    console.log('🚨🚨🚨 Final merge-6 detected in handleWildMagnetMergedPulledTiles - calling mergePulledTilesIntoMerge6 with empty array to trigger clean board');
   }
   
   console.log('🧲 Pulled tiles state:', validTiles.map((t: any, i: number) => ({
@@ -2212,6 +2271,7 @@ export async function handleWildMagnetMergedPulledTiles(dst: any, pulledTiles: a
   })));
   
   // Merge all pulled tiles into merge 6 with 4x multiplier and magnet animations
+  // If validTiles.length === 0 and _isLastMerge is set, mergePulledTilesIntoMerge6 will trigger clean board
   await mergePulledTilesIntoMerge6(dst, validTiles, helpers);
   
   console.log('✅ mergePulledTilesIntoMerge6 completed');

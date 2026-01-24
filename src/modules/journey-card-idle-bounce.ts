@@ -160,12 +160,26 @@ export function stopJourneyCardIdleBounce(): void {
   // 🔥 MEMORY FIX: Clean up all smoke containers
   state.smokeContainers.forEach(smokeContainer => {
     try {
+      // 🔥 USER REQUEST: Don't cleanup first smoke if it's marked for extended life
+      // This prevents first smoke from being killed when cleanup is called
+      if ((smokeContainer as any)._isFirstSmoke && (smokeContainer as any)._preventCleanup) {
+        console.log('⚠️ journey-card-idle-bounce: Skipping cleanup for first smoke (extended life)');
+        return; // Skip cleanup for first smoke
+      }
+      
       // Kill cleanup timer if it exists
       if ((smokeContainer as any)._cleanupTimer) {
         try {
           (smokeContainer as any)._cleanupTimer.kill();
         } catch {}
         (smokeContainer as any)._cleanupTimer = null;
+      }
+      // Kill fade-out timer if it exists
+      if ((smokeContainer as any)._fadeOutTimer) {
+        try {
+          (smokeContainer as any)._fadeOutTimer.kill();
+        } catch {}
+        (smokeContainer as any)._fadeOutTimer = null;
       }
       // Kill any GSAP animations on smoke container
       gsap.killTweensOf(smokeContainer);
@@ -779,8 +793,13 @@ export function smokeBubblesAtCard(
 ): void {
   // 🔥 CRITICAL FIX: Prevent duplicate smoke animations on the same card
   // Check if smoke is already active on this card
-  if ((card as any)._smokeActive) {
-    // Smoke already active, skipping duplicate (debug only)
+  // 🔥 USER REQUEST: Allow multiple smokes for board transition (different digits)
+  // Skip duplicate check if this is a board transition digit (has __ccSmokeTimestamp)
+  const isBoardTransitionDigit = (card as any).__ccSmokeTimestamp !== undefined || 
+                                  (card as any).__ccSmokePosition !== undefined;
+  
+  if ((card as any)._smokeActive && !isBoardTransitionDigit) {
+    // Smoke already active, skipping duplicate (but allow board transition digits)
     return;
   }
   
@@ -1047,10 +1066,20 @@ export function smokeBubblesAtCard(
       const driftY = (Math.random() - 0.5) * (cardSize * 0.06 * distanceScale);
       
       // Animation timings
-      const tIn = 0.018 + Math.random() * 0.022;
-      const tRun = 0.16 + Math.random() * 0.12;
-      const tHold = 0.02 + Math.random() * 0.03;
-      const tOut = 0.08 + Math.random() * 0.06;
+      // 🔥 USER REQUEST: Extended particle lifetime for first board transition smoke
+      const isFirstBoardTransitionSmoke = (card as any)._isFirstBoardTransitionDigit === true;
+      let tIn = 0.018 + Math.random() * 0.022;
+      let tRun = 0.16 + Math.random() * 0.12;
+      let tHold = 0.02 + Math.random() * 0.03;
+      let tOut = 0.08 + Math.random() * 0.06;
+      
+      // 🔥 USER REQUEST: Extend particle lifetime for first smoke (longer life = less opaque fade)
+      if (isFirstBoardTransitionSmoke) {
+        tIn *= 1.2; // Slightly longer fade-in
+        tRun *= 1.8; // Much longer movement phase
+        tHold *= 2.0; // Longer hold phase
+        tOut *= 1.5; // Longer fade-out phase
+      }
       
       // 🔥 USER REQUEST: Better start scale (similar to tiles for quality)
       // Tiles use: (0.65 + random(0.25)) * max(0.7, sizeScale)
@@ -1072,11 +1101,22 @@ export function smokeBubblesAtCard(
         defaults: { overwrite: false },
         onComplete: () => {
           try {
+            // 🔥 USER REQUEST: Improved pooling - only release if element still exists and is not cleaned up
             if (smoke && smoke.parentNode) {
+              // Check if parent is being cleaned up (first smoke extended life)
+              const parentContainer = smoke.parentNode as HTMLElement;
+              if ((parentContainer as any)._isFirstSmoke && (parentContainer as any)._preventCleanup) {
+                // First smoke is still active - don't remove particle yet, let it fade naturally
+                // Particle will be cleaned up when container is cleaned up
+                return;
+              }
               smoke.parentNode.removeChild(smoke);
             }
             // 🔥 PERFORMANCE: Return to pool instead of destroying
-            domElementPool.release(smoke);
+            // Only release if element is not part of first smoke that's still active
+            if (smoke && !(smoke.parentNode && (smoke.parentNode as HTMLElement)._isFirstSmoke && (smoke.parentNode as HTMLElement)._preventCleanup)) {
+              domElementPool.release(smoke);
+            }
           } catch {}
         }
       });
@@ -1154,6 +1194,7 @@ export function smokeBubblesAtCard(
   
   // 🔥 MEMORY FIX: Cleanup container after all animations complete
   // Particles take ~0.4-0.5s, halo takes ~0.5s, so cleanup after 2.5s to be safe
+  // 🔥 USER REQUEST: Extended duration to 4s for board transition to allow organic fade-out
   // 🔥 CRITICAL FIX: Check if cleanup timer already exists to prevent duplicates
   if ((smokeContainer as any)._cleanupTimer) {
     console.warn('⚠️ Smoke container already has cleanup timer, killing old one');
@@ -1161,11 +1202,77 @@ export function smokeBubblesAtCard(
     (smokeContainer as any)._cleanupTimer = null;
   }
   
-  const cleanupTimer = gsap.delayedCall(2.5, () => {
+  // 🔥 USER REQUEST: Check if this is first board transition smoke (needs extended life)
+  const isFirstBoardTransitionSmoke = (card as any)._isFirstBoardTransitionDigit === true;
+  const staggerDelay = 0.3; // Delay between first and second digit smoke
+  const extraDuration = isFirstBoardTransitionSmoke ? 2.5 : 0; // 🔥 USER REQUEST: 2.5s extra for first smoke (1.0s + 1.5s)
+  
+  // 🔥 USER REQUEST: Add fade-out animation before cleanup for organic transition
+  // Start fade-out at 3.2s (0.8s before cleanup at 4s) for smooth organic tail effect
+  // For first smoke, delay fade-out to start 1s AFTER second smoke starts (staggerDelay + 1s)
+  // This prevents opaque fade-out while second smoke is active
+  const fadeOutDelay = isFirstBoardTransitionSmoke ? staggerDelay + 1.0 : 0; // 1s after second smoke starts
+  const fadeOutTime = isFirstBoardTransitionSmoke ? 3.2 + fadeOutDelay : 3.2;
+  const fadeOutTimer = gsap.delayedCall(fadeOutTime, () => {
+    if (smokeContainer && smokeContainer.parentNode && !(smokeContainer as any)._cleanedUp) {
+      // 🔥 USER REQUEST: Slower, less opaque fade-out for first smoke
+      // Longer duration = less opaque fade, smoother transition
+      const fadeOutDuration = isFirstBoardTransitionSmoke ? 1.5 : 0.8; // Longer fade for first smoke
+      gsap.to(smokeContainer, {
+        opacity: 0,
+        duration: fadeOutDuration,
+        ease: 'power2.out',
+        onComplete: () => {
+          // Container is now invisible, cleanup will remove it
+        }
+      });
+    }
+  });
+  
+  // 🔥 USER REQUEST: Extended cleanup time for first smoke to overlap with second
+  const cleanupTime = isFirstBoardTransitionSmoke ? 4.0 + extraDuration : 4.0;
+  const cleanupTimer = gsap.delayedCall(cleanupTime, () => {
     try {
       // 🔥 CRITICAL FIX: Check if container was already cleaned up
       if (!smokeContainer || !smokeContainer.parentNode) {
         console.warn('⚠️ Smoke container already removed, skipping cleanup');
+        return;
+      }
+      
+      // 🔥 USER REQUEST: Prevent cleanup if this is first smoke and cleanup is prevented
+      if ((smokeContainer as any)._preventCleanup) {
+        console.log('⚠️ Smoke container cleanup prevented (first smoke extended life)');
+        // Reschedule cleanup for later
+        const retryCleanup = gsap.delayedCall(2.0, () => {
+          if (smokeContainer && smokeContainer.parentNode && !(smokeContainer as any)._cleanedUp) {
+            (smokeContainer as any)._preventCleanup = false; // Allow cleanup now
+            // Continue with normal cleanup
+            (smokeContainer as any)._cleanedUp = true;
+            gsap.killTweensOf(smokeContainer);
+            
+            const children = smokeContainer.querySelectorAll('*');
+            children.forEach(child => {
+              gsap.killTweensOf(child);
+              if (child.parentNode === smokeContainer) {
+                try {
+                  if ((child as HTMLElement).style && (child as HTMLElement).style.borderRadius === '50%') {
+                    domElementPool.release(child as HTMLElement);
+                  }
+                } catch {}
+              }
+            });
+            
+            if (smokeContainer.parentNode) {
+              smokeContainer.parentNode.removeChild(smokeContainer);
+            }
+            state.smokeContainers.delete(smokeContainer);
+            
+            if (card && (card as any)._smokeActive) {
+              (card as any)._smokeActive = false;
+            }
+          }
+        });
+        (smokeContainer as any)._cleanupTimer = retryCleanup;
         return;
       }
       
@@ -1176,7 +1283,15 @@ export function smokeBubblesAtCard(
       }
       (smokeContainer as any)._cleanedUp = true;
       
-      // Kill any remaining GSAP animations on container
+      // 🔥 USER REQUEST: Don't cleanup first smoke if it's marked for extended life
+      // This prevents first smoke from being killed when second smoke starts
+      if ((smokeContainer as any)._isFirstSmoke && (smokeContainer as any)._preventCleanup) {
+        console.log('⚠️ Smoke container cleanup prevented (first smoke extended life) - skipping cleanup');
+        // Don't remove from tracking set - keep it for later cleanup
+        return;
+      }
+      
+      // Kill any remaining GSAP animations on container (including fade-out)
       gsap.killTweensOf(smokeContainer);
       
       // Kill animations on all children and release smoke particles to pool
@@ -1215,17 +1330,29 @@ export function smokeBubblesAtCard(
       state.smokeContainers.delete(smokeContainer);
       
       // 🔥 CRITICAL FIX: Clear smoke active flag even on error
-      if (card && (card as any)._smokeActive) {
+      // 🔥 USER REQUEST: Don't clear flag if this is first smoke with extended life
+      if (card && (card as any)._smokeActive && !((smokeContainer as any)._isFirstSmoke && (smokeContainer as any)._preventCleanup)) {
         (card as any)._smokeActive = false;
       }
     } finally {
-      // Clear cleanup timer reference
-      (smokeContainer as any)._cleanupTimer = null;
+      // Clear cleanup timer reference only if not prevented
+      if (!((smokeContainer as any)._isFirstSmoke && (smokeContainer as any)._preventCleanup)) {
+        (smokeContainer as any)._cleanupTimer = null;
+      }
     }
   });
   
   // 🔥 MEMORY FIX: Store cleanup timer on container so it can be killed if needed
   (smokeContainer as any)._cleanupTimer = cleanupTimer;
+  (smokeContainer as any)._fadeOutTimer = fadeOutTimer; // Store fade-out timer for cleanup
+  
+  // 🔥 USER REQUEST: Mark first smoke container for extended life
+  if (isFirstBoardTransitionSmoke) {
+    (smokeContainer as any)._isFirstSmoke = true;
+    (smokeContainer as any)._preventCleanup = true;
+    (smokeContainer as any)._boardTransitionFirstSmoke = true;
+    console.log(`✅ journey-card-idle-bounce: Marked first board transition smoke for extended life (cleanup: ${cleanupTime}s, fade-out: ${fadeOutTime}s)`);
+  }
   
   // 🔥 CRITICAL FIX: Clear smoke active flag after a delay (in case cleanup fails)
   // This ensures the flag is cleared even if cleanup doesn't run
@@ -1233,7 +1360,7 @@ export function smokeBubblesAtCard(
     if (card && (card as any)._smokeActive) {
       (card as any)._smokeActive = false;
     }
-  }, 3000); // Clear after 3s (longer than cleanup delay of 2.5s)
+  }, 4500); // Clear after 4.5s (longer than cleanup delay of 4.0s)
 }
 
 export function updateJourneyCardList(container: HTMLElement | null): void {

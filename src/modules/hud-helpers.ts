@@ -2592,7 +2592,7 @@ function updateComboIcon(comboValue) {
     targetIconPath = './assets/hud/mega-combo-hud.png';
   } else if (comboValue >= 5) {
     targetIconType = 'extra';
-    targetIconPath = './assets/extra-combo-hud.png';
+    targetIconPath = './assets/hud/extra-combo-hud.png';
   } else {
     targetIconType = 'normal';
     targetIconPath = './assets/hud/combo-hud.png';

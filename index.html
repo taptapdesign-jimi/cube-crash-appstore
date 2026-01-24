@@ -326,8 +326,17 @@
         
         // Try iOS WebView message handler first
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticImpact) {
-          window.webkit.messageHandlers.hapticImpact.postMessage({ style: style });
-          console.log('📳 Haptic impact sent to iOS WebView:', style);
+          // 🔥 FIX: Wrap postMessage in Promise to catch async errors
+          Promise.resolve().then(() => {
+            window.webkit.messageHandlers.hapticImpact.postMessage({ style: style });
+            console.log('📳 Haptic impact sent to iOS WebView:', style);
+          }).catch((e) => {
+            // Silently ignore message channel errors (often from browser extensions)
+            if (e && e.message && e.message.includes('message channel')) {
+              return; // Ignore browser extension message channel errors
+            }
+            console.warn('⚠️ Haptic impact postMessage failed:', e);
+          });
           return;
         }
         
@@ -345,6 +354,10 @@
           console.log('📳 Haptic API not available on this device');
         }
       } catch (e) {
+        // Silently ignore message channel errors (often from browser extensions)
+        if (e && e.message && e.message.includes('message channel')) {
+          return;
+        }
         console.warn('⚠️ Haptic impact failed:', e);
       }
     };
@@ -359,8 +372,17 @@
         
         // Try iOS WebView message handler first
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticSelection) {
-          window.webkit.messageHandlers.hapticSelection.postMessage({});
-          console.log('📳 Haptic selection sent to iOS WebView');
+          // 🔥 FIX: Wrap postMessage in Promise to catch async errors
+          Promise.resolve().then(() => {
+            window.webkit.messageHandlers.hapticSelection.postMessage({});
+            console.log('📳 Haptic selection sent to iOS WebView');
+          }).catch((e) => {
+            // Silently ignore message channel errors (often from browser extensions)
+            if (e && e.message && e.message.includes('message channel')) {
+              return; // Ignore browser extension message channel errors
+            }
+            console.warn('⚠️ Haptic selection postMessage failed:', e);
+          });
           return;
         }
         
@@ -373,6 +395,10 @@
         
         console.log('📳 Haptic selection API not available on this device');
       } catch (e) {
+        // Silently ignore message channel errors (often from browser extensions)
+        if (e && e.message && e.message.includes('message channel')) {
+          return;
+        }
         console.warn('⚠️ Haptic selection failed:', e);
       }
     };
@@ -387,8 +413,17 @@
         
         // Try iOS WebView message handler first
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticNotification) {
-          window.webkit.messageHandlers.hapticNotification.postMessage({ style: type });
-          console.log('📳 Haptic notification sent to iOS WebView:', type);
+          // 🔥 FIX: Wrap postMessage in Promise to catch async errors
+          Promise.resolve().then(() => {
+            window.webkit.messageHandlers.hapticNotification.postMessage({ style: type });
+            console.log('📳 Haptic notification sent to iOS WebView:', type);
+          }).catch((e) => {
+            // Silently ignore message channel errors (often from browser extensions)
+            if (e && e.message && e.message.includes('message channel')) {
+              return; // Ignore browser extension message channel errors
+            }
+            console.warn('⚠️ Haptic notification postMessage failed:', e);
+          });
           return;
         }
         
@@ -402,6 +437,10 @@
         
         console.log('📳 Haptic notification API not available on this device');
       } catch (e) {
+        // Silently ignore message channel errors (often from browser extensions)
+        if (e && e.message && e.message.includes('message channel')) {
+          return;
+        }
         console.warn('⚠️ Haptic notification failed:', e);
       }
     };
@@ -410,6 +449,21 @@
     window.triggerHaptic = function() {
       window.triggerHapticImpact('medium');
     };
+    
+    // 🔥 FIX: Global handler to suppress browser extension message channel errors
+    window.addEventListener('unhandledrejection', function(event) {
+      const error = event.reason;
+      // Suppress common browser extension message channel errors
+      if (error && typeof error === 'object' && error.message) {
+        if (error.message.includes('message channel closed') || 
+            error.message.includes('message channel') ||
+            error.message.includes('asynchronous response')) {
+          event.preventDefault(); // Prevent error from showing in console
+          return;
+        }
+      }
+      // Let other unhandled rejections through
+    });
     
     // Expose saveSettings globally for ui-manager
     window.saveSettings = saveSettings;
