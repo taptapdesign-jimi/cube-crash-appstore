@@ -128,6 +128,10 @@ export function showPauseModal({ onUnpause, onRestart, onExit }: PauseModalOptio
 
   modal.addEventListener('pause-modal-action', handleAction);
   modal.addEventListener('pause-modal-close', handleClose);
+  
+  // 🔥 FIX: Store handlers for cleanup
+  (modal as any)._pauseModalActionHandler = handleAction;
+  (modal as any)._pauseModalCloseHandler = handleClose;
 
   // Animate in
   animateModalEntrance(modal);

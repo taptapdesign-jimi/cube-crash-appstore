@@ -1,6 +1,19 @@
 // Navigation Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 
+// 🔥 FIX: Track navigation timeouts for cleanup
+const activeNavTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
+
+/**
+ * Cleanup all navigation timeouts
+ */
+export function cleanupNavigationTimeouts(): void {
+  activeNavTimeouts.forEach(timeout => {
+    try { clearTimeout(timeout); } catch {}
+  });
+  activeNavTimeouts.clear();
+}
+
 export interface NavigationConfig {
   currentSlide?: number;
   onSlideChange?: (slideIndex: number) => void;
@@ -194,7 +207,12 @@ export function updateNavBadge(count: number, slideIndex: number = 1, opts: Upda
   const navButton = document.querySelector(`.independent-nav-button[data-slide="${slideIndex}"]`) as HTMLElement;
   if (!navButton) {
     console.warn(`⚠️ Nav button not found for slide ${slideIndex} - retrying in 100ms...`);
-    setTimeout(() => updateNavBadge(count, slideIndex, opts), 100);
+    // 🔥 FIX: Track timeout for cleanup
+    const retryTimeout = setTimeout(() => {
+      activeNavTimeouts.delete(retryTimeout);
+      updateNavBadge(count, slideIndex, opts);
+    }, 100);
+    activeNavTimeouts.add(retryTimeout);
     return;
   }
   
@@ -236,7 +254,10 @@ export function updateNavBadge(count: number, slideIndex: number = 1, opts: Upda
     }
 
     // ✅ SIMPLIFIED: Single timeout for exit animation check and removal
-    setTimeout(() => {
+    // 🔥 FIX: Track timeout for cleanup
+    const exitCheckTimeout = setTimeout(() => {
+      activeNavTimeouts.delete(exitCheckTimeout);
+      
       if (isExitAnimationActive()) {
         console.log(`⏳ ${slideName} badge removal deferred - exit animation now active`);
         return;
@@ -251,13 +272,17 @@ export function updateNavBadge(count: number, slideIndex: number = 1, opts: Upda
       badgeNow.classList.add('animate-exit');
 
       // Remove after animation completes
-      setTimeout(() => {
+      // 🔥 FIX: Track timeout for cleanup
+      const removeTimeout = setTimeout(() => {
+        activeNavTimeouts.delete(removeTimeout);
         const finalBadge = navButton.querySelector('.nav-badge');
         if (finalBadge && finalBadge.classList.contains('animate-exit')) {
           finalBadge.remove();
           console.log(`✅ ${slideName} badge removed after exit animation`);
         }
       }, 820); // matches exit animation duration
+      activeNavTimeouts.add(removeTimeout);
     }, 60); // small delay to check exit animation
+    activeNavTimeouts.add(exitCheckTimeout);
   }
 }

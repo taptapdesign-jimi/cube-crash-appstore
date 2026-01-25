@@ -3,6 +3,21 @@ import { logger } from '../core/logger.js';
 import { resetTileToNormalState } from './tile-state-utils.ts';
 // public/src/modules/level-flow.ts
 
+// 🔥 FIX: Track spawn timeouts for cleanup
+const activeSpawnTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
+
+/**
+ * Cleanup all spawn timeouts
+ * Call this when game ends or app is destroyed
+ */
+export function cleanupLevelFlowTimeouts(): void {
+  activeSpawnTimeouts.forEach(timeout => {
+    try { clearTimeout(timeout); } catch {}
+  });
+  activeSpawnTimeouts.clear();
+  console.log('✅ Level flow timeouts cleaned up');
+}
+
 // Type definitions
 interface Tile {
   locked: boolean;
@@ -122,7 +137,9 @@ export async function openLockedBounceParallel({
     
     // 🔥 CRITICAL: Use setTimeout to schedule spawn without blocking
     // This allows all tiles to be scheduled with delays, but animations run concurrently
-    setTimeout(() => {
+    // 🔥 FIX: Track timeout for cleanup
+    const timeout = setTimeout(() => {
+      activeSpawnTimeouts.delete(timeout);
       // 🔥 CRITICAL: Check if tile still exists and is not destroyed before spawning
       if (!t || t.destroyed || !t.scale) {
         console.warn('⚠️ Spawn skipped: tile is null, destroyed, or has no scale', { tile: t, destroyed: t?.destroyed, hasScale: !!t?.scale });
@@ -168,6 +185,7 @@ export async function openLockedBounceParallel({
       // Same as magnet merge spawn for consistent feel
       spawnBounce?.(t, () => {}, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, timeScale: 2.0 });
     }, delay);
+    activeSpawnTimeouts.add(timeout);
   }
   try { drawBoardBG?.(); } catch {}
 }

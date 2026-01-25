@@ -743,12 +743,16 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     
     // Clear preserved score flag after starting
     delete (window as any).__ccPreserveScore;
+  } catch (error) {
+    // 🔥 FIX: Catch any errors and ensure flag is cleared
+    console.error('❌ runEndgameFlow error:', error);
+    throw error; // Re-throw to propagate
   } finally {
     // vrati stanje
     try { if (boardBG) boardBG.visible = prevBG; } catch {}
     try { showGrid?.(); } catch {}
     stage.eventMode = prevMode;
-    // Clear flag
+    // Clear flag - 🔥 FIX: This ALWAYS runs now, even on error
     (window as any).CC._endgameFlowRunning = false;
   }
 }

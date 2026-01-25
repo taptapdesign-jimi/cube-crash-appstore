@@ -1029,6 +1029,16 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       // 🔓 Restore HUD interactivity immediately so hit areas keep working
       restoreHudInteractivity('drag close (touch)');
       
+      // 🔥 CRITICAL FIX: Unfreeze board and reset gamePaused IMMEDIATELY on drag close
+      // This allows dragging tiles immediately, not after 400ms
+      unfreezeGameAndHud('drag close immediate');
+      try {
+        resumeGame();
+        console.log('🔓 Game resumed immediately on drag close');
+      } catch (e) {
+        console.warn('⚠️ Failed to resume game on drag close:', e);
+      }
+      
       trackEndRunTimeout(() => hideModal(), 400);
     } else {
       console.log('🎯 SNAPPING BACK');
@@ -1115,6 +1125,16 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       // 🔓 Restore HUD interactivity immediately so hit areas keep working
       restoreHudInteractivity('drag close (mouse)');
       
+      // 🔥 CRITICAL FIX: Unfreeze board and reset gamePaused IMMEDIATELY on drag close
+      // This allows dragging tiles immediately, not after 400ms
+      unfreezeGameAndHud('drag close mouse immediate');
+      try {
+        resumeGame();
+        console.log('🔓 Game resumed immediately on mouse drag close');
+      } catch (e) {
+        console.warn('⚠️ Failed to resume game on mouse drag close:', e);
+      }
+      
       trackEndRunTimeout(() => hideModal(), 400);
     } else {
       console.log('🎯 SNAPPING BACK (mouse)');
@@ -1150,6 +1170,14 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
       // Don't close if clicking on overlay (it's part of modal structure)
       const target = e.target as HTMLElement;
       if (target.id !== 'end-run-overlay' && !target.closest('#end-run-overlay')) {
+        // 🔥 CRITICAL FIX: Resume game IMMEDIATELY on outside click (same as drag close)
+        unfreezeGameAndHud('outside click immediate');
+        try {
+          resumeGame();
+          console.log('🔓 Game resumed immediately on outside click');
+        } catch (err) {
+          console.warn('⚠️ Failed to resume game on outside click:', err);
+        }
         hideModal();
       }
     }
@@ -1160,6 +1188,14 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
     if (modalEl && modalEl.parentNode && e.target && !modalEl.contains(e.target as Node)) {
       const target = e.target as HTMLElement;
       if (target.id !== 'end-run-overlay' && !target.closest('#end-run-overlay')) {
+        // 🔥 CRITICAL FIX: Resume game IMMEDIATELY on outside touch (same as drag close)
+        unfreezeGameAndHud('outside touch immediate');
+        try {
+          resumeGame();
+          console.log('🔓 Game resumed immediately on outside touch');
+        } catch (err) {
+          console.warn('⚠️ Failed to resume game on outside touch:', err);
+        }
         hideModal();
       }
     }
@@ -1267,7 +1303,43 @@ export function hideModal(): void {
   
   // WAIT for animation to complete before resuming game
   trackEndRunTimeout(() => {
-    // 🔥 MEMORY LEAK FIX: Cleanup all resources before removing modal
+    // 🔥 CRITICAL FIX: Resume game FIRST before any cleanup
+    // This ensures GSAP timeline and PIXI ticker are restored before cleanup
+    console.log('🎯 Resuming game after End This Run modal closed');
+    safeResumeGame();
+    
+    // 🔥 USER REQUEST: Resume game to allow tile interactions
+    try {
+      resumeGame();
+      console.log('🔓 Game resumed (end-run modal closed)');
+    } catch (error) {
+      console.warn('⚠️ Failed to resume game:', error);
+    }
+    
+    // 🔥 FIX: Ensure PIXI ticker is running (backup in case resumeGame fails)
+    try {
+      const app = (window as any).STATE?.app;
+      if (app && app.ticker && !app.ticker.started) {
+        app.ticker.start();
+        console.log('🔓 PIXI ticker force-started (backup)');
+      }
+      // Also ensure GSAP timeline is resumed
+      if (gsap && gsap.globalTimeline && gsap.globalTimeline.paused()) {
+        gsap.globalTimeline.resume();
+        console.log('🔓 GSAP timeline force-resumed (backup)');
+      }
+    } catch (backupError) {
+      console.warn('⚠️ Backup resume failed:', backupError);
+    }
+    
+    // 🔥 CRITICAL FIX: Force reset gamePaused flag so drag-core.ts allows dragging again
+    // resumeGame() should have done this, but set window fallback just in case
+    (window as any)._gamePaused = false;
+    
+    // Unlock slider
+    safeUnlockSlider();
+    
+    // 🔥 MEMORY LEAK FIX: Cleanup all resources AFTER resuming game
     cleanupAllEndRunResources();
     
     // Remove modal from DOM
@@ -1300,24 +1372,6 @@ export function hideModal(): void {
     } else {
       console.log('📊 setTimeout callback - visibility already false (from drag handler)');
     }
-    
-    // CRITICAL: Resume game AFTER modal is completely removed
-    console.log('🎯 Resuming game after End This Run modal closed');
-    safeResumeGame();
-    
-    // 🔥 USER REQUEST: Resume game to allow tile interactions
-    try {
-      resumeGame();
-      console.log('🔓 Game resumed (end-run modal closed)');
-    } catch (error) {
-      console.warn('⚠️ Failed to resume game:', error);
-    }
-    
-    // 🔥 NOTE: Combo timer now uses setTimeout and works independently
-    // No need to kill/restart combo timer when bottom sheet closes
-    
-    // Unlock slider
-    safeUnlockSlider();
     
     console.log('✅ End Run modal cleanup complete - game resumed');
   }, 400);

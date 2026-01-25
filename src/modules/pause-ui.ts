@@ -343,6 +343,16 @@ export function cleanupEventHandlers(modal: HTMLElement, overlay: HTMLElement): 
     (modal as any)._hoverHandlersCleanup();
     delete (modal as any)._hoverHandlersCleanup;
   }
+  
+  // 🔥 FIX: Remove custom event handlers (pause-modal-action, pause-modal-close)
+  if ((modal as any)._pauseModalActionHandler) {
+    modal.removeEventListener('pause-modal-action', (modal as any)._pauseModalActionHandler);
+    delete (modal as any)._pauseModalActionHandler;
+  }
+  if ((modal as any)._pauseModalCloseHandler) {
+    modal.removeEventListener('pause-modal-close', (modal as any)._pauseModalCloseHandler);
+    delete (modal as any)._pauseModalCloseHandler;
+  }
 }
 
 // All functions are already exported individually above

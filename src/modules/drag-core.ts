@@ -183,12 +183,21 @@ export function initDrag(cfg) {
     try {
       const { container } = require('../core/dependency-injection.js');
       const gamePaused = container.get('gamePaused') as boolean;
-      if (gamePaused) {
+      // 🔥 FIX: Also check window fallback in case container.set failed
+      const windowPaused = (window as any)._gamePaused === true;
+      if (gamePaused && !windowPaused) {
+        // If container says paused but window says not paused, trust window (immediate resume)
+        console.log('🛡️ DRAG: Container says paused but window._gamePaused is false - allowing drag');
+      } else if (gamePaused) {
         console.log('🛡️ DRAG BLOCKED: Game is paused (bottom sheet is open)');
         return;
       }
     } catch (error) {
-      // If container doesn't exist, continue (game might not be initialized yet)
+      // If container doesn't exist, check window fallback
+      if ((window as any)._gamePaused === true) {
+        console.log('🛡️ DRAG BLOCKED: Game is paused (window fallback)');
+        return;
+      }
     }
     
     // 🔥 USER REQUEST: Also check if any bottom sheet is open in DOM
@@ -1487,5 +1496,30 @@ export function initDrag(cfg) {
       });
   }
 
-  return { bindToTile, clearHover, snapBack }; 
+  // 🔥 FIX: Add cleanup function to remove all listeners and clear intervals
+  // This should be called when app is destroyed to prevent memory leaks
+  function cleanup() {
+    // Clear sparkle interval if running
+    if (drag._sparkleInterval) {
+      clearInterval(drag._sparkleInterval);
+      drag._sparkleInterval = null;
+    }
+    
+    // Remove stage listeners if app still exists
+    try {
+      if (app && app.stage) {
+        app.stage.off('pointermove', onMove);
+        app.stage.off('pointerup', onUp);
+        app.stage.off('pointerupoutside', onUp);
+      }
+    } catch {}
+    
+    // Clear drag state
+    drag.t = null;
+    drag.hover = null;
+    
+    console.log('✅ Drag system cleaned up');
+  }
+
+  return { bindToTile, clearHover, snapBack, cleanup }; 
 }

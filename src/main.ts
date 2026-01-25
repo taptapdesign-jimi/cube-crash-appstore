@@ -1600,6 +1600,17 @@ async function startNewRun(boardId: number): Promise<void> {
       console.warn('⚠️ Failed to run cleanupGame:', error);
     }
     
+    // Step 4b: Clean up navigation control (MutationObserver)
+    try {
+      const { cleanupNavigationControl } = await import('./modules/navigation-control.js');
+      if (typeof cleanupNavigationControl === 'function') {
+        cleanupNavigationControl();
+        console.log('✅ Navigation control cleaned up');
+      }
+    } catch (navError) {
+      console.warn('⚠️ Failed to cleanup navigation control:', navError);
+    }
+    
     // Step 5: Clean up Journey Boards Manager (event listeners, animations)
     try {
       const collectiblesManager = (window as any).collectiblesManager;
