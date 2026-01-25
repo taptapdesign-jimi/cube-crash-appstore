@@ -1005,82 +1005,34 @@ class CollectiblesManager {
         });
       }
       
-      // Step 2h: Show navigation and ensure it's interactive
-      const navElement = document.getElementById('independent-nav');
-      if (navElement) {
-        // Remove any hidden state from inline styles
-        navElement.style.removeProperty('display');
-        navElement.style.removeProperty('visibility');
-        navElement.style.removeProperty('opacity');
-        navElement.style.removeProperty('pointer-events');
-        navElement.style.removeProperty('z-index');
-        // 🔥 CRITICAL: Explicitly make visible and on top
-        navElement.style.display = 'flex';
-        navElement.style.visibility = 'visible';
-        navElement.style.opacity = '1';
-        navElement.style.pointerEvents = 'auto';
-        navElement.style.zIndex = '100'; // Ensure it's above other content
-        navElement.setAttribute('aria-hidden', 'false');
-        navElement.removeAttribute('hidden');
-        logger.info('✅ Navigation container shown and enabled');
-      } else {
-        logger.warn('⚠️ Navigation element #independent-nav not found in DOM!');
-      }
-      
-      // 🔥 CRITICAL FIX: Ensure all navigation buttons are VISIBLE and clickable
-      // Must set display, visibility, opacity AND pointer-events on each button
-      const navButtons = document.querySelectorAll('.independent-nav-button');
-      navButtons.forEach((button) => {
-        const btn = button as HTMLElement;
-        // Remove any hidden state
-        btn.style.removeProperty('display');
-        btn.style.removeProperty('visibility');
-        btn.style.removeProperty('opacity');
-        btn.style.removeProperty('pointer-events');
-        // Explicitly make visible and interactive
-        btn.style.display = 'flex';
-        btn.style.visibility = 'visible';
-        btn.style.opacity = '1';
-        btn.style.pointerEvents = 'auto';
-        btn.style.cursor = 'pointer';
-      });
-      if (navButtons.length > 0) {
-        logger.info(`✅ ${navButtons.length} navigation buttons made VISIBLE and enabled`);
-      } else {
-        logger.warn('⚠️ No navigation buttons found in DOM!');
-      }
-      
-      // 🔥 NEW API: Ensure slider is ready for interaction
-      // Unlocks slider, ensures pointer events, refreshes element references
+      // Step 2h: Restore homepage UI state via centralized methods
+      // This ensures clean, non-duplicated code with single source of truth
       try {
         const sliderManager = (window as any).sliderManager;
+        const uiManager = (window as any).uiManager;
+        
+        // 1. Ensure slider is ready for interaction
         if (sliderManager && typeof sliderManager.ensureReady === 'function') {
           sliderManager.ensureReady();
-          console.log('✅ SliderManager.ensureReady() called - slider ready for interaction');
-        } else {
-          // Fallback: Manual unlock
-          console.warn('⚠️ SliderManager.ensureReady not available, using fallback');
-          if (typeof (window as any).unlockSlider === 'function') {
-            (window as any).unlockSlider();
-          }
+          logger.info('✅ SliderManager.ensureReady() called');
+        } else if (typeof (window as any).unlockSlider === 'function') {
+          (window as any).unlockSlider();
+          logger.info('✅ Slider unlocked via fallback');
         }
         
-        // Reattach CTA button event listeners (Play, Journey buttons)
-        const uiManager = (window as any).uiManager;
-        if (uiManager) {
-          // 🔥 CRITICAL FIX: Correct method name is reattachHomepageButtonListeners
-          if (typeof uiManager.reattachHomepageButtonListeners === 'function') {
-            uiManager.reattachHomepageButtonListeners();
-            console.log('✅ UI Manager homepage button listeners reattached - CTA buttons ready');
-          }
-          // 🔥 CRITICAL: Call showNavigation via UI Manager to ensure proper visibility
-          if (typeof uiManager.showNavigation === 'function') {
-            uiManager.showNavigation();
-            console.log('✅ uiManager.showNavigation() called - navigation should be visible');
-          }
+        // 2. Show navigation (includes buttons) via UI Manager
+        if (uiManager && typeof uiManager.showNavigation === 'function') {
+          uiManager.showNavigation();
+          logger.info('✅ Navigation shown via uiManager');
+        }
+        
+        // 3. Reattach CTA button event listeners (Play, Journey, etc.)
+        if (uiManager && typeof uiManager.reattachHomepageButtonListeners === 'function') {
+          uiManager.reattachHomepageButtonListeners();
+          logger.info('✅ Homepage button listeners reattached');
         }
       } catch (error) {
-        console.warn('⚠️ Failed to ensure slider ready:', error);
+        logger.warn('⚠️ Failed to restore homepage UI state:', error);
       }
       
       // Step 2i: Force DOM reflow to ensure .active class is applied

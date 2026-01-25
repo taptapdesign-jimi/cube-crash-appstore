@@ -8413,6 +8413,14 @@ export function cleanupGame() {
     console.warn('⚠️ Failed to cleanup hearts system:', e);
   }
   
+  // 🔥 FIX: Cleanup level flow timeouts
+  try {
+    FLOW.cleanupLevelFlowTimeouts();
+    console.log('✅ Level flow timeouts cleaned up in cleanupGame()');
+  } catch (e) {
+    console.warn('⚠️ Failed to cleanup level flow timeouts:', e);
+  }
+  
   if (grid) {
     createEmptyGrid();
   }

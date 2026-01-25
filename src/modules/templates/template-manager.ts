@@ -363,6 +363,49 @@ export function resetPatternCounters(): void {
   console.log('🔄 Pattern counters reset');
 }
 
+/**
+ * 🔥 FIX: Cleanup pattern pools to prevent memory leaks
+ * Call this when switching templates or during app cleanup
+ * @param templateName - Optional: cleanup only pools for this template
+ */
+export function cleanupTemplatePools(templateName?: string): void {
+  if (templateName) {
+    // Clean up pools for a specific template
+    const keysToDelete: string[] = [];
+    patternPools.forEach((pool, key) => {
+      if (key.startsWith(`${templateName}:`)) {
+        try {
+          if (pool && typeof pool.clear === 'function') {
+            pool.clear();
+          }
+        } catch (e) {
+          console.warn(`⚠️ Failed to clear pool ${key}:`, e);
+        }
+        keysToDelete.push(key);
+      }
+    });
+    keysToDelete.forEach(key => {
+      patternPools.delete(key);
+      patternCounters.delete(key);
+    });
+    console.log(`✅ Template pools cleaned up for: ${templateName} (${keysToDelete.length} pools)`);
+  } else {
+    // Clean up all pools
+    patternPools.forEach((pool, key) => {
+      try {
+        if (pool && typeof pool.clear === 'function') {
+          pool.clear();
+        }
+      } catch (e) {
+        console.warn(`⚠️ Failed to clear pool ${key}:`, e);
+      }
+    });
+    patternPools.clear();
+    patternCounters.clear();
+    console.log('✅ All template pools cleaned up');
+  }
+}
+
 // 🚀 Initialize with wooden template as default
 registerTemplate('wooden', woodenTemplate as Template);
 setActiveTemplate('wooden');

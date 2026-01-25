@@ -28,6 +28,9 @@ class UIService implements UIServiceInterface {
     onHighScore: ((score: number) => void) | null;
   } = { onShowHomepage: null, onHideHomepage: null, onShowLoading: null, onHideLoading: null, onScoreUpdate: null, onHighScore: null };
 
+  // 🔥 FIX: Track DOM event listeners for cleanup
+  private modalCloseListeners: Map<Element, () => void> = new Map();
+
   constructor() {
     this.setupEventListeners();
   }
@@ -85,16 +88,32 @@ class UIService implements UIServiceInterface {
   }
 
   private setupModals(): void {
+    // 🔥 FIX: Clear any existing listeners before adding new ones
+    this.cleanupModalListeners();
+    
     // Setup modal event listeners
     const modals = document.querySelectorAll('.modal');
     modals.forEach(modal => {
       const closeButton = modal.querySelector('.close-button');
       if (closeButton) {
-        closeButton.addEventListener('click', () => {
-          this.hideModal(modal.id);
-        });
+        const handler = () => this.hideModal(modal.id);
+        closeButton.addEventListener('click', handler);
+        // 🔥 FIX: Track listener for cleanup
+        this.modalCloseListeners.set(closeButton, handler);
       }
     });
+  }
+
+  // 🔥 FIX: Cleanup modal close button listeners
+  private cleanupModalListeners(): void {
+    this.modalCloseListeners.forEach((handler, element) => {
+      try {
+        element.removeEventListener('click', handler);
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    });
+    this.modalCloseListeners.clear();
   }
 
   private setupScoreDisplay(): void {
@@ -197,6 +216,9 @@ class UIService implements UIServiceInterface {
   destroy(): void {
     this.isInitialized = false;
     
+    // 🔥 FIX: Cleanup DOM listeners first
+    this.cleanupModalListeners();
+    
     // 🔥 FIX: Remove only this service's listeners, not all eventBus listeners
     if (this.boundListeners.onShowHomepage) {
       eventBus.off(EVENTS.UI_SHOW_HOMEPAGE, this.boundListeners.onShowHomepage);
@@ -217,6 +239,8 @@ class UIService implements UIServiceInterface {
       eventBus.off(EVENTS.SCORE_HIGH_SCORE, this.boundListeners.onHighScore);
     }
     this.boundListeners = { onShowHomepage: null, onHideHomepage: null, onShowLoading: null, onHideLoading: null, onScoreUpdate: null, onHighScore: null };
+    
+    logger.info('✅ UI Service destroyed');
   }
 }
 

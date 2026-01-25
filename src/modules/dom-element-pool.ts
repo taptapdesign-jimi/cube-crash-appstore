@@ -12,6 +12,7 @@ import { gsap } from 'gsap';
  */
 class DOMElementPool {
   private pool: HTMLElement[] = [];
+  private inPool: WeakSet<HTMLElement> = new WeakSet(); // 🔥 FIX: Track elements in pool to prevent double-release
   private maxSize: number = 100; // Max pool size
   private created: number = 0;
   private reused: number = 0;
@@ -30,7 +31,8 @@ class DOMElementPool {
       el = document.createElement(tagName) as HTMLElement;
       this.created++;
     } else {
-      // Reusing from pool
+      // Reusing from pool - remove from tracking
+      this.inPool.delete(el);
       this.reused++;
     }
     
@@ -47,6 +49,12 @@ class DOMElementPool {
    */
   release(el: HTMLElement): void {
     if (!el) return;
+    
+    // 🔥 FIX: Prevent double-release
+    if (this.inPool.has(el)) {
+      console.warn('⚠️ DOMElementPool: Attempted double-release of element, ignoring');
+      return;
+    }
 
     // 🔥 CRITICAL: Kill all GSAP animations before releasing
     try {
@@ -74,6 +82,7 @@ class DOMElementPool {
     // Return to pool if we haven't reached max size
     if (this.pool.length < this.maxSize) {
       this.pool.push(el);
+      this.inPool.add(el); // 🔥 FIX: Track element in pool
     }
     // If pool is full, element will be garbage collected
   }
@@ -149,6 +158,7 @@ class DOMElementPool {
       }
     }
     this.pool = [];
+    this.inPool = new WeakSet(); // 🔥 FIX: Reset tracking (WeakSets can't be cleared)
     this.created = 0;
     this.reused = 0;
   }
