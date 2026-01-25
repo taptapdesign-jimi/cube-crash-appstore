@@ -4068,37 +4068,47 @@ class JourneyBoardsManager {
           logger.info(`🎮 Board ${boardIdForPlay} saved state exists: ${hasSavedState}`);
           
           try {
-            if (hasSavedState) {
-              // Case A: Board has save state → CONTINUE (resume where left off)
-              console.log(`🎮 Board ${boardIdForPlay} has saved state - will CONTINUE (resume)`);
-              logger.info(`🎮 Resuming saved game for board ${boardIdForPlay}`);
-              
-              // Set flag to resume at correct board
-              (window as any).__ccStartAtLevel = boardIdForPlay;
-              (window as any).__ccTriggerHudDrop = true;
-              
-              // Call continueGameWithSavedState to resume
-              if (typeof (window as any).continueGameWithSavedState === 'function') {
-                await (window as any).continueGameWithSavedState();
-                console.log(`✅ continueGameWithSavedState call completed for board ${boardIdForPlay}`);
-              } else {
-                console.error('❌ continueGameWithSavedState function NOT FOUND on window object!');
-                logger.error('❌ continueGameWithSavedState function not found');
+            // 🔥 USER REQUEST: Show board transition screen before starting/continuing game
+            // Import board transition screen module
+            const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
+            console.log(`🎬 Showing board transition screen for board ${boardIdForPlay}`);
+            
+            await showBoardTransitionScreen({
+              boardNumber: boardIdForPlay,
+              onComplete: async () => {
+                if (hasSavedState) {
+                  // Case A: Board has save state → CONTINUE (resume where left off)
+                  console.log(`🎮 Board ${boardIdForPlay} has saved state - will CONTINUE (resume)`);
+                  logger.info(`🎮 Resuming saved game for board ${boardIdForPlay}`);
+                  
+                  // Set flag to resume at correct board
+                  (window as any).__ccStartAtLevel = boardIdForPlay;
+                  (window as any).__ccTriggerHudDrop = true;
+                  
+                  // Call continueGameWithSavedState to resume
+                  if (typeof (window as any).continueGameWithSavedState === 'function') {
+                    await (window as any).continueGameWithSavedState();
+                    console.log(`✅ continueGameWithSavedState call completed for board ${boardIdForPlay}`);
+                  } else {
+                    console.error('❌ continueGameWithSavedState function NOT FOUND on window object!');
+                    logger.error('❌ continueGameWithSavedState function not found');
+                  }
+                } else {
+                  // Case B: Board has NO save state → START FRESH (new game)
+                  console.log(`🎮 Board ${boardIdForPlay} has NO saved state - will START FRESH (new game)`);
+                  logger.info(`🎮 Starting fresh game for board ${boardIdForPlay}`);
+                  
+                  // Call startNewRunFromJourney to create fresh board
+                  if (typeof (window as any).startNewRunFromJourney === 'function') {
+                    await (window as any).startNewRunFromJourney(boardIdForPlay);
+                    console.log(`✅ startNewRunFromJourney call completed for board ${boardIdForPlay}`);
+                  } else {
+                    console.error('❌ startNewRunFromJourney function NOT FOUND on window object!');
+                    logger.error('❌ startNewRunFromJourney function not found');
+                  }
+                }
               }
-            } else {
-              // Case B: Board has NO save state → START FRESH (new game)
-              console.log(`🎮 Board ${boardIdForPlay} has NO saved state - will START FRESH (new game)`);
-              logger.info(`🎮 Starting fresh game for board ${boardIdForPlay}`);
-              
-              // Call startNewRunFromJourney to create fresh board
-              if (typeof (window as any).startNewRunFromJourney === 'function') {
-              await (window as any).startNewRunFromJourney(boardIdForPlay);
-              console.log(`✅ startNewRunFromJourney call completed for board ${boardIdForPlay}`);
-          } else {
-            console.error('❌ startNewRunFromJourney function NOT FOUND on window object!');
-                logger.error('❌ startNewRunFromJourney function not found');
-              }
-            }
+            });
           } catch (error) {
             console.error(`❌ Error starting/continuing game for board ${boardIdForPlay}:`, error);
             logger.error(`❌ Error starting/continuing game for board ${boardIdForPlay}:`, error);
