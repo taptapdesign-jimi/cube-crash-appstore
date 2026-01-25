@@ -299,13 +299,7 @@
   position: relative;
 }
 
-.slider-nav {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 32px;
-}
-
+/* 🔥 FIX: Merged duplicate .slider-nav rules */
 .slider-nav {
   display: flex;
   align-items: flex-end;

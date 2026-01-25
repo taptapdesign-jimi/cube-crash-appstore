@@ -5,50 +5,50 @@ import { gsap } from 'gsap';
 import gameState from './game-state.js';
 import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
+import { SLIDER_ANIMATION, SLIDER_CONFIG } from '../constants/animations.js';
 
 // Type definitions
 interface SliderElements {
   container: HTMLElement | null;
   wrapper: HTMLElement | null;
-  slides: NodeListOf<Element>;
-  dots: NodeListOf<Element>;
+  slides: NodeListOf<Element> | null;  // 🔥 FIX: Allow null to prevent empty object hack
+  dots: NodeListOf<Element> | null;    // 🔥 FIX: Allow null to prevent empty object hack
   divider: Element | null;
 }
 
-interface TouchEvent extends Event {
-  touches: TouchList;
-}
-
-interface MouseEvent extends Event {
-  clientX: number;
-}
+// 🔥 FIX: Use native browser types instead of shadowing them
+type SliderTouchEvent = globalThis.TouchEvent;
+type SliderMouseEvent = globalThis.MouseEvent;
 
 class SliderManager {
   private currentSlide: number = 0;
-  private totalSlides: number = 4;
+  private totalSlides: number = SLIDER_CONFIG.TOTAL_SLIDES;
   private isDragging: boolean = false;
   private startX: number = 0;
   private currentX: number = 0;
-  private threshold: number = 100; // 🔥 FIX: Increased threshold to ensure full slide movement (was 50px, now 100px)
+  private threshold: number = SLIDER_CONFIG.DRAG_THRESHOLD_PX;
   private isInitialized: boolean = false;
   private slideAnimation: gsap.core.Tween | null = null;
   private quickSetX: ((value: number) => void) | null = null;
   private elements: SliderElements = {
     container: null,
     wrapper: null,
-    slides: {} as NodeListOf<Element>,
-    dots: {} as NodeListOf<Element>,
+    slides: null,  // 🔥 FIX: Use null instead of empty object hack
+    dots: null,    // 🔥 FIX: Use null instead of empty object hack
     divider: null
   };
+  
+  // 🔥 FIX: Track active intervals for proper cleanup
+  private activeIntervals: Set<ReturnType<typeof setInterval>> = new Set();
 
   // 🔥 MEMORY LEAK FIX: Store bound event handlers and unsubscribe functions for cleanup
   private boundHandlers: {
-    touchStart?: (e: TouchEvent) => void;
-    touchMove?: (e: TouchEvent) => void;
-    touchEnd?: (e: TouchEvent) => void;
-    mouseDown?: (e: MouseEvent) => void;
-    mouseMove?: (e: MouseEvent) => void;
-    mouseUp?: (e: MouseEvent) => void;
+    touchStart?: (e: SliderTouchEvent) => void;
+    touchMove?: (e: SliderTouchEvent) => void;
+    touchEnd?: (e: SliderTouchEvent) => void;
+    mouseDown?: (e: SliderMouseEvent) => void;
+    mouseMove?: (e: SliderMouseEvent) => void;
+    mouseUp?: (e: SliderMouseEvent) => void;
     dotClick?: Map<Element, (e: Event) => void>;
     navButtonClick?: Map<Element, (e: Event) => void>;
   } = {};
@@ -56,18 +56,18 @@ class SliderManager {
 
   constructor() {
     this.currentSlide = 0;
-    this.totalSlides = 4;
+    this.totalSlides = SLIDER_CONFIG.TOTAL_SLIDES;
     this.isDragging = false;
     this.startX = 0;
     this.currentX = 0;
-    this.threshold = 50;
+    this.threshold = SLIDER_CONFIG.DRAG_THRESHOLD_PX;
     this.isInitialized = false;
     
     this.elements = {
       container: null,
       wrapper: null,
-      slides: {} as NodeListOf<Element>,
-      dots: {} as NodeListOf<Element>,
+      slides: null,  // 🔥 FIX: Use null instead of empty object hack
+      dots: null,    // 🔥 FIX: Use null instead of empty object hack
       divider: null
     };
   }
@@ -144,9 +144,9 @@ class SliderManager {
       this.elements.container.addEventListener('mouseleave', this.boundHandlers.mouseUp);
     }
     
-    // Navigation dots
+    // Navigation dots - 🔥 FIX: Simple null check
     this.boundHandlers.dotClick = new Map();
-    if (this.elements.dots && typeof this.elements.dots.forEach === 'function') {
+    if (this.elements.dots && this.elements.dots.length > 0) {
       this.elements.dots.forEach((dot, index) => {
         const handler = () => {
           // Light haptic for nav dots
@@ -194,7 +194,7 @@ class SliderManager {
   }
   
   // Handle touch start
-  private handleTouchStart(event: TouchEvent): void {
+  private handleTouchStart(event: SliderTouchEvent): void {
     if (gameState.get('sliderLocked')) return;
     
     this.isDragging = true;
@@ -210,7 +210,7 @@ class SliderManager {
   }
   
   // Handle touch move
-  private handleTouchMove(event: TouchEvent): void {
+  private handleTouchMove(event: SliderTouchEvent): void {
     if (!this.isDragging || gameState.get('sliderLocked')) return;
     
     const touch = event.touches[0];
@@ -223,7 +223,7 @@ class SliderManager {
   }
   
   // Handle touch end
-  private handleTouchEnd(event: TouchEvent): void {
+  private handleTouchEnd(event: SliderTouchEvent): void {
     if (!this.isDragging) return;
     
     this.isDragging = false;
@@ -248,7 +248,7 @@ class SliderManager {
   }
   
   // Handle mouse down
-  private handleMouseDown(event: MouseEvent): void {
+  private handleMouseDown(event: SliderMouseEvent): void {
     if (gameState.get('sliderLocked')) return;
     
     this.isDragging = true;
@@ -262,7 +262,7 @@ class SliderManager {
   }
   
   // Handle mouse move
-  private handleMouseMove(event: MouseEvent): void {
+  private handleMouseMove(event: SliderMouseEvent): void {
     if (!this.isDragging || gameState.get('sliderLocked')) return;
     
     this.currentX = event.clientX;
@@ -273,7 +273,7 @@ class SliderManager {
   }
   
   // Handle mouse up
-  private handleMouseUp(event: MouseEvent): void {
+  private handleMouseUp(event: SliderMouseEvent): void {
     if (!this.isDragging) return;
     
     this.isDragging = false;
@@ -304,21 +304,21 @@ class SliderManager {
     const slideWidth = this.elements.container.offsetWidth;
     const baseOffset = -this.currentSlide * slideWidth;
     
-    // iOS SAFETY: Elastic bounce at edges (slide 0 and slide 3)
-    const maxDragDistance = slideWidth * 0.03; // 3% elastic limit
+    // iOS SAFETY: Elastic bounce at edges (first and last slide)
+    const maxDragDistance = slideWidth * SLIDER_CONFIG.ELASTIC_LIMIT_MULTIPLIER;
     
     let currentOffset = baseOffset + deltaX;
     
-    // Slide 0 (first): Prevent dragging right (positive deltaX)
+    // First slide: Prevent dragging right (positive deltaX)
     if (this.currentSlide === 0 && deltaX > 0) {
-      // Elastic resistance: reduce movement by 90%
-      currentOffset = baseOffset + (deltaX * 0.1);
+      // Elastic resistance: reduce movement significantly at edge
+      currentOffset = baseOffset + (deltaX * SLIDER_CONFIG.ELASTIC_RESISTANCE);
     }
     
-    // Slide 3 (last): Prevent dragging left (negative deltaX)
+    // Last slide: Prevent dragging left (negative deltaX)
     if (this.currentSlide === this.totalSlides - 1 && deltaX < 0) {
-      // Elastic resistance: reduce movement by 90%
-      currentOffset = baseOffset + (deltaX * 0.1);
+      // Elastic resistance: reduce movement significantly at edge
+      currentOffset = baseOffset + (deltaX * SLIDER_CONFIG.ELASTIC_RESISTANCE);
     }
     
     // 🔥 SMOOTH: Use GSAP quickSetter for smooth drag updates (already optimized for 60fps)
@@ -344,41 +344,43 @@ class SliderManager {
     }
     
     // 🔥 CRITICAL MOBILE FIX: Prevent instant slide change if enter animation is still running
-    // This prevents slider from jumping instantly when user clicks nav button too quickly after preload
     if ((window as any).__ccIsAnimatingSliderEnter === true) {
       logger.info(`⏳ Slider enter animation still running, queuing slide change to ${slideIndex}...`);
-      // Queue the slide change to happen after animation completes
-      // 🔥 CRITICAL FIX: Use polling to wait for enter animation to ACTUALLY complete (770ms total)
-      // Don't use fixed 650ms timeout - wait until flag is actually false
+      
+      // 🔥 FIX: Track interval for proper cleanup - use constants
       const checkInterval = setInterval(() => {
         if ((window as any).__ccIsAnimatingSliderEnter === false) {
           clearInterval(checkInterval);
-          // 🔥 CRITICAL: Add small delay to ensure enter animation cleanup is complete
+          this.activeIntervals.delete(checkInterval);
+          
           setTimeout(() => {
             if (slideIndex >= 0 && slideIndex < this.totalSlides) {
               this.currentSlide = slideIndex;
               gameState.set('currentSlide', slideIndex);
-              // 🔥 CRITICAL: Call updateSlider with forceAnimate=true for smooth GSAP transition
-              // This ensures queued slides animate smoothly instead of instant jump
-              this.updateSlider(true); // forceAnimate = true
+              this.updateSlider(true);
               logger.info(`✅ Queued slide change to ${slideIndex} completed with smooth animation`);
             }
-          }, 50); // Small delay to ensure enter animation cleanup is complete
+          }, SLIDER_ANIMATION.ANIMATION_CHECK_INTERVAL);
         }
-      }, 50); // Check every 50ms
+      }, SLIDER_ANIMATION.ANIMATION_CHECK_INTERVAL);
       
-      // 🔥 SAFETY: Fallback timeout in case flag never resets (shouldn't happen, but safety first)
+      this.activeIntervals.add(checkInterval);
+      
+      // Fallback timeout using constant
       setTimeout(() => {
-        clearInterval(checkInterval);
+        if (this.activeIntervals.has(checkInterval)) {
+          clearInterval(checkInterval);
+          this.activeIntervals.delete(checkInterval);
+        }
         if ((window as any).__ccIsAnimatingSliderEnter === true) {
-          logger.warn('⚠️ Enter animation flag still true after 800ms - forcing slide change');
+          logger.warn(`⚠️ Enter animation flag still true after ${SLIDER_ANIMATION.FALLBACK_TIMEOUT}ms - forcing slide change`);
         }
         if (slideIndex >= 0 && slideIndex < this.totalSlides) {
           this.currentSlide = slideIndex;
           gameState.set('currentSlide', slideIndex);
           this.updateSlider(true);
         }
-      }, 800); // Fallback: 800ms (slightly longer than 770ms enter animation)
+      }, SLIDER_ANIMATION.FALLBACK_TIMEOUT);
       
       return;
     }
@@ -386,9 +388,7 @@ class SliderManager {
     if (slideIndex >= 0 && slideIndex < this.totalSlides) {
       this.currentSlide = slideIndex;
       gameState.set('currentSlide', slideIndex);
-      // 🔥 USER REQUEST FIX: Force animation when going to slide via dot/button click
-      // This prevents instant jumps and ensures smooth GSAP animation ALWAYS plays
-      this.updateSlider(true); // forceAnimate = true
+      this.updateSlider(true);
     }
   }
   
@@ -445,7 +445,7 @@ class SliderManager {
       // This ensures nav button clicks ALWAYS trigger smooth animation, even if positions appear identical
       // Nav buttons should ALWAYS animate for premium UX, never instant jump
       // 🔥 CRITICAL: forceAnimate takes precedence - if true, animate regardless of position difference
-      const shouldAnimate = forceAnimate || Math.abs(currentX - offset) > 0.5;
+      const shouldAnimate = forceAnimate || Math.abs(currentX - offset) > SLIDER_CONFIG.POSITION_DIFF_THRESHOLD;
       
       if (shouldAnimate) {
         logger.info(`🎬 Animating slider: currentX=${currentX} → offset=${offset}, forceAnimate=${forceAnimate}, difference=${Math.abs(currentX - offset)}`);
@@ -457,8 +457,8 @@ class SliderManager {
           // 'auto' only overwrites conflicting properties, not all animations
           this.slideAnimation = gsap.to(this.elements.wrapper, {
             x: offset,
-            duration: 0.4, // Slightly faster for responsiveness
-            ease: 'power2.out', // Smooth, fluid easing (no bounce/jerk)
+            duration: SLIDER_CONFIG.SLIDE_DURATION_S,
+            ease: SLIDER_CONFIG.SLIDE_EASING,
             force3D: true, // GPU acceleration
             overwrite: 'auto', // 🔥 FIX: 'auto' instead of true - prevents killing animation before it starts
           onStart: () => {
@@ -497,8 +497,8 @@ class SliderManager {
       }
     }
     
-    // Update dots
-    if (this.elements.dots && typeof this.elements.dots.forEach === 'function') {
+    // Update dots - 🔥 FIX: Simple null check
+    if (this.elements.dots && this.elements.dots.length > 0) {
       this.elements.dots.forEach((dot, index) => {
         dot.classList.toggle('active', index === this.currentSlide);
       });
@@ -521,9 +521,9 @@ class SliderManager {
         
         // Get current GSAP values (if animated) or computed style values
         // Use GSAP getProperty first to get animated values, fallback to computed style
-        const currentWidth = (gsap.getProperty(navButton, 'width') as number) || parseFloat(getComputedStyle(navButton).width) || 48;
-        const currentHeight = (gsap.getProperty(navButton, 'height') as number) || parseFloat(getComputedStyle(navButton).height) || 48;
-        const currentImageY = navImage ? ((gsap.getProperty(navImage, 'y') as number) || 0) : 0;
+        const currentWidth = (gsap.getProperty(navButton, 'width') as number) || parseFloat(getComputedStyle(navButton).width) || SLIDER_CONFIG.NAV_BUTTON_INACTIVE_SIZE;
+        const currentHeight = (gsap.getProperty(navButton, 'height') as number) || parseFloat(getComputedStyle(navButton).height) || SLIDER_CONFIG.NAV_BUTTON_INACTIVE_SIZE;
+        const currentImageY = navImage ? ((gsap.getProperty(navImage, 'y') as number) || SLIDER_CONFIG.NAV_IMAGE_INACTIVE_Y) : SLIDER_CONFIG.NAV_IMAGE_INACTIVE_Y;
         
         // Set class immediately - CSS will handle marginTop positioning (no inline styles)
         if (isActive) {
@@ -541,36 +541,36 @@ class SliderManager {
         if (isActive) {
           // Animate to active state - smooth ease-in ease-out from current position
           gsap.to(navButton, {
-            width: 72, // 🔥 FIX: Active size reduced from 80px to 72px
-            height: 72, // 🔥 FIX: Active size reduced from 80px to 72px
+            width: SLIDER_CONFIG.NAV_BUTTON_ACTIVE_SIZE,
+            height: SLIDER_CONFIG.NAV_BUTTON_ACTIVE_SIZE,
             // marginTop is handled by CSS (.independent-nav-button.active)
-            duration: 0.1,
-            ease: 'power2.inOut',
+            duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
+            ease: SLIDER_CONFIG.NAV_BUTTON_EASING,
             force3D: true
           });
           if (navImage) {
             gsap.to(navImage, {
-              y: -12,
-              duration: 0.1,
-              ease: 'power2.inOut',
+              y: SLIDER_CONFIG.NAV_IMAGE_ACTIVE_Y,
+              duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
+              ease: SLIDER_CONFIG.NAV_BUTTON_EASING,
               force3D: true
             });
           }
         } else {
           // Animate to inactive state - smooth ease-in ease-out from current position
           gsap.to(navButton, {
-            width: 48,
-            height: 48,
+            width: SLIDER_CONFIG.NAV_BUTTON_INACTIVE_SIZE,
+            height: SLIDER_CONFIG.NAV_BUTTON_INACTIVE_SIZE,
             // marginTop is handled by CSS (.independent-nav-button)
-            duration: 0.1,
-            ease: 'power2.inOut',
+            duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
+            ease: SLIDER_CONFIG.NAV_BUTTON_EASING,
             force3D: true
           });
           if (navImage) {
             gsap.to(navImage, {
-              y: 0,
-              duration: 0.1,
-              ease: 'power2.inOut',
+              y: SLIDER_CONFIG.NAV_IMAGE_INACTIVE_Y,
+              duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
+              ease: SLIDER_CONFIG.NAV_BUTTON_EASING,
               force3D: true
             });
           }
@@ -578,14 +578,13 @@ class SliderManager {
       });
     });
     
-    // Update slides
-    // 🔥 CRITICAL FIX: Check if slides is NodeList/Array before calling forEach
-    if (this.elements.slides && typeof this.elements.slides.forEach === 'function') {
+    // Update slides - 🔥 FIX: Simple null check
+    if (this.elements.slides && this.elements.slides.length > 0) {
       this.elements.slides.forEach((slide, index) => {
         slide.classList.toggle('active', index === this.currentSlide);
       });
     } else {
-      logger.warn('⚠️ this.elements.slides is not iterable in updateSlider - cannot update slide classes');
+      logger.warn('⚠️ this.elements.slides is null or empty in updateSlider');
     }
   }
   
@@ -599,6 +598,11 @@ class SliderManager {
   // Get current slide
   getCurrentSlide(): number {
     return this.currentSlide;
+  }
+  
+  // 🔥 NEW API: Check if slider is initialized (public getter for external checks)
+  get isSliderInitialized(): boolean {
+    return this.isInitialized;
   }
   
   // Set current slide
@@ -617,10 +621,18 @@ class SliderManager {
       return;
     }
     
-    // 🔥 CRITICAL FIX: Check if elements are initialized before using forEach
-    if (!this.elements || !this.elements.slides) {
-      logger.warn('⚠️ Slider elements not initialized - cannot set slide instant');
-      return;
+    // 🔥 CRITICAL FIX: Check for null (not empty object) - this is now properly null after destroy()
+    const slidesInvalid = !this.elements.slides || this.elements.slides.length === 0;
+    const dotsInvalid = !this.elements.dots || this.elements.dots.length === 0;
+    
+    if (!this.isInitialized || slidesInvalid || dotsInvalid) {
+      logger.warn('⚠️ Slider not properly initialized in setSlideInstant - calling ensureReady()');
+      this.ensureReady();
+      
+      // Re-check after ensureReady
+      if (!this.elements.slides || this.elements.slides.length === 0) {
+        logger.warn('⚠️ Slider elements still not valid after ensureReady - continuing with graceful degradation');
+      }
     }
     
     logger.info(`🎯 setSlideInstant: Setting slide to ${slideIndex} (atomic update)`);
@@ -646,8 +658,8 @@ class SliderManager {
     }
     
     // 4. Update CSS .active classes on slides
-    // 🔥 CRITICAL FIX: Check if slides is NodeList/Array before calling forEach
-    if (this.elements.slides && typeof this.elements.slides.forEach === 'function') {
+    // 🔥 FIX: Simple null check - slides is now properly null when not initialized
+    if (this.elements.slides && this.elements.slides.length > 0) {
       this.elements.slides.forEach((slide, index) => {
         if (index === slideIndex) {
           slide.classList.add('active');
@@ -656,17 +668,17 @@ class SliderManager {
         }
       });
     } else {
-      logger.warn('⚠️ this.elements.slides is not iterable - cannot update slide classes');
+      logger.warn('⚠️ this.elements.slides is null or empty - cannot update slide classes');
     }
     
     // 5. Update dots
-    // 🔥 CRITICAL FIX: Check if dots is NodeList/Array before calling forEach
-    if (this.elements.dots && typeof this.elements.dots.forEach === 'function') {
+    // 🔥 FIX: Simple null check - dots is now properly null when not initialized
+    if (this.elements.dots && this.elements.dots.length > 0) {
       this.elements.dots.forEach((dot, index) => {
         dot.classList.toggle('active', index === slideIndex);
       });
     } else {
-      logger.warn('⚠️ this.elements.dots is not iterable - cannot update dot classes');
+      logger.warn('⚠️ this.elements.dots is null or empty - cannot update dot classes');
     }
     
     // 6. Update navigation buttons
@@ -689,10 +701,28 @@ class SliderManager {
   ensureReady(): void {
     logger.info('🔧 ensureReady: Ensuring slider is ready for interaction');
     
-    // 1. Reinitialize if not initialized
-    if (!this.isInitialized) {
-      logger.warn('⚠️ Slider not initialized - initializing now');
+    // 🔥 CRITICAL FIX: Simple null checks - elements are now null after destroy(), not empty objects
+    const slidesInvalid = !this.elements.slides || this.elements.slides.length === 0;
+    const dotsInvalid = !this.elements.dots || this.elements.dots.length === 0;
+    const containerInvalid = !this.elements.container;
+    const wrapperInvalid = !this.elements.wrapper;
+    
+    // 🔥 FIX: Check if nav button event handlers exist - if not, we need to reinitialize
+    const navButtonsNeedHandlers = !this.boundHandlers.navButtonClick || this.boundHandlers.navButtonClick.size === 0;
+    
+    // 1. Reinitialize if not initialized OR if elements are invalid OR if nav handlers are missing
+    if (!this.isInitialized || slidesInvalid || dotsInvalid || containerInvalid || wrapperInvalid || navButtonsNeedHandlers) {
+      logger.warn('⚠️ Slider not properly initialized or elements/handlers invalid - reinitializing now');
+      logger.debug(`🔍 Debug: isInitialized=${this.isInitialized}, slidesInvalid=${slidesInvalid}, dotsInvalid=${dotsInvalid}, containerInvalid=${containerInvalid}, wrapperInvalid=${wrapperInvalid}, navButtonsNeedHandlers=${navButtonsNeedHandlers}`);
+      
+      // 🔥 CRITICAL: Force destroy first to clean up stale state, then reinitialize
+      if (this.isInitialized) {
+        this.destroy();
+      }
       this.init();
+      
+      // 🔥 FIX: After init, also ensure navigation and slider container are interactive
+      this.ensureInteractive();
       return; // init() will handle everything
     }
     
@@ -705,11 +735,8 @@ class SliderManager {
     // 3. Unlock slider
     gameState.set('sliderLocked', false);
     
-    // 4. Ensure pointer events are enabled
-    if (this.elements.container) {
-      this.elements.container.style.pointerEvents = 'auto';
-      logger.debug('✅ Slider container pointer events enabled');
-    }
+    // 4. Ensure pointer events are enabled and container is fully visible
+    this.ensureInteractive();
     
     // 5. Ensure quickSetter exists
     if (!this.quickSetX && this.elements.wrapper) {
@@ -720,8 +747,57 @@ class SliderManager {
     logger.info('✅ ensureReady: Slider ready for interaction');
   }
   
+  /**
+   * 🔥 NEW: Ensure all slider and navigation elements are interactive
+   * Resets pointer-events and visibility on all critical elements
+   */
+  private ensureInteractive(): void {
+    // Ensure slider container is interactive
+    if (this.elements.container) {
+      this.elements.container.style.pointerEvents = 'auto';
+      this.elements.container.style.display = 'block';
+      this.elements.container.style.visibility = 'visible';
+      this.elements.container.style.opacity = '1';
+      this.elements.container.style.zIndex = '';
+      logger.debug('✅ Slider container pointer events enabled and visibility ensured');
+    }
+    
+    // 🔥 FIX: Ensure independent navigation is also interactive
+    const independentNav = document.getElementById('independent-nav');
+    if (independentNav) {
+      independentNav.style.pointerEvents = 'auto';
+      independentNav.style.display = 'block';
+      independentNav.style.visibility = 'visible';
+      independentNav.style.opacity = '1';
+      logger.debug('✅ Independent navigation pointer events enabled and visibility ensured');
+    }
+    
+    // 🔥 FIX: Ensure all navigation buttons are interactive
+    const navButtons = document.querySelectorAll('.independent-nav-button');
+    navButtons.forEach((button) => {
+      const btn = button as HTMLElement;
+      btn.style.pointerEvents = 'auto';
+      btn.style.cursor = 'pointer';
+    });
+    if (navButtons.length > 0) {
+      logger.debug(`✅ ${navButtons.length} navigation buttons pointer events enabled`);
+    }
+    
+    // 🔥 FIX: Ensure slider wrapper is interactive for drag
+    if (this.elements.wrapper) {
+      this.elements.wrapper.style.pointerEvents = 'auto';
+    }
+  }
+  
   // Cleanup
   destroy(): void {
+    // 🔥 FIX: Clear all active intervals first
+    this.activeIntervals.forEach(interval => {
+      clearInterval(interval);
+    });
+    this.activeIntervals.clear();
+    logger.info('🧹 Active intervals cleared');
+    
     // Kill GSAP animation if exists
     if (this.slideAnimation) {
       this.slideAnimation.kill();
@@ -731,7 +807,6 @@ class SliderManager {
     // 🔥 MEMORY LEAK FIX: Cleanup GSAP quickSetter
     if (this.quickSetX && this.elements.wrapper) {
       try {
-        // GSAP quickSetter doesn't have explicit cleanup, but killing animations on wrapper should be enough
         gsap.killTweensOf(this.elements.wrapper);
         this.quickSetX = null;
         logger.info('🧹 GSAP quickSetter cleaned up');
@@ -789,12 +864,12 @@ class SliderManager {
     // Clear bound handlers
     this.boundHandlers = {};
     
-    // Clear elements
+    // 🔥 FIX: Use null instead of empty objects to prevent forEach errors
     this.elements = {
       container: null,
       wrapper: null,
-      slides: {} as NodeListOf<Element>,
-      dots: {} as NodeListOf<Element>,
+      slides: null,
+      dots: null,
       divider: null
     };
     this.isInitialized = false;

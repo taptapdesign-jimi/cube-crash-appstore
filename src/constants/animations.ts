@@ -12,6 +12,61 @@ export const ANIMATION_DURATIONS = {
   SLOW: '1.0s'
 } as const;
 
+// 🔥 FIX: Slider animation timing constants (previously magic numbers)
+export const SLIDER_ANIMATION = {
+  // Exit animation sequence delays (ms)
+  EXIT_HERO_DELAY: 0,
+  EXIT_CTA_DELAY: 30,
+  EXIT_LOGO_DELAY: 90,
+  EXIT_NAV_DELAY: 120,
+  
+  // Enter animation sequence delays (ms)
+  ENTER_NAV_DELAY: 0,
+  ENTER_LOGO_DELAY: 30,
+  ENTER_TEXT_DELAY: 0,
+  ENTER_HERO_DELAY: 120,
+  
+  // Animation durations (ms)
+  BOUNCE_DURATION: 650,
+  TOTAL_SEQUENCE: 770,      // 120ms delay + 650ms animation
+  FALLBACK_TIMEOUT: 800,    // Safety fallback (slightly > TOTAL_SEQUENCE)
+  
+  // Polling intervals (ms)
+  ANIMATION_CHECK_INTERVAL: 50,
+  
+  // CSS transition duration
+  TRANSITION_DURATION: '0.65s',
+  TRANSITION_EASING: 'cubic-bezier(0.68, -0.6, 0.32, 1.6)'
+} as const;
+
+// Slider drag and navigation constants
+export const SLIDER_CONFIG = {
+  // Slide configuration
+  TOTAL_SLIDES: 4,
+  
+  // Drag thresholds (px)
+  DRAG_THRESHOLD_PX: 100,           // Minimum drag distance to change slide
+  
+  // Elastic bounce at edges
+  ELASTIC_LIMIT_MULTIPLIER: 0.03,   // 3% of slide width for elastic bounce
+  ELASTIC_RESISTANCE: 0.1,          // 10% movement (90% resistance) at edges
+  
+  // Animation triggers
+  POSITION_DIFF_THRESHOLD: 0.5,     // Minimum px difference to trigger animation
+  
+  // Slide animation
+  SLIDE_DURATION_S: 0.4,            // Duration in seconds for slide transition
+  SLIDE_EASING: 'power2.out',       // GSAP easing for smooth slide
+  
+  // Navigation button sizes (px)
+  NAV_BUTTON_INACTIVE_SIZE: 48,
+  NAV_BUTTON_ACTIVE_SIZE: 72,
+  NAV_BUTTON_ANIM_DURATION_S: 0.1,  // Duration in seconds
+  NAV_IMAGE_ACTIVE_Y: -12,          // Y offset when active
+  NAV_IMAGE_INACTIVE_Y: 0,          // Y offset when inactive
+  NAV_BUTTON_EASING: 'power2.inOut'
+} as const;
+
 export const ANIMATION_EASING = {
   EASE: 'ease',
   EASE_IN_OUT: 'ease-in-out',

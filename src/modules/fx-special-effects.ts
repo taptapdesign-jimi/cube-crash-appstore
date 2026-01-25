@@ -92,23 +92,19 @@ export function showMultiplierTile(
   multContainer.addChild(multText);
   board.addChild(multContainer);
   
-  // Animate multiplier
-  gsap.fromTo(multContainer, 
-    { alpha: 0, scaleX: 0.5, scaleY: 0.5 },
-    { 
-      alpha: 1, 
-      scaleX: 1.2, 
-      scaleY: 1.2, 
-      duration: 0.2,
-      ease: "back.out(1.7)"
-    }
-  );
+  // Animate multiplier - 🔥 FIX: Use scale.x/scale.y for PixiJS (not scaleX/scaleY which needs PixiPlugin)
+  multContainer.scale.set(0.5, 0.5);
+  multContainer.alpha = 0;
   
+  // Initial scale up
+  gsap.to(multContainer, { alpha: 1, duration: 0.2, ease: "back.out(1.7)" });
+  gsap.to(multContainer.scale, { x: 1.2, y: 1.2, duration: 0.2, ease: "back.out(1.7)" });
+  
+  // Float up and fade out
+  const targetY = multContainer.y - 50;
   gsap.to(multContainer, {
     alpha: 0,
-    scaleX: 1.5,
-    scaleY: 1.5,
-    y: multContainer.y - 50,
+    y: targetY,
     duration: life,
     delay: 0.2,
     ease: "power2.out",
@@ -117,6 +113,13 @@ export function showMultiplierTile(
         board.removeChild(multContainer);
       }
     }
+  });
+  gsap.to(multContainer.scale, {
+    x: 1.5,
+    y: 1.5,
+    duration: life,
+    delay: 0.2,
+    ease: "power2.out"
   });
 }
 
@@ -163,26 +166,19 @@ export function smokeBubblesAtTile(
     
     smokeContainer.addChild(bubble);
     
-    // Animate bubble
-    gsap.fromTo(bubble, 
-      { alpha: 0, scaleX: 0, scaleY: 0 },
-      { 
-        alpha: opts.alpha, 
-        scaleX: 1, 
-        scaleY: 1, 
-        duration: 0.3,
-        ease: "power2.out"
-      }
-    );
+    // Animate bubble - 🔥 FIX: Use scale.x/scale.y for PixiJS
+    bubble.scale.set(0, 0);
+    bubble.alpha = 0;
     
-    gsap.to(bubble, {
-      y: bubble.y - opts.speed * (1 + Math.random()),
-      alpha: 0,
-      scaleX: 1.5,
-      scaleY: 1.5,
-      duration: 1.0 + Math.random() * 0.5,
-      ease: "power2.out"
-    });
+    // Scale up animation
+    gsap.to(bubble, { alpha: opts.alpha, duration: 0.3, ease: "power2.out" });
+    gsap.to(bubble.scale, { x: 1, y: 1, duration: 0.3, ease: "power2.out" });
+    
+    // Float up and fade out
+    const targetY = bubble.y - opts.speed * (1 + Math.random());
+    const duration = 1.0 + Math.random() * 0.5;
+    gsap.to(bubble, { y: targetY, alpha: 0, duration, ease: "power2.out" });
+    gsap.to(bubble.scale, { x: 1.5, y: 1.5, duration, ease: "power2.out" });
   }
   
   board.addChild(smokeContainer);
@@ -233,27 +229,19 @@ export function wildImpactEffect(tile: Tile, opts: WildImpactOptions = {}): void
     
     impactContainer.addChild(particle);
     
-    // Animate particle
-    gsap.fromTo(particle, 
-      { alpha: 0, scaleX: 0, scaleY: 0 },
-      { 
-        alpha: 1, 
-        scaleX: 1, 
-        scaleY: 1, 
-        duration: 0.2,
-        ease: "power2.out"
-      }
-    );
+    // Animate particle - 🔥 FIX: Use scale.x/scale.y for PixiJS
+    particle.scale.set(0, 0);
+    particle.alpha = 0;
     
-    gsap.to(particle, {
-      x: particle.x + (Math.random() - 0.5) * 100,
-      y: particle.y + (Math.random() - 0.5) * 100,
-      alpha: 0,
-      scaleX: 0.5,
-      scaleY: 0.5,
-      duration: options.duration,
-      ease: "power2.out"
-    });
+    // Scale up animation
+    gsap.to(particle, { alpha: 1, duration: 0.2, ease: "power2.out" });
+    gsap.to(particle.scale, { x: 1, y: 1, duration: 0.2, ease: "power2.out" });
+    
+    // Explode outward and fade
+    const targetX = particle.x + (Math.random() - 0.5) * 100;
+    const targetY = particle.y + (Math.random() - 0.5) * 100;
+    gsap.to(particle, { x: targetX, y: targetY, alpha: 0, duration: options.duration, ease: "power2.out" });
+    gsap.to(particle.scale, { x: 0.5, y: 0.5, duration: options.duration, ease: "power2.out" });
   }
   
   // Remove container after animation

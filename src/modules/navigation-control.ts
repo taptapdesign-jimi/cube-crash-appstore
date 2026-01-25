@@ -56,6 +56,8 @@ export function updateNavigationVisibility(): void {
   if (loadingScreen && !loadingScreen.hidden && loadingScreen.style.display !== 'none') {
     navElement.style.display = 'none';
     navElement.style.visibility = 'hidden';
+    navElement.style.opacity = '0';
+    navElement.style.pointerEvents = 'none';
     logger.debug('📱 Navigation hidden: Loading screen active');
     return;
   }
@@ -73,6 +75,8 @@ export function updateNavigationVisibility(): void {
   if (app && !app.hidden && app.style.display !== 'none' && !boardFailModalVisible) {
     navElement.style.display = 'none';
     navElement.style.visibility = 'hidden';
+    navElement.style.opacity = '0';
+    navElement.style.pointerEvents = 'none';
     logger.debug('📱 Navigation hidden: Game active');
     return;
   }
@@ -82,6 +86,7 @@ export function updateNavigationVisibility(): void {
     navElement.style.display = 'block';
     navElement.style.visibility = 'visible';
     navElement.style.opacity = '1';
+    navElement.style.pointerEvents = 'auto';  // 🔥 FIX: Ensure navigation is interactive
     navElement.style.zIndex = '10000000000001'; // Higher than board fail modal (10000000000000)
     logger.debug('📱 Navigation visible: Board fail modal active');
     return;
@@ -103,6 +108,7 @@ export function updateNavigationVisibility(): void {
     navElement.style.display = 'none';
     navElement.style.visibility = 'hidden';
     navElement.style.opacity = '0';
+    navElement.style.pointerEvents = 'none';
     logger.debug('📱 Navigation hidden: Journey screen active');
     return;
   }
@@ -116,6 +122,8 @@ export function updateNavigationVisibility(): void {
   if (homeVisible) {
     navElement.style.display = 'block';
     navElement.style.visibility = 'visible';
+    navElement.style.opacity = '1';
+    navElement.style.pointerEvents = 'auto';  // 🔥 FIX: Ensure navigation is interactive
     logger.debug('📱 Navigation visible: Home active');
     return;
   }
@@ -123,6 +131,8 @@ export function updateNavigationVisibility(): void {
   // Default: hide
   navElement.style.display = 'none';
   navElement.style.visibility = 'hidden';
+  navElement.style.opacity = '0';
+  navElement.style.pointerEvents = 'none';
   logger.debug('📱 Navigation hidden: Default');
 }
 

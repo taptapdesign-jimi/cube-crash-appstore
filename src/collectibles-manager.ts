@@ -950,13 +950,30 @@ class CollectiblesManager {
         });
       }
       
-      // Step 2h: Show navigation
+      // Step 2h: Show navigation and ensure it's interactive
       const navElement = document.getElementById('independent-nav');
       if (navElement) {
         navElement.style.removeProperty('display');
         navElement.style.removeProperty('visibility');
         navElement.style.removeProperty('opacity');
-        logger.info('✅ Navigation shown');
+        navElement.style.removeProperty('pointer-events');
+        navElement.style.display = 'block';
+        navElement.style.visibility = 'visible';
+        navElement.style.opacity = '1';
+        navElement.style.pointerEvents = 'auto';
+        navElement.setAttribute('aria-hidden', 'false');
+        logger.info('✅ Navigation shown and enabled');
+      }
+      
+      // 🔥 FIX: Ensure all navigation buttons are clickable
+      const navButtons = document.querySelectorAll('.independent-nav-button');
+      navButtons.forEach((button) => {
+        const btn = button as HTMLElement;
+        btn.style.pointerEvents = 'auto';
+        btn.style.cursor = 'pointer';
+      });
+      if (navButtons.length > 0) {
+        logger.info(`✅ ${navButtons.length} navigation buttons enabled`);
       }
       
       // 🔥 NEW API: Ensure slider is ready for interaction

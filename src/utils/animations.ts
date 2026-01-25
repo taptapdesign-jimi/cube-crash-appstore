@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS } from '../constants/animations.js';
+import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS, SLIDER_ANIMATION } from '../constants/animations.js';
 import { logger } from '../core/logger.js';
 
 // Global window extensions
@@ -172,35 +172,39 @@ export const cleanupAnimations = (): void => {
   activeTimeouts.clear();
   isAnimatingExit = false;
   isAnimatingEnter = false;
-  logger.info('✅ Animation cleanup complete');
+  
+  // 🔥 FIX: Clear cached DOM elements to prevent stale references
+  cachedElements = {};
+  
+  // 🔥 FIX: Reset global animation flags
+  (window as any).__ccIsAnimatingSliderExit = () => false;
+  (window as any).__ccIsAnimatingSliderEnter = false;
+  
+  logger.info('✅ Animation cleanup complete (timeouts, cache, and flags cleared)');
 };
 
 export const animateSliderExit = (): void => {
+  // 🔥 FIX: Check guard flag before try block to avoid early return issues
+  if (isAnimatingExit) {
+    logger.warn('⚠️ Exit animation already in progress, ignoring duplicate call');
+    return;
+  }
+  
+  // Set flags immediately
+  isAnimatingExit = true;
+  (window as any).__ccIsAnimatingSliderExit = () => true;
+  
   try {
-    if (isAnimatingExit) {
-      logger.warn('⚠️ Exit animation already in progress, ignoring duplicate call');
-      return;
-    }
-    
-    isAnimatingExit = true;
-    // 🔥 CRITICAL: Flag should already be set in showCollectiblesScreenWithAnimation, but ensure it's set here too
-    if (typeof (window as any).__ccIsAnimatingSliderExit !== 'function' || !(window as any).__ccIsAnimatingSliderExit()) {
-      (window as any).__ccIsAnimatingSliderExit = () => true;
-      logger.info('🔒 Exit animation flag set in animateSliderExit');
-    }
     logger.info('🎬 Starting CARTOONISH PROCEDURAL exit animation...');
     
     // 🔥 CRITICAL: Ensure badge is visible and ready BEFORE starting animation
-    // This prevents badge from being removed before animation starts
     const journeyNavButton = document.querySelector('.independent-nav-button[data-slide="1"]') as HTMLElement;
     if (journeyNavButton) {
       const journeyBadge = journeyNavButton.querySelector('.nav-badge') as HTMLElement;
       if (journeyBadge && journeyBadge.isConnected) {
-        // Ensure badge is visible and ready for animation
         journeyBadge.style.display = 'flex';
         journeyBadge.style.visibility = 'visible';
         journeyBadge.style.opacity = '1';
-        // 🔒 Persist badge count so exit animation can't accidentally drop it
         const badgeNum = parseInt(journeyBadge.querySelector('.nav-badge-text')?.textContent || '0', 10);
         if (badgeNum > 0) {
           const existing = (window as any).__ccJourneyBadgeCount || 0;
@@ -215,21 +219,20 @@ export const animateSliderExit = (): void => {
       logger.warn('⚠️ Journey navigation button not found');
     }
     
-    // Start the actual exit animation sequence immediately
-    // REMOVED: requestAnimationFrame delay - no longer needed
+    // Start the actual exit animation sequence
     startExitAnimationSequence();
     
-    // Reset flag after animation completes
+    // 🔥 FIX: Use constant for timeout duration
     const timeout = setTimeout(() => {
       activeTimeouts.delete(timeout);
       isAnimatingExit = false;
-      // 🔥 CRITICAL: Update global flag after animation completes
       (window as any).__ccIsAnimatingSliderExit = () => false;
       logger.info('✅ Exit animation guard reset');
-    }, 770); // 120ms delay + 650ms animation = 770ms total (was 420ms, increased by 350ms)
+    }, SLIDER_ANIMATION.TOTAL_SEQUENCE);
     activeTimeouts.add(timeout);
     
   } catch (error) {
+    // 🔥 FIX: Always reset flags on error
     isAnimatingExit = false;
     (window as any).__ccIsAnimatingSliderExit = () => false;
     logger.error('❌ Failed to animate slider exit:', error);
@@ -634,32 +637,33 @@ export const animateStatsScreenExit = (): void => {
 
 // Animate slider enter when returning to home - CARTOONISH PROCEDURAL ENTER (SCALE ONLY, NO OPACITY)
 export const animateSliderEnter = (): void => {
+  // 🔥 FIX: Check guard flag before try block to avoid early return issues
+  if (isAnimatingEnter) {
+    logger.warn('⚠️ Enter animation already in progress, ignoring duplicate call');
+    return;
+  }
+  
+  // Set flags immediately
+  isAnimatingEnter = true;
+  (window as any).__ccIsAnimatingSliderEnter = true;
+  
   try {
-    if (isAnimatingEnter) {
-      logger.warn('⚠️ Enter animation already in progress, ignoring duplicate call');
-      return;
-    }
-    
-    isAnimatingEnter = true;
-    // 🔥 CRITICAL MOBILE FIX: Set global flag so slider-manager can check if animation is running
-    // This prevents instant slide changes when user clicks nav button too quickly after preload
-    (window as any).__ccIsAnimatingSliderEnter = true;
     logger.info('🎬 Starting CARTOONISH PROCEDURAL enter animation...');
     
     // Start the actual enter animation sequence
     startEnterAnimationSequence();
     
-    // Reset flag after animation completes
+    // 🔥 FIX: Use constant for timeout duration
     const timeout = setTimeout(() => {
       activeTimeouts.delete(timeout);
       isAnimatingEnter = false;
-      // 🔥 CRITICAL: Reset global flag so slider navigation can work normally
       (window as any).__ccIsAnimatingSliderEnter = false;
       logger.info('✅ Enter animation guard reset');
-    }, 770); // 120ms delay + 650ms animation = 770ms total (matches exit animation)
+    }, SLIDER_ANIMATION.TOTAL_SEQUENCE);
     activeTimeouts.add(timeout);
     
   } catch (error) {
+    // 🔥 FIX: Always reset flags on error
     isAnimatingEnter = false;
     (window as any).__ccIsAnimatingSliderEnter = false;
     logger.error('❌ Failed to animate slider enter:', error);

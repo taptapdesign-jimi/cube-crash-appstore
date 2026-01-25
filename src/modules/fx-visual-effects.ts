@@ -94,17 +94,11 @@ export function glassCrackAtTile(
   crackContainer.addChild(crack);
   board.addChild(crackContainer);
   
-  // Animate crack
-  gsap.fromTo(crack, 
-    { alpha: 0, scaleX: 0.5, scaleY: 0.5 },
-    { 
-      alpha: 1, 
-      scaleX: 1, 
-      scaleY: 1, 
-      duration: 0.1,
-      ease: "power2.out"
-    }
-  );
+  // Animate crack - 🔥 FIX: Use scale.x/scale.y for PixiJS (not scaleX/scaleY which needs PixiPlugin)
+  crack.scale.set(0.5, 0.5);
+  crack.alpha = 0;
+  gsap.to(crack, { alpha: 1, duration: 0.1, ease: "power2.out" });
+  gsap.to(crack.scale, { x: 1, y: 1, duration: 0.1, ease: "power2.out" });
   
   // Fade out and remove
   gsap.to(crackContainer, {
@@ -207,17 +201,11 @@ export function innerFlashAtTile(
   flashContainer.addChild(flash);
   board.addChild(flashContainer);
   
-  // Animate flash
-  gsap.fromTo(flash, 
-    { alpha: 0, scaleX: 0.8, scaleY: 0.8 },
-    { 
-      alpha: 1, 
-      scaleX: 1, 
-      scaleY: 1, 
-      duration: 0.1,
-      ease: "power2.out"
-    }
-  );
+  // Animate flash - 🔥 FIX: Use scale.x/scale.y for PixiJS (not scaleX/scaleY which needs PixiPlugin)
+  flash.scale.set(0.8, 0.8);
+  flash.alpha = 0;
+  gsap.to(flash, { alpha: 1, duration: 0.1, ease: "power2.out" });
+  gsap.to(flash.scale, { x: 1, y: 1, duration: 0.1, ease: "power2.out" });
   
   // Fade out and remove
   gsap.to(flashContainer, {

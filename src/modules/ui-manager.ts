@@ -775,7 +775,7 @@ class UIManager {
     }
     
     // 🔥 NEW API: Ensure slider is ready for interaction
-    const sliderManager = (window as any).sliderManager;
+    // Use imported sliderManager directly (not window reference)
     if (sliderManager && typeof sliderManager.ensureReady === 'function') {
       sliderManager.ensureReady();
       logger.info('✅ Slider ensureReady() called in showHomepage() - slider ready');
@@ -785,6 +785,21 @@ class UIManager {
       if (sliderContainer) {
         sliderContainer.style.pointerEvents = '';
       }
+    }
+    
+    // 🔥 FIX: Explicitly show and enable navigation (independent-nav)
+    const independentNav = document.getElementById('independent-nav');
+    if (independentNav) {
+      independentNav.style.removeProperty('display');
+      independentNav.style.removeProperty('visibility');
+      independentNav.style.removeProperty('opacity');
+      independentNav.style.removeProperty('pointer-events');
+      independentNav.style.display = 'block';
+      independentNav.style.visibility = 'visible';
+      independentNav.style.opacity = '1';
+      independentNav.style.pointerEvents = 'auto';
+      independentNav.setAttribute('aria-hidden', 'false');
+      logger.info('✅ Independent navigation shown and enabled in showHomepage');
     }
 
     // 🔥 CRITICAL: Ensure #global-bg exists (create if missing)
@@ -1260,6 +1275,19 @@ class UIManager {
       this.elements.home.style.display = 'block';
       this.elements.home.removeAttribute('hidden');
       
+      // 🔥 CRITICAL FIX: Explicitly ensure slider container is visible
+      // This undoes the inline styles set in exitToMenu when returning to Journey screen
+      // Without this, slider container may have display:none, visibility:hidden, etc.
+      const sliderContainer = document.getElementById('slider-container');
+      if (sliderContainer) {
+        sliderContainer.style.display = 'block';
+        sliderContainer.style.visibility = 'visible';
+        sliderContainer.style.opacity = '1';
+        sliderContainer.style.zIndex = '';
+        sliderContainer.style.pointerEvents = 'auto';
+        logger.info('✅ Slider container visibility explicitly restored in showHomepageQuietly');
+      }
+      
       // 🔥 USER REQUEST FIX: Reset slider enter animation flag BEFORE reinitializing
       // This prevents instant slide changes (no animation) when clicking dots after returning to homepage
       // Without this, __ccIsAnimatingSliderEnter might be true from previous animation, causing instant jumps
@@ -1279,6 +1307,33 @@ class UIManager {
         }
       } catch (error) {
         logger.warn('⚠️ Failed to ensure slider ready:', error);
+      }
+      
+      // 🔥 FIX: Explicitly show and enable navigation (independent-nav)
+      // Navigation might have been hidden or pointer-events disabled during game
+      const independentNav = document.getElementById('independent-nav');
+      if (independentNav) {
+        independentNav.style.removeProperty('display');
+        independentNav.style.removeProperty('visibility');
+        independentNav.style.removeProperty('opacity');
+        independentNav.style.removeProperty('pointer-events');
+        independentNav.style.display = 'block';
+        independentNav.style.visibility = 'visible';
+        independentNav.style.opacity = '1';
+        independentNav.style.pointerEvents = 'auto';
+        independentNav.setAttribute('aria-hidden', 'false');
+        logger.info('✅ Independent navigation shown and enabled in showHomepageQuietly');
+      }
+      
+      // 🔥 FIX: Ensure all navigation buttons are clickable
+      const navButtons = document.querySelectorAll('.independent-nav-button');
+      navButtons.forEach((button) => {
+        const btn = button as HTMLElement;
+        btn.style.pointerEvents = 'auto';
+        btn.style.cursor = 'pointer';
+      });
+      if (navButtons.length > 0) {
+        logger.info(`✅ ${navButtons.length} navigation buttons enabled in showHomepageQuietly`);
       }
       
       // 🔥 CRITICAL FIX: Reattach event listeners to homepage buttons

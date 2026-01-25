@@ -162,6 +162,12 @@ function addDragFunctionality(modalEl: HTMLElement, registerCleanup: (fn: () => 
 
 function addBackdropClickListener(modalEl: HTMLElement, registerCleanup: (fn: () => void) => void): void {
   const handleDocumentClick = (e: MouseEvent) => {
+    // 🔥 FIX: Use grace period to avoid same-tap close (click that opened modal)
+    if (Date.now() - _heartsOpenedAt < HEARTS_OVERLAY_CLOSE_GRACE_MS) {
+      logger.debug('💚 Ignoring backdrop click during grace period');
+      return;
+    }
+    
     // Check if click is outside modal AND not on a button
     if (modalEl && !modalEl.contains(e.target as Node)) {
       hideHeartsModal();
@@ -169,17 +175,24 @@ function addBackdropClickListener(modalEl: HTMLElement, registerCleanup: (fn: ()
   };
   
   const handleDocumentTouchEnd = (e: TouchEvent) => {
+    // 🔥 FIX: Use grace period to avoid same-tap close (touch that opened modal)
+    if (Date.now() - _heartsOpenedAt < HEARTS_OVERLAY_CLOSE_GRACE_MS) {
+      logger.debug('💚 Ignoring backdrop touchend during grace period');
+      return;
+    }
+    
     // Check if touch is outside modal AND not on a button
     if (modalEl && !modalEl.contains(e.target as Node)) {
       hideHeartsModal();
     }
   };
   
-  // Attach with small delay to avoid capturing the click that opened the modal
+  // 🔥 FIX: Increased delay to match grace period (was 100ms, now 350ms)
+  // This prevents the original click/touch from being captured
   trackHeartsTimeout(() => {
     document.addEventListener('click', handleDocumentClick);
     document.addEventListener('touchend', handleDocumentTouchEnd);
-  }, 100);
+  }, HEARTS_OVERLAY_CLOSE_GRACE_MS);
   
   registerCleanup(() => {
     document.removeEventListener('click', handleDocumentClick);
