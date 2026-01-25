@@ -128,8 +128,10 @@ const reverseBounce = (element: HTMLElement, delay: number) => {
     element.style.removeProperty('visibility');
     element.style.removeProperty('transition');
     
-    element.classList.remove('animate-enter-initial');
+    // 🔥 FIX: Add animate-enter BEFORE removing animate-enter-initial
+    // This prevents 1-frame flash where element has no animation class and is fully visible
     element.classList.add('animate-enter');
+    element.classList.remove('animate-enter-initial');
     // NO OPACITY - scale only
   }, delay);
   activeTimeouts.add(timeout);

@@ -7435,46 +7435,9 @@ function checkLevelEnd(){
       
       console.log('🚨🚨🚨 checkLevelEnd: Board is clean, triggering clean board flow');
     
-      // 🔥 CRITICAL: Actually trigger runEndgameFlow, don't just log!
-      if (!busyEnding) {
-      busyEnding = true;
-        
-        // CRITICAL: Reset wild meter immediately
-        wildMeter = 0;
-        STATE.wildMeter = 0;
-        resetWildProgress(0, false);
-        
-        try {
-          if (typeof HUD.resetWildMeter === 'function') {
-            HUD.resetWildMeter(true);
-          } else {
-            HUD.updateProgressBar?.(0, false);
-          }
-        } catch (error) {
-          console.warn('⚠️ checkLevelEnd: Failed to reset wild meter:', error);
-        }
-        
-        try {
-          await runEndgameFlow({
-            app,
-            stage,
-            board,
-            boardBG,
-            level,
-            startLevel,
-            score,
-            getScore: () => score,
-            setScore: (v) => { score = v|0; updateHUD(); },
-            animateScore,
-            updateHUD,
-            boardNumber,
-            hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
-            showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
-          });
-        } finally {
-          busyEnding = false;
-        }
-      }
+      // 🔥 FIX: Use centralized triggerCleanBoardFlow instead of duplicating logic
+      // This ensures consistent handling: memory cleanup, skip flags, wild resets, etc.
+      await triggerCleanBoardFlow('clean_board_from_checkLevelEnd');
       return;
     }
     
@@ -7603,6 +7566,8 @@ async function showFinalScreen(){
   
   busyEnding = true;
 
+  // 🔥 FIX: Wrap in try/finally to ensure busyEnding is always reset
+  try {
   // Extra safety: scrub any lingering magnet merge-6 residues before showing fail/clean flows
   forceRemoveMagnetMergeResidues('showFinalScreen');
 
@@ -7671,8 +7636,10 @@ async function showFinalScreen(){
     // 'retry' action - functions are called directly from board-fail-modal now
     console.log('🎮 Play Again action received - functions called directly from modal');
   }
-  
-  busyEnding = false;
+  } finally {
+    // 🔥 FIX: Ensure busyEnding is always reset, even on error
+    busyEnding = false;
+  }
 }
 
 function restartGame(){

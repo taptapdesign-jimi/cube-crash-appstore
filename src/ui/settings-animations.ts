@@ -1,11 +1,30 @@
 import { logger } from '../core/logger.js';
 import gsap from 'gsap';
 
+// 🔥 FIX: Track active tweens for proper cleanup
+let activeSettingsTweens: gsap.core.Tween[] = [];
+
+/**
+ * Cleanup all active settings animations
+ * 🔥 FIX: Prevents memory leaks when settings screen closes during animations
+ */
+export function cleanupSettingsAnimations(): void {
+  if (activeSettingsTweens.length > 0) {
+    logger.debug(`🧹 Cleaning up ${activeSettingsTweens.length} settings animations`);
+    activeSettingsTweens.forEach(tween => {
+      try { tween.kill(); } catch (e) { /* ignore */ }
+    });
+    activeSettingsTweens = [];
+  }
+}
+
 /**
  * Animate settings screen ENTER with pop-in effects
  * Header first, then toggle containers and dividers sequentially (like stats)
  */
 export function animateSettingsScreenEnter(): void {
+  // 🔥 FIX: Kill any existing animations before starting new ones
+  cleanupSettingsAnimations();
   console.log('🎬🎬🎬 animateSettingsScreenEnter CALLED!');
   console.log('🔍 GSAP available?', typeof gsap !== 'undefined');
   
@@ -41,13 +60,15 @@ export function animateSettingsScreenEnter(): void {
   
   // STEP 1: Header FIRST (0ms delay)
   if (settingsHeader) {
-    gsap.to(settingsHeader, { 
+    // 🔥 FIX: Track tween for cleanup
+    const headerTween = gsap.to(settingsHeader, { 
       scale: 1, 
       opacity: 1, 
       duration: 0.5, 
       ease: 'back.out(1.7)', 
       delay: 0
     });
+    activeSettingsTweens.push(headerTween);
     console.log('📊 Step 1: Settings header pop-in - FIRST');
   }
   
@@ -61,26 +82,30 @@ export function animateSettingsScreenEnter(): void {
     const stagger = 0.08; // Sequential delay between items
     const delay = baseDelay + (animationIndex * stagger);
     
-    gsap.to(toggle, {
+    // 🔥 FIX: Track tween for cleanup
+    const toggleTween = gsap.to(toggle, {
       scale: 1,
       opacity: 1,
       duration: 0.5,
       ease: 'back.out(1.7)',
       delay: delay
     });
+    activeSettingsTweens.push(toggleTween);
     console.log(`⚙️ Step ${animationIndex + 2}: Toggle ${i + 1} pop-in - delay ${(delay * 1000).toFixed(0)}ms`);
     animationIndex++;
     
     // Animate divider after toggle (if exists)
     if (dividers[i]) {
       const dividerDelay = baseDelay + (animationIndex * stagger);
-      gsap.to(dividers[i], {
+      // 🔥 FIX: Track tween for cleanup
+      const dividerTween = gsap.to(dividers[i], {
         scale: 1,
         opacity: 1,
         duration: 0.5,
         ease: 'back.out(1.7)',
         delay: dividerDelay
       });
+      activeSettingsTweens.push(dividerTween);
       console.log(`➖ Step ${animationIndex + 2}: Divider ${i + 1} pop-in - delay ${(dividerDelay * 1000).toFixed(0)}ms`);
       animationIndex++;
     }
@@ -95,6 +120,9 @@ export function animateSettingsScreenEnter(): void {
  */
 export function animateSettingsScreenExit(): void {
   console.log('🎬 animateSettingsScreenExit CALLED!');
+  
+  // 🔥 FIX: Kill any existing animations before starting exit
+  cleanupSettingsAnimations();
   
   const settingsScreen = document.getElementById('settings-screen');
   const settingsHeader = settingsScreen?.querySelector('.settings-header') as HTMLElement;
@@ -122,13 +150,15 @@ export function animateSettingsScreenExit(): void {
     const stagger = 0.05; // Faster stagger for exit
     const delay = baseDelay + (index * stagger);
     
-    gsap.to(element, {
+    // 🔥 FIX: Track tween for cleanup
+    const exitTween = gsap.to(element, {
       scale: 0,
       opacity: 0,
       duration: 0.4,
       ease: 'back.in(1.7)',
       delay: delay
     });
+    activeSettingsTweens.push(exitTween);
     
     const elementType = element.classList.contains('settings-divider') ? 'Divider' : 'Toggle';
     console.log(`⚙️ Step ${index + 1}: ${elementType} pop-out - delay ${(delay * 1000).toFixed(0)}ms`);
@@ -138,13 +168,15 @@ export function animateSettingsScreenExit(): void {
   if (settingsHeader) {
     const lastDelay = interleavedElements.length > 0 ? (interleavedElements.length * 0.05) : 0;
     
-    gsap.to(settingsHeader, {
+    // 🔥 FIX: Track tween for cleanup
+    const headerExitTween = gsap.to(settingsHeader, {
       scale: 0,
       opacity: 0,
       duration: 0.4,
       ease: 'back.in(1.7)',
       delay: lastDelay + 0.05
     });
+    activeSettingsTweens.push(headerExitTween);
     console.log('📊 Header pop-out - LAST');
   }
   

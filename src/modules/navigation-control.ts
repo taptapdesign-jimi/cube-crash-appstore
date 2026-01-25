@@ -16,9 +16,9 @@ export function initNavigationControl(): void {
     return;
   }
 
-  // Force initial visibility state
-  navElement.style.display = 'block';
-  navElement.style.visibility = 'visible';
+  // 🔥 FIX: DON'T force visibility here - let updateNavigationVisibility() determine correct state
+  // This prevents 1-frame flash when loading screen is still active
+  // Initial update below will set correct visibility based on current state
 
   // Watch for changes to #home and #app visibility
   const targetNode = document.body;

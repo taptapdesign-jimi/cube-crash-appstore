@@ -6,6 +6,12 @@
  * - highestUnlockedBoardId: Highest board unlocked from Journey
  * - lastOpenedBoardId: Last board the player opened from Journey screen
  * - currentRunState: Snapshot of in-progress game for that board, or null
+ * 
+ * 🔥 FIX v142: Also manages navigation state (replaces window.__cc* flags)
+ * - cameFromJourney: User came to game from Journey screen
+ * - cameFromDetailModal: User came from detail modal
+ * - detailModalBoardId: Board ID from detail modal
+ * - returningFromDetailModal: User is returning from detail modal
  */
 
 const STORAGE_KEY_HIGHEST_UNLOCKED = 'journey_highest_unlocked_board_id';
@@ -19,7 +25,94 @@ interface CurrentRunState {
   timestamp: number;
 }
 
+// 🔥 FIX: Navigation state (replaces window.__cc* flags)
+interface NavigationState {
+  cameFromJourney: boolean;
+  cameFromDetailModal: boolean;
+  detailModalBoardId: number | null;
+  returningFromDetailModal: boolean;
+}
+
 class JourneyProgressionState {
+  // 🔥 FIX: Navigation state (in-memory, no persistence needed)
+  private _navState: NavigationState = {
+    cameFromJourney: false,
+    cameFromDetailModal: false,
+    detailModalBoardId: null,
+    returningFromDetailModal: false
+  };
+
+  // ========== NAVIGATION STATE (replaces window.__cc* flags) ==========
+  
+  /**
+   * Get navigation state
+   */
+  getNavState(): NavigationState {
+    // 🔥 BACKWARDS COMPAT: Also read from window flags if they exist
+    const win = window as any;
+    return {
+      cameFromJourney: this._navState.cameFromJourney || win.__ccCameFromJourney === true,
+      cameFromDetailModal: this._navState.cameFromDetailModal || win.__ccCameFromDetailModal === true,
+      detailModalBoardId: this._navState.detailModalBoardId ?? win.__ccDetailModalBoardId ?? null,
+      returningFromDetailModal: this._navState.returningFromDetailModal || win.__ccReturningFromDetailModal === true
+    };
+  }
+
+  /**
+   * Set that user came from Journey screen
+   */
+  setCameFromJourney(value: boolean): void {
+    this._navState.cameFromJourney = value;
+    // 🔥 BACKWARDS COMPAT: Also set window flag
+    (window as any).__ccCameFromJourney = value;
+    console.log(`🗺️ Journey nav: cameFromJourney = ${value}`);
+  }
+
+  /**
+   * Set that user came from detail modal
+   */
+  setCameFromDetailModal(value: boolean, boardId?: number): void {
+    this._navState.cameFromDetailModal = value;
+    if (boardId !== undefined) {
+      this._navState.detailModalBoardId = boardId;
+      (window as any).__ccDetailModalBoardId = boardId;
+    }
+    // 🔥 BACKWARDS COMPAT: Also set window flag
+    (window as any).__ccCameFromDetailModal = value;
+    console.log(`🗺️ Journey nav: cameFromDetailModal = ${value}, boardId = ${boardId}`);
+  }
+
+  /**
+   * Set returning from detail modal flag
+   */
+  setReturningFromDetailModal(value: boolean): void {
+    this._navState.returningFromDetailModal = value;
+    // 🔥 BACKWARDS COMPAT: Also set window flag
+    (window as any).__ccReturningFromDetailModal = value;
+    console.log(`🗺️ Journey nav: returningFromDetailModal = ${value}`);
+  }
+
+  /**
+   * Clear all navigation state
+   */
+  clearNavState(): void {
+    this._navState = {
+      cameFromJourney: false,
+      cameFromDetailModal: false,
+      detailModalBoardId: null,
+      returningFromDetailModal: false
+    };
+    // 🔥 BACKWARDS COMPAT: Also clear window flags
+    const win = window as any;
+    delete win.__ccCameFromJourney;
+    delete win.__ccCameFromDetailModal;
+    delete win.__ccDetailModalBoardId;
+    delete win.__ccReturningFromDetailModal;
+    console.log('🗺️ Journey nav: All navigation state cleared');
+  }
+
+  // ========== PROGRESSION STATE (localStorage) ==========
+
   /**
    * Get highest unlocked board ID from Journey
    */

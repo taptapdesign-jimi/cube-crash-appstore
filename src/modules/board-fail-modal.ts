@@ -114,6 +114,10 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
   _isModalOpen = true;
   
   return new Promise(async (resolve) => {
+    // 🔥 CRITICAL FIX: Wrap entire promise body in try-catch to ensure resolve is ALWAYS called
+    // Without this, if an error occurs before any button action, the promise never resolves
+    // and busyEnding stays stuck, blocking future fail screens
+    try {
     // 🔥 MEMORY LEAK FIX: Track all event listeners for cleanup
     const buttonEventListeners: Array<{
       button: HTMLElement;
@@ -774,5 +778,14 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
 
       trackFailTimeout(runScoreSpin, 700);
     });
+    } catch (outerError) {
+      // 🔥 CRITICAL: Ensure promise ALWAYS resolves, even on catastrophic error
+      // This prevents busyEnding from staying stuck and blocking future fail screens
+      logger.error('❌ board-fail-modal: Catastrophic error in promise body - force resolving', outerError);
+      _isModalOpen = false;
+      clearAllFailModalTimeouts();
+      clearAllFailModalAnimationFrames();
+      resolve({ action: 'menu' }); // Default action on error
+    }
   });
 }

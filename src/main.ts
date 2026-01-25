@@ -436,12 +436,13 @@ async function startAssetPreloading(): Promise<void> {
     const logoShardsRight = document.getElementById('logo-shards-gore-desno');
     const allSlides = document.querySelectorAll('.slider-slide');
     
-    // Hide all animated elements
+    // Hide all animated elements using animate-enter-initial class (scale 0)
+    // This matches what reverseBounce expects and prevents flash
     const elementsToHide = [homeLogo, independentNav, fixedShadowBottom, logoShardsLeft, logoShardsRight];
     elementsToHide.forEach(el => {
       if (el) {
-        (el as HTMLElement).style.opacity = '0';
-        (el as HTMLElement).style.visibility = 'hidden';
+        (el as HTMLElement).classList.add('animate-enter-initial');
+        (el as HTMLElement).style.display = 'block'; // Must be visible for animation
       }
     });
     
@@ -456,8 +457,8 @@ async function startAssetPreloading(): Promise<void> {
       
       [heroContainer, slideButton, slideText, slideTagline].forEach(el => {
         if (el) {
-          (el as HTMLElement).style.opacity = '0';
-          (el as HTMLElement).style.visibility = 'hidden';
+          (el as HTMLElement).classList.add('animate-enter-initial');
+          (el as HTMLElement).style.display = 'block'; // Must be visible for animation
         }
       });
     }

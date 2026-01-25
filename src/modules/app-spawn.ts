@@ -485,7 +485,15 @@ export function openEmpties(count: number, opts: OpenEmptiesOptions = {}): Promi
       }
     }
     
+    // 🔥 FIX: Add timeout safety - if spawnBounce never completes, resolve anyway
+    const timeout = setTimeout(() => {
+      console.warn('⚠️ spawnBounce timeout for tile - forcing resolve');
+      try{ fixHoverAnchor(t); }catch{}; 
+      res();
+    }, 3000); // 3 second safety timeout
+    
     spawnBounce(t, () => { 
+      clearTimeout(timeout);
       try{ fixHoverAnchor(t); }catch{}; 
       res(); 
     }, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035 });

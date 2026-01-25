@@ -22,7 +22,7 @@ let activeCloudImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track clo
 let cloudTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track all cloud timelines (bounce, enter, exit)
 let cloudDelayedCalls: gsap.core.Tween[] = []; // 🔥 MEMORY LEAK FIX: Track all delayedCall instances for cleanup
 let activeForestImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track forest image for cleanup
-// 🔥 USER REQUEST: Smoke removal - no more smoke container tracking
+let contentTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track forest and digit timelines
 
 /**
  * Show board transition screen with animated board number
@@ -624,6 +624,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       transformOrigin: 'center bottom'
     });
     const forestEnterTimeline = gsap.timeline();
+    contentTimelines.push(forestEnterTimeline); // 🔥 FIX: Track for cleanup
     forestEnterTimeline.to(forestContainer, {
       opacity: 1,
       scale: 1.01, // 🔥 USER REQUEST: Minimal bounce overshoot
@@ -682,13 +683,12 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         force3D: true // Force 3D acceleration for better performance
       });
 
-      // 🔥 USER REQUEST: Smoke effect when digit reaches final position (after enter animation completes)
-
       // Beautiful bounce animation for each digit
-        const digitTimeline = gsap.timeline();
+      const digitTimeline = gsap.timeline();
+      contentTimelines.push(digitTimeline); // 🔥 FIX: Track for cleanup
       
       // First bounce: scale 0 → 1.2 with 3D rotation for depth
-        digitTimeline.to(digitEl, {
+      digitTimeline.to(digitEl, {
           opacity: 1,
           scale: 1.2,
         rotation: randomRotation, // 🔥 USER REQUEST: Keep random rotation throughout animation
@@ -714,7 +714,6 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         transformOrigin: 'center center', // 🔥 CRITICAL FIX: Ensure transform origin is center
         duration: 0.15,
         ease: 'power2.out'
-        // 🔥 USER REQUEST: Smoke effect removed - user wants no smoke
       });
       
       // Final settle: scale 0.95 → 1.0 with perfect 3D position
@@ -733,9 +732,6 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         onComplete: () => {
           // 🔥 APP STORE: Cleanup will-change after animation completes
           digitEl.style.willChange = 'auto';
-          
-          // 🔥 USER REQUEST: Smoke effect removed - no smoke to show
-          // showPreCreatedSmoke removed
           
           // 🔥 CRITICAL FIX: Start exit animation when LAST digit completes
           if (index === digitElements.length - 1) {
@@ -841,9 +837,10 @@ function startExitAnimation(
     digitElements.forEach((digitEl, index) => {
       const delay = index * 0.4; // Stagger by 400ms per digit
       
-    const digitExitTimeline = gsap.timeline();
+      const digitExitTimeline = gsap.timeline();
+      contentTimelines.push(digitExitTimeline); // 🔥 FIX: Track for cleanup
     
-    // First: scale 1.0 → 1.1 (slight overshoot) with 3D depth
+      // First: scale 1.0 → 1.1 (slight overshoot) with 3D depth
       digitExitTimeline.to(digitEl, {
         scale: 1.1,
       z: 30, // Push forward in 3D
@@ -869,6 +866,7 @@ function startExitAnimation(
   // Step 2: Forest exit animation
   if (forestContainer) {
     const forestExitTimeline = gsap.timeline();
+    contentTimelines.push(forestExitTimeline); // 🔥 FIX: Track for cleanup
     forestExitTimeline.to(forestContainer, {
       scale: 1.01,
       z: 20,
@@ -975,6 +973,18 @@ function cleanup(): void {
     }
   });
   cloudTimelines = [];
+  
+  // 🔥 FIX: Kill all content timelines (forest, digits)
+  contentTimelines.forEach(timeline => {
+    try {
+      if (timeline && typeof timeline.kill === 'function') {
+        timeline.kill();
+      }
+    } catch (error) {
+      logger.warn('⚠️ Error killing content timeline in cleanup:', error);
+    }
+  });
+  contentTimelines = [];
   
   // 🔥 IMAGE POOLING: Release all cloud images back to pool
   activeCloudImages.forEach(cloudImg => {
@@ -1093,18 +1103,11 @@ export function cleanupBoardTransitionScreen(): void {
     cleanup();
     isTransitionActive = false;
     
-    // 🔥 APP STORE: Additional cleanup to ensure no memory leaks
-    // 🔥 USER REQUEST: Smoke removal - no more smoke cleanup needed
-    // Cleanup removed
-    
     logger.info('✅ board-transition-screen: Force cleanup completed - all resources released');
   } catch (error) {
     logger.error('❌ board-transition-screen: Force cleanup failed:', error);
     // Fallback: at least reset the flags
     isTransitionActive = false;
     currentOverlay = null;
-    // 🔥 USER REQUEST: Smoke removal - no more smoke containers/animations
   }
 }
-
-// 🔥 USER REQUEST: Smoke effects removed - no more smoke functions needed

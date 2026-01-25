@@ -79,6 +79,37 @@ export function clearAllModalAnimationFrames() {
   _modalAnimationFrames.clear();
 }
 
+// 🔥 FIX: Add navigation/visibility cleanup to prevent memory leaks
+// When user navigates away or page becomes hidden, clean up all pending operations
+let _navigationCleanupAttached = false;
+
+function attachNavigationCleanup(): void {
+  if (_navigationCleanupAttached) return;
+  _navigationCleanupAttached = true;
+  
+  const cleanup = () => {
+    console.log('🧹 Clean board modal: Navigation/visibility cleanup triggered');
+    clearAllModalTimeouts();
+    clearAllModalAnimationFrames();
+  };
+  
+  // Clean up when page is hidden (user switches tabs/apps)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      cleanup();
+    }
+  });
+  
+  // Clean up when page is unloaded
+  window.addEventListener('beforeunload', cleanup);
+  
+  // Clean up when navigating within app (custom event)
+  window.addEventListener('cc-navigation', cleanup);
+}
+
+// Attach cleanup handlers on module load
+attachNavigationCleanup();
+
 export async function showCleanBoardModal({
   app, 
   stage, 
@@ -1216,10 +1247,11 @@ export async function showCleanBoardModal({
       }, collapseDuration);
       
       // CRITICAL: Update score with bonus when Continue is clicked
+      // 🔥 FIX: Use totalBonus (comboBonus + efficiencyBonus) instead of legacy bonus
       try {
         const cur = typeof getScore === 'function' ? (getScore()|0) : 0;
-        const next = Math.min(scoreCap, cur + (bonus|0));
-        console.log('💾 clean-board-modal: Setting final score on Continue:', cur, '+', bonus, '=', next);
+        const next = Math.min(scoreCap, cur + totalBonus);
+        console.log('💾 clean-board-modal: Setting final score on Continue:', cur, '+', totalBonus, '=', next);
         if (typeof animateScore === 'function') {
           animateScore(next, 0.45);
         } else if (typeof setScore === 'function') {

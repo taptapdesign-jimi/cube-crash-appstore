@@ -350,17 +350,17 @@ export function addOutsideClickFunctionality(modalEl: HTMLElementWithCleanup, re
 }
 
 /**
- * Cleanup event handlers
+ * Cleanup event handlers - runs all registered cleanup functions
+ * 🔥 FIX: Uses stored cleanup functions instead of trying to remove with dummy handlers
  */
 export function cleanupEventHandlers(modalEl: HTMLElementWithCleanup): void {
-  // Remove all event listeners
-  const events = ['touchstart', 'touchmove', 'touchend', 'mousedown', 'mousemove', 'mouseup', 'click'];
-  events.forEach(event => {
-    modalEl.removeEventListener(event, () => {});
-  });
-  
-  // Remove keyboard handler
-  document.removeEventListener('keydown', () => {});
+  // Run all registered cleanup functions
+  if (modalEl._cleanupFns && Array.isArray(modalEl._cleanupFns)) {
+    modalEl._cleanupFns.forEach(fn => {
+      try { fn(); } catch (e) { /* ignore */ }
+    });
+    modalEl._cleanupFns = [];
+  }
 }
 
 // All functions are already exported individually above

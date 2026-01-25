@@ -281,6 +281,8 @@ function updateTimer(): void {
   // If all hearts are full, stop ticking (keeps UI stable at 00:00)
   if (currentHearts >= maxHearts && timerInterval) {
     clearInterval(timerInterval);
+    // 🔥 FIX: Also remove from tracking set to prevent memory leak
+    _heartsIntervals.delete(timerInterval);
     timerInterval = null;
   }
 }
@@ -376,7 +378,8 @@ function createHeartsModal(): HTMLElement {
   // Add click handler for CTA button
   const getHeartBtn = heartsModal.querySelector('.get-heart-btn');
   if (getHeartBtn) {
-    (getHeartBtn as HTMLButtonElement).addEventListener('click', () => {
+    // 🔥 FIX: Store handler reference so it can be properly removed
+    const getHeartHandler = () => {
       logger.info('🔘 Get a heart button pressed');
       
       // Haptic feedback
@@ -390,9 +393,10 @@ function createHeartsModal(): HTMLElement {
       // - Purchase $0.99 USD
       // For now, just log
       logger.info('💚 Get heart flow - to be implemented');
-    });
+    };
+    (getHeartBtn as HTMLButtonElement).addEventListener('click', getHeartHandler);
     registerCleanup(() => {
-      (getHeartBtn as HTMLButtonElement).removeEventListener('click', () => {});
+      (getHeartBtn as HTMLButtonElement).removeEventListener('click', getHeartHandler);
     });
   }
   

@@ -556,10 +556,31 @@ class LaunchScreen {
    * Remove launch screen from DOM
    */
   remove(): void {
+    // 🔥 FIX: Kill GSAP animations on all launch screen elements to prevent memory leaks
+    const elementsToKill = [
+      this.elements.container,
+      this.elements.taptapContainer,
+      this.elements.taptapLogo,
+      this.elements.stackContainer,
+      this.elements.stackLogo,
+      this.elements.smokeShards
+    ].filter(Boolean);
+    
+    if (elementsToKill.length > 0) {
+      gsap.killTweensOf(elementsToKill);
+    }
+    
     if (this.elements.container && this.elements.container.parentElement) {
       this.elements.container.parentElement.removeChild(this.elements.container);
-      this.elements.container = null;
     }
+    
+    // 🔥 FIX: Clear all element references to allow garbage collection
+    this.elements.container = null;
+    this.elements.taptapContainer = null;
+    this.elements.taptapLogo = null;
+    this.elements.stackContainer = null;
+    this.elements.stackLogo = null;
+    this.elements.smokeShards = null;
   }
 
   /**

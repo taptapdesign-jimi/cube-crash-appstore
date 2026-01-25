@@ -12,7 +12,7 @@ import sliderManager from './slider-manager.js';
 import { sliderState } from './slider-state.js';
 import { gsap } from 'gsap';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
-import { animateSettingsScreenEnter, animateSettingsScreenExit } from '../ui/settings-animations.js';
+import { animateSettingsScreenEnter, animateSettingsScreenExit, cleanupSettingsAnimations } from '../ui/settings-animations.js';
 
 // 🔥 FIXED: Paper texture opacity should work correctly:
 // --paper-alpha: 1 → paper fully visible
@@ -788,19 +788,17 @@ class UIManager {
       }
     }
     
-    // 🔥 FIX: Explicitly show and enable navigation (independent-nav)
+    // 🔥 FIX: DON'T show navigation here - let animateSliderEnter handle it
+    // Showing it here causes 1-frame flash before animation starts
+    // Navigation will be shown by reverseBounce() in animations.ts with scale(0) -> scale(1) animation
     const independentNav = document.getElementById('independent-nav');
     if (independentNav) {
-      independentNav.style.removeProperty('display');
-      independentNav.style.removeProperty('visibility');
-      independentNav.style.removeProperty('opacity');
-      independentNav.style.removeProperty('pointer-events');
-      independentNav.style.display = 'block';
-      independentNav.style.visibility = 'visible';
-      independentNav.style.opacity = '1';
-      independentNav.style.pointerEvents = 'auto';
-      independentNav.setAttribute('aria-hidden', 'false');
-      logger.info('✅ Independent navigation shown and enabled in showHomepage');
+      // 🔥 CRITICAL: Add animate-enter-initial class to keep at scale(0)
+      // This matches what reverseBounce expects and prevents flash
+      independentNav.classList.add('animate-enter-initial');
+      independentNav.style.display = 'block'; // Must be block for animation to work
+      independentNav.style.pointerEvents = 'none'; // Disable interaction until animation
+      logger.info('✅ Navigation prepared for enter animation (animate-enter-initial class)');
     }
 
     // 🔥 CRITICAL: Ensure #global-bg exists (create if missing)
@@ -2020,6 +2018,8 @@ class UIManager {
     if (journeyExitMode === 'toHome') {
       logger.info('🗺️ Journey exit mode is "toHome" - collectibles-manager.ts will handle slide 2 positioning');
       // Don't call showHomepageQuietly() - collectibles-manager.ts will position slider on slide 2
+      // 🔥 BUG FIX: Reset guard BEFORE returning to prevent blocking future calls
+      (window as any).__ccIsHidingCollectibles = false;
       return; // Exit early - collectibles-manager.ts will handle everything
     }
     
@@ -2355,41 +2355,6 @@ class UIManager {
     }, fadeDurationMs);
   }
   
-  // Show settings screen quietly (no animations) - DEPRECATED
-  private showSettingsScreenQuietly(): void {
-    logger.info('⚙️ Showing settings screen quietly');
-    const settingsScreen = this.elements.settingsScreen;
-    if (!settingsScreen) {
-      logger.warn('⚠️ Settings screen element not found');
-      return;
-    }
-
-    this.hideHomepage();
-    this.setNavigationVisibility(false);
-    settingsScreen.style.display = 'flex';
-    settingsScreen.removeAttribute('hidden');
-    settingsScreen.setAttribute('aria-hidden', 'false');
-
-    const focusTarget = settingsScreen.querySelector('.settings-back-button') as HTMLElement | null;
-    focusTarget?.focus();
-    
-    // 🔥 CRITICAL: Setup toggle event listeners when settings screen is shown
-    // This ensures toggles work even if screen was recreated or elements were not available during init
-    this.setupSettingsToggles();
-  }
-  
-  // Hide settings screen
-  private hideSettingsScreen(): void {
-    const settingsScreen = this.elements.settingsScreen;
-    if (!settingsScreen) return;
-
-    settingsScreen.setAttribute('aria-hidden', 'true');
-    settingsScreen.style.display = 'none';
-    settingsScreen.setAttribute('hidden', 'true');
-    this.setNavigationVisibility(true);
-    this.showHomepage();
-  }
-  
   // Handle settings back button click
   private handleSettingsBackClick(event: Event): void {
     event.preventDefault();
@@ -2531,159 +2496,6 @@ class UIManager {
       gameSoundsStatusText: gameSoundsStatus?.textContent,
       vibrationStatusText: vibrationStatus?.textContent
     });
-  }
-  
-  // Handle game sounds toggle
-  private handleGameSoundsToggle(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    if (!target) {
-      console.error('❌ Game sounds toggle: target is null');
-      return;
-    }
-    
-    // 🔥 CRITICAL: Read checked state directly from the element (not from event)
-    // This ensures we get the current state after the change event
-    const enabled = target.checked;
-    
-    console.log('🔊 Game sounds toggled:', enabled, 'Event type:', event.type, 'Target checked:', target.checked, 'Element checked:', target.checked);
-    
-    // 🔥 CRITICAL: Update status text SYNCHRONOUSLY (not in requestAnimationFrame)
-    // This ensures the text is updated immediately when the toggle changes
-    const statusEl = document.getElementById('status-game-sounds');
-    if (statusEl) {
-      const newStatus = enabled ? 'ON' : 'OFF';
-      const oldStatus = statusEl.textContent;
-      
-      // 🔥 CRITICAL: Clear any existing content first, then set new text
-      statusEl.textContent = '';
-      statusEl.innerText = '';
-      statusEl.textContent = newStatus;
-      statusEl.innerText = newStatus; // Also set innerText as fallback
-      
-      // 🔥 CRITICAL: Force a reflow to ensure the change is visible
-      void statusEl.offsetHeight;
-      
-      console.log('✅ Status text updated from', oldStatus, 'to', newStatus, 'Element:', statusEl, 'Current textContent:', statusEl.textContent, 'Current innerText:', statusEl.innerText);
-    } else {
-      console.warn('⚠️ Status element not found: status-game-sounds');
-      // Try to find it by querySelector as fallback
-      const fallbackEl = document.querySelector('#status-game-sounds') as HTMLElement;
-      if (fallbackEl) {
-        const newStatus = enabled ? 'ON' : 'OFF';
-        const oldStatus = fallbackEl.textContent;
-        fallbackEl.textContent = '';
-        fallbackEl.innerText = '';
-        fallbackEl.textContent = newStatus;
-        fallbackEl.innerText = newStatus;
-        void fallbackEl.offsetHeight; // Force reflow
-        console.log('✅ Status text updated via querySelector from', oldStatus, 'to', newStatus, 'Element:', fallbackEl);
-      } else {
-        console.error('❌ Status element not found even with querySelector');
-        // Try to find it by class name
-        const classEl = document.querySelector('.settings-toggle-status[id="status-game-sounds"]') as HTMLElement;
-        if (classEl) {
-          const newStatus = enabled ? 'ON' : 'OFF';
-          classEl.textContent = '';
-          classEl.innerText = '';
-          classEl.textContent = newStatus;
-          classEl.innerText = newStatus;
-          void classEl.offsetHeight; // Force reflow
-          console.log('✅ Status text updated via class selector to', newStatus);
-        }
-      }
-    }
-    
-    // Update global state
-    if ((window as any)._settings) {
-      (window as any)._settings.gameSoundsEnabled = enabled;
-    }
-    
-    // Save settings to localStorage
-    if (typeof (window as any).saveSettings === 'function') {
-      (window as any).saveSettings((window as any)._settings);
-    }
-    
-    // TODO: Implement game sounds logic
-  }
-  
-  // Handle vibration toggle
-  private handleVibrationToggle(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    if (!target) {
-      console.error('❌ Vibration toggle: target is null');
-      return;
-    }
-    
-    // 🔥 CRITICAL: Read checked state directly from the element (not from event)
-    // This ensures we get the current state after the change event
-    const enabled = target.checked;
-    
-    console.log('📳 Vibration toggled:', enabled, 'Event type:', event.type, 'Target checked:', target.checked, 'Element checked:', target.checked);
-    
-    // 🔥 CRITICAL: Update status text SYNCHRONOUSLY (not in requestAnimationFrame)
-    // This ensures the text is updated immediately when the toggle changes
-    const statusEl = document.getElementById('status-vibration');
-    if (statusEl) {
-      const newStatus = enabled ? 'ON' : 'OFF';
-      const oldStatus = statusEl.textContent;
-      
-      // 🔥 CRITICAL: Clear any existing content first, then set new text
-      statusEl.textContent = '';
-      statusEl.innerText = '';
-      statusEl.textContent = newStatus;
-      statusEl.innerText = newStatus; // Also set innerText as fallback
-      
-      // 🔥 CRITICAL: Force a reflow to ensure the change is visible
-      void statusEl.offsetHeight;
-      
-      console.log('✅ Status text updated from', oldStatus, 'to', newStatus, 'Element:', statusEl, 'Current textContent:', statusEl.textContent, 'Current innerText:', statusEl.innerText);
-    } else {
-      console.warn('⚠️ Status element not found: status-vibration');
-      // Try to find it by querySelector as fallback
-      const fallbackEl = document.querySelector('#status-vibration') as HTMLElement;
-      if (fallbackEl) {
-        const newStatus = enabled ? 'ON' : 'OFF';
-        const oldStatus = fallbackEl.textContent;
-        fallbackEl.textContent = '';
-        fallbackEl.innerText = '';
-        fallbackEl.textContent = newStatus;
-        fallbackEl.innerText = newStatus;
-        void fallbackEl.offsetHeight; // Force reflow
-        console.log('✅ Status text updated via querySelector from', oldStatus, 'to', newStatus, 'Element:', fallbackEl);
-      } else {
-        console.error('❌ Status element not found even with querySelector');
-        // Try to find it by class name
-        const classEl = document.querySelector('.settings-toggle-status[id="status-vibration"]') as HTMLElement;
-        if (classEl) {
-          const newStatus = enabled ? 'ON' : 'OFF';
-          classEl.textContent = '';
-          classEl.innerText = '';
-          classEl.textContent = newStatus;
-          classEl.innerText = newStatus;
-          void classEl.offsetHeight; // Force reflow
-          console.log('✅ Status text updated via class selector to', newStatus);
-        }
-      }
-    }
-    
-    // Update global state
-    if ((window as any)._settings) {
-      (window as any)._settings.hapticsEnabled = enabled;
-    }
-    
-    // Save settings to localStorage
-    if (typeof (window as any).saveSettings === 'function') {
-      (window as any).saveSettings((window as any)._settings);
-    }
-    
-    // 🔥 CRITICAL: Only trigger haptic feedback when ENABLING vibration, not when disabling
-    // This prevents haptic feedback when toggling OFF
-    if (enabled && typeof (window as any).triggerHapticImpact === 'function') {
-      (window as any).triggerHapticImpact('light');
-      console.log('✅ Haptic feedback triggered (vibration enabled)');
-    } else {
-      console.log('⚠️ Haptic feedback NOT triggered (vibration disabled)');
-    }
   }
   
   // Update slider lock state

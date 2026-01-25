@@ -394,8 +394,24 @@ export function initDrag(cfg) {
     if (!drag.t) return;
     const t = drag.t;
     if (!t || t.destroyed || !t.position) {
+      // 🔥 FIX: Clean up listeners and interval if tile was destroyed mid-drag
       drag.t = null;
       clearHover();
+      
+      // Clean up event listeners
+      app.stage.off('pointermove', onMove);
+      app.stage.off('pointerup', onUp);
+      app.stage.off('pointerupoutside', onUp);
+      
+      // Clean up sparkle interval
+      if (drag._sparkleInterval) {
+        clearInterval(drag._sparkleInterval);
+        drag._sparkleInterval = null;
+      }
+      if (drag._lastSparkleTime) {
+        drag._lastSparkleTime = null;
+      }
+      
       return;
     }
     

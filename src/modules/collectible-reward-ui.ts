@@ -386,42 +386,38 @@ export function attachButtonHandlers(sheet: HTMLElement): void {
     sheet.dispatchEvent(closeEvent);
   };
   
+  // 🔥 FIX: Store handler references so they can be properly removed
+  const closeHandler = () => handleClose('close-button');
+  const continueHandler = () => handleClose('continue');
+  const viewCollectionHandler = () => {
+    // Open collectibles screen
+    const windowWithCollectibles = window as WindowWithCollectibles;
+    if (windowWithCollectibles.showCollectiblesScreen) {
+      windowWithCollectibles.showCollectiblesScreen({
+        scrollToCard: 'new',
+        animateCard: true
+      });
+    }
+    handleClose('view-collection');
+  };
+  
   if (closeButton) {
-    closeButton.addEventListener('click', () => handleClose('close-button'));
+    closeButton.addEventListener('click', closeHandler);
   }
   
   if (continueButton) {
-    continueButton.addEventListener('click', () => handleClose('continue'));
+    continueButton.addEventListener('click', continueHandler);
   }
   
   if (viewCollectionButton) {
-    viewCollectionButton.addEventListener('click', () => {
-      // Open collectibles screen
-      const windowWithCollectibles = window as WindowWithCollectibles;
-      if (windowWithCollectibles.showCollectiblesScreen) {
-        windowWithCollectibles.showCollectiblesScreen({
-          scrollToCard: 'new',
-          animateCard: true
-        });
-      }
-      handleClose('view-collection');
-    });
+    viewCollectionButton.addEventListener('click', viewCollectionHandler);
   }
   
-  // Register cleanup
+  // Register cleanup with same handler references
   registerCleanup(() => {
-    if (closeButton) closeButton.removeEventListener('click', () => handleClose('close-button'));
-    if (continueButton) continueButton.removeEventListener('click', () => handleClose('continue'));
-    if (viewCollectionButton) viewCollectionButton.removeEventListener('click', () => {
-      const windowWithCollectibles = window as WindowWithCollectibles;
-      if (windowWithCollectibles.showCollectiblesScreen) {
-        windowWithCollectibles.showCollectiblesScreen({
-          scrollToCard: 'new',
-          animateCard: true
-        });
-      }
-      handleClose('view-collection');
-    });
+    if (closeButton) closeButton.removeEventListener('click', closeHandler);
+    if (continueButton) continueButton.removeEventListener('click', continueHandler);
+    if (viewCollectionButton) viewCollectionButton.removeEventListener('click', viewCollectionHandler);
   });
 }
 

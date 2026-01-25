@@ -125,6 +125,15 @@ export async function showCleanBoardCelebration({
   const __onResize = () => syncToBoard();
   window.addEventListener('resize', __onResize);
 
+  // 🔥 FIX: Ensure cleanup runs even on error
+  const cleanup = () => {
+    try { window.removeEventListener('resize', __onResize); } catch {}
+    try { group.removeChildren(); } catch {}
+    try { layer.removeChildren(); } catch {}
+    try { stage.removeChild?.(layer); } catch {}
+  };
+
+  try {
   // two rows
   const msgTop = 'CLEAN'.split('');
   const msgBot = 'BOARD'.split('');
@@ -226,10 +235,9 @@ export async function showCleanBoardCelebration({
     });
     tl.to(layer, { alpha:0, duration:0.25 }, Math.max(orderTop.length, orderBot.length)*stagger - 0.05);
   });
-
-  try { window.removeEventListener('resize', __onResize); } catch {}
-  try { group.removeChildren(); } catch {}
-  try { layer.removeChildren(); } catch {}
-  try { stage.removeChild?.(layer); } catch {}
+  } finally {
+    // 🔥 FIX: Cleanup always runs, even on error
+    cleanup();
+  }
 }
 

@@ -342,6 +342,9 @@ export function addDragFunctionality(modalEl: HTMLElement): void {
   modalEl.addEventListener('mousedown', handleStart);
   modalEl.addEventListener('mousemove', handleMove);
   modalEl.addEventListener('mouseup', handleEnd);
+  
+  // 🔥 FIX: Store handlers for cleanup
+  (modalEl as any)._dragHandlers = { handleStart, handleMove, handleEnd };
 }
 
 /**
@@ -424,6 +427,18 @@ export function cleanupEventHandlers(modalEl: HTMLElement): void {
   if ((modalEl as any)._outsideClickHandler) {
     modalEl.removeEventListener('click', (modalEl as any)._outsideClickHandler);
     delete (modalEl as any)._outsideClickHandler;
+  }
+  
+  // 🔥 FIX: Remove drag handlers
+  if ((modalEl as any)._dragHandlers) {
+    const { handleStart, handleMove, handleEnd } = (modalEl as any)._dragHandlers;
+    modalEl.removeEventListener('touchstart', handleStart);
+    modalEl.removeEventListener('touchmove', handleMove);
+    modalEl.removeEventListener('touchend', handleEnd);
+    modalEl.removeEventListener('mousedown', handleStart);
+    modalEl.removeEventListener('mousemove', handleMove);
+    modalEl.removeEventListener('mouseup', handleEnd);
+    delete (modalEl as any)._dragHandlers;
   }
 }
 

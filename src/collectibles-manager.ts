@@ -186,6 +186,10 @@ class CollectiblesManager {
         e.preventDefault();
         e.stopPropagation();
         
+        // 🔥 BUG FIX: Set exit mode to 'toHome' so hideCollectibles properly shows homepage/navigation
+        // Without this, stale __ccCameFromJourney flags can prevent navigation from showing
+        (window as any).__ccJourneyExitMode = 'toHome';
+        
         // Try to use animated version first, fallback to non-animated
         if (typeof (window as any).hideCollectiblesScreenWithAnimation === 'function') {
           logger.info('🎁 Calling window.hideCollectiblesScreenWithAnimation()');
