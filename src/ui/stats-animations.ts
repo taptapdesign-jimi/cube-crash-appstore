@@ -4,6 +4,21 @@
 import { gsap } from 'gsap';
 
 /**
+ * Cleanup all stats screen animations
+ * Call this when screen is destroyed or before starting new animations
+ */
+export function cleanupStatsAnimations(): void {
+  // Kill tweens on all stats elements
+  const statItems = document.querySelectorAll('.stat-item');
+  const statsHeader = document.querySelector('.stats-header');
+  const resetButton = document.getElementById('stats-reset-btn');
+  
+  statItems.forEach(item => gsap.killTweensOf(item));
+  if (statsHeader) gsap.killTweensOf(statsHeader);
+  if (resetButton) gsap.killTweensOf(resetButton);
+}
+
+/**
  * Animate stats screen ENTER with pop-in effects
  * Elements pop in randomly: header first, then stats items in random order
  */

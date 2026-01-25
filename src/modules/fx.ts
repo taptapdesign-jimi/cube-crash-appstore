@@ -345,6 +345,9 @@ const __globalGraphicsObjects = new Set();
 const __activeStarParticles = new Set();
 const MAX_ACTIVE_STARS = 30; // Only cleanup if we exceed this (very high threshold - user won't notice)
 
+// 🔥 FIX: Track all FX containers (smoke, particles, shards) for immediate cleanup on exit
+const __globalFxContainers = new Set();
+
 function autoAdd(parent, child, ttlSec = 0.8, options = {}){
   const before = options?.before ?? null;
   try {
@@ -357,6 +360,10 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
   } catch {
     try { parent.addChild(child); } catch {}
   }
+  
+  // 🔥 FIX: Track container for immediate cleanup on exit
+  __globalFxContainers.add(child);
+  
   if (ttlSec > 0){
     // 🔥 MEMORY LEAK FIX: Store delayed call reference and auto-cleanup
     const delayedCall = gsap.delayedCall(ttlSec, () => {
@@ -390,6 +397,9 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
           });
         }
         
+        // 🔥 FIX: Remove from FX container tracker
+        __globalFxContainers.delete(child);
+        
         parent.removeChild(child); 
         child.destroy?.({ children:true }); 
         __globalDelayedCalls.delete(delayedCall); // Remove from tracker
@@ -404,6 +414,8 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
           delayedCall.kill();
           __globalDelayedCalls.delete(delayedCall);
         }
+        // 🔥 FIX: Also remove from FX container tracker
+        __globalFxContainers.delete(child);
       };
       try {
         child.once?.('destroyed', cleanup);
@@ -443,6 +455,42 @@ export function destroyAllGraphicsObjects() {
     } catch {}
   });
   __globalGraphicsObjects.clear();
+}
+
+// 🔥 FIX: Immediately remove all FX containers (smoke, particles, shards) on exit
+// This prevents stuck animation artifacts when user exits during merge animations
+export function cleanupAllFxContainers() {
+  console.log(`🧹 Cleaning up ${__globalFxContainers.size} FX containers immediately`);
+  __globalFxContainers.forEach(container => {
+    try {
+      // Kill all GSAP animations on container and children
+      gsap.killTweensOf(container);
+      if (container.children) {
+        container.children.forEach((child) => {
+          try {
+            gsap.killTweensOf(child);
+            gsap.killTweensOf(child.scale);
+            gsap.killTweensOf(child.rotation);
+            gsap.killTweensOf(child.alpha);
+          } catch {}
+        });
+      }
+      
+      // Remove from parent
+      if (container && container.parent && !container.destroyed) {
+        container.parent.removeChild(container);
+      }
+      
+      // Destroy
+      if (container && container.destroy && !container.destroyed) {
+        container.destroy({ children: true });
+      }
+    } catch (e) {
+      console.warn('⚠️ Error cleaning up FX container:', e);
+    }
+  });
+  __globalFxContainers.clear();
+  console.log('✅ All FX containers cleaned up');
 }
 
 // Lightweight helper to trigger beer fizz immediately (standalone, no confetti reuse)
@@ -791,8 +839,9 @@ export function wildMagnetDragParticlesTemplated(board, tile, opts = {}) {
       }
     });
     
-      // 🔥 USER REQUEST: Separate fade animation for idle particles (slower fade)
-      if (isIdleFallback) {
+    // 🔥 USER REQUEST: Separate fade animation for idle particles (slower fade)
+    // 🔥 FIX: Changed isIdleFallback to isIdle (bug fix - variable was undefined)
+    if (isIdle) {
       gsap.to(particle, {
         alpha: targetAlpha,
         duration: travelDur * 0.4,  // Fade over last 40% of animation

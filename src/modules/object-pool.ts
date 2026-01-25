@@ -15,6 +15,8 @@ class GraphicsPool {
   private maxSize: number = 150;
   private created: number = 0;
   private reused: number = 0;
+  // 🔥 FIX: Track objects in pool to prevent double-release
+  private inPool: WeakSet<Graphics> = new WeakSet();
 
   /**
    * Acquire a Graphics object from the pool
@@ -36,9 +38,12 @@ class GraphicsPool {
       if (g && !g.destroyed && typeof g.clear === 'function') {
         // Valid object found, reuse it
         this.reused++;
+        // 🔥 FIX: Remove from inPool tracking
+        this.inPool.delete(g);
         break;
       } else {
         // Invalid object - discard it and try again
+        if (g) this.inPool.delete(g);
         g = undefined;
       }
     }
@@ -65,6 +70,12 @@ class GraphicsPool {
     // 🔥 FIX: Validate object before processing
     if (!g || g.destroyed || typeof g.clear !== 'function') {
       return; // Already destroyed or invalid, skip
+    }
+    
+    // 🔥 FIX: Double-release protection - check if already in pool
+    if (this.inPool.has(g)) {
+      console.warn('⚠️ GraphicsPool: Double-release prevented');
+      return;
     }
 
     // 🔥 CRITICAL: Kill ALL GSAP animations FIRST (before any property changes)
@@ -115,6 +126,8 @@ class GraphicsPool {
     // Return to pool if we haven't reached max size
     if (this.pool.length < this.maxSize) {
       this.pool.push(g);
+      // 🔥 FIX: Track in inPool for double-release protection
+      this.inPool.add(g);
     } else {
       // Pool is full, destroy the object
       try {

@@ -64,8 +64,13 @@ export function drawStack(tile: Tile): void {
   if (value <= 1) return;
   
   // Remove existing stack
-  if (tile.stack && tile.stack.parent) {
-    tile.stack.parent.removeChild(tile.stack);
+  if (tile.stack) {
+    // 🔥 FIX: Destroy old Graphics object to prevent memory leak
+    if (tile.stack.parent) {
+      tile.stack.parent.removeChild(tile.stack);
+    }
+    try { tile.stack.destroy(); } catch {}
+    tile.stack = null;
   }
   
   // Create new stack
@@ -101,8 +106,13 @@ export function drawPips(t: Tile): void {
   if (value <= 1) return;
   
   // Remove existing pips
-  if (t.pips && t.pips.parent) {
-    t.pips.parent.removeChild(t.pips);
+  if (t.pips) {
+    // 🔥 FIX: Destroy old Graphics object to prevent memory leak
+    if (t.pips.parent) {
+      t.pips.parent.removeChild(t.pips);
+    }
+    try { t.pips.destroy(); } catch {}
+    t.pips = null;
   }
   
   // Create new pips
@@ -234,8 +244,21 @@ export function createTileBackground(tile: Tile): void {
   if (!tile) return;
   
   // Remove existing background
-  if (tile.bg && tile.bg.parent) {
-    tile.bg.parent.removeChild(tile.bg);
+  if (tile.bg) {
+    // 🔥 FIX: Destroy old Graphics object to prevent memory leak
+    if (tile.bg.parent) {
+      tile.bg.parent.removeChild(tile.bg);
+    }
+    try { tile.bg.destroy(); } catch {}
+    tile.bg = null;
+  }
+  if (tile.border) {
+    // 🔥 FIX: Also destroy border Graphics
+    if (tile.border.parent) {
+      tile.border.parent.removeChild(tile.border);
+    }
+    try { tile.border.destroy(); } catch {}
+    tile.border = null;
   }
   
   // Create new background
@@ -264,8 +287,13 @@ export function createTileNumber(tile: Tile, value: number): void {
   if (!tile) return;
   
   // Remove existing number
-  if (tile.num && tile.num.parent) {
-    tile.num.parent.removeChild(tile.num);
+  if (tile.num) {
+    // 🔥 FIX: Destroy old Text object to prevent memory leak
+    if (tile.num.parent) {
+      tile.num.parent.removeChild(tile.num);
+    }
+    try { tile.num.destroy(); } catch {}
+    tile.num = null;
   }
   
   // Create new number

@@ -107,9 +107,13 @@ export function glassCrackAtTile(
     delay: 0.2,
     ease: "power2.out",
     onComplete: () => {
+      // 🔥 FIX: Kill animations and destroy Graphics to prevent memory leak
+      gsap.killTweensOf(crack);
+      gsap.killTweensOf(crack.scale);
       if (board && crackContainer.parent) {
         board.removeChild(crackContainer);
       }
+      try { crackContainer.destroy({ children: true }); } catch {}
     }
   });
 }
@@ -167,9 +171,12 @@ export function woodShardsAtTile(
   
   // Remove container after animation
   gsap.delayedCall(1.5, () => {
+    // 🔥 FIX: Kill animations and destroy Graphics to prevent memory leak
+    shardsContainer.children.forEach(child => gsap.killTweensOf(child));
     if (board && shardsContainer.parent) {
       board.removeChild(shardsContainer);
     }
+    try { shardsContainer.destroy({ children: true }); } catch {}
   });
 }
 
@@ -214,9 +221,13 @@ export function innerFlashAtTile(
     delay: 0.1,
     ease: "power2.out",
     onComplete: () => {
+      // 🔥 FIX: Kill animations and destroy Graphics to prevent memory leak
+      gsap.killTweensOf(flash);
+      gsap.killTweensOf(flash.scale);
       if (board && flashContainer.parent) {
         board.removeChild(flashContainer);
       }
+      try { flashContainer.destroy({ children: true }); } catch {}
     }
   });
 }

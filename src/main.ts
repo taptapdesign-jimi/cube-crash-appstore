@@ -1185,6 +1185,36 @@ async function startNewRun(boardId: number): Promise<void> {
     console.warn('⚠️ exitToMenu: Error killing GSAP tweens:', gsapError);
   }
   
+  // 🔥 FIX: Immediately remove all FX containers (smoke, particles, shards)
+  // This prevents stuck animation artifacts when user exits during merge animations
+  try {
+    const { cleanupAllFxContainers, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupWildBeerExplosion } = await import('./modules/fx.js');
+    
+    // Kill delayed calls first (stops scheduled cleanup from running)
+    if (typeof killAllDelayedCalls === 'function') {
+      killAllDelayedCalls();
+    }
+    
+    // Cleanup wild beer explosion if running
+    if (typeof cleanupWildBeerExplosion === 'function') {
+      cleanupWildBeerExplosion();
+    }
+    
+    // Remove all FX containers immediately
+    if (typeof cleanupAllFxContainers === 'function') {
+      cleanupAllFxContainers();
+    }
+    
+    // Destroy tracked graphics objects
+    if (typeof destroyAllGraphicsObjects === 'function') {
+      destroyAllGraphicsObjects();
+    }
+    
+    console.log('✅ exitToMenu: All FX containers and particles cleaned up');
+  } catch (fxError) {
+    console.warn('⚠️ exitToMenu: Error cleaning up FX containers:', fxError);
+  }
+  
   // Stop PIXI ticker immediately to prevent render errors
   try {
     if (STATE && STATE.app && STATE.app.ticker) {

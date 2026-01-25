@@ -225,7 +225,10 @@ function createPips(tile: Tile, value: number): void {
 function createStackVisualization(tile: Tile, stackDepth: number): void {
   if (!tile.stackG) return;
   
+  // 🔥 FIX: Destroy children before removing to prevent memory leak
+  const children = [...tile.stackG.children];
   tile.stackG.removeChildren();
+  children.forEach(child => { try { child.destroy({ children: true }); } catch {} });
   tile.stackG.sortableChildren = true;
   
   const minRotationDeg = 10;
@@ -268,7 +271,10 @@ export function drawStack(tile: Tile): void {
   if (!tile || !tile.stackG) return;
   
   const stackDepth = tile.stackDepth || 0;
+  // 🔥 FIX: Destroy children before removing to prevent memory leak
+  const children = [...tile.stackG.children];
   tile.stackG.removeChildren();
+  children.forEach(child => { try { child.destroy({ children: true }); } catch {} });
   tile.stackG.sortableChildren = true;
   
   const minRotationDeg = 10;

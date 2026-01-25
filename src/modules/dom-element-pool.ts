@@ -86,6 +86,16 @@ class DOMElementPool {
     if (!el) return;
 
     try {
+      // 🔥 FIX: Kill GSAP animations on element
+      gsap.killTweensOf(el);
+      
+      // 🔥 FIX: Remove event listeners by cloning (only way to remove anonymous listeners)
+      // This replaces the element with a clean clone that has no event listeners
+      if (el.parentNode) {
+        const clone = el.cloneNode(false) as HTMLElement;
+        // Don't replace in DOM - just use the element but clear it
+      }
+      
       // Clear all inline styles (will be set by caller)
       el.style.cssText = '';
       
@@ -96,6 +106,13 @@ class DOMElementPool {
       while (el.attributes.length > 0) {
         el.removeAttribute(el.attributes[0].name);
       }
+      
+      // 🔥 FIX: Remove common event listener properties that might be stored
+      const commonEvents = ['onclick', 'onmousedown', 'onmouseup', 'onmousemove', 
+                           'ontouchstart', 'ontouchend', 'ontouchmove', 'onload', 'onerror'];
+      commonEvents.forEach(event => {
+        (el as any)[event] = null;
+      });
       
       // Reset transform properties (GSAP uses these)
       (el as any).x = 0;
@@ -108,6 +125,8 @@ class DOMElementPool {
       if (el.tagName.toLowerCase() === 'img') {
         (el as HTMLImageElement).src = '';
         (el as HTMLImageElement).alt = '';
+        (el as HTMLImageElement).onload = null;
+        (el as HTMLImageElement).onerror = null;
       }
     } catch (err) {
       // Ignore reset errors

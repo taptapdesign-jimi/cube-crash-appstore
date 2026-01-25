@@ -5,6 +5,20 @@
 import { Container, Graphics, Text, Texture, Sprite } from 'pixi.js';
 import { gsap } from 'gsap';
 
+// 🔥 FIX: Track active timelines for cleanup
+const activeShakeTimelines: gsap.core.Timeline[] = [];
+
+/**
+ * Cleanup all FX animations
+ */
+export function cleanupFxAnimations(): void {
+  // Kill all shake timelines
+  activeShakeTimelines.forEach(tl => {
+    try { tl.kill(); } catch {}
+  });
+  activeShakeTimelines.length = 0;
+}
+
 // Type definitions
 interface Tile extends Container {
   rotG?: Container;
@@ -97,7 +111,9 @@ export function screenShake(app: any, opts: ScreenShakeOptions = {}): void {
   const originalY = stage.y;
   
   // Create shake animation
+  // 🔥 FIX: Track timeline for cleanup
   const shakeTl = gsap.timeline();
+  activeShakeTimelines.push(shakeTl);
   
   const shakeCount = Math.floor(options.duration * options.frequency);
   for (let i = 0; i < shakeCount; i++) {

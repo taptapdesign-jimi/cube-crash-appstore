@@ -1,5 +1,33 @@
 import gsap from 'gsap';
 
+// 🔥 FIX: Track active GSAP tweens for cleanup
+const activeCollectiblesTweens: gsap.core.Tween[] = [];
+
+/**
+ * Cleanup all collectibles animations
+ * Call this when screen is destroyed or before starting new animations
+ */
+export function cleanupCollectiblesAnimations(): void {
+  // Kill all tracked tweens
+  activeCollectiblesTweens.forEach(tween => {
+    try { tween.kill(); } catch {}
+  });
+  activeCollectiblesTweens.length = 0;
+  
+  // Also kill any tweens on collectibles elements
+  const journeyScreen = document.getElementById('journey-screen');
+  if (journeyScreen) {
+    gsap.killTweensOf(journeyScreen);
+    const header = journeyScreen.querySelector('.collectibles-header');
+    const scrollable = journeyScreen.querySelector('.collectibles-scrollable');
+    const cards = journeyScreen.querySelectorAll('.collectible-card');
+    
+    if (header) gsap.killTweensOf(header);
+    if (scrollable) gsap.killTweensOf(scrollable);
+    cards.forEach(card => gsap.killTweensOf(card));
+  }
+}
+
 /**
  * Animate collectibles screen ENTER with pop-in effects
  * Elements pop in: header first, then scrollable, then first 8 cards from 30% scale (remaining cards instantly visible)
