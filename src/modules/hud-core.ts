@@ -36,8 +36,8 @@ import {
   setPrevCombo,
   calculateBoardSize,
   isHUDVisible,
-  showHUD,
-  hideHUD,
+  showHUD as showHUDInternal,
+  hideHUD as hideHUDInternal,
   updateHUDVisibility,
   updateHUDAlpha,
   getHUDPosition,
@@ -66,12 +66,12 @@ import {
 } from './hud-animations.js';
 
 import {
-  createUnifiedHudContainer,
+  createUnifiedHudContainer as createUnifiedHudContainerInternal,
   createPIXIHUDContainer,
   updateHUDInfo,
-  getUnifiedHudInfo,
+  getUnifiedHudInfo as getUnifiedHudInfoInternal,
   layoutHUD,
-  initHUD,
+  initHUD as initHUDInternal,
   createHUDProgressBar,
   updateHUDProgressBar,
   createHUDButton
@@ -144,7 +144,7 @@ let __prevCombo = 0;
  * Create unified HUD container
  */
 export function createUnifiedHudContainer(): HTMLElement {
-  return createUnifiedHudContainer();
+  return createUnifiedHudContainerInternal();
 }
 
 /**
@@ -159,7 +159,7 @@ export function animateUnifiedHudDrop(): void {
  * Get unified HUD info
  */
 export function getUnifiedHudInfo(): UnifiedHudInfo | null {
-  return getUnifiedHudInfo();
+  return getUnifiedHudInfoInternal();
 }
 
 /**
@@ -337,7 +337,7 @@ export function bumpCombo(opts: BumpComboOptions = {}): void {
  */
 export function showHUD(): void {
   logger.info('👁️ Showing HUD');
-  showHUD();
+  showHUDInternal();
 }
 
 /**
@@ -345,7 +345,7 @@ export function showHUD(): void {
  */
 export function hideHUD(): void {
   logger.info('🙈 Hiding HUD');
-  hideHUD();
+  hideHUDInternal();
 }
 
 /**

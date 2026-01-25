@@ -8,6 +8,7 @@ import {
   setActiveResolve, 
   setClosing, 
   executeCleanup,
+  registerCleanup,
   isOverlayActive,
   getActiveOverlay,
   getActiveResolve,
@@ -84,8 +85,15 @@ export function showCollectibleRewardBottomSheet(detail: CollectibleDetail = {})
       resolve(reason);
     };
     
-    sheet.addEventListener('collectible-reward-close', (e: any) => {
+    // 🔥 FIX: Store handler for proper cleanup
+    const closeHandler = (e: any) => {
       handleClose(e.detail.reason);
+    };
+    sheet.addEventListener('collectible-reward-close', closeHandler);
+    
+    // 🔥 FIX: Register cleanup to remove event listener
+    registerCleanup(() => {
+      sheet.removeEventListener('collectible-reward-close', closeHandler);
     });
     
     // Animate in

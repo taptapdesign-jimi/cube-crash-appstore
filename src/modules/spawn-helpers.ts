@@ -88,6 +88,12 @@ export function dealFromRim({ listTiles = [], board, boardSize, gsap }: DealFrom
       resolve();
       return;
     }
+    
+    // 🔥 FIX: Add timeout safety - if animations never complete, resolve anyway
+    const safetyTimeout = setTimeout(() => {
+      console.warn('⚠️ dealFromRim: Safety timeout triggered - forcing resolve');
+      resolve();
+    }, 5000); // 5 second safety timeout
     const size = boardSize || { w: 0, h: 0 };
     const center = { x: size.w / 2, y: size.h / 2 };
     const ring = Math.max(size.w, size.h) * 0.65;
@@ -135,7 +141,10 @@ export function dealFromRim({ listTiles = [], board, boardSize, gsap }: DealFrom
           (t as any).zIndex = 10;
           (t as any)._spawned = true;
           board?.sortChildren?.();
-          if (++done === list.length) resolve();
+          if (++done === list.length) {
+            clearTimeout(safetyTimeout); // 🔥 FIX: Clear safety timeout on success
+            resolve();
+          }
         }
       });
 
