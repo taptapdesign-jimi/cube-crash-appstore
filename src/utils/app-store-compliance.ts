@@ -32,11 +32,22 @@ export class AppStoreCompliance {
     }
   }
 
+  // 🔥 FIX: Store interval ID for cleanup
+  private complianceIntervalId: ReturnType<typeof setInterval> | null = null;
+  
   private setupComplianceMonitoring(): void {
     // Monitor for compliance issues
-    setInterval(() => {
+    this.complianceIntervalId = setInterval(() => {
       this.checkCompliance();
     }, 60000); // Check every minute
+  }
+  
+  // 🔥 FIX: Add destroy method to clean up interval
+  destroy(): void {
+    if (this.complianceIntervalId !== null) {
+      clearInterval(this.complianceIntervalId);
+      this.complianceIntervalId = null;
+    }
   }
 
   isAppStoreReady(): boolean {

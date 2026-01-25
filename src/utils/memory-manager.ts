@@ -108,6 +108,9 @@ class MemoryManager {
     
     // Check memory usage every 5 seconds
     this.monitorTimeoutId = setTimeout(() => {
+      // 🔥 FIX: Check isMonitoring again inside callback to prevent race condition
+      // This handles the case where stop() was called after setTimeout was created
+      if (!this.isMonitoring) return;
       this.checkMemoryUsage();
       this.monitorMemory();
     }, 5000);

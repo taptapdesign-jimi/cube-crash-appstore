@@ -168,83 +168,92 @@ export function createPauseModalContent(): HTMLElement {
 
 /**
  * Add button hover effects
+ * 🔥 FIX: Store handlers for proper cleanup
  */
 export function addButtonHoverEffects(modal: HTMLElement): void {
   const resumeBtn = modal.querySelector('.resume-btn') as HTMLElement;
   const restartBtn = modal.querySelector('.restart-btn') as HTMLElement;
   const exitBtn = modal.querySelector('.exit-btn') as HTMLElement;
   
+  // 🔥 FIX: Store all handlers for cleanup
+  const handlers: Array<{ el: HTMLElement; event: string; handler: () => void }> = [];
+  
+  const addHandler = (el: HTMLElement | null, event: string, handler: () => void) => {
+    if (el) {
+      el.addEventListener(event, handler);
+      handlers.push({ el, event, handler });
+    }
+  };
+  
   if (resumeBtn) {
-    resumeBtn.addEventListener('mouseenter', () => {
+    addHandler(resumeBtn, 'mouseenter', () => {
       resumeBtn.style.background = '#F08A65';
       resumeBtn.style.transform = 'translateY(-2px)';
       resumeBtn.style.boxShadow = '0 10px 0 0 #C24921';
     });
-    
-    resumeBtn.addEventListener('mouseleave', () => {
+    addHandler(resumeBtn, 'mouseleave', () => {
       resumeBtn.style.background = '#E97A55';
       resumeBtn.style.transform = 'translateY(0)';
       resumeBtn.style.boxShadow = '0 8px 0 0 #C24921';
     });
-    
-    resumeBtn.addEventListener('mousedown', () => {
+    addHandler(resumeBtn, 'mousedown', () => {
       resumeBtn.style.transform = 'translateY(2px)';
       resumeBtn.style.boxShadow = '0 6px 0 0 #C24921';
     });
-    
-    resumeBtn.addEventListener('mouseup', () => {
+    addHandler(resumeBtn, 'mouseup', () => {
       resumeBtn.style.transform = 'translateY(-2px)';
       resumeBtn.style.boxShadow = '0 10px 0 0 #C24921';
     });
   }
   
   if (restartBtn) {
-    restartBtn.addEventListener('mouseenter', () => {
+    addHandler(restartBtn, 'mouseenter', () => {
       restartBtn.style.background = '#7C8BA5';
       restartBtn.style.transform = 'translateY(-2px)';
       restartBtn.style.boxShadow = '0 10px 0 0 #4A5A7A';
     });
-    
-    restartBtn.addEventListener('mouseleave', () => {
+    addHandler(restartBtn, 'mouseleave', () => {
       restartBtn.style.background = '#6C7B95';
       restartBtn.style.transform = 'translateY(0)';
       restartBtn.style.boxShadow = '0 8px 0 0 #4A5A7A';
     });
-    
-    restartBtn.addEventListener('mousedown', () => {
+    addHandler(restartBtn, 'mousedown', () => {
       restartBtn.style.transform = 'translateY(2px)';
       restartBtn.style.boxShadow = '0 6px 0 0 #4A5A7A';
     });
-    
-    restartBtn.addEventListener('mouseup', () => {
+    addHandler(restartBtn, 'mouseup', () => {
       restartBtn.style.transform = 'translateY(-2px)';
       restartBtn.style.boxShadow = '0 10px 0 0 #4A5A7A';
     });
   }
   
   if (exitBtn) {
-    exitBtn.addEventListener('mouseenter', () => {
+    addHandler(exitBtn, 'mouseenter', () => {
       exitBtn.style.background = '#E74C3C';
       exitBtn.style.transform = 'translateY(-2px)';
       exitBtn.style.boxShadow = '0 10px 0 0 #A71E2A';
     });
-    
-    exitBtn.addEventListener('mouseleave', () => {
+    addHandler(exitBtn, 'mouseleave', () => {
       exitBtn.style.background = '#DC3545';
       exitBtn.style.transform = 'translateY(0)';
       exitBtn.style.boxShadow = '0 8px 0 0 #A71E2A';
     });
-    
-    exitBtn.addEventListener('mousedown', () => {
+    addHandler(exitBtn, 'mousedown', () => {
       exitBtn.style.transform = 'translateY(2px)';
       exitBtn.style.boxShadow = '0 6px 0 0 #A71E2A';
     });
-    
-    exitBtn.addEventListener('mouseup', () => {
+    addHandler(exitBtn, 'mouseup', () => {
       exitBtn.style.transform = 'translateY(-2px)';
       exitBtn.style.boxShadow = '0 10px 0 0 #A71E2A';
     });
   }
+  
+  // 🔥 FIX: Store cleanup function on modal
+  (modal as any)._hoverHandlersCleanup = () => {
+    handlers.forEach(({ el, event, handler }) => {
+      el.removeEventListener(event, handler);
+    });
+  };
 }
 
 /**
@@ -327,6 +336,12 @@ export function cleanupEventHandlers(modal: HTMLElement, overlay: HTMLElement): 
   if ((overlay as any)._outsideClickHandler) {
     overlay.removeEventListener('click', (overlay as any)._outsideClickHandler);
     delete (overlay as any)._outsideClickHandler;
+  }
+  
+  // 🔥 FIX: Remove hover handlers
+  if ((modal as any)._hoverHandlersCleanup) {
+    (modal as any)._hoverHandlersCleanup();
+    delete (modal as any)._hoverHandlersCleanup;
   }
 }
 
