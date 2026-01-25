@@ -2687,9 +2687,10 @@ function updateComboIcon(comboValue) {
           }
           
           // Step 2: Quick scale up animation (morph effect) - fast and smooth
-          morphTimeline.to(iconSprite, {
-            scaleX: newScale,
-            scaleY: newScale,
+          // Use scale.x/scale.y for PIXI objects (not scaleX/scaleY which needs PixiPlugin)
+          morphTimeline.to(iconSprite.scale, {
+            x: newScale,
+            y: newScale,
             duration: morphDuration, // 150ms - fast morph
             ease: 'power2.out' // Smooth ease out for natural feel
           });

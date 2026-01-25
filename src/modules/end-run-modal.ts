@@ -5,6 +5,7 @@ import { setModalVisible, isModalVisible } from './end-run-utils.js';
 import { pauseGame, resumeGame } from './pause-utils.js';
 import { forceHideScoreBottomSheet, isScoreBottomSheetVisible, resetScoreBottomSheetState } from './score-bottom-sheet.js';
 import { getBoardSaveKey } from '../utils/board-save-utils.js';
+import { gsap } from 'gsap';
 
 let modal: HTMLElement | null = null;
 
@@ -602,6 +603,40 @@ function createModal(): HTMLElement {
       // Don't open detail modal directly - exitToMenu will handle it based on flags
       // This ensures consistent behavior and proper flow
       console.log(`🎯 end-run-modal: Flags checked - exitToMenu will handle opening (detail modal or Journey screen)`);
+      
+      // 🔥 CRITICAL FIX: Kill all GSAP tweens on PIXI objects to prevent _x null errors
+      // The issue is that GSAP tweens hold references to PIXI objects that may be destroyed
+      // Don't stop ticker yet - we need it for the exit animation
+      try {
+        const STATE = (window as any).STATE;
+        const gsapLib = (window as any).gsap || gsap;
+        
+        // Kill all tweens on tiles (which might have destroyed positions)
+        if (STATE?.tiles && STATE.tiles.length > 0) {
+          STATE.tiles.forEach((tile: any) => {
+            try {
+              if (tile && !tile.destroyed) {
+                gsapLib.killTweensOf(tile);
+                if (tile.scale) gsapLib.killTweensOf(tile.scale);
+                if (tile.position) gsapLib.killTweensOf(tile.position);
+              }
+            } catch {}
+          });
+          console.log('✅ Killed GSAP tweens on tiles (Exit click)');
+        }
+        
+        // Kill tweens on board and stage
+        if (STATE?.board && !STATE.board.destroyed) {
+          gsapLib.killTweensOf(STATE.board);
+        }
+        if (STATE?.stage) {
+          gsapLib.killTweensOf(STATE.stage);
+        }
+        
+        console.log('✅ GSAP tweens killed on Exit click');
+      } catch (gsapError) {
+        console.warn('⚠️ Failed to kill GSAP tweens on Exit:', gsapError);
+      }
       
       // Step 1: Animate modal exit (non-blocking, parallel with detail modal)
       hideModal();

@@ -80,11 +80,11 @@ export function animateMergeEffect(src: Tile, dst: Tile): Promise<void> {
     dst._isBeingMerged = true;
     
     // Animate source tile to destination
+    // 🔥 FIX: Animate position on container, scale on scale property
+    gsap.to(src.scale, { x: 0.8, y: 0.8, duration: MERGE_ANIMATION_DURATION, ease: EASING.EASE_IN });
     const mergeTween = gsap.to(src, {
       x: dst.x,
       y: dst.y,
-      scaleX: 0.8,
-      scaleY: 0.8,
       alpha: 0,
       duration: MERGE_ANIMATION_DURATION,
       ease: EASING.EASE_IN,
@@ -123,14 +123,14 @@ export function animateWildMergeEffect(src: Tile, dst: Tile): Promise<void> {
     const tl = gsap.timeline();
     
     // Animate source tile with wild effects
+    // 🔥 FIX: Use scale.x/scale.y for PIXI objects
+    tl.to(src.scale, { x: 0.9, y: 0.9, duration: WILD_MERGE_DURATION * 0.6, ease: EASING.EASE_IN }, 0);
     tl.to(src, {
       x: dst.x,
       y: dst.y,
-      scaleX: 0.9,
-      scaleY: 0.9,
       duration: WILD_MERGE_DURATION * 0.6,
       ease: EASING.EASE_IN
-    })
+    }, 0)
     .to(src, {
       alpha: 0,
       duration: WILD_MERGE_DURATION * 0.4,
@@ -160,11 +160,12 @@ function animateDestinationPulse(tile: Tile): Promise<void> {
       return;
     }
     
-    const pulseTween = gsap.fromTo(tile.rotG,
-      { scaleX: 1, scaleY: 1 },
+    // 🔥 FIX: Animate scale.x/scale.y for PIXI objects
+    const pulseTween = gsap.fromTo(tile.rotG.scale,
+      { x: 1, y: 1 },
       {
-        scaleX: 1.2,
-        scaleY: 1.2,
+        x: 1.2,
+        y: 1.2,
         duration: 0.1,
         ease: EASING.EASE_OUT,
         yoyo: true,
@@ -188,18 +189,29 @@ function animateWildDestinationPulse(tile: Tile): Promise<void> {
       return;
     }
     
-    const wildPulseTween = gsap.fromTo(tile.rotG,
-      { scaleX: 1, scaleY: 1, rotation: 0 },
+    // 🔥 FIX: Animate scale separately for PIXI objects
+    gsap.fromTo(tile.rotG.scale,
+      { x: 1, y: 1 },
       {
-        scaleX: 1.3,
-        scaleY: 1.3,
+        x: 1.3,
+        y: 1.3,
+        duration: 0.15,
+        ease: EASING.EASE_OUT,
+        yoyo: true,
+        repeat: 2
+      }
+    );
+    const wildPulseTween = gsap.fromTo(tile.rotG,
+      { rotation: 0 },
+      {
         rotation: 0.1,
         duration: 0.15,
         ease: EASING.EASE_OUT,
         yoyo: true,
         repeat: 2,
         onComplete: () => {
-          // Reset rotation
+          // Reset rotation and scale
+          gsap.to(tile.rotG.scale, { x: 1, y: 1, duration: 0.1, ease: EASING.EASE_OUT });
           gsap.to(tile.rotG, {
             rotation: 0,
             duration: 0.1,
@@ -306,16 +318,13 @@ export function animateTileSpawn(tile: Tile): Promise<void> {
     tile._isBeingSpawned = true;
     
     // Start from scaled down
-    gsap.set(tile, { 
-      scaleX: 0, 
-      scaleY: 0, 
-      alpha: 0 
-    });
+    // 🔥 FIX: Use scale property for PIXI objects
+    gsap.set(tile.scale, { x: 0, y: 0 });
+    gsap.set(tile, { alpha: 0 });
     
     // Animate in
+    gsap.to(tile.scale, { x: 1, y: 1, duration: 0.3, ease: EASING.EASE_BACK });
     const spawnTween = gsap.to(tile, {
-      scaleX: 1,
-      scaleY: 1,
       alpha: 1,
       duration: 0.3,
       ease: EASING.EASE_BACK,
@@ -345,9 +354,9 @@ export function animateTileDestroy(tile: Tile): Promise<void> {
     // Mark as being destroyed
     tile._isBeingDestroyed = true;
     
+    // 🔥 FIX: Use scale property for PIXI objects
+    gsap.to(tile.scale, { x: 0, y: 0, duration: 0.2, ease: EASING.EASE_IN });
     const destroyTween = gsap.to(tile, {
-      scaleX: 0,
-      scaleY: 0,
       alpha: 0,
       duration: 0.2,
       ease: EASING.EASE_IN,

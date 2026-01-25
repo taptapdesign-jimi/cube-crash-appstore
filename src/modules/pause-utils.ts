@@ -95,13 +95,19 @@ export function pauseGame(): void {
       gsap.globalTimeline.pause();
     }
     
-    // Pause PIXI app
-    const app = container && typeof container.get === 'function' ? container.get('app') : null;
+    // Pause PIXI app - try DI first, then fallback to window.STATE.app
+    let app = null;
+    try {
+      app = container && typeof container.get === 'function' ? container.get('app') : null;
+    } catch {
+      // DI container doesn't have 'app' - use fallback
+      app = (window as any).STATE?.app || null;
+    }
     if (app && app.ticker) {
       app.ticker.stop();
     }
   } catch (e) {
-    console.warn('⚠️ pauseGame failed (non-fatal):', e);
+    // Silently ignore - this is truly non-fatal
   }
 }
 
@@ -120,13 +126,19 @@ export function resumeGame(): void {
       gsap.globalTimeline.resume();
     }
     
-    // Resume PIXI app
-    const app = container && typeof container.get === 'function' ? container.get('app') : null;
+    // Resume PIXI app - try DI first, then fallback to window.STATE.app
+    let app = null;
+    try {
+      app = container && typeof container.get === 'function' ? container.get('app') : null;
+    } catch {
+      // DI container doesn't have 'app' - use fallback
+      app = (window as any).STATE?.app || null;
+    }
     if (app && app.ticker) {
       app.ticker.start();
     }
   } catch (e) {
-    console.warn('⚠️ resumeGame failed (non-fatal):', e);
+    // Silently ignore - this is truly non-fatal
   }
 }
 

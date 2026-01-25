@@ -665,9 +665,77 @@ export async function boot(){
     }
   }, 2000);
   
+  // 🔥🔥🔥 NUCLEAR CLEANUP: Kill EVERYTHING before destroying old app 🔥🔥🔥
+  // This is the ROOT CAUSE of _x null errors - old GSAP callbacks try to access destroyed objects
+  console.log('🔥 NUCLEAR CLEANUP: Killing all animations and clearing all references...');
+  
+  // Step 1: Kill ALL GSAP tweens globally - this is the KEY fix
+  try {
+    gsap.killTweensOf('*'); // Kill all tweens on all targets
+    gsap.globalTimeline.clear(); // Clear the global timeline
+    console.log('✅ Killed ALL GSAP tweens globally');
+  } catch (gsapError) {
+    console.warn('⚠️ Error killing GSAP tweens:', gsapError);
+  }
+  
+  // Step 2: Kill tweens on specific known targets (belt and suspenders approach)
+  try {
+    if (tiles && tiles.length > 0) {
+      tiles.forEach(tile => {
+        try { gsap.killTweensOf(tile); } catch {}
+        try { if (tile?.scale) gsap.killTweensOf(tile.scale); } catch {}
+      });
+    }
+    if (board) gsap.killTweensOf(board);
+    if (stage) gsap.killTweensOf(stage);
+    if (hud) gsap.killTweensOf(hud);
+    console.log('✅ Killed tweens on known PIXI objects');
+  } catch (e) {
+    console.warn('⚠️ Error killing specific tweens:', e);
+  }
+  
+  // Step 3: Clear module-level tile array to prevent stale references
+  try {
+    if (tiles) {
+      tiles.length = 0; // Clear array without reassigning
+    }
+    if (STATE.tiles) {
+      STATE.tiles.length = 0;
+    }
+    console.log('✅ Cleared tiles arrays');
+  } catch (e) {
+    console.warn('⚠️ Error clearing tiles:', e);
+  }
+  
+  // Step 4: Stop PIXI ticker BEFORE any destroy operations
+  if (app && app.ticker) {
+    try {
+      app.ticker.stop();
+      console.log('✅ PIXI ticker stopped');
+    } catch (tickerError) {
+      console.warn('⚠️ Error stopping ticker:', tickerError);
+    }
+  }
+  
+  // Step 5: Clear stage children BEFORE destroy (cleaner removal from render tree)
+  if (app && app.stage) {
+    try {
+      app.stage.removeChildren();
+      console.log('✅ Stage children removed');
+    } catch (e) {
+      console.warn('⚠️ Error removing stage children:', e);
+    }
+  }
+  
+  // Step 6: Clear references BEFORE destroy
+  stage = null as any;
+  board = null as any;
+  hud = null as any;
+  
   // 🔥 CRITICAL FIX: DESTROY existing app if it exists
   if (app && app.canvas) {
     console.log('🧹 Destroying existing PIXI app');
+    
     // 🔥 CRITICAL: Hide canvas IMMEDIATELY before destroy to prevent flash
     app.canvas.style.opacity = '0';
     app.canvas.style.visibility = 'hidden';
@@ -678,7 +746,7 @@ export async function boot(){
     } catch (e) {
       console.log('⚠️ Error destroying app:', e);
     }
-    app = null;
+    app = null as any;
   }
   
   // 🔥 CRITICAL FIX: Clear global HUD_ROOT reference before creating new app
@@ -686,14 +754,16 @@ export async function boot(){
   try {
     if ((window as any).HUD_ROOT) {
       const oldHud = (window as any).HUD_ROOT;
-      oldHud.alpha = 0;
-      oldHud.visible = false;
+      try { oldHud.alpha = 0; } catch {}
+      try { oldHud.visible = false; } catch {}
       (window as any).HUD_ROOT = null;
       console.log('✅ Cleared stale HUD_ROOT reference');
     }
   } catch (e) {
     console.log('⚠️ Error clearing HUD_ROOT:', e);
   }
+  
+  console.log('✅ NUCLEAR CLEANUP complete - safe to create new app');
   
   // 🔥 CRITICAL FIX: Clear ALL existing canvas elements from DOM
   // This prevents leftover canvas elements from showing when starting new game
@@ -1533,7 +1603,7 @@ export async function layoutBoard(){
             try {
               const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
               if (!hudRoot || !hudRoot.parent) {
-                console.warn('⚠️ HUD drop fallback: HUD_ROOT not ready');
+                // Silent - this is expected if HUD hasn't initialized yet
                 return;
               }
               if (!hudRoot._dropped && typeof HUD.playHudDrop === 'function') {
@@ -2241,6 +2311,13 @@ function rebuildBoard(){
 // Board exit animation - reverse of sweetPopIn
 async function animateBoardExit(){
   console.log('🎬🎬🎬 animateBoardExit() CALLED');
+  
+  // 🔥 NUCLEAR BAILOUT: If app or stage are destroyed/null, skip animation entirely
+  // This prevents crashes when exitToMenu is called after cleanup
+  if (!app || !stage || (app as any).destroyed || (stage as any).destroyed) {
+    console.warn('⚠️ animateBoardExit: PIXI app/stage destroyed - skipping animation');
+    return Promise.resolve();
+  }
   
   // 🔥 CRITICAL FIX: Ensure canvas/app is visible BEFORE playing exit animation
   // This fixes the bug where board "just disappears" without animation
@@ -8420,12 +8497,14 @@ export function cleanupGame() {
   if (app) {
     console.log('🧹 Destroying PIXI app in cleanupGame()');
     try {
-      app.destroy(true, { children: true, texture: true, baseTexture: true });
+      // 🔥 FIX: Don't destroy textures - they're managed by Assets and should be unloaded, not destroyed
+      // Using texture: false prevents "A Texture managed by Assets was destroyed" warning
+      app.destroy(true, { children: true, texture: false, textureSource: false });
       console.log('✅ PIXI app destroyed in cleanupGame()');
     } catch (e) {
       console.log('⚠️ Error destroying app in cleanupGame():', e);
     }
-    app = null;
+    app = null as any;
     console.log('✅ app set to null');
   }
   
@@ -9477,12 +9556,30 @@ async function showResumeGameModal() {
   });
 }
 
+// 🔥 CRITICAL: Function to stop PIXI ticker immediately - prevents _x null errors during cleanup
+function stopPixiTicker(): boolean {
+  try {
+    const pixiApp = app || STATE?.app;
+    if (pixiApp && pixiApp.ticker) {
+      pixiApp.ticker.stop();
+      console.log('✅ stopPixiTicker: PIXI ticker stopped');
+      return true;
+    }
+    console.warn('⚠️ stopPixiTicker: No PIXI app/ticker found');
+    return false;
+  } catch (e) {
+    console.warn('⚠️ stopPixiTicker failed:', e);
+    return false;
+  }
+}
+
 // Expose functions globally
 window.saveGameState = saveGameState;
 window.loadGameState = loadGameState;
 window.showResumeGameModal = showResumeGameModal;
 window.drawBoardBG = drawBoardBG;
 window.animateBoardExit = animateBoardExit; // Export for exitToMenu
+(window as any).stopPixiTicker = stopPixiTicker; // Export for exit cleanup
 
 // Export drawBoardBG and animateBoardExit for other modules
 export { drawBoardBG, animateBoardExit };

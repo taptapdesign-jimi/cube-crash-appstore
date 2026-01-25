@@ -1173,6 +1173,27 @@ async function startNewRun(boardId: number): Promise<void> {
   }
   (window as any).exitingToMenu = true;
   
+  // 🔥🔥🔥 NUCLEAR CLEANUP FIRST: Kill ALL GSAP tweens to prevent _x null errors 🔥🔥🔥
+  // This must happen IMMEDIATELY before any animations or cleanup
+  console.log('🔥 exitToMenu: NUCLEAR CLEANUP - killing all GSAP tweens...');
+  try {
+    gsap.killTweensOf('*'); // Kill ALL tweens on all targets
+    gsap.globalTimeline.clear(); // Clear the global timeline
+    console.log('✅ exitToMenu: Killed ALL GSAP tweens globally');
+  } catch (gsapError) {
+    console.warn('⚠️ exitToMenu: Error killing GSAP tweens:', gsapError);
+  }
+  
+  // Stop PIXI ticker immediately to prevent render errors
+  try {
+    if (STATE && STATE.app && STATE.app.ticker) {
+      STATE.app.ticker.stop();
+      console.log('✅ exitToMenu: PIXI ticker stopped');
+    }
+  } catch (tickerError) {
+    console.warn('⚠️ exitToMenu: Error stopping ticker:', tickerError);
+  }
+  
   // ⚡ SPEED OPTIMIZATION: Preload journey-boards-manager module IMMEDIATELY
   // This eliminates ~50-100ms dynamic import delay when showing detail modal
   const journeyManagerPromise = import('./modules/journey-boards-manager.js');

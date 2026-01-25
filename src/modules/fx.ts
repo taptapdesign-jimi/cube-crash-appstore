@@ -5303,7 +5303,8 @@ export function screenShake(app, opts = {}){
         dy = (Math.random() * 2 - 1) * amp * yScale;
       }
       
-      tl.to(target, { x: dx, y: dy, scaleX: zoom, scaleY: zoom, duration: dt, ease }, 0 + i * dt);
+      // Use CSS scale for canvas element (scaleX/scaleY don't work on canvas without CSS transform)
+      tl.to(target, { x: dx, y: dy, scale: zoom, duration: dt, ease }, 0 + i * dt);
       
       // 🔥 USER REQUEST: Apply same shake to board indicator element
       if (boardIndicator) {
@@ -5314,7 +5315,7 @@ export function screenShake(app, opts = {}){
     }
     // Use the same ease for the return animation, or power2.out for normal shake
     const returnEase = ease === 'elastic.out(1, 0.3)' ? 'elastic.out(1, 0.5)' : 'power2.out';
-    tl.to(target, { x: 0, y: 0, scaleX: 1, scaleY: 1, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
+    tl.to(target, { x: 0, y: 0, scale: 1, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
     
     // 🔥 USER REQUEST: Return board indicator to original position
     if (boardIndicator) {
