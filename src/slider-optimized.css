@@ -81,17 +81,7 @@
   margin-top: 28px; /* 🔥 36px - 8px podignuto gore = 28px */
 }
 
-/* Hero image particles overlay - must be behind hero image */
-#hero-image-particles-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1 !important; /* Behind hero image (z-index: 2) */
-  pointer-events: none;
-  overflow: visible;
-}
+/* 🔥 REMOVED: Hero image particles overlay - feature no longer needed */
 
 .hero-image {
   width: 100%;

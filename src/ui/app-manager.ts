@@ -1,6 +1,6 @@
 // App Manager - Handles lazy loading and dynamic component rendering
 import { logger } from '../core/logger.js';
-import { startHeroImageParticles, stopHeroImageParticles } from "../modules/fx.ts";
+// 🔥 REMOVED: startHeroImageParticles, stopHeroImageParticles - feature no longer needed
 
 export type ScreenType = 'loading' | 'home' | 'game' | 'stats' | 'collectibles' | 'menu' | 'settings';
 
@@ -166,29 +166,7 @@ class AppManager {
         }
       }
       
-      // Start logo idle smoke when home screen is shown
-      if (screen === 'home') {
-        // Start hero image particles on slide 1 (homepage)
-        const tryStartHeroParticles = (attempt = 0) => {
-          const heroImage = document.querySelector('.slider-slide[data-slide="0"] .hero-image');
-          if (heroImage && heroImage.parentElement) {
-            console.log('✅ Hero image found, starting particles', heroImage);
-            try {
-              startHeroImageParticles(heroImage);
-            } catch (err) {
-              console.error('❌ Failed to start hero image particles:', err);
-            }
-          } else if (attempt < 5) {
-            // Retry up to 5 times with increasing delays
-            setTimeout(() => tryStartHeroParticles(attempt + 1), 100 * (attempt + 1));
-          } else {
-            console.warn('⚠️ Hero image not found after 5 attempts');
-          }
-        };
-        
-        // Start trying immediately, then retry if needed
-        tryStartHeroParticles(0);
-      }
+      // 🔥 REMOVED: Hero image particles feature no longer needed
       
       logger.info(`✅ Screen shown: ${screen}`);
     } else {
@@ -199,15 +177,7 @@ class AppManager {
   async hideScreen(screen: ScreenType): Promise<void> {
     // 🔥 MEMORY LEAK FIX: Comprehensive cleanup when home screen is hidden
     if (screen === 'home') {
-      // Stop hero image particles and logo shimmer
-      const heroImage = document.querySelector('.slider-slide[data-slide="0"] .hero-image');
-      if (heroImage) {
-        try {
-          stopHeroImageParticles(heroImage);
-        } catch (err) {
-          console.warn('Failed to stop hero image particles:', err);
-        }
-      }
+      // 🔥 REMOVED: Hero image particles feature no longer needed
       
       // Cleanup homepage animations
       try {

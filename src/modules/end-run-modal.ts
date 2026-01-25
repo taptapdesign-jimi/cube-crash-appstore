@@ -385,6 +385,10 @@ function createModal(): HTMLElement {
   const transitionScreenBtn = modal.querySelector('.transition-screen-btn') as HTMLButtonElement;
   
   if (restartBtn) {
+    // 🔥 FIX: Ensure button is clickable
+    restartBtn.style.pointerEvents = 'auto';
+    restartBtn.style.cursor = 'pointer';
+    
     const restartClickHandler = () => {
       console.log('🔄 Restart button clicked - starting restart sequence');
       
@@ -416,15 +420,26 @@ function createModal(): HTMLElement {
       }, 400); // Wait for modal close animation to complete
     };
     trackEndRunEventListener(restartBtn, 'click', restartClickHandler);
+    // 🔥 FIX: Add touchstart handler to stop propagation and prevent drag handler interference
+    const restartTouchStartHandler = (e: Event) => {
+      e.stopPropagation();
+      console.log('🔄 Restart button touchstart - stopped propagation');
+    };
+    trackEndRunEventListener(restartBtn, 'touchstart', restartTouchStartHandler, { passive: true });
     const restartTouchHandler = (e: Event) => {
       e.preventDefault();
       e.stopPropagation();
+      console.log('🔄 Restart button touchend - calling handler');
       restartClickHandler();
     };
     trackEndRunEventListener(restartBtn, 'touchend', restartTouchHandler, { passive: false });
   }
   
   if (completeBoardBtn) {
+    // 🔥 FIX: Ensure button is clickable
+    completeBoardBtn.style.pointerEvents = 'auto';
+    completeBoardBtn.style.cursor = 'pointer';
+    
     const completeBoardClickHandler = async () => {
       console.log('🎯 Complete Board button clicked');
       
@@ -517,9 +532,26 @@ function createModal(): HTMLElement {
       }
     };
     trackEndRunEventListener(completeBoardBtn, 'click', completeBoardClickHandler);
+    // 🔥 FIX: Add touchstart handler to stop propagation and prevent drag handler interference
+    const completeBoardTouchStartHandler = (e: Event) => {
+      e.stopPropagation();
+      console.log('🎯 Complete Board button touchstart - stopped propagation');
+    };
+    trackEndRunEventListener(completeBoardBtn, 'touchstart', completeBoardTouchStartHandler, { passive: true });
+    const completeBoardTouchHandler = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('🎯 Complete Board button touchend - calling handler');
+      completeBoardClickHandler();
+    };
+    trackEndRunEventListener(completeBoardBtn, 'touchend', completeBoardTouchHandler, { passive: false });
   }
   
   if (exitBtn) {
+    // 🔥 FIX: Ensure button is clickable
+    exitBtn.style.pointerEvents = 'auto';
+    exitBtn.style.cursor = 'pointer';
+    
     const exitClickHandler = async () => {
       console.log('🚪 Exit button clicked - starting ULTRA INSTANT exit sequence');
       
@@ -686,9 +718,16 @@ function createModal(): HTMLElement {
       }, 400); // Wait for modal close animation to complete
     };
     trackEndRunEventListener(exitBtn, 'click', exitClickHandler);
+    // 🔥 FIX: Add touchstart handler to stop propagation and prevent drag handler interference
+    const exitTouchStartHandler = (e: Event) => {
+      e.stopPropagation();
+      console.log('🚪 Exit button touchstart - stopped propagation');
+    };
+    trackEndRunEventListener(exitBtn, 'touchstart', exitTouchStartHandler, { passive: true });
     const exitTouchHandler = (e: Event) => {
       e.preventDefault();
       e.stopPropagation();
+      console.log('🚪 Exit button touchend - calling handler');
       exitClickHandler();
     };
     trackEndRunEventListener(exitBtn, 'touchend', exitTouchHandler, { passive: false });
@@ -740,13 +779,20 @@ function createModal(): HTMLElement {
       }
     };
     
+    // 🔥 FIX: Add touchstart handler to stop propagation and prevent drag handler interference
+    const transitionTouchStartHandler = (e: Event) => {
+      e.stopPropagation();
+      console.log('🎬 Transition button touchstart - stopped propagation');
+    };
+    trackEndRunEventListener(transitionScreenBtn, 'touchstart', transitionTouchStartHandler, { passive: true });
+    
     // Add both click and touchend for better mobile support
     // Use capture: false to ensure it's not blocked by other handlers
     trackEndRunEventListener(transitionScreenBtn, 'click', transitionScreenClickHandler, { capture: false });
     trackEndRunEventListener(transitionScreenBtn, 'touchend', transitionScreenClickHandler, { passive: false, capture: false });
-    console.log('✅ Transition Screen button event listeners attached (click + touchend)');
+    console.log('✅ Transition Screen button event listeners attached (touchstart + click + touchend)');
     
-    // 🔥 DEBUG: Test if button is clickable
+    // 🔥 FIX: Ensure button is clickable
     transitionScreenBtn.style.pointerEvents = 'auto';
     transitionScreenBtn.style.cursor = 'pointer';
     console.log('✅ Transition Screen button styles set (pointer-events: auto, cursor: pointer)');
