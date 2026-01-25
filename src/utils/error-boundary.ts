@@ -48,6 +48,9 @@ export class ErrorBoundary {
 }
 
 // Global error handler
+// 🔥 NOTE: These listeners intentionally persist for the app's lifetime
+// They're needed to catch errors at any point during execution
+// Not a memory leak - this is expected singleton behavior
 if (typeof window !== 'undefined') {
   window.addEventListener('error', (event) => {
     ErrorBoundary.getInstance().handleError(event.error, {

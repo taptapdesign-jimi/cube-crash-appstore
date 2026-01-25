@@ -29,7 +29,10 @@ export function showOverlayAnimation(overlay: HTMLElement, options: AnimationOpt
     overlay.style.opacity = '1';
     
     setTimeout(() => {
-      overlay.classList.add('show');
+      // 🔥 FIX: Check if element still exists before modifying
+      if (overlay && overlay.isConnected) {
+        overlay.classList.add('show');
+      }
       resolve();
     }, duration);
   });
@@ -46,8 +49,11 @@ export function hideOverlayAnimation(overlay: HTMLElement, options: AnimationOpt
     overlay.style.opacity = '0';
     
     setTimeout(() => {
-      overlay.style.display = 'none';
-      overlay.classList.remove('show');
+      // 🔥 FIX: Check if element still exists before modifying
+      if (overlay && overlay.isConnected) {
+        overlay.style.display = 'none';
+        overlay.classList.remove('show');
+      }
       resolve();
     }, duration);
   });
@@ -70,6 +76,7 @@ export function showSheetAnimation(sheet: HTMLElement, options: AnimationOptions
     sheet.classList.add('show');
     
     setTimeout(() => {
+      // 🔥 FIX: Always resolve, element check not needed for resolve
       resolve();
     }, duration);
   });

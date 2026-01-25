@@ -298,6 +298,14 @@ class CollectiblesManager {
       document.removeEventListener('click', this.boundHandlers.cardClick);
     }
     
+    // 🔥 FIX: Remove showCollectibles back button handler
+    const backBtn = document.getElementById('collectibles-back');
+    if (backBtn && this.boundHandlers.showCollectiblesBackBtnClick) {
+      backBtn.removeEventListener('click', this.boundHandlers.showCollectiblesBackBtnClick);
+      backBtn.removeAttribute('data-listener-attached');
+      delete this.boundHandlers.showCollectiblesBackBtnClick;
+    }
+    
     // Remove element-specific event listeners
     const titleEl = document.getElementById('collectibles-title');
     if (titleEl && this.boundHandlers.titleClick) {
@@ -428,7 +436,8 @@ class CollectiblesManager {
     const backBtn = document.getElementById('collectibles-back');
     if (backBtn && !backBtn.hasAttribute('data-listener-attached')) {
       console.log('🔌 Attaching back button listener in showCollectibles');
-      backBtn.addEventListener('click', () => {
+      // 🔥 FIX: Store handler for proper cleanup
+      const backBtnHandler = () => {
         // Sweet bounce tap feedback (match hearts tap style)
         try {
           backBtn.classList.remove('sweet-bounce');
@@ -465,7 +474,11 @@ class CollectiblesManager {
             logger.error('❌ Error in hideCollectibles:', err);
           });
         }
-      });
+      };
+      backBtn.addEventListener('click', backBtnHandler);
+      // 🔥 FIX: Store handler for cleanup
+      this.boundHandlers.showCollectiblesBackBtnClick = backBtnHandler;
+      (backBtn as any)._backBtnHandler = backBtnHandler;
       backBtn.setAttribute('data-listener-attached', 'true');
     }
     

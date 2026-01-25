@@ -397,7 +397,8 @@ function createModal(): HTMLElement {
       hideModal();
       
       // Step 2: Wait for modal animation to complete (400ms), then restart
-      setTimeout(() => {
+      // 🔥 FIX: Use trackEndRunTimeout for proper cleanup
+      trackEndRunTimeout(() => {
         console.log('🎯 Modal hidden, calling restart');
         // 🔥 USER REQUEST: Clear saved game state for current board (board-specific)
         try {
@@ -643,7 +644,8 @@ function createModal(): HTMLElement {
       
       // Step 2: Wait for modal animation to complete, then start board exit
       // 🔥 CRITICAL FIX: Wait for modal to close before calling exitToMenu to prevent blank screen
-      setTimeout(() => {
+      // 🔥 FIX: Use trackEndRunTimeout for proper cleanup
+      trackEndRunTimeout(() => {
         console.log('🎯 Modal hidden, starting board exit...');
         
         // Guard: Prevent multiple calls
