@@ -368,6 +368,7 @@ export class AssetPreloader {
       './assets/journey assets/heart-nav.png',
       './assets/journey assets/heart-nav@2x.png',
       './assets/journey assets/heart-nav@3x.png',
+      './assets/journey assets/forest.png',
       './assets/colelctibles/journey-card-empty.png',
       './assets/colelctibles/common back.png',
     ];

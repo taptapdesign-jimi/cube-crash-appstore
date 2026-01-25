@@ -1104,7 +1104,9 @@ async function startNewRun(boardId: number): Promise<void> {
     // This prevents leftover flags from previous boards (e.g., __ccSkipRebuildBoard)
     delete (window as any).__ccSkipRebuildBoard;
     delete (window as any).__ccPreserveScore;
-    console.log(`✅ Cleared leftover flags for fresh board ${boardId}`);
+    // 🔥 CRITICAL FIX: Clear skip board exit animation flag - new board should always animate exit
+    delete (window as any).__skipBoardExitAnimation;
+    console.log(`✅ Cleared leftover flags for fresh board ${boardId} (including __skipBoardExitAnimation)`);
     
     // Set flag so boot() starts at the correct board
     (window as any).__ccStartAtLevel = boardId;
@@ -1316,9 +1318,26 @@ async function startNewRun(boardId: number): Promise<void> {
     
     // Step 1: Play board exit animations (tiles + HUD)
     // 🎯 NEW: Skip board exit animation if flag is set (clean board scenario - no tiles to animate)
+    // 🔥 CRITICAL FIX: Double-check flag value and log it for debugging
     const shouldSkipBoardExit = (window as any).__skipBoardExitAnimation === true;
+    console.log(`🔍 exitToMenu: shouldSkipBoardExit = ${shouldSkipBoardExit}, flag value = ${(window as any).__skipBoardExitAnimation}`);
     if (shouldSkipBoardExit) {
       console.log('⏭️ Skipping board exit animation (clean board - no tiles)');
+      
+      // 🔥 CRITICAL FIX: Still play HUD exit animation even when skipping board exit
+      // This ensures HUD animates out properly before returning to Journey screen
+      try {
+        const { STATE } = await import('./modules/app-state.js');
+        if (STATE && STATE.hud && typeof STATE.hud.playHudRise === 'function') {
+          console.log('🎯 Playing HUD exit animation (board exit skipped)');
+          STATE.hud.playHudRise({});
+          // Wait for HUD exit animation to complete (~300ms)
+          await new Promise(resolve => setTimeout(resolve, 350));
+          console.log('✅ HUD exit animation completed');
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to play HUD exit animation:', error);
+      }
       
       // Hide board and HUD immediately (no animation)
       try {
@@ -1343,6 +1362,12 @@ async function startNewRun(boardId: number): Promise<void> {
       delete (window as any).__skipBoardExitAnimation;
     } else {
       console.log('🎬 Playing board exit animations...');
+      // 🔥 CRITICAL FIX: Double-check that flag is NOT set (defensive check)
+      if ((window as any).__skipBoardExitAnimation === true) {
+        console.warn('⚠️ WARNING: __skipBoardExitAnimation flag is still set! Clearing it and playing exit animation anyway.');
+        delete (window as any).__skipBoardExitAnimation;
+      }
+      
       try {
         // Hide board indicator (board tag) before board exit animation
         const { animateBoardIndicatorExit } = await import('./modules/hud-helpers.js');
@@ -1370,6 +1395,7 @@ async function startNewRun(boardId: number): Promise<void> {
           } catch (e) { /* ignore */ }
           
           // Start board exit (await to ensure cleanup happens after animation)
+          console.log('🎬 Calling animateBoardExit() (fast path)...');
           await animateBoardExit();
           console.log('✅ Board exit animations completed (detail modal already opened from exit button)');
           
@@ -1377,13 +1403,27 @@ async function startNewRun(boardId: number): Promise<void> {
           delete (window as any).__ccFastExitToDetailModal;
         } else {
           // Normal path: wait for board exit to complete
+          console.log('🎬 Starting board exit animation (HUD + tiles)...');
+          console.log('🎬 Calling animateBoardExit() (normal path)...');
           await animateBoardExit();
           console.log('✅ Board exit animations completed');
+          
+          // 🔥 CRITICAL FIX: Wait for animations to fully render before cleanup
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+          console.log('✅ Exit animations fully rendered - ready for cleanup');
         }
       } catch (error) {
-        console.warn('⚠️ Board exit animation failed:', error);
+        console.error('❌ Board exit animation failed:', error);
+        console.error('❌ Error stack:', (error as Error).stack);
+        // 🔥 CRITICAL FIX: Even if animation fails, wait a bit before cleanup to prevent blank screen
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
     }
+    
+    // 🔥 CRITICAL FIX: Wait for exit animation to fully complete before cleanup
+    // Add small delay to ensure animations are fully rendered
+    await new Promise(resolve => setTimeout(resolve, 100));
+    console.log('✅ Exit animation fully completed - starting cleanup');
     
     // Step 2: Kill ALL GSAP tweens immediately after animations complete
     console.log('🧹 Killing all GSAP tweens after animations...');
@@ -1485,7 +1525,19 @@ async function startNewRun(boardId: number): Promise<void> {
       console.warn('⚠️ Failed to run cleanupConfetti:', error);
     }
     
-    // Step 4: Clean up game state AFTER killing all tweens
+    // Step 3c: Stop PIXI ticker BEFORE cleanupGame to prevent _x null errors
+    // 🔥 CRITICAL FIX: Ticker must be stopped BEFORE objects are destroyed to prevent render errors
+    try {
+      if (STATE && STATE.app && STATE.app.ticker) {
+        STATE.app.ticker.stop();
+        console.log('✅ PIXI ticker stopped before cleanupGame');
+      }
+    } catch (tickerError) {
+      console.warn('⚠️ Failed to stop PIXI ticker before cleanup:', tickerError);
+    }
+    
+    // Step 4: Clean up game state AFTER killing all tweens AND exit animation completes
+    // 🔥 CRITICAL FIX: cleanupGame() destroys PIXI app - must be called AFTER exit animation completes
     try {
       if (typeof cleanupGame === 'function') {
         console.log('🧹 Calling cleanupGame() to clean up all game resources...');
@@ -1578,9 +1630,9 @@ async function startNewRun(boardId: number): Promise<void> {
     // NOTE: Saved game state is now handled in end-run-modal.ts
     // Only clear if user made no moves; otherwise keep state for resume
     
-    // 🔥 CRITICAL FIX: Hide app element and canvas BEFORE showing homepage
-    // This ensures board element doesn't show on top of homepage/slider
-    uiManager.hideApp();
+    // 🔥 CRITICAL FIX: DO NOT hide app element here - it will be hidden AFTER Journey screen is shown
+    // This ensures exit animation is fully visible before hiding app
+    // hideApp() will be called after Journey screen enter animation completes
     
     // 🔥 CRITICAL FIX: Remove ALL canvas elements from DOM to prevent them from showing
     // This ensures no leftover canvas elements are visible when returning to homepage
@@ -2179,11 +2231,24 @@ async function startNewRun(boardId: number): Promise<void> {
         navElement.setAttribute('aria-hidden', 'true');
       }
       
+      // 🔥 CRITICAL FIX: Hide app element AFTER Journey screen is shown
+      // This ensures exit animation was fully visible before hiding app
+      // Wait a bit to ensure Journey screen enter animation has started
+      await new Promise(resolve => setTimeout(resolve, 200));
+      uiManager.hideApp();
+      console.log('✅ App element hidden AFTER Journey screen shown (exit animation was visible)');
+      
       console.log('✅ Journey pathway complete - NO homepage slider or background gradient');
     } else {
       // 🔥 Homepage pathway - normal slider animation
       console.log('🏠 Homepage pathway - playing slider enter animation...');
       animateSliderEnter();
+      
+      // 🔥 CRITICAL FIX: Hide app element AFTER homepage is shown
+      // This ensures exit animation was fully visible before hiding app
+      await new Promise(resolve => setTimeout(resolve, 200));
+      uiManager.hideApp();
+      console.log('✅ App element hidden AFTER homepage shown (exit animation was visible)');
     }
     console.log('✅ Exit complete - pathways separated');
     

@@ -36,6 +36,12 @@ import { logger } from '../core/logger.js';
 import type { Tile, Board, Grid, HUD, Stage, Drag, MakeBoard } from '../types/game-types.js';
 import { getBoardSaveKey, migrateGlobalSaveToBoard } from '../utils/board-save-utils.js';
 import { 
+  setPendingCleanBoard, 
+  clearPendingCleanBoard, 
+  getPendingCleanBoard,
+  checkAndRecoverBoard 
+} from './board-recovery.js';
+import { 
   boardSize, 
   cellXY, 
   randVal, 
@@ -204,6 +210,7 @@ window.comboText = null;
 // Wild meter stores raw charge (can exceed 1); HUD clamps to 0..1
 let wildMeter = 0;
 let wildSpawnInProgress = false; // Prevent overlapping wild spawns
+let merge6SpawnInProgress = false; // 🔥 BUG FIX: Prevent duplicate spawns when wild star/beer are used rapidly
 let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildRescueScheduled = false; // Prevent duplicate emergency spawns
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
@@ -311,6 +318,14 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
         } catch {}
       }
     });
+    
+    // 🔥 BOARD RECOVERY: Clean board flow completed successfully - clear recovery flag
+    // This prevents recovery from triggering on next load since flow completed normally
+    try {
+      clearPendingCleanBoard();
+    } catch (e) {
+      logger.warn('⚠️ Failed to clear pending clean board flag:', 'app-core', e);
+    }
   } finally {
     busyEnding = false;
   }
@@ -657,7 +672,9 @@ export async function boot(){
     app.canvas.style.opacity = '0';
     app.canvas.style.visibility = 'hidden';
     try {
-      app.destroy(true, { children: true, texture: true, baseTexture: true });
+      // 🔥 FIX: Don't destroy textures - they're managed by Assets and should be unloaded, not destroyed
+      // Destroying Assets-managed textures causes PixiJS warnings
+      app.destroy(true, { children: true, texture: false, textureSource: false });
     } catch (e) {
       console.log('⚠️ Error destroying app:', e);
     }
@@ -935,10 +952,19 @@ export async function boot(){
   // Load ONLY critical game assets for instant start
   // tile_numbers2/3/4 are deferrable - can load in background
   // 🔥 CRITICAL: ASSET_WILD_BEER MUST be loaded for wild-beer tiles to display correctly
-  await Assets.load([ASSET_TILE, ASSET_NUMBERS, ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_BEER]);
+  // 🔥 FIX: Only load assets that aren't already in cache to avoid "already has key" warnings
+  const criticalAssets = [ASSET_TILE, ASSET_NUMBERS, ASSET_WILD, ASSET_WILD_MAGNET, ASSET_WILD_BEER];
+  const assetsToLoad = criticalAssets.filter(asset => !Assets.cache.has(asset));
+  if (assetsToLoad.length > 0) {
+    await Assets.load(assetsToLoad);
+  }
   
   // Load additional tile number sheets in background (non-blocking)
-  Assets.load([ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4]).catch(() => {});
+  const additionalAssets = [ASSET_NUMBERS2, ASSET_NUMBERS3, ASSET_NUMBERS4];
+  const additionalToLoad = additionalAssets.filter(asset => !Assets.cache.has(asset));
+  if (additionalToLoad.length > 0) {
+    Assets.load(additionalToLoad).catch(() => {});
+  }
   
   // Optimize all loaded textures for pixel-perfect rendering
   // 🔥 CRITICAL: Include ASSET_WILD_BEER in loaded textures list
@@ -2214,7 +2240,49 @@ function rebuildBoard(){
 
 // Board exit animation - reverse of sweetPopIn
 async function animateBoardExit(){
-  console.log('🎬 Starting board exit animation...');
+  console.log('🎬🎬🎬 animateBoardExit() CALLED');
+  
+  // 🔥 CRITICAL FIX: Ensure canvas/app is visible BEFORE playing exit animation
+  // This fixes the bug where board "just disappears" without animation
+  try {
+    const appElement = document.getElementById('app');
+    if (appElement) {
+      appElement.style.display = 'block';
+      appElement.style.visibility = 'visible';
+      appElement.style.opacity = '1';
+      console.log('✅ Board exit: App element visibility ensured');
+    }
+    
+    // Also ensure canvas is visible
+    if (app && app.canvas) {
+      app.canvas.style.display = 'block';
+      app.canvas.style.visibility = 'visible';
+      app.canvas.style.opacity = '1';
+      console.log('✅ Board exit: Canvas visibility ensured');
+    }
+    
+    // Ensure PIXI stage is visible and rendering
+    if (stage) {
+      stage.visible = true;
+      stage.alpha = 1;
+    }
+    if (board) {
+      board.visible = true;
+      board.alpha = 1;
+    }
+    if (hud) {
+      hud.visible = true;
+      hud.alpha = 1;
+    }
+    
+    // Ensure PIXI ticker is running for animations
+    if (app && app.ticker && !app.ticker.started) {
+      app.ticker.start();
+      console.log('✅ Board exit: PIXI ticker restarted for exit animation');
+    }
+  } catch (e) {
+    console.warn('⚠️ Board exit: Error ensuring visibility:', e);
+  }
   
   // CRITICAL: Hide board indicator (board tag) before exit animation
   try {
@@ -2286,18 +2354,37 @@ async function animateBoardExit(){
     // Silently ignore errors
   }
   
-  // Use STATE.tiles directly (not the module-level const reference)
+  // 🔥 DEBUG: Check all tile sources to find valid tiles
   const tilesToAnimate = STATE.tiles || [];
-  console.log('🎯 Animate tiles:', tilesToAnimate.length, 'tiles');
+  const moduleTiles = tiles || [];
+  const windowTiles = (window as any).STATE?.tiles || [];
   
-  if (tilesToAnimate.length === 0) {
-    console.warn('⚠️ No tiles to animate - skipping exit animation');
+  console.log('🔍 Board exit: Tile sources:', {
+    'STATE.tiles': tilesToAnimate.length,
+    'module tiles': moduleTiles.length,
+    'window.STATE.tiles': windowTiles.length,
+    'tilesToAnimate valid': tilesToAnimate.filter((t: any) => t && !t.destroyed).length
+  });
+  
+  // 🔥 FALLBACK: If STATE.tiles is empty but module tiles exist, use those
+  const effectiveTiles = tilesToAnimate.length > 0 ? tilesToAnimate : 
+                         (moduleTiles.length > 0 ? moduleTiles : windowTiles);
+  
+  console.log('🎯 Board exit: Using', effectiveTiles.length, 'tiles for animation');
+  
+  if (effectiveTiles.length === 0) {
+    console.warn('⚠️ No tiles to animate - skipping tile exit animation');
+    console.warn('⚠️ DEBUG: STATE =', STATE);
+    console.warn('⚠️ DEBUG: tiles module var =', tiles);
     // Still trigger HUD exit even if no tiles
     try { 
       HUD.playHudRise?.({}); 
+      console.log('✅ HUD exit animation started (no tiles)');
     } catch (e) {
       console.warn('⚠️ Failed to call HUD.playHudRise:', e);
     }
+    // 🔥 CRITICAL FIX: Even with no tiles, wait for HUD animation to be visible
+    await new Promise(resolve => setTimeout(resolve, 400));
     return Promise.resolve();
   }
   
@@ -2311,9 +2398,20 @@ async function animateBoardExit(){
     console.warn('⚠️ Failed to call HUD.playHudRise:', e);
   }
   
+  // 🔥 CRITICAL FIX: Filter out destroyed/invalid tiles before animation
+  const validTiles = effectiveTiles.filter((t: any) => t && !t.destroyed && t.scale && typeof t.alpha !== 'undefined');
+  console.log('🎯 Board exit: Valid tiles for animation:', validTiles.length, 'of', effectiveTiles.length);
+  
+  if (validTiles.length === 0) {
+    console.warn('⚠️ All tiles are destroyed/invalid - skipping sweetPopOut');
+    // Wait for HUD animation to complete
+    await new Promise(resolve => setTimeout(resolve, 400));
+    return Promise.resolve();
+  }
+  
   // Play sweetPopOut (board tiles exit animation)
   // HUD exit already started above, so they run in parallel
-  return sweetPopOut(tilesToAnimate, {
+  return sweetPopOut(validTiles, {
     // No onHalf callback needed - HUD already started above
   }).then(() => {
     // CRITICAL: Wait for the longest animation to complete
@@ -3210,6 +3308,14 @@ function merge(src, dst, helpers){
   });
   
   if (busyEnding) { helpers.snapBack?.(src); return; }
+  // 🔥 BUG FIX: Prevent duplicate spawns when wild star/beer are used rapidly
+  // If spawn is in progress from previous merge, block new merge to prevent duplicate spawns
+  if (merge6SpawnInProgress) {
+    console.warn('🚨🚨🚨 MERGE BLOCKED: Spawn in progress from previous merge - preventing duplicate spawn');
+    console.warn('⚠️ This prevents bug where rapid wild star/beer clicks cause duplicate spawns');
+    helpers.snapBack?.(src);
+    return;
+  }
   if (src === dst) { helpers.snapBack(src); return; }
   
   // CRITICAL: Validate that both tiles are valid and merge is allowed
@@ -3672,6 +3778,14 @@ function merge(src, dst, helpers){
       if (effSum === 6) {
         (dst as any)._isLastMerge = true;
         console.log('✅ _isLastMerge flag set EARLY on dst tile (before merge 6 block)');
+        
+        // 🔥 BOARD RECOVERY: Persist intent EARLY so we can recover if app is force-quit during animation
+        try {
+          setPendingCleanBoard(boardNumber);
+          console.log('✅ RECOVERY: pendingCleanBoard flag set EARLY (before merge 6 block)');
+        } catch (e) {
+          console.warn('⚠️ Failed to set pending clean board flag (early):', e);
+        }
       }
     } else if (isWildLastTwoForCheck || isRegularLastTwoMerge6) {
       // This would be last merge, but wild-magnet will pull tiles, so it's NOT last merge
@@ -4531,6 +4645,14 @@ function merge(src, dst, helpers){
         isWildLastTileMerge
       });
       
+      // 🔥 BOARD RECOVERY: Persist intent so we can recover if app is force-quit during animation
+      // This flag will trigger clean board on next load if flow doesn't complete
+      try {
+        setPendingCleanBoard(boardNumber);
+      } catch (e) {
+        console.warn('⚠️ Failed to set pending clean board flag:', e);
+      }
+      
       // 🔥 CRITICAL FIX: Reset wild meter IMMEDIATELY when last merge is detected in merge-6 block
       // This prevents wild spawn from happening after last merge (double protection)
       // Wild meter may have been filled by addWildProgress before last merge was detected
@@ -4694,6 +4816,14 @@ function merge(src, dst, helpers){
         (dst as any)._noTilesPulled = true; // Mark explicitly that no tiles were pulled
         (dst as any)._hasTilesToPull = false; // CRITICAL: Override hasTilesToPull for safety
         console.log('✅ Last merge flag set on dst tile - pull animation will be skipped');
+        
+        // 🔥 BOARD RECOVERY: Persist intent so we can recover if app is force-quit during animation
+        try {
+          setPendingCleanBoard(boardNumber);
+          console.log('✅ RECOVERY: pendingCleanBoard flag set (magnet last move scenario)');
+        } catch (e) {
+          console.warn('⚠️ Failed to set pending clean board flag (magnet):', e);
+        }
       }
       
       // 🎯 CRITICAL: Set multiplier to 0 (NO spawns for last merge - clean board!)
@@ -4805,6 +4935,14 @@ function merge(src, dst, helpers){
         (dst as any)._isLastMerge = true;
         console.log('🚨🚨🚨 LAST MERGE DETECTED EARLY (magnet + 1 tile, no tiles to pull) - Setting _isLastMerge flag NOW');
         console.log('🎯 This is the final merge - should trigger clean board, NOT pull tiles or spawn anything');
+        
+        // 🔥 BOARD RECOVERY: Persist intent so we can recover if app is force-quit during animation
+        try {
+          setPendingCleanBoard(boardNumber);
+          console.log('✅ RECOVERY: pendingCleanBoard flag set (magnet early detection)');
+        } catch (e) {
+          console.warn('⚠️ Failed to set pending clean board flag (magnet early):', e);
+        }
       }
       
         // 🔥 CRITICAL FIX: Store whether tiles will be pulled on dst tile BEFORE onComplete callback
@@ -5589,6 +5727,14 @@ function merge(src, dst, helpers){
             dstValue: dst.value,
             activeTilesAfterSrcRemoval: activeTilesAfterSrcRemoval.length
           });
+          
+          // 🔥 BOARD RECOVERY: Persist intent so we can recover if app is force-quit during animation
+          try {
+            setPendingCleanBoard(boardNumber);
+            console.log('✅ RECOVERY: pendingCleanBoard flag set (after src removal detection)');
+          } catch (e) {
+            console.warn('⚠️ Failed to set pending clean board flag (after src removal):', e);
+          }
         }
         
         logger.debug('🔍 LAST MERGE CHECK in onComplete', 'app-core', {
@@ -5696,6 +5842,14 @@ function merge(src, dst, helpers){
             if (!(dst as any)?._isLastMerge) {
               (dst as any)._isLastMerge = true;
               console.log('✅ _isLastMerge flag set to TRUE (was missing)');
+              
+              // 🔥 BOARD RECOVERY: Persist intent so we can recover if app is force-quit during animation
+              try {
+                setPendingCleanBoard(boardNumber);
+                console.log('✅ RECOVERY: pendingCleanBoard flag set (centralized checker)');
+              } catch (e) {
+                console.warn('⚠️ Failed to set pending clean board flag (centralized):', e);
+              }
             }
             
             // Don't set busyEnding or trigger clean board flow here - let normal flow handle it
@@ -6188,6 +6342,20 @@ function merge(src, dst, helpers){
         // Ghost placeholders are now fixed and always visible
 
         // ► CLEAN BOARD flow (centralized orchestrator)
+        // 🔥 DEBUG: Log when merge-6 onComplete is called
+        console.log('🔥🔥🔥 MERGE-6 onComplete CALLED:', {
+          dstValue: dst?.value,
+          srcSpecial,
+          dstSpecial,
+          wildActive,
+          isWildStar: srcSpecial === 'wild' || dstSpecial === 'wild',
+          isWildBeer: srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer',
+          isWildMagnet: srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet',
+          _wildMagnetPulledTilesMerge: (dst as any)?._wildMagnetPulledTilesMerge,
+          _isLastMerge: (dst as any)?._isLastMerge,
+          activeTilesCount: tiles.filter(t => t && !t.destroyed && !t.locked && ((t.value|0) > 0 || t.special)).length
+        });
+        
         // 🔥 CRITICAL: Skip end game check if pulled tiles merge is happening
         // The check will be done AFTER pulled tiles merge completes and spawns new tiles
         if ((dst as any)?._wildMagnetPulledTilesMerge) {
@@ -6424,8 +6592,20 @@ function merge(src, dst, helpers){
         // 🔥 CRITICAL: Check if spawnMult is valid before proceeding
         if (!spawnMult || spawnMult <= 0) {
           console.warn('⚠️ SPAWN BLOCKED: spawnMult is invalid:', spawnMult, 'mult:', mult);
+          // 🔥 BUG FIX: Reset spawn flag if spawn is skipped (spawnMult = 0)
+          merge6SpawnInProgress = false;
           return;
         }
+        
+        // 🔥 BUG FIX: Set spawn in progress flag to prevent duplicate spawns from rapid clicks
+        // This prevents bug where wild star/beer used rapidly cause duplicate spawns
+        if (merge6SpawnInProgress) {
+          console.warn('🚨🚨🚨 SPAWN BLOCKED: Spawn already in progress from previous merge - preventing duplicate spawn');
+          console.warn('⚠️ This prevents bug where rapid wild star/beer clicks cause duplicate spawns');
+          return;
+        }
+        merge6SpawnInProgress = true;
+        console.log('✅ Set merge6SpawnInProgress = true to prevent duplicate spawns');
         
         // 🔥 CRITICAL: Get pulled cells from dst tile to exclude from normal spawn
         const pulledCells = (dst as any)?._wildMagnetPulledCells || [];
@@ -6491,6 +6671,15 @@ function merge(src, dst, helpers){
         // 🔥 SOURCE OF TRUTH: Endgame Mode = no available locked tiles
         const isEndgameMode = availableLockedTiles.length === 0;
         
+        // 🔥 DEBUG: Log endgame mode detection
+        console.log('🎮 ENDGAME CHECK:', {
+          lockedTilesCount: lockedTiles.length,
+          availableLockedTilesCount: availableLockedTiles.length,
+          isEndgameMode,
+          totalActiveTiles: tiles.filter(t => t && !t.destroyed && !t.locked).length,
+          spawnMult
+        });
+        
         // 🔥 SOURCE OF TRUTH: Single Spawn Rule
         // In Endgame Mode, after any Merge-6 (normal or wild):
         // - ONLY ONE tile may spawn
@@ -6548,8 +6737,14 @@ function merge(src, dst, helpers){
               } else {
                 console.warn('⚠️ END-GAME SPAWN: Failed to spawn tile at dst position (', spawnC, ',', spawnR, ')');
               }
+              // 🔥 BUG FIX: Reset spawn in progress flag after endgame spawn completes
+              merge6SpawnInProgress = false;
+              console.log('✅ Reset merge6SpawnInProgress = false after endgame spawn completed');
             }).catch((err) => {
               console.warn('⚠️ END-GAME SPAWN: Error spawning tile at dst position:', err);
+              // 🔥 BUG FIX: Reset spawn in progress flag even on error
+              merge6SpawnInProgress = false;
+              console.log('✅ Reset merge6SpawnInProgress = false after endgame spawn error');
             });
           }, 50); // Small delay to ensure cleanup is complete
         } else {
@@ -6573,8 +6768,14 @@ function merge(src, dst, helpers){
           excludeCells: pulledCellsSet  // 🔥 CRITICAL: Exclude pulled cells from spawn
           }).then(() => {
             console.log('✅ openLockedBounceParallel completed - all spawn animations finished');
+            // 🔥 BUG FIX: Reset spawn in progress flag after normal spawn completes
+            merge6SpawnInProgress = false;
+            console.log('✅ Reset merge6SpawnInProgress = false after normal spawn completed');
           }).catch((err) => {
             console.warn('⚠️ openLockedBounceParallel error:', err);
+            // 🔥 BUG FIX: Reset spawn in progress flag even on error
+            merge6SpawnInProgress = false;
+            console.log('✅ Reset merge6SpawnInProgress = false after normal spawn error');
         });
         }
         
@@ -7229,16 +7430,8 @@ function checkLevelEnd(){
 // 🔥 REMOVED: showCleanBoardEdgeCase() - DEPRECATED function no longer needed
 // Endgame checker handles all edge cases now
 
-async function openLockedBounceParallel(k){
-  // 🔥 CRITICAL: Don't await - spawn tiles in parallel, let animations run concurrently
-  // openLockedBounceParallel now uses setTimeout instead of await, so Promise resolves immediately
-  // This allows tiles to spawn at the correct delays (0ms, 30ms, 60ms, 90ms) without waiting for previous animations
-  FLOW.openLockedBounceParallel({ tiles, k, drag, makeBoard, gsap, drawBoardBG, TILE, fixHoverAnchor, spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done) }).then(() => {
-    console.log('✅ openLockedBounceParallel completed - all spawn animations scheduled');
-  }).catch((err) => {
-    console.warn('⚠️ openLockedBounceParallel failed:', err);
-  });
-}
+// 🔥 REMOVED: openLockedBounceParallel(k) - DEAD CODE, never called
+// Was a wrapper for FLOW.openLockedBounceParallel but is not used anywhere
 
 // -------------------- helpers --------------------
 // 🔥 v112: sleep moved to app-core-utils.ts
@@ -7939,6 +8132,17 @@ export function restart() {
 export function cleanupGame() {
   console.log('🧹 Cleaning up game state');
   
+  // 🔥 CRITICAL FIX: Stop PIXI ticker FIRST to prevent render errors during cleanup
+  // This prevents "Cannot read properties of null (reading '_x')" errors
+  try {
+    if (app && app.ticker) {
+      app.ticker.stop();
+      console.log('✅ PIXI ticker stopped for cleanup');
+    }
+  } catch (e) {
+    console.warn('⚠️ Failed to stop ticker:', e);
+  }
+  
   // 🔥 CRITICAL FIX: Stop and reset tile idle bounce animations
   try {
     TILE_IDLE_BOUNCE.stop();
@@ -8102,11 +8306,7 @@ export function cleanupGame() {
   } catch (e) {
     console.warn('⚠️ Failed to remove resize listener:', e);
   }
-  try { 
-    window.removeEventListener('resize', layout); 
-  } catch (e) {
-    console.warn('⚠️ Failed to remove layout listener:', e);
-  }
+  // Note: 'layout' function was removed - this listener cleanup is no longer needed
   
   // 🔥 CRITICAL FIX: Remove HUD resize listener (stored in HUD_ROOT._onResize)
   // This is the MAIN MEMORY LEAK - HUD_ROOT._onResize listener is never removed!
@@ -8951,12 +9151,153 @@ async function loadGameState() {
     if (!tilesLoaded || !hasActiveTiles) {
       console.warn('⚠️ loadGameState: No tiles loaded or no active tiles - saved state was invalid/empty');
       console.warn('⚠️ loadGameState: tiles.length =', tiles.length, 'hasActiveTiles =', hasActiveTiles);
+      
+      // 🔥 BOARD RECOVERY: Check if this is a stuck state that needs recovery
+      // This handles the edge case where app was force-quit during last merge animation
+      // and the saved state has only locked tiles (no active tiles)
+      const currentBoardNum = Number.isFinite(boardNumber) ? boardNumber : 1;
+      const pendingCheck = getPendingCleanBoard(currentBoardNum);
+      
+      // Also check for stuck indicators in the saved state
+      const lockedTilesCount = tiles.filter(t => t && !t.destroyed && t.locked).length;
+      const totalTilesCount = tiles.filter(t => t && !t.destroyed).length;
+      
+      console.log('🔍 RECOVERY CHECK in loadGameState failure path:', {
+        pendingCleanBoard: pendingCheck.pending,
+        lockedTilesCount,
+        totalTilesCount,
+        hasActiveTiles,
+        tilesLoaded,
+        boardNumber: currentBoardNum
+      });
+      
+      // 🔥 CRITICAL: Determine recovery type
+      // 1. pendingCleanBoard flag set → WIN (last merge detected, clean board should have happened)
+      // 2. NO flag but stuck → FAIL (merge happened, game is stuck - show fail or restart same board)
+      const isWinRecovery = pendingCheck.pending;
+      const isFailRecovery = !pendingCheck.pending && tilesLoaded && !hasActiveTiles;
+      const shouldRecover = isWinRecovery || isFailRecovery;
+      
+      if (shouldRecover) {
+        console.log('🚨🚨🚨 STUCK STATE DETECTED in loadGameState - recovering!', {
+          recoveryType: isWinRecovery ? 'WIN (clean board)' : 'FAIL (stuck)',
+          currentBoard: currentBoardNum
+        });
+        
+        // Clear the saved state for this board (it's corrupted)
+        const saveKey = getBoardSaveKey(currentBoardNum);
+        localStorage.removeItem(saveKey);
+        localStorage.removeItem('cc_saved_game');
+        
+        // Clear pending flag
+        clearPendingCleanBoard();
+        
+        // Clear tiles to force fresh board
+        tiles.length = 0;
+        
+        if (isWinRecovery) {
+          // 🔥 WIN RECOVERY: User completed the board (they were doing last merge)
+          // Mark board as completed and advance to next board
+          console.log('🏆 WIN RECOVERY: User completed board', currentBoardNum, '- advancing to next');
+          
+          try {
+            // Mark this board as completed in journey state
+            const journeyKey = 'cc_journey_progress';
+            const journeyData = localStorage.getItem(journeyKey);
+            if (journeyData) {
+              const journey = JSON.parse(journeyData);
+              // Ensure completed boards includes this one
+              if (!journey.completedBoards) journey.completedBoards = [];
+              if (!journey.completedBoards.includes(currentBoardNum)) {
+                journey.completedBoards.push(currentBoardNum);
+                // Update highest board if needed
+                if (!journey.highestBoard || currentBoardNum >= journey.highestBoard) {
+                  journey.highestBoard = currentBoardNum + 1;
+                }
+                localStorage.setItem(journeyKey, JSON.stringify(journey));
+                console.log('✅ WIN RECOVERY: Marked board', currentBoardNum, 'as completed in journey');
+              }
+            }
+          } catch (e) {
+            console.warn('⚠️ WIN RECOVERY: Failed to update journey state:', e);
+          }
+          
+          // Update boardNumber to next board so rebuildBoard starts fresh there
+          boardNumber = currentBoardNum + 1;
+          level = currentBoardNum + 1;
+          
+          console.log('🚨 WIN RECOVERY: Advancing to board', currentBoardNum + 1);
+        } else {
+          // 🔥 FAIL RECOVERY: User was stuck (not a clean board scenario)
+          // Restart the SAME board - they failed, not won
+          console.log('💀 FAIL RECOVERY: User was stuck on board', currentBoardNum, '- restarting same board');
+          
+          // Keep the same board number - they need to replay it
+          // boardNumber stays the same (currentBoardNum)
+          
+          // 🔥 CRITICAL: Schedule fail screen after UI settles
+          // This gives user proper feedback that they lost
+          setTimeout(() => {
+            try {
+              console.log('💀 FAIL RECOVERY: Showing fail screen for board', currentBoardNum);
+              // Try to show fail screen if available
+              if (typeof showFinalScreen === 'function') {
+                showFinalScreen();
+              } else if (typeof (window as any).showEndRunModal === 'function') {
+                (window as any).showEndRunModal();
+              }
+            } catch (e) {
+              console.warn('⚠️ FAIL RECOVERY: Could not show fail screen:', e);
+            }
+          }, 1000);
+          
+          console.log('🚨 FAIL RECOVERY: Restarting board', currentBoardNum);
+        }
+        
+        // Return false so rebuildBoard() is called with fresh state
+        return false;
+      }
+      
       // Clear invalid saved state
       localStorage.removeItem('cc_saved_game');
       return false; // Return false so rebuildBoard() is called
     }
     
     console.log('✅ Game state loaded successfully with', tiles.length, 'tiles (', tiles.filter(t => t && !t.locked && t.value > 0).length, 'active)');
+    
+    // 🔥 BOARD RECOVERY: Schedule recovery check after UI settles
+    // This handles edge cases where app was force-quit during last merge animation
+    // Recovery check runs async so it doesn't block loadGameState return
+    setTimeout(async () => {
+      try {
+        // Build tile info array for recovery check
+        const tileInfos = tiles
+          .filter(t => t && !t.destroyed)
+          .map(t => ({
+            value: t.value || 0,
+            locked: !!t.locked,
+            destroyed: !!t.destroyed,
+            special: t.special || undefined,
+            gridX: t.gridX,
+            gridY: t.gridY
+          }));
+        
+        const currentBoardNum = Number.isFinite(boardNumber) ? boardNumber : 1;
+        
+        const recoveryResult = await checkAndRecoverBoard(
+          tileInfos,
+          currentBoardNum,
+          triggerCleanBoardFlow
+        );
+        
+        if (recoveryResult.wasStuck) {
+          console.log('🚨 BOARD RECOVERY EXECUTED:', recoveryResult);
+        }
+      } catch (e) {
+        console.warn('⚠️ Board recovery check failed (non-fatal):', e);
+      }
+    }, 1000); // Wait 1s for UI to fully settle before recovery check
+    
     return true;
   } catch (error) {
     console.error('❌ Failed to load game state:', error);

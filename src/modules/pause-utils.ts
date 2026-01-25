@@ -84,17 +84,24 @@ export function setModalOptions(options: PauseModalOptions): void {
  * Pause game
  */
 export function pauseGame(): void {
-  // Implement pause game logic
-  const gameState = container.get('gamePaused') as boolean;
-  container.set('gamePaused', true);
-  
-  // Pause all animations
-  gsap.globalTimeline.pause();
-  
-  // Pause PIXI app
-  const app = container.get('app');
-  if (app) {
-    app.ticker.stop();
+  try {
+    // Implement pause game logic
+    if (container && typeof container.get === 'function') {
+      try { container.set('gamePaused', true); } catch {}
+    }
+    
+    // Pause all animations
+    if (gsap && gsap.globalTimeline) {
+      gsap.globalTimeline.pause();
+    }
+    
+    // Pause PIXI app
+    const app = container && typeof container.get === 'function' ? container.get('app') : null;
+    if (app && app.ticker) {
+      app.ticker.stop();
+    }
+  } catch (e) {
+    console.warn('⚠️ pauseGame failed (non-fatal):', e);
   }
 }
 
@@ -102,16 +109,24 @@ export function pauseGame(): void {
  * Resume game
  */
 export function resumeGame(): void {
-  // Implement resume game logic
-  container.set('gamePaused', false);
-  
-  // Resume all animations
-  gsap.globalTimeline.resume();
-  
-  // Resume PIXI app
-  const app = container.get('app');
-  if (app) {
-    app.ticker.start();
+  try {
+    // Implement resume game logic
+    if (container && typeof container.set === 'function') {
+      try { container.set('gamePaused', false); } catch {}
+    }
+    
+    // Resume all animations
+    if (gsap && gsap.globalTimeline) {
+      gsap.globalTimeline.resume();
+    }
+    
+    // Resume PIXI app
+    const app = container && typeof container.get === 'function' ? container.get('app') : null;
+    if (app && app.ticker) {
+      app.ticker.start();
+    }
+  } catch (e) {
+    console.warn('⚠️ resumeGame failed (non-fatal):', e);
   }
 }
 
@@ -119,16 +134,22 @@ export function resumeGame(): void {
  * Restart game
  */
 export function restartGame(): void {
-  // Implement restart game logic
-  // Reset game state
-  container.set('score', 0);
-  container.set('level', 1);
-  container.set('moves', 50);
-  container.set('combo', 0);
-  container.set('gamePaused', false);
+  try {
+    // Implement restart game logic
+    // Reset game state
+    if (container && typeof container.set === 'function') {
+      try { container.set('score', 0); } catch {}
+      try { container.set('level', 1); } catch {}
+      try { container.set('moves', 50); } catch {}
+      try { container.set('combo', 0); } catch {}
+      try { container.set('gamePaused', false); } catch {}
+    }
+  } catch (e) {
+    console.warn('⚠️ restartGame state reset failed (non-fatal):', e);
+  }
   
   // Reset board
-  const grid = container.get('grid') as (Container | null)[][];
+  const grid = (container && typeof container.get === 'function') ? container.get('grid') as (Container | null)[][] : null;
   if (grid) {
     for (let r = 0; r < grid.length; r++) {
       for (let c = 0; c < grid[r].length; c++) {

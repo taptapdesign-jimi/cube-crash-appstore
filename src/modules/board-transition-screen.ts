@@ -21,6 +21,7 @@ let pauseTimeline: gsap.core.Timeline | null = null;
 let activeCloudImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track cloud image elements for cleanup
 let cloudTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track all cloud timelines (bounce, enter, exit)
 let cloudDelayedCalls: gsap.core.Tween[] = []; // 🔥 MEMORY LEAK FIX: Track all delayedCall instances for cleanup
+let activeForestImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track forest image for cleanup
 // 🔥 USER REQUEST: Smoke removal - no more smoke container tracking
 
 /**
@@ -99,27 +100,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       'perspective: 1000px',
       'transform-style: preserve-3d',
       'position: relative',
-      'z-index: 2' // 🔥 CRITICAL FIX: Ensure container (text and numbers) is above clouds (z-index: -1)
-    ].join(';');
-
-    // Create "board" label with 3D shadow effect
-    const label = document.createElement('p');
-    label.textContent = 'board';
-    
-    // 🔥 USER REQUEST: Clean shadow for label (subtle, matches digits)
-    label.style.cssText = [
-      'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
-      'font-weight: 700',
-      'font-size: 23px', // 🔥 USER REQUEST: Increased by 15% (20px * 1.15 = 23px)
-      'line-height: 1.8',
-      'color: #ad8675',
-      'text-align: center',
-      'margin: 0',
-      'opacity: 0',
-      'transform: translateY(-20px) perspective(1000px) translateZ(0)',
-      'transform-style: preserve-3d',
-      '-webkit-font-smoothing: antialiased',
-      '-moz-osx-font-smoothing: grayscale'
+      'z-index: 2' // 🔥 CRITICAL FIX: Ensure container (numbers) is above clouds (z-index: -1)
     ].join(';');
 
     // Create board number container
@@ -351,8 +332,8 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       
       // Set initial state (spawn at center of viewport with spacing offset)
       gsap.set(cloudImg, {
-        x: `${initialXPercent}%`, // 🔥 USER REQUEST: Center horizontally with spacing offset
-        y: '-50%', // 🔥 USER REQUEST: Center vertically (50% top + -50% transform = center)
+        x: `${initialXPercent}%`,
+        y: '-50%',
         scale: 0,
         opacity: 0,
         rotation: randomRotation
@@ -379,25 +360,20 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         ease: 'sine.in'
       });
       
-      // 🔥 USER REQUEST: Enter animation with stagger - centralni oblaci prvo, zatim gore/dolje
-      // Determine cloud category for enter delay priority
+      // 🔥 USER REQUEST: Enter animation with stagger
       let enterDelay: number;
       if (i >= topCloudsCount && i < topCloudsCount + middleCloudsCount) {
-        // 🔥 USER REQUEST: Centralni oblaci prvo (middle clouds) - prvo se pokazuju
-        const middleIndex = i - topCloudsCount; // Index within middle clouds (0 to middleCloudsCount-1)
-        enterDelay = 0.1 + (middleIndex * 0.05); // Start at 0.1s, stagger by 50ms
+        const middleIndex = i - topCloudsCount;
+        enterDelay = 0.1 + (middleIndex * 0.05);
       } else if (i < topCloudsCount) {
-        // Gornji oblaci - kasnije se pokazuju (nakon centralnih)
-        const topIndex = i; // Index within top clouds (0 to topCloudsCount-1)
-        enterDelay = 0.1 + (middleCloudsCount * 0.05) + (topIndex * 0.05); // Start after middle clouds
+        const topIndex = i;
+        enterDelay = 0.1 + (middleCloudsCount * 0.05) + (topIndex * 0.05);
       } else if (i < topCloudsCount + middleCloudsCount + bottomCloudsCount) {
-        // Donji oblaci - kasnije se pokazuju (nakon centralnih)
-        const bottomIndex = i - (topCloudsCount + middleCloudsCount); // Index within bottom clouds
-        enterDelay = 0.1 + (middleCloudsCount * 0.05) + (bottomIndex * 0.05); // Start after middle clouds
+        const bottomIndex = i - (topCloudsCount + middleCloudsCount);
+        enterDelay = 0.1 + (middleCloudsCount * 0.05) + (bottomIndex * 0.05);
       } else {
-        // Random fill oblaci - najkasnije se pokazuju
-        const randomIndex = i - (topCloudsCount + middleCloudsCount + bottomCloudsCount); // Index within random clouds
-        enterDelay = 0.1 + (middleCloudsCount * 0.05) + (randomIndex * 0.05); // Start after middle clouds
+        const randomIndex = i - (topCloudsCount + middleCloudsCount + bottomCloudsCount);
+        enterDelay = 0.1 + (middleCloudsCount * 0.05) + (randomIndex * 0.05);
       }
       
       // Create cloud animation timeline with stagger delay
@@ -406,10 +382,10 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       // 🔥 MEMORY LEAK FIX: Track cloud timeline for cleanup
       cloudTimelines.push(cloudTimeline);
       
-      // 🔥 USER REQUEST: Enter animation - opacity and scale with bounce (like digits)
+      // 🔥 USER REQUEST: Enter animation - opacity and scale with bounce
       cloudTimeline.to(cloudImg, {
         opacity: 1,
-        scale: randomSize * 1.2, // Slight overshoot like digits
+        scale: randomSize * 1.2,
         duration: 0.4,
         ease: 'back.out(2.0)'
       });
@@ -421,75 +397,91 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         ease: 'power2.out'
       }, '>0');
       
-      // 🔥 USER REQUEST: Immediately start moving (bounce animation) - some left, some right
-      // 🔥 USER REQUEST: Random timeframe for natural sky look
+      // 🔥 USER REQUEST: Immediately start moving - some left, some right
       cloudTimeline.to(cloudImg, {
         x: `${endXPercent}%`,
-        duration: randomMoveDuration, // 🔥 USER REQUEST: Random duration for each cloud
-        ease: 'sine.inOut' // Bouncy movement
+        duration: randomMoveDuration,
+        ease: 'sine.inOut'
       }, '>0');
       
-      // 🔥 CRITICAL FIX: Exit animation with bounce out (EXACTLY like digits) - random timing before end
-      // Exit starts at random point during movement (60-85% through movement) - not all at same time
-      const exitStartPercent = 0.6 + Math.random() * 0.25; // 60-85% through movement
-      const exitStartTime = enterDelay + 0.55 + (randomMoveDuration * exitStartPercent); // Absolute time when to start exit
+      // 🔥 USER REQUEST: Exit animation - clouds keep moving during exit!
+      const exitStartPercent = 0.6 + Math.random() * 0.25;
+      const exitStartTime = enterDelay + 0.55 + (randomMoveDuration * exitStartPercent);
       
-      // 🔥 CRITICAL FIX: Use gsap.delayedCall to ensure exit animacija se pokreće ispravno
-      // This ensures the exit animation runs independently and at the right time
       const delayedCall = gsap.delayedCall(exitStartTime, () => {
-        // 🔥 MEMORY LEAK FIX: Check if cloudImg is still valid (not released to pool)
         if (!activeCloudImages.includes(cloudImg)) {
-          return; // Cloud already cleaned up, skip exit animation
+          return;
         }
         
-        // 🔥 CRITICAL FIX: Kill all existing animations on cloud element before exit (like digits)
+        // 🔥 USER REQUEST: Only kill bounce, NOT cloudTimeline - so x movement continues!
         bounceTimeline.kill();
-        cloudTimeline.kill();
-        gsap.killTweensOf(cloudImg);
         
-        // 🔥 CRITICAL FIX: Get current scale value (not randomSize, but actual current scale)
         const currentScale = gsap.getProperty(cloudImg, 'scale') as number;
+        const bounceOutScale = currentScale * 1.2;
         
-        // 🔥 USER REQUEST: Bounce out scale calculation
-        // Original oblak = 100%, bounce out = 120% (currentScale * 1.2)
-        const bounceOutScale = currentScale * 1.2; // 120% od trenutne veličine
-        
-        // Reset transform origin for exit animation
         gsap.set(cloudImg, { transformOrigin: 'center center' });
         
-        // 🔥 CRITICAL FIX: Create exit timeline EXACTLY like digits - no delay, starts immediately
         const cloudExitTimeline = gsap.timeline();
-        
-        // 🔥 MEMORY LEAK FIX: Track exit timeline for cleanup
         cloudTimelines.push(cloudExitTimeline);
         
-        // First: scale current → 120% (bounce out overshoot) with 3D depth
-        // Primjer: ako je oblak 0.5x, bounce out = 0.5 * 1.2 = 0.6x (120% od trenutne)
+        // Bounce out while still moving horizontally
         cloudExitTimeline.to(cloudImg, {
-          scale: bounceOutScale, // 120% od trenutne veličine (ne apsolutno 1.03!)
-          z: 30, // Push forward in 3D (same as digits)
+          scale: bounceOutScale,
+          z: 30,
           duration: 0.15,
           ease: 'power2.out'
         });
         
-        // Then: scale 120% → 0 with depth fade - NO rotation (user request)
         cloudExitTimeline.to(cloudImg, {
           opacity: 0,
           scale: 0,
-          z: -100, // Pull back in 3D space (same as digits)
+          z: -100,
           duration: 0.3,
           ease: 'power2.in'
         });
       });
       
-      // 🔥 MEMORY LEAK FIX: Track delayedCall for cleanup
       cloudDelayedCalls.push(delayedCall);
     }
     
     overlay.appendChild(cloudContainer);
 
+    // 🔥 USER REQUEST: Forest at bottom (-150px below viewport), in front of clouds, behind digits
+    const forestContainer = document.createElement('div');
+    forestContainer.className = 'cc-board-transition-forest';
+    forestContainer.style.cssText = [
+      'position: absolute',
+      'left: 0',
+      'right: 0',
+      'bottom: -190px',
+      'width: 100%',
+      'height: 42vh',
+      'pointer-events: none',
+      'z-index: 0',
+      'overflow: hidden',
+      'transform-origin: center bottom',
+      'transform-style: preserve-3d',
+      'will-change: transform, opacity'
+    ].join(';');
+    const forestImg = domElementPool.acquire('img') as HTMLImageElement;
+    forestImg.src = './assets/journey assets/forest.png';
+    forestImg.alt = 'Forest';
+    forestImg.style.cssText = [
+      'position: absolute',
+      'left: 0',
+      'bottom: 0',
+      'width: 100%',
+      'height: 100%',
+      'object-fit: cover',
+      'object-position: bottom center',
+      'display: block',
+      'pointer-events: none'
+    ].join(';');
+    activeForestImages.push(forestImg);
+    forestContainer.appendChild(forestImg);
+    overlay.appendChild(forestContainer);
+
     // Assemble DOM
-    container.appendChild(label);
     container.appendChild(numberContainer);
     overlay.appendChild(container);
     document.body.appendChild(overlay);
@@ -554,6 +546,9 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
             gsap.set(overlay, { x: 0, y: 0 });
           }
         });
+        
+        // 🔥 MEMORY LEAK FIX: Track shake timeline for cleanup
+        activeTweens.push(shakeTimeline);
         
         for (let i = 0; i < shakeSteps; i++) {
           const progress = i / shakeSteps;
@@ -621,50 +616,36 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       }
     }, null, 0.65); // 🔥 USER REQUEST: Trigger at 0.65s (exactly when first digit animation starts - delay 0.3 + 0.35s)
 
-    // Step 2: Animate "board" label with bounce (same as digits)
-    // 🔥 USER REQUEST: Same bounce animation as digits
-    // Set initial state
-    gsap.set(label, {
+    // 🔥 USER REQUEST: Forest enter animation, transform-origin center bottom
+    gsap.set(forestContainer, {
       opacity: 0,
       scale: 0,
-      rotation: -15 // Slight rotation for bounce effect
+      rotation: -15,
+      transformOrigin: 'center bottom'
     });
-
-    // Beautiful bounce animation (same as digits)
-    // Scale 0 → 1.2 → 0.95 → 1.0 with elastic bounce
-    const labelTimeline = gsap.timeline();
-    
-    // First bounce: scale 0 → 1.2 with 3D effect
-    labelTimeline.to(label, {
+    const forestEnterTimeline = gsap.timeline();
+    forestEnterTimeline.to(forestContainer, {
       opacity: 1,
-      scale: 1.2,
+      scale: 1.01, // 🔥 USER REQUEST: Minimal bounce overshoot
       rotation: 0,
-      rotationX: 0,
-      rotationY: 0,
-      z: 10, // Slight 3D depth
-      duration: 0.4, // Faster: 0.6s → 0.4s
+      z: 10,
+      duration: 0.4,
       ease: 'back.out(2.0)'
     });
-    
-    // Settle: scale 1.2 → 0.95
-    labelTimeline.to(label, {
+    forestEnterTimeline.to(forestContainer, {
       scale: 0.95,
       z: 0,
-      duration: 0.15, // Faster: 0.2s → 0.15s
+      duration: 0.15,
       ease: 'power2.out'
     });
-    
-    // Final settle: scale 0.95 → 1.0
-    labelTimeline.to(label, {
-      opacity: 1, // 🔥 CRITICAL FIX: Ensure full opacity in final state
+    forestEnterTimeline.to(forestContainer, {
+      opacity: 1,
       scale: 1.0,
       z: 0,
-      duration: 0.2, // Faster: 0.3s → 0.2s
+      duration: 0.2,
       ease: 'back.out(1.5)'
     });
-
-    // Add label animation to main timeline (starts at 0.1s)
-    enterTimeline.add(labelTimeline, 0.1);
+    enterTimeline.add(forestEnterTimeline, 0.1);
 
     // Step 3: Animate digits with bounce animation (staggered)
     digitElements.forEach((digitEl, index) => {
@@ -770,7 +751,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
               onComplete: () => {
                 pauseTimeline = null;
                 try {
-                  startExitAnimation(overlay, container, label, digitElements, () => {
+                  startExitAnimation(overlay, container, digitElements, forestContainer, () => {
                     cleanup();
                     isTransitionActive = false;
                     // 🔥 USER REQUEST: Reset paper background when transition screen closes
@@ -837,8 +818,8 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
 function startExitAnimation(
   overlay: HTMLElement,
   container: HTMLElement,
-  label: HTMLElement,
   digitElements: HTMLElement[],
+  forestContainer: HTMLElement | null,
   onComplete: () => void
 ): void {
   // 🔥 CRITICAL FIX: Kill any existing exit timeline before creating new one
@@ -854,7 +835,7 @@ function startExitAnimation(
     }
   });
 
-  // Reverse order: digits first (last to first), then label, then overlay
+  // Reverse order: digits first (last to first), then forest, then overlay
 
   // Step 1: Animate digits out with bounce (left-to-right, sequential)
     digitElements.forEach((digitEl, index) => {
@@ -885,33 +866,29 @@ function startExitAnimation(
       exitTimeline.add(digitExitTimeline, delay);
     });
 
-  // Step 2: Animate label out with bounce (same as digits)
-  // 🔥 USER REQUEST: Same bounce exit animation as enter
-  const labelExitTimeline = gsap.timeline();
-  
-  // First: scale 1.0 → 1.1 (slight overshoot) with 3D depth
-  labelExitTimeline.to(label, {
-    scale: 1.1,
-    z: 20, // Push forward in 3D
-    duration: 0.15,
-    ease: 'power2.out'
-  });
-  
-  // Then: scale 1.1 → 0 with 3D rotation and depth
-  labelExitTimeline.to(label, {
-    opacity: 0,
-    scale: 0,
-    rotation: 15,
-    rotationX: 45, // 3D rotation
-    rotationY: 15, // 3D rotation
-    z: -50, // Pull back in 3D space
-    duration: 0.3, // 🔥 USER REQUEST: Faster (0.5s → 0.3s)
-    ease: 'power2.in'
-  });
-  
-  exitTimeline.add(labelExitTimeline, 0.1); // Starts slightly after digits
+  // Step 2: Forest exit animation
+  if (forestContainer) {
+    const forestExitTimeline = gsap.timeline();
+    forestExitTimeline.to(forestContainer, {
+      scale: 1.01,
+      z: 20,
+      duration: 0.15,
+      ease: 'power2.out'
+    });
+    forestExitTimeline.to(forestContainer, {
+      opacity: 0,
+      scale: 0,
+      rotation: 15,
+      rotationX: 45,
+      rotationY: 15,
+      z: -50,
+      duration: 0.3,
+      ease: 'power2.in'
+    });
+    exitTimeline.add(forestExitTimeline, 0.1);
+  }
 
-  // Step 3: Fade out overlay (starts after label)
+  // Step 3: Fade out overlay
   exitTimeline.to(overlay, {
     opacity: 0,
     duration: 0.3, // 🔥 USER REQUEST: Faster (0.4s → 0.3s)
@@ -1009,6 +986,29 @@ function cleanup(): void {
     }
   });
   activeCloudImages = [];
+
+  // 🔥 IMAGE POOLING: Release forest image back to pool
+  activeForestImages.forEach(forestImg => {
+    try {
+      gsap.killTweensOf(forestImg);
+      domElementPool.release(forestImg);
+    } catch (error) {
+      logger.warn('⚠️ Error releasing forest image to pool:', error);
+    }
+  });
+  activeForestImages = [];
+
+  // 🔥 APP STORE: Kill animations on forest container
+  try {
+    const forestContainers = document.querySelectorAll('.cc-board-transition-forest');
+    forestContainers.forEach(container => {
+      try {
+        gsap.killTweensOf(container);
+      } catch {}
+    });
+  } catch (error) {
+    logger.warn('⚠️ Error cleaning up forest container:', error);
+  }
 
   // 🔥 APP STORE: Clear any digit element references
   try {

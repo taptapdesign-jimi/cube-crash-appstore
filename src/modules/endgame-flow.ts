@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { logger } from '../core/logger.js';
+import { gsap } from 'gsap';
 // public/src/modules/endgame-flow.ts
 // Orkestracija (simplified): STARS → NEXT
 // Privremeno maknuto: Clean Board i Mystery Prize.
@@ -117,13 +118,19 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
 
     // 🔥 ENDGAME ANIMATION-WAIT: Wait for stars + bubbles before clean board; skip stars when regular/magnet (none run)
     // 🔥 CLEAN BOARD DELAY FIX: 4s max (was 5.5s/6s). Bubbles safety timeout 4.4s + early resolve when done.
+    // 🔥 CLEAN BOARD TOO EARLY FIX: Bubbles/stars start via setTimeout(200ms). runEndgameFlow can be triggered
+    // immediately from merge-6; if we poll before 200ms, we see "not running" → resolve → modal blocks animations.
+    // When we expect stars/bubbles (!skipStarsWait), wait 350ms first so they have time to start, then poll.
     try {
       const fxModule = await import('./fx.js');
       const maxWaitMs = 4000;
       if (skipStarsWait && typeof fxModule.waitForBubblesAnimationToComplete === 'function') {
         await fxModule.waitForBubblesAnimationToComplete(maxWaitMs);
-      } else if (fxModule && typeof fxModule.waitForOngoingAnimations === 'function') {
-        await fxModule.waitForOngoingAnimations(maxWaitMs);
+      } else {
+        if (fxModule && typeof fxModule.waitForOngoingAnimations === 'function') {
+          await new Promise((r) => setTimeout(r, 350)); // let bubbles/stars start (200ms) + buffer
+          await fxModule.waitForOngoingAnimations(maxWaitMs);
+        }
       }
     } catch (e) {
       console.warn('⚠️ endgame-flow: animation wait failed (non-fatal):', e);
@@ -276,13 +283,19 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           logger.warn('⚠️ Failed to clear board save state before opening detail modal:', error);
         }
         
-        // 🎯 NEW: Skip board exit animation because board is clean (no tiles to animate)
-        // This prevents animating an empty board which looks weird (only HUD moves)
-        (window as any).__skipBoardExitAnimation = true;
-        console.log('🎯 Set flag to skip board exit animation (clean board - no tiles)');
+        // 🔥 CRITICAL FIX: DO NOT skip board exit animation - user wants to see it!
+        // Board exit animation was already played in clean-board-modal before resolving
+        // Clear any skip flag to ensure exitToMenu doesn't skip it (defensive)
+        delete (window as any).__skipBoardExitAnimation;
+        console.log('🎯 endgame-flow: Cleared skip flag - board exit animation already played in clean-board-modal');
         
         // Call exitToMenu which will detect these flags and open detail modal directly
+        // Note: Board exit animation was already played in clean-board-modal, so exitToMenu will skip it
+        // But we still need to call exitToMenu to handle the transition to detail modal
         if (typeof (window as any).exitToMenu === 'function') {
+          // Set flag to skip board exit animation since it was already played in clean-board-modal
+          (window as any).__skipBoardExitAnimation = true;
+          console.log('🎯 endgame-flow: Set skip flag for exitToMenu (animation already played in clean-board-modal)');
           await (window as any).exitToMenu();
         }
       } catch (error) {
@@ -586,7 +599,9 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     // The flag may have been set by previous game state loading, but for clean board continuation
     // we always want to rebuild the board with new tiles
     delete (window as any).__ccSkipRebuildBoard;
-    console.log('✅ endgame-flow: Cleared __ccSkipRebuildBoard flag - board will be rebuilt for next level');
+    // 🔥 CRITICAL FIX: Clear skip board exit animation flag - new board should always animate exit
+    delete (window as any).__skipBoardExitAnimation;
+    console.log('✅ endgame-flow: Cleared __ccSkipRebuildBoard and __skipBoardExitAnimation flags - board will be rebuilt for next level');
     
     // 🔥 CRITICAL FIX: Detect if we came from interim board (Journey) and use proper initialization
     // If we came from Journey (interim board), we need to use startNewRunFromJourney() instead of startLevel()
@@ -624,9 +639,15 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           // 🔥 CRITICAL FIX: Hide app first to cleanup previous board before starting new one
           // This prevents blank screen with old board visible in background
           try {
-            const { uiManager } = await import('./ui-manager.js');
-            uiManager.hideApp();
-            console.log('✅ endgame-flow: Hidden app before starting new board');
+            // 🔥 FIX: uiManager is a default export, not named export
+            const uiManagerModule = await import('./ui-manager.js');
+            const uiMgr = uiManagerModule.default;
+            if (uiMgr && typeof uiMgr.hideApp === 'function') {
+              uiMgr.hideApp();
+              console.log('✅ endgame-flow: Hidden app before starting new board');
+            } else {
+              console.warn('⚠️ endgame-flow: uiManager.hideApp not available');
+            }
           } catch (hideError) {
             console.warn('⚠️ endgame-flow: Failed to hide app (non-fatal):', hideError);
           }

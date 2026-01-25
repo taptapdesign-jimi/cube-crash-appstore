@@ -146,17 +146,19 @@ class SliderManager {
     
     // Navigation dots
     this.boundHandlers.dotClick = new Map();
-    this.elements.dots.forEach((dot, index) => {
-      const handler = () => {
-        // Light haptic for nav dots
-        if (typeof (window as any).triggerHapticImpact === 'function') {
-          (window as any).triggerHapticImpact('light');
-        }
-        this.goToSlide(index);
-      };
-      this.boundHandlers.dotClick!.set(dot, handler);
-      dot.addEventListener('click', handler);
-    });
+    if (this.elements.dots && typeof this.elements.dots.forEach === 'function') {
+      this.elements.dots.forEach((dot, index) => {
+        const handler = () => {
+          // Light haptic for nav dots
+          if (typeof (window as any).triggerHapticImpact === 'function') {
+            (window as any).triggerHapticImpact('light');
+          }
+          this.goToSlide(index);
+        };
+        this.boundHandlers.dotClick!.set(dot, handler);
+        dot.addEventListener('click', handler);
+      });
+    }
     
     // Independent navigation buttons
     this.boundHandlers.navButtonClick = new Map();
@@ -496,9 +498,11 @@ class SliderManager {
     }
     
     // Update dots
-    this.elements.dots.forEach((dot, index) => {
-      dot.classList.toggle('active', index === this.currentSlide);
-    });
+    if (this.elements.dots && typeof this.elements.dots.forEach === 'function') {
+      this.elements.dots.forEach((dot, index) => {
+        dot.classList.toggle('active', index === this.currentSlide);
+      });
+    }
     
     // Update independent navigation buttons with smooth ease-in ease-out animations
     // Use requestAnimationFrame to ensure animations start after layout is stable

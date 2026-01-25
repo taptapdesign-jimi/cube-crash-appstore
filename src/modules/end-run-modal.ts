@@ -617,6 +617,11 @@ function createModal(): HTMLElement {
           return;
         }
         
+        // 🔥 CRITICAL FIX: Clear any skip flags to ensure exit animation always plays
+        // This ensures board exit animation (HUD + tiles) always plays before returning to Journey screen
+        delete (window as any).__skipBoardExitAnimation;
+        console.log('✅ Cleared __skipBoardExitAnimation flag - exit animation will play');
+        
         // Clear saved game state ONLY if user hasn't made any moves
         // If user made moves (stack/merge), the state is already saved and should be kept
         try {
@@ -636,7 +641,7 @@ function createModal(): HTMLElement {
         }
         
         if ((window as any).exitToMenu) {
-          console.log('🎯 Calling exitToMenu...');
+          console.log('🎯 Calling exitToMenu (will play board exit animation first)...');
           (window as any).exitToMenu();
         } else {
           console.error('❌ exitToMenu function not found!');

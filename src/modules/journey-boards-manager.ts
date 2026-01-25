@@ -5968,42 +5968,56 @@ class JourneyBoardsManager {
   }
 
   private initJourneyButtons(): void {
-    const unlockBtn = document.getElementById('journey-unlock-btn');
+    const unlockBtn = document.getElementById('journey-unlock-btn') as HTMLButtonElement | null;
     if (unlockBtn) {
-      // Remove existing listener if any to prevent duplicates
-      const newUnlockBtn = unlockBtn.cloneNode(true);
-      unlockBtn.parentNode?.replaceChild(newUnlockBtn, unlockBtn);
+      // 🔥 CHROME FIX: Don't use cloneNode - just remove old listeners via onclick
+      // Remove any existing onclick handler
+      unlockBtn.onclick = null;
       
-      // 🔥 iPad FIX: Add both click and touchend events for better iPad compatibility
+      // 🔥 CHROME + MOBILE FIX: Use onclick for better cross-browser compatibility
       const handleUnlock = (e: Event) => {
+        e.preventDefault();
         e.stopPropagation();
         console.log('🗺️ Journey Show Card button clicked/touched', e.type);
         this.showBoardPickerModal('show');
       };
       
-      (newUnlockBtn as HTMLElement).addEventListener('click', handleUnlock);
-      (newUnlockBtn as HTMLElement).addEventListener('touchend', handleUnlock, { passive: true });
-      console.log('✅ Journey Show Card button listener attached');
+      // Use onclick property (overwrites any existing handler)
+      unlockBtn.onclick = handleUnlock;
+      
+      // 🔥 CHROME FIX: Ensure button is interactive
+      unlockBtn.style.pointerEvents = 'auto';
+      unlockBtn.style.cursor = 'pointer';
+      unlockBtn.disabled = false;
+      
+      console.log('✅ Journey Show Card button listener attached (onclick)');
     } else {
       console.warn('⚠️ journey-unlock-btn not found');
     }
 
-    const hideBtn = document.getElementById('journey-hide-btn');
+    const hideBtn = document.getElementById('journey-hide-btn') as HTMLButtonElement | null;
     if (hideBtn) {
-      // Remove existing listener if any to prevent duplicates
-      const newHideBtn = hideBtn.cloneNode(true);
-      hideBtn.parentNode?.replaceChild(newHideBtn, hideBtn);
+      // 🔥 CHROME FIX: Don't use cloneNode - just remove old listeners via onclick
+      // Remove any existing onclick handler
+      hideBtn.onclick = null;
       
-      // 🔥 iPad FIX: Add both click and touchend events for better iPad compatibility
+      // 🔥 CHROME + MOBILE FIX: Use onclick for better cross-browser compatibility
       const handleHide = (e: Event) => {
+        e.preventDefault();
         e.stopPropagation();
         console.log('🗺️ Journey Hide Card button clicked/touched', e.type);
         this.showBoardPickerModal('hide');
       };
       
-      (newHideBtn as HTMLElement).addEventListener('click', handleHide);
-      (newHideBtn as HTMLElement).addEventListener('touchend', handleHide, { passive: true });
-      console.log('✅ Journey Hide Card button listener attached');
+      // Use onclick property (overwrites any existing handler)
+      hideBtn.onclick = handleHide;
+      
+      // 🔥 CHROME FIX: Ensure button is interactive
+      hideBtn.style.pointerEvents = 'auto';
+      hideBtn.style.cursor = 'pointer';
+      hideBtn.disabled = false;
+      
+      console.log('✅ Journey Hide Card button listener attached (onclick)');
     } else {
       console.warn('⚠️ journey-hide-btn not found');
     }

@@ -2155,22 +2155,30 @@ class CollectiblesManager {
   }
 
   private initDevButtons(): void {
-    const unlockBtn = document.getElementById('collectibles-unlock-btn');
+    const unlockBtn = document.getElementById('collectibles-unlock-btn') as HTMLButtonElement | null;
     if (unlockBtn) {
-      const newUnlockBtn = unlockBtn.cloneNode(true);
-      unlockBtn.parentNode?.replaceChild(newUnlockBtn, unlockBtn);
-      (newUnlockBtn as HTMLElement).addEventListener('click', () => {
+      // 🔥 CHROME FIX: Use onclick property for better cross-browser compatibility
+      unlockBtn.onclick = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
         this.showCardPickerModal('show');
-      });
+      };
+      // 🔥 CHROME FIX: Ensure button is interactive
+      unlockBtn.style.pointerEvents = 'auto';
+      unlockBtn.style.cursor = 'pointer';
     }
 
-    const hideBtn = document.getElementById('collectibles-hide-btn');
+    const hideBtn = document.getElementById('collectibles-hide-btn') as HTMLButtonElement | null;
     if (hideBtn) {
-      const newHideBtn = hideBtn.cloneNode(true);
-      hideBtn.parentNode?.replaceChild(newHideBtn, hideBtn);
-      (newHideBtn as HTMLElement).addEventListener('click', () => {
+      // 🔥 CHROME FIX: Use onclick property for better cross-browser compatibility
+      hideBtn.onclick = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
         this.showCardPickerModal('hide');
-      });
+      };
+      // 🔥 CHROME FIX: Ensure button is interactive
+      hideBtn.style.pointerEvents = 'auto';
+      hideBtn.style.cursor = 'pointer';
     }
   }
 

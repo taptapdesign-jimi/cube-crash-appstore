@@ -19,18 +19,34 @@ class GraphicsPool {
   /**
    * Acquire a Graphics object from the pool
    * If pool is empty, creates a new one
+   * 🔥 FIX: Filters out destroyed/invalid objects from pool
    * @returns {Graphics} Ready-to-use Graphics object
    */
   acquire(): Graphics {
-    let g = this.pool.pop();
+    let g: Graphics | undefined;
+    let attempts = 0;
+    const maxAttempts = 10; // Prevent infinite loop if pool is corrupted
+    
+    // 🔥 FIX: Keep trying to get a valid object from pool
+    while (this.pool.length > 0 && attempts < maxAttempts) {
+      g = this.pool.pop();
+      attempts++;
+      
+      // Check if object is valid (not destroyed, has required methods)
+      if (g && !g.destroyed && typeof g.clear === 'function') {
+        // Valid object found, reuse it
+        this.reused++;
+        break;
+      } else {
+        // Invalid object - discard it and try again
+        g = undefined;
+      }
+    }
     
     if (!g) {
-      // Pool is empty, create new Graphics object
+      // Pool is empty or all objects were invalid, create new Graphics object
       g = new Graphics();
       this.created++;
-    } else {
-      // Reusing from pool
-      this.reused++;
     }
     
     // Reset properties to default state
@@ -46,8 +62,9 @@ class GraphicsPool {
    * @param {Graphics} g - Graphics object to release
    */
   release(g: Graphics): void {
-    if (!g || g.destroyed) {
-      return; // Already destroyed, skip
+    // 🔥 FIX: Validate object before processing
+    if (!g || g.destroyed || typeof g.clear !== 'function') {
+      return; // Already destroyed or invalid, skip
     }
 
     // 🔥 CRITICAL: Kill ALL GSAP animations FIRST (before any property changes)
@@ -82,8 +99,18 @@ class GraphicsPool {
       // Ignore parent removal errors
     }
 
+    // 🔥 FIX: Double-check object is still valid after cleanup
+    if (g.destroyed || typeof g.clear !== 'function') {
+      return; // Object was destroyed during cleanup, skip
+    }
+
     // Reset Graphics object (will set visible = true, alpha = 1 for next use)
     this.reset(g);
+
+    // 🔥 FIX: Final validation before adding to pool
+    if (g.destroyed || typeof g.clear !== 'function') {
+      return; // Object was destroyed during reset, skip
+    }
 
     // Return to pool if we haven't reached max size
     if (this.pool.length < this.maxSize) {

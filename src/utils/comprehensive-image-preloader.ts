@@ -174,6 +174,8 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/board transition/oblak mali desno.png',
   './assets/board transition/oblak mali ljevo.png',
   './assets/board transition/oblak veliki ljevo dole.png',
+  // 🔥 USER REQUEST: Forest at bottom of transition screen
+  './assets/journey assets/forest.png',
 ];
 
 // Journey board images (preloaded on-demand when boards are opened)

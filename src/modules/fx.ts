@@ -4761,7 +4761,8 @@ export function landBounce(tile, opts = {}){
   const sy = g.scale?.y ?? 1;
 
   // 1) instant pre-impact micro-squash (feels like weight)
-  gsap.set(g, { rotation: 0 });
+  // 🔥 FIX: Set rotation directly instead of using gsap.set (avoids GSAP CSS plugin interference)
+  if (g && typeof g.rotation !== 'undefined') g.rotation = 0;
   gsap.fromTo(
     g.scale,
     { x: sx * (1 + amp * 0.35), y: sy * (1 - amp * 0.6) },
@@ -5409,7 +5410,8 @@ export function wildImpactEffect(tile, opts = {}) {
   try { gsap.killTweensOf(g.scale); gsap.killTweensOf(g.rotation); } catch {}
   
   // 1) Dramatic pre-impact anticipation (bigger shrink + tilt)
-  gsap.set(g, { rotation: 0 });
+  // 🔥 FIX: Set rotation directly instead of using gsap.set (avoids GSAP CSS plugin interference)
+  if (g && typeof g.rotation !== 'undefined') g.rotation = 0;
   gsap.fromTo(g.scale, 
     { x: sx * 0.88, y: sy * 0.88 },
     { x: sx * (1 + squash), y: sy * (1 - stretch), duration: 0.08, ease: 'power2.out' }
@@ -6495,7 +6497,8 @@ export function stopMagnetShake(tile) {
       gsap.killTweensOf(g);
       // Reset to original rotation if stored, otherwise 0
       const resetRotation = g._originalShakeRotation !== undefined ? g._originalShakeRotation : 0;
-      gsap.set(g, { rotation: resetRotation });
+      // 🔥 FIX: Set rotation directly instead of using gsap.set (avoids GSAP CSS plugin interference)
+      if (typeof g.rotation !== 'undefined') g.rotation = resetRotation;
       // Clear stored original rotation
       g._originalShakeRotation = undefined;
     } catch {}

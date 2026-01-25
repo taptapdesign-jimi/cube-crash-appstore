@@ -1359,23 +1359,31 @@ export async function showCleanBoardModal({
         // 🔥 Mark overlay as exiting to neutralize :active styles
         el.setAttribute('data-clean-board-exiting', 'true');
 
-        // 🔥 CRITICAL: Hide board app/stage IMMEDIATELY to prevent old board flash
-        // 🚀 PERFORMANCE: Use display:none to completely remove from render flow (not just opacity)
-        if (app?.view?.style) {
-          app.view.style.display = 'none'; // Browser won't render ANY tiles - huge performance boost!
-          app.view.style.opacity = '0';
-        }
-        if (stage) {
-          stage.alpha = 0;
-          stage.visible = false; // PixiJS optimization - skip rendering
-        }
-
-        // 🔥 CRITICAL: Stop ALL background animations IMMEDIATELY for smooth exit
-        killAllGSAPTweens();
+        // 🔥 CRITICAL FIX: Play board exit animation FIRST before hiding board
+        // This ensures user sees the original board exit animation (tiles + HUD) as requested
+        console.log('🎬 clean-board-modal: Starting board exit animation before hiding board...');
+        
+        // Stop only modal-specific animations, but NOT board animations (let exit animation play)
         stopAllStarAnimations({ exit: true, numStars });
         clearAllModalTimeouts();
         clearAllModalAnimationFrames();
         
+        // 🔥 CRITICAL: DO NOT kill GSAP tweens or hide board yet - let exit animation play first
+        // Start board exit animation (don't await yet - let it run in parallel with modal exit)
+        let boardExitPromise: Promise<void> = Promise.resolve();
+        try {
+          const { STATE } = await import('./app-state.js');
+          if (STATE && typeof (window as any).animateBoardExit === 'function') {
+            console.log('🎬 clean-board-modal: Calling animateBoardExit() to play board exit animation...');
+            boardExitPromise = (window as any).animateBoardExit();
+          } else {
+            console.warn('⚠️ clean-board-modal: animateBoardExit not available, skipping board exit animation');
+          }
+        } catch (error) {
+          console.error('❌ clean-board-modal: Failed to start board exit animation:', error);
+        }
+        
+        // 🔥 Start modal exit animation IMMEDIATELY (in parallel with board exit animation)
         boardCleared.style.transition = 'none';
         boardCleared.style.animation = 'none';
         boardCleared.style.transform = 'none';
@@ -1423,6 +1431,37 @@ export async function showCleanBoardModal({
             card.style.transform = 'scale(0.86)';
           });
         }, 400); // Delay card scale until buttons are mid-animation
+        
+        // 🔥 Wait for board exit animation to complete, then hide board and cleanup
+        boardExitPromise.then(() => {
+          console.log('✅ clean-board-modal: Board exit animation completed, hiding board...');
+          
+          // 🔥 NOW hide board app/stage AFTER exit animation completes
+          // This ensures exit animation was visible before hiding
+          if (app?.view?.style) {
+            app.view.style.display = 'none';
+            app.view.style.opacity = '0';
+          }
+          if (stage) {
+            stage.alpha = 0;
+            stage.visible = false;
+          }
+          
+          // 🔥 NOW kill GSAP tweens AFTER exit animation completes
+          killAllGSAPTweens();
+        }).catch((error) => {
+          console.error('❌ clean-board-modal: Board exit animation failed:', error);
+          // Still hide board even if animation failed
+          if (app?.view?.style) {
+            app.view.style.display = 'none';
+            app.view.style.opacity = '0';
+          }
+          if (stage) {
+            stage.alpha = 0;
+            stage.visible = false;
+          }
+          killAllGSAPTweens();
+        });
         // 🎯 Calculate duration: buttons need FULL 400ms to animate to scale(0) (FASTER exit)
         // Give EXTRA time to ensure button animation completes BEFORE card fadeout
         const buttonExitDuration = buttonExitDurationMs;
@@ -1484,7 +1523,7 @@ export async function showCleanBoardModal({
           console.warn(`⚠️ clean-board-modal: Failed to update global high score on Exit:`, error);
         }
         
-        // 🔥 MEMORY LEAK FIX: Final cleanup before resolving (animations already stopped at button click)
+        // 🔥 MEMORY LEAK FIX: Final cleanup before resolving
         cleanupButtonListeners(); // Remove all button event listeners
         
         // 🎯 CRITICAL: Set flag to prevent saveGameState() from re-saving after clean board
@@ -1492,13 +1531,27 @@ export async function showCleanBoardModal({
         (window as any).__ccBoardJustCompleted = true;
         console.log('🎯 clean-board-modal: Set __ccBoardJustCompleted flag to prevent re-saving after clean board');
         
-        // 🎯 SEAMLESS EXIT: Resolve immediately after exit animation starts (don't wait for it to finish)
-        // This allows detail modal enter animation to start while clean board is still exiting
-        // Clean board modal will continue exit animation in background and remove itself when done
-        trackTimeout(() => { 
-          console.log(`✅ clean-board-modal: Resolving with action: exit (seamless - exit animation continues in background)`);
-          resolve({ action: 'exit' }); 
-        }, 150); // 🎯 Resolve after 150ms (exit animation starts, detail modal can begin enter animation)
+        // 🔥 CRITICAL FIX: Wait for board exit animation to complete before resolving
+        // Board exit animation duration: ~550ms (sweetPopOut max) + HUD 300ms = ~550ms total
+        // Add small buffer to ensure animation fully completes
+        const boardExitAnimationDuration = 600; // 550ms + 50ms buffer
+        
+        // 🎯 Resolve after board exit animation completes
+        // This ensures board exit animation plays fully before transitioning to detail modal
+        // Use Promise to wait for actual completion, not just a timeout
+        boardExitPromise.then(() => {
+          // Add small delay to ensure board is hidden and cleanup is done
+          trackTimeout(() => { 
+            console.log(`✅ clean-board-modal: Resolving with action: exit (board exit animation completed)`);
+            resolve({ action: 'exit' }); 
+          }, 50); // Small buffer after animation completes
+        }).catch(() => {
+          // Even if animation fails, resolve after timeout
+          trackTimeout(() => { 
+            console.log(`✅ clean-board-modal: Resolving with action: exit (board exit animation failed, using timeout)`);
+            resolve({ action: 'exit' }); 
+          }, boardExitAnimationDuration);
+        });
         
         // 🧹 CLEANUP: Remove modal after full exit animation completes (in background)
         trackTimeout(() => { 

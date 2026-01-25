@@ -14,6 +14,9 @@ import { gsap } from 'gsap';
 let heartsModal: HTMLElement | null = null;
 let timerInterval: NodeJS.Timeout | null = null;
 let heartsOverlay: HTMLElement | null = null;
+/** Grace period (ms) after open – ignore overlay tap to avoid same-tap close (opens then immediately closes). */
+const HEARTS_OVERLAY_CLOSE_GRACE_MS = 350;
+let _heartsOpenedAt = 0;
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts, intervals, and animations for cleanup
 const _heartsTimeouts = new Set<ReturnType<typeof setTimeout>>();
@@ -427,11 +430,18 @@ function animateHeartsEntrance(modal: HTMLElement): Promise<void> {
   });
 }
 
+function closeHeartsOnOverlayTap(): void {
+  if (Date.now() - _heartsOpenedAt < HEARTS_OVERLAY_CLOSE_GRACE_MS) return;
+  hideHeartsModal();
+}
+
 /**
  * Show hearts bottom sheet
  */
 export function showHeartsModal(): void {
   try {
+    _heartsOpenedAt = Date.now();
+
     // Add overlay to block background interactions
     if (!heartsOverlay) {
       heartsOverlay = document.createElement('div');
@@ -446,9 +456,9 @@ export function showHeartsModal(): void {
         pointer-events: auto;
         touch-action: none;
       `;
-      // Close on overlay click/tap
-      heartsOverlay.addEventListener('click', hideHeartsModal, { passive: true });
-      heartsOverlay.addEventListener('touchend', hideHeartsModal, { passive: true });
+      // Close on overlay click/tap; use wrapper to ignore same-tap that opened modal
+      heartsOverlay.addEventListener('click', closeHeartsOnOverlayTap, { passive: true });
+      heartsOverlay.addEventListener('touchend', closeHeartsOnOverlayTap, { passive: true });
       document.body.appendChild(heartsOverlay);
     }
 
@@ -523,8 +533,8 @@ export function hideHeartsModal(): void {
       // Remove overlay
       if (heartsOverlay) {
         try {
-          heartsOverlay.removeEventListener('click', hideHeartsModal);
-          heartsOverlay.removeEventListener('touchend', hideHeartsModal);
+          heartsOverlay.removeEventListener('click', closeHeartsOnOverlayTap);
+          heartsOverlay.removeEventListener('touchend', closeHeartsOnOverlayTap);
           heartsOverlay.remove();
         } catch (e) {}
         heartsOverlay = null;
