@@ -113,7 +113,7 @@ export function animateCollectiblesScreenEnter(): void {
   }
   
   // STEP 3: Animate first 8 cards in grid (scale from 0.3 to 1.0)
-  // 🔥 FAST INDIVIDUAL ANIMATION: Only first 8 cards, start from 30% scale, faster timing
+  // 🔥 OPTIMIZED: Only first 8 cards animated, remaining cards set to visible (no animation)
   const cardWrappers = journeyScreen?.querySelectorAll('.collectible-card-wrapper') as NodeListOf<HTMLElement>;
   if (cardWrappers && cardWrappers.length > 0) {
     const cardsArray = Array.from(cardWrappers);
@@ -147,6 +147,11 @@ export function animateCollectiblesScreenEnter(): void {
     const stagger = 0.03;
     cardsToAnimate.forEach((card, index) => {
       const delay = baseDelay + (index * stagger);
+      
+      // 🔥 GPU OPTIMIZATION: Add will-change for better performance
+      card.style.willChange = 'transform, opacity';
+      card.style.transform = 'translateZ(0)'; // Force GPU acceleration
+      
       gsap.set(card, { visibility: 'visible', immediateRender: true });
       gsap.to(card, {
         scale: 1,
@@ -155,7 +160,11 @@ export function animateCollectiblesScreenEnter(): void {
         ease: 'back.out(1.7)',
         delay: delay,
         force3D: true,
-        immediateRender: false
+        immediateRender: false,
+        onComplete: () => {
+          // Remove will-change after animation to free resources
+          card.style.willChange = 'auto';
+        }
       });
     });
   }
@@ -163,7 +172,8 @@ export function animateCollectiblesScreenEnter(): void {
 
 /**
  * Animate Journey screen EXIT with pop-out effects
- * Elements pop out in reverse order: all cards first (fast individual), then scrollable, then header
+ * 🔥 OPTIMIZED: Viewport-based smart batching - only animates visible cards, off-screen cards hide instantly
+ * Elements pop out in reverse order: visible cards first (batched), off-screen cards instantly, then scrollable, then header
  * Returns Promise that resolves when animation completes
  */
 export function animateCollectiblesScreenExit(): Promise<void> {
@@ -178,33 +188,106 @@ export function animateCollectiblesScreenExit(): Promise<void> {
       return;
     }
     
-    // STEP 1: Animate all cards out first (scale from 1.0 to 0)
+    // STEP 1: Viewport-based smart batching for cards
     const cardWrappers = journeyScreen?.querySelectorAll('.collectible-card-wrapper') as NodeListOf<HTMLElement>;
     let maxCardDelay = 0;
 
     if (cardWrappers && cardWrappers.length > 0) {
       const cardsArray = Array.from(cardWrappers);
-
-      // Shuffle cards for random order
-      for (let i = cardsArray.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [cardsArray[i], cardsArray[j]] = [cardsArray[j], cardsArray[i]];
-      }
-
-      // Animate each card individually with fast stagger
-      const stagger = 0.025;
-      cardsArray.forEach((card, index) => {
-        const delay = index * stagger;
-        maxCardDelay = Math.max(maxCardDelay, delay + 0.35);
-
-        gsap.to(card, {
+      
+      // 🔥 AGGRESSIVE OPTIMIZATION: Separate visible cards from off-screen cards
+      // Use strict viewport detection (no margin) to minimize animated cards
+      const viewport = {
+        top: window.scrollY || window.pageYOffset,
+        bottom: (window.scrollY || window.pageYOffset) + window.innerHeight,
+        left: 0,
+        right: window.innerWidth
+      };
+      
+      const visibleCards: HTMLElement[] = [];
+      const offScreenCards: HTMLElement[] = [];
+      
+      cardsArray.forEach((card) => {
+        const rect = card.getBoundingClientRect();
+        const cardTop = rect.top + (window.scrollY || window.pageYOffset);
+        const cardBottom = cardTop + rect.height;
+        
+        // 🔥 STRICT VIEWPORT: Only cards actually visible (no margin) - reduces animated cards
+        const isVisible = cardBottom >= viewport.top && cardTop <= viewport.bottom;
+        
+        if (isVisible) {
+          visibleCards.push(card);
+        } else {
+          offScreenCards.push(card);
+        }
+      });
+      
+      // 🔥 AGGRESSIVE OPTIMIZATION: Off-screen cards hide instantly (no animation) - prevents lag
+      offScreenCards.forEach((card) => {
+        gsap.set(card, {
           scale: 0,
           opacity: 0,
-          duration: 0.35,
-          ease: 'back.in(1.7)',
-          delay: delay
+          visibility: 'hidden',
+          immediateRender: true
         });
       });
+      
+      // 🔥 AGGRESSIVE OPTIMIZATION: Limit animated cards to maximum 8 for smooth performance
+      // If more than 8 visible cards, animate only first 8, hide rest instantly
+      const MAX_ANIMATED_CARDS = 8;
+      const cardsToAnimate = visibleCards.slice(0, MAX_ANIMATED_CARDS);
+      const cardsToHideInstantly = visibleCards.slice(MAX_ANIMATED_CARDS);
+      
+      // Hide excess visible cards instantly
+      cardsToHideInstantly.forEach((card) => {
+        gsap.set(card, {
+          scale: 0,
+          opacity: 0,
+          visibility: 'hidden',
+          immediateRender: true
+        });
+      });
+      
+      // 🔥 OPTIMIZATION: Animate only limited number of cards in small batches
+      if (cardsToAnimate.length > 0) {
+        // Shuffle cards to animate for random order
+        for (let i = cardsToAnimate.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [cardsToAnimate[i], cardsToAnimate[j]] = [cardsToAnimate[j], cardsToAnimate[i]];
+        }
+        
+        // 🔥 AGGRESSIVE BATCHING: Small batches of 3-4 cards for better performance
+        const batchSize = cardsToAnimate.length > 6 ? 3 : cardsToAnimate.length;
+        const batchStagger = 0.06; // 60ms between batches (slightly longer for smoother)
+        const cardStagger = 0.03; // 30ms between cards in batch
+        
+        // Animate cards in small batches
+        cardsToAnimate.forEach((card, index) => {
+          const batchIndex = Math.floor(index / batchSize);
+          const cardIndexInBatch = index % batchSize;
+          const delay = (batchIndex * batchStagger) + (cardIndexInBatch * cardStagger);
+          maxCardDelay = Math.max(maxCardDelay, delay + 0.35);
+          
+          // 🔥 GPU OPTIMIZATION: Add will-change for better performance
+          card.style.willChange = 'transform, opacity';
+          card.style.transform = 'translateZ(0)'; // Force GPU acceleration
+          // 🔥 CSS CONTAINMENT: Add contain property for better performance
+          (card.parentElement as HTMLElement)?.style.setProperty('contain', 'layout style paint');
+          
+          gsap.to(card, {
+            scale: 0,
+            opacity: 0,
+            duration: 0.35,
+            ease: 'back.in(1.7)',
+            delay: delay,
+            force3D: true,
+            onComplete: () => {
+              // Remove will-change after animation to free resources
+              card.style.willChange = 'auto';
+            }
+          });
+        });
+      }
     }
     
     // STEP 2: Scrollable area pop-out (full scale range: 1.0 → 0)

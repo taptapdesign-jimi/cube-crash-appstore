@@ -116,12 +116,14 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     const efficiencyBonus = bonus - comboBonus; // 50% for efficiency
 
     // 🔥 ENDGAME ANIMATION-WAIT: Wait for stars + bubbles before clean board; skip stars when regular/magnet (none run)
+    // 🔥 CLEAN BOARD DELAY FIX: 4s max (was 5.5s/6s). Bubbles safety timeout 4.4s + early resolve when done.
     try {
       const fxModule = await import('./fx.js');
+      const maxWaitMs = 4000;
       if (skipStarsWait && typeof fxModule.waitForBubblesAnimationToComplete === 'function') {
-        await fxModule.waitForBubblesAnimationToComplete(5500);
+        await fxModule.waitForBubblesAnimationToComplete(maxWaitMs);
       } else if (fxModule && typeof fxModule.waitForOngoingAnimations === 'function') {
-        await fxModule.waitForOngoingAnimations(6000);
+        await fxModule.waitForOngoingAnimations(maxWaitMs);
       }
     } catch (e) {
       console.warn('⚠️ endgame-flow: animation wait failed (non-fatal):', e);

@@ -3266,9 +3266,14 @@ let wildBeerExplosionContainer = null;
 let wildBeerExplosionActive = false;
 let wildBeerExplosionSpawnTick = null; // 🔥 CRITICAL: Store spawnTick reference for cleanup
 let _cachedBubbleTexture = null; // 🔥 v75 FAZA 1: Cache bubble texture globally
+let _bubblesSafetyTimeoutId: ReturnType<typeof setTimeout> | null = null; // 🔥 Clean board delay fix: force cleanup so wait resolves
 
 export function cleanupWildBeerExplosion() {
   try {
+    if (_bubblesSafetyTimeoutId) {
+      clearTimeout(_bubblesSafetyTimeoutId);
+      _bubblesSafetyTimeoutId = null;
+    }
     // Stop FPS monitoring
     stopFpsMonitoring();
 
@@ -3645,6 +3650,18 @@ export function createWildBeerBubblesExplosion(board, tile) {
   wildBeerExplosionContainer = container;
   wildBeerExplosionActive = true;
 
+  // 🔥 CLEAN BOARD DELAY FIX: Safety timeout so bubbles always cleanup (~4.4s)
+  // Without this, waitForBubblesAnimationToComplete can hit maxWaitMs (5.5s) if spawn
+  // never "completes" (e.g. FPS break at 70%) and we never clear wildBeerExplosionActive.
+  if (_bubblesSafetyTimeoutId) try { clearTimeout(_bubblesSafetyTimeoutId); } catch {}
+  _bubblesSafetyTimeoutId = setTimeout(() => {
+    _bubblesSafetyTimeoutId = null;
+    if (wildBeerExplosionActive) {
+      console.warn('⚠️ Bubbles animation safety timeout (4.4s) - forcing cleanup');
+      cleanupWildBeerExplosion();
+    }
+  }, 4400);
+
   // Debug: Verify stage and container positions, and get actual canvas position
   const stagePos = { x: stage.x || 0, y: stage.y || 0 };
   const containerPos = { x: container.x || 0, y: container.y || 0 };
@@ -3964,6 +3981,16 @@ export function createWildBeerBubblesExplosion(board, tile) {
           wildBeerExplosionSpawnTick = null;
         }
         setTimeout(() => cleanupWildBeerExplosion(), 2400);
+        return;
+      }
+      // 🔥 CLEAN BOARD DELAY FIX: Stop-early path (e.g. FPS break at 70%) – still cleanup
+      // Only after spawn window + buffer (so we're sure we've stopped), else we'd exit mid-spawn.
+      if (elapsed >= spawnDuration + 2400 && spawned < totalBubbles) {
+        if (wildBeerExplosionSpawnTick === spawnTick) {
+          gsap.ticker.remove(spawnTick);
+          wildBeerExplosionSpawnTick = null;
+        }
+        setTimeout(() => cleanupWildBeerExplosion(), 0);
         return;
       }
 
