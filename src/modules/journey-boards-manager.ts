@@ -2880,6 +2880,11 @@ class JourneyBoardsManager {
       await exitPromise;
       logger.info('✅ Journey exit animation completed');
       
+      // 🔥 CRITICAL FIX: Add small delay to ensure exit animation fully completes and browser can render
+      // This prevents lag when starting board transition screen immediately after exit animation
+      await new Promise(resolve => setTimeout(resolve, 100));
+      logger.info('✅ Delay after exit animation - ensuring smooth transition');
+      
       // Step 5: Cleanup Journey boards manager (memory leak prevention)
       this.cleanup();
       
@@ -2902,6 +2907,11 @@ class JourneyBoardsManager {
         (window as any).__ccJourneyExitMode = 'toGame';
         await collectiblesManager.hideCollectibles();
       }
+      
+      // 🔥 CRITICAL FIX: Wait for next frame to ensure DOM updates are rendered
+      // This prevents lag when starting board transition screen
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      logger.info('✅ DOM updates rendered - ready for board transition screen');
       
       // Step 8: Ensure saved game state exists with correct boardNumber
       // 🔥 USER REQUEST: Load score from journey progression state (preserves score from failed board)
@@ -3521,11 +3531,22 @@ class JourneyBoardsManager {
     if (!skipJourneyExit) {
       console.log('⏱️ Waiting for Journey exit animation to complete before opening detail modal...');
       await this.startJourneyExitAnimation();
-      console.log('✅ Journey exit animation complete, opening detail modal now');
+      console.log('✅ Journey exit animation complete');
+      
+      // 🔥 CRITICAL FIX: Add small delay to ensure exit animation fully completes and browser can render
+      // This prevents lag when opening detail modal immediately after exit animation
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      console.log('✅ Delay after exit animation - opening detail modal now');
     } else if (journeyExitPromise) {
       console.log('⏱️ Waiting for Journey exit promise to complete...');
       await journeyExitPromise;
-      console.log('✅ Journey exit promise resolved, opening detail modal now');
+      console.log('✅ Journey exit promise resolved');
+      
+      // 🔥 CRITICAL FIX: Add small delay to ensure exit animation fully completes
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      console.log('✅ Delay after exit promise - opening detail modal now');
     }
     
     // Step 2: Now open detail modal with enter animation

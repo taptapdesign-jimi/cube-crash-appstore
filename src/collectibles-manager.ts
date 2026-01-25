@@ -480,8 +480,6 @@ class CollectiblesManager {
     (screen as HTMLElement).style.visibility = 'hidden';
     // 🔥 CRITICAL: Also set will-change for better mobile performance
     (screen as HTMLElement).style.willChange = 'opacity, transform';
-    
-    logger.info('🎁 Removed hidden class and inline styles from Journey screen - set opacity 0 to prevent flash');
 
     // 🔥 USER REQUEST: Restore scroll position ASAP when returning from interim board
     const returningFromInterimBoardEarly =

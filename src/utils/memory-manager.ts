@@ -54,6 +54,8 @@ class MemoryManager {
   private limits: MemoryLimits;
   private isMonitoring: boolean;
   private monitorTimeoutId: ReturnType<typeof setTimeout> | null;
+  private _lastWarnTime: number;
+  private _lastWarnMB: number;
 
   constructor() {
     this.textureCache = new Map();
@@ -61,22 +63,23 @@ class MemoryManager {
     this.eventListeners = new Map();
     this.cleanupCallbacks = [];
     
-    // iOS memory limits
+    // iOS memory limits – threshold raised; 80MB was too low for homepage (preload + slider)
     this.limits = {
       maxTextures: 50,
       maxObjects: 100,
       maxEventListeners: 200,
-      memoryThreshold: 80 // MB
+      memoryThreshold: 150 // MB – avoid false warnings on homepage/slider
     };
-    
+
     this.isMonitoring = false;
     this.monitorTimeoutId = null;
+    this._lastWarnTime = 0;
+    this._lastWarnMB = 0;
   }
 
-  // Initialize memory manager
+  // Initialize memory manager (monitoring deferred until game start – see start())
   init(): void {
-    logger.info('💾 Memory manager initialized');
-    this.start();
+    logger.info('💾 Memory manager initialized (monitoring starts when game runs)');
   }
 
   // Start memory monitoring
@@ -110,16 +113,22 @@ class MemoryManager {
     }, 5000);
   }
 
-  // Check memory usage
+  // Check memory usage (throttled: warn at most once per 60s or when growth > 15MB)
   private checkMemoryUsage(): void {
     if (!(performance as any).memory) return;
-    
     const memoryUsage = (performance as any).memory.usedJSHeapSize / 1024 / 1024; // MB
-    
-    if (memoryUsage > this.limits.memoryThreshold) {
-      logger.warn(`⚠️ High memory usage: ${memoryUsage.toFixed(2)}MB`);
-      this.cleanup();
+    if (memoryUsage <= this.limits.memoryThreshold) {
+      this._lastWarnMB = 0;
+      return;
     }
+    const now = Date.now();
+    const span = 60_000;
+    const growth = 15;
+    if (this._lastWarnTime && now - this._lastWarnTime < span && memoryUsage <= this._lastWarnMB + growth) return;
+    this._lastWarnTime = now;
+    this._lastWarnMB = memoryUsage;
+    logger.warn(`⚠️ High memory usage: ${memoryUsage.toFixed(2)}MB`);
+    this.cleanup();
   }
 
   // Register texture for cleanup

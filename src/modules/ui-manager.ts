@@ -7,6 +7,7 @@ import { fadeOutHome, fadeInHome, animateSliderExit, animateSliderEnter, animate
 import { showResumeGameBottomSheet } from './resume-game-bottom-sheet.js';
 import { logger } from '../core/logger.js';
 import { boot as bootGame, layoutBoard as layoutGame } from './app-core.js';
+import memoryManager from '../utils/memory-manager.js';
 import sliderManager from './slider-manager.js';
 import { gsap } from 'gsap';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
@@ -546,8 +547,8 @@ class UIManager {
   
   // Start new game (public method) - ALWAYS starts from Board 1
   async startNewGame(): Promise<void> {
+    memoryManager.start();
     // 🔥 USER REQUEST: Mark that we came from homepage (not Journey)
-    // This ensures exitToMenu returns to homepage (slide 0) instead of Journey (slide 1)
     (window as any).__ccCameFromHomepage = true;
     (window as any).__ccCameFromJourney = false;
     logger.info('🏠 Marked as coming from homepage (startNewGame)');

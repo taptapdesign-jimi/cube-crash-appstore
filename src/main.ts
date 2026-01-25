@@ -690,12 +690,10 @@ async function startNewRun(boardId: number): Promise<void> {
     animateSliderExit();
   } else {
     // 🔥 USER REQUEST: Journey screen exit animation already played in continueFromInterimBoard
-    // DO NOT play slider exit animation - just hide homepage and show app immediately
+    // DO NOT play slider exit animation - just hide homepage
     logger.info('🗺️ Skipping slider exit animation - Journey screen exit already completed');
     // Hide homepage immediately (no animation)
     uiManager.hideHomepage();
-    // Show app element immediately
-    uiManager.showApp();
   }
   
   // 🔥 APP STORE FIX: Event-driven approach for canvas visibility
@@ -706,8 +704,13 @@ async function startNewRun(boardId: number): Promise<void> {
       (window as any).__ccTriggerHudDrop = true;
       logger.info(`🎯 Starting board ${boardId} from Journey with HUD drop animation`);
       
+      // 🔥 CRITICAL FIX: Boot game FIRST, then show app element (canvas must exist before showApp)
       // Boot game and wait for canvas to be created
       await bootGame();
+      
+      // 🔥 CRITICAL FIX: Show app element AFTER boot (so canvas exists)
+      uiManager.showApp();
+      logger.info('✅ App element shown after boot');
       
       // 🔥 APP STORE FIX: Wait for canvas to be added to DOM (event-driven)
       const appElement = document.getElementById('app');
@@ -761,6 +764,7 @@ async function startNewRun(boardId: number): Promise<void> {
 
 // Continue game with saved state - NOW TIED TO JOURNEY PROGRESSION
 (window as any).continueGameWithSavedState = async () => {
+  memoryManager.start();
   logger.info('🔄 continueGameWithSavedState called - loading saved game');
   
   // 🔥 CRITICAL: Mark that we came from Journey (interim board)
@@ -805,12 +809,10 @@ async function startNewRun(boardId: number): Promise<void> {
           animateSliderExit();
         } else {
           // 🔥 USER REQUEST: Journey screen exit animation already played in continueFromInterimBoard
-          // DO NOT play slider exit animation - just hide homepage and show app immediately
+          // DO NOT play slider exit animation - just hide homepage
           logger.info('🗺️ Skipping slider exit animation - Journey screen exit already completed');
           // Hide homepage immediately (no animation)
           uiManager.hideHomepage();
-          // Show app element immediately
-          uiManager.showApp();
         }
       
       // 🔥 USER REQUEST: If came from Journey, start immediately (no delay)
@@ -829,10 +831,6 @@ async function startNewRun(boardId: number): Promise<void> {
         
         // Hide homepage
         uiManager.hideHomepage();
-        
-        // Show app element BEFORE booting game (so animations are visible)
-        uiManager.showApp();
-        console.log('✅ App element shown before game boot');
         
         // Start immediately - no delay needed
         try {
@@ -873,7 +871,12 @@ async function startNewRun(boardId: number): Promise<void> {
           // 🔥 USER REQUEST: Trigger HUD drop animation when resuming from Journey
           (window as any).__ccTriggerHudDrop = true;
           
+          // 🔥 CRITICAL FIX: Boot game FIRST, then show app element (canvas must exist before showApp)
           await bootGame();
+          
+          // Show app element AFTER boot (so canvas exists)
+          uiManager.showApp();
+          console.log('✅ App element shown after game boot');
           
           // 🔥 CRITICAL FIX: Keep canvas hidden until HUD is ready to drop
           // This prevents seeing old HUD residue before drop animation starts
@@ -1053,6 +1056,7 @@ async function startNewRun(boardId: number): Promise<void> {
 
 // 🔥 JOURNEY PROGRESSION: Export startNewRunFromJourney function (with board enter animation)
 (window as any).startNewRunFromJourney = async (boardId: number) => {
+  memoryManager.start();
   console.log(`🎮🎮🎮 startNewRunFromJourney CALLED with boardId: ${boardId}`);
   logger.info(`🎮 startNewRunFromJourney called for board ${boardId}`);
   
@@ -1091,10 +1095,9 @@ async function startNewRun(boardId: number): Promise<void> {
   localStorage.removeItem('cubeCrash_gameState');
   console.log(`✅ Cleared saved game state for board ${boardId} (${saveKey})`);
   
-  // Hide homepage and show app (no slider exit animation - already done)
+  // Hide homepage (no slider exit animation - already done)
   uiManager.hideHomepage();
-  uiManager.showApp();
-  console.log(`✅ Homepage hidden, app shown`);
+  console.log(`✅ Homepage hidden`);
   
   try {
     // 🔥 CRITICAL FIX: Clear ALL flags before starting fresh board
@@ -1109,10 +1112,14 @@ async function startNewRun(boardId: number): Promise<void> {
     (window as any).__ccTriggerHudDrop = true;
     console.log(`🎯 Setting __ccStartAtLevel to ${boardId} and __ccTriggerHudDrop for new run from Journey`);
     
-    // Boot the game
+    // 🔥 CRITICAL FIX: Boot game FIRST, then show app element (canvas must exist before showApp)
     console.log(`🎮 About to call bootGame() for board ${boardId}...`);
     await bootGame();
     console.log(`✅ bootGame() completed`);
+    
+    // 🔥 CRITICAL FIX: Show app element AFTER boot (so canvas exists)
+    uiManager.showApp();
+    console.log(`✅ App element shown after boot`);
     
     console.log(`🎮 About to call layoutGame() for board ${boardId}...`);
     await layoutGame();
