@@ -556,9 +556,14 @@ export function hideHeartsModal(): void {
         } catch (e) {}
         heartsOverlay = null;
       }
+      
+      // 🔥 FIX: Reset closing flag after modal is fully hidden
+      (modalEl as any)._closing = false;
       logger.info('💚 Hearts bottom sheet hidden');
     }, 300);
   } catch (error) {
+    // 🔥 FIX: Reset closing flag on error so modal can be reopened
+    (modalEl as any)._closing = false;
     logger.error('❌ Failed to hide hearts bottom sheet:', error instanceof Error ? error.message : String(error));
   }
 }

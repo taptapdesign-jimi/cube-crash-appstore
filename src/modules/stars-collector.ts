@@ -84,13 +84,26 @@ export function getStarsCount(): number {
 let bounceQueue: number = 0;
 let bounceCounter = 0; // Track which bounce number we're on
 
+// 🔥 FIX: Track active timeouts for cleanup
+const activeTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
+
+// 🔥 FIX: Helper to track timeouts
+function trackTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
+  const timeout = setTimeout(() => {
+    activeTimeouts.delete(timeout);
+    callback();
+  }, delay);
+  activeTimeouts.add(timeout);
+  return timeout;
+}
+
 function triggerBounceWithCallback(onComplete?: () => void) {
   if (typeof window !== 'undefined' && window.HUD && typeof window.HUD.bounceStarIcon === 'function') {
     // Call bounce function with callback
     window.HUD.bounceStarIcon(onComplete);
   } else if (onComplete) {
     // If bounce function doesn't exist, call onComplete immediately
-    setTimeout(onComplete, 250);
+    trackTimeout(() => onComplete(), 250);
   }
 }
 
@@ -588,9 +601,22 @@ function triggerStarHudBounce(): void {
 
 /**
  * Cleanup stars collector
+ * 🔥 FIX: Comprehensive cleanup of all resources
  */
 export function cleanupStarsCollector(): void {
+  // Clear all tracked timeouts
+  activeTimeouts.forEach(timeout => {
+    clearTimeout(timeout);
+  });
+  activeTimeouts.clear();
+  
+  // Reset queue state
+  bounceQueue = 0;
+  bounceCounter = 0;
+  
+  // Clear config
   config = null;
-  console.log('⭐ Stars collector cleaned up');
+  
+  console.log('⭐ Stars collector cleaned up (timeouts cleared, queue reset)');
 }
 

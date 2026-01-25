@@ -34,6 +34,9 @@ let state: IdleBounceState = {
   activeAnimations: new Set()
 };
 
+// 🔥 FIX: Track initial timeout separately
+let initialTimeout: ReturnType<typeof setTimeout> | null = null;
+
 export function startTileIdleBounce(tiles: Tile[], board: any): void {
   if (!ENABLE_TILE_IDLE_BOUNCE) return;
   
@@ -43,7 +46,9 @@ export function startTileIdleBounce(tiles: Tile[], board: any): void {
   state.lastInteractionTime = Date.now();
   state.activeAnimations = new Set();
   
-  setTimeout(() => {
+  // 🔥 FIX: Track initial timeout for cleanup
+  initialTimeout = setTimeout(() => {
+    initialTimeout = null;
     animateRandomTile();
   }, IDLE_WAIT_TIME);
   
@@ -52,6 +57,12 @@ export function startTileIdleBounce(tiles: Tile[], board: any): void {
 
 export function stopTileIdleBounce(): void {
   state.isActive = false;
+  
+  // 🔥 FIX: Clear initial timeout as well
+  if (initialTimeout) {
+    clearTimeout(initialTimeout);
+    initialTimeout = null;
+  }
   
   if (state.animationTimer) {
     clearTimeout(state.animationTimer);

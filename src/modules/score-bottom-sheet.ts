@@ -612,28 +612,36 @@ export function hideScoreBottomSheet(): void {
 
   console.log('📊 Closing score bottom sheet - isVisible reset to false', { isVisible });
 
-  // Medium haptic for closing
-  if (typeof (window as any).triggerHapticImpact === 'function') {
-    (window as any).triggerHapticImpact('medium');
-  }
+  // 🔥 FIX: Wrap in try-catch to ensure flag is reset on error
+  try {
+    // Medium haptic for closing
+    if (typeof (window as any).triggerHapticImpact === 'function') {
+      (window as any).triggerHapticImpact('medium');
+    }
 
-  // Clean up outside click handlers immediately
-  if (outsideClickHandler) {
-    document.removeEventListener('click', outsideClickHandler);
-    outsideClickHandler = null;
-  }
-  if (outsideTouchEndHandler) {
-    document.removeEventListener('touchend', outsideTouchEndHandler);
-    outsideTouchEndHandler = null;
-  }
+    // Clean up outside click handlers immediately
+    if (outsideClickHandler) {
+      document.removeEventListener('click', outsideClickHandler);
+      outsideClickHandler = null;
+    }
+    if (outsideTouchEndHandler) {
+      document.removeEventListener('touchend', outsideTouchEndHandler);
+      outsideTouchEndHandler = null;
+    }
 
-  // Clear document.onclick if it was set (legacy cleanup)
-  document.onclick = null;
+    // Clear document.onclick if it was set (legacy cleanup)
+    document.onclick = null;
 
-  // Animate out with 0.4s duration (same as end-run-modal)
-  modalEl.classList.remove('visible');
-  modalEl.style.transition = 'transform 0.4s ease-in-out';
-  modalEl.style.transform = 'translateY(100%)';
+    // Animate out with 0.4s duration (same as end-run-modal)
+    modalEl.classList.remove('visible');
+    modalEl.style.transition = 'transform 0.4s ease-in-out';
+    modalEl.style.transform = 'translateY(100%)';
+  } catch (error) {
+    // 🔥 FIX: Reset flag on error so modal can be reopened
+    console.error('❌ Error during hideScoreBottomSheet:', error);
+    (modalEl as any)._closing = false;
+    return;
+  }
 
   // Remove modal after animation
   trackScoreSheetTimeout(() => {
