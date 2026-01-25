@@ -575,7 +575,16 @@ class UIManager {
         combo: 0
       });
       
-      console.log('✅ Game state set');
+      // 🔥 CRITICAL FIX: Reset gamePaused flag to ensure dragging works in new game
+      try {
+        const { container } = await import('../core/dependency-injection.js');
+        if (container && typeof container.set === 'function') {
+          container.set('gamePaused', false);
+        }
+      } catch (e) { /* ignore */ }
+      (window as any)._gamePaused = false;
+      
+      console.log('✅ Game state set (gamePaused reset)');
       
       // Clear old saved game state for new game
       console.log('🧹 Clearing old saved game state...');

@@ -157,16 +157,26 @@ function createCloseButtonSection(): HTMLElement {
     box-shadow: 0 8px 18px rgba(90, 47, 26, 0.25);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
   `;
-  button.addEventListener('pointerdown', () => {
-    button.style.transform = 'scale(0.92)';
-  });
-  button.addEventListener('pointerup', () => {
-    button.style.transform = 'scale(1)';
-  });
-  button.addEventListener('pointerleave', () => {
-    button.style.transform = 'scale(1)';
-  });
-  button.addEventListener('click', () => handleHUDClose());
+  // 🔥 FIX: Store handlers for cleanup
+  const handlers = {
+    pointerdown: () => { button.style.transform = 'scale(0.92)'; },
+    pointerup: () => { button.style.transform = 'scale(1)'; },
+    pointerleave: () => { button.style.transform = 'scale(1)'; },
+    click: () => handleHUDClose()
+  };
+  
+  button.addEventListener('pointerdown', handlers.pointerdown);
+  button.addEventListener('pointerup', handlers.pointerup);
+  button.addEventListener('pointerleave', handlers.pointerleave);
+  button.addEventListener('click', handlers.click);
+  
+  // Store cleanup function on button
+  (button as any)._cleanupHandlers = () => {
+    button.removeEventListener('pointerdown', handlers.pointerdown);
+    button.removeEventListener('pointerup', handlers.pointerup);
+    button.removeEventListener('pointerleave', handlers.pointerleave);
+    button.removeEventListener('click', handlers.click);
+  };
   
   const icon = document.createElement('img');
   icon.src = './assets/close-icon.png';
@@ -290,16 +300,26 @@ export function createPIXIHUDContainer(): Container {
   closeContainer.y = 16;
   closeContainer.eventMode = 'static';
   closeContainer.cursor = 'pointer';
-  closeContainer.on('pointertap', () => handleHUDClose());
-  closeContainer.on('pointerdown', () => {
-    closeContainer.scale.set(0.92);
-  });
-  closeContainer.on('pointerup', () => {
-    closeContainer.scale.set(1);
-  });
-  closeContainer.on('pointerleave', () => {
-    closeContainer.scale.set(1);
-  });
+  // 🔥 FIX: Store handlers for cleanup
+  const closeHandlers = {
+    pointertap: () => handleHUDClose(),
+    pointerdown: () => { closeContainer.scale.set(0.92); },
+    pointerup: () => { closeContainer.scale.set(1); },
+    pointerleave: () => { closeContainer.scale.set(1); }
+  };
+  
+  closeContainer.on('pointertap', closeHandlers.pointertap);
+  closeContainer.on('pointerdown', closeHandlers.pointerdown);
+  closeContainer.on('pointerup', closeHandlers.pointerup);
+  closeContainer.on('pointerleave', closeHandlers.pointerleave);
+  
+  // Store cleanup function on container
+  (closeContainer as any)._cleanupHandlers = () => {
+    closeContainer.off('pointertap', closeHandlers.pointertap);
+    closeContainer.off('pointerdown', closeHandlers.pointerdown);
+    closeContainer.off('pointerup', closeHandlers.pointerup);
+    closeContainer.off('pointerleave', closeHandlers.pointerleave);
+  };
   
   const closeBg = new Graphics()
     .roundRect(0, 0, 56, 56, 18)

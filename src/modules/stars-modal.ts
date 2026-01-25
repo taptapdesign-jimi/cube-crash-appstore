@@ -26,6 +26,17 @@ export async function showStarsModal({ app, stage, board, score }: StarsModalPar
   return new Promise<StarsModalResult>(resolve => {
     // 🔥 MEMORY LEAK FIX: Track all GSAP tweens for cleanup
     const activeTweens: gsap.core.Tween[] = [];
+    let resolved = false;
+    
+    // 🔥 FIX: Safety timeout to prevent promise hanging forever
+    const safetyTimeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        logger.warn('⚠️ stars-modal: Safety timeout triggered - resolving with continue');
+        cleanup();
+        resolve({ action: 'continue' });
+      }
+    }, 30000); // 30 second safety timeout
     
     const LAYER_NAME = 'cc-stars-modal';
     let layer = stage.children?.find?.(c => c && c.label === LAYER_NAME) as Container;
@@ -81,7 +92,11 @@ export async function showStarsModal({ app, stage, board, score }: StarsModalPar
         } catch (error) {
           logger.warn('⚠️ stars-modal: Failed to clear saved game state:', error);
         }
-        resolve({ action:'continue' }); cleanup(); 
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(safetyTimeout);
+          resolve({ action:'continue' }); cleanup();
+        }
       };
       let touchStarted = false;
       let touchStartedOnButton = false;
@@ -127,7 +142,11 @@ export async function showStarsModal({ app, stage, board, score }: StarsModalPar
                 logger.warn('⚠️ stars-modal: Failed to call window.updateHighScore:', error);
               }
             }
-            resolve({ action:'continue' }); cleanup();
+            if (!resolved) {
+              resolved = true;
+              clearTimeout(safetyTimeout);
+              resolve({ action:'continue' }); cleanup();
+            }
           }
         }
         

@@ -649,6 +649,17 @@ function createModal(): HTMLElement {
       setTimeout(() => {
         console.log('🎯 Modal hidden, starting board exit...');
         
+        // 🔥 CRITICAL FIX: Reset gamePaused flag BEFORE exitToMenu
+        // This ensures the new game can start with clean state
+        try {
+          const { container } = require('../core/dependency-injection.js');
+          if (container && typeof container.set === 'function') {
+            container.set('gamePaused', false);
+          }
+        } catch (e) { /* ignore */ }
+        (window as any)._gamePaused = false;
+        console.log('🔓 gamePaused flag reset before exitToMenu');
+        
         // Guard: Prevent multiple calls
         if ((window as any).exitingToMenu) {
           console.log('⚠️ exitToMenu already in progress, skipping duplicate call');
@@ -790,13 +801,24 @@ export function showEndRunModal(): void {
   
   safePauseGame();
   
-  // 🔥 USER REQUEST: Pause game to prevent tile interactions
+  // 🔥 CRITICAL FIX: Use "soft pause" - only block interactions, DON'T pause animations
+  // This prevents the exploit where magnet/merge animations get interrupted
+  // Animations continue in background while bottom sheet is open (looks nice, prevents exploits)
+  // Only set gamePaused flag to block new drag interactions
   try {
-    pauseGame();
-    console.log('🔒 Game paused (end-run modal)');
+    const { container } = require('../core/dependency-injection.js');
+    if (container && typeof container.set === 'function') {
+      container.set('gamePaused', true);
+    }
   } catch (error) {
-    console.warn('⚠️ Failed to pause game:', error);
+    console.warn('⚠️ Failed to set gamePaused via DI:', error);
   }
+  (window as any)._gamePaused = true;
+  console.log('🔒 Game soft-paused (interactions blocked, animations continue)');
+  
+  // 🔥 NOTE: We intentionally DON'T call pauseGame() here anymore
+  // pauseGame() would pause GSAP timeline and stop PIXI ticker, breaking ongoing animations
+  // Instead, we only block pointer events and set gamePaused flag
   
   // 🔥 NOTE: Combo timer now uses setTimeout and works independently
   // No need to kill/restart combo timer when bottom sheet opens/closes
@@ -1032,12 +1054,15 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       // 🔥 CRITICAL FIX: Unfreeze board and reset gamePaused IMMEDIATELY on drag close
       // This allows dragging tiles immediately, not after 400ms
       unfreezeGameAndHud('drag close immediate');
+      // Reset gamePaused flag immediately
       try {
-        resumeGame();
-        console.log('🔓 Game resumed immediately on drag close');
-      } catch (e) {
-        console.warn('⚠️ Failed to resume game on drag close:', e);
-      }
+        const { container } = require('../core/dependency-injection.js');
+        if (container && typeof container.set === 'function') {
+          container.set('gamePaused', false);
+        }
+      } catch (e) { /* ignore */ }
+      (window as any)._gamePaused = false;
+      console.log('🔓 Game resumed immediately on drag close');
       
       trackEndRunTimeout(() => hideModal(), 400);
     } else {
@@ -1128,12 +1153,15 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       // 🔥 CRITICAL FIX: Unfreeze board and reset gamePaused IMMEDIATELY on drag close
       // This allows dragging tiles immediately, not after 400ms
       unfreezeGameAndHud('drag close mouse immediate');
+      // Reset gamePaused flag immediately
       try {
-        resumeGame();
-        console.log('🔓 Game resumed immediately on mouse drag close');
-      } catch (e) {
-        console.warn('⚠️ Failed to resume game on mouse drag close:', e);
-      }
+        const { container } = require('../core/dependency-injection.js');
+        if (container && typeof container.set === 'function') {
+          container.set('gamePaused', false);
+        }
+      } catch (e) { /* ignore */ }
+      (window as any)._gamePaused = false;
+      console.log('🔓 Game resumed immediately on mouse drag close');
       
       trackEndRunTimeout(() => hideModal(), 400);
     } else {
@@ -1172,12 +1200,15 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
       if (target.id !== 'end-run-overlay' && !target.closest('#end-run-overlay')) {
         // 🔥 CRITICAL FIX: Resume game IMMEDIATELY on outside click (same as drag close)
         unfreezeGameAndHud('outside click immediate');
+        // Reset gamePaused flag immediately
         try {
-          resumeGame();
-          console.log('🔓 Game resumed immediately on outside click');
-        } catch (err) {
-          console.warn('⚠️ Failed to resume game on outside click:', err);
-        }
+          const { container } = require('../core/dependency-injection.js');
+          if (container && typeof container.set === 'function') {
+            container.set('gamePaused', false);
+          }
+        } catch (err) { /* ignore */ }
+        (window as any)._gamePaused = false;
+        console.log('🔓 Game resumed immediately on outside click');
         hideModal();
       }
     }
@@ -1190,12 +1221,15 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
       if (target.id !== 'end-run-overlay' && !target.closest('#end-run-overlay')) {
         // 🔥 CRITICAL FIX: Resume game IMMEDIATELY on outside touch (same as drag close)
         unfreezeGameAndHud('outside touch immediate');
+        // Reset gamePaused flag immediately
         try {
-          resumeGame();
-          console.log('🔓 Game resumed immediately on outside touch');
-        } catch (err) {
-          console.warn('⚠️ Failed to resume game on outside touch:', err);
-        }
+          const { container } = require('../core/dependency-injection.js');
+          if (container && typeof container.set === 'function') {
+            container.set('gamePaused', false);
+          }
+        } catch (err) { /* ignore */ }
+        (window as any)._gamePaused = false;
+        console.log('🔓 Game resumed immediately on outside touch');
         hideModal();
       }
     }
@@ -1301,40 +1335,33 @@ export function hideModal(): void {
   
   console.log('🔓 HUD unfrozen - ALL events enabled');
   
-  // WAIT for animation to complete before resuming game
+  // WAIT for animation to complete before final cleanup
   trackEndRunTimeout(() => {
-    // 🔥 CRITICAL FIX: Resume game FIRST before any cleanup
-    // This ensures GSAP timeline and PIXI ticker are restored before cleanup
+    // 🔥 CRITICAL FIX: Reset gamePaused flag FIRST so drag-core.ts allows dragging again
+    // We used "soft pause" so GSAP/ticker were never paused - just need to reset the flag
     console.log('🎯 Resuming game after End This Run modal closed');
-    safeResumeGame();
     
-    // 🔥 USER REQUEST: Resume game to allow tile interactions
+    // Reset gamePaused flag via DI container
+    try {
+      const { container } = require('../core/dependency-injection.js');
+      if (container && typeof container.set === 'function') {
+        container.set('gamePaused', false);
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to reset gamePaused via DI:', error);
+    }
+    // Also reset window fallback
+    (window as any)._gamePaused = false;
+    console.log('🔓 Game resumed (gamePaused flag reset)');
+    
+    // Call resumeGame() for safety - it's a no-op if already running
     try {
       resumeGame();
-      console.log('🔓 Game resumed (end-run modal closed)');
     } catch (error) {
-      console.warn('⚠️ Failed to resume game:', error);
+      console.warn('⚠️ resumeGame() failed (probably fine):', error);
     }
     
-    // 🔥 FIX: Ensure PIXI ticker is running (backup in case resumeGame fails)
-    try {
-      const app = (window as any).STATE?.app;
-      if (app && app.ticker && !app.ticker.started) {
-        app.ticker.start();
-        console.log('🔓 PIXI ticker force-started (backup)');
-      }
-      // Also ensure GSAP timeline is resumed
-      if (gsap && gsap.globalTimeline && gsap.globalTimeline.paused()) {
-        gsap.globalTimeline.resume();
-        console.log('🔓 GSAP timeline force-resumed (backup)');
-      }
-    } catch (backupError) {
-      console.warn('⚠️ Backup resume failed:', backupError);
-    }
-    
-    // 🔥 CRITICAL FIX: Force reset gamePaused flag so drag-core.ts allows dragging again
-    // resumeGame() should have done this, but set window fallback just in case
-    (window as any)._gamePaused = false;
+    safeResumeGame();
     
     // Unlock slider
     safeUnlockSlider();

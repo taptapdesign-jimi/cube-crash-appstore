@@ -62,6 +62,22 @@ let cachedTileCategories: {
 let cachedCategoriesHash: string = '';
 
 /**
+ * 🔥 FIX: Clear all endgame checker caches
+ * Call this when game ends or resets to prevent stale state
+ */
+export function clearEndgameCheckerCache(): void {
+  lastCheckTime = 0;
+  lastCheckResult = null;
+  lastCheckContextHash = '';
+  cachedActiveTiles = [];
+  cachedTilesLength = 0;
+  cachedTilesHash = '';
+  cachedTileCategories = null;
+  cachedCategoriesHash = '';
+  logger.info('✅ Endgame checker cache cleared');
+}
+
+/**
  * Create a hash of tile array for cache invalidation
  * Uses tile references and key properties to detect changes
  * OPTIMIZED: Uses simple hash instead of full string concatenation for performance

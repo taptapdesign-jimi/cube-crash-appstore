@@ -1174,6 +1174,19 @@ async function startNewRun(boardId: number): Promise<void> {
   }
   (window as any).exitingToMenu = true;
   
+  // 🔥 CRITICAL FIX: Reset gamePaused flag immediately
+  // This ensures new game starts with clean state
+  try {
+    const { container } = await import('./core/dependency-injection.js');
+    if (container && typeof container.set === 'function') {
+      container.set('gamePaused', false);
+    }
+  } catch (e) {
+    console.warn('⚠️ Failed to reset gamePaused via DI:', e);
+  }
+  (window as any)._gamePaused = false;
+  console.log('🔓 exitToMenu: gamePaused flag reset');
+  
   // 🔥🔥🔥 NUCLEAR CLEANUP FIRST: Kill ALL GSAP tweens to prevent _x null errors 🔥🔥🔥
   // This must happen IMMEDIATELY before any animations or cleanup
   console.log('🔥 exitToMenu: NUCLEAR CLEANUP - killing all GSAP tweens...');

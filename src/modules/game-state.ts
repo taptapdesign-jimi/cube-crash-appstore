@@ -125,6 +125,13 @@ class GameState {
     }
   }
   
+  // 🔥 FIX: Clear all listeners (call on app cleanup)
+  clearAllListeners(): void {
+    this.listeners.forEach((set) => set.clear());
+    this.listeners.clear();
+    logger.info('✅ Game state listeners cleared');
+  }
+  
   // Reset state to initial values
   reset(): void {
     this.state = {

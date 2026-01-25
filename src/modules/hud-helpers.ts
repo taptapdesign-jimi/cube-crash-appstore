@@ -8,6 +8,29 @@ import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
 import uiManager from './ui-manager.ts';
 import { smokeBubblesAtTile } from './fx.ts';
 
+// 🔥 FIX: Track HUD timeouts for cleanup
+const activeHudTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
+
+function trackHudTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
+  const timeout = setTimeout(() => {
+    activeHudTimeouts.delete(timeout);
+    callback();
+  }, delay);
+  activeHudTimeouts.add(timeout);
+  return timeout;
+}
+
+/**
+ * Cleanup all HUD timeouts
+ */
+export function cleanupHudTimeouts(): void {
+  activeHudTimeouts.forEach(timeout => {
+    try { clearTimeout(timeout); } catch {}
+  });
+  activeHudTimeouts.clear();
+  console.log('✅ HUD timeouts cleaned up');
+}
+
 interface GraphicsPool {
   acquire: () => Graphics;
   release: (g: Graphics) => void;
@@ -425,7 +448,8 @@ export function animateUnifiedHudDrop() {
   unifiedHudContainer.style.transform = 'translateY(0%)';
   
   // Mark as dropped after animation
-  setTimeout(() => {
+  // 🔥 FIX: Track timeout for cleanup
+  trackHudTimeout(() => {
     unifiedHudContainer.setAttribute('data-dropped', 'true');
     console.log('✅ Unified HUD dropped and marked as dropped');
   }, 800);
@@ -1208,7 +1232,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
             window.hideScoreBottomSheet();
           }
           // Wait a bit for score bottom sheet to close, then open end-run modal
-          setTimeout(() => {
+          // 🔥 FIX: Track timeout for cleanup
+          trackHudTimeout(() => {
             if (typeof window.showEndRunModalFromGame === 'function') {
               window.showEndRunModalFromGame();
             }
@@ -1390,7 +1415,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
                 window.hideScoreBottomSheet();
               }
               // Wait a bit for score bottom sheet to close, then open end-run modal
-              setTimeout(() => {
+              // 🔥 FIX: Track timeout for cleanup
+              trackHudTimeout(() => {
                 if (typeof window.showEndRunModalFromGame === 'function') {
                   window.showEndRunModalFromGame();
                 }
@@ -1956,7 +1982,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
         window.hideScoreBottomSheet();
       }
       // Wait a bit for score bottom sheet to close, then open end-run modal
-      setTimeout(() => {
+      // 🔥 FIX: Track timeout for cleanup
+      trackHudTimeout(() => {
         if (typeof window.showEndRunModalFromGame === 'function') {
           window.showEndRunModalFromGame();
         }
@@ -2148,7 +2175,8 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
           window.hideEndRunModal();
         }
         // Wait a bit for end-run modal to close, then open score bottom sheet
-        setTimeout(() => {
+        // 🔥 FIX: Track timeout for cleanup
+        trackHudTimeout(() => {
           if (typeof window.showScoreBottomSheet === 'function') {
             window.showScoreBottomSheet();
           }
@@ -2340,7 +2368,8 @@ export function playHudRise({ duration = 0.3 } = {}){
   if (!HUD_ROOT) {
     console.warn('⚠️ playHudRise: HUD_ROOT is null, skipping animation');
     // Wait 0.1s after HUD would have started, then animate board indicator
-    setTimeout(() => {
+    // 🔥 FIX: Track timeout for cleanup
+    trackHudTimeout(() => {
       animateBoardIndicatorExit(0.3);
     }, 100);
     return;
@@ -2387,13 +2416,15 @@ export function playHudRise({ duration = 0.3 } = {}){
     console.log('✅ PIXI HUD rise animation started');
     
     // Wait 0.1s after HUD animation starts, then animate board indicator with 0.3s duration
-    setTimeout(() => {
+    // 🔥 FIX: Track timeout for cleanup
+    trackHudTimeout(() => {
       animateBoardIndicatorExit(0.3);
     }, 100);
   } catch (error) {
     console.error('❌ playHudRise failed:', error);
     // Even on error, try to animate board indicator after delay
-    setTimeout(() => {
+    // 🔥 FIX: Track timeout for cleanup
+    trackHudTimeout(() => {
       animateBoardIndicatorExit(0.3);
     }, 100);
   }
@@ -3008,7 +3039,8 @@ export function animateWildLoaderToZero(){
     wild.setProgress(0, false);
     
     // Restore original function after a delay
-    setTimeout(() => {
+    // 🔥 FIX: Track timeout for cleanup
+    trackHudTimeout(() => {
       wild.setProgress = originalSetProgress;
       // Ensure wild loader is ready for normal operation
       if (wild.start) {
