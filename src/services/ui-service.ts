@@ -17,35 +17,36 @@ export interface UIServiceInterface {
 
 class UIService implements UIServiceInterface {
   private isInitialized: boolean = false;
+  
+  // 🔥 FIX: Store bound listeners for proper cleanup
+  private boundListeners: {
+    onShowHomepage: (() => void) | null;
+    onHideHomepage: (() => void) | null;
+    onShowLoading: (() => void) | null;
+    onHideLoading: (() => void) | null;
+    onScoreUpdate: ((score: number) => void) | null;
+    onHighScore: ((score: number) => void) | null;
+  } = { onShowHomepage: null, onHideHomepage: null, onShowLoading: null, onHideLoading: null, onScoreUpdate: null, onHighScore: null };
 
   constructor() {
     this.setupEventListeners();
   }
 
   private setupEventListeners(): void {
-    eventBus.on(EVENTS.UI_SHOW_HOMEPAGE, () => {
-      this.showHomepage();
-    });
+    // 🔥 FIX: Store bound listeners for removal in destroy()
+    this.boundListeners.onShowHomepage = () => this.showHomepage();
+    this.boundListeners.onHideHomepage = () => this.hideHomepage();
+    this.boundListeners.onShowLoading = () => this.showLoadingScreen();
+    this.boundListeners.onHideLoading = () => this.hideLoadingScreen();
+    this.boundListeners.onScoreUpdate = (score: number) => this.updateScore(score);
+    this.boundListeners.onHighScore = (score: number) => this.updateHighScore(score);
 
-    eventBus.on(EVENTS.UI_HIDE_HOMEPAGE, () => {
-      this.hideHomepage();
-    });
-
-    eventBus.on(EVENTS.UI_SHOW_LOADING, () => {
-      this.showLoadingScreen();
-    });
-
-    eventBus.on(EVENTS.UI_HIDE_LOADING, () => {
-      this.hideLoadingScreen();
-    });
-
-    eventBus.on(EVENTS.SCORE_UPDATE, (score: number) => {
-      this.updateScore(score);
-    });
-
-    eventBus.on(EVENTS.SCORE_HIGH_SCORE, (score: number) => {
-      this.updateHighScore(score);
-    });
+    eventBus.on(EVENTS.UI_SHOW_HOMEPAGE, this.boundListeners.onShowHomepage);
+    eventBus.on(EVENTS.UI_HIDE_HOMEPAGE, this.boundListeners.onHideHomepage);
+    eventBus.on(EVENTS.UI_SHOW_LOADING, this.boundListeners.onShowLoading);
+    eventBus.on(EVENTS.UI_HIDE_LOADING, this.boundListeners.onHideLoading);
+    eventBus.on(EVENTS.SCORE_UPDATE, this.boundListeners.onScoreUpdate);
+    eventBus.on(EVENTS.SCORE_HIGH_SCORE, this.boundListeners.onHighScore);
   }
 
   init(): void {
@@ -195,7 +196,27 @@ class UIService implements UIServiceInterface {
 
   destroy(): void {
     this.isInitialized = false;
-    eventBus.clear();
+    
+    // 🔥 FIX: Remove only this service's listeners, not all eventBus listeners
+    if (this.boundListeners.onShowHomepage) {
+      eventBus.off(EVENTS.UI_SHOW_HOMEPAGE, this.boundListeners.onShowHomepage);
+    }
+    if (this.boundListeners.onHideHomepage) {
+      eventBus.off(EVENTS.UI_HIDE_HOMEPAGE, this.boundListeners.onHideHomepage);
+    }
+    if (this.boundListeners.onShowLoading) {
+      eventBus.off(EVENTS.UI_SHOW_LOADING, this.boundListeners.onShowLoading);
+    }
+    if (this.boundListeners.onHideLoading) {
+      eventBus.off(EVENTS.UI_HIDE_LOADING, this.boundListeners.onHideLoading);
+    }
+    if (this.boundListeners.onScoreUpdate) {
+      eventBus.off(EVENTS.SCORE_UPDATE, this.boundListeners.onScoreUpdate);
+    }
+    if (this.boundListeners.onHighScore) {
+      eventBus.off(EVENTS.SCORE_HIGH_SCORE, this.boundListeners.onHighScore);
+    }
+    this.boundListeners = { onShowHomepage: null, onHideHomepage: null, onShowLoading: null, onHideLoading: null, onScoreUpdate: null, onHighScore: null };
   }
 }
 

@@ -38,23 +38,33 @@ class BoardService implements BoardServiceInterface {
   private tiles: Map<string, TileData> = new Map();
   private board: Container | null = null;
   private stage: Container | null = null;
+  
+  // 🔥 FIX: Store listener references for proper cleanup
+  private boundListeners: {
+    onMerge: ((tile1Id: string, tile2Id: string) => void) | null;
+    onDestroy: ((tileId: string) => void) | null;
+    onUpdate: (() => void) | null;
+  } = { onMerge: null, onDestroy: null, onUpdate: null };
 
   constructor() {
     this.setupEventListeners();
   }
 
   private setupEventListeners(): void {
-    eventBus.on(EVENTS.BOARD_TILE_MERGE, (tile1Id: string, tile2Id: string) => {
+    // 🔥 FIX: Store bound listeners for removal in destroy()
+    this.boundListeners.onMerge = (tile1Id: string, tile2Id: string) => {
       this.mergeTiles(tile1Id, tile2Id);
-    });
-
-    eventBus.on(EVENTS.BOARD_TILE_DESTROY, (tileId: string) => {
+    };
+    this.boundListeners.onDestroy = (tileId: string) => {
       this.destroyTile(tileId);
-    });
-
-    eventBus.on(EVENTS.BOARD_UPDATE, () => {
+    };
+    this.boundListeners.onUpdate = () => {
       this.updateBoard();
-    });
+    };
+    
+    eventBus.on(EVENTS.BOARD_TILE_MERGE, this.boundListeners.onMerge);
+    eventBus.on(EVENTS.BOARD_TILE_DESTROY, this.boundListeners.onDestroy);
+    eventBus.on(EVENTS.BOARD_UPDATE, this.boundListeners.onUpdate);
   }
 
   init(board: Container, stage: Container): void {
@@ -201,10 +211,21 @@ class BoardService implements BoardServiceInterface {
   }
 
   destroy(): void {
+    // 🔥 FIX: Remove only this service's listeners, not all eventBus listeners
+    if (this.boundListeners.onMerge) {
+      eventBus.off(EVENTS.BOARD_TILE_MERGE, this.boundListeners.onMerge);
+    }
+    if (this.boundListeners.onDestroy) {
+      eventBus.off(EVENTS.BOARD_TILE_DESTROY, this.boundListeners.onDestroy);
+    }
+    if (this.boundListeners.onUpdate) {
+      eventBus.off(EVENTS.BOARD_UPDATE, this.boundListeners.onUpdate);
+    }
+    this.boundListeners = { onMerge: null, onDestroy: null, onUpdate: null };
+    
     this.tiles.clear();
     this.board = null;
     this.stage = null;
-    eventBus.clear();
   }
 }
 

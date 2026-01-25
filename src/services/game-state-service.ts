@@ -4,7 +4,7 @@ import { eventBus, EVENTS } from '../core/event-bus.js';
 import { logger } from '../core/logger.js';
 import type { Container, Application } from 'pixi.js';
 
-export type EventBusLike = Pick<typeof eventBus, 'on' | 'emit' | 'clear'>;
+export type EventBusLike = Pick<typeof eventBus, 'on' | 'off' | 'emit' | 'clear'>;
 export type LoggerLike = Pick<typeof logger, 'info' | 'warn' | 'error'>;
 
 // Deep equality check (replaces brittle JSON.stringify)
@@ -111,6 +111,15 @@ export class GameStateService {
   private listenerCounter: number = 0;
   private bus: EventBusLike;
   private log: LoggerLike;
+  
+  // 🔥 FIX: Store bound listeners for proper cleanup
+  private boundEventListeners: {
+    onStart: (() => void) | null;
+    onPause: (() => void) | null;
+    onResume: (() => void) | null;
+    onEnd: (() => void) | null;
+    onScoreUpdate: ((score: number) => void) | null;
+  } = { onStart: null, onPause: null, onResume: null, onEnd: null, onScoreUpdate: null };
 
   constructor(
     bus: EventBusLike = eventBus,
@@ -138,29 +147,32 @@ export class GameStateService {
   }
 
   private setupEventListeners(): void {
-    this.bus.on(EVENTS.GAME_START, () => {
+    // 🔥 FIX: Store bound listeners for removal in destroy()
+    this.boundEventListeners.onStart = () => {
       this.setState({ isGameActive: true, isPaused: false });
-    });
-
-    this.bus.on(EVENTS.GAME_PAUSE, () => {
+    };
+    this.boundEventListeners.onPause = () => {
       this.setState({ isPaused: true });
-    });
-
-    this.bus.on(EVENTS.GAME_RESUME, () => {
+    };
+    this.boundEventListeners.onResume = () => {
       this.setState({ isPaused: false });
-    });
-
-    this.bus.on(EVENTS.GAME_END, () => {
+    };
+    this.boundEventListeners.onEnd = () => {
       this.setState({ isGameActive: false, isPaused: false });
-    });
-
-    this.bus.on(EVENTS.SCORE_UPDATE, (score: number) => {
+    };
+    this.boundEventListeners.onScoreUpdate = (score: number) => {
       this.setState({ score });
       if (score > this.state.highScore) {
         this.setState({ highScore: score });
         this.bus.emit(EVENTS.SCORE_HIGH_SCORE, score);
       }
-    });
+    };
+
+    this.bus.on(EVENTS.GAME_START, this.boundEventListeners.onStart);
+    this.bus.on(EVENTS.GAME_PAUSE, this.boundEventListeners.onPause);
+    this.bus.on(EVENTS.GAME_RESUME, this.boundEventListeners.onResume);
+    this.bus.on(EVENTS.GAME_END, this.boundEventListeners.onEnd);
+    this.bus.on(EVENTS.SCORE_UPDATE, this.boundEventListeners.onScoreUpdate);
   }
 
   getState(): GameStateData {
@@ -272,7 +284,24 @@ export class GameStateService {
 
   destroy(): void {
     this.listeners.clear();
-    this.bus.clear();
+    
+    // 🔥 FIX: Remove only this service's listeners, not all eventBus listeners
+    if (this.boundEventListeners.onStart) {
+      this.bus.off(EVENTS.GAME_START, this.boundEventListeners.onStart);
+    }
+    if (this.boundEventListeners.onPause) {
+      this.bus.off(EVENTS.GAME_PAUSE, this.boundEventListeners.onPause);
+    }
+    if (this.boundEventListeners.onResume) {
+      this.bus.off(EVENTS.GAME_RESUME, this.boundEventListeners.onResume);
+    }
+    if (this.boundEventListeners.onEnd) {
+      this.bus.off(EVENTS.GAME_END, this.boundEventListeners.onEnd);
+    }
+    if (this.boundEventListeners.onScoreUpdate) {
+      this.bus.off(EVENTS.SCORE_UPDATE, this.boundEventListeners.onScoreUpdate);
+    }
+    this.boundEventListeners = { onStart: null, onPause: null, onResume: null, onEnd: null, onScoreUpdate: null };
   }
 }
 
