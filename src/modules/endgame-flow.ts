@@ -9,13 +9,9 @@ import { logger } from '../core/logger.js';
 // Type definitions
 interface EndgameContext {
   app: any;
-  stage: {
-    eventMode: string;
-  };
+  stage: { eventMode: string };
   board: any;
-  boardBG?: {
-    visible?: boolean;
-  };
+  boardBG?: { visible?: boolean };
   level: number;
   startLevel: (level: number) => void;
   hideGrid?: () => void;
@@ -25,6 +21,8 @@ interface EndgameContext {
   setScore?: (score: number) => void;
   animateScore?: (score: number, duration: number) => void;
   updateHUD?: () => void;
+  /** true = regular+regular or magnet last merge; no stars/bubbles, skip stars wait so clean board shows ASAP */
+  skipStarsWait?: boolean;
 }
 
 interface CleanBoardModalOptions {
@@ -66,6 +64,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     level, startLevel,
     hideGrid, showGrid,
     boardNumber: ctxBoardNumber = 1,
+    skipStarsWait = false,
   } = ctx;
   
   // 🔥 CRITICAL FIX: Use STATE.boardNumber if available, fallback to ctx.boardNumber
@@ -116,20 +115,16 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     const comboBonus = Math.floor(bonus * 0.5); // 50% for combo
     const efficiencyBonus = bonus - comboBonus; // 50% for efficiency
 
-    // 🔥 CRITICAL FIX: Cleanup bubbles animaciju PRIJE clean board flow-a
-    // This prevents conflicts with stage/board objects during clean board flow
+    // 🔥 ENDGAME ANIMATION-WAIT: Wait for stars + bubbles before clean board; skip stars when regular/magnet (none run)
     try {
       const fxModule = await import('./fx.js');
-      if (fxModule && typeof fxModule.isWildBeerExplosionRunning === 'function' && 
-          typeof fxModule.cleanupWildBeerExplosion === 'function') {
-        if (fxModule.isWildBeerExplosionRunning()) {
-          console.log('🧹 endgame-flow: Bubbles animation detected - cleaning up before clean board flow');
-          fxModule.cleanupWildBeerExplosion();
-          console.log('✅ endgame-flow: Bubbles animation cleaned up');
-        }
+      if (skipStarsWait && typeof fxModule.waitForBubblesAnimationToComplete === 'function') {
+        await fxModule.waitForBubblesAnimationToComplete(5500);
+      } else if (fxModule && typeof fxModule.waitForOngoingAnimations === 'function') {
+        await fxModule.waitForOngoingAnimations(6000);
       }
     } catch (e) {
-      console.warn('⚠️ endgame-flow: Failed to cleanup bubbles animation:', e);
+      console.warn('⚠️ endgame-flow: animation wait failed (non-fatal):', e);
     }
 
     const { showCleanBoardModal } = await import('./clean-board-modal.js');

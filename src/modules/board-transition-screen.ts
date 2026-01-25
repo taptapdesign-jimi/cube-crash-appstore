@@ -281,13 +281,14 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       activeCloudImages.push(cloudImg);
       
       // 🔥 USER REQUEST: 50% of clouds 40% smaller
+      // 🔥 USER REQUEST: Max size is 65% of original
       const isSmaller = i < Math.floor(totalClouds / 2); // First half are smaller
       
       let baseSize;
       if (isSmaller) {
-        baseSize = (0.25 + Math.random() * 0.45) * 0.6; // 40% smaller (0.15 to 0.42x)
+        baseSize = (0.15 + Math.random() * 0.5) * 0.6; // 40% smaller (0.09 to 0.39x)
       } else {
-        baseSize = 0.25 + Math.random() * 0.45; // Normal size (0.25 to 0.7x)
+        baseSize = 0.15 + Math.random() * 0.5; // Normal size (0.15 to 0.65x) - max 65% of original
       }
       const randomSize = baseSize;
       
@@ -378,9 +379,26 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         ease: 'sine.in'
       });
       
-      // 🔥 USER REQUEST: Enter animation with stagger like digits
-      // Each cloud has its own enter animation with delay (staggered)
-      const enterDelay = 0.1 + (i * 0.05); // Stagger by 50ms per cloud (similar to digits but faster)
+      // 🔥 USER REQUEST: Enter animation with stagger - centralni oblaci prvo, zatim gore/dolje
+      // Determine cloud category for enter delay priority
+      let enterDelay: number;
+      if (i >= topCloudsCount && i < topCloudsCount + middleCloudsCount) {
+        // 🔥 USER REQUEST: Centralni oblaci prvo (middle clouds) - prvo se pokazuju
+        const middleIndex = i - topCloudsCount; // Index within middle clouds (0 to middleCloudsCount-1)
+        enterDelay = 0.1 + (middleIndex * 0.05); // Start at 0.1s, stagger by 50ms
+      } else if (i < topCloudsCount) {
+        // Gornji oblaci - kasnije se pokazuju (nakon centralnih)
+        const topIndex = i; // Index within top clouds (0 to topCloudsCount-1)
+        enterDelay = 0.1 + (middleCloudsCount * 0.05) + (topIndex * 0.05); // Start after middle clouds
+      } else if (i < topCloudsCount + middleCloudsCount + bottomCloudsCount) {
+        // Donji oblaci - kasnije se pokazuju (nakon centralnih)
+        const bottomIndex = i - (topCloudsCount + middleCloudsCount); // Index within bottom clouds
+        enterDelay = 0.1 + (middleCloudsCount * 0.05) + (bottomIndex * 0.05); // Start after middle clouds
+      } else {
+        // Random fill oblaci - najkasnije se pokazuju
+        const randomIndex = i - (topCloudsCount + middleCloudsCount + bottomCloudsCount); // Index within random clouds
+        enterDelay = 0.1 + (middleCloudsCount * 0.05) + (randomIndex * 0.05); // Start after middle clouds
+      }
       
       // Create cloud animation timeline with stagger delay
       const cloudTimeline = gsap.timeline({ delay: enterDelay });
@@ -652,8 +670,13 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     digitElements.forEach((digitEl, index) => {
       const delay = 0.3 + (index * 0.3); // Stagger by 0.3s per digit
       
-      // 🔥 USER REQUEST: Generate random rotation between -8 and +8 degrees for each digit
-      const randomRotation = -8 + Math.random() * 16; // Random between -8 and +8
+      // 🔥 USER REQUEST: Generate random rotation with opposite poles for adjacent digits
+      // First digit: random between -8 and +8, second digit: opposite sign (always -+ or +-)
+      const baseRotation = -8 + Math.random() * 16; // Random between -8 and +8
+      // If index is even (0, 2, 4...), use baseRotation; if odd (1, 3, 5...), use opposite sign
+      const randomRotation = index % 2 === 0 
+        ? baseRotation 
+        : -baseRotation; // Opposite sign for adjacent digits (always -+ or +-)
       
       // Set initial state (hidden)
       // 🔥 CRITICAL FIX: Ensure no transform properties that could affect horizontal position

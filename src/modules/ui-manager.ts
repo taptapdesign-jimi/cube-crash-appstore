@@ -1011,27 +1011,16 @@ class UIManager {
       appElement.style.zIndex = '1';
       logger.info('✅ App element shown');
       
-      // 🔥 CRITICAL FIX: Ensure canvas is visible and properly styled
-      // Canvas should already exist from boot(), but we need to ensure it's visible
-      let canvas = appElement.querySelector('canvas');
+      // Ensure canvas is visible when present (may be missing if showApp runs before boot, e.g. Journey continue)
+      let canvas = appElement.querySelector('canvas') ?? null;
       if (!canvas) {
-        // 🔥 CRITICAL: If canvas doesn't exist, try to get it from window.CC.app
-        logger.warn('⚠️ Canvas not found in app element, trying to get from window.CC.app...');
-        try {
-          const gameState = (window as any).CC;
-          if (gameState && gameState.app && gameState.app.canvas) {
-            const appCanvas = gameState.app.canvas;
-            if (!appCanvas.parentElement) {
-              appElement.appendChild(appCanvas);
-              logger.info('✅ Canvas added to app element from window.CC.app');
-            }
-            canvas = appCanvas;
-          }
-        } catch (e) {
-          logger.error('❌ Failed to get canvas from window.CC.app:', e);
+        const app = (window as any).CC?.app;
+        const c = app?.canvas;
+        if (c) {
+          if (!c.parentElement) appElement.appendChild(c);
+          canvas = c;
         }
       }
-      
       if (canvas) {
         canvas.style.display = 'block';
         canvas.style.visibility = 'visible';
@@ -1043,10 +1032,6 @@ class UIManager {
         canvas.style.left = '0';
         canvas.style.zIndex = '1';
         canvas.style.pointerEvents = 'auto';
-        logger.info('✅ Canvas shown and styled');
-        logger.info('✅ Canvas in DOM:', !!canvas.parentElement, 'visible:', canvas.style.visibility, 'display:', canvas.style.display);
-      } else {
-        logger.error('❌ Canvas not found and could not be retrieved from window.CC.app!');
       }
     } else {
       logger.error('❌ App element not found!');

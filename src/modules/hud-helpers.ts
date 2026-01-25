@@ -52,7 +52,7 @@ function boardSize(): { w: number; h: number } {
 // Old makeWildLoader function removed - using new PIXI implementation below
 
 /* ---------------- Minimal HUD the app.js expects ---------------- */
-let HUD_ROOT: Container | null = null;
+export let HUD_ROOT: Container | null = null;
 let boardText: Text | null = null;
 let scoreText: Text | null = null;
 let comboText: Text | null = null;
@@ -308,7 +308,7 @@ function ensureHUDCloseButton(parent = null) {
     
     const icon = document.createElement('img');
     icon.src = './assets/close-icon.png';
-    icon.srcset = './assets/close-icon.png 1x, ./assets/close-icon@2x.png 2x, ./assets/close-icon@3x.png 3x';
+    icon.srcset = './assets/close-icon.png 1x, ./assets/close-icon@3x.png 2x, ./assets/close-icon@3x.png 3x';
     icon.alt = 'Close';
     icon.style.cssText = `
       width: 32px;
@@ -510,42 +510,28 @@ function makeWildLoader() {
   
   // Methods
   container.setProgress = (ratio, animate = false) => {
-    // CRITICAL: Check if _fill exists before using it
-    if (!container._fill) {
-      console.error('❌ HUD: container._fill is null! Cannot update progress.');
-      return;
-    }
-    
+    const fill = container._fill;
+    if (!fill || (fill as { destroyed?: boolean }).destroyed) return;
     const progress = Math.max(0, Math.min(1, ratio));
     const width = progress * container._maxWidth;
-    
-    console.log('🎯 PIXI Wild meter progress:', Math.round(progress * 100) + '%', 'width:', width);
-    
-    // Kill previous animation and smoke interval first
     if (container._currentAnimation) {
       container._currentAnimation.kill();
       container._currentAnimation = null;
-      console.log('🎯 PIXI Wild meter: Previous animation killed');
     }
     if (container._smokeInterval) {
       clearInterval(container._smokeInterval);
       container._smokeInterval = null;
     }
-    
     if (animate) {
       // Use GSAP to animate the width by redrawing the fill
       const startWidth = container._fill.width || 0;
       
       // Start smoke effect during animation
       container._smokeInterval = setInterval(() => {
-        if (!container || !container.parent) return;
-        
-        // Spawn smoke directly on the HUD stage (not board)
+        if (!container?.parent || !container._fill) return;
         const hudStage = container.parent;
         if (!hudStage) return;
-        
-        // Get global position of the fill's right edge
-        const globalX = container.x + (container._fill.width || 0);
+        const globalX = container.x + (container._fill?.width || 0);
         const globalY = container.y + 5; // Middle of the bar (10px height / 2)
         
         // Create anonymous Graphics for smoke
@@ -588,34 +574,30 @@ function makeWildLoader() {
         duration: 0.4,
         ease: 'power2.out',
         onUpdate: function() {
-          // Redraw fill with current width
-          if (container._fill) {
-            container._fill.clear();
-            container._fill.beginFill(0xE7744A);
-            container._fill.drawRoundedRect(0, 0, this.targets()[0].width, 10, 5); // Height: 10px, border radius: 5px
-            container._fill.endFill();
-          }
+          const f = container._fill;
+          if (!f || (f as { destroyed?: boolean }).destroyed) return;
+          try {
+            f.clear();
+            f.beginFill(0xE7744A);
+            f.drawRoundedRect(0, 0, this.targets()[0].width, 10, 5);
+            f.endFill();
+          } catch {}
         },
         onComplete: () => {
-          // Clear smoke interval when animation completes
           if (container._smokeInterval) {
             clearInterval(container._smokeInterval);
             container._smokeInterval = null;
           }
           container._currentAnimation = null;
-          console.log('🎯 PIXI Animation complete - final width:', width);
         }
       });
-      console.log('🎯 PIXI Wild meter: Animation started');
     } else {
-      // Set width directly
-      if (container._fill) {
-        container._fill.clear();
-        container._fill.beginFill(0xE7744A);
-        container._fill.drawRoundedRect(0, 0, width, 10, 5); // Height: 10px, border radius: 5px
-        container._fill.endFill();
-        console.log('🎯 PIXI Wild meter set directly to width:', width);
-      }
+      try {
+        fill.clear();
+        fill.beginFill(0xE7744A);
+        fill.drawRoundedRect(0, 0, width, 10, 5);
+        fill.endFill();
+      } catch {}
     }
   };
   
@@ -652,6 +634,15 @@ function makeWildLoader() {
 // wild is declared at line 17, no need to redeclare
 
 export { wild };
+
+/** No-op; used by app-core before wild spawn. Optional wild meter refresh. */
+export function shimmerProgress(): void {}
+
+/** True if HUD container has been destroyed (for cleanup checks). */
+export function isHUDDestroyed(): boolean {
+  return !!(HUD_ROOT && (HUD_ROOT as { destroyed?: boolean }).destroyed);
+}
+
 let __comboJitterTl: gsap.core.Timeline | null = null;
 let __comboBumpTl: gsap.core.Timeline | null = null;
 let __shakeTl: gsap.core.Timeline | null = null;        // drives shake amplitude during bump/deflate
@@ -2570,18 +2561,10 @@ export function setBoard(v){
 // - 5-9: extra-combo-hud.png (extra)
 // - 10+: mega-combo-hud.png (mega)
 function updateComboIcon(comboValue) {
-  if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.combo) {
-    console.warn('⚠️ updateComboIcon: HUD elements not ready');
-    return;
-  }
-  
+  if (!HUD_ROOT || !HUD_ROOT._hudElements || !HUD_ROOT._hudElements.combo) return;
   const combo = HUD_ROOT._hudElements.combo;
   const iconSprite = combo.iconSprite;
-  
-  if (!iconSprite || iconSprite.destroyed) {
-    console.warn('⚠️ updateComboIcon: Icon sprite not available');
-    return;
-  }
+  if (!iconSprite || iconSprite.destroyed) return;
   
   // Determine which icon to use based on combo value
   let targetIconType = 'normal';
@@ -2599,12 +2582,7 @@ function updateComboIcon(comboValue) {
   }
   
   const currentIconType = combo.currentIconType || 'normal';
-  
-  console.log(`💧 updateComboIcon: combo=${comboValue}, targetIcon=${targetIconType}, currentIcon=${currentIconType}`);
-  
-  // Only swap if needed
   if (targetIconType !== currentIconType) {
-    console.log(`💧 Switching to ${targetIconPath}...`);
     const loadIcon = async () => {
       try {
         // 🔥 CRITICAL: Store current sprite properties before swapping
@@ -2949,25 +2927,14 @@ export function bumpCombo(opts = {}){
 
 /* COMPLETELY NEW LOGIC: Simple DOM-based wild meter positioned in HUD */
 export function updateProgressBar(ratio, animate = false){
-  console.log('🔥 PIXI LOGIC: updateProgressBar called with:', { ratio, animate });
-  
-  // CRITICAL: Check if wild exists
-  if (!wild) {
-    console.warn('⚠️ PIXI LOGIC: Wild meter not initialized yet');
-    return;
-  }
-  
+  if (!wild?.setProgress) return;
+  const fill = wild?.view?._fill;
+  if (!fill || (fill as { destroyed?: boolean }).destroyed) return;
   const clamped = Math.max(0, Math.min(1, Number.isFinite(ratio) ? ratio : 0));
-  
-  if (wild.setProgress) {
-    try {
-      wild.setProgress(clamped, animate);
-      console.log('✅ PIXI LOGIC: Wild meter progress updated to', Math.round(clamped * 100) + '%');
-    } catch (error) {
-      console.error('❌ PIXI LOGIC: Error updating wild meter:', error);
-    }
-  } else {
-    console.warn('⚠️ PIXI LOGIC: wild.setProgress is not available');
+  try {
+    wild.setProgress(clamped, animate);
+  } catch {
+    // Wild meter not ready yet (e.g. startLevel before initHUD)
   }
 }
 

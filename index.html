@@ -192,15 +192,46 @@
     <div class="launch-content" style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
       <!-- Phase 1: Taptapdesign logo (VISIBLE IMMEDIATELY) -->
       <div class="launch-logo-taptap" style="position: absolute !important; width: 100% !important; height: 100% !important; display: flex !important; align-items: center !important; justify-content: center !important; opacity: 1 !important; visibility: visible !important;">
-        <img id="launch-logo-taptap" src="./assets/taptapdesign.png" alt="TapTap Design" loading="eager" fetchpriority="high" style="width: 344px; height: auto; display: block; margin: 0 auto;">
+        <img id="launch-logo-taptap" src="./assets/taptapdesign.png" alt="TapTap Design" loading="eager" fetchpriority="high" style="width: 344px; height: auto; display: block; margin: 0 auto; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none; pointer-events: auto;" draggable="false">
       </div>
       <!-- Phase 2: Stack to six logo (hidden initially, will be shown by launch-screen.ts) -->
       <div class="launch-logo-stack" style="position: absolute !important; width: 100% !important; height: 100% !important; display: none !important; align-items: center !important; justify-content: center !important; opacity: 0 !important;">
-        <img id="launch-smoke-shards" src="./assets/logo addons/smokeandshards.png" alt="" loading="eager" fetchpriority="high" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.6); width: 400px; height: auto; opacity: 1.0; z-index: 1; pointer-events: none;">
-        <img id="launch-logo-stack" src="./assets/logo-cube-crash.png" alt="CubeCrash" loading="eager" fetchpriority="high" style="width: 248px; height: auto; display: block; margin: 0 auto; position: relative; z-index: 2; opacity: 0;">
+        <img id="launch-smoke-shards" src="./assets/logo addons/smokeandshards.png" alt="" loading="eager" fetchpriority="high" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.6); width: 400px; height: auto; opacity: 1.0; z-index: 1; pointer-events: none; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none;" draggable="false">
+        <img id="launch-logo-stack" src="./assets/logo-cube-crash.png" alt="CubeCrash" loading="eager" fetchpriority="high" style="width: 248px; height: auto; display: block; margin: 0 auto; position: relative; z-index: 2; opacity: 0; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none; pointer-events: auto;" draggable="false">
       </div>
     </div>
   </div>
+  
+  <!-- 🔥 PREMIUM: Disable image drag and long press immediately -->
+  <script>
+    (function() {
+      function disableImageDrag(img) {
+        if (!img) return;
+        img.draggable = false;
+        img.addEventListener('dragstart', function(e) { e.preventDefault(); });
+        img.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+        img.addEventListener('selectstart', function(e) { e.preventDefault(); });
+        img.addEventListener('touchstart', function(e) {
+          if (e.touches.length > 1) {
+            e.preventDefault();
+          }
+        }, { passive: false });
+      }
+      
+      // Disable drag on launch screen images immediately
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+          disableImageDrag(document.getElementById('launch-logo-taptap'));
+          disableImageDrag(document.getElementById('launch-logo-stack'));
+          disableImageDrag(document.getElementById('launch-smoke-shards'));
+        });
+      } else {
+        disableImageDrag(document.getElementById('launch-logo-taptap'));
+        disableImageDrag(document.getElementById('launch-logo-stack'));
+        disableImageDrag(document.getElementById('launch-smoke-shards'));
+      }
+    })();
+  </script>
   
   <!-- Inline critical loader with production styling -->
   <style>
@@ -284,8 +315,6 @@
   <div id="nav-root"></div>
   
   <script>
-    console.log('✅ HTML loaded');
-    
     // Global settings state with localStorage persistence
     function loadSettings() {
       try {
@@ -293,9 +322,7 @@
         if (saved) {
           return JSON.parse(saved);
         }
-      } catch (e) {
-        console.warn('⚠️ Failed to load settings:', e);
-      }
+      } catch (e) {}
       // Default settings
       return {
         hapticsEnabled: true,
@@ -306,142 +333,74 @@
     function saveSettings(settings) {
       try {
         localStorage.setItem('cc_settings', JSON.stringify(settings));
-        console.log('💾 Settings saved:', settings);
-      } catch (e) {
-        console.warn('⚠️ Failed to save settings:', e);
-      }
+      } catch (e) {}
     }
     
     window._settings = loadSettings();
-    console.log('⚙️ Loaded settings:', window._settings);
     
     // Haptic feedback helpers for iOS WebView and iPad
     window.triggerHapticImpact = function(style = 'medium') {
       try {
         // Check if haptics are enabled
-        if (window._settings && !window._settings.hapticsEnabled) {
-          console.log('📳 Haptic disabled in settings, skipping');
-          return;
-        }
-        
-        // Try iOS WebView message handler first
+        if (window._settings && !window._settings.hapticsEnabled) return;
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticImpact) {
-          // 🔥 FIX: Wrap postMessage in Promise to catch async errors
           Promise.resolve().then(() => {
             window.webkit.messageHandlers.hapticImpact.postMessage({ style: style });
-            console.log('📳 Haptic impact sent to iOS WebView:', style);
           }).catch((e) => {
-            // Silently ignore message channel errors (often from browser extensions)
-            if (e && e.message && e.message.includes('message channel')) {
-              return; // Ignore browser extension message channel errors
-            }
-            console.warn('⚠️ Haptic impact postMessage failed:', e);
+            if (e && e.message && e.message.includes('message channel')) return;
           });
           return;
         }
-        
-        // Try iPad/iOS Safari with Vibration API (iPad Pro and newer iPads support haptics)
         if (navigator.vibrate) {
           const duration = style === 'heavy' ? 70 : style === 'light' ? 30 : 50;
           navigator.vibrate(duration);
-          console.log('📳 Haptic fallback (vibrate):', style);
           return;
-        }
-        
-        // Try iOS-specific haptic API for iPad (if available)
-        if (window.DeviceMotionEvent && window.DeviceMotionEvent.requestPermission) {
-          // iOS 13+ haptic feedback might be available through other APIs
-          console.log('📳 Haptic API not available on this device');
         }
       } catch (e) {
-        // Silently ignore message channel errors (often from browser extensions)
-        if (e && e.message && e.message.includes('message channel')) {
-          return;
-        }
-        console.warn('⚠️ Haptic impact failed:', e);
+        if (e && e.message && e.message.includes('message channel')) return;
       }
     };
     
     window.triggerHapticSelection = function() {
       try {
         // Check if haptics are enabled
-        if (window._settings && !window._settings.hapticsEnabled) {
-          console.log('📳 Haptic disabled in settings, skipping');
-          return;
-        }
-        
-        // Try iOS WebView message handler first
+        if (window._settings && !window._settings.hapticsEnabled) return;
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticSelection) {
-          // 🔥 FIX: Wrap postMessage in Promise to catch async errors
           Promise.resolve().then(() => {
             window.webkit.messageHandlers.hapticSelection.postMessage({});
-            console.log('📳 Haptic selection sent to iOS WebView');
           }).catch((e) => {
-            // Silently ignore message channel errors (often from browser extensions)
-            if (e && e.message && e.message.includes('message channel')) {
-              return; // Ignore browser extension message channel errors
-            }
-            console.warn('⚠️ Haptic selection postMessage failed:', e);
+            if (e && e.message && e.message.includes('message channel')) return;
           });
           return;
         }
-        
-        // Try iPad/iOS Safari with Vibration API
         if (navigator.vibrate) {
           navigator.vibrate(30);
-          console.log('📳 Selection fallback (vibrate)');
           return;
         }
-        
-        console.log('📳 Haptic selection API not available on this device');
       } catch (e) {
-        // Silently ignore message channel errors (often from browser extensions)
-        if (e && e.message && e.message.includes('message channel')) {
-          return;
-        }
-        console.warn('⚠️ Haptic selection failed:', e);
+        if (e && e.message && e.message.includes('message channel')) return;
       }
     };
     
     window.triggerHapticNotification = function(type = 'success') {
       try {
         // Check if haptics are enabled
-        if (window._settings && !window._settings.hapticsEnabled) {
-          console.log('📳 Haptic disabled in settings, skipping');
-          return;
-        }
-        
-        // Try iOS WebView message handler first
+        if (window._settings && !window._settings.hapticsEnabled) return;
         if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.hapticNotification) {
-          // 🔥 FIX: Wrap postMessage in Promise to catch async errors
           Promise.resolve().then(() => {
             window.webkit.messageHandlers.hapticNotification.postMessage({ style: type });
-            console.log('📳 Haptic notification sent to iOS WebView:', type);
           }).catch((e) => {
-            // Silently ignore message channel errors (often from browser extensions)
-            if (e && e.message && e.message.includes('message channel')) {
-              return; // Ignore browser extension message channel errors
-            }
-            console.warn('⚠️ Haptic notification postMessage failed:', e);
+            if (e && e.message && e.message.includes('message channel')) return;
           });
           return;
         }
-        
-        // Try iPad/iOS Safari with Vibration API
         if (navigator.vibrate) {
           const duration = type === 'error' ? 100 : type === 'warning' ? 70 : 50;
           navigator.vibrate(duration);
-          console.log('📳 Notification fallback (vibrate):', type);
           return;
         }
-        
-        console.log('📳 Haptic notification API not available on this device');
       } catch (e) {
-        // Silently ignore message channel errors (often from browser extensions)
-        if (e && e.message && e.message.includes('message channel')) {
-          return;
-        }
-        console.warn('⚠️ Haptic notification failed:', e);
+        if (e && e.message && e.message.includes('message channel')) return;
       }
     };
     
@@ -480,37 +439,21 @@
     
     // Lock orientation to portrait
     if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
-      window.screen.orientation.lock('portrait').catch(function(err) {
-        console.log('Orientation lock not supported:', err);
-      });
+      window.screen.orientation.lock('portrait').catch(function() {});
     } else if (window.DeviceOrientationEvent && window.DeviceOrientationEvent.requestPermission) {
-      // iOS 13+ - request permission first
       window.DeviceOrientationEvent.requestPermission()
-        .then(function(response) {
-          if (response === 'granted') {
-            console.log('✅ Orientation lock granted');
-          }
-        })
-        .catch(function(err) {
-          console.log('Orientation lock permission denied:', err);
-        });
+        .then(function() {})
+        .catch(function() {});
     }
     
     // Prevent landscape orientation by detecting and warning
     window.addEventListener('orientationchange', function() {
       const isLandscape = window.outerWidth > window.outerHeight;
-      if (isLandscape) {
-        console.log('⚠️ Landscape orientation detected - please rotate to portrait');
-        alert('Please rotate your device to portrait mode for the best experience.');
-      }
+      if (isLandscape) alert('Please rotate your device to portrait mode for the best experience.');
     });
-    
-    // Also check on resize
     window.addEventListener('resize', function() {
       const isLandscape = window.outerWidth > window.outerHeight;
-      if (isLandscape) {
-        console.log('⚠️ Landscape orientation detected - please rotate to portrait');
-      }
+      if (isLandscape) { /* prompt portrait */ }
     });
   </script>
   
@@ -523,29 +466,14 @@
         return;
       }
       
-      // 🔥 PRODUCTION READY iOS APP STORE: Image preloading is now handled INSIDE launch screen Phase 2
-      // Launch screen Phase 2 (stack to six) preloads critical images BLOCKING during its 2.5 second display
-      // This ensures homepage slider images are ALWAYS ready when homepage appears
-      // No need to start preloading here - launch screen handles it
-      console.log('✅ Image preloading will be handled by launch screen Phase 2');
-      
-      // Launch screen DOM already exists in HTML - just start the sequence
+      // Launch screen Phase 2 preloads critical images; no preload here
       import('./src/modules/launch-screen.ts').then(function(module) {
         const launchScreen = module.launchScreen;
-        console.log('🔍 About to initialize launch screen...');
-        // Initialize to cache elements (DOM already exists in HTML)
         launchScreen.init();
-        console.log('✅ Launch screen initialized (DOM already in HTML)');
-        
-        console.log('🔍 About to start launch screen sequence...');
-        // Start launch screen sequence immediately
-        launchScreen.start(function() {
-          console.log('✅ Launch screen sequence completed');
-        }).catch(function(error) {
+        launchScreen.start(function() {}).catch(function(error) {
           console.error('❌ Launch screen sequence error:', error);
           console.error('Error details:', error.stack);
         });
-        console.log('🔍 launchScreen.start() called (async)');
       }).catch(function(error) {
         console.error('❌ Failed to initialize launch screen:', error);
         console.error('Error details:', error.stack);

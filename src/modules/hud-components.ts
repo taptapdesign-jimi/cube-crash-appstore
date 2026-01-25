@@ -170,7 +170,7 @@ function createCloseButtonSection(): HTMLElement {
   
   const icon = document.createElement('img');
   icon.src = './assets/close-icon.png';
-  icon.srcset = './assets/close-icon.png 1x, ./assets/close-icon@2x.png 2x, ./assets/close-icon@3x.png 3x';
+  icon.srcset = './assets/close-icon.png 1x, ./assets/close-icon@3x.png 2x, ./assets/close-icon@3x.png 3x';
   icon.alt = '';
   icon.style.cssText = `
     width: 18px;
@@ -257,7 +257,7 @@ function ensureBoardIndicator(): void {
     `;
     const icon = document.createElement('img');
     icon.src = './assets/close-icon.png';
-    icon.srcset = './assets/close-icon.png 1x, ./assets/close-icon@2x.png 2x, ./assets/close-icon@3x.png 3x';
+    icon.srcset = './assets/close-icon.png 1x, ./assets/close-icon@3x.png 2x, ./assets/close-icon@3x.png 3x';
     icon.alt = 'Close';
     icon.style.cssText = `
       width: 22px;

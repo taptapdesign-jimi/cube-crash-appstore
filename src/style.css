@@ -150,6 +150,14 @@ body{
   height: auto;
   display: block;
   margin: 0 auto;
+  /* 🔥 PREMIUM: Prevent image dragging and long press */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  pointer-events: auto;
 }
 
 /* Phase 2: Stack to six logo + smokeandshards */
@@ -171,6 +179,14 @@ body{
   position: relative;
   z-index: 2;
   opacity: 0;
+  /* 🔥 PREMIUM: Prevent image dragging and long press */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  pointer-events: auto;
 }
 
 #launch-screen .launch-logo-stack img#launch-smoke-shards {
@@ -183,6 +199,13 @@ body{
   opacity: 1.0;
   z-index: 1;
   pointer-events: none;
+  /* 🔥 PREMIUM: Prevent image dragging and long press */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
 }
 
 /* Hide old loading elements */

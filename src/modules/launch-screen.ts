@@ -48,6 +48,12 @@ class LaunchScreen {
       this.elements.stackContainer = existingContainer.querySelector('.launch-logo-stack') as HTMLElement;
       this.elements.stackLogo = existingContainer.querySelector('#launch-logo-stack') as HTMLImageElement;
       this.elements.smokeShards = existingContainer.querySelector('#launch-smoke-shards') as HTMLImageElement;
+      
+      // 🔥 PREMIUM: Disable drag and long press on existing images
+      this.disableImageDrag(this.elements.taptapLogo);
+      this.disableImageDrag(this.elements.stackLogo);
+      this.disableImageDrag(this.elements.smokeShards);
+      
       logger.info('✅ Launch screen elements cached from existing DOM');
       return;
     }
@@ -112,12 +118,22 @@ class LaunchScreen {
     taptapLogo.src = './assets/taptapdesign.png';
     taptapLogo.alt = 'TapTap Design';
     taptapLogo.loading = 'eager';
+    taptapLogo.draggable = false;
     taptapLogo.style.cssText = `
       width: 344px;
       height: auto;
       display: block;
       margin: 0 auto;
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      -webkit-user-drag: none;
+      -webkit-touch-callout: none;
+      pointer-events: auto;
     `;
+    // 🔥 PREMIUM: Disable drag and long press
+    this.disableImageDrag(taptapLogo);
 
     taptapContainer.appendChild(taptapLogo);
     content.appendChild(taptapContainer);
@@ -140,6 +156,7 @@ class LaunchScreen {
     smokeShards.id = 'launch-smoke-shards';
     smokeShards.src = './assets/logo addons/smokeandshards.png';
     smokeShards.alt = '';
+    smokeShards.draggable = false;
     smokeShards.style.cssText = `
       position: absolute;
       top: 50%;
@@ -150,13 +167,22 @@ class LaunchScreen {
       opacity: 1.0;
       z-index: 1;
       pointer-events: none;
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      -webkit-user-drag: none;
+      -webkit-touch-callout: none;
     `;
+    // 🔥 PREMIUM: Disable drag and long press
+    this.disableImageDrag(smokeShards);
 
     // Stack to six logo
     const stackLogo = document.createElement('img');
     stackLogo.id = 'launch-logo-stack';
     stackLogo.src = './assets/logo-cube-crash.png';
     stackLogo.alt = 'CubeCrash';
+    stackLogo.draggable = false;
     stackLogo.style.cssText = `
       width: 248px;
       height: auto;
@@ -165,7 +191,16 @@ class LaunchScreen {
       position: relative;
       z-index: 2;
       opacity: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      -webkit-user-drag: none;
+      -webkit-touch-callout: none;
+      pointer-events: auto;
     `;
+    // 🔥 PREMIUM: Disable drag and long press
+    this.disableImageDrag(stackLogo);
 
     stackContainer.appendChild(smokeShards);
     stackContainer.appendChild(stackLogo);
@@ -610,6 +645,33 @@ class LaunchScreen {
     } catch(e) {
       logger.warn('⚠️ Failed to set background:', e);
     }
+  }
+
+  /**
+   * Disable image dragging and long press (premium app behavior)
+   * @param img Image element to disable drag on
+   */
+  private disableImageDrag(img: HTMLImageElement | null): void {
+    if (!img) return;
+    
+    img.draggable = false;
+    img.style.userSelect = 'none';
+    img.style.webkitUserSelect = 'none';
+    img.style.mozUserSelect = 'none';
+    img.style.msUserSelect = 'none';
+    img.style.webkitUserDrag = 'none';
+    img.style.webkitTouchCallout = 'none';
+    
+    // Prevent drag and context menu events
+    img.addEventListener('dragstart', (e) => e.preventDefault());
+    img.addEventListener('contextmenu', (e) => e.preventDefault());
+    img.addEventListener('selectstart', (e) => e.preventDefault());
+    img.addEventListener('touchstart', (e) => {
+      // Prevent long press on touch devices
+      if (e.touches.length > 1) {
+        e.preventDefault();
+      }
+    }, { passive: false });
   }
 
   /**

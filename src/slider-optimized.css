@@ -167,25 +167,7 @@
   }
 }
 
-/* Hero shadow ellipse under main images - based on Figma SwiftUI */
-/* COMMENTED OUT: Shadow ellipse disabled to test design without it */
-/*
-.slider-slide .hero-container .hero-shadow {
-  position: absolute;
-  bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 216px; /* Increased by 20% (180px * 1.2 = 216px) */
-  height: 90px; /* Figma: height: 90 */
-  background: rgba(234, 221, 209, 0.8); /* #EADDD1 - 80% opacity - matches navigation shadow */
-  border-radius: 50%; /* Ellipse shape */
-  z-index: 1;
-  /* Add blur filter for shadow effect (increased by 40% = 4.2px) */
-  filter: blur(4.5px);
-  -webkit-filter: blur(4.5px);
-  animation: shadowPulse 3s ease-in-out infinite;
-}
-*/
+/* Hero shadow: .hero-shadow disabled; .hero-shadow-new used instead (see below) */
 
 /* NEW SHADOW CLASS - FORCE OVERRIDE */
 .hero-shadow-new {

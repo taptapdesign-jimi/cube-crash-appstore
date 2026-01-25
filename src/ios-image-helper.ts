@@ -110,10 +110,8 @@ class IOSImageOptimizer {
   private preloadCriticalImages(): void {
     const criticalImages = [
       'assets/logo-cube-crash.png',
-      'assets/main-screen.png',
       'assets/tile.png',
-      'assets/wild.png',
-      'assets/gold-coin.png'
+      'assets/wild.png'
     ];
     
     criticalImages.forEach(baseSrc => {

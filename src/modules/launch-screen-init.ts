@@ -59,12 +59,30 @@
   taptapLogo.src = './assets/taptapdesign.png';
   taptapLogo.alt = 'TapTap Design';
   taptapLogo.loading = 'eager';
+  taptapLogo.draggable = false;
   taptapLogo.style.cssText = `
     width: 344px;
     height: auto;
     display: block;
     margin: 0 auto;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+    pointer-events: auto;
   `;
+  // 🔥 PREMIUM: Prevent drag and context menu events
+  taptapLogo.addEventListener('dragstart', (e) => e.preventDefault());
+  taptapLogo.addEventListener('contextmenu', (e) => e.preventDefault());
+  taptapLogo.addEventListener('selectstart', (e) => e.preventDefault());
+  taptapLogo.addEventListener('touchstart', (e) => {
+    // Prevent long press on touch devices
+    if (e.touches.length > 1) {
+      e.preventDefault();
+    }
+  }, { passive: false });
   
   taptapContainer.appendChild(taptapLogo);
   content.appendChild(taptapContainer);
@@ -86,6 +104,7 @@
   smokeShards.id = 'launch-smoke-shards';
   smokeShards.src = './assets/logo addons/smokeandshards.png';
   smokeShards.alt = '';
+  smokeShards.draggable = false;
   smokeShards.style.cssText = `
     position: absolute;
     top: 50%;
@@ -96,12 +115,29 @@
     opacity: 1.0;
     z-index: 1;
     pointer-events: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
   `;
+  // 🔥 PREMIUM: Prevent drag and context menu events
+  smokeShards.addEventListener('dragstart', (e) => e.preventDefault());
+  smokeShards.addEventListener('contextmenu', (e) => e.preventDefault());
+  smokeShards.addEventListener('selectstart', (e) => e.preventDefault());
+  smokeShards.addEventListener('touchstart', (e) => {
+    // Prevent long press on touch devices
+    if (e.touches.length > 1) {
+      e.preventDefault();
+    }
+  }, { passive: false });
   
   const stackLogo = document.createElement('img');
   stackLogo.id = 'launch-logo-stack';
   stackLogo.src = './assets/logo-cube-crash.png';
   stackLogo.alt = 'CubeCrash';
+  stackLogo.draggable = false;
   stackLogo.style.cssText = `
     width: 248px;
     height: auto;
@@ -110,7 +146,24 @@
     position: relative;
     z-index: 2;
     opacity: 0;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+    pointer-events: auto;
   `;
+  // 🔥 PREMIUM: Prevent drag and context menu events
+  stackLogo.addEventListener('dragstart', (e) => e.preventDefault());
+  stackLogo.addEventListener('contextmenu', (e) => e.preventDefault());
+  stackLogo.addEventListener('selectstart', (e) => e.preventDefault());
+  stackLogo.addEventListener('touchstart', (e) => {
+    // Prevent long press on touch devices
+    if (e.touches.length > 1) {
+      e.preventDefault();
+    }
+  }, { passive: false });
   
   stackContainer.appendChild(smokeShards);
   stackContainer.appendChild(stackLogo);

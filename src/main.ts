@@ -306,13 +306,12 @@ async function startAssetPreloading(): Promise<void> {
         }
       }, 50); // Check every 50ms for faster response
       
-      // Safety timeout (shouldn't be needed, but just in case)
+      // Safety timeout (fallback if launch screen never completes)
       setTimeout(() => {
         clearInterval(checkInterval);
-        console.warn('⚠️ Launch screen timeout - forcing resolve');
         logger.warn('⚠️ Launch screen timeout - forcing resolve');
         resolve();
-      }, 15000); // Increased timeout to 15 seconds
+      }, 15000);
     });
     
     // Wait ONLY for launch screen (not preloading)

@@ -548,7 +548,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       boardBG,
       level,
       startLevel,
-      boardNumber
+      boardNumber,
+      skipStarsWait: true
     });
     
     console.log('✅ Clean board flow completed for magnet merge with no pulled tiles');
@@ -1138,13 +1139,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       HUD.resetWildMeter(true);
     }
     
-    // Set busy ending flag
     STATE.busyEnding = true;
-    
-    // Wait a bit before showing clean board
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Trigger clean board flow
     try {
       await runEndgameFlow({
         app,
@@ -1167,12 +1162,12 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         updateHUD,
         boardNumber,
         hideGrid: () => { try { if (board) board.visible = false; } catch {} },
-        showGrid: () => { try { if (board) board.visible = true; } catch {} }
+        showGrid: () => { try { if (board) board.visible = true; } catch {} },
+        skipStarsWait: true
       });
     } finally {
       STATE.busyEnding = false;
     }
-    
     return; // Don't spawn new tiles - EDGE CASE: magnet pulled last 4 tiles
   }
   
@@ -1271,13 +1266,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         HUD.resetWildMeter(true);
       }
       
-      // Set busy ending flag
       STATE.busyEnding = true;
-      
-      // Wait a bit before showing clean board
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Trigger clean board flow
       try {
         await runEndgameFlow({
           app,
@@ -1300,12 +1289,12 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
           updateHUD,
           boardNumber,
           hideGrid: () => { try { if (board) board.visible = false; } catch {} },
-          showGrid: () => { try { if (board) board.visible = true; } catch {} }
+          showGrid: () => { try { if (board) board.visible = true; } catch {} },
+          skipStarsWait: true
         });
       } finally {
         STATE.busyEnding = false;
       }
-      
       return; // Don't spawn new tiles
   }
 
@@ -1511,7 +1500,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       boardBG,
       level,
       startLevel,
-      boardNumber
+      boardNumber,
+      skipStarsWait: true
     });
     
     console.log('✅ Clean board flow completed for magnet final merge-6');

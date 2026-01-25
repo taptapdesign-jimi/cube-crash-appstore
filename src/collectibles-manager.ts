@@ -2159,30 +2159,20 @@ class CollectiblesManager {
   private initDevButtons(): void {
     const unlockBtn = document.getElementById('collectibles-unlock-btn');
     if (unlockBtn) {
-      // Remove existing listener if any to prevent duplicates
       const newUnlockBtn = unlockBtn.cloneNode(true);
       unlockBtn.parentNode?.replaceChild(newUnlockBtn, unlockBtn);
       (newUnlockBtn as HTMLElement).addEventListener('click', () => {
-        console.log('🎁 Show Card button clicked');
         this.showCardPickerModal('show');
       });
-      console.log('✅ Show Card button listener attached');
-    } else {
-      console.warn('⚠️ collectibles-unlock-btn not found');
     }
 
     const hideBtn = document.getElementById('collectibles-hide-btn');
     if (hideBtn) {
-      // Remove existing listener if any to prevent duplicates
       const newHideBtn = hideBtn.cloneNode(true);
       hideBtn.parentNode?.replaceChild(newHideBtn, hideBtn);
       (newHideBtn as HTMLElement).addEventListener('click', () => {
-        console.log('🎁 Hide Card button clicked');
         this.showCardPickerModal('hide');
       });
-      console.log('✅ Hide Card button listener attached');
-    } else {
-      console.warn('⚠️ collectibles-hide-btn not found');
     }
   }
 

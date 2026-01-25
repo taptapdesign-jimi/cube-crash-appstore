@@ -308,11 +308,8 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false,
 
     if (isWild || isWildMagnet){
       holder.special = isWildMagnet ? 'wild-magnet' : 'wild';
-      // Always use applyWildSkinLocal to ensure electric glow is added for wild-magnet
-      if (typeof window.CC?.applyWildSkinLocal === 'function') { 
-        window.CC.applyWildSkinLocal(holder); 
-      } else if (typeof makeBoard.applyWildSkin === 'function') { 
-        makeBoard.applyWildSkin(holder); 
+      if (typeof window.CC?.applyWildSkinLocal === 'function') {
+        window.CC.applyWildSkinLocal(holder);
       }
       // Wild shimmer only (no bounce animation)
       try { 

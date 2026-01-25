@@ -15,7 +15,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning, cleanupWildBeerExplosion, waitForBubblesAnimationToComplete } from './fx.ts';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning, cleanupWildBeerExplosion, waitForBubblesAnimationToComplete, waitForOngoingAnimations } from './fx.ts';
 import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
 // import { showStarsModal } from './stars-modal.js';
@@ -282,10 +282,7 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   }
 
   try {
-    // 🔥 USER REQUEST: 1.5 seconds delay before showing clean board overlay
-    // This gives player time to see the board and all calculations to complete
-    logger.debug('⏳ Waiting 1.5 seconds before showing clean board overlay...', 'app-core');
-    try { await new Promise((res) => setTimeout(res, 1500)); } catch {}
+    // 🔥 UX: No fixed delay – runEndgameFlow waits only for ongoing animations (bubbles/stars), then shows modal
     await runEndgameFlow({
       app,
       stage,
@@ -423,7 +420,7 @@ function queueWildSpawnIfNeeded(){
   console.log('🎯 Wild meter ready – queueing wild spawn');
   wildSpawnInProgress = true;
 
-  try { HUD.shimmerProgress?.({}); } catch {}
+  try { HUD.shimmerProgress?.(); } catch {}
 
   spawnWildFromMeter()
     .then((spawned) => {
@@ -1490,7 +1487,7 @@ export async function layoutBoard(){
         // This handles the case where _hudDropPending is false but HUD still needs to be visible
         // HUD_ROOT is not directly accessible, we need to get it from HUD module or window
         try {
-          const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+          const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
           if (!_hudDropPending && hudRoot) {
             const top = hudRoot._dropTop ?? safeTop;
             hudRoot.y = top;
@@ -1508,7 +1505,7 @@ export async function layoutBoard(){
           setTimeout(() => {
             if (!_hudDropPending) return; // already handled by sweetPopIn
             try {
-              const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+              const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
               if (!hudRoot || !hudRoot.parent) {
                 console.warn('⚠️ HUD drop fallback: HUD_ROOT not ready');
                 return;
@@ -2102,7 +2099,7 @@ function rebuildBoard(){
   }
   
   // Start animation (optionally wait a frame if HUD is not ready so drop can be visible)
-  const hudReady = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+  const hudReady = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
   const sweetPopInRunner = () => {
     console.log('🎯 Starting sweetPopIn from app.js with', tiles.length, 'tiles');
     return sweetPopIn(tiles, {
@@ -2111,7 +2108,7 @@ function rebuildBoard(){
       if (_hudDropPending){
         console.log('🎯 HUD drop pending in sweetPopIn onHalf - triggering drop animation');
         try { 
-          const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+          const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
           if (!hudRoot) {
             console.warn('⚠️ HUD_ROOT not ready during sweetPopIn onHalf - keeping drop pending');
             return; // keep _hudDropPending so a later fallback can run
@@ -2140,7 +2137,7 @@ function rebuildBoard(){
         try {
           // 🔥 CRITICAL FIX: Get HUD_ROOT from HUD module or window
           try {
-            const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+            const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
             if (hudRoot) {
               const top = hudRoot._dropTop ?? 44;
               hudRoot.y = top;
@@ -2196,7 +2193,7 @@ function rebuildBoard(){
     
     // 🔥 CRITICAL FIX: Ensure HUD is visible even if animation didn't trigger
     try {
-      const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+      const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
       if (hudRoot) {
         const top = hudRoot._dropTop ?? 44;
         hudRoot.y = top;
@@ -2503,23 +2500,18 @@ wildMeter = 0;
     _hudDropPending = true;
     logger.debug('✅ HUD drop pending set to true (from Journey Play Board)', 'app-core');
     delete window.__ccTriggerHudDrop;
-    
-    // 🔥 CRITICAL: Force HUD to re-init / re-drop on next layout so animation is always visible
     _hudInitDone = false;
     try {
-      const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
-      if (hudRoot) {
+      const hudRoot = (window as any).HUD_ROOT ?? HUD.HUD_ROOT ?? null;
+      if (hudRoot && !(hudRoot as { destroyed?: boolean }).destroyed) {
         const top = hudRoot._dropTop ?? 44;
         try { gsap.killTweensOf(hudRoot); } catch {}
         hudRoot._dropped = false;
         hudRoot.alpha = 0;
         hudRoot.y = top - 140;
         hudRoot.visible = true;
-        console.log('✅ HUD reset to pre-drop state (will animate drop)');
       }
-    } catch (e) {
-      console.warn('⚠️ Failed to reset HUD for re-drop:', e);
-    }
+    } catch {}
   }
   
   const skipRebuild = window.__ccSkipRebuildBoard;
@@ -2631,40 +2623,24 @@ wildMeter = 0;
     }
   }
   
-  // 🔥 CRITICAL FIX: Ensure HUD is visible and positioned correctly after startLevel
-  // This is especially important for new games after cleanup
   try {
-      // 🔥 CRITICAL FIX: Get HUD_ROOT from HUD module or window
-      try {
-        const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
-        if (hudRoot) {
-          // If HUD drop is pending, it will be triggered in sweetPopIn onHalf callback
-          // But we should ensure HUD is at least visible
-          if (!_hudDropPending) {
-            const top = hudRoot._dropTop ?? 44;
-            hudRoot.y = top;
-            hudRoot.alpha = 1;
-            hudRoot.visible = true;
-            hudRoot._dropped = true;
-            console.log('✅ HUD positioned and made visible in startLevel (no drop pending)');
-          } else {
-            // If drop is pending, keep HUD hidden offscreen so first frame doesn't flash
-            const top = hudRoot._dropTop ?? 44;
-            hudRoot.visible = true;
-            hudRoot.alpha = 0;
-            hudRoot.y = top - 140; // pre-drop position
-            hudRoot._dropped = false;
-            console.log('✅ HUD kept hidden offscreen (drop pending, will animate in sweetPopIn onHalf)');
-          }
-        } else {
-          console.warn('⚠️ HUD_ROOT is null in startLevel - HUD may not be initialized yet');
-        }
-      } catch (e) {
-        console.warn('⚠️ Failed to access HUD_ROOT in startLevel:', e);
+    const hudRoot = (window as any).HUD_ROOT ?? HUD.HUD_ROOT ?? null;
+    if (hudRoot && !(hudRoot as { destroyed?: boolean }).destroyed) {
+      if (!_hudDropPending) {
+        const top = hudRoot._dropTop ?? 44;
+        hudRoot.y = top;
+        hudRoot.alpha = 1;
+        hudRoot.visible = true;
+        hudRoot._dropped = true;
+      } else {
+        const top = hudRoot._dropTop ?? 44;
+        hudRoot.visible = true;
+        hudRoot.alpha = 0;
+        hudRoot.y = top - 140;
+        hudRoot._dropped = false;
       }
-  } catch (e) {
-    console.warn('⚠️ Failed to ensure HUD visibility in startLevel:', e);
-  }
+    }
+  } catch {}
   
   // Call layout only for initial game start, not for restart
   if (n === 1) {
@@ -3932,11 +3908,8 @@ function merge(src, dst, helpers){
               });
               
               if (!busyEnding) {
-                // 🔥 USER REQUEST: 1.5 seconds delay before showing fail screen
-                // This gives player time to see the board and all calculations to complete
-                console.log('⏳ Waiting 1.5 seconds before showing fail screen (last move - stack, cannot reach merge 6)...');
+                console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
                 await new Promise(resolve => setTimeout(resolve, 1500));
-                console.log('🚨 Showing fail screen NOW (last move - stack, cannot reach merge 6)');
                 showFinalScreen();
               }
               return;
@@ -3967,10 +3940,8 @@ function merge(src, dst, helpers){
                 });
                 
                 if (!busyEnding) {
-                  // 🔥 USER REQUEST: 1.5 seconds delay before showing fail screen
-                  console.log('⏳ Waiting 1.5 seconds before showing fail screen (last move - self-merge leads to dead end)...');
+                  console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
                   await new Promise(resolve => setTimeout(resolve, 1500));
-                  console.log('🚨 Showing fail screen NOW (last move - self-merge leads to dead end)');
                   showFinalScreen();
                 }
                 return;
@@ -4014,11 +3985,8 @@ function merge(src, dst, helpers){
               });
               
               if (!busyEnding) {
-                // 🔥 USER REQUEST: 1.5 seconds delay before showing fail screen
-                // This gives player time to see the board and all calculations to complete
-                console.log('⏳ Waiting 1.5 seconds before showing fail screen (last move - 3+ stack, cannot reach merge 6)...');
+                console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
                 await new Promise(resolve => setTimeout(resolve, 1500));
-                console.log('🚨 Showing fail screen NOW (last move - 3+ stack, cannot reach merge 6)');
                 showFinalScreen();
               }
               return;
@@ -4039,9 +4007,8 @@ function merge(src, dst, helpers){
                 console.log('🚨🚨🚨 LAST MOVE DETECTED - Stack (3+) can self-merge to merge 6 BUT will result in merge 6 (depth 1) = DEAD END, triggering fail screen');
                 
                 if (!busyEnding) {
-                  console.log('⏳ Waiting 1.5 seconds before showing fail screen (last move - 3+ stack self-merge leads to dead end)...');
+                  console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
                   await new Promise(resolve => setTimeout(resolve, 1500));
-                  console.log('🚨 Showing fail screen NOW (last move - 3+ stack self-merge leads to dead end)');
                   showFinalScreen();
                 }
                 return;
@@ -4060,7 +4027,7 @@ function merge(src, dst, helpers){
             const isWild = onlyTile?.special === 'wild' || onlyTile?.special === 'wild-beer' || onlyTile?.special === 'wild-magnet';
             const canSelfMergeToSix = !isWild && onlyDepth >= 2 && (onlyValue + onlyValue) <= 6;
             if (!isWild && !canSelfMergeToSix && !busyEnding) {
-              console.log('🚨 SAFETY NET: Single regular tile left that cannot reach merge 6 - showing fail screen');
+              console.log('🚨 SAFETY NET: Single regular tile left that cannot reach merge 6 - waiting 0.5s then fail screen');
               await new Promise(resolve => setTimeout(resolve, 500));
               showFinalScreen();
               return;
@@ -4117,11 +4084,8 @@ function merge(src, dst, helpers){
             });
             
             if (!busyEnding) {
-              // 🔥 USER REQUEST: 1.5 seconds delay before showing fail screen
-              // This gives player time to see the board and all calculations to complete
-              console.log('⏳ Waiting 1.5 seconds before showing fail screen (post-merge stuck check)...');
+              console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
               await new Promise(resolve => setTimeout(resolve, 1500));
-              console.log('🚨 Showing fail screen NOW');
               showFinalScreen();
             } else {
               console.warn('⚠️ busyEnding is true, NOT showing fail screen');
@@ -5668,7 +5632,6 @@ function merge(src, dst, helpers){
             if (boardIsClean) {
               busyEnding = true;
               try {
-                try { await new Promise(res => setTimeout(res, 1000)); } catch {}
                 await runEndgameFlow({
                   app,
                   stage,
@@ -5858,7 +5821,9 @@ function merge(src, dst, helpers){
               
               // 🔥 FPS DROP FIX: Stagger bubbles explosion NAKON 200ms (ne istovremeno s drugim animacijama)
               // Ovo smanjuje CPU/GPU spike i sprječava freeze
-              gsap.delayedCall(0.2, () => {
+              // 🔥 USE setTimeout (NOT gsap.delayedCall): avoids being killed by killAllDelayedCalls / getAllTweens
+              // Same pattern as stars-to-HUD; ensures bubbles always run even during endgame flow
+              setTimeout(() => {
                 try {
                   // 🔥 CRITICAL: Use saved position instead of dst tile (dst may be destroyed by now)
                   // Bubbles explosion can work with position data instead of tile reference
@@ -5890,7 +5855,7 @@ function merge(src, dst, helpers){
                 } catch (error) {
                   console.error('❌ Failed to trigger bubbles foam:', error);
                 }
-              });
+              }, 200);
             } else {
               console.log('⚠️ Wild-beer merge NOT detected! isWildBeerMerge:', isWildBeerMerge, 'srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial);
             }
@@ -5906,6 +5871,7 @@ function merge(src, dst, helpers){
         } else {
           // 🔥 REGULAR MERGE 6: Use same system as wild/magnet merge but with 50% reduced intensity
           // Same effects as wild merge, but all parameters scaled down by 50%
+          (dst as any)._lastMergeWasRegularOnly = true; // No stars/bubbles → skip stars wait, clean board ASAP
           
           // 🔥 CRITICAL: Regular merge 6 shards - START 0.150s EARLIER (before glass crack)
           // This ensures shards animation starts before tile "dies off"
@@ -6059,7 +6025,6 @@ function merge(src, dst, helpers){
             }
             
             try {
-              try { await new Promise(res => setTimeout(res, 1000)); } catch {}
               await runEndgameFlow({
                 app,
                 stage,
@@ -6334,9 +6299,7 @@ function merge(src, dst, helpers){
           if (movesDepletedResult.type === 'stuck') {
             console.log('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
             if (!busyEnding) {
-              // 🔥 USER REQUEST: 1.5 seconds delay before showing fail screen
-              // This gives player time to see the board and all calculations to complete
-              console.log('⏳ Waiting 1.5 seconds before showing fail screen (moves depleted + stuck in merge 6)...');
+              console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
               await new Promise(res => setTimeout(res, 1500));
               showFinalScreen();
             }
@@ -6379,6 +6342,7 @@ function merge(src, dst, helpers){
           if (!busyEnding) {
             console.log('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 - triggering clean board flow (NO spawn)');
             busyEnding = true;
+            const skipStarsWait = !!(dst as any)?._lastMergeWasRegularOnly; // regular+regular or magnet: no stars/bubbles
             
             // Remove dst tile and trigger clean board flow
             if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
@@ -6403,7 +6367,6 @@ function merge(src, dst, helpers){
             }
 
             try {
-              try { await new Promise(res => setTimeout(res, 1000)); } catch {}
               await runEndgameFlow({
                 app,
                 stage,
@@ -6418,7 +6381,8 @@ function merge(src, dst, helpers){
                 updateHUD,
                 boardNumber,
                 hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
-                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
+                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} },
+                skipStarsWait
               });
             } finally {
               busyEnding = false;
@@ -6881,9 +6845,7 @@ async function checkMovesDepleted(){
   if (movesDepletedCheckResult.type === 'stuck') {
     console.log('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
     if (!busyEnding) {
-      // 🔥 USER REQUEST: 1.5 seconds delay before showing fail screen
-      // This gives player time to see the board and all calculations to complete
-      console.log('⏳ Waiting 1.5 seconds before showing fail screen so user can see board state...');
+      console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
       await new Promise(res => setTimeout(res, 1500));
       showFinalScreen();
     }
@@ -7215,7 +7177,6 @@ function checkLevelEnd(){
         }
         
         try {
-          try { await new Promise(res => setTimeout(res, 1000)); } catch {}
           await runEndgameFlow({
             app,
             stage,
@@ -7253,10 +7214,7 @@ function checkLevelEnd(){
       // Nema potrebe za dodatnom provjerom
       
       if (!busyEnding) {
-        // 🔥 USER REQUEST: 1.5 seconds delay before showing fail screen
-        // This gives player time to see the board and all calculations to complete
-        // This prevents instant fail screen when board becomes non-mergable (e.g. after wild spawn)
-        console.log('⏳ Waiting 1.5 seconds before showing fail screen so user can see board state...');
+        console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
         await new Promise(res => setTimeout(res, 1500));
         showFinalScreen();
       } else {
@@ -7377,6 +7335,13 @@ async function showFinalScreen(){
 
   // Extra safety: scrub any lingering magnet merge-6 residues before showing fail/clean flows
   forceRemoveMagnetMergeResidues('showFinalScreen');
+
+  // 🔥 ENDGAME ANIMATION-WAIT: Let stars-to-HUD and wild-beer bubbles finish before fail modal
+  try {
+    await waitForOngoingAnimations(6000);
+  } catch (e) {
+    console.warn('⚠️ waitForOngoingAnimations failed (non-fatal):', e);
+  }
   
   // 🔥 CRITICAL: Perform memory cleanup on game over (MEMORY LEAK FIX)
   console.log('🧹 Performing memory cleanup on game over...');
@@ -8029,7 +7994,7 @@ export function cleanupGame() {
     }
     
     // Kill HUD tweens with null checks
-    if (HUD && !HUD.destroyed) {
+    if (HUD && !HUD.isHUDDestroyed?.()) {
       try {
         gsap.killTweensOf(HUD);
       } catch (e) {
@@ -8818,12 +8783,13 @@ async function loadGameState() {
       } else {
         // If not pending, still ensure HUD is visible and positioned correctly
         console.log('🎯 HUD drop not pending - ensuring HUD is visible');
-        if (HUD_ROOT) {
-          const top = HUD_ROOT._dropTop ?? 44;
-          HUD_ROOT.y = top;
-          HUD_ROOT.alpha = 1;
-          HUD_ROOT.visible = true;
-          HUD_ROOT._dropped = true;
+        const hudRootHere = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
+        if (hudRootHere) {
+          const top = hudRootHere._dropTop ?? 44;
+          hudRootHere.y = top;
+          hudRootHere.alpha = 1;
+          hudRootHere.visible = true;
+          hudRootHere._dropped = true;
           console.log('✅ HUD positioned and made visible');
         }
       }
@@ -8860,7 +8826,7 @@ async function loadGameState() {
       // We need to access it via HUD object or check if it exists in the module
       try {
         // Try to get HUD_ROOT from window (exported from hud-helpers.js)
-        const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+        const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
         if (hudRoot) {
           const top = hudRoot._dropTop ?? 44;
           hudRoot.y = top;
@@ -8961,7 +8927,7 @@ async function loadGameState() {
       
       // 🔥 CRITICAL FIX: Final check - ensure HUD is visible and positioned after animation
       try {
-        const hudRoot = (window as any).HUD_ROOT || (HUD as any).HUD_ROOT || null;
+        const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
         if (hudRoot) {
           const top = hudRoot._dropTop ?? 44;
           hudRoot.y = top;

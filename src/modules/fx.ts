@@ -3369,6 +3369,49 @@ export function waitForBubblesAnimationToComplete(maxWaitMs = 5000) {
 }
 
 /**
+ * 🔥 ENDGAME ANIMATION-WAIT: Wait for stars-to-HUD animation to complete
+ * Polls activeStarAnimationContainers; resolves when empty or timeout.
+ * Used before fail/clean board so stars finish flying to HUD.
+ */
+export function waitForStarsToHudToComplete(maxWaitMs = 4500) {
+  return new Promise<void>((resolve) => {
+    if (typeof activeStarAnimationContainers === 'undefined' || activeStarAnimationContainers.size === 0) {
+      resolve();
+      return;
+    }
+    console.log('⏳ Waiting for stars-to-HUD animation to complete (max', maxWaitMs, 'ms)...');
+    const startTime = performance.now();
+    const checkInterval = 100;
+    const checkTimer = setInterval(() => {
+      const elapsed = performance.now() - startTime;
+      if (activeStarAnimationContainers.size === 0) {
+        clearInterval(checkTimer);
+        console.log('✅ Stars-to-HUD animation completed after', Math.round(elapsed), 'ms');
+        resolve();
+      } else if (elapsed >= maxWaitMs) {
+        clearInterval(checkTimer);
+        console.warn('⚠️ Stars-to-HUD timeout after', maxWaitMs, 'ms - proceeding anyway');
+        resolve();
+      }
+    }, checkInterval);
+  });
+}
+
+/**
+ * 🔥 ENDGAME ANIMATION-WAIT: Wait for all ongoing endgame-relevant animations
+ * (bubbles explosion + stars to HUD) before showing fail or clean board modal.
+ * Resolves when both finish or after maxWaitMs (whichever first, per animation).
+ */
+export async function waitForOngoingAnimations(maxWaitMs = 6000) {
+  const bubblesMs = Math.min(maxWaitMs, 5500);
+  const starsMs = Math.min(maxWaitMs, 4500);
+  await Promise.all([
+    waitForBubblesAnimationToComplete(bubblesMs),
+    waitForStarsToHudToComplete(starsMs),
+  ]);
+}
+
+/**
  * 🔥 COMPREHENSIVE CLEANUP: Call this on game state changes (level end, board reset, etc.)
  * Ensures all animations and effects are properly cleaned up to prevent memory leaks
  */

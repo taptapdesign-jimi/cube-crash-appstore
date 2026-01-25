@@ -936,8 +936,12 @@ export async function showCleanBoardModal({
       console.log('✅ All GSAP tweens killed!');
     };
     
-    // 🌟 CLEANUP: Stop all star animations and breathing
-    const stopAllStarAnimations = () => {
+    // 🌟 CLEANUP / EXIT: Stop star animations. With exit: true, hide empty stars,
+    // animate filled stars in place to scale(0)+opacity(0), no snap or "return".
+    const stopAllStarAnimations = (opts?: { exit?: boolean; numStars?: number }) => {
+      const numEarned = Math.max(0, (opts?.numStars ?? numStars) | 0);
+      const isExit = opts?.exit === true;
+
       // Kill all star bounce timelines
       starBounceTimelines.forEach(tl => {
         try {
@@ -945,24 +949,46 @@ export async function showCleanBoardModal({
         } catch (e) {}
       });
       starBounceTimelines.length = 0;
-      
-      // Stop breathing animations and reset star states
-      starElements.forEach(({ filledImg, emptyImg }) => {
-        if (filledImg) {
-          try {
-            filledImg.style.animation = 'none';
-            gsap.killTweensOf(filledImg);
-          } catch (e) {}
-        }
-        // Reset empty star visibility (in case cleanup happens mid-animation)
+
+      starElements.forEach(({ filledImg, emptyImg }, index) => {
+        // 🔥 EXIT: Never show gray empty stars; hide all empties
         if (emptyImg) {
           try {
-            emptyImg.style.opacity = '1';
+            emptyImg.style.opacity = '0';
+            emptyImg.style.transition = 'opacity 0.15s ease';
           } catch (e) {}
         }
+
+        if (!filledImg) return;
+
+        if (isExit && index < numEarned) {
+          // Animate earned stars in place to exit (no snap, no return to original)
+          try {
+            const ct = getComputedStyle(filledImg).transform;
+            filledImg.style.animation = 'none';
+            if (ct && ct !== 'none') {
+              filledImg.style.transform = ct;
+            }
+            filledImg.style.transformOrigin = 'center center';
+            gsap.to(filledImg, {
+              scale: 0,
+              opacity: 0,
+              duration: 0.5,
+              ease: 'power2.in',
+              overwrite: true,
+            });
+          } catch (e) {}
+          return;
+        }
+
+        // Non-exit path (e.g. cleanup): just stop breathing, no empty reset
+        try {
+          filledImg.style.animation = 'none';
+          gsap.killTweensOf(filledImg);
+        } catch (e) {}
       });
-      
-      console.log('✅ All star animations cleaned up!');
+
+      console.log('✅ Star animations stopped' + (isExit ? ' (exit in place)' : '') + '!');
     };
     
     // 🔥 CLEANUP: Remove CSS style tag
@@ -1106,7 +1132,7 @@ export async function showCleanBoardModal({
       // 🔥 CRITICAL: Stop ALL background animations IMMEDIATELY for smooth exit
       // This prevents choppy exit animation caused by ongoing GSAP tweens and star animations
       killAllGSAPTweens(); // Kill score/combo/efficiency animations
-      stopAllStarAnimations(); // Stop star bounce and breathing
+      stopAllStarAnimations({ exit: true, numStars }); // Stars exit in place, no empty stars, no snap
       clearAllModalTimeouts(); // Clear all pending timeouts
       clearAllModalAnimationFrames(); // Clear all animation frames
       
@@ -1133,29 +1159,34 @@ export async function showCleanBoardModal({
       // Buttons are outside the card, so card scale won't move them
       
       const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-      const exitOffsets = [-22, -18, -14, -10, -6, -4, -2];
-      const exitScale = [0, 0.08, -0.04, 0.05, -0.02, 0.03, -0.01];
-        // 🎯 Regular elements (NOT buttons - they use CSS class animate-exit like homepage slider)
-        const nodes = [hero, title, scoreLabel, mainScore, statusSlot, boardCleared];
+      const exitOffsets = [-22, -18, -14, -10, -6]; // 5 nodes (no hero)
+      const exitScale = [0, 0.08, -0.04, 0.05, -0.02];
+      // 🎯 Hero excluded: stars animate in place via stopAllStarAnimations; hero fades in place (no translate)
+      const nodes = [title, scoreLabel, mainScore, statusSlot, boardCleared];
       nodes.forEach((node) => { node.style.transition = exitTrans; });
- 
-        // 🎯 BUTTONS: Animate INDIVIDUALLY (not as container)
-        // 🔥 USER REQUEST: Animate clicked button FIRST, then other button with 300ms delay
-        // Primary button (Play Again/Continue) was clicked - animate it FIRST
-        animateButtonExit(primaryBtn);
+      hero.style.transition = exitTrans;
+
+      // 🎯 BUTTONS: Animate INDIVIDUALLY (not as container)
+      // 🔥 USER REQUEST: Animate clicked button FIRST, then other button with 300ms delay
+      // Primary button (Play Again/Continue) was clicked - animate it FIRST
+      animateButtonExit(primaryBtn);
         
-        // Exit button animates AFTER Play Again starts (500ms faster than before)
-        if (secondaryBtn) {
-          setTimeout(() => {
-            animateButtonExit(secondaryBtn);
-          }, 200); // 🔥 USER REQUEST: 500ms faster (was 700ms, now 200ms)
-        }
+      if (secondaryBtn) {
+        setTimeout(() => {
+          animateButtonExit(secondaryBtn);
+        }, 200);
+      }
 
       requestAnimationFrame(() => {
+        // Hero: fade + scale in place only (no translate); stars already exiting in place
+        setTimeout(() => {
+          hero.style.opacity = '0';
+          hero.style.transform = 'scale(0)';
+        }, 0);
         nodes.forEach((node, idx) => {
-          const delay = idx * 60;
+          const delay = (idx + 1) * 60;
           setTimeout(() => {
-            const extra = exitScale[idx] || 0;
+            const extra = exitScale[idx] ?? 0;
             node.style.opacity = '0';
             node.style.transform = `scale(${0.0 + extra}) translateY(${exitOffsets[idx]}px)`;
           }, delay);
@@ -1340,57 +1371,45 @@ export async function showCleanBoardModal({
         }
 
         // 🔥 CRITICAL: Stop ALL background animations IMMEDIATELY for smooth exit
-        // This prevents choppy exit animation caused by ongoing GSAP tweens and star animations
-        killAllGSAPTweens(); // Kill score/combo/efficiency animations
-        stopAllStarAnimations(); // Stop star bounce and breathing
-        clearAllModalTimeouts(); // Clear all pending timeouts
-        clearAllModalAnimationFrames(); // Clear all animation frames
+        killAllGSAPTweens();
+        stopAllStarAnimations({ exit: true, numStars });
+        clearAllModalTimeouts();
+        clearAllModalAnimationFrames();
         
-        // Same exit animation as primary button
-        // CRITICAL: Reset boardCleared before exit animation - NO transforms at all
         boardCleared.style.transition = 'none';
         boardCleared.style.animation = 'none';
         boardCleared.style.transform = 'none';
         boardCleared.style.webkitTransform = 'none';
-        
-        // Also reset parent container
         statusSlot.style.transform = 'none';
         statusSlot.style.webkitTransform = 'none';
-        
-        // 🎯 Also reset bonus wrappers in case they're visible
         comboWrapper.style.transition = 'none';
         comboWrapper.style.transform = 'scale(1) translateY(0)';
         efficiencyWrapper.style.transition = 'none';
         efficiencyWrapper.style.transform = 'scale(1) translateY(0)';
-        
-        // Force reflow to apply reset
         void boardCleared.offsetHeight;
         void statusSlot.offsetHeight;
         
-        // Buttons are outside the card, so card scale won't move them
-        
         const exitTrans = 'opacity 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8), transform 0.58s cubic-bezier(0.68, -0.8, 0.265, 1.8)';
-        const exitOffsets = [-22, -18, -14, -10, -6, -4, -2];
-        const exitScale = [0, 0.08, -0.04, 0.05, -0.02, 0.03, -0.01];
-        // 🎯 Regular elements (NOT buttons - they use CSS class animate-exit like homepage slider)
-        const nodes = [hero, title, scoreLabel, mainScore, statusSlot, boardCleared];
+        const exitOffsets = [-22, -18, -14, -10, -6];
+        const exitScale = [0, 0.08, -0.04, 0.05, -0.02];
+        const nodes = [title, scoreLabel, mainScore, statusSlot, boardCleared];
         nodes.forEach((node) => { node.style.transition = exitTrans; });
- 
-        // 🎯 BUTTONS: Animate INDIVIDUALLY (not as container)
-        // 🔥 USER REQUEST: Animate clicked button FIRST, then other button with 300ms delay
-        // Exit button was clicked - animate it FIRST
+        hero.style.transition = exitTrans;
+
         animateButtonExit(secondaryBtn);
-        
-        // Play Again button animates AFTER Exit starts (500ms faster than before)
         setTimeout(() => {
           animateButtonExit(primaryBtn);
-        }, 200); // 🔥 USER REQUEST: 500ms faster (was 700ms, now 200ms)
+        }, 200);
 
         requestAnimationFrame(() => {
+          setTimeout(() => {
+            hero.style.opacity = '0';
+            hero.style.transform = 'scale(0)';
+          }, 0);
           nodes.forEach((node, idx) => {
-            const delay = idx * 60;
+            const delay = (idx + 1) * 60;
             setTimeout(() => {
-              const extra = exitScale[idx] || 0;
+              const extra = exitScale[idx] ?? 0;
               node.style.opacity = '0';
               node.style.transform = `scale(${0.0 + extra}) translateY(${exitOffsets[idx]}px)`;
             }, delay);

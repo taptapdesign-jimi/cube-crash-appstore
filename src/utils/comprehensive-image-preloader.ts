@@ -11,6 +11,16 @@ const CACHE_NAME = 'cube-crash-images-v2';
 const CACHE_VERSION_KEY = 'image_cache_version';
 const CURRENT_CACHE_VERSION = '2';
 
+/** Normalize to absolute URL so Cache API keys match fetch/store. */
+function toAbsoluteUrl(url: string): string {
+  if (typeof location === 'undefined') return url;
+  try {
+    return new URL(url, location.href).href;
+  } catch {
+    return url;
+  }
+}
+
 // Critical HUD icons that MUST be loaded into PIXI Assets cache
 // These are used by hud-helpers.ts via Assets.get() and Assets.load()
 const CRITICAL_HUD_ICONS: string[] = [
@@ -29,9 +39,7 @@ const CRITICAL_HUD_ICONS: string[] = [
   './assets/hud/mega-combo-hud.png',
   './assets/hud/mega-combo-hud@2x.png',
   './assets/hud/mega-combo-hud@3x.png',
-  './assets/close-icon.png',
-  './assets/close-icon@2x.png',
-  './assets/close-icon@3x.png',
+  './assets/close-icon.png'
 ];
 
 // All images that need to be preloaded at startup
@@ -55,7 +63,6 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/logo-cube-crash.png',
   './assets/logo-cube-crash@2x.png',
   './assets/logo-cube-crash@3x.png',
-  './assets/logo.png',
   './assets/logo addons/gore ljevo shards.png',
   './assets/logo addons/shards gore desno.png',
   './assets/logo addons/smokeandshards.png',
@@ -137,12 +144,9 @@ const ALL_STARTUP_IMAGES: string[] = [
   './assets/small-star.png',
   './assets/small-star@2x.png',
   './assets/small-star@3x.png',
-  './assets/mystery-box.png',
-  './assets/gold-coin.png',
   './assets/potion.png',
   './assets/melted-dice.png',
   './assets/star-slider.png',
-  './assets/ripple.png',
   './assets/leaf light.png',
   './assets/clean-board.png',
   './assets/wild-stats.png',
@@ -163,8 +167,7 @@ const ALL_STARTUP_IMAGES: string[] = [
   ...Array.from({ length: 20 }, (_, i) => `./assets/colelctibles/common/${String(i + 1).padStart(2, '0')}.png`),
   ...Array.from({ length: 6 }, (_, i) => `./assets/colelctibles/legendary/${String(i + 21).padStart(2, '0')}.png`),
   
-  // FX assets (boom animation frames)
-  ...Array.from({ length: 16 }, (_, i) => `./assets/fx/boom/boom_${String(i + 1).padStart(4, '0')}.png`),
+  // fx/boom folder does not exist; removed to avoid failed fetches and warnings
   
   // 🔥 IMAGE POOLING: Board transition cloud images (preload for instant display)
   './assets/board transition/oblak+srednji.png',
@@ -239,27 +242,20 @@ export async function loadHudIconsIntoPixiCache(): Promise<void> {
     // 🔥 CRITICAL: Load all HUD icons into PIXI Assets cache BLOCKING (wait for all)
     // Use Promise.all instead of Promise.allSettled to ensure ALL icons load
     // If any icon fails, we retry it up to 3 times
-    const loadIconWithRetry = async (iconPath: string, retries = 3): Promise<void> => {
+    const loadIconWithRetry = async (iconPath: string, retries = 1): Promise<void> => {
       for (let attempt = 1; attempt <= retries; attempt++) {
         try {
-          // Check if already loaded
           const existing = Assets.get(iconPath);
-          if (existing) {
-            return; // Already loaded
-          }
-          
-          // Load into PIXI Assets cache
+          if (existing) return;
           await Assets.load(iconPath);
-          logger.info(`✅ Loaded ${iconPath} into PIXI Assets cache (attempt ${attempt})`);
-          return; // Success
+          logger.info(`✅ Loaded ${iconPath} into PIXI Assets cache`);
+          return;
         } catch (err) {
           if (attempt === retries) {
-            logger.error(`❌ CRITICAL: Failed to load ${iconPath} after ${retries} attempts:`, err);
-            throw err; // Throw on final attempt
-          } else {
-            logger.warn(`⚠️ Failed to load ${iconPath} (attempt ${attempt}/${retries}), retrying...`, err);
-            await new Promise(resolve => setTimeout(resolve, 100 * attempt)); // Exponential backoff
-        }
+            logger.error(`❌ Failed to load ${iconPath} into PIXI cache:`, err);
+            throw err;
+          }
+          await new Promise(resolve => setTimeout(resolve, 100 * attempt));
         }
       }
     };
@@ -311,67 +307,52 @@ async function cacheAndDecodeImage(url: string): Promise<void> {
     }
     
     // 🔥 PRODUCTION READY iOS APP STORE: Step 1 - Check Cache API (persistent storage)
-    // Cache API survives hard exit, browser cache doesn't on iOS
-    // If in Cache API, load into browser cache quickly
+    // Use absolute URL so cache keys match; Cache API survives hard exit on iOS
     if (typeof caches !== 'undefined') {
       try {
         const cache = await caches.open(CACHE_NAME);
-        const cached = await cache.match(url);
+        const absUrl = toAbsoluteUrl(url);
+        const cached = await cache.match(absUrl) ?? await cache.match(url);
         
         if (cached) {
-          // Image is in Cache API - load it into browser cache quickly
           const blob = await cached.blob();
           const blobUrl = URL.createObjectURL(blob);
-          
+          let decodeOk = false;
           await new Promise<void>((resolve) => {
             const img = new Image();
             img.onload = () => {
+              decodeOk = true;
               URL.revokeObjectURL(blobUrl);
-              logger.debug(`✅ ${url} loaded from Cache API into browser cache`);
               resolve();
             };
             img.onerror = () => {
               URL.revokeObjectURL(blobUrl);
-              logger.warn(`⚠️ Failed to load ${url} from Cache API into browser cache`);
-              resolve(); // Continue to network fetch
+              resolve();
             };
             img.src = blobUrl;
           });
-          
-          return; // Done - image is ready
+          if (decodeOk) return;
+          // Decode failed (e.g. bad blob) – fall through to network fetch
         }
       } catch (cacheError) {
         logger.warn(`⚠️ Cache API error for ${url}:`, cacheError);
       }
     }
     
-    // 🔥 CRITICAL: Step 2 - Image NOT in browser cache and NOT in Cache API
-    // Fetch from network, store in Cache API (permanent), and browser cache (temporary)
+    // Step 2: Fetch from network, decode into browser cache, store in Cache API
     logger.debug(`📦 ${url} not cached - fetching from network...`);
     
-    // Fetch and load into browser cache immediately (for instant display)
     const loadIntoBrowserCache = new Promise<void>((resolve) => {
       const img = new Image();
       img.loading = 'eager';
       (img as any).decoding = 'async';
       (img as any).fetchPriority = 'high';
-      
-      img.onload = () => {
-        logger.debug(`✅ ${url} loaded into browser cache`);
-        resolve();
-      };
-      
-      img.onerror = () => {
-        logger.warn(`⚠️ Failed to load ${url} into browser cache`);
-        resolve();
-      };
-      
+      img.onload = () => resolve();
+      img.onerror = () => resolve();
       img.src = url;
     });
     
     await loadIntoBrowserCache;
-    
-    // Store in Cache API in background (non-blocking, for next time)
     ensureInCacheAPI(url).catch(() => {});
   } catch (error) {
     logger.warn(`⚠️ Error caching/decoding ${url}:`, error);
@@ -384,24 +365,17 @@ async function cacheAndDecodeImage(url: string): Promise<void> {
  */
 async function ensureInCacheAPI(url: string): Promise<void> {
   if (typeof caches === 'undefined') return;
-  
-        try {
-          const cache = await caches.open(CACHE_NAME);
-          const cached = await cache.match(url);
-          
-          if (!cached) {
-      // Not in Cache API, fetch and cache it
-              const response = await fetch(url, { 
-                cache: 'force-cache',
-                mode: 'cors'
-              });
-              if (response.ok) {
-                await cache.put(url, response.clone());
-        logger.debug(`✅ ${url} cached in Cache API (permanent storage)`);
-        }
-      }
-  } catch (error) {
-    logger.warn(`⚠️ Failed to ensure ${url} in Cache API:`, error);
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const absUrl = toAbsoluteUrl(url);
+    const cached = await cache.match(absUrl) ?? await cache.match(url);
+    if (cached) return;
+    const response = await fetch(url, { cache: 'force-cache', mode: 'cors' });
+    if (response.ok) {
+      await cache.put(absUrl, response);
+    }
+  } catch {
+    // Non-blocking; avoid log spam
   }
 }
 

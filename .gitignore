@@ -23,3 +23,9 @@ public
 *.njsproj
 *.sln
 *.sw?
+
+# Debug / temporary (exclude from App Store builds)
+debug-*.html
+debug-*.js
+*-TEMP.*
+index-test-TEMP.*
