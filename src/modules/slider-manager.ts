@@ -6,6 +6,7 @@ import gameState from './game-state.js';
 import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
 import { SLIDER_ANIMATION, SLIDER_CONFIG } from '../constants/animations.js';
+import { sliderState } from './slider-state.js';
 
 // Type definitions
 interface SliderElements {
@@ -40,6 +41,12 @@ class SliderManager {
   
   // 🔥 FIX: Track active intervals for proper cleanup
   private activeIntervals: Set<ReturnType<typeof setInterval>> = new Set();
+  
+  // 🔥 FIX: Track active requestAnimationFrame IDs for proper cleanup
+  private activeRAFs: Set<number> = new Set();
+  
+  // 🔥 FIX: Track nav button GSAP animations for proper cleanup
+  private navButtonAnimations: gsap.core.Tween[] = [];
 
   // 🔥 MEMORY LEAK FIX: Store bound event handlers and unsubscribe functions for cleanup
   private boundHandlers: {
@@ -344,12 +351,13 @@ class SliderManager {
     }
     
     // 🔥 CRITICAL MOBILE FIX: Prevent instant slide change if enter animation is still running
-    if ((window as any).__ccIsAnimatingSliderEnter === true) {
+    // 🔥 REFACTOR: Use sliderState module instead of window global
+    if (sliderState.isAnimatingEnter) {
       logger.info(`⏳ Slider enter animation still running, queuing slide change to ${slideIndex}...`);
       
       // 🔥 FIX: Track interval for proper cleanup - use constants
       const checkInterval = setInterval(() => {
-        if ((window as any).__ccIsAnimatingSliderEnter === false) {
+        if (!sliderState.isAnimatingEnter) {
           clearInterval(checkInterval);
           this.activeIntervals.delete(checkInterval);
           
@@ -372,7 +380,7 @@ class SliderManager {
           clearInterval(checkInterval);
           this.activeIntervals.delete(checkInterval);
         }
-        if ((window as any).__ccIsAnimatingSliderEnter === true) {
+        if (sliderState.isAnimatingEnter) {
           logger.warn(`⚠️ Enter animation flag still true after ${SLIDER_ANIMATION.FALLBACK_TIMEOUT}ms - forcing slide change`);
         }
         if (slideIndex >= 0 && slideIndex < this.totalSlides) {
@@ -451,7 +459,16 @@ class SliderManager {
         logger.info(`🎬 Animating slider: currentX=${currentX} → offset=${offset}, forceAnimate=${forceAnimate}, difference=${Math.abs(currentX - offset)}`);
         // 🔥 CRITICAL FIX: Ensure GSAP wrapper is ready before animating
         // Sometimes GSAP needs a frame to be ready after init
-        requestAnimationFrame(() => {
+        // 🔥 FIX: Track RAF for proper cleanup
+        const rafId = requestAnimationFrame(() => {
+          this.activeRAFs.delete(rafId);
+          
+          // 🔥 SAFETY: Check if destroyed during RAF wait
+          if (!this.isInitialized || !this.elements.wrapper) {
+            logger.debug('⚠️ Slider destroyed during RAF wait - skipping animation');
+            return;
+          }
+          
           // 🔥 SMOOTH: Use smooth easing instead of bounce for fluid, non-jerky animation
           // 🔥 CRITICAL FIX: Use 'auto' overwrite instead of true to prevent killing animations before they start
           // 'auto' only overwrites conflicting properties, not all animations
@@ -461,25 +478,26 @@ class SliderManager {
             ease: SLIDER_CONFIG.SLIDE_EASING,
             force3D: true, // GPU acceleration
             overwrite: 'auto', // 🔥 FIX: 'auto' instead of true - prevents killing animation before it starts
-          onStart: () => {
-            logger.info(`🎬 GSAP animation STARTED: ${offset}px`);
-          },
-          onUpdate: () => {
-            // 🔥 SMOOTH: Force GPU layer update for smooth 60fps
-            if (this.elements.wrapper) {
-              this.elements.wrapper.style.willChange = 'transform';
+            onStart: () => {
+              logger.info(`🎬 GSAP animation STARTED: ${offset}px`);
+            },
+            onUpdate: () => {
+              // 🔥 SMOOTH: Force GPU layer update for smooth 60fps
+              if (this.elements.wrapper) {
+                this.elements.wrapper.style.willChange = 'transform';
+              }
+            },
+            onComplete: () => {
+              // 🔥 SMOOTH: Reset will-change after animation for performance
+              if (this.elements.wrapper) {
+                this.elements.wrapper.style.willChange = 'auto';
+              }
+              logger.info(`✅ updateSlider: Animation completed, final x=${gsap.getProperty(this.elements.wrapper, 'x')}`);
             }
-          },
-          onComplete: () => {
-            // 🔥 SMOOTH: Reset will-change after animation for performance
-            if (this.elements.wrapper) {
-              this.elements.wrapper.style.willChange = 'auto';
-            }
-            logger.info(`✅ updateSlider: Animation completed, final x=${gsap.getProperty(this.elements.wrapper, 'x')}`);
-          }
           });
           logger.info(`✅ GSAP animation started: ${offset}px`);
         });
+        this.activeRAFs.add(rafId);
       } else {
         // Already at target position, just set it directly
         if (this.quickSetX) {
@@ -506,7 +524,22 @@ class SliderManager {
     
     // Update independent navigation buttons with smooth ease-in ease-out animations
     // Use requestAnimationFrame to ensure animations start after layout is stable
-    requestAnimationFrame(() => {
+    // 🔥 FIX: Track RAF for proper cleanup
+    const navRafId = requestAnimationFrame(() => {
+      this.activeRAFs.delete(navRafId);
+      
+      // 🔥 SAFETY: Check if destroyed during RAF wait
+      if (!this.isInitialized) {
+        logger.debug('⚠️ Slider destroyed during nav RAF wait - skipping nav animation');
+        return;
+      }
+      
+      // 🔥 FIX: Kill previous nav button animations before starting new ones
+      this.navButtonAnimations.forEach(tween => {
+        try { tween.kill(); } catch {}
+      });
+      this.navButtonAnimations = [];
+      
       const navButtons = document.querySelectorAll('.independent-nav-button');
       navButtons.forEach((button, index) => {
         const isActive = index === this.currentSlide;
@@ -518,12 +551,6 @@ class SliderManager {
         if (navImage) {
           gsap.killTweensOf(navImage);
         }
-        
-        // Get current GSAP values (if animated) or computed style values
-        // Use GSAP getProperty first to get animated values, fallback to computed style
-        const currentWidth = (gsap.getProperty(navButton, 'width') as number) || parseFloat(getComputedStyle(navButton).width) || SLIDER_CONFIG.NAV_BUTTON_INACTIVE_SIZE;
-        const currentHeight = (gsap.getProperty(navButton, 'height') as number) || parseFloat(getComputedStyle(navButton).height) || SLIDER_CONFIG.NAV_BUTTON_INACTIVE_SIZE;
-        const currentImageY = navImage ? ((gsap.getProperty(navImage, 'y') as number) || SLIDER_CONFIG.NAV_IMAGE_INACTIVE_Y) : SLIDER_CONFIG.NAV_IMAGE_INACTIVE_Y;
         
         // Set class immediately - CSS will handle marginTop positioning (no inline styles)
         if (isActive) {
@@ -538,45 +565,51 @@ class SliderManager {
         });
         
         // Animate only width and height - CSS handles marginTop positioning
+        // 🔥 FIX: Track animations for proper cleanup
         if (isActive) {
           // Animate to active state - smooth ease-in ease-out from current position
-          gsap.to(navButton, {
+          const buttonTween = gsap.to(navButton, {
             width: SLIDER_CONFIG.NAV_BUTTON_ACTIVE_SIZE,
             height: SLIDER_CONFIG.NAV_BUTTON_ACTIVE_SIZE,
-            // marginTop is handled by CSS (.independent-nav-button.active)
             duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
             ease: SLIDER_CONFIG.NAV_BUTTON_EASING,
             force3D: true
           });
+          this.navButtonAnimations.push(buttonTween);
+          
           if (navImage) {
-            gsap.to(navImage, {
+            const imageTween = gsap.to(navImage, {
               y: SLIDER_CONFIG.NAV_IMAGE_ACTIVE_Y,
               duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
               ease: SLIDER_CONFIG.NAV_BUTTON_EASING,
               force3D: true
             });
+            this.navButtonAnimations.push(imageTween);
           }
         } else {
           // Animate to inactive state - smooth ease-in ease-out from current position
-          gsap.to(navButton, {
+          const buttonTween = gsap.to(navButton, {
             width: SLIDER_CONFIG.NAV_BUTTON_INACTIVE_SIZE,
             height: SLIDER_CONFIG.NAV_BUTTON_INACTIVE_SIZE,
-            // marginTop is handled by CSS (.independent-nav-button)
             duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
             ease: SLIDER_CONFIG.NAV_BUTTON_EASING,
             force3D: true
           });
+          this.navButtonAnimations.push(buttonTween);
+          
           if (navImage) {
-            gsap.to(navImage, {
+            const imageTween = gsap.to(navImage, {
               y: SLIDER_CONFIG.NAV_IMAGE_INACTIVE_Y,
               duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
               ease: SLIDER_CONFIG.NAV_BUTTON_EASING,
               force3D: true
             });
+            this.navButtonAnimations.push(imageTween);
           }
         }
       });
     });
+    this.activeRAFs.add(navRafId);
     
     // Update slides - 🔥 FIX: Simple null check
     if (this.elements.slides && this.elements.slides.length > 0) {
@@ -797,6 +830,20 @@ class SliderManager {
     });
     this.activeIntervals.clear();
     logger.info('🧹 Active intervals cleared');
+    
+    // 🔥 FIX: Cancel all pending requestAnimationFrame calls
+    this.activeRAFs.forEach(rafId => {
+      cancelAnimationFrame(rafId);
+    });
+    this.activeRAFs.clear();
+    logger.info('🧹 Active RAFs cancelled');
+    
+    // 🔥 FIX: Kill all nav button animations
+    this.navButtonAnimations.forEach(tween => {
+      try { tween.kill(); } catch {}
+    });
+    this.navButtonAnimations = [];
+    logger.info('🧹 Nav button animations killed');
     
     // Kill GSAP animation if exists
     if (this.slideAnimation) {

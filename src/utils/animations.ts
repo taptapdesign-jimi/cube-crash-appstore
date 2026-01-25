@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS, SLIDER_ANIMATION } from '../constants/animations.js';
 import { logger } from '../core/logger.js';
+import { sliderState } from '../modules/slider-state.js';
 
 // Global window extensions
 declare global {
@@ -135,11 +136,9 @@ const reverseBounce = (element: HTMLElement, delay: number) => {
 };
 
 // Guard to prevent multiple simultaneous animations
+// 🔥 REFACTOR: Use local flags that sync with sliderState module
 let isAnimatingExit = false;
 let isAnimatingEnter = false;
-
-// 🔥 CRITICAL: Export isAnimatingExit globally so updateNavBadge can check it
-(window as any).__ccIsAnimatingSliderExit = () => isAnimatingExit;
 
 // Track active animation timeouts for cleanup
 let activeTimeouts: Set<NodeJS.Timeout> = new Set();
@@ -176,9 +175,8 @@ export const cleanupAnimations = (): void => {
   // 🔥 FIX: Clear cached DOM elements to prevent stale references
   cachedElements = {};
   
-  // 🔥 FIX: Reset global animation flags
-  (window as any).__ccIsAnimatingSliderExit = () => false;
-  (window as any).__ccIsAnimatingSliderEnter = false;
+  // 🔥 REFACTOR: Reset animation flags via sliderState module
+  sliderState.reset();
   
   logger.info('✅ Animation cleanup complete (timeouts, cache, and flags cleared)');
 };
@@ -191,8 +189,9 @@ export const animateSliderExit = (): void => {
   }
   
   // Set flags immediately
+  // 🔥 REFACTOR: Use sliderState module for state management
   isAnimatingExit = true;
-  (window as any).__ccIsAnimatingSliderExit = () => true;
+  sliderState.setAnimatingExit(true);
   
   try {
     logger.info('🎬 Starting CARTOONISH PROCEDURAL exit animation...');
@@ -226,7 +225,7 @@ export const animateSliderExit = (): void => {
     const timeout = setTimeout(() => {
       activeTimeouts.delete(timeout);
       isAnimatingExit = false;
-      (window as any).__ccIsAnimatingSliderExit = () => false;
+      sliderState.setAnimatingExit(false);
       logger.info('✅ Exit animation guard reset');
     }, SLIDER_ANIMATION.TOTAL_SEQUENCE);
     activeTimeouts.add(timeout);
@@ -234,7 +233,7 @@ export const animateSliderExit = (): void => {
   } catch (error) {
     // 🔥 FIX: Always reset flags on error
     isAnimatingExit = false;
-    (window as any).__ccIsAnimatingSliderExit = () => false;
+    sliderState.setAnimatingExit(false);
     logger.error('❌ Failed to animate slider exit:', error);
   }
 };
@@ -644,8 +643,9 @@ export const animateSliderEnter = (): void => {
   }
   
   // Set flags immediately
+  // 🔥 REFACTOR: Use sliderState module for state management
   isAnimatingEnter = true;
-  (window as any).__ccIsAnimatingSliderEnter = true;
+  sliderState.setAnimatingEnter(true);
   
   try {
     logger.info('🎬 Starting CARTOONISH PROCEDURAL enter animation...');
@@ -657,7 +657,7 @@ export const animateSliderEnter = (): void => {
     const timeout = setTimeout(() => {
       activeTimeouts.delete(timeout);
       isAnimatingEnter = false;
-      (window as any).__ccIsAnimatingSliderEnter = false;
+      sliderState.setAnimatingEnter(false);
       logger.info('✅ Enter animation guard reset');
     }, SLIDER_ANIMATION.TOTAL_SEQUENCE);
     activeTimeouts.add(timeout);
@@ -665,7 +665,7 @@ export const animateSliderEnter = (): void => {
   } catch (error) {
     // 🔥 FIX: Always reset flags on error
     isAnimatingEnter = false;
-    (window as any).__ccIsAnimatingSliderEnter = false;
+    sliderState.setAnimatingEnter(false);
     logger.error('❌ Failed to animate slider enter:', error);
   }
 };

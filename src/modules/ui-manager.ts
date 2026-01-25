@@ -9,6 +9,7 @@ import { logger } from '../core/logger.js';
 import { boot as bootGame, layoutBoard as layoutGame } from './app-core.js';
 import memoryManager from '../utils/memory-manager.js';
 import sliderManager from './slider-manager.js';
+import { sliderState } from './slider-state.js';
 import { gsap } from 'gsap';
 // 🔥 OPTIMIZATION: Preload settings animations module statically to avoid 15s delay on Settings click
 import { animateSettingsScreenEnter, animateSettingsScreenExit } from '../ui/settings-animations.js';
@@ -1290,9 +1291,9 @@ class UIManager {
       
       // 🔥 USER REQUEST FIX: Reset slider enter animation flag BEFORE reinitializing
       // This prevents instant slide changes (no animation) when clicking dots after returning to homepage
-      // Without this, __ccIsAnimatingSliderEnter might be true from previous animation, causing instant jumps
-      (window as any).__ccIsAnimatingSliderEnter = false;
-      logger.info('✅ Reset __ccIsAnimatingSliderEnter flag before slider reinit');
+      // 🔥 REFACTOR: Use sliderState module instead of window global
+      sliderState.setAnimatingEnter(false);
+      logger.info('✅ Reset slider enter animation flag before slider reinit');
       
       // 🔥 NEW API: Ensure slider is ready for interaction
       // Unlocks slider, ensures pointer events, refreshes element references
