@@ -726,7 +726,9 @@ class CollectiblesManager {
       // Determine hide mode explicitly (prevents stale __ccCameFromJourney from breaking back button)
       const exitMode = (window as any).__ccJourneyExitMode;
       const isBackButton = exitMode !== 'toGame'; // default to back-to-home
-      delete (window as any).__ccJourneyExitMode;
+      // 🔥 BUG FIX: Do NOT delete flag here - hideCollectiblesScreenWithAnimation needs it
+      // Flag will be deleted by hideCollectiblesScreenWithAnimation after it reads it
+      // delete (window as any).__ccJourneyExitMode;
       
       if (isBackButton) {
         // 🎬 BACK BUTTON pathway: Journey → Homepage Slide 2 (Journey slide)
@@ -1019,6 +1021,22 @@ class CollectiblesManager {
             else slide.classList.remove('active');
           });
         }
+      }
+      
+      // 🔥 BUG FIX: Final navigation visibility enforcement BEFORE animation
+      // This ensures navigation is definitely visible even if there were race conditions earlier
+      const navElementFinal = document.getElementById('independent-nav');
+      if (navElementFinal) {
+        navElementFinal.style.removeProperty('display');
+        navElementFinal.style.removeProperty('visibility');
+        navElementFinal.style.removeProperty('opacity');
+        navElementFinal.style.removeProperty('pointer-events');
+        navElementFinal.style.display = 'block';
+        navElementFinal.style.visibility = 'visible';
+        navElementFinal.style.opacity = '1';
+        navElementFinal.style.pointerEvents = 'auto';
+        navElementFinal.setAttribute('aria-hidden', 'false');
+        logger.info('✅ Final navigation visibility enforcement - navigation guaranteed visible');
       }
       
       // Step 3: Trigger homepage slide ENTER animation

@@ -187,12 +187,25 @@ export function magicSparklesAtTile(board: Board, tile: Tile, opts: any = {}): v
   
   board.addChild(sparklesContainer);
   
-  // Remove container after animation
-  gsap.delayedCall(1.2, () => {
-    if (board && sparklesContainer.parent) {
-      board.removeChild(sparklesContainer);
+  // 🔥 FIX: Store delayed call reference and properly destroy container
+  const cleanupCall = gsap.delayedCall(1.2, () => {
+    // Kill all tweens on sparkles before removing
+    sparklesContainer.children.forEach(child => {
+      gsap.killTweensOf(child);
+    });
+    
+    if (sparklesContainer.parent) {
+      sparklesContainer.parent.removeChild(sparklesContainer);
     }
+    
+    // Properly destroy container and children
+    try {
+      sparklesContainer.destroy({ children: true });
+    } catch {}
   });
+  
+  // 🔥 FIX: Store cleanup reference on container for external cleanup
+  (sparklesContainer as any)._cleanupCall = cleanupCall;
 }
 
 // All functions are already exported individually above

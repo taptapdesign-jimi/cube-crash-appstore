@@ -1015,12 +1015,26 @@ class JourneyBoardsManager {
             // 🔥 USER REQUEST: Check if card is actually visible (not hidden by screen animation)
             // If card rect is empty or invalid, wait a bit more
             if (cardRect.width === 0 || cardRect.height === 0) {
-              logger.warn('⚠️ Interim card not yet visible, retrying scroll in 200ms...');
+              // 🔥 FIX: Add retry limit to prevent infinite recursion
+              const retryCount = (this as any)._scrollRetryCount || 0;
+              const MAX_RETRIES = 10; // Maximum 10 retries (2 seconds total)
+              
+              if (retryCount >= MAX_RETRIES) {
+                logger.warn('⚠️ Max scroll retries reached, giving up');
+                (this as any)._scrollRetryCount = 0;
+                return;
+              }
+              
+              logger.warn(`⚠️ Interim card not yet visible, retrying scroll in 200ms... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+              (this as any)._scrollRetryCount = retryCount + 1;
               setTimeout(() => {
                 this.scrollToInterimCard();
               }, 200);
               return;
             }
+            
+            // 🔥 FIX: Reset retry counter on success
+            (this as any)._scrollRetryCount = 0;
             
             // 🔥 JEDNOSTAVNO: Uvijek izračunaj scroll distance i odradi animaciju
             // Nema više skipova - svaki poziv scrollToInterimCard() će pokrenuti animaciju do centra
@@ -2401,6 +2415,13 @@ class JourneyBoardsManager {
       // 🔥 CRITICAL: Mark modal as exiting to prevent openBoardDetails from resetting stats during exit
       (modal as any).__detailModalExiting = true;
       
+      // 🔥 FIX: Safety cleanup function to ensure flag is always reset
+      const cleanupFlag = () => {
+        (modal as any).__detailModalExiting = false;
+      };
+      
+      try {
+      
       // 🔥 MEMORY LEAK FIX: Cleanup swipe handlers
       const swipeableContainer = modal.querySelector('.detail-swipeable-container') as HTMLElement;
       if (swipeableContainer && (swipeableContainer as any).__detailSwipeHandlers) {
@@ -2800,12 +2821,18 @@ class JourneyBoardsManager {
         // No need for setTimeout - GSAP handles cleanup automatically
         
         // 🔥 CRITICAL: Clear exiting flag after exit animation completes
-        (modal as any).__detailModalExiting = false;
+        cleanupFlag();
         
         logger.info(`✅ Detail modal exit animation completed (${totalDuration}ms)`);
         logger.info(`🎮 PLAY button exit: delay=${(playButtonExitDelay * 1000).toFixed(0)}ms, duration=${(playButtonExitDuration * 1000).toFixed(0)}ms, ends at=${((playButtonExitDelay + playButtonExitDuration) * 1000).toFixed(0)}ms`);
         resolve();
       }, totalDuration);
+      } catch (error) {
+        // 🔥 FIX: Ensure flag is reset on error
+        logger.error('❌ Detail modal exit animation failed:', error);
+        cleanupFlag();
+        resolve(); // Still resolve to prevent hanging
+      }
     });
   }
 

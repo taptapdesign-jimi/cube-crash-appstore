@@ -215,7 +215,7 @@ export function renderSettingsScreen(
   
   // 🔥 DIFFERENT APPROACH: Use event delegation on settings screen container
   // This ensures back button works even if element is recreated or not found during init
-  element.addEventListener('click', (e) => {
+  const clickHandler = (e: Event) => {
     const target = e.target as HTMLElement;
     const backBtn = target.closest('#settings-back-btn, .settings-back-button');
     if (backBtn) {
@@ -251,18 +251,30 @@ export function renderSettingsScreen(
         console.warn('⚠️ UIManager found but hideSettingsScreenWithAnimation method not available');
       }
     }
-  });
+  };
+  element.addEventListener('click', clickHandler);
   console.log('✅ Settings back button handler attached via event delegation on container');
   
   // Setup footer explosion animation after render
   const footerText = element.querySelector('.settings-footer-text') as HTMLElement;
+  let footerClickHandler: (() => void) | null = null;
   if (footerText) {
-    footerText.addEventListener('click', () => {
+    footerClickHandler = () => {
       triggerFooterExplosion(footerText);
       // Easter egg: unlock legendary card 26 (legendary06)
       unlockLegendaryCard26();
-    });
+    };
+    footerText.addEventListener('click', footerClickHandler);
   }
+  
+  // 🔥 FIX: Store cleanup function on element for proper memory management
+  (element as any)._settingsCleanup = () => {
+    element.removeEventListener('click', clickHandler);
+    if (footerText && footerClickHandler) {
+      footerText.removeEventListener('click', footerClickHandler);
+    }
+    console.log('✅ Settings screen event listeners cleaned up');
+  };
 }
 
 /**

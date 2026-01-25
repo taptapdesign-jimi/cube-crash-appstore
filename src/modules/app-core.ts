@@ -5828,7 +5828,10 @@ function merge(src, dst, helpers){
         });
         
         if (isLastMergeInOnComplete) {
-          const otherActive = getReactiveActiveTiles().filter((t) => t !== dst);
+          // 🔥 BUG FIX: Exclude tiles that are being pulled by magnet (have _wildMagnetAffected flag)
+          // These tiles are in the process of being removed but haven't been destroyed yet
+          // Without this exclusion, they would incorrectly trigger "false positive" detection
+          const otherActive = getReactiveActiveTiles().filter((t) => t !== dst && !(t as any)?._wildMagnetAffected);
           if (otherActive.length === 0 && dstStillExists) {
             console.log('🚨🚨🚨 LAST MERGE DETECTED (_isLastMerge flag) - Only 2 tiles merged to merge 6');
             console.log('💥 LAST MERGE: Letting normal merge 6 flow continue (animations, dst removal, spawn check)');

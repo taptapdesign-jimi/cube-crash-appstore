@@ -656,9 +656,10 @@ class SliderManager {
     
     // 🔥 CRITICAL FIX: Check for null (not empty object) - this is now properly null after destroy()
     const slidesInvalid = !this.elements.slides || this.elements.slides.length === 0;
-    const dotsInvalid = !this.elements.dots || this.elements.dots.length === 0;
+    // 🔥 BUG FIX: Removed dotsInvalid check - .slider-dot elements don't exist in DOM
+    // Navigation uses .independent-nav-button elements instead
     
-    if (!this.isInitialized || slidesInvalid || dotsInvalid) {
+    if (!this.isInitialized || slidesInvalid) {
       logger.warn('⚠️ Slider not properly initialized in setSlideInstant - calling ensureReady()');
       this.ensureReady();
       
@@ -736,7 +737,9 @@ class SliderManager {
     
     // 🔥 CRITICAL FIX: Simple null checks - elements are now null after destroy(), not empty objects
     const slidesInvalid = !this.elements.slides || this.elements.slides.length === 0;
-    const dotsInvalid = !this.elements.dots || this.elements.dots.length === 0;
+    // 🔥 BUG FIX: Remove dotsInvalid check - .slider-dot elements don't exist in DOM
+    // Navigation uses .independent-nav-button elements instead, so this check was always TRUE
+    // causing unnecessary reinitialization on every ensureReady() call
     const containerInvalid = !this.elements.container;
     const wrapperInvalid = !this.elements.wrapper;
     
@@ -744,9 +747,10 @@ class SliderManager {
     const navButtonsNeedHandlers = !this.boundHandlers.navButtonClick || this.boundHandlers.navButtonClick.size === 0;
     
     // 1. Reinitialize if not initialized OR if elements are invalid OR if nav handlers are missing
-    if (!this.isInitialized || slidesInvalid || dotsInvalid || containerInvalid || wrapperInvalid || navButtonsNeedHandlers) {
+    // 🔥 BUG FIX: Removed dotsInvalid from condition - dots don't exist, only nav buttons matter
+    if (!this.isInitialized || slidesInvalid || containerInvalid || wrapperInvalid || navButtonsNeedHandlers) {
       logger.warn('⚠️ Slider not properly initialized or elements/handlers invalid - reinitializing now');
-      logger.debug(`🔍 Debug: isInitialized=${this.isInitialized}, slidesInvalid=${slidesInvalid}, dotsInvalid=${dotsInvalid}, containerInvalid=${containerInvalid}, wrapperInvalid=${wrapperInvalid}, navButtonsNeedHandlers=${navButtonsNeedHandlers}`);
+      logger.debug(`🔍 Debug: isInitialized=${this.isInitialized}, slidesInvalid=${slidesInvalid}, containerInvalid=${containerInvalid}, wrapperInvalid=${wrapperInvalid}, navButtonsNeedHandlers=${navButtonsNeedHandlers}`);
       
       // 🔥 CRITICAL: Force destroy first to clean up stale state, then reinitialize
       if (this.isInitialized) {

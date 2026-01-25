@@ -64,7 +64,10 @@ export function drawStack(tile: Tile): void {
   // This prevents frame drops when stack is drawn during active animations
   if (typeof window !== 'undefined' && window.requestAnimationFrame) {
     requestAnimationFrame(() => {
-      _drawStackInternal(tile);
+      // 🔥 FIX: Check if tile is destroyed before executing
+      if (tile && !tile.destroyed) {
+        _drawStackInternal(tile);
+      }
     });
   } else {
     _drawStackInternal(tile);
@@ -164,7 +167,10 @@ function drawPips(t: Tile): void {
   // This prevents frame drops when pips are drawn during bubbles/wild animations
   if (typeof window !== 'undefined' && window.requestAnimationFrame) {
     requestAnimationFrame(() => {
-      _drawPipsInternal(t);
+      // 🔥 FIX: Check if tile is destroyed before executing
+      if (t && !t.destroyed) {
+        _drawPipsInternal(t);
+      }
     });
   } else {
     _drawPipsInternal(t);

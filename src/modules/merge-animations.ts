@@ -246,8 +246,11 @@ export function animateScoreIncrease(scoreGain: number): Promise<void> {
         duration: SCORE_ANIMATION_DURATION / 2,
         yoyo: true,
         repeat: 1,
-        ease: EASING.EASE_OUT
+        ease: EASING.EASE_OUT,
+        onComplete: resolve // 🔥 FIX: Resolve promise on completion
       });
+    } else {
+      resolve(); // 🔥 FIX: Resolve if element not found
     }
   });
 }
@@ -271,8 +274,11 @@ export function animateComboIncrease(combo: number): Promise<void> {
         duration: COMBO_ANIMATION_DURATION / 2,
         yoyo: true,
         repeat: 1,
-        ease: EASING.EASE_OUT
+        ease: EASING.EASE_OUT,
+        onComplete: resolve // 🔥 FIX: Resolve promise on completion
       });
+    } else {
+      resolve(); // 🔥 FIX: Resolve if element not found
     }
   });
 }
@@ -296,8 +302,11 @@ export function animateBoardShake(intensity: number = 1): Promise<void> {
         duration: BOARD_SHAKE_DURATION / 4,
         yoyo: true,
         repeat: 3,
-        ease: EASING.EASE_OUT
+        ease: EASING.EASE_OUT,
+        onComplete: resolve // 🔥 FIX: Resolve promise on completion
       });
+    } else {
+      resolve(); // 🔥 FIX: Resolve if element not found
     }
   });
 }

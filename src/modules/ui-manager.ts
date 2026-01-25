@@ -2013,14 +2013,20 @@ class UIManager {
     
     logger.info('🔍 Checking exit context:', { cameFromJourney, cameFromHomepage, journeyExitMode });
     
-    // 🔥 CRITICAL: If __ccJourneyExitMode is 'toHome', collectibles-manager.ts will handle showing slide 2
-    // DO NOT call showHomepageQuietly() as it will reset slider to slide 0
+    // 🔥 BUG FIX: Clean up the exit mode flag after reading it
+    // This prevents stale flags from affecting future navigation
+    delete (window as any).__ccJourneyExitMode;
+    
+    // 🔥 CRITICAL: If journeyExitMode is 'toHome', hideCollectibles already showed navigation
+    // But we need to ensure navigation is visible by calling setNavigationVisibility explicitly
     if (journeyExitMode === 'toHome') {
-      logger.info('🗺️ Journey exit mode is "toHome" - collectibles-manager.ts will handle slide 2 positioning');
-      // Don't call showHomepageQuietly() - collectibles-manager.ts will position slider on slide 2
+      logger.info('🗺️ Journey exit mode is "toHome" - hideCollectibles handled navigation, verifying visibility');
+      // hideCollectibles already positioned slider and showed navigation
+      // But ensure navigation is definitely visible (defensive)
+      this.setNavigationVisibility(true);
       // 🔥 BUG FIX: Reset guard BEFORE returning to prevent blocking future calls
       (window as any).__ccIsHidingCollectibles = false;
-      return; // Exit early - collectibles-manager.ts will handle everything
+      return; // Exit early - hideCollectibles already handled everything
     }
     
     if (cameFromJourney) {
