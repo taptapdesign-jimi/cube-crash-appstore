@@ -53,49 +53,7 @@ export function hideModalAnimation(modal: HTMLElement, options: AnimationOptions
 }
 
 /**
- * Bounce animation for buttons
- */
-export function bounceButtonAnimation(button: HTMLElement, options: AnimationOptions = {}): Promise<void> {
-  const { duration = 0.2, easing = 'power2.out' } = options;
-  
-  return new Promise((resolve) => {
-    gsap.fromTo(button,
-      { scale: 1 },
-      {
-        scale: 1.1,
-        duration: duration * 0.3,
-        ease: easing,
-        yoyo: true,
-        repeat: 1,
-        onComplete: resolve
-      }
-    );
-  });
-}
-
-/**
- * Shake animation for modal
- */
-export function shakeModalAnimation(modal: HTMLElement, options: AnimationOptions = {}): Promise<void> {
-  const { duration = 0.5, easing = 'power2.inOut' } = options;
-  
-  return new Promise((resolve) => {
-    gsap.fromTo(modal,
-      { x: 0 },
-      {
-        x: -10,
-        duration: duration * 0.1,
-        ease: easing,
-        yoyo: true,
-        repeat: 9,
-        onComplete: resolve
-      }
-    );
-  });
-}
-
-/**
- * Pulse animation for score
+ * Pulse animation for score (used by animateModalEntrance)
  */
 export function pulseScoreAnimation(scoreElement: HTMLElement, options: AnimationOptions = {}): Promise<void> {
   const { duration = 1, easing = 'power2.inOut' } = options;
@@ -116,43 +74,7 @@ export function pulseScoreAnimation(scoreElement: HTMLElement, options: Animatio
 }
 
 /**
- * Fade in animation
- */
-export function fadeInAnimation(element: HTMLElement, options: AnimationOptions = {}): Promise<void> {
-  const { duration = 0.3, easing = 'power2.out', delay = 0 } = options;
-  
-  return new Promise((resolve) => {
-    gsap.fromTo(element,
-      { opacity: 0 },
-      {
-        opacity: 1,
-        duration,
-        ease: easing,
-        delay,
-        onComplete: resolve
-      }
-    );
-  });
-}
-
-/**
- * Fade out animation
- */
-export function fadeOutAnimation(element: HTMLElement, options: AnimationOptions = {}): Promise<void> {
-  const { duration = 0.3, easing = 'power2.in' } = options;
-  
-  return new Promise((resolve) => {
-    gsap.to(element, {
-      opacity: 0,
-      duration,
-      ease: easing,
-      onComplete: resolve
-    });
-  });
-}
-
-/**
- * Slide up animation
+ * Slide up animation (used by animateModalEntrance)
  */
 export function slideUpAnimation(element: HTMLElement, options: AnimationOptions = {}): Promise<void> {
   const { duration = 0.3, easing = 'power2.out' } = options;
@@ -189,44 +111,7 @@ export function slideDownAnimation(element: HTMLElement, options: AnimationOptio
 }
 
 /**
- * Scale in animation
- */
-export function scaleInAnimation(element: HTMLElement, options: AnimationOptions = {}): Promise<void> {
-  const { duration = 0.3, easing = 'power2.out' } = options;
-  
-  return new Promise((resolve) => {
-    gsap.fromTo(element,
-      { scale: 0.8, opacity: 0 },
-      {
-        scale: 1,
-        opacity: 1,
-        duration,
-        ease: easing,
-        onComplete: resolve
-      }
-    );
-  });
-}
-
-/**
- * Scale out animation
- */
-export function scaleOutAnimation(element: HTMLElement, options: AnimationOptions = {}): Promise<void> {
-  const { duration = 0.3, easing = 'power2.in' } = options;
-  
-  return new Promise((resolve) => {
-    gsap.to(element, {
-      scale: 0.8,
-      opacity: 0,
-      duration,
-      ease: easing,
-      onComplete: resolve
-    });
-  });
-}
-
-/**
- * Stagger animation for multiple elements
+ * Stagger animation for multiple elements (used by animateModalEntrance/Exit)
  */
 export function staggerAnimation(
   elements: HTMLElement[],
@@ -301,61 +186,6 @@ export function animateModalExit(modal: HTMLElement): Promise<void> {
   });
 }
 
-/**
- * Animate button press
- */
-export function animateButtonPress(button: HTMLElement): Promise<void> {
-  return new Promise((resolve) => {
-    gsap.fromTo(button,
-      { scale: 1 },
-      {
-        scale: 0.95,
-        duration: 0.15,
-        ease: 'power2.out',
-        yoyo: true,
-        repeat: 1,
-        onComplete: resolve
-      }
-    );
-  });
-}
-
-/**
- * Animate overlay blur
- */
-export function animateOverlayBlur(overlay: HTMLElement, options: AnimationOptions = {}): Promise<void> {
-  const { duration = 0.3, easing = 'power2.out' } = options;
-  
-  return new Promise((resolve) => {
-    gsap.fromTo(overlay,
-      { backdropFilter: 'blur(0px)' },
-      {
-        backdropFilter: 'blur(12px)',
-        duration,
-        ease: easing,
-        onComplete: resolve
-      }
-    );
-  });
-}
-
-/**
- * Animate overlay fade
- */
-export function animateOverlayFade(overlay: HTMLElement, options: AnimationOptions = {}): Promise<void> {
-  const { duration = 0.3, easing = 'power2.out' } = options;
-  
-  return new Promise((resolve) => {
-    gsap.fromTo(overlay,
-      { opacity: 0 },
-      {
-        opacity: 1,
-        duration,
-        ease: easing,
-        onComplete: resolve
-      }
-    );
-  });
-}
-
-// All functions are already exported individually above
+// 🔥 DEAD CODE REMOVED: bounceButtonAnimation, shakeModalAnimation, fadeInAnimation,
+// fadeOutAnimation, scaleInAnimation, scaleOutAnimation, animateButtonPress,
+// animateOverlayBlur, animateOverlayFade - none of these were used

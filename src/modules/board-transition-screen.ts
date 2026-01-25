@@ -577,45 +577,6 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       }
     }, null, 0);
 
-    // 🔥 USER REQUEST: Haptic feedback only
-    // Trigger haptic feedback when first digit animation starts (0.65s = delay 0.3 + 0.35s)
-    enterTimeline.call(() => {
-      // Sequence of haptic impacts for longer, more satisfying feedback
-      try {
-        if (typeof (window as any).triggerHapticImpact === 'function') {
-          // First strong impact
-          (window as any).triggerHapticImpact('heavy');
-          
-          // Second impact after short delay (creates "boooop" effect)
-          setTimeout(() => {
-            try {
-              (window as any).triggerHapticImpact('medium');
-            } catch (e) {
-              logger.warn('⚠️ Error triggering second haptic:', e);
-            }
-          }, 50); // 50ms delay for "boooop" effect
-          
-          // Third lighter impact for tail (optional - creates smoother ending)
-          setTimeout(() => {
-            try {
-              (window as any).triggerHapticImpact('light');
-            } catch (e) {
-              logger.warn('⚠️ Error triggering third haptic:', e);
-            }
-          }, 120); // 120ms total for smooth "boooop" effect
-          
-          logger.info('📳 Board transition haptic sequence triggered (boooop effect)');
-        } else if (navigator.vibrate) {
-          // Fallback: Use vibration API with pattern for longer haptic
-          // Pattern: [vibrate, pause, vibrate, pause, vibrate] = "boooop"
-          navigator.vibrate([70, 30, 50, 20, 30]);
-          logger.info('📳 Board transition haptic fallback (vibration pattern)');
-        }
-      } catch (error) {
-        logger.warn('⚠️ Error triggering haptic:', error);
-      }
-    }, null, 0.65); // 🔥 USER REQUEST: Trigger at 0.65s (exactly when first digit animation starts - delay 0.3 + 0.35s)
-
     // 🔥 USER REQUEST: Forest enter animation, transform-origin center bottom
     gsap.set(forestContainer, {
       opacity: 0,
