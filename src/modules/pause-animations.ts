@@ -3,6 +3,46 @@
 
 import { gsap } from 'gsap';
 
+// 🔥 FIX: Track GSAP tweens and timeouts for cleanup
+const activePauseTweens: Set<gsap.core.Tween> = new Set();
+const activePauseTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
+
+function trackPauseTween(tween: gsap.core.Tween): gsap.core.Tween {
+  activePauseTweens.add(tween);
+  tween.eventCallback('onComplete', () => {
+    activePauseTweens.delete(tween);
+  });
+  return tween;
+}
+
+function trackPauseTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
+  const timeout = setTimeout(() => {
+    activePauseTimeouts.delete(timeout);
+    callback();
+  }, delay);
+  activePauseTimeouts.add(timeout);
+  return timeout;
+}
+
+/**
+ * Cleanup all pause animation tweens and timeouts
+ */
+export function cleanupPauseAnimations(): void {
+  // Kill all tracked GSAP tweens
+  activePauseTweens.forEach(tween => {
+    try { tween.kill(); } catch {}
+  });
+  activePauseTweens.clear();
+  
+  // Clear all tracked timeouts
+  activePauseTimeouts.forEach(timeout => {
+    try { clearTimeout(timeout); } catch {}
+  });
+  activePauseTimeouts.clear();
+  
+  console.log('✅ Pause animations cleaned up');
+}
+
 // Animation options
 interface AnimationOptions {
   duration?: number;
@@ -19,7 +59,7 @@ export function showModalAnimation(modal: HTMLElement, options: AnimationOptions
   const { duration = 0.3, easing = 'power2.out' } = options;
   
   return new Promise((resolve) => {
-    gsap.fromTo(modal, 
+    const tween = gsap.fromTo(modal, 
       { 
         scale: 0.8, 
         opacity: 0 
@@ -29,9 +69,13 @@ export function showModalAnimation(modal: HTMLElement, options: AnimationOptions
         opacity: 1, 
         duration, 
         ease: easing,
-        onComplete: resolve
+        onComplete: () => {
+          activePauseTweens.delete(tween);
+          resolve();
+        }
       }
     );
+    activePauseTweens.add(tween);
   });
 }
 
@@ -42,13 +86,17 @@ export function hideModalAnimation(modal: HTMLElement, options: AnimationOptions
   const { duration = 0.3, easing = 'power2.in' } = options;
   
   return new Promise((resolve) => {
-    gsap.to(modal, {
+    const tween = gsap.to(modal, {
       scale: 0.8,
       opacity: 0,
       duration,
       ease: easing,
-      onComplete: resolve
+      onComplete: () => {
+        activePauseTweens.delete(tween);
+        resolve();
+      }
     });
+    activePauseTweens.add(tween);
   });
 }
 
@@ -59,7 +107,7 @@ export function pulseScoreAnimation(scoreElement: HTMLElement, options: Animatio
   const { duration = 1, easing = 'power2.inOut' } = options;
   
   return new Promise((resolve) => {
-    gsap.fromTo(scoreElement,
+    const tween = gsap.fromTo(scoreElement,
       { scale: 1 },
       {
         scale: 1.05,
@@ -67,9 +115,13 @@ export function pulseScoreAnimation(scoreElement: HTMLElement, options: Animatio
         ease: easing,
         yoyo: true,
         repeat: 1,
-        onComplete: resolve
+        onComplete: () => {
+          activePauseTweens.delete(tween);
+          resolve();
+        }
       }
     );
+    activePauseTweens.add(tween);
   });
 }
 
@@ -80,16 +132,20 @@ export function slideUpAnimation(element: HTMLElement, options: AnimationOptions
   const { duration = 0.3, easing = 'power2.out' } = options;
   
   return new Promise((resolve) => {
-    gsap.fromTo(element,
+    const tween = gsap.fromTo(element,
       { y: 20, opacity: 0 },
       {
         y: 0,
         opacity: 1,
         duration,
         ease: easing,
-        onComplete: resolve
+        onComplete: () => {
+          activePauseTweens.delete(tween);
+          resolve();
+        }
       }
     );
+    activePauseTweens.add(tween);
   });
 }
 
@@ -100,13 +156,17 @@ export function slideDownAnimation(element: HTMLElement, options: AnimationOptio
   const { duration = 0.3, easing = 'power2.in' } = options;
   
   return new Promise((resolve) => {
-    gsap.to(element, {
+    const tween = gsap.to(element, {
       y: 20,
       opacity: 0,
       duration,
       ease: easing,
-      onComplete: resolve
+      onComplete: () => {
+        activePauseTweens.delete(tween);
+        resolve();
+      }
     });
+    activePauseTweens.add(tween);
   });
 }
 
@@ -128,7 +188,7 @@ export function staggerAnimation(
     }
     
     elements.forEach((element, index) => {
-      setTimeout(() => {
+      trackPauseTimeout(() => {
         animationFn(element).then(() => {
           completed++;
           if (completed === total) {

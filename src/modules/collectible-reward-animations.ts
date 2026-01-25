@@ -3,6 +3,28 @@
 
 import { executeCleanup, setClosing } from './collectible-reward-utils.js';
 
+// 🔥 FIX: Track animation timeouts for cleanup
+const activeAnimTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
+
+function trackAnimTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
+  const timeout = setTimeout(() => {  // 🔥 FIX: Was calling itself recursively, now correctly calls setTimeout
+    activeAnimTimeouts.delete(timeout);
+    callback();
+  }, delay);
+  activeAnimTimeouts.add(timeout);
+  return timeout;
+}
+
+/**
+ * Cleanup all animation timeouts
+ */
+export function cleanupCollectibleRewardAnimationTimeouts(): void {
+  activeAnimTimeouts.forEach(timeout => {
+    try { clearTimeout(timeout); } catch {}
+  });
+  activeAnimTimeouts.clear();
+}
+
 // Animation options
 interface AnimationOptions {
   duration?: number;
@@ -28,7 +50,8 @@ export function showOverlayAnimation(overlay: HTMLElement, options: AnimationOpt
     overlay.style.transition = `opacity ${duration}ms ${easing}`;
     overlay.style.opacity = '1';
     
-    setTimeout(() => {
+    // 🔥 FIX: Track timeout for cleanup
+    trackAnimTimeout(() => {
       // 🔥 FIX: Check if element still exists before modifying
       if (overlay && overlay.isConnected) {
         overlay.classList.add('show');
@@ -48,7 +71,8 @@ export function hideOverlayAnimation(overlay: HTMLElement, options: AnimationOpt
     overlay.style.transition = `opacity ${duration}ms ${easing}`;
     overlay.style.opacity = '0';
     
-    setTimeout(() => {
+    // 🔥 FIX: Track timeout for cleanup
+    trackAnimTimeout(() => {
       // 🔥 FIX: Check if element still exists before modifying
       if (overlay && overlay.isConnected) {
         overlay.style.display = 'none';
@@ -75,7 +99,7 @@ export function showSheetAnimation(sheet: HTMLElement, options: AnimationOptions
     sheet.style.transform = 'translateY(0)';
     sheet.classList.add('show');
     
-    setTimeout(() => {
+    trackAnimTimeout(() => {
       // 🔥 FIX: Always resolve, element check not needed for resolve
       resolve();
     }, duration);
@@ -93,7 +117,7 @@ export function hideSheetAnimation(sheet: HTMLElement, options: AnimationOptions
     sheet.style.transform = 'translateY(100%)';
     sheet.classList.remove('show');
     
-    setTimeout(() => {
+    trackAnimTimeout(() => {
       resolve();
     }, duration);
   });
@@ -207,10 +231,10 @@ export function fadeInAnimation(element: HTMLElement, options: AnimationOptions 
     element.style.opacity = '0';
     element.style.transition = `opacity ${duration}ms ${easing}`;
     
-    setTimeout(() => {
+    trackAnimTimeout(() => {
       element.style.opacity = '1';
       
-      setTimeout(() => {
+      trackAnimTimeout(() => {
         resolve();
       }, duration);
     }, delay);
@@ -227,7 +251,7 @@ export function fadeOutAnimation(element: HTMLElement, options: AnimationOptions
     element.style.transition = `opacity ${duration}ms ${easing}`;
     element.style.opacity = '0';
     
-    setTimeout(() => {
+    trackAnimTimeout(() => {
       resolve();
     }, duration);
   });
@@ -250,7 +274,7 @@ export function slideUpAnimation(element: HTMLElement, options: AnimationOptions
     element.style.transform = 'translateY(0)';
     element.style.opacity = '1';
     
-    setTimeout(() => {
+    trackAnimTimeout(() => {
       resolve();
     }, duration);
   });
@@ -267,7 +291,7 @@ export function slideDownAnimation(element: HTMLElement, options: AnimationOptio
     element.style.transform = 'translateY(20px)';
     element.style.opacity = '0';
     
-    setTimeout(() => {
+    trackAnimTimeout(() => {
       resolve();
     }, duration);
   });
@@ -290,7 +314,7 @@ export function scaleInAnimation(element: HTMLElement, options: AnimationOptions
     element.style.transform = 'scale(1)';
     element.style.opacity = '1';
     
-    setTimeout(() => {
+    trackAnimTimeout(() => {
       resolve();
     }, duration);
   });
@@ -307,7 +331,7 @@ export function scaleOutAnimation(element: HTMLElement, options: AnimationOption
     element.style.transform = 'scale(0.8)';
     element.style.opacity = '0';
     
-    setTimeout(() => {
+    trackAnimTimeout(() => {
       resolve();
     }, duration);
   });
@@ -331,7 +355,7 @@ export function staggerAnimation(
     }
     
     elements.forEach((element, index) => {
-      setTimeout(() => {
+      trackAnimTimeout(() => {
         animationFn(element).then(() => {
           completed++;
           if (completed === total) {

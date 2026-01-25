@@ -6,6 +6,7 @@ import { pauseGame, resumeGame } from './pause-utils.js';
 import { forceHideScoreBottomSheet, isScoreBottomSheetVisible, resetScoreBottomSheetState } from './score-bottom-sheet.js';
 import { getBoardSaveKey } from '../utils/board-save-utils.js';
 import { gsap } from 'gsap';
+import { container } from '../core/dependency-injection.js';
 
 let modal: HTMLElement | null = null;
 
@@ -652,9 +653,8 @@ function createModal(): HTMLElement {
         // 🔥 CRITICAL FIX: Reset gamePaused flag BEFORE exitToMenu
         // This ensures the new game can start with clean state
         try {
-          const { container } = require('../core/dependency-injection.js');
-          if (container && typeof container.set === 'function') {
-            container.set('gamePaused', false);
+          if (container && typeof (container as any).set === 'function') {
+            (container as any).set('gamePaused', false);
           }
         } catch (e) { /* ignore */ }
         (window as any)._gamePaused = false;
@@ -806,9 +806,8 @@ export function showEndRunModal(): void {
   // Animations continue in background while bottom sheet is open (looks nice, prevents exploits)
   // Only set gamePaused flag to block new drag interactions
   try {
-    const { container } = require('../core/dependency-injection.js');
-    if (container && typeof container.set === 'function') {
-      container.set('gamePaused', true);
+    if (container && typeof (container as any).set === 'function') {
+      (container as any).set('gamePaused', true);
     }
   } catch (error) {
     console.warn('⚠️ Failed to set gamePaused via DI:', error);
@@ -1343,9 +1342,8 @@ export function hideModal(): void {
     
     // Reset gamePaused flag via DI container
     try {
-      const { container } = require('../core/dependency-injection.js');
-      if (container && typeof container.set === 'function') {
-        container.set('gamePaused', false);
+      if (container && typeof (container as any).set === 'function') {
+        (container as any).set('gamePaused', false);
       }
     } catch (error) {
       console.warn('⚠️ Failed to reset gamePaused via DI:', error);

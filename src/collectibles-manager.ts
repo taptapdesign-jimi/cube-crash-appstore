@@ -845,7 +845,13 @@ class CollectiblesManager {
         homeElement.style.removeProperty('visibility');
         homeElement.style.removeProperty('opacity');
         homeElement.style.removeProperty('z-index');
-        logger.info('✅ Homepage element shown');
+        homeElement.style.removeProperty('pointer-events');
+        // 🔥 CRITICAL FIX: Explicitly set visibility after removing properties
+        homeElement.style.display = 'block';
+        homeElement.style.visibility = 'visible';
+        homeElement.style.opacity = '1';
+        homeElement.style.pointerEvents = 'auto';
+        logger.info('✅ Homepage element shown and made interactive');
       }
       
       // Step 2b: Show slider container
@@ -855,7 +861,22 @@ class CollectiblesManager {
         sliderContainerEl.style.removeProperty('visibility');
         sliderContainerEl.style.removeProperty('opacity');
         sliderContainerEl.style.removeProperty('z-index');
-        logger.info('✅ Slider container shown');
+        sliderContainerEl.style.removeProperty('pointer-events');
+        // 🔥 CRITICAL FIX: Explicitly set visibility after removing properties
+        // removeProperty only removes inline styles - need explicit values to ensure visibility
+        sliderContainerEl.style.display = 'block';
+        sliderContainerEl.style.visibility = 'visible';
+        sliderContainerEl.style.opacity = '1';
+        sliderContainerEl.style.pointerEvents = 'auto';
+        logger.info('✅ Slider container shown and made interactive');
+      }
+      
+      // 🔥 CRITICAL FIX: Also ensure slider wrapper is interactive for drag gestures
+      const sliderWrapperEl = document.getElementById('slider-wrapper');
+      if (sliderWrapperEl) {
+        sliderWrapperEl.style.removeProperty('pointer-events');
+        sliderWrapperEl.style.pointerEvents = 'auto';
+        logger.info('✅ Slider wrapper made interactive for drag');
       }
       
       // Step 2c: Ensure ALL slides are visible (slider uses translateX)
@@ -935,9 +956,24 @@ class CollectiblesManager {
       const targetSlideIndex = 1;
       console.log(`🔍 Journey exit: returning to Journey slide (index ${targetSlideIndex})`);
       
+      // 🔥 CRITICAL FIX: Reinitialize slider FIRST before using it
+      // Slider may have been destroyed in exitToMenu - must reinit for navigation to work
+      const sliderManager = (window as any).sliderManager;
+      if (sliderManager) {
+        try {
+          // First, try to reinitialize if needed
+          if (typeof sliderManager.init === 'function') {
+            console.log('🔧 Reinitializing slider manager for Journey exit...');
+            sliderManager.init();
+            console.log('✅ Slider manager reinitialized');
+          }
+        } catch (initError) {
+          console.warn('⚠️ Failed to reinitialize slider:', initError);
+        }
+      }
+      
       // 🔥 NEW API: Use setSlideInstant() to atomically update ALL states
       // This replaces all manual GSAP positioning + class manipulation
-      const sliderManager = (window as any).sliderManager;
       if (sliderManager && typeof sliderManager.setSlideInstant === 'function') {
         sliderManager.setSlideInstant(targetSlideIndex);
         console.log(`✅ Slider positioned at slide ${targetSlideIndex} using setSlideInstant (atomic)`);
@@ -972,27 +1008,46 @@ class CollectiblesManager {
       // Step 2h: Show navigation and ensure it's interactive
       const navElement = document.getElementById('independent-nav');
       if (navElement) {
+        // Remove any hidden state from inline styles
         navElement.style.removeProperty('display');
         navElement.style.removeProperty('visibility');
         navElement.style.removeProperty('opacity');
         navElement.style.removeProperty('pointer-events');
-        navElement.style.display = 'block';
+        navElement.style.removeProperty('z-index');
+        // 🔥 CRITICAL: Explicitly make visible and on top
+        navElement.style.display = 'flex';
         navElement.style.visibility = 'visible';
         navElement.style.opacity = '1';
         navElement.style.pointerEvents = 'auto';
+        navElement.style.zIndex = '100'; // Ensure it's above other content
         navElement.setAttribute('aria-hidden', 'false');
-        logger.info('✅ Navigation shown and enabled');
+        navElement.removeAttribute('hidden');
+        logger.info('✅ Navigation container shown and enabled');
+      } else {
+        logger.warn('⚠️ Navigation element #independent-nav not found in DOM!');
       }
       
-      // 🔥 FIX: Ensure all navigation buttons are clickable
+      // 🔥 CRITICAL FIX: Ensure all navigation buttons are VISIBLE and clickable
+      // Must set display, visibility, opacity AND pointer-events on each button
       const navButtons = document.querySelectorAll('.independent-nav-button');
       navButtons.forEach((button) => {
         const btn = button as HTMLElement;
+        // Remove any hidden state
+        btn.style.removeProperty('display');
+        btn.style.removeProperty('visibility');
+        btn.style.removeProperty('opacity');
+        btn.style.removeProperty('pointer-events');
+        // Explicitly make visible and interactive
+        btn.style.display = 'flex';
+        btn.style.visibility = 'visible';
+        btn.style.opacity = '1';
         btn.style.pointerEvents = 'auto';
         btn.style.cursor = 'pointer';
       });
       if (navButtons.length > 0) {
-        logger.info(`✅ ${navButtons.length} navigation buttons enabled`);
+        logger.info(`✅ ${navButtons.length} navigation buttons made VISIBLE and enabled`);
+      } else {
+        logger.warn('⚠️ No navigation buttons found in DOM!');
       }
       
       // 🔥 NEW API: Ensure slider is ready for interaction
@@ -1012,9 +1067,17 @@ class CollectiblesManager {
         
         // Reattach CTA button event listeners (Play, Journey buttons)
         const uiManager = (window as any).uiManager;
-        if (uiManager && typeof uiManager.reattachEventListeners === 'function') {
-          uiManager.reattachEventListeners();
-          console.log('✅ UI Manager event listeners reattached - CTA buttons ready');
+        if (uiManager) {
+          // 🔥 CRITICAL FIX: Correct method name is reattachHomepageButtonListeners
+          if (typeof uiManager.reattachHomepageButtonListeners === 'function') {
+            uiManager.reattachHomepageButtonListeners();
+            console.log('✅ UI Manager homepage button listeners reattached - CTA buttons ready');
+          }
+          // 🔥 CRITICAL: Call showNavigation via UI Manager to ensure proper visibility
+          if (typeof uiManager.showNavigation === 'function') {
+            uiManager.showNavigation();
+            console.log('✅ uiManager.showNavigation() called - navigation should be visible');
+          }
         }
       } catch (error) {
         console.warn('⚠️ Failed to ensure slider ready:', error);

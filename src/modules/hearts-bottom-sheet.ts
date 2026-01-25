@@ -60,7 +60,7 @@ function clearAllHeartsGSAPTweens(): void {
   _heartsGSAPTweens.length = 0;
 }
 
-function cleanupAllHeartsResources(): void {
+export function cleanupAllHeartsResources(): void {
   clearAllHeartsTimeouts();
   clearAllHeartsIntervals();
   clearAllHeartsGSAPTweens();

@@ -1642,10 +1642,11 @@ async function startNewRun(boardId: number): Promise<void> {
       console.log('🧹 Cleaning up homepage/slider event listeners and animations...');
       
       // 6a. Destroy slider manager (removes touch/mouse event listeners)
+      // 🔥 CRITICAL FIX: We'll reinitialize it later when returning to homepage
       const { default: sliderManager } = await import('./modules/slider-manager.js');
       if (sliderManager && typeof sliderManager.destroy === 'function') {
         sliderManager.destroy();
-        console.log('✅ Slider manager destroyed - event listeners removed');
+        console.log('✅ Slider manager destroyed - event listeners removed (will reinit when returning to homepage)');
       }
       
       // 6b. Kill all GSAP animations on homepage elements
@@ -1940,6 +1941,18 @@ async function startNewRun(boardId: number): Promise<void> {
         gameState.set('sliderLocked', false);
       }
       
+      // 🔥 CRITICAL FIX: Reinitialize slider manager BEFORE using it
+      // Slider was destroyed during cleanup - must reinit for navigation to work
+      try {
+        if (sliderManager && typeof sliderManager.init === 'function') {
+          console.log('🔧 Reinitializing slider manager for homepage return...');
+          sliderManager.init();
+          console.log('✅ Slider manager reinitialized - navigation should work');
+        }
+      } catch (sliderError) {
+        console.warn('⚠️ Failed to reinitialize slider manager:', sliderError);
+      }
+      
       // Show navigation and homepage for homepage slider
       uiManager.showNavigation();
       uiManager.showHomepageQuietly();
@@ -2027,10 +2040,21 @@ async function startNewRun(boardId: number): Promise<void> {
       const slides = document.querySelectorAll('.slider-slide');
       const navButtons = document.querySelectorAll('.independent-nav-button');
       
+      // 🔥 CRITICAL FIX: Ensure slider is fully ready before using it
+      // ensureReady() will reinitialize if needed and ensure all elements are interactive
+      if (sliderManager && typeof sliderManager.ensureReady === 'function') {
+        try {
+          console.log('🔧 Calling sliderManager.ensureReady() for homepage return...');
+          sliderManager.ensureReady();
+          console.log('✅ SliderManager.ensureReady() completed');
+        } catch (error) {
+          console.warn('⚠️ Error calling ensureReady:', error);
+        }
+      }
+      
       // 🔥 NEW API: Use setSlideInstant() to atomically update ALL states
       // This replaces manual GSAP positioning + class manipulation
-      // 🔥 CRITICAL FIX: Check if sliderManager is initialized before calling setSlideInstant
-      if (sliderManager && typeof sliderManager.setSlideInstant === 'function' && sliderManager.isInitialized) {
+      if (sliderManager && typeof sliderManager.setSlideInstant === 'function') {
         try {
           sliderManager.setSlideInstant(targetSlide);
           console.log(`✅ Slider positioned at slide ${targetSlide} using setSlideInstant (atomic)`);

@@ -783,8 +783,8 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       // This prevents busyEnding from staying stuck and blocking future fail screens
       logger.error('❌ board-fail-modal: Catastrophic error in promise body - force resolving', outerError);
       _isModalOpen = false;
-      clearAllFailModalTimeouts();
-      clearAllFailModalAnimationFrames();
+      clearAllFailTimeouts();  // 🔥 FIX: Correct function name (was clearAllFailModalTimeouts)
+      clearAllFailAnimationFrames();  // 🔥 FIX: Correct function name (was clearAllFailModalAnimationFrames)
       resolve({ action: 'menu' }); // Default action on error
     }
   });

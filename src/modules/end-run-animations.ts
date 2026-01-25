@@ -1,6 +1,45 @@
 // end-run-animations.ts
 // Animations for end run modal
 
+// 🔥 FIX: Track timeouts and animations for cleanup
+const activeEndRunTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
+const activeEndRunAnimations: Set<Animation> = new Set();
+
+function trackEndRunTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
+  const timeout = setTimeout(() => {
+    activeEndRunTimeouts.delete(timeout);
+    callback();
+  }, delay);
+  activeEndRunTimeouts.add(timeout);
+  return timeout;
+}
+
+function trackEndRunAnimation(animation: Animation): Animation {
+  activeEndRunAnimations.add(animation);
+  animation.onfinish = () => {
+    activeEndRunAnimations.delete(animation);
+  };
+  return animation;
+}
+
+/**
+ * Cleanup all end run animation timeouts and animations
+ */
+export function cleanupEndRunAnimations(): void {
+  // Clear all tracked timeouts
+  activeEndRunTimeouts.forEach(timeout => {
+    try { clearTimeout(timeout); } catch {}
+  });
+  activeEndRunTimeouts.clear();
+  
+  // Cancel all tracked animations
+  activeEndRunAnimations.forEach(animation => {
+    try { animation.cancel(); } catch {}
+  });
+  activeEndRunAnimations.clear();
+  
+  console.log('✅ End run animations cleaned up');
+}
 
 // Animation options
 interface AnimationOptions {
@@ -39,7 +78,7 @@ export function showModalAnimation(modal: HTMLElement, options: AnimationOptions
       content.style.transform = 'scale(1)';
     }
     
-    setTimeout(() => {
+    trackEndRunTimeout(() => {
       modal.classList.add('show');
       resolve();
     }, duration);
@@ -63,7 +102,7 @@ export function hideModalAnimation(modal: HTMLElement, options: AnimationOptions
       content.style.transform = 'scale(0.8)';
     }
     
-    setTimeout(() => {
+    trackEndRunTimeout(() => {
       modal.style.display = 'none';
       modal.classList.remove('show');
       resolve();
@@ -93,8 +132,11 @@ export function bounceButtonAnimation(button: HTMLElement, options: AnimationOpt
       easing,
       fill: 'forwards'
     });
+    trackEndRunAnimation(animation);
     
+    const originalOnfinish = animation.onfinish;
     animation.onfinish = () => {
+      activeEndRunAnimations.delete(animation);
       button.style.transform = originalTransform;
       resolve();
     };
@@ -136,8 +178,10 @@ export function shakeModalAnimation(modal: HTMLElement, options: AnimationOption
       easing,
       fill: 'forwards'
     });
+    trackEndRunAnimation(animation);
     
     animation.onfinish = () => {
+      activeEndRunAnimations.delete(animation);
       content.style.transform = originalTransform;
       resolve();
     };
@@ -166,8 +210,10 @@ export function pulseScoreAnimation(scoreElement: HTMLElement, options: Animatio
       iterations: 2,
       fill: 'forwards'
     });
+    trackEndRunAnimation(animation);
     
     animation.onfinish = () => {
+      activeEndRunAnimations.delete(animation);
       scoreElement.style.transform = originalTransform;
       resolve();
     };
@@ -184,10 +230,10 @@ export function fadeInAnimation(element: HTMLElement, options: AnimationOptions 
     element.style.opacity = '0';
     element.style.transition = `opacity ${duration}ms ${easing}`;
     
-    setTimeout(() => {
+    trackEndRunTimeout(() => {
       element.style.opacity = '1';
       
-      setTimeout(() => {
+      trackEndRunTimeout(() => {
         resolve();
       }, duration);
     }, delay);
@@ -204,7 +250,7 @@ export function fadeOutAnimation(element: HTMLElement, options: AnimationOptions
     element.style.transition = `opacity ${duration}ms ${easing}`;
     element.style.opacity = '0';
     
-    setTimeout(() => {
+    trackEndRunTimeout(() => {
       resolve();
     }, duration);
   });
@@ -227,7 +273,7 @@ export function slideUpAnimation(element: HTMLElement, options: AnimationOptions
     element.style.transform = 'translateY(0)';
     element.style.opacity = '1';
     
-    setTimeout(() => {
+    trackEndRunTimeout(() => {
       resolve();
     }, duration);
   });
@@ -244,7 +290,7 @@ export function slideDownAnimation(element: HTMLElement, options: AnimationOptio
     element.style.transform = 'translateY(20px)';
     element.style.opacity = '0';
     
-    setTimeout(() => {
+    trackEndRunTimeout(() => {
       resolve();
     }, duration);
   });
@@ -267,7 +313,7 @@ export function scaleInAnimation(element: HTMLElement, options: AnimationOptions
     element.style.transform = 'scale(1)';
     element.style.opacity = '1';
     
-    setTimeout(() => {
+    trackEndRunTimeout(() => {
       resolve();
     }, duration);
   });
@@ -284,7 +330,7 @@ export function scaleOutAnimation(element: HTMLElement, options: AnimationOption
     element.style.transform = 'scale(0.8)';
     element.style.opacity = '0';
     
-    setTimeout(() => {
+    trackEndRunTimeout(() => {
       resolve();
     }, duration);
   });
@@ -308,7 +354,7 @@ export function staggerAnimation(
     }
     
     elements.forEach((element, index) => {
-      setTimeout(() => {
+      trackEndRunTimeout(() => {
         animationFn(element).then(() => {
           completed++;
           if (completed === total) {

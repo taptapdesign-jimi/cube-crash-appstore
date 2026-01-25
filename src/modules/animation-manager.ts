@@ -38,12 +38,29 @@ type SlideDirection = 'up' | 'down' | 'left' | 'right';
 class AnimationManager {
   private animations: Map<string, gsap.core.Tween>;
   private timelines: Map<string, gsap.core.Timeline>;
+  private activeTweens: Set<gsap.core.Tween>; // 🔥 FIX: Track all active tweens for cleanup
   private isInitialized: boolean;
+  private tweenCounter: number; // For generating unique IDs
 
   constructor() {
     this.animations = new Map();
     this.timelines = new Map();
+    this.activeTweens = new Set(); // 🔥 FIX: Track all active tweens
     this.isInitialized = false;
+    this.tweenCounter = 0;
+  }
+  
+  // 🔥 FIX: Track a tween and auto-remove when complete
+  private trackTween(tween: gsap.core.Tween): gsap.core.Tween {
+    this.activeTweens.add(tween);
+    const originalOnComplete = tween.eventCallback('onComplete');
+    tween.eventCallback('onComplete', () => {
+      this.activeTweens.delete(tween);
+      if (typeof originalOnComplete === 'function') {
+        originalOnComplete.call(tween);
+      }
+    });
+    return tween;
   }
   
   // Initialize animation manager
@@ -71,7 +88,7 @@ class AnimationManager {
       onComplete
     } = options;
     
-    return gsap.fromTo(element, 
+    const tween = gsap.fromTo(element, 
       { opacity: 0 },
       {
         opacity: 1,
@@ -81,6 +98,7 @@ class AnimationManager {
         onComplete
       }
     );
+    return this.trackTween(tween);
   }
   
   // Fade out element
@@ -94,13 +112,14 @@ class AnimationManager {
       onComplete
     } = options;
     
-    return gsap.to(element, {
+    const tween = gsap.to(element, {
       opacity: 0,
       duration,
       delay,
       ease,
       onComplete
     });
+    return this.trackTween(tween);
   }
   
   // Scale in element
@@ -115,7 +134,7 @@ class AnimationManager {
       onComplete
     } = options;
     
-    return gsap.fromTo(element,
+    const tween = gsap.fromTo(element,
       { scale: 0, opacity: 0 },
       {
         scale,
@@ -126,6 +145,7 @@ class AnimationManager {
         onComplete
       }
     );
+    return this.trackTween(tween);
   }
   
   // Scale out element
@@ -140,7 +160,7 @@ class AnimationManager {
       onComplete
     } = options;
     
-    return gsap.to(element, {
+    const tween = gsap.to(element, {
       scale,
       opacity: 0,
       duration,
@@ -148,6 +168,7 @@ class AnimationManager {
       ease,
       onComplete
     });
+    return this.trackTween(tween);
   }
   
   // Slide in from direction
@@ -171,7 +192,7 @@ class AnimationManager {
     
     const { x, y } = directions[direction] || directions.up;
     
-    return gsap.fromTo(element,
+    const tween = gsap.fromTo(element,
       { x, y, opacity: 0 },
       {
         x: 0,
@@ -183,6 +204,7 @@ class AnimationManager {
         onComplete
       }
     );
+    return this.trackTween(tween);
   }
   
   // Slide out to direction
@@ -206,7 +228,7 @@ class AnimationManager {
     
     const { x, y } = directions[direction] || directions.up;
     
-    return gsap.to(element, {
+    const tween = gsap.to(element, {
       x,
       y,
       opacity: 0,
@@ -215,6 +237,7 @@ class AnimationManager {
       ease,
       onComplete
     });
+    return this.trackTween(tween);
   }
   
   // Bounce animation
@@ -228,7 +251,7 @@ class AnimationManager {
       onComplete
     } = options;
     
-    return gsap.to(element, {
+    const tween = gsap.to(element, {
       scale,
       duration: duration * 0.5,
       delay,
@@ -237,6 +260,7 @@ class AnimationManager {
       ease: "power2.out",
       onComplete
     });
+    return this.trackTween(tween);
   }
   
   // Shake animation
@@ -250,7 +274,7 @@ class AnimationManager {
       onComplete
     } = options;
     
-    return gsap.to(element, {
+    const tween = gsap.to(element, {
       x: `+=${intensity}`,
       duration: duration * 0.1,
       delay,
@@ -259,9 +283,10 @@ class AnimationManager {
       ease: "power2.inOut",
       onComplete
     });
+    return this.trackTween(tween);
   }
   
-  // Pulse animation
+  // Pulse animation (infinite - MUST be stopped manually or via killAll)
   pulse(element: HTMLElement | null, options: PulseOptions = {}): gsap.core.Tween | undefined {
     if (!element) return;
     
@@ -272,7 +297,7 @@ class AnimationManager {
       onComplete
     } = options;
     
-    return gsap.to(element, {
+    const tween = gsap.to(element, {
       scale,
       duration: duration * 0.5,
       delay,
@@ -281,6 +306,9 @@ class AnimationManager {
       ease: "power2.inOut",
       onComplete
     });
+    // 🔥 FIX: Track infinite tween - CRITICAL for cleanup
+    this.activeTweens.add(tween);
+    return tween;
   }
   
   // Create timeline
@@ -306,10 +334,19 @@ class AnimationManager {
   
   // Kill all animations
   killAll(): void {
+    // Kill named animations
     this.animations.forEach(animation => animation.kill());
     this.timelines.forEach(timeline => timeline.kill());
     this.animations.clear();
     this.timelines.clear();
+    
+    // 🔥 FIX: Kill all tracked active tweens
+    this.activeTweens.forEach(tween => {
+      try { tween.kill(); } catch {}
+    });
+    this.activeTweens.clear();
+    
+    logger.info('✅ All animations killed');
   }
   
   // Pause all animations

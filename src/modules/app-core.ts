@@ -20,6 +20,8 @@ import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
 // import { showStarsModal } from './stars-modal.js';
 import { runEndgameFlow } from './endgame-flow.js';
+import { heartsSystem } from './hearts-system.ts';
+import { cleanupAllHeartsResources } from './hearts-bottom-sheet.ts';
 import FX from './fx-helpers.ts';
 import * as SPAWN from './spawn-helpers.ts';
 import * as HUD   from './hud-helpers.ts';
@@ -8400,6 +8402,15 @@ export function cleanupGame() {
     }
   } catch (e) {
     console.warn('⚠️ Failed to cleanup wild beer explosion:', e);
+  }
+  
+  // 🔥 FIX: Cleanup hearts system (timer and resources)
+  try {
+    heartsSystem.cleanup();
+    cleanupAllHeartsResources();
+    console.log('✅ Hearts system cleaned up in cleanupGame()');
+  } catch (e) {
+    console.warn('⚠️ Failed to cleanup hearts system:', e);
   }
   
   if (grid) {

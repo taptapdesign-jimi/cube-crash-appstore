@@ -7,6 +7,21 @@ import { gsap } from 'gsap';
 import { MERGE_CHAIN, ANIMATION, EASING } from './board-constants.js';
 import { logger } from '../core/logger.js';
 
+// 🔥 FIX: Track active chain animations for cleanup
+const activeMergeChainTweens: gsap.core.Tween[] = [];
+
+function trackTween(tween: gsap.core.Tween): gsap.core.Tween {
+  activeMergeChainTweens.push(tween);
+  return tween;
+}
+
+function killAllChainTweens(): void {
+  activeMergeChainTweens.forEach(tween => {
+    try { tween.kill(); } catch {}
+  });
+  activeMergeChainTweens.length = 0;
+}
+
 // Type definitions
 interface Tile extends Container {
   value: number;
@@ -169,6 +184,9 @@ export function isTileInMergeChain(tile: Tile): boolean {
  * Clear merge chain
  */
 export function clearMergeChain(): void {
+  // 🔥 FIX: Kill all active chain animations first
+  killAllChainTweens();
+  
   mergeChainState.isActive = false;
   mergeChainState.value = 0;
   mergeChainState.count = 0;
@@ -186,7 +204,8 @@ function animateTileChainAddition(tile: Tile): void {
   
   // Highlight tile
   if (tile.bg) {
-    gsap.fromTo(tile.bg, 
+    // 🔥 FIX: Track animation for cleanup
+    trackTween(gsap.fromTo(tile.bg, 
       { tint: 0xFFFFFF },
       { 
         tint: 0x00FF00,
@@ -195,11 +214,12 @@ function animateTileChainAddition(tile: Tile): void {
         yoyo: true,
         repeat: 1
       }
-    );
+    ));
   }
   
   // Scale animation
-  gsap.fromTo(tile, 
+  // 🔥 FIX: Track animation for cleanup
+  trackTween(gsap.fromTo(tile, 
     { scaleX: 1, scaleY: 1 },
     { 
       scaleX: 1.1,
@@ -209,7 +229,7 @@ function animateTileChainAddition(tile: Tile): void {
       yoyo: true,
       repeat: 1
     }
-  );
+  ));
 }
 
 /**
@@ -220,20 +240,22 @@ function animateTileChainRemoval(tile: Tile): void {
   
   // Fade out highlight
   if (tile.bg) {
-    gsap.to(tile.bg, {
+    // 🔥 FIX: Track animation for cleanup
+    trackTween(gsap.to(tile.bg, {
       tint: 0xFFFFFF,
       duration: ANIMATION.TILE_MERGE_DURATION / 2,
       ease: EASING.TILE_MERGE
-    });
+    }));
   }
   
   // Scale back to normal
-  gsap.to(tile, {
+  // 🔥 FIX: Track animation for cleanup
+  trackTween(gsap.to(tile, {
     scaleX: 1,
     scaleY: 1,
     duration: ANIMATION.TILE_MERGE_DURATION / 2,
     ease: EASING.TILE_MERGE
-  });
+  }));
 }
 
 /**
@@ -245,7 +267,8 @@ export function animateMergeChainCompletion(): void {
   // Animate all tiles in chain
   mergeChainState.tiles.forEach((tile, index) => {
     if (tile) {
-      gsap.fromTo(tile, 
+      // 🔥 FIX: Track animation for cleanup
+      trackTween(gsap.fromTo(tile, 
         { scaleX: 1, scaleY: 1 },
         { 
           scaleX: 1.3,
@@ -256,7 +279,7 @@ export function animateMergeChainCompletion(): void {
           yoyo: true,
           repeat: 1
         }
-      );
+      ));
     }
   });
   

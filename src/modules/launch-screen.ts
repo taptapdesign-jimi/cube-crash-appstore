@@ -17,6 +17,8 @@ interface LaunchScreenElements {
 class LaunchScreen {
   private elements: LaunchScreenElements;
   private isActive: boolean = false;
+  // 🔥 FIX: Track event listener cleanup functions
+  private eventCleanups: Array<() => void> = [];
   
   // Public getter for isActive
   get active(): boolean {
@@ -556,6 +558,12 @@ class LaunchScreen {
    * Remove launch screen from DOM
    */
   remove(): void {
+    // 🔥 FIX: Remove all event listeners first
+    this.eventCleanups.forEach(cleanup => {
+      try { cleanup(); } catch {}
+    });
+    this.eventCleanups = [];
+    
     // 🔥 FIX: Kill GSAP animations on all launch screen elements to prevent memory leaks
     const elementsToKill = [
       this.elements.container,
@@ -684,15 +692,30 @@ class LaunchScreen {
     img.style.webkitTouchCallout = 'none';
     
     // Prevent drag and context menu events
-    img.addEventListener('dragstart', (e) => e.preventDefault());
-    img.addEventListener('contextmenu', (e) => e.preventDefault());
-    img.addEventListener('selectstart', (e) => e.preventDefault());
-    img.addEventListener('touchstart', (e) => {
-      // Prevent long press on touch devices
-      if (e.touches.length > 1) {
-        e.preventDefault();
+    // 🔥 FIX: Store handlers for cleanup
+    const handlers = {
+      dragstart: (e: Event) => e.preventDefault(),
+      contextmenu: (e: Event) => e.preventDefault(),
+      selectstart: (e: Event) => e.preventDefault(),
+      touchstart: (e: TouchEvent) => {
+        if (e.touches.length > 1) {
+          e.preventDefault();
+        }
       }
-    }, { passive: false });
+    };
+    
+    img.addEventListener('dragstart', handlers.dragstart);
+    img.addEventListener('contextmenu', handlers.contextmenu);
+    img.addEventListener('selectstart', handlers.selectstart);
+    img.addEventListener('touchstart', handlers.touchstart, { passive: false });
+    
+    // Store cleanup function
+    this.eventCleanups.push(() => {
+      img.removeEventListener('dragstart', handlers.dragstart);
+      img.removeEventListener('contextmenu', handlers.contextmenu);
+      img.removeEventListener('selectstart', handlers.selectstart);
+      img.removeEventListener('touchstart', handlers.touchstart);
+    });
   }
 
   /**

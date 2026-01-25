@@ -183,7 +183,8 @@ class UIManager {
   
   // Setup event listeners
   // 🔥 Helper method to reattach homepage button listeners (called after cleanup)
-  private reattachHomepageButtonListeners(): void {
+  // 🔥 Made PUBLIC so it can be called from collectibles-manager when returning to homepage
+  public reattachHomepageButtonListeners(): void {
     // Also refresh element references to ensure we're using the latest DOM elements
     try {
       // Refresh element references
@@ -690,6 +691,15 @@ class UIManager {
             combo: 0
           });
           
+          // 🔥 CRITICAL FIX: Reset gamePaused flag to ensure dragging works
+          try {
+            const { container } = await import('../core/dependency-injection.js');
+            if (container && typeof container.set === 'function') {
+              container.set('gamePaused', false);
+            }
+          } catch (e) { /* ignore */ }
+          (window as any)._gamePaused = false;
+          
           await bootGame();
           await layoutGame();
           
@@ -721,7 +731,17 @@ class UIManager {
         level: 1,
         combo: 0
       });
-      console.log('✅ Game state set');
+      
+      // 🔥 CRITICAL FIX: Reset gamePaused flag to ensure dragging works
+      try {
+        const { container } = await import('../core/dependency-injection.js');
+        if (container && typeof container.set === 'function') {
+          container.set('gamePaused', false);
+        }
+      } catch (e) { /* ignore */ }
+      (window as any)._gamePaused = false;
+      
+      console.log('✅ Game state set (gamePaused reset)');
       
       // Start game
       console.log('🎯 Starting game boot...');
@@ -1110,11 +1130,35 @@ class UIManager {
       navElement.style.removeProperty('display');
       navElement.style.removeProperty('visibility');
       navElement.style.removeProperty('opacity');
-      navElement.style.display = 'block';
+      navElement.style.removeProperty('pointer-events');
+      navElement.style.removeProperty('z-index');
+      // 🔥 CRITICAL: Explicitly make visible and on top
+      navElement.style.display = 'flex';
       navElement.style.visibility = 'visible';
       navElement.style.opacity = '1';
+      navElement.style.pointerEvents = 'auto';
+      navElement.style.zIndex = '100';
       navElement.setAttribute('aria-hidden', 'false');
-      logger.info('✅ Navigation shown');
+      navElement.removeAttribute('hidden');
+      logger.info('✅ Navigation container shown');
+      
+      // 🔥 CRITICAL: Also show all navigation buttons inside
+      const navButtons = navElement.querySelectorAll('.independent-nav-button');
+      navButtons.forEach((button) => {
+        const btn = button as HTMLElement;
+        btn.style.removeProperty('display');
+        btn.style.removeProperty('visibility');
+        btn.style.removeProperty('opacity');
+        btn.style.removeProperty('pointer-events');
+        btn.style.display = 'flex';
+        btn.style.visibility = 'visible';
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+        btn.style.cursor = 'pointer';
+      });
+      if (navButtons.length > 0) {
+        logger.info(`✅ ${navButtons.length} navigation buttons shown`);
+      }
     }
   }
   
