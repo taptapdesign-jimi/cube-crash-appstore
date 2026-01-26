@@ -2,7 +2,7 @@
 import { logger } from '../core/logger.js';
 // 🔥 REMOVED: startHeroImageParticles, stopHeroImageParticles - feature no longer needed
 
-export type ScreenType = 'loading' | 'home' | 'game' | 'stats' | 'collectibles' | 'menu' | 'settings';
+export type ScreenType = 'loading' | 'home' | 'game' | 'collectibles' | 'menu' | 'settings';
 
 class AppManager {
   private currentScreen: ScreenType = 'loading';
@@ -15,7 +15,7 @@ class AppManager {
 
   private cacheElements(): void {
     // Cache all screen elements
-    const screens: ScreenType[] = ['loading', 'home', 'game', 'stats', 'collectibles', 'menu'];
+    const screens: ScreenType[] = ['loading', 'home', 'game', 'collectibles', 'menu'];
     
     screens.forEach(screen => {
       const element = document.getElementById(this.getScreenId(screen));
@@ -30,8 +30,7 @@ class AppManager {
       'loading': 'loading-screen',
       'home': 'home',
       'game': 'app',
-      'stats': 'stats-screen',
-      'collectibles': 'journey-screen', // 🔥 FIX: Updated to journey-screen (renamed from collectibles-screen)
+      'collectibles': 'journey-screen',
       'menu': 'menu-screen',
       'settings': 'settings-screen'
     };
@@ -64,12 +63,7 @@ class AppManager {
       element.hidden = false;
       element.style.display = 'block';
       
-      // 🎬 For stats screen, skip fade-in and use GSAP animations instead
-      if (screen === 'stats') {
-        // Set opacity to 1 immediately (no transition) so GSAP can control individual elements
-        element.style.opacity = '1';
-        element.style.transition = 'none';
-      } else if (screen === 'home') {
+      if (screen === 'home') {
         // Homepage - set opacity immediately (no fade-in needed)
         element.style.opacity = '1';
         element.style.visibility = 'visible';
@@ -89,49 +83,7 @@ class AppManager {
       // Mark as loaded
       this.loadedScreens.add(screen);
       
-      // Update stats values when showing stats screen
-      if (screen === 'stats') {
-        // Update immediately - no delay
-        try {
-          // 🔥 CRITICAL FIX: Wrap in try-catch to prevent crash from propagating
-          // This prevents error handler from triggering loading screen reload
-          const { updateStatsValues } = await import('./components/stats-screen.js');
-          console.log('📊 About to call updateStatsValues()...');
-          
-          // 🔥 CRITICAL: Check if statsService is available before calling updateStatsValues
-          try {
-            updateStatsValues();
-            console.log('✅ updateStatsValues() called successfully');
-          } catch (statsError) {
-            console.error('❌ Error in updateStatsValues:', statsError);
-            logger.warn('⚠️ Error in updateStatsValues, continuing without update:', statsError);
-            // Don't throw - continue with animation even if stats update fails
-          }
-          
-          // 🎬 Trigger stats screen enter animation (pop-in) using GSAP
-          console.log('🎬 About to import stats-animations.js...');
-          const { animateStatsScreenEnter } = await import('./stats-animations.js');
-          console.log('✅ stats-animations.js imported successfully');
-          // Longer delay to ensure DOM is fully ready and elements are visible
-          setTimeout(() => {
-            console.log('🎬 Calling animateStatsScreenEnter() after 200ms delay...');
-            console.log('🔍 Stats screen element:', document.getElementById('stats-screen'));
-            console.log('🔍 Stat items:', document.querySelectorAll('.stat-item').length);
-            try {
-              animateStatsScreenEnter();
-            } catch (animError) {
-              console.error('❌ Error in animateStatsScreenEnter:', animError);
-              logger.warn('⚠️ Error in animateStatsScreenEnter, continuing:', animError);
-              // Don't throw - stats screen should still be visible even if animation fails
-            }
-          }, 200);
-        } catch (error) {
-          console.error('❌ Failed to import stats modules:', error);
-          logger.warn('⚠️ Failed to import stats modules:', error);
-          // 🔥 CRITICAL: Don't throw error - stats screen should still be shown even if update fails
-          // This prevents error handler from triggering loading screen reload
-        }
-      } else if (screen === 'collectibles') {
+      if (screen === 'collectibles') {
         // 🔥 CRITICAL FIX: Add error handling for Journey screen initialization
         try {
           // Initialize Journey screen if needed
@@ -231,49 +183,7 @@ class AppManager {
     if (element && !element.hidden) {
       // 🔥 MEMORY LEAK FIX: Cleanup screen-specific resources before hiding
       
-      // 🎬 For stats screen, use GSAP exit animation instead of fade-out
-      if (screen === 'stats') {
-        // 🔥 MEMORY LEAK FIX: Cleanup stats subscription and animations
-        try {
-          const statsScreenModule = await import('./components/stats-screen.js');
-          if (statsScreenModule.cleanupStatsSubscription) {
-            statsScreenModule.cleanupStatsSubscription();
-            logger.info('🧹 Stats subscription cleaned up');
-          }
-          if (statsScreenModule.cleanupStatsAnimations) {
-            statsScreenModule.cleanupStatsAnimations();
-            logger.info('🧹 Stats animations cleaned up');
-          }
-        } catch (error) {
-          logger.warn('⚠️ Failed to cleanup stats subscription/animations:', error);
-        }
-        
-        // 🔥 MEMORY LEAK FIX: Kill all GSAP animations on stats screen
-        try {
-          const gsap = (window as any).gsap || require('gsap');
-          const statsScreen = document.getElementById('stats-screen');
-          if (statsScreen && gsap) {
-            gsap.killTweensOf(statsScreen.querySelectorAll('*'));
-            logger.info('🧹 Stats screen GSAP animations killed');
-          }
-        } catch (error) {
-          logger.warn('⚠️ Failed to cleanup stats GSAP animations:', error);
-        }
-        
-        try {
-          import('./stats-animations.js').then(({ animateStatsScreenExit }) => {
-            animateStatsScreenExit();
-          });
-        } catch (error) {
-          logger.warn('⚠️ Failed to trigger stats exit animation:', error);
-        }
-        
-        // Hide after GSAP animation completes (500ms animation + 100ms buffer)
-        setTimeout(() => {
-          element.hidden = true;
-          element.style.display = 'none';
-        }, 600);
-      } else if (screen === 'collectibles') {
+      if (screen === 'collectibles') {
         // 🔥 MEMORY LEAK FIX: Cleanup collectibles event listeners
         try {
           // CollectiblesManager uses singleton pattern, instance is on window.collectiblesManager

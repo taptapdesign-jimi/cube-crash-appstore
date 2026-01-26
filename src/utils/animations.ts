@@ -164,6 +164,15 @@ let cachedElements: {
   independentNav?: HTMLElement | null;
 } = {};
 
+// 🔥 NUCLEAR: Reset all animation flags without full cleanup
+// This is a fast synchronous function that can be called to unblock animations
+export const resetAnimationFlags = (): void => {
+  isAnimatingExit = false;
+  isAnimatingEnter = false;
+  sliderState.reset();
+  logger.info('✅ Animation flags reset (isAnimatingExit, isAnimatingEnter, sliderState)');
+};
+
 // Cleanup function to cancel all pending animations
 export const cleanupAnimations = (): void => {
   logger.info('🧹 Cleaning up all animation timeouts...');
@@ -626,18 +635,15 @@ function startExitAnimationSequenceLegacy(): void {
   }
 };
 
-// Stats screen enter animation - REMOVED - no animations on stats screen
-export const animateStatsScreenEnter = (): void => {
-  logger.info('📊 Stats screen enter - animations disabled');
-};
-
-// Stats screen exit animation - REMOVED - no animations on stats screen
-export const animateStatsScreenExit = (): void => {
-  logger.info('📊 Stats screen exit - animations disabled');
-};
-
 // Animate slider enter when returning to home - CARTOONISH PROCEDURAL ENTER (SCALE ONLY, NO OPACITY)
 export const animateSliderEnter = (): void => {
+  // 🔥 FIX: Sync local flag with sliderState - if sliderState says not animating,
+  // reset local flag (forceReady() might have reset sliderState but not local flag)
+  if (!sliderState.isAnimatingEnter && isAnimatingEnter) {
+    logger.info('🔄 Syncing local isAnimatingEnter flag with sliderState (was stuck true)');
+    isAnimatingEnter = false;
+  }
+  
   // 🔥 FIX: Check guard flag before try block to avoid early return issues
   if (isAnimatingEnter) {
     logger.warn('⚠️ Enter animation already in progress, ignoring duplicate call');

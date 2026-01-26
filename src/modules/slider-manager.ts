@@ -7,13 +7,13 @@ import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
 import { SLIDER_ANIMATION, SLIDER_CONFIG } from '../constants/animations.js';
 import { sliderState } from './slider-state.js';
+import { resetAnimationFlags } from '../utils/animations.js';
 
 // Type definitions
 interface SliderElements {
   container: HTMLElement | null;
   wrapper: HTMLElement | null;
   slides: NodeListOf<Element> | null;  // 🔥 FIX: Allow null to prevent empty object hack
-  dots: NodeListOf<Element> | null;    // 🔥 FIX: Allow null to prevent empty object hack
   divider: Element | null;
 }
 
@@ -35,7 +35,6 @@ class SliderManager {
     container: null,
     wrapper: null,
     slides: null,  // 🔥 FIX: Use null instead of empty object hack
-    dots: null,    // 🔥 FIX: Use null instead of empty object hack
     divider: null
   };
   
@@ -56,7 +55,6 @@ class SliderManager {
     mouseDown?: (e: SliderMouseEvent) => void;
     mouseMove?: (e: SliderMouseEvent) => void;
     mouseUp?: (e: SliderMouseEvent) => void;
-    dotClick?: Map<Element, (e: Event) => void>;
     navButtonClick?: Map<Element, (e: Event) => void>;
   } = {};
   private unsubscribeFunctions: (() => void)[] = [];
@@ -74,7 +72,6 @@ class SliderManager {
       container: null,
       wrapper: null,
       slides: null,  // 🔥 FIX: Use null instead of empty object hack
-      dots: null,    // 🔥 FIX: Use null instead of empty object hack
       divider: null
     };
   }
@@ -93,7 +90,6 @@ class SliderManager {
         container: document.getElementById('slider-container'),
         wrapper: document.getElementById('slider-wrapper'),
         slides: document.querySelectorAll('.slider-slide'),
-        dots: document.querySelectorAll('.slider-dot'),
         divider: document.querySelector('.slider-nav-divider')
       };
       
@@ -120,6 +116,17 @@ class SliderManager {
       
       this.isInitialized = true;
       logger.info('✅ Slider Manager initialized');
+      
+      // 🔥 DEBUG: Log complete state after initialization
+      console.log('📊 SLIDER INIT COMPLETE:', {
+        isInitialized: this.isInitialized,
+        sliderLocked: gameState.get('sliderLocked'),
+        isAnimatingEnter: sliderState.isAnimatingEnter,
+        isAnimatingExit: sliderState.isAnimatingExit,
+        containerExists: !!this.elements.container,
+        containerPointerEvents: this.elements.container?.style.pointerEvents || 'not set',
+        hasEventHandlers: !!this.boundHandlers.touchStart && !!this.boundHandlers.mouseDown
+      });
       
     } catch (error) {
       logger.error('❌ Failed to initialize Slider Manager:', String(error));
@@ -151,21 +158,11 @@ class SliderManager {
       this.elements.container.addEventListener('mouseleave', this.boundHandlers.mouseUp);
     }
     
-    // Navigation dots - 🔥 FIX: Simple null check
-    this.boundHandlers.dotClick = new Map();
-    if (this.elements.dots && this.elements.dots.length > 0) {
-      this.elements.dots.forEach((dot, index) => {
-        const handler = () => {
-          // Light haptic for nav dots
-          if (typeof (window as any).triggerHapticImpact === 'function') {
-            (window as any).triggerHapticImpact('light');
-          }
-          this.goToSlide(index);
-        };
-        this.boundHandlers.dotClick!.set(dot, handler);
-        dot.addEventListener('click', handler);
-      });
-    }
+    // 🔥 SWIPE FIX: Re-enable global swipe detection for Journey screen horizontal swipes
+    // The CSS pointer-events approach alone doesn't work because .collectibles-scrollable
+    // has pointer-events: auto for vertical scrolling, which blocks horizontal swipes.
+    // Global swipe detection intercepts horizontal gestures and triggers slider transitions.
+    this.setupGlobalSwipeDetection();
     
     // Independent navigation buttons
     this.boundHandlers.navButtonClick = new Map();
@@ -181,6 +178,219 @@ class SliderManager {
       this.boundHandlers.navButtonClick!.set(button, handler);
       button.addEventListener('click', handler);
     });
+  }
+  
+  // 🔥 FIX: Setup global swipe detection to allow horizontal swipes through overlays like journey-screen
+  private globalSwipeState = {
+    isTracking: false,
+    startX: 0,
+    startY: 0,
+    isHorizontalSwipe: false,
+    journeyScreenDisabled: false
+  };
+  
+  private setupGlobalSwipeDetection(): void {
+    // Listen at document level to intercept events before journey-screen
+    // 🔥 FIX: Instead of dispatching synthetic events (which have wrong positions),
+    // directly manipulate slider's internal state for reliable horizontal swipe handling
+    
+    // 🔥 BUTTON FIX: Check if touch started on an interactive element that should NOT trigger swipes
+    const isInteractiveElement = (target: EventTarget | null): boolean => {
+      if (!target || !(target instanceof Element)) return false;
+      
+      const element = target as Element;
+      
+      // Check the element and its ancestors for interactive elements
+      let current: Element | null = element;
+      while (current) {
+        // Check tag names
+        const tagName = current.tagName.toLowerCase();
+        if (tagName === 'button' || tagName === 'a' || tagName === 'input' || tagName === 'select' || tagName === 'textarea') {
+          return true;
+        }
+        
+        // Check common interactive class names and IDs
+        // Note: SVGAnimatedString requires special handling
+        const className = typeof current.className === 'string' 
+          ? current.className 
+          : ((current.className as any)?.baseVal || current.getAttribute('class') || '');
+        const id = current.id || '';
+        
+        // Navigation buttons and icons
+        if (className.includes('independent-nav') || className.includes('nav-button') || className.includes('nav-icon')) {
+          return true;
+        }
+        if (id.includes('independent-nav') || id.includes('nav-')) {
+          return true;
+        }
+        
+        // CTA buttons, play buttons, action buttons, slide buttons
+        if (className.includes('cta') || className.includes('play-button') || className.includes('action-button') || 
+            className.includes('slide-button') || className.includes('menu-btn') || className.includes('tap-scale')) {
+          return true;
+        }
+        if (id.includes('cta') || id.includes('play-button') || id.includes('board-detail-play-button')) {
+          return true;
+        }
+        
+        // Journey cards and detail modal buttons
+        if (className.includes('journey-board-card') || className.includes('journey-floating')) {
+          return true;
+        }
+        
+        // Collectibles header (back button, title)
+        if (className.includes('collectibles-header') || className.includes('collectibles-back') || 
+            className.includes('detail-back') || className.includes('back-btn')) {
+          return true;
+        }
+        if (id === 'collectibles-back' || id === 'collectibles-title' || id === 'detail-back-btn') {
+          return true;
+        }
+        
+        // Homepage slide content (buttons, taglines)
+        if (className.includes('slide-content') || className.includes('hero-container')) {
+          // Only exclude if it's actually a button or CTA within
+          if (current.querySelector('button, .slide-button, .cta')) {
+            return true;
+          }
+        }
+        
+        // Generic interactive indicators
+        if (current.getAttribute('role') === 'button' || current.hasAttribute('onclick') || current.hasAttribute('data-clickable')) {
+          return true;
+        }
+        
+        // Check cursor style - if pointer, likely interactive
+        const style = window.getComputedStyle(current);
+        if (style.cursor === 'pointer') {
+          return true;
+        }
+        
+        current = current.parentElement;
+      }
+      
+      return false;
+    };
+    
+    const handleGlobalTouchStart = (e: TouchEvent) => {
+      if (gameState.get('sliderLocked')) return;
+      
+      const touch = e.touches[0];
+      if (!touch) return;
+      
+      // 🔥 BUTTON FIX: Don't track swipes that start on interactive elements
+      // These should be handled as clicks/taps, not swipes
+      const targetEl = e.target as Element;
+      const isInteractive = isInteractiveElement(e.target);
+      
+      // Debug log for all touches to see what's happening
+      console.log('👆 Touch start:', {
+        isInteractive,
+        tagName: targetEl?.tagName,
+        className: (typeof targetEl?.className === 'string' ? targetEl?.className : (targetEl?.className as any)?.baseVal || '').slice(0, 60),
+        id: targetEl?.id,
+        parentTag: targetEl?.parentElement?.tagName,
+        parentClass: (typeof targetEl?.parentElement?.className === 'string' ? targetEl?.parentElement?.className : '').slice(0, 40)
+      });
+      
+      if (isInteractive) {
+        console.log('🔒 Touch on interactive element - NOT tracking swipe');
+        this.globalSwipeState.isTracking = false;
+        return;
+      }
+      
+      this.globalSwipeState.isTracking = true;
+      this.globalSwipeState.startX = touch.clientX;
+      this.globalSwipeState.startY = touch.clientY;
+      this.globalSwipeState.isHorizontalSwipe = false;
+      this.globalSwipeState.journeyScreenDisabled = false;
+    };
+    
+    const handleGlobalTouchMove = (e: TouchEvent) => {
+      if (!this.globalSwipeState.isTracking || gameState.get('sliderLocked')) return;
+      
+      const touch = e.touches[0];
+      if (!touch) return;
+      
+      const deltaX = Math.abs(touch.clientX - this.globalSwipeState.startX);
+      const deltaY = Math.abs(touch.clientY - this.globalSwipeState.startY);
+      
+      // If horizontal movement is greater than vertical and exceeds threshold
+      // This is a horizontal swipe - directly control slider's internal drag state
+      // 🔥 SWIPE FIX: Do NOT set pointer-events: none on journey-screen!
+      // That breaks button clicks. Instead, just directly control the slider.
+      if (deltaX > 10 && deltaX > deltaY * 1.5 && !this.globalSwipeState.isHorizontalSwipe) {
+        this.globalSwipeState.isHorizontalSwipe = true;
+        console.log('↔️ Horizontal swipe detected - directly starting slider drag');
+        
+        // 🔥 FIX: Directly set slider's internal drag state with ORIGINAL start position
+        // This bypasses the synthetic event issue where positions were the same
+        this.isDragging = true;
+        this.startX = this.globalSwipeState.startX; // Use ORIGINAL touch start position!
+        this.currentX = touch.clientX;
+        
+        // Add dragging class
+        if (this.elements.container) {
+          this.elements.container.classList.add('dragging');
+        }
+        
+        // Immediately update slider position with correct deltaX
+        const swipeDeltaX = this.currentX - this.startX;
+        console.log('↔️ Initial swipe deltaX:', swipeDeltaX);
+        this.updateSliderPosition(swipeDeltaX);
+      }
+      
+      // 🔥 FIX: Continue updating slider position while in horizontal swipe mode
+      if (this.globalSwipeState.isHorizontalSwipe && this.isDragging) {
+        this.currentX = touch.clientX;
+        const swipeDeltaX = this.currentX - this.startX;
+        this.updateSliderPosition(swipeDeltaX);
+      }
+    };
+    
+    const handleGlobalTouchEnd = (e: TouchEvent) => {
+      // 🔥 FIX: Complete the swipe gesture by calling slider's touch end logic
+      if (this.globalSwipeState.isHorizontalSwipe && this.isDragging) {
+        this.isDragging = false;
+        const deltaX = this.currentX - this.startX;
+        
+        // Remove dragging class
+        if (this.elements.container) {
+          this.elements.container.classList.remove('dragging');
+        }
+        
+        console.log('↔️ Swipe ended with deltaX:', deltaX, 'threshold:', this.threshold);
+        
+        // Determine if slide should change (same logic as handleTouchEnd)
+        if (Math.abs(deltaX) > this.threshold) {
+          if (deltaX > 0) {
+            this.previousSlide();
+          } else {
+            this.nextSlide();
+          }
+        } else {
+          // Snap back to current slide
+          this.updateSlider();
+        }
+      }
+      
+      // 🔥 SWIPE FIX: No longer manipulating journey-screen pointer-events
+      // This was causing button clicks to break. We now only control slider's internal state.
+      
+      this.globalSwipeState.isTracking = false;
+      this.globalSwipeState.isHorizontalSwipe = false;
+      this.globalSwipeState.journeyScreenDisabled = false;
+    };
+    
+    // Store handlers for cleanup
+    (this.boundHandlers as any).globalTouchStart = handleGlobalTouchStart;
+    (this.boundHandlers as any).globalTouchMove = handleGlobalTouchMove;
+    (this.boundHandlers as any).globalTouchEnd = handleGlobalTouchEnd;
+    
+    document.addEventListener('touchstart', handleGlobalTouchStart, { capture: true, passive: true });
+    document.addEventListener('touchmove', handleGlobalTouchMove, { capture: true, passive: true });
+    document.addEventListener('touchend', handleGlobalTouchEnd, { capture: true, passive: true });
+    document.addEventListener('touchcancel', handleGlobalTouchEnd, { capture: true, passive: true });
   }
   
   // Setup state subscriptions
@@ -202,7 +412,15 @@ class SliderManager {
   
   // Handle touch start
   private handleTouchStart(event: SliderTouchEvent): void {
-    if (gameState.get('sliderLocked')) return;
+    // 🔥 DEBUG: Log every touch start to verify events are being received
+    const isLocked = gameState.get('sliderLocked');
+    const isAnimating = sliderState.isAnimatingEnter || sliderState.isAnimatingExit;
+    console.log('👆 TOUCH START:', { isLocked, isAnimating, isDragging: this.isDragging });
+    
+    if (isLocked) {
+      console.log('🔒 TOUCH BLOCKED: sliderLocked is true');
+      return;
+    }
     
     this.isDragging = true;
     const touch = event.touches[0];
@@ -256,7 +474,15 @@ class SliderManager {
   
   // Handle mouse down
   private handleMouseDown(event: SliderMouseEvent): void {
-    if (gameState.get('sliderLocked')) return;
+    // 🔥 DEBUG: Log every mouse down to verify events are being received
+    const isLocked = gameState.get('sliderLocked');
+    const isAnimating = sliderState.isAnimatingEnter || sliderState.isAnimatingExit;
+    console.log('🖱️ MOUSE DOWN:', { isLocked, isAnimating, isDragging: this.isDragging });
+    
+    if (isLocked) {
+      console.log('🔒 MOUSE BLOCKED: sliderLocked is true');
+      return;
+    }
     
     this.isDragging = true;
     this.startX = event.clientX;
@@ -341,7 +567,15 @@ class SliderManager {
   
   // Go to specific slide
   goToSlide(slideIndex: number): void {
-    if (gameState.get('sliderLocked')) return;
+    // 🔥 DEBUG: Log every goToSlide call
+    const isLocked = gameState.get('sliderLocked');
+    const isAnimating = sliderState.isAnimatingEnter;
+    console.log('🎯 GO TO SLIDE:', { slideIndex, isLocked, isAnimating, currentSlide: this.currentSlide });
+    
+    if (isLocked) {
+      console.log('🔒 SLIDE BLOCKED: sliderLocked is true');
+      return;
+    }
     
     // 🔥 CRITICAL FIX: Ensure isDragging is false before slide change
     // This prevents drag state from blocking nav button animations
@@ -374,14 +608,15 @@ class SliderManager {
       
       this.activeIntervals.add(checkInterval);
       
-      // Fallback timeout using constant
+      // Fallback timeout using constant - also reset stuck animation flag
       setTimeout(() => {
         if (this.activeIntervals.has(checkInterval)) {
           clearInterval(checkInterval);
           this.activeIntervals.delete(checkInterval);
         }
         if (sliderState.isAnimatingEnter) {
-          logger.warn(`⚠️ Enter animation flag still true after ${SLIDER_ANIMATION.FALLBACK_TIMEOUT}ms - forcing slide change`);
+          logger.warn(`⚠️ Enter animation flag still true after ${SLIDER_ANIMATION.FALLBACK_TIMEOUT}ms - FORCE RESETTING FLAG`);
+          sliderState.setAnimatingEnter(false); // 🔥 FIX: Reset stuck flag
         }
         if (slideIndex >= 0 && slideIndex < this.totalSlides) {
           this.currentSlide = slideIndex;
@@ -515,13 +750,6 @@ class SliderManager {
       }
     }
     
-    // Update dots - 🔥 FIX: Simple null check
-    if (this.elements.dots && this.elements.dots.length > 0) {
-      this.elements.dots.forEach((dot, index) => {
-        dot.classList.toggle('active', index === this.currentSlide);
-      });
-    }
-    
     // Update independent navigation buttons with smooth ease-in ease-out animations
     // Use requestAnimationFrame to ensure animations start after layout is stable
     // 🔥 FIX: Track RAF for proper cleanup
@@ -633,6 +861,16 @@ class SliderManager {
     return this.currentSlide;
   }
   
+  // 🔥 DEBUG: Getter for isDragging (for diagnostics)
+  getIsDragging(): boolean {
+    return this.isDragging;
+  }
+  
+  // 🔥 DEBUG: Getter for isInitialized (for diagnostics)
+  getIsInitialized(): boolean {
+    return this.isInitialized;
+  }
+  
   // 🔥 NEW API: Check if slider is initialized (public getter for external checks)
   get isSliderInitialized(): boolean {
     return this.isInitialized;
@@ -656,8 +894,7 @@ class SliderManager {
     
     // 🔥 CRITICAL FIX: Check for null (not empty object) - this is now properly null after destroy()
     const slidesInvalid = !this.elements.slides || this.elements.slides.length === 0;
-    // 🔥 BUG FIX: Removed dotsInvalid check - .slider-dot elements don't exist in DOM
-    // Navigation uses .independent-nav-button elements instead
+    // Navigation uses .independent-nav-button elements
     
     if (!this.isInitialized || slidesInvalid) {
       logger.warn('⚠️ Slider not properly initialized in setSlideInstant - calling ensureReady()');
@@ -705,17 +942,7 @@ class SliderManager {
       logger.warn('⚠️ this.elements.slides is null or empty - cannot update slide classes');
     }
     
-    // 5. Update dots
-    // 🔥 FIX: Simple null check - dots is now properly null when not initialized
-    if (this.elements.dots && this.elements.dots.length > 0) {
-      this.elements.dots.forEach((dot, index) => {
-        dot.classList.toggle('active', index === slideIndex);
-      });
-    } else {
-      logger.warn('⚠️ this.elements.dots is null or empty - cannot update dot classes');
-    }
-    
-    // 6. Update navigation buttons
+    // 5. Update navigation buttons
     const navButtons = document.querySelectorAll('.independent-nav-button');
     navButtons.forEach((button, index) => {
       if (index === slideIndex) {
@@ -735,11 +962,19 @@ class SliderManager {
   ensureReady(): void {
     logger.info('🔧 ensureReady: Ensuring slider is ready for interaction');
     
+    // 🔥 V140 FIX: Reset animation flags to allow animateSliderEnter() to run
+    // Without this, the isAnimatingEnter flag could be stuck true and block animations
+    try {
+      resetAnimationFlags();
+      sliderState.reset();
+      logger.info('✅ Animation flags reset in ensureReady()');
+    } catch (e) {
+      logger.warn('⚠️ Failed to reset animation flags in ensureReady:', e);
+    }
+    
     // 🔥 CRITICAL FIX: Simple null checks - elements are now null after destroy(), not empty objects
     const slidesInvalid = !this.elements.slides || this.elements.slides.length === 0;
-    // 🔥 BUG FIX: Remove dotsInvalid check - .slider-dot elements don't exist in DOM
-    // Navigation uses .independent-nav-button elements instead, so this check was always TRUE
-    // causing unnecessary reinitialization on every ensureReady() call
+    // Navigation uses .independent-nav-button elements
     const containerInvalid = !this.elements.container;
     const wrapperInvalid = !this.elements.wrapper;
     
@@ -747,7 +982,6 @@ class SliderManager {
     const navButtonsNeedHandlers = !this.boundHandlers.navButtonClick || this.boundHandlers.navButtonClick.size === 0;
     
     // 1. Reinitialize if not initialized OR if elements are invalid OR if nav handlers are missing
-    // 🔥 BUG FIX: Removed dotsInvalid from condition - dots don't exist, only nav buttons matter
     if (!this.isInitialized || slidesInvalid || containerInvalid || wrapperInvalid || navButtonsNeedHandlers) {
       logger.warn('⚠️ Slider not properly initialized or elements/handlers invalid - reinitializing now');
       logger.debug(`🔍 Debug: isInitialized=${this.isInitialized}, slidesInvalid=${slidesInvalid}, containerInvalid=${containerInvalid}, wrapperInvalid=${wrapperInvalid}, navButtonsNeedHandlers=${navButtonsNeedHandlers}`);
@@ -767,7 +1001,6 @@ class SliderManager {
     this.elements.container = document.getElementById('slider-container');
     this.elements.wrapper = document.getElementById('slider-wrapper');
     this.elements.slides = document.querySelectorAll('.slider-slide');
-    this.elements.dots = document.querySelectorAll('.slider-dot');
     
     // 3. Unlock slider
     gameState.set('sliderLocked', false);
@@ -789,14 +1022,33 @@ class SliderManager {
    * Resets pointer-events and visibility on all critical elements
    */
   private ensureInteractive(): void {
+    // 🔥 DEBUG: Always use fresh DOM references
+    const container = document.getElementById('slider-container');
+    const wrapper = document.getElementById('slider-wrapper');
+    
     // Ensure slider container is interactive
-    if (this.elements.container) {
-      this.elements.container.style.pointerEvents = 'auto';
-      this.elements.container.style.display = 'block';
-      this.elements.container.style.visibility = 'visible';
-      this.elements.container.style.opacity = '1';
-      this.elements.container.style.zIndex = '';
-      logger.debug('✅ Slider container pointer events enabled and visibility ensured');
+    if (container) {
+      container.style.pointerEvents = 'auto';
+      container.style.display = 'block';
+      container.style.visibility = 'visible';
+      container.style.opacity = '1';
+      container.style.zIndex = '';
+      // 🔥 Also remove any transform that might hide it
+      container.style.transform = '';
+      console.log('✅ [ensureInteractive] Slider container reset:', {
+        pointerEvents: container.style.pointerEvents,
+        display: container.style.display,
+        visibility: container.style.visibility,
+        opacity: container.style.opacity
+      });
+    } else {
+      console.error('❌ [ensureInteractive] Slider container NOT FOUND!');
+    }
+    
+    // 🔥 Ensure wrapper is interactive for drag
+    if (wrapper) {
+      wrapper.style.pointerEvents = 'auto';
+      console.log('✅ [ensureInteractive] Slider wrapper pointerEvents set to auto');
     }
     
     // 🔥 FIX: Ensure independent navigation is also interactive
@@ -824,6 +1076,97 @@ class SliderManager {
     if (this.elements.wrapper) {
       this.elements.wrapper.style.pointerEvents = 'auto';
     }
+  }
+  
+  /**
+   * 🔥 NUCLEAR RESET: Force slider to ready state from ANY frozen condition
+   * This is the "panic button" that should recover the slider regardless of what went wrong.
+   * Call this when returning from any module (game, collectibles, settings) to guarantee
+   * the slider is interactive.
+   */
+  forceReady(): void {
+    console.log('🔥🔥🔥 FORCE READY: Nuclear slider reset initiated 🔥🔥🔥');
+    logger.info('🔥 FORCE READY: Nuclear slider reset initiated');
+    
+    // 0. FIRST: Reset LOCAL animation flags in animations.ts SYNCHRONOUSLY
+    // This is CRITICAL - animations.ts has its own local flags that aren't synced with sliderState
+    // Using synchronous import that was added at top of file
+    try {
+      resetAnimationFlags();
+      logger.info('✅ resetAnimationFlags() called - local animation flags reset');
+    } catch (e) {
+      logger.warn('⚠️ Failed to reset animation flags:', e);
+    }
+    
+    // 1. ALSO clear sliderState + window globals (belt and suspenders)
+    sliderState.reset();
+    (window as any).__ccIsAnimatingSliderEnter = false;
+    (window as any).__ccIsAnimatingSliderExit = () => false;
+    (window as any).__ccUiJourneyTransitioning = false;
+    (window as any).__ccIsHidingCollectibles = false;
+    logger.info('✅ All animation flags cleared');
+    
+    // 2. Clear any pending intervals that might be blocking
+    this.activeIntervals.forEach(interval => clearInterval(interval));
+    this.activeIntervals.clear();
+    
+    // 3. Clear any pending RAFs
+    this.activeRAFs.forEach(raf => cancelAnimationFrame(raf));
+    this.activeRAFs.clear();
+    
+    // 4. Kill any GSAP tweens on slider elements (but not globally!)
+    if (this.elements.wrapper) {
+      gsap.killTweensOf(this.elements.wrapper);
+    }
+    if (this.elements.container) {
+      gsap.killTweensOf(this.elements.container);
+    }
+    
+    // 5. Reset GSAP position to current slide
+    if (this.elements.wrapper && this.elements.container) {
+      const slideWidth = this.elements.container.offsetWidth;
+      const targetX = -this.currentSlide * slideWidth;
+      gsap.set(this.elements.wrapper, { x: targetX });
+      logger.info(`✅ GSAP wrapper position reset to slide ${this.currentSlide} (x: ${targetX})`);
+    }
+    
+    // 6. Unlock slider state
+    gameState.set('sliderLocked', false);
+    gameState.set('isDragging', false);
+    this.isDragging = false;
+    
+    // 7. Refresh element references
+    this.elements.container = document.getElementById('slider-container');
+    this.elements.wrapper = document.getElementById('slider-wrapper');
+    this.elements.slides = document.querySelectorAll('.slider-slide');
+    this.elements.divider = document.querySelector('.slider-nav-divider');
+    
+    // 8. Force pointer events on ALL slider elements
+    this.ensureInteractive();
+    
+    // 🔥 V140 STYLE: Don't manipulate animation classes here!
+    // animateSliderEnter() handles all animation - forceReady() only resets slider mechanics
+    
+    // 9. Recreate quickSetter if needed
+    if (this.elements.wrapper) {
+      this.quickSetX = gsap.quickSetter(this.elements.wrapper, 'x', 'px') as (value: number) => void;
+    }
+    
+    // 10. If not initialized or handlers missing, reinitialize
+    const navButtonsNeedHandlers = !this.boundHandlers.navButtonClick || this.boundHandlers.navButtonClick.size === 0;
+    if (!this.isInitialized || navButtonsNeedHandlers) {
+      logger.warn('⚠️ Slider needs reinitialization - doing it now');
+      this.destroy();
+      this.init();
+    }
+    
+    // 11. Update navigation button active states
+    const navButtons = document.querySelectorAll('.independent-nav-button');
+    navButtons.forEach((button, index) => {
+      button.classList.toggle('active', index === this.currentSlide);
+    });
+    
+    logger.info('✅ FORCE READY: Slider nuclear reset complete - should be fully interactive');
   }
   
   // Cleanup
@@ -892,14 +1235,6 @@ class SliderManager {
       }
     }
     
-    // Remove dot click listeners
-    if (this.boundHandlers.dotClick) {
-      this.boundHandlers.dotClick.forEach((handler, dot) => {
-        dot.removeEventListener('click', handler);
-      });
-      this.boundHandlers.dotClick.clear();
-    }
-    
     // Remove nav button click listeners
     if (this.boundHandlers.navButtonClick) {
       this.boundHandlers.navButtonClick.forEach((handler, button) => {
@@ -907,6 +1242,26 @@ class SliderManager {
       });
       this.boundHandlers.navButtonClick.clear();
     }
+    
+    // 🔥 FIX: Remove global swipe detection listeners
+    if ((this.boundHandlers as any).globalTouchStart) {
+      document.removeEventListener('touchstart', (this.boundHandlers as any).globalTouchStart, { capture: true } as any);
+    }
+    if ((this.boundHandlers as any).globalTouchMove) {
+      document.removeEventListener('touchmove', (this.boundHandlers as any).globalTouchMove, { capture: true } as any);
+    }
+    if ((this.boundHandlers as any).globalTouchEnd) {
+      document.removeEventListener('touchend', (this.boundHandlers as any).globalTouchEnd, { capture: true } as any);
+      document.removeEventListener('touchcancel', (this.boundHandlers as any).globalTouchEnd, { capture: true } as any);
+    }
+    // Reset global swipe state
+    this.globalSwipeState = {
+      isTracking: false,
+      startX: 0,
+      startY: 0,
+      isHorizontalSwipe: false,
+      journeyScreenDisabled: false
+    };
     
     // Unsubscribe from gameState
     this.unsubscribeFunctions.forEach(unsubscribe => unsubscribe());
@@ -920,7 +1275,6 @@ class SliderManager {
       container: null,
       wrapper: null,
       slides: null,
-      dots: null,
       divider: null
     };
     this.isInitialized = false;
@@ -937,3 +1291,140 @@ export default sliderManager;
 
 // Export class for testing
 export { SliderManager };
+
+// 🔥 DEBUG: Expose diagnostic function to window for debugging frozen slider
+(window as any).diagnoseSlider = () => {
+  const container = document.getElementById('slider-container');
+  const wrapper = document.getElementById('slider-wrapper');
+  const nav = document.getElementById('independent-nav');
+  const home = document.getElementById('home');
+  
+  console.log('═══════════════════════════════════════════════════════════');
+  console.log('🔍 SLIDER DIAGNOSTIC REPORT');
+  console.log('═══════════════════════════════════════════════════════════');
+  
+  // 1. State flags
+  console.log('\n📊 STATE FLAGS:');
+  console.log('  sliderLocked:', gameState.get('sliderLocked'));
+  console.log('  isAnimatingEnter:', sliderState.isAnimatingEnter);
+  console.log('  isAnimatingExit:', sliderState.isAnimatingExit);
+  console.log('  isGameActive:', gameState.get('isGameActive'));
+  console.log('  isDragging (internal):', sliderManager.getIsDragging?.() ?? 'N/A');
+  console.log('  isInitialized:', sliderManager.getIsInitialized?.() ?? 'N/A');
+  
+  // 2. DOM elements
+  console.log('\n🎯 DOM ELEMENTS:');
+  console.log('  container exists:', !!container);
+  console.log('  wrapper exists:', !!wrapper);
+  console.log('  nav exists:', !!nav);
+  console.log('  home exists:', !!home);
+  
+  // 3. CSS states
+  console.log('\n🎨 CSS STATES:');
+  if (container) {
+    const cs = window.getComputedStyle(container);
+    console.log('  container.pointerEvents:', cs.pointerEvents);
+    console.log('  container.display:', cs.display);
+    console.log('  container.visibility:', cs.visibility);
+    console.log('  container.opacity:', cs.opacity);
+  }
+  if (wrapper) {
+    const ws = window.getComputedStyle(wrapper);
+    console.log('  wrapper.pointerEvents:', ws.pointerEvents);
+  }
+  if (home) {
+    const hs = window.getComputedStyle(home);
+    console.log('  home.display:', hs.display);
+    console.log('  home.visibility:', hs.visibility);
+    console.log('  home.pointerEvents:', hs.pointerEvents);
+  }
+  
+  // 4. Overlay check
+  console.log('\n🛡️ OVERLAY CHECK:');
+  const overlays = document.querySelectorAll('[style*="pointer-events: none"], .overlay, .modal-overlay');
+  console.log('  Elements with pointer-events:none or overlay class:', overlays.length);
+  overlays.forEach((el, i) => {
+    const style = window.getComputedStyle(el);
+    if (style.display !== 'none' && style.visibility !== 'hidden') {
+      console.log(`    [${i}] ${el.tagName}.${el.className}`, { zIndex: style.zIndex, pointerEvents: style.pointerEvents });
+    }
+  });
+  
+  // 5. Event listener check
+  console.log('\n🎧 EVENT LISTENERS:');
+  console.log('  boundHandlers exist:', !!(sliderManager as any).boundHandlers);
+  console.log('  touchStart handler:', !!(sliderManager as any).boundHandlers?.touchStart);
+  console.log('  mouseDown handler:', !!(sliderManager as any).boundHandlers?.mouseDown);
+  
+  console.log('\n═══════════════════════════════════════════════════════════');
+  console.log('💡 If sliderLocked is true, run: gameState.set("sliderLocked", false)');
+  console.log('💡 If isAnimatingEnter is true, run: sliderState.setAnimatingEnter(false)');
+  console.log('💡 To force reset everything, run: fixSlider()');
+  console.log('═══════════════════════════════════════════════════════════');
+  
+  return {
+    sliderLocked: gameState.get('sliderLocked'),
+    isAnimatingEnter: sliderState.isAnimatingEnter,
+    isAnimatingExit: sliderState.isAnimatingExit,
+    containerExists: !!container,
+    containerPointerEvents: container ? window.getComputedStyle(container).pointerEvents : null
+  };
+};
+
+// 🔥 DEBUG: Expose forceReady to window for manual testing
+(window as any).fixSlider = () => {
+  console.log('🔧 FIX SLIDER: Starting comprehensive slider fix...');
+  
+  // 1. Reset all animation flags
+  console.log('1️⃣ Resetting animation flags...');
+  sliderState.setAnimatingEnter(false);
+  sliderState.setAnimatingExit(false);
+  resetAnimationFlags();
+  
+  // 2. Unlock slider
+  console.log('2️⃣ Unlocking slider...');
+  gameState.set('sliderLocked', false);
+  
+  // 3. Call forceReady
+  console.log('3️⃣ Calling sliderManager.forceReady()...');
+  sliderManager.forceReady();
+  
+  // 4. Force reset all styles
+  const container = document.getElementById('slider-container');
+  const wrapper = document.getElementById('slider-wrapper');
+  const nav = document.getElementById('independent-nav');
+  const home = document.getElementById('home');
+  
+  if (container) {
+    container.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important;';
+    console.log('✅ Container styles force reset');
+  }
+  if (wrapper) {
+    wrapper.style.pointerEvents = 'auto';
+    console.log('✅ Wrapper pointer events reset');
+  }
+  if (nav) {
+    nav.style.cssText = 'display: block !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important;';
+    console.log('✅ Nav styles force reset');
+  }
+  if (home) {
+    home.style.display = 'block';
+    home.removeAttribute('hidden');
+    home.style.visibility = 'visible';
+    home.style.opacity = '1';
+    console.log('✅ Home styles reset');
+  }
+  
+  // 5. Reset all nav buttons
+  const navButtons = document.querySelectorAll('.independent-nav-button');
+  navButtons.forEach(btn => {
+    (btn as HTMLElement).style.pointerEvents = 'auto';
+  });
+  console.log(`✅ ${navButtons.length} nav buttons pointer-events reset`);
+  
+  console.log('🔧 FIX SLIDER COMPLETE - Try interacting now');
+  console.log('💡 Run diagnoseSlider() to verify the fix');
+};
+
+// Keep old name as alias
+(window as any).debugSlider = (window as any).fixSlider;

@@ -1,4 +1,5 @@
 // @ts-nocheck
+
 // public/src/modules/stars-modal.ts
 import { Container, Text, Graphics, Application } from 'pixi.js';
 import { gsap } from 'gsap';

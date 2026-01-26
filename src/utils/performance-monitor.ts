@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Performance monitoring for App Store compliance
 export class PerformanceMonitor {
   private static instance: PerformanceMonitor;
@@ -28,7 +27,10 @@ export class PerformanceMonitor {
       const fidObserver = new PerformanceObserver((list) => {
         const entries = list.getEntries();
         entries.forEach((entry) => {
-          this.metrics.set('fid', entry.processingStart - entry.startTime);
+          const eventEntry = entry as PerformanceEventTiming;
+          if (eventEntry.processingStart) {
+            this.metrics.set('fid', eventEntry.processingStart - entry.startTime);
+          }
         });
       });
       fidObserver.observe({ entryTypes: ['first-input'] });

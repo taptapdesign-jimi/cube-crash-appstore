@@ -5,7 +5,6 @@ import { renderHomeSlide } from './components/home-slide.js';
 import { renderStatsSlide } from './components/stats-slide.js';
 import { renderCollectiblesSlide } from './components/collectibles-slide.js';
 import { renderSettingsSlide } from './components/settings-slide.js';
-import { renderStatsScreen } from './components/stats-screen.js';
 import {
   renderCollectiblesScreen,
   createCollectiblesDetailModal,
@@ -52,7 +51,7 @@ function bootstrapUI() {
   // renderLoading(uiRoot);
   renderHome(uiRoot);
   renderGameContainer(uiRoot);
-  renderStats(uiRoot);
+  // 🔥 REMOVED: Stats screen no longer exists
   renderCollectibles(uiRoot);
   renderSettings(uiRoot);
   renderMenu(uiRoot);
@@ -257,13 +256,6 @@ function renderGameContainer(root: HTMLElement): void {
   app.id = 'app';
   app.hidden = true;
   root.appendChild(app);
-}
-
-function renderStats(root: HTMLElement): void {
-  if (document.getElementById('stats-screen')) return;
-  renderStatsScreen(root, {
-    showResetButton: false,
-  });
 }
 
 function renderCollectibles(root: HTMLElement): void {

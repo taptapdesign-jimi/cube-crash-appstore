@@ -34,6 +34,9 @@
   overflow: hidden;
   font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   /* will-change removed for better performance - only use during active animations */
+  /* 🔥 SWIPE FIX: Let horizontal swipes pass through to slider underneath.
+     Interactive elements (buttons, cards, scrollable areas) have pointer-events: auto */
+  pointer-events: none;
 }
 
 #journey-screen[hidden],
@@ -56,6 +59,11 @@
   width: 100%;
   max-width: 100%;
   margin: 0 auto;
+  /* 🔥 SWIPE FIX: Shell must NOT intercept pointer events - let swipes pass through to slider!
+     Only interactive children (.collectibles-header, .collectibles-scrollable, cards, buttons)
+     should have pointer-events: auto. The parent journey-screen has pointer-events: none,
+     and we must preserve that pass-through behavior. */
+  pointer-events: none;
 }
 
 /* Header mirrors stats screen */
@@ -265,6 +273,8 @@
   padding-top: 20px; /* Net lift: 4px lower than previous, still 4px above original 24px */
   padding-bottom: calc(40px + var(--safe-bottom) + 80px); /* Extra space for floating buttons */
   align-items: center;
+  /* 🔥 FIX: Re-enable pointer events for scrollable content (parent shell has pointer-events: none) */
+  pointer-events: auto;
   /* 🔥 iOS OPTIMIZATION: Optimize touch-action for better scroll performance */
   /* pan-y: Allow vertical scrolling (primary), pan-x: Allow horizontal (for edge cases), pinch-zoom: Allow zoom */
   touch-action: pan-y; /* Only vertical panning - most performant for vertical scroll */
@@ -803,6 +813,7 @@
   overflow: visible; /* 🔥 USER REQUEST: Allow card to be visible when swiping (not clipped) */
   font-family: 'LTCrow', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   visibility: visible !important;
+  pointer-events: auto; /* 🔥 SWIPE FIX: Detail modal receives events (parent journey-screen has pointer-events: none) */
 }
 
 #collectibles-detail-modal[hidden] {
@@ -1655,6 +1666,7 @@
   border: none !important;
   outline: none !important;
   box-sizing: border-box !important;
+  pointer-events: auto; /* 🔥 SWIPE FIX: Cards receive clicks (parent journey-screen has pointer-events: none) */
 }
 
 .journey-board-card {
@@ -2101,6 +2113,7 @@
   border-radius: 16px !important;
   padding: 8px !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  pointer-events: auto !important; /* 🔥 SWIPE FIX: Floating buttons receive clicks */
   /* Hug logic - container fits content */
   width: fit-content !important;
   max-width: calc(100vw - 48px) !important;
@@ -2257,7 +2270,9 @@
   
   /* Inherits all .slide-button.tap-scale.menu-btn-primary styles from style.css */
   /* Shimmer is automatic via ::after pseudo-element (defined in style.css) */
-  z-index: 1001 !important;
+  /* 🔥 CTA FIX: z-index must be HIGHER than detail modal (1000000) since button is position: fixed */
+  z-index: 1000001 !important;
+  pointer-events: auto !important; /* 🔥 SWIPE FIX: Play button receives clicks */
   
   /* Ensure clicks work */
   pointer-events: auto !important;

@@ -614,10 +614,7 @@ export function hideScoreBottomSheet(): void {
 
   // 🔥 FIX: Wrap in try-catch to ensure flag is reset on error
   try {
-    // Medium haptic for closing
-    if (typeof (window as any).triggerHapticImpact === 'function') {
-      (window as any).triggerHapticImpact('medium');
-    }
+    // 🔥 REMOVED: Haptic on close - not needed for outside click dismiss
 
     // Clean up outside click handlers immediately
     if (outsideClickHandler) {

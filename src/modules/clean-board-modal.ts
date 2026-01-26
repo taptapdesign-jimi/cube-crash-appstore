@@ -10,6 +10,7 @@ import { statsService } from '../services/stats-service.js';
 import { boardStatsService } from '../services/board-stats-service.js';
 import { pickRandom } from './clean-board-utils.js';
 import { formatScoreSimple } from './hud-utils.js';
+import { clearPendingCleanBoard } from './board-recovery.js';
 
 const HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
@@ -603,6 +604,35 @@ export async function showCleanBoardModal({
     outerStack.appendChild(buttonContainer);
     el.appendChild(outerStack);
     document.body.appendChild(el);
+
+    // 🔥 BOARD RECOVERY FIX: Clear pending clean board flag NOW that modal is visible
+    // This prevents recovery from triggering on next app load if user hard-exits during modal/transition
+    // The flag's purpose is to recover from force-quit during LAST MERGE ANIMATION - once modal shows,
+    // we've successfully passed that point, so flag is no longer needed
+    try {
+      clearPendingCleanBoard();
+      console.log('✅ clean-board-modal: Cleared pending clean board flag (modal is now visible)');
+    } catch (e) {
+      console.warn('⚠️ clean-board-modal: Failed to clear pending clean board flag:', e);
+    }
+
+    // 🔥 HARD EXIT FIX: Update board high score IMMEDIATELY when modal appears
+    // This ensures the score (with bonuses) is saved even if user hard-exits before clicking CTA
+    // Previously, high score was only updated when user clicked Continue/Exit/Play Again
+    try {
+      const isNewHigh = boardStatsService.updateBoardHighScore(boardNumber, finalScore);
+      if (isNewHigh) {
+        console.log(`🏆 clean-board-modal: New board ${boardNumber} high score: ${finalScore} (saved immediately on modal show)`);
+      } else {
+        console.log(`✅ clean-board-modal: Board ${boardNumber} high score checked: ${finalScore} (not a new high)`);
+      }
+      
+      // Also update global high score immediately
+      statsService.updateHighScore(finalScore);
+      console.log(`✅ clean-board-modal: Global high score updated to ${finalScore} (on modal show)`);
+    } catch (e) {
+      console.warn('⚠️ clean-board-modal: Failed to update high score on modal show:', e);
+    }
 
     // Score bookkeeping (already calculated above for high score check)
 

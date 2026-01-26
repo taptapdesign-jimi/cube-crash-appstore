@@ -398,8 +398,7 @@ class CollectiblesManager {
       return;
     }
 
-    // 🔥 USER REQUEST: COMPLETELY hide homepage and slider container BEFORE showing Journey screen
-    // This ensures homepage slideri are NEAKTIVNI and NEVIDLJIVI when Journey is active
+    // 🔥 Hide homepage when showing Journey screen
     const homeElement = document.getElementById('home');
     if (homeElement) {
       homeElement.style.display = 'none';
@@ -407,17 +406,40 @@ class CollectiblesManager {
       homeElement.style.visibility = 'hidden';
       homeElement.style.opacity = '0';
       homeElement.style.zIndex = '-1';
-      logger.info('✅ Homepage completely hidden before showing Journey screen');
+      logger.info('✅ Homepage hidden - Journey screen is active');
     }
     
-    // 🔥 CRITICAL: Hide slider container to prevent any homepage slides from showing
+    // 🔥 Hide slider container when Journey screen is shown
     const sliderContainer = document.getElementById('slider-container');
     if (sliderContainer) {
       sliderContainer.style.display = 'none';
       sliderContainer.style.visibility = 'hidden';
       sliderContainer.style.opacity = '0';
       sliderContainer.style.zIndex = '-1';
-      logger.info('✅ Slider container hidden - homepage slideri are now inactive');
+      logger.info('✅ Slider container hidden - Journey screen is active');
+    }
+    
+    // Reset slider manager state
+    const sliderManager = (window as any).sliderManager;
+    if (sliderManager) {
+      try {
+        // 🔥 NUCLEAR RESET: Use forceReady() to guarantee slider is interactive
+        // This resets ALL animation flags, unlocks slider, and reinitializes if needed
+        if (typeof sliderManager.forceReady === 'function') {
+          sliderManager.forceReady();
+          logger.info('✅ Slider forceReady() called - nuclear reset for Journey');
+        } else if (typeof sliderManager.ensureReady === 'function') {
+          sliderManager.ensureReady();
+          logger.info('✅ Slider ensureReady() called (fallback)');
+        }
+        // Position slider at Journey slide (index 1)
+        if (typeof sliderManager.setSlideInstant === 'function') {
+          sliderManager.setSlideInstant(1);
+          logger.info('✅ Slider positioned at Journey slide (1) for swipe gestures');
+        }
+      } catch (err) {
+        logger.warn('⚠️ Failed to position slider for Journey:', err);
+      }
     }
     
     // Hide navigation (Journey has its own back button)
@@ -487,6 +509,7 @@ class CollectiblesManager {
     (screen as HTMLElement).style.removeProperty('display');
     (screen as HTMLElement).style.removeProperty('visibility');
     (screen as HTMLElement).style.removeProperty('z-index');
+    (screen as HTMLElement).style.removeProperty('pointer-events'); // 🔥 FIX: Reset pointer-events
     screen.removeAttribute('hidden');
     screen.classList.remove('hidden');
     
@@ -815,6 +838,15 @@ class CollectiblesManager {
       screen.classList.remove('show');
       screen.classList.add('hidden');
       
+      // 🔥 CRITICAL FIX: Explicitly disable journey screen to prevent click blocking
+      // The .hidden class doesn't have CSS rule for pointer-events, so we must set it inline
+      screen.style.display = 'none';
+      screen.style.visibility = 'hidden';
+      screen.style.pointerEvents = 'none';
+      screen.style.zIndex = '-1';
+      screen.setAttribute('hidden', 'true');
+      logger.info('✅ Journey screen completely hidden and disabled');
+      
       // 🔥 USER REQUEST: Only show homepage if this is back button pathway
       if (!isBackButton) {
         // Interim card pathway - don't show homepage
@@ -967,6 +999,12 @@ class CollectiblesManager {
             sliderManager.init();
             console.log('✅ Slider manager reinitialized');
           }
+          // 🔥 SWIPE FIX: Also call ensureReady() to reset all animation flags and unlock slider
+          if (typeof sliderManager.ensureReady === 'function') {
+            console.log('🔧 Calling sliderManager.ensureReady() for Journey exit...');
+            sliderManager.ensureReady();
+            console.log('✅ Slider ensureReady() called - slider should be interactive');
+          }
         } catch (initError) {
           console.warn('⚠️ Failed to reinitialize slider:', initError);
         }
@@ -1011,10 +1049,11 @@ class CollectiblesManager {
         const sliderManager = (window as any).sliderManager;
         const uiManager = (window as any).uiManager;
         
-        // 1. Ensure slider is ready for interaction
+        // 1. 🔥 V140 STYLE: Use ensureReady() - simple slider mechanics reset
+        // Animation is handled by animateSliderEnter() which is called in Step 3
         if (sliderManager && typeof sliderManager.ensureReady === 'function') {
           sliderManager.ensureReady();
-          logger.info('✅ SliderManager.ensureReady() called');
+          logger.info('✅ SliderManager.ensureReady() called - slider ready for interaction');
         } else if (typeof (window as any).unlockSlider === 'function') {
           (window as any).unlockSlider();
           logger.info('✅ Slider unlocked via fallback');
@@ -1065,6 +1104,20 @@ class CollectiblesManager {
         navElementFinal.style.pointerEvents = 'auto';
         navElementFinal.setAttribute('aria-hidden', 'false');
         logger.info('✅ Final navigation visibility enforcement - navigation guaranteed visible');
+      }
+      
+      // 🔥 CRITICAL FIX: Ensure #app element is DISABLED when returning to homepage
+      // Without this, #app remains with pointer-events: auto and z-index: 999, blocking all CTA clicks
+      // This is a safety net in case hideApp() wasn't called earlier in the flow
+      const appElement = document.getElementById('app');
+      if (appElement) {
+        appElement.setAttribute('hidden', 'true');
+        appElement.style.display = 'none';
+        appElement.style.visibility = 'hidden';
+        appElement.style.opacity = '0';
+        appElement.style.zIndex = '-1';
+        appElement.style.pointerEvents = 'none';
+        logger.info('✅ App element disabled - prevents blocking clicks on homepage slider');
       }
       
       // Step 3: Trigger homepage slide ENTER animation
@@ -1561,15 +1614,14 @@ class CollectiblesManager {
         playButton.setAttribute('type', 'button');
         playButton.setAttribute('aria-label', 'Play Board');
         
-        // Prevent dragging/moving the button
+        // Prevent dragging/moving the button (but allow clicks to work!)
+        // 🔥 FIX: Do NOT use preventDefault() on touchstart - it blocks click events on mobile
         playButton.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
+          e.stopPropagation(); // Only stop propagation, not default
         });
         playButton.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-        });
+          e.stopPropagation(); // Only stop propagation, not default - allow click to synthesize
+        }, { passive: true }); // Passive to allow default behavior
         
         // Add click handler
         playButton.addEventListener('click', async (e) => {
@@ -1768,15 +1820,24 @@ class CollectiblesManager {
 
     console.log('✅ Modal found, starting exit animation');
     
-    // 🔥 MEMORY LEAK FIX: Stop CSS infinite animations before exit animation
+    // 🔥 SMOOTH TRANSITION FIX: Freeze card at current animated position before stopping animation
+    // This prevents jarring "snap back" when animation is stopped
     const detailImage = modal.querySelector('#detail-card-image') as HTMLElement;
     if (detailImage) {
-      // Stop detailImageIdle animation (3s ease-in-out infinite)
+      // Step 1: Capture current computed transform (includes animation position)
+      const computedStyle = window.getComputedStyle(detailImage);
+      const currentTransform = computedStyle.transform;
+      
+      // Step 2: Apply computed transform as inline style to "freeze" at current position
+      if (currentTransform && currentTransform !== 'none') {
+        detailImage.style.transform = currentTransform;
+        console.log('🎬 Card frozen at current animated position:', currentTransform);
+      }
+      
+      // Step 3: NOW stop the CSS animation (card stays frozen at captured position)
       detailImage.style.animation = 'none';
       detailImage.style.animationPlayState = 'paused';
-      // Stop shimmer animation on ::after pseudo-element by removing the class or stopping parent animation
-      // Note: We can't directly access ::after, but stopping parent animation prevents it from running
-      console.log('🧹 Detail image CSS animations stopped');
+      console.log('🧹 Detail image CSS animations stopped (no snap-back)');
     }
     
     // 🔥 MEMORY LEAK FIX: Kill GSAP animations on modal elements
@@ -1839,11 +1900,20 @@ class CollectiblesManager {
         }
       });
       
-      // 🔥 MEMORY LEAK FIX: Ensure CSS animations are stopped
+      // 🔥 MEMORY LEAK FIX: Full cleanup of detail image element
       const detailImageEl = modal.querySelector('#detail-card-image') as HTMLElement;
       if (detailImageEl) {
+        // Stop CSS animations
         detailImageEl.style.animation = 'none';
         detailImageEl.style.animationPlayState = 'paused';
+        // 🔥 CLEANUP: Reset frozen transform from smooth transition fix
+        detailImageEl.style.removeProperty('transform');
+        // Kill any GSAP animations
+        const gsap = (window as any).gsap;
+        if (gsap) {
+          gsap.killTweensOf(detailImageEl);
+        }
+        console.log('🧹 Detail image fully cleaned up (animation + transform + GSAP)');
       }
       
       modal.setAttribute('hidden', 'true');

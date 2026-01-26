@@ -1,4 +1,5 @@
 // @ts-nocheck
+
 /**
  * Lives Manager - Manages lives/hearts system for Journey
  * 

@@ -137,6 +137,8 @@
   align-items: center;
   justify-content: center;
   position: relative;
+  /* 🔥 BUTTON FIX: Explicitly set pointer-events to auto after all:unset */
+  pointer-events: auto !important;
   /* Transition removed - GSAP handles animation now */
   cursor: pointer;
   touch-action: manipulation;

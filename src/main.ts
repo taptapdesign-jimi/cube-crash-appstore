@@ -1935,34 +1935,47 @@ async function startNewRun(boardId: number): Promise<void> {
     
     // 🔥 USER REQUEST: Show navigation and homepage ONLY if returning to homepage (slide 0)
     // If returning to Journey screen (slide 1), hide homepage and navigation IMMEDIATELY
+    console.log(`🎯🎯🎯 TARGET SLIDE = ${targetSlide} 🎯🎯🎯`);
     if (targetSlide === 0) {
+      console.log('🏠 HOMEPAGE PATH: targetSlide === 0, will call forceReady()');
+      
       // 🔥 BUG FIX: Ensure slider is unlocked (critical for swipe drag to work)
       if (gameState && gameState.set) {
         gameState.set('sliderLocked', false);
+        console.log('✅ sliderLocked set to false');
       }
       
-      // 🔥 CRITICAL FIX: Reinitialize slider manager BEFORE using it
-      // Slider was destroyed during cleanup - must reinit for navigation to work
+      // 🔥 NUCLEAR RESET: Use forceReady() to guarantee slider is interactive
+      // This resets ALL animation flags, unlocks slider, and reinitializes if needed
       try {
-        if (sliderManager && typeof sliderManager.init === 'function') {
-          console.log('🔧 Reinitializing slider manager for homepage return...');
+        console.log('🔧 About to call sliderManager.forceReady()...');
+        console.log('🔧 sliderManager exists:', !!sliderManager);
+        console.log('🔧 forceReady is function:', typeof sliderManager?.forceReady === 'function');
+        
+        if (sliderManager && typeof sliderManager.forceReady === 'function') {
+          console.log('🔧 Force resetting slider for homepage return...');
+          sliderManager.forceReady();
+          console.log('✅ Slider forceReady() called - navigation should work');
+        } else if (sliderManager && typeof sliderManager.init === 'function') {
+          // Fallback
           sliderManager.init();
-          console.log('✅ Slider manager reinitialized - navigation should work');
+          console.log('✅ Slider init() called (fallback)');
+        } else {
+          console.error('❌ sliderManager.forceReady NOT AVAILABLE!');
         }
       } catch (sliderError) {
-        console.warn('⚠️ Failed to reinitialize slider manager:', sliderError);
+        console.error('❌ Failed to reset slider manager:', sliderError);
       }
       
       // Show navigation and homepage for homepage slider
+      console.log('🔧 About to call uiManager.showNavigation() and showHomepageQuietly()...');
       uiManager.showNavigation();
       uiManager.showHomepageQuietly();
       console.log('✅ Navigation and homepage shown - returning to homepage slider');
     } else {
-      // 🔥 CRITICAL: Hide homepage and slider container IMMEDIATELY when returning to Journey screen
-      // This prevents homepage slider (especially slide 2) from being visible in background
-      // Do this BEFORE resetting slider position to avoid visual glitches
-      
-      // Hide homepage element completely
+      console.log(`🗺️ JOURNEY PATH: targetSlide = ${targetSlide}, NOT calling forceReady()`);
+    
+      // 🔥 CRITICAL: Hide homepage and slider container when returning to Journey screen
       const homeElement = document.getElementById('home');
       if (homeElement) {
         homeElement.style.display = 'none';
@@ -1970,17 +1983,16 @@ async function startNewRun(boardId: number): Promise<void> {
         homeElement.style.visibility = 'hidden';
         homeElement.style.opacity = '0';
         homeElement.style.zIndex = '-1';
-        console.log('✅ Homepage element completely hidden - Journey screen will be visible');
+        console.log('✅ Homepage hidden - returning to Journey screen');
       }
       
-      // 🔥 CRITICAL: Hide slider container to prevent slide 2 from showing in background
       const sliderContainer = document.getElementById('slider-container');
       if (sliderContainer) {
         sliderContainer.style.display = 'none';
         sliderContainer.style.visibility = 'hidden';
         sliderContainer.style.opacity = '0';
         sliderContainer.style.zIndex = '-1';
-        console.log('✅ Slider container hidden - preventing homepage slides from showing');
+        console.log('✅ Slider container hidden');
       }
       
       // Hide homepage via uiManager
@@ -2272,13 +2284,19 @@ async function startNewRun(boardId: number): Promise<void> {
         navElement.setAttribute('aria-hidden', 'true');
       }
       
+      // 🔥 CRITICAL FIX: Hide app element AFTER detail modal is shown
+      // This ensures the #app element doesn't block clicks on the slider/homepage below
+      // Without this, #app remains with pointer-events: auto and z-index: 999, blocking all clicks
+      await new Promise(resolve => setTimeout(resolve, 200));
+      uiManager.hideApp();
+      console.log('✅ App element hidden AFTER detail modal shown (prevents click blocking)');
+      
       console.log('✅ Detail modal pathway complete - Journey screen hidden, detail modal shown');
     } else if (targetSlide === 1) {
       // 🔥 Journey pathway - NO homepage slider involvement
       console.log('🗺️ Journey pathway - showing Journey screen directly...');
       
       // 🔥 CRITICAL FIX: Ensure homepage and slider are hidden BEFORE showing Journey screen
-      // This prevents homepage slider from showing and sliding to slide 2
       const homeElement = document.getElementById('home');
       if (homeElement) {
         homeElement.style.display = 'none';

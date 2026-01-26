@@ -1,4 +1,5 @@
 // @ts-nocheck
+
 import { logger } from '../core/logger.js';
 import type { CollectiblesShowOptions } from '../collectibles-manager.js';
 

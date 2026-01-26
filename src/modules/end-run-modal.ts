@@ -1055,9 +1055,8 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       unfreezeGameAndHud('drag close immediate');
       // Reset gamePaused flag immediately
       try {
-        const { container } = require('../core/dependency-injection.js');
-        if (container && typeof container.set === 'function') {
-          container.set('gamePaused', false);
+        if (container && typeof (container as any).set === 'function') {
+          (container as any).set('gamePaused', false);
         }
       } catch (e) { /* ignore */ }
       (window as any)._gamePaused = false;
@@ -1154,9 +1153,8 @@ function addDragFunctionality(modalEl: HTMLElement): void {
       unfreezeGameAndHud('drag close mouse immediate');
       // Reset gamePaused flag immediately
       try {
-        const { container } = require('../core/dependency-injection.js');
-        if (container && typeof container.set === 'function') {
-          container.set('gamePaused', false);
+        if (container && typeof (container as any).set === 'function') {
+          (container as any).set('gamePaused', false);
         }
       } catch (e) { /* ignore */ }
       (window as any)._gamePaused = false;
@@ -1201,9 +1199,8 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
         unfreezeGameAndHud('outside click immediate');
         // Reset gamePaused flag immediately
         try {
-          const { container } = require('../core/dependency-injection.js');
-          if (container && typeof container.set === 'function') {
-            container.set('gamePaused', false);
+          if (container && typeof (container as any).set === 'function') {
+            (container as any).set('gamePaused', false);
           }
         } catch (err) { /* ignore */ }
         (window as any)._gamePaused = false;
@@ -1222,9 +1219,8 @@ function addOutsideClickFunctionality(modalEl: HTMLElement): void {
         unfreezeGameAndHud('outside touch immediate');
         // Reset gamePaused flag immediately
         try {
-          const { container } = require('../core/dependency-injection.js');
-          if (container && typeof container.set === 'function') {
-            container.set('gamePaused', false);
+          if (container && typeof (container as any).set === 'function') {
+            (container as any).set('gamePaused', false);
           }
         } catch (err) { /* ignore */ }
         (window as any)._gamePaused = false;

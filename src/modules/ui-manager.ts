@@ -3,7 +3,7 @@
 // Handles all UI interactions and animations
 
 import gameState from './game-state.js';
-import { fadeOutHome, fadeInHome, animateSliderExit, animateSliderEnter, animateStatsScreenEnter, animateStatsScreenExit } from '../utils/animations.js';
+import { fadeOutHome, fadeInHome, animateSliderExit, animateSliderEnter } from '../utils/animations.js';
 import { showResumeGameBottomSheet } from './resume-game-bottom-sheet.js';
 import { logger } from '../core/logger.js';
 import { boot as bootGame, layoutBoard as layoutGame } from './app-core.js';
@@ -106,14 +106,11 @@ export interface UIManagerElements {
   homeLogo: HTMLElement | null;
   sliderContainer: HTMLElement | null;
   sliderWrapper: HTMLElement | null;
-  sliderDots: NodeListOf<Element> | null;
   sliderDivider: Element | null;
   playButton: HTMLButtonElement | null;
   journeyButton: HTMLButtonElement | null;
   collectiblesButton: HTMLButtonElement | null;
   settingsButton: HTMLButtonElement | null;
-  statsScreen: HTMLElement | null;
-  statsBackButton: HTMLButtonElement | null;
   settingsScreen: HTMLElement | null;
   settingsBackButton: HTMLButtonElement | null;
   independentNav: HTMLElement | null;
@@ -147,14 +144,11 @@ class UIManager {
         homeLogo: document.getElementById('home-logo'),
         sliderContainer: document.getElementById('slider-container'),
         sliderWrapper: document.getElementById('slider-wrapper'),
-        sliderDots: document.querySelectorAll('.slider-dot'),
         sliderDivider: document.querySelector('.slider-nav-divider'),
         playButton: document.getElementById('btn-home') as HTMLButtonElement,
         journeyButton: (document.getElementById('btn-journey') || document.getElementById('btn-stats')) as HTMLButtonElement,
         collectiblesButton: document.getElementById('btn-collectibles') as HTMLButtonElement,
         settingsButton: document.getElementById('btn-settings') as HTMLButtonElement,
-        statsScreen: document.getElementById('stats-screen'),
-        statsBackButton: document.getElementById('stats-back-btn') as HTMLButtonElement,
         settingsScreen: document.getElementById('settings-screen'),
         settingsBackButton: document.getElementById('settings-back-btn') as HTMLButtonElement,
         independentNav: document.getElementById('independent-nav')
@@ -369,11 +363,8 @@ class UIManager {
     });
     this.unsubscribeFunctions.push(unsubscribeGameActive);
     
-    // Slider locked state
-    const unsubscribeSliderLocked = gameState.subscribe('sliderLocked', (isLocked: boolean) => {
-      this.updateSliderLockState(isLocked);
-    });
-    this.unsubscribeFunctions.push(unsubscribeSliderLocked);
+    // 🔥 REMOVED: Slider locked state subscription - SliderManager handles this exclusively
+    // Having dual subscriptions caused desynchronization issues
   }
   
   // Handle play button click
@@ -462,28 +453,32 @@ class UIManager {
     this.showCollectiblesScreenWithAnimation();
   }
 
-  private handleStatsBackClick(event: Event): void {
-    event.preventDefault();
-    logger.info('📊 Stats back button clicked');
-    
-    // Play enter animation, then hide stats screen
-    this.hideStatsScreenWithAnimation();
-  }
-  
   // Handle collectibles button click
   private handleCollectiblesClick(event: Event): void {
     event.preventDefault();
-    logger.info('🎁 Collectibles button clicked (Collectibles -> Stats)');
+    logger.info('🏆 Collectibles button clicked');
     
     // Light haptic for Collectibles button
     if (typeof (window as any).triggerHapticImpact === 'function') {
       (window as any).triggerHapticImpact('light');
     }
     
-    // NO RESET - let :active work normally
+    // Show collectibles screen with animation
+    this.showCollectiblesScreenWithAnimation();
+  }
+  
+  // Handle stats back button click (return to homepage)
+  private handleStatsBackClick(event: Event): void {
+    event.preventDefault();
+    logger.info('⬅️ Stats back button clicked');
     
-    // Play exit animation first, then show stats screen (swapped)
-    this.showStatsScreenWithAnimation();
+    // Light haptic for back button
+    if (typeof (window as any).triggerHapticImpact === 'function') {
+      (window as any).triggerHapticImpact('light');
+    }
+    
+    // Return to homepage
+    this.hideCollectiblesScreenWithAnimation();
   }
   
   // Handle settings button click
@@ -804,17 +799,13 @@ class UIManager {
       fadeInHome();
     }
     
-    // 🔥 NEW API: Ensure slider is ready for interaction
-    // Use imported sliderManager directly (not window reference)
-    if (sliderManager && typeof sliderManager.ensureReady === 'function') {
+    // 🔥 NUCLEAR RESET: Use forceReady() to guarantee slider is interactive
+    if (sliderManager && typeof sliderManager.forceReady === 'function') {
+      sliderManager.forceReady();
+      logger.info('✅ Slider forceReady() called in showHomepage() - slider fully reset');
+    } else if (sliderManager && typeof sliderManager.ensureReady === 'function') {
       sliderManager.ensureReady();
-      logger.info('✅ Slider ensureReady() called in showHomepage() - slider ready');
-    } else {
-      // Fallback: Reset pointer events manually
-      const sliderContainer = document.getElementById('slider-container');
-      if (sliderContainer) {
-        sliderContainer.style.pointerEvents = '';
-      }
+      logger.info('✅ Slider ensureReady() called in showHomepage() (fallback)');
     }
     
     // 🔥 FIX: DON'T show navigation here - let animateSliderEnter handle it
@@ -1052,7 +1043,9 @@ class UIManager {
       appElement.style.left = '0';
       appElement.style.width = '100%';
       appElement.style.height = '100%';
-      appElement.style.zIndex = '1';
+      appElement.style.zIndex = '999';
+      // 🔥 FIX: Restore pointer-events when showing app
+      appElement.style.pointerEvents = 'auto';
       logger.info('✅ App element shown');
       
       // Ensure canvas is visible when present (may be missing if showApp runs before boot, e.g. Journey continue)
@@ -1172,6 +1165,8 @@ class UIManager {
       appElement.style.visibility = 'hidden';
       // 🔥 USER BUG FIX: Set z-index to very low to ensure it's behind everything
       appElement.style.zIndex = '-1';
+      // 🔥 FIX: Set pointer-events to none to prevent blocking elements underneath
+      appElement.style.pointerEvents = 'none';
       appElement.style.position = 'fixed';
       appElement.style.top = '0';
       appElement.style.left = '0';
@@ -1340,25 +1335,19 @@ class UIManager {
         logger.info('✅ Slider container visibility explicitly restored in showHomepageQuietly');
       }
       
-      // 🔥 USER REQUEST FIX: Reset slider enter animation flag BEFORE reinitializing
-      // This prevents instant slide changes (no animation) when clicking dots after returning to homepage
-      // 🔥 REFACTOR: Use sliderState module instead of window global
-      sliderState.setAnimatingEnter(false);
-      logger.info('✅ Reset slider enter animation flag before slider reinit');
-      
-      // 🔥 NEW API: Ensure slider is ready for interaction
-      // Unlocks slider, ensures pointer events, refreshes element references
+      // 🔥 NUCLEAR RESET: Use forceReady() to guarantee slider is interactive
+      // This resets ALL animation flags, unlocks slider, and reinitializes if needed
       try {
-        if (sliderManager && typeof sliderManager.ensureReady === 'function') {
+        if (sliderManager && typeof sliderManager.forceReady === 'function') {
+          sliderManager.forceReady();
+          logger.info('✅ Slider forceReady() called in showHomepageQuietly - slider fully reset');
+        } else if (sliderManager && typeof sliderManager.ensureReady === 'function') {
+          // Fallback: Use ensureReady if forceReady not available
           sliderManager.ensureReady();
-          logger.info('✅ Slider ensureReady() called in showHomepageQuietly - slider ready');
-        } else if (sliderManager && typeof sliderManager.init === 'function') {
-          // Fallback: Full reinitialize if ensureReady not available
-          sliderManager.init();
-          logger.info('✅ Slider manager reinitialized in showHomepageQuietly (fallback)');
+          logger.info('✅ Slider ensureReady() called in showHomepageQuietly (fallback)');
         }
       } catch (error) {
-        logger.warn('⚠️ Failed to ensure slider ready:', error);
+        logger.warn('⚠️ Failed to force slider ready:', error);
       }
       
       // 🔥 FIX: Explicitly show and enable navigation (independent-nav)
@@ -1387,6 +1376,9 @@ class UIManager {
       if (navButtons.length > 0) {
         logger.info(`✅ ${navButtons.length} navigation buttons enabled in showHomepageQuietly`);
       }
+      
+      // 🔥 V140 STYLE: Don't manipulate animation classes here!
+      // animateSliderEnter() handles all animation
       
       // 🔥 CRITICAL FIX: Reattach event listeners to homepage buttons
       // Event listeners were removed in hideHomepage(), so we need to reattach them
@@ -1426,301 +1418,6 @@ class UIManager {
       // DO NOT set opacity 0 here - it will break animation visibility
       logger.info('✅ Homepage shown QUIETLY - ready for animateSliderEnter to control animations');
     }
-  }
-  
-  // Show stats screen
-  showStatsScreen(): void {
-    logger.info('📊 Showing stats screen');
-    const statsScreen = this.elements.statsScreen;
-    if (!statsScreen) {
-      logger.warn('⚠️ Stats screen element not found');
-      return;
-    }
-
-    this.hideHomepage();
-    this.setNavigationVisibility(false);
-    statsScreen.style.display = 'block';
-    statsScreen.removeAttribute('hidden');
-    statsScreen.setAttribute('aria-hidden', 'false');
-
-    const focusTarget = statsScreen.querySelector('.stats-back-button') as HTMLElement | null;
-    focusTarget?.focus();
-  }
-
-  private hideStatsScreen(): void {
-    const statsScreen = this.elements.statsScreen;
-    if (!statsScreen) return;
-
-    statsScreen.setAttribute('aria-hidden', 'true');
-    statsScreen.style.display = 'none';
-    statsScreen.setAttribute('hidden', 'true');
-    this.setNavigationVisibility(true);
-    this.showHomepage();
-
-    if (this.elements.journeyButton) {
-      this.elements.journeyButton.focus();
-    }
-  }
-  
-  // Show stats screen with exit animation
-  private showStatsScreenWithAnimation(): void {
-    logger.info('📊 Showing stats screen - with exit animation');
-    
-    // 🔥 CRITICAL: Set paper background to 60% opacity IMMEDIATELY
-    // This prevents gray color from showing during slider exit animation
-    applyPaperBackground('0.6');
-    logger.info('✅ [Stats ENTER] Gradient background set with !important flags IMMEDIATELY (at function start)');
-    
-    // 🔥 FIX: Switch to Stats slide (index 2) BEFORE animation so it animates the correct slide
-    // Stats is slide 2, NOT slide 1 (slide 1 is Journey)
-    const slides = document.querySelectorAll('.slider-slide');
-    const navButtons = document.querySelectorAll('.independent-nav-button');
-    slides.forEach((slide, index) => {
-      if (index === 2) { // ✅ FIXED: Stats is slide 2, not slide 1
-        slide.classList.add('active');
-      } else {
-        slide.classList.remove('active');
-      }
-    });
-    navButtons.forEach((button, index) => {
-      if (index === 2) { // ✅ FIXED: Stats nav button is index 2, not index 1
-        button.classList.add('active');
-      } else {
-        button.classList.remove('active');
-      }
-    });
-    
-    // 🎨 PREMIUM FADE: Animate background color from gradient to solid color (SMOOTH FADE)
-    // This creates a premium transition effect when entering individual screens
-    const targetSolidColor = PAPER_BG_STYLE;
-    
-    console.log('🎨 [Stats ENTER] Starting premium fade from gradient to solid color - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
-    
-    // 🔥 CRITICAL: Start fade animation FIRST, then play exit animation
-    // Fade duration: 0.8s for smooth premium transition
-    const fadeDuration = 0.8;
-    
-    if (gsap && body) {
-      gsap.killTweensOf(body);
-      body.style.transition = 'none';
-      // 🔥 CRITICAL: Always use explicit gradient string, never read from computed style
-      // getComputedStyle can return light color instead of gradient, causing flash
-      gsap.set(body, { background: currentGradient });
-      // Animate to solid color with premium fade
-      gsap.to(body, {
-        background: targetSolidColor,
-        duration: fadeDuration,
-        ease: 'power2.inOut',
-        overwrite: 'auto',
-        immediateRender: false
-      });
-      console.log('✅ [Stats ENTER] Body background fade animation started from gradient to', targetSolidColor);
-    }
-    if (gsap && globalBg) {
-      gsap.killTweensOf(globalBg);
-      (globalBg as HTMLElement).style.transition = 'none';
-      // 🔥 CRITICAL: Always use explicit gradient string, never read from computed style
-      gsap.set(globalBg, { background: currentGlobalBgGradient });
-      gsap.to(globalBg, {
-        background: targetSolidColor,
-        duration: fadeDuration,
-        ease: 'power2.inOut',
-        overwrite: 'auto',
-        immediateRender: false
-      });
-      console.log('✅ [Stats ENTER] Global-bg background fade animation started from gradient to', targetSolidColor);
-    }
-    if (gsap && appElement) {
-      gsap.killTweensOf(appElement);
-      appElement.style.transition = 'none';
-      // 🔥 CRITICAL: Always use explicit gradient string, never read from computed style
-      gsap.set(appElement, { background: currentGradient });
-      gsap.to(appElement, {
-        background: targetSolidColor,
-        duration: fadeDuration,
-        ease: 'power2.inOut',
-        overwrite: 'auto',
-        immediateRender: false
-      });
-      console.log('✅ [Stats ENTER] App element background fade animation started from gradient to', targetSolidColor);
-    }
-    
-    // Step 1: Play exit animation for Stats slide (background is already set, no dark flash)
-    console.log('🎬 Step 1: Playing exit animation for Stats slide');
-    animateSliderExit();
-    
-    // Step 2: Wait for exit animation AND fade animation to complete, then show stats screen
-    // Exit animation: 770ms, Fade animation: 800ms - wait for the longer one
-    const waitTime = Math.max(770, fadeDuration * 1000);
-    setTimeout(() => {
-      console.log('📊 Step 2: Showing stats screen after animations complete');
-      
-      const statsScreen = this.elements.statsScreen;
-      if (!statsScreen) return;
-      
-      // Show stats screen after both animations complete
-      // CRITICAL: Do NOT set background here - it's already set by GSAP animation
-      this.hideHomepage();
-      this.setNavigationVisibility(false);
-      
-      // 🔥 CRITICAL: Set opacity to 0 FIRST so screen is invisible while GSAP sets initial state
-      statsScreen.style.opacity = '0';
-      statsScreen.style.display = 'flex';
-      statsScreen.removeAttribute('hidden');
-      statsScreen.setAttribute('aria-hidden', 'false');
-      
-      // CRITICAL: Update stats values when showing stats screen
-      try {
-        import('../ui/components/stats-screen.js').then(({ updateStatsValues }) => {
-          console.log('📊 About to call updateStatsValues() from ui-manager...');
-          updateStatsValues();
-          console.log('✅ updateStatsValues() called from ui-manager');
-        });
-      } catch (error) {
-        console.error('❌ Failed to update stats values from ui-manager:', error);
-      }
-      
-      // 🎬 CRITICAL: Trigger stats screen enter animation (pop-in) using GSAP
-      try {
-        import('../ui/stats-animations.js').then(({ animateStatsScreenEnter }) => {
-          console.log('🎬 About to call animateStatsScreenEnter() from ui-manager...');
-          // Small delay to ensure DOM is ready, then make screen visible and start animation
-          setTimeout(() => {
-            // Make screen visible so GSAP can animate individual elements
-            statsScreen.style.opacity = '1';
-            console.log('🎬 Calling animateStatsScreenEnter() after 50ms delay...');
-            animateStatsScreenEnter();
-          }, 50);
-        });
-      } catch (error) {
-        console.error('❌ Failed to trigger stats enter animation from ui-manager:', error);
-      }
-      
-      // Focus immediately
-      setTimeout(() => {
-        const focusTarget = statsScreen.querySelector('.stats-back-button') as HTMLElement | null;
-        focusTarget?.focus();
-      }, 100);
-    }, waitTime);
-  }
-  
-  // Hide stats screen with enter animation
-  private hideStatsScreenWithAnimation(): void {
-    logger.info('📊 Hiding stats screen - with enter animation');
-    
-    // 🎨 CRITICAL: Animate background color from solid color back to gradient (SMOOTH FADE)
-    // This must happen IMMEDIATELY when back button is clicked, BEFORE anything else
-    // Start animation immediately (not in requestAnimationFrame) to ensure it starts before any other code runs
-    const body = document.body;
-    const globalBg = document.getElementById('global-bg');
-    const appElement = document.getElementById('app');
-    const targetGradient = PAPER_BG_STYLE;
-    const targetGlobalBgGradient = PAPER_BG_STYLE;
-    
-    console.log('🎨 [Stats EXIT] Starting smooth background fade to gradient - GSAP:', !!gsap, 'Body:', !!body, 'GlobalBg:', !!globalBg, 'App:', !!appElement);
-    
-    // 🔥 CRITICAL: Fade duration for premium transition
-    const fadeDuration = 0.8;
-    
-    if (gsap && body) {
-      gsap.killTweensOf(body);
-      body.style.transition = 'none';
-      // Get current background to ensure smooth transition
-      const currentBg = window.getComputedStyle(body).background || window.getComputedStyle(body).backgroundColor || '#f3eee8';
-      // CRITICAL: Set initial background explicitly to prevent CSS override
-      gsap.set(body, { background: currentBg || '#f3eee8' });
-      // Use fromTo to ensure smooth fade from current solid color to gradient
-      gsap.to(body, {
-        background: targetGradient,
-        duration: fadeDuration,
-        ease: 'power2.inOut',
-        overwrite: 'auto',
-        immediateRender: false
-      });
-      console.log('✅ [Stats EXIT] Body background fade animation started from:', currentBg);
-    }
-    if (gsap && globalBg) {
-      gsap.killTweensOf(globalBg);
-      (globalBg as HTMLElement).style.transition = 'none';
-      const currentGlobalBg = window.getComputedStyle(globalBg as HTMLElement).background || window.getComputedStyle(globalBg as HTMLElement).backgroundColor || '#f3eee8';
-      // CRITICAL: Set initial background explicitly to prevent CSS override
-      gsap.set(globalBg, { background: currentGlobalBg || '#f3eee8' });
-      gsap.to(globalBg, {
-        background: targetGlobalBgGradient,
-        duration: fadeDuration,
-        ease: 'power2.inOut',
-        overwrite: 'auto',
-        immediateRender: false
-      });
-      console.log('✅ [Stats EXIT] Global-bg background fade animation started from:', currentGlobalBg);
-    }
-    if (gsap && appElement) {
-      gsap.killTweensOf(appElement);
-      appElement.style.transition = 'none';
-      const currentAppBg = window.getComputedStyle(appElement).background || window.getComputedStyle(appElement).backgroundColor || '#f3eee8';
-      // CRITICAL: Set initial background explicitly to prevent CSS override
-      gsap.set(appElement, { background: currentAppBg || '#f3eee8' });
-      gsap.to(appElement, {
-        background: targetGlobalBgGradient,
-        duration: fadeDuration,
-        ease: 'power2.inOut',
-        overwrite: 'auto',
-        immediateRender: false
-      });
-      console.log('✅ [Stats EXIT] App element background fade animation started from:', currentAppBg);
-    }
-    
-    // 🎬 CRITICAL: Trigger stats screen exit animation (pop-out) BEFORE hiding
-    try {
-      import('../ui/stats-animations.js').then(({ animateStatsScreenExit }) => {
-        console.log('🎬 About to call animateStatsScreenExit() from ui-manager...');
-        animateStatsScreenExit();
-      });
-    } catch (error) {
-      console.error('❌ Failed to trigger stats exit animation from ui-manager:', error);
-    }
-    
-    // Hide stats screen after animation completes
-    // BUT: Background fade animation takes fadeDuration, so we need to wait for it to complete
-    const fadeDurationMs = fadeDuration * 1000;
-    setTimeout(() => {
-      const statsScreen = this.elements.statsScreen;
-      if (statsScreen) {
-        statsScreen.setAttribute('aria-hidden', 'true');
-        statsScreen.style.display = 'none';
-        statsScreen.setAttribute('hidden', 'true');
-        this.setNavigationVisibility(true);
-      }
-      
-      // CRITICAL: Switch to Stats slide (index 1) to show Stats slide after exiting Stats screen
-      const slides = document.querySelectorAll('.slider-slide');
-      const navButtons = document.querySelectorAll('.independent-nav-button');
-      slides.forEach((slide, index) => {
-        if (index === 1) {
-          slide.classList.add('active');
-        } else {
-          slide.classList.remove('active');
-        }
-      });
-      navButtons.forEach((button, index) => {
-        if (index === 1) {
-          button.classList.add('active');
-        } else {
-          button.classList.remove('active');
-        }
-      });
-      
-      // Show homepage QUIETLY first (no animations yet)
-      // CRITICAL: Do NOT override background animation - it's already completed
-      this.showHomepageQuietly();
-      
-      // Step 2: Play enter animation for Stats slide
-      console.log('🎬 Playing enter animation for Stats slide');
-      animateSliderEnter();
-    }, fadeDurationMs);
-    
-    // CRITICAL: Ensure background animation is NOT killed when homepage is shown
-    // The animation should continue running for its full duration
   }
   
   // Show Journey screen with exit animation
@@ -2557,12 +2254,8 @@ class UIManager {
     });
   }
   
-  // Update slider lock state
-  private updateSliderLockState(isLocked: boolean): void {
-    if (this.elements.sliderContainer) {
-      this.elements.sliderContainer.style.pointerEvents = isLocked ? 'none' : 'auto';
-    }
-  }
+  // 🔥 REMOVED: updateSliderLockState - SliderManager handles this exclusively
+  // Having dual lock state management caused desynchronization issues
 
   private setNavigationVisibility(visible: boolean): void {
     if (!this.elements.independentNav) return;

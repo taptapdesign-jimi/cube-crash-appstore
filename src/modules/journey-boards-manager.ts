@@ -138,6 +138,36 @@ class JourneyBoardsManager {
   private journeyExitPromise: Promise<void> | null = null;
   // 🔥 USER REQUEST: Shimmer is now triggered together with glow (not independent interval)
   // 🔥 USER REQUEST: Smoke bubbles are now triggered DURING bounce animation (not independent interval)
+  
+  // 🔥 MEMORY LEAK FIX: Track all requestAnimationFrame calls for proper cleanup
+  private _activeRAFs: Set<number> = new Set();
+  
+  /**
+   * 🔥 MEMORY LEAK FIX: Track requestAnimationFrame calls for cleanup
+   */
+  private trackRAF(callback: FrameRequestCallback): number {
+    const rafId = requestAnimationFrame((time: number) => {
+      this._activeRAFs.delete(rafId);
+      callback(time);
+    });
+    this._activeRAFs.add(rafId);
+    return rafId;
+  }
+  
+  /**
+   * 🔥 MEMORY LEAK FIX: Cancel all tracked RAF calls
+   */
+  private cancelAllRAFs(): void {
+    this._activeRAFs.forEach(rafId => {
+      try {
+        cancelAnimationFrame(rafId);
+      } catch (e) {
+        // Ignore errors
+      }
+    });
+    this._activeRAFs.clear();
+    logger.info(`✅ Cancelled all tracked RAF calls`);
+  }
 
   constructor() {
     this.initializeBoards();
@@ -616,6 +646,9 @@ class JourneyBoardsManager {
    */
   public cleanup(): void {
     this.renderDisposed = true;
+    
+    // 🔥 MEMORY LEAK FIX: Cancel all tracked RAF calls
+    this.cancelAllRAFs();
     
     // 🔥 MEMORY LEAK FIX: Stop glow pulse interval (this also stops interim bounce animations)
     this.stopGlowPulse();
@@ -2446,14 +2479,27 @@ class JourneyBoardsManager {
         logger.info('✅ Swipe handlers cleaned up');
       }
       
-      // 🔥 MEMORY LEAK FIX: Stop CSS infinite animations before exit animation
+      // 🔥 SMOOTH TRANSITION FIX: Freeze card at current animated position before stopping animation
+      // This prevents jarring "snap back" when animation is stopped
       const detailImageEl = modal.querySelector('#detail-card-image') as HTMLElement;
       if (detailImageEl) {
-        // Stop detailImageIdle animation (3s ease-in-out infinite)
+        // Step 1: Capture current computed transform (includes animation position)
+        const computedStyle = window.getComputedStyle(detailImageEl);
+        const currentTransform = computedStyle.transform;
+        
+        // Step 2: Apply computed transform as inline style to "freeze" at current position
+        // This ensures the card stays where it is visually
+        if (currentTransform && currentTransform !== 'none') {
+          detailImageEl.style.transform = currentTransform;
+          logger.info('🎬 Card frozen at current animated position:', currentTransform);
+        }
+        
+        // Step 3: NOW stop the CSS animation (card stays frozen at captured position)
         detailImageEl.style.animation = 'none';
         detailImageEl.style.animationPlayState = 'paused';
+        
         // Stop shimmer animation on ::after pseudo-element by stopping parent animation
-        logger.info('🧹 Detail image CSS animations stopped');
+        logger.info('🧹 Detail image CSS animations stopped (no snap-back)');
       }
       
       // 🔥 USER REQUEST: Cleanup peekaboo tap handlers
@@ -2506,13 +2552,13 @@ class JourneyBoardsManager {
 
       // 🔥 USER REQUEST: Content elements array (EXCLUDE PLAY button - it's handled separately)
       // 🔥 CRITICAL: EXCLUDE detailStatsSection - it contains stat items that animate individually
-      // If we animate detailStatsSection, it will hide before stat items finish their exit animations
+      // 🔥 CRITICAL: EXCLUDE detailImage - it's animated separately to preserve frozen transform position
       const otherContentElements = [
         detailDescription,
         ...detailStatIconsArray,
         // detailStatsSection, // 🔥 REMOVED: Stats section is NOT animated here - stat items animate individually
-        detailRarityBadgeContainer,
-        detailImage
+        detailRarityBadgeContainer
+        // detailImage - 🔥 REMOVED: Card is animated separately to prevent snap-back
       ].filter(el => el !== null) as HTMLElement[];
       
       // 🔥 DEBUG: Log PLAY button state
@@ -2585,6 +2631,31 @@ class JourneyBoardsManager {
         });
         logger.info(`🎴 Step ${index + 1}: Content element ${index + 1} pop-out - delay ${(delay * 1000).toFixed(0)}ms`);
       });
+      
+      // 🔥 SMOOTH TRANSITION FIX: Animate card image SEPARATELY to preserve frozen position
+      // The card's transform is already frozen at its current animated position (from idle animation)
+      // We animate scale and opacity FROM the frozen position - no snap-back!
+      if (detailImage) {
+        const cardDelay = contentStartDelay + (otherContentElements.length * 0.05); // After other elements
+        
+        // Don't reset transform - keep the frozen position from the idle animation
+        gsap.killTweensOf(detailImage);
+        detailImage.style.opacity = '1';
+        detailImage.style.visibility = 'visible';
+        detailImage.style.transition = 'none';
+        // 🔥 CRITICAL: Do NOT reset transform - preserve frozen position
+        
+        gsap.to(detailImage, {
+          scale: 0,
+          opacity: 0,
+          duration: 0.4,
+          ease: 'back.in(1.7)',
+          delay: cardDelay,
+          force3D: true,
+          overwrite: true
+        });
+        logger.info(`🃏 Card image pop-out from frozen position - delay ${(cardDelay * 1000).toFixed(0)}ms (no snap-back)`);
+      }
       
       // STEP 2B: Stat items exit individually with pop-out animation (one by one)
       // 🔥 CRITICAL: Use EXACT same pattern as other content elements (like card)
@@ -2760,11 +2831,17 @@ class JourneyBoardsManager {
 
       // Wait for exit animation to complete
       setTimeout(() => {
-        // 🔥 MEMORY LEAK FIX: Ensure CSS animations are stopped
+        // 🔥 MEMORY LEAK FIX: Full cleanup of detail image element
         const detailImageEl = modal.querySelector('#detail-card-image') as HTMLElement;
         if (detailImageEl) {
+          // Stop CSS animations
           detailImageEl.style.animation = 'none';
           detailImageEl.style.animationPlayState = 'paused';
+          // 🔥 CLEANUP: Reset frozen transform from smooth transition fix
+          detailImageEl.style.removeProperty('transform');
+          // Kill any GSAP animations on this element
+          gsap.killTweensOf(detailImageEl);
+          logger.info('🧹 Detail image fully cleaned up (animation + transform + GSAP)');
         }
         
         // Hide modal (PLAY button is now in body, so it remains visible)
@@ -4016,7 +4093,8 @@ class JourneyBoardsManager {
         floatingPlayButton.style.left = '50%';
         floatingPlayButton.style.width = '249px';
         floatingPlayButton.style.maxWidth = '249px';
-        floatingPlayButton.style.zIndex = '1001';
+        // 🔥 CTA FIX: z-index must be HIGHER than detail modal (1000000) since button is position: fixed
+        floatingPlayButton.style.zIndex = '1000001';
         floatingPlayButton.style.pointerEvents = 'auto';
         floatingPlayButton.style.cursor = 'pointer';
         floatingPlayButton.style.overflow = 'hidden';

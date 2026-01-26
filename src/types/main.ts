@@ -1,4 +1,5 @@
 // @ts-nocheck
+
 // Type definitions for main.js
 
 // Game state types
@@ -72,8 +73,6 @@ declare global {
     // Collectibles functions
     showCollectiblesScreen?: () => Promise<void>;
     hideCollectiblesScreen?: () => Promise<void>;
-    showStatsScreen?: () => void;
-    hideStatsScreen?: () => void;
     
     // Additional game functions
     saveGameState?: () => void;

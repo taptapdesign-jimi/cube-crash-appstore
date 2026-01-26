@@ -15,6 +15,7 @@ type MockLogger = LoggerLike & {
 
 const createMockBus = (): MockBus => ({
   on: jest.fn(),
+  off: jest.fn(),
   emit: jest.fn(),
   clear: jest.fn(),
 });
