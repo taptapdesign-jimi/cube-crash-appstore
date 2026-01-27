@@ -1046,13 +1046,16 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
           const { animateStarsToHudIcon } = await import('./fx.js');
           if (typeof animateStarsToHudIcon === 'function' && STATE.board && STATE.stage) {
             console.log('⭐ MAGNET PULL: Calling animateStarsToHudIcon with saved star data');
+            // 🔥 CRITICAL FIX: Pass app to animateStarsToHudIcon so it can access renderer
+            const appForAnimation = STATE.app || (STATE.stage as any)?.app;
             await animateStarsToHudIcon(
               STATE.board,
               STATE.stage,
               savedStarPositionsEarly,
               savedWildTileScreenPosEarly || { x: 0, y: 0 },
               merge6Pos,
-              hudStarPos
+              hudStarPos,
+              appForAnimation
             );
             console.log('✅ MAGNET PULL: Stars animation to HUD completed');
           } else {

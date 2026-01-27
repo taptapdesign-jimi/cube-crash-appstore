@@ -422,6 +422,27 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             clearAllFailAnimationFrames();
             try { window.removeEventListener('keydown', onKey); } catch {}
             
+            // 🔥 CRITICAL MEMORY LEAK FIX: Comprehensive cleanup before restart (same as fallback)
+            try {
+              const fxModule = await import('./fx.js');
+              if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
+                fxModule.cleanupAllEffects();
+                logger.info('🧹 board-fail-modal: Cleaned up all effects before restart');
+              }
+              // 🔥 CRITICAL: Also cleanup star animations specifically
+              if (fxModule && typeof fxModule.cleanupExistingStarAnimations === 'function') {
+                fxModule.cleanupExistingStarAnimations();
+                logger.info('🧹 board-fail-modal: Cleaned up star animations before restart');
+              }
+              // 🔥 CRITICAL: Also cleanup wild beer explosion
+              if (fxModule && typeof fxModule.cleanupWildBeerExplosion === 'function') {
+                fxModule.cleanupWildBeerExplosion();
+                logger.info('🧹 board-fail-modal: Cleaned up wild beer explosion before restart');
+              }
+            } catch (e) {
+              logger.warn('⚠️ board-fail-modal: Failed to cleanup all effects (non-fatal):', e);
+            }
+            
             // 🔥 CRITICAL: Cleanup confetti animations before restart (MEMORY LEAK FIX)
             try {
               import('./confetti-system.js').then(confettiModule => {
@@ -437,6 +458,15 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             
             // Has hearts - proceed with restart
             logger.info('🎮 Play Again clicked - calling window.CC.restart directly');
+            
+            // 🔥 CRITICAL FIX: Close modal FIRST (fade out), then call restart
+            // This prevents visual glitches - modal fades out while restart runs in background
+            overlay.style.opacity = '0';
+            card.style.transform = 'scale(0.88)';
+            card.style.opacity = '0';
+            
+            // Start restart immediately (don't wait for modal fade to complete)
+            // This allows restart to start while modal fades out
             if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
               try {
                 (window as WindowWithCC).CC!.restart!();
@@ -444,12 +474,11 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               } catch (error) {
                 logger.warn('⚠️ window.CC.restart failed:', error);
               }
+            } else {
+              logger.error('❌ window.CC.restart not available!');
             }
             
-            // Close modal and resolve
-            overlay.style.opacity = '0';
-            card.style.transform = 'scale(0.88)';
-            card.style.opacity = '0';
+            // Remove modal and resolve after fade animation completes
             trackFailTimeout(() => { 
               try { overlay.remove(); } catch {} 
               _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
@@ -464,6 +493,27 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             clearAllFailAnimationFrames();
             try { window.removeEventListener('keydown', onKey); } catch {}
             
+            // 🔥 CRITICAL MEMORY LEAK FIX: Comprehensive cleanup before restart (fallback)
+            try {
+              const fxModule = await import('./fx.js');
+              if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
+                fxModule.cleanupAllEffects();
+                logger.info('🧹 board-fail-modal: Cleaned up all effects (fallback) before restart');
+              }
+              // 🔥 CRITICAL: Also cleanup star animations specifically
+              if (fxModule && typeof fxModule.cleanupExistingStarAnimations === 'function') {
+                fxModule.cleanupExistingStarAnimations();
+                logger.info('🧹 board-fail-modal: Cleaned up star animations (fallback) before restart');
+              }
+              // 🔥 CRITICAL: Also cleanup wild beer explosion
+              if (fxModule && typeof fxModule.cleanupWildBeerExplosion === 'function') {
+                fxModule.cleanupWildBeerExplosion();
+                logger.info('🧹 board-fail-modal: Cleaned up wild beer explosion (fallback) before restart');
+              }
+            } catch (e) {
+              logger.warn('⚠️ board-fail-modal: Failed to cleanup all effects (fallback, non-fatal):', e);
+            }
+            
             // 🔥 CRITICAL: Cleanup confetti animations (MEMORY LEAK FIX)
             try {
               import('./confetti-system.js').then(confettiModule => {
@@ -474,6 +524,11 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             } catch (e) {}
             
             // Fallback: proceed with restart if hearts check fails
+            // 🔥 CRITICAL FIX: Close modal FIRST (fade out), then call restart
+            overlay.style.opacity = '0';
+            card.style.transform = 'scale(0.88)';
+            card.style.opacity = '0';
+            
             if ((window as WindowWithCC).CC && (window as WindowWithCC).CC!.restart) {
               try {
                 (window as WindowWithCC).CC!.restart!();
@@ -481,11 +536,15 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
               } catch (err) {
                 logger.warn('⚠️ window.CC.restart failed:', err);
               }
+            } else {
+              logger.error('❌ window.CC.restart not available (fallback)!');
             }
-            overlay.style.opacity = '0';
-            card.style.transform = 'scale(0.88)';
-            card.style.opacity = '0';
-            trackFailTimeout(() => { try { overlay.remove(); } catch {}; resolve({ action }); }, 220);
+            
+            trackFailTimeout(() => { 
+              try { overlay.remove(); } catch {} 
+              _isModalOpen = false; // 🔥 BUG FIX: Reset flag when modal closes
+              resolve({ action }); 
+            }, 220);
           }
         })();
         return; // Exit early - modal closing is handled above
@@ -495,6 +554,19 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         clearAllFailTimeouts();
         clearAllFailAnimationFrames();
         try { window.removeEventListener('keydown', onKey); } catch {}
+        
+        // 🔥 CRITICAL MEMORY LEAK FIX: Comprehensive cleanup before exit to menu
+        (async () => {
+          try {
+            const fxModule = await import('./fx.js');
+            if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
+              fxModule.cleanupAllEffects();
+              logger.info('🧹 board-fail-modal: Cleaned up all effects before exit to menu');
+            }
+          } catch (e) {
+            logger.warn('⚠️ board-fail-modal: Failed to cleanup all effects (non-fatal):', e);
+          }
+        })();
         
         // 🔥 CRITICAL: Cleanup confetti animations before exit (MEMORY LEAK FIX)
         try {

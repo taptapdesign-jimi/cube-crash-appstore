@@ -1198,34 +1198,38 @@ async function startNewRun(boardId: number): Promise<void> {
     console.warn('⚠️ exitToMenu: Error killing GSAP tweens:', gsapError);
   }
   
-  // 🔥 FIX: Immediately remove all FX containers (smoke, particles, shards)
-  // This prevents stuck animation artifacts when user exits during merge animations
+  // 🔥 CRITICAL MEMORY LEAK FIX: Comprehensive cleanup before exit to menu
+  // This ensures all animations, effects, and resources are cleaned up before cleanupGame
   try {
-    const { cleanupAllFxContainers, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupWildBeerExplosion } = await import('./modules/fx.js');
-    
-    // Kill delayed calls first (stops scheduled cleanup from running)
-    if (typeof killAllDelayedCalls === 'function') {
-      killAllDelayedCalls();
+    const fxModule = await import('./modules/fx.js');
+    if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
+      fxModule.cleanupAllEffects();
+      console.log('🧹 exitToMenu: Cleaned up all effects (bubbles, stars, particles) before cleanupGame');
     }
-    
-    // Cleanup wild beer explosion if running
-    if (typeof cleanupWildBeerExplosion === 'function') {
-      cleanupWildBeerExplosion();
+  } catch (e) {
+    console.warn('⚠️ exitToMenu: Failed to cleanup all effects (non-fatal):', e);
+  }
+  
+  // 🔥 CRITICAL MEMORY LEAK FIX: Comprehensive cleanup before exit to menu
+  // This ensures all animations, effects, and resources are cleaned up before cleanupGame
+  // Note: cleanupAllEffects already includes cleanupWildBeerExplosion, cleanupExistingStarAnimations,
+  // killAllDelayedCalls, and destroyAllGraphicsObjects, so we use it instead of individual calls
+  try {
+    const fxModule = await import('./modules/fx.js');
+    if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
+      fxModule.cleanupAllEffects();
+      console.log('✅ exitToMenu: Cleaned up all effects (bubbles, stars, particles) before cleanupGame');
+    } else {
+      // Fallback to individual cleanup if cleanupAllEffects is not available
+      const { cleanupAllFxContainers, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupWildBeerExplosion } = fxModule || {};
+      if (typeof killAllDelayedCalls === 'function') killAllDelayedCalls();
+      if (typeof cleanupWildBeerExplosion === 'function') cleanupWildBeerExplosion();
+      if (typeof cleanupAllFxContainers === 'function') cleanupAllFxContainers();
+      if (typeof destroyAllGraphicsObjects === 'function') destroyAllGraphicsObjects();
+      console.log('✅ exitToMenu: Fallback cleanup completed');
     }
-    
-    // Remove all FX containers immediately
-    if (typeof cleanupAllFxContainers === 'function') {
-      cleanupAllFxContainers();
-    }
-    
-    // Destroy tracked graphics objects
-    if (typeof destroyAllGraphicsObjects === 'function') {
-      destroyAllGraphicsObjects();
-    }
-    
-    console.log('✅ exitToMenu: All FX containers and particles cleaned up');
   } catch (fxError) {
-    console.warn('⚠️ exitToMenu: Error cleaning up FX containers:', fxError);
+    console.warn('⚠️ exitToMenu: Error cleaning up effects:', fxError);
   }
   
   // Stop PIXI ticker immediately to prevent render errors

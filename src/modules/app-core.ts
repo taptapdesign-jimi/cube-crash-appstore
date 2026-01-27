@@ -15,7 +15,7 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning, cleanupWildBeerExplosion, waitForBubblesAnimationToComplete, waitForOngoingAnimations } from './fx.ts';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning, cleanupWildBeerExplosion, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations } from './fx.ts';
 import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
 // import { showStarsModal } from './stars-modal.js';
@@ -2127,12 +2127,41 @@ function rebuildBoard(){
   tiles.length=0;
   
   // 🔥 CRITICAL: Cleanup wild beer explosion animation when board is rebuilt
+  // 🔥 BUBBLES ANIMATION FIX: Always cleanup to prevent stale state across board transitions
+  // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations to prevent memory leaks
   try {
-    if (isWildBeerExplosionRunning && cleanupWildBeerExplosion) {
-      cleanupWildBeerExplosion();
-      console.log('🧹 Cleaned up wild beer explosion animation during board rebuild');
+    if (typeof isWildBeerExplosionRunning === 'function' && typeof cleanupWildBeerExplosion === 'function') {
+      const wasActive = isWildBeerExplosionRunning();
+      if (wasActive) {
+        cleanupWildBeerExplosion();
+        console.log('🧹 rebuildBoard: Cleaned up active wild beer explosion animation');
+      } else {
+        // 🔥 CRITICAL: Force cleanup even if flag says inactive (handles stale containers/flags)
+        cleanupWildBeerExplosion();
+        console.log('🧹 rebuildBoard: Force cleaned up wild beer explosion (stale state prevention)');
+      }
     }
-  } catch {}
+    
+    // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations
+    if (typeof cleanupExistingStarAnimations === 'function') {
+      cleanupExistingStarAnimations();
+      console.log('🧹 rebuildBoard: Cleaned up stars-to-HUD animations');
+    }
+  } catch (e) {
+    console.warn('⚠️ rebuildBoard: Failed to cleanup animations:', e);
+    // 🔥 CRITICAL: Force cleanup on error to prevent stuck state
+    try {
+      if (typeof cleanupWildBeerExplosion === 'function') {
+        cleanupWildBeerExplosion();
+      }
+      // 🔥 STARS ANIMATION FIX: Force cleanup stars animations on error (including protected)
+      if (typeof forceCleanupAllStarAnimations === 'function') {
+        forceCleanupAllStarAnimations();
+      } else if (typeof cleanupExistingStarAnimations === 'function') {
+        cleanupExistingStarAnimations();
+      }
+    } catch {}
+  }
   createEmptyGrid();
   drawBoardBG('none');
 
@@ -2550,12 +2579,26 @@ function startLevel(n){
   
   // 🔥 CRITICAL FIX: Cleanup all animations before starting new level
   // This prevents memory leaks and conflicts that could cause crashes
+  // 🔥 BUBBLES ANIMATION FIX: Properly import and cleanup bubbles animation to prevent state leaks
+  // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations to prevent memory leaks
   try {
-    // Cleanup bubbles animation
-    const fxModule = typeof window !== 'undefined' && (window as any).cleanupWildBeerExplosion;
-    if (typeof fxModule === 'function') {
-      fxModule();
-      console.log('🧹 startLevel: Cleaned up bubbles animation');
+    // Cleanup bubbles animation - use proper import instead of window access
+    if (typeof cleanupWildBeerExplosion === 'function') {
+      const wasActive = isWildBeerExplosionRunning();
+      if (wasActive) {
+        cleanupWildBeerExplosion();
+        console.log('🧹 startLevel: Cleaned up active bubbles animation');
+      } else {
+        // 🔥 CRITICAL: Force cleanup even if flag says inactive (handles stale state)
+        cleanupWildBeerExplosion();
+        console.log('🧹 startLevel: Force cleaned up bubbles animation (stale state prevention)');
+      }
+    }
+    
+    // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations
+    if (typeof cleanupExistingStarAnimations === 'function') {
+      cleanupExistingStarAnimations();
+      console.log('🧹 startLevel: Cleaned up stars-to-HUD animations');
     }
     
     // 🔥 GRACEFUL CLEANUP: Stop new confetti spawns but let existing animations finish
@@ -2569,6 +2612,18 @@ function startLevel(n){
     });
   } catch (e) {
     console.warn('⚠️ startLevel: Failed to cleanup animations (non-fatal):', e);
+    // 🔥 CRITICAL: Force reset flag even if cleanup fails (prevents stuck state)
+    try {
+      if (typeof cleanupWildBeerExplosion === 'function') {
+        cleanupWildBeerExplosion();
+      }
+      // 🔥 STARS ANIMATION FIX: Force cleanup stars animations on error (including protected)
+      if (typeof forceCleanupAllStarAnimations === 'function') {
+        forceCleanupAllStarAnimations();
+      } else if (typeof cleanupExistingStarAnimations === 'function') {
+        cleanupExistingStarAnimations();
+      }
+    } catch {}
   }
   
   // 🎯 BOARD-SPECIFIC RULES: Set current board for board-specific rules
@@ -3960,7 +4015,8 @@ function merge(src, dst, helpers){
                       hudStarPos: hudStarPosSmall
                     });
                     // Pass saved star data instead of tile object
-                    await animateStarsToHudIcon(board, stage, savedStarPositionsSmall, savedWildTileScreenPosSmall, merge6PosSmall, hudStarPosSmall);
+                    // 🔥 CRITICAL FIX: Pass app to animateStarsToHudIcon so it can access renderer
+                    await animateStarsToHudIcon(board, stage, savedStarPositionsSmall, savedWildTileScreenPosSmall, merge6PosSmall, hudStarPosSmall, app);
                     console.log('✅ Stars animation to HUD completed (INDEPENDENT)');
                   } else {
                     console.warn('⚠️ animateStarsToHudIcon not available in fx.js');
@@ -5749,7 +5805,8 @@ function merge(src, dst, helpers){
                       hudStarPos
                     });
                     // Pass saved star data instead of tile object
-                    await animateStarsToHudIcon(board, stage, savedStarPositions, savedWildTileScreenPos, merge6Pos, hudStarPos);
+                    // 🔥 CRITICAL FIX: Pass app to animateStarsToHudIcon so it can access renderer
+                    await animateStarsToHudIcon(board, stage, savedStarPositions, savedWildTileScreenPos, merge6Pos, hudStarPos, app);
                     console.log('✅ Stars animation to HUD completed (INDEPENDENT)');
                   } else {
                     console.warn('⚠️ animateStarsToHudIcon not available in fx.js');
@@ -8395,13 +8452,42 @@ export function cleanupGame() {
   }
   
   // 🔥 CRITICAL FIX: Cleanup wild beer explosion (GSAP ticker + PIXI containers)
+  // 🔥 BUBBLES ANIMATION FIX: Always cleanup to prevent stale state (even if flag says inactive)
+  // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations to prevent memory leaks
   try {
-    if (isWildBeerExplosionRunning && isWildBeerExplosionRunning()) {
+    if (typeof isWildBeerExplosionRunning === 'function' && typeof cleanupWildBeerExplosion === 'function') {
+      const wasActive = isWildBeerExplosionRunning();
+      // Always cleanup (even if flag says inactive) to handle stale containers/flags
       cleanupWildBeerExplosion();
-      console.log('✅ Wild beer explosion cleaned up in cleanupGame()');
+      if (wasActive) {
+        console.log('✅ Wild beer explosion cleaned up in cleanupGame()');
+      } else {
+        console.log('✅ Wild beer explosion force cleaned up in cleanupGame() (stale state prevention)');
+      }
+    }
+    
+    // 🔥 STARS ANIMATION FIX: Force cleanup ALL stars-to-HUD animations (including protected)
+    // Use force cleanup in cleanupGame() because we're closing the game completely
+    if (typeof forceCleanupAllStarAnimations === 'function') {
+      forceCleanupAllStarAnimations();
+      console.log('✅ Stars-to-HUD animations force cleaned up in cleanupGame()');
+    } else if (typeof cleanupExistingStarAnimations === 'function') {
+      // Fallback to regular cleanup if force cleanup not available
+      cleanupExistingStarAnimations();
+      console.log('✅ Stars-to-HUD animations cleaned up in cleanupGame()');
     }
   } catch (e) {
-    console.warn('⚠️ Failed to cleanup wild beer explosion:', e);
+    console.warn('⚠️ Failed to cleanup animations:', e);
+    // 🔥 CRITICAL: Force cleanup on error (prevents stuck state)
+    try {
+      if (typeof cleanupWildBeerExplosion === 'function') {
+        cleanupWildBeerExplosion();
+      }
+      // 🔥 STARS ANIMATION FIX: Force cleanup stars animations on error
+      if (typeof cleanupExistingStarAnimations === 'function') {
+        cleanupExistingStarAnimations();
+      }
+    } catch {}
   }
   
   // 🔥 FIX: Cleanup hearts system (timer and resources)
@@ -8903,7 +8989,22 @@ async function loadGameState() {
       } else {
         tile.eventMode = 'static';
         tile.cursor = 'pointer';
-        if (drag?.bindToTile) drag.bindToTile(tile);
+        // 🔥 CRITICAL FIX: Use STATE.drag instead of local drag variable
+        // This ensures drag system is available even if loadGameState is called before boot completes
+        if (STATE.drag && typeof STATE.drag.bindToTile === 'function') {
+          STATE.drag.bindToTile(tile);
+        } else {
+          console.warn('⚠️ loadGameState: STATE.drag not available, tile will not be draggable:', tile.gridX, tile.gridY);
+          // 🔥 FIX: Retry binding after a short delay if drag system is not yet initialized
+          setTimeout(() => {
+            if (STATE.drag && typeof STATE.drag.bindToTile === 'function') {
+              STATE.drag.bindToTile(tile);
+              console.log('✅ loadGameState: Tile bound to drag system after delay:', tile.gridX, tile.gridY);
+            } else {
+              console.error('❌ loadGameState: STATE.drag still not available after delay, tile will not be draggable');
+            }
+          }, 100);
+        }
         tile.alpha = snapshot && Number.isFinite(snapshot.alpha) ? snapshot.alpha : (value > 0 ? 1 : 0);
         if (tile.occluder) tile.occluder.visible = snapshot && typeof snapshot.occluderVisible === 'boolean' ? snapshot.occluderVisible : false;
         if (tile.ghostFrame) tile.ghostFrame._suspended = false;
@@ -8998,6 +9099,36 @@ async function loadGameState() {
     
     // CRITICAL: Draw ghost placeholders BEFORE HUD update
     drawBoardBG('active+empty');
+    
+    // 🔥 CRITICAL FIX: Ensure drag system is initialized before proceeding
+    // This is especially important when loading from interim card (fresh app start)
+    if (!STATE.drag) {
+      console.warn('⚠️ loadGameState: STATE.drag not initialized, waiting for boot to complete...');
+      // Wait for drag system to be initialized (max 2 seconds)
+      let attempts = 0;
+      const maxAttempts = 40; // 40 * 50ms = 2 seconds
+      while (!STATE.drag && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        attempts++;
+      }
+      if (!STATE.drag) {
+        console.error('❌ loadGameState: STATE.drag still not initialized after waiting, tiles may not be draggable');
+      } else {
+        console.log('✅ loadGameState: STATE.drag initialized after', attempts * 50, 'ms');
+      }
+    }
+    
+    // 🔥 CRITICAL FIX: Re-bind all unlocked tiles to drag system (in case they weren't bound earlier)
+    tiles.forEach(tile => {
+      if (tile && !tile.locked && tile.eventMode === 'static' && STATE.drag && typeof STATE.drag.bindToTile === 'function') {
+        try {
+          STATE.drag.bindToTile(tile);
+        } catch (e) {
+          console.warn('⚠️ loadGameState: Failed to bind tile to drag system:', e);
+        }
+      }
+    });
+    console.log('✅ loadGameState: Re-bound all unlocked tiles to drag system');
     
     // CRITICAL: Call layout to position HUD correctly (this initializes stars collector)
     await layoutBoard();
@@ -9300,24 +9431,42 @@ async function loadGameState() {
           // Restart the SAME board - they failed, not won
           console.log('💀 FAIL RECOVERY: User was stuck on board', currentBoardNum, '- restarting same board');
           
-          // Keep the same board number - they need to replay it
-          // boardNumber stays the same (currentBoardNum)
+          // 🔥 BUG FIX: Don't show fail screen if user is resuming from interim board
+          // When resuming from Journey, we should just rebuild the board fresh, not show fail screen
+          const fromInterimBoard = (window as any).__ccFromInterimBoard === true || 
+                                   (window as any).__ccIsInterimBoard === true ||
+                                   localStorage.getItem('__ccFromInterimBoard') === 'true';
           
-          // 🔥 CRITICAL: Schedule fail screen after UI settles
-          // This gives user proper feedback that they lost
-          setTimeout(() => {
-            try {
-              console.log('💀 FAIL RECOVERY: Showing fail screen for board', currentBoardNum);
-              // Try to show fail screen if available
-              if (typeof showFinalScreen === 'function') {
-                showFinalScreen();
-              } else if (typeof (window as any).showEndRunModal === 'function') {
-                (window as any).showEndRunModal();
+          if (fromInterimBoard) {
+            console.log('🔄 FAIL RECOVERY: User is resuming from interim board - rebuilding board fresh (no fail screen)');
+            // Just rebuild the board - don't show fail screen
+            // Keep the same board number - they need to replay it
+            // boardNumber stays the same (currentBoardNum)
+            
+            // 🔥 CRITICAL: Clear the flag after using it to prevent affecting future operations
+            (window as any).__ccFromInterimBoard = false;
+            (window as any).__ccIsInterimBoard = false;
+            try { localStorage.removeItem('__ccFromInterimBoard'); } catch {}
+          } else {
+            // Keep the same board number - they need to replay it
+            // boardNumber stays the same (currentBoardNum)
+            
+            // 🔥 CRITICAL: Schedule fail screen after UI settles
+            // This gives user proper feedback that they lost
+            setTimeout(() => {
+              try {
+                console.log('💀 FAIL RECOVERY: Showing fail screen for board', currentBoardNum);
+                // Try to show fail screen if available
+                if (typeof showFinalScreen === 'function') {
+                  showFinalScreen();
+                } else if (typeof (window as any).showEndRunModal === 'function') {
+                  (window as any).showEndRunModal();
+                }
+              } catch (e) {
+                console.warn('⚠️ FAIL RECOVERY: Could not show fail screen:', e);
               }
-            } catch (e) {
-              console.warn('⚠️ FAIL RECOVERY: Could not show fail screen:', e);
-            }
-          }, 1000);
+            }, 1000);
+          }
           
           console.log('🚨 FAIL RECOVERY: Restarting board', currentBoardNum);
         }

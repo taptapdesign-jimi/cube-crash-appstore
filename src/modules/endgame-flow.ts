@@ -467,16 +467,38 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       }
       
       // 🔥 CRITICAL FIX: Cleanup bubbles animation again (in case it was restarted)
+      // 🔥 BUBBLES ANIMATION FIX: Always cleanup to prevent stale state across board transitions
+      // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations to prevent memory leaks
       try {
         const fxModule = await import('./fx.js');
         if (fxModule && typeof fxModule.cleanupWildBeerExplosion === 'function') {
-          if (fxModule.isWildBeerExplosionRunning && fxModule.isWildBeerExplosionRunning()) {
-            fxModule.cleanupWildBeerExplosion();
-            console.log('🧹 endgame-flow: Cleaned up bubbles animation in cleanup section');
+          const wasActive = fxModule.isWildBeerExplosionRunning && fxModule.isWildBeerExplosionRunning();
+          // Always cleanup (even if flag says inactive) to handle stale containers/flags
+          fxModule.cleanupWildBeerExplosion();
+          if (wasActive) {
+            console.log('🧹 endgame-flow: Cleaned up active bubbles animation in cleanup section');
+          } else {
+            console.log('🧹 endgame-flow: Force cleaned up bubbles animation (stale state prevention)');
           }
         }
+        
+        // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations
+        if (fxModule && typeof fxModule.cleanupExistingStarAnimations === 'function') {
+          fxModule.cleanupExistingStarAnimations();
+          console.log('🧹 endgame-flow: Cleaned up stars-to-HUD animations in cleanup section');
+        }
       } catch (e) {
-        console.warn('⚠️ endgame-flow: Failed to cleanup bubbles animation in cleanup section:', e);
+        console.warn('⚠️ endgame-flow: Failed to cleanup animations in cleanup section:', e);
+        // 🔥 CRITICAL: Try cleanup again on error (prevents stuck state)
+        try {
+          const fxModule = await import('./fx.js');
+          if (fxModule && typeof fxModule.cleanupWildBeerExplosion === 'function') {
+            fxModule.cleanupWildBeerExplosion();
+          }
+          if (fxModule && typeof fxModule.cleanupExistingStarAnimations === 'function') {
+            fxModule.cleanupExistingStarAnimations();
+          }
+        } catch {}
       }
       
       // Memory cleanup (lazy import to avoid circular dependency)

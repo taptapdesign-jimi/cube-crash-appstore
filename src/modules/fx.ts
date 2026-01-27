@@ -1693,11 +1693,14 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
   console.log(`🎨 regularMerge6ShardsTemplated: Created ${shardsInLayer.length} shards in layer`);
   
   // Cleanup layer after TTL
+  // 🔥 MEMORY LEAK FIX: Use setTimeout instead of gsap.delayedCall to prevent cleanup from being killed
+  // This ensures shards are ALWAYS returned to pool, even if killAllDelayedCalls() is called
   const ttl = params.ttl || 1.0;
-  gsap.delayedCall(ttl, () => {
+  const cleanupTimeout = setTimeout(() => {
     console.log(`🎨 regularMerge6ShardsTemplated: Cleaning up ${shardsInLayer.length} shards after TTL ${ttl}s`);
     
     // Return all shards to pool
+    let releasedCount = 0;
     shardsInLayer.forEach((shard, idx) => {
       try {
         gsap.killTweensOf(shard);
@@ -1711,18 +1714,28 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
           layer.removeChild(shard);
         }
         pool.release(shard);
+        releasedCount++;
       } catch (e) {
         console.warn(`⚠️ Error cleaning up shard ${idx}:`, e);
       }
     });
     
+    console.log(`✅ regularMerge6ShardsTemplated: Released ${releasedCount}/${shardsInLayer.length} shards to pool`);
+    
     // Destroy layer
     try {
       layer.destroy({ children: false });
+      console.log(`✅ regularMerge6ShardsTemplated: Layer destroyed successfully`);
     } catch (e) {
       console.warn('⚠️ Error destroying layer:', e);
     }
-  });
+    
+    // Clear array reference
+    shardsInLayer.length = 0;
+  }, ttl * 1000);
+  
+  // Store timeout reference on layer for manual cleanup if needed
+  (layer as any)._cleanupTimeout = cleanupTimeout;
 }
 
 /**
@@ -3319,68 +3332,121 @@ let _bubblesSafetyTimeoutId: ReturnType<typeof setTimeout> | null = null; // �
 
 export function cleanupWildBeerExplosion() {
   try {
+    // 🔥 CRITICAL FIX: Always clear timeout first to prevent race conditions
     if (_bubblesSafetyTimeoutId) {
       clearTimeout(_bubblesSafetyTimeoutId);
       _bubblesSafetyTimeoutId = null;
     }
-    // Stop FPS monitoring
-    stopFpsMonitoring();
-
+    
+    // 🔥 CRITICAL FIX: Reset flag FIRST to prevent new animations from starting during cleanup
     wildBeerExplosionActive = false;
+    
+    // Stop FPS monitoring
+    try {
+      stopFpsMonitoring();
+    } catch (e) {
+      console.warn('⚠️ cleanupWildBeerExplosion: Failed to stop FPS monitoring:', e);
+    }
 
+    // 🔥 CRITICAL FIX: Remove GSAP ticker BEFORE container cleanup (prevents ticker from accessing destroyed container)
+    if (wildBeerExplosionSpawnTick) {
+      try {
+        gsap.ticker.remove(wildBeerExplosionSpawnTick);
+        wildBeerExplosionSpawnTick = null;
+      } catch (e) {
+        console.warn('⚠️ cleanupWildBeerExplosion: Failed to remove spawn ticker:', e);
+      }
+    }
 
     if (wildBeerExplosionContainer) {
       const container = wildBeerExplosionContainer;
+      // 🔥 CRITICAL FIX: Clear reference immediately to prevent re-entry
       wildBeerExplosionContainer = null;
 
-      // 🔥 v70 CLEANUP: Remove GSAP ticker
+      // 🔥 v70 CLEANUP: Remove GSAP ticker from container
       if (container._bubbleSpawnTicker) {
         try {
           gsap.ticker.remove(container._bubbleSpawnTicker);
           container._bubbleSpawnTicker = null;
-        } catch {}
-      }
-      if (wildBeerExplosionSpawnTick) {
-        try {
-          gsap.ticker.remove(wildBeerExplosionSpawnTick);
-          wildBeerExplosionSpawnTick = null;
-        } catch {}
+        } catch (e) {
+          console.warn('⚠️ cleanupWildBeerExplosion: Failed to remove container ticker:', e);
+        }
       }
 
       // Clear spawn interval (if exists from old version)
       if (container._spawnInterval) {
-        clearInterval(container._spawnInterval);
-        container._spawnInterval = null;
+        try {
+          clearInterval(container._spawnInterval);
+          container._spawnInterval = null;
+        } catch (e) {
+          console.warn('⚠️ cleanupWildBeerExplosion: Failed to clear spawn interval:', e);
+        }
       }
 
       // 🔥 v75 CLEANUP: Clean up all bubbles (Sprite or Graphics) with all tweens
-      const children = [...(container.children || [])];
-      children.forEach((bubble) => {
-        try {
-          // Kill all tweens stored on bubble
-          if (bubble._bubbleTweens && Array.isArray(bubble._bubbleTweens)) {
-            bubble._bubbleTweens.forEach(tween => {
-              try { if (tween && tween.kill) tween.kill(); } catch {}
-            });
-            bubble._bubbleTweens = null;
+      try {
+        const children = [...(container.children || [])];
+        children.forEach((bubble) => {
+          try {
+            // Kill all tweens stored on bubble
+            if (bubble._bubbleTweens && Array.isArray(bubble._bubbleTweens)) {
+              bubble._bubbleTweens.forEach(tween => {
+                try { if (tween && tween.kill) tween.kill(); } catch {}
+              });
+              bubble._bubbleTweens = null;
+            }
+            // Kill all tweens on bubble properties
+            gsap.killTweensOf(bubble);
+            gsap.killTweensOf(bubble.scale);
+            if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
+            // v75: Sprite objects use destroy() (texture is reused), Graphics use pool
+            if (bubble instanceof Sprite) {
+              bubble.destroy();
+            } else {
+              graphicsPool.release(bubble);
+            }
+          } catch (e) {
+            // Silently fail individual bubble cleanup
           }
-          // Kill all tweens on bubble properties
-          gsap.killTweensOf(bubble);
-          gsap.killTweensOf(bubble.scale);
-          if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
-          // v75: Sprite objects use destroy() (texture is reused), Graphics use pool
-          if (bubble instanceof Sprite) {
-            bubble.destroy();
-          } else {
-          graphicsPool.release(bubble);
-          }
-        } catch {}
-      });
+        });
+      } catch (e) {
+        console.warn('⚠️ cleanupWildBeerExplosion: Failed to cleanup bubbles:', e);
+      }
 
-      if (container.parent) container.parent.removeChild(container);
-      container.destroy?.({ children: true });
+      // 🔥 CRITICAL FIX: Remove from parent before destroy (prevents parent reference issues)
+      try {
+        if (container.parent) {
+          container.parent.removeChild(container);
+        }
+      } catch (e) {
+        console.warn('⚠️ cleanupWildBeerExplosion: Failed to remove container from parent:', e);
+      }
+      
+      // 🔥 CRITICAL FIX: Destroy container (handles destroyed containers gracefully)
+      try {
+        if (!container.destroyed) {
+          container.destroy?.({ children: true });
+        }
+      } catch (e) {
+        console.warn('⚠️ cleanupWildBeerExplosion: Failed to destroy container:', e);
+      }
     }
-  } catch {}
+    
+    // 🔥 CRITICAL FIX: Double-check flag is reset (defensive programming)
+    wildBeerExplosionActive = false;
+  } catch (e) {
+    console.error('❌ cleanupWildBeerExplosion: Critical error during cleanup:', e);
+    // 🔥 CRITICAL FIX: Force reset flag even on error (prevents stuck state)
+    wildBeerExplosionActive = false;
+    wildBeerExplosionContainer = null;
+    wildBeerExplosionSpawnTick = null;
+    if (_bubblesSafetyTimeoutId) {
+      try {
+        clearTimeout(_bubblesSafetyTimeoutId);
+        _bubblesSafetyTimeoutId = null;
+      } catch {}
+    }
+  }
 }
 
 export function isWildBeerExplosionRunning() {
@@ -3484,6 +3550,7 @@ export function cleanupAllEffects() {
   wildBeerBubbleSystems.clear();
 
   // 🔥 PERFORMANCE FIX: Cleanup active star animations (prevents lag)
+  // Use regular cleanup (not force) to allow protected animations to complete
   cleanupExistingStarAnimations();
 
   // Kill all global delayed calls
@@ -3654,19 +3721,38 @@ export function createWildBeerBubblesExplosion(board, tile) {
   }
 
   // Get app and stage from window.STATE (most reliable)
+  // 🔥 CRITICAL FIX: Validate stage is not destroyed and is valid before using
   const windowState = typeof window !== 'undefined' ? window.STATE : null;
   const app = (windowState && windowState.app) || null;
-  const stage = (windowState && windowState.stage) ||
-                (app && app.stage) ||
-                board.parent?.parent?.stage ||
-                board.parent;
+  let stage = (windowState && windowState.stage) ||
+              (app && app.stage) ||
+              board.parent?.parent?.stage ||
+              board.parent;
 
+  // 🔥 CRITICAL FIX: Validate stage is not destroyed or stale (board transition fix)
   if (!stage) {
     console.error('❌ createWildBeerBubblesExplosion: No stage found!');
+    // 🔥 CRITICAL: Reset flag if stage is invalid (prevents stuck state)
+    wildBeerExplosionActive = false;
+    return;
+  }
+  
+  // 🔥 CRITICAL FIX: Check if stage is destroyed (can happen during board transitions)
+  if (stage.destroyed) {
+    console.error('❌ createWildBeerBubblesExplosion: Stage is destroyed (board transition issue)!');
+    // 🔥 CRITICAL: Reset flag if stage is destroyed (prevents stuck state)
+    wildBeerExplosionActive = false;
+    return;
+  }
+  
+  // 🔥 CRITICAL FIX: Validate stage has renderer (ensures it's a valid PIXI stage)
+  if (!app || !app.renderer || app.renderer.destroyed) {
+    console.error('❌ createWildBeerBubblesExplosion: App or renderer is invalid/destroyed!');
+    wildBeerExplosionActive = false;
     return;
   }
 
-  console.log('💧 createWildBeerBubblesExplosion: Stage found, proceeding with bubble creation');
+  console.log('💧 createWildBeerBubblesExplosion: Stage validated, proceeding with bubble creation');
 
   // 🔥 CRITICAL: Get accurate screen dimensions - use window.innerWidth/Height for actual viewport
   // This ensures we get the real screen size regardless of PixiJS coordinate system
@@ -3691,10 +3777,33 @@ export function createWildBeerBubblesExplosion(board, tile) {
   
   // Position container at stage origin (0,0 relative to stage)
   // In PixiJS, stage is usually at (0,0) and covers the entire screen
-  container.x = 0;
-  container.y = 0;
-  stage.addChild(container);
-  stage.sortChildren?.();
+  // 🔥 CRITICAL FIX: Validate stage is still valid before adding container (board transition fix)
+  try {
+    if (stage.destroyed) {
+      console.error('❌ createWildBeerBubblesExplosion: Stage was destroyed during setup!');
+      container.destroy?.({ children: true });
+      wildBeerExplosionActive = false;
+      return;
+    }
+    
+    container.x = 0;
+    container.y = 0;
+    stage.addChild(container);
+    stage.sortChildren?.();
+    
+    // 🔥 CRITICAL FIX: Verify container was actually added (defensive check)
+    if (!container.parent || container.parent !== stage) {
+      console.error('❌ createWildBeerBubblesExplosion: Failed to add container to stage!');
+      container.destroy?.({ children: true });
+      wildBeerExplosionActive = false;
+      return;
+    }
+  } catch (e) {
+    console.error('❌ createWildBeerBubblesExplosion: Failed to add container to stage:', e);
+    container.destroy?.({ children: true });
+    wildBeerExplosionActive = false;
+    return;
+  }
 
   wildBeerExplosionContainer = container;
   wildBeerExplosionActive = true;
@@ -3858,7 +3967,21 @@ export function createWildBeerBubblesExplosion(board, tile) {
              console.log(`💧 FPS DROP FIX OPTIMIZED: ${totalBubbles} bubbles (was 100, now 70 for merge 6 FPS fix), texture pooling: ${useTexturePooling ? 'YES' : 'NO (Graphics fallback)'}, 3 anims (was 5), spawn: ${spawnDuration}ms, FPS monitoring: throttled (every 4th frame), spawn logic: throttled (every 2nd frame), culling: throttled (every 5th frame)`);
 
   const makeBubble = () => {
-    if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) return;
+    // 🔥 CRITICAL FIX: Validate container exists and is not destroyed (board transition fix)
+    if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) {
+      return;
+    }
+    
+    // 🔥 CRITICAL FIX: Validate container parent (stage) is not destroyed
+    try {
+      if (!wildBeerExplosionContainer.parent || wildBeerExplosionContainer.parent.destroyed) {
+        return;
+      }
+    } catch (e) {
+      // If we can't check parent, assume it's invalid
+      return;
+    }
+    
     if (spawned >= totalBubbles || active >= maxActive) return;
 
     spawned += 1;
@@ -3997,11 +4120,48 @@ export function createWildBeerBubblesExplosion(board, tile) {
   // 🔥 FPS DROP FIX: Performance-based spawn ticker with throttled FPS monitoring and culling
   let frameCounter = 0; // Track frame count for throttling
   const spawnTick = () => {
+    // 🔥 CRITICAL FIX: Validate container exists and is not destroyed (board transition fix)
     if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) {
       if (wildBeerExplosionSpawnTick === spawnTick) {
-        gsap.ticker.remove(spawnTick);
+        try {
+          gsap.ticker.remove(spawnTick);
+        } catch (e) {
+          console.warn('⚠️ spawnTick: Failed to remove ticker:', e);
+        }
         wildBeerExplosionSpawnTick = null;
       }
+      // 🔥 CRITICAL: Reset flag and cleanup if container is destroyed (prevents stuck state)
+      wildBeerExplosionActive = false;
+      cleanupWildBeerExplosion();
+      return;
+    }
+    
+    // 🔥 CRITICAL FIX: Validate container parent (stage) is not destroyed (board transition fix)
+    try {
+      if (!wildBeerExplosionContainer.parent || wildBeerExplosionContainer.parent.destroyed) {
+        console.warn('⚠️ spawnTick: Container parent (stage) is destroyed, cleaning up');
+        if (wildBeerExplosionSpawnTick === spawnTick) {
+          try {
+            gsap.ticker.remove(spawnTick);
+          } catch (e) {
+            console.warn('⚠️ spawnTick: Failed to remove ticker:', e);
+          }
+          wildBeerExplosionSpawnTick = null;
+        }
+        wildBeerExplosionActive = false;
+        cleanupWildBeerExplosion();
+        return;
+      }
+    } catch (e) {
+      // If we can't check parent, assume it's invalid and cleanup
+      console.warn('⚠️ spawnTick: Error checking container parent, cleaning up:', e);
+      if (wildBeerExplosionSpawnTick === spawnTick) {
+        try {
+          gsap.ticker.remove(spawnTick);
+        } catch {}
+        wildBeerExplosionSpawnTick = null;
+      }
+      wildBeerExplosionActive = false;
       cleanupWildBeerExplosion();
       return;
     }
@@ -4244,12 +4404,106 @@ function createMerge6Stars(board, layer, centerX, centerY) {
 let activeStarAnimationContainers = new Set();
 
 /**
- * Cleanup any existing star animations before starting new one (prevents lag)
+ * Force cleanup ALL star animations including protected ones
+ * Use this when closing app, restarting game, or when you need to cleanup everything
+ * 🔥 MEMORY LEAK FIX: Ensures no memory leaks even if animations are protected
  */
-function cleanupExistingStarAnimations() {
-  activeStarAnimationContainers.forEach(container => {
-    try {
-      if (container && !container.destroyed) {
+export function forceCleanupAllStarAnimations() {
+  try {
+    console.log(`🧹 forceCleanupAllStarAnimations: Force cleaning up ${activeStarAnimationContainers.size} star animation container(s) (including protected)`);
+    
+    activeStarAnimationContainers.forEach(container => {
+      try {
+        if (container && !container.destroyed) {
+          // 🔥 CRITICAL FIX: Clear cleanup timeout if exists
+          if (container._cleanupTimeout) {
+            try {
+              clearTimeout(container._cleanupTimeout);
+              container._cleanupTimeout = null;
+            } catch {}
+          }
+          
+          // Kill all GSAP animations (including protected ones)
+          gsap.killTweensOf(container);
+          gsap.killTweensOf(container.scale);
+          gsap.killTweensOf(container.alpha);
+          
+          // Kill animations on all children (including protected sprites)
+          if (container.children) {
+            container.children.forEach(child => {
+              try {
+                gsap.killTweensOf(child);
+                gsap.killTweensOf(child.scale);
+                gsap.killTweensOf(child.rotation);
+                gsap.killTweensOf(child.alpha);
+              } catch {}
+            });
+          }
+          
+          // Remove from parent
+          if (container.parent) {
+            container.parent.removeChild(container);
+          }
+          
+          // Destroy container
+          if (!container.destroyed) {
+            container.destroy({ children: true });
+          }
+        }
+      } catch (e) {
+        console.warn('⚠️ forceCleanupAllStarAnimations: Error cleaning up container:', e);
+      }
+    });
+    
+    // 🔥 CRITICAL FIX: Always clear Set (even protected containers are cleaned up)
+    activeStarAnimationContainers.clear();
+    
+    console.log('✅ forceCleanupAllStarAnimations: All star animations force cleaned up');
+  } catch (e) {
+    console.error('❌ forceCleanupAllStarAnimations: Critical error during cleanup:', e);
+    // 🔥 CRITICAL FIX: Force clear Set even on error (prevents stuck state)
+    activeStarAnimationContainers.clear();
+  }
+}
+
+/**
+ * Cleanup any existing star animations before starting new one (prevents lag)
+ * 🔥 BUBBLES ANIMATION FIX: Export-ana za cleanup u board transitions
+ * 🔥 MEMORY LEAK FIX: Only cleans up non-protected animations (protected ones will cleanup automatically)
+ */
+export function cleanupExistingStarAnimations() {
+  try {
+    // 🔥 CRITICAL FIX: Only cleanup OLD animations, NOT protected ones that are currently running
+    // This ensures star animations can complete even during board transitions
+    const containersToCleanup = [];
+    const protectedContainers = [];
+    
+    activeStarAnimationContainers.forEach(container => {
+      try {
+        // 🔥 CRITICAL: Skip protected containers (currently running star animations)
+        if (container && container._isProtectedStarAnimation) {
+          protectedContainers.push(container);
+          return; // Skip this container - it's protected
+        }
+        
+        // Only cleanup non-protected containers (old/stale animations)
+        if (container && !container.destroyed) {
+          containersToCleanup.push(container);
+        }
+      } catch {}
+    });
+    
+    // Cleanup only non-protected containers
+    containersToCleanup.forEach(container => {
+      try {
+        // 🔥 CRITICAL FIX: Clear cleanup timeout if exists
+        if (container._cleanupTimeout) {
+          try {
+            clearTimeout(container._cleanupTimeout);
+            container._cleanupTimeout = null;
+          } catch {}
+        }
+        
         // Kill all GSAP animations
         gsap.killTweensOf(container);
         gsap.killTweensOf(container.scale);
@@ -4259,6 +4513,10 @@ function cleanupExistingStarAnimations() {
         if (container.children) {
           container.children.forEach(child => {
             try {
+              // 🔥 CRITICAL: Skip protected sprites
+              if (child && child._isProtectedStarAnimation) {
+                return; // Skip protected sprite
+              }
               gsap.killTweensOf(child);
               gsap.killTweensOf(child.scale);
               gsap.killTweensOf(child.rotation);
@@ -4276,10 +4534,28 @@ function cleanupExistingStarAnimations() {
         if (!container.destroyed) {
           container.destroy({ children: true });
         }
+        
+        // Remove from Set
+        activeStarAnimationContainers.delete(container);
+      } catch (e) {
+        console.warn('⚠️ cleanupExistingStarAnimations: Error cleaning up container:', e);
+        // Remove from Set even on error
+        activeStarAnimationContainers.delete(container);
       }
-    } catch {}
-  });
-  activeStarAnimationContainers.clear();
+    });
+    
+    // 🔥 CRITICAL: Keep protected containers in the Set (they will be removed when animation completes)
+    if (protectedContainers.length > 0) {
+      console.log(`🛡️ cleanupExistingStarAnimations: Protected ${protectedContainers.length} active star animation(s) from cleanup`);
+    }
+    
+    if (containersToCleanup.length > 0) {
+      console.log(`🧹 cleanupExistingStarAnimations: Cleaned up ${containersToCleanup.length} old star animation container(s)`);
+    }
+  } catch (e) {
+    console.error('❌ cleanupExistingStarAnimations: Critical error during cleanup:', e);
+    // 🔥 CRITICAL FIX: Don't clear Set on error - protected containers should remain
+  }
 }
 
 /**
@@ -4292,14 +4568,86 @@ function cleanupExistingStarAnimations() {
  * @param {Object} merge6CenterPos - Merge 6 center position: { x, y }
  * @param {Object} hudStarIconPos - HUD star icon position: { x, y }
  */
-export async function animateStarsToHudIcon(board, stage, savedStarPositions, savedWildTileScreenPos, merge6CenterPos, hudStarIconPos) {
+export async function animateStarsToHudIcon(board, stage, savedStarPositions, savedWildTileScreenPos, merge6CenterPos, hudStarIconPos, app = null) {
+  console.log('⭐ animateStarsToHudIcon CALLED with:', {
+    hasBoard: !!board,
+    hasStage: !!stage,
+    savedStarCount: savedStarPositions?.length || 0,
+    savedStarPositions: savedStarPositions,
+    savedWildTilePos: savedWildTileScreenPos,
+    merge6Pos: merge6CenterPos,
+    hudStarPos: hudStarIconPos,
+    hasApp: !!app
+  });
+  
   if (!board || !stage || !savedStarPositions || !Array.isArray(savedStarPositions) || savedStarPositions.length === 0) {
-    console.warn('⚠️ animateStarsToHudIcon: Missing saved star positions');
+    console.warn('⚠️ animateStarsToHudIcon: Missing saved star positions', {
+      hasBoard: !!board,
+      hasStage: !!stage,
+      savedStarPositions: savedStarPositions,
+      isArray: Array.isArray(savedStarPositions),
+      length: savedStarPositions?.length || 0
+    });
     return;
   }
   
-  if (!hudStarIconPos) {
-    console.warn('⚠️ animateStarsToHudIcon: Missing HUD star icon position');
+  if (!hudStarIconPos || !Number.isFinite(hudStarIconPos.x) || !Number.isFinite(hudStarIconPos.y)) {
+    console.warn('⚠️ animateStarsToHudIcon: Missing or invalid HUD star icon position', hudStarIconPos);
+    return;
+  }
+  
+  // 🔥 CRITICAL FIX: Validate stage is not destroyed (board transition fix)
+  if (stage.destroyed) {
+    console.error('❌ animateStarsToHudIcon: Stage is destroyed (board transition issue)!');
+    return;
+  }
+  
+  // 🔥 CRITICAL FIX: Get app from various sources (stage doesn't have renderer directly)
+  // Stage is a Container, not Application, so we need to get app from parameter, stage, or window.STATE
+  let rendererApp = app;
+  if (!rendererApp && stage && (stage as any).app) {
+    rendererApp = (stage as any).app;
+    console.log('✅ Got app from stage');
+  }
+  if (!rendererApp && typeof window !== 'undefined' && (window as any).STATE && (window as any).STATE.app) {
+    rendererApp = (window as any).STATE.app;
+    console.log('✅ Got app from window.STATE');
+  }
+  
+  // 🔥 CRITICAL FIX: Validate stage is valid Container (stage is Container, not Application)
+  // Stage doesn't need parent (it's the root), but we need app for renderer
+  try {
+    if (stage.destroyed) {
+      console.error('❌ animateStarsToHudIcon: Stage is destroyed!');
+      return;
+    }
+    
+    // Validate we have app for renderer
+    if (!rendererApp || !rendererApp.renderer || rendererApp.renderer.destroyed) {
+      console.error('❌ animateStarsToHudIcon: App or renderer not available!', {
+        hasAppParam: !!app,
+        hasStageApp: !!(stage as any).app,
+        hasStateApp: !!(typeof window !== 'undefined' && (window as any).STATE?.app),
+        rendererApp: !!rendererApp,
+        hasRenderer: !!rendererApp?.renderer,
+        rendererDestroyed: rendererApp?.renderer?.destroyed,
+        stageType: stage.constructor?.name,
+        stageDestroyed: stage.destroyed
+      });
+      return;
+    }
+    
+    console.log('✅ Stage validation passed:', {
+      hasApp: !!rendererApp,
+      hasRenderer: !!rendererApp.renderer,
+      rendererWidth: rendererApp.renderer.width,
+      rendererHeight: rendererApp.renderer.height,
+      rendererDestroyed: rendererApp.renderer.destroyed,
+      stageType: stage.constructor?.name,
+      stageDestroyed: stage.destroyed
+    });
+  } catch (e) {
+    console.error('❌ animateStarsToHudIcon: Error validating stage:', e);
     return;
   }
   
@@ -4314,6 +4662,13 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   const hudScreenX = hudStarIconPos.x;
   const hudScreenY = hudStarIconPos.y;
   
+  console.log('⭐ animateStarsToHudIcon: Positions:', {
+    wildTileScreen: { x: wildTileScreenX, y: wildTileScreenY },
+    hudScreen: { x: hudScreenX, y: hudScreenY },
+    merge6Center: merge6CenterPos,
+    savedWildTilePos: savedWildTileScreenPos
+  });
+  
   // 🔥 CRITICAL: Create animation container on STAGE with PROTECTED identifier
   // This ensures it's independent of board animations and won't be killed by cleanup
   const animationContainer = new Container();
@@ -4322,16 +4677,50 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   animationContainer.eventMode = 'none';
   animationContainer.x = 0;
   animationContainer.y = 0;
+  animationContainer.visible = true; // 🔥 CRITICAL: Ensure container is visible
+  animationContainer.alpha = 1.0; // 🔥 CRITICAL: Ensure container is fully opaque
+  animationContainer.renderable = true; // 🔥 CRITICAL: Ensure container is renderable
   
   // 🔥 CRITICAL: Mark container as PROTECTED to prevent it from being killed by cleanup functions
   animationContainer._isProtectedStarAnimation = true;
+  
+  console.log('⭐ Creating star animation container:', {
+    visible: animationContainer.visible,
+    alpha: animationContainer.alpha,
+    renderable: animationContainer.renderable,
+    zIndex: animationContainer.zIndex,
+    protected: animationContainer._isProtectedStarAnimation
+  });
   
   // Ensure stage sortable children is enabled for z-index
   if (stage.sortableChildren !== undefined) {
     stage.sortableChildren = true;
   }
   
-  stage.addChild(animationContainer);
+  // 🔥 CRITICAL FIX: Validate stage is still valid before adding container (board transition fix)
+  try {
+    if (stage.destroyed) {
+      console.error('❌ animateStarsToHudIcon: Stage was destroyed during setup!');
+      animationContainer.destroy?.({ children: true });
+      return;
+    }
+    
+    // rendererApp is already set above from app parameter, stage.app, or window.STATE
+    // No need to get it again here
+    
+    stage.addChild(animationContainer);
+    
+    // 🔥 CRITICAL FIX: Verify container was actually added (defensive check)
+    if (!animationContainer.parent || animationContainer.parent !== stage) {
+      console.error('❌ animateStarsToHudIcon: Failed to add container to stage!');
+      animationContainer.destroy?.({ children: true });
+      return;
+    }
+  } catch (e) {
+    console.error('❌ animateStarsToHudIcon: Failed to add container to stage:', e);
+    animationContainer.destroy?.({ children: true });
+    return;
+  }
   
   // Track this container for cleanup
   activeStarAnimationContainers.add(animationContainer);
@@ -4421,6 +4810,16 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     const starStartX = savedStarData.globalX ?? wildTileScreenX;
     const starStartY = savedStarData.globalY ?? wildTileScreenY;
     
+    // 🔥 CRITICAL FIX: Validate positions are valid numbers
+    if (!Number.isFinite(starStartX) || !Number.isFinite(starStartY)) {
+      console.error(`❌ Star ${i + 1} has invalid start position:`, { starStartX, starStartY, savedStarData });
+      continue; // Skip this star
+    }
+    if (!Number.isFinite(hudScreenX) || !Number.isFinite(hudScreenY)) {
+      console.error(`❌ Star ${i + 1} has invalid HUD position:`, { hudScreenX, hudScreenY });
+      continue; // Skip this star
+    }
+    
     // 1. Random size between 24-56px
     const randomSize = 24 + Math.random() * 32; // 24-56px
     const initialScale = randomSize / textureSize;
@@ -4432,10 +4831,67 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     animatedStar.scale.set(initialScale, initialScale);
     animatedStar.tint = 0xFFFFFF;
     animatedStar.alpha = 1.0;
+    animatedStar.visible = true; // 🔥 CRITICAL: Ensure star is visible
+    animatedStar.renderable = true; // 🔥 CRITICAL: Ensure star is renderable
+    // 🔥 CRITICAL FIX: Container is on stage (screen coordinates), so positions must be in screen coordinates
+    // savedStarData.globalX/Y are already in screen coordinates from getGlobalPosition()
     animatedStar.x = starStartX;
     animatedStar.y = starStartY;
+    
+    // 🔥 CRITICAL FIX: Ensure star is added to container BEFORE logging
     animationContainer.addChild(animatedStar);
     starSprites.push(animatedStar);
+    
+    // 🔥 CRITICAL FIX: Only update transform if sprite has parent and valid position
+    // updateTransform() can fail if sprite doesn't have parent or position is invalid
+    try {
+      if (animatedStar.parent && Number.isFinite(animatedStar.x) && Number.isFinite(animatedStar.y)) {
+        animatedStar.updateTransform();
+      } else {
+        console.warn(`⚠️ Star ${i + 1} cannot update transform - missing parent or invalid position:`, {
+          hasParent: !!animatedStar.parent,
+          x: animatedStar.x,
+          y: animatedStar.y,
+          parentType: animatedStar.parent?.constructor?.name
+        });
+      }
+    } catch (e) {
+      console.warn(`⚠️ Star ${i + 1} updateTransform failed (non-critical):`, e);
+      // Continue anyway - PIXI will update transform automatically on next render
+    }
+    
+    // 🔥 CRITICAL FIX: Verify star position is within screen bounds
+    const screenWidth = stage.width || (rendererApp?.renderer?.width || window.innerWidth);
+    const screenHeight = stage.height || (rendererApp?.renderer?.height || window.innerHeight);
+    const isWithinBounds = starStartX >= -100 && starStartX <= screenWidth + 100 && 
+                          starStartY >= -100 && starStartY <= screenHeight + 100;
+    if (!isWithinBounds) {
+      console.warn(`⚠️ Star ${i + 1} start position is outside screen bounds:`, {
+        starStartX,
+        starStartY,
+        screenWidth,
+        screenHeight
+      });
+    }
+    
+    console.log(`⭐ Created star ${i + 1}:`, {
+      x: animatedStar.x,
+      y: animatedStar.y,
+      worldX: animatedStar.worldTransform?.tx || 'N/A',
+      worldY: animatedStar.worldTransform?.ty || 'N/A',
+      scale: animatedStar.scale.x,
+      alpha: animatedStar.alpha,
+      visible: animatedStar.visible,
+      renderable: animatedStar.renderable,
+      inContainer: animatedStar.parent === animationContainer,
+      containerVisible: animationContainer.visible,
+      containerInStage: animationContainer.parent === stage,
+      stageVisible: stage.visible,
+      stageAlpha: stage.alpha,
+      textureValid: !!sharedStarTexture,
+      textureWidth: sharedStarTexture?.width || 0,
+      textureHeight: sharedStarTexture?.height || 0
+    });
     
     // Calculate path to HUD (upward wavy motion)
     const dx = hudScreenX - starStartX;
@@ -4516,8 +4972,46 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     // Track if star has already disappeared (to prevent multiple triggers)
     let starDisappeared = false;
     
+    // 🔥 FIX: distance is already calculated above (line 4830), don't redeclare
+    // distance is already available from line 4830: const distance = Math.hypot(dx, dy);
+    console.log(`⭐ Starting animation for star ${i + 1}:`, {
+      delay: delay,
+      duration: duration,
+      startX: starStartX,
+      startY: starStartY,
+      endX: hudScreenX,
+      endY: hudScreenY,
+      distance: distance, // Use distance from line 4830
+      starSpriteX: animatedStar.x,
+      starSpriteY: animatedStar.y,
+      starVisible: animatedStar.visible,
+      starAlpha: animatedStar.alpha,
+      containerVisible: animationContainer.visible,
+      containerInStage: animationContainer.parent === stage
+    });
+    
+    // 🔥 CRITICAL FIX: Verify star is still visible and in container before starting animation
+    if (!animatedStar.visible || animatedStar.alpha === 0 || animatedStar.parent !== animationContainer) {
+      console.error(`❌ Star ${i + 1} is not visible or not in container before animation start!`, {
+        visible: animatedStar.visible,
+        alpha: animatedStar.alpha,
+        inContainer: animatedStar.parent === animationContainer,
+        parent: animatedStar.parent?.constructor?.name
+      });
+    }
+    
     const tl = gsap.timeline({
       delay,
+      onStart: () => {
+        console.log(`⭐ Star ${i + 1} animation STARTED (delay: ${delay}s)`, {
+          starX: animatedStar.x,
+          starY: animatedStar.y,
+          starVisible: animatedStar.visible,
+          starAlpha: animatedStar.alpha,
+          containerVisible: animationContainer.visible,
+          containerInStage: animationContainer.parent === stage
+        });
+      },
       onComplete: () => {
         // Safety cleanup if star somehow didn't disappear at 50%
         if (!starDisappeared) {
@@ -4552,6 +5046,23 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
         // Early exit if star already disappeared
         if (starDisappeared) return;
         
+        // 🔥 CRITICAL FIX: Ensure star is still visible during animation
+        if (!animatedStar.visible || animatedStar.alpha === 0) {
+          console.warn(`⚠️ Star ${i + 1} became invisible during animation at progress ${t.toFixed(2)} - forcing visible`);
+          animatedStar.visible = true;
+          animatedStar.alpha = 1.0;
+          animatedStar.renderable = true;
+        }
+        
+        // 🔥 CRITICAL FIX: Ensure star is still in container
+        if (animatedStar.parent !== animationContainer) {
+          console.warn(`⚠️ Star ${i + 1} lost parent during animation at progress ${t.toFixed(2)} - re-adding to container`);
+          if (animatedStar.parent) {
+            animatedStar.parent.removeChild(animatedStar);
+          }
+          animationContainer.addChild(animatedStar);
+        }
+        
         // Optimized interpolation: use linear interpolation between cached points
         const pointIndex = Math.floor(t * (pathPoints.length - 1));
         const nextIndex = Math.min(pointIndex + 1, pathPoints.length - 1);
@@ -4564,12 +5075,22 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
         const newX = currentPoint.x + (nextPoint.x - currentPoint.x) * localT;
         const newY = currentPoint.y + (nextPoint.y - currentPoint.y) * localT;
         
-        // Only update if position changed significantly (performance optimization)
-        if (Math.abs(animatedStar.x - newX) > 0.5 || Math.abs(animatedStar.y - newY) > 0.5) {
-          path.x = newX;
-          path.y = newY;
-          animatedStar.x = newX;
-          animatedStar.y = newY;
+        // 🔥 CRITICAL FIX: Always update position (removed optimization that might skip updates)
+        // This ensures star moves smoothly even if position change is small
+        path.x = newX;
+        path.y = newY;
+        animatedStar.x = newX;
+        animatedStar.y = newY;
+        
+        // 🔥 CRITICAL FIX: Force update transform every frame to ensure star is rendered
+        // Only update if sprite has parent and valid position
+        try {
+          if (animatedStar.parent && Number.isFinite(animatedStar.x) && Number.isFinite(animatedStar.y)) {
+            animatedStar.updateTransform();
+          }
+        } catch (e) {
+          // Non-critical - PIXI will update transform automatically on next render
+          // Don't log here to avoid spam
         }
         
         // 1. MUST HAVE: Star disappears at 98% of its path (when it reaches 98% of distance to star-hud)
@@ -4666,10 +5187,22 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   let cleanupDone = false;
   
   const performCleanup = () => {
-    if (cleanupDone) return;
+    if (cleanupDone) {
+      console.log('⚠️ Star animation cleanup already done, skipping');
+      return;
+    }
     cleanupDone = true;
     
+    console.log(`🧹 Star animation cleanup starting: ${starSprites.length} sprites, ${timelines.length} timelines`);
+    
     try {
+      // 🔥 CRITICAL FIX: Clear cleanup timeout first (prevents memory leaks)
+      if (cleanupTimeout) {
+        try {
+          clearTimeout(cleanupTimeout);
+        } catch {}
+      }
+      
       // Kill all timelines (active or not)
       timelines.forEach(tl => {
         try { 
@@ -4677,7 +5210,9 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
             tl.kill();
             tl.clear?.();
           }
-        } catch {}
+        } catch (e) {
+          console.warn('⚠️ performCleanup: Error killing timeline:', e);
+        }
       });
       timelines.length = 0; // Clear array
       
@@ -4701,14 +5236,24 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
               sprite.destroy({ children: true });
             }
           }
-        } catch {}
+        } catch (e) {
+          console.warn('⚠️ performCleanup: Error cleaning up sprite:', e);
+        }
       });
       starSprites.length = 0; // Clear array
       
       // Remove container if still exists
       if (animationContainer) {
         try {
-          // Remove from tracking set
+          // 🔥 CRITICAL FIX: Clear cleanup timeout reference
+          if (animationContainer._cleanupTimeout) {
+            try {
+              clearTimeout(animationContainer._cleanupTimeout);
+            } catch {}
+            animationContainer._cleanupTimeout = null;
+          }
+          
+          // Remove from tracking set FIRST (prevents re-entry)
           activeStarAnimationContainers.delete(animationContainer);
           
           // Kill any tweens on container
@@ -4725,10 +5270,20 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
           if (!animationContainer.destroyed) {
             animationContainer.destroy({ children: true });
           }
-        } catch {}
+        } catch (e) {
+          console.warn('⚠️ performCleanup: Error cleaning up container:', e);
+          // 🔥 CRITICAL FIX: Ensure container is removed from Set even on error
+          activeStarAnimationContainers.delete(animationContainer);
+        }
       }
     } catch (err) {
-      console.warn('⚠️ Error during animation cleanup:', err);
+      console.error('❌ performCleanup: Critical error during cleanup:', err);
+      // 🔥 CRITICAL FIX: Ensure container is removed from Set even on critical error
+      if (animationContainer) {
+        try {
+          activeStarAnimationContainers.delete(animationContainer);
+        } catch {}
+      }
     }
   };
   
@@ -4737,7 +5292,9 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   // Safety cleanup: ensure container is removed even if something goes wrong
   // Use shorter delay for faster cleanup (0.5s buffer instead of 1.0s)
   const cleanupTimeout = setTimeout(() => {
+    console.log(`🧹 Star animation cleanup timeout fired after ${(totalDuration + 0.5).toFixed(2)}s`);
     performCleanup();
+    console.log(`✅ Star animation cleanup completed`);
   }, (totalDuration + 0.5) * 1000); // Convert to milliseconds
   
   // Store timeout reference on container for manual cleanup if needed
@@ -4768,6 +5325,103 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   });
   
   console.log('🛡️ Star animation is PROTECTED and completely independent from board animations');
+  console.log('⭐ Star animation setup complete:', {
+    containerAdded: !!animationContainer.parent,
+    containerInStage: animationContainer.parent === stage,
+    containerVisible: animationContainer.visible,
+    containerAlpha: animationContainer.alpha,
+    containerRenderable: animationContainer.renderable,
+    starCount: starSprites.length,
+    timelineCount: timelines.length,
+    containerZIndex: animationContainer.zIndex,
+    stageSortable: stage.sortableChildren,
+    stageVisible: stage.visible,
+    stageAlpha: stage.alpha,
+    stageRenderable: stage.renderable,
+    hudScreenX: hudScreenX,
+    hudScreenY: hudScreenY,
+    wildTileScreenX: wildTileScreenX,
+    wildTileScreenY: wildTileScreenY
+  });
+  
+  // rendererApp is already set above in validation section
+  // Force render frame to ensure animation is visible
+  // This ensures stars are rendered immediately
+  if (rendererApp && rendererApp.renderer && !rendererApp.renderer.destroyed) {
+    try {
+      rendererApp.renderer.render(stage);
+      console.log('✅ Forced render frame for star animation');
+    } catch (e) {
+      console.warn('⚠️ Failed to force render frame:', e);
+    }
+  } else {
+    console.warn('⚠️ Cannot force render - app/renderer not available', {
+      rendererApp: !!rendererApp,
+      hasRenderer: !!rendererApp?.renderer,
+      rendererDestroyed: rendererApp?.renderer?.destroyed
+    });
+  }
+  
+  // 🔥 CRITICAL FIX: Verify stars are actually visible after creation and force render
+  setTimeout(() => {
+    starSprites.forEach((star, index) => {
+      if (star && !star.destroyed) {
+        // 🔥 CRITICAL FIX: Force star to be visible if it's not
+        if (!star.visible || star.alpha === 0) {
+          console.warn(`⚠️ Star ${index + 1} is not visible after 100ms - forcing visibility`);
+          star.visible = true;
+          star.alpha = 1.0;
+          star.renderable = true;
+        }
+        
+        console.log(`⭐ Star ${index + 1} status after 100ms:`, {
+          visible: star.visible,
+          alpha: star.alpha,
+          renderable: star.renderable,
+          x: star.x,
+          y: star.y,
+          worldX: star.worldTransform?.tx || 'N/A',
+          worldY: star.worldTransform?.ty || 'N/A',
+          scale: star.scale.x,
+          inContainer: star.parent === animationContainer,
+          containerVisible: animationContainer.visible,
+          containerInStage: animationContainer.parent === stage,
+          containerX: animationContainer.x,
+          containerY: animationContainer.y,
+          stageVisible: stage.visible,
+          stageAlpha: stage.alpha
+        });
+      }
+    });
+    
+    // 🔥 CRITICAL FIX: Force render again after 100ms to ensure stars are visible
+    if (rendererApp && rendererApp.renderer) {
+      try {
+        rendererApp.renderer.render(stage);
+        console.log('✅ Forced render frame for star animation (after 100ms)');
+      } catch (e) {
+        console.warn('⚠️ Failed to force render frame (after 100ms):', e);
+      }
+    }
+  }, 100);
+  
+  // 🔥 CRITICAL FIX: Also check after 500ms to see if animation is running
+  setTimeout(() => {
+    starSprites.forEach((star, index) => {
+      if (star && !star.destroyed) {
+        console.log(`⭐ Star ${index + 1} status after 500ms:`, {
+          visible: star.visible,
+          alpha: star.alpha,
+          x: star.x,
+          y: star.y,
+          worldX: star.worldTransform?.tx || 'N/A',
+          worldY: star.worldTransform?.ty || 'N/A',
+          inContainer: star.parent === animationContainer,
+          containerVisible: animationContainer.visible
+        });
+      }
+    });
+  }, 500);
 }
 
 export function innerFlashAtTile(board, tile, tileSize = 96, intensity = 1){

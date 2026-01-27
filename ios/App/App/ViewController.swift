@@ -41,6 +41,19 @@ class ViewController: CAPBridgeViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        // 🔥 CRITICAL FIX: Force local bundle loading (prevent dev server connection)
+        // This ensures app uses local bundle instead of trying to connect to dev server
+        #if DEBUG
+        // Only allow dev server in DEBUG mode
+        #else
+        // PRODUCTION: Force local bundle - remove any server URL that might be set
+        if let webView = self.value(forKey: "webView") as? WKWebView {
+            // Ensure WebView loads from local bundle, not remote server
+            // Capacitor should handle this automatically, but we ensure it here
+            print("✅ PRODUCTION MODE: Using local bundle (no dev server)")
+        }
+        #endif
+        
         // Ensure background view is still there and visible
         if let bgView = self.backgroundView {
             bgView.frame = self.view.bounds

@@ -1382,6 +1382,18 @@ export async function showCleanBoardModal({
       // 🔥 MEMORY LEAK FIX: Final cleanup before resolving (animations already stopped at button click)
       cleanupButtonListeners(); // Remove all button event listeners
       
+      // 🔥 CRITICAL MEMORY LEAK FIX: Comprehensive cleanup before board transition
+      // This ensures all animations, effects, and resources are cleaned up before startLevel
+      try {
+        const fxModule = await import('./fx.js');
+        if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
+          fxModule.cleanupAllEffects();
+          console.log('🧹 clean-board-modal: Cleaned up all effects (bubbles, stars, particles) before board transition');
+        }
+      } catch (e) {
+        console.warn('⚠️ clean-board-modal: Failed to cleanup all effects (non-fatal):', e);
+      }
+      
       trackTimeout(() => { 
         try { el.remove(); } catch {}
         removeStyleTag(); // Remove CSS style tag
