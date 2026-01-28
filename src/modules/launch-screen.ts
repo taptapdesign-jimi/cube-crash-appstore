@@ -431,11 +431,11 @@ class LaunchScreen {
     })();
 
     // Show for 2.5 seconds (user requested 2.5 seconds for stack to six)
-    // 🔥 CRITICAL: Wait for BOTH 2.5 seconds AND critical image preloading (whichever finishes first)
-    // This ensures we don't delay launch screen unnecessarily, but also don't show homepage without images
-    await Promise.race([
+    // 🔥 CRITICAL: Wait for BOTH 2.5 seconds AND critical image preloading
+    // This ensures Phase 2 is always at least 2.5s while images preload in parallel
+    await Promise.all([
       new Promise(resolve => setTimeout(resolve, 2500)), // Minimum 2.5 seconds
-      criticalImagePreloadPromise.catch(() => {}) // Or until critical images are loaded
+      criticalImagePreloadPromise.catch(() => {}) // Critical images preload
     ]);
     
     logger.info('✅ Phase 2 complete - critical images preloaded (or timeout reached)');
@@ -785,4 +785,3 @@ class LaunchScreen {
 
 // Export singleton instance
 export const launchScreen = new LaunchScreen();
-

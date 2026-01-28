@@ -9,6 +9,7 @@ import { gsap } from 'gsap';
 import { container } from '../core/dependency-injection.js';
 
 let modal: HTMLElement | null = null;
+let _starsPickerOverlay: HTMLElement | null = null;
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts, intervals, rAFs, and event listeners for cleanup
 const _endRunTimeouts = new Set<ReturnType<typeof setTimeout>>();
@@ -114,12 +115,17 @@ function cleanupAllEndRunResources(): void {
   clearAllEndRunAnimationFrames();
   clearAllEndRunEventListeners();
   clearAllEndRunOnEventHandlers();
+  if (_starsPickerOverlay) {
+    try { _starsPickerOverlay.remove(); } catch {}
+    _starsPickerOverlay = null;
+  }
   console.log('✅ end-run-modal: All resources cleaned up!');
 }
 
 function showCleanBoardStarsPicker(): Promise<number | null> {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
+    _starsPickerOverlay = overlay;
     overlay.style.cssText = [
       'position:fixed',
       'inset:0',
@@ -209,7 +215,12 @@ function showCleanBoardStarsPicker(): Promise<number | null> {
     ].join(';');
     // 🔥 FIX: Use direct addEventListener - stars picker is independent from end-run modal
     okBtn.addEventListener('click', () => {
-      overlay.remove();
+      if (_starsPickerOverlay) {
+        try { _starsPickerOverlay.remove(); } catch {}
+        _starsPickerOverlay = null;
+      } else {
+        overlay.remove();
+      }
       resolve(selectedStars);
     });
 
@@ -228,14 +239,24 @@ function showCleanBoardStarsPicker(): Promise<number | null> {
     ].join(';');
     // 🔥 FIX: Use direct addEventListener - stars picker is independent from end-run modal
     cancelBtn.addEventListener('click', () => {
-      overlay.remove();
+      if (_starsPickerOverlay) {
+        try { _starsPickerOverlay.remove(); } catch {}
+        _starsPickerOverlay = null;
+      } else {
+        overlay.remove();
+      }
       resolve(null);
     });
 
     // 🔥 FIX: Use direct addEventListener - stars picker is independent from end-run modal
     overlay.addEventListener('click', (e: Event) => {
       if (e.target === overlay) {
-        overlay.remove();
+        if (_starsPickerOverlay) {
+          try { _starsPickerOverlay.remove(); } catch {}
+          _starsPickerOverlay = null;
+        } else {
+          overlay.remove();
+        }
         resolve(null);
       }
     });

@@ -346,7 +346,6 @@ function canSingleStackMerge(activeTiles: any[], totalTilesCount: number): boole
   console.log('🔍 isGameStuck: Single visible tile is a stack:', { value, stackDepth, totalTilesCount, isWild });
 
   // 🔥 CRITICAL FIX: Wild tiles can always merge with other tiles, so if it's wild, it's NOT stuck
-  // (Emergency rescue will spawn tiles for wild cubes)
   if (isWild) {
     console.log('✅ isGameStuck: Single tile is wild - can merge with spawned tiles (NOT stuck)');
     return null; // Let wild combination check handle this
@@ -501,11 +500,7 @@ function isGameStuck(context: EndGameContext): boolean {
     return false;
   }
 
-  // Fifth check: emergency rescue scenario
-  if (wildCubes.length > 0 && mergeableNonWildTiles.length === 0) {
-    console.log('✅ isGameStuck: Wild cubes but no non-wild tiles - emergency rescue will handle (NOT STUCK)');
-    return false; // Not stuck - emergency rescue will spawn tiles
-  }
+  // Fifth check removed
 
   // If all checks fail, game is stuck
   console.log('🚨 isGameStuck: anyMergePossible returned FALSE and no edge cases apply - game IS STUCK');
@@ -672,20 +667,4 @@ export function clearEndGameCache(): void {
   lastCheckResult = null;
   lastCheckContextHash = '';
   logger.debug('🔄 EndGameChecker: All caches cleared', 'endgame-checker');
-}
-
-/**
- * Check if emergency rescue is needed (wild cubes but no non-wild tiles)
- */
-export function needsEmergencyRescue(tiles: any[]): boolean {
-  const activeTiles = getActiveTiles(tiles);
-  const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer');
-  const mergeableNonWildTiles = activeTiles.filter(t => {
-    if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer') return false;
-    const value = (t.value|0);
-    // 🔥 CRITICAL FIX: Wild CAN merge with merge 6! Include merge 6 in mergeable tiles
-    return value > 0 && value <= MAX_MERGE_VALUE;
-  });
-  
-  return wildCubes.length > 0 && mergeableNonWildTiles.length === 0;
 }

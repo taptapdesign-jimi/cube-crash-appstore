@@ -1895,6 +1895,17 @@ class UIManager {
       journeyScreen.style.opacity = '0';
       logger.info('✅ Journey screen completely hidden');
     }
+
+    // 🔥 FAIL-SAFE: Ensure Journey animations are fully cleaned after hide
+    try {
+      const { journeyBoardsManager } = await import('../modules/journey-boards-manager.js');
+      if (journeyBoardsManager && typeof journeyBoardsManager.cleanup === 'function') {
+        journeyBoardsManager.cleanup();
+        logger.info('✅ Journey boards manager cleanup called after hide');
+      }
+    } catch (error) {
+      logger.warn('⚠️ Failed to call journeyBoardsManager.cleanup after hide:', error);
+    }
     
     // 🔥 USER REQUEST: Check if we're returning to Journey slide (slide 1) or homepage slide (slide 0)
     // Journey games should ALWAYS return to slide 1 (Journey slide), NOT slide 0 (homepage PLAY slide)

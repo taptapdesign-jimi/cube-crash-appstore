@@ -4,7 +4,6 @@
  * Uses same drag and outside click functionality as end-run-modal
  */
 
-import { statsService } from '../services/stats-service';
 import { boardStatsService } from '../services/board-stats-service.js';
 import { pauseGame, resumeGame } from './pause-utils.js';
 
@@ -586,6 +585,7 @@ export function hideScoreBottomSheet(): void {
       console.warn('⚠️ hideScoreBottomSheet: No modal element in reference or DOM - resetting state');
       isVisible = false;
       modal = null;
+      cleanupAllScoreSheetResources();
       // Clean up handlers anyway
       if (outsideClickHandler) {
         document.removeEventListener('click', outsideClickHandler);
@@ -596,6 +596,11 @@ export function hideScoreBottomSheet(): void {
         outsideTouchEndHandler = null;
       }
       document.onclick = null;
+      // 🔥 Ensure game resumes if it was paused by the sheet
+      const endRunModalExists = document.querySelector('.simple-bottom-sheet:not(.score-bottom-sheet)');
+      if (!endRunModalExists) {
+        try { resumeGame(); } catch {}
+      }
       return;
     }
   }
@@ -706,6 +711,12 @@ export function forceHideScoreBottomSheet(): void {
     // 🔥 CRITICAL: Always reset state even if modal reference is null
     isVisible = false;
     modal = null;
+    cleanupAllScoreSheetResources();
+    // 🔥 Ensure game resumes if it was paused by the sheet
+    const endRunModalExists = document.querySelector('.simple-bottom-sheet:not(.score-bottom-sheet)');
+    if (!endRunModalExists) {
+      try { resumeGame(); } catch {}
+    }
     return;
   }
   
@@ -724,6 +735,7 @@ export function forceHideScoreBottomSheet(): void {
   // Reset visibility state immediately
   isVisible = false;
   (modalEl as any)._closing = false;
+  cleanupAllScoreSheetResources();
   
   // Immediately hide and remove from DOM (no animation)
   modalEl.classList.remove('visible');
@@ -769,6 +781,7 @@ export function resetScoreBottomSheetState(): void {
   console.log('📊 Resetting score bottom sheet state');
   isVisible = false;
   modal = null;
+  cleanupAllScoreSheetResources();
   if (outsideClickHandler) {
     document.removeEventListener('click', outsideClickHandler);
     outsideClickHandler = null;
@@ -778,6 +791,11 @@ export function resetScoreBottomSheetState(): void {
     outsideTouchEndHandler = null;
   }
   document.onclick = null;
+  // 🔥 Ensure game resumes if it was paused by the sheet
+  const endRunModalExists = document.querySelector('.simple-bottom-sheet:not(.score-bottom-sheet)');
+  if (!endRunModalExists) {
+    try { resumeGame(); } catch {}
+  }
   console.log('✅ Score bottom sheet state reset');
 }
 

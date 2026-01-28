@@ -789,6 +789,26 @@ class JourneyBoardsManager {
         logger.warn('⚠️ Error stopping journey card idle bounce:', e instanceof Error ? e.message : String(e));
       }
     }
+
+    // 🔥 FAIL-SAFE: Restore touch-action even if idle bounce cleanup missed it
+    try {
+      const body = document.body;
+      const html = document.documentElement;
+      if ((body as any)._originalTouchAction !== undefined) {
+        body.style.touchAction = (body as any)._originalTouchAction;
+        delete (body as any)._originalTouchAction;
+      } else {
+        body.style.touchAction = '';
+      }
+      if ((html as any)._originalTouchAction !== undefined) {
+        html.style.touchAction = (html as any)._originalTouchAction;
+        delete (html as any)._originalTouchAction;
+      } else {
+        html.style.touchAction = '';
+      }
+    } catch (e) {
+      logger.warn('⚠️ Failed to restore touch-action in Journey cleanup:', e instanceof Error ? e.message : String(e));
+    }
     
     // 🔥 APP STORE FIX: Kill all GSAP animations on Journey cards and smoke particles
     const journeyScreen = document.getElementById('journey-screen');

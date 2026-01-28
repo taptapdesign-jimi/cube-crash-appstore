@@ -29,11 +29,10 @@ import * as HUD   from './hud-helpers.ts';
 import { wild } from './hud-helpers.ts';
 import animationManager from './animation-manager.ts';
 import * as FLOW  from './level-flow.js';
-import { openEmpties } from './app-spawn.ts';
 import { clearWildState, handleWildMagnetMergedPulledTiles } from './app-merge.ts';
 import { statsService } from '../services/stats-service.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
-import { checkEndGame, needsEmergencyRescue, clearEndGameCache, tileIsActive, getActiveTiles, type EndGameContext } from './endgame-checker.ts';
+import { checkEndGame, clearEndGameCache, tileIsActive, getActiveTiles, type EndGameContext } from './endgame-checker.ts';
 import memoryManager from './memory-manager.ts';
 import { boardSpecificRules, isWildSpawnEnabled, isWildMeterEnabled, filterWildType, getWildMeterFillRate } from './board-specific-rules.ts';
 import { logger } from '../core/logger.js';
@@ -222,7 +221,6 @@ let wildMeter = 0;
 let wildSpawnInProgress = false; // Prevent overlapping wild spawns
 let merge6SpawnInProgress = false; // 🔥 BUG FIX: Prevent duplicate spawns when wild star/beer are used rapidly
 let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
-let wildRescueScheduled = false; // Prevent duplicate emergency spawns
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
 let drag;
 let busyEnding = false;
@@ -367,42 +365,6 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
   }
 }
 
-function ensureNonWildTile(reason: string = 'unknown'): boolean {
-  const activeTiles = tiles.filter((t) => t && !t.destroyed && (t.value | 0) > 0);
-  if (activeTiles.length === 0) return false;
-  
-  const hasNonWild = activeTiles.some((t) => t.special !== 'wild' && t.special !== 'wild-magnet');
-  if (hasNonWild) {
-    return false;
-  }
-  
-  // All remaining tiles are wild/magnet. Convert one into a regular tile to keep game alive.
-  const candidate = activeTiles[Math.floor(Math.random() * activeTiles.length)];
-  if (!candidate) return false;
-  
-    logger.warn('🛟 Emergency downgrade: Converting wild tile to normal value', 'app-core', { reason, gridX: candidate.gridX, gridY: candidate.gridY });
-  
-  try {
-    clearWildState(candidate);
-  } catch (error) {
-    logger.warn('⚠️ ensureNonWildTile: clearWildState failed', 'app-core', error);
-  }
-  
-  candidate.special = null;
-  (candidate as any).isWild = false;
-  (candidate as any).isWildFace = false;
-  
-  const baseValues = [1, 2, 3, 4, 5];
-  const newValue = baseValues[Math.floor(Math.random() * baseValues.length)];
-  makeBoard.setValue(candidate, newValue, candidate.stackDepth || 0);
-  
-  try {
-    candidate.eventMode = 'static';
-    candidate.cursor = 'pointer';
-  } catch {}
-  
-  return true;
-}
 
 function createEmptyGrid() {
   const fresh = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
@@ -646,38 +608,6 @@ function queueWildSpawnIfNeeded(){
     });
 }
 
-function scheduleWildRescue(reason = 'unknown', requested = 2) {
-  if (wildRescueScheduled) {
-    console.log('🛟 Wild rescue already scheduled, skipping duplicate request:', reason);
-    return;
-  }
-  if (typeof openEmpties !== 'function') {
-    logger.warn('🛟 Wild rescue requested but openEmpties is unavailable', 'app-core', { reason });
-    return;
-  }
-
-  wildRescueScheduled = true;
-  const count = Math.max(1, Math.min(3, requested | 0));
-  console.log('🛟 Scheduling wild rescue spawn:', { reason, count });
-
-  openEmpties(count)
-    .catch(error => {
-      logger.warn('🛟 Wild rescue spawn failed', 'app-core', error);
-    })
-    .finally(() => {
-      const downgraded = ensureNonWildTile('wild_rescue');
-      if (downgraded) {
-        console.log('🛟 Wild rescue fallback: downgraded wild tile to keep merges possible');
-      }
-      wildRescueScheduled = false;
-      trackDelayedCall(0.05, () => {
-        try { checkLevelEnd(); } catch (err) { logger.warn('🛟 Post-rescue checkLevelEnd failed', 'app-core', err); }
-      });
-      
-      // Save game state after rescue spawn completes
-      debouncedSaveGameState(400);
-    });
-}
 
 function setWildProgress(ratio, animate=false){
   console.log('🔥 DRAMATIC: setWildProgress called with:', { ratio, animate });
@@ -1618,7 +1548,6 @@ export async function boot(){
     showCleanBoardOverlay: () => showCleanBoardOverlay(),
     triggerCleanBoardFlow: (reason: string) => triggerCleanBoardFlow(reason), // 🔥 CRITICAL: Export for consistent clean board flow from all paths
     checkLevelEnd: () => checkLevelEnd(), // Export checkLevelEnd for use in app-merge.ts
-    scheduleWildRescue: (reason, count) => scheduleWildRescue(reason, count), // 🔥 CRITICAL: Export for emergency rescue
     applyWildSkinLocal: (tile) => applyWildSkinLocal(tile), // 🔥 CRITICAL: Export for wild-magnet electric glow
     getCombo: () => combo, // 🔥 CRITICAL: Export getCombo for magnet pull combo logic
     setCombo: (v) => hudSetCombo(v|0), // 🔥 CRITICAL: Export setCombo for magnet pull combo logic
@@ -7577,12 +7506,9 @@ function checkLevelEnd(){
     
     // 🔥 CRITICAL FIX: Skip check if _isLastMerge flag is set on any merge-6 tile (clean board flow in progress)
     // This prevents fail screen from triggering when clean board flow is in progress
-    // BUT: Don't return early - we still need to check for emergency rescue and handle it properly
     const hasLastMergeTile = tiles.some((t: any) => t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true);
     if (hasLastMergeTile) {
       console.log('⏳ checkLevelEnd: _isLastMerge flag detected on merge-6 tile (clean board flow in progress)');
-      console.log('🎯 Will skip emergency rescue but continue with normal flow');
-      // Don't return here - we need to check for emergency rescue and skip it
     }
     
     logger.debug('🎯 checkLevelEnd called - using centralized end game checker', 'app-core');
@@ -7706,23 +7632,7 @@ function checkLevelEnd(){
     checkLevelEndRetryCount = 0;
     checkLevelEndSkipStartedAt = null;
     
-    // 🔥 CRITICAL FIX: Check for emergency rescue (but skip if last merge is in progress)
-    // Emergency rescue should NOT trigger during last merge - clean board flow will handle it
-    // hasLastMergeTile is already declared above (line 7516)
-    if (needsEmergencyRescue(tiles) && !hasLastMergeTile) {
-      console.log('🚨 EMERGENCY: Wild cubes exist but no non-wild tiles! Scheduling emergency rescue...');
-      const wildCubes = tiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
-      const emergencyCount = Math.min(3, Math.max(2, wildCubes.length));
-      scheduleWildRescue('checkLevelEnd', emergencyCount);
-      return;
-    }
-    
-    // 🔥 CRITICAL FIX: If last merge is detected, skip emergency rescue and let clean board flow handle it
-    if (hasLastMergeTile) {
-      console.log('🚨🚨🚨 LAST MERGE DETECTED in checkLevelEnd - skipping emergency rescue, clean board flow will handle it');
-      console.log('🎯 Source of Truth: Last merge detected - NO emergency spawn, clean board flow will trigger');
-      // Don't return here - let the normal flow continue to check for clean board
-    }
+    // 🔥 NOTE: Removed per request (no magnet-only end state allowed)
     
     // Use centralized end game checker
     const checkLevelEndContext: EndGameContext = {

@@ -179,13 +179,6 @@ export function stopJourneyCardIdleBounce(): void {
   // 🔥 MEMORY FIX: Clean up all smoke containers
   state.smokeContainers.forEach(smokeContainer => {
     try {
-      // 🔥 USER REQUEST: Don't cleanup first smoke if it's marked for extended life
-      // This prevents first smoke from being killed when cleanup is called
-      if ((smokeContainer as any)._isFirstSmoke && (smokeContainer as any)._preventCleanup) {
-        console.log('⚠️ journey-card-idle-bounce: Skipping cleanup for first smoke (extended life)');
-        return; // Skip cleanup for first smoke
-      }
-      
       // Kill cleanup timer if it exists
       if ((smokeContainer as any)._cleanupTimer) {
         try {

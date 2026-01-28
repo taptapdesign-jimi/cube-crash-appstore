@@ -290,10 +290,15 @@ async function startAssetPreloading(): Promise<void> {
       });
       
       // Wait for it to complete - we'll check periodically
+      let lastLogAt = 0;
       const checkInterval = setInterval(() => {
         const isActive = launchScreen.active;
         const hasContainer = !!document.getElementById('launch-screen');
-        console.log('🔍 Checking launch screen status:', { isActive, hasContainer });
+        const now = Date.now();
+        if (now - lastLogAt > 500) {
+          console.log('🔍 Checking launch screen status:', { isActive, hasContainer });
+          lastLogAt = now;
+        }
         
         // Launch screen is complete when:
         // 1. isActive is false (launch screen has finished)
