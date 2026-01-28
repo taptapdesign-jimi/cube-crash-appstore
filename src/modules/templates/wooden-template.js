@@ -944,6 +944,7 @@ export const woodenTemplate = {
   displayName: '🪵 Wooden (Original)',
   colors: woodenColors,
   dragParticleColors: woodenDragParticleColors, // 🔥 NEW: Drag particle color palettes
+  bubbleColors: woodenBubbleColors, // 🔥 FIX: Bubble colors for wild-beer bubbles explosion
   patterns: {
     explosion: woodenPatternExplosion,
     burst: woodenPatternBurst,

@@ -413,16 +413,31 @@
     window.addEventListener('unhandledrejection', function(event) {
       const error = event.reason;
       // Suppress common browser extension message channel errors
-      if (error && typeof error === 'object' && error.message) {
-        if (error.message.includes('message channel closed') || 
-            error.message.includes('message channel') ||
-            error.message.includes('asynchronous response')) {
+      if (error) {
+        const errorMessage = error.message || error.toString() || '';
+        if (errorMessage.includes('message channel closed') || 
+            errorMessage.includes('message channel') ||
+            errorMessage.includes('asynchronous response') ||
+            errorMessage.includes('A listener indicated an asynchronous response')) {
           event.preventDefault(); // Prevent error from showing in console
-          return;
+          event.stopPropagation(); // Stop propagation
+          return false; // Return false to suppress
         }
       }
       // Let other unhandled rejections through
     });
+    
+    // 🔥 FIX: Also catch errors in window.onerror
+    window.addEventListener('error', function(event) {
+      const errorMessage = event.message || event.error?.message || '';
+      if (errorMessage.includes('message channel closed') || 
+          errorMessage.includes('message channel') ||
+          errorMessage.includes('asynchronous response') ||
+          errorMessage.includes('A listener indicated an asynchronous response')) {
+        event.preventDefault(); // Prevent error from showing in console
+        return false; // Return false to suppress
+      }
+    }, true); // Use capture phase
     
     // Expose saveSettings globally for ui-manager
     window.saveSettings = saveSettings;

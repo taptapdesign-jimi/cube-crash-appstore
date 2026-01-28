@@ -469,9 +469,11 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       // 🔥 CRITICAL FIX: Cleanup bubbles animation again (in case it was restarted)
       // 🔥 BUBBLES ANIMATION FIX: Always cleanup to prevent stale state across board transitions
       // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations to prevent memory leaks
+      // 🔥 CRITICAL FIX: Skip bubble explosion cleanup during board transition to prevent race condition
       try {
         const fxModule = await import('./fx.js');
-        if (fxModule && typeof fxModule.cleanupWildBeerExplosion === 'function') {
+        const isBoardTransitionActive = (window as any).__ccBoardTransitionActive === true;
+        if (!isBoardTransitionActive && fxModule && typeof fxModule.cleanupWildBeerExplosion === 'function') {
           const wasActive = fxModule.isWildBeerExplosionRunning && fxModule.isWildBeerExplosionRunning();
           // Always cleanup (even if flag says inactive) to handle stale containers/flags
           fxModule.cleanupWildBeerExplosion();
@@ -480,6 +482,8 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           } else {
             console.log('🧹 endgame-flow: Force cleaned up bubbles animation (stale state prevention)');
           }
+        } else if (isBoardTransitionActive) {
+          console.log('⏸️ endgame-flow: Skipping bubble explosion cleanup - board transition active');
         }
         
         // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations
@@ -490,9 +494,11 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       } catch (e) {
         console.warn('⚠️ endgame-flow: Failed to cleanup animations in cleanup section:', e);
         // 🔥 CRITICAL: Try cleanup again on error (prevents stuck state)
+        // 🔥 CRITICAL FIX: Skip bubble explosion cleanup during board transition
         try {
           const fxModule = await import('./fx.js');
-          if (fxModule && typeof fxModule.cleanupWildBeerExplosion === 'function') {
+          const isBoardTransitionActive = (window as any).__ccBoardTransitionActive === true;
+          if (!isBoardTransitionActive && fxModule && typeof fxModule.cleanupWildBeerExplosion === 'function') {
             fxModule.cleanupWildBeerExplosion();
           }
           if (fxModule && typeof fxModule.cleanupExistingStarAnimations === 'function') {
@@ -649,6 +655,10 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     // This screen shows the board number with beautiful animations
     // 🔥 CRITICAL FIX: Show transition screen immediately without delay
     try {
+      // 🔥 CRITICAL FIX: Set board transition flag to protect bubble explosion from cleanup
+      (window as any).__ccBoardTransitionActive = true;
+      console.log('🎯 endgame-flow: Set __ccBoardTransitionActive flag to protect bubble explosion');
+      
       const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
       // 🔥 CRITICAL FIX: Use nextLevel for transition screen (next board, not current)
       // nextLevel is calculated from boardNumber + 1, which is the correct next board
@@ -657,6 +667,10 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       await showBoardTransitionScreen({
         boardNumber: nextLevel,
         onComplete: async () => {
+          // 🔥 CRITICAL FIX: Clear board transition flag after transition completes
+          // Now safe to cleanup bubble explosion if needed
+          (window as any).__ccBoardTransitionActive = false;
+          console.log('✅ endgame-flow: Cleared __ccBoardTransitionActive flag - cleanup now allowed');
           // After transition screen completes, start the next board
           // 🔥 CRITICAL FIX: Hide app first to cleanup previous board before starting new one
           // This prevents blank screen with old board visible in background
@@ -695,6 +709,9 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           } catch (startLevelError: any) {
             console.error('❌ endgame-flow: startLevel/startNewRunFromJourney failed:', startLevelError);
             logger.error('❌ endgame-flow: startLevel error:', String(startLevelError?.message || startLevelError));
+            // 🔥 CRITICAL FIX: Clear board transition flag on error to prevent stuck state
+            (window as any).__ccBoardTransitionActive = false;
+            console.log('✅ endgame-flow: Cleared __ccBoardTransitionActive flag after error');
             // Don't rethrow - prevent unhandled error that could trigger reload
             // Instead, try to recover by waiting and retrying
             try {

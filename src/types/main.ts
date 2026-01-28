@@ -77,6 +77,7 @@ declare global {
     // Additional game functions
     saveGameState?: () => void;
     loadGameState?: () => any;
+    rebuildBoard?: () => void;
     ensureDotsVisible?: () => void;
     resetPlayButtonState?: () => void;
     showEndRunModalFromGame?: () => void;

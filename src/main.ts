@@ -906,11 +906,20 @@ async function startNewRun(boardId: number): Promise<void> {
               if (!loaded) {
                 logger.error('❌ Failed to load saved game state - will rebuild board');
                 delete (window as any).__ccSkipRebuildBoard;
-                // Force rebuildBoard by calling startLevel again or rebuildBoard directly
-                const rebuildBoard = (window as any).rebuildBoard;
-                if (typeof rebuildBoard === 'function') {
+                // 🔥 CRITICAL FIX: Call rebuildBoard directly - it's now exported to window
+                const rebuildBoardFn = (window as any).rebuildBoard;
+                if (typeof rebuildBoardFn === 'function') {
                   logger.info(`🎮 Calling rebuildBoard() for board ${savedBoardNumber}...`);
-                  rebuildBoard();
+                  rebuildBoardFn();
+                  // 🔥 CRITICAL: Wait a bit for rebuildBoard to complete before layoutGame
+                  await new Promise(resolve => setTimeout(resolve, 100));
+                } else {
+                  logger.error('❌ rebuildBoard function not found on window - calling startLevel again without skip flag');
+                  // Fallback: call startLevel again without skip flag to trigger rebuildBoard
+                  const startLevelFn = (window as any).startLevel;
+                  if (typeof startLevelFn === 'function') {
+                    startLevelFn(savedBoardNumber);
+                  }
                 }
               } else {
                 logger.info(`✅ Successfully loaded saved game state for board ${savedBoardNumber}`);
@@ -918,10 +927,19 @@ async function startNewRun(boardId: number): Promise<void> {
             } else {
               logger.error('❌ loadGameState function not found');
               delete (window as any).__ccSkipRebuildBoard;
-              const rebuildBoard = (window as any).rebuildBoard;
-              if (typeof rebuildBoard === 'function') {
+              const rebuildBoardFn = (window as any).rebuildBoard;
+              if (typeof rebuildBoardFn === 'function') {
                 logger.info(`🎮 Calling rebuildBoard() for board ${savedBoardNumber} (loadGameState not found)...`);
-                rebuildBoard();
+                rebuildBoardFn();
+                // 🔥 CRITICAL: Wait a bit for rebuildBoard to complete before layoutGame
+                await new Promise(resolve => setTimeout(resolve, 100));
+              } else {
+                logger.error('❌ rebuildBoard function not found on window - calling startLevel again without skip flag');
+                // Fallback: call startLevel again without skip flag to trigger rebuildBoard
+                const startLevelFn = (window as any).startLevel;
+                if (typeof startLevelFn === 'function') {
+                  startLevelFn(savedBoardNumber);
+                }
               }
             }
           } else if (!canLoadState) {
@@ -1003,6 +1021,22 @@ async function startNewRun(boardId: number): Promise<void> {
             } else if (!canLoadState) {
               // No tiles/grid - startLevel() should have already called rebuildBoard()
               logger.info(`🎮 No tiles/grid - rebuildBoard() should have been called by startLevel() for board ${savedBoardNumber}`);
+            } else if (canLoadState && !(window as any).__ccSkipRebuildBoard) {
+              // 🔥 BUG FIX: If canLoadState is true but __ccSkipRebuildBoard is not set,
+              // and loadGameState() was called but returned false, we need to rebuild
+              const loadGameState = (window as any).loadGameState;
+              if (typeof loadGameState === 'function') {
+                logger.info(`🎮 Loading saved game state for board ${savedBoardNumber} (no skip flag)...`);
+                const loaded = await loadGameState();
+                if (!loaded) {
+                  logger.error('❌ Failed to load saved game state - will rebuild board');
+                  const rebuildBoard = (window as any).rebuildBoard;
+                  if (typeof rebuildBoard === 'function') {
+                    logger.info(`🎮 Calling rebuildBoard() for board ${savedBoardNumber} (loadGameState returned false)...`);
+                    rebuildBoard();
+                  }
+                }
+              }
             }
             
             await layoutGame();

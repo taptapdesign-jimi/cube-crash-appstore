@@ -3324,133 +3324,36 @@ function createMerge6Bubbles(board, layer, centerX, centerY) {
 }
 
 // --- Merge-6 wild-beer bubble explosion (organic drift) ---
-let wildBeerExplosionContainer = null;
-let wildBeerExplosionActive = false;
-let wildBeerExplosionSpawnTick = null; // 🔥 CRITICAL: Store spawnTick reference for cleanup
-let _cachedBubbleTexture = null; // 🔥 v75 FAZA 1: Cache bubble texture globally
-let _bubblesSafetyTimeoutId: ReturnType<typeof setTimeout> | null = null; // 🔥 Clean board delay fix: force cleanup so wait resolves
+// 🔥 REMOVED: Old explosion code moved to wild-beer-bubbles-explosion.ts module
+// Wrapper functions for backward compatibility:
+
+let _explosionModuleCache: any = null;
 
 export function cleanupWildBeerExplosion() {
-  try {
-    // 🔥 CRITICAL FIX: Always clear timeout first to prevent race conditions
-    if (_bubblesSafetyTimeoutId) {
-      clearTimeout(_bubblesSafetyTimeoutId);
-      _bubblesSafetyTimeoutId = null;
+  // 🔥 WRAPPER: Redirect to new modular explosion
+  // 🔥 CRITICAL FIX: Don't stop recently started bubbles explosion (protects animation during board transitions)
+  import('./wild-beer-bubbles-explosion.js').then(module => {
+    _explosionModuleCache = module;
+    const isRecentlyStarted = typeof module.isWildBeerBubblesExplosionRecentlyStarted === 'function' && module.isWildBeerBubblesExplosionRecentlyStarted();
+    if (isRecentlyStarted) {
+      console.log('⏸️ cleanupWildBeerExplosion: Skipping cleanup - explosion recently started (within 5s), allowing animation to continue');
+      return;
     }
-    
-    // 🔥 CRITICAL FIX: Reset flag FIRST to prevent new animations from starting during cleanup
-    wildBeerExplosionActive = false;
-    
-    // Stop FPS monitoring
-    try {
-      stopFpsMonitoring();
-    } catch (e) {
-      console.warn('⚠️ cleanupWildBeerExplosion: Failed to stop FPS monitoring:', e);
+    if (typeof module.stopWildBeerBubblesExplosion === 'function') {
+      module.stopWildBeerBubblesExplosion();
     }
-
-    // 🔥 CRITICAL FIX: Remove GSAP ticker BEFORE container cleanup (prevents ticker from accessing destroyed container)
-    if (wildBeerExplosionSpawnTick) {
-      try {
-        gsap.ticker.remove(wildBeerExplosionSpawnTick);
-        wildBeerExplosionSpawnTick = null;
-      } catch (e) {
-        console.warn('⚠️ cleanupWildBeerExplosion: Failed to remove spawn ticker:', e);
-      }
-    }
-
-    if (wildBeerExplosionContainer) {
-      const container = wildBeerExplosionContainer;
-      // 🔥 CRITICAL FIX: Clear reference immediately to prevent re-entry
-      wildBeerExplosionContainer = null;
-
-      // 🔥 v70 CLEANUP: Remove GSAP ticker from container
-      if (container._bubbleSpawnTicker) {
-        try {
-          gsap.ticker.remove(container._bubbleSpawnTicker);
-          container._bubbleSpawnTicker = null;
-        } catch (e) {
-          console.warn('⚠️ cleanupWildBeerExplosion: Failed to remove container ticker:', e);
-        }
-      }
-
-      // Clear spawn interval (if exists from old version)
-      if (container._spawnInterval) {
-        try {
-          clearInterval(container._spawnInterval);
-          container._spawnInterval = null;
-        } catch (e) {
-          console.warn('⚠️ cleanupWildBeerExplosion: Failed to clear spawn interval:', e);
-        }
-      }
-
-      // 🔥 v75 CLEANUP: Clean up all bubbles (Sprite or Graphics) with all tweens
-      try {
-        const children = [...(container.children || [])];
-        children.forEach((bubble) => {
-          try {
-            // Kill all tweens stored on bubble
-            if (bubble._bubbleTweens && Array.isArray(bubble._bubbleTweens)) {
-              bubble._bubbleTweens.forEach(tween => {
-                try { if (tween && tween.kill) tween.kill(); } catch {}
-              });
-              bubble._bubbleTweens = null;
-            }
-            // Kill all tweens on bubble properties
-            gsap.killTweensOf(bubble);
-            gsap.killTweensOf(bubble.scale);
-            if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
-            // v75: Sprite objects use destroy() (texture is reused), Graphics use pool
-            if (bubble instanceof Sprite) {
-              bubble.destroy();
-            } else {
-              graphicsPool.release(bubble);
-            }
-          } catch (e) {
-            // Silently fail individual bubble cleanup
-          }
-        });
-      } catch (e) {
-        console.warn('⚠️ cleanupWildBeerExplosion: Failed to cleanup bubbles:', e);
-      }
-
-      // 🔥 CRITICAL FIX: Remove from parent before destroy (prevents parent reference issues)
-      try {
-        if (container.parent) {
-          container.parent.removeChild(container);
-        }
-      } catch (e) {
-        console.warn('⚠️ cleanupWildBeerExplosion: Failed to remove container from parent:', e);
-      }
-      
-      // 🔥 CRITICAL FIX: Destroy container (handles destroyed containers gracefully)
-      try {
-        if (!container.destroyed) {
-          container.destroy?.({ children: true });
-        }
-      } catch (e) {
-        console.warn('⚠️ cleanupWildBeerExplosion: Failed to destroy container:', e);
-      }
-    }
-    
-    // 🔥 CRITICAL FIX: Double-check flag is reset (defensive programming)
-    wildBeerExplosionActive = false;
-  } catch (e) {
-    console.error('❌ cleanupWildBeerExplosion: Critical error during cleanup:', e);
-    // 🔥 CRITICAL FIX: Force reset flag even on error (prevents stuck state)
-    wildBeerExplosionActive = false;
-    wildBeerExplosionContainer = null;
-    wildBeerExplosionSpawnTick = null;
-    if (_bubblesSafetyTimeoutId) {
-      try {
-        clearTimeout(_bubblesSafetyTimeoutId);
-        _bubblesSafetyTimeoutId = null;
-      } catch {}
-    }
-  }
+  }).catch(() => {});
 }
 
 export function isWildBeerExplosionRunning() {
-  return wildBeerExplosionActive;
+  // 🔥 WRAPPER: Redirect to new modular explosion
+  if (_explosionModuleCache && typeof _explosionModuleCache.isWildBeerBubblesExplosionActive === 'function') {
+    return _explosionModuleCache.isWildBeerBubblesExplosionActive();
+  }
+  import('./wild-beer-bubbles-explosion.js').then(module => {
+    _explosionModuleCache = module;
+  }).catch(() => {});
+  return false;
 }
 
 /**
@@ -3459,33 +3362,14 @@ export function isWildBeerExplosionRunning() {
  * Max wait time: 5 seconds (bubbles animation max duration ~4.4s)
  */
 export function waitForBubblesAnimationToComplete(maxWaitMs = 5000) {
-  return new Promise((resolve) => {
-    if (!wildBeerExplosionActive) {
-      // Animation not running, resolve immediately
-      resolve();
-      return;
+  // 🔥 WRAPPER: Redirect to new modular explosion
+  return import('./wild-beer-bubbles-explosion.js').then(module => {
+    _explosionModuleCache = module;
+    if (typeof module.waitForBubblesExplosionToComplete === 'function') {
+      return module.waitForBubblesExplosionToComplete(maxWaitMs);
     }
-
-    console.log('⏳ Waiting for bubbles animation to complete (max', maxWaitMs, 'ms)...');
-    const startTime = performance.now();
-    const checkInterval = 100; // Check every 100ms
-    
-    const checkTimer = setInterval(() => {
-      const elapsed = performance.now() - startTime;
-      
-      if (!wildBeerExplosionActive) {
-        // Animation finished
-        clearInterval(checkTimer);
-        console.log('✅ Bubbles animation completed after', Math.round(elapsed), 'ms');
-        resolve();
-      } else if (elapsed >= maxWaitMs) {
-        // Timeout - animation still running but we've waited long enough
-        clearInterval(checkTimer);
-        console.warn('⚠️ Bubbles animation timeout after', maxWaitMs, 'ms - proceeding anyway');
-        resolve();
-      }
-    }, checkInterval);
-  });
+    return Promise.resolve();
+  }).catch(() => Promise.resolve());
 }
 
 /**
@@ -3538,8 +3422,15 @@ export async function waitForOngoingAnimations(maxWaitMs = 6000) {
 export function cleanupAllEffects() {
   console.log('🧹 cleanupAllEffects: Cleaning up all active effects');
 
-  // Cleanup wild beer explosion
-  cleanupWildBeerExplosion();
+  // 🔥 CRITICAL FIX: Skip bubble explosion cleanup during board transition OR if recently started
+  // This prevents race condition where cleanup stops animation before it can start
+  const isBoardTransitionActive = (window as any).__ccBoardTransitionActive === true;
+  if (!isBoardTransitionActive) {
+    // Cleanup wild beer explosion (will check if recently started internally)
+    cleanupWildBeerExplosion();
+  } else {
+    console.log('⏸️ cleanupAllEffects: Skipping bubble explosion cleanup - board transition active');
+  }
 
   // Cleanup wild beer bubble systems
   wildBeerBubbleSystems.forEach((system, tile) => {
@@ -3565,704 +3456,29 @@ export function cleanupAllEffects() {
   console.log('✅ cleanupAllEffects: All effects cleaned up');
 }
 
-// 🔥 DEBUG: Expose bubble stats to window for DevTools console access
+// 🔥 DEBUG: Expose bubble stats to window for DevTools console access (redirected to new module)
 if (typeof window !== 'undefined') {
   window.getBubbleStats = function() {
-    if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) {
-      return { active: 0, spawned: 0, total: 0, fps: currentFps || 60 };
+    // 🔥 WRAPPER: Redirect to new modular explosion
+    if (_explosionModuleCache && typeof _explosionModuleCache.getBubbleStats === 'function') {
+      return _explosionModuleCache.getBubbleStats();
     }
-    const children = wildBeerExplosionContainer.children || [];
-    const visible = children.filter(b => b.visible !== false).length;
-    return {
-      active: active || 0,
-      spawned: spawned || 0,
-      total: totalBubbles || 0,
-      visible: visible,
-      fps: currentFps || 60,
-      container: !!wildBeerExplosionContainer,
-      texture: useTexturePooling ? 'YES' : 'NO (Graphics fallback)'
-    };
-  };
-  
-  window.monitorBubbles = function(interval = 500) {
-    const monitor = setInterval(() => {
-      const stats = window.getBubbleStats();
-      console.log(`💧 Bubbles: ${stats.spawned}/${stats.total} spawned, ${stats.active} active, ${stats.visible} visible, FPS: ${stats.fps.toFixed(1)}`);
-    }, interval);
-    
-    console.log(`💧 Monitoring bubbles every ${interval}ms. Call window.stopBubbleMonitor() to stop.`);
-    window.stopBubbleMonitor = () => {
-      clearInterval(monitor);
-      console.log('💧 Bubble monitoring stopped');
-    };
-    
-    return monitor;
+    return { active: 0, spawned: 0, total: 0, fps: currentFps || 60, container: false, texture: 'N/A' };
   };
 }
 
-// 🔥 DEBUG: Expose bubble stats to window for DevTools console access
-if (typeof window !== 'undefined') {
-  window.getBubbleStats = function() {
-    try {
-      if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) {
-        return { 
-          active: 0, 
-          spawned: 0, 
-          total: 125, 
-          visible: 0,
-          fps: (typeof currentFps !== 'undefined' ? currentFps : 60),
-          container: false,
-          texture: 'N/A',
-          elapsed: 0
-        };
-      }
-      const children = wildBeerExplosionContainer.children || [];
-      const visible = children.filter(b => b && b.visible !== false).length;
-      const stats = window._bubbleStats || {};
-      const elapsed = stats.startTime ? (performance.now() - stats.startTime) / 1000 : 0;
-      
-      return {
-        active: stats.active || 0,
-        spawned: stats.spawned || 0,
-        total: stats.totalBubbles || 125,
-        visible: visible,
-        fps: (typeof currentFps !== 'undefined' ? currentFps : 60),
-        container: !!wildBeerExplosionContainer,
-        texture: (typeof useTexturePooling !== 'undefined' && useTexturePooling) ? 'YES' : 'NO (Graphics fallback)',
-        elapsed: elapsed.toFixed(1) + 's'
-      };
-    } catch (e) {
-      return { error: e.message };
-    }
-  };
-  
-  window.monitorBubbles = function(interval = 500) {
-    console.log(`💧 Starting bubble monitoring every ${interval}ms...`);
-    let count = 0;
-    const monitor = setInterval(() => {
-      count++;
-      const stats = window.getBubbleStats();
-      if (stats.error) {
-        console.warn('⚠️ Error getting bubble stats:', stats.error);
-        return;
-      }
-      
-      const status = stats.container ? '🟢 ACTIVE' : '🔴 INACTIVE';
-      const fpsStatus = stats.fps >= 50 ? '✅' : stats.fps >= 30 ? '⚠️' : '❌';
-      
-      console.log(`${status} | ${stats.elapsed} | Bubbles: ${stats.spawned}/${stats.total} spawned, ${stats.active} active, ${stats.visible} visible | FPS: ${fpsStatus} ${stats.fps.toFixed(1)}`);
-      
-      // Warn if FPS drops below 30
-      if (stats.fps < 30 && stats.container) {
-        console.warn(`⚠️ FRAME DROP DETECTED: FPS=${stats.fps.toFixed(1)} (should be ≥30fps)`);
-      }
-    }, interval);
-    
-    console.log(`💧 Monitoring bubbles every ${interval}ms. Call window.stopBubbleMonitor() to stop.`);
-    window.stopBubbleMonitor = () => {
-      clearInterval(monitor);
-      console.log(`💧 Bubble monitoring stopped after ${count} checks`);
-    };
-    
-    return monitor;
-  };
-  
-  // Helper to check frame drop after 1 second
-  window.checkFrameDropAfter1s = function() {
-    console.log('💧 Starting frame drop check after 1 second...');
-    setTimeout(() => {
-      const stats = window.getBubbleStats();
-      if (stats.container) {
-        const fpsStatus = stats.fps >= 50 ? '✅ GOOD' : stats.fps >= 30 ? '⚠️ WARNING' : '❌ BAD';
-        console.log(`📊 After 1 second:`);
-        console.log(`   FPS: ${fpsStatus} ${stats.fps.toFixed(1)}`);
-        console.log(`   Bubbles: ${stats.spawned}/${stats.total} spawned, ${stats.active} active`);
-        console.log(`   Visible: ${stats.visible}`);
-        
-        if (stats.fps < 30) {
-          console.warn(`❌ FRAME DROP DETECTED: FPS=${stats.fps.toFixed(1)} is below 30fps threshold!`);
-        } else if (stats.fps < 50) {
-          console.warn(`⚠️ FPS WARNING: FPS=${stats.fps.toFixed(1)} is below 50fps (acceptable but not ideal)`);
-        } else {
-          console.log(`✅ FPS is good: ${stats.fps.toFixed(1)}fps`);
-        }
-      } else {
-        console.warn('⚠️ No active bubble animation');
-      }
-    }, 1000);
-  };
-}
-
+// 🔥 REMOVED: createWildBeerBubblesExplosion - moved to wild-beer-bubbles-explosion.ts module
+// This function is no longer used - use showWildBeerBubblesExplosion() from wild-beer-bubbles-explosion.ts instead
 export function createWildBeerBubblesExplosion(board, tile) {
-  console.log('💧 createWildBeerBubblesExplosion: Starting simplified version');
-
-  // 🔥 CRITICAL FIX: Allow tile to be null or destroyed (use position object instead)
-  // After merge 6, dst tile is destroyed but we still have position data
-  if (!board) {
-    console.warn('⚠️ createWildBeerBubblesExplosion: Missing board');
-    return;
-  }
-
-  // Tile can be null or destroyed - bubbles don't need tile reference, just board
-  if (!tile) {
-    console.warn('⚠️ createWildBeerBubblesExplosion: Tile is null/undefined (may be destroyed), continuing with board only');
-  } else if (tile.destroyed) {
-    console.warn('⚠️ createWildBeerBubblesExplosion: Tile is destroyed, continuing with board only');
-  }
-
-  // 🔥 CRITICAL: Always cleanup first to ensure clean state
-  // This prevents race conditions where flag is stuck
-  cleanupWildBeerExplosion();
-
-  // Double-check after cleanup
-  if (wildBeerExplosionActive) {
-    console.warn('⚠️ createWildBeerBubblesExplosion: Flag still active after cleanup, forcing reset');
-    wildBeerExplosionActive = false;
-  }
-
-  // Get app and stage from window.STATE (most reliable)
-  // 🔥 CRITICAL FIX: Validate stage is not destroyed and is valid before using
-  const windowState = typeof window !== 'undefined' ? window.STATE : null;
-  const app = (windowState && windowState.app) || null;
-  let stage = (windowState && windowState.stage) ||
-              (app && app.stage) ||
-              board.parent?.parent?.stage ||
-              board.parent;
-
-  // 🔥 CRITICAL FIX: Validate stage is not destroyed or stale (board transition fix)
-  if (!stage) {
-    console.error('❌ createWildBeerBubblesExplosion: No stage found!');
-    // 🔥 CRITICAL: Reset flag if stage is invalid (prevents stuck state)
-    wildBeerExplosionActive = false;
-    return;
-  }
-  
-  // 🔥 CRITICAL FIX: Check if stage is destroyed (can happen during board transitions)
-  if (stage.destroyed) {
-    console.error('❌ createWildBeerBubblesExplosion: Stage is destroyed (board transition issue)!');
-    // 🔥 CRITICAL: Reset flag if stage is destroyed (prevents stuck state)
-    wildBeerExplosionActive = false;
-    return;
-  }
-  
-  // 🔥 CRITICAL FIX: Validate stage has renderer (ensures it's a valid PIXI stage)
-  if (!app || !app.renderer || app.renderer.destroyed) {
-    console.error('❌ createWildBeerBubblesExplosion: App or renderer is invalid/destroyed!');
-    wildBeerExplosionActive = false;
-    return;
-  }
-
-  console.log('💧 createWildBeerBubblesExplosion: Stage validated, proceeding with bubble creation');
-
-  // 🔥 CRITICAL: Get accurate screen dimensions - use window.innerWidth/Height for actual viewport
-  // This ensures we get the real screen size regardless of PixiJS coordinate system
-  const screenW = (typeof window !== 'undefined' ? window.innerWidth : 800);
-  const screenH = (typeof window !== 'undefined' ? window.innerHeight : 600);
-  
-  // Also get renderer dimensions for reference
-  const rendererW = (app && app.renderer && app.renderer.width) || screenW;
-  const rendererH = (app && app.renderer && app.renderer.height) || screenH;
-  
-  console.log(`💧 Screen dimensions: ${screenW}x${screenH} (window), renderer: ${rendererW}x${rendererH}`);
-
-  // Create container
-  const container = new Container();
-  container.name = 'wild-beer-explosion-bubbles';
-  container.zIndex = 20000;
-  container.eventMode = 'none';
-  container.visible = true; // 🔥 CRITICAL: Ensure container is visible
-  container.alpha = 1.0; // 🔥 CRITICAL: Ensure container is fully opaque
-  try { container.interactiveChildren = false; } catch {}
-  
-  
-  // Position container at stage origin (0,0 relative to stage)
-  // In PixiJS, stage is usually at (0,0) and covers the entire screen
-  // 🔥 CRITICAL FIX: Validate stage is still valid before adding container (board transition fix)
-  try {
-    if (stage.destroyed) {
-      console.error('❌ createWildBeerBubblesExplosion: Stage was destroyed during setup!');
-      container.destroy?.({ children: true });
-      wildBeerExplosionActive = false;
-      return;
+  // 🔥 WRAPPER: Redirect to new modular explosion
+  import('./wild-beer-bubbles-explosion.js').then(module => {
+    _explosionModuleCache = module;
+    if (typeof module.showWildBeerBubblesExplosion === 'function') {
+      module.showWildBeerBubblesExplosion();
     }
-    
-    container.x = 0;
-    container.y = 0;
-    stage.addChild(container);
-    stage.sortChildren?.();
-    
-    // 🔥 CRITICAL FIX: Verify container was actually added (defensive check)
-    if (!container.parent || container.parent !== stage) {
-      console.error('❌ createWildBeerBubblesExplosion: Failed to add container to stage!');
-      container.destroy?.({ children: true });
-      wildBeerExplosionActive = false;
-      return;
-    }
-  } catch (e) {
-    console.error('❌ createWildBeerBubblesExplosion: Failed to add container to stage:', e);
-    container.destroy?.({ children: true });
-    wildBeerExplosionActive = false;
-    return;
-  }
-
-  wildBeerExplosionContainer = container;
-  wildBeerExplosionActive = true;
-
-  // 🔥 CLEAN BOARD DELAY FIX: Safety timeout so bubbles always cleanup (~4.4s)
-  // Without this, waitForBubblesAnimationToComplete can hit maxWaitMs (5.5s) if spawn
-  // never "completes" (e.g. FPS break at 70%) and we never clear wildBeerExplosionActive.
-  if (_bubblesSafetyTimeoutId) try { clearTimeout(_bubblesSafetyTimeoutId); } catch {}
-  _bubblesSafetyTimeoutId = setTimeout(() => {
-    _bubblesSafetyTimeoutId = null;
-    if (wildBeerExplosionActive) {
-      console.warn('⚠️ Bubbles animation safety timeout (4.4s) - forcing cleanup');
-      cleanupWildBeerExplosion();
-    }
-  }, 4400);
-
-  // Debug: Verify stage and container positions, and get actual canvas position
-  const stagePos = { x: stage.x || 0, y: stage.y || 0 };
-  const containerPos = { x: container.x || 0, y: container.y || 0 };
-  
-  // Get actual canvas viewport position
-  let canvasRect = { x: 0, y: 0, width: screenW, height: screenH };
-  try {
-    if (app && app.canvas) {
-      const rect = app.canvas.getBoundingClientRect();
-      canvasRect = { x: rect.x || 0, y: rect.y || 0, width: rect.width || screenW, height: rect.height || screenH };
-    }
-  } catch (e) {
-    console.warn('⚠️ Could not get canvas bounding rect:', e);
-  }
-  
-  console.log(`💧 Container created and added to stage:`);
-  console.log(`   - Stage position: (${stagePos.x}, ${stagePos.y})`);
-  console.log(`   - Container position: (${containerPos.x}, ${containerPos.y})`);
-  console.log(`   - Screen dimensions: ${screenW}x${screenH}`);
-  console.log(`   - Canvas rect: x=${canvasRect.x}, y=${canvasRect.y}, w=${canvasRect.width}, h=${canvasRect.height}`);
-  console.log(`   - Stage children: ${stage.children.length}, container zIndex: ${container.zIndex}`);
-
-  // 🔥 FPS DROP FIX: Start FPS monitoring only if not already active (prevent overhead)
-  // Auto-disable after 2 seconds to reduce overhead
-  if (!fpsMonitorActive) {
-    startFpsMonitoring();
-    // Auto-disable FPS monitoring after 2 seconds (bubbles animation is mostly done)
-    gsap.delayedCall(2.0, () => {
-      stopFpsMonitoring();
-    });
-  }
-
-  // 🔥 FPS DROP FIX: Faze 1+2+3 - Texture pooling, reduced bubbles, optimized animations
-  // FAZA 1: Texture Pooling - Create bubble texture once, reuse for all bubbles (with better fallback)
-  // FAZA 2: Reduced bubbles - 70 (was 100, FPS DROP FIX for merge 6), max 60 active (was 80), 1.5s spawn (was 2.0s)
-  // FAZA 3: Optimized animations - Simple drift (no keyframes), no rotation, 3 anims (was 5)
-  // 🔥 FPS DROP FIX: Smanjeno na 70 bubbles (-30% reduction) za bolji FPS na merge 6
-  
-  const totalBubbles = 70; // 🔥 FPS DROP FIX: -30% (was 100, now 70 for better FPS on merge 6)
-  const spawnDuration = 1500; // 🔥 FPS DROP FIX: 1.5s (was 2.0s) - faster spawn, less peak load
-  const maxActive = 60; // 🔥 FPS DROP FIX: -25% (was 80, proportional to 70 bubbles)
-  let active = 0;
-  let spawned = 0;
-  const perMs = totalBubbles / spawnDuration;
-  let startTime = performance.now();
-  let lastTick = startTime;
-  let acc = 0;
-
-  // 🔥 TEMPLATE-BASED: Get bubble colors from active template (wooden style)
-  // Wild beer bubbles use light orange/white palette from template
-  let bubbleColors;
-  try {
-    bubbleColors = getBubbleColors('wild-beer');
-    if (!bubbleColors || !Array.isArray(bubbleColors) || bubbleColors.length === 0) {
-      console.warn('⚠️ getBubbleColors returned empty/invalid array for wild-beer, using default white');
-      bubbleColors = [0xFFFFFF, 0xFFF5E6, 0xFFE8D1, 0xFFDCC2]; // Default light orange/white
-    }
-  } catch (err) {
-    console.error('❌ Failed to get bubble colors from template:', err);
-    bubbleColors = [0xFFFFFF, 0xFFF5E6, 0xFFE8D1, 0xFFDCC2]; // Default light orange/white
-  }
-  
-  // Select base bubble color from palette for texture (use first color as base)
-  const bubbleColorForTexture = bubbleColors[0] || 0xFFFFFF;
-
-  // 🔥 FAZA 1: Create bubble texture once (max size 48px) - cached globally with better fallback
-  // 🔥 TEMPLATE-BASED: Use bubble color from template instead of hardcoded white
-  if (!_cachedBubbleTexture && app && app.renderer) {
-    const maxSize = 48; // Max bubble size
-    const maxRadius = maxSize / 2;
-    const tempGraphics = new Graphics();
-    
-    try {
-      // Bubble with highlight effect using template color
-      tempGraphics.circle(0, 0, maxRadius);
-      tempGraphics.fill({ color: bubbleColorForTexture, alpha: 1.0 }); // Template color fill
-      // Highlight circle (top-left) - slightly brighter
-      tempGraphics.circle(-maxRadius * 0.25, -maxRadius * 0.25, maxRadius * 0.32);
-      tempGraphics.fill({ color: bubbleColorForTexture, alpha: 1.0 }); // Brighter highlight
-      // Stroke
-      tempGraphics.circle(0, 0, maxRadius);
-      tempGraphics.stroke({ color: bubbleColorForTexture, alpha: 0.65, width: 1 });
-      
-      // 🔥 IMPROVED: Better texture generation with multiple fallback strategies
-      // Try high resolution first
-      try {
-        _cachedBubbleTexture = app.renderer.generateTexture(tempGraphics, {
-          resolution: 2, // Higher resolution for crisp rendering
-          region: { x: -maxRadius - 2, y: -maxRadius - 2, width: maxSize + 4, height: maxSize + 4 }
-        });
-        if (!_cachedBubbleTexture || _cachedBubbleTexture.destroyed) {
-          throw new Error('Texture generation returned invalid texture');
-        }
-      } catch (e1) {
-        // Fallback 1: Try lower resolution
-        try {
-          console.warn('⚠️ High-res texture generation failed, trying lower resolution:', e1);
-          _cachedBubbleTexture = app.renderer.generateTexture(tempGraphics, {
-            resolution: 1, // Lower resolution fallback
-            region: { x: -maxRadius - 2, y: -maxRadius - 2, width: maxSize + 4, height: maxSize + 4 }
-          });
-          if (!_cachedBubbleTexture || _cachedBubbleTexture.destroyed) {
-            throw new Error('Low-res texture generation returned invalid texture');
-          }
-        } catch (e2) {
-          // Fallback 2: Try without region (auto-calculate)
-          try {
-            console.warn('⚠️ Region-based texture generation failed, trying auto-region:', e2);
-            _cachedBubbleTexture = app.renderer.generateTexture(tempGraphics, {
-              resolution: 1
-            });
-            if (!_cachedBubbleTexture || _cachedBubbleTexture.destroyed) {
-              throw new Error('Auto-region texture generation returned invalid texture');
-            }
-          } catch (e3) {
-            // Final fallback: Use Graphics (no texture)
-            console.warn('⚠️ All texture generation methods failed, using Graphics fallback:', e3);
-            _cachedBubbleTexture = null; // Will use Graphics fallback
-          }
-        }
-      }
-    } catch (e) {
-      console.error('❌ Critical error in texture generation setup:', e);
-      _cachedBubbleTexture = null; // Fallback to Graphics
-    } finally {
-      // Always clean up temp Graphics
-      try {
-        tempGraphics.destroy();
-      } catch (e) {
-        console.warn('⚠️ Failed to destroy temp Graphics:', e);
-      }
-    }
-  }
-  
-  const bubbleTexture = _cachedBubbleTexture;
-  const useTexturePooling = bubbleTexture !== null && !bubbleTexture.destroyed;
-
-  // Log texture status for debugging
-  if (!useTexturePooling) {
-    console.warn('⚠️ Bubble texture not available, using Graphics fallback (slower but safe)');
-  } else {
-    console.log('✅ Bubble texture generated successfully, using Sprite optimization');
-  }
-
-             console.log(`💧 FPS DROP FIX OPTIMIZED: ${totalBubbles} bubbles (was 100, now 70 for merge 6 FPS fix), texture pooling: ${useTexturePooling ? 'YES' : 'NO (Graphics fallback)'}, 3 anims (was 5), spawn: ${spawnDuration}ms, FPS monitoring: throttled (every 4th frame), spawn logic: throttled (every 2nd frame), culling: throttled (every 5th frame)`);
-
-  const makeBubble = () => {
-    // 🔥 CRITICAL FIX: Validate container exists and is not destroyed (board transition fix)
-    if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) {
-      return;
-    }
-    
-    // 🔥 CRITICAL FIX: Validate container parent (stage) is not destroyed
-    try {
-      if (!wildBeerExplosionContainer.parent || wildBeerExplosionContainer.parent.destroyed) {
-        return;
-      }
-    } catch (e) {
-      // If we can't check parent, assume it's invalid
-      return;
-    }
-    
-    if (spawned >= totalBubbles || active >= maxActive) return;
-
-    spawned += 1;
-    active += 1;
-
-    // 🔥 DEBUG: Update stats for DevTools access
-    if (typeof window !== 'undefined' && window._bubbleStats) {
-      window._bubbleStats.active = active;
-      window._bubbleStats.spawned = spawned;
-    }
-
-    let bubble;
-    const size = 14 + Math.random() * 34; // 14-48px (same size range as v74)
-    const sizeRatio = size / 48; // Ratio to max texture size
-    const radius = size / 2;
-    const alpha = 0.55 + Math.random() * 0.35; // 0.55-0.9 alpha
-
-    // 🔥 FAZA 1: Use Sprite with texture (1 draw call) OR Graphics fallback (improved)
-    let isSprite = false;
-    if (useTexturePooling && bubbleTexture) {
-      try {
-        bubble = new Sprite(bubbleTexture);
-    bubble.eventMode = 'none';
-    bubble.cursor = 'default';
-        bubble.anchor.set(0.5); // Center anchor for proper scaling/rotation
-        isSprite = true;
-      } catch (e) {
-        // If Sprite creation fails, fallback to Graphics
-        console.warn('⚠️ Sprite creation failed, using Graphics fallback:', e);
-        bubble = graphicsPool.acquire();
-        bubble.eventMode = 'none';
-        bubble.cursor = 'default';
-        bubble.clear();
-        // 🔥 TEMPLATE-BASED: Use bubble color from template (random from palette)
-        const bubbleColorForGraphics = bubbleColors[Math.floor(Math.random() * bubbleColors.length)];
-        bubble.circle(0, 0, radius);
-        bubble.fill({ color: bubbleColorForGraphics, alpha });
-        bubble.circle(-radius * 0.25, -radius * 0.25, radius * 0.32);
-        bubble.fill({ color: bubbleColorForGraphics, alpha: Math.min(1, alpha + 0.2) });
-        bubble.circle(0, 0, radius);
-        bubble.stroke({ color: bubbleColorForGraphics, alpha: alpha * 0.65, width: 1 });
-        isSprite = false;
-      }
-    } else {
-      // Fallback: Use Graphics (slower, but works if texture generation fails)
-      bubble = graphicsPool.acquire();
-      bubble.eventMode = 'none';
-      bubble.cursor = 'default';
-      bubble.clear();
-      // 🔥 TEMPLATE-BASED: Use bubble color from template (random from palette)
-      const bubbleColorForGraphics = bubbleColors[Math.floor(Math.random() * bubbleColors.length)];
-      bubble.circle(0, 0, radius);
-      bubble.fill({ color: bubbleColorForGraphics, alpha });
-      bubble.circle(-radius * 0.25, -radius * 0.25, radius * 0.32);
-      bubble.fill({ color: bubbleColorForGraphics, alpha: Math.min(1, alpha + 0.2) });
-      bubble.circle(0, 0, radius);
-      bubble.stroke({ color: bubbleColorForGraphics, alpha: alpha * 0.65, width: 1 });
-      isSprite = false;
-    }
-    
-    // 🔥 FAZA 2: Random distribution (same as v74)
-    const startX = (Math.random() - 0.5) * screenW * 1.4 + screenW * 0.5;
-    const startY = screenH * (0.95 + Math.random() * 0.2); // Bottom 5-25% of screen
-    bubble.x = startX;
-    bubble.y = startY;
-    bubble.alpha = alpha;
-    if (isSprite) {
-      bubble.scale.set((0.25 + Math.random() * 0.25) * sizeRatio); // 0.25-0.5 initial scale × size ratio
-    } else {
-      bubble.scale.set(0.25 + Math.random() * 0.25); // 0.25-0.5 initial scale
-    }
-    bubble.renderable = true;
-
-    wildBeerExplosionContainer.addChild(bubble);
-
-    const endY = -screenH * (0.1 + Math.random() * 0.15); // End 10-25% above top
-    const duration = Math.min(2.1, Math.max(1.1, 1.6 + (Math.random() - 0.5) * 0.6)); // 1.1-2.1s
-
-    // 🔥 FAZA 3: Simple drift (no keyframes) - single horizontal drift instead of 3-phase
-    // 🔥 USER REQUEST: Smanjeno za 50% da bubbles budu bliže jedni drugima
-    const driftX = (Math.random() - 0.5) * 100; // ±50px horizontal drift (50% smanjeno, was ±100px)
-
-    const bubbleTweens = [];
-
-    // 🔥 FAZA 3: 1. VERTICAL RISE + DRIFT (combined, no keyframes)
-    bubbleTweens.push(gsap.to(bubble, {
-      x: startX + driftX, // Simple drift (no keyframes)
-      y: endY,
-      duration,
-      ease: 'power2.inOut',
-      immediateRender: true
-    }));
-
-    // 🔥 FAZA 3: 2. SCALE ANIMATION (kept - important visual effect)
-    const finalScale = 0.65 + Math.random() * 0.35; // 0.65-1.0 final scale
-    bubbleTweens.push(gsap.to(bubble.scale, {
-      x: isSprite ? finalScale * sizeRatio : finalScale, // Apply size ratio only for Sprite
-      y: isSprite ? finalScale * sizeRatio : finalScale,
-      duration: duration * 0.45,
-      ease: 'power1.out',
-      immediateRender: true
-    }));
-
-    // 🔥 FAZA 3: 3. ALPHA FADE (kept - important visual effect)
-    // FAZA 3: Rotation removed (not very visible, saves CPU)
-    bubbleTweens.push(gsap.to(bubble, {
-      alpha: 0,
-      duration: duration * 0.4,
-      delay: duration * 0.6,
-      ease: 'power2.in',
-      immediateRender: true,
-      onComplete: () => {
-        try {
-          bubbleTweens.forEach(t => { try { t.kill?.(); } catch {} });
-          if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
-          // v75: Sprite uses destroy() (texture reused), Graphics uses pool
-          if (bubble instanceof Sprite) {
-            bubble.destroy();
-          } else {
-          graphicsPool.release(bubble);
-          }
-        } catch {}
-        active = Math.max(0, active - 1);
-        
-        // 🔥 DEBUG: Update stats for DevTools access
-        if (typeof window !== 'undefined' && window._bubbleStats) {
-          window._bubbleStats.active = active;
-        }
-      }
-    }));
-
-    // Store tweens for cleanup
-    bubble._bubbleTweens = bubbleTweens;
-  };
-
-  // 🔥 FPS DROP FIX: Performance-based spawn ticker with throttled FPS monitoring and culling
-  let frameCounter = 0; // Track frame count for throttling
-  const spawnTick = () => {
-    // 🔥 CRITICAL FIX: Validate container exists and is not destroyed (board transition fix)
-    if (!wildBeerExplosionContainer || wildBeerExplosionContainer.destroyed) {
-      if (wildBeerExplosionSpawnTick === spawnTick) {
-        try {
-          gsap.ticker.remove(spawnTick);
-        } catch (e) {
-          console.warn('⚠️ spawnTick: Failed to remove ticker:', e);
-        }
-        wildBeerExplosionSpawnTick = null;
-      }
-      // 🔥 CRITICAL: Reset flag and cleanup if container is destroyed (prevents stuck state)
-      wildBeerExplosionActive = false;
-      cleanupWildBeerExplosion();
-      return;
-    }
-    
-    // 🔥 CRITICAL FIX: Validate container parent (stage) is not destroyed (board transition fix)
-    try {
-      if (!wildBeerExplosionContainer.parent || wildBeerExplosionContainer.parent.destroyed) {
-        console.warn('⚠️ spawnTick: Container parent (stage) is destroyed, cleaning up');
-        if (wildBeerExplosionSpawnTick === spawnTick) {
-          try {
-            gsap.ticker.remove(spawnTick);
-          } catch (e) {
-            console.warn('⚠️ spawnTick: Failed to remove ticker:', e);
-          }
-          wildBeerExplosionSpawnTick = null;
-        }
-        wildBeerExplosionActive = false;
-        cleanupWildBeerExplosion();
-        return;
-      }
-    } catch (e) {
-      // If we can't check parent, assume it's invalid and cleanup
-      console.warn('⚠️ spawnTick: Error checking container parent, cleaning up:', e);
-      if (wildBeerExplosionSpawnTick === spawnTick) {
-        try {
-          gsap.ticker.remove(spawnTick);
-        } catch {}
-        wildBeerExplosionSpawnTick = null;
-      }
-      wildBeerExplosionActive = false;
-      cleanupWildBeerExplosion();
-      return;
-    }
-
-    frameCounter++;
-    
-    // 🔥 FPS DROP FIX: Throttle FPS monitoring to every 4th frame (75% reduction in overhead)
-    if (frameCounter % 4 === 0) {
-      try {
-        updateFpsCounter();
-      } catch (e) {
-        console.warn('⚠️ FPS counter update failed:', e);
-      }
-    }
-    
-    // 🔥 FPS DROP FIX: Throttle spawn logic to every 2nd frame (50% reduction in overhead)
-    if (frameCounter % 2 === 0) {
-      const now = performance.now();
-      const dt = Math.max(1, now - lastTick);
-      lastTick = now;
-      const elapsed = now - startTime;
-
-      if (elapsed >= spawnDuration && spawned >= totalBubbles) {
-        if (wildBeerExplosionSpawnTick === spawnTick) {
-          gsap.ticker.remove(spawnTick);
-          wildBeerExplosionSpawnTick = null;
-        }
-        setTimeout(() => cleanupWildBeerExplosion(), 2400);
-        return;
-      }
-      // 🔥 CLEAN BOARD DELAY FIX: Stop-early path (e.g. FPS break at 70%) – still cleanup
-      // Only after spawn window + buffer (so we're sure we've stopped), else we'd exit mid-spawn.
-      if (elapsed >= spawnDuration + 2400 && spawned < totalBubbles) {
-        if (wildBeerExplosionSpawnTick === spawnTick) {
-          gsap.ticker.remove(spawnTick);
-          wildBeerExplosionSpawnTick = null;
-        }
-        setTimeout(() => cleanupWildBeerExplosion(), 0);
-        return;
-      }
-
-      // 🔥 FPS DROP FIX: Dynamic spawn rate based on FPS (prevent frame drops)
-      // Use safe access to currentFps with fallback
-      const safeFps = (typeof currentFps !== 'undefined' && currentFps !== null) ? currentFps : 60;
-      const fpsFactor = safeFps >= 50 ? 1.0 : Math.max(0.5, safeFps / 50); // Reduce spawn if FPS drops
-      acc += perMs * dt * fpsFactor;
-      const toSpawn = Math.min(2, Math.floor(acc)); // 🔥 FPS DROP FIX: Reduced from 3 to 2 (33% reduction)
-      if (toSpawn > 0) {
-        acc -= toSpawn;
-        for (let i = 0; i < toSpawn; i++) {
-          // 🔥 FRAME DROP FIX: Check FPS before spawning (prevent overload)
-          if (safeFps < 30 && spawned >= totalBubbles * 0.7) {
-            // If FPS drops below 30, stop spawning after 70% of bubbles
-            break;
-          }
-    makeBubble();
-  }
-      }
-    }
-    
-    // 🔥 FPS DROP FIX: Culling - hide off-screen bubbles to reduce render load
-    // 🔥 FPS DROP FIX: Throttled to every 5th frame (80% reduction in overhead, was every 3rd)
-    if (frameCounter % 5 === 0) {
-      const elapsed = performance.now() - startTime;
-      if (elapsed > 0.5) { // Start culling after 0.5s (bubbles are moving)
-        try {
-          const children = wildBeerExplosionContainer.children || [];
-          const cullMargin = 50; // Margin for culling
-          for (let i = 0; i < children.length; i++) {
-            const bubble = children[i];
-            if (bubble && bubble.y !== undefined) {
-              // Hide bubbles that are off-screen
-              if (bubble.y < -cullMargin || bubble.y > screenH + cullMargin) {
-                bubble.visible = false;
-              } else {
-                bubble.visible = true;
-              }
-            }
-          }
-        } catch (e) {
-          // Silently fail culling if there's an error
-        }
-      }
-    }
-  };
-
-  // 🔥 v75 INITIAL BURST: Spawn 5 bubbles immediately (proportional to 100 total, was 6 for 125)
-  const initialBurst = Math.floor(totalBubbles / 20); // ~5 bubbles for 100 total
-  for (let i = 0; i < initialBurst; i++) makeBubble();
-  
-  // Start spawn ticker
-  wildBeerExplosionSpawnTick = spawnTick;
-  wildBeerExplosionContainer._bubbleSpawnTicker = spawnTick;
-  gsap.ticker.add(spawnTick);
-  spawnTick();
+  }).catch(() => {});
 }
 
-/**
- * Create 3 stars for merge 6 effect
- * Stars are 56-80px in size (random, each different), random positions, directions, and rotations
- */
 // 🔥 PERFORMANCE OPTIMIZATION: Cache star texture to avoid reloading (seamless, invisible to user)
 let _cachedStarTexture = null;
 function getStarTexture() {

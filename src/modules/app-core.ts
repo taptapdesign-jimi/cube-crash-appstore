@@ -15,7 +15,8 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, createWildBeerBubblesExplosion, isWildBeerExplosionRunning, cleanupWildBeerExplosion, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations } from './fx.ts';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations } from './fx.ts';
+import { showWildBeerBubblesExplosion, stopWildBeerBubblesExplosion, isWildBeerBubblesExplosionActive, isWildBeerBubblesExplosionRecentlyStarted } from './wild-beer-bubbles-explosion.ts';
 import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
 // import { showStarsModal } from './stars-modal.js';
@@ -720,10 +721,54 @@ export async function boot(){
   }
   
   // Step 5: Clear stage children BEFORE destroy (cleaner removal from render tree)
+  // 🔥 CRITICAL FIX: Preserve bubbles explosion container if it's active
+  // This prevents bubbles explosion from being destroyed when boot() is called between boards
   if (app && app.stage) {
     try {
+      // 🔥 BUBBLES EXPLOSION FIX: Check if bubbles explosion is active before removing children
+      // We need to preserve the container so it can continue animating on the new stage
+      let bubblesContainer: any = null;
+      try {
+        // Use dynamic import to avoid circular dependency
+        const bubblesModule = await import('./wild-beer-bubbles-explosion.js');
+        if (bubblesModule && typeof bubblesModule.isWildBeerBubblesExplosionActive === 'function') {
+          const isActive = bubblesModule.isWildBeerBubblesExplosionActive();
+          if (isActive) {
+            // Get container from module (more reliable than searching stage)
+            if (typeof bubblesModule.getExplosionContainer === 'function') {
+              bubblesContainer = bubblesModule.getExplosionContainer();
+            }
+            // Fallback: Find in stage if module doesn't have getter
+            if (!bubblesContainer) {
+              bubblesContainer = app.stage.children.find((child: any) => 
+                child && child.name === 'wild-beer-explosion-bubbles' && !child.destroyed
+              );
+            }
+            if (bubblesContainer) {
+              console.log('💧 boot: Preserving bubbles explosion container during stage cleanup (active explosion detected)', {
+                containerChildren: bubblesContainer.children?.length || 0,
+                containerVisible: bubblesContainer.visible,
+                containerAlpha: bubblesContainer.alpha
+              });
+              // Remove from stage temporarily so it's not destroyed
+              if (bubblesContainer.parent) {
+                bubblesContainer.parent.removeChild(bubblesContainer);
+              }
+              // Store reference globally so we can restore it later
+              (window as any).__ccPreservedBubblesContainer = bubblesContainer;
+            }
+          }
+        }
+      } catch (e) {
+        // Silently fail - bubbles explosion module might not be loaded yet
+        console.warn('⚠️ boot: Failed to check bubbles explosion state:', e);
+      }
+      
       app.stage.removeChildren();
-      console.log('✅ Stage children removed');
+      console.log('✅ Stage children removed', bubblesContainer ? '(bubbles container preserved)' : '');
+      
+      // 🔥 BUBBLES EXPLOSION FIX: Re-add bubbles explosion container if it was preserved
+      // This will be done after new stage is created (in the code below)
     } catch (e) {
       console.warn('⚠️ Error removing stage children:', e);
     }
@@ -815,6 +860,67 @@ export async function boot(){
   console.log('✅ App renderer width:', app.renderer.width, 'height:', app.renderer.height);
   console.log('✅ App canvas width:', app.canvas.width, 'height:', app.canvas.height);
   console.log('✅ App canvas in DOM:', !!app.canvas.parentElement);
+  
+  // 🔥 CRITICAL FIX: Restore preserved bubbles explosion container on new stage
+  // This handles the case where boot() destroyed the old stage while animation was running
+  // We preserved the container in Step 5 above, now we restore it to the new stage
+  try {
+    const preservedContainer = (window as any).__ccPreservedBubblesContainer;
+    if (preservedContainer && !preservedContainer.destroyed && stage) {
+      console.log('💧 boot: Restoring preserved bubbles explosion container to new stage');
+      try {
+        // Import module to restore container reference
+        const bubblesModule = await import('./wild-beer-bubbles-explosion.js');
+        if (bubblesModule && typeof bubblesModule.setExplosionContainer === 'function') {
+          bubblesModule.setExplosionContainer(preservedContainer);
+        }
+        
+        // Ensure container is properly set up
+        preservedContainer.visible = true;
+        preservedContainer.alpha = 1.0;
+        preservedContainer.renderable = true;
+        preservedContainer.zIndex = 99999;
+        
+        // Add to new stage
+        stage.addChild(preservedContainer);
+        stage.sortChildren?.();
+        
+        // Ensure container is at the top of display list
+        const currentIndex = stage.getChildIndex(preservedContainer);
+        const lastIndex = stage.children.length - 1;
+        if (currentIndex !== lastIndex) {
+          stage.removeChild(preservedContainer);
+          stage.addChild(preservedContainer);
+          stage.sortChildren?.();
+        }
+        
+        // Clear preserved reference
+        delete (window as any).__ccPreservedBubblesContainer;
+        
+        console.log('✅ boot: Bubbles explosion container restored on new stage', {
+          containerVisible: preservedContainer.visible,
+          containerAlpha: preservedContainer.alpha,
+          containerRenderable: preservedContainer.renderable,
+          containerZIndex: preservedContainer.zIndex,
+          containerChildren: preservedContainer.children?.length || 0,
+          containerInStage: !!(preservedContainer.parent && preservedContainer.parent === stage),
+          containerIndex: stage.getChildIndex(preservedContainer)
+        });
+      } catch (e) {
+        console.error('❌ boot: Failed to restore bubbles explosion container:', e);
+        delete (window as any).__ccPreservedBubblesContainer;
+      }
+    } else if (preservedContainer) {
+      console.warn('⚠️ boot: Preserved bubbles container is destroyed or stage not ready', {
+        containerDestroyed: preservedContainer.destroyed,
+        hasStage: !!stage
+      });
+      delete (window as any).__ccPreservedBubblesContainer;
+    }
+  } catch (e) {
+    console.warn('⚠️ boot: Error restoring bubbles explosion container:', e);
+    delete (window as any).__ccPreservedBubblesContainer;
+  }
   
   // Add fade in animation for background transition
   // 🔥 CRITICAL FIX: Only auto-show canvas if NOT coming from Journey (saved game)
@@ -979,6 +1085,12 @@ export async function boot(){
   stage.addChild(board, hud);
   board.addChildAt(boardBG, 0); boardBG.zIndex = -1000; board.sortChildren();
   
+  // 🔥 CRITICAL FIX: Clear backgroundLayer reference after boot() destroys old app
+  // This ensures that backgroundLayer will be recreated in startLevel()
+  backgroundLayer = null;
+  window._ghostPlaceholders = null;
+  console.log('✅ boot: Cleared backgroundLayer and window._ghostPlaceholders references (will be recreated in startLevel)');
+  
   console.log('✅ Board and HUD containers created and added to stage');
   console.log('✅ Board visible:', board.visible, 'alpha:', board.alpha, 'renderable:', board.renderable, 'in stage:', !!board.parent);
   console.log('✅ HUD visible:', hud.visible, 'alpha:', hud.alpha, 'renderable:', hud.renderable, 'in stage:', !!hud.parent);
@@ -1011,9 +1123,13 @@ export async function boot(){
   // 🔥 CRITICAL: Load HUD icons into PIXI Assets cache BEFORE any other assets
   // This MUST be done before layoutBoard() initializes HUD
   // HUD icons MUST be available when HUD.initHUD() is called
+  // 🔥 OPTIMIZATION: Load HUD icons with timeout to prevent long waits after hard exit
+  // Icons will load lazily if they're not ready, so we don't block board initialization
   try {
     const { loadHudIconsIntoPixiCache } = await import('../utils/comprehensive-image-preloader.js');
-    console.log('🎮 Loading HUD icons into PIXI Assets cache (BLOCKING)...');
+    console.log('🎮 Loading HUD icons into PIXI Assets cache (with timeout protection)...');
+    // 🔥 CRITICAL: Don't wait forever - timeout is handled inside loadHudIconsIntoPixiCache
+    // This prevents long delays after hard exit when cache is empty
     await loadHudIconsIntoPixiCache();
     console.log('✅ HUD icons loaded into PIXI Assets cache');
   } catch (error) {
@@ -1817,13 +1933,26 @@ function initializeBackgroundLayer(){
   // 🔥 v70 STYLE: Update ghost visibility immediately after creation
   // Show ghosts for empty cells (where grid[r][c] === null)
   try {
+    // 🔥 CRITICAL FIX: Ensure backgroundLayer is visible before updating ghost visibility
+    backgroundLayer.visible = true;
     if (typeof window.updateGhostVisibility === 'function') {
       window.updateGhostVisibility();
+      console.log('✅ Ghost visibility updated after background layer creation (window function)');
     } else {
       // Fallback: Show all ghosts initially (will be hidden by updateGhostVisibility later)
       updateGhostVisibility();
+      console.log('✅ Ghost visibility updated after background layer creation (fallback)');
     }
-    console.log('✅ Ghost visibility updated after background layer creation');
+    // 🔥 CRITICAL FIX: Double-check that ghost placeholders are visible
+    if (window._ghostPlaceholders && Array.isArray(window._ghostPlaceholders)) {
+      let visibleCount = 0;
+      window._ghostPlaceholders.forEach((row: any[]) => {
+        row.forEach((ghost: any) => {
+          if (ghost && ghost.visible) visibleCount++;
+        });
+      });
+      console.log(`✅ Ghost placeholders check: ${visibleCount} visible out of ${ROWS * COLS} total`);
+    }
   } catch (e) {
     console.error('❌ Failed to update ghost visibility:', e);
   }
@@ -1841,7 +1970,28 @@ function setGhostVisibility(c, r, visible) {
 // Update ghost visibility based on current grid state
 // SIMPLE RULE: Show ghost ONLY where grid cell is null (no tile at all)
 function updateGhostVisibility() {
-  if (!window._ghostPlaceholders) return;
+  // 🔥 CRITICAL FIX: If window._ghostPlaceholders is null, try to reinitialize from backgroundLayer
+  if (!window._ghostPlaceholders) {
+    if (backgroundLayer && backgroundLayer.children.length > 0) {
+      console.log('🔄 updateGhostVisibility: window._ghostPlaceholders is null, reinitializing from backgroundLayer...');
+      window._ghostPlaceholders = [];
+      for (let r = 0; r < ROWS; r++) {
+        window._ghostPlaceholders[r] = [];
+        for (let c = 0; c < COLS; c++) {
+          const ghostLabel = `Ghost_${c}_${r}`;
+          const ghost = backgroundLayer.children.find((child: any) => child.label === ghostLabel);
+          if (ghost) {
+            window._ghostPlaceholders[r][c] = ghost;
+          }
+        }
+      }
+      console.log('✅ updateGhostVisibility: window._ghostPlaceholders reinitialized from backgroundLayer');
+    } else {
+      // If backgroundLayer doesn't exist, we can't update ghost visibility
+      console.warn('⚠️ updateGhostVisibility: window._ghostPlaceholders is null and backgroundLayer is missing - cannot update');
+      return;
+    }
+  }
   
   let visibleCount = 0;
   
@@ -1855,6 +2005,11 @@ function updateGhostVisibility() {
         if (shouldShow) visibleCount++;
       }
     }
+  }
+  
+  // 🔥 CRITICAL FIX: Log ghost visibility status for debugging
+  if (visibleCount > 0) {
+    console.log(`✅ updateGhostVisibility: ${visibleCount} ghost placeholders visible`);
   }
 }
 
@@ -2012,19 +2167,49 @@ function resetBoardContainer(){
   console.log('🔄 resetBoardContainer (app.js): Found backgroundLayer in board:', !!bgLayer);
   console.log('🔄 resetBoardContainer (app.js): Global backgroundLayer exists:', !!bgLayerRef);
   
+  // 🔥 CRITICAL FIX: Check if backgroundLayer is destroyed (from boot() cleanup)
+  const isBgLayerDestroyed = bgLayer ? bgLayer.destroyed : (bgLayerRef ? bgLayerRef.destroyed : true);
+  console.log('🔄 resetBoardContainer (app.js): Background layer destroyed:', isBgLayerDestroyed);
+  
   board.removeChildren();
   
   // Re-add persistent layers
   board.addChildAt(boardBG, 0);
   
-  // 🔥 CRITICAL FIX: Re-add backgroundLayer if it exists (either from board or global reference)
-  const layerToAdd = bgLayer || bgLayerRef;
-  if (layerToAdd) {
+  // 🔥 CRITICAL FIX: Re-add backgroundLayer if it exists and is NOT destroyed
+  // If destroyed, we need to recreate it
+  const layerToAdd = (!isBgLayerDestroyed && (bgLayer || bgLayerRef)) ? (bgLayer || bgLayerRef) : null;
+  if (layerToAdd && !layerToAdd.destroyed) {
     try {
       board.addChildAt(layerToAdd, 0); // Always at index 0 (bottom)
       layerToAdd.visible = true;
       layerToAdd.zIndex = -10000;
       console.log('✅ resetBoardContainer (app.js): Background layer preserved and re-added');
+      // 🔥 CRITICAL FIX: Ensure window._ghostPlaceholders is initialized if backgroundLayer exists
+      // This handles cases where cleanupGame() set it to null but backgroundLayer was preserved
+      if (!window._ghostPlaceholders && backgroundLayer && backgroundLayer.children.length > 0) {
+        console.log('🔄 resetBoardContainer (app.js): Reinitializing window._ghostPlaceholders from backgroundLayer children...');
+        window._ghostPlaceholders = [];
+        for (let r = 0; r < ROWS; r++) {
+          window._ghostPlaceholders[r] = [];
+          for (let c = 0; c < COLS; c++) {
+            const ghostLabel = `Ghost_${c}_${r}`;
+            const ghost = backgroundLayer.children.find((child: any) => child.label === ghostLabel);
+            if (ghost) {
+              window._ghostPlaceholders[r][c] = ghost;
+            }
+          }
+        }
+        console.log('✅ resetBoardContainer (app.js): window._ghostPlaceholders reinitialized from backgroundLayer');
+      }
+      // 🔥 CRITICAL FIX: Update ghost visibility after re-adding background layer
+      if (backgroundLayer && typeof window.updateGhostVisibility === 'function') {
+        window.updateGhostVisibility();
+        console.log('✅ resetBoardContainer (app.js): Ghost visibility updated after re-adding background layer');
+      } else if (backgroundLayer) {
+        updateGhostVisibility();
+        console.log('✅ resetBoardContainer (app.js): Ghost visibility updated (fallback)');
+      }
     } catch (e) {
       console.warn('⚠️ resetBoardContainer (app.js): Failed to re-add background layer:', e);
       // If re-adding fails, ensure global reference is cleared so it gets recreated
@@ -2033,9 +2218,29 @@ function resetBoardContainer(){
       }
     }
   } else {
-    console.warn('⚠️ resetBoardContainer (app.js): Background layer NOT found - will need reinit');
+    console.warn('⚠️ resetBoardContainer (app.js): Background layer NOT found or destroyed - will need reinit');
     // Ensure global reference is null so it gets recreated
     backgroundLayer = null;
+    // 🔥 CRITICAL FIX: Recreate background layer if it was destroyed
+    // This happens when boot() destroys the app and stage
+    if (!backgroundLayer) {
+      console.log('🔄 resetBoardContainer (app.js): Recreating background layer...');
+      try {
+        initializeBackgroundLayer();
+        console.log('✅ resetBoardContainer (app.js): Background layer recreated successfully');
+        // 🔥 CRITICAL FIX: Update ghost visibility immediately after recreating background layer
+        // This ensures ghost placeholders are visible on the new board
+        if (backgroundLayer && typeof window.updateGhostVisibility === 'function') {
+          window.updateGhostVisibility();
+          console.log('✅ resetBoardContainer (app.js): Ghost visibility updated after recreating background layer');
+        } else if (backgroundLayer) {
+          updateGhostVisibility();
+          console.log('✅ resetBoardContainer (app.js): Ghost visibility updated (fallback)');
+        }
+      } catch (e) {
+        console.error('❌ resetBoardContainer (app.js): Failed to recreate background layer:', e);
+      }
+    }
   }
   
   boardBG.zIndex = -1000;
@@ -2127,19 +2332,27 @@ function rebuildBoard(){
   tiles.length=0;
   
   // 🔥 CRITICAL: Cleanup wild beer explosion animation when board is rebuilt
-  // 🔥 BUBBLES ANIMATION FIX: Always cleanup to prevent stale state across board transitions
+  // 🔥 BUBBLES ANIMATION FIX: Skip cleanup during board transition to prevent race condition
   // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations to prevent memory leaks
   try {
-    if (typeof isWildBeerExplosionRunning === 'function' && typeof cleanupWildBeerExplosion === 'function') {
-      const wasActive = isWildBeerExplosionRunning();
-      if (wasActive) {
-        cleanupWildBeerExplosion();
+    // 🔥 CRITICAL FIX: Skip bubble explosion cleanup during board transition OR if recently started
+    // This prevents race condition where cleanup stops animation before it can start
+    const isBoardTransitionActive = (window as any).__ccBoardTransitionActive === true;
+    const isRecentlyStarted = typeof isWildBeerBubblesExplosionRecentlyStarted === 'function' && isWildBeerBubblesExplosionRecentlyStarted();
+    
+    if (!isBoardTransitionActive && !isRecentlyStarted && typeof stopWildBeerBubblesExplosion === 'function') {
+      if (isWildBeerBubblesExplosionActive()) {
+        stopWildBeerBubblesExplosion();
         console.log('🧹 rebuildBoard: Cleaned up active wild beer explosion animation');
       } else {
         // 🔥 CRITICAL: Force cleanup even if flag says inactive (handles stale containers/flags)
-        cleanupWildBeerExplosion();
+        stopWildBeerBubblesExplosion();
         console.log('🧹 rebuildBoard: Force cleaned up wild beer explosion (stale state prevention)');
       }
+    } else if (isBoardTransitionActive) {
+      console.log('⏸️ rebuildBoard: Skipping bubble explosion cleanup - board transition active');
+    } else if (isRecentlyStarted) {
+      console.log('⏸️ rebuildBoard: Skipping bubble explosion cleanup - explosion recently started (within 5s), allowing animation to continue');
     }
     
     // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations
@@ -2150,9 +2363,11 @@ function rebuildBoard(){
   } catch (e) {
     console.warn('⚠️ rebuildBoard: Failed to cleanup animations:', e);
     // 🔥 CRITICAL: Force cleanup on error to prevent stuck state
+    // 🔥 CRITICAL FIX: Don't stop recently started bubbles explosion even on error
     try {
-      if (typeof cleanupWildBeerExplosion === 'function') {
-        cleanupWildBeerExplosion();
+      const isRecentlyStarted = typeof isWildBeerBubblesExplosionRecentlyStarted === 'function' && isWildBeerBubblesExplosionRecentlyStarted();
+      if (!isRecentlyStarted && typeof stopWildBeerBubblesExplosion === 'function') {
+        stopWildBeerBubblesExplosion();
       }
       // 🔥 STARS ANIMATION FIX: Force cleanup stars animations on error (including protected)
       if (typeof forceCleanupAllStarAnimations === 'function') {
@@ -2218,10 +2433,42 @@ function rebuildBoard(){
   // Only if backgroundLayer exists, otherwise it will be updated after initializeBackgroundLayer()
   if (backgroundLayer) {
     try {
+      // 🔥 CRITICAL FIX: Ensure backgroundLayer is visible before updating ghost visibility
+      backgroundLayer.visible = true;
+      // 🔥 CRITICAL FIX: Ensure window._ghostPlaceholders is initialized if backgroundLayer exists
+      if (!window._ghostPlaceholders && backgroundLayer.children.length > 0) {
+        console.log('🔄 rebuildBoard: window._ghostPlaceholders is null, reinitializing from backgroundLayer...');
+        window._ghostPlaceholders = [];
+        for (let r = 0; r < ROWS; r++) {
+          window._ghostPlaceholders[r] = [];
+          for (let c = 0; c < COLS; c++) {
+            const ghostLabel = `Ghost_${c}_${r}`;
+            const ghost = backgroundLayer.children.find((child: any) => child.label === ghostLabel);
+            if (ghost) {
+              window._ghostPlaceholders[r][c] = ghost;
+            }
+          }
+        }
+        console.log('✅ rebuildBoard: window._ghostPlaceholders reinitialized from backgroundLayer');
+      }
       updateGhostVisibility();
       console.log('✅ Ghost visibility updated in rebuildBoard()');
     } catch (e) {
       console.warn('⚠️ rebuildBoard: Failed to update ghost visibility:', e);
+    }
+  } else {
+    // 🔥 CRITICAL FIX: If backgroundLayer doesn't exist, recreate it
+    // This can happen if boot() destroyed it and resetBoardContainer() didn't recreate it properly
+    console.warn('⚠️ rebuildBoard: backgroundLayer is null - recreating...');
+    try {
+      initializeBackgroundLayer();
+      if (backgroundLayer) {
+        backgroundLayer.visible = true;
+        updateGhostVisibility();
+        console.log('✅ rebuildBoard: Background layer recreated and ghost visibility updated');
+      }
+    } catch (e) {
+      console.error('❌ rebuildBoard: Failed to recreate background layer:', e);
     }
   }
   
@@ -2583,15 +2830,44 @@ function startLevel(n){
   // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations to prevent memory leaks
   try {
     // Cleanup bubbles animation - use proper import instead of window access
-    if (typeof cleanupWildBeerExplosion === 'function') {
-      const wasActive = isWildBeerExplosionRunning();
-      if (wasActive) {
-        cleanupWildBeerExplosion();
-        console.log('🧹 startLevel: Cleaned up active bubbles animation');
+    // 🔥 CRITICAL FIX: Don't stop recently started bubbles explosion (protects animation during board transitions)
+    // 🔥 BUBBLES EXPLOSION FIX: Only cleanup if NOT coming from interim board (Continue button)
+    // This prevents cleanup from interfering with bubbles explosion on new board
+    const isFromInterimBoard = (window as any).__ccFromInterimBoard === true || (window as any).__ccIsInterimBoard === true;
+    if (typeof stopWildBeerBubblesExplosion === 'function') {
+      const isRecentlyStarted = typeof isWildBeerBubblesExplosionRecentlyStarted === 'function' && isWildBeerBubblesExplosionRecentlyStarted();
+      const isActive = isWildBeerBubblesExplosionActive();
+      
+      console.log('🧹 startLevel: Bubbles explosion cleanup check', {
+        isFromInterimBoard,
+        isRecentlyStarted,
+        isActive,
+        willCleanup: !isFromInterimBoard && !isRecentlyStarted
+      });
+      
+      // 🔥 CRITICAL FIX: NEVER cleanup bubbles explosion in startLevel() if it was recently started
+      // This prevents cleanup from interfering with bubbles explosion on new board
+      // Bubbles explosion should run to completion naturally, not be force-stopped
+      if (isFromInterimBoard) {
+        console.log('⏸️ startLevel: Skipping bubbles cleanup - coming from interim board (Continue button)');
+      } else if (isRecentlyStarted) {
+        console.log('⏸️ startLevel: Skipping bubbles cleanup - explosion recently started (within 5s), allowing animation to continue');
+      } else if (isActive) {
+        // 🔥 CRITICAL: Don't cleanup active bubbles explosion - let it run to completion
+        // Only cleanup if it's been running for more than 5 seconds (stale state)
+        const elapsed = typeof isWildBeerBubblesExplosionRecentlyStarted === 'function' 
+          ? (performance.now() - (window as any).__ccBubblesExplosionStartTime || 0)
+          : 0;
+        if (elapsed > 5000) {
+          console.log('🧹 startLevel: Cleaning up stale bubbles explosion (running > 5s)');
+          stopWildBeerBubblesExplosion();
+        } else {
+          console.log('⏸️ startLevel: Skipping cleanup - bubbles explosion is active and recent, allowing animation to continue');
+        }
       } else {
-        // 🔥 CRITICAL: Force cleanup even if flag says inactive (handles stale state)
-        cleanupWildBeerExplosion();
-        console.log('🧹 startLevel: Force cleaned up bubbles animation (stale state prevention)');
+        // 🔥 CRITICAL: Don't force cleanup - bubbles explosion might be starting
+        // Only cleanup if explicitly needed (stale state that's been inactive for a while)
+        console.log('⏸️ startLevel: Skipping force cleanup - bubbles explosion is not active (might be starting)');
       }
     }
     
@@ -2613,9 +2889,11 @@ function startLevel(n){
   } catch (e) {
     console.warn('⚠️ startLevel: Failed to cleanup animations (non-fatal):', e);
     // 🔥 CRITICAL: Force reset flag even if cleanup fails (prevents stuck state)
+    // 🔥 CRITICAL FIX: Don't stop recently started bubbles explosion even on error
     try {
-      if (typeof cleanupWildBeerExplosion === 'function') {
-        cleanupWildBeerExplosion();
+      const isRecentlyStarted = typeof isWildBeerBubblesExplosionRecentlyStarted === 'function' && isWildBeerBubblesExplosionRecentlyStarted();
+      if (!isRecentlyStarted && typeof stopWildBeerBubblesExplosion === 'function') {
+        stopWildBeerBubblesExplosion();
       }
       // 🔥 STARS ANIMATION FIX: Force cleanup stars animations on error (including protected)
       if (typeof forceCleanupAllStarAnimations === 'function') {
@@ -2760,6 +3038,26 @@ wildMeter = 0;
       console.log('🎯 Background layer is null before rebuildBoard() - initializing...');
       initializeBackgroundLayer();
       console.log('✅ Background layer initialized before rebuildBoard()');
+      // 🔥 CRITICAL FIX: Update ghost visibility immediately after initializing background layer
+      // This ensures ghost placeholders are visible on the new board
+      if (backgroundLayer && typeof window.updateGhostVisibility === 'function') {
+        window.updateGhostVisibility();
+        console.log('✅ Ghost visibility updated after initializing background layer');
+      } else if (backgroundLayer) {
+        updateGhostVisibility();
+        console.log('✅ Ghost visibility updated (fallback)');
+      }
+    } else {
+      // 🔥 CRITICAL FIX: Ensure backgroundLayer is visible even if it exists
+      // This handles cases where it was hidden during board transition
+      backgroundLayer.visible = true;
+      if (typeof window.updateGhostVisibility === 'function') {
+        window.updateGhostVisibility();
+        console.log('✅ Background layer exists - ghost visibility updated');
+      } else {
+        updateGhostVisibility();
+        console.log('✅ Background layer exists - ghost visibility updated (fallback)');
+      }
     }
     
     // 🔥 CRITICAL FIX: Ensure board is visible before rebuildBoard
@@ -2810,6 +3108,14 @@ wildMeter = 0;
     console.log('🎯 Background layer is null - initializing...');
     initializeBackgroundLayer();
     console.log('✅ Background layer initialized in startLevel');
+    // 🔥 CRITICAL FIX: Update ghost visibility immediately after initializing background layer
+    if (backgroundLayer && typeof window.updateGhostVisibility === 'function') {
+      window.updateGhostVisibility();
+      console.log('✅ Ghost visibility updated after initializing background layer');
+    } else if (backgroundLayer) {
+      updateGhostVisibility();
+      console.log('✅ Ghost visibility updated (fallback)');
+    }
   } else {
     // If backgroundLayer exists, ensure it's visible and in board
     const bgInBoard = board.children.find(c => c.label === 'BackgroundLayer');
@@ -2826,6 +3132,14 @@ wildMeter = 0;
       backgroundLayer = null;
       initializeBackgroundLayer();
       console.log('✅ Background layer reinitialized');
+      // 🔥 CRITICAL FIX: Update ghost visibility after reinitializing
+      if (backgroundLayer && typeof window.updateGhostVisibility === 'function') {
+        window.updateGhostVisibility();
+        console.log('✅ Ghost visibility updated after reinitializing background layer');
+      } else if (backgroundLayer) {
+        updateGhostVisibility();
+        console.log('✅ Ghost visibility updated (fallback)');
+      }
     } else {
       // Ensure background layer is visible
       backgroundLayer.visible = true;
@@ -3644,6 +3958,11 @@ function merge(src, dst, helpers){
   grid[src.gridY][src.gridX] = null;
   dst.eventMode = 'none';
 
+  // 🔥 CRITICAL FIX: Save srcSpecial and dstSpecial BEFORE any branches
+  // This ensures they're available in both effSum < 6 and effSum === 6 blocks
+  const srcSpecial = src?.special;
+  const dstSpecial = dst?.special;
+
   // ---- 2..5 (računaj combo i ovdje)
   if (effSum < 6){
     // 🔥 CRITICAL FIX: Ensure dst.value is set immediately (before requestAnimationFrame)
@@ -3936,8 +4255,7 @@ function merge(src, dst, helpers){
     
     // Ghost placeholders are now fixed and always visible
 
-    const srcSpecial = src?.special;
-    const dstSpecial = dst?.special;
+    // 🔥 NOTE: srcSpecial and dstSpecial are already defined at line 3648-3649 (before if blocks)
     // Prevent further interaction with the source tile during the merge animation
     src.eventMode = 'none';
     src.interactiveChildren = false;
@@ -3992,7 +4310,7 @@ function merge(src, dst, helpers){
               starCount: savedStarPositionsSmall.length,
               merge6Pos: merge6PosSmall,
               hudStarPos: hudStarPosSmall,
-              hasBubblesRunning: isWildBeerExplosionRunning?.() || false
+              hasBubblesRunning: isWildBeerBubblesExplosionActive?.() || false
             });
             
             // 🔥 CRITICAL: Trigger star animation INDEPENDENTLY using requestAnimationFrame
@@ -4032,7 +4350,7 @@ function merge(src, dst, helpers){
               savedStarCount: savedStarPositionsSmall?.length || 0,
               hasHudPos: !!hudStarPosSmall,
               hasEarlySavedData: savedStarPositionsEarly.length > 0,
-              hasBubblesRunning: isWildBeerExplosionRunning?.() || false
+              hasBubblesRunning: isWildBeerBubblesExplosionActive?.() || false
             });
           }
         }
@@ -4420,10 +4738,34 @@ function merge(src, dst, helpers){
 
   // ---- 6 (računaj combo i ovdje – nastavlja x6, x7, x8…)
   if (effSum === 6){
-    // 🔥 CRITICAL: Snimiti src.special i dst.special PRIJE setValue i clearWildState!
-    // setValue i clearWildState mogu promijeniti special property
-    const srcSpecial = src?.special;
-    const dstSpecial = dst?.special;
+    // 🔥 CRITICAL FIX: Use saved srcSpecial/dstSpecial from line 3653-3654 (don't overwrite!)
+    // These values were saved BEFORE any modifications to src/dst and BEFORE any branches
+    // The saved values from outer scope (line 3653-3654) are already available in this closure
+    // We DON'T need to reassign them - just use the saved values directly
+    // 🔥 DEBUG: Log values to verify they're correct
+    // Note: srcSpecial and dstSpecial are from outer scope (line 3653-3654), available via closure
+    const savedSrcSpecial = srcSpecial; // From outer scope (line 3653)
+    const savedDstSpecial = dstSpecial; // From outer scope (line 3654)
+    
+    console.log('🔍 MERGE 6: Using saved srcSpecial/dstSpecial from closure:', {
+      savedSrcSpecial,
+      savedDstSpecial,
+      srcSpecialCurrent: src?.special,
+      dstSpecialCurrent: dst?.special,
+      srcDestroyed: src?.destroyed,
+      dstDestroyed: dst?.destroyed,
+      srcValue: src?.value,
+      dstValue: dst?.value
+    });
+    
+    // If saved values are undefined (shouldn't happen), use current values as fallback
+    const srcSpecialForMerge6 = (savedSrcSpecial !== undefined && savedSrcSpecial !== null) ? savedSrcSpecial : (src?.special);
+    const dstSpecialForMerge6 = (savedDstSpecial !== undefined && savedDstSpecial !== null) ? savedDstSpecial : (dst?.special);
+    
+    // 🔥 CRITICAL: Use these values throughout merge 6 block (create new const in this scope)
+    // We can't shadow outer const, so we use new variable names
+    const srcSpecialMerge6 = srcSpecialForMerge6;
+    const dstSpecialMerge6 = dstSpecialForMerge6;
     
     // 🔥 NOTE: Bubbles animation is now triggered in drag-core.ts BEFORE merge function is called
     // This ensures bubbles start IMMEDIATELY when wild-beer is dropped, before any merge logic
@@ -4468,7 +4810,8 @@ function merge(src, dst, helpers){
     
     // 🔥 CRITICAL: Check if this is a wild-magnet merge that will pull other tiles
     // If wild-magnet will pull tiles, it's NOT a last merge (unless there are no tiles to pull)
-    const isWildMagnetMerge = (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet');
+    // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
+    const isWildMagnetMerge = (srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet');
     let hasTilesToPull = false;
     if (isWildMagnetMerge) {
       // 🎯 CRITICAL FIX: Count magnets INCLUDING their stackDepth!
@@ -4510,7 +4853,7 @@ function merge(src, dst, helpers){
         console.log('🧲 Magnet behaves like wild (NO pull): 1 magnet + 1 tile (last 2)');
       } else {
         // Normal magnet behavior: Check if there are other tiles that can be pulled
-      const targetTile = srcSpecial === 'wild-magnet' ? src : dst;
+      const targetTile = srcSpecialMerge6 === 'wild-magnet' ? src : dst;
       const candidates = tiles.filter((t: any) => {
         if (!t || t.destroyed) return false;
         if (t.locked) return false;
@@ -4596,8 +4939,9 @@ function merge(src, dst, helpers){
     // 1. Exactly 2 tiles total (wild + 1 tile)
     // 2. No other tiles on board
     // 🔥 CRITICAL FIX: Include wild-beer in wild tile check (same as wild star)
-    const oneIsRegularWild = (srcSpecial === 'wild' || dstSpecial === 'wild' || srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer');
-    const neitherIsWildMagnet = !(srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet');
+    // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
+    const oneIsRegularWild = (srcSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild' || srcSpecialMerge6 === 'wild-beer' || dstSpecialMerge6 === 'wild-beer');
+    const neitherIsWildMagnet = !(srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet');
     // 🔥 CRITICAL FIX: Use visibleTilesCount (visible tiles) NOT activeTilesCount (includes stackDepth)
     const visibleTilesCountForWild = activeTilesBeforeMerge.length; // Number of VISIBLE tiles
     const exactlyTwoActiveTiles = visibleTilesCountForWild === 2; // ONLY if 2 VISIBLE tiles total
@@ -4632,8 +4976,9 @@ function merge(src, dst, helpers){
     // Wild-magnet pulls tiles, so it's different from regular wild
     // 🔥 CRITICAL FIX: Include wild-beer in wild tile check (same as wild star)
     // 🔥 CRITICAL FIX: Use visibleTilesCount (visible tiles) NOT activeTilesCount (includes stackDepth)
+    // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
     const visibleTilesCountForWildMagnet = activeTilesBeforeMerge.length; // Number of VISIBLE tiles
-    const isWildRegularLastTwo = (srcSpecial === 'wild' || srcSpecial === 'wild-magnet' || srcSpecial === 'wild-beer' || dstSpecial === 'wild' || dstSpecial === 'wild-magnet' || dstSpecial === 'wild-beer') &&
+    const isWildRegularLastTwo = (srcSpecialMerge6 === 'wild' || srcSpecialMerge6 === 'wild-magnet' || srcSpecialMerge6 === 'wild-beer' || dstSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-beer') &&
                                  visibleTilesCountForWildMagnet === 2 && // 🔥 FIX: ONLY if exactly 2 VISIBLE tiles total
                                  activeTilesBeforeMerge.includes(src) &&
                                  activeTilesBeforeMerge.includes(dst) &&
@@ -4644,8 +4989,9 @@ function merge(src, dst, helpers){
     // Example: wild + 2 tiles = 3 tiles total → NOT last merge, will spawn
     // 🔥 CRITICAL FIX: Include wild-beer in wild tile check (same as wild star)
     // 🔥 CRITICAL FIX: Use visibleTilesCount (visible tiles) NOT activeTilesCount (includes stackDepth)
+    // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
     const visibleTilesCountForWildLast = activeTilesBeforeMerge.length; // Number of VISIBLE tiles
-    const isWildLastTileMerge = (srcSpecial === 'wild' || srcSpecial === 'wild-magnet' || srcSpecial === 'wild-beer' || dstSpecial === 'wild' || dstSpecial === 'wild-magnet' || dstSpecial === 'wild-beer') &&
+    const isWildLastTileMerge = (srcSpecialMerge6 === 'wild' || srcSpecialMerge6 === 'wild-magnet' || srcSpecialMerge6 === 'wild-beer' || dstSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-beer') &&
                                  visibleTilesCountForWildLast === 2 && // 🔥 FIX: ONLY if exactly 2 VISIBLE tiles total
                                  allTilesInvolved &&
                                  !(isWildMagnetMerge && hasTilesToPull); // 🔥 CRITICAL: Exclude if wild-magnet will pull tiles
@@ -4669,8 +5015,9 @@ function merge(src, dst, helpers){
     // 2. Regular + regular → merge 6 (only 2 tiles, e.g. 4+2=6, 3+3=6) = clean board
     // Regular + regular → stack (only 2 tiles, e.g. 3+2=5) = fail screen (handled in post-merge check)
     // 🔥 CRITICAL: Check if either tile is wild (any wild type with "wild" prefix)
-    const srcIsWild = srcSpecial && srcSpecial.startsWith('wild');
-    const dstIsWild = dstSpecial && dstSpecial.startsWith('wild');
+    // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
+    const srcIsWild = srcSpecialMerge6 && srcSpecialMerge6.startsWith('wild');
+    const dstIsWild = dstSpecialMerge6 && dstSpecialMerge6.startsWith('wild');
     const bothAreRegularForMerge6 = !srcIsWild && !dstIsWild && 
                                     (src.value|0) > 0 && (dst.value|0) > 0;
     // 🔥 CRITICAL FIX: Use visibleTilesCount (visible tiles) NOT activeTilesCount (includes stackDepth)
@@ -5782,7 +6129,7 @@ function merge(src, dst, helpers){
               starCount: savedStarPositions.length,
               merge6Pos,
               hudStarPos,
-              hasBubblesRunning: isWildBeerExplosionRunning?.() || false
+              hasBubblesRunning: isWildBeerBubblesExplosionActive?.() || false
             });
             
             // 🔥 CRITICAL: Trigger star animation INDEPENDENTLY using requestAnimationFrame
@@ -5822,7 +6169,7 @@ function merge(src, dst, helpers){
               savedStarCount: savedStarPositions?.length || 0,
               hasHudPos: !!hudStarPos,
               hasEarlySavedData: savedStarPositionsEarly.length > 0,
-              hasBubblesRunning: isWildBeerExplosionRunning?.() || false
+              hasBubblesRunning: isWildBeerBubblesExplosionActive?.() || false
             });
           }
         }
@@ -5839,6 +6186,7 @@ function merge(src, dst, helpers){
                                   activeTilesAfterSrcRemoval[0] === dst && 
                                   dst.value === 6;
         // 🔥 CRITICAL: Use srcSpecial and dstSpecial from closure (snimljeni PRIJE merge-6 bloka)
+        // Note: These are from outer scope (line 3943-3944), not from merge 6 block
         const srcWasWild = srcSpecial && srcSpecial.startsWith('wild');
         const dstWasRegular = !dstSpecial && (dst.value|0) > 0;
         const wasWildRegularLastTwo = srcWasWild && dstWasRegular && onlyMerge6Remains;
@@ -5847,6 +6195,7 @@ function merge(src, dst, helpers){
                                          onlyMerge6Remains;
         
         // 🔥 CRITICAL FIX: Also check if src was magnet and dst was regular (magnet + 1 tile = last merge)
+        // Note: Use srcSpecial/dstSpecial from outer scope (line 3943-3944), not srcSpecialMerge6/dstSpecialMerge6
         const wasMagnetRegularLastTwo = (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet') && 
                                         onlyMerge6Remains;
         
@@ -5947,6 +6296,7 @@ function merge(src, dst, helpers){
         // OR if this is a regular wild merge that is NOT the last merge
         // Wild-magnet merges that pull tiles should NOT trigger endgame checks until AFTER the pulled tiles merge
         // Regular wild merges mid-game should NOT trigger endgame checks unless they're truly the last merge
+        // Note: Use srcSpecial/dstSpecial from outer scope (line 3943-3944), not srcSpecialMerge6/dstSpecialMerge6
         const isWildMagnetMergeWithPull = (srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet') && 
                                           (dst as any)?._wildMagnetMergeCallback;
         const isRegularWildMerge = (srcSpecial === 'wild' || dstSpecial === 'wild') && 
@@ -6017,17 +6367,23 @@ function merge(src, dst, helpers){
 
         // 🔥 CRITICAL: Snimiti dst poziciju PRIJE nego što se pozovu shardovi!
         // Nakon removeTile(dst), dst može biti destroyed ili undefined
-        const dstX = dst?.x ?? 0;
-        const dstY = dst?.y ?? 0;
-        const dstGridX = dst?.gridX ?? 0;
-        const dstGridY = dst?.gridY ?? 0;
-        const dstZIndex = dst?.zIndex ?? 0;
+        // 🔥 CRITICAL FIX: Add explicit null check to prevent "Cannot read properties of null" error
+        if (!dst) {
+          console.warn('⚠️ dst is null in merge-6 animation setup - cannot proceed with shards animation');
+          return;
+        }
+        const dstX = dst.x ?? 0;
+        const dstY = dst.y ?? 0;
+        const dstGridX = dst.gridX ?? 0;
+        const dstGridY = dst.gridY ?? 0;
+        const dstZIndex = dst.zIndex ?? 0;
         
         // FX
         const wasWild = wildActive;
         // 🔥 CRITICAL: Determine if this is wild-magnet or wild-only merge
-        const isMainWildMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
-        const isMainWildOnlyMerge = (srcSpecial === 'wild' || dstSpecial === 'wild' || srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer') && !isMainWildMagnetMerge;
+        // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
+        const isMainWildMagnetMerge = srcSpecialMerge6 === 'wild-magnet' || dstSpecialMerge6 === 'wild-magnet';
+        const isMainWildOnlyMerge = (srcSpecialMerge6 === 'wild' || dstSpecialMerge6 === 'wild' || srcSpecialMerge6 === 'wild-beer' || dstSpecialMerge6 === 'wild-beer') && !isMainWildMagnetMerge;
         
         if (wasWild) {
           // Standard screen shake for all wild merges (including wild-beer)
@@ -6056,11 +6412,25 @@ function merge(src, dst, helpers){
             // 🔥 USER REQUEST: Skip star particles - orbiting stars will be animated to HUD instead
             console.log('🔥 Wild-only merge 6 - using template-based pooling (srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, ')');
             // 🔥 WILD-BEER: Check if this is wild-beer merge
-            const isWildBeerMerge = srcSpecial === 'wild-beer' || dstSpecial === 'wild-beer';
+            // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
+            const isWildBeerMerge = srcSpecialMerge6 === 'wild-beer' || dstSpecialMerge6 === 'wild-beer';
             // 🔥 USER REQUEST: Check if this is pure wild star (not wild-beer, not wild-magnet)
             const isPureWildStarMerge = (srcSpecial === 'wild' || dstSpecial === 'wild') && !isWildBeerMerge;
             
-            console.log('💧 Merge 6 check - isWildBeerMerge:', isWildBeerMerge, 'isPureWildStarMerge:', isPureWildStarMerge, 'srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, 'srcValue:', src?.value, 'dstValue:', dst?.value);
+            // 🔥 CRITICAL DEBUG: Log all relevant values to diagnose why bubbles explosion might not trigger
+            console.log('💧 Merge 6 check - isWildBeerMerge:', isWildBeerMerge, 'isPureWildStarMerge:', isPureWildStarMerge);
+            console.log('💧 Merge 6 special values:', {
+              srcSpecialMerge6,
+              dstSpecialMerge6,
+              srcSpecial,
+              dstSpecial,
+              srcSpecialCurrent: src?.special,
+              dstSpecialCurrent: dst?.special,
+              srcValue: src?.value,
+              dstValue: dst?.value,
+              srcDestroyed: src?.destroyed,
+              dstDestroyed: dst?.destroyed
+            });
             
             // 🎨 TEMPLATE-BASED: Use new template system with ORIGINAL COLORS
             if (isWildBeerMerge) {
@@ -6087,70 +6457,61 @@ function merge(src, dst, helpers){
             // 🔥 FPS DROP FIX: Stagger animacije umjesto istovremenog pokretanja
             // Trigger only the main bubbles explosion (skip smaller fizz to avoid double-wave)
             if (isWildBeerMerge) {
-              console.log('💧 Wild-beer merge detected! isWildBeerMerge:', isWildBeerMerge, 'srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial);
-              console.log('💧 src tile special:', src?.special, 'dst tile special:', dst?.special);
+              console.log('💧 Wild-beer merge detected! isWildBeerMerge:', isWildBeerMerge, 'srcSpecialMerge6:', srcSpecialMerge6, 'dstSpecialMerge6:', dstSpecialMerge6, 'srcSpecial (saved):', srcSpecial, 'dstSpecial (saved):', dstSpecial);
+              console.log('💧 src tile special (current):', src?.special, 'dst tile special (current):', dst?.special);
               console.log('💧 src value:', src?.value, 'dst value:', dst?.value);
+              console.log('💧 wasWild:', wasWild, 'isMainWildOnlyMerge:', isMainWildOnlyMerge);
               
               // 🔥 CRITICAL: Ensure cleanup is called BEFORE triggering new explosion
               // This prevents race condition where previous explosion state blocks new one
               try {
-                const wasActive = isWildBeerExplosionRunning();
+                const wasActive = isWildBeerBubblesExplosionActive();
                 if (wasActive) {
                   console.log('🧹 Cleaning up previous wild beer explosion state before merge 6 bubbles');
-                  cleanupWildBeerExplosion();
+                  stopWildBeerBubblesExplosion();
                 }
               } catch (err) {
                 console.warn('⚠️ Failed to cleanup wild beer explosion before merge 6:', err);
               }
               
-              // 🔥 CRITICAL: Snimiti dst poziciju PRIJE nego što se ukloni (za bubbles explosion)
-              // dst tile se uklanja u merge 6 bloku, ali bubbles explosion treba poziciju
-              const dstPosForBubbles = {
-                x: dst?.x ?? dstX ?? 0,
-                y: dst?.y ?? dstY ?? 0,
-                gridX: dst?.gridX ?? dstGridX ?? 0,
-                gridY: dst?.gridY ?? dstGridY ?? 0
-              };
-              
-              // 🔥 FPS DROP FIX: Stagger bubbles explosion NAKON 200ms (ne istovremeno s drugim animacijama)
-              // Ovo smanjuje CPU/GPU spike i sprječava freeze
-              // 🔥 USE setTimeout (NOT gsap.delayedCall): avoids being killed by killAllDelayedCalls / getAllTweens
-              // Same pattern as stars-to-HUD; ensures bubbles always run even during endgame flow
-              setTimeout(() => {
-                try {
-                  // 🔥 CRITICAL: Use saved position instead of dst tile (dst may be destroyed by now)
-                  // Bubbles explosion can work with position data instead of tile reference
-                  if (board && !board.destroyed) {
-                    const isStillActive = isWildBeerExplosionRunning();
-                    if (isStillActive) {
-                      console.warn('⚠️ Wild beer explosion still active, forcing cleanup before new explosion');
-                      cleanupWildBeerExplosion();
-                    }
-                    
-                    // Create a temporary position object for bubbles explosion
-                    // If dst is still valid, use it; otherwise use saved position
-                    const bubbleTarget = (dst && !dst.destroyed) ? dst : {
-                      x: dstPosForBubbles.x,
-                      y: dstPosForBubbles.y,
-                      gridX: dstPosForBubbles.gridX,
-                      gridY: dstPosForBubbles.gridY,
-                      destroyed: false // Fake tile object for bubbles explosion
-                    };
-                    
-                    console.log('💧 Triggering wild-beer bubbles explosion at merge 6 (staggered 200ms) - using saved position if dst destroyed');
-                    createWildBeerBubblesExplosion(board, bubbleTarget);
-                  } else {
-                    console.warn('⚠️ Cannot trigger bubbles explosion - board invalid:', {
-                      board: !!board,
-                      boardDestroyed: board?.destroyed
-                    });
-                  }
-                } catch (error) {
-                  console.error('❌ Failed to trigger bubbles foam:', error);
+              // 🔥 CRITICAL FIX: Execute immediately (no delay) to prevent race condition with board transition
+              // Previous setTimeout(200ms) caused race condition where cleanup could stop animation before it started
+              // Immediate execution ensures animation starts before any cleanup can interfere
+              try {
+                // 🔥 CRITICAL: Use new modular explosion (works independently, no board/tile needed)
+                if (isWildBeerBubblesExplosionActive()) {
+                  console.warn('⚠️ Wild beer explosion still active, forcing cleanup before new explosion');
+                  stopWildBeerBubblesExplosion();
                 }
-              }, 200);
+                
+                console.log('✅ Calling showWildBeerBubblesExplosion()...');
+                showWildBeerBubblesExplosion();
+                console.log('✅ showWildBeerBubblesExplosion() called successfully');
+              } catch (error) {
+                console.error('❌ Failed to trigger bubbles explosion:', error);
+                console.error('❌ Error details:', {
+                  errorMessage: error?.message,
+                  errorStack: error?.stack,
+                  srcSpecial,
+                  dstSpecial,
+                  isWildBeerMerge,
+                  wasWild,
+                  isMainWildOnlyMerge
+                });
+              }
             } else {
-              console.log('⚠️ Wild-beer merge NOT detected! isWildBeerMerge:', isWildBeerMerge, 'srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial);
+              console.log('⚠️ Wild-beer merge NOT detected!', {
+                isWildBeerMerge,
+                srcSpecialMerge6,
+                dstSpecialMerge6,
+                srcSpecial,
+                dstSpecial,
+                srcSpecialCurrent: src?.special,
+                dstSpecialCurrent: dst?.special,
+                wasWild,
+                isMainWildOnlyMerge,
+                isMainWildMagnetMerge
+              });
             }
           } else {
             // Fallback: use spawnMerge6Shards (shouldn't happen, but safety)
@@ -7275,11 +7636,12 @@ function checkLevelEnd(){
     
     // 🔥 CRITICAL FIX: Skip check if _isLastMerge flag is set on any merge-6 tile (clean board flow in progress)
     // This prevents fail screen from triggering when clean board flow is in progress
+    // BUT: Don't return early - we still need to check for emergency rescue and handle it properly
     const hasLastMergeTile = tiles.some((t: any) => t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true);
     if (hasLastMergeTile) {
-      console.log('⏳ checkLevelEnd skipped - _isLastMerge flag detected on merge-6 tile (clean board flow in progress)');
-      checkLevelEndRetryCount = 0; // Reset on exit
-      return;
+      console.log('⏳ checkLevelEnd: _isLastMerge flag detected on merge-6 tile (clean board flow in progress)');
+      console.log('🎯 Will skip emergency rescue but continue with normal flow');
+      // Don't return here - we need to check for emergency rescue and skip it
     }
     
     logger.debug('🎯 checkLevelEnd called - using centralized end game checker', 'app-core');
@@ -7289,7 +7651,7 @@ function checkLevelEnd(){
     // 🔥 CRITICAL BUG FIX: Don't skip check if bubbles animation is running - it's just visual
     // Bubbles animation can run for 4+ seconds and shouldn't block end game detection
     // This fixes the bug where user makes quick second merge during bubbles animation and gets stuck position
-    const bubblesRunning = isWildBeerExplosionRunning();
+    const bubblesRunning = isWildBeerBubblesExplosionActive();
     if (bubblesRunning) {
       console.log('💧 Bubbles animation is running, but continuing with end game check (bubbles are visual only, don\'t block detection)');
     }
@@ -7403,13 +7765,22 @@ function checkLevelEnd(){
     checkLevelEndRetryCount = 0;
     checkLevelEndSkipStartedAt = null;
     
-    // Check for emergency rescue first
-    if (needsEmergencyRescue(tiles)) {
+    // 🔥 CRITICAL FIX: Check for emergency rescue (but skip if last merge is in progress)
+    // Emergency rescue should NOT trigger during last merge - clean board flow will handle it
+    // hasLastMergeTile is already declared above (line 7516)
+    if (needsEmergencyRescue(tiles) && !hasLastMergeTile) {
       console.log('🚨 EMERGENCY: Wild cubes exist but no non-wild tiles! Scheduling emergency rescue...');
       const wildCubes = tiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet');
       const emergencyCount = Math.min(3, Math.max(2, wildCubes.length));
       scheduleWildRescue('checkLevelEnd', emergencyCount);
       return;
+    }
+    
+    // 🔥 CRITICAL FIX: If last merge is detected, skip emergency rescue and let clean board flow handle it
+    if (hasLastMergeTile) {
+      console.log('🚨🚨🚨 LAST MERGE DETECTED in checkLevelEnd - skipping emergency rescue, clean board flow will handle it');
+      console.log('🎯 Source of Truth: Last merge detected - NO emergency spawn, clean board flow will trigger');
+      // Don't return here - let the normal flow continue to check for clean board
     }
     
     // Use centralized end game checker
@@ -8455,10 +8826,10 @@ export function cleanupGame() {
   // 🔥 BUBBLES ANIMATION FIX: Always cleanup to prevent stale state (even if flag says inactive)
   // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations to prevent memory leaks
   try {
-    if (typeof isWildBeerExplosionRunning === 'function' && typeof cleanupWildBeerExplosion === 'function') {
-      const wasActive = isWildBeerExplosionRunning();
+    if (typeof isWildBeerBubblesExplosionActive === 'function' && typeof stopWildBeerBubblesExplosion === 'function') {
+      const wasActive = isWildBeerBubblesExplosionActive();
       // Always cleanup (even if flag says inactive) to handle stale containers/flags
-      cleanupWildBeerExplosion();
+      stopWildBeerBubblesExplosion();
       if (wasActive) {
         console.log('✅ Wild beer explosion cleaned up in cleanupGame()');
       } else {
@@ -8480,8 +8851,8 @@ export function cleanupGame() {
     console.warn('⚠️ Failed to cleanup animations:', e);
     // 🔥 CRITICAL: Force cleanup on error (prevents stuck state)
     try {
-      if (typeof cleanupWildBeerExplosion === 'function') {
-        cleanupWildBeerExplosion();
+      if (typeof stopWildBeerBubblesExplosion === 'function') {
+        stopWildBeerBubblesExplosion();
       }
       // 🔥 STARS ANIMATION FIX: Force cleanup stars animations on error
       if (typeof cleanupExistingStarAnimations === 'function') {

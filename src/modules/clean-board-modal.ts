@@ -1384,6 +1384,8 @@ export async function showCleanBoardModal({
       
       // 🔥 CRITICAL MEMORY LEAK FIX: Comprehensive cleanup before board transition
       // This ensures all animations, effects, and resources are cleaned up before startLevel
+      // 🔥 CRITICAL FIX: cleanupAllEffects() now skips bubble explosion if board transition is active
+      // This prevents race condition where cleanup stops animation before it can start
       try {
         const fxModule = await import('./fx.js');
         if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {

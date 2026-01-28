@@ -221,14 +221,21 @@ export async function loadHudIconsIntoPixiCache(): Promise<void> {
     
     logger.info(`🎮 Loading ${CRITICAL_HUD_ICONS.length} HUD icons into PIXI Assets cache...`);
     
-    // Register all HUD icons with PIXI Assets FIRST
+    // 🔥 OPTIMIZATION: Check cache first to see how many icons are already loaded
+    let cachedCount = 0;
+    const iconsToLoad: string[] = [];
+    
+    // Register all HUD icons with PIXI Assets FIRST and check cache
     for (const iconPath of CRITICAL_HUD_ICONS) {
       try {
         // Check if already loaded
         const existing = Assets.get(iconPath);
         if (existing) {
+          cachedCount++;
           continue; // Already in cache
         }
+        
+        iconsToLoad.push(iconPath);
         
         // Register with PIXI Assets
         try {
@@ -238,12 +245,21 @@ export async function loadHudIconsIntoPixiCache(): Promise<void> {
         }
       } catch (err) {
         logger.warn(`⚠️ Failed to register ${iconPath} with PIXI Assets:`, err);
+        iconsToLoad.push(iconPath); // Try to load it anyway
       }
     }
     
-    // 🔥 CRITICAL: Load all HUD icons into PIXI Assets cache BLOCKING (wait for all)
-    // Use Promise.all instead of Promise.allSettled to ensure ALL icons load
-    // If any icon fails, we retry it up to 3 times
+    logger.info(`📊 HUD icons cache status: ${cachedCount}/${CRITICAL_HUD_ICONS.length} already cached, ${iconsToLoad.length} need loading`);
+    
+    // If all icons are cached, return immediately
+    if (iconsToLoad.length === 0) {
+      logger.info(`✅ All ${CRITICAL_HUD_ICONS.length} HUD icons already in cache - instant load`);
+      return;
+    }
+    
+    // 🔥 CRITICAL: Load remaining HUD icons with timeout protection
+    // Use Promise.allSettled so failures don't block - continue even if some icons fail
+    // Add timeout to prevent infinite waiting after hard exit
     const loadIconWithRetry = async (iconPath: string, retries = 1): Promise<void> => {
       for (let attempt = 1; attempt <= retries; attempt++) {
         try {
@@ -254,23 +270,48 @@ export async function loadHudIconsIntoPixiCache(): Promise<void> {
           return;
         } catch (err) {
           if (attempt === retries) {
-            logger.error(`❌ Failed to load ${iconPath} into PIXI cache:`, err);
-            throw err;
+            logger.warn(`⚠️ Failed to load ${iconPath} into PIXI cache (will retry later):`, err);
+            // Don't throw - continue with other icons
+            return;
           }
           await new Promise(resolve => setTimeout(resolve, 100 * attempt));
         }
       }
     };
     
-    // Load all icons BLOCKING - wait for ALL to complete
+    // 🔥 OPTIMIZATION: Add timeout to prevent long waits after hard exit
+    // Load all icons with timeout - don't wait forever if cache is empty
+    const TIMEOUT_MS = 3000; // 3 seconds max wait
     try {
-      await Promise.all(
-        CRITICAL_HUD_ICONS.map(iconPath => loadIconWithRetry(iconPath))
-    );
-      logger.info(`✅ ALL ${CRITICAL_HUD_ICONS.length} HUD icons loaded into PIXI Assets cache (BLOCKING)`);
+      const loadPromise = Promise.allSettled(
+        iconsToLoad.map(iconPath => loadIconWithRetry(iconPath))
+      );
+      
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('HUD icons loading timeout')), TIMEOUT_MS);
+      });
+      
+      try {
+        // Race between loading and timeout - if timeout wins, we continue anyway
+        const result = await Promise.race([loadPromise, timeoutPromise]);
+        // If we get here, loading completed (not timeout)
+        const successCount = result.filter((r: any) => r.status === 'fulfilled').length;
+        const totalLoaded = cachedCount + successCount;
+        logger.info(`✅ ${totalLoaded}/${CRITICAL_HUD_ICONS.length} HUD icons loaded into PIXI Assets cache (${successCount} new, ${cachedCount} cached)`);
+      } catch (timeoutError: any) {
+        // Timeout occurred - continue anyway, icons will load lazily
+        if (timeoutError?.message === 'HUD icons loading timeout') {
+          logger.warn(`⚠️ HUD icons loading timed out after ${TIMEOUT_MS}ms - continuing anyway (${cachedCount} cached, ${iconsToLoad.length} will load lazily)`);
+        } else {
+          // Some other error - log it but continue
+          logger.warn(`⚠️ HUD icons loading error (continuing anyway):`, timeoutError);
+        }
+        // Continue anyway - HUD will load icons asynchronously when needed
+        // Icons will continue loading in background via loadPromise (not awaited)
+      }
     } catch (error) {
-      logger.error('❌ CRITICAL: Some HUD icons failed to load:', error);
-      // Don't throw - we'll try again in boot() as fallback
+      logger.error('❌ Error loading HUD icons into PIXI Assets cache:', error);
+      // Don't throw - this is non-critical, HUD will load icons asynchronously if needed
     }
   } catch (error) {
     logger.error('❌ Error loading HUD icons into PIXI Assets cache:', error);
