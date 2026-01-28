@@ -4,6 +4,8 @@
 
 import { gsap } from 'gsap';
 import { logger } from '../core/logger.js';
+import animationManager from './animation-manager.js';
+import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 import { applyPaperBackground } from './ui-manager.js';
 import { domElementPool } from './dom-element-pool.js';
 
@@ -23,6 +25,14 @@ let cloudTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track al
 let cloudDelayedCalls: gsap.core.Tween[] = []; // 🔥 MEMORY LEAK FIX: Track all delayedCall instances for cleanup
 let activeForestImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track forest image for cleanup
 let contentTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track forest and digit timelines
+let isCleaningUp = false;
+
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+
+const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
+
+const lifecycle = createScreenLifecycle('board-transition-screen');
 
 /**
  * Show board transition screen with animated board number
@@ -57,6 +67,17 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
   // This will be called in cleanup() after transition completes
 
   return new Promise((resolve, reject) => {
+    let finished = false;
+    const finishOnce = () => {
+      if (finished) return;
+      finished = true;
+      resolve();
+      try {
+        onComplete();
+      } catch (onCompleteError) {
+        logger.error('❌ board-transition-screen: onComplete callback failed:', onCompleteError);
+      }
+    };
     // 🔥 iOS APP STORE: Wrap in try-catch for error handling
     try {
       // 🔥 USER REQUEST: Apply paper background with same opacity as board game (35%)
@@ -135,8 +156,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       logger.error(`❌ board-transition-screen: No digits to display for board number ${boardNumber}`);
       cleanup();
       isTransitionActive = false;
-      resolve();
-      onComplete();
+      finishOnce();
       return;
     }
 
@@ -343,7 +363,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       const bounceAmount = 8 + Math.random() * 12; // 8-20px bounce
       const bounceSpeed = 0.4 + Math.random() * 0.3; // 0.4-0.7s per bounce
       const bounceRotation = 2 + Math.random() * 3; // Random rotation amount
-      const bounceTimeline = gsap.timeline({ repeat: -1 }); // Infinite repeat
+      const bounceTimeline = trackTimeline({ repeat: -1 }); // Infinite repeat
       
       // 🔥 MEMORY LEAK FIX: Track bounce timeline for cleanup
       cloudTimelines.push(bounceTimeline);
@@ -377,7 +397,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       }
       
       // Create cloud animation timeline with stagger delay
-      const cloudTimeline = gsap.timeline({ delay: enterDelay });
+      const cloudTimeline = trackTimeline({ delay: enterDelay });
       
       // 🔥 MEMORY LEAK FIX: Track cloud timeline for cleanup
       cloudTimelines.push(cloudTimeline);
@@ -408,7 +428,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       const exitStartPercent = 0.6 + Math.random() * 0.25;
       const exitStartTime = enterDelay + 0.55 + (randomMoveDuration * exitStartPercent);
       
-      const delayedCall = gsap.delayedCall(exitStartTime, () => {
+      const delayedCall = trackDelayedCall(exitStartTime, () => {
         if (!activeCloudImages.includes(cloudImg)) {
           return;
         }
@@ -421,7 +441,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         
         gsap.set(cloudImg, { transformOrigin: 'center center' });
         
-        const cloudExitTimeline = gsap.timeline();
+        const cloudExitTimeline = trackTimeline();
         cloudTimelines.push(cloudExitTimeline);
         
         // Bounce out while still moving horizontally
@@ -514,7 +534,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     }
 
     // ENTER ANIMATION - exit will start after last digit completes
-    enterTimeline = gsap.timeline({
+    enterTimeline = trackTimeline({
       onStart: () => {
         logger.info('✅ board-transition-screen: Enter timeline started');
       },
@@ -540,7 +560,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
         const shakeDuration = 0.5;
         const shakeSteps = 20;
         
-        const shakeTimeline = gsap.timeline({
+        const shakeTimeline = trackTimeline({
           onStart: () => {
             // Only set x, y to 0, don't touch opacity
             gsap.set(overlay, { x: 0, y: 0 });
@@ -584,7 +604,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       rotation: -15,
       transformOrigin: 'center bottom'
     });
-    const forestEnterTimeline = gsap.timeline();
+    const forestEnterTimeline = trackTimeline();
     contentTimelines.push(forestEnterTimeline); // 🔥 FIX: Track for cleanup
     forestEnterTimeline.to(forestContainer, {
       opacity: 1,
@@ -645,7 +665,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       });
 
       // Beautiful bounce animation for each digit
-      const digitTimeline = gsap.timeline();
+      const digitTimeline = trackTimeline();
       contentTimelines.push(digitTimeline); // 🔥 FIX: Track for cleanup
       
       // First bounce: scale 0 → 1.2 with 3D rotation for depth
@@ -704,36 +724,26 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
               try { pauseTimeline.kill(); } catch {}
             }
             
-            pauseTimeline = gsap.timeline({
+            pauseTimeline = trackTimeline({
               onComplete: () => {
                 pauseTimeline = null;
                 try {
                   startExitAnimation(overlay, container, digitElements, forestContainer, () => {
-                    cleanup();
-                    isTransitionActive = false;
-                    // 🔥 USER REQUEST: Reset paper background when transition screen closes
-                    // Note: This will be reset by the next screen (board game or journey)
-                    resolve();
-                    try {
-                      onComplete();
-                    } catch (onCompleteError) {
-                      logger.error('❌ board-transition-screen: onComplete callback failed:', onCompleteError);
-                    }
-                  });
-                } catch (exitError) {
-                  logger.error('❌ board-transition-screen: Failed to start exit animation:', exitError);
-                  // Fallback: cleanup and resolve anyway
                   cleanup();
                   isTransitionActive = false;
-                  resolve();
-                  try {
-                    onComplete();
-                  } catch (onCompleteError) {
-                    logger.error('❌ board-transition-screen: onComplete callback failed:', onCompleteError);
-                  }
-                }
+                  // 🔥 USER REQUEST: Reset paper background when transition screen closes
+                  // Note: This will be reset by the next screen (board game or journey)
+                  finishOnce();
+                });
+              } catch (exitError) {
+                logger.error('❌ board-transition-screen: Failed to start exit animation:', exitError);
+                // Fallback: cleanup and resolve anyway
+                cleanup();
+                isTransitionActive = false;
+                finishOnce();
               }
-            });
+            }
+          });
             
             pauseTimeline.to({}, {
               duration: 0.7, // 🔥 USER REQUEST: 0.7s pause (reduced by 800ms from 1.5s) to shorten screen duration
@@ -759,12 +769,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       // Cleanup and resolve on error
       cleanup();
       isTransitionActive = false;
-      resolve();
-      try {
-        onComplete();
-      } catch (onCompleteError) {
-        logger.error('❌ board-transition-screen: onComplete callback failed in error handler:', onCompleteError);
-      }
+      finishOnce();
     }
   });
 }
@@ -784,7 +789,7 @@ function startExitAnimation(
     try { exitTimeline.kill(); } catch {}
   }
   
-  exitTimeline = gsap.timeline({
+  exitTimeline = trackTimeline({
     onComplete: () => {
       logger.info('✅ board-transition-screen: Exit animation complete');
       exitTimeline = null;
@@ -798,7 +803,7 @@ function startExitAnimation(
     digitElements.forEach((digitEl, index) => {
       const delay = index * 0.4; // Stagger by 400ms per digit
       
-      const digitExitTimeline = gsap.timeline();
+      const digitExitTimeline = trackTimeline();
       contentTimelines.push(digitExitTimeline); // 🔥 FIX: Track for cleanup
     
       // First: scale 1.0 → 1.1 (slight overshoot) with 3D depth
@@ -826,7 +831,7 @@ function startExitAnimation(
 
   // Step 2: Forest exit animation
   if (forestContainer) {
-    const forestExitTimeline = gsap.timeline();
+    const forestExitTimeline = trackTimeline();
     contentTimelines.push(forestExitTimeline); // 🔥 FIX: Track for cleanup
     forestExitTimeline.to(forestContainer, {
       scale: 1.01,
@@ -865,17 +870,21 @@ function startExitAnimation(
  * Ensures all animations, timelines, and DOM elements are properly cleaned up
  */
 function cleanup(): void {
-  // 🔥 CRITICAL: Kill all active tweens
-  activeTweens.forEach(tween => {
-    try { 
-      if (tween && typeof tween.kill === 'function') {
-        tween.kill(); 
+  if (isCleaningUp) return;
+  isCleaningUp = true;
+  try {
+    lifecycle.cleanup();
+    // 🔥 CRITICAL: Kill all active tweens
+    activeTweens.forEach(tween => {
+      try { 
+        if (tween && typeof tween.kill === 'function') {
+          tween.kill(); 
+        }
+      } catch (error) {
+        logger.warn('⚠️ Error killing tween in cleanup:', error);
       }
-    } catch (error) {
-      logger.warn('⚠️ Error killing tween in cleanup:', error);
-    }
-  });
-  activeTweens = [];
+    });
+    activeTweens = [];
 
   // 🔥 CRITICAL: Kill all timelines
   if (enterTimeline) {
@@ -1051,7 +1060,10 @@ function cleanup(): void {
     }
   } catch {}
   
-  logger.info('✅ board-transition-screen: Cleanup complete - all resources released');
+    logger.info('✅ board-transition-screen: Cleanup complete - all resources released');
+  } finally {
+    isCleaningUp = false;
+  }
 }
 
 /**

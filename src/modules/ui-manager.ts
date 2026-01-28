@@ -121,12 +121,14 @@ class UIManager {
   private animations: Map<string, any>;
   private isInitialized: boolean;
   private logoFadeInStarted: boolean; // 🔥 PREMIUM: Track if logo fade-in has started
+  private devTestButtonAttached: boolean;
 
   constructor() {
     this.elements = {} as UIManagerElements;
     this.animations = new Map();
     this.isInitialized = false;
     this.logoFadeInStarted = false;
+    this.devTestButtonAttached = false;
   }
   
   // Initialize UI elements
@@ -165,6 +167,9 @@ class UIManager {
       
       // Subscribe to state changes
       this.setupStateSubscriptions();
+
+      // Dev test button (homepage)
+      this.ensureDevTestButton();
       
       this.isInitialized = true;
       logger.info('✅ UI Manager initialized');
@@ -172,6 +177,136 @@ class UIManager {
     } catch (error) {
       logger.error('❌ Failed to initialize UI Manager:', error);
       throw error;
+    }
+  }
+
+  private shouldShowDevTestButton(): boolean {
+    try {
+      // Prefer dev environment or explicit flag
+      const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      const forced = localStorage.getItem('cc_dev_test_button') === 'true';
+      // @ts-ignore
+      const isDev = typeof import.meta !== 'undefined' && import.meta?.env?.DEV;
+      return !!(isDev || isLocalhost || forced);
+    } catch {
+      return false;
+    }
+  }
+
+  private ensureDevTestButton(): void {
+    if (this.devTestButtonAttached) return;
+    if (!this.shouldShowDevTestButton()) return;
+
+    const home = document.getElementById('home');
+    if (!home) return;
+
+    if (document.getElementById('cc-dev-test-btn')) {
+      this.devTestButtonAttached = true;
+      return;
+    }
+
+    const btn = document.createElement('button');
+    btn.id = 'cc-dev-test-btn';
+    btn.type = 'button';
+    btn.textContent = 'DEV TEST';
+    btn.style.cssText = [
+      'position:fixed',
+      'top:12px',
+      'right:12px',
+      'z-index:1000002',
+      'padding:8px 10px',
+      'border-radius:10px',
+      'border:1px solid rgba(0,0,0,0.15)',
+      'background:#ffffffcc',
+      'color:#5a3e2b',
+      'font-size:12px',
+      'font-weight:700',
+      'letter-spacing:0.03em',
+      'box-shadow:0 6px 16px rgba(0,0,0,0.12)',
+      'backdrop-filter: blur(6px)',
+      'cursor:pointer'
+    ].join(';');
+
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      await this.runDevTestFlow();
+    });
+
+    home.appendChild(btn);
+    this.devTestButtonAttached = true;
+    logger.info('🧪 DEV TEST button attached to homepage');
+  }
+
+  private async runDevTestFlow(): Promise<void> {
+    if ((window as any).__ccDevTestRunning) {
+      console.log('🧪 DEV TEST: Already running, skipping');
+      return;
+    }
+    (window as any).__ccDevTestRunning = true;
+    console.log('🧪 DEV TEST: Starting automated flow...');
+
+    try {
+      let boardId = Number(localStorage.getItem('cc_dev_test_board')) || 0;
+      try {
+        const mod = await import('./journey-boards-manager.js');
+        const mgr = mod.journeyBoardsManager as any;
+        const interim = mgr?.boards?.find?.((b: any) => b && b.interim === true);
+        if (!boardId && interim?.id) boardId = interim.id;
+      } catch {}
+      if (!boardId || boardId <= 1) boardId = 2;
+      
+      // Force interim-style flow
+      (window as any).__ccFromInterimBoard = true;
+      (window as any).__ccIsInterimBoard = true;
+      (window as any).__ccCameFromJourney = true;
+      localStorage.setItem('__ccFromInterimBoard', 'true');
+      localStorage.setItem('__ccCameFromJourney', 'true');
+      console.log('🧪 DEV TEST: Using interim boardId', boardId);
+
+      if (typeof (window as any).startNewRunFromJourney === 'function') {
+        await (window as any).startNewRunFromJourney(boardId);
+      } else if (typeof (window as any).startNewGame === 'function') {
+        await (window as any).startNewGame();
+      }
+
+      // Wait a moment for board to be ready
+      await new Promise(resolve => setTimeout(resolve, 1200));
+
+      // Trigger clean board flow
+      const triggerCleanBoardFlow = (window as any).CC?.triggerCleanBoardFlow;
+      if (typeof triggerCleanBoardFlow === 'function') {
+        await triggerCleanBoardFlow('dev_test_clean_board');
+      } else {
+        console.warn('🧪 DEV TEST: triggerCleanBoardFlow not available');
+      }
+
+      // Auto-click Continue when modal appears
+      const maxWait = 8000;
+      const start = Date.now();
+      const clickTimer = setInterval(() => {
+        const overlay = document.getElementById('cc-clean-board-overlay');
+        const btn = overlay?.querySelector('button.restart-btn, button.primary-button') as HTMLButtonElement | null;
+        if (btn && !btn.disabled) {
+          console.log('🧪 DEV TEST: Clicking Continue');
+          btn.click();
+          clearInterval(clickTimer);
+        } else if (Date.now() - start > maxWait) {
+          console.warn('🧪 DEV TEST: Continue button not found (timeout)');
+          clearInterval(clickTimer);
+        }
+      }, 250);
+
+      // Final check after transition
+      setTimeout(() => {
+        const tilesCount = (window as any).STATE?.tiles?.filter?.((t: any) => t && !t.destroyed && (t.value | 0) > 0)?.length || 0;
+        const bn = (window as any).STATE?.boardNumber;
+        console.log('🧪 DEV TEST: Result check', { boardNumber: bn, tilesCount });
+      }, 10000);
+    } catch (err) {
+      console.error('🧪 DEV TEST: Failed', err);
+    } finally {
+      (window as any).__ccDevTestRunning = false;
     }
   }
   
@@ -798,6 +933,7 @@ class UIManager {
       this.elements.home.removeAttribute('hidden');
       fadeInHome();
     }
+    this.ensureDevTestButton();
     
     // 🔥 NUCLEAR RESET: Use forceReady() to guarantee slider is interactive
     if (sliderManager && typeof sliderManager.forceReady === 'function') {
@@ -1080,6 +1216,12 @@ class UIManager {
       // Access board and hud from window.CC if available
       const gameState = (window as any).CC;
       if (gameState) {
+        if (gameState.stage) {
+          gameState.stage.visible = true;
+          gameState.stage.alpha = 1;
+          gameState.stage.renderable = true;
+          logger.info('✅ Stage made visible in showApp()');
+        }
         if (gameState.board) {
           gameState.board.visible = true;
           gameState.board.alpha = 1;
@@ -1321,6 +1463,7 @@ class UIManager {
     if (this.elements.home) {
       this.elements.home.style.display = 'block';
       this.elements.home.removeAttribute('hidden');
+      this.ensureDevTestButton();
       
       // 🔥 CRITICAL FIX: Explicitly ensure slider container is visible
       // This undoes the inline styles set in exitToMenu when returning to Journey screen

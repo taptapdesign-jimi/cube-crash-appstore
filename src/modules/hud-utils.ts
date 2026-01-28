@@ -4,6 +4,7 @@
 
 import { Container, Graphics, Text, Application, Stage } from 'pixi.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
 import { 
   HUD_HEIGHT, 
@@ -13,6 +14,13 @@ import {
   BOUNCE_OPTIONS,
   EASING
 } from './hud-constants.js';
+import { getOriginalGsapTo } from './drag-core.js';
+
+// 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
+const trackTween = (target: any, vars: any) => {
+  const origTo = getOriginalGsapTo();
+  return animationManager.trackExternalTween(origTo(target, vars));
+};
 
 // Type definitions
 interface PlayHudDropParams {
@@ -90,7 +98,7 @@ export function bounceText(text: Text, opts: BounceOptions = {}): void {
       duration: up,
       ease: EASING.EASE_OUT,
       onComplete: () => {
-        gsap.to(text.scale, {
+        trackTween(text.scale, {
           x: back,
           y: back,
           duration: down,

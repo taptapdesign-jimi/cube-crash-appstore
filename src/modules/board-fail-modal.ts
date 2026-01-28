@@ -375,6 +375,15 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       buttonEventListeners.length = 0;
       console.log('✅ board-fail-modal: All button event listeners removed');
     };
+
+    const cleanupFailModalLifecycle = (): void => {
+      cleanupButtonListeners();
+      clearAllFailTimeouts();
+      clearAllFailAnimationFrames();
+      try { window.removeEventListener('keydown', onKey); } catch {}
+    };
+
+    // FX cleanup is handled by restartGame()/exitToMenu() to avoid duplicate cleanup races
     
     const resolveAndCleanup = (action: string): void => {
       // 🔥 BUG FIX: Prevent multiple calls (double-click protection)
@@ -417,44 +426,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             }
             
             // 🔥 MEMORY LEAK FIX: NOW cleanup (modal is closing)
-            cleanupButtonListeners();
-            clearAllFailTimeouts();
-            clearAllFailAnimationFrames();
-            try { window.removeEventListener('keydown', onKey); } catch {}
-            
-            // 🔥 CRITICAL MEMORY LEAK FIX: Comprehensive cleanup before restart (same as fallback)
-            try {
-              const fxModule = await import('./fx.js');
-              if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
-                fxModule.cleanupAllEffects();
-                logger.info('🧹 board-fail-modal: Cleaned up all effects before restart');
-              }
-              // 🔥 CRITICAL: Also cleanup star animations specifically
-              if (fxModule && typeof fxModule.cleanupExistingStarAnimations === 'function') {
-                fxModule.cleanupExistingStarAnimations();
-                logger.info('🧹 board-fail-modal: Cleaned up star animations before restart');
-              }
-              // 🔥 CRITICAL: Also cleanup wild beer explosion
-              if (fxModule && typeof fxModule.cleanupWildBeerExplosion === 'function') {
-                fxModule.cleanupWildBeerExplosion();
-                logger.info('🧹 board-fail-modal: Cleaned up wild beer explosion before restart');
-              }
-            } catch (e) {
-              logger.warn('⚠️ board-fail-modal: Failed to cleanup all effects (non-fatal):', e);
-            }
-            
-            // 🔥 CRITICAL: Cleanup confetti animations before restart (MEMORY LEAK FIX)
-            try {
-              import('./confetti-system.js').then(confettiModule => {
-                if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
-                  confettiModule.cleanupConfetti();
-                }
-              }).catch(() => {
-                // Ignore import errors
-              });
-            } catch (e) {
-              // Ignore errors
-            }
+            cleanupFailModalLifecycle();
             
             // Has hearts - proceed with restart
             logger.info('🎮 Play Again clicked - calling window.CC.restart directly');
@@ -488,40 +460,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
             logger.warn('⚠️ Failed to check hearts, proceeding with restart anyway:', error);
             
             // 🔥 MEMORY LEAK FIX: Cleanup on fallback too
-            cleanupButtonListeners();
-            clearAllFailTimeouts();
-            clearAllFailAnimationFrames();
-            try { window.removeEventListener('keydown', onKey); } catch {}
-            
-            // 🔥 CRITICAL MEMORY LEAK FIX: Comprehensive cleanup before restart (fallback)
-            try {
-              const fxModule = await import('./fx.js');
-              if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
-                fxModule.cleanupAllEffects();
-                logger.info('🧹 board-fail-modal: Cleaned up all effects (fallback) before restart');
-              }
-              // 🔥 CRITICAL: Also cleanup star animations specifically
-              if (fxModule && typeof fxModule.cleanupExistingStarAnimations === 'function') {
-                fxModule.cleanupExistingStarAnimations();
-                logger.info('🧹 board-fail-modal: Cleaned up star animations (fallback) before restart');
-              }
-              // 🔥 CRITICAL: Also cleanup wild beer explosion
-              if (fxModule && typeof fxModule.cleanupWildBeerExplosion === 'function') {
-                fxModule.cleanupWildBeerExplosion();
-                logger.info('🧹 board-fail-modal: Cleaned up wild beer explosion (fallback) before restart');
-              }
-            } catch (e) {
-              logger.warn('⚠️ board-fail-modal: Failed to cleanup all effects (fallback, non-fatal):', e);
-            }
-            
-            // 🔥 CRITICAL: Cleanup confetti animations (MEMORY LEAK FIX)
-            try {
-              import('./confetti-system.js').then(confettiModule => {
-                if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
-                  confettiModule.cleanupConfetti();
-                }
-              }).catch(() => {});
-            } catch (e) {}
+            cleanupFailModalLifecycle();
             
             // Fallback: proceed with restart if hearts check fails
             // 🔥 CRITICAL FIX: Close modal FIRST (fade out), then call restart
@@ -550,36 +489,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
         return; // Exit early - modal closing is handled above
       } else if (action === 'menu') {
         // 🔥 MEMORY LEAK FIX: Cleanup (modal is closing)
-        cleanupButtonListeners();
-        clearAllFailTimeouts();
-        clearAllFailAnimationFrames();
-        try { window.removeEventListener('keydown', onKey); } catch {}
-        
-        // 🔥 CRITICAL MEMORY LEAK FIX: Comprehensive cleanup before exit to menu
-        (async () => {
-          try {
-            const fxModule = await import('./fx.js');
-            if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
-              fxModule.cleanupAllEffects();
-              logger.info('🧹 board-fail-modal: Cleaned up all effects before exit to menu');
-            }
-          } catch (e) {
-            logger.warn('⚠️ board-fail-modal: Failed to cleanup all effects (non-fatal):', e);
-          }
-        })();
-        
-        // 🔥 CRITICAL: Cleanup confetti animations before exit (MEMORY LEAK FIX)
-        try {
-          import('./confetti-system.js').then(confettiModule => {
-            if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
-              confettiModule.cleanupConfetti();
-            }
-          }).catch(() => {
-            // Ignore import errors
-          });
-        } catch (e) {
-          // Ignore errors
-        }
+        cleanupFailModalLifecycle();
         
         logger.info('🚪 Exit clicked - calling window.exitToMenu directly');
         // 🔥 BUG FIX: Check guard to prevent duplicate calls
@@ -651,10 +561,7 @@ export function showBoardFailModal({ score = 0, boardNumber = 1 }: BoardFailModa
       // Only close modal if action is not 'retry' (retry handles its own modal closing)
       if (action !== 'retry') {
         // 🔥 MEMORY LEAK FIX: Cleanup event listeners for fallback actions
-        cleanupButtonListeners();
-        clearAllFailTimeouts();
-        clearAllFailAnimationFrames();
-        try { window.removeEventListener('keydown', onKey); } catch {}
+        cleanupFailModalLifecycle();
         
         overlay.style.opacity = '0';
         card.style.transform = 'scale(0.88)';

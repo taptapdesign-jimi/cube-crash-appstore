@@ -4,7 +4,12 @@
 
 import { Container, Sprite, Graphics, Assets, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { detachWildStarHalo } from './wild-stars.js';
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 interface StarCollectionConfig {
   app: any;
@@ -476,11 +481,11 @@ function animateStarToHUD(
     const duration = baseDuration * distanceFactor;
     
     // Create timeline for wavy path animation
-    const tl = gsap.timeline({
+    const tl = trackTimeline({
       delay,
       onComplete: () => {
         // Fade out and remove star
-        gsap.to(star, {
+        trackTween(star, {
           alpha: 0,
           scale: 0.5,
           duration: 0.2,
@@ -619,4 +624,3 @@ export function cleanupStarsCollector(): void {
   
   console.log('⭐ Stars collector cleaned up (timeouts cleared, queue reset)');
 }
-

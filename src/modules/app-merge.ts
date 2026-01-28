@@ -1,6 +1,7 @@
 // @ts-nocheck
 // src/modules/app-merge.js
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { STATE, ENDLESS, REFILL_ON_SIX_BY_DEPTH } from './app-state.js';
 import * as makeBoard from './board.js';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, innerFlashAtTile, showMultiplierTile, screenShake, wildImpactEffect, smokeBubblesAtTile, stopWildIdle, stopWildBeerBubbles, stopWildStars, stopWildShimmer, stopMagnetIdleParticles, wildMagnetMerge6ShardsTemplated } from "./fx.ts";
@@ -11,6 +12,10 @@ import { showBoardFailModal } from './board-fail-modal.js';
 import { rebuildBoard } from './app-board.ts';
 import { drawBoardBG } from './app-core.js';
 import { statsService } from '../services/stats-service.js';
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 // Import updateProgressBar function
 const updateProgressBar = HUD.updateProgressBar;
@@ -173,7 +178,7 @@ function pulseBoardZoom(factor = 0.92, opts: any = {}) {
   const outDur = opts.outDur ?? 0.12;
   const inDur  = opts.inDur  ?? 0.22;
 
-  const tl = gsap.timeline({ 
+  const tl = trackTimeline({ 
     onComplete: () => { 
       (board as any)._wildZoomTl = null; 
       try { userOnComplete?.(); } catch {} 
@@ -230,7 +235,7 @@ function wobble(t){
   } catch {}
   
   // Create timeline with auto-cleanup
-  const tl = gsap.timeline({ 
+  const tl = trackTimeline({ 
     onComplete: () => { (t as any)._wobbleTl = null; },
     onInterrupt: () => { (t as any)._wobbleTl = null; }
   });
@@ -261,7 +266,7 @@ function landBounce(t){
   } catch {}
   
   // nježniji, elastičniji povrat
-  const tl = gsap.timeline({ 
+  const tl = trackTimeline({ 
     onComplete: () => { (t as any)._bounceTl = null; },
     onInterrupt: () => { (t as any)._bounceTl = null; }
   });
@@ -270,7 +275,7 @@ function landBounce(t){
   (t as any)._bounceTl = tl;
   
   if ((t as any).rotG){
-    const rotTl = gsap.timeline({ 
+    const rotTl = trackTimeline({ 
       onComplete: () => { (t as any)._bounceRotTl = null; },
       onInterrupt: () => { (t as any)._bounceRotTl = null; }
     });
@@ -303,7 +308,7 @@ function landPreBounce(t){
       }
     } catch {}
     
-    const tl = gsap.timeline({ 
+    const tl = trackTimeline({ 
       onComplete: () => { 
         (t as any)._preBounceTl = null; 
         resolve(); 
@@ -318,7 +323,7 @@ function landPreBounce(t){
     (t as any)._preBounceTl = tl;
     
     if ((t as any).rotG){
-      const rotTl = gsap.timeline({ 
+      const rotTl = trackTimeline({ 
         onComplete: () => { (t as any)._preBounceRotTl = null; },
         onInterrupt: () => { (t as any)._preBounceRotTl = null; }
       });
@@ -377,7 +382,7 @@ function animateMagnetPull(tile: any, targetTile: any): Promise<void> {
     const targetY = targetTile.y;
     
     // Animate tile moving to target position
-    gsap.to(tile, {
+    trackTween(tile, {
       x: targetX,
       y: targetY,
       duration: 0.4,
@@ -514,45 +519,37 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     // Remove merge 6 tile
     removeTile(dst);
     
-    // Trigger clean board flow
-    const { runEndgameFlow } = await import('./endgame-flow.js');
-    
-    // Get app context from STATE and helpers
-    const app = STATE.app;
-    const stage = STATE.stage;
-    const board = STATE.board;
-    const boardBG = STATE.boardBG;
-    const level = STATE.level || 1;
-    const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
-    const boardNumber = STATE.boardNumber || 1;
-    
-    if (!app || !stage || !board || !startLevel) {
-      console.error('❌ Missing required context for clean board flow:', { app: !!app, stage: !!stage, board: !!board, startLevel: !!startLevel });
-      return;
+    // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
+    // This ensures all wild magnet/beer/star endgame scenarios use the same flow with proper guards
+    const triggerCleanBoardFlow = (window as any).CC?.triggerCleanBoardFlow;
+    if (typeof triggerCleanBoardFlow === 'function') {
+      await triggerCleanBoardFlow('clean_board_from_wild_magnet_no_pulled_tiles');
+      console.log('✅ Clean board flow completed for magnet merge with no pulled tiles');
+    } else {
+      console.error('❌ triggerCleanBoardFlow not available - falling back to direct runEndgameFlow');
+      // Fallback to old method if triggerCleanBoardFlow is not available
+      const { runEndgameFlow } = await import('./endgame-flow.js');
+      const app = STATE.app;
+      const stage = STATE.stage;
+      const board = STATE.board;
+      const boardBG = STATE.boardBG;
+      const level = STATE.level || 1;
+      const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
+      const boardNumber = STATE.boardNumber || 1;
+      
+      if (app && stage && board && startLevel) {
+        await runEndgameFlow({
+          app,
+          stage,
+          board,
+          boardBG,
+          level,
+          startLevel,
+          boardNumber,
+          skipStarsWait: true
+        });
+      }
     }
-    
-    // Reset wild meter
-    if (typeof (window as any).CC?.resetWildProgress === 'function') {
-      (window as any).CC.resetWildProgress(0, false);
-    } else if (typeof (window as any).resetWildProgress === 'function') {
-      (window as any).resetWildProgress(0, false);
-    }
-    if (typeof HUD.resetWildMeter === 'function') {
-      HUD.resetWildMeter(true);
-    }
-    
-    await runEndgameFlow({
-      app,
-      stage,
-      board,
-      boardBG,
-      level,
-      startLevel,
-      boardNumber,
-      skipStarsWait: true
-    });
-    
-    console.log('✅ Clean board flow completed for magnet merge with no pulled tiles');
     return;
   }
   
@@ -1140,61 +1137,53 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       removeTile(dst);
     }
     
-    // Trigger clean board flow
-    const { runEndgameFlow } = await import('./endgame-flow.js');
-    
-    // Get app context from STATE and helpers
-    const app = STATE.app;
-    const stage = STATE.stage;
-    const board = STATE.board;
-    const boardBG = STATE.boardBG;
-    const level = STATE.level || 1;
-    const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
-    const boardNumber = STATE.boardNumber || 1;
-    
-    if (!app || !stage || !board || !startLevel) {
-      console.error('❌ Missing required context for clean board flow:', { app: !!app, stage: !!stage, board: !!board, startLevel: !!startLevel });
-      return;
-    }
-    
-    // Reset wild meter
-    if (typeof (window as any).CC?.resetWildProgress === 'function') {
-      (window as any).CC.resetWildProgress(0, false);
-    } else if (typeof (window as any).resetWildProgress === 'function') {
-      (window as any).resetWildProgress(0, false);
-    }
-    if (typeof HUD.resetWildMeter === 'function') {
-      HUD.resetWildMeter(true);
-    }
-    
-    STATE.busyEnding = true;
-    try {
-      await runEndgameFlow({
-        app,
-        stage,
-        board,
-        boardBG,
-        level,
-        startLevel,
-        score: newScore,
-        getScore: () => newScore,
-        setScore: (v) => { 
-          if (typeof (window as any).CC?.setScore === 'function') {
-            (window as any).CC.setScore(v);
-          } else {
-            STATE.score = v|0;
-          }
-          updateHUD();
-        },
-        animateScore,
-        updateHUD,
-        boardNumber,
-        hideGrid: () => { try { if (board) board.visible = false; } catch {} },
-        showGrid: () => { try { if (board) board.visible = true; } catch {} },
-        skipStarsWait: true
-      });
-    } finally {
-      STATE.busyEnding = false;
+    // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
+    const triggerCleanBoardFlow = (window as any).CC?.triggerCleanBoardFlow;
+    if (typeof triggerCleanBoardFlow === 'function') {
+      await triggerCleanBoardFlow('clean_board_from_wild_magnet_only_dst_remains');
+    } else {
+      console.error('❌ triggerCleanBoardFlow not available - falling back to direct runEndgameFlow');
+      // Fallback to old method if triggerCleanBoardFlow is not available
+      const { runEndgameFlow } = await import('./endgame-flow.js');
+      const app = STATE.app;
+      const stage = STATE.stage;
+      const board = STATE.board;
+      const boardBG = STATE.boardBG;
+      const level = STATE.level || 1;
+      const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
+      const boardNumber = STATE.boardNumber || 1;
+      
+      if (app && stage && board && startLevel) {
+        STATE.busyEnding = true;
+        try {
+          await runEndgameFlow({
+            app,
+            stage,
+            board,
+            boardBG,
+            level,
+            startLevel,
+            score: newScore,
+            getScore: () => newScore,
+            setScore: (v) => { 
+              if (typeof (window as any).CC?.setScore === 'function') {
+                (window as any).CC.setScore(v);
+              } else {
+                STATE.score = v|0;
+              }
+              updateHUD();
+            },
+            animateScore,
+            updateHUD,
+            boardNumber,
+            hideGrid: () => { try { if (board) board.visible = false; } catch {} },
+            showGrid: () => { try { if (board) board.visible = true; } catch {} },
+            skipStarsWait: true
+          });
+        } finally {
+          STATE.busyEnding = false;
+        }
+      }
     }
     return; // Don't spawn new tiles - EDGE CASE: magnet pulled last 4 tiles
   }
@@ -1223,7 +1212,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         const merge6Y = merge6Tile.y;
         
         return new Promise<void>((resolve) => {
-          gsap.to(tile, {
+          trackTween(tile, {
             x: merge6X,
             y: merge6Y,
             duration: 0.35,
@@ -1267,61 +1256,53 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         removeTile(merge6Tile);
       }
       
-      // Trigger clean board flow
-      const { runEndgameFlow } = await import('./endgame-flow.js');
-      
-      // Get app context from STATE and helpers
-      const app = STATE.app;
-      const stage = STATE.stage;
-      const board = STATE.board;
-      const boardBG = STATE.boardBG;
-      const level = STATE.level || 1;
-      const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
-      const boardNumber = STATE.boardNumber || 1;
-      
-      if (!app || !stage || !board || !startLevel) {
-        console.error('❌ Missing required context for clean board flow:', { app: !!app, stage: !!stage, board: !!board, startLevel: !!startLevel });
-        return;
-      }
-      
-      // Reset wild meter - use window.CC if available
-      if (typeof (window as any).CC?.resetWildProgress === 'function') {
-        (window as any).CC.resetWildProgress(0, false);
-      } else if (typeof (window as any).resetWildProgress === 'function') {
-        (window as any).resetWildProgress(0, false);
-      }
-      if (typeof HUD.resetWildMeter === 'function') {
-        HUD.resetWildMeter(true);
-      }
-      
-      STATE.busyEnding = true;
-      try {
-        await runEndgameFlow({
-          app,
-          stage,
-          board,
-          boardBG,
-          level,
-          startLevel,
-          score: finalScore,
-          getScore: () => finalScore,
-          setScore: (v) => { 
-            if (typeof (window as any).CC?.setScore === 'function') {
-              (window as any).CC.setScore(v);
-            } else {
-              STATE.score = v|0;
-            }
-            updateHUD();
-          },
-          animateScore,
-          updateHUD,
-          boardNumber,
-          hideGrid: () => { try { if (board) board.visible = false; } catch {} },
-          showGrid: () => { try { if (board) board.visible = true; } catch {} },
-          skipStarsWait: true
-        });
-      } finally {
-        STATE.busyEnding = false;
+      // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
+      const triggerCleanBoardFlow = (window as any).CC?.triggerCleanBoardFlow;
+      if (typeof triggerCleanBoardFlow === 'function') {
+        await triggerCleanBoardFlow('clean_board_from_wild_magnet_few_tiles_remaining');
+      } else {
+        console.error('❌ triggerCleanBoardFlow not available - falling back to direct runEndgameFlow');
+        // Fallback to old method if triggerCleanBoardFlow is not available
+        const { runEndgameFlow } = await import('./endgame-flow.js');
+        const app = STATE.app;
+        const stage = STATE.stage;
+        const board = STATE.board;
+        const boardBG = STATE.boardBG;
+        const level = STATE.level || 1;
+        const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
+        const boardNumber = STATE.boardNumber || 1;
+        
+        if (app && stage && board && startLevel) {
+          STATE.busyEnding = true;
+          try {
+            await runEndgameFlow({
+              app,
+              stage,
+              board,
+              boardBG,
+              level,
+              startLevel,
+              score: finalScore,
+              getScore: () => finalScore,
+              setScore: (v) => { 
+                if (typeof (window as any).CC?.setScore === 'function') {
+                  (window as any).CC.setScore(v);
+                } else {
+                  STATE.score = v|0;
+                }
+                updateHUD();
+              },
+              animateScore,
+              updateHUD,
+              boardNumber,
+              hideGrid: () => { try { if (board) board.visible = false; } catch {} },
+              showGrid: () => { try { if (board) board.visible = true; } catch {} },
+              skipStarsWait: true
+            });
+          } finally {
+            STATE.busyEnding = false;
+          }
+        }
       }
       return; // Don't spawn new tiles
   }
@@ -1494,45 +1475,37 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       removeTile(dst);
     }
     
-    // Trigger clean board flow
-    const { runEndgameFlow } = await import('./endgame-flow.js');
-    
-    // Get app context from STATE and helpers
-    const app = STATE.app;
-    const stage = STATE.stage;
-    const board = STATE.board;
-    const boardBG = STATE.boardBG;
-    const level = STATE.level || 1;
-    const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
-    const boardNumber = STATE.boardNumber || 1;
-    
-    if (!app || !stage || !board || !startLevel) {
-      console.error('❌ Missing required context for clean board flow:', { app: !!app, stage: !!stage, board: !!board, startLevel: !!startLevel });
-      return;
+    // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
+    const triggerCleanBoardFlow = (window as any).CC?.triggerCleanBoardFlow;
+    if (typeof triggerCleanBoardFlow === 'function') {
+      await triggerCleanBoardFlow('clean_board_from_wild_magnet_final_merge6');
+      console.log('✅ Clean board flow completed for magnet final merge-6');
+    } else {
+      console.error('❌ triggerCleanBoardFlow not available - falling back to direct runEndgameFlow');
+      // Fallback to old method if triggerCleanBoardFlow is not available
+      const { runEndgameFlow } = await import('./endgame-flow.js');
+      const app = STATE.app;
+      const stage = STATE.stage;
+      const board = STATE.board;
+      const boardBG = STATE.boardBG;
+      const level = STATE.level || 1;
+      const startLevel = helpers?.startLevel || (window as any).startLevel || (window as any).CC?.startLevel;
+      const boardNumber = STATE.boardNumber || 1;
+      
+      if (app && stage && board && startLevel) {
+        await runEndgameFlow({
+          app,
+          stage,
+          board,
+          boardBG,
+          level,
+          startLevel,
+          boardNumber,
+          skipStarsWait: true
+        });
+        console.log('✅ Clean board flow completed for magnet final merge-6');
+      }
     }
-    
-    // Reset wild meter
-    if (typeof (window as any).CC?.resetWildProgress === 'function') {
-      (window as any).CC.resetWildProgress(0, false);
-    } else if (typeof (window as any).resetWildProgress === 'function') {
-      (window as any).resetWildProgress(0, false);
-    }
-    if (typeof HUD.resetWildMeter === 'function') {
-      HUD.resetWildMeter(true);
-    }
-    
-    await runEndgameFlow({
-      app,
-      stage,
-      board,
-      boardBG,
-      level,
-      startLevel,
-      boardNumber,
-      skipStarsWait: true
-    });
-    
-    console.log('✅ Clean board flow completed for magnet final merge-6');
     return; // 🔥 CRITICAL: Exit early - NO spawns for final merge-6!
   }
   

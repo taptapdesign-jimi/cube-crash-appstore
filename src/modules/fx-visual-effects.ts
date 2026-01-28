@@ -4,6 +4,11 @@
 
 import { Container, Graphics, Text, Texture, Sprite } from 'pixi.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
+
+const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
 
 // Type definitions
 interface Tile extends Container {
@@ -97,11 +102,11 @@ export function glassCrackAtTile(
   // Animate crack - 🔥 FIX: Use scale.x/scale.y for PixiJS (not scaleX/scaleY which needs PixiPlugin)
   crack.scale.set(0.5, 0.5);
   crack.alpha = 0;
-  gsap.to(crack, { alpha: 1, duration: 0.1, ease: "power2.out" });
-  gsap.to(crack.scale, { x: 1, y: 1, duration: 0.1, ease: "power2.out" });
+  trackTween(crack, { alpha: 1, duration: 0.1, ease: "power2.out" });
+  trackTween(crack.scale, { x: 1, y: 1, duration: 0.1, ease: "power2.out" });
   
   // Fade out and remove
-  gsap.to(crackContainer, {
+  trackTween(crackContainer, {
     alpha: 0,
     duration: 0.8,
     delay: 0.2,
@@ -157,7 +162,7 @@ export function woodShardsAtTile(
     shardsContainer.addChild(shard);
     
     // Animate shard
-    gsap.to(shard, {
+    trackTween(shard, {
       x: shard.x + (Math.random() - 0.5) * options.speed,
       y: shard.y + (Math.random() - 0.5) * options.speed,
       rotation: shard.rotation + options.rotation * (Math.PI / 180),
@@ -170,7 +175,7 @@ export function woodShardsAtTile(
   board.addChild(shardsContainer);
   
   // Remove container after animation
-  gsap.delayedCall(1.5, () => {
+  trackDelayedCall(1.5, () => {
     // 🔥 FIX: Kill animations and destroy Graphics to prevent memory leak
     shardsContainer.children.forEach(child => gsap.killTweensOf(child));
     if (board && shardsContainer.parent) {
@@ -211,11 +216,11 @@ export function innerFlashAtTile(
   // Animate flash - 🔥 FIX: Use scale.x/scale.y for PixiJS (not scaleX/scaleY which needs PixiPlugin)
   flash.scale.set(0.8, 0.8);
   flash.alpha = 0;
-  gsap.to(flash, { alpha: 1, duration: 0.1, ease: "power2.out" });
-  gsap.to(flash.scale, { x: 1, y: 1, duration: 0.1, ease: "power2.out" });
+  trackTween(flash, { alpha: 1, duration: 0.1, ease: "power2.out" });
+  trackTween(flash.scale, { x: 1, y: 1, duration: 0.1, ease: "power2.out" });
   
   // Fade out and remove
-  gsap.to(flashContainer, {
+  trackTween(flashContainer, {
     alpha: 0,
     duration: 0.3,
     delay: 0.1,

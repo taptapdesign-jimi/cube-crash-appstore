@@ -3,6 +3,7 @@
 // Animations for HUD system
 
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { Container, Text } from 'pixi.js';
 import { 
   ANIMATION_DURATION, 
@@ -11,6 +12,8 @@ import {
 } from './hud-constants.js';
 import { logger } from '../core/logger.js';
 import { container } from '../core/dependency-injection.js';
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 // Type definitions
 interface PlayHudDropParams {
@@ -80,7 +83,7 @@ export function animateTextBounce(text: Text, opts: BounceOptions = {}): void {
       duration: up,
       ease: EASING.EASE_OUT,
       onComplete: () => {
-        gsap.to(text.scale, {
+        trackTween(text.scale, {
           x: back,
           y: back,
           duration: down,
@@ -109,7 +112,7 @@ export function animateComboBump(text: Text, opts: BumpComboOptions = {}): void 
       duration: up,
       ease: EASING.EASE_OUT,
       onComplete: () => {
-        gsap.to(text.scale, {
+        trackTween(text.scale, {
           x: back,
           y: back,
           duration: down,
@@ -233,7 +236,7 @@ export function animateHUDFadeIn(container: Container): Promise<void> {
     
     container.alpha = 0;
     
-    const fadeTween = gsap.to(container, {
+    const fadeTween = trackTween(container, {
       alpha: 1,
       duration: ANIMATION_DURATION.FADE,
       ease: EASING.EASE_OUT,
@@ -257,7 +260,7 @@ export function animateHUDFadeOut(container: Container): Promise<void> {
     
     logger.info('🎬 Animating HUD fade out');
     
-    const fadeTween = gsap.to(container, {
+    const fadeTween = trackTween(container, {
       alpha: 0,
       duration: ANIMATION_DURATION.FADE,
       ease: EASING.EASE_IN,
@@ -286,7 +289,7 @@ export function animateHUDSlideIn(container: Container, fromY: number = -100): P
     
     container.y = fromY;
     
-    const slideTween = gsap.to(container, {
+    const slideTween = trackTween(container, {
       y: 0,
       duration: ANIMATION_DURATION.SLIDE,
       ease: EASING.EASE_OUT,
@@ -310,7 +313,7 @@ export function animateHUDSlideOut(container: Container, toY: number = -100): Pr
     
     logger.info('🎬 Animating HUD slide out');
     
-    const slideTween = gsap.to(container, {
+    const slideTween = trackTween(container, {
       y: toY,
       duration: ANIMATION_DURATION.SLIDE,
       ease: EASING.EASE_IN,
@@ -337,7 +340,7 @@ export function animateHUDScale(container: Container, scale: number): Promise<vo
     
     logger.info(`🎬 Animating HUD scale: ${scale}`);
     
-    const scaleTween = gsap.to(container.scale, {
+    const scaleTween = trackTween(container.scale, {
       x: scale,
       y: scale,
       duration: ANIMATION_DURATION.SCALE,

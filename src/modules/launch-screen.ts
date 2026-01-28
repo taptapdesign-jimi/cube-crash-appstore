@@ -3,7 +3,15 @@
 // Handles the initial launch sequence with taptapdesign logo → stack to six logo → app
 
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
+import { getOriginalGsapTo } from './drag-core.js';
+
+// 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
+const trackTween = (target: any, vars: any) => {
+  const origTo = getOriginalGsapTo();
+  return animationManager.trackExternalTween(origTo(target, vars));
+};
 
 interface LaunchScreenElements {
   container: HTMLElement | null;
@@ -316,7 +324,7 @@ class LaunchScreen {
     // Fade out taptapdesign (fast fade out)
     logger.info('🎬 Phase 1: Fading out taptapdesign logo');
     await new Promise<void>((resolve) => {
-      gsap.to(taptapContainer, {
+      trackTween(taptapContainer, {
         opacity: 0,
         duration: 0.2,
         ease: 'power2.in',
@@ -461,7 +469,7 @@ class LaunchScreen {
     logger.info('✅ Phase 3: Paper+gradient background explicitly set on body/html/#global-bg BEFORE fade out');
     
     await new Promise<void>((resolve) => {
-      gsap.to([stackLogo, smokeShards, stackContainer], {
+      trackTween([stackLogo, smokeShards, stackContainer], {
         scale: 0,
         opacity: 0,
         duration: 0.5,
@@ -487,7 +495,7 @@ class LaunchScreen {
       // Also fade out container (but NOT the background - gradient stays!)
       // Only fade out the container's opacity, don't touch background
       // 🔥 CRITICAL: Container background is already set to gradient above
-      gsap.to(container, {
+      trackTween(container, {
         opacity: 0,
         duration: 0.5,
         ease: 'power2.in',

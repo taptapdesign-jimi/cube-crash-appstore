@@ -4,9 +4,12 @@
 
 import { Container, Graphics, Text, Texture, Sprite } from 'pixi.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { TILE, GAP } from './constants.js';
 import { BOARD_BG_COLOR, TILE_BG_COLOR, TILE_BORDER_COLOR, TILE_BORDER_WIDTH, PIPS_INNER_FACTOR, PIP_COLOR, PIP_ALPHA, PIP_RADIUS, PIP_SQUARE, STACK_OFFSET, STACK_ALPHA, STACK_COLOR, ANIMATION, EASING } from './board-constants.js';
 import { logger } from '../core/logger.js';
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 // Type definitions
 interface Tile extends Container {
@@ -330,7 +333,7 @@ export function animateTileSpawn(tile: Tile): void {
   tile.alpha = 0;
   
   // Animate to full size
-  gsap.to(tile, {
+  trackTween(tile, {
     scaleX: 1,
     scaleY: 1,
     alpha: 1,
@@ -347,7 +350,7 @@ export function animateTileSpawn(tile: Tile): void {
 export function animateTileDestroy(tile: Tile): void {
   if (!tile) return;
   
-  gsap.to(tile, {
+  trackTween(tile, {
     scaleX: 0,
     scaleY: 0,
     alpha: 0,

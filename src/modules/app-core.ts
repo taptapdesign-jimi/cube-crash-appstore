@@ -16,7 +16,7 @@ import { STATE } from './app-state.ts';
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations } from './fx.ts';
-import { showWildBeerBubblesExplosion, stopWildBeerBubblesExplosion, isWildBeerBubblesExplosionActive, isWildBeerBubblesExplosionRecentlyStarted } from './wild-beer-bubbles-explosion.ts';
+import { showWildBeerBubblesExplosion, stopWildBeerBubblesExplosion, isWildBeerBubblesExplosionActive, isWildBeerBubblesExplosionRecentlyStarted, destroyWildBeerBubblesExplosionCache } from './wild-beer-bubbles-explosion.ts';
 import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
 // import { showStarsModal } from './stars-modal.js';
@@ -27,6 +27,7 @@ import FX from './fx-helpers.ts';
 import * as SPAWN from './spawn-helpers.ts';
 import * as HUD   from './hud-helpers.ts';
 import { wild } from './hud-helpers.ts';
+import animationManager from './animation-manager.ts';
 import * as FLOW  from './level-flow.js';
 import { openEmpties } from './app-spawn.ts';
 import { clearWildState, handleWildMagnetMergedPulledTiles } from './app-merge.ts';
@@ -55,7 +56,9 @@ import {
   trackAppAnimationFrame,
   clearAllAppAnimationFrames,
   trackAppInterval,
-  clearAllAppIntervals
+  clearAllAppIntervals,
+  trackAppListener,
+  clearAllAppListeners
 } from './app-core-utils.js';
 import {
   tintLocked,
@@ -67,6 +70,10 @@ import {
   hudSetCombo as hudSetComboHelper,
   hudResetCombo as hudResetComboHelper
 } from './app-core-helpers.js';
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
+
+const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
 
 // HUD functions from hud-helpers.js
 
@@ -228,6 +235,27 @@ function getReactiveActiveTiles(): any[] {
   return tiles.filter(tileIsActive);
 }
 
+function isElementVisible(el: HTMLElement | null): boolean {
+  if (!el) return false;
+  if (el.hasAttribute('hidden')) return false;
+  const style = window.getComputedStyle(el);
+  if (style.display === 'none') return false;
+  if (style.visibility === 'hidden') return false;
+  if (style.opacity === '0') return false;
+  return true;
+}
+
+function getScreenVisibility() {
+  const appEl = document.getElementById('app') as HTMLElement | null;
+  const homeEl = document.getElementById('home') as HTMLElement | null;
+  const journeyEl = document.getElementById('journey-screen') as HTMLElement | null;
+  return {
+    appVisible: isElementVisible(appEl),
+    homeVisible: isElementVisible(homeEl),
+    journeyVisible: isElementVisible(journeyEl)
+  };
+}
+
 // 🔥 REMOVED: isBoardCleanReactive() - use checkEndGame() from endgame-checker.ts instead
 // This function was a duplicate of isBoardCleanCheck() and could cause conflicts
 
@@ -236,17 +264,22 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
 
   // 🔥 USER BUG FIX: Don't trigger clean board flow if game is hidden (user is on homepage/other screens)
   // This prevents clean board modal from appearing when user navigates away from game
-  const appElement = document.getElementById('app');
-  if (appElement && appElement.hasAttribute('hidden')) {
-    logger.debug('⏳ triggerCleanBoardFlow skipped - app is hidden (user on homepage/other screens)', 'app-core');
+  const { appVisible, homeVisible, journeyVisible } = getScreenVisibility();
+  if (homeVisible || journeyVisible) {
+    logger.debug('⏳ triggerCleanBoardFlow skipped - home/journey visible (user on other screens)', 'app-core', {
+      appVisible,
+      homeVisible,
+      journeyVisible
+    });
     return;
   }
-  
-  // Also check if homepage is visible (game should not be active)
-  const homeElement = document.getElementById('home');
-  if (homeElement && !homeElement.hidden) {
-    logger.debug('⏳ triggerCleanBoardFlow skipped - homepage is visible (game not active)', 'app-core');
-    return;
+  if (!appVisible) {
+    // If no other screen is visible but app is hidden, force-show to avoid deadlock.
+    try {
+      const uiManagerModule = await import('./ui-manager.js');
+      uiManagerModule.default?.showApp?.();
+      logger.warn('⚠️ triggerCleanBoardFlow: App was hidden with no UI visible - force showApp()', 'app-core');
+    } catch {}
   }
 
   if (busyEnding) {
@@ -405,6 +438,156 @@ function syncSharedState() {
 
 syncSharedState();
 
+function resetGlobalFxLayer(reason: string = 'unknown') {
+  try {
+    const fxLayer = (window as any).__ccGlobalFxLayer;
+    if (fxLayer) {
+      try { if (fxLayer.parent) fxLayer.parent.removeChild(fxLayer); } catch {}
+      try { fxLayer.destroy?.({ children: true }); } catch {}
+      delete (window as any).__ccGlobalFxLayer;
+      console.log('🧹 resetGlobalFxLayer:', reason);
+    }
+  } catch (e) {
+    console.warn('⚠️ resetGlobalFxLayer failed:', e);
+  }
+}
+
+function cleanupFxForBoardReset(reason: string = 'unknown') {
+  console.log('🧹 cleanupFxForBoardReset:', reason);
+  try { killAllDelayedCalls?.(); } catch {}
+  try { destroyAllGraphicsObjects?.(); } catch {}
+  try { cleanupExistingStarAnimations?.(); } catch {}
+  try {
+    const isBoardTransitionActive = (window as any).__ccBoardTransitionActive === true;
+    const isFromInterimBoard = (window as any).__ccFromInterimBoard === true || (window as any).__ccIsInterimBoard === true;
+    const isRecentlyStarted = typeof isWildBeerBubblesExplosionRecentlyStarted === 'function' && isWildBeerBubblesExplosionRecentlyStarted();
+    if (!isBoardTransitionActive && !isFromInterimBoard && !isRecentlyStarted) {
+      stopWildBeerBubblesExplosion?.();
+    } else {
+      console.log('⏸️ cleanupFxForBoardReset: Skipping bubble explosion cleanup', {
+        reason,
+        isBoardTransitionActive,
+        isFromInterimBoard,
+        isRecentlyStarted
+      });
+    }
+  } catch {}
+  try { resetGlobalFxLayer(`fx:${reason}`); } catch {}
+  try {
+    import('./confetti-system.js').then(confettiModule => {
+      if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
+        confettiModule.stopConfettiSpawns();
+      }
+    }).catch(() => {});
+  } catch {}
+  try { (window as any).__ccLastFxCleanupAt = Date.now(); } catch {}
+}
+
+function killAllGsapTweensCommon(tilesList: any[] | null, label: string, opts: { clearTimeline?: boolean } = {}) {
+  try {
+    console.log(`🧹 GSAP cleanup (${label})...`);
+    try { animationManager.killAll(); } catch {}
+    
+    // Kill UI element tweens
+    gsap.killTweensOf('[data-wild-loader]');
+    gsap.killTweensOf('.wild-loader');
+    gsap.killTweensOf('p');
+    gsap.killTweensOf('progress');
+    gsap.killTweensOf('ratio');
+    
+    const list = tilesList || [];
+    if (list.length > 0) {
+      list.forEach(tile => {
+        try {
+          if (tile && !tile.destroyed) {
+            if (tile.scale && !tile.scale.destroyed) {
+              gsap.killTweensOf(tile.scale);
+            }
+            gsap.killTweensOf(tile);
+            if (tile.hover && !tile.hover.destroyed) {
+              gsap.killTweensOf(tile.hover);
+            }
+          }
+        } catch {}
+      });
+    }
+    
+    // Kill HUD/board/stage tweens
+    if (HUD && !HUD.isHUDDestroyed?.()) {
+      try { gsap.killTweensOf(HUD); } catch {}
+    }
+    if (board && !board.destroyed) {
+      try { gsap.killTweensOf(board); } catch {}
+    }
+    if (app && app.stage && !app.stage.destroyed) {
+      try { gsap.killTweensOf(app.stage); } catch {}
+    }
+    if (backgroundLayer && !backgroundLayer.destroyed) {
+      try { gsap.killTweensOf(backgroundLayer); } catch {}
+    }
+    
+    // Kill timelines referencing destroyed targets
+    try {
+      const allTweens = gsap.globalTimeline.getChildren();
+      allTweens.forEach((tween: any) => {
+        try {
+          const targets = tween.targets || [];
+          if (targets.length > 0) {
+            const target = targets[0];
+            if (target && (target.destroyed || target === null || target === undefined)) {
+              tween.kill();
+            }
+          }
+        } catch {}
+      });
+    } catch {}
+    
+    if (opts.clearTimeline) {
+      try {
+        const timelines = gsap.globalTimeline.getChildren(true, false, false);
+        timelines.forEach(tl => {
+          try { tl.kill(); } catch {}
+        });
+        gsap.globalTimeline.clear();
+      } catch {}
+    }
+    
+    try { gsap.globalTimeline.resume(); } catch {}
+    console.log(`✅ GSAP cleanup complete (${label})`);
+  } catch (e) {
+    console.log('⚠️ GSAP cleanup error:', e);
+  }
+}
+
+function softResetBoardView(reason: string = 'unknown') {
+  console.log('♻️ softResetBoardView:', reason);
+  // Kill tweens on board/hud containers
+  try { if (board) gsap.killTweensOf(board); } catch {}
+  try { if (hud) gsap.killTweensOf(hud); } catch {}
+  // Clear board/hud containers
+  try { if (board) board.removeChildren(); } catch {}
+  try { if (hud) hud.removeChildren(); } catch {}
+  // Recreate core containers if missing
+  if (!stage) stage = app?.stage;
+  if (stage && stage.sortableChildren !== undefined) stage.sortableChildren = true;
+  if (!board) { board = new Container(); board.sortableChildren = true; }
+  if (!hud) { hud = new Container(); hud.eventMode = 'none'; }
+  if (!boardBG) boardBG = new Graphics();
+  // Ensure visibility
+  board.visible = true; board.alpha = 1; board.renderable = true;
+  hud.visible = true; hud.alpha = 1; hud.renderable = true;
+  board.zIndex = 100; hud.zIndex = 10000;
+  // Ensure in stage
+  if (stage && board.parent !== stage) stage.addChild(board);
+  if (stage && hud.parent !== stage) stage.addChild(hud);
+  // Ensure boardBG
+  try { board.addChildAt(boardBG, 0); } catch {}
+  try { boardBG.zIndex = -1000; board.sortChildren?.(); } catch {}
+  // Reset background references so startLevel can recreate safely
+  backgroundLayer = null;
+  window._ghostPlaceholders = null;
+}
+
 // ----- progress wrapper (delegira HUD-u) -----
 let hudUpdateProgress = (ratio, animate) => {};
 // HUD metrics (for DOM helpers to position UI under HUD)
@@ -443,7 +626,7 @@ function queueWildSpawnIfNeeded(){
   spawnWildFromMeter()
     .then((spawned) => {
       if (!spawned && !wildSpawnRetryTimer) {
-        wildSpawnRetryTimer = setTimeout(() => {
+        wildSpawnRetryTimer = trackAppTimeout(() => {
       wildSpawnRetryTimer = null;
       queueWildSpawnIfNeeded();
     }, 600);
@@ -487,7 +670,7 @@ function scheduleWildRescue(reason = 'unknown', requested = 2) {
         console.log('🛟 Wild rescue fallback: downgraded wild tile to keep merges possible');
       }
       wildRescueScheduled = false;
-      gsap.delayedCall(0.05, () => {
+      trackDelayedCall(0.05, () => {
         try { checkLevelEnd(); } catch (err) { logger.warn('🛟 Post-rescue checkLevelEnd failed', 'app-core', err); }
       });
       
@@ -656,62 +839,68 @@ async function showMysteryPrize(){
 // -------------------- boot --------------------
 export async function boot(){
   console.log('🎮 Initializing PIXI app');
+  const reuseApp = !!(app && !app.destroyed && app.renderer && app.canvas);
+  if (reuseApp) {
+    console.log('♻️ Reusing existing PIXI app (soft reset)');
+  }
   
   // Reset user made move flag for new game
   window._userMadeMove = false;
   console.log('🔄 Reset user made move flag for new game');
   
   // CRITICAL: Check for unsaved high score on boot
-  setTimeout(() => {
+  trackAppTimeout(() => {
     if (typeof window.checkForUnsavedHighScore === 'function') {
       window.checkForUnsavedHighScore();
     }
   }, 2000);
   
-  // 🔥🔥🔥 NUCLEAR CLEANUP: Kill EVERYTHING before destroying old app 🔥🔥🔥
+  // 🔥🔥🔥 NUCLEAR CLEANUP: Kill EVERYTHING before destroying old app (hard reset only) 🔥🔥🔥
   // This is the ROOT CAUSE of _x null errors - old GSAP callbacks try to access destroyed objects
-  console.log('🔥 NUCLEAR CLEANUP: Killing all animations and clearing all references...');
-  
-  // Step 1: Kill ALL GSAP tweens globally - this is the KEY fix
-  try {
-    gsap.killTweensOf('*'); // Kill all tweens on all targets
-    gsap.globalTimeline.clear(); // Clear the global timeline
-    console.log('✅ Killed ALL GSAP tweens globally');
-  } catch (gsapError) {
-    console.warn('⚠️ Error killing GSAP tweens:', gsapError);
+  if (!reuseApp) {
+    console.log('🔥 NUCLEAR CLEANUP: Killing all animations and clearing all references...');
+    
+    // Step 1: Kill ALL GSAP tweens globally - this is the KEY fix
+    try {
+      gsap.killTweensOf('*'); // Kill all tweens on all targets
+      gsap.globalTimeline.clear(); // Clear the global timeline
+      console.log('✅ Killed ALL GSAP tweens globally');
+    } catch (gsapError) {
+      console.warn('⚠️ Error killing GSAP tweens:', gsapError);
+    }
+    
+    // Step 2: Kill tweens on specific known targets (belt and suspenders approach)
+    try {
+      if (tiles && tiles.length > 0) {
+        tiles.forEach(tile => {
+          try { gsap.killTweensOf(tile); } catch {}
+          try { if (tile?.scale) gsap.killTweensOf(tile.scale); } catch {}
+        });
+      }
+      if (board) gsap.killTweensOf(board);
+      if (stage) gsap.killTweensOf(stage);
+      if (hud) gsap.killTweensOf(hud);
+      console.log('✅ Killed tweens on known PIXI objects');
+    } catch (e) {
+      console.warn('⚠️ Error killing specific tweens:', e);
+    }
+    
+    // Step 3: Clear module-level tile array to prevent stale references
+    try {
+      if (tiles) {
+        tiles.length = 0; // Clear array without reassigning
+      }
+      if (STATE.tiles) {
+        STATE.tiles.length = 0;
+      }
+      console.log('✅ Cleared tiles arrays');
+    } catch (e) {
+      console.warn('⚠️ Error clearing tiles:', e);
+    }
   }
   
-  // Step 2: Kill tweens on specific known targets (belt and suspenders approach)
-  try {
-    if (tiles && tiles.length > 0) {
-      tiles.forEach(tile => {
-        try { gsap.killTweensOf(tile); } catch {}
-        try { if (tile?.scale) gsap.killTweensOf(tile.scale); } catch {}
-      });
-    }
-    if (board) gsap.killTweensOf(board);
-    if (stage) gsap.killTweensOf(stage);
-    if (hud) gsap.killTweensOf(hud);
-    console.log('✅ Killed tweens on known PIXI objects');
-  } catch (e) {
-    console.warn('⚠️ Error killing specific tweens:', e);
-  }
-  
-  // Step 3: Clear module-level tile array to prevent stale references
-  try {
-    if (tiles) {
-      tiles.length = 0; // Clear array without reassigning
-    }
-    if (STATE.tiles) {
-      STATE.tiles.length = 0;
-    }
-    console.log('✅ Cleared tiles arrays');
-  } catch (e) {
-    console.warn('⚠️ Error clearing tiles:', e);
-  }
-  
-  // Step 4: Stop PIXI ticker BEFORE any destroy operations
-  if (app && app.ticker) {
+  // Step 4: Stop PIXI ticker BEFORE any destroy operations (only on hard reset)
+  if (!reuseApp && app && app.ticker) {
     try {
       app.ticker.stop();
       console.log('✅ PIXI ticker stopped');
@@ -721,66 +910,49 @@ export async function boot(){
   }
   
   // Step 5: Clear stage children BEFORE destroy (cleaner removal from render tree)
-  // 🔥 CRITICAL FIX: Preserve bubbles explosion container if it's active
-  // This prevents bubbles explosion from being destroyed when boot() is called between boards
-  if (app && app.stage) {
+  // 🔥 CRITICAL FIX: Preserve bubbles explosion container if active before removing stage children
+  if (!reuseApp && app && app.stage) {
     try {
-      // 🔥 BUBBLES EXPLOSION FIX: Check if bubbles explosion is active before removing children
-      // We need to preserve the container so it can continue animating on the new stage
-      let bubblesContainer: any = null;
+      // Check if wild beer bubbles explosion is active and preserve its container
       try {
-        // Use dynamic import to avoid circular dependency
-        const bubblesModule = await import('./wild-beer-bubbles-explosion.js');
-        if (bubblesModule && typeof bubblesModule.isWildBeerBubblesExplosionActive === 'function') {
-          const isActive = bubblesModule.isWildBeerBubblesExplosionActive();
-          if (isActive) {
-            // Get container from module (more reliable than searching stage)
-            if (typeof bubblesModule.getExplosionContainer === 'function') {
-              bubblesContainer = bubblesModule.getExplosionContainer();
-            }
-            // Fallback: Find in stage if module doesn't have getter
-            if (!bubblesContainer) {
-              bubblesContainer = app.stage.children.find((child: any) => 
-                child && child.name === 'wild-beer-explosion-bubbles' && !child.destroyed
-              );
-            }
-            if (bubblesContainer) {
-              console.log('💧 boot: Preserving bubbles explosion container during stage cleanup (active explosion detected)', {
-                containerChildren: bubblesContainer.children?.length || 0,
-                containerVisible: bubblesContainer.visible,
-                containerAlpha: bubblesContainer.alpha
-              });
-              // Remove from stage temporarily so it's not destroyed
-              if (bubblesContainer.parent) {
-                bubblesContainer.parent.removeChild(bubblesContainer);
-              }
-              // Store reference globally so we can restore it later
+        const { isWildBeerBubblesExplosionActive, getExplosionContainer } = await import('./wild-beer-bubbles-explosion.js');
+        if (isWildBeerBubblesExplosionActive && isWildBeerBubblesExplosionActive()) {
+          const bubblesContainer = getExplosionContainer && getExplosionContainer();
+          if (bubblesContainer && !bubblesContainer.destroyed && bubblesContainer.parent) {
+            // Remove container from its parent BEFORE removeChildren() destroys it
+            try {
+              bubblesContainer.parent.removeChild(bubblesContainer);
               (window as any).__ccPreservedBubblesContainer = bubblesContainer;
+              console.log('💧 boot: Preserved bubbles explosion container before stage cleanup', {
+                containerVisible: bubblesContainer.visible,
+                containerAlpha: bubblesContainer.alpha,
+                containerChildren: bubblesContainer.children?.length || 0
+              });
+            } catch (preserveError) {
+              console.warn('⚠️ boot: Failed to preserve bubbles container:', preserveError);
             }
           }
         }
-      } catch (e) {
-        // Silently fail - bubbles explosion module might not be loaded yet
-        console.warn('⚠️ boot: Failed to check bubbles explosion state:', e);
+      } catch (importError) {
+        // Silently fail - module might not be available
       }
       
       app.stage.removeChildren();
-      console.log('✅ Stage children removed', bubblesContainer ? '(bubbles container preserved)' : '');
-      
-      // 🔥 BUBBLES EXPLOSION FIX: Re-add bubbles explosion container if it was preserved
-      // This will be done after new stage is created (in the code below)
+      console.log('✅ Stage children removed');
     } catch (e) {
       console.warn('⚠️ Error removing stage children:', e);
     }
   }
   
-  // Step 6: Clear references BEFORE destroy
-  stage = null as any;
-  board = null as any;
-  hud = null as any;
+  // Step 6: Clear references BEFORE destroy (hard reset only)
+  if (!reuseApp) {
+    stage = null as any;
+    board = null as any;
+    hud = null as any;
+  }
   
-  // 🔥 CRITICAL FIX: DESTROY existing app if it exists
-  if (app && app.canvas) {
+  // 🔥 CRITICAL FIX: DESTROY existing app if it exists (hard reset only)
+  if (!reuseApp && app && app.canvas) {
     console.log('🧹 Destroying existing PIXI app');
     
     // 🔥 CRITICAL: Hide canvas IMMEDIATELY before destroy to prevent flash
@@ -796,131 +968,79 @@ export async function boot(){
     app = null as any;
   }
   
-  // 🔥 CRITICAL FIX: Clear global HUD_ROOT reference before creating new app
+  // 🔥 CRITICAL FIX: Clear global HUD_ROOT reference before creating new app (hard reset only)
   // This prevents stale HUD from flashing during reinit
-  try {
-    if ((window as any).HUD_ROOT) {
-      const oldHud = (window as any).HUD_ROOT;
-      try { oldHud.alpha = 0; } catch {}
-      try { oldHud.visible = false; } catch {}
-      (window as any).HUD_ROOT = null;
-      console.log('✅ Cleared stale HUD_ROOT reference');
+  if (!reuseApp) {
+    try {
+      if ((window as any).HUD_ROOT) {
+        const oldHud = (window as any).HUD_ROOT;
+        try { oldHud.alpha = 0; } catch {}
+        try { oldHud.visible = false; } catch {}
+        (window as any).HUD_ROOT = null;
+        console.log('✅ Cleared stale HUD_ROOT reference');
+      }
+    } catch (e) {
+      console.log('⚠️ Error clearing HUD_ROOT:', e);
     }
-  } catch (e) {
-    console.log('⚠️ Error clearing HUD_ROOT:', e);
   }
   
   console.log('✅ NUCLEAR CLEANUP complete - safe to create new app');
   
-  // 🔥 CRITICAL FIX: Clear ALL existing canvas elements from DOM
+  // 🔥 CRITICAL FIX: Clear ALL existing canvas elements from DOM (hard reset only)
   // This prevents leftover canvas elements from showing when starting new game
   const host = document.getElementById('app') || document.body;
-  try {
-    // Remove all canvas elements from app container
-    const existingCanvases = host.querySelectorAll('canvas');
-    existingCanvases.forEach(canvas => {
-      try {
-        canvas.remove();
-        console.log('✅ Removed existing canvas from DOM');
-      } catch (e) {
-        console.warn('⚠️ Failed to remove canvas:', e);
-      }
-    });
-    
-    // Also check body for any stray canvas elements
-    const bodyCanvases = document.body.querySelectorAll('canvas');
-    bodyCanvases.forEach(canvas => {
-      // Only remove if it's part of app container
-      if (canvas.parentElement === host || canvas.parentElement === document.body) {
+  if (!reuseApp) {
+    try {
+      // Remove all canvas elements from app container
+      const existingCanvases = host.querySelectorAll('canvas');
+      existingCanvases.forEach(canvas => {
         try {
           canvas.remove();
-          console.log('✅ Removed stray canvas from body');
+          console.log('✅ Removed existing canvas from DOM');
         } catch (e) {
-          console.warn('⚠️ Failed to remove stray canvas:', e);
+          console.warn('⚠️ Failed to remove canvas:', e);
         }
-      }
-    });
-  } catch (e) {
-    console.warn('⚠️ Error removing existing canvas elements:', e);
+      });
+      
+      // Also check body for any stray canvas elements
+      const bodyCanvases = document.body.querySelectorAll('canvas');
+      bodyCanvases.forEach(canvas => {
+        // Only remove if it's part of app container
+        if (canvas.parentElement === host || canvas.parentElement === document.body) {
+          try {
+            canvas.remove();
+            console.log('✅ Removed stray canvas from body');
+          } catch (e) {
+            console.warn('⚠️ Failed to remove stray canvas:', e);
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('⚠️ Error removing existing canvas elements:', e);
+    }
   }
   
-  console.log('🎮 Creating fresh PIXI app');
-  app = new Application();
-  await app.init({
-    resizeTo: window,
-    backgroundAlpha: 0, // Transparent so paper BG shows behind board + HUD
-    antialias: false, // Disable antialiasing for pixel-perfect rendering
-    // Use full device pixel ratio for maximum crispness
-    resolution: window.devicePixelRatio || 1,
-    powerPreference: "high-performance" // Optimize for performance
-  });
+  if (!reuseApp) {
+    console.log('🎮 Creating fresh PIXI app');
+    app = new Application();
+    await app.init({
+      resizeTo: window,
+      backgroundAlpha: 0, // Transparent so paper BG shows behind board + HUD
+      antialias: false, // Disable antialiasing for pixel-perfect rendering
+      // Use full device pixel ratio for maximum crispness
+      resolution: window.devicePixelRatio || 1,
+      powerPreference: "high-performance" // Optimize for performance
+    });
+  } else {
+    // Ensure renderer is active on reuse
+    try { app.ticker.start(); } catch {}
+  }
   
   // 🔥 CRITICAL FIX: Ensure app is rendering
   console.log('✅ PIXI app initialized');
   console.log('✅ App renderer width:', app.renderer.width, 'height:', app.renderer.height);
   console.log('✅ App canvas width:', app.canvas.width, 'height:', app.canvas.height);
   console.log('✅ App canvas in DOM:', !!app.canvas.parentElement);
-  
-  // 🔥 CRITICAL FIX: Restore preserved bubbles explosion container on new stage
-  // This handles the case where boot() destroyed the old stage while animation was running
-  // We preserved the container in Step 5 above, now we restore it to the new stage
-  try {
-    const preservedContainer = (window as any).__ccPreservedBubblesContainer;
-    if (preservedContainer && !preservedContainer.destroyed && stage) {
-      console.log('💧 boot: Restoring preserved bubbles explosion container to new stage');
-      try {
-        // Import module to restore container reference
-        const bubblesModule = await import('./wild-beer-bubbles-explosion.js');
-        if (bubblesModule && typeof bubblesModule.setExplosionContainer === 'function') {
-          bubblesModule.setExplosionContainer(preservedContainer);
-        }
-        
-        // Ensure container is properly set up
-        preservedContainer.visible = true;
-        preservedContainer.alpha = 1.0;
-        preservedContainer.renderable = true;
-        preservedContainer.zIndex = 99999;
-        
-        // Add to new stage
-        stage.addChild(preservedContainer);
-        stage.sortChildren?.();
-        
-        // Ensure container is at the top of display list
-        const currentIndex = stage.getChildIndex(preservedContainer);
-        const lastIndex = stage.children.length - 1;
-        if (currentIndex !== lastIndex) {
-          stage.removeChild(preservedContainer);
-          stage.addChild(preservedContainer);
-          stage.sortChildren?.();
-        }
-        
-        // Clear preserved reference
-        delete (window as any).__ccPreservedBubblesContainer;
-        
-        console.log('✅ boot: Bubbles explosion container restored on new stage', {
-          containerVisible: preservedContainer.visible,
-          containerAlpha: preservedContainer.alpha,
-          containerRenderable: preservedContainer.renderable,
-          containerZIndex: preservedContainer.zIndex,
-          containerChildren: preservedContainer.children?.length || 0,
-          containerInStage: !!(preservedContainer.parent && preservedContainer.parent === stage),
-          containerIndex: stage.getChildIndex(preservedContainer)
-        });
-      } catch (e) {
-        console.error('❌ boot: Failed to restore bubbles explosion container:', e);
-        delete (window as any).__ccPreservedBubblesContainer;
-      }
-    } else if (preservedContainer) {
-      console.warn('⚠️ boot: Preserved bubbles container is destroyed or stage not ready', {
-        containerDestroyed: preservedContainer.destroyed,
-        hasStage: !!stage
-      });
-      delete (window as any).__ccPreservedBubblesContainer;
-    }
-  } catch (e) {
-    console.warn('⚠️ boot: Error restoring bubbles explosion container:', e);
-    delete (window as any).__ccPreservedBubblesContainer;
-  }
   
   // Add fade in animation for background transition
   // 🔥 CRITICAL FIX: Only auto-show canvas if NOT coming from Journey (saved game)
@@ -929,7 +1049,7 @@ export async function boot(){
   app.canvas.style.transition = 'opacity 0.6s ease';
   const cameFromJourney = window.__ccCameFromJourney;
   if (!cameFromJourney) {
-    setTimeout(() => {
+    trackAppTimeout(() => {
       app.canvas.style.opacity = '1';
     }, 50);
   } else {
@@ -1008,7 +1128,9 @@ export async function boot(){
     console.log('✅ Host element made visible before adding canvas');
   }
   
-  host.appendChild(app.canvas);
+  if (!reuseApp) {
+    host.appendChild(app.canvas);
+  }
   app.canvas.style.touchAction = 'none';
   app.canvas.style.zIndex = '10'; /* Above background, below sliders */
   
@@ -1069,6 +1191,10 @@ export async function boot(){
   
   // Basic setup
   stage   = app.stage; stage.sortableChildren = true;
+  // 🔥 CRITICAL: Ensure stage is visible after clean-board modal hides it
+  stage.visible = true;
+  stage.alpha = 1;
+  stage.renderable = true;
   board   = new Container(); board.sortableChildren = true;
   boardBG = new Graphics();
   hud     = new Container(); hud.eventMode = 'none';
@@ -1090,6 +1216,105 @@ export async function boot(){
   backgroundLayer = null;
   window._ghostPlaceholders = null;
   console.log('✅ boot: Cleared backgroundLayer and window._ghostPlaceholders references (will be recreated in startLevel)');
+  
+  // 🔥 CRITICAL FIX: Restore preserved bubbles explosion container to new stage
+  const preservedBubblesContainer = (window as any).__ccPreservedBubblesContainer;
+  if (preservedBubblesContainer && !preservedBubblesContainer.destroyed) {
+    try {
+      // Use dynamic import to restore bubbles container
+      import('./wild-beer-bubbles-explosion.js').then(({ setExplosionContainer }) => {
+        if (setExplosionContainer && preservedBubblesContainer && !preservedBubblesContainer.destroyed) {
+          // Restore the module's internal reference to the container
+          setExplosionContainer(preservedBubblesContainer);
+          
+          // Ensure FX layer exists (create if needed, similar to getFxHost in bubbles module)
+          let fxLayer = (window as any).__ccGlobalFxLayer;
+          const needsNew = !fxLayer || fxLayer.destroyed || fxLayer.parent !== stage;
+          if (needsNew) {
+            try {
+              fxLayer = new Container();
+              fxLayer.name = '__ccGlobalFxLayer';
+              fxLayer.zIndex = 999900; // Below bubbles container but above everything else
+              fxLayer.eventMode = 'none';
+              fxLayer.visible = true;
+              fxLayer.alpha = 1.0;
+              fxLayer.renderable = true;
+              fxLayer.position.set(0, 0);
+              fxLayer.scale.set(1, 1);
+              try { fxLayer.interactiveChildren = false; } catch {}
+              if (stage.sortableChildren !== undefined) {
+                stage.sortableChildren = true;
+              }
+              stage.addChild(fxLayer);
+              stage.sortChildren?.();
+              (window as any).__ccGlobalFxLayer = fxLayer;
+              console.log('💧 boot: Created new FX layer for bubbles container restoration');
+            } catch (e) {
+              console.warn('⚠️ boot: Failed to create FX layer:', e);
+              fxLayer = stage; // Fallback to stage
+            }
+          }
+          
+          // Wait a frame to ensure stage is fully initialized
+          trackAppAnimationFrame(() => {
+            if (fxLayer && !fxLayer.destroyed && preservedBubblesContainer && !preservedBubblesContainer.destroyed) {
+              // Ensure container properties are correct
+              preservedBubblesContainer.visible = true;
+              preservedBubblesContainer.alpha = 1.0;
+              preservedBubblesContainer.renderable = true;
+              preservedBubblesContainer.zIndex = 999999;
+              
+              // Add container to FX layer
+              if (fxLayer.sortableChildren !== undefined) {
+                fxLayer.sortableChildren = true;
+              }
+              fxLayer.addChild(preservedBubblesContainer);
+              fxLayer.sortChildren?.();
+              
+              // Ensure container is at the top of display list
+              const currentIndex = fxLayer.getChildIndex(preservedBubblesContainer);
+              const lastIndex = fxLayer.children.length - 1;
+              if (currentIndex !== lastIndex) {
+                fxLayer.removeChild(preservedBubblesContainer);
+                fxLayer.addChild(preservedBubblesContainer);
+                preservedBubblesContainer.zIndex = 999999;
+                fxLayer.sortChildren?.();
+              }
+              
+              // Force render to ensure visibility
+              try {
+                app.renderer.render(stage);
+              } catch {}
+              
+              console.log('💧 boot: Restored bubbles explosion container to new stage', {
+                containerVisible: preservedBubblesContainer.visible,
+                containerAlpha: preservedBubblesContainer.alpha,
+                containerChildren: preservedBubblesContainer.children?.length || 0,
+                containerInStage: !!(preservedBubblesContainer.parent),
+                fxLayerChildren: fxLayer.children.length
+              });
+              
+              // Clear global reference after successful restoration
+              delete (window as any).__ccPreservedBubblesContainer;
+            } else {
+              console.warn('⚠️ boot: Cannot restore bubbles container - FX layer or container invalid', {
+                hasFxLayer: !!fxLayer,
+                fxLayerDestroyed: fxLayer?.destroyed,
+                containerDestroyed: preservedBubblesContainer?.destroyed
+              });
+              delete (window as any).__ccPreservedBubblesContainer;
+            }
+          });
+        }
+      }).catch((restoreError) => {
+        console.warn('⚠️ boot: Failed to restore bubbles container:', restoreError);
+        delete (window as any).__ccPreservedBubblesContainer;
+      });
+    } catch (restoreError) {
+      console.warn('⚠️ boot: Failed to import bubbles module for restoration:', restoreError);
+      delete (window as any).__ccPreservedBubblesContainer;
+    }
+  }
   
   console.log('✅ Board and HUD containers created and added to stage');
   console.log('✅ Board visible:', board.visible, 'alpha:', board.alpha, 'renderable:', board.renderable, 'in stage:', !!board.parent);
@@ -1115,7 +1340,7 @@ export async function boot(){
 
   // Resolve prize assets - DEFER non-critical prize loading to avoid delay
   // These are only needed during endgame, not for initial board
-  setTimeout(() => {
+  trackAppTimeout(() => {
     loadFirstTexture(MYSTERY_CANDIDATES).then(path => { MYSTERY_PATH = path; }).catch(() => {});
     loadFirstTexture(COIN_CANDIDATES).then(path => { COIN_PATH = path; }).catch(() => {});
   }, 0);
@@ -1324,7 +1549,7 @@ export async function boot(){
   }
   
   // 🔥 CRITICAL FIX: Final check - ensure board and hud are visible after startLevel
-  setTimeout(() => {
+  trackAppTimeout(() => {
     if (board) {
       board.visible = true;
       board.alpha = 1;
@@ -1341,7 +1566,7 @@ export async function boot(){
   
   // Force HUD reinit after board numbering changes
   _hudInitDone = false;
-  window.addEventListener('resize', layoutBoard);
+  trackAppListener(window, 'resize', layoutBoard);
   scheduleIdleCheck();
 
   // viewport + fonts
@@ -1366,29 +1591,8 @@ export async function boot(){
   async function showCleanBoardOverlay() {
     console.log('🧪 Testing: Triggering clean board screen from menu Done button');
     
-    // Set busyEnding to prevent other interactions
-    busyEnding = true;
-    
-    try {
-      await runEndgameFlow({
-        app,
-        stage,
-        board,
-        boardBG,
-        level,
-        startLevel,
-        score,
-        getScore: () => score,
-        setScore: (v) => { score = v|0; updateHUD(); },
-        animateScore,
-        updateHUD,
-        boardNumber,
-        hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
-        showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
-      });
-    } finally {
-      busyEnding = false;
-    }
+    // 🔥 FIX: Use triggerCleanBoardFlow for consistency with all other clean board paths
+    await triggerCleanBoardFlow('clean_board_from_test_overlay');
   }
 
   // Debug mini-API (ostavljeno)
@@ -1412,6 +1616,7 @@ export async function boot(){
     resume: () => resumeGame(),
     restart: () => restart(),
     showCleanBoardOverlay: () => showCleanBoardOverlay(),
+    triggerCleanBoardFlow: (reason: string) => triggerCleanBoardFlow(reason), // 🔥 CRITICAL: Export for consistent clean board flow from all paths
     checkLevelEnd: () => checkLevelEnd(), // Export checkLevelEnd for use in app-merge.ts
     scheduleWildRescue: (reason, count) => scheduleWildRescue(reason, count), // 🔥 CRITICAL: Export for emergency rescue
     applyWildSkinLocal: (tile) => applyWildSkinLocal(tile), // 🔥 CRITICAL: Export for wild-magnet electric glow
@@ -1421,6 +1626,8 @@ export async function boot(){
     killComboTimer: () => killComboTimer(), // 🔥 CRITICAL: Export killComboTimer to kill existing timer before updating combo
     addStars: (count) => StarsCollector.addStars(count|0), // 🔥 CRITICAL: Export addStars for synchronous star collection
     setStarsCount: (count) => StarsCollector.setStarsCount(count|0), // 🔥 CRITICAL: Export setStarsCount for resetting star count on restart
+    cleanupFxForBoardReset: (reason = 'window') => cleanupFxForBoardReset(reason),
+    softResetBoardView: (reason = 'window') => softResetBoardView(reason),
   };
   
   // 🔥 MEMORY LEAK FIX: Export cleanup functions for global cleanup
@@ -1430,7 +1637,7 @@ export async function boot(){
 
   // Run layout after viewport/meta/styles are in place to get correct safe-area values
   try {
-    requestAnimationFrame(async () => {
+    trackAppAnimationFrame(async () => {
       await layoutBoard();
     });
   } catch {
@@ -1444,7 +1651,7 @@ export async function boot(){
   // 🔥 CRITICAL: Re-apply paper background to 35% opacity at the end of boot() as fallback
   // This ensures it's set even if something overrides it during boot process
   // Use setTimeout to ensure it runs after all other code
-  setTimeout(() => {
+  trackAppTimeout(() => {
     const paperAlpha = 0.35;
     document.documentElement?.style.setProperty('--paper-alpha', paperAlpha.toString());
     
@@ -1716,7 +1923,7 @@ export async function layoutBoard(){
         
         // 🔥 CRITICAL: Fallback to trigger HUD drop shortly after init (for slow devices)
         if (_hudDropPending) {
-          setTimeout(() => {
+          trackAppTimeout(() => {
             if (!_hudDropPending) return; // already handled by sweetPopIn
             try {
               const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
@@ -1726,7 +1933,7 @@ export async function layoutBoard(){
               }
               if (!hudRoot._dropped && typeof HUD.playHudDrop === 'function') {
                 // Start on next paint so user definitely sees the drop (especially iPhone)
-                requestAnimationFrame(() => requestAnimationFrame(() => {
+                trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
                   // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
                   if (app && app.canvas) {
                     app.canvas.style.opacity = '1';
@@ -1935,14 +2142,9 @@ function initializeBackgroundLayer(){
   try {
     // 🔥 CRITICAL FIX: Ensure backgroundLayer is visible before updating ghost visibility
     backgroundLayer.visible = true;
-    if (typeof window.updateGhostVisibility === 'function') {
-      window.updateGhostVisibility();
-      console.log('✅ Ghost visibility updated after background layer creation (window function)');
-    } else {
-      // Fallback: Show all ghosts initially (will be hidden by updateGhostVisibility later)
-      updateGhostVisibility();
-      console.log('✅ Ghost visibility updated after background layer creation (fallback)');
-    }
+    // Fallback: Show all ghosts initially (will be hidden by updateGhostVisibility later)
+    updateGhostVisibility();
+    console.log('✅ Ghost visibility updated after background layer creation');
     // 🔥 CRITICAL FIX: Double-check that ghost placeholders are visible
     if (window._ghostPlaceholders && Array.isArray(window._ghostPlaceholders)) {
       let visibleCount = 0;
@@ -1998,7 +2200,8 @@ function updateGhostVisibility() {
   for (let r=0; r<ROWS; r++) {
     for (let c=0; c<COLS; c++) {
       const cell = grid[r]?.[c];
-      const shouldShow = (cell === null); // Show ONLY if no tile exists
+      // Show placeholder only if truly empty, or if locked empty tile is NOT visible
+      const shouldShow = (cell === null) || (!!cell && cell.locked && (cell.value|0) <= 0 && cell.visible === false);
       
       if (window._ghostPlaceholders[r] && window._ghostPlaceholders[r][c]) {
         window._ghostPlaceholders[r][c].visible = shouldShow;
@@ -2025,11 +2228,7 @@ function drawBoardBG(mode = 'active+empty'){
   
   // 🔥 v70 STYLE: Update ghost visibility based on grid state
   // Show ghosts for empty cells (where grid[r][c] === null)
-  if (typeof window.updateGhostVisibility === 'function') {
-    window.updateGhostVisibility();
-  } else {
-    updateGhostVisibility();
-  }
+  updateGhostVisibility();
 }
 
 function pulseBoardZoom(factor = 0.92, opts = {}) {
@@ -2057,7 +2256,9 @@ function pulseBoardZoom(factor = 0.92, opts = {}) {
   const outEase = opts.outEase ?? 'power3.out';
   const inEase  = opts.inEase  ?? 'elastic.out(1, 0.6)';
 
-  const tl = gsap.timeline({ onComplete: () => { board._wildZoomTl = null; try { userOnComplete?.(); } catch {} } });
+  const tl = animationManager.trackExternalTimeline(
+    gsap.timeline({ onComplete: () => { board._wildZoomTl = null; try { userOnComplete?.(); } catch {} } })
+  );
 
   tl.to(board.scale, {
     x: sx0 * scaleFactor,
@@ -2202,14 +2403,6 @@ function resetBoardContainer(){
         }
         console.log('✅ resetBoardContainer (app.js): window._ghostPlaceholders reinitialized from backgroundLayer');
       }
-      // 🔥 CRITICAL FIX: Update ghost visibility after re-adding background layer
-      if (backgroundLayer && typeof window.updateGhostVisibility === 'function') {
-        window.updateGhostVisibility();
-        console.log('✅ resetBoardContainer (app.js): Ghost visibility updated after re-adding background layer');
-      } else if (backgroundLayer) {
-        updateGhostVisibility();
-        console.log('✅ resetBoardContainer (app.js): Ghost visibility updated (fallback)');
-      }
     } catch (e) {
       console.warn('⚠️ resetBoardContainer (app.js): Failed to re-add background layer:', e);
       // If re-adding fails, ensure global reference is cleared so it gets recreated
@@ -2228,15 +2421,6 @@ function resetBoardContainer(){
       try {
         initializeBackgroundLayer();
         console.log('✅ resetBoardContainer (app.js): Background layer recreated successfully');
-        // 🔥 CRITICAL FIX: Update ghost visibility immediately after recreating background layer
-        // This ensures ghost placeholders are visible on the new board
-        if (backgroundLayer && typeof window.updateGhostVisibility === 'function') {
-          window.updateGhostVisibility();
-          console.log('✅ resetBoardContainer (app.js): Ghost visibility updated after recreating background layer');
-        } else if (backgroundLayer) {
-          updateGhostVisibility();
-          console.log('✅ resetBoardContainer (app.js): Ghost visibility updated (fallback)');
-        }
       } catch (e) {
         console.error('❌ resetBoardContainer (app.js): Failed to recreate background layer:', e);
       }
@@ -2247,6 +2431,13 @@ function resetBoardContainer(){
   boardBG.eventMode = 'none';
   board.sortableChildren = true;
   board.sortChildren();
+
+  // Single ghost visibility update after background layer handling
+  try {
+    if (backgroundLayer) {
+      updateGhostVisibility();
+    }
+  } catch {}
   
   console.log('🔄 resetBoardContainer (app.js): Final children count:', board.children.length);
   console.log('🔄 resetBoardContainer (app.js): Background layer in board after reset:', !!board.children.find(c => c.label === 'BackgroundLayer'));
@@ -2264,22 +2455,7 @@ function rebuildBoard(){
   
   resetBoardContainer();
   
-  // 🔥 OPTIMIZATION: Clear all tracked timeouts before rebuild
-  clearAllAppTimeouts();
-  
-  // 🔥 OPTIMIZATION: Kill all GSAP delayed calls before rebuild
-  try {
-    if (typeof killAllDelayedCalls === 'function') {
-      killAllDelayedCalls();
-      console.log('🧹 Killed all GSAP delayed calls during board rebuild');
-    } else {
-      // Fallback: try to kill delayed calls directly
-      try { gsap.killDelayedCalls(); } catch {}
-    }
-  } catch {}
-  
-  // 🔥 MEMORY LEAK FIX: Cleanup all wild animations and GSAP tweens before destroy
-  // This prevents "ghost" animations from continuing after tiles are destroyed
+  // NOTE: FX/timer cleanup is handled centrally in cleanupFxForBoardReset()
   tiles.forEach(t => {
     // 🔥 CRITICAL: Stop all idle animations first
     try { stopWildIdle?.(t); } catch {}
@@ -2288,27 +2464,19 @@ function rebuildBoard(){
     try { stopWildBeerBubbles?.(t); } catch {}
     try { stopMagnetIdleParticles?.(t); } catch {}
     
-    // 🔥 CRITICAL: Kill any GSAP tweens from idle bounce (but don't reset interaction timer)
-    // notifyInteraction() would reset the timer, which could interfere with end game checks
+    // Kill any per-tile tweens
     try {
-      // Just kill tweens, don't reset interaction timer
       gsap.killTweensOf(t);
       gsap.killTweensOf(t.scale);
       gsap.killTweensOf(t.rotation);
-      
-      // Kill idle bounce timeline if it exists on tile
       if ((t as any)._idleBounceTl) {
-        try {
-          (t as any)._idleBounceTl.kill();
-          (t as any)._idleBounceTl = null;
-        } catch {}
+        try { (t as any)._idleBounceTl.kill(); } catch {}
+        (t as any)._idleBounceTl = null;
       }
     } catch {}
     
-    // 🔥 OPTIMIZATION: Kill tile animations from animation modules (if available)
+    // Kill any tile animations if available
     try {
-      // Try to import and use killTileAnimations from merge-animations or drag-animations
-      // Note: We can't import directly here, so we check if it's available globally
       if (typeof (window as any).killTileAnimations === 'function') {
         (window as any).killTileAnimations(t);
       }
@@ -2331,52 +2499,7 @@ function rebuildBoard(){
   });
   tiles.length=0;
   
-  // 🔥 CRITICAL: Cleanup wild beer explosion animation when board is rebuilt
-  // 🔥 BUBBLES ANIMATION FIX: Skip cleanup during board transition to prevent race condition
-  // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations to prevent memory leaks
-  try {
-    // 🔥 CRITICAL FIX: Skip bubble explosion cleanup during board transition OR if recently started
-    // This prevents race condition where cleanup stops animation before it can start
-    const isBoardTransitionActive = (window as any).__ccBoardTransitionActive === true;
-    const isRecentlyStarted = typeof isWildBeerBubblesExplosionRecentlyStarted === 'function' && isWildBeerBubblesExplosionRecentlyStarted();
-    
-    if (!isBoardTransitionActive && !isRecentlyStarted && typeof stopWildBeerBubblesExplosion === 'function') {
-      if (isWildBeerBubblesExplosionActive()) {
-        stopWildBeerBubblesExplosion();
-        console.log('🧹 rebuildBoard: Cleaned up active wild beer explosion animation');
-      } else {
-        // 🔥 CRITICAL: Force cleanup even if flag says inactive (handles stale containers/flags)
-        stopWildBeerBubblesExplosion();
-        console.log('🧹 rebuildBoard: Force cleaned up wild beer explosion (stale state prevention)');
-      }
-    } else if (isBoardTransitionActive) {
-      console.log('⏸️ rebuildBoard: Skipping bubble explosion cleanup - board transition active');
-    } else if (isRecentlyStarted) {
-      console.log('⏸️ rebuildBoard: Skipping bubble explosion cleanup - explosion recently started (within 5s), allowing animation to continue');
-    }
-    
-    // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations
-    if (typeof cleanupExistingStarAnimations === 'function') {
-      cleanupExistingStarAnimations();
-      console.log('🧹 rebuildBoard: Cleaned up stars-to-HUD animations');
-    }
-  } catch (e) {
-    console.warn('⚠️ rebuildBoard: Failed to cleanup animations:', e);
-    // 🔥 CRITICAL: Force cleanup on error to prevent stuck state
-    // 🔥 CRITICAL FIX: Don't stop recently started bubbles explosion even on error
-    try {
-      const isRecentlyStarted = typeof isWildBeerBubblesExplosionRecentlyStarted === 'function' && isWildBeerBubblesExplosionRecentlyStarted();
-      if (!isRecentlyStarted && typeof stopWildBeerBubblesExplosion === 'function') {
-        stopWildBeerBubblesExplosion();
-      }
-      // 🔥 STARS ANIMATION FIX: Force cleanup stars animations on error (including protected)
-      if (typeof forceCleanupAllStarAnimations === 'function') {
-        forceCleanupAllStarAnimations();
-      } else if (typeof cleanupExistingStarAnimations === 'function') {
-        cleanupExistingStarAnimations();
-      }
-    } catch {}
-  }
+  // 🔥 NOTE: FX cleanup handled centrally via cleanupFxForBoardReset()
   createEmptyGrid();
   drawBoardBG('none');
 
@@ -2424,52 +2547,9 @@ function rebuildBoard(){
     } catch (e) {
       console.warn('⚠️ rebuildBoard: Failed to ensure background layer in board:', e);
     }
-    console.log('✅ Ghost placeholders visible (v70 style)');
+    console.log('✅ Background layer ensured in rebuildBoard()');
   } else {
     console.warn('⚠️ rebuildBoard: backgroundLayer is null - will be created in startLevel()');
-  }
-  
-  // 🔥 v70 STYLE: Update ghost visibility before animation starts
-  // Only if backgroundLayer exists, otherwise it will be updated after initializeBackgroundLayer()
-  if (backgroundLayer) {
-    try {
-      // 🔥 CRITICAL FIX: Ensure backgroundLayer is visible before updating ghost visibility
-      backgroundLayer.visible = true;
-      // 🔥 CRITICAL FIX: Ensure window._ghostPlaceholders is initialized if backgroundLayer exists
-      if (!window._ghostPlaceholders && backgroundLayer.children.length > 0) {
-        console.log('🔄 rebuildBoard: window._ghostPlaceholders is null, reinitializing from backgroundLayer...');
-        window._ghostPlaceholders = [];
-        for (let r = 0; r < ROWS; r++) {
-          window._ghostPlaceholders[r] = [];
-          for (let c = 0; c < COLS; c++) {
-            const ghostLabel = `Ghost_${c}_${r}`;
-            const ghost = backgroundLayer.children.find((child: any) => child.label === ghostLabel);
-            if (ghost) {
-              window._ghostPlaceholders[r][c] = ghost;
-            }
-          }
-        }
-        console.log('✅ rebuildBoard: window._ghostPlaceholders reinitialized from backgroundLayer');
-      }
-      updateGhostVisibility();
-      console.log('✅ Ghost visibility updated in rebuildBoard()');
-    } catch (e) {
-      console.warn('⚠️ rebuildBoard: Failed to update ghost visibility:', e);
-    }
-  } else {
-    // 🔥 CRITICAL FIX: If backgroundLayer doesn't exist, recreate it
-    // This can happen if boot() destroyed it and resetBoardContainer() didn't recreate it properly
-    console.warn('⚠️ rebuildBoard: backgroundLayer is null - recreating...');
-    try {
-      initializeBackgroundLayer();
-      if (backgroundLayer) {
-        backgroundLayer.visible = true;
-        updateGhostVisibility();
-        console.log('✅ rebuildBoard: Background layer recreated and ghost visibility updated');
-      }
-    } catch (e) {
-      console.error('❌ rebuildBoard: Failed to recreate background layer:', e);
-    }
   }
   
   // Start animation (optionally wait a frame if HUD is not ready so drop can be visible)
@@ -2489,7 +2569,7 @@ function rebuildBoard(){
           }
           if (typeof HUD.playHudDrop === 'function') {
             // Start on next paint so user definitely sees the drop (especially iPhone)
-            requestAnimationFrame(() => requestAnimationFrame(() => {
+            trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
               // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
               if (app && app.canvas) {
                 app.canvas.style.opacity = '1';
@@ -2532,24 +2612,76 @@ function rebuildBoard(){
   };
   
   const shouldDelayForHUD = _hudDropPending && !hudReady;
-  const sweetPopPromise = shouldDelayForHUD
-    ? new Promise(resolve => setTimeout(() => resolve(sweetPopInRunner()), 120))
-    : sweetPopInRunner();
+  
+  // 🔥 CRITICAL: Ensure GSAP + ticker are running before pop-in starts
+  try { gsap.globalTimeline.resume(); } catch {}
+  try { gsap.ticker?.wake?.(); } catch {}
+  try { if (app?.ticker && !app.ticker.started) app.ticker.start(); } catch {}
+  const runPopIn = () =>
+    shouldDelayForHUD
+      ? new Promise(resolve => trackAppTimeout(() => resolve(sweetPopInRunner()), 120))
+      : sweetPopInRunner();
+  
+  // 🔥 CRITICAL: If app is hidden during transition, delay pop-in until visible
+  const sweetPopPromise = new Promise(resolve => {
+    const appEl = document.getElementById('app');
+    const isHidden = () =>
+      !!appEl && (appEl.hasAttribute('hidden') || appEl.style.display === 'none' || appEl.style.visibility === 'hidden');
+    const startAt = Date.now();
+    const tryStart = () => {
+      if (!isHidden() || (Date.now() - startAt) > 1500) {
+        if (isHidden()) {
+          try {
+            appEl?.removeAttribute('hidden');
+            if (appEl) {
+              appEl.style.display = 'block';
+              appEl.style.visibility = 'visible';
+              appEl.style.opacity = '1';
+            }
+          } catch {}
+        }
+        Promise.resolve(runPopIn()).then(resolve);
+        return;
+      }
+      trackAppTimeout(tryStart, 100);
+    };
+    tryStart();
+  });
+  
+  // 🔥 SAFETY NET: If pop-in is stalled or timeline is throttled, force tiles visible
+  trackAppTimeout(() => {
+    try {
+      let invisibleCount = 0;
+      for (const t of tiles) {
+        if (!t || t.destroyed) continue;
+        if (t.locked || (t.value | 0) <= 0) continue;
+        if (!t.visible || (t.alpha ?? 0) < 0.9) invisibleCount++;
+      }
+      if (invisibleCount > 0) {
+        console.warn(`⚠️ sweetPopIn safety: Forcing visibility on ${invisibleCount} tiles`);
+        try { gsap.globalTimeline.resume(); } catch {}
+        try { if (app?.ticker && !app.ticker.started) app.ticker.start(); } catch {}
+        for (const t of tiles) {
+          if (!t || t.destroyed) continue;
+          if (t.locked || (t.value | 0) <= 0) continue;
+          t.visible = true;
+          t.alpha = 1;
+          t.renderable = true;
+        }
+        try { updateGhostVisibility(); } catch {}
+      }
+    } catch (e) {
+      console.warn('⚠️ sweetPopIn safety failed:', e);
+    }
+  }, 800);
   
   sweetPopPromise.then(() => {
-    // 🔥 v70 STYLE: Update ghost visibility after animation completes
-    // Show ghosts for empty cells (where grid[r][c] === null)
-    if (backgroundLayer) {
-      updateGhostVisibility();
-      console.log('✅ Ghost placeholders updated after sweetPopIn (v70 style)');
-    }
-    
     // 🔥 CRITICAL FIX: Final check - ensure HUD is visible and positioned after animation
     if (_hudDropPending) {
       console.log('🎯 HUD drop still pending after sweetPopIn - triggering now');
       try {
         if (typeof HUD.playHudDrop === 'function') {
-          requestAnimationFrame(() => requestAnimationFrame(() => {
+          trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
             // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
             if (app && app.canvas) {
               app.canvas.style.opacity = '1';
@@ -2578,6 +2710,29 @@ function rebuildBoard(){
       }
     } catch (e) {
       console.error('❌ Failed to ensure HUD visibility after sweetPopIn:', e);
+    }
+
+    // 🔥 CRITICAL FIX: Ensure tiles are fully visible after sweetPopIn
+    // GSAP cleanup can interrupt the pop-in tweens and leave tiles at low alpha
+    try {
+      if (board) {
+        board.alpha = 1;
+        board.visible = true;
+        board.renderable = true;
+      }
+      let fixedCount = 0;
+      for (const t of tiles) {
+        if (!t || t.destroyed) continue;
+        if (t.locked || (t.value | 0) <= 0) continue;
+        if (t.alpha !== 1) { t.alpha = 1; fixedCount++; }
+        if (t.visible !== true) { t.visible = true; fixedCount++; }
+        if (t.renderable === false) { t.renderable = true; fixedCount++; }
+      }
+      if (fixedCount > 0) {
+        console.log(`✅ sweetPopIn: Forced visibility on ${fixedCount} tile props`);
+      }
+    } catch (e) {
+      console.warn('⚠️ sweetPopIn: Failed to force tile visibility:', e);
     }
   });
   console.log('✅ sweetPopIn started immediately - no waiting');
@@ -2739,7 +2894,7 @@ async function animateBoardExit(){
       console.warn('⚠️ Failed to call HUD.playHudRise:', e);
     }
     // 🔥 CRITICAL FIX: Even with no tiles, wait for HUD animation to be visible
-    await new Promise(resolve => setTimeout(resolve, 400));
+    await new Promise(resolve => trackAppTimeout(resolve, 400));
     return Promise.resolve();
   }
   
@@ -2760,7 +2915,7 @@ async function animateBoardExit(){
   if (validTiles.length === 0) {
     console.warn('⚠️ All tiles are destroyed/invalid - skipping sweetPopOut');
     // Wait for HUD animation to complete
-    await new Promise(resolve => setTimeout(resolve, 400));
+    await new Promise(resolve => trackAppTimeout(resolve, 400));
     return Promise.resolve();
   }
   
@@ -2777,7 +2932,7 @@ async function animateBoardExit(){
     const maxAnimationTime = Math.max(550, 300); // sweetPopOut max ~550ms, HUD 300ms
     console.log(`⏳ Waiting for exit animations to complete (${maxAnimationTime}ms)...`);
     return new Promise(resolve => {
-      setTimeout(resolve, maxAnimationTime);
+      trackAppTimeout(resolve, maxAnimationTime);
     });
   });
 }
@@ -2789,8 +2944,25 @@ async function animateBoardExit(){
 function startLevel(n){
   console.log('🎯 startLevel called with:', n, 'current level:', level, 'current boardNumber:', boardNumber, 'current score:', score);
   
+  // Reset global FX layer to avoid stale transforms/masks between boards
+  resetGlobalFxLayer('startLevel');
+  // Avoid double FX cleanup if endgame-flow just cleaned up
+  const lastFxCleanup = (window as any).__ccLastFxCleanupAt || 0;
+  const recentlyCleaned = (Date.now() - lastFxCleanup) < 1000;
+  if (!recentlyCleaned) {
+    cleanupFxForBoardReset('startLevel');
+  } else {
+    console.log('⏭️ startLevel: Skipping cleanupFxForBoardReset (recently cleaned in endgame-flow)');
+  }
+  softResetBoardView('startLevel');
+  
   // 🔥 CRITICAL FIX: Ensure board and hud are visible BEFORE anything else
   // This fixes the issue where board is hidden after cleanup and not restored
+  if (stage) {
+    stage.visible = true;
+    stage.alpha = 1;
+    stage.renderable = true;
+  }
   if (board) {
     board.visible = true;
     board.alpha = 1;
@@ -2824,85 +2996,7 @@ function startLevel(n){
     console.error('❌ HUD is null in startLevel!');
   }
   
-  // 🔥 CRITICAL FIX: Cleanup all animations before starting new level
-  // This prevents memory leaks and conflicts that could cause crashes
-  // 🔥 BUBBLES ANIMATION FIX: Properly import and cleanup bubbles animation to prevent state leaks
-  // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations to prevent memory leaks
-  try {
-    // Cleanup bubbles animation - use proper import instead of window access
-    // 🔥 CRITICAL FIX: Don't stop recently started bubbles explosion (protects animation during board transitions)
-    // 🔥 BUBBLES EXPLOSION FIX: Only cleanup if NOT coming from interim board (Continue button)
-    // This prevents cleanup from interfering with bubbles explosion on new board
-    const isFromInterimBoard = (window as any).__ccFromInterimBoard === true || (window as any).__ccIsInterimBoard === true;
-    if (typeof stopWildBeerBubblesExplosion === 'function') {
-      const isRecentlyStarted = typeof isWildBeerBubblesExplosionRecentlyStarted === 'function' && isWildBeerBubblesExplosionRecentlyStarted();
-      const isActive = isWildBeerBubblesExplosionActive();
-      
-      console.log('🧹 startLevel: Bubbles explosion cleanup check', {
-        isFromInterimBoard,
-        isRecentlyStarted,
-        isActive,
-        willCleanup: !isFromInterimBoard && !isRecentlyStarted
-      });
-      
-      // 🔥 CRITICAL FIX: NEVER cleanup bubbles explosion in startLevel() if it was recently started
-      // This prevents cleanup from interfering with bubbles explosion on new board
-      // Bubbles explosion should run to completion naturally, not be force-stopped
-      if (isFromInterimBoard) {
-        console.log('⏸️ startLevel: Skipping bubbles cleanup - coming from interim board (Continue button)');
-      } else if (isRecentlyStarted) {
-        console.log('⏸️ startLevel: Skipping bubbles cleanup - explosion recently started (within 5s), allowing animation to continue');
-      } else if (isActive) {
-        // 🔥 CRITICAL: Don't cleanup active bubbles explosion - let it run to completion
-        // Only cleanup if it's been running for more than 5 seconds (stale state)
-        const elapsed = typeof isWildBeerBubblesExplosionRecentlyStarted === 'function' 
-          ? (performance.now() - (window as any).__ccBubblesExplosionStartTime || 0)
-          : 0;
-        if (elapsed > 5000) {
-          console.log('🧹 startLevel: Cleaning up stale bubbles explosion (running > 5s)');
-          stopWildBeerBubblesExplosion();
-        } else {
-          console.log('⏸️ startLevel: Skipping cleanup - bubbles explosion is active and recent, allowing animation to continue');
-        }
-      } else {
-        // 🔥 CRITICAL: Don't force cleanup - bubbles explosion might be starting
-        // Only cleanup if explicitly needed (stale state that's been inactive for a while)
-        console.log('⏸️ startLevel: Skipping force cleanup - bubbles explosion is not active (might be starting)');
-      }
-    }
-    
-    // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations
-    if (typeof cleanupExistingStarAnimations === 'function') {
-      cleanupExistingStarAnimations();
-      console.log('🧹 startLevel: Cleaned up stars-to-HUD animations');
-    }
-    
-    // 🔥 GRACEFUL CLEANUP: Stop new confetti spawns but let existing animations finish
-    // This allows confetti to continue animating when new board starts
-    import('./confetti-system.js').then(confettiModule => {
-      if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
-        confettiModule.stopConfettiSpawns();
-      }
-    }).catch(() => {
-      // Ignore import errors
-    });
-  } catch (e) {
-    console.warn('⚠️ startLevel: Failed to cleanup animations (non-fatal):', e);
-    // 🔥 CRITICAL: Force reset flag even if cleanup fails (prevents stuck state)
-    // 🔥 CRITICAL FIX: Don't stop recently started bubbles explosion even on error
-    try {
-      const isRecentlyStarted = typeof isWildBeerBubblesExplosionRecentlyStarted === 'function' && isWildBeerBubblesExplosionRecentlyStarted();
-      if (!isRecentlyStarted && typeof stopWildBeerBubblesExplosion === 'function') {
-        stopWildBeerBubblesExplosion();
-      }
-      // 🔥 STARS ANIMATION FIX: Force cleanup stars animations on error (including protected)
-      if (typeof forceCleanupAllStarAnimations === 'function') {
-        forceCleanupAllStarAnimations();
-      } else if (typeof cleanupExistingStarAnimations === 'function') {
-        cleanupExistingStarAnimations();
-      }
-    } catch {}
-  }
+  // 🔥 NOTE: FX cleanup handled centrally via cleanupFxForBoardReset()
   
   // 🎯 BOARD-SPECIFIC RULES: Set current board for board-specific rules
   boardNumber = n | 0;
@@ -3031,55 +3125,8 @@ wildMeter = 0;
     // This ensures loadGameState() can be called after bootGame() completes
     // window.__ccSkipRebuildBoard will be deleted in main.ts after loadGameState()
   } else {
-    // 🔥 CRITICAL FIX: Ensure background layer exists BEFORE rebuildBoard()
-    // rebuildBoard() calls resetBoardContainer() which removes all children
-    // If backgroundLayer doesn't exist, it won't be preserved
-    if (!backgroundLayer) {
-      console.log('🎯 Background layer is null before rebuildBoard() - initializing...');
-      initializeBackgroundLayer();
-      console.log('✅ Background layer initialized before rebuildBoard()');
-      // 🔥 CRITICAL FIX: Update ghost visibility immediately after initializing background layer
-      // This ensures ghost placeholders are visible on the new board
-      if (backgroundLayer && typeof window.updateGhostVisibility === 'function') {
-        window.updateGhostVisibility();
-        console.log('✅ Ghost visibility updated after initializing background layer');
-      } else if (backgroundLayer) {
-        updateGhostVisibility();
-        console.log('✅ Ghost visibility updated (fallback)');
-      }
-    } else {
-      // 🔥 CRITICAL FIX: Ensure backgroundLayer is visible even if it exists
-      // This handles cases where it was hidden during board transition
-      backgroundLayer.visible = true;
-      if (typeof window.updateGhostVisibility === 'function') {
-        window.updateGhostVisibility();
-        console.log('✅ Background layer exists - ghost visibility updated');
-      } else {
-        updateGhostVisibility();
-        console.log('✅ Background layer exists - ghost visibility updated (fallback)');
-      }
-    }
-    
-    // 🔥 CRITICAL FIX: Ensure board is visible before rebuildBoard
-    if (board) {
-      board.visible = true;
-      board.alpha = 1;
-      board.renderable = true;
-      console.log('✅ Board made visible before rebuildBoard()');
-    }
-    
     // Start animation immediately - no delay
     rebuildBoard();
-    
-    // 🔥 CRITICAL FIX: Final check - ensure board is visible after rebuildBoard
-    setTimeout(() => {
-      if (board) {
-        board.visible = true;
-        board.alpha = 1;
-        board.renderable = true;
-        console.log('✅ Board visibility confirmed after rebuildBoard (delayed check)');
-      }
-    }, 50);
   }
   
   // CRITICAL: Save game state immediately after starting Board 2+ to enable resume
@@ -3087,7 +3134,7 @@ wildMeter = 0;
   if (boardNumber >= 2) {
     console.log('💾 Board 2+ started, forcing immediate save for resume capability');
     // Force save with minimal delay to ensure user can exit immediately and resume later
-    setTimeout(() => {
+    trackAppTimeout(() => {
       saveGameState();
       console.log('✅ Game state saved after Board 2+ start');
     }, 100); // Reduced from 500ms to 100ms for faster save
@@ -3096,78 +3143,27 @@ wildMeter = 0;
   syncSharedState();
   updateHUD();
   
-  // Initialize background layer after first layout
+  // Ensure layout and background layer are initialized once per startLevel
   layoutBoard().catch(err => {
     console.error('❌ Error in layoutBoard() during startGame:', err);
   });
-  
-  // 🔥 CRITICAL FIX: Always initialize background layer for new games
-  // Even if it was destroyed in cleanupGame(), it needs to be recreated
-  // This MUST happen BEFORE rebuildBoard() creates tiles, otherwise tiles won't be visible
   if (!backgroundLayer) {
-    console.log('🎯 Background layer is null - initializing...');
     initializeBackgroundLayer();
-    console.log('✅ Background layer initialized in startLevel');
-    // 🔥 CRITICAL FIX: Update ghost visibility immediately after initializing background layer
-    if (backgroundLayer && typeof window.updateGhostVisibility === 'function') {
-      window.updateGhostVisibility();
-      console.log('✅ Ghost visibility updated after initializing background layer');
-    } else if (backgroundLayer) {
-      updateGhostVisibility();
-      console.log('✅ Ghost visibility updated (fallback)');
-    }
-  } else {
-    // If backgroundLayer exists, ensure it's visible and in board
-    const bgInBoard = board.children.find(c => c.label === 'BackgroundLayer');
-    if (!bgInBoard) {
-      console.log('⚠️ Background layer exists but not in board - reinitializing...');
-      try {
-        if (board.children.includes(backgroundLayer)) {
-          board.removeChild(backgroundLayer);
-        }
-        backgroundLayer.destroy({ children: true });
-      } catch (e) {
-        console.warn('⚠️ Error removing existing background layer:', e);
-      }
-      backgroundLayer = null;
-      initializeBackgroundLayer();
-      console.log('✅ Background layer reinitialized');
-      // 🔥 CRITICAL FIX: Update ghost visibility after reinitializing
-      if (backgroundLayer && typeof window.updateGhostVisibility === 'function') {
-        window.updateGhostVisibility();
-        console.log('✅ Ghost visibility updated after reinitializing background layer');
-      } else if (backgroundLayer) {
-        updateGhostVisibility();
-        console.log('✅ Ghost visibility updated (fallback)');
-      }
-    } else {
-      // Ensure background layer is visible
-      backgroundLayer.visible = true;
-      try {
-        updateGhostVisibility();
-        console.log('✅ Background layer already exists and is visible');
-      } catch (e) {
-        console.warn('⚠️ Failed to update ghost visibility:', e);
-      }
-    }
   }
-  
-  // 🔥 CRITICAL FIX: Ensure background layer is visible and has correct zIndex
   if (backgroundLayer) {
     backgroundLayer.visible = true;
     backgroundLayer.zIndex = -10000;
-    // Ensure it's at the bottom of board children
     try {
-      if (board.children.includes(backgroundLayer)) {
+      if (board && board.children.includes(backgroundLayer)) {
         board.removeChild(backgroundLayer);
+      }
+      if (board) {
         board.addChildAt(backgroundLayer, 0);
         board.sortChildren();
-        console.log('✅ Background layer repositioned to bottom of board');
       }
-    } catch (e) {
-      console.warn('⚠️ Failed to reposition background layer:', e);
-    }
+    } catch {}
   }
+  try { updateGhostVisibility(); } catch {}
   
   try {
     const hudRoot = (window as any).HUD_ROOT ?? HUD.HUD_ROOT ?? null;
@@ -3188,16 +3184,10 @@ wildMeter = 0;
     }
   } catch {}
   
-  // Call layout only for initial game start, not for restart
-  if (n === 1) {
-    layoutBoard().catch(err => {
-      console.error('❌ Error in layoutBoard() during startLevel:', err);
-    });
-    console.log('🎯 Layout called for initial game start');
-  }
+  // layoutBoard() already called above; avoid duplicate on board 1
   
   // Don't check level end immediately - let the game play first
-  // gsap.delayedCall(0.1, checkLevelEnd); // REMOVED - causes immediate fail screen
+  // trackDelayedCall(0.1, checkLevelEnd); // REMOVED - causes immediate fail screen
 }
 
 // --- local Wild skin fallback
@@ -3286,7 +3276,7 @@ function applyWildSkinLocal(tile){
       // 🔥 CRITICAL: Start particles AFTER ensuring eventMode is set correctly
       if (tile.special === 'wild-magnet') {
         // Use requestAnimationFrame to ensure tile is fully set up before starting particles
-        requestAnimationFrame(() => {
+        trackAppAnimationFrame(() => {
           try {
         startMagnetIdleParticles(tile);
           } catch (err) {
@@ -3352,7 +3342,7 @@ function addElectricGlow(tile){
     }
     
     // Animate rings with jittery pulsing effect
-    const tl = gsap.timeline({ repeat: -1 });
+    const tl = animationManager.trackExternalTimeline(gsap.timeline({ repeat: -1 }));
     
     rings.forEach((ring, index) => {
       const delay = index * 0.1;
@@ -3414,8 +3404,8 @@ function bindTileWithFallback(tile, skipBind){
   let attempts = 0;
   const maxAttempts = 60;
   const schedule = (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function')
-    ? window.requestAnimationFrame.bind(window)
-    : (cb) => setTimeout(cb, 16);
+    ? trackAppAnimationFrame
+    : (cb) => trackAppTimeout(cb, 16);
 
   const retry = () => {
     if (!drag?.t || attempts >= maxAttempts) {
@@ -3586,7 +3576,7 @@ async function spawnWildFromMeter(){
     const cell = randomEmptyCell();
     if (!cell) {
       tries++;
-      await new Promise(r => setTimeout(r, 40));
+      await new Promise(r => trackAppTimeout(r, 40));
       continue;
     }
     const key = `${cell.c},${cell.r}`;
@@ -4017,7 +4007,7 @@ function merge(src, dst, helpers){
           const rotationAmount = rotationDegrees * (Math.PI / 180); // Convert degrees to radians
 
           // Set rotation to the final value, not add to existing
-          gsap.to(layer, {
+          trackTween(layer, {
             rotation: rotationAmount, // Set to final value, don't add
             duration: 0.2,
             ease: 'power2.out'
@@ -4027,7 +4017,7 @@ function merge(src, dst, helpers){
           previousDirection = rotationDirection;
 
           // Fade out overlay after animation
-          gsap.to(overlay, {
+          trackTween(overlay, {
             alpha: 0,
             duration: 0.4,
             delay: 0.2,
@@ -4078,7 +4068,7 @@ function merge(src, dst, helpers){
       if (wildActive) {
         // Wild merge = Double HEAVY for longer feel
         (window as any).triggerHapticImpact('heavy');
-        setTimeout(() => {
+        trackAppTimeout(() => {
           (window as any).triggerHapticImpact('heavy');
         }, 150);
       } else {
@@ -4274,7 +4264,7 @@ function merge(src, dst, helpers){
     // 🔥 NOTE: wildStarTileForAnimation and shouldAnimateStarsToHUD are already set at the beginning of merge function
     // Use the pre-captured values here in the animation callback
 
-    gsap.to(src, {
+    trackTween(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
       onComplete: async () => {
         // 🔥 CRITICAL: Use EARLY saved star data (saved before any transformations)
@@ -4316,9 +4306,9 @@ function merge(src, dst, helpers){
             // 🔥 CRITICAL: Trigger star animation INDEPENDENTLY using requestAnimationFrame
             // This ensures animation starts immediately and is not affected by killAllDelayedCalls()
             // Use requestAnimationFrame for immediate start, with a tiny delay via setTimeout (not GSAP delayedCall)
-            requestAnimationFrame(() => {
+            trackAppAnimationFrame(() => {
               // Use setTimeout instead of gsap.delayedCall to avoid being killed by killAllDelayedCalls()
-              setTimeout(async () => {
+              trackAppTimeout(async () => {
                 try {
                   console.log('⭐ About to import animateStarsToHudIcon from fx.js...');
                   // Import and call fx.js animation function with SAVED star data
@@ -4412,7 +4402,7 @@ function merge(src, dst, helpers){
         if (!busyEnding && !isWildMagnetMerge && !isMerge6) {
           // Add delay to ensure removeTile has completed and tiles array is updated
           // 🔥 INCREASED DELAY: 100ms instead of 50ms to ensure tiles array is fully updated
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => trackAppTimeout(resolve, 100));
           
           // 🔥 CRITICAL: Verify dst tile state before checking
           const activeTilesBeforeCheck = tiles.filter(tileIsActive);
@@ -4476,7 +4466,7 @@ function merge(src, dst, helpers){
               
               if (!busyEnding) {
                 console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                await new Promise(resolve => trackAppTimeout(resolve, 1500));
                 showFinalScreen();
               }
               return;
@@ -4508,7 +4498,7 @@ function merge(src, dst, helpers){
                 
                 if (!busyEnding) {
                   console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-                  await new Promise(resolve => setTimeout(resolve, 1500));
+                  await new Promise(resolve => trackAppTimeout(resolve, 1500));
                   showFinalScreen();
                 }
                 return;
@@ -4553,7 +4543,7 @@ function merge(src, dst, helpers){
               
               if (!busyEnding) {
                 console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-                await new Promise(resolve => setTimeout(resolve, 1500));
+                await new Promise(resolve => trackAppTimeout(resolve, 1500));
                 showFinalScreen();
               }
               return;
@@ -4575,7 +4565,7 @@ function merge(src, dst, helpers){
                 
                 if (!busyEnding) {
                   console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-                  await new Promise(resolve => setTimeout(resolve, 1500));
+                  await new Promise(resolve => trackAppTimeout(resolve, 1500));
                   showFinalScreen();
                 }
                 return;
@@ -4595,7 +4585,7 @@ function merge(src, dst, helpers){
             const canSelfMergeToSix = !isWild && onlyDepth >= 2 && (onlyValue + onlyValue) <= 6;
             if (!isWild && !canSelfMergeToSix && !busyEnding) {
               console.log('🚨 SAFETY NET: Single regular tile left that cannot reach merge 6 - waiting 0.5s then fail screen');
-              await new Promise(resolve => setTimeout(resolve, 500));
+              await new Promise(resolve => trackAppTimeout(resolve, 500));
               showFinalScreen();
               return;
             }
@@ -4652,7 +4642,7 @@ function merge(src, dst, helpers){
             
             if (!busyEnding) {
               console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-              await new Promise(resolve => setTimeout(resolve, 1500));
+              await new Promise(resolve => trackAppTimeout(resolve, 1500));
               showFinalScreen();
             } else {
               console.warn('⚠️ busyEnding is true, NOT showing fail screen');
@@ -4705,7 +4695,7 @@ function merge(src, dst, helpers){
         // Solution: Wait for merge animation to complete (400ms) before checking
         if (moves === 0) {
           // Wait for merge animation to complete before checking stuck state
-          setTimeout(() => {
+          trackAppTimeout(() => {
             checkMovesDepleted();
           }, 400);
           return;
@@ -4724,7 +4714,7 @@ function merge(src, dst, helpers){
           // 🔥 CRITICAL FIX: Increase delay to ensure merge animation completes before endgame check
           // This prevents stuck detection from being blocked by merge animations
           // Delay increased from 100ms to 400ms to match merge animation duration
-          setTimeout(() => {
+          trackAppTimeout(() => {
             checkLevelEnd();
           }, 400);
         } else {
@@ -5185,7 +5175,7 @@ function merge(src, dst, helpers){
       if (wildActive) {
         // Wild merge 6 = Double HEAVY for longer feel
         (window as any).triggerHapticImpact('heavy');
-        setTimeout(() => {
+        trackAppTimeout(() => {
           (window as any).triggerHapticImpact('heavy');
         }, 150);
       } else {
@@ -5213,8 +5203,8 @@ function merge(src, dst, helpers){
     // 🔥 CRITICAL: After setValue (which uses requestAnimationFrame), double-check pips are drawn
     // This ensures pips are visible even if there was a race condition
     if (wildActive) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
+      trackAppAnimationFrame(() => {
+        trackAppAnimationFrame(() => {
           if (dst && !dst.destroyed && dst.value === 6 && !dst.special && !dst.isWild) {
             // Tile is now regular merge 6, ensure pips are visible
             if (dst.pips) {
@@ -5831,7 +5821,7 @@ function merge(src, dst, helpers){
           const isLastTile = index === totalTiles - 1;
           const sequentialDelay = isLastTile ? (index * 0.04 - 0.150) : (index * 0.04); // Last tile starts 0.150s earlier
           const initialDelay = 0.300; // 🔥 CRITICAL: 300ms delay before pulling starts (faster than before)
-          const tl = gsap.timeline({
+          const tl = animationManager.trackExternalTimeline(gsap.timeline({
             delay: Math.max(0, initialDelay + sequentialDelay), // Ensure delay is never negative
             onInterrupt: () => {
               // 🔥 CRITICAL: Don't cleanup if merge has already started
@@ -5916,7 +5906,7 @@ function merge(src, dst, helpers){
                 }
               }
             }
-          });
+          }));
           
           // Step 1: Move away from center + rotate (no scale yet) - FASTER for 4 tiles
           tl.to(tile, {
@@ -6035,7 +6025,7 @@ function merge(src, dst, helpers){
         
         // 🔥 CRITICAL: Reset wildMagnetPullInProgress after animation completes or fails
         // Use a timeout to ensure it's reset even if merge fails or animation is interrupted
-        setTimeout(() => {
+        trackAppTimeout(() => {
           if (wildMagnetPullInProgress) {
             console.warn('⚠️ Wild-magnet pull animation timeout - cleaning up after 2s');
             
@@ -6082,7 +6072,7 @@ function merge(src, dst, helpers){
       // busyEnding = true; // REMOVED - was preventing animations and clean board flow
     }
 
-    gsap.to(src, {
+    trackTween(src, {
       x: dst.x, y: dst.y, duration: 0.08, ease: 'power2.out',
       onComplete: async () => {
         // 🔥 CRITICAL: srcSpecial i dstSpecial su već snimljeni PRIJE setValue i clearWildState!
@@ -6135,9 +6125,9 @@ function merge(src, dst, helpers){
             // 🔥 CRITICAL: Trigger star animation INDEPENDENTLY using requestAnimationFrame
             // This ensures animation starts immediately and is not affected by killAllDelayedCalls()
             // Use requestAnimationFrame for immediate start, with a tiny delay via setTimeout (not GSAP delayedCall)
-            requestAnimationFrame(() => {
+            trackAppAnimationFrame(() => {
               // Use setTimeout instead of gsap.delayedCall to avoid being killed by killAllDelayedCalls()
-              setTimeout(async () => {
+              trackAppTimeout(async () => {
                 try {
                   console.log('⭐ About to import animateStarsToHudIcon from fx.js...');
                   // Import and call fx.js animation function with SAVED star data
@@ -6264,27 +6254,8 @@ function merge(src, dst, helpers){
             console.warn('⚠️ LAST MERGE: _isLastMerge flag set but dst tile no longer exists. Verifying clean board...');
             const boardIsClean = otherActive.length === 0;
             if (boardIsClean) {
-              busyEnding = true;
-              try {
-                await runEndgameFlow({
-                  app,
-                  stage,
-                  board,
-                  boardBG,
-                  level,
-                  startLevel,
-                  score,
-                  getScore: () => score,
-                  setScore: (v) => { score = v|0; updateHUD(); },
-                  animateScore,
-                  updateHUD,
-                  boardNumber,
-                  hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
-                  showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
-                });
-              } finally {
-                busyEnding = false;
-              }
+              // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
+              await triggerCleanBoardFlow('clean_board_from_last_merge_edge_case');
               return;
             }
             (dst as any)._isLastMerge = false;
@@ -6475,7 +6446,7 @@ function merge(src, dst, helpers){
               }
               
               // 🔥 CRITICAL FIX: Execute immediately (no delay) to prevent race condition with board transition
-              // Previous setTimeout(200ms) caused race condition where cleanup could stop animation before it started
+              // Previous trackAppTimeout(200ms) caused race condition where cleanup could stop animation before it started
               // Immediate execution ensures animation starts before any cleanup can interfere
               try {
                 // 🔥 CRITICAL: Use new modular explosion (works independently, no board/tile needed)
@@ -6577,7 +6548,7 @@ function merge(src, dst, helpers){
             // Trigger immediately when multiplier animation starts (scale begins growing)
             // Note: Pulled tiles animation already started when merge 6 began (no delay)
             // Speed up by 60%: original delay was 0.2s, now 0.08s (60% faster)
-            setTimeout(async () => {
+            trackAppTimeout(async () => {
               console.log(`🧲 Multiplier x${mult} animation started (sped up 60%), triggering pulled tiles merge`);
               if ((dst as any)._wildMagnetMergeCallback) {
                 await (dst as any)._wildMagnetMergeCallback();
@@ -6678,26 +6649,9 @@ function merge(src, dst, helpers){
               console.warn('⚠️ LAST MERGE: Failed to reset wild meter:', error);
             }
             
-            try {
-              await runEndgameFlow({
-                app,
-                stage,
-                board,
-                boardBG,
-                level,
-                startLevel,
-                score,
-                getScore: () => score,
-                setScore: (v) => { score = v|0; updateHUD(); },
-                animateScore,
-                updateHUD,
-                boardNumber,
-                hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
-                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} }
-              });
-            } finally {
-              busyEnding = false;
-            }
+            // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
+            // Note: triggerCleanBoardFlow will set busyEnding internally, so we don't need to set it here
+            await triggerCleanBoardFlow('clean_board_from_last_merge_checkEndGame');
             return; // Exit early - don't continue with normal merge 6 flow
           }
           } // End of else block for checkEndGame call
@@ -6968,7 +6922,7 @@ function merge(src, dst, helpers){
             console.log('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
             if (!busyEnding) {
               console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-              await new Promise(res => setTimeout(res, 1500));
+              await new Promise(res => trackAppTimeout(res, 1500));
               showFinalScreen();
             }
             return;
@@ -7006,56 +6960,32 @@ function merge(src, dst, helpers){
           console.log('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 detected (_isLastMerge flag) - triggering CLEAN BOARD, NO spawn');
           console.log('🎯 Source of Truth: Case A — Two tiles merge into 6: This is FINAL MERGE-6, Trigger CLEAN BOARD, No further spawning');
           
-          // 🔥 CRITICAL: If _isLastMerge flag is set, trigger clean board flow
-          if (!busyEnding) {
-            console.log('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 - triggering clean board flow (NO spawn)');
-            busyEnding = true;
-            const skipStarsWait = !!(dst as any)?._lastMergeWasRegularOnly; // regular+regular or magnet: no stars/bubbles
-            
-            // Remove dst tile and trigger clean board flow
-            if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-              grid[dst.gridY][dst.gridX] = null;
-              dst.visible = false;
-              removeTile(dst);
-            }
-            
-            // Reset wild meter
-            wildMeter = 0;
-            STATE.wildMeter = 0;
-            resetWildProgress(0, false);
-            
-            try {
-              if (typeof HUD.resetWildMeter === 'function') {
-                HUD.resetWildMeter(true);
-              } else {
-                HUD.updateProgressBar?.(0, false);
-              }
-            } catch (error) {
-              console.warn('⚠️ Failed to reset wild meter:', error);
-            }
-
-            try {
-              await runEndgameFlow({
-                app,
-                stage,
-                board,
-                boardBG,
-                level,
-                startLevel,
-                score,
-                getScore: () => score,
-                setScore: (v) => { score = v|0; updateHUD(); },
-                animateScore,
-                updateHUD,
-                boardNumber,
-                hideGrid: () => { try { board.visible = false; hud.visible = false; drawBoardBG('none'); } catch {} },
-                showGrid: () => { try { board.visible = true;  hud.visible = true;  drawBoardBG(); } catch {} },
-                skipStarsWait
-              });
-            } finally {
-              busyEnding = false;
-            }
+          // 🔥 CRITICAL: Use triggerCleanBoardFlow (same entry as moves depleted / checkLevelEnd) so modal shows consistently
+          console.log('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 - triggering clean board flow via triggerCleanBoardFlow (NO spawn)');
+          
+          // Remove dst tile before triggering clean board
+          if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
+            grid[dst.gridY][dst.gridX] = null;
+            dst.visible = false;
+            removeTile(dst);
           }
+          
+          // Reset wild meter locally (triggerCleanBoardFlow also resets it; this keeps state in sync before call)
+          wildMeter = 0;
+          STATE.wildMeter = 0;
+          resetWildProgress(0, false);
+          
+          try {
+            if (typeof HUD.resetWildMeter === 'function') {
+              HUD.resetWildMeter(true);
+            } else {
+              HUD.updateProgressBar?.(0, false);
+            }
+          } catch (error) {
+            console.warn('⚠️ Failed to reset wild meter:', error);
+          }
+
+          await triggerCleanBoardFlow('clean_board_from_last_merge');
           
           return; // Exit early - don't spawn new tiles (SOURCE OF TRUTH: Final merge-6 = NO spawn)
         }
@@ -7496,7 +7426,7 @@ function merge(src, dst, helpers){
         // Instead, check end game immediately after spawn completes (with small delay for spawn animations)
         // This ensures stuck positions are detected even if user makes quick second merge during bubbles animation
         console.log('⏳ Waiting 500ms after spawn animations to let user see board state (bubbles animation continues in background)...');
-        await new Promise(res => setTimeout(res, 500));
+        await new Promise(res => trackAppTimeout(res, 500));
         
         // 🔥 CRITICAL: Check end game after spawn completes (with delay to allow animations)
         // Use checkLevelEnd which already has proper delay and handles all edge cases
@@ -7520,7 +7450,7 @@ async function checkMovesDepleted(){
   // 🔥 CRITICAL FIX: Ensure tiles array is fully updated before checking
   // After merge completes, tiles array might still be updating
   // Wait a bit to ensure all tile state updates are complete
-  await new Promise(res => setTimeout(res, 100));
+  await new Promise(res => trackAppTimeout(res, 100));
   
   const movesDepletedCheckContext: EndGameContext = {
     tiles,
@@ -7547,8 +7477,19 @@ async function checkMovesDepleted(){
     console.log('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
     if (!busyEnding) {
       console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-      await new Promise(res => setTimeout(res, 1500));
+      await new Promise(res => trackAppTimeout(res, 1500));
       showFinalScreen();
+    }
+  } else if (movesDepletedCheckResult.type === 'clean') {
+    console.log('🚨🚨🚨 MOVES DEPLETED + BOARD CLEAN');
+    if (!busyEnding) {
+      // Respect hidden state (same rule as checkLevelEnd)
+      const { appVisible, homeVisible, journeyVisible } = getScreenVisibility();
+      if (homeVisible || journeyVisible) {
+        console.log('⏳ checkMovesDepleted: Home/Journey visible - skipping clean board flow', { appVisible, homeVisible, journeyVisible });
+        return;
+      }
+      await triggerCleanBoardFlow('clean_board_from_moves_depleted');
     }
   } else {
     console.log('✅ Moves depleted but merges still possible, game continues');
@@ -7567,7 +7508,7 @@ function checkLevelEnd(){
     checkLevelEndTimer?.kill?.();
   } catch {}
 
-    checkLevelEndTimer = gsap.delayedCall(CHECK_LEVEL_END_DELAY_MS / 1000, async () => {
+    checkLevelEndTimer = trackDelayedCall(CHECK_LEVEL_END_DELAY_MS / 1000, async () => {
       checkLevelEndTimer = null;
       // Safety sweep before any decision
       forceRemoveMagnetMergeResidues('checkLevelEnd');
@@ -7670,7 +7611,7 @@ function checkLevelEnd(){
         // Continue to check (don't return)
       } else {
         // Reschedule after spawn completes
-        checkLevelEndTimer = gsap.delayedCall(0.3, () => {
+        checkLevelEndTimer = trackDelayedCall(0.3, () => {
           checkLevelEndTimer = null;
           checkLevelEnd();
         });
@@ -7744,7 +7685,7 @@ function checkLevelEnd(){
         // Continue to check (don't return)
       } else {
         // Reschedule after animations complete
-        checkLevelEndTimer = gsap.delayedCall(0.5, () => {
+        checkLevelEndTimer = trackDelayedCall(0.5, () => {
           checkLevelEndTimer = null;
           checkLevelEnd();
         });
@@ -7795,13 +7736,14 @@ function checkLevelEnd(){
     
     // 🔥 USER BUG FIX: Don't trigger clean board flow if game is hidden (user is on homepage/other screens)
     // This prevents clean board modal from appearing when user navigates away from game
-    const appElement = document.getElementById('app');
-    const homeElement = document.getElementById('home');
-    const isGameHidden = appElement && appElement.hasAttribute('hidden');
-    const isHomepageVisible = homeElement && !homeElement.hidden;
+    const { appVisible, homeVisible, journeyVisible } = getScreenVisibility();
     
-    if (isGameHidden || isHomepageVisible) {
-      console.log('⏳ checkLevelEnd skipped - game is hidden or homepage is visible (user navigated away from game)');
+    if (homeVisible || journeyVisible) {
+      console.log('⏳ checkLevelEnd skipped - home/journey visible (user navigated away from game)', {
+        appVisible,
+        homeVisible,
+        journeyVisible
+      });
       return;
     }
     
@@ -7889,7 +7831,7 @@ function checkLevelEnd(){
       
       if (!busyEnding) {
         console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-        await new Promise(res => setTimeout(res, 1500));
+        await new Promise(res => trackAppTimeout(res, 1500));
         showFinalScreen();
       } else {
         console.warn('⚠️ checkLevelEnd: busyEnding is true, skipping showFinalScreen');
@@ -7957,14 +7899,14 @@ function playMergeImpactAndAbsorbAnimation(targetTile: any): void {
   }
 
   // Create combined timeline: impact bump + strong bounce, all returning to exactly (1,1)
-  const tl = gsap.timeline({
+  const tl = animationManager.trackExternalTimeline(gsap.timeline({
     onComplete: () => {
       // Hard-reset to exactly (1, 1) to avoid floating-point drift
       if (targetTile.scale) {
         targetTile.scale.set(1, 1);
       }
     }
-  });
+  }));
 
   // Step 1: Immediate impact bump (1 → 1.02)
   tl.to(targetTile.scale, {
@@ -8080,6 +8022,99 @@ function restartGame(){
   
   // CRITICAL FIX: Reset game ended flag when restarting
   window._gameHasEnded = false;
+
+  const killAllGsapTweensForRestart = () => {
+    try {
+      console.log('🔄 RESTART GAME: Killing GSAP animations...');
+      
+      // 🔥 CRITICAL: Stop tile idle bounce animations
+      try {
+        if (TILE_IDLE_BOUNCE && typeof TILE_IDLE_BOUNCE.stop === 'function') {
+          TILE_IDLE_BOUNCE.stop();
+          console.log('✅ RESTART GAME: Tile idle bounce stopped');
+        }
+      } catch {}
+      
+      // 🔥 CRITICAL: Cleanup combo animations
+      try {
+        if (typeof HUD.cleanupComboAnimations === 'function') {
+          HUD.cleanupComboAnimations();
+          console.log('✅ RESTART GAME: Combo animations cleaned up');
+        }
+      } catch {}
+      
+      // 🔥 CRITICAL: Kill combo idle timer
+      try { 
+        if (comboIdleTimer) {
+          if (typeof comboIdleTimer.kill === 'function') {
+            comboIdleTimer.kill();
+          } else if (typeof comboIdleTimer === 'number') {
+            clearTimeout(comboIdleTimer);
+          }
+        }
+        comboIdleTimer = null;
+        console.log('✅ RESTART GAME: Combo idle timer killed');
+      } catch {}
+      
+      // 🔥 CRITICAL: Stop wild loader animations
+      gsap.killTweensOf(wild?.view?._fill);
+      gsap.killTweensOf({ width: 0 });
+      if (wild?.view?._currentAnimation) {
+        wild.view._currentAnimation.kill();
+        wild.view._currentAnimation = null;
+      }
+      
+      // 🔥 CRITICAL: Kill HUD progress bar animations
+      try {
+        gsap.killTweensOf('[data-wild-loader]');
+        gsap.killTweensOf('.wild-loader');
+        if (wild && wild.view) {
+          gsap.killTweensOf(wild.view);
+          if (wild.view._fill) {
+            gsap.killTweensOf(wild.view._fill);
+          }
+          if (wild.view._mask) {
+            gsap.killTweensOf(wild.view._mask);
+          }
+        }
+        console.log('✅ RESTART GAME: HUD progress bar animations killed');
+      } catch {}
+      
+      // CRITICAL: Stop per-tile animations before GSAP cleanup
+      if (STATE && STATE.tiles && STATE.tiles.length > 0) {
+        console.log('🔄 RESTART GAME: Killing GSAP animations for', STATE.tiles.length, 'tiles...');
+        STATE.tiles.forEach(tile => {
+          try {
+            try { stopWildIdle?.(tile); } catch {}
+            try { stopWildShimmer?.(tile); } catch {}
+            try { stopWildStars?.(tile); } catch {}
+            try { stopWildBeerBubbles?.(tile); } catch {}
+            try { stopMagnetIdleParticles?.(tile); } catch {}
+            if ((tile as any)?._glowAnimation) {
+              try { (tile as any)._glowAnimation.kill(); } catch {}
+              (tile as any)._glowAnimation = null;
+            }
+          } catch {}
+        });
+        console.log('✅ RESTART GAME: Tile GSAP animations killed');
+      }
+      
+      // Kill HUD animations
+      if (STATE && STATE.hud) {
+        try {
+          console.log('🔄 RESTART GAME: Killing HUD GSAP animations...');
+          gsap.killTweensOf(STATE.hud);
+          gsap.killTweensOf(STATE.board);
+          gsap.killTweensOf(STATE.stage);
+          console.log('✅ RESTART GAME: HUD GSAP animations killed');
+        } catch {}
+      }
+      
+      killAllGsapTweensCommon(STATE?.tiles || tiles, 'restart', { clearTimeline: true });
+    } catch (e) {
+      console.warn('⚠️ RESTART GAME: Error killing GSAP animations:', e);
+    }
+  };
   
   // CRITICAL: Update high score before restart using statsService
   try {
@@ -8090,177 +8125,33 @@ function restartGame(){
   } catch (error) {
     console.warn('⚠️ Failed to update high score during restart:', error);
   }
+
+  // Centralized FX cleanup (non-destructive to the app)
+  cleanupFxForBoardReset('restartGame');
   
   // Kill all GSAP animations first - CRITICAL to prevent null reference errors
+  killAllGsapTweensForRestart();
+  
+  // CRITICAL: Cleanup smoke bubbles before restart
   try {
-    console.log('🔄 RESTART GAME: Killing all GSAP animations...');
-    
-    // 🔥 CRITICAL: Stop tile idle bounce animations
-    try {
-      if (TILE_IDLE_BOUNCE && typeof TILE_IDLE_BOUNCE.stop === 'function') {
-        TILE_IDLE_BOUNCE.stop();
-        console.log('✅ RESTART GAME: Tile idle bounce stopped');
+    if (typeof HUD.cleanupSmokeBubbles === 'function') {
+      HUD.cleanupSmokeBubbles();
+      console.log('✅ RESTART GAME: Smoke bubbles cleaned up');
+    }
+  } catch {}
+  
+  // 🔥 NOTE: FX cleanup already handled by cleanupFxForBoardReset() at start of restartGame()
+  
+  // 🔥 CRITICAL: Cleanup confetti animations before restart (MEMORY LEAK FIX)
+  try {
+    import('./confetti-system.js').then(confettiModule => {
+      if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
+        confettiModule.cleanupConfetti();
       }
-    } catch (e) {
-      console.warn('⚠️ RESTART GAME: Error stopping tile idle bounce:', e);
-    }
-    
-    // 🔥 CRITICAL: Cleanup combo animations
-    try {
-      if (typeof HUD.cleanupComboAnimations === 'function') {
-        HUD.cleanupComboAnimations();
-        console.log('✅ RESTART GAME: Combo animations cleaned up');
-      }
-    } catch (e) {
-      console.warn('⚠️ RESTART GAME: Error cleaning up combo animations:', e);
-    }
-    
-    // 🔥 CRITICAL: Kill combo idle timer
-    try { 
-      if (comboIdleTimer) {
-        if (typeof comboIdleTimer.kill === 'function') {
-          comboIdleTimer.kill();
-        } else if (typeof comboIdleTimer === 'number') {
-          clearTimeout(comboIdleTimer);
-        }
-      }
-      comboIdleTimer = null;
-      console.log('✅ RESTART GAME: Combo idle timer killed');
-    } catch (e) {
-      console.warn('⚠️ RESTART GAME: Error killing combo idle timer:', e);
-    }
-    
-    // 🔥 CRITICAL: Stop wild loader animations
-    gsap.killTweensOf(wild?.view?._fill);
-    gsap.killTweensOf({ width: 0 });
-    if (wild?.view?._currentAnimation) {
-      wild.view._currentAnimation.kill();
-      wild.view._currentAnimation = null;
-    }
-    
-    // 🔥 CRITICAL: Kill HUD progress bar animations
-    try {
-      gsap.killTweensOf('[data-wild-loader]');
-      gsap.killTweensOf('.wild-loader');
-      if (wild && wild.view) {
-        gsap.killTweensOf(wild.view);
-        if (wild.view._fill) {
-          gsap.killTweensOf(wild.view._fill);
-        }
-        if (wild.view._mask) {
-          gsap.killTweensOf(wild.view._mask);
-        }
-      }
-      console.log('✅ RESTART GAME: HUD progress bar animations killed');
-    } catch (e) {
-      console.warn('⚠️ RESTART GAME: Error killing HUD progress bar animations:', e);
-    }
-    
-    // CRITICAL: Kill tile animations before destroying them
-    if (STATE && STATE.tiles && STATE.tiles.length > 0) {
-      console.log('🔄 RESTART GAME: Killing GSAP animations for', STATE.tiles.length, 'tiles...');
-      STATE.tiles.forEach(tile => {
-        try {
-          // 🔥 CRITICAL: Stop all wild animations
-          try { stopWildIdle?.(tile); } catch {}
-          try { stopWildShimmer?.(tile); } catch {}
-          try { stopWildStars?.(tile); } catch {}
-          try { stopWildBeerBubbles?.(tile); } catch {}
-          try { stopMagnetIdleParticles?.(tile); } catch {}
-          
-          // 🔥 CRITICAL: Kill all GSAP tweens
-          if (tile && tile.scale) {
-            gsap.killTweensOf(tile.scale);
-          }
-          if (tile) {
-            gsap.killTweensOf(tile);
-            gsap.killTweensOf(tile.rotation);
-            // Kill glow animations
-            if ((tile as any)._glowAnimation) {
-              (tile as any)._glowAnimation.kill();
-              (tile as any)._glowAnimation = null;
-            }
-          }
-        } catch (e) {
-          // Ignore errors for already destroyed tiles
-        }
-      });
-      console.log('✅ RESTART GAME: Tile GSAP animations killed');
-    }
-    
-    // Kill HUD animations
-    if (STATE && STATE.hud) {
-      try {
-        console.log('🔄 RESTART GAME: Killing HUD GSAP animations...');
-        gsap.killTweensOf(STATE.hud);
-        gsap.killTweensOf(STATE.board);
-        gsap.killTweensOf(STATE.stage);
-        console.log('✅ RESTART GAME: HUD GSAP animations killed');
-      } catch (e) {
-        console.warn('⚠️ RESTART GAME: Error killing HUD animations:', e);
-      }
-    }
-    
-    // CRITICAL: Kill ALL GSAP tweens as nuclear option
-    try {
-      console.log('🔄 RESTART GAME: Nuclear option - killing ALL GSAP tweens...');
-      // Kill all timelines and tweens
-      const timelines = gsap.globalTimeline.getChildren(true, false, false);
-      timelines.forEach(tl => {
-        try { tl.kill(); } catch (e) {}
-      });
-      // Also clear global timeline
-      try {
-        gsap.globalTimeline.clear();
-      } catch (e) {
-        console.warn('⚠️ Failed to clear global timeline:', e);
-      }
-      console.log('✅ RESTART GAME: ALL GSAP tweens killed');
-    } catch (e) {
-      console.warn('⚠️ RESTART GAME: Error with nuclear GSAP kill:', e);
-    }
-    
-    console.log('✅ RESTART GAME: All GSAP animations killed');
-    
-    // CRITICAL: Cleanup smoke bubbles before restart
-    try {
-      if (typeof HUD.cleanupSmokeBubbles === 'function') {
-        HUD.cleanupSmokeBubbles();
-        console.log('✅ RESTART GAME: Smoke bubbles cleaned up');
-      }
-    } catch (e) {
-      console.warn('⚠️ RESTART GAME: Error cleaning up smoke bubbles:', e);
-    }
-    
-    // 🔥 CRITICAL: Cleanup all effects (bubbles, explosions, etc.) before restart
-    try {
-      import('./fx.js').then(fxModule => {
-        if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
-          fxModule.cleanupAllEffects();
-          console.log('✅ RESTART GAME: All effects cleaned up (bubbles, explosions, etc.)');
-        }
-      }).catch(() => {
-        // Ignore import errors
-      });
-    } catch (e) {
-      console.warn('⚠️ RESTART GAME: Error cleaning up all effects:', e);
-    }
-    
-    // 🔥 CRITICAL: Cleanup confetti animations before restart (MEMORY LEAK FIX)
-    try {
-      import('./confetti-system.js').then(confettiModule => {
-        if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
-          confettiModule.cleanupConfetti();
-        }
-      }).catch(() => {
-        // Ignore import errors
-      });
-    } catch (e) {
-      // Ignore errors
-    }
-  } catch (e) {
-    console.warn('⚠️ RESTART GAME: Error killing GSAP animations:', e);
-  }
+    }).catch(() => {
+      // Ignore import errors
+    });
+  } catch {}
   
   // 🔥 USER REQUEST: Keep current boardNumber (don't reset to 1)
   // This ensures Play Again restarts the same board, not board 1
@@ -8301,7 +8192,29 @@ function restartGame(){
   // Reset both wild meter variables
   wildMeter = 0;
   STATE.wildMeter = 0;
-  
+
+  // 🔥 CRITICAL FIX: Reset star count when restarting from end game bottom sheet
+  try {
+    console.log('🔄 RESTART GAME: Resetting star count...');
+    // Reset stars collector via window.CC.setStarsCount (exported above)
+    if (typeof (window as any).CC?.setStarsCount === 'function') {
+      (window as any).CC.setStarsCount(0);
+      console.log('✅ RESTART GAME: Star count reset to 0');
+    } else {
+      // Fallback: try to import and reset directly
+      import('./stars-collector.js').then((StarsCollector) => {
+        if (typeof StarsCollector.setStarsCount === 'function') {
+          StarsCollector.setStarsCount(0);
+          console.log('✅ RESTART GAME: Star count reset to 0 (via import)');
+        }
+      }).catch((err) => {
+        console.warn('⚠️ RESTART GAME: Failed to reset star count:', err);
+      });
+    }
+  } catch (error) {
+    console.warn('⚠️ RESTART GAME: Error resetting star count:', error);
+  }
+
   // EDGE CASE PROTECTION: Force wild meter reset with multiple methods
   try {
     console.log('🛡️ EDGE CASE: Force resetting wild meter with multiple methods...');
@@ -8367,6 +8280,9 @@ function restartGame(){
   // restartGame() already has comprehensive cleanup (GSAP animations, confetti, effects, etc.)
   // without destroying the app, which allows startLevel() to work properly
   
+  // 🔥 OPTIMIZATION: Clear tracked app timeouts BEFORE starting the new level
+  clearAllAppTimeouts();
+
   // 🔥 USER REQUEST: Call startLevel() with current boardNumber instead of just rebuildBoard()
   // This ensures board-specific rules are applied and the correct board is restarted
   console.log(`🔄 RESTART: Calling startLevel(${currentBoard}) to restart board ${currentBoard}...`);
@@ -8382,9 +8298,6 @@ function restartGame(){
   
   updateHUD();
   
-  // 🔥 OPTIMIZATION: Clear all tracked timeouts before restart
-  clearAllAppTimeouts();
-  
   // 🔥 CRITICAL: Cleanup confetti animations (cleanup all timeouts/intervals/DOM elements)
   // This must be called BEFORE killAllDelayedCalls to ensure all confetti timeouts are cleared
   try {
@@ -8398,15 +8311,6 @@ function restartGame(){
   } catch (e) {
     // Ignore errors
   }
-  
-  // 🔥 OPTIMIZATION: Kill all GSAP delayed calls before restart
-  try {
-    if (typeof killAllDelayedCalls === 'function') {
-      killAllDelayedCalls();
-    } else {
-      try { gsap.killDelayedCalls(); } catch {}
-    }
-  } catch {}
   
   // Ensure game is resumed after restart
   try {
@@ -8454,152 +8358,6 @@ export function restart() {
     console.warn('⚠️ Failed to update Journey progression state on restart:', error);
   }
   
-  // 🔥 OPTIMIZATION: Clear all tracked timeouts before restart
-  clearAllAppTimeouts();
-  
-  // 🔥 OPTIMIZATION: Kill all GSAP delayed calls before restart
-  try {
-    if (typeof killAllDelayedCalls === 'function') {
-      killAllDelayedCalls();
-    } else {
-      try { gsap.killDelayedCalls(); } catch {}
-    }
-  } catch {}
-  
-  // 🔥 MEMORY LEAK FIX: Kill all pending delayed calls and timeouts
-  try {
-    console.log('🔄 RESTART: Killing all pending delayed calls and timeouts...');
-    // Kill all gsap.delayedCall from fx.js
-    if (typeof (window as any).killAllDelayedCalls === 'function') {
-      (window as any).killAllDelayedCalls();
-    }
-    // Destroy all Graphics objects from fx.js
-    if (typeof (window as any).destroyAllGraphicsObjects === 'function') {
-      (window as any).destroyAllGraphicsObjects();
-    }
-    // Kill all setTimeout/setInterval from modals
-    if ((window as any)._activeTimeouts) {
-      (window as any)._activeTimeouts.forEach((timeout: NodeJS.Timeout) => clearTimeout(timeout));
-      (window as any)._activeTimeouts.clear();
-    }
-    if ((window as any)._activeIntervals) {
-      (window as any)._activeIntervals.forEach((interval: NodeJS.Timeout) => clearInterval(interval));
-      (window as any)._activeIntervals.clear();
-    }
-    console.log('✅ RESTART: All pending delayed calls and timeouts killed');
-  } catch (e) {
-    console.warn('⚠️ RESTART: Error killing delayed calls:', e);
-  }
-  
-  // Kill all GSAP animations first - CRITICAL to prevent null reference errors
-  try {
-    console.log('🔄 RESTART: Killing all GSAP animations...');
-    gsap.killTweensOf(wild?.view?._fill);
-    gsap.killTweensOf({ width: 0 });
-    if (wild?.view?._currentAnimation) {
-      wild.view._currentAnimation.kill();
-      wild.view._currentAnimation = null;
-    }
-    
-    // CRITICAL: Kill tile animations before destroying them
-    if (STATE && STATE.tiles && STATE.tiles.length > 0) {
-      console.log('🔄 RESTART: Killing GSAP animations for', STATE.tiles.length, 'tiles...');
-      STATE.tiles.forEach(tile => {
-        try {
-          if (tile && tile.scale) {
-            gsap.killTweensOf(tile.scale);
-          }
-          if (tile) {
-            gsap.killTweensOf(tile);
-          }
-        } catch (e) {
-          // Ignore errors for already destroyed tiles
-        }
-      });
-      console.log('✅ RESTART: Tile GSAP animations killed');
-    }
-    
-    // Kill HUD animations
-    if (STATE && STATE.hud) {
-      try {
-        console.log('🔄 RESTART: Killing HUD GSAP animations...');
-        gsap.killTweensOf(STATE.hud);
-        gsap.killTweensOf(STATE.board);
-        gsap.killTweensOf(STATE.stage);
-        console.log('✅ RESTART: HUD GSAP animations killed');
-      } catch (e) {
-        console.warn('⚠️ RESTART: Error killing HUD animations:', e);
-      }
-    }
-    
-    // CRITICAL: Kill ALL GSAP tweens as nuclear option
-    try {
-      console.log('🔄 RESTART: Nuclear option - killing ALL GSAP tweens...');
-      // Kill all timelines and tweens
-      const timelines = gsap.globalTimeline.getChildren(true, false, false);
-      timelines.forEach(tl => {
-        try { tl.kill(); } catch (e) {}
-      });
-      // Also clear global timeline
-      try {
-        gsap.globalTimeline.clear();
-      } catch (e) {
-        console.warn('⚠️ Failed to clear global timeline:', e);
-      }
-      console.log('✅ RESTART: ALL GSAP tweens killed');
-    } catch (e) {
-      console.warn('⚠️ RESTART: Error with nuclear GSAP kill:', e);
-    }
-    
-    console.log('✅ RESTART: All GSAP animations killed');
-  } catch (e) {
-    console.warn('⚠️ RESTART: Error killing GSAP animations:', e);
-  }
-  
-  // HARD RESET: Use new resetWildMeter API for complete reset
-  try {
-    console.log('🛡️ HARD RESET: Calling resetWildMeter(true) for complete reset...');
-    if (typeof HUD.resetWildMeter === 'function') {
-      HUD.resetWildMeter(true); // instant = true for immediate reset
-    } else {
-      console.warn('HARD RESET: resetWildMeter function not available, falling back to legacy methods');
-      // Fallback to legacy methods if new API not available
-      if (typeof HUD.resetWildLoader === 'function') {
-        HUD.resetWildLoader();
-      }
-    }
-    
-    // Reset both wild meter variables
-    wildMeter = 0;
-    STATE.wildMeter = 0;
-    
-    console.log('✅ HARD RESET: Wild meter completely reset');
-  } catch (error) {
-    console.warn('HARD RESET: Failed to reset wild meter:', error);
-  }
-  
-  // 🔥 CRITICAL FIX: Reset star count when restarting from end game bottom sheet
-  try {
-    console.log('🔄 RESTART: Resetting star count...');
-    // Reset stars collector via window.CC.setStarsCount (exported above)
-    if (typeof (window as any).CC?.setStarsCount === 'function') {
-      (window as any).CC.setStarsCount(0);
-      console.log('✅ RESTART: Star count reset to 0');
-    } else {
-      // Fallback: try to import and reset directly
-      import('./stars-collector.js').then((StarsCollector) => {
-        if (typeof StarsCollector.setStarsCount === 'function') {
-          StarsCollector.setStarsCount(0);
-          console.log('✅ RESTART: Star count reset to 0 (via import)');
-        }
-      }).catch((err) => {
-        console.warn('⚠️ RESTART: Failed to reset star count:', err);
-      });
-    }
-  } catch (error) {
-    console.warn('⚠️ RESTART: Error resetting star count:', error);
-  }
-  
   console.log('🔄 RESTART: About to call restartGame()...');
   restartGame();
   console.log('✅ RESTART: restartGame() completed');
@@ -8643,102 +8401,9 @@ export function cleanupGame() {
   
   // 🔥 CRITICAL FIX: Kill all GSAP tweens BEFORE destroying objects
   // This prevents "Cannot read properties of null (reading 'y')" errors
-  try {
-    // Kill UI element tweens
-    gsap.killTweensOf("[data-wild-loader]");
-    gsap.killTweensOf(".wild-loader");
-    gsap.killTweensOf("p");
-    gsap.killTweensOf("progress");
-    gsap.killTweensOf("ratio");
-    
-    // CRITICAL: Kill PIXI object tweens (tiles and HUD) with null checks
-    // Kill all tile tweens BEFORE destroying tiles
-    if (tiles && tiles.length > 0) {
-      tiles.forEach(tile => {
-        try {
-          // Check if tile exists and is not destroyed before killing tweens
-          if (tile && !tile.destroyed) {
-            if (tile.scale && !tile.scale.destroyed) {
-              gsap.killTweensOf(tile.scale);
-            }
-            // Kill tweens on tile itself (x, y, alpha, etc.)
-            gsap.killTweensOf(tile);
-            // Also kill tweens on tile properties that might be animated
-            if (tile.hover && !tile.hover.destroyed) {
-              gsap.killTweensOf(tile.hover);
-            }
-          }
-        } catch (e) {
-          // Ignore errors for already destroyed tiles
-        }
-      });
-    }
-    
-    // Kill HUD tweens with null checks
-    if (HUD && !HUD.isHUDDestroyed?.()) {
-      try {
-        gsap.killTweensOf(HUD);
-      } catch (e) {
-        // Ignore errors
-      }
-    }
-    if (board && !board.destroyed) {
-      try {
-        gsap.killTweensOf(board);
-      } catch (e) {
-        // Ignore errors
-      }
-    }
-    if (app && app.stage && !app.stage.destroyed) {
-      try {
-        gsap.killTweensOf(app.stage);
-      } catch (e) {
-        // Ignore errors
-      }
-    }
-    if (backgroundLayer && !backgroundLayer.destroyed) {
-      try {
-        gsap.killTweensOf(backgroundLayer);
-      } catch (e) {
-        // Ignore errors
-      }
-    }
-    
-    // CRITICAL: Kill all GSAP timelines that might reference destroyed objects
-    try {
-      // Get all active tweens and kill them if their target is destroyed
-      const allTweens = gsap.globalTimeline.getChildren();
-      allTweens.forEach((tween: any) => {
-        try {
-          const targets = tween.targets || [];
-          if (targets.length > 0) {
-            const target = targets[0];
-            if (target && (target.destroyed || target === null || target === undefined)) {
-              tween.kill();
-            }
-          }
-        } catch (e) {
-          // Ignore errors
-        }
-      });
-    } catch (e) {
-      // Ignore errors
-    }
-    
-    gsap.globalTimeline.resume(); // CRITICAL: Resume timeline
-    console.log('✅ GSAP timeline reset and cleared (slider animations preserved)');
-  } catch (e) {
-    console.log('⚠️ GSAP cleanup error:', e);
-  }
+  killAllGsapTweensCommon(tiles, 'cleanup');
   
-  // 🔥 MEMORY LEAK FIX: Cleanup all global delayed calls and graphics objects
-  try {
-    killAllDelayedCalls?.();
-    destroyAllGraphicsObjects?.();
-    console.log('✅ Global delayed calls and graphics objects cleaned up');
-  } catch (e) {
-    console.log('⚠️ Global cleanup error:', e);
-  }
+  // 🔥 NOTE: Global delayed calls/graphics cleanup handled by cleanupFxForBoardReset('cleanupGame')
   
   // CRITICAL: Reset HUD initialization flag
   _hudInitDone = false;
@@ -8776,6 +8441,9 @@ export function cleanupGame() {
   // 🔥 CRITICAL FIX: Clear all tracked intervals
   clearAllAppIntervals();
   
+  // 🔥 CRITICAL FIX: Clear all tracked app-core event listeners
+  clearAllAppListeners();
+  
   // 🔥 CRITICAL FIX: Remove event listeners properly
   // Remove resize listeners for layoutBoard and layout
   try { 
@@ -8797,6 +8465,9 @@ export function cleanupGame() {
   } catch (e) {
     console.warn('⚠️ Failed to remove HUD resize listener:', e);
   }
+  
+  // 🔥 CRITICAL FIX: Cleanup HUD lifecycle listeners (screen lifecycle helper)
+  try { HUD.cleanupHudLifecycle?.(); } catch {}
   
   // Reset wild progress (with safety check for HUD)
   try {
@@ -8836,6 +8507,12 @@ export function cleanupGame() {
         console.log('✅ Wild beer explosion force cleaned up in cleanupGame() (stale state prevention)');
       }
     }
+    
+    // 🔥 CRITICAL FIX: Release cached bubble texture to free GPU memory on hard cleanup
+    try {
+      destroyWildBeerBubblesExplosionCache?.();
+      console.log('✅ Wild beer bubble texture cache destroyed');
+    } catch {}
     
     // 🔥 STARS ANIMATION FIX: Force cleanup ALL stars-to-HUD animations (including protected)
     // Use force cleanup in cleanupGame() because we're closing the game completely
@@ -8910,19 +8587,6 @@ export function cleanupGame() {
   
   // Clear board
   if (board) {
-    // 🔥 CRITICAL FIX: Cleanup background layer BEFORE removeChildren
-    if (backgroundLayer) {
-      try {
-        if (board.children.includes(backgroundLayer)) {
-          board.removeChild(backgroundLayer);
-        }
-        backgroundLayer.destroy({ children: true });
-      } catch (e) {
-        console.warn('⚠️ Error destroying background layer in cleanupGame:', e);
-      }
-      backgroundLayer = null; // 🔥 CRITICAL: Nullify reference to prevent memory leak
-    }
-    
     board.removeChildren();
     if (boardBG) {
       board.addChildAt(boardBG, 0);
@@ -8938,6 +8602,9 @@ export function cleanupGame() {
   } catch (e) {
     console.warn('⚠️ Failed to stop memory manager:', e);
   }
+
+  // Clear global FX layer + FX state (prevents stale transforms after hard exit)
+  cleanupFxForBoardReset('cleanupGame');
   
   // CRITICAL: Destroy and nullify app so boot() can create a new one
   if (app) {
@@ -8973,6 +8640,22 @@ export function cleanupGame() {
     console.warn('⚠️ Failed to clear HUD_ROOT:', e);
   }
   
+  // 🔥 CRITICAL: Clear window.HUD exports to avoid retaining old HUD closures
+  try {
+    if ((window as any).HUD) {
+      (window as any).HUD = null;
+      console.log('✅ window.HUD reference cleared');
+    }
+  } catch (e) {
+    console.warn('⚠️ Failed to clear window.HUD:', e);
+  }
+  
+  // 🔥 CRITICAL: Cleanup screen lifecycles (modal/transition)
+  try {
+    import('./clean-board-modal.js').then(m => m.cleanupCleanBoardModalLifecycle?.()).catch(() => {});
+    import('./board-transition-screen.js').then(m => m.cleanupBoardTransitionScreen?.()).catch(() => {});
+  } catch {}
+  
   // 🍎 iOS CRITICAL FIX: Remove iOS lifecycle event listeners (pagehide, visibilitychange)
   // These listeners accumulate on every game restart and cause MASSIVE memory leaks on iOS!
   // iOS WKWebView has strict memory limits (~200MB) - every listener leak brings us closer to crash!
@@ -8993,6 +8676,27 @@ export function cleanupGame() {
     }
   } catch (e) {
     console.warn('⚠️ Failed to remove iOS lifecycle listeners:', e);
+  }
+  
+  // 🔥 CRITICAL: Remove remaining lifecycle listeners (beforeunload/pause/resume)
+  try {
+    const saveGameStateRef = (window as any)._saveGameStateResumeRef;
+    const resumeHandler = (window as any)._resumeHandlerRef;
+    
+    if (saveGameStateRef) {
+      window.removeEventListener('beforeunload', saveGameStateRef);
+      document.removeEventListener('pause', saveGameStateRef, false);
+      (window as any)._saveGameStateResumeRef = null;
+      console.log('✅ beforeunload/pause listeners removed');
+    }
+    
+    if (resumeHandler) {
+      document.removeEventListener('resume', resumeHandler, false);
+      (window as any)._resumeHandlerRef = null;
+      console.log('✅ resume listener removed');
+    }
+  } catch (e) {
+    console.warn('⚠️ Failed to remove lifecycle listeners:', e);
   }
   
   console.log('✅ Game cleanup completed');
@@ -9024,7 +8728,7 @@ function debouncedSaveGameState(delayMs = 800) {
   }
   
   // Schedule new save
-  saveGameTimer = setTimeout(() => {
+  saveGameTimer = trackAppTimeout(() => {
     saveGameTimer = null;
     saveGameState();
   }, delayMs);
@@ -9367,7 +9071,7 @@ async function loadGameState() {
         } else {
           console.warn('⚠️ loadGameState: STATE.drag not available, tile will not be draggable:', tile.gridX, tile.gridY);
           // 🔥 FIX: Retry binding after a short delay if drag system is not yet initialized
-          setTimeout(() => {
+          trackAppTimeout(() => {
             if (STATE.drag && typeof STATE.drag.bindToTile === 'function') {
               STATE.drag.bindToTile(tile);
               console.log('✅ loadGameState: Tile bound to drag system after delay:', tile.gridX, tile.gridY);
@@ -9423,20 +9127,6 @@ async function loadGameState() {
       });
     } catch {}
 
-    // 🔥 CRITICAL FIX: Update ghost visibility AFTER loading all tiles
-    // This ensures ghost placeholders are hidden where tiles exist
-    try {
-      if (typeof window.updateGhostVisibility === 'function') {
-        window.updateGhostVisibility();
-        console.log('✅ loadGameState: Ghost visibility updated after loading tiles');
-      } else {
-        updateGhostVisibility();
-        console.log('✅ loadGameState: Ghost visibility updated (fallback)');
-      }
-    } catch (e) {
-      console.warn('⚠️ loadGameState: Failed to update ghost visibility:', e);
-    }
-
     board?.sortChildren?.();
 
     score = Number.isFinite(gameState.score) ? gameState.score : 0;
@@ -9479,7 +9169,7 @@ async function loadGameState() {
       let attempts = 0;
       const maxAttempts = 40; // 40 * 50ms = 2 seconds
       while (!STATE.drag && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => trackAppTimeout(resolve, 50));
         attempts++;
       }
       if (!STATE.drag) {
@@ -9538,7 +9228,7 @@ async function loadGameState() {
       if (_hudDropPending) {
         console.log('🎯 HUD drop pending - triggering drop animation');
         if (typeof HUD.playHudDrop === 'function') {
-            requestAnimationFrame(() => requestAnimationFrame(() => {
+            trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
               // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
               if (app && app.canvas) {
                 app.canvas.style.opacity = '1';
@@ -9575,7 +9265,7 @@ async function loadGameState() {
           
           // Play HUD drop animation after recreation
           if (typeof HUD.playHudDrop === 'function') {
-            requestAnimationFrame(() => requestAnimationFrame(() => {
+            trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
               // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
               if (app && app.canvas) {
                 app.canvas.style.opacity = '1';
@@ -9639,11 +9329,6 @@ async function loadGameState() {
     window._userMadeMove = true;
     console.log('✅ Set _userMadeMove = true after loading saved game state');
     
-    // Update ghost visibility after loading game state
-    if (typeof window.updateGhostVisibility === 'function') {
-      window.updateGhostVisibility();
-    }
-
     // CRITICAL: Resume GSAP and PIXI after loading
     try {
       gsap.globalTimeline.resume();
@@ -9654,11 +9339,6 @@ async function loadGameState() {
     }
     
     // ANIMATION: Show ghost placeholders FIRST, then animate tiles
-    // Update ghost visibility BEFORE animation
-    if (typeof window.updateGhostVisibility === 'function') {
-      window.updateGhostVisibility();
-    }
-    
     // Ensure background layer is visible from the start
     if (backgroundLayer) {
       backgroundLayer.visible = true;
@@ -9676,7 +9356,7 @@ async function loadGameState() {
           console.log('🎯 HUD drop still pending in onHalf - triggering now');
           try { 
             if (typeof HUD.playHudDrop === 'function') {
-              requestAnimationFrame(() => requestAnimationFrame(() => {
+              trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
                 // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
                 if (app && app.canvas) {
                   app.canvas.style.opacity = '1';
@@ -9824,7 +9504,7 @@ async function loadGameState() {
             
             // 🔥 CRITICAL: Schedule fail screen after UI settles
             // This gives user proper feedback that they lost
-            setTimeout(() => {
+            trackAppTimeout(() => {
               try {
                 console.log('💀 FAIL RECOVERY: Showing fail screen for board', currentBoardNum);
                 // Try to show fail screen if available
@@ -9856,7 +9536,7 @@ async function loadGameState() {
     // 🔥 BOARD RECOVERY: Schedule recovery check after UI settles
     // This handles edge cases where app was force-quit during last merge animation
     // Recovery check runs async so it doesn't block loadGameState return
-    setTimeout(async () => {
+    trackAppTimeout(async () => {
       try {
         // Build tile info array for recovery check
         const tileInfos = tiles
@@ -10106,22 +9786,24 @@ const iosVisibilityHandler = () => {
 (window as any)._saveGameStateRef = saveGameState;
 (window as any)._iosVisibilityHandler = iosVisibilityHandler; // 🍎 Store for cleanup!
 
-window.addEventListener('pagehide', saveGameState);
-window.addEventListener('visibilitychange', iosVisibilityHandler);
+trackAppListener(window, 'pagehide', saveGameState);
+trackAppListener(window, 'visibilitychange', iosVisibilityHandler);
 
 // iOS/Android specific events
-window.addEventListener('beforeunload', saveGameState);
-document.addEventListener('pause', saveGameState, false); // Android
+trackAppListener(window, 'beforeunload', saveGameState);
+trackAppListener(document, 'pause', saveGameState, false); // Android
 // 🔥 MEMORY LEAK FIX: Store reference for cleanup (same function)
 (window as any)._saveGameStateResumeRef = saveGameState;
-document.addEventListener('resume', () => {
+const resumeHandler = () => {
   // Reload game state when app resumes
   if (typeof window.loadGameState === 'function') {
-    setTimeout(() => {
+    trackAppTimeout(() => {
       window.loadGameState();
     }, 100);
   }
-}, false); // Android
+};
+(window as any)._resumeHandlerRef = resumeHandler;
+trackAppListener(document, 'resume', resumeHandler, false); // Android
 
 // CRITICAL: Expose function to sync score from app-boot.ts
 // This ensures STATE.score and local score variable stay in sync

@@ -4,6 +4,13 @@
 
 import { Container, Graphics, Text, Texture, Sprite } from 'pixi.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+
+const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 // Type definitions
 interface Tile extends Container {
@@ -97,12 +104,12 @@ export function showMultiplierTile(
   multContainer.alpha = 0;
   
   // Initial scale up
-  gsap.to(multContainer, { alpha: 1, duration: 0.2, ease: "back.out(1.7)" });
-  gsap.to(multContainer.scale, { x: 1.2, y: 1.2, duration: 0.2, ease: "back.out(1.7)" });
+  trackTween(multContainer, { alpha: 1, duration: 0.2, ease: "back.out(1.7)" });
+  trackTween(multContainer.scale, { x: 1.2, y: 1.2, duration: 0.2, ease: "back.out(1.7)" });
   
   // Float up and fade out
   const targetY = multContainer.y - 50;
-  gsap.to(multContainer, {
+  trackTween(multContainer, {
     alpha: 0,
     y: targetY,
     duration: life,
@@ -114,7 +121,7 @@ export function showMultiplierTile(
       }
     }
   });
-  gsap.to(multContainer.scale, {
+  trackTween(multContainer.scale, {
     x: 1.5,
     y: 1.5,
     duration: life,
@@ -171,20 +178,20 @@ export function smokeBubblesAtTile(
     bubble.alpha = 0;
     
     // Scale up animation
-    gsap.to(bubble, { alpha: opts.alpha, duration: 0.3, ease: "power2.out" });
-    gsap.to(bubble.scale, { x: 1, y: 1, duration: 0.3, ease: "power2.out" });
+    trackTween(bubble, { alpha: opts.alpha, duration: 0.3, ease: "power2.out" });
+    trackTween(bubble.scale, { x: 1, y: 1, duration: 0.3, ease: "power2.out" });
     
     // Float up and fade out
     const targetY = bubble.y - opts.speed * (1 + Math.random());
     const duration = 1.0 + Math.random() * 0.5;
-    gsap.to(bubble, { y: targetY, alpha: 0, duration, ease: "power2.out" });
-    gsap.to(bubble.scale, { x: 1.5, y: 1.5, duration, ease: "power2.out" });
+    trackTween(bubble, { y: targetY, alpha: 0, duration, ease: "power2.out" });
+    trackTween(bubble.scale, { x: 1.5, y: 1.5, duration, ease: "power2.out" });
   }
   
   board.addChild(smokeContainer);
   
   // Remove container after animation
-  gsap.delayedCall(1.5, () => {
+  trackDelayedCall(1.5, () => {
     if (board && smokeContainer.parent) {
       board.removeChild(smokeContainer);
     }
@@ -234,18 +241,18 @@ export function wildImpactEffect(tile: Tile, opts: WildImpactOptions = {}): void
     particle.alpha = 0;
     
     // Scale up animation
-    gsap.to(particle, { alpha: 1, duration: 0.2, ease: "power2.out" });
-    gsap.to(particle.scale, { x: 1, y: 1, duration: 0.2, ease: "power2.out" });
+    trackTween(particle, { alpha: 1, duration: 0.2, ease: "power2.out" });
+    trackTween(particle.scale, { x: 1, y: 1, duration: 0.2, ease: "power2.out" });
     
     // Explode outward and fade
     const targetX = particle.x + (Math.random() - 0.5) * 100;
     const targetY = particle.y + (Math.random() - 0.5) * 100;
-    gsap.to(particle, { x: targetX, y: targetY, alpha: 0, duration: options.duration, ease: "power2.out" });
-    gsap.to(particle.scale, { x: 0.5, y: 0.5, duration: options.duration, ease: "power2.out" });
+    trackTween(particle, { x: targetX, y: targetY, alpha: 0, duration: options.duration, ease: "power2.out" });
+    trackTween(particle.scale, { x: 0.5, y: 0.5, duration: options.duration, ease: "power2.out" });
   }
   
   // Remove container after animation
-  gsap.delayedCall(options.duration + 0.2, () => {
+  trackDelayedCall(options.duration + 0.2, () => {
     if (impactContainer.parent) {
       impactContainer.parent.removeChild(impactContainer);
     }
@@ -289,7 +296,7 @@ export function startWildIdle(tile: Tile, opts: WildIdleOptions = {}): void {
   }
   
   // Create idle animation
-  tile._wildIdleTl = gsap.timeline({ repeat: -1 });
+  tile._wildIdleTl = trackTimeline({ repeat: -1 });
   tile._wildIdleTl.to(tile._wildShimmerSprite, {
     alpha: options.alpha * 0.3,
     duration: options.speed,

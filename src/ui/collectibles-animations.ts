@@ -1,4 +1,7 @@
 import gsap from 'gsap';
+import animationManager from '../modules/animation-manager.js';
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 // 🔥 FIX: Track active GSAP tweens for cleanup
 const activeCollectiblesTweens: gsap.core.Tween[] = [];
@@ -87,7 +90,7 @@ export function animateCollectiblesScreenEnter(): void {
   // Use explicit values instead of autoAlpha for better mobile compatibility
   // Set visibility: visible immediately, then animate opacity
   gsap.set(journeyScreen, { visibility: 'visible', immediateRender: true });
-  gsap.to(journeyScreen, {
+  trackTween(journeyScreen, {
     opacity: 1,
     duration: 0.3,
     ease: 'power2.out',
@@ -100,7 +103,7 @@ export function animateCollectiblesScreenEnter(): void {
   if (collectiblesHeader) {
     // Set visibility first, then animate
     gsap.set(collectiblesHeader, { visibility: 'visible', immediateRender: true });
-    gsap.to(collectiblesHeader, {
+    trackTween(collectiblesHeader, {
       scale: 1,
       opacity: 1,
       duration: 0.5,
@@ -129,7 +132,7 @@ export function animateCollectiblesScreenEnter(): void {
     
     // Set visibility first, then animate scrollable container
     gsap.set(collectiblesScrollable, { visibility: 'visible', immediateRender: true });
-    gsap.to(collectiblesScrollable, {
+    trackTween(collectiblesScrollable, {
       scale: 1,
       opacity: 1,
       duration: 0.5,
@@ -181,7 +184,7 @@ export function animateCollectiblesScreenEnter(): void {
       card.style.transform = 'translateZ(0)'; // Force GPU acceleration
       
       gsap.set(card, { visibility: 'visible', immediateRender: true });
-      gsap.to(card, {
+      trackTween(card, {
         scale: 1,
         opacity: 1,
         duration: 0.4,
@@ -302,7 +305,7 @@ export function animateCollectiblesScreenExit(): Promise<void> {
           // 🔥 CSS CONTAINMENT: Add contain property for better performance
           (card.parentElement as HTMLElement)?.style.setProperty('contain', 'layout style paint');
           
-          gsap.to(card, {
+          trackTween(card, {
             scale: 0,
             opacity: 0,
             duration: 0.35,
@@ -324,7 +327,7 @@ export function animateCollectiblesScreenExit(): Promise<void> {
     const scrollableEnd = scrollableDelay + scrollableDuration;
 
     if (collectiblesScrollable) {
-      gsap.to(collectiblesScrollable, {
+      trackTween(collectiblesScrollable, {
         scale: 0,
         opacity: 0,
         duration: scrollableDuration,
@@ -339,7 +342,7 @@ export function animateCollectiblesScreenExit(): Promise<void> {
     const headerEnd = headerDelay + headerDuration;
     
     if (collectiblesHeader) {
-      gsap.to(collectiblesHeader, {
+      trackTween(collectiblesHeader, {
         scale: 0,
         opacity: 0,
         duration: headerDuration,

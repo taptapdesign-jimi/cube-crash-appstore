@@ -1,5 +1,8 @@
 import { logger } from '../core/logger.js';
 import gsap from 'gsap';
+import animationManager from '../modules/animation-manager.js';
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 // 🔥 FIX: Track active tweens for proper cleanup
 let activeSettingsTweens: gsap.core.Tween[] = [];
@@ -61,7 +64,7 @@ export function animateSettingsScreenEnter(): void {
   // STEP 1: Header FIRST (0ms delay)
   if (settingsHeader) {
     // 🔥 FIX: Track tween for cleanup
-    const headerTween = gsap.to(settingsHeader, { 
+    const headerTween = trackTween(settingsHeader, { 
       scale: 1, 
       opacity: 1, 
       duration: 0.5, 
@@ -83,7 +86,7 @@ export function animateSettingsScreenEnter(): void {
     const delay = baseDelay + (animationIndex * stagger);
     
     // 🔥 FIX: Track tween for cleanup
-    const toggleTween = gsap.to(toggle, {
+    const toggleTween = trackTween(toggle, {
       scale: 1,
       opacity: 1,
       duration: 0.5,
@@ -98,7 +101,7 @@ export function animateSettingsScreenEnter(): void {
     if (dividers[i]) {
       const dividerDelay = baseDelay + (animationIndex * stagger);
       // 🔥 FIX: Track tween for cleanup
-      const dividerTween = gsap.to(dividers[i], {
+      const dividerTween = trackTween(dividers[i], {
         scale: 1,
         opacity: 1,
         duration: 0.5,
@@ -151,7 +154,7 @@ export function animateSettingsScreenExit(): void {
     const delay = baseDelay + (index * stagger);
     
     // 🔥 FIX: Track tween for cleanup
-    const exitTween = gsap.to(element, {
+    const exitTween = trackTween(element, {
       scale: 0,
       opacity: 0,
       duration: 0.4,
@@ -169,7 +172,7 @@ export function animateSettingsScreenExit(): void {
     const lastDelay = interleavedElements.length > 0 ? (interleavedElements.length * 0.05) : 0;
     
     // 🔥 FIX: Track tween for cleanup
-    const headerExitTween = gsap.to(settingsHeader, {
+    const headerExitTween = trackTween(settingsHeader, {
       scale: 0,
       opacity: 0,
       duration: 0.4,
@@ -182,4 +185,3 @@ export function animateSettingsScreenExit(): void {
   
   console.log('✅ Settings screen exit animation started');
 }
-

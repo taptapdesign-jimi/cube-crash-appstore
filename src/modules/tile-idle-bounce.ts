@@ -7,9 +7,12 @@
  */
 
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import type { Tile } from '../types';
 import { smokeBubblesAtTile } from "./fx.ts";
 import { TILE } from './constants.js';
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
 const ENABLE_TILE_IDLE_BOUNCE = true;
 
@@ -160,7 +163,7 @@ function animateTile(tile: Tile): void {
   const originalRotation = tile.rotation || 0;
   
   // 🔥 CRITICAL: Store timeline reference on tile for cleanup
-  const tl = gsap.timeline({
+  const tl = trackTimeline({
     onComplete: () => {
       state.activeAnimations.delete(tile);
       (tile as any)._idleBounceTl = null;

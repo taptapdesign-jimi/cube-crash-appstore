@@ -8,6 +8,13 @@ import { logger } from '../core/logger.js';
 import { SLIDER_ANIMATION, SLIDER_CONFIG } from '../constants/animations.js';
 import { sliderState } from './slider-state.js';
 import { resetAnimationFlags } from '../utils/animations.js';
+import { getOriginalGsapTo } from './drag-core.js';
+
+// 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
+const trackTween = (target: any, vars: any) => {
+  const origTo = getOriginalGsapTo();
+  return animationManager.trackExternalTween(origTo(target, vars));
+};
 
 // Type definitions
 interface SliderElements {
@@ -707,7 +714,7 @@ class SliderManager {
           // 🔥 SMOOTH: Use smooth easing instead of bounce for fluid, non-jerky animation
           // 🔥 CRITICAL FIX: Use 'auto' overwrite instead of true to prevent killing animations before they start
           // 'auto' only overwrites conflicting properties, not all animations
-          this.slideAnimation = gsap.to(this.elements.wrapper, {
+          this.slideAnimation = trackTween(this.elements.wrapper, {
             x: offset,
             duration: SLIDER_CONFIG.SLIDE_DURATION_S,
             ease: SLIDER_CONFIG.SLIDE_EASING,
@@ -796,7 +803,7 @@ class SliderManager {
         // 🔥 FIX: Track animations for proper cleanup
         if (isActive) {
           // Animate to active state - smooth ease-in ease-out from current position
-          const buttonTween = gsap.to(navButton, {
+          const buttonTween = trackTween(navButton, {
             width: SLIDER_CONFIG.NAV_BUTTON_ACTIVE_SIZE,
             height: SLIDER_CONFIG.NAV_BUTTON_ACTIVE_SIZE,
             duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
@@ -806,7 +813,7 @@ class SliderManager {
           this.navButtonAnimations.push(buttonTween);
           
           if (navImage) {
-            const imageTween = gsap.to(navImage, {
+            const imageTween = trackTween(navImage, {
               y: SLIDER_CONFIG.NAV_IMAGE_ACTIVE_Y,
               duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
               ease: SLIDER_CONFIG.NAV_BUTTON_EASING,
@@ -816,7 +823,7 @@ class SliderManager {
           }
         } else {
           // Animate to inactive state - smooth ease-in ease-out from current position
-          const buttonTween = gsap.to(navButton, {
+          const buttonTween = trackTween(navButton, {
             width: SLIDER_CONFIG.NAV_BUTTON_INACTIVE_SIZE,
             height: SLIDER_CONFIG.NAV_BUTTON_INACTIVE_SIZE,
             duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
@@ -826,7 +833,7 @@ class SliderManager {
           this.navButtonAnimations.push(buttonTween);
           
           if (navImage) {
-            const imageTween = gsap.to(navImage, {
+            const imageTween = trackTween(navImage, {
               y: SLIDER_CONFIG.NAV_IMAGE_INACTIVE_Y,
               duration: SLIDER_CONFIG.NAV_BUTTON_ANIM_DURATION_S,
               ease: SLIDER_CONFIG.NAV_BUTTON_EASING,

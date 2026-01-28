@@ -6,7 +6,12 @@
 
 import { Container, Sprite, Assets, Text, Graphics, Application, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { ASSET_TILE } from './constants.js';
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 // Types
 interface Stage extends Container {
@@ -195,7 +200,7 @@ export async function showCleanBoardCelebration({
   // quick shake
   try {
     const gx = group.x, gy = group.y;
-    const tlShake = gsap.timeline();
+    const tlShake = trackTimeline();
     tlShake.to(group, { x: gx + 10, duration: 0.05 })
            .to(group, { x: gx - 10, duration: 0.07 })
            .to(group, { x: gx,      duration: 0.08 });
@@ -203,7 +208,7 @@ export async function showCleanBoardCelebration({
 
   // MIRROR INTRO — center-out, brzi "back.out" (4× brže od outra)
   await new Promise<void>(res => {
-    const tl = gsap.timeline({ onComplete: res });
+    const tl = trackTimeline({ onComplete: res });
     const orderTop = centerOrder(topTiles.length);
     const orderBot = centerOrder(botTiles.length);
     const stagger = 0.02;
@@ -217,14 +222,14 @@ export async function showCleanBoardCelebration({
 
   // Fade-in layer
   layer.alpha = 0;
-  await new Promise<void>(r => gsap.to(layer, { alpha:1, duration:0.20, onComplete:r }));
+  await new Promise<void>(r => trackTween(layer, { alpha:1, duration:0.20, onComplete:r }));
 
   // Hold
   await new Promise<void>(r => setTimeout(r, holdMs));
 
   // MIRROR OUTRO — center-out ista putanja, ali "back.in"
   await new Promise<void>(res => {
-    const tl = gsap.timeline({ onComplete: res });
+    const tl = trackTimeline({ onComplete: res });
     const orderTop = centerOrder(topTiles.length);
     const orderBot = centerOrder(botTiles.length);
     const stagger = 0.03;
@@ -241,4 +246,3 @@ export async function showCleanBoardCelebration({
     cleanup();
   }
 }
-

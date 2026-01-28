@@ -39,6 +39,7 @@ class AnimationManager {
   private animations: Map<string, gsap.core.Tween>;
   private timelines: Map<string, gsap.core.Timeline>;
   private activeTweens: Set<gsap.core.Tween>; // 🔥 FIX: Track all active tweens for cleanup
+  private activeTimelines: Set<gsap.core.Timeline>; // Track external timelines for cleanup
   private isInitialized: boolean;
   private tweenCounter: number; // For generating unique IDs
 
@@ -46,6 +47,7 @@ class AnimationManager {
     this.animations = new Map();
     this.timelines = new Map();
     this.activeTweens = new Set(); // 🔥 FIX: Track all active tweens
+    this.activeTimelines = new Set();
     this.isInitialized = false;
     this.tweenCounter = 0;
   }
@@ -61,6 +63,18 @@ class AnimationManager {
       }
     });
     return tween;
+  }
+
+  // Track external tween created outside the manager
+  trackExternalTween(tween: gsap.core.Tween): gsap.core.Tween {
+    this.activeTweens.add(tween);
+    return tween;
+  }
+
+  // Track external timeline created outside the manager
+  trackExternalTimeline(timeline: gsap.core.Timeline): gsap.core.Timeline {
+    this.activeTimelines.add(timeline);
+    return timeline;
   }
   
   // Initialize animation manager
@@ -346,6 +360,12 @@ class AnimationManager {
     });
     this.activeTweens.clear();
     
+    // Kill all tracked external timelines
+    this.activeTimelines.forEach(tl => {
+      try { tl.kill(); } catch {}
+    });
+    this.activeTimelines.clear();
+    
     logger.info('✅ All animations killed');
   }
   
@@ -376,4 +396,3 @@ export default animationManager;
 
 // Export class for testing
 export { AnimationManager };
-

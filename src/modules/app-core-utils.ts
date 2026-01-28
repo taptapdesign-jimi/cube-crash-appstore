@@ -61,6 +61,38 @@ export function clearAllAppIntervals() {
   _appIntervals.clear();
 }
 
+// 🔥 MEMORY LEAK FIX: Track all event listeners for cleanup
+type AppListener = {
+  target: EventTarget;
+  event: string;
+  handler: EventListenerOrEventListenerObject;
+  options?: boolean | AddEventListenerOptions;
+};
+
+const _appListeners: AppListener[] = [];
+
+export function trackAppListener(
+  target: EventTarget,
+  event: string,
+  handler: EventListenerOrEventListenerObject,
+  options?: boolean | AddEventListenerOptions
+): void {
+  target.addEventListener(event, handler, options);
+  _appListeners.push({ target, event, handler, options });
+}
+
+export function clearAllAppListeners(): void {
+  if (_appListeners.length > 0) {
+    logger.debug(`🧹 Clearing ${_appListeners.length} event listeners from app-core`, 'app-core');
+  }
+  for (const { target, event, handler, options } of _appListeners) {
+    try {
+      target.removeEventListener(event, handler, options);
+    } catch {}
+  }
+  _appListeners.length = 0;
+}
+
 /**
  * Calculate board size based on grid dimensions
  */
@@ -134,4 +166,3 @@ export function pickWildValue(dstValue: number): number {
   console.log('🎯 Final wild spawn value:', result);
   return result;
 }
-

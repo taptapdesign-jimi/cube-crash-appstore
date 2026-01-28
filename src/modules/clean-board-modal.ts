@@ -5,12 +5,15 @@
 // Keep CSS-based pop-in like homepage slide 1
 
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { createConfettiExplosion } from './confetti-system.js';
 import { statsService } from '../services/stats-service.js';
 import { boardStatsService } from '../services/board-stats-service.js';
 import { pickRandom } from './clean-board-utils.js';
 import { formatScoreSimple } from './hud-utils.js';
 import { clearPendingCleanBoard } from './board-recovery.js';
+import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
+import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
 
 const HEADLINES = [
   'Outstanding!', 'Amazing!', 'Excellent!', 'Fantastic!', 'Incredible!',
@@ -26,6 +29,20 @@ const HEADLINES = [
   'Titanic!', 'Grand!', 'Mythic!', 'Immortal!', 'Mega!',
   'Ultra!', 'Primeval!', 'Booming!'
 ];
+
+// 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
+const trackTimeline = (options: any = {}) => {
+  const origTimeline = getOriginalGsapTimeline();
+  return animationManager.trackExternalTimeline(origTimeline(options));
+};
+
+const trackTween = (target: any, vars: any) => {
+  const origTo = getOriginalGsapTo();
+  return animationManager.trackExternalTween(origTo(target, vars));
+};
+
+
+const lifecycle = createScreenLifecycle('clean-board-modal');
 
 interface ShowCleanBoardModalParams {
   app?: any;
@@ -80,6 +97,14 @@ export function clearAllModalAnimationFrames() {
   _modalAnimationFrames.clear();
 }
 
+export function cleanupCleanBoardModalLifecycle() {
+  try {
+    clearAllModalTimeouts();
+    clearAllModalAnimationFrames();
+  } catch {}
+  lifecycle.cleanup();
+}
+
 // 🔥 FIX: Add navigation/visibility cleanup to prevent memory leaks
 // When user navigates away or page becomes hidden, clean up all pending operations
 let _navigationCleanupAttached = false;
@@ -92,20 +117,39 @@ function attachNavigationCleanup(): void {
     console.log('🧹 Clean board modal: Navigation/visibility cleanup triggered');
     clearAllModalTimeouts();
     clearAllModalAnimationFrames();
+    // Ensure overlay never blocks input if navigation interrupts exit cleanup
+    try {
+      const overlay = document.getElementById('cc-clean-board-overlay');
+      if (overlay) {
+        overlay.setAttribute('data-clean-board-exiting', 'true');
+        (overlay as HTMLElement).style.pointerEvents = 'none';
+        (overlay as HTMLElement).style.opacity = '0';
+        overlay.remove();
+        console.log('🧹 Clean board modal: Overlay removed during navigation cleanup');
+      }
+    } catch {}
+    // Remove star animation style tag if still present
+    try {
+      const styleTag = document.getElementById('clean-board-star-animations');
+      if (styleTag) {
+        styleTag.remove();
+        console.log('🧹 Clean board modal: Style tag removed during navigation cleanup');
+      }
+    } catch {}
   };
   
   // Clean up when page is hidden (user switches tabs/apps)
-  document.addEventListener('visibilitychange', () => {
+  lifecycle.trackListener(document, 'visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       cleanup();
     }
   });
   
   // Clean up when page is unloaded
-  window.addEventListener('beforeunload', cleanup);
+  lifecycle.trackListener(window, 'beforeunload', cleanup);
   
   // Clean up when navigating within app (custom event)
-  window.addEventListener('cc-navigation', cleanup);
+  lifecycle.trackListener(window, 'cc-navigation', cleanup);
 }
 
 // Attach cleanup handlers on module load
@@ -126,7 +170,21 @@ export async function showCleanBoardModal({
   forcedStars,
   devMode = false // 🧪 DEV: Enable dev mode for testing board transition screen
 }: ShowCleanBoardModalParams = {}): Promise<{ action: string }> {
-  return new Promise(async resolve => {
+  return new Promise((resolve) => {
+    const safeResolve = (action: string = 'continue') => {
+      try { resolve({ action }); } catch {}
+    };
+    const run = async () => {
+      try {
+    const stopConfettiSpawnsSafe = () => {
+      try {
+        import('./confetti-system.js').then(confettiModule => {
+          if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
+            confettiModule.stopConfettiSpawns();
+          }
+        }).catch(() => {});
+      } catch {}
+    };
     // 🌟 Add CSS animations for star breathing
     if (!document.getElementById('clean-board-star-animations')) {
       const style = document.createElement('style');
@@ -488,8 +546,16 @@ export async function showCleanBoardModal({
     boardCleared.style.textAlign = 'center';
 
     // 🔥 NEW LOGIC: Check if user came from interim board or regular board (detail modal)
-    const isFromInterimBoard = (window as any).__ccFromInterimBoard === true;
-    console.log(`🎯 Clean board modal: isFromInterimBoard = ${isFromInterimBoard}`);
+    // Keep in sync with endgame-flow/app-core detection (window + localStorage flags)
+    const isFromInterimBoard =
+      (window as any).__ccFromInterimBoard === true ||
+      (window as any).__ccIsInterimBoard === true ||
+      localStorage.getItem('__ccFromInterimBoard') === 'true';
+    console.log('🎯 Clean board modal: isFromInterimBoard =', isFromInterimBoard, {
+      __ccFromInterimBoard: (window as any).__ccFromInterimBoard,
+      __ccIsInterimBoard: (window as any).__ccIsInterimBoard,
+      __ccFromInterimBoardLS: localStorage.getItem('__ccFromInterimBoard')
+    });
     
     // Responsive width logic
     const isMobile = window.innerWidth <= 428;
@@ -728,7 +794,7 @@ export async function showCleanBoardModal({
           diff 
         });
         
-        const scoreTween = gsap.to(scoreProxy, {
+        const scoreTween = trackTween(scoreProxy, {
           value: targetScore,
           duration: duration,
           ease: 'power2.out',
@@ -762,7 +828,7 @@ export async function showCleanBoardModal({
 
         // Animate combo bonus countdown separately
         const comboProxy = { value: safeComboBonus };
-        const comboTween = gsap.to(comboProxy, {
+        const comboTween = trackTween(comboProxy, {
           value: 0,
           duration: durationSec,
           ease: 'power2.out',
@@ -792,7 +858,7 @@ export async function showCleanBoardModal({
 
         // Animate efficiency bonus countdown separately
         const efficiencyProxy = { value: safeEfficiencyBonus };
-        const efficiencyTween = gsap.to(efficiencyProxy, {
+        const efficiencyTween = trackTween(efficiencyProxy, {
           value: 0,
           duration: durationSec,
           ease: 'power2.out',
@@ -841,7 +907,7 @@ export async function showCleanBoardModal({
                   });
                   
                   // Create bounce timeline
-                  const bounceTl = gsap.timeline();
+                  const bounceTl = trackTimeline();
                   
                   // 🎾 TRAMPOLIN BOUNCE: Scale 0 → 0.88 sa jako elastic/springy easing
                   // elastic.out(amplitude, period) - manji period = više bounces (trampolin efekt!)
@@ -1031,7 +1097,7 @@ export async function showCleanBoardModal({
               filledImg.style.transform = ct;
             }
             filledImg.style.transformOrigin = 'center center';
-            gsap.to(filledImg, {
+            trackTween(filledImg, {
               scale: 0,
               opacity: 0,
               duration: 0.5,
@@ -1345,6 +1411,8 @@ export async function showCleanBoardModal({
               
               // Start new board (use startNewRunFromJourney for proper initialization)
               try {
+                try { (window as any).CC?.cleanupFxForBoardReset?.('clean-board-modal'); } catch {}
+                try { (window as any).CC?.softResetBoardView?.('clean-board-modal'); } catch {}
                 if (typeof (window as any).startNewRunFromJourney === 'function') {
                   // Set Journey flags for proper initialization
                   (window as any).__ccCameFromJourney = true;
@@ -1382,19 +1450,7 @@ export async function showCleanBoardModal({
       // 🔥 MEMORY LEAK FIX: Final cleanup before resolving (animations already stopped at button click)
       cleanupButtonListeners(); // Remove all button event listeners
       
-      // 🔥 CRITICAL MEMORY LEAK FIX: Comprehensive cleanup before board transition
-      // This ensures all animations, effects, and resources are cleaned up before startLevel
-      // 🔥 CRITICAL FIX: cleanupAllEffects() now skips bubble explosion if board transition is active
-      // This prevents race condition where cleanup stops animation before it can start
-      try {
-        const fxModule = await import('./fx.js');
-        if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
-          fxModule.cleanupAllEffects();
-          console.log('🧹 clean-board-modal: Cleaned up all effects (bubbles, stars, particles) before board transition');
-        }
-      } catch (e) {
-        console.warn('⚠️ clean-board-modal: Failed to cleanup all effects (non-fatal):', e);
-      }
+      // 🔥 NOTE: FX cleanup handled centrally in endgame-flow before startLevel
       
       trackTimeout(() => { 
         try { el.remove(); } catch {}
@@ -1402,17 +1458,7 @@ export async function showCleanBoardModal({
         
         // 🔥 GRACEFUL CLEANUP: Stop new confetti spawns but let existing animations finish
         // This allows confetti to continue animating after primary button is clicked
-        try {
-          import('./confetti-system.js').then(confettiModule => {
-            if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
-              confettiModule.stopConfettiSpawns();
-            }
-          }).catch(() => {
-            // Ignore import errors
-          });
-        } catch (e) {
-          // Ignore errors
-        }
+        stopConfettiSpawnsSafe();
         
         // 🔥 NEW: Return action based on which button was clicked
         const action = isFromInterimBoard ? 'continue' : 'play-again';
@@ -1635,17 +1681,17 @@ export async function showCleanBoardModal({
           removeStyleTag(); // Remove CSS style tag
           
           // Stop confetti spawns
-          try {
-            import('./confetti-system.js').then(confettiModule => {
-              if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
-                confettiModule.stopConfettiSpawns();
-              }
-            }).catch(() => {});
-          } catch (e) {}
+          stopConfettiSpawnsSafe();
           
           console.log(`🧹 clean-board-modal: Cleanup complete after exit animation finished`);
         }, collapseDuration + 110); // Clean up after full exit animation
       });
     }
+      } catch (error) {
+        console.error('❌ clean-board-modal: Unhandled error - falling back to continue', error);
+        safeResolve('continue');
+      }
+    };
+    run();
   });
 }

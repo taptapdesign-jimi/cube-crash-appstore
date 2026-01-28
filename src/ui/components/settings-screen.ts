@@ -2,7 +2,15 @@
 // Settings Screen Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 import { gsap } from 'gsap';
+import animationManager from '../../modules/animation-manager.js';
 import { domElementPool } from '../../modules/dom-element-pool.js';
+
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+
+const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 export interface SettingsScreenConfig {
   onBack?: () => void;
@@ -382,7 +390,7 @@ function triggerFooterExplosion(element: HTMLElement): void {
     const targetY = Math.sin(angle) * distance;
     const rotation = Math.random() * 360;
     
-    gsap.to(shard, {
+    trackTween(shard, {
       x: targetX,
       y: targetY,
       rotation: rotation,
@@ -391,7 +399,7 @@ function triggerFooterExplosion(element: HTMLElement): void {
       ease: 'power2.out',
     });
     
-    gsap.to(shard, {
+    trackTween(shard, {
       opacity: 0,
       scale: 0,
       duration: 0.4 + Math.random() * 0.2,
@@ -411,7 +419,7 @@ function triggerFooterExplosion(element: HTMLElement): void {
     const shakeDuration = 0.5;
     const shakeSteps = 20;
     
-    const shakeTimeline = gsap.timeline();
+    const shakeTimeline = trackTimeline();
     for (let i = 0; i < shakeSteps; i++) {
       const progress = i / shakeSteps;
       const intensity = shakeStrength * (1 - progress);
@@ -435,7 +443,7 @@ function triggerFooterExplosion(element: HTMLElement): void {
   }
   
   // 🔥 MEMORY LEAK FIX: Comprehensive cleanup - release all particles to pool after animation
-  gsap.delayedCall(1.2, () => {
+  trackDelayedCall(1.2, () => {
     try {
       // Kill GSAP animations on all shards and release them to pool
       shards.forEach(shard => {
@@ -464,4 +472,3 @@ function triggerFooterExplosion(element: HTMLElement): void {
     (window as any).triggerHapticImpact('heavy');
   }
 }
-

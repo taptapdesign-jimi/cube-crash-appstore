@@ -1,6 +1,11 @@
 // @ts-nocheck
 import { Container, Graphics } from 'pixi.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 interface LandBounceOptions {
   amp?: number;      // 0..1  koliki squash/stretch (default 0.18)
@@ -52,7 +57,7 @@ export function landBounce(tile: any, opts: LandBounceOptions = {}): void {
   const sx = (host.scale && host.scale.x) || 1;
   const sy = (host.scale && host.scale.y) || 1;
 
-  const tl = gsap.timeline();
+  const tl = trackTimeline();
 
   // 1) micro-impact (simetrični squash/stretch oko centra)
   tl.fromTo(
@@ -146,7 +151,7 @@ export function createWildLoaderFX({
     const life = 0.65 + Math.random() * 0.45;     // a bit longer on screen
     const scaleUp = 1.25 + Math.random() * 0.45;   // punchier pop size
 
-    const tl = gsap.timeline({
+    const tl = trackTimeline({
       onComplete: () => {
         try {
           // 🔥 CRITICAL: Kill all tweens before removing
@@ -167,7 +172,7 @@ export function createWildLoaderFX({
 
     // micro "shimmy" to feel more lively (scale + slight rotation)
     // 🔥 CRITICAL: Store tween references for cleanup
-    const shimmyScaleTween = gsap.to(g.scale, {
+    const shimmyScaleTween = trackTween(g.scale, {
       x: '+=0.10',
       y: '+=0.10',
       duration: 0.18,
@@ -175,7 +180,7 @@ export function createWildLoaderFX({
       yoyo: true,
       ease: 'sine.inOut'
     });
-    const shimmyRotTween = gsap.to(g, {
+    const shimmyRotTween = trackTween(g, {
       rotation: (Math.random() * 0.18) - 0.09,
       duration: 0.22,
       repeat: Math.ceil(life / 0.22),
@@ -243,7 +248,7 @@ export function createWildLoaderFX({
     }
 
     const obj = { p: progress };
-    progressAnimation = gsap.to(obj, {
+    progressAnimation = trackTween(obj, {
       p: target,
       duration: 0.25,
       ease: 'power2.out',
@@ -298,4 +303,3 @@ export function createWildLoaderFX({
 export default {
   landBounce,
 };
-

@@ -5,8 +5,14 @@
 
 import { Container, Graphics, Sprite } from 'pixi.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { graphicsPool } from './object-pool.ts';
 import { getBubbleColors } from './templates/template-manager.ts';
+import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
+
+const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
 
 // Module-level state (like board-transition-screen)
 let isExplosionActive = false;
@@ -16,6 +22,7 @@ let safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
 let _cachedBubbleTexture: any = null; // Cached bubble texture for performance
 let explosionStartTime: number = 0; // Track when explosion started (for protection against premature cleanup)
 let stageRetryCount = 0; // Retry count for stage acquisition during transitions
+const lifecycle = createScreenLifecycle('wild-beer-bubbles-explosion');
 
 function getFxHost(stage: any): any {
   if (!stage || stage.destroyed) return null;
@@ -70,10 +77,10 @@ function forceRenderFrames(frames = 3): void {
       } catch {}
       remaining -= 1;
       if (remaining > 0) {
-        requestAnimationFrame(tick);
+        lifecycle.trackRaf(tick);
       }
     };
-    requestAnimationFrame(tick);
+    lifecycle.trackRaf(tick);
   } catch {}
 }
 
@@ -164,7 +171,7 @@ export function showWildBeerBubblesExplosion(): void {
     cleanup();
     // 🔥 CRITICAL: Wait a frame to ensure cleanup completes before starting new explosion
     // This prevents race conditions where cleanup and new explosion conflict
-    requestAnimationFrame(() => {
+    lifecycle.trackRaf(() => {
       showWildBeerBubblesExplosionInternal();
     });
     return;
@@ -209,7 +216,7 @@ function showWildBeerBubblesExplosionInternal(): void {
       stageRetryCount += 1;
       const delay = isBoardTransitionActive ? 100 : 80;
       console.log(`⏸️ Stage unavailable (retry ${stageRetryCount}/${maxRetries})${isBoardTransitionActive ? ' during board transition' : ''}, retrying in ${delay}ms...`);
-      setTimeout(() => {
+      lifecycle.trackTimeout(() => {
         showWildBeerBubblesExplosionInternal();
       }, delay);
       return;
@@ -225,7 +232,7 @@ function showWildBeerBubblesExplosionInternal(): void {
     console.warn('⚠️ Bubbles explosion state still active after cleanup, forcing cleanup again');
     cleanup();
     // Wait another frame
-    requestAnimationFrame(() => {
+    lifecycle.trackRaf(() => {
       showWildBeerBubblesExplosionInternal();
     });
     return;
@@ -386,7 +393,7 @@ function showWildBeerBubblesExplosionInternal(): void {
   if (safetyTimeoutId) {
     try { clearTimeout(safetyTimeoutId); } catch {}
   }
-  safetyTimeoutId = setTimeout(() => {
+  safetyTimeoutId = lifecycle.trackTimeout(() => {
     safetyTimeoutId = null;
     if (isExplosionActive) {
       console.warn('⚠️ Bubbles explosion safety timeout (4.4s) - forcing cleanup');
@@ -397,7 +404,7 @@ function showWildBeerBubblesExplosionInternal(): void {
   // Start FPS monitoring
   if (!fpsMonitorActive) {
     startFpsMonitoring();
-    gsap.delayedCall(2.0, () => {
+    trackDelayedCall(2.0, () => {
       stopFpsMonitoring();
     });
   }
@@ -623,7 +630,7 @@ function showWildBeerBubblesExplosionInternal(): void {
     const bubbleTweens: gsap.core.Tween[] = [];
 
     // Vertical rise + drift
-    bubbleTweens.push(gsap.to(bubble, {
+    bubbleTweens.push(trackTween(bubble, {
       x: startX + driftX,
       y: endY,
       duration,
@@ -650,7 +657,7 @@ function showWildBeerBubblesExplosionInternal(): void {
 
     // Scale animation
     const finalScale = 0.65 + Math.random() * 0.35;
-    bubbleTweens.push(gsap.to(bubble.scale, {
+    bubbleTweens.push(trackTween(bubble.scale, {
       x: isSprite ? finalScale * sizeRatio : finalScale,
       y: isSprite ? finalScale * sizeRatio : finalScale,
       duration: duration * 0.45,
@@ -659,7 +666,7 @@ function showWildBeerBubblesExplosionInternal(): void {
     }));
 
     // Alpha fade
-    bubbleTweens.push(gsap.to(bubble, {
+    bubbleTweens.push(trackTween(bubble, {
       alpha: 0,
       duration: duration * 0.4,
       delay: duration * 0.6,
@@ -852,7 +859,7 @@ function showWildBeerBubblesExplosionInternal(): void {
           gsap.ticker.remove(spawnTicker);
           spawnTick = null;
         }
-        setTimeout(() => cleanup(), 2400);
+        lifecycle.trackTimeout(() => cleanup(), 2400);
         return;
       }
       
@@ -861,7 +868,7 @@ function showWildBeerBubblesExplosionInternal(): void {
           gsap.ticker.remove(spawnTicker);
           spawnTick = null;
         }
-        setTimeout(() => cleanup(), 0);
+        lifecycle.trackTimeout(() => cleanup(), 0);
         return;
       }
 
@@ -958,7 +965,7 @@ function showWildBeerBubblesExplosionInternal(): void {
   
   // 🔥 CRITICAL FIX: Force render again after initial burst to ensure bubbles are visible
   // This ensures bubbles are rendered immediately after creation (same pattern as fx.ts for wild stars)
-  setTimeout(() => {
+  lifecycle.trackTimeout(() => {
     try {
       const windowState = typeof window !== 'undefined' ? (window as any).STATE : null;
       const app = (windowState && windowState.app) || null;
@@ -1019,6 +1026,18 @@ export function stopWildBeerBubblesExplosion(): void {
 }
 
 /**
+ * Destroy cached bubble texture to release GPU memory (call on hard cleanup).
+ */
+export function destroyWildBeerBubblesExplosionCache(): void {
+  if (_cachedBubbleTexture && !_cachedBubbleTexture.destroyed) {
+    try {
+      _cachedBubbleTexture.destroy(true);
+    } catch {}
+  }
+  _cachedBubbleTexture = null;
+}
+
+/**
  * Check if explosion was recently started (within last 5 seconds)
  * Used to protect animation from premature cleanup during board transitions
  */
@@ -1035,6 +1054,9 @@ export function isWildBeerBubblesExplosionActive(): boolean {
   return isExplosionActive;
 }
 
+// Track pending waiters so cleanup can resolve them (prevents hangs)
+const _explosionWaiters = new Set<() => void>();
+
 /**
  * Wait for explosion to complete
  */
@@ -1045,20 +1067,33 @@ export function waitForBubblesExplosionToComplete(maxWaitMs = 5000): Promise<voi
       return;
     }
 
+    let resolved = false;
+    let checkInterval: NodeJS.Timeout | null = null;
+    const safeResolve = () => {
+      if (resolved) return;
+      resolved = true;
+      if (checkInterval) {
+        try { clearInterval(checkInterval); } catch {}
+        checkInterval = null;
+      }
+      _explosionWaiters.delete(safeResolve);
+      resolve();
+    };
+
+    _explosionWaiters.add(safeResolve);
+
     const startTime = performance.now();
-    const checkInterval = setInterval(() => {
+    checkInterval = setInterval(() => {
       if (!isExplosionActive) {
-        clearInterval(checkInterval);
-        resolve();
+        safeResolve();
         return;
       }
 
       const elapsed = performance.now() - startTime;
       if (elapsed >= maxWaitMs) {
-        clearInterval(checkInterval);
         console.warn('⚠️ Bubbles explosion wait timeout, forcing cleanup');
         cleanup();
-        resolve();
+        safeResolve();
       }
     }, 100);
   });
@@ -1144,10 +1179,19 @@ function initializeBubbleTexture(app: any): void {
  * Cleanup explosion
  */
 function cleanup(): void {
+  lifecycle.cleanup();
   isExplosionActive = false;
   explosionStartTime = 0; // Reset start time on cleanup
   // 🔥 CRITICAL: Clear global start time on cleanup
   delete (window as any).__ccBubblesExplosionStartTime;
+
+  // Resolve any pending waiters to prevent hangs
+  if (_explosionWaiters.size) {
+    _explosionWaiters.forEach((fn) => {
+      try { fn(); } catch {}
+    });
+    _explosionWaiters.clear();
+  }
 
   // Clear safety timeout
   if (safetyTimeoutId) {

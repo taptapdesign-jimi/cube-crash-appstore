@@ -4,12 +4,19 @@
 
 import { Container, Graphics, Text, Texture, Sprite, Board } from 'pixi.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import type { Tile } from '../types/game-types.js';
 
 import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from './wild-stars.ts';
 import { TILE } from './constants.js';
 import { graphicsPool } from './object-pool.ts';
 import { selectPattern, getColor, getParams, getActiveTemplate, getDragParticleColors, getBubbleColors } from './templates/template-manager.ts';
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+
+const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 try {
   preloadWildStarTexture();
@@ -213,7 +220,7 @@ export function startWildBeerBubbles(tile) {
     const duration = 0.8 + Math.random() * 0.7;
     
     // Grow slightly as it rises (like bubbles expanding)
-    gsap.to(bubble.scale, {
+    trackTween(bubble.scale, {
       x: 0.6 + Math.random() * 0.4, // Grow to 60-100% of size
       y: 0.6 + Math.random() * 0.4,
       duration: duration * 0.3, // Grow in first 30% of animation
@@ -221,7 +228,7 @@ export function startWildBeerBubbles(tile) {
     });
     
     // Rise up smoothly (like sparkling water bubbles)
-    gsap.to(bubble, {
+    trackTween(bubble, {
       x: endX,
       y: endY,
       duration: duration,
@@ -241,7 +248,7 @@ export function startWildBeerBubbles(tile) {
     });
     
     // Fade out as it reaches the top (last 40% of animation)
-    gsap.to(bubble, {
+    trackTween(bubble, {
       alpha: 0,
       duration: duration * 0.4,
       delay: duration * 0.6,
@@ -254,7 +261,7 @@ export function startWildBeerBubbles(tile) {
     if (system.disposed || !container.parent) return;
     createBubble();
     const nextDelay = 0.3 + Math.random() * 0.3; // 0.3-0.6s between bubbles
-    system.spawnInterval = gsap.delayedCall(nextDelay, spawnBubble);
+    system.spawnInterval = trackDelayedCall(nextDelay, spawnBubble);
   };
   
   // Start spawning bubbles immediately and then continuously
@@ -366,7 +373,7 @@ function autoAdd(parent, child, ttlSec = 0.8, options = {}){
   
   if (ttlSec > 0){
     // 🔥 MEMORY LEAK FIX: Store delayed call reference and auto-cleanup
-    const delayedCall = gsap.delayedCall(ttlSec, () => {
+    const delayedCall = trackDelayedCall(ttlSec, () => {
       try {
         // 🔥 MEMORY LEAK FIX: Kill all animations before destroying
         if (child._starAnimations && Array.isArray(child._starAnimations)) {
@@ -586,8 +593,8 @@ export function glassCrackAtTile(board, tile, tileSize = 96, strength = 1){
     layer.addChild(crack);
 
     // Animate crack appearance
-    gsap.to(crack, { alpha: 0.9, duration: 0.1, delay: i * 0.01 });
-    gsap.to(crack, { alpha: 0, duration: 0.3, delay: 0.2 + i * 0.01 });
+    trackTween(crack, { alpha: 0.9, duration: 0.1, delay: i * 0.01 });
+    trackTween(crack, { alpha: 0, duration: 0.3, delay: 0.2 + i * 0.01 });
   }
 }
 
@@ -671,7 +678,7 @@ export function wildMagnetDragParticlesTemplated(board, tile, opts = {}) {
       const endX = center.x + Math.cos(endAngle) * endDistance;
       const endY = center.y + Math.sin(endAngle) * endDistance;
       
-      gsap.to(particle, {
+      trackTween(particle, {
         x: endX,
         y: endY,
         rotation: particle.rotation + (Math.random() - 0.5) * Math.PI * 2,
@@ -688,7 +695,7 @@ export function wildMagnetDragParticlesTemplated(board, tile, opts = {}) {
       
       // 🔥 USER REQUEST: Separate fade animation for idle particles (slower fade)
       if (isIdle) {
-        gsap.to(particle, {
+        trackTween(particle, {
           alpha: targetAlpha,
           duration: duration * 0.4,  // Fade over last 40% of animation
           delay: duration * 0.6,
@@ -696,7 +703,7 @@ export function wildMagnetDragParticlesTemplated(board, tile, opts = {}) {
         });
       } else {
         // Drag particles fade immediately
-        gsap.to(particle, {
+        trackTween(particle, {
           alpha: 0,
           duration: duration,
           ease: 'power1.out'
@@ -820,7 +827,7 @@ export function wildMagnetDragParticlesTemplated(board, tile, opts = {}) {
     const targetAlpha = isIdle ? 0.1 : 0;  // Idle particles fade to 10% opacity, not 0
     const fadeStartDelay = isIdle ? travelDur * 0.6 : 0;  // Start fading later for idle
     
-    gsap.to(particle, {
+    trackTween(particle, {
       x: endX,
       y: endY,
       rotation: particle.rotation + (Math.random() - 0.5) * Math.PI * 2,
@@ -842,7 +849,7 @@ export function wildMagnetDragParticlesTemplated(board, tile, opts = {}) {
     // 🔥 USER REQUEST: Separate fade animation for idle particles (slower fade)
     // 🔥 FIX: Changed isIdleFallback to isIdle (bug fix - variable was undefined)
     if (isIdle) {
-      gsap.to(particle, {
+      trackTween(particle, {
         alpha: targetAlpha,
         duration: travelDur * 0.4,  // Fade over last 40% of animation
         delay: fadeStartDelay,
@@ -850,7 +857,7 @@ export function wildMagnetDragParticlesTemplated(board, tile, opts = {}) {
       });
     } else {
       // Drag particles fade immediately
-      gsap.to(particle, {
+      trackTween(particle, {
         alpha: 0,
         duration: travelDur,
         ease: 'power1.out'
@@ -861,7 +868,7 @@ export function wildMagnetDragParticlesTemplated(board, tile, opts = {}) {
   // Cleanup after TTL (longer for idle particles)
   const baseTtl = params.ttl || 0.6;
   const ttl = (intensity < 0.5) ? 3.5 : baseTtl;  // 🔥 USER REQUEST: 3.5 seconds for idle, original for drag
-  gsap.delayedCall(ttl, () => {
+  trackDelayedCall(ttl, () => {
     particlesInBatch.forEach((particle) => {
       try {
         gsap.killTweensOf(particle);
@@ -1073,7 +1080,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     const endX = x + Math.cos(endAngle) * endDistance;
     const endY = y + Math.sin(endAngle) * endDistance;
     
-    gsap.to(shard, {
+    trackTween(shard, {
       x: endX,
       y: endY,
       rotation: shard.rotation + (Math.random() - 0.5) * Math.PI * 2,
@@ -1278,7 +1285,7 @@ export function regularMerge6Shards(board, tile, opts = {}){
   
   // Auto-remove after TTL
   const ttl = opts.ttl ?? 1.6;
-  gsap.delayedCall(ttl, () => {
+  trackDelayedCall(ttl, () => {
     try {
       // 🔥 CRITICAL FIX: Destroy ALL shards BEFORE destroying layer
       // Using destroy() instead of pooling to avoid rendering issues
@@ -1449,13 +1456,13 @@ export function regularMerge6Shards(board, tile, opts = {}){
     
     // Start fade-out animation immediately (procedural, one by one)
     if (fastFadeOut) {
-      gsap.delayedCall(staggerDelay, () => {
+      trackDelayedCall(staggerDelay, () => {
         // Start fading out immediately after a short delay
         const fadeStartDelay = travelDur * 0.3; // Start fading 30% into travel
         const fadeDuration = travelDur * 0.4; // Fade over 40% of travel duration
         
-        gsap.delayedCall(fadeStartDelay, () => {
-          gsap.to(shard, {
+        trackDelayedCall(fadeStartDelay, () => {
+          trackTween(shard, {
             alpha: 0,
             duration: fadeDuration,
             ease: 'power2.in'
@@ -1465,7 +1472,7 @@ export function regularMerge6Shards(board, tile, opts = {}){
     }
     
     // Animate shard
-    gsap.to(shard, {
+    trackTween(shard, {
       x: endX,
       y: endY,
       rotation: shard.rotation + spin,
@@ -1476,7 +1483,7 @@ export function regularMerge6Shards(board, tile, opts = {}){
         const baseFadeDelay = 0.03 + Math.random() * 0.06; // 0.03-0.09s
         const fadeDelay = baseFadeDelay * fadeDelayMultiplier; // 0.003-0.009s (instant)
         
-        gsap.delayedCall(fadeDelay, () => {
+        trackDelayedCall(fadeDelay, () => {
           try {
             // 🔥 CRITICAL FIX: Kill all GSAP animations before destroy
             gsap.killTweensOf(shard);
@@ -1675,14 +1682,14 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
     const fadeDelay = (params.fadeDelay || 0.15) + (params.fadeDelayMultiplier || 0.1) * Math.random();
     const fadeDur = params.fadeDuration || 0.25;
     
-    gsap.to(shard, {
+    trackTween(shard, {
       x: targetX,
       y: targetY,
       duration: travelDur,
       ease: 'power2.out'
     });
     
-    gsap.to(shard, {
+    trackTween(shard, {
       alpha: 0,
       delay: fadeDelay,
       duration: fadeDur,
@@ -1937,7 +1944,7 @@ export function wildMagnetMerge6ShardsTemplated(board, tile, opts = {}) {
     const fadeDelay = (params.fadeDelay ?? 0.15) + (params.fadeDelayMultiplier ?? 0.1) * Math.random();
     const fadeDur = params.fadeDuration ?? 0.25;
     
-    gsap.to(shard, {
+    trackTween(shard, {
       delay: staggerDelay, // 🔥 Organic stagger - shards don't all start at once
       x: targetX,
       y: targetY,
@@ -1945,7 +1952,7 @@ export function wildMagnetMerge6ShardsTemplated(board, tile, opts = {}) {
       ease: 'power2.out'
     });
     
-    gsap.to(shard, {
+    trackTween(shard, {
       alpha: 0,
       delay: fadeDelay,
       duration: fadeDur,
@@ -1957,7 +1964,7 @@ export function wildMagnetMerge6ShardsTemplated(board, tile, opts = {}) {
   
   // Cleanup layer after TTL
   const ttl = params.ttl || 1.0;
-  gsap.delayedCall(ttl, () => {
+  trackDelayedCall(ttl, () => {
     console.log(`🎨 wildMagnetMerge6ShardsTemplated: Cleaning up ${shardsInLayer.length} shards after TTL ${ttl}s`);
     
     // Return all shards to pool
@@ -2164,14 +2171,14 @@ export function wildMerge6ShardsTemplated(board, tile, opts = {}) {
     const fadeDelay = (params.vanishDelay || 0.0) + (params.vanishJitter || 0.02) * Math.random();
     const fadeDur = 0.3;
     
-    gsap.to(shard, {
+    trackTween(shard, {
       x: targetX,
       y: targetY,
       duration: travelDur,
       ease: 'power2.out'
     });
     
-    gsap.to(shard, {
+    trackTween(shard, {
       alpha: 0,
       delay: fadeDelay,
       duration: fadeDur,
@@ -2183,7 +2190,7 @@ export function wildMerge6ShardsTemplated(board, tile, opts = {}) {
   
   // Cleanup layer after TTL
   const ttl = params.ttl || 1.2;
-  gsap.delayedCall(ttl, () => {
+  trackDelayedCall(ttl, () => {
     console.log(`🎨 wildMerge6ShardsTemplated: Cleaning up ${shardsInLayer.length} shards after TTL ${ttl}s`);
     
     // Return all shards to pool
@@ -2408,7 +2415,7 @@ export function wildStarMerge6ShardsTemplated(board, tile, opts = {}) {
     const fadeDelay = (params.fadeDelay ?? 0.15) + (params.fadeDelayMultiplier ?? 0.1) * Math.random();
     const fadeDur = params.fadeDuration ?? 0.25;
     
-    gsap.to(shard, {
+    trackTween(shard, {
       delay: staggerDelay, // 🔥 Organic stagger
       x: targetX,
       y: targetY,
@@ -2416,7 +2423,7 @@ export function wildStarMerge6ShardsTemplated(board, tile, opts = {}) {
       ease: 'power2.out'
     });
     
-    gsap.to(shard, {
+    trackTween(shard, {
       alpha: 0,
       delay: fadeDelay,
       duration: fadeDur,
@@ -2439,7 +2446,7 @@ export function wildStarMerge6ShardsTemplated(board, tile, opts = {}) {
   
   // Cleanup layer after TTL
   const ttl = params.ttl || 1.2;
-  gsap.delayedCall(ttl, () => {
+  trackDelayedCall(ttl, () => {
     // Return all shards to pool
     shardsInLayer.forEach((shard, idx) => {
       try {
@@ -2654,7 +2661,7 @@ export function wildBeerMerge6ShardsTemplated(board, tile, opts = {}) {
     const fadeDelay = (params.fadeDelay ?? 0.15) + (params.fadeDelayMultiplier ?? 0.1) * Math.random();
     const fadeDur = params.fadeDuration ?? 0.25;
     
-    gsap.to(shard, {
+    trackTween(shard, {
       delay: staggerDelay, // 🔥 Organic stagger
       x: targetX,
       y: targetY,
@@ -2662,7 +2669,7 @@ export function wildBeerMerge6ShardsTemplated(board, tile, opts = {}) {
       ease: 'power2.out'
     });
     
-    gsap.to(shard, {
+    trackTween(shard, {
       alpha: 0,
       delay: fadeDelay,
       duration: fadeDur,
@@ -2674,7 +2681,7 @@ export function wildBeerMerge6ShardsTemplated(board, tile, opts = {}) {
   
   // Cleanup layer after TTL
   const ttl = params.ttl || 1.2;
-  gsap.delayedCall(ttl, () => {
+  trackDelayedCall(ttl, () => {
     // Return all shards to pool
     shardsInLayer.forEach((shard, idx) => {
       try {
@@ -3033,13 +3040,13 @@ export function woodShardsAtTile(board, tile, opts = {}){
     
     // Start fade-out animation immediately (procedural, one by one)
     if (fastFadeOut) {
-      gsap.delayedCall(staggerDelay, () => {
+      trackDelayedCall(staggerDelay, () => {
         // Start fading out immediately after a short delay
         const fadeStartDelay = travelDur * 0.3; // Start fading 30% into travel
         const fadeDuration = travelDur * 0.4; // Fade over 40% of travel duration
         
-        gsap.delayedCall(fadeStartDelay, () => {
-          gsap.to(shard, {
+        trackDelayedCall(fadeStartDelay, () => {
+          trackTween(shard, {
             alpha: 0,
             duration: fadeDuration,
             ease: 'power2.in'
@@ -3048,7 +3055,7 @@ export function woodShardsAtTile(board, tile, opts = {}){
       });
     }
 
-    gsap.to(shard, {
+    trackTween(shard, {
       x: endX,
       y: endY,
       rotation: shard.rotation + spin,
@@ -3059,7 +3066,7 @@ export function woodShardsAtTile(board, tile, opts = {}){
         const baseFadeDelay = vanishDelay + Math.random() * Math.max(0, vanishJitter);
         const fadeDelay = baseFadeDelay * fadeDelayMultiplier;
         
-        gsap.delayedCall(fadeDelay, () => {
+        trackDelayedCall(fadeDelay, () => {
           try {
             if (layer && layer.children.includes(shard)) {
               layer.removeChild(shard);
@@ -3246,7 +3253,7 @@ function createMerge6Bubbles(board, layer, centerX, centerY) {
       const duration = Math.min(1.4, Math.max(0.7, baseDur + speedJitter));
       
       const wobbleObj = { t: wobblePhase, t2: wobblePhase2 };
-      const tl = gsap.timeline({
+      const tl = trackTimeline({
         onComplete: () => {
           try {
             if (layer && layer.children.includes(bubble)) {
@@ -3559,7 +3566,7 @@ function createMerge6Stars(board, layer, centerX, centerY) {
       const travelDuration = 1.6 + Math.random() * 0.8; // 1.6-2.4s (doubled from 0.8-1.2s)
       
       // Animate position
-      const positionTween = gsap.to(star, {
+      const positionTween = trackTween(star, {
         x: endX,
         y: endY,
         duration: travelDuration,
@@ -3596,7 +3603,7 @@ function createMerge6Stars(board, layer, centerX, centerY) {
       // Fade out near the end - REDUCED BY 50% (was 0.3 duration, now 0.15)
       const fadeDuration = travelDuration * 0.15; // 50% reduced from 0.3 to 0.15
       const fadeDelay = travelDuration * 0.85; // Adjusted delay (was 0.7, now 0.85)
-      const fadeTween = gsap.to(star, {
+      const fadeTween = trackTween(star, {
         alpha: 0,
         duration: fadeDuration,
         delay: fadeDelay,
@@ -4216,7 +4223,7 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
       });
     }
     
-    const tl = gsap.timeline({
+    const tl = trackTimeline({
       delay,
       onStart: () => {
         console.log(`⭐ Star ${i + 1} animation STARTED (delay: ${delay}s)`, {
@@ -4656,9 +4663,9 @@ export function innerFlashAtTile(board, tile, tileSize = 96, intensity = 1){
   autoAdd(board, flash, 0.8);
   
   // Dramatic flash animation
-  gsap.to(flash, { alpha: 0.95, duration: 0.08, ease: 'power2.out' });
-  gsap.to(flash.scale, { x: 1.0, y: 1.0, duration: 0.12, ease: 'back.out(2)' });
-  gsap.to(flash, { alpha: 0, duration: 0.2, delay: 0.1, ease: 'power2.in' });
+  trackTween(flash, { alpha: 0.95, duration: 0.08, ease: 'power2.out' });
+  trackTween(flash.scale, { x: 1.0, y: 1.0, duration: 0.12, ease: 'back.out(2)' });
+  trackTween(flash, { alpha: 0, duration: 0.2, delay: 0.1, ease: 'power2.in' });
 }
 
 /* ---------- elastic settle when a tile lands/stack-places ---------- */
@@ -4689,21 +4696,21 @@ export function landBounce(tile, opts = {}){
   );
 
   // 2) elastic settle back to 1:1 with a slight overshoot (big boing)
-  gsap.to(g.scale, { x: sx, y: sy, duration: durMain, ease: easeOut, delay: 0.08 }); 
+  trackTween(g.scale, { x: sx, y: sy, duration: durMain, ease: easeOut, delay: 0.08 }); 
 
   // 3) gentle one-time tilt wiggle (no rapid shaking) 
-  gsap.to(g, { rotation: (Math.random() < 0.5 ? -tilt : tilt), duration: 0.10, yoyo: true, repeat: 1, ease: 'sine.inOut', delay: 0.02 });
+  trackTween(g, { rotation: (Math.random() < 0.5 ? -tilt : tilt), duration: 0.10, yoyo: true, repeat: 1, ease: 'sine.inOut', delay: 0.02 });
 
   // Optional tiny secondary bounce to feel "gummier"
   if (opts.secondary !== false){
-    gsap.to(g.scale, {
+    trackTween(g.scale, {
       x: sx * (1 + amp * 0.10),
       y: sy * (1 - amp * 0.06),
       duration: 0.14,
       ease: 'sine.out',
       delay: 0.10
     });
-    gsap.to(g.scale, { x: sx, y: sy, duration: 0.26, ease: 'elastic.out(1, 0.7)', delay: 0.18 });
+    trackTween(g.scale, { x: sx, y: sy, duration: 0.26, ease: 'elastic.out(1, 0.7)', delay: 0.18 });
   }
 }
 
@@ -4745,7 +4752,7 @@ export function showMultiplierTile(board, tile, mult = 2, tileSize = 96, life = 
   c.addChild(t);
 
   // animation: elastic pop with subtle wiggle → brief hold → elastic shrink
-  const tl = gsap.timeline();
+  const tl = trackTimeline();
   c.scale.set(0.12);
   const hold = Math.max(0.05, Math.min(0.14, (life || 0.45) - 0.30));
   
@@ -4907,7 +4914,7 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       puff.scale.set(startScale);
 
       const stg = burstDelay + Math.random()*0.018;
-      const tl = gsap.timeline({
+      const tl = trackTimeline({
         defaults: { overwrite: false },
         // 🔥 OBJECT POOLING: Release back to pool instead of destroying
         onComplete: ()=>{ 
@@ -4939,8 +4946,8 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   halo.circle(0, 0, rr).fill({ color: 0xFFFFFF, alpha: 0.10 * (options.haloAlpha ?? 1) });
   halo.alpha = 0;
   layer.addChildAt(halo, 0);
-  gsap.to(halo, { alpha: 0.22, duration: 0.08, ease: 'power2.out' });
-  gsap.to(halo, { alpha: 0, duration: 0.28, delay: 0.18, ease: 'power2.in',
+  trackTween(halo, { alpha: 0.22, duration: 0.08, ease: 'power2.out' });
+  trackTween(halo, { alpha: 0, duration: 0.28, delay: 0.18, ease: 'power2.in',
     // 🔥 OBJECT POOLING: Release back to pool instead of destroying
     onComplete: ()=>{ 
       try{ 
@@ -5034,7 +5041,7 @@ export function dragSmokeTrail(board, tile, tileSize = 96, strength = 1, opts = 
     
     // Longer duration for visibility
     const duration = 0.9 + Math.random() * 0.5; // 0.9-1.4s (longer trail)
-    gsap.to(puff, {
+    trackTween(puff, {
       alpha: 0,  // Fade to 0
       y: puff.y - 20 - Math.random() * 15,
       duration: duration,
@@ -5126,7 +5133,7 @@ export function dragBeerBubbleTrail(board, tile, tileSize = 96, strength = 1, op
     const dur = 0.8 + Math.random() * 0.7; // 0.8-1.5s (same as idle bubbles)
     
     // Grow slightly as it rises (same as idle bubbles)
-    gsap.to(bubble.scale, {
+    trackTween(bubble.scale, {
       x: 0.6 + Math.random() * 0.4, // Grow to 60-100% of size
       y: 0.6 + Math.random() * 0.4,
       duration: dur * 0.3, // Grow in first 30% of animation
@@ -5134,7 +5141,7 @@ export function dragBeerBubbleTrail(board, tile, tileSize = 96, strength = 1, op
     });
     
     // Rise up smoothly
-    gsap.to(bubble, {
+    trackTween(bubble, {
       x: bubble.x + driftX,
       y: bubble.y - rise,
       duration: dur,
@@ -5151,7 +5158,7 @@ export function dragBeerBubbleTrail(board, tile, tileSize = 96, strength = 1, op
     });
     
     // Fade out as it reaches the top (last 40% of animation, same as idle)
-    gsap.to(bubble, {
+    trackTween(bubble, {
       alpha: 0,
       duration: dur * 0.4,
       delay: dur * 0.6,
@@ -5194,7 +5201,7 @@ export function screenShake(app, opts = {}){
       console.log('💥 SCREEN SHAKE: Also shaking board indicator element');
     }
 
-    const tl = gsap.timeline({
+    const tl = trackTimeline({
       onComplete: () => { 
         try { gsap.set(target, { x: 0, y: 0 }); } catch {}
         // Reset board indicator position
@@ -5338,26 +5345,17 @@ export function wildImpactEffect(tile, opts = {}) {
   );
   
   // 2) Dramatic bounce with bigger overshoot
-  gsap.to(g.scale, 
-    { x: sx * bounce, y: sy * bounce, duration: 0.20, ease: 'back.out(3.0)' }, 
-    0.08
-  );
+  trackTween(g.scale, { x: sx * bounce, y: sy * bounce, duration: 0.20, ease: 'back.out(3.0)', delay: 0.08 });
   
   // 3) More dramatic settle with bigger secondary bounce
-  gsap.to(g.scale, 
-    { x: sx * 0.96, y: sy * 1.04, duration: 0.15, ease: 'power2.out' }, 
-    0.28
-  );
-  gsap.to(g.scale, 
-    { x: sx, y: sy, duration: 0.22, ease: 'elastic.out(1, 0.7)' }, 
-    0.43
-  );
+  trackTween(g.scale, { x: sx * 0.96, y: sy * 1.04, duration: 0.15, ease: 'power2.out', delay: 0.28 });
+  trackTween(g.scale, { x: sx, y: sy, duration: 0.22, ease: 'elastic.out(1, 0.7)', delay: 0.43 });
   
   // 4) More dramatic tilt wiggle sequence
-  gsap.to(g, { rotation: tilt, duration: 0.10, ease: 'sine.out' }, 0.10);
-  gsap.to(g, { rotation: -tilt * 0.8, duration: 0.12, ease: 'sine.inOut' }, 0.20);
-  gsap.to(g, { rotation: tilt * 0.5, duration: 0.14, ease: 'sine.inOut' }, 0.32);
-  gsap.to(g, { rotation: 0, duration: 0.18, ease: 'back.out(2.2)' }, 0.46);
+  trackTween(g, { rotation: tilt, duration: 0.10, ease: 'sine.out', delay: 0.10 });
+  trackTween(g, { rotation: -tilt * 0.8, duration: 0.12, ease: 'sine.inOut', delay: 0.20 });
+  trackTween(g, { rotation: tilt * 0.5, duration: 0.14, ease: 'sine.inOut', delay: 0.32 });
+  trackTween(g, { rotation: 0, duration: 0.18, ease: 'back.out(2.2)', delay: 0.46 });
   
   console.log('✅ WILD IMPACT: Enhanced effect applied successfully');
 }
@@ -5381,7 +5379,7 @@ export function startWildIdle(tile, opts = {}){
   
   console.log('🎯 START WILD IDLE CALLED with peak:', peak, 'opts:', opts);
 
-  const tl = gsap.timeline({ repeat: -1, repeatDelay: Math.max(0, interval - (shiftDur + 0.20)) }); // Shorter delay
+  const tl = trackTimeline({ repeat: -1, repeatDelay: Math.max(0, interval - (shiftDur + 0.20)) }); // Shorter delay
   tile._wildIdleTl = tl;
   
   // Stop animation when app is in background to prevent Metal GPU errors
@@ -5426,7 +5424,7 @@ export function startWildIdle(tile, opts = {}){
     const scheduleShimmer = () => {
       const delay = 4 + Math.random() * 4; // 4-8 seconds
       // 🔥 MEMORY LEAK FIX: Store delayed call reference for cleanup
-      const delayedCall = gsap.delayedCall(delay, () => {
+      const delayedCall = trackDelayedCall(delay, () => {
         if (tile._wildIdleTl && !tile._wildIdleTl.isActive()) return; // Don't shimmer if idle stopped
         
         // Check if shimmer sprite still exists before accessing properties
@@ -5437,7 +5435,7 @@ export function startWildIdle(tile, opts = {}){
         tile._wildShimmerSprite.y = -baseH * 0.8;
         
         // Shimmer animation - diagonal sweep
-        const shimmerTl = gsap.timeline();
+        const shimmerTl = trackTimeline();
         shimmerTl
           // Calmer shimmer: lower peak alpha and slower sweep
           .to(shimmer, { alpha: 0.30, duration: 0.28, ease: 'power2.out' })
@@ -5487,7 +5485,7 @@ export function startWildShimmer(tile) {
     const scheduleShimmer = () => {
       const delay = 4 + Math.random() * 4; // 4-8 seconds
       // 🔥 MEMORY LEAK FIX: Store delayed call reference for cleanup
-      const delayedCall = gsap.delayedCall(delay, () => {
+      const delayedCall = trackDelayedCall(delay, () => {
         // Check if shimmer sprite still exists before accessing properties
         if (!tile._wildShimmerSprite || tile.destroyed) return;
 
@@ -5496,7 +5494,7 @@ export function startWildShimmer(tile) {
         tile._wildShimmerSprite.y = -baseH * 0.8;
 
         // Shimmer animation - diagonal sweep
-        const shimmerTl = gsap.timeline();
+        const shimmerTl = trackTimeline();
         shimmerTl
           .to(shimmer, { alpha: 0.30, duration: 0.28, ease: 'power2.out' })
           .to(tile._wildShimmerSprite, { 
@@ -5726,7 +5724,7 @@ export function startMagnetShake(tile) {
     
     // Create shake with 6 revolutions
     // Shake left-right-left-right-left-right 6 times (slower, looks like shaking)
-    const shakeTl = gsap.timeline();
+    const shakeTl = trackTimeline();
     
     // Each revolution is left-right, so 6 revolutions = 12 steps (6 left, 6 right)
     const stepDuration = shakeDuration / (revolutions * 2);
@@ -5761,7 +5759,7 @@ export function startMagnetShake(tile) {
   const scheduleShake = () => {
     if (!tile || tile.destroyed) return;
     
-    const delayedCall = gsap.delayedCall(3.0, () => {
+    const delayedCall = trackDelayedCall(3.0, () => {
       if (!tile || tile.destroyed) return;
       performShake();
       scheduleShake(); // Schedule next shake after 3 seconds

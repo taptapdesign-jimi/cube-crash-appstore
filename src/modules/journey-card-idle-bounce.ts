@@ -7,7 +7,26 @@
  */
 
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { domElementPool } from './dom-element-pool.js';
+import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
+
+// 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
+const trackTimeline = (options: any = {}) => {
+  const origTimeline = getOriginalGsapTimeline();
+  return animationManager.trackExternalTimeline(origTimeline(options));
+};
+
+const trackDelayedCall = (...args: any[]) => {
+  const origTo = getOriginalGsapTo();
+  // delayedCall is not overridden, but use original for consistency
+  return animationManager.trackExternalTween(gsap.delayedCall(...args));
+};
+
+const trackTween = (target: any, vars: any) => {
+  const origTo = getOriginalGsapTo();
+  return animationManager.trackExternalTween(origTo(target, vars));
+};
 
 const ENABLE_JOURNEY_CARD_IDLE_BOUNCE = true;
 // 🔒 Toggle for smoke on Journey cards (keep enabled with guards to avoid ghost puff)
@@ -586,7 +605,7 @@ function animateCard(card: HTMLElement): void {
   }
   
   // Store timeline reference on card for cleanup
-  const tl = gsap.timeline({
+  const tl = trackTimeline({
     onComplete: () => {
       state.activeAnimations.delete(card);
       (card as any)._idleBounceTl = null;
@@ -1097,7 +1116,7 @@ export function smokeBubblesAtCard(
       gsap.set(smoke, { scale: startScale, x: startX, y: startY });
       
       const stg = burstDelay + Math.random() * 0.018;
-      const tl = gsap.timeline({
+      const tl = trackTimeline({
         defaults: { overwrite: false },
         onComplete: () => {
           try {
@@ -1172,13 +1191,13 @@ export function smokeBubblesAtCard(
   smokeContainer.appendChild(halo);
   
   // 🔥 USER REQUEST: Better halo animation (similar to tiles: 0.22 alpha peak)
-  gsap.to(halo, { 
+  trackTween(halo, { 
     opacity: 0.22, 
     duration: 0.08, 
     ease: 'power2.out' 
   });
   
-  gsap.to(halo, { 
+  trackTween(halo, { 
     opacity: 0, 
     duration: 0.28, 
     delay: 0.18, 
@@ -1213,12 +1232,12 @@ export function smokeBubblesAtCard(
   // This prevents opaque fade-out while second smoke is active
   const fadeOutDelay = isFirstBoardTransitionSmoke ? staggerDelay + 1.0 : 0; // 1s after second smoke starts
   const fadeOutTime = isFirstBoardTransitionSmoke ? 3.2 + fadeOutDelay : 3.2;
-  const fadeOutTimer = gsap.delayedCall(fadeOutTime, () => {
+  const fadeOutTimer = trackDelayedCall(fadeOutTime, () => {
     if (smokeContainer && smokeContainer.parentNode && !(smokeContainer as any)._cleanedUp) {
       // 🔥 USER REQUEST: Slower, less opaque fade-out for first smoke
       // Longer duration = less opaque fade, smoother transition
       const fadeOutDuration = isFirstBoardTransitionSmoke ? 1.5 : 0.8; // Longer fade for first smoke
-      gsap.to(smokeContainer, {
+      trackTween(smokeContainer, {
         opacity: 0,
         duration: fadeOutDuration,
         ease: 'power2.out',
@@ -1231,7 +1250,7 @@ export function smokeBubblesAtCard(
   
   // 🔥 USER REQUEST: Extended cleanup time for first smoke to overlap with second
   const cleanupTime = isFirstBoardTransitionSmoke ? 4.0 + extraDuration : 4.0;
-  const cleanupTimer = gsap.delayedCall(cleanupTime, () => {
+  const cleanupTimer = trackDelayedCall(cleanupTime, () => {
     try {
       // 🔥 CRITICAL FIX: Check if container was already cleaned up
       if (!smokeContainer || !smokeContainer.parentNode) {
@@ -1243,7 +1262,7 @@ export function smokeBubblesAtCard(
       if ((smokeContainer as any)._preventCleanup) {
         console.log('⚠️ Smoke container cleanup prevented (first smoke extended life)');
         // Reschedule cleanup for later
-        const retryCleanup = gsap.delayedCall(2.0, () => {
+        const retryCleanup = trackDelayedCall(2.0, () => {
           if (smokeContainer && smokeContainer.parentNode && !(smokeContainer as any)._cleanedUp) {
             (smokeContainer as any)._preventCleanup = false; // Allow cleanup now
             // Continue with normal cleanup

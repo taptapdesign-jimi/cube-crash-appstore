@@ -481,6 +481,20 @@ async function startAssetPreloading(): Promise<void> {
     // But all elements inside are hidden, so homepage will be invisible
     homeElementAfter.style.opacity = '1';
     console.log('✅ Homepage made visible directly - all elements hidden, ready for enter animation');
+
+    // 🔥 CRITICAL: Re-initialize slider mechanics AFTER homepage is visible
+    // Slider init earlier may have run while container was display:none (offsetWidth=0)
+    try {
+      if (sliderManager && typeof sliderManager.forceReady === 'function') {
+        sliderManager.forceReady();
+        console.log('✅ Slider forceReady() after splash - slider should be interactive');
+      } else if (sliderManager && typeof sliderManager.ensureReady === 'function') {
+        sliderManager.ensureReady();
+        console.log('✅ Slider ensureReady() after splash - slider should be interactive');
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to reinitialize slider after splash:', error);
+    }
     
     // 🔥 CRITICAL: Verify slider elements exist before starting animation
     const sliderWrapper = document.getElementById('slider-wrapper');
@@ -1221,50 +1235,67 @@ async function startNewRun(boardId: number): Promise<void> {
   (window as any)._gamePaused = false;
   console.log('🔓 exitToMenu: gamePaused flag reset');
   
+  const killAllGsapTweensForExit = (label: string) => {
+    console.log(`🧹 exitToMenu: Killing all GSAP tweens (${label})...`);
+    try {
+      // Kill UI element tweens
+      gsap.killTweensOf('[data-wild-loader]');
+      gsap.killTweensOf('.wild-loader');
+      gsap.killTweensOf('p');
+      gsap.killTweensOf('progress');
+      gsap.killTweensOf('ratio');
+      
+      // Kill PIXI object tweens with null checks
+      if (STATE && STATE.tiles && STATE.tiles.length > 0) {
+        STATE.tiles.forEach(tile => {
+          try {
+            if (tile && !tile.destroyed) {
+              if (tile.scale && !tile.scale.destroyed) {
+                gsap.killTweensOf(tile.scale);
+              }
+              gsap.killTweensOf(tile);
+              if (tile.hover && !tile.hover.destroyed) {
+                gsap.killTweensOf(tile.hover);
+              }
+            }
+          } catch {}
+        });
+      }
+      if (STATE) {
+        try {
+          if (STATE.hud && !STATE.hud.destroyed) gsap.killTweensOf(STATE.hud);
+          if (STATE.board && !STATE.board.destroyed) gsap.killTweensOf(STATE.board);
+          if (STATE.stage && !STATE.stage.destroyed) gsap.killTweensOf(STATE.stage);
+          if (STATE.backgroundLayer && !STATE.backgroundLayer.destroyed) gsap.killTweensOf(STATE.backgroundLayer);
+        } catch {}
+      }
+      
+      // Kill all timelines referencing destroyed targets
+      try {
+        const allTweens = gsap.globalTimeline.getChildren();
+        allTweens.forEach((tween: any) => {
+          try {
+            const target = tween.targets?.[0];
+            if (target && (target.destroyed || target === null || target === undefined)) {
+              tween.kill();
+            }
+          } catch {}
+        });
+      } catch {}
+      
+      gsap.killTweensOf('*'); // Kill ALL tweens on all targets
+      gsap.globalTimeline.clear(); // Clear the global timeline
+      console.log(`✅ exitToMenu: GSAP tweens cleared (${label})`);
+    } catch (gsapError) {
+      console.warn('⚠️ exitToMenu: Error killing GSAP tweens:', gsapError);
+    }
+  };
+  
   // 🔥🔥🔥 NUCLEAR CLEANUP FIRST: Kill ALL GSAP tweens to prevent _x null errors 🔥🔥🔥
   // This must happen IMMEDIATELY before any animations or cleanup
-  console.log('🔥 exitToMenu: NUCLEAR CLEANUP - killing all GSAP tweens...');
-  try {
-    gsap.killTweensOf('*'); // Kill ALL tweens on all targets
-    gsap.globalTimeline.clear(); // Clear the global timeline
-    console.log('✅ exitToMenu: Killed ALL GSAP tweens globally');
-  } catch (gsapError) {
-    console.warn('⚠️ exitToMenu: Error killing GSAP tweens:', gsapError);
-  }
+  killAllGsapTweensForExit('pre-exit');
   
-  // 🔥 CRITICAL MEMORY LEAK FIX: Comprehensive cleanup before exit to menu
-  // This ensures all animations, effects, and resources are cleaned up before cleanupGame
-  try {
-    const fxModule = await import('./modules/fx.js');
-    if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
-      fxModule.cleanupAllEffects();
-      console.log('🧹 exitToMenu: Cleaned up all effects (bubbles, stars, particles) before cleanupGame');
-    }
-  } catch (e) {
-    console.warn('⚠️ exitToMenu: Failed to cleanup all effects (non-fatal):', e);
-  }
-  
-  // 🔥 CRITICAL MEMORY LEAK FIX: Comprehensive cleanup before exit to menu
-  // This ensures all animations, effects, and resources are cleaned up before cleanupGame
-  // Note: cleanupAllEffects already includes cleanupWildBeerExplosion, cleanupExistingStarAnimations,
-  // killAllDelayedCalls, and destroyAllGraphicsObjects, so we use it instead of individual calls
-  try {
-    const fxModule = await import('./modules/fx.js');
-    if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
-      fxModule.cleanupAllEffects();
-      console.log('✅ exitToMenu: Cleaned up all effects (bubbles, stars, particles) before cleanupGame');
-    } else {
-      // Fallback to individual cleanup if cleanupAllEffects is not available
-      const { cleanupAllFxContainers, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupWildBeerExplosion } = fxModule || {};
-      if (typeof killAllDelayedCalls === 'function') killAllDelayedCalls();
-      if (typeof cleanupWildBeerExplosion === 'function') cleanupWildBeerExplosion();
-      if (typeof cleanupAllFxContainers === 'function') cleanupAllFxContainers();
-      if (typeof destroyAllGraphicsObjects === 'function') destroyAllGraphicsObjects();
-      console.log('✅ exitToMenu: Fallback cleanup completed');
-    }
-  } catch (fxError) {
-    console.warn('⚠️ exitToMenu: Error cleaning up effects:', fxError);
-  }
+  // 🔥 NOTE: FX cleanup happens after exit animations (see Step 3 below)
   
   // Stop PIXI ticker immediately to prevent render errors
   try {
@@ -1529,80 +1560,7 @@ async function startNewRun(boardId: number): Promise<void> {
     console.log('✅ Exit animation fully completed - starting cleanup');
     
     // Step 2: Kill ALL GSAP tweens immediately after animations complete
-    console.log('🧹 Killing all GSAP tweens after animations...');
-    try {
-      // Kill UI element tweens
-      gsap.killTweensOf('[data-wild-loader]');
-      gsap.killTweensOf('.wild-loader');
-      gsap.killTweensOf('p');
-      gsap.killTweensOf('progress');
-      
-      // CRITICAL: Kill PIXI object tweens (tiles and HUD) - MUST be done before cleanupGame
-      // Kill all tile tweens with null checks to prevent "Cannot read properties of null (reading 'y')" errors
-      if (STATE && STATE.tiles && STATE.tiles.length > 0) {
-        STATE.tiles.forEach(tile => {
-          try {
-            // Check if tile exists and is not destroyed before killing tweens
-            if (tile && !tile.destroyed) {
-              if (tile.scale && !tile.scale.destroyed) {
-                gsap.killTweensOf(tile.scale);
-              }
-              // Kill tweens on tile itself (x, y, alpha, etc.)
-              gsap.killTweensOf(tile);
-              // Also kill tweens on tile properties that might be animated
-              if (tile.hover && !tile.hover.destroyed) {
-                gsap.killTweensOf(tile.hover);
-              }
-            }
-          } catch (e) {
-            // Ignore errors for already destroyed tiles
-          }
-        });
-      }
-      
-      // Kill HUD tweens with null checks
-      if (STATE) {
-        try {
-          if (STATE.hud && !STATE.hud.destroyed) {
-            gsap.killTweensOf(STATE.hud);
-          }
-          if (STATE.board && !STATE.board.destroyed) {
-            gsap.killTweensOf(STATE.board);
-          }
-          if (STATE.stage && !STATE.stage.destroyed) {
-            gsap.killTweensOf(STATE.stage);
-          }
-          // Kill tweens on background layer if it exists
-          if (STATE.backgroundLayer && !STATE.backgroundLayer.destroyed) {
-            gsap.killTweensOf(STATE.backgroundLayer);
-          }
-        } catch (e) {
-          // Ignore errors
-        }
-      }
-      
-      // CRITICAL: Kill all GSAP timelines that might reference destroyed objects
-      try {
-        // Get all active tweens and kill them if their target is destroyed
-        const allTweens = gsap.globalTimeline.getChildren();
-        allTweens.forEach((tween: any) => {
-          try {
-            const target = tween.targets?.[0];
-            if (target && (target.destroyed || target === null || target === undefined)) {
-              tween.kill();
-            }
-          } catch (e) {
-            // Ignore errors
-          }
-        });
-      } catch (e) {
-        // Ignore errors
-      }
-      
-      console.log('✅ All GSAP tweens killed');
-    } catch (gsapError) {
-      console.warn('⚠️ Error killing GSAP tweens:', gsapError);
-    }
+    killAllGsapTweensForExit('post-exit');
     
     // Step 3: Clean up all effects (bubbles, explosions, particles, confetti) FIRST
     try {
@@ -2299,6 +2257,12 @@ async function startNewRun(boardId: number): Promise<void> {
         import('./modules/journey-boards-manager.js').then(async ({ journeyBoardsManager }) => {
           // 🔥 REMOVED: requestAnimationFrame delay - start detail modal enter animation IMMEDIATELY
           // This prevents 1 second blank screen between board exit and detail modal enter
+          // Prevent #app from blocking clicks while modal is opening
+          const appEl = document.getElementById('app');
+          if (appEl) {
+            appEl.style.pointerEvents = 'none';
+            appEl.style.zIndex = '-1';
+          }
           
           if (typeof journeyBoardsManager.openBoardDetailsById === 'function') {
             // openBoardDetailsById will handle enter animation for detail modal

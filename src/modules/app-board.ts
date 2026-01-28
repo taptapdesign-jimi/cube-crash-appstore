@@ -1,10 +1,15 @@
 // src/modules/app-board.ts
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { STATE, COLS, ROWS, TILE, GAP } from './app-state.js';
 import * as makeBoard from './board.js';
 import { drawBoardBG, layoutBoard as layout } from './app-core.js';
 import { randVal } from './app-core-utils.js';
 import type { Tile } from '../types/game-types.js';
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+
+const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
 
 interface SweetPopOptions {
   onHalf?: () => void;
@@ -165,7 +170,7 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
       const d2 = Math.max(0.08, d2b * durMul); // compress
       const d3 = Math.max(0.08, d3b * durMul); // settle
 
-      const tl = gsap.timeline({
+      const tl = trackTimeline({
         delay: enterDel,
         onComplete: () => {
           tile.zIndex = 10;
@@ -179,7 +184,7 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
           }
 
           if (completed === total) {
-            const finalCall = gsap.delayedCall(0.03, () => {
+            const finalCall = trackDelayedCall(0.03, () => {
               try {
                 drawBoardBG();
               } catch {}
@@ -227,7 +232,7 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
     // Fire onHalf at 50% of overall animation timeframe as well (not only by completion)
     if (typeof opts.onHalf === 'function') {
       const fireAt = Math.max(0.01, maxEndTime * 0.5);
-      const halfCall = gsap.delayedCall(fireAt, () => {
+      const halfCall = trackDelayedCall(fireAt, () => {
         if (!halfFired) {
           halfFired = true;
           try {
@@ -304,7 +309,7 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
       const d2 = Math.max(0.08, d2b * durMul); // compress
       const d1 = Math.max(0.10, d1b * durMul); // blow (reverse becomes last)
 
-      const timeline = gsap.timeline({
+      const timeline = trackTimeline({
         delay: exitDel,
         onComplete: () => {
           completed++;
@@ -368,7 +373,7 @@ export function sweetPopOut(listTiles: Tile[], opts: SweetPopOptions = {}): Prom
     let delayedCallRef: gsap.core.Tween | null = null;
     if (typeof opts.onHalf === 'function') {
       const fireAt = Math.max(0.01, maxEndTime * 0.5);
-      delayedCallRef = gsap.delayedCall(fireAt, () => {
+      delayedCallRef = trackDelayedCall(fireAt, () => {
         if (!halfFired) {
           halfFired = true;
           try {
@@ -432,7 +437,7 @@ function dealFromRim(listTiles: Tile[]): Promise<void> {
       tile.position.set(sx, sy);
       tile.scale.set(0.92 + Math.random() * 0.06);
 
-      gsap.timeline({
+      trackTimeline({
         delay: enterDel,
         onComplete: () => {
           tile.zIndex = 10;
@@ -460,4 +465,3 @@ function dealFromRim(listTiles: Tile[]): Promise<void> {
     });
   });
 }
-

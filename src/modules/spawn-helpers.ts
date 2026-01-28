@@ -3,7 +3,12 @@
 // Spawn/deal animacije – iOS friendly, Promise-based, bez side‑effecta izvan proslijeđenih argumenata.
 
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import type { Tile } from '../types/game-types.js';
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 interface SpawnBounceOptions {
   startScale?: number;
@@ -56,7 +61,7 @@ export function spawnBounce(
     (t as any)._spawned = true;
     if (typeof done === 'function') done();
   };
-  const tl = gsap.timeline({ onComplete: finish });
+  const tl = trackTimeline({ onComplete: finish });
 
   tl.to(t, { alpha: 1, duration: fadeIn, ease: 'power1.out' }, 0)
     .to(t.scale, { x: max, y: max, duration: 0.12, ease: 'back.out(2.1)' }, 0)
@@ -64,7 +69,7 @@ export function spawnBounce(
     .to(t.scale, { x: rebound, y: rebound, duration: 0.08, ease: 'power2.out' })
     .to(t.scale, { x: 1.00, y: 1.00, duration: 0.10, ease: 'back.out(2)' });
 
-  gsap.timeline()
+  trackTimeline()
     .to(trg, { rotation: wiggle * dir, duration: 0.08, ease: 'power2.out' })
     .to(trg, { rotation: -wiggle * 0.6 * dir, duration: 0.10, ease: 'power2.out' })
     .to(trg, { rotation: 0, duration: 0.12, ease: 'power2.out' });
@@ -135,7 +140,7 @@ export function dealFromRim({ listTiles = [], board, boardSize, gsap }: DealFrom
       (t as any).position.set(sx, sy);
       (t as any).scale.set(0.90 + Math.random() * 0.08);
 
-      const tl = gsap.timeline({
+      const tl = trackTimeline({
         delay: enterDel,
         onComplete: () => {
           (t as any).zIndex = 10;
@@ -206,4 +211,3 @@ export async function openEmpties({
   } catch {}
   sweepForUnanimatedSpawns(tiles, gsap);
 }
-

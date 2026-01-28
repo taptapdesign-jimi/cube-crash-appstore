@@ -6,9 +6,12 @@
  */
 
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { Assets } from 'pixi.js';
 import { logger } from '../core/logger.js';
 import { TILE } from './constants.js';
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 // ============================================================================
 // TILE HELPER FUNCTIONS
@@ -19,7 +22,7 @@ import { TILE } from './constants.js';
  */
 export function tintLocked(t: any): void {
   try {
-    gsap.to(t, { alpha: 0.35, duration: 0.10, ease: 'power1.out' });
+    trackTween(t, { alpha: 0.35, duration: 0.10, ease: 'power1.out' });
   } catch {}
 }
 
@@ -141,7 +144,7 @@ export function scheduleComboDecay(
       try {
         // Animate combo text deflate
         if ((window as any).comboText) {
-          gsap.to((window as any).comboText.scale, {
+          trackTween((window as any).comboText.scale, {
             x: 0.1, // Deflate to 10%
             y: 0.1,
             duration: 0.3,

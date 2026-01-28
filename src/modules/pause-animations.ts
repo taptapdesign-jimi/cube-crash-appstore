@@ -2,6 +2,9 @@
 // Animations for pause modal
 
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 // 🔥 FIX: Track GSAP tweens and timeouts for cleanup
 const activePauseTweens: Set<gsap.core.Tween> = new Set();
@@ -86,7 +89,7 @@ export function hideModalAnimation(modal: HTMLElement, options: AnimationOptions
   const { duration = 0.3, easing = 'power2.in' } = options;
   
   return new Promise((resolve) => {
-    const tween = gsap.to(modal, {
+    const tween = trackTween(modal, {
       scale: 0.8,
       opacity: 0,
       duration,
@@ -156,7 +159,7 @@ export function slideDownAnimation(element: HTMLElement, options: AnimationOptio
   const { duration = 0.3, easing = 'power2.in' } = options;
   
   return new Promise((resolve) => {
-    const tween = gsap.to(element, {
+    const tween = trackTween(element, {
       y: 20,
       opacity: 0,
       duration,

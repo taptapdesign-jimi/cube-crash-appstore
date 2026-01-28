@@ -8,8 +8,29 @@
 
 import { Graphics, Container, Sprite, Texture } from 'pixi.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { magicSparklesAtTile, dragSmokeTrail, isWildBeerExplosionRunning, cleanupWildBeerExplosion } from "./fx.ts";
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
+
+// --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
+// 🔥 CRITICAL FIX: Save original GSAP functions BEFORE defining trackTween/trackTimeline
+// This prevents infinite recursion where trackTween calls gsap.to() which might call trackTween
+const __dg_orig_to = gsap.to.bind(gsap);
+const __dg_orig_fromTo = gsap.fromTo.bind(gsap);
+const __dg_orig_set = gsap.set.bind(gsap);
+const __dg_orig_timeline = gsap.timeline.bind(gsap);
+
+// 🔥 CRITICAL FIX: Export original GSAP functions so other modules can use them
+// This prevents infinite recursion when trackTween/trackTimeline are called from other modules
+export const getOriginalGsapTo = () => __dg_orig_to;
+export const getOriginalGsapTimeline = () => __dg_orig_timeline;
+
+// 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
+// trackTween/trackTimeline must use __dg_orig_to/__dg_orig_timeline, not gsap.to/gsap.timeline
+// because gsap.to/gsap.timeline are overridden below and might cause circular calls
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(__dg_orig_timeline(options));
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(__dg_orig_to(target, vars));
 
 
 // --- Inercijski tilt parametri (nagib SUPROTNO od smjera + lag) ---------------
@@ -26,11 +47,6 @@ const MAGNET_SCALE_MULT  = 1.03;    // 3% napuhavanje ciljane pločice
 const MAGNET_IN_DUR      = 0.12;    // trajanje scale-in easing
 const MAGNET_MOVE_DUR    = 0.085;   // koliko brzo se target približava
 const MAGNET_RETURN_DUR  = 0.14;    // trajanje povratka u baznu poziciju
-
-// --- GSAP SAFETY WRAPPERS (kao u tvom originalu) ---------------------------
-const __dg_orig_to = gsap.to.bind(gsap);
-const __dg_orig_fromTo = gsap.fromTo.bind(gsap);
-const __dg_orig_set = gsap.set.bind(gsap);
 
 function __dg_alive(target){
   if (!target) return false;
@@ -313,10 +329,10 @@ export function initDrag(cfg) {
       if (t.refreshShadow) { t.refreshShadow(); if (t.shadow) t.shadow.alpha = prev; }
       const to = Math.min(1, t.shadow._dragAlpha ?? 0.30);
       gsap.killTweensOf(t.shadow);
-      gsap.to(t.shadow, { alpha: to, duration: 0.08, ease: 'power2.out' });
+      trackTween(t.shadow, { alpha: to, duration: 0.08, ease: 'power2.out' });
     }
 
-    gsap.to(t.scale, { x: 1.12, y: 1.12, duration: 0.08 });
+    trackTween(t.scale, { x: 1.12, y: 1.12, duration: 0.08 });
 
     // 🔥 FPS DROP FIX: Stop wild beer idle bubbles when dragging starts (prevents conflict with drag particles)
     if (t.special === 'wild-beer') {
@@ -615,7 +631,7 @@ export function initDrag(cfg) {
             // Scale up effect
             if (container && container.scale) {
               try { otherTile._magnetState.scaleTween?.kill(); } catch {}
-              otherTile._magnetState.scaleTween = gsap.to(container.scale, {
+              otherTile._magnetState.scaleTween = trackTween(container.scale, {
                 x: otherTile._magnetState.originScaleX * MAGNET_SCALE_MULT,
                 y: otherTile._magnetState.originScaleY * MAGNET_SCALE_MULT,
                 duration: MAGNET_IN_DUR,
@@ -647,7 +663,7 @@ export function initDrag(cfg) {
           
           try { state.moveTween?.kill(); } catch {}
           if (!otherTile.destroyed) {
-            state.moveTween = gsap.to(otherTile, {
+            state.moveTween = trackTween(otherTile, {
               x: destX,
               y: destY,
               duration: MAGNET_MOVE_DUR,
@@ -666,7 +682,7 @@ export function initDrag(cfg) {
             try { state.scaleTween?.kill(); } catch {}
             
             if (!otherTile.destroyed) {
-              state.moveTween = gsap.to(otherTile, {
+              state.moveTween = trackTween(otherTile, {
                 x: homeX,
                 y: homeY,
                 duration: MAGNET_RETURN_DUR,
@@ -681,7 +697,7 @@ export function initDrag(cfg) {
               });
               
               if (state.container && state.container.scale) {
-                state.scaleTween = gsap.to(state.container.scale, {
+                state.scaleTween = trackTween(state.container.scale, {
                   x: state.originScaleX,
                   y: state.originScaleY,
                   duration: MAGNET_RETURN_DUR,
@@ -787,7 +803,7 @@ export function initDrag(cfg) {
     /*
     if (drag._boardWobbleActive && board) {
       drag._boardWobbleActive = false;
-      gsap.to(board, {
+      trackTween(board, {
         rotation: drag._boardBaseRot,
         x: drag._boardBaseX,
         y: drag._boardBaseY,
@@ -812,7 +828,7 @@ export function initDrag(cfg) {
         try { state.scaleTween?.kill(); } catch {}
         
         if (!otherTile.destroyed) {
-          state.moveTween = gsap.to(otherTile, {
+          state.moveTween = trackTween(otherTile, {
             x: homeX,
             y: homeY,
             duration: MAGNET_RETURN_DUR,
@@ -827,7 +843,7 @@ export function initDrag(cfg) {
           });
           
           if (state.container && state.container.scale) {
-            state.scaleTween = gsap.to(state.container.scale, {
+            state.scaleTween = trackTween(state.container.scale, {
               x: state.originScaleX,
               y: state.originScaleY,
               duration: MAGNET_RETURN_DUR,
@@ -855,7 +871,7 @@ export function initDrag(cfg) {
 
     // vrati tilt u nulu s istim “delay” feelom
     if (t?.rotG) {
-      gsap.to(t.rotG, { rotation: 0, duration: TILT_DUR, ease: 'power2.out' });
+      trackTween(t.rotG, { rotation: 0, duration: TILT_DUR, ease: 'power2.out' });
     }
 
     // 🔧 SHADOW PATCH: vrati na _baseAlpha i sakrij ako je 0
@@ -867,7 +883,7 @@ export function initDrag(cfg) {
         if (t.shadow) t.shadow.alpha = prev;
       }
       if (t.shadow?.alpha != null) {
-        gsap.to(t.shadow, {
+        trackTween(t.shadow, {
           alpha: base,
           duration: 0.12,
           ease: 'power2.out',
@@ -947,6 +963,15 @@ export function initDrag(cfg) {
         } catch (err) {
           console.warn('⚠️ Error restarting wild-beer bubbles after snapBack:', err);
         }
+      }
+
+      // 🔥 CRITICAL: Check stuck state after failed drop (no valid target)
+      // This catches cases where NO valid merges exist (e.g., 4/3/4/5) and pickDropTarget returns null
+      if (typeof (window as any).CC?.checkLevelEnd === 'function') {
+        // Use setTimeout to ensure snapBack animation completes first
+        setTimeout(() => {
+          (window as any).CC.checkLevelEnd();
+        }, 100);
       }
       return;
     }
@@ -1211,7 +1236,7 @@ export function initDrag(cfg) {
         target.x = homeX;
         target.y = homeY;
       } else {
-        state.moveTween = gsap.to(target, {
+        state.moveTween = trackTween(target, {
           x: homeX,
           y: homeY,
           duration: MAGNET_RETURN_DUR,
@@ -1227,7 +1252,7 @@ export function initDrag(cfg) {
       if (immediate) {
         container.scale.set(baseScaleX, baseScaleY);
       } else {
-        state.scaleTween = gsap.to(container.scale, {
+        state.scaleTween = trackTween(container.scale, {
           x: baseScaleX,
           y: baseScaleY,
           duration: MAGNET_RETURN_DUR,
@@ -1289,7 +1314,7 @@ export function initDrag(cfg) {
 
       if (container && container.scale) {
         try { state.scaleTween?.kill?.(); } catch {}
-        state.scaleTween = gsap.to(container.scale, {
+        state.scaleTween = trackTween(container.scale, {
           x: baseScaleX * MAGNET_SCALE_MULT,
           y: baseScaleY * MAGNET_SCALE_MULT,
           duration: MAGNET_IN_DUR,
@@ -1321,7 +1346,7 @@ export function initDrag(cfg) {
 
     try { state.moveTween?.kill?.(); } catch {}
     if (!target.destroyed) {
-      state.moveTween = gsap.to(target, {
+      state.moveTween = trackTween(target, {
         x: destX,
         y: destY,
         duration: MAGNET_MOVE_DUR,
@@ -1337,7 +1362,7 @@ export function initDrag(cfg) {
     const destX = dst.x;
     const destY = dst.y;
 
-    gsap.to(src, {
+    trackTween(src, {
       x: destX,
       y: destY,
       duration: 0.08,
@@ -1346,7 +1371,7 @@ export function initDrag(cfg) {
     });
 
     if (src.scale) {
-      gsap.to(src.scale, {
+      trackTween(src.scale, {
         x: 1,
         y: 1,
         duration: 0.08,
@@ -1462,20 +1487,11 @@ export function initDrag(cfg) {
     releaseMagnet({ immediate: true });
     restoreGridCell(t); // Restore to grid before snapping back
     
-    // 🔥 BUG FIX: Reset wild beer explosion state on snapBack (prevents bubbles animation from being blocked)
-    // If wild beer is dragged and released without merge, reset the explosion state
-    if (t.special === 'wild-beer') {
-      try {
-        cleanupWildBeerExplosion();
-        console.log('🧹 Cleaned up wild beer explosion state on snapBack');
-      } catch (err) {
-        console.warn('⚠️ Failed to cleanup wild beer explosion on snapBack:', err);
-      }
-    }
+    // 🔥 NOTE: Do not cleanup explosion state on snapBack; this can race with real merge explosion
     
     // Ghost placeholders are now fixed and always visible
     
-    gsap.timeline({
+    trackTimeline({
       onComplete: () => { restoreZ(t); }   // ✅ vrati sloj nakon bounce-a
     })
       .to(t, { x: drag.startX + 9, y: drag.startY, rotation: 0.06, duration: 0.06 })
@@ -1486,7 +1502,7 @@ export function initDrag(cfg) {
         // 🔧 SHADOW PATCH: vrati sjenu i sakrij ako je baza 0
         if (t.shadow) {
           const base = t.shadow._baseAlpha ?? 0;
-          gsap.to(t.shadow, {
+          trackTween(t.shadow, {
             alpha: base,
             duration: 0.12,
             ease: 'power2.out',

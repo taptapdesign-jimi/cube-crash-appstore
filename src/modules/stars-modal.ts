@@ -3,7 +3,10 @@
 // public/src/modules/stars-modal.ts
 import { Container, Text, Graphics, Application } from 'pixi.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { logger } from '../core/logger.js';
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 // Type definitions
 interface StarsModalParams {
@@ -49,7 +52,7 @@ export async function showStarsModal({ app, stage, board, score }: StarsModalPar
     }
     gsap.killTweensOf(layer, true);
     layer.removeChildren(); layer.visible = true; layer.alpha = 0;
-    const layerTween = gsap.to(layer, { alpha: 1, duration: 0.25 });
+    const layerTween = trackTween(layer, { alpha: 1, duration: 0.25 });
     activeTweens.push(layerTween);
 
     // Title
@@ -102,13 +105,13 @@ export async function showStarsModal({ app, stage, board, score }: StarsModalPar
       let touchStarted = false;
       let touchStartedOnButton = false;
       
-      b.on('pointerover', ()=> activeTweens.push(gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" })));
-      b.on('pointerout',  ()=> activeTweens.push(gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" })));
+      b.on('pointerover', ()=> activeTweens.push(trackTween(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" })));
+      b.on('pointerout',  ()=> activeTweens.push(trackTween(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" })));
       
       b.on('pointerdown', (e: any) => {
         touchStarted = true;
         touchStartedOnButton = true;
-        activeTweens.push(gsap.to(b.scale, { x:0.80, y:0.80, duration:0.35, ease: "power2.out" }));
+        activeTweens.push(trackTween(b.scale, { x:0.80, y:0.80, duration:0.35, ease: "power2.out" }));
       });
       
       b.on('globalpointermove', (e: any) => {
@@ -120,7 +123,7 @@ export async function showStarsModal({ app, stage, board, score }: StarsModalPar
           
           if (isOutside) {
             // Cancel the touch - reset button
-            activeTweens.push(gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" }));
+            activeTweens.push(trackTween(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" }));
             touchStartedOnButton = false;
           }
         }
@@ -152,7 +155,7 @@ export async function showStarsModal({ app, stage, board, score }: StarsModalPar
         }
         
         // Reset button
-        activeTweens.push(gsap.to(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" }));
+        activeTweens.push(trackTween(b.scale, { x:1.00, y:1.00, duration:0.35, ease: "power2.out" }));
         touchStarted = false;
         touchStartedOnButton = false;
       });

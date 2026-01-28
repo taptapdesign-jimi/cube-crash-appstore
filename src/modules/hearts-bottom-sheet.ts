@@ -10,6 +10,9 @@
 import { logger } from '../core/logger.js';
 import { heartsSystem } from './hearts-system.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 let heartsModal: HTMLElement | null = null;
 let timerInterval: NodeJS.Timeout | null = null;
@@ -222,7 +225,7 @@ function animateHeartRefill(heartIndex: number): void {
         duration: 0.3,
         ease: 'back.out(1.7)',
         onComplete: () => {
-          const toTween = gsap.to(heartIcon, {
+          const toTween = trackTween(heartIcon, {
             scale: 1,
             duration: 0.2,
             ease: 'power2.out'

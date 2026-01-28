@@ -11,7 +11,22 @@
 import { logger } from '../core/logger.js';
 import { JOURNEY_CARD_IDLE_BOUNCE, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { getBoardSaveKey, hasSavedStateForBoard } from '../utils/board-save-utils.js';
+import { getOriginalGsapTo, getOriginalGsapTimeline } from './drag-core.js';
+
+// 🔥 CRITICAL FIX: Use original GSAP functions to prevent infinite recursion
+// trackTween/trackTimeline must use original GSAP functions, not gsap.to/gsap.timeline
+// because gsap.to/gsap.timeline are overridden in drag-core.ts and might cause circular calls
+const trackTimeline = (options: any = {}) => {
+  const origTimeline = getOriginalGsapTimeline();
+  return animationManager.trackExternalTimeline(origTimeline(options));
+};
+
+const trackTween = (target: any, vars: any) => {
+  const origTo = getOriginalGsapTo();
+  return animationManager.trackExternalTween(origTo(target, vars));
+};
 
 export interface JourneyBoard {
   id: number;
@@ -169,6 +184,92 @@ class JourneyBoardsManager {
     logger.info(`✅ Cancelled all tracked RAF calls`);
   }
 
+  private hideHomeAndJourneyScreens(
+    context: string,
+    opts: { setJourneyZIndex?: boolean; hideJourney?: boolean; cleanup?: boolean } = {}
+  ): void {
+    const homeElement = document.getElementById('home');
+    const sliderContainer = document.getElementById('slider-container');
+    if (homeElement) {
+      homeElement.style.display = 'none';
+      homeElement.style.visibility = 'hidden';
+      homeElement.style.opacity = '0';
+      homeElement.style.zIndex = '-9999';
+      homeElement.setAttribute('hidden', 'true');
+      logger.info(`✅ Homepage hidden (${context})`);
+    }
+    if (sliderContainer) {
+      sliderContainer.style.display = 'none';
+      sliderContainer.style.visibility = 'hidden';
+      sliderContainer.style.opacity = '0';
+      sliderContainer.style.zIndex = '-9999';
+      logger.info(`✅ Slider container hidden (${context})`);
+    }
+
+    const shouldCleanup = opts.cleanup !== false;
+    if (shouldCleanup) {
+      this.cleanup();
+      logger.info(`✅ Journey boards manager cleaned up (${context})`);
+    }
+
+    const shouldHideJourney = opts.hideJourney !== false;
+    if (shouldHideJourney) {
+      const journeyScreen = document.getElementById('journey-screen');
+      if (journeyScreen) {
+        journeyScreen.classList.add('hidden');
+        journeyScreen.style.display = 'none';
+        journeyScreen.style.visibility = 'hidden';
+        journeyScreen.style.opacity = '0';
+        if (opts.setJourneyZIndex) {
+          (journeyScreen as HTMLElement).style.zIndex = '-1';
+        }
+        logger.info(`✅ Journey screen hidden (${context})`);
+      }
+    }
+  }
+
+  private setJourneyOriginFlags(opts: { fromInterim: boolean; returningFromInterim?: boolean } ): void {
+    (window as any).__ccCameFromJourney = true;
+    (window as any).__ccCameFromHomepage = false;
+    localStorage.setItem('__ccCameFromJourney', 'true');
+    localStorage.removeItem('__ccCameFromHomepage');
+
+    if (opts.fromInterim) {
+      (window as any).__ccFromInterimBoard = true;
+      try { localStorage.setItem('__ccFromInterimBoard', 'true'); } catch {}
+      if (opts.returningFromInterim) {
+        (window as any).__ccReturningFromInterimBoard = true;
+        try { localStorage.setItem('__ccReturningFromInterimBoard', 'true'); } catch {}
+      }
+    } else {
+      (window as any).__ccFromInterimBoard = false;
+      try { localStorage.removeItem('__ccFromInterimBoard'); } catch {}
+    }
+  }
+
+  private async exitDetailModalAndHideCollectibles(
+    modal: HTMLElement,
+    context: string,
+    opts: { hideCollectibles?: boolean; hideJourney?: boolean; cleanup?: boolean } = {}
+  ): Promise<void> {
+    const detailModalExitPromise = this.closeDetailModalWithExitAnimation(modal);
+    await detailModalExitPromise;
+    logger.info(`✅ Detail modal exit animation completed (${context})`);
+
+    const collectiblesManager = (window as any).collectiblesManager;
+    const shouldHideCollectibles = opts.hideCollectibles !== false;
+    if (shouldHideCollectibles && collectiblesManager && typeof collectiblesManager.hideCollectibles === 'function') {
+      (window as any).__ccJourneyExitMode = 'toGame';
+      await collectiblesManager.hideCollectibles();
+    }
+
+    if (opts.hideJourney !== false) {
+      this.hideHomeAndJourneyScreens(`detail modal exit (${context})`);
+    } else if (opts.cleanup !== false) {
+      this.cleanup();
+    }
+  }
+
   constructor() {
     this.initializeBoards();
     this.loadBoardsState();
@@ -318,7 +419,7 @@ class JourneyBoardsManager {
       // logger.info('💚 Starting bounce animation: scale up (0.1s) -> smoke at peak -> scale down (0.1s) -> wait 1.5-2.5s');
       
       // Phase 1: Scale up with rotation - fast 0.1s (original speed)
-      gsap.to(cardWrapper, {
+      trackTween(cardWrapper, {
         scale: scaleUp,
         rotation: originalRotation + tiltDegrees * tiltDirection,
         duration: 0.1, // 🔥 USER REQUEST: Fast bounce (original speed)
@@ -347,7 +448,7 @@ class JourneyBoardsManager {
           }
           
           // Phase 2: Return to scale and rotation - fast 0.1s (original speed)
-          gsap.to(cardWrapper, {
+          trackTween(cardWrapper, {
             scale: baseScale,
             rotation: originalRotation,
             duration: 0.1, // 🔥 USER REQUEST: Fast bounce (original speed)
@@ -1105,7 +1206,7 @@ class JourneyBoardsManager {
           const overshootDelta = Math.max(12, Math.min(24, Math.abs(scrollDistance) * 0.015)); // 1-2% or 12-24px
           
           // Timeline with 3 phases
-          const tl = gsap.timeline({
+          const tl = trackTimeline({
             onComplete: () => {
               // Hard correction: ensure exact final position
               scrollable.scrollTop = finalScrollPosition;
@@ -1902,7 +2003,7 @@ class JourneyBoardsManager {
             document.body;
           if (shakeTarget) {
             try { gsap.killTweensOf(shakeTarget); } catch {}
-            const shakeTl = gsap.timeline({
+            const shakeTl = trackTimeline({
               onComplete: () => {
                 try { gsap.set(shakeTarget, { x: 0, y: 0 }); } catch {}
               }
@@ -1922,7 +2023,7 @@ class JourneyBoardsManager {
           // Card pop animation (scale down, pop up, settle)
           cardEl.style.transformOrigin = '50% 50%';
           try { gsap.killTweensOf(cardEl); } catch {}
-          const tl = gsap.timeline({
+          const tl = trackTimeline({
             onComplete: () => {
               (cardEl as any)._openingDetail = false;
               logger.info(`🚀🚀🚀 CALLING openBoardDetails FOR BOARD ${board.id}`);
@@ -2149,7 +2250,7 @@ class JourneyBoardsManager {
             document.body;
           if (shakeTarget) {
             try { gsap.killTweensOf(shakeTarget); } catch {}
-            const shakeTl = gsap.timeline({
+            const shakeTl = trackTimeline({
               onComplete: () => {
                 try { gsap.set(shakeTarget, { x: 0, y: 0 }); } catch {}
               }
@@ -2183,7 +2284,7 @@ class JourneyBoardsManager {
           try { gsap.killTweensOf(animTarget); } catch {}
           
           // 🔥 USER REQUEST: Match exact animation from regular cards (0.7 -> 1.69 -> 1.0)
-          const tl = gsap.timeline({
+          const tl = trackTimeline({
             onComplete: () => {
               (cardEl as any)._openingGame = false;
               // Reset will-change
@@ -2380,38 +2481,8 @@ class JourneyBoardsManager {
       await animateCollectiblesScreenExit();
       logger.info('✅ Journey screen exit animation completed');
       
-      // 🔥 CRITICAL FIX: Hide homepage and slider BEFORE starting game (cleanup)
-      const homeElement = document.getElementById('home');
-      const sliderContainer = document.getElementById('slider-container');
-      if (homeElement) {
-        homeElement.style.display = 'none';
-        homeElement.style.visibility = 'hidden';
-        homeElement.style.opacity = '0';
-        homeElement.style.zIndex = '-9999';
-        homeElement.setAttribute('hidden', 'true');
-        logger.info('✅ Homepage hidden BEFORE game start');
-      }
-      if (sliderContainer) {
-        sliderContainer.style.display = 'none';
-        sliderContainer.style.visibility = 'hidden';
-        sliderContainer.style.opacity = '0';
-        sliderContainer.style.zIndex = '-9999';
-        logger.info('✅ Slider container hidden BEFORE game start');
-      }
-      
-      // Cleanup Journey boards manager (memory leak prevention)
-      this.cleanup();
-      logger.info('✅ Journey boards manager cleaned up');
-      
-      // Hide Journey screen completely
-      const journeyScreen = document.getElementById('journey-screen');
-      if (journeyScreen) {
-        journeyScreen.classList.add('hidden');
-        journeyScreen.style.display = 'none';
-        journeyScreen.style.visibility = 'hidden';
-        journeyScreen.style.opacity = '0';
-        logger.info('✅ Journey screen hidden completely');
-      }
+      // 🔥 CRITICAL FIX: Hide Journey UI BEFORE starting game (cleanup)
+      this.hideHomeAndJourneyScreens('before game start');
       
       // Import journey progression state
       const { journeyProgressionState } = await import('./journey-progression-state.js');
@@ -2420,10 +2491,7 @@ class JourneyBoardsManager {
       journeyProgressionState.setLastOpenedBoardId(boardId);
       
       // 🔥 CRITICAL FIX: Set Journey flag so startNewRun knows we came from Journey
-      (window as any).__ccCameFromJourney = true;
-      (window as any).__ccCameFromHomepage = false;
-      localStorage.setItem('__ccCameFromJourney', 'true');
-      localStorage.removeItem('__ccCameFromHomepage');
+      this.setJourneyOriginFlags({ fromInterim: false });
       logger.info('✅ Journey flags set for proper game start sequence');
       
       // Start new run for this board (exit animation already completed)
@@ -2444,6 +2512,13 @@ class JourneyBoardsManager {
   private closeDetailModalWithExitAnimation(modal: HTMLElement): Promise<void> {
     return new Promise((resolve) => {
       logger.info('🎬 Starting detail modal exit animation');
+      
+      // 🔥 SAFETY: Prevent duplicate exit animations on the same modal
+      if ((modal as any).__detailModalExiting === true) {
+        logger.warn('⚠️ Detail modal exit already running - skipping duplicate call');
+        resolve();
+        return;
+      }
       
       // 🔥 CRITICAL: Mark modal as exiting to prevent openBoardDetails from resetting stats during exit
       (modal as any).__detailModalExiting = true;
@@ -2620,7 +2695,7 @@ class JourneyBoardsManager {
           element.style.transition = 'none';
         }
 
-        gsap.to(element, {
+        trackTween(element, {
           scale: 0,
           opacity: 0,
           duration: 0.4,
@@ -2645,7 +2720,7 @@ class JourneyBoardsManager {
         detailImage.style.transition = 'none';
         // 🔥 CRITICAL: Do NOT reset transform - preserve frozen position
         
-        gsap.to(detailImage, {
+        trackTween(detailImage, {
           scale: 0,
           opacity: 0,
           duration: 0.4,
@@ -2727,7 +2802,7 @@ class JourneyBoardsManager {
           }
 
           // 🔥 CRITICAL: Animate parent with onUpdate to sync children (same pattern as enter)
-          gsap.to(child, {
+          trackTween(child, {
             scale: 0,
             opacity: 0,
             duration: 0.4,
@@ -2810,7 +2885,7 @@ class JourneyBoardsManager {
         // 🔥 CRITICAL: Animate header parent element EXACTLY like enter animation
         // All child elements (X, title, divider) will animate together as a group
         // This matches the enter animation pattern where header is animated as parent
-        gsap.to(detailHeader, {
+        trackTween(detailHeader, {
           scale: 0,
           opacity: 0,
           duration: 0.4,
@@ -2940,42 +3015,12 @@ class JourneyBoardsManager {
       
       // 🔥 USER REQUEST: Mark that we came from Journey screen BEFORE exit animation
       // This ensures exitToMenu returns to Journey (slide 1) instead of homepage (slide 0)
-      (window as any).__ccCameFromJourney = true;
-      (window as any).__ccCameFromHomepage = false;
-      // 🔥 USER REQUEST: Mark that we're returning from interim board to prevent auto-scroll
-      (window as any).__ccReturningFromInterimBoard = true;
-      try { localStorage.setItem('__ccReturningFromInterimBoard', 'true'); } catch {}
-      // 🔥 FIX: Also store in localStorage for persistence across game sessions
-      localStorage.setItem('__ccCameFromJourney', 'true');
-      localStorage.removeItem('__ccCameFromHomepage');
-      // 🔥 NEW: Mark that we came FROM INTERIM BOARD (for clean board modal logic)
-      (window as any).__ccFromInterimBoard = true;
-      try { localStorage.setItem('__ccFromInterimBoard', 'true'); } catch {}
+      this.setJourneyOriginFlags({ fromInterim: true, returningFromInterim: true });
       logger.info('🗺️ Marked as coming from Journey screen (interim card click) + FROM INTERIM BOARD - stored in localStorage');
       
       // 🔥 APP STORE FIX: Hide homepage IMMEDIATELY before Journey exit animation
       // This prevents homepage leftover elements from showing during transition
-      const homeElement = document.getElementById('home');
-      const sliderContainer = document.getElementById('slider-container');
-      
-      if (homeElement) {
-        homeElement.style.display = 'none';
-        homeElement.style.visibility = 'hidden';
-        homeElement.style.opacity = '0';
-        homeElement.style.zIndex = '-9999';
-        homeElement.setAttribute('hidden', 'true');
-        logger.info('✅ Homepage hidden BEFORE Journey exit animation');
-      }
-      
-      if (sliderContainer) {
-        sliderContainer.style.display = 'none';
-        sliderContainer.style.visibility = 'hidden';
-        sliderContainer.style.opacity = '0';
-        sliderContainer.style.zIndex = '-9999';
-        logger.info('✅ Slider container hidden BEFORE Journey exit animation');
-      }
-      
-      logger.info('✅ Homepage completely hidden before Journey exit - no leftovers possible');
+      this.hideHomeAndJourneyScreens('before journey exit', { hideJourney: false, cleanup: false });
       
       // Step 3: Close Journey screen with exit animation (ONLY Journey exit, NO slider exit)
       const exitPromise = journeyExitPromise ?? this.startJourneyExitAnimation();
@@ -2989,20 +3034,8 @@ class JourneyBoardsManager {
       await new Promise(resolve => setTimeout(resolve, 100));
       logger.info('✅ Delay after exit animation - ensuring smooth transition');
       
-      // Step 5: Cleanup Journey boards manager (memory leak prevention)
-      this.cleanup();
-      
-      // Step 6: Hide Journey screen completely (ensure it's not visible during game start)
-      const journeyScreen = document.getElementById('journey-screen');
-      if (journeyScreen) {
-        journeyScreen.classList.add('hidden');
-        journeyScreen.style.display = 'none';
-        journeyScreen.style.visibility = 'hidden';
-        journeyScreen.style.opacity = '0';
-        // 🔥 CRITICAL: Set z-index to ensure it's behind app element
-        (journeyScreen as HTMLElement).style.zIndex = '-1';
-        logger.info('✅ Journey screen completely hidden');
-      }
+      // Step 5: Hide Journey UI (cleanup after hideCollectibles)
+      this.hideHomeAndJourneyScreens('after journey exit', { setJourneyZIndex: true, cleanup: false });
       
       // Step 7: Also call hideCollectibles to ensure proper cleanup (memory leak prevention)
       const collectiblesManager = (window as any).collectiblesManager;
@@ -3011,6 +3044,9 @@ class JourneyBoardsManager {
         (window as any).__ccJourneyExitMode = 'toGame';
         await collectiblesManager.hideCollectibles();
       }
+      
+      // Cleanup after collectibles hidden
+      this.cleanup();
       
       // 🔥 CRITICAL FIX: Wait for next frame to ensure DOM updates are rendered
       // This prevents lag when starting board transition screen
@@ -3121,12 +3157,17 @@ class JourneyBoardsManager {
       // Step 9: Show board transition screen, then continue game with saved state (resume interim game)
       // This will load saved game state and continue from where user left off
       // HUD drop animation is already handled in continueGameWithSavedState() for Journey pathway
+      let didContinue = false;
       try {
         const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
         await showBoardTransitionScreen({
           boardNumber: board.id,
           onComplete: async () => {
             if (typeof (window as any).continueGameWithSavedState === 'function') {
+              if (didContinue) {
+                return;
+              }
+              didContinue = true;
               // 🔥 CRITICAL: Always trigger HUD drop on entry from interim card (every time)
               // This ensures _hudDropPending is set even if other flags/state were cleared.
               (window as any).__ccTriggerHudDrop = true;
@@ -3137,9 +3178,17 @@ class JourneyBoardsManager {
             }
           }
         });
+        // Fallback: if transition resolves without calling onComplete, continue anyway
+        if (!didContinue && typeof (window as any).continueGameWithSavedState === 'function') {
+          didContinue = true;
+          (window as any).__ccTriggerHudDrop = true;
+          logger.info(`🎮 Fallback continue after transition for board ${board.id}`);
+          await (window as any).continueGameWithSavedState();
+        }
       } catch (transitionError) {
         logger.warn('⚠️ Failed to show board transition screen for interim board, continuing directly:', transitionError);
-        if (typeof (window as any).continueGameWithSavedState === 'function') {
+        if (!didContinue && typeof (window as any).continueGameWithSavedState === 'function') {
+          didContinue = true;
           (window as any).__ccTriggerHudDrop = true;
           logger.info(`🎮 Continuing saved game for board ${board.id} - preserving progress and score`);
           await (window as any).continueGameWithSavedState();
@@ -3369,7 +3418,7 @@ class JourneyBoardsManager {
       if (Math.abs(currentX) < 30) {
         targetX = snapPoints[0];
       }
-        momentumAnimation = gsap.to(container, {
+        momentumAnimation = trackTween(container, {
           x: targetX,
         duration: 0.5,
         ease: 'back.out(1.15)',
@@ -3455,7 +3504,7 @@ class JourneyBoardsManager {
       if (Math.abs(currentX) < 30) {
         targetX = snapPoints[0];
       }
-        momentumAnimation = gsap.to(container, {
+        momentumAnimation = trackTween(container, {
           x: targetX,
         duration: 0.5,
         ease: 'back.out(1.15)',
@@ -3495,7 +3544,7 @@ class JourneyBoardsManager {
         momentumAnimation.kill();
         momentumAnimation = null;
       }
-        momentumAnimation = gsap.to(container, {
+        momentumAnimation = trackTween(container, {
           x: targetX,
         duration: 0.5,
         ease: 'back.out(1.15)',
@@ -3656,6 +3705,10 @@ class JourneyBoardsManager {
     // Step 2: Now open detail modal with enter animation
     const detailModal = document.getElementById('collectibles-detail-modal');
     if (detailModal) {
+      // 🔥 SAFETY: Ensure modal is interactive even after previous exit
+      (detailModal as any).__detailModalExiting = false;
+      (detailModal as HTMLElement).style.pointerEvents = 'auto';
+      
       // 🔥 USER BUG FIX: Ensure X button exists and is visible IMMEDIATELY when modal is opened
       // This fixes issue where X button is missing after hard exit
       const detailCloseBtnEarly = detailModal.querySelector('#detail-close-btn') as HTMLElement;
@@ -4139,30 +4192,14 @@ class JourneyBoardsManager {
           }
 
           // 🔥 USER REQUEST: Exit animation on detail modal only (no Journey screen exit - already hidden)
-          const detailModalExitPromise = this.closeDetailModalWithExitAnimation(detailModal);
-          await detailModalExitPromise;
-          logger.info('✅ Detail modal exit animation completed');
-
-          this.cleanup();
-
-          const collectiblesManager = (window as any).collectiblesManager;
-          if (collectiblesManager && typeof collectiblesManager.hideCollectibles === 'function') {
-            (window as any).__ccJourneyExitMode = 'toGame';
-            await collectiblesManager.hideCollectibles();
-          }
+          await this.exitDetailModalAndHideCollectibles(detailModal, 'play button', { hideJourney: true });
 
           // Mark that we came from detail modal (for return on exit)
           (window as any).__ccCameFromDetailModal = true;
           (window as any).__ccDetailModalBoardId = boardIdForPlay;
           // 🔥 CRITICAL FIX: Also mark as coming from Journey so exitToMenu returns to Journey slide (slide 1)
           // This ensures proper navigation when exiting game - returns to Journey with enter animation
-          (window as any).__ccCameFromJourney = true;
-          (window as any).__ccCameFromHomepage = false;
-          localStorage.setItem('__ccCameFromJourney', 'true');
-          localStorage.removeItem('__ccCameFromHomepage');
-          // 🔥 NEW: Mark that we came FROM REGULAR BOARD (NOT interim) for clean board modal logic
-          (window as any).__ccFromInterimBoard = false;
-          try { localStorage.removeItem('__ccFromInterimBoard'); } catch {}
+          this.setJourneyOriginFlags({ fromInterim: false });
           console.log(`🎯 Marked as coming from detail modal AND Journey (REGULAR BOARD, not interim) for board ${boardIdForPlay}`);
 
           // 🔥 USER REQUEST: Check if this board has a saved state (board-specific)
@@ -4238,103 +4275,37 @@ class JourneyBoardsManager {
           // Set display on cloned element
           newContinueBtn.style.setProperty('display', 'block', 'important');
           
-          // Add click listener for Continue Board
-          (newContinueBtn as HTMLElement).addEventListener('click', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            logger.info(`🔄 Continue Board button clicked for board ${board.id}`);
-            
-            // 🔥 COMPREHENSIVE CLEANUP & EXIT ANIMATION SEQUENCE
+          const handleContinueInterim = async (source: string) => {
+            logger.info(`🔄 Continue Board ${source} for board ${board.id}`);
             try {
-              // Step 1: Stop Journey card idle bounce animations immediately
               if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
                 JOURNEY_CARD_IDLE_BOUNCE.stop();
                 logger.info('✅ Journey card idle bounce stopped');
               }
               
-              // Step 2: Close detail modal with exit animation
               const detailModalExitPromise = this.closeDetailModalWithExitAnimation(detailModal);
-              
-              // Step 3: Close Journey screen with exit animation (runs in parallel with modal exit)
               const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
               const journeyExitPromise = animateCollectiblesScreenExit();
               
-              // Step 4: Wait for both exit animations to complete
               await Promise.all([detailModalExitPromise, journeyExitPromise]);
               logger.info('✅ All exit animations completed');
               
-              // Step 5: Cleanup Journey boards manager
-              this.cleanup();
-              
-              // Step 6: Hide collectibles screen
+              // Hide collectibles after both exits
               const collectiblesManager = (window as any).collectiblesManager;
               if (collectiblesManager && typeof collectiblesManager.hideCollectibles === 'function') {
                 (window as any).__ccJourneyExitMode = 'toGame';
                 await collectiblesManager.hideCollectibles();
               }
               
-              // Step 7: Set Journey progression state
-              const { journeyProgressionState } = await import('./journey-progression-state.js');
-              journeyProgressionState.setLastOpenedBoardId(board.id);
+              this.hideHomeAndJourneyScreens('interim continue exit', { setJourneyZIndex: true });
               
-              // Step 8: Continue game with saved state (resume interim game)
-              if (typeof (window as any).continueGameWithSavedState === 'function') {
-                (window as any).__ccTriggerHudDrop = true;
-                await (window as any).continueGameWithSavedState();
-              } else {
-                logger.error('❌ continueGameWithSavedState function not found');
-              }
-            } catch (error) {
-              logger.error(`❌ Failed to continue game from Journey board ${board.id}:`, error instanceof Error ? error.message : String(error));
-            }
-          });
-          
-          // Add touch listener for mobile
-          (newContinueBtn as HTMLElement).addEventListener('touchend', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            logger.info(`🔄 Continue Board button touched (touchend) for board ${board.id}`);
-            
-            // 🔥 COMPREHENSIVE CLEANUP & EXIT ANIMATION SEQUENCE (same as click)
-            try {
-              // Step 1: Stop Journey card idle bounce animations immediately
-              if (JOURNEY_CARD_IDLE_BOUNCE && typeof JOURNEY_CARD_IDLE_BOUNCE.stop === 'function') {
-                JOURNEY_CARD_IDLE_BOUNCE.stop();
-                logger.info('✅ Journey card idle bounce stopped');
-              }
-              
-              // Step 2: Close detail modal with exit animation
-              const detailModalExitPromise = this.closeDetailModalWithExitAnimation(detailModal);
-              
-              // Step 3: Close Journey screen with exit animation (runs in parallel with modal exit)
-              const { animateCollectiblesScreenExit } = await import('../ui/collectibles-animations.js');
-              const journeyExitPromise = animateCollectiblesScreenExit();
-              
-              // Step 4: Wait for both exit animations to complete
-              await Promise.all([detailModalExitPromise, journeyExitPromise]);
-              logger.info('✅ All exit animations completed');
-              
-              // Step 5: Cleanup Journey boards manager
-              this.cleanup();
-              
-              // Step 6: Hide collectibles screen
-              const collectiblesManager = (window as any).collectiblesManager;
-              if (collectiblesManager && typeof collectiblesManager.hideCollectibles === 'function') {
-                (window as any).__ccJourneyExitMode = 'toGame';
-                await collectiblesManager.hideCollectibles();
-              }
-              
-              // Step 7: Set Journey progression state
               const { journeyProgressionState } = await import('./journey-progression-state.js');
               journeyProgressionState.setLastOpenedBoardId(board.id);
               
               // 🔥 USER REQUEST: Mark that we came from Journey screen
-              // This ensures exitToMenu returns to Journey (slide 1) instead of homepage (slide 0)
-              (window as any).__ccCameFromJourney = true;
-              (window as any).__ccCameFromHomepage = false;
+              this.setJourneyOriginFlags({ fromInterim: true });
               logger.info('🗺️ Marked as coming from Journey screen (interim Continue button)');
               
-              // Step 8: Continue game with saved state (resume interim game)
               if (typeof (window as any).continueGameWithSavedState === 'function') {
                 (window as any).__ccTriggerHudDrop = true;
                 await (window as any).continueGameWithSavedState();
@@ -4344,6 +4315,18 @@ class JourneyBoardsManager {
             } catch (error) {
               logger.error(`❌ Failed to continue game from Journey board ${board.id}:`, error instanceof Error ? error.message : String(error));
             }
+          };
+          
+          (newContinueBtn as HTMLElement).addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            await handleContinueInterim('button click');
+          });
+          
+          (newContinueBtn as HTMLElement).addEventListener('touchend', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            await handleContinueInterim('touchend');
           }, { capture: true, passive: false });
           
           logger.info(`✅ Continue Board button listener attached for board ${board.id}`);
@@ -4692,7 +4675,7 @@ class JourneyBoardsManager {
             }
             
             gsap.set(detailHeader, { visibility: 'visible', immediateRender: true });
-            gsap.to(detailHeader, {
+            trackTween(detailHeader, {
               scale: 1,
               opacity: 1,
               duration: 0.5,
@@ -5226,7 +5209,7 @@ class JourneyBoardsManager {
           (window as any).__ccReturningFromDetailModal = true;
           
           // Use journey boards exit animation (header animates as group)
-          await this.closeDetailModalWithExitAnimation(detailModal);
+          await this.exitDetailModalAndHideCollectibles(detailModal, 'detail close button', { hideCollectibles: false, hideJourney: false, cleanup: true });
           
           // Show Journey screen after modal closes
           const collectiblesManager = (window as any).collectiblesManager;
@@ -5250,7 +5233,7 @@ class JourneyBoardsManager {
           (window as any).__ccReturningFromDetailModal = true;
           
           // Use journey boards exit animation (header animates as group)
-          await this.closeDetailModalWithExitAnimation(detailModal);
+          await this.exitDetailModalAndHideCollectibles(detailModal, 'detail close touch', { hideCollectibles: false, hideJourney: false, cleanup: true });
           
           // Show Journey screen after modal closes
           const collectiblesManager = (window as any).collectiblesManager;

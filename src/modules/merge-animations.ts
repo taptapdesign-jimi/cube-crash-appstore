@@ -3,10 +3,15 @@
 // Animations for merge system
 
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { Container, Graphics, Text } from 'pixi.js';
 import { logger } from '../core/logger.js';
 
 import { 
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
   MERGE_ANIMATION_DURATION,
   SCORE_ANIMATION_DURATION,
   COMBO_ANIMATION_DURATION,
@@ -81,8 +86,8 @@ export function animateMergeEffect(src: Tile, dst: Tile): Promise<void> {
     
     // Animate source tile to destination
     // 🔥 FIX: Animate position on container, scale on scale property
-    gsap.to(src.scale, { x: 0.8, y: 0.8, duration: MERGE_ANIMATION_DURATION, ease: EASING.EASE_IN });
-    const mergeTween = gsap.to(src, {
+    trackTween(src.scale, { x: 0.8, y: 0.8, duration: MERGE_ANIMATION_DURATION, ease: EASING.EASE_IN });
+    const mergeTween = trackTween(src, {
       x: dst.x,
       y: dst.y,
       alpha: 0,
@@ -120,7 +125,7 @@ export function animateWildMergeEffect(src: Tile, dst: Tile): Promise<void> {
     dst._isBeingMerged = true;
     
     // Create wild effect timeline
-    const tl = gsap.timeline();
+    const tl = trackTimeline();
     
     // Animate source tile with wild effects
     // 🔥 FIX: Use scale.x/scale.y for PIXI objects
@@ -211,8 +216,8 @@ function animateWildDestinationPulse(tile: Tile): Promise<void> {
         repeat: 2,
         onComplete: () => {
           // Reset rotation and scale
-          gsap.to(tile.rotG.scale, { x: 1, y: 1, duration: 0.1, ease: EASING.EASE_OUT });
-          gsap.to(tile.rotG, {
+          trackTween(tile.rotG.scale, { x: 1, y: 1, duration: 0.1, ease: EASING.EASE_OUT });
+          trackTween(tile.rotG, {
             rotation: 0,
             duration: 0.1,
             ease: EASING.EASE_OUT,
@@ -332,8 +337,8 @@ export function animateTileSpawn(tile: Tile): Promise<void> {
     gsap.set(tile, { alpha: 0 });
     
     // Animate in
-    gsap.to(tile.scale, { x: 1, y: 1, duration: 0.3, ease: EASING.EASE_BACK });
-    const spawnTween = gsap.to(tile, {
+    trackTween(tile.scale, { x: 1, y: 1, duration: 0.3, ease: EASING.EASE_BACK });
+    const spawnTween = trackTween(tile, {
       alpha: 1,
       duration: 0.3,
       ease: EASING.EASE_BACK,
@@ -364,8 +369,8 @@ export function animateTileDestroy(tile: Tile): Promise<void> {
     tile._isBeingDestroyed = true;
     
     // 🔥 FIX: Use scale property for PIXI objects
-    gsap.to(tile.scale, { x: 0, y: 0, duration: 0.2, ease: EASING.EASE_IN });
-    const destroyTween = gsap.to(tile, {
+    trackTween(tile.scale, { x: 0, y: 0, duration: 0.2, ease: EASING.EASE_IN });
+    const destroyTween = trackTween(tile, {
       alpha: 0,
       duration: 0.2,
       ease: EASING.EASE_IN,

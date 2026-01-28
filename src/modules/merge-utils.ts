@@ -3,10 +3,15 @@
 // Utility functions for merge system
 
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { Container, Graphics, Text } from 'pixi.js';
 import { logger } from '../core/logger.js';
 
 import { 
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
   MERGE_ANIMATION_DURATION,
   SCORE_ANIMATION_DURATION,
   COMBO_ANIMATION_DURATION,
@@ -166,7 +171,7 @@ export function pulseBoardZoom(factor = BOARD_ZOOM_FACTOR, opts: PulseBoardZoomO
   // Implement board zoom animation
   const boardElement = document.getElementById('board');
   if (boardElement) {
-    const tl = gsap.timeline();
+    const tl = trackTimeline();
     tl.to(boardElement, {
       scale: 1.1,
       duration: duration / 2,
@@ -257,7 +262,7 @@ export function landPreBounce(t: Tile): Promise<void> {
         duration: 0.15,
         ease: EASING.EASE_OUT,
         onComplete: () => {
-          gsap.to(t.scale, {
+          trackTween(t.scale, {
             x: 1,
             y: 1,
             duration: 0.1,

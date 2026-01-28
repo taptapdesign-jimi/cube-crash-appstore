@@ -5,8 +5,14 @@
 
 import { Container, Graphics, Sprite } from 'pixi.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { graphicsPool } from './object-pool.ts';
 import { getBubbleColors } from './templates/template-manager.ts';
+import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
+
+const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
 
 let isBubblesActive = false;
 let bubblesContainer: Container | null = null;
@@ -14,6 +20,7 @@ let spawnInterval: gsap.core.Tween | null = null;
 let activeBubbles: (Graphics | Sprite)[] = [];
 let healthCheckInterval: NodeJS.Timeout | null = null;
 let _cachedBubbleTexture: any = null; // Cached bubble texture for performance
+const lifecycle = createScreenLifecycle('wild-beer-bubbles-screen');
 
 /**
  * Start full-screen bubbles animation
@@ -189,7 +196,7 @@ function spawnBubblesLoop(): void {
 
   // Next spawn in 0.3-0.6s (continuous)
   const delay = 0.3 + Math.random() * 0.3;
-  spawnInterval = gsap.delayedCall(delay, spawnBubblesLoop);
+  spawnInterval = trackDelayedCall(delay, spawnBubblesLoop);
 }
 
 /**
@@ -292,7 +299,7 @@ function spawnBubble(): void {
   const bubbleTweens: gsap.core.Tween[] = [];
 
   // 1. VERTICAL RISE + DRIFT (combined)
-  bubbleTweens.push(gsap.to(bubble, {
+  bubbleTweens.push(trackTween(bubble, {
     x: startX + driftX,
     y: endY,
     duration,
@@ -302,7 +309,7 @@ function spawnBubble(): void {
 
   // 2. SCALE ANIMATION
   const finalScale = 0.65 + Math.random() * 0.35; // 0.65-1.0 final scale
-  bubbleTweens.push(gsap.to(bubble.scale, {
+  bubbleTweens.push(trackTween(bubble.scale, {
     x: isSprite ? finalScale * sizeRatio : finalScale,
     y: isSprite ? finalScale * sizeRatio : finalScale,
     duration: duration * 0.45,
@@ -311,7 +318,7 @@ function spawnBubble(): void {
   }));
 
   // 3. ALPHA FADE
-  bubbleTweens.push(gsap.to(bubble, {
+  bubbleTweens.push(trackTween(bubble, {
     alpha: 0,
     duration: duration * 0.4,
     delay: duration * 0.6,
@@ -344,7 +351,7 @@ function spawnBubble(): void {
  */
 function startHealthCheck(): void {
   // Check every 2 seconds if wild-beer tile still exists
-  healthCheckInterval = setInterval(() => {
+  healthCheckInterval = lifecycle.trackInterval(() => {
     if (!isBubblesActive) {
       if (healthCheckInterval) {
         clearInterval(healthCheckInterval);
@@ -376,6 +383,7 @@ function checkWildBeerTileExists(): boolean {
  * Cleanup all bubbles and resources
  */
 function cleanup(): void {
+  lifecycle.cleanup();
   isBubblesActive = false;
 
   // Kill spawn interval

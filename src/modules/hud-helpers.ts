@@ -2,14 +2,21 @@
 // public/src/modules/hud-helpers.ts
 import { Container, Graphics, Text, Rectangle, Sprite, Assets, Application, Stage } from 'pixi.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
 import { pauseGame, resumeGame, restart } from './app-core.ts';
 // import { showPauseModal } from './pause-modal.js'; // Replaced with menu screen
 import { HUD_H, COLS, ROWS, TILE, GAP } from './constants.js';
 import uiManager from './ui-manager.ts';
 import { smokeBubblesAtTile } from './fx.ts';
+import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
 
 // 🔥 FIX: Track HUD timeouts for cleanup
 const activeHudTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
+const hudLifecycle = createScreenLifecycle('hud');
 
 function trackHudTimeout(callback: () => void, delay: number): ReturnType<typeof setTimeout> {
   const timeout = setTimeout(() => {
@@ -29,6 +36,10 @@ export function cleanupHudTimeouts(): void {
   });
   activeHudTimeouts.clear();
   console.log('✅ HUD timeouts cleaned up');
+}
+
+export function cleanupHudLifecycle(): void {
+  hudLifecycle.cleanup();
 }
 
 interface GraphicsPool {
@@ -371,7 +382,7 @@ function animateBoardIndicatorEnter(duration = 0.8) {
     indicator.setAttribute('data-state', 'entering');
   }
   gsap.set(indicator, { y: BOARD_INDICATOR_ANIM_OFFSET, opacity: 0 });
-  gsap.to(indicator, {
+  trackTween(indicator, {
     y: 0,
     opacity: 1,
     duration,
@@ -389,7 +400,7 @@ export function animateBoardIndicatorExit(duration = 0.3) {
   try { gsap.killTweensOf(boardIndicator); } catch {}
   // Use fixed 0.3s duration to match HUD exit speed, or use provided duration if it's faster
   const exitDuration = Math.min(0.3, duration || 0.3);
-  gsap.to(boardIndicator, {
+  trackTween(boardIndicator, {
     y: BOARD_INDICATOR_ANIM_OFFSET,
     opacity: 0,
     duration: exitDuration,
@@ -578,7 +589,7 @@ function makeWildLoader() {
         hudStage.addChild(smokeBubble);
         
         // Animate smoke: float up and fade out
-        gsap.to(smokeBubble, {
+        trackTween(smokeBubble, {
           y: globalY - 15 - Math.random() * 10,
           x: globalX + (Math.random() - 0.5) * 10,
           alpha: 0,
@@ -593,7 +604,7 @@ function makeWildLoader() {
         });
       }, 100); // Every 100ms during animation
       
-      container._currentAnimation = gsap.to({ width: startWidth }, {
+      container._currentAnimation = trackTween({ width: startWidth }, {
         width: width,
         duration: 0.4,
         ease: 'power2.out',
@@ -680,7 +691,7 @@ let __prevBoard = 0;
 function bounceText(obj, { peak=1.28, back=1.06, up=0.10, down=0.24 } = {}){
   if (!obj) return;
   try { gsap.killTweensOf(obj.scale); } catch {}
-  gsap.timeline()
+  trackTimeline()
     .to(obj.scale, { x: peak, y: peak, duration: up, ease: 'back.out(3)' }, 0)
     .to(obj.scale, { x: back, y: back, duration: down, ease: 'elastic.out(1,0.78)' }, '>-0.02');
 }
@@ -690,7 +701,7 @@ function startComboFX(){
   // keep a slightly enlarged base while active
   try { gsap.killTweensOf(comboText); } catch {}
   if (!__comboJitterTl){
-    __comboJitterTl = gsap.timeline({ repeat: -1, repeatRefresh: true });
+    __comboJitterTl = trackTimeline({ repeat: -1, repeatRefresh: true });
     const rot = () => (Math.random() * 0.144*__shakeMul - 0.072*__shakeMul); // scaled by shakeMul
     const d   = () => (0.14 + Math.random() * 0.12);
     const dx  = () => (0.036*__shakeMul + Math.random() * 0.084*__shakeMul);
@@ -706,14 +717,14 @@ function stopComboFX(){
   if (!comboText) return;
   // elastic bounce back to rest
   try {
-    gsap.to(comboWrap || comboText, { rotation: 0, duration: 0.25, ease: 'power2.out' });
+    trackTween(comboWrap || comboText, { rotation: 0, duration: 0.25, ease: 'power2.out' });
     // sporiji, nježniji decay natrag na 1.0
-    gsap.to(comboWrap ? comboWrap.scale : comboText.scale, { x: 1, y: 1, duration: 0.40, ease: 'power2.out' });
-    gsap.to(comboText.scale, { x: 1, y: 1, duration: 1.40, ease: 'elastic.out(1,0.9)' });
+    trackTween(comboWrap ? comboWrap.scale : comboText.scale, { x: 1, y: 1, duration: 0.40, ease: 'power2.out' });
+    trackTween(comboText.scale, { x: 1, y: 1, duration: 1.40, ease: 'elastic.out(1,0.9)' });
     // reset shake multiplier smoothly (but don't recreate if we just cleaned up)
     if (!__shakeTl) {
     const sh = { k: __shakeMul };
-    __shakeTl = gsap.to(sh, { k: 1.0, duration: 0.60, ease: 'power2.out', onUpdate: () => { __shakeMul = sh.k; } });
+    __shakeTl = trackTween(sh, { k: 1.0, duration: 0.60, ease: 'power2.out', onUpdate: () => { __shakeMul = sh.k; } });
     }
   } catch {}
 }
@@ -1185,7 +1196,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
                   buttonToAnimate.scale.set(1, 1);
                 }
                 gsap.killTweensOf(buttonToAnimate.scale);
-                const tl = gsap.timeline();
+                const tl = trackTimeline();
                 tl.to(buttonToAnimate.scale, {
                   x: 0.92,
                   y: 0.92,
@@ -1368,7 +1379,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
                       buttonToAnimate.scale.set(1, 1);
                     }
                     gsap.killTweensOf(buttonToAnimate.scale);
-                    const tl = gsap.timeline();
+                    const tl = trackTimeline();
                     tl.to(buttonToAnimate.scale, {
                       x: 0.92,
                       y: 0.92,
@@ -1748,7 +1759,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
   layout({ app, top });
   const onResize = () => layout({ app, top });
   HUD_ROOT._onResize = onResize;
-  window.addEventListener('resize', onResize);
+  hudLifecycle.trackListener(window, 'resize', onResize);
 
   // Defer drop animation control to caller
   // (initialHide state already applied above to avoid first-frame flash)
@@ -1935,7 +1946,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
               buttonToAnimate.scale.set(1, 1);
             }
             gsap.killTweensOf(buttonToAnimate.scale);
-            const tl = gsap.timeline();
+            const tl = trackTimeline();
             tl.to(buttonToAnimate.scale, {
               x: 0.92,
               y: 0.92,
@@ -2014,7 +2025,7 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
             // Animates entire container (X icon + dashed border)
             // Same timing and easing as journey hearts tap-bounce (220ms total, cubic-bezier(0.34, 1.56, 0.64, 1))
             // Use 'back.out' for bounce effect similar to CSS cubic-bezier
-            const tl = gsap.timeline();
+            const tl = trackTimeline();
             
             // Phase 1: Scale down (0-35% = 77ms)
             tl.to(buttonToAnimate.scale, {
@@ -2125,19 +2136,19 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
           try {
             if (typeof gsap !== 'undefined') {
               gsap.killTweensOf(coinHud.iconSprite.scale);
-              gsap.to(coinHud.iconSprite.scale, {
+              trackTween(coinHud.iconSprite.scale, {
                 x: 0.92,
                 y: 0.92,
                 duration: 0.077,
                 ease: 'power2.out',
                 onComplete: () => {
-                  gsap.to(coinHud.iconSprite.scale, {
+                  trackTween(coinHud.iconSprite.scale, {
                     x: 1.06,
                     y: 1.06,
                     duration: 0.077,
                     ease: 'power2.out',
                     onComplete: () => {
-                      gsap.to(coinHud.iconSprite.scale, {
+                      trackTween(coinHud.iconSprite.scale, {
                         x: 1,
                         y: 1,
                         duration: 0.066,
@@ -2196,19 +2207,19 @@ export function initHUD({ stage, app, top = 8, initialHide = false }) {
           if (typeof gsap !== 'undefined') {
             gsap.killTweensOf(coinHud.iconSprite.scale);
             // Tap bounce: scale down → scale up → back to normal
-            gsap.to(coinHud.iconSprite.scale, {
+            trackTween(coinHud.iconSprite.scale, {
               x: 0.92,
               y: 0.92,
               duration: 0.077, // 35% of 220ms
               ease: 'power2.out',
               onComplete: () => {
-                gsap.to(coinHud.iconSprite.scale, {
+                trackTween(coinHud.iconSprite.scale, {
                   x: 1.06,
                   y: 1.06,
                   duration: 0.077, // 35% of 220ms (70% - 35%)
                   ease: 'power2.out',
                   onComplete: () => {
-                    gsap.to(coinHud.iconSprite.scale, {
+                    trackTween(coinHud.iconSprite.scale, {
                       x: 1,
                       y: 1,
                       duration: 0.066, // 30% of 220ms (100% - 70%)
@@ -2288,7 +2299,7 @@ export function playHudDrop({ duration = 0.8, forceRestart = false } = {}){
   HUD_ROOT.visible = true;
   
   // Animate PIXI HUD drop
-  gsap.to(HUD_ROOT, {
+  trackTween(HUD_ROOT, {
     alpha: 1,
     y: top,
     duration: duration,
@@ -2392,7 +2403,7 @@ export function playHudRise({ duration = 0.3 } = {}){
     const exitDuration = 0.3;
     
     // Animate PIXI HUD rise (reverse of drop) - faster exit
-    gsap.to(HUD_ROOT, {
+    trackTween(HUD_ROOT, {
       alpha: 0,  // fade out
       y: -top * 2,  // rise above screen
       duration: exitDuration,
@@ -2567,7 +2578,7 @@ export function setScore(v, animate = true){
   const duration = Math.min(1.2, Math.max(0.6, diff / 1000));
   
   // Animate score counting
-  __scoreTween = gsap.to(__scoreProxy, {
+  __scoreTween = trackTween(__scoreProxy, {
     value: targetScore,
     duration: duration,
     ease: 'power2.out',
@@ -2683,7 +2694,7 @@ function updateComboIcon(comboValue) {
           // 🔥 USER REQUEST: Fast morph transition (cross-fade, no fade out)
           // Direct texture swap with quick scale animation for smooth morph effect
           const morphDuration = 0.15; // 🔥 Faster: 150ms (reduced from 300ms)
-          const morphTimeline = gsap.timeline({
+          const morphTimeline = trackTimeline({
             onComplete: () => {
               // Update icon type after animation completes
               combo.currentIconType = targetIconType;
@@ -2797,7 +2808,7 @@ function updateComboWobble(comboValue) {
   
   if (shouldWobble) {
     // Start continuous wobble animation
-    comboWobbleTween = gsap.to(iconSprite, {
+    comboWobbleTween = trackTween(iconSprite, {
       rotation: 0.15, // ~8.6 degrees
       duration: 0.3,
       ease: 'power2.inOut',
@@ -2933,7 +2944,7 @@ export function bumpCombo(opts = {}){
   // Inflate a bit faster if already large so it snaps back to peak quickly
   const upDur = Math.max(0.08, 0.16 - (cur - 1) * 0.06);
 
-  __comboBumpTl = gsap.timeline();
+  __comboBumpTl = trackTimeline();
   __comboBumpTl
     // inflate quickly to peak
     .to(comboText.scale, { x: peak, y: peak, duration: upDur, ease: 'back.out(3)' }, 0)
@@ -2942,7 +2953,7 @@ export function bumpCombo(opts = {}){
 
   // Boost shake while inflating, then gradually relax during deflate
   const sh = { k: __shakeMul };
-  __shakeTl = gsap.timeline({ onUpdate: () => { __shakeMul = sh.k; } });
+  __shakeTl = trackTimeline({ onUpdate: () => { __shakeMul = sh.k; } });
   // If combo >= 10, double the shake strength for stronger impact
   const shakeExtra = (cv >= 10) ? 2.0 : 1.0;
   // For merge6: reduced shake strength (0.65 = 50% of 1.3) and faster animation (40% faster = 60% duration)
@@ -3069,7 +3080,7 @@ export function forceWildLoaderToZero(){
       const mask = wild.view.children.find(child => child.mask);
       if (mask) {
         // Animate the mask width to 0
-        gsap.to(mask, {
+        trackTween(mask, {
           width: 0,
           duration: 0.5,
           ease: "power2.out",
@@ -3118,7 +3129,7 @@ export function animateScore({ scoreRef, setScore, updateHUD, SCORE_CAP, gsap },
   __scoreTweening = true;
   // inflate score text slightly at start
   bounceText(scoreText, { peak: 1.18, back: 1.06, up: 0.10, down: 0.24 });
-  gsap.to(proxy, {
+  trackTween(proxy, {
     v: to, duration: duration || 0.5, ease: 'power2.out',
     onUpdate: () => { const val = Math.round(proxy.v); setScore(val); try { updateHUD?.({ score: val }); } catch {} },
     onComplete: () => { __scoreTweening = false; }
@@ -3133,7 +3144,7 @@ export function animateBoard({ boardRef, setBoard, updateHUD, gsap }, toValue, d
   const proxy = { v: from };
   // small pop at start
   bounceText(boardText, { peak: 1.18, back: 1.06, up: 0.10, down: 0.24 });
-  gsap.to(proxy, {
+  trackTween(proxy, {
     v: to, duration: duration || 0.5, ease: 'power2.out',
     onUpdate: () => { const val = Math.round(proxy.v); setBoard(val); try { updateHUD?.({ board: val }); } catch {} },
   });
@@ -3157,7 +3168,7 @@ export function animateHUDDrop() {
     HUD_ROOT.y = -200;
     HUD_ROOT.alpha = 0;
     
-    gsap.timeline()
+    trackTimeline()
       .to(HUD_ROOT, { 
         alpha: 1, 
         duration: 0.2, 
@@ -3231,7 +3242,7 @@ export function bounceStarIcon(onComplete) {
   
   console.log('⭐ Starting bounce animation (scale 30%)');
   
-  const tl = gsap.timeline({
+  const tl = trackTimeline({
     onComplete: () => {
       console.log('✅ Bounce animation timeline completed, calling callback');
       // Clean up timeline reference

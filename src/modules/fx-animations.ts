@@ -4,6 +4,13 @@
 
 import { Container, Graphics, Text, Texture, Sprite } from 'pixi.js';
 import { gsap } from 'gsap';
+import animationManager from './animation-manager.js';
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+
+const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 // 🔥 FIX: Track active timelines for cleanup
 const activeShakeTimelines: gsap.core.Timeline[] = [];
@@ -83,7 +90,7 @@ export function landBounce(tile: Tile, opts: LandBounceOptions = {}): void {
   tile.scaleY = originalScaleY * (1 - options.strength);
   
   // Animate bounce
-  gsap.to(tile, {
+  trackTween(tile, {
     scaleX: originalScaleX,
     scaleY: originalScaleY,
     duration: options.duration,
@@ -112,7 +119,7 @@ export function screenShake(app: any, opts: ScreenShakeOptions = {}): void {
   
   // Create shake animation
   // 🔥 FIX: Track timeline for cleanup
-  const shakeTl = gsap.timeline();
+  const shakeTl = trackTimeline();
   activeShakeTimelines.push(shakeTl);
   
   const shakeCount = Math.floor(options.duration * options.frequency);
@@ -191,7 +198,7 @@ export function magicSparklesAtTile(board: Board, tile: Tile, opts: any = {}): v
       }
     );
     
-    gsap.to(sparkle, {
+    trackTween(sparkle, {
       alpha: 0,
       scaleX: sparkle.scaleX * 1.5,
       scaleY: sparkle.scaleY * 1.5,
@@ -204,7 +211,7 @@ export function magicSparklesAtTile(board: Board, tile: Tile, opts: any = {}): v
   board.addChild(sparklesContainer);
   
   // 🔥 FIX: Store delayed call reference and properly destroy container
-  const cleanupCall = gsap.delayedCall(1.2, () => {
+  const cleanupCall = trackDelayedCall(1.2, () => {
     // Kill all tweens on sparkles before removing
     sparklesContainer.children.forEach(child => {
       gsap.killTweensOf(child);

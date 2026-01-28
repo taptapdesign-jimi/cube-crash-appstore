@@ -41,14 +41,36 @@ interface CleanBoardModalOptions {
 export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
   // 🔥 USER BUG FIX: Don't run endgame flow if game is hidden (user is on homepage/other screens)
   // This prevents clean board modal from appearing when user navigates away from game
-  const appElement = document.getElementById('app');
-  const homeElement = document.getElementById('home');
-  const isGameHidden = appElement && appElement.hasAttribute('hidden');
-  const isHomepageVisible = homeElement && !homeElement.hidden;
+  const appElement = document.getElementById('app') as HTMLElement | null;
+  const homeElement = document.getElementById('home') as HTMLElement | null;
+  const journeyElement = document.getElementById('journey-screen') as HTMLElement | null;
+  const isAppVisible = !!appElement && !appElement.hasAttribute('hidden') && (() => {
+    const style = window.getComputedStyle(appElement);
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  })();
+  const isHomeVisible = !!homeElement && !homeElement.hasAttribute('hidden') && (() => {
+    const style = window.getComputedStyle(homeElement);
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  })();
+  const isJourneyVisible = !!journeyElement && !journeyElement.hasAttribute('hidden') && (() => {
+    const style = window.getComputedStyle(journeyElement);
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  })();
   
-  if (isGameHidden || isHomepageVisible) {
-    console.log('⏳ runEndgameFlow skipped - game is hidden or homepage is visible (user navigated away from game)');
+  if (isHomeVisible || isJourneyVisible) {
+    console.log('⏳ runEndgameFlow skipped - home/journey visible (user navigated away from game)', {
+      isAppVisible,
+      isHomeVisible,
+      isJourneyVisible
+    });
     return;
+  }
+  if (!isAppVisible) {
+    try {
+      const uiManagerModule = await import('./ui-manager.js');
+      uiManagerModule.default?.showApp?.();
+      console.warn('⚠️ runEndgameFlow: App was hidden with no UI visible - force showApp()');
+    } catch {}
   }
   
   // 🔥 CRITICAL: Guard against multiple simultaneous calls
@@ -124,13 +146,31 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     try {
       const fxModule = await import('./fx.js');
       const maxWaitMs = 4000;
-      if (skipStarsWait && typeof fxModule.waitForBubblesAnimationToComplete === 'function') {
-        await fxModule.waitForBubblesAnimationToComplete(maxWaitMs);
-      } else {
-        if (fxModule && typeof fxModule.waitForOngoingAnimations === 'function') {
+      const waitForAnimations = async () => {
+        if (skipStarsWait && typeof fxModule.waitForBubblesAnimationToComplete === 'function') {
+          await fxModule.waitForBubblesAnimationToComplete(maxWaitMs);
+        } else if (fxModule && typeof fxModule.waitForOngoingAnimations === 'function') {
           await new Promise((r) => setTimeout(r, 350)); // let bubbles/stars start (200ms) + buffer
           await fxModule.waitForOngoingAnimations(maxWaitMs);
         }
+      };
+      const hardTimeout = new Promise<'timeout'>((resolve) => {
+        setTimeout(() => resolve('timeout'), maxWaitMs + 800);
+      });
+      const result = await Promise.race([waitForAnimations().then(() => 'done' as const), hardTimeout]);
+      if (result === 'timeout') {
+        console.warn('⚠️ endgame-flow: Animation wait timed out - forcing cleanup to proceed');
+        try {
+          const bubblesModule = await import('./wild-beer-bubbles-explosion.js');
+          if (bubblesModule && typeof bubblesModule.stopWildBeerBubblesExplosion === 'function') {
+            bubblesModule.stopWildBeerBubblesExplosion();
+          }
+        } catch {}
+        try {
+          if (fxModule && typeof fxModule.cleanupExistingStarAnimations === 'function') {
+            fxModule.cleanupExistingStarAnimations();
+          }
+        } catch {}
       }
     } catch (e) {
       console.warn('⚠️ endgame-flow: animation wait failed (non-fatal):', e);
@@ -426,14 +466,6 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         } catch {}
       }
       
-      // Kill all delayed calls and graphics objects
-      if (typeof (window as any).killAllDelayedCalls === 'function') {
-        (window as any).killAllDelayedCalls();
-      }
-      if (typeof (window as any).destroyAllGraphicsObjects === 'function') {
-        (window as any).destroyAllGraphicsObjects();
-      }
-      
       // Clear all timeouts and intervals
       if ((window as any)._activeTimeouts) {
         (window as any)._activeTimeouts.forEach((timeout: NodeJS.Timeout) => {
@@ -466,45 +498,23 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         // Ignore errors
       }
       
-      // 🔥 CRITICAL FIX: Cleanup bubbles animation again (in case it was restarted)
-      // 🔥 BUBBLES ANIMATION FIX: Always cleanup to prevent stale state across board transitions
-      // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations to prevent memory leaks
-      // 🔥 CRITICAL FIX: Skip bubble explosion cleanup during board transition to prevent race condition
+      // 🔥 CRITICAL FIX: Cleanup FX in one place to avoid duplicate logic
+      // cleanupAllEffects already skips bubble explosion during board transition.
       try {
-        const fxModule = await import('./fx.js');
-        const isBoardTransitionActive = (window as any).__ccBoardTransitionActive === true;
-        if (!isBoardTransitionActive && fxModule && typeof fxModule.cleanupWildBeerExplosion === 'function') {
-          const wasActive = fxModule.isWildBeerExplosionRunning && fxModule.isWildBeerExplosionRunning();
-          // Always cleanup (even if flag says inactive) to handle stale containers/flags
-          fxModule.cleanupWildBeerExplosion();
-          if (wasActive) {
-            console.log('🧹 endgame-flow: Cleaned up active bubbles animation in cleanup section');
-          } else {
-            console.log('🧹 endgame-flow: Force cleaned up bubbles animation (stale state prevention)');
+        const lastFxCleanup = (window as any).__ccLastFxCleanupAt || 0;
+        const recentlyCleaned = (Date.now() - lastFxCleanup) < 1000;
+        if (recentlyCleaned) {
+          console.log('⏭️ endgame-flow: Skipping cleanupAllEffects (recently cleaned)');
+        } else {
+          const fxModule = await import('./fx.js');
+          if (fxModule && typeof fxModule.cleanupAllEffects === 'function') {
+            fxModule.cleanupAllEffects();
+            console.log('🧹 endgame-flow: cleanupAllEffects completed');
+            (window as any).__ccLastFxCleanupAt = Date.now();
           }
-        } else if (isBoardTransitionActive) {
-          console.log('⏸️ endgame-flow: Skipping bubble explosion cleanup - board transition active');
-        }
-        
-        // 🔥 STARS ANIMATION FIX: Cleanup stars-to-HUD animations
-        if (fxModule && typeof fxModule.cleanupExistingStarAnimations === 'function') {
-          fxModule.cleanupExistingStarAnimations();
-          console.log('🧹 endgame-flow: Cleaned up stars-to-HUD animations in cleanup section');
         }
       } catch (e) {
-        console.warn('⚠️ endgame-flow: Failed to cleanup animations in cleanup section:', e);
-        // 🔥 CRITICAL: Try cleanup again on error (prevents stuck state)
-        // 🔥 CRITICAL FIX: Skip bubble explosion cleanup during board transition
-        try {
-          const fxModule = await import('./fx.js');
-          const isBoardTransitionActive = (window as any).__ccBoardTransitionActive === true;
-          if (!isBoardTransitionActive && fxModule && typeof fxModule.cleanupWildBeerExplosion === 'function') {
-            fxModule.cleanupWildBeerExplosion();
-          }
-          if (fxModule && typeof fxModule.cleanupExistingStarAnimations === 'function') {
-            fxModule.cleanupExistingStarAnimations();
-          }
-        } catch {}
+        console.warn('⚠️ endgame-flow: Failed to cleanup FX in cleanup section:', e);
       }
       
       // Memory cleanup (lazy import to avoid circular dependency)
@@ -551,14 +561,6 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
               });
               console.log('✅ All base textures cleared for very long session');
             }
-          }
-          
-          // 🔥 CRITICAL FIX: Force clear all GSAP timelines for very long sessions
-          try {
-            gsap.globalTimeline.clear();
-            console.log('✅ All GSAP timelines cleared for very long session');
-          } catch (e) {
-            console.warn('⚠️ Failed to clear GSAP timelines:', e);
           }
           
           // Force garbage collection if available
@@ -636,8 +638,10 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     // because startLevel() doesn't initialize board properly (no bootGame() + layoutGame())
     const cameFromJourney = (window as any).__ccCameFromJourney === true;
     const isInterimBoard = (window as any).__ccIsInterimBoard === true;
+    const cameFromInterimBoard = (window as any).__ccFromInterimBoard === true;
+    const shouldUseJourneyStart = cameFromJourney || isInterimBoard || cameFromInterimBoard;
     
-    console.log(`🎯 endgame-flow: Continue action detected - cameFromJourney: ${cameFromJourney}, isInterimBoard: ${isInterimBoard}`);
+    console.log(`🎯 endgame-flow: Continue action detected - cameFromJourney: ${cameFromJourney}, isInterimBoard: ${isInterimBoard}, cameFromInterimBoard: ${cameFromInterimBoard}`);
     
     // 🔥 CRITICAL FIX: Hide board indicator before showing transition screen
     // This prevents persistent "BOARD 07" element from showing during transition
@@ -690,22 +694,108 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           
           // 🔥 CRITICAL FIX: Wrap startLevel/startNewRunFromJourney in try-catch to prevent unhandled errors
           try {
-            if (cameFromJourney || isInterimBoard) {
+            const ensureBoardVisibleAfterTransition = async () => {
+              try {
+                const uiManagerModule = await import('./ui-manager.js');
+                const uiMgr = uiManagerModule.default;
+                uiMgr?.showApp?.();
+              } catch {}
+              
+              try {
+                const hudModule = await import('./hud-helpers.js');
+                if (typeof hudModule.playHudDrop === 'function') {
+                  hudModule.playHudDrop({ forceRestart: true });
+                }
+              } catch {}
+              
+              try {
+                const app = (window as any).CC?.app;
+                const stage = (window as any).CC?.stage;
+                if (app?.canvas) {
+                  app.canvas.style.display = 'block';
+                  app.canvas.style.visibility = 'visible';
+                  app.canvas.style.opacity = '1';
+                }
+                if (stage) {
+                  stage.visible = true;
+                  stage.alpha = 1;
+                  stage.renderable = true;
+                }
+                if (app?.renderer && stage) {
+                  app.renderer.render(stage);
+                }
+              } catch {}
+            };
+
+            // Centralized cleanup before starting next board
+            try { (window as any).CC?.cleanupFxForBoardReset?.('endgame-flow'); } catch {}
+            try { (window as any).CC?.softResetBoardView?.('endgame-flow'); } catch {}
+            if (shouldUseJourneyStart) {
               // 🔥 INTERIM BOARD FIX: Use startNewRunFromJourney for proper initialization
               console.log(`🎮 endgame-flow: Calling startNewRunFromJourney(${nextLevel}) because we came from Journey/interim board`);
               if (typeof (window as any).startNewRunFromJourney === 'function') {
                 await (window as any).startNewRunFromJourney(nextLevel);
                 logger.info(`🎯 endgame-flow: startNewRunFromJourney completed for board ${nextLevel}`);
+                await ensureBoardVisibleAfterTransition();
               } else {
                 console.error('❌ endgame-flow: startNewRunFromJourney function not found, falling back to startLevel');
+                try {
+                  const uiManagerModule = await import('./ui-manager.js');
+                  const uiMgr = uiManagerModule.default;
+                  uiMgr?.showApp?.();
+                } catch {}
                 startLevel(nextLevel);
+                await ensureBoardVisibleAfterTransition();
               }
             } else {
               // 🔥 REGULAR BOARD: Use startLevel for continuation
               console.log(`🎮 endgame-flow: Calling startLevel(${nextLevel}) for regular board continuation`);
+              try {
+                const uiManagerModule = await import('./ui-manager.js');
+                const uiMgr = uiManagerModule.default;
+                uiMgr?.showApp?.();
+              } catch {}
               startLevel(nextLevel);
               logger.info(`🎯 endgame-flow: startLevel completed, should now be on Board ${nextLevel}`);
+              await ensureBoardVisibleAfterTransition();
             }
+
+            // 🔥 RECOVERY: If board failed to appear after transition, retry once
+            setTimeout(async () => {
+              try {
+                const appEl = document.getElementById('app');
+                const appVisible = !!appEl && !appEl.hasAttribute('hidden') &&
+                  appEl.style.display !== 'none' && appEl.style.visibility !== 'hidden';
+                const tilesCount = (window as any).STATE?.tiles?.filter?.((t: any) => t && !t.destroyed && (t.value | 0) > 0)?.length || 0;
+                const needsRecovery = !appVisible || tilesCount === 0;
+                if (!needsRecovery) return;
+
+                if ((window as any).__ccRecoverStartNewRunInProgress) return;
+                (window as any).__ccRecoverStartNewRunInProgress = true;
+
+                console.warn('⚠️ endgame-flow: Board did not appear after transition - attempting recovery', {
+                  appVisible,
+                  tilesCount,
+                  nextLevel
+                });
+
+                try {
+                  const uiManagerModule = await import('./ui-manager.js');
+                  const uiMgr = uiManagerModule.default;
+                  uiMgr?.showApp?.();
+                } catch {}
+
+                if (shouldUseJourneyStart && typeof (window as any).startNewRunFromJourney === 'function') {
+                  await (window as any).startNewRunFromJourney(nextLevel);
+                } else if (typeof (window as any).startLevel === 'function') {
+                  (window as any).startLevel(nextLevel);
+                }
+              } catch (recoveryError) {
+                console.warn('⚠️ endgame-flow: Recovery attempt failed:', recoveryError);
+              } finally {
+                delete (window as any).__ccRecoverStartNewRunInProgress;
+              }
+            }, 600);
           } catch (startLevelError: any) {
             console.error('❌ endgame-flow: startLevel/startNewRunFromJourney failed:', startLevelError);
             logger.error('❌ endgame-flow: startLevel error:', String(startLevelError?.message || startLevelError));
@@ -716,13 +806,23 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
             // Instead, try to recover by waiting and retrying
             try {
               await new Promise(resolve => setTimeout(resolve, 500));
-              if (cameFromJourney || isInterimBoard) {
+              if (shouldUseJourneyStart) {
                 if (typeof (window as any).startNewRunFromJourney === 'function') {
                   await (window as any).startNewRunFromJourney(nextLevel);
                 } else {
+                  try {
+                    const uiManagerModule = await import('./ui-manager.js');
+                    const uiMgr = uiManagerModule.default;
+                    uiMgr?.showApp?.();
+                  } catch {}
                   startLevel(nextLevel);
                 }
               } else {
+                try {
+                  const uiManagerModule = await import('./ui-manager.js');
+                  const uiMgr = uiManagerModule.default;
+                  uiMgr?.showApp?.();
+                } catch {}
                 startLevel(nextLevel);
               }
               logger.info('🎯 endgame-flow: startLevel retry completed');
@@ -740,7 +840,7 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       
       // 🔥 CRITICAL FIX: Wrap startLevel/startNewRunFromJourney in try-catch to prevent unhandled errors
       try {
-        if (cameFromJourney || isInterimBoard) {
+        if (shouldUseJourneyStart) {
           // 🔥 INTERIM BOARD FIX: Use startNewRunFromJourney for proper initialization
           console.log(`🎮 endgame-flow: Calling startNewRunFromJourney(${nextLevel}) because we came from Journey/interim board`);
           if (typeof (window as any).startNewRunFromJourney === 'function') {
@@ -748,11 +848,21 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
             logger.info(`🎯 endgame-flow: startNewRunFromJourney completed for board ${nextLevel}`);
           } else {
             console.error('❌ endgame-flow: startNewRunFromJourney function not found, falling back to startLevel');
+            try {
+              const uiManagerModule = await import('./ui-manager.js');
+              const uiMgr = uiManagerModule.default;
+              uiMgr?.showApp?.();
+            } catch {}
             startLevel(nextLevel);
           }
         } else {
           // 🔥 REGULAR BOARD: Use startLevel for continuation
           console.log(`🎮 endgame-flow: Calling startLevel(${nextLevel}) for regular board continuation`);
+          try {
+            const uiManagerModule = await import('./ui-manager.js');
+            const uiMgr = uiManagerModule.default;
+            uiMgr?.showApp?.();
+          } catch {}
           startLevel(nextLevel);
           logger.info(`🎯 endgame-flow: startLevel completed, should now be on Board ${nextLevel}`);
         }
@@ -763,13 +873,23 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         // Instead, try to recover by waiting and retrying
         try {
           await new Promise(resolve => setTimeout(resolve, 500));
-          if (cameFromJourney || isInterimBoard) {
+          if (shouldUseJourneyStart) {
             if (typeof (window as any).startNewRunFromJourney === 'function') {
               await (window as any).startNewRunFromJourney(nextLevel);
             } else {
+              try {
+                const uiManagerModule = await import('./ui-manager.js');
+                const uiMgr = uiManagerModule.default;
+                uiMgr?.showApp?.();
+              } catch {}
               startLevel(nextLevel);
             }
           } else {
+            try {
+              const uiManagerModule = await import('./ui-manager.js');
+              const uiMgr = uiManagerModule.default;
+              uiMgr?.showApp?.();
+            } catch {}
             startLevel(nextLevel);
           }
           logger.info('🎯 endgame-flow: startLevel retry completed');
