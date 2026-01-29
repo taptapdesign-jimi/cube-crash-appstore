@@ -1,0 +1,49 @@
+import { handleEmptyLoadState } from '../modules/app-core-load-empty.ts';
+
+describe('handleEmptyLoadState', () => {
+  const noop = () => {};
+
+  beforeEach(() => {
+    (global as any).localStorage = {
+      getItem: () => null,
+      setItem: () => {},
+      removeItem: () => {},
+    };
+  });
+
+  it('returns handled=false when active tiles exist', () => {
+    const tiles = [{ locked: false, value: 2 }];
+
+    const result = handleEmptyLoadState({
+      tiles,
+      boardNumber: 1,
+      getPendingCleanBoard: () => ({ pending: false }),
+      clearPendingCleanBoard: noop,
+      getBoardSaveKey: () => 'cc_saved_game_board_01',
+      triggerCleanBoardFlow: noop,
+      trackAppTimeout: noop,
+      devLog: noop,
+      devWarn: noop,
+    });
+
+    expect(result.handled).toBe(false);
+  });
+
+  it('returns handled=true when no tiles and no recovery needed', () => {
+    const tiles: any[] = [];
+
+    const result = handleEmptyLoadState({
+      tiles,
+      boardNumber: 1,
+      getPendingCleanBoard: () => ({ pending: false }),
+      clearPendingCleanBoard: noop,
+      getBoardSaveKey: () => 'cc_saved_game_board_01',
+      triggerCleanBoardFlow: noop,
+      trackAppTimeout: noop,
+      devLog: noop,
+      devWarn: noop,
+    });
+
+    expect(result.handled).toBe(true);
+  });
+});

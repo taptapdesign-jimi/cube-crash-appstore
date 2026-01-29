@@ -1,18 +1,6 @@
-// @ts-nocheck
 import { ANIMATION_DURATIONS, ANIMATION_EASING, ELEMENT_IDS, SLIDER_ANIMATION } from '../constants/animations.js';
 import { logger } from '../core/logger.js';
 import { sliderState } from '../modules/slider-state.js';
-
-// Global window extensions
-declare global {
-  interface Window {
-    CC?: {
-      pauseGame?: () => void;
-      resumeGame?: () => void;
-    };
-    unlockSlider?: () => void;
-  }
-}
 
 // Safe element getter
 export const getElement = (id: string): HTMLElement | null => {
@@ -67,8 +55,9 @@ export const safeResumeGame = (): void => {
 // Safe lock slider
 export const safeLockSlider = (): void => {
   try {
-    if (typeof window.lockSlider === 'function') {
-      window.lockSlider();
+    const lockSlider = (window as any).lockSlider as undefined | (() => void);
+    if (typeof lockSlider === 'function') {
+      lockSlider();
       logger.info('🔒 Slider locked successfully');
     } else {
       logger.warn('⚠️ lockSlider function not available');
@@ -81,8 +70,9 @@ export const safeLockSlider = (): void => {
 // Safe unlock slider
 export const safeUnlockSlider = (): void => {
   try {
-    if (typeof window.unlockSlider === 'function') {
-      window.unlockSlider();
+    const unlockSlider = (window as any).unlockSlider as undefined | (() => void);
+    if (typeof unlockSlider === 'function') {
+      unlockSlider();
       logger.info('🔓 Slider unlocked successfully');
     } else {
       logger.warn('⚠️ unlockSlider function not available');
@@ -143,7 +133,7 @@ let isAnimatingExit = false;
 let isAnimatingEnter = false;
 
 // Track active animation timeouts for cleanup
-let activeTimeouts: Set<NodeJS.Timeout> = new Set();
+let activeTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
 
 // Persisted badge key (matches navigation.ts)
 const BADGE_STORAGE_KEY = 'journey_badge_count_v109';
@@ -269,7 +259,7 @@ function startExitAnimationSequence(): void {
     const slideText = activeSlide.querySelector('.slide-text');
     const slideTagline = activeSlide.querySelector('.slide-tagline');
     
-    logger.info(`🔍 Found elements in slide ${slideIndex}:`, {
+    logger.info(`🔍 Found elements in slide ${slideIndex}:`, 'animations', {
       heroContainer: !!heroContainer,
       slideButton: !!slideButton,
       slideText: !!slideText,

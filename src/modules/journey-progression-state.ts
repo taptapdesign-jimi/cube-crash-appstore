@@ -185,9 +185,9 @@ class JourneyProgressionState {
       const saved = localStorage.getItem(STORAGE_KEY_CURRENT_RUN);
       if (saved) {
         const state = JSON.parse(saved);
-        // Check if state is still valid (not too old - 24 hours max)
+        // Match board save validity (7 days) so hard-exit + return still resumes
         const ageMs = Date.now() - (state.timestamp || 0);
-        if (ageMs < 24 * 60 * 60 * 1000) {
+        if (ageMs < 7 * 24 * 60 * 60 * 1000) {
           return state as CurrentRunState;
         } else {
           // State too old, clear it

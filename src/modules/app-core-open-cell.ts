@@ -1,0 +1,152 @@
+type OpenCellDeps = {
+  c: number;
+  r: number;
+  options?: {
+    value?: number | null;
+    isWild?: boolean;
+    isWildMagnet?: boolean;
+    isWildBeer?: boolean;
+    skipBind?: boolean;
+    timeScale?: number;
+  };
+  grid: any[][];
+  board: any;
+  tiles: any[];
+  makeBoard: { createTile: (args: any) => any; setValue: (tile: any, value: number, delay?: number) => void };
+  devWarn: (...args: any[]) => void;
+  bindTileWithFallback: (tile: any, skipBind: boolean) => void;
+  applyWildSkinLocal: (tile: any) => void;
+  startWildShimmer: (tile: any) => void;
+  startWildBeerBubbles: (tile: any) => void;
+  startWildStars: (tile: any) => void;
+  SPAWN: { spawnBounce: (tile: any, gsap: any, opts: any, onComplete?: () => void) => void };
+  gsap: any;
+};
+
+export function openAtCellCore({
+  c,
+  r,
+  options,
+  grid,
+  board,
+  tiles,
+  makeBoard,
+  devWarn,
+  bindTileWithFallback,
+  applyWildSkinLocal,
+  startWildShimmer,
+  startWildBeerBubbles,
+  startWildStars,
+  SPAWN,
+  gsap,
+}: OpenCellDeps){
+  const {
+    value = null,
+    isWild = false,
+    isWildMagnet = false,
+    isWildBeer = false,
+    skipBind = false,
+    timeScale = 1.0,
+  } = options || {};
+  return new Promise((resolve) => {
+    // Re-read from grid so we never spawn on a cell that was updated by another spawn (e.g. merge-6)
+    let holder = grid?.[r]?.[c] || null;
+
+    // 🔥 CRITICAL: Never spawn wild/normal on an active tile or wild tile.
+    // Check value and wild first — even locked tiles with value > 0 must be skipped.
+    if (holder) {
+      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-beer' || holder.isWild === true || holder.isWildFace === true;
+      const hasValue = (holder.value | 0) > 0;
+
+      if (hasValue || isWildTile) {
+        devWarn('⚠️ openAtCell: Cell already occupied by active/wild tile – refusing to spawn:', {
+          c, r,
+          holderValue: holder.value,
+          holderSpecial: holder.special,
+          holderLocked: holder.locked,
+          hasValue,
+          isWildTile,
+        });
+        resolve(false);
+        return;
+      }
+
+      if (!holder.locked) {
+        devWarn('⚠️ openAtCell: Cell has unlocked holder (should be ghost only):', {
+          c, r,
+          holderValue: holder.value,
+          holderSpecial: holder.special,
+          holderLocked: holder.locked,
+        });
+        resolve(false);
+        return;
+      }
+    }
+
+    // Double-check: re-read grid in case of race with another spawn
+    holder = grid?.[r]?.[c] || null;
+    if (holder) {
+      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-beer' || holder.isWild === true || holder.isWildFace === true;
+      const hasValue = (holder.value | 0) > 0;
+      if (hasValue || isWildTile || !holder.locked) {
+        resolve(false);
+        return;
+      }
+    }
+
+    // 🔥 Wild spawn ONLY on existing ghost placeholder — never create new tile then convert to wild
+    if ((isWild || isWildMagnet || isWildBeer) && !holder) {
+      devWarn('⚠️ openAtCell: Wild spawn refused – cell has no tile (ghost placeholder required)');
+      resolve(false);
+      return;
+    }
+    if (!holder) holder = makeBoard.createTile({ board, grid, tiles, c, r, val: 0, locked: true });
+
+    holder.locked = false;
+    holder.eventMode = 'static';
+    holder.cursor = 'pointer';
+    bindTileWithFallback(holder, skipBind);
+    
+    // 🔥 CRITICAL FIX: Clear magnet flags from holder before spawning
+    // This prevents spawned tiles from inheriting flags from previous magnet pull
+    delete holder._wildMagnetAffected;
+    delete holder._wildMagnetOriginalX;
+    delete holder._wildMagnetOriginalY;
+    delete holder._mergeTriggered75;
+    delete holder._skipIdleScaleReset;
+    delete holder._wildMagnetMergeCallback;
+    delete holder._wildMagnetPulledTilesMerge;
+    delete holder._wildMagnetPulledTilesScoring;
+
+    if (isWild || isWildMagnet || isWildBeer){
+      // 🔥 CRITICAL: Set special BEFORE setValue to ensure correct texture is applied
+      holder.special = isWildBeer ? 'wild-beer' : (isWildMagnet ? 'wild-magnet' : 'wild');
+      holder.isWild = true;
+      holder.isWildFace = true;
+      holder.value = 6;
+      // Now setValue will check special FIRST and apply correct wild texture
+      makeBoard.setValue(holder, 6, 0);
+      // Always use applyWildSkinLocal to ensure correct texture is applied (double-check)
+      applyWildSkinLocal(holder);
+      try {
+        startWildShimmer(holder); // Use shimmer instead of bounce
+        // 🔥 WILD-BEER: Use bubbles animation instead of rotating stars
+        if (holder.special === 'wild-beer') {
+          startWildBeerBubbles(holder);
+        } else {
+          startWildStars(holder);
+        }
+      } catch {}
+    } else {
+      const v = (value == null) ? [1, 2, 3, 4, 5][(Math.random() * 5) | 0] : value;
+      makeBoard.setValue(holder, v, 0);
+    }
+
+    holder.visible = true;
+    holder.alpha = 0;
+    SPAWN.spawnBounce(holder, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, fadeIn: 0.10, timeScale: timeScale }, () => {
+      holder.alpha = 1;
+      resolve(true);
+    });
+  });
+}

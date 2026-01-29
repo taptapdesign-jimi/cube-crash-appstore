@@ -1,4 +1,3 @@
-// @ts-nocheck
 // iOS-optimized error handling
 // Handles errors gracefully for App Store submission
 
@@ -19,27 +18,6 @@ interface ErrorStats {
   count: number;
   log: ErrorInfo[];
   isHealthy: boolean;
-}
-
-// Global window extensions
-declare global {
-  interface Window {
-    app?: {
-      destroy?: (removeView?: boolean) => void;
-    };
-    gc?: () => void;
-    initDrag?: () => void;
-    PIXI?: {
-      utils?: {
-        destroyTextureCache: () => void;
-      };
-    };
-    gsap?: {
-      globalTimeline?: {
-        clear: () => void;
-      };
-    };
-  }
 }
 
 class ErrorHandler {
@@ -104,8 +82,8 @@ class ErrorHandler {
     
     // Console logging (development only)
     if (!this.isProduction) {
-      logger.error(`🚨 Error in ${context}:`, error);
-      logger.error('Error details:', errorInfo);
+      logger.error(`🚨 Error in ${context}:`, 'error-handler', error);
+      logger.error('Error details:', 'error-handler', errorInfo);
     }
     
     // Prevent error spam
@@ -156,7 +134,7 @@ class ErrorHandler {
     }
     
     // Try to recover PIXI context
-    const app = container.get('app');
+    const app = container.get('app') as { destroy?: (removeView?: boolean) => void } | undefined;
     if (app && app.destroy) {
       try {
         app.destroy(true);
@@ -184,9 +162,10 @@ class ErrorHandler {
     }
     
     // Force garbage collection if available
-    if (window.gc) {
+    const gc = (window as any).gc as undefined | (() => void);
+    if (gc) {
       try {
-        window.gc();
+        gc();
         logger.info('✅ Garbage collection triggered');
       } catch (e) {
         logger.warn('⚠️ Failed to trigger garbage collection:', e);
@@ -241,14 +220,16 @@ class ErrorHandler {
   // Clear various caches
   private clearCaches(): void {
     try {
-      // Clear PIXI texture cache
-      if (window.PIXI && window.PIXI.utils && window.PIXI.utils.destroyTextureCache) {
-        window.PIXI.utils.destroyTextureCache();
+      const pixi = (window as any).PIXI as undefined | { utils?: { destroyTextureCache?: () => void; clearTextureCache?: () => void } };
+      if (pixi?.utils?.destroyTextureCache) {
+        pixi.utils.destroyTextureCache();
+      } else if (pixi?.utils?.clearTextureCache) {
+        pixi.utils.clearTextureCache();
       }
-      
-      // Clear GSAP cache
-      if (window.gsap && window.gsap.globalTimeline) {
-        window.gsap.globalTimeline.clear();
+
+      const gsapGlobal = (window as any).gsap as undefined | { globalTimeline?: { clear: () => void } };
+      if (gsapGlobal?.globalTimeline) {
+        gsapGlobal.globalTimeline.clear();
       }
       
       logger.info('✅ Caches cleared successfully');
@@ -326,11 +307,13 @@ const errorHandler = new ErrorHandler();
 
 // Global error handlers
 window.addEventListener('error', (event) => {
-  errorHandler.handleError(event.error, 'Global Error');
+  const err = (event as ErrorEvent).error ?? event;
+  errorHandler.handleError(err as Error, 'Global Error');
 });
 
 window.addEventListener('unhandledrejection', (event) => {
-  errorHandler.handleError(new Error(event.reason), 'Unhandled Promise Rejection');
+  const reason = (event as PromiseRejectionEvent).reason;
+  errorHandler.handleError(new Error(String(reason)), 'Unhandled Promise Rejection');
 });
 
 // Export for use in modules

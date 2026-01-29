@@ -1,6 +1,6 @@
-// @ts-nocheck
 // public/src/modules/app.js
 // ✅ mobile-first, cache-busted celebration & prize flow
+// TODO: Remove @ts-nocheck after incremental typing cleanup
 
 import { Application, Container, Assets, Graphics, Text, Rectangle, Texture, Sprite, SCALE_MODES } from 'pixi.js';
 import { gsap } from 'gsap';
@@ -37,7 +37,9 @@ import { checkEndGame, clearEndGameCache, tileIsActive, getActiveTiles, type End
 import memoryManager from './memory-manager.ts';
 import { boardSpecificRules, isWildSpawnEnabled, isWildMeterEnabled, filterWildType, getWildMeterFillRate } from './board-specific-rules.ts';
 import { logger } from '../core/logger.js';
-import type { Tile, Board, Grid, HUD, Stage, Drag, MakeBoard } from '../types/game-types.js';
+import { devLog, devWarn, devError } from './app-core-logger.ts';
+import { createHudHelpers } from './app-core-hud-helpers.ts';
+import type { Tile, Board, Grid, HUD as HUDType, Stage as StageType, Drag, MakeBoard } from '../types/game-types.js';
 import { getBoardSaveKey, migrateGlobalSaveToBoard } from '../utils/board-save-utils.js';
 import { 
   setPendingCleanBoard, 
@@ -52,14 +54,88 @@ import {
   sleep, 
   pickWildValue,
   trackAppTimeout,
+  waitTracked,
   clearAllAppTimeouts,
   trackAppAnimationFrame,
   clearAllAppAnimationFrames,
   trackAppInterval,
   clearAllAppIntervals,
   trackAppListener,
-  clearAllAppListeners
+  clearAllAppListeners,
+  getAppCleanupStats
 } from './app-core-utils.js';
+import { createReplayRecorder } from './app-core-replay.ts';
+import { getReactiveActiveTiles, isElementVisible, getScreenVisibility } from './app-core-state-helpers.ts';
+import { createEmptyGrid as createEmptyGridHelper } from './app-core-grid-helpers.ts';
+import { syncSharedState as syncSharedStateHelper } from './app-core-state-sync.ts';
+import { resetBoardContainerHelper } from './app-core-board-reset.ts';
+import { cleanupTilesForRebuild } from './app-core-tile-cleanup.ts';
+import { createLockedHolders } from './app-core-board-build.ts';
+import { openRandomTiles } from './app-core-open-tiles.ts';
+import { ensureBackgroundLayerVisible } from './app-core-background-layer.ts';
+import { schedulePopInSafetyNet } from './app-core-popin-safety.ts';
+import { createSweetPopPromise } from './app-core-popin-start.ts';
+import { handleHudDropOnHalf } from './app-core-hud-drop.ts';
+import { handleSweetPopInComplete } from './app-core-popin-final.ts';
+import { ensureAnimationRunning } from './app-core-animation-ensure.ts';
+import { createPopInRunner } from './app-core-popin-delay.ts';
+import { createSweetPopInRunner } from './app-core-popin-runner.ts';
+import { stopTileIdleBounce } from './app-core-tile-bounce.ts';
+import { initializeBoardGrid } from './app-core-board-setup.ts';
+import { finalizeBoardVisibility } from './app-core-board-visibility.ts';
+import { resetTilesForRebuild } from './app-core-tiles-reset.ts';
+import { createAndOpenBoard } from './app-core-board-open.ts';
+import { prepareBoardForRebuild } from './app-core-board-prepare.ts';
+import { ensureExitVisibility } from './app-core-exit-visibility.ts';
+import { cleanupBeforeBoardExit } from './app-core-exit-cleanup.ts';
+import { selectTilesForExit } from './app-core-exit-tiles.ts';
+import { runExitAnimation } from './app-core-exit-anim.ts';
+import { ensureStartLevelVisibility } from './app-core-startlevel-visibility.ts';
+import { stopMagnetParticlesOnExit } from './app-core-exit-magnet.ts';
+import { startHudExitAnimation } from './app-core-exit-hud.ts';
+import { runStartLevelFxPrep } from './app-core-startlevel-fx.ts';
+import { applyStartLevelState } from './app-core-startlevel-state.ts';
+import { updateJourneyRunState } from './app-core-startlevel-journey.ts';
+import { updateStartLevelStats } from './app-core-startlevel-stats.ts';
+import { incrementBoardTimesPlayed } from './app-core-startlevel-boardstats.ts';
+import { syncJourneyBoards } from './app-core-startlevel-journey-boards.ts';
+import { clearComboIdleTimer } from './app-core-startlevel-combo.ts';
+import { resetWildAndEndgameState } from './app-core-startlevel-wild.ts';
+import { ensureStartLevelLayout } from './app-core-startlevel-layout.ts';
+import { applyWildSkinLocalCore } from './app-core-wild-skin.ts';
+import { syncHudRootVisibility } from './app-core-startlevel-hudroot.ts';
+import { handleStartLevelHudDrop } from './app-core-startlevel-huddrop.ts';
+import { bindTileWithFallbackCore } from './app-core-bind.ts';
+import { saveAfterBoardStart } from './app-core-startlevel-save.ts';
+import { runStartLevelPost } from './app-core-startlevel-post.ts';
+import { maybeRebuildBoard } from './app-core-startlevel-rebuild.ts';
+import { addElectricGlowCore } from './app-core-glow.ts';
+import { openAtCellCore } from './app-core-open-cell.ts';
+import { getRandomEmptyCell } from './app-core-random-empty.ts';
+import { hasLastMergeTile } from './app-core-wild-preload.ts';
+import { consumeWildCharge } from './app-core-wild-meter.ts';
+import { decideWildType } from './app-core-wild-type.ts';
+import { triggerMergeHaptics } from './app-core-merge-haptics.ts';
+import { handleMergeCombo } from './app-core-merge-combo.ts';
+import { handleLastMergeEarly } from './app-core-merge-lastmerge.ts';
+import { applyMergeScore } from './app-core-merge-score.ts';
+import { canSaveGameState } from './app-core-save-guards.ts';
+import { buildGridSnapshot } from './app-core-save-tiles.ts';
+import { getStarsCountForSave } from './app-core-save-stars.ts';
+import { buildSaveState } from './app-core-save-state.ts';
+import { restoreBasicState } from './app-core-load-basics.ts';
+import { applyRulesAfterLoad } from './app-core-load-rules.ts';
+import { ensureDragReadyAndRebind } from './app-core-load-drag.ts';
+import { layoutAndRestoreStars } from './app-core-load-layout.ts';
+import { ensureHudAfterLoad } from './app-core-load-hud.ts';
+import { schedulePostLoadRecoveryCheck } from './app-core-load-recovery.ts';
+import { markUserMoveAfterLoad, resumeRuntimeAfterLoad } from './app-core-load-finalize.ts';
+import { handleEmptyLoadState } from './app-core-load-empty.ts';
+import { triggerHudDropIfPending, ensureHudFinalPosition } from './app-core-load-animation.ts';
+import { loadSavedBoardState } from './app-core-load-save.ts';
+import { ensureAppReadyForLoad } from './app-core-load-boot.ts';
+import { restoreTilesFromSave } from './app-core-load-tiles.ts';
+import { playLoadPopInAnimation } from './app-core-load-popin.ts';
 import {
   tintLocked,
   fixHoverAnchor,
@@ -71,9 +147,15 @@ import {
   hudResetCombo as hudResetComboHelper
 } from './app-core-helpers.js';
 
-const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
+const trackTween = (target: gsap.TweenTarget, vars: gsap.TweenVars) =>
+  animationManager.trackExternalTween(gsap.to(target, vars));
 
-const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
+const trackDelayedCall = (...args: Parameters<typeof gsap.delayedCall>) =>
+  animationManager.trackExternalTween(gsap.delayedCall(...args));
+
+type ComboTimer = ReturnType<typeof setTimeout> | { kill?: () => void } | null;
+type DelayedCall = ReturnType<typeof trackDelayedCall> | null;
+
 
 // HUD functions from hud-helpers.js
 
@@ -84,8 +166,8 @@ const COMBO_CAP = 99;   // praktični safety cap
 
 // Combo idle decay: reset na x0 poslije 2s
 const COMBO_IDLE_RESET_MS = 2000;
-let comboIdleTimer = null;
-let checkLevelEndTimer = null;
+let comboIdleTimer: ComboTimer = null;
+let checkLevelEndTimer: DelayedCall = null;
 let checkLevelEndRetryCount = 0; // 🔥 v38: Track reschedule attempts
 const MAX_CHECK_LEVEL_END_RETRIES = 10; // 🔥 v38: Prevent infinite reschedule loops
 let __ccRuntimeTextureHooksInstalled = false;
@@ -94,7 +176,7 @@ let __ccRuntimeTextureHooksInstalled = false;
 // ✅ OPTIMIZED: O(n) complexity instead of O(n²) by using direct grid coordinates
 const forceRemoveMagnetMergeResidues = (reason: string) => {
   try {
-    const candidates = tiles.filter((t: any) => {
+    const candidates = tiles.filter((t: Tile) => {
       if (!t || t.destroyed) return false;
       if ((t.value | 0) !== 6) return false;
       return (t as any)._wildMagnetPulledTilesMerge === true ||
@@ -109,7 +191,7 @@ const forceRemoveMagnetMergeResidues = (reason: string) => {
 
     // ✅ OPTIMIZED: O(1) grid clearing using direct coordinates
     // Only fallback to O(n²) search if coordinates are invalid
-    const clearTileFromGridSafe = (tile: any): boolean => {
+    const clearTileFromGridSafe = (tile: Tile): boolean => {
       if (!tile || !grid) return false;
       
       const gx = tile.gridX;
@@ -139,7 +221,7 @@ const forceRemoveMagnetMergeResidues = (reason: string) => {
       return false;
     };
 
-    candidates.forEach((t: any) => {
+    candidates.forEach((t: Tile) => {
       clearTileFromGridSafe(t);
       t.visible = false;
       t.alpha = 0;
@@ -176,7 +258,7 @@ function killComboTimer(){
 }
 
 function scheduleComboDecay(){
-  console.log(`🔥 scheduleComboDecay called: combo=${combo}, currentTimer=${comboIdleTimer}`);
+  devLog(`🔥 scheduleComboDecay called: combo=${combo}, currentTimer=${comboIdleTimer}`);
   comboIdleTimer = scheduleComboDecayHelper(
     comboIdleTimer,
     COMBO_IDLE_RESET_MS,
@@ -184,23 +266,51 @@ function scheduleComboDecay(){
     hudResetCombo,
     updateHUD
   );
-  console.log(`🔥 scheduleComboDecay completed: newTimer=${comboIdleTimer}, type=${typeof comboIdleTimer}`);
+  devLog(`🔥 scheduleComboDecay completed: newTimer=${comboIdleTimer}, type=${typeof comboIdleTimer}`);
 }
 
 // --- Wild tuning ---
 const WILD_INC_SMALL = 0.10;
 const WILD_INC_BIG   = 0.22;
 
+type HudMetrics = { top: number; bottom: number };
+type MergeHelpers = { snapBack?: (tile: Tile | null) => void };
+
 // -------------------- global state --------------------
-let app, stage, board, boardBG, hud;
+let app: Application | null = null;
+let stage: StageType | null = null;
+let board: Board | null = null;
+let boardBG: Graphics | null = null;
+let hud: HUDType | null = null;
 let _hudInitDone = false;
 let _hudDropPending = true; // Play-from-slider only; no drop on restarts
 let _lastSAT = -1;
-let grid = Array.isArray(STATE.grid) ? STATE.grid : [];
-const tiles = STATE.tiles;
+let grid: Grid = Array.isArray(STATE.grid) ? (STATE.grid as Grid) : [];
+const tiles: Tile[] = STATE.tiles as Tile[];
 let score = 0; let level = 1; let boardNumber = 1; let moves = MOVES_MAX;
 const SCORE_CAP = 999999;
 const MAX_CHECK_LEVEL_END_SKIP_MS = 3000; // Hard stop for skip gates to avoid perma-deferral
+
+let drag: (Drag & { t?: any }) | null = null;
+
+// -------------------- replay/snapshot harness (dev safety) --------------------
+const replayRecorder = createReplayRecorder({
+  tiles,
+  getGrid: () => grid,
+  getScore: () => (Number.isFinite(score) ? score : 0),
+  getLevel: () => (Number.isFinite(level) ? level : 1),
+  getBoardNumber: () => (Number.isFinite(boardNumber) ? boardNumber : Number.isFinite(level) ? level : 1),
+  getMoves: () => (Number.isFinite(moves) ? moves : MOVES_MAX),
+  getWildMeter: () => (Number.isFinite(wildMeter) ? wildMeter : 0),
+  getStarsCount: () => {
+    try {
+      if (typeof StarsCollector.getStarsCount === 'function') {
+        return StarsCollector.getStarsCount();
+      }
+    } catch {}
+    return 0;
+  },
+});
 
 // Combo (UI driven)
 let combo = 0; // default x0
@@ -224,37 +334,11 @@ let wildSpawnInProgress = false; // Prevent overlapping wild spawns
 let merge6SpawnInProgress = false; // 🔥 BUG FIX: Prevent duplicate spawns when wild star/beer are used rapidly
 let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
-let drag;
 let busyEnding = false;
 let checkLevelEndSkipStartedAt: number | null = null; // Track skip window to force fall-through
 
 // 🔥 REFACTORED: Koristimo tileIsActive iz endgame-checker.ts za konzistentnost
 // Uklonjeno tileIsVisuallyActive() - sada koristimo tileIsActive() iz endgame-checker.ts
-
-function getReactiveActiveTiles(): any[] {
-  return tiles.filter(tileIsActive);
-}
-
-function isElementVisible(el: HTMLElement | null): boolean {
-  if (!el) return false;
-  if (el.hasAttribute('hidden')) return false;
-  const style = window.getComputedStyle(el);
-  if (style.display === 'none') return false;
-  if (style.visibility === 'hidden') return false;
-  if (style.opacity === '0') return false;
-  return true;
-}
-
-function getScreenVisibility() {
-  const appEl = document.getElementById('app') as HTMLElement | null;
-  const homeEl = document.getElementById('home') as HTMLElement | null;
-  const journeyEl = document.getElementById('journey-screen') as HTMLElement | null;
-  return {
-    appVisible: isElementVisible(appEl),
-    homeVisible: isElementVisible(homeEl),
-    journeyVisible: isElementVisible(journeyEl)
-  };
-}
 
 // 🔥 REMOVED: isBoardCleanReactive() - use checkEndGame() from endgame-checker.ts instead
 // This function was a duplicate of isBoardCleanCheck() and could cause conflicts
@@ -296,7 +380,37 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
     busyEnding = false;
     return;
   }
-  
+
+  // 🧪 DEV LOG: Snapshot when "clean board" is triggered (cleanup stats, stage/board children, tiles, renderer, assets, gsap, memoryManager, performance.memory)
+  try {
+    const cleanupStats = getAppCleanupStats();
+    const activeTiles = getReactiveActiveTiles(tiles);
+    const rendererAny = app?.renderer as any;
+    const textureCount = (typeof rendererAny?.texture?.managedTextures !== 'undefined')
+      ? (rendererAny.texture.managedTextures?.length ?? (rendererAny.texture.managedTextures?.size ?? 0))
+      : (typeof rendererAny?.textureGC !== 'undefined' ? (rendererAny.textureGC?.getManagedTextures?.()?.length ?? 0) : 0);
+    const cache = (Assets as any)?.cache;
+    const cacheSize = cache && typeof (cache as { size?: number }).size === 'number' ? (cache as { size: number }).size : (cache && typeof cache === 'object' ? (cache instanceof Map ? cache.size : Object.keys(cache).length) : 0);
+    const gsapTweens = typeof (gsap as any).getAllTweens === 'function' ? (gsap as any).getAllTweens().length : 0;
+    const mmStats = typeof (memoryManager as any).getMemoryInfo === 'function' ? (memoryManager as any).getMemoryInfo() : null;
+    const perfMem = (performance as any).memory ? {
+      usedJSHeapSize: (performance as any).memory.usedJSHeapSize,
+      totalJSHeapSize: (performance as any).memory.totalJSHeapSize,
+      jsHeapSizeLimit: (performance as any).memory.jsHeapSizeLimit
+    } : null;
+    devLog('🧪 DEV LOG (clean board): cleanup stats', cleanupStats);
+    devLog('🧪 DEV LOG (clean board): stage', { hasStage: !!stage, stageVisible: !!stage?.visible, stageChildren: stage?.children?.length ?? 0 });
+    devLog('🧪 DEV LOG (clean board): board', { hasBoard: !!board, boardVisible: !!board?.visible, boardChildren: board?.children?.length ?? 0 });
+    devLog('🧪 DEV LOG (clean board): tiles', { count: tiles?.length ?? 0, active: activeTiles.length });
+    devLog('🧪 DEV LOG (clean board): renderer', { hasRenderer: !!app?.renderer, textureCount });
+    devLog('🧪 DEV LOG (clean board): assets cache', { cacheSize });
+    devLog('🧪 DEV LOG (clean board): gsap', { tweens: gsapTweens });
+    devLog('🧪 DEV LOG (clean board): memoryManager', mmStats);
+    devLog('🧪 DEV LOG (clean board): performance.memory', perfMem);
+  } catch (e) {
+    devWarn('⚠️ DEV LOG (clean board) snapshot failed:', e);
+  }
+
   // 🔥 NOTE: Defer texture/memory cleanup until AFTER endgame animations complete.
   // Cleaning here can destroy runtime textures used by stars/bubbles and freeze animations.
 
@@ -375,33 +489,35 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
 
 
 function createEmptyGrid() {
-  const fresh = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-  grid = fresh;
-  STATE.grid = fresh;
-  return fresh;
+  return createEmptyGridHelper({
+    ROWS,
+    COLS,
+    setGrid: (g) => { grid = g; },
+    setStateGrid: (g) => { STATE.grid = g; },
+  });
 }
 
 function syncSharedState() {
-  STATE.app = app;
-  STATE.stage = stage;
-  STATE.board = board;
-  STATE.boardBG = boardBG;
-  
-  // 🔥 EXPOSE STATE to window for magnet idle particles access
-  (window as any).STATE = STATE;
-  STATE.hud = hud;
-  STATE.grid = grid;
-  STATE.tiles = tiles;
-  STATE.score = score;
-  STATE.level = level;
-  STATE.moves = moves;
-  STATE.boardNumber = boardNumber;
+  syncSharedStateHelper({
+    STATE,
+    app,
+    stage,
+    board,
+    boardBG,
+    hud,
+    grid,
+    tiles,
+    score,
+    level,
+    moves,
+    boardNumber,
+  });
   STATE.wildMeter = wildMeter;
   // 🔥 CRITICAL: Ensure STATE.boardNumber is always synced with local boardNumber
   // This ensures trackCubesCracked and other functions can access the correct board number
   if (STATE.boardNumber !== boardNumber) {
     STATE.boardNumber = boardNumber;
-    console.log(`🔄 Synced STATE.boardNumber to ${boardNumber}`);
+    devLog(`🔄 Synced STATE.boardNumber to ${boardNumber}`);
   }
   return STATE;
 }
@@ -415,15 +531,15 @@ function resetGlobalFxLayer(reason: string = 'unknown') {
       try { if (fxLayer.parent) fxLayer.parent.removeChild(fxLayer); } catch {}
       try { fxLayer.destroy?.({ children: true }); } catch {}
       delete (window as any).__ccGlobalFxLayer;
-      console.log('🧹 resetGlobalFxLayer:', reason);
+      devLog('🧹 resetGlobalFxLayer:', reason);
     }
   } catch (e) {
-    console.warn('⚠️ resetGlobalFxLayer failed:', e);
+    devWarn('⚠️ resetGlobalFxLayer failed:', e);
   }
 }
 
 function cleanupFxForBoardReset(reason: string = 'unknown') {
-  console.log('🧹 cleanupFxForBoardReset:', reason);
+  devLog('🧹 cleanupFxForBoardReset:', reason);
   try { killAllDelayedCalls?.(); } catch {}
   try { destroyAllGraphicsObjects?.(); } catch {}
   try { cleanupExistingStarAnimations?.(); } catch {}
@@ -434,7 +550,7 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
     if (!isBoardTransitionActive && !isFromInterimBoard && !isRecentlyStarted) {
       stopWildBeerBubblesExplosion?.();
     } else {
-      console.log('⏸️ cleanupFxForBoardReset: Skipping bubble explosion cleanup', {
+      devLog('⏸️ cleanupFxForBoardReset: Skipping bubble explosion cleanup', {
         reason,
         isBoardTransitionActive,
         isFromInterimBoard,
@@ -516,7 +632,7 @@ function cleanupTexturesForBoardTransition(reason: string = 'unknown', aggressiv
           });
         }
         if (destroyed > 0) {
-          console.log('🧹 Destroyed unknown runtime textures', { reason, destroyed });
+          devLog('🧹 Destroyed unknown runtime textures', { reason, destroyed });
         }
       }
     } catch {}
@@ -526,13 +642,14 @@ function cleanupTexturesForBoardTransition(reason: string = 'unknown', aggressiv
     
     // Clear texture cache + unused base textures (safe, skips in-use textures)
     try {
-      if (window.PIXI && window.PIXI.utils) {
-        if (typeof window.PIXI.utils.clearTextureCache === 'function') {
-          window.PIXI.utils.clearTextureCache();
-        } else if (typeof window.PIXI.utils.destroyTextureCache === 'function') {
-          window.PIXI.utils.destroyTextureCache();
+      const pixiUtils = (window.PIXI && (window.PIXI.utils as any)) || null;
+      if (pixiUtils) {
+        if (typeof pixiUtils.clearTextureCache === 'function') {
+          pixiUtils.clearTextureCache();
+        } else if (typeof pixiUtils.destroyTextureCache === 'function') {
+          pixiUtils.destroyTextureCache();
         }
-        const baseTextureCache = (window.PIXI.utils as any).BaseTextureCache;
+        const baseTextureCache = pixiUtils.BaseTextureCache;
         if (baseTextureCache) {
           const toRemove: string[] = [];
           for (const [key, baseTexture] of Object.entries(baseTextureCache)) {
@@ -555,10 +672,10 @@ function cleanupTexturesForBoardTransition(reason: string = 'unknown', aggressiv
     
     const postCount = managed ? (managed.size || Object.keys(managed).length) : 0;
     if (preCount || postCount) {
-      console.log('🧹 Texture cleanup (board transition):', { reason, preCount, postCount });
+      devLog('🧹 Texture cleanup (board transition):', { reason, preCount, postCount });
     }
   } catch (e) {
-    console.warn('⚠️ cleanupTexturesForBoardTransition failed:', e);
+    devWarn('⚠️ cleanupTexturesForBoardTransition failed:', e);
   }
 }
 
@@ -592,7 +709,7 @@ function installRuntimeTextureHooks() {
 
 function killAllGsapTweensCommon(tilesList: any[] | null, label: string, opts: { clearTimeline?: boolean } = {}) {
   try {
-    console.log(`🧹 GSAP cleanup (${label})...`);
+    devLog(`🧹 GSAP cleanup (${label})...`);
     try { animationManager.killAll(); } catch {}
     
     // Kill UI element tweens
@@ -660,14 +777,14 @@ function killAllGsapTweensCommon(tilesList: any[] | null, label: string, opts: {
     }
     
     try { gsap.globalTimeline.resume(); } catch {}
-    console.log(`✅ GSAP cleanup complete (${label})`);
+    devLog(`✅ GSAP cleanup complete (${label})`);
   } catch (e) {
-    console.log('⚠️ GSAP cleanup error:', e);
+    devLog('⚠️ GSAP cleanup error:', e);
   }
 }
 
 function softResetBoardView(reason: string = 'unknown') {
-  console.log('♻️ softResetBoardView:', reason);
+  devLog('♻️ softResetBoardView:', reason);
   // Kill tweens on board/hud containers
   try { if (board) gsap.killTweensOf(board); } catch {}
   try { if (hud) gsap.killTweensOf(hud); } catch {}
@@ -698,7 +815,7 @@ function softResetBoardView(reason: string = 'unknown') {
 // ----- progress wrapper (delegira HUD-u) -----
 let hudUpdateProgress = (ratio, animate) => {};
 // HUD metrics (for DOM helpers to position UI under HUD)
-let __hudMetrics = { top: 0, bottom: 80 };
+let __hudMetrics: HudMetrics = { top: 0, bottom: 80 };
 let allowWildDecrease = false;
 function queueWildSpawnIfNeeded(){
   if (wildSpawnInProgress) return;
@@ -706,7 +823,7 @@ function queueWildSpawnIfNeeded(){
   
   // 🎯 BOARD-SPECIFIC RULES: Check if wild spawn is enabled for current board
   if (!isWildSpawnEnabled(boardNumber)) {
-    console.log(`🎯 Board ${boardNumber}: Wild spawn disabled - skipping queueWildSpawnIfNeeded`);
+    devLog(`🎯 Board ${boardNumber}: Wild spawn disabled - skipping queueWildSpawnIfNeeded`);
     return;
   }
   
@@ -719,13 +836,13 @@ function queueWildSpawnIfNeeded(){
   // Solution: Provjeri da li postoji merge6 tile s _isLastMerge flag-om
   const hasLastMergeTile = STATE.tiles.some((t: any) => t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true);
   if (hasLastMergeTile) {
-    console.log('🚨🚨🚨 SOURCE OF TRUTH: Preload bar blocked (in queueWildSpawnIfNeeded) - last merge detected');
-    console.log('🎯 Source of Truth: Case B — 2 tiles stack → result = 6 (NO PRELOAD SPAWN)');
-    console.log('🚨🚨🚨 Wild spawn will NOT be queued, preventing wild spawn on last merge');
+    devLog('🚨🚨🚨 SOURCE OF TRUTH: Preload bar blocked (in queueWildSpawnIfNeeded) - last merge detected');
+    devLog('🎯 Source of Truth: Case B — 2 tiles stack → result = 6 (NO PRELOAD SPAWN)');
+    devLog('🚨🚨🚨 Wild spawn will NOT be queued, preventing wild spawn on last merge');
     return;
   }
 
-  console.log('🎯 Wild meter ready – queueing wild spawn');
+  devLog('🎯 Wild meter ready – queueing wild spawn');
   wildSpawnInProgress = true;
 
   try { HUD.shimmerProgress?.(); } catch {}
@@ -755,18 +872,18 @@ function queueWildSpawnIfNeeded(){
 
 
 function setWildProgress(ratio, animate=false){
-  console.log('🔥 DRAMATIC: setWildProgress called with:', { ratio, animate });
+  devLog('🔥 DRAMATIC: setWildProgress called with:', { ratio, animate });
 
   const target = Math.max(0, Number.isFinite(ratio) ? ratio : 0);
   wildMeter = target;
   STATE.wildMeter = target; // raw value (may exceed 1)
 
   const displayRatio = Math.min(1, wildMeter);
-  console.log('🔥 DRAMATIC: Wild meter raw:', wildMeter, 'display:', displayRatio);
+  devLog('🔥 DRAMATIC: Wild meter raw:', wildMeter, 'display:', displayRatio);
 
   try {
     HUD.updateProgressBar?.(displayRatio, !!animate);
-    console.log('✅ DRAMATIC: HUD.updateProgressBar called successfully');
+    devLog('✅ DRAMATIC: HUD.updateProgressBar called successfully');
   } catch (error) {
     logger.error('❌ DRAMATIC: Error calling HUD.updateProgressBar', 'app-core', error);
   }
@@ -781,7 +898,7 @@ function addWildProgress(amount){
   
   // 🎯 BOARD-SPECIFIC RULES: Check if wild meter is enabled for current board
   if (!isWildMeterEnabled(boardNumber)) {
-    console.log(`🎯 Board ${boardNumber}: Wild meter disabled - skipping addWildProgress`);
+    devLog(`🎯 Board ${boardNumber}: Wild meter disabled - skipping addWildProgress`);
     return;
   }
   
@@ -794,16 +911,16 @@ function addWildProgress(amount){
   // The flag should be set in merge logic, but this provides double protection
   const hasLastMergeTile = STATE.tiles.some((t: any) => t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true);
   if (hasLastMergeTile) {
-    console.log('🚨🚨🚨 SOURCE OF TRUTH: Preload bar blocked (in addWildProgress) - last merge detected');
-    console.log('🎯 Source of Truth: Case B — 2 tiles stack → result = 6 (NO PRELOAD SPAWN)');
-    console.log('🚨🚨🚨 Wild meter will NOT be filled, preventing wild spawn on last merge');
+    devLog('🚨🚨🚨 SOURCE OF TRUTH: Preload bar blocked (in addWildProgress) - last merge detected');
+    devLog('🎯 Source of Truth: Case B — 2 tiles stack → result = 6 (NO PRELOAD SPAWN)');
+    devLog('🚨🚨🚨 Wild meter will NOT be filled, preventing wild spawn on last merge');
     // Reset wild meter to ensure it's empty
     wildMeter = 0;
     STATE.wildMeter = 0;
     try {
       if (typeof HUD.resetWildMeter === 'function') {
         HUD.resetWildMeter(true);
-        console.log('✅ LAST MERGE (addWildProgress): Wild meter reset in HUD');
+        devLog('✅ LAST MERGE (addWildProgress): Wild meter reset in HUD');
       }
     } catch (error) {
       logger.warn('⚠️ LAST MERGE (addWildProgress): Failed to reset wild meter in HUD', 'app-core', error);
@@ -819,14 +936,14 @@ function addWildProgress(amount){
       wild.view._currentAnimation.kill();
       wild.view._currentAnimation = null;
     }
-    console.log('🔥 addWildProgress: Previous animations killed');
+    devLog('🔥 addWildProgress: Previous animations killed');
   } catch (e) {
     logger.warn('⚠️ addWildProgress: Error killing animations', 'app-core', e);
   }
   
   const inc = Number.isFinite(amount) ? amount : 0;
   if (inc <= 0) {
-    console.log('⚠️ addWildProgress: Ignoring non-positive increment:', inc);
+    devLog('⚠️ addWildProgress: Ignoring non-positive increment:', inc);
     return;
   }
 
@@ -842,22 +959,22 @@ function addWildProgress(amount){
   const iPadSlowdown = isIPad ? 0.714 : 1.0; // 28.6% usporavanje na iPad-u (71.4% brzine)
   
   const adjustedInc = inc * fillRate * globalSlowdown * iPadSlowdown;
-  console.log(`🎯 Board ${boardNumber}: Wild meter fill rate: ${fillRate}x, global slowdown: ${globalSlowdown}x, iPad slowdown: ${iPadSlowdown}x, adjusted increment: ${adjustedInc} (from ${inc})`);
+  devLog(`🎯 Board ${boardNumber}: Wild meter fill rate: ${fillRate}x, global slowdown: ${globalSlowdown}x, iPad slowdown: ${iPadSlowdown}x, adjusted increment: ${adjustedInc} (from ${inc})`);
 
   const target = wildMeter + adjustedInc;
-  console.log('🔥 NEW LOGIC: Direct wild meter update to raw value:', target);
+  devLog('🔥 NEW LOGIC: Direct wild meter update to raw value:', target);
   setWildProgress(target, true);
 
   // DEBUG: Force test wild meter with clamped ratio
   const displayRatio = Math.min(1, wildMeter);
-  console.log('🧪 DEBUG: Testing wild meter directly...');
-  console.log('🧪 DEBUG: wild available:', !!wild);
-  console.log('🧪 DEBUG: wild.setProgress available:', !!(wild && wild.setProgress));
+  devLog('🧪 DEBUG: Testing wild meter directly...');
+  devLog('🧪 DEBUG: wild available:', !!wild);
+  devLog('🧪 DEBUG: wild.setProgress available:', !!(wild && wild.setProgress));
   if (wild && wild.setProgress) {
     wild.setProgress(displayRatio, true);
-    console.log('✅ DEBUG: Direct wild.setProgress called with display ratio:', displayRatio);
+    devLog('✅ DEBUG: Direct wild.setProgress called with display ratio:', displayRatio);
   } else {
-    console.warn('⚠️ DEBUG: wild or wild.setProgress not available');
+    devWarn('⚠️ DEBUG: wild or wild.setProgress not available');
   }
 }
 function resetWildProgress(value=0, animate=false){
@@ -913,15 +1030,15 @@ async function showMysteryPrize(){
 
 // -------------------- boot --------------------
 export async function boot(){
-  console.log('🎮 Initializing PIXI app');
+  devLog('🎮 Initializing PIXI app');
   const reuseApp = !!(app && !app.destroyed && app.renderer && app.canvas);
   if (reuseApp) {
-    console.log('♻️ Reusing existing PIXI app (soft reset)');
+    devLog('♻️ Reusing existing PIXI app (soft reset)');
   }
   
   // Reset user made move flag for new game
   window._userMadeMove = false;
-  console.log('🔄 Reset user made move flag for new game');
+  devLog('🔄 Reset user made move flag for new game');
   
   // CRITICAL: Check for unsaved high score on boot
   trackAppTimeout(() => {
@@ -933,15 +1050,15 @@ export async function boot(){
   // 🔥🔥🔥 NUCLEAR CLEANUP: Kill EVERYTHING before destroying old app (hard reset only) 🔥🔥🔥
   // This is the ROOT CAUSE of _x null errors - old GSAP callbacks try to access destroyed objects
   if (!reuseApp) {
-    console.log('🔥 NUCLEAR CLEANUP: Killing all animations and clearing all references...');
+    devLog('🔥 NUCLEAR CLEANUP: Killing all animations and clearing all references...');
     
     // Step 1: Kill ALL GSAP tweens globally - this is the KEY fix
     try {
       gsap.killTweensOf('*'); // Kill all tweens on all targets
       gsap.globalTimeline.clear(); // Clear the global timeline
-      console.log('✅ Killed ALL GSAP tweens globally');
+      devLog('✅ Killed ALL GSAP tweens globally');
     } catch (gsapError) {
-      console.warn('⚠️ Error killing GSAP tweens:', gsapError);
+      devWarn('⚠️ Error killing GSAP tweens:', gsapError);
     }
     
     // Step 2: Kill tweens on specific known targets (belt and suspenders approach)
@@ -955,9 +1072,9 @@ export async function boot(){
       if (board) gsap.killTweensOf(board);
       if (stage) gsap.killTweensOf(stage);
       if (hud) gsap.killTweensOf(hud);
-      console.log('✅ Killed tweens on known PIXI objects');
+      devLog('✅ Killed tweens on known PIXI objects');
     } catch (e) {
-      console.warn('⚠️ Error killing specific tweens:', e);
+      devWarn('⚠️ Error killing specific tweens:', e);
     }
     
     // Step 3: Clear module-level tile array to prevent stale references
@@ -968,9 +1085,9 @@ export async function boot(){
       if (STATE.tiles) {
         STATE.tiles.length = 0;
       }
-      console.log('✅ Cleared tiles arrays');
+      devLog('✅ Cleared tiles arrays');
     } catch (e) {
-      console.warn('⚠️ Error clearing tiles:', e);
+      devWarn('⚠️ Error clearing tiles:', e);
     }
   }
   
@@ -978,9 +1095,9 @@ export async function boot(){
   if (!reuseApp && app && app.ticker) {
     try {
       app.ticker.stop();
-      console.log('✅ PIXI ticker stopped');
+      devLog('✅ PIXI ticker stopped');
     } catch (tickerError) {
-      console.warn('⚠️ Error stopping ticker:', tickerError);
+      devWarn('⚠️ Error stopping ticker:', tickerError);
     }
   }
   
@@ -998,13 +1115,13 @@ export async function boot(){
             try {
               bubblesContainer.parent.removeChild(bubblesContainer);
               (window as any).__ccPreservedBubblesContainer = bubblesContainer;
-              console.log('💧 boot: Preserved bubbles explosion container before stage cleanup', {
+              devLog('💧 boot: Preserved bubbles explosion container before stage cleanup', {
                 containerVisible: bubblesContainer.visible,
                 containerAlpha: bubblesContainer.alpha,
                 containerChildren: bubblesContainer.children?.length || 0
               });
             } catch (preserveError) {
-              console.warn('⚠️ boot: Failed to preserve bubbles container:', preserveError);
+              devWarn('⚠️ boot: Failed to preserve bubbles container:', preserveError);
             }
           }
         }
@@ -1013,9 +1130,9 @@ export async function boot(){
       }
       
       app.stage.removeChildren();
-      console.log('✅ Stage children removed');
+      devLog('✅ Stage children removed');
     } catch (e) {
-      console.warn('⚠️ Error removing stage children:', e);
+      devWarn('⚠️ Error removing stage children:', e);
     }
   }
   
@@ -1028,7 +1145,7 @@ export async function boot(){
   
   // 🔥 CRITICAL FIX: DESTROY existing app if it exists (hard reset only)
   if (!reuseApp && app && app.canvas) {
-    console.log('🧹 Destroying existing PIXI app');
+    devLog('🧹 Destroying existing PIXI app');
     
     // 🔥 CRITICAL: Hide canvas IMMEDIATELY before destroy to prevent flash
     app.canvas.style.opacity = '0';
@@ -1036,9 +1153,9 @@ export async function boot(){
     try {
       // 🔥 FIX: Don't destroy textures - they're managed by Assets and should be unloaded, not destroyed
       // Destroying Assets-managed textures causes PixiJS warnings
-      app.destroy(true, { children: true, texture: false, textureSource: false });
+      app.destroy(true, { children: true, texture: false, textureSource: false } as any);
     } catch (e) {
-      console.log('⚠️ Error destroying app:', e);
+      devLog('⚠️ Error destroying app:', e);
     }
     app = null as any;
   }
@@ -1052,14 +1169,14 @@ export async function boot(){
         try { oldHud.alpha = 0; } catch {}
         try { oldHud.visible = false; } catch {}
         (window as any).HUD_ROOT = null;
-        console.log('✅ Cleared stale HUD_ROOT reference');
+        devLog('✅ Cleared stale HUD_ROOT reference');
       }
     } catch (e) {
-      console.log('⚠️ Error clearing HUD_ROOT:', e);
+      devLog('⚠️ Error clearing HUD_ROOT:', e);
     }
   }
   
-  console.log('✅ NUCLEAR CLEANUP complete - safe to create new app');
+  devLog('✅ NUCLEAR CLEANUP complete - safe to create new app');
   
   // 🔥 CRITICAL FIX: Clear ALL existing canvas elements from DOM (hard reset only)
   // This prevents leftover canvas elements from showing when starting new game
@@ -1071,9 +1188,9 @@ export async function boot(){
       existingCanvases.forEach(canvas => {
         try {
           canvas.remove();
-          console.log('✅ Removed existing canvas from DOM');
+          devLog('✅ Removed existing canvas from DOM');
         } catch (e) {
-          console.warn('⚠️ Failed to remove canvas:', e);
+          devWarn('⚠️ Failed to remove canvas:', e);
         }
       });
       
@@ -1084,19 +1201,19 @@ export async function boot(){
         if (canvas.parentElement === host || canvas.parentElement === document.body) {
           try {
             canvas.remove();
-            console.log('✅ Removed stray canvas from body');
+            devLog('✅ Removed stray canvas from body');
           } catch (e) {
-            console.warn('⚠️ Failed to remove stray canvas:', e);
+            devWarn('⚠️ Failed to remove stray canvas:', e);
           }
         }
       });
     } catch (e) {
-      console.warn('⚠️ Error removing existing canvas elements:', e);
+      devWarn('⚠️ Error removing existing canvas elements:', e);
     }
   }
   
   if (!reuseApp) {
-    console.log('🎮 Creating fresh PIXI app');
+    devLog('🎮 Creating fresh PIXI app');
     app = new Application();
     await app.init({
       resizeTo: window,
@@ -1138,10 +1255,10 @@ export async function boot(){
   } catch {}
   
   // 🔥 CRITICAL FIX: Ensure app is rendering
-  console.log('✅ PIXI app initialized');
-  console.log('✅ App renderer width:', app.renderer.width, 'height:', app.renderer.height);
-  console.log('✅ App canvas width:', app.canvas.width, 'height:', app.canvas.height);
-  console.log('✅ App canvas in DOM:', !!app.canvas.parentElement);
+  devLog('✅ PIXI app initialized');
+  devLog('✅ App renderer width:', app.renderer.width, 'height:', app.renderer.height);
+  devLog('✅ App canvas width:', app.canvas.width, 'height:', app.canvas.height);
+  devLog('✅ App canvas in DOM:', !!app.canvas.parentElement);
   
   // Add fade in animation for background transition
   // 🔥 CRITICAL FIX: Only auto-show canvas if NOT coming from Journey (saved game)
@@ -1154,13 +1271,14 @@ export async function boot(){
       app.canvas.style.opacity = '1';
     }, 50);
   } else {
-    console.log('🎯 Canvas kept hidden - will show when HUD drop starts');
+    devLog('🎯 Canvas kept hidden - will show when HUD drop starts');
   }
   
   // 🔥 CRITICAL: Set background to #F9F9F9 during launch (matches launch screen)
   // Gradient will be set by launch-screen.ts in Phase 2, or by ui-manager.ts after launch
-  app.renderer.backgroundColor = 0x000000;
-  app.renderer.backgroundAlpha = 0; // Transparent so paper BG shows behind board + HUD
+  const rendererAny = app.renderer as any;
+  rendererAny.backgroundColor = 0x000000;
+  rendererAny.backgroundAlpha = 0; // Transparent so paper BG shows behind board + HUD
   
   // 🔥 CRITICAL: Set paper background to 35% opacity IMMEDIATELY when booting game
   // This MUST happen BEFORE any other code that might override it
@@ -1214,10 +1332,10 @@ export async function boot(){
     canvasElement.style.setProperty('background-image', 'none', 'important');
   }
   
-  console.log(`📄 Board game paper background set IMMEDIATELY: alpha=${paperAlpha}, overlayAlpha=${overlayAlpha}, visible=${paperAlpha * 100}%`);
+  devLog(`📄 Board game paper background set IMMEDIATELY: alpha=${paperAlpha}, overlayAlpha=${overlayAlpha}, visible=${paperAlpha * 100}%`);
   // 🔥 CRITICAL FIX: Ensure host element exists and is visible before adding canvas
   if (!host) {
-    console.error('❌ Host element not found! Cannot add canvas to DOM');
+    devError('❌ Host element not found! Cannot add canvas to DOM');
     return;
   }
   
@@ -1226,7 +1344,7 @@ export async function boot(){
     host.style.display = 'block';
     host.style.visibility = 'visible';
     host.style.opacity = '1';
-    console.log('✅ Host element made visible before adding canvas');
+    devLog('✅ Host element made visible before adding canvas');
   }
   
   if (!reuseApp) {
@@ -1259,7 +1377,7 @@ export async function boot(){
         document.documentElement.classList.remove('boot');
         document.documentElement.style.background = '';
         document.documentElement.style.backgroundColor = '';
-        console.log('✅ Boot class removed after first frame (fallback)');
+        devLog('✅ Boot class removed after first frame (fallback)');
       }
       if (document.body && document.body.classList.contains('boot')) {
         document.body.classList.remove('boot');
@@ -1267,12 +1385,12 @@ export async function boot(){
         document.body.style.backgroundColor = '';
       }
     } catch(e) {
-      console.warn('⚠️ Failed to remove boot class:', e);
+      devWarn('⚠️ Failed to remove boot class:', e);
     }
     
     // 🔥 CRITICAL: Native splash is already hidden in main.ts when loading screen is shown
     // No need to hide it again here - it's already hidden
-    console.log('✅ First Pixi frame rendered - native splash already hidden');
+    devLog('✅ First Pixi frame rendered - native splash already hidden');
     
     // Remove ticker listener after first frame
     app.ticker.remove(onFirstFrame);
@@ -1282,9 +1400,9 @@ export async function boot(){
   app.ticker.add(onFirstFrame);
   app.canvas.style.left = '0';
   app.canvas.style.pointerEvents = 'auto';
-  console.log('✅ Canvas added to DOM and styled');
-  console.log('✅ Canvas in DOM:', !!app.canvas.parentElement);
-  console.log('✅ Canvas visible:', app.canvas.style.visibility, 'display:', app.canvas.style.display, 'opacity:', app.canvas.style.opacity);
+  devLog('✅ Canvas added to DOM and styled');
+  devLog('✅ Canvas in DOM:', !!app.canvas.parentElement);
+  devLog('✅ Canvas visible:', app.canvas.style.visibility, 'display:', app.canvas.style.display, 'opacity:', app.canvas.style.opacity);
   
   // Optimize canvas for pixel-perfect rendering
   app.canvas.style.imageRendering = 'pixelated';
@@ -1316,7 +1434,7 @@ export async function boot(){
   // This ensures that backgroundLayer will be recreated in startLevel()
   backgroundLayer = null;
   window._ghostPlaceholders = null;
-  console.log('✅ boot: Cleared backgroundLayer and window._ghostPlaceholders references (will be recreated in startLevel)');
+  devLog('✅ boot: Cleared backgroundLayer and window._ghostPlaceholders references (will be recreated in startLevel)');
   
   // 🔥 CRITICAL FIX: Restore preserved bubbles explosion container to new stage
   const preservedBubblesContainer = (window as any).__ccPreservedBubblesContainer;
@@ -1349,9 +1467,9 @@ export async function boot(){
               stage.addChild(fxLayer);
               stage.sortChildren?.();
               (window as any).__ccGlobalFxLayer = fxLayer;
-              console.log('💧 boot: Created new FX layer for bubbles container restoration');
+              devLog('💧 boot: Created new FX layer for bubbles container restoration');
             } catch (e) {
-              console.warn('⚠️ boot: Failed to create FX layer:', e);
+              devWarn('⚠️ boot: Failed to create FX layer:', e);
               fxLayer = stage; // Fallback to stage
             }
           }
@@ -1387,7 +1505,7 @@ export async function boot(){
                 app.renderer.render(stage);
               } catch {}
               
-              console.log('💧 boot: Restored bubbles explosion container to new stage', {
+              devLog('💧 boot: Restored bubbles explosion container to new stage', {
                 containerVisible: preservedBubblesContainer.visible,
                 containerAlpha: preservedBubblesContainer.alpha,
                 containerChildren: preservedBubblesContainer.children?.length || 0,
@@ -1398,7 +1516,7 @@ export async function boot(){
               // Clear global reference after successful restoration
               delete (window as any).__ccPreservedBubblesContainer;
             } else {
-              console.warn('⚠️ boot: Cannot restore bubbles container - FX layer or container invalid', {
+              devWarn('⚠️ boot: Cannot restore bubbles container - FX layer or container invalid', {
                 hasFxLayer: !!fxLayer,
                 fxLayerDestroyed: fxLayer?.destroyed,
                 containerDestroyed: preservedBubblesContainer?.destroyed
@@ -1408,27 +1526,27 @@ export async function boot(){
           });
         }
       }).catch((restoreError) => {
-        console.warn('⚠️ boot: Failed to restore bubbles container:', restoreError);
+        devWarn('⚠️ boot: Failed to restore bubbles container:', restoreError);
         delete (window as any).__ccPreservedBubblesContainer;
       });
     } catch (restoreError) {
-      console.warn('⚠️ boot: Failed to import bubbles module for restoration:', restoreError);
+      devWarn('⚠️ boot: Failed to import bubbles module for restoration:', restoreError);
       delete (window as any).__ccPreservedBubblesContainer;
     }
   }
   
-  console.log('✅ Board and HUD containers created and added to stage');
-  console.log('✅ Board visible:', board.visible, 'alpha:', board.alpha, 'renderable:', board.renderable, 'in stage:', !!board.parent);
-  console.log('✅ HUD visible:', hud.visible, 'alpha:', hud.alpha, 'renderable:', hud.renderable, 'in stage:', !!hud.parent);
-  console.log('✅ Stage children count:', stage.children.length);
-  console.log('✅ Stage visible:', stage.visible, 'renderable:', stage.renderable);
+  devLog('✅ Board and HUD containers created and added to stage');
+  devLog('✅ Board visible:', board.visible, 'alpha:', board.alpha, 'renderable:', board.renderable, 'in stage:', !!board.parent);
+  devLog('✅ HUD visible:', hud.visible, 'alpha:', hud.alpha, 'renderable:', hud.renderable, 'in stage:', !!hud.parent);
+  devLog('✅ Stage children count:', stage.children.length);
+  devLog('✅ Stage visible:', stage.visible, 'renderable:', stage.renderable);
   
   // 🔥 CRITICAL FIX: Force render to ensure everything is visible
   try {
     app.renderer.render(stage);
-    console.log('✅ Initial render completed');
+    devLog('✅ Initial render completed');
   } catch (e) {
-    console.warn('⚠️ Failed to perform initial render:', e);
+    devWarn('⚠️ Failed to perform initial render:', e);
   }
   
   // Initialize fixed background layer AFTER layout is set
@@ -1453,13 +1571,13 @@ export async function boot(){
   // Icons will load lazily if they're not ready, so we don't block board initialization
   try {
     const { loadHudIconsIntoPixiCache } = await import('../utils/comprehensive-image-preloader.js');
-    console.log('🎮 Loading HUD icons into PIXI Assets cache (with timeout protection)...');
+    devLog('🎮 Loading HUD icons into PIXI Assets cache (with timeout protection)...');
     // 🔥 CRITICAL: Don't wait forever - timeout is handled inside loadHudIconsIntoPixiCache
     // This prevents long delays after hard exit when cache is empty
     await loadHudIconsIntoPixiCache();
-    console.log('✅ HUD icons loaded into PIXI Assets cache');
+    devLog('✅ HUD icons loaded into PIXI Assets cache');
   } catch (error) {
-    console.error('❌ CRITICAL: Failed to load HUD icons into PIXI Assets cache:', error);
+    devError('❌ CRITICAL: Failed to load HUD icons into PIXI Assets cache:', error);
     // Continue anyway - HUD will try to load icons asynchronously
   }
   
@@ -1507,7 +1625,7 @@ export async function boot(){
     canDrop: (s, d) => {
       // CRITICAL: Check if destination is valid FIRST
       if (!d || d.locked || (d.value | 0) <= 0) {
-        console.log('🔥 canDrop (app-core): Invalid destination (null, locked, or value = 0)');
+        devLog('🔥 canDrop (app-core): Invalid destination (null, locked, or value = 0)');
         return false;
       }
       
@@ -1523,22 +1641,22 @@ export async function boot(){
       if (srcIsWildMagnet) {
         // Wild-magnet cannot merge into wild or wild-magnet
         if (dstIsWild || dstIsWildMagnet) {
-          console.log('🔥 canDrop (app-core): Wild-magnet cannot merge into wild or wild-magnet');
+          devLog('🔥 canDrop (app-core): Wild-magnet cannot merge into wild or wild-magnet');
           return false;
         }
         // Wild-magnet can merge into any normal tile
-        console.log('🔥 canDrop (app-core): Wild-magnet can merge into normal tile');
+        devLog('🔥 canDrop (app-core): Wild-magnet can merge into normal tile');
         return true;
       }
       
       if (dstIsWildMagnet) {
         // Any tile can merge into wild-magnet (except wild and wild-magnet)
         if (srcIsWild || srcIsWildMagnet) {
-          console.log('🔥 canDrop (app-core): Wild or wild-magnet cannot merge into wild-magnet');
+          devLog('🔥 canDrop (app-core): Wild or wild-magnet cannot merge into wild-magnet');
           return false;
         }
         // Normal tiles can merge into wild-magnet
-        console.log('🔥 canDrop (app-core): Normal tile can merge into wild-magnet');
+        devLog('🔥 canDrop (app-core): Normal tile can merge into wild-magnet');
         return true;
       }
       
@@ -1550,18 +1668,18 @@ export async function boot(){
           // Wild merging into normal tile - check if target value is different
           const canMerge = sv !== dv;
           // 🔥 PERFORMANCE: Removed console.log to prevent lag during drag (called hundreds of times)
-          // console.log('🔥 canDrop (app-core): Wild merge check (wild->normal):', { wildValue: sv, targetValue: dv, canMerge });
+          // devLog('🔥 canDrop (app-core): Wild merge check (wild->normal):', { wildValue: sv, targetValue: dv, canMerge });
           return canMerge;
         } else if (dstIsWild && !srcIsWild) {
           // Normal tile merging into wild - check if source value is different
           const canMerge = sv !== dv;
           // 🔥 PERFORMANCE: Removed console.log to prevent lag
-          // console.log('🔥 canDrop (app-core): Wild merge check (normal->wild):', { sourceValue: sv, wildValue: dv, canMerge });
+          // devLog('🔥 canDrop (app-core): Wild merge check (normal->wild):', { sourceValue: sv, wildValue: dv, canMerge });
           return canMerge;
         } else if (srcIsWild && dstIsWild) {
           // Wild merging into wild - not allowed
           // 🔥 PERFORMANCE: Removed console.log to prevent lag
-          // console.log('🔥 canDrop (app-core): Wild merge check (wild->wild): not allowed');
+          // devLog('🔥 canDrop (app-core): Wild merge check (wild->wild): not allowed');
           return false;
         }
       }
@@ -1573,13 +1691,13 @@ export async function boot(){
       // 🔥 CRITICAL: Only allow merge if BOTH tiles are wild-magnet affected (pulled tiles merging together)
       // If only one is affected, block the merge (protected tile cannot merge with other tiles)
       if (srcIsWildMagnetAffected && dstIsWildMagnetAffected) {
-        console.log('🧲 canDrop (app-core): Both tiles are wild-magnet affected (pulled tiles) - can merge');
+        devLog('🧲 canDrop (app-core): Both tiles are wild-magnet affected (pulled tiles) - can merge');
         return true;
       }
       
       // 🔥 CRITICAL: Block merge if only one tile is wild-magnet affected (protected tile)
       if (srcIsWildMagnetAffected || dstIsWildMagnetAffected) {
-        console.log('🛡️ canDrop (app-core): One tile is wild-magnet affected (protected) - blocking merge with other tiles');
+        devLog('🛡️ canDrop (app-core): One tile is wild-magnet affected (protected) - blocking merge with other tiles');
         return false;
       }
       
@@ -1592,7 +1710,7 @@ export async function boot(){
       const sIsWild = s?.special === 'wild' || s?.special === 'wild-beer';
       const dIsWild = d?.special === 'wild' || d?.special === 'wild-beer';
       if ((sIsWild && dv === 6 && !d?.special) || (dIsWild && sv === 6 && !s?.special)) {
-        console.log('⭐ canDrop (app-core): Wild star can merge with merge 6 tile');
+        devLog('⭐ canDrop (app-core): Wild star can merge with merge 6 tile');
         return true; // Allow wild star to merge with merge 6
       }
       
@@ -1600,11 +1718,11 @@ export async function boot(){
       // This allows user to merge spawned tiles with merge 6 tile that remained after magnet pull
       // Merge 6 tile should be removable by merging with any spawned tile
       if (dv === 6 && sv > 0 && sv < 6) {
-        console.log('🔥 canDrop (app-core): Merge 6 tile can merge with tile value', sv);
+        devLog('🔥 canDrop (app-core): Merge 6 tile can merge with tile value', sv);
         return true; // Allow merge 6 to merge with any tile (1-5)
       }
       if (sv === 6 && dv > 0 && dv < 6) {
-        console.log('🔥 canDrop (app-core): Tile value', sv, 'can merge with merge 6 tile');
+        devLog('🔥 canDrop (app-core): Tile value', sv, 'can merge with merge 6 tile');
         return true; // Allow any tile (1-5) to merge with merge 6
       }
       
@@ -1628,7 +1746,7 @@ export async function boot(){
     delete window.__ccStartAtLevel;
     boardNumber = forcedStartLevel | 0;
     moves = MOVES_MAX;
-    console.log('🎯 boot(): Starting at requested board', boardNumber);
+    devLog('🎯 boot(): Starting at requested board', boardNumber);
     startLevel(boardNumber);
   } else {
     boardNumber = 1;
@@ -1638,13 +1756,13 @@ export async function boot(){
       board.visible = true;
       board.alpha = 1;
       board.renderable = true;
-      console.log('✅ Board made visible in boot() before startLevel');
+      devLog('✅ Board made visible in boot() before startLevel');
     }
     if (hud) {
       hud.visible = true;
       hud.alpha = 1;
       hud.renderable = true;
-      console.log('✅ HUD made visible in boot() before startLevel');
+      devLog('✅ HUD made visible in boot() before startLevel');
     }
     startLevel(1);
   }
@@ -1655,13 +1773,13 @@ export async function boot(){
       board.visible = true;
       board.alpha = 1;
       board.renderable = true;
-      console.log('✅ Board visibility confirmed after startLevel (delayed check)');
+      devLog('✅ Board visibility confirmed after startLevel (delayed check)');
     }
     if (hud) {
       hud.visible = true;
       hud.alpha = 1;
       hud.renderable = true;
-      console.log('✅ HUD visibility confirmed after startLevel (delayed check)');
+      devLog('✅ HUD visibility confirmed after startLevel (delayed check)');
     }
   }, 100);
   
@@ -1690,7 +1808,7 @@ export async function boot(){
 
   // Function to trigger clean board screen for testing
   async function showCleanBoardOverlay() {
-    console.log('🧪 Testing: Triggering clean board screen from menu Done button');
+    devLog('🧪 Testing: Triggering clean board screen from menu Done button');
     
     // 🔥 FIX: Use triggerCleanBoardFlow for consistency with all other clean board paths
     await triggerCleanBoardFlow('clean_board_from_test_overlay');
@@ -1728,12 +1846,23 @@ export async function boot(){
     setStarsCount: (count) => StarsCollector.setStarsCount(count|0), // 🔥 CRITICAL: Export setStarsCount for resetting star count on restart
     cleanupFxForBoardReset: (reason = 'window') => cleanupFxForBoardReset(reason),
     softResetBoardView: (reason = 'window') => softResetBoardView(reason),
-  };
+    snapshotState: () => replayRecorder.snapshot(),
+    replayStartRecord: () => replayRecorder.startRecord(),
+    replayStartVerify: (steps) => replayRecorder.startVerify(steps),
+    replayStop: () => replayRecorder.stop(),
+    replayExport: () => replayRecorder.export(),
+    replayImport: (json: string) => replayRecorder.import(json),
+    replayStatus: () => replayRecorder.status(),
+  } as any;
+
+  // Expose for continueGameWithSavedState fallback when loadGameState fails
+  (window as any).rebuildBoard = rebuildBoard;
+  (window as any).startLevel = startLevel;
   
   // 🔥 MEMORY LEAK FIX: Export cleanup functions for global cleanup
   (window as any).killAllDelayedCalls = killAllDelayedCalls;
   (window as any).destroyAllGraphicsObjects = destroyAllGraphicsObjects;
-  window.testCleanAndPrize = () => window.CC.testCleanAndPrize();
+  window.testCleanAndPrize = () => (window.CC as any).testCleanAndPrize?.();
 
   // Run layout after viewport/meta/styles are in place to get correct safe-area values
   try {
@@ -1742,7 +1871,7 @@ export async function boot(){
     });
   } catch {
     layoutBoard().catch(err => {
-      console.error('❌ Error in layoutBoard():', err);
+      devError('❌ Error in layoutBoard():', err);
     });
   }
 
@@ -1792,7 +1921,7 @@ export async function boot(){
       appElement.style.setProperty('background-image', 'none', 'important');
     }
     
-    console.log(`📄 Board game paper background RE-APPLIED as fallback: alpha=${paperAlpha}, overlayAlpha=${overlayAlpha}, visible=${paperAlpha * 100}%`);
+    devLog(`📄 Board game paper background RE-APPLIED as fallback: alpha=${paperAlpha}, overlayAlpha=${overlayAlpha}, visible=${paperAlpha * 100}%`);
   }, 100); // 100ms delay to ensure it runs after all other code
 }
 
@@ -1815,8 +1944,8 @@ export async function layoutBoard(){
   const isIPhone13 = /iPhone/.test(navigator.userAgent) && window.screen.width === 390 && window.screen.height === 844;
   const adjustedSAT = isIPhone13 ? Math.max(SAT, 44) : SAT; // iPhone 13 minimum safe area top
   
-  console.log('🎯 Safe area top (SAT):', SAT, 'px, adjusted for iPhone 13:', adjustedSAT, 'px');
-  console.log('🎯 Device info:', {
+  devLog('🎯 Safe area top (SAT):', SAT, 'px, adjusted for iPhone 13:', adjustedSAT, 'px');
+  devLog('🎯 Device info:', {
     userAgent: navigator.userAgent,
     screenWidth: window.screen.width,
     screenHeight: window.screen.height,
@@ -1844,12 +1973,12 @@ export async function layoutBoard(){
     __hudMetrics.top = Math.round(safeTop);
     __hudMetrics.bottom = Math.round(hudBottom);
     
-    console.log('📱 Mobile: HUD positioned EXACTLY 48px below notch, safeTop:', safeTop, 'px');
+    devLog('📱 Mobile: HUD positioned EXACTLY 48px below notch, safeTop:', safeTop, 'px');
   } else {
     // Desktop: Use calculated safe area positioning
     safeTop = TOP_PAD + adjustedSAT;
     hudBottom = safeTop + HUD_H + GAP_HUD;
-    console.log('🖥️ Desktop: HUD at y:', safeTop, 'px, board starts at y:', hudBottom);
+    devLog('🖥️ Desktop: HUD at y:', safeTop, 'px, board starts at y:', hudBottom);
   }
   
   const isIPad = vw >= 768 && vw <= 1400;
@@ -1867,7 +1996,7 @@ export async function layoutBoard(){
     const additionalOffset = Math.round(vh * 0.047); // ~40px on iPhone 13 (844px height)
     safeTop -= additionalOffset;
     hudBottom -= additionalOffset;
-    console.log('📱 iPhone: Raised HUD by', additionalOffset, 'px (4.7% of vh)');
+    devLog('📱 iPhone: Raised HUD by', additionalOffset, 'px (4.7% of vh)');
   }
 
   // Final lift: move HUD 8px closer to the top edge (extra 4px lift)
@@ -1917,7 +2046,7 @@ export async function layoutBoard(){
     boardY = Math.round(centerY - sh / 2 + 8 - BOARD_LIFT + 6 - 2); // Previous +8 offset, now lifted up, +6px down, -2px up
   }
   
-  console.log('🎯 Board scaling:', { 
+  devLog('🎯 Board scaling:', { 
     availableWidth, 
     widthScale: availableWidth / w, 
     heightScale: availableHeight / h, 
@@ -1929,9 +2058,9 @@ export async function layoutBoard(){
   board.x = boardX;
   board.y = boardY;
   
-  console.log('🎯 Board positioned at y:', board.y, 'px (available height:', availableHeight, 'px, board height:', sh, 'px)');
+  devLog('🎯 Board positioned at y:', board.y, 'px (available height:', availableHeight, 'px, board height:', sh, 'px)');
   
-  console.log('🎯 Board positioning (HUD below notch on mobile):', {
+  devLog('🎯 Board positioning (HUD below notch on mobile):', {
     isMobile,
     safeTop,
     hudBottom,
@@ -1950,7 +2079,7 @@ export async function layoutBoard(){
   try {
     if (typeof HUD.initHUD === 'function') {
       if (!_hudInitDone) {
-        console.log('🎯 Initializing HUD...');
+        devLog('🎯 Initializing HUD...');
         
         // 🔥 CRITICAL: Ensure HUD icons are loaded into PIXI Assets cache before initializing HUD
         // This prevents missing icons after hard exit/restart
@@ -1976,33 +2105,33 @@ export async function layoutBoard(){
           
           // If any icons are missing, load them BLOCKING
           if (missingIcons.length > 0) {
-            console.warn(`⚠️ ${missingIcons.length} HUD icons missing, loading now (BLOCKING)...`);
+            devWarn(`⚠️ ${missingIcons.length} HUD icons missing, loading now (BLOCKING)...`);
             for (const iconPath of missingIcons) {
               try {
                 await Assets.load(iconPath);
-                console.log(`✅ Loaded ${iconPath} into PIXI Assets cache before HUD init`);
+                devLog(`✅ Loaded ${iconPath} into PIXI Assets cache before HUD init`);
               } catch (err) {
-                console.error(`❌ CRITICAL: Failed to load ${iconPath} before HUD init:`, err);
+                devError(`❌ CRITICAL: Failed to load ${iconPath} before HUD init:`, err);
               }
             }
           } else {
-            console.log('✅ All HUD icons already loaded in PIXI Assets cache');
+            devLog('✅ All HUD icons already loaded in PIXI Assets cache');
           }
         } catch (err) {
-          console.error('❌ CRITICAL: Failed to ensure HUD icons are loaded before HUD init:', err);
+          devError('❌ CRITICAL: Failed to ensure HUD icons are loaded before HUD init:', err);
           // Try to load via comprehensive preloader as fallback
           try {
             const { loadHudIconsIntoPixiCache } = await import('../utils/comprehensive-image-preloader.js');
             await loadHudIconsIntoPixiCache();
-            console.log('✅ HUD icons loaded via comprehensive preloader fallback');
+            devLog('✅ HUD icons loaded via comprehensive preloader fallback');
           } catch (fallbackErr) {
-            console.error('❌ CRITICAL: Fallback HUD icon loading also failed:', fallbackErr);
+            devError('❌ CRITICAL: Fallback HUD icon loading also failed:', fallbackErr);
           }
         }
         
         HUD.initHUD({ stage, app, top: safeTop, initialHide: _hudDropPending });
         _hudInitDone = true;
-        console.log('✅ HUD initialized successfully');
+        devLog('✅ HUD initialized successfully');
         
         // 🔥 CRITICAL FIX: If HUD was initialized with initialHide=false, ensure it's visible
         // This handles the case where _hudDropPending is false but HUD still needs to be visible
@@ -2015,10 +2144,10 @@ export async function layoutBoard(){
             hudRoot.alpha = 1;
             hudRoot.visible = true;
             hudRoot._dropped = true;
-            console.log('✅ HUD made visible immediately (no drop pending)');
+            devLog('✅ HUD made visible immediately (no drop pending)');
           }
         } catch (e) {
-          console.warn('⚠️ Failed to access HUD_ROOT:', e);
+          devWarn('⚠️ Failed to access HUD_ROOT:', e);
         }
         
         // 🔥 CRITICAL: Fallback to trigger HUD drop shortly after init (for slow devices)
@@ -2041,23 +2170,23 @@ export async function layoutBoard(){
                   }
                   HUD.playHudDrop({ forceRestart: true });
                 }));
-                console.log('✅ HUD drop fallback triggered after initHUD');
+                devLog('✅ HUD drop fallback triggered after initHUD');
               }
               _hudDropPending = false;
             } catch (err) {
-              console.warn('⚠️ HUD drop fallback failed:', err);
+              devWarn('⚠️ HUD drop fallback failed:', err);
             }
           }, 120);
         }
         
         // hook za wild meter prema HUD-u
         hudUpdateProgress = (ratio, animate)=>{
-          console.log('🎯 hudUpdateProgress called with:', { ratio, animate });
+          devLog('🎯 hudUpdateProgress called with:', { ratio, animate });
           try{ 
             HUD.updateProgressBar?.(ratio, animate); 
-            console.log('✅ HUD.updateProgressBar called successfully');
+            devLog('✅ HUD.updateProgressBar called successfully');
           } catch(error) {
-            console.error('❌ Error calling HUD.updateProgressBar:', error);
+            devError('❌ Error calling HUD.updateProgressBar:', error);
           }
         };
         
@@ -2081,9 +2210,9 @@ export async function layoutBoard(){
               }
             }
           });
-          console.log('✅ Stars collector initialized');
+          devLog('✅ Stars collector initialized');
         } catch (error) {
-          console.warn('⚠️ Failed to initialize stars collector:', error);
+          devWarn('⚠️ Failed to initialize stars collector:', error);
         }
       }
       
@@ -2094,13 +2223,13 @@ export async function layoutBoard(){
         : boardNumber;
       if (typeof HUD.updateHUD === 'function') {
         HUD.updateHUD({ score, board: currentBoardNumber, moves, combo });
-        console.log('✅ HUD updated with:', { score, board: currentBoardNumber, moves, combo, 'STATE.boardNumber': STATE?.boardNumber, 'local boardNumber': boardNumber });
+        devLog('✅ HUD updated with:', { score, board: currentBoardNumber, moves, combo, 'STATE.boardNumber': STATE?.boardNumber, 'local boardNumber': boardNumber });
       }
       
       // CRITICAL: Call HUD.layout to update HUD positioning
       if (typeof HUD.layout === 'function') {
         HUD.layout({ app, top: safeTop });
-        console.log('✅ HUD layout updated');
+        devLog('✅ HUD layout updated');
       }
 
   // After HUD has laid out the wild preloader, recenter board between
@@ -2134,15 +2263,15 @@ export async function layoutBoard(){
     // Center at exactly 50% of available space
     const center2 = dynamicHudBottom + (avail2 - sh2) / 2;
     board.y = Math.round(center2 - BOARD_LIFT + 6 - 2); // +6px down, -2px up
-    console.log('🎯 Recentered board using PIXI wild meter (centered 50%):', { dynamicHudBottom, center2, wildY, wildH, s2, hudYForLayout, avail2 });
+    devLog('🎯 Recentered board using PIXI wild meter (centered 50%):', { dynamicHudBottom, center2, wildY, wildH, s2, hudYForLayout, avail2 });
   } catch (e) {
-    console.warn('⚠️ Could not recenter using PIXI wild meter, using estimate.', e);
+    devWarn('⚠️ Could not recenter using PIXI wild meter, using estimate.', e);
   }
     } else {
-      console.warn('⚠️ HUD.initHUD is not a function');
+      devWarn('⚠️ HUD.initHUD is not a function');
     }
   } catch (error) {
-    console.error('❌ Error during HUD initialization/update in app.js layout:', error);
+    devError('❌ Error during HUD initialization/update in app.js layout:', error);
     // Reset HUD flag on error to retry next time
     _hudInitDone = false;
   }
@@ -2151,9 +2280,9 @@ export async function layoutBoard(){
   if (TILE_IDLE_BOUNCE.ENABLE) {
     try {
       TILE_IDLE_BOUNCE.start(tiles, board);
-      console.log('✅ Tile idle bounce started');
+      devLog('✅ Tile idle bounce started');
     } catch (error) {
-      console.warn('⚠️ Failed to start tile idle bounce:', error);
+      devWarn('⚠️ Failed to start tile idle bounce:', error);
     }
   }
 }
@@ -2174,19 +2303,19 @@ function initializeBackgroundLayer(){
     try {
       if (board && board.children.includes(backgroundLayer)) {
         board.removeChild(backgroundLayer);
-        console.log('✅ Removed existing background layer from board');
+        devLog('✅ Removed existing background layer from board');
       }
       backgroundLayer.destroy({ children: true });
-      console.log('✅ Destroyed existing background layer');
+      devLog('✅ Destroyed existing background layer');
     } catch (e) {
-      console.warn('⚠️ Error removing existing background layer:', e);
+      devWarn('⚠️ Error removing existing background layer:', e);
     }
     backgroundLayer = null; // Clear reference
   }
   
   // 🔥 CRITICAL FIX: Ensure board exists before creating background layer
   if (!board) {
-    console.error('❌ initializeBackgroundLayer: board is null, cannot create background layer');
+    devError('❌ initializeBackgroundLayer: board is null, cannot create background layer');
     return;
   }
   
@@ -2200,14 +2329,14 @@ function initializeBackgroundLayer(){
   // Add to board at index 0 (bottom)
   try {
     board.addChildAt(backgroundLayer, 0);
-    console.log('✅ Background layer added to board at index 0');
+    devLog('✅ Background layer added to board at index 0');
   } catch (e) {
-    console.error('❌ Failed to add background layer to board:', e);
+    devError('❌ Failed to add background layer to board:', e);
     backgroundLayer = null;
     return;
   }
   
-  console.log('🎯 Creating FIXED background layer with all ghost placeholders');
+  devLog('🎯 Creating FIXED background layer with all ghost placeholders');
   
   // Create ghost placeholder for EVERY cell
   // Store reference in 2D array for easy access
@@ -2231,11 +2360,11 @@ function initializeBackgroundLayer(){
   
   board.sortChildren();
   
-  console.log('✅ FIXED background layer created with', ROWS * COLS, 'ghost placeholders');
-  console.log('✅ This layer will NEVER be modified or destroyed');
-  console.log('🔍 Background layer zIndex:', backgroundLayer.zIndex);
-  console.log('🔍 Background layer visible:', backgroundLayer.visible);
-  console.log('🔍 Background layer in board:', board.children.includes(backgroundLayer));
+  devLog('✅ FIXED background layer created with', ROWS * COLS, 'ghost placeholders');
+  devLog('✅ This layer will NEVER be modified or destroyed');
+  devLog('🔍 Background layer zIndex:', backgroundLayer.zIndex);
+  devLog('🔍 Background layer visible:', backgroundLayer.visible);
+  devLog('🔍 Background layer in board:', board.children.includes(backgroundLayer));
   
   // 🔥 v70 STYLE: Update ghost visibility immediately after creation
   // Show ghosts for empty cells (where grid[r][c] === null)
@@ -2244,7 +2373,7 @@ function initializeBackgroundLayer(){
     backgroundLayer.visible = true;
     // Fallback: Show all ghosts initially (will be hidden by updateGhostVisibility later)
     updateGhostVisibility();
-    console.log('✅ Ghost visibility updated after background layer creation');
+    devLog('✅ Ghost visibility updated after background layer creation');
     // 🔥 CRITICAL FIX: Double-check that ghost placeholders are visible
     if (window._ghostPlaceholders && Array.isArray(window._ghostPlaceholders)) {
       let visibleCount = 0;
@@ -2253,10 +2382,10 @@ function initializeBackgroundLayer(){
           if (ghost && ghost.visible) visibleCount++;
         });
       });
-      console.log(`✅ Ghost placeholders check: ${visibleCount} visible out of ${ROWS * COLS} total`);
+      devLog(`✅ Ghost placeholders check: ${visibleCount} visible out of ${ROWS * COLS} total`);
     }
   } catch (e) {
-    console.error('❌ Failed to update ghost visibility:', e);
+    devError('❌ Failed to update ghost visibility:', e);
   }
 }
 
@@ -2275,7 +2404,7 @@ function updateGhostVisibility() {
   // 🔥 CRITICAL FIX: If window._ghostPlaceholders is null, try to reinitialize from backgroundLayer
   if (!window._ghostPlaceholders) {
     if (backgroundLayer && backgroundLayer.children.length > 0) {
-      console.log('🔄 updateGhostVisibility: window._ghostPlaceholders is null, reinitializing from backgroundLayer...');
+      devLog('🔄 updateGhostVisibility: window._ghostPlaceholders is null, reinitializing from backgroundLayer...');
       window._ghostPlaceholders = [];
       for (let r = 0; r < ROWS; r++) {
         window._ghostPlaceholders[r] = [];
@@ -2287,10 +2416,10 @@ function updateGhostVisibility() {
           }
         }
       }
-      console.log('✅ updateGhostVisibility: window._ghostPlaceholders reinitialized from backgroundLayer');
+      devLog('✅ updateGhostVisibility: window._ghostPlaceholders reinitialized from backgroundLayer');
     } else {
       // If backgroundLayer doesn't exist, we can't update ghost visibility
-      console.warn('⚠️ updateGhostVisibility: window._ghostPlaceholders is null and backgroundLayer is missing - cannot update');
+      devWarn('⚠️ updateGhostVisibility: window._ghostPlaceholders is null and backgroundLayer is missing - cannot update');
       return;
     }
   }
@@ -2312,7 +2441,7 @@ function updateGhostVisibility() {
   
   // 🔥 CRITICAL FIX: Log ghost visibility status for debugging
   if (visibleCount > 0) {
-    console.log(`✅ updateGhostVisibility: ${visibleCount} ghost placeholders visible`);
+    devLog(`✅ updateGhostVisibility: ${visibleCount} ghost placeholders visible`);
   }
 }
 
@@ -2331,7 +2460,18 @@ function drawBoardBG(mode = 'active+empty'){
   updateGhostVisibility();
 }
 
-function pulseBoardZoom(factor = 0.92, opts = {}) {
+function pulseBoardZoom(
+  factor = 0.92,
+  opts: {
+    translateFactor?: number;
+    onComplete?: () => void;
+    outDur?: number;
+    inDur?: number;
+    hold?: number;
+    outEase?: string;
+    inEase?: string;
+  } = {}
+) {
   if (!board) return;
   try { board._wildZoomTl?.kill?.(); } catch {}
 
@@ -2394,448 +2534,153 @@ function pulseBoardZoom(factor = 0.92, opts = {}) {
 
 
 
-const updateHUD = () => {
-  // 🔥 CRITICAL FIX: Get actual combo value from window.CC.getCombo() instead of local combo variable
-  // This ensures combo value is always in sync, especially after magnet pull updates combo via window.CC.setCombo()
-  const actualCombo = typeof (window as any).CC?.getCombo === 'function'
-    ? (window as any).CC.getCombo()
-    : combo; // Fallback to local combo if window.CC.getCombo not available
-  
-  // Sync local combo variable with actual combo value
-  combo = actualCombo;
-  
-  logger.debug('🎯 updateHUD called', 'app-core', { score, board: boardNumber, moves, combo: actualCombo });
-  syncSharedState();
-  
-  try {
-    // First try to use HUD from hud-helpers.js
-    if (typeof HUD.updateHUD === 'function') { 
-      logger.debug('🎯 Calling HUD.updateHUD from hud-helpers.js', 'app-core');
-      HUD.updateHUD({ score, board: boardNumber, moves, combo: actualCombo }); 
-      return; 
-    } else {
-      console.log('⚠️ HUD.updateHUD function not available');
-    }
-  } catch (error) {
-    console.error('❌ Error calling HUD.updateHUD:', error);
-  }
-  
-  try {
-    // Fallback to old method
-    if (typeof _updateHUD === 'function') { 
-      console.log('🎯 Using fallback _updateHUD');
-      _updateHUD({ score, board: boardNumber, moves, combo: actualCombo }); 
-      return; 
-    }
-  } catch (error) {
-    console.error('❌ Error calling _updateHUD:', error);
-  }
-  
-  // Legacy fallback
-  console.log('🎯 Using legacy fallback for HUD update');
-  if (boardNumText) boardNumText.text = `#${boardNumber}`;
-  if (scoreNumText) scoreNumText.text = String(score);
-  if (comboNumText) comboNumText.text = `x${actualCombo}`;
-};
-
-function animateScore(toValue, duration=0.45){
-  if (typeof _animateScore === 'function') {
-    _animateScore({ scoreRef: () => score, setScore: v => { score=v; }, updateHUD, SCORE_CAP, gsap }, toValue, duration);
-  } else {
-    HUD.animateScore({ scoreRef: () => score, setScore: v => { score=v; }, updateHUD, SCORE_CAP, gsap }, toValue, duration);
-  }
-}
-function animateBoardHUD(toValue, duration=0.45){
-  if (typeof _animateBoard === 'function') {
-    _animateBoard({ boardRef: () => boardNumber, setBoard: v => { boardNumber=v; }, updateHUD, gsap }, toValue, duration);
-  } else {
-    try { _setBoard?.(toValue); } catch {}
-    boardNumber = toValue|0; updateHUD();
-  }
-}
+const { updateHUD, animateScore, animateBoardHUD } = createHudHelpers({
+  getScore: () => score,
+  setScore: (v) => { score = v; },
+  getBoardNumber: () => boardNumber,
+  setBoardNumber: (v) => { boardNumber = v; },
+  getMoves: () => moves,
+  getCombo: () =>
+    typeof (window as any).CC?.getCombo === 'function'
+      ? (window as any).CC.getCombo()
+      : combo,
+  setCombo: (v) => { combo = v; },
+  syncSharedState,
+  SCORE_CAP,
+  HUD,
+  getFallbackUpdateHUD: () => (typeof _updateHUD === 'function' ? _updateHUD : undefined),
+  getAnimateScore: () => (typeof _animateScore === 'function' ? _animateScore : undefined),
+  getAnimateBoard: () => (typeof _animateBoard === 'function' ? _animateBoard : undefined),
+  getSetBoard: () => (typeof _setBoard === 'function' ? _setBoard : undefined),
+});
 // 🔥 v112: fixHoverAnchor moved to app-core-helpers.ts
 // Imported: fixHoverAnchor
 
 // -------------------- board build --------------------
 function resetBoardContainer(){
-  console.log('🔄 resetBoardContainer (app.js): Board children count:', board.children.length);
-  console.log('🔄 resetBoardContainer (app.js): Board children labels:', board.children.map(c => c.label || c.constructor.name));
-  
-  // 🔥 CRITICAL FIX: Get backgroundLayer reference BEFORE removing children
-  // Also check the global backgroundLayer variable
-  const bgLayer = board.children.find(c => c.label === 'BackgroundLayer');
-  const bgLayerRef = backgroundLayer; // Keep reference to global variable
-  console.log('🔄 resetBoardContainer (app.js): Found backgroundLayer in board:', !!bgLayer);
-  console.log('🔄 resetBoardContainer (app.js): Global backgroundLayer exists:', !!bgLayerRef);
-  
-  // 🔥 CRITICAL FIX: Check if backgroundLayer is destroyed (from boot() cleanup)
-  const isBgLayerDestroyed = bgLayer ? bgLayer.destroyed : (bgLayerRef ? bgLayerRef.destroyed : true);
-  console.log('🔄 resetBoardContainer (app.js): Background layer destroyed:', isBgLayerDestroyed);
-  
-  board.removeChildren();
-  
-  // Re-add persistent layers
-  board.addChildAt(boardBG, 0);
-  
-  // 🔥 CRITICAL FIX: Re-add backgroundLayer if it exists and is NOT destroyed
-  // If destroyed, we need to recreate it
-  const layerToAdd = (!isBgLayerDestroyed && (bgLayer || bgLayerRef)) ? (bgLayer || bgLayerRef) : null;
-  if (layerToAdd && !layerToAdd.destroyed) {
-    try {
-      board.addChildAt(layerToAdd, 0); // Always at index 0 (bottom)
-      layerToAdd.visible = true;
-      layerToAdd.zIndex = -10000;
-      console.log('✅ resetBoardContainer (app.js): Background layer preserved and re-added');
-      // 🔥 CRITICAL FIX: Ensure window._ghostPlaceholders is initialized if backgroundLayer exists
-      // This handles cases where cleanupGame() set it to null but backgroundLayer was preserved
-      if (!window._ghostPlaceholders && backgroundLayer && backgroundLayer.children.length > 0) {
-        console.log('🔄 resetBoardContainer (app.js): Reinitializing window._ghostPlaceholders from backgroundLayer children...');
-        window._ghostPlaceholders = [];
-        for (let r = 0; r < ROWS; r++) {
-          window._ghostPlaceholders[r] = [];
-          for (let c = 0; c < COLS; c++) {
-            const ghostLabel = `Ghost_${c}_${r}`;
-            const ghost = backgroundLayer.children.find((child: any) => child.label === ghostLabel);
-            if (ghost) {
-              window._ghostPlaceholders[r][c] = ghost;
-            }
-          }
-        }
-        console.log('✅ resetBoardContainer (app.js): window._ghostPlaceholders reinitialized from backgroundLayer');
-      }
-    } catch (e) {
-      console.warn('⚠️ resetBoardContainer (app.js): Failed to re-add background layer:', e);
-      // If re-adding fails, ensure global reference is cleared so it gets recreated
-      if (bgLayerRef === backgroundLayer) {
-        backgroundLayer = null;
-      }
-    }
-  } else {
-    console.warn('⚠️ resetBoardContainer (app.js): Background layer NOT found or destroyed - will need reinit');
-    // Ensure global reference is null so it gets recreated
-    backgroundLayer = null;
-    // 🔥 CRITICAL FIX: Recreate background layer if it was destroyed
-    // This happens when boot() destroys the app and stage
-    if (!backgroundLayer) {
-      console.log('🔄 resetBoardContainer (app.js): Recreating background layer...');
-      try {
-        initializeBackgroundLayer();
-        console.log('✅ resetBoardContainer (app.js): Background layer recreated successfully');
-      } catch (e) {
-        console.error('❌ resetBoardContainer (app.js): Failed to recreate background layer:', e);
-      }
-    }
-  }
-  
-  boardBG.zIndex = -1000;
-  boardBG.eventMode = 'none';
-  board.sortableChildren = true;
-  board.sortChildren();
-
-  // Single ghost visibility update after background layer handling
-  try {
-    if (backgroundLayer) {
-      updateGhostVisibility();
-    }
-  } catch {}
-  
-  console.log('🔄 resetBoardContainer (app.js): Final children count:', board.children.length);
-  console.log('🔄 resetBoardContainer (app.js): Background layer in board after reset:', !!board.children.find(c => c.label === 'BackgroundLayer'));
+  resetBoardContainerHelper({
+    board,
+    boardBG,
+    backgroundLayer,
+    setBackgroundLayer: (v) => { backgroundLayer = v; },
+    ROWS,
+    COLS,
+    initializeBackgroundLayer,
+    updateGhostVisibility,
+    devLog,
+    devWarn,
+    devError,
+  });
 }
 function rebuildBoard(){
-  // 🔥 CRITICAL: Stop tile idle bounce before rebuild
-  try {
-    if (TILE_IDLE_BOUNCE && typeof TILE_IDLE_BOUNCE.stop === 'function') {
-      TILE_IDLE_BOUNCE.stop();
-      console.log('✅ rebuildBoard: Tile idle bounce stopped');
-    }
-  } catch (e) {
-    console.warn('⚠️ rebuildBoard: Error stopping tile idle bounce:', e);
-  }
+  stopTileIdleBounce({ TILE_IDLE_BOUNCE, devLog, devWarn });
   
-  resetBoardContainer();
-  
-  // NOTE: FX/timer cleanup is handled centrally in cleanupFxForBoardReset()
-  tiles.forEach(t => {
-    // 🔥 CRITICAL: Stop all idle animations first
-    try { stopWildIdle?.(t); } catch {}
-    try { stopWildShimmer?.(t); } catch {}
-    try { stopWildStars?.(t); } catch {}
-    try { stopWildBeerBubbles?.(t); } catch {}
-    try { stopMagnetIdleParticles?.(t); } catch {}
-    
-    // Kill any per-tile tweens
-    try {
-      gsap.killTweensOf(t);
-      gsap.killTweensOf(t.scale);
-      gsap.killTweensOf(t.rotation);
-      if ((t as any)._idleBounceTl) {
-        try { (t as any)._idleBounceTl.kill(); } catch {}
-        (t as any)._idleBounceTl = null;
-      }
-    } catch {}
-    
-    // Kill any tile animations if available
-    try {
-      if (typeof (window as any).killTileAnimations === 'function') {
-        (window as any).killTileAnimations(t);
-      }
-    } catch {}
-    
-    // 🔥 CRITICAL: Kill all GSAP tweens on tile and its properties
-    try { 
-      gsap.killTweensOf(t); 
-      gsap.killTweensOf(t.scale); 
-      gsap.killTweensOf(t.rotG);
-      gsap.killTweensOf(t.rotation);
-      // Kill any glow animations
-      if ((t as any)._glowAnimation) {
-        (t as any)._glowAnimation.kill();
-        (t as any)._glowAnimation = null;
-      }
-    } catch {}
-    
-    t.destroy({children:true, texture:false, textureSource:false});
-  });
-  tiles.length=0;
-  
-  // 🔥 NOTE: FX cleanup handled centrally via cleanupFxForBoardReset()
-  createEmptyGrid();
-  drawBoardBG('none');
-
-  for(let r=0;r<ROWS;r++){
-    for(let c=0;c<COLS;c++){
-      makeBoard.createTile({ board, grid, tiles, c, r, val:0, locked:true });
-      fixHoverAnchor(grid[r][c]);
-    }
-  }
-  const total = COLS*ROWS, openN = Math.max(1, Math.round(total*0.30));
-  const ids=[...Array(total).keys()];
-  for(let i=ids.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [ids[i],ids[j]]=[ids[j],ids[i]]; }
-  ids.slice(0,openN).forEach(idx=>{
-    const r=(idx/COLS)|0, c=idx%COLS; const t=grid[r][c];
-    fixHoverAnchor(t); t.locked=false; t.eventMode='static'; t.cursor='pointer';
-    if (drag && typeof drag.bindToTile === 'function') drag.bindToTile(t);
-    makeBoard.setValue(t, t.value || randVal(), 0);
+  prepareBoardForRebuild({
+    resetBoardContainer,
+    resetTilesForRebuild: () => {
+      // NOTE: FX/timer cleanup is handled centrally in cleanupFxForBoardReset()
+      resetTilesForRebuild({
+        tiles,
+        gsap,
+        stopWildIdle,
+        stopWildShimmer,
+        stopWildStars,
+        stopWildBeerBubbles,
+        stopMagnetIdleParticles,
+        cleanupTilesForRebuild,
+        devWarn,
+      });
+    },
+    // 🔥 NOTE: FX cleanup handled centrally via cleanupFxForBoardReset()
+    initializeBoardGrid: () => initializeBoardGrid({ createEmptyGrid, drawBoardBG }),
   });
 
-  try { tiles.forEach(t => t.visible = false); } catch {}
-  drawBoardBG('active+empty');
+  createAndOpenBoard({
+    ROWS,
+    COLS,
+    board,
+    grid,
+    tiles,
+    makeBoard,
+    fixHoverAnchor,
+    drag,
+    randVal,
+    createLockedHolders,
+    openRandomTiles,
+  });
+
+  finalizeBoardVisibility({ tiles, drawBoardBG });
   
   // 🔥 CRITICAL FIX: Ensure background layer exists and is visible
   // If backgroundLayer was destroyed in cleanupGame(), it will be null
   // initializeBackgroundLayer() is called in startLevel() after rebuildBoard()
   // But we need to ensure it's visible here if it exists
-  if (backgroundLayer) {
-    backgroundLayer.visible = true; // Keep visible - v70 style
-    // Ensure it's at the bottom of board children
-    try {
-      if (board.children.includes(backgroundLayer)) {
-        const currentIndex = board.getChildIndex(backgroundLayer);
-        if (currentIndex !== 0) {
-          board.removeChild(backgroundLayer);
-          board.addChildAt(backgroundLayer, 0);
-          board.sortChildren();
-          console.log('✅ Background layer repositioned to bottom in rebuildBoard()');
-        }
-      } else {
-        // Background layer not in board - add it
-        board.addChildAt(backgroundLayer, 0);
-        board.sortChildren();
-        console.log('✅ Background layer added to board in rebuildBoard()');
-      }
-    } catch (e) {
-      console.warn('⚠️ rebuildBoard: Failed to ensure background layer in board:', e);
-    }
-    console.log('✅ Background layer ensured in rebuildBoard()');
-  } else {
-    console.warn('⚠️ rebuildBoard: backgroundLayer is null - will be created in startLevel()');
-  }
+  ensureBackgroundLayerVisible({
+    board,
+    backgroundLayer,
+    devLog,
+    devWarn,
+  });
   
   // Start animation (optionally wait a frame if HUD is not ready so drop can be visible)
   const hudReady = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
-  const sweetPopInRunner = () => {
-    console.log('🎯 Starting sweetPopIn from app.js with', tiles.length, 'tiles');
-    return sweetPopIn(tiles, {
-    onHalf: () => {
-      // 🔥 CRITICAL FIX: Ensure HUD drop is triggered for new games
-      if (_hudDropPending){
-        console.log('🎯 HUD drop pending in sweetPopIn onHalf - triggering drop animation');
-        try { 
-          const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
-          if (!hudRoot) {
-            console.warn('⚠️ HUD_ROOT not ready during sweetPopIn onHalf - keeping drop pending');
-            return; // keep _hudDropPending so a later fallback can run
-          }
-          if (typeof HUD.playHudDrop === 'function') {
-            // Start on next paint so user definitely sees the drop (especially iPhone)
-            trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
-              // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
-              if (app && app.canvas) {
-                app.canvas.style.opacity = '1';
-                app.canvas.style.transition = 'opacity 0.3s ease';
-              }
-              HUD.playHudDrop({ forceRestart: true });
-            }));
-            console.log('✅ HUD drop animation triggered in sweetPopIn onHalf');
-            _hudDropPending = false;
-          } else {
-            console.warn('⚠️ HUD.playHudDrop is not a function');
-          }
-        } catch (e) {
-          console.error('❌ Failed to trigger HUD drop in sweetPopIn onHalf:', e);
-        }
-      } else {
-        // 🔥 CRITICAL FIX: Even if not pending, ensure HUD is visible and positioned
-        console.log('🎯 HUD drop not pending - ensuring HUD is visible');
-        try {
-          // 🔥 CRITICAL FIX: Get HUD_ROOT from HUD module or window
-          try {
-            const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
-            if (hudRoot) {
-              const top = hudRoot._dropTop ?? 44;
-              hudRoot.y = top;
-              hudRoot.alpha = 1;
-              hudRoot.visible = true;
-              hudRoot._dropped = true;
-              console.log('✅ HUD positioned and made visible in sweetPopIn onHalf');
-            }
-          } catch (e) {
-            console.warn('⚠️ Failed to access HUD_ROOT in sweetPopIn onHalf:', e);
-          }
-        } catch (e) {
-          console.error('❌ Failed to ensure HUD visibility:', e);
-        }
-      }
-    }
-    });
-  };
+  const sweetPopInRunner = createSweetPopInRunner({
+    tiles,
+    sweetPopIn,
+    onHalf: () => handleHudDropOnHalf({
+      app,
+      HUD,
+      hudRootFromWindow: (window as any).HUD_ROOT || null,
+      trackAppAnimationFrame,
+      devLog,
+      devWarn,
+      devError,
+      hudDropPending: _hudDropPending,
+      setHudDropPending: (v) => { _hudDropPending = v; },
+    }),
+    devLog,
+  });
   
   const shouldDelayForHUD = _hudDropPending && !hudReady;
   
-  // 🔥 CRITICAL: Ensure GSAP + ticker are running before pop-in starts
-  try { gsap.globalTimeline.resume(); } catch {}
-  try { gsap.ticker?.wake?.(); } catch {}
-  try { if (app?.ticker && !app.ticker.started) app.ticker.start(); } catch {}
-  const runPopIn = () =>
-    shouldDelayForHUD
-      ? new Promise(resolve => trackAppTimeout(() => resolve(sweetPopInRunner()), 120))
-      : sweetPopInRunner();
+  ensureAnimationRunning({ gsap, app });
+  const runPopIn = createPopInRunner({
+    shouldDelayForHUD,
+    trackAppTimeout,
+    sweetPopInRunner,
+  });
   
   // 🔥 CRITICAL: If app is hidden during transition, delay pop-in until visible
-  const sweetPopPromise = new Promise(resolve => {
-    const appEl = document.getElementById('app');
-    const isHidden = () =>
-      !!appEl && (appEl.hasAttribute('hidden') || appEl.style.display === 'none' || appEl.style.visibility === 'hidden');
-    const startAt = Date.now();
-    const tryStart = () => {
-      if (!isHidden() || (Date.now() - startAt) > 1500) {
-        if (isHidden()) {
-          try {
-            appEl?.removeAttribute('hidden');
-            if (appEl) {
-              appEl.style.display = 'block';
-              appEl.style.visibility = 'visible';
-              appEl.style.opacity = '1';
-            }
-          } catch {}
-        }
-        Promise.resolve(runPopIn()).then(resolve);
-        return;
-      }
-      trackAppTimeout(tryStart, 100);
-    };
-    tryStart();
+  const sweetPopPromise = createSweetPopPromise({
+    appEl: document.getElementById('app'),
+    runPopIn,
+    trackAppTimeout,
   });
   
   // 🔥 SAFETY NET: If pop-in is stalled or timeline is throttled, force tiles visible
-  trackAppTimeout(() => {
-    try {
-      let invisibleCount = 0;
-      for (const t of tiles) {
-        if (!t || t.destroyed) continue;
-        if (t.locked || (t.value | 0) <= 0) continue;
-        if (!t.visible || (t.alpha ?? 0) < 0.9) invisibleCount++;
-      }
-      if (invisibleCount > 0) {
-        console.warn(`⚠️ sweetPopIn safety: Forcing visibility on ${invisibleCount} tiles`);
-        try { gsap.globalTimeline.resume(); } catch {}
-        try { if (app?.ticker && !app.ticker.started) app.ticker.start(); } catch {}
-        for (const t of tiles) {
-          if (!t || t.destroyed) continue;
-          if (t.locked || (t.value | 0) <= 0) continue;
-          t.visible = true;
-          t.alpha = 1;
-          t.renderable = true;
-        }
-        try { updateGhostVisibility(); } catch {}
-      }
-    } catch (e) {
-      console.warn('⚠️ sweetPopIn safety failed:', e);
-    }
-  }, 800);
-  
-  sweetPopPromise.then(() => {
-    // 🔥 CRITICAL FIX: Final check - ensure HUD is visible and positioned after animation
-    if (_hudDropPending) {
-      console.log('🎯 HUD drop still pending after sweetPopIn - triggering now');
-      try {
-        if (typeof HUD.playHudDrop === 'function') {
-          trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
-            // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
-            if (app && app.canvas) {
-              app.canvas.style.opacity = '1';
-              app.canvas.style.transition = 'opacity 0.3s ease';
-            }
-            HUD.playHudDrop({ forceRestart: true });
-          }));
-          console.log('✅ HUD drop animation triggered after sweetPopIn');
-        }
-      } catch (e) {
-        console.error('❌ Failed to trigger HUD drop after sweetPopIn:', e);
-      }
-      _hudDropPending = false;
-    }
-    
-    // 🔥 CRITICAL FIX: Ensure HUD is visible even if animation didn't trigger
-    try {
-      const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
-      if (hudRoot) {
-        const top = hudRoot._dropTop ?? 44;
-        hudRoot.y = top;
-        hudRoot.alpha = 1;
-        hudRoot.visible = true;
-        hudRoot._dropped = true;
-        console.log('✅ HUD final position set after sweetPopIn');
-      }
-    } catch (e) {
-      console.error('❌ Failed to ensure HUD visibility after sweetPopIn:', e);
-    }
-
-    // 🔥 CRITICAL FIX: Ensure tiles are fully visible after sweetPopIn
-    // GSAP cleanup can interrupt the pop-in tweens and leave tiles at low alpha
-    try {
-      if (board) {
-        board.alpha = 1;
-        board.visible = true;
-        board.renderable = true;
-      }
-      let fixedCount = 0;
-      for (const t of tiles) {
-        if (!t || t.destroyed) continue;
-        if (t.locked || (t.value | 0) <= 0) continue;
-        if (t.alpha !== 1) { t.alpha = 1; fixedCount++; }
-        if (t.visible !== true) { t.visible = true; fixedCount++; }
-        if (t.renderable === false) { t.renderable = true; fixedCount++; }
-      }
-      if (fixedCount > 0) {
-        console.log(`✅ sweetPopIn: Forced visibility on ${fixedCount} tile props`);
-      }
-    } catch (e) {
-      console.warn('⚠️ sweetPopIn: Failed to force tile visibility:', e);
-    }
+  schedulePopInSafetyNet({
+    tiles,
+    gsap,
+    app,
+    updateGhostVisibility,
+    devWarn,
+    trackAppTimeout,
   });
-  console.log('✅ sweetPopIn started immediately - no waiting');
+  
+  sweetPopPromise.then(() => handleSweetPopInComplete({
+    app,
+    board,
+    tiles,
+    HUD,
+    hudRootFromWindow: (window as any).HUD_ROOT || null,
+    trackAppAnimationFrame,
+    devLog,
+    devWarn,
+    devError,
+    hudDropPending: _hudDropPending,
+    setHudDropPending: (v) => { _hudDropPending = v; },
+  }));
+  devLog('✅ sweetPopIn started immediately - no waiting');
 
   syncSharedState();
 
@@ -2843,198 +2688,70 @@ function rebuildBoard(){
 
 // Board exit animation - reverse of sweetPopIn
 async function animateBoardExit(){
-  console.log('🎬🎬🎬 animateBoardExit() CALLED');
+  devLog('🎬🎬🎬 animateBoardExit() CALLED');
   
   // 🔥 NUCLEAR BAILOUT: If app or stage are destroyed/null, skip animation entirely
   // This prevents crashes when exitToMenu is called after cleanup
   if (!app || !stage || (app as any).destroyed || (stage as any).destroyed) {
-    console.warn('⚠️ animateBoardExit: PIXI app/stage destroyed - skipping animation');
+    devWarn('⚠️ animateBoardExit: PIXI app/stage destroyed - skipping animation');
     return Promise.resolve();
   }
   
   // 🔥 CRITICAL FIX: Ensure canvas/app is visible BEFORE playing exit animation
   // This fixes the bug where board "just disappears" without animation
-  try {
-    const appElement = document.getElementById('app');
-    if (appElement) {
-      appElement.style.display = 'block';
-      appElement.style.visibility = 'visible';
-      appElement.style.opacity = '1';
-      console.log('✅ Board exit: App element visibility ensured');
-    }
-    
-    // Also ensure canvas is visible
-    if (app && app.canvas) {
-      app.canvas.style.display = 'block';
-      app.canvas.style.visibility = 'visible';
-      app.canvas.style.opacity = '1';
-      console.log('✅ Board exit: Canvas visibility ensured');
-    }
-    
-    // Ensure PIXI stage is visible and rendering
-    if (stage) {
-      stage.visible = true;
-      stage.alpha = 1;
-    }
-    if (board) {
-      board.visible = true;
-      board.alpha = 1;
-    }
-    if (hud) {
-      hud.visible = true;
-      hud.alpha = 1;
-    }
-    
-    // Ensure PIXI ticker is running for animations
-    if (app && app.ticker && !app.ticker.started) {
-      app.ticker.start();
-      console.log('✅ Board exit: PIXI ticker restarted for exit animation');
-    }
-  } catch (e) {
-    console.warn('⚠️ Board exit: Error ensuring visibility:', e);
-  }
+  ensureExitVisibility({ app, stage, board, hud, devLog, devWarn });
   
   // CRITICAL: Hide board indicator (board tag) before exit animation
   try {
     const { animateBoardIndicatorExit } = await import('./hud-helpers.js');
     if (typeof animateBoardIndicatorExit === 'function') {
       animateBoardIndicatorExit(0.3);
-      console.log('✅ Board exit: Board indicator exit animation started');
+      devLog('✅ Board exit: Board indicator exit animation started');
     }
   } catch (e) {
-    console.warn('⚠️ Board exit: Error hiding board indicator:', e);
+    devWarn('⚠️ Board exit: Error hiding board indicator:', e);
   }
   
   // CRITICAL: Stop tile idle bounce before exit animation (prevents new smoke bubbles)
   try {
     TILE_IDLE_BOUNCE.stop();
-    console.log('✅ Board exit: Tile idle bounce stopped');
+    devLog('✅ Board exit: Tile idle bounce stopped');
   } catch (e) {
-    console.warn('⚠️ Board exit: Error stopping tile idle bounce:', e);
+    devWarn('⚠️ Board exit: Error stopping tile idle bounce:', e);
   }
   
   // 🔥 BUG FIX: Stop magnet idle particles IMMEDIATELY before exit animation
   // This prevents particles from being visible during exit animation and journey screen enter
-  try {
-    if (STATE && STATE.tiles && STATE.tiles.length > 0) {
-      STATE.tiles.forEach((tile: any) => {
-        try {
-          if (tile && !tile.destroyed && tile.special === 'wild-magnet') {
-            if (typeof stopMagnetIdleParticles === 'function') {
-              stopMagnetIdleParticles(tile);
-              console.log('✅ Board exit: Magnet idle particles stopped for tile');
-            }
-          }
-        } catch (err) {
-          console.warn('⚠️ Board exit: Error stopping magnet idle particles:', err);
-        }
-      });
-      console.log('✅ Board exit: All magnet idle particles stopped');
-    }
-  } catch (e) {
-    console.warn('⚠️ Board exit: Error stopping magnet idle particles:', e);
-  }
-  
-  // CRITICAL: Cleanup smoke bubbles immediately before exit animation
-  try {
-    if (typeof HUD.cleanupSmokeBubbles === 'function') {
-      HUD.cleanupSmokeBubbles();
-      console.log('✅ Board exit: Smoke bubbles cleaned up');
-    }
-  } catch (e) {
-    console.warn('⚠️ Board exit: Error cleaning up smoke bubbles:', e);
-  }
-  
-  // CRITICAL: Hide ghost placeholders before exit animation
-  try {
-    if (backgroundLayer) {
-      backgroundLayer.visible = false;
-    }
-    // Also hide if stored in window._ghostPlaceholders
-    if (window._ghostPlaceholders && Array.isArray(window._ghostPlaceholders)) {
-      window._ghostPlaceholders.forEach((row: any[]) => {
-        row.forEach((ghost: any) => {
-          if (ghost && typeof ghost.visible !== 'undefined') {
-            ghost.visible = false;
-          }
-        });
-      });
-    }
-  } catch (e) {
-    // Silently ignore errors
-  }
-  
-  // 🔥 DEBUG: Check all tile sources to find valid tiles
-  const tilesToAnimate = STATE.tiles || [];
-  const moduleTiles = tiles || [];
-  const windowTiles = (window as any).STATE?.tiles || [];
-  
-  console.log('🔍 Board exit: Tile sources:', {
-    'STATE.tiles': tilesToAnimate.length,
-    'module tiles': moduleTiles.length,
-    'window.STATE.tiles': windowTiles.length,
-    'tilesToAnimate valid': tilesToAnimate.filter((t: any) => t && !t.destroyed).length
+  stopMagnetParticlesOnExit({
+    tiles: STATE?.tiles || [],
+    stopMagnetIdleParticles,
+    devLog,
+    devWarn,
   });
   
-  // 🔥 FALLBACK: If STATE.tiles is empty but module tiles exist, use those
-  const effectiveTiles = tilesToAnimate.length > 0 ? tilesToAnimate : 
-                         (moduleTiles.length > 0 ? moduleTiles : windowTiles);
+  cleanupBeforeBoardExit({ HUD, backgroundLayer, devLog, devWarn });
   
-  console.log('🎯 Board exit: Using', effectiveTiles.length, 'tiles for animation');
-  
-  if (effectiveTiles.length === 0) {
-    console.warn('⚠️ No tiles to animate - skipping tile exit animation');
-    console.warn('⚠️ DEBUG: STATE =', STATE);
-    console.warn('⚠️ DEBUG: tiles module var =', tiles);
-    // Still trigger HUD exit even if no tiles
-    try { 
-      HUD.playHudRise?.({}); 
-      console.log('✅ HUD exit animation started (no tiles)');
-    } catch (e) {
-      console.warn('⚠️ Failed to call HUD.playHudRise:', e);
-    }
-    // 🔥 CRITICAL FIX: Even with no tiles, wait for HUD animation to be visible
-    await new Promise(resolve => trackAppTimeout(resolve, 400));
-    return Promise.resolve();
-  }
-  
-  // 🔥 CRITICAL: Start HUD exit animation IMMEDIATELY (same time as board exit)
-  // This ensures both animations start simultaneously
-  console.log('🎯 Starting HUD exit animation simultaneously with board exit');
-  try { 
-    HUD.playHudRise?.({}); 
-    console.log('✅ HUD exit animation started');
-  } catch (e) {
-    console.warn('⚠️ Failed to call HUD.playHudRise:', e);
-  }
-  
-  // 🔥 CRITICAL FIX: Filter out destroyed/invalid tiles before animation
-  const validTiles = effectiveTiles.filter((t: any) => t && !t.destroyed && t.scale && typeof t.alpha !== 'undefined');
-  console.log('🎯 Board exit: Valid tiles for animation:', validTiles.length, 'of', effectiveTiles.length);
-  
-  if (validTiles.length === 0) {
-    console.warn('⚠️ All tiles are destroyed/invalid - skipping sweetPopOut');
-    // Wait for HUD animation to complete
-    await new Promise(resolve => trackAppTimeout(resolve, 400));
-    return Promise.resolve();
-  }
-  
-  // Play sweetPopOut (board tiles exit animation)
-  // HUD exit already started above, so they run in parallel
-  return sweetPopOut(validTiles, {
-    // No onHalf callback needed - HUD already started above
-  }).then(() => {
-    // CRITICAL: Wait for the longest animation to complete
-    // HUD rise duration: 0.3s (300ms)
-    // sweetPopOut max duration: ~0.38-0.55s
-    // Wait for the longer of the two (sweetPopOut is usually longer)
-    // Add small buffer to ensure both complete
-    const maxAnimationTime = Math.max(550, 300); // sweetPopOut max ~550ms, HUD 300ms
-    console.log(`⏳ Waiting for exit animations to complete (${maxAnimationTime}ms)...`);
-    return new Promise(resolve => {
-      trackAppTimeout(resolve, maxAnimationTime);
-    });
+  const { effectiveTiles, skip } = await selectTilesForExit({
+    STATE,
+    tiles,
+    windowTiles: (window as any).STATE?.tiles || [],
+    devLog,
+    devWarn,
+    HUD,
+    waitTracked,
   });
+  if (skip) return Promise.resolve();
+  
+  startHudExitAnimation({ HUD, devLog, devWarn });
+  
+  await runExitAnimation({
+    tiles: effectiveTiles,
+    sweetPopOut,
+    waitTracked,
+    devLog,
+    devWarn,
+  });
+  return Promise.resolve();
 }
 
 // 🔥 v112: tintLocked moved to app-core-helpers.ts
@@ -3042,247 +2759,101 @@ async function animateBoardExit(){
 // 🔥 v112: randVal moved to app-core-utils.ts
 // Imported: randVal
 function startLevel(n){
-  console.log('🎯 startLevel called with:', n, 'current level:', level, 'current boardNumber:', boardNumber, 'current score:', score);
+  devLog('🎯 startLevel called with:', n, 'current level:', level, 'current boardNumber:', boardNumber, 'current score:', score);
   
-  // Reset global FX layer to avoid stale transforms/masks between boards
-  resetGlobalFxLayer('startLevel');
-  // Avoid double FX cleanup if endgame-flow just cleaned up
-  const lastFxCleanup = (window as any).__ccLastFxCleanupAt || 0;
-  const recentlyCleaned = (Date.now() - lastFxCleanup) < 1000;
-  if (!recentlyCleaned) {
-    cleanupFxForBoardReset('startLevel');
-  } else {
-    console.log('⏭️ startLevel: Skipping cleanupFxForBoardReset (recently cleaned in endgame-flow)');
-  }
-  softResetBoardView('startLevel');
+  runStartLevelFxPrep({
+    resetGlobalFxLayer,
+    cleanupFxForBoardReset,
+    softResetBoardView,
+    devLog,
+  });
   
   // 🔥 CRITICAL FIX: Ensure board and hud are visible BEFORE anything else
   // This fixes the issue where board is hidden after cleanup and not restored
-  if (stage) {
-    stage.visible = true;
-    stage.alpha = 1;
-    stage.renderable = true;
-  }
-  if (board) {
-    board.visible = true;
-    board.alpha = 1;
-    board.renderable = true;
-    // Ensure board is in stage
-    if (!board.parent) {
-      console.warn('⚠️ Board not in stage, adding it...');
-      if (stage) {
-        stage.addChild(board);
-        console.log('✅ Board added to stage');
-      }
-    }
-    console.log('✅ Board made visible in startLevel - visible:', board.visible, 'alpha:', board.alpha, 'renderable:', board.renderable, 'in stage:', !!board.parent);
-  } else {
-    console.error('❌ Board is null in startLevel!');
-  }
-  if (hud) {
-    hud.visible = true;
-    hud.alpha = 1;
-    hud.renderable = true;
-    // Ensure hud is in stage
-    if (!hud.parent) {
-      console.warn('⚠️ HUD not in stage, adding it...');
-      if (stage) {
-        stage.addChild(hud);
-        console.log('✅ HUD added to stage');
-      }
-    }
-    console.log('✅ HUD made visible in startLevel - visible:', hud.visible, 'alpha:', hud.alpha, 'renderable:', hud.renderable, 'in stage:', !!hud.parent);
-  } else {
-    console.error('❌ HUD is null in startLevel!');
-  }
+  ensureStartLevelVisibility({ stage, board, hud, devLog, devWarn, devError });
   
   // 🔥 NOTE: FX cleanup handled centrally via cleanupFxForBoardReset()
   
-  // 🎯 BOARD-SPECIFIC RULES: Set current board for board-specific rules
-  boardNumber = n | 0;
-  boardSpecificRules.setCurrentBoard(boardNumber);
-  console.log(`🎯 Board-specific rules: Set to board ${boardNumber}`);
-  
-  // 🔥 JOURNEY BOARDS: Always reset score to 0 for each board (no accumulation)
-  // Each board is independent with its own score tracking
-  score = 0;
-  STATE.score = 0;
-  console.log(`🎯 startLevel: Reset score to 0 for board ${n} (no accumulation between boards)`);
-  
-  // Clear any preserved score flags
-  delete window.__ccResumeScore;
-  delete window.__ccPreserveScore;
-  
-  level = n; // Set level to the board number
-  boardNumber = n; // Set board number to the level number
-  
-  // 🔥 CRITICAL FIX: Update STATE.boardNumber immediately so layoutBoard() uses correct board number
-  STATE.boardNumber = boardNumber;
-  console.log(`🎯 startLevel: Set boardNumber to ${boardNumber} and synced STATE.boardNumber`);
+  {
+    const next = applyStartLevelState({
+      n,
+      STATE,
+      boardSpecificRules,
+      devLog,
+    });
+    level = next.level;
+    boardNumber = next.boardNumber;
+    score = next.score;
+  }
   
   // 🔥 JOURNEY PROGRESSION: Update currentRunState when starting a level
-  try {
-    import('./journey-progression-state.js').then(({ journeyProgressionState }) => {
-      const currentScore = score || 0;
-      journeyProgressionState.setCurrentRunState(n, currentScore);
-      console.log(`🗺️ Journey: Current run state set for board ${n} with score ${currentScore}`);
-    }).catch((error) => {
-      console.warn('⚠️ Failed to update Journey progression state in startLevel:', error);
-    });
-  } catch (error) {
-    console.warn('⚠️ Failed to update Journey progression state in startLevel:', error);
-  }
+  updateJourneyRunState({ n, score, devLog, devWarn });
   
   // STATS TRACKING: Update highest board reached
-  console.log('🎯 Updating highest board to:', n);
-  try {
-    statsService.updateHighestBoard(n);
-    console.log('✅ Highest board updated successfully');
-  } catch (error) {
-    console.error('❌ Failed to update highest board:', error);
-  }
+  updateStartLevelStats({ n, statsService, devLog, devError });
   
-  // 🔥 JOURNEY BOARDS: Increment times played for this board
-  try {
-    import('../services/board-stats-service.js').then(({ boardStatsService }) => {
-      boardStatsService.incrementBoardTimesPlayed(n);
-      console.log(`🎮 Board ${n} times played incremented`);
-    }).catch(() => {
-      // Ignore import errors
-    });
-  } catch {}
-  
-  // 🗺️ JOURNEY PROGRESSION: Unlock journey boards based on boardNumber
-  // Unlock all boards up to and including the current boardNumber
-  import('./journey-boards-manager.js').then(({ journeyBoardsManager }) => {
-    try {
-      journeyBoardsManager.syncWithGameProgress(n);
-      
-      // Update journey badge count (slideIndex 1 = Journey)
-      // Show NEWLY unlocked boards count (excluding board 1 and already viewed boards) as badge
-      // This ensures badge only shows boards that haven't been viewed yet
-      const newlyUnlockedCount = journeyBoardsManager.getNewlyUnlockedCount();
-      if (typeof (window as any).updateNavBadge === 'function') {
-        (window as any).updateNavBadge(newlyUnlockedCount, 1); // Pass slideIndex 1 for Journey
-        console.log(`🗺️ Journey badge updated: ${newlyUnlockedCount} newly unlocked boards (not yet viewed)`);
-      }
-    } catch (error) {
-      console.warn('⚠️ Failed to sync journey boards with game progress:', error);
-    }
-  }).catch((error) => {
-    console.warn('⚠️ Failed to import journey boards manager:', error);
-  });
+  incrementBoardTimesPlayed({ n, devLog });
+  syncJourneyBoards({ n, devLog, devWarn });
   
   moves = MOVES_MAX;
   // 🔥 CRITICAL: Don't reset busyEnding here - let runEndgameFlow handle it in finally block
   // busyEnding = false; // REMOVED - runEndgameFlow resets it in finally block
   hudResetCombo();
-  console.log('🎯 startLevel updated - level:', level, 'boardNumber:', boardNumber, 'score preserved:', score);
-  try { 
-    if (comboIdleTimer) {
-      if (typeof comboIdleTimer.kill === 'function') {
-        comboIdleTimer.kill();
-      } else if (typeof comboIdleTimer === 'number') {
-        clearTimeout(comboIdleTimer);
-      }
-    }
-  } catch {}
+  devLog('🎯 startLevel updated - level:', level, 'boardNumber:', boardNumber, 'score preserved:', score);
+  clearComboIdleTimer({ comboIdleTimer });
   
-wildMeter = 0;
-  resetWildProgress(0, false);
-  wildBeerSpawned = false; // Reset wild-beer spawn tracking
-  wildMagnetSpawned = false; // Reset wild-magnet spawn tracking
-  firstWildSpawned = false; // 🔥 USER REQUEST: Reset first wild spawn tracking for new level
-  
-  // Clear end game cache when starting new level
-  clearEndGameCache();
+  resetWildAndEndgameState({
+    setWildMeter: (v) => { wildMeter = v; },
+    resetWildProgress,
+    setWildBeerSpawned: (v) => { wildBeerSpawned = v; },
+    setWildMagnetSpawned: (v) => { wildMagnetSpawned = v; },
+    setFirstWildSpawned: (v) => { firstWildSpawned = v; },
+    clearEndGameCache,
+  });
   
   // 🔥 CRITICAL FIX: Skip rebuildBoard if loading saved state
   // This prevents creating an empty board before loadGameState restores tiles
-  // 🔥 JOURNEY PROGRESSION: Check if HUD drop should be triggered (from Journey Play Board)
-  if (window.__ccTriggerHudDrop) {
-    _hudDropPending = true;
-    logger.debug('✅ HUD drop pending set to true (from Journey Play Board)', 'app-core');
-    delete window.__ccTriggerHudDrop;
-    _hudInitDone = false;
-    try {
-      const hudRoot = (window as any).HUD_ROOT ?? HUD.HUD_ROOT ?? null;
-      if (hudRoot && !(hudRoot as { destroyed?: boolean }).destroyed) {
-        const top = hudRoot._dropTop ?? 44;
-        try { gsap.killTweensOf(hudRoot); } catch {}
-        hudRoot._dropped = false;
-        hudRoot.alpha = 0;
-        hudRoot.y = top - 140;
-        hudRoot.visible = true;
-      }
-    } catch {}
-  }
-  
-  const skipRebuild = window.__ccSkipRebuildBoard;
-  if (skipRebuild) {
-    logger.debug('🎯 Skipping rebuildBoard() - will load saved state instead', 'app-core');
-    // 🔥 CRITICAL FIX: Don't delete __ccSkipRebuildBoard here - let main.ts handle it after loadGameState()
-    // This ensures loadGameState() can be called after bootGame() completes
-    // window.__ccSkipRebuildBoard will be deleted in main.ts after loadGameState()
-  } else {
-    // Start animation immediately - no delay
-    rebuildBoard();
-  }
-  
-  // CRITICAL: Save game state immediately after starting Board 2+ to enable resume
-  // This ensures that if user exits without making moves, they can still continue
-  if (boardNumber >= 2) {
-    console.log('💾 Board 2+ started, forcing immediate save for resume capability');
-    // Force save with minimal delay to ensure user can exit immediately and resume later
-    trackAppTimeout(() => {
-      saveGameState();
-      console.log('✅ Game state saved after Board 2+ start');
-    }, 100); // Reduced from 500ms to 100ms for faster save
-  } 
-
-  syncSharedState();
-  updateHUD();
-  
-  // Ensure layout and background layer are initialized once per startLevel
-  layoutBoard().catch(err => {
-    console.error('❌ Error in layoutBoard() during startGame:', err);
+  handleStartLevelHudDrop({
+    HUD,
+    gsap,
+    logger,
+    getHudRootFromWindow: () => (window as any).HUD_ROOT,
+    isTriggerHudDrop: () => !!(window as any).__ccTriggerHudDrop,
+    clearTriggerHudDrop: () => { delete (window as any).__ccTriggerHudDrop; },
+    setHudDropPending: (v) => { _hudDropPending = v; },
+    setHudInitDone: (v) => { _hudInitDone = v; },
   });
-  if (!backgroundLayer) {
-    initializeBackgroundLayer();
-  }
-  if (backgroundLayer) {
-    backgroundLayer.visible = true;
-    backgroundLayer.zIndex = -10000;
-    try {
-      if (board && board.children.includes(backgroundLayer)) {
-        board.removeChild(backgroundLayer);
-      }
-      if (board) {
-        board.addChildAt(backgroundLayer, 0);
-        board.sortChildren();
-      }
-    } catch {}
-  }
-  try { updateGhostVisibility(); } catch {}
   
-  try {
-    const hudRoot = (window as any).HUD_ROOT ?? HUD.HUD_ROOT ?? null;
-    if (hudRoot && !(hudRoot as { destroyed?: boolean }).destroyed) {
-      if (!_hudDropPending) {
-        const top = hudRoot._dropTop ?? 44;
-        hudRoot.y = top;
-        hudRoot.alpha = 1;
-        hudRoot.visible = true;
-        hudRoot._dropped = true;
-      } else {
-        const top = hudRoot._dropTop ?? 44;
-        hudRoot.visible = true;
-        hudRoot.alpha = 0;
-        hudRoot.y = top - 140;
-        hudRoot._dropped = false;
-      }
-    }
-  } catch {}
+  maybeRebuildBoard({
+    rebuildBoard,
+    logger,
+    getSkipRebuildFlag: () => !!(window as any).__ccSkipRebuildBoard,
+  });
+  
+  saveAfterBoardStart({
+    boardNumber,
+    trackAppTimeout,
+    saveGameState,
+    devLog,
+  });
+
+  runStartLevelPost({ syncSharedState, updateHUD });
+  
+  ensureStartLevelLayout({
+    layoutBoard,
+    initializeBackgroundLayer,
+    board,
+    backgroundLayer,
+    setBackgroundLayer: (v) => { backgroundLayer = v; },
+    updateGhostVisibility,
+    devError,
+  });
+  
+  syncHudRootVisibility({
+    HUD,
+    getHudRootFromWindow: () => (window as any).HUD_ROOT,
+    isHudDropPending: () => _hudDropPending,
+  });
   
   // layoutBoard() already called above; avoid duplicate on board 1
   
@@ -3292,341 +2863,69 @@ wildMeter = 0;
 
 // --- local Wild skin fallback
 function applyWildSkinLocal(tile){
-  try{
-  // 🔥 CRITICAL: Use appropriate texture based on special type
-  // Wild-beer MUST always use wild-beer.png texture
-  let assetPath = ASSET_WILD;
-  if (tile.special === 'wild-magnet') {
-    assetPath = ASSET_WILD_MAGNET;
-  } else if (tile.special === 'wild-beer') {
-      assetPath = ASSET_WILD_BEER;
-    }
-    
-    const tex = Assets.get(assetPath) || Texture.from(assetPath);
-    if (!tex || !tile) return;
-    const host = tile.rotG || tile;
-    let base = tile.base;
-    if (!base){
-      base = host.children?.find(c => c.texture instanceof Texture) || null;
-      if (base) tile.base = base;
-    }
-    
-    // 🔥 CRITICAL: Always set wild-beer texture and ensure it's visible
-    // This MUST be called every time to ensure texture is never lost
-    if (base && tex && tex !== Texture.EMPTY){ 
-      // Force set texture even if it's already set (prevents texture loss)
-      base.texture = tex; 
-      base.tint = 0xFFFFFF; 
-      base.alpha = 1;
-      base.visible = true;
-      // Optimize texture for pixel-perfect rendering
-      if (base.texture && base.texture.baseTexture) {
-        base.texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
-      }
-    }
-    
-    // 🔥 CRITICAL: Hide pips and num for wild tiles
-    if (tile.num) tile.num.visible = false;
-    if (tile.pips) {
-      tile.pips.visible = false;
-      tile.pips.clear?.(); // Clear pips to prevent them from showing
-    }
-    tile.isWildFace = true;
-  
-  // Wild-magnet grab reliability: ensure hit area and pointer mode are solid
-  if (tile.special === 'wild-magnet') {
-    const host = tile.rotG || tile;
-    const hitSize = TILE * 1.10; // 🔥 INCREASED: 10% larger hit box for easier tap (was 1.05)
-    const half = hitSize / 2;
-    const hitArea = new Rectangle(-half, -half, hitSize, hitSize);
-    tile.hitArea = hitArea;
-    if (host) host.hitArea = hitArea;
-    // 🔥 CRITICAL: Ensure eventMode is set to 'static' for touch events
-    tile.eventMode = 'static';
-    tile.cursor = 'pointer';
-    if (host && (host as any).eventMode !== 'static') {
-      (host as any).eventMode = 'static';
-      (host as any).cursor = 'pointer';
-    }
-    // 🔥 CRITICAL: Ensure all children have eventMode = 'none' to prevent blocking touch events
-    if (tile.children) {
-      tile.children.forEach((child: any) => {
-        if (child && child !== host) {
-          try {
-            child.eventMode = 'none';
-            child.cursor = 'default';
-            if (child.interactiveChildren !== undefined) {
-              child.interactiveChildren = false;
-            }
-          } catch {}
-        }
-      });
-    }
-  }
-  
-  try {
-    startWildShimmer(tile); // Use shimmer instead of bounce
-    // 🔥 WILD-BEER: Use bubbles animation instead of rotating stars
-    if (tile.special === 'wild-beer') {
-        startWildBeerBubbles(tile);
-      } else {
-        startWildStars(tile);
-      }
-      // 🔥 NEW: Start magnet idle particles animation (24% intensity)
-      // 🔥 CRITICAL: Start particles AFTER ensuring eventMode is set correctly
-      if (tile.special === 'wild-magnet') {
-        // Use requestAnimationFrame to ensure tile is fully set up before starting particles
-        trackAppAnimationFrame(() => {
-          try {
-        startMagnetIdleParticles(tile);
-          } catch (err) {
-            console.warn('⚠️ Failed to start magnet idle particles:', err);
-          }
-        });
-      }
-    } catch {}
-  }catch{}
+  applyWildSkinLocalCore(tile, {
+    Assets,
+    Texture,
+    Rectangle,
+    SCALE_MODES,
+    ASSET_WILD,
+    ASSET_WILD_MAGNET,
+    ASSET_WILD_BEER,
+    TILE,
+    startWildShimmer,
+    startWildBeerBubbles,
+    startWildStars,
+    startMagnetIdleParticles,
+    trackAppAnimationFrame,
+    devWarn,
+  });
 }
 
 // Electric glow effect for wild-magnet tiles
 function addElectricGlow(tile){
-  try {
-    // Remove existing glow if present
-    if (tile._electricGlow) {
-      try {
-        tile._electricGlow.parent?.removeChild(tile._electricGlow);
-        tile._electricGlow.destroy();
-      } catch {}
-    }
-    if (tile._glowAnimation) {
-      tile._glowAnimation.kill();
-    }
-    
-    const glowContainer = new Container();
-    glowContainer.zIndex = -1; // Behind tile
-    tile._electricGlow = glowContainer;
-    
-    const host = tile.rotG || tile;
-    if (host && host.addChild) {
-      host.addChildAt(glowContainer, 0);
-    }
-    
-    // Create 4 glow rings with different phases
-    const rings = [];
-    const colors = [0xF26034, 0xE97A55, 0xFF8C5A, 0xF26034]; // Red-orange spectrum
-    
-    for (let i = 0; i < 4; i++) {
-      const ring = new Graphics();
-      const radius = 50 + i * 4;
-      const thickness = 2 + Math.random() * 2;
-      
-      // Draw circle with segments for jittery effect
-      const segments = 32;
-      for (let s = 0; s < segments; s++) {
-        const angle1 = (s / segments) * Math.PI * 2;
-        const angle2 = ((s + 1) / segments) * Math.PI * 2;
-        
-        const x1 = Math.cos(angle1) * radius;
-        const y1 = Math.sin(angle1) * radius;
-        const x2 = Math.cos(angle2) * radius;
-        const y2 = Math.sin(angle2) * radius;
-        
-        ring.moveTo(x1, y1);
-        ring.lineTo(x2, y2);
-      }
-      
-      ring.stroke({ width: thickness, color: colors[i], alpha: 0.3 });
-      ring.alpha = 0.5;
-      glowContainer.addChild(ring);
-      rings.push(ring);
-    }
-    
-    // Animate rings with jittery pulsing effect
-    const tl = animationManager.trackExternalTimeline(gsap.timeline({ repeat: -1 }));
-    
-    rings.forEach((ring, index) => {
-      const delay = index * 0.1;
-      const baseRadius = 50 + index * 4;
-      
-      // Jittery pulsing animation
-      tl.to(ring.scale, {
-        x: 1.12,
-        y: 1.12,
-        duration: 0.6 + Math.random() * 0.3,
-        ease: 'power2.inOut',
-        repeat: -1,
-        yoyo: true,
-        delay: delay,
-        modifiers: {
-          x: () => ring.scale.x + (Math.random() - 0.5) * 0.02, // Jitter
-          y: () => ring.scale.y + (Math.random() - 0.5) * 0.02  // Jitter
-        }
-      }, 0);
-      
-      tl.to(ring, {
-        alpha: 0.2 + Math.random() * 0.3,
-        duration: 0.4 + Math.random() * 0.2,
-        ease: 'power2.inOut',
-        repeat: -1,
-        yoyo: true,
-        delay: delay
-      }, 0);
-      
-      // Random rotation for electric effect
-      tl.to(ring, {
-        rotation: Math.PI * 2,
-        duration: 3 + Math.random() * 2,
-        ease: 'none',
-        repeat: -1
-      }, 0);
-    });
-    
-    tile._glowAnimation = tl;
-  } catch (error) {
-    console.warn('⚠️ Failed to add electric glow:', error);
-  }
+  addElectricGlowCore({
+    tile,
+    Container,
+    Graphics,
+    gsap,
+    animationManager,
+    devWarn,
+  });
 }
 
 function bindTileWithFallback(tile, skipBind){
-  const attemptBind = () => {
-    if (drag && typeof drag.bindToTile === 'function') {
-      drag.bindToTile(tile);
-      return true;
-    }
-    return false;
-  };
-
-  if (!skipBind || !(drag && drag.t)) {
-    attemptBind();
-    return;
-  }
-
-  let attempts = 0;
-  const maxAttempts = 60;
-  const schedule = (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function')
-    ? trackAppAnimationFrame
-    : (cb) => trackAppTimeout(cb, 16);
-
-  const retry = () => {
-    if (!drag?.t || attempts >= maxAttempts) {
-      attemptBind();
-      return;
-    }
-    attempts += 1;
-    schedule(retry);
-  };
-
-  retry();
+  bindTileWithFallbackCore({
+    tile,
+    skipBind,
+    drag,
+    trackAppAnimationFrame,
+    trackAppTimeout,
+  });
 }
 
 // --- spawn exactly at grid cell ---
 function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWildBeer=false, skipBind=false, timeScale=1.0 } = {}){
-  return new Promise((resolve)=>{
-    let holder = grid?.[r]?.[c] || null;
-
-    // 🔥 CRITICAL FIX v40.6: Check BOTH locked AND unlocked tiles for active tiles
-    // Problem: Spawning on locked tiles with value > 0 or wild tiles causes "2 tiles on same position" bug
-    // Solution: ALWAYS check if tile has value > 0 or is wild, regardless of locked status
-    if (holder) {
-      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-beer' || holder.isWild === true || holder.isWildFace === true;
-      const hasValue = (holder.value|0) > 0;
-      
-      // 🔥 CRITICAL: NEVER spawn on a tile that has value > 0 or is wild, even if it's locked!
-      // Locked tiles with value > 0 are active tiles (e.g., during animations)
-      // Spawning on them would create "2 tiles on same position" bug
-      if (hasValue || isWildTile) {
-        console.warn('⚠️ openAtCell: Cell already occupied by active tile:', {
-          c, r,
-          holderValue: holder.value,
-          holderSpecial: holder.special,
-          holderLocked: holder.locked,
-          hasValue,
-          isWildTile,
-          reason: hasValue ? 'hasValue' : 'isWildTile'
-        });
-        resolve(false);
-        return;
-      }
-      
-      // 🔥 CRITICAL: If holder is NOT locked, it means it's an active tile (should not happen, but safety check)
-      if (!holder.locked) {
-        console.warn('⚠️ openAtCell: Cell has unlocked holder without value - this should not happen:', {
-          c, r,
-          holderValue: holder.value,
-          holderSpecial: holder.special,
-          holderLocked: holder.locked
-        });
-        resolve(false);
-        return;
-      }
-    }
-
-    if (!holder) holder = makeBoard.createTile({ board, grid, tiles, c, r, val:0, locked:true });
-
-    holder.locked = false;
-    holder.eventMode = 'static';
-    holder.cursor = 'pointer';
-    bindTileWithFallback(holder, skipBind);
-    
-    // 🔥 CRITICAL FIX: Clear magnet flags from holder before spawning
-    // This prevents spawned tiles from inheriting flags from previous magnet pull
-    delete holder._wildMagnetAffected;
-    delete holder._wildMagnetOriginalX;
-    delete holder._wildMagnetOriginalY;
-    delete holder._mergeTriggered75;
-    delete holder._skipIdleScaleReset;
-    delete holder._wildMagnetMergeCallback;
-    delete holder._wildMagnetPulledTilesMerge;
-    delete holder._wildMagnetPulledTilesScoring;
-
-    if (isWild || isWildMagnet || isWildBeer){
-      // 🔥 CRITICAL: Set special BEFORE setValue to ensure correct texture is applied
-      holder.special = isWildBeer ? 'wild-beer' : (isWildMagnet ? 'wild-magnet' : 'wild');
-      holder.isWild = true;
-      holder.isWildFace = true;
-      holder.value = 6;
-      // Now setValue will check special FIRST and apply correct wild texture
-      makeBoard.setValue(holder, 6, 0);
-      // Always use applyWildSkinLocal to ensure correct texture is applied (double-check)
-      applyWildSkinLocal(holder);
-      try {
-        startWildShimmer(holder); // Use shimmer instead of bounce
-        // 🔥 WILD-BEER: Use bubbles animation instead of rotating stars
-        if (holder.special === 'wild-beer') {
-          startWildBeerBubbles(holder);
-        } else {
-          startWildStars(holder);
-        }
-      } catch {}
-    } else {
-      const v = (value == null) ? [1,2,3,4,5][(Math.random()*5)|0] : value;
-      makeBoard.setValue(holder, v, 0);
-    }
-
-    holder.visible = true;
-    holder.alpha = 0;
-    SPAWN.spawnBounce(holder, gsap, { max: 1.08, compress: 0.96, rebound: 1.02, startScale: 0.30, wiggle: 0.035, fadeIn:0.10, timeScale: timeScale }, () => {
-      holder.alpha = 1;
-      resolve(true);
-    });
+  return openAtCellCore({
+    c,
+    r,
+    options: { value, isWild, isWildMagnet, isWildBeer, skipBind, timeScale },
+    grid,
+    board,
+    tiles,
+    makeBoard,
+    devWarn,
+    bindTileWithFallback,
+    applyWildSkinLocal,
+    startWildShimmer,
+    startWildBeerBubbles,
+    startWildStars,
+    SPAWN,
+    gsap,
   });
 }
 
-function randomEmptyCell(){
-  const empties = [];
-  for (let r=0;r<ROWS;r++){
-    for(let c=0;c<COLS;c++){
-      const t = grid[r][c];
-      const isGhost = !!(t && t.locked === true);
-      const isMissing = !t;
-      const isZero = !!(t && (t.value|0) <= 0);
-      const isWildTile = !!(t && !t.locked && (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.isWild === true || t.isWildFace === true));
-      const isActive = !!(t && !t.locked && (t.value|0) > 0);
-      if (!isActive && !isWildTile && (isGhost || isMissing || isZero)) empties.push({ c, r });
-    }
-  }
-  if (!empties.length) return null;
-  return empties[(Math.random()*empties.length)|0];
+function randomEmptyCell(excludeCells?: { r: number; c: number }[]){
+  return getRandomEmptyCell({ ROWS, COLS, grid, excludeCells });
 }
 
 // Track if wild-beer has been spawned (first wild spawn should be wild-beer)
@@ -3640,7 +2939,7 @@ const WILD_BEER_RESPAWN_CHANCE = 0.4; // 40% chance wild-beer spawns again after
 
 async function spawnWildFromMeter(){
   if (wildMeter < 1) {
-    console.log('⚠️ spawnWildFromMeter called without enough charge. Raw meter:', wildMeter);
+    devLog('⚠️ spawnWildFromMeter called without enough charge. Raw meter:', wildMeter);
     return false;
   }
   
@@ -3651,32 +2950,31 @@ async function spawnWildFromMeter(){
   // 🔥 CRITICAL FIX: Skip wild spawn if last merge is in progress
   // Problem: Last merge (2 tiles) → merge6 → wild meter se puni → wild spawn → nova kockica na board prije clean board!
   // Solution: Provjeri da li postoji merge6 tile s _isLastMerge flag-om
-  const hasLastMergeTile = STATE.tiles.some((t: any) => t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true);
-  if (hasLastMergeTile) {
-    console.log('🚨🚨🚨 SOURCE OF TRUTH: Preload bar blocked - last merge detected (_isLastMerge flag)');
-    console.log('🎯 Source of Truth: Case B — 2 tiles stack → result = 6 (NO PRELOAD SPAWN)');
-    console.log('🚨🚨🚨 Wild spawn will NOT be executed, preventing wild spawn on last merge');
-    return false;
-  }
+  if (hasLastMergeTile({ tiles: STATE.tiles, devLog })) return false;
 
-  const consumeCharge = () => {
-    const leftover = Math.max(0, wildMeter - 1);
-    wildMeter = leftover;
-    STATE.wildMeter = leftover;
-    resetWildProgress(leftover, true);
-  };
+  const consumeCharge = () => consumeWildCharge({
+    wildMeter,
+    setWildMeter: (v) => { wildMeter = v; },
+    setStateWildMeter: (v) => { STATE.wildMeter = v; },
+    resetWildProgress,
+  });
 
   const attempted = new Set();
   const maxAttempts = 12;
   let tries = 0;
   let spawned = false;
   let lastCell = null;
-  
+  // 🔥 CRITICAL: Exclude drag-origin when drag is active — grid is temporarily null there, must not spawn wild on it
+  const excludeCells: { r: number; c: number }[] = [];
+  if (drag && (drag as any).t && typeof (drag as any).startGX === 'number' && typeof (drag as any).startGY === 'number') {
+    excludeCells.push({ r: (drag as any).startGY, c: (drag as any).startGX });
+  }
+
   while (tries < maxAttempts && !spawned) {
-    const cell = randomEmptyCell();
+    const cell = randomEmptyCell(excludeCells.length ? excludeCells : undefined);
     if (!cell) {
       tries++;
-      await new Promise(r => trackAppTimeout(r, 40));
+      await waitTracked(40);
       continue;
     }
     const key = `${cell.c},${cell.r}`;
@@ -3688,88 +2986,18 @@ async function spawnWildFromMeter(){
     lastCell = cell;
 
     try {
-      // 🎯 BOARD-SPECIFIC RULES: Determine wild type based on board rules
-      let spawnBeer = false;
-      let spawnMagnet = false;
-      
-      // 🔥 USER REQUEST: On board 1, first wild spawn is always magnet
-      if (!firstWildSpawned && boardNumber === 1) {
-        spawnBeer = false;
-        spawnMagnet = true;
-        console.log('🧲 Board 1: First wild spawn: Forcing wild-magnet');
-      } else if (!firstWildSpawned) {
-        // 🔥 USER REQUEST: First wild spawn on other boards is always wild zvjezdica (not wild-beer, not wild-magnet)
-        spawnBeer = false;
-        spawnMagnet = false;
-        console.log('⭐ First wild spawn: Forcing wild zvjezdica (stars)');
-      } else if (boardNumber === 3) {
-      // 🎯 BOARD 3: Force wild-beer only (check first, before default logic)
-        spawnBeer = true;
-        spawnMagnet = false;
-        console.log('🎯 Board 3: Forcing wild-beer spawn only');
-      } else {
-        // 🔥 USER REQUEST: Always random wild spawn - 40% beer, 40% wild (stars), 20% magnet
-        const randomRoll = Math.random();
-        let preferredBeer = false;
-        let preferredMagnet = false;
-        let preferredWild = false;
-        
-        if (randomRoll < 0.4) {
-          // 0-0.4 = 40% chance for beer
-          preferredBeer = true;
-        } else if (randomRoll < 0.8) {
-          // 0.4-0.8 = 40% chance for wild (stars)
-          preferredWild = true;
-        } else {
-          // 0.8-1.0 = 20% chance for magnet
-          preferredMagnet = true;
-        }
-        
-        // Apply board-specific rules
-        if (preferredBeer) {
-          const filtered = filterWildType('wild-beer', boardNumber);
-          spawnBeer = filtered === 'wild-beer';
-          spawnMagnet = false;
-        } else if (preferredMagnet) {
-          const filtered = filterWildType('wild-magnet', boardNumber);
-          spawnMagnet = filtered === 'wild-magnet';
-          spawnBeer = false;
-        } else if (preferredWild) {
-          // Regular wild (stars) - check if allowed
-          const filtered = filterWildType('wild', boardNumber);
-          if (filtered === 'wild-beer') {
-            spawnBeer = true;
-            spawnMagnet = false;
-          } else if (filtered === 'wild-magnet') {
-            spawnMagnet = true;
-            spawnBeer = false;
-          } else if (filtered === 'wild') {
-            // Regular wild allowed (stars)
-            spawnBeer = false;
-            spawnMagnet = false;
-          } else {
-            // No wild type allowed for this board - should not happen if we got here
-            console.warn(`⚠️ Board ${boardNumber}: No wild type allowed, but spawn was attempted`);
-            tries++;
-            continue;
-          }
-        } else {
-          // Fallback: use filterWildType with 'wild'
-          const filtered = filterWildType('wild', boardNumber);
-          if (filtered === 'wild-beer') {
-            spawnBeer = true;
-          } else if (filtered === 'wild-magnet') {
-            spawnMagnet = true;
-          } else if (filtered === 'wild') {
-            // Regular wild allowed
-          } else {
-            // No wild type allowed for this board - should not happen if we got here
-            console.warn(`⚠️ Board ${boardNumber}: No wild type allowed, but spawn was attempted`);
-            tries++;
-            continue;
-          }
-        }
+      const decided = decideWildType({
+        boardNumber,
+        firstWildSpawned,
+        filterWildType,
+        devLog,
+        devWarn,
+      });
+      if (!decided) {
+        tries++;
+        continue;
       }
+      const { spawnBeer, spawnMagnet } = decided;
       
       const ok = await openAtCell(cell.c, cell.r, { 
         isWild: true, 
@@ -3789,34 +3017,34 @@ async function spawnWildFromMeter(){
         
         if (spawnBeer) {
           wildBeerSpawned = true; // Mark as spawned (but can spawn again)
-          console.log('🍺 Wild-beer spawned (40% random chance)');
+          devLog('🍺 Wild-beer spawned (40% random chance)');
           // No board shake on spawn - only on merge 6
         } else if (spawnMagnet) {
           wildMagnetSpawned = true; // Mark as spawned
           if (wasFirstWild && boardNumber === 1) {
-            console.log('🧲 Board 1: First wild-magnet spawned from preloader');
+            devLog('🧲 Board 1: First wild-magnet spawned from preloader');
           } else {
-            console.log('🧲 Wild-magnet spawned (20% random chance)');
+            devLog('🧲 Wild-magnet spawned (20% random chance)');
           }
         } else {
           if (wasFirstWild) {
-            console.log('⭐ First wild spawned: wild zvjezdica (stars)');
+            devLog('⭐ First wild spawned: wild zvjezdica (stars)');
           } else {
-            console.log('⭐ Regular wild spawned (40% random chance - stars)');
+            devLog('⭐ Regular wild spawned (40% random chance - stars)');
           }
         }
       } else {
-        console.warn('⚠️ Wild spawn skipped (cell no longer empty):', cell);
+        devWarn('⚠️ Wild spawn skipped (cell no longer empty):', cell);
         tries++;
       }
     } catch (error) {
-      console.warn('⚠️ Wild spawn attempt failed at', cell, error);
+      devWarn('⚠️ Wild spawn attempt failed at', cell, error);
       tries++;
     }
   }
 
   if (!spawned) {
-    console.warn('🚨 CRITICAL: Unable to spawn wild cube after', tries, 'attempts. Meter remains at', wildMeter);
+    devWarn('🚨 CRITICAL: Unable to spawn wild cube after', tries, 'attempts. Meter remains at', wildMeter);
     return false;
   }
 
@@ -3825,7 +3053,7 @@ async function spawnWildFromMeter(){
     wildSpawnRetryTimer = null;
   }
 
-  console.log('✅ Wild cube spawned successfully at', lastCell?.c, lastCell?.r, 'Leftover meter:', wildMeter);
+  devLog('✅ Wild cube spawned successfully at', lastCell?.c, lastCell?.r, 'Leftover meter:', wildMeter);
   return true;
 }
 
@@ -3833,7 +3061,12 @@ async function spawnWildFromMeter(){
 
 // 🔥 v112: pickWildValue moved to app-core-utils.ts
 // Imported: pickWildValue
-function merge(src, dst, helpers){
+function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
+  const __replayToken = replayRecorder.beginStep('merge', {
+    src: src ? { gridX: src.gridX, gridY: src.gridY, value: src.value, special: src.special } : null,
+    dst: dst ? { gridX: dst.gridX, gridY: dst.gridY, value: dst.value, special: dst.special } : null,
+  });
+  try {
   logger.debug('🔥🔥🔥 MERGE FUNCTION CALLED', 'app-core', { srcValue: src?.value, dstValue: dst?.value });
   logger.debug('🔥🔥🔥 MERGE DESTINATION CHECK', 'app-core', {
     hasDst: !!dst,
@@ -3849,8 +3082,8 @@ function merge(src, dst, helpers){
   // 🔥 BUG FIX: Prevent duplicate spawns when wild star/beer are used rapidly
   // If spawn is in progress from previous merge, block new merge to prevent duplicate spawns
   if (merge6SpawnInProgress) {
-    console.warn('🚨🚨🚨 MERGE BLOCKED: Spawn in progress from previous merge - preventing duplicate spawn');
-    console.warn('⚠️ This prevents bug where rapid wild star/beer clicks cause duplicate spawns');
+    devWarn('🚨🚨🚨 MERGE BLOCKED: Spawn in progress from previous merge - preventing duplicate spawn');
+    devWarn('⚠️ This prevents bug where rapid wild star/beer clicks cause duplicate spawns');
     helpers.snapBack?.(src);
     return;
   }
@@ -3858,7 +3091,7 @@ function merge(src, dst, helpers){
   
   // CRITICAL: Validate that both tiles are valid and merge is allowed
   if (!src || !dst || src.destroyed || dst.destroyed) {
-    console.warn('⚠️ MERGE: Invalid tiles - src:', src, 'dst:', dst);
+    devWarn('⚠️ MERGE: Invalid tiles - src:', src, 'dst:', dst);
     if (src && !src.destroyed) helpers.snapBack?.(src);
     return;
   }
@@ -3871,9 +3104,9 @@ function merge(src, dst, helpers){
   // 🛡️ CRITICAL: Block merge if only ONE tile is wild-magnet affected (protected tile cannot merge with others)
   // Protected tiles can only merge with other protected tiles (pulled tiles merge)
   if ((srcIsWildMagnetAffected && !dstIsWildMagnetAffected) || (!srcIsWildMagnetAffected && dstIsWildMagnetAffected)) {
-    console.warn('🛡️ MERGE BLOCKED: Only one tile is wild-magnet affected (protected tile cannot merge with others)');
-    console.warn('⚠️ Source protected:', srcIsWildMagnetAffected, 'Destination protected:', dstIsWildMagnetAffected);
-    console.warn('⚠️ Protected tiles can only merge with other protected tiles (pulled tiles merge)');
+    devWarn('🛡️ MERGE BLOCKED: Only one tile is wild-magnet affected (protected tile cannot merge with others)');
+    devWarn('⚠️ Source protected:', srcIsWildMagnetAffected, 'Destination protected:', dstIsWildMagnetAffected);
+    devWarn('⚠️ Protected tiles can only merge with other protected tiles (pulled tiles merge)');
     helpers.snapBack?.(src);
     return;
   }
@@ -3882,12 +3115,12 @@ function merge(src, dst, helpers){
   // BUT: For pulled tiles merge (both wild-magnet affected), allow merge even if dst is locked/value 0
   if (dst.locked || (dst.value | 0) <= 0) {
     if (!isPulledTilesMerge) {
-      console.warn('🚨🚨🚨 MERGE BLOCKED: Destination is locked or has value 0');
-      console.warn('⚠️ Destination:', { locked: dst.locked, value: dst.value, gridX: dst.gridX, gridY: dst.gridY });
+      devWarn('🚨🚨🚨 MERGE BLOCKED: Destination is locked or has value 0');
+      devWarn('⚠️ Destination:', { locked: dst.locked, value: dst.value, gridX: dst.gridX, gridY: dst.gridY });
       helpers.snapBack?.(src);
       return;
     } else {
-      console.log('🧲 MERGE: Allowing pulled tiles merge even if dst is locked/value 0 (both are wild-magnet affected)');
+      devLog('🧲 MERGE: Allowing pulled tiles merge even if dst is locked/value 0 (both are wild-magnet affected)');
     }
   }
   
@@ -3901,7 +3134,7 @@ function merge(src, dst, helpers){
   
   // 🔥 NEW: Allow wild star to merge with merge 6 tile
   if ((srcIsWild && dstIsMerge6) || (dstIsWild && srcIsMerge6)) {
-    console.log('⭐ MERGE ALLOWED: Wild star merging with merge 6 tile');
+    devLog('⭐ MERGE ALLOWED: Wild star merging with merge 6 tile');
     // Allow this merge - it will create a new merge 6
   } else if ((srcIsWild && dstIsWild) || 
       (src?.special === 'wild-magnet' && dst?.special === 'wild-magnet') ||
@@ -3909,11 +3142,11 @@ function merge(src, dst, helpers){
       (src?.special === 'wild-magnet' && dstIsWild)){ 
     // CRITICAL: If both tiles are wild-magnet affected (pulled tiles), allow merge even if wild/wild
     if (!isPulledTilesMerge) {
-      console.warn('🚨🚨🚨 MERGE BLOCKED: Wild/wild, wild/magnet, or magnet/magnet merge not allowed');
+      devWarn('🚨🚨🚨 MERGE BLOCKED: Wild/wild, wild/magnet, or magnet/magnet merge not allowed');
       helpers.snapBack?.(src); 
       return;
     } else {
-      console.log('🧲 MERGE: Allowing wild/wild merge because both tiles are wild-magnet affected (pulled tiles)');
+      devLog('🧲 MERGE: Allowing wild/wild merge because both tiles are wild-magnet affected (pulled tiles)');
     }
   }
 
@@ -3945,20 +3178,20 @@ function merge(src, dst, helpers){
   // Calculate effSum early for wild star check (wild always merges to 6)
   const tempEffSum = wildActive ? 6 : sum;
   
-  console.log('⭐ EARLY wild star check - tempEffSum:', tempEffSum, 'srcSpecial:', srcSpecialForStarCheck, 'dstSpecial:', dstSpecialForStarCheck);
+  devLog('⭐ EARLY wild star check - tempEffSum:', tempEffSum, 'srcSpecial:', srcSpecialForStarCheck, 'dstSpecial:', dstSpecialForStarCheck);
   
   if (tempEffSum === 6) {
-    console.log('⭐ tempEffSum === 6, checking for wild star...');
+    devLog('⭐ tempEffSum === 6, checking for wild star...');
     const srcIsWildStar = srcSpecialForStarCheck === 'wild';
     const dstIsWildStar = dstSpecialForStarCheck === 'wild';
     
-    console.log('⭐ Wild star check:', { srcIsWildStar, dstIsWildStar });
+    devLog('⭐ Wild star check:', { srcIsWildStar, dstIsWildStar });
     
     if (srcIsWildStar || dstIsWildStar) {
       wildStarTileForAnimation = srcIsWildStar ? src : (dstIsWildStar ? dst : null);
       const hasWildStarSystem = !!(wildStarTileForAnimation as any)?._wildStarSystem;
       
-      console.log('⭐ EARLY wild star check:', {
+      devLog('⭐ EARLY wild star check:', {
         tempEffSum,
         srcSpecialForStarCheck,
         dstSpecialForStarCheck,
@@ -3991,7 +3224,7 @@ function merge(src, dst, helpers){
               const scaleY = star.sprite.scale.y;
               
               if (!texture) {
-                console.warn('⚠️ Star sprite has no texture, skipping');
+                devWarn('⚠️ Star sprite has no texture, skipping');
                 return null;
               }
               
@@ -4002,7 +3235,7 @@ function merge(src, dst, helpers){
                 scale: { x: scaleX, y: scaleY }
               };
             } catch (err) {
-              console.warn('⚠️ Failed to save star data early:', err);
+              devWarn('⚠️ Failed to save star data early:', err);
               return null;
             }
           }).filter(Boolean);
@@ -4012,26 +3245,26 @@ function merge(src, dst, helpers){
             const wildTileGlobalPos = wildStarTileForAnimation.getGlobalPosition();
             savedWildTileScreenPosEarly = { x: wildTileGlobalPos.x, y: wildTileGlobalPos.y };
           } catch {
-            console.warn('⚠️ Failed to get wild tile global position for early saving');
+            devWarn('⚠️ Failed to get wild tile global position for early saving');
           }
           
-          console.log('✅ Saved', savedStarPositionsEarly.length, 'star positions EARLY (before any transformations)');
+          devLog('✅ Saved', savedStarPositionsEarly.length, 'star positions EARLY (before any transformations)');
         } else {
-          console.warn('⚠️ Wild star system not found or empty in early check, cannot save star data');
+          devWarn('⚠️ Wild star system not found or empty in early check, cannot save star data');
         }
         
-        console.log('✅ Will animate stars to HUD after merge animation');
+        devLog('✅ Will animate stars to HUD after merge animation');
       } else {
-        console.log('⚠️ Wild star tile found but conditions not met:', {
+        devLog('⚠️ Wild star tile found but conditions not met:', {
           hasWildStarTile: !!wildStarTileForAnimation,
           hasWildStarSystem
         });
       }
     } else {
-      console.log('⭐ Not a wild star merge:', { srcSpecialForStarCheck, dstSpecialForStarCheck });
+      devLog('⭐ Not a wild star merge:', { srcSpecialForStarCheck, dstSpecialForStarCheck });
     }
   } else {
-    console.log('⭐ Not merge 6, tempEffSum:', tempEffSum);
+    devLog('⭐ Not merge 6, tempEffSum:', tempEffSum);
   }
   
   // 🔥 NOTE: Bubbles animation is now triggered when merge 6 animation starts (in effSum === 6 block)
@@ -4042,7 +3275,7 @@ function merge(src, dst, helpers){
     effSum = 6; // Wild always merges to 6
     const avoidValue = Number.isFinite(wildTargetValue) ? wildTargetValue : null;
     dst._wildMergeTarget = avoidValue;
-    console.log('🎯 Wild merge: target was', wildTargetValue, 'will merge to 6, spawn will avoid', avoidValue);
+    devLog('🎯 Wild merge: target was', wildTargetValue, 'will merge to 6, spawn will avoid', avoidValue);
   }
 
   grid[src.gridY][src.gridX] = null;
@@ -4057,7 +3290,7 @@ function merge(src, dst, helpers){
   if (effSum < 6){
     // 🔥 CRITICAL FIX: Ensure dst.value is set immediately (before requestAnimationFrame)
     // This prevents race conditions where visuals might use stale value
-    console.log('🔧 MERGE: Setting dst.value to', effSum, 'from src.value', src.value, '+ dst.value', dst.value, 'srcDepth:', srcDepth, 'dstDepth:', dstDepth);
+    devLog('🔧 MERGE: Setting dst.value to', effSum, 'from src.value', src.value, '+ dst.value', dst.value, 'srcDepth:', srcDepth, 'dstDepth:', dstDepth);
     dst.value = effSum;
     makeBoard.setValue(dst, effSum, srcDepth);
     if (wildActive) clearWildState(dst);
@@ -4129,53 +3362,19 @@ function merge(src, dst, helpers){
       });
     }
 
-    score = Math.min(SCORE_CAP, score + effSum); 
-    
-    console.log('🎮 MERGE: Score updated to:', score);
-    console.log('🎮 MERGE: statsService exists?', typeof statsService !== 'undefined');
-    console.log('🎮 MERGE: statsService.updateHighScore exists?', typeof statsService?.updateHighScore === 'function');
-    
-    // STATS TRACKING: Update high score immediately after score update
-    try {
-      statsService.updateHighScore(score);
-      console.log('✅ MERGE: statsService.updateHighScore called successfully');
-    } catch (error) {
-      console.error('❌ MERGE: statsService.updateHighScore failed:', error);
-    }
-    
-    // COLLECTIBLES: Check for score-based unlocks
-    if (score >= 100 && typeof (window as any).collectiblesManager !== 'undefined' && (window as any).collectiblesManager) {
-      const manager = (window as any).collectiblesManager;
-      if (typeof manager.unlockCard === 'function') {
-        manager.unlockCard('score_100');
-      }
-    }
-    
-    if (wildActive) {
-      console.log('🎯 MERGE: Wild merge detected');
-      try {
-        statsService.incrementHelpersUsed(1);
-        console.log('✅ MERGE: Incremented helpers used');
-      } catch (error) {
-        console.error('❌ MERGE: Failed to increment helpers used:', error);
-      }
-    }
+    score = applyMergeScore({
+      effSum,
+      score,
+      wildActive,
+      SCORE_CAP,
+      statsService,
+      devLog,
+      devError,
+    });
     
     updateHUD();
     
-    // Haptic feedback based on merge type
-    if (typeof (window as any).triggerHapticImpact === 'function') {
-      if (wildActive) {
-        // Wild merge = Double HEAVY for longer feel
-        (window as any).triggerHapticImpact('heavy');
-        trackAppTimeout(() => {
-          (window as any).triggerHapticImpact('heavy');
-        }, 150);
-      } else {
-        // All non-wild merges = LIGHT (soft like CTA buttons)
-        (window as any).triggerHapticImpact('light');
-      }
-    }
+    triggerMergeHaptics({ wildActive, trackAppTimeout });
     
     // 🔥 CRITICAL: Check if this is wild-magnet merge that will pull tiles
     // If so, skip combo increment AND timer here - magnet pull will handle both with proper count
@@ -4185,155 +3384,45 @@ function merge(src, dst, helpers){
     (dst as any)._isWildMagnetMerge = isWildMagnetMerge;
     
     // Combo++ (bez realnog capa), bump anim
-    // 🔥 MAGNET FIX: Skip combo increment AND timer if wild-magnet merge will pull tiles
-    // Magnet pull will increase combo by correct amount (currentCombo + 1 + pulledTileCount) and set new timer
-    // NOTE: willPullTiles will be calculated later in the last merge check section
-    const willPullTilesForCombo = isWildMagnetMerge && effSum === 6; // Preliminary check for combo logic
-    const newComboValue = combo + 1; // Calculate new combo value BEFORE setting it
-    
-    if (!willPullTilesForCombo) {
-      hudSetCombo(newComboValue);
-      try { HUD.bumpCombo?.({ kind: 'stack', combo: newComboValue }); } catch {}
-      scheduleComboDecay();
-    } else {
-      // Wild-magnet merge that will pull tiles - don't increment combo or start timer here
-      // Combo will be handled in mergePulledTilesIntoMerge6 with proper increment (currentCombo + 1 + pulledTileCount)
-      console.log('🧲 MAGNET COMBO: Skipping combo increment and timer in main merge flow - magnet pull will handle it');
-      // DO NOT schedule decay here - magnet pull will set up its own timer after updating combo
-    }
-
-    // 🔥 USER REQUEST: Track longest combo AFTER combo is incremented (use the NEW combo value we just set)
-    // Use newComboValue (combo + 1) directly since that's the actual combo after this merge
-    // Only track if combo was actually incremented (not for magnet pull merges)
-    if (!willPullTilesForCombo) {
-      // Stats: track longest combo (global and per-board) - use NEW combo value
-      statsService.updateLongestCombo(newComboValue);
-      
-      // 🔥 JOURNEY BOARDS: Track longest combo per board - use NEW combo value
-      try {
-        import('../services/board-stats-service.js').then(({ boardStatsService }) => {
-          boardStatsService.updateBoardLongestCombo(boardNumber, newComboValue);
-          console.log(`🎯 Tracked longest combo for board ${boardNumber}: ${newComboValue}`);
-        }).catch(() => {
-          // Ignore import errors
-        });
-      } catch {}
-    }
+    handleMergeCombo({
+      combo,
+      effSum,
+      isWildMagnetMerge,
+      boardNumber,
+      statsService,
+      hudSetCombo,
+      scheduleComboDecay,
+      HUD,
+      devLog,
+      devError,
+    });
 
     // 🔥 CRITICAL FIX: Check if this is last merge BEFORE adding wild progress
     // This prevents wild meter from filling and triggering wild spawn on last merge
     // We need to check early (before merge 6 block) to prevent race condition
-    const activeTilesBeforeWildProgress = tiles.filter(t => {
-      if (!t || t.locked) return false;
-      const isWild = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer';
-      const hasValue = (t.value|0) > 0;
-      return isWild || hasValue;
+    const lastMergeResult = handleLastMergeEarly({
+      tiles,
+      src,
+      dst,
+      effSum,
+      boardNumber,
+      wildMeter,
+      setWildMeter: (v) => { wildMeter = v; },
+      setStateWildMeter: (v) => { STATE.wildMeter = v; },
+      HUD,
+      setPendingCleanBoard,
+      devLog,
+      devWarn,
+      isWildMagnetMerge,
     });
-    // 🔥 CRITICAL: Use visible tiles count (not stackDepth sum) for "last 2 tiles" detection
-    // Example: 2 visible tiles (1 and 2) should trigger fail screen when stacked, not sum of stackDepth
-    const visibleTilesCountBeforeWildProgress = activeTilesBeforeWildProgress.length;
-    const activeTilesCountBeforeWildProgress = activeTilesBeforeWildProgress.reduce((sum, t) => {
-      const depth = t.stackDepth || 1;
-      return sum + depth;
-    }, 0);
+    const {
+      visibleTilesCountBeforeWildProgress,
+      activeTilesCountBeforeWildProgress,
+      activeTilesBeforeWildProgress,
+      wasLastThreeOrMoreStackForCheck,
+    } = lastMergeResult;
     
-    // Check if this merge involves all remaining tiles (last merge scenario)
-    const srcDepthForCheck = src.stackDepth || 1;
-    const dstDepthForCheck = dst.stackDepth || 1;
-    const combinedCountForCheck = srcDepthForCheck + dstDepthForCheck;
-    const allTilesInvolvedForCheck = combinedCountForCheck >= activeTilesCountBeforeWildProgress && 
-                                     activeTilesBeforeWildProgress.includes(src) && 
-                                     activeTilesBeforeWildProgress.includes(dst);
-    
-    // 🔥 USER REQUEST: Check for last merge scenarios
-    // 1. Wild + regular → merge 6 (only 2 tiles) = clean board
-    // 2. Wild-magnet + regular → merge 6 (only 2 tiles) = clean board (NO pull, NO spawn)
-    // 3. Wild-beer + regular → merge 6 (only 2 tiles) = clean board
-    // 4. Regular + regular → merge 6 (only 2 tiles, e.g. 4+2=6) = clean board
-    // 5. Regular + regular → stack (only 2 tiles, e.g. 3+2=5) = fail screen (handled in post-merge check)
-    const srcSpecialForCheck = src?.special;
-    const dstSpecialForCheck = dst?.special;
-    const oneIsWildForCheck = (srcSpecialForCheck === 'wild' || dstSpecialForCheck === 'wild' || 
-                              srcSpecialForCheck === 'wild-beer' || dstSpecialForCheck === 'wild-beer' ||
-                              srcSpecialForCheck === 'wild-magnet' || dstSpecialForCheck === 'wild-magnet'); // 🔥 MAGNET END GAME FIX
-    const bothAreRegular = !srcSpecialForCheck && !dstSpecialForCheck && 
-                          (src.value|0) > 0 && (dst.value|0) > 0;
-    
-    // 🔥 USER REQUEST: Check if this is last move when stacking 3+ tiles (not merge 6)
-    // Example: 1+1+1 → stack(1, depth=3) - this is the last move, should fail quickly
-    const wasLastThreeOrMoreStackForCheck = bothAreRegular && 
-                                            effSum < 6 && // Stack, not merge 6
-                                            activeTilesCountBeforeWildProgress >= 3 && // 3 or more tiles
-                                            allTilesInvolvedForCheck; // All tiles involved
-    
-    const isWildLastTwoForCheck = oneIsWildForCheck && 
-                                 visibleTilesCountBeforeWildProgress === 2 && 
-                                 activeTilesBeforeWildProgress.includes(src) && 
-                                 activeTilesBeforeWildProgress.includes(dst);
-    
-    // 🔥 NEW: Regular + regular → merge 6 (only 2 tiles) = clean board
-    const isRegularLastTwoMerge6 = bothAreRegular && 
-                                   visibleTilesCountBeforeWildProgress === 2 && 
-                                   activeTilesBeforeWildProgress.includes(src) && 
-                                   activeTilesBeforeWildProgress.includes(dst) &&
-                                   effSum === 6; // Must be merge 6
-    
-    // If this is last merge (wild + regular OR regular + regular → merge 6 with only 2 tiles), reset wild meter and skip addWildProgress
-    // 🔥 CRITICAL FIX: Don't mark as last merge if wild-magnet will pull tiles (new tiles will spawn)
-    // 🔥 END GAME FIX: If only 2 tiles on board (magnet + 1 tile), magnet CANNOT pull (nothing to pull!)
-    // So willPullTiles = false even if magnet is involved
-    const cannotPullDueToEndGame = isWildMagnetMerge && visibleTilesCountBeforeWildProgress === 2; // Only 2 tiles = nothing to pull!
-    
-    // 🔥 CRITICAL FIX: Check cannotPullDueToEndGame FIRST before checking hasTilesToPullValue
-    // If cannotPullDueToEndGame is true, willPullTiles = false REGARDLESS of hasTilesToPullValue
-    // This prevents magnet from pulling when it's the last 2 tiles on board
-    const hasTilesToPullValue = (dst as any)?._hasTilesToPull;
-    const willPullTiles = !cannotPullDueToEndGame && isWildMagnetMerge && effSum === 6 && (hasTilesToPullValue !== false); // Only merge 6 triggers pull, and only if not end game
-    const isActuallyLastMerge = (isWildLastTwoForCheck || isRegularLastTwoMerge6) && !willPullTiles;
-    
-    if (isActuallyLastMerge) {
-      const mergeType = isWildLastTwoForCheck ? (isWildMagnetMerge ? 'Wild-magnet + regular' : 'Wild + regular') : 'Regular + regular';
-      console.log(`🚨🚨🚨 LAST MERGE DETECTED (early check) - ${mergeType} → merge 6, resetting wild meter and skipping addWildProgress`);
-      console.log('🚨 Details:', { 
-        isWildLastTwoForCheck,
-        isRegularLastTwoMerge6,
-        effSum, 
-        activeTilesCountBeforeWildProgress,
-        srcSpecial: srcSpecialForCheck,
-        dstSpecial: dstSpecialForCheck,
-        srcValue: src.value,
-        dstValue: dst.value,
-        isWildMagnetMerge,
-        cannotPullDueToEndGame,
-        willPullTiles
-      });
-      // Reset wild meter to prevent wild spawn
-      wildMeter = 0;
-      STATE.wildMeter = 0;
-      try {
-        if (typeof HUD.resetWildMeter === 'function') {
-          HUD.resetWildMeter(true);
-        }
-      } catch (error) {
-        console.warn('⚠️ Failed to reset wild meter in HUD:', error);
-      }
-      // Mark dst as last merge early (will be set again in merge 6 block, but this prevents race condition)
-      if (effSum === 6) {
-        (dst as any)._isLastMerge = true;
-        console.log('✅ _isLastMerge flag set EARLY on dst tile (before merge 6 block)');
-        
-        // 🔥 BOARD RECOVERY: Persist intent EARLY so we can recover if app is force-quit during animation
-        try {
-          setPendingCleanBoard(boardNumber);
-          console.log('✅ RECOVERY: pendingCleanBoard flag set EARLY (before merge 6 block)');
-        } catch (e) {
-          console.warn('⚠️ Failed to set pending clean board flag (early):', e);
-        }
-      }
-    } else if (isWildLastTwoForCheck || isRegularLastTwoMerge6) {
-      // This would be last merge, but wild-magnet will pull tiles, so it's NOT last merge
-      console.log('🧲 Would be last merge, but wild-magnet will pull tiles - NOT marking as last merge (new tiles will spawn)');
-    } else {
+    if (!lastMergeResult.isActuallyLastMerge) {
       // Normal merge - add wild progress
       addWildProgress(WILD_INC_SMALL);
     }
@@ -4357,7 +3446,7 @@ function merge(src, dst, helpers){
         STATE.drag.t = null;
         STATE.drag.bindToTile?.(null as any);
       } catch (err) {
-        console.warn('⚠️ Failed to clear drag binding from src during merge', err);
+        devWarn('⚠️ Failed to clear drag binding from src during merge', err);
       }
     }
 
@@ -4381,12 +3470,12 @@ function merge(src, dst, helpers){
           try {
             if (typeof HUD.getStarHudPosition === 'function') {
               hudStarPosSmall = HUD.getStarHudPosition();
-              console.log('⭐ HUD star position retrieved:', hudStarPosSmall);
+              devLog('⭐ HUD star position retrieved:', hudStarPosSmall);
             } else {
-              console.warn('⚠️ HUD.getStarHudPosition is not a function');
+              devWarn('⚠️ HUD.getStarHudPosition is not a function');
             }
           } catch (err) {
-            console.error('❌ Error getting HUD star position:', err);
+            devError('❌ Error getting HUD star position:', err);
           }
         }
         
@@ -4396,7 +3485,7 @@ function merge(src, dst, helpers){
         // 🔥 CRITICAL: Always trigger animation if shouldAnimateStarsToHUD is true, even if bubbles animation is running
         if (shouldAnimateStarsToHUD) {
           if (savedStarPositionsSmall.length > 0 && hudStarPosSmall) {
-            console.log('⭐ Starting stars animation to HUD with saved data:', { 
+            devLog('⭐ Starting stars animation to HUD with saved data:', { 
               starCount: savedStarPositionsSmall.length,
               merge6Pos: merge6PosSmall,
               hudStarPos: hudStarPosSmall,
@@ -4410,12 +3499,12 @@ function merge(src, dst, helpers){
               // Use setTimeout instead of gsap.delayedCall to avoid being killed by killAllDelayedCalls()
               trackAppTimeout(async () => {
                 try {
-                  console.log('⭐ About to import animateStarsToHudIcon from fx.js...');
+                  devLog('⭐ About to import animateStarsToHudIcon from fx.js...');
                   // Import and call fx.js animation function with SAVED star data
                   const { animateStarsToHudIcon } = await import('./fx.js');
-                  console.log('⭐ Imported animateStarsToHudIcon:', typeof animateStarsToHudIcon);
+                  devLog('⭐ Imported animateStarsToHudIcon:', typeof animateStarsToHudIcon);
                   if (typeof animateStarsToHudIcon === 'function') {
-                    console.log('⭐ Calling animateStarsToHudIcon with saved star data (INDEPENDENT):', { 
+                    devLog('⭐ Calling animateStarsToHudIcon with saved star data (INDEPENDENT):', { 
                       board: !!board, 
                       stage: !!stage,
                       savedStarCount: savedStarPositionsSmall.length,
@@ -4425,17 +3514,17 @@ function merge(src, dst, helpers){
                     // Pass saved star data instead of tile object
                     // 🔥 CRITICAL FIX: Pass app to animateStarsToHudIcon so it can access renderer
                     await animateStarsToHudIcon(board, stage, savedStarPositionsSmall, savedWildTileScreenPosSmall, merge6PosSmall, hudStarPosSmall, app);
-                    console.log('✅ Stars animation to HUD completed (INDEPENDENT)');
+                    devLog('✅ Stars animation to HUD completed (INDEPENDENT)');
                   } else {
-                    console.warn('⚠️ animateStarsToHudIcon not available in fx.js');
+                    devWarn('⚠️ animateStarsToHudIcon not available in fx.js');
                   }
                 } catch (error) {
-                  console.error('❌ Failed to animate stars to HUD:', error);
+                  devError('❌ Failed to animate stars to HUD:', error);
                 }
               }, 200); // 200ms delay using setTimeout (not GSAP, so won't be killed)
             });
           } else {
-            console.warn('⭐ Stars animation skipped - missing data:', { 
+            devWarn('⭐ Stars animation skipped - missing data:', { 
               shouldAnimate: shouldAnimateStarsToHUD,
               savedStarCount: savedStarPositionsSmall?.length || 0,
               hasHudPos: !!hudStarPosSmall,
@@ -4458,7 +3547,7 @@ function merge(src, dst, helpers){
             (STATE.drag as any).bindToTile(dst);
             (STATE.drag as any).t = dst;
           } catch (error) {
-            console.warn('⚠️ Failed to rebind drag to merged tile', error);
+            devWarn('⚠️ Failed to rebind drag to merged tile', error);
           }
         }
         
@@ -4492,7 +3581,7 @@ function merge(src, dst, helpers){
         const allTilesInvolvedForPostCheck = combinedCountForPostCheck >= activeTilesCountBeforeWildProgress && 
                                             activeTilesBeforeWildProgress.includes(src) && 
                                             activeTilesBeforeWildProgress.includes(dst);
-        const wasLastThreeOrMoreStack = bothAreRegularForCheck && 
+    const wasLastThreeOrMoreStack = bothAreRegularForCheck && 
                                        effSum < 6 && // Stack, not merge 6
                                        activeTilesCountBeforeWildProgress >= 3 && // 3 or more tiles before merge
                                        allTilesInvolvedForPostCheck; // All tiles involved in this stack
@@ -4502,7 +3591,7 @@ function merge(src, dst, helpers){
         if (!busyEnding && !isWildMagnetMerge && !isMerge6) {
           // Add delay to ensure removeTile has completed and tiles array is updated
           // 🔥 INCREASED DELAY: 100ms instead of 50ms to ensure tiles array is fully updated
-          await new Promise(resolve => trackAppTimeout(resolve, 100));
+          await waitTracked(100);
           
           // 🔥 CRITICAL: Verify dst tile state before checking
           const activeTilesBeforeCheck = tiles.filter(tileIsActive);
@@ -4550,8 +3639,8 @@ function merge(src, dst, helpers){
             const canReachMerge6 = (finalValue + finalValue) <= 6 && finalStackDepth >= 2;
             
             if (!canReachMerge6) {
-              console.log('🚨🚨🚨 LAST MOVE DETECTED - Regular + regular → stack (not merge 6), only 1 tile remains, CANNOT reach merge 6, triggering fail screen');
-              console.log('🚨 Details:', {
+              devLog('🚨🚨🚨 LAST MOVE DETECTED - Regular + regular → stack (not merge 6), only 1 tile remains, CANNOT reach merge 6, triggering fail screen');
+              devLog('🚨 Details:', {
                 srcValue: src.value,
                 dstValue: dst.value,
                 effSum,
@@ -4565,8 +3654,8 @@ function merge(src, dst, helpers){
               });
               
               if (!busyEnding) {
-                console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-                await new Promise(resolve => trackAppTimeout(resolve, 1500));
+                devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
+                await waitTracked(1500);
                 showFinalScreen();
               }
               return;
@@ -4576,7 +3665,7 @@ function merge(src, dst, helpers){
               const afterSelfMergeDepth = finalStackDepth - 1; // Depth decreases by 1 after self-merge
               const afterSelfMergeValue = finalValue + finalValue; // New value after self-merge
               
-              console.log('🔍 Stack can reach merge 6 - checking what remains after self-merge:', {
+              devLog('🔍 Stack can reach merge 6 - checking what remains after self-merge:', {
                 beforeSelfMerge: { value: finalValue, depth: finalStackDepth },
                 afterSelfMerge: { value: afterSelfMergeValue, depth: afterSelfMergeDepth },
                 isDeadEnd: afterSelfMergeValue === 6 && afterSelfMergeDepth === 1
@@ -4584,8 +3673,8 @@ function merge(src, dst, helpers){
               
               // If self-merge results in merge 6 (depth 1) → that's a DEAD END (last move)
               if (afterSelfMergeValue === 6 && afterSelfMergeDepth === 1) {
-                console.log('🚨🚨🚨 LAST MOVE DETECTED - Stack can self-merge to merge 6 BUT will result in merge 6 (depth 1) = DEAD END, triggering fail screen');
-                console.log('🚨 Details:', {
+                devLog('🚨🚨🚨 LAST MOVE DETECTED - Stack can self-merge to merge 6 BUT will result in merge 6 (depth 1) = DEAD END, triggering fail screen');
+                devLog('🚨 Details:', {
                   srcValue: src.value,
                   dstValue: dst.value,
                   effSum,
@@ -4597,15 +3686,15 @@ function merge(src, dst, helpers){
                 });
                 
                 if (!busyEnding) {
-                  console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-                  await new Promise(resolve => trackAppTimeout(resolve, 1500));
+                  devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
+                  await waitTracked(1500);
                   showFinalScreen();
                 }
                 return;
               }
               
               // If after self-merge there's still room to continue (e.g., value 2, depth 3 → 4, depth 2 → can continue)
-              console.log('✅ Stack CAN reach merge 6 and can continue after (', finalValue, '+', finalValue, '=', afterSelfMergeValue, ', depth:', finalStackDepth, '→', afterSelfMergeDepth, ') - NOT triggering fail screen');
+              devLog('✅ Stack CAN reach merge 6 and can continue after (', finalValue, '+', finalValue, '=', afterSelfMergeValue, ', depth:', finalStackDepth, '→', afterSelfMergeDepth, ') - NOT triggering fail screen');
             }
           }
           
@@ -4625,8 +3714,8 @@ function merge(src, dst, helpers){
             const canReachMerge6 = (finalValue + finalValue) <= 6 && finalStackDepth >= 2;
             
             if (!canReachMerge6) {
-              console.log('🚨🚨🚨 LAST MOVE DETECTED - Regular + regular → stack (3+ tiles, all tiles involved), only 1 tile remains, CANNOT reach merge 6, triggering fail screen');
-              console.log('🚨 Details:', {
+              devLog('🚨🚨🚨 LAST MOVE DETECTED - Regular + regular → stack (3+ tiles, all tiles involved), only 1 tile remains, CANNOT reach merge 6, triggering fail screen');
+              devLog('🚨 Details:', {
                 srcValue: src.value,
                 dstValue: dst.value,
                 effSum,
@@ -4642,8 +3731,8 @@ function merge(src, dst, helpers){
               });
               
               if (!busyEnding) {
-                console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-                await new Promise(resolve => trackAppTimeout(resolve, 1500));
+                devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
+                await waitTracked(1500);
                 showFinalScreen();
               }
               return;
@@ -4653,7 +3742,7 @@ function merge(src, dst, helpers){
               const afterSelfMergeDepth = finalStackDepth - 1;
               const afterSelfMergeValue = finalValue + finalValue;
               
-              console.log('🔍 Stack (3+) can reach merge 6 - checking what remains after self-merge:', {
+              devLog('🔍 Stack (3+) can reach merge 6 - checking what remains after self-merge:', {
                 beforeSelfMerge: { value: finalValue, depth: finalStackDepth },
                 afterSelfMerge: { value: afterSelfMergeValue, depth: afterSelfMergeDepth },
                 isDeadEnd: afterSelfMergeValue === 6 && afterSelfMergeDepth === 1
@@ -4661,17 +3750,17 @@ function merge(src, dst, helpers){
               
               // If self-merge results in merge 6 (depth 1) → that's a DEAD END (last move)
               if (afterSelfMergeValue === 6 && afterSelfMergeDepth === 1) {
-                console.log('🚨🚨🚨 LAST MOVE DETECTED - Stack (3+) can self-merge to merge 6 BUT will result in merge 6 (depth 1) = DEAD END, triggering fail screen');
+                devLog('🚨🚨🚨 LAST MOVE DETECTED - Stack (3+) can self-merge to merge 6 BUT will result in merge 6 (depth 1) = DEAD END, triggering fail screen');
                 
                 if (!busyEnding) {
-                  console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-                  await new Promise(resolve => trackAppTimeout(resolve, 1500));
+                  devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
+                  await waitTracked(1500);
                   showFinalScreen();
                 }
                 return;
               }
               
-              console.log('✅ Stack (3+) CAN reach merge 6 and can continue after (', finalValue, '+', finalValue, '=', afterSelfMergeValue, ', depth:', finalStackDepth, '→', afterSelfMergeDepth, ') - NOT triggering fail screen');
+              devLog('✅ Stack (3+) CAN reach merge 6 and can continue after (', finalValue, '+', finalValue, '=', afterSelfMergeValue, ', depth:', finalStackDepth, '→', afterSelfMergeDepth, ') - NOT triggering fail screen');
             }
           }
 
@@ -4684,14 +3773,14 @@ function merge(src, dst, helpers){
             const isWild = onlyTile?.special === 'wild' || onlyTile?.special === 'wild-beer' || onlyTile?.special === 'wild-magnet';
             const canSelfMergeToSix = !isWild && onlyDepth >= 2 && (onlyValue + onlyValue) <= 6;
             if (!isWild && !canSelfMergeToSix && !busyEnding) {
-              console.log('🚨 SAFETY NET: Single regular tile left that cannot reach merge 6 - waiting 0.5s then fail screen');
-              await new Promise(resolve => trackAppTimeout(resolve, 500));
+              devLog('🚨 SAFETY NET: Single regular tile left that cannot reach merge 6 - waiting 0.5s then fail screen');
+              await waitTracked(500);
               showFinalScreen();
               return;
             }
           }
           
-          console.log('🔍 Post-merge stuck check - DETAILED STATE:', {
+          devLog('🔍 Post-merge stuck check - DETAILED STATE:', {
             totalTiles: tiles.length,
             activeTilesCount: activeTilesBeforeCheck.length,
             activeTiles: activeTilesBeforeCheck.map(t => ({ 
@@ -4722,15 +3811,15 @@ function merge(src, dst, helpers){
           // Force refresh because tile was just removed
           const stuckCheckResult = checkEndGame(stuckCheckContext, true);
           
-          console.log('🔍 Post-merge stuck check - RESULT:', {
+          devLog('🔍 Post-merge stuck check - RESULT:', {
             resultType: stuckCheckResult.type,
             resultReason: stuckCheckResult.reason,
             activeTilesCount: activeTilesBeforeCheck.length
           });
           
           if (stuckCheckResult.type === 'stuck') {
-            console.log('🚨🚨🚨 GAME STUCK after regular merge - triggering fail screen');
-            console.log('🚨 Final state:', {
+            devLog('🚨🚨🚨 GAME STUCK after regular merge - triggering fail screen');
+            devLog('🚨 Final state:', {
               activeTilesCount: activeTilesBeforeCheck.length,
               tiles: activeTilesBeforeCheck.map(t => ({ 
                 value: t.value, 
@@ -4741,20 +3830,20 @@ function merge(src, dst, helpers){
             });
             
             if (!busyEnding) {
-              console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-              await new Promise(resolve => trackAppTimeout(resolve, 1500));
+              devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
+              await waitTracked(1500);
               showFinalScreen();
             } else {
-              console.warn('⚠️ busyEnding is true, NOT showing fail screen');
+              devWarn('⚠️ busyEnding is true, NOT showing fail screen');
             }
             return;
           } else {
-            console.log('✅ Post-merge stuck check: Game continues -', stuckCheckResult.reason);
+            devLog('✅ Post-merge stuck check: Game continues -', stuckCheckResult.reason);
           }
         } else if (isWildMagnetMerge) {
-          console.log('🧲 SKIPPING post-merge stuck check - wild-magnet will pull tiles after merge completes');
+          devLog('🧲 SKIPPING post-merge stuck check - wild-magnet will pull tiles after merge completes');
         } else if (isMerge6) {
-          console.log('🎯 SKIPPING post-merge stuck check - merge-6 will spawn new tiles, check will happen AFTER spawn completes');
+          devLog('🎯 SKIPPING post-merge stuck check - merge-6 will spawn new tiles, check will happen AFTER spawn completes');
         }
         
         if (wildActive) {
@@ -4783,7 +3872,7 @@ function merge(src, dst, helpers){
             countScale: 0.75,
             haloScale: 1.1,
             ttl: 0.9
-          });
+          } as any);
         }
 
         // countdown moves
@@ -4837,7 +3926,7 @@ function merge(src, dst, helpers){
     const savedSrcSpecial = srcSpecial; // From outer scope (line 3653)
     const savedDstSpecial = dstSpecial; // From outer scope (line 3654)
     
-    console.log('🔍 MERGE 6: Using saved srcSpecial/dstSpecial from closure:', {
+    devLog('🔍 MERGE 6: Using saved srcSpecial/dstSpecial from closure:', {
       savedSrcSpecial,
       savedDstSpecial,
       srcSpecialCurrent: src?.special,
@@ -4914,7 +4003,7 @@ function merge(src, dst, helpers){
       // 🎯 USE activeTilesCount (includes stackDepth) instead of activeTilesBeforeMerge.length
       const totalActiveTiles = activeTilesCount; // Already calculated above with stackDepth!
       
-      console.log('🧲 Magnet pull logic check:', {
+      devLog('🧲 Magnet pull logic check:', {
         magnetsOnBoard,
         regularTilesOnBoard,
         totalActiveTiles,
@@ -4928,7 +4017,7 @@ function merge(src, dst, helpers){
       // ALL other cases (including 2 magnets + 1 tile) → magnet pulls normally
       const isOneMagnetOneTile = magnetsOnBoard === 1 && regularTilesOnBoard === 1 && totalActiveTiles === 2;
       
-      console.log('🧲 MAGNET PULL CHECK:', {
+      devLog('🧲 MAGNET PULL CHECK:', {
         magnetsOnBoard,
         regularTilesOnBoard,
         totalActiveTiles,
@@ -4940,7 +4029,7 @@ function merge(src, dst, helpers){
       
       if (isOneMagnetOneTile) {
         hasTilesToPull = false;
-        console.log('🧲 Magnet behaves like wild (NO pull): 1 magnet + 1 tile (last 2)');
+        devLog('🧲 Magnet behaves like wild (NO pull): 1 magnet + 1 tile (last 2)');
       } else {
         // Normal magnet behavior: Check if there are other tiles that can be pulled
       const targetTile = srcSpecialMerge6 === 'wild-magnet' ? src : dst;
@@ -4954,7 +4043,7 @@ function merge(src, dst, helpers){
           // If a tile is already marked as _wildMagnetAffected, it's being pulled by another magnet
           // and should NOT be counted as available for this pull
           if (t._wildMagnetAffected) {
-            console.log('🔍 FILTER OUT: tile already being pulled by another magnet', { value: t.value, special: t.special });
+            devLog('🔍 FILTER OUT: tile already being pulled by another magnet', { value: t.value, special: t.special });
             return false;
           }
           
@@ -4969,7 +4058,7 @@ function merge(src, dst, helpers){
         return true;
       });
       hasTilesToPull = candidates.length > 0;
-      console.log('🧲 Wild-magnet merge detected - tiles that can be pulled:', candidates.length, hasTilesToPull ? '(will pull tiles, NOT last merge)' : '(no tiles to pull, might be last merge)');
+      devLog('🧲 Wild-magnet merge detected - tiles that can be pulled:', candidates.length, hasTilesToPull ? '(will pull tiles, NOT last merge)' : '(no tiles to pull, might be last merge)');
       }
       // 🔥 CRITICAL: Store hasTilesToPull on dst tile for later use in last merge check
       if (dst && !dst.destroyed) {
@@ -4980,7 +4069,7 @@ function merge(src, dst, helpers){
       // This is only valid for wild magnet merge, so we calculate it here
       if (magnetsOnBoard === 1 && regularTilesOnBoard === 1 && totalActiveTiles === 2 && !hasTilesToPull) {
         (dst as any)._isWildMagnetLastTwo = true;
-        console.log('🧲 Wild magnet + regular (last 2 tiles, no pull) - marked as last merge candidate');
+        devLog('🧲 Wild magnet + regular (last 2 tiles, no pull) - marked as last merge candidate');
       }
     }
     
@@ -5043,7 +4132,7 @@ function merge(src, dst, helpers){
     
     // 🔥 ENHANCED LOGGING: Log detailed breakdown for debugging
     if (oneIsRegularWild && neitherIsWildMagnet) {
-      console.log('🔍 REGULAR WILD LAST TWO CHECK:', {
+      devLog('🔍 REGULAR WILD LAST TWO CHECK:', {
         oneIsRegularWild,
         neitherIsWildMagnet,
         exactlyTwoActiveTiles,
@@ -5141,7 +4230,7 @@ function merge(src, dst, helpers){
                              activeTilesBeforeMerge.includes(dst) &&
                              !(isWildMagnetMerge && hasTilesToPull); // 🔥 CRITICAL: Exclude if wild-magnet will pull tiles
     
-    console.log('🔍 isAnyWildLastTwo CHECK:', {
+    devLog('🔍 isAnyWildLastTwo CHECK:', {
       srcIsWild,
       dstIsWild,
       oneIsWild: srcIsWild || dstIsWild,
@@ -5168,8 +4257,8 @@ function merge(src, dst, helpers){
       const mergeType = isRegularRegularLastTwoMerge6 ? 'Regular + regular' : 
                        (isAnyWildLastTwo ? 'Any wild + regular' : 
                        (isWildMagnetLastTwo ? 'Wild magnet + regular' : 'Wild + regular'));
-      console.log(`🚨🚨🚨 LAST MERGE DETECTED (BEFORE merge 6 animation) - ${mergeType} → merge 6, only 2 tiles`);
-      console.log('🚨🚨🚨 Detected by:', {
+      devLog(`🚨🚨🚨 LAST MERGE DETECTED (BEFORE merge 6 animation) - ${mergeType} → merge 6, only 2 tiles`);
+      devLog('🚨🚨🚨 Detected by:', {
         isRegularRegularLastTwoMerge6,
         isAnyWildLastTwo,
         isWildRegularLastTwo,
@@ -5181,7 +4270,7 @@ function merge(src, dst, helpers){
         srcSpecial,
         dstSpecial
       });
-      console.log('🚨🚨🚨 Last merge details:', {
+      devLog('🚨🚨🚨 Last merge details:', {
         activeTilesCount,
         combinedCount,
         allTilesInvolved,
@@ -5205,7 +4294,7 @@ function merge(src, dst, helpers){
       // Continue with merge 6 animation, but mark that this is the last merge
       // We'll handle clean board flow in the onComplete callback
       (dst as any)._isLastMerge = true;
-      console.log('✅✅✅ _isLastMerge flag SET to TRUE on dst tile (merge-6 block):', {
+      devLog('✅✅✅ _isLastMerge flag SET to TRUE on dst tile (merge-6 block):', {
         dstValue: dst.value,
         dstSpecial: dst.special,
         _isLastMerge: (dst as any)._isLastMerge,
@@ -5222,22 +4311,22 @@ function merge(src, dst, helpers){
       try {
         setPendingCleanBoard(boardNumber);
       } catch (e) {
-        console.warn('⚠️ Failed to set pending clean board flag:', e);
+        devWarn('⚠️ Failed to set pending clean board flag:', e);
       }
       
       // 🔥 CRITICAL FIX: Reset wild meter IMMEDIATELY when last merge is detected in merge-6 block
       // This prevents wild spawn from happening after last merge (double protection)
       // Wild meter may have been filled by addWildProgress before last merge was detected
-      console.log('🚨🚨🚨 LAST MERGE (merge-6 block): Resetting wild meter to prevent wild spawn');
+      devLog('🚨🚨🚨 LAST MERGE (merge-6 block): Resetting wild meter to prevent wild spawn');
       wildMeter = 0;
       STATE.wildMeter = 0;
       try {
         if (typeof HUD.resetWildMeter === 'function') {
           HUD.resetWildMeter(true);
-          console.log('✅ LAST MERGE: Wild meter reset in HUD');
+          devLog('✅ LAST MERGE: Wild meter reset in HUD');
         }
       } catch (error) {
-        console.warn('⚠️ LAST MERGE: Failed to reset wild meter in HUD:', error);
+        devWarn('⚠️ LAST MERGE: Failed to reset wild meter in HUD:', error);
       }
       
       // 🔥 CRITICAL FIX v40.5: Mark if this was a wild merge OR magnet merge (for spawn skip logic)
@@ -5247,7 +4336,7 @@ function merge(src, dst, helpers){
       const wasMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
       if (wasWildMerge || wasMagnetMerge || wasWildBeerMerge) {
         (dst as any)._wasWildMerge = true;
-        console.log('✅ _wasWildMerge flag set to TRUE (wild/magnet/wild-beer merge detected)', {
+        devLog('✅ _wasWildMerge flag set to TRUE (wild/magnet/wild-beer merge detected)', {
           wasWildMerge,
           wasWildBeerMerge,
           wasMagnetMerge,
@@ -5256,9 +4345,9 @@ function merge(src, dst, helpers){
         });
       }
       
-      console.log('✅ _isLastMerge flag set to TRUE on dst tile');
+      devLog('✅ _isLastMerge flag set to TRUE on dst tile');
     } else {
-      console.log('❌ NOT last merge:', {
+      devLog('❌ NOT last merge:', {
         activeTilesCount,
         combinedCount,
         allTilesInvolved,
@@ -5358,7 +4447,7 @@ function merge(src, dst, helpers){
     
     // 🔥 DEBUG: Log detailed info for troubleshooting
     if (isWildMagnet) {
-      console.log('🧲🧲🧲 MAGNET MERGE DEBUG:', {
+      devLog('🧲🧲🧲 MAGNET MERGE DEBUG:', {
         physicalTiles: activeTilesBeforeMergeMagnet.length,
         totalTilesIncludingDepth,
         isLastMoveScenario,
@@ -5378,8 +4467,8 @@ function merge(src, dst, helpers){
     }
     
     if (isLastMoveScenario) {
-      console.log('🎯🎯🎯 END GAME: Last 2 tiles (magnet + tile) = MERGE-6 without spawn!');
-      console.log('🎯 Marking as last merge - no pull, no spawn, direct to clean board');
+      devLog('🎯🎯🎯 END GAME: Last 2 tiles (magnet + tile) = MERGE-6 without spawn!');
+      devLog('🎯 Marking as last merge - no pull, no spawn, direct to clean board');
       
       // Mark this as last merge (skip all spawns, go to clean board)
       if (dst && !dst.destroyed) {
@@ -5387,20 +4476,20 @@ function merge(src, dst, helpers){
         (dst as any)._skipMagnetPull = true; // Skip magnet pull animation
         (dst as any)._noTilesPulled = true; // Mark explicitly that no tiles were pulled
         (dst as any)._hasTilesToPull = false; // CRITICAL: Override hasTilesToPull for safety
-        console.log('✅ Last merge flag set on dst tile - pull animation will be skipped');
+        devLog('✅ Last merge flag set on dst tile - pull animation will be skipped');
         
         // 🔥 BOARD RECOVERY: Persist intent so we can recover if app is force-quit during animation
         try {
           setPendingCleanBoard(boardNumber);
-          console.log('✅ RECOVERY: pendingCleanBoard flag set (magnet last move scenario)');
+          devLog('✅ RECOVERY: pendingCleanBoard flag set (magnet last move scenario)');
         } catch (e) {
-          console.warn('⚠️ Failed to set pending clean board flag (magnet):', e);
+          devWarn('⚠️ Failed to set pending clean board flag (magnet):', e);
         }
       }
       
       // 🎯 CRITICAL: Set multiplier to 0 (NO spawns for last merge - clean board!)
       mult = 0;
-      console.log('🎯 Set mult = 0 to prevent ANY spawns (clean board scenario)');
+      devLog('🎯 Set mult = 0 to prevent ANY spawns (clean board scenario)');
     }
     
     // 🧲 WILD-MAGNET: Find and pull up to 4 nearest tiles IMMEDIATELY when merge 6 starts
@@ -5411,7 +4500,7 @@ function merge(src, dst, helpers){
     if (isWildMagnet && !hasTilesToPull && dst && !dst.destroyed) {
       // Magnet behaves like wild - merge 6 tile should be removed normally (like regular merge 6)
       // This will be handled in onComplete callback - no special flag needed
-      console.log('🧲 Magnet behaves like wild (hasTilesToPull=false) - merge 6 tile will be removed normally in onComplete callback');
+      devLog('🧲 Magnet behaves like wild (hasTilesToPull=false) - merge 6 tile will be removed normally in onComplete callback');
     }
     
     // 🔥 END GAME FIX: Skip pull animation if this is last move scenario
@@ -5421,18 +4510,18 @@ function merge(src, dst, helpers){
       // Check if there are any active pull animations - if not, reset flag
       const hasActivePullAnimations = STATE.tiles.some((t: any) => t && !t.destroyed && t._wildMagnetAffected === true);
       if (wildMagnetPullInProgress && !hasActivePullAnimations) {
-        console.log('🧲 Resetting wildMagnetPullInProgress flag - no active pull animations found');
+        devLog('🧲 Resetting wildMagnetPullInProgress flag - no active pull animations found');
         wildMagnetPullInProgress = false;
       }
       
       // 🔥 CRITICAL: Prevent overlapping wild-magnet pull animations
       if (wildMagnetPullInProgress) {
-        console.warn('⚠️ Wild-magnet pull already in progress, skipping new pull animation');
+        devWarn('⚠️ Wild-magnet pull already in progress, skipping new pull animation');
         // Set mult to 1 for regular merge 6 scoring
         mult = 1;
       } else {
         wildMagnetPullInProgress = true;
-      console.log('🧲 WILD-MAGNET: Merge 6 starting, finding up to 4 nearest tiles to pull IMMEDIATELY');
+      devLog('🧲 WILD-MAGNET: Merge 6 starting, finding up to 4 nearest tiles to pull IMMEDIATELY');
       
       // Find up to 4 nearest tiles to the merge location (use dst position BEFORE merge animation)
       const mergeX = dst.x;
@@ -5440,7 +4529,7 @@ function merge(src, dst, helpers){
       
       // 🔥 CRITICAL FIX v37: Detailed logging to debug why tiles might not be found
       // Use saved srcSpecial and dstSpecial for accurate logging (dst.special was cleared on line 3561)
-      console.log('🔍 MAGNET PULL DEBUG: Checking all tiles on board:', {
+      devLog('🔍 MAGNET PULL DEBUG: Checking all tiles on board:', {
         totalTilesInState: STATE.tiles.length,
         srcTile: { value: src.value, special: srcSpecial, locked: src.locked },
         dstTile: { value: dst.value, special: dstSpecial, locked: dst.locked }
@@ -5448,19 +4537,19 @@ function merge(src, dst, helpers){
       
       const allTiles = STATE.tiles.filter((tile: any) => {
         if (!tile || tile.destroyed) {
-          if (tile) console.log('🔍 FILTER OUT: destroyed tile');
+          if (tile) devLog('🔍 FILTER OUT: destroyed tile');
           return false;
         }
         if (tile === dst) {
-          console.log('🔍 FILTER OUT: dst tile (merge 6 itself)');
+          devLog('🔍 FILTER OUT: dst tile (merge 6 itself)');
           return false;
         }
         if (tile === src) {
-          console.log('🔍 FILTER OUT: src tile (magnet itself)');
+          devLog('🔍 FILTER OUT: src tile (magnet itself)');
           return false;
         }
         if (tile.locked) {
-          console.log('🔍 FILTER OUT: locked tile', { value: tile.value, special: tile.special });
+          devLog('🔍 FILTER OUT: locked tile', { value: tile.value, special: tile.special });
           return false;
         }
         
@@ -5468,7 +4557,7 @@ function merge(src, dst, helpers){
         // If a tile is already marked as _wildMagnetAffected, it's being pulled by another magnet
         // and should NOT be pulled again
         if (tile._wildMagnetAffected) {
-          console.log('🔍 FILTER OUT: tile already being pulled by another magnet', { value: tile.value, special: tile.special });
+          devLog('🔍 FILTER OUT: tile already being pulled by another magnet', { value: tile.value, special: tile.special });
           return false;
         }
         
@@ -5477,13 +4566,13 @@ function merge(src, dst, helpers){
         const isWildOrMagnet = tile.special === 'wild' || tile.special === 'wild-magnet';
         
         if (!isWildOrMagnet && (tile.value | 0) <= 0) {
-          console.log('🔍 FILTER OUT: regular tile with value <= 0', { value: tile.value, special: tile.special });
+          devLog('🔍 FILTER OUT: regular tile with value <= 0', { value: tile.value, special: tile.special });
           return false;
         }
         
         // 🔥 CRITICAL: Wild-magnets CAN pull other wild-magnets, wild stars, and ordinary tiles!
         // This is intentional behavior - magnet attracts EVERYTHING
-        console.log('✅ INCLUDE: tile for pull', { value: tile.value, special: tile.special, locked: tile.locked, isWildOrMagnet });
+        devLog('✅ INCLUDE: tile for pull', { value: tile.value, special: tile.special, locked: tile.locked, isWildOrMagnet });
         return true;
       });
       
@@ -5498,22 +4587,22 @@ function merge(src, dst, helpers){
       withDistance.sort((a, b) => a.distance - b.distance);
       const nearestTiles = withDistance.slice(0, 4).map(item => item.tile); // Max 4 tiles
       
-      console.log('🧲 Found', nearestTiles.length, 'nearest tiles to pull immediately (max 4)');
+      devLog('🧲 Found', nearestTiles.length, 'nearest tiles to pull immediately (max 4)');
       
       // 🔥 CRITICAL FIX: Check if this is last merge (magnet + 1 tile = 2 tiles total, no tiles to pull)
       // If allTiles.length === 2 (only src and dst) and nearestTiles.length === 0, this is last merge
       const isLastMergeEarly = allTiles.length === 2 && nearestTiles.length === 0;
       if (isLastMergeEarly && dst && !dst.destroyed) {
         (dst as any)._isLastMerge = true;
-        console.log('🚨🚨🚨 LAST MERGE DETECTED EARLY (magnet + 1 tile, no tiles to pull) - Setting _isLastMerge flag NOW');
-        console.log('🎯 This is the final merge - should trigger clean board, NOT pull tiles or spawn anything');
+        devLog('🚨🚨🚨 LAST MERGE DETECTED EARLY (magnet + 1 tile, no tiles to pull) - Setting _isLastMerge flag NOW');
+        devLog('🎯 This is the final merge - should trigger clean board, NOT pull tiles or spawn anything');
         
         // 🔥 BOARD RECOVERY: Persist intent so we can recover if app is force-quit during animation
         try {
           setPendingCleanBoard(boardNumber);
-          console.log('✅ RECOVERY: pendingCleanBoard flag set (magnet early detection)');
+          devLog('✅ RECOVERY: pendingCleanBoard flag set (magnet early detection)');
         } catch (e) {
-          console.warn('⚠️ Failed to set pending clean board flag (magnet early):', e);
+          devWarn('⚠️ Failed to set pending clean board flag (magnet early):', e);
         }
       }
       
@@ -5522,20 +4611,20 @@ function merge(src, dst, helpers){
         if (dst && !dst.destroyed) {
           (dst as any)._willPullTiles = nearestTiles.length > 0;
           (dst as any)._noTilesPulled = nearestTiles.length === 0; // default assumption if none are valid later
-          console.log('🧲 Stored _willPullTiles flag on dst:', nearestTiles.length > 0, '(nearestTiles.length:', nearestTiles.length, ')');
+          devLog('🧲 Stored _willPullTiles flag on dst:', nearestTiles.length > 0, '(nearestTiles.length:', nearestTiles.length, ')');
         }
       
       // 🔥 CRITICAL FIX v37: Log if no tiles can be pulled AND reset wildMagnetPullInProgress
       // Without this reset, subsequent pulls would be blocked!
       if (nearestTiles.length === 0) {
-        console.warn('⚠️ WILD-MAGNET: No tiles can be pulled (all nearby tiles are locked or invalid)');
-        console.log('🧲 Wild-magnet merge will proceed with mult=2 (default) and spawn 2 new tiles');
-        console.log('🧲 Active tiles on board after merge:', allTiles.length + 2, '(', nearestTiles.length, 'pulled +', 2, 'merge tiles)');
+        devWarn('⚠️ WILD-MAGNET: No tiles can be pulled (all nearby tiles are locked or invalid)');
+        devLog('🧲 Wild-magnet merge will proceed with mult=2 (default) and spawn 2 new tiles');
+        devLog('🧲 Active tiles on board after merge:', allTiles.length + 2, '(', nearestTiles.length, 'pulled +', 2, 'merge tiles)');
         
         // 🔥 CRITICAL: Reset wildMagnetPullInProgress if no tiles to pull
         // Otherwise, subsequent magnet merges will be blocked!
         wildMagnetPullInProgress = false;
-        console.log('✅ wildMagnetPullInProgress reset to false (no tiles to pull)');
+        devLog('✅ wildMagnetPullInProgress reset to false (no tiles to pull)');
         
         // 🔥 POJEDNOSTAVLJENO: Flag više nije potreban - logika u onComplete callback-u provjerava isMagnetPullMergeFinal
         // Ako isMagnetPullMergeFinal === false, merge 6 tile će biti obrisan
@@ -5545,9 +4634,9 @@ function merge(src, dst, helpers){
       // 🎯 CRITICAL: Do NOT override mult if this is last move scenario (mult = 0 for clean board)
       if (nearestTiles.length > 0 && !isLastMoveScenario) {
         mult = Math.min(4, nearestTiles.length + 1); // +1 for the main merge, max 4x
-        console.log('🧲 Updated multiplier to', mult, 'x (based on', nearestTiles.length, 'pulled tiles)');
+        devLog('🧲 Updated multiplier to', mult, 'x (based on', nearestTiles.length, 'pulled tiles)');
       } else if (isLastMoveScenario) {
-        console.log('🎯 KEEPING mult = 0 (last move scenario - clean board, NO spawn override!)');
+        devLog('🎯 KEEPING mult = 0 (last move scenario - clean board, NO spawn override!)');
       }
       
       if (nearestTiles.length > 0) {
@@ -5572,7 +4661,7 @@ function merge(src, dst, helpers){
           tile.cursor = 'default';
           tile.locked = true; // Lock tile to prevent any interactions
           
-          console.log('🛡️ Protected pulled tile:', tile.value, 'special:', tile.special, 'eventMode:', tile.eventMode, 'locked:', tile.locked);
+          devLog('🛡️ Protected pulled tile:', tile.value, 'special:', tile.special, 'eventMode:', tile.eventMode, 'locked:', tile.locked);
           
           // Clear from grid immediately (they're being pulled)
           if (tile.gridX !== undefined && tile.gridY !== undefined && grid && grid[tile.gridY]) {
@@ -5582,17 +4671,17 @@ function merge(src, dst, helpers){
           // 🔥 CRITICAL: Ensure tiles remain in tiles array (don't remove them yet!)
           // They will be removed when merge completes
           if (!tiles.includes(tile)) {
-            console.warn('⚠️ Pulled tile not in tiles array, adding it back');
+            devWarn('⚠️ Pulled tile not in tiles array, adding it back');
             tiles.push(tile);
             // Clear end game cache when tile is added
             clearEndGameCache();
           }
           if (!STATE.tiles.includes(tile)) {
-            console.warn('⚠️ Pulled tile not in STATE.tiles array, adding it back');
+            devWarn('⚠️ Pulled tile not in STATE.tiles array, adding it back');
             STATE.tiles.push(tile);
           }
           
-          console.log('🧲 Marked tile as magnet-affected:', tile.value, 'special:', tile.special, 'in tiles:', tiles.includes(tile), 'in STATE.tiles:', STATE.tiles.includes(tile));
+          devLog('🧲 Marked tile as magnet-affected:', tile.value, 'special:', tile.special, 'in tiles:', tiles.includes(tile), 'in STATE.tiles:', STATE.tiles.includes(tile));
         });
         
         // Track how many tiles have arrived
@@ -5616,7 +4705,7 @@ function merge(src, dst, helpers){
         const cleanupPulledTile = (tile: any, origX: number, origY: number, origRotation: number, origScaleX: number, origScaleY: number) => {
           if (!tile || tile.destroyed) return;
           
-          console.log('🧹 Cleaning up pulled tile - resetting to original state');
+          devLog('🧹 Cleaning up pulled tile - resetting to original state');
           
           // Kill all tweens on this tile
           try {
@@ -5658,64 +4747,64 @@ function merge(src, dst, helpers){
           if (drag && typeof drag.bindToTile === 'function') {
             try {
               drag.bindToTile(tile);
-              console.log('✅ Drag handler re-bound to cleaned tile');
+              devLog('✅ Drag handler re-bound to cleaned tile');
             } catch (error) {
-              console.warn('⚠️ Failed to rebind drag handler:', error);
+              devWarn('⚠️ Failed to rebind drag handler:', error);
             }
           }
           
           // Re-add to grid if it has grid coordinates
           if (tile.gridX !== undefined && tile.gridY !== undefined && grid && grid[tile.gridY]) {
             grid[tile.gridY][tile.gridX] = tile;
-            console.log('✅ Tile re-added to grid at (', tile.gridX, ',', tile.gridY, ')');
+            devLog('✅ Tile re-added to grid at (', tile.gridX, ',', tile.gridY, ')');
           }
           
           // 🔥 CRITICAL: Force scale to exactly 1.0 (ensure no floating-point drift)
           if (tile.scale) {
             tile.scale.set(origScaleX, origScaleY);
-            console.log('✅ Tile scale reset to (', origScaleX, ',', origScaleY, ')');
+            devLog('✅ Tile scale reset to (', origScaleX, ',', origScaleY, ')');
           }
           
-          console.log('✅ Tile cleanup complete - tile restored to original state');
+          devLog('✅ Tile cleanup complete - tile restored to original state');
         };
         
         // 🔥 CRITICAL: Cleanup ALL timelines and pulled tiles (MEMORY LEAK FIX)
         // Use const binding to avoid block-function scoping quirks (keeps reference for timeouts)
         cleanupAllPullAnimations = () => {
-          console.log('🧹 Cleaning up all wild-magnet pull animations - killing', activeTimelines.length, 'timelines');
+          devLog('🧹 Cleaning up all wild-magnet pull animations - killing', activeTimelines.length, 'timelines');
           
           // Kill all active timelines
           activeTimelines.forEach((tl, idx) => {
             try {
               if (tl && !tl.killed) {
                 tl.kill();
-                console.log(`✅ Killed timeline ${idx + 1}/${activeTimelines.length}`);
+                devLog(`✅ Killed timeline ${idx + 1}/${activeTimelines.length}`);
               }
             } catch (error) {
-              console.warn(`⚠️ Failed to kill timeline ${idx + 1}:`, error);
+              devWarn(`⚠️ Failed to kill timeline ${idx + 1}:`, error);
             }
           });
           
           // Clear array
           activeTimelines.length = 0;
-          console.log('✅ All wild-magnet pull timelines cleaned up');
+          devLog('✅ All wild-magnet pull timelines cleaned up');
           
           // 🔥 CRITICAL: Reset wildMagnetPullInProgress when cleanup is called (FAST DRAG BUG FIX)
           // This ensures that a new pull can start even if the previous one was interrupted
           if (wildMagnetPullInProgress) {
             wildMagnetPullInProgress = false;
-            console.log('✅ wildMagnetPullInProgress reset to false after cleanup');
+            devLog('✅ wildMagnetPullInProgress reset to false after cleanup');
           }
         };
         
         // Function to merge pulled tiles when both conditions are met
         const tryMergePulledTiles = async () => {
           if (allTilesArrived && multiplierShown) {
-            console.log('🧲 Both conditions met: all tiles arrived AND multiplier shown, starting merge');
+            devLog('🧲 Both conditions met: all tiles arrived AND multiplier shown, starting merge');
             
             // 🔥 CRITICAL: Mark merge as started (prevent cleanup after this point)
             mergeStarted = true;
-            console.log('✅ mergeStarted flag set to true - cleanup will be skipped if animation is interrupted');
+            devLog('✅ mergeStarted flag set to true - cleanup will be skipped if animation is interrupted');
             
             try {
               // Import handleWildMagnetMergedPulledTiles asynchronously
@@ -5725,7 +4814,7 @@ function merge(src, dst, helpers){
               // NOTE: For pulled tiles merge, dst might be removed already (merge 6 tile), so we check differently
               const validTiles = nearestTiles.filter((t: any) => t && !t.destroyed);
               
-              console.log('🧲 Wild-magnet pulled tiles validation:', {
+              devLog('🧲 Wild-magnet pulled tiles validation:', {
                 totalPulled: nearestTiles.length,
                 validTiles: validTiles.length,
                 pulledTileTypes: nearestTiles.map((t: any) => ({
@@ -5739,9 +4828,9 @@ function merge(src, dst, helpers){
               // 🔥 CRITICAL FIX: Check _isLastMerge flag FIRST - if set, this is final merge-6, NO spawns!
               const isLastMergeFlagSet = (dst as any)?._isLastMerge === true;
               if (isLastMergeFlagSet) {
-                console.log('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 detected (_isLastMerge flag set) - magnet + 1 tile = 2 tiles total');
-                console.log('🎯 This is the final merge - should trigger clean board, NOT pull tiles or spawn anything');
-                console.log('🧲 Skipping handleWildMagnetMergedPulledTiles - clean board will be triggered in mergePulledTilesIntoMerge6');
+                devLog('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 detected (_isLastMerge flag set) - magnet + 1 tile = 2 tiles total');
+                devLog('🎯 This is the final merge - should trigger clean board, NOT pull tiles or spawn anything');
+                devLog('🧲 Skipping handleWildMagnetMergedPulledTiles - clean board will be triggered in mergePulledTilesIntoMerge6');
                 
                 // Still call handleWildMagnetMergedPulledTiles with empty array - it will check _isLastMerge and trigger clean board
                 // This ensures clean board flow is triggered properly
@@ -5752,7 +4841,7 @@ function merge(src, dst, helpers){
                   startLevel: startLevel
                 };
                 await handleWildMagnetMergedPulledTiles(dst, [], helpersWithMerge);
-                console.log('✅ Clean board triggered for final magnet merge-6');
+                devLog('✅ Clean board triggered for final magnet merge-6');
                 return; // Exit early - no further processing needed
               }
               
@@ -5761,7 +4850,7 @@ function merge(src, dst, helpers){
               if (validTiles.length === 0 && dst && !dst.destroyed) {
                 (dst as any)._willPullTiles = false; // Override: no tiles were actually pulled
                 (dst as any)._noTilesPulled = true; // Mark explicitly that no tiles were pulled
-                console.log('🧲🧲🧲 CRITICAL: nearestTiles.length > 0 but validTiles.length === 0 - marking as NO pull');
+                devLog('🧲🧲🧲 CRITICAL: nearestTiles.length > 0 but validTiles.length === 0 - marking as NO pull');
               } else if (validTiles.length > 0 && dst && !dst.destroyed) {
                 // At least one tile will merge: clear no-pull flag and mark intent
                 (dst as any)._noTilesPulled = false;
@@ -5807,40 +4896,40 @@ function merge(src, dst, helpers){
                 // BUT: Skip if this is last merge (would result in clean board)
                 // 🔥 ANIMATION TIMING: Add progress IMMEDIATELY (before pull animation) so progress bar animates during pull
                 if (validTiles.length >= 1 && validTiles.length <= 4 && !isLastMergeBeforePull) {
-                  console.log(`🧲 Magnet pulling ${validTiles.length} tiles - adding wild progress IMMEDIATELY (treating as merge 6, NOT last merge)`);
+                  devLog(`🧲 Magnet pulling ${validTiles.length} tiles - adding wild progress IMMEDIATELY (treating as merge 6, NOT last merge)`);
                   addWildProgress(WILD_INC_BIG); // Same as regular merge 6 - animates during pull
                 } else if (isLastMergeBeforePull) {
-                  console.log(`🚨🚨🚨 LAST MERGE DETECTED (magnet pull) - ${visibleTilesCountBeforePull} tiles before pull, skipping wild progress`);
+                  devLog(`🚨🚨🚨 LAST MERGE DETECTED (magnet pull) - ${visibleTilesCountBeforePull} tiles before pull, skipping wild progress`);
                   // Reset wild meter to prevent wild spawn before clean board
                   wildMeter = 0;
                   STATE.wildMeter = 0;
                   try {
                     if (typeof HUD.resetWildMeter === 'function') {
                       HUD.resetWildMeter(true);
-                      console.log('✅ LAST MERGE (magnet pull): Wild meter reset in HUD');
+                      devLog('✅ LAST MERGE (magnet pull): Wild meter reset in HUD');
                     }
                   } catch (error) {
-                    console.warn('⚠️ LAST MERGE (magnet pull): Failed to reset wild meter in HUD:', error);
+                    devWarn('⚠️ LAST MERGE (magnet pull): Failed to reset wild meter in HUD:', error);
                   }
                 }
                 
-                console.log('🧲 Calling handleWildMagnetMergedPulledTiles with', validTiles.length, 'valid tiles');
+                devLog('🧲 Calling handleWildMagnetMergedPulledTiles with', validTiles.length, 'valid tiles');
                 await handleWildMagnetMergedPulledTiles(mergeLocation, validTiles, helpersWithMerge);
-                console.log('✅ Pulled tiles merge completed - merge 6 created with 4x multiplier');
+                devLog('✅ Pulled tiles merge completed - merge 6 created with 4x multiplier');
                 
                 // 🔥 CRITICAL: Cleanup all timelines after successful merge (MEMORY LEAK FIX)
                 cleanupAllPullAnimations();
                 
                 // 🔥 CRITICAL: Reset wildMagnetPullInProgress after successful merge
                 wildMagnetPullInProgress = false;
-                console.log('✅ Wild-magnet pull animation guard reset (merge completed)');
+                devLog('✅ Wild-magnet pull animation guard reset (merge completed)');
                 
                 // 🔥 CRITICAL: DON'T clean up flags immediately - they need to stay until onComplete callback checks them
                 // The flags will be cleaned up in the onComplete callback after spawn completes
                 // (mergeLocation as any)._wildMagnetPulledTilesMerge = undefined;
                 // (mergeLocation as any)._wildMagnetPulledTilesScoring = undefined;
               } else {
-                console.warn('⚠️ Not enough valid pulled tiles to merge (need at least 1, got', validTiles.length, ')');
+                devWarn('⚠️ Not enough valid pulled tiles to merge (need at least 1, got', validTiles.length, ')');
                 // Cleanup all timelines (MEMORY LEAK FIX)
                 cleanupAllPullAnimations();
                 
@@ -5862,8 +4951,8 @@ function merge(src, dst, helpers){
                 wildMagnetPullInProgress = false;
               }
             } catch (err) {
-              console.error('❌ Error merging pulled tiles:', err);
-              console.error('❌ Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+              devError('❌ Error merging pulled tiles:', err);
+              devError('❌ Error stack:', err instanceof Error ? err.stack : 'No stack trace');
               // Cleanup all timelines (MEMORY LEAK FIX)
               cleanupAllPullAnimations();
               // Cleanup all pulled tiles on error
@@ -5926,17 +5015,17 @@ function merge(src, dst, helpers){
             onInterrupt: () => {
               // 🔥 CRITICAL: Don't cleanup if merge has already started
               if (mergeStarted) {
-                console.log('⏳ Wild-magnet pull animation interrupted but merge already started - skipping cleanup for tile:', index);
+                devLog('⏳ Wild-magnet pull animation interrupted but merge already started - skipping cleanup for tile:', index);
                 return;
               }
               // 🔥 CRITICAL: Cleanup on animation interrupt (e.g., user drags tile)
-              console.warn('⚠️ Wild-magnet pull animation interrupted for tile:', index);
+              devWarn('⚠️ Wild-magnet pull animation interrupted for tile:', index);
               cleanupPulledTile(tile, startX, startY, startRotation, originalScaleX, originalScaleY);
             },
             onComplete: () => {
               // 🔥 CRITICAL: Mark timeline as killed when complete (MEMORY LEAK FIX)
               (tl as any).killed = true;
-              console.log(`✅ Timeline ${index + 1}/${totalTiles} completed and marked as killed`);
+              devLog(`✅ Timeline ${index + 1}/${totalTiles} completed and marked as killed`);
             },
             onUpdate: async () => {
               // 🔥 CRITICAL: Don't cleanup if merge has already started
@@ -5947,7 +5036,7 @@ function merge(src, dst, helpers){
               
               // 🔥 CRITICAL: Safety check - tile must exist and not be destroyed
               if (!tile || tile.destroyed) {
-                console.warn('⚠️ Tile destroyed during animation, cleaning up and killing timeline');
+                devWarn('⚠️ Tile destroyed during animation, cleaning up and killing timeline');
                 cleanupPulledTile(tile, startX, startY, startRotation, originalScaleX, originalScaleY);
                 try { tl.kill(); } catch {}
                 return;
@@ -5955,7 +5044,7 @@ function merge(src, dst, helpers){
               
               // 🔥 CRITICAL: Safety check - tile must have valid position properties
               if (tile.x == null || tile.y == null || typeof tile.x !== 'number' || typeof tile.y !== 'number' || !Number.isFinite(tile.x) || !Number.isFinite(tile.y)) {
-                console.warn('⚠️ Tile position invalid during animation, cleaning up and killing timeline');
+                devWarn('⚠️ Tile position invalid during animation, cleaning up and killing timeline');
                 cleanupPulledTile(tile, startX, startY, startRotation, originalScaleX, originalScaleY);
                 try { tl.kill(); } catch {}
                 return;
@@ -5980,18 +5069,18 @@ function merge(src, dst, helpers){
               if (progress >= 0.75 && !tile._mergeTriggered75) {
                 // 🔥 CRITICAL: Double-check tile is still valid before triggering merge
                 if (!tile || tile.destroyed || tile.x == null || tile.y == null) {
-                  console.warn('⚠️ Tile destroyed just before merge trigger, skipping');
+                  devWarn('⚠️ Tile destroyed just before merge trigger, skipping');
                   try { tl.kill(); } catch {}
                   return;
                 }
                 
                 tile._mergeTriggered75 = true;
                 arrivedCount++;
-                console.log(`🧲 Tile ${index + 1}/${totalTiles} reached 75% - triggering merge immediately`);
+                devLog(`🧲 Tile ${index + 1}/${totalTiles} reached 75% - triggering merge immediately`);
                 
                 // When all tiles reach 75%, trigger merge IMMEDIATELY
                 if (arrivedCount === totalTiles) {
-                  console.log('🧲 All tiles reached 75%, triggering merge 6 IMMEDIATELY (no final alignment)');
+                  devLog('🧲 All tiles reached 75%, triggering merge 6 IMMEDIATELY (no final alignment)');
                   allTilesArrived = true;
                   multiplierShown = true; // Mark multiplier as shown to trigger merge immediately
                   
@@ -6001,7 +5090,7 @@ function merge(src, dst, helpers){
                   try {
                     await tryMergePulledTiles();
                   } catch (error) {
-                    console.error('❌ Error in tryMergePulledTiles:', error);
+                    devError('❌ Error in tryMergePulledTiles:', error);
                   }
                 }
               }
@@ -6101,20 +5190,20 @@ function merge(src, dst, helpers){
           
           // 🔥 CRITICAL: Store timeline reference for cleanup (MEMORY LEAK FIX)
           activeTimelines.push(tl);
-          console.log(`✅ Timeline ${index + 1}/${totalTiles} created and stored for cleanup`);
+          devLog(`✅ Timeline ${index + 1}/${totalTiles} created and stored for cleanup`);
         });
         
         // Store callback to trigger merge when multiplier appears
         // This will be called from the onComplete callback after showMultiplierTile
         (dst as any)._wildMagnetMergeCallback = async () => {
-          console.log('🧲 Multiplier appeared, checking if can merge pulled tiles');
+          devLog('🧲 Multiplier appeared, checking if can merge pulled tiles');
           multiplierShown = true;
           // Try to merge (will only merge if all tiles have arrived)
           // 🔥 CRITICAL FIX: Wrap in try-catch to prevent unhandled promise rejection
           try {
             await tryMergePulledTiles();
           } catch (error) {
-            console.error('❌ Error in tryMergePulledTiles (from multiplier callback):', error);
+            devError('❌ Error in tryMergePulledTiles (from multiplier callback):', error);
             // Cleanup all timelines (MEMORY LEAK FIX)
             cleanupAllPullAnimations();
             // Reset guard on error
@@ -6127,7 +5216,7 @@ function merge(src, dst, helpers){
         // Use a timeout to ensure it's reset even if merge fails or animation is interrupted
         trackAppTimeout(() => {
           if (wildMagnetPullInProgress) {
-            console.warn('⚠️ Wild-magnet pull animation timeout - cleaning up after 2s');
+            devWarn('⚠️ Wild-magnet pull animation timeout - cleaning up after 2s');
             
             // 🔥 CRITICAL: Cleanup all animations and tiles on timeout (FAST DRAG BUG FIX)
             cleanupAllPullAnimations();
@@ -6142,12 +5231,12 @@ function merge(src, dst, helpers){
                 const origScaleX = 1.0;
                 const origScaleY = 1.0;
                 cleanupPulledTile(t, origX, origY, origRot, origScaleX, origScaleY);
-                console.log('✅ Timeout fallback: Cleaned tile with scale reset to 1.0');
+                devLog('✅ Timeout fallback: Cleaned tile with scale reset to 1.0');
               }
             });
             
             wildMagnetPullInProgress = false;
-            console.log('✅ Wild-magnet pull animation guard reset (timeout fallback with cleanup)');
+            devLog('✅ Wild-magnet pull animation guard reset (timeout fallback with cleanup)');
           }
         }, 2000); // 2 second timeout (animation should complete in ~1s)
       }
@@ -6158,8 +5247,8 @@ function merge(src, dst, helpers){
     const isLastMergeScenario = (dst as any)?._isLastMerge === true;
     
     if (isLastMergeScenario) {
-      console.log('🚨🚨🚨 LAST MERGE DETECTED (before animation) - Will play animations, skip spawn, and trigger clean board flow');
-      console.log('🚨🚨🚨 Last merge details:', {
+      devLog('🚨🚨🚨 LAST MERGE DETECTED (before animation) - Will play animations, skip spawn, and trigger clean board flow');
+      devLog('🚨🚨🚨 Last merge details:', {
         srcValue: src.value,
         dstValue: dst.value,
         srcSpecial: srcSpecial,
@@ -6200,12 +5289,12 @@ function merge(src, dst, helpers){
           try {
             if (typeof HUD.getStarHudPosition === 'function') {
               hudStarPos = HUD.getStarHudPosition();
-              console.log('⭐ HUD star position retrieved:', hudStarPos);
+              devLog('⭐ HUD star position retrieved:', hudStarPos);
             } else {
-              console.warn('⚠️ HUD.getStarHudPosition is not a function');
+              devWarn('⚠️ HUD.getStarHudPosition is not a function');
             }
           } catch (err) {
-            console.error('❌ Error getting HUD star position:', err);
+            devError('❌ Error getting HUD star position:', err);
           }
         }
 
@@ -6215,7 +5304,7 @@ function merge(src, dst, helpers){
         // 🔥 CRITICAL: Always trigger animation if shouldAnimateStarsToHUD is true, even if bubbles animation is running
         if (shouldAnimateStarsToHUD) {
           if (savedStarPositions.length > 0 && hudStarPos) {
-            console.log('⭐ Starting stars animation to HUD with saved data:', { 
+            devLog('⭐ Starting stars animation to HUD with saved data:', { 
               starCount: savedStarPositions.length,
               merge6Pos,
               hudStarPos,
@@ -6229,12 +5318,12 @@ function merge(src, dst, helpers){
               // Use setTimeout instead of gsap.delayedCall to avoid being killed by killAllDelayedCalls()
               trackAppTimeout(async () => {
                 try {
-                  console.log('⭐ About to import animateStarsToHudIcon from fx.js...');
+                  devLog('⭐ About to import animateStarsToHudIcon from fx.js...');
                   // Import and call fx.js animation function with SAVED star data
                   const { animateStarsToHudIcon } = await import('./fx.js');
-                  console.log('⭐ Imported animateStarsToHudIcon:', typeof animateStarsToHudIcon);
+                  devLog('⭐ Imported animateStarsToHudIcon:', typeof animateStarsToHudIcon);
                   if (typeof animateStarsToHudIcon === 'function') {
-                    console.log('⭐ Calling animateStarsToHudIcon with saved star data (INDEPENDENT):', { 
+                    devLog('⭐ Calling animateStarsToHudIcon with saved star data (INDEPENDENT):', { 
                       board: !!board, 
                       stage: !!stage,
                       savedStarCount: savedStarPositions.length,
@@ -6244,17 +5333,17 @@ function merge(src, dst, helpers){
                     // Pass saved star data instead of tile object
                     // 🔥 CRITICAL FIX: Pass app to animateStarsToHudIcon so it can access renderer
                     await animateStarsToHudIcon(board, stage, savedStarPositions, savedWildTileScreenPos, merge6Pos, hudStarPos, app);
-                    console.log('✅ Stars animation to HUD completed (INDEPENDENT)');
+                    devLog('✅ Stars animation to HUD completed (INDEPENDENT)');
                   } else {
-                    console.warn('⚠️ animateStarsToHudIcon not available in fx.js');
+                    devWarn('⚠️ animateStarsToHudIcon not available in fx.js');
                   }
                 } catch (error) {
-                  console.error('❌ Failed to animate stars to HUD:', error);
+                  devError('❌ Failed to animate stars to HUD:', error);
                 }
               }, 200); // 200ms delay using setTimeout (not GSAP, so won't be killed)
             });
           } else {
-            console.warn('⭐ Stars animation skipped - missing data:', { 
+            devWarn('⭐ Stars animation skipped - missing data:', { 
               shouldAnimate: shouldAnimateStarsToHUD,
               savedStarCount: savedStarPositions?.length || 0,
               hasHudPos: !!hudStarPos,
@@ -6271,7 +5360,7 @@ function merge(src, dst, helpers){
         
         // 🔥 USER REQUEST: Check if this was last 2 tiles AFTER removing src
         // This is the CORRECT time to check - after src is removed, if only merge-6 remains, it was last 2 tiles
-        const activeTilesAfterSrcRemoval = getReactiveActiveTiles();
+        const activeTilesAfterSrcRemoval = getReactiveActiveTiles(tiles);
         const onlyMerge6Remains = activeTilesAfterSrcRemoval.length === 1 && 
                                   activeTilesAfterSrcRemoval[0] === dst && 
                                   dst.value === 6;
@@ -6292,7 +5381,7 @@ function merge(src, dst, helpers){
         // 🔥 CRITICAL: If this was last 2 tiles (wild + regular OR regular + regular OR magnet + regular), set flag NOW
         if ((wasWildRegularLastTwo || wasRegularRegularLastTwo || wasMagnetRegularLastTwo) && !isLastMergeInOnComplete) {
           (dst as any)._isLastMerge = true;
-          console.log('🚨🚨🚨 LAST MERGE DETECTED (AFTER src removal) - Only merge-6 remains:', {
+          devLog('🚨🚨🚨 LAST MERGE DETECTED (AFTER src removal) - Only merge-6 remains:', {
             wasWildRegularLastTwo,
             wasRegularRegularLastTwo,
             wasMagnetRegularLastTwo,
@@ -6306,9 +5395,9 @@ function merge(src, dst, helpers){
           // 🔥 BOARD RECOVERY: Persist intent so we can recover if app is force-quit during animation
           try {
             setPendingCleanBoard(boardNumber);
-            console.log('✅ RECOVERY: pendingCleanBoard flag set (after src removal detection)');
+            devLog('✅ RECOVERY: pendingCleanBoard flag set (after src removal detection)');
           } catch (e) {
-            console.warn('⚠️ Failed to set pending clean board flag (after src removal):', e);
+            devWarn('⚠️ Failed to set pending clean board flag (after src removal):', e);
           }
         }
         
@@ -6329,11 +5418,11 @@ function merge(src, dst, helpers){
           // 🔥 BUG FIX: Exclude tiles that are being pulled by magnet (have _wildMagnetAffected flag)
           // These tiles are in the process of being removed but haven't been destroyed yet
           // Without this exclusion, they would incorrectly trigger "false positive" detection
-          const otherActive = getReactiveActiveTiles().filter((t) => t !== dst && !(t as any)?._wildMagnetAffected);
+          const otherActive = getReactiveActiveTiles(tiles).filter((t) => t !== dst && !(t as any)?._wildMagnetAffected);
           if (otherActive.length === 0 && dstStillExists) {
-            console.log('🚨🚨🚨 LAST MERGE DETECTED (_isLastMerge flag) - Only 2 tiles merged to merge 6');
-            console.log('💥 LAST MERGE: Letting normal merge 6 flow continue (animations, dst removal, spawn check)');
-            console.log('💥 LAST MERGE: Spawn will be skipped by safeguard check (line 3070), then clean board flow will trigger');
+            devLog('🚨🚨🚨 LAST MERGE DETECTED (_isLastMerge flag) - Only 2 tiles merged to merge 6');
+            devLog('💥 LAST MERGE: Letting normal merge 6 flow continue (animations, dst removal, spawn check)');
+            devLog('💥 LAST MERGE: Spawn will be skipped by safeguard check (line 3070), then clean board flow will trigger');
             
             // 🔥 CRITICAL: DON'T set busyEnding here - let normal merge 6 flow continue
             // The safeguard check (line 3070) will skip spawn and trigger clean board flow
@@ -6342,16 +5431,16 @@ function merge(src, dst, helpers){
             // 🔥 CRITICAL: DON'T reset wild meter here - let safeguard check handle it
             // 🔥 CRITICAL: DON'T trigger clean board flow here - let safeguard check handle it
             // Just let the normal merge 6 flow continue (dst removal, spawn check, clean board flow)
-            console.log('✅ LAST MERGE: Continuing with normal merge 6 flow (dst removal, spawn check, clean board flow)');
+            devLog('✅ LAST MERGE: Continuing with normal merge 6 flow (dst removal, spawn check, clean board flow)');
             // No return - continue with normal merge 6 flow
           } else if (otherActive.length > 0) {
-            console.warn('⚠️ LAST MERGE: False positive detected - other active tiles remain. Continuing normal flow.', {
+            devWarn('⚠️ LAST MERGE: False positive detected - other active tiles remain. Continuing normal flow.', {
               otherActive: otherActive.map(t => ({ value: t.value, special: t.special, locked: t.locked }))
             });
             (dst as any)._isLastMerge = false;
             busyEnding = false;
           } else if (!dstStillExists) {
-            console.warn('⚠️ LAST MERGE: _isLastMerge flag set but dst tile no longer exists. Verifying clean board...');
+            devWarn('⚠️ LAST MERGE: _isLastMerge flag set but dst tile no longer exists. Verifying clean board...');
             const boardIsClean = otherActive.length === 0;
             if (boardIsClean) {
               // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
@@ -6375,9 +5464,9 @@ function merge(src, dst, helpers){
         const isNotLastMerge = !(dst as any)?._isLastMerge;
         
         if (isWildMagnetMergeWithPull) {
-          console.log('🧲 Wild-magnet merge with pull detected - skipping endgame check until pulled tiles merge completes');
+          devLog('🧲 Wild-magnet merge with pull detected - skipping endgame check until pulled tiles merge completes');
         } else if (isRegularWildMerge && isNotLastMerge) {
-          console.log('⭐ Regular wild merge mid-game detected (NOT last merge) - skipping endgame check to prevent false fail screen');
+          devLog('⭐ Regular wild merge mid-game detected (NOT last merge) - skipping endgame check to prevent false fail screen');
         } else {
           // 🔥 CRITICAL: Use centralized end game checker
           // Check if this was the last merge AFTER removing src tile
@@ -6394,21 +5483,21 @@ function merge(src, dst, helpers){
           const lastMergeResult = checkEndGame(lastMergeContext, true);
         
           if (lastMergeResult.type === 'clean' && lastMergeResult.reason === 'last_merge') {
-            console.log('🚨🚨🚨 LAST MERGE DETECTED (centralized checker) - Only merge 6 remains after removing src');
-            console.log('💥 LAST MERGE: This check should not trigger if _isLastMerge flag was set properly');
-            console.log('💥 LAST MERGE: Continuing with normal merge 6 flow (dst removal, spawn check, clean board flow)');
+            devLog('🚨🚨🚨 LAST MERGE DETECTED (centralized checker) - Only merge 6 remains after removing src');
+            devLog('💥 LAST MERGE: This check should not trigger if _isLastMerge flag was set properly');
+            devLog('💥 LAST MERGE: Continuing with normal merge 6 flow (dst removal, spawn check, clean board flow)');
             
             // 🔥 CRITICAL: Set _isLastMerge flag if not already set
             if (!(dst as any)?._isLastMerge) {
               (dst as any)._isLastMerge = true;
-              console.log('✅ _isLastMerge flag set to TRUE (was missing)');
+              devLog('✅ _isLastMerge flag set to TRUE (was missing)');
               
               // 🔥 BOARD RECOVERY: Persist intent so we can recover if app is force-quit during animation
               try {
                 setPendingCleanBoard(boardNumber);
-                console.log('✅ RECOVERY: pendingCleanBoard flag set (centralized checker)');
+                devLog('✅ RECOVERY: pendingCleanBoard flag set (centralized checker)');
               } catch (e) {
-                console.warn('⚠️ Failed to set pending clean board flag (centralized):', e);
+                devWarn('⚠️ Failed to set pending clean board flag (centralized):', e);
               }
             }
             
@@ -6421,12 +5510,12 @@ function merge(src, dst, helpers){
         // User needs to see merge 6 animations (smoke, shards, explosion) before clean board
         // We'll only skip SPAWN logic, not animations
         if (isLastMergeScenario) {
-          console.log('🚨🚨🚨 LAST MERGE: Will play animations but skip spawn - clean board flow will trigger after animations');
+          devLog('🚨🚨🚨 LAST MERGE: Will play animations but skip spawn - clean board flow will trigger after animations');
         }
         
         // If busyEnding was set by another process, exit early
         if (busyEnding) {
-          console.log('⏳ Last merge check skipped - busyEnding is true');
+          devLog('⏳ Last merge check skipped - busyEnding is true');
           return;
         }
 
@@ -6440,7 +5529,7 @@ function merge(src, dst, helpers){
         // Nakon removeTile(dst), dst može biti destroyed ili undefined
         // 🔥 CRITICAL FIX: Add explicit null check to prevent "Cannot read properties of null" error
         if (!dst) {
-          console.warn('⚠️ dst is null in merge-6 animation setup - cannot proceed with shards animation');
+          devWarn('⚠️ dst is null in merge-6 animation setup - cannot proceed with shards animation');
           return;
         }
         const dstX = dst.x ?? 0;
@@ -6473,7 +5562,7 @@ function merge(src, dst, helpers){
           if (isMainWildMagnetMerge) {
             // Wild-magnet merge: red shards using template-based pooling
             // NO STARS for wild-magnet merge
-            console.log('🔥 Wild-magnet merge 6 - using template-based pooling with red shards (NO STARS)');
+            devLog('🔥 Wild-magnet merge 6 - using template-based pooling with red shards (NO STARS)');
             const mergePos = centerInBoard(board, dst, TILE);
             wildMagnetMerge6ShardsTemplated(board, { x: mergePos.x, y: mergePos.y, gridX: dstGridX, gridY: dstGridY, zIndex: dstZIndex } as any, { 
               zIndex: dstZIndex
@@ -6481,7 +5570,7 @@ function merge(src, dst, helpers){
           } else if (isMainWildOnlyMerge) {
             // Wild-only merge (wild on ordinary or ordinary on wild): yellow shards for wild star, orange for wild beer
             // 🔥 USER REQUEST: Skip star particles - orbiting stars will be animated to HUD instead
-            console.log('🔥 Wild-only merge 6 - using template-based pooling (srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, ')');
+            devLog('🔥 Wild-only merge 6 - using template-based pooling (srcSpecial:', srcSpecial, 'dstSpecial:', dstSpecial, ')');
             // 🔥 WILD-BEER: Check if this is wild-beer merge
             // 🔥 CRITICAL FIX: Use srcSpecialMerge6/dstSpecialMerge6 (saved values) instead of srcSpecial/dstSpecial
             const isWildBeerMerge = srcSpecialMerge6 === 'wild-beer' || dstSpecialMerge6 === 'wild-beer';
@@ -6489,8 +5578,8 @@ function merge(src, dst, helpers){
             const isPureWildStarMerge = (srcSpecial === 'wild' || dstSpecial === 'wild') && !isWildBeerMerge;
             
             // 🔥 CRITICAL DEBUG: Log all relevant values to diagnose why bubbles explosion might not trigger
-            console.log('💧 Merge 6 check - isWildBeerMerge:', isWildBeerMerge, 'isPureWildStarMerge:', isPureWildStarMerge);
-            console.log('💧 Merge 6 special values:', {
+            devLog('💧 Merge 6 check - isWildBeerMerge:', isWildBeerMerge, 'isPureWildStarMerge:', isPureWildStarMerge);
+            devLog('💧 Merge 6 special values:', {
               srcSpecialMerge6,
               dstSpecialMerge6,
               srcSpecial,
@@ -6506,13 +5595,13 @@ function merge(src, dst, helpers){
             // 🎨 TEMPLATE-BASED: Use new template system with ORIGINAL COLORS
             if (isWildBeerMerge) {
               // 🍺 Wild-beer merge: orange shards using template-based pooling (ORIGINAL COLOR)
-              console.log('🍺 Wild-beer merge 6 - using template-based pooling with orange shards (ORIGINAL COLOR)');
+              devLog('🍺 Wild-beer merge 6 - using template-based pooling with orange shards (ORIGINAL COLOR)');
               wildBeerMerge6ShardsTemplated(board, dst, { 
                 zIndex: 9993
               });
             } else if (isPureWildStarMerge) {
               // ⭐ Wild star merge: yellow shards using template-based pooling (ORIGINAL COLOR)
-              console.log('⭐ Wild star merge 6 - using template-based pooling with yellow shards (ORIGINAL COLOR)');
+              devLog('⭐ Wild star merge 6 - using template-based pooling with yellow shards (ORIGINAL COLOR)');
               wildStarMerge6ShardsTemplated(board, dst, { 
                 skipStars: true,  // 🔥 USER REQUEST: Skip star particles for pure wild star merge 6
                 zIndex: 9993
@@ -6528,21 +5617,21 @@ function merge(src, dst, helpers){
             // 🔥 FPS DROP FIX: Stagger animacije umjesto istovremenog pokretanja
             // Trigger only the main bubbles explosion (skip smaller fizz to avoid double-wave)
             if (isWildBeerMerge) {
-              console.log('💧 Wild-beer merge detected! isWildBeerMerge:', isWildBeerMerge, 'srcSpecialMerge6:', srcSpecialMerge6, 'dstSpecialMerge6:', dstSpecialMerge6, 'srcSpecial (saved):', srcSpecial, 'dstSpecial (saved):', dstSpecial);
-              console.log('💧 src tile special (current):', src?.special, 'dst tile special (current):', dst?.special);
-              console.log('💧 src value:', src?.value, 'dst value:', dst?.value);
-              console.log('💧 wasWild:', wasWild, 'isMainWildOnlyMerge:', isMainWildOnlyMerge);
+              devLog('💧 Wild-beer merge detected! isWildBeerMerge:', isWildBeerMerge, 'srcSpecialMerge6:', srcSpecialMerge6, 'dstSpecialMerge6:', dstSpecialMerge6, 'srcSpecial (saved):', srcSpecial, 'dstSpecial (saved):', dstSpecial);
+              devLog('💧 src tile special (current):', src?.special, 'dst tile special (current):', dst?.special);
+              devLog('💧 src value:', src?.value, 'dst value:', dst?.value);
+              devLog('💧 wasWild:', wasWild, 'isMainWildOnlyMerge:', isMainWildOnlyMerge);
               
               // 🔥 CRITICAL: Ensure cleanup is called BEFORE triggering new explosion
               // This prevents race condition where previous explosion state blocks new one
               try {
                 const wasActive = isWildBeerBubblesExplosionActive();
                 if (wasActive) {
-                  console.log('🧹 Cleaning up previous wild beer explosion state before merge 6 bubbles');
+                  devLog('🧹 Cleaning up previous wild beer explosion state before merge 6 bubbles');
                   stopWildBeerBubblesExplosion();
                 }
               } catch (err) {
-                console.warn('⚠️ Failed to cleanup wild beer explosion before merge 6:', err);
+                devWarn('⚠️ Failed to cleanup wild beer explosion before merge 6:', err);
               }
               
               // 🔥 CRITICAL FIX: Execute immediately (no delay) to prevent race condition with board transition
@@ -6551,16 +5640,16 @@ function merge(src, dst, helpers){
               try {
                 // 🔥 CRITICAL: Use new modular explosion (works independently, no board/tile needed)
                 if (isWildBeerBubblesExplosionActive()) {
-                  console.warn('⚠️ Wild beer explosion still active, forcing cleanup before new explosion');
+                  devWarn('⚠️ Wild beer explosion still active, forcing cleanup before new explosion');
                   stopWildBeerBubblesExplosion();
                 }
                 
-                console.log('✅ Calling showWildBeerBubblesExplosion()...');
+                devLog('✅ Calling showWildBeerBubblesExplosion()...');
                 showWildBeerBubblesExplosion();
-                console.log('✅ showWildBeerBubblesExplosion() called successfully');
+                devLog('✅ showWildBeerBubblesExplosion() called successfully');
               } catch (error) {
-                console.error('❌ Failed to trigger bubbles explosion:', error);
-                console.error('❌ Error details:', {
+                devError('❌ Failed to trigger bubbles explosion:', error);
+                devError('❌ Error details:', {
                   errorMessage: error?.message,
                   errorStack: error?.stack,
                   srcSpecial,
@@ -6571,7 +5660,7 @@ function merge(src, dst, helpers){
                 });
               }
             } else {
-              console.log('⚠️ Wild-beer merge NOT detected!', {
+              devLog('⚠️ Wild-beer merge NOT detected!', {
                 isWildBeerMerge,
                 srcSpecialMerge6,
                 dstSpecialMerge6,
@@ -6586,7 +5675,7 @@ function merge(src, dst, helpers){
             }
           } else {
             // Fallback: use spawnMerge6Shards (shouldn't happen, but safety)
-            console.warn('⚠️ Wild merge but neither wild-magnet nor wild-only detected, using spawnMerge6Shards');
+            devWarn('⚠️ Wild merge but neither wild-magnet nor wild-only detected, using spawnMerge6Shards');
             const srcSnapshot = { special: srcSpecial };
             const dstSnapshot = { special: dstSpecial };
             spawnMerge6Shards(board, srcSnapshot, dst, dstSnapshot, { count: 30, intensity: 1.9, spread: 0.3, size: 1.5, speed: 0.85, vanishDelay: 0.0, vanishJitter: 0.02 });
@@ -6649,7 +5738,7 @@ function merge(src, dst, helpers){
             // Note: Pulled tiles animation already started when merge 6 began (no delay)
             // Speed up by 60%: original delay was 0.2s, now 0.08s (60% faster)
             trackAppTimeout(async () => {
-              console.log(`🧲 Multiplier x${mult} animation started (sped up 60%), triggering pulled tiles merge`);
+              devLog(`🧲 Multiplier x${mult} animation started (sped up 60%), triggering pulled tiles merge`);
               if ((dst as any)._wildMagnetMergeCallback) {
                 await (dst as any)._wildMagnetMergeCallback();
                 // Clean up callback
@@ -6659,7 +5748,7 @@ function merge(src, dst, helpers){
             }, 80); // Speed up by 60%: 0.2s * 0.4 = 0.08s = 80ms (was 0ms, now 80ms for 60% speedup)
           }
         } else {
-          console.warn('⚠️ Cannot show multiplier - destination tile is destroyed');
+          devWarn('⚠️ Cannot show multiplier - destination tile is destroyed');
         }
 
         if (!wasWild) {
@@ -6702,8 +5791,8 @@ function merge(src, dst, helpers){
           // 🔥 CRITICAL: If magnet + merge6 or wild + merge6 exists, skip last merge check
           // They can merge together, so it's NOT a last merge
           if ((hasMagnetBeforeCheck && hasMerge6BeforeCheck) || (hasWildBeforeCheck && hasMerge6BeforeCheck)) {
-            console.log('🧲⭐ MAGNET/WILD SAFETY (before dst removal): Magnet/wild + merge6 detected - NOT a last merge, game continues');
-            console.log('🧲⭐ Details:', { hasMagnet: hasMagnetBeforeCheck, hasWild: hasWildBeforeCheck, hasMerge6: hasMerge6BeforeCheck });
+            devLog('🧲⭐ MAGNET/WILD SAFETY (before dst removal): Magnet/wild + merge6 detected - NOT a last merge, game continues');
+            devLog('🧲⭐ Details:', { hasMagnet: hasMagnetBeforeCheck, hasWild: hasWildBeforeCheck, hasMerge6: hasMerge6BeforeCheck });
             // Don't call checkEndGame - continue with normal merge 6 flow (spawn, etc.)
           } else {
           const beforeDstRemovalContext: EndGameContext = {
@@ -6719,7 +5808,7 @@ function merge(src, dst, helpers){
           
           // Use centralized checker result - it handles all last merge scenarios
           if (beforeDstRemovalResult.type === 'clean' && beforeDstRemovalResult.reason === 'last_merge') {
-            console.log('🚨🚨🚨 LAST MERGE DETECTED (before dst removal, centralized checker) - Only merge 6 remains, triggering clean board flow');
+            devLog('🚨🚨🚨 LAST MERGE DETECTED (before dst removal, centralized checker) - Only merge 6 remains, triggering clean board flow');
             
             // Set busyEnding flag IMMEDIATELY to prevent any other code from running
             busyEnding = true;
@@ -6732,7 +5821,7 @@ function merge(src, dst, helpers){
             }
             
             // CRITICAL: Reset wild meter immediately to prevent visual residue
-            console.log('🔥 LAST MERGE: Resetting wild meter immediately...');
+            devLog('🔥 LAST MERGE: Resetting wild meter immediately...');
             wildMeter = 0;
             STATE.wildMeter = 0;
             resetWildProgress(0, false);
@@ -6744,9 +5833,9 @@ function merge(src, dst, helpers){
               } else {
                 HUD.updateProgressBar?.(0, false);
               }
-              console.log('✅ LAST MERGE: Wild meter reset completed');
+              devLog('✅ LAST MERGE: Wild meter reset completed');
             } catch (error) {
-              console.warn('⚠️ LAST MERGE: Failed to reset wild meter:', error);
+              devWarn('⚠️ LAST MERGE: Failed to reset wild meter:', error);
             }
             
             // 🔥 FIX: Use triggerCleanBoardFlow (same entry as other clean board paths) so modal shows consistently
@@ -6757,11 +5846,11 @@ function merge(src, dst, helpers){
           } // End of else block for checkEndGame call
         } else {
           if (busyEnding) {
-            console.log('⏳ Last merge check (before dst removal) skipped - busyEnding is true');
+            devLog('⏳ Last merge check (before dst removal) skipped - busyEnding is true');
           } else if (isWildMagnetMergeWithPullBeforeDst) {
-            console.log('🧲 Last merge check (before dst removal) skipped - wild-magnet merge will pull tiles');
+            devLog('🧲 Last merge check (before dst removal) skipped - wild-magnet merge will pull tiles');
           } else if (isRegularWildMergeBeforeDst && isNotLastMergeBeforeDst) {
-            console.log('⭐ Last merge check (before dst removal) skipped - regular wild merge mid-game (NOT last merge)');
+            devLog('⭐ Last merge check (before dst removal) skipped - regular wild merge mid-game (NOT last merge)');
           }
           // Don't return here - continue with normal merge 6 flow for wild-magnet and regular wild merges
         }
@@ -6805,13 +5894,13 @@ function merge(src, dst, helpers){
             // 🔥 v40.1: Store reference on dst for cleanup
             (dst as any)._placeholderHolder = placeholderHolder;
             
-            console.log('🔍 Dst tile hidden but NOT removed from tiles array yet - will be removed AFTER spawn');
-            console.log('🔍 Placeholder created at (', gx, ',', gy, ') for spawn logic');
+            devLog('🔍 Dst tile hidden but NOT removed from tiles array yet - will be removed AFTER spawn');
+            devLog('🔍 Placeholder created at (', gx, ',', gy, ') for spawn logic');
           } else {
             // 🔥 CRITICAL: For magnet pull merge, keep dst tile visible and don't create placeholder
             // The merge 6 tile should remain on the board along with newly spawned tiles
-            console.log('🧲 Magnet pull merge detected - keeping merge 6 tile visible on board');
-            console.log('🧲 Dst tile (merge 6) will remain visible:', { 
+            devLog('🧲 Magnet pull merge detected - keeping merge 6 tile visible on board');
+            devLog('🧲 Dst tile (merge 6) will remain visible:', { 
               value: dst.value, 
               gridX: dst.gridX, 
               gridY: dst.gridY,
@@ -6821,7 +5910,7 @@ function merge(src, dst, helpers){
             });
           }
         } else {
-          console.warn('⚠️ Destination tile is invalid or already destroyed');
+          devWarn('⚠️ Destination tile is invalid or already destroyed');
         }
 
         // countdown moves (this happens for both normal and pulled tiles merge)
@@ -6830,7 +5919,7 @@ function merge(src, dst, helpers){
         // scoring with bubble multiplier and combo multiplier
         // 🔥 CRITICAL: Skip scoring if pulled tiles merge is happening (scoring handled in mergePulledTilesIntoMerge6)
         if ((dst as any)?._wildMagnetPulledTilesScoring) {
-          console.log('🧲 Skipping scoring in main merge 6 flow - pulled tiles merge will handle scoring');
+          devLog('🧲 Skipping scoring in main merge 6 flow - pulled tiles merge will handle scoring');
         } else {
         const bubbleMult = mult || 1;
         const comboMult  = combo > 0 ? combo : 1;
@@ -6840,7 +5929,7 @@ function merge(src, dst, helpers){
         score = Math.min(SCORE_CAP, score + scoreDelta);
         // CRITICAL: Sync STATE.score with local score after adding
         STATE.score = score;
-        console.log('🎯 Final score after merge:', score, 'STATE.score:', STATE.score);
+        devLog('🎯 Final score after merge:', score, 'STATE.score:', STATE.score);
 
         animateBoardHUD(boardNumber, 0.40);
         animateScore(score, 0.40);
@@ -6853,10 +5942,10 @@ function merge(src, dst, helpers){
         try {
           if (typeof window.trackCubesCracked === 'function') {
             window.trackCubesCracked(1);
-            console.log(`🧊 Merge-6: Tracked cubes cracked for board ${boardNumber}`);
+            devLog(`🧊 Merge-6: Tracked cubes cracked for board ${boardNumber}`);
           }
         } catch (error) {
-          console.warn('⚠️ Failed to track board-specific cubes cracked for merge-6:', error);
+          devWarn('⚠️ Failed to track board-specific cubes cracked for merge-6:', error);
         }
         
         if (wasWild) {
@@ -6875,7 +5964,7 @@ function merge(src, dst, helpers){
           try {
             import('../services/board-stats-service.js').then(({ boardStatsService }) => {
               boardStatsService.updateBoardLongestCombo(boardNumber, currentComboForMerge6);
-              console.log(`🎯 Merge-6: Tracked longest combo for board ${boardNumber}: ${currentComboForMerge6}`);
+              devLog(`🎯 Merge-6: Tracked longest combo for board ${boardNumber}: ${currentComboForMerge6}`);
             }).catch(() => {
               // Ignore import errors
             });
@@ -6897,7 +5986,7 @@ function merge(src, dst, helpers){
 
         // ► CLEAN BOARD flow (centralized orchestrator)
         // 🔥 DEBUG: Log when merge-6 onComplete is called
-        console.log('🔥🔥🔥 MERGE-6 onComplete CALLED:', {
+        devLog('🔥🔥🔥 MERGE-6 onComplete CALLED:', {
           dstValue: dst?.value,
           srcSpecial,
           dstSpecial,
@@ -6913,7 +6002,7 @@ function merge(src, dst, helpers){
         // 🔥 CRITICAL: Skip end game check if pulled tiles merge is happening
         // The check will be done AFTER pulled tiles merge completes and spawns new tiles
         if ((dst as any)?._wildMagnetPulledTilesMerge) {
-          console.log('🧲 Skipping end game check - pulled tiles merge in progress, will check after spawn completes');
+          devLog('🧲 Skipping end game check - pulled tiles merge in progress, will check after spawn completes');
           // Don't check end game here - it will be checked after pulled tiles merge completes
           // The pulled tiles merge handler will spawn new tiles and then check end game
           return;
@@ -6923,8 +6012,8 @@ function merge(src, dst, helpers){
         // The endgame check was running BEFORE spawn, causing board to look empty (dst removed)
         // This made it trigger clean board flow instead of spawning new tiles
         // Endgame check will be done AFTER spawn in checkLevelEnd()
-        console.log('🎯 Merge 6 completed, proceeding to spawn logic...');
-        console.log('🔍 DEBUG: mult value in onComplete:', mult, 'typeof mult:', typeof mult);
+        devLog('🎯 Merge 6 completed, proceeding to spawn logic...');
+        devLog('🔍 DEBUG: mult value in onComplete:', mult, 'typeof mult:', typeof mult);
         
         // 🔥 USER REQUEST: Check for last merge BEFORE adding wild progress and spawning
         // Last merge applies to:
@@ -6944,7 +6033,7 @@ function merge(src, dst, helpers){
         // 🔥 CRITICAL FIX: If pulled tiles will merge, skip last merge check (new tiles will spawn)
         let isActuallyLastMerge = false;
         if (willPullTiles) {
-          console.log('🧲 Pulled tiles will merge - this is NOT last merge (new tiles will spawn)', {
+          devLog('🧲 Pulled tiles will merge - this is NOT last merge (new tiles will spawn)', {
             willPulledTilesMerge,
             hasTilesToPull,
             willPullTiles,
@@ -6970,7 +6059,7 @@ function merge(src, dst, helpers){
           
           isActuallyLastMerge = hasLastMergeFlag || onlyMerge6RemainsInOnComplete;
         
-          console.log('🔍 LAST MERGE CHECK in merge-6 onComplete:', {
+          devLog('🔍 LAST MERGE CHECK in merge-6 onComplete:', {
             hasLastMergeFlag,
             onlyMerge6RemainsInOnComplete,
             isActuallyLastMerge,
@@ -6988,13 +6077,13 @@ function merge(src, dst, helpers){
           const mergeType = (!src?.special && !dst?.special) ? 'Regular + regular' : 
                            (src?.special === 'wild-magnet' || dst?.special === 'wild-magnet') ? 'Wild-magnet + regular' :
                            'Wild + regular';
-          console.log(`🚨🚨🚨 LAST MERGE DETECTED (in merge-6 onComplete) - ${mergeType} → merge 6, skipping wild progress and spawn, triggering clean board`);
-          console.log('🚨🚨🚨 LAST MERGE: hasLastMergeFlag =', hasLastMergeFlag, 'onlyMerge6RemainsInOnComplete =', isActuallyLastMerge, 'dst._isLastMerge =', (dst as any)?._isLastMerge);
+          devLog(`🚨🚨🚨 LAST MERGE DETECTED (in merge-6 onComplete) - ${mergeType} → merge 6, skipping wild progress and spawn, triggering clean board`);
+          devLog('🚨🚨🚨 LAST MERGE: hasLastMergeFlag =', hasLastMergeFlag, 'onlyMerge6RemainsInOnComplete =', isActuallyLastMerge, 'dst._isLastMerge =', (dst as any)?._isLastMerge);
           
           // Ensure flag is set for consistency
           if (!hasLastMergeFlag) {
             (dst as any)._isLastMerge = true;
-            console.log('✅ Setting _isLastMerge flag in onComplete (was missing)');
+            devLog('✅ Setting _isLastMerge flag in onComplete (was missing)');
           }
           
           // Skip wild progress and spawn - go directly to clean board flow
@@ -7002,7 +6091,7 @@ function merge(src, dst, helpers){
           // 🔥 CRITICAL: DON'T call addWildProgress - it would fill wild meter and trigger wild spawn!
         } else {
           // Normal merge-6 - add wild progress
-          console.log('✅ Normal merge-6 (NOT last merge) - adding wild progress');
+          devLog('✅ Normal merge-6 (NOT last merge) - adding wild progress');
           addWildProgress(WILD_INC_BIG);
         }
         
@@ -7019,10 +6108,10 @@ function merge(src, dst, helpers){
           const movesDepletedResult = checkEndGame(movesDepletedContext, true);
           
           if (movesDepletedResult.type === 'stuck') {
-            console.log('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
+            devLog('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
             if (!busyEnding) {
-              console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-              await new Promise(res => trackAppTimeout(res, 1500));
+              devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
+              await waitTracked(1500);
               showFinalScreen();
             }
             return;
@@ -7034,7 +6123,7 @@ function merge(src, dst, helpers){
         // 🔥 CRITICAL: Skip normal spawn if pulled tiles merge is happening
         // Pulled tiles merge already spawns new tiles in mergePulledTilesIntoMerge6
         if ((dst as any)?._wildMagnetPulledTilesMerge) {
-          console.log('🧲 Skipping normal spawn - pulled tiles merge already spawned tiles');
+          devLog('🧲 Skipping normal spawn - pulled tiles merge already spawned tiles');
           // 🔥 CRITICAL: Clean up flags AFTER checking (they were set before handleWildMagnetMergedPulledTiles)
           (dst as any)._wildMagnetPulledTilesMerge = undefined;
           (dst as any)._wildMagnetPulledTilesScoring = undefined;
@@ -7042,7 +6131,7 @@ function merge(src, dst, helpers){
           // 🔥 CRITICAL FIX: Don't call checkLevelEnd here - it's already called in mergePulledTilesIntoMerge6
           // Calling it twice causes race conditions and premature fail screens
           // mergePulledTilesIntoMerge6 waits for spawn animations and calls checkLevelEnd with proper timing
-          console.log('🧲 Skipping checkLevelEnd call here - mergePulledTilesIntoMerge6 will handle it after spawn completes');
+          devLog('🧲 Skipping checkLevelEnd call here - mergePulledTilesIntoMerge6 will handle it after spawn completes');
           return;
         }
         
@@ -7057,11 +6146,11 @@ function merge(src, dst, helpers){
         // 🔥 SOURCE OF TRUTH: If final merge-6 (_isLastMerge flag), trigger CLEAN BOARD, do NOT spawn
         // This applies to ALL merge types: normal, wild beer, wild star, wild magnet
         if (isLastMergeFlagSet && !willPulledTilesMerge) {
-          console.log('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 detected (_isLastMerge flag) - triggering CLEAN BOARD, NO spawn');
-          console.log('🎯 Source of Truth: Case A — Two tiles merge into 6: This is FINAL MERGE-6, Trigger CLEAN BOARD, No further spawning');
+          devLog('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 detected (_isLastMerge flag) - triggering CLEAN BOARD, NO spawn');
+          devLog('🎯 Source of Truth: Case A — Two tiles merge into 6: This is FINAL MERGE-6, Trigger CLEAN BOARD, No further spawning');
           
           // 🔥 CRITICAL: Use triggerCleanBoardFlow (same entry as moves depleted / checkLevelEnd) so modal shows consistently
-          console.log('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 - triggering clean board flow via triggerCleanBoardFlow (NO spawn)');
+          devLog('🚨🚨🚨 SOURCE OF TRUTH: Final merge-6 - triggering clean board flow via triggerCleanBoardFlow (NO spawn)');
           
           // Remove dst tile before triggering clean board
           if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
@@ -7082,7 +6171,7 @@ function merge(src, dst, helpers){
               HUD.updateProgressBar?.(0, false);
             }
           } catch (error) {
-            console.warn('⚠️ Failed to reset wild meter:', error);
+            devWarn('⚠️ Failed to reset wild meter:', error);
           }
 
           await triggerCleanBoardFlow('clean_board_from_last_merge');
@@ -7092,7 +6181,7 @@ function merge(src, dst, helpers){
         
         // 🔥 CRITICAL FIX: Don't trigger clean board if pulled tiles will merge (new tiles will spawn)
         if (willPulledTilesMerge) {
-          console.log('🧲 Pulled tiles will merge - this is NOT last merge (new tiles will spawn), clearing _isLastMerge flag');
+          devLog('🧲 Pulled tiles will merge - this is NOT last merge (new tiles will spawn), clearing _isLastMerge flag');
           // Clear the flag since new tiles will spawn
           (dst as any)._isLastMerge = false;
           // Don't trigger clean board - pulled tiles merge will handle spawn and endgame check
@@ -7115,13 +6204,13 @@ function merge(src, dst, helpers){
         // 🔥 SOURCE OF TRUTH: In endgame mode, wild merges spawn only 1 tile (Single Spawn Rule)
         // BUT: If final merge-6, spawnMult is already 0 (handled by _isLastMerge check above)
         if (isWildMergeForMultFix && isEndgameForMultCheck && spawnMult > 1 && !isLastMergeFlagSet) {
-          console.log('🔥 SOURCE OF TRUTH: Wild merge in endgame mode → reducing spawnMult from', spawnMult, 'to 1 (Single Spawn Rule)');
+          devLog('🔥 SOURCE OF TRUTH: Wild merge in endgame mode → reducing spawnMult from', spawnMult, 'to 1 (Single Spawn Rule)');
           spawnMult = 1; // Spawn only 1 tile in endgame mode (Single Spawn Rule)
         }
         
         // 🔥 CRITICAL: Check if spawnMult is valid before proceeding
         if (!spawnMult || spawnMult <= 0) {
-          console.warn('⚠️ SPAWN BLOCKED: spawnMult is invalid:', spawnMult, 'mult:', mult);
+          devWarn('⚠️ SPAWN BLOCKED: spawnMult is invalid:', spawnMult, 'mult:', mult);
           // 🔥 BUG FIX: Reset spawn flag if spawn is skipped (spawnMult = 0)
           merge6SpawnInProgress = false;
           return;
@@ -7130,16 +6219,16 @@ function merge(src, dst, helpers){
         // 🔥 BUG FIX: Set spawn in progress flag to prevent duplicate spawns from rapid clicks
         // This prevents bug where wild star/beer used rapidly cause duplicate spawns
         if (merge6SpawnInProgress) {
-          console.warn('🚨🚨🚨 SPAWN BLOCKED: Spawn already in progress from previous merge - preventing duplicate spawn');
-          console.warn('⚠️ This prevents bug where rapid wild star/beer clicks cause duplicate spawns');
+          devWarn('🚨🚨🚨 SPAWN BLOCKED: Spawn already in progress from previous merge - preventing duplicate spawn');
+          devWarn('⚠️ This prevents bug where rapid wild star/beer clicks cause duplicate spawns');
           return;
         }
         merge6SpawnInProgress = true;
-        console.log('✅ Set merge6SpawnInProgress = true to prevent duplicate spawns');
+        devLog('✅ Set merge6SpawnInProgress = true to prevent duplicate spawns');
         
         // 🔥 CRITICAL: Get pulled cells from dst tile to exclude from normal spawn
         const pulledCells = (dst as any)?._wildMagnetPulledCells || [];
-        const pulledCellsSet = new Set(pulledCells.map((cell: { c: number; r: number }) => `${cell.c},${cell.r}`));
+        const pulledCellsSet = new Set<string>(pulledCells.map((cell: { c: number; r: number }) => `${cell.c},${cell.r}`));
         
         // 🔥 DEBUG: Detailed spawn check for all merge-6 types
         const mergeType = !wildActive ? 'regular-regular' : 
@@ -7149,7 +6238,7 @@ function merge(src, dst, helpers){
         
         const activeTilesCount = tiles.filter(tileIsActive).length;
         
-        console.log('🎯🎯🎯 SPAWN CHECK FOR MERGE-6:', {
+        devLog('🎯🎯🎯 SPAWN CHECK FOR MERGE-6:', {
           mergeType,
           srcSpecial,
           dstSpecial,
@@ -7165,10 +6254,10 @@ function merge(src, dst, helpers){
           _wasWildMerge: (dst as any)?._wasWildMerge
         });
         
-        console.log('🎯 Spawning new tiles with multiplier:', spawnMult);
-        console.log('🎯 Excluding pulled cells from spawn:', pulledCells);
-        console.log('🎯 Wild merge target (for smart spawn):', wildMergeTarget);
-        console.log('🎯 Merge type check:', {
+        devLog('🎯 Spawning new tiles with multiplier:', spawnMult);
+        devLog('🎯 Excluding pulled cells from spawn:', pulledCells);
+        devLog('🎯 Wild merge target (for smart spawn):', wildMergeTarget);
+        devLog('🎯 Merge type check:', {
           srcSpecial,
           dstSpecial,
           wasWild: wildActive,
@@ -7202,7 +6291,7 @@ function merge(src, dst, helpers){
         const isEndgameMode = availableLockedTiles.length === 0;
         
         // 🔥 DEBUG: Log endgame mode detection
-        console.log('🎮 ENDGAME CHECK:', {
+        devLog('🎮 ENDGAME CHECK:', {
           lockedTilesCount: lockedTiles.length,
           availableLockedTilesCount: availableLockedTiles.length,
           isEndgameMode,
@@ -7222,13 +6311,13 @@ function merge(src, dst, helpers){
         
         if (shouldSpawnAtDst) {
           // 🔥 SOURCE OF TRUTH: Single Spawn Rule - spawn ONLY 1 tile at merge-6 cell in endgame mode
-          console.log('🎯🎯🎯 END-GAME SPAWN (Single Spawn Rule): Endgame mode detected - spawning EXACTLY 1 tile at merge-6 cell (', gx, ',', gy, ')');
-          console.log('🎯 Source of Truth: In Endgame Mode, after any Merge-6, ONLY ONE tile may spawn at Merge-6 cell');
-          console.log('🎯 Endgame mode:', isEndgameMode, 'Available locked tiles:', availableLockedTiles.length, 'Final merge-6:', isFinalMerge6);
+          devLog('🎯🎯🎯 END-GAME SPAWN (Single Spawn Rule): Endgame mode detected - spawning EXACTLY 1 tile at merge-6 cell (', gx, ',', gy, ')');
+          devLog('🎯 Source of Truth: In Endgame Mode, after any Merge-6, ONLY ONE tile may spawn at Merge-6 cell');
+          devLog('🎯 Endgame mode:', isEndgameMode, 'Available locked tiles:', availableLockedTiles.length, 'Final merge-6:', isFinalMerge6);
           
           // Remove placeholder if it exists (we'll spawn active tile instead)
           if (placeholderHolderRef && !placeholderHolderRef.destroyed) {
-            console.log('🧹 Removing placeholder before spawning active tile at dst position');
+            devLog('🧹 Removing placeholder before spawning active tile at dst position');
             if (placeholderHolderRef.gridX !== undefined && placeholderHolderRef.gridY !== undefined && grid && grid[placeholderHolderRef.gridY]) {
               grid[placeholderHolderRef.gridY][placeholderHolderRef.gridX] = null;
             }
@@ -7246,7 +6335,7 @@ function merge(src, dst, helpers){
             // Only clear if it's the dst tile (merge 6), not if it's a placeholder
             const tileAtPos = grid[spawnR][spawnC];
             if (tileAtPos === dst || (tileAtPos && tileAtPos.value === 6)) {
-              console.log('🧹 END-GAME SPAWN: Clearing merge 6 tile from grid position before spawn');
+              devLog('🧹 END-GAME SPAWN: Clearing merge 6 tile from grid position before spawn');
               grid[spawnR][spawnC] = null;
             }
           }
@@ -7263,18 +6352,18 @@ function merge(src, dst, helpers){
               timeScale: 2.0  // Fast spawn animation
             }).then((spawnResult) => {
               if (spawnResult) {
-                console.log('✅✅✅ END-GAME SPAWN: Spawned new ACTIVE tile with pips at dst position (', spawnC, ',', spawnR, ')');
+                devLog('✅✅✅ END-GAME SPAWN: Spawned new ACTIVE tile with pips at dst position (', spawnC, ',', spawnR, ')');
               } else {
-                console.warn('⚠️ END-GAME SPAWN: Failed to spawn tile at dst position (', spawnC, ',', spawnR, ')');
+                devWarn('⚠️ END-GAME SPAWN: Failed to spawn tile at dst position (', spawnC, ',', spawnR, ')');
               }
               // 🔥 BUG FIX: Reset spawn in progress flag after endgame spawn completes
               merge6SpawnInProgress = false;
-              console.log('✅ Reset merge6SpawnInProgress = false after endgame spawn completed');
+              devLog('✅ Reset merge6SpawnInProgress = false after endgame spawn completed');
             }).catch((err) => {
-              console.warn('⚠️ END-GAME SPAWN: Error spawning tile at dst position:', err);
+              devWarn('⚠️ END-GAME SPAWN: Error spawning tile at dst position:', err);
               // 🔥 BUG FIX: Reset spawn in progress flag even on error
               merge6SpawnInProgress = false;
-              console.log('✅ Reset merge6SpawnInProgress = false after endgame spawn error');
+              devLog('✅ Reset merge6SpawnInProgress = false after endgame spawn error');
             });
           }, 50); // Small delay to ensure cleanup is complete
         } else {
@@ -7282,8 +6371,8 @@ function merge(src, dst, helpers){
           // Spawn tiles on available locked positions (normal game mode)
           // 🔥 CRITICAL: Don't await - spawn tiles in parallel, let animations run concurrently (same as magnet pull)
           // This allows spawn to happen immediately without waiting for animations to complete
-          console.log('🚀 NORMAL SPAWN: Not endgame mode - spawning', spawnMult, 'tiles on', availableLockedTiles.length, 'available locked positions');
-          console.log('🎯 Source of Truth: Normal game mode - spawn on locked tiles (not endgame mode)');
+          devLog('🚀 NORMAL SPAWN: Not endgame mode - spawning', spawnMult, 'tiles on', availableLockedTiles.length, 'available locked positions');
+          devLog('🎯 Source of Truth: Normal game mode - spawn on locked tiles (not endgame mode)');
           FLOW.openLockedBounceParallel({ 
           tiles, 
           k: spawnMult, 
@@ -7296,16 +6385,16 @@ function merge(src, dst, helpers){
           spawnBounce: (t, done, o)=>SPAWN.spawnBounce(t, gsap, o, done),
           wildMergeTarget,
           excludeCells: pulledCellsSet  // 🔥 CRITICAL: Exclude pulled cells from spawn
-          }).then(() => {
-            console.log('✅ openLockedBounceParallel completed - all spawn animations finished');
+          } as any).then(() => {
+            devLog('✅ openLockedBounceParallel completed - all spawn animations finished');
             // 🔥 BUG FIX: Reset spawn in progress flag after normal spawn completes
             merge6SpawnInProgress = false;
-            console.log('✅ Reset merge6SpawnInProgress = false after normal spawn completed');
+            devLog('✅ Reset merge6SpawnInProgress = false after normal spawn completed');
           }).catch((err) => {
-            console.warn('⚠️ openLockedBounceParallel error:', err);
+            devWarn('⚠️ openLockedBounceParallel error:', err);
             // 🔥 BUG FIX: Reset spawn in progress flag even on error
             merge6SpawnInProgress = false;
-            console.log('✅ Reset merge6SpawnInProgress = false after normal spawn error');
+            devLog('✅ Reset merge6SpawnInProgress = false after normal spawn error');
         });
         }
         
@@ -7315,7 +6404,7 @@ function merge(src, dst, helpers){
         if (placeholderHolderAfterSpawn && !placeholderHolderAfterSpawn.destroyed) {
           // Check if placeholder is still locked (wasn't used in spawn)
           if (placeholderHolderAfterSpawn.locked && (placeholderHolderAfterSpawn.value | 0) === 0) {
-            console.log('🧹 Cleaning up unused placeholder at (', placeholderHolderAfterSpawn.gridX, ',', placeholderHolderAfterSpawn.gridY, ')');
+            devLog('🧹 Cleaning up unused placeholder at (', placeholderHolderAfterSpawn.gridX, ',', placeholderHolderAfterSpawn.gridY, ')');
             
             // Remove from grid
             if (placeholderHolderAfterSpawn.gridX !== undefined && placeholderHolderAfterSpawn.gridY !== undefined && grid && grid[placeholderHolderAfterSpawn.gridY]) {
@@ -7325,9 +6414,9 @@ function merge(src, dst, helpers){
             // Remove from tiles array
             removeTile(placeholderHolderAfterSpawn);
             
-            console.log('✅ Unused placeholder removed successfully');
+            devLog('✅ Unused placeholder removed successfully');
           } else {
-            console.log('✅ Placeholder was used in spawn - no cleanup needed');
+            devLog('✅ Placeholder was used in spawn - no cleanup needed');
           }
           
           // Clear reference
@@ -7379,11 +6468,11 @@ function merge(src, dst, helpers){
         const isMagnetMergeWithoutPull = wasWildMagnet && !isMagnetPullMergeFinal;
         
         if (isMagnetMergeWithoutPull && dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-          console.log('🧲🧲🧲 MAGNET MERGE WITHOUT PULL - Removing merge 6 tile (simplified logic)');
+          devLog('🧲🧲🧲 MAGNET MERGE WITHOUT PULL - Removing merge 6 tile (simplified logic)');
           
           // 🔥 CRITICAL FIX: Ensure grid position is null before removing tile
           if (clearTileFromGridSafe(dst)) {
-            console.log('🧹 Explicitly cleared grid position before removeTile');
+            devLog('🧹 Explicitly cleared grid position before removeTile');
           }
           
           // 🔥 CRITICAL FIX: Hide tile before removing to prevent visual glitches
@@ -7392,7 +6481,7 @@ function merge(src, dst, helpers){
           dst.eventMode = 'none';
           
           removeTile(dst); // Remove from tiles array
-          console.log('✅ Merge 6 tile removed successfully (magnet merge without pull)');
+          devLog('✅ Merge 6 tile removed successfully (magnet merge without pull)');
           
           // Clean up flags
           if (dst && !dst.destroyed) {
@@ -7407,25 +6496,25 @@ function merge(src, dst, helpers){
             // In end game mode, remove dst tile after a short delay to allow spawn to happen first
             trackAppTimeout(() => {
               if (dst && !dst.destroyed && STATE.tiles.includes(dst)) {
-                console.log('🗑️ END-GAME: Removing dst tile after spawn is scheduled');
+                devLog('🗑️ END-GAME: Removing dst tile after spawn is scheduled');
                 if (clearTileFromGridSafe(dst)) {
-                  console.log('🧹 Cleared grid position before removing dst tile');
+                  devLog('🧹 Cleared grid position before removing dst tile');
                 }
                 dst.visible = false;
                 dst.alpha = 0;
                 dst.eventMode = 'none';
                 removeTile(dst);
-                console.log('✅ Dst tile removed after end game spawn');
+                devLog('✅ Dst tile removed after end game spawn');
               }
             }, 100); // Delay to allow spawn to happen first
           } else {
             // Normal mode: remove dst tile immediately
-            console.log('🗑️ Removing dst tile IMMEDIATELY (regular merge 6, not magnet pull)');
+            devLog('🗑️ Removing dst tile IMMEDIATELY (regular merge 6, not magnet pull)');
             
             // 🔥 CRITICAL FIX: Ensure grid position is null before removing tile
             // This prevents openAtCell from seeing merge 6 tile and not spawning
             if (clearTileFromGridSafe(dst)) {
-              console.log('🧹 Explicitly cleared grid position before removeTile');
+              devLog('🧹 Explicitly cleared grid position before removeTile');
             }
             
             // 🔥 CRITICAL FIX: Hide tile before removing to prevent visual glitches
@@ -7434,7 +6523,7 @@ function merge(src, dst, helpers){
             dst.eventMode = 'none';
             
             removeTile(dst); // Remove from tiles array
-            console.log('✅ Dst tile removed successfully');
+            devLog('✅ Dst tile removed successfully');
           }
           
           // Clean up flags
@@ -7444,18 +6533,18 @@ function merge(src, dst, helpers){
             delete (dst as any)?._wasWildMagnetMerge6;
           }
         } else if (isMagnetPullMergeFinal) {
-          console.log('🧲 Magnet pull merge detected - removing merge 6 tile to prevent stuck value 6');
+          devLog('🧲 Magnet pull merge detected - removing merge 6 tile to prevent stuck value 6');
           
           // Remove merge-6 tile even for magnet pulls (after pulled merge is done)
           if (dst && !dst.destroyed) {
             if (clearTileFromGridSafe(dst)) {
-              console.log('🧹 Cleared grid position for magnet pull merge dst');
+              devLog('🧹 Cleared grid position for magnet pull merge dst');
             }
             dst.visible = false;
             dst.alpha = 0;
             dst.eventMode = 'none';
             removeTile(dst);
-            console.log('✅ Magnet pull merge dst removed successfully');
+            devLog('✅ Magnet pull merge dst removed successfully');
           }
           
           // Clean up flags
@@ -7475,7 +6564,7 @@ function merge(src, dst, helpers){
           dst.alpha = 0;
           dst.eventMode = 'none';
           removeTile(dst);
-          console.warn('🧲 FAILSAFE: Forced removal of lingering magnet merge-6 tile to prevent stuck value 6');
+          devWarn('🧲 FAILSAFE: Forced removal of lingering magnet merge-6 tile to prevent stuck value 6');
         }
         
         // Clean up pulled cells flag after spawn
@@ -7496,20 +6585,20 @@ function merge(src, dst, helpers){
                 grid[gyOnly][gxOnly] = null;
               }
               removeTile(onlyTile);
-              console.warn('🧲 SAFETY: Removed lone plain merge-6 tile to prevent stuck board after magnet pull');
+              devWarn('🧲 SAFETY: Removed lone plain merge-6 tile to prevent stuck board after magnet pull');
             }
           }
         } catch (err) {
-          console.warn('⚠️ SAFETY check for lone merge-6 failed:', err);
+          devWarn('⚠️ SAFETY check for lone merge-6 failed:', err);
         }
         
         // Update idle bounce tile list with newly spawned tiles
         if (TILE_IDLE_BOUNCE.ENABLE) {
           try {
             TILE_IDLE_BOUNCE.updateTileList(tiles);
-            console.log('🔄 Updated idle bounce tile list after spawn');
+            devLog('🔄 Updated idle bounce tile list after spawn');
           } catch (error) {
-            console.warn('⚠️ Failed to update idle bounce tile list:', error);
+            devWarn('⚠️ Failed to update idle bounce tile list:', error);
           }
         }
         
@@ -7517,7 +6606,7 @@ function merge(src, dst, helpers){
         // This prevents fail screen from triggering when clean board flow is in progress
         const hasLastMergeFlagAfterSpawn = (dst as any)?._isLastMerge === true;
         if (hasLastMergeFlagAfterSpawn || busyEnding) {
-          console.log('🚨🚨🚨 SKIPPING checkLevelEnd - _isLastMerge flag is TRUE or busyEnding is true (clean board flow in progress)');
+          devLog('🚨🚨🚨 SKIPPING checkLevelEnd - _isLastMerge flag is TRUE or busyEnding is true (clean board flow in progress)');
           return;
         }
         
@@ -7525,8 +6614,8 @@ function merge(src, dst, helpers){
         // Bubbles animation can run for 4+ seconds, which would delay fail screen detection
         // Instead, check end game immediately after spawn completes (with small delay for spawn animations)
         // This ensures stuck positions are detected even if user makes quick second merge during bubbles animation
-        console.log('⏳ Waiting 500ms after spawn animations to let user see board state (bubbles animation continues in background)...');
-        await new Promise(res => trackAppTimeout(res, 500));
+        devLog('⏳ Waiting 500ms after spawn animations to let user see board state (bubbles animation continues in background)...');
+        await waitTracked(500);
         
         // 🔥 CRITICAL: Check end game after spawn completes (with delay to allow animations)
         // Use checkLevelEnd which already has proper delay and handles all edge cases
@@ -7538,9 +6627,13 @@ function merge(src, dst, helpers){
     return;
   }
 
+  } catch (_e) {
   // >6 shouldn't happen
   helpers.snapBack(src);
   dst.eventMode = 'static';
+  } finally {
+  replayRecorder.endStep(__replayToken);
+  }
 }
 
 async function checkMovesDepleted(){
@@ -7550,7 +6643,7 @@ async function checkMovesDepleted(){
   // 🔥 CRITICAL FIX: Ensure tiles array is fully updated before checking
   // After merge completes, tiles array might still be updating
   // Wait a bit to ensure all tile state updates are complete
-  await new Promise(res => trackAppTimeout(res, 100));
+  await waitTracked(100);
   
   const movesDepletedCheckContext: EndGameContext = {
     tiles,
@@ -7561,7 +6654,7 @@ async function checkMovesDepleted(){
   // 🔥 CRITICAL: Use forceRefresh for moves depleted check
   const movesDepletedCheckResult = checkEndGame(movesDepletedCheckContext, true);
   
-  console.log('🔍 checkMovesDepleted: End game check result:', {
+  devLog('🔍 checkMovesDepleted: End game check result:', {
     type: movesDepletedCheckResult.type,
     reason: movesDepletedCheckResult.reason,
     activeTilesCount: tiles.filter(tileIsActive).length,
@@ -7574,25 +6667,25 @@ async function checkMovesDepleted(){
   });
   
   if (movesDepletedCheckResult.type === 'stuck') {
-    console.log('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
+    devLog('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
     if (!busyEnding) {
-      console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-      await new Promise(res => trackAppTimeout(res, 1500));
+      devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
+      await waitTracked(1500);
       showFinalScreen();
     }
   } else if (movesDepletedCheckResult.type === 'clean') {
-    console.log('🚨🚨🚨 MOVES DEPLETED + BOARD CLEAN');
+    devLog('🚨🚨🚨 MOVES DEPLETED + BOARD CLEAN');
     if (!busyEnding) {
       // Respect hidden state (same rule as checkLevelEnd)
       const { appVisible, homeVisible, journeyVisible } = getScreenVisibility();
       if (homeVisible || journeyVisible) {
-        console.log('⏳ checkMovesDepleted: Home/Journey visible - skipping clean board flow', { appVisible, homeVisible, journeyVisible });
+        devLog('⏳ checkMovesDepleted: Home/Journey visible - skipping clean board flow', { appVisible, homeVisible, journeyVisible });
         return;
       }
       await triggerCleanBoardFlow('clean_board_from_moves_depleted');
     }
   } else {
-    console.log('✅ Moves depleted but merges still possible, game continues');
+    devLog('✅ Moves depleted but merges still possible, game continues');
   }
 }
 
@@ -7613,7 +6706,7 @@ function checkLevelEnd(){
       // Safety sweep before any decision
       forceRemoveMagnetMergeResidues('checkLevelEnd');
       if (busyEnding) {
-        console.log('⏳ checkLevelEnd skipped - busyEnding is true');
+        devLog('⏳ checkLevelEnd skipped - busyEnding is true');
         checkLevelEndRetryCount = 0; // Reset on exit
       return;
     }
@@ -7669,17 +6762,17 @@ function checkLevelEnd(){
         delete (t as any)._wildMagnetPulledTilesScoring;
         delete (t as any)._noTilesPulled;
         delete (t as any)._wasWildMagnetMerge6;
-        console.warn('🧲 SAFETY: Removed lingering magnet merge-6 tile during checkLevelEnd');
+        devWarn('🧲 SAFETY: Removed lingering magnet merge-6 tile during checkLevelEnd');
       });
     } catch (err) {
-      console.warn('⚠️ SAFETY: Failed to sweep lingering magnet merge-6 tiles:', err);
+      devWarn('⚠️ SAFETY: Failed to sweep lingering magnet merge-6 tiles:', err);
     }
     
     // 🔥 CRITICAL FIX: Skip check if _isLastMerge flag is set on any merge-6 tile (clean board flow in progress)
     // This prevents fail screen from triggering when clean board flow is in progress
     const hasLastMergeTile = tiles.some((t: any) => t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true);
     if (hasLastMergeTile) {
-      console.log('⏳ checkLevelEnd: _isLastMerge flag detected on merge-6 tile (clean board flow in progress)');
+      devLog('⏳ checkLevelEnd: _isLastMerge flag detected on merge-6 tile (clean board flow in progress)');
     }
     
     logger.debug('🎯 checkLevelEnd called - using centralized end game checker', 'app-core');
@@ -7691,18 +6784,18 @@ function checkLevelEnd(){
     // This fixes the bug where user makes quick second merge during bubbles animation and gets stuck position
     const bubblesRunning = isWildBeerBubblesExplosionActive();
     if (bubblesRunning) {
-      console.log('💧 Bubbles animation is running, but continuing with end game check (bubbles are visual only, don\'t block detection)');
+      devLog('💧 Bubbles animation is running, but continuing with end game check (bubbles are visual only, don\'t block detection)');
     }
     
     // 🔥 CRITICAL: Skip check if wild spawn is in progress (animation not finished yet)
     if (wildSpawnInProgress && !skipWindowExceeded) {
       if (checkLevelEndSkipStartedAt === null) checkLevelEndSkipStartedAt = now;
       checkLevelEndRetryCount++;
-      console.log('⏳ checkLevelEnd skipped - wild spawn animation in progress (retry', checkLevelEndRetryCount, '/', MAX_CHECK_LEVEL_END_RETRIES, ')');
+      devLog('⏳ checkLevelEnd skipped - wild spawn animation in progress (retry', checkLevelEndRetryCount, '/', MAX_CHECK_LEVEL_END_RETRIES, ')');
       
       // 🔥 v38: Check max retries to prevent infinite loop
       if (checkLevelEndRetryCount > MAX_CHECK_LEVEL_END_RETRIES) {
-        console.error('🚨 checkLevelEnd: Max retries exceeded for wild spawn - forcing check anyway');
+        devError('🚨 checkLevelEnd: Max retries exceeded for wild spawn - forcing check anyway');
         checkLevelEndRetryCount = 0;
         checkLevelEndSkipStartedAt = null;
         // Continue to check (don't return)
@@ -7716,7 +6809,7 @@ function checkLevelEnd(){
       }
     }
     if (wildSpawnInProgress && skipWindowExceeded) {
-      console.warn('⏱️ checkLevelEnd: Skip window exceeded for wild spawn - forcing check despite flag');
+      devWarn('⏱️ checkLevelEnd: Skip window exceeded for wild spawn - forcing check despite flag');
       checkLevelEndRetryCount = 0;
       checkLevelEndSkipStartedAt = null;
     }
@@ -7775,8 +6868,8 @@ function checkLevelEnd(){
       
       // 🔥 v38: Check max retries to prevent infinite loop
       if (checkLevelEndRetryCount > MAX_CHECK_LEVEL_END_RETRIES) {
-        console.error('🚨 checkLevelEnd: Max retries exceeded for locked tiles - forcing check anyway');
-        console.error('🚨 WARNING: Tiles still locked:', lockedActiveTiles.map(t => ({ value: t.value, locked: t.locked })));
+        devError('🚨 checkLevelEnd: Max retries exceeded for locked tiles - forcing check anyway');
+        devError('🚨 WARNING: Tiles still locked:', lockedActiveTiles.map(t => ({ value: t.value, locked: t.locked })));
         checkLevelEndRetryCount = 0;
         checkLevelEndSkipStartedAt = null;
         // Continue to check (don't return)
@@ -7790,8 +6883,8 @@ function checkLevelEnd(){
       }
     }
     if (tilesNotReady && skipWindowExceeded) {
-      console.warn('⏱️ checkLevelEnd: Skip window exceeded for locked/spawning tiles - forcing check despite locks/spawns');
-      console.warn('⏱️ WARNING: Some tiles may still be spawning:', {
+      devWarn('⏱️ checkLevelEnd: Skip window exceeded for locked/spawning tiles - forcing check despite locks/spawns');
+      devWarn('⏱️ WARNING: Some tiles may still be spawning:', {
         lockedCount: lockedActiveTiles.length,
         stillSpawningCount: tilesStillSpawning.length
       });
@@ -7820,7 +6913,7 @@ function checkLevelEnd(){
     const { appVisible, homeVisible, journeyVisible } = getScreenVisibility();
     
     if (homeVisible || journeyVisible) {
-      console.log('⏳ checkLevelEnd skipped - home/journey visible (user navigated away from game)', {
+      devLog('⏳ checkLevelEnd skipped - home/journey visible (user navigated away from game)', {
         appVisible,
         homeVisible,
         journeyVisible
@@ -7831,7 +6924,7 @@ function checkLevelEnd(){
     if (checkLevelEndResult.type === 'clean') {
       const wildReady = wildMeter >= 1 || wildSpawnInProgress || wildSpawnRetryTimer !== null;
       if (wildReady) {
-        console.log('⚠️ checkLevelEnd: Clean board detected but wild meter is ready/spawning – deferring clean board flow until wild cube drops');
+        devLog('⚠️ checkLevelEnd: Clean board detected but wild meter is ready/spawning – deferring clean board flow until wild cube drops');
         queueWildSpawnIfNeeded();
       return;
     }
@@ -7857,7 +6950,7 @@ function checkLevelEnd(){
       if (unlockedActiveTiles.length > 0 && makeBoard?.anyMergePossible) {
         // Check only with unlocked tiles (available for player to use)
         hasMergeOrStackPotential = makeBoard.anyMergePossible(unlockedActiveTiles);
-        console.log('🧲 checkLevelEnd: anyMergePossible check with unlocked tiles:', {
+        devLog('🧲 checkLevelEnd: anyMergePossible check with unlocked tiles:', {
           unlockedTilesCount: unlockedActiveTiles.length,
           hasMergeOrStackPotential,
           tiles: unlockedActiveTiles.map((t: any) => ({ value: t.value, special: t.special, locked: t.locked }))
@@ -7875,21 +6968,21 @@ function checkLevelEnd(){
       
       // 🔥 USER REQUEST: If unlocked tiles have merge/stack potential → game continues
       if (hasMergeOrStackPotential) {
-        console.log('✅ checkLevelEnd: Unlocked tiles have merge/stack potential - game continues, NOT triggering clean board');
+        devLog('✅ checkLevelEnd: Unlocked tiles have merge/stack potential - game continues, NOT triggering clean board');
         return; // Don't trigger clean board - game continues
       }
       
       if (hasUnlockedMergeableTiles && !hasMergeOrStackPotential) {
-        console.log('🧲 checkLevelEnd: Unlocked mergeable tiles detected but no merge/stack potential - will check stuck in checkEndGame');
+        devLog('🧲 checkLevelEnd: Unlocked mergeable tiles detected but no merge/stack potential - will check stuck in checkEndGame');
         // Continue to checkEndGame which will check stuck and show fail screen if needed
       }
       
       if (hasMagnet) {
-        console.log('🧲 checkLevelEnd: Magnet detected on board - NOT a clean board, game continues');
+        devLog('🧲 checkLevelEnd: Magnet detected on board - NOT a clean board, game continues');
         return; // Don't trigger clean board - game continues
       }
       
-      console.log('🚨🚨🚨 checkLevelEnd: Board is clean, triggering clean board flow');
+      devLog('🚨🚨🚨 checkLevelEnd: Board is clean, triggering clean board flow');
     
       // 🔥 FIX: Use centralized triggerCleanBoardFlow instead of duplicating logic
       // This ensures consistent handling: memory cleanup, skip flags, wild resets, etc.
@@ -7898,9 +6991,9 @@ function checkLevelEnd(){
     }
     
     if (checkLevelEndResult.type === 'stuck') {
-      console.log('🚨🚨🚨 checkLevelEnd: Game is stuck, checking anyMergePossible before showing fail screen');
-      console.log('🔍 checkLevelEnd: Stuck reason:', checkLevelEndResult.reason);
-      console.log('🔍 checkLevelEnd: Current tiles:', tiles.filter(tileIsActive).map(t => ({ 
+      devLog('🚨🚨🚨 checkLevelEnd: Game is stuck, checking anyMergePossible before showing fail screen');
+      devLog('🔍 checkLevelEnd: Stuck reason:', checkLevelEndResult.reason);
+      devLog('🔍 checkLevelEnd: Current tiles:', tiles.filter(tileIsActive).map(t => ({ 
         value: t.value, 
         special: t.special, 
         locked: t.locked 
@@ -7911,14 +7004,14 @@ function checkLevelEnd(){
       // Nema potrebe za dodatnom provjerom
       
       if (!busyEnding) {
-        console.log('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-        await new Promise(res => trackAppTimeout(res, 1500));
+        devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
+        await waitTracked(1500);
         showFinalScreen();
       } else {
-        console.warn('⚠️ checkLevelEnd: busyEnding is true, skipping showFinalScreen');
+        devWarn('⚠️ checkLevelEnd: busyEnding is true, skipping showFinalScreen');
       }
     } else {
-      console.log('✅ checkLevelEnd: Game continues -', checkLevelEndResult.reason);
+      devLog('✅ checkLevelEnd: Game continues -', checkLevelEndResult.reason);
     }
   });
 }
@@ -7948,7 +7041,7 @@ function removeTile(t){
   if (t.gridX !== undefined && t.gridY !== undefined && grid && grid[t.gridY]) {
     if (grid[t.gridY][t.gridX] === t) {
       grid[t.gridY][t.gridX] = null;
-      console.log(`🧹 removeTile (app-core): Cleared grid[${t.gridY}][${t.gridX}]`);
+      devLog(`🧹 removeTile (app-core): Cleared grid[${t.gridY}][${t.gridX}]`);
     }
   }
   
@@ -7967,7 +7060,7 @@ function removeTile(t){
     tiles.splice(idx, 1);
   }
   try { delete (t as any)._skipIdleScaleReset; } catch {}
-  t.destroy?.({children:true, texture:false, textureSource:false});
+  t.destroy?.({ children: true, texture: false, textureSource: false } as any);
 }
 
 // 🔥 COMBINED MERGE ANIMATION: Impact bump + single strong bounce
@@ -8010,13 +7103,13 @@ function playMergeImpactAndAbsorbAnimation(targetTile: any): void {
     ease: 'back.out(1.8)' // Juicy clean bounce, no extra wobble
   }, '+=0'); // No delay between bounce phases
 
-  console.log('🍬 Playing combined merge impact + absorb animation on tile');
+  devLog('🍬 Playing combined merge impact + absorb animation on tile');
 }
 
 async function showFinalScreen(){
   // 🔥 CRITICAL: Guard against multiple simultaneous calls
   if (busyEnding) {
-    console.warn('⚠️ showFinalScreen: busyEnding is true, skipping duplicate call');
+    devWarn('⚠️ showFinalScreen: busyEnding is true, skipping duplicate call');
     return;
   }
   
@@ -8031,16 +7124,16 @@ async function showFinalScreen(){
   try {
     await waitForOngoingAnimations(6000);
   } catch (e) {
-    console.warn('⚠️ waitForOngoingAnimations failed (non-fatal):', e);
+    devWarn('⚠️ waitForOngoingAnimations failed (non-fatal):', e);
   }
   
   // 🔥 CRITICAL: Perform memory cleanup on game over (MEMORY LEAK FIX)
-  console.log('🧹 Performing memory cleanup on game over...');
+  devLog('🧹 Performing memory cleanup on game over...');
   try {
     memoryManager.performCleanup();
-    console.log('✅ Memory cleanup completed');
+    devLog('✅ Memory cleanup completed');
   } catch (error) {
-    console.warn('⚠️ Memory cleanup failed:', error);
+    devWarn('⚠️ Memory cleanup failed:', error);
   }
   
   // Haptic feedback for game over
@@ -8053,9 +7146,9 @@ async function showFinalScreen(){
   try {
     const { updateNavigationVisibility } = await import('./navigation-control.js');
     updateNavigationVisibility();
-    console.log('✅ Navigation visibility updated before showing board fail modal');
+    devLog('✅ Navigation visibility updated before showing board fail modal');
   } catch (error) {
-    console.warn('⚠️ Failed to update navigation visibility:', error);
+    devWarn('⚠️ Failed to update navigation visibility:', error);
   }
   
   let result = null;
@@ -8068,29 +7161,29 @@ async function showFinalScreen(){
   } catch (error) {
     // 🔥 REMOVED: Fallback to showStarsModal - this old "Level Complete" overlay is deprecated
     // If board-fail-modal fails, log error but don't show the old overlay
-    console.error('❌ CRITICAL: Board fail modal failed - cannot show fail screen:', error);
-    console.error('❌ This should never happen. Check board-fail-modal.js for errors.');
+    devError('❌ CRITICAL: Board fail modal failed - cannot show fail screen:', error);
+    devError('❌ This should never happen. Check board-fail-modal.js for errors.');
     // Don't show old stars modal - it's deprecated and shows wrong UI
   }
 
   // 🔥 USER REQUEST: DO NOT update high score on fail!
   // High score is ONLY updated after successful clean board (in endgame-flow.ts)
   // Fail = ne updateamo high score
-  console.log(`📊 Board ${boardNumber} failed - high score NOT updated (only on clean board success)`);
+  devLog(`📊 Board ${boardNumber} failed - high score NOT updated (only on clean board success)`);
   updateHUD();
 
   if (result?.action === 'menu') {
     // 🔥 BUG FIX: exitToMenu is already called in board-fail-modal.ts when Exit button is clicked
     // Don't call it again here - it causes duplicate calls and blank screen
     // The modal already handles exitToMenu and waits for it to complete before resolving
-    console.log('🚪 Exit action received - exitToMenu already called from board-fail-modal, skipping duplicate call');
+    devLog('🚪 Exit action received - exitToMenu already called from board-fail-modal, skipping duplicate call');
   } else if (result?.action === 'no-hearts') {
     // 🔥 USER REQUEST: No hearts - hearts bottom sheet is shown, don't return to game
-    console.log('💔 No hearts action - hearts bottom sheet shown, staying out of game');
+    devLog('💔 No hearts action - hearts bottom sheet shown, staying out of game');
     // App element is already hidden in board-fail-modal
   } else {
     // 'retry' action - functions are called directly from board-fail-modal now
-    console.log('🎮 Play Again action received - functions called directly from modal');
+    devLog('🎮 Play Again action received - functions called directly from modal');
   }
   } finally {
     // 🔥 FIX: Ensure busyEnding is always reset, even on error
@@ -8099,20 +7192,20 @@ async function showFinalScreen(){
 }
 
 function restartGame(){
-  console.log('🔄 Starting clean restart - preserving HUD position');
+  devLog('🔄 Starting clean restart - preserving HUD position');
   
   // CRITICAL FIX: Reset game ended flag when restarting
   window._gameHasEnded = false;
 
   const killAllGsapTweensForRestart = () => {
     try {
-      console.log('🔄 RESTART GAME: Killing GSAP animations...');
+      devLog('🔄 RESTART GAME: Killing GSAP animations...');
       
       // 🔥 CRITICAL: Stop tile idle bounce animations
       try {
         if (TILE_IDLE_BOUNCE && typeof TILE_IDLE_BOUNCE.stop === 'function') {
           TILE_IDLE_BOUNCE.stop();
-          console.log('✅ RESTART GAME: Tile idle bounce stopped');
+          devLog('✅ RESTART GAME: Tile idle bounce stopped');
         }
       } catch {}
       
@@ -8120,21 +7213,21 @@ function restartGame(){
       try {
         if (typeof HUD.cleanupComboAnimations === 'function') {
           HUD.cleanupComboAnimations();
-          console.log('✅ RESTART GAME: Combo animations cleaned up');
+          devLog('✅ RESTART GAME: Combo animations cleaned up');
         }
       } catch {}
       
       // 🔥 CRITICAL: Kill combo idle timer
       try { 
         if (comboIdleTimer) {
-          if (typeof comboIdleTimer.kill === 'function') {
-            comboIdleTimer.kill();
+          if (typeof (comboIdleTimer as any).kill === 'function') {
+            (comboIdleTimer as any).kill();
           } else if (typeof comboIdleTimer === 'number') {
             clearTimeout(comboIdleTimer);
           }
         }
         comboIdleTimer = null;
-        console.log('✅ RESTART GAME: Combo idle timer killed');
+        devLog('✅ RESTART GAME: Combo idle timer killed');
       } catch {}
       
       // 🔥 CRITICAL: Stop wild loader animations
@@ -8158,12 +7251,12 @@ function restartGame(){
             gsap.killTweensOf(wild.view._mask);
           }
         }
-        console.log('✅ RESTART GAME: HUD progress bar animations killed');
+        devLog('✅ RESTART GAME: HUD progress bar animations killed');
       } catch {}
       
       // CRITICAL: Stop per-tile animations before GSAP cleanup
       if (STATE && STATE.tiles && STATE.tiles.length > 0) {
-        console.log('🔄 RESTART GAME: Killing GSAP animations for', STATE.tiles.length, 'tiles...');
+        devLog('🔄 RESTART GAME: Killing GSAP animations for', STATE.tiles.length, 'tiles...');
         STATE.tiles.forEach(tile => {
           try {
             try { stopWildIdle?.(tile); } catch {}
@@ -8177,34 +7270,34 @@ function restartGame(){
             }
           } catch {}
         });
-        console.log('✅ RESTART GAME: Tile GSAP animations killed');
+        devLog('✅ RESTART GAME: Tile GSAP animations killed');
       }
       
       // Kill HUD animations
       if (STATE && STATE.hud) {
         try {
-          console.log('🔄 RESTART GAME: Killing HUD GSAP animations...');
+          devLog('🔄 RESTART GAME: Killing HUD GSAP animations...');
           gsap.killTweensOf(STATE.hud);
           gsap.killTweensOf(STATE.board);
           gsap.killTweensOf(STATE.stage);
-          console.log('✅ RESTART GAME: HUD GSAP animations killed');
+          devLog('✅ RESTART GAME: HUD GSAP animations killed');
         } catch {}
       }
       
       killAllGsapTweensCommon(STATE?.tiles || tiles, 'restart', { clearTimeline: true });
     } catch (e) {
-      console.warn('⚠️ RESTART GAME: Error killing GSAP animations:', e);
+      devWarn('⚠️ RESTART GAME: Error killing GSAP animations:', e);
     }
   };
   
   // CRITICAL: Update high score before restart using statsService
   try {
     if (typeof score !== 'undefined' && score > 0) {
-      console.log('🏆 Updating high score before restart:', score);
+      devLog('🏆 Updating high score before restart:', score);
       statsService.updateHighScore(score);
     }
   } catch (error) {
-    console.warn('⚠️ Failed to update high score during restart:', error);
+    devWarn('⚠️ Failed to update high score during restart:', error);
   }
 
   // Centralized FX cleanup (non-destructive to the app)
@@ -8217,7 +7310,7 @@ function restartGame(){
   try {
     if (typeof HUD.cleanupSmokeBubbles === 'function') {
       HUD.cleanupSmokeBubbles();
-      console.log('✅ RESTART GAME: Smoke bubbles cleaned up');
+      devLog('✅ RESTART GAME: Smoke bubbles cleaned up');
     }
   } catch {}
   
@@ -8237,7 +7330,7 @@ function restartGame(){
   // 🔥 USER REQUEST: Keep current boardNumber (don't reset to 1)
   // This ensures Play Again restarts the same board, not board 1
   const currentBoard = boardNumber || 1;
-  console.log(`🔄 RESTART: Keeping current board ${currentBoard} (not resetting to 1)`);
+  devLog(`🔄 RESTART: Keeping current board ${currentBoard} (not resetting to 1)`);
   
   // Reset game state WITHOUT touching HUD positioning or boardNumber
   score = 0;
@@ -8246,8 +7339,8 @@ function restartGame(){
   hudResetCombo();
   try { 
     if (comboIdleTimer) {
-      if (typeof comboIdleTimer.kill === 'function') {
-        comboIdleTimer.kill();
+      if (typeof (comboIdleTimer as any).kill === 'function') {
+        (comboIdleTimer as any).kill();
       } else if (typeof comboIdleTimer === 'number') {
         clearTimeout(comboIdleTimer);
       }
@@ -8257,17 +7350,17 @@ function restartGame(){
   resetWildProgress(0, false);
   
   // HARD RESET: Use new resetWildMeter API for complete reset
-  console.log('🔥 HARD RESET: Resetting wild meter to 0');
+  devLog('🔥 HARD RESET: Resetting wild meter to 0');
   try {
     if (typeof HUD.resetWildMeter === 'function') {
       HUD.resetWildMeter(true); // instant = true for immediate reset
     } else {
-      console.log('🔄 FALLBACK: Using HUD.updateProgressBar with 0...');
+      devLog('🔄 FALLBACK: Using HUD.updateProgressBar with 0...');
       HUD.updateProgressBar?.(0, false);
     }
-    console.log('✅ HARD RESET: Wild meter reset to 0 successfully');
+    devLog('✅ HARD RESET: Wild meter reset to 0 successfully');
   } catch (error) {
-    console.error('❌ HARD RESET: Error resetting wild meter:', error);
+    devError('❌ HARD RESET: Error resetting wild meter:', error);
   }
   
   // Reset both wild meter variables
@@ -8276,29 +7369,29 @@ function restartGame(){
 
   // 🔥 CRITICAL FIX: Reset star count when restarting from end game bottom sheet
   try {
-    console.log('🔄 RESTART GAME: Resetting star count...');
+    devLog('🔄 RESTART GAME: Resetting star count...');
     // Reset stars collector via window.CC.setStarsCount (exported above)
     if (typeof (window as any).CC?.setStarsCount === 'function') {
       (window as any).CC.setStarsCount(0);
-      console.log('✅ RESTART GAME: Star count reset to 0');
+      devLog('✅ RESTART GAME: Star count reset to 0');
     } else {
       // Fallback: try to import and reset directly
       import('./stars-collector.js').then((StarsCollector) => {
         if (typeof StarsCollector.setStarsCount === 'function') {
           StarsCollector.setStarsCount(0);
-          console.log('✅ RESTART GAME: Star count reset to 0 (via import)');
+          devLog('✅ RESTART GAME: Star count reset to 0 (via import)');
         }
       }).catch((err) => {
-        console.warn('⚠️ RESTART GAME: Failed to reset star count:', err);
+        devWarn('⚠️ RESTART GAME: Failed to reset star count:', err);
       });
     }
   } catch (error) {
-    console.warn('⚠️ RESTART GAME: Error resetting star count:', error);
+    devWarn('⚠️ RESTART GAME: Error resetting star count:', error);
   }
 
   // EDGE CASE PROTECTION: Force wild meter reset with multiple methods
   try {
-    console.log('🛡️ EDGE CASE: Force resetting wild meter with multiple methods...');
+    devLog('🛡️ EDGE CASE: Force resetting wild meter with multiple methods...');
     
     // Method 1: Direct HUD update
     if (typeof HUD.updateProgressBar === 'function') {
@@ -8314,13 +7407,13 @@ function restartGame(){
     
     // Method 4: Force update progress bar
     if (typeof HUD.updateProgressBar === 'function') {
-      console.log('🔄 EDGE CASE: Calling HUD.updateProgressBar(0, false)...');
+      devLog('🔄 EDGE CASE: Calling HUD.updateProgressBar(0, false)...');
       HUD.updateProgressBar(0, false);
     }
     
     // Method 5: Force reset wild loader
     if (typeof HUD.resetWildLoader === 'function') {
-      console.log('🔄 EDGE CASE: Calling HUD.resetWildLoader...');
+      devLog('🔄 EDGE CASE: Calling HUD.resetWildLoader...');
       HUD.resetWildLoader();
     }
     
@@ -8331,25 +7424,25 @@ function restartGame(){
     try {
       // Also try direct access to wild loader if available
       if (typeof wild !== 'undefined' && wild && wild.setProgress) {
-        console.log('🔄 EDGE CASE: Direct wild.setProgress(0, false)...');
+        devLog('🔄 EDGE CASE: Direct wild.setProgress(0, false)...');
         wild.setProgress(0, false);
       }
     } catch (e) {
-      console.warn('EDGE CASE: Direct PIXI reset failed:', e);
+      devWarn('EDGE CASE: Direct PIXI reset failed:', e);
     }
     
-    console.log('✅ EDGE CASE: Wild meter force reset completed');
+    devLog('✅ EDGE CASE: Wild meter force reset completed');
   } catch (error) {
-    console.error('❌ EDGE CASE: Error in force reset:', error);
+    devError('❌ EDGE CASE: Error in force reset:', error);
   }
   
   // 🔥 CRITICAL FIX: Clear saved game state from localStorage before restarting
   // This ensures we get a FRESH board, not the stuck/failed state
   try {
     localStorage.removeItem('cc_saved_game');
-    console.log('✅ RESTART: Cleared stuck game state from localStorage');
+    devLog('✅ RESTART: Cleared stuck game state from localStorage');
   } catch (e) {
-    console.warn('⚠️ RESTART: Failed to clear localStorage:', e);
+    devWarn('⚠️ RESTART: Failed to clear localStorage:', e);
   }
   
   // 🔥 CRITICAL FIX: Clear __ccSkipRebuildBoard flag to force fresh board
@@ -8366,15 +7459,15 @@ function restartGame(){
 
   // 🔥 USER REQUEST: Call startLevel() with current boardNumber instead of just rebuildBoard()
   // This ensures board-specific rules are applied and the correct board is restarted
-  console.log(`🔄 RESTART: Calling startLevel(${currentBoard}) to restart board ${currentBoard}...`);
+  devLog(`🔄 RESTART: Calling startLevel(${currentBoard}) to restart board ${currentBoard}...`);
   startLevel(currentBoard);
-  console.log(`✅ RESTART: startLevel(${currentBoard}) completed`);
+  devLog(`✅ RESTART: startLevel(${currentBoard}) completed`);
   
   // Reinitialize background layer if it was lost
   if (!backgroundLayer) {
-    console.log('🔄 RESTART: Reinitializing background layer...');
+    devLog('🔄 RESTART: Reinitializing background layer...');
     initializeBackgroundLayer();
-    console.log('✅ RESTART: Background layer reinitialized');
+    devLog('✅ RESTART: Background layer reinitialized');
   }
   
   updateHUD();
@@ -8397,12 +7490,12 @@ function restartGame(){
   try {
     gsap.globalTimeline.resume();
     app.ticker.start();
-    console.log('✅ Game resumed after restart');
+    devLog('✅ Game resumed after restart');
   } catch (error) {
-    console.warn('Failed to resume game after restart:', error);
+    devWarn('Failed to resume game after restart:', error);
   }
   
-  console.log('✅ Clean restart completed - HUD position preserved');
+  devLog('✅ Clean restart completed - HUD position preserved');
 }
 // temporary idle checker (no-op so boot doesn't fail)
 function scheduleIdleCheck(){ /* no-op for now */ }
@@ -8422,7 +7515,7 @@ export function resumeGame() {
 }
 
 export function restart() {
-  console.log('🔄 RESTART: Starting restart function');
+  devLog('🔄 RESTART: Starting restart function');
   
   // 🔥 JOURNEY PROGRESSION: Update state when restarting (retry after failure)
   // Keep lastOpenedBoardId and set currentRunState for the same board
@@ -8431,32 +7524,32 @@ export function restart() {
       const currentBoardId = boardNumber || 1;
       journeyProgressionState.setLastOpenedBoardId(currentBoardId);
       journeyProgressionState.setCurrentRunState(currentBoardId, 0);
-      console.log(`🗺️ Journey: Restarting board ${currentBoardId} - lastOpenedBoardId and currentRunState updated`);
+      devLog(`🗺️ Journey: Restarting board ${currentBoardId} - lastOpenedBoardId and currentRunState updated`);
     }).catch((error) => {
-      console.warn('⚠️ Failed to update Journey progression state on restart:', error);
+      devWarn('⚠️ Failed to update Journey progression state on restart:', error);
     });
   } catch (error) {
-    console.warn('⚠️ Failed to update Journey progression state on restart:', error);
+    devWarn('⚠️ Failed to update Journey progression state on restart:', error);
   }
   
-  console.log('🔄 RESTART: About to call restartGame()...');
+  devLog('🔄 RESTART: About to call restartGame()...');
   restartGame();
-  console.log('✅ RESTART: restartGame() completed');
+  devLog('✅ RESTART: restartGame() completed');
 }
 
 // Clean up game when exiting
 export function cleanupGame() {
-  console.log('🧹 Cleaning up game state');
+  devLog('🧹 Cleaning up game state');
   
   // 🔥 CRITICAL FIX: Stop PIXI ticker FIRST to prevent render errors during cleanup
   // This prevents "Cannot read properties of null (reading '_x')" errors
   try {
     if (app && app.ticker) {
       app.ticker.stop();
-      console.log('✅ PIXI ticker stopped for cleanup');
+      devLog('✅ PIXI ticker stopped for cleanup');
     }
   } catch (e) {
-    console.warn('⚠️ Failed to stop ticker:', e);
+    devWarn('⚠️ Failed to stop ticker:', e);
   }
   
   // 🔥 CRITICAL FIX: Stop and reset tile idle bounce animations
@@ -8465,19 +7558,19 @@ export function cleanupGame() {
     if (TILE_IDLE_BOUNCE.reset) {
       TILE_IDLE_BOUNCE.reset();
     }
-    console.log('✅ Tile idle bounce stopped and reset');
+    devLog('✅ Tile idle bounce stopped and reset');
   } catch (error) {
-    console.warn('⚠️ Failed to stop/reset tile idle bounce:', error);
+    devWarn('⚠️ Failed to stop/reset tile idle bounce:', error);
   }
   
   // CRITICAL: Update high score before cleanup using statsService
   try {
     if (typeof score !== 'undefined' && score > 0) {
-      console.log('🏆 Updating high score before cleanup:', score);
+      devLog('🏆 Updating high score before cleanup:', score);
       statsService.updateHighScore(score);
     }
   } catch (error) {
-    console.warn('⚠️ Failed to update high score during cleanup:', error);
+    devWarn('⚠️ Failed to update high score during cleanup:', error);
   }
   
   // 🔥 CRITICAL FIX: Kill all GSAP tweens BEFORE destroying objects
@@ -8490,7 +7583,7 @@ export function cleanupGame() {
   _hudInitDone = false;
   // Prepare HUD drop for next entry from menu
   _hudDropPending = true;
-  console.log('✅ HUD initialization flag reset');
+  devLog('✅ HUD initialization flag reset');
   
   // Reset all game state
   score = 0;
@@ -8504,8 +7597,8 @@ export function cleanupGame() {
   // Clear timers
   try { 
     if (comboIdleTimer) {
-      if (typeof comboIdleTimer.kill === 'function') {
-        comboIdleTimer.kill();
+      if (typeof (comboIdleTimer as any).kill === 'function') {
+        (comboIdleTimer as any).kill();
       } else if (typeof comboIdleTimer === 'number') {
         clearTimeout(comboIdleTimer);
       }
@@ -8530,7 +7623,7 @@ export function cleanupGame() {
   try { 
     window.removeEventListener('resize', layoutBoard); 
   } catch (e) {
-    console.warn('⚠️ Failed to remove resize listener:', e);
+    devWarn('⚠️ Failed to remove resize listener:', e);
   }
   // Note: 'layout' function was removed - this listener cleanup is no longer needed
   
@@ -8540,11 +7633,11 @@ export function cleanupGame() {
     const hudRoot = (window as any).HUD_ROOT;
     if (hudRoot && hudRoot._onResize) {
       window.removeEventListener('resize', hudRoot._onResize);
-      console.log('✅ HUD resize listener removed (HUD_ROOT._onResize)');
+      devLog('✅ HUD resize listener removed (HUD_ROOT._onResize)');
       hudRoot._onResize = null; // Clear reference
     }
   } catch (e) {
-    console.warn('⚠️ Failed to remove HUD resize listener:', e);
+    devWarn('⚠️ Failed to remove HUD resize listener:', e);
   }
   
   // 🔥 CRITICAL FIX: Cleanup HUD lifecycle listeners (screen lifecycle helper)
@@ -8557,7 +7650,7 @@ export function cleanupGame() {
       HUD.resetWildLoader();
     }
   } catch (error) {
-    console.log('⚠️ Wild progress reset skipped (HUD already destroyed):', error);
+    devLog('⚠️ Wild progress reset skipped (HUD already destroyed):', error);
   }
   
   // Clear tiles and grid
@@ -8569,7 +7662,7 @@ export function cleanupGame() {
       try { stopWildStars?.(t); } catch {}
       try { stopWildBeerBubbles?.(t); } catch {}
       try { stopMagnetIdleParticles?.(t); } catch {}
-      try { t.destroy?.({children: true, texture: false, textureSource: false}); } catch {}
+      try { t.destroy?.({ children: true, texture: false, textureSource: false } as any); } catch {}
     });
     tiles.length = 0;
   }
@@ -8583,30 +7676,30 @@ export function cleanupGame() {
       // Always cleanup (even if flag says inactive) to handle stale containers/flags
       stopWildBeerBubblesExplosion();
       if (wasActive) {
-        console.log('✅ Wild beer explosion cleaned up in cleanupGame()');
+        devLog('✅ Wild beer explosion cleaned up in cleanupGame()');
       } else {
-        console.log('✅ Wild beer explosion force cleaned up in cleanupGame() (stale state prevention)');
+        devLog('✅ Wild beer explosion force cleaned up in cleanupGame() (stale state prevention)');
       }
     }
     
     // 🔥 CRITICAL FIX: Release cached bubble texture to free GPU memory on hard cleanup
     try {
       destroyWildBeerBubblesExplosionCache?.();
-      console.log('✅ Wild beer bubble texture cache destroyed');
+      devLog('✅ Wild beer bubble texture cache destroyed');
     } catch {}
     
     // 🔥 STARS ANIMATION FIX: Force cleanup ALL stars-to-HUD animations (including protected)
     // Use force cleanup in cleanupGame() because we're closing the game completely
     if (typeof forceCleanupAllStarAnimations === 'function') {
       forceCleanupAllStarAnimations();
-      console.log('✅ Stars-to-HUD animations force cleaned up in cleanupGame()');
+      devLog('✅ Stars-to-HUD animations force cleaned up in cleanupGame()');
     } else if (typeof cleanupExistingStarAnimations === 'function') {
       // Fallback to regular cleanup if force cleanup not available
       cleanupExistingStarAnimations();
-      console.log('✅ Stars-to-HUD animations cleaned up in cleanupGame()');
+      devLog('✅ Stars-to-HUD animations cleaned up in cleanupGame()');
     }
   } catch (e) {
-    console.warn('⚠️ Failed to cleanup animations:', e);
+    devWarn('⚠️ Failed to cleanup animations:', e);
     // 🔥 CRITICAL: Force cleanup on error (prevents stuck state)
     try {
       if (typeof stopWildBeerBubblesExplosion === 'function') {
@@ -8623,17 +7716,17 @@ export function cleanupGame() {
   try {
     heartsSystem.cleanup();
     cleanupAllHeartsResources();
-    console.log('✅ Hearts system cleaned up in cleanupGame()');
+    devLog('✅ Hearts system cleaned up in cleanupGame()');
   } catch (e) {
-    console.warn('⚠️ Failed to cleanup hearts system:', e);
+    devWarn('⚠️ Failed to cleanup hearts system:', e);
   }
   
   // 🔥 FIX: Cleanup level flow timeouts
   try {
     FLOW.cleanupLevelFlowTimeouts();
-    console.log('✅ Level flow timeouts cleaned up in cleanupGame()');
+    devLog('✅ Level flow timeouts cleaned up in cleanupGame()');
   } catch (e) {
-    console.warn('⚠️ Failed to cleanup level flow timeouts:', e);
+    devWarn('⚠️ Failed to cleanup level flow timeouts:', e);
   }
   
   if (grid) {
@@ -8645,15 +7738,15 @@ export function cleanupGame() {
     try {
       if (board && board.children.includes(backgroundLayer)) {
         board.removeChild(backgroundLayer);
-        console.log('✅ Background layer removed from board');
+        devLog('✅ Background layer removed from board');
       }
       backgroundLayer.destroy({ children: true });
-      console.log('✅ Background layer destroyed');
+      devLog('✅ Background layer destroyed');
     } catch (e) {
-      console.warn('⚠️ Error destroying background layer:', e);
+      devWarn('⚠️ Error destroying background layer:', e);
     }
     backgroundLayer = null; // 🔥 CRITICAL: Nullify reference to prevent memory leak
-    console.log('✅ Background layer reference nullified');
+    devLog('✅ Background layer reference nullified');
   }
   
   // 🔥 CRITICAL FIX: Clear window global variables to prevent memory leaks
@@ -8661,9 +7754,9 @@ export function cleanupGame() {
     window._ghostPlaceholders = null;
     window._userMadeMove = false;
     window._gameHasEnded = false;
-    console.log('✅ Window global variables cleared');
+    devLog('✅ Window global variables cleared');
   } catch (e) {
-    console.warn('⚠️ Failed to clear window globals:', e);
+    devWarn('⚠️ Failed to clear window globals:', e);
   }
   
   // Clear board
@@ -8679,9 +7772,9 @@ export function cleanupGame() {
   // 🔥 CRITICAL FIX: Stop memory manager interval before destroying app
   try {
     memoryManager.stop();
-    console.log('✅ Memory manager stopped');
+    devLog('✅ Memory manager stopped');
   } catch (e) {
-    console.warn('⚠️ Failed to stop memory manager:', e);
+    devWarn('⚠️ Failed to stop memory manager:', e);
   }
 
   // Clear global FX layer + FX state (prevents stale transforms after hard exit)
@@ -8689,17 +7782,17 @@ export function cleanupGame() {
   
   // CRITICAL: Destroy and nullify app so boot() can create a new one
   if (app) {
-    console.log('🧹 Destroying PIXI app in cleanupGame()');
+    devLog('🧹 Destroying PIXI app in cleanupGame()');
     try {
       // 🔥 FIX: Don't destroy textures - they're managed by Assets and should be unloaded, not destroyed
       // Using texture: false prevents "A Texture managed by Assets was destroyed" warning
-      app.destroy(true, { children: true, texture: false, textureSource: false });
-      console.log('✅ PIXI app destroyed in cleanupGame()');
+      app.destroy(true, { children: true, texture: false, textureSource: false } as any);
+      devLog('✅ PIXI app destroyed in cleanupGame()');
     } catch (e) {
-      console.log('⚠️ Error destroying app in cleanupGame():', e);
+      devLog('⚠️ Error destroying app in cleanupGame():', e);
     }
     app = null as any;
-    console.log('✅ app set to null');
+    devLog('✅ app set to null');
   }
   
   // 🔥 CRITICAL FIX: Clear HUD_ROOT reference if it exists
@@ -8715,20 +7808,20 @@ export function cleanupGame() {
         }
       } catch {}
       (window as any).HUD_ROOT = null;
-      console.log('✅ HUD_ROOT reference cleared');
+      devLog('✅ HUD_ROOT reference cleared');
     }
   } catch (e) {
-    console.warn('⚠️ Failed to clear HUD_ROOT:', e);
+    devWarn('⚠️ Failed to clear HUD_ROOT:', e);
   }
   
   // 🔥 CRITICAL: Clear window.HUD exports to avoid retaining old HUD closures
   try {
     if ((window as any).HUD) {
       (window as any).HUD = null;
-      console.log('✅ window.HUD reference cleared');
+      devLog('✅ window.HUD reference cleared');
     }
   } catch (e) {
-    console.warn('⚠️ Failed to clear window.HUD:', e);
+    devWarn('⚠️ Failed to clear window.HUD:', e);
   }
   
   // 🔥 CRITICAL: Cleanup screen lifecycles (modal/transition)
@@ -8746,17 +7839,17 @@ export function cleanupGame() {
     
     if (saveGameStateRef) {
       window.removeEventListener('pagehide', saveGameStateRef);
-      console.log('✅ iOS pagehide listener removed (app-core.ts)');
+      devLog('✅ iOS pagehide listener removed (app-core.ts)');
       (window as any)._saveGameStateRef = null;
     }
     
     if (iosVisibilityHandler) {
       window.removeEventListener('visibilitychange', iosVisibilityHandler);
-      console.log('✅ iOS visibilitychange listener removed (app-core.ts)');
+      devLog('✅ iOS visibilitychange listener removed (app-core.ts)');
       (window as any)._iosVisibilityHandler = null;
     }
   } catch (e) {
-    console.warn('⚠️ Failed to remove iOS lifecycle listeners:', e);
+    devWarn('⚠️ Failed to remove iOS lifecycle listeners:', e);
   }
   
   // 🔥 CRITICAL: Remove remaining lifecycle listeners (beforeunload/pause/resume)
@@ -8768,25 +7861,25 @@ export function cleanupGame() {
       window.removeEventListener('beforeunload', saveGameStateRef);
       document.removeEventListener('pause', saveGameStateRef, false);
       (window as any)._saveGameStateResumeRef = null;
-      console.log('✅ beforeunload/pause listeners removed');
+      devLog('✅ beforeunload/pause listeners removed');
     }
     
     if (resumeHandler) {
       document.removeEventListener('resume', resumeHandler, false);
       (window as any)._resumeHandlerRef = null;
-      console.log('✅ resume listener removed');
+      devLog('✅ resume listener removed');
     }
   } catch (e) {
-    console.warn('⚠️ Failed to remove lifecycle listeners:', e);
+    devWarn('⚠️ Failed to remove lifecycle listeners:', e);
   }
   
-  console.log('✅ Game cleanup completed');
+  devLog('✅ Game cleanup completed');
   syncSharedState();
 }
 
 // Start fresh game (for re-entering) - now just calls boot
 export function startFreshGame() {
-  console.log('🎮 Starting fresh game - calling boot');
+  devLog('🎮 Starting fresh game - calling boot');
   boot();
 }
 
@@ -8814,7 +7907,7 @@ function debouncedSaveGameState(delayMs = 800) {
     saveGameState();
   }, delayMs);
   
-  console.log(`💾 Debounced save scheduled in ${delayMs}ms`);
+  devLog(`💾 Debounced save scheduled in ${delayMs}ms`);
 }
 
 function saveGameState() {
@@ -8822,7 +7915,7 @@ function saveGameState() {
     syncSharedState();
     
     // DEBUG: Log current state
-    console.log('💾 saveGameState called:', {
+    devLog('💾 saveGameState called:', {
       boardNumber,
       _userMadeMove: window._userMadeMove,
       _gameHasEnded: window._gameHasEnded,
@@ -8831,155 +7924,40 @@ function saveGameState() {
       activeTilesCount: tiles.filter(t => t && !t.locked && (t.value|0) > 0).length
     });
     
-    // CRITICAL FIX: Don't save game state if game has ended
-    if (window._gameHasEnded) {
-      console.log('💾 Game has ended, skipping save');
-      return;
-    }
-
-    // CRITICAL FIX: Save logic based on board number
-    // Board 1: Only save if user made at least 1 move
-    // Board 2+: ALWAYS save (user already progressed past Board 1, even if no moves on current board)
-    if (boardNumber === 1 && !window._userMadeMove) {
-      console.log('💾 Board 1 and user has not made any moves yet, skipping save');
-      return;
-    }
-    
-    // Board 2+: Always save (reaching Board 2+ means user completed Board 1)
-    if (boardNumber >= 2) {
-      console.log('💾 Board', boardNumber, '- forcing save (user completed at least Board 1)');
-      // Continue with save regardless of _userMadeMove status
-    }
-
-    if (!Array.isArray(grid) || grid.length === 0) {
-      console.log('💾 Grid not ready, skipping save');
+    if (!canSaveGameState({
+      boardNumber,
+      userMadeMove: !!(window as any)._userMadeMove,
+      gameHasEnded: !!(window as any)._gameHasEnded,
+      gridReady: Array.isArray(grid) && grid.length > 0,
+      devLog,
+    })) {
       return;
     }
     
     // 🔥 CRITICAL FIX: Save all tiles from tiles array, not just from grid
     // This ensures no tiles are lost during save (e.g., tiles with inconsistent grid positions)
-    const gridSnapshot = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
-    
-    // First, save all tiles from tiles array (both active and locked tiles)
-    const savedTiles = [];
-    tiles.forEach((tile) => {
-      if (!tile || tile.destroyed) {
-        return; // Skip destroyed tiles only
-      }
-      
-      // Only skip tiles with invalid value (null, undefined, NaN, negative)
-      // Allow value 0 for locked/empty tiles
-      const tileValue = tile.value;
-      if (tileValue === null || tileValue === undefined || !Number.isFinite(tileValue) || tileValue < 0) {
-        return; // Skip tiles with invalid value
-      }
-      
-      const gridX = Number.isFinite(tile.gridX) ? (tile.gridX | 0) : -1;
-      const gridY = Number.isFinite(tile.gridY) ? (tile.gridY | 0) : -1;
-      
-      // Validate grid position
-      if (gridX < 0 || gridX >= COLS || gridY < 0 || gridY >= ROWS) {
-        console.warn('⚠️ Tile has invalid grid position:', { gridX, gridY, value: tile.value, special: tile.special, locked: tile.locked });
-        return;
-      }
-      
-      const tileSnapshot = {
-        value: Number.isFinite(tileValue) ? tileValue : 0,
-        special: tile.special || null,
-        locked: !!tile.locked,
-        open: !tile.locked,
-        isWild: !!tile.isWild,
-        isWildFace: !!tile.isWildFace,
-        gridX: gridX,
-        gridY: gridY,
-      };
-      
-      savedTiles.push({ snapshot: tileSnapshot, gridX, gridY });
-      
-      // Also place in grid snapshot at correct position
-      // If position already occupied, log warning but still save (might be duplicate)
-      if (gridSnapshot[gridY] && gridSnapshot[gridY][gridX] === null) {
-        gridSnapshot[gridY][gridX] = tileSnapshot;
-      } else if (gridSnapshot[gridY] && gridSnapshot[gridY][gridX] !== null) {
-        console.warn('⚠️ Grid position already occupied - overwriting:', { gridX, gridY, existing: gridSnapshot[gridY][gridX], new: tileSnapshot });
-        gridSnapshot[gridY][gridX] = tileSnapshot; // Overwrite to ensure latest tile is saved
-      }
+    const { gridSnapshot } = buildGridSnapshot({
+      ROWS,
+      COLS,
+      tiles,
+      grid,
+      devLog,
+      devWarn,
     });
-    
-    // 🔥 ADDITIONAL FIX: Also check grid array for any tiles that might not be in tiles array
-    // This ensures we don't lose tiles even if there's a mismatch between grid and tiles array
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        const gridTile = grid[r]?.[c];
-        if (!gridTile || gridTile.destroyed) continue;
-        
-        // Check if this tile is already saved
-        const alreadySaved = savedTiles.some(st => st.gridX === c && st.gridY === r);
-        if (alreadySaved) continue;
-        
-        // Check if tile has valid value
-        const tileValue = gridTile.value;
-        if (tileValue === null || tileValue === undefined || !Number.isFinite(tileValue) || tileValue < 0) {
-          continue;
-        }
-        
-        // Save tile from grid
-        const tileSnapshot = {
-          value: Number.isFinite(tileValue) ? tileValue : 0,
-          special: gridTile.special || null,
-          locked: !!gridTile.locked,
-          open: !gridTile.locked,
-          isWild: !!gridTile.isWild,
-          isWildFace: !!gridTile.isWildFace,
-          gridX: c,
-          gridY: r,
-        };
-        
-        savedTiles.push({ snapshot: tileSnapshot, gridX: c, gridY: r });
-        if (gridSnapshot[r] && gridSnapshot[r][c] === null) {
-          gridSnapshot[r][c] = tileSnapshot;
-        } else if (gridSnapshot[r] && gridSnapshot[r][c] !== null) {
-          console.warn('⚠️ Grid tile already saved - overwriting:', { gridX: c, gridY: r, existing: gridSnapshot[r][c], new: tileSnapshot });
-          gridSnapshot[r][c] = tileSnapshot;
-        }
-      }
-    }
-    
-    console.log('💾 Saved', savedTiles.length, 'tiles total (from tiles array + grid check)');
 
     // 🔥 CRITICAL FIX: Get stars count from stars collector before saving
-    let savedStarsCount = 0;
-    try {
-      if (typeof StarsCollector.getStarsCount === 'function') {
-        savedStarsCount = StarsCollector.getStarsCount();
-        console.log('💾 Saving stars count:', savedStarsCount);
-      } else {
-        console.warn('⚠️ StarsCollector.getStarsCount not available, defaulting to 0');
-      }
-    } catch (error) {
-      console.warn('⚠️ Failed to get stars count for save:', error);
-    }
-
-    const currentState = {
-      grid: gridSnapshot,
-      score: Number.isFinite(score) ? score : 0,
-      level: Number.isFinite(level) ? level : 1,
-      boardNumber: Number.isFinite(boardNumber) ? boardNumber : Number.isFinite(level) ? level : 1,
-      moves: Number.isFinite(moves) ? moves : MOVES_MAX,
-      wildMeter: Number.isFinite(wildMeter) ? wildMeter : 0,
-      bestScore: Number.isFinite(STATE.bestScore) ? STATE.bestScore : 0,
-      starsCount: Number.isFinite(savedStarsCount) ? savedStarsCount : 0, // 🔥 CRITICAL FIX: Save stars count
-      timestamp: Date.now(),
-    };
-
-    console.log('💾 Saving game state:', {
-      gridRows: currentState.grid.length,
-      gridCols: currentState.grid[0]?.length || 0,
-      score: currentState.score,
-      level: currentState.level,
-      boardNumber: currentState.boardNumber, // 🔥 USER BUG FIX: Log boardNumber in save
-      moves: currentState.moves,
-      wildMeter: currentState.wildMeter,
+    const savedStarsCount = getStarsCountForSave({ StarsCollector, devLog, devWarn });
+    const currentState = buildSaveState({
+      gridSnapshot,
+      score,
+      level,
+      boardNumber,
+      moves,
+      wildMeter,
+      bestScore: STATE.bestScore,
+      starsCount: savedStarsCount,
+      MOVES_MAX,
+      devLog,
     });
 
     const serialized = JSON.stringify(currentState);
@@ -8989,676 +7967,209 @@ function saveGameState() {
       const saveKey = getBoardSaveKey(boardNumber);
       localStorage.setItem(saveKey, serialized);
       lastSavedState = serialized;
-      console.log(`💾 Game state saved successfully for board ${boardNumber} (${saveKey}) - state changed.`);
+      devLog(`💾 Game state saved successfully for board ${boardNumber} (${saveKey}) - state changed.`);
     } else {
-      console.log(`💾 Game state unchanged for board ${boardNumber}, skipping save.`);
+      devLog(`💾 Game state unchanged for board ${boardNumber}, skipping save.`);
     }
   } catch (error) {
-    console.warn('⚠️ Failed to save game state:', error);
+    devWarn('⚠️ Failed to save game state:', error);
   }
 }
 
-async function loadGameState() {
-  console.log('🔄 loadGameState called...');
+async function loadGameState(overrideBoardNumber?: number) {
+  const boardToLoad = Number.isFinite(overrideBoardNumber) ? overrideBoardNumber! : boardNumber;
+  devLog('🔄 loadGameState called...', overrideBoardNumber != null ? `(override: board ${boardToLoad})` : '');
   
   try {
-    // 🔥 USER REQUEST: Board-specific save state - load from correct board save
-    // Each board has its own save: 'cc_saved_game_board_01', 'cc_saved_game_board_02', etc.
-    const currentBoardNumber = Number.isFinite(boardNumber) ? boardNumber : 1;
-    const saveKey = getBoardSaveKey(currentBoardNumber);
-    const savedGame = localStorage.getItem(saveKey);
-    
-    if (!savedGame) {
-      console.log(`⚠️ No saved game found for board ${currentBoardNumber} (${saveKey})`);
+    const saved = loadSavedBoardState({ boardNumber: boardToLoad, getBoardSaveKey, devLog, devWarn });
+    if (!saved) {
+      logger.warn(`⚠️ loadGameState: no saved state for board ${boardToLoad} (${getBoardSaveKey(boardToLoad)}) - will rebuild`);
+      devLog('🔄 loadGameState: no saved state for board', boardToLoad, '- returning false');
       return false;
     }
+    const { gameState } = saved;
 
-    let gameState;
-    try {
-      gameState = JSON.parse(savedGame);
-    } catch (error) {
-      console.warn(`⚠️ Corrupted save file for board ${currentBoardNumber}, removing...`, error);
-      localStorage.removeItem(saveKey);
-      return false;
-    }
-
-    // 🔥 USER BUG FIX: Log boardNumber from saved state
-    console.log('📊 Game state:', { 
-      score: gameState.score, 
-      level: gameState.level, 
-      boardNumber: gameState.boardNumber,
-      moves: gameState.moves 
+    await ensureAppReadyForLoad({
+      app,
+      board,
+      backgroundLayer,
+      setBackgroundLayer: (v) => { backgroundLayer = v; },
+      layoutBoard,
+      initializeBackgroundLayer,
+      boot,
+      devLog,
     });
 
-    const timestamp = Number(gameState.timestamp) || 0;
-    const saveAge = Date.now() - timestamp;
-    console.log('⏰ Save age:', Math.round(saveAge / 1000), 'seconds');
-    if (!Number.isFinite(timestamp) || saveAge > 24 * 60 * 60 * 1000) {
-      console.log(`⚠️ Saved game for board ${currentBoardNumber} is too old, starting fresh`);
-      localStorage.removeItem(saveKey);
-      return false;
-    }
-
-    console.log('🔍 LOAD CHECK: app exists?', !!app, 'board exists?', !!board);
-    console.log('🔍 LOAD CHECK: backgroundLayer exists?', !!backgroundLayer);
-    
-    if (!app || !board) {
-      console.log('⚠️ Game not booted, booting before applying saved state');
-      await boot();
-      console.log('✅ Boot completed, app:', !!app, 'board:', !!board);
-      
-      // Initialize background layer after boot
-      await layoutBoard();
-      console.log('✅ Layout completed');
-      
-      initializeBackgroundLayer();
-      console.log('✅ Background layer initialized for saved game');
-    } else {
-      console.log('✅ App already booted, checking canvas in DOM...');
-      
-      // CRITICAL FIX: Ensure canvas is in DOM
-      const host = document.getElementById('app');
-      if (app.canvas && !app.canvas.parentElement) {
-        console.log('⚠️ Canvas not in DOM, adding it back...');
-        host.appendChild(app.canvas);
-        console.log('✅ Canvas added back to DOM');
-      }
-      
-      // CRITICAL FIX: Check if backgroundLayer is in board's children
-      const bgInBoard = board.children.find(c => c.label === 'BackgroundLayer');
-      console.log('🔍 backgroundLayer in board.children?', !!bgInBoard);
-      
-      if (!backgroundLayer || !bgInBoard) {
-        console.log('⚠️ backgroundLayer missing or not in board, reinitializing...');
-        backgroundLayer = null; // Force recreation
-        await layoutBoard();
-        initializeBackgroundLayer();
-        console.log('✅ Background layer reinitialized');
-      }
-    }
-
-    tiles.forEach(t => {
-      try { stopWildIdle?.(t); } catch {}
-      try { t.destroy?.({ children: true, texture: false, textureSource: false }); } catch {}
+    restoreTilesFromSave({
+      gameState,
+      tiles,
+      grid,
+      ROWS,
+      COLS,
+      board,
+      makeBoard,
+      createEmptyGrid,
+      stopWildIdle,
+      applyWildSkinLocal,
+      startWildShimmer,
+      stopWildShimmer,
+      startMagnetIdleParticles,
+      stopMagnetIdleParticles,
+      startWildBeerBubbles,
+      trackAppTimeout,
+      STATE,
+      devLog,
+      devWarn,
+      devError,
+      setWildBeerSpawned: (v) => { wildBeerSpawned = v; },
     });
-    tiles.length = 0;
-
-    const savedGrid = Array.isArray(gameState.grid) ? gameState.grid : [];
-    createEmptyGrid();
-
-    const tilesToRestore: Array<{ snapshot: any; gridX: number; gridY: number }> = [];
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        const snapshot = savedGrid[r]?.[c];
-        if (!snapshot) {
-          grid[r][c] = null;
-          continue;
-        }
-        const savedGridX = Number.isFinite(snapshot.gridX) ? (snapshot.gridX | 0) : c;
-        const savedGridY = Number.isFinite(snapshot.gridY) ? (snapshot.gridY | 0) : r;
-        tilesToRestore.push({ snapshot, gridX: savedGridX, gridY: savedGridY });
-      }
-    }
-
-    for (const { snapshot, gridX: savedGridX, gridY: savedGridY } of tilesToRestore) {
-      const value = Number.isFinite(snapshot.value) ? (snapshot.value | 0) : 0;
-      const openFlag = typeof snapshot.open === 'boolean' ? snapshot.open : !snapshot.locked;
-      const shouldLock = !openFlag;
-
-      const tile = makeBoard.createTile({ board, grid, tiles, c: savedGridX, r: savedGridY, val: value, locked: shouldLock });
-      tile.gridX = savedGridX;
-      tile.gridY = savedGridY;
-
-      if (grid[savedGridY]?.[savedGridX] && grid[savedGridY][savedGridX] !== tile) {
-        const existingTile = grid[savedGridY][savedGridX];
-        const existingIndex = tiles.indexOf(existingTile);
-        if (existingIndex >= 0) tiles.splice(existingIndex, 1);
-        if (existingTile?.parent) existingTile.parent.removeChild(existingTile);
-        existingTile?.destroy?.({ children: true });
-      }
-      grid[savedGridY] = grid[savedGridY] || [];
-      grid[savedGridY][savedGridX] = tile;
-
-      if (!shouldLock && value > 0) {
-        tile._spawned = true;
-      }
-      tile.scale.set(1);
-
-      tile.value = value;
-      const savedSpecial = snapshot?.special || null;
-      const isWildSnapshot = savedSpecial === 'wild' || savedSpecial === 'wild-magnet' || savedSpecial === 'wild-beer' || snapshot?.isWild || snapshot?.isWildFace;
-      // 🔥 CRITICAL: Set special BEFORE setValue to ensure correct texture is applied
-      tile.special = savedSpecial;
-      tile.isWild = !!isWildSnapshot;
-      tile.isWildFace = !!(snapshot?.isWildFace || isWildSnapshot);
-      tile.visible = typeof snapshot.visible === 'boolean' ? snapshot.visible : true;
-
-      tile.locked = shouldLock;
-      // Now setValue will check special FIRST and apply correct wild texture
-      makeBoard.setValue(tile, value, 0);
-
-      if (shouldLock) {
-        tile.eventMode = 'none';
-        tile.cursor = 'default';
-        tile.alpha = snapshot && Number.isFinite(snapshot.alpha) ? snapshot.alpha : (value > 0 ? 1 : 0.25);
-        if (tile.occluder) tile.occluder.visible = snapshot && typeof snapshot.occluderVisible === 'boolean' ? snapshot.occluderVisible : true;
-      } else {
-        tile.eventMode = 'static';
-        tile.cursor = 'pointer';
-        // 🔥 CRITICAL FIX: Use STATE.drag instead of local drag variable
-        // This ensures drag system is available even if loadGameState is called before boot completes
-        if (STATE.drag && typeof STATE.drag.bindToTile === 'function') {
-          STATE.drag.bindToTile(tile);
-        } else {
-          console.warn('⚠️ loadGameState: STATE.drag not available, tile will not be draggable:', tile.gridX, tile.gridY);
-          // 🔥 FIX: Retry binding after a short delay if drag system is not yet initialized
-          trackAppTimeout(() => {
-            if (STATE.drag && typeof STATE.drag.bindToTile === 'function') {
-              STATE.drag.bindToTile(tile);
-              console.log('✅ loadGameState: Tile bound to drag system after delay:', tile.gridX, tile.gridY);
-            } else {
-              console.error('❌ loadGameState: STATE.drag still not available after delay, tile will not be draggable');
-            }
-          }, 100);
-        }
-        tile.alpha = snapshot && Number.isFinite(snapshot.alpha) ? snapshot.alpha : (value > 0 ? 1 : 0);
-        if (tile.occluder) tile.occluder.visible = snapshot && typeof snapshot.occluderVisible === 'boolean' ? snapshot.occluderVisible : false;
-        if (tile.ghostFrame) tile.ghostFrame._suspended = false;
-      }
-
-      if (snapshot && Number.isFinite(snapshot.alpha)) {
-        tile.alpha = snapshot.alpha;
-      }
-
-      if (tile.ghostFrame) {
-        tile.ghostFrame.alpha = tile.ghostFrame._ghostAlpha ?? 0.28;
-      }
-
-      if (isWildSnapshot) {
-        applyWildSkinLocal(tile);
-        try { startWildShimmer(tile); } catch {}
-        if (tile.special === 'wild-magnet') {
-          try { startMagnetIdleParticles(tile); } catch {}
-        }
-        if (tile.special === 'wild-beer') {
-          wildBeerSpawned = true;
-          try {
-            if (typeof startWildBeerBubbles === 'function') {
-              startWildBeerBubbles(tile);
-            }
-          } catch (error) {
-            console.warn('⚠️ Failed to start wild-beer bubbles on load:', error);
-          }
-        }
-      } else {
-        try { stopWildShimmer(tile); } catch {}
-        try { stopMagnetIdleParticles(tile); } catch {}
-      }
-    }
-
-    try {
-      tiles.forEach(t => {
-        if (!t) return;
-        if (t.occluder && typeof t.occluder._lockedAlpha === 'number' && t.locked) {
-          t.occluder.alpha = t.occluder._lockedAlpha;
-        }
-        if (t.ghostFrame) {
-          t.ghostFrame.alpha = t.ghostFrame._ghostAlpha ?? 0.28;
-        }
-      });
-    } catch {}
 
     board?.sortChildren?.();
 
-    score = Number.isFinite(gameState.score) ? gameState.score : 0;
-    level = Number.isFinite(gameState.level) ? gameState.level : 1;
-    // 🔥 USER BUG FIX: Prioritize boardNumber from saved state, fallback to level
-    // This ensures boardNumber is correctly restored from saved game state
-    boardNumber = Number.isFinite(gameState.boardNumber) ? gameState.boardNumber : (Number.isFinite(gameState.level) ? gameState.level : 1);
-    moves = Number.isFinite(gameState.moves) ? gameState.moves : MOVES_MAX;
-    wildMeter = Number.isFinite(gameState.wildMeter) ? gameState.wildMeter : 0;
-    
-    // 🔥 USER BUG FIX: Log restored boardNumber for debugging
-    console.log('📊 loadGameState: Restored state - boardNumber:', boardNumber, 'level:', level, 'score:', score, 'moves:', moves);
-
-    if (Number.isFinite(gameState.bestScore)) {
-      STATE.bestScore = gameState.bestScore;
-    }
-
-    // 🔥 CRITICAL FIX: Save stars count BEFORE layoutBoard (which may reset it)
-    const savedStarsCount = Number.isFinite(gameState.starsCount) ? gameState.starsCount : 0;
-    console.log('💾 Will restore stars count after HUD initialization:', savedStarsCount);
-
-    // 🔥 CRITICAL FIX: Sync state BEFORE updating HUD to ensure boardNumber is set correctly
-    syncSharedState();
-    
-    // 🔥 CRITICAL FIX: Update board-specific rules with the restored board number
-    // This ensures board-specific logic uses the correct board number
-    if (typeof boardSpecificRules !== 'undefined' && boardSpecificRules.setCurrentBoard) {
-      boardSpecificRules.setCurrentBoard(boardNumber);
-      console.log('🎯 loadGameState: Set board-specific rules to board', boardNumber);
-    }
-    
-    // CRITICAL: Draw ghost placeholders BEFORE HUD update
-    drawBoardBG('active+empty');
-    
-    // 🔥 CRITICAL FIX: Ensure drag system is initialized before proceeding
-    // This is especially important when loading from interim card (fresh app start)
-    if (!STATE.drag) {
-      console.warn('⚠️ loadGameState: STATE.drag not initialized, waiting for boot to complete...');
-      // Wait for drag system to be initialized (max 2 seconds)
-      let attempts = 0;
-      const maxAttempts = 40; // 40 * 50ms = 2 seconds
-      while (!STATE.drag && attempts < maxAttempts) {
-        await new Promise(resolve => trackAppTimeout(resolve, 50));
-        attempts++;
-      }
-      if (!STATE.drag) {
-        console.error('❌ loadGameState: STATE.drag still not initialized after waiting, tiles may not be draggable');
-      } else {
-        console.log('✅ loadGameState: STATE.drag initialized after', attempts * 50, 'ms');
-      }
-    }
-    
-    // 🔥 CRITICAL FIX: Re-bind all unlocked tiles to drag system (in case they weren't bound earlier)
-    tiles.forEach(tile => {
-      if (tile && !tile.locked && tile.eventMode === 'static' && STATE.drag && typeof STATE.drag.bindToTile === 'function') {
-        try {
-          STATE.drag.bindToTile(tile);
-        } catch (e) {
-          console.warn('⚠️ loadGameState: Failed to bind tile to drag system:', e);
-        }
-      }
+    const restored = restoreBasicState({
+      gameState,
+      MOVES_MAX,
+      STATE,
+      setScore: (v) => { score = v; },
+      setLevel: (v) => { level = v; },
+      setBoardNumber: (v) => { boardNumber = v; },
+      setMoves: (v) => { moves = v; },
+      setWildMeter: (v) => { wildMeter = v; },
+      devLog,
     });
-    console.log('✅ loadGameState: Re-bound all unlocked tiles to drag system');
+
+    applyRulesAfterLoad({
+      boardNumber: restored.boardNumber,
+      syncSharedState,
+      boardSpecificRules,
+      drawBoardBG,
+      devLog,
+    });
     
-    // CRITICAL: Call layout to position HUD correctly (this initializes stars collector)
-    await layoutBoard();
-    console.log('✅ Layout called for saved game - HUD should be positioned');
+    await ensureDragReadyAndRebind({
+      STATE,
+      tiles,
+      waitTracked,
+      devLog,
+      devWarn,
+      devError,
+    });
     
-    // 🔥 CRITICAL FIX: Restore stars count AFTER layoutBoard (which initializes stars collector)
-    // This ensures stars collector is initialized before we try to set the count
-    try {
-      if (typeof StarsCollector.setStarsCount === 'function') {
-        StarsCollector.setStarsCount(savedStarsCount);
-        console.log('💾 Restored stars count from saved game:', savedStarsCount);
-        
-        // 🔥 CRITICAL: Also update HUD display immediately after restoring stars count
-        if (typeof HUD.setStarsCount === 'function') {
-          HUD.setStarsCount(savedStarsCount);
-          console.log('💾 Updated HUD star count display:', savedStarsCount);
-        }
-      } else {
-        console.warn('⚠️ StarsCollector.setStarsCount not available, stars count not restored');
-      }
-    } catch (error) {
-      console.warn('⚠️ Failed to restore stars count from saved game:', error);
-    }
+    await layoutAndRestoreStars({
+      layoutBoard,
+      StarsCollector,
+      HUD,
+      savedStarsCount: restored.savedStarsCount,
+      devLog,
+      devWarn,
+    });
     
-    // CRITICAL: Ensure HUD is visible
-    if (hud) {
-      hud.visible = true;
-      hud.alpha = 1;
-      console.log('🔍 HUD check: visible?', hud.visible, 'alpha:', hud.alpha, 'children:', hud.children.length, 'parent:', hud.parent?.constructor.name);
-    }
-    
-      // 🔥 CRITICAL FIX: Always trigger HUD drop animation when loading saved state
-      // Use next-paint + forceRestart so it is actually visible on iPhone (otherwise it can run before first frame)
-    try {
-      // Check if HUD drop is pending (should be true after cleanup)
-      if (_hudDropPending) {
-        console.log('🎯 HUD drop pending - triggering drop animation');
-        if (typeof HUD.playHudDrop === 'function') {
-            trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
-              // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
-              if (app && app.canvas) {
-                app.canvas.style.opacity = '1';
-                app.canvas.style.transition = 'opacity 0.3s ease';
-                console.log('✅ Canvas shown - HUD drop starting');
-              }
-              HUD.playHudDrop({ forceRestart: true });
-              _hudDropPending = false; // clear only once drop actually starts (prevents 1-frame "already dropped" flash)
-              console.log('✅ HUD drop started (next paint, forceRestart)');
-            }));
-        }
-      } else {
-        // If not pending, still ensure HUD is visible and positioned correctly
-        console.log('🎯 HUD drop not pending - ensuring HUD is visible');
-        const hudRootHere = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
-        if (hudRootHere) {
-          const top = hudRootHere._dropTop ?? 44;
-          hudRootHere.y = top;
-          hudRootHere.alpha = 1;
-          hudRootHere.visible = true;
-          hudRootHere._dropped = true;
-          console.log('✅ HUD positioned and made visible');
-        }
-      }
-      
-      // CRITICAL: Recreate DOM-based HUD if it was destroyed
-      const existingHUD = document.querySelector('[data-unified-hud]');
-      console.log('🔍 DOM HUD exists?', !!existingHUD);
-      if (!existingHUD && typeof HUD.createUnifiedHudContainer === 'function') {
-        console.log('⚠️ DOM HUD missing, recreating...');
-        try {
-          HUD.createUnifiedHudContainer();
-          console.log('✅ DOM HUD recreated');
-          
-          // Play HUD drop animation after recreation
-          if (typeof HUD.playHudDrop === 'function') {
-            trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
-              // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
-              if (app && app.canvas) {
-                app.canvas.style.opacity = '1';
-                app.canvas.style.transition = 'opacity 0.3s ease';
-              }
-              HUD.playHudDrop({ forceRestart: true });
-            }));
-            console.log('✅ HUD drop animation scheduled after recreation (next paint, forceRestart)');
-          }
-        } catch (error) {
-          console.error('❌ Failed to recreate DOM HUD:', error);
-        }
-      }
-      
-      // 🔥 CRITICAL FIX: Ensure HUD_ROOT is visible and positioned correctly
-      // This is a fallback in case HUD drop animation doesn't work
-      // HUD_ROOT is a local variable in hud-helpers.js, not on window
-      // We need to access it via HUD object or check if it exists in the module
-      try {
-        // Try to get HUD_ROOT from window (exported from hud-helpers.js)
-        const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
-        if (hudRoot) {
-          const top = hudRoot._dropTop ?? 44;
-          hudRoot.y = top;
-          hudRoot.alpha = 1;
-          hudRoot.visible = true;
-          hudRoot._dropped = true;
-          console.log('✅ HUD_ROOT positioned and made visible (fallback)');
-        } else {
-          console.warn('⚠️ HUD_ROOT not found - HUD may not be initialized yet');
-        }
-      } catch (e) {
-        console.warn('⚠️ Failed to access HUD_ROOT:', e);
-      }
-      
-      // 🔥 CRITICAL FIX: Board indicator animation is automatically triggered by playHudDrop
-      // But we also need to ensure board indicator is visible
-      try {
-        const boardIndicator = document.getElementById('hud-board');
-        if (boardIndicator) {
-          boardIndicator.style.display = 'flex';
-          boardIndicator.style.opacity = '1';
-          boardIndicator.setAttribute('data-state', 'visible');
-          console.log('✅ Board indicator made visible');
-        }
-      } catch (e) {
-        console.warn('⚠️ Failed to show board indicator:', e);
-      }
-    } catch (error) {
-      console.error('❌ Failed to trigger HUD animations:', error);
-    }
+    ensureHudAfterLoad({
+      app,
+      hud,
+      HUD,
+      getHudRootFromWindow: () => (window as any).HUD_ROOT || null,
+      trackAppAnimationFrame,
+      devLog,
+      devWarn,
+      devError,
+      isHudDropPending: () => _hudDropPending,
+      setHudDropPending: (v) => { _hudDropPending = v; },
+    });
     
     // 🔥 CRITICAL FIX: Update HUD AFTER boardNumber is restored and state is synced
     // This ensures HUD displays the correct board number
     updateHUD();
-    console.log('✅ HUD updated with boardNumber:', boardNumber);
+    devLog('✅ HUD updated with boardNumber:', boardNumber);
     resetWildProgress(wildMeter, true);
     
     // CRITICAL: Set _userMadeMove flag to true after loading saved game
     // This ensures that any future moves after Continue will trigger save
-    window._userMadeMove = true;
-    console.log('✅ Set _userMadeMove = true after loading saved game state');
+    markUserMoveAfterLoad({ devLog });
     
     // CRITICAL: Resume GSAP and PIXI after loading
-    try {
-      gsap.globalTimeline.resume();
-      app.ticker.start();
-      console.log('✅ GSAP and PIXI ticker resumed after loading');
-    } catch (error) {
-      console.warn('⚠️ Failed to resume GSAP/PIXI:', error);
+    resumeRuntimeAfterLoad({ app, gsap, devLog, devWarn });
+    
+    // 🔥 CRITICAL: Check if tiles were actually loaded BEFORE starting pop-in animation
+    // Fail fast so we don't animate then rebuild; also ensures we don't treat valid restore as empty
+    lastSavedState = localStorage.getItem(getBoardSaveKey(boardNumber));
+    const activeCount = tiles.filter(t => t && !t.locked && (t.value | 0) > 0).length;
+    const emptyLoadResult = handleEmptyLoadState({
+      tiles,
+      boardNumber,
+      getPendingCleanBoard,
+      clearPendingCleanBoard,
+      getBoardSaveKey,
+      triggerCleanBoardFlow,
+      trackAppTimeout,
+      devLog,
+      devWarn,
+    });
+
+    if (emptyLoadResult.handled) {
+      logger.warn(`⚠️ loadGameState: empty/invalid load for board ${boardNumber} (tiles: ${tiles.length}, active: ${activeCount}) - will rebuild`);
+      devLog('🔄 loadGameState: empty/invalid load handled (no active tiles) - returning false');
+      if (Number.isFinite(emptyLoadResult.nextBoardNumber)) {
+        boardNumber = emptyLoadResult.nextBoardNumber!;
+        level = emptyLoadResult.nextBoardNumber!;
+      }
+      return false;
     }
+
+    devLog('✅ Game state loaded successfully with', tiles.length, 'tiles (', activeCount, 'active)');
     
-    // ANIMATION: Show ghost placeholders FIRST, then animate tiles
-    // Ensure background layer is visible from the start
-    if (backgroundLayer) {
-      backgroundLayer.visible = true;
-    }
-    
-    // Hide all tiles before animation (ghosts stay visible)
-    tiles.forEach(t => { if (t) t.visible = false; });
-    
-    // Play same sweetPopIn animation as new game
-    sweetPopIn(tiles, {
+    // ANIMATION: Show ghost placeholders FIRST, then animate tiles (only after we know load is valid)
+    playLoadPopInAnimation({
+      tiles,
+      backgroundLayer,
+      sweetPopIn,
       onHalf: () => {
         // 🔥 CRITICAL FIX: Ensure HUD drop is triggered even if it wasn't triggered above
         // This is a fallback in case HUD drop wasn't triggered earlier
-        if (_hudDropPending) {
-          console.log('🎯 HUD drop still pending in onHalf - triggering now');
-          try { 
-            if (typeof HUD.playHudDrop === 'function') {
-              trackAppAnimationFrame(() => trackAppAnimationFrame(() => {
-                // 🔥 CRITICAL: Show canvas now that HUD is ready to drop
-                if (app && app.canvas) {
-                  app.canvas.style.opacity = '1';
-                  app.canvas.style.transition = 'opacity 0.3s ease';
-                }
-                HUD.playHudDrop({ forceRestart: true });
-              }));
-              console.log('✅ HUD drop animation scheduled in onHalf callback (next paint, forceRestart)');
-            }
-          } catch (e) {
-            console.warn('⚠️ Failed to trigger HUD drop in onHalf:', e);
-          }
-          _hudDropPending = false;
-        }
-      }
-    }).then(() => {
-      console.log('✅ Continue animation completed');
-      
-      // 🔥 CRITICAL FIX: Final check - ensure HUD is visible and positioned after animation
-      try {
-        const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
-        if (hudRoot) {
-          const top = hudRoot._dropTop ?? 44;
-          hudRoot.y = top;
-          hudRoot.alpha = 1;
-          hudRoot.visible = true;
-          hudRoot._dropped = true;
-          console.log('✅ HUD final position set after animation');
-        }
-      } catch (e) {
-        console.warn('⚠️ Failed to access HUD_ROOT in loadGameState:', e);
-      }
+        triggerHudDropIfPending({
+          HUD,
+          app,
+          trackAppAnimationFrame,
+          devLog,
+          devWarn,
+          isHudDropPending: () => _hudDropPending,
+          setHudDropPending: (v) => { _hudDropPending = v; },
+        });
+      },
+      onComplete: () => {
+        // 🔥 CRITICAL FIX: Final check - ensure HUD is visible and positioned after animation
+        ensureHudFinalPosition({
+          getHudRoot: () => (window as any).HUD_ROOT || HUD.HUD_ROOT || null,
+          devLog,
+          devWarn,
+        });
+      },
+      devLog,
     });
     
-    lastSavedState = localStorage.getItem('cc_saved_game');
-    
-    // 🔥 CRITICAL FIX: Check if tiles were actually loaded
-    // If no tiles were restored, this means saved state was invalid/empty
-    const tilesLoaded = tiles.length > 0;
-    const hasActiveTiles = tiles.some(t => t && !t.locked && t.value > 0);
-    
-    if (!tilesLoaded || !hasActiveTiles) {
-      console.warn('⚠️ loadGameState: No tiles loaded or no active tiles - saved state was invalid/empty');
-      console.warn('⚠️ loadGameState: tiles.length =', tiles.length, 'hasActiveTiles =', hasActiveTiles);
-      
-      // 🔥 BOARD RECOVERY: Check if this is a stuck state that needs recovery
-      // This handles the edge case where app was force-quit during last merge animation
-      // and the saved state has only locked tiles (no active tiles)
-      const currentBoardNum = Number.isFinite(boardNumber) ? boardNumber : 1;
-      const pendingCheck = getPendingCleanBoard(currentBoardNum);
-      
-      // Also check for stuck indicators in the saved state
-      const lockedTilesCount = tiles.filter(t => t && !t.destroyed && t.locked).length;
-      const totalTilesCount = tiles.filter(t => t && !t.destroyed).length;
-      
-      console.log('🔍 RECOVERY CHECK in loadGameState failure path:', {
-        pendingCleanBoard: pendingCheck.pending,
-        lockedTilesCount,
-        totalTilesCount,
-        hasActiveTiles,
-        tilesLoaded,
-        boardNumber: currentBoardNum
-      });
-      
-      // 🔥 CRITICAL: Determine recovery type
-      // 1. pendingCleanBoard flag set → WIN (last merge detected, clean board should have happened)
-      // 2. NO flag but stuck → FAIL (merge happened, game is stuck - show fail or restart same board)
-      const isWinRecovery = pendingCheck.pending;
-      const isFailRecovery = !pendingCheck.pending && tilesLoaded && !hasActiveTiles;
-      const shouldRecover = isWinRecovery || isFailRecovery;
-      
-      if (shouldRecover) {
-        console.log('🚨🚨🚨 STUCK STATE DETECTED in loadGameState - recovering!', {
-          recoveryType: isWinRecovery ? 'WIN (clean board)' : 'FAIL (stuck)',
-          currentBoard: currentBoardNum
-        });
-        
-        // Clear the saved state for this board (it's corrupted)
-        const saveKey = getBoardSaveKey(currentBoardNum);
-        localStorage.removeItem(saveKey);
-        localStorage.removeItem('cc_saved_game');
-        
-        // Clear pending flag
-        clearPendingCleanBoard();
-        
-        // Clear tiles to force fresh board
-        tiles.length = 0;
-        
-        if (isWinRecovery) {
-          // 🔥 WIN RECOVERY: User completed the board (they were doing last merge)
-          // Mark board as completed and advance to next board
-          console.log('🏆 WIN RECOVERY: User completed board', currentBoardNum, '- advancing to next');
-          
-          try {
-            // Mark this board as completed in journey state
-            const journeyKey = 'cc_journey_progress';
-            const journeyData = localStorage.getItem(journeyKey);
-            if (journeyData) {
-              const journey = JSON.parse(journeyData);
-              // Ensure completed boards includes this one
-              if (!journey.completedBoards) journey.completedBoards = [];
-              if (!journey.completedBoards.includes(currentBoardNum)) {
-                journey.completedBoards.push(currentBoardNum);
-                // Update highest board if needed
-                if (!journey.highestBoard || currentBoardNum >= journey.highestBoard) {
-                  journey.highestBoard = currentBoardNum + 1;
-                }
-                localStorage.setItem(journeyKey, JSON.stringify(journey));
-                console.log('✅ WIN RECOVERY: Marked board', currentBoardNum, 'as completed in journey');
-              }
-            }
-          } catch (e) {
-            console.warn('⚠️ WIN RECOVERY: Failed to update journey state:', e);
-          }
-          
-          // Update boardNumber to next board so rebuildBoard starts fresh there
-          boardNumber = currentBoardNum + 1;
-          level = currentBoardNum + 1;
-          
-          console.log('🚨 WIN RECOVERY: Advancing to board', currentBoardNum + 1);
-        } else {
-          // 🔥 FAIL RECOVERY: User was stuck (not a clean board scenario)
-          // Restart the SAME board - they failed, not won
-          console.log('💀 FAIL RECOVERY: User was stuck on board', currentBoardNum, '- restarting same board');
-          
-          // 🔥 BUG FIX: Don't show fail screen if user is resuming from interim board
-          // When resuming from Journey, we should just rebuild the board fresh, not show fail screen
-          const fromInterimBoard = (window as any).__ccFromInterimBoard === true || 
-                                   (window as any).__ccIsInterimBoard === true ||
-                                   localStorage.getItem('__ccFromInterimBoard') === 'true';
-          
-          if (fromInterimBoard) {
-            console.log('🔄 FAIL RECOVERY: User is resuming from interim board - rebuilding board fresh (no fail screen)');
-            // Just rebuild the board - don't show fail screen
-            // Keep the same board number - they need to replay it
-            // boardNumber stays the same (currentBoardNum)
-            
-            // 🔥 CRITICAL: Clear the flag after using it to prevent affecting future operations
-            (window as any).__ccFromInterimBoard = false;
-            (window as any).__ccIsInterimBoard = false;
-            try { localStorage.removeItem('__ccFromInterimBoard'); } catch {}
-          } else {
-            // Keep the same board number - they need to replay it
-            // boardNumber stays the same (currentBoardNum)
-            
-            // 🔥 CRITICAL: Schedule fail screen after UI settles
-            // This gives user proper feedback that they lost
-            trackAppTimeout(() => {
-              try {
-                console.log('💀 FAIL RECOVERY: Showing fail screen for board', currentBoardNum);
-                // Try to show fail screen if available
-                if (typeof showFinalScreen === 'function') {
-                  showFinalScreen();
-                } else if (typeof (window as any).showEndRunModal === 'function') {
-                  (window as any).showEndRunModal();
-                }
-              } catch (e) {
-                console.warn('⚠️ FAIL RECOVERY: Could not show fail screen:', e);
-              }
-            }, 1000);
-          }
-          
-          console.log('🚨 FAIL RECOVERY: Restarting board', currentBoardNum);
-        }
-        
-        // Return false so rebuildBoard() is called with fresh state
-        return false;
-      }
-      
-      // Clear invalid saved state
-      localStorage.removeItem('cc_saved_game');
-      return false; // Return false so rebuildBoard() is called
-    }
-    
-    console.log('✅ Game state loaded successfully with', tiles.length, 'tiles (', tiles.filter(t => t && !t.locked && t.value > 0).length, 'active)');
-    
     // 🔥 BOARD RECOVERY: Schedule recovery check after UI settles
-    // This handles edge cases where app was force-quit during last merge animation
-    // Recovery check runs async so it doesn't block loadGameState return
-    trackAppTimeout(async () => {
-      try {
-        // Build tile info array for recovery check
-        const tileInfos = tiles
-          .filter(t => t && !t.destroyed)
-          .map(t => ({
-            value: t.value || 0,
-            locked: !!t.locked,
-            destroyed: !!t.destroyed,
-            special: t.special || undefined,
-            gridX: t.gridX,
-            gridY: t.gridY
-          }));
-        
-        const currentBoardNum = Number.isFinite(boardNumber) ? boardNumber : 1;
-        
-        const recoveryResult = await checkAndRecoverBoard(
-          tileInfos,
-          currentBoardNum,
-          triggerCleanBoardFlow
-        );
-        
-        if (recoveryResult.wasStuck) {
-          console.log('🚨 BOARD RECOVERY EXECUTED:', recoveryResult);
-        }
-      } catch (e) {
-        console.warn('⚠️ Board recovery check failed (non-fatal):', e);
-      }
-    }, 1000); // Wait 1s for UI to fully settle before recovery check
+    schedulePostLoadRecoveryCheck({
+      tiles,
+      boardNumber,
+      checkAndRecoverBoard,
+      triggerCleanBoardFlow,
+      trackAppTimeout,
+      devLog,
+      devWarn,
+    }); // Wait 1s for UI to fully settle before recovery check
     
     return true;
   } catch (error) {
-    console.error('❌ Failed to load game state:', error);
-    localStorage.removeItem('cc_saved_game');
+    logger.error('❌ loadGameState failed (exception):', error instanceof Error ? error.message : String(error));
+    devError('❌ Failed to load game state:', error);
   }
-  console.log('❌ loadGameState returning false');
+  devLog('🔄 loadGameState returning false (exception or early exit)');
   return false;
 }
 
 // Resume Game Modal
-async function showResumeGameModal() {
-  return new Promise(resolve => {
+async function showResumeGameModal(): Promise<void> {
+  return new Promise<void>(resolve => {
     const overlay = document.createElement('div');
     overlay.style.cssText = [
       'position: fixed',
@@ -9832,13 +8343,13 @@ function stopPixiTicker(): boolean {
     const pixiApp = app || STATE?.app;
     if (pixiApp && pixiApp.ticker) {
       pixiApp.ticker.stop();
-      console.log('✅ stopPixiTicker: PIXI ticker stopped');
+      devLog('✅ stopPixiTicker: PIXI ticker stopped');
       return true;
     }
-    console.warn('⚠️ stopPixiTicker: No PIXI app/ticker found');
+    devWarn('⚠️ stopPixiTicker: No PIXI app/ticker found');
     return false;
   } catch (e) {
-    console.warn('⚠️ stopPixiTicker failed:', e);
+    devWarn('⚠️ stopPixiTicker failed:', e);
     return false;
   }
 }
@@ -9891,7 +8402,7 @@ trackAppListener(document, 'resume', resumeHandler, false); // Android
 (window as any).syncScoreToCore = (newScore: number) => {
   score = newScore;
   STATE.score = newScore;
-  console.log('🔄 Synced score to core:', newScore);
+  devLog('🔄 Synced score to core:', newScore);
 };
 
 export { app, stage, board, hud, tiles, grid, score, level }; 

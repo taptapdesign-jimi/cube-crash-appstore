@@ -7,11 +7,7 @@ import animationManager from './animation-manager.js';
 import { Container, Graphics, Text } from 'pixi.js';
 import { logger } from '../core/logger.js';
 
-import { 
-
-const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
-
-const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
+import {
   MERGE_ANIMATION_DURATION,
   SCORE_ANIMATION_DURATION,
   COMBO_ANIMATION_DURATION,
@@ -24,6 +20,10 @@ const trackTween = (target: any, vars: any) => animationManager.trackExternalTwe
   COMBO_MULTIPLIER,
   EASING
 } from './merge-constants.js';
+
+const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
+
+const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
 // Type definitions
 interface Tile extends Container {

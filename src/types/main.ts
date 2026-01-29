@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 // Type definitions for main.js
 
 // Game state types
@@ -87,8 +85,8 @@ declare global {
     updateHighScore?: (score: number) => void;
     forceUpdateHighScore?: (score: number) => void;
     checkForUnsavedHighScore?: () => void;
-  trackCubesCracked?: (count: number) => void;
-  trackHelpersUsed?: (count: number) => void;
+    trackCubesCracked?: (count: number) => void;
+    trackHelpersUsed?: (count: number) => void;
     trackHighestBoard?: (level: number) => void;
     trackLongestCombo?: (combo: number) => void;
     trackCollectiblesUnlocked?: () => void;

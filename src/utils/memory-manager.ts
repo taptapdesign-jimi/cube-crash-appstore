@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { logger } from '../core/logger.js';
 // iOS-optimized memory management
 // Manages memory for App Store submission
@@ -37,13 +36,6 @@ interface MemoryStats {
   cleanupCallbackCount: number;
   memoryUsage: number;
   isHealthy: boolean;
-}
-
-// Global window extensions
-declare global {
-  interface Window {
-    gc?: () => void;
-  }
 }
 
 class MemoryManager {
@@ -274,9 +266,10 @@ class MemoryManager {
     this.cleanupOldEventListeners();
     
     // Force garbage collection if available
-    if (window.gc) {
+    const gc = (window as any).gc as undefined | (() => void);
+    if (gc) {
       try {
-        window.gc();
+        gc();
         logger.info('✅ Garbage collection triggered');
       } catch (error) {
         logger.warn('⚠️ Failed to trigger garbage collection:', error);

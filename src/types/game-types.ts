@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 // Centralized TypeScript types for CubeCrash game
 // Used to replace "as any" assertions throughout the codebase
 
@@ -9,7 +7,8 @@ import { Timeline } from 'gsap';
 /**
  * Tile interface - represents a game tile on the board
  */
-export interface Tile extends Container {
+export type Tile = Container & {
+  [key: string]: any;
   // Grid position
   gridX?: number;
   gridY?: number;
@@ -59,60 +58,62 @@ export interface Tile extends Container {
   refreshShadow?: () => void;
   getBounds?: () => { x: number; y: number; width: number; height: number };
   toGlobal?: (point: { x: number; y: number }) => { x: number; y: number };
-  destroy?: (opts?: { children?: boolean; texture?: boolean; baseTexture?: boolean }) => void;
-}
+};
 
 /**
  * Board interface - represents the game board container
  */
-export interface Board extends Container {
+export type Board = Container & {
+  [key: string]: any;
   // Board properties
   sortableChildren?: boolean;
-  eventMode?: string;
+  eventMode?: any;
   zIndex?: number;
-}
+};
 
 /**
  * Grid interface - represents the 2D grid of tiles
  */
-export interface Grid {
-  [row: number]: (Tile | null)[];
-}
+export type Grid = Array<Array<Tile | null>>;
 
 /**
  * HUD interface - represents the HUD container
  */
-export interface HUD extends Container {
+export type HUD = Container & {
+  [key: string]: any;
   // HUD properties
-  eventMode?: string;
+  eventMode?: any;
   zIndex?: number;
-}
+};
 
 /**
  * Stage interface - represents the PIXI stage
  */
-export interface Stage extends Container {
+export type Stage = Container & {
+  [key: string]: any;
   // Stage properties
   sortableChildren?: boolean;
-  eventMode?: string;
-  hitArea?: { x: number; y: number; width: number; height: number };
-}
+  eventMode?: any;
+  hitArea?: any;
+};
 
 /**
  * Drag interface - represents the drag system
  */
-export interface Drag {
-  bindToTile?: (tile: Tile) => void;
+export type Drag = {
+  [key: string]: any;
+  bindToTile?: (tile: Tile | null) => void;
   start?: (tile: Tile) => void;
   stop?: () => void;
   isDragging?: () => boolean;
-}
+  t?: Tile | null;
+};
 
 /**
  * MakeBoard interface - represents board creation functions
  */
 export interface MakeBoard {
-  anyMergePossible?: (tiles: Tile[]) => boolean;
+  anyMergePossible?: (tiles: any[]) => boolean;
   setValue?: (tile: Tile, value: number, stackDepth: number) => void;
   createTile?: (params: CreateTileParams) => Tile;
 }
@@ -131,5 +132,3 @@ export interface CreateTileParams {
   locked?: boolean;
   special?: string;
 }
-
-

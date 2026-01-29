@@ -10,11 +10,12 @@ import { gsap } from 'gsap';
 // Type definitions
 interface EndgameContext {
   app: any;
-  stage: { eventMode: string };
+  stage: any;
   board: any;
   boardBG?: { visible?: boolean };
   level: number;
   startLevel: (level: number) => void;
+  score?: number;
   hideGrid?: () => void;
   showGrid?: () => void;
   boardNumber?: number;

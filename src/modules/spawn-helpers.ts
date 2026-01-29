@@ -17,6 +17,7 @@ interface SpawnBounceOptions {
   rebound?: number;
   wiggle?: number;
   fadeIn?: number;
+  timeScale?: number;
 }
 
 interface DealFromRimParams {

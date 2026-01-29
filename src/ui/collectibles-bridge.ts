@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { logger } from '../core/logger.js';
 import type { CollectiblesShowOptions } from '../collectibles-manager.js';
 
@@ -16,7 +14,7 @@ type CollectiblesWindow = Window & {
   collectiblesManager?: any;
 };
 
-const win = window as CollectiblesWindow;
+const win = window as unknown as CollectiblesWindow;
 
 const loadModule = async () => {
   return import('../collectibles-manager.js');
@@ -72,4 +70,3 @@ loadModule().then(async (mod) => {
   await mod.ensureCollectiblesManager();
   logger.info('🎁 Collectibles manager initialized and exported to window');
 });
-

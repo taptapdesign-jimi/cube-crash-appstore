@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Loading Screen Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 
@@ -36,7 +35,9 @@ export function createLoadingScreen(): HTMLElementConfig {
           {
             tag: 'div',
             className: 'loading-logo-stack',
-            style: 'display: none;',
+            attributes: {
+              style: 'display: none;'
+            },
             children: [
               // Smoke and shards background image (behind logo)
               {

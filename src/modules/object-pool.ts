@@ -1,4 +1,3 @@
-// @ts-nocheck
 // src/modules/object-pool.ts
 // Object pooling for Graphics objects to reduce GC pressure
 
@@ -267,4 +266,3 @@ export const graphicsPool = new GraphicsPool();
 
 // Export class for testing
 export { GraphicsPool };
-

@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Board Service - Centralized board management
 import { eventBus, EVENTS } from '../core/event-bus.js';
 import { logger } from '../core/logger.js';
@@ -190,8 +189,8 @@ class BoardService implements BoardServiceInterface {
     try {
       // Update board display
       this.board.children.forEach((child) => {
-        if ('update' in child && typeof child.update === 'function') {
-          (child as PIXITile).update!();
+        if ('update' in child && typeof (child as unknown as PIXITile).update === 'function') {
+          (child as unknown as PIXITile).update!();
         }
       });
       

@@ -9,7 +9,8 @@ import type { Tile } from '../types/game-types.js';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
-const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
+const trackDelayedCall = (...args: Parameters<typeof gsap.delayedCall>) =>
+  animationManager.trackExternalTween(gsap.delayedCall(...args));
 
 interface SweetPopOptions {
   onHalf?: () => void;
@@ -51,7 +52,7 @@ export function rebuildBoard(): void {
   resetBoardContainer();
 
   // destroy previous tiles
-  STATE.tiles.forEach(t => (t as any).destroy?.({ children: true, texture: false, textureSource: false }));
+  STATE.tiles.forEach(t => (t as any).destroy?.({ children: true, texture: false, textureSource: false } as any));
   STATE.tiles.length = 0;
 
   // new empty grid

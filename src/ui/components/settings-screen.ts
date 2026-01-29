@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Settings Screen Component
 import { HTMLBuilder, HTMLElementConfig } from './html-builder.js';
 import { gsap } from 'gsap';
@@ -8,7 +7,8 @@ import { domElementPool } from '../../modules/dom-element-pool.js';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
-const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
+const trackDelayedCall = (delay: number, callback: (...args: any[]) => void, params?: any) =>
+  animationManager.trackExternalTween(gsap.delayedCall(delay, callback, params));
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
@@ -244,7 +244,7 @@ export function renderSettingsScreen(
       if (!uiManager) {
         // Try importing UIManager module
         import('../../modules/ui-manager.js').then((module) => {
-          uiManager = module.default || module.uiManager;
+          uiManager = module.default || (module as any).uiManager;
           if (uiManager && typeof uiManager.hideSettingsScreenWithAnimation === 'function') {
             console.log('✅ Calling uiManager.hideSettingsScreenWithAnimation() via import');
             uiManager.hideSettingsScreenWithAnimation();

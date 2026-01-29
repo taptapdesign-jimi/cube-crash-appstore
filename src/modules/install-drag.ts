@@ -52,7 +52,9 @@ export function installDrag({
   // 1) globalni capture pointera i ispravna hitArea
   app.stage.eventMode = 'static';
   const setHitArea = () => {
-    app.stage.hitArea = new Rectangle(0, 0, app.renderer.width, app.renderer.height);
+    const renderer = app.renderer;
+    if (!renderer) return;
+    app.stage.hitArea = new Rectangle(0, 0, renderer.width, renderer.height);
   };
   setHitArea();
   window.addEventListener('resize', setHitArea);

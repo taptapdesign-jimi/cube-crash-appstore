@@ -2,6 +2,8 @@
 // CUBE CRASH - MAIN ENTRY POINT
 // Clean, modular architecture
 
+import './utils/console-suppress.js';
+
 import { bootstrapReady } from './ui/bootstrap-ui.js';
 import './ui/collectibles-bridge.js';
 // boot and layout imported statically for instant access
@@ -805,14 +807,34 @@ async function startNewRun(boardId: number): Promise<void> {
     // Priority: __ccStartAtLevel > currentRunState.boardId > default to 1
     const boardToLoad = (window as any).__ccStartAtLevel || currentRunState?.boardId || 1;
     const saveKey = getBoardSaveKey(boardToLoad);
-    const savedGame = localStorage.getItem(saveKey);
-    
+    let savedGame = localStorage.getItem(saveKey);
+    // 🔥 FALLBACK: If board-specific key is empty (e.g. old code wrote only to global), try global key and migrate
+    if (!savedGame && boardToLoad) {
+      const globalFallback = localStorage.getItem('cc_saved_game');
+      if (globalFallback) {
+        try {
+          const parsed = JSON.parse(globalFallback) as { boardNumber?: number; level?: number };
+          const globalBoard = Number.isFinite(parsed.boardNumber) ? parsed.boardNumber : (Number.isFinite(parsed.level) ? parsed.level : 0);
+          if (globalBoard === boardToLoad) {
+            savedGame = globalFallback;
+            localStorage.setItem(saveKey, globalFallback);
+            logger.info(`🔄 Migrated board ${boardToLoad} save from cc_saved_game to ${saveKey}`);
+          }
+        } catch (_) { /* ignore */ }
+      }
+    }
     console.log(`🔄 Attempting to load board ${boardToLoad} from ${saveKey}`);
     logger.info(`🔄 Loading board ${boardToLoad} save state (${saveKey})`);
     
-      // Case A: Active in-progress run - resume exactly where they left off
-      if (currentRunState && currentRunState.inProgress && savedGame) {
-        logger.info(`🎮 Case A: Resuming active run for board ${currentRunState.boardId} from ${saveKey}`);
+    // Case A: Resume when we have a save (with or without currentRunState, e.g. after hard exit)
+    const canResumeFromSave = !!(savedGame && boardToLoad);
+    const hasActiveRunState = !!(currentRunState && currentRunState.inProgress && savedGame);
+    if (canResumeFromSave) {
+        if (hasActiveRunState) {
+          logger.info(`🎮 Case A: Resuming active run for board ${currentRunState!.boardId} from ${saveKey}`);
+        } else {
+          logger.info(`🎮 Case A': Resuming from save only (e.g. after hard exit) for board ${boardToLoad} from ${saveKey}`);
+        }
         
         // 🔥 USER REQUEST: Check if we came from Journey screen - skip slider exit animation
         const cameFromJourney = (window as any).__ccCameFromJourney === true;
@@ -921,9 +943,9 @@ async function startNewRun(boardId: number): Promise<void> {
             const loadGameState = (window as any).loadGameState;
             if (typeof loadGameState === 'function') {
               logger.info(`🎮 Loading saved game state for board ${savedBoardNumber}...`);
-              const loaded = await loadGameState();
+              const loaded = await loadGameState(savedBoardNumber);
               if (!loaded) {
-                logger.error('❌ Failed to load saved game state - will rebuild board');
+                logger.warn('⚠️ Saved state not loaded for board ' + savedBoardNumber + ' - rebuilding board');
                 delete (window as any).__ccSkipRebuildBoard;
                 // 🔥 CRITICAL FIX: Call rebuildBoard directly - it's now exported to window
                 const rebuildBoardFn = (window as any).rebuildBoard;
@@ -1016,9 +1038,9 @@ async function startNewRun(boardId: number): Promise<void> {
               const loadGameState = (window as any).loadGameState;
               if (typeof loadGameState === 'function') {
                 logger.info(`🎮 Loading saved game state for board ${savedBoardNumber}...`);
-                const loaded = await loadGameState();
+                const loaded = await loadGameState(savedBoardNumber);
                 if (!loaded) {
-                  logger.error('❌ Failed to load saved game state - will rebuild board');
+                  logger.warn('⚠️ Saved state not loaded for board ' + savedBoardNumber + ' - rebuilding board');
                   delete (window as any).__ccSkipRebuildBoard;
                   const rebuildBoard = (window as any).rebuildBoard;
                   if (typeof rebuildBoard === 'function') {
@@ -1046,9 +1068,9 @@ async function startNewRun(boardId: number): Promise<void> {
               const loadGameState = (window as any).loadGameState;
               if (typeof loadGameState === 'function') {
                 logger.info(`🎮 Loading saved game state for board ${savedBoardNumber} (no skip flag)...`);
-                const loaded = await loadGameState();
+                const loaded = await loadGameState(savedBoardNumber);
                 if (!loaded) {
-                  logger.error('❌ Failed to load saved game state - will rebuild board');
+                  logger.warn('⚠️ Saved state not loaded for board ' + savedBoardNumber + ' - rebuilding board');
                   const rebuildBoard = (window as any).rebuildBoard;
                   if (typeof rebuildBoard === 'function') {
                     logger.info(`🎮 Calling rebuildBoard() for board ${savedBoardNumber} (loadGameState returned false)...`);

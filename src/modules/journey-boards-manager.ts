@@ -3128,14 +3128,17 @@ class JourneyBoardsManager {
       // 🔥 JOURNEY BOARDS: Always start from score 0 (no accumulation between boards)
       const resetScore = 0;
       
+      // 🔥 CRITICAL: Use board-specific save key so main.ts continueGameWithSavedState reads the same key
+      // Previously we only wrote to 'cc_saved_game' (global) so board-specific key could be missing → rebuild
+      const boardSaveKey = getBoardSaveKey(board.id);
       if (hasValidTiles && gameState) {
         // CASE 1: We have valid saved game with tiles - CONTINUE (resume)
         gameState.boardNumber = board.id;
         gameState.level = board.id;
         gameState.score = resetScore; // 🔥 JOURNEY BOARDS: Always start from 0
         gameState.timestamp = Date.now();
-        localStorage.setItem('cc_saved_game', JSON.stringify(gameState));
-        logger.info(`🎮 Updated saved game state for CONTINUE: boardNumber=${board.id}, score=${resetScore}, hasTiles=true`);
+        localStorage.setItem(boardSaveKey, JSON.stringify(gameState));
+        logger.info(`🎮 Updated saved game state for CONTINUE: boardNumber=${board.id}, score=${resetScore}, hasTiles=true (${boardSaveKey})`);
         
         // Set flag to skip rebuildBoard and load saved state
         (window as any).__ccSkipRebuildBoard = true;
@@ -3151,8 +3154,8 @@ class JourneyBoardsManager {
         // 🔥 CRITICAL: Explicitly remove tiles/grid to ensure fresh board creation
         delete gameState.tiles;
         delete gameState.grid;
-        localStorage.setItem('cc_saved_game', JSON.stringify(gameState));
-        logger.info(`🎮 Created new saved game state for FRESH BOARD: boardNumber=${board.id}, score=${resetScore}, no tiles`);
+        localStorage.setItem(boardSaveKey, JSON.stringify(gameState));
+        logger.info(`🎮 Created new saved game state for FRESH BOARD: boardNumber=${board.id}, score=${resetScore}, no tiles (${boardSaveKey})`);
         
         // Clear flag so rebuildBoard creates fresh board with tile animations
         delete (window as any).__ccSkipRebuildBoard;

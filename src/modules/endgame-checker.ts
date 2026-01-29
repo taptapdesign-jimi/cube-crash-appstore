@@ -152,12 +152,6 @@ export function getActiveTiles(tiles: any[]): any[] {
 
     // If hash changed OR length changed, recalculate
     if (currentHash !== cachedTilesHash || tiles.length !== cachedTilesLength) {
-      console.log('🔄 EndGameChecker DIAGNOSTIC: Cache MISS - refreshing active tiles', {
-        oldHash: cachedTilesHash.substring(0, 20) + '...',
-        newHash: currentHash.substring(0, 20) + '...',
-        oldLength: cachedTilesLength,
-        newLength: tiles.length
-      });
       cachedTilesHash = currentHash;
       cachedTilesLength = tiles.length;
       cachedActiveTiles = tiles.filter(tileIsActive);
@@ -219,7 +213,11 @@ function createContextHash(context: EndGameContext): string {
 function isLastMergeScenario(context: EndGameContext): boolean {
   const { tiles, dstTile, srcTile, justRemovedSrc } = context;
 
-  console.log('🔍 isLastMergeScenario: Checking last merge - justRemovedSrc:', justRemovedSrc, 'dstTile.value:', dstTile?.value, 'srcTile:', srcTile ? { value: srcTile.value, special: srcTile.special } : null);
+  logger.debug('isLastMergeScenario: checking last merge', 'endgame-checker', {
+    justRemovedSrc,
+    dstValue: dstTile?.value,
+    srcTile: srcTile ? { value: srcTile.value, special: srcTile.special } : null
+  });
 
   // Only check if we just removed src tile and dst is merge 6
   if (!justRemovedSrc || !dstTile || dstTile.value !== MAX_MERGE_VALUE) {
@@ -596,7 +594,7 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
 
   // 🔥 CRITICAL: If wild + merge6 exists, game can continue (wild can merge with merge6)
   if (hasWild && hasMerge6) {
-    console.log('⭐ EndGameChecker: Wild + merge6 detected - game can continue (wild can merge with merge6)');
+    logger.debug('EndGameChecker: Wild + merge6 detected - game can continue', 'endgame-checker');
     lastCheckResult = { type: 'continue', reason: 'wild_can_merge_with_merge6' };
     lastCheckTime = now;
     lastCheckContextHash = contextHash;

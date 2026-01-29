@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Game State Service - Centralized state management
 import { eventBus, EVENTS } from '../core/event-bus.js';
 import { logger } from '../core/logger.js';
@@ -198,7 +197,8 @@ export class GameStateService {
       const hasChanged = !deepEqual(clonedValue, nextState[key]);
 
       if (hasChanged) {
-        nextState[key] = clonedValue as GameStateData[typeof key];
+        // TS can't narrow indexed access here; assign via record to avoid never
+        (nextState as Record<keyof GameStateData, GameStateData[keyof GameStateData]>)[key] = clonedValue as GameStateData[typeof key];
         changedKeys.push(key);
       }
     });

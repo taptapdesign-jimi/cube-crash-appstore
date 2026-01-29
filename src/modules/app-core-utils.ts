@@ -20,6 +20,10 @@ export function trackAppTimeout(callback: () => void, delay: number): NodeJS.Tim
   return timeout;
 }
 
+export function waitTracked(ms: number): Promise<void> {
+  return new Promise<void>(resolve => trackAppTimeout(() => resolve(), ms));
+}
+
 export function clearAllAppTimeouts() {
   logger.debug(`🧹 Clearing ${_appTimeouts.size} pending timeouts from app-core`, 'app-core');
   _appTimeouts.forEach(timeout => clearTimeout(timeout));

@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 // Service Registry - Register all services in DI container
 import { container, SERVICES } from './dependency-injection.js';
 import { eventBus } from './event-bus.js';
