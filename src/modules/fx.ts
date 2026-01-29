@@ -9,6 +9,7 @@ import type { Tile } from '../types/game-types.js';
 
 import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from './wild-stars.ts';
 import { TILE } from './constants.js';
+import { trackAppInterval } from './app-core-utils.js';
 import { graphicsPool } from './object-pool.ts';
 import { selectPattern, getColor, getParams, getActiveTemplate, getDragParticleColors, getBubbleColors } from './templates/template-manager.ts';
 
@@ -5262,7 +5263,20 @@ function makeLinearGradientTexture(w, h, stops){
   (stops||[]).forEach(s=> grad.addColorStop(Math.min(1, Math.max(0, s.o||0)), s.c||'rgba(255,255,255,0)'));
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  try { return Texture.from(canvas); } catch { return null; }
+  try {
+    const texture = Texture.from(canvas);
+    try {
+      texture.label = `runtime:wild-shimmer-gradient:${canvas.width}x${canvas.height}`;
+      if (texture.baseTexture) texture.baseTexture.label = texture.label;
+    } catch {}
+    try {
+      const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
+      rt.add?.(texture);
+    } catch {}
+    return texture;
+  } catch {
+    return null;
+  }
 }
 
 // Create shimmer effect for wild cubes
@@ -5310,6 +5324,7 @@ export function createWildShimmer(tile) {
     
     shimmerContainer.addChild(shimmerSprite);
     tile._wildShimmerSprite = shimmerSprite;
+    tile._wildShimmerTexture = shimmerTexture;
   }
   
   // Add to tile
@@ -5564,6 +5579,8 @@ export function stopWildShimmer(tile) {
   
   tile._wildShimmer = null;
   tile._wildShimmerSprite = null;
+  try { tile._wildShimmerTexture?.destroy?.(true); } catch {}
+  tile._wildShimmerTexture = null;
 }
 
 /**
@@ -5614,7 +5631,7 @@ export function startMagnetIdleParticles(tile) {
   generateParticles();
   
   // Schedule continuous particles every 200ms
-  tile._magnetIdleParticlesInterval = setInterval(() => {
+  tile._magnetIdleParticlesInterval = trackAppInterval(() => {
     if (!tile || tile.destroyed) {
       if (tile._magnetIdleParticlesInterval) {
         clearInterval(tile._magnetIdleParticlesInterval);

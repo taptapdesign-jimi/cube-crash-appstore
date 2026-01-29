@@ -167,9 +167,15 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           }
         } catch {}
         try {
-          if (fxModule && typeof fxModule.cleanupExistingStarAnimations === 'function') {
+          if (fxModule && typeof fxModule.forceCleanupAllStarAnimations === 'function') {
+            fxModule.forceCleanupAllStarAnimations();
+          } else if (fxModule && typeof fxModule.cleanupExistingStarAnimations === 'function') {
             fxModule.cleanupExistingStarAnimations();
           }
+        } catch {}
+        try {
+          const starsCollector = await import('./stars-collector.js');
+          starsCollector.cleanupStarsCollector?.();
         } catch {}
       }
     } catch (e) {
@@ -659,6 +665,16 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     // This screen shows the board number with beautiful animations
     // 🔥 CRITICAL FIX: Show transition screen immediately without delay
     try {
+      // Safety: cleanup stuck stars-to-HUD animations before transition (prevents frozen stars/HUD)
+      try {
+        const fxModule = await import('./fx.js');
+        fxModule.forceCleanupAllStarAnimations?.();
+      } catch {}
+      try {
+        const starsCollector = await import('./stars-collector.js');
+        starsCollector.cleanupStarsCollector?.();
+      } catch {}
+
       // 🔥 CRITICAL FIX: Set board transition flag to protect bubble explosion from cleanup
       (window as any).__ccBoardTransitionActive = true;
       console.log('🎯 endgame-flow: Set __ccBoardTransitionActive flag to protect bubble explosion');
@@ -699,13 +715,6 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
                 const uiManagerModule = await import('./ui-manager.js');
                 const uiMgr = uiManagerModule.default;
                 uiMgr?.showApp?.();
-              } catch {}
-              
-              try {
-                const hudModule = await import('./hud-helpers.js');
-                if (typeof hudModule.playHudDrop === 'function') {
-                  hudModule.playHudDrop({ forceRestart: true });
-                }
               } catch {}
               
               try {

@@ -111,7 +111,16 @@ function __dg_makeLinearGradientTexture(w, h, colA = 0xFFE9D9, colB = 0xB2876A, 
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  return Texture.from(canvas);
+  const texture = Texture.from(canvas);
+  try {
+    texture.label = `runtime:drag-gradient:${canvas.width}x${canvas.height}`;
+    if (texture.baseTexture) texture.baseTexture.label = texture.label;
+  } catch {}
+  try {
+    const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
+    rt.add?.(texture);
+  } catch {}
+  return texture;
 }
 
 export function initDrag(cfg) {

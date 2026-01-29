@@ -93,6 +93,16 @@ export function clearAllAppListeners(): void {
   _appListeners.length = 0;
 }
 
+// Debug: get current counts for tracked resources
+export function getAppCleanupStats() {
+  return {
+    timeouts: _appTimeouts.size,
+    animationFrames: _appAnimationFrames.size,
+    intervals: _appIntervals.size,
+    listeners: _appListeners.length
+  };
+}
+
 /**
  * Calculate board size based on grid dimensions
  */

@@ -17,6 +17,7 @@ import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations } from './fx.ts';
 import { showWildBeerBubblesExplosion, stopWildBeerBubblesExplosion, isWildBeerBubblesExplosionActive, isWildBeerBubblesExplosionRecentlyStarted, destroyWildBeerBubblesExplosionCache } from './wild-beer-bubbles-explosion.ts';
+import { stopWildBeerBubblesScreen, destroyWildBeerBubblesScreenCache } from './wild-beer-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
 // import { showStarsModal } from './stars-modal.js';
@@ -87,6 +88,7 @@ let comboIdleTimer = null;
 let checkLevelEndTimer = null;
 let checkLevelEndRetryCount = 0; // 🔥 v38: Track reschedule attempts
 const MAX_CHECK_LEVEL_END_RETRIES = 10; // 🔥 v38: Prevent infinite reschedule loops
+let __ccRuntimeTextureHooksInstalled = false;
 
 // 🔒 SAFETY: Remove any lingering magnet merge-6 tiles (value 6 with magnet flags) to prevent stuck boards
 // ✅ OPTIMIZED: O(n) complexity instead of O(n²) by using direct grid coordinates
@@ -295,14 +297,8 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
     return;
   }
   
-  // 🔥 CRITICAL: Perform memory cleanup before board transition (MEMORY LEAK FIX)
-  logger.debug('🧹 Performing memory cleanup before board transition...', 'app-core');
-  try {
-    memoryManager.performCleanup();
-    logger.debug('✅ Memory cleanup completed', 'app-core');
-  } catch (error) {
-    logger.warn('⚠️ Memory cleanup failed', 'app-core', error);
-  }
+  // 🔥 NOTE: Defer texture/memory cleanup until AFTER endgame animations complete.
+  // Cleaning here can destroy runtime textures used by stars/bubbles and freeze animations.
 
   // Reset wild meter immediately (legacy behavior)
   wildMeter = 0;
@@ -352,6 +348,18 @@ async function triggerCleanBoardFlow(reason: string): Promise<void> {
         } catch {}
       }
     });
+
+    // Extra pass after endgame flow completes: aggressively clear unknown small textures
+    try {
+      logger.debug('🧹 Performing memory cleanup after endgame flow...', 'app-core');
+      memoryManager.performCleanup();
+    } catch (error) {
+      logger.warn('⚠️ Memory cleanup failed (post endgame)', 'app-core', error);
+    }
+    try {
+      const allowAggressive = (window as any).__ccAggressiveTextureCleanup === true;
+      cleanupTexturesForBoardTransition('after-clean-board', allowAggressive);
+    } catch {}
     
     // 🔥 BOARD RECOVERY: Clean board flow completed successfully - clear recovery flag
     // This prevents recovery from triggering on next load since flow completed normally
@@ -443,6 +451,143 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
     }).catch(() => {});
   } catch {}
   try { (window as any).__ccLastFxCleanupAt = Date.now(); } catch {}
+}
+
+function cleanupTexturesForBoardTransition(reason: string = 'unknown', aggressiveUnknown: boolean = false) {
+  try {
+    const renderer = app?.renderer || (STATE as any)?.app?.renderer;
+    const managed = renderer?.texture?.managedTextures;
+    const preCount = managed ? (managed.size || Object.keys(managed).length) : 0;
+
+    // managedTextures dev logs removed (no longer needed)
+
+    // Stop/clear bubble resources that generate runtime textures
+    try { stopWildBeerBubblesScreen?.(); } catch {}
+    try { destroyWildBeerBubblesExplosionCache?.(); } catch {}
+    try { destroyWildBeerBubblesScreenCache?.(); } catch {}
+
+    // Destroy registered runtime textures (generated from canvas/graphics)
+    try {
+      const runtimeTextures = (window as any).__ccRuntimeTextures;
+      if (runtimeTextures) {
+        if (typeof runtimeTextures.forEach === 'function') {
+          runtimeTextures.forEach((tex: any) => {
+            try { tex?.destroy?.(true); } catch {}
+          });
+          try { runtimeTextures.clear?.(); } catch {}
+        } else if (Array.isArray(runtimeTextures)) {
+          runtimeTextures.forEach((tex: any) => {
+            try { tex?.destroy?.(true); } catch {}
+          });
+          (window as any).__ccRuntimeTextures = [];
+        }
+      }
+    } catch {}
+
+    // Destroy unknown runtime textures ONLY when explicitly enabled (safety: avoid destroying in-use textures)
+    try {
+      const allowUnknown = (window as any).__ccUnknownTextureCleanup === true;
+      if (allowUnknown && managed) {
+        let destroyed = 0;
+        const destroyIfUnknown = (tex: any) => {
+          try {
+            if (!tex || tex.destroyed) return;
+            const src = tex.source || tex.baseTexture || {};
+            const label = tex.label || src.label || '';
+            const url = src.resource?.url || src.resource?.src || src.resource?.source?.currentSrc || '';
+            const width = tex.width || src.width || 0;
+            const height = tex.height || src.height || 0;
+            if (label || url) return;
+            if (width <= 1 && height <= 1) return; // Keep EMPTY/WHITE
+            if (width > 256 || height > 256) return; // Avoid large assets
+            if (!aggressiveUnknown && (width > 64 || height > 64)) return;
+            tex.destroy?.(true);
+            destroyed++;
+          } catch {}
+        };
+        if (managed instanceof Map) {
+          managed.forEach((value: any, key: any) => {
+            const tex = value?.texture || value || key;
+            destroyIfUnknown(tex);
+          });
+        } else if (typeof managed === 'object') {
+          Object.keys(managed).forEach(k => {
+            destroyIfUnknown((managed as any)[k]);
+          });
+        }
+        if (destroyed > 0) {
+          console.log('🧹 Destroyed unknown runtime textures', { reason, destroyed });
+        }
+      }
+    } catch {}
+    
+    // Ask PIXI to GC textures where possible
+    try { renderer?.textureGC?.run?.(); } catch {}
+    
+    // Clear texture cache + unused base textures (safe, skips in-use textures)
+    try {
+      if (window.PIXI && window.PIXI.utils) {
+        if (typeof window.PIXI.utils.clearTextureCache === 'function') {
+          window.PIXI.utils.clearTextureCache();
+        } else if (typeof window.PIXI.utils.destroyTextureCache === 'function') {
+          window.PIXI.utils.destroyTextureCache();
+        }
+        const baseTextureCache = (window.PIXI.utils as any).BaseTextureCache;
+        if (baseTextureCache) {
+          const toRemove: string[] = [];
+          for (const [key, baseTexture] of Object.entries(baseTextureCache)) {
+            try {
+              const bt = baseTexture as any;
+              if (bt && (!bt.textureCacheIds || bt.textureCacheIds.length === 0)) {
+                if (typeof bt.destroy === 'function') {
+                  bt.destroy();
+                }
+                toRemove.push(key as string);
+              }
+            } catch {}
+          }
+          toRemove.forEach(key => {
+            try { delete baseTextureCache[key]; } catch {}
+          });
+        }
+      }
+    } catch {}
+    
+    const postCount = managed ? (managed.size || Object.keys(managed).length) : 0;
+    if (preCount || postCount) {
+      console.log('🧹 Texture cleanup (board transition):', { reason, preCount, postCount });
+    }
+  } catch (e) {
+    console.warn('⚠️ cleanupTexturesForBoardTransition failed:', e);
+  }
+}
+
+function installRuntimeTextureHooks() {
+  if (__ccRuntimeTextureHooksInstalled) return;
+  __ccRuntimeTextureHooksInstalled = true;
+  try {
+    const origFrom = (Texture as any).from;
+    if (origFrom && !(origFrom as any).__ccWrapped) {
+      const wrapped = function(source: any, options?: any) {
+        const tex = origFrom.call(this, source, options);
+        try {
+          const isCanvas = (typeof HTMLCanvasElement !== 'undefined' && source instanceof HTMLCanvasElement) ||
+                           (typeof OffscreenCanvas !== 'undefined' && source instanceof OffscreenCanvas);
+          if (isCanvas && tex && !tex.label) {
+            const w = source?.width || 0;
+            const h = source?.height || 0;
+            tex.label = `runtime:Texture.from:${w}x${h}`;
+            if (tex.baseTexture) tex.baseTexture.label = tex.label;
+            const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
+            rt.add?.(tex);
+          }
+        } catch {}
+        return tex;
+      };
+      (wrapped as any).__ccWrapped = true;
+      (Texture as any).from = wrapped;
+    }
+  } catch {}
 }
 
 function killAllGsapTweensCommon(tilesList: any[] | null, label: string, opts: { clearTimeline?: boolean } = {}) {
@@ -965,6 +1110,32 @@ export async function boot(){
     // Ensure renderer is active on reuse
     try { app.ticker.start(); } catch {}
   }
+
+  // Install runtime texture hooks (canvas + generateTexture)
+  installRuntimeTextureHooks();
+  try {
+    const rendererAny = app.renderer as any;
+    if (rendererAny && !rendererAny.__ccGenerateTextureWrapped) {
+      const origGenerate = rendererAny.generateTexture?.bind(app.renderer);
+      if (origGenerate) {
+        rendererAny.generateTexture = (...args: any[]) => {
+          const tex = origGenerate(...args);
+          try {
+            if (tex && !tex.label) {
+              const w = tex.width || tex.baseTexture?.width || 0;
+              const h = tex.height || tex.baseTexture?.height || 0;
+              tex.label = `runtime:generateTexture:${w}x${h}`;
+              if (tex.baseTexture) tex.baseTexture.label = tex.label;
+              const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
+              rt.add?.(tex);
+            }
+          } catch {}
+          return tex;
+        };
+        rendererAny.__ccGenerateTextureWrapped = true;
+      }
+    }
+  } catch {}
   
   // 🔥 CRITICAL FIX: Ensure app is rendering
   console.log('✅ PIXI app initialized');

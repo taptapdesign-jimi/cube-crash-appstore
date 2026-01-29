@@ -91,6 +91,19 @@ export function stopWildBeerBubblesScreen(): void {
 }
 
 /**
+ * Destroy cached bubble texture to release GPU memory.
+ * Safe to call when the screen is inactive (preferred).
+ */
+export function destroyWildBeerBubblesScreenCache(): void {
+  if (_cachedBubbleTexture && !_cachedBubbleTexture.destroyed) {
+    try {
+      _cachedBubbleTexture.destroy(true);
+    } catch {}
+  }
+  _cachedBubbleTexture = null;
+}
+
+/**
  * Check if bubbles are active
  */
 export function isWildBeerBubblesActive(): boolean {
@@ -147,6 +160,12 @@ function initializeBubbleTexture(app: any): void {
       if (!_cachedBubbleTexture || _cachedBubbleTexture.destroyed) {
         throw new Error('Texture generation returned invalid texture');
       }
+      try {
+        _cachedBubbleTexture.label = 'runtime:wild-beer-bubbles-screen';
+        if (_cachedBubbleTexture.baseTexture) _cachedBubbleTexture.baseTexture.label = _cachedBubbleTexture.label;
+        const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
+        rt.add?.(_cachedBubbleTexture);
+      } catch {}
       console.log('✅ Bubble texture generated successfully');
     } catch (e1) {
       // Fallback: Try lower resolution
@@ -158,6 +177,12 @@ function initializeBubbleTexture(app: any): void {
         if (!_cachedBubbleTexture || _cachedBubbleTexture.destroyed) {
           throw new Error('Low-res texture generation returned invalid texture');
         }
+        try {
+          _cachedBubbleTexture.label = 'runtime:wild-beer-bubbles-screen';
+          if (_cachedBubbleTexture.baseTexture) _cachedBubbleTexture.baseTexture.label = _cachedBubbleTexture.label;
+          const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
+          rt.add?.(_cachedBubbleTexture);
+        } catch {}
       } catch (e2) {
         // Fallback: Try without region
         try {
@@ -167,6 +192,12 @@ function initializeBubbleTexture(app: any): void {
           if (!_cachedBubbleTexture || _cachedBubbleTexture.destroyed) {
             throw new Error('Auto-region texture generation returned invalid texture');
           }
+          try {
+            _cachedBubbleTexture.label = 'runtime:wild-beer-bubbles-screen';
+            if (_cachedBubbleTexture.baseTexture) _cachedBubbleTexture.baseTexture.label = _cachedBubbleTexture.label;
+            const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
+            rt.add?.(_cachedBubbleTexture);
+          } catch {}
         } catch (e3) {
           console.warn('⚠️ All texture generation methods failed, using Graphics fallback');
           _cachedBubbleTexture = null; // Will use Graphics fallback
@@ -271,9 +302,13 @@ function spawnBubble(): void {
     isSprite = false;
   }
 
-  // Random distribution (same as explosion)
+  // Random distribution (match explosion start positions)
   const startX = (Math.random() - 0.5) * screenW * 1.4 + screenW * 0.5;
-  const startY = screenH * (0.95 + Math.random() * 0.2); // Bottom 5-25% of screen
+  const isMobile = screenW < 768 || screenH > screenW;
+  const startYPercent = isMobile
+    ? 0.95 + Math.random() * 0.20   // 95–115% (legacy mobile)
+    : 1.08 + Math.random() * 0.20;  // 108–128% (below viewport)
+  const startY = screenH * startYPercent;
 
   bubble.x = startX;
   bubble.y = startY;

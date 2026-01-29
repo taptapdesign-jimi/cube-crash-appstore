@@ -109,7 +109,16 @@ export function __dg_makeLinearGradientTexture(
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, w, h);
   
-  return Texture.from(canvas);
+  const texture = Texture.from(canvas);
+  try {
+    texture.label = `runtime:drag-utils-gradient:${w}x${h}`;
+    if (texture.baseTexture) texture.baseTexture.label = texture.label;
+  } catch {}
+  try {
+    const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
+    rt.add?.(texture);
+  } catch {}
+  return texture;
 }
 
 /**

@@ -12,6 +12,7 @@ import { showBoardFailModal } from './board-fail-modal.js';
 import { rebuildBoard } from './app-board.ts';
 import { drawBoardBG } from './app-core.js';
 import { statsService } from '../services/stats-service.js';
+import { trackAppTimeout, trackAppAnimationFrame } from './app-core-utils.js';
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
@@ -334,66 +335,6 @@ function landPreBounce(t){
   });
 }
 
-// Helper function to find nearest tiles to a target position
-function findNearestTiles(targetTile: any, count: number = 2): any[] {
-  const allTiles = STATE.tiles || [];
-  const targetX = targetTile.gridX;
-  const targetY = targetTile.gridY;
-  
-  // Filter: active tiles (not locked, has value, not the target, not wild-magnet itself)
-  const candidates = allTiles.filter((t: any) => {
-    if (!t || t.destroyed) return false;
-    if (t.locked) return false;
-    if ((t.value | 0) <= 0) return false;
-    if (t === targetTile) return false;
-    if (t.special === 'wild-magnet') return false; // Don't attract other wild-magnets
-    return true;
-  });
-  
-  // Calculate distances and sort
-  const withDistance = candidates.map((t: any) => {
-    const dx = (t.gridX | 0) - targetX;
-    const dy = (t.gridY | 0) - targetY;
-    const dist = Math.hypot(dx, dy);
-    return { tile: t, distance: dist };
-  });
-  
-  withDistance.sort((a, b) => a.distance - b.distance);
-  
-  // Return random 2 from the nearest ones (or all if less than count)
-  const nearestCount = Math.min(count * 2, withDistance.length); // Take more candidates for randomness
-  const randomSelection = withDistance.slice(0, nearestCount)
-    .sort(() => Math.random() - 0.5) // Shuffle
-    .slice(0, count) // Take first 2
-    .map(item => item.tile);
-  
-  return randomSelection;
-}
-
-// Helper function to animate magnet pull (attract tile to target)
-function animateMagnetPull(tile: any, targetTile: any): Promise<void> {
-  return new Promise((resolve) => {
-    if (!tile || !targetTile || tile.destroyed || targetTile.destroyed) {
-      resolve();
-      return;
-    }
-    
-    const targetX = targetTile.x;
-    const targetY = targetTile.y;
-    
-    // Animate tile moving to target position
-    trackTween(tile, {
-      x: targetX,
-      y: targetY,
-      duration: 0.4,
-      ease: 'power2.out',
-      onComplete: () => {
-        resolve();
-      }
-    });
-  });
-}
-
 // Function to add 4x multiplier animations to existing merge 6 tile
 // All pulled tiles are removed, and animations are applied to the existing merge 6 tile
 /**
@@ -678,40 +619,6 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       parentType: tile.parent?.constructor?.name
     });
     
-    // 🔥 CRITICAL FIX: Remove from board FIRST before removing from grid/STATE
-    // This ensures tile is properly removed from visual hierarchy
-    if (tile.parent && STATE.board) {
-      try {
-        if (tile.parent === STATE.board || STATE.board.children.includes(tile)) {
-          STATE.board.removeChild(tile);
-          console.log(`🧲 Removed tile ${index + 1} from board`);
-        } else if (tile.parent.removeChild) {
-          tile.parent.removeChild(tile);
-          console.log(`🧲 Removed tile ${index + 1} from parent:`, tile.parent.constructor?.name);
-        }
-      } catch (error) {
-        console.warn(`⚠️ Failed to remove tile ${index + 1} from board:`, error);
-      }
-    }
-    
-    // Clear from grid
-    if (tile.gridX !== undefined && tile.gridY !== undefined && STATE.grid && STATE.grid[tile.gridY]) {
-      STATE.grid[tile.gridY][tile.gridX] = null;
-      console.log(`🧲 Cleared grid[${tile.gridY}][${tile.gridX}] = null`);
-    }
-    
-    // Remove from STATE.tiles
-    const tileIndex = STATE.tiles.indexOf(tile);
-    if (tileIndex >= 0) {
-      STATE.tiles.splice(tileIndex, 1);
-      console.log(`🧲 Removed tile from STATE.tiles at index ${tileIndex}`);
-    }
-    
-    // 🔥 NOTE: app-core.ts uses `const tiles = STATE.tiles;` which is a reference, not a copy
-    // This means removing from STATE.tiles automatically removes from app-core tiles array
-    // No need to manually remove from app-core tiles array - STATE.tiles is the source of truth
-    // End game checks use STATE.tiles via context.tiles, so cleanup is already handled
-    
     // Hide tile before removal
     tile.visible = false;
     tile.alpha = 0; // 🔥 CRITICAL: Set alpha to 0 to ensure it's not visible
@@ -721,8 +628,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     delete tile._wildMagnetOriginalX;
     delete tile._wildMagnetOriginalY;
     
-    // 🔥 CRITICAL: removeTile already calls destroy, so we don't need to call it again
-    // removeTile handles: stopWildIdle, hover.clear, removeAllListeners, killTweens, removeChild, destroy
+    // 🔥 CRITICAL: removeTile handles grid + tiles cleanup, avoid double removal
     removeTile(tile);
     
     console.log(`🧲 Tile ${index + 1} removed and marked destroyed`);
@@ -888,7 +794,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   }
   
   // Set position again after a small delay to ensure it stays (in case animations try to change it)
-  setTimeout(() => {
+  trackAppTimeout(() => {
     if (dst && !dst.destroyed) {
       gsap.set(dst, { x: correctX, y: correctY });
       dst.targetX = correctX;
@@ -1037,8 +943,8 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     }
     
     // Animate stars to HUD (same as normal wild star merge 6)
-    requestAnimationFrame(() => {
-      setTimeout(async () => {
+    trackAppAnimationFrame(() => {
+      trackAppTimeout(async () => {
         try {
           const { animateStarsToHudIcon } = await import('./fx.js');
           if (typeof animateStarsToHudIcon === 'function' && STATE.board && STATE.stage) {
@@ -1205,7 +1111,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       const pullPromises = remainingTiles.map(async (tile: any, index: number) => {
         const delay = index * 0.04; // Small stagger delay
         
-        await new Promise(resolve => setTimeout(resolve, delay * 1000));
+        await new Promise(resolve => trackAppTimeout(resolve, delay * 1000));
         
         // Animate tile moving to merge 6
         const merge6X = merge6Tile.x;
@@ -1771,7 +1677,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     // Shards animation takes ~1.0s (ttl), but with fastFadeOut it's effectively ~0.5-0.6s
     // Wait only 50ms to ensure shards start but spawn happens very fast (standard for all merge-6 spawns)
     console.log('⏳ Waiting for merge-6 shards animation to complete before spawning...');
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise(resolve => trackAppTimeout(resolve, 50));
     
     // 🔥 CRITICAL FIX: Spawn OBLIGATORY tile FIRST (priority)
     // Then spawn replacement tiles with cascading delays
@@ -1787,7 +1693,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       
       // Create promise that resolves when spawn completes
       const spawnPromise = new Promise<boolean>((resolve) => {
-      setTimeout(() => {
+      trackAppTimeout(() => {
         try {
           // 🔥 CRITICAL FIX v40.6: Double-check cell is still empty before spawning (race condition protection)
           // Problem: Spawning on locked tiles with value > 0 or wild tiles causes "2 tiles on same position" bug
@@ -1822,7 +1728,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
           // Spawn tile normally (skipBind = false means it will try to bind immediately)
             openAtCell(c, r, forcedValue ? { skipBind: false, value: forcedValue } : { skipBind: false }).then(() => {
               // Check if spawn was successful by verifying tile exists and has value > 0
-            setTimeout(() => {
+            trackAppTimeout(() => {
               const tile = STATE.grid?.[r]?.[c];
                 const spawnSuccess = !!(tile && !tile.locked && (tile.value|0) > 0);
                 
@@ -1852,11 +1758,11 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
             }, 50); // Small delay to ensure tile is created
           }).catch((err) => {
             console.warn(`⚠️ Failed to spawn tile at (${c}, ${r}):`, err);
-              resolve(false);
+            resolve(false);
           });
         } catch (err) {
           console.warn(`⚠️ Failed to respawn tile at (${c}, ${r}):`, err);
-            resolve(false);
+          resolve(false);
         }
       }, delay);
       });
@@ -1898,7 +1804,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         
         try {
           await openAtCell(c, r, { skipBind: false, value: forcedValue });
-          setTimeout(() => {
+          trackAppTimeout(() => {
             const tile = STATE.grid?.[r]?.[c];
             if (tile && !tile.locked && (tile.value|0) > 0) {
               successfulSpawns++;
@@ -1961,7 +1867,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   // Plus safety margin for user to see tiles: Total safe delay: 1200ms (increased from 800ms)
   // This ensures ALL spawn animations, unlocks, and bindings are complete before endgame check
   console.log('⏳ Waiting 1200ms for spawn animations to complete before endgame check (increased from 800ms for better safety)...');
-  await new Promise(resolve => setTimeout(resolve, 1200));
+  await new Promise(resolve => trackAppTimeout(resolve, 1200));
   
   // 🔥 CRITICAL: Check if ALL tiles can be merged together (simulate all possible merges)
   // If all tiles can be merged and the final merge is merge 6, trigger clean board flow
@@ -2032,7 +1938,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       }))
     });
     // Wait additional 600ms (increased from 500ms) for spawn animations and bindings to complete
-    await new Promise(resolve => setTimeout(resolve, 600));
+    await new Promise(resolve => trackAppTimeout(resolve, 600));
   }
   
   // 🔥 FIX: Only warn if we have ZERO active tiles after spawn (critical error)
@@ -2045,7 +1951,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
       note: 'No tiles were spawned - this will cause incorrect endgame check!'
     });
     // Wait additional time and re-check
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => trackAppTimeout(resolve, 500));
     const recheckActiveTiles = STATE.tiles.filter(tileIsActive);
     console.log('🧲 Re-check after additional wait:', {
       minExpected: minExpectedTileCount,
@@ -2114,7 +2020,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     } else {
       retryCount++;
       console.log(`⏳ Waiting for ${lockedActiveTilesCheck.length} tiles to unlock (retry ${retryCount}/${maxRetries})...`);
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => trackAppTimeout(resolve, 50));
     }
   }
   
