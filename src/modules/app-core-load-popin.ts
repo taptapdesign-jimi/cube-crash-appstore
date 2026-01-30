@@ -20,11 +20,20 @@ export function playLoadPopInAnimation({
     backgroundLayer.visible = true;
   }
 
-  // Hide all tiles before animation (ghosts stay visible)
+  // Hide ghost placeholders during enter animation; restore after
+  if (typeof (window as any).hideGhostPlaceholders === 'function') {
+    (window as any).hideGhostPlaceholders();
+  }
+
+  // Hide all tiles before animation
   tiles.forEach(t => { if (t) t.visible = false; });
 
   // Play same sweetPopIn animation as new game
   sweetPopIn(tiles, { onHalf }).then(() => {
+    (window as any).__ccEnterAnimationActive = false;
+    if (typeof (window as any).updateGhostVisibility === 'function') {
+      (window as any).updateGhostVisibility();
+    }
     devLog('✅ Continue animation completed');
     onComplete();
   });

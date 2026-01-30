@@ -793,6 +793,13 @@ function startExitAnimation(
     onComplete: () => {
       logger.info('✅ board-transition-screen: Exit animation complete');
       exitTimeline = null;
+      // 🔥 Enter-animation mode: updateGhostVisibility will only hide ghosts until pop-in completes
+      (window as any).__ccEnterAnimationActive = true;
+      try {
+        if (typeof (window as any).hideGhostPlaceholders === 'function') {
+          (window as any).hideGhostPlaceholders();
+        }
+      } catch {}
       onComplete();
     }
   });

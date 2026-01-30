@@ -5,6 +5,7 @@ type StartLevelLayoutDeps = {
   backgroundLayer: any | null;
   setBackgroundLayer: (v: any) => void;
   updateGhostVisibility: () => void;
+  hideGhostPlaceholders: () => void;
   devError: (...args: any[]) => void;
 };
 
@@ -15,6 +16,7 @@ export function ensureStartLevelLayout({
   backgroundLayer,
   setBackgroundLayer,
   updateGhostVisibility,
+  hideGhostPlaceholders,
   devError,
 }: StartLevelLayoutDeps){
   // Ensure layout and background layer are initialized once per startLevel
@@ -24,6 +26,7 @@ export function ensureStartLevelLayout({
   let layer = backgroundLayer;
   if (!layer) {
     initializeBackgroundLayer();
+    try { hideGhostPlaceholders(); } catch {}
     layer = backgroundLayer;
   }
   if (layer) {
@@ -40,5 +43,7 @@ export function ensureStartLevelLayout({
     } catch {}
   }
   setBackgroundLayer(layer);
-  try { updateGhostVisibility(); } catch {}
+  // Do NOT call updateGhostVisibility here — it would show ghosts for one frame before hide.
+  // Just hide ghosts; they will be shown correctly at the end of enter animation (sweetPopIn/playLoadPopIn).
+  try { hideGhostPlaceholders(); } catch {}
 }

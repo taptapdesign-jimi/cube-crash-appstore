@@ -13,6 +13,14 @@ export function createSweetPopInRunner({
 }: PopInRunnerDeps){
   return () => {
     devLog('🎯 Starting sweetPopIn from app.js with', tiles.length, 'tiles');
-    return sweetPopIn(tiles, { onHalf });
+    if (typeof (window as any).hideGhostPlaceholders === 'function') {
+      (window as any).hideGhostPlaceholders();
+    }
+    return sweetPopIn(tiles, { onHalf }).then(() => {
+      (window as any).__ccEnterAnimationActive = false;
+      if (typeof (window as any).updateGhostVisibility === 'function') {
+        (window as any).updateGhostVisibility();
+      }
+    });
   };
 }

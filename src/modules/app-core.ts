@@ -829,16 +829,10 @@ function queueWildSpawnIfNeeded(){
   
   // 🔥 SOURCE OF TRUTH: Preload Bar Logic
   // Case B — 2 tiles stack → result = 6 (NO PRELOAD SPAWN)
-  // If stacking the last two tiles results in Merge-6: Trigger CLEAN BOARD immediately
-  // Preload bar must NOT spawn wild, even if the action completes the bar
-  // 🔥 CRITICAL FIX: Skip wild spawn if last merge is in progress
-  // Problem: Last merge (2 tiles) → merge6 → wild meter se puni → wild spawn → nova kockica na board prije clean board!
-  // Solution: Provjeri da li postoji merge6 tile s _isLastMerge flag-om
-  const hasLastMergeTile = STATE.tiles.some((t: any) => t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true);
-  if (hasLastMergeTile) {
+  // Preload bar must NOT spawn wild if last merge is in progress (exactly 1 tile = merge-6).
+  // hasLastMergeTile also clears stale _isLastMerge when 2+ tiles on board (fix: wild bar blocked mid-game).
+  if (hasLastMergeTile({ tiles: STATE.tiles, devLog })) {
     devLog('🚨🚨🚨 SOURCE OF TRUTH: Preload bar blocked (in queueWildSpawnIfNeeded) - last merge detected');
-    devLog('🎯 Source of Truth: Case B — 2 tiles stack → result = 6 (NO PRELOAD SPAWN)');
-    devLog('🚨🚨🚨 Wild spawn will NOT be queued, preventing wild spawn on last merge');
     return;
   }
 
@@ -904,16 +898,10 @@ function addWildProgress(amount){
   
   // 🔥 SOURCE OF TRUTH: Preload Bar Logic
   // Case B — 2 tiles stack → result = 6 (NO PRELOAD SPAWN)
-  // If stacking the last two tiles results in Merge-6: Trigger CLEAN BOARD immediately
-  // Preload bar must NOT spawn wild, even if the action completes the bar
-  // 🔥 CRITICAL FIX: Check if this is last merge (only 2 tiles on board) BEFORE adding wild progress
-  // This is a safety check to prevent wild meter from filling when last merge happens
-  // The flag should be set in merge logic, but this provides double protection
-  const hasLastMergeTile = STATE.tiles.some((t: any) => t && !t.destroyed && t.value === 6 && (t as any)?._isLastMerge === true);
-  if (hasLastMergeTile) {
+  // Wild meter must NOT fill if last merge is in progress (exactly 1 tile = merge-6).
+  // hasLastMergeTile also clears stale _isLastMerge when 2+ tiles on board (fix: wild bar blocked mid-game).
+  if (hasLastMergeTile({ tiles: STATE.tiles, devLog })) {
     devLog('🚨🚨🚨 SOURCE OF TRUTH: Preload bar blocked (in addWildProgress) - last merge detected');
-    devLog('🎯 Source of Truth: Case B — 2 tiles stack → result = 6 (NO PRELOAD SPAWN)');
-    devLog('🚨🚨🚨 Wild meter will NOT be filled, preventing wild spawn on last merge');
     // Reset wild meter to ensure it's empty
     wildMeter = 0;
     STATE.wildMeter = 0;
@@ -1414,23 +1402,33 @@ export async function boot(){
   stage.visible = true;
   stage.alpha = 1;
   stage.renderable = true;
-  board   = new Container(); board.sortableChildren = true;
-  boardBG = new Graphics();
-  hud     = new Container(); hud.eventMode = 'none';
 
-  // 🔥 CRITICAL: Ensure board and hud are visible
-  board.visible = true;
-  board.alpha = 1;
-  board.renderable = true;
-  hud.visible = true;
-  hud.alpha = 1;
-  hud.renderable = true;
+  if (reuseApp && board && hud && !board.destroyed && !hud.destroyed) {
+    // 🔥 CRITICAL FIX: Reuse existing board/hud when app is reused (e.g. interim → clean board → next board)
+    // Creating new Container() and stage.addChild() would leave OLD board/hud on stage → duplicate children + memory leak → app reset
+    devLog('♻️ boot (reuse): Keeping existing board and hud containers');
+    board.visible = true;
+    board.alpha = 1;
+    board.renderable = true;
+    hud.visible = true;
+    hud.alpha = 1;
+    hud.renderable = true;
+  } else {
+    board   = new Container(); board.sortableChildren = true;
+    boardBG = new Graphics();
+    hud     = new Container(); hud.eventMode = 'none';
+    board.visible = true;
+    board.alpha = 1;
+    board.renderable = true;
+    hud.visible = true;
+    hud.alpha = 1;
+    hud.renderable = true;
+    board.zIndex = 100; hud.zIndex = 10000;
+    stage.addChild(board, hud);
+    board.addChildAt(boardBG, 0); boardBG.zIndex = -1000; board.sortChildren();
+  }
 
-  board.zIndex = 100; hud.zIndex = 10000;
-  stage.addChild(board, hud);
-  board.addChildAt(boardBG, 0); boardBG.zIndex = -1000; board.sortChildren();
-  
-  // 🔥 CRITICAL FIX: Clear backgroundLayer reference after boot() destroys old app
+  // 🔥 CRITICAL FIX: Clear backgroundLayer reference after boot() destroys old app (or on reuse so startLevel recreates it)
   // This ensures that backgroundLayer will be recreated in startLevel()
   backgroundLayer = null;
   window._ghostPlaceholders = null;
@@ -2398,9 +2396,17 @@ function setGhostVisibility(c, r, visible) {
   } catch {}
 }
 
+// When true, updateGhostVisibility only hides ghosts (never shows) — prevents one-frame blink during enter animation
+(window as any).__ccEnterAnimationActive = false;
+
 // Update ghost visibility based on current grid state
 // SIMPLE RULE: Show ghost ONLY where grid cell is null (no tile at all)
 function updateGhostVisibility() {
+  // 🔥 During enter animation: never show ghosts — only hide (any call to updateGhostVisibility = no visible ghosts)
+  if ((window as any).__ccEnterAnimationActive) {
+    try { hideGhostPlaceholders(); } catch {}
+    return;
+  }
   // 🔥 CRITICAL FIX: If window._ghostPlaceholders is null, try to reinitialize from backgroundLayer
   if (!window._ghostPlaceholders) {
     if (backgroundLayer && backgroundLayer.children.length > 0) {
@@ -2445,9 +2451,23 @@ function updateGhostVisibility() {
   }
 }
 
+// Hide all ghost placeholders (e.g. during board enter / pop-in animation)
+function hideGhostPlaceholders() {
+  try {
+    if (window._ghostPlaceholders && Array.isArray(window._ghostPlaceholders)) {
+      window._ghostPlaceholders.forEach((row: any[]) => {
+        row.forEach((ghost: any) => {
+          if (ghost) ghost.visible = false;
+        });
+      });
+    }
+  } catch {}
+}
+
 // Export to window for use in board.js
 window.setGhostVisibility = setGhostVisibility;
 window.updateGhostVisibility = updateGhostVisibility;
+window.hideGhostPlaceholders = hideGhostPlaceholders;
 
 // 🔥 v70 STYLE: Draw ghost placeholders for empty cells
 function drawBoardBG(mode = 'active+empty'){
@@ -2567,6 +2587,7 @@ function resetBoardContainer(){
     COLS,
     initializeBackgroundLayer,
     updateGhostVisibility,
+    hideGhostPlaceholders,
     devLog,
     devWarn,
     devError,
@@ -2610,6 +2631,7 @@ function rebuildBoard(){
   });
 
   finalizeBoardVisibility({ tiles, drawBoardBG });
+  try { hideGhostPlaceholders(); } catch {}
   
   // 🔥 CRITICAL FIX: Ensure background layer exists and is visible
   // If backgroundLayer was destroyed in cleanupGame(), it will be null
@@ -2667,19 +2689,23 @@ function rebuildBoard(){
     trackAppTimeout,
   });
   
-  sweetPopPromise.then(() => handleSweetPopInComplete({
-    app,
-    board,
-    tiles,
-    HUD,
-    hudRootFromWindow: (window as any).HUD_ROOT || null,
-    trackAppAnimationFrame,
-    devLog,
-    devWarn,
-    devError,
-    hudDropPending: _hudDropPending,
-    setHudDropPending: (v) => { _hudDropPending = v; },
-  }));
+  sweetPopPromise.then(() => {
+    (window as any).__ccEnterAnimationActive = false;
+    try { updateGhostVisibility(); } catch {}
+    handleSweetPopInComplete({
+      app,
+      board,
+      tiles,
+      HUD,
+      hudRootFromWindow: (window as any).HUD_ROOT || null,
+      trackAppAnimationFrame,
+      devLog,
+      devWarn,
+      devError,
+      hudDropPending: _hudDropPending,
+      setHudDropPending: (v) => { _hudDropPending = v; },
+    });
+  });
   devLog('✅ sweetPopIn started immediately - no waiting');
 
   syncSharedState();
@@ -2760,6 +2786,9 @@ async function animateBoardExit(){
 // Imported: randVal
 function startLevel(n){
   devLog('🎯 startLevel called with:', n, 'current level:', level, 'current boardNumber:', boardNumber, 'current score:', score);
+  // 🔥 Enter animation active: updateGhostVisibility will only hide ghosts until pop-in completes
+  (window as any).__ccEnterAnimationActive = true;
+  try { hideGhostPlaceholders(); } catch {}
   
   runStartLevelFxPrep({
     resetGlobalFxLayer,
@@ -2846,6 +2875,7 @@ function startLevel(n){
     backgroundLayer,
     setBackgroundLayer: (v) => { backgroundLayer = v; },
     updateGhostVisibility,
+    hideGhostPlaceholders,
     devError,
   });
   
@@ -7985,6 +8015,7 @@ async function loadGameState(overrideBoardNumber?: number) {
     if (!saved) {
       logger.warn(`⚠️ loadGameState: no saved state for board ${boardToLoad} (${getBoardSaveKey(boardToLoad)}) - will rebuild`);
       devLog('🔄 loadGameState: no saved state for board', boardToLoad, '- returning false');
+      (window as any).__ccEnterAnimationActive = false;
       return false;
     }
     const { gameState } = saved;
@@ -8045,6 +8076,9 @@ async function loadGameState(overrideBoardNumber?: number) {
       drawBoardBG,
       devLog,
     });
+
+    // Hide ghosts before any await so no frame paints with placeholders during load pop-in path
+    try { hideGhostPlaceholders(); } catch {}
     
     await ensureDragReadyAndRebind({
       STATE,
@@ -8109,6 +8143,7 @@ async function loadGameState(overrideBoardNumber?: number) {
     if (emptyLoadResult.handled) {
       logger.warn(`⚠️ loadGameState: empty/invalid load for board ${boardNumber} (tiles: ${tiles.length}, active: ${activeCount}) - will rebuild`);
       devLog('🔄 loadGameState: empty/invalid load handled (no active tiles) - returning false');
+      (window as any).__ccEnterAnimationActive = false;
       if (Number.isFinite(emptyLoadResult.nextBoardNumber)) {
         boardNumber = emptyLoadResult.nextBoardNumber!;
         level = emptyLoadResult.nextBoardNumber!;

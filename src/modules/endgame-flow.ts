@@ -688,6 +688,13 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       await showBoardTransitionScreen({
         boardNumber: nextLevel,
         onComplete: async () => {
+          // 🔥 CRITICAL: Hide ghost placeholders immediately (sync, before any await)
+          // Prevents one-frame blink when transition overlay is removed or before new board is ready
+          try {
+            if (typeof (window as any).hideGhostPlaceholders === 'function') {
+              (window as any).hideGhostPlaceholders();
+            }
+          } catch {}
           // 🔥 CRITICAL FIX: Clear board transition flag after transition completes
           // Now safe to cleanup bubble explosion if needed
           (window as any).__ccBoardTransitionActive = false;

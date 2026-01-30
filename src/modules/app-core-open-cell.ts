@@ -94,11 +94,9 @@ export function openAtCellCore({
       }
     }
 
-    // 🔥 Wild spawn ONLY on existing ghost placeholder — never create new tile then convert to wild
+    // Wild spawn: prefer existing ghost placeholder; in end game cell can be null — create tile then apply wild
     if ((isWild || isWildMagnet || isWildBeer) && !holder) {
-      devWarn('⚠️ openAtCell: Wild spawn refused – cell has no tile (ghost placeholder required)');
-      resolve(false);
-      return;
+      holder = makeBoard.createTile({ board, grid, tiles, c, r, val: 0, locked: true });
     }
     if (!holder) holder = makeBoard.createTile({ board, grid, tiles, c, r, val: 0, locked: true });
 

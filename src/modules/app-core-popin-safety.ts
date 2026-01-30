@@ -34,7 +34,10 @@ export function schedulePopInSafetyNet({
           t.alpha = 1;
           t.renderable = true;
         }
-        try { updateGhostVisibility(); } catch {}
+        try {
+          (window as any).__ccEnterAnimationActive = false;
+          updateGhostVisibility();
+        } catch {}
       }
     } catch (e) {
       devWarn('⚠️ sweetPopIn safety failed:', e);

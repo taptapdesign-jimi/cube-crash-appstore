@@ -7,6 +7,7 @@ type ResetDeps = {
   COLS: number;
   initializeBackgroundLayer: () => void;
   updateGhostVisibility: () => void;
+  hideGhostPlaceholders: () => void;
   devLog: (...args: unknown[]) => void;
   devWarn: (...args: unknown[]) => void;
   devError: (...args: unknown[]) => void;
@@ -22,6 +23,7 @@ export function resetBoardContainerHelper(deps: ResetDeps) {
     COLS,
     initializeBackgroundLayer,
     updateGhostVisibility,
+    hideGhostPlaceholders,
     devLog,
     devWarn,
     devError,
@@ -93,6 +95,7 @@ export function resetBoardContainerHelper(deps: ResetDeps) {
   try {
     if (backgroundLayer) {
       updateGhostVisibility();
+      hideGhostPlaceholders();
     }
   } catch {}
 

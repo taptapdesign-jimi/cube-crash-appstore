@@ -63,6 +63,7 @@ declare global {
     // Animation functions
     ensurePlayButtonReset?: () => void;
     updateGhostVisibility?: () => void;
+    hideGhostPlaceholders?: () => void;
     
     // HUD functions
     showGameUI?: () => void;
