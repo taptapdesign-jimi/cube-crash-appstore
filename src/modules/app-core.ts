@@ -5612,7 +5612,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                         x: h.origX,
                         y: h.origY,
                         duration: h.returnDuration,
-                        ease: `elastic.out(1, ${h.returnElastic})`
+                        ease: `elastic.out(0.6, ${h.returnElastic})`,
+                        overwrite: 'auto'
                       });
                     });
                   });
@@ -5644,9 +5645,10 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                   const blastY = origY + dirY * blastDist;
 
                   try { gsap.killTweensOf(tile); } catch {}
+                  gsap.set(tile, { x: origX, y: origY });
 
-                  const returnElastic = 0.08 + Math.random() * 0.1;
-                  const returnDuration = 1.9 + Math.random() * 0.3;
+                  const returnDuration = 1.7 + Math.random() * 0.3;
+                  const returnElastic = 0.06 + Math.random() * 0.06;
                   const blastDuration = returnDuration;
                   const wobbleAmp = TILE * (0.03 + Math.random() * 0.05);
                   const wobbleDur = 0.7 + Math.random() * 0.5;
@@ -5657,7 +5659,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     y: blastY,
                     duration: blastDuration,
                     delay: blastDelay,
-                    ease: `elastic.out(1, ${returnElastic})`
+                    ease: `elastic.out(1, ${returnElastic})`,
+                    overwrite: 'auto'
                   });
 
                   const wobble = gsap.to(tile, {
