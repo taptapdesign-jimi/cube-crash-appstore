@@ -6,6 +6,7 @@ type WildSkinDeps = {
   ASSET_WILD: string;
   ASSET_WILD_MAGNET: string;
   ASSET_WILD_BEER: string;
+  ASSET_WILD_TNT: string;
   TILE: number;
   startWildShimmer: (tile: any) => void;
   startWildBeerBubbles: (tile: any) => void;
@@ -24,6 +25,7 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
     ASSET_WILD,
     ASSET_WILD_MAGNET,
     ASSET_WILD_BEER,
+    ASSET_WILD_TNT,
     TILE,
     startWildShimmer,
     startWildBeerBubbles,
@@ -34,12 +36,14 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
   } = deps;
   try {
     // 🔥 CRITICAL: Use appropriate texture based on special type
-    // Wild-beer MUST always use wild-beer.png texture
+    // Wild-beer / wild-tnt use their own textures
     let assetPath = ASSET_WILD;
     if (tile.special === 'wild-magnet') {
       assetPath = ASSET_WILD_MAGNET;
     } else if (tile.special === 'wild-beer') {
       assetPath = ASSET_WILD_BEER;
+    } else if (tile.special === 'wild-tnt') {
+      assetPath = ASSET_WILD_TNT;
     }
     
     const tex = Assets.get(assetPath) || Texture.from(assetPath);
@@ -106,8 +110,8 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
   
     try {
       startWildShimmer(tile); // Use shimmer instead of bounce
-      // 🔥 WILD-BEER: Use bubbles animation instead of rotating stars
-      if (tile.special === 'wild-beer') {
+      // 🔥 WILD-BEER / WILD-TNT: Use bubbles animation instead of rotating stars
+      if (tile.special === 'wild-beer' || tile.special === 'wild-tnt') {
         startWildBeerBubbles(tile);
       } else {
         startWildStars(tile);

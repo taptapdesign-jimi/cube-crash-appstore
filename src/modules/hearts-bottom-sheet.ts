@@ -42,32 +42,35 @@ function trackHeartsInterval(callback: () => void, delay: number): ReturnType<ty
 }
 
 function clearAllHeartsTimeouts(): void {
-  console.log(`🧹 hearts-bottom-sheet: Clearing ${_heartsTimeouts.size} timeouts`);
+  const count = _heartsTimeouts.size;
   _heartsTimeouts.forEach(timeout => clearTimeout(timeout));
   _heartsTimeouts.clear();
+  if (count > 0) logger.debug(`🧹 hearts-bottom-sheet: Cleared ${count} timeouts`);
 }
 
 function clearAllHeartsIntervals(): void {
-  console.log(`🧹 hearts-bottom-sheet: Clearing ${_heartsIntervals.size} intervals`);
+  const count = _heartsIntervals.size;
   _heartsIntervals.forEach(interval => clearInterval(interval));
   _heartsIntervals.clear();
+  if (count > 0) logger.debug(`🧹 hearts-bottom-sheet: Cleared ${count} intervals`);
 }
 
 function clearAllHeartsGSAPTweens(): void {
-  console.log(`🧹 hearts-bottom-sheet: Killing ${_heartsGSAPTweens.length} GSAP tweens`);
+  const count = _heartsGSAPTweens.length;
   _heartsGSAPTweens.forEach(tween => {
     try {
       tween.kill();
     } catch (e) {}
   });
   _heartsGSAPTweens.length = 0;
+  if (count > 0) logger.debug(`🧹 hearts-bottom-sheet: Killed ${count} GSAP tweens`);
 }
 
 export function cleanupAllHeartsResources(): void {
   clearAllHeartsTimeouts();
   clearAllHeartsIntervals();
   clearAllHeartsGSAPTweens();
-  console.log('✅ hearts-bottom-sheet: All resources cleaned up!');
+  logger.debug('✅ hearts-bottom-sheet: All resources cleaned up');
 }
 
 function createCleanupRegistry(modalEl: HTMLElement): (fn: () => void) => void {
@@ -213,7 +216,7 @@ function animateHeartRefill(heartIndex: number): void {
     const heartIcon = heartIcons[heartIndex] as HTMLImageElement;
     
     // Change from empty to filled
-    heartIcon.src = '../../assets/modals/heart-life.png';
+    heartIcon.src = './assets/modals/heart-life.png';
     heartIcon.alt = 'Filled heart';
     
     // Bouncy animation
@@ -301,9 +304,10 @@ function createHeartsModal(): HTMLElement {
       });
     } catch (e) {}
     
-    // Clear timer
+    // Clear timer and remove from tracking
     if (timerInterval) {
       clearInterval(timerInterval);
+      _heartsIntervals.delete(timerInterval);
       timerInterval = null;
     }
     
@@ -333,8 +337,8 @@ function createHeartsModal(): HTMLElement {
   const heartsHTML = Array.from({ length: maxHearts }, (_, i) => {
     const isFilled = i < currentHearts;
     const heartImage = isFilled 
-      ? '../../assets/modals/heart-life.png' 
-      : '../../assets/modals/heart-life-empty.png';
+      ? './assets/modals/heart-life.png' 
+      : './assets/modals/heart-life-empty.png';
     return `<img src="${heartImage}" alt="${isFilled ? 'Filled heart' : 'Empty heart'}" class="heart-icon" />`;
   }).join('');
   
@@ -507,9 +511,10 @@ export function hideHeartsModal(): void {
   (modalEl as any)._closing = true;
   
   try {
-    // Clear timer
+    // Clear timer and remove from tracking
     if (timerInterval) {
       clearInterval(timerInterval);
+      _heartsIntervals.delete(timerInterval);
       timerInterval = null;
     }
     

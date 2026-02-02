@@ -271,6 +271,8 @@ export function getDragParticleColors(tileSpecial: string | null): number[] {
     colorKey = 'wild';
   } else if (tileSpecial === 'wild-beer') {
     colorKey = 'wildBeer';
+  } else if (tileSpecial === 'wild-tnt') {
+    colorKey = 'wildTnt';
   } else if (tileSpecial === 'wild-magnet') {
     colorKey = 'wildMagnet';
   }
@@ -316,6 +318,8 @@ export function getBubbleColors(tileSpecial: string | null): number[] {
     colorKey = 'wild';
   } else if (tileSpecial === 'wild-beer') {
     colorKey = 'wildBeer';
+  } else if (tileSpecial === 'wild-tnt') {
+    colorKey = 'wildTnt';
   } else if (tileSpecial === 'wild-magnet') {
     colorKey = 'wildMagnet';
   }

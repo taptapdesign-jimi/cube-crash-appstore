@@ -85,7 +85,7 @@ export function clearEndgameCheckerCache(): void {
 function tileIsWild(tile: any): boolean {
   if (!tile) return false;
   const special = tile.special;
-  return special === 'wild' || special === 'wild-magnet' || special === 'wild-beer';
+  return special === 'wild' || special === 'wild-magnet' || special === 'wild-beer' || special === 'wild-tnt';
 }
 
 /**
@@ -273,7 +273,7 @@ function isLastMergeScenario(context: EndGameContext): boolean {
     // Determine merge type for logging
     let mergeType = 'unknown';
     if (srcTile) {
-      const srcIsWild = srcTile.special === 'wild' || srcTile.special === 'wild-beer' || srcTile.special === 'wild-magnet';
+      const srcIsWild = srcTile.special === 'wild' || srcTile.special === 'wild-beer' || srcTile.special === 'wild-tnt' || srcTile.special === 'wild-magnet';
       const srcIsRegular = !srcTile.special && (srcTile.value|0) > 0;
       const dstIsRegular = !dstTile.special && (dstTile.value|0) > 0;
       const dstIsMerge6 = dstTile.value === MAX_MERGE_VALUE;
@@ -339,7 +339,7 @@ function canSingleStackMerge(activeTiles: any[], totalTilesCount: number): boole
   const singleTile = activeTiles[0];
   const value = (singleTile.value | 0);
   const stackDepth = (singleTile as any).stackDepth || 1;
-  const isWild = singleTile.special === 'wild' || singleTile.special === 'wild-beer' || singleTile.special === 'wild-magnet';
+  const isWild = singleTile.special === 'wild' || singleTile.special === 'wild-beer' || singleTile.special === 'wild-tnt' || singleTile.special === 'wild-magnet';
 
   console.log('🔍 isGameStuck: Single visible tile is a stack:', { value, stackDepth, totalTilesCount, isWild });
 
@@ -410,12 +410,12 @@ function getTileCategories(activeTiles: any[]) {
   }
 
   console.log('🔄 getTileCategories: Computing tile categories');
-  const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer');
-  const wildStars = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-beer');
+  const wildCubes = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt');
+  const wildStars = activeTiles.filter(t => t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt');
   const magnets = activeTiles.filter(t => t.special === 'wild-magnet');
 
   const mergeableNonWildTiles = activeTiles.filter(t => {
-    if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer') return false;
+    if (!t || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt') return false;
     const value = (t.value|0);
     return value > 0 && value <= MAX_MERGE_VALUE; // Wild can merge with 1-6
   });
@@ -576,7 +576,7 @@ export function checkEndGame(context: EndGameContext, forceRefresh: boolean = fa
   // These combinations allow continuation even with 0 moves
   const activeTiles = getActiveTiles(tiles);
   const hasMagnet = activeTiles.some(t => t.special === 'wild-magnet');
-  const hasWild = activeTiles.some(t => t.special === 'wild' || t.special === 'wild-beer');
+  const hasWild = activeTiles.some(t => t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt');
   const hasMerge6 = activeTiles.some(t => t.value === MAX_MERGE_VALUE);
 
   // 🔥 DIAGNOSTIC LOG: Check anyMergePossible result vs additional conditions

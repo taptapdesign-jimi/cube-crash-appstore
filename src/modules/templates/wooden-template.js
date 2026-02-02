@@ -11,6 +11,7 @@ export const woodenColors = {
   wild: 0xFFCB47,        // Yellow (#FFCB47) - for wild star merges (ORIGINAL COLOR)
   wildStar: 0xFFCB47,    // Yellow (#FFCB47) - for wild star merges (ORIGINAL COLOR)
   wildBeer: 0xF99D77,    // Orange (#F99D77) - for wild beer/juice merges (ORIGINAL COLOR)
+  wildTnt: 0xE85C3A,     // Orange-red (#E85C3A) - for wild TNT / Explosion Pack merges
   wildMagnet: 0xF26034,  // Red (#F26034) - for wild magnet merges
   smoke: 0xFFFFFF        // White smoke for wild effects
 };
@@ -28,6 +29,9 @@ export const woodenDragParticleColors = {
   // Wild beer: Orange palette - ORIGINAL COLOR
   wildBeer: [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77],
   
+  // Wild TNT (Explosion Pack): Orange-red palette
+  wildTnt: [0xE85C3A, 0xEB7A5A, 0xF09880, 0xF5B6A6],
+  
   // Wild magnet: Red palette - ORIGINAL COLOR
   wildMagnet: [0xF26034, 0xF57A5A, 0xF89480, 0xFBAEA6, 0xFDC8CC]
 };
@@ -44,6 +48,9 @@ export const woodenBubbleColors = {
   
   // Wild beer: Light orange/white bubbles - ORIGINAL COLOR (white with orange tint)
   wildBeer: [0xFFFFFF, 0xFFF5E6, 0xFFE8D1, 0xFFDCC2],
+  
+  // Wild TNT (Explosion Pack): Light orange-red/white bubbles
+  wildTnt: [0xFFFFFF, 0xFFEDE6, 0xFFE0D4, 0xFFD4C2],
   
   // Wild magnet: Light red/white bubbles
   wildMagnet: [0xFFFFFF, 0xFFE8E0, 0xFFD4C8, 0xFFC0B0]
@@ -773,6 +780,9 @@ export const woodenPatternMap = {
   // Wild beer merge 6 (wild-beer + ordinary) - use 5 organic patterns (juice, bubbly, fizzy, splash, foam)
   wildBeer: ['wildBeerOrganic1', 'wildBeerOrganic2', 'wildBeerOrganic3', 'wildBeerOrganic4', 'wildBeerOrganic5'],
   
+  // Wild TNT merge 6 (wild-tnt + ordinary) - reuse beer organic patterns (Explosion Pack)
+  wildTnt: ['wildBeerOrganic1', 'wildBeerOrganic2', 'wildBeerOrganic3', 'wildBeerOrganic4', 'wildBeerOrganic5'],
+  
   // Wild-magnet drag particles (during drag and idle) - use 3 organic patterns for variety
   wildMagnetDrag: ['wildMagnetDrag1', 'wildMagnetDrag2', 'wildMagnetDrag3']
 };
@@ -909,6 +919,28 @@ export const woodenParams = {
     distanceMultiplier: 1.0,
     
     // Visual effects
+    enhanced: true,
+    intensity: 1.35
+  },
+  
+  wildTnt: {
+    // Same as wildBeer (Explosion Pack - TNT merge 6)
+    lineWidth: 3.0,
+    lineAlpha: 1.0,
+    travelDuration: 0.4,
+    travelDurMultiplier: 0.5,
+    fadeDelay: 0.15,
+    fadeDelayMultiplier: 0.1,
+    fadeDuration: 0.25,
+    speed: 1.0,
+    vanishDelay: 0.0,
+    vanishJitter: 0.02,
+    ttl: 1.2,
+    tileSize: 96,
+    baseTile: 96,
+    spread: 6.72,
+    radiusBoost: 1.0,
+    distanceMultiplier: 1.0,
     enhanced: true,
     intensity: 1.35
   },

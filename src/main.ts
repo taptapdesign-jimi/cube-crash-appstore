@@ -789,12 +789,10 @@ async function startNewRun(boardId: number): Promise<void> {
   memoryManager.start();
   logger.info('🔄 continueGameWithSavedState called - loading saved game');
   
-  // 🔥 CRITICAL: Mark that we came from Journey (interim board)
-  // This flag is used by endgame-flow to decide between startLevel() vs startNewRunFromJourney()
+  // 🔥 Caller sets __ccFromInterimBoard / __ccIsInterimBoard (detail modal = false, interim flow = true).
+  // Do NOT set __ccIsInterimBoard here — so clean board shows "Continue" only when opened via interim card.
   (window as any).__ccCameFromJourney = true;
-  (window as any).__ccIsInterimBoard = true;
   localStorage.setItem('__ccCameFromJourney', 'true');
-  console.log('🗺️ Marked as coming from Journey (interim board continue) - clean board will use startNewRunFromJourney');
   
   // Import journey progression state
   const { journeyProgressionState } = await import('./modules/journey-progression-state.js');
@@ -1136,23 +1134,16 @@ async function startNewRun(boardId: number): Promise<void> {
   console.log(`🎮🎮🎮 startNewRunFromJourney CALLED with boardId: ${boardId}`);
   logger.info(`🎮 startNewRunFromJourney called for board ${boardId}`);
   
-  // 🔥 BUG FIX: Clear stale detail modal flags when starting new game
-  // This prevents wrong board from opening when exiting
-  delete (window as any).__ccCameFromDetailModal;
+  // 🔥 Keep __ccCameFromDetailModal so clean board can show Play Again + Exit (not Continue)
   delete (window as any).__ccDetailModalBoardId;
   delete (window as any).__ccDetailModalAlreadyOpened;
-  console.log(`🧹 Cleared stale detail modal flags before starting board ${boardId} from Journey`);
-  logger.info(`🧹 Cleared stale detail modal flags before starting board ${boardId} from Journey`);
   
-  // 🔥 CRITICAL: Mark that we came from Journey (interim board)
-  // This flag is used by endgame-flow to decide between startLevel() vs startNewRunFromJourney()
-  // 🔥 CRITICAL FIX: Also set __ccCameFromHomepage = false to ensure exitToMenu returns to Journey
+  // 🔥 Caller sets __ccFromInterimBoard / __ccIsInterimBoard (detail modal = false, interim = true).
+  // Do NOT set __ccIsInterimBoard here — so clean board shows "Continue" only when opened via interim card.
   (window as any).__ccCameFromJourney = true;
   (window as any).__ccCameFromHomepage = false;
-  (window as any).__ccIsInterimBoard = true;
   localStorage.setItem('__ccCameFromJourney', 'true');
   localStorage.removeItem('__ccCameFromHomepage');
-  console.log('🗺️ Marked as coming from Journey (interim board) - clean board will use startNewRunFromJourney');
   
   // Import journey progression state
   const { journeyProgressionState } = await import('./modules/journey-progression-state.js');

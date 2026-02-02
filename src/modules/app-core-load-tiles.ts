@@ -172,14 +172,14 @@ export function restoreTilesFromSave({
       if (tile.special === 'wild-magnet') {
         try { startMagnetIdleParticles(tile); } catch {}
       }
-      if (tile.special === 'wild-beer') {
-        setWildBeerSpawned(true);
+      if (tile.special === 'wild-beer' || tile.special === 'wild-tnt') {
+        if (tile.special === 'wild-beer') setWildBeerSpawned(true);
         try {
           if (typeof startWildBeerBubbles === 'function') {
             startWildBeerBubbles(tile);
           }
         } catch (error) {
-          devWarn('⚠️ Failed to start wild-beer bubbles on load:', error);
+          devWarn('⚠️ Failed to start wild-beer/wild-tnt bubbles on load:', error);
         }
       }
     } else {

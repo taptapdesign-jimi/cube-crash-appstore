@@ -9,7 +9,7 @@ type WildPreloadDeps = {
 function getActiveTiles(tiles: any[]): any[] {
   return tiles.filter((t: any) => {
     if (!t || t.destroyed) return false;
-    const isWild = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer';
+    const isWild = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt';
     const hasValue = (t.value | 0) > 0;
     return isWild || hasValue;
   });

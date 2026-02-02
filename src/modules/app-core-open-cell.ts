@@ -6,6 +6,7 @@ type OpenCellDeps = {
     isWild?: boolean;
     isWildMagnet?: boolean;
     isWildBeer?: boolean;
+    isWildTnt?: boolean;
     skipBind?: boolean;
     timeScale?: number;
   };
@@ -45,6 +46,7 @@ export function openAtCellCore({
     isWild = false,
     isWildMagnet = false,
     isWildBeer = false,
+    isWildTnt = false,
     skipBind = false,
     timeScale = 1.0,
   } = options || {};
@@ -55,7 +57,7 @@ export function openAtCellCore({
     // 🔥 CRITICAL: Never spawn wild/normal on an active tile or wild tile.
     // Check value and wild first — even locked tiles with value > 0 must be skipped.
     if (holder) {
-      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-beer' || holder.isWild === true || holder.isWildFace === true;
+      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-beer' || holder.special === 'wild-tnt' || holder.isWild === true || holder.isWildFace === true;
       const hasValue = (holder.value | 0) > 0;
 
       if (hasValue || isWildTile) {
@@ -86,7 +88,7 @@ export function openAtCellCore({
     // Double-check: re-read grid in case of race with another spawn
     holder = grid?.[r]?.[c] || null;
     if (holder) {
-      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-beer' || holder.isWild === true || holder.isWildFace === true;
+      const isWildTile = holder.special === 'wild' || holder.special === 'wild-magnet' || holder.special === 'wild-beer' || holder.special === 'wild-tnt' || holder.isWild === true || holder.isWildFace === true;
       const hasValue = (holder.value | 0) > 0;
       if (hasValue || isWildTile || !holder.locked) {
         resolve(false);
@@ -95,7 +97,7 @@ export function openAtCellCore({
     }
 
     // Wild spawn: prefer existing ghost placeholder; in end game cell can be null — create tile then apply wild
-    if ((isWild || isWildMagnet || isWildBeer) && !holder) {
+    if ((isWild || isWildMagnet || isWildBeer || isWildTnt) && !holder) {
       holder = makeBoard.createTile({ board, grid, tiles, c, r, val: 0, locked: true });
     }
     if (!holder) holder = makeBoard.createTile({ board, grid, tiles, c, r, val: 0, locked: true });
@@ -116,9 +118,9 @@ export function openAtCellCore({
     delete holder._wildMagnetPulledTilesMerge;
     delete holder._wildMagnetPulledTilesScoring;
 
-    if (isWild || isWildMagnet || isWildBeer){
+    if (isWild || isWildMagnet || isWildBeer || isWildTnt){
       // 🔥 CRITICAL: Set special BEFORE setValue to ensure correct texture is applied
-      holder.special = isWildBeer ? 'wild-beer' : (isWildMagnet ? 'wild-magnet' : 'wild');
+      holder.special = isWildTnt ? 'wild-tnt' : (isWildBeer ? 'wild-beer' : (isWildMagnet ? 'wild-magnet' : 'wild'));
       holder.isWild = true;
       holder.isWildFace = true;
       holder.value = 6;
@@ -128,8 +130,8 @@ export function openAtCellCore({
       applyWildSkinLocal(holder);
       try {
         startWildShimmer(holder); // Use shimmer instead of bounce
-        // 🔥 WILD-BEER: Use bubbles animation instead of rotating stars
-        if (holder.special === 'wild-beer') {
+        // 🔥 WILD-BEER / WILD-TNT: Use bubbles animation instead of rotating stars
+        if (holder.special === 'wild-beer' || holder.special === 'wild-tnt') {
           startWildBeerBubbles(holder);
         } else {
           startWildStars(holder);

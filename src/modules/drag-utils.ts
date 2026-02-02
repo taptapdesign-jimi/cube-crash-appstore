@@ -297,6 +297,7 @@ export function createTileShadow(tile: Tile): Graphics {
   const isWildStar = tile.special === 'wild';
   const isWildBeer = tile.special === 'wild-beer';
   const isWildMagnet = tile.special === 'wild-magnet';
+  const isWildTnt = tile.special === 'wild-tnt';
   
   shadow.fill({ color: 0x000000, alpha: VISUAL_EFFECTS.SHADOW_ALPHA });
   
@@ -317,6 +318,13 @@ export function createTileShadow(tile: Tile): Graphics {
     const centerX = VISUAL_EFFECTS.SHADOW_OFFSET + tile.width / 2;
     const centerY = VISUAL_EFFECTS.SHADOW_OFFSET + tile.height / 2;
     drawMagnet(shadow, centerX, centerY, tile.width, tile.height);
+  } else if (isWildTnt) {
+    // 🔥 Explosion Pack: TNT crate-shaped shadow (rounded rect)
+    const w = tile.width * 0.9;
+    const h = tile.height * 0.9;
+    const x = VISUAL_EFFECTS.SHADOW_OFFSET + (tile.width - w) / 2;
+    const y = VISUAL_EFFECTS.SHADOW_OFFSET + (tile.height - h) / 2;
+    shadow.roundRect(x, y, w, h, Math.min(w, h) * 0.18);
   } else {
     // Regular rectangle shadow for regular tiles
     shadow.rect(

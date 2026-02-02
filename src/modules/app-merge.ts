@@ -71,7 +71,7 @@ function play(name, vol=null){ /* muted */ }
 function tileIsWild(tile: any): boolean {
   if (!tile) return false;
   const special = tile.special;
-  return special === 'wild' || special === 'wild-magnet' || special === 'wild-beer' || tile.isWild === true || tile.isWildFace === true;
+  return special === 'wild' || special === 'wild-magnet' || special === 'wild-beer' || special === 'wild-tnt' || tile.isWild === true || tile.isWildFace === true;
 }
 
 function tileIsActive(tile: any): boolean {
@@ -132,7 +132,7 @@ export function clearWildState(tile){
   if (!tile) return;
   try { stopWildIdle(tile); } catch {}
   // Only clear wild state if it's a regular wild (not wild-magnet, which keeps its special property)
-  if (tile.special === 'wild' || tile.special === 'wild-beer') {
+  if (tile.special === 'wild' || tile.special === 'wild-beer' || tile.special === 'wild-tnt') {
     tile.special = null;
   }
   // For wild-magnet, we keep special='wild-magnet' but clear other wild properties
@@ -367,7 +367,7 @@ async function checkIfAllTilesCanMerge(tiles: any[], helpers: any): Promise<bool
     // Simulate merges by creating a copy of tile values
     const tileValues = activeTiles.map((t: any) => ({
       value: t.value|0,
-      isWild: t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer',
+      isWild: t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt',
       original: t
     }));
     
@@ -1262,7 +1262,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         const isMissing = !t;
         const isLocked = !!(t && t.locked === true);
         const hasValue = !!(t && (t.value|0) > 0);
-        const isWildTile = !!(t && (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || (t as any).isWild === true || (t as any).isWildFace === true));
+        const isWildTile = !!(t && (t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt' || (t as any).isWild === true || (t as any).isWildFace === true));
         
         // 🔥 CRITICAL FIX: NEVER spawn on a tile with value > 0, even if it's locked!
         // Locked tiles with value > 0 are tiles that are being animated (e.g., during magnet pull)
@@ -1701,7 +1701,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
           const existingTile = STATE.grid?.[r]?.[c];
           if (existingTile) {
             const isActive = (existingTile.value|0) > 0;
-            const isWildTile = existingTile.special === 'wild' || existingTile.special === 'wild-magnet' || existingTile.special === 'wild-beer' || (existingTile as any).isWild === true || (existingTile as any).isWildFace === true;
+            const isWildTile = existingTile.special === 'wild' || existingTile.special === 'wild-magnet' || existingTile.special === 'wild-beer' || existingTile.special === 'wild-tnt' || (existingTile as any).isWild === true || (existingTile as any).isWildFace === true;
             
             // 🔥 CRITICAL: NEVER spawn on a tile that has value > 0 or is wild, even if it's locked!
             // Locked tiles with value > 0 are active tiles (e.g., during animations)
@@ -1884,7 +1884,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
   const lockedActiveTiles = STATE.tiles.filter((t: any) => {
     if (!t || t.destroyed) return false;
     if (!t.locked) return false; // Only check locked tiles
-    return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet';
+    return (t.value|0) > 0 || t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt';
   });
   
   // 🔥 USER BUG FIX: Also check for tiles that are still being spawned or not yet interactive
@@ -1895,7 +1895,7 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
     if (t._isBeingSpawned === true) return true;
     // Check if tile doesn't have eventMode='static' yet (not interactive) - critical for user merges
     if (t.eventMode !== 'static' && (t.value|0) > 0) {
-      const isWildTile = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer';
+      const isWildTile = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt';
       // Only consider it as "still spawning" if it's a regular tile without eventMode
       if (!isWildTile) return true;
     }

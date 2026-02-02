@@ -410,7 +410,7 @@ function checkWildBeerTileExists(): boolean {
   const windowState = typeof window !== 'undefined' ? (window as any).STATE : null;
   const tiles = (windowState && windowState.tiles) || [];
   return tiles.some((t: any) => 
-    t && !t.destroyed && t.special === 'wild-beer' && t.visible
+    t && !t.destroyed && (t.special === 'wild-beer' || t.special === 'wild-tnt') && t.visible
   );
 }
 

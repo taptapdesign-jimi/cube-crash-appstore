@@ -545,13 +545,18 @@ export async function showCleanBoardModal({
     boardCleared.style.width = '100%';
     boardCleared.style.textAlign = 'center';
 
-    // 🔥 NEW LOGIC: Check if user came from interim board or regular board (detail modal)
-    // Keep in sync with endgame-flow/app-core detection (window + localStorage flags)
-    const isFromInterimBoard =
+    // 🔥 Continue ONLY when entered via interim card. Detail modal (Play/Continue on already-unlocked board) → Play Again + Exit only.
+    const cameFromDetailModal = (window as any).__ccCameFromDetailModal === true;
+    let isFromInterimBoard =
       (window as any).__ccFromInterimBoard === true ||
       (window as any).__ccIsInterimBoard === true ||
       localStorage.getItem('__ccFromInterimBoard') === 'true';
+    if (cameFromDetailModal) {
+      isFromInterimBoard = false;
+      console.log('🎯 Clean board: opened from detail modal → Play Again + Exit only');
+    }
     console.log('🎯 Clean board modal: isFromInterimBoard =', isFromInterimBoard, {
+      cameFromDetailModal,
       __ccFromInterimBoard: (window as any).__ccFromInterimBoard,
       __ccIsInterimBoard: (window as any).__ccIsInterimBoard,
       __ccFromInterimBoardLS: localStorage.getItem('__ccFromInterimBoard')
@@ -1478,8 +1483,9 @@ export async function showCleanBoardModal({
         primaryBtn.disabled = true;
         secondaryBtn.disabled = true;
         
-        // 🔥 Mark overlay as exiting to neutralize :active styles
+        // 🔥 Mark overlay as exiting and stop it blocking clicks (detail modal will show under it)
         el.setAttribute('data-clean-board-exiting', 'true');
+        (el as HTMLElement).style.pointerEvents = 'none';
 
         // 🔥 CRITICAL FIX: Play board exit animation FIRST before hiding board
         // This ensures user sees the original board exit animation (tiles + HUD) as requested
@@ -1592,7 +1598,7 @@ export async function showCleanBoardModal({
         const collapseDuration = secondaryBtn 
           ? nodes.length * 60 + buttonDelay + buttonExitDuration + extraBuffer  // With Exit button: 360 + 200 + 650 + 200 = 1410ms
           : nodes.length * 60 + buttonExitDuration + extraBuffer;               // Without Exit button: 360 + 650 + 200 = 1210ms
-        setTimeout(() => {
+        trackTimeout(() => {
           card.style.transition = 'transform 0.30s ease, opacity 0.30s ease';
           card.style.opacity = '0';
           el.style.transition = 'opacity 0.30s ease';
@@ -1662,29 +1668,25 @@ export async function showCleanBoardModal({
         // This ensures board exit animation plays fully before transitioning to detail modal
         // Use Promise to wait for actual completion, not just a timeout
         boardExitPromise.then(() => {
-          // Add small delay to ensure board is hidden and cleanup is done
-          trackTimeout(() => { 
-            console.log(`✅ clean-board-modal: Resolving with action: exit (board exit animation completed)`);
-            resolve({ action: 'exit' }); 
-          }, 50); // Small buffer after animation completes
+          trackTimeout(() => {
+            clearAllModalTimeouts(); // clear collapse timeout so no refs to el/card linger
+            // 🔥 CRITICAL: Remove overlay BEFORE resolve so it doesn't block detail modal clicks
+            try { el.remove(); } catch {}
+            removeStyleTag();
+            stopConfettiSpawnsSafe();
+            console.log(`✅ clean-board-modal: Resolving with action: exit (overlay removed, no click blocking)`);
+            resolve({ action: 'exit' });
+          }, 50);
         }).catch(() => {
-          // Even if animation fails, resolve after timeout
-          trackTimeout(() => { 
-            console.log(`✅ clean-board-modal: Resolving with action: exit (board exit animation failed, using timeout)`);
-            resolve({ action: 'exit' }); 
+          trackTimeout(() => {
+            clearAllModalTimeouts();
+            try { el.remove(); } catch {}
+            removeStyleTag();
+            stopConfettiSpawnsSafe();
+            console.log(`✅ clean-board-modal: Resolving with action: exit (animation failed, overlay removed)`);
+            resolve({ action: 'exit' });
           }, boardExitAnimationDuration);
         });
-        
-        // 🧹 CLEANUP: Remove modal after full exit animation completes (in background)
-        trackTimeout(() => { 
-          try { el.remove(); } catch {}
-          removeStyleTag(); // Remove CSS style tag
-          
-          // Stop confetti spawns
-          stopConfettiSpawnsSafe();
-          
-          console.log(`🧹 clean-board-modal: Cleanup complete after exit animation finished`);
-        }, collapseDuration + 110); // Clean up after full exit animation
       });
     }
       } catch (error) {

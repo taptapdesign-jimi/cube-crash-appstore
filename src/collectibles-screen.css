@@ -1939,6 +1939,7 @@
   margin: 0;
   padding: 0;
   background: transparent; /* 🔥 USER REQUEST: Ensure transparent background, no white */
+  opacity: 1; /* 🔥 USER REQUEST: 100% opacity on locked cards */
   /* 🔥 iOS FIX: Prevent deep touch (long press) and image dragging */
   -webkit-touch-callout: none;
   -webkit-user-select: none;

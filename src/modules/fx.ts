@@ -113,11 +113,11 @@ function getDynamicBubbleCount(baseCount: number): number {
 }
 
 /**
- * Start continuous sparkling water bubbles for wild-beer tiles
+ * Start continuous sparkling water bubbles for wild-beer and wild-tnt tiles
  * Bubbles spawn from bottom, rise to top + 30%, max 40px, white/transparent
  */
 export function startWildBeerBubbles(tile) {
-  if (!tile || tile.special !== 'wild-beer') return;
+  if (!tile || (tile.special !== 'wild-beer' && tile.special !== 'wild-tnt')) return;
   
   // Stop existing bubble system if any
   stopWildBeerBubbles(tile);
@@ -935,6 +935,9 @@ export function magicSparklesAtTile(board, tile, opts = {}){
       if (tileSpecial === 'wild-beer') {
         colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; // Orange palette for beer
         console.warn(`⚠️ Using hardcoded orange fallback for wild-beer`);
+      } else if (tileSpecial === 'wild-tnt') {
+        colors = [0xE85C3A, 0xEB7A5A, 0xF09880, 0xF5B6A6]; // Orange-red palette for TNT
+        console.warn(`⚠️ Using hardcoded orange-red fallback for wild-tnt`);
       } else if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {
         colors = [0xFFCB47, 0xFFD966, 0xFFE699, 0xFFF0B3, 0xFFF5CC]; // Yellow palette for wild star
         console.warn(`⚠️ Using hardcoded yellow fallback for wild`);
@@ -951,6 +954,8 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     // 🔥 CRITICAL FIX: Use correct fallback based on tile type, NOT white!
     if (tileSpecial === 'wild-beer') {
       colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; // Orange palette for beer
+    } else if (tileSpecial === 'wild-tnt') {
+      colors = [0xE85C3A, 0xEB7A5A, 0xF09880, 0xF5B6A6]; // Orange-red palette for TNT
     } else if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {
       colors = [0xFFCB47, 0xFFD966, 0xFFE699, 0xFFF0B3, 0xFFF5CC]; // Yellow palette for wild star
     } else if (tileSpecial === 'wild-magnet') {
@@ -965,6 +970,8 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     console.error(`❌ CRITICAL: Invalid colors array for ${tileSpecial}, using appropriate fallback`);
     if (tileSpecial === 'wild-beer') {
       colors = [0xF99D77]; // At least use orange for beer
+    } else if (tileSpecial === 'wild-tnt') {
+      colors = [0xE85C3A]; // At least use orange-red for TNT
     } else if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {
       colors = [0xFFCB47]; // At least use yellow for wild star
     } else if (tileSpecial === 'wild-magnet') {
@@ -1014,13 +1021,13 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     // Size multiplier support
     const sizeMultiplier = opts.sizeMultiplier ?? 1;
     
-    // 🔥 USER REQUEST: Wild beer uses circles instead of rectangles for smoke trail
-    const isWildBeer = tile?.special === 'wild-beer';
+    // 🔥 USER REQUEST: Wild beer and wild-tnt use circles instead of rectangles for smoke trail
+    const isWildBeerOrTnt = tile?.special === 'wild-beer' || tile?.special === 'wild-tnt';
     
     // 🔥 CRITICAL: Calculate alpha BEFORE drawing (intensity controls opacity)
     const fillAlpha = intensity; // Direct opacity value for fill
     
-    if (isWildBeer) {
+    if (isWildBeerOrTnt) {
       // Wild beer: use circles (bubbles-like particles)
       const baseRadius = 8 + Math.random() * 8; // 8-16px base radius
       const radius = baseRadius * sizeMultiplier; // Scale by multiplier
@@ -1139,21 +1146,24 @@ function getMerge6ShardConfig(src, dst) {
   const dstIsWildMagnet = dstSpecial === 'wild-magnet';
   const isWildMagnet = srcIsWildMagnet || dstIsWildMagnet;
 
-  // 🔥 CRITICAL: Check for wild-beer (before wild star)
+  // 🔥 CRITICAL: Check for wild-beer and wild-tnt (before wild star)
   const srcIsWildBeer = srcSpecial === 'wild-beer';
   const dstIsWildBeer = dstSpecial === 'wild-beer';
   const isWildBeer = srcIsWildBeer || dstIsWildBeer;
+  const srcIsWildTnt = srcSpecial === 'wild-tnt';
+  const dstIsWildTnt = dstSpecial === 'wild-tnt';
+  const isWildTnt = srcIsWildTnt || dstIsWildTnt;
 
-  // 🔥 CRITICAL: Check both src and dst for wild (not wild-magnet, not wild-beer)
-  // If either src or dst is wild (and not wild-magnet, not wild-beer), then it's a wild merge
-  const srcIsWild = srcSpecial === 'wild' && !srcIsWildMagnet && !srcIsWildBeer;
-  const dstIsWild = dstSpecial === 'wild' && !dstIsWildMagnet && !dstIsWildBeer;
+  // 🔥 CRITICAL: Check both src and dst for wild (not wild-magnet, not wild-beer, not wild-tnt)
+  const srcIsWild = srcSpecial === 'wild' && !srcIsWildMagnet && !srcIsWildBeer && !srcIsWildTnt;
+  const dstIsWild = dstSpecial === 'wild' && !dstIsWildMagnet && !dstIsWildBeer && !dstIsWildTnt;
   const isWild = srcIsWild || dstIsWild;
 
   // Determine shard color
   const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only (wild star)
   const redColor = 0xF26034;    // Red (#F26034) for wild-magnet
   const beerColor = 0xF99D77;   // Orange (#F99D77) for wild-beer
+  const tntColor = 0xE85C3A;    // Orange-red (#E85C3A) for wild-tnt (Explosion Pack)
   const brownColor = 0xD4A584;   // Brown (#D4A584) for regular merge 6
 
   let shardColor = brownColor;
@@ -1161,6 +1171,8 @@ function getMerge6ShardConfig(src, dst) {
     shardColor = redColor; // Wild-magnet → red
   } else if (isWildBeer) {
     shardColor = beerColor; // Wild-beer → orange (#F99D77)
+  } else if (isWildTnt) {
+    shardColor = tntColor; // Wild-TNT → orange-red (#E85C3A)
   } else if (isWild) {
     shardColor = yellowColor; // Wild-only → yellow
   }
@@ -1186,8 +1198,9 @@ function getMerge6ShardConfig(src, dst) {
     isWild,
     isWildMagnet,
     isWildBeer,
+    isWildTnt,
     shardColor,
-    isRegular: !isWild && !isWildMagnet && !isWildBeer
+    isRegular: !isWild && !isWildMagnet && !isWildBeer && !isWildTnt
   };
 }
 
@@ -1223,10 +1236,11 @@ export function spawnMerge6Shards(board, src, dstLive, dstSnapshot = null, opts 
   // Prepare opts for woodShardsAtTile
   const shardOpts = {
     enhanced: true,
-    wild: config.isWild || config.isWildMagnet || config.isWildBeer, // true if wild, wild-magnet, or wild-beer
-    wildMagnet: config.isWildMagnet, // true only if wild-magnet
-    isWildBeer: config.isWildBeer, // 🔥 CRITICAL: Pass wild-beer flag for correct color (#F99D77)
-    ...opts // Override with any passed options
+    wild: config.isWild || config.isWildMagnet || config.isWildBeer || config.isWildTnt,
+    wildMagnet: config.isWildMagnet,
+    isWildBeer: config.isWildBeer,
+    isWildTnt: config.isWildTnt, // Explosion Pack – correct color (#E85C3A)
+    ...opts
   };
 
   // 🔥 CRITICAL: Use live dstLive for position calculation (has x, y, gridX, gridY)
@@ -2711,6 +2725,125 @@ export function wildBeerMerge6ShardsTemplated(board, tile, opts = {}) {
   });
 }
 
+/**
+ * 💥 Template-Based Wild TNT Merge 6 Shards (Explosion Pack)
+ * Uses predefined patterns from the active template for wild-tnt merges.
+ * Same logic as wild-beer, orange-red color (#E85C3A).
+ */
+export function wildTntMerge6ShardsTemplated(board, tile, opts = {}) {
+  if (!board || !tile) {
+    console.warn('⚠️ wildTntMerge6ShardsTemplated: Missing board or tile', { board: !!board, tile: !!tile });
+    return;
+  }
+
+  const patternInfo = selectPattern('wildTnt');
+  if (!patternInfo) {
+    console.error('❌ wildTntMerge6ShardsTemplated: No pattern selected - falling back to woodShardsAtTile');
+    woodShardsAtTile(board, tile, {
+      enhanced: true,
+      wild: true,
+      wildMagnet: false,
+      isWildBeer: false,
+      count: 18,
+      intensity: 1.35,
+      spread: 0.7,
+      size: 1.3,
+      speed: 1.0,
+      vanishDelay: 0.0,
+      vanishJitter: 0.02
+    });
+    return;
+  }
+
+  const { patternName, patternData, pool, template } = patternInfo;
+  const params = getParams('wildTnt');
+  const tntColor = getColor('wildTnt'); // Orange-red (#E85C3A)
+
+  let x, y;
+  if (tile.x !== undefined && tile.y !== undefined) {
+    x = tile.x;
+    y = tile.y;
+  } else {
+    const pos = centerInBoard(board, tile, params.tileSize || 96);
+    x = pos.x;
+    y = pos.y;
+  }
+
+  const layer = new Container();
+  layer.x = x;
+  layer.y = y;
+  layer.visible = true;
+  layer.alpha = 1.0;
+  layer.zIndex = opts.zIndex ?? 9993;
+  board.addChild(layer);
+  try {
+    board.sortableChildren = true;
+    board.sortChildren?.();
+  } catch (e) {}
+
+  const shardsInLayer = [];
+  const baseTile = params.baseTile || 96;
+
+  patternData.forEach((shardDef, index) => {
+    const shard = pool.acquire();
+    shard.alpha = shardDef.alpha || 1.0;
+    const baseSize = (6 + Math.random() * 8) * (shardDef.size || 1.0) * 2.4;
+    const width = baseSize;
+    const height = width * (0.8 + Math.random() * 1.4);
+    const points = [];
+    const numPoints = 4 + Math.floor(Math.random() * 4);
+    for (let j = 0; j < numPoints; j++) {
+      const angle = (j / numPoints) * Math.PI * 2 + (Math.random() - 0.5) * 0.8;
+      const radius = (0.3 + Math.random() * 0.7) * Math.min(width, height) / 2;
+      points.push(Math.cos(angle) * radius, Math.sin(angle) * radius);
+    }
+    try {
+      shard.poly(points).fill({ color: tntColor, alpha: params.lineAlpha || 0.9 });
+    } catch (e) {
+      shard.clear();
+      const size = Math.max(4, Math.max(...points.map((p, i) => Math.abs(p))) * 2);
+      shard.rect(-size/2, -size/2, size, size).fill({ color: tntColor, alpha: params.lineAlpha || 0.9 });
+    }
+    try { if (typeof shard.updateBounds === 'function') shard.updateBounds(); } catch (e) {}
+    shard.visible = true;
+    shard.alpha = shardDef.alpha || 1.0;
+    shard.x = 0;
+    shard.y = 0;
+    shard.rotation = Math.random() * Math.PI;
+    layer.addChild(shard);
+    shardsInLayer.push(shard);
+
+    const staggerDelay = Math.random() * 0.08;
+    const angle = (shardDef.angle * Math.PI) / 180;
+    const distance = shardDef.distance * baseTile * (params.spread || 1.0);
+    const targetX = Math.cos(angle) * distance;
+    const targetY = Math.sin(angle) * distance;
+    const travelDur = (params.travelDuration || 0.4) * shardDef.speed * (params.speed || 1.0);
+    const fadeDelay = (params.fadeDelay ?? 0.15) + (params.fadeDelayMultiplier ?? 0.1) * Math.random();
+    const fadeDur = params.fadeDuration ?? 0.25;
+
+    trackTween(shard, { delay: staggerDelay, x: targetX, y: targetY, duration: travelDur, ease: 'power2.out' });
+    trackTween(shard, { alpha: 0, delay: fadeDelay, duration: fadeDur, ease: 'power2.in' });
+  });
+
+  const ttl = params.ttl || 1.2;
+  trackDelayedCall(ttl, () => {
+    shardsInLayer.forEach((shard, idx) => {
+      try {
+        gsap.killTweensOf(shard);
+        gsap.killTweensOf(shard.x);
+        gsap.killTweensOf(shard.y);
+        gsap.killTweensOf(shard.alpha);
+        gsap.killTweensOf(shard.scale);
+        gsap.killTweensOf(shard.rotation);
+        if (shard.parent === layer) layer.removeChild(shard);
+        pool.release(shard);
+      } catch (e) {}
+    });
+    try { layer.destroy({ children: false }); } catch (e) {}
+  });
+}
+
 export function woodShardsAtTile(board, tile, opts = {}){
   if (!board || !tile) {
     console.warn('⚠️ woodShardsAtTile: Missing board or tile', { board: !!board, tile: !!tile });
@@ -2817,7 +2950,7 @@ export function woodShardsAtTile(board, tile, opts = {}){
   } else if (opts.wild === false) {
     // Explicitly NOT wild
     isWildOnly = false;
-  } else if (!isWildMagnet && (tile?.special === 'wild' || tile?.special === 'wild-beer')) {
+  } else if (!isWildMagnet && (tile?.special === 'wild' || tile?.special === 'wild-beer' || tile?.special === 'wild-tnt')) {
     // opts.wild not set, fallback to tile.special (but only if not wild-magnet)
     isWildOnly = true;
   } else if (!isWildMagnet && opts.isWildBeer === true) {
@@ -2866,12 +2999,14 @@ export function woodShardsAtTile(board, tile, opts = {}){
   const vanishDelay = opts.vanishDelay ?? (wildMode ? 0 : 0);
   const vanishJitter = opts.vanishJitter ?? (wildMode ? 0.02 : 0.06);
 
-  // 🔥 CRITICAL: Check for wild-beer separately
+  // 🔥 CRITICAL: Check for wild-beer and wild-tnt separately
   const isWildBeer = tile?.special === 'wild-beer' || opts.isWildBeer === true;
+  const isWildTnt = tile?.special === 'wild-tnt' || opts.isWildTnt === true;
   
   const yellowColor = 0xFFCB47; // Yellow (#FFCB47) for wild-only (wild star)
   const redColor = 0xF26034;    // Red (#F26034) for wild-magnet
   const beerColor = 0xF99D77;   // Orange (#F99D77) for wild-beer
+  const tntColor = 0xE85C3A;    // Orange-red (#E85C3A) for wild-tnt (Explosion Pack)
   const brownColor = 0xD4A584;  // Brown (#D4A584) for regular merge 6
 
   // Determine base shard color
@@ -2880,6 +3015,8 @@ export function woodShardsAtTile(board, tile, opts = {}){
     baseShardColor = redColor; // Wild-magnet → red
   } else if (isWildBeer) {
     baseShardColor = beerColor; // Wild-beer → orange (#F99D77)
+  } else if (isWildTnt) {
+    baseShardColor = tntColor; // Wild-TNT → orange-red (#E85C3A)
   } else if (isWildOnly) {
     baseShardColor = yellowColor; // Wild-only (wild star) → yellow
   }
@@ -2936,6 +3073,9 @@ export function woodShardsAtTile(board, tile, opts = {}){
     } else if (isWildBeer) {
       // Wild-beer: use beer color (#F99D77)
       shardColor = beerColor;
+    } else if (isWildTnt) {
+      // Wild-TNT: use TNT color (#E85C3A)
+      shardColor = tntColor;
     } else if (isWildOnly) {
       // Wild-only (wild star): 50% yellow, 50% brown
       shardColor = Math.random() < 0.5 ? yellowColor : brownColor;
@@ -3159,14 +3299,14 @@ export function woodShardsAtTile(board, tile, opts = {}){
     optsWildMagnet: opts.wildMagnet
   });
   if (isWildOnly && !isWildMagnet) {
-    if (isWildBeer) {
-      // Wild-beer: skip local fizz here to avoid double wave; handled by triggerBeerMergeFizz/explosion
-      console.log('💧 Skipping local merge6 bubbles for wild-beer (handled elsewhere)');
+    if (isWildBeer || isWildTnt) {
+      // Wild-beer / wild-tnt: skip local fizz here to avoid double wave; handled by explosion
+      console.log('💧 Skipping local merge6 bubbles for wild-beer/wild-tnt (handled elsewhere)');
     } else {
       // 🔥 USER REQUEST: Skip creating star particles for wild star merge 6
       // Instead, orbiting stars will be animated to HUD icon via stars-collector module
       // Check opts.skipStars flag (passed from app-core.ts) or tile.special === 'wild'
-      const shouldSkipStars = opts.skipStars === true || (tile?.special === 'wild' && !isWildBeer && !isWildMagnet);
+      const shouldSkipStars = opts.skipStars === true || (tile?.special === 'wild' && !isWildBeer && !isWildTnt && !isWildMagnet);
       
       if (shouldSkipStars) {
         console.log('⭐ Skipping star particles for wild star merge 6 - orbiting stars will be animated to HUD instead');

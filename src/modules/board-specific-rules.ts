@@ -10,7 +10,7 @@ export interface BoardRule {
   
   // Wild tile settings
   wildSpawnEnabled?: boolean;
-  allowedWildTypes?: ('wild' | 'wild-beer' | 'wild-magnet')[];
+  allowedWildTypes?: ('wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt')[];
   wildMeterEnabled?: boolean; // If false, wild meter won't fill
   wildMeterFillRate?: number; // Multiplier for wild meter fill rate (default: 1.0)
   
@@ -39,7 +39,7 @@ const BOARD_RULES: BoardRule[] = [
     wildSpawnEnabled: true, // Enable wild spawning
     wildMeterEnabled: true, // Enable wild meter
     wildMeterFillRate: 1.0, // 🔥 USER REQUEST: Ista brzina kao board 1 (originalna brzina)
-    allowedWildTypes: ['wild', 'wild-beer', 'wild-magnet'] // Svi wild types dostupni
+    allowedWildTypes: ['wild', 'wild-beer', 'wild-magnet', 'wild-tnt'] // Svi wild types dostupni
   },
   {
     boardNumber: 3,
@@ -121,13 +121,13 @@ class BoardSpecificRules {
   /**
    * Get allowed wild types for current board
    */
-  getAllowedWildTypes(boardNumber?: number): ('wild' | 'wild-beer' | 'wild-magnet')[] {
+  getAllowedWildTypes(boardNumber?: number): ('wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt')[] {
     const board = boardNumber ?? this.currentBoard;
     const rule = this.rules.get(board);
     
     if (!rule || !rule.allowedWildTypes) {
-      // Default: all wild types allowed
-      return ['wild', 'wild-beer', 'wild-magnet'];
+      // Default: all wild types allowed (including wild-tnt from Explosion Pack)
+      return ['wild', 'wild-beer', 'wild-magnet', 'wild-tnt'];
     }
     
     return rule.allowedWildTypes;
@@ -136,7 +136,7 @@ class BoardSpecificRules {
   /**
    * Check if specific wild type is allowed for current board
    */
-  isWildTypeAllowed(wildType: 'wild' | 'wild-beer' | 'wild-magnet', boardNumber?: number): boolean {
+  isWildTypeAllowed(wildType: 'wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt', boardNumber?: number): boolean {
     const allowed = this.getAllowedWildTypes(boardNumber);
     return allowed.includes(wildType);
   }
@@ -146,9 +146,9 @@ class BoardSpecificRules {
    * Returns the allowed wild type or null if not allowed
    */
   filterWildType(
-    preferredType: 'wild' | 'wild-beer' | 'wild-magnet',
+    preferredType: 'wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt',
     boardNumber?: number
-  ): 'wild' | 'wild-beer' | 'wild-magnet' | null {
+  ): 'wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt' | null {
     const board = boardNumber ?? this.currentBoard;
     const allowed = this.getAllowedWildTypes(board);
     
@@ -295,18 +295,18 @@ export function isWildMeterEnabled(boardNumber?: number): boolean {
   return boardSpecificRules.isWildMeterEnabled(boardNumber);
 }
 
-export function getAllowedWildTypes(boardNumber?: number): ('wild' | 'wild-beer' | 'wild-magnet')[] {
+export function getAllowedWildTypes(boardNumber?: number): ('wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt')[] {
   return boardSpecificRules.getAllowedWildTypes(boardNumber);
 }
 
-export function isWildTypeAllowed(wildType: 'wild' | 'wild-beer' | 'wild-magnet', boardNumber?: number): boolean {
+export function isWildTypeAllowed(wildType: 'wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt', boardNumber?: number): boolean {
   return boardSpecificRules.isWildTypeAllowed(wildType, boardNumber);
 }
 
 export function filterWildType(
-  preferredType: 'wild' | 'wild-beer' | 'wild-magnet',
+  preferredType: 'wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt',
   boardNumber?: number
-): 'wild' | 'wild-beer' | 'wild-magnet' | null {
+): 'wild' | 'wild-beer' | 'wild-magnet' | 'wild-tnt' | null {
   return boardSpecificRules.filterWildType(preferredType, boardNumber);
 }
 

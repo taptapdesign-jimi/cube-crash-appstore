@@ -185,7 +185,7 @@ export function detectStuckState(tiles: TileInfo[]): { isStuck: boolean; reason:
   // Wild + Wild same value can't merge, leading to stuck state
   if (activeTiles.length === 2 && lockedTiles.length === 0) {
     const bothWild = activeTiles.every(t => 
-      t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-magnet'
+      t.special === 'wild' || t.special === 'wild-beer' || t.special === 'wild-tnt' || t.special === 'wild-magnet'
     );
     const sameValue = activeTiles[0].value === activeTiles[1].value;
     
@@ -236,8 +236,8 @@ function checkIfAnyMergePossible(tiles: TileInfo[]): boolean {
       const t1 = tiles[i];
       const t2 = tiles[j];
       
-      const t1IsWild = t1.special === 'wild' || t1.special === 'wild-beer' || t1.special === 'wild-magnet';
-      const t2IsWild = t2.special === 'wild' || t2.special === 'wild-beer' || t2.special === 'wild-magnet';
+      const t1IsWild = t1.special === 'wild' || t1.special === 'wild-beer' || t1.special === 'wild-tnt' || t1.special === 'wild-magnet';
+    const t2IsWild = t2.special === 'wild' || t2.special === 'wild-beer' || t2.special === 'wild-tnt' || t2.special === 'wild-magnet';
       
       // Wild + Wild same value can't merge
       if (t1IsWild && t2IsWild && t1.value === t2.value) {

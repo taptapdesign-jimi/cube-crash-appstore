@@ -236,6 +236,7 @@ class JourneyBoardsManager {
 
     if (opts.fromInterim) {
       (window as any).__ccFromInterimBoard = true;
+      (window as any).__ccIsInterimBoard = true;
       try { localStorage.setItem('__ccFromInterimBoard', 'true'); } catch {}
       if (opts.returningFromInterim) {
         (window as any).__ccReturningFromInterimBoard = true;
@@ -243,6 +244,7 @@ class JourneyBoardsManager {
       }
     } else {
       (window as any).__ccFromInterimBoard = false;
+      (window as any).__ccIsInterimBoard = false;
       try { localStorage.removeItem('__ccFromInterimBoard'); } catch {}
     }
   }
@@ -3033,10 +3035,9 @@ class JourneyBoardsManager {
       const { journeyProgressionState } = await import('./journey-progression-state.js');
       journeyProgressionState.setLastOpenedBoardId(board.id);
       
-      // 🔥 USER REQUEST: Mark that we came from Journey screen BEFORE exit animation
-      // This ensures exitToMenu returns to Journey (slide 1) instead of homepage (slide 0)
+      // 🔥 Mark from interim so clean board shows "Continue" (only case with Continue on clean board)
       this.setJourneyOriginFlags({ fromInterim: true, returningFromInterim: true });
-      logger.info('🗺️ Marked as coming from Journey screen (interim card click) + FROM INTERIM BOARD - stored in localStorage');
+      logger.info('🗺️ Marked as coming from interim board - clean board will show Continue');
       
       // 🔥 APP STORE FIX: Hide homepage IMMEDIATELY before Journey exit animation
       // This prevents homepage leftover elements from showing during transition
@@ -3606,8 +3607,17 @@ class JourneyBoardsManager {
     skipJourneyExit: boolean = false,
     journeyExitPromise?: Promise<void>
   ): Promise<void> {
+    // 🔥 CRITICAL: Clear interim flags when opening REGULAR (non-interim) board
+    // Prevents stale state from interim session when switching back to regular cards → crash on exit
+    if (!board.interim) {
+      (window as any).__ccFromInterimBoard = false;
+      (window as any).__ccIsInterimBoard = false;
+      try { localStorage.removeItem('__ccFromInterimBoard'); } catch {}
+      logger.info('🧹 Cleared interim flags when opening regular board detail modal');
+    }
+    
     // 🔥 MEMORY LEAK FIX: Stop any existing detail image idle animation from previous modal
-    const existingModal = document.getElementById('journey-board-detail-modal') as HTMLElement;
+    const existingModal = document.getElementById('collectibles-detail-modal') as HTMLElement;
     if (existingModal) {
       const existingImage = existingModal.querySelector('#detail-card-image') as HTMLElement;
       if (existingImage) {
@@ -3647,6 +3657,9 @@ class JourneyBoardsManager {
         './assets/wild-beer.png',
         './assets/wild-beer@2x.png',
         './assets/wild-beer@3x.png',
+        './assets/shop/explosion pack/tnt.png',
+        './assets/shop/explosion pack/tnt@2x.png',
+        './assets/shop/explosion pack/tnt@3x.png',
       ];
       
       logger.info(`🎮 Preloading ${gameAssets.length} game assets for board ${board.id}...`);
@@ -4325,9 +4338,9 @@ class JourneyBoardsManager {
               const { journeyProgressionState } = await import('./journey-progression-state.js');
               journeyProgressionState.setLastOpenedBoardId(board.id);
               
-              // 🔥 USER REQUEST: Mark that we came from Journey screen
+              // 🔥 Mark from interim so clean board shows "Continue"
               this.setJourneyOriginFlags({ fromInterim: true });
-              logger.info('🗺️ Marked as coming from Journey screen (interim Continue button)');
+              logger.info('🗺️ Marked as coming from interim (Continue button) - clean board will show Continue');
               
               if (typeof (window as any).continueGameWithSavedState === 'function') {
                 (window as any).__ccTriggerHudDrop = true;
@@ -6017,8 +6030,30 @@ class JourneyBoardsManager {
       okBtn.style.background = '#e8734a';
     });
 
+    // 🔥 MEMORY LEAK FIX: Centralized close - remove listeners before removing overlay
+    let closed = false;
+    const handleClose = () => {
+      if (closed) return;
+      closed = true;
+      overlay.removeEventListener('click', handleOverlayClick);
+      overlay.removeEventListener('touchend', handleOverlayTouchend, { capture: false });
+      try {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      } catch {}
+      console.log('✅ Board picker modal closed and cleaned up');
+    };
+
+    const handleOverlayClick = (e: Event) => {
+      if (e.target === overlay) handleClose();
+    };
+    const handleOverlayTouchend = (e: TouchEvent) => {
+      if (e.target === overlay) {
+        e.preventDefault();
+        handleClose();
+      }
+    };
+
     okBtn.addEventListener('click', () => {
-      // Apply action to all selected boards
       selectedBoards.forEach(boardNum => {
         if (action === 'show') {
           this.unlockBoardByNumber(boardNum);
@@ -6026,7 +6061,7 @@ class JourneyBoardsManager {
           this.lockBoardByNumber(boardNum);
         }
       });
-      document.body.removeChild(overlay);
+      handleClose();
     });
 
     // Cancel button
@@ -6053,9 +6088,7 @@ class JourneyBoardsManager {
       closeBtn.style.background = '#e0e0e0';
     });
 
-    closeBtn.addEventListener('click', () => {
-      document.body.removeChild(overlay);
-    });
+    closeBtn.addEventListener('click', handleClose);
 
     // Assemble modal
     modal.appendChild(title);
@@ -6065,27 +6098,11 @@ class JourneyBoardsManager {
     modal.appendChild(buttonContainer);
     overlay.appendChild(modal);
     
-    // 🔥 iPad FIX: Ensure modal is added to body and visible
     document.body.appendChild(overlay);
-    console.log('✅ Modal overlay added to body, z-index:', overlay.style.zIndex);
-    
-    // Force reflow to ensure modal is rendered
     void overlay.offsetHeight;
 
-    // Close on overlay click
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) {
-        document.body.removeChild(overlay);
-      }
-    });
-    
-    // 🔥 iPad FIX: Also add touch event for overlay
-    overlay.addEventListener('touchend', (e) => {
-      if (e.target === overlay) {
-        e.preventDefault();
-        document.body.removeChild(overlay);
-      }
-    });
+    overlay.addEventListener('click', handleOverlayClick);
+    overlay.addEventListener('touchend', handleOverlayTouchend);
   }
 
   private initJourneyButtons(): void {
