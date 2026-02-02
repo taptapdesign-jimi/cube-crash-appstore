@@ -83,6 +83,18 @@ const ALL_ASSETS: string[] = [
   './assets/shop/explosion pack/tnt.png',
   './assets/shop/explosion pack/tnt@2x.png',
   './assets/shop/explosion pack/tnt@3x.png',
+  './assets/shop/explosion pack/animation/tnt1.png',
+  './assets/shop/explosion pack/animation/tnt2.png',
+  './assets/shop/explosion pack/animation/tnt3.png',
+  './assets/shop/explosion pack/animation/tnt4.png',
+  './assets/shop/explosion pack/animation/tnt5.png',
+  './assets/shop/explosion pack/animation/tnt6.png',
+  './assets/shop/explosion pack/animation/tnt7.png',
+  './assets/shop/explosion pack/animation/tnt8.png',
+  './assets/shop/explosion pack/animation/tnt9.png',
+  './assets/shop/explosion pack/animation/tnt10.png',
+  './assets/shop/explosion pack/animation/tnt11.png',
+  './assets/shop/explosion pack/animation/tnt12.png',
   
   // Wild star assets
   './assets/small-star.png',

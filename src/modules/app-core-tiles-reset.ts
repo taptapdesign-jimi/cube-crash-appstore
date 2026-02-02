@@ -6,6 +6,8 @@ type ResetTilesDeps = {
   stopWildStars: (...args: any[]) => void;
   stopWildBeerBubbles: (...args: any[]) => void;
   stopMagnetIdleParticles: (...args: any[]) => void;
+  stopTntIdleParticles: (...args: any[]) => void;
+  stopTntIdleShake: (...args: any[]) => void;
   cleanupTilesForRebuild: (deps: {
     tiles: any[];
     gsap: any;
@@ -14,6 +16,8 @@ type ResetTilesDeps = {
     stopWildStars: (...args: any[]) => void;
     stopWildBeerBubbles: (...args: any[]) => void;
     stopMagnetIdleParticles: (...args: any[]) => void;
+    stopTntIdleParticles: (...args: any[]) => void;
+    stopTntIdleShake: (...args: any[]) => void;
     devWarn: (...args: any[]) => void;
   }) => void;
   devWarn: (...args: any[]) => void;
@@ -27,6 +31,8 @@ export function resetTilesForRebuild({
   stopWildStars,
   stopWildBeerBubbles,
   stopMagnetIdleParticles,
+  stopTntIdleParticles,
+  stopTntIdleShake,
   cleanupTilesForRebuild,
   devWarn,
 }: ResetTilesDeps){
@@ -38,6 +44,8 @@ export function resetTilesForRebuild({
     stopWildStars,
     stopWildBeerBubbles,
     stopMagnetIdleParticles,
+    stopTntIdleParticles,
+    stopTntIdleShake,
     devWarn,
   });
   tiles.length = 0;

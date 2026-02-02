@@ -344,7 +344,7 @@ export function initDrag(cfg) {
     trackTween(t.scale, { x: 1.12, y: 1.12, duration: 0.08 });
 
     // 🔥 FPS DROP FIX: Stop wild beer idle bubbles when dragging starts (prevents conflict with drag particles)
-    if (t.special === 'wild-beer' || t.special === 'wild-tnt') {
+    if (t.special === 'wild-beer') {
       try {
         // Import stopWildBeerBubbles dynamically to avoid circular dependency
         import('./fx.js').then(fxModule => {
@@ -920,8 +920,8 @@ export function initDrag(cfg) {
           console.warn('⚠️ Error restarting magnet idle particles after snapBack:', err);
         }
       }
-      // 🔥 USER REQUEST: Restart idle bubbles after snapBack for wild-beer / wild-tnt
-      if ((t?.special === 'wild-beer' || t?.special === 'wild-tnt') && !t.destroyed) {
+      // 🔥 USER REQUEST: Restart idle bubbles after snapBack for wild-beer only
+      if (t?.special === 'wild-beer' && !t.destroyed) {
         try {
           import('./fx.js').then(fxModule => {
             if (fxModule && typeof fxModule.startWildBeerBubbles === 'function') {
@@ -958,8 +958,8 @@ export function initDrag(cfg) {
           console.warn('⚠️ Error restarting magnet idle particles after snapBack:', err);
         }
       }
-      // 🔥 USER REQUEST: Restart idle bubbles after snapBack for wild-beer / wild-tnt
-      if ((t?.special === 'wild-beer' || t?.special === 'wild-tnt') && !t.destroyed) {
+      // 🔥 USER REQUEST: Restart idle bubbles after snapBack for wild-beer only
+      if (t?.special === 'wild-beer' && !t.destroyed) {
         try {
           import('./fx.js').then(fxModule => {
             if (fxModule && typeof fxModule.startWildBeerBubbles === 'function') {
@@ -1016,8 +1016,8 @@ export function initDrag(cfg) {
           console.warn('⚠️ Error restarting magnet idle particles after snapBack:', err);
         }
       }
-      // 🔥 USER REQUEST: Restart idle bubbles after snapBack for wild-beer / wild-tnt
-      if ((t?.special === 'wild-beer' || t?.special === 'wild-tnt') && !t.destroyed) {
+      // 🔥 USER REQUEST: Restart idle bubbles after snapBack for wild-beer only
+      if (t?.special === 'wild-beer' && !t.destroyed) {
         try {
           import('./fx.js').then(fxModule => {
             if (fxModule && typeof fxModule.startWildBeerBubbles === 'function') {

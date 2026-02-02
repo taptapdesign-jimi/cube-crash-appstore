@@ -13,6 +13,10 @@ type TileRestoreDeps = {
   stopWildShimmer: (tile: any) => void;
   startMagnetIdleParticles: (tile: any) => void;
   stopMagnetIdleParticles: (tile: any) => void;
+  startTntIdleParticles?: (tile: any) => void;
+  stopTntIdleParticles?: (tile: any) => void;
+  startTntIdleShake?: (tile: any) => void;
+  stopTntIdleShake?: (tile: any) => void;
   startWildBeerBubbles?: (tile: any) => void;
   trackAppTimeout: (fn: () => void, ms: number) => any;
   STATE: { drag?: any };
@@ -41,6 +45,10 @@ export function restoreTilesFromSave({
   stopWildShimmer,
   startMagnetIdleParticles,
   stopMagnetIdleParticles,
+  startTntIdleParticles,
+  stopTntIdleParticles,
+  startTntIdleShake,
+  stopTntIdleShake,
   startWildBeerBubbles,
   trackAppTimeout,
   STATE,
@@ -172,19 +180,25 @@ export function restoreTilesFromSave({
       if (tile.special === 'wild-magnet') {
         try { startMagnetIdleParticles(tile); } catch {}
       }
-      if (tile.special === 'wild-beer' || tile.special === 'wild-tnt') {
-        if (tile.special === 'wild-beer') setWildBeerSpawned(true);
+      if (tile.special === 'wild-tnt') {
+        try { startTntIdleParticles?.(tile); } catch {}
+        try { startTntIdleShake?.(tile); } catch {}
+      }
+      if (tile.special === 'wild-beer') {
+        setWildBeerSpawned(true);
         try {
           if (typeof startWildBeerBubbles === 'function') {
             startWildBeerBubbles(tile);
           }
         } catch (error) {
-          devWarn('⚠️ Failed to start wild-beer/wild-tnt bubbles on load:', error);
+          devWarn('⚠️ Failed to start wild-beer bubbles on load:', error);
         }
       }
     } else {
       try { stopWildShimmer(tile); } catch {}
       try { stopMagnetIdleParticles(tile); } catch {}
+      try { stopTntIdleParticles?.(tile); } catch {}
+      try { stopTntIdleShake?.(tile); } catch {}
     }
   }
 

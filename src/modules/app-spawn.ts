@@ -313,10 +313,10 @@ export function openAtCell(c: number, r: number, { value = null, isWild = false,
       if (typeof window.CC?.applyWildSkinLocal === 'function') {
         window.CC.applyWildSkinLocal(holder);
       }
-      // Wild shimmer only (no bounce animation)
-      try { 
-        startWildShimmer(holder); 
-        startWildStars(holder);
+      // Orbitirajuće zvjezdice SAMO za wild zvjezdicu; nikad za wild-magnet ili drugi wild
+      try {
+        startWildShimmer(holder);
+        if (holder.special === 'wild') startWildStars(holder);
       } catch (e) {
         console.error('❌ Error calling startWildShimmer:', e);
       }

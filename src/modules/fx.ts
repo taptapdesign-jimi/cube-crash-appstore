@@ -36,7 +36,9 @@ function getFxHotFactor(): number {
   return 0.55 + (delta / FX_HOT_WINDOW_MS) * 0.45;
 }
 
+/** Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild. */
 export function startWildStars(tile: Tile): void {
+  if (!tile || tile.special !== 'wild') return;
   attachWildStarHalo(tile);
 }
 
@@ -113,11 +115,11 @@ function getDynamicBubbleCount(baseCount: number): number {
 }
 
 /**
- * Start continuous sparkling water bubbles for wild-beer and wild-tnt tiles
- * Bubbles spawn from bottom, rise to top + 30%, max 40px, white/transparent
+ * Start continuous sparkling water bubbles for wild-beer tiles only.
+ * TNT uses its own explosion animation on merge 6 (no idle bubbles).
  */
 export function startWildBeerBubbles(tile) {
-  if (!tile || (tile.special !== 'wild-beer' && tile.special !== 'wild-tnt')) return;
+  if (!tile || tile.special !== 'wild-beer') return;
   
   // Stop existing bubble system if any
   stopWildBeerBubbles(tile);
@@ -1121,10 +1123,11 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   
   // 🔥 MEMORY LEAK FIX: Store tracked particles on tile for immediate cleanup
   if (isIdleParticles && particlesToTrack && particlesToTrack.length > 0) {
-    if (!tile._magnetIdleParticles) {
-      tile._magnetIdleParticles = [];
+    const trackKey = opts?.trackKey || '_magnetIdleParticles';
+    if (!tile[trackKey]) {
+      tile[trackKey] = [];
     }
-    tile._magnetIdleParticles.push(...particlesToTrack);
+    tile[trackKey].push(...particlesToTrack);
   }
 }
 
@@ -2838,6 +2841,90 @@ export function wildTntMerge6ShardsTemplated(board, tile, opts = {}) {
         gsap.killTweensOf(shard.rotation);
         if (shard.parent === layer) layer.removeChild(shard);
         pool.release(shard);
+      } catch (e) {}
+    });
+    try { layer.destroy({ children: false }); } catch (e) {}
+  });
+}
+
+/** 💥 Random burst shards (brown + red, 70% opacity, 80% larger) iz merge 6 pozicije zajedno s TNT sprite animacijom. */
+export function tntBurstShardsAtTile(board, tile, opts = {}) {
+  if (!board || !tile) return;
+  const pos = centerInBoard(board, tile, opts.tileSize || 96);
+  const x = pos.x;
+  const y = pos.y;
+  const baseTile = 96;
+  const sizeMultiplier = 2.4 * 1.8; // 80% veći od regular shards
+  const shardCount = 14 + Math.floor(Math.random() * 8);
+  const brownColor = 0x8b4513;
+  const redColor = 0xcc3333;
+  const BURST_ALPHA = 0.7;
+
+  const layer = new Container();
+  layer.x = x;
+  layer.y = y;
+  layer.visible = true;
+  layer.alpha = 1.0;
+  layer.zIndex = opts.zIndex ?? 9994;
+  board.addChild(layer);
+  try {
+    board.sortableChildren = true;
+    board.sortChildren?.();
+  } catch (e) {}
+
+  const shardsInLayer = [];
+  const minDistance = baseTile * 0.08 * 5.6 * 1.2;
+  const maxDistance = baseTile * 0.24 * 5.6 * 1.2;
+
+  for (let i = 0; i < shardCount; i++) {
+    const shard = new Graphics();
+    const baseSize = (6 + Math.random() * 8) * sizeMultiplier;
+    const width = baseSize;
+    const height = width * (0.8 + Math.random() * 1.4);
+    const points = [];
+    const numPoints = 4 + Math.floor(Math.random() * 4);
+    for (let j = 0; j < numPoints; j++) {
+      const angle = (j / numPoints) * Math.PI * 2 + (Math.random() - 0.5) * 0.8;
+      const radius = (0.3 + Math.random() * 0.7) * Math.min(width, height) / 2;
+      points.push(Math.cos(angle) * radius, Math.sin(angle) * radius);
+    }
+    const color = Math.random() < 0.5 ? brownColor : redColor;
+    try {
+      shard.poly(points).fill({ color, alpha: BURST_ALPHA });
+    } catch (e) {
+      shard.clear();
+      const size = Math.max(4, Math.max(...points.map((p, idx) => Math.abs(p))) * 2);
+      shard.rect(-size / 2, -size / 2, size, size).fill({ color, alpha: BURST_ALPHA });
+    }
+    try { if (typeof shard.updateBounds === 'function') shard.updateBounds(); } catch (e) {}
+    shard.visible = true;
+    shard.alpha = BURST_ALPHA;
+    shard.x = 0;
+    shard.y = 0;
+    shard.rotation = Math.random() * Math.PI;
+    layer.addChild(shard);
+    shardsInLayer.push(shard);
+
+    const angle = Math.random() * Math.PI * 2;
+    const distance = minDistance + Math.random() * (maxDistance - minDistance);
+    const targetX = Math.cos(angle) * distance;
+    const targetY = Math.sin(angle) * distance;
+    const staggerDelay = Math.random() * 0.08;
+    const travelDur = 0.35 + Math.random() * 0.15;
+    const fadeDelay = 0.12 + Math.random() * 0.1;
+    const fadeDur = 0.28;
+
+    trackTween(shard, { delay: staggerDelay, x: targetX, y: targetY, duration: travelDur, ease: 'power2.out' });
+    trackTween(shard, { alpha: 0, delay: fadeDelay, duration: fadeDur, ease: 'power2.in' });
+  }
+
+  const ttl = 1.3;
+  trackDelayedCall(ttl, () => {
+    shardsInLayer.forEach((shard) => {
+      try {
+        gsap.killTweensOf(shard);
+        if (shard.parent === layer) layer.removeChild(shard);
+        shard.destroy();
       } catch (e) {}
     });
     try { layer.destroy({ children: false }); } catch (e) {}
@@ -5323,6 +5410,7 @@ export function screenShake(app, opts = {}){
       direction = 0,   // Random direction in radians (0 = erratic/random)
       yScale    = 1.0, // scale vertical movement (e.g., 0.5 = more left-right bias)
       scale     = 0.0, // max extra zoom (e.g., 0.03 = +3% at peak)
+      alsoShake = [],  // dodatni elementi koji prate board shake (npr. TNT overlay)
     } = opts || {};
     
     // Log enhanced parameters for wild merges
@@ -5342,13 +5430,16 @@ export function screenShake(app, opts = {}){
       console.log('💥 SCREEN SHAKE: Also shaking board indicator element');
     }
 
+    const extraTargets = Array.isArray(alsoShake) ? alsoShake.filter(Boolean) : [];
+    extraTargets.forEach((el: any) => { try { gsap.killTweensOf(el); } catch {} });
+
     const tl = trackTimeline({
       onComplete: () => { 
         try { gsap.set(target, { x: 0, y: 0 }); } catch {}
-        // Reset board indicator position
         if (boardIndicator) {
           try { gsap.set(boardIndicator, { x: 0, y: 0 }); } catch {}
         }
+        extraTargets.forEach((el: any) => { try { gsap.set(el, { x: 0, y: 0 }); } catch {} });
       }
     });
     const dt = Math.max(0.01, duration / Math.max(1, steps));
@@ -5375,19 +5466,22 @@ export function screenShake(app, opts = {}){
       
       // 🔥 USER REQUEST: Apply same shake to board indicator element
       if (boardIndicator) {
-        // Use slightly reduced strength for board indicator (80% of main shake)
         const indicatorAmp = amp * 0.8;
         tl.to(boardIndicator, { x: dx * 0.8, y: dy * 0.8, duration: dt, ease }, 0 + i * dt);
       }
+      // TNT overlay i ostali alsoShake – ista amplituda kao board
+      extraTargets.forEach((el: any) => {
+        tl.to(el, { x: dx, y: dy, duration: dt, ease }, 0 + i * dt);
+      });
     }
-    // Use the same ease for the return animation, or power2.out for normal shake
     const returnEase = ease === 'elastic.out(1, 0.3)' ? 'elastic.out(1, 0.5)' : 'power2.out';
     tl.to(target, { x: 0, y: 0, scale: 1, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
-    
-    // 🔥 USER REQUEST: Return board indicator to original position
     if (boardIndicator) {
       tl.to(boardIndicator, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
     }
+    extraTargets.forEach((el: any) => {
+      tl.to(el, { x: 0, y: 0, duration: Math.min(0.12, duration * 0.45), ease: returnEase }, '>');
+    });
   } catch {}
 }
 
@@ -5517,8 +5611,11 @@ export function wildImpactEffect(tile, opts = {}) {
 
 export function startWildIdle(tile, opts = {}){
   if (!tile) return;
-  try { stopWildIdle(tile); } catch {}
-  try { startWildStars(tile); } catch {}
+  // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za beer/magnet/tnt
+  if (tile.special === 'wild') {
+    try { stopWildIdle(tile); } catch {}
+    try { startWildStars(tile); } catch {}
+  }
 
   const g = tile.rotG || tile;
   const baseW = Math.max(64, (tile.base?.width || tile.width || 96));
@@ -5829,6 +5926,84 @@ export function stopMagnetIdleParticles(tile) {
   }
 }
 
+/**
+ * Start TNT idle particles animation - same style as magnet.
+ */
+export function startTntIdleParticles(tile) {
+  if (!tile || tile.special !== 'wild-tnt') return;
+
+  if (tile._tntIdleParticlesInterval) {
+    clearInterval(tile._tntIdleParticlesInterval);
+    tile._tntIdleParticlesInterval = null;
+  }
+
+  const board = (typeof window !== 'undefined' && window.STATE) ? window.STATE.board : null;
+  if (!board) {
+    console.warn('⚠️ startTntIdleParticles: Board not found in STATE');
+    return;
+  }
+
+  const generateParticles = () => {
+    if (!tile || tile.destroyed) return;
+    try {
+      magicSparklesAtTile(board, tile, {
+        intensity: 0.45, // same as magnet
+        trackForIdle: true,
+        trackKey: '_tntIdleParticles'
+      });
+    } catch (err) {
+      console.warn('TNT idle particles error:', err);
+    }
+  };
+
+  generateParticles();
+
+  tile._tntIdleParticlesInterval = trackAppInterval(() => {
+    if (!tile || tile.destroyed) {
+      if (tile._tntIdleParticlesInterval) {
+        clearInterval(tile._tntIdleParticlesInterval);
+        tile._tntIdleParticlesInterval = null;
+      }
+      return;
+    }
+    generateParticles();
+  }, 200);
+}
+
+/**
+ * Stop TNT idle particles animation
+ */
+export function stopTntIdleParticles(tile) {
+  if (!tile) return;
+
+  if (tile._tntIdleParticlesInterval) {
+    clearInterval(tile._tntIdleParticlesInterval);
+    tile._tntIdleParticlesInterval = null;
+  }
+
+  if (tile._tntIdleParticles && Array.isArray(tile._tntIdleParticles)) {
+    const particles = tile._tntIdleParticles.slice();
+    particles.forEach((particle) => {
+      if (!particle || particle.destroyed) return;
+      try {
+        gsap.killTweensOf(particle);
+        gsap.killTweensOf(particle.x);
+        gsap.killTweensOf(particle.y);
+        gsap.killTweensOf(particle.alpha);
+        gsap.killTweensOf(particle.rotation);
+        if (particle?.parent) {
+          particle.parent.removeChild(particle);
+        }
+        __globalGraphicsObjects.delete(particle);
+        graphicsPool.release(particle);
+      } catch (err) {
+        console.warn('⚠️ Error cleaning up TNT idle particle:', err);
+      }
+    });
+    tile._tntIdleParticles = null;
+  }
+}
+
 
 /**
  * Start magnet shake animation - idle shake every 3 seconds
@@ -5974,6 +6149,95 @@ export function stopMagnetShake(tile) {
   // Clear random shake parameters
   tile._magnetShakeAngle = undefined;
   tile._magnetShakeDurationMultiplier = undefined;
+}
+
+/**
+ * Start TNT idle shake - random left/right twitch up to 8 degrees.
+ * Rotation only (no x/y changes) to keep tile locked on board.
+ */
+export function startTntIdleShake(tile) {
+  if (!tile || tile.special !== 'wild-tnt') return;
+
+  // Stop existing TNT shake animation
+  stopTntIdleShake(tile);
+
+  const g = tile.rotG || tile;
+  if (!g) return;
+
+  // Per-tile random max angle and speed multiplier (brže i agresivnije)
+  if (tile._tntShakeMaxAngle === undefined) {
+    tile._tntShakeMaxAngle = 6 + Math.random() * 2; // 6..8 degrees
+    tile._tntShakeSpeedMul = 1.3 + Math.random() * 0.5; // 1.3..1.8
+  }
+
+  const maxRad = (tile._tntShakeMaxAngle * Math.PI) / 180;
+  const speedMul = tile._tntShakeSpeedMul;
+
+  const performShake = () => {
+    if (!tile || tile.destroyed || !g) return;
+    if (g._originalShakeRotation === undefined) {
+      g._originalShakeRotation = g.rotation || 0;
+    }
+
+    const originalRotation = g._originalShakeRotation;
+    const target = (Math.random() * 2 - 1) * maxRad;
+    const total = (0.06 + Math.random() * 0.06) * speedMul; // 60-120ms (brže)
+
+    const shakeTl = trackTimeline();
+    shakeTl.set(g, { rotation: originalRotation });
+    shakeTl.to(g, { rotation: originalRotation + target, duration: total * 0.5, ease: 'sine.inOut' });
+    shakeTl.to(g, { rotation: originalRotation, duration: total * 0.5, ease: 'sine.inOut' });
+  };
+
+  // Shake immediately, then schedule random intervals
+  performShake();
+  const scheduleShake = () => {
+    if (!tile || tile.destroyed) return;
+    const delay = 0.6 + Math.random() * 0.6; // 0.6..1.2s (češće)
+    const delayedCall = trackDelayedCall(delay, () => {
+      if (!tile || tile.destroyed) return;
+      performShake();
+      scheduleShake();
+    });
+    __globalDelayedCalls.add(delayedCall);
+    if (!tile._tntShakeDelayedCalls) tile._tntShakeDelayedCalls = [];
+    tile._tntShakeDelayedCalls.push(delayedCall);
+    tile._tntShakeTl = delayedCall;
+  };
+
+  scheduleShake();
+}
+
+export function stopTntIdleShake(tile) {
+  if (!tile) return;
+
+  if (tile._tntShakeTl) {
+    try { tile._tntShakeTl.kill(); } catch {}
+    tile._tntShakeTl = null;
+  }
+
+  if (tile._tntShakeDelayedCalls) {
+    tile._tntShakeDelayedCalls.forEach(call => {
+      try {
+        call.kill();
+        __globalDelayedCalls.delete(call);
+      } catch {}
+    });
+    tile._tntShakeDelayedCalls = [];
+  }
+
+  const g = tile.rotG || tile;
+  if (g) {
+    try {
+      gsap.killTweensOf(g);
+      const resetRotation = g._originalShakeRotation !== undefined ? g._originalShakeRotation : 0;
+      if (typeof g.rotation !== 'undefined') g.rotation = resetRotation;
+      g._originalShakeRotation = undefined;
+    } catch {}
+  }
+
+  tile._tntShakeMaxAngle = undefined;
+  tile._tntShakeSpeedMul = undefined;
 }
 
 export function stopWildIdle(tile){

@@ -12,6 +12,8 @@ type WildSkinDeps = {
   startWildBeerBubbles: (tile: any) => void;
   startWildStars: (tile: any) => void;
   startMagnetIdleParticles: (tile: any) => void;
+  startTntIdleParticles: (tile: any) => void;
+  startTntIdleShake: (tile: any) => void;
   trackAppAnimationFrame: (fn: () => void) => any;
   devWarn: (...args: any[]) => void;
 };
@@ -31,6 +33,8 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
     startWildBeerBubbles,
     startWildStars,
     startMagnetIdleParticles,
+    startTntIdleParticles,
+    startTntIdleShake,
     trackAppAnimationFrame,
     devWarn,
   } = deps;
@@ -110,10 +114,13 @@ export function applyWildSkinLocalCore(tile: any, deps: WildSkinDeps){
   
     try {
       startWildShimmer(tile); // Use shimmer instead of bounce
-      // 🔥 WILD-BEER / WILD-TNT: Use bubbles animation instead of rotating stars
-      if (tile.special === 'wild-beer' || tile.special === 'wild-tnt') {
+      // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild
+      if (tile.special === 'wild-beer') {
         startWildBeerBubbles(tile);
-      } else {
+      } else if (tile.special === 'wild-tnt') {
+        startTntIdleParticles(tile);
+        startTntIdleShake(tile);
+      } else if (tile.special === 'wild') {
         startWildStars(tile);
       }
       // 🔥 NEW: Start magnet idle particles animation (24% intensity)

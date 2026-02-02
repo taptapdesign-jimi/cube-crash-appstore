@@ -20,6 +20,8 @@ type OpenCellDeps = {
   startWildShimmer: (tile: any) => void;
   startWildBeerBubbles: (tile: any) => void;
   startWildStars: (tile: any) => void;
+  startTntIdleParticles: (tile: any) => void;
+  startTntIdleShake: (tile: any) => void;
   SPAWN: { spawnBounce: (tile: any, gsap: any, opts: any, onComplete?: () => void) => void };
   gsap: any;
 };
@@ -38,6 +40,8 @@ export function openAtCellCore({
   startWildShimmer,
   startWildBeerBubbles,
   startWildStars,
+  startTntIdleParticles,
+  startTntIdleShake,
   SPAWN,
   gsap,
 }: OpenCellDeps){
@@ -130,10 +134,13 @@ export function openAtCellCore({
       applyWildSkinLocal(holder);
       try {
         startWildShimmer(holder); // Use shimmer instead of bounce
-        // 🔥 WILD-BEER / WILD-TNT: Use bubbles animation instead of rotating stars
-        if (holder.special === 'wild-beer' || holder.special === 'wild-tnt') {
+        // Orbitirajuće zvjezdice SAMO za wild zvjezdicu (special === 'wild'); nikad za drugi wild
+        if (holder.special === 'wild-beer') {
           startWildBeerBubbles(holder);
-        } else {
+        } else if (holder.special === 'wild-tnt') {
+          startTntIdleParticles(holder);
+          startTntIdleShake(holder);
+        } else if (holder.special === 'wild') {
           startWildStars(holder);
         }
       } catch {}

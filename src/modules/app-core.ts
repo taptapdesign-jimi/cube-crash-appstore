@@ -15,8 +15,9 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations } from './fx.ts';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations } from './fx.ts';
 import { showWildBeerBubblesExplosion, stopWildBeerBubblesExplosion, isWildBeerBubblesExplosionActive, isWildBeerBubblesExplosionRecentlyStarted, destroyWildBeerBubblesExplosionCache } from './wild-beer-bubbles-explosion.ts';
+import { showTntAnimation } from './tnt-animation.ts';
 import { stopWildBeerBubblesScreen, destroyWildBeerBubblesScreenCache } from './wild-beer-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
@@ -2608,6 +2609,8 @@ function rebuildBoard(){
         stopWildStars,
         stopWildBeerBubbles,
         stopMagnetIdleParticles,
+        stopTntIdleParticles,
+        stopTntIdleShake,
         cleanupTilesForRebuild,
         devWarn,
       });
@@ -2907,6 +2910,8 @@ function applyWildSkinLocal(tile){
     startWildBeerBubbles,
     startWildStars,
     startMagnetIdleParticles,
+    startTntIdleParticles,
+    startTntIdleShake,
     trackAppAnimationFrame,
     devWarn,
   });
@@ -2950,6 +2955,8 @@ function openAtCell(c, r, { value=null, isWild=false, isWildMagnet=false, isWild
     startWildShimmer,
     startWildBeerBubbles,
     startWildStars,
+    startTntIdleParticles,
+    startTntIdleShake,
     SPAWN,
     gsap,
   });
@@ -5589,13 +5596,103 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           let baseShake = Math.min(28, 12 + Math.max(1, mult) * 4);
           if (isMainWildTntMerge) {
             baseShake = Math.min(100, Math.round(baseShake * 5));
+            baseShake = Math.round(baseShake * 0.4); // -60% strength
+          }
+          // TNT: pokreni animaciju prije shake-a, anchor na kockici merge 6, overlay prati board shake
+          const alsoShakeTargets: HTMLElement[] = [];
+          if (isMainWildTntMerge) {
+            try {
+              const blastReturnHandles: Array<{ tile: Tile; wobble: gsap.core.Tween; origX: number; origY: number; returnDuration: number; returnElastic: number }> = [];
+              const tntOverlay = showTntAnimation({
+                onBoomExitStart: () => {
+                  gsap.delayedCall(0.4, () => {
+                    blastReturnHandles.forEach((h) => {
+                      try { h.wobble.kill(); } catch {}
+                      gsap.to(h.tile, {
+                        x: h.origX,
+                        y: h.origY,
+                        duration: h.returnDuration,
+                        ease: `elastic.out(1, ${h.returnElastic})`
+                      });
+                    });
+                  });
+                }
+              });
+              if (tntOverlay) alsoShakeTargets.push(tntOverlay);
+              
+              // Blast efekt - fluid spring wobble dok traju sprite+BOOM, return na onBoomExitStart
+              try {
+                const tiles = STATE.tiles || [];
+                const blastDelay = 0;
+                const blastStrength = TILE * 0.4;
+                const blastCenter = centerInBoard(board, dst, TILE);
+
+                tiles.forEach((tile: Tile) => {
+                  if (!tile || tile.destroyed || tile === dst) return;
+                  const origX = tile.x ?? 0;
+                  const origY = tile.y ?? 0;
+                  const tileCenter = centerInBoard(board, tile, TILE);
+                  const dx = tileCenter.x - blastCenter.x;
+                  const dy = tileCenter.y - blastCenter.y;
+                  const distance = Math.sqrt(dx * dx + dy * dy);
+                  if (distance < 1) return;
+
+                  const dirX = dx / distance;
+                  const dirY = dy / distance;
+                  const blastDist = blastStrength * (1 + Math.random() * 0.3);
+                  const blastX = origX + dirX * blastDist;
+                  const blastY = origY + dirY * blastDist;
+
+                  try { gsap.killTweensOf(tile); } catch {}
+
+                  const returnElastic = 0.08 + Math.random() * 0.1;
+                  const returnDuration = 1.9 + Math.random() * 0.3;
+                  const blastDuration = returnDuration;
+                  const wobbleAmp = TILE * (0.03 + Math.random() * 0.05);
+                  const wobbleDur = 0.7 + Math.random() * 0.5;
+                  const wobbleElastic = 0.35 + Math.random() * 0.2;
+
+                  gsap.to(tile, {
+                    x: blastX,
+                    y: blastY,
+                    duration: blastDuration,
+                    delay: blastDelay,
+                    ease: `elastic.out(1, ${returnElastic})`
+                  });
+
+                  const wobble = gsap.to(tile, {
+                    x: blastX + (Math.random() - 0.5) * wobbleAmp,
+                    y: blastY + (Math.random() - 0.5) * wobbleAmp,
+                    duration: wobbleDur,
+                    delay: blastDelay + blastDuration,
+                    repeat: -1,
+                    yoyo: true,
+                    ease: `elastic.inOut(1, ${wobbleElastic})`
+                  });
+
+                  blastReturnHandles.push({
+                    tile,
+                    wobble,
+                    origX,
+                    origY,
+                    returnDuration,
+                    returnElastic
+                  });
+                });
+              } catch (e) {
+                devWarn('⚠️ Tile blast animation failed:', e);
+              }
+            } catch (e) {
+              devWarn('⚠️ TNT animation position failed:', e);
+            }
           }
           try {
             screenShake(app, {
               strength: baseShake,
               duration: isMainWildTntMerge ? 0.5 : 0.36,
               steps: isMainWildTntMerge ? 32 : 28,
-              ease: 'sine.inOut'
+              ease: 'sine.inOut',
+              alsoShake: alsoShakeTargets
             });
           } catch {}
           
@@ -5663,51 +5760,25 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             }
             
             // 🔥 FPS DROP FIX: Stagger animacije umjesto istovremenog pokretanja
-            // Trigger bubbles explosion for wild-beer and wild-tnt (same full-screen effect)
-            if (isWildBeerMerge || isWildTntMerge) {
-              devLog('💧 Wild-beer/TNT merge detected! isWildBeerMerge:', isWildBeerMerge, 'isWildTntMerge:', isWildTntMerge, 'srcSpecialMerge6:', srcSpecialMerge6, 'dstSpecialMerge6:', dstSpecialMerge6, 'srcSpecial (saved):', srcSpecial, 'dstSpecial (saved):', dstSpecial);
-              devLog('💧 src tile special (current):', src?.special, 'dst tile special (current):', dst?.special);
-              devLog('💧 src value:', src?.value, 'dst value:', dst?.value);
-              devLog('💧 wasWild:', wasWild, 'isMainWildOnlyMerge:', isMainWildOnlyMerge);
-              
-              // 🔥 CRITICAL: Ensure cleanup is called BEFORE triggering new explosion
-              // This prevents race condition where previous explosion state blocks new one
+            // Wild-TNT animacija je već pokrenuta gore (prije screenShake, anchor na kockici)
+            if (isWildTntMerge) {
+              devLog('💥 Wild-TNT merge 6 – TNT animacija već pokrenuta (anchor na kockici, prati shake)');
+            } else if (isWildBeerMerge) {
+              devLog('💧 Wild-beer merge 6 – pokrećem bubbles explosion');
               try {
                 const wasActive = isWildBeerBubblesExplosionActive();
                 if (wasActive) {
-                  devLog('🧹 Cleaning up previous wild beer explosion state before merge 6 bubbles');
                   stopWildBeerBubblesExplosion();
                 }
-              } catch (err) {
-                devWarn('⚠️ Failed to cleanup wild beer explosion before merge 6:', err);
-              }
-              
-              // 🔥 CRITICAL FIX: Execute immediately (no delay) to prevent race condition with board transition
-              // Previous trackAppTimeout(200ms) caused race condition where cleanup could stop animation before it started
-              // Immediate execution ensures animation starts before any cleanup can interfere
-              try {
-                // 🔥 CRITICAL: Use new modular explosion (works independently, no board/tile needed)
                 if (isWildBeerBubblesExplosionActive()) {
-                  devWarn('⚠️ Wild beer explosion still active, forcing cleanup before new explosion');
                   stopWildBeerBubblesExplosion();
                 }
-                
-                devLog('✅ Calling showWildBeerBubblesExplosion()...');
                 showWildBeerBubblesExplosion();
-                devLog('✅ showWildBeerBubblesExplosion() called successfully');
               } catch (error) {
                 devError('❌ Failed to trigger bubbles explosion:', error);
-                devError('❌ Error details:', {
-                  errorMessage: error?.message,
-                  errorStack: error?.stack,
-                  srcSpecial,
-                  dstSpecial,
-                  isWildBeerMerge: isWildBeerMerge || isWildTntMerge,
-                  wasWild,
-                  isMainWildOnlyMerge
-                });
               }
-            } else {
+            }
+            if (!isWildBeerMerge && !isWildTntMerge) {
               devLog('⚠️ Wild-beer/TNT merge NOT detected!', {
                 isWildBeerMerge,
                 isWildTntMerge,
@@ -7104,6 +7175,7 @@ function removeTile(t){
   try { stopWildStars?.(t); } catch {}
   try { stopWildBeerBubbles?.(t); } catch {}
   try { stopMagnetIdleParticles?.(t); } catch {}
+  try { stopTntIdleParticles?.(t); } catch {}
   board.removeChild(t);
   if (idx !== -1) {
     tiles.splice(idx, 1);
@@ -7313,6 +7385,7 @@ function restartGame(){
             try { stopWildStars?.(tile); } catch {}
             try { stopWildBeerBubbles?.(tile); } catch {}
             try { stopMagnetIdleParticles?.(tile); } catch {}
+            try { stopTntIdleParticles?.(tile); } catch {}
             if ((tile as any)?._glowAnimation) {
               try { (tile as any)._glowAnimation.kill(); } catch {}
               (tile as any)._glowAnimation = null;
@@ -7711,6 +7784,7 @@ export function cleanupGame() {
       try { stopWildStars?.(t); } catch {}
       try { stopWildBeerBubbles?.(t); } catch {}
       try { stopMagnetIdleParticles?.(t); } catch {}
+      try { stopTntIdleParticles?.(t); } catch {}
       try { t.destroy?.({ children: true, texture: false, textureSource: false } as any); } catch {}
     });
     tiles.length = 0;
@@ -8065,6 +8139,10 @@ async function loadGameState(overrideBoardNumber?: number) {
       stopWildShimmer,
       startMagnetIdleParticles,
       stopMagnetIdleParticles,
+      startTntIdleParticles,
+      stopTntIdleParticles,
+      startTntIdleShake,
+      stopTntIdleShake,
       startWildBeerBubbles,
       trackAppTimeout,
       STATE,

@@ -8,6 +8,8 @@ type CleanupDeps = {
   stopWildStars?: (t: Tile) => void;
   stopWildBeerBubbles?: (t: Tile) => void;
   stopMagnetIdleParticles?: (t: Tile) => void;
+  stopTntIdleParticles?: (t: Tile) => void;
+  stopTntIdleShake?: (t: Tile) => void;
   devWarn: (...args: unknown[]) => void;
 };
 
@@ -20,6 +22,8 @@ export function cleanupTilesForRebuild(deps: CleanupDeps) {
     stopWildStars,
     stopWildBeerBubbles,
     stopMagnetIdleParticles,
+  stopTntIdleParticles,
+  stopTntIdleShake,
     devWarn,
   } = deps;
 
@@ -29,6 +33,8 @@ export function cleanupTilesForRebuild(deps: CleanupDeps) {
     try { stopWildStars?.(t); } catch {}
     try { stopWildBeerBubbles?.(t); } catch {}
     try { stopMagnetIdleParticles?.(t); } catch {}
+    try { stopTntIdleParticles?.(t); } catch {}
+    try { stopTntIdleShake?.(t); } catch {}
 
     try {
       gsap.killTweensOf(t);
