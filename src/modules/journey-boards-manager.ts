@@ -3607,6 +3607,16 @@ class JourneyBoardsManager {
     skipJourneyExit: boolean = false,
     journeyExitPromise?: Promise<void>
   ): Promise<void> {
+    // 🔥 USER REQUEST: Save Journey scroll position BEFORE opening detail modal (restore on close)
+    try {
+      const scrollable = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
+      if (scrollable) {
+        (window as any).__ccJourneyScrollTop = scrollable.scrollTop;
+        try { localStorage.setItem('__ccJourneyScrollTop', String(scrollable.scrollTop)); } catch {}
+        logger.info(`🗺️ Saved Journey scroll position before detail modal: ${scrollable.scrollTop}`);
+      }
+    } catch {}
+
     // 🔥 CRITICAL: Clear interim flags when opening REGULAR (non-interim) board
     // Prevents stale state from interim session when switching back to regular cards → crash on exit
     if (!board.interim) {

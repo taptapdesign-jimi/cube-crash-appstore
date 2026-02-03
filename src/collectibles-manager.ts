@@ -521,11 +521,12 @@ class CollectiblesManager {
     // 🔥 CRITICAL: Also set will-change for better mobile performance
     (screen as HTMLElement).style.willChange = 'opacity, transform';
 
-    // 🔥 USER REQUEST: Restore scroll position ASAP when returning from interim board
+    // 🔥 USER REQUEST: Restore scroll position ASAP when returning from interim board or detail modal
     const returningFromInterimBoardEarly =
       (window as any).__ccReturningFromInterimBoard ||
       localStorage.getItem('__ccReturningFromInterimBoard') === 'true';
-    if (returningFromInterimBoardEarly) {
+    const returningFromDetailModalEarly = (window as any).__ccReturningFromDetailModal;
+    if (returningFromInterimBoardEarly || returningFromDetailModalEarly) {
       try {
         const scrollableEarly = document.querySelector('#journey-screen .collectibles-scrollable') as HTMLElement | null;
         const savedScrollTopEarly =
@@ -691,20 +692,24 @@ class CollectiblesManager {
                   localStorage.getItem('__ccReturningFromInterimBoard') === 'true';
                 if (returningFromDetailModal || returningFromInterimBoard) {
                   console.log('🗺️ Skipping auto-scroll (returning from detail modal or interim board)');
-                  // 🔥 USER REQUEST: Restore previous scroll position when returning from interim board
-                  if (returningFromInterimBoard) {
+                  // 🔥 USER REQUEST: Restore previous scroll position when returning from detail modal or interim board
+                  if (returningFromDetailModal || returningFromInterimBoard) {
                     try {
                       const scrollable = journeyContainer.querySelector('.collectibles-scrollable') as HTMLElement | null;
                       const savedScrollTop =
                         (window as any).__ccJourneyScrollTop ??
                         Number(localStorage.getItem('__ccJourneyScrollTop'));
                       if (scrollable && typeof savedScrollTop === 'number') {
+                        scrollable.scrollTop = savedScrollTop;
                         requestAnimationFrame(() => {
                           scrollable.scrollTop = savedScrollTop;
                           // Apply again after layout settles (prevents reset to top)
                           setTimeout(() => {
                             scrollable.scrollTop = savedScrollTop;
                           }, 50);
+                          setTimeout(() => {
+                            scrollable.scrollTop = savedScrollTop;
+                          }, 150);
                         });
                       }
                     } catch {}

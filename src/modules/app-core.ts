@@ -1702,7 +1702,7 @@ export async function boot(){
       
       // NORMAL LOGIC: Regular merge rules
       if (!Number.isFinite(sv) || !Number.isFinite(dv)) return false;
-      if (sv === dv) return true;         // allow stacking equal values (e.g., 3+3)
+      if (sv === dv) return (sv + dv) <= 6;  // allow same value only when sum<=6 (3+3 OK, 4+4 and 5+5 must snap back)
       
       // 🔥 NEW: Allow wild star to merge with merge 6 tile (value 6)
       // Wild star (special='wild') can merge with merge 6 tile to create new merge 6
@@ -5605,7 +5605,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               const blastReturnHandles: Array<{ tile: Tile; wobble: gsap.core.Tween; origX: number; origY: number; returnDuration: number; returnElastic: number }> = [];
               const tntOverlay = showTntAnimation({
                 onBoomExitStart: () => {
-                  gsap.delayedCall(0.4, () => {
+                  trackDelayedCall(0.4, () => {
                     blastReturnHandles.forEach((h) => {
                       try { h.wobble.kill(); } catch {}
                       gsap.to(h.tile, {
@@ -5616,6 +5616,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                         overwrite: 'auto'
                       });
                     });
+                  });
+                  trackDelayedCall(0.4 + 0.359, () => {
+                    runTntBoomBonusBreak2Tiles({ board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn });
                   });
                 }
               });
@@ -7149,9 +7152,73 @@ function checkLevelEnd(){
 // 🔥 v112: sleep moved to app-core-utils.ts
 // Imported: sleep
 
+/** Kad krenu kockice u return (BOOM exit): razbi 4 random obične kockice (delay 0.5s nakon return start), merge 6 efekat + smoke, wild meter, spawn 4 nove. Samo obične, nikad wild. */
+function runTntBoomBonusBreak2Tiles(deps: {
+  board: any;
+  dst: Tile;
+  addWildProgress: (n: number) => void;
+  WILD_INC_BIG: number;
+  removeTile: (t: Tile) => void;
+  openAtCell: (c: number, r: number, opts?: any) => Promise<unknown>;
+  regularMerge6ShardsTemplated: (board: any, tile: any, opts?: any) => void;
+  smokeBubblesAtTile: (board: any, tile: any, tileSize?: number, strength?: number, opts?: any) => void;
+  TILE: number;
+  devLog: (...args: any[]) => void;
+  devWarn: (...args: any[]) => void;
+}) {
+  const { board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn } = deps;
+  try {
+    if ((dst as any)?._isLastMerge) {
+      devLog('🔥 TNT boom bonus: skip (last merge - clean board)');
+      return;
+    }
+    const allTiles = STATE?.tiles || [];
+    const candidates = allTiles.filter((t: Tile) => {
+      if (!t || t.destroyed || t === dst) return false;
+      const isWild = t.special === 'wild' || t.special === 'wild-magnet' || t.special === 'wild-beer' || t.special === 'wild-tnt';
+      if (isWild) return false;
+      const v = (t.value | 0);
+      return v > 0 && v <= 6;
+    });
+    const count = Math.min(4, candidates.length);
+    if (count < 1) {
+      devLog('🔥 TNT boom bonus: no regular tiles to break');
+      return;
+    }
+    const shuffled = [...candidates].sort(() => Math.random() - 0.5);
+    const toBreak = shuffled.slice(0, count);
+    const pool = [1, 2, 3, 4, 5];
+    const used: number[] = [];
+    toBreak.forEach((tile: Tile, i: number) => {
+      const delay = i * 0.1;
+      const doBreak = () => {
+        if (!tile || tile.destroyed || !board || !STATE?.tiles) return;
+        const c = tile.gridX ?? 0;
+        const r = tile.gridY ?? 0;
+        addWildProgress(WILD_INC_BIG);
+        try { regularMerge6ShardsTemplated(board, tile, { zIndex: 9993 }); } catch (e) { devWarn('TNT boom bonus shards:', e); }
+        try { smokeBubblesAtTile(board, tile, TILE * 1.0, 1.3); } catch (e) { devWarn('TNT boom bonus smoke:', e); }
+        removeTile(tile);
+        const available = pool.filter((v) => !used.includes(v));
+        const val = available[(Math.random() * available.length) | 0];
+        used.push(val);
+        openAtCell(c, r, { value: val, skipBind: false }).catch(() => {});
+      };
+      if (delay <= 0) {
+        doBreak();
+      } else {
+        trackDelayedCall(delay, doBreak);
+      }
+    });
+    devLog('🔥 TNT boom bonus: broke', count, 'regular tiles, spawned new (stagger 100ms, smoke+shards)');
+  } catch (e) {
+    devWarn('TNT boom bonus break2 failed:', e);
+  }
+}
+
 function removeTile(t){
-  if(!t) return;
-  
+  if(!t || t.destroyed) return;
+
   // 🔥 CRITICAL: Clear cache BEFORE removing tile to prevent race conditions
   // This ensures checkEndGame gets fresh data even if called during removal
   const idx = tiles.indexOf(t);

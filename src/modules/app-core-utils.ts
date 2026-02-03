@@ -59,6 +59,13 @@ export function trackAppInterval(callback: () => void, delay: number): NodeJS.Ti
   return interval;
 }
 
+/** Clear a tracked interval and remove from internal set (prevents memory leak). */
+export function clearAppInterval(interval: NodeJS.Timeout | null | undefined): void {
+  if (!interval) return;
+  clearInterval(interval);
+  _appIntervals.delete(interval);
+}
+
 export function clearAllAppIntervals() {
   logger.debug(`🧹 Clearing ${_appIntervals.size} pending intervals from app-core`, 'app-core');
   _appIntervals.forEach(interval => clearInterval(interval));

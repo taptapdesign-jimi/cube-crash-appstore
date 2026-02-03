@@ -27,6 +27,7 @@ let overlay: HTMLElement | null = null;
 let timeline: gsap.core.Timeline | null = null;
 let extraTimelines: gsap.core.Timeline[] = [];
 let spriteBounceTweensRef: gsap.core.Tween[] = [];
+let boomBounceTimelinesRef: gsap.core.Timeline[] = [];
 let activeFrameImages: HTMLImageElement[] = [];
 let activeFrameWrappers: HTMLElement[] = [];
 
@@ -46,6 +47,10 @@ function cleanup(): void {
       try { t.kill(); } catch {}
     });
     spriteBounceTweensRef = [];
+    boomBounceTimelinesRef.forEach((tl) => {
+      try { tl.kill(); } catch {}
+    });
+    boomBounceTimelinesRef = [];
     activeFrameImages.forEach((img) => {
       try {
         gsap.killTweensOf(img);
@@ -60,10 +65,18 @@ function cleanup(): void {
       } catch {}
     });
     activeFrameWrappers = [];
-    if (overlay && overlay.parentNode) {
-      overlay.parentNode.removeChild(overlay);
+    if (overlay) {
+      try {
+        gsap.killTweensOf(overlay);
+        overlay.querySelectorAll('*').forEach((el) => {
+          try { gsap.killTweensOf(el); } catch {}
+        });
+      } catch {}
+      if (overlay.parentNode) {
+        overlay.parentNode.removeChild(overlay);
+      }
+      overlay = null;
     }
-    overlay = null;
     isActive = false;
   } catch (e) {
     logger.warn('⚠️ tnt-animation cleanup error:', e);
@@ -245,6 +258,7 @@ export function showTntAnimation(options: {
       ease: 'elastic.inOut(1, 0.2)'
     });
     boomBounceTimelines.push(bounceTl);
+    boomBounceTimelinesRef.push(bounceTl);
 
     // postavi baznu rotaciju odmah
     gsap.set(letterEl, { rotation });
@@ -272,7 +286,7 @@ export function showTntAnimation(options: {
 
   frameEls.forEach((frameEl, i) => {
     const randomRotation = (Math.random() - 0.5) * 20;
-    const randomSize = 1 + Math.random() * 0.4;
+    const randomSize = 1 + Math.random() * 0.52;
     const enterDelay = 0.07 + (i * 0.04);
     const dEnter = ENTER_DURATION;
     const dSettle = SETTLE_DURATION;

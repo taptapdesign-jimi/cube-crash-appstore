@@ -9,7 +9,7 @@ import type { Tile } from '../types/game-types.js';
 
 import { attachWildStarHalo, detachWildStarHalo, preloadWildStarTexture } from './wild-stars.ts';
 import { TILE } from './constants.js';
-import { trackAppInterval } from './app-core-utils.js';
+import { trackAppInterval, clearAppInterval } from './app-core-utils.js';
 import { graphicsPool } from './object-pool.ts';
 import { selectPattern, getColor, getParams, getActiveTemplate, getDragParticleColors, getBubbleColors } from './templates/template-manager.ts';
 
@@ -5977,12 +5977,13 @@ export function stopTntIdleParticles(tile) {
   if (!tile) return;
 
   if (tile._tntIdleParticlesInterval) {
-    clearInterval(tile._tntIdleParticlesInterval);
+    clearAppInterval(tile._tntIdleParticlesInterval);
     tile._tntIdleParticlesInterval = null;
   }
 
   if (tile._tntIdleParticles && Array.isArray(tile._tntIdleParticles)) {
     const particles = tile._tntIdleParticles.slice();
+    tile._tntIdleParticles = null;
     particles.forEach((particle) => {
       if (!particle || particle.destroyed) return;
       try {
@@ -5991,6 +5992,7 @@ export function stopTntIdleParticles(tile) {
         gsap.killTweensOf(particle.y);
         gsap.killTweensOf(particle.alpha);
         gsap.killTweensOf(particle.rotation);
+        gsap.killTweensOf(particle.scale);
         if (particle?.parent) {
           particle.parent.removeChild(particle);
         }
@@ -6000,7 +6002,6 @@ export function stopTntIdleParticles(tile) {
         console.warn('⚠️ Error cleaning up TNT idle particle:', err);
       }
     });
-    tile._tntIdleParticles = null;
   }
 }
 
@@ -6164,10 +6165,10 @@ export function startTntIdleShake(tile) {
   const g = tile.rotG || tile;
   if (!g) return;
 
-  // Per-tile random max angle and speed multiplier (brže i agresivnije)
+  // Per-tile random max angle and speed multiplier (springy bounce)
   if (tile._tntShakeMaxAngle === undefined) {
-    tile._tntShakeMaxAngle = 6 + Math.random() * 2; // 6..8 degrees
-    tile._tntShakeSpeedMul = 1.3 + Math.random() * 0.5; // 1.3..1.8
+    tile._tntShakeMaxAngle = 7 + Math.random() * 3; // 7..10 degrees (više za springy feel)
+    tile._tntShakeSpeedMul = 1.2 + Math.random() * 0.4; // 1.2..1.6
   }
 
   const maxRad = (tile._tntShakeMaxAngle * Math.PI) / 180;
@@ -6181,12 +6182,28 @@ export function startTntIdleShake(tile) {
 
     const originalRotation = g._originalShakeRotation;
     const target = (Math.random() * 2 - 1) * maxRad;
-    const total = (0.06 + Math.random() * 0.06) * speedMul; // 60-120ms (brže)
+    const total = (0.08 + Math.random() * 0.08) * speedMul; // 80-160ms za springy overshoot
+    const elasticPeriod = 0.35 + Math.random() * 0.15; // elastic.inOut period
 
     const shakeTl = trackTimeline();
+    if (tile._tntShakeCurrentTl) {
+      try { tile._tntShakeCurrentTl.kill(); } catch {}
+    }
+    tile._tntShakeCurrentTl = shakeTl;
     shakeTl.set(g, { rotation: originalRotation });
-    shakeTl.to(g, { rotation: originalRotation + target, duration: total * 0.5, ease: 'sine.inOut' });
-    shakeTl.to(g, { rotation: originalRotation, duration: total * 0.5, ease: 'sine.inOut' });
+    shakeTl.to(g, {
+      rotation: originalRotation + target,
+      duration: total * 0.5,
+      ease: `elastic.out(0.6, ${elasticPeriod})`
+    });
+    shakeTl.to(g, {
+      rotation: originalRotation,
+      duration: total * 0.5,
+      ease: `elastic.inOut(0.5, ${elasticPeriod})`,
+      onComplete: () => {
+        tile._tntShakeCurrentTl = null;
+      }
+    });
   };
 
   // Shake immediately, then schedule random intervals
@@ -6211,6 +6228,10 @@ export function startTntIdleShake(tile) {
 export function stopTntIdleShake(tile) {
   if (!tile) return;
 
+  if (tile._tntShakeCurrentTl) {
+    try { tile._tntShakeCurrentTl.kill(); } catch {}
+    tile._tntShakeCurrentTl = null;
+  }
   if (tile._tntShakeTl) {
     try { tile._tntShakeTl.kill(); } catch {}
     tile._tntShakeTl = null;
@@ -6238,6 +6259,7 @@ export function stopTntIdleShake(tile) {
 
   tile._tntShakeMaxAngle = undefined;
   tile._tntShakeSpeedMul = undefined;
+  tile._tntShakeCurrentTl = undefined;
 }
 
 export function stopWildIdle(tile){

@@ -141,7 +141,7 @@ export function installDrag({
 
       // NORMAL LOGIC: Regular merge rules
       if (!Number.isFinite(sv) || !Number.isFinite(dv)) return false;
-      if (sv === dv) return true;         // allow stacking equal values (e.g., 3+3)
+      if (sv === dv) return (sv + dv) <= 6;  // allow same value only when sum<=6 (3+3 OK, 4+4 and 5+5 must snap back)
       const canMerge = (sv + dv) <= 6;    // allow different values that sum to 6 (e.g., 4+2, 2+4)
       console.log('🔥 canDrop result:', canMerge);
       return canMerge;
