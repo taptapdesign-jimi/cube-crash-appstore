@@ -938,8 +938,8 @@ export function magicSparklesAtTile(board, tile, opts = {}){
         colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; // Orange palette for beer
         console.warn(`⚠️ Using hardcoded orange fallback for wild-beer`);
       } else if (tileSpecial === 'wild-tnt') {
-        colors = [0xE85C3A, 0xEB7A5A, 0xF09880, 0xF5B6A6]; // Orange-red palette for TNT
-        console.warn(`⚠️ Using hardcoded orange-red fallback for wild-tnt`);
+        colors = [0xE85C3A, 0xEB7A5A, 0xF09880, 0xF5B6A6, 0xFFD966, 0xFFE699]; // Orange-red + žuta for TNT
+        console.warn(`⚠️ Using hardcoded orange-red+yellow fallback for wild-tnt`);
       } else if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {
         colors = [0xFFCB47, 0xFFD966, 0xFFE699, 0xFFF0B3, 0xFFF5CC]; // Yellow palette for wild star
         console.warn(`⚠️ Using hardcoded yellow fallback for wild`);
@@ -957,7 +957,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     if (tileSpecial === 'wild-beer') {
       colors = [0xFBD295, 0xF9BE9C, 0xF6E6C8, 0xF99D77]; // Orange palette for beer
     } else if (tileSpecial === 'wild-tnt') {
-      colors = [0xE85C3A, 0xEB7A5A, 0xF09880, 0xF5B6A6]; // Orange-red palette for TNT
+      colors = [0xE85C3A, 0xEB7A5A, 0xF09880, 0xF5B6A6, 0xFFD966, 0xFFE699]; // Orange-red + žuta for TNT
     } else if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {
       colors = [0xFFCB47, 0xFFD966, 0xFFE699, 0xFFF0B3, 0xFFF5CC]; // Yellow palette for wild star
     } else if (tileSpecial === 'wild-magnet') {
@@ -973,7 +973,7 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     if (tileSpecial === 'wild-beer') {
       colors = [0xF99D77]; // At least use orange for beer
     } else if (tileSpecial === 'wild-tnt') {
-      colors = [0xE85C3A]; // At least use orange-red for TNT
+      colors = [0xE85C3A, 0xFFD966]; // At least orange-red + yellow for TNT
     } else if (tileSpecial === 'wild' || tileSpecial === 'wildStar') {
       colors = [0xFFCB47]; // At least use yellow for wild star
     } else if (tileSpecial === 'wild-magnet') {
@@ -982,7 +982,10 @@ export function magicSparklesAtTile(board, tile, opts = {}){
       colors = [0xF4EEE7]; // At least use beige for regular
     }
   }
-  
+  if (tileSpecial === 'wild-tnt' && colors && colors.length > 0) {
+    colors = [...colors, 0xFFD966, 0xFFE699]; // uvijek dodaj žutu u TNT paletu
+  }
+
   // 🔥 MEMORY LEAK FIX: Track particles for idle animations (for immediate cleanup when tile is destroyed)
   const isIdleParticles = opts.trackForIdle === true; // Only track if explicitly requested (for idle particles)
   const particlesToTrack = isIdleParticles ? [] : null; // Only create array if tracking is needed
@@ -1022,29 +1025,34 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     
     // Size multiplier support
     const sizeMultiplier = opts.sizeMultiplier ?? 1;
+    const isWildTnt = tile?.special === 'wild-tnt';
+    const isWildBeer = tile?.special === 'wild-beer';
     
-    // 🔥 USER REQUEST: Wild beer and wild-tnt use circles instead of rectangles for smoke trail
-    const isWildBeerOrTnt = tile?.special === 'wild-beer' || tile?.special === 'wild-tnt';
+    // 🔥 CRITICAL: Calculate alpha BEFORE drawing (opts.fillAlpha overrides intensity for e.g. TNT idle)
+    const fillAlpha = opts.fillAlpha ?? intensity; // 100% opacity when opts.fillAlpha === 1
     
-    // 🔥 CRITICAL: Calculate alpha BEFORE drawing (intensity controls opacity)
-    const fillAlpha = intensity; // Direct opacity value for fill
-    
-    if (isWildBeerOrTnt) {
-      // Wild beer: use circles (bubbles-like particles)
+    if (isWildTnt) {
+      // Wild TNT: sharp rectangular shards (55% size when sizeMultiplier 0.55)
+      const baseWidth = 12 + Math.random() * 12;
+      const baseHeight = 16 + Math.random() * 16;
+      const width = baseWidth * sizeMultiplier;
+      const height = baseHeight * sizeMultiplier;
+      shard.rect(-width/2, -height/2, width, height)
+           .fill({ color: color, alpha: fillAlpha });
+    } else if (isWildBeer) {
+      // Wild beer: circles (bubbles-like particles)
       const baseRadius = 8 + Math.random() * 8; // 8-16px base radius
-      const radius = baseRadius * sizeMultiplier; // Scale by multiplier
-      
+      const radius = baseRadius * sizeMultiplier;
       shard.circle(0, 0, radius)
            .fill({ color: color, alpha: fillAlpha });
     } else {
-      // Other tiles: use rectangular shards (original behavior)
-      const baseWidth = 12 + Math.random() * 12; // 12-24px base
-      const baseHeight = 16 + Math.random() * 16; // 16-32px base
-      const width = baseWidth * sizeMultiplier; // Scale by multiplier
-      const height = baseHeight * sizeMultiplier; // Scale by multiplier
-    
+      // Other tiles: rectangular shards
+      const baseWidth = 12 + Math.random() * 12;
+      const baseHeight = 16 + Math.random() * 16;
+      const width = baseWidth * sizeMultiplier;
+      const height = baseHeight * sizeMultiplier;
       shard.rect(-width/2, -height/2, width, height)
-           .fill({ color: color, alpha: fillAlpha }); // Use fillAlpha, not intensity directly
+           .fill({ color: color, alpha: fillAlpha });
     }
     
     // 🔥 CRITICAL: Ensure shard is visible and has correct properties
@@ -1058,10 +1066,10 @@ export function magicSparklesAtTile(board, tile, opts = {}){
     shard.cursor = 'default';
     try { shard.interactiveChildren = false; } catch {}
     
-    // Random position around tile - wider emission
+    // Random position around tile (distanceScale e.g. 0.28 = prskalica, blizu izvora)
+    const distScale = opts.distanceScale ?? 1;
     const angle = Math.random() * Math.PI * 2;
-    const distance = baseTile * (0.1 + Math.random() * 0.6); // Wider spawn range (0.1-0.7x tile size)
-    
+    const distance = baseTile * (0.1 + Math.random() * 0.6) * distScale; // prskalica: manji distScale = bliže
     shard.x = x + Math.cos(angle) * distance;
     shard.y = y + Math.sin(angle) * distance;
     shard.rotation = Math.random() * Math.PI * 2;
@@ -5943,11 +5951,19 @@ export function startTntIdleParticles(tile) {
     return;
   }
 
+  const tileSize = 96;
+  const center = centerInBoard(board, tile, tileSize);
+  const customPosition = { x: center.x + tileSize / 2 - tileSize * 0.10, y: center.y - tileSize / 2 }; // vrh kockice, 10% ulijevo (5% + 5%)
+
   const generateParticles = () => {
     if (!tile || tile.destroyed) return;
     try {
       magicSparklesAtTile(board, tile, {
-        intensity: 0.45, // same as magnet
+        intensity: 0.225, // 50% manje broja (0.45 * 0.5)
+        fillAlpha: 1, // 100% opacity – vidljivi particles
+        customPosition,
+        distanceScale: 0.2, // razdvoji particles za 20% (ne previše spojeni)
+        sizeMultiplier: 0.55, // 55% veličine (100 → 55)
         trackForIdle: true,
         trackKey: '_tntIdleParticles'
       });
@@ -6153,64 +6169,61 @@ export function stopMagnetShake(tile) {
 }
 
 /**
- * Start TNT idle shake - random left/right twitch up to 8 degrees.
- * Rotation only (no x/y changes) to keep tile locked on board.
+ * Start TNT idle shake - jako spora, nježna rotacija 0–14° svakih ~3s.
  */
 export function startTntIdleShake(tile) {
   if (!tile || tile.special !== 'wild-tnt') return;
 
-  // Stop existing TNT shake animation
   stopTntIdleShake(tile);
 
   const g = tile.rotG || tile;
   if (!g) return;
 
-  // Per-tile random max angle and speed multiplier (springy bounce)
-  if (tile._tntShakeMaxAngle === undefined) {
-    tile._tntShakeMaxAngle = 7 + Math.random() * 3; // 7..10 degrees (više za springy feel)
-    tile._tntShakeSpeedMul = 1.2 + Math.random() * 0.4; // 1.2..1.6
-  }
-
-  const maxRad = (tile._tntShakeMaxAngle * Math.PI) / 180;
-  const speedMul = tile._tntShakeSpeedMul;
+  const maxDeg = 14; // 0–14 degrees left/right from center
+  const maxRad = (maxDeg * Math.PI) / 180;
+  const bounceUpPx = 4; // 5% upward bounce
 
   const performShake = () => {
     if (!tile || tile.destroyed || !g) return;
     if (g._originalShakeRotation === undefined) {
       g._originalShakeRotation = g.rotation || 0;
     }
+    if (g._originalShakeY === undefined) {
+      g._originalShakeY = g.y ?? 0;
+    }
 
     const originalRotation = g._originalShakeRotation;
-    const target = (Math.random() * 2 - 1) * maxRad;
-    const total = (0.08 + Math.random() * 0.08) * speedMul; // 80-160ms za springy overshoot
-    const elasticPeriod = 0.35 + Math.random() * 0.15; // elastic.inOut period
+    const originalY = g._originalShakeY;
+    const target = (Math.random() * 2 - 1) * maxRad; // -14° to +14°
+    const total = 0.9 + Math.random() * 0.25; // jako spora animacija (ne nagla)
 
     const shakeTl = trackTimeline();
     if (tile._tntShakeCurrentTl) {
       try { tile._tntShakeCurrentTl.kill(); } catch {}
     }
     tile._tntShakeCurrentTl = shakeTl;
-    shakeTl.set(g, { rotation: originalRotation });
+    shakeTl.set(g, { rotation: originalRotation, y: originalY });
     shakeTl.to(g, {
       rotation: originalRotation + target,
+      y: originalY - bounceUpPx,
       duration: total * 0.5,
-      ease: `elastic.out(0.6, ${elasticPeriod})`
+      ease: 'sine.inOut' // nježno, ne naglo
     });
     shakeTl.to(g, {
       rotation: originalRotation,
+      y: originalY,
       duration: total * 0.5,
-      ease: `elastic.inOut(0.5, ${elasticPeriod})`,
+      ease: 'sine.inOut',
       onComplete: () => {
         tile._tntShakeCurrentTl = null;
       }
     });
   };
 
-  // Shake immediately, then schedule random intervals
-  performShake();
+  // Prva mrda nakon 3s, zatim u intervalima po ~3s
   const scheduleShake = () => {
     if (!tile || tile.destroyed) return;
-    const delay = 0.6 + Math.random() * 0.6; // 0.6..1.2s (češće)
+    const delay = 3 + Math.random() * 0.4; // ~3 sekunde između mrda
     const delayedCall = trackDelayedCall(delay, () => {
       if (!tile || tile.destroyed) return;
       performShake();

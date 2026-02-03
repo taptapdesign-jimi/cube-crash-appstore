@@ -17,7 +17,7 @@ import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations } from './fx.ts';
 import { showWildBeerBubblesExplosion, stopWildBeerBubblesExplosion, isWildBeerBubblesExplosionActive, isWildBeerBubblesExplosionRecentlyStarted, destroyWildBeerBubblesExplosionCache } from './wild-beer-bubbles-explosion.ts';
-import { showTntAnimation } from './tnt-animation.ts';
+import { showTntAnimation, stopTntAnimation } from './tnt-animation.ts';
 import { stopWildBeerBubblesScreen, destroyWildBeerBubblesScreenCache } from './wild-beer-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
@@ -544,6 +544,7 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   try { killAllDelayedCalls?.(); } catch {}
   try { destroyAllGraphicsObjects?.(); } catch {}
   try { cleanupExistingStarAnimations?.(); } catch {}
+  try { stopTntAnimation?.(); } catch {}
   try {
     const isBoardTransitionActive = (window as any).__ccBoardTransitionActive === true;
     const isFromInterimBoard = (window as any).__ccFromInterimBoard === true || (window as any).__ccIsInterimBoard === true;
@@ -5617,7 +5618,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                       });
                     });
                   });
-                  trackDelayedCall(0.4 + 0.359, () => {
+                  trackDelayedCall(0.4 + 0.359 - 0.2, () => {
                     runTntBoomBonusBreak2Tiles({ board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn });
                   });
                 }
@@ -7768,6 +7769,14 @@ export function cleanupGame() {
   // 🔥 CRITICAL FIX: Kill all GSAP tweens BEFORE destroying objects
   // This prevents "Cannot read properties of null (reading 'y')" errors
   killAllGsapTweensCommon(tiles, 'cleanup');
+
+  // 🔥 Explicit wild-TNT animation cleanup (same as wild-beer / stars)
+  try {
+    stopTntAnimation?.();
+    devLog('✅ TNT animation cleaned up in cleanupGame()');
+  } catch (e) {
+    devWarn('⚠️ Failed to cleanup TNT animation:', e);
+  }
   
   // 🔥 NOTE: Global delayed calls/graphics cleanup handled by cleanupFxForBoardReset('cleanupGame')
   

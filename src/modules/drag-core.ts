@@ -279,6 +279,15 @@ export function initDrag(cfg) {
     }
     
     releaseMagnet({ immediate: true });
+    // 🔥 USER REQUEST: Stop TNT idle (particles + shake) when dragging wild-tnt
+    if ((t as any)?.special === 'wild-tnt') {
+      try {
+        import('./fx.js').then(fxModule => {
+          if (fxModule?.stopTntIdleParticles) fxModule.stopTntIdleParticles(t);
+          if (fxModule?.stopTntIdleShake) fxModule.stopTntIdleShake(t);
+        }).catch(() => {});
+      } catch {}
+    }
     drag.t = t;
     drag.startGX = t.gridX;
     drag.startGY = t.gridY;
@@ -331,14 +340,17 @@ export function initDrag(cfg) {
 
     // Ghost placeholders are now in fixed background layer - always visible
 
-    // 🔧 SHADOW PATCH: prikaži sjenu i pojačaj na dragAlpha, uz očuvanje alpha pri refreshu
-    if (t.shadow){
+    // 🔧 SHADOW PATCH: prikaži sjenu i pojačaj na dragAlpha (wild-tnt: bez sjene tijekom draga)
+    if (t.shadow && (t as any).special !== 'wild-tnt') {
       t.shadow.visible = true;
       const prev = t.shadow.alpha;
       if (t.refreshShadow) { t.refreshShadow(); if (t.shadow) t.shadow.alpha = prev; }
       const to = Math.min(1, t.shadow._dragAlpha ?? 0.30);
       gsap.killTweensOf(t.shadow);
       trackTween(t.shadow, { alpha: to, duration: 0.08, ease: 'power2.out' });
+    }
+    if (t.shadow && (t as any).special === 'wild-tnt') {
+      t.shadow.visible = false;
     }
 
     trackTween(t.scale, { x: 1.12, y: 1.12, duration: 0.08 });
@@ -902,77 +914,59 @@ export function initDrag(cfg) {
     }
 
     if (!t || t.destroyed) { clearHover(); return; }
-    if (!drag.moved) { 
-      snapBack(t); 
+    if (!drag.moved) {
       clearHover();
-      // 🔥 USER REQUEST: Restart idle particles after snapBack for wild-magnet
-      if (t?.special === 'wild-magnet' && !t.destroyed) {
-        try {
-          import('./fx.js').then(fxModule => {
-            if (fxModule && typeof fxModule.startMagnetIdleParticles === 'function') {
-              fxModule.startMagnetIdleParticles(t);
-              console.log('🔄 Restarted magnet idle particles after snapBack');
-            }
-          }).catch(err => {
-            console.warn('⚠️ Failed to restart magnet idle particles after snapBack:', err);
-          });
-        } catch (err) {
-          console.warn('⚠️ Error restarting magnet idle particles after snapBack:', err);
+      const tileRef = t;
+      snapBack(t, () => {
+        if (!tileRef || tileRef.destroyed) return;
+        if (tileRef.special === 'wild-magnet') {
+          try {
+            import('./fx.js').then(fxModule => {
+              if (fxModule?.startMagnetIdleParticles) fxModule.startMagnetIdleParticles(tileRef);
+            }).catch(() => {});
+          } catch {}
         }
-      }
-      // 🔥 USER REQUEST: Restart idle bubbles after snapBack for wild-beer only
-      if (t?.special === 'wild-beer' && !t.destroyed) {
-        try {
-          import('./fx.js').then(fxModule => {
-            if (fxModule && typeof fxModule.startWildBeerBubbles === 'function') {
-              fxModule.startWildBeerBubbles(t);
-              console.log('🔄 Restarted wild-beer idle bubbles after snapBack');
-            }
-          }).catch(err => {
-            console.warn('⚠️ Failed to restart wild-beer bubbles after snapBack:', err);
-          });
-        } catch (err) {
-          console.warn('⚠️ Error restarting wild-beer bubbles after snapBack:', err);
+        if (tileRef.special === 'wild-beer') {
+          try {
+            import('./fx.js').then(fxModule => {
+              if (fxModule?.startWildBeerBubbles) fxModule.startWildBeerBubbles(tileRef);
+            }).catch(() => {});
+          } catch {}
         }
-      }
-      return; 
+        if (tileRef.special === 'wild-tnt') {
+          try {
+            import('./fx.js').then(fxModule => {
+              if (fxModule?.startTntIdleParticles) fxModule.startTntIdleParticles(tileRef);
+              if (fxModule?.startTntIdleShake) fxModule.startTntIdleShake(tileRef);
+            }).catch(() => {});
+          } catch {}
+        }
+      });
+      return;
     }
 
     const target = pickDropTarget(t);
     
     if (!target) {
-      snapBack(t);
       clearHover();
-      // 🔥 USER REQUEST: Restart idle particles after snapBack for wild-magnet
-      if (t?.special === 'wild-magnet' && !t.destroyed) {
-        try {
-          import('./fx.js').then(fxModule => {
-            if (fxModule && typeof fxModule.startMagnetIdleParticles === 'function') {
-              fxModule.startMagnetIdleParticles(t);
-              console.log('🔄 Restarted magnet idle particles after snapBack (no target)');
-            }
-          }).catch(err => {
-            console.warn('⚠️ Failed to restart magnet idle particles after snapBack:', err);
-          });
-        } catch (err) {
-          console.warn('⚠️ Error restarting magnet idle particles after snapBack:', err);
+      const tileRef = t;
+      snapBack(t, () => {
+        if (!tileRef || tileRef.destroyed) return;
+        if (tileRef.special === 'wild-magnet') {
+          try { import('./fx.js').then(fx => { if (fx?.startMagnetIdleParticles) fx.startMagnetIdleParticles(tileRef); }).catch(() => {}); } catch {}
         }
-      }
-      // 🔥 USER REQUEST: Restart idle bubbles after snapBack for wild-beer only
-      if (t?.special === 'wild-beer' && !t.destroyed) {
-        try {
-          import('./fx.js').then(fxModule => {
-            if (fxModule && typeof fxModule.startWildBeerBubbles === 'function') {
-              fxModule.startWildBeerBubbles(t);
-              console.log('🔄 Restarted wild-beer idle bubbles after snapBack (no target)');
-            }
-          }).catch(err => {
-            console.warn('⚠️ Failed to restart wild-beer bubbles after snapBack:', err);
-          });
-        } catch (err) {
-          console.warn('⚠️ Error restarting wild-beer bubbles after snapBack:', err);
+        if (tileRef.special === 'wild-beer') {
+          try { import('./fx.js').then(fx => { if (fx?.startWildBeerBubbles) fx.startWildBeerBubbles(tileRef); }).catch(() => {}); } catch {}
         }
-      }
+        if (tileRef.special === 'wild-tnt') {
+          try {
+            import('./fx.js').then(fxModule => {
+              if (fxModule?.startTntIdleParticles) fxModule.startTntIdleParticles(tileRef);
+              if (fxModule?.startTntIdleShake) fxModule.startTntIdleShake(tileRef);
+            }).catch(() => {});
+          } catch {}
+        }
+      });
 
       // 🔥 CRITICAL: Check stuck state after failed drop (no valid target)
       // This catches cases where NO valid merges exist (e.g., 4/3/4/5) and pickDropTarget returns null
@@ -998,39 +992,25 @@ export function initDrag(cfg) {
     const canMerge = isValidTarget && canDrop(t, target);
     
     if (!canMerge) {
-      snapBack(t);
       clearHover();
-      
-      // 🔥 USER REQUEST: Restart idle particles after snapBack for wild-magnet
-      if (t?.special === 'wild-magnet' && !t.destroyed) {
-        try {
-          import('./fx.js').then(fxModule => {
-            if (fxModule && typeof fxModule.startMagnetIdleParticles === 'function') {
-              fxModule.startMagnetIdleParticles(t);
-              console.log('🔄 Restarted magnet idle particles after snapBack (canMerge=false)');
-            }
-          }).catch(err => {
-            console.warn('⚠️ Failed to restart magnet idle particles after snapBack:', err);
-          });
-        } catch (err) {
-          console.warn('⚠️ Error restarting magnet idle particles after snapBack:', err);
+      const tileRef = t;
+      snapBack(t, () => {
+        if (!tileRef || tileRef.destroyed) return;
+        if (tileRef.special === 'wild-magnet') {
+          try { import('./fx.js').then(fx => { if (fx?.startMagnetIdleParticles) fx.startMagnetIdleParticles(tileRef); }).catch(() => {}); } catch {}
         }
-      }
-      // 🔥 USER REQUEST: Restart idle bubbles after snapBack for wild-beer only
-      if (t?.special === 'wild-beer' && !t.destroyed) {
-        try {
-          import('./fx.js').then(fxModule => {
-            if (fxModule && typeof fxModule.startWildBeerBubbles === 'function') {
-              fxModule.startWildBeerBubbles(t);
-              console.log('🔄 Restarted wild-beer idle bubbles after snapBack (canMerge=false)');
-            }
-          }).catch(err => {
-            console.warn('⚠️ Failed to restart wild-beer bubbles after snapBack:', err);
-          });
-        } catch (err) {
-          console.warn('⚠️ Error restarting wild-beer bubbles after snapBack:', err);
+        if (tileRef.special === 'wild-beer') {
+          try { import('./fx.js').then(fx => { if (fx?.startWildBeerBubbles) fx.startWildBeerBubbles(tileRef); }).catch(() => {}); } catch {}
         }
-      }
+        if (tileRef.special === 'wild-tnt') {
+          try {
+            import('./fx.js').then(fxModule => {
+              if (fxModule?.startTntIdleParticles) fxModule.startTntIdleParticles(tileRef);
+              if (fxModule?.startTntIdleShake) fxModule.startTntIdleShake(tileRef);
+            }).catch(() => {});
+          } catch {}
+        }
+      });
       
       // 🔥 CRITICAL: Check stuck state after failed merge attempt
       // This catches cases where user tries to merge but can't (e.g., 3+2=5 which is invalid)
@@ -1492,7 +1472,7 @@ export function initDrag(cfg) {
     }
   }
 
-  function snapBack(t) {
+  function snapBack(t, onSnapBackComplete) {
     console.log('🔍 SNAPBACK: Tile at', t?.gridX, t?.gridY, 'value:', t?.value, 'locked:', t?.locked);
     releaseMagnet({ immediate: true });
     restoreGridCell(t); // Restore to grid before snapping back
@@ -1502,7 +1482,10 @@ export function initDrag(cfg) {
     // Ghost placeholders are now fixed and always visible
     
     trackTimeline({
-      onComplete: () => { restoreZ(t); }   // ✅ vrati sloj nakon bounce-a
+      onComplete: () => {
+        restoreZ(t);
+        try { onSnapBackComplete?.(t); } catch {}
+      }
     })
       .to(t, { x: drag.startX + 9, y: drag.startY, rotation: 0.06, duration: 0.06 })
       .to(t, { x: drag.startX - 9, y: drag.startY, rotation: -0.06, duration: 0.08 })
