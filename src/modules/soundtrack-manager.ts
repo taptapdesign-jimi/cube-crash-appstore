@@ -21,6 +21,7 @@ let isStarted = false;
 /** True when we paused because page became hidden (so we can resume on visible if not in board game). */
 let pausedForVisibility = false;
 let activeFadeToken = 0;
+let fadeInProgress = false;
 
 function getAudio(): HTMLAudioElement {
   if (!audio) {
@@ -152,6 +153,7 @@ function isMusicEnabled(): boolean {
  */
 export function stopSoundtrack(): void {
   activeFadeToken++;
+  fadeInProgress = false;
   loopFadeOutActive = false;
   clearLoopFade();
   pausedForBoardGame = true;
@@ -192,12 +194,17 @@ export function startSoundtrack(): void {
  * Fade out and pause (e.g. when entering board game).
  */
 export function fadeOutAndPause(durationMs: number = BOARD_GAME_FADEOUT_MS): void {
+  if (fadeInProgress) return;
+  fadeInProgress = true;
   activeFadeToken++;
   pausedForBoardGame = true;
   loopFadeOutActive = false;
   clearLoopFade();
   const a = audio;
-  if (!a || a.paused) return;
+  if (!a || a.paused) {
+    fadeInProgress = false;
+    return;
+  }
   const from = a.volume;
   linearFade(from, 0, durationMs, (v) => {
     if (audio) audio.volume = v;
@@ -206,6 +213,7 @@ export function fadeOutAndPause(durationMs: number = BOARD_GAME_FADEOUT_MS): voi
       audio.pause();
       logger.info('🔊 Soundtrack faded out and paused (board game)');
     }
+    fadeInProgress = false;
   });
 }
 
@@ -214,8 +222,13 @@ export function fadeOutAndPause(durationMs: number = BOARD_GAME_FADEOUT_MS): voi
  * Skips if music is disabled in settings.
  */
 export function fadeInAndResume(durationMs: number = RESUME_FADEIN_MS): void {
+  if (fadeInProgress) return;
+  fadeInProgress = true;
   activeFadeToken++;
-  if (!isMusicEnabled()) return;
+  if (!isMusicEnabled()) {
+    fadeInProgress = false;
+    return;
+  }
   const a = getAudio();
   pausedForBoardGame = false;
   loopFadeOutActive = false;
@@ -226,6 +239,7 @@ export function fadeInAndResume(durationMs: number = RESUME_FADEIN_MS): void {
     if (audio) audio.volume = v;
   }, () => {
     logger.info('🔊 Soundtrack faded in and resumed');
+    fadeInProgress = false;
   });
 }
 

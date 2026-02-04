@@ -66,8 +66,14 @@ interface ShowCleanBoardModalParams {
 const _modalTimeouts: Set<NodeJS.Timeout> = new Set();
 // 🔥 MEMORY LEAK FIX: Track all requestAnimationFrame callbacks for cleanup
 const _modalAnimationFrames: Set<number> = new Set();
+let _modalCleanupInProgress = false;
 
 function trackTimeout(callback: () => void, delay: number): NodeJS.Timeout {
+  if (_modalCleanupInProgress) {
+    const noop = setTimeout(() => {}, 0);
+    clearTimeout(noop);
+    return noop;
+  }
   const timeout = setTimeout(() => {
     callback();
     _modalTimeouts.delete(timeout);
@@ -77,6 +83,7 @@ function trackTimeout(callback: () => void, delay: number): NodeJS.Timeout {
 }
 
 function trackAnimationFrame(callback: FrameRequestCallback): number {
+  if (_modalCleanupInProgress) return 0;
   const rafId = requestAnimationFrame((now: number) => {
     callback(now);
     _modalAnimationFrames.delete(rafId);
@@ -99,6 +106,7 @@ export function clearAllModalAnimationFrames() {
 
 export function cleanupCleanBoardModalLifecycle() {
   try {
+    _modalCleanupInProgress = true;
     clearAllModalTimeouts();
     clearAllModalAnimationFrames();
   } catch {}
@@ -114,6 +122,7 @@ function attachNavigationCleanup(): void {
   _navigationCleanupAttached = true;
   
   const cleanup = () => {
+    _modalCleanupInProgress = true;
     console.log('🧹 Clean board modal: Navigation/visibility cleanup triggered');
     clearAllModalTimeouts();
     clearAllModalAnimationFrames();
@@ -171,6 +180,7 @@ export async function showCleanBoardModal({
   devMode = false // 🧪 DEV: Enable dev mode for testing board transition screen
 }: ShowCleanBoardModalParams = {}): Promise<{ action: string }> {
   return new Promise((resolve) => {
+    _modalCleanupInProgress = false;
     const safeResolve = (action: string = 'continue') => {
       try { resolve({ action }); } catch {}
     };

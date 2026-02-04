@@ -34,12 +34,15 @@ let dragBlockTimeout: gsap.core.Tween | null = null;
 let boomExitListeners: Array<() => void> = [];
 let tntCompleteListeners: Array<() => void> = [];
 let didComplete = false;
+let cleanupInProgress = false;
 
 const trackTimeline = (opts?: gsap.TimelineVars) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: Parameters<typeof gsap.delayedCall>) =>
   animationManager.trackExternalTween(gsap.delayedCall(...args));
 
 function cleanup(): void {
+  if (cleanupInProgress) return;
+  cleanupInProgress = true;
   try {
     if (timeline) {
       timeline.kill();
@@ -105,6 +108,7 @@ function cleanup(): void {
   } catch (e) {
     logger.warn('⚠️ tnt-animation cleanup error:', e);
   }
+  cleanupInProgress = false;
 }
 
 export function isTntAnimationActive(): boolean {

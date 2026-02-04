@@ -24,6 +24,7 @@ let safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
 let _cachedBubbleTexture: any = null; // Cached bubble texture for performance
 let explosionStartTime: number = 0; // Track when explosion started (for protection against premature cleanup)
 let stageRetryCount = 0; // Retry count for stage acquisition during transitions
+let cleanupInProgress = false;
 let bubblyOverlay: HTMLElement | null = null;
 let bubblyTimelinesRef: gsap.core.Timeline[] = [];
 let bubblyBounceTimelinesRef: gsap.core.Timeline[] = [];
@@ -699,6 +700,13 @@ function showWildBeerBubblesExplosionInternal(): void {
   // Spawn ticker
   let frameCounter = 0;
   const spawnTicker = () => {
+    if (cleanupInProgress || !isExplosionActive) {
+      if (spawnTick === spawnTicker) {
+        try { gsap.ticker.remove(spawnTicker); } catch {}
+        spawnTick = null;
+      }
+      return;
+    }
     // 🔥 DEBUG: Log first few ticker calls and every 10th frame to verify it's running
     if (frameCounter < 10 || frameCounter % 10 === 0) {
       console.log(`💧 spawnTicker: Frame ${frameCounter}`, {
@@ -1471,6 +1479,8 @@ function cleanupBubblyOverlay(): void {
  * Cleanup explosion
  */
 function cleanup(): void {
+  if (cleanupInProgress) return;
+  cleanupInProgress = true;
   cleanupBubblyOverlay();
   lifecycle.cleanup();
   isExplosionActive = false;
@@ -1572,4 +1582,5 @@ function cleanup(): void {
   }
   
   isExplosionActive = false;
+  cleanupInProgress = false;
 }

@@ -1164,8 +1164,10 @@ export async function boot(){
         try {
           if (__ccNavCleanupTimer) {
             clearTimeout(__ccNavCleanupTimer);
+            __ccNavCleanupTimer = null;
           }
           __ccNavCleanupTimer = window.setTimeout(() => {
+            __ccNavCleanupTimer = null;
             try { cleanupFxForBoardReset('cc-navigation'); } catch {}
             try { softResetBoardView('cc-navigation'); } catch {}
           }, 220);

@@ -149,6 +149,7 @@ class JourneyBoardsManager {
   private boards: JourneyBoard[] = [];
   private container: HTMLElement | null = null;
   private renderDisposed = false; // Guard async work when screen is torn down
+  private cleanupInProgress = false;
   private glowPulseInterval: number | null = null; // Interval for continuous glow pulse
   private journeyExitPromise: Promise<void> | null = null;
   // 🔥 USER REQUEST: Shimmer is now triggered together with glow (not independent interval)
@@ -161,6 +162,7 @@ class JourneyBoardsManager {
    * 🔥 MEMORY LEAK FIX: Track requestAnimationFrame calls for cleanup
    */
   private trackRAF(callback: FrameRequestCallback): number {
+    if (this.renderDisposed) return 0;
     const rafId = requestAnimationFrame((time: number) => {
       this._activeRAFs.delete(rafId);
       callback(time);
@@ -748,7 +750,10 @@ class JourneyBoardsManager {
    * Clean up journey board elements when screen is hidden
    */
   public cleanup(): void {
+    if (this.cleanupInProgress) return;
+    this.cleanupInProgress = true;
     this.renderDisposed = true;
+    try {
     
     // 🔥 MEMORY LEAK FIX: Cancel all tracked RAF calls
     this.cancelAllRAFs();
@@ -924,6 +929,9 @@ class JourneyBoardsManager {
     const overlay = document.querySelector('.card-picker-overlay');
     if (overlay && overlay.parentNode) {
       overlay.parentNode.removeChild(overlay);
+    }
+    } finally {
+      this.cleanupInProgress = false;
     }
   }
 

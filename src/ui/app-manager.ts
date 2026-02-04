@@ -8,6 +8,7 @@ class AppManager {
   private currentScreen: ScreenType = 'loading';
   private loadedScreens: Set<ScreenType> = new Set(['loading', 'home']);
   private screenElements: Map<ScreenType, HTMLElement> = new Map();
+  private hideTimeouts: Map<ScreenType, number> = new Map();
 
   constructor() {
     this.cacheElements();
@@ -41,6 +42,13 @@ class AppManager {
     if (this.currentScreen === screen) return;
 
     logger.info(`📺 Showing screen: ${screen}`);
+
+    // Cancel any pending hide for this screen (in case of rapid switches)
+    const pendingHide = this.hideTimeouts.get(screen);
+    if (pendingHide) {
+      clearTimeout(pendingHide);
+      this.hideTimeouts.delete(screen);
+    }
 
     // Hide current screen
     await this.hideScreen(this.currentScreen);
@@ -127,6 +135,11 @@ class AppManager {
   }
 
   async hideScreen(screen: ScreenType): Promise<void> {
+    const pendingHide = this.hideTimeouts.get(screen);
+    if (pendingHide) {
+      clearTimeout(pendingHide);
+      this.hideTimeouts.delete(screen);
+    }
     // 🔥 MEMORY LEAK FIX: Comprehensive cleanup when home screen is hidden
     if (screen === 'home') {
       // 🔥 REMOVED: Hero image particles feature no longer needed
@@ -214,10 +227,12 @@ class AppManager {
         element.style.opacity = '0';
         
         // Hide after transition
-        setTimeout(() => {
+        const hideId = window.setTimeout(() => {
           element.hidden = true;
           element.style.display = 'none';
+          this.hideTimeouts.delete(screen);
         }, 300);
+        this.hideTimeouts.set(screen, hideId);
       } else if (screen === 'settings') {
         // 🔥 MEMORY LEAK FIX: Kill all GSAP animations on settings screen
         try {
@@ -235,19 +250,23 @@ class AppManager {
         element.style.opacity = '0';
         
         // Hide after transition
-        setTimeout(() => {
+        const hideId = window.setTimeout(() => {
           element.hidden = true;
           element.style.display = 'none';
+          this.hideTimeouts.delete(screen);
         }, 300);
+        this.hideTimeouts.set(screen, hideId);
       } else {
         // Use fade-out for other screens
         element.style.opacity = '0';
         
         // Hide after transition
-        setTimeout(() => {
+        const hideId = window.setTimeout(() => {
           element.hidden = true;
           element.style.display = 'none';
+          this.hideTimeouts.delete(screen);
         }, 300);
+        this.hideTimeouts.set(screen, hideId);
       }
       
       logger.info(`👋 Screen hidden: ${screen}`);

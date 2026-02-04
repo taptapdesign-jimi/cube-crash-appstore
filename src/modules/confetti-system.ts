@@ -3,6 +3,8 @@
 
 let activeAnimations = 0;
 const MAX_ANIMATIONS = 800; // Increased for continuous spawn
+let confettiCleanupInProgress = false;
+let confettiSpawnBlocked = false;
 
 // 🔥 MEMORY LEAK FIX: Track all active intervals, timeouts, and DOM elements for cleanup
 const activeIntervals: Set<NodeJS.Timeout> = new Set();
@@ -11,6 +13,7 @@ const activeConfettiElements: Set<HTMLElement> = new Set();
 const activeAnimProgressIntervals: Set<NodeJS.Timeout> = new Set();
 
 function createConfettiExplosion(element: HTMLElement): void {
+  if (confettiCleanupInProgress || confettiSpawnBlocked) return;
   const colors = ['#FBE3C5', '#FA8C00', '#E5C7AD', '#ECD7C2', '#FDBA00', '#FADEC0'];
   const confettiPerSpawn = 15;
   const screenW = window.innerWidth;
@@ -24,6 +27,7 @@ function createConfettiExplosion(element: HTMLElement): void {
   
   // Helper function to spawn a batch
   const spawnBatch = (isFirstBatch = false) => {
+    if (confettiCleanupInProgress || confettiSpawnBlocked) return;
     if (spawnCount >= maxSpawns) {
       return;
     }
@@ -34,24 +38,28 @@ function createConfettiExplosion(element: HTMLElement): void {
     
     // Spawn from 4 top positions - Track all setTimeout calls for cleanup
     const timeout1 = setTimeout(() => {
+      if (confettiCleanupInProgress || confettiSpawnBlocked) return;
       activeTimeouts.delete(timeout1);
       createSpawn(colors, confettiPerSpawn, -(screenW * 0.3), -(screenH * 0.3), Math.PI / 4, 'left');
     }, delay);
     activeTimeouts.add(timeout1);
     
     const timeout2 = setTimeout(() => {
+      if (confettiCleanupInProgress || confettiSpawnBlocked) return;
       activeTimeouts.delete(timeout2);
       createSpawn(colors, confettiPerSpawn, screenW * 1.3, -(screenH * 0.3), 3 * Math.PI / 4, 'right');
     }, delay);
     activeTimeouts.add(timeout2);
     
     const timeout3 = setTimeout(() => {
+      if (confettiCleanupInProgress || confettiSpawnBlocked) return;
       activeTimeouts.delete(timeout3);
       createSpawn(colors, confettiPerSpawn, screenW * 0.25, -(screenH * 0.3), Math.PI / 2 - 0.3, 'left');
     }, delay);
     activeTimeouts.add(timeout3);
     
     const timeout4 = setTimeout(() => {
+      if (confettiCleanupInProgress || confettiSpawnBlocked) return;
       activeTimeouts.delete(timeout4);
       createSpawn(colors, confettiPerSpawn, screenW * 0.75, -(screenH * 0.3), Math.PI / 2 + 0.3, 'right');
     }, delay);
@@ -65,6 +73,11 @@ function createConfettiExplosion(element: HTMLElement): void {
   
   // Then continue with interval
   const spawnInterval = setInterval(() => {
+    if (confettiCleanupInProgress || confettiSpawnBlocked) {
+      clearInterval(spawnInterval);
+      activeIntervals.delete(spawnInterval);
+      return;
+    }
     if (spawnCount >= maxSpawns) {
       clearInterval(spawnInterval);
       activeIntervals.delete(spawnInterval);
@@ -84,13 +97,16 @@ function createSpawn(
   baseAngle: number,
   side: 'left' | 'right'
 ): void {
+  if (confettiCleanupInProgress || confettiSpawnBlocked) return;
   const isLeft = side === 'left';
   
   // Random spawn: each confetti gets random delay 0-2600ms (reduced by 400ms to start earlier)
   for (let i = 0; i < count && activeAnimations < MAX_ANIMATIONS; i++) {
+    if (confettiCleanupInProgress || confettiSpawnBlocked) break;
     const spawnDelay = Math.max(0, Math.random() * 3000 - 400); // Start 400ms earlier
     
     const spawnTimeout = setTimeout(() => {
+      if (confettiCleanupInProgress || confettiSpawnBlocked) return;
       activeTimeouts.delete(spawnTimeout);
       const color = colors[i % colors.length];
       const angleVariant = (Math.random() - 0.5) * 0.25;
@@ -210,6 +226,7 @@ function createSpawn(
 // Graceful cleanup: Stop new spawns but let existing animations finish
 // This allows confetti to continue animating after Continue is clicked
 export function stopConfettiSpawns(): void {
+  confettiSpawnBlocked = true;
   // Clear all spawn intervals (stops new batches from spawning)
   activeIntervals.forEach(interval => {
     try {
@@ -237,6 +254,8 @@ export function stopConfettiSpawns(): void {
 
 // Full cleanup function to clear all confetti animations (for restart/exit)
 export function cleanupConfetti(): void {
+  confettiCleanupInProgress = true;
+  confettiSpawnBlocked = true;
   // First stop all new spawns
   stopConfettiSpawns();
   
@@ -264,6 +283,7 @@ export function cleanupConfetti(): void {
   
   // Reset counter
   activeAnimations = 0;
+  confettiCleanupInProgress = false;
 }
 
 export { createConfettiExplosion };

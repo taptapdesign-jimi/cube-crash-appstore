@@ -289,6 +289,12 @@ export function renderSettingsScreen(
   };
   element.addEventListener('change', changeHandler);
 
+  // Safety: cleanup on in-app navigation
+  const navCleanupHandler = () => {
+    try { (element as any)._settingsCleanup?.(); } catch {}
+  };
+  window.addEventListener('cc-navigation', navCleanupHandler);
+
   console.log('✅ Settings back button and Music toggle handlers attached via event delegation');
 
   // Setup footer explosion animation after render
@@ -307,6 +313,7 @@ export function renderSettingsScreen(
   (element as any)._settingsCleanup = () => {
     element.removeEventListener('click', clickHandler);
     element.removeEventListener('change', changeHandler);
+    window.removeEventListener('cc-navigation', navCleanupHandler);
     if (footerText && footerClickHandler) {
       footerText.removeEventListener('click', footerClickHandler);
     }
