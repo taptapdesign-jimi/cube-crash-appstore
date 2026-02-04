@@ -16,6 +16,7 @@ export interface SettingsScreenConfig {
   onBack?: () => void;
   onToggleGameSounds?: (enabled: boolean) => void;
   onToggleVibration?: (enabled: boolean) => void;
+  onToggleMusic?: (enabled: boolean) => void;
 }
 
 export interface SettingToggle {
@@ -96,12 +97,13 @@ function createSettingsToggle(toggle: SettingToggle): HTMLElementConfig {
 }
 
 export function createSettingsScreen(config: SettingsScreenConfig): HTMLElementConfig {
-  const { onBack, onToggleGameSounds, onToggleVibration } = config;
+  const { onBack, onToggleGameSounds, onToggleVibration, onToggleMusic } = config;
 
   // Load saved settings from localStorage
   const savedSettings = (window as any)._settings || {};
   const gameSoundsEnabled = savedSettings.gameSoundsEnabled || false;
   const hapticsEnabled = savedSettings.hapticsEnabled !== undefined ? savedSettings.hapticsEnabled : true;
+  const musicEnabled = savedSettings.musicEnabled !== false;
 
   const gameSoundsToggle: SettingToggle = {
     id: 'game-sounds',
@@ -109,6 +111,14 @@ export function createSettingsScreen(config: SettingsScreenConfig): HTMLElementC
     label: 'Game sounds',
     description: 'Game sounds',
     onToggle: onToggleGameSounds,
+  };
+
+  const musicToggle: SettingToggle = {
+    id: 'music',
+    status: musicEnabled ? 'ON' : 'OFF',
+    label: 'Music',
+    description: 'Music',
+    onToggle: onToggleMusic,
   };
 
   const vibrationToggle: SettingToggle = {
@@ -189,10 +199,9 @@ export function createSettingsScreen(config: SettingsScreenConfig): HTMLElementC
             className: 'settings-scrollable',
             children: [
               createSettingsToggle(gameSoundsToggle),
-              {
-                tag: 'div',
-                className: 'settings-divider',
-              },
+              { tag: 'div', className: 'settings-divider' },
+              createSettingsToggle(musicToggle),
+              { tag: 'div', className: 'settings-divider' },
               createSettingsToggle(vibrationToggle),
             ],
           },
@@ -261,8 +270,27 @@ export function renderSettingsScreen(
     }
   };
   element.addEventListener('click', clickHandler);
-  console.log('✅ Settings back button handler attached via event delegation on container');
-  
+
+  // 🎵 Music toggle: event delegation - direktno stop/start soundtrack
+  const changeHandler = (e: Event) => {
+    const target = e.target as HTMLInputElement;
+    if (!target || target.id !== 'toggle-music') return;
+    const enabled = target.checked;
+    const statusEl = document.getElementById('status-music');
+    if (statusEl) statusEl.textContent = enabled ? 'ON' : 'OFF';
+    if ((window as any)._settings) (window as any)._settings.musicEnabled = enabled;
+    if (typeof (window as any).saveSettings === 'function') {
+      (window as any).saveSettings((window as any)._settings);
+    }
+    import('../../modules/soundtrack-manager.js').then((mod) => {
+      if (enabled) mod.fadeInAndResume();
+      else mod.stopSoundtrack();
+    }).catch(() => {});
+  };
+  element.addEventListener('change', changeHandler);
+
+  console.log('✅ Settings back button and Music toggle handlers attached via event delegation');
+
   // Setup footer explosion animation after render
   const footerText = element.querySelector('.settings-footer-text') as HTMLElement;
   let footerClickHandler: (() => void) | null = null;
@@ -278,6 +306,7 @@ export function renderSettingsScreen(
   // 🔥 FIX: Store cleanup function on element for proper memory management
   (element as any)._settingsCleanup = () => {
     element.removeEventListener('click', clickHandler);
+    element.removeEventListener('change', changeHandler);
     if (footerText && footerClickHandler) {
       footerText.removeEventListener('click', footerClickHandler);
     }

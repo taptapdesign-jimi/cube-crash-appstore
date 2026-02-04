@@ -14,6 +14,8 @@ const trackTween = (target: any, vars: any) => animationManager.trackExternalTwe
 
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
 
+const trackTimeline = (opts?: any) => animationManager.trackExternalTimeline(gsap.timeline(opts));
+
 // Module-level state (like board-transition-screen)
 let isExplosionActive = false;
 let explosionContainer: Container | null = null;
@@ -22,6 +24,9 @@ let safetyTimeoutId: ReturnType<typeof setTimeout> | null = null;
 let _cachedBubbleTexture: any = null; // Cached bubble texture for performance
 let explosionStartTime: number = 0; // Track when explosion started (for protection against premature cleanup)
 let stageRetryCount = 0; // Retry count for stage acquisition during transitions
+let bubblyOverlay: HTMLElement | null = null;
+let bubblyTimelinesRef: gsap.core.Timeline[] = [];
+let bubblyBounceTimelinesRef: gsap.core.Timeline[] = [];
 const lifecycle = createScreenLifecycle('wild-beer-bubbles-explosion');
 
 function getFxHost(stage: any): any {
@@ -964,6 +969,9 @@ function showWildBeerBubblesExplosionInternal(): void {
     activeBubbles: active,
     tickerAdded: !!spawnTick
   });
+
+  // BUBBLY text overlay – centar viewporta (kao BOOM za TNT)
+  createAndShowBubblyText();
   
   // 🔥 CRITICAL FIX: Force render again after initial burst to ensure bubbles are visible
   // This ensures bubbles are rendered immediately after creation (same pattern as fx.ts for wild stars)
@@ -1024,6 +1032,13 @@ export function stopWildBeerBubblesExplosion(): void {
     return;
   }
   
+  cleanup();
+}
+
+/**
+ * Force stop wild-beer bubbles explosion (bypass recent-start guard).
+ */
+export function forceStopWildBeerBubblesExplosion(): void {
   cleanup();
 }
 
@@ -1195,10 +1210,268 @@ function initializeBubbleTexture(app: any): void {
   }
 }
 
+// BUBBLY constants – isti kao TNT BOOM
+const BUBBLY_ENTER_BOUNCE_SCALE = 1.2;
+const BUBBLY_ENTER_DURATION = 0.24;
+const BUBBLY_SETTLE_DURATION = 0.1;
+const BUBBLY_FINAL_SETTLE_DURATION = 0.1;
+const BUBBLY_ENTER_DELAY = 0.3;
+const BUBBLY_ENTER_STAGGER = 0.05;
+const BUBBLY_EXIT_STAGGER = 0.06;
+const BUBBLY_ENTER_EXTRA = 0.1;
+const BUBBLY_EXIT_EXTRA = 0.3;
+const BUBBLY_EXIT_BOUNCE_DURATION = 0.13;
+const BUBBLY_EXIT_FADE_DURATION = 0.17;
+
+/**
+ * BUBBLY text overlay – isti dizajn, font, boja, enter/exit animacije kao TNT BOOM
+ */
+function createAndShowBubblyText(): void {
+  try {
+    cleanupBubblyOverlay();
+    const overlay = document.createElement('div');
+    overlay.style.cssText = [
+      'position: fixed',
+      'top: 0',
+      'left: 0',
+      'width: 100%',
+      'height: 100%',
+      'pointer-events: none',
+      'z-index: 9999999',
+      'display: flex',
+      'align-items: center',
+      'justify-content: center',
+    ].join(';');
+    bubblyOverlay = overlay;
+
+    const bubblyContainer = document.createElement('div');
+    bubblyContainer.style.cssText = [
+      'position: absolute',
+      'left: 50%',
+      'top: 50%',
+      'transform: translate(-50%, -50%)',
+      'display: flex',
+      'flex-direction: row',
+      'align-items: center',
+      'justify-content: center',
+      'gap: -4px',
+      'margin: 0',
+      'padding: 0',
+      'width: fit-content',
+      'min-width: 0',
+      'max-width: 100%',
+      'box-sizing: border-box',
+      'z-index: 2',
+      'pointer-events: none',
+      'perspective: 1000px',
+      'transform-style: preserve-3d',
+    ].join(';');
+
+    const bubblyLetters: HTMLElement[] = [];
+    const bubblyScales: number[] = [];
+    const bubblyRotations: number[] = [];
+    const bubblyText = ['B', 'U', 'B', 'B', 'L', 'Y'];
+    const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(183, 152, 139, 0.5))';
+
+    bubblyText.forEach((letter) => {
+      const letterScale = 0.9 + Math.random() * 0.4;
+      const rotation = (Math.random() - 0.5) * 24;
+      const letterEl = document.createElement('span');
+      letterEl.textContent = letter;
+      letterEl.style.cssText = [
+        'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
+        'font-weight: 800',
+        'font-size: 83px',
+        'line-height: 1',
+        'color: #FFF',
+        'text-align: center',
+        'opacity: 0',
+        'transform: scale(0) perspective(1000px) translateZ(0)',
+        'display: inline-block',
+        'visibility: visible',
+        'pointer-events: none',
+        'margin-right: 0',
+        'padding: 0',
+        'border: 0',
+        'outline: 0',
+        'vertical-align: top',
+        `filter: ${dropShadow}`,
+        'transform-style: preserve-3d',
+        'backface-visibility: hidden',
+        '-webkit-font-smoothing: antialiased',
+        '-moz-osx-font-smoothing: grayscale',
+        'text-rendering: optimizeLegibility',
+        'transform-origin: center center',
+        'position: relative',
+        'z-index: 10'
+      ].join(';');
+      bubblyContainer.appendChild(letterEl);
+      bubblyLetters.push(letterEl);
+      bubblyScales.push(letterScale);
+      bubblyRotations.push(rotation);
+
+      const bounceTl = trackTimeline({ repeat: -1, yoyo: true });
+      bounceTl.pause(0);
+      bounceTl.to(letterEl, {
+        scale: letterScale * (1.02 + Math.random() * 0.06),
+        rotation: rotation * 1.1,
+        duration: 0.35,
+        ease: 'elastic.inOut(1, 0.2)'
+      });
+      bubblyBounceTimelinesRef.push(bounceTl);
+      gsap.set(letterEl, { rotation });
+    });
+
+    overlay.appendChild(bubblyContainer);
+    document.body.appendChild(overlay);
+
+    let bubblyExitStarted = false;
+    const startBubblyExit = () => {
+      if (bubblyExitStarted) return;
+      bubblyExitStarted = true;
+      bubblyBounceTimelinesRef.forEach((tl) => {
+        try { tl.kill(); } catch {}
+      });
+      bubblyLetters.forEach((letterEl, index) => {
+        const delay = index * BUBBLY_EXIT_STAGGER;
+        const exitTl = trackTimeline({ delay });
+        bubblyTimelinesRef.push(exitTl);
+        const baseScale = bubblyScales[index] ?? 1;
+        const baseRot = bubblyRotations[index] ?? 0;
+        const exitRotation = (baseRot >= 0 ? 1 : -1) * (12 + Math.random() * 8);
+        exitTl.to(letterEl, {
+          scale: baseScale * 1.1,
+          z: 30,
+          duration: BUBBLY_EXIT_BOUNCE_DURATION + BUBBLY_EXIT_EXTRA * 0.2,
+          ease: 'power2.out'
+        });
+        exitTl.to(letterEl, {
+          opacity: 0,
+          scale: 0,
+          rotation: exitRotation,
+          rotationX: baseRot >= 0 ? 45 : -45,
+          rotationY: baseRot >= 0 ? 30 : -30,
+          z: -100,
+          duration: BUBBLY_EXIT_FADE_DURATION + BUBBLY_EXIT_EXTRA * 0.8,
+          ease: 'power2.in'
+        });
+      });
+      trackDelayedCall(
+        BUBBLY_EXIT_STAGGER * bubblyLetters.length +
+        BUBBLY_EXIT_BOUNCE_DURATION + BUBBLY_EXIT_EXTRA * 0.2 +
+        BUBBLY_EXIT_FADE_DURATION + BUBBLY_EXIT_EXTRA * 0.8 + 0.1,
+        () => cleanupBubblyOverlay()
+      );
+    };
+
+    let bubblyEnterComplete = 0;
+    bubblyLetters.forEach((letterEl, index) => {
+      const delay = BUBBLY_ENTER_DELAY + index * BUBBLY_ENTER_STAGGER;
+      const baseRotation = gsap.getProperty(letterEl, 'rotation') as number;
+      const randomRotation = typeof baseRotation === 'number' ? baseRotation : 0;
+      const baseScale = bubblyScales[index] ?? 1;
+      letterEl.style.willChange = 'transform, opacity';
+      letterEl.style.transform = 'translateZ(0)';
+      letterEl.style.backfaceVisibility = 'hidden';
+      letterEl.style.webkitBackfaceVisibility = 'hidden';
+      letterEl.style.contain = 'layout style paint';
+
+      gsap.set(letterEl, {
+        opacity: 0,
+        scale: 0,
+        x: 0,
+        y: 0,
+        rotation: randomRotation,
+        rotationX: 0,
+        rotationY: 0,
+        z: 0,
+        force3D: true
+      });
+
+      const letterTl = trackTimeline({ delay });
+      bubblyTimelinesRef.push(letterTl);
+      letterTl.to(letterEl, {
+        opacity: 1,
+        scale: baseScale * BUBBLY_ENTER_BOUNCE_SCALE,
+        rotation: randomRotation,
+        rotationX: -5,
+        rotationY: 0,
+        z: 20,
+        x: 0,
+        y: 0,
+        transformOrigin: 'center center',
+        duration: BUBBLY_ENTER_DURATION + BUBBLY_ENTER_EXTRA * 0.6,
+        ease: 'back.out(2.0)'
+      });
+      letterTl.to(letterEl, {
+        scale: baseScale * 0.95,
+        rotation: randomRotation,
+        rotationX: 0,
+        rotationY: 0,
+        z: 0,
+        x: 0,
+        y: 0,
+        transformOrigin: 'center center',
+        duration: BUBBLY_SETTLE_DURATION + BUBBLY_ENTER_EXTRA * 0.2,
+        ease: 'power2.out'
+      });
+      letterTl.to(letterEl, {
+        opacity: 1,
+        scale: baseScale,
+        rotation: randomRotation,
+        rotationX: 0,
+        rotationY: 0,
+        z: 0,
+        x: 0,
+        y: 0,
+        transformOrigin: 'center center',
+        duration: BUBBLY_FINAL_SETTLE_DURATION + BUBBLY_ENTER_EXTRA * 0.2,
+        ease: 'back.out(1.5)',
+        onComplete: () => {
+          try { bubblyBounceTimelinesRef[index]?.play(0); } catch {}
+          bubblyEnterComplete += 1;
+          if (bubblyEnterComplete === bubblyLetters.length) {
+            startBubblyExit();
+          }
+        }
+      });
+    });
+  } catch (e) {
+    console.warn('⚠️ Failed to create BUBBLY text overlay:', e);
+    cleanupBubblyOverlay();
+  }
+}
+
+function cleanupBubblyOverlay(): void {
+  try {
+    bubblyBounceTimelinesRef.forEach((tl) => {
+      try { tl.kill(); } catch {}
+    });
+    bubblyBounceTimelinesRef = [];
+    bubblyTimelinesRef.forEach((tl) => {
+      try { tl.kill(); } catch {}
+    });
+    bubblyTimelinesRef = [];
+    if (bubblyOverlay) {
+      try {
+        gsap.killTweensOf(bubblyOverlay);
+        bubblyOverlay.querySelectorAll('*').forEach((el) => {
+          try { gsap.killTweensOf(el); } catch {}
+        });
+      } catch {}
+    }
+    if (bubblyOverlay && bubblyOverlay.parentNode) {
+      bubblyOverlay.parentNode.removeChild(bubblyOverlay);
+    }
+    bubblyOverlay = null;
+  } catch {}
+}
+
 /**
  * Cleanup explosion
  */
 function cleanup(): void {
+  cleanupBubblyOverlay();
   lifecycle.cleanup();
   isExplosionActive = false;
   explosionStartTime = 0; // Reset start time on cleanup

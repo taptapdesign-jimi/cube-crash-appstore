@@ -264,6 +264,14 @@ class LaunchScreen {
     console.log('🚀 Starting launch sequence...');
     logger.info('🚀 Starting launch sequence...');
 
+    // Start soundtrack as soon as taptap splash begins (fades out when board game starts)
+    try {
+      const { startSoundtrack } = await import('./soundtrack-manager.js');
+      startSoundtrack();
+    } catch (e) {
+      logger.warn('🔊 Soundtrack start failed:', e);
+    }
+
     const { container, taptapContainer, taptapLogo, stackContainer, stackLogo, smokeShards } = this.elements;
 
     // 🔥 CRITICAL: Log all elements to debug
@@ -303,85 +311,63 @@ class LaunchScreen {
       return;
     }
 
-    // 🔥 OPTIMIZATION: Show taptap logo IMMEDIATELY (don't wait for image load)
-    // Set opacity to 1 immediately so user sees it right away
+    // Phase 1: Show taptap logo immediately (no intro animation)
     taptapContainer.style.opacity = '1';
     taptapContainer.style.visibility = 'visible';
-    console.log('🎬 Phase 1: Taptapdesign logo shown immediately');
-    logger.info('🎬 Phase 1: Taptapdesign logo shown immediately');
-    
-    // Wait for image in background (non-blocking)
+    console.log('🎬 Phase 1: Taptapdesign logo shown');
+    logger.info('🎬 Phase 1: Taptapdesign logo shown');
+
     this.waitForImages([taptapLogo], 1000).catch(() => {
       logger.warn('⚠️ Taptap logo image load timeout - continuing anyway');
     });
 
-    // PHASE 1: Show taptap logo for 2 seconds max (user requested 2 seconds for taptap)
-    // Logo is already visible, just wait
+    // Show taptap for 2 seconds
     logger.info('⏳ Phase 1: Waiting 2 seconds for taptap logo...');
     await new Promise(resolve => setTimeout(resolve, 2000));
-    logger.info('✅ Phase 1: 2 seconds elapsed, starting fade out');
+    logger.info('✅ Phase 1: 2 seconds elapsed');
 
-    // Fade out taptapdesign (fast fade out)
-    logger.info('🎬 Phase 1: Fading out taptapdesign logo');
+    // Before stack to six: quickly scale taptap into itself (0.3s)
+    logger.info('🎬 Scaling taptap into itself (0.3s)...');
     await new Promise<void>((resolve) => {
       trackTween(taptapContainer, {
+        scale: 0,
         opacity: 0,
-        duration: 0.2,
+        duration: 0.3,
         ease: 'power2.in',
         onComplete: () => {
-          // 🔥 CRITICAL: Hide and remove from DOM to prevent ghost images
           taptapContainer.style.display = 'none';
           taptapContainer.style.visibility = 'hidden';
           taptapContainer.style.pointerEvents = 'none';
-          // Remove from DOM completely
           if (taptapContainer.parentElement) {
             taptapContainer.parentElement.removeChild(taptapContainer);
           }
-          logger.info('✅ Phase 1: Taptapdesign logo faded out and removed');
+          logger.info('✅ Taptap scaled down and removed');
           resolve();
         }
       });
     });
 
-    // PHASE 2: Fade in gradient background + stack to six logo + smokeclouds
-    logger.info('🎬 Phase 2: Starting - Fading in gradient + stack to six logo + smokeclouds');
-    
-    // 🔥 SENIOR PRINCIPAL: Single source of truth - set background ONLY here, in Phase 2
-    // Keep the original stack-to-six gradient, then overlay paper texture at 60% opacity
-    const gradientBg = 'linear-gradient(180deg, #f3eee8 0%, #fcecdf 60%, #fcecdf 100%)';
+    // PHASE 2: Set stack to six screen background and run transition (500ms fade in)
+    logger.info('🎬 Phase 2: Stack to six screen - setting background and fading in');
     const paperOverlayAlpha = 0.4; // 1 - 0.6
+    const gradientBg = 'linear-gradient(180deg, #f3eee8 0%, #fcecdf 60%, #fcecdf 100%)';
     const paperBg = `linear-gradient(rgba(243,238,232,${paperOverlayAlpha}), rgba(243,238,232,${paperOverlayAlpha})), url('./assets/paper-bg.png') center/100% 100% no-repeat, ${gradientBg}`;
+
+    if (!stackContainer || !stackLogo || !smokeShards) {
+      logger.error('❌ Stack container / logo / smoke shards not found!');
+      return;
+    }
+
     this.setBackground(paperBg);
-    
-    // 🔥 CRITICAL: Ensure container has 100% opacity and high z-index to cover everything
     if (container) {
       container.style.opacity = '1';
       container.style.visibility = 'visible';
       container.style.zIndex = '10000';
-      container.style.background = paperBg; // Set directly on container too
+      container.style.background = paperBg;
     }
-    
-    // Show stack container IMMEDIATELY (don't wait for images)
-    // 🔥 CRITICAL: Override any inline styles that might hide the stack container
-    // Use setProperty with !important to override inline styles from index.html
-    if (!stackContainer) {
-      logger.error('❌ Stack container not found!');
-      return;
-    }
-    
-    if (!stackLogo) {
-      logger.error('❌ Stack logo not found!');
-      return;
-    }
-    
-    if (!smokeShards) {
-      logger.error('❌ Smoke shards not found!');
-      return;
-    }
-    
-    // 🔥 CRITICAL: Use setProperty with !important to override inline styles
+
     stackContainer.style.setProperty('display', 'flex', 'important');
-    stackContainer.style.setProperty('opacity', '1', 'important');
+    stackContainer.style.setProperty('opacity', '0', 'important');
     stackContainer.style.setProperty('visibility', 'visible', 'important');
     stackContainer.style.setProperty('position', 'absolute', 'important');
     stackContainer.style.setProperty('width', '100%', 'important');
@@ -389,16 +375,27 @@ class LaunchScreen {
     stackContainer.style.setProperty('align-items', 'center', 'important');
     stackContainer.style.setProperty('justify-content', 'center', 'important');
     stackContainer.style.setProperty('z-index', '1', 'important');
-    
     smokeShards.style.setProperty('opacity', '1.0', 'important');
     smokeShards.style.setProperty('visibility', 'visible', 'important');
     smokeShards.style.setProperty('display', 'block', 'important');
-    
     stackLogo.style.setProperty('opacity', '1', 'important');
     stackLogo.style.setProperty('visibility', 'visible', 'important');
     stackLogo.style.setProperty('display', 'block', 'important');
-    
-    logger.info('🎬 Phase 2: Stack to six logo shown immediately');
+
+    // 500ms ease-in-out fade in of stack to six
+    await new Promise<void>((resolve) => {
+      trackTween(stackContainer, {
+        opacity: 1,
+        duration: 0.5,
+        ease: 'power2.inOut',
+        onComplete: () => {
+          logger.info('✅ Phase 2: Stack to six visible');
+          resolve();
+        }
+      });
+    });
+
+    logger.info('🎬 Phase 2: Stack to six visible after crossfade');
     logger.info('🔍 Stack container verification:', {
       containerExists: !!stackContainer,
       logoExists: !!stackLogo,

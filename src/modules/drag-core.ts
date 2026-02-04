@@ -232,6 +232,12 @@ export function initDrag(cfg) {
       console.log('🛡️ DRAG BLOCKED: Bottom sheet is open', { scoreSheetOpen: !!scoreSheetOpen, endRunModalOpen: !!endRunModalOpen });
       return;
     }
+
+    // 🛡️ Block drag only until BOOM exit completes
+    if ((window as any).__ccTntDragBlocked === true) {
+      console.log('🛡️ DRAG BLOCKED: TNT BOOM exit in progress');
+      return;
+    }
     
     // 🛡️ CRITICAL: Block drag for tiles that are being pulled by magnet
     // These tiles are protected and cannot be dragged or merged with other tiles

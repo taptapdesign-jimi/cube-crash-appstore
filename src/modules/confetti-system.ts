@@ -174,6 +174,11 @@ function createSpawn(
     // Instant fade-out below screen: 400px past bottom for modal clearance
     const fadeOutY = screenHeight + 400;
     const animProgress = setInterval(() => {
+      if (!confetti.parentNode || !activeConfettiElements.has(confetti)) {
+        clearInterval(animProgress);
+        activeAnimProgressIntervals.delete(animProgress);
+        return;
+      }
       const rect = confetti.getBoundingClientRect();
       const currentY = rect.top;
       
@@ -188,6 +193,10 @@ function createSpawn(
     activeAnimProgressIntervals.add(animProgress);
     
     anim.onfinish = () => {
+      if (activeAnimProgressIntervals.has(animProgress)) {
+        try { clearInterval(animProgress); } catch {}
+        activeAnimProgressIntervals.delete(animProgress);
+      }
       confetti.remove();
       activeAnimations--;
       if (activeAnimations < 0) activeAnimations = 0;

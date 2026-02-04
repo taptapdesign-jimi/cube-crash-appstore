@@ -2174,8 +2174,8 @@ class UIManager {
     }
     
     // 🔥 CRITICAL: Directly attach event listeners to checkbox elements
-    // This is more reliable than event delegation for checkboxes
     const gameSoundsToggle = document.getElementById('toggle-game-sounds') as HTMLInputElement;
+    const musicToggle = document.getElementById('toggle-music') as HTMLInputElement;
     const vibrationToggle = document.getElementById('toggle-vibration') as HTMLInputElement;
     
     if (!gameSoundsToggle || !vibrationToggle) {
@@ -2188,14 +2188,12 @@ class UIManager {
     
     // Remove old event listeners first (if any)
     const gameSoundsOldHandler = (gameSoundsToggle as any).__ccToggleHandler;
+    const musicOldHandler = musicToggle ? (musicToggle as any).__ccToggleHandler : null;
     const vibrationOldHandler = (vibrationToggle as any).__ccToggleHandler;
     
-    if (gameSoundsOldHandler) {
-      gameSoundsToggle.removeEventListener('change', gameSoundsOldHandler);
-    }
-    if (vibrationOldHandler) {
-      vibrationToggle.removeEventListener('change', vibrationOldHandler);
-    }
+    if (gameSoundsOldHandler) gameSoundsToggle.removeEventListener('change', gameSoundsOldHandler);
+    if (musicToggle && musicOldHandler) musicToggle.removeEventListener('change', musicOldHandler);
+    if (vibrationOldHandler) vibrationToggle.removeEventListener('change', vibrationOldHandler);
     
     // 🔥 CRITICAL: Create handler functions that update status text immediately
     const gameSoundsHandler = (e: Event) => {
@@ -2220,6 +2218,30 @@ class UIManager {
       }
     };
     
+    const musicHandler = (e: Event) => {
+      const target = e.target as HTMLInputElement;
+      const enabled = target.checked;
+      console.log('🎵 Music toggle changed:', enabled);
+      const statusEl = document.getElementById('status-music');
+      if (statusEl) {
+        statusEl.textContent = enabled ? 'ON' : 'OFF';
+        void statusEl.offsetHeight;
+      }
+      if ((window as any)._settings) {
+        (window as any)._settings.musicEnabled = enabled;
+      }
+      if (typeof (window as any).saveSettings === 'function') {
+        (window as any).saveSettings((window as any)._settings);
+      }
+      import('./soundtrack-manager.js').then(({ stopSoundtrack, fadeInAndResume }) => {
+        if (enabled) {
+          fadeInAndResume();
+        } else {
+          stopSoundtrack();
+        }
+      }).catch(() => {});
+    };
+
     const vibrationHandler = (e: Event) => {
       const target = e.target as HTMLInputElement;
       const enabled = target.checked;
@@ -2252,26 +2274,26 @@ class UIManager {
     (gameSoundsToggle as any).__ccToggleHandler = gameSoundsHandler;
     (vibrationToggle as any).__ccToggleHandler = vibrationHandler;
     
-    // Attach event listeners directly to checkboxes
-    // Use 'change' event (fires after checkbox state changes, most reliable)
     gameSoundsToggle.addEventListener('change', gameSoundsHandler);
     vibrationToggle.addEventListener('change', vibrationHandler);
+    if (musicToggle) {
+      (musicToggle as any).__ccToggleHandler = musicHandler;
+      musicToggle.addEventListener('change', musicHandler);
+    }
     
     console.log('✅ Settings toggle event listeners attached directly to checkboxes');
     
-    // Verify initial state
     const gameSoundsStatus = document.getElementById('status-game-sounds');
+    const musicStatus = document.getElementById('status-music');
     const vibrationStatus = document.getElementById('status-vibration');
     
     console.log('🔍 Settings toggle elements verified:', {
       gameSoundsToggle: !!gameSoundsToggle,
+      musicToggle: !!musicToggle,
       vibrationToggle: !!vibrationToggle,
-      gameSoundsStatus: !!gameSoundsStatus,
-      vibrationStatus: !!vibrationStatus,
       gameSoundsChecked: gameSoundsToggle.checked,
-      vibrationChecked: vibrationToggle.checked,
-      gameSoundsStatusText: gameSoundsStatus?.textContent,
-      vibrationStatusText: vibrationStatus?.textContent
+      musicChecked: musicToggle?.checked,
+      vibrationChecked: vibrationToggle.checked
     });
   }
   

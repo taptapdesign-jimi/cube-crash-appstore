@@ -30,8 +30,11 @@ let spriteBounceTweensRef: gsap.core.Tween[] = [];
 let boomBounceTimelinesRef: gsap.core.Timeline[] = [];
 let activeFrameImages: HTMLImageElement[] = [];
 let activeFrameWrappers: HTMLElement[] = [];
+let dragBlockTimeout: gsap.core.Tween | null = null;
 
 const trackTimeline = (opts?: gsap.TimelineVars) => animationManager.trackExternalTimeline(gsap.timeline(opts));
+const trackDelayedCall = (...args: Parameters<typeof gsap.delayedCall>) =>
+  animationManager.trackExternalTween(gsap.delayedCall(...args));
 
 function cleanup(): void {
   try {
@@ -51,6 +54,10 @@ function cleanup(): void {
       try { tl.kill(); } catch {}
     });
     boomBounceTimelinesRef = [];
+    if (dragBlockTimeout) {
+      try { dragBlockTimeout.kill(); } catch {}
+      dragBlockTimeout = null;
+    }
     activeFrameImages.forEach((img) => {
       try {
         gsap.killTweensOf(img);
@@ -78,6 +85,10 @@ function cleanup(): void {
       overlay = null;
     }
     isActive = false;
+    try {
+      (window as any).__ccTntAnimationActive = false;
+      (window as any).__ccTntDragBlocked = false;
+    } catch {}
   } catch (e) {
     logger.warn('⚠️ tnt-animation cleanup error:', e);
   }
@@ -95,6 +106,8 @@ export function getTntAnimationOverlay(): HTMLElement | null {
 // TNT sprite sekvenca - 12 frameova, sve u centru viewporta
 const NUM_FRAMES = 12;
 const ENTER_BOUNCE_SCALE = 1.2;
+/** Vertikalno rastezanje spriteova za 40% (manje plosnato) */
+const VERTICAL_STRETCH = 1.4;
 const ENTER_DURATION = 0.24;
 const SETTLE_DURATION = 0.1;
 const FINAL_SETTLE_DURATION = 0.1;
@@ -123,6 +136,10 @@ export function showTntAnimation(options: {
   }
 
   isActive = true;
+  try {
+    (window as any).__ccTntAnimationActive = true;
+    (window as any).__ccTntDragBlocked = true;
+  } catch {}
   const { onComplete, onBoomExitStart } = options;
 
   overlay = document.createElement('div');
@@ -176,6 +193,7 @@ export function showTntAnimation(options: {
       'transform-origin: center center',
       'pointer-events: none',
       'will-change: transform, opacity',
+      'filter: brightness(1.05)',
     ].join(';');
     wrapper.appendChild(frameEl);
     framesContainer.appendChild(wrapper);
@@ -193,7 +211,7 @@ export function showTntAnimation(options: {
     'flex-direction: row',
     'align-items: center',
     'justify-content: center',
-    'gap: 0px',
+    'gap: -4px',
     'margin: 0',
     'padding: 0',
     'width: fit-content',
@@ -208,12 +226,12 @@ export function showTntAnimation(options: {
 
   const boomLetters: HTMLElement[] = [];
   const boomLetterScales: number[] = [];
+  const boomLetterRotations: number[] = [];
   const boomBounceTimelines: gsap.core.Timeline[] = [];
   const boomText = ['B', 'O', 'O', 'M'];
   boomText.forEach((letter, idx) => {
     const letterScale = 0.9 + Math.random() * 0.4; // random veličina slova
-    const angle = 8 + Math.random() * 4; // 8-12 deg
-    const rotation = Math.random() < 0.5 ? angle : -angle;
+    const rotation = (Math.random() - 0.5) * 24; // -12 do +12 deg, svako slovo svoja random rotacija
     const letterEl = document.createElement('span');
     letterEl.textContent = letter;
     const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(210, 109, 64, 0.25))';
@@ -229,7 +247,7 @@ export function showTntAnimation(options: {
       'display: inline-block',
       'visibility: visible',
       'pointer-events: none',
-      `margin-right: ${idx === boomText.length - 1 ? 0 : Math.round(83 * 0.1)}px`,
+      'margin-right: 0',
       'padding: 0',
       'border: 0',
       'outline: 0',
@@ -247,6 +265,7 @@ export function showTntAnimation(options: {
     boomContainer.appendChild(letterEl);
     boomLetters.push(letterEl);
     boomLetterScales.push(letterScale);
+    boomLetterRotations.push(rotation);
 
     // kontinuirani springy bounce - nisko trenje
     const bounceTl = trackTimeline({ repeat: -1, yoyo: true });
@@ -297,7 +316,8 @@ export function showTntAnimation(options: {
     gsap.set(frameEl, {
       x: 0,
       y: 0,
-      scale: 0,
+      scaleX: 0,
+      scaleY: 0,
       opacity: 0,
       rotation: randomRotation
     });
@@ -306,18 +326,22 @@ export function showTntAnimation(options: {
     extraTimelines.push(tl);
     tl.to(frameEl, {
       opacity: 1,
-      scale: randomSize * ENTER_BOUNCE_SCALE,
+      scaleX: randomSize * ENTER_BOUNCE_SCALE,
+      scaleY: randomSize * ENTER_BOUNCE_SCALE * VERTICAL_STRETCH,
       duration: dEnter,
       ease: 'back.out(2.0)'
     });
     tl.to(frameEl, {
-      scale: randomSize,
+      scaleX: randomSize,
+      scaleY: randomSize * VERTICAL_STRETCH,
       duration: dSettle,
       ease: 'power2.out'
     }, '>0');
     tl.call(() => {
+      const bounceS = randomSize * (1.02 + Math.random() * 0.06);
       const bounce = gsap.to(frameEl, {
-        scale: randomSize * (1.02 + Math.random() * 0.06),
+        scaleX: bounceS,
+        scaleY: bounceS * VERTICAL_STRETCH,
         y: (Math.random() - 0.5) * 4,
         duration: 0.4,
         ease: 'elastic.inOut(1, 0.25)',
@@ -330,15 +354,18 @@ export function showTntAnimation(options: {
     tl.call(() => {
       const bounce = spriteBounceTweensRef[i];
       if (bounce) try { bounce.kill(); } catch {}
+      const exitS = randomSize * EXIT_BOUNCE_SCALE;
       gsap.to(frameEl, {
-        scale: randomSize * EXIT_BOUNCE_SCALE,
+        scaleX: exitS,
+        scaleY: exitS * VERTICAL_STRETCH,
         z: 30,
         duration: EXIT_BOUNCE_DURATION,
         ease: 'power2.out',
         onComplete: () => {
           gsap.to(frameEl, {
             opacity: 0,
-            scale: 0,
+            scaleX: 0,
+            scaleY: 0,
             z: -100,
             duration: EXIT_FADE_DURATION,
             ease: 'back.in(2.0)'
@@ -357,11 +384,25 @@ export function showTntAnimation(options: {
     boomBounceTimelines.forEach((tl) => {
       try { tl.kill(); } catch {}
     });
+    // Allow drag after BOOM letters finish exit
+    try {
+      if (dragBlockTimeout) dragBlockTimeout.kill();
+      const exitTotal =
+        (BOOM_EXIT_STAGGER * Math.max(0, boomLetters.length - 1)) +
+        (EXIT_BOUNCE_DURATION + BOOM_EXIT_EXTRA * 0.2) +
+        (EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8) +
+        0.05;
+      dragBlockTimeout = trackDelayedCall(exitTotal, () => {
+        try { (window as any).__ccTntDragBlocked = false; } catch {}
+      });
+    } catch {}
     boomLetters.forEach((letterEl, index) => {
       const delay = index * BOOM_EXIT_STAGGER;
       const exitTl = trackTimeline({ delay });
       extraTimelines.push(exitTl);
       const baseScale = boomLetterScales[index] ?? 1;
+      const baseRot = boomLetterRotations[index] ?? 0;
+      const exitRotation = (baseRot >= 0 ? 1 : -1) * (12 + Math.random() * 8); // svako slovo zadržava svoj smjer
       exitTl.to(letterEl, {
         scale: baseScale * 1.1,
         z: 30,
@@ -371,9 +412,9 @@ export function showTntAnimation(options: {
       exitTl.to(letterEl, {
         opacity: 0,
         scale: 0,
-        rotation: index % 2 === 0 ? 15 : -15,
-        rotationX: index % 2 === 0 ? 45 : -45,
-        rotationY: index % 2 === 0 ? 30 : -30,
+        rotation: exitRotation,
+        rotationX: baseRot >= 0 ? 45 : -45,
+        rotationY: baseRot >= 0 ? 30 : -30,
         z: -100,
         duration: EXIT_FADE_DURATION + BOOM_EXIT_EXTRA * 0.8,
         ease: 'power2.in'

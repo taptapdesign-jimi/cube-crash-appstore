@@ -2311,6 +2311,12 @@ async function startNewRun(boardId: number): Promise<void> {
       uiManager.hideApp();
       console.log('✅ App element hidden AFTER detail modal shown (prevents click blocking)');
       
+      // Resume menu soundtrack when returning to detail modal (Journey context)
+      try {
+        const { fadeInAndResume } = await import('./modules/soundtrack-manager.js');
+        fadeInAndResume();
+      } catch (_) { /* ignore */ }
+      (window as any).__ccSoundtrackResumedThisExit = true;
       console.log('✅ Detail modal pathway complete - Journey screen hidden, detail modal shown');
     } else if (targetSlide === 1) {
       // 🔥 Journey pathway - NO homepage slider involvement
@@ -2359,7 +2365,14 @@ async function startNewRun(boardId: number): Promise<void> {
           }
         }
       }
-      
+
+      // Resume menu soundtrack with fade in when Journey is shown (so music plays on Journey)
+      try {
+        const { fadeInAndResume } = await import('./modules/soundtrack-manager.js');
+        fadeInAndResume();
+      } catch (_) { /* ignore */ }
+      (window as any).__ccSoundtrackResumedThisExit = true;
+
       // Ensure navigation stays hidden (Journey has its own back button)
       const navElement = document.getElementById('independent-nav');
       if (navElement) {
@@ -2381,21 +2394,30 @@ async function startNewRun(boardId: number): Promise<void> {
       // 🔥 Homepage pathway - normal slider animation
       console.log('🏠 Homepage pathway - playing slider enter animation...');
       animateSliderEnter();
-      
+      // Resume menu soundtrack with fade in when homepage is shown
+      try {
+        const { fadeInAndResume } = await import('./modules/soundtrack-manager.js');
+        fadeInAndResume();
+      } catch (_) { /* ignore */ }
+      (window as any).__ccSoundtrackResumedThisExit = true;
       // 🔥 CRITICAL FIX: Hide app element AFTER homepage is shown
-      // This ensures exit animation was fully visible before hiding app
       await new Promise(resolve => setTimeout(resolve, 200));
       uiManager.hideApp();
       console.log('✅ App element hidden AFTER homepage shown (exit animation was visible)');
     }
     console.log('✅ Exit complete - pathways separated');
-    
     logger.info('✅ Exited to menu successfully - next play will start fresh without resume sheet');
-    
   } catch (error) {
     logger.error('❌ Failed to exit to menu:', String(error));
   } finally {
-    // Reset flag after cleanup
+    // Resume soundtrack if not already triggered in pathway (e.g. error path)
+    try {
+      const { soundtrackManager } = await import('./modules/soundtrack-manager.js');
+      if (!(window as any).__ccSoundtrackResumedThisExit) {
+        soundtrackManager.fadeInAndResume?.();
+      }
+      delete (window as any).__ccSoundtrackResumedThisExit;
+    } catch (_) { /* ignore */ }
     (window as any).exitingToMenu = false;
     console.log('🔓 Reset exitingToMenu flag');
   }

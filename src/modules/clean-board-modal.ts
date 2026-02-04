@@ -1392,6 +1392,18 @@ export async function showCleanBoardModal({
         }
       } catch {}
       
+      // 🔥 LESS AGGRESSIVE: Stop stars/confetti immediately before transition
+      try { stopAllStarAnimations({ exit: true, numStars }); } catch {}
+      try {
+        import('./confetti-system.js').then(confettiModule => {
+          if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
+            confettiModule.cleanupConfetti();
+          } else if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
+            confettiModule.stopConfettiSpawns();
+          }
+        }).catch(() => {});
+      } catch {}
+
       // 🧪 DEV MODE: If dev mode is enabled, show board transition screen instead of normal flow
       if (devMode) {
         console.log('🧪 DEV MODE: Showing board transition screen');
@@ -1461,9 +1473,16 @@ export async function showCleanBoardModal({
         try { el.remove(); } catch {}
         removeStyleTag(); // Remove CSS style tag
         
-        // 🔥 GRACEFUL CLEANUP: Stop new confetti spawns but let existing animations finish
-        // This allows confetti to continue animating after primary button is clicked
-        stopConfettiSpawnsSafe();
+        // 🔥 DEFENSIVE CLEANUP: Fully cleanup confetti to reduce transition spikes
+        try {
+          import('./confetti-system.js').then(confettiModule => {
+            if (confettiModule && typeof confettiModule.cleanupConfetti === 'function') {
+              confettiModule.cleanupConfetti();
+            } else if (confettiModule && typeof confettiModule.stopConfettiSpawns === 'function') {
+              confettiModule.stopConfettiSpawns();
+            }
+          }).catch(() => {});
+        } catch {}
         
         // 🔥 NEW: Return action based on which button was clicked
         const action = isFromInterimBoard ? 'continue' : 'play-again';

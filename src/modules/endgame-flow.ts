@@ -675,6 +675,15 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         const starsCollector = await import('./stars-collector.js');
         starsCollector.cleanupStarsCollector?.();
       } catch {}
+      // Defensive: stop heavy FX before transition to reduce crash risk
+      try {
+        const bubbles = await import('./wild-beer-bubbles-explosion.js');
+        bubbles.forceStopWildBeerBubblesExplosion?.();
+      } catch {}
+      try {
+        const tnt = await import('./tnt-animation.js');
+        tnt.stopTntAnimation?.();
+      } catch {}
 
       // 🔥 CRITICAL FIX: Set board transition flag to protect bubble explosion from cleanup
       (window as any).__ccBoardTransitionActive = true;

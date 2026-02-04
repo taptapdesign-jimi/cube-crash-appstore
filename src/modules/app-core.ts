@@ -16,7 +16,7 @@ import { STATE } from './app-state.ts';
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations } from './fx.ts';
-import { showWildBeerBubblesExplosion, stopWildBeerBubblesExplosion, isWildBeerBubblesExplosionActive, isWildBeerBubblesExplosionRecentlyStarted, destroyWildBeerBubblesExplosionCache } from './wild-beer-bubbles-explosion.ts';
+import { showWildBeerBubblesExplosion, stopWildBeerBubblesExplosion, forceStopWildBeerBubblesExplosion, isWildBeerBubblesExplosionActive, isWildBeerBubblesExplosionRecentlyStarted, destroyWildBeerBubblesExplosionCache } from './wild-beer-bubbles-explosion.ts';
 import { showTntAnimation, stopTntAnimation } from './tnt-animation.ts';
 import { stopWildBeerBubblesScreen, destroyWildBeerBubblesScreenCache } from './wild-beer-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
@@ -156,6 +156,40 @@ const trackDelayedCall = (...args: Parameters<typeof gsap.delayedCall>) =>
 
 type ComboTimer = ReturnType<typeof setTimeout> | { kill?: () => void } | null;
 type DelayedCall = ReturnType<typeof trackDelayedCall> | null;
+
+// TNT bonus cleanup tracking (delayed calls + wobble tweens)
+let tntBoomDelayedCalls: Array<gsap.core.Tween> = [];
+let tntBlastWobbleTweens: Array<gsap.core.Tween> = [];
+let magnetBlastDelayedCalls: Array<gsap.core.Tween> = [];
+let magnetBlastReturnTweens: Array<gsap.core.Tween> = [];
+
+function cleanupTntBoomArtifacts(reason: string = 'unknown'): void {
+  try {
+    tntBoomDelayedCalls.forEach((dc) => {
+      try { dc?.kill?.(); } catch {}
+    });
+    tntBoomDelayedCalls = [];
+  } catch {}
+  try {
+    tntBlastWobbleTweens.forEach((tw) => {
+      try { tw?.kill?.(); } catch {}
+    });
+    tntBlastWobbleTweens = [];
+  } catch {}
+  try {
+    magnetBlastDelayedCalls.forEach((dc) => {
+      try { dc?.kill?.(); } catch {}
+    });
+    magnetBlastDelayedCalls = [];
+  } catch {}
+  try {
+    magnetBlastReturnTweens.forEach((tw) => {
+      try { tw?.kill?.(); } catch {}
+    });
+    magnetBlastReturnTweens = [];
+  } catch {}
+  try { devLog('🧹 cleanupTntBoomArtifacts:', reason); } catch {}
+}
 
 
 // HUD functions from hud-helpers.js
@@ -541,6 +575,7 @@ function resetGlobalFxLayer(reason: string = 'unknown') {
 
 function cleanupFxForBoardReset(reason: string = 'unknown') {
   devLog('🧹 cleanupFxForBoardReset:', reason);
+  try { cleanupTntBoomArtifacts(`fx:${reason}`); } catch {}
   try { killAllDelayedCalls?.(); } catch {}
   try { destroyAllGraphicsObjects?.(); } catch {}
   try { cleanupExistingStarAnimations?.(); } catch {}
@@ -557,6 +592,14 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
         isBoardTransitionActive,
         isFromInterimBoard,
         isRecentlyStarted
+      });
+      // Defensive: ensure explosion is stopped after transition settles
+      trackDelayedCall(0.8, () => {
+        try {
+          if (typeof isWildBeerBubblesExplosionActive === 'function' && isWildBeerBubblesExplosionActive()) {
+            forceStopWildBeerBubblesExplosion?.();
+          }
+        } catch {}
       });
     }
   } catch {}
@@ -939,14 +982,12 @@ function addWildProgress(amount){
 
   // 🎯 BOARD-SPECIFIC RULES: Apply wild meter fill rate multiplier
   const fillRate = getWildMeterFillRate(boardNumber);
-  // 🔥 USER REQUEST: Reduce wild meter fill rate by 20% for all boards (80% of original = 20% slower)
-  const globalSlowdown = 0.8; // 20% slower = 80% of original speed (was 0.6 = 40% slower)
+  // 🔥 USER REQUEST: Reduce wild meter fill rate by 40% for all boards
+  const globalSlowdown = 0.6; // 40% slower = 60% of original speed
   
-  // 🔥 iPad BALANCE FIX: Usporiti wild meter punjenje na iPad-u za 28.6% (faktor 0.714)
-  // Razlog: iPad ima 63 kockice (vs 45 na mobitelu = 40% više), što znači 40% brže punjenje u praksi
-  // Da bi igra bila fer, trebamo usporiti punjenje za 1/1.4 = 0.714 (28.6% sporije)
+  // 🔥 iPad BALANCE FIX: Zadrži isti relativni omjer kao prije (0.714/0.8 ≈ 0.8925)
   const isIPad = typeof window !== 'undefined' && window.innerWidth >= 768 && window.innerWidth <= 1024;
-  const iPadSlowdown = isIPad ? 0.714 : 1.0; // 28.6% usporavanje na iPad-u (71.4% brzine)
+  const iPadSlowdown = isIPad ? (globalSlowdown * 0.8925) : 1.0; // ~0.536 s globalSlowdown=0.6
   
   const adjustedInc = inc * fillRate * globalSlowdown * iPadSlowdown;
   devLog(`🎯 Board ${boardNumber}: Wild meter fill rate: ${fillRate}x, global slowdown: ${globalSlowdown}x, iPad slowdown: ${iPadSlowdown}x, adjusted increment: ${adjustedInc} (from ${inc})`);
@@ -1021,6 +1062,11 @@ async function showMysteryPrize(){
 // -------------------- boot --------------------
 export async function boot(){
   devLog('🎮 Initializing PIXI app');
+  // Fade out menu soundtrack when entering board game without board transition (e.g. direct continue)
+  try {
+    const { fadeOutAndPause } = await import('./soundtrack-manager.js');
+    fadeOutAndPause(2000);
+  } catch (_) { /* ignore */ }
   const reuseApp = !!(app && !app.destroyed && app.renderer && app.canvas);
   if (reuseApp) {
     devLog('♻️ Reusing existing PIXI app (soft reset)');
@@ -5606,7 +5652,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               const blastReturnHandles: Array<{ tile: Tile; wobble: gsap.core.Tween; origX: number; origY: number; returnDuration: number; returnElastic: number }> = [];
               const tntOverlay = showTntAnimation({
                 onBoomExitStart: () => {
-                  trackDelayedCall(0.4, () => {
+                  const returnCall = trackDelayedCall(0.4, () => {
                     blastReturnHandles.forEach((h) => {
                       try { h.wobble.kill(); } catch {}
                       gsap.to(h.tile, {
@@ -5617,10 +5663,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                         overwrite: 'auto'
                       });
                     });
+                    try { tntBlastWobbleTweens = []; } catch {}
                   });
-                  trackDelayedCall(0.4 + 0.359 - 0.2, () => {
+                  if (returnCall) tntBoomDelayedCalls.push(returnCall);
+                  const bonusCall = trackDelayedCall(0.4 + 0.359 - 0.2, () => {
                     runTntBoomBonusBreak2Tiles({ board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn });
                   });
+                  if (bonusCall) tntBoomDelayedCalls.push(bonusCall);
                 }
               });
               if (tntOverlay) alsoShakeTargets.push(tntOverlay);
@@ -5676,6 +5725,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     yoyo: true,
                     ease: `elastic.inOut(1, ${wobbleElastic})`
                   });
+                  try { tntBlastWobbleTweens.push(wobble); } catch {}
 
                   blastReturnHandles.push({
                     tile,
@@ -5691,6 +5741,63 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               }
             } catch (e) {
               devWarn('⚠️ TNT animation position failed:', e);
+            }
+          }
+          // Wild-magnet merge 6: odmakni ostale kockice od centra (kao TNT blast), bez pulled tiles
+          if (isMainWildMagnetMerge) {
+            try {
+              const magnetBlastCenter = centerInBoard(board, dst, TILE);
+              const magnetBlastStrength = TILE * 0.32;
+              const magnetBlastDuration = 0.38;
+              const magnetReturnDelay = 0.45;
+              const magnetReturnDuration = 1.15;
+              const magnetReturnElastic = 0.08;
+              const allTiles = STATE.tiles || [];
+              const magnetBlastHandles: Array<{ tile: Tile; origX: number; origY: number }> = [];
+              allTiles.forEach((tile: Tile) => {
+                if (!tile || tile.destroyed || tile === dst) return;
+                if ((tile as any)._wildMagnetAffected === true) return;
+                const origX = tile.x ?? 0;
+                const origY = tile.y ?? 0;
+                const tileCenter = centerInBoard(board, tile, TILE);
+                const dx = tileCenter.x - magnetBlastCenter.x;
+                const dy = tileCenter.y - magnetBlastCenter.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < 1) return;
+                const dirX = dx / distance;
+                const dirY = dy / distance;
+                const blastDist = magnetBlastStrength * (0.9 + Math.random() * 0.3);
+                const blastX = origX + dirX * blastDist;
+                const blastY = origY + dirY * blastDist;
+                try { gsap.killTweensOf(tile); } catch {}
+                gsap.set(tile, { x: origX, y: origY });
+                gsap.to(tile, {
+                  x: blastX,
+                  y: blastY,
+                  duration: magnetBlastDuration,
+                  ease: `elastic.out(1, ${0.04 + Math.random() * 0.04})`,
+                  overwrite: 'auto'
+                });
+                magnetBlastHandles.push({ tile, origX, origY });
+              });
+              const magnetReturnCall = trackDelayedCall(magnetReturnDelay + magnetBlastDuration, () => {
+                magnetBlastHandles.forEach((h) => {
+                  if (!h.tile.destroyed) {
+                    const retTween = gsap.to(h.tile, {
+                      x: h.origX,
+                      y: h.origY,
+                      duration: magnetReturnDuration,
+                      ease: `elastic.out(0.6, ${magnetReturnElastic + Math.random() * 0.04})`,
+                      overwrite: 'auto'
+                    });
+                    try { magnetBlastReturnTweens.push(retTween); } catch {}
+                  }
+                });
+              });
+              if (magnetReturnCall) magnetBlastDelayedCalls.push(magnetReturnCall);
+              devLog('🧲 Wild-magnet merge 6 - blast (odmak kockica) started for', magnetBlastHandles.length, 'tiles');
+            } catch (e) {
+              devWarn('⚠️ Magnet blast animation failed:', e);
             }
           }
           try {
@@ -5725,6 +5832,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             
             // 🔥 CRITICAL DEBUG: Log all relevant values to diagnose why bubbles explosion might not trigger
             devLog('💧 Merge 6 check - isWildBeerMerge:', isWildBeerMerge, 'isPureWildStarMerge:', isPureWildStarMerge);
+            // Unlock for non-TNT wild merges after short delay
             devLog('💧 Merge 6 special values:', {
               srcSpecialMerge6,
               dstSpecialMerge6,
@@ -7196,7 +7304,18 @@ function runTntBoomBonusBreak2Tiles(deps: {
         if (!tile || tile.destroyed || !board || !STATE?.tiles) return;
         const c = tile.gridX ?? 0;
         const r = tile.gridY ?? 0;
-        addWildProgress(WILD_INC_BIG);
+        // Wild preload: cap immediate gain to 2, delay remaining to reduce spike
+        if (i < 2) {
+          addWildProgress(WILD_INC_BIG);
+        } else {
+          const delayedGain = trackDelayedCall(0.4 + (i - 2) * 0.1, () => {
+            addWildProgress(WILD_INC_BIG);
+          });
+          if (delayedGain) tntBoomDelayedCalls.push(delayedGain);
+        }
+        if (typeof (window as any).triggerHapticImpact === 'function') {
+          (window as any).triggerHapticImpact('heavy');
+        }
         try { regularMerge6ShardsTemplated(board, tile, { zIndex: 9993 }); } catch (e) { devWarn('TNT boom bonus shards:', e); }
         try { smokeBubblesAtTile(board, tile, TILE * 1.0, 1.3); } catch (e) { devWarn('TNT boom bonus smoke:', e); }
         removeTile(tile);
@@ -7208,7 +7327,8 @@ function runTntBoomBonusBreak2Tiles(deps: {
       if (delay <= 0) {
         doBreak();
       } else {
-        trackDelayedCall(delay, doBreak);
+        const dc = trackDelayedCall(delay, doBreak);
+        if (dc) tntBoomDelayedCalls.push(dc);
       }
     });
     devLog('🔥 TNT boom bonus: broke', count, 'regular tiles, spawned new (stagger 100ms, smoke+shards)');
