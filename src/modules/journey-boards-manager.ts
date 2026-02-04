@@ -3183,6 +3183,10 @@ class JourneyBoardsManager {
       // HUD drop animation is already handled in continueGameWithSavedState() for Journey pathway
       let didContinue = false;
       try {
+        // Stability: cleanup FX before transition
+        try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
+        try { (window as any).CC?.cleanupFxForBoardReset?.('journey-transition'); } catch {}
+        try { (window as any).CC?.softResetBoardView?.('journey-transition'); } catch {}
         const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
         await showBoardTransitionScreen({
           boardNumber: board.id,

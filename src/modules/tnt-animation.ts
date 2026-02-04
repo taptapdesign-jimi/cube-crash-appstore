@@ -31,6 +31,9 @@ let boomBounceTimelinesRef: gsap.core.Timeline[] = [];
 let activeFrameImages: HTMLImageElement[] = [];
 let activeFrameWrappers: HTMLElement[] = [];
 let dragBlockTimeout: gsap.core.Tween | null = null;
+let boomExitListeners: Array<() => void> = [];
+let tntCompleteListeners: Array<() => void> = [];
+let didComplete = false;
 
 const trackTimeline = (opts?: gsap.TimelineVars) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: Parameters<typeof gsap.delayedCall>) =>
@@ -58,6 +61,16 @@ function cleanup(): void {
       try { dragBlockTimeout.kill(); } catch {}
       dragBlockTimeout = null;
     }
+    boomExitListeners = [];
+    if (didComplete) {
+      try {
+        tntCompleteListeners.forEach((fn) => {
+          try { fn(); } catch {}
+        });
+      } catch {}
+    }
+    tntCompleteListeners = [];
+    didComplete = false;
     activeFrameImages.forEach((img) => {
       try {
         gsap.killTweensOf(img);
@@ -96,6 +109,16 @@ function cleanup(): void {
 
 export function isTntAnimationActive(): boolean {
   return isActive;
+}
+
+export function onTntBoomExitComplete(cb: () => void): void {
+  if (!cb) return;
+  boomExitListeners.push(cb);
+}
+
+export function onTntAnimationComplete(cb: () => void): void {
+  if (!cb) return;
+  tntCompleteListeners.push(cb);
 }
 
 /** Vrati overlay element da ga app-core može proslijediti screenShake (alsoShake). */
@@ -290,6 +313,7 @@ export function showTntAnimation(options: {
   // Master timeline for cleanup
   timeline = trackTimeline({
     onComplete: () => {
+      didComplete = true;
       cleanup();
       try { onComplete?.(); } catch {}
     },
@@ -394,6 +418,12 @@ export function showTntAnimation(options: {
         0.05;
       dragBlockTimeout = trackDelayedCall(exitTotal, () => {
         try { (window as any).__ccTntDragBlocked = false; } catch {}
+        try {
+          boomExitListeners.forEach((fn) => {
+            try { fn(); } catch {}
+          });
+          boomExitListeners = [];
+        } catch {}
       });
     } catch {}
     boomLetters.forEach((letterEl, index) => {

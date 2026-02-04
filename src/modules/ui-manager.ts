@@ -1432,6 +1432,11 @@ class UIManager {
   
   // Show Journey screen with exit animation
   private showCollectiblesScreenWithAnimation(): void {
+    // Stability: cleanup FX before navigation
+    try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
+    try { (window as any).CC?.cleanupFxForBoardReset?.('nav:collectibles'); } catch {}
+    try { (window as any).CC?.softResetBoardView?.('nav:collectibles'); } catch {}
+
     // 🔥 CRITICAL: Set paper background to 60% opacity IMMEDIATELY at the VERY FIRST line
     // This MUST happen before ANY other code, including logger calls
     // This prevents gray color from showing during slider exit animation
@@ -1586,6 +1591,8 @@ class UIManager {
   
   // Hide Journey screen with enter animation
   async hideCollectiblesScreenWithAnimation(): Promise<void> {
+    // Stability: dispatch navigation cleanup
+    try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
     // 🔥 FIX: Prevent duplicate calls (iOS optimization)
     if ((window as any).__ccIsHidingCollectibles) {
       logger.warn('⚠️ hideCollectiblesScreenWithAnimation already in progress, ignoring duplicate call');
@@ -1889,6 +1896,11 @@ class UIManager {
   
   // Show settings screen
   private showSettingsScreenWithAnimation(): void {
+    // Stability: cleanup FX before navigation
+    try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
+    try { (window as any).CC?.cleanupFxForBoardReset?.('nav:settings'); } catch {}
+    try { (window as any).CC?.softResetBoardView?.('nav:settings'); } catch {}
+
     // 🔥 CRITICAL: Set paper background to 60% opacity IMMEDIATELY at the VERY FIRST line
     // This MUST happen before ANY other code, including logger calls
     // This prevents gray color from showing during slider exit animation
@@ -2062,6 +2074,14 @@ class UIManager {
   // Hide settings screen with enter animation
   private hideSettingsScreenWithAnimation(): void {
     logger.info('⚙️ Hiding settings screen - with enter animation');
+
+    // Stability: cleanup settings screen handlers/animations
+    try {
+      const settingsScreen = this.elements.settingsScreen as any;
+      settingsScreen?._settingsCleanup?.();
+    } catch {}
+    try { cleanupSettingsAnimations?.(); } catch {}
+    try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
     
     // 🎨 CRITICAL: Keep paper background at 60% opacity during Settings exit
     // This must happen IMMEDIATELY when back button is clicked, BEFORE anything else

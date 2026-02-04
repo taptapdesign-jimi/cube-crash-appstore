@@ -17,7 +17,7 @@ import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
 import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations } from './fx.ts';
 import { showWildBeerBubblesExplosion, stopWildBeerBubblesExplosion, forceStopWildBeerBubblesExplosion, isWildBeerBubblesExplosionActive, isWildBeerBubblesExplosionRecentlyStarted, destroyWildBeerBubblesExplosionCache } from './wild-beer-bubbles-explosion.ts';
-import { showTntAnimation, stopTntAnimation } from './tnt-animation.ts';
+import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete } from './tnt-animation.ts';
 import { stopWildBeerBubblesScreen, destroyWildBeerBubblesScreenCache } from './wild-beer-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
@@ -206,6 +206,52 @@ let checkLevelEndTimer: DelayedCall = null;
 let checkLevelEndRetryCount = 0; // 🔥 v38: Track reschedule attempts
 const MAX_CHECK_LEVEL_END_RETRIES = 10; // 🔥 v38: Prevent infinite reschedule loops
 let __ccRuntimeTextureHooksInstalled = false;
+let __ccNavigationCleanupInstalled = false;
+let __ccGsapTickerTrackingInstalled = false;
+let __ccTrackedGsapTickers: Set<Function> | null = null;
+let __ccNavCleanupTimer: number | null = null;
+
+function installGsapTickerTracking(): void {
+  if (__ccGsapTickerTrackingInstalled) return;
+  __ccGsapTickerTrackingInstalled = true;
+  try {
+    const ticker = (gsap as any)?.ticker;
+    if (!ticker || typeof ticker.add !== 'function' || typeof ticker.remove !== 'function') {
+      return;
+    }
+    if ((ticker as any).__ccWrapped) {
+      __ccTrackedGsapTickers = (ticker as any).__ccTracked || __ccTrackedGsapTickers;
+      return;
+    }
+    const origAdd = ticker.add.bind(ticker);
+    const origRemove = ticker.remove.bind(ticker);
+    __ccTrackedGsapTickers = new Set();
+    (ticker as any).__ccTracked = __ccTrackedGsapTickers;
+    (ticker as any).__ccWrapped = true;
+    (ticker as any).__ccOrigAdd = origAdd;
+    (ticker as any).__ccOrigRemove = origRemove;
+
+    ticker.add = (fn: any, prioritize?: boolean, once?: boolean) => {
+      try { if (fn) __ccTrackedGsapTickers?.add(fn); } catch {}
+      return origAdd(fn, prioritize, once);
+    };
+    ticker.remove = (fn: any) => {
+      try { if (fn) __ccTrackedGsapTickers?.delete(fn); } catch {}
+      return origRemove(fn);
+    };
+  } catch {}
+}
+
+function killTrackedGsapTickers(reason: string = 'unknown'): void {
+  try {
+    if (!__ccTrackedGsapTickers || __ccTrackedGsapTickers.size === 0) return;
+    __ccTrackedGsapTickers.forEach((fn) => {
+      try { gsap.ticker.remove(fn as any); } catch {}
+    });
+    __ccTrackedGsapTickers.clear();
+    devLog('🧹 killTrackedGsapTickers:', reason);
+  } catch {}
+}
 
 // 🔒 SAFETY: Remove any lingering magnet merge-6 tiles (value 6 with magnet flags) to prevent stuck boards
 // ✅ OPTIMIZED: O(n) complexity instead of O(n²) by using direct grid coordinates
@@ -575,16 +621,46 @@ function resetGlobalFxLayer(reason: string = 'unknown') {
 
 function cleanupFxForBoardReset(reason: string = 'unknown') {
   devLog('🧹 cleanupFxForBoardReset:', reason);
+  const isNavCleanup =
+    typeof reason === 'string' &&
+    (reason.includes('nav:') || reason.includes('cc-navigation') || reason.includes('journey') || reason.includes('settings') || reason.includes('collectibles'));
   try { cleanupTntBoomArtifacts(`fx:${reason}`); } catch {}
   try { killAllDelayedCalls?.(); } catch {}
   try { destroyAllGraphicsObjects?.(); } catch {}
   try { cleanupExistingStarAnimations?.(); } catch {}
   try { stopTntAnimation?.(); } catch {}
+  try { stopWildBeerBubblesScreen?.(); } catch {}
+  if (isNavCleanup) {
+    try { killTrackedGsapTickers(`fx:${reason}`); } catch {}
+  }
+  // 🔥 Stability: stop per-tile idle FX to avoid lingering tickers/intervals
+  try {
+    const tileList = (STATE && STATE.tiles && STATE.tiles.length) ? STATE.tiles : tiles;
+    if (tileList && tileList.length) {
+      tileList.forEach((t: any) => {
+        try { stopWildIdle?.(t); } catch {}
+        try { stopWildShimmer?.(t); } catch {}
+        try { stopWildStars?.(t); } catch {}
+        try { stopWildBeerBubbles?.(t); } catch {}
+        try { stopMagnetIdleParticles?.(t); } catch {}
+        try { stopTntIdleParticles?.(t); } catch {}
+        try { stopTntIdleShake?.(t); } catch {}
+        if ((t as any)?._glowAnimation) {
+          try { (t as any)._glowAnimation.kill?.(); } catch {}
+          try { (t as any)._glowAnimation = null; } catch {}
+        }
+      });
+    }
+  } catch {}
   try {
     const isBoardTransitionActive = (window as any).__ccBoardTransitionActive === true;
     const isFromInterimBoard = (window as any).__ccFromInterimBoard === true || (window as any).__ccIsInterimBoard === true;
     const isRecentlyStarted = typeof isWildBeerBubblesExplosionRecentlyStarted === 'function' && isWildBeerBubblesExplosionRecentlyStarted();
-    if (!isBoardTransitionActive && !isFromInterimBoard && !isRecentlyStarted) {
+    if (isNavCleanup) {
+      try { forceStopWildBeerBubblesExplosion?.(); } catch {}
+      try { stopWildBeerBubblesExplosion?.(); } catch {}
+      try { stopWildBeerBubblesScreen?.(); } catch {}
+    } else if (!isBoardTransitionActive && !isFromInterimBoard && !isRecentlyStarted) {
       stopWildBeerBubblesExplosion?.();
     } else {
       devLog('⏸️ cleanupFxForBoardReset: Skipping bubble explosion cleanup', {
@@ -1075,6 +1151,31 @@ export async function boot(){
   // Reset user made move flag for new game
   window._userMadeMove = false;
   devLog('🔄 Reset user made move flag for new game');
+
+  // 🔥 Stability: track GSAP tickers globally (install once)
+  try { installGsapTickerTracking(); } catch {}
+
+  // 🔥 Stability: global navigation cleanup hook (install once)
+  if (!__ccNavigationCleanupInstalled) {
+    __ccNavigationCleanupInstalled = true;
+    try {
+      window.addEventListener('cc-navigation', () => {
+        // Small delay to allow exit animations to settle
+        try {
+          if (__ccNavCleanupTimer) {
+            clearTimeout(__ccNavCleanupTimer);
+          }
+          __ccNavCleanupTimer = window.setTimeout(() => {
+            try { cleanupFxForBoardReset('cc-navigation'); } catch {}
+            try { softResetBoardView('cc-navigation'); } catch {}
+          }, 220);
+        } catch {
+          try { cleanupFxForBoardReset('cc-navigation'); } catch {}
+          try { softResetBoardView('cc-navigation'); } catch {}
+        }
+      });
+    } catch {}
+  }
   
   // CRITICAL: Check for unsaved high score on boot
   trackAppTimeout(() => {
@@ -6324,6 +6425,16 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           // Skip wild progress and spawn - go directly to clean board flow
           // The clean board flow will be triggered by the _isLastMerge flag check below
           // 🔥 CRITICAL: DON'T call addWildProgress - it would fill wild meter and trigger wild spawn!
+
+          // 🔥 If final merge is TNT, wait for full TNT animation exit before clean board
+          const isFinalTntMerge = srcSpecialMerge6 === 'wild-tnt' || dstSpecialMerge6 === 'wild-tnt';
+          if (isFinalTntMerge && typeof onTntAnimationComplete === 'function') {
+            devLog('💥 Final TNT merge: deferring clean board until TNT animation completes');
+            onTntAnimationComplete(() => {
+              try { triggerCleanBoardFlow('final_tnt_merge_after_tnt'); } catch {}
+            });
+            return;
+          }
         } else {
           // Normal merge-6 - add wild progress
           devLog('✅ Normal merge-6 (NOT last merge) - adding wild progress');
