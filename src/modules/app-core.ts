@@ -413,6 +413,7 @@ window.comboText = null;
 let wildMeter = 0;
 let wildSpawnInProgress = false; // Prevent overlapping wild spawns
 let merge6SpawnInProgress = false; // 🔥 BUG FIX: Prevent duplicate spawns when wild star/beer are used rapidly
+let merge6SpawnResetTimer: gsap.core.Tween | null = null;
 let wildSpawnRetryTimer = null;  // Retry timer when no cells are free
 let wildMagnetPullInProgress = false; // Prevent overlapping wild-magnet pull animations
 let busyEnding = false;
@@ -630,8 +631,22 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   try { cleanupExistingStarAnimations?.(); } catch {}
   try { stopTntAnimation?.(); } catch {}
   try { stopWildBeerBubblesScreen?.(); } catch {}
-  if (isNavCleanup) {
+  if (isNavCleanup || reason.includes('cleanupGame') || reason.includes('restartGame')) {
     try { killTrackedGsapTickers(`fx:${reason}`); } catch {}
+    try { clearAllAppTimeouts(); } catch {}
+    try { clearAllAppAnimationFrames(); } catch {}
+    try { clearAllAppIntervals(); } catch {}
+    try { clearAllAppListeners(); } catch {}
+    try {
+      import('./dom-element-pool.js').then((m) => {
+        try { m.domElementPool?.clear?.(); } catch {}
+      }).catch(() => {});
+    } catch {}
+    try {
+      import('./object-pool.js').then((m) => {
+        try { m.graphicsPool?.clear?.(); } catch {}
+      }).catch(() => {});
+    } catch {}
   }
   // 🔥 Stability: stop per-tile idle FX to avoid lingering tickers/intervals
   try {
@@ -3751,6 +3766,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         // This prevents false "stuck" detection when board has 2 tiles (e.g., 4 and 2) that can merge
         // 🔥 CRITICAL FIX: SKIP this check if wild-magnet merge (magnet will pull tiles AFTER this merge)
         const isWildMagnetMerge = srcSpecial === 'wild-magnet' || dstSpecial === 'wild-magnet';
+        const isRegularMergeOnly = !srcSpecial && !dstSpecial;
         const isMerge6 = effSum === 6;
         
         // 🔥 USER REQUEST: Check for last move scenarios
@@ -3783,7 +3799,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         
         // 🔥 CRITICAL: Only check for stuck state if it's NOT a merge-6 (merge-6 will spawn new tiles)
         // For merge-6, we check AFTER spawn completes in checkLevelEnd()
-        if (!busyEnding && !isWildMagnetMerge && !isMerge6) {
+        if (!busyEnding && !isMerge6 && (!isWildMagnetMerge || isRegularMergeOnly)) {
           // Add delay to ensure removeTile has completed and tiles array is updated
           // 🔥 INCREASED DELAY: 100ms instead of 50ms to ensure tiles array is fully updated
           await waitTracked(100);
@@ -6561,6 +6577,14 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           devWarn('⚠️ SPAWN BLOCKED: spawnMult is invalid:', spawnMult, 'mult:', mult);
           // 🔥 BUG FIX: Reset spawn flag if spawn is skipped (spawnMult = 0)
           merge6SpawnInProgress = false;
+          if (merge6SpawnResetTimer) {
+            try { merge6SpawnResetTimer.kill(); } catch {}
+            merge6SpawnResetTimer = null;
+          }
+          if (merge6SpawnResetTimer) {
+            try { merge6SpawnResetTimer.kill(); } catch {}
+            merge6SpawnResetTimer = null;
+          }
           return;
         }
         
@@ -6573,6 +6597,20 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         }
         merge6SpawnInProgress = true;
         devLog('✅ Set merge6SpawnInProgress = true to prevent duplicate spawns');
+        if (merge6SpawnResetTimer) {
+          try { merge6SpawnResetTimer.kill(); } catch {}
+        }
+        merge6SpawnResetTimer = trackDelayedCall(2.5, () => {
+          if (merge6SpawnInProgress) {
+            devWarn('⚠️ merge6SpawnInProgress timed out - forcing reset');
+            merge6SpawnInProgress = false;
+            if (merge6SpawnResetTimer) {
+              try { merge6SpawnResetTimer.kill(); } catch {}
+              merge6SpawnResetTimer = null;
+            }
+          }
+          merge6SpawnResetTimer = null;
+        });
         
         // 🔥 CRITICAL: Get pulled cells from dst tile to exclude from normal spawn
         const pulledCells = (dst as any)?._wildMagnetPulledCells || [];
@@ -6707,11 +6745,19 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               // 🔥 BUG FIX: Reset spawn in progress flag after endgame spawn completes
               merge6SpawnInProgress = false;
               devLog('✅ Reset merge6SpawnInProgress = false after endgame spawn completed');
+              if (merge6SpawnResetTimer) {
+                try { merge6SpawnResetTimer.kill(); } catch {}
+                merge6SpawnResetTimer = null;
+              }
             }).catch((err) => {
               devWarn('⚠️ END-GAME SPAWN: Error spawning tile at dst position:', err);
               // 🔥 BUG FIX: Reset spawn in progress flag even on error
               merge6SpawnInProgress = false;
               devLog('✅ Reset merge6SpawnInProgress = false after endgame spawn error');
+              if (merge6SpawnResetTimer) {
+                try { merge6SpawnResetTimer.kill(); } catch {}
+                merge6SpawnResetTimer = null;
+              }
             });
           }, 50); // Small delay to ensure cleanup is complete
         } else {
@@ -6737,11 +6783,19 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             devLog('✅ openLockedBounceParallel completed - all spawn animations finished');
             // 🔥 BUG FIX: Reset spawn in progress flag after normal spawn completes
             merge6SpawnInProgress = false;
+            if (merge6SpawnResetTimer) {
+              try { merge6SpawnResetTimer.kill(); } catch {}
+              merge6SpawnResetTimer = null;
+            }
             devLog('✅ Reset merge6SpawnInProgress = false after normal spawn completed');
           }).catch((err) => {
             devWarn('⚠️ openLockedBounceParallel error:', err);
             // 🔥 BUG FIX: Reset spawn in progress flag even on error
             merge6SpawnInProgress = false;
+            if (merge6SpawnResetTimer) {
+              try { merge6SpawnResetTimer.kill(); } catch {}
+              merge6SpawnResetTimer = null;
+            }
             devLog('✅ Reset merge6SpawnInProgress = false after normal spawn error');
         });
         }
@@ -7480,6 +7534,18 @@ function removeTile(t){
   try { stopWildBeerBubbles?.(t); } catch {}
   try { stopMagnetIdleParticles?.(t); } catch {}
   try { stopTntIdleParticles?.(t); } catch {}
+  try {
+    delete (t as any)._wildMagnetAffected;
+    delete (t as any)._wildMagnetOriginalX;
+    delete (t as any)._wildMagnetOriginalY;
+    delete (t as any)._wildMagnetPulledTilesMerge;
+    delete (t as any)._wildMagnetPulledTilesScoring;
+    delete (t as any)._wildMagnetMergeCallback;
+    delete (t as any)._wildMagnetPulledCells;
+    delete (t as any)._hasTilesToPull;
+    delete (t as any)._skipMagnetPull;
+    delete (t as any)._noTilesPulled;
+  } catch {}
   board.removeChild(t);
   if (idx !== -1) {
     tiles.splice(idx, 1);

@@ -1481,106 +1481,110 @@ function cleanupBubblyOverlay(): void {
 function cleanup(): void {
   if (cleanupInProgress) return;
   cleanupInProgress = true;
-  cleanupBubblyOverlay();
-  lifecycle.cleanup();
-  isExplosionActive = false;
-  explosionStartTime = 0; // Reset start time on cleanup
-  // 🔥 CRITICAL: Clear global start time on cleanup
-  delete (window as any).__ccBubblesExplosionStartTime;
-
-  // Resolve any pending waiters to prevent hangs
-  if (_explosionWaiters.size) {
-    _explosionWaiters.forEach((fn) => {
-      try { fn(); } catch {}
-    });
-    _explosionWaiters.clear();
-  }
-
-  // Clear safety timeout
-  if (safetyTimeoutId) {
-    try {
-      clearTimeout(safetyTimeoutId);
-    } catch {}
-    safetyTimeoutId = null;
-  }
-
-  // Stop FPS monitoring
   try {
-    stopFpsMonitoring();
-  } catch (e) {
-    console.warn('⚠️ cleanup: Failed to stop FPS monitoring:', e);
-  }
+    cleanupBubblyOverlay();
+    lifecycle.cleanup();
+    isExplosionActive = false;
+    explosionStartTime = 0; // Reset start time on cleanup
+    // 🔥 CRITICAL: Clear global start time on cleanup
+    delete (window as any).__ccBubblesExplosionStartTime;
 
-  // Remove GSAP ticker
-  if (spawnTick) {
-    try {
-      gsap.ticker.remove(spawnTick);
-    } catch (e) {
-      console.warn('⚠️ cleanup: Failed to remove spawn ticker:', e);
-    }
-    spawnTick = null;
-  }
-
-  if (explosionContainer) {
-    const container = explosionContainer;
-    explosionContainer = null;
-
-    // Remove ticker from container
-    if (container._bubbleSpawnTicker) {
-      try {
-        gsap.ticker.remove(container._bubbleSpawnTicker);
-        container._bubbleSpawnTicker = null;
-      } catch (e) {
-        console.warn('⚠️ cleanup: Failed to remove container ticker:', e);
-      }
-    }
-
-    // Cleanup bubbles
-    try {
-      const children = [...(container.children || [])];
-      children.forEach((bubble) => {
-        try {
-          if (bubble._bubbleTweens && Array.isArray(bubble._bubbleTweens)) {
-            bubble._bubbleTweens.forEach(tween => {
-              try { if (tween && tween.kill) tween.kill(); } catch {}
-            });
-            bubble._bubbleTweens = null;
-          }
-          gsap.killTweensOf(bubble);
-          gsap.killTweensOf(bubble.scale);
-          if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
-          if (bubble instanceof Sprite) {
-            bubble.destroy();
-          } else {
-            graphicsPool.release(bubble);
-          }
-        } catch (e) {
-          // Silently fail
-        }
+    // Resolve any pending waiters to prevent hangs
+    if (_explosionWaiters.size) {
+      _explosionWaiters.forEach((fn) => {
+        try { fn(); } catch {}
       });
-    } catch (e) {
-      console.warn('⚠️ cleanup: Failed to cleanup bubbles:', e);
+      _explosionWaiters.clear();
     }
 
-    // Remove from parent
+    // Clear safety timeout
+    if (safetyTimeoutId) {
+      try {
+        clearTimeout(safetyTimeoutId);
+      } catch {}
+      safetyTimeoutId = null;
+    }
+
+    // Stop FPS monitoring
     try {
-      if (container.parent) {
-        container.parent.removeChild(container);
-      }
+      stopFpsMonitoring();
     } catch (e) {
-      console.warn('⚠️ cleanup: Failed to remove container from parent:', e);
+      console.warn('⚠️ cleanup: Failed to stop FPS monitoring:', e);
+    }
+
+    // Remove GSAP ticker
+    if (spawnTick) {
+      try {
+        gsap.ticker.remove(spawnTick);
+      } catch (e) {
+        console.warn('⚠️ cleanup: Failed to remove spawn ticker:', e);
+      }
+      spawnTick = null;
+    }
+
+    if (explosionContainer) {
+      const container = explosionContainer;
+      explosionContainer = null;
+
+      // Remove ticker from container
+      if (container._bubbleSpawnTicker) {
+        try {
+          gsap.ticker.remove(container._bubbleSpawnTicker);
+          container._bubbleSpawnTicker = null;
+        } catch (e) {
+          console.warn('⚠️ cleanup: Failed to remove container ticker:', e);
+        }
+      }
+
+      // Cleanup bubbles
+      try {
+        const children = [...(container.children || [])];
+        children.forEach((bubble) => {
+          try {
+            if (!bubble || (bubble as any).destroyed) return;
+            if (bubble._bubbleTweens && Array.isArray(bubble._bubbleTweens)) {
+              bubble._bubbleTweens.forEach(tween => {
+                try { if (tween && tween.kill) tween.kill(); } catch {}
+              });
+              bubble._bubbleTweens = null;
+            }
+            gsap.killTweensOf(bubble);
+            gsap.killTweensOf(bubble.scale);
+            if (bubble && bubble.parent) bubble.parent.removeChild(bubble);
+            if (bubble instanceof Sprite) {
+              bubble.destroy();
+            } else {
+              graphicsPool.release(bubble);
+            }
+          } catch (e) {
+            // Silently fail
+          }
+        });
+      } catch (e) {
+        console.warn('⚠️ cleanup: Failed to cleanup bubbles:', e);
+      }
+
+      // Remove from parent
+      try {
+        if (container.parent) {
+          container.parent.removeChild(container);
+        }
+      } catch (e) {
+        console.warn('⚠️ cleanup: Failed to remove container from parent:', e);
+      }
+      
+      // Destroy container
+      try {
+        if (!container.destroyed) {
+          container.destroy?.({ children: true });
+        }
+      } catch (e) {
+        console.warn('⚠️ cleanup: Failed to destroy container:', e);
+      }
     }
     
-    // Destroy container
-    try {
-      if (!container.destroyed) {
-        container.destroy?.({ children: true });
-      }
-    } catch (e) {
-      console.warn('⚠️ cleanup: Failed to destroy container:', e);
-    }
+    isExplosionActive = false;
+  } finally {
+    cleanupInProgress = false;
   }
-  
-  isExplosionActive = false;
-  cleanupInProgress = false;
 }

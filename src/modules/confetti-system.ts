@@ -256,34 +256,37 @@ export function stopConfettiSpawns(): void {
 export function cleanupConfetti(): void {
   confettiCleanupInProgress = true;
   confettiSpawnBlocked = true;
-  // First stop all new spawns
-  stopConfettiSpawns();
-  
-  // Clear all animProgress intervals (force cleanup)
-  activeAnimProgressIntervals.forEach(interval => {
-    try {
-      clearInterval(interval);
-    } catch (e) {
-      // Ignore errors
-    }
-  });
-  activeAnimProgressIntervals.clear();
-  
-  // Then remove all DOM elements (force cleanup)
-  activeConfettiElements.forEach(element => {
-    try {
-      if (element && element.parentNode) {
-        element.remove();
+  try {
+    // First stop all new spawns
+    stopConfettiSpawns();
+    
+    // Clear all animProgress intervals (force cleanup)
+    activeAnimProgressIntervals.forEach(interval => {
+      try {
+        clearInterval(interval);
+      } catch (e) {
+        // Ignore errors
       }
-    } catch (e) {
-      // Ignore errors
-    }
-  });
-  activeConfettiElements.clear();
-  
-  // Reset counter
-  activeAnimations = 0;
-  confettiCleanupInProgress = false;
+    });
+    activeAnimProgressIntervals.clear();
+    
+    // Then remove all DOM elements (force cleanup)
+    activeConfettiElements.forEach(element => {
+      try {
+        if (element && element.parentNode) {
+          element.remove();
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+    });
+    activeConfettiElements.clear();
+    
+    // Reset counter
+    activeAnimations = 0;
+  } finally {
+    confettiCleanupInProgress = false;
+  }
 }
 
 export { createConfettiExplosion };

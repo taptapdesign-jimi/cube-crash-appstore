@@ -107,8 +107,9 @@ function cleanup(): void {
     } catch {}
   } catch (e) {
     logger.warn('⚠️ tnt-animation cleanup error:', e);
+  } finally {
+    cleanupInProgress = false;
   }
-  cleanupInProgress = false;
 }
 
 export function isTntAnimationActive(): boolean {
