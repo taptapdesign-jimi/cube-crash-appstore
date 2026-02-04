@@ -2028,6 +2028,23 @@ class UIManager {
         logger.warn('⚠️ Settings back button not found in DOM');
       }
       
+      // 🔥 SAFETY: Global capture handler to ensure back always works
+      if (!this.settingsBackGlobalHandlerInstalled) {
+        this.settingsBackGlobalHandlerInstalled = true;
+        const globalBackHandler = (e: Event) => {
+          const target = e.target as HTMLElement | null;
+          if (!target) return;
+          const settingsEl = document.getElementById('settings-screen');
+          if (!settingsEl || settingsEl.hasAttribute('hidden') || settingsEl.style.display === 'none') return;
+          const backBtnEl = target.closest('#settings-back-btn, .settings-back-button');
+          if (!backBtnEl) return;
+          e.preventDefault();
+          e.stopPropagation();
+          this.hideSettingsScreenWithAnimation();
+        };
+        document.addEventListener('click', globalBackHandler, true);
+      }
+      
       // 🔥 CRITICAL: Set opacity to 0 FIRST so screen is invisible while GSAP sets initial state
       settingsScreen.style.opacity = '0';
       settingsScreen.style.display = 'flex';
@@ -2075,11 +2092,7 @@ class UIManager {
   private hideSettingsScreenWithAnimation(): void {
     logger.info('⚙️ Hiding settings screen - with enter animation');
 
-    // Stability: cleanup settings screen handlers/animations
-    try {
-      const settingsScreen = this.elements.settingsScreen as any;
-      settingsScreen?._settingsCleanup?.();
-    } catch {}
+    // Stability: cleanup settings screen animations
     try { cleanupSettingsAnimations?.(); } catch {}
     try { window.dispatchEvent(new Event('cc-navigation')); } catch {}
     
@@ -2184,6 +2197,7 @@ class UIManager {
   
   // 🔥 MEMORY LEAK FIX: Store settings toggle handlers
   private settingsToggleHandlers: Map<HTMLElement, { event: string; handler: EventListener }[]> = new Map();
+  private settingsBackGlobalHandlerInstalled = false;
   
   // Setup settings toggles
   private setupSettingsToggles(): void {

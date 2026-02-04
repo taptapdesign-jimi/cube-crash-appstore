@@ -216,7 +216,7 @@ export function showTntAnimation(options: {
       'transform-origin: center center',
       'pointer-events: none',
       'will-change: transform, opacity',
-      'filter: brightness(1.05)',
+      'filter: brightness(1.02)',
     ].join(';');
     wrapper.appendChild(frameEl);
     framesContainer.appendChild(wrapper);
