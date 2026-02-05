@@ -15,6 +15,9 @@ import {
   VISUAL_EFFECTS
 } from './drag-constants.js';
 
+const sharedShadowBlurFilter = new PIXI.filters.BlurFilter(VISUAL_EFFECTS.SHADOW_BLUR);
+sharedShadowBlurFilter.quality = 1;
+
 // Type definitions
 interface Tile extends Container {
   gridX: number;
@@ -337,7 +340,7 @@ export function createTileShadow(tile: Tile): Graphics {
     );
   }
   
-  shadow.filters = [new PIXI.filters.BlurFilter(VISUAL_EFFECTS.SHADOW_BLUR)];
+  shadow.filters = [sharedShadowBlurFilter];
   
   tile.addChildAt(shadow, 0);
   return shadow;

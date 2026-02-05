@@ -17,7 +17,7 @@ interface PauseModalOptions {
   onExit?: () => void | Promise<void>;
 }
 
-interface WindowWithCC extends Window {
+type WindowWithCC = {
   CC?: {
     app?: any;
     stage?: any;
@@ -27,7 +27,7 @@ interface WindowWithCC extends Window {
     hideGameUI?: () => void;
     nextLevel?: () => void;
   };
-}
+};
 
 declare global {
   interface Window extends WindowWithCC {}

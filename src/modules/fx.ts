@@ -870,7 +870,7 @@ export function wildMagnetDragParticlesTemplated(board, tile, opts = {}) {
   
   // Cleanup after TTL (longer for idle particles)
   const baseTtl = params.ttl || 0.6;
-  const ttl = (intensity < 0.5) ? 3.5 : baseTtl;  // 🔥 USER REQUEST: 3.5 seconds for idle, original for drag
+  const ttl = isIdleParticles ? Math.max(1.4, baseTtl + 1.2) : baseTtl;
   trackDelayedCall(ttl, () => {
     particlesInBatch.forEach((particle) => {
       try {
@@ -910,9 +910,13 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   }
   
   const intensity = opts.intensity ?? 1.0; // Default intensity 1.0 (100%)
+  const isIdleParticles = opts.trackForIdle === true;
   // 🔥 USER REQUEST: Increased shard count to 20 for all wild tiles (wild beer, wild star, wild magnet)
-  const baseShardCount = 20; // Increased from 12 to 20 (67% increase) for more visible smoke trail
-  const shardCount = Math.max(1, Math.round(baseShardCount * intensity)); // Scale shard count by intensity (50% = 10 shards, 100% = 20 shards)
+  const baseShardCount = isIdleParticles ? 12 : 20; // Lower base for idle to reduce CPU/GPU
+  let shardCount = Math.max(1, Math.round(baseShardCount * intensity)); // Scale shard count by intensity
+  if (isIdleParticles) {
+    shardCount = Math.min(shardCount, 14);
+  }
   const baseTile = Math.max(60, Math.min(200, opts.tileSize ?? 96));
   
   // 🔥 TEMPLATE-BASED: Get drag particle colors from active template (wooden style)
@@ -987,7 +991,6 @@ export function magicSparklesAtTile(board, tile, opts = {}){
   }
 
   // 🔥 MEMORY LEAK FIX: Track particles for idle animations (for immediate cleanup when tile is destroyed)
-  const isIdleParticles = opts.trackForIdle === true; // Only track if explicitly requested (for idle particles)
   const particlesToTrack = isIdleParticles ? [] : null; // Only create array if tracking is needed
   
   for (let i = 0; i < shardCount; i++) {
@@ -5022,6 +5025,8 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   const blendMode      = options.blendMode ?? 'add';
   const bubbleAlpha    = options.baseAlpha ?? 1.0;
   const startScaleHint = options.startScale ?? null;
+  const durationScale  = Math.max(0.2, Math.min(2.0, options.durationScale ?? 1));
+  const spawnShape     = options.spawnShape ?? 'box';
 
   const { x, y } = centerInBoard(board, tile, size);
   const layer = new Container();
@@ -5072,14 +5077,14 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       }
       
       let r0 = BASE_R + Math.random() * (MAX_R - BASE_R);
-      if (Math.random() < 0.22) r0 *= (1.35 + Math.random()*0.9);
+      if (Math.random() < 0.1) r0 *= (1.1 + Math.random()*0.3);
       // Cap max radius to prevent oversized bubbles (especially for merge 6)
       const maxRadius = Math.min(MAX_R * 1.5, size * 0.18); // Cap at 18% of tile size
       r0 = Math.min(r0, maxRadius);
       
       // Random shape: circle or ellipse
-      const isEllipse = Math.random() > 0.5;
-      const aspectRatio = isEllipse ? (0.6 + Math.random() * 0.8) : 1; // 0.6-1.4 for ellipse
+      const isEllipse = Math.random() > 0.65;
+      const aspectRatio = isEllipse ? (0.85 + Math.random() * 0.3) : 1; // 0.85-1.15 for ellipse
       const rx = r0;
       const ry = r0 * aspectRatio;
       
@@ -5104,32 +5109,49 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       
       layer.addChild(puff);
 
-      const side = (i + b) % 4;
-      const { sx, sy } = spawnOnSide(side);
-      puff.x = sx; puff.y = sy;
+      let sx = 0;
+      let sy = 0;
+      let dx = 0;
+      let dy = 0;
+      if (spawnShape === 'box') {
+        // Random within a square/rectangle region for a more organic, non-circular puff
+        const half = size * 0.5;
+        sx = (Math.random() - 0.5) * (size - INSET * 2);
+        sy = (Math.random() - 0.5) * (size - INSET * 2);
+        const boxRange = OUT_MAX * 0.8;
+        dx = sx + (Math.random() - 0.5) * boxRange * 2;
+        dy = sy + (Math.random() - 0.5) * boxRange * 2;
+      } else {
+        const side = (i + b) % 4;
+        const sidePos = spawnOnSide(side);
+        sx = sidePos.sx;
+        sy = sidePos.sy;
 
-      const normals = [
-        { nx: 0,  ny: -1 },
-        { nx: 1,  ny:  0 },
-        { nx: 0,  ny:  1 },
-        { nx: -1, ny:  0 },
-      ];
-      const { nx, ny } = normals[side];
-      const baseAngle = Math.atan2(ny, nx);
-      const spread = options.spread ?? 0.9;
-      const theta = baseAngle + (Math.random() - 0.5) * spread;
+        const normals = [
+          { nx: 0,  ny: -1 },
+          { nx: 1,  ny:  0 },
+          { nx: 0,  ny:  1 },
+          { nx: -1, ny:  0 },
+        ];
+        const { nx, ny } = normals[side];
+        const baseAngle = Math.atan2(ny, nx);
+        const spread = options.spread ?? 0.9;
+        const theta = baseAngle + (Math.random() - 0.5) * spread;
 
-      const distance = OUT_MIN + Math.random() * Math.max(0, OUT_MAX - OUT_MIN);
-      const dx = sx + Math.cos(theta) * distance;
-      const dy = sy + Math.sin(theta) * distance;
+        const distance = OUT_MIN + Math.random() * Math.max(0, OUT_MAX - OUT_MIN);
+        dx = sx + Math.cos(theta) * distance;
+        dy = sy + Math.sin(theta) * distance;
+      }
+      puff.x = sx;
+      puff.y = sy;
 
       const driftX = (Math.random()-0.5) * (size * 0.06 * distanceScale);
       const driftY = (Math.random()-0.5) * (size * 0.06 * distanceScale);
 
-      const tIn   = 0.018 + Math.random()*0.022;
-      const tRun  = 0.16  + Math.random()*0.12;
-      const tHold = 0.02  + Math.random()*0.03;
-      const tOut  = 0.08  + Math.random()*0.06;
+      const tIn   = (0.018 + Math.random()*0.022) * durationScale;
+      const tRun  = (0.16  + Math.random()*0.12) * durationScale;
+      const tHold = (0.02  + Math.random()*0.03) * durationScale;
+      const tOut  = (0.08  + Math.random()*0.06) * durationScale;
 
       const startScale = startScaleHint != null ? startScaleHint : (0.65 + Math.random()*0.25) * Math.max(0.7, sizeScale);
       puff.scale.set(startScale);
@@ -5850,7 +5872,7 @@ export function startMagnetIdleParticles(tile) {
       // 🔥 USER REQUEST: Increased alpha for idle particles to make them more visible
       // 🔥 MEMORY LEAK FIX: Track particles for immediate cleanup when tile is destroyed
       magicSparklesAtTile(board, tile, { 
-        intensity: 0.45, // 45% intensity (increased from 24% for better visibility)
+        intensity: 0.35, // Slightly reduced to lower idle cost
         trackForIdle: true // 🔥 CRITICAL: Track particles for cleanup
       });
     } catch (err) {
@@ -5871,7 +5893,7 @@ export function startMagnetIdleParticles(tile) {
       return;
     }
     generateParticles();
-  }, 200); // Every 200ms (5 times per second)
+  }, 350); // Every 350ms (~3 times per second)
 }
 
 /**

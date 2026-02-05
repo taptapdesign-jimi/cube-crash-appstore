@@ -387,7 +387,7 @@ export async function showCleanBoardModal({
       
       // Empty star (always visible, background layer)
       const emptyStar = document.createElement('img');
-      emptyStar.src = './assets/modals/star-empty.png';
+      emptyStar.src = '/assets/modals/star-empty.png';
       emptyStar.alt = 'Empty star';
       emptyStar.style.cssText = [
         'position:absolute',
@@ -400,7 +400,7 @@ export async function showCleanBoardModal({
       
       // Filled star (on top, hidden initially, will bounce in)
       const filledStar = document.createElement('img');
-      filledStar.src = './assets/modals/star.png';
+      filledStar.src = '/assets/modals/star.png';
       filledStar.alt = 'Filled star';
       filledStar.style.cssText = [
         'position:absolute',
@@ -436,7 +436,8 @@ export async function showCleanBoardModal({
       'align-items:center',
       'gap:48px', // 🌟 48px spacing between stars and title (56 - 8 = 48px)
       'width:100%',
-      'overflow:visible' // Allow particles to float outside
+      'overflow:visible', // Allow particles to float outside
+      'transform: translateY(16px)'
     ].join(';');
 
     const textCluster = document.createElement('div');

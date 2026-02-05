@@ -291,14 +291,22 @@ class SliderManager {
       const targetEl = e.target as Element;
       const isInteractive = isInteractiveElement(e.target);
       
+      const targetClassName =
+        targetEl && typeof targetEl.className === 'string'
+          ? targetEl.className
+          : (targetEl && (targetEl.className as any)?.baseVal) || '';
+      const parentElement = targetEl ? targetEl.parentElement : null;
+      const parentClassName =
+        parentElement && typeof parentElement.className === 'string' ? parentElement.className : '';
+
       // Debug log for all touches to see what's happening
       logger.debug('Touch start', undefined, {
         isInteractive,
         tagName: targetEl?.tagName,
-        className: (typeof targetEl?.className === 'string' ? targetEl?.className : (targetEl?.className as any)?.baseVal || '').slice(0, 60),
+        className: targetClassName.slice(0, 60),
         id: targetEl?.id,
-        parentTag: targetEl?.parentElement?.tagName,
-        parentClass: (typeof targetEl?.parentElement?.className === 'string' ? targetEl?.parentElement?.className : '').slice(0, 40)
+        parentTag: parentElement?.tagName,
+        parentClass: parentClassName.slice(0, 40)
       });
       
       if (isInteractive) {

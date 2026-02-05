@@ -10,6 +10,7 @@ import { container } from '../core/dependency-injection.js';
 
 let modal: HTMLElement | null = null;
 let _starsPickerOverlay: HTMLElement | null = null;
+let _devStarsPickerActive = false;
 
 // 🔥 MEMORY LEAK FIX: Track all timeouts, intervals, rAFs, and event listeners for cleanup
 const _endRunTimeouts = new Set<ReturnType<typeof setTimeout>>();
@@ -115,7 +116,7 @@ function cleanupAllEndRunResources(): void {
   clearAllEndRunAnimationFrames();
   clearAllEndRunEventListeners();
   clearAllEndRunOnEventHandlers();
-  if (_starsPickerOverlay) {
+  if (_starsPickerOverlay && !_devStarsPickerActive) {
     try { _starsPickerOverlay.remove(); } catch {}
     _starsPickerOverlay = null;
   }
@@ -126,6 +127,7 @@ function showCleanBoardStarsPicker(): Promise<number | null> {
   return new Promise((resolve) => {
     const overlay = document.createElement('div');
     _starsPickerOverlay = overlay;
+    _devStarsPickerActive = true;
     overlay.style.cssText = [
       'position:fixed',
       'inset:0',
@@ -221,6 +223,7 @@ function showCleanBoardStarsPicker(): Promise<number | null> {
       } else {
         overlay.remove();
       }
+      _devStarsPickerActive = false;
       resolve(selectedStars);
     });
 
@@ -245,6 +248,7 @@ function showCleanBoardStarsPicker(): Promise<number | null> {
       } else {
         overlay.remove();
       }
+      _devStarsPickerActive = false;
       resolve(null);
     });
 
@@ -257,6 +261,7 @@ function showCleanBoardStarsPicker(): Promise<number | null> {
         } else {
           overlay.remove();
         }
+        _devStarsPickerActive = false;
         resolve(null);
       }
     });

@@ -21,11 +21,13 @@ describe('loadSavedBoardState', () => {
   });
 
   it('returns null when no saved game exists', () => {
+    const storage = createLocalStorageMock();
     const result = loadSavedBoardState({
       boardNumber: 1,
       getBoardSaveKey: (n) => `cc_saved_game_board_${String(n).padStart(2, '0')}`,
       devLog: () => {},
       devWarn: () => {},
+      storage
     });
 
     expect(result).toBeNull();
@@ -42,6 +44,7 @@ describe('loadSavedBoardState', () => {
       getBoardSaveKey: (n) => `cc_saved_game_board_${String(n).padStart(2, '0')}`,
       devLog: () => {},
       devWarn: () => {},
+      storage
     });
 
     expect(result).toBeNull();
@@ -68,6 +71,7 @@ describe('loadSavedBoardState', () => {
       getBoardSaveKey: (n) => `cc_saved_game_board_${String(n).padStart(2, '0')}`,
       devLog: () => {},
       devWarn: () => {},
+      storage
     });
 
     expect(result).not.toBeNull();

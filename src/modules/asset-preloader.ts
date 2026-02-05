@@ -306,6 +306,32 @@ export class AssetPreloader {
     }
   }
 
+  private async yieldToMainThread(): Promise<void> {
+    await new Promise<void>((resolve) => {
+      if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => resolve());
+      } else {
+        setTimeout(() => resolve(), 0);
+      }
+    });
+  }
+
+  private async loadImagesInBatches(images: string[], batchSize: number): Promise<void> {
+    for (let i = 0; i < images.length; i += batchSize) {
+      const batch = images.slice(i, i + batchSize);
+      const loadPromises = batch.map((src: string) => {
+        return new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+          img.src = src;
+        });
+      });
+      await Promise.allSettled(loadPromises);
+      await this.yieldToMainThread();
+    }
+  }
+
   async loadAudioFiles(): Promise<void> {
     const audioFiles: string[] = [
       './assets/explode.mp3'
@@ -367,23 +393,9 @@ export class AssetPreloader {
     ];
     
     logger.info(`🖼️ Preloading ${htmlImages.length} HTML images for homepage slider...`);
-    
-    const loadPromises = htmlImages.map((src: string) => {
-      return new Promise<void>((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          logger.debug(`✅ HTML image loaded: ${src}`);
-          resolve();
-        };
-        img.onerror = () => {
-          logger.warn(`⚠️ HTML image failed: ${src}`);
-          resolve(); // Don't block on errors
-        };
-        img.src = src;
-      });
-    });
-    
-    await Promise.allSettled(loadPromises);
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const batchSize = isMobile ? 4 : 6;
+    await this.loadImagesInBatches(htmlImages, batchSize);
     logger.debug('✅ All HTML images preloaded');
   }
 
@@ -426,24 +438,9 @@ export class AssetPreloader {
     
     logger.info(`🎁 Preloading ${collectiblesImages.length} collectibles images for instant screen load...`);
     
-    // Load all images in parallel for fastest loading
-    const loadPromises = collectiblesImages.map((src: string) => {
-      return new Promise<void>((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          // Image loaded successfully, now in browser cache
-          resolve();
-        };
-        img.onerror = () => {
-          // Don't block on errors, but log them
-          logger.warn(`⚠️ Collectibles image failed: ${src}`);
-          resolve();
-        };
-        img.src = src;
-      });
-    });
-    
-    await Promise.allSettled(loadPromises);
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const batchSize = isMobile ? 4 : 6;
+    await this.loadImagesInBatches(collectiblesImages, batchSize);
     localStorage.setItem(cacheKey, 'true');
     logger.info(`✅ All ${collectiblesImages.length} collectibles images preloaded (browser cache ready)`);
   }
@@ -504,25 +501,9 @@ export class AssetPreloader {
     journeyImages.push('./assets/colelctibles/common back.png');
     
     logger.info(`🗺️ Preloading ${journeyImages.length} Journey screen images for instant load...`);
-    
-    // Load all images in parallel for fastest loading
-    const loadPromises = journeyImages.map((src: string) => {
-      return new Promise<void>((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          // Image loaded successfully, now in browser cache
-          resolve();
-        };
-        img.onerror = () => {
-          // Don't block on errors, but log them
-          logger.warn(`⚠️ Journey image failed: ${src}`);
-          resolve();
-        };
-        img.src = src;
-      });
-    });
-    
-    await Promise.allSettled(loadPromises);
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const batchSize = isMobile ? 4 : 6;
+    await this.loadImagesInBatches(journeyImages, batchSize);
     localStorage.setItem(cacheKey, 'true');
     logger.info(`✅ All ${journeyImages.length} Journey screen images preloaded (browser cache ready)`);
   }
@@ -582,6 +563,7 @@ export class AssetPreloader {
             this.loadedCount = totalLoaded;
             this.updateProgress(); // Update progress after each batch
             logger.debug(`✅ Loaded batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(CRITICAL_ASSETS.length / batchSize)}: ${batch.length} assets (${totalLoaded}/${this.totalCount})`);
+            await this.yieldToMainThread();
           } catch (error) {
             // If batch fails, try loading individually
             logger.warn(`⚠️ Batch ${Math.floor(i / batchSize) + 1} failed, trying individual loading...`, error);
@@ -598,6 +580,7 @@ export class AssetPreloader {
                 this.updateProgress(); // Update progress even on error
               }
             }
+            await this.yieldToMainThread();
           }
         }
         
@@ -705,6 +688,7 @@ export class AssetPreloader {
         try {
           await Assets.load(batch);
           logger.debug(`✅ Loaded batch ${Math.floor(i / batchSize) + 1} (${Math.min(i + batchSize, DEFERRED_ASSETS.length)}/${DEFERRED_ASSETS.length})`);
+          await this.yieldToMainThread();
         } catch (error) {
           // If batch fails, try loading individually as fallback
           logger.warn(`⚠️ Batch ${Math.floor(i / batchSize) + 1} failed, trying individual loading...`, error);
@@ -715,6 +699,7 @@ export class AssetPreloader {
               logger.warn(`⚠️ Failed to load: ${assetPath}`, err);
             }
           }
+          await this.yieldToMainThread();
         }
       }
       

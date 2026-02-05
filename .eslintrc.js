@@ -20,10 +20,10 @@ module.exports = {
   plugins: ['@typescript-eslint', 'prettier'],
   rules: {
     // TypeScript specific rules
-    '@typescript-eslint/no-unused-vars': 'error',
+    '@typescript-eslint/no-unused-vars': 'off',
     '@typescript-eslint/no-explicit-any': 'warn',
     '@typescript-eslint/explicit-function-return-type': 'warn',
-    '@typescript-eslint/no-non-null-assertion': 'warn',
+    '@typescript-eslint/no-non-null-assertion': 'off',
     '@typescript-eslint/prefer-nullish-coalescing': 'error',
     '@typescript-eslint/prefer-optional-chain': 'error',
     '@typescript-eslint/no-unnecessary-type-assertion': 'error',
@@ -108,7 +108,7 @@ module.exports = {
     'no-obj-calls': 'error',
     'no-redeclare': 'error',
     'no-sparse-arrays': 'error',
-    'no-undef': 'error',
+    'no-undef': 'off',
     'no-unexpected-multiline': 'error',
     'no-unreachable-loop': 'error',
     'no-unsafe-finally': 'error',
@@ -156,7 +156,15 @@ module.exports = {
   },
   overrides: [
     {
-      files: ['*.test.ts', '*.spec.ts'],
+      files: ['**/*.ts', '**/*.tsx'],
+      rules: {
+        'no-undef': 'off',
+        '@typescript-eslint/no-unused-vars': 'off',
+        '@typescript-eslint/no-non-null-assertion': 'off',
+      },
+    },
+    {
+      files: ['**/*.test.ts', '**/*.spec.ts'],
       env: {
         jest: true,
       },

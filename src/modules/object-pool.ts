@@ -85,13 +85,9 @@ class GraphicsPool {
     // This prevents "zombie" animations and memory leaks
     try {
       gsap.killTweensOf(g);
-      gsap.killTweensOf(g.x);
-      gsap.killTweensOf(g.y);
-      gsap.killTweensOf(g.alpha);
-      gsap.killTweensOf(g.rotation);
+      // killTweensOf accepts targets, not primitive values
+      gsap.killTweensOf(g);
       gsap.killTweensOf(g.scale);
-      gsap.killTweensOf(g.scale.x);
-      gsap.killTweensOf(g.scale.y);
       gsap.killTweensOf(g.pivot);
       gsap.killTweensOf(g.skew);
     } catch (err) {
@@ -153,13 +149,8 @@ class GraphicsPool {
       // 🔥 CRITICAL: Kill ALL GSAP tweens FIRST (before any property changes)
       // This prevents "zombie" animations that can interfere with new animations
       gsap.killTweensOf(g);
-      gsap.killTweensOf(g.x);
-      gsap.killTweensOf(g.y);
-      gsap.killTweensOf(g.alpha);
-      gsap.killTweensOf(g.rotation);
+      gsap.killTweensOf(g);
       gsap.killTweensOf(g.scale);
-      gsap.killTweensOf(g.scale.x);
-      gsap.killTweensOf(g.scale.y);
       gsap.killTweensOf(g.pivot);
       gsap.killTweensOf(g.skew);
       
@@ -199,10 +190,13 @@ class GraphicsPool {
       // Reset cache (can cause rendering issues if cached)
       // 🔥 FIX: cacheAsBitmap is deprecated, use cacheAsTexture instead
       try {
-        if ('cacheAsTexture' in g) {
-          g.cacheAsTexture = false;
-        } else if ('cacheAsBitmap' in g) {
-          (g as any).cacheAsBitmap = false;
+        const anyG = g as any;
+        if (typeof anyG.cacheAsTexture === 'function') {
+          anyG.cacheAsTexture(false);
+        } else if ('cacheAsTexture' in anyG) {
+          anyG.cacheAsTexture = false;
+        } else if ('cacheAsBitmap' in anyG) {
+          anyG.cacheAsBitmap = false;
         }
       } catch {}
       
@@ -220,9 +214,7 @@ class GraphicsPool {
       
       // 🔥 CRITICAL: Force update bounds (ensures proper rendering)
       try {
-        if (typeof g.updateBounds === 'function') {
-          g.updateBounds();
-        }
+        (g as any).updateBounds?.();
       } catch {}
     } catch (err) {
       // Ignore reset errors

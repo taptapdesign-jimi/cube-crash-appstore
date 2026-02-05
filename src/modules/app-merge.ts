@@ -401,7 +401,8 @@ async function checkIfAllTilesCanMerge(tiles: any[], helpers: any): Promise<bool
             const newIsWild = false; // After merge, wild is consumed
             
             // Remove merged tiles and add new merged tile
-            currentTiles = currentTiles.filter((_, idx) => idx !== i && idx !== j);
+            currentTiles.splice(j, 1);
+            currentTiles.splice(i, 1);
             currentTiles.push({ value: newValue, isWild: newIsWild, original: null });
             
             merged = true;

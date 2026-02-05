@@ -17,7 +17,7 @@ function resetLongTasks(): void {
   longTaskTotalMs = 0;
 }
 
-function recordLongTaskEntries(entries: PerformanceEntryList): void {
+function recordLongTaskEntries(entries: PerformanceObserverEntryList): void {
   for (const entry of entries.getEntries()) {
     longTaskCount += 1;
     longTaskTotalMs += entry.duration || 0;
@@ -55,7 +55,7 @@ function startRafLoop(sampleMs: number): void {
 function startLongTaskObserver(): void {
   if (typeof PerformanceObserver === 'undefined') return;
   try {
-    observer = new PerformanceObserver(recordLongTaskEntries);
+    observer = new PerformanceObserver((list) => recordLongTaskEntries(list));
     observer.observe({ entryTypes: ['longtask'] });
   } catch {
     observer = null;

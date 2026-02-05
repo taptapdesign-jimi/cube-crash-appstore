@@ -3,6 +3,7 @@ type LoadSaveDeps = {
   getBoardSaveKey: (n: number) => string;
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
+  storage?: Storage;
 };
 
 type LoadSaveResult = {
@@ -11,10 +12,23 @@ type LoadSaveResult = {
   currentBoardNumber: number;
 } | null;
 
-export function loadSavedBoardState({ boardNumber, getBoardSaveKey, devLog, devWarn }: LoadSaveDeps): LoadSaveResult {
+export function loadSavedBoardState({
+  boardNumber,
+  getBoardSaveKey,
+  devLog,
+  devWarn,
+  storage
+}: LoadSaveDeps): LoadSaveResult {
   const currentBoardNumber = Number.isFinite(boardNumber) ? boardNumber : 1;
   const saveKey = getBoardSaveKey(currentBoardNumber);
-  const savedGame = localStorage.getItem(saveKey);
+  const resolvedStorage =
+    storage ??
+    (typeof localStorage !== 'undefined' ? localStorage : null);
+  if (!resolvedStorage) {
+    devWarn(`⚠️ No localStorage available for board ${currentBoardNumber} (${saveKey})`);
+    return null;
+  }
+  const savedGame = resolvedStorage.getItem(saveKey);
 
   if (!savedGame) {
     devLog(`⚠️ No saved game found for board ${currentBoardNumber} (${saveKey})`);
@@ -26,7 +40,7 @@ export function loadSavedBoardState({ boardNumber, getBoardSaveKey, devLog, devW
     gameState = JSON.parse(savedGame);
   } catch (error) {
     devWarn(`⚠️ Corrupted save file for board ${currentBoardNumber}, removing...`, error);
-    localStorage.removeItem(saveKey);
+    resolvedStorage.removeItem(saveKey);
     return null;
   }
 
@@ -43,7 +57,7 @@ export function loadSavedBoardState({ boardNumber, getBoardSaveKey, devLog, devW
   // Only reject if we have a valid timestamp and it's older than 7 days (allow continue next day)
   if (Number.isFinite(timestamp) && saveAge > 7 * 24 * 60 * 60 * 1000) {
     devLog(`⚠️ Saved game for board ${currentBoardNumber} is too old (${Math.round(saveAge / 86400000)} days), starting fresh`);
-    localStorage.removeItem(saveKey);
+    resolvedStorage.removeItem(saveKey);
     return null;
   }
 

@@ -38,6 +38,8 @@ interface WildStarSystem {
   stars: OrbitingStar[];
   ticker: (() => void) | null;
   disposed: boolean;
+  lastUpdateTime: number;
+  updateIntervalMs: number;
 }
 
 const STAR_TEXTURE_SOURCES = [
@@ -47,8 +49,16 @@ const STAR_TEXTURE_SOURCES = [
 ];
 
 const systems = new WeakMap<WildishTile, WildStarSystem>();
+const activeSystems = new Set<WildStarSystem>();
+let sharedTicker: (() => void) | null = null;
 
 let cachedTexture: Texture | null = null;
+const isDev = !!(import.meta as any)?.env?.DEV;
+const debugLog = (...args: any[]) => {
+  if (isDev) {
+    console.log(...args);
+  }
+};
 
 const BABY_STAR_COUNT = 3;
 const BASE_RADIUS_FACTOR = 0.6;
@@ -166,8 +176,21 @@ function clampDelta(delta: number): number {
 }
 
 function computeHostMetrics(tile: WildishTile, host: Container) {
-  const width = Math.max(1, tile.base?.width || (host as any).width || tile.width || 96);
-  const height = Math.max(1, tile.base?.height || (host as any).height || tile.height || 96);
+  let width = Math.max(1, tile.base?.width || (host as any).width || tile.width || 0);
+  let height = Math.max(1, tile.base?.height || (host as any).height || tile.height || 0);
+
+  if (width <= 2 || height <= 2) {
+    try {
+      const bounds = host.getBounds?.();
+      if (bounds) {
+        width = Math.max(width, bounds.width);
+        height = Math.max(height, bounds.height);
+      }
+    } catch {}
+  }
+
+  width = Math.max(1, width || 96);
+  height = Math.max(1, height || 96);
   return { width, height };
 }
 
@@ -179,7 +202,7 @@ function createFallbackStar(): Graphics {
   g.alpha = 1.0;
   g.visible = true;
   g.renderable = true;
-  console.log(`🌟 Fallback star created: size=${STAR_TARGET_SIZE}, visible=${g.visible}, alpha=${g.alpha}`);
+  debugLog(`🌟 Fallback star created: size=${STAR_TARGET_SIZE}, visible=${g.visible}, alpha=${g.alpha}`);
   return g;
 }
 
@@ -197,7 +220,7 @@ function createStarSprite(texture: Texture, star: OrbitingStar): Sprite {
   star.scaleNormalizer = normalizer;
   sprite.scale.set(normalizer * star.baseScale);
   
-  console.log(`🌟 Sprite created: width=${baseWidth}, normalizer=${normalizer}, final scale=${normalizer * star.baseScale}, visible=${sprite.visible}, alpha=${sprite.alpha}, renderable=${sprite.renderable}`);
+  debugLog(`🌟 Sprite created: width=${baseWidth}, normalizer=${normalizer}, final scale=${normalizer * star.baseScale}, visible=${sprite.visible}, alpha=${sprite.alpha}, renderable=${sprite.renderable}`);
 
   return sprite;
 }
@@ -206,7 +229,7 @@ function setupStars(system: WildStarSystem, texture: Texture): void {
   system.container.removeChildren();
   system.stars = [];
 
-  console.log('🌟 Creating stars with texture:', texture);
+  debugLog('🌟 Creating stars with texture:', texture);
 
   for (let i = 0; i < BABY_STAR_COUNT; i += 1) {
     const star: OrbitingStar = {
@@ -231,10 +254,10 @@ function setupStars(system: WildStarSystem, texture: Texture): void {
     star.sprite = display;
     system.stars.push(star);
     system.container.addChild(display);
-    console.log(`✅ Star ${i + 1} created with texture sprite`);
+    debugLog(`✅ Star ${i + 1} created with texture sprite`);
   }
   
-  console.log('✅ All stars created with texture!');
+  debugLog('✅ All stars created with texture!');
 }
 
 function upgradeStarsToTexture(system: WildStarSystem, texture: Texture): void {
@@ -278,12 +301,17 @@ function tickSystem(system: WildStarSystem): void {
   container.visible = true;
   container.alpha = 1.0;
 
+  const now = performance.now();
+  const elapsed = now - system.lastUpdateTime;
+  if (elapsed < system.updateIntervalMs) return;
+  system.lastUpdateTime = now;
+
   const { width, height } = computeHostMetrics(tile, host);
   container.x = 0;
   container.y = 0;
   const baseRadius = Math.max(width, height) * BASE_RADIUS_FACTOR;
-  const delta = clampDelta(typeof gsap.ticker.deltaRatio === 'function' ? gsap.ticker.deltaRatio() : 1);
-  const time = performance.now() * 0.001;
+  const delta = clampDelta(elapsed / (1000 / 60));
+  const time = now * 0.001;
 
   system.stars.forEach((star) => {
     // FORCE visibility for each star
@@ -338,6 +366,8 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined): void {
     stars: [],
     ticker: null,
     disposed: false,
+    lastUpdateTime: performance.now() - 1000 / 30,
+    updateIntervalMs: 1000 / 30,
   };
 
   systems.set(tile, system);
@@ -352,9 +382,8 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined): void {
     container.visible = true;
     container.renderable = true;
     
-    const ticker = () => tickSystem(system);
-    system.ticker = ticker;
-    gsap.ticker.add(ticker);
+    activeSystems.add(system);
+    ensureSharedTicker();
   };
   
   // Pomoćna funkcija za fallback zvijezdice
@@ -389,9 +418,8 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined): void {
     container.visible = true;
     container.renderable = true;
     
-    const ticker = () => tickSystem(system);
-    system.ticker = ticker;
-    gsap.ticker.add(ticker);
+    activeSystems.add(system);
+    ensureSharedTicker();
   };
 
   // Prvo pokušaj sinkrono dohvatiti iz cache-a (brzo, bez grešaka)
@@ -426,10 +454,8 @@ export function detachWildStarHalo(tile: WildishTile | null | undefined): void {
 
   system.disposed = true;
 
-  if (system.ticker) {
-    try { gsap.ticker.remove(system.ticker); } catch {}
-    system.ticker = null;
-  }
+  activeSystems.delete(system);
+  removeSharedTickerIfIdle();
 
   system.stars.forEach((star) => {
     try { star.sprite.destroy?.(); } catch {}
@@ -445,6 +471,20 @@ export function detachWildStarHalo(tile: WildishTile | null | undefined): void {
 
   systems.delete(tile);
   (tile as any)._wildStarSystem = null;
+}
+
+function ensureSharedTicker(): void {
+  if (sharedTicker) return;
+  sharedTicker = () => {
+    activeSystems.forEach((system) => tickSystem(system));
+  };
+  gsap.ticker.add(sharedTicker);
+}
+
+function removeSharedTickerIfIdle(): void {
+  if (!sharedTicker || activeSystems.size > 0) return;
+  try { gsap.ticker.remove(sharedTicker); } catch {}
+  sharedTicker = null;
 }
 
 export async function preloadWildStarTexture(): Promise<void> {

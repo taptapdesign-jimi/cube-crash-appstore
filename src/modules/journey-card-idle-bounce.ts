@@ -964,17 +964,16 @@ export function smokeBubblesAtCard(
   
   // Calculate particle properties
   const baseStrength = Math.max(0.4, strength);
-  // 🔥 iOS OPTIMIZATION: Reduced particle count from 44-58 to 30-40 for better performance
-  // Original: (44 + random(14)) = 44-58 particles
-  // Optimized: (30 + random(10)) = 30-40 particles (30-35% reduction)
-  const COUNT = Math.max(6, Math.round((30 + Math.random() * 10) * baseStrength * countScale));
+  // 🔥 PERFORMANCE: Further reduce particle count for smoother UI
+  // Optimized: (24 + random(8)) = 24-32 particles
+  const COUNT = Math.max(4, Math.round((24 + Math.random() * 8) * baseStrength * countScale));
   const BASE_R = Math.max(6, Math.round(cardSize * 0.051 * sizeScale));
   const MAX_R = Math.max(18, Math.round(cardSize * 0.24 * sizeScale));
   const INSET = cardSize * 0.02;
   const OUT_MIN = cardSize * 0.15 * distanceScale;
   const OUT_MAX = cardSize * 0.34 * distanceScale;
-  const BURSTS = 5;
-  const BURST_GAP = 0.035;
+  const BURSTS = 4;
+  const BURST_GAP = 0.04;
   
   // Spawn on side of card (accounting for aspect ratio)
   // Coordinates are relative to container center (0,0) after rotation

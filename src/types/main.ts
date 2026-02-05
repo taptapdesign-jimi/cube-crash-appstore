@@ -44,7 +44,7 @@ export interface GameEvent {
 
 // Global window interface extensions
 declare global {
-  interface Window extends globalThis.Window {
+  interface Window {
     // Game functions
     startGameNow: () => Promise<void>;
     continueGame: () => Promise<void>;

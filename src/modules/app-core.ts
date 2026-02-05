@@ -35,6 +35,7 @@ import { clearWildState, handleWildMagnetMergedPulledTiles } from './app-merge.t
 import { statsService } from '../services/stats-service.js';
 import { TILE_IDLE_BOUNCE } from './tile-idle-bounce.ts';
 import { checkEndGame, clearEndGameCache, tileIsActive, getActiveTiles, type EndGameContext } from './endgame-checker.ts';
+import { updateEndgameHint, resetEndgameHint } from './endgame-hint.ts';
 import memoryManager from './memory-manager.ts';
 import { boardSpecificRules, isWildSpawnEnabled, isWildMeterEnabled, filterWildType, getWildMeterFillRate } from './board-specific-rules.ts';
 import { logger } from '../core/logger.js';
@@ -3068,6 +3069,10 @@ function startLevel(n){
   
   // Don't check level end immediately - let the game play first
   // trackDelayedCall(0.1, checkLevelEnd); // REMOVED - causes immediate fail screen
+  // 🔥 ENDGAME HINT: refresh after board is fully visible (covers hard-exit resume)
+  trackAppTimeout(() => {
+    updateEndgameHintState();
+  }, 600);
 }
 
 // --- local Wild skin fallback
@@ -3520,12 +3525,14 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     // Smoke with 70% opacity, behind tiles, using object pooling
     smokeBubblesAtTile(board, dst, TILE, 0.6, {
       behind: true,
-      baseAlpha: 0.7, // 70% opacity
-      sizeScale: 0.8,
-      distanceScale: 0.6,
-      countScale: 0.6,
-      ttl: 0.8,
-      blendMode: 'add'
+      baseAlpha: 0.35,
+      sizeScale: 0.4,
+      distanceScale: 0.3,
+      countScale: 0.3,
+      ttl: 0.16,
+      durationScale: 0.4,
+      blendMode: 'add',
+      spawnShape: 'box'
     });
 
     // 🔥 COMBINED MERGE ANIMATION: Impact bump + single strong bounce
@@ -4081,7 +4088,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           glassCrackAtTile(board, dst, TILE * 1.3, 1.6);
           woodShardsAtTile(board, dst, { enhanced: true, wild: true, count: 26, intensity: 1.6, spread: 1.6, size: 1.4, speed: 0.9, vanishDelay: 0.0, vanishJitter: 0.015 });
           wildImpactEffect(dst, { squash: 0.24, stretch: 0.20, tilt: 0.14, bounce: 1.18 });
-          smokeBubblesAtTile(board, dst, TILE * 1.2, 2.6);
+          smokeBubblesAtTile(board, dst, TILE * 1.2, 2.6, { spawnShape: 'box' });
         } else {
           FX.landBounce?.(dst);
           const softSmokeStrength = 0.5 + Math.random() * 0.3;
@@ -4093,7 +4100,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             distanceScale: 0.7,
             countScale: 0.75,
             haloScale: 1.1,
-            ttl: 0.9
+            ttl: 0.9,
+            spawnShape: 'box'
           } as any);
         }
 
@@ -4217,10 +4225,17 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
     if (isWildMagnetMerge) {
       // 🎯 CRITICAL FIX: Count magnets INCLUDING their stackDepth!
       // Example: magnet with depth 1 + regular tile with depth 2 = 3 total tiles (not 2!)
-      const magnetsOnBoard = activeTilesBeforeMerge.filter((t: any) => t.special === 'wild-magnet').length;
-      const regularTilesOnBoard = activeTilesBeforeMerge.filter((t: any) => 
-        t.special !== 'wild-magnet' && t.special !== 'wild' && (t.value|0) > 0
-      ).length;
+      let magnetsOnBoard = 0;
+      let regularTilesOnBoard = 0;
+      for (const t of activeTilesBeforeMerge) {
+        if (t.special === 'wild-magnet') {
+          magnetsOnBoard += 1;
+          continue;
+        }
+        if (t.special !== 'wild' && (t.value | 0) > 0) {
+          regularTilesOnBoard += 1;
+        }
+      }
       
       // 🎯 USE activeTilesCount (includes stackDepth) instead of activeTilesBeforeMerge.length
       const totalActiveTiles = activeTilesCount; // Already calculated above with stackDepth!
@@ -6073,7 +6088,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           wildImpactEffect(dst, { squash: 0.12, stretch: 0.10, tilt: 0.07, bounce: 1.09 });
           
           // Smoke bubbles (50% of wild: 2.6 * 0.5 = 1.3)
-          smokeBubblesAtTile(board, dst, TILE * 1.0, 1.3);
+          smokeBubblesAtTile(board, dst, TILE * 1.0, 1.3, { spawnShape: 'box' });
         }
 
         
@@ -6084,9 +6099,11 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           // 🔥 Wild-magnet merge: Reduce smoke intensity by 80% (3.0 * 0.2 = 0.6)
           const smokeStrength = isMainWildMagnetMerge ? 0.6 : 3.0;  // 80% reduction for wild-magnet
           smokeBubblesAtTile(board, dst, TILE * 1.3, smokeStrength, {
-            sizeScale: 0.7 + Math.random() * 0.6,  // Random size: 0.7-1.3x
-            countScale: 0.6 + Math.random() * 0.8, // Random count: 0.6-1.4x
-            trailAlpha: 0.95
+            sizeScale: 0.8 + Math.random() * 0.25,  // Compact size: 0.8-1.05x
+            countScale: 0.75 + Math.random() * 0.3, // Rich but contained: 0.75-1.05x
+            distanceScale: 0.55,
+            trailAlpha: 0.92,
+            spawnShape: 'box'
           });
         } else {
           showMultiplierTile(board, dst, mult, TILE, 1.0);
@@ -7313,6 +7330,8 @@ function checkLevelEnd(){
     
     // 🔥 NOTE: Removed per request (no magnet-only end state allowed)
     
+    updateEndgameHintState();
+
     // Use centralized end game checker
     const checkLevelEndContext: EndGameContext = {
       tiles,
@@ -7322,6 +7341,9 @@ function checkLevelEnd(){
     
     // 🔥 CRITICAL: Use forceRefresh because delay might have caused cache staleness
     const checkLevelEndResult = checkEndGame(checkLevelEndContext, true);
+    if (checkLevelEndResult.type !== 'continue') {
+      resetEndgameHint();
+    }
     
     // 🔥 USER BUG FIX: Don't trigger clean board flow if game is hidden (user is on homepage/other screens)
     // This prevents clean board modal from appearing when user navigates away from game
@@ -7406,6 +7428,12 @@ function checkLevelEnd(){
     }
     
     if (checkLevelEndResult.type === 'stuck') {
+      const wildReady = wildMeter >= 1 || wildSpawnInProgress || wildSpawnRetryTimer !== null;
+      if (wildReady) {
+        devLog('⚠️ checkLevelEnd: Stuck detected but wild meter is ready/spawning – deferring fail screen until wild cube drops');
+        queueWildSpawnIfNeeded();
+        return;
+      }
       devLog('🚨🚨🚨 checkLevelEnd: Game is stuck, checking anyMergePossible before showing fail screen');
       devLog('🔍 checkLevelEnd: Stuck reason:', checkLevelEndResult.reason);
       devLog('🔍 checkLevelEnd: Current tiles:', tiles.filter(tileIsActive).map(t => ({ 
@@ -7429,6 +7457,17 @@ function checkLevelEnd(){
       devLog('✅ checkLevelEnd: Game continues -', checkLevelEndResult.reason);
     }
   });
+}
+
+function updateEndgameHintState(): void {
+  try {
+    const hintTiles = getActiveTiles(tiles);
+    const hasTwoTiles = hintTiles.length === 2;
+    const allRegular = hasTwoTiles && hintTiles.every(t => !t?.special);
+    const sumValue = allRegular ? ((hintTiles[0]?.value | 0) + (hintTiles[1]?.value | 0)) : 0;
+    const canStack = allRegular && sumValue >= 2 && sumValue <= 6;
+    updateEndgameHint(canStack);
+  } catch {}
 }
 
 // 🔥 REMOVED: showCleanBoardEdgeCase() - DEPRECATED function no longer needed

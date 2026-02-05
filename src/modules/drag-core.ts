@@ -266,6 +266,11 @@ export function initDrag(cfg) {
     } catch (error) {
       console.warn('⚠️ Failed to notify board interaction:', error);
     }
+
+    // Hide endgame hint on any drag start
+    try {
+      import('./endgame-hint.js').then(mod => mod?.notifyEndgameHintInteraction?.()).catch(() => {});
+    } catch {}
     
     // MARK: User has made a move
     window._userMadeMove = true;

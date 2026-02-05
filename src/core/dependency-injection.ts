@@ -61,7 +61,7 @@ class DIContainer {
       this.register(name, {
         instance,
         singleton: true,
-      });
+      } as ServiceDefinition);
     });
   }
 

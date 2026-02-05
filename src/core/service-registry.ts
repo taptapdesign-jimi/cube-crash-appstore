@@ -28,10 +28,10 @@ container.register(SERVICES.UI_MANAGER, {
   singleton: true,
 } as any);
 
-container.register('boardService', {
+container.register(SERVICES.BOARD_SERVICE, {
   instance: boardService,
   singleton: true,
-});
+} as any);
 
 // Register legacy services (for backward compatibility)
 container.register('gameState', {
@@ -44,10 +44,7 @@ container.register('uiManager', {
   singleton: true,
 } as any);
 
-container.register('boardService', {
-  instance: boardService,
-  singleton: true,
-});
+// (removed duplicate boardService registration)
 
 // Export service getters for easy access
 export const getGameState = () => container.get(SERVICES.GAME_STATE);
