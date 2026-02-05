@@ -255,12 +255,34 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       efficiencyBonus, // 🔥 NEW: Explicit efficiency bonus for consistent animations
       scoreCap: 999999,
       boardNumber,
+      isFromInterimBoardOverride: (window as any).__ccFromInterimBoard === true || (window as any).__ccIsInterimBoard === true || localStorage.getItem('__ccFromInterimBoard') === 'true',
     });
     
     console.log(`🎯 endgame-flow: Clean board modal closed with action: ${modalResult?.action}`);
     logger.info(`🎯 endgame-flow: Clean board modal result: ${modalResult?.action}`);
     
     // 🔥 NEW LOGIC: Handle different actions from clean board modal
+    if (modalResult?.action === 'back-to-journey') {
+      console.log('🧭 endgame-flow: Back to Journey action');
+      logger.info('🧭 endgame-flow: Back to Journey action');
+      try {
+        (window as any).__ccCameFromJourney = true;
+        localStorage.setItem('__ccCameFromJourney', 'true');
+        delete (window as any).__ccCameFromDetailModal;
+        delete (window as any).__ccDetailModalBoardId;
+        delete (window as any).__skipBoardExitAnimation;
+        if (typeof (window as any).exitToMenu === 'function') {
+          // Board exit animation already played in clean-board-modal
+          (window as any).__skipBoardExitAnimation = true;
+          await (window as any).exitToMenu();
+        }
+      } catch (error) {
+        console.error('❌ endgame-flow: Failed to return to Journey:', error);
+        logger.error('❌ endgame-flow: Failed to return to Journey:', error);
+      }
+      return;
+    }
+
     if (modalResult?.action === 'exit') {
       // User clicked "Exit" → return DIRECTLY to detail modal (not Journey screen)
       console.log('🚪 endgame-flow: Exit action - returning DIRECTLY to detail modal');
@@ -679,13 +701,14 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       try {
         const bubbles = await import('./wild-beer-bubbles-explosion.js');
         bubbles.forceStopWildBeerBubblesExplosion?.();
+        await new Promise(resolve => requestAnimationFrame(resolve));
       } catch {}
       try {
         const tnt = await import('./tnt-animation.js');
         tnt.stopTntAnimation?.();
       } catch {}
 
-      // 🔥 CRITICAL FIX: Set board transition flag to protect bubble explosion from cleanup
+      // 🔥 CRITICAL FIX: Set board transition flag AFTER cleanup is guaranteed
       (window as any).__ccBoardTransitionActive = true;
       console.log('🎯 endgame-flow: Set __ccBoardTransitionActive flag to protect bubble explosion');
       
@@ -708,6 +731,12 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           // Now safe to cleanup bubble explosion if needed
           (window as any).__ccBoardTransitionActive = false;
           console.log('✅ endgame-flow: Cleared __ccBoardTransitionActive flag - cleanup now allowed');
+          try {
+            const bubbles = await import('./wild-beer-bubbles-explosion.js');
+            if (bubbles.isWildBeerBubblesExplosionActive?.()) {
+              bubbles.forceStopWildBeerBubblesExplosion?.();
+            }
+          } catch {}
           // After transition screen completes, start the next board
           // 🔥 CRITICAL FIX: Hide app first to cleanup previous board before starting new one
           // This prevents blank screen with old board visible in background

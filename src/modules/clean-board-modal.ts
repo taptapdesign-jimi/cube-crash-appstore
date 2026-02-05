@@ -58,6 +58,7 @@ interface ShowCleanBoardModalParams {
   boardNumber?: number;
   forcedStars?: number;
   devMode?: boolean; // 🧪 DEV: Enable dev mode for testing board transition screen
+  isFromInterimBoardOverride?: boolean;
 }
 
 // 🔥 REFACTORED: Koristimo pickRandom iz clean-board-utils.ts umjesto lokalne verzije
@@ -177,7 +178,8 @@ export async function showCleanBoardModal({
   scoreCap = 999999, 
   boardNumber = 1,
   forcedStars,
-  devMode = false // 🧪 DEV: Enable dev mode for testing board transition screen
+  devMode = false, // 🧪 DEV: Enable dev mode for testing board transition screen
+  isFromInterimBoardOverride
 }: ShowCleanBoardModalParams = {}): Promise<{ action: string }> {
   return new Promise((resolve) => {
     _modalCleanupInProgress = false;
@@ -561,6 +563,9 @@ export async function showCleanBoardModal({
       (window as any).__ccFromInterimBoard === true ||
       (window as any).__ccIsInterimBoard === true ||
       localStorage.getItem('__ccFromInterimBoard') === 'true';
+    if (typeof isFromInterimBoardOverride === 'boolean') {
+      isFromInterimBoard = isFromInterimBoardOverride;
+    }
     if (cameFromDetailModal) {
       isFromInterimBoard = false;
       console.log('🎯 Clean board: opened from detail modal → Play Again + Exit only');
@@ -591,17 +596,15 @@ export async function showCleanBoardModal({
     primaryBtn.style.maxWidth = buttonWidth;
     primaryBtn.style.whiteSpace = 'nowrap';
     
-    // 🔥 NEW: Secondary button (only for regular boards - "Exit")
+    // 🔥 NEW: Secondary button ("Exit" for regular boards, "Back to Journey" for interim)
     let secondaryBtn: HTMLButtonElement | null = null;
-    if (!isFromInterimBoard) {
-      secondaryBtn = document.createElement('button');
-      secondaryBtn.type = 'button';
-      secondaryBtn.textContent = 'Exit';
-      secondaryBtn.className = 'exit-btn bottom-sheet-cta';
-      secondaryBtn.style.width = '100%';
-      secondaryBtn.style.maxWidth = buttonWidth;
-      secondaryBtn.style.whiteSpace = 'nowrap';
-    }
+    secondaryBtn = document.createElement('button');
+    secondaryBtn.type = 'button';
+    secondaryBtn.textContent = 'Exit';
+    secondaryBtn.className = 'exit-btn bottom-sheet-cta';
+    secondaryBtn.style.width = '100%';
+    secondaryBtn.style.maxWidth = buttonWidth;
+    secondaryBtn.style.whiteSpace = 'nowrap';
     
     // Add buttons to container
     buttonContainer.appendChild(primaryBtn);
@@ -1501,7 +1504,7 @@ export async function showCleanBoardModal({
       }, collapseDuration + 220);
     });
     
-    // 🔥 NEW: Exit button handler (only for regular boards, not interim)
+    // 🔥 NEW: Exit/Back button handler
     if (secondaryBtn) {
       addButtonPressHandling(secondaryBtn, async () => {
         // Haptic for exit button
@@ -1703,8 +1706,9 @@ export async function showCleanBoardModal({
             try { el.remove(); } catch {}
             removeStyleTag();
             stopConfettiSpawnsSafe();
-            console.log(`✅ clean-board-modal: Resolving with action: exit (overlay removed, no click blocking)`);
-            resolve({ action: 'exit' });
+        const exitAction = isFromInterimBoard ? 'back-to-journey' : 'exit';
+        console.log(`✅ clean-board-modal: Resolving with action: ${exitAction} (overlay removed, no click blocking)`);
+        resolve({ action: exitAction });
           }, 50);
         }).catch(() => {
           trackTimeout(() => {
@@ -1712,8 +1716,9 @@ export async function showCleanBoardModal({
             try { el.remove(); } catch {}
             removeStyleTag();
             stopConfettiSpawnsSafe();
-            console.log(`✅ clean-board-modal: Resolving with action: exit (animation failed, overlay removed)`);
-            resolve({ action: 'exit' });
+            const exitAction = isFromInterimBoard ? 'back-to-journey' : 'exit';
+            console.log(`✅ clean-board-modal: Resolving with action: ${exitAction} (animation failed, overlay removed)`);
+            resolve({ action: exitAction });
           }, boardExitAnimationDuration);
         });
       });

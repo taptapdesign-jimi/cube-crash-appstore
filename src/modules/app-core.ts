@@ -631,6 +631,14 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   try { cleanupExistingStarAnimations?.(); } catch {}
   try { stopTntAnimation?.(); } catch {}
   try { stopWildBeerBubblesScreen?.(); } catch {}
+  // 🔥 Safety: kill active magnet pull animations on cleanup
+  try {
+    const magnetCleanup = (window as any).__ccActiveMagnetPullCleanup;
+    if (typeof magnetCleanup === 'function') {
+      magnetCleanup();
+      (window as any).__ccActiveMagnetPullCleanup = null;
+    }
+  } catch {}
   if (isNavCleanup || reason.includes('cleanupGame') || reason.includes('restartGame')) {
     try { killTrackedGsapTickers(`fx:${reason}`); } catch {}
     try { clearAllAppTimeouts(); } catch {}
@@ -685,9 +693,10 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
         isRecentlyStarted
       });
       // Defensive: ensure explosion is stopped after transition settles
-      trackDelayedCall(0.8, () => {
+      trackDelayedCall(0.5, () => {
         try {
-          if (typeof isWildBeerBubblesExplosionActive === 'function' && isWildBeerBubblesExplosionActive()) {
+          const stillTransitioning = (window as any).__ccBoardTransitionActive === true;
+          if (stillTransitioning || (typeof isWildBeerBubblesExplosionActive === 'function' && isWildBeerBubblesExplosionActive())) {
             forceStopWildBeerBubblesExplosion?.();
           }
         } catch {}
@@ -5006,7 +5015,9 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             wildMagnetPullInProgress = false;
             devLog('✅ wildMagnetPullInProgress reset to false after cleanup');
           }
+          try { (window as any).__ccActiveMagnetPullCleanup = null; } catch {}
         };
+        try { (window as any).__ccActiveMagnetPullCleanup = cleanupAllPullAnimations; } catch {}
         
         // Function to merge pulled tiles when both conditions are met
         const tryMergePulledTiles = async () => {

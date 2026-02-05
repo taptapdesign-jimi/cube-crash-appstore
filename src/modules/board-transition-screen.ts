@@ -60,19 +60,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
   isTransitionActive = true;
   logger.info('✅ board-transition-screen: isTransitionActive set to true, starting transition');
 
-  // Defensive cleanup: stop heavy FX that may survive transitions
-  try {
-    const { forceStopWildBeerBubblesExplosion } = await import('./wild-beer-bubbles-explosion.js');
-    forceStopWildBeerBubblesExplosion?.();
-  } catch {}
-  try {
-    const { stopWildBeerBubblesScreen } = await import('./wild-beer-bubbles-screen.js');
-    stopWildBeerBubblesScreen?.();
-  } catch {}
-  try {
-    const { stopTntAnimation } = await import('./tnt-animation.js');
-    stopTntAnimation?.();
-  } catch {}
+            // Defensive cleanup is handled centrally in endgame-flow before transition
 
   // Fade out menu soundtrack over 2s when board transition starts (board game has its own melody)
   try {
