@@ -2351,27 +2351,6 @@ class UIManager {
     }
   }
   
-  // Update loading progress (deprecated - launch screen handles its own animations)
-  updateLoadingProgress(progress: number): void {
-    // 🔥 DEPRECATED: Launch screen module handles its own animations
-    // This method is kept for backward compatibility but does nothing
-    logger.debug(`📦 Loading progress: ${progress}% (handled by launch-screen module)`);
-  }
-  
-  // Show loading screen (deprecated - use launch-screen module instead)
-  showLoadingScreen(): void {
-    // 🔥 DEPRECATED: Launch screen module handles its own display
-    // This method is kept for backward compatibility but does nothing
-    logger.debug('⚠️ showLoadingScreen() is deprecated - use launch-screen module instead');
-  }
-  
-  // Hide loading screen (deprecated - use launch-screen module instead)
-  hideLoadingScreen(): void {
-    // 🔥 DEPRECATED: Launch screen module handles its own hiding
-    // This method is kept for backward compatibility but does nothing
-    logger.debug('⚠️ hideLoadingScreen() is deprecated - use launch-screen module instead');
-  }
-  
   // Get element by ID
   getElement(id: string): HTMLElement | null {
     return this.elements[id as keyof UIManagerElements] as HTMLElement || document.getElementById(id);

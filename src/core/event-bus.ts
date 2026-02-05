@@ -70,8 +70,6 @@ export const EVENTS = {
   // UI events
   UI_SHOW_HOMEPAGE: 'ui:show:homepage',
   UI_HIDE_HOMEPAGE: 'ui:hide:homepage',
-  UI_SHOW_LOADING: 'ui:show:loading',
-  UI_HIDE_LOADING: 'ui:hide:loading',
   UI_SHOW_MODAL: 'ui:show:modal',
   UI_HIDE_MODAL: 'ui:hide:modal',
   

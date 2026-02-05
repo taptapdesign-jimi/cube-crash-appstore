@@ -5,8 +5,6 @@ import { logger } from '../core/logger.js';
 export interface UIServiceInterface {
   showHomepage(): void;
   hideHomepage(): void;
-  showLoadingScreen(): void;
-  hideLoadingScreen(): void;
   showModal(modalId: string): void;
   hideModal(modalId: string): void;
   updateScore(score: number): void;
@@ -22,11 +20,9 @@ class UIService implements UIServiceInterface {
   private boundListeners: {
     onShowHomepage: (() => void) | null;
     onHideHomepage: (() => void) | null;
-    onShowLoading: (() => void) | null;
-    onHideLoading: (() => void) | null;
     onScoreUpdate: ((score: number) => void) | null;
     onHighScore: ((score: number) => void) | null;
-  } = { onShowHomepage: null, onHideHomepage: null, onShowLoading: null, onHideLoading: null, onScoreUpdate: null, onHighScore: null };
+  } = { onShowHomepage: null, onHideHomepage: null, onScoreUpdate: null, onHighScore: null };
 
   // 🔥 FIX: Track DOM event listeners for cleanup
   private modalCloseListeners: Map<Element, () => void> = new Map();
@@ -39,15 +35,11 @@ class UIService implements UIServiceInterface {
     // 🔥 FIX: Store bound listeners for removal in destroy()
     this.boundListeners.onShowHomepage = () => this.showHomepage();
     this.boundListeners.onHideHomepage = () => this.hideHomepage();
-    this.boundListeners.onShowLoading = () => this.showLoadingScreen();
-    this.boundListeners.onHideLoading = () => this.hideLoadingScreen();
     this.boundListeners.onScoreUpdate = (score: number) => this.updateScore(score);
     this.boundListeners.onHighScore = (score: number) => this.updateHighScore(score);
 
     eventBus.on(EVENTS.UI_SHOW_HOMEPAGE, this.boundListeners.onShowHomepage);
     eventBus.on(EVENTS.UI_HIDE_HOMEPAGE, this.boundListeners.onHideHomepage);
-    eventBus.on(EVENTS.UI_SHOW_LOADING, this.boundListeners.onShowLoading);
-    eventBus.on(EVENTS.UI_HIDE_LOADING, this.boundListeners.onHideLoading);
     eventBus.on(EVENTS.SCORE_UPDATE, this.boundListeners.onScoreUpdate);
     eventBus.on(EVENTS.SCORE_HIGH_SCORE, this.boundListeners.onHighScore);
   }
@@ -68,7 +60,6 @@ class UIService implements UIServiceInterface {
   private setupUI(): void {
     // Setup UI elements and event listeners
     this.setupHomepage();
-    this.setupLoadingScreen();
     this.setupModals();
     this.setupScoreDisplay();
   }
@@ -80,12 +71,6 @@ class UIService implements UIServiceInterface {
     }
   }
 
-  private setupLoadingScreen(): void {
-    const loadingScreen = document.getElementById('loading-screen');
-    if (loadingScreen) {
-      loadingScreen.style.display = 'none';
-    }
-  }
 
   private setupModals(): void {
     // 🔥 FIX: Clear any existing listeners before adding new ones
@@ -153,21 +138,6 @@ class UIService implements UIServiceInterface {
     }
   }
 
-  showLoadingScreen(): void {
-    const loadingScreen = document.getElementById('loading-screen');
-    if (loadingScreen) {
-      loadingScreen.style.display = 'block';
-      eventBus.emit(EVENTS.UI_SHOW_LOADING);
-    }
-  }
-
-  hideLoadingScreen(): void {
-    const loadingScreen = document.getElementById('loading-screen');
-    if (loadingScreen) {
-      loadingScreen.style.display = 'none';
-      eventBus.emit(EVENTS.UI_HIDE_LOADING);
-    }
-  }
 
   showModal(modalId: string): void {
     const modal = document.getElementById(modalId);
@@ -226,19 +196,13 @@ class UIService implements UIServiceInterface {
     if (this.boundListeners.onHideHomepage) {
       eventBus.off(EVENTS.UI_HIDE_HOMEPAGE, this.boundListeners.onHideHomepage);
     }
-    if (this.boundListeners.onShowLoading) {
-      eventBus.off(EVENTS.UI_SHOW_LOADING, this.boundListeners.onShowLoading);
-    }
-    if (this.boundListeners.onHideLoading) {
-      eventBus.off(EVENTS.UI_HIDE_LOADING, this.boundListeners.onHideLoading);
-    }
     if (this.boundListeners.onScoreUpdate) {
       eventBus.off(EVENTS.SCORE_UPDATE, this.boundListeners.onScoreUpdate);
     }
     if (this.boundListeners.onHighScore) {
       eventBus.off(EVENTS.SCORE_HIGH_SCORE, this.boundListeners.onHighScore);
     }
-    this.boundListeners = { onShowHomepage: null, onHideHomepage: null, onShowLoading: null, onHideLoading: null, onScoreUpdate: null, onHighScore: null };
+    this.boundListeners = { onShowHomepage: null, onHideHomepage: null, onScoreUpdate: null, onHighScore: null };
     
     logger.info('✅ UI Service destroyed');
   }
