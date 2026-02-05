@@ -102,8 +102,6 @@ let comboWobbleTween: gsap.core.Tween | null = null; // GSAP tween for combo ico
 
 // 🔥 CLEANUP: Function to kill all combo animations and prevent memory leaks
 export function cleanupComboAnimations() {
-  console.log('🧹 Cleaning up all combo animations...');
-  
   try {
     // 1. Kill wobble animation
     if (comboWobbleTween) {
@@ -203,8 +201,6 @@ export function cleanupComboAnimations() {
     
     // 7. Reset shake multiplier
     __shakeMul = 1.0;
-    
-    console.log('✅ All combo animations cleaned up');
   } catch (err) {
     console.error('❌ Error during combo animations cleanup:', err);
   }
@@ -487,13 +483,19 @@ function makeWildLoader() {
   console.log('🎯 Creating PIXI wild meter...');
   
   const container = new Container();
-  container.name = 'wildLoader';
+  container.label = 'wildLoader';
   
-  // Background bar
+  // Background bar (Pixi v8: roundRect + fill; fallback: beginFill/drawRoundedRect/endFill)
   const bg = new Graphics();
-  bg.beginFill(0xEADFD6); // Light beige
-  bg.drawRoundedRect(0, 0, 200, 10, 5); // Height: 10px, border radius: 5px
-  bg.endFill();
+  const g = bg as Graphics & { roundRect?: (x: number, y: number, w: number, h: number, r: number) => void; fill?: (opts: { color: number }) => void };
+  if (typeof g.roundRect === 'function' && typeof g.fill === 'function') {
+    g.roundRect(0, 0, 200, 10, 5);
+    g.fill({ color: 0xEADFD6 });
+  } else {
+    bg.beginFill(0xEADFD6);
+    bg.drawRoundedRect(0, 0, 200, 10, 5);
+    bg.endFill();
+  }
   bg.zIndex = 0;
   
   // Decorative dashed line 2px above wild bar
@@ -522,11 +524,17 @@ function makeWildLoader() {
   dashLine.zIndex = 10_000;
   container.sortableChildren = true;
   
-  // Progress fill - start with 0 width
+  // Progress fill - start with 0 width (Pixi v8 or legacy)
   const fill = new Graphics();
-  fill.beginFill(0xE7744A); // Orange
-  fill.drawRoundedRect(0, 0, 0, 10, 5); // Height: 10px, border radius: 5px
-  fill.endFill();
+  const f = fill as Graphics & { roundRect?: (x: number, y: number, w: number, h: number, r: number) => void; fill?: (opts: { color: number }) => void };
+  if (typeof f.roundRect === 'function' && typeof f.fill === 'function') {
+    f.roundRect(0, 0, 0, 10, 5);
+    f.fill({ color: 0xE7744A });
+  } else {
+    fill.beginFill(0xE7744A);
+    fill.drawRoundedRect(0, 0, 0, 10, 5);
+    fill.endFill();
+  }
   fill.zIndex = 5000;
   
   container.addChild(bg, fill, dashLine);
@@ -613,9 +621,16 @@ function makeWildLoader() {
           if (!f || (f as { destroyed?: boolean }).destroyed) return;
           try {
             f.clear();
-            f.beginFill(0xE7744A);
-            f.drawRoundedRect(0, 0, this.targets()[0].width, 10, 5);
-            f.endFill();
+            const w = this.targets()[0].width;
+            const fr = f as Graphics & { roundRect?: (a: number, b: number, c: number, d: number, e: number) => void; fill?: (o: { color: number }) => void };
+            if (typeof fr.roundRect === 'function' && typeof fr.fill === 'function') {
+              fr.roundRect(0, 0, w, 10, 5);
+              fr.fill({ color: 0xE7744A });
+            } else {
+              f.beginFill(0xE7744A);
+              f.drawRoundedRect(0, 0, w, 10, 5);
+              f.endFill();
+            }
           } catch {}
         },
         onComplete: () => {
@@ -629,9 +644,15 @@ function makeWildLoader() {
     } else {
       try {
         fill.clear();
-        fill.beginFill(0xE7744A);
-        fill.drawRoundedRect(0, 0, width, 10, 5);
-        fill.endFill();
+        const fr = fill as Graphics & { roundRect?: (a: number, b: number, c: number, d: number, e: number) => void; fill?: (o: { color: number }) => void };
+        if (typeof fr.roundRect === 'function' && typeof fr.fill === 'function') {
+          fr.roundRect(0, 0, width, 10, 5);
+          fr.fill({ color: 0xE7744A });
+        } else {
+          fill.beginFill(0xE7744A);
+          fill.drawRoundedRect(0, 0, width, 10, 5);
+          fill.endFill();
+        }
       } catch {}
     }
   };
@@ -644,16 +665,20 @@ function makeWildLoader() {
     }
     
     container._maxWidth = width;
-    // Redraw background with new width
-    container._bg.clear();
-    container._bg.beginFill(0xEADFD6);
-    container._bg.drawRoundedRect(0, 0, width, 10, 5); // Height: 10px, border radius: 5px
-    container._bg.endFill();
-    // Reset fill to 0 width
-    container._fill.clear();
-    container._fill.beginFill(0xE7744A);
-    container._fill.drawRoundedRect(0, 0, 0, 10, 5); // Height: 10px, border radius: 5px
-    container._fill.endFill();
+    const drawRect = (g: Graphics, w: number, color: number) => {
+      g.clear();
+      const gr = g as Graphics & { roundRect?: (a: number, b: number, c: number, d: number, e: number) => void; fill?: (o: { color: number }) => void };
+      if (typeof gr.roundRect === 'function' && typeof gr.fill === 'function') {
+        gr.roundRect(0, 0, w, 10, 5);
+        gr.fill({ color });
+      } else {
+        g.beginFill(color);
+        g.drawRoundedRect(0, 0, w, 10, 5);
+        g.endFill();
+      }
+    };
+    drawRect(container._bg, width, 0xEADFD6);
+    drawRect(container._fill, 0, 0xE7744A);
     if (container._drawDashLine) {
       container._drawDashLine(width);
     }
@@ -736,14 +761,11 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
   
   // Respect the provided top from app.js (safeTop already accounts for safe areas)
   const isMobile = vw < 768 || vh > vw;
-  console.log(isMobile ? '📱 Mobile HUD top (safeTop):' : '🖥️ Desktop HUD top:', top);
-
   const SIDE = 24;            // bočni odmak
   // NOTE: yLabel/yValue are LOCAL to HUD_ROOT. HUD_ROOT.y is set to 'top'.
   const yLabel = 0;           // red s labelima (local)
   const yValue = 20;          // red s vrijednostima (local)
   
-  console.log('🎯 HUD positioning:', { top, yLabel, yValue, vh, onePercent: Math.round(vh * 0.01) });
   // Use stable fontSize for spacing (avoids tiny drift from Text.height timing)
   const valueRowH = Math.max(
     boardText?.style?.fontSize || 24,
@@ -850,13 +872,6 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
       comboWrap.x = comboRightEdge - totalWidth / 2;
       comboWrap.y = yValue;
       
-      console.log('🎯 Combo positioned 12px left of wild preloader:', { 
-        wildRightEdge: wildPreloaderRightEdge, 
-        comboRightEdge: comboRightEdge,
-        comboCenter: comboWrap.x, 
-        actualComboRightEdge: comboWrap.x + totalWidth / 2,
-        totalWidth 
-      });
     }
     
     // Coin - 80px left of Combo ICON (not center) - fixed position (same spacing as before)
@@ -930,8 +945,6 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
     wild.view.x = SIDE;
     wild.view.y = yValue + valueRowH + barGap - 8; // Moved up 8px
     wild.setWidth(barW);
-    
-    console.log('🎯 PIXI Wild meter positioned:', { x: SIDE, y: wild.view.y, width: barW });
   }
   
   // 🔥 USER REQUEST: Position X button (top left corner) within HUD
@@ -962,22 +975,6 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
     const redRectLeftEdge = actualScreenX + (-24); // Should be 0px (left edge)
     const redRectRightEdge = redRectLeftEdge + 96; // Should be 96px (16px over X button)
     
-    console.log('🎯 X button positioned (long rectangle from left edge):', { 
-      xButtonX: xButton.x, 
-      xButtonY: xButton.y,
-      hudRootX: hudRootX,
-      hudRootY: hudRootY,
-      screenX: screenLeftPadding,
-      actualScreenX: actualScreenX,
-      actualScreenY: actualScreenY,
-      redRectLeftEdge: redRectLeftEdge,
-      redRectRightEdge: redRectRightEdge,
-      yValue: yValue,
-      expectedScreenX: 24,
-      isCorrect: Math.abs(actualScreenX - 24) < 1,
-      note: 'Red rectangle from left edge (0px) to 24px over X button on right (124px)'
-    });
-    
     // 🔥 WARNING: If position is wrong, log error
     if (Math.abs(actualScreenX - 24) >= 1) {
       console.error('❌ X button position is WRONG! Expected 24px from left, got:', actualScreenX);
@@ -996,7 +993,6 @@ export function layout({ app, top }: { app: Application; top?: number }): void {
       HUD_ROOT._dropTop = top; // remember final top for later drop animation
       // keep current y (likely top-80/-120)
     }
-    console.log('🎯 HUD layout:', { y: HUD_ROOT.y, dropTop: HUD_ROOT._dropTop, dropped: !!HUD_ROOT._dropped });
   } else {
     console.warn('⚠️ HUD_ROOT not found in layout function!');
   }
@@ -2684,7 +2680,6 @@ function updateComboIcon(comboValue) {
           let newScale = currentScaleX || 1;
           if (texture && texture.width > 0 && texture.height > 0) {
             newScale = targetSize / Math.max(texture.width, texture.height);
-            console.log(`💧 New scale calculated for ${targetIconType} icon: ${newScale} (texture size: ${texture.width}x${texture.height})`);
           }
           
           // Store current scale before animation
@@ -2706,7 +2701,6 @@ function updateComboIcon(comboValue) {
                 }
               } catch {}
               
-              console.log(`✅ Combo icon morph animation completed (combo ${comboValue}, type: ${targetIconType})`);
             }
           });
           
@@ -2762,8 +2756,6 @@ function updateComboIcon(comboValue) {
           
           // 🔥 CRITICAL: Don't update currentIconType yet - wait for animation to complete
           // This is now set in morphTimeline.onComplete callback
-          console.log(`✅ Combo icon morph animation started: ${currentIconType} -> ${targetIconType} (combo ${comboValue})`);
-          console.log(`✅ Animation timeline created with duration: ${morphDuration}s`);
         } else {
           console.warn(`⚠️ Failed to get ${targetIconPath} texture or sprite destroyed`);
           if (!iconSprite || iconSprite.destroyed) {

@@ -186,6 +186,7 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
 
           if (completed === total) {
             const finalCall = trackDelayedCall(0.03, () => {
+              clearTimeout(safetyTimeout);
               try {
                 drawBoardBG();
               } catch {}
@@ -250,7 +251,7 @@ export function sweetPopIn(listTiles: Tile[], opts: SweetPopOptions = {}): Promi
       activeTimelines.forEach(tl => { try { tl.kill(); } catch {} });
       activeDelayedCalls.forEach(dc => { try { dc.kill(); } catch {} });
       resolve();
-    }, 5000); // 5 second safety
+    }, 10000); // 10 second safety (was 5s; clear on natural resolve to avoid killing after done)
     
     // Store cleanup function for external access
     (resolve as any)._cleanup = () => {

@@ -59,6 +59,11 @@ class GraphicsPool {
     return g;
   }
 
+  /** Returns true if the Graphics is already in the pool (released). Call before release() to avoid double-release. */
+  isInPool(g: Graphics): boolean {
+    return g ? this.inPool.has(g) : false;
+  }
+
   /**
    * Release a Graphics object back to the pool
    * 🔥 AGGRESSIVE CLEANUP: Based on pooling best practices
@@ -73,8 +78,7 @@ class GraphicsPool {
     
     // 🔥 FIX: Double-release protection - check if already in pool
     if (this.inPool.has(g)) {
-      console.warn('⚠️ GraphicsPool: Double-release prevented');
-      return;
+      return; // Already released, skip silently (caller may share refs across tiles)
     }
 
     // 🔥 CRITICAL: Kill ALL GSAP animations FIRST (before any property changes)

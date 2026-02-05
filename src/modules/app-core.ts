@@ -839,7 +839,8 @@ function installRuntimeTextureHooks() {
             const w = source?.width || 0;
             const h = source?.height || 0;
             tex.label = `runtime:Texture.from:${w}x${h}`;
-            if (tex.baseTexture) tex.baseTexture.label = tex.label;
+            const texSrc = (tex as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? tex.baseTexture;
+            if (texSrc) texSrc.label = tex.label;
             const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
             rt.add?.(tex);
           }
@@ -1329,6 +1330,7 @@ export async function boot(){
     try {
       if ((window as any).HUD_ROOT) {
         const oldHud = (window as any).HUD_ROOT;
+        try { gsap.killTweensOf(oldHud); } catch {}
         try { oldHud.alpha = 0; } catch {}
         try { oldHud.visible = false; } catch {}
         (window as any).HUD_ROOT = null;
@@ -1405,7 +1407,8 @@ export async function boot(){
               const w = tex.width || tex.baseTexture?.width || 0;
               const h = tex.height || tex.baseTexture?.height || 0;
               tex.label = `runtime:generateTexture:${w}x${h}`;
-              if (tex.baseTexture) tex.baseTexture.label = tex.label;
+              const texSrc = (tex as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? tex.baseTexture;
+              if (texSrc) texSrc.label = tex.label;
               const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
               rt.add?.(tex);
             }
@@ -1625,7 +1628,7 @@ export async function boot(){
           if (needsNew) {
             try {
               fxLayer = new Container();
-              fxLayer.name = '__ccGlobalFxLayer';
+              fxLayer.label = '__ccGlobalFxLayer';
               fxLayer.zIndex = 999900; // Below bubbles container but above everything else
               fxLayer.eventMode = 'none';
               fxLayer.visible = true;
@@ -1777,9 +1780,8 @@ export async function boot(){
   for (const assetPath of loadedTextures) {
     try {
       const texture = Assets.get(assetPath);
-      if (texture && texture.baseTexture) {
-        texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
-      }
+      const src = texture && ((texture as { source?: { scaleMode?: string } }).source ?? (texture as { baseTexture?: { scaleMode?: string } }).baseTexture);
+      if (src) src.scaleMode = 'nearest';
     } catch (error) {
       // Silently fail texture optimization
     }
@@ -2311,7 +2313,7 @@ export async function layoutBoard(){
         // HUD_ROOT is not directly accessible, we need to get it from HUD module or window
         try {
           const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
-          if (!_hudDropPending && hudRoot) {
+          if (!_hudDropPending && hudRoot && !(hudRoot as any).destroyed) {
             const top = hudRoot._dropTop ?? safeTop;
             hudRoot.y = top;
             hudRoot.alpha = 1;
@@ -2329,7 +2331,7 @@ export async function layoutBoard(){
             if (!_hudDropPending) return; // already handled by sweetPopIn
             try {
               const hudRoot = (window as any).HUD_ROOT || HUD.HUD_ROOT || null;
-              if (!hudRoot || !hudRoot.parent) {
+              if (!hudRoot || (hudRoot as any).destroyed || !hudRoot.parent) {
                 // Silent - this is expected if HUD hasn't initialized yet
                 return;
               }
@@ -8079,6 +8081,7 @@ export function cleanupGame() {
   // 🔥 CRITICAL FIX: Kill all GSAP tweens BEFORE destroying objects
   // This prevents "Cannot read properties of null (reading 'y')" errors
   killAllGsapTweensCommon(tiles, 'cleanup');
+  try { gsap.killTweensOf([hud, board, stage]); } catch {}
 
   // 🔥 Explicit wild-TNT animation cleanup (same as wild-beer / stars)
   try {
@@ -8239,6 +8242,14 @@ export function cleanupGame() {
     devLog('✅ Level flow timeouts cleaned up in cleanupGame()');
   } catch (e) {
     devWarn('⚠️ Failed to cleanup level flow timeouts:', e);
+  }
+
+  // 🔥 MEMORY: Perform aggressive texture cleanup on full exit
+  try {
+    cleanupTexturesForBoardTransition('cleanupGame', true);
+    memoryManager.performCleanup?.();
+  } catch (e) {
+    devWarn('⚠️ cleanupGame memory cleanup failed:', e);
   }
   
   if (grid) {

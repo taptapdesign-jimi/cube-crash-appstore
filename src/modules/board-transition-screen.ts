@@ -27,12 +27,89 @@ let activeForestImages: HTMLImageElement[] = []; // 🔥 IMAGE POOLING: Track fo
 let contentTimelines: gsap.core.Timeline[] = []; // 🔥 MEMORY LEAK FIX: Track forest and digit timelines
 let isCleaningUp = false;
 
+const TRANSITION_CLOUD_IMAGES = [
+  './assets/board transition/oblak+srednji.png',
+  './assets/board transition/oblak mali desno.png',
+  './assets/board transition/oblak mali ljevo.png',
+  './assets/board transition/oblak veliki ljevo dole.png'
+];
+const TRANSITION_FOREST_IMAGE = './assets/journey assets/forest.png';
+let assetsPreloaded = false;
+let assetsPreloadPromise: Promise<void> | null = null;
+let memSampleInterval: number | null = null;
+let memSamplePeak = 0;
+let memSampleStart = 0;
+let memSampleStartTs = 0;
 
 const trackTimeline = (options: any = {}) => animationManager.trackExternalTimeline(gsap.timeline(options));
 
 const trackDelayedCall = (...args: any[]) => animationManager.trackExternalTween(gsap.delayedCall(...args));
 
 const lifecycle = createScreenLifecycle('board-transition-screen');
+
+async function preloadTransitionAssets(): Promise<void> {
+  if (assetsPreloaded) return;
+  if (assetsPreloadPromise) return assetsPreloadPromise;
+  assetsPreloadPromise = (async () => {
+    try {
+      logger.info('🧩 board-transition-screen: Preloading transition assets...');
+      const urls = [...TRANSITION_CLOUD_IMAGES, TRANSITION_FOREST_IMAGE];
+      await Promise.all(urls.map((src) => new Promise<void>((resolve) => {
+        const img = new Image();
+        img.src = src;
+        if (typeof img.decode === 'function') {
+          img.decode().then(() => resolve()).catch(() => resolve());
+        } else {
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+        }
+      })));
+      logger.info('✅ board-transition-screen: Transition assets preloaded');
+    } finally {
+      assetsPreloaded = true;
+    }
+  })();
+  return assetsPreloadPromise;
+}
+
+function startMemSampling(): void {
+  const mem = (performance as any)?.memory;
+  if (!mem || typeof mem.usedJSHeapSize !== 'number') {
+    console.log('📊 board-transition-screen: Memory sampling not available (performance.memory only in Chrome)');
+    return;
+  }
+  if (memSampleInterval) {
+    clearInterval(memSampleInterval);
+    memSampleInterval = null;
+  }
+  memSampleStart = mem.usedJSHeapSize;
+  memSamplePeak = memSampleStart;
+  memSampleStartTs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+  memSampleInterval = window.setInterval(() => {
+    const m = (performance as any)?.memory;
+    if (m && typeof m.usedJSHeapSize === 'number') {
+      if (m.usedJSHeapSize > memSamplePeak) memSamplePeak = m.usedJSHeapSize;
+    }
+  }, 120);
+  console.log('📊 board-transition-screen: Memory sampling started', { startUsedJSHeapSize: memSampleStart });
+}
+
+function stopMemSampling(label: string): void {
+  if (!memSampleInterval) return;
+  clearInterval(memSampleInterval);
+  memSampleInterval = null;
+  const mem = (performance as any)?.memory;
+  const end = mem && typeof mem.usedJSHeapSize === 'number' ? mem.usedJSHeapSize : null;
+  const duration = ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - memSampleStartTs;
+  const payload = {
+    startUsedJSHeapSize: memSampleStart,
+    peakUsedJSHeapSize: memSamplePeak,
+    endUsedJSHeapSize: end,
+    peakDelta: memSamplePeak - memSampleStart,
+    durationMs: Math.round(duration)
+  };
+  console.log(`📊 board-transition-screen: Memory sampling ${label}`, payload);
+}
 
 /**
  * Show board transition screen with animated board number
@@ -68,8 +145,10 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     fadeOutAndPause(2000);
   } catch (_) { /* ignore */ }
 
-  // Cleanup any existing overlay
-  cleanup();
+  await preloadTransitionAssets();
+  
+  // Cleanup any existing overlay (preserve DOM for reuse)
+  cleanup({ preserveDom: true });
   
   // 🔥 USER REQUEST: Reset paper background when transition screen closes
   // This will be called in cleanup() after transition completes
@@ -79,6 +158,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     const finishOnce = () => {
       if (finished) return;
       finished = true;
+      stopMemSampling('finished');
       resolve();
       try {
         onComplete();
@@ -88,6 +168,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     };
     // 🔥 iOS APP STORE: Wrap in try-catch for error handling
     try {
+      startMemSampling();
       // 🔥 USER REQUEST: Apply paper background with same opacity as board game (35%)
       // This replaces the gray overlay with paper texture
       applyPaperBackground('0.35');
@@ -98,60 +179,82 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     
     try {
     
-    // Create overlay (transparent - paper bg shows through)
-    const overlay = document.createElement('div');
-    overlay.id = 'cc-board-transition-overlay';
-    overlay.style.cssText = [
-      'position: fixed',
-      'inset: 0',
-      'background: transparent', // 🔥 USER REQUEST: Transparent so paper bg shows through
-      'z-index: 99999',
-      'display: flex',
-      'flex-direction: column',
-      'align-items: center',
-      'justify-content: center',
-      'padding: 0', // 🔥 CRITICAL FIX: Remove padding that could affect centering
-      'opacity: 0',
-      'pointer-events: none',
-      'visibility: visible' // 🔥 CRITICAL FIX: Ensure overlay is visible even when opacity is 0
-    ].join(';');
+    const reuseOverlay = !!currentOverlay && currentOverlay.isConnected;
+    let overlay: HTMLElement;
+    let container: HTMLElement;
+    let numberContainer: HTMLElement;
+    let cloudContainer: HTMLElement | null = null;
+    let forestContainer: HTMLElement | null = null;
+    if (reuseOverlay) {
+      logger.info('♻️ board-transition-screen: Reusing existing transition overlay');
+      overlay = currentOverlay as HTMLElement;
+      overlay.style.display = 'flex';
+      overlay.style.visibility = 'visible';
+      overlay.style.opacity = '0';
+      overlay.style.pointerEvents = 'none';
+      container = overlay.querySelector('.cc-board-transition-container') as HTMLElement;
+      numberContainer = overlay.querySelector('.cc-board-transition-number') as HTMLElement;
+      cloudContainer = overlay.querySelector('.cc-board-transition-clouds') as HTMLElement | null;
+      forestContainer = overlay.querySelector('.cc-board-transition-forest') as HTMLElement | null;
+    } else {
+      logger.info('🧱 board-transition-screen: Building transition overlay (first-time)');
+      // Create overlay (transparent - paper bg shows through)
+      overlay = document.createElement('div');
+      overlay.id = 'cc-board-transition-overlay';
+      overlay.style.cssText = [
+        'position: fixed',
+        'inset: 0',
+        'background: transparent', // 🔥 USER REQUEST: Transparent so paper bg shows through
+        'z-index: 99999',
+        'display: flex',
+        'flex-direction: column',
+        'align-items: center',
+        'justify-content: center',
+        'padding: 0', // 🔥 CRITICAL FIX: Remove padding that could affect centering
+        'opacity: 0',
+        'pointer-events: none',
+        'visibility: visible' // 🔥 CRITICAL FIX: Ensure overlay is visible even when opacity is 0
+      ].join(';');
 
-    // Create container with 3D perspective
-    const container = document.createElement('div');
-    container.style.cssText = [
-      'display: flex',
-      'flex-direction: column',
-      'align-items: center',
-      'justify-content: center',
-      'width: 100%',
-      'gap: 0',
-      // 🔥 USER REQUEST: 3D perspective for container
-      'perspective: 1000px',
-      'transform-style: preserve-3d',
-      'position: relative',
-      'z-index: 2' // 🔥 CRITICAL FIX: Ensure container (numbers) is above clouds (z-index: -1)
-    ].join(';');
+      // Create container with 3D perspective
+      container = document.createElement('div');
+      container.className = 'cc-board-transition-container';
+      container.style.cssText = [
+        'display: flex',
+        'flex-direction: column',
+        'align-items: center',
+        'justify-content: center',
+        'width: 100%',
+        'gap: 0',
+        // 🔥 USER REQUEST: 3D perspective for container
+        'perspective: 1000px',
+        'transform-style: preserve-3d',
+        'position: relative',
+        'z-index: 2' // 🔥 CRITICAL FIX: Ensure container (numbers) is above clouds (z-index: -1)
+      ].join(';');
 
-    // Create board number container
-    const numberContainer = document.createElement('div');
-    numberContainer.style.cssText = [
-      'display: flex',
-      'flex-direction: row',
-      'align-items: center',
-      'justify-content: center',
-      'gap: 0px', // 🔥 USER REQUEST: No gap - digits should be very close together
-      'margin-top: -8px', // 🔥 USER REQUEST: Reduced by 16px (from 8px to -8px) to bring closer to "board" text
-      // 🔥 CRITICAL FIX: Remove all margins - will be positioned absolutely
-      'margin-left: 0',
-      'margin-right: 0',
-      'margin-bottom: 0',
-      'padding: 0',
-      'width: fit-content', // Fit content exactly - no extra width
-      'min-width: 0', // Prevent flex from adding extra width
-      'max-width: 100%', // Prevent overflow
-      'box-sizing: border-box', // Include padding/border in width calculation
-      'position: relative'
-    ].join(';');
+      // Create board number container
+      numberContainer = document.createElement('div');
+      numberContainer.className = 'cc-board-transition-number';
+      numberContainer.style.cssText = [
+        'display: flex',
+        'flex-direction: row',
+        'align-items: center',
+        'justify-content: center',
+        'gap: 0px', // 🔥 USER REQUEST: No gap - digits should be very close together
+        'margin-top: -8px', // 🔥 USER REQUEST: Reduced by 16px (from 8px to -8px) to bring closer to "board" text
+        // 🔥 CRITICAL FIX: Remove all margins - will be positioned absolutely
+        'margin-left: 0',
+        'margin-right: 0',
+        'margin-bottom: 0',
+        'padding: 0',
+        'width: fit-content', // Fit content exactly - no extra width
+        'min-width: 0', // Prevent flex from adding extra width
+        'max-width: 100%', // Prevent overflow
+        'box-sizing: border-box', // Include padding/border in width calculation
+        'position: relative'
+      ].join(';');
+    }
 
     // Format board number as string (01, 02, etc.)
     const boardNumberStr = boardNumber.toString().padStart(2, '0');
@@ -168,74 +271,82 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       return;
     }
 
-    // Create digit elements with 3D extrusion effect
+    // Create or reuse digit elements with 3D extrusion effect
     const digitElements: HTMLElement[] = [];
-    digits.forEach((digit, index) => {
-      // 🔥 CRITICAL FIX: Create wrapper for digit
-      const digitWrapper = document.createElement('div');
-      digitWrapper.className = 'journey-board-card-wrapper';
-      digitWrapper.style.cssText = [
-        'display: inline-flex !important', // Override CSS class
-        'align-items: center',
-        'justify-content: center',
-        'width: auto', // 🔥 CRITICAL FIX: Let content determine width - no min-width in layout
-        'height: auto', // 🔥 CRITICAL FIX: Let content determine height
-        'position: relative !important', // 🔥 CRITICAL FIX: Override absolute from CSS class
-        // 🔥 CRITICAL FIX: Remove all spacing that could affect centering
-        'margin: 0 !important',
-        'padding: 0 !important',
-        'border: 0 !important',
-        'outline: 0 !important',
-        'vertical-align: top', // Align to top to prevent baseline spacing
-        'z-index: 10'
-      ].join(';');
-      
-      const digitEl = document.createElement('span');
-      digitEl.textContent = digit;
-      digitEl.className = 'cc-board-transition-digit'; // For cleanup identification
-      
-      // 🔥 USER REQUEST: Add drop shadow from Figma spec
-      // Figma drop shadow: X: 5px, Y: 12px, Blur: 16.1px, Spread: 0, Color: #D26D40 @ 25% opacity
-      const dropShadow = 'drop-shadow(5px 12px 16.1px rgba(210, 109, 64, 0.25))';
-      
-      digitEl.style.cssText = [
-        'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
-        'font-weight: 800',
-        'font-size: 166px', // 🔥 USER REQUEST: Increased by 15% (144px * 1.15 = 165.6px ≈ 166px)
-        'line-height: 1',
-        'color: #e77449',
-        'text-align: center',
-        'opacity: 0',
-        'transform: scale(0) perspective(1000px) translateZ(0)',
-        'display: inline-block',
-        'visibility: visible', // 🔥 CRITICAL FIX: Ensure element is visible
-        'pointer-events: none',
-        // 🔥 CRITICAL FIX: Remove all spacing that could affect centering
-        'margin: 0',
-        'padding: 0',
-        'border: 0',
-        'outline: 0',
-        'vertical-align: top', // Align to top to prevent baseline spacing
-        // 🔥 USER REQUEST: Add drop shadow from Figma
-        `filter: ${dropShadow}`,
-        'transform-style: preserve-3d',
-        'backface-visibility: hidden',
-        '-webkit-font-smoothing: antialiased',
-        '-moz-osx-font-smoothing: grayscale',
-        'text-rendering: optimizeLegibility',
-        'font-variant-numeric: tabular-nums', // Stabilize digit widths for better centering
-        'font-feature-settings: "tnum" 1',
-        // 🔥 CRITICAL FIX: Set transform origin to center to prevent position shifts
-        'transform-origin: center center',
-        'position: relative',
-        'z-index: 10'
-      ].join(';');
-      
-      digitWrapper.appendChild(digitEl);
-      numberContainer.appendChild(digitWrapper);
-      digitElements.push(digitEl);
-      logger.info(`✅ board-transition-screen: Created digit element ${index} with text "${digit}" and 3D extrusion`);
-    });
+    const existingDigits = Array.from(numberContainer.querySelectorAll('.cc-board-transition-digit')) as HTMLElement[];
+    if (existingDigits.length === digits.length) {
+      existingDigits.forEach((digitEl, index) => {
+        digitEl.textContent = digits[index];
+        digitEl.style.filter = 'none';
+        digitElements.push(digitEl);
+      });
+    } else {
+      numberContainer.innerHTML = '';
+      digits.forEach((digit, index) => {
+        // 🔥 CRITICAL FIX: Create wrapper for digit
+        const digitWrapper = document.createElement('div');
+        digitWrapper.className = 'journey-board-card-wrapper';
+        digitWrapper.style.cssText = [
+          'display: inline-flex !important', // Override CSS class
+          'align-items: center',
+          'justify-content: center',
+          'width: auto', // 🔥 CRITICAL FIX: Let content determine width - no min-width in layout
+          'height: auto', // 🔥 CRITICAL FIX: Let content determine height
+          'position: relative !important', // 🔥 CRITICAL FIX: Override absolute from CSS class
+          // 🔥 CRITICAL FIX: Remove all spacing that could affect centering
+          'margin: 0 !important',
+          'padding: 0 !important',
+          'border: 0 !important',
+          'outline: 0 !important',
+          'vertical-align: top', // Align to top to prevent baseline spacing
+          'z-index: 10'
+        ].join(';');
+        
+        const digitEl = document.createElement('span');
+        digitEl.textContent = digit;
+        digitEl.className = 'cc-board-transition-digit'; // For cleanup identification
+        
+        const dropShadow = 'none';
+        
+        digitEl.style.cssText = [
+          'font-family: "LTCrow", system-ui, -apple-system, sans-serif',
+          'font-weight: 800',
+          'font-size: 166px', // 🔥 USER REQUEST: Increased by 15% (144px * 1.15 = 165.6px ≈ 166px)
+          'line-height: 1',
+          'color: #e77449',
+          'text-align: center',
+          'opacity: 0',
+          'transform: scale(0) perspective(1000px) translateZ(0)',
+          'display: inline-block',
+          'visibility: visible', // 🔥 CRITICAL FIX: Ensure element is visible
+          'pointer-events: none',
+          // 🔥 CRITICAL FIX: Remove all spacing that could affect centering
+          'margin: 0',
+          'padding: 0',
+          'border: 0',
+          'outline: 0',
+          'vertical-align: top', // Align to top to prevent baseline spacing
+          // 🔥 USER REQUEST: Remove drop shadow/filter effects
+          `filter: ${dropShadow}`,
+          'transform-style: preserve-3d',
+          'backface-visibility: hidden',
+          '-webkit-font-smoothing: antialiased',
+          '-moz-osx-font-smoothing: grayscale',
+          'text-rendering: optimizeLegibility',
+          'font-variant-numeric: tabular-nums', // Stabilize digit widths for better centering
+          'font-feature-settings: "tnum" 1',
+          // 🔥 CRITICAL FIX: Set transform origin to center to prevent position shifts
+          'transform-origin: center center',
+          'position: relative',
+          'z-index: 10'
+        ].join(';');
+        
+        digitWrapper.appendChild(digitEl);
+        numberContainer.appendChild(digitWrapper);
+        digitElements.push(digitEl);
+        logger.info(`✅ board-transition-screen: Created digit element ${index} with text "${digit}" and 3D extrusion`);
+      });
+    }
     
     // 🔥 CRITICAL FIX: Validate digit elements were created
     if (digitElements.length === 0) {
@@ -248,31 +359,29 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     }
 
     // 🔥 USER REQUEST: Create clouds background with cartoony bounce animation
-    const cloudContainer = document.createElement('div');
-    cloudContainer.style.cssText = [
-      'position: absolute',
-      'inset: 0',
-      'pointer-events: none',
-      'z-index: -1', // 🔥 CRITICAL FIX: Negative z-index to ensure clouds are behind text and numbers (z-index: 10)
-      'overflow: hidden'
-    ].join(';');
+    if (!cloudContainer) {
+      cloudContainer = document.createElement('div');
+      cloudContainer.className = 'cc-board-transition-clouds';
+      cloudContainer.style.cssText = [
+        'position: absolute',
+        'inset: 0',
+        'pointer-events: none',
+        'z-index: -1', // 🔥 CRITICAL FIX: Negative z-index to ensure clouds are behind text and numbers (z-index: 10)
+        'overflow: hidden'
+      ].join(';');
+    }
     
     // Cloud image paths
     // 🔥 USER REQUEST: Assets now in assets/board transition/ folder
-    const cloudImages = [
-      './assets/board transition/oblak+srednji.png', // 🔥 USER REQUEST: Updated from Layer 2.png
-      './assets/board transition/oblak mali desno.png',
-      './assets/board transition/oblak mali ljevo.png',
-      './assets/board transition/oblak veliki ljevo dole.png'
-    ];
+    const cloudImages = TRANSITION_CLOUD_IMAGES;
     
     // Total screen duration: ~2.3s (enter + pause + exit) - 🔥 USER REQUEST: Reduced by 800ms (from 3.1s)
     const totalScreenDuration = 2.3;
     const moveAndScaleDuration = totalScreenDuration / 2; // Half time for move and scale
     const exitDuration = totalScreenDuration / 2; // Half time for exit
     
-    // 🔥 USER REQUEST: 30% more clouds (16 * 1.3 = 20.8 ≈ 21) + 10 more for top/bottom = 31 total
-    const totalClouds = 31;
+    // 🔥 USER REQUEST: Keep 22 clouds
+    const totalClouds = 22;
     
     // 🔥 USER REQUEST: Distribution: 30% top, 30% middle, 30% bottom, 10% random fill
     const topCloudsCount = Math.floor(totalClouds * 0.3); // 30% top (≈9 clouds)
@@ -280,9 +389,18 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     const bottomCloudsCount = Math.floor(totalClouds * 0.3); // 30% bottom (≈9 clouds)
     const randomFillCount = totalClouds - topCloudsCount - middleCloudsCount - bottomCloudsCount; // 10% random (≈4 clouds)
     
+    const existingClouds = Array.from(cloudContainer.querySelectorAll('img')) as HTMLImageElement[];
+    const reuseClouds = existingClouds.length === totalClouds;
+    logger.info(`☁️ board-transition-screen: Clouds ${reuseClouds ? 'reused' : 'rebuilt'} (${existingClouds.length}/${totalClouds})`);
+    if (!reuseClouds) {
+      cloudContainer.innerHTML = '';
+    }
+    activeCloudImages = [];
     for (let i = 0; i < totalClouds; i++) {
       // 🔥 IMAGE POOLING: Use domElementPool instead of creating new img elements
-      const cloudImg = domElementPool.acquire('img') as HTMLImageElement;
+      const cloudImg = reuseClouds
+        ? existingClouds[i]
+        : (domElementPool.acquire('img') as HTMLImageElement);
       const cloudImageIndex = i % cloudImages.length;
       cloudImg.src = cloudImages[cloudImageIndex];
       
@@ -353,7 +471,9 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       // 🔥 USER REQUEST: 50% slower movement (duration * 2)
       const randomMoveDuration = (moveAndScaleDuration - 0.3) * (0.7 + Math.random() * 0.6) * 2; // 50% slower (duration doubled)
       
-      cloudContainer.appendChild(cloudImg);
+      if (!cloudImg.parentNode) {
+        cloudContainer.appendChild(cloudImg);
+      }
       
       // Random rotation for fluffy effect
       const randomRotation = (Math.random() - 0.5) * 20; // -10 to +10 degrees
@@ -475,24 +595,28 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
     overlay.appendChild(cloudContainer);
 
     // 🔥 USER REQUEST: Forest at bottom (-150px below viewport), in front of clouds, behind digits
-    const forestContainer = document.createElement('div');
-    forestContainer.className = 'cc-board-transition-forest';
-    forestContainer.style.cssText = [
-      'position: absolute',
-      'left: 0',
-      'right: 0',
-      'bottom: -190px',
-      'width: 100%',
-      'height: 42vh',
-      'pointer-events: none',
-      'z-index: 0',
-      'overflow: hidden',
-      'transform-origin: center bottom',
-      'transform-style: preserve-3d',
-      'will-change: transform, opacity'
-    ].join(';');
-    const forestImg = domElementPool.acquire('img') as HTMLImageElement;
-    forestImg.src = './assets/journey assets/forest.png';
+    if (!forestContainer) {
+      forestContainer = document.createElement('div');
+      forestContainer.className = 'cc-board-transition-forest';
+      forestContainer.style.cssText = [
+        'position: absolute',
+        'left: 0',
+        'right: 0',
+        'bottom: -190px',
+        'width: 100%',
+        'height: 42vh',
+        'pointer-events: none',
+        'z-index: 0',
+        'overflow: hidden',
+        'transform-origin: center bottom',
+        'transform-style: preserve-3d',
+        'will-change: transform, opacity',
+        'contain: layout paint' // Rasterize forest layer for cheaper transforms
+      ].join(';');
+    }
+    const existingForestImg = forestContainer.querySelector('img') as HTMLImageElement | null;
+    const forestImg = existingForestImg || (domElementPool.acquire('img') as HTMLImageElement);
+    forestImg.src = TRANSITION_FOREST_IMAGE;
     forestImg.alt = 'Forest';
     forestImg.style.cssText = [
       'position: absolute',
@@ -503,10 +627,14 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
       'object-fit: cover',
       'object-position: bottom center',
       'display: block',
-      'pointer-events: none'
+      'pointer-events: none',
+      'transform: translateZ(0)',
+      'backface-visibility: hidden'
     ].join(';');
-    activeForestImages.push(forestImg);
-    forestContainer.appendChild(forestImg);
+    activeForestImages = [forestImg];
+    if (!forestImg.parentNode) {
+      forestContainer.appendChild(forestImg);
+    }
     overlay.appendChild(forestContainer);
 
     // Assemble DOM
@@ -737,7 +865,7 @@ export async function showBoardTransitionScreen(options: BoardTransitionOptions)
                 pauseTimeline = null;
                 try {
                   startExitAnimation(overlay, container, digitElements, forestContainer, () => {
-                  cleanup();
+                  cleanup({ preserveDom: true });
                   isTransitionActive = false;
                   // 🔥 USER REQUEST: Reset paper background when transition screen closes
                   // Note: This will be reset by the next screen (board game or journey)
@@ -884,9 +1012,10 @@ function startExitAnimation(
  * Cleanup function - iOS App Store ready
  * Ensures all animations, timelines, and DOM elements are properly cleaned up
  */
-function cleanup(): void {
+function cleanup(options: { preserveDom?: boolean } = {}): void {
   if (isCleaningUp) return;
   isCleaningUp = true;
+  const preserveDom = options.preserveDom === true;
   try {
     lifecycle.cleanup();
     // 🔥 CRITICAL: Kill all active tweens
@@ -971,27 +1100,29 @@ function cleanup(): void {
   });
   contentTimelines = [];
   
-  // 🔥 IMAGE POOLING: Release all cloud images back to pool
-  activeCloudImages.forEach(cloudImg => {
-    try {
-      gsap.killTweensOf(cloudImg);
-      domElementPool.release(cloudImg);
-    } catch (error) {
-      logger.warn('⚠️ Error releasing cloud image to pool:', error);
-    }
-  });
-  activeCloudImages = [];
+  if (!preserveDom) {
+    // 🔥 IMAGE POOLING: Release all cloud images back to pool
+    activeCloudImages.forEach(cloudImg => {
+      try {
+        gsap.killTweensOf(cloudImg);
+        domElementPool.release(cloudImg);
+      } catch (error) {
+        logger.warn('⚠️ Error releasing cloud image to pool:', error);
+      }
+    });
+    activeCloudImages = [];
 
-  // 🔥 IMAGE POOLING: Release forest image back to pool
-  activeForestImages.forEach(forestImg => {
-    try {
-      gsap.killTweensOf(forestImg);
-      domElementPool.release(forestImg);
-    } catch (error) {
-      logger.warn('⚠️ Error releasing forest image to pool:', error);
-    }
-  });
-  activeForestImages = [];
+    // 🔥 IMAGE POOLING: Release forest image back to pool
+    activeForestImages.forEach(forestImg => {
+      try {
+        gsap.killTweensOf(forestImg);
+        domElementPool.release(forestImg);
+      } catch (error) {
+        logger.warn('⚠️ Error releasing forest image to pool:', error);
+      }
+    });
+    activeForestImages = [];
+  }
 
   // 🔥 APP STORE: Kill animations on forest container
   try {
@@ -1030,50 +1161,60 @@ function cleanup(): void {
         } catch {}
       });
       
-      // Remove from DOM
-      if (currentOverlay.parentNode) {
-        currentOverlay.parentNode.removeChild(currentOverlay);
+      if (preserveDom) {
+        currentOverlay.style.opacity = '0';
+        currentOverlay.style.visibility = 'hidden';
+        currentOverlay.style.display = 'none';
       } else {
-        currentOverlay.remove();
+        // Remove from DOM
+        if (currentOverlay.parentNode) {
+          currentOverlay.parentNode.removeChild(currentOverlay);
+        } else {
+          currentOverlay.remove();
+        }
+        currentOverlay = null;
       }
     } catch (error) {
       logger.warn('⚠️ Error removing overlay:', error);
     }
-    currentOverlay = null;
   }
 
-  // 🔥 CRITICAL: Also try to remove by ID (safety fallback)
-  try {
-    const existing = document.getElementById('cc-board-transition-overlay');
-    if (existing) {
-      // Kill animations before removing
-      gsap.killTweensOf(existing);
-      const existingChildren = existing.querySelectorAll('*');
-      existingChildren.forEach(child => {
-        try {
-          gsap.killTweensOf(child);
-        } catch {}
-      });
-      
-      if (existing.parentNode) {
-        existing.parentNode.removeChild(existing);
-      } else {
-        existing.remove();
+  if (!preserveDom) {
+    // 🔥 CRITICAL: Also try to remove by ID (safety fallback)
+    try {
+      const existing = document.getElementById('cc-board-transition-overlay');
+      if (existing) {
+        // Kill animations before removing
+        gsap.killTweensOf(existing);
+        const existingChildren = existing.querySelectorAll('*');
+        existingChildren.forEach(child => {
+          try {
+            gsap.killTweensOf(child);
+          } catch {}
+        });
+        
+        if (existing.parentNode) {
+          existing.parentNode.removeChild(existing);
+        } else {
+          existing.remove();
+        }
       }
+    } catch (error) {
+      logger.warn('⚠️ Error removing overlay by ID:', error);
     }
-  } catch (error) {
-    logger.warn('⚠️ Error removing overlay by ID:', error);
   }
   
-  // 🔥 APP STORE: Force garbage collection hints (iOS Safari)
-  // Clear all references to help GC
-  try {
-    // Clear any remaining references
-    if (typeof (window as any).gc === 'function') {
-      // Only if explicit GC is available (dev mode)
-      (window as any).gc();
-    }
-  } catch {}
+  if (!preserveDom) {
+    // 🔥 APP STORE: Force garbage collection hints (iOS Safari)
+    // Clear all references to help GC
+    try {
+      // Clear any remaining references
+      if (typeof (window as any).gc === 'function') {
+        // Only if explicit GC is available (dev mode)
+        (window as any).gc();
+      }
+    } catch {}
+  }
   
     logger.info('✅ board-transition-screen: Cleanup complete - all resources released');
   } finally {

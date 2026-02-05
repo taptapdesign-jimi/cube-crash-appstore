@@ -9,6 +9,7 @@ import animationManager from './animation-manager.js';
 import { graphicsPool } from './object-pool.ts';
 import { getBubbleColors } from './templates/template-manager.ts';
 import { createScreenLifecycle } from '../utils/screen-lifecycle.js';
+import { logger } from '../core/logger.js';
 
 const trackTween = (target: any, vars: any) => animationManager.trackExternalTween(gsap.to(target, vars));
 
@@ -38,7 +39,7 @@ function getFxHost(stage: any): any {
   if (needsNew) {
     try {
       layer = new Container();
-      layer.name = '__ccGlobalFxLayer';
+      layer.label = '__ccGlobalFxLayer';
       layer.zIndex = 999900; // Below bubbles container but above everything else
       layer.eventMode = 'none';
       layer.visible = true;
@@ -250,7 +251,7 @@ function showWildBeerBubblesExplosionInternal(): void {
 
   // Create container on stage (full-screen)
   explosionContainer = new Container();
-  explosionContainer.name = 'wild-beer-explosion-bubbles';
+  explosionContainer.label = 'wild-beer-explosion-bubbles';
   // 🔥 CRITICAL FIX: Use maximum zIndex to ensure bubbles are above everything
   explosionContainer.zIndex = 999999; // Above everything (maximum)
   explosionContainer.eventMode = 'none';
@@ -431,9 +432,10 @@ function showWildBeerBubblesExplosionInternal(): void {
   }
 
   // Animation parameters
-  const totalBubbles = 70; // FPS optimized
+  const isMobile = typeof window !== 'undefined' && (window.innerWidth < 768 || window.innerHeight > window.innerWidth);
+  const totalBubbles = isMobile ? 40 : 70; // FPS optimized
   const spawnDuration = 1500; // 1.5s
-  const maxActive = 60;
+  const maxActive = isMobile ? 32 : 60;
   let active = 0;
   let spawned = 0;
   const perMs = totalBubbles / spawnDuration;
@@ -489,10 +491,10 @@ function showWildBeerBubblesExplosionInternal(): void {
     
     if (spawned >= totalBubbles || active >= maxActive) {
       if (spawned >= totalBubbles) {
-        console.log(`💧 makeBubble: Max bubbles reached (${spawned}/${totalBubbles})`);
+        logger.debug('makeBubble: Max bubbles reached', undefined, { spawned, totalBubbles });
       }
       if (active >= maxActive) {
-        console.log(`💧 makeBubble: Max active bubbles reached (${active}/${maxActive})`);
+        logger.debug('makeBubble: Max active bubbles reached', undefined, { active, maxActive });
       }
       return;
     }
@@ -707,21 +709,9 @@ function showWildBeerBubblesExplosionInternal(): void {
       }
       return;
     }
-    // 🔥 DEBUG: Log first few ticker calls and every 10th frame to verify it's running
-    if (frameCounter < 10 || frameCounter % 10 === 0) {
-      console.log(`💧 spawnTicker: Frame ${frameCounter}`, {
-        hasContainer: !!explosionContainer,
-        containerDestroyed: explosionContainer?.destroyed,
-        containerInStage: !!(explosionContainer?.parent),
-        containerVisible: explosionContainer?.visible,
-        containerAlpha: explosionContainer?.alpha,
-        containerChildren: explosionContainer?.children?.length || 0,
-        spawned,
-        active,
-        isExplosionActive,
-        elapsed: performance.now() - startTime,
-        spawnDuration
-      });
+    // Debug: first few frames and every 10th (use logger.debug in dev only)
+    if (typeof logger !== 'undefined' && (frameCounter < 5 || frameCounter % 30 === 0)) {
+      logger.debug(`spawnTicker: Frame ${frameCounter}`, undefined, { spawned, active, isExplosionActive });
     }
     
     if (!explosionContainer || explosionContainer.destroyed) {
@@ -1169,7 +1159,8 @@ function initializeBubbleTexture(app: any): void {
       }
       try {
         _cachedBubbleTexture.label = 'runtime:wild-beer-bubbles-explosion';
-        if (_cachedBubbleTexture.baseTexture) _cachedBubbleTexture.baseTexture.label = _cachedBubbleTexture.label;
+        const src = (_cachedBubbleTexture as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? _cachedBubbleTexture.baseTexture;
+        if (src) src.label = _cachedBubbleTexture.label;
         const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
         rt.add?.(_cachedBubbleTexture);
       } catch {}
@@ -1184,7 +1175,8 @@ function initializeBubbleTexture(app: any): void {
         }
         try {
           _cachedBubbleTexture.label = 'runtime:wild-beer-bubbles-explosion';
-          if (_cachedBubbleTexture.baseTexture) _cachedBubbleTexture.baseTexture.label = _cachedBubbleTexture.label;
+          const src = (_cachedBubbleTexture as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? _cachedBubbleTexture.baseTexture;
+        if (src) src.label = _cachedBubbleTexture.label;
           const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
           rt.add?.(_cachedBubbleTexture);
         } catch {}
@@ -1198,7 +1190,8 @@ function initializeBubbleTexture(app: any): void {
           }
           try {
             _cachedBubbleTexture.label = 'runtime:wild-beer-bubbles-explosion';
-            if (_cachedBubbleTexture.baseTexture) _cachedBubbleTexture.baseTexture.label = _cachedBubbleTexture.label;
+            const src = (_cachedBubbleTexture as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? _cachedBubbleTexture.baseTexture;
+        if (src) src.label = _cachedBubbleTexture.label;
             const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
             rt.add?.(_cachedBubbleTexture);
           } catch {}

@@ -60,7 +60,7 @@ class MemoryManager {
       maxTextures: 50,
       maxObjects: 100,
       maxEventListeners: 200,
-      memoryThreshold: 150 // MB – avoid false warnings on homepage/slider
+      memoryThreshold: 180 // MB – reduce false warnings on homepage/slider
     };
 
     this.isMonitoring = false;

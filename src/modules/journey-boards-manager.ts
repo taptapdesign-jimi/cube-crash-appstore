@@ -9,6 +9,7 @@
 // - Cards can be positioned individually anywhere you want
 
 import { logger } from '../core/logger.js';
+import { isAssetAliasRegistered, markAssetAliasRegistered } from '../utils/asset-registry.js';
 import { JOURNEY_CARD_IDLE_BOUNCE, smokeBubblesAtCard } from './journey-card-idle-bounce.js';
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
@@ -577,8 +578,8 @@ class JourneyBoardsManager {
   private startGlowPulse(): void {
     // 🔥 CRITICAL FIX: Stop any existing intervals first to prevent duplicates
     if (this.glowPulseInterval !== null) {
-      logger.warn('⚠️ Glow pulse already active, stopping before restart');
       this.stopGlowPulse();
+      return; // Already running; avoid restart storm from repeated renderBoards calls
     }
     
     // Find interim card
@@ -2471,8 +2472,8 @@ class JourneyBoardsManager {
       const opacityValue = parseFloat(currentOpacity);
       if (isNaN(opacityValue) || opacityValue < 1.0) {
         card.style.opacity = '1';
-        console.log(`✅ Set locked card ${board.id} opacity to 100% (was ${currentOpacity})`);
-        logger.info(`✅ Set locked card ${board.id} opacity to 100% (was ${currentOpacity})`);
+        const wasStr = (currentOpacity != null && String(currentOpacity).trim() !== '') ? ` (was ${currentOpacity})` : '';
+        logger.debug(`Set locked card ${board.id} opacity to 100%${wasStr}`);
       }
     }
 
@@ -3696,11 +3697,14 @@ class JourneyBoardsManager {
               return; // Already loaded
             }
             
-            // Register and load into PIXI Assets cache
-            try {
-              Assets.add({ alias: assetPath, src: assetPath });
-            } catch (err) {
-              // Already registered, ignore
+            // Register and load into PIXI Assets cache (skip add if already in cache to avoid "already has key" warnings)
+            if (!isAssetAliasRegistered(assetPath) && (typeof Assets.cache?.has !== 'function' || !Assets.cache.has(assetPath))) {
+              try {
+                Assets.add({ alias: assetPath, src: assetPath });
+                markAssetAliasRegistered(assetPath);
+              } catch (err) {
+                // Already registered, ignore
+              }
             }
             
             await Assets.load(assetPath);
@@ -6150,7 +6154,7 @@ class JourneyBoardsManager {
       unlockBtn.style.cursor = 'pointer';
       unlockBtn.disabled = false;
       
-      console.log('✅ Journey Show Card button listener attached (onclick)');
+      logger.debug('Journey Show Card button listener attached', undefined, { onclick: true });
     } else {
       console.warn('⚠️ journey-unlock-btn not found');
     }
@@ -6177,7 +6181,7 @@ class JourneyBoardsManager {
       hideBtn.style.cursor = 'pointer';
       hideBtn.disabled = false;
       
-      console.log('✅ Journey Hide Card button listener attached (onclick)');
+      logger.debug('Journey Hide Card button listener attached', undefined, { onclick: true });
     } else {
       console.warn('⚠️ journey-hide-btn not found');
     }

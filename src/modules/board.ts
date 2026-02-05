@@ -217,14 +217,24 @@ function _drawPipsInternal(t: Tile): void {
   };
   const pts = maps[clamp(t.value || 0, 1, 6)];
 
-  g.beginFill(PIP_COLOR, PIP_ALPHA);
-  for (const i of pts) {
-    const x = xs[i % 3];
-    const y = ys[Math.floor(i / 3)];
-    if (PIP_SQUARE) g.drawRoundedRect(x - size / 2, y - size / 2, size, size, r);
-    else g.drawCircle(x, y, size / 2);
+  const useV8 = typeof (g as any).fill === 'function';
+  if (useV8) {
+    for (const i of pts) {
+      const x = xs[i % 3];
+      const y = ys[Math.floor(i / 3)];
+      if (PIP_SQUARE) (g as any).roundRect(x - size / 2, y - size / 2, size, size, r).fill({ color: PIP_COLOR, alpha: PIP_ALPHA });
+      else (g as any).circle(x, y, size / 2).fill({ color: PIP_COLOR, alpha: PIP_ALPHA });
+    }
+  } else {
+    g.beginFill(PIP_COLOR, PIP_ALPHA);
+    for (const i of pts) {
+      const x = xs[i % 3];
+      const y = ys[Math.floor(i / 3)];
+      if (PIP_SQUARE) g.drawRoundedRect(x - size / 2, y - size / 2, size, size, r);
+      else g.drawCircle(x, y, size / 2);
+    }
+    g.endFill();
   }
-  g.endFill();
 }
 
 // ✅ PATCH: nema "ghost alpha"; prazno briše pips i gasi overlay
@@ -299,9 +309,8 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
         (t.base as any).alpha = 1;
         t.base.visible = true;
         // Optimize texture for pixel-perfect rendering
-        if (t.base.texture && t.base.texture.baseTexture) {
-          t.base.texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
-        }
+        const bt = t.base.texture && ((t.base.texture as { source?: { scaleMode?: string } }).source ?? t.base.texture.baseTexture);
+        if (bt) bt.scaleMode = (typeof SCALE_MODES !== 'undefined' && SCALE_MODES.NEAREST) || 'nearest';
       }
       
       // 🔥 CRITICAL: Hide pips and num for wild tiles
@@ -319,20 +328,16 @@ function _setValueVisuals(t: Tile, v: number, addStack: number): void {
     // aktivna pločica (only if NOT a wild tile)
     if (t.base) {
       t.base.texture = pickNumbersSkin();
-      // Optimize texture for pixel-perfect rendering
-      if (t.base.texture && t.base.texture.baseTexture) {
-        t.base.texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
-      }
+      const bt2 = t.base.texture && ((t.base.texture as { source?: { scaleMode?: string } }).source ?? t.base.texture.baseTexture);
+      if (bt2) bt2.scaleMode = (typeof SCALE_MODES !== 'undefined' && SCALE_MODES.NEAREST) || 'nearest';
     }
     if (t.overlay) t.overlay.visible = false;
   } else {
     // prazno/locked
     if (t.base) {
       t.base.texture = Assets.get(ASSET_TILE);
-      // Optimize texture for pixel-perfect rendering
-      if (t.base.texture && t.base.texture.baseTexture) {
-        t.base.texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
-      }
+      const bt3 = t.base.texture && ((t.base.texture as { source?: { scaleMode?: string } }).source ?? t.base.texture.baseTexture);
+      if (bt3) bt3.scaleMode = (typeof SCALE_MODES !== 'undefined' && SCALE_MODES.NEAREST) || 'nearest';
     }
     if (t.overlay) t.overlay.visible = false;
     t.pips?.clear?.(); // odmah ukloni pips da ne "procure"
@@ -570,34 +575,52 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
       const ox = -width / 2 + nx * shift + 1; // +1 tiny pixel nudge for sub-pixel crispness
       const oy = -height / 2 + ny * shift + 4 + biasY;
 
-        sh.beginFill(0xBDA38D, alpha);
-        
-        if (isWildStar) {
-          // 🔥 USER REQUEST: Draw star-shaped shadow for wild star tile
-          const centerX = ox + width / 2;
-          const centerY = oy + height / 2;
-          const outerRadius = Math.min(width, height) * 0.45;
-          const innerRadius = outerRadius * 0.4;
-          drawStar(sh, centerX, centerY, outerRadius, innerRadius, 5);
-        } else if (isWildBeer) {
-          // 🔥 USER REQUEST: Draw beer mug-shaped shadow for wild-beer tile
-          const centerX = ox + width / 2;
-          const centerY = oy + height / 2;
-          drawBeerMug(sh, centerX, centerY, width, height);
-        } else if (isWildMagnet) {
-          // 🔥 USER REQUEST: Draw magnet-shaped shadow for wild-magnet tile
-          const centerX = ox + width / 2;
-          const centerY = oy + height / 2;
-          drawMagnet(sh, centerX, centerY, width, height);
-        } else if (isWildTnt) {
-          // 🔥 Explosion Pack: TNT crate-shaped shadow (rounded rect)
-          sh.drawRoundedRect(ox, oy, width, height, TILE * 0.22);
+        const shV8 = sh as any;
+        const useV8Fill = typeof shV8.fill === 'function' && typeof shV8.roundRect === 'function';
+        if (useV8Fill) {
+          if (isWildStar) {
+            const centerX = ox + width / 2;
+            const centerY = oy + height / 2;
+            const outerRadius = Math.min(width, height) * 0.45;
+            const innerRadius = outerRadius * 0.4;
+            drawStar(sh, centerX, centerY, outerRadius, innerRadius, 5);
+            shV8.fill({ color: 0xBDA38D, alpha });
+          } else if (isWildBeer) {
+            const centerX = ox + width / 2;
+            const centerY = oy + height / 2;
+            drawBeerMug(sh, centerX, centerY, width, height);
+            shV8.fill({ color: 0xBDA38D, alpha });
+          } else if (isWildMagnet) {
+            const centerX = ox + width / 2;
+            const centerY = oy + height / 2;
+            drawMagnet(sh, centerX, centerY, width, height);
+            shV8.fill({ color: 0xBDA38D, alpha });
+          } else {
+            shV8.roundRect(ox, oy, width, height, TILE * 0.22).fill({ color: 0xBDA38D, alpha });
+          }
         } else {
-          // Regular rounded rectangle shadow for regular tiles
-          sh.drawRoundedRect(ox, oy, width, height, TILE * 0.22);
+          sh.beginFill(0xBDA38D, alpha);
+          if (isWildStar) {
+            const centerX = ox + width / 2;
+            const centerY = oy + height / 2;
+            const outerRadius = Math.min(width, height) * 0.45;
+            const innerRadius = outerRadius * 0.4;
+            drawStar(sh, centerX, centerY, outerRadius, innerRadius, 5);
+          } else if (isWildBeer) {
+            const centerX = ox + width / 2;
+            const centerY = oy + height / 2;
+            drawBeerMug(sh, centerX, centerY, width, height);
+          } else if (isWildMagnet) {
+            const centerX = ox + width / 2;
+            const centerY = oy + height / 2;
+            drawMagnet(sh, centerX, centerY, width, height);
+          } else if (isWildTnt) {
+            sh.drawRoundedRect(ox, oy, width, height, TILE * 0.22);
+          } else {
+            sh.drawRoundedRect(ox, oy, width, height, TILE * 0.22);
+          }
+          sh.endFill();
         }
-        
-        sh.endFill();
     }
 
     // rotate and subtly distort shadow to follow visual tilt
@@ -628,10 +651,8 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   face.anchor.set(0.5);
   face.width = TILE;
   face.height = TILE;
-  // Optimize texture for pixel-perfect rendering
-  if (face.texture && face.texture.baseTexture) {
-    face.texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
-  }
+  const faceSrc = face.texture && ((face.texture as { source?: { scaleMode?: string } }).source ?? face.texture.baseTexture);
+  if (faceSrc) faceSrc.scaleMode = (typeof SCALE_MODES !== 'undefined' && SCALE_MODES.NEAREST) || 'nearest';
   t.rotG.addChild(face);
   t.base = face;
 
@@ -641,10 +662,8 @@ export function createTile({ board, grid, tiles, c, r, val = 0, locked = false }
   ov.width = TILE;
   ov.height = TILE;
   ov.alpha = 0.55;
-  // Optimize texture for pixel-perfect rendering
-  if (ov.texture && ov.texture.baseTexture) {
-    ov.texture.baseTexture.scaleMode = SCALE_MODES.NEAREST;
-  }
+  const ovSrc = ov.texture && ((ov.texture as { source?: { scaleMode?: string } }).source ?? ov.texture.baseTexture);
+  if (ovSrc) ovSrc.scaleMode = (typeof SCALE_MODES !== 'undefined' && SCALE_MODES.NEAREST) || 'nearest';
   ov.visible = false;
   t.rotG.addChild(ov);
   t.overlay = ov;

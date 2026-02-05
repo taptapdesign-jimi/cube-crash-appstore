@@ -128,7 +128,7 @@ export function startWildBeerBubbles(tile) {
   if (!host) return;
   
   const container = new Container();
-  container.name = 'wild-beer-bubbles';
+  container.label = 'wild-beer-bubbles';
   container.sortableChildren = false;
   container.zIndex = 2600; // Same z-index as wild stars
   container.visible = true;
@@ -4131,7 +4131,7 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
   // 🔥 CRITICAL: Create animation container on STAGE with PROTECTED identifier
   // This ensures it's independent of board animations and won't be killed by cleanup
   const animationContainer = new Container();
-  animationContainer.name = 'stars-to-hud-animation';
+  animationContainer.label = 'stars-to-hud-animation';
   animationContainer.zIndex = 30000; // 🔥 VERY HIGH z-index to be above all board animations
   animationContainer.eventMode = 'none';
   animationContainer.x = 0;
@@ -4301,24 +4301,9 @@ export async function animateStarsToHudIcon(board, stage, savedStarPositions, sa
     animationContainer.addChild(animatedStar);
     starSprites.push(animatedStar);
     
-    // 🔥 CRITICAL FIX: Only update transform if sprite has parent and valid position
-    // updateTransform() can fail if sprite doesn't have parent or position is invalid
-    try {
-      if (animatedStar.parent && Number.isFinite(animatedStar.x) && Number.isFinite(animatedStar.y)) {
-        animatedStar.updateTransform();
-      } else {
-        console.warn(`⚠️ Star ${i + 1} cannot update transform - missing parent or invalid position:`, {
-          hasParent: !!animatedStar.parent,
-          x: animatedStar.x,
-          y: animatedStar.y,
-          parentType: animatedStar.parent?.constructor?.name
-        });
-      }
-    } catch (e) {
-      console.warn(`⚠️ Star ${i + 1} updateTransform failed (non-critical):`, e);
-      // Continue anyway - PIXI will update transform automatically on next render
-    }
-    
+    // Do not call updateTransform() here - in Pixi v8 it can throw (reading 'x' of undefined).
+    // PIXI updates transforms automatically on the next render frame.
+
     // 🔥 CRITICAL FIX: Verify star position is within screen bounds
     const screenWidth = stage.width || (rendererApp?.renderer?.width || window.innerWidth);
     const screenHeight = stage.height || (rendererApp?.renderer?.height || window.innerHeight);
@@ -5509,7 +5494,8 @@ function makeLinearGradientTexture(w, h, stops){
     const texture = Texture.from(canvas);
     try {
       texture.label = `runtime:wild-shimmer-gradient:${canvas.width}x${canvas.height}`;
-      if (texture.baseTexture) texture.baseTexture.label = texture.label;
+      const texSrc = (texture as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? texture.baseTexture;
+      if (texSrc) texSrc.label = texture.label;
     } catch {}
     try {
       const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
@@ -6000,8 +5986,12 @@ export function stopTntIdleParticles(tile) {
   if (tile._tntIdleParticles && Array.isArray(tile._tntIdleParticles)) {
     const particles = tile._tntIdleParticles.slice();
     tile._tntIdleParticles = null;
+    // Dedupe by reference and skip if already in pool (same Graphics can be shared or released elsewhere)
+    const seen = new Set();
     particles.forEach((particle) => {
-      if (!particle || particle.destroyed) return;
+      if (!particle || particle.destroyed || seen.has(particle)) return;
+      if (graphicsPool.isInPool(particle)) return; // Already released (e.g. shared ref from another tile)
+      seen.add(particle);
       try {
         gsap.killTweensOf(particle);
         gsap.killTweensOf(particle.x);

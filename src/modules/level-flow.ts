@@ -142,7 +142,7 @@ export async function openLockedBounceParallel({
       activeSpawnTimeouts.delete(timeout);
       // 🔥 CRITICAL: Check if tile still exists and is not destroyed before spawning
       if (!t || t.destroyed || !t.scale) {
-        console.warn('⚠️ Spawn skipped: tile is null, destroyed, or has no scale', { tile: t, destroyed: t?.destroyed, hasScale: !!t?.scale });
+        logger.debug('Spawn skipped: tile null/destroyed/no scale', 'level-flow', { destroyed: t?.destroyed, hasScale: !!t?.scale });
         return;
       }
       
@@ -168,7 +168,7 @@ export async function openLockedBounceParallel({
       
       // 🔥 CRITICAL: Check tile again before setValue (it might have been destroyed during resetTileToNormalState)
       if (!t || t.destroyed || !t.scale) {
-        console.warn('⚠️ Spawn skipped: tile destroyed during resetTileToNormalState');
+        logger.debug('Spawn skipped: tile destroyed during resetTileToNormalState', 'level-flow');
         return;
       }
       
@@ -177,7 +177,7 @@ export async function openLockedBounceParallel({
       
       // 🔥 CRITICAL: Final check before spawnBounce (tile might have been destroyed during setValue)
       if (!t || t.destroyed || !t.scale) {
-        console.warn('⚠️ Spawn skipped: tile destroyed during setValue');
+        logger.debug('Spawn skipped: tile destroyed during setValue', 'level-flow');
         return;
       }
       

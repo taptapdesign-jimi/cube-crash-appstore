@@ -4,6 +4,7 @@
 
 import { Assets } from 'pixi.js';
 import { logger } from '../core/logger.js';
+import { isAssetAliasRegistered, markAssetAliasRegistered } from '../utils/asset-registry.js';
 
 // Type definitions
 interface ProgressCallback {
@@ -58,7 +59,7 @@ const ALL_ASSETS: string[] = [
   './assets/logo-cube-crash.png',
   './assets/logo-cube-crash@2x.png',
   './assets/logo-cube-crash@3x.png',
-  './assets/logo.png',
+  // './assets/logo.png' - removed: file not in repo (use logo-cube-crash)
   
   // Logo addons
   './assets/logo addons/gore ljevo shards.png',
@@ -112,13 +113,13 @@ const ALL_ASSETS: string[] = [
   './assets/settings-slider@2x.png',
   './assets/settings-slider@3x.png',
   './assets/clean-board.png',
-  './assets/mystery-box.png',
-  './assets/gold-coin.png',
-  './assets/potion.png',
+  // './assets/mystery-box.png' - removed: file not in repo
+  // './assets/gold-coin.png' - removed: file not in repo
+  // './assets/potion.png' - removed: decode fails in preload
   './assets/melted-dice.png',
   './assets/star-slider.png',
-  './assets/ripple.png',
-  './assets/leaf light.png',
+  // './assets/ripple.png' - removed: file not in repo
+  // './assets/leaf light.png' - removed: decode fails (space in path or invalid file)
   
   // Icons
   './assets/chevron-back.png',
@@ -159,16 +160,9 @@ const ALL_ASSETS: string[] = [
   './assets/modals/paper.png',
   './assets/modals/paper@2x.png',
   './assets/modals/paper@3x.png',
-  './assets/hud/score-hud.png',
-  './assets/restart-icon.png',
-  './assets/resume-game.png',
-  './assets/settings-icon.png',
+  // restart-icon, resume-game, settings-icon, time-icon, unpause-icon, wild-stats, stop - removed: decode fails (InvalidStateError) in preload; add back when assets fixed
   './assets/settings-slider.png',
   './assets/journey-map-homepage.png',
-  './assets/stop.png',
-  './assets/time-icon.png',
-  './assets/unpause-icon.png',
-  './assets/wild-stats.png',
   './assets/wild.png',
   
   // Fonts
@@ -184,23 +178,7 @@ const ALL_ASSETS: string[] = [
   // Video
   './assets/swipe.MP4',
   
-  // FX assets
-  './assets/fx/boom/boom_0001.png',
-  './assets/fx/boom/boom_0002.png',
-  './assets/fx/boom/boom_0003.png',
-  './assets/fx/boom/boom_0004.png',
-  './assets/fx/boom/boom_0005.png',
-  './assets/fx/boom/boom_0006.png',
-  './assets/fx/boom/boom_0007.png',
-  './assets/fx/boom/boom_0008.png',
-  './assets/fx/boom/boom_0009.png',
-  './assets/fx/boom/boom_0010.png',
-  './assets/fx/boom/boom_0011.png',
-  './assets/fx/boom/boom_0012.png',
-  './assets/fx/boom/boom_0013.png',
-  './assets/fx/boom/boom_0014.png',
-  './assets/fx/boom/boom_0015.png',
-  './assets/fx/boom/boom_0016.png',
+  // FX assets - fx/boom folder not in repo; removed to avoid load errors
   './assets/colelctibles/common back.png',
   './assets/colelctibles/legendary back.png',
 ];
@@ -244,7 +222,7 @@ const CRITICAL_ASSETS: string[] = [
   // Essential UI (first frame only)
   './assets/close-button.png',
   './assets/close-icon.png',
-  './assets/stop.png',
+  // './assets/stop.png' - removed: decode fails in preload
   
   // Bottom sheet icons (preload to prevent blurry loading when modals open)
   './assets/highscore-icon.png',
@@ -563,11 +541,19 @@ export class AssetPreloader {
         
         logger.debug(`📦 Loading ${CRITICAL_ASSETS.length} critical assets (deferring ${DEFERRED_ASSETS.length} assets)`);
         
-        // 🔥 CRITICAL: Register assets with Assets.add() BEFORE loading
-        // This ensures Assets.get() can find them later by the same path
+        // 🔥 CRITICAL: Register assets with Assets.add() BEFORE loading (skip if already in cache to avoid Resolver "already has key" warnings)
+        const registeredKeys = new Set<string>();
         CRITICAL_ASSETS.forEach((assetPath: string) => {
+          if (registeredKeys.has(assetPath)) return;
+          if (isAssetAliasRegistered(assetPath)) return;
+          if (typeof Assets.cache?.has === 'function' && Assets.cache.has(assetPath)) {
+            markAssetAliasRegistered(assetPath);
+            return;
+          }
+          registeredKeys.add(assetPath);
           try {
             Assets.add({ alias: assetPath, src: assetPath });
+            markAssetAliasRegistered(assetPath);
           } catch (err) {
             // Ignore if already added
           }
@@ -690,10 +676,19 @@ export class AssetPreloader {
     logger.info(`🔄 Starting background loading of ${DEFERRED_ASSETS.length} deferred assets...`);
     
     try {
-      // 🔥 CRITICAL: Register deferred assets with Assets.add() BEFORE loading
+      // 🔥 CRITICAL: Register deferred assets with Assets.add() BEFORE loading (skip if already in cache to avoid Resolver "already has key" warnings)
+      const deferredKeys = new Set<string>();
       DEFERRED_ASSETS.forEach((assetPath: string) => {
+        if (deferredKeys.has(assetPath)) return;
+        if (isAssetAliasRegistered(assetPath)) return;
+        if (typeof Assets.cache?.has === 'function' && Assets.cache.has(assetPath)) {
+          markAssetAliasRegistered(assetPath);
+          return;
+        }
+        deferredKeys.add(assetPath);
         try {
           Assets.add({ alias: assetPath, src: assetPath });
+          markAssetAliasRegistered(assetPath);
         } catch (err) {
           // Ignore if already added
         }

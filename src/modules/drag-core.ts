@@ -114,7 +114,8 @@ function __dg_makeLinearGradientTexture(w, h, colA = 0xFFE9D9, colB = 0xB2876A, 
   const texture = Texture.from(canvas);
   try {
     texture.label = `runtime:drag-gradient:${canvas.width}x${canvas.height}`;
-    if (texture.baseTexture) texture.baseTexture.label = texture.label;
+    const src = (texture as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? texture.baseTexture;
+    if (src) src.label = texture.label;
   } catch {}
   try {
     const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());

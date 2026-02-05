@@ -317,7 +317,7 @@ export async function collectStarsFromWildTile(
   // 🔥 CRITICAL FIX: Create container on stage (screen coordinates), not board (local coordinates)
   // This ensures screen coordinate positions work correctly
   const animationContainer = new Container();
-  animationContainer.name = 'stars-collection-animation';
+  animationContainer.label = 'stars-collection-animation';
   animationContainer.zIndex = 10000; // Above everything (above HUD which is 10000)
   animationContainer.eventMode = 'none';
   animationContainer.x = 0; // Stage uses screen coordinates (0,0 is top-left)

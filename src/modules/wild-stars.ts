@@ -175,7 +175,7 @@ function createFallbackStar(): Graphics {
   const g = new Graphics();
   g.star(0, 0, 5, STAR_TARGET_SIZE * 0.5, STAR_TARGET_SIZE * 0.25).fill({ color: 0xFFE7B5, alpha: 1.0 });
   g.lineStyle(undefined);
-  g.name = 'wild-baby-star-placeholder';
+  g.label = 'wild-baby-star-placeholder';
   g.alpha = 1.0;
   g.visible = true;
   g.renderable = true;
@@ -186,7 +186,7 @@ function createFallbackStar(): Graphics {
 function createStarSprite(texture: Texture, star: OrbitingStar): Sprite {
   const sprite = new Sprite(texture);
   sprite.anchor.set(0.5);
-  sprite.name = 'wild-baby-star';
+  sprite.label = 'wild-baby-star';
   sprite.blendMode = 1;
   sprite.alpha = 1.0; // Full opacity
   sprite.visible = true; // FORSIRANO vidljivo
@@ -315,7 +315,7 @@ export function attachWildStarHalo(tile: WildishTile | null | undefined): void {
   if (!host) return;
 
   const container = new Container();
-  container.name = 'wild-baby-star-orbit';
+  container.label = 'wild-baby-star-orbit';
   container.sortableChildren = false;
   container.zIndex = 2600;
   container.alpha = 0; // Sakrij dok se tekstura ne učita

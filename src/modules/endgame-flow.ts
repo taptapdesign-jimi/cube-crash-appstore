@@ -68,6 +68,14 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
   }
   if (!isAppVisible) {
     try {
+      const transitionStartMem = (performance as any)?.memory;
+      if (transitionStartMem) {
+        console.log('🧠 endgame-flow: Transition start memory snapshot', {
+          usedJSHeapSize: transitionStartMem.usedJSHeapSize,
+          totalJSHeapSize: transitionStartMem.totalJSHeapSize,
+          jsHeapSizeLimit: transitionStartMem.jsHeapSizeLimit
+        });
+      }
       const uiManagerModule = await import('./ui-manager.js');
       uiManagerModule.default?.showApp?.();
       console.warn('⚠️ runEndgameFlow: App was hidden with no UI visible - force showApp()');
@@ -424,7 +432,9 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
     // Get final score AFTER modal has updated it (modal adds bonus and sets final score)
     const finalScore = ctx.getScore ? ctx.getScore() : 0;
     logger.info(`🎯 endgame-flow: Continue action - current level: ${level}, next level: ${nextLevel}, final score: ${finalScore}`);
-    
+    // 🔥 FIX: Define in scope for transition path (used for duration logging)
+    const transitionStartTs = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+
     // 🔥 CRITICAL FIX: Hide board indicator immediately before showing transition screen
     // This prevents persistent "BOARD 07" element from showing during transition
     try {
@@ -708,11 +718,53 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
         tnt.stopTntAnimation?.();
       } catch {}
 
+      // 🍎 iOS: Aggressive memory reduction before transition to lower WebContent crash risk
+      try {
+        const memModule = await import('./memory-manager.js');
+        if (memModule?.default?.performCleanup) {
+          memModule.default.performCleanup();
+          console.log('✅ endgame-flow: Memory manager cleanup before transition');
+        }
+      } catch {}
+      try {
+        if (window.PIXI?.utils) {
+          let removedBaseTextures = 0;
+          if (typeof window.PIXI.utils.clearTextureCache === 'function') {
+            window.PIXI.utils.clearTextureCache();
+          }
+          const baseTextureCache = (window.PIXI.utils as any).BaseTextureCache;
+          if (baseTextureCache && typeof baseTextureCache === 'object') {
+            const toRemove: string[] = [];
+            for (const [key, bt] of Object.entries(baseTextureCache)) {
+              const baseTexture = bt as { textureCacheIds?: string[]; destroy?: () => void };
+              if (baseTexture && (!baseTexture.textureCacheIds || baseTexture.textureCacheIds.length === 0)) {
+                try {
+                  baseTexture.destroy?.();
+                  toRemove.push(key);
+                } catch {}
+              }
+            }
+            toRemove.forEach(k => { try { delete baseTextureCache[k]; } catch {} });
+            removedBaseTextures = toRemove.length;
+          }
+          if (removedBaseTextures > 0) {
+            console.log(`🧹 endgame-flow: Removed ${removedBaseTextures} unused base textures before transition`);
+          }
+        }
+      } catch {}
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      await new Promise(resolve => requestAnimationFrame(resolve));
+
       // 🔥 CRITICAL FIX: Set board transition flag AFTER cleanup is guaranteed
       (window as any).__ccBoardTransitionActive = true;
       console.log('🎯 endgame-flow: Set __ccBoardTransitionActive flag to protect bubble explosion');
       
-      const { showBoardTransitionScreen } = await import('./board-transition-screen.js');
+      const { showBoardTransitionScreen, cleanupBoardTransitionScreen } = await import('./board-transition-screen.js');
+      try {
+        cleanupBoardTransitionScreen?.();
+        console.log('✅ endgame-flow: Forced cleanup before transition screen');
+      } catch {}
+      await new Promise(resolve => requestAnimationFrame(resolve));
       // 🔥 CRITICAL FIX: Use nextLevel for transition screen (next board, not current)
       // nextLevel is calculated from boardNumber + 1, which is the correct next board
       // This ensures correct board number is shown when coming from interim board
@@ -720,6 +772,8 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
       await showBoardTransitionScreen({
         boardNumber: nextLevel,
         onComplete: async () => {
+          const transitionEndTs = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+          console.log('⏱️ endgame-flow: Transition duration (ms)', Math.round(transitionEndTs - transitionStartTs));
           // 🔥 CRITICAL: Hide ghost placeholders immediately (sync, before any await)
           // Prevents one-frame blink when transition overlay is removed or before new board is ready
           try {
@@ -753,6 +807,17 @@ export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
           } catch (hideError) {
             console.warn('⚠️ endgame-flow: Failed to hide app (non-fatal):', hideError);
           }
+
+          const transitionEndMem = (performance as any)?.memory;
+          if (transitionEndMem) {
+            console.log('🧠 endgame-flow: Pre-startLevel memory snapshot', {
+              usedJSHeapSize: transitionEndMem.usedJSHeapSize,
+              totalJSHeapSize: transitionEndMem.totalJSHeapSize,
+              jsHeapSizeLimit: transitionEndMem.jsHeapSizeLimit
+            });
+          }
+          await new Promise(resolve => requestAnimationFrame(resolve));
+          await new Promise(resolve => requestAnimationFrame(resolve));
           
           // 🔥 CRITICAL FIX: Wrap startLevel/startNewRunFromJourney in try-catch to prevent unhandled errors
           try {

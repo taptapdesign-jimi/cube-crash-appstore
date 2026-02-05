@@ -6,6 +6,7 @@
  */
 
 import { logger } from '../core/logger.js';
+import { isAssetAliasRegistered, markAssetAliasRegistered } from './asset-registry.js';
 
 const CACHE_NAME = 'cube-crash-images-v2';
 const CACHE_VERSION_KEY = 'image_cache_version';
@@ -249,12 +250,20 @@ export async function loadHudIconsIntoPixiCache(): Promise<void> {
           cachedCount++;
           continue; // Already in cache
         }
-        
+        // Skip if already registered in resolver (avoids "already has key" warnings)
+        if (isAssetAliasRegistered(iconPath)) {
+          cachedCount++;
+          continue;
+        }
+        if (typeof Assets.cache?.has === 'function' && Assets.cache.has(iconPath)) {
+          cachedCount++;
+          markAssetAliasRegistered(iconPath);
+          continue;
+        }
         iconsToLoad.push(iconPath);
-        
-        // Register with PIXI Assets
         try {
           Assets.add({ alias: iconPath, src: iconPath });
+          markAssetAliasRegistered(iconPath);
         } catch (err) {
           // Already registered, ignore
         }

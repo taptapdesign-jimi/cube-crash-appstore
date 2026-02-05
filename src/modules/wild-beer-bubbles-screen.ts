@@ -47,7 +47,7 @@ export function startWildBeerBubblesScreen(): void {
 
   // Create container on stage (full-screen)
   bubblesContainer = new Container();
-  bubblesContainer.name = 'wild-beer-bubbles-screen';
+  bubblesContainer.label = 'wild-beer-bubbles-screen';
   bubblesContainer.zIndex = 20000; // Above everything
   bubblesContainer.eventMode = 'none';
   bubblesContainer.visible = true;
@@ -162,7 +162,8 @@ function initializeBubbleTexture(app: any): void {
       }
       try {
         _cachedBubbleTexture.label = 'runtime:wild-beer-bubbles-screen';
-        if (_cachedBubbleTexture.baseTexture) _cachedBubbleTexture.baseTexture.label = _cachedBubbleTexture.label;
+        const src = (_cachedBubbleTexture as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? _cachedBubbleTexture.baseTexture;
+        if (src) src.label = _cachedBubbleTexture.label;
         const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
         rt.add?.(_cachedBubbleTexture);
       } catch {}
@@ -179,7 +180,8 @@ function initializeBubbleTexture(app: any): void {
         }
         try {
           _cachedBubbleTexture.label = 'runtime:wild-beer-bubbles-screen';
-          if (_cachedBubbleTexture.baseTexture) _cachedBubbleTexture.baseTexture.label = _cachedBubbleTexture.label;
+          const src = (_cachedBubbleTexture as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? _cachedBubbleTexture.baseTexture;
+        if (src) src.label = _cachedBubbleTexture.label;
           const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
           rt.add?.(_cachedBubbleTexture);
         } catch {}
@@ -194,7 +196,8 @@ function initializeBubbleTexture(app: any): void {
           }
           try {
             _cachedBubbleTexture.label = 'runtime:wild-beer-bubbles-screen';
-            if (_cachedBubbleTexture.baseTexture) _cachedBubbleTexture.baseTexture.label = _cachedBubbleTexture.label;
+            const src = (_cachedBubbleTexture as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? _cachedBubbleTexture.baseTexture;
+        if (src) src.label = _cachedBubbleTexture.label;
             const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
             rt.add?.(_cachedBubbleTexture);
           } catch {}
@@ -242,6 +245,11 @@ function spawnBubble(): void {
   // Screen dimensions
   const screenW = (typeof window !== 'undefined' ? window.innerWidth : 800);
   const screenH = (typeof window !== 'undefined' ? window.innerHeight : 600);
+  const isMobile = screenW < 768 || screenH > screenW;
+  const maxActiveBubbles = isMobile ? 24 : 40;
+  if (activeBubbles.length >= maxActiveBubbles) {
+    return;
+  }
 
   // Get bubble colors from template
   let bubbleColors;
@@ -304,7 +312,6 @@ function spawnBubble(): void {
 
   // Random distribution (match explosion start positions)
   const startX = (Math.random() - 0.5) * screenW * 1.4 + screenW * 0.5;
-  const isMobile = screenW < 768 || screenH > screenW;
   const startYPercent = isMobile
     ? 0.95 + Math.random() * 0.20   // 95–115% (legacy mobile)
     : 1.08 + Math.random() * 0.20;  // 108–128% (below viewport)

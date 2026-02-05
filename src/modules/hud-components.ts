@@ -287,7 +287,7 @@ export function createPIXIHUDContainer(): Container {
   logger.info('🎨 Creating PIXI HUD container');
   
   const container = new Container();
-  container.name = 'HUD_ROOT';
+  container.label = 'HUD_ROOT';
   
   // Create background
   const background = createHUDBackground(400, HUD_HEIGHT);
@@ -295,7 +295,7 @@ export function createPIXIHUDContainer(): Container {
   
   // Close button (left slot)
   const closeContainer = new Container();
-  closeContainer.name = 'closeButton';
+  closeContainer.label = 'closeButton';
   closeContainer.x = 16;
   closeContainer.y = 16;
   closeContainer.eventMode = 'static';
@@ -341,14 +341,14 @@ export function createPIXIHUDContainer(): Container {
   const scoreText = createStyledText('0', TEXT_STYLES.SCORE);
   scoreText.x = 180;
   scoreText.y = 20;
-  scoreText.name = 'scoreText';
+  scoreText.label = 'scoreText';
   container.addChild(scoreText);
   setScoreText(scoreText);
   
   // Create board text but hide in PIXI HUD (handled by close button area)
   const boardText = createStyledText('1', TEXT_STYLES.BOARD);
   boardText.visible = false;
-  boardText.name = 'boardText';
+  boardText.label = 'boardText';
   container.addChild(boardText);
   setBoardText(boardText);
   
@@ -356,7 +356,7 @@ export function createPIXIHUDContainer(): Container {
   const comboText = createStyledText('', TEXT_STYLES.COMBO);
   comboText.x = 330;
   comboText.y = 20;
-  comboText.name = 'comboText';
+  comboText.label = 'comboText';
   container.addChild(comboText);
   setComboText(comboText);
   

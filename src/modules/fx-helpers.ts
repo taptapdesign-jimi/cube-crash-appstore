@@ -118,14 +118,24 @@ export function createWildLoaderFX({
 
     const waveY = (H * (1 - progress));
 
-    // Build a flat polygon mask (no sine wave)
-    mask.beginFill(0xFFFFFF, 1);
-    mask.moveTo(0, 0);
-    mask.lineTo(w, 0);
-    mask.lineTo(w, H);
-    mask.lineTo(0, H);
-    mask.lineTo(0, 0);
-    mask.endFill();
+    // Build a flat polygon mask (no sine wave). Pixi v8: path then fill(); legacy: beginFill/endFill
+    const maskV8 = mask as { fill?: (opts: { color: number; alpha?: number }) => void };
+    if (typeof maskV8.fill === 'function') {
+      mask.moveTo(0, 0);
+      mask.lineTo(w, 0);
+      mask.lineTo(w, H);
+      mask.lineTo(0, H);
+      mask.lineTo(0, 0);
+      maskV8.fill({ color: 0xFFFFFF, alpha: 1 });
+    } else {
+      mask.beginFill(0xFFFFFF, 1);
+      mask.moveTo(0, 0);
+      mask.lineTo(w, 0);
+      mask.lineTo(w, H);
+      mask.lineTo(0, H);
+      mask.lineTo(0, 0);
+      mask.endFill();
+    }
   }
 
   // Simple bubble sprite as Graphics circle

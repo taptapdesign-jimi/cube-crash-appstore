@@ -289,4 +289,10 @@ export function cleanupConfetti(): void {
   }
 }
 
+// Allow confetti to spawn again after a previous stop/cleanup.
+export function allowConfettiSpawns(): void {
+  if (confettiCleanupInProgress) return;
+  confettiSpawnBlocked = false;
+}
+
 export { createConfettiExplosion };

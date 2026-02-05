@@ -53,7 +53,7 @@ class MemoryManager {
     // Reduced from 2 minutes to 30 seconds to prevent memory crashes on iOS
     this.cleanupInterval = setInterval(() => {
       if (this.isMonitoring) {
-        console.log('🧹 Performing periodic memory cleanup...');
+        logger.debug('Performing periodic memory cleanup', 'memory-manager');
         this.performCleanup();
       }
     }, 30000); // Every 30 seconds (optimized for iOS)

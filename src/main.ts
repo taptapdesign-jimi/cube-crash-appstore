@@ -12,6 +12,7 @@ import { gsap } from 'gsap';
 import { assetPreloader } from './modules/asset-preloader.js';
 import './ios-image-helper.js';
 import './3d-effects.js';
+import { startPerfMonitorIfEnabled } from './utils/perf-monitor.js';
 
 // Type definitions
 interface GameModules {
@@ -187,6 +188,7 @@ async function initializeApp(): Promise<void> {
     await initializeGame();
     
     logger.info('✅ App initialized successfully');
+    startPerfMonitorIfEnabled();
     
   } catch (error) {
     logger.error('❌ Failed to initialize app:', String(error));
@@ -286,7 +288,7 @@ async function startAssetPreloading(): Promise<void> {
       // 🔥 CRITICAL: Always wait for launch screen to complete, even if it's not active yet
       // The launch screen is started in index.html, so we need to wait for it to finish
       logger.info('⏳ Waiting for launch screen to complete...');
-      console.log('⏳ Waiting for launch screen to complete...', {
+      logger.debug('Waiting for launch screen to complete', 'main', {
         isActive: launchScreen.active,
         hasContainer: !!document.getElementById('launch-screen')
       });
@@ -298,7 +300,7 @@ async function startAssetPreloading(): Promise<void> {
         const hasContainer = !!document.getElementById('launch-screen');
         const now = Date.now();
         if (now - lastLogAt > 500) {
-          console.log('🔍 Checking launch screen status:', { isActive, hasContainer });
+          logger.debug('Checking launch screen status', 'main', { isActive, hasContainer });
           lastLogAt = now;
         }
         
@@ -307,8 +309,7 @@ async function startAssetPreloading(): Promise<void> {
         // 2. AND container is removed from DOM (launch screen has been cleaned up)
         if (!isActive && !hasContainer) {
           clearInterval(checkInterval);
-          console.log('✅ Launch screen sequence completed (active: false, container removed)');
-          logger.info('✅ Launch screen sequence completed (active: false, container removed)');
+          logger.info('Launch screen sequence completed (active: false, container removed)', 'main');
           resolve();
         }
       }, 50); // Check every 50ms for faster response
@@ -316,7 +317,7 @@ async function startAssetPreloading(): Promise<void> {
       // Safety timeout (fallback if launch screen never completes)
       setTimeout(() => {
         clearInterval(checkInterval);
-        logger.warn('⚠️ Launch screen timeout - forcing resolve');
+        logger.debug('Launch screen timeout - forcing resolve', 'main');
         resolve();
       }, 15000);
     });
@@ -682,8 +683,7 @@ async function startNewRun(boardId: number): Promise<void> {
   delete (window as any).__ccCameFromDetailModal;
   delete (window as any).__ccDetailModalBoardId;
   delete (window as any).__ccDetailModalAlreadyOpened;
-  console.log(`🧹 Cleared stale detail modal flags before starting board ${boardId}`);
-  logger.info(`🧹 Cleared stale detail modal flags before starting board ${boardId}`);
+  logger.debug('Cleared stale detail modal flags before starting board', 'main', { boardId });
   
   // Import journey progression state
   const { journeyProgressionState } = await import('./modules/journey-progression-state.js');

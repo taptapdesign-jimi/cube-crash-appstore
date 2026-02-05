@@ -6,7 +6,7 @@
 
 import { gsap } from 'gsap';
 import animationManager from './animation-manager.js';
-import { createConfettiExplosion } from './confetti-system.js';
+import { allowConfettiSpawns, createConfettiExplosion } from './confetti-system.js';
 import { statsService } from '../services/stats-service.js';
 import { boardStatsService } from '../services/board-stats-service.js';
 import { pickRandom } from './clean-board-utils.js';
@@ -720,11 +720,6 @@ export async function showCleanBoardModal({
 
     // Score bookkeeping (already calculated above for high score check)
 
-    const formatScore = (value: number): string => {
-      const safe = Math.max(0, Math.floor(Number.isFinite(value) ? value : 0));
-      return safe.toString();
-    };
-
     // 🔥 ANIMATION: Start with 0, will animate to currentScore
     mainScore.textContent = '0';
     comboValue.textContent = `+${formatScoreSimple(safeComboBonus)}`;
@@ -820,11 +815,9 @@ export async function showCleanBoardModal({
             const rounded = Math.round(scoreProxy.value);
             const formatted = formatScoreSimple(rounded);
             mainScore.textContent = formatted;
-            console.log('🔄 Score update:', rounded, '->', formatted);
           },
           onComplete: () => {
             mainScore.textContent = formatScoreSimple(targetScore);
-            console.log('✅ Score animation complete:', targetScore);
           }
         });
         activeGSAPTweens.push(scoreTween);
@@ -893,6 +886,7 @@ export async function showCleanBoardModal({
       {
         // SEQUENCE 1: Initial elements pop-in WITH CONFETTI EXPLOSION
         // Start confetti 400ms earlier (immediately, no delay)
+        allowConfettiSpawns();
         createConfettiExplosion(hero);
         
         setTimeout(() => {
@@ -1265,9 +1259,11 @@ export async function showCleanBoardModal({
 
       // 🔥 CRITICAL: Hide board app/stage IMMEDIATELY to prevent old board flash
       // 🚀 PERFORMANCE: Use display:none to completely remove from render flow (not just opacity)
-      if (app?.view?.style) {
-        app.view.style.display = 'none'; // Browser won't render ANY tiles - huge performance boost!
-        app.view.style.opacity = '0';
+      // Pixi v8: use app.canvas; fallback to app.view for older versions
+      const appCanvas = (app as { canvas?: HTMLCanvasElement; view?: HTMLCanvasElement })?.canvas ?? app?.view;
+      if (appCanvas?.style) {
+        appCanvas.style.display = 'none'; // Browser won't render ANY tiles - huge performance boost!
+        appCanvas.style.opacity = '0';
       }
       if (stage) {
         stage.alpha = 0;
@@ -1597,10 +1593,10 @@ export async function showCleanBoardModal({
           console.log('✅ clean-board-modal: Board exit animation completed, hiding board...');
           
           // 🔥 NOW hide board app/stage AFTER exit animation completes
-          // This ensures exit animation was visible before hiding
-          if (app?.view?.style) {
-            app.view.style.display = 'none';
-            app.view.style.opacity = '0';
+          const canvas = (app as { canvas?: HTMLCanvasElement; view?: HTMLCanvasElement })?.canvas ?? app?.view;
+          if (canvas?.style) {
+            canvas.style.display = 'none';
+            canvas.style.opacity = '0';
           }
           if (stage) {
             stage.alpha = 0;
@@ -1611,10 +1607,10 @@ export async function showCleanBoardModal({
           killAllGSAPTweens();
         }).catch((error) => {
           console.error('❌ clean-board-modal: Board exit animation failed:', error);
-          // Still hide board even if animation failed
-          if (app?.view?.style) {
-            app.view.style.display = 'none';
-            app.view.style.opacity = '0';
+          const canvas2 = (app as { canvas?: HTMLCanvasElement; view?: HTMLCanvasElement })?.canvas ?? app?.view;
+          if (canvas2?.style) {
+            canvas2.style.display = 'none';
+            canvas2.style.opacity = '0';
           }
           if (stage) {
             stage.alpha = 0;

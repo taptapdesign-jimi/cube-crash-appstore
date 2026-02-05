@@ -38,6 +38,7 @@ class SliderManager {
   private isInitialized: boolean = false;
   private slideAnimation: gsap.core.Tween | null = null;
   private quickSetX: ((value: number) => void) | null = null;
+  private lastReinitAt: number = 0;
   private elements: SliderElements = {
     container: null,
     wrapper: null,
@@ -87,7 +88,7 @@ class SliderManager {
   init(): void {
     // 🔥 MEMORY LEAK FIX: Clean up before reinitializing (prevents duplicate event listeners)
     if (this.isInitialized) {
-      logger.warn('⚠️ Slider Manager already initialized - cleaning up before reinitializing');
+      logger.debug('Slider Manager already initialized - cleaning up before reinitializing');
       this.destroy();
     }
     
@@ -125,7 +126,7 @@ class SliderManager {
       logger.info('✅ Slider Manager initialized');
       
       // 🔥 DEBUG: Log complete state after initialization
-      console.log('📊 SLIDER INIT COMPLETE:', {
+      logger.debug('SLIDER INIT COMPLETE', undefined, {
         isInitialized: this.isInitialized,
         sliderLocked: gameState.get('sliderLocked'),
         isAnimatingEnter: sliderState.isAnimatingEnter,
@@ -291,7 +292,7 @@ class SliderManager {
       const isInteractive = isInteractiveElement(e.target);
       
       // Debug log for all touches to see what's happening
-      console.log('👆 Touch start:', {
+      logger.debug('Touch start', undefined, {
         isInteractive,
         tagName: targetEl?.tagName,
         className: (typeof targetEl?.className === 'string' ? targetEl?.className : (targetEl?.className as any)?.baseVal || '').slice(0, 60),
@@ -301,7 +302,7 @@ class SliderManager {
       });
       
       if (isInteractive) {
-        console.log('🔒 Touch on interactive element - NOT tracking swipe');
+        logger.debug('Touch on interactive element - not tracking swipe');
         this.globalSwipeState.isTracking = false;
         return;
       }
@@ -328,7 +329,7 @@ class SliderManager {
       // That breaks button clicks. Instead, just directly control the slider.
       if (deltaX > 10 && deltaX > deltaY * 1.5 && !this.globalSwipeState.isHorizontalSwipe) {
         this.globalSwipeState.isHorizontalSwipe = true;
-        console.log('↔️ Horizontal swipe detected - directly starting slider drag');
+        logger.debug('Horizontal swipe detected - starting slider drag');
         
         // 🔥 FIX: Directly set slider's internal drag state with ORIGINAL start position
         // This bypasses the synthetic event issue where positions were the same
@@ -343,7 +344,7 @@ class SliderManager {
         
         // Immediately update slider position with correct deltaX
         const swipeDeltaX = this.currentX - this.startX;
-        console.log('↔️ Initial swipe deltaX:', swipeDeltaX);
+        logger.debug('Initial swipe deltaX', undefined, { swipeDeltaX });
         this.updateSliderPosition(swipeDeltaX);
       }
       
@@ -366,7 +367,7 @@ class SliderManager {
           this.elements.container.classList.remove('dragging');
         }
         
-        console.log('↔️ Swipe ended with deltaX:', deltaX, 'threshold:', this.threshold);
+        logger.debug('Swipe ended', undefined, { deltaX, threshold: this.threshold });
         
         // Determine if slide should change (same logic as handleTouchEnd)
         if (Math.abs(deltaX) > this.threshold) {
@@ -422,10 +423,10 @@ class SliderManager {
     // 🔥 DEBUG: Log every touch start to verify events are being received
     const isLocked = gameState.get('sliderLocked');
     const isAnimating = sliderState.isAnimatingEnter || sliderState.isAnimatingExit;
-    console.log('👆 TOUCH START:', { isLocked, isAnimating, isDragging: this.isDragging });
+    logger.debug('TOUCH START', undefined, { isLocked, isAnimating, isDragging: this.isDragging });
     
     if (isLocked) {
-      console.log('🔒 TOUCH BLOCKED: sliderLocked is true');
+      logger.debug('TOUCH BLOCKED', undefined, { isLocked });
       return;
     }
     
@@ -484,10 +485,10 @@ class SliderManager {
     // 🔥 DEBUG: Log every mouse down to verify events are being received
     const isLocked = gameState.get('sliderLocked');
     const isAnimating = sliderState.isAnimatingEnter || sliderState.isAnimatingExit;
-    console.log('🖱️ MOUSE DOWN:', { isLocked, isAnimating, isDragging: this.isDragging });
+    logger.debug('MOUSE DOWN', undefined, { isLocked, isAnimating, isDragging: this.isDragging });
     
     if (isLocked) {
-      console.log('🔒 MOUSE BLOCKED: sliderLocked is true');
+      logger.debug('MOUSE BLOCKED', undefined, { isLocked });
       return;
     }
     
@@ -577,17 +578,17 @@ class SliderManager {
     // 🔥 DEBUG: Log every goToSlide call
     const isLocked = gameState.get('sliderLocked');
     const isAnimating = sliderState.isAnimatingEnter;
-    console.log('🎯 GO TO SLIDE:', { slideIndex, isLocked, isAnimating, currentSlide: this.currentSlide });
+    logger.debug('GO TO SLIDE', undefined, { slideIndex, isLocked, isAnimating, currentSlide: this.currentSlide });
     
     if (isLocked) {
-      console.log('🔒 SLIDE BLOCKED: sliderLocked is true');
+      logger.debug('SLIDE BLOCKED', undefined, { slideIndex });
       return;
     }
     
     // 🔥 CRITICAL FIX: Ensure isDragging is false before slide change
     // This prevents drag state from blocking nav button animations
     if (this.isDragging) {
-      logger.warn('⚠️ isDragging was true during goToSlide - resetting to false');
+      logger.debug('isDragging was true during goToSlide - resetting to false');
       this.isDragging = false;
     }
     
@@ -672,7 +673,7 @@ class SliderManager {
     const slideWidth = this.elements.container.offsetWidth; // This should be viewport width
     const offset = -this.currentSlide * slideWidth;
     
-    logger.info(`🎯 updateSlider: currentSlide=${this.currentSlide}, slideWidth=${slideWidth}, offset=${offset}, forceAnimate=${forceAnimate}`);
+    logger.debug(`updateSlider`, undefined, { currentSlide: this.currentSlide, slideWidth, offset, forceAnimate });
     
     // Kill previous animation if exists
     if (this.slideAnimation) {
@@ -852,7 +853,7 @@ class SliderManager {
         slide.classList.toggle('active', index === this.currentSlide);
       });
     } else {
-      logger.warn('⚠️ this.elements.slides is null or empty in updateSlider');
+      logger.debug('updateSlider: slides missing or empty');
     }
   }
   
@@ -904,16 +905,16 @@ class SliderManager {
     // Navigation uses .independent-nav-button elements
     
     if (!this.isInitialized || slidesInvalid) {
-      logger.warn('⚠️ Slider not properly initialized in setSlideInstant - calling ensureReady()');
+      logger.debug('setSlideInstant: slider not initialized - calling ensureReady');
       this.ensureReady();
       
       // Re-check after ensureReady
       if (!this.elements.slides || this.elements.slides.length === 0) {
-        logger.warn('⚠️ Slider elements still not valid after ensureReady - continuing with graceful degradation');
+        logger.debug('setSlideInstant: elements still not valid after ensureReady');
       }
     }
     
-    logger.info(`🎯 setSlideInstant: Setting slide to ${slideIndex} (atomic update)`);
+    logger.debug('setSlideInstant: Setting slide', undefined, { slideIndex });
     
     // 1. Update internal state
     this.currentSlide = slideIndex;
@@ -946,7 +947,7 @@ class SliderManager {
         }
       });
     } else {
-      logger.warn('⚠️ this.elements.slides is null or empty - cannot update slide classes');
+      logger.debug('setSlideInstant: slides missing or empty - cannot update slide classes');
     }
     
     // 5. Update navigation buttons
@@ -990,8 +991,14 @@ class SliderManager {
     
     // 1. Reinitialize if not initialized OR if elements are invalid OR if nav handlers are missing
     if (!this.isInitialized || slidesInvalid || containerInvalid || wrapperInvalid || navButtonsNeedHandlers) {
-      logger.warn('⚠️ Slider not properly initialized or elements/handlers invalid - reinitializing now');
-      logger.debug(`🔍 Debug: isInitialized=${this.isInitialized}, slidesInvalid=${slidesInvalid}, containerInvalid=${containerInvalid}, wrapperInvalid=${wrapperInvalid}, navButtonsNeedHandlers=${navButtonsNeedHandlers}`);
+      const now = Date.now();
+      if (now - this.lastReinitAt < 2000) {
+        logger.debug('ensureReady: reinit throttled', undefined, { isInitialized: this.isInitialized, slidesInvalid, containerInvalid, wrapperInvalid, navButtonsNeedHandlers });
+        this.ensureInteractive();
+        return;
+      }
+      this.lastReinitAt = now;
+      logger.debug('ensureReady: reinitializing slider', undefined, { isInitialized: this.isInitialized, slidesInvalid, containerInvalid, wrapperInvalid, navButtonsNeedHandlers });
       
       // 🔥 CRITICAL: Force destroy first to clean up stale state, then reinitialize
       if (this.isInitialized) {
@@ -1021,7 +1028,7 @@ class SliderManager {
       logger.debug('✅ GSAP quickSetter recreated');
     }
     
-    logger.info('✅ ensureReady: Slider ready for interaction');
+    logger.debug('ensureReady: Slider ready for interaction');
   }
   
   /**
@@ -1042,7 +1049,7 @@ class SliderManager {
       container.style.zIndex = '';
       // 🔥 Also remove any transform that might hide it
       container.style.transform = '';
-      console.log('✅ [ensureInteractive] Slider container reset:', {
+      logger.debug('ensureInteractive: container reset', undefined, {
         pointerEvents: container.style.pointerEvents,
         display: container.style.display,
         visibility: container.style.visibility,
@@ -1055,7 +1062,7 @@ class SliderManager {
     // 🔥 Ensure wrapper is interactive for drag
     if (wrapper) {
       wrapper.style.pointerEvents = 'auto';
-      console.log('✅ [ensureInteractive] Slider wrapper pointerEvents set to auto');
+      logger.debug('ensureInteractive: wrapper pointerEvents set to auto');
     }
     
     // 🔥 FIX: Ensure independent navigation is also interactive
@@ -1092,8 +1099,7 @@ class SliderManager {
    * the slider is interactive.
    */
   forceReady(): void {
-    console.log('🔥🔥🔥 FORCE READY: Nuclear slider reset initiated 🔥🔥🔥');
-    logger.info('🔥 FORCE READY: Nuclear slider reset initiated');
+    logger.debug('FORCE READY: Nuclear slider reset initiated');
     
     // 0. FIRST: Reset LOCAL animation flags in animations.ts SYNCHRONOUSLY
     // This is CRITICAL - animations.ts has its own local flags that aren't synced with sliderState
@@ -1162,7 +1168,7 @@ class SliderManager {
     // 10. If not initialized or handlers missing, reinitialize
     const navButtonsNeedHandlers = !this.boundHandlers.navButtonClick || this.boundHandlers.navButtonClick.size === 0;
     if (!this.isInitialized || navButtonsNeedHandlers) {
-      logger.warn('⚠️ Slider needs reinitialization - doing it now');
+      logger.debug('Slider needs reinitialization - doing it now');
       this.destroy();
       this.init();
     }

@@ -1,6 +1,8 @@
 // Centralized Stats Service
 // Manages all game statistics in one place
 
+import { logger } from '../core/logger.js';
+
 interface GameStats {
   highScore: number;
   highestBoard: number;
@@ -36,25 +38,18 @@ class StatsService {
   private loadStats(): void {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      console.log('🔍 CRITICAL: loadStats called, stored data:', stored);
-      
+      logger.debug('loadStats called', undefined, { stored });
       if (stored) {
         const parsed = JSON.parse(stored);
-        console.log('📊 Parsed stats from localStorage:', parsed);
+        logger.debug('Parsed stats from localStorage', undefined, parsed);
         this.stats = { ...this.stats, ...parsed };
-        console.log('📊 Stats loaded from new storage, highScore:', this.stats.highScore);
       } else {
-        // MIGRATION: Load old separate keys and migrate to new format
-        console.log('🔄 Migrating old stats to new format...');
         const oldStats = this.loadOldStats();
         if (oldStats && Object.keys(oldStats).length > 0) {
           this.stats = { ...this.stats, ...oldStats };
-          console.log('📊 Migrated old stats to memory:', this.stats);
-          this.saveStats(); // Save in new format
-          this.cleanupOldStats(); // Remove old keys ONLY after successful save
-          console.log('✅ Migration complete');
-        } else {
-          console.log('📊 No old stats found, starting fresh');
+          this.saveStats();
+          this.cleanupOldStats();
+          logger.debug('Migrated old stats to new format');
         }
       }
     } catch (error) {
@@ -64,7 +59,7 @@ class StatsService {
         const oldStats = this.loadOldStats();
         if (oldStats && Object.keys(oldStats).length > 0) {
           this.stats = { ...this.stats, ...oldStats };
-          console.log('📊 Fallback: Loaded old stats:', this.stats);
+          logger.debug('Fallback: Loaded old stats');
         }
       } catch (fallbackError) {
         console.error('❌ Fallback load also failed:', fallbackError);
@@ -113,7 +108,7 @@ class StatsService {
         'cc_collectibles_unlocked'
       ];
       oldKeys.forEach(key => localStorage.removeItem(key));
-      console.log('🧹 Cleaned up old localStorage keys');
+      logger.debug('Cleaned up old localStorage keys');
     } catch (error) {
       console.error('❌ Failed to cleanup old stats:', error);
     }
@@ -123,34 +118,23 @@ class StatsService {
   private saveStats(): void {
     try {
       const statsString = JSON.stringify(this.stats);
-      console.log('🔍 CRITICAL: saveStats called with highScore:', this.stats.highScore);
-      
-      // Try to save first and catch quota errors
+      logger.debug('saveStats called', undefined, { highScore: this.stats.highScore });
       try {
         localStorage.setItem(STORAGE_KEY, statsString);
-        console.log('💾 Stats saved:', this.stats);
-        
-        // CRITICAL VERIFICATION: Read back immediately to verify it was saved
         const verify = localStorage.getItem(STORAGE_KEY);
         if (verify) {
           const verifyParsed = JSON.parse(verify);
-          console.log('✅ VERIFICATION: High score in localStorage:', verifyParsed.highScore);
           if (verifyParsed.highScore !== this.stats.highScore) {
-            console.error('❌ CRITICAL ERROR: High score mismatch!', {
+            console.error('❌ High score mismatch after save', {
               expected: this.stats.highScore,
               actual: verifyParsed.highScore
             });
-            // Force save again
             localStorage.setItem(STORAGE_KEY, statsString);
-            console.log('🔄 Forced re-save due to mismatch');
           }
         }
       } catch (quotaError) {
-        // iOS sometimes throws quota errors
         console.warn('⚠️ localStorage quota error:', quotaError);
-        
         try {
-          // Try to save a minimal version with only critical stats
           const minimalStats = {
             highScore: this.stats.highScore,
             highestBoard: this.stats.highestBoard,
@@ -161,7 +145,7 @@ class StatsService {
             collectiblesUnlocked: this.stats.collectiblesUnlocked,
           };
           localStorage.setItem(STORAGE_KEY, JSON.stringify(minimalStats));
-          console.log('💾 Saved minimal stats after quota error');
+          logger.debug('Saved minimal stats after quota error');
         } catch (minimalError) {
           console.error('❌ Failed to save even minimal stats:', minimalError);
         }
@@ -196,9 +180,9 @@ class StatsService {
 
   // Update high score (only if higher)
   public updateHighScore(score: number): void {
-    console.log(`🔍 updateHighScore called with score: ${score}, current high score: ${this.stats.highScore}`);
+    logger.debug('updateHighScore', undefined, { score, current: this.stats.highScore });
     if (score > this.stats.highScore) {
-      console.log(`🏆 New high score! ${this.stats.highScore} -> ${score}`);
+      logger.debug('New high score', undefined, { from: this.stats.highScore, to: score });
       this.lastHighScoreUpdateScore = score;
       this.lastHighScoreUpdateAt = Date.now();
       this.stats.highScore = score;
@@ -216,8 +200,6 @@ class StatsService {
       } catch (error) {
         console.error('❌ Failed to verify high score save:', error);
       }
-    } else {
-      console.log(`ℹ️ Score ${score} is not higher than current high score ${this.stats.highScore}`);
     }
   }
 
@@ -232,35 +214,28 @@ class StatsService {
 
   // Update highest board reached
   public updateHighestBoard(board: number): void {
-    console.log(`🔍 updateHighestBoard called with board: ${board}, current highest board: ${this.stats.highestBoard}`);
+    logger.debug('updateHighestBoard', undefined, { board, current: this.stats.highestBoard });
     if (board > this.stats.highestBoard) {
-      console.log(`📊 New highest board! ${this.stats.highestBoard} -> ${board}`);
       this.stats.highestBoard = board;
       this.saveStats();
-    } else {
-      console.log(`ℹ️ Board ${board} is not higher than current highest board ${this.stats.highestBoard}`);
     }
   }
 
   // Reset highest board (for dev button "hide cards")
   public resetHighestBoard(): void {
-    console.log('🔄 resetHighestBoard called - resetting highest board to 0');
     this.stats.highestBoard = 0;
     this.saveStats();
-    console.log('✅ Highest board reset to 0');
   }
 
   // Increment cubes cracked
   public incrementCubesCracked(count: number = 1): void {
     this.stats.cubesCracked += count;
-    console.log(`🎲 Cubes cracked: ${this.stats.cubesCracked}`);
     this.saveStats();
   }
 
   // Update longest combo
   public updateLongestCombo(combo: number): void {
     if (combo > this.stats.longestCombo) {
-      console.log(`⚡ New longest combo! ${this.stats.longestCombo} -> ${combo}`);
       this.stats.longestCombo = combo;
       this.saveStats();
     }
@@ -269,22 +244,18 @@ class StatsService {
   // Increment helpers used
   public incrementHelpersUsed(count: number = 1): void {
     this.stats.helpersUsed += count;
-    console.log(`⭐ Helpers used: ${this.stats.helpersUsed}`);
     this.saveStats();
   }
 
   // Add time played (in seconds)
   public addTimePlayed(seconds: number): void {
     this.stats.timePlayed += seconds;
-    console.log(`⏱️ Total time played: ${this.formatTime(this.stats.timePlayed)}`);
     this.saveStats();
   }
 
   // Update collectibles unlocked
   public updateCollectiblesUnlocked(count: number): void {
-    // Always update to ensure stats are in sync with actual collectibles state
     if (count !== this.stats.collectiblesUnlocked) {
-      console.log(`🎁 Collectibles unlocked updated: ${this.stats.collectiblesUnlocked} -> ${count}`);
       this.stats.collectiblesUnlocked = count;
       this.saveStats();
     }
@@ -307,7 +278,6 @@ class StatsService {
       collectiblesUnlocked: 0,
     };
     this.saveStats();
-    console.log('🔄 All stats reset to 0');
   }
 
   // Format time as HH:MM:SS
@@ -321,7 +291,6 @@ class StatsService {
   // 🔥 FIX: Add destroy method to clear all listeners
   public destroy(): void {
     this.listeners = [];
-    console.log('🧹 StatsService destroyed - all listeners cleared');
   }
 }
 

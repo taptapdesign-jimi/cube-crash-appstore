@@ -112,7 +112,8 @@ export function __dg_makeLinearGradientTexture(
   const texture = Texture.from(canvas);
   try {
     texture.label = `runtime:drag-utils-gradient:${w}x${h}`;
-    if (texture.baseTexture) texture.baseTexture.label = texture.label;
+    const src = (texture as { source?: { label?: string }; baseTexture?: { label?: string } }).source ?? texture.baseTexture;
+    if (src) src.label = texture.label;
   } catch {}
   try {
     const rt = (window as any).__ccRuntimeTextures || ((window as any).__ccRuntimeTextures = new Set());
@@ -159,6 +160,7 @@ export function createHoverEffect(tile: Tile, config: any): Graphics | null {
   if (!tile.rotG) return null;
   
   const hover = new Graphics();
+  (hover as { label?: string }).label = 'hover';
   hover.stroke({ 
     width: config.hoverWidth || 4, 
     color: config.hoverColor || 0xFFE9D9, 
@@ -175,7 +177,7 @@ export function createHoverEffect(tile: Tile, config: any): Graphics | null {
 export function removeHoverEffect(tile: Tile): void {
   if (!tile.rotG) return;
   
-  const hover = tile.rotG.getChildByName('hover');
+  const hover = (tile.rotG as { getChildByLabel?: (n: string) => unknown }).getChildByLabel?.('hover') ?? tile.rotG.getChildByName?.('hover');
   if (hover) {
     tile.rotG.removeChild(hover);
   }
