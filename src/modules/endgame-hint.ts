@@ -3,20 +3,20 @@ import { logger } from '../core/logger.js';
 import { gsap } from 'gsap';
 
 const HINT_MESSAGES = ['STACK IT!'];
-const IDLE_DELAY_MS = 5000;
+const IDLE_DELAY_MS = 3000;
 const ROTATE_MS = 3000;
 const STYLE_ID = 'endgame-hint-style';
 const ENTER_BOUNCE_SCALE = 1.2;
 const ENTER_DURATION = 0.24;
 const SETTLE_DURATION = 0.1;
 const FINAL_SETTLE_DURATION = 0.1;
-const EXIT_BOUNCE_DURATION = 0.13;
-const EXIT_FADE_DURATION = 0.17;
+const EXIT_BOUNCE_DURATION = 0.026; // 80% faster (was 0.13)
+const EXIT_FADE_DURATION = 0.034;   // 80% faster (was 0.17)
 const BOOM_ENTER_DELAY = 0.3;
 const BOOM_ENTER_STAGGER = 0.05;
-const BOOM_EXIT_STAGGER = 0.06;
+const BOOM_EXIT_STAGGER = 0.012; // 80% faster (was 0.06)
 const BOOM_ENTER_EXTRA = 0.1;
-const BOOM_EXIT_EXTRA = 0.3;
+const BOOM_EXIT_EXTRA = 0.06; // 80% faster (was 0.3)
 
 let shouldShow = false;
 let hintVisible = false;
@@ -319,6 +319,17 @@ export function notifyEndgameHintInteraction(): void {
   if (shouldShow) {
     scheduleShow();
   }
+}
+
+/** On drag start: hide and re-arm idle hint (no immediate show). */
+export function showEndgameHintOnDragStart(): void {
+  if (!shouldShow) return;
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = null;
+  if (hintVisible) {
+    hideHint();
+  }
+  scheduleShow();
 }
 
 export function resetEndgameHint(): void {

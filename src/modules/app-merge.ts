@@ -756,8 +756,6 @@ async function mergePulledTilesIntoMerge6(dst: any, tiles: any[], helpers: any):
         dst.targetY = shardY;
       }
       
-      // 🔥 CRITICAL: Use template-based pooling for magnet pull shards (optimized, pull-specific patterns)
-      // This uses object pooling with pull-specific patterns for better variety and no overlap
       const mergePos = { x: shardX, y: shardY, gridX: dst.gridX, gridY: dst.gridY, zIndex: dst.zIndex || 9993 };
       wildMagnetMerge6ShardsTemplated(STATE.board, mergePos as any, { 
         zIndex: dst.zIndex || 9993,

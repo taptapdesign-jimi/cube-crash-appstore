@@ -7,7 +7,7 @@ import { logger } from '../core/logger.js';
 import { domElementPool } from './dom-element-pool.js';
 
 const BASE = './assets/shop/explosion pack/animation/';
-export const TNT_ANIM_FRAMES: string[] = [
+const TNT_ANIM_FRAMES_1X: string[] = [
   `${BASE}tnt1.png`,
   `${BASE}tnt2.png`,
   `${BASE}tnt3.png`,
@@ -21,6 +21,49 @@ export const TNT_ANIM_FRAMES: string[] = [
   `${BASE}tnt11.png`,
   `${BASE}tnt12.png`,
 ];
+const TNT_ANIM_FRAMES_2X: string[] = [
+  `${BASE}tnt1@2x.png`,
+  `${BASE}tnt2@2x.png`,
+  `${BASE}tnt3@2x.png`,
+  `${BASE}tnt4@2x.png`,
+  `${BASE}tnt5@2x.png`,
+  `${BASE}tnt6@2x.png`,
+  `${BASE}tnt7@2x.png`,
+  `${BASE}tnt8@2x.png`,
+  `${BASE}tnt9@2x.png`,
+  `${BASE}tnt10@2x.png`,
+  `${BASE}tnt11@2x.png`,
+  `${BASE}tnt12@2x.png`,
+];
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+export const TNT_ANIM_FRAMES: string[] = isMobile ? TNT_ANIM_FRAMES_2X : TNT_ANIM_FRAMES_1X;
+
+const tntFrameCache = new Map<string, HTMLImageElement>();
+let preloadPromise: Promise<void> | null = null;
+
+export function preloadTntFrames(): Promise<void> {
+  if (preloadPromise) return preloadPromise;
+  const uniqueFrames = Array.from(new Set([...TNT_ANIM_FRAMES, ...TNT_ANIM_FRAMES_1X]));
+  preloadPromise = Promise.all(
+    uniqueFrames.map(
+      (src) =>
+        new Promise<void>((resolve) => {
+          if (tntFrameCache.has(src)) {
+            resolve();
+            return;
+          }
+          const img = new Image();
+          const done = () => resolve();
+          img.onload = done;
+          img.onerror = done;
+          img.src = src;
+          tntFrameCache.set(src, img);
+          if (img.complete) resolve();
+        })
+    )
+  ).then(() => {});
+  return preloadPromise;
+}
 
 let isActive = false;
 let overlay: HTMLElement | null = null;
@@ -35,6 +78,9 @@ let boomExitListeners: Array<() => void> = [];
 let tntCompleteListeners: Array<() => void> = [];
 let didComplete = false;
 let cleanupInProgress = false;
+let lastTntStartMs = 0;
+const TNT_DEBOUNCE_MS = 200;
+const TNT_STUCK_RESET_MS = 1500;
 
 const trackTimeline = (opts?: gsap.TimelineVars) => animationManager.trackExternalTimeline(gsap.timeline(opts));
 const trackDelayedCall = (...args: Parameters<typeof gsap.delayedCall>) =>
@@ -159,9 +205,15 @@ export function showTntAnimation(options: {
   onComplete?: () => void;
   onBoomExitStart?: () => void;
 } = {}): HTMLElement | null {
-  if (isActive) {
-    try { cleanup(); } catch {}
+  const now = Date.now();
+  // Safety: if previous animation got stuck, force cleanup after a grace window
+  if (isActive && now - lastTntStartMs > TNT_STUCK_RESET_MS) {
+    cleanup();
   }
+  if (isActive || now - lastTntStartMs < TNT_DEBOUNCE_MS) {
+    return null;
+  }
+  lastTntStartMs = now;
 
   isActive = true;
   try {
@@ -210,7 +262,13 @@ export function showTntAnimation(options: {
     ].join(';');
     const frameEl = domElementPool.acquire('img') as HTMLImageElement;
     activeFrameImages.push(frameEl);
+    const fallbackSrc = TNT_ANIM_FRAMES_1X[i];
     frameEl.src = TNT_ANIM_FRAMES[i];
+    frameEl.onerror = () => {
+      if (frameEl.src !== fallbackSrc) {
+        frameEl.src = fallbackSrc;
+      }
+    };
     frameEl.alt = '';
     frameEl.style.cssText = [
       'display: block',

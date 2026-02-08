@@ -810,7 +810,9 @@ export const woodenParams = {
     // Physics
     tileSize: 96,              // Base tile size
     baseTile: 96,
-    spread: 5.6,               // 🔥 FIX: Distance multiplier (matches non-templated distanceMultiplier)
+    spread: 2.5,               // 50% tighter spread for regular merge 6
+    shape: 'box',              // Bias shards into a more cube-like spread
+    boxPower: 0.75,
     radiusBoost: 1.0,
     distanceMultiplier: 1.0
   },

@@ -148,6 +148,35 @@ const readPersistedJourneyBadge = (): number => {
   }
 };
 
+const ensureJourneyBadge = (journeyNavButton: HTMLElement | null): number => {
+  const cachedCount = (window as any).__ccJourneyBadgeCount || 0;
+  const persistedCount = readPersistedJourneyBadge();
+  const existingBadge = journeyNavButton?.querySelector('.nav-badge') as HTMLElement | null;
+  const domCount = existingBadge
+    ? parseInt(existingBadge.querySelector('.nav-badge-text')?.textContent || '0', 10)
+    : 0;
+  const effectiveCount = Math.max(cachedCount, persistedCount, domCount);
+  if (effectiveCount > 0) {
+    (window as any).__ccJourneyBadgeCount = effectiveCount;
+    if (journeyNavButton && !existingBadge) {
+      const badge = document.createElement('div');
+      badge.className = 'nav-badge';
+      const badgeText = document.createElement('span');
+      badgeText.className = 'nav-badge-text';
+      badgeText.textContent = effectiveCount.toString();
+      badge.appendChild(badgeText);
+      journeyNavButton.appendChild(badge);
+    }
+    const badgeEl = journeyNavButton?.querySelector('.nav-badge') as HTMLElement | null;
+    if (badgeEl) {
+      badgeEl.style.display = 'flex';
+      badgeEl.style.visibility = 'visible';
+      badgeEl.style.opacity = '1';
+    }
+  }
+  return effectiveCount;
+};
+
 // Cache DOM elements for performance (prevent repeated querySelector calls on first click)
 let cachedElements: {
   homeLogo?: HTMLElement | null;
@@ -200,20 +229,11 @@ export const animateSliderExit = (): void => {
     // 🔥 CRITICAL: Ensure badge is visible and ready BEFORE starting animation
     const journeyNavButton = document.querySelector('.independent-nav-button[data-slide="1"]') as HTMLElement;
     if (journeyNavButton) {
-      const journeyBadge = journeyNavButton.querySelector('.nav-badge') as HTMLElement;
-      if (journeyBadge && journeyBadge.isConnected) {
-        journeyBadge.style.display = 'flex';
-        journeyBadge.style.visibility = 'visible';
-        journeyBadge.style.opacity = '1';
-        const badgeNum = parseInt(journeyBadge.querySelector('.nav-badge-text')?.textContent || '0', 10);
-        if (badgeNum > 0) {
-          const existing = (window as any).__ccJourneyBadgeCount || 0;
-          (window as any).__ccJourneyBadgeCount = Math.max(existing, badgeNum);
-          logger.info('🎯 Badge count cached before exit animation:', (window as any).__ccJourneyBadgeCount);
-        }
-        logger.info('🎯 Badge found and prepared for exit animation');
+      const ensuredCount = ensureJourneyBadge(journeyNavButton);
+      if (ensuredCount > 0) {
+        logger.info(`🎯 Badge ensured before exit animation: ${ensuredCount}`);
       } else {
-        logger.warn('⚠️ Journey badge not found or not connected to DOM');
+        logger.debug('🗺️ No journey badge to preserve (count=0)');
       }
     } else {
       logger.warn('⚠️ Journey navigation button not found');
@@ -414,6 +434,7 @@ function startExitAnimationSequence(): void {
     const journeyNavButton = document.querySelector('.independent-nav-button[data-slide="1"]') as HTMLElement;
     let journeyBadge: HTMLElement | null = null;
     if (journeyNavButton) {
+      ensureJourneyBadge(journeyNavButton);
       journeyBadge = journeyNavButton.querySelector('.nav-badge') as HTMLElement;
       if (journeyBadge && journeyBadge.isConnected) {
         // 🔥 CRITICAL: Ensure badge is visible and protected BEFORE navigation animation starts
@@ -427,7 +448,7 @@ function startExitAnimationSequence(): void {
         journeyBadge.classList.add('animate-exit');
         logger.info('🎯 Badge found and protected - ready for exit animation');
       } else {
-        logger.warn('⚠️ Journey badge not found in navigation button or not connected to DOM');
+        logger.debug('🗺️ Journey badge not present in nav (count=0)');
       }
     } else {
       logger.warn('⚠️ Journey navigation button not found');

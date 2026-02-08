@@ -40,6 +40,10 @@ interface CleanBoardModalOptions {
 }
 
 export async function runEndgameFlow(ctx: EndgameContext): Promise<void> {
+  try {
+    const { resetEndgameHint } = await import('./endgame-hint.js');
+    resetEndgameHint();
+  } catch {}
   // 🔥 USER BUG FIX: Don't run endgame flow if game is hidden (user is on homepage/other screens)
   // This prevents clean board modal from appearing when user navigates away from game
   const appElement = document.getElementById('app') as HTMLElement | null;

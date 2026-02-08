@@ -911,7 +911,6 @@ async function startNewRun(boardId: number): Promise<void> {
           // 🔥 USER REQUEST: Trigger HUD drop animation when resuming from Journey
           (window as any).__ccTriggerHudDrop = true;
           
-          // 🔥 CRITICAL FIX: Boot game FIRST, then show app element (canvas must exist before showApp)
           await bootGame();
           
           // Show app element AFTER boot (so canvas exists)

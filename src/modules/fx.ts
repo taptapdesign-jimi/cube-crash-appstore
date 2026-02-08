@@ -1703,8 +1703,20 @@ export function regularMerge6ShardsTemplated(board, tile, opts = {}) {
     // Calculate travel distance (pattern distance is normalized 0-1)
     const angle = (shardDef.angle * Math.PI) / 180;
     const distance = shardDef.distance * baseTile * (params.spread || 1.0);
-    const targetX = Math.cos(angle) * distance;
-    const targetY = Math.sin(angle) * distance;
+    let targetX = Math.cos(angle) * distance;
+    let targetY = Math.sin(angle) * distance;
+    
+    // Optional: bias movement into a boxier shape (less circular spread)
+    if (params.shape === 'box') {
+      const boxPower = Number.isFinite(params.boxPower as number) ? (params.boxPower as number) : 0.75;
+      const cx = Math.cos(angle);
+      const sy = Math.sin(angle);
+      const bx = Math.sign(cx) * Math.pow(Math.abs(cx), boxPower);
+      const by = Math.sign(sy) * Math.pow(Math.abs(sy), boxPower);
+      const maxAbs = Math.max(Math.abs(bx), Math.abs(by)) || 1;
+      targetX = (bx / maxAbs) * distance;
+      targetY = (by / maxAbs) * distance;
+    }
     
     // Animate shard
     const travelDur = (params.travelDuration || 0.35) * shardDef.speed;
@@ -5025,6 +5037,9 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
   const blendMode      = options.blendMode ?? 'add';
   const bubbleAlpha    = options.baseAlpha ?? 1.0;
   const startScaleHint = options.startScale ?? null;
+  const sizeBoostChance = options.sizeBoostChance ?? 0;
+  const sizeBoostScale = options.sizeBoostScale ?? 1;
+  const instantFadeOut = options.instantFadeOut === true;
   const durationScale  = Math.max(0.2, Math.min(2.0, options.durationScale ?? 1));
   const spawnShape     = options.spawnShape ?? 'box';
 
@@ -5077,6 +5092,9 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       }
       
       let r0 = BASE_R + Math.random() * (MAX_R - BASE_R);
+      if (sizeBoostChance > 0 && Math.random() < sizeBoostChance) {
+        r0 *= sizeBoostScale;
+      }
       if (Math.random() < 0.1) r0 *= (1.1 + Math.random()*0.3);
       // Cap max radius to prevent oversized bubbles (especially for merge 6)
       const maxRadius = Math.min(MAX_R * 1.5, size * 0.18); // Cap at 18% of tile size
@@ -5151,7 +5169,7 @@ export function smokeBubblesAtTile(board, tile, tileSize = 96, strength = 1, may
       const tIn   = (0.018 + Math.random()*0.022) * durationScale;
       const tRun  = (0.16  + Math.random()*0.12) * durationScale;
       const tHold = (0.02  + Math.random()*0.03) * durationScale;
-      const tOut  = (0.08  + Math.random()*0.06) * durationScale;
+      const tOut  = instantFadeOut ? 0 : (0.08  + Math.random()*0.06) * durationScale;
 
       const startScale = startScaleHint != null ? startScaleHint : (0.65 + Math.random()*0.25) * Math.max(0.7, sizeScale);
       puff.scale.set(startScale);

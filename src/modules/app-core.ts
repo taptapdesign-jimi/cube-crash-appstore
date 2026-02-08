@@ -15,9 +15,9 @@ import { STATE } from './app-state.ts';
 
 import * as makeBoard from './board.ts';
 import { installDrag } from './install-drag.ts';
-import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations } from './fx.ts';
+import { glassCrackAtTile, woodShardsAtTile, spawnMerge6Shards, regularMerge6Shards, regularMerge6ShardsTemplated, wildMerge6ShardsTemplated, wildStarMerge6ShardsTemplated, wildBeerMerge6ShardsTemplated, wildTntMerge6ShardsTemplated, wildMagnetMerge6ShardsTemplated, innerFlashAtTile, showMultiplierTile, smokeBubblesAtTile, screenShake, wildImpactEffect, startWildIdle, stopWildIdle, startWildShimmer, stopWildShimmer, startWildStars, stopWildStars, startWildBeerBubbles, stopWildBeerBubbles, startMagnetIdleParticles, stopMagnetIdleParticles, startTntIdleParticles, stopTntIdleParticles, startTntIdleShake, stopTntIdleShake, centerInBoard, killAllDelayedCalls, destroyAllGraphicsObjects, cleanupAllFxContainers, waitForBubblesAnimationToComplete, waitForOngoingAnimations, cleanupExistingStarAnimations, forceCleanupAllStarAnimations } from './fx.ts';
 import { showWildBeerBubblesExplosion, stopWildBeerBubblesExplosion, forceStopWildBeerBubblesExplosion, isWildBeerBubblesExplosionActive, isWildBeerBubblesExplosionRecentlyStarted, destroyWildBeerBubblesExplosionCache } from './wild-beer-bubbles-explosion.ts';
-import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete } from './tnt-animation.ts';
+import { showTntAnimation, stopTntAnimation, onTntBoomExitComplete, onTntAnimationComplete, preloadTntFrames } from './tnt-animation.ts';
 import { stopWildBeerBubblesScreen, destroyWildBeerBubblesScreenCache } from './wild-beer-bubbles-screen.ts';
 import * as StarsCollector from './stars-collector.ts';
 // 🔥 REMOVED: showStarsModal import - DEPRECATED, no longer used
@@ -163,6 +163,7 @@ let tntBoomDelayedCalls: Array<gsap.core.Tween> = [];
 let tntBlastWobbleTweens: Array<gsap.core.Tween> = [];
 let magnetBlastDelayedCalls: Array<gsap.core.Tween> = [];
 let magnetBlastReturnTweens: Array<gsap.core.Tween> = [];
+let lastTntBonusChangeAt = 0;
 
 function cleanupTntBoomArtifacts(reason: string = 'unknown'): void {
   try {
@@ -629,6 +630,7 @@ function cleanupFxForBoardReset(reason: string = 'unknown') {
   try { cleanupTntBoomArtifacts(`fx:${reason}`); } catch {}
   try { killAllDelayedCalls?.(); } catch {}
   try { destroyAllGraphicsObjects?.(); } catch {}
+  try { cleanupAllFxContainers?.(); } catch {}
   try { cleanupExistingStarAnimations?.(); } catch {}
   try { stopTntAnimation?.(); } catch {}
   try { stopWildBeerBubblesScreen?.(); } catch {}
@@ -1383,11 +1385,10 @@ export async function boot(){
     app = new Application();
     await app.init({
       resizeTo: window,
-      backgroundAlpha: 0, // Transparent so paper BG shows behind board + HUD
-      antialias: false, // Disable antialiasing for pixel-perfect rendering
-      // Use full device pixel ratio for maximum crispness
+      backgroundAlpha: 0,
+      antialias: false,
       resolution: window.devicePixelRatio || 1,
-      powerPreference: "high-performance" // Optimize for performance
+      powerPreference: "high-performance"
     });
   } else {
     // Ensure renderer is active on reuse
@@ -3869,6 +3870,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             
             if (!canReachMerge6) {
               devLog('🚨🚨🚨 LAST MOVE DETECTED - Regular + regular → stack (not merge 6), only 1 tile remains, CANNOT reach merge 6, triggering fail screen');
+              try { resetEndgameHint(); } catch {}
               devLog('🚨 Details:', {
                 srcValue: src.value,
                 dstValue: dst.value,
@@ -3902,7 +3904,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               
               // If self-merge results in merge 6 (depth 1) → that's a DEAD END (last move)
               if (afterSelfMergeValue === 6 && afterSelfMergeDepth === 1) {
-                devLog('🚨🚨🚨 LAST MOVE DETECTED - Stack can self-merge to merge 6 BUT will result in merge 6 (depth 1) = DEAD END, triggering fail screen');
+                  devLog('🚨🚨🚨 LAST MOVE DETECTED - Stack can self-merge to merge 6 BUT will result in merge 6 (depth 1) = DEAD END, triggering fail screen');
+                  try { resetEndgameHint(); } catch {}
                 devLog('🚨 Details:', {
                   srcValue: src.value,
                   dstValue: dst.value,
@@ -3944,6 +3947,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             
             if (!canReachMerge6) {
               devLog('🚨🚨🚨 LAST MOVE DETECTED - Regular + regular → stack (3+ tiles, all tiles involved), only 1 tile remains, CANNOT reach merge 6, triggering fail screen');
+              try { resetEndgameHint(); } catch {}
               devLog('🚨 Details:', {
                 srcValue: src.value,
                 dstValue: dst.value,
@@ -3979,7 +3983,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
               
               // If self-merge results in merge 6 (depth 1) → that's a DEAD END (last move)
               if (afterSelfMergeValue === 6 && afterSelfMergeDepth === 1) {
-                devLog('🚨🚨🚨 LAST MOVE DETECTED - Stack (3+) can self-merge to merge 6 BUT will result in merge 6 (depth 1) = DEAD END, triggering fail screen');
+                  devLog('🚨🚨🚨 LAST MOVE DETECTED - Stack (3+) can self-merge to merge 6 BUT will result in merge 6 (depth 1) = DEAD END, triggering fail screen');
+                  try { resetEndgameHint(); } catch {}
                 
                 if (!busyEnding) {
                   devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
@@ -4003,6 +4008,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
             const canSelfMergeToSix = !isWild && onlyDepth >= 2 && (onlyValue + onlyValue) <= 6;
             if (!isWild && !canSelfMergeToSix && !busyEnding) {
               devLog('🚨 SAFETY NET: Single regular tile left that cannot reach merge 6 - waiting 0.5s then fail screen');
+              try { resetEndgameHint(); } catch {}
               await waitTracked(500);
               showFinalScreen();
               return;
@@ -4047,7 +4053,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           });
           
           if (stuckCheckResult.type === 'stuck') {
-            devLog('🚨🚨🚨 GAME STUCK after regular merge - triggering fail screen');
+          devLog('🚨🚨🚨 GAME STUCK after regular merge - triggering fail screen');
+          try { resetEndgameHint(); } catch {}
             devLog('🚨 Final state:', {
               activeTilesCount: activeTilesBeforeCheck.length,
               tiles: activeTilesBeforeCheck.map(t => ({ 
@@ -4075,6 +4082,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           devLog('🎯 SKIPPING post-merge stuck check - merge-6 will spawn new tiles, check will happen AFTER spawn completes');
         }
         
+        const isWildTntMergeNow = src?.special === 'wild-tnt' || dst?.special === 'wild-tnt';
         if (wildActive) {
           try {
             screenShake(app, {
@@ -4086,9 +4094,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           } catch {}
 
           glassCrackAtTile(board, dst, TILE * 1.3, 1.6);
-          woodShardsAtTile(board, dst, { enhanced: true, wild: true, count: 26, intensity: 1.6, spread: 1.6, size: 1.4, speed: 0.9, vanishDelay: 0.0, vanishJitter: 0.015 });
+          if (!isWildTntMergeNow) {
+            woodShardsAtTile(board, dst, { enhanced: true, wild: true, count: 26, intensity: 1.6, spread: 1.6, size: 1.4, speed: 0.9, vanishDelay: 0.0, vanishJitter: 0.015 });
+          }
           wildImpactEffect(dst, { squash: 0.24, stretch: 0.20, tilt: 0.14, bounce: 1.18 });
-          smokeBubblesAtTile(board, dst, TILE * 1.2, 2.6, { spawnShape: 'box' });
+          if (!isWildTntMergeNow) {
+            smokeBubblesAtTile(board, dst, TILE * 1.2, 2.6, { spawnShape: 'box' });
+          }
         } else {
           FX.landBounce?.(dst);
           const softSmokeStrength = 0.5 + Math.random() * 0.3;
@@ -4855,8 +4867,6 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
       // Without this reset, subsequent pulls would be blocked!
       if (nearestTiles.length === 0) {
         devWarn('⚠️ WILD-MAGNET: No tiles can be pulled (all nearby tiles are locked or invalid)');
-        devLog('🧲 Wild-magnet merge will proceed with mult=2 (default) and spawn 2 new tiles');
-        devLog('🧲 Active tiles on board after merge:', allTiles.length + 2, '(', nearestTiles.length, 'pulled +', 2, 'merge tiles)');
         
         // 🔥 CRITICAL: Reset wildMagnetPullInProgress if no tiles to pull
         // Otherwise, subsequent magnet merges will be blocked!
@@ -5796,6 +5806,7 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           const alsoShakeTargets: HTMLElement[] = [];
           if (isMainWildTntMerge) {
             try {
+              try { preloadTntFrames(); } catch {}
               const blastReturnHandles: Array<{ tile: Tile; wobble: gsap.core.Tween; origX: number; origY: number; returnDuration: number; returnElastic: number }> = [];
               const tntOverlay = showTntAnimation({
                 onBoomExitStart: () => {
@@ -5813,8 +5824,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                     try { tntBlastWobbleTweens = []; } catch {}
                   });
                   if (returnCall) tntBoomDelayedCalls.push(returnCall);
-                  const bonusCall = trackDelayedCall(0.4 + 0.359 - 0.2, () => {
-                    runTntBoomBonusBreak2Tiles({ board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn });
+                  const bonusCall = trackDelayedCall(0.4 + 0.359 - 0.2 + 0.5, () => {
+                    runTntBoomBonusBreak2Tiles({ board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, skipFx: false });
                   });
                   if (bonusCall) tntBoomDelayedCalls.push(bonusCall);
                 }
@@ -5950,8 +5961,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           try {
             screenShake(app, {
               strength: baseShake,
-              duration: isMainWildTntMerge ? 0.5 : 0.36,
-              steps: isMainWildTntMerge ? 32 : 28,
+              duration: 0.26,
+              steps: 16,
               ease: 'sine.inOut',
               alsoShake: alsoShakeTargets
             });
@@ -6001,11 +6012,8 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
                 zIndex: 9993
               });
             } else if (isWildTntMerge) {
-              // 💥 Wild-TNT merge (Explosion Pack): orange-red shards + bubbles explosion
-              devLog('💥 Wild-TNT merge 6 - using template-based pooling with orange-red shards');
-              wildTntMerge6ShardsTemplated(board, dst, { 
-                zIndex: 9993
-              });
+              // 💥 Wild-TNT merge: skip shards when TNT animation starts
+              devLog('💥 Wild-TNT merge 6 - TNT anim active, skipping shards');
             } else if (isPureWildStarMerge) {
               // ⭐ Wild star merge: yellow shards using template-based pooling (ORIGINAL COLOR)
               devLog('⭐ Wild star merge 6 - using template-based pooling with yellow shards (ORIGINAL COLOR)');
@@ -6088,7 +6096,13 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
           wildImpactEffect(dst, { squash: 0.12, stretch: 0.10, tilt: 0.07, bounce: 1.09 });
           
           // Smoke bubbles (50% of wild: 2.6 * 0.5 = 1.3)
-          smokeBubblesAtTile(board, dst, TILE * 1.0, 1.3, { spawnShape: 'box' });
+          smokeBubblesAtTile(board, dst, TILE * 1.0, 1.3, {
+            spawnShape: 'box',
+            sizeBoostChance: 0.2,
+            sizeBoostScale: 1.3,
+            instantFadeOut: true,
+            distanceScale: 0.6
+          });
         }
 
         
@@ -6096,15 +6110,17 @@ function merge(src: Tile, dst: Tile, helpers: MergeHelpers){
         if (dst && !dst.destroyed) {
         if (wasWild) {
           showMultiplierTile(board, dst, mult, TILE * 1.3, 1.2);
-          // 🔥 Wild-magnet merge: Reduce smoke intensity by 80% (3.0 * 0.2 = 0.6)
-          const smokeStrength = isMainWildMagnetMerge ? 0.6 : 3.0;  // 80% reduction for wild-magnet
-          smokeBubblesAtTile(board, dst, TILE * 1.3, smokeStrength, {
-            sizeScale: 0.8 + Math.random() * 0.25,  // Compact size: 0.8-1.05x
-            countScale: 0.75 + Math.random() * 0.3, // Rich but contained: 0.75-1.05x
-            distanceScale: 0.55,
-            trailAlpha: 0.92,
-            spawnShape: 'box'
-          });
+          if (!isMainWildTntMerge) {
+            // 🔥 Wild-magnet merge: Reduce smoke intensity by 80% (3.0 * 0.2 = 0.6)
+            const smokeStrength = isMainWildMagnetMerge ? 0.6 : 3.0;  // 80% reduction for wild-magnet
+            smokeBubblesAtTile(board, dst, TILE * 1.3, smokeStrength, {
+              sizeScale: 0.8 + Math.random() * 0.25,  // Compact size: 0.8-1.05x
+              countScale: 0.75 + Math.random() * 0.3, // Rich but contained: 0.75-1.05x
+              distanceScale: 0.55,
+              trailAlpha: 0.92,
+              spawnShape: 'box'
+            });
+          }
         } else {
           showMultiplierTile(board, dst, mult, TILE, 1.0);
           }
@@ -7102,6 +7118,7 @@ async function checkMovesDepleted(){
     devLog('🚨🚨🚨 MOVES DEPLETED + GAME STUCK');
     if (!busyEnding) {
       devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
+      try { resetEndgameHint(); } catch {}
       await waitTracked(1500);
       showFinalScreen();
     }
@@ -7447,8 +7464,11 @@ function checkLevelEnd(){
       // Nema potrebe za dodatnom provjerom
       
       if (!busyEnding) {
-        devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...');
-        await waitTracked(1500);
+        const minAfterTntChangeMs = 1000;
+        const sinceTntChange = lastTntBonusChangeAt ? (Date.now() - lastTntBonusChangeAt) : Infinity;
+        const extraWait = sinceTntChange < minAfterTntChangeMs ? (minAfterTntChangeMs - sinceTntChange) : 0;
+        devLog('⏳ Waiting 1.5s so player can see board state (no moves), then fail screen...', { extraWait });
+        await waitTracked(1500 + extraWait);
         showFinalScreen();
       } else {
         devWarn('⚠️ checkLevelEnd: busyEnding is true, skipping showFinalScreen');
@@ -7463,9 +7483,18 @@ function updateEndgameHintState(): void {
   try {
     const hintTiles = getActiveTiles(tiles);
     const hasTwoTiles = hintTiles.length === 2;
-    const allRegular = hasTwoTiles && hintTiles.every(t => !t?.special);
-    const sumValue = allRegular ? ((hintTiles[0]?.value | 0) + (hintTiles[1]?.value | 0)) : 0;
-    const canStack = allRegular && sumValue >= 2 && sumValue <= 6;
+    const hasThreeTiles = hintTiles.length === 3;
+    const allRegular = (hasTwoTiles || hasThreeTiles) && hintTiles.every(t => !t?.special);
+    const values = allRegular ? hintTiles.map(t => (t?.value | 0)) : [];
+    const canStackTwo = allRegular && hasTwoTiles
+      ? (values[0] + values[1] >= 2 && values[0] + values[1] <= 6)
+      : false;
+    const canStackThree = allRegular && hasThreeTiles
+      ? (values[0] + values[1] >= 2 && values[0] + values[1] <= 6) ||
+        (values[0] + values[2] >= 2 && values[0] + values[2] <= 6) ||
+        (values[1] + values[2] >= 2 && values[1] + values[2] <= 6)
+      : false;
+    const canStack = canStackTwo || canStackThree;
     updateEndgameHint(canStack);
   } catch {}
 }
@@ -7493,8 +7522,9 @@ function runTntBoomBonusBreak2Tiles(deps: {
   TILE: number;
   devLog: (...args: any[]) => void;
   devWarn: (...args: any[]) => void;
+  skipFx?: boolean;
 }) {
-  const { board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn } = deps;
+  const { board, dst, addWildProgress, WILD_INC_BIG, removeTile, openAtCell, regularMerge6ShardsTemplated, smokeBubblesAtTile, TILE, devLog, devWarn, skipFx } = deps;
   try {
     if ((dst as any)?._isLastMerge) {
       devLog('🔥 TNT boom bonus: skip (last merge - clean board)');
@@ -7535,13 +7565,21 @@ function runTntBoomBonusBreak2Tiles(deps: {
         if (typeof (window as any).triggerHapticImpact === 'function') {
           (window as any).triggerHapticImpact('heavy');
         }
-        try { regularMerge6ShardsTemplated(board, tile, { zIndex: 9993 }); } catch (e) { devWarn('TNT boom bonus shards:', e); }
-        try { smokeBubblesAtTile(board, tile, TILE * 1.0, 1.3); } catch (e) { devWarn('TNT boom bonus smoke:', e); }
+        // No shards for TNT bonus break; smoke handled on spawn
+        // Shards + smoke should appear during the popout/transition, before new tile spawns
+        if (!skipFx) {
+          try { regularMerge6ShardsTemplated(board, tile, { zIndex: 9993 }); } catch (e) { devWarn('TNT boom bonus shards:', e); }
+          try { smokeBubblesAtTile(board, tile, TILE * 1.0, 1.0, { sizeScale: 1.5, spawnShape: 'box' }); } catch (e) { devWarn('TNT transition smoke:', e); }
+        }
         removeTile(tile);
         const available = pool.filter((v) => !used.includes(v));
         const val = available[(Math.random() * available.length) | 0];
         used.push(val);
-        openAtCell(c, r, { value: val, skipBind: false }).catch(() => {});
+        openAtCell(c, r, { value: val, skipBind: false })
+          .then(() => {
+            lastTntBonusChangeAt = Date.now();
+          })
+          .catch(() => {});
       };
       if (delay <= 0) {
         doBreak();

@@ -1,3 +1,5 @@
+import { preloadTntFrames } from './tnt-animation.ts';
+
 type OpenCellDeps = {
   c: number;
   r: number;
@@ -123,6 +125,9 @@ export function openAtCellCore({
     delete holder._wildMagnetPulledTilesScoring;
 
     if (isWild || isWildMagnet || isWildBeer || isWildTnt){
+      if (isWildTnt) {
+        try { preloadTntFrames(); } catch {}
+      }
       // 🔥 CRITICAL: Set special BEFORE setValue to ensure correct texture is applied
       holder.special = isWildTnt ? 'wild-tnt' : (isWildBeer ? 'wild-beer' : (isWildMagnet ? 'wild-magnet' : 'wild'));
       holder.isWild = true;
