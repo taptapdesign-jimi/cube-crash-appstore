@@ -36,32 +36,38 @@ const TNT_ANIM_FRAMES_2X: string[] = [
   `${BASE}tnt12@2x.png`,
 ];
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-export const TNT_ANIM_FRAMES: string[] = isMobile ? TNT_ANIM_FRAMES_2X : TNT_ANIM_FRAMES_1X;
+const TNT_ANIM_FRAMES_FALLBACK: string[] = TNT_ANIM_FRAMES_1X;
+export const TNT_ANIM_FRAMES: string[] = isMobile ? TNT_ANIM_FRAMES_2X : TNT_ANIM_FRAMES_FALLBACK;
 
-const tntFrameCache = new Map<string, HTMLImageElement>();
 let preloadPromise: Promise<void> | null = null;
 
 export function preloadTntFrames(): Promise<void> {
   if (preloadPromise) return preloadPromise;
-  const uniqueFrames = Array.from(new Set([...TNT_ANIM_FRAMES, ...TNT_ANIM_FRAMES_1X]));
-  preloadPromise = Promise.all(
-    uniqueFrames.map(
-      (src) =>
-        new Promise<void>((resolve) => {
-          if (tntFrameCache.has(src)) {
-            resolve();
-            return;
-          }
-          const img = new Image();
-          const done = () => resolve();
-          img.onload = done;
-          img.onerror = done;
-          img.src = src;
-          tntFrameCache.set(src, img);
-          if (img.complete) resolve();
-        })
-    )
-  ).then(() => {});
+  const uniqueFrames = Array.from(new Set([...TNT_ANIM_FRAMES, ...TNT_ANIM_FRAMES_FALLBACK]));
+  preloadPromise = new Promise<void>((resolve) => {
+    let idx = 0;
+    const img = new Image();
+    const loadNext = () => {
+      if (idx >= uniqueFrames.length) {
+        resolve();
+        return;
+      }
+      const src = uniqueFrames[idx++];
+      let doneCalled = false;
+      const done = () => {
+        if (doneCalled) return;
+        doneCalled = true;
+        img.onload = null;
+        img.onerror = null;
+        loadNext();
+      };
+      img.onload = done;
+      img.onerror = done;
+      img.src = src;
+      if (img.complete) done();
+    };
+    loadNext();
+  });
   return preloadPromise;
 }
 
@@ -262,14 +268,15 @@ export function showTntAnimation(options: {
     ].join(';');
     const frameEl = domElementPool.acquire('img') as HTMLImageElement;
     activeFrameImages.push(frameEl);
-    const fallbackSrc = TNT_ANIM_FRAMES_1X[i];
-    frameEl.src = TNT_ANIM_FRAMES[i];
+    const frameSrc = TNT_ANIM_FRAMES[i] || TNT_ANIM_FRAMES_FALLBACK[i] || TNT_ANIM_FRAMES_FALLBACK[0];
+    const fallbackSrc = TNT_ANIM_FRAMES_FALLBACK[i] || TNT_ANIM_FRAMES_FALLBACK[0];
+    frameEl.src = frameSrc;
     frameEl.onerror = () => {
-      if (frameEl.src !== fallbackSrc) {
-        frameEl.src = fallbackSrc;
-      }
+      if (frameEl.src !== fallbackSrc) frameEl.src = fallbackSrc;
     };
     frameEl.alt = '';
+    frameEl.decoding = 'async';
+    frameEl.loading = i < 2 ? 'eager' : 'lazy';
     frameEl.style.cssText = [
       'display: block',
       'max-width: 95vw',
@@ -393,7 +400,7 @@ export function showTntAnimation(options: {
   frameEls.forEach((frameEl, i) => {
     const randomRotation = (Math.random() - 0.5) * 20;
     const randomSize = 1 + Math.random() * 0.52;
-    const enterDelay = 0.07 + (i * 0.04);
+    const enterDelay = 0.07 + i * 0.04;
     const dEnter = ENTER_DURATION;
     const dSettle = SETTLE_DURATION;
     const settleEndTime = enterDelay + dEnter + dSettle;
@@ -436,8 +443,8 @@ export function showTntAnimation(options: {
         yoyo: true
       });
       spriteBounceTweensRef.push(bounce);
-    }, [], `+=0`);
-    tl.to({}, { duration: holdDuration }, `>0`);
+    }, [], '+=0');
+    tl.to({}, { duration: holdDuration }, '>0');
     tl.call(() => {
       const bounce = spriteBounceTweensRef[i];
       if (bounce) try { bounce.kill(); } catch {}
@@ -459,7 +466,7 @@ export function showTntAnimation(options: {
           });
         }
       });
-    }, [], `>0`);
+    }, [], '>0');
   });
 
   // BOOM enter/exit (isti enter/exit kao board broj)
